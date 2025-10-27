@@ -2,6 +2,10 @@
 
 ## Setup Instructions
 
+Note on CLI and flags
+- The Spec DB CLI flags (for example: `--backend`, `--device`, `--adu-per-photon`, `--nabc`, `--debug-save-artifacts`) are part of the planned PyTorch backend and are not yet available in this repository.
+- For now, use the existing DiffBragg CLI: `python -m dbex.refine_one` with the arguments shown below. See `dbex/refine_one.py:5-26` for the current CLI definition.
+
 ### 1. Configure simtbx Environment
 Set up the environment as described in the [easyBragg guide](https://smb.slac.stanford.edu/~dermen/easybragg/). Verify GPU functionality by running the example script:
 

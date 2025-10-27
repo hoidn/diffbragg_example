@@ -3,6 +3,10 @@
 Overview (Normative)
 - Purpose: Define tracing/instrumentation requirements and parity workflows to diagnose and resolve discrepancies.
 
+Status
+- Tracing and parity requirements apply to the planned `nanobrag_torch` backend. The legacy DiffBragg path has different instrumentation.
+- Use `python -m dbex.refine_one` for the current CLI (see `dbex/refine_one.py:5-26`).
+
 Tracing Requirements (Normative)
 - The simulator SHALL support a per‑pixel trace mode (e.g., `debug_config.trace_pixel = [slow, fast]`) that captures the key intermediate values for that pixel.
 - Trace payload SHALL be produced by the same code paths used in production (no re‑derived physics).
@@ -19,4 +23,3 @@ Commands (Informative)
 
 References (Informative)
 - docs/nanobrag_api.md (debug_config); nanoBragg2/specs/spec-a-parallel.md for parity strategies.
-

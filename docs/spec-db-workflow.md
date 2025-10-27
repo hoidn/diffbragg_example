@@ -3,6 +3,10 @@
 Overview (Normative)
 - Purpose: Specify the end‑to‑end pipeline from data ingestion through masking/calibration to simulation, loss, and staged refinement.
 
+Status
+- This workflow targets the planned `nanobrag_torch` backend. The current repository exposes only the DiffBragg entry point and may not reflect these steps verbatim.
+- For now, run `python -m dbex.refine_one` (see `dbex/refine_one.py:5-26`).
+
 Pipeline (Normative)
 1) Ingest Experiment/Reflections (DIALS/dxtbx)
    - Read `.expt` and `.refl`; filter by `id == exptIdx`.
@@ -32,4 +36,3 @@ Outputs (Normative)
 
 References (Informative)
 - docs/spec-db-core.md; docs/config_crosswalk.md; plans/nanobrag_integration_plan.md.
-

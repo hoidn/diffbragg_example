@@ -3,6 +3,10 @@
 Overview (Normative)
 - Purpose: Define execution guardrails for PyTorch‑backed simulation and refinement, ensuring determinism, performance, and differentiability.
 
+Status
+- Applies to the planned `nanobrag_torch` backend. The legacy DiffBragg path does not use these PyTorch runtime guardrails.
+- Use `python -m dbex.refine_one` for the current CLI (see `dbex/refine_one.py:5-26`).
+
 Runtime Guardrails (Normative)
 - Vectorization: Callers SHALL avoid Python loops over pixels/ROIs when vectorized simulator capabilities exist (per‑panel run or cropped detectors).
 - Device/dtype neutrality: Callers SHALL co‑locate tensors on the target device/dtype before `run()`; SHALL NOT call `.to()` inside tight loops.
@@ -24,4 +28,3 @@ Compile Modes (Informative)
 
 References (Informative)
 - docs/nanobrag_api.md (runtime details).
-

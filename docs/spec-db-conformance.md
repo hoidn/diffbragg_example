@@ -3,6 +3,10 @@
 Overview (Normative)
 - Purpose: Define executable acceptance tests (DB‑AT‑XXX) that collectively certify a build as conformant with Spec DB.
 
+Status
+- These acceptance tests target the forthcoming `nanobrag_torch` backend and are currently placeholders. They are not wired to the existing DiffBragg CLI.
+- Until the torch backend is available, use `python -m dbex.refine_one` (see `dbex/refine_one.py:5-26`) and treat these tests as future work.
+
 Conformance Profiles (Normative)
 - C‑Parity Profile:
   - DB‑AT‑001 Simple cubic parity (image correlation ≥ 0.99 vs golden).
@@ -43,4 +47,3 @@ Notes (Informative)
 
 References (Informative)
 - docs/spec-db-core.md; docs/spec-db-runtime.md; docs/spec-db-workflow.md.
-

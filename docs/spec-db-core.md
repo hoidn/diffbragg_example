@@ -4,6 +4,10 @@ Overview (Normative)
 - Purpose: Define the core physics, geometry, units, and data contracts for DBEX + PyTorch refinement that simulates far‑field Bragg diffraction per panel and refines model parameters against masked, background‑subtracted images.
 - Scope: Stills (phi_steps=1) with a single lattice envelope; square pixels only; P1 reflections (no symmetry/friedel pairing in the simulator). DiffBragg’s Ncells_def is out of scope in v1.
 
+Status
+- This shard applies to the planned `nanobrag_torch` backend. The current CLI and legacy flow use DiffBragg and may differ from the contracts below.
+- Until the torch backend lands, use `python -m dbex.refine_one` (see `dbex/refine_one.py:5-26`).
+
 Units, Frames, and Conventions (Normative)
 - Units:
   - Detector distances/pixel sizes: inputs in mm; internal meters.
@@ -56,4 +60,3 @@ Non‑Goals (Informative)
 
 References (Informative)
 - docs/config_crosswalk.md, docs/dxtbx_api.md, docs/nanobrag_api.md, docs/simtbx_api.md, docs/dials_api.md.
-

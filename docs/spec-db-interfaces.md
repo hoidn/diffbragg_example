@@ -3,6 +3,10 @@
 Overview (Normative)
 - Purpose: Define the CLI/API surface and precedence rules required to satisfy the workflow spec.
 
+Status
+- The CLI flags described here (e.g., `--backend`, `--device`, `--adu-per-photon`, `--nabc`, `--debug-save-artifacts`) apply to the planned `nanobrag_torch` backend. They are not implemented in the current CLI.
+- Until the torch backend lands, use the existing DiffBragg entry point: `python -m dbex.refine_one` (see `dbex/refine_one.py:5-26`).
+
 CLI Flags (Normative)
 - `--backend {diffbragg,nanobrag}`: selects implementation; default MAY be `nanobrag` once stable.
 - `--adu-per-photon <float>`: converts ADU→photons for target; if omitted, ADU target with learnable global scale.
@@ -28,4 +32,3 @@ Error Conditions (Normative)
 
 References (Informative)
 - docs/spec-db-core.md, docs/spec-db-workflow.md, docs/config_crosswalk.md.
-

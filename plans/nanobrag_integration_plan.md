@@ -60,11 +60,13 @@ References: docs/simtbx_api.md (ROI semantics, masks), docs/dxtbx_api.md (detect
 - Simulator: set `DetectorConfig.mask_array = trusted_mask.float()` (1 = include, 0 = exclude). Do not invert.
 - Loss: build `loss_mask = (background >= 0) & trusted_mask` and apply in the masked MSE so simulator and loss share the same inclusion policy.
 - If persisting a DiffBragg‑style “hot/bad” mask for ROI preprocessing, invert at save time only.
+- Optional background recomputation for parity: If a trusted mask is available, you may re‑run `simtbx.diffBragg.utils.get_roi_background_and_selection_flags` using that mask (instead of `data < 0`) to align background estimation with DiffBragg’s masked ROI semantics; otherwise use the existing `DataLoad.background_image`.
 
 ### Units And Scaling
 - Images are ADU; simulator outputs photons. Choose one:
   - Provide `--adu-per-photon` and convert `target_tensor = target_tensor / adu_per_photon`.
   - Otherwise keep ADU and rely on a learnable global scale (initialize by mean(target)/mean(sim_initial) over a few ROIs for stability).
+ - No `no_Nabc_scale` flag: nanobrag_torch’s lattice factor includes N_cells amplitude by construction; rely on the global scale parameter to absorb any differences relative to DiffBragg’s `no_Nabc_scale` behavior.
   
 
 ### Multi-panel Handling (resolved)
@@ -136,8 +138,8 @@ Mirror the staged refinement logic from DiffBragg to maintain convergence charac
 2. **Stage B – Structure factor tweaks (optional):**
    - Enable tricubic interpolation (`crystal.interpolate = True`) to obtain differentiable Fhkl gradients.
    - Optimize a small set of global modifiers (e.g., per-resolution shell scale or `torch.nn.Parameter` multipliers) instead of all individual reflections to reduce dimensionality.
-3. **Stage C – Detector microslip:**
-   - Introduce small rotation/translation parameters per panel (bounded via `tanh`) to mimic the DiffBragg geometry refinement.
+ 3. **Stage C – Detector microslip:**
+   - Introduce small per‑panel translations along the detector normal (`odet_vec`) first to mirror the DiffBragg geometry stage, which fixes rotations and optimizes translation along one axis; optionally extend to small rotations later if needed.
    - Run a short optimization stage with a reduced learning rate.
 
 Each stage runs within a single training loop, swapping optimizer parameter groups and learning rates rather than rebuilding the model.
@@ -181,6 +183,14 @@ References: docs/nanobrag_api.md (golden parity assumptions).
 ### Documentation Deliverables
 - `reports/nanobrag_validation.md` summarizing results.
 - Update project README with backend selection instructions and limitations.
+
+## Filesystem and Tempfile Policy
+- Torch backend:
+  - Avoid on‑disk artifacts during refinement; perform all structure‑factor and parameter updates in memory.
+  - When exporting HKL for debugging or parity tests, write under a `TemporaryDirectory()` and clean up on exit.
+- DiffBragg fallback (legacy):
+  - Replace hardcoded filenames in the legacy DiffBragg path (`_geom_ref.*`, `_geom_groups.txt`, `_geom.out`, `_temp.mtz`) with paths under a `TemporaryDirectory()` context to avoid polluting the working tree.
+  - Keep an opt‑in flag (e.g., `--debug-save-artifacts`) to persist outputs for debugging when needed; default is ephemeral.
 
 ## Deliverables Checklist
 - [ ] `dbex/nanobrag_bridge.py` (or similar) with conversion utilities.

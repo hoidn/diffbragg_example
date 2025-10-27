@@ -46,6 +46,26 @@ Provide a bridge that converts `DataLoad` outputs and DIALS experiment metadata 
  
 References: docs/simtbx_api.md (ROI semantics, masks), docs/dxtbx_api.md (detector/beam/crystal), docs/nanobrag_api.md (DetectorConfig mapping).
 
+### Detector Pixel Geometry And Dimensions
+- Pixel size and square‑pixel guard:
+  - Extract `px_fast_mm, px_slow_mm = panel.get_pixel_size()`; enforce `abs(px_fast_mm - px_slow_mm) <= 1e-9` or raise a clear error (rectangular pixels unsupported in a single Detector; see docs/nanobrag_api.md).
+  - Set `DetectorConfig.pixel_size_mm = px_fast_mm`.
+- Image dimensions (ordering note):
+  - Extract `fast_px, slow_px = panel.get_image_size()`.
+  - Set `DetectorConfig.spixels = slow_px`, `DetectorConfig.fpixels = fast_px`.
+
+### Mask Handling (Simulator And Loss)
+- Load DIALS pickled masks (tuple of flex.bool per panel) to a boolean array `[panel, slow, fast]`, then convert to a device‑local torch tensor.
+- Simulator: set `DetectorConfig.mask_array = trusted_mask.float()` (1 = include, 0 = exclude). Do not invert.
+- Loss: build `loss_mask = (background >= 0) & trusted_mask` and apply in the masked MSE so simulator and loss share the same inclusion policy.
+- If persisting a DiffBragg‑style “hot/bad” mask for ROI preprocessing, invert at save time only.
+
+### Units And Scaling
+- Images are ADU; simulator outputs photons. Choose one:
+  - Provide `--adu-per-photon` and convert `target_tensor = target_tensor / adu_per_photon`.
+  - Otherwise keep ADU and rely on a learnable global scale (initialize by mean(target)/mean(sim_initial) over a few ROIs for stability).
+  
+
 ### Multi-panel Handling (resolved)
  - Treat each DIALS panel independently: `nanobrag_torch` currently models one panel per `Detector`.
  - Generate per-panel detector configs (`PanelConfig`) with:
@@ -81,11 +101,15 @@ Implement a differentiable refinement model with physically constrained paramete
     - Overall scale: `softplus`-parameterized scalar to keep positive.
     - Optional: per-ROI or per-panel scales if needed (lazy-initialized from ones).
   - Structure factors:
- - Convert `DataLoad.F` (`cctbx` miller array) to a dense P1 grid in memory: iterate indices, find min/max, allocate tensor, fill amplitudes, and assign `crystal.hkl_data` and `crystal.hkl_metadata`. Alternatively, export to HKL and use `read_hkl_file`.
- - Ensure a ±1 halo or pad like FDUMP to keep tricubic active near the grid edges; otherwise `crystal.interpolate` falls back to `default_F`.
- - Store as a non-trainable buffer initially; add an optional refinement head later (see Open Questions).
+     - Convert `DataLoad.F` (`cctbx` miller array) to a dense P1 grid in memory: iterate indices, find min/max, allocate tensor, fill amplitudes, and assign `crystal.hkl_data` and `crystal.hkl_metadata`. Alternatively, export to HKL and use `read_hkl_file`.
+     - Ensure a ±1 halo or pad like FDUMP to keep tricubic active near the grid edges; otherwise `crystal.interpolate` falls back to `default_F`.
+     - Store as a non-trainable buffer initially; add an optional refinement head later (see Open Questions).
  
 References: docs/nanobrag_api.md (IO, tricubic halo).
+- Seed physical parameters:
+  - Lattice factor: set `CrystalConfig.N_cells` via CLI `--nabc a b c` (preferred) or default `(20, 20, 20)` to mirror xtal_refine PHIL; set `CrystalConfig.shape = SQUARE`, `CrystalConfig.fudge = 1.0`.
+  - No `N_def` analog in nanobrag_torch; ignore DiffBragg’s `Ncells_def` initially.
+  - Global scale: initialize near mean(target)/mean(sim_initial) when training in ADU; initialize near 1.0 in photon mode.
 - Implement `forward()` to:
   1. Materialize `CrystalConfig`, `BeamConfig`, and per-panel `DetectorConfig` with the current parameter values.
   2. Invoke the panel simulation loop (Phase 1) to produce the full `Bragg` tensor.

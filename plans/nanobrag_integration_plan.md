@@ -22,7 +22,7 @@ See supporting API references: docs/nanobrag_api.md, docs/simtbx_api.md, docs/dx
 
 ## Phase 0 – Environment & Baseline (1–2 days)
 - Install `nanobrag_torch` in editable mode from `./nanoBragg2` and add it as a `pyproject.toml` dependency for the `dbex` package.
-- Run the bundled CPU and CUDA smoke tests (`docs/development/pytorch_runtime_checklist.md`) to confirm the simulator works on the target hardware.
+ - Run the bundled CPU and CUDA smoke tests (`nanoBragg2/docs/development/pytorch_runtime_checklist.md`) to confirm the simulator works on the target hardware (note: lives under the nanoBragg2 docs tree; may appear as a symlink depending on checkout).
 - Capture the current DiffBragg output for a representative dataset (`refine_one` HDF5 + ROI scores) as the baseline for parity checks.
 - Ensure `KMP_DUPLICATE_LIB_OK=TRUE` is set in the environment before importing torch (long‑lived workers and CLI).
 
@@ -34,7 +34,8 @@ Provide a bridge that converts `DataLoad` outputs and DIALS experiment metadata 
 ### Tasks
 - Extend `DataLoad` usage with a helper (e.g., `prepare_refinement_inputs(args)`) that returns:
   - `target_tensor`: background-subtracted image (`data - background`) with invalid pixels zeroed.
-  - `mask_tensor`: boolean mask where the background estimate is trusted (`background >= 0`).
+  - `bg_mask_tensor`: boolean mask where the background estimate is trusted (`background >= 0`).
+  - `trusted_mask_tensor`: boolean mask from the DIALS trusted mask (1 = include, 0 = exclude), panel-aligned.
   - `panel_slices`: list of per-panel `(panel_id, slice_y, slice_x)` selectors for reconstructing the final image.
 - Units: If `adu_per_photon` is available (DiffBragg parameter or panel metadata), convert ADU→photons for `target_tensor`; otherwise retain ADU and introduce a learnable global scale in Phase 2.
 - Mask format: Accept only DIALS pickled masks (tuple of flex.bool per panel). Invert the trusted mask to “hot/bad” as needed before persisting to the DiffBragg‑style path (for reproducibility with the legacy flow).

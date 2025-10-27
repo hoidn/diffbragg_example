@@ -5,9 +5,10 @@ This document summarizes the public, integration‑ready API surface of `nanobra
 Scope: `src/nanobrag_torch/{simulator.py, models/{crystal.py,detector.py}, config.py, io/hkl.py}`
 
 ## Runtime and Environment
-- torch.compile: Simulator compiles physics kernels; reuses compiled graphs when tensor shapes are unchanged.
+- torch.compile: Simulator compiles physics kernels; reuses compiled graphs when tensor shapes are unchanged. GPU defaults to mode="max-autotune"; CPU may use "reduce-overhead".
 - Reuse warmed Simulator across iterations when panel dimensions/oversample do not change; rebuild if geometry affects shapes.
 - Set `KMP_DUPLICATE_LIB_OK=TRUE` before importing torch in long‑lived processes.
+- Set `NANOBRAGG_DISABLE_COMPILE=1` to force eager mode (useful for debugging).
 
 ## Units and Conventions
 - Detector geometry (distance, pixel size): meters internally; API accepts millimeters and converts.
@@ -29,8 +30,13 @@ Scope: `src/nanobrag_torch/{simulator.py, models/{crystal.py,detector.py}, confi
   - Use `DetectorConvention.CUSTOM` with `custom_*` basis vectors from dxtbx panel axes and `custom_beam_vector` = sample→source.
   - Pivot defaults per spec; custom basis vectors force SAMPLE pivot internally.
 - ROI and mask:
-  - `roi_xmin/xmax/ymin/ymax`: optional; default is full detector when omitted.
-  - `mask_array`: tensor (0/1); multiplied post‑compute to zero masked pixels.
+  - `roi_xmin/xmax/ymin/ymax`: optional; default is full detector when omitted. Must be within `[0..spixels-1]`/`[0..fpixels-1]`.
+  - `mask_array`: tensor (0/1) with shape `(spixels, fpixels)`; multiplied post‑compute to zero masked pixels.
+  - Shapes: ROI bounds and `mask_array` must match `spixels`/`fpixels`.
+- Sampling and corrections:
+  - `oversample` (int; -1 = auto), `oversample_omega` (solid angle per subpixel), `oversample_polar` (polarization per subpixel), `oversample_thick` (absorption per subpixel).
+  - `point_pixel=True` applies 1/R^2 solid angle only; `curved_detector=True` enables spherical mapping (if supported by build).
+  - Absorption: `detector_abs_um`, `detector_thick_um`, `detector_thicksteps` control sensor absorption model.
 
 ### CrystalConfig (key fields)
 - Cell parameters: `cell_a/b/c` (Å), `cell_alpha/beta/gamma` (deg). Triclinic supported.
@@ -75,6 +81,9 @@ Scope: `src/nanobrag_torch/{simulator.py, models/{crystal.py,detector.py}, confi
   - Applies dmin, polarization, solid angle, absorption, and ROI/mask per config.
   - Use one Simulator per panel; stitch results into `[panel, slow, fast]`.
   - Changing shapes (panel dims, oversample) requires re‑instantiation; numeric parameter tweaks don’t.
+- Debug/trace:
+  - `debug_config` supports `printout`, `printout_pixel`, and `trace_pixel` for diagnostics.
+  - Enabling trace incurs overhead; use sparingly (e.g., tracing a single pixel).
 
 ## IO: Structure Factors (HKL/FDUMP)
 - `read_hkl_file(filepath, default_F, device, dtype) -> (F_grid, metadata)`
@@ -94,4 +103,3 @@ Scope: `src/nanobrag_torch/{simulator.py, models/{crystal.py,detector.py}, confi
 - image_data are typically ADU; either:
   - Convert to photons using known `adu_per_photon`, or
   - Keep ADU and include a learnable global scale; multiplicative physics corrections still apply.
-

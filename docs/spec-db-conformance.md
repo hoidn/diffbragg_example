@@ -19,6 +19,7 @@ Conformance Profiles (Normative)
   - DB‑AT‑021 Mask polarity and shape conformance (trusted mask → simulator/loss).
   - DB‑AT‑022 ROI background semantics (−1 outside ROI, masked MSE).
   - DB‑AT‑023 ADU vs photons policy (flag honored; scale init for ADU mode).
+  - DB‑AT‑024 Mapping consistency (zero‑iteration forward vs data‑minus‑background overlay).
 
 Acceptance Tests (Normative)
 - DB‑AT‑001 Simple cubic parity
@@ -41,6 +42,10 @@ Acceptance Tests (Normative)
   - Setup: run with and without `--adu-per-photon`; compare scale behavior and loss.
   - Expectation: photon mode yields scale near 1; ADU mode learns positive scale with stable initialization.
   - Command: `pytest -v tests -k DB_AT_023`
+ - DB‑AT‑024 Mapping consistency
+  - Setup: build per‑panel configs from a real Experiment; run a forward pass with initial parameters; evaluate K ROIs (e.g., 32) for correlation and localization.
+  - Expectation: median ROI correlation ≥ 0.2 and ≥90% ROIs contain a local intensity maximum within the central half‑box.
+  - Command: `pytest -v tests -k DB_AT_024`
 
 Notes (Informative)
 - Provide real commands in the test suite once scaffolding is in place; these are placeholders for the conformance contract.

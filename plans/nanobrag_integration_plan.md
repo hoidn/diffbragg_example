@@ -86,8 +86,17 @@ References: docs/simtbx_api.md (ROI semantics, masks), docs/dxtbx_api.md (detect
   ```
  - This yields a stacked `Bragg` tensor with identical shape/order as `DataLoad.data`, resolving the TODO in `refine_one`.
 - Compute‑saving option: If runtime is constrained, simulate per‑ROI by constructing a cropped `DetectorConfig` for each ROI (dimensions set to ROI size and beam center offset by the crop), run a short simulator, and stitch results. Note ROI/mask alone does not reduce compute in nanobrag_torch.
- 
+
 References: docs/nanobrag_api.md (ROI‑only compute), docs/dials_api.md (bbox slicing).
+
+### Consistency Smoke Test (mapping sanity)
+- Purpose: verify geometry/beam/crystal mapping before any refinement.
+- Steps:
+  - Build per‑panel DetectorConfig/BeamConfig/CrystalConfig from `Expt` and `DataLoad` as above.
+  - Run a single forward simulation to produce a full‑frame `Bragg` tensor (no parameter updates).
+  - For a sample of ROIs (e.g., 32): compute correlation between `Bragg[roi]` and `data[roi] - background[roi]` and verify predicted intensity is spatially localized within the ROI.
+  - Produce an overlay HDF5 (or PNGs) for quick visual inspection.
+- Acceptance (tunable): median ROI correlation ≥ 0.2 and at least 90% of ROIs have a local max within the central half‑box. If thresholds fail, dump panel geometry, beam center, and basis vectors for debugging.
 
 ## Phase 2 – PyTorch Model & Parameterization (3–4 days)
 

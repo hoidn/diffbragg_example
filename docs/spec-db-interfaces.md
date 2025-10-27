@@ -13,6 +13,7 @@ CLI Flags (Normative)
 - `--nabc <Na Nb Nc>`: sets `CrystalConfig.N_cells`; default `(20,20,20)` for parity with xtal_refine.
 - `--device <cuda|cpu>:<index>`: selects device.
 - `--debug-save-artifacts`: persist otherwise temporary artifacts (HKL, etc.).
+- `--optimizer {lbfgs,adam}` (optional): selects optimizer; default SHALL be `lbfgs` for Stage A/C, `adam` MAY be used only for Stage B if chosen.
 
 API Contracts (Normative)
 - Data bridge SHALL expose:

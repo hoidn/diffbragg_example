@@ -31,6 +31,12 @@ Pipeline (Normative)
    - Stage B (Optional Fhkl): enable tricubic; refine a small number of per‑shell/global F modifiers (softplus); keep base |F| fixed.
    - Stage C (Detector): refine per‑panel translation along detector normal (distance offset); rotations fixed initially.
 
+Optimization Strategy (Normative)
+- Default optimizer SHALL be L‑BFGS for Stage A and Stage C, implemented via `torch.optim.LBFGS` with a closure that recomputes the full loss.
+- Parameterization MUST enforce constraints without bound constraints (e.g., logs for lengths, bounded map for angles, quaternion→XYZ for misset).
+- ROI minibatching MAY be used inside the L‑BFGS closure for cost control, provided periodic full‑image validation confirms descent (documented in logs).
+- Stage B (optional shell modifiers) MAY use L‑BFGS or Adam; default SHOULD be L‑BFGS unless ROI minibatching proves impractical.
+
 Outputs (Normative)
 - Full‑frame `Bragg` tensor on the simulator device; HDF5 outputs MAY mirror viewer layout for ROIs.
 

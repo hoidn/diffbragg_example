@@ -147,16 +147,24 @@ Mirror the staged refinement logic from DiffBragg to maintain convergence charac
 2. **Stage B – Structure factor tweaks (optional):**
    - Enable tricubic interpolation (`crystal.interpolate = True`) to obtain differentiable Fhkl gradients.
    - Optimize a small set of global modifiers (e.g., per-resolution shell scale or `torch.nn.Parameter` multipliers) instead of all individual reflections to reduce dimensionality.
- 3. **Stage C – Detector microslip:**
+3. **Stage C – Detector microslip:**
    - Introduce small per‑panel translations along the detector normal (`odet_vec`) first to mirror the DiffBragg geometry stage, which fixes rotations and optimizes translation along one axis; optionally extend to small rotations later if needed.
    - Run a short optimization stage with a reduced learning rate.
 
 Each stage runs within a single training loop, swapping optimizer parameter groups and learning rates rather than rebuilding the model.
 
+### Optimizer Choice (prioritize L‑BFGS)
+- Use `torch.optim.LBFGS` as the primary optimizer for Stage A (cell/orientation/scale) and Stage C (detector normal translations). Rationale: Strong curvature information and low parameter count per stage typically yield faster, more stable convergence than first‑order methods.
+- Implementation notes:
+  - Use a closure that recomputes `(bragg, loss)` end‑to‑end; set `line_search_fn=None` (default) and tune `max_iter`, `history_size` (e.g., 10), `tolerance_grad`, and `tolerance_change`.
+  - Maintain parameterizations for constraints (logs for lengths, bounded angles, quaternion→XYZ) so box constraints are not required (PyTorch LBFGS has no bounds).
+  - To keep step latency reasonable, optionally evaluate the loss over a fixed ROI minibatch (e.g., 1–2 tiles per panel) during LBFGS inner iterations, and refresh the ROI sample every few outer cycles; validate on full loss periodically.
+  - Fall back to Adam (or SGD) only for the optional Stage B shell modifiers or when experimenting with very large ROI batches that make LBFGS closures too expensive.
+
 ### Logging
- - Emit structured logs (JSON lines) recording stage transitions, losses, and parameter deltas to simplify validation against the baseline.
+- Emit structured logs (JSON lines) recording stage transitions, losses, and parameter deltas to simplify validation against the baseline.
 - Runtime/caching: Reuse a warmed Simulator per panel while changing differentiable parameters. Rebuild the Detector/Simulator when changing tensor shapes (panel dimensions, oversample factors, ROI detectors).
- 
+
 References: docs/nanobrag_api.md (runtime/caching).
 
 ## Phase 4 – CLI Integration & Output (2 days)

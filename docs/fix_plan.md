@@ -76,7 +76,7 @@
 - Extend Findings ledger with lessons from `reports/` once torch experiments begin.
 ### [DOC-RUNTIME-004] Restore `docs/pytorch_runtime_checklist.md`
 - Depends on: none
-- Status: in_progress
+- Status: done
 - Owner/Date: Unassigned / 2025-10-28
 - Exit Criteria:
   1. `docs/pytorch_runtime_checklist.md` resolves to a valid file (symlink or local copy) and can be opened without build errors.
@@ -85,3 +85,4 @@
 - Working Plan: plans/active/DOC-RUNTIME-004/implementation.md
 - Attempts History:
   * 2025-10-28T233630Z — Supervisor planning pass; confirmed symlink target (`../../nanoBragg2/docs/development/pytorch_runtime_checklist.md`) missing, indexed references unresolved, and new implementation plan required. Metrics: pending. Artifacts: pending.
+  * 2025-10-28T233723Z — Completed A1-A2-B1-B2-C1-C2 restoration and enhancement: Enhanced existing `docs/pytorch_runtime_checklist.md` with explicit spec citations (`docs/spec-db-runtime.md:10-20`, `docs/spec-db-conformance.md:10-48`); added Environment Variables section (§5) and Acceptance Test Hooks section (§6) covering all DB-AT profiles; fixed 1 incorrect reference in `docs/development/testing_strategy.md:27`; verified all prompts and `docs/prompt_sources_map.json` reference correct path; captured validation evidence via `head -n 40` command. Metrics: 23 total references cataloged, 1 reference corrected, 2 new sections added, 6 spec citations added. Artifacts: plans/active/DOC-RUNTIME-004/reports/2025-10-28T233723Z/{notes.md,checklist_head.log,summary.md}. First Divergence: n/a. Next Actions: All exit criteria satisfied; initiative complete and ready for archive.

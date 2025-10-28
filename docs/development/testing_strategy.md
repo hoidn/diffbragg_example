@@ -24,7 +24,7 @@ All tests will be implemented using the PyTest framework.
 - **Cache dtype consistency:** When implementing cached computations, ensure cache retrieval coerces to current `dtype` to support dynamic dtype switching. Use `.to(device=self.device, dtype=self.dtype)` instead of `.to(self.device)` alone. See `Detector.get_pixel_coords()` (lines 762-777) for reference implementation.
 - **CI gate:** If CI offers GPU runners, add a fast smoke job that runs the `gpu_smoke` marker (or agreed command) so regressions like CPU↔GPU tensor mixing fail quickly.
 - **Vectorization check:** Confirm `_compute_physics_for_position` and related helpers remain batched across sources/phi/mosaic/oversample; extend broadcast dimensions instead of adding Python loops.
-- **Runtime checklist:** Consult `docs/development/pytorch_runtime_checklist.md` during development and cite it in fix-plan notes for PyTorch changes.
+- **Runtime checklist:** Consult `docs/pytorch_runtime_checklist.md` during development and cite it in fix-plan notes for PyTorch changes.
 - **Gradient test guard:** All gradient tests require `NANOBRAGG_DISABLE_COMPILE=1` environment variable to prevent torch.compile interference with gradcheck. See §4.1 for execution requirements and canonical commands.
 
 ### 1.5 Loop Execution Notes (Do Now + Validation Scripts)

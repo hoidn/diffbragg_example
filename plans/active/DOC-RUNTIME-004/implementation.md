@@ -23,18 +23,18 @@ Status: in_progress
 
 ## Phase A — Checklist Restoration
 ### Checklist
-- [ ] A1: Inventory existing references and gather source material (spec shards, prior notes) for the runtime checklist.
-- [ ] A2: Restore `docs/pytorch_runtime_checklist.md` with canonical sections (environment flags, runtime guardrails, acceptance hooks).
+- [x] A1: Inventory existing references and gather source material (spec shards, prior notes) for the runtime checklist.
+- [x] A2: Restore `docs/pytorch_runtime_checklist.md` with canonical sections (environment flags, runtime guardrails, acceptance hooks).
 
 ## Phase B — Reference Alignment
 ### Checklist
-- [ ] B1: Update `docs/index.md` and any inline references to reflect the restored checklist location/title.
-- [ ] B2: Synchronize `docs/prompt_sources_map.json` and prompts (if needed) to ensure the new file path resolves.
+- [x] B1: Update `docs/index.md` and any inline references to reflect the restored checklist location/title.
+- [x] B2: Synchronize `docs/prompt_sources_map.json` and prompts (if needed) to ensure the new file path resolves.
 
 ## Phase C — Validation & Artifact Capture
 ### Checklist
-- [ ] C1: Verify the checklist renders (e.g., `head -n 40 docs/pytorch_runtime_checklist.md`) and capture the command output under the reports directory.
-- [ ] C2: Document verification steps and resulting artifacts in `plans/active/DOC-RUNTIME-004/reports/<timestamp>/summary.md`.
+- [x] C1: Verify the checklist renders (e.g., `head -n 40 docs/pytorch_runtime_checklist.md`) and capture the command output under the reports directory.
+- [x] C2: Document verification steps and resulting artifacts in `plans/active/DOC-RUNTIME-004/reports/<timestamp>/summary.md`.
 
 ## Artifacts Index
 - Reports root: `plans/active/DOC-RUNTIME-004/reports/`

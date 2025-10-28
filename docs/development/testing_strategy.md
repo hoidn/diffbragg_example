@@ -115,7 +115,7 @@ For equivalence debugging (AT‑PARALLEL failures, correlation below thresholds,
 - PyTorch trace: emit a structured log containing, at minimum, `pix0_vector`, basis vectors, `R` (distance), solid angle (both point‑pixel and obliquity‑corrected), close_distance and obliquity factor, `k_in`, `k_out`, `S`, Miller indices (float and rounded), `F`, lattice factors (`F_latt_a/b/c`, product), `F^2`, `F_latt^2`, `omega/solid_angle`, pixel area, fluence and final intensity.
 - Golden trace: reuse the stored golden trace for the same pixel (or regenerate via the trace harness) and ensure units match the PyTorch log (meters, steradians, Å where noted).
 - Dtype/device: debug in float64 on CPU for determinism unless the AT explicitly requires GPU.
-- Artifacts: save trace logs, metrics, and diff heatmaps together and cite the paths in the plan.
+- Artifacts: save trace logs, metrics, and diff heatmaps together (e.g., `plans/<initiative-id>/reports/<timestamp>/parity/`) and cite the paths in the plan.
 
 ### 2.5.2 Matrix Gate (hard preflight)
 

@@ -81,3 +81,11 @@ Render `./input.md` each loop with the sections below (overwrite completely):
 <handoff>
 - Before finishing, append a new entry to `galph_memory.md` with: timestamp, focus, action type, key observations, artifact path, next actions, and `<Action State>`. Include a short "Reality Check" note summarizing validations performed and any re-scoping decisions.
 - Confirm repository status is clean (no staged changes) and that `input.md` exists with the required sections.
+
+## Action State Tracking (FSM)
+- States: `gathering_evidence`, `planning`, `ready_for_implementation`.
+- Dwell guard (hard rule): remain in `gathering_evidence` or `planning` at most two consecutive turns per focus; on the third turn, either (a) transition to `ready_for_implementation` with an executable Do Now, or (b) switch focus and record the block.
+- End‑of‑turn logging (required): append to `galph_memory.md` a single line capturing
+  - `focus=<id/slug>` `state=<gathering_evidence|planning|ready_for_implementation>` `dwell=<n>`
+  - `artifacts=<plans/active/<initiative>/reports/<timestamp>/>` `next_action=<one‑liner or 'switch_focus'>`
+- Reference: `prompts/fsm_analysis.md` is the canonical source for states, transitions, and the diagram.

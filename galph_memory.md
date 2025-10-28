@@ -1,34 +1,17 @@
-# Galph Supervisor Memory (DBEX)
+# galph_memory.md — Supervisor Turn Log (DBEX)
 
-## 2025-10-28T200000Z — Migration bootstrap
-- Initialized supervisor memory after syncing with origin (`git pull --rebase` clean).
-- Logged missing ledgers/tests: created `docs/fix_plan.md`, `docs/findings.md`, `docs/TESTING_GUIDE.md`, and `docs/development/TEST_SUITE_INDEX.md` to anchor prompts.
-- Initiative inventory stored under `plans/active/PROMPT-MIGRATION-001/reports/2025-10-28T195626Z/` (model vs target diff).
-- Next focus candidate: bring `TORCH-BRIDGE-001` to [ready_for_implementation] once Do Now scaffolding exists.
-- <Action State>: [planning]
+Use this file to append a single line per supervisor turn capturing the FSM state and dwell count for the current focus.
 
-## 2025-10-28T205500Z — TORCH-BRIDGE-001 loop setup
-- Focused on TORCH-BRIDGE-001 per fix-plan dependency (plans/nanobrag_integration_plan.md §Phase 1) and confirmed no bridge helper exists yet (`rg prepare_refinement` only hits plan doc).
-- Reviewed Spec DB shards (core/config_crosswalk/dials/dxtbx/nanobrag) and noted broken `docs/pytorch_runtime_checklist.md` symlink → logged backlog TODO.
-- Reality Check: Verified exit criteria unmet (no torch bridge module, pixel pitch guard absent) and available DIALS assets (`refGeom.expt`, `_geom_ref.refl`, `scaled.mtz`) support forthcoming tests.
-- Artifacts: plans/active/TORCH-BRIDGE-001/reports/2025-10-28T210500Z/
-- Next actions: execute Do Now checklist (tests/dbex scaffolding, helper implementation, guard coverage) and capture pytest + helper notes under the artifact path.
-- <Action State>: [ready_for_implementation]
+Template (copy/paste and fill values each turn):
+```
+[timestamp] focus=<id/slug> state=<gathering_evidence|planning|ready_for_implementation> dwell=<n> artifacts=plans/active/<initiative>/reports/<YYYY-MM-DDTHHMMSSZ>/ next_action=<one-liner or 'switch_focus'>
+```
 
-## 2025-10-28T222910Z — TORCH-BRIDGE-001 plan refresh
-- Focus: TORCH-BRIDGE-001 — Bridge DataLoad to `nanobrag_torch`
-- Action Type: planning
-- Key Observations: No bridge helper/tests exist yet; `docs/pytorch_runtime_checklist.md` remains a broken symlink; confirmed Spec DB Phase 1 requirements still unmet and no artifacts under reports/.
-- Artifact Path: plans/active/TORCH-BRIDGE-001/reports/2025-10-28T222910Z/
-- Next Actions: Execute Do Now checklist for Phase A (tests, helper implementation, guard assertions) and capture pytest + design notes in the artifact directory.
-- Reality Check: Validated fix-plan exit criteria remain open (no helper, no pixel pitch guard), verified DIALS assets present, and noted runtime checklist doc gap for rescoping.
-- <Action State>: [ready_for_implementation]
+Example:
+```
+2025-10-28T12:34:56Z focus=TORCH-BRIDGE-001 state=gathering_evidence dwell=1 artifacts=plans/active/TORCH-BRIDGE-001/reports/2025-10-28T123456Z/ next_action=map parity selector and artifact hub
+```
 
-## 2025-10-28T224846Z — TORCH-BRIDGE-001 Phase B plan
-- Focus: TORCH-BRIDGE-001 — Bridge DataLoad to nanobrag_torch
-- Action Type: planning
-- Key Observations: Phase A helper/tests already landed; no DetectorConfig/BeamConfig/CrystalConfig helpers or tests exist yet (`rg DetectorConfig` only hits docs); spec shards (docs/spec-db-core.md §35-41, docs/config_crosswalk.md §15-66, docs/dxtbx_api.md §5-50, docs/nanobrag_api.md §23-58) remain current; docs/index.md and prompt_sources_map.json already list required references.
-- Artifact Path: plans/active/TORCH-BRIDGE-001/reports/2025-10-28T224846Z/
-- Next Actions: Execute Phase B checklist (B1-B2) via new tests/helper, capture pytest log + notes under the artifact path, then progress toward Phase C smoke harness.
-- Reality Check: Verified exit criteria 2 & 4 still unmet (no config hydration, no smoke harness); runtime checklist symlink still unresolved per backlog DOC-RUNTIME-004; selected item remains active and dependencies satisfied.
-- <Action State>: [planning]
+Notes
+- Enforce the dwell guard: on the 3rd consecutive turn in `gathering_evidence` or `planning` for the same focus, either transition to `ready_for_implementation` with a concrete Do Now or switch focus and record the block in `docs/fix_plan.md`.
+- See `prompts/fsm_analysis.md` for the canonical state list and transitions.

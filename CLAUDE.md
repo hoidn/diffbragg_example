@@ -13,6 +13,12 @@
 - **Supervisor (Galph)** uses `prompts/supervisor.md` to plan each loop, update `galph_memory.md`, and emit `input.md` with a single focus.
 - **Engineer (Ralph)** uses `prompts/main.md` (or `prompts/debug.md` for parity loops) to implement the Do Now checklist and update ledgers/artifacts.
 
+## FSM Quick Reference
+- States: `gathering_evidence`, `planning`, `ready_for_implementation`.
+- Dwell rule: remain in `gathering_evidence` or `planning` at most two consecutive turns per focus; on the third turn, either move to `ready_for_implementation` with an executable Do Now or switch focus and record the block.
+- Logging: supervisor appends `focus`, `state`, `dwell`, `artifacts`, and `next_action` to `galph_memory.md` at the end of every turn; engineer respects the current state and only executes code when `ready_for_implementation`.
+- Reference: see `prompts/fsm_analysis.md` (states/transitions) and `prompts/supervisor.md` (enforcement and required logging).
+
 ## Core Rules
 - One fix-plan item per loop; mark status → `in_progress` at start, append Attempts History with `Metrics:` & `Artifacts:` lines at end.
 - Artifact policy: write outputs to `plans/active/<initiative-id>/reports/<YYYY-MM-DDTHHMMSSZ>/`; include logs/metrics summaries.

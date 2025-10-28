@@ -192,6 +192,11 @@ Description: Repository-scoped conventions for coding style, pytest usage, artif
 Keywords: agent-workflow, conventions, ledger  
 Use this when: You need authoritative agent rules; remember deeper AGENTS.md files override shallower ones within their directory tree.
 
+### [Supervisor Stamp Script](../scripts/orchestration/stamp_handoff.py)
+Description: CLI helper Galph/Ralph use to stamp loop state, auto-commit doc/meta updates, and push sync markers (`status=running/fail`).  
+Keywords: orchestration, sync, supervisor  
+Use this when: Validating or replaying the handoff flow before launching a loop, or diagnosing why a sync failed.
+
 ## Planning Templates
 
 ### [Implementation Plan Template](../plans/templates/implementation_plan.md)

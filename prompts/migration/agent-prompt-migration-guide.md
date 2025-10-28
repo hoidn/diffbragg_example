@@ -43,6 +43,7 @@ rg --files prompts | rg "\.md$" || true
 rg --files docs | rg -n "index\.md$|fix_plan\.md$|findings\.md$|architecture|developer|TESTING_GUIDE|TEST_SUITE_INDEX|debug|workflow" || true
 rg --files | rg -n "^CLAUDE\.md$|AGENTS\.md$" || true
 rg --files specs | rg "\.md$" || true
+rg --files scripts/orchestration | rg -n "\.py$|\.sh$" || true
 ```
 
 Capture a concise structure summary with categories and paths (free‑form JSON or Markdown). This becomes the basis for the migration plan and dependency graph.
@@ -54,6 +55,7 @@ rg --files prompts | rg "\.md$" || true
 rg --files docs | rg -n "index\.md$|fix_plan\.md$|findings\.md$|architecture|developer|TESTING_GUIDE|TEST_SUITE_INDEX|debug|workflow" || true
 rg --files | rg -n "^CLAUDE\.md$|AGENTS\.md$" || true
 rg --files specs | rg "\.md$" || true
+rg --files scripts/orchestration | rg -n "\.py$|\.sh$" || true
 ```
 
 Diff the two inventories to identify:
@@ -156,6 +158,10 @@ Use the model and target inventories to decide how to materialize each document 
 - Prompts (`prompts/*.md`): Copy from model → adapt
   - Preserve structure and role emphasis; update references to discovered sources and artifact policy.
   - Replace any model‑specific commands with target project equivalents from `<TEST_GUIDE>/<TEST_INDEX>` and workflow docs.
+- Orchestration scripts (`scripts/orchestration/*`): Copy if missing
+  - If the target repo does not already include orchestration helpers (e.g., `check_input.py`, `focus_check.py`, `plan_lint.py`), copy them from the model repository.
+  - If equivalents exist, diff and adapt minimally (paths, policy references) rather than overwriting.
+  - Keep them repo‑agnostic: avoid hard‑coding absolute paths or environment‑specific assumptions.
 - CLAUDE.md (root): Ab initio or copy skeleton → adapt
   - If the model’s CLAUDE.md matches your desired policy, copy and adapt references and rules. Otherwise, author fresh using the outline below.
 - AGENTS.md (symlink + optional scoped overrides): Configure
@@ -375,6 +381,13 @@ Inventory export (very lightweight)
    - Set `MODEL_ROOT` and `TARGET_ROOT`. For copy/adapt categories, copy skeletons:
 ```
 rsync -av --include='*/' --include='*.md' --exclude='*' "$MODEL_ROOT/prompts/" "$TARGET_ROOT/prompts/"
+
+# Copy orchestration scripts if the target lacks them
+if [ ! -d "$TARGET_ROOT/scripts/orchestration" ] || [ -z "$(ls -A "$TARGET_ROOT/scripts/orchestration" 2>/dev/null)" ]; then
+  mkdir -p "$TARGET_ROOT/scripts/orchestration"
+  rsync -av --include='*.py' --include='*.sh' --exclude='*' \
+    "$MODEL_ROOT/scripts/orchestration/" "$TARGET_ROOT/scripts/orchestration/"
+fi
 ```
 
 1) Build the source map (target)
@@ -448,3 +461,4 @@ No stale tokens
 Verification
 - [ ] Referenced files exist (where applicable)
 - [ ] Optional: test discovery or smoke steps are documented
+- [ ] Orchestration scripts present under `scripts/orchestration/` (copied if missing), or absence documented with rationale

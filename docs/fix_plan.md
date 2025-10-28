@@ -33,16 +33,17 @@
 
 ### [TORCH-RUNTIME-002] Author torch runtime checklist + testing harness seed
 - Depends on: TORCH-BRIDGE-001
-- Status: in_progress
+- Status: done
 - Owner/Date: Unassigned / 2025-10-28
 - Exit Criteria:
   1. `docs/TESTING_GUIDE.md` documents smoke/acceptance commands and environment flags (e.g., `KMP_DUPLICATE_LIB_OK=TRUE`).
   2. Minimal pytest selector (or placeholder) captured for DB-AT parity suites (`docs/spec-db-conformance.md:25`).
-  3. Artifact example captured under the initiative’s documented reports directory.
+  3. Artifact example captured under the initiative's documented reports directory.
   4. Ledger entry includes Metrics/Artifacts lines referencing the recorded selector run or TODO.
 - Working Plan: plans/active/TORCH-RUNTIME-002/implementation.md
 - Attempts History:
   * 2025-10-28T232744Z — Supervisor planning kickoff; verified TORCH-BRIDGE-001 exit criteria satisfied, catalogued runtime doc gaps. Metrics: pending. Artifacts: pending.
+  * 2025-10-28T232744Z — Completed A1-A2-B1-B2 doc updates: enhanced TESTING_GUIDE.md §1 with structured environment flag guidance (KMP_DUPLICATE_LIB_OK, NANOBRAGG_DISABLE_COMPILE); added runtime pitfalls to testing_strategy.md §1.6; synchronized 8 DB-AT selectors (001, 002, 020-024, vectorization) between TESTING_GUIDE.md §2 and TEST_SUITE_INDEX.md with spec citations; captured pytest --collect-only evidence for DB_AT_001 (0 tests collected as expected). Metrics: 0 tests collected for DB_AT_001 (planned selector), pytest collection runtime 0.98s. Artifacts: plans/active/TORCH-RUNTIME-002/reports/2025-10-28T232744Z/{notes.md,pytest_collect.log}. First Divergence: n/a. Next Actions: Exit criteria 1-4 satisfied; mark implementation.md phases A+B complete; update status to done; note DOC-RUNTIME-004 dependency for pytorch_runtime_checklist.md restoration in findings if needed.
 
 ### [TORCH-CLI-003] Wire torch backend flag into CLI
 - Depends on: TORCH-BRIDGE-001

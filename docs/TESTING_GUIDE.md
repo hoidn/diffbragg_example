@@ -3,21 +3,71 @@
 This guide standardizes how agents run and author tests for the DiffBragg → `nanobrag_torch` integration work.
 
 ## 1. Environments & Flags
-- Always export `KMP_DUPLICATE_LIB_OK=TRUE` before importing torch (`docs/spec-db-conformance.md:28`).
-- Gradient checks MUST set `NANOBRAGG_DISABLE_COMPILE=1` to bypass `torch.compile` (`docs/pytorch_runtime_checklist.md:26`).
-- Prefer editable installs: `pip install -e .` from the repo root to ensure CLI entry points resolve.
+
+### 1.1 Required Environment Variables
+
+**All PyTorch-based tests require:**
+
+```bash
+export KMP_DUPLICATE_LIB_OK=TRUE
+```
+
+- **Rationale**: Prevents conflicts when PyTorch loads both MKL and system BLAS libraries. Without this flag, tests may fail with "OMP: Error #15: Initializing libiomp5.so, but found libiomp5.so already initialized."
+- **Spec Reference**: `docs/spec-db-runtime.md:18-21`, `docs/spec-db-conformance.md:28`
+- **Scope**: Export before any `pytest` invocation that imports torch or dbex modules
+
+**Gradient/gradcheck tests additionally require:**
+
+```bash
+export NANOBRAGG_DISABLE_COMPILE=1
+```
+
+- **Rationale**: `torch.compile` creates donated buffers that interfere with `torch.autograd.gradcheck` numerical gradient computation. Symptoms include non-deterministic failures or incorrect gradient values.
+- **Spec Reference**: `docs/pytorch_runtime_checklist.md:26`, `docs/development/testing_strategy.md:1.6`
+- **Scope**: Only required for tests using `torch.autograd.gradcheck` or marked `@pytest.mark.gradcheck`
+- **See Also**: `docs/development/testing_strategy.md` §4.1 for full gradient test execution requirements
+
+### 1.2 Installation Requirements
+
+- Prefer editable installs: `pip install -e .` from the repo root to ensure CLI entry points resolve correctly
+- Verify environment before running tests:
+  ```bash
+  python -c "import dbex; import torch; print(f'dbex loaded, torch {torch.__version__}')"
+  ```
+
+### 1.3 Quick Reference Commands
+
+**Standard test run (smoke/integration):**
+```bash
+KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/
+```
+
+**Gradient tests:**
+```bash
+KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests -k gradcheck
+```
+
+**Determinism tests (CPU-only, see §2.7 in testing_strategy.md):**
+```bash
+CUDA_VISIBLE_DEVICES='' TORCHDYNAMO_DISABLE=1 NANOBRAGG_DISABLE_COMPILE=1 \
+  KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests -k DB_AT_013
+```
 
 ## 2. Test Taxonomy
 
-| Scope | Selector | Purpose | Notes |
-| --- | --- | --- | --- |
-| Smoke | `python -m dbex.refine_one --help` | Verifies legacy CLI loads after environment changes. | Run before/after backend refactors.
-| Torch smoke (planned) | `pytest -v tests -k DB_AT_001` | Validates simple cubic parity once torch backend harness exists. | Use `KMP_DUPLICATE_LIB_OK=TRUE`.
-| Workflow ingestion | `pytest -v tests -k DB_AT_020` | Ensures DIALS reflection ingestion + bbox semantics stay aligned. | Blocks CLI parity work.
-| Mask semantics | `pytest -v tests -k DB_AT_021` | Guards trusted-mask polarity per `docs/spec-db-core.md:51`. | Author targeted fixtures when masks land.
-| Runtime vectorization | `pytest tests/test_cli_scaling.py::TestSourceWeights* -v` | Protects equal-weight source handling and vectorized loops. | CPU required; GPU optional.
+| Scope | Selector | Purpose | Status | Notes |
+| --- | --- | --- | --- | --- |
+| Smoke | `python -m dbex.refine_one --help` | Verifies legacy CLI loads after environment changes. | Active | Run before/after backend refactors. |
+| Torch parity | `pytest -v tests -k DB_AT_001` | Validates simple cubic parity (`docs/spec-db-conformance.md:24`). | Planned | Requires golden data; correlation ≥0.99. |
+| Determinism | `pytest -v tests -k DB_AT_002` | Bitwise/tolerance equality with locked RNG seeds. | Planned | See `docs/development/testing_strategy.md` §2.7 for environment. |
+| Reflection ingestion | `pytest -v tests -k DB_AT_020` | DIALS reflection ingestion + bbox semantics (`docs/spec-db-conformance.md:30`). | Planned | Blocks CLI parity work. |
+| Mask semantics | `pytest -v tests -k DB_AT_021` | Trusted-mask polarity per `docs/spec-db-core.md:51`. | Planned | Author targeted fixtures when masks land. |
+| Background semantics | `pytest -v tests -k DB_AT_022` | Validates −1 sentinel handling around ROIs. | Planned | Per `docs/spec-db-conformance.md:38`. |
+| Calibration | `pytest -v tests -k DB_AT_023` | Ensures ADU vs photons policy behaves per spec. | Planned | Requires adu_per_photon fixtures. |
+| Mapping sanity | `pytest -v tests -k DB_AT_024` | Zero-iteration forward pass overlaps data within tolerance. | Planned | Logs metrics for validation. |
+| Runtime vectorization | `pytest tests/test_cli_scaling.py::TestSourceWeights* -v` | Equal-weight source handling and vectorized loops (`docs/pytorch_runtime_checklist.md:31`). | Planned | Currently in `nanoBragg2/tests/`; port to DBEX. |
 
-Tests marked “planned” must be authored before declaring their parent fix-plan items complete. Until then, record TODO entries in `docs/fix_plan.md` with the relevant selector.
+**Note**: Tests marked "Planned" must be authored before declaring their parent fix-plan items complete. Record TODO entries in `docs/fix_plan.md` with the relevant selector. See also `docs/development/TEST_SUITE_INDEX.md` for synchronized selector registry.
 
 ## 3. Artifact Policy
 - Store `pytest` logs, parity metrics, and trace outputs in a documented location per initiative (e.g., `plans/<initiative-id>/reports/<YYYY-MM-DDTHHMMSSZ>/`).

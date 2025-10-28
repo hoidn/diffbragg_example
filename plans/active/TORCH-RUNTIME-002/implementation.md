@@ -21,13 +21,13 @@ Status: pending
 
 ## Phase A — Runtime Docs & Flags
 ### Checklist
-- [ ] A1: Ensure `KMP_DUPLICATE_LIB_OK=TRUE` and gradcheck flag are documented
-- [ ] A2: Add “Common Pitfalls” for runtime to testing strategy
+- [x] A1: Ensure `KMP_DUPLICATE_LIB_OK=TRUE` and gradcheck flag are documented
+- [x] A2: Add "Common Pitfalls" for runtime to testing strategy
 
 ## Phase B — Selectors & Harness Seed
 ### Checklist
-- [ ] B1: Add minimal DB-AT selector placeholder and document it
-- [ ] B2: Capture a smoke artifact and reference it in the ledger
+- [x] B1: Add minimal DB-AT selector placeholder and document it
+- [x] B2: Capture a smoke artifact and reference it in the ledger
 
 ## Artifacts Index
 - Reports root: `plans/active/TORCH-RUNTIME-002/reports/`

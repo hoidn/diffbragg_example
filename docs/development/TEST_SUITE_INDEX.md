@@ -1,16 +1,20 @@
-# DBEX Test Suite Index (Seed)
+# DBEX Test Suite Index
 
-| Module / Area | Selector | Status | Notes |
-| --- | --- | --- | --- |
-| Parity harness | `pytest -v tests -k DB_AT_001` | planned | Uses golden data under `nanoBragg2/tests/golden_data`; validates simple cubic correlation ≥0.99 (`docs/spec-db-conformance.md:24`).
-| Determinism | `pytest -v tests -k DB_AT_002` | planned | Requires fixtures that lock RNG seeds and check bitwise/tolerance equality.
-| Reflection ingestion | `pytest -v tests -k DB_AT_020` | planned | Exercises bbox exclusivity and panel ordering via DIALS samples (`docs/spec-db-conformance.md:30`).
-| Mask semantics | `pytest -v tests -k DB_AT_021` | planned | Confirms trusted mask polarity and simulator masking rules (`docs/spec-db-core.md:51`).
-| Background semantics | `pytest -v tests -k DB_AT_022` | planned | Validates −1 sentinel handling around ROIs (`docs/spec-db-conformance.md:38`).
-| Calibration | `pytest -v tests -k DB_AT_023` | planned | Ensures ADU vs photons policy behaves per spec.
-| Mapping sanity | `pytest -v tests -k DB_AT_024` | planned | Confirms zero-iteration forward pass overlaps data within tolerance; logs metrics.
-| Runtime vectorization | `pytest nanoBragg2/tests/test_cli_scaling.py::TestSourceWeights* -v` | planned | Currently lives in `nanoBragg2/tests/`; port harness into DBEX before marking active (`docs/pytorch_runtime_checklist.md:31`).
+**Purpose**: Authoritative registry of DBEX test selectors, synchronized with `docs/TESTING_GUIDE.md` §2.
 
+| Module / Area | Selector | Status | Spec Reference | Notes |
+| --- | --- | --- | --- | --- |
+| Torch parity | `pytest -v tests -k DB_AT_001` | planned | `docs/spec-db-conformance.md:24` | Uses golden data under `nanoBragg2/tests/golden_data`; validates simple cubic correlation ≥0.99. |
+| Determinism | `pytest -v tests -k DB_AT_002` | planned | `docs/development/testing_strategy.md:2.7` | Requires fixtures that lock RNG seeds and check bitwise/tolerance equality. Environment: CPU-only, CUDA_VISIBLE_DEVICES=''. |
+| Reflection ingestion | `pytest -v tests -k DB_AT_020` | planned | `docs/spec-db-conformance.md:30` | Exercises bbox exclusivity and panel ordering via DIALS samples. Blocks CLI parity work. |
+| Mask semantics | `pytest -v tests -k DB_AT_021` | planned | `docs/spec-db-core.md:51` | Confirms trusted mask polarity (True=include) and simulator masking rules. |
+| Background semantics | `pytest -v tests -k DB_AT_022` | planned | `docs/spec-db-conformance.md:38` | Validates −1 sentinel handling around ROIs. |
+| Calibration | `pytest -v tests -k DB_AT_023` | planned | `docs/spec-db-core.md` | Ensures ADU vs photons policy behaves per spec. Requires adu_per_photon fixtures. |
+| Mapping sanity | `pytest -v tests -k DB_AT_024` | planned | `docs/spec-db-conformance.md` | Confirms zero-iteration forward pass overlaps data within tolerance; logs metrics. |
+| Runtime vectorization | `pytest tests/test_cli_scaling.py::TestSourceWeights* -v` | planned | `docs/pytorch_runtime_checklist.md:31` | Equal-weight source handling and vectorized loops. Currently in `nanoBragg2/tests/`; port to DBEX before marking active. |
+
+**Maintenance Rules**:
 - Update this index as new tests are authored; mark selectors `active` once they exist in `tests/`.
 - Keep selectors sorted by profile to match `docs/spec-db-conformance.md`.
 - Record any skipped selectors and rationale in `docs/fix_plan.md`.
+- Cross-reference: This index mirrors `docs/TESTING_GUIDE.md` §2 Test Taxonomy. Keep both in sync when adding/removing selectors.

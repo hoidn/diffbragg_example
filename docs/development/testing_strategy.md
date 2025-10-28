@@ -35,13 +35,15 @@ All tests will be implemented using the PyTest framework.
 
 ### 1.6 Common Pitfalls (Read Before Running Tests)
 
-- Torch Compile vs Gradcheck: `torch.compile`/Dynamo interferes with `torch.autograd.gradcheck`. For any gradient test, export `NANOBRAGG_DISABLE_COMPILE=1` (see also docs/pytorch_runtime_checklist.md). If you see erratic or non‑deterministic gradcheck results, verify this flag first.
+- **Missing Environment Flags**: PyTorch tests require `KMP_DUPLICATE_LIB_OK=TRUE` to prevent MKL/BLAS conflicts. Gradient tests additionally require `NANOBRAGG_DISABLE_COMPILE=1`. Without these, you'll see OMP initialization errors or non-deterministic gradient failures. See `docs/TESTING_GUIDE.md` §1.1-1.3 for canonical commands and detailed rationale.
 
-- Device/Dtype Mixing: Hard‑coded `.cpu()`/`.cuda()` calls, CPU‑constructed constants, or caches created with stale dtype cause silent mismatches. Parametrize tests over `device in {cpu,cuda}` and dtypes where relevant; co‑locate tensors and coerce caches via `.to(device, dtype)`.
+- **Torch Compile vs Gradcheck**: `torch.compile`/Dynamo interferes with `torch.autograd.gradcheck`. For any gradient test, export `NANOBRAGG_DISABLE_COMPILE=1` (see also `docs/pytorch_runtime_checklist.md:26`). If you see erratic or non‑deterministic gradcheck results, verify this flag first.
 
-- Pixel Ordering and Mask Polarity: DBEX arrays are `[panel, slow, fast]`; dxtbx often returns `(fast, slow)`. Trusted mask polarity is True=include. Add tiny assertions in fixtures that validate shapes/order and polarity before invoking the simulator or loss.
+- **Device/Dtype Mixing**: Hard‑coded `.cpu()`/`.cuda()` calls, CPU‑constructed constants, or caches created with stale dtype cause silent mismatches. Parametrize tests over `device in {cpu,cuda}` and dtypes where relevant; co‑locate tensors and coerce caches via `.to(device, dtype)`.
 
-- ADU vs Photons: Don’t compare apples to oranges. Either convert targets to photons using `adu_per_photon` or keep ADU and include a learnable/global scale. Tests must declare the representation used.
+- **Pixel Ordering and Mask Polarity**: DBEX arrays are `[panel, slow, fast]`; dxtbx often returns `(fast, slow)`. Trusted mask polarity is True=include. Add tiny assertions in fixtures that validate shapes/order and polarity before invoking the simulator or loss.
+
+- **ADU vs Photons**: Don't compare apples to oranges. Either convert targets to photons using `adu_per_photon` or keep ADU and include a learnable/global scale. Tests must declare the representation used.
 
 
 ## 2. Configuration Parity

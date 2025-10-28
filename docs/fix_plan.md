@@ -3,7 +3,7 @@
 **Last Updated:** 2025-10-28
 
 ## Working Agreements
-- Artifact policy: store loop outputs under `plans/active/<initiative-id>/reports/<YYYY-MM-DDTHHMMSSZ>/` and record the path in each Attempts History entry.
+- Artifact policy: store loop outputs under a dedicated `plans/<initiative-id>/reports/<YYYY-MM-DDTHHMMSSZ>/` directory (or another documented location) and record the path in each Attempts History entry.
 - Every loop updates this ledger before and after execution. Append `Metrics:` and `Artifacts:` lines for each attempt; note `First Divergence:` when debugging parity issues.
 - Status values: `pending`, `in_progress`, `blocked`, `done`, `archived`.
 
@@ -20,7 +20,6 @@
   2. Detector/beam/crystal configs hydrate the torch simulator per `docs/config_crosswalk.md:1` and `docs/dxtbx_api.md:1`.
   3. Bridge raises when pixel pitch is not square (`docs/spec-db-core.md:43`).
   4. Smoke harness exercises one DIALS experiment; artifacts recorded with ROI triptych.
-- Artifact Hub: `plans/active/TORCH-BRIDGE-001/`
 - Attempts History:
   * _(pending)_
 
@@ -31,7 +30,7 @@
 - Exit Criteria:
   1. `docs/TESTING_GUIDE.md` documents smoke/acceptance commands and environment flags (e.g., `KMP_DUPLICATE_LIB_OK=TRUE`).
   2. Minimal pytest selector (or placeholder) captured for DB-AT parity suites (`docs/spec-db-conformance.md:25`).
-  3. Artifact example written to `plans/active/TORCH-RUNTIME-002/reports/<timestamp>/runtime_smoke.md`.
+  3. Artifact example captured under the initiative’s documented reports directory.
   4. Ledger entry includes Metrics/Artifacts lines referencing the recorded selector run or TODO.
 - Attempts History:
   * _(pending)_
@@ -50,15 +49,14 @@
 
 ### [DOC-HARDEN-001] Harden key docs with prescriptive guardrails
 - Depends on: none
-- Status: pending
+- Status: done
 - Owner/Date: Unassigned / 2025-10-28
 - Exit Criteria:
   1. Review `docs/architecture.md` and `docs/development/testing_strategy.md`.
   2. Add new sections titled "Common Pitfalls" or "Architectural Anti-Patterns" to each.
   3. Populate these sections with at least two concrete examples of failure modes observed during `nanobrag_torch` integration (e.g., ADU↔photons unit mismatch, device/dtype neutrality violations, `[panel, slow, fast]` vs dxtbx `(fast, slow)` ordering).
-- Artifact Hub: `plans/active/DOC-HARDEN-001/`
 - Attempts History:
-  * _(pending)_
+  * 2025-10-28: Added "Common Pitfalls" to `docs/architecture.md` (§13) and `docs/development/testing_strategy.md` (§1.6). Metrics: n/a; Artifacts: n/a.
 
 ---
 

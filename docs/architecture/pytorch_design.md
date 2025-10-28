@@ -27,7 +27,7 @@ The core simulator physics loops have been fully vectorized to eliminate Python-
 
 **Evidence:**
 - **Correctness:** `tests/test_tricubic_vectorized.py` (19 tests, CPU + CUDA parametrization)
-- **Performance:** Phase E microbenchmarks show ≤1.2% delta vs baseline (`reports/2025-10-vectorization/phase_e/perf/20251009T034421Z/`)
+- **Performance:** Internal microbenchmarks show ≤1.2% delta vs baseline
 - **Parity:** AT-STR-002 acceptance tests pass with correlation >0.999
 
 **CUDA Status:** CPU validation complete. CUDA execution blocked by pre-existing device-placement defect (tracked in `docs/fix_plan.md` Attempt #14; see PERF-PYTORCH-004).
@@ -57,7 +57,7 @@ The core simulator physics loops have been fully vectorized to eliminate Python-
 
 **Evidence:**
 - **Correctness:** `tests/test_at_abs_001.py` extended to 16 parametrized tests (8/8 CPU passing; CUDA blocked)
-- **Performance:** Phase F3 CPU benchmarks show 0.0% regression vs baseline (`reports/2025-10-vectorization/phase_f/perf/20251009T050859Z/`)
+- **Performance:** CPU benchmarks show 0.0% regression vs baseline
 - **Physics:** Capture fractions sum to `1 − exp(−thickness·μ/ρ)` within 1e-6 tolerance
 
 **CUDA Status:** CPU validation complete with zero performance regression. CUDA benchmarks deferred pending device-placement fix (see `docs/fix_plan.md` Attempt #14 and Phase F summary for rerun commands).
@@ -78,12 +78,7 @@ Extensions must preserve these shapes; adding a new sampling dimension requires 
 **CUDA Performance & Validation:** Once the device-placement defect is resolved (PERF-PYTORCH-004):
 1. Rerun `tests/test_tricubic_vectorized.py` on CUDA (expect 19/19 passing)
 2. Rerun `tests/test_at_abs_001.py -k cuda` (expect 8/8 passing)
-3. Execute CUDA benchmarks per `reports/2025-10-vectorization/phase_f/summary.md` Appendix
-4. Append metrics to Phase E/F artifacts and update `docs/fix_plan.md` with CUDA evidence
-
-**References:**
-- **Plans:** `plans/active/vectorization.md` (Phases C-F complete)
-- **Artifacts:** `reports/2025-10-vectorization/` (phase_c through phase_f evidence bundles)
+3. Record updated CUDA benchmark metrics and update `docs/fix_plan.md` with the results
 
 ### 1.1.5 Source Weighting & Integration
 
@@ -94,9 +89,8 @@ Extensions must preserve these shapes; adding a new sampling dimension requires 
 **Normative Reference:** See `docs/pytorch_runtime_checklist.md` (Source Handling & Equal Weighting) for canonical source weighting rules; CLI `-lambda` is authoritative and equal weighting applies via division by source count.
 
 **Validation:**
-- **Phase H Reassessment:** `reports/2025-11-source-weights/phase_h/20251010T002324Z/parity_reassessment.md` supersedes legacy divergence classification and confirms parsed source weights remain advisory metadata; `steps = sources * mosaic_domains * phisteps * oversample^2` divides by count, not weight sum.
-- **Thresholds:** Correlation ≥0.999, |sum_ratio−1| ≤5e-3 (observed: 0.9999886, 0.0038 across seven consecutive validation runs)
-- **Evidence:** `tests/test_cli_scaling.py::TestSourceWeightsDivergence` (7 tests passing, xfail removed in Phase H2)
+- Equal-weight handling verified with repeated runs of `tests/test_cli_scaling.py::TestSourceWeightsDivergence` (7 tests passing)
+- Observed correlation ≥0.999 and |sum_ratio−1| ≤5e-3 across the validation runs
 
 **Data Flow:**
 1. Source weights are parsed from sourcefile but never multiplied into intensity contributions

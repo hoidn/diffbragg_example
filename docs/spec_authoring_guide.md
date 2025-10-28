@@ -14,8 +14,8 @@ Non‑goals: duplicating SOPs or tutorials already maintained under `docs/`; the
   - `spec-db-core.md` (normative): physics, geometry, units, detector conventions; data contracts for reflections/ROIs/masks; required inputs/outputs.
   - `spec-db-runtime.md` (normative): PyTorch execution guardrails (vectorization, device/dtype neutrality, differentiability), environment variables.
   - `spec-db-workflow.md` (normative): end‑to‑end pipeline (Experiment/Reflection ingestion → ROI/background → masking/trusted range → calibration → simulation → loss).
-  - `spec-db-interfaces.md` (normative): CLI/API surface, precedence rules, environment resolution (e.g., `NB_C_BIN`).
-  - `spec-db-conformance.md` (normative): acceptance tests and C↔PyTorch parity suite with runnable commands.
+  - `spec-db-interfaces.md` (normative): CLI/API surface, precedence rules, environment resolution.
+  - `spec-db-conformance.md` (normative): acceptance tests and parity suite with runnable commands.
   - `spec-db-tracing.md` (normative): tracing/instrumentation obligations and trace comparison workflow.
 - Coordination: a short index (like `spec-a.md`) must list shards and declare that together they form the normative spec; keep shards consistent across edits.
 
@@ -28,7 +28,7 @@ Non‑goals: duplicating SOPs or tutorials already maintained under `docs/`; the
 - Every major requirement MUST map to a named acceptance test with a runnable command. Include:
   - A stable id: `DB-AT-00X`.
   - Setup parameters, expected behavior, and failure modes.
-  - Canonical command lines (e.g., `KMP_DUPLICATE_LIB_OK=TRUE NB_C_BIN=... pytest -v ... -k DB-AT-00X`).
+  - Canonical command lines (e.g., `KMP_DUPLICATE_LIB_OK=TRUE pytest -v ... -k DB-AT-00X`).
 - Maintain a 1:1 spec‑to‑test table in `spec-db-conformance.md`.
 
 4) Data Contracts (Be Unambiguous)
@@ -61,19 +61,19 @@ Non‑goals: duplicating SOPs or tutorials already maintained under `docs/`; the
 7) Tracing and Parity (Single Source of Truth)
 - Instrumentation MUST reuse production helpers to avoid drift (no re‑deriving physics for trace only).
 - Parity workflow SHALL define:
-  - C trace generation (instrumented runner precedence, `NB_C_BIN` resolution).
+  - Golden trace generation (instrumented runner precedence, artifact location).
   - PyTorch trace generation scripts.
   - First‑divergence diff procedure and unit validation before numeric compare.
 
 8) Conformance Profiles (Opt‑In Bundles)
 - Define named profiles with clear gates, e.g.:
-  - C‑Parity Profile: image correlation thresholds, peak alignment, deterministic seeds.
+  - Golden-Parity Profile: image correlation thresholds, peak alignment, deterministic seeds.
   - Gradient‑Safe Profile: gradcheck passes, no graph breaks, dtype permutations.
   - Workflow Integration Profile: reflection/mask ingestion conformance, ROI background semantics, calibration handling.
 - Each profile SHALL list the DB‑AT acceptance tests required to pass.
 
 9) Interfaces (CLI/API) and Precedence Rules
-- Document flag/env precedence deterministically (e.g., `--c-bin` > `NB_C_BIN` > default runner path).
+- Document flag/env precedence deterministically (e.g., explicitly state CLI overrides followed by environment fallbacks and defaults).
 - Specify input discovery order, ROI parameter precedence (`deltaQ` vs fixed shoebox), and any implicit defaults.
 
 10) Cross‑References and Protected Assets
@@ -131,4 +131,3 @@ Version
 --------------------------------------------------------------------------------
 
 Adopt this guide when introducing new shards or revising existing ones. The strength of the nanoBragg Spec A approach lies in clear, test‑anchored contracts; use the same discipline for DiffBragg/DBEX + PyTorch so teams can reason about behavior, validate it quickly, and evolve with confidence.
-

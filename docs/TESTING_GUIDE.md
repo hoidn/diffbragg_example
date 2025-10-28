@@ -20,7 +20,7 @@ This guide standardizes how agents run and author tests for the DiffBragg → `n
 Tests marked “planned” must be authored before declaring their parent fix-plan items complete. Until then, record TODO entries in `docs/fix_plan.md` with the relevant selector.
 
 ## 3. Artifact Policy
-- Store `pytest` logs, parity metrics, and trace outputs under `plans/active/<initiative-id>/reports/<YYYY-MM-DDTHHMMSSZ>/`.
+- Store `pytest` logs, parity metrics, and trace outputs in a documented location per initiative (e.g., `plans/<initiative-id>/reports/<YYYY-MM-DDTHHMMSSZ>/`).
 - Reference the artifact path (log, summary, metrics.json) in the fix plan Attempts History entry that triggered the run.
 
 ## 4. Reporting Checklist
@@ -28,4 +28,3 @@ Tests marked “planned” must be authored before declaring their parent fix-pl
 - Record hardware context (CPU/GPU) and dtype if deviating from defaults.
 - For parity tests, capture correlation, MSE, RMSE, max|Δ|, and sum ratios (see `docs/spec-db-tracing.md`).
 - If a required selector is missing, file a TODO under the relevant fix-plan item and capture repro notes in the artifact directory.
-

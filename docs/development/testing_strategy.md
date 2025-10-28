@@ -9,7 +9,7 @@
 This document outlines the comprehensive testing strategy for the PyTorch implementation of nanoBragg. The primary goal is to ensure that the new application is a correct, verifiable, and trustworthy scientific tool.
 Our testing philosophy is a three-tiered hybrid approach, designed to build confidence layer by layer:
 
-1. **Tier 1: Translation Correctness:** We first prove that the PyTorch code is a faithful, numerically precise reimplementation of the original C code's physical model. The C code is treated as the "ground truth" specification.
+1. **Tier 1: Translation Correctness:** We first prove that the PyTorch code is a faithful, numerically precise implementation of the documented physics model, matching the recorded golden datasets.
 2. **Tier 2: Gradient Correctness:** We then prove that the new differentiable capabilities are mathematically sound.
 3. **Tier 3: Scientific Validation:** Finally, we validate the model against objective physical principles.
 
@@ -30,8 +30,19 @@ All tests will be implemented using the PyTest framework.
 ### 1.5 Loop Execution Notes (Do Now + Validation Scripts)
 
 - Do Now must include an exact pytest command: In the supervisor→engineer handoff (`input.md`), include the precise `pytest` node(s) that reproduce the active item. If no test exists, first author the minimal targeted test and then run it.
-- Prefer reusable validation scripts: Place ad‑hoc validations under `scripts/validation/` and reference them from `input.md` rather than embedding Python snippets inline. Keep them portable and invoke via the project’s standard CLI/env.
+- Prefer reusable validation helpers: factor ad‑hoc validations into callable utilities and reference them from `input.md` rather than embedding long Python snippets inline.
 - Test cadence per loop: Run targeted tests first; execute the full `pytest` suite at most once per engineer turn (end of loop) when code changed. For prompt/docs‑only loops, use `pytest --collect-only -q` to verify import/collection.
+
+### 1.6 Common Pitfalls (Read Before Running Tests)
+
+- Torch Compile vs Gradcheck: `torch.compile`/Dynamo interferes with `torch.autograd.gradcheck`. For any gradient test, export `NANOBRAGG_DISABLE_COMPILE=1` (see also docs/pytorch_runtime_checklist.md). If you see erratic or non‑deterministic gradcheck results, verify this flag first.
+
+- Device/Dtype Mixing: Hard‑coded `.cpu()`/`.cuda()` calls, CPU‑constructed constants, or caches created with stale dtype cause silent mismatches. Parametrize tests over `device in {cpu,cuda}` and dtypes where relevant; co‑locate tensors and coerce caches via `.to(device, dtype)`.
+
+- Pixel Ordering and Mask Polarity: DBEX arrays are `[panel, slow, fast]`; dxtbx often returns `(fast, slow)`. Trusted mask polarity is True=include. Add tiny assertions in fixtures that validate shapes/order and polarity before invoking the simulator or loss.
+
+- ADU vs Photons: Don’t compare apples to oranges. Either convert targets to photons using `adu_per_photon` or keep ADU and include a learnable/global scale. Tests must declare the representation used.
+
 
 ## 2. Configuration Parity
 
@@ -104,7 +115,7 @@ For equivalence debugging (AT‑PARALLEL failures, correlation below thresholds,
 - PyTorch trace: emit a structured log containing, at minimum, `pix0_vector`, basis vectors, `R` (distance), solid angle (both point‑pixel and obliquity‑corrected), close_distance and obliquity factor, `k_in`, `k_out`, `S`, Miller indices (float and rounded), `F`, lattice factors (`F_latt_a/b/c`, product), `F^2`, `F_latt^2`, `omega/solid_angle`, pixel area, fluence and final intensity.
 - Golden trace: reuse the stored golden trace for the same pixel (or regenerate via the trace harness) and ensure units match the PyTorch log (meters, steradians, Å where noted).
 - Dtype/device: debug in float64 on CPU for determinism unless the AT explicitly requires GPU.
-- Artifacts: save as `reports/debug/<DATE>/AT-<ID>/{golden_trace.log, py_trace.log, metrics.json, diff_heatmap.png}` and cite paths in the plan.
+- Artifacts: save trace logs, metrics, and diff heatmaps together and cite the paths in the plan.
 
 ### 2.5.2 Matrix Gate (hard preflight)
 
@@ -142,9 +153,9 @@ Before any parity run in a debugging loop:
     - AT-029 (FFT spectral analysis, aliasing measurement)
 
 **Linter Expectations:**
-- The linter (`scripts/lint_parity_coverage.py`) flags all ATs with C↔Py correlation thresholds as potentially missing from `parity_cases.yaml`
-- Standalone-only ATs (008, 013, 027, 029) produce warnings that should be ignored
-- BOTH-type ATs (010, 016) should appear in parity_cases.yaml to suppress warnings; their standalone tests add extra validation
+- Parity coverage checks should flag any AT with golden-data thresholds that is missing from `parity_cases.yaml`
+- Standalone-only ATs (008, 013, 027, 029) may still appear as warnings; note them explicitly when reviewing lint output
+- BOTH-type ATs (010, 016) should appear in `parity_cases.yaml` to suppress warnings; their standalone tests add extra validation
 
 **Decision Flowchart:**
 1. Does the AT have a golden-data correlation threshold? → If NO, skip (not a parity test)
@@ -155,8 +166,8 @@ Before any parity run in a debugging loop:
 ### 2.5.4 Artifact-Backed Closure (SHALL)
 
 - Success claims for parity-threshold ATs MUST cite artifacts from a mapped parity path meeting thresholds:
-  - Metrics: correlation, MSE, RMSE, max |Δ|, C_sum, Py_sum, sum_ratio (optional SSIM when helpful).
-  - Storage: under `reports/<date>-AT-<ID>/metrics.json` (or equivalent) plus supporting visuals (diff heatmaps/overlays) when failures occur.
+  - Metrics: correlation, MSE, RMSE, max |Δ|, golden_sum, py_sum, sum_ratio (optional SSIM when helpful).
+  - Storage: keep metrics and supporting visuals (diff heatmaps/overlays) in a documented location referenced by the fix plan.
   - fix_plan Attempts History MUST reference these paths (look for `Metrics:` / `Artifacts:` entries).
 - No artifacts → no closure; reopen the fix plan item instead.
 
@@ -179,16 +190,12 @@ Before any parity run in a debugging loop:
 
 To prevent drift, CI should enforce the following fast gates on CPU:
 
-- Detector geometry visual parity: run `scripts/verify_detector_geometry.py` and fail if any reported correlation against the golden dataset drops below the documented thresholds (e.g., ≥0.999 for baseline/tilted unless otherwise specified). Save PNG and metrics JSON as artifacts.
+- Detector geometry visual parity: generate overlays comparing simulator output with the golden dataset and fail if any reported correlation drops below the documented thresholds (e.g., ≥0.999 for baseline/tilted unless otherwise specified). Save PNG and metrics JSON as artifacts.
 - Trace parity check: generate one golden trace and one PyTorch trace for the canonical pixel (`tests/golden_data/simple_cubic_pixel_trace.log` spec) and assert no first‑difference at the named checkpoints (e.g., pix0_vector, basis vectors, q, h,k,l, omega_pixel). Attach golden_trace.log/py_trace.log on failure.
 
-Optional visual parity harness (sanity check):
+Optional visual parity harness (sanity check): When a helper script exists to generate overlays, run it and archive the resulting PNGs and `metrics.json`.
 
-- Script: `scripts/comparison/run_parallel_visual.py`
-- Run: `python scripts/comparison/run_parallel_visual.py`
-- Output: PNGs and `metrics.json` under `parallel_test_visuals/AT-PARALLEL-XXX/`
-
-When the visual harness and the AT tests disagree, treat the AT tests as the primary gate (authoritative) and use parallel trace‑driven debugging (Section 2.1) to identify the first divergence. Scripts are supportive tools; conformance is determined by the pytest suite.
+When the visual harness and the AT tests disagree, treat the AT tests as the primary gate (authoritative) and use parallel trace‑driven debugging (Section 2.1) to identify the first divergence. Support tooling is secondary; conformance is determined by the pytest suite.
 
 ## 2.7 Determinism Validation Workflow
 
@@ -267,8 +274,6 @@ KMP_DUPLICATE_LIB_OK=TRUE pytest -v \
 - AT-PARALLEL-024: 5 passed, 1 skipped (runtime ~4-5s)
 - Total: 10 passed, 2 skipped
 
-**Skipped Tests:** `test_c_pytorch_equivalence` (both files) require `NB_RUN_PARALLEL=1` and C binary
-
 ### 2.7.5 Implementation Note
 
 **Test files MUST set environment variables at module level before `torch` import:**
@@ -289,7 +294,7 @@ import pytest
 
 ### 2.7.6 Artifact Expectations
 
-- Test logs: `reports/2026-01-test-suite-triage/phase_d/<STAMP>/determinism/`
+- Test logs capturing determinism outputs for each selector run
 - Metrics: Correlation values, `np.array_equal` results, float64 precision checks
 - Environment snapshot: `env.json` capturing Python/PyTorch/CUDA versions
 - Commands log: `commands.txt` with exact reproduction steps
@@ -304,34 +309,34 @@ import pytest
 - Spec: `docs/spec-db-runtime.md` §5.3 (RNG determinism), `docs/spec-db-conformance.md` AT-parity profiles
 - Architecture: `docs/architecture.md` ADR-05 (Deterministic Sampling & Seeds)
 - Implementation: `src/nanobrag_torch/utils/c_random.py` (LCG), `src/nanobrag_torch/models/crystal.py` (seed propagation)
-- Phase C Analysis: `reports/determinism-callchain/phase_c/20251011T052920Z/testing_strategy_notes.md` (detailed workflow notes)
+- Historical Notes: capture detailed workflow analysis in the project history whenever determinism fixes land
 
 ## 3. Tier 1: Translation Correctness Testing
 
-**Goal:** To prove the PyTorch code is a faithful port of the C code.
+**Goal:** To prove the PyTorch code is faithful to the documented physics contracts and golden baselines.
 
 ### 3.1 The Foundational Test: Parallel Trace Validation
 
-All debugging of physics discrepancies **must** begin with a parallel trace comparison. Comparing only the final output images is insufficient and can be misleading. The line-by-line comparison of intermediate variables between the C-code trace and the PyTorch trace is the only deterministic method for locating the source of an error and is the mandatory first step before attempting to debug with any other method.
+All debugging of physics discrepancies **must** begin with a parallel trace comparison. Comparing only the final output images is insufficient and can be misleading. The line-by-line comparison of intermediate variables between the golden trace and the current PyTorch trace is the most reliable way to locate the source of an error and is the mandatory first step before attempting to debug with any other method.
 
 ### 3.2 Unit Tests (`tests/test_utils.py`)
 
 **Target:** Functions in `utils/geometry.py` and `utils/physics.py`.  
-**Methodology:** For each function, create a PyTest test using hard-coded inputs. The expected output will be taken directly from the Golden C-Code Trace Log.
+**Methodology:** For each function, create a PyTest test using hard-coded inputs. The expected output will be taken directly from the golden trace log.
 
 ### 3.3 Component Tests (`tests/test_models.py`)
 
 **Target:** The `Detector` and `Crystal` classes.  
 **Methodology:** The primary component test is the **Parallel Trace Comparison**.
 
-- `test_trace_equivalence`: A test that runs `scripts/debug_pixel_trace.py` to generate a new PyTorch trace and compares it numerically, line-by-line, against the corresponding Golden C-Code Trace Log. This single test validates the entire chain of component calculations.
+- `test_trace_equivalence`: A test that triggers the trace-capture helper to generate a fresh PyTorch trace and compares it numerically, line-by-line, against the corresponding golden trace log. This single test validates the entire chain of component calculations.
 
 ### 3.4 Integration Tests (`tests/test_simulator.py`)
 
 **Target:** The end-to-end `Simulator.run()` method.  
 **Methodology:** For each test case, create a test that compares the final PyTorch image tensor against the golden `.bin` file using `torch.allclose`. This test should only be expected to pass after the Parallel Trace Comparison test passes.
 
-**Primary Validation Tool:** The main script for running end-to-end parallel validation against the C-code reference is `scripts/verify_detector_geometry.py`. This script automates the execution of both the PyTorch and C implementations, generates comparison plots, and computes quantitative correlation metrics. It relies on `scripts/c_reference_runner.py` to manage the C-code execution.
+**Primary Validation Tool:** The canonical parity workflow runs the PyTorch implementation against the golden dataset, generates comparison plots, and computes quantitative correlation metrics while capturing detailed traces for inspection.
 
 ## 4. Tier 2: Gradient Correctness Testing
 
@@ -359,16 +364,14 @@ All debugging of physics discrepancies **must** begin with a parallel trace comp
     env CUDA_VISIBLE_DEVICES=-1 KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
       pytest -v tests/test_gradients.py -k "gradcheck" --tb=short
     ```
-*   **Validation:** Phase M2 (2025-10-11T172830Z) confirmed 10/10 gradcheck tests pass with guard enabled
-*   **Reference:** `reports/2026-01-test-suite-triage/phase_m2/20251011T172830Z/summary.md` for validation artifacts
+*   **Validation:** Recent gradcheck runs confirmed 10/10 tests pass with the compile guard enabled; retain the latest metrics alongside the test artifacts
 
 **Performance Expectations (Slow Gradient Suite):**
 *   **Maximum runtime tolerance:** Gradient stability tests (particularly `test_property_gradient_stability`) may run up to 905 seconds on CPU with float64 precision and compile guard enabled
 *   **Rationale:** High-precision numerical gradient checks (`torch.autograd.gradcheck`) require extensive finite-difference computations across large parameter spaces, inherently slow on CPU
 *   **Marker:** Tests expected to exceed standard timeouts are marked with `@pytest.mark.timeout(905)` and `@pytest.mark.slow_gradient`
-*   **Validation:** Phase P timing packet (2025-10-15T060354Z) established initial 900s ceiling with 6 percent margin above 845.68s Phase O baseline; Phase Q validation (2025-10-15T071423Z) confirmed 839.14s runtime; Phase R uplift (2025-10-15T091543Z) raised ceiling to 905s after observing 900.02s breach in chunk 03 rerun, maintaining 0.5 percent safety margin
+*   **Validation:** Timing studies established the 905s ceiling after observing occasional runs up to 900s; revise the threshold if future measurements deviate materially
 *   **CI integration:** pytest-timeout dependency required; install via `pip install pytest-timeout` or `pip install -e ".[test]"` (includes optional test dependencies)
-*   **Evidence artifacts:** `reports/2026-01-test-suite-triage/phase_p/20251015T060354Z/c18_timing.md` (tolerance derivation), `reports/2026-01-test-suite-triage/phase_q/20251015T071423Z/summary.md` (validation results)
 
 ### 4.2 Multi-Tier Gradient Testing
 
@@ -420,7 +423,7 @@ All debugging of physics discrepancies **must** begin with a parallel trace comp
 
 ## 5. Tier 3: Scientific Validation Testing
 
-**Goal:** To validate the model against objective physical principles, independent of the original C code.
+**Goal:** To validate the model against objective physical principles, independent of any previously recorded implementations.
 
 ### 5.1 First Principles Tests (`tests/test_validation.py`)
 
@@ -439,7 +442,7 @@ All debugging of physics discrepancies **must** begin with a parallel trace comp
 
 ## 6. Tooling & Benchmark Hygiene
 
-- **Directory layout:** Place benchmarks, profilers, and ad-hoc tooling under `scripts/` (e.g., `scripts/benchmarks/benchmark_detailed.py`). Do not add standalone executables to the repo root.
-- **Environment parity:** All tooling must honour the same environment contract as the tests (`KMP_DUPLICATE_LIB_OK=TRUE`, `NB_C_BIN` precedence, editable install). Scripts SHOULD exit with a non-zero status if prerequisites are missing.
+- **Directory layout:** Place benchmarks, profilers, and ad-hoc tooling under `scripts/` when they are introduced. Do not add standalone executables to the repo root.
+- **Environment parity:** All tooling must honour the same environment contract as the tests (`KMP_DUPLICATE_LIB_OK=TRUE`, determinism guards, editable install). Scripts SHOULD exit with a non-zero status if prerequisites are missing.
 - **Plan integration:** When a benchmark exposes a regression, log the command, metrics, and artifact path under `docs/fix_plan.md` › `## Suite Failures` or the relevant tracking section.
 - **Generalisation:** These expectations apply to any PyTorch project you touch—structure tooling predictably, rely on documented env vars, and keep benchmark commands discoverable through project docs.

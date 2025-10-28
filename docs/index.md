@@ -132,7 +132,7 @@ Use this when: Implementing or reviewing PyTorch simulator internals for DBEX in
 ### [C-CLI to PyTorch Configuration Map](development/c_to_pytorch_config_map.md)
 Description: Parameter-by-parameter mapping between legacy DiffBragg CLI flags and the PyTorch configuration objects.  
 Keywords: configuration, parity, beam-center, pivot  
-Use this when: Ensuring configuration parity before running C↔PyTorch comparisons or authoring tests.
+Use this when: Ensuring configuration parity before running golden-data comparisons or authoring tests.
 
 ### [PyTorch Testing Strategy](development/testing_strategy.md)
 Description: Layered testing philosophy, golden data requirements, and canonical commands for PyTorch parity and gradcheck suites.  
@@ -197,7 +197,7 @@ Use this when: You need authoritative agent rules; remember deeper AGENTS.md fil
 ### [Implementation Plan Template](../plans/templates/implementation_plan.md)
 Description: Phased plan template for multi-loop initiatives; includes checklist IDs to reference in `input.md`.  
 Keywords: planning, phases, checklist  
-Use this when: Creating or updating a persistent plan under `plans/active/<initiative-id>/implementation.md`.
+Use this when: Creating or updating a persistent plan under `plans/<initiative-id>/implementation.md`.
 
 ### [Phase Checklist Template](../plans/templates/phase_checklist.md)
 Description: Per-phase checklist structure with objectives, validation, and artifacts sections.  

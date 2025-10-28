@@ -165,3 +165,25 @@ Debug Artifacts
 - Crosswalk: docs/config_crosswalk.md
 - Plan: plans/nanobrag_integration_plan.md
 
+## 13) Common Pitfalls and Anti-Patterns
+
+1) Pixel Ordering and Beam Centre Mapping
+- Symptom: Model/data misalignment, low correlation despite plausible parameters.
+- Cause: dxtbx returns beam centre and panel axes in `(fast, slow)` while DBEX tensors are `[panel, slow, fast]`.
+- Guardrail: Always swap order when hydrating configs; treat `[panel, slow, fast]` as canonical throughout DBEX. Add small assertions where arrays and masks are stitched (panel, s, f) to catch transpositions early.
+
+2) ADU ↔ Photons Conversion Drift
+- Symptom: Global scale off by a large constant; parity tests fail uniformly.
+- Cause: Comparing ADU targets against photon‑scaled simulator outputs (or vice‑versa).
+- Guardrail: Follow ADR‑02 strictly. If `--adu-per-photon` is present or panel metadata is available, convert targets to photons; otherwise keep ADU and fit a global scale. Never mix representations within a single run.
+
+3) Device/Dtype Neutrality Regressions
+- Symptom: CUDA smoke passes locally but CI fails, or gradients differ by dtype.
+- Cause: Hidden `.cpu()`/`.cuda()` calls; constants created on CPU default dtype; cached tensors not coerced on retrieval.
+- Guardrail: Centralize device/dtype harmonisation; co‑locate tensors before compute; use `.to(device=self.device, dtype=self.dtype)` when retrieving from caches.
+
+4) Square‑Pixel Enforcement Forgotten
+- Symptom: Subtle geometric offsets and unexpected spot shapes.
+- Cause: Allowing rectangular pixel panels within a single Detector mapping.
+- Guardrail: Keep ADR‑01: raise if `px_fast_mm != px_slow_mm` for any panel; if hardware differs, instantiate separate Detectors per unique pixel size.
+

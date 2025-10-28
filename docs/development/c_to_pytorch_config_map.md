@@ -4,7 +4,7 @@
 
 **This document is the authoritative source of truth for configuration parity between the legacy nanoBragg CLI and the PyTorch implementation.**
 
-Before writing any test or implementation that involves C-code validation, you **MUST** consult this document. Failure to ensure 1:1 configuration parity is the most common source of bugs, particularly with:
+Before writing any test or implementation that aligns with the legacy CLI behavior, you **MUST** consult this document. Failure to ensure 1:1 configuration parity is the most common source of bugs, particularly with:
 - Implicit pivot mode logic
 - Convention-dependent beam center calculations
 - Rotation axis defaults
@@ -14,7 +14,7 @@ Before writing any test or implementation that involves C-code validation, you *
 
 ### Crystal Parameters
 
-| C-CLI Flag | PyTorch Config Field | C Variable | Units/Convention | Critical Notes |
+| C-CLI Flag | PyTorch Config Field | Legacy Variable | Units/Convention | Critical Notes |
 |------------|---------------------|------------|------------------|----------------|
 | `-cell a b c al be ga` | `CrystalConfig.cell_a/b/c/alpha/beta/gamma` | `a[0], b[0], c[0], alpha, beta, gamma` | Å and degrees → radians | Must convert degrees to radians internally |
 | `-N <val>` | `CrystalConfig.N_cells` | `Na, Nb, Nc` | Number of unit cells | Sets all three axes to same value |
@@ -30,7 +30,7 @@ Before writing any test or implementation that involves C-code validation, you *
 
 ### Beam Parameters
 
-| C-CLI Flag | PyTorch Config Field | C Variable | Units/Convention | Critical Notes |
+| C-CLI Flag | PyTorch Config Field | Legacy Variable | Units/Convention | Critical Notes |
 |------------|---------------------|------------|------------------|----------------|
 | `-lambda <val>` | `BeamConfig.wavelength_A` | `lambda0` | Å → meters | **Overrides sourcefile wavelength column**; convert to meters internally |
 | `-energy <val>` | `BeamConfig.wavelength_A` | `lambda0` | eV → Å via 12398.42/E | Alternative to `-lambda` |
@@ -48,7 +48,7 @@ Before writing any test or implementation that involves C-code validation, you *
 
 ### Detector Parameters
 
-| C-CLI Flag | PyTorch Config Field | C Variable | Units/Convention | Critical Notes |
+| C-CLI Flag | PyTorch Config Field | Legacy Variable | Units/Convention | Critical Notes |
 |------------|---------------------|------------|------------------|----------------|
 | `-distance <val>` | `DetectorConfig.distance_mm` | `distance` | mm → meters | **Sets pivot=BEAM implicitly** |
 | `-detsize <val>` | Derived from pixels × pixel_size | `detsize_f, detsize_s` | mm → meters | Sets both dimensions |

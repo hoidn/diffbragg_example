@@ -1,0 +1,587 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 1 item
+
+tests/dbex/test_nanobrag_smoke.py::TestSmokeHarness::test_single_experiment_flow ERROR [100%]
+
+==================================== ERRORS ====================================
+________ ERROR at setup of TestSmokeHarness.test_single_experiment_flow ________
+
+    @pytest.fixture(scope="module")
+    def refgeom_dataload():
+        """
+        Load refGeom dataset via DataLoad.
+    
+        IMPORTANT: Requires reflection file from dials.stills_process.
+        To generate required data files, see README.md Step 5:
+    
+        ```bash
+        cd easyBragg
+        dials.stills_process stills_proc.phil lys_nitr_10_6_*cbf \
+          input.reference_geometry=refGeom.expt output_dir=sp.proc \
+          dispatch.integrate=False
+        cp sp.proc/idx-0000_indexed.refl ../refGeom.refl
+        ```
+    
+        For now, this fixture is SKIPPED if refGeom.refl doesn't exist.
+        This allows Phase C tests to pass with mock data initially.
+    
+        Returns DataLoad instance with:
+        - Expt: dxtbx Experiment with detector/beam/crystal
+        - Refs: reflection table
+        - data: pixel data [panel, slow, fast]
+        - background_image: background estimate [panel, slow, fast], -1 outside ROIs
+        - bbox: ROI bounding boxes (n_roi, 4) as (x0, x1, y0, y1)
+        - pids: panel IDs (n_roi,)
+        - F: structure factors with Bijvoet mates
+        """
+        # Build args namespace for DataLoad (repo-relative paths)
+        repo_root = Path(__file__).parent.parent.parent
+        refl_path = repo_root / "refGeom.refl"
+    
+        # Skip if reflection file doesn't exist
+        if not refl_path.exists():
+            pytest.skip(
+                f"Reflection file not found: {refl_path}\n"
+                "Run dials.stills_process to generate it (see README.md Step 5)"
+            )
+    
+        args = Namespace(
+            mtzFile=str(repo_root / "scaled.mtz"),
+            mtzCol="F",
+            exptName=str(repo_root / "refGeom.expt"),
+            exptIdx=0,
+            reflName=str(refl_path)
+        )
+    
+        # Load data (this invokes simtbx background estimation)
+>       dataload = DataLoad(args)
+
+tests/dbex/test_nanobrag_smoke.py:98: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+dbex/data_load.py:36: in __init__
+    F = utils.open_mtz(args.mtzFile, args.mtzCol)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+mtzfname = '/home/ollie/Documents/diffbragg_example_2/diffbragg_example/scaled.mtz'
+mtzlabel = 'F', verbose = False
+
+    def open_mtz(mtzfname, mtzlabel=None, verbose=False):
+        """
+    
+        :param mtzfname: path to mtz
+        :param mtzlabel: column in mtz
+        :param verbose:
+        :return:
+        """
+        if mtzlabel is None:
+            mtzlabel = "fobs(+)fobs(-)"
+        if verbose:
+            MAIN_LOGGER.info("Opening mtz file %s , label %s" % (mtzfname, mtzlabel))
+        from iotbx.reflection_file_reader import any_reflection_file
+        miller_arrays = any_reflection_file(mtzfname).as_miller_arrays()
+    
+        possible_labels = []
+        foundlabel = False
+        for ma in miller_arrays:
+            label = ma.info().label_string()
+            possible_labels.append(label)
+            if label == mtzlabel:
+                foundlabel = True
+                break
+    
+>       assert foundlabel, "MTZ Label not found... \npossible choices: %s" % (" ".join(possible_labels))
+E       AssertionError: MTZ Label not found... 
+E       possible choices: FreeR_flag IMEAN,SIGIMEAN N F,SIGF I(+),SIGI(+),I(-),SIGI(-) N(+),N(-) F(+),SIGF(+),F(-),SIGF(-) DANO,SIGDANO
+
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/simtbx/diffBragg/utils.py:1024: AssertionError
+=============================== warnings summary ===============================
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+ERROR tests/dbex/test_nanobrag_smoke.py::TestSmokeHarness::test_single_experiment_flow
+========================= 4 warnings, 1 error in 1.20s =========================
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 1 item
+
+tests/dbex/test_nanobrag_smoke.py::TestSmokeHarness::test_single_experiment_flow ERROR [100%]
+
+==================================== ERRORS ====================================
+________ ERROR at setup of TestSmokeHarness.test_single_experiment_flow ________
+
+    @pytest.fixture(scope="module")
+    def refgeom_dataload():
+        """
+        Load refGeom dataset via DataLoad.
+    
+        IMPORTANT: Requires reflection file from dials.stills_process.
+        To generate required data files, see README.md Step 5:
+    
+        ```bash
+        cd easyBragg
+        dials.stills_process stills_proc.phil lys_nitr_10_6_*cbf \
+          input.reference_geometry=refGeom.expt output_dir=sp.proc \
+          dispatch.integrate=False
+        cp sp.proc/idx-0000_indexed.refl ../refGeom.refl
+        ```
+    
+        For now, this fixture is SKIPPED if refGeom.refl doesn't exist.
+        This allows Phase C tests to pass with mock data initially.
+    
+        Returns DataLoad instance with:
+        - Expt: dxtbx Experiment with detector/beam/crystal
+        - Refs: reflection table
+        - data: pixel data [panel, slow, fast]
+        - background_image: background estimate [panel, slow, fast], -1 outside ROIs
+        - bbox: ROI bounding boxes (n_roi, 4) as (x0, x1, y0, y1)
+        - pids: panel IDs (n_roi,)
+        - F: structure factors with Bijvoet mates
+        """
+        # Build args namespace for DataLoad (repo-relative paths)
+        repo_root = Path(__file__).parent.parent.parent
+        refl_path = repo_root / "refGeom.refl"
+    
+        # Skip if reflection file doesn't exist
+        if not refl_path.exists():
+            pytest.skip(
+                f"Reflection file not found: {refl_path}\n"
+                "Run dials.stills_process to generate it (see README.md Step 5)"
+            )
+    
+        args = Namespace(
+            mtzFile=str(repo_root / "scaled.mtz"),
+            mtzCol="F,SIGF",  # MTZ column name (see error output for available columns)
+            exptName=str(repo_root / "refGeom.expt"),
+            exptIdx=0,
+            reflName=str(refl_path)
+        )
+    
+        # Load data (this invokes simtbx background estimation)
+>       dataload = DataLoad(args)
+
+tests/dbex/test_nanobrag_smoke.py:98: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+dbex/data_load.py:45: in __init__
+    self.Expt = ExperimentList.from_file(args.exptName)[args.exptIdx]
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dxtbx/model/__init__.py:874: in from_file
+    return ExperimentListFactory.from_serialized_format(filename, check_format)
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dxtbx/model/experiment_list.py:930: in from_serialized_format
+    return ExperimentListFactory.from_json_file(filename, check_format)
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dxtbx/model/experiment_list.py:890: in from_json_file
+    return ExperimentListFactory.from_json(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dxtbx/model/experiment_list.py:877: in from_json
+    return ExperimentListFactory.from_dict(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dxtbx/model/experiment_list.py:865: in from_dict
+    experiments = ExperimentListDict(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dxtbx/model/experiment_list.py:492: in decode
+    imageset = self._imageset_from_imageset_data(imageset_data, models)
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dxtbx/model/experiment_list.py:346: in _imageset_from_imageset_data
+    imageset = self._make_stills(imageset_data, format_kwargs=format_kwargs)
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dxtbx/model/experiment_list.py:529: in _make_stills
+    return ImageSetFactory.make_imageset(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dxtbx/imageset.py:542: in make_imageset
+    format_class = dxtbx.format.Registry.get_format_class_for_file(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dxtbx/format/Registry.py:129: in get_format_class_for_file
+    if scheme in format_class.schemes and format_class.understand(image_file_str):
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dxtbx/format/FormatCBF.py:24: in understand
+    with FormatCBF.open_file(image_file, "rb") as fh:
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dxtbx/format/Format.py:562: in open_file
+    return cls.get_cache_controller().check(filename_str, fh_func)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <dxtbx.filecache_controller.simple_controller object at 0x76805ed39760>
+tag = '/mnt/data/ns2/dermen/Diffuse/747/lys_nitr_10_6_0010.cbf'
+open_method = functools.partial(<built-in function open>, '/mnt/data/ns2/dermen/Diffuse/747/lys_nitr_10_6_0010.cbf', mode='rb')
+
+    def check(self, tag, open_method):
+        """The main cache controller access method. Checks if an object with name
+        "tag" is cached. If so, returns a (pseudo-, ie. cached) file handle to
+        this object.
+        Otherwise, create a cache first, using the passed open_method()
+        function, which returns a (true) file handle."""
+        with self._lock:
+            currentpid = os.getpid()
+            if currentpid != self._pid:
+                #       print "(%5s) Controller %s detected PID change, flushing %s" % (os.getpid(), format(id(self), '#x'), self._cache_tag)
+                # Change the PID and drop reference to the previous cache.
+                self._cache = None
+                self._cache_tag = None
+                self._pid = currentpid
+                # NB: Explicitly do not close the cache in this case. Would be pointless.
+    
+            # If tag has changed then we are changing cache contents
+            if tag != self._cache_tag:
+                if self._cache is not None:
+                    #         print "(%5s) Controller %s closing previous cache on %s" % (os.getpid(), format(id(self), '#x'), self._cache_tag)
+                    try:
+                        self._cache.close()
+                    finally:
+                        self._cache = None
+                        self._cache_tag = None
+    
+                #       print "(%5s) Controller %s opening cache on %s" % (os.getpid(), format(id(self), '#x'), self._tag)
+                try:
+                    self._cache_tag = tag
+>                   self._cache = dxtbx.filecache.lazy_file_cache(open_method())
+E                   FileNotFoundError: [Errno 2] No such file or directory: '/mnt/data/ns2/dermen/Diffuse/747/lys_nitr_10_6_0010.cbf'
+
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dxtbx/filecache_controller.py:68: FileNotFoundError
+=============================== warnings summary ===============================
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+ERROR tests/dbex/test_nanobrag_smoke.py::TestSmokeHarness::test_single_experiment_flow
+========================= 4 warnings, 1 error in 1.21s =========================
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 1 item
+
+tests/dbex/test_nanobrag_smoke.py::TestSmokeHarness::test_single_experiment_flow ERROR
+
+==================================== ERRORS ====================================
+________ ERROR at setup of TestSmokeHarness.test_single_experiment_flow ________
+
+refgeom_dataload = <dbex.data_load.DataLoad object at 0x75448c15de80>
+
+    @pytest.fixture(scope="module")
+    def refinement_inputs(refgeom_dataload):
+        """
+        Prepare RefinementInputs from DataLoad via bridge helper.
+    
+        Returns RefinementInputs with:
+        - target: background-subtracted [panel, slow, fast] float32
+        - loss_mask: (background >= 0) & trusted_mask [panel, slow, fast] bool
+        - panel_slices: [(pid, (x0, x1, y0, y1))]
+        - trusted_mask: [panel, slow, fast] bool
+        """
+        dl = refgeom_dataload
+    
+        # Get trusted mask from detector
+        # dxtbx detector.get_mask() returns tuple of per-panel bool arrays
+        detector = dl.Expt.detector
+>       trusted_mask = detector.get_untrusted_rectangle_mask()
+E       AttributeError: 'Detector' object has no attribute 'get_untrusted_rectangle_mask'
+
+tests/dbex/test_nanobrag_smoke.py:118: AttributeError
+=============================== warnings summary ===============================
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+ERROR tests/dbex/test_nanobrag_smoke.py::TestSmokeHarness::test_single_experiment_flow
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+========================= 4 warnings, 1 error in 1.20s =========================
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 1 item
+
+tests/dbex/test_nanobrag_smoke.py::TestSmokeHarness::test_single_experiment_flow ERROR
+
+==================================== ERRORS ====================================
+________ ERROR at setup of TestSmokeHarness.test_single_experiment_flow ________
+
+refgeom_dataload = <dbex.data_load.DataLoad object at 0x776a601219d0>
+
+    @pytest.fixture(scope="module")
+    def crystal_config(refgeom_dataload):
+        """Create CrystalConfig from dxtbx crystal and experiment."""
+        dl = refgeom_dataload
+>       return create_crystal_config(dl.Expt.crystal, dl.Expt)
+
+tests/dbex/test_nanobrag_smoke.py:194: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+crystal = <dxtbx_model_ext.MosaicCrystalSauter2014 object at 0x776a600b7e00>
+experiment = <dxtbx_model_ext.Experiment object at 0x776a6011fcf0>
+
+    def create_crystal_config(crystal, experiment) -> CrystalConfig:
+        """
+        Create CrystalConfig from dxtbx crystal and experiment.
+    
+        Implements crystal mapping per docs/config_crosswalk.md:55-72:
+        - Unit cell parameters in Angstroms and degrees (no conversion)
+        - MOSFLM A* injection from crystal.get_A() columns
+        - Misset angles default to zero (identity rotation)
+        - Stills defaults: phi_steps=1, osc_range_deg=0, mosaic off
+    
+        Args:
+            crystal: dxtbx Crystal object
+            experiment: dxtbx Experiment object (for scan/goniometer)
+    
+        Returns:
+            CrystalConfig with cell, orientation, and stills defaults
+        """
+        # Unit cell parameters (config_crosswalk.md:61)
+        # dxtbx returns (a, b, c, alpha, beta, gamma) in Angstroms and degrees
+        a, b, c, alpha, beta, gamma = crystal.get_unit_cell().parameters()
+    
+        # MOSFLM A* injection (config_crosswalk.md:62)
+        # Columns of A matrix are (a*, b*, c*) in 1/Angstrom
+        A = crystal.get_A()
+>       mosflm_a_star = np.array(A[:, 0])
+E       TypeError: tuple indices must be integers or slices, not tuple
+
+dbex/nanobrag_bridge.py:370: TypeError
+=============================== warnings summary ===============================
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+ERROR tests/dbex/test_nanobrag_smoke.py::TestSmokeHarness::test_single_experiment_flow
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+========================= 4 warnings, 1 error in 1.31s =========================
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 1 item
+
+tests/dbex/test_nanobrag_smoke.py::TestSmokeHarness::test_single_experiment_flow FAILED
+
+=================================== FAILURES ===================================
+_________________ TestSmokeHarness.test_single_experiment_flow _________________
+
+self = <tests.dbex.test_nanobrag_smoke.TestSmokeHarness object at 0x7178586e6bb0>
+refgeom_dataload = <dbex.data_load.DataLoad object at 0x7178586e6850>
+refinement_inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0.,...],
+        [ True,  True,  True, ...,  True,  True,  True],
+        [ True,  True,  True, ...,  True,  True,  True]]]))
+detector_configs = [DetectorConfig(distance_mm=231.27645547762577, pixel_size_mm=0.17200000000000001, spixels=2527, fpixels=2463, beam_ce...1., 1., ..., 1., 1., 1.],
+       [1., 1., 1., ..., 1., 1., 1.],
+       [1., 1., 1., ..., 1., 1., 1.]], dtype=float32))]
+beam_config = BeamConfig(wavelength_A=0.9768000000000001, polarization_factor=0.0, nopolar=False, polarization_axis=array([0., 1., 0.]), polarization_fraction=0.999, dmin=0.0)
+crystal_config = CrystalConfig(cell_a=27.3758389202232, cell_b=32.06579930050022, cell_c=34.46635719191433, cell_alpha=88.7686158115790...-0.01747896]), misset_deg=array([0., 0., 0.]), phi_steps=1, osc_range_deg=0.0, mosaic_domains=1, mosaic_spread_deg=0.0)
+stub_bragg_tensor = array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+ ...., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.]]], dtype=float32)
+
+    def test_single_experiment_flow(
+        self,
+        refgeom_dataload,
+        refinement_inputs,
+        detector_configs,
+        beam_config,
+        crystal_config,
+        stub_bragg_tensor
+    ):
+        """
+        Exercise single-experiment flow: DataLoad → bridge → stub Bragg → metrics.
+    
+        Validates:
+        - DataLoad successfully loads refGeom experiment
+        - Bridge produces valid RefinementInputs
+        - Config hydration succeeds for all panels
+        - Stub Bragg tensor has correct shape and ordering
+        - Fixtures wire together without errors
+        """
+        dl = refgeom_dataload
+        inputs = refinement_inputs
+        bragg = stub_bragg_tensor
+    
+        # Validate DataLoad outputs
+        assert dl.data.ndim == 3, f"Expected 3D data, got {dl.data.ndim}D"
+        assert dl.background_image.shape == dl.data.shape
+>       assert dl.bbox.shape[1] == 4, f"Expected bbox shape (n, 4), got {dl.bbox.shape}"
+E       AttributeError: 'list' object has no attribute 'shape'
+
+tests/dbex/test_nanobrag_smoke.py:269: AttributeError
+=============================== warnings summary ===============================
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_nanobrag_smoke.py::TestSmokeHarness::test_single_experiment_flow
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+======================== 1 failed, 4 warnings in 1.24s =========================
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 1 item
+
+tests/dbex/test_nanobrag_smoke.py::TestSmokeHarness::test_single_experiment_flow 
+[Smoke] DataLoad: 1 panels, 92 ROIs
+[Smoke] Target shape: (1, 2527, 2463)
+[Smoke] Bragg shape: (1, 2527, 2463)
+[Smoke] Loss mask coverage: 0.21%
+PASSED
+
+=============================== warnings summary ===============================
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 1 passed, 4 warnings in 1.26s =========================
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 1 item
+
+tests/dbex/test_nanobrag_smoke.py::TestSmokeHarness::test_masked_mse_and_shapes 
+[Smoke] Masked MSE: 9.5999e+05
+[Smoke] Loss mask coverage: 0.21%
+[Smoke] Mean intensity per panel: [98.88931274414062]
+[Smoke] Max intensity per panel: [473.19696044921875]
+[Smoke] Metrics written to /tmp/pytest-of-ollie/pytest-0/test_masked_mse_and_shapes0/smoke_metrics.json
+PASSED
+
+=============================== warnings summary ===============================
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 1 passed, 4 warnings in 1.24s =========================
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 1 item
+
+tests/dbex/test_nanobrag_smoke.py::test_artifact_generation [Smoke] ROI triptych saved to /home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/TORCH-BRIDGE-001/reports/2025-10-28T230500Z/roi_triptych.png
+[Smoke] Metrics saved to /home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/TORCH-BRIDGE-001/reports/2025-10-28T230500Z/smoke_metrics.json
+[Smoke] Artifacts validated: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/TORCH-BRIDGE-001/reports/2025-10-28T230500Z
+PASSED
+
+=============================== warnings summary ===============================
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 1 passed, 4 warnings in 1.80s =========================
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 3 items
+
+tests/dbex/test_nanobrag_smoke.py::TestSmokeHarness::test_single_experiment_flow PASSED [ 33%]
+tests/dbex/test_nanobrag_smoke.py::TestSmokeHarness::test_masked_mse_and_shapes PASSED [ 66%]
+tests/dbex/test_nanobrag_smoke.py::test_artifact_generation PASSED       [100%]
+
+=============================== warnings summary ===============================
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 3 passed, 4 warnings in 1.83s =========================

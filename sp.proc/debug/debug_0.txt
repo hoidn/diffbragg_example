@@ -13,3 +13,19 @@ ollie-System-Product-Name,lys_nitr_10_6_0003,2025-10-27T04:44Z09.074,    ,spotfi
 ollie-System-Product-Name,lys_nitr_10_6_0003,2025-10-27T04:44Z09.305,    ,index_start
 ollie-System-Product-Name,lys_nitr_10_6_0003,2025-10-27T04:44Z09.406,    ,refine_start
 ollie-System-Product-Name,lys_nitr_10_6_0003,2025-10-27T04:44Z09.406,done,index_ok_97
+
+ollie-System-Product-Name,lys_nitr_10_6_0001,2025-10-28T23:10Z04.153,    ,start
+ollie-System-Product-Name,lys_nitr_10_6_0001,2025-10-28T23:10Z04.153,    ,spotfind_start
+ollie-System-Product-Name,lys_nitr_10_6_0001,2025-10-28T23:10Z04.406,    ,index_start
+ollie-System-Product-Name,lys_nitr_10_6_0001,2025-10-28T23:10Z04.706,    ,refine_start
+ollie-System-Product-Name,lys_nitr_10_6_0001,2025-10-28T23:10Z04.706,done,index_ok_92
+ollie-System-Product-Name,lys_nitr_10_6_0002,2025-10-28T23:10Z04.708,    ,start
+ollie-System-Product-Name,lys_nitr_10_6_0002,2025-10-28T23:10Z04.708,    ,spotfind_start
+ollie-System-Product-Name,lys_nitr_10_6_0002,2025-10-28T23:10Z04.949,    ,index_start
+ollie-System-Product-Name,lys_nitr_10_6_0002,2025-10-28T23:10Z05.052,    ,refine_start
+ollie-System-Product-Name,lys_nitr_10_6_0002,2025-10-28T23:10Z05.052,done,index_ok_93
+ollie-System-Product-Name,lys_nitr_10_6_0003,2025-10-28T23:10Z05.053,    ,start
+ollie-System-Product-Name,lys_nitr_10_6_0003,2025-10-28T23:10Z05.053,    ,spotfind_start
+ollie-System-Product-Name,lys_nitr_10_6_0003,2025-10-28T23:10Z05.276,    ,index_start
+ollie-System-Product-Name,lys_nitr_10_6_0003,2025-10-28T23:10Z05.376,    ,refine_start
+ollie-System-Product-Name,lys_nitr_10_6_0003,2025-10-28T23:10Z05.377,done,index_ok_97

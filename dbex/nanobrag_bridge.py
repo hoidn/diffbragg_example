@@ -366,7 +366,9 @@ def create_crystal_config(crystal, experiment) -> CrystalConfig:
 
     # MOSFLM A* injection (config_crosswalk.md:62)
     # Columns of A matrix are (a*, b*, c*) in 1/Angstrom
-    A = crystal.get_A()
+    # get_A() returns a tuple of 9 elements (row-major 3x3 matrix)
+    A_tuple = crystal.get_A()
+    A = np.array(A_tuple).reshape(3, 3)
     mosflm_a_star = np.array(A[:, 0])
     mosflm_b_star = np.array(A[:, 1])
     mosflm_c_star = np.array(A[:, 2])

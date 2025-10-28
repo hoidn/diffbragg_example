@@ -55,14 +55,14 @@ Calculated 133 spot centroids
 Calculated 133 spot intensities
 Filtered 132 of 133 spots by peak-centroid distance
 
-Time Taken = 0.265270 seconds
+Time Taken = 0.253039 seconds
 ********************************************************************************
 Indexing Strong Spots
 ********************************************************************************
 Using max_cell: 44.8 Angstrom
 Indexed using 100% of the reflections
 
-Time Taken = 0.299517 seconds
+Time Taken = 0.299920 seconds
 Loading lys_nitr_10_6_0002.cbf
 ********************************************************************************
 Finding Strong Spots
@@ -86,14 +86,14 @@ Calculated 141 spot centroids
 Calculated 141 spot intensities
 Filtered 141 of 141 spots by peak-centroid distance
 
-Time Taken = 0.249583 seconds
+Time Taken = 0.241481 seconds
 ********************************************************************************
 Indexing Strong Spots
 ********************************************************************************
 Using max_cell: 44.8 Angstrom
 Indexed using 100% of the reflections
 
-Time Taken = 0.102139 seconds
+Time Taken = 0.102105 seconds
 Loading lys_nitr_10_6_0003.cbf
 ********************************************************************************
 Finding Strong Spots
@@ -117,15 +117,15 @@ Calculated 142 spot centroids
 Calculated 142 spot intensities
 Filtered 142 of 142 spots by peak-centroid distance
 
-Time Taken = 0.231311 seconds
+Time Taken = 0.222571 seconds
 ********************************************************************************
 Indexing Strong Spots
 ********************************************************************************
 Using max_cell: 44.8 Angstrom
 Indexed using 100% of the reflections
 
-Time Taken = 0.100659 seconds
+Time Taken = 0.100392 seconds
 Saving 282 reflections to sp.proc/idx-0000_indexed.refl
- time taken: 0.000469208
+ time taken: 0.000479698
 
-Total Time Taken = 1.291698 seconds
+Total Time Taken = 1.262707 seconds

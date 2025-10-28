@@ -13,7 +13,7 @@
 
 ### [TORCH-BRIDGE-001] Bridge DataLoad to `nanobrag_torch`
 - Depends on: plans/nanobrag_integration_plan.md §Phase 1
-- Status: pending
+- Status: in_progress
 - Owner/Date: Unassigned / 2025-10-28
 - Exit Criteria:
   1. Helper returns background-subtracted targets, trusted/background masks, and per-panel slices aligned to `[panel, slow, fast]` (`docs/spec-db-core.md:24`).
@@ -22,7 +22,7 @@
   4. Smoke harness exercises one DIALS experiment; artifacts recorded with ROI triptych.
 - Working Plan: plans/active/TORCH-BRIDGE-001/implementation.md
 - Attempts History:
-  * _(pending)_
+  * 2025-10-28T205500Z — Loop planning kickoff for Phase A scaffolding. Metrics: pending. Artifacts: pending.
 
 ### [TORCH-RUNTIME-002] Author torch runtime checklist + testing harness seed
 - Depends on: TORCH-BRIDGE-001
@@ -66,3 +66,4 @@
 ## Backlog
 - Populate parity harness specs from `docs/spec-db-conformance.md` once torch backend stabilizes.
 - Extend Findings ledger with lessons from `reports/` once torch experiments begin.
+- TODO: Restore `docs/pytorch_runtime_checklist.md` symlink or provide local copy; current target `../../nanoBragg2/...` missing, blocking runtime guardrail review.

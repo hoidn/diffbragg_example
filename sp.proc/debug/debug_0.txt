@@ -1,0 +1,15 @@
+ollie-System-Product-Name,lys_nitr_10_6_0001,2025-10-27T04:44Z08.154,    ,start
+ollie-System-Product-Name,lys_nitr_10_6_0001,2025-10-27T04:44Z08.154,    ,spotfind_start
+ollie-System-Product-Name,lys_nitr_10_6_0001,2025-10-27T04:44Z08.419,    ,index_start
+ollie-System-Product-Name,lys_nitr_10_6_0001,2025-10-27T04:44Z08.719,    ,refine_start
+ollie-System-Product-Name,lys_nitr_10_6_0001,2025-10-27T04:44Z08.719,done,index_ok_92
+ollie-System-Product-Name,lys_nitr_10_6_0002,2025-10-27T04:44Z08.720,    ,start
+ollie-System-Product-Name,lys_nitr_10_6_0002,2025-10-27T04:44Z08.720,    ,spotfind_start
+ollie-System-Product-Name,lys_nitr_10_6_0002,2025-10-27T04:44Z08.970,    ,index_start
+ollie-System-Product-Name,lys_nitr_10_6_0002,2025-10-27T04:44Z09.072,    ,refine_start
+ollie-System-Product-Name,lys_nitr_10_6_0002,2025-10-27T04:44Z09.072,done,index_ok_93
+ollie-System-Product-Name,lys_nitr_10_6_0003,2025-10-27T04:44Z09.074,    ,start
+ollie-System-Product-Name,lys_nitr_10_6_0003,2025-10-27T04:44Z09.074,    ,spotfind_start
+ollie-System-Product-Name,lys_nitr_10_6_0003,2025-10-27T04:44Z09.305,    ,index_start
+ollie-System-Product-Name,lys_nitr_10_6_0003,2025-10-27T04:44Z09.406,    ,refine_start
+ollie-System-Product-Name,lys_nitr_10_6_0003,2025-10-27T04:44Z09.406,done,index_ok_97

@@ -44,3 +44,14 @@ Notes
 - <Action State>: [planning]
 
 2025-10-28T233500Z focus=TORCH-BRIDGE-001 state=planning dwell=1 artifacts=plans/active/TORCH-BRIDGE-001/reports/2025-10-28T233500Z/ next_action=execute_D1-D2_closeout
+
+## 2025-10-28T232915Z — TORCH-RUNTIME-002 planning kickoff
+- Focus: TORCH-RUNTIME-002 — Author torch runtime checklist + testing harness seed
+- Action Type: planning
+- Key Observations: TORCH-BRIDGE-001 reports reviewed (closure artifacts intact); runtime checklist symlink (docs/pytorch_runtime_checklist.md) still broken per DOC-RUNTIME-004; docs/TESTING_GUIDE.md already lists flags/selectors but needs explicit torch references and artifact guidance; TEST_SUITE_INDEX placeholders align with spec but lack evidence runs; no reports yet under plans/active/TORCH-RUNTIME-002/.
+- Artifact Path: plans/active/TORCH-RUNTIME-002/reports/2025-10-28T232744Z/
+- Next Actions: Execute Do Now items (A1–A2 doc updates, B1 selector sync, B2 collect-only artifact) and refresh fix_plan attempts metadata.
+- Reality Check: Confirmed exit criteria unmet (no TORCH-RUNTIME-002 artifacts, ledger metrics pending); dependencies satisfied (TORCH-BRIDGE-001 status done); rescoping not needed beyond noting DOC-RUNTIME-004 dependency for checklist restoration.
+- <Action State>: [planning]
+
+2025-10-28T232915Z focus=TORCH-RUNTIME-002 state=planning dwell=1 artifacts=plans/active/TORCH-RUNTIME-002/reports/2025-10-28T232744Z/ next_action=execute_A1-A2-B1-B2

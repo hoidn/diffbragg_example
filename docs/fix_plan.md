@@ -33,7 +33,7 @@
 
 ### [TORCH-RUNTIME-002] Author torch runtime checklist + testing harness seed
 - Depends on: TORCH-BRIDGE-001
-- Status: pending
+- Status: in_progress
 - Owner/Date: Unassigned / 2025-10-28
 - Exit Criteria:
   1. `docs/TESTING_GUIDE.md` documents smoke/acceptance commands and environment flags (e.g., `KMP_DUPLICATE_LIB_OK=TRUE`).
@@ -42,7 +42,7 @@
   4. Ledger entry includes Metrics/Artifacts lines referencing the recorded selector run or TODO.
 - Working Plan: plans/active/TORCH-RUNTIME-002/implementation.md
 - Attempts History:
-  * _(pending)_
+  * 2025-10-28T232744Z — Supervisor planning kickoff; verified TORCH-BRIDGE-001 exit criteria satisfied, catalogued runtime doc gaps. Metrics: pending. Artifacts: pending.
 
 ### [TORCH-CLI-003] Wire torch backend flag into CLI
 - Depends on: TORCH-BRIDGE-001

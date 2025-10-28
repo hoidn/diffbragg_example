@@ -187,3 +187,6 @@ Debug Artifacts
 - Cause: Allowing rectangular pixel panels within a single Detector mapping.
 - Guardrail: Keep ADR‑01: raise if `px_fast_mm != px_slow_mm` for any panel; if hardware differs, instantiate separate Detectors per unique pixel size.
 
+## 14) Import‑Time Side‑Effects (Ban)
+- Modules SHALL NOT perform I/O, data loading, or computation at import time; push work into functions and call sites only.
+- Rationale: prevents hidden crashes and nondeterminism; keeps test discovery fast and reproducible.

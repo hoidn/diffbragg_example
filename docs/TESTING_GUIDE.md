@@ -28,3 +28,13 @@ Tests marked “planned” must be authored before declaring their parent fix-pl
 - Record hardware context (CPU/GPU) and dtype if deviating from defaults.
 - For parity tests, capture correlation, MSE, RMSE, max|Δ|, and sum ratios (see `docs/spec-db-tracing.md`).
 - If a required selector is missing, file a TODO under the relevant fix-plan item and capture repro notes in the artifact directory.
+
+## 5. Evidence & Skip Policy (strict)
+- Attach a `pytest.log` with command, exit code, and counts (passed/failed/skipped). SKIPs MUST be justified: GPU‑only on CPU CI, `@pytest.mark.slow` long‑running, or optional dependency unavailable; all other SKIPs are invalid. If skipped > 0, add a “Skips:” line in Attempts History (with reason per module/test).
+- Capture macro (copy/paste):
+  `ART=plans/active/<initiative>/reports/$(date -u +%FT%TZ)`
+  `mkdir -p "$ART"; echo $(python -V) > "$ART/run_env.txt"; pip show torch >> "$ART/run_env.txt"`
+  `CUDA_VISIBLE_DEVICES="" KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/ | tee "$ART/pytest.log"`
+- Integration/parity: wrap with `/usr/bin/time -v` → `$ART/runtime.txt`; if runtime exceeds the documented budget, mark the attempt “partial” and attach timing evidence. Append `lscpu | head -n1` and `grep MemTotal /proc/meminfo` to `run_env.txt`.
+- Fixtures: store deterministic fixtures under `tests/fixtures/`; include a `dataset_probe.txt` (keys, shapes, dtypes, SHA256) and cite path+checksum in Attempts History.
+- Test style: prefer pytest function tests with fixtures (e.g., `tmp_path`); avoid mixing `unittest.TestCase` unless editing legacy code that already uses it.

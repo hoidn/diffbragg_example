@@ -66,3 +66,14 @@ Notes
 - <Action State>: [planning]
 
 2025-10-28T233723Z focus=DOC-RUNTIME-004 state=planning dwell=1 artifacts=plans/active/DOC-RUNTIME-004/reports/2025-10-28T233723Z/ next_action=execute_A1-A2-B1-B2-C1-C2
+
+## 2025-10-28T234618Z — TORCH-CLI-003 planning kickoff
+- Focus: TORCH-CLI-003 — Wire torch backend flag into CLI
+- Action Type: planning
+- Key Observations: `dbex/refine_one.py` still hardcodes DiffBragg with no backend flag; Phase A/B checklist in plans/active/TORCH-CLI-003/implementation.md covers CLI flag + diagnostics; docs/spec-db-interfaces.md:7-16 and docs/architecture.md:28-55 define the required CLI surface; no reports yet under plans/active/TORCH-CLI-003/reports/.
+- Artifact Path: plans/active/TORCH-CLI-003/reports/2025-10-28T234618Z/
+- Next Actions: Execute A1–A2–B1–B2 to add the flag, implement dispatch, capture diagnostics, and update docs.
+- Reality Check: Confirmed exit criteria unmet (no `--backend` support, no torch diagnostics), dependencies satisfied (TORCH-BRIDGE-001 done), and verified artifact directory absent so create new report path; rescoping not required.
+- <Action State>: [ready_for_implementation]
+
+2025-10-28T234618Z focus=TORCH-CLI-003 state=ready_for_implementation dwell=1 artifacts=plans/active/TORCH-CLI-003/reports/2025-10-28T234618Z/ next_action=execute_A1-A2-B1-B2

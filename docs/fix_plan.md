@@ -47,7 +47,7 @@
 
 ### [TORCH-CLI-003] Wire torch backend flag into CLI
 - Depends on: TORCH-BRIDGE-001
-- Status: pending
+- Status: in_progress
 - Owner/Date: Unassigned / 2025-10-28
 - Exit Criteria:
   1. `dbex.refine_one` accepts `--backend {diffbragg,nanobrag}` with default `diffbragg`.
@@ -56,7 +56,7 @@
   4. Entry validated by running torch CLI smoke (documented in `docs/TESTING_GUIDE.md`).
 - Working Plan: plans/active/TORCH-CLI-003/implementation.md
 - Attempts History:
-  * _(pending)_
+  * 2025-10-28T234618Z — Supervisor planning kickoff; confirmed `dbex/refine_one.py` lacks `--backend` flag and torch wiring, dependencies satisfied (TORCH-BRIDGE-001 done), and reviewed implementation plan Phase A/B scope. Metrics: pending. Artifacts: pending.
 
 ### [DOC-HARDEN-001] Harden key docs with prescriptive guardrails
 - Depends on: none

@@ -1,37 +1,38 @@
-Summary: Restore the PyTorch runtime checklist doc and align all references so runtime guardrails are discoverable.
-Mode: Docs
-Focus: DOC-RUNTIME-004 — Restore docs/pytorch_runtime_checklist.md
+Summary: Add the `--backend` flag to `dbex.refine_one`, wire the torch dispatch, and update docs/tests so the CLI can select the nanobrag path.
+Mode: TDD
+Focus: TORCH-CLI-003 — Wire torch backend flag into CLI
 Branch: integration
-Mapped tests: none — evidence-only
-Artifacts: plans/active/DOC-RUNTIME-004/reports/2025-10-28T233723Z/{notes.md,checklist_head.log,summary.md}
+Mapped tests: python -m dbex.refine_one --help ; KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_refine_one_cli.py ; KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_nanobrag_bridge.py
+Artifacts: plans/active/TORCH-CLI-003/reports/2025-10-28T234618Z/{notes.md,cli_help.log,pytest.log,diagnostics.json}
 Do Now:
-  1. DOC-RUNTIME-004 — A1 (plans/active/DOC-RUNTIME-004/implementation.md) — tests: none; run `rg 'pytorch_runtime_checklist' -n` and catalog every reference plus the missing symlink target in notes.md alongside key guardrails from docs/spec-db-runtime.md:10-20 and docs/spec-db-conformance.md:10-48.
-  2. DOC-RUNTIME-004 — A2 (plans/active/DOC-RUNTIME-004/implementation.md) — tests: none; replace the broken symlink with a restored docs/pytorch_runtime_checklist.md that captures environment flags, runtime guardrails, acceptance hooks, and cites the spec shards gathered in A1.
-  3. DOC-RUNTIME-004 — B1 (plans/active/DOC-RUNTIME-004/implementation.md) — tests: none; update docs/index.md and docs/development/testing_strategy.md:27 to reference the restored checklist path/title and ensure narrative alignment.
-  4. DOC-RUNTIME-004 — B2 (plans/active/DOC-RUNTIME-004/implementation.md) — tests: none; synchronize docs/prompt_sources_map.json and any prompt files that cite the old symlink so they resolve to the new checklist.
-  5. DOC-RUNTIME-004 — C1 (plans/active/DOC-RUNTIME-004/implementation.md) — tests: none; capture `head -n 40 docs/pytorch_runtime_checklist.md` into checklist_head.log under the artifact path and verify the Markdown renders key sections.
-  6. DOC-RUNTIME-004 — C2 (plans/active/DOC-RUNTIME-004/implementation.md) — tests: none; summarize restoration steps, remaining gaps, and validation evidence in summary.md and record Metrics/Artifacts lines in docs/fix_plan.md.
+  1. TORCH-CLI-003 — A1 (plans/active/TORCH-CLI-003/implementation.md) — tests: python -m dbex.refine_one --help; refactor `dbex/refine_one.py` into testable entry points, add the `--backend {diffbragg,nanobrag}` option defaulting to diffbragg, and ensure help text documents backend usage without triggering imports at module load.
+  2. TORCH-CLI-003 — A2 (plans/active/TORCH-CLI-003/implementation.md) — tests: KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_refine_one_cli.py; implement backend dispatch so diffbragg reuses the existing path while `nanobrag` hydrates `DataLoad` outputs via `prepare_refinement_inputs`, generates a Bragg tensor (stub until real simulator), writes ROI/HDF5 outputs, and saves torch diagnostics under `/torch_diagnostics`.
+  3. TORCH-CLI-003 — B1 (plans/active/TORCH-CLI-003/implementation.md) — tests: KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata; log masked-MSE and ROI coverage metrics for the torch path, surface them via CLI logging, and update `--help` examples accordingly.
+  4. TORCH-CLI-003 — B2 (plans/active/TORCH-CLI-003/implementation.md) — tests: none — evidence-only; refresh `docs/index.md` CLI section and any related docs to describe the backend flag and cite the torch diagnostics artifact expectations.
 Priorities & Rationale:
-  - Uphold runtime guardrails defined in docs/spec-db-runtime.md:10-20 so engineers retain canonical guidance when the checklist is restored.
-  - Maintain acceptance-test readiness per docs/spec-db-conformance.md:10-48 by documenting the DB-AT hooks inside the checklist.
-  - Resolve the knowledge-base dependency highlighted in docs/findings.md (RUNTIME-001, CONFORMANCE-001) so cited references remain valid.
-  - Keep documentation maps accurate by aligning docs/index.md:142-150 and docs/prompt_sources_map.json:1-49 with the restored file.
-  - Ensure prompts and workflow guides (prompts/main.md:12-73) continue to reference a live checklist without manual path fixes later.
+  - Honor the CLI contract in docs/spec-db-interfaces.md:7-16 by introducing the `--backend` selector and preserving diffbragg as the default until torch stabilizes.
+  - Follow the architectural guidance in docs/architecture.md:28-55 and plans/nanobrag_integration_plan.md:168-184 so the CLI delegates to bridge inputs and the torch refinement stack cleanly.
+  - Maintain tensor and mask contracts from docs/spec-db-core.md:20-56 when the CLI plumbs DataLoad outputs into the torch backend.
+  - Map acceptance coverage per docs/TESTING_GUIDE.md:60-68 by documenting CLI smoke commands and planning pytest coverage for the new dispatcher.
+  - Keep runtime guardrails (env flags, device neutrality) compliant with docs/spec-db-runtime.md:18-20 during CLI invocation.
 How-To Map:
-  - export ART=plans/active/DOC-RUNTIME-004/reports/2025-10-28T233723Z; mkdir -p "$ART"; touch "$ART/notes.md" "$ART/summary.md"
-  - rg 'pytorch_runtime_checklist' -n > "$ART/notes.md"; append spec guardrail excerpts via `nl -ba docs/spec-db-runtime.md | sed -n '10,40p'`
-  - Restore docs/pytorch_runtime_checklist.md using apply_patch or cat > file <<'EOF' (ensure ASCII) and cite spec shard anchors.
-  - Update docs/index.md, docs/development/testing_strategy.md, docs/prompt_sources_map.json, and prompts/* as needed; note edits in "$ART/notes.md".
-  - head -n 40 docs/pytorch_runtime_checklist.md | tee "$ART/checklist_head.log"; record command + results in summary.md.
+  - export ART=plans/active/TORCH-CLI-003/reports/2025-10-28T234618Z; mkdir -p "$ART"; touch "$ART/notes.md"
+  - python -m dbex.refine_one --help | tee "$ART/cli_help.log"
+  - KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_refine_one_cli.py | tee "$ART/pytest.log"
+  - KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_nanobrag_bridge.py | tee -a "$ART/pytest.log"
+  - Capture torch diagnostics snapshot (e.g., JSON dump) from the nanobrag path into "$ART/diagnostics.json" and summarize metrics in notes.md
 Pitfalls To Avoid:
-  - Do not recreate the broken symlink; ensure the checklist is a repo-local file.
-  - Preserve spec citations exactly (e.g., docs/spec-db-runtime.md:10 for guardrails).
-  - Keep prompt edits minimal—only adjust paths referencing the checklist.
-  - Avoid altering external nanoBragg2 references that remain valid in historical docs.
-  - Retain Metrics/Artifacts placeholders when updating docs/fix_plan.md.
-  - Confirm docs/index.md anchors stay in sync with headings to prevent stale links.
-  - Ensure artifact directory only stores lightweight text outputs (notes/logs).
-  - Maintain ASCII encoding throughout the restored doc.
-  - Verify no lingering references still point to docs/development/pytorch_runtime_checklist.md.
-If Blocked: If source material for the checklist cannot be reconstructed, note the gap in docs/fix_plan.md Attempts History (Metrics: pending; Artifacts: pending) and capture the missing upstream dependency in summary.md before returning to planning.
-Findings Applied (Mandatory): RUNTIME-001 — plan reasserts NANOBRAGG_DISABLE_COMPILE guard via restored checklist guidance; CONFORMANCE-001 — plan preserves KMP_DUPLICATE_LIB_OK and DB-AT selector documentation within the checklist.
+  - Do not run DataLoad or heavy imports at module import time; gate work inside `main()`.
+  - Preserve `--backend diffbragg` as the default and keep legacy behavior bit-for-bit.
+  - Guard nanobrag dispatch with existing square-pixel checks and mask polarity assertions from the bridge.
+  - Keep stubbed torch outputs deterministic so new tests remain stable without real simulator installs.
+  - Ensure HDF5 writes stay under the documented ROI layout and add diagnostics to a separate group to avoid schema regressions.
+  - Set required env vars (`KMP_DUPLICATE_LIB_OK=TRUE`) before invoking pytest or CLI torch paths.
+  - Avoid touching external tool trees (dials/, dxtbx/, cctbx_project/).
+  - Capture Metrics/Artifacts entries before exiting the loop.
+If Blocked: If torch dispatch requires unavailable data or simulator installs, record the blocker in docs/fix_plan.md Attempts History (Metrics: pending; Artifacts: pending), update galph_memory.md with `state=blocked`, and pivot per dwell rules.
+Findings Applied (Mandatory):
+  - GEOMETRY-001 — Plan routes CLI torch path through bridge helpers that enforce square pixels and geometry mapping.
+  - DXTBX-001 — Dispatch leverages crystal config hydration so `get_A()` tuples reshape correctly before simulator calls.
+  - CONFORMANCE-001 — CLI smoke command and pytest selector mapping maintain DB-AT readiness with env flags documented.
+  - RUNTIME-001 — Plan exports runtime guardrails (`KMP_DUPLICATE_LIB_OK`, compile toggles) ahead of torch execution to avoid runtime instability.

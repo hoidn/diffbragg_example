@@ -32,8 +32,13 @@ Status: in_progress
 
 ## Phase B — Config Hydration
 ### Checklist
-- [ ] B1: Map Detector (CUSTOM, pixel size guard, beam centre swap)
-- [ ] B2: Map Beam (wavelength, polarization) and Crystal (unit cell + A*)
+- [x] B1: Map Detector (CUSTOM, pixel size guard, beam centre swap)
+- [x] B2: Map Beam (wavelength, polarization) and Crystal (unit cell + A*)
+
+**Completed:** 2025-10-28T224846Z
+**Artifacts:** plans/active/TORCH-BRIDGE-001/reports/2025-10-28T224846Z/
+**Module:** dbex/nanobrag_bridge.py (added config stubs and 3 helper functions)
+**Tests:** tests/dbex/test_nanobrag_bridge_configs.py (14 new tests, all passing)
 
 ## Phase C — Smoke Harness
 ### Checklist

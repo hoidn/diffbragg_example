@@ -1,0 +1,72 @@
+{
+  "phase": "B",
+  "focus": "Config hydration (Detector/Beam/Crystal)",
+  "timestamp": "2025-10-28T224846Z",
+  "test_results": {
+    "total": 18,
+    "passed": 18,
+    "failed": 0,
+    "runtime_seconds": 0.18,
+    "environment": "CPU",
+    "python_version": "3.9.23",
+    "pytest_version": "8.4.2"
+  },
+  "implementation": {
+    "module": "dbex/nanobrag_bridge.py",
+    "config_stubs": [
+      "DetectorConvention",
+      "DetectorConfig",
+      "BeamConfig",
+      "CrystalConfig"
+    ],
+    "helper_functions": [
+      "create_detector_config",
+      "create_beam_config",
+      "create_crystal_config"
+    ],
+    "total_lines": 399
+  },
+  "test_coverage": {
+    "detector": {
+      "test_class": "TestDetectorConfigMapping",
+      "tests": 6,
+      "features": [
+        "beam_center_swap",
+        "sample_to_source_vector",
+        "detector_convention_custom",
+        "mask_array_float_conversion",
+        "pixel_size_and_dimensions",
+        "distance_mm"
+      ]
+    },
+    "beam_crystal": {
+      "test_class": "TestBeamCrystalConfigMapping",
+      "tests": 8,
+      "features": [
+        "beam_wavelength",
+        "polarization_factor_parity_default",
+        "polarization_metadata_extraction",
+        "polarization_fallback",
+        "crystal_unit_cell_parameters",
+        "mosflm_astar_injection",
+        "stills_phi_defaults",
+        "crystal_misset_zero_default"
+      ]
+    }
+  },
+  "spec_compliance": {
+    "config_crosswalk": "docs/config_crosswalk.md:15-72",
+    "spec_db_core": "docs/spec-db-core.md:35-46",
+    "dxtbx_api": "docs/dxtbx_api.md:1-50",
+    "nanobrag_api": "docs/nanobrag_api.md:23-58"
+  },
+  "pitfalls_avoided": [
+    "Beam center swap (fast,slow) -> (s,f)",
+    "Sample->source vector normalization",
+    "Mask polarity preservation (no inversion)",
+    "Unit cell angles in degrees (no conversion)",
+    "Square pixel guard enforcement",
+    "No mutation of source objects"
+  ],
+  "next_phase": "C (Smoke harness with single-experiment flow)"
+}

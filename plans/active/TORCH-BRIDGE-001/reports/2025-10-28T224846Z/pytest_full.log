@@ -1,0 +1,27 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 18 items
+
+tests/dbex/test_nanobrag_bridge.py::TestPrepareRefinementInputs::test_tensor_contract PASSED [  5%]
+tests/dbex/test_nanobrag_bridge.py::TestPrepareRefinementInputs::test_mask_polarity PASSED [ 11%]
+tests/dbex/test_nanobrag_bridge.py::TestPrepareRefinementInputs::test_pixel_pitch_guard PASSED [ 16%]
+tests/dbex/test_nanobrag_bridge.py::TestPrepareRefinementInputs::test_tuple_mask_input PASSED [ 22%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_beam_center_swap PASSED [ 27%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_sample_to_source_vector PASSED [ 33%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_detector_convention_custom PASSED [ 38%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_mask_array_float_conversion PASSED [ 44%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_pixel_size_and_dimensions PASSED [ 50%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_distance_mm PASSED [ 55%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_beam_wavelength PASSED [ 61%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_polarization_factor_parity_default PASSED [ 66%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_polarization_metadata_extraction PASSED [ 72%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_polarization_fallback PASSED [ 77%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_crystal_unit_cell_parameters PASSED [ 83%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_mosflm_astar_injection PASSED [ 88%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_stills_phi_defaults PASSED [ 94%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_crystal_misset_zero_default PASSED [100%]
+
+============================== 18 passed in 0.18s ==============================

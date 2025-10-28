@@ -14,7 +14,7 @@
     {
       "__id__": "ImageSet",
       "images": [
-        "/mnt/data/ns2/dermen/Diffuse/747/lys_nitr_10_6_0010.cbf"
+        "lys_nitr_10_6_0001.cbf"
       ],
       "mask": null,
       "gain": null,

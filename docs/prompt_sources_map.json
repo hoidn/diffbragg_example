@@ -25,6 +25,15 @@
     "docs/spec-db-workflow.md",
     "docs/config_crosswalk.md"
   ],
+  "plan_templates": [
+    "plans/templates/implementation_plan.md",
+    "plans/templates/phase_checklist.md"
+  ],
+  "orchestration_scripts": [
+    "scripts/orchestration/focus_check.py",
+    "scripts/orchestration/plan_lint.py",
+    "scripts/orchestration/check_input.py"
+  ],
   "pytorch_development": [
     "docs/architecture/pytorch_design.md",
     "docs/development/c_to_pytorch_config_map.md",

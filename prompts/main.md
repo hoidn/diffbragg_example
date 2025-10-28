@@ -26,6 +26,7 @@ You are Ralph. You implement exactly one supervisor→engineer loop per invocati
 - Update `docs/fix_plan.md` Attempts History at start (`Status: in_progress`) and end (metrics, artifacts, next actions). Include spec/test citations.
 - Update `docs/findings.md` when you uncover a durable insight not already recorded.
 - If the supervisor references `prompts/callchain.md`, execute it before touching code to map the call graph.
+ - Honor the "Findings Applied" section in `input.md`. If a cited finding (e.g., env flags, geometry rules) conflicts with current code or tests, raise it, reconcile with the supervisor, and update `docs/findings.md` with any new durable lesson.
 
 <implementation flow>
 1. Read `input.md` fully. Confirm Do Now steps, tests, mode, and artifacts path.

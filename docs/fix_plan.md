@@ -48,9 +48,20 @@
 - Attempts History:
   * _(pending)_
 
+### [DOC-HARDEN-001] Harden key docs with prescriptive guardrails
+- Depends on: none
+- Status: pending
+- Owner/Date: Unassigned / 2025-10-28
+- Exit Criteria:
+  1. Review `docs/architecture.md` and `docs/development/testing_strategy.md`.
+  2. Add new sections titled "Common Pitfalls" or "Architectural Anti-Patterns" to each.
+  3. Populate these sections with at least two concrete examples of failure modes observed during `nanobrag_torch` integration (e.g., ADU↔photons unit mismatch, device/dtype neutrality violations, `[panel, slow, fast]` vs dxtbx `(fast, slow)` ordering).
+- Artifact Hub: `plans/active/DOC-HARDEN-001/`
+- Attempts History:
+  * _(pending)_
+
 ---
 
 ## Backlog
 - Populate parity harness specs from `docs/spec-db-conformance.md` once torch backend stabilizes.
 - Extend Findings ledger with lessons from `reports/` once torch experiments begin.
-

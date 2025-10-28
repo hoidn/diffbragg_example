@@ -192,6 +192,18 @@ Description: Repository-scoped conventions for coding style, pytest usage, artif
 Keywords: agent-workflow, conventions, ledger  
 Use this when: You need authoritative agent rules; remember deeper AGENTS.md files override shallower ones within their directory tree.
 
+## Planning Templates
+
+### [Implementation Plan Template](../plans/templates/implementation_plan.md)
+Description: Phased plan template for multi-loop initiatives; includes checklist IDs to reference in `input.md`.  
+Keywords: planning, phases, checklist  
+Use this when: Creating or updating a persistent plan under `plans/active/<initiative-id>/implementation.md`.
+
+### [Phase Checklist Template](../plans/templates/phase_checklist.md)
+Description: Per-phase checklist structure with objectives, validation, and artifacts sections.  
+Keywords: planning, phase, validation  
+Use this when: Managing detailed tasks for a single phase and linking them into the implementation plan.
+
 ---
 
 Last updated: 2025‑10‑28

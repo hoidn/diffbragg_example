@@ -14,3 +14,12 @@
 - Artifacts: plans/active/TORCH-BRIDGE-001/reports/2025-10-28T210500Z/
 - Next actions: execute Do Now checklist (tests/dbex scaffolding, helper implementation, guard coverage) and capture pytest + helper notes under the artifact path.
 - <Action State>: [ready_for_implementation]
+
+## 2025-10-28T222910Z — TORCH-BRIDGE-001 plan refresh
+- Focus: TORCH-BRIDGE-001 — Bridge DataLoad to `nanobrag_torch`
+- Action Type: planning
+- Key Observations: No bridge helper/tests exist yet; `docs/pytorch_runtime_checklist.md` remains a broken symlink; confirmed Spec DB Phase 1 requirements still unmet and no artifacts under reports/.
+- Artifact Path: plans/active/TORCH-BRIDGE-001/reports/2025-10-28T222910Z/
+- Next Actions: Execute Do Now checklist for Phase A (tests, helper implementation, guard assertions) and capture pytest + design notes in the artifact directory.
+- Reality Check: Validated fix-plan exit criteria remain open (no helper, no pixel pitch guard), verified DIALS assets present, and noted runtime checklist doc gap for rescoping.
+- <Action State>: [ready_for_implementation]

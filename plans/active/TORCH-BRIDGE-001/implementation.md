@@ -3,7 +3,7 @@
 ID: TORCH-BRIDGE-001
 Title: Bridge DataLoad to `nanobrag_torch`
 Owner: Unassigned
-Status: pending
+Status: in_progress
 
 ## Goals
 - Prepare tensors and configs consumable by `nanobrag_torch` while preserving DBEX tensor ordering and mask semantics.

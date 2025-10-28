@@ -22,7 +22,8 @@
   4. Smoke harness exercises one DIALS experiment; artifacts recorded with ROI triptych.
 - Working Plan: plans/active/TORCH-BRIDGE-001/implementation.md
 - Attempts History:
-  * 2025-10-28T205500Z — Loop planning kickoff for Phase A scaffolding. Metrics: pending. Artifacts: pending.
+  * 2025-10-28T205500Z — Loop planning kickoff for Phase A scaffolding. Metrics: pending. Artifacts: pending.
+  * 2025-10-28T222910Z — Supervisor planning pass to scope Phase A tests + helper implementation; validated outstanding bridge gaps. Metrics: pending. Artifacts: plans/active/TORCH-BRIDGE-001/reports/2025-10-28T222910Z/
 
 ### [TORCH-RUNTIME-002] Author torch runtime checklist + testing harness seed
 - Depends on: TORCH-BRIDGE-001
@@ -66,4 +67,13 @@
 ## Backlog
 - Populate parity harness specs from `docs/spec-db-conformance.md` once torch backend stabilizes.
 - Extend Findings ledger with lessons from `reports/` once torch experiments begin.
-- TODO: Restore `docs/pytorch_runtime_checklist.md` symlink or provide local copy; current target `../../nanoBragg2/...` missing, blocking runtime guardrail review.
+### [DOC-RUNTIME-004] Restore `docs/pytorch_runtime_checklist.md`
+- Depends on: none
+- Status: pending
+- Owner/Date: Unassigned / 2025-10-28
+- Exit Criteria:
+  1. `docs/pytorch_runtime_checklist.md` resolves to a valid file (symlink or local copy) and can be opened without build errors.
+  2. Runtime guardrails referenced by the checklist remain aligned with `docs/spec-db-conformance.md` and `docs/architecture.md` guidance.
+  3. `docs/index.md` and `docs/prompt_sources_map.json` reference the restored checklist path.
+- Attempts History:
+  * _(pending)_

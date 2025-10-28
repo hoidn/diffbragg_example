@@ -13,14 +13,14 @@ This template guides migrating and maintaining agent prompts under `prompts/` so
   - `prompts/` containing one or more prompt files (e.g., `prompts/supervisor.md`, `prompts/main.md`, `prompts/debug.md`).
   - Optionally `tests/` and `plans/` (structures may vary).
 - Legacy projects often include a ledger at `docs/fix_plan.md`; new projects may need to initialize it (instructions below).
-- If present, `CLAUDE.md` or `AGENTS.md` define agent workflow rules and must be respected.
+- If present, `CLAUDE.md` defines agent workflow rules (with `AGENTS.md` symlinked to it) and must be respected.
 
 ## Outcomes
 - Prompts reference the correct, living documents discovered in this project.
 - A lightweight mapping of “authoritative sources” is captured so it can be refreshed later.
 - Artifact routing is consistent: `plans/active/<initiative-id>/reports/<YYYY-MM-DDTHHMMSSZ>/`.
 - A fix‑plan ledger exists at `docs/fix_plan.md` and records loop attempts and artifact paths.
-- Agent workflow docs (CLAUDE.md / AGENTS.md) are present and linked from the doc index.
+- Agent workflow doc (`CLAUDE.md`, exposed via the `AGENTS.md` symlink) is present and linked from the doc index.
 
 ---
 
@@ -85,7 +85,7 @@ Always begin with the project’s documentation index, then locate category docs
 - Findings, ledger, and agent workflow
   - Findings ledger: `docs/findings.md` (if present).
   - Fix plan ledger: `docs/fix_plan.md` (create if missing).
-  - Agent workflow: `CLAUDE.md` and `AGENTS.md`.
+- Agent workflow: `CLAUDE.md` (root policy surfaced via `AGENTS.md` symlink).
   - Placeholders: `<FINDINGS_DOC>`, `<LEDGER_DOC>`, `<AGENT_WORKFLOW_DOCS>`.
 
 3) Discovery helpers (run from repo root; use whichever apply):
@@ -158,8 +158,8 @@ Use the model and target inventories to decide how to materialize each document 
   - Replace any model‑specific commands with target project equivalents from `<TEST_GUIDE>/<TEST_INDEX>` and workflow docs.
 - CLAUDE.md (root): Ab initio or copy skeleton → adapt
   - If the model’s CLAUDE.md matches your desired policy, copy and adapt references and rules. Otherwise, author fresh using the outline below.
-- AGENTS.md (root/subdir): Ab initio or copy skeleton → adapt
-  - Root AGENTS.md sets global rules; add sub‑scoped files only if a subtree truly diverges (language/toolchain).
+- AGENTS.md (symlink + optional scoped overrides): Configure
+  - Create a root `AGENTS.md` symlink pointing to `CLAUDE.md`; author sub‑scoped files only if a subtree truly diverges (language/toolchain) and clearly document how they override the root policy.
 - Docs index (`docs/index.md`): Derive
   - Build or update from the target repo’s actual documents so the index is authoritative for this codebase.
 - Specs (`specs/*.md`): Project‑specific
@@ -188,7 +188,7 @@ Understand the order and prerequisites by mapping dependencies. A simple form is
 Bulleted dependencies (typical)
 - Prompts depend on: docs index, specs, architecture/dev guide, testing guide/index, debugging/workflows, findings, fix plan, agent workflow docs, artifact policy.
 - CLAUDE.md depends on: docs index, artifact and ledger policy, prompts overview.
-- AGENTS.md depends on: coding conventions, test policy, file organization, artifact policy; inherits/overrides by directory.
+- Scoped `AGENTS.md` overrides depend on: coding conventions, test policy, file organization, artifact policy; inherit from the root policy and only document deltas.
 - Testing Guide depends on: actual test layout, fixtures, markers, CI constraints.
 - Test Suite Index depends on: test files and authoritative selectors.
 - Architecture docs depend on: code structure, ADRs (if any), and spec constraints.
@@ -206,7 +206,7 @@ flowchart TD
   Debug --> Prompts
   Findings --> Prompts
   FixPlan --> Prompts
-  AgentDocs(CLAUDE/AGENTS) --> Prompts
+  AgentDocs(CLAUDE + AGENTS overrides) --> Prompts
   Index --> Specs & Arch & TestGuide & TestIndex & Workflows & Debug & Findings & FixPlan & AgentDocs
 ```
 
@@ -247,11 +247,11 @@ rg -n "^## TODO|\bTODO\b|Fix plan|initiative" docs prompts plans || true
 
 Goal
 - Ensure clear, versioned guidance for agent behavior is present and discoverable.
-- Provide a repo‑root policy (`CLAUDE.md`) and scoped rules (`AGENTS.md`) that prompts can rely on.
+- Provide a repo‑root policy (`CLAUDE.md`) and scoped overrides (subdirectory `AGENTS.md` files, with the root `AGENTS.md` symlinked to `CLAUDE.md`) that prompts can rely on.
 
 Locations
 - Place `CLAUDE.md` at the repository root.
-- Place `AGENTS.md` at the repository root for global rules; optionally add additional `AGENTS.md` files in subdirectories that need different local conventions. Deeper files override shallower ones within their directory tree. Direct user/developer instructions always take precedence.
+- Symlink the root `AGENTS.md` to `CLAUDE.md` (`ln -sf CLAUDE.md AGENTS.md`) so historical references resolve; optionally add purposeful `AGENTS.md` files in subdirectories that need different local conventions. Deeper files override shallower ones within their directory tree. Direct user/developer instructions always take precedence.
 
 Minimal CLAUDE.md (root) outline
 - Purpose: Define agent roles, loop workflow (Supervisor/Engineer), and core rules.
@@ -269,8 +269,9 @@ Minimal CLAUDE.md (root) outline
   - Mention sandbox/approval conventions if the project uses them.
 - Pointers: Where to find `prompts/`, smoke tests, and common commands.
 
-Minimal AGENTS.md outline (root or subdir)
+Minimal scoped `AGENTS.md` outline (subdirectory overrides)
 - Scope and precedence: Applies to this directory tree; deeper files override shallower ones. Direct developer/user instructions supersede AGENTS.md.
+- Delta-focused guidance: capture only the deviations from the root `CLAUDE.md` policy.
 - Coding conventions: style (formatter/linter), naming, dependency constraints, language/runtime versions.
 - Test policy: framework (pytest/unittest), markers (slow/gpu), skip rules, how to run targeted vs full tests.
 - File organization: expected locations for binaries, configs, fixtures, and test data.
@@ -278,19 +279,20 @@ Minimal AGENTS.md outline (root or subdir)
 - Change hygiene: when to update docs, commit message format, and how to record plan deltas.
 
 Bootstrap procedure
-- If missing, create `CLAUDE.md` and a root `AGENTS.md` using the outlines above. Add sub‑scoped `AGENTS.md` only if a subdirectory truly diverges (e.g., different language/toolchain or strict local rules).
+- If missing, create `CLAUDE.md` using the outline above, then symlink `AGENTS.md` to it. Add sub‑scoped `AGENTS.md` only if a subdirectory truly diverges (e.g., different language/toolchain or strict local rules).
 - Link both in the doc map:
-  - Add an “Agent Workflow” entry to `docs/index.md` pointing to `CLAUDE.md` and describing AGENTS.md scope/override behavior.
+  - Add an “Agent Workflow” entry to `docs/index.md` pointing to `CLAUDE.md`, noting that `AGENTS.md` is a symlink, and describing how scoped overrides behave.
 - Update prompts so supervisor/engineer required‑reading includes these under “Agent Workflow Docs”.
 - Ensure the ledger exists and is referenced: if missing, create `docs/fix_plan.md` and seed from `plans/` and TODO scans.
 
 Verification checklist
-- Files exist:
+- Files exist and the symlink resolves:
 ```
-rg --files | rg -n "^CLAUDE\.md$|AGENTS\.md$" || true
+ls CLAUDE.md
+readlink AGENTS.md
 ```
-- `docs/index.md` includes an Agent Workflow section referencing CLAUDE.md and AGENTS.md.
-- Prompts reference CLAUDE.md and note AGENTS.md precedence and scope rules.
+- `docs/index.md` includes an Agent Workflow section referencing CLAUDE.md and explaining the AGENTS.md symlink + scoped override rules.
+- Prompts reference CLAUDE.md, mention the AGENTS.md symlink, and document how scoped overrides behave.
 - First supervised loop writes artifacts under the standard reports path and records it in `docs/fix_plan.md`.
 
 ---
@@ -351,7 +353,7 @@ rg -n "docs/|specs/|tests/|plans/active|reports|CLAUDE\.md|AGENTS\.md" prompts |
 
 Index link insertion (idempotent example)
 ```
-awk 'BEGIN{added=0} /Agent Workflow/ {added=1} {print} END{if(!added){print "\n- Agent Workflow: see CLAUDE.md (repo root); AGENTS.md applies per directory tree."}}' \
+awk 'BEGIN{added=0} /Agent Workflow/ {added=1} {print} END{if(!added){print "\n- Agent Workflow: see CLAUDE.md (repo root); AGENTS.md symlinks to CLAUDE.md and scoped overrides live in subdirectories."}}' \
   docs/index.md > docs/index.tmp && mv docs/index.tmp docs/index.md
 ```
 
@@ -382,7 +384,7 @@ rsync -av --include='*/' --include='*.md' --exclude='*' "$MODEL_ROOT/prompts/" "
    - List all `prompts/*.md`; extract referenced paths/commands; identify stale tokens and hard‑coded examples.
 
 3) Initialize agent workflow and ledger (target)
-   - Create/adapt `CLAUDE.md` and root `AGENTS.md` per outlines; add “Agent Workflow” to `docs/index.md`.
+   - Create/adapt `CLAUDE.md`, symlink the root `AGENTS.md` to it, and add “Agent Workflow” to `docs/index.md`.
    - Create/refresh `docs/fix_plan.md`; seed from `plans/` and TODO scans.
 
 4) Update prompts (target)
@@ -420,7 +422,7 @@ rsync -av --include='*/' --include='*.md' --exclude='*' "$MODEL_ROOT/prompts/" "
 - `<WORKFLOW_DOCS>`: list of workflow guides (if any).
 - `<FINDINGS_DOC>`: path to findings ledger.
 - `<LEDGER_DOC>`: path to fix plan ledger (usually `docs/fix_plan.md`).
-- `<AGENT_WORKFLOW_DOCS>`: agent rules (e.g., `CLAUDE.md`, `AGENTS.md`).
+- `<AGENT_WORKFLOW_DOCS>`: agent rules (`CLAUDE.md`, surfaced via the `AGENTS.md` symlink and any scoped overrides).
 
 ---
 

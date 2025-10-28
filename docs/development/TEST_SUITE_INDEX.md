@@ -9,9 +9,8 @@
 | Background semantics | `pytest -v tests -k DB_AT_022` | planned | Validates −1 sentinel handling around ROIs (`docs/spec-db-conformance.md:38`).
 | Calibration | `pytest -v tests -k DB_AT_023` | planned | Ensures ADU vs photons policy behaves per spec.
 | Mapping sanity | `pytest -v tests -k DB_AT_024` | planned | Confirms zero-iteration forward pass overlaps data within tolerance; logs metrics.
-| Runtime vectorization | `pytest tests/test_cli_scaling.py::TestSourceWeights* -v` | active | Protects source equal-weight handling (`docs/pytorch_runtime_checklist.md:31`).
+| Runtime vectorization | `pytest nanoBragg2/tests/test_cli_scaling.py::TestSourceWeights* -v` | planned | Currently lives in `nanoBragg2/tests/`; port harness into DBEX before marking active (`docs/pytorch_runtime_checklist.md:31`).
 
 - Update this index as new tests are authored; mark selectors `active` once they exist in `tests/`.
 - Keep selectors sorted by profile to match `docs/spec-db-conformance.md`.
 - Record any skipped selectors and rationale in `docs/fix_plan.md`.
-

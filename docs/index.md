@@ -22,6 +22,18 @@ Description: Interactive viewer for ROI triptychs (Data | Model), paginated with
 Keywords: visualization, ROI, HDF5, inspection  
 Use this when: Inspecting fit quality and ROI scores from a refinement run. See code: `dbex/look.py`.
 
+## Operational Ledgers
+
+### [Knowledge Base Ledger](findings.md)
+Description: Persistent record of architectural findings, runtime guardrails, and parity lessons for the torch integration.  
+Keywords: findings, guardrails, lessons  
+Use this when: Planning a loop or checking prior art before touching simulator/bridge code.
+
+### [Fix Plan Ledger](fix_plan.md)
+Description: Master task list for the torch backend rollout, including dependencies, exit criteria, and Attempts History.  
+Keywords: fix-plan, ledger, attempts-history  
+Use this when: Selecting the next loop focus and recording artifacts.
+
 ## Specifications (Spec DB)
 
 ### [Spec Index](spec-db.md)
@@ -98,6 +110,40 @@ Description: Phase‑by‑phase plan to replace the optimizer with `nanobrag_tor
 Keywords: plan, milestones, deliverables  
 Use this when: Executing integration work or reviewing scope/timeline.
 
+## Testing & Validation
+
+### [Testing Guide](TESTING_GUIDE.md)
+Description: Canonical environment flags, smoke/acceptance selectors, and artifact policy for pytest runs.  
+Keywords: testing, pytest, selectors  
+Use this when: Running or authoring tests for parity, ingestion, or runtime guardrails.
+
+### [Test Suite Index](development/TEST_SUITE_INDEX.md)
+Description: Status table for DB-AT selectors and runtime regression tests.  
+Keywords: test-index, parity, runtime  
+Use this when: Checking which selectors exist and which remain to be authored.
+
+## PyTorch Development
+
+### [PyTorch Architecture Design](architecture/pytorch_design.md)
+Description: Detailed design notes for vectorized tricubic interpolation, detector absorption, and source weighting in `nanobrag_torch`.  
+Keywords: architecture, vectorization, tricubic, absorption  
+Use this when: Implementing or reviewing PyTorch simulator internals for DBEX integration.
+
+### [C-CLI to PyTorch Configuration Map](development/c_to_pytorch_config_map.md)
+Description: Parameter-by-parameter mapping between legacy DiffBragg CLI flags and the PyTorch configuration objects.  
+Keywords: configuration, parity, beam-center, pivot  
+Use this when: Ensuring configuration parity before running C↔PyTorch comparisons or authoring tests.
+
+### [PyTorch Testing Strategy](development/testing_strategy.md)
+Description: Layered testing philosophy, golden data requirements, and canonical commands for PyTorch parity and gradcheck suites.  
+Keywords: testing-strategy, gradcheck, parity  
+Use this when: Planning or updating PyTorch tests, harnesses, and golden suites.
+
+### [PyTorch Runtime Checklist](pytorch_runtime_checklist.md)
+Description: Quick reference for vectorization, device/dtype neutrality, `torch.compile` hygiene, and source equal-weight rules.  
+Keywords: runtime, torch.compile, vectorization  
+Use this when: Auditing or implementing PyTorch simulator changes.
+
 ## Reports and Correspondence
 
 ### [Maintainer Responses](../reports/maintainer_responses.md)
@@ -138,9 +184,14 @@ Use this when: Visualizing model vs data per ROI.
 
 ### [CLAUDE Instructions](../CLAUDE.md)
 Description: Agent guidance and external tool source paths (DIALS, dxtbx, simtbx) within this workspace.  
-Keywords: agent, external‑paths, guidance  
+Keywords: agent, external-paths, guidance  
 Use this when: Working as an AI agent or locating external tool trees.
+
+### [Agent Workflow Rules](../AGENTS.md)
+Description: Repository-scoped conventions for coding style, pytest usage, artifact routing, and ledger expectations (overrides apply per subtree).  
+Keywords: agent-workflow, conventions, ledger  
+Use this when: You need authoritative agent rules; remember deeper AGENTS.md files override shallower ones within their directory tree.
 
 ---
 
-Last updated: 2025‑10‑27
+Last updated: 2025‑10‑28

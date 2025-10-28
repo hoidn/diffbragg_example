@@ -13,7 +13,7 @@
 
 ### [TORCH-BRIDGE-001] Bridge DataLoad to `nanobrag_torch`
 - Depends on: plans/nanobrag_integration_plan.md §Phase 1
-- Status: in_progress
+- Status: done
 - Owner/Date: Unassigned / 2025-10-28
 - Exit Criteria:
   1. Helper returns background-subtracted targets, trusted/background masks, and per-panel slices aligned to `[panel, slow, fast]` (`docs/spec-db-core.md:24`).
@@ -29,6 +29,7 @@
   * 2025-10-28T224846Z — Implemented Phase B (B1+B2) config hydration with DetectorConfig, BeamConfig, CrystalConfig stubs and 3 helper functions (create_detector_config, create_beam_config, create_crystal_config); authored 14 tests covering beam center swap, sample→source vector, CUSTOM convention, mask float conversion, polarization fallback, MOSFLM A* injection, stills defaults; all tests pass. Metrics: 18/18 tests passed (4 Phase A + 14 Phase B), 0.18s runtime, CPU. Artifacts: plans/active/TORCH-BRIDGE-001/reports/2025-10-28T224846Z/{do-now-notes.md,pytest.log,pytest_full.log,config_snapshots.json}. First Divergence: n/a. Next Actions: Phase C smoke harness (single-experiment flow with nanobrag_torch simulator, stitched Bragg tensor, ROI triptych artifact); update docs/findings.md if new durable lessons discovered.
   * 2025-10-28T230500Z — Supervisor planning for Phase C smoke harness; verified no existing ROI triptych artifacts under plans/active/TORCH-BRIDGE-001/reports/ and noted nanobrag_torch import remains stubbed pending install. Metrics: pending. Artifacts: plans/active/TORCH-BRIDGE-001/reports/2025-10-28T230500Z/.
   * 2025-10-28T231200Z — Implemented Phase C (C1+C2) smoke harness with DataLoad→bridge→stub simulator flow; authored 3 tests (single experiment flow, masked MSE computation, artifact generation) exercising 92 ROIs from refGeom dataset; generated ROI triptych and metrics JSON; all tests pass. Metrics: 3/3 tests passed, 1.83s runtime, CPU. Masked MSE=9.6e5 (stub Gaussian vs real data), loss mask coverage=0.21%, n_rois=92, target shape=[1,2527,2463]. Artifacts: plans/active/TORCH-BRIDGE-001/reports/2025-10-28T230500Z/{do-now-notes.md,pytest.log,smoke_metrics.json,roi_triptych.png}. First Divergence: n/a. Next Actions: Mark implementation.md Phase C complete; update bridge tests if crystal A* tuple→array pattern recurs; swap stub_bragg_tensor for real nanobrag_torch simulator when available.
+  * 2025-10-28T233500Z — Closure validation run: reran full test suite (21 tests: 4 bridge, 14 config, 3 smoke) with KMP_DUPLICATE_LIB_OK=TRUE; all tests passed. Metrics: 21/21 tests passed, 1.93s runtime, CPU, Python 3.9.23, PyTorch 2.8.0. Masked MSE=9.6e5, loss mask coverage=0.21%, n_rois=92, target shape=[1,2527,2463]. Artifacts: plans/active/TORCH-BRIDGE-001/reports/2025-10-28T233500Z/{do-now-notes.md,pytest.log,run_env.txt,smoke_metrics.json,roi_triptych.png}. First Divergence: n/a. Next Actions: All exit criteria met; initiative complete and ready for handoff to TORCH-RUNTIME-002 or TORCH-CLI-003. Archive plans/active/TORCH-BRIDGE-001/implementation.md.
 
 ### [TORCH-RUNTIME-002] Author torch runtime checklist + testing harness seed
 - Depends on: TORCH-BRIDGE-001

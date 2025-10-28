@@ -1,0 +1,22 @@
+{
+  "n_panels": 1,
+  "n_rois": 92,
+  "target_shape": [
+    1,
+    2527,
+    2463
+  ],
+  "bragg_shape": [
+    1,
+    2527,
+    2463
+  ],
+  "masked_mse": 959991.3125,
+  "mean_intensity_per_panel": [
+    98.88931274414062
+  ],
+  "max_intensity_per_panel": [
+    473.19696044921875
+  ],
+  "loss_mask_coverage": 0.00210250608892897
+}

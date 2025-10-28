@@ -55,3 +55,14 @@ Notes
 - <Action State>: [planning]
 
 2025-10-28T232915Z focus=TORCH-RUNTIME-002 state=planning dwell=1 artifacts=plans/active/TORCH-RUNTIME-002/reports/2025-10-28T232744Z/ next_action=execute_A1-A2-B1-B2
+
+## 2025-10-28T233723Z — DOC-RUNTIME-004 planning kickoff
+- Focus: DOC-RUNTIME-004 — Restore docs/pytorch_runtime_checklist.md
+- Action Type: planning
+- Key Observations: Confirmed docs/pytorch_runtime_checklist.md is a dangling symlink pointing to ../../nanoBragg2/... (target absent); `rg` shows prompts, docs/index.md:142-150, and testing_strategy.md:27 rely on the checklist; spec shards docs/spec-db-runtime.md:10-20 and docs/spec-db-conformance.md:10-48 capture required guardrails/tests; prompt_sources_map.json still references the broken path.
+- Artifact Path: plans/active/DOC-RUNTIME-004/reports/2025-10-28T233723Z/
+- Next Actions: Execute A1-A2-B1-B2-C1-C2 checklist to restore the checklist file, align references, and capture validation artifacts.
+- Reality Check: Validated the premise (symlink broken, exit criteria unmet, no reports directory existed prior to this loop) and recorded the new implementation plan without rescoping the objective.
+- <Action State>: [planning]
+
+2025-10-28T233723Z focus=DOC-RUNTIME-004 state=planning dwell=1 artifacts=plans/active/DOC-RUNTIME-004/reports/2025-10-28T233723Z/ next_action=execute_A1-A2-B1-B2-C1-C2

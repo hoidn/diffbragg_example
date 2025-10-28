@@ -1,35 +1,37 @@
-Summary: Capture TORCH-RUNTIME-002 runtime/testing documentation updates and seed an evidence artifact for planned DB-AT selectors.
+Summary: Restore the PyTorch runtime checklist doc and align all references so runtime guardrails are discoverable.
 Mode: Docs
-Focus: TORCH-RUNTIME-002 — Author torch runtime checklist + testing harness seed
+Focus: DOC-RUNTIME-004 — Restore docs/pytorch_runtime_checklist.md
 Branch: integration
 Mapped tests: none — evidence-only
-Artifacts: plans/active/TORCH-RUNTIME-002/reports/2025-10-28T232744Z/{notes.md,pytest_collect.log}
+Artifacts: plans/active/DOC-RUNTIME-004/reports/2025-10-28T233723Z/{notes.md,checklist_head.log,summary.md}
 Do Now:
-  1. TORCH-RUNTIME-002 — A1 (plans/active/TORCH-RUNTIME-002/implementation.md) — tests: none; tighten docs/TESTING_GUIDE.md §§1-2 with explicit KMP_DUPLICATE_LIB_OK and NANOBRAGG_DISABLE_COMPILE guidance plus cross-links to spec shards.
-  2. TORCH-RUNTIME-002 — A2 (plans/active/TORCH-RUNTIME-002/implementation.md) — tests: none; add runtime-focused "Common Pitfalls" language to docs/development/testing_strategy.md §§1.4-1.6 and note the broken pytorch_runtime_checklist symlink (DOC-RUNTIME-004).
-  3. TORCH-RUNTIME-002 — B1 (plans/active/TORCH-RUNTIME-002/implementation.md) — tests: none; synchronize planned DB-AT selectors between docs/TESTING_GUIDE.md and docs/development/TEST_SUITE_INDEX.md, registering TODO callouts where execution gaps remain.
-  4. TORCH-RUNTIME-002 — B2 (plans/active/TORCH-RUNTIME-002/implementation.md) — tests: pytest --collect-only -q tests -k DB_AT_001; capture the command output under the artifact path as seed evidence and reference the path in docs/fix_plan.md Metrics/Artifacts lines.
+  1. DOC-RUNTIME-004 — A1 (plans/active/DOC-RUNTIME-004/implementation.md) — tests: none; run `rg 'pytorch_runtime_checklist' -n` and catalog every reference plus the missing symlink target in notes.md alongside key guardrails from docs/spec-db-runtime.md:10-20 and docs/spec-db-conformance.md:10-48.
+  2. DOC-RUNTIME-004 — A2 (plans/active/DOC-RUNTIME-004/implementation.md) — tests: none; replace the broken symlink with a restored docs/pytorch_runtime_checklist.md that captures environment flags, runtime guardrails, acceptance hooks, and cites the spec shards gathered in A1.
+  3. DOC-RUNTIME-004 — B1 (plans/active/DOC-RUNTIME-004/implementation.md) — tests: none; update docs/index.md and docs/development/testing_strategy.md:27 to reference the restored checklist path/title and ensure narrative alignment.
+  4. DOC-RUNTIME-004 — B2 (plans/active/DOC-RUNTIME-004/implementation.md) — tests: none; synchronize docs/prompt_sources_map.json and any prompt files that cite the old symlink so they resolve to the new checklist.
+  5. DOC-RUNTIME-004 — C1 (plans/active/DOC-RUNTIME-004/implementation.md) — tests: none; capture `head -n 40 docs/pytorch_runtime_checklist.md` into checklist_head.log under the artifact path and verify the Markdown renders key sections.
+  6. DOC-RUNTIME-004 — C2 (plans/active/DOC-RUNTIME-004/implementation.md) — tests: none; summarize restoration steps, remaining gaps, and validation evidence in summary.md and record Metrics/Artifacts lines in docs/fix_plan.md.
 Priorities & Rationale:
-  - Enforce runtime environment contract from docs/spec-db-runtime.md:18-21 and surface it in the testing docs so engineers export required flags.
-  - Align docs/TESTING_GUIDE.md:5-37 with current torch smoke strategy to keep normative commands discoverable and artifact policy clear.
-  - Map DB-AT selectors per docs/spec-db-conformance.md:24-45 and ensure placeholders reflect their future acceptance scope.
-  - Keep docs/development/TEST_SUITE_INDEX.md:5-13 synchronized with the testing guide and fix plan entries for selector parity.
-  - Reinforce handoff requirements from docs/development/testing_strategy.md:32-43 so Do Now checklists remain executable for runtime work.
+  - Uphold runtime guardrails defined in docs/spec-db-runtime.md:10-20 so engineers retain canonical guidance when the checklist is restored.
+  - Maintain acceptance-test readiness per docs/spec-db-conformance.md:10-48 by documenting the DB-AT hooks inside the checklist.
+  - Resolve the knowledge-base dependency highlighted in docs/findings.md (RUNTIME-001, CONFORMANCE-001) so cited references remain valid.
+  - Keep documentation maps accurate by aligning docs/index.md:142-150 and docs/prompt_sources_map.json:1-49 with the restored file.
+  - Ensure prompts and workflow guides (prompts/main.md:12-73) continue to reference a live checklist without manual path fixes later.
 How-To Map:
-  - export ART=plans/active/TORCH-RUNTIME-002/reports/2025-10-28T232744Z; mkdir -p "$ART"; touch "$ART/notes.md" to log doc deltas.
-  - Edit docs/TESTING_GUIDE.md and docs/development/testing_strategy.md with explicit env flag + pitfalls guidance; record summary snippets in "$ART/notes.md".
-  - Reflect selector alignment updates in docs/development/TEST_SUITE_INDEX.md and note any remaining TODOs in docs/fix_plan.md Attempts History.
-  - KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q tests -k DB_AT_001 | tee "$ART/pytest_collect.log" (expect 0 tests collected; use log as artifact).
-  - Verify docs/index.md and docs/prompt_sources_map.json still reference updated files; adjust if path changes occur.
+  - export ART=plans/active/DOC-RUNTIME-004/reports/2025-10-28T233723Z; mkdir -p "$ART"; touch "$ART/notes.md" "$ART/summary.md"
+  - rg 'pytorch_runtime_checklist' -n > "$ART/notes.md"; append spec guardrail excerpts via `nl -ba docs/spec-db-runtime.md | sed -n '10,40p'`
+  - Restore docs/pytorch_runtime_checklist.md using apply_patch or cat > file <<'EOF' (ensure ASCII) and cite spec shard anchors.
+  - Update docs/index.md, docs/development/testing_strategy.md, docs/prompt_sources_map.json, and prompts/* as needed; note edits in "$ART/notes.md".
+  - head -n 40 docs/pytorch_runtime_checklist.md | tee "$ART/checklist_head.log"; record command + results in summary.md.
 Pitfalls To Avoid:
-  - Do not overwrite the external pytorch_runtime_checklist symlink target; log the broken link instead.
-  - Avoid promising active DB-AT coverage—mark selectors as planned until tests exist.
-  - Keep docs/index.md and prompt map synchronized if headings change.
-  - Preserve Metrics/Artifacts placeholders in docs/fix_plan.md while editing attempts history.
-  - Ensure artifact directory only contains lightweight text/command logs.
-  - Do not delete existing TORCH-BRIDGE-001 artifacts or implementation plan.
-  - Avoid editing external trees (dials/, dxtbx/, simtbx/).
-  - Keep environment commands shell-safe (`export` before pytest runs).
-  - Note DOC-RUNTIME-004 dependency if runtime checklist restoration blocks clarity.
-If Blocked: If the broken pytorch runtime checklist prevents documenting guardrails, append a block note to docs/fix_plan.md Attempts History (Metrics: pending; Artifacts: pending) and log the dependency on DOC-RUNTIME-004 in plans/active/TORCH-RUNTIME-002/implementation.md before returning to planning.
-Findings Applied (Mandatory): RUNTIME-001 — plan reiterates NANOBRAGG_DISABLE_COMPILE guard for gradchecks; CONFORMANCE-001 — plan maps KMP_DUPLICATE_LIB_OK flag and DB-AT selectors into the testing docs. No other relevant findings in the knowledge base.
+  - Do not recreate the broken symlink; ensure the checklist is a repo-local file.
+  - Preserve spec citations exactly (e.g., docs/spec-db-runtime.md:10 for guardrails).
+  - Keep prompt edits minimal—only adjust paths referencing the checklist.
+  - Avoid altering external nanoBragg2 references that remain valid in historical docs.
+  - Retain Metrics/Artifacts placeholders when updating docs/fix_plan.md.
+  - Confirm docs/index.md anchors stay in sync with headings to prevent stale links.
+  - Ensure artifact directory only stores lightweight text outputs (notes/logs).
+  - Maintain ASCII encoding throughout the restored doc.
+  - Verify no lingering references still point to docs/development/pytorch_runtime_checklist.md.
+If Blocked: If source material for the checklist cannot be reconstructed, note the gap in docs/fix_plan.md Attempts History (Metrics: pending; Artifacts: pending) and capture the missing upstream dependency in summary.md before returning to planning.
+Findings Applied (Mandatory): RUNTIME-001 — plan reasserts NANOBRAGG_DISABLE_COMPILE guard via restored checklist guidance; CONFORMANCE-001 — plan preserves KMP_DUPLICATE_LIB_OK and DB-AT selector documentation within the checklist.

@@ -76,11 +76,12 @@
 - Extend Findings ledger with lessons from `reports/` once torch experiments begin.
 ### [DOC-RUNTIME-004] Restore `docs/pytorch_runtime_checklist.md`
 - Depends on: none
-- Status: pending
+- Status: in_progress
 - Owner/Date: Unassigned / 2025-10-28
 - Exit Criteria:
   1. `docs/pytorch_runtime_checklist.md` resolves to a valid file (symlink or local copy) and can be opened without build errors.
   2. Runtime guardrails referenced by the checklist remain aligned with `docs/spec-db-conformance.md` and `docs/architecture.md` guidance.
   3. `docs/index.md` and `docs/prompt_sources_map.json` reference the restored checklist path.
+- Working Plan: plans/active/DOC-RUNTIME-004/implementation.md
 - Attempts History:
-  * _(pending)_
+  * 2025-10-28T233630Z — Supervisor planning pass; confirmed symlink target (`../../nanoBragg2/docs/development/pytorch_runtime_checklist.md`) missing, indexed references unresolved, and new implementation plan required. Metrics: pending. Artifacts: pending.

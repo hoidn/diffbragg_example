@@ -19,7 +19,8 @@
   "testing_guide": "docs/TESTING_GUIDE.md",
   "test_index": "docs/development/TEST_SUITE_INDEX.md",
   "debugging": [
-    "docs/spec-db-tracing.md"
+    "docs/spec-db-tracing.md",
+    "docs/debugging/TROUBLESHOOTING.md"
   ],
   "workflows": [
     "docs/spec-db-workflow.md",

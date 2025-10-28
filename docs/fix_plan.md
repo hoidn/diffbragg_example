@@ -20,6 +20,7 @@
   2. Detector/beam/crystal configs hydrate the torch simulator per `docs/config_crosswalk.md:1` and `docs/dxtbx_api.md:1`.
   3. Bridge raises when pixel pitch is not square (`docs/spec-db-core.md:43`).
   4. Smoke harness exercises one DIALS experiment; artifacts recorded with ROI triptych.
+- Working Plan: plans/active/TORCH-BRIDGE-001/implementation.md
 - Attempts History:
   * _(pending)_
 
@@ -32,6 +33,7 @@
   2. Minimal pytest selector (or placeholder) captured for DB-AT parity suites (`docs/spec-db-conformance.md:25`).
   3. Artifact example captured under the initiative’s documented reports directory.
   4. Ledger entry includes Metrics/Artifacts lines referencing the recorded selector run or TODO.
+- Working Plan: plans/active/TORCH-RUNTIME-002/implementation.md
 - Attempts History:
   * _(pending)_
 
@@ -44,6 +46,7 @@
   2. Torch branch emits `Bragg` tensor and diagnostics matching legacy layout (`plans/nanobrag_integration_plan.md` §Phase 4).
   3. Update `docs/index.md` entry for CLI to reflect backend flag.
   4. Entry validated by running torch CLI smoke (documented in `docs/TESTING_GUIDE.md`).
+- Working Plan: plans/active/TORCH-CLI-003/implementation.md
 - Attempts History:
   * _(pending)_
 

@@ -20,6 +20,7 @@ Loop policy
 - Two messages maximum: one short preamble before running commands, one final report.
 - One fix-plan item per loop. Update Attempts History with `Metrics:`, `Artifacts:`, `First Divergence:` (or `n/a` if not found) before ending.
 - Gather evidence first, then edit code. If the required parity harness is missing, pause and add a fix-plan TODO to author it.
+- Documentation after fix: If the root cause is likely to recur, add an entry to `docs/debugging/TROUBLESHOOTING.md` in the same loop (Symptom, Root Cause, Solution). Only create a follow-up task in `docs/fix_plan.md` when in-loop documentation isn’t feasible.
 
 Procedure
 1. **Reproduce** the failing selector(s) exactly as listed in `input.md` (selectors should come from `docs/TESTING_GUIDE.md` / `docs/spec-db-conformance.md`). Capture console output to the artifact directory.

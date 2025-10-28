@@ -204,6 +204,13 @@ Description: Per-phase checklist structure with objectives, validation, and arti
 Keywords: planning, phase, validation  
 Use this when: Managing detailed tasks for a single phase and linking them into the implementation plan.
 
+## Debugging Playbooks
+
+### [Troubleshooting Guide](debugging/TROUBLESHOOTING.md)
+Description: Living playbook of recurrent error signatures with root causes and remedies.  
+Keywords: troubleshooting, debugging, playbooks  
+Use this when: You encounter a recurring error or need a known remediation pattern.
+
 ---
 
 Last updated: 2025‑10‑28

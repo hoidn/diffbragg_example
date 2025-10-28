@@ -27,6 +27,9 @@ nanoBragg2/
 nanoBragg2
 plans/active/
 plans/active
+# Allow tracking per-initiative plans but keep reports/artifacts ignored
+!plans/active/**/implementation.md
+!plans/active/**/.gitkeep
 scratch/
 scratch
 simforge/

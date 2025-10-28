@@ -27,6 +27,7 @@ Planning, review, and analysis. Do not make production code changes.
 - Inspect `docs/fix_plan.md` for bare `## TODO` headings or unlabeled notes. Convert each into a structured entry (ID, Depends on, Exit Criteria) before proceeding.
 - Keep `galph_memory.md` updated every turn with focus, action type, artifacts, and `<Action State>`.
 - Respect status limits: you may remain in `[gathering_evidence]` or `[planning]` for at most two consecutive turns per focus. On the third turn, either advance to `[ready_for_implementation]` with a concrete Do Now or switch focus (record the block).
+- Work-in-progress cap: keep at most 2 initiatives in `in_progress` simultaneously. Prefer advancing the current focus to completion before opening new work.
 </loop discipline>
 
 <startup steps>
@@ -45,6 +46,8 @@ Planning, review, and analysis. Do not make production code changes.
 - Scan `docs/findings.md` for entries related to the candidate focus (use keywords like geometry, runtime, parity) and list matching IDs in the log.
 - Search `docs/spec-db*.md` and `docs/architecture.md` for sections governing the chosen area; note file:line anchors.
 - If the previous loop produced code/doc changes, inspect them before approving new work; verify tests+artifacts satisfy the checklist attached to the completed attempt.
+- Continue or Pivot checkpoint: Prefer continuing the current focus unless it is hard‑blocked by an external dependency. If pivoting, mark the current item `blocked` in `docs/fix_plan.md` and note the return condition in `galph_memory.md`.
+- If a `Working Plan:` path is present on the selected item, read that plan file before making decisions and use its checklist IDs for the next Do Now.
 
 <documentation sweep>
 1. Use `docs/index.md` and `docs/prompt_sources_map.json` to confirm the authoritative doc list is still valid. Update the map/index if new sources appear.
@@ -65,7 +68,8 @@ Render `./input.md` each loop with the sections below (overwrite completely):
 - How-To Map: Exact commands, env vars, and artifact destinations (prefer commands from `docs/TESTING_GUIDE.md`).
 - Pitfalls To Avoid: 5–10 terse reminders (e.g., ensure pixel pitch rules, enforce `NANOBRAGG_DISABLE_COMPILE` for gradchecks).
 - If Blocked: fallback steps and how to log the block in Attempts History.
- - Findings Applied (Mandatory): List relevant Finding IDs from `docs/findings.md` with a one-line note on how the plan adheres to each. If none, state "No relevant findings in the knowledge base".
+- Findings Applied (Mandatory): List relevant Finding IDs from `docs/findings.md` with a one-line note on how the plan adheres to each. If none, state "No relevant findings in the knowledge base".
+ - When a Working Plan exists for the focus, the Do Now MUST reference checklist IDs from `plans/active/<initiative-id>/implementation.md` (e.g., complete A2 and A3).
 
 <additional rules>
 - Do not assign a Do Now without mapping the authoritative test selector; if none exists, direct the engineer to author the minimal test first.

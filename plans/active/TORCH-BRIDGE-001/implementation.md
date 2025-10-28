@@ -55,5 +55,10 @@ Status: in_progress
 **Module:** tests/dbex/test_nanobrag_smoke.py (3 tests, all passing)
 **Tests:** pytest -v tests/dbex/test_nanobrag_smoke.py (3/3 passed, 1.83s, CPU)
 
+## Phase D — Closeout
+### Checklist
+- [ ] D1: Re-run bridge + smoke pytest modules with refGeom assets present; capture fresh log + metrics under a new reports timestamp.
+- [ ] D2: Update ledgers/docs for wrap-up (fix_plan status → done, final Attempts History entry with Metrics/Artifacts, note dataset requirement for future parity work).
+
 ## Artifacts Index
 - Reports root: `plans/active/TORCH-BRIDGE-001/reports/`

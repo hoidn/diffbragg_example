@@ -1,38 +1,40 @@
-Summary: Plan Phase C smoke harness to run DataLoad through the bridge, stitch a Bragg tensor, and capture ROI diagnostics.
-Mode: TDD
+Summary: Close out TORCH-BRIDGE-001 by rerunning bridge + smoke tests and sealing ledger/doc updates.
+Mode: none
 Focus: TORCH-BRIDGE-001 — Bridge DataLoad to nanobrag_torch
 Branch: integration
-Mapped tests: python -m pytest -v tests/dbex/test_nanobrag_smoke.py::TestSmokeHarness
-Artifacts: plans/active/TORCH-BRIDGE-001/reports/2025-10-28T230500Z/{do-now-notes.md,pytest.log,smoke_metrics.json,roi_triptych.png}
+Mapped tests: pytest -v tests/dbex/test_nanobrag_bridge.py tests/dbex/test_nanobrag_bridge_configs.py tests/dbex/test_nanobrag_smoke.py
+Artifacts: plans/active/TORCH-BRIDGE-001/reports/2025-10-28T233500Z/{pytest.log,smoke_metrics.json,roi_triptych.png,do-now-notes.md}
 Do Now:
-1. TORCH-BRIDGE-001.C1 — Use plans/active/TORCH-BRIDGE-001/implementation.md Phase C to author smoke-harness pytest scaffolding that exercises DataLoad→bridge→stub simulator on the refGeom dataset; tests: python -m pytest -v tests/dbex/test_nanobrag_smoke.py::TestSmokeHarness::test_single_experiment_flow
-2. TORCH-BRIDGE-001.C1 — Implement the single-experiment smoke harness to stitch per-panel tensors, compute masked MSE, and return metrics for one run; tests: python -m pytest -v tests/dbex/test_nanobrag_smoke.py::TestSmokeHarness::test_masked_mse_and_shapes
-3. TORCH-BRIDGE-001.C2 — Persist ROI triptych artifacts plus metrics under plans/active/TORCH-BRIDGE-001/reports/2025-10-28T230500Z/ and update docs/fix_plan.md + plans/active/TORCH-BRIDGE-001/implementation.md; tests: none — process+docs
+  1. TORCH-BRIDGE-001 D1 (plans/active/TORCH-BRIDGE-001/implementation.md) — Ensure refGeom assets exist, export KMP_DUPLICATE_LIB_OK=TRUE, run `pytest -v tests/dbex/test_nanobrag_bridge.py tests/dbex/test_nanobrag_bridge_configs.py tests/dbex/test_nanobrag_smoke.py`; tee log to the artifact path and copy smoke metrics + triptych into the new reports directory. tests: pytest -v tests/dbex/test_nanobrag_bridge.py tests/dbex/test_nanobrag_bridge_configs.py tests/dbex/test_nanobrag_smoke.py
+  2. TORCH-BRIDGE-001 D2 (plans/active/TORCH-BRIDGE-001/implementation.md) — Update docs/fix_plan.md status→done with final Attempts History entry (Metrics/Artifacts lines pointing to new report), refresh do-now-notes.md summary, and note dataset requirements or skips. tests: none
 Priorities & Rationale:
-- docs/spec-db-workflow.md:24-29 mandates stitched per-panel Bragg tensors and masked MSE, driving the smoke harness scope.
-- docs/spec-db-core.md:32-56 requires the bridge outputs to align with `[panel, slow, fast]` arrays and apply `(background >= 0) ∧ trusted` loss masks.
-- docs/config_crosswalk.md:86-95 documents ROI/background handling and artifact expectations, guiding triptych capture.
-- docs/dials_api.md:10-28 covers bbox ordering we must honor when slicing ROIs for diagnostics.
-- docs/nanobrag_api.md:21-83 details simulator config expectations and stitch semantics the harness must respect even with stubs.
+- docs/spec-db-core.md:20-41 — Confirms `[panel, slow, fast]` ordering, square-pixel guard, and loss mask policy validated by rerun.
+- docs/config_crosswalk.md:16-34 — Detector/beam/trusted-mask mapping stays conformant when rehydrated through tests.
+- docs/spec-db-workflow.md:24-29 — Masked-MSE smoke harness remains aligned with stitched per-panel simulation requirements.
+- docs/dxtbx_api.md:5-42 — Geometry extraction via dxtbx stays in sync before marking initiative done.
+- docs/TESTING_GUIDE.md:5-31 — Enforces environment flags and artifact logging mandated for closure evidence.
 How-To Map:
-- export KMP_DUPLICATE_LIB_OK=TRUE and (if torch compile issues appear) NANOBRAGG_DISABLE_COMPILE=1 before running pytest.
-- python -m pytest -v tests/dbex/test_nanobrag_smoke.py::TestSmokeHarness::test_single_experiment_flow | tee plans/active/TORCH-BRIDGE-001/reports/2025-10-28T230500Z/pytest.log
-- python -m pytest -v tests/dbex/test_nanobrag_smoke.py::TestSmokeHarness::test_masked_mse_and_shapes | tee -a plans/active/TORCH-BRIDGE-001/reports/2025-10-28T230500Z/pytest.log
-- python -m scripts/orchestration/stamp_handoff.py --focus TORCH-BRIDGE-001 --report plans/active/TORCH-BRIDGE-001/reports/2025-10-28T230500Z/ (optional for artifact stamping)
-- Save smoke metrics to plans/active/TORCH-BRIDGE-001/reports/2025-10-28T230500Z/smoke_metrics.json and ROI triptych figure to roi_triptych.png via matplotlib.
+- Verify dataset prerequisites: `[ -f refGeom.refl ] || { echo "refGeom.refl missing; see README Step 5"; exit 1; }`
+- `export ART=plans/active/TORCH-BRIDGE-001/reports/2025-10-28T233500Z`
+- `mkdir -p "$ART"`
+- `python -V > "$ART/run_env.txt" && pip show torch >> "$ART/run_env.txt"`
+- `export KMP_DUPLICATE_LIB_OK=TRUE`
+- `pytest -v tests/dbex/test_nanobrag_bridge.py tests/dbex/test_nanobrag_bridge_configs.py tests/dbex/test_nanobrag_smoke.py | tee "$ART/pytest.log"`
+- After pytest, copy artifacts produced under `plans/active/TORCH-BRIDGE-001/reports/2025-10-28T230500Z/` into `$ART` (`cp` metrics + triptych) and update `$ART/do-now-notes.md` with outcomes.
 Pitfalls To Avoid:
-- Importing nanobrag_torch without guarding for its absence; keep stubs or skips for now.
-- Forgetting `[panel, slow, fast]` ordering when stitching panel tensors back into the Bragg image.
-- Omitting the `(background >= 0) & trusted` loss mask so masked MSE deviates from spec.
-- Writing artifacts outside the documented reports directory or without timestamps.
-- Letting pytest reuse cached DataLoad state that mutates global fixtures; reload per test.
-- Skipping KMP_DUPLICATE_LIB_OK, which can crash torch imports in CI environments.
-- Generating plots without labeling axes/units, making triptych artifacts ambiguous.
-- Hardcoding absolute paths instead of repo-relative ones for dataset inputs.
-- Allowing tests to depend on random global state (set seeds or deterministic outcomes).
-- Leaving docs/fix_plan.md without updated Metrics/Artifacts lines after the run.
-If Blocked: Capture the blocker (e.g., DataLoad loading error or missing torch install) in docs/fix_plan.md Attempts History with Metrics: pending and Artifacts pointing at plans/active/TORCH-BRIDGE-001/reports/2025-10-28T230500Z/blocker.log, mark status blocked, and note the condition plus dataset diagnostics.
+- Do not run pytest without `KMP_DUPLICATE_LIB_OK=TRUE` (CONFORMANCE-001).
+- Failing to generate `refGeom.refl` will skip smoke tests; treat this as a block if unresolved.
+- Avoid overwriting 2025-10-28T230500Z artifacts; copy to new timestamp directory instead.
+- Capture skip counts in pytest log and note them in Attempts History if dataset absent.
+- Keep detector mask polarity assertions intact; do not bypass trusted mask construction shortcuts.
+- Ensure final ledger entry includes `Metrics:` and `Artifacts:` lines per policy.
+- Leave `nanobrag_torch` stub in place; do not attempt to import real simulator yet.
+- Preserve ROI bbox exclusivity when validating artifacts.
+- Sync `docs/fix_plan.md` status with actual exit-criteria verification before handoff.
+If Blocked:
+- If dataset assets cannot be produced, document the block under Attempts History (status `blocked`), attach partial pytest log with skip rationale, and ping TORCH-RUNTIME-002 once prerequisites land.
 Findings Applied (Mandatory):
-- GEOMETRY-001 — Ensure the smoke harness keeps detector geometry and square-pixel guards intact when stitching outputs.
-- CONFORMANCE-001 — Export KMP_DUPLICATE_LIB_OK=TRUE around pytest runs per acceptance guidance.
-- RUNTIME-001 — Keep torch.compile disabled for grad-sensitive paths if we extend the harness with gradient checks.
+- GEOMETRY-001 — Re-running bridge tests confirms detector geometry mapping + pixel guard before closure.
+- CONFORMANCE-001 — Plan enforces `KMP_DUPLICATE_LIB_OK=TRUE` and canonical pytest logging.
+- DXTBX-001 — Ledger update will note crystal A* tuple handling as part of wrap-up guidance.
+- RUNTIME-001 — Maintains torch.compile disablement by keeping stub harness flow untouched.

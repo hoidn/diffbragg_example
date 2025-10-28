@@ -33,3 +33,14 @@ Notes
 - Next Actions: Execute Do Now checklist (author smoke pytest scaffolding, implement stitched Bragg + masked MSE harness, capture ROI triptych & metrics, update ledgers).
 - Reality Check: Confirmed exit criteria 4 unmet (no smoke harness artifacts/logs) and verified plan prerequisites (dataset paths, config helpers, pending runtime checklist restoration); rescoping not required.
 - <Action State>: [ready_for_implementation]
+
+## 2025-10-28T233500Z — TORCH-BRIDGE-001 closeout plan
+- Focus: TORCH-BRIDGE-001 — Bridge DataLoad to nanobrag_torch
+- Action Type: planning
+- Key Observations: Phase A–C artifacts/ledgers complete; exit criteria 1-4 satisfied with tests and ROI evidence; refGeom dataset absent by default so rerun needs asset check; added Phase D (D1-D2) closeout checklist to implementation plan for rerun + ledger updates; prior smoke test hardcodes artifact path so copy step required for new report timestamp.
+- Artifact Path: plans/active/TORCH-BRIDGE-001/reports/2025-10-28T233500Z/
+- Next Actions: Execute D1-D2 closeout (rerun bridge/smoke pytest, update fix_plan status + attempts entry)
+- Reality Check: Verified helper/config/smoke harness code + artifacts satisfy exit criteria; rescope focus from new implementation to verification/documentation wrap-up before marking `TORCH-BRIDGE-001` done.
+- <Action State>: [planning]
+
+2025-10-28T233500Z focus=TORCH-BRIDGE-001 state=planning dwell=1 artifacts=plans/active/TORCH-BRIDGE-001/reports/2025-10-28T233500Z/ next_action=execute_D1-D2_closeout

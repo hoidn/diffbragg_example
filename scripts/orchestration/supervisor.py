@@ -216,7 +216,11 @@ def main() -> int:
 
     # Branch guard (if provided) and target branch resolution
     if args.branch:
-        assert_on_branch(args.branch, lambda m: None)
+        def _branch_guard_log(message: str) -> None:
+            sys.stderr.write(message + "\n")
+            sys.stderr.flush()
+
+        assert_on_branch(args.branch, _branch_guard_log)
         branch_target = args.branch
     else:
         branch_target = current_branch()

@@ -15,3 +15,21 @@ Example:
 Notes
 - Enforce the dwell guard: on the 3rd consecutive turn in `gathering_evidence` or `planning` for the same focus, either transition to `ready_for_implementation` with a concrete Do Now or switch focus and record the block in `docs/fix_plan.md`.
 - See `prompts/fsm_analysis.md` for the canonical state list and transitions.
+
+## 2025-10-28T224846Z — TORCH-BRIDGE-001 Phase B plan
+- Focus: TORCH-BRIDGE-001 — Bridge DataLoad to nanobrag_torch
+- Action Type: planning
+- Key Observations: Phase A helper/tests already landed; no DetectorConfig/BeamConfig/CrystalConfig helpers or tests exist yet (`rg DetectorConfig` only hits docs); spec shards (docs/spec-db-core.md §35-41, docs/config_crosswalk.md §15-66, docs/dxtbx_api.md §5-50, docs/nanobrag_api.md §23-58) remain current; docs/index.md and prompt_sources_map.json already list required references.
+- Artifact Path: plans/active/TORCH-BRIDGE-001/reports/2025-10-28T224846Z/
+- Next Actions: Execute Phase B checklist (B1-B2) via new tests/helper, capture pytest log + notes under the artifact path, then progress toward Phase C smoke harness.
+- Reality Check: Verified exit criteria 2 & 4 still unmet (no config hydration, no smoke harness); runtime checklist symlink still unresolved per backlog DOC-RUNTIME-004; selected item remains active and dependencies satisfied.
+- <Action State>: [planning]
+
+## 2025-10-28T230500Z — TORCH-BRIDGE-001 Phase C planning
+- Focus: TORCH-BRIDGE-001 — Bridge DataLoad to nanobrag_torch
+- Action Type: planning
+- Key Observations: Phase C smoke harness and ROI artifacts remain undone; no files matching *triptych* under plans/active/TORCH-BRIDGE-001/reports/; nanobrag_torch still unavailable so bridge stubs must be guarded; verified dataset assets (`refGeom.expt`, `_geom_ref.refl`, `scaled.mtz`) present for the run; `docs/pytorch_runtime_checklist.md` still missing per DOC-RUNTIME-004 backlog.
+- Artifact Path: plans/active/TORCH-BRIDGE-001/reports/2025-10-28T230500Z/
+- Next Actions: Execute Do Now checklist (author smoke pytest scaffolding, implement stitched Bragg + masked MSE harness, capture ROI triptych & metrics, update ledgers).
+- Reality Check: Confirmed exit criteria 4 unmet (no smoke harness artifacts/logs) and verified plan prerequisites (dataset paths, config helpers, pending runtime checklist restoration); rescoping not required.
+- <Action State>: [ready_for_implementation]

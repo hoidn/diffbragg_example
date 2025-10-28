@@ -43,7 +43,12 @@ Status: in_progress
 ## Phase C — Smoke Harness
 ### Checklist
 - [ ] C1: Single-experiment run with stitched Bragg tensor and masked MSE
+  - Build pytest harness around `DataLoad` outputs and bridge helpers
+  - Guard `nanobrag_torch` import (fallback to stub for now) and stitch `[panel, slow, fast]`
+  - Emit masked MSE plus per-panel intensity stats for reports
 - [ ] C2: Save ROI triptych artifact under `plans/active/TORCH-BRIDGE-001/reports/<ts>/`
+  - Render data/model/residual triptych for at least one ROI via matplotlib
+  - Persist summary metrics (`smoke_metrics.json`) alongside the image artifact
 
 ## Artifacts Index
 - Reports root: `plans/active/TORCH-BRIDGE-001/reports/`

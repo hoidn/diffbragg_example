@@ -24,6 +24,7 @@
 - Attempts History:
   * 2025-10-28T205500Z — Loop planning kickoff for Phase A scaffolding. Metrics: pending. Artifacts: pending.
   * 2025-10-28T222910Z — Supervisor planning pass to scope Phase A tests + helper implementation; validated outstanding bridge gaps. Metrics: pending. Artifacts: {lys_nitr_10_6_0001.cbf, lys_nitr_10_6_0002.cbf, lys_nitr_10_6_0003.cbf, refGeom.expt, scaled.mtz, stills_proc.phil}
+  * 2025-10-28T222910Z — Implemented Phase A (A1+A2) bridge helper with RefinementInputs dataclass and prepare_refinement_inputs function; authored 4 tests (tensor contract, mask polarity, pixel pitch guard, tuple mask input); all tests pass. Metrics: 4/4 tests passed, 0.12s runtime, CPU. Artifacts: plans/active/TORCH-BRIDGE-001/reports/2025-10-28T222910Z/{do-now-notes.md,pytest.log}. First Divergence: n/a. Next Actions: Phase B config hydration (DetectorConfig, BeamConfig, CrystalConfig mapping from dxtbx); Phase C smoke harness (single-experiment flow with stitched Bragg tensor and ROI triptych).
 
 ### [TORCH-RUNTIME-002] Author torch runtime checklist + testing harness seed
 - Depends on: TORCH-BRIDGE-001

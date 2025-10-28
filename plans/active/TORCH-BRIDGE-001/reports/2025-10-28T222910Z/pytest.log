@@ -1,0 +1,43 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 1 item
+
+tests/dbex/test_nanobrag_bridge.py::TestPrepareRefinementInputs::test_tensor_contract PASSED [100%]
+
+============================== 1 passed in 0.11s ===============================
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 1 item
+
+tests/dbex/test_nanobrag_bridge.py::TestPrepareRefinementInputs::test_mask_polarity PASSED [100%]
+
+============================== 1 passed in 0.07s ===============================
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 1 item
+
+tests/dbex/test_nanobrag_bridge.py::TestPrepareRefinementInputs::test_pixel_pitch_guard PASSED [100%]
+
+============================== 1 passed in 0.08s ===============================
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 4 items
+
+tests/dbex/test_nanobrag_bridge.py::TestPrepareRefinementInputs::test_tensor_contract PASSED [ 25%]
+tests/dbex/test_nanobrag_bridge.py::TestPrepareRefinementInputs::test_mask_polarity PASSED [ 50%]
+tests/dbex/test_nanobrag_bridge.py::TestPrepareRefinementInputs::test_pixel_pitch_guard PASSED [ 75%]
+tests/dbex/test_nanobrag_bridge.py::TestPrepareRefinementInputs::test_tuple_mask_input PASSED [100%]
+
+============================== 4 passed in 0.12s ===============================

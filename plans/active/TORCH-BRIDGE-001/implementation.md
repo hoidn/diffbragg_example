@@ -22,8 +22,13 @@ Status: in_progress
 
 ## Phase A — Scaffolding & I/O
 ### Checklist
-- [ ] A1: Define tensor outputs (target, masks, panel_slices) and verify shapes
-- [ ] A2: Add small assertions for `[panel, slow, fast]` order and mask polarity
+- [x] A1: Define tensor outputs (target, masks, panel_slices) and verify shapes
+- [x] A2: Add small assertions for `[panel, slow, fast]` order and mask polarity
+
+**Completed:** 2025-10-28T222910Z
+**Artifacts:** plans/active/TORCH-BRIDGE-001/reports/2025-10-28T222910Z/
+**Module:** dbex/nanobrag_bridge.py (RefinementInputs, prepare_refinement_inputs)
+**Tests:** tests/dbex/test_nanobrag_bridge.py (4 tests, all passing)
 
 ## Phase B — Config Hydration
 ### Checklist

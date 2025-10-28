@@ -43,6 +43,7 @@ rg --files prompts | rg "\.md$" || true
 rg --files docs | rg -n "index\.md$|fix_plan\.md$|findings\.md$|architecture|developer|TESTING_GUIDE|TEST_SUITE_INDEX|debug|workflow" || true
 rg --files | rg -n "^CLAUDE\.md$|AGENTS\.md$" || true
 rg --files specs | rg "\.md$" || true
+rg --files docs/debugging | rg -n "\.md$|\.mdx$|\.ipynb$" || true
 rg --files scripts/orchestration | rg -n "\.py$|\.sh$" || true
 ```
 
@@ -55,6 +56,7 @@ rg --files prompts | rg "\.md$" || true
 rg --files docs | rg -n "index\.md$|fix_plan\.md$|findings\.md$|architecture|developer|TESTING_GUIDE|TEST_SUITE_INDEX|debug|workflow" || true
 rg --files | rg -n "^CLAUDE\.md$|AGENTS\.md$" || true
 rg --files specs | rg "\.md$" || true
+rg --files docs/debugging | rg -n "\.md$|\.mdx$|\.ipynb$" || true
 rg --files scripts/orchestration | rg -n "\.py$|\.sh$" || true
 ```
 
@@ -176,8 +178,10 @@ Use the model and target inventories to decide how to materialize each document 
   - Reflect target test framework, markers, skip policies, and commands.
 - Test Suite Index (`docs/development/TEST_SUITE_INDEX.md`): Derive
   - Generate from target test discovery; document authoritative selectors.
-- Debugging/Workflows (`docs/debugging/*`, `docs/workflows/*`): Derive or copy skeleton → adapt
-  - Capture target repo’s realistic SOPs and CLI flows.
+- Debugging/Workflows (`docs/debugging/*`, `docs/workflows/*`): Copy if missing, otherwise derive or copy skeleton → adapt
+  - If the target lacks debugging/workflow docs, copy the model’s folder(s) as a starting point and then adapt paths, commands, and selectors to the target.
+  - If equivalents exist, prefer deriving from the target repo and selectively merging useful patterns from the model.
+  - Keep examples portable and reference authoritative test selectors from `<TEST_GUIDE>/<TEST_INDEX>`.
 - Findings (`docs/findings.md`): Ab initio
   - New ledger of decisions, gaps, and policies for the target project.
 - Fix Plan (`docs/fix_plan.md`): Ab initio (seeded)
@@ -388,6 +392,13 @@ if [ ! -d "$TARGET_ROOT/scripts/orchestration" ] || [ -z "$(ls -A "$TARGET_ROOT/
   rsync -av --include='*.py' --include='*.sh' --exclude='*' \
     "$MODEL_ROOT/scripts/orchestration/" "$TARGET_ROOT/scripts/orchestration/"
 fi
+
+# Copy debugging docs if the target lacks them
+if [ ! -d "$TARGET_ROOT/docs/debugging" ] || [ -z "$(ls -A "$TARGET_ROOT/docs/debugging" 2>/dev/null)" ]; then
+  mkdir -p "$TARGET_ROOT/docs/debugging"
+  rsync -av --include='*/' --include='*.md' --include='*.mdx' --exclude='*' \
+    "$MODEL_ROOT/docs/debugging/" "$TARGET_ROOT/docs/debugging/"
+fi
 ```
 
 1) Build the source map (target)
@@ -462,3 +473,4 @@ Verification
 - [ ] Referenced files exist (where applicable)
 - [ ] Optional: test discovery or smoke steps are documented
 - [ ] Orchestration scripts present under `scripts/orchestration/` (copied if missing), or absence documented with rationale
+ - [ ] Debugging docs present under `docs/debugging/` (copied if missing), or absence documented with rationale

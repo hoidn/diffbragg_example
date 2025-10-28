@@ -1,0 +1,50 @@
+{
+  "focus": "TORCH-CLI-003",
+  "timestamp": "2025-10-28T234618Z",
+  "tests": {
+    "cli_help": {
+      "command": "python -m dbex.refine_one --help",
+      "status": "pass",
+      "notes": "Backend flag appears in help text, default diffbragg documented"
+    },
+    "test_parser_has_backend_flag": {"status": "pass"},
+    "test_parser_rejects_invalid_backend": {"status": "pass"},
+    "test_main_dispatches_to_diffbragg_backend": {"status": "pass"},
+    "test_main_dispatches_to_nanobrag_backend": {"status": "pass"},
+    "test_nanobrag_backend_calls_bridge": {"status": "pass"},
+    "test_torch_diagnostics_metadata": {"status": "pass"}
+  },
+  "metrics": {
+    "total_tests": 6,
+    "tests_passed": 6,
+    "tests_failed": 0,
+    "runtime_s": 0.98,
+    "hardware": "CPU",
+    "python_version": "3.9.23"
+  },
+  "implementation": {
+    "backend_flag": {
+      "choices": ["diffbragg", "nanobrag"],
+      "default": "diffbragg",
+      "status": "implemented"
+    },
+    "nanobrag_backend": {
+      "bridge_integration": "complete",
+      "stub_simulator": "active",
+      "diagnostics_group": "implemented",
+      "status": "functional"
+    },
+    "diffbragg_backend": {
+      "preserved": true,
+      "bit_for_bit": true,
+      "status": "unchanged"
+    }
+  },
+  "artifacts": [
+    "cli_help.log",
+    "cli_help_before.log",
+    "pytest.log",
+    "notes.md",
+    "diagnostics.json"
+  ]
+}

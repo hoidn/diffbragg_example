@@ -1,0 +1,16 @@
+usage: refine_one.py [-h] -e EXPTNAME -r REFLNAME -i EXPTIDX -o OUTFILE -m
+                     MASKFILE -z MTZFILE [-c MTZCOL]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -e EXPTNAME, --exptName EXPTNAME
+                        Path to the DIALS experiment list (.json) file.
+  -r REFLNAME, --reflName REFLNAME
+                        Path to the DIALS reflection table (.refl) file.
+  -i EXPTIDX, --exptIdx EXPTIDX
+                        The integer index (id) of the experiment to be refined
+                        from the experiment list and reflection table.
+  -o OUTFILE, --outFile OUTFILE
+  -m MASKFILE, --maskFile MASKFILE
+  -z MTZFILE, --mtzFile MTZFILE
+  -c MTZCOL, --mtzCol MTZCOL

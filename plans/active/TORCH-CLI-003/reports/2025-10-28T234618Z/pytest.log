@@ -1,0 +1,1272 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 6 items
+
+tests/dbex/test_refine_one_cli.py::test_parser_has_backend_flag PASSED   [ 16%]
+tests/dbex/test_refine_one_cli.py::test_parser_rejects_invalid_backend PASSED [ 33%]
+tests/dbex/test_refine_one_cli.py::test_main_dispatches_to_diffbragg_backend FAILED [ 50%]
+tests/dbex/test_refine_one_cli.py::test_main_dispatches_to_nanobrag_backend FAILED [ 66%]
+tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_calls_bridge FAILED [ 83%]
+tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata PASSED [100%]
+
+=================================== FAILURES ===================================
+__________________ test_main_dispatches_to_diffbragg_backend ___________________
+
+args = (), keywargs = {}
+
+    @wraps(func)
+    def patched(*args, **keywargs):
+>       with self.decoration_helper(patched,
+                                    args,
+                                    keywargs) as (newargs, newkeywargs):
+
+../../../miniconda3/envs/simtbx/lib/python3.9/unittest/mock.py:1333: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../miniconda3/envs/simtbx/lib/python3.9/contextlib.py:119: in __enter__
+    return next(self.gen)
+../../../miniconda3/envs/simtbx/lib/python3.9/unittest/mock.py:1315: in decoration_helper
+    arg = exit_stack.enter_context(patching)
+../../../miniconda3/envs/simtbx/lib/python3.9/contextlib.py:448: in enter_context
+    result = _cm_type.__enter__(cm)
+../../../miniconda3/envs/simtbx/lib/python3.9/unittest/mock.py:1404: in __enter__
+    original, local = self.get_original()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <unittest.mock._patch object at 0x7af506ff6340>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: <module 'dbex.refine_one' from '/home/ollie/Documents/diffbragg_example_2/diffbragg_example/dbex/refine_one.py'> does not have the attribute 'DataLoad'
+
+../../../miniconda3/envs/simtbx/lib/python3.9/unittest/mock.py:1377: AttributeError
+___________________ test_main_dispatches_to_nanobrag_backend ___________________
+
+args = (), keywargs = {}
+
+    @wraps(func)
+    def patched(*args, **keywargs):
+>       with self.decoration_helper(patched,
+                                    args,
+                                    keywargs) as (newargs, newkeywargs):
+
+../../../miniconda3/envs/simtbx/lib/python3.9/unittest/mock.py:1333: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../miniconda3/envs/simtbx/lib/python3.9/contextlib.py:119: in __enter__
+    return next(self.gen)
+../../../miniconda3/envs/simtbx/lib/python3.9/unittest/mock.py:1315: in decoration_helper
+    arg = exit_stack.enter_context(patching)
+../../../miniconda3/envs/simtbx/lib/python3.9/contextlib.py:448: in enter_context
+    result = _cm_type.__enter__(cm)
+../../../miniconda3/envs/simtbx/lib/python3.9/unittest/mock.py:1404: in __enter__
+    original, local = self.get_original()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <unittest.mock._patch object at 0x7af5067aaf40>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: <module 'dbex.refine_one' from '/home/ollie/Documents/diffbragg_example_2/diffbragg_example/dbex/refine_one.py'> does not have the attribute 'DataLoad'
+
+../../../miniconda3/envs/simtbx/lib/python3.9/unittest/mock.py:1377: AttributeError
+______________________ test_nanobrag_backend_calls_bridge ______________________
+
+args = (), keywargs = {}
+
+    @wraps(func)
+    def patched(*args, **keywargs):
+>       with self.decoration_helper(patched,
+                                    args,
+                                    keywargs) as (newargs, newkeywargs):
+
+../../../miniconda3/envs/simtbx/lib/python3.9/unittest/mock.py:1333: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../miniconda3/envs/simtbx/lib/python3.9/contextlib.py:119: in __enter__
+    return next(self.gen)
+../../../miniconda3/envs/simtbx/lib/python3.9/unittest/mock.py:1315: in decoration_helper
+    arg = exit_stack.enter_context(patching)
+../../../miniconda3/envs/simtbx/lib/python3.9/contextlib.py:448: in enter_context
+    result = _cm_type.__enter__(cm)
+../../../miniconda3/envs/simtbx/lib/python3.9/unittest/mock.py:1404: in __enter__
+    original, local = self.get_original()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <unittest.mock._patch object at 0x7af50674a130>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: <module 'dbex.refine_one' from '/home/ollie/Documents/diffbragg_example_2/diffbragg_example/dbex/refine_one.py'> does not have the attribute 'prepare_refinement_inputs'
+
+../../../miniconda3/envs/simtbx/lib/python3.9/unittest/mock.py:1377: AttributeError
+=========================== short test summary info ============================
+FAILED tests/dbex/test_refine_one_cli.py::test_main_dispatches_to_diffbragg_backend
+FAILED tests/dbex/test_refine_one_cli.py::test_main_dispatches_to_nanobrag_backend
+FAILED tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_calls_bridge
+========================= 3 failed, 3 passed in 1.94s ==========================
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 6 items
+
+tests/dbex/test_refine_one_cli.py::test_parser_has_backend_flag PASSED   [ 16%]
+tests/dbex/test_refine_one_cli.py::test_parser_rejects_invalid_backend PASSED [ 33%]
+tests/dbex/test_refine_one_cli.py::test_main_dispatches_to_diffbragg_backend PASSED [ 50%]
+tests/dbex/test_refine_one_cli.py::test_main_dispatches_to_nanobrag_backend PASSED [ 66%]
+tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_calls_bridge PASSED [ 83%]
+tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata FAILED [100%]
+
+=================================== FAILURES ===================================
+_______________________ test_torch_diagnostics_metadata ________________________
+
+    def test_torch_diagnostics_metadata():
+        """B1: Verify torch diagnostics HDF5 metadata."""
+        import h5py
+        import numpy as np
+        from dbex.nanobrag_bridge import RefinementInputs
+    
+        with tempfile.TemporaryDirectory() as tmpdir:
+            outfile = os.path.join(tmpdir, 'test_torch_diag.h5')
+    
+            # Create mock inputs
+            mock_inputs = RefinementInputs(
+                target=np.zeros((1, 100, 100), dtype=np.float32),
+                loss_mask=np.ones((1, 100, 100), dtype=bool) * 0.25,  # 25% coverage
+                panel_slices=[(0, (10, 20, 10, 20))],
+                trusted_mask=np.ones((1, 100, 100), dtype=bool)
+            )
+    
+            mock_dl = Mock()
+            mock_dl.data = np.zeros((1, 100, 100), dtype=np.float32)
+            mock_dl.background_image = np.ones((1, 100, 100), dtype=np.float32) * -1
+            mock_dl.pids = np.array([0])
+            mock_dl.bbox = np.array([[10, 20, 10, 20]])
+    
+            mock_args = Mock()
+            mock_args.outFile = outfile
+    
+            mock_bragg = np.zeros((1, 100, 100), dtype=np.float32)
+            masked_mse = 1234.5
+    
+            # Import the function to test
+            from dbex.refine_one import _write_torch_outputs
+>           _write_torch_outputs(mock_args, mock_dl, mock_bragg, mock_inputs, masked_mse)
+
+tests/dbex/test_refine_one_cli.py:162: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+dbex/refine_one.py:191: in _write_torch_outputs
+    from score_trainer import roi_check
+../../score_trainer/score_trainer/roi_check.py:3: in <module>
+    import torch, torchvision
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """
+    The torch package contains data structures for multi-dimensional
+    tensors and defines mathematical operations over these tensors.
+    Additionally, it provides many utilities for efficient serialization of
+    Tensors and arbitrary types, and other useful utilities.
+    
+    It has a CUDA counterpart, that enables you to run your tensor computations
+    on an NVIDIA GPU with compute capability >= 3.0.
+    """
+    
+    # mypy: allow-untyped-defs
+    
+    import builtins
+    import ctypes
+    import functools
+    import glob
+    import importlib
+    import inspect
+    import math
+    import os
+    import platform
+    import sys
+    import textwrap
+    import threading
+    from typing import (
+        Any as _Any,
+        Callable as _Callable,
+        get_origin as _get_origin,
+        Optional as _Optional,
+        overload as _overload,
+        TYPE_CHECKING,
+        TypeVar as _TypeVar,
+        Union as _Union,
+    )
+    from typing_extensions import ParamSpec as _ParamSpec
+    
+    
+    if TYPE_CHECKING:
+        from .types import Device, IntLikeType
+    
+    
+    # multipy/deploy is setting this import before importing torch, this is the most
+    # reliable way we have to detect if we're running within deploy.
+    # https://github.com/pytorch/multipy/blob/d60f34ad38c371e441fe7ffdb77a3c3dda5a5d19/multipy/runtime/interpreter/interpreter_impl.cpp#L134-L137
+    def _running_with_deploy() -> builtins.bool:
+        return sys.modules.get("torch._meta_registrations", None) is object
+    
+    
+    from torch._utils import (
+        _functionalize_sync as _sync,
+        _import_dotted_name,
+        classproperty,
+    )
+    from torch._utils_internal import (
+        get_file_path,
+        prepare_multiprocessing_environment,
+        profiler_allow_cudagraph_cupti_lazy_reinit_cuda12,
+        USE_GLOBAL_DEPS,
+        USE_RTLD_GLOBAL_WITH_LIBTORCH,
+    )
+    
+    
+    # TODO(torch_deploy) figure out how to freeze version.py in fbcode build
+    if _running_with_deploy():
+        __version__ = "torch-deploy-1.8"
+        # TODO: Remove this ugly hack when deploy typing extensions are updated to 4.10+
+        if not TYPE_CHECKING:
+            import typing_extensions
+    
+            _TypeIs = typing_extensions.TypeGuard
+            typing_extensions.TypeIs = _TypeIs
+    else:
+        from typing_extensions import TypeIs as _TypeIs
+    
+        from torch.torch_version import __version__ as __version__
+    
+    __all__ = [
+        "BoolStorage",
+        "BoolTensor",
+        "ByteStorage",
+        "ByteTensor",
+        "CharStorage",
+        "CharTensor",
+        "DoubleStorage",
+        "DoubleTensor",
+        "FloatStorage",
+        "FloatTensor",
+        "GradScaler",
+        "IntStorage",
+        "IntTensor",
+        "LongStorage",
+        "LongTensor",
+        "ShortStorage",
+        "ShortTensor",
+        "SymBool",
+        "SymFloat",
+        "SymInt",
+        "Tensor",
+        "TypedStorage",
+        "UntypedStorage",
+        "are_deterministic_algorithms_enabled",
+        "autocast",
+        "chunk",
+        "compile",
+        "cond",
+        "enable_grad",
+        "export",
+        "get_default_device",
+        "get_deterministic_debug_mode",
+        "get_device_module",
+        "get_float32_matmul_precision",
+        "get_rng_state",
+        "inference_mode",
+        "initial_seed",
+        "is_deterministic_algorithms_warn_only_enabled",
+        "is_storage",
+        "is_tensor",
+        "is_warn_always_enabled",
+        "load",
+        "lobpcg",
+        "manual_seed",
+        "matmul",
+        "no_grad",
+        "rand",
+        "randn",
+        "save",
+        "seed",
+        "set_default_device",
+        "set_default_tensor_type",
+        "set_deterministic_debug_mode",
+        "set_float32_matmul_precision",
+        "set_printoptions",
+        "set_rng_state",
+        "set_warn_always",
+        "split",
+        "stack",
+        "sym_float",
+        "sym_fresh_size",
+        "sym_int",
+        "sym_ite",
+        "sym_max",
+        "sym_min",
+        "sym_not",
+        "sym_sum",
+        "typename",
+        "unravel_index",
+        "use_deterministic_algorithms",
+        "vmap",
+    ]
+    
+    # Please keep this list sorted
+    assert __all__ == sorted(__all__)
+    
+    ################################################################################
+    # Load the extension module
+    ################################################################################
+    
+    # If PyTorch was built against the ROCm runtime wheels, then there will be
+    # a _rocm_init module and it will define an initialize() function which can
+    # prepare ROCm for use. See general documentation on ROCm runtime wheels:
+    # https://github.com/ROCm/TheRock/blob/main/docs/packaging/python_packaging.md
+    # Since this module is only ever added to the wheel if built for such a
+    # deployment, it is always safe to attempt.
+    try:
+        from . import _rocm_init  # type: ignore[attr-defined]
+    except ImportError:
+        pass
+    else:
+        _rocm_init.initialize()
+        del _rocm_init
+    
+    
+    if sys.platform == "win32":
+    
+        def _load_dll_libraries() -> None:
+            import sysconfig
+    
+            from torch.version import cuda as cuda_version
+    
+            pfiles_path = os.getenv("ProgramFiles", r"C:\Program Files")
+            py_dll_path = os.path.join(sys.exec_prefix, "Library", "bin")
+            th_dll_path = os.path.join(os.path.dirname(__file__), "lib")
+            usebase_path = os.path.join(
+                sysconfig.get_config_var("userbase"), "Library", "bin"
+            )
+            py_root_bin_path = os.path.join(sys.exec_prefix, "bin")
+    
+            # When users create a virtualenv that inherits the base environment,
+            # we will need to add the corresponding library directory into
+            # DLL search directories. Otherwise, it will rely on `PATH` which
+            # is dependent on user settings.
+            if sys.exec_prefix != sys.base_exec_prefix:
+                base_py_dll_path = os.path.join(sys.base_exec_prefix, "Library", "bin")
+            else:
+                base_py_dll_path = ""
+    
+            dll_paths = [
+                p
+                for p in (
+                    th_dll_path,
+                    py_dll_path,
+                    base_py_dll_path,
+                    usebase_path,
+                    py_root_bin_path,
+                )
+                if os.path.exists(p)
+            ]
+    
+            if cuda_version and builtins.all(
+                not glob.glob(os.path.join(p, "cudart64*.dll")) for p in dll_paths
+            ):
+                cuda_version_1 = cuda_version.replace(".", "_")
+                cuda_path_var = "CUDA_PATH_V" + cuda_version_1
+                default_path = os.path.join(
+                    pfiles_path, "NVIDIA GPU Computing Toolkit", "CUDA", f"v{cuda_version}"
+                )
+                cuda_path = os.path.join(os.getenv(cuda_path_var, default_path), "bin")
+            else:
+                cuda_path = ""
+    
+            dll_paths.extend(p for p in (cuda_path,) if os.path.exists(p))
+    
+            kernel32 = ctypes.WinDLL("kernel32.dll", use_last_error=True)
+            with_load_library_flags = hasattr(kernel32, "AddDllDirectory")
+            prev_error_mode = kernel32.SetErrorMode(0x0001)
+    
+            kernel32.LoadLibraryW.restype = ctypes.c_void_p
+            if with_load_library_flags:
+                kernel32.LoadLibraryExW.restype = ctypes.c_void_p
+    
+            for dll_path in dll_paths:
+                os.add_dll_directory(dll_path)
+    
+            try:
+                ctypes.CDLL("vcruntime140.dll")
+                ctypes.CDLL("msvcp140.dll")
+                if platform.machine() != "ARM64":
+                    ctypes.CDLL("vcruntime140_1.dll")
+            except OSError:
+                print(
+                    textwrap.dedent(
+                        """
+                        Microsoft Visual C++ Redistributable is not installed, this may lead to the DLL load failure.
+                        It can be downloaded at https://aka.ms/vs/16/release/vc_redist.x64.exe
+                        """
+                    ).strip()
+                )
+    
+            dlls = glob.glob(os.path.join(th_dll_path, "*.dll"))
+            path_patched = False
+            for dll in dlls:
+                is_loaded = False
+                if with_load_library_flags:
+                    res = kernel32.LoadLibraryExW(dll, None, 0x00001100)
+                    last_error = ctypes.get_last_error()
+                    if res is None and last_error != 126:
+                        err = ctypes.WinError(last_error)
+                        err.strerror += (
+                            f' Error loading "{dll}" or one of its dependencies.'
+                        )
+                        raise err
+                    elif res is not None:
+                        is_loaded = True
+                if not is_loaded:
+                    if not path_patched:
+                        os.environ["PATH"] = ";".join(dll_paths + [os.environ["PATH"]])
+                        path_patched = True
+                    res = kernel32.LoadLibraryW(dll)
+                    if res is None:
+                        err = ctypes.WinError(ctypes.get_last_error())
+                        err.strerror += (
+                            f' Error loading "{dll}" or one of its dependencies.'
+                        )
+                        raise err
+    
+            kernel32.SetErrorMode(prev_error_mode)
+    
+        _load_dll_libraries()
+        del _load_dll_libraries
+    
+    
+    def _get_cuda_dep_paths(path: str, lib_folder: str, lib_name: str) -> list[str]:
+        # Libraries can either be in path/nvidia/lib_folder/lib or path/lib_folder/lib
+        nvidia_lib_paths = glob.glob(
+            os.path.join(path, "nvidia", lib_folder, "lib", lib_name)
+        )
+        lib_paths = glob.glob(os.path.join(path, lib_folder, "lib", lib_name))
+    
+        return nvidia_lib_paths + lib_paths
+    
+    
+    def _preload_cuda_deps(lib_folder: str, lib_name: str) -> None:
+        """Preloads cuda deps if they could not be found otherwise."""
+        # Should only be called on Linux if default path resolution have failed
+        assert platform.system() == "Linux", "Should only be called on Linux"
+    
+        lib_path = None
+        for path in sys.path:
+            candidate_lib_paths = _get_cuda_dep_paths(path, lib_folder, lib_name)
+            if candidate_lib_paths:
+                lib_path = candidate_lib_paths[0]
+                break
+        if not lib_path:
+            raise ValueError(f"{lib_name} not found in the system path {sys.path}")
+        ctypes.CDLL(lib_path)
+    
+    
+    # See Note [Global dependencies]
+    def _load_global_deps() -> None:
+        if _running_with_deploy() or platform.system() == "Windows":
+            return
+    
+        # Determine the file extension based on the platform
+        lib_ext = ".dylib" if platform.system() == "Darwin" else ".so"
+        lib_name = f"libtorch_global_deps{lib_ext}"
+        here = os.path.abspath(__file__)
+        global_deps_lib_path = os.path.join(os.path.dirname(here), "lib", lib_name)
+    
+        try:
+            ctypes.CDLL(global_deps_lib_path, mode=ctypes.RTLD_GLOBAL)
+            # Workaround slim-wheel CUDA dependency bugs in cusparse and cudnn by preloading nvjitlink
+            # and nvrtc. In CUDA-12.4+ cusparse depends on nvjitlink, but does not have rpath when
+            # shipped as wheel, which results in OS picking wrong/older version of nvjitlink library
+            # if `LD_LIBRARY_PATH` is defined, see https://github.com/pytorch/pytorch/issues/138460
+            # Similar issue exist in cudnn that dynamically loads nvrtc, unaware of its relative path.
+            # See https://github.com/pytorch/pytorch/issues/145580
+            try:
+                with open("/proc/self/maps") as f:
+                    _maps = f.read()
+                # libtorch_global_deps.so always depends in cudart, check if its installed via wheel
+                if "nvidia/cuda_runtime/lib/libcudart.so" not in _maps:
+                    return
+                # If all above-mentioned conditions are met, preload nvrtc and nvjitlink
+                # Please note that order are important for CUDA-11.8 , as nvjitlink does not exist there
+                _preload_cuda_deps("cuda_nvrtc", "libnvrtc.so.*[0-9]")
+                _preload_cuda_deps("nvjitlink", "libnvJitLink.so.*[0-9]")
+            except Exception:
+                pass
+    
+        except OSError as err:
+            # Can only happen for wheel with cuda libs as PYPI deps
+            # As PyTorch is not purelib, but nvidia-*-cu12 is
+            from torch.version import cuda as cuda_version
+    
+            cuda_libs: dict[str, str] = {
+                "cublas": "libcublas.so.*[0-9]",
+                "cudnn": "libcudnn.so.*[0-9]",
+                "cuda_nvrtc": "libnvrtc.so.*[0-9]",
+                "cuda_runtime": "libcudart.so.*[0-9]",
+                "cuda_cupti": "libcupti.so.*[0-9]",
+                "cufft": "libcufft.so.*[0-9]",
+                "curand": "libcurand.so.*[0-9]",
+                "nvjitlink": "libnvJitLink.so.*[0-9]",
+                "cusparse": "libcusparse.so.*[0-9]",
+                "cusparselt": "libcusparseLt.so.*[0-9]",
+                "cusolver": "libcusolver.so.*[0-9]",
+                "nccl": "libnccl.so.*[0-9]",
+            }
+            # cufiile is only available on cuda 12+
+            # TODO: Remove once CUDA 11.8 binaries are deprecated
+            if cuda_version is not None:
+                t_version = cuda_version.split(".")
+                t_major = int(t_version[0])  # type: ignore[operator]
+                if t_major >= 12:
+                    cuda_libs["cufile"] = "libcufile.so.*[0-9]"
+    
+            is_cuda_lib_err = [
+                lib for lib in cuda_libs.values() if lib.split(".")[0] in err.args[0]
+            ]
+            if not is_cuda_lib_err:
+                raise err
+            for lib_folder, lib_name in cuda_libs.items():
+                _preload_cuda_deps(lib_folder, lib_name)
+            ctypes.CDLL(global_deps_lib_path, mode=ctypes.RTLD_GLOBAL)
+    
+    
+    if (USE_RTLD_GLOBAL_WITH_LIBTORCH or os.getenv("TORCH_USE_RTLD_GLOBAL")) and (
+        _running_with_deploy() or platform.system() != "Windows"
+    ):
+        # Do it the hard way.  You might want to load libtorch with RTLD_GLOBAL in a
+        # few circumstances:
+        #
+        #   1. You're in a build environment (e.g., fbcode) where
+        #      libtorch_global_deps is not available, but you still need
+        #      to get mkl to link in with RTLD_GLOBAL or it will just
+        #      not work.
+        #
+        #   2. You're trying to run PyTorch under UBSAN and you need
+        #      to ensure that only one copy of libtorch is loaded, so
+        #      vptr checks work properly
+        #
+        # If you're using this setting, you must verify that all the libraries
+        # you load consistently use the same libstdc++, or you may have
+        # mysterious segfaults.
+        #
+        old_flags = sys.getdlopenflags()
+        sys.setdlopenflags(os.RTLD_GLOBAL | os.RTLD_LAZY)
+    
+        from torch._C import *  # noqa: F403
+    
+        sys.setdlopenflags(old_flags)
+        del old_flags
+    
+    else:
+        # Easy way.  You want this most of the time, because it will prevent
+        # C++ symbols from libtorch clobbering C++ symbols from other
+        # libraries, leading to mysterious segfaults.
+        #
+        # If building in an environment where libtorch_global_deps isn't available
+        # like parts of fbsource, but where RTLD_GLOBAL causes segfaults, you will
+        # want USE_RTLD_GLOBAL_WITH_LIBTORCH = False and USE_GLOBAL_DEPS = False
+        #
+        # See Note [Global dependencies]
+        if USE_GLOBAL_DEPS:
+            _load_global_deps()
+>       from torch._C import *  # noqa: F403
+E       ImportError: /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/lib/libc10_cuda.so: undefined symbol: cudaGetDriverEntryPointByVersion, version libcudart.so.12
+
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/__init__.py:416: ImportError
+=============================== warnings summary ===============================
+tests/dbex/test_refine_one_cli.py::test_main_dispatches_to_diffbragg_backend
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_refine_one_cli.py::test_main_dispatches_to_diffbragg_backend
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_refine_one_cli.py::test_main_dispatches_to_diffbragg_backend
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_refine_one_cli.py::test_main_dispatches_to_diffbragg_backend
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata - I...
+=================== 1 failed, 5 passed, 4 warnings in 1.17s ====================
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 6 items
+
+tests/dbex/test_refine_one_cli.py::test_parser_has_backend_flag PASSED   [ 16%]
+tests/dbex/test_refine_one_cli.py::test_parser_rejects_invalid_backend PASSED [ 33%]
+tests/dbex/test_refine_one_cli.py::test_main_dispatches_to_diffbragg_backend PASSED [ 50%]
+tests/dbex/test_refine_one_cli.py::test_main_dispatches_to_nanobrag_backend PASSED [ 66%]
+tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_calls_bridge PASSED [ 83%]
+tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata FAILED [100%]
+
+=================================== FAILURES ===================================
+_______________________ test_torch_diagnostics_metadata ________________________
+
+thing = <module 'score_trainer' from '/home/ollie/Documents/score_trainer/score_trainer/__init__.py'>
+comp = 'roi_check', import_path = 'score_trainer.roi_check'
+
+    def _dot_lookup(thing, comp, import_path):
+        try:
+>           return getattr(thing, comp)
+E           AttributeError: module 'score_trainer' has no attribute 'roi_check'
+
+../../../miniconda3/envs/simtbx/lib/python3.9/unittest/mock.py:1226: AttributeError
+
+During handling of the above exception, another exception occurred:
+
+args = (), keywargs = {}
+
+    @wraps(func)
+    def patched(*args, **keywargs):
+>       with self.decoration_helper(patched,
+                                    args,
+                                    keywargs) as (newargs, newkeywargs):
+
+../../../miniconda3/envs/simtbx/lib/python3.9/unittest/mock.py:1333: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../miniconda3/envs/simtbx/lib/python3.9/contextlib.py:119: in __enter__
+    return next(self.gen)
+../../../miniconda3/envs/simtbx/lib/python3.9/unittest/mock.py:1315: in decoration_helper
+    arg = exit_stack.enter_context(patching)
+../../../miniconda3/envs/simtbx/lib/python3.9/contextlib.py:448: in enter_context
+    result = _cm_type.__enter__(cm)
+../../../miniconda3/envs/simtbx/lib/python3.9/unittest/mock.py:1388: in __enter__
+    self.target = self.getter()
+../../../miniconda3/envs/simtbx/lib/python3.9/unittest/mock.py:1563: in <lambda>
+    getter = lambda: _importer(target)
+../../../miniconda3/envs/simtbx/lib/python3.9/unittest/mock.py:1239: in _importer
+    thing = _dot_lookup(thing, comp, import_path)
+../../../miniconda3/envs/simtbx/lib/python3.9/unittest/mock.py:1228: in _dot_lookup
+    __import__(import_path)
+../../score_trainer/score_trainer/roi_check.py:3: in <module>
+    import torch, torchvision
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """
+    The torch package contains data structures for multi-dimensional
+    tensors and defines mathematical operations over these tensors.
+    Additionally, it provides many utilities for efficient serialization of
+    Tensors and arbitrary types, and other useful utilities.
+    
+    It has a CUDA counterpart, that enables you to run your tensor computations
+    on an NVIDIA GPU with compute capability >= 3.0.
+    """
+    
+    # mypy: allow-untyped-defs
+    
+    import builtins
+    import ctypes
+    import functools
+    import glob
+    import importlib
+    import inspect
+    import math
+    import os
+    import platform
+    import sys
+    import textwrap
+    import threading
+    from typing import (
+        Any as _Any,
+        Callable as _Callable,
+        get_origin as _get_origin,
+        Optional as _Optional,
+        overload as _overload,
+        TYPE_CHECKING,
+        TypeVar as _TypeVar,
+        Union as _Union,
+    )
+    from typing_extensions import ParamSpec as _ParamSpec
+    
+    
+    if TYPE_CHECKING:
+        from .types import Device, IntLikeType
+    
+    
+    # multipy/deploy is setting this import before importing torch, this is the most
+    # reliable way we have to detect if we're running within deploy.
+    # https://github.com/pytorch/multipy/blob/d60f34ad38c371e441fe7ffdb77a3c3dda5a5d19/multipy/runtime/interpreter/interpreter_impl.cpp#L134-L137
+    def _running_with_deploy() -> builtins.bool:
+        return sys.modules.get("torch._meta_registrations", None) is object
+    
+    
+    from torch._utils import (
+        _functionalize_sync as _sync,
+        _import_dotted_name,
+        classproperty,
+    )
+    from torch._utils_internal import (
+        get_file_path,
+        prepare_multiprocessing_environment,
+        profiler_allow_cudagraph_cupti_lazy_reinit_cuda12,
+        USE_GLOBAL_DEPS,
+        USE_RTLD_GLOBAL_WITH_LIBTORCH,
+    )
+    
+    
+    # TODO(torch_deploy) figure out how to freeze version.py in fbcode build
+    if _running_with_deploy():
+        __version__ = "torch-deploy-1.8"
+        # TODO: Remove this ugly hack when deploy typing extensions are updated to 4.10+
+        if not TYPE_CHECKING:
+            import typing_extensions
+    
+            _TypeIs = typing_extensions.TypeGuard
+            typing_extensions.TypeIs = _TypeIs
+    else:
+        from typing_extensions import TypeIs as _TypeIs
+    
+        from torch.torch_version import __version__ as __version__
+    
+    __all__ = [
+        "BoolStorage",
+        "BoolTensor",
+        "ByteStorage",
+        "ByteTensor",
+        "CharStorage",
+        "CharTensor",
+        "DoubleStorage",
+        "DoubleTensor",
+        "FloatStorage",
+        "FloatTensor",
+        "GradScaler",
+        "IntStorage",
+        "IntTensor",
+        "LongStorage",
+        "LongTensor",
+        "ShortStorage",
+        "ShortTensor",
+        "SymBool",
+        "SymFloat",
+        "SymInt",
+        "Tensor",
+        "TypedStorage",
+        "UntypedStorage",
+        "are_deterministic_algorithms_enabled",
+        "autocast",
+        "chunk",
+        "compile",
+        "cond",
+        "enable_grad",
+        "export",
+        "get_default_device",
+        "get_deterministic_debug_mode",
+        "get_device_module",
+        "get_float32_matmul_precision",
+        "get_rng_state",
+        "inference_mode",
+        "initial_seed",
+        "is_deterministic_algorithms_warn_only_enabled",
+        "is_storage",
+        "is_tensor",
+        "is_warn_always_enabled",
+        "load",
+        "lobpcg",
+        "manual_seed",
+        "matmul",
+        "no_grad",
+        "rand",
+        "randn",
+        "save",
+        "seed",
+        "set_default_device",
+        "set_default_tensor_type",
+        "set_deterministic_debug_mode",
+        "set_float32_matmul_precision",
+        "set_printoptions",
+        "set_rng_state",
+        "set_warn_always",
+        "split",
+        "stack",
+        "sym_float",
+        "sym_fresh_size",
+        "sym_int",
+        "sym_ite",
+        "sym_max",
+        "sym_min",
+        "sym_not",
+        "sym_sum",
+        "typename",
+        "unravel_index",
+        "use_deterministic_algorithms",
+        "vmap",
+    ]
+    
+    # Please keep this list sorted
+    assert __all__ == sorted(__all__)
+    
+    ################################################################################
+    # Load the extension module
+    ################################################################################
+    
+    # If PyTorch was built against the ROCm runtime wheels, then there will be
+    # a _rocm_init module and it will define an initialize() function which can
+    # prepare ROCm for use. See general documentation on ROCm runtime wheels:
+    # https://github.com/ROCm/TheRock/blob/main/docs/packaging/python_packaging.md
+    # Since this module is only ever added to the wheel if built for such a
+    # deployment, it is always safe to attempt.
+    try:
+        from . import _rocm_init  # type: ignore[attr-defined]
+    except ImportError:
+        pass
+    else:
+        _rocm_init.initialize()
+        del _rocm_init
+    
+    
+    if sys.platform == "win32":
+    
+        def _load_dll_libraries() -> None:
+            import sysconfig
+    
+            from torch.version import cuda as cuda_version
+    
+            pfiles_path = os.getenv("ProgramFiles", r"C:\Program Files")
+            py_dll_path = os.path.join(sys.exec_prefix, "Library", "bin")
+            th_dll_path = os.path.join(os.path.dirname(__file__), "lib")
+            usebase_path = os.path.join(
+                sysconfig.get_config_var("userbase"), "Library", "bin"
+            )
+            py_root_bin_path = os.path.join(sys.exec_prefix, "bin")
+    
+            # When users create a virtualenv that inherits the base environment,
+            # we will need to add the corresponding library directory into
+            # DLL search directories. Otherwise, it will rely on `PATH` which
+            # is dependent on user settings.
+            if sys.exec_prefix != sys.base_exec_prefix:
+                base_py_dll_path = os.path.join(sys.base_exec_prefix, "Library", "bin")
+            else:
+                base_py_dll_path = ""
+    
+            dll_paths = [
+                p
+                for p in (
+                    th_dll_path,
+                    py_dll_path,
+                    base_py_dll_path,
+                    usebase_path,
+                    py_root_bin_path,
+                )
+                if os.path.exists(p)
+            ]
+    
+            if cuda_version and builtins.all(
+                not glob.glob(os.path.join(p, "cudart64*.dll")) for p in dll_paths
+            ):
+                cuda_version_1 = cuda_version.replace(".", "_")
+                cuda_path_var = "CUDA_PATH_V" + cuda_version_1
+                default_path = os.path.join(
+                    pfiles_path, "NVIDIA GPU Computing Toolkit", "CUDA", f"v{cuda_version}"
+                )
+                cuda_path = os.path.join(os.getenv(cuda_path_var, default_path), "bin")
+            else:
+                cuda_path = ""
+    
+            dll_paths.extend(p for p in (cuda_path,) if os.path.exists(p))
+    
+            kernel32 = ctypes.WinDLL("kernel32.dll", use_last_error=True)
+            with_load_library_flags = hasattr(kernel32, "AddDllDirectory")
+            prev_error_mode = kernel32.SetErrorMode(0x0001)
+    
+            kernel32.LoadLibraryW.restype = ctypes.c_void_p
+            if with_load_library_flags:
+                kernel32.LoadLibraryExW.restype = ctypes.c_void_p
+    
+            for dll_path in dll_paths:
+                os.add_dll_directory(dll_path)
+    
+            try:
+                ctypes.CDLL("vcruntime140.dll")
+                ctypes.CDLL("msvcp140.dll")
+                if platform.machine() != "ARM64":
+                    ctypes.CDLL("vcruntime140_1.dll")
+            except OSError:
+                print(
+                    textwrap.dedent(
+                        """
+                        Microsoft Visual C++ Redistributable is not installed, this may lead to the DLL load failure.
+                        It can be downloaded at https://aka.ms/vs/16/release/vc_redist.x64.exe
+                        """
+                    ).strip()
+                )
+    
+            dlls = glob.glob(os.path.join(th_dll_path, "*.dll"))
+            path_patched = False
+            for dll in dlls:
+                is_loaded = False
+                if with_load_library_flags:
+                    res = kernel32.LoadLibraryExW(dll, None, 0x00001100)
+                    last_error = ctypes.get_last_error()
+                    if res is None and last_error != 126:
+                        err = ctypes.WinError(last_error)
+                        err.strerror += (
+                            f' Error loading "{dll}" or one of its dependencies.'
+                        )
+                        raise err
+                    elif res is not None:
+                        is_loaded = True
+                if not is_loaded:
+                    if not path_patched:
+                        os.environ["PATH"] = ";".join(dll_paths + [os.environ["PATH"]])
+                        path_patched = True
+                    res = kernel32.LoadLibraryW(dll)
+                    if res is None:
+                        err = ctypes.WinError(ctypes.get_last_error())
+                        err.strerror += (
+                            f' Error loading "{dll}" or one of its dependencies.'
+                        )
+                        raise err
+    
+            kernel32.SetErrorMode(prev_error_mode)
+    
+        _load_dll_libraries()
+        del _load_dll_libraries
+    
+    
+    def _get_cuda_dep_paths(path: str, lib_folder: str, lib_name: str) -> list[str]:
+        # Libraries can either be in path/nvidia/lib_folder/lib or path/lib_folder/lib
+        nvidia_lib_paths = glob.glob(
+            os.path.join(path, "nvidia", lib_folder, "lib", lib_name)
+        )
+        lib_paths = glob.glob(os.path.join(path, lib_folder, "lib", lib_name))
+    
+        return nvidia_lib_paths + lib_paths
+    
+    
+    def _preload_cuda_deps(lib_folder: str, lib_name: str) -> None:
+        """Preloads cuda deps if they could not be found otherwise."""
+        # Should only be called on Linux if default path resolution have failed
+        assert platform.system() == "Linux", "Should only be called on Linux"
+    
+        lib_path = None
+        for path in sys.path:
+            candidate_lib_paths = _get_cuda_dep_paths(path, lib_folder, lib_name)
+            if candidate_lib_paths:
+                lib_path = candidate_lib_paths[0]
+                break
+        if not lib_path:
+            raise ValueError(f"{lib_name} not found in the system path {sys.path}")
+        ctypes.CDLL(lib_path)
+    
+    
+    # See Note [Global dependencies]
+    def _load_global_deps() -> None:
+        if _running_with_deploy() or platform.system() == "Windows":
+            return
+    
+        # Determine the file extension based on the platform
+        lib_ext = ".dylib" if platform.system() == "Darwin" else ".so"
+        lib_name = f"libtorch_global_deps{lib_ext}"
+        here = os.path.abspath(__file__)
+        global_deps_lib_path = os.path.join(os.path.dirname(here), "lib", lib_name)
+    
+        try:
+            ctypes.CDLL(global_deps_lib_path, mode=ctypes.RTLD_GLOBAL)
+            # Workaround slim-wheel CUDA dependency bugs in cusparse and cudnn by preloading nvjitlink
+            # and nvrtc. In CUDA-12.4+ cusparse depends on nvjitlink, but does not have rpath when
+            # shipped as wheel, which results in OS picking wrong/older version of nvjitlink library
+            # if `LD_LIBRARY_PATH` is defined, see https://github.com/pytorch/pytorch/issues/138460
+            # Similar issue exist in cudnn that dynamically loads nvrtc, unaware of its relative path.
+            # See https://github.com/pytorch/pytorch/issues/145580
+            try:
+                with open("/proc/self/maps") as f:
+                    _maps = f.read()
+                # libtorch_global_deps.so always depends in cudart, check if its installed via wheel
+                if "nvidia/cuda_runtime/lib/libcudart.so" not in _maps:
+                    return
+                # If all above-mentioned conditions are met, preload nvrtc and nvjitlink
+                # Please note that order are important for CUDA-11.8 , as nvjitlink does not exist there
+                _preload_cuda_deps("cuda_nvrtc", "libnvrtc.so.*[0-9]")
+                _preload_cuda_deps("nvjitlink", "libnvJitLink.so.*[0-9]")
+            except Exception:
+                pass
+    
+        except OSError as err:
+            # Can only happen for wheel with cuda libs as PYPI deps
+            # As PyTorch is not purelib, but nvidia-*-cu12 is
+            from torch.version import cuda as cuda_version
+    
+            cuda_libs: dict[str, str] = {
+                "cublas": "libcublas.so.*[0-9]",
+                "cudnn": "libcudnn.so.*[0-9]",
+                "cuda_nvrtc": "libnvrtc.so.*[0-9]",
+                "cuda_runtime": "libcudart.so.*[0-9]",
+                "cuda_cupti": "libcupti.so.*[0-9]",
+                "cufft": "libcufft.so.*[0-9]",
+                "curand": "libcurand.so.*[0-9]",
+                "nvjitlink": "libnvJitLink.so.*[0-9]",
+                "cusparse": "libcusparse.so.*[0-9]",
+                "cusparselt": "libcusparseLt.so.*[0-9]",
+                "cusolver": "libcusolver.so.*[0-9]",
+                "nccl": "libnccl.so.*[0-9]",
+            }
+            # cufiile is only available on cuda 12+
+            # TODO: Remove once CUDA 11.8 binaries are deprecated
+            if cuda_version is not None:
+                t_version = cuda_version.split(".")
+                t_major = int(t_version[0])  # type: ignore[operator]
+                if t_major >= 12:
+                    cuda_libs["cufile"] = "libcufile.so.*[0-9]"
+    
+            is_cuda_lib_err = [
+                lib for lib in cuda_libs.values() if lib.split(".")[0] in err.args[0]
+            ]
+            if not is_cuda_lib_err:
+                raise err
+            for lib_folder, lib_name in cuda_libs.items():
+                _preload_cuda_deps(lib_folder, lib_name)
+            ctypes.CDLL(global_deps_lib_path, mode=ctypes.RTLD_GLOBAL)
+    
+    
+    if (USE_RTLD_GLOBAL_WITH_LIBTORCH or os.getenv("TORCH_USE_RTLD_GLOBAL")) and (
+        _running_with_deploy() or platform.system() != "Windows"
+    ):
+        # Do it the hard way.  You might want to load libtorch with RTLD_GLOBAL in a
+        # few circumstances:
+        #
+        #   1. You're in a build environment (e.g., fbcode) where
+        #      libtorch_global_deps is not available, but you still need
+        #      to get mkl to link in with RTLD_GLOBAL or it will just
+        #      not work.
+        #
+        #   2. You're trying to run PyTorch under UBSAN and you need
+        #      to ensure that only one copy of libtorch is loaded, so
+        #      vptr checks work properly
+        #
+        # If you're using this setting, you must verify that all the libraries
+        # you load consistently use the same libstdc++, or you may have
+        # mysterious segfaults.
+        #
+        old_flags = sys.getdlopenflags()
+        sys.setdlopenflags(os.RTLD_GLOBAL | os.RTLD_LAZY)
+    
+        from torch._C import *  # noqa: F403
+    
+        sys.setdlopenflags(old_flags)
+        del old_flags
+    
+    else:
+        # Easy way.  You want this most of the time, because it will prevent
+        # C++ symbols from libtorch clobbering C++ symbols from other
+        # libraries, leading to mysterious segfaults.
+        #
+        # If building in an environment where libtorch_global_deps isn't available
+        # like parts of fbsource, but where RTLD_GLOBAL causes segfaults, you will
+        # want USE_RTLD_GLOBAL_WITH_LIBTORCH = False and USE_GLOBAL_DEPS = False
+        #
+        # See Note [Global dependencies]
+        if USE_GLOBAL_DEPS:
+            _load_global_deps()
+>       from torch._C import *  # noqa: F403
+E       ImportError: /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/lib/libc10_cuda.so: undefined symbol: cudaGetDriverEntryPointByVersion, version libcudart.so.12
+
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/__init__.py:416: ImportError
+=============================== warnings summary ===============================
+tests/dbex/test_refine_one_cli.py::test_main_dispatches_to_diffbragg_backend
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_refine_one_cli.py::test_main_dispatches_to_diffbragg_backend
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_refine_one_cli.py::test_main_dispatches_to_diffbragg_backend
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_refine_one_cli.py::test_main_dispatches_to_diffbragg_backend
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata - I...
+=================== 1 failed, 5 passed, 4 warnings in 1.23s ====================
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 1 item
+
+tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata FAILED [100%]
+
+=================================== FAILURES ===================================
+_______________________ test_torch_diagnostics_metadata ________________________
+
+    def test_torch_diagnostics_metadata():
+        """B1: Verify torch diagnostics HDF5 metadata."""
+        import h5py
+        import numpy as np
+        import sys
+        from dbex.nanobrag_bridge import RefinementInputs
+    
+        # Mock score_trainer.roi_check before it gets imported
+        mock_roi_check_module = Mock()
+        mock_checker = Mock()
+        mock_checker.score.return_value = 0.85
+        mock_roi_check_class = Mock(return_value=mock_checker)
+        mock_roi_check_module.roiCheck = mock_roi_check_class
+        sys.modules['score_trainer.roi_check'] = mock_roi_check_module
+    
+        # Mock scipy.optimize.minimize
+        from unittest.mock import patch
+        with patch('scipy.optimize.minimize') as mock_minimize:
+            # Mock the minimize result
+            mock_result = Mock()
+            mock_result.success = True
+            mock_result.__getitem__ = lambda self, key: {'x': np.array([1.0])} if key == 'x' else None
+            mock_minimize.return_value = mock_result
+    
+            with tempfile.TemporaryDirectory() as tmpdir:
+                outfile = os.path.join(tmpdir, 'test_torch_diag.h5')
+    
+                # Create mock inputs
+                mock_inputs = RefinementInputs(
+                    target=np.zeros((1, 100, 100), dtype=np.float32),
+                    loss_mask=np.ones((1, 100, 100), dtype=bool) * 0.25,  # 25% coverage
+                    panel_slices=[(0, (10, 20, 10, 20))],
+                    trusted_mask=np.ones((1, 100, 100), dtype=bool)
+                )
+    
+                mock_dl = Mock()
+                mock_dl.data = np.zeros((1, 100, 100), dtype=np.float32)
+                mock_dl.background_image = np.ones((1, 100, 100), dtype=np.float32) * -1
+                mock_dl.pids = np.array([0])
+                mock_dl.bbox = np.array([[10, 20, 10, 20]])
+    
+                mock_args = Mock()
+                mock_args.outFile = outfile
+    
+                mock_bragg = np.zeros((1, 100, 100), dtype=np.float32)
+                masked_mse = 1234.5
+    
+                # Import the function to test
+                from dbex.refine_one import _write_torch_outputs
+>               _write_torch_outputs(mock_args, mock_dl, mock_bragg, mock_inputs, masked_mse)
+
+tests/dbex/test_refine_one_cli.py:180: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+args = <Mock id='124927708006144'>, DL = <Mock id='124927708005952'>
+Bragg = array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+ ...., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.]]], dtype=float32)
+inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0.,...],
+        [ True,  True,  True, ...,  True,  True,  True],
+        [ True,  True,  True, ...,  True,  True,  True]]]))
+masked_mse = 1234.5
+
+    def _write_torch_outputs(args, DL, Bragg, inputs, masked_mse):
+        """Write torch backend outputs to HDF5 with diagnostics."""
+        import h5py
+        import numpy as np
+        from scipy.optimize import minimize
+        from score_trainer import roi_check
+    
+        CHECKER = roi_check.roiCheck()
+    
+        def func(x, CHECKER, bragg_im, bg_im, dat_im):
+            bragg_scale = x[0]
+            score = CHECKER.score(dat_im, bragg_scale**2*bragg_im + bg_im)
+            resid = 1-score
+            return resid
+    
+        data_subims = []
+        bg_subims = []
+        bragg_subims = []
+        opt_bragg_scales = []
+        model_subims = []
+        scores = []
+    
+        for i_sb, (pid, (x1, x2, y1, y2)) in enumerate(zip(DL.pids, DL.bbox)):
+            bg_im = DL.background_image[pid, y1:y2, x1:x2]
+            assert not np.any(np.isnan(bg_im))
+            x = slice(x1, x2, 1)
+            y = slice(y1, y2, 1)
+            dat_im = DL.data[pid, y, x]
+            bragg_im = Bragg[pid, y, x]
+    
+            min_out = minimize(func, x0=[1], args=(CHECKER, bragg_im, bg_im, dat_im), method="Nelder-Mead")
+            if min_out.success:
+>               opt_bragg_scale = min_out['x'][0]**2
+E               KeyError: 0
+
+dbex/refine_one.py:218: KeyError
+=========================== short test summary info ============================
+FAILED tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata - K...
+============================== 1 failed in 0.19s ===============================

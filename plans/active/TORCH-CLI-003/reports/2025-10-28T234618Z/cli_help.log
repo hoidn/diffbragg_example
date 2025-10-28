@@ -1,0 +1,28 @@
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+usage: refine_one.py [-h] [--backend {diffbragg,nanobrag}] -e EXPTNAME -r
+                     REFLNAME -i EXPTIDX -o OUTFILE -m MASKFILE -z MTZFILE
+                     [-c MTZCOL]
+
+Refine a single experiment using DiffBragg or nanobrag_torch backend.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --backend {diffbragg,nanobrag}
+                        Backend to use: 'diffbragg' (default, legacy) or
+                        'nanobrag' (PyTorch-based)
+  -e EXPTNAME, --exptName EXPTNAME
+                        Path to the DIALS experiment list (.json) file.
+  -r REFLNAME, --reflName REFLNAME
+                        Path to the DIALS reflection table (.refl) file.
+  -i EXPTIDX, --exptIdx EXPTIDX
+                        The integer index (id) of the experiment to be refined
+                        from the experiment list and reflection table.
+  -o OUTFILE, --outFile OUTFILE
+                        Output HDF5 file path for ROI results
+  -m MASKFILE, --maskFile MASKFILE
+                        Detector mask file path
+  -z MTZFILE, --mtzFile MTZFILE
+                        MTZ file containing structure factors
+  -c MTZCOL, --mtzCol MTZCOL
+                        MTZ column names (default: F,SIGF)

@@ -3,19 +3,41 @@
 This index provides a concise map of the project documentation and key code pointers so you can quickly find what you need.
 
 Status note
-- The Spec DB shards and CLI flags (e.g., `--backend`, `--device`, `--adu-per-photon`, `--nabc`) target the planned PyTorch backend (`nanobrag_torch`). They are not yet implemented in the current CLI. Use `python -m dbex.refine_one` for now (see `dbex/refine_one.py`).
+- The `--backend` flag is now implemented in `dbex.refine_one` to select between `diffbragg` (default, legacy) and `nanobrag` (PyTorch-based) backends.
+- Other Spec DB CLI flags (e.g., `--device`, `--adu-per-photon`, `--nabc`) target future nanobrag_torch features and are not yet implemented.
 
 ## Quick Start
 
 ### [README](../README.md) — Project Overview
-Description: High‑level intro with environment setup, data acquisition, and how to run the legacy DiffBragg workflow.  
-Keywords: setup, overview, environment, quickstart  
+Description: High‑level intro with environment setup, data acquisition, and how to run the legacy DiffBragg workflow.
+Keywords: setup, overview, environment, quickstart
 Use this when: First time setting up DBEX and running the provided single‑image optimization benchmark.
 
-### Current CLI: `dbex.refine_one` (legacy)
-Description: Main entry point for the DiffBragg workflow; parses `.expt/.refl/.mtz` paths and writes HDF5 ROI outputs.  
-Keywords: CLI, DiffBragg, refinement, HDF5  
-Use this when: Running the current pipeline end‑to‑end. See code: `dbex/refine_one.py`.
+### Current CLI: `dbex.refine_one`
+Description: Main entry point for single-experiment refinement. Supports two backends:
+- `--backend diffbragg` (default): Legacy DiffBragg refinement workflow
+- `--backend nanobrag`: PyTorch-based nanobrag_torch refinement (experimental, uses stub simulator)
+
+Parses `.expt/.refl/.mtz` paths and writes HDF5 ROI outputs.
+Keywords: CLI, DiffBragg, nanobrag, refinement, HDF5, backend
+Use this when: Running the refinement pipeline end‑to‑end. See code: `dbex/refine_one.py`.
+
+**Usage examples:**
+```bash
+# Default (DiffBragg) backend
+python -m dbex.refine_one -e expt.json -r refl.refl -i 0 -o out.h5 -m mask.pickle -z mtz.mtz
+
+# Torch backend (nanobrag) - experimental
+KMP_DUPLICATE_LIB_OK=TRUE python -m dbex.refine_one --backend nanobrag -e expt.json -r refl.refl -i 0 -o out.h5 -m mask.pickle -z mtz.mtz
+```
+
+**Torch backend diagnostics:**
+When using `--backend nanobrag`, the output HDF5 file includes a `/torch_diagnostics` group with attributes:
+- `masked_mse`: Masked mean squared error between target and Bragg tensor
+- `loss_mask_coverage`: Fraction of pixels included in the loss mask
+- `n_rois`: Number of ROIs processed
+- `target_shape`: Shape of the target tensor (as string)
+- `backend`: Backend identifier ("nanobrag")
 
 ### ROI Viewer: `dbex.look`
 Description: Interactive viewer for ROI triptychs (Data | Model), paginated with keyboard navigation.  

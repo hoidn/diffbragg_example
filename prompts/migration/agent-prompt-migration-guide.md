@@ -160,6 +160,10 @@ Use the model and target inventories to decide how to materialize each document 
 - Prompts (`prompts/*.md`): Copy from model → adapt
   - Preserve structure and role emphasis; update references to discovered sources and artifact policy.
   - Replace any model‑specific commands with target project equivalents from `<TEST_GUIDE>/<TEST_INDEX>` and workflow docs.
+  - Ensure standard ops prompts are included (copy if present in model; create/adapt if missing):
+    - `prompts/postmortem_hardening.md`
+    - `prompts/doc_sync_sop.md`
+    - `prompts/pyrefly.md`
 - Orchestration scripts (`scripts/orchestration/*`): Copy if missing
   - If the target repo does not already include orchestration helpers (e.g., `check_input.py`, `focus_check.py`, `plan_lint.py`), copy them from the model repository.
   - If equivalents exist, diff and adapt minimally (paths, policy references) rather than overwriting.
@@ -399,6 +403,13 @@ if [ ! -d "$TARGET_ROOT/docs/debugging" ] || [ -z "$(ls -A "$TARGET_ROOT/docs/de
   rsync -av --include='*/' --include='*.md' --include='*.mdx' --exclude='*' \
     "$MODEL_ROOT/docs/debugging/" "$TARGET_ROOT/docs/debugging/"
 fi
+
+# Ensure standard ops prompts exist (copy if present in model)
+for f in postmortem_hardening.md doc_sync_sop.md pyrefly.md; do
+  if [ ! -f "$TARGET_ROOT/prompts/$f" ] && [ -f "$MODEL_ROOT/prompts/$f" ]; then
+    rsync -av "$MODEL_ROOT/prompts/$f" "$TARGET_ROOT/prompts/$f"
+  fi
+done
 ```
 
 1) Build the source map (target)
@@ -473,4 +484,5 @@ Verification
 - [ ] Referenced files exist (where applicable)
 - [ ] Optional: test discovery or smoke steps are documented
 - [ ] Orchestration scripts present under `scripts/orchestration/` (copied if missing), or absence documented with rationale
- - [ ] Debugging docs present under `docs/debugging/` (copied if missing), or absence documented with rationale
+- [ ] Debugging docs present under `docs/debugging/` (copied if missing), or absence documented with rationale
+ - [ ] Standard ops prompts present under `prompts/`: `postmortem_hardening.md`, `doc_sync_sop.md`, `pyrefly.md` (copied or authored if missing)

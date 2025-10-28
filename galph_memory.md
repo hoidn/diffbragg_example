@@ -23,3 +23,12 @@
 - Next Actions: Execute Do Now checklist for Phase A (tests, helper implementation, guard assertions) and capture pytest + design notes in the artifact directory.
 - Reality Check: Validated fix-plan exit criteria remain open (no helper, no pixel pitch guard), verified DIALS assets present, and noted runtime checklist doc gap for rescoping.
 - <Action State>: [ready_for_implementation]
+
+## 2025-10-28T224846Z — TORCH-BRIDGE-001 Phase B plan
+- Focus: TORCH-BRIDGE-001 — Bridge DataLoad to nanobrag_torch
+- Action Type: planning
+- Key Observations: Phase A helper/tests already landed; no DetectorConfig/BeamConfig/CrystalConfig helpers or tests exist yet (`rg DetectorConfig` only hits docs); spec shards (docs/spec-db-core.md §35-41, docs/config_crosswalk.md §15-66, docs/dxtbx_api.md §5-50, docs/nanobrag_api.md §23-58) remain current; docs/index.md and prompt_sources_map.json already list required references.
+- Artifact Path: plans/active/TORCH-BRIDGE-001/reports/2025-10-28T224846Z/
+- Next Actions: Execute Phase B checklist (B1-B2) via new tests/helper, capture pytest log + notes under the artifact path, then progress toward Phase C smoke harness.
+- Reality Check: Verified exit criteria 2 & 4 still unmet (no config hydration, no smoke harness); runtime checklist symlink still unresolved per backlog DOC-RUNTIME-004; selected item remains active and dependencies satisfied.
+- <Action State>: [planning]

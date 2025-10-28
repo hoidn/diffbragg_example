@@ -35,7 +35,7 @@ All tests will be implemented using the PyTest framework.
 
 ## 2. Configuration Parity
 
-**CRITICAL REQUIREMENT:** Before implementing any test that compares against C-code output, you **MUST** ensure exact configuration parity. All golden test cases must be generated with commands that are verifiably equivalent to the PyTorch test configurations.
+**CRITICAL REQUIREMENT:** Before implementing any test that compares against recorded golden outputs, you **MUST** ensure exact configuration parity. All golden test cases must be generated with commands that are verifiably equivalent to the PyTorch test configurations.
 
 **Authoritative Reference:** See the **[C-CLI to PyTorch Configuration Map](./c_to_pytorch_config_map.md)** for:
 - Complete parameter mappings
@@ -50,235 +50,75 @@ Configuration mismatches are the most common source of test failures. Always ver
  - Explicit convention selection: tests and harnesses MUST pass `-convention` (or equivalent API flag) to avoid implicit CUSTOM switching when vector parameters are present
 
 
-## 2.1 Ground Truth: Parallel Trace-Driven Validation
+## 2.1 Golden Reference Data
 
-The foundation of our testing strategy is a "Golden Suite" of test data. Crucially, final-output comparison is insufficient for effective debugging. Our strategy is therefore centered on **Parallel Trace-Driven Validation**.
+The testing strategy relies on a PyTorch-generated Golden Suite. For each case we maintain:
+1. **Golden Output Image:** The simulator’s final tensor serialized to `.bin`.
+2. **PyTorch Trace Log:** A step-by-step log for a representative pixel captured via `debug_config`.
+3. **Configuration Metadata:** JSON describing detector, beam, crystal, and sampling settings.
 
-For each test case, the Golden Suite must contain three components:
-1. **Golden Output Image:** The final .bin file from the C code.
-2. **Golden C-Code Trace Log:** A detailed, step-by-step log of intermediate variables from the C code for a specific on-peak pixel.
-3. **PyTorch Trace Log:** An identical, step-by-step log from the PyTorch implementation for the same pixel.
+All artifacts are versioned under `nanoBragg2/tests/golden_data/` alongside the test harness.
 
-This allows for direct, line-by-line comparison of the entire physics calculation, making it possible to pinpoint the exact line of code where a divergence occurs.
-### 2.2 Instrumenting the C Code
+### 2.2 Trace Capture
 
-The `nanoBragg.c` source in `golden_suite_generator/` must be instrumented with a `-dump_pixel <slow> <fast>` command-line flag. When run with this flag, the program must write a detailed log file (`<test_case_name>_C_trace.log`) containing key intermediate variables (e.g., `scattering_vector`, `h`, `k`, `l`, `F_cell`, `F_latt`, `omega_pixel`, `polar`) for the specified pixel. This provides the ground truth for component-level testing.
+Use the simulator `debug_config.trace_pixel` option (or the trace fixtures in `nanoBragg2/tests/conftest.py`) to capture per-pixel traces. The trace payload is emitted by the same PyTorch code path used in production, ensuring debugging sessions analyse real execution state.
 
 ### 2.3 Golden Test Cases
 
-The following test cases will be defined, and all three artifacts (image, C trace, PyTorch trace) will be generated and stored in `tests/golden_data/`.
+The following PyTorch-generated scenarios make up the Golden Suite. Each lives under `nanoBragg2/tests/golden_data/` with output, trace, and metadata files.
 
 | Test Case Name | Description | Purpose |
 | :--- | :--- | :--- |
-| `simple_cubic` | A 100Å cubic cell, single wavelength, no mosaicity, no oscillation. | The "hello world" test for basic geometry and spot calculation. |
-| `triclinic_P1` | A low-symmetry triclinic cell with misset orientation. | To stress-test the reciprocal space and geometry calculations. |
-| `simple_cubic_mosaic` | The `simple_cubic` case with mosaic spread. | To test the mosaic domain implementation. |
-| `cubic_tilted_detector` | Cubic cell with rotated and tilted detector. | To test general detector geometry implementation. |
+| `simple_cubic` | A 100Å cubic cell, single wavelength, no mosaicity, no oscillation. | Baseline geometry and spot calculation. |
+| `triclinic_P1` | A low-symmetry triclinic cell with misset orientation. | Stress-test reciprocal space and geometry calculations. |
+| `simple_cubic_mosaic` | The `simple_cubic` case with mosaic spread. | Validate mosaic domain implementation. |
+| `cubic_tilted_detector` | Cubic cell with rotated and tilted detector. | Validate general detector geometry. |
 
-### 2.4 Canonical Generation Commands
+### 2.4 Refreshing Golden Data
 
-**⚠️ CRITICAL:** The following commands are the **single source of truth** for reproducing the golden data. All parallel verification MUST use these exact parameters. These commands must be run from within the `golden_suite_generator/` directory.
+Follow `nanoBragg2/docs/spec_generation_guide.md` to regenerate golden images, traces, and metadata whenever simulator behavior changes. Capture new artifacts with the PyTorch harness, commit them alongside code changes, and document the refresh in `docs/fix_plan.md`.
 
-#### 2.4.1 `simple_cubic`
-**Purpose:** Basic validation of geometry and physics calculations.
+## 2.5 Validation Matrix (AT ↔ tests ↔ commands)
 
-**Canonical Command:**
-```bash
-./nanoBragg -hkl P1.hkl -matrix A.mat \
-  -lambda 6.2 \
-  -N 5 \
-  -default_F 100 \
-  -distance 100 \
-  -detsize 102.4 \
-  -pixel 0.1 \
-  -floatfile ../tests/golden_data/simple_cubic.bin \
-  -intfile ../tests/golden_data/simple_cubic.img
-```
+This matrix maps each acceptance test profile to its PyTorch-only pytest selector. The commands assume execution from the repository root with any required environment flags described in `docs/TESTING_GUIDE.md`.
 
-**Key Parameters:**
-- Crystal: 100Å cubic cell, 5×5×5 unit cells
-- Detector: 100mm distance, 1024×1024 pixels (via `-detsize 102.4`)
-- Beam: λ=6.2Å, uniform F=100
+- AT‑PARALLEL‑001 — Beam Center Scaling  
+  Command: `pytest -v nanoBragg2/tests/test_at_parallel_001.py`
 
-#### 2.4.2 `triclinic_P1`
-**Purpose:** Validates general triclinic geometry and misset rotations.
+- AT‑PARALLEL‑002 — Pixel Size Independence  
+  Command: `pytest -v nanoBragg2/tests/test_at_parallel_002.py`
 
-**Canonical Command:**
-```bash
-./nanoBragg -misset -89.968546 -31.328953 177.753396 \
-  -cell 70 80 90 75 85 95 \
-  -default_F 100 \
-  -N 5 \
-  -lambda 1.0 \
-  -detpixels 512 \
-  -floatfile tests/golden_data/triclinic_P1/image.bin
-```
+- AT‑PARALLEL‑004 — MOSFLM 0.5 Pixel Offset  
+  Command: `pytest -v nanoBragg2/tests/test_at_parallel_004.py`
 
-**Key Parameters:**
-- Crystal: Triclinic (70,80,90,75°,85°,95°), 5×5×5 unit cells
-- Detector: 100mm distance, 512×512 pixels (via `-detpixels 512`)
-- Pivot: BEAM mode ("pivoting detector around direct beam spot")
+- AT‑PARALLEL‑006 — Single Reflection Position  
+  Command: `pytest -v nanoBragg2/tests/test_at_parallel_006.py`
 
-**⚠️ CRITICAL DIFFERENCE:** Uses `-detpixels 512` NOT `-detsize`!
+- AT‑PARALLEL‑007 — Peak Position with Rotations  
+  Command: `pytest -v nanoBragg2/tests/test_at_parallel_007.py`
 
-#### 2.4.3 `simple_cubic_mosaic`
-**Purpose:** Validates mosaicity implementation.
-
-**Canonical Command:**
-```bash
-./nanoBragg -hkl P1.hkl -matrix A.mat \
-  -lambda 6.2 \
-  -N 5 \
-  -default_F 100 \
-  -distance 100 \
-  -detsize 100 \
-  -pixel 0.1 \
-  -mosaic_spread 1.0 \
-  -mosaic_domains 10 \
-  -floatfile ../tests/golden_data/simple_cubic_mosaic.bin \
-  -intfile ../tests/golden_data/simple_cubic_mosaic.img
-```
-
-**Key Parameters:**
-- Same as simple_cubic but with 1.0° mosaic spread, 10 domains
-- Detector: 1000×1000 pixels (via `-detsize 100`)
-
-#### 2.3.4 `cubic_tilted_detector`
-**Purpose:** Validates general detector geometry with rotations.
-
-**Canonical Command:**
-```bash
-./nanoBragg -lambda 6.2 \
-  -N 5 \
-  -cell 100 100 100 90 90 90 \
-  -default_F 100 \
-  -distance 100 \
-  -detsize 102.4 \
-  -detpixels 1024 \
-  -Xbeam 61.2 -Ybeam 61.2 \
-  -detector_rotx 5 -detector_roty 3 -detector_rotz 2 \
-  -twotheta 15 \
-  -oversample 1 \
-  -floatfile tests/golden_data/cubic_tilted_detector/image.bin
-```
-
-**Key Parameters:**
-- Detector rotations: rotx=5°, roty=3°, rotz=2°, twotheta=15°
-- Beam center offset: (61.2, 61.2) mm
-- Pivot: SAMPLE mode with explicit beam center
-
-## 2.5 Parallel Validation Matrix (AT ↔ tests ↔ env/commands)
-
-This matrix maps each Acceptance Test in the AT‑PARALLEL suite to its concrete test file(s), required environment variables, and canonical commands to execute them. Use this section to run the exact parity checks that gate C↔PyTorch equivalence.
-
-General environment for live C parity tests:
-
-- `KMP_DUPLICATE_LIB_OK=TRUE` (avoid MKL conflicts on some systems)
-- `NB_RUN_PARALLEL=1` (enables live C↔PyTorch tests)
-- `NB_C_BIN=./golden_suite_generator/nanoBragg` (path to C reference binary)
-  - Fallback: if `golden_suite_generator/nanoBragg` does not exist in this repo, use `NB_C_BIN=./nanoBragg` (root‑level C binary)
-
-Quick invocation patterns (authoritative harness = pytest):
-
-- Shared parity matrix: `KMP_DUPLICATE_LIB_OK=TRUE NB_RUN_PARALLEL=1 NB_C_BIN=./golden_suite_generator/nanoBragg pytest -v tests/test_parity_matrix.py`
-- Single parity case (example): `KMP_DUPLICATE_LIB_OK=TRUE NB_RUN_PARALLEL=1 NB_C_BIN=./golden_suite_generator/nanoBragg pytest -v tests/test_parity_matrix.py -k "AT-PARALLEL-002"`
-- PyTorch-only invariance (when applicable): `pytest -v tests/test_at_parallel_0XX.py`
-- Golden-data parity (no C binary required): `pytest -v tests/test_at_parallel_012.py`
-
-Reference mapping:
-
-- AT‑PARALLEL‑001 — Beam Center Scaling
-  - Parity harness: `tests/test_parity_matrix.py -k "AT-PARALLEL-001"`
-  - Env: `NB_RUN_PARALLEL=1`, `NB_C_BIN` set (parity)
-  - Command (canonical): `KMP_DUPLICATE_LIB_OK=TRUE NB_RUN_PARALLEL=1 NB_C_BIN=./golden_suite_generator/nanoBragg pytest -v tests/test_parity_matrix.py -k "AT-PARALLEL-001"`
-  - Supplemental PyTorch-only regression: `pytest -v tests/test_at_parallel_001.py`
-  - Notes: Verifies detector-size scaling and MOSFLM +0.5 offset parity.
-
-- AT‑PARALLEL‑002 — Pixel Size Independence
-  - Parity harness: `tests/test_parity_matrix.py -k "AT-PARALLEL-002"`
-  - Env: `NB_RUN_PARALLEL=1`, `NB_C_BIN` set (parity)
-  - Command (canonical): `KMP_DUPLICATE_LIB_OK=TRUE NB_RUN_PARALLEL=1 NB_C_BIN=./golden_suite_generator/nanoBragg pytest -v tests/test_parity_matrix.py -k "AT-PARALLEL-002"`
-  - Supplemental PyTorch-only regression: `pytest -v tests/test_at_parallel_002.py`
-  - Notes: Enforces correlation ≥0.9999 across pixel sizes under MOSFLM convention.
-
-- AT‑PARALLEL‑004 — MOSFLM 0.5 Pixel Offset
-  - Parity harness: `tests/test_parity_matrix.py -k "AT-PARALLEL-004"`
-  - Env: `NB_RUN_PARALLEL=1`, `NB_C_BIN` set (parity)
-  - Command (canonical): `KMP_DUPLICATE_LIB_OK=TRUE NB_RUN_PARALLEL=1 NB_C_BIN=./golden_suite_generator/nanoBragg pytest -v tests/test_parity_matrix.py -k "AT-PARALLEL-004"`
-  - Supplemental PyTorch-only regression: `pytest -v tests/test_at_parallel_004.py`
-  - Notes: Verifies MOSFLM +0.5 pixel offset vs. XDS convention with correlation >0.99.
-
-- AT‑PARALLEL‑006 — Single Reflection Position
-  - Parity harness: `tests/test_parity_matrix.py -k "AT-PARALLEL-006"`
-  - Env: `NB_RUN_PARALLEL=1`, `NB_C_BIN` set (parity)
-  - Command (canonical): `KMP_DUPLICATE_LIB_OK=TRUE NB_RUN_PARALLEL=1 NB_C_BIN=./golden_suite_generator/nanoBragg pytest -v tests/test_parity_matrix.py -k "AT-PARALLEL-006"`
-  - Supplemental checks: `pytest -v tests/test_at_parallel_006.py`
-  - Notes: Enforces parity across distance/wavelength sweeps.
-
-- AT‑PARALLEL‑007 — Peak Position with Rotations
-  - Parity harness: `tests/test_parity_matrix.py -k "AT-PARALLEL-007"`
-  - Env: `NB_RUN_PARALLEL=1`, `NB_C_BIN` set (parity)
-  - Command (canonical): `KMP_DUPLICATE_LIB_OK=TRUE NB_RUN_PARALLEL=1 NB_C_BIN=./golden_suite_generator/nanoBragg pytest -v tests/test_parity_matrix.py -k "AT-PARALLEL-007"`
-  - Supplemental checks: `pytest -v tests/test_at_parallel_007.py`
-  - Notes: Validates rotated detector parity with correlation ≥0.9995 and consistent intensity sums.
-
-- AT‑PARALLEL‑003/005/008/009/010/013/014/015/016/017/018/021/022/023/024/025/026/028/029
-  - Test files: `tests/test_at_parallel_0XX.py`
-  - Env: varies; most invariance tests run without C; rotation/combined/tilted cases may include live parity variants (see file headers)
-
-- AT‑PARALLEL‑011 — Polarization Factor Verification (C↔PyTorch live parity)
-  - Test file: `tests/test_at_parallel_011.py`
-  - Env: `NB_RUN_PARALLEL=1`, `NB_C_BIN` set
-  - Command: `KMP_DUPLICATE_LIB_OK=TRUE NB_RUN_PARALLEL=1 NB_C_BIN=./golden_suite_generator/nanoBragg pytest -v tests/test_at_parallel_011.py`
-
-- AT‑PARALLEL‑012 — Reference Pattern Correlation (golden data)
-  - Test file: `tests/test_at_parallel_012.py`
-  - Env: none (uses `tests/golden_data/*`)
-  - Command: `pytest -v tests/test_at_parallel_012.py`
-
-- AT‑PARALLEL‑020 — Comprehensive Integration (C↔PyTorch live parity)
-  - Test file: `tests/test_at_parallel_020.py`
-  - Env: `NB_RUN_PARALLEL=1`, `NB_C_BIN` set
-  - Command: `KMP_DUPLICATE_LIB_OK=TRUE NB_RUN_PARALLEL=1 NB_C_BIN=./golden_suite_generator/nanoBragg pytest -v tests/test_at_parallel_020.py`
-
-- AT‑PARALLEL‑022 — Combined Detector+Crystal Rotation Equivalence (C↔PyTorch live parity)
-  - Test file: `tests/test_at_parallel_022.py`
-  - Env: `NB_RUN_PARALLEL=1`, `NB_C_BIN` set
-  - Command: `KMP_DUPLICATE_LIB_OK=TRUE NB_RUN_PARALLEL=1 NB_C_BIN=./golden_suite_generator/nanoBragg pytest -v tests/test_at_parallel_022.py`
-
-- Parity case definitions: `tests/parity_cases.yaml` is the machine-readable companion to this matrix. It enumerates canonical commands, sweeps, thresholds, and options for the shared parity runner (`tests/test_parity_matrix.py`). Every parity-threshold AT SHALL appear in both the matrix and the YAML file.
-
-### 2.5.0 Bootstrap Parity Harness (blocking)
-
-- If either `tests/parity_cases.yaml` or `tests/test_parity_matrix.py` is missing, the matrix is incomplete. Stop before running any parity loop.
-- Add a fix_plan item (“Bootstrap parity harness for AT-…”) and create both files before proceeding:
-  - `tests/test_parity_matrix.py`: parameterised pytest harness that runs the C reference (`NB_C_BIN`) and the PyTorch CLI (`sys.executable -m nanobrag_torch`), writes temporary floatfiles, loads them into NumPy, computes correlation/MSE/RMSE/max |Δ|/sum ratio (optional SSIM), saves `metrics.json` (plus diff artifacts) on failure, and enforces thresholds specified in the YAML.
-  - `tests/parity_cases.yaml`: a top-level `cases:` list with entries containing `id`, `description`, `base_args`, `thresholds`, optional `options`, and `runs` (array of `{name, extra_args, thresholds?}`). Include seeds and device settings when determinism demands it.
-- After the bootstrap, rerun Step 0 so the matrix and YAML stay in sync. Parity work MUST NOT continue until both files exist and the target AT has an entry.
-
-### 2.5.1 Trace Recipe (per AT)
 
 For equivalence debugging (AT‑PARALLEL failures, correlation below thresholds, structured diffs), generate aligned traces:
 
 - Pixel selection: choose a strong on‑peak pixel close to the beam center or a specified coordinate in the test; record the exact `(s,f)` indices used.
 - PyTorch trace: emit a structured log containing, at minimum, `pix0_vector`, basis vectors, `R` (distance), solid angle (both point‑pixel and obliquity‑corrected), close_distance and obliquity factor, `k_in`, `k_out`, `S`, Miller indices (float and rounded), `F`, lattice factors (`F_latt_a/b/c`, product), `F^2`, `F_latt^2`, `omega/solid_angle`, pixel area, fluence and final intensity.
-- C trace: run the C binary with identical parameters and print the same variables for the same pixel. If needed, add temporary printf instrumentation; keep units consistent with the PyTorch trace (meters, steradians, Å where noted).
+- Golden trace: reuse the stored golden trace for the same pixel (or regenerate via the trace harness) and ensure units match the PyTorch log (meters, steradians, Å where noted).
 - Dtype/device: debug in float64 on CPU for determinism unless the AT explicitly requires GPU.
-- Artifacts: save as `reports/debug/<DATE>/AT-<ID>/{c_trace.log, py_trace.log, metrics.json, diff_heatmap.png}` and cite paths in the plan.
+- Artifacts: save as `reports/debug/<DATE>/AT-<ID>/{golden_trace.log, py_trace.log, metrics.json, diff_heatmap.png}` and cite paths in the plan.
 
 ### 2.5.2 Matrix Gate (hard preflight)
 
 Before any parity run in a debugging loop:
 
 - Resolve the AT in this matrix to the exact pytest node(s) and required environment.
-- Verify `NB_C_BIN` exists and is executable; if the project uses a root‑level `./nanoBragg`, set `NB_C_BIN=./nanoBragg`.
-- Prohibition: Do not run PyTorch‑only tests first for equivalence loops. The first command MUST be the canonical C‑parity pytest invocation mapped here. PyTorch‑only checks are allowed only as secondary, supportive diagnostics.
+- Ensure the corresponding golden artifacts (images, traces, metadata) are present; regenerate them before running tests if they are stale.
+- Run the canonical pytest command first. Supplemental diagnostics (e.g., targeted unit tests) may follow but cannot substitute for the mapped selector.
 - If an AT mapping is missing or incomplete, add a minimal entry here (test file, env, canonical command) and append a TODO in `docs/fix_plan.md` referencing the addition.
- - Friction rule: If the same parity steps (env export, pytest node, trace generation) are repeated across two loops, factor them into a minimal helper (e.g., a one‑liner shell alias or small script) and reference it in this matrix. Record the addition briefly in `docs/fix_plan.md` Attempts History. Do not bypass pytest; helpers should only wrap the mapped canonical commands.
+ - Friction rule: If the same preparation steps (env export, pytest node, trace generation) are repeated across two loops, factor them into a minimal helper (e.g., a one‑liner shell alias or small script) and reference it in this matrix. Record the addition briefly in `docs/fix_plan.md` Attempts History. Do not bypass pytest; helpers should only wrap the mapped canonical commands.
 
 ### 2.5.3 Normative Parity Coverage (SHALL)
 
-- Every acceptance test in `docs/spec-db-conformance.md` with a C↔Py numerical threshold MUST have:
+- Every acceptance test in `docs/spec-db-conformance.md` with a numerical tolerance MUST have:
   - A human-readable entry in this matrix (test path, environment, canonical command), and
   - A corresponding machine-readable case in `tests/parity_cases.yaml` powering `tests/test_parity_matrix.py`.
 - Missing coverage in either location is blocking. The fix plan cannot mark the AT done until the mapping exists or an explicit harness entry (with pass/fail logic) is added.
@@ -307,7 +147,7 @@ Before any parity run in a debugging loop:
 - BOTH-type ATs (010, 016) should appear in parity_cases.yaml to suppress warnings; their standalone tests add extra validation
 
 **Decision Flowchart:**
-1. Does the AT have a C↔Py correlation threshold? → If NO, skip (not a parity test)
+1. Does the AT have a golden-data correlation threshold? → If NO, skip (not a parity test)
 2. Does validation require custom Python logic (algorithms, FFT, file I/O, special checks)? → If YES:
    - Can basic image generation use parameter sweeps? → If YES, use BOTH (YAML + standalone); if NO, standalone only
 3. Is it a pure parameter sweep with standard metrics? → YES, use parity_cases.yaml only
@@ -322,9 +162,10 @@ Before any parity run in a debugging loop:
 
 ### 2.5.5 Environment Canonicalization Preflight (SHALL)
 
-- Resolve `NB_C_BIN` before running parity commands. Preferred order: environment value → `./golden_suite_generator/nanoBragg` → `./nanoBragg`. Abort if none exist.
+- Confirm that required environment variables from `docs/TESTING_GUIDE.md` are exported (e.g., `KMP_DUPLICATE_LIB_OK=TRUE`, determinism guards).
+- Ensure the golden dataset path (`nanoBragg2/tests/golden_data/`) is accessible and up to date before executing parity tests.
 - Invoke PyTorch parity via `sys.executable` to ensure the active virtual environment executes the run.
-- Treat missing binaries/interpreters as blocking errors (fail fast rather than skipping parity).
+- Treat missing artifacts or misconfigured environments as blocking errors (fail fast rather than skipping parity).
 
 ### 2.5.6 CI Meta-Check (Docs-as-Data)
 
@@ -338,13 +179,12 @@ Before any parity run in a debugging loop:
 
 To prevent drift, CI should enforce the following fast gates on CPU:
 
-- Detector geometry visual parity: run `scripts/verify_detector_geometry.py` and fail if any reported correlation drops below the documented thresholds (e.g., ≥0.999 for baseline/tilted unless otherwise specified). Save PNG and metrics JSON as artifacts.
-- Trace parity check: generate one C trace and one PyTorch trace for the canonical pixel (`tests/golden_data/simple_cubic_pixel_trace.log` spec) and assert no first‑difference at the named checkpoints (e.g., pix0_vector, basis vectors, q, h,k,l, omega_pixel). Attach c_trace.log/py_trace.log on failure.
+- Detector geometry visual parity: run `scripts/verify_detector_geometry.py` and fail if any reported correlation against the golden dataset drops below the documented thresholds (e.g., ≥0.999 for baseline/tilted unless otherwise specified). Save PNG and metrics JSON as artifacts.
+- Trace parity check: generate one golden trace and one PyTorch trace for the canonical pixel (`tests/golden_data/simple_cubic_pixel_trace.log` spec) and assert no first‑difference at the named checkpoints (e.g., pix0_vector, basis vectors, q, h,k,l, omega_pixel). Attach golden_trace.log/py_trace.log on failure.
 
 Optional visual parity harness (sanity check):
 
 - Script: `scripts/comparison/run_parallel_visual.py`
-- Env: `NB_C_BIN` should point to C binary
 - Run: `python scripts/comparison/run_parallel_visual.py`
 - Output: PNGs and `metrics.json` under `parallel_test_visuals/AT-PARALLEL-XXX/`
 

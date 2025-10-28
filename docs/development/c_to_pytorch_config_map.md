@@ -2,7 +2,7 @@
 
 ## Critical Importance Notice
 
-**This document is the authoritative source of truth for configuration parity between nanoBragg.c and the PyTorch implementation.**
+**This document is the authoritative source of truth for configuration parity between the legacy nanoBragg CLI and the PyTorch implementation.**
 
 Before writing any test or implementation that involves C-code validation, you **MUST** consult this document. Failure to ensure 1:1 configuration parity is the most common source of bugs, particularly with:
 - Implicit pivot mode logic
@@ -126,7 +126,7 @@ config = DetectorConfig(
 
 ## References
 
-- Source: `nanoBragg.c` lines 506-1850 (configuration parsing and setup)
+- Source: legacy nanoBragg CLI configuration parsing (maintained under `nanoBragg2/golden_suite_generator/`)
 - Parameter Dictionary: [`docs/config_crosswalk.md`](../config_crosswalk.md)
 - PyTorch Config: [`src/nanobrag_torch/config.py`](../../src/nanobrag_torch/config.py)
 - Detector Architecture: [`docs/architecture/detector.md`](../architecture/detector.md)

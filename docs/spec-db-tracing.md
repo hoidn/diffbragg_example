@@ -13,8 +13,8 @@ Tracing Requirements (Normative)
 - Enabling trace MAY increase runtime; use sparingly (single pixel).
 
 Parity Workflow (Normative)
-1) Generate a C reference trace (if applicable) or a torch golden reference for the panel/pixel under test.
-2) Generate a PyTorch trace for the same pixel with identical inputs.
+1) Generate a torch golden reference trace for the panel/pixel under test (e.g., from a prior validated run).
+2) Generate a PyTorch trace for the current build with identical inputs.
 3) Validate inputs first (units, vectors, A* columns, detector basis), then compare stepwise outputs to locate first divergence.
 4) Only after root cause resolution, update conformance tests and re‑run the full suite.
 

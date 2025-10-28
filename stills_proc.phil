@@ -1,0 +1,12 @@
+indexing  {
+  stills {
+    refine_all_candidates = False
+    candidate_outlier_rejection = False
+    rmsd_min_px = 6
+    ewald_proximal_volume_max = 0.075
+    reflection_subsampling.enable=True
+  }
+  known_symmetry.unit_cell="27.4135 32.1224 34.4965 88.6586 71.5464 68.1047"
+  known_symmetry.space_group=P1
+}
+

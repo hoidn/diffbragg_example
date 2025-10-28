@@ -23,7 +23,7 @@
 - Working Plan: plans/active/TORCH-BRIDGE-001/implementation.md
 - Attempts History:
   * 2025-10-28T205500Z — Loop planning kickoff for Phase A scaffolding. Metrics: pending. Artifacts: pending.
-  * 2025-10-28T222910Z — Supervisor planning pass to scope Phase A tests + helper implementation; validated outstanding bridge gaps. Metrics: pending. Artifacts: plans/active/TORCH-BRIDGE-001/reports/2025-10-28T222910Z/
+  * 2025-10-28T222910Z — Supervisor planning pass to scope Phase A tests + helper implementation; validated outstanding bridge gaps. Metrics: pending. Artifacts: {lys_nitr_10_6_0001.cbf, lys_nitr_10_6_0002.cbf, lys_nitr_10_6_0003.cbf, refGeom.expt, scaled.mtz, stills_proc.phil}
 
 ### [TORCH-RUNTIME-002] Author torch runtime checklist + testing harness seed
 - Depends on: TORCH-BRIDGE-001

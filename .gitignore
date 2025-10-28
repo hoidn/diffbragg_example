@@ -38,3 +38,6 @@ simforge/
 simforge
 dbex/__pycache__/
 dbex.egg-info/
+# Ignore root-level scratch artifacts prefixed with underscore (e.g., _geom_ref.expt, _temp.mtz)
+/_*
+sp.proc/

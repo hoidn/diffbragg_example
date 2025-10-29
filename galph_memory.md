@@ -162,3 +162,13 @@ Notes
 - <Action State>: [planning]
 
 2025-10-29T015235Z focus=PARITY-HARNESS-002 state=planning dwell=1 artifacts=plans/active/PARITY-HARNESS-002/reports/2025-10-29T015235Z/ next_action=execute_B1-B3_metrics_harness
+## 2025-10-29T020937Z — PARITY-HARNESS-002 Phase D planning
+- Focus: PARITY-HARNESS-002 — Implement DB-AT parity harness tests
+- Action Type: planning
+- Key Observations: Implementation plan Phases A-C remain synthetic-only; DB_AT_001 parity smoke still injects Gaussian noise instead of comparing DiffBragg vs torch outputs; no first-divergence capture exists despite spec-db-tracing.md:10-19 requirements; docs/TESTING_GUIDE.md:84 and docs/development/TEST_SUITE_INDEX.md:14 already list selector as Active but lack references to trace artifacts; confirmed docs/index.md and docs/prompt_sources_map.json remain in sync with available sources.
+- Artifact Path: plans/active/PARITY-HARNESS-002/reports/2025-10-29T020937Z/
+- Next Actions: Execute implementation.md D1 first-divergence instrumentation, then update ledger/docs per plan.
+- Reality Check: Verified tests/dbex/test_db_at_001_parity.py still seeds synthetic noise → thresholds unmet (xfail) so exit criterion 3 not fully satisfied; confirmed golden dataset + manifest intact under tests/fixtures/golden_data/simple_cubic/; rescoped loop to add ROI scanning + trace artifacts before considering simulator swaps.
+- <Action State>: [planning]
+
+2025-10-29T020937Z focus=PARITY-HARNESS-002 state=planning dwell=2 artifacts=plans/active/PARITY-HARNESS-002/reports/2025-10-29T020937Z/ next_action=execute_D1_first_divergence

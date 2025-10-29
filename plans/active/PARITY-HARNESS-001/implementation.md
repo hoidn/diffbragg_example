@@ -23,12 +23,35 @@
 
 ## Phase A — Evidence Audit
 ### Checklist
-- [ ] A1: Catalog current parity guidance across `docs/spec-db-conformance.md`, `docs/development/testing_strategy.md`, and `docs/TESTING_GUIDE.md`; note gaps vs exit criteria.
-- [ ] A2: Inspect prior parity-related artifacts (`plans/active/TORCH-BRIDGE-001/`, `plans/active/TORCH-CLI-003/`) for reusable metrics or lessons to anchor the harness spec.
-- [ ] A3: Define artifact strategy (`reports/<timestamp>/`) for parity harness documentation (log commands, summary.md blueprint).
+- [x] A1: Catalog current parity guidance across `docs/spec-db-conformance.md`, `docs/development/testing_strategy.md`, and `docs/TESTING_GUIDE.md`; note gaps vs exit criteria.
+- [x] A2: Inspect prior parity-related artifacts (`plans/active/TORCH-BRIDGE-001/`, `plans/active/TORCH-CLI-003/`) for reusable metrics or lessons to anchor the harness spec.
+- [x] A3: Define artifact strategy (`reports/<timestamp>/`) for parity harness documentation (log commands, summary.md blueprint).
+
+### Status
+**Phase A Complete** (2025-10-29T000004Z)
+
+### Deliverables
+- **Audit Notes**: `plans/active/PARITY-HARNESS-001/reports/2025-10-29T000004Z/audit_notes.md`
+  - Gap analysis for DB-AT-001/002 across conformance spec, testing strategy, testing guide, and test suite index
+  - Identified 6 gaps per test (12 cross-cutting gaps total)
+  - Documented strengths (comprehensive testing philosophy, well-documented environment flags)
+  - Mapped findings to exit criteria alignment
+- **Doc Refs Summary**: `plans/active/PARITY-HARNESS-001/reports/2025-10-29T000004Z/doc_refs.json`
+  - Extracted reusable metrics from TORCH-BRIDGE-001 (masked_mse, shape validation, mask coverage)
+  - Extracted test execution patterns from TORCH-CLI-003 (runtime metadata, pass/fail structure)
+  - Proposed standardized metrics.json schema (required: correlation, mse, rmse, max_abs_diff, sum_ratio, etc.)
+  - Proposed trace log structure per spec-db-tracing.md requirements
+  - Proposed parity/ subdirectory convention
+  - Environment flags summary consolidated from TESTING_GUIDE and testing_strategy
+  - Identified 5 gaps requiring new tooling (correlation computation, trace capture, diff heatmap generation, golden data loader, metrics writer)
+  - Documented 6 recommendations for Phase B harness blueprint
+- **Test Collection Logs**:
+  - `pytest_collect_DB_AT_001.log` — 0 tests collected (expected, selector planned)
+  - `pytest_collect_DB_AT_002.log` — 0 tests collected (expected, selector planned)
 
 ### Notes & Risks
 - Golden datasets (`nanoBragg2/tests/golden_data/`) may be missing locally; document mitigations if unavailable.
+- **Mitigation (A3)**: Artifact strategy documented in doc_refs.json includes fallback to DBEX-local golden mirror if nanoBragg2 path inaccessible.
 
 ## Phase B — Harness Blueprint
 ### Checklist

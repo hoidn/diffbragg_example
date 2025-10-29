@@ -55,12 +55,38 @@
 
 ## Phase B — Harness Blueprint
 ### Checklist
-- [ ] B1: Draft `docs/parity_harness_spec.md` (or equivalent) detailing inputs, commands, and evaluation metrics for DB-AT-001/002, citing spec shards.
-- [ ] B2: Encode phased harness rollout tasks in this implementation plan (update checklist statuses, add sub-items if needed).
-- [ ] B3: Prepare metrics/trace capture template (e.g., `metrics.json` schema) and reference it within the harness spec.
+- [x] B1: Draft `docs/parity_harness_spec.md` (or equivalent) detailing inputs, commands, and evaluation metrics for DB-AT-001/002, citing spec shards.
+  - Completed: `docs/parity_harness_spec.md` authored with 8 sections covering DB-AT-001 (§2) and DB-AT-002 (§3)
+  - Includes: Golden data requirements, configuration parity, environment flags, metrics computation, trace capture workflow, artifact layout, pass/fail criteria
+  - Citations: spec-db-conformance.md, testing_strategy.md, spec-db-tracing.md, TESTING_GUIDE.md, c_to_pytorch_config_map.md
+- [x] B2: Encode phased harness rollout tasks in this implementation plan (update checklist statuses, add sub-items if needed).
+  - Completed: Phase B checklist updated with deliverables and artifact references
+  - Next: Phase C cross-doc sync tasks remain (C1-C3)
+- [x] B3: Prepare metrics/trace capture template (e.g., `metrics.json` schema) and reference it within the harness spec.
+  - Completed: Metrics JSON schema defined in `docs/parity_harness_spec.md` §4.3 with required and optional fields
+  - Completed: Trace naming convention and content requirements in §2.6
+  - Completed: Artifact directory structure in §4.1
+  - Completed: Python helper function `compute_parity_metrics()` in §2.5 (reference implementation)
+
+### Status
+**Phase B Complete** (2025-10-29T001027Z)
+
+### Deliverables
+- **Parity Harness Spec**: `docs/parity_harness_spec.md`
+  - 8 normative sections defining DB-AT-001/002 harness requirements
+  - Metrics JSON schema (§4.3) with required core metrics (correlation, MSE, RMSE, max_abs_diff, sum_ratio) and optional extended metrics
+  - Trace capture workflow (§2.6) with 20+ required trace checkpoints per testing_strategy.md §117
+  - Artifact layout (§4.1) with parity/ and determinism/ subdirectories
+  - Environment configuration (§2.4, §3.2) synchronized with TESTING_GUIDE.md §1
+  - Pass/fail criteria (§2.8, §3.7) aligned with spec-db-conformance.md thresholds
+  - Tooling gaps documented (§6.1) for Phase C implementation
+  - Cross-document synchronization checklist (§5.2)
+- **Implementation Plan Update**: This file, Phase B section updated with completion status
 
 ### Notes & Risks
-- Ensure diagnostics align with tracing requirements (`docs/spec-db-tracing.md:15-60`) to avoid divergent workflows.
+- Ensure diagnostics align with tracing requirements (`docs/spec-db-tracing.md:15-60`) to avoid divergent workflows. ✓ Addressed in parity_harness_spec.md §2.6
+- Golden data accessibility unverified; mitigation options documented in §6.2 (verify path, create DBEX-local mirror, or document generation procedure)
+- Helper utilities (correlation computation, trace capture, diff heatmap, golden loader, metrics writer) identified as Phase C sub-tasks (§6.1)
 
 ## Phase C — Cross-Doc Sync
 ### Checklist

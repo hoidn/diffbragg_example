@@ -131,7 +131,7 @@ def run_diffbragg(data_load, devId=0, num_macro=5):
         Ncells_def=(mdl_parm['Nd'], mdl_parm['Ne'], mdl_parm['Nf']),
         beamsize_mm=SIM_fhkl.D.beamsize_mm, device_Id=devId,
         spot_scale_override=mdl_parm['scale'],
-        cuda=True,
+        cuda=(devId >= 0),
         num_phi_steps=SIM_fhkl.D.phisteps, delta_phi=SIM_fhkl.D.phistep_deg,
         spindle_axis=SIM_fhkl.D.spindle_axis, no_Nabc_scale=True
     )

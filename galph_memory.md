@@ -419,3 +419,12 @@ Notes
 - Reality Check: Validated canonical payloads missing locally and manifest paths stale, so scope remains scaling + local regeneration before tightening parity thresholds.
 - <Action State>: [ready_for_implementation]
 2025-10-29T193557Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=16 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T193557Z/ next_action=instrument_scale_regenerate_and_run_db_at_001
+## 2025-10-29T194739Z — NANOBRAG-GOLDEN-001 canonical capture guard plan
+- Focus: NANOBRAG-GOLDEN-001 — Replace fallback DB-AT-001 golden dataset
+- Action Type: planning
+- Key Observations: `tests/fixtures/golden_data/simple_cubic/` currently contains only manifest/metadata (no `.npy` tensors); manifest command still references `/home/ollie/Documents/diffbragg_example_2/...`; `plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T193557Z/golden_dataset/` lacks tensor payloads entirely. Doc index (`docs/index.md`) and prompt map confirm no new sources; findings (MANIFEST-001, SCALE-001/002) remain active.
+- Artifact Path: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T194739Z/
+- Next Actions: Add repo-root guards in `generate_simple_cubic_golden.py`, rerun canonical capture into this checkout with manifest + fixtures, list/sha tensors, rerun DB_AT_001 parity smoke, and update ledger attempts/history.
+- Reality Check: Validated canonical tensors absent locally and manifest points to foreign checkout, so loop is rescoped to local regeneration safeguards before further parity tightening.
+- <Action State>: [ready_for_implementation]
+2025-10-29T194739Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=17 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T194739Z/ next_action=guard_paths_regenerate_and_run_db_at_001

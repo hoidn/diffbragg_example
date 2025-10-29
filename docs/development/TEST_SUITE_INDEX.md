@@ -14,8 +14,8 @@ Footnote: DB_AT acceptance remains the canonical parity profile; until marks/sel
 
 | Module / Area | Selector | Status | Spec Reference | Notes |
 | --- | --- | --- | --- | --- |
-| Torch parity | `pytest -v tests -k DB_AT_001` | planned | `docs/spec-db-conformance.md:24` | Uses golden data under `nanoBragg2/tests/golden_data`; validates simple cubic correlation ≥0.99. |
-| Determinism | `pytest -v tests -k DB_AT_002` | planned | `docs/development/testing_strategy.md:2.7` | Requires fixtures that lock RNG seeds and check bitwise/tolerance equality. Environment: CPU-only, CUDA_VISIBLE_DEVICES=''. |
+| Torch parity | `KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests -k DB_AT_001` | planned | `docs/parity_harness_spec.md:17`, `docs/spec-db-conformance.md:24` | Harness: §2 of parity_harness_spec. Golden data: `nanoBragg2/tests/golden_data/simple_cubic/` or DBEX-local mirror. Metrics: correlation ≥0.99, MSE, RMSE, max\|Δ\|, sum_ratio. Artifacts: parity/ subdirectory with metrics.json, golden/py traces, diff heatmaps. Trace workflow: `docs/spec-db-tracing.md:10-26`. |
+| Determinism | `CUDA_VISIBLE_DEVICES='' TORCHDYNAMO_DISABLE=1 NANOBRAGG_DISABLE_COMPILE=1 KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests -k DB_AT_002` | planned | `docs/parity_harness_spec.md:252`, `docs/development/testing_strategy.md:2.7` | Harness: §3 of parity_harness_spec. CPU-only (CUDA_VISIBLE_DEVICES=''), torch.compile disabled. Same-seed: bitwise_equal=True, correlation ≥0.9999999, max_abs_diff ≤1e-10. Diff-seed: bitwise_equal=False, correlation ≤0.7, ≥50% pixels differ. Artifacts: determinism/ subdirectory with metrics_same_seed.json, metrics_diff_seed.json, env.json. |
 | Reflection ingestion | `pytest -v tests -k DB_AT_020` | planned | `docs/spec-db-conformance.md:30` | Exercises bbox exclusivity and panel ordering via DIALS samples. Blocks CLI parity work. |
 | Mask semantics | `pytest -v tests -k DB_AT_021` | planned | `docs/spec-db-core.md:51` | Confirms trusted mask polarity (True=include) and simulator masking rules. |
 | Background semantics | `pytest -v tests -k DB_AT_022` | planned | `docs/spec-db-conformance.md:38` | Validates −1 sentinel handling around ROIs. |

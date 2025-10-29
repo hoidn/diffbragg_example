@@ -7,6 +7,7 @@
     "docs/spec-db-interfaces.md",
     "docs/spec-db-conformance.md",
     "docs/spec-db-tracing.md",
+    "docs/parity_harness_spec.md",
     "docs/spec_authoring_guide.md",
     "docs/config_crosswalk.md",
     "docs/dials_api.md",

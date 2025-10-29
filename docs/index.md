@@ -133,13 +133,18 @@ Use this when: Executing integration work or reviewing scope/timeline.
 ## Testing & Validation
 
 ### [Testing Guide](TESTING_GUIDE.md)
-Description: Canonical environment flags, smoke/acceptance selectors, and artifact policy for pytest runs.  
-Keywords: testing, pytest, selectors  
+Description: Canonical environment flags, smoke/acceptance selectors, and artifact policy for pytest runs.
+Keywords: testing, pytest, selectors
 Use this when: Running or authoring tests for parity, ingestion, or runtime guardrails.
 
+### [Parity Harness Specification](parity_harness_spec.md)
+Description: Normative requirements for DB-AT-001 (simple cubic parity) and DB-AT-002 (determinism) test harnesses, including golden data, metrics computation, trace capture workflow, and artifact layouts.
+Keywords: parity, harness, DB-AT-001, DB-AT-002, golden-data, metrics, traces
+Use this when: Implementing or running parity tests, authoring test fixtures with standardized metrics, or debugging first-divergence issues via trace comparison.
+
 ### [Test Suite Index](development/TEST_SUITE_INDEX.md)
-Description: Status table for DB-AT selectors and runtime regression tests.  
-Keywords: test-index, parity, runtime  
+Description: Status table for DB-AT selectors and runtime regression tests.
+Keywords: test-index, parity, runtime
 Use this when: Checking which selectors exist and which remain to be authored.
 
 ## PyTorch Development

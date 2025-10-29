@@ -90,14 +90,49 @@
 
 ## Phase C — Cross-Doc Sync
 ### Checklist
+<<<<<<< HEAD
 - [ ] C1: Update `docs/TESTING_GUIDE.md` §2 and `docs/development/TEST_SUITE_INDEX.md` entries for DB-AT-001/002 with finalized harness details and selectors.
 - [ ] C2: Add harness references to `docs/index.md` and `docs/prompt_sources_map.json`; confirm prompt discoverability.
 - [ ] C3: Capture final evidence report (`summary.md`, `doc_diffs.log`) under `plans/active/PARITY-HARNESS-001/reports/<timestamp>/` and update `docs/fix_plan.md` Attempts History with Metrics/Artifacts lines.
  - [ ] C4: Selector compliance check: run `pytest --collect-only` for `-k DB_AT_001` and `-k DB_AT_002` and save logs under the report path; ensure status semantics (Active vs Planned) remain consistent across docs.
+=======
+- [x] C1: Update `docs/TESTING_GUIDE.md` §2 and `docs/development/TEST_SUITE_INDEX.md` entries for DB-AT-001/002 with finalized harness details and selectors.
+- [x] C2: Add harness references to `docs/index.md` and `docs/prompt_sources_map.json`; confirm prompt discoverability.
+- [x] C3: Capture final evidence report (`summary.md`, `doc_diffs.log`) under `plans/active/PARITY-HARNESS-001/reports/<timestamp>/` and update `docs/fix_plan.md` Attempts History with Metrics/Artifacts lines.
+
+### Status
+**Phase C Complete** (2025-10-29T002248Z)
+
+### Deliverables
+- **TESTING_GUIDE.md Update**: docs/TESTING_GUIDE.md §2 rows 61-62 updated with complete harness metadata for DB_AT_001/002
+  - DB_AT_001: Added KMP_DUPLICATE_LIB_OK=TRUE to selector, harness spec reference (§2), golden data paths, metrics requirements (correlation ≥0.99, MSE, RMSE, max|Δ|, sum_ratio), artifact paths (parity/ subdirectory), trace workflow reference (spec-db-tracing.md:10-26)
+  - DB_AT_002: Added all four required environment flags (CUDA_VISIBLE_DEVICES='', TORCHDYNAMO_DISABLE=1, NANOBRAGG_DISABLE_COMPILE=1, KMP_DUPLICATE_LIB_OK=TRUE), harness spec reference (§3), environment constraints (CPU-only, torch.compile disabled), same-seed and diff-seed metrics thresholds, artifact paths (determinism/ subdirectory)
+- **TEST_SUITE_INDEX.md Update**: docs/development/TEST_SUITE_INDEX.md rows 17-18 synchronized with TESTING_GUIDE entries
+  - Added dual spec references for both selectors (parity_harness_spec.md as primary, spec-db-conformance.md/testing_strategy.md as context)
+  - Maintained perfect synchronization with TESTING_GUIDE.md table structure
+- **index.md Update**: docs/index.md Testing & Validation section enhanced
+  - New entry for parity_harness_spec.md inserted between Testing Guide and Test Suite Index
+  - Keywords: parity, harness, DB-AT-001, DB-AT-002, golden-data, metrics, traces
+  - Usage guidance: "Use this when: Implementing or running parity tests, authoring test fixtures with standardized metrics, or debugging first-divergence issues via trace comparison."
+- **prompt_sources_map.json Update**: docs/prompt_sources_map.json specs array enhanced
+  - Added docs/parity_harness_spec.md to specs array (position: after spec-db-tracing.md, before spec_authoring_guide.md)
+  - JSON validation passed (python -m json.tool)
+- **Selector Compliance Logs**:
+  - collect_DB_AT_001.log — 0 tests collected (expected, status=Planned)
+  - collect_DB_AT_002.log — 0 tests collected (expected, status=Planned)
+- **Documentation Artifacts**:
+  - doc_diffs.log — git diff of all four updated documentation files
+  - summary.md — Comprehensive Phase C summary with synchronization verification checklist
+>>>>>>> 391b1bc (RALPH AUTO: reports evidence — tests: not run)
 
 ### Notes & Risks
-- Keep documentation updates synchronized to avoid conflicting instructions across prompts.
+- Documentation updates synchronized successfully across all four files.
+- Synchronization verification checklist from parity_harness_spec.md §5.2 completed (all 6 items checked).
+- No conflicts detected; documentation now fully consistent.
 
 ## Artifacts Index
 - Reports root: `plans/active/PARITY-HARNESS-001/reports/`
-- Latest run: Pending (`<YYYY-MM-DDTHHMMSSZ>/`)
+- Phase A: `2025-10-29T000004Z/` (evidence audit)
+- Phase B: `2025-10-29T001027Z/` (harness blueprint)
+- Phase C: `2025-10-29T002248Z/` (cross-doc sync)
+- Latest run: `2025-10-29T002248Z/`

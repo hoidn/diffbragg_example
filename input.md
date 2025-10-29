@@ -1,39 +1,38 @@
-Summary: Move PARITY-HARNESS-001 into Phase C by syncing parity harness guidance across testing docs and prompt sources.
-Mode: Docs
-Focus: PARITY-HARNESS-001 — Author DB-AT parity harness specs
+Summary: Capture CLI backend test evidence and sync ledgers/docs so TORCH-CLI-003 can close cleanly.
+Mode: TDD
+Focus: TORCH-CLI-003 — Wire torch backend flag into CLI
 Branch: integration
-Mapped tests: KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q -k DB_AT_001; KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q -k DB_AT_002
-Artifacts: plans/active/PARITY-HARNESS-001/reports/2025-10-29T002248Z/
+Mapped tests: KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_refine_one_cli.py
+Artifacts: plans/active/TORCH-CLI-003/reports/2025-10-29T003751Z/
 Do Now:
-1. PARITY-HARNESS-001 C1 — Update docs/TESTING_GUIDE.md §2 and docs/development/TEST_SUITE_INDEX.md parity rows with harness metrics, env flags, and artifact requirements (plans/active/PARITY-HARNESS-001/implementation.md §Phase C) — tests: KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q -k DB_AT_001
-2. PARITY-HARNESS-001 C2 — Add docs/parity_harness_spec.md to docs/index.md and docs/prompt_sources_map.json so prompts surface the harness blueprint (plans/active/PARITY-HARNESS-001/implementation.md §Phase C) — tests: KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q -k DB_AT_002
-3. PARITY-HARNESS-001 C3 — Capture doc diff summary + pytest collect logs under the new report path and append Metrics/Artifacts lines in docs/fix_plan.md Attempts History (plans/active/PARITY-HARNESS-001/implementation.md §Phase C) — tests: none — evidence-only
+1. TORCH-CLI-003 (plans/active/TORCH-CLI-003/implementation.md — C1): mkdir -p plans/active/TORCH-CLI-003/reports/2025-10-29T003751Z/, run KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_refine_one_cli.py | tee plans/active/TORCH-CLI-003/reports/2025-10-29T003751Z/pytest_cli.log, confirm all six tests pass, then update Phase A/B checkboxes once evidence captured.
+2. TORCH-CLI-003 (plans/active/TORCH-CLI-003/implementation.md — C2): Update docs/TESTING_GUIDE.md §2 and docs/development/TEST_SUITE_INDEX.md with the CLI selector + environment flags, run KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q tests/dbex/test_refine_one_cli.py | tee plans/active/TORCH-CLI-003/reports/2025-10-29T003751Z/collect_cli.log, and reference the log in both docs.
+3. TORCH-CLI-003 (plans/active/TORCH-CLI-003/implementation.md — C3): Refresh docs/fix_plan.md Attempts History with Metrics:/Artifacts: for this loop, update docs/spec-db-interfaces.md status note to reflect implemented --backend flag, and capture git diff --stat > plans/active/TORCH-CLI-003/reports/2025-10-29T003751Z/doc_diff.log (tests: none).
 Priorities & Rationale:
-- docs/parity_harness_spec.md:7 anchors the normative harness requirements we must propagate into downstream guidance.
-- docs/TESTING_GUIDE.md:61 still lists DB_AT_001/002 as planned without harness details; Phase C requires synchronizing these entries.
-- docs/development/TEST_SUITE_INDEX.md:17 mirrors the taxonomy and must advertise the same parity metadata to stay authoritative.
-- docs/index.md:137 currently omits the new harness spec, so readers cannot discover the blueprint without this update.
-- docs/spec-db-tracing.md:10 enforces the trace-first workflow that needs to be reflected in the updated documentation.
+- docs/fix_plan.md:49-58 keeps TORCH-CLI-003 in-progress until torch CLI smoke + docs/tests are validated; closing requires fresh evidence.
+- docs/spec-db-interfaces.md:6-12 still claims --backend is unimplemented, so we must update the normative status to match reality.
+- docs/TESTING_GUIDE.md:56-80 and docs/development/TEST_SUITE_INDEX.md:7-24 lack the new CLI selector; syncing them keeps registry accuracy per exit criteria.
+- docs/pytorch_runtime_checklist.md:39-45 mandates exporting KMP_DUPLICATE_LIB_OK=TRUE for torch flows; plan enforces this in commands and documentation.
+- plans/active/TORCH-CLI-003/implementation.md Phase C (C1-C3) provides the checklist we must execute before marking the initiative done.
 How-To Map:
-- export ART=plans/active/PARITY-HARNESS-001/reports/2025-10-29T002248Z; mkdir -p "$ART"
-- KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q -k DB_AT_001 | tee "$ART/collect_DB_AT_001.log"
-- KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q -k DB_AT_002 | tee "$ART/collect_DB_AT_002.log"
-- python -m json.tool docs/prompt_sources_map.json >/dev/null  # run after edits to validate JSON
-- git diff docs/TESTING_GUIDE.md docs/development/TEST_SUITE_INDEX.md docs/index.md docs/prompt_sources_map.json > "$ART/doc_diffs.log"
-- printf "Phase C doc sync summary\n" > "$ART/summary.md"  # expand with key updates before handoff
+- export KMP_DUPLICATE_LIB_OK=TRUE before any pytest command.
+- ART=plans/active/TORCH-CLI-003/reports/2025-10-29T003751Z; mkdir -p "$ART".
+- KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_refine_one_cli.py | tee "$ART/pytest_cli.log".
+- KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q tests/dbex/test_refine_one_cli.py | tee "$ART/collect_cli.log".
+- git diff --stat > "$ART/doc_diff.log" after doc updates.
+- Update docs via apply_patch, keeping ASCII and concise rationale comments only where needed.
 Pitfalls To Avoid:
-- Do not mark DB_AT selectors Active while they still collect 0 tests.
-- Keep docs/TESTING_GUIDE.md and docs/development/TEST_SUITE_INDEX.md tables perfectly synchronized.
-- Preserve all environment guards (`KMP_DUPLICATE_LIB_OK`, `NANOBRAGG_DISABLE_COMPILE`, `CUDA_VISIBLE_DEVICES=''`) when updating guidance.
-- Maintain JSON validity in docs/prompt_sources_map.json (no trailing commas).
-- Reference docs/parity_harness_spec.md with correct relative paths in both index and prompt map.
-- Use the new artifact directory (2025-10-29T002248Z) for every log and summary; avoid mixing with earlier runs.
-- Capture pytest collect logs even though selectors remain planned (0 tests expected).
-- Avoid rewriting unrelated selectors or sections when editing documentation tables.
-If Blocked: Record the issue in plans/active/PARITY-HARNESS-001/reports/2025-10-29T002248Z/blockers.md, set the fix-plan item to `blocked` with rationale, log the block in galph_memory.md, and pivot focus per FSM dwell rules.
+- Forgetting to set KMP_DUPLICATE_LIB_OK=TRUE will cause torch imports to fail the CLI tests.
+- Do not mark CLI selector Active unless collect-only shows >0 tests.
+- Avoid editing external mirrors (dials/, dxtbx/, simtbx/).
+- Keep artifact filenames consistent with the plan path to simplify ledger references.
+- Ensure docs/spec-db-interfaces.md status text matches implemented behavior; no stale caveats.
+- Update both testing docs together to maintain selector parity.
+- Capture pytest exit code in logs; rerun if failures occur before updating ledgers.
+- Keep repo clean (no staged leftovers) before handing off.
+If Blocked: If CLI test fails or dependencies missing, capture the failing log in $ART, describe the failure in docs/fix_plan.md Attempts History with Metrics:/Artifacts: placeholders, and mark the initiative blocked with root cause; alert supervisor before switching focus.
 Findings Applied (Mandatory):
-- CONFORMANCE-001 — Plan keeps DB-AT selectors canonical and uses KMP_DUPLICATE_LIB_OK=TRUE in every command (docs/findings.md:7).
-- RUNTIME-001 — Determinism updates will reiterate NANOBRAGG_DISABLE_COMPILE=1 and related guards for DB-AT-002 (docs/findings.md:6).
+- CONFORMANCE-001 — Plan keeps CLI selector documentation aligned with DB-AT acceptance infrastructure and enforces required KMP flags.
 Doc Sync Plan (Mandatory):
-- DB_AT_001 — KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q -k DB_AT_001 (expected 0; keep Planned) → plans/active/PARITY-HARNESS-001/reports/2025-10-29T002248Z/collect_DB_AT_001.log
-- DB_AT_002 — KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q -k DB_AT_002 (expected 0; keep Planned) → plans/active/PARITY-HARNESS-001/reports/2025-10-29T002248Z/collect_DB_AT_002.log
+- Add `pytest -v tests/dbex/test_refine_one_cli.py` as Active selector in docs/TESTING_GUIDE.md §2 and docs/development/TEST_SUITE_INDEX.md with environment note (`KMP_DUPLICATE_LIB_OK=TRUE`); command: KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q tests/dbex/test_refine_one_cli.py | tee plans/active/TORCH-CLI-003/reports/2025-10-29T003751Z/collect_cli.log.
+- Reference the same artifact path when updating both documents and ensure selector status reflects actual collection count (>0).

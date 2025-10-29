@@ -39,5 +39,16 @@ Status: in_progress
 - Selector compliance: `KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q tests/dbex/test_refine_one_cli.py | tee "$ART/collect_cli.log"`
 - Doc sync: Update `docs/TESTING_GUIDE.md` §2 and `docs/development/TEST_SUITE_INDEX.md` with CLI selector and reference artifact path.
 
+## Phase C — Registry & Ledger Sync
+### Checklist
+- [ ] C1: Capture passing `pytest -v tests/dbex/test_refine_one_cli.py` run (with `KMP_DUPLICATE_LIB_OK=TRUE`), archive log, and update checklist statuses for A0–B2 once evidence confirmed.
+- [ ] C2: Sync `docs/TESTING_GUIDE.md` §2 and `docs/development/TEST_SUITE_INDEX.md` with CLI selector and environment requirements; rerun `--collect-only` and artifact logs.
+- [ ] C3: Update `docs/fix_plan.md` Attempts History with Metrics/Artifacts lines and reference the new report timestamp; ensure CLI smoke command documented in `docs/spec-db-interfaces.md` status note.
+
+### Validation & Artifacts
+- Execution: `KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_refine_one_cli.py | tee "$ART/pytest_cli.log"`
+- Collection: `KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q tests/dbex/test_refine_one_cli.py | tee "$ART/collect_cli.log"`
+- Docs: Record diff summary (`git diff --stat`) and update ledger entries referencing `$ART`.
+
 ## Artifacts Index
 - Reports root: `plans/active/TORCH-CLI-003/reports/`

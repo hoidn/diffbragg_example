@@ -110,3 +110,14 @@ Notes
 - <Action State>: [ready_for_implementation]
 
 2025-10-29T002248Z focus=PARITY-HARNESS-001 state=ready_for_implementation dwell=1 artifacts=plans/active/PARITY-HARNESS-001/reports/2025-10-29T002248Z/ next_action=execute_C1-C3_doc_sync
+
+## 2025-10-29T003751Z — TORCH-CLI-003 Phase C planning
+- Focus: TORCH-CLI-003 — Wire torch backend flag into CLI
+- Action Type: planning
+- Key Observations: `tests/dbex/test_refine_one_cli.py` already exercises the backend flag but no recent pytest artifacts exist; `docs/spec-db-interfaces.md:7-12` still claims `--backend` is unimplemented; CLI selector absent from docs/TESTING_GUIDE.md §2 and docs/development/TEST_SUITE_INDEX.md despite six passing tests; created Phase C checklist (C1-C3) to capture evidence and synchronize docs/ledger.
+- Artifact Path: plans/active/TORCH-CLI-003/reports/2025-10-29T003751Z/
+- Next Actions: Execute C1-C3 to run pytest + collect-only with artifacts, update testing docs & spec status, and refresh fix-plan Metrics/Artifacts lines.
+- Reality Check: Validated exit criteria 1-3 satisfied (backend flag + diagnostics + docs/index update present); exit criterion 4 still open because torch CLI smoke lacks documented evidence/logs; rescope from implementation to evidence/registry alignment.
+- <Action State>: [planning]
+
+2025-10-29T003751Z focus=TORCH-CLI-003 state=planning dwell=1 artifacts=plans/active/TORCH-CLI-003/reports/2025-10-29T003751Z/ next_action=execute_C1-C3

@@ -247,3 +247,13 @@ Notes
 - Next Actions: Execute capture_forward.py (A2+A3), archive metrics/logs, then refresh DB_AT_001 collect-only logs and update fix_plan/docs.
 - Reality Check: Validated dependencies and test selectors are present; rescoped from environment triage to canonical dataset capture with GPU enforcement.
 - <Action State>: [ready_for_implementation]
+## 2025-10-29T070359Z — NANOBRAG-GOLDEN-001 Environment-Freeze block documentation
+- Focus: NANOBRAG-GOLDEN-001 — Replace fallback DB-AT-001 golden dataset
+- Action Type: planning
+- Key Observations: Confirmed `tests/fixtures/golden_data/simple_cubic/manifest.json` still flags `simple_cubic_fallback`; no `golden_dataset/legacy/` or torch outputs were produced in 2025-10-29T063817Z beyond logs; canonical capture log shows `GPUassert: invalid argument diffBraggCUDA.cu:708` halting diffBragg_forward even after successful `dbex.refine_one` ROI export. Existing findings already record DIFFBRAGG-001, so this loop will consolidate evidence and move the initiative to `blocked`.
+- Artifact Path: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T070359Z/
+- Next Actions: Execute the A2/A3 evidence capture notes, refresh DB_AT_001 collect-only logs, and update docs/fix_plan.md with a blocked Attempts History entry.
+- Reality Check: Re-verified canonical dataset still absent and Environment Freeze prevents simtbx patching; rescoped loop to documentation and ledger updates rather than further capture attempts.
+- <Action State>: [planning]
+
+2025-10-29T070359Z focus=NANOBRAG-GOLDEN-001 state=planning dwell=1 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T070359Z/ next_action=prep_A2_A3_block_docs

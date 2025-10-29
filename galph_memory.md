@@ -311,3 +311,12 @@ Notes
 - Next Actions: Apply input.md Do Now—refactor generator into canonical capture with HKL debug, confirm non-zero torch maxima, refresh fixtures/manifest, and rerun DB_AT_001 parity.
 - Reality Check: Verified canonical `.npy` files absent from fixtures and confirmed torch output zero via local simulation; plan scoped to re-run capture with added instrumentation under Environment Freeze constraints.
 - <Action State>: [ready_for_implementation]
+## 2025-10-29T091339Z — NANOBRAG-GOLDEN-001 scale propagation plan
+- Focus: NANOBRAG-GOLDEN-001 — Replace fallback DB-AT-001 golden dataset
+- Action Type: planning
+- Key Observations: DiffBragg baseline from 2025-10-29T084244Z peaks at 3.6e4 while torch stack stays all zeros (torch_max=0.0, sum=0.0); HKL debug shows 69,614 in-range reflections so coverage isn’t the culprit; current repo lacks copied `.npy` tensors, leaving fixtures still on the fallback manifest.
+- Artifact Path: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T091339Z/
+- Next Actions: Instrument generator for raw torch intensity logging, inject DiffBragg global scale before saving torch tensors, rerun capture into 2025-10-29T091339Z/golden_dataset, refresh fixtures/manifest, and rerun DB_AT_001 parity test.
+- Reality Check: Verified canonical tensors absent in repo fixtures and confirmed parity selector remains gated by zero-output torch baseline; rescoped loop to focus on scale propagation instead of additional diagnostics.
+- <Action State>: [planning]
+2025-10-29T091339Z focus=NANOBRAG-GOLDEN-001 state=planning dwell=5 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T091339Z/ next_action=ready_for_implementation

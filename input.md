@@ -1,45 +1,40 @@
-Summary: Chart the canonical DB_AT_001 capture recovery so the torch baseline produces non-zero intensities and the parity harness can switch off the fallback tensors.
+Summary: Restore the canonical DB_AT_001 capture so nanobrag_torch outputs non-zero panels by propagating the DiffBragg scale and verifying parity evidence lands in the current report root.
 Mode: Parity
 Focus: NANOBRAG-GOLDEN-001 — Replace fallback DB-AT-001 golden dataset
 Branch: integration
 Mapped tests: KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py -k DB_AT_001
-Artifacts: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T084244Z/{canonical_capture.log,torch_panel_metrics.json,pytest_db_at_001.log}
+Artifacts: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T091339Z/{planning_notes.md,canonical_capture.log,torch_panel_metrics.json,pytest_db_at_001.log}
 Do Now:
   - NANOBRAG-GOLDEN-001:
-    - Implement: scripts/generate_simple_cubic_golden.py::generate_simple_cubic_golden (A3/B1/B2/C1) — replace the fallback generator with the canonical DiffBragg+nanobrag capture pipeline, add HKL sanity instrumentation, and emit torch/diffbragg tensors plus provenance under the new report root.
+    - Implement: scripts/generate_simple_cubic_golden.py::generate_simple_cubic_golden (A3) — log raw torch intensities, inject the DiffBragg global scale into the torch capture path, and ensure `.npy` tensors land in the 2025-10-29T091339Z/golden_dataset/ tree before copying to fixtures.
     - Validate: KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py -k DB_AT_001
-    - Artifacts: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T084244Z/{canonical_capture.log,torch_panel_metrics.json,pytest_db_at_001.log}
+    - Artifacts: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T091339Z/{canonical_capture.log,torch_panel_metrics.json,pytest_db_at_001.log}
 Priorities & Rationale:
-- docs/spec-db-core.md:20-54 — Canonical capture must honor `[panel, slow, fast]` tensors, square-pixel guards, and mask polarity when writing fixtures.
-- docs/spec-db-conformance.md:23-26 — DB_AT_001 thresholds (correlation ≥0.2, localization ≥0.9) dictate parity assertions once the torch baseline produces real peaks.
-- docs/nanobrag_api.md:22-44 — Detector/beam/crystal config rules shape the torch simulator inputs we emit from the redesigned generator.
-- docs/forward_equivalence.md:46-52 — Capture workflow needs to log metrics/overlays that parity and forward-equivalence selectors consume.
-- docs/config_crosswalk.md:23-72 — Mapping dxtbx geometry to `TorchDetectorConfig`/`TorchCrystalConfig` ensures HKL indices land in-range so torch output is non-zero.
+- docs/spec-db-core.md:20 — Canonical tensors must retain `[panel, slow, fast]` ordering and trusted mask polarity when we rewrite the generator.
+- docs/spec-db-conformance.md:23 — DB_AT_001 parity thresholds (corr ≥0.2, localization ≥0.9) require a physically scaled torch baseline before we switch fixtures.
+- docs/config_crosswalk.md:70 — Torch lacks `no_Nabc_scale`, so DiffBragg’s global scale has to be propagated during capture to avoid zero intensities.
+- docs/forward_equivalence.md:46 — Re-running capture must emit metrics that satisfy forward-equivalence smoke expectations before parity passes.
+- docs/TESTING_GUIDE.md:86 — DB_AT_001 selector remains Active; successful collect + run evidence is mandatory after regenerating tensors.
 How-To Map:
-- `report_root=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T084244Z` ; `mkdir -p "$report_root"/golden_dataset/{legacy,torch,logs}` to stage capture artifacts.
-- Add CLI flags to `scripts/generate_simple_cubic_golden.py` (`--canonical-out`, `--hkldebug`) then run `CUDA_VISIBLE_DEVICES=0 KMP_DUPLICATE_LIB_OK=TRUE python scripts/generate_simple_cubic_golden.py --canonical-out "$report_root"/golden_dataset --hkldebug "$report_root"/torch_hkl_debug.json |& tee "$report_root"/canonical_capture.log`.
-- Within the script, log HKL in-range ratios and peak stats to `$report_root/torch_panel_metrics.json`; inspect with `jq '.torch_peaks' "$report_root"/torch_panel_metrics.json` to confirm non-zero maxima.
-- Copy emitted tensors into fixtures: `cp "$report_root"/golden_dataset/legacy/bragg_diffbragg.npy tests/fixtures/golden_data/simple_cubic/bragg_diffbragg.npy` and analogous commands for torch/target/loss_mask/config JSON.
-- Update `tests/fixtures/parity_loader.py` to load `bragg_diffbragg.npy` / `bragg_torch.npy` dual baselines and adjust checksum validation; refactor `tests/dbex/test_db_at_001_parity.py` to compare torch vs diffbragg without synthetic noise.
-- Recompute manifest/metadata via `python scripts/generate_simple_cubic_golden.py --emit-manifest "$report_root"/golden_dataset --fixtures tests/fixtures/golden_data/simple_cubic` so SHA256 entries match copied tensors.
-- Run parity selector: `KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py -k DB_AT_001 |& tee "$report_root"/pytest_db_at_001.log` and capture metrics for docs.
-- If HKL debug shows out-of-range >5%, adjust crystal orientation (e.g., inject DiffBragg UMAT into `TorchCrystalConfig.misset_deg`) and rerun until peaks appear.
+- `report_root=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T091339Z`; ensure directory exists for new artifacts.
+- `CUDA_VISIBLE_DEVICES=0 KMP_DUPLICATE_LIB_OK=TRUE python scripts/generate_simple_cubic_golden.py --canonical-out "$report_root"/golden_dataset --hkldebug "$report_root"/torch_hkl_debug.json |& tee "$report_root"/canonical_capture.log`
+- Inspect raw simulator stats with `jq '.[] | {panel_id, torch_max, torch_sum}' "$report_root"/golden_dataset/torch/panel_metrics.json` to confirm non-zero panels.
+- Copy regenerated tensors into fixtures once non-zero: `cp "$report_root"/golden_dataset/torch/bragg_torch.npy tests/fixtures/golden_data/simple_cubic/bragg_torch.npy` (repeat for diffbragg, target, loss_mask) and refresh manifest checksums.
+- Run parity validation: `KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py -k DB_AT_001 |& tee "$report_root"/pytest_db_at_001.log`
 Pitfalls To Avoid:
-- Do not leave fallback filenames in manifest.json; checksum validation will fail immediately.
-- Keep `mask_array` dtype float32 with values {0,1}; boolean arrays will break serialization in the torch config JSON.
-- Ensure HKL metadata reflects refined min/max; off-by-one errors zero out structure factors.
-- Preserve `[panel, slow, fast]` ordering when stacking torch panels before saving `.npy`.
-- Avoid running capture without `CUDA_VISIBLE_DEVICES=0`; the existing torch build expects GPU and silently degrades on CPU.
-- Capture both DiffBragg and torch metrics in the same report; missing diffbragg baseline blocks parity comparisons.
-- Do not downgrade Environment Freeze by editing `nanobrag_torch`; instrumentation belongs in our generator.
-- Verify collect-only logs after manifest changes to satisfy TESTING-003 before touching docs.
-- Keep canonical tensors out of git LFS unless policy updated; use plan artifacts plus fixture copies only.
+- Do not double-apply the global scale; multiply torch tensors exactly once before persistence.
+- Keep mask tensors float32 {0,1} to avoid boolean serialization issues in torch configs.
+- Ensure HKL metadata matches the refined bounds; off-by-one indices will zero panels again.
+- Don’t overwrite the fallback manifest until new SHA256 values are captured and logged.
+- Avoid running capture on CPU—the current nanobrag_torch build expects CUDA and may silently return zeros otherwise.
+- Preserve DiffBragg baseline copies when re-running; parity still compares against the legacy tensor.
+- Keep plan artifacts under the 2025-10-29T091339Z root so ledger references stay coherent.
 If Blocked:
-- If torch output remains zero after orientation fixes, archive `torch_hkl_debug.json` + `canonical_capture.log`, append a blocked attempt to docs/fix_plan.md with the error signature, set focus status to `blocked`, and request guidance before further retries.
-- If pytest DB_AT_001 still xfails due to low correlation, retain fallback fixtures, log metrics, and pivot to documenting the blocker in docs/findings.md plus galph_memory.
+- If torch output stays zero after scaling, archive the new `canonical_capture.log`, snapshot raw tensor stats, mark focus `blocked` in docs/fix_plan.md with the error signature, and escalate via galph_memory plus Findings entry.
+- If pytest selector fails due to threshold gaps, preserve metrics, keep fallback fixtures intact, and log the regression before pivoting.
 Findings Applied (Mandatory):
-- CONFIG-001 — Guides detector/beam/crystal mapping so HKL indices stay in-range when building Torch configs.
-- PARITY-001 — Requires deterministic ROI ordering and artifact emission for parity harness updates.
-- DIFFBRAGG-001 — Confirms the rebuilt DiffBragg extension is the baseline we rely on before copying tensors.
-- MASKING-001 — Loss mask coverage expectations (~0.21%) inform sanity checks on captured tensors.
-- TESTING-003 — Forces collect-only verification and documentation sync after selector updates.
+- CONFIG-001 — Geometry/config mapping constraints steer ROI/mask validation during capture.
+- DIFFBRAGG-001 — Confirms the DiffBragg baseline remains trustworthy before scaling torch outputs.
+- PARITY-001 — Requires deterministic ROI metrics and artifact emission when regenerating tensors.
+- MASKING-001 — Loss mask coverage expectations (~0.21%) inform sanity checks on regenerated data.
+- TESTING-003 — Forces collect/run evidence and documentation sync for the DB_AT_001 selector after fixture updates.

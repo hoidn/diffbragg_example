@@ -356,3 +356,12 @@ Notes
 - Reality Check: Rescoped initiative from simulator physics to fixture integration after validating the beam fix artifacts exist but the fixtures remain fallback-only; plan centers on checklist items A2/A3/B1/B2 with ready code changes.
 - <Action State>: [ready_for_implementation]
 2025-10-29T103845Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=9 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T104500Z/ next_action=regen_dataset_update_loader_and_run_db_at_001
+## 2025-10-29T110900Z — NANOBRAG-GOLDEN-001 canonical fixture rollout plan
+- Focus: NANOBRAG-GOLDEN-001 — Replace fallback DB-AT-001 golden dataset
+- Action Type: planning
+- Key Observations: Reviewed 2025-10-29T104500Z canonical_capture.log/torch_hkl_debug.json; confirmed fixtures still lack `.npy` tensors (manifest-only) and parity loader remains pointed at fallback data; Working Plan checklist A2/A3/B1/B2 stay outstanding.
+- Artifact Path: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T110900Z/
+- Next Actions: Implement generator + loader bool-mask/manifest updates, capture canonical tensors into the new report directory, refresh fixtures, and rerun DB_AT_001 parity selector with artifact logging.
+- Reality Check: Validated canonical dataset absent in fixtures, so focus stays on fixture swap rather than documentation-only cleanup.
+- <Action State>: [ready_for_implementation]
+2025-10-29T110900Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=10 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T110900Z/ next_action=regenerate_tensors_update_fixtures_and_run_db_at_001

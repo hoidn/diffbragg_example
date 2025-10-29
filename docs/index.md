@@ -118,6 +118,7 @@ Use this when: Running or modifying ROI/background estimation.
 Description: Integration‑oriented guide for Detector/Crystal/Beam configs, simulator runtime, and HKL IO.  
 Keywords: torch, simulator, DetectorConfig, CrystalConfig  
 Use this when: Implementing the torch backend (planned).
+Import name: `nanobrag_torch` (e.g., `from nanobrag_torch import Simulator`).
 
 ## Architecture and Plans
 

@@ -4,6 +4,15 @@ This document summarizes the public, integration‑ready API surface of `nanobra
 
 Scope: `src/nanobrag_torch/{simulator.py, models/{crystal.py,detector.py}, config.py, io/hkl.py}`
 
+Import name
+
+- Python import module: `nanobrag_torch`
+- Quick example:
+  ```python
+  import nanobrag_torch as nbt
+  from nanobrag_torch import Simulator, DetectorConfig, CrystalConfig, BeamConfig
+  ```
+
 ## Runtime and Environment
 - torch.compile: Simulator compiles physics kernels; reuses compiled graphs when tensor shapes are unchanged. GPU defaults to mode="max-autotune"; CPU may use "reduce-overhead".
 - Reuse warmed Simulator across iterations when panel dimensions/oversample do not change; rebuild if geometry affects shapes.

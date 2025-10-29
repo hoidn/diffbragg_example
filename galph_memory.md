@@ -238,3 +238,12 @@ Notes
 - Next Actions: Capture env diagnostics (`env_diagnostics.log`), refresh parity vs forward collect-only logs, then update fix_plan/docs with the Environment Freeze blocker once evidence is archived.
 - Reality Check: Validated canonical dataset still absent and both simtbx + nanobrag_torch missing under the frozen runtime; rescoped work to evidence/documentation so the initiative can move to `blocked` once dependencies are available.
 - <Action State>: [planning]
+2025-10-29T064735Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=1 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T063817Z/ next_action=run_A2_A3_canonical_capture
+## 2025-10-29T064735Z — NANOBRAG-GOLDEN-001 canonical capture plan
+- Focus: NANOBRAG-GOLDEN-001 — Replace fallback DB-AT-001 golden dataset
+- Action Type: planning
+- Key Observations: Confirmed `nanobrag_torch`, `simtbx`, and torch 2.4.1+cu121 import cleanly; `tests/fixtures/golden_data/simple_cubic/manifest.json` still lists `simple_cubic_fallback`; DiffBragg GPU path remains the viable baseline per DIFFBRAGG-001; documented command skeleton to emit paired DiffBragg/torch tensors plus ROI metrics under 2025-10-29T063817Z.
+- Artifact Path: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T063817Z/
+- Next Actions: Execute capture_forward.py (A2+A3), archive metrics/logs, then refresh DB_AT_001 collect-only logs and update fix_plan/docs.
+- Reality Check: Validated dependencies and test selectors are present; rescoped from environment triage to canonical dataset capture with GPU enforcement.
+- <Action State>: [ready_for_implementation]

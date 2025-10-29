@@ -13,8 +13,8 @@
 ## Active Initiatives
 
 ### [NANOBRAG-GOLDEN-001] Replace fallback DB-AT-001 golden dataset
-- Depends on: TORCH-BRIDGE-001, FORWARD-EQUIV-001, PARITY-HARNESS-002
-- Status: in_progress
+- Depends on: TORCH-BRIDGE-001, FORWARD-EQUIV-001, PARITY-HARNESS-002, nanobrag_torch package availability, CUDA runtime compatibility
+- Status: blocked
 - Owner/Date: Unassigned / 2025-10-29
 - Exit Criteria:
   1. Replace `tests/fixtures/golden_data/simple_cubic/` fallback tensors with a canonical nanoBragg2 baseline derived from the refGeom dataset; persist per-panel `bragg`, `target`, and `loss_mask` arrays aligned to `[panel, slow, fast]` contracts (`docs/spec-db-core.md:20-41`, `plans/nanobrag_integration_plan.md:32-73`).
@@ -24,6 +24,7 @@
 - Working Plan: plans/active/NANOBRAG-GOLDEN-001/implementation.md
 - Attempts History:
   * 2025-10-29T023547Z — Supervisor planning kickoff: validated fallback manifest metadata, confirmed absence of canonical nanoBragg2 tensors, and inventoried dependencies on TORCH-BRIDGE-001/FORWARD-EQUIV-001 artifacts; captured spec anchors (`docs/spec-db-core.md:20-41`, `docs/spec-db-conformance.md:23-26`, `docs/forward_equivalence.md:21-52`, `plans/nanobrag_integration_plan.md:23-88`). Metrics: pending. Artifacts: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T023547Z/. First Divergence: n/a. Next Actions: Draft implementation plan phases for dataset generation, manifest update, and harness/doc sync.
+  * 2025-10-29T024200Z — Environment validation (A1) completed partial; identified critical blockers: (1) nanobrag_torch unavailable (ModuleNotFoundError), blocking Phase A3 (nanoBragg2 forward capture) and B3 (generator update); (2) DiffBragg CUDA library mismatch (ImportError: undefined symbol cudaGetDriverEntryPointByVersion), blocking Phase A2 (DiffBragg baseline export). Successfully confirmed refGeom assets (refGeom.expt, refGeom.refl, scaled.mtz) and downloaded 747_mask.pkl (6.0M). Verified dbex OK, torch 2.8.0+cu128 installed but incompatible with CUDA runtime in simtbx environment. All phases A2-D3 blocked pending (1) nanobrag_torch acquisition/installation and (2) CUDA runtime compatibility resolution. Metrics: 2/2 env checks completed (torch, dbex), 4/4 refGeom assets confirmed, 2 critical blockers, 6 artifact files captured. Artifacts: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T024200Z/{summary.md,notes.md,ralph_handoff.md,golden_dataset/env_check.log,golden_dataset/blocking_summary.md,golden_dataset/legacy/diffbragg_forward.log}. First Divergence: n/a. Next Actions: Coordinate with supervisor on nanobrag_torch acquisition and CUDA runtime fix; mark initiative as blocked in fix_plan.md; current fallback dataset (simple_cubic_fallback from PARITY-HARNESS-002) remains active golden dataset until blockers resolved.
 
 ### [PARITY-HARNESS-002] Implement DB-AT parity harness tests
 - Depends on: TORCH-BRIDGE-001, FORWARD-EQUIV-001

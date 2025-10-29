@@ -1,0 +1,23 @@
+Traceback (most recent call last):
+  File "<string>", line 1, in <module>
+ModuleNotFoundError: No module named 'nanobrag_torch'
+ls: cannot access '747_mask.pkl': No such file or directory
+-rw-rw-r-- 1 ollie ollie 5.1K Oct 28 16:17 refGeom.expt
+-rw-rw-r-- 1 ollie ollie 202K Oct 28 16:10 refGeom.refl
+-rw-rw-r-- 1 ollie ollie 2.8M Oct 28 15:39 scaled.mtz
+
+=== Updated Environment Check ===
+Date: 2025-10-29T02:41:42Z
+
+refGeom inputs:
+-rw-rw-r-- 1 ollie ollie 6.0M Oct 15 12:53 747_mask.pkl
+-rw-rw-r-- 1 ollie ollie 5.1K Oct 28 16:17 refGeom.expt
+-rw-rw-r-- 1 ollie ollie 202K Oct 28 16:10 refGeom.refl
+-rw-rw-r-- 1 ollie ollie 2.8M Oct 28 15:39 scaled.mtz
+
+nanobrag_torch status: BLOCKED (ModuleNotFoundError)
+dbex status: OK
+torch version: 2.8.0+cu128
+
+Next: Proceed with A2 (DiffBragg baseline export) while coordinating on nanobrag_torch acquisition.
+

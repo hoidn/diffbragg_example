@@ -1,0 +1,33 @@
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+[DBEX] Loading experiment data...
+[DBEX] Using backend: diffbragg
+Traceback (most recent call last):
+  File "/home/ollie/miniconda3/envs/simtbx/lib/python3.9/runpy.py", line 197, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/home/ollie/miniconda3/envs/simtbx/lib/python3.9/runpy.py", line 87, in _run_code
+    exec(code, run_globals)
+  File "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/dbex/refine_one.py", line 277, in <module>
+    main()
+  File "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/dbex/refine_one.py", line 269, in main
+    run_diffbragg_backend(args, DL, devid)
+  File "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/dbex/refine_one.py", line 63, in run_diffbragg_backend
+    from score_trainer import roi_check
+  File "/home/ollie/Documents/score_trainer/score_trainer/roi_check.py", line 3, in <module>
+    import torch, torchvision
+  File "/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/__init__.py", line 416, in <module>
+    from torch._C import *  # noqa: F403
+ImportError: /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/lib/libc10_cuda.so: undefined symbol: cudaGetDriverEntryPointByVersion, version libcudart.so.12
+=== DiffBragg Baseline Export - CUDA Library Mismatch ===
+
+Error: ImportError: undefined symbol: cudaGetDriverEntryPointByVersion, version libcudart.so.12
+
+This is a torch/CUDA library compatibility issue in the simtbx environment.
+The torch package (2.8.0+cu128) expects CUDA 12.x but may have version mismatch.
+
+Impact: Cannot run DiffBragg baseline export (A2) until environment is fixed.
+Workaround options:
+1. Reinstall torch with correct CUDA version
+2. Use existing test data as proxy baseline
+3. Run on different system with working CUDA setup
+

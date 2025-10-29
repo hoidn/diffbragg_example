@@ -220,20 +220,45 @@ def load_golden_data(
     # Validate pixel pitch
     validate_pixel_pitch(metadata)
 
-    # Load tensors
+    # Load tensors (try both naming conventions: bragg_panel_N.npy and per-panel files)
     bragg_path = golden_dir / f"bragg_panel_{panel_id}.npy"
     target_path = golden_dir / f"target_panel_{panel_id}.npy"
     loss_mask_path = golden_dir / f"loss_mask_panel_{panel_id}.npy"
 
+    # Fallback: check for multi-panel stack files
     if not bragg_path.exists():
-        raise ValueError(
-            f"Golden Bragg tensor not found: {bragg_path}\n"
-            f"Panel {panel_id} may not be available in this dataset."
-        )
+        bragg_stack_path = golden_dir / "bragg_torch.npy"
+        if bragg_stack_path.exists():
+            bragg_stack = np.load(bragg_stack_path)
+            if panel_id >= bragg_stack.shape[0]:
+                raise ValueError(
+                    f"Panel {panel_id} out of range for bragg_torch.npy (shape {bragg_stack.shape})"
+                )
+            bragg = bragg_stack[panel_id]
+        else:
+            raise ValueError(
+                f"Golden Bragg tensor not found: {bragg_path}\n"
+                f"Panel {panel_id} may not be available in this dataset."
+            )
+    else:
+        bragg = np.load(bragg_path)
 
-    bragg = np.load(bragg_path)
+    if not target_path.exists():
+        raise ValueError(f"Golden target tensor not found: {target_path}")
     target = np.load(target_path)
+
+    if not loss_mask_path.exists():
+        raise ValueError(f"Golden loss_mask tensor not found: {loss_mask_path}")
     loss_mask = np.load(loss_mask_path)
+
+    # CRITICAL: Coerce loss_mask to bool per CONFIG-001 finding
+    # Handles both uint8 (legacy) and bool (canonical) formats
+    if loss_mask.dtype == np.uint8:
+        loss_mask = loss_mask.astype(bool)
+    elif loss_mask.dtype != bool:
+        raise ValueError(
+            f"Golden loss_mask has unexpected dtype {loss_mask.dtype}; expected bool or uint8"
+        )
 
     # Validate tensor ordering ([slow, fast] for per-panel data)
     expected_shape = tuple(metadata["shape"]["bragg"])
@@ -241,7 +266,7 @@ def load_golden_data(
     validate_tensor_ordering(target, expected_shape, "target")
     validate_tensor_ordering(loss_mask, expected_shape, "loss_mask")
 
-    # Validate dtypes
+    # Validate dtypes (after coercion above)
     if bragg.dtype != np.float32:
         raise ValueError(
             f"Golden Bragg tensor has dtype {bragg.dtype}, expected float32"
@@ -250,10 +275,7 @@ def load_golden_data(
         raise ValueError(
             f"Golden target tensor has dtype {target.dtype}, expected float32"
         )
-    if loss_mask.dtype != bool:
-        raise ValueError(
-            f"Golden loss_mask tensor has dtype {loss_mask.dtype}, expected bool"
-        )
+    # loss_mask dtype already validated/coerced above
 
     return GoldenData(
         bragg=bragg,

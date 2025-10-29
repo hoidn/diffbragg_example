@@ -1,0 +1,18 @@
+{
+  "h_min": -24,
+  "h_max": 24,
+  "k_min": -28,
+  "k_max": 28,
+  "l_min": -31,
+  "l_max": 31,
+  "h_range": 49,
+  "k_range": 57,
+  "l_range": 63,
+  "n_reflections": 69614,
+  "n_in_range": 69614,
+  "in_range_fraction": 1.0,
+  "grid_nonzero": 69614,
+  "grid_min": 0.0,
+  "grid_max": 292534059008.0,
+  "grid_mean": 10586001408.0
+}

@@ -209,7 +209,12 @@ def compute_roi_metrics(db_stack, torch_stack, loss_mask, panel_slices, sample_f
     return records[:sample_count]
 
 
-def generate_simple_cubic_golden(output_dir: Path, hkl_debug_path: Path = None):
+def generate_simple_cubic_golden(
+    output_dir: Path,
+    hkl_debug_path: Path = None,
+    emit_manifest: bool = False,
+    fixtures_dir: Path = None
+):
     """
     Generate canonical golden dataset using DiffBragg refinement + nanobrag_torch.
 
@@ -220,6 +225,8 @@ def generate_simple_cubic_golden(output_dir: Path, hkl_debug_path: Path = None):
     Args:
         output_dir: Path to output directory (e.g., plans/active/.../reports/.../golden_dataset/)
         hkl_debug_path: Optional path for HKL debugging JSON (default: output_dir/torch_hkl_debug.json)
+        emit_manifest: If True, generate manifest.json with SHA256 checksums (default False)
+        fixtures_dir: If provided, copy canonical tensors to fixtures directory (default None)
     """
     output_dir.mkdir(parents=True, exist_ok=True)
     legacy_dir = output_dir / "legacy"
@@ -523,7 +530,8 @@ def generate_simple_cubic_golden(output_dir: Path, hkl_debug_path: Path = None):
         panel_results.append(panel_meta)
 
         np.save(torch_dir / f"target_panel_{panel_id}.npy", inputs.target[panel_id].astype(np.float32))
-        np.save(torch_dir / f"loss_mask_panel_{panel_id}.npy", inputs.loss_mask[panel_id].astype(np.uint8))
+        # CRITICAL: Save loss mask as bool (np.bool_) per CONFIG-001 finding
+        np.save(torch_dir / f"loss_mask_panel_{panel_id}.npy", inputs.loss_mask[panel_id].astype(bool))
 
     torch_stack = np.stack(torch_panels, axis=0)
     np.save(torch_dir / "bragg_torch.npy", torch_stack)
@@ -602,6 +610,106 @@ def generate_simple_cubic_golden(output_dir: Path, hkl_debug_path: Path = None):
         if temp_path.exists():
             temp_path.unlink()
 
+    # === Manifest emission (if requested) ===
+    if emit_manifest:
+        logger.info("Generating manifest.json with SHA256 checksums...")
+        manifest_data = {
+            "dataset_name": "simple_cubic_canonical",
+            "generation_timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+            "generator_command": "scripts/generate_simple_cubic_golden.py --emit-manifest",
+            "git_revision": "integration",  # TODO: extract from git if needed
+            "structure_factor_source": "scaled.mtz",
+            "experiment_source": "refGeom.expt",
+            "files": {}
+        }
+
+        # Compute checksums for all tensor files
+        tensor_files = [
+            ("bragg_diffbragg", legacy_dir / "bragg_diffbragg.npy"),
+            ("bragg_torch", torch_dir / "bragg_torch.npy"),
+        ]
+
+        # Add per-panel files
+        for panel_id in range(len(Expt.detector)):
+            tensor_files.append((f"target_panel_{panel_id}", torch_dir / f"target_panel_{panel_id}.npy"))
+            tensor_files.append((f"loss_mask_panel_{panel_id}", torch_dir / f"loss_mask_panel_{panel_id}.npy"))
+
+        for key, file_path in tensor_files:
+            if file_path.exists():
+                sha256 = compute_sha256(file_path)
+                manifest_data["files"][key] = {
+                    "filename": file_path.name,
+                    "sha256": sha256,
+                    "size_bytes": int(file_path.stat().st_size),
+                }
+                logger.info(f"  {file_path.name}: {sha256[:16]}...")
+
+        manifest_path = output_dir / "manifest.json"
+        with open(manifest_path, "w") as fh:
+            json.dump(to_native(manifest_data), fh, indent=2)
+        logger.info(f"Manifest written to {manifest_path}")
+
+    # === Fixture copy (if requested) ===
+    if fixtures_dir is not None:
+        logger.info(f"Copying canonical tensors to fixtures directory: {fixtures_dir}")
+        fixtures_dir = Path(fixtures_dir)
+        fixtures_dir.mkdir(parents=True, exist_ok=True)
+
+        # Copy tensors
+        import shutil
+        files_to_copy = [
+            (legacy_dir / "bragg_diffbragg.npy", fixtures_dir / "bragg_diffbragg.npy"),
+            (torch_dir / "bragg_torch.npy", fixtures_dir / "bragg_torch.npy"),
+        ]
+
+        for panel_id in range(len(Expt.detector)):
+            files_to_copy.append((
+                torch_dir / f"target_panel_{panel_id}.npy",
+                fixtures_dir / f"target_panel_{panel_id}.npy"
+            ))
+            files_to_copy.append((
+                torch_dir / f"loss_mask_panel_{panel_id}.npy",
+                fixtures_dir / f"loss_mask_panel_{panel_id}.npy"
+            ))
+
+        for src, dst in files_to_copy:
+            if src.exists():
+                shutil.copy2(src, dst)
+                logger.info(f"  Copied {src.name} -> {dst}")
+
+        # Copy manifest if it was generated
+        if emit_manifest:
+            manifest_src = output_dir / "manifest.json"
+            manifest_dst = fixtures_dir / "manifest.json"
+            shutil.copy2(manifest_src, manifest_dst)
+            logger.info(f"  Copied manifest.json -> {manifest_dst}")
+
+        # Generate metadata.json for fixtures
+        metadata = {
+            "dataset_name": "simple_cubic_canonical",
+            "generation_timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+            "shape": {
+                "bragg": list(torch_stack.shape[1:]),  # [slow, fast] per-panel
+                "n_panels": int(torch_stack.shape[0]),
+            },
+            "detector_config": {
+                "pixel_size_mm": float(det_cfg.pixel_size_mm),
+                "spixels": int(det_cfg.spixels),
+                "fpixels": int(det_cfg.fpixels),
+            },
+            "provenance": {
+                "generator": "scripts/generate_simple_cubic_golden.py",
+                "experiment": "refGeom.expt",
+                "structure_factors": "scaled.mtz",
+                "branch": "integration",
+            }
+        }
+
+        metadata_path = fixtures_dir / "metadata.json"
+        with open(metadata_path, "w") as fh:
+            json.dump(to_native(metadata), fh, indent=2)
+        logger.info(f"  Wrote metadata.json -> {metadata_path}")
+
     logger.info("=== Canonical Capture Complete ===")
     logger.info(f"DiffBragg baseline: {legacy_dir/'bragg_diffbragg.npy'} (max={Bragg.max():.2f})")
     logger.info(f"Torch baseline: {torch_dir/'bragg_torch.npy'} (max={torch_stack.max():.2f})")
@@ -641,7 +749,12 @@ if __name__ == "__main__":
 
     args_cli = parser.parse_args()
 
-    output_dir = generate_simple_cubic_golden(args_cli.canonical_out, args_cli.hkldebug)
+    output_dir = generate_simple_cubic_golden(
+        args_cli.canonical_out,
+        args_cli.hkldebug,
+        emit_manifest=args_cli.emit_manifest,
+        fixtures_dir=args_cli.fixtures
+    )
 
     print(f"\nCanonical dataset written to: {output_dir}")
     print("Next steps:")
@@ -649,6 +762,7 @@ if __name__ == "__main__":
     print(f"  2. Check HKL stats: jq '.in_range_fraction' {output_dir.parent}/torch_hkl_debug.json")
     print(f"  3. Run parity tests: KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py -k DB_AT_001")
 
-    if args_cli.emit_manifest or args_cli.fixtures:
-        print("\nWARNING: --emit-manifest and --fixtures not yet implemented in this script.")
-        print("         Use copy commands manually per input.md:22-24")
+    if args_cli.emit_manifest:
+        print(f"\nManifest emitted to: {output_dir}/manifest.json")
+    if args_cli.fixtures:
+        print(f"Fixtures copied to: {args_cli.fixtures}")

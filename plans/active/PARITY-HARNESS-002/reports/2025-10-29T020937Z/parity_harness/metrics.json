@@ -8,52 +8,25 @@
   "n_pixels": 13086,
   "n_masked": 6210915,
   "metadata": {
-    "provenance": "Canonical DiffBragg + nanobrag_torch capture (plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T104500Z/)",
-    "source_experiment": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/refGeom.expt",
-    "source_reflections": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/refGeom.refl",
-    "source_mtz": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/scaled.mtz",
-    "generation_date": "2025-10-29T10:31:41.351510Z",
-    "panel_id": 0,
+    "dataset_name": "simple_cubic_canonical",
+    "generation_timestamp": "2025-10-29T18:11:01.583813Z",
     "shape": {
       "bragg": [
         2527,
         2463
       ],
-      "target": [
-        2527,
-        2463
-      ],
-      "loss_mask": [
-        2527,
-        2463
-      ]
-    },
-    "beam_config": {
-      "wavelength_A": 0.9768000000000001,
-      "polarization_factor": 0.0,
-      "nopolar": false
-    },
-    "crystal_config": {
-      "cell_a": 27.3758389202232,
-      "cell_b": 32.06579930050022,
-      "cell_c": 34.46635719191433,
-      "cell_alpha": 88.76861581157905,
-      "cell_beta": 71.6300065859712,
-      "cell_gamma": 68.18891879154103
+      "n_panels": 1
     },
     "detector_config": {
-      "distance_mm": 231.27645547762577,
-      "beam_center_s": 213.89816695377465,
-      "beam_center_f": 217.74619093817884,
-      "beam_center_source": "explicit",
+      "pixel_size_mm": 0.17200000000000001,
       "spixels": 2527,
-      "fpixels": 2463,
-      "pixel_size_mm": 0.17200000000000001
+      "fpixels": 2463
     },
-    "notes": [
-      "DiffBragg baseline captured with scripts/generate_simple_cubic_golden.py",
-      "Torch baseline matches HKL-ORIENT-001 fix; loss_mask stored as bool",
-      "Metrics logged under plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T104500Z/metrics.json"
-    ]
+    "provenance": {
+      "generator": "scripts/generate_simple_cubic_golden.py",
+      "experiment": "refGeom.expt",
+      "structure_factors": "scaled.mtz",
+      "branch": "integration"
+    }
   }
 }

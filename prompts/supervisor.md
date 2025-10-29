@@ -54,6 +54,7 @@ Planning, review, and analysis. Do not make production code changes.
 2. Knowledge Base Review (Mandatory): Search `docs/findings.md` for IDs and keywords related to your focus. In `input.md` "Priorities & Rationale", list applicable Finding IDs and explicitly state how your plan adheres to them. If none apply, write "No relevant findings in the knowledge base".
 3. Ensure `docs/fix_plan.md` item metadata matches reality (Dependencies, Status, Artifacts path, Exit Criteria). Add or correct information as needed.
 4. Update `docs/findings.md` with any new durable lessons you discover during analysis.
+5. Test Registry Sync (Mandatory): Update `docs/TESTING_GUIDE.md` §2 and `docs/development/TEST_SUITE_INDEX.md` with any new or renamed tests/selectors from this loop. For each documented selector, run `pytest --collect-only` and save the logs under this loop’s artifacts directory. Do not mark an item `done` until both docs reflect reality and all selectors marked "Active" successfully collect (> 0 tests).
 
 <input.md requirements>
 Render `./input.md` each loop with the sections below (overwrite completely):
@@ -70,6 +71,8 @@ Render `./input.md` each loop with the sections below (overwrite completely):
 - If Blocked: fallback steps and how to log the block in Attempts History.
 - Findings Applied (Mandatory): List relevant Finding IDs from `docs/findings.md` with a one-line note on how the plan adheres to each. If none, state "No relevant findings in the knowledge base".
  - When a Working Plan exists for the focus, the Do Now MUST reference checklist IDs from `plans/active/<initiative-id>/implementation.md` (e.g., complete A2 and A3).
+ - Doc Sync Plan (Mandatory): List selectors to add/update in `docs/TESTING_GUIDE.md` and `docs/development/TEST_SUITE_INDEX.md`, include the exact `pytest --collect-only` commands for each, and specify the artifact paths where these logs will be saved.
+ - Mapped Tests Guardrail: At least one mapped selector must currently collect (> 0) via `pytest --collect-only`. If none exist, the first Do Now step must be "author minimal test" for this focus, followed by the Doc Sync Plan and collect-only artifacting.
 
 <additional rules>
 - Do not assign a Do Now without mapping the authoritative test selector; if none exists, direct the engineer to author the minimal test first.
@@ -81,6 +84,7 @@ Render `./input.md` each loop with the sections below (overwrite completely):
 <handoff>
 - Before finishing, append a new entry to `galph_memory.md` with: timestamp, focus, action type, key observations, artifact path, next actions, and `<Action State>`. Include a short "Reality Check" note summarizing validations performed and any re-scoping decisions.
 - Confirm repository status is clean (no staged changes) and that `input.md` exists with the required sections.
+ - Hard Gate: If any selector marked "Active" in `docs/TESTING_GUIDE.md` or `docs/development/TEST_SUITE_INDEX.md` collects 0 tests in this loop’s `--collect-only` runs, do not finish the loop as `done`. Either downgrade the selector to "Planned" with rationale or author the missing tests before completion.
 
 ## Action State Tracking (FSM)
 - States: `gathering_evidence`, `planning`, `ready_for_implementation`.

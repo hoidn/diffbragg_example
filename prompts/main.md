@@ -42,12 +42,14 @@ You are Ralph. You implement exactly one supervisor→engineer loop per invocati
    - If no selector exists, create the minimal pytest test first, then run it.
    - Run the full suite (`pytest -v tests/`) at most once and only after targeted selectors pass.
    - Record commands, exit codes, runtimes, and hardware (CPU/GPU) in artifacts and `docs/fix_plan.md`.
+   - Selector Compliance Check (Mandatory): For every selector marked "Active" in `docs/TESTING_GUIDE.md` or `docs/development/TEST_SUITE_INDEX.md` within this focus, run `pytest --collect-only` and save logs under the loop’s artifacts directory. If any "Active" selector collects 0 tests, either downgrade it to "Planned" with rationale (and update docs) or author the missing tests in this loop before proceeding.
 6. Artifacts:
    - Save logs (e.g., `pytest.log`, `summary.md`, metrics JSON) in the designated reports directory.
    - For parity/debug loops, include correlation, MSE, RMSE, max|Δ|, sum ratios, and diff heatmaps per `docs/spec-db-tracing.md`.
 7. Documentation:
    - Update any docs touched by your changes (`docs/`, README, CLI help) to stay consistent.
    - Append to `docs/findings.md` if you discovered something new; cite `path:line`.
+   - Testing docs (Mandatory): If you added or changed tests/selectors, update `docs/TESTING_GUIDE.md` §2 and `docs/development/TEST_SUITE_INDEX.md` in this loop, and include the artifact paths for the `--collect-only` logs.
 8. Ledger update:
    - Append an Attempts History entry: timestamp, action summary, `Metrics:`, `Artifacts:`, `First Divergence:` (if debugging), and Next Actions.
    - Flip Status to `done` only when exit criteria are met; otherwise leave as `in_progress` with follow-up tasks.
@@ -68,3 +70,4 @@ You are Ralph. You implement exactly one supervisor→engineer loop per invocati
 - Treating source weights multiplicatively (equal-weight rule, `docs/pytorch_runtime_checklist.md:31`).
 - Leaving artifacts outside the reports directory.
 - Skipping ledger updates or findings when new knowledge is uncovered.
+ - Finishing a loop with an "Active" selector that collects 0 tests; either fix tests or adjust docs/status before completion.

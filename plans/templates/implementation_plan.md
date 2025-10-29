@@ -21,6 +21,7 @@
 1. <criterion 1>
 2. <criterion 2>
 3. <criterion 3>
+4. Test registry synchronized: `docs/TESTING_GUIDE.md` §2 and `docs/development/TEST_SUITE_INDEX.md` reflect any new/changed tests; `pytest --collect-only` logs for documented selectors are saved under `plans/active/<initiative-id>/reports/<timestamp>/`. Do not close the initiative if any selector marked "Active" collects 0 tests.
 
 ## Phase A — <name>
 ### Checklist
@@ -50,4 +51,3 @@
 ## Artifacts Index
 - Reports root: `plans/active/<initiative-id>/reports/`
 - Latest run: `<YYYY-MM-DDTHHMMSSZ>/`
-

@@ -6,6 +6,7 @@
 - Artifact policy: store loop outputs under a dedicated `plans/<initiative-id>/reports/<YYYY-MM-DDTHHMMSSZ>/` directory (or another documented location) and record the path in each Attempts History entry.
 - Every loop updates this ledger before and after execution. Append `Metrics:` and `Artifacts:` lines for each attempt; note `First Divergence:` when debugging parity issues.
 - Status values: `pending`, `in_progress`, `blocked`, `done`, `archived`.
+ - Test registry synchronization: When tests are added or renamed in a loop, update `docs/TESTING_GUIDE.md` §2 and `docs/development/TEST_SUITE_INDEX.md` accordingly, and reference `pytest --collect-only` logs (artifact paths) in the Attempts History entry. Items must not be marked `done` if any selector documented as "Active" collects 0 tests.
 
 ---
 

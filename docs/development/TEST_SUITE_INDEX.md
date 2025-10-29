@@ -2,6 +2,16 @@
 
 **Purpose**: Authoritative registry of DBEX test selectors, synchronized with `docs/TESTING_GUIDE.md` §2.
 
+## Implementation Coverage (Active)
+
+| Module / Area | Selector | Status | Spec Reference | Notes |
+| --- | --- | --- | --- | --- |
+| Bridge tensors & masks | `tests/dbex/test_nanobrag_bridge.py` | active | `docs/spec-db-core.md:20`, `docs/config_crosswalk.md:86-95` | [panel, slow, fast], mask polarity, background semantics.
+| Config hydration | `tests/dbex/test_nanobrag_bridge_configs.py` | active | `docs/config_crosswalk.md:15-72`, `docs/dxtbx_api.md:17-41` | Detector CUSTOM mapping, beam wavelength/polarization, crystal A*.
+| Smoke harness | `tests/dbex/test_nanobrag_smoke.py` | active | `docs/spec-db-workflow.md:24-29`, `docs/dials_api.md:10-28` | Single-experiment flow, stitched Bragg, masked MSE, artifacts.
+
+Footnote: DB_AT acceptance remains the canonical parity profile; until marks/selectors are migrated, use these module selectors to drive implementation loops.
+
 | Module / Area | Selector | Status | Spec Reference | Notes |
 | --- | --- | --- | --- | --- |
 | Torch parity | `pytest -v tests -k DB_AT_001` | planned | `docs/spec-db-conformance.md:24` | Uses golden data under `nanoBragg2/tests/golden_data`; validates simple cubic correlation ≥0.99. |

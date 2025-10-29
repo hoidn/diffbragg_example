@@ -69,6 +69,35 @@ CUDA_VISIBLE_DEVICES='' TORCHDYNAMO_DISABLE=1 NANOBRAGG_DISABLE_COMPILE=1 \
 
 **Note**: Tests marked "Planned" must be authored before declaring their parent fix-plan items complete. Record TODO entries in `docs/fix_plan.md` with the relevant selector. See also `docs/development/TEST_SUITE_INDEX.md` for synchronized selector registry.
 
+### 2.1 Active Implementation Coverage (module selectors)
+
+Until DB_AT acceptance marks/selectors are fully migrated, use these concrete module selectors to drive implementation loops. Keep this list synchronized with `docs/development/TEST_SUITE_INDEX.md`.
+
+| Module / Area | Selector | Status | Spec Reference | Notes |
+| --- | --- | --- | --- | --- |
+| Bridge tensors & masks | `pytest -v tests/dbex/test_nanobrag_bridge.py` | Active | `docs/spec-db-core.md:20`, `docs/config_crosswalk.md:86-95` | Verifies [panel, slow, fast], mask polarity, background semantics.
+| Config hydration | `pytest -v tests/dbex/test_nanobrag_bridge_configs.py` | Active | `docs/config_crosswalk.md:15-72`, `docs/dxtbx_api.md:17-41` | Detector CUSTOM mapping, beam wavelength/polarization, crystal A*.
+| Smoke harness | `pytest -v tests/dbex/test_nanobrag_smoke.py` | Active | `docs/spec-db-workflow.md:24-29`, `docs/dials_api.md:10-28` | Single-experiment flow, stitched Bragg, masked MSE, artifacts.
+
+#### Selector Compliance Check (artifacted)
+
+Run `--collect-only` for each selector and save logs under the current loop’s artifacts directory (see `input.md` Artifacts path):
+
+```bash
+ART=plans/active/<initiative-id>/reports/<YYYY-MM-DDTHHMMSSZ>
+mkdir -p "$ART"
+KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q tests/dbex/test_nanobrag_bridge.py | tee "$ART/collect_bridge.log"
+KMP_DUPLICIATE_LIB_OK=TRUE pytest --collect-only -q tests/dbex/test_nanobrag_bridge_configs.py | tee "$ART/collect_configs.log"
+KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q tests/dbex/test_nanobrag_smoke.py | tee "$ART/collect_smoke.log"
+```
+
+Mark a selector "Active" only when collection > 0. Keep DB_AT entries as "Planned" until marks/selectors are implemented.
+
+#### Status Semantics (enforced)
+
+- Active: Documented selector must collect > 0 tests via `pytest --collect-only`. If collection == 0, either downgrade to Planned (with rationale) or author the missing tests before closing the loop.
+- Planned: Selector may collect 0; include a rationale and the initiative slated to add it. Convert to Active once tests exist and collection > 0 with logs artifacted.
+
 ## 3. Artifact Policy
 - Store `pytest` logs, parity metrics, and trace outputs in a documented location per initiative (e.g., `plans/<initiative-id>/reports/<YYYY-MM-DDTHHMMSSZ>/`).
 - Reference the artifact path (log, summary, metrics.json) in the fix plan Attempts History entry that triggered the run.

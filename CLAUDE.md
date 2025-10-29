@@ -9,6 +9,12 @@
 6. Testing references: `docs/TESTING_GUIDE.md`, `docs/development/TEST_SUITE_INDEX.md`, `docs/spec-db-conformance.md`.
 7. Debugging & tracing: `docs/spec-db-tracing.md`.
 
+## Environment Quick Reference (README.md)
+- Initialize the toolchain via `source setup_env.sh` (automates README steps 1–3).
+- The simtbx env must retain `torch==2.4.1+cu121` and `torchvision==0.19.1+cu121`; do **not** upgrade unless a plan explicitly directs it.
+- Baseline DiffBragg run (README Step 7): `DIFFBRAGG_USE_CUDA=1 python -m dbex.refine_one -e refGeom.expt -r refGeom.refl -i 0 -o dbex_0000_0.h5 -m 747_mask.pkl -z scaled.mtz`.
+- Full setup/benchmark details live in `README.md`; treat it as the authoritative walkthrough for environment resets.
+
 ## Loop Roles
 - **Supervisor (Galph)** uses `prompts/supervisor.md` to plan each loop, update `galph_memory.md`, and emit `input.md` with a single focus.
 - **Engineer (Ralph)** uses `prompts/main.md` (or `prompts/debug.md` for parity loops) to implement the Do Now checklist and update ledgers/artifacts.

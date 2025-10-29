@@ -33,6 +33,8 @@ source setup_env.sh
 # Continue with steps 4-7 below
 ```
 
+> **Note:** The environment pin installs torch==2.4.1+cu121 by default. Keep that version; upgrading torch or torchvision will reintroduce the CUDA runtime mismatch and break DiffBragg.
+
 ## Detailed Setup Instructions
 
 ### Directory Structure
@@ -179,18 +181,22 @@ python -c "import xfel; print('✓ XFEL module working')"
 
 ---
 
-### Step 3: Install Score Trainer
+### Step 3: Install Score Trainer (with pinned PyTorch)
 
 **Working Directory:** `diffbragg_example/easyBragg/`
 
-**⚠️ Note:** This will download PyTorch (~74MB) and dependencies.
+**⚠️ IMPORTANT:** DiffBragg currently requires the CUDA 12.1 PyTorch build. Do **not** upgrade or change the torch/torchvision versions installed here.
 
 ```bash
 # Clone score_trainer
 git clone https://github.com/pixel-modelers/score_trainer.git
 cd score_trainer
 
-# Install with dependencies (includes PyTorch)
+# Install pinned PyTorch + torchvision (CUDA 12.1 build)
+pip install --no-cache-dir torch==2.4.1+cu121 torchvision==0.19.1+cu121 \
+    --index-url https://download.pytorch.org/whl/cu121
+
+# Install score_trainer (will reuse pinned torch)
 pip install -e .
 
 # Download pre-trained model
@@ -199,7 +205,8 @@ score.getMod
 
 **Verify installation:**
 ```bash
-python -c "from score_trainer import roi_check; print('✓ Score trainer working')"
+python -c "import torch; from score_trainer import roi_check; \
+print(f'✓ Score trainer working (torch {torch.__version__}, CUDA {torch.version.cuda})')"
 ls -lh score_trainer/state_ep10.net  # Should show ~68KB model file
 ```
 
@@ -308,18 +315,16 @@ python -m dbex.refine_one --help  # Should show usage information
 
 ---
 
-### Step 7: Fit an Image with diffBragg
+### Step 7: Fit an Image with diffBragg (GPU mode)
 
 **Working Directory:** `diffbragg_example/easyBragg/`
 
-**⚠️ CRITICAL: GPU/CUDA REQUIRED FOR THIS STEP**
-
-Process images using diffBragg with GPU acceleration:
+**⚠️ CRITICAL:** Use the pinned CUDA 12.1 PyTorch build installed in Step 3. GPU mode is required to complete the refinement.
 
 ```bash
 cd easyBragg  # If not already there
 
-# GPU mode (REQUIRED for completion)
+# GPU mode (required for completion)
 DIFFBRAGG_USE_CUDA=1 python -m dbex.refine_one \
   -e sp.proc/idx-0000_refined.expt \
   -r sp.proc/idx-0000_indexed.refl \
@@ -477,10 +482,10 @@ The script provides these functions:
 
 ## Platform Support
 
-| Platform | Step 1-6 | Step 7 (GPU Required) | Notes |
+| Platform | Step 1-6 | Step 7 (GPU required) | Notes |
 |----------|----------|----------------------|-------|
-| Linux x86_64 + NVIDIA GPU | ✓ | ✓ | Full support |
-| Linux x86_64 (CPU only) | ✓ | ✗ | Crashes at final step |
+| Linux x86_64 + NVIDIA GPU | ✓ | ✓ | Full support (torch 2.4.1+cu121). |
+| Linux x86_64 (CPU only) | ✓ | ✗ | Crashes during final GPU-only forward model. |
 | macOS ARM64 | ✓ | ✗ | Development/testing only |
 | macOS Intel | ✓ | ✗ | Development/testing only |
 

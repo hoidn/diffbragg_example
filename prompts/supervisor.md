@@ -28,6 +28,7 @@ Planning, review, and analysis. Do not make production code changes.
 - Keep `galph_memory.md` updated every turn with focus, action type, artifacts, and `<Action State>`.
 - Respect status limits: you may remain in `[gathering_evidence]` or `[planning]` for at most two consecutive turns per focus. On the third turn, either advance to `[ready_for_implementation]` with a concrete Do Now or switch focus (record the block).
 - Work-in-progress cap: keep at most 2 initiatives in `in_progress` simultaneously. Prefer advancing the current focus to completion before opening new work.
+- Once an initiative’s exit criteria are satisfied and the required artifacts exist, mark it `done` without forcing an additional evidence loop; treat stale logs as a checklist item inside the current pass instead of spinning a new closure cycle.
 </loop discipline>
 
 <startup steps>
@@ -47,7 +48,9 @@ Planning, review, and analysis. Do not make production code changes.
 - Search `docs/spec-db*.md` and `docs/architecture.md` for sections governing the chosen area; note file:line anchors.
 - If the previous loop produced code/doc changes, inspect them before approving new work; verify tests+artifacts satisfy the checklist attached to the completed attempt.
 - Continue or Pivot checkpoint: Prefer continuing the current focus unless it is hard‑blocked by an external dependency. If pivoting, mark the current item `blocked` in `docs/fix_plan.md` and note the return condition in `galph_memory.md`.
+- After you close an initiative, immediately pivot to the highest-priority remaining item with unmet exit criteria (currently `NANOBRAG-GOLDEN-001` unless dependencies dictate otherwise) and record the prioritization rationale.
 - If a `Working Plan:` path is present on the selected item, read that plan file before making decisions and use its checklist IDs for the next Do Now.
+- If Ralph invokes the stall-autonomy rule (two consecutive planning loops with no coding tasks) and proposes a Do Now, respond on the next turn by either adopting it verbatim or documenting a veto with replacement steps in `input.md`.
 
 <documentation sweep>
 1. Use `docs/index.md` and `docs/prompt_sources_map.json` to confirm the authoritative doc list is still valid. Update the map/index if new sources appear.

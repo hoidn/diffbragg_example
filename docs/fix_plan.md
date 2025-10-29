@@ -48,7 +48,7 @@
 
 ### [TORCH-CLI-003] Wire torch backend flag into CLI
 - Depends on: TORCH-BRIDGE-001
-- Status: in_progress
+- Status: done
 - Owner/Date: Unassigned / 2025-10-28
 - Exit Criteria:
   1. `dbex.refine_one` accepts `--backend {diffbragg,nanobrag}` with default `diffbragg`.
@@ -60,6 +60,7 @@
   * 2025-10-28T234618Z — Supervisor planning kickoff; reviewed implementation plan Phase A/B scope. Metrics: pending. Artifacts: pending.
   * 2025-10-29T00:20:00Z — Reality check and alignment: Verified `dbex/refine_one.py` implements `--backend {diffbragg,nanobrag}` with a torch stub path that writes `/torch_diagnostics`. Updated `docs/index.md` to reflect implemented backend and diagnostics. Tests for the CLI (`tests/dbex/test_refine_one_cli.py`) do not yet exist; leaving status `in_progress`. Metrics: pending. Artifacts: pending. Next Actions: Author minimal CLI tests and register selectors; run collect-only and update TESTING_GUIDE/TEST_SUITE_INDEX per process gates.
   * 2025-10-29T003751Z — Supervisor planning for Phase C registry/doc sync: confirmed `tests/dbex/test_refine_one_cli.py` provides six tests but lacks artifacted runs, observed docs/spec-db-interfaces.md status still labels `--backend` unimplemented, and noted CLI selector absent from testing guides. Defined new Phase C checklist (C1-C3) to capture pytest evidence, synchronize `docs/TESTING_GUIDE.md` & `docs/development/TEST_SUITE_INDEX.md`, and update normative docs plus ledger Metrics/Artifacts lines. Metrics: pending. Artifacts: plans/active/TORCH-CLI-003/reports/2025-10-29T003751Z/. Next Actions: Execute C1-C3 per implementation plan with mapped pytest commands and log paths in `input.md`.
+  * 2025-10-29T003751Z — Completed Phase C registry/doc sync (C1-C3): Ran CLI tests with KMP_DUPLICATE_LIB_OK=TRUE (6/6 passed, 0.98s runtime, Python 3.9.23, pytest 8.4.2); captured pytest_cli.log and collect_cli.log (6 tests collected); added CLI backend flag selector to docs/TESTING_GUIDE.md §2.1 and docs/development/TEST_SUITE_INDEX.md with Active status, environment requirements, and artifact references; updated docs/spec-db-interfaces.md status to reflect implemented --backend flag with test citation; captured doc_diff.log showing 3 files changed (5 insertions, 2 deletions); marked implementation.md Phase C checklist complete. Metrics: 6/6 tests passed, 6 tests collected via --collect-only, 0.98s runtime, CPU. Artifacts: plans/active/TORCH-CLI-003/reports/2025-10-29T003751Z/{pytest_cli.log,collect_cli.log,doc_diff.log}. First Divergence: n/a. Next Actions: All exit criteria satisfied (CLI accepts --backend, torch path emits diagnostics, docs/index.md already updated, CLI smoke validated with artifacted run, testing docs synchronized with collection logs); initiative complete and ready to mark done.
 
 ### [DOC-HARDEN-001] Harden key docs with prescriptive guardrails
 - Depends on: none

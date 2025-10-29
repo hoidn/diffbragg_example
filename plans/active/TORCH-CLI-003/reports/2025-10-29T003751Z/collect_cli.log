@@ -1,0 +1,8 @@
+tests/dbex/test_refine_one_cli.py::test_parser_has_backend_flag
+tests/dbex/test_refine_one_cli.py::test_parser_rejects_invalid_backend
+tests/dbex/test_refine_one_cli.py::test_main_dispatches_to_diffbragg_backend
+tests/dbex/test_refine_one_cli.py::test_main_dispatches_to_nanobrag_backend
+tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_calls_bridge
+tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata
+
+6 tests collected in 0.02s

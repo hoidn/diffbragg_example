@@ -4,8 +4,8 @@ Overview (Normative)
 - Purpose: Define the CLI/API surface and precedence rules required to satisfy the workflow spec.
 
 Status
-- The CLI flags described here (e.g., `--backend`, `--device`, `--adu-per-photon`, `--nabc`, `--debug-save-artifacts`) apply to the planned `nanobrag_torch` backend. They are not implemented in the current CLI.
-- Until the torch backend lands, use the existing DiffBragg entry point: `python -m dbex.refine_one` (see `dbex/refine_one.py:5-26`).
+- The `--backend {diffbragg,nanobrag}` flag is implemented in the current CLI (`dbex/refine_one.py:5-26`). The nanobrag backend is a stub that invokes the bridge and writes diagnostics (`dbex/refine_one.py:80-95`). Tests: `tests/dbex/test_refine_one_cli.py` (6 tests; selector: `KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_refine_one_cli.py`).
+- Other flags (`--device`, `--adu-per-photon`, `--nabc`, `--debug-save-artifacts`) remain planned pending full torch simulator integration.
 
 CLI Flags (Normative)
 - `--backend {diffbragg,nanobrag}`: selects implementation; default MAY be `nanobrag` once stable.

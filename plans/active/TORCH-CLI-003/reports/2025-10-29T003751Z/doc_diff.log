@@ -1,0 +1,4 @@
+ docs/TESTING_GUIDE.md                | 2 ++
+ docs/development/TEST_SUITE_INDEX.md | 1 +
+ docs/spec-db-interfaces.md           | 4 ++--
+ 3 files changed, 5 insertions(+), 2 deletions(-)

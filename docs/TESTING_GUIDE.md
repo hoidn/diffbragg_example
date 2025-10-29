@@ -28,13 +28,15 @@ export NANOBRAGG_DISABLE_COMPILE=1
 - **See Also**: `docs/development/testing_strategy.md` §4.1 for full gradient test execution requirements
 - **Finding Reference**: RUNTIME-001 (`docs/findings.md`)
 
-### 1.2 Installation Requirements
+### 1.2 Environment Assumptions (Freeze)
 
-- Prefer editable installs: `pip install -e .` from the repo root to ensure CLI entry points resolve correctly
-- Verify environment before running tests:
+- The environment is pre-provisioned. Do not install or upgrade packages (pip/conda/apt/brew) during test loops.
+- Editable installs (`pip install -e .`) should only be performed when explicitly directed by a plan. Assume the project is already importable in agent loops.
+- Verify environment before running tests (read-only check):
   ```bash
   python -c "import dbex; import torch; print(f'dbex loaded, torch {torch.__version__}')"
   ```
+  If imports fail, treat it as a blocker and record the error in `docs/fix_plan.md` rather than attempting environment changes.
 
 ### 1.3 Quick Reference Commands
 

@@ -29,12 +29,14 @@ Planning, review, and analysis. Do not make production code changes.
 - Respect status limits: you may remain in `[gathering_evidence]` or `[planning]` for at most two consecutive turns per focus. On the third turn, either advance to `[ready_for_implementation]` with a concrete Do Now or switch focus (record the block).
 - Work-in-progress cap: keep at most 2 initiatives in `in_progress` simultaneously. Prefer advancing the current focus to completion before opening new work.
 - Once an initiative’s exit criteria are satisfied and the required artifacts exist, mark it `done` without forcing an additional evidence loop; treat stale logs as a checklist item inside the current pass instead of spinning a new closure cycle.
+ - Environment Freeze (hard rule): do not propose or execute environment/package changes in a loop unless the focus explicitly targets environment maintenance.
 </loop discipline>
 
 <startup steps>
 1. Run `timeout 30 git pull --rebase`.
    - If it times out: run `git rebase --abort`, then `git pull --no-rebase`.
    - Resolve conflicts (especially in `docs/fix_plan.md`), stage, and resume with `timeout 30 git rebase --continue --no-edit`. Never run the resume command without the timeout.
+   - Environment Freeze: The runtime is pre-provisioned. Do not install/upgrade packages or rebuild native extensions. If imports fail, treat as a blocker and record in `docs/fix_plan.md` (no in-loop remediation by changing the environment).
 2. Read the latest entry in `galph_memory.md` and any plan files referenced by the active focus.
 3. Review artifacts under `plans/active/<initiative-id>/reports/` relevant to the previous loop before selecting new work.
 4. Focus Validation (Reality Check): Before drafting `input.md`, validate the premise of the selected `docs/fix_plan.md` item.
@@ -71,6 +73,7 @@ Render `./input.md` each loop with the sections below (overwrite completely):
 - Priorities & Rationale: 3–6 bullets citing specs/tests/arch lines that justify the chosen actions.
 - How-To Map: Exact commands, env vars, and artifact destinations (prefer commands from `docs/TESTING_GUIDE.md`).
 - Pitfalls To Avoid: 5–10 terse reminders (e.g., ensure pixel pitch rules, enforce `NANOBRAGG_DISABLE_COMPILE` for gradchecks).
+ - Environment: Assume environment is frozen. If a missing dependency is detected, set next action to “blocked” and log the error signature; do not prescribe installs.
 - If Blocked: fallback steps and how to log the block in Attempts History.
 - Findings Applied (Mandatory): List relevant Finding IDs from `docs/findings.md` with a one-line note on how the plan adheres to each. If none, state "No relevant findings in the knowledge base".
  - When a Working Plan exists for the focus, the Do Now MUST reference checklist IDs from `plans/active/<initiative-id>/implementation.md` (e.g., complete A2 and A3).

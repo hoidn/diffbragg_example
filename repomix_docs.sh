@@ -1,0 +1,1 @@
+repomix --include "prompts/**,plans/templates/**,docs/index.md,docs/fix_plan.md,docs/findings.md,docs/INITIATIVE_WORKFLOW_GUIDE.md,docs/TESTING_GUIDE.md,docs/development/TEST_SUITE_INDEX.md,docs/architecture.md,docs/DEVELOPER_GUIDE.md,docs/debugging/**,CLAUDE.md,docs/spec-db*.md,docs/*api.md"

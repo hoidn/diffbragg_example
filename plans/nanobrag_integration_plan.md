@@ -20,11 +20,13 @@ Estimated timeline: 12–18 engineering days (5 phased milestones with validatio
  
 See supporting API references: docs/nanobrag_api.md, docs/simtbx_api.md, docs/dxtbx_api.md, docs/dials_api.md.
 
-## Phase 0 – Environment & Baseline (1–2 days)
-- Install `nanobrag_torch` in editable mode from `./nanoBragg` (clone `https://github.com/hoidn/nanoBragg.git`) and add it as a `pyproject.toml` dependency for the `dbex` package.
- - Run the bundled CPU and CUDA smoke tests (`nanoBragg/docs/development/pytorch_runtime_checklist.md`) to confirm the simulator works on the target hardware (note: lives under the nanoBragg docs tree; may appear as a symlink depending on checkout).
+## Phase 0 – Environment & Baseline (verification only, 1–2 days)
+- Environment Freeze: Do not install or upgrade packages, clone external repos, or modify toolchains. If `nanobrag_torch` or its tests are unavailable, record a blocker in `docs/fix_plan.md` and proceed with evidence‑only steps.
+- Verify imports and runtime flags without modification:
+  - `python -c "import dbex; import torch; print(torch.__version__)"`
+  - Confirm `KMP_DUPLICATE_LIB_OK=TRUE` is exported for torch-based tests.
+- If nanoBragg docs are present in the workspace, you MAY run the bundled CPU/CUDA smoke tests for verification only (`nanoBragg/docs/development/pytorch_runtime_checklist.md`). Do not attempt to fetch/install missing components.
 - Capture the current DiffBragg output for a representative dataset (`refine_one` HDF5 + ROI scores) as the baseline for parity checks.
-- Ensure `KMP_DUPLICATE_LIB_OK=TRUE` is set in the environment before importing torch (long‑lived workers and CLI).
 
 ## Phase 1 – Data Preparation Bridge (2–3 days)
 

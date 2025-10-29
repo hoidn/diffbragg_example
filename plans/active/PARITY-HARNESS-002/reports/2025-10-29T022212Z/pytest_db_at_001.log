@@ -1,0 +1,33 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 14 items
+
+tests/dbex/test_db_at_001_parity.py::TestManifestIntegrity::test_manifest_integrity PASSED [  7%]
+tests/dbex/test_db_at_001_parity.py::TestManifestIntegrity::test_golden_data_sanity PASSED [ 14%]
+tests/dbex/test_db_at_001_parity.py::TestManifestIntegrity::test_pixel_pitch_guard PASSED [ 21%]
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_perfect_match PASSED [ 28%]
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_correlation_computation PASSED [ 35%]
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_error_metrics PASSED [ 42%]
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_sum_ratio PASSED [ 50%]
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_localization_metric PASSED [ 57%]
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_mask_application PASSED [ 64%]
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_edge_cases PASSED [ 71%]
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_to_dict_serialization PASSED [ 78%]
+tests/dbex/test_db_at_001_parity.py::TestArtifactEmission::test_artifact_emission PASSED [ 85%]
+tests/dbex/test_db_at_001_parity.py::TestArtifactEmission::test_artifact_emission_minimal PASSED [ 92%]
+tests/dbex/test_db_at_001_parity.py::TestDB_AT_001_Parity::test_db_at_001_parity_smoke XFAIL [100%]
+
+=============================== warnings summary ===============================
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_error_metrics
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_sum_ratio
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_to_dict_serialization
+tests/dbex/test_db_at_001_parity.py::TestArtifactEmission::test_artifact_emission
+tests/dbex/test_db_at_001_parity.py::TestArtifactEmission::test_artifact_emission_minimal
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/fixtures/parity_loader.py:387: ConstantInputWarning: An input array is constant; the correlation coefficient is not defined.
+    corr, _ = scipy.stats.pearsonr(pred_flat, targ_flat)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================== 13 passed, 1 xfailed, 5 warnings in 0.52s ===================

@@ -145,9 +145,9 @@
 
   9. Validation
 
-  - The simple_cubic golden configuration (100 Å cell, 1024² detector, wavelength 6.2 Å) is the
-    canonical parity check and ships with commands and binaries under tests/golden_data (tests/
-    golden_data/README.md:21-40, tests/test_suite.py:271-339).
+  - A canonical parity dataset for DBEX has not been published yet; when one is selected it should
+    ship with commands, binaries, and metadata under tests/golden_data so both simulators share an
+    identical reference frame.
   - Matching nanoBragg defaults means oversample=-1, polarization enabled, and dmin=0, mirroring
     the CLI commands in the golden README (src/nanobrag_torch/config.py:212-215, src/nanobrag_torch/
     config.py:515-533, src/nanobrag_torch/simulator.py:778-804).
@@ -276,8 +276,8 @@
 
   1. Warm a simulator instance on representative panels (CPU and CUDA) to compile once before plugging
      it into DBEx.
-  2. Verify parity against the simple_cubic golden frame after wiring the dxtbx bridge to ensure
-     configuration matching before tuning gradients.
+  2. Once a reference parity dataset is available, verify parity against that golden frame after
+     wiring the dxtbx bridge to ensure configuration matching before tuning gradients.
 
 
      ---

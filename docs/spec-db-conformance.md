@@ -9,7 +9,7 @@ Status
 
 Conformance Profiles (Normative)
 - C‑Parity Profile:
-  - DB‑AT‑001 Simple cubic parity (image correlation ≥ 0.99 vs golden).
+  - DB‑AT‑001 Reference parity baseline (image correlation ≥ 0.99 vs golden; dataset TBD, skip if unavailable).
   - DB‑AT‑002 Determinism under fixed seeds (bitwise or tolerance‑stable outputs).
 - Gradient‑Safe Profile:
   - DB‑AT‑010 Gradcheck on refined parameters (cell logs/angles, quaternion seed → XYZ).
@@ -22,9 +22,9 @@ Conformance Profiles (Normative)
   - DB‑AT‑024 Mapping consistency (zero‑iteration forward vs data‑minus‑background overlay).
 
 Acceptance Tests (Normative)
-- DB‑AT‑001 Simple cubic parity
-  - Setup: use `nanoBragg2/tests/golden_data` configuration; simulate panel; compare to golden frame.
-  - Expectation: image correlation ≥ 0.99; residual RMS within tolerance.
+- DB‑AT‑001 Reference parity baseline
+  - Setup: consume the designated parity dataset manifest (once published) and compare PyTorch output to the golden frame. Until the dataset exists, mark the selector xfailed/skipped with reason `parity dataset unavailable` and record the attempted dataset lookup.
+  - Expectation: image correlation ≥ 0.99; residual RMS within tolerance when dataset is available.
   - Command: `KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests -k DB_AT_001`
 - DB‑AT‑020 Reflection ingestion sanity
   - Setup: load .expt/.refl; extract first ROI; slice data with bbox; verify shape, exclusivity, panel ordering.

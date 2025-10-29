@@ -193,7 +193,7 @@ References: docs/nanobrag_api.md (runtime/caching).
    - Refined cell parameters, orientation matrices, detector adjustments.
    - Residual maps (`target - Bragg`) saved as images for visual inspection.
  - Document acceptable tolerances (e.g., Δa < 0.1 Å, ROI score within 2 %).
-- Include a parity check against the `simple_cubic` golden configuration shipped with nanobrag_torch for a sanity gate before real data.
+- Include a parity check against the designated parity dataset once it exists; until then, document the skip and dataset gap before moving to real data.
  
 References: docs/nanobrag_api.md (golden parity assumptions).
 

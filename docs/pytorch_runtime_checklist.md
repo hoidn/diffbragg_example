@@ -42,7 +42,7 @@ from `docs/spec-db-runtime.md:10-20` and `docs/spec-db-conformance.md:10-48`.
    - **Optional GPU control:** `CUDA_VISIBLE_DEVICES` for device pinning
 
 6. **Acceptance Test Hooks** (`docs/spec-db-conformance.md:10-48`)
-   - **C-Parity Profile:** DB-AT-001 (simple cubic parity, correlation ≥0.99), DB-AT-002 (determinism under fixed seeds)
+   - **C-Parity Profile:** DB-AT-001 (reference parity baseline, dataset TBD; enforce correlation ≥0.99 when data is available), DB-AT-002 (determinism under fixed seeds)
    - **Gradient-Safe Profile:** DB-AT-010 (gradcheck on refined parameters), DB-AT-011 (no graph breaks under runtime mask/loss)
    - **Workflow Integration Profile:** DB-AT-020 (DIALS reflection ingestion), DB-AT-021 (mask polarity), DB-AT-022 (ROI background semantics), DB-AT-023 (ADU vs photons policy), DB-AT-024 (mapping consistency)
    - **Commands:** All acceptance tests run via `pytest -v tests -k DB_AT_XXX` with `KMP_DUPLICATE_LIB_OK=TRUE` environment variable set.

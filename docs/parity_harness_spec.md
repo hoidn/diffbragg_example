@@ -6,7 +6,7 @@
 
 ## 1. Purpose & Scope
 
-This document defines the normative requirements for parity test harnesses validating the `nanobrag_torch` backend against golden reference data. It specifies datasets, environment configuration, metrics computation, trace capture workflows, and artifact expectations for DB-AT-001 (simple cubic parity) and DB-AT-002 (determinism validation).
+This document defines the normative requirements for parity test harnesses validating the `nanobrag_torch` backend against golden reference data. It specifies datasets, environment configuration, metrics computation, trace capture workflows, and artifact expectations for DB-AT-001 (reference parity baseline) and DB-AT-002 (determinism validation).
 
 **Authoritative References:**
 - `docs/spec-db-conformance.md:10-48` — Acceptance test definitions and thresholds
@@ -14,11 +14,11 @@ This document defines the normative requirements for parity test harnesses valid
 - `docs/spec-db-tracing.md:10-26` — Tracing requirements and first-divergence workflow
 - `docs/TESTING_GUIDE.md:1-91` — Environment flags and test taxonomy
 
-## 2. DB-AT-001: Simple Cubic Parity
+## 2. DB-AT-001: Reference Parity Baseline
 
 ### 2.1 Test Objectives
 
-Validate that the PyTorch simulator produces output images numerically equivalent to golden reference data for a simple cubic crystal geometry.
+Validate that the PyTorch simulator produces output images numerically equivalent to a designated reference dataset representative of production geometries. When an official dataset is published, update this document with its manifest and configuration details.
 
 **Exit Criteria:**
 - Image correlation ≥ 0.99 (Pearson correlation coefficient)
@@ -27,31 +27,23 @@ Validate that the PyTorch simulator produces output images numerically equivalen
 
 ### 2.2 Golden Data Requirements
 
-**Dataset Location:**
-- Primary: `nanoBragg2/tests/golden_data/simple_cubic/` (if accessible)
-- Fallback: DBEX-local mirror under `tests/fixtures/golden_data/simple_cubic/`
+**Dataset Provisioning (TBD):**
+- No canonical parity dataset is currently distributed with DBEX.
+- Implementation teams MUST document the dataset path and provenance in `manifest.json` when one is selected.
+- Until an official dataset is published, DB-AT-001 MUST skip with reason `"parity dataset unavailable"` and record the attempted dataset lookup in the artifact notes.
 
-**Required Artifacts:**
-- `golden_image_panel{p}.bin` — Golden reference image tensor (binary format, float64)
-- `golden_trace_panel{p}_s{s}_f{f}.log` — Per-pixel trace for selected representative pixel
-- `config.json` — Configuration metadata (detector, beam, crystal, sampling parameters)
-
-**Verification Requirement:**
-- Golden dataset MUST include SHA256 checksums in `manifest.json`
-- Tests MUST validate checksums before comparison to detect data corruption
+**Dataset Requirements (once available):**
+- Golden artifacts MUST include SHA256 checksums in `manifest.json`.
+- Harness utilities MUST validate checksums before comparison to detect data corruption.
+- The manifest MUST capture crystal, beam, detector, and sampling metadata sufficient to hydrate simulator configs reproducibly.
 
 ### 2.3 Configuration Parity
 
-**Critical Parameters** (per `docs/development/c_to_pytorch_config_map.md`):
-- Crystal: 100Å cubic cell, no mosaicity, no misset rotation
-- Beam: Single wavelength (specified in config.json), no oscillation
-- Detector: Flat panel, perpendicular to beam, square pixels
-- Convention: CUSTOM (explicit, not inferred)
-
 **Configuration Validation:**
-- Tests MUST verify pixel pitch is square (raise if not per `docs/spec-db-core.md:43`)
-- Tests MUST confirm `[panel, slow, fast]` tensor ordering (`docs/spec-db-core.md:24`)
-- Tests MUST pass explicit `-convention` flag to avoid implicit switching
+- Tests MUST derive detector, beam, and crystal configs from the manifest metadata (per `docs/development/c_to_pytorch_config_map.md` once populated).
+- Tests MUST verify pixel pitch is square (raise if not per `docs/spec-db-core.md:43`).
+- Tests MUST confirm `[panel, slow, fast]` tensor ordering (`docs/spec-db-core.md:24`).
+- Tests MUST pass explicit `-convention` flags to avoid implicit switching.
 
 ### 2.4 Environment Configuration
 

@@ -138,7 +138,7 @@ Keywords: testing, pytest, selectors
 Use this when: Running or authoring tests for parity, ingestion, or runtime guardrails.
 
 ### [Parity Harness Specification](parity_harness_spec.md)
-Description: Normative requirements for DB-AT-001 (simple cubic parity) and DB-AT-002 (determinism) test harnesses, including golden data, metrics computation, trace capture workflow, and artifact layouts.
+Description: Normative requirements for DB-AT-001 (reference parity baseline) and DB-AT-002 (determinism) test harnesses, including golden data expectations, metrics computation, trace capture workflow, and artifact layouts.
 Keywords: parity, harness, DB-AT-001, DB-AT-002, golden-data, metrics, traces
 Use this when: Implementing or running parity tests, authoring test fixtures with standardized metrics, or debugging first-divergence issues via trace comparison.
 

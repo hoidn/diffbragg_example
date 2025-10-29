@@ -132,3 +132,13 @@ Notes
 - <Action State>: [planning]
 
 2025-10-29T010945Z focus=FINDINGS-LEDGER-002 state=planning dwell=1 artifacts=plans/active/FINDINGS-LEDGER-002/reports/2025-10-29T010945Z/ next_action=run_phase_A_inventory
+## 2025-10-29T010326Z — PARITY-HARNESS-002 Phase A planning
+- Focus: PARITY-HARNESS-002 — Implement DB-AT parity harness tests
+- Action Type: planning
+- Key Observations: No simple-cubic golden data exists under tests/; nanoBragg2 mirror absent so fallback mirror must be generated; docs/TESTING_GUIDE.md:62-77 and docs/development/TEST_SUITE_INDEX.md:18-36 still list DB_AT_001/002 as Planned with 0 collection; parity_harness_spec.md §2 highlights manifest+checksum rules and metrics schema needed before enforcing correlation thresholds; findings (CONFORMANCE-001, DIAGNOSTICS-001, TESTING-003, GEOMETRY-001) govern fixture design.
+- Artifact Path: plans/active/PARITY-HARNESS-002/reports/2025-10-29T010131Z/
+- Next Actions: Execute Phase A checklist (A1-A4) to mirror golden data, author manifest+loader, seed minimal DB_AT_001 test, and capture smoke/log evidence.
+- Reality Check: Confirmed golden dataset absent locally, selectors remain Planned (0 tests) so plan adds minimal test + collect-only logging before marking Active; no rescope required, dependencies satisfied.
+- <Action State>: [ready_for_implementation]
+
+2025-10-29T010326Z focus=PARITY-HARNESS-002 state=ready_for_implementation dwell=1 artifacts=plans/active/PARITY-HARNESS-002/reports/2025-10-29T010131Z/ next_action=execute_A1-A4_fixture_bootstrap

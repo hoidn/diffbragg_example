@@ -93,6 +93,7 @@
 - [ ] C1: Update `docs/TESTING_GUIDE.md` §2 and `docs/development/TEST_SUITE_INDEX.md` entries for DB-AT-001/002 with finalized harness details and selectors.
 - [ ] C2: Add harness references to `docs/index.md` and `docs/prompt_sources_map.json`; confirm prompt discoverability.
 - [ ] C3: Capture final evidence report (`summary.md`, `doc_diffs.log`) under `plans/active/PARITY-HARNESS-001/reports/<timestamp>/` and update `docs/fix_plan.md` Attempts History with Metrics/Artifacts lines.
+ - [ ] C4: Selector compliance check: run `pytest --collect-only` for `-k DB_AT_001` and `-k DB_AT_002` and save logs under the report path; ensure status semantics (Active vs Planned) remain consistent across docs.
 
 ### Notes & Risks
 - Keep documentation updates synchronized to avoid conflicting instructions across prompts.

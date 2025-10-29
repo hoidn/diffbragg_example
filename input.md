@@ -6,9 +6,9 @@ Mapped tests: KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_pari
 Artifacts: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T030352Z/{golden_dataset/env_bootstrap.log,golden_dataset/blocking_summary.md,golden_dataset/legacy/diffbragg_forward.log,golden_dataset/torch/,collect_db_at_001_parity.log,collect_db_at_001_forward.log}
 Do Now:
   1. NANOBRAG-GOLDEN-001::A1 (plans/active/NANOBRAG-GOLDEN-001/implementation.md) — Reproduce the libc10_cuda failure inside the simtbx env (`which python`, `python -m torch.utils.collect_env`, short torch smoke import) and append driver/library status plus any tracebacks to golden_dataset/env_bootstrap.log and golden_dataset/blocking_summary.md. tests: none — environment diagnostics.
-  2. NANOBRAG-GOLDEN-001::A1 (plans/active/NANOBRAG-GOLDEN-001/implementation.md) — Clone/install nanobrag_torch (`git clone https://github.com/pixel-modelers/nanoBragg2.git`, `pip install -e ./nanoBragg2`) and confirm `python -c "import nanobrag_torch; print(nanobrag_torch.__version__)"`, logging results to env_bootstrap.log. tests: none — dependency install.
+  2. NANOBRAG-GOLDEN-001::A1 (plans/active/NANOBRAG-GOLDEN-001/implementation.md) — Clone/install nanobrag_torch (`git clone https://github.com/hoidn/nanoBragg.git`, `pip install -e ./nanoBragg`) and confirm `python -c "import nanobrag_torch; print(nanobrag_torch.__version__)"`, logging results to env_bootstrap.log. tests: none — dependency install.
   3. NANOBRAG-GOLDEN-001::A2 (plans/active/NANOBRAG-GOLDEN-001/implementation.md) — Once torch imports cleanly, rerun `python -m dbex.refine_one --backend diffbragg ... --noop` to export the legacy bragg tensor into golden_dataset/legacy/, capturing stdout/stderr in diffbragg_forward.log and persisting `bragg_diffbragg.npy`. tests: none — DiffBragg baseline export.
-  4. NANOBRAG-GOLDEN-001::A3 (plans/active/NANOBRAG-GOLDEN-001/implementation.md) — Copy `scripts/generate_simple_cubic_golden.py` into the loop scratch dir and refactor it to call nanobrag_torch.Simulator (converting bridge stubs to real dataclasses) for panel 0, writing `bragg_panel0.npy` + metadata under golden_dataset/torch/ and teeing command output to run_log.log. tests: none — nanoBragg2 forward capture attempt.
+  4. NANOBRAG-GOLDEN-001::A3 (plans/active/NANOBRAG-GOLDEN-001/implementation.md) — Copy `scripts/generate_simple_cubic_golden.py` into the loop scratch dir and refactor it to call nanobrag_torch.Simulator (converting bridge stubs to real dataclasses) for panel 0, writing `bragg_panel0.npy` + metadata under golden_dataset/torch/ and teeing command output to run_log.log. tests: none — nanoBragg forward capture attempt.
 Priorities & Rationale:
 - docs/spec-db-core.md:20 — Canonical tensors must respect `[panel, slow, fast]` ordering, so simulator outputs need to be validated before manifest work.
 - docs/forward_equivalence.md:21 — DiffBragg baseline evidence is mandatory before comparing against the torch capture.
@@ -24,7 +24,7 @@ import torch
 print('torch_version', torch.__version__)
 print('cuda_available', torch.cuda.is_available())
 PY >> plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T030352Z/golden_dataset/env_bootstrap.log`
-- `source ~/miniconda3/bin/activate simtbx && git clone https://github.com/pixel-modelers/nanoBragg2.git && pip install -e nanoBragg2`
+- `source ~/miniconda3/bin/activate simtbx && git clone https://github.com/hoidn/nanoBragg.git && pip install -e nanoBragg`
 - `source ~/miniconda3/bin/activate simtbx && python -c "import nanobrag_torch; print('nanobrag_torch', nanobrag_torch.__version__)" >> plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T030352Z/golden_dataset/env_bootstrap.log`
 - `source ~/miniconda3/bin/activate simtbx && python -m dbex.refine_one --backend diffbragg -e refGeom.expt -r refGeom.refl -i 0 -o plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T030352Z/golden_dataset/legacy/dbex_diffbragg.h5 -m 747_mask.pkl -z scaled.mtz --noop |& tee plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T030352Z/golden_dataset/legacy/diffbragg_forward.log`
 - `mkdir -p plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T030352Z/scratch && cp scripts/generate_simple_cubic_golden.py plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T030352Z/scratch/canonical_panel0.py`
@@ -32,7 +32,7 @@ PY >> plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T030352Z/golden_dataset
 - `KMP_DUPLICATE_LIB_OK=TRUE python -m pytest --collect-only -q tests/dbex/test_db_at_001_parity.py -k DB_AT_001 | tee plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T030352Z/collect_db_at_001_parity.log`
 - `KMP_DUPLICATE_LIB_OK=TRUE python -m pytest --collect-only -q tests/dbex/test_forward_equivalence_complete.py -k DB_AT_001 | tee plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T030352Z/collect_db_at_001_forward.log`
 Pitfalls To Avoid:
-- Keep git working tree clean; stash cloned nanoBragg2 outside tracked paths or ensure it’s ignored before committing.
+- Keep git working tree clean; stash cloned nanoBragg outside tracked paths or ensure it’s ignored before committing.
 - Do not overwrite fallback tensors until the canonical dataset is fully captured and validated.
 - Capture full CUDA traceback details in blocking_summary.md if the libc10_cuda error persists after reinstalling torch.
 - Always activate the simtbx environment before running pip/pytest/torch commands to prevent dependency drift.

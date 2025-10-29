@@ -21,8 +21,8 @@ Estimated timeline: 12–18 engineering days (5 phased milestones with validatio
 See supporting API references: docs/nanobrag_api.md, docs/simtbx_api.md, docs/dxtbx_api.md, docs/dials_api.md.
 
 ## Phase 0 – Environment & Baseline (1–2 days)
-- Install `nanobrag_torch` in editable mode from `./nanoBragg2` and add it as a `pyproject.toml` dependency for the `dbex` package.
- - Run the bundled CPU and CUDA smoke tests (`nanoBragg2/docs/development/pytorch_runtime_checklist.md`) to confirm the simulator works on the target hardware (note: lives under the nanoBragg2 docs tree; may appear as a symlink depending on checkout).
+- Install `nanobrag_torch` in editable mode from `./nanoBragg` and add it as a `pyproject.toml` dependency for the `dbex` package.
+ - Run the bundled CPU and CUDA smoke tests (`nanoBragg/docs/development/pytorch_runtime_checklist.md`) to confirm the simulator works on the target hardware (note: lives under the nanoBragg docs tree; may appear as a symlink depending on checkout).
 - Capture the current DiffBragg output for a representative dataset (`refine_one` HDF5 + ROI scores) as the baseline for parity checks.
 - Ensure `KMP_DUPLICATE_LIB_OK=TRUE` is set in the environment before importing torch (long‑lived workers and CLI).
 

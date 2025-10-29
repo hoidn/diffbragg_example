@@ -1,0 +1,10 @@
+{
+  "n_panels": 1,
+  "loss_mask_coverage": 0.00210250608892897,
+  "diffbragg_max": 36169.5390625,
+  "torch_max": 0.0,
+  "median_correlation": NaN,
+  "median_rmse": 2.2569277606602984,
+  "localization_success_rate": 0.0,
+  "metrics_sample": 18
+}

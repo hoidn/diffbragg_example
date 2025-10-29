@@ -111,11 +111,13 @@ def build_structure_factor_grid(indices, amplitudes, device, scale_override=None
     # DiffBragg multiplies final intensity by spot_scale_override
     # nanobrag_torch has no scale parameter, so we scale F by sqrt(scale)
     # since intensity ∝ |F|² → scale on F² equals spot_scale_override
+    logger = logging.getLogger("canonical_capture")
     if scale_override is not None and scale_override > 0:
         scale_factor = np.sqrt(float(scale_override))
+        logger.info(f"BEFORE scaling: amps min={amps.min():.3e}, max={amps.max():.3e}, mean={amps.mean():.3e}")
         amps = amps * scale_factor
-        logger = logging.getLogger("canonical_capture")
         logger.info(f"Scaling structure factors by sqrt(scale_override)={scale_factor:.3e}")
+        logger.info(f"AFTER scaling: amps min={amps.min():.3e}, max={amps.max():.3e}, mean={amps.mean():.3e}")
     h_min, h_max = hkls[:, 0].min(), hkls[:, 0].max()
     k_min, k_max = hkls[:, 1].min(), hkls[:, 1].max()
     l_min, l_max = hkls[:, 2].min(), hkls[:, 2].max()
@@ -137,6 +139,13 @@ def build_structure_factor_grid(indices, amplitudes, device, scale_override=None
             grid[idx_h, idx_k, idx_l] = float(amp)
             n_inrange += 1
 
+    grid_nonzero_count = int((grid != 0).sum().item())
+    grid_min = float(grid.min().item())
+    grid_max = float(grid.max().item())
+    grid_mean = float(grid.mean().item())
+
+    logger.info(f"Structure factor grid stats: min={grid_min:.3e}, max={grid_max:.3e}, mean={grid_mean:.3e}, nonzero={grid_nonzero_count}")
+
     metadata = {
         "h_min": int(h_min),
         "h_max": int(h_max),
@@ -150,7 +159,10 @@ def build_structure_factor_grid(indices, amplitudes, device, scale_override=None
         "n_reflections": int(n_total),
         "n_in_range": int(n_inrange),
         "in_range_fraction": float(n_inrange / n_total) if n_total > 0 else 0.0,
-        "grid_nonzero": int((grid != 0).sum().item()),
+        "grid_nonzero": grid_nonzero_count,
+        "grid_min": grid_min,
+        "grid_max": grid_max,
+        "grid_mean": grid_mean,
     }
     return grid, metadata
 
@@ -479,7 +491,15 @@ def generate_simple_cubic_golden(output_dir: Path, hkl_debug_path: Path = None):
 
         det_model = TorchDetector(det_cfg, device=device)
         simulator = TorchSimulator(crystal_model, det_model, beam_config=beam_cfg, device=device)
-        torch_panel = simulator.run().detach().cpu().numpy().astype(np.float32)
+
+        # CRITICAL: Log raw simulator output before any conversions
+        raw_torch_output = simulator.run()
+        logger.info(f"Panel {panel_id} RAW torch output: device={raw_torch_output.device}, dtype={raw_torch_output.dtype}, "
+                   f"shape={raw_torch_output.shape}, min={raw_torch_output.min().item():.6e}, "
+                   f"max={raw_torch_output.max().item():.6e}, mean={raw_torch_output.mean().item():.6e}, "
+                   f"nonzero={int((raw_torch_output != 0).sum().item())}")
+
+        torch_panel = raw_torch_output.detach().cpu().numpy().astype(np.float32)
         torch_panels.append(torch_panel)
 
         panel_summaries.append(

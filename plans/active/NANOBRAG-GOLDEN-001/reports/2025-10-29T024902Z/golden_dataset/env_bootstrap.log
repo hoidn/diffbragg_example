@@ -1,0 +1,75 @@
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+=== Environment Bootstrap Log ===
+Python: 3.9.23 (main, Jun  5 2025, 13:40:20) 
+[GCC 11.2.0]
+Executable: /home/ollie/miniconda3/envs/simtbx/bin/python
+
+=== Package Checks ===
+✓ simtbx.nanoBragg: OK
+✓ dbex: OK (path: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/dbex/__init__.py)
+✓ dials: OK
+✗ torch: IMPORT FAILED
+  Error: /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/lib/libc10_cuda.so: undefined symbol: cudaGetDriverEntryPointByVersion, version libcudart.so.12
+
+=== Checking for nanobrag_torch ===
+✗ nanobrag_torch: NOT INSTALLED
+  Error: No module named 'nanobrag_torch'
+
+=== pip list (torch-related) ===
+nvidia-cuda-cupti-cu12   12.8.90
+nvidia-cuda-nvrtc-cu12   12.8.93
+nvidia-cuda-runtime-cu12 12.8.90
+torch                    2.8.0
+torchmetrics             1.8.2
+torchvision              0.23.0
+
+=== CUDA Library Investigation ===
+System CUDA libraries (via ldconfig):
+  libcudart.so.12 (libc6,x86-64) => /lib/x86_64-linux-gnu/libcudart.so.12
+  libcudart.so (libc6,x86-64) => /lib/x86_64-linux-gnu/libcudart.so
+  libcudadebugger.so.1 (libc6,x86-64) => /lib/x86_64-linux-gnu/libcudadebugger.so.1
+  libcuda.so.1 (libc6,x86-64) => /lib/x86_64-linux-gnu/libcuda.so.1
+  libcuda.so (libc6,x86-64) => /lib/x86_64-linux-gnu/libcuda.so
+
+torch package CUDA libraries:
+  libc10_cuda.so
+  libtorch_cuda.so
+  libtorch_cuda_linalg.so
+
+=== Potential Solution ===
+The torch package was built for CUDA 12.8 but there's a symbol mismatch.
+Options:
+  1. Reinstall torch with CPU-only (no CUDA)
+  2. Reinstall torch with matching CUDA version
+  3. Use LD_LIBRARY_PATH to override CUDA libraries
+
+Recommendation: Install nanobrag_torch first, then address torch if needed for torch backend.
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+
+=== Testing DiffBragg Import (without torch) ===
+✗ DiffBragg import failed: cannot import name 'background_from_dials_refls' from 'simtbx.diffBragg.utils' (/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/simtbx/diffBragg/utils.py)
+  Cannot proceed with baseline capture.
+
+=== Summary of Blockers ===
+1. torch: CUDA symbol mismatch (cudaGetDriverEntryPointByVersion)
+   Impact: Blocks torch backend testing; does NOT block DiffBragg baseline
+
+2. nanobrag_torch: NOT INSTALLED
+   Impact: Blocks Phase A3 (nanoBragg2 forward capture)
+   Action: Clone and install nanoBragg2 repository
+
+=== Action Plan ===
+1. Proceed with DiffBragg baseline capture (A2) - NO BLOCKER
+2. Clone and install nanoBragg2 for nanobrag_torch
+3. Address torch CUDA issue if torch backend needed for tests
+
+=== Torch Reinstallation Test ===
+✓ torch: 2.8.0+cu128
+  CUDA available: True
+  CUDA version: 12.8
+  Device count: 1
+  Device name: NVIDIA GeForce RTX 3090
+  ✓ CUDA tensor operation successful
+  ✓ torch is fully functional!

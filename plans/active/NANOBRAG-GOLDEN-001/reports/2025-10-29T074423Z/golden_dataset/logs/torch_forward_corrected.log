@@ -1,0 +1,12 @@
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+[torch_capture] Loaded DiffBragg baseline: (1, 2527, 2463)
+[torch_capture] Using N_cells=(20, 20, 20), scale=1.0
+Traceback (most recent call last):
+  File "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T074423Z/capture_torch_only.py", line 329, in <module>
+    main()
+  File "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T074423Z/capture_torch_only.py", line 200, in main
+    torch_grid, hkl_meta = build_structure_factor_grid(dl.F.indices(), dl.F.data().as_numpy_array(), device=device)
+  File "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T074423Z/capture_torch_only.py", line 48, in build_structure_factor_grid
+    grid[h - h_min, k - k_min, l - l_min] = amp
+TypeError: can't assign a numpy.float32 to a torch.cuda.FloatTensor

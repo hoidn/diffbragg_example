@@ -257,3 +257,12 @@ Notes
 - <Action State>: [planning]
 
 2025-10-29T070359Z focus=NANOBRAG-GOLDEN-001 state=planning dwell=1 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T070359Z/ next_action=prep_A2_A3_block_docs
+2025-10-29T071728Z focus=NANOBRAG-GOLDEN-001 state=planning dwell=2 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T071728Z/ next_action=execute_A2_A3_B1_D1_evidence
+## 2025-10-29T071728Z — NANOBRAG-GOLDEN-001 ROI rescope planning
+- Focus: NANOBRAG-GOLDEN-001 — Replace fallback DB-AT-001 golden dataset
+- Action Type: planning
+- Key Observations: Confirmed fallback manifest still advertises `simple_cubic_fallback`; legacy ROI HDF5 artifact present under 2025-10-29T063817Z; no `golden_dataset/torch/` outputs exist; Environment Freeze continues to bar simtbx modifications despite POLICY-001 exception lacking local source tree. Drafted ROI evidence plan (A2/A3/B1/D1) and staged 2025-10-29T071728Z report directory with planning_notes.md outlining ROI inventory, torch replay roadmap, and manifest adjustments.
+- Artifact Path: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T071728Z/
+- Next Actions: Execute ROI HDF5 scout, torch replay outline, manifest update outline, and doc/test sync definition per input.md; reassess readiness for implementation afterward.
+- Reality Check: Validated canonical `[panel,slow,fast]` tensors remain absent while ROI data is available; rescoped initiative to gather ROI evidence and manifest/test plans before requesting spec change or targeted simtbx patch.
+- <Action State>: [planning]

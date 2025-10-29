@@ -1,0 +1,50 @@
+{
+  "provenance": "DBEX fallback golden data generator (simple cubic stub)",
+  "source_experiment": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/refGeom.expt",
+  "source_reflections": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/refGeom.refl",
+  "source_mtz": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/scaled.mtz",
+  "generation_date": "2025-10-29T010131Z",
+  "panel_id": 0,
+  "shape": {
+    "bragg": [
+      2527,
+      2463
+    ],
+    "target": [
+      2527,
+      2463
+    ],
+    "loss_mask": [
+      2527,
+      2463
+    ]
+  },
+  "beam_config": {
+    "wavelength_A": 0.9768000000000001,
+    "polarization_factor": 0.0,
+    "nopolar": false
+  },
+  "crystal_config": {
+    "cell_a": 27.3758389202232,
+    "cell_b": 32.06579930050022,
+    "cell_c": 34.46635719191433,
+    "cell_alpha": 88.76861581157905,
+    "cell_beta": 71.6300065859712,
+    "cell_gamma": 68.18891879154103
+  },
+  "detector_config": {
+    "distance_mm": 231.27645547762577,
+    "beam_center_s": 213.89816695377465,
+    "beam_center_f": 217.74619093817884,
+    "beam_center_source": "explicit",
+    "spixels": 2527,
+    "fpixels": 2463,
+    "pixel_size_mm": 0.17200000000000001
+  },
+  "notes": [
+    "This is a FALLBACK dataset pending canonical nanoBragg2 golden data.",
+    "Bragg tensor is synthetic (Gaussian pattern on ROI support).",
+    "Target tensor is background-subtracted refGeom data.",
+    "Replace with real parity baseline when available."
+  ]
+}

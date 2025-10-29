@@ -383,3 +383,12 @@ Notes
 - Reality Check: Verified canonical `.npy` tensors absent and manifest references stale repo path; rescoped loop to scale correction + regeneration before parity enforcement.
 - <Action State>: [ready_for_implementation]
 2025-10-29T212500Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=12 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T212500Z/ next_action=remove_sqrt_scale_regenerate_and_run_db_at_001
+## 2025-10-29T185313Z — NANOBRAG-GOLDEN-001 scale-alignment plan refresh
+- Focus: NANOBRAG-GOLDEN-001 — Replace fallback DB-AT-001 golden dataset
+- Action Type: planning
+- Key Observations: Latest capture directory (2025-10-29T212500Z) records torch_max=6.9e-05 vs DiffBragg 3.6e4 and shows canonical `.npy` tensors missing from both golden_dataset and fixtures, so manifest references stale files. Parity harness still writes artifacts into 2025-10-29T181603Z, preventing evidence rollover. Logged SCALE-002 finding to track the √(spot_scale_override) post-simulation requirement.
+- Artifact Path: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T185313Z/
+- Next Actions: Implement post-sim √scale in generator, regenerate tensors into 2025-10-29T185313Z with manifest + fixtures, retarget parity harness artifacts, and rerun DB_AT_001 capturing logs.
+- Reality Check: Validated canonical assets absent despite manifest updates; rescoped to scaling + artifact path fixes before enforcing parity thresholds.
+- <Action State>: [ready_for_implementation]
+2025-10-29T185313Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=13 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T185313Z/ next_action=apply_sqrt_scale_regenerate_and_run_db_at_001

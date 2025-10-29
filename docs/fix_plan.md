@@ -13,7 +13,7 @@
 ## Active Initiatives
 
 ### [NANOBRAG-GOLDEN-001] Replace fallback DB-AT-001 golden dataset
-- Depends on: TORCH-BRIDGE-001, FORWARD-EQUIV-001, PARITY-HARNESS-002, simforge/simtbx environment availability, nanobrag_torch package availability, CUDA runtime compatibility
+- Depends on: TORCH-BRIDGE-001, FORWARD-EQUIV-001, PARITY-HARNESS-002, nanobrag_torch package availability, CUDA runtime compatibility (simtbx env provisioned)
 - Status: in_progress
 - Owner/Date: Unassigned / 2025-10-29
 - Exit Criteria:

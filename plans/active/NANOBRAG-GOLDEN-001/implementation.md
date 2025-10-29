@@ -1,7 +1,7 @@
 # NANOBRAG-GOLDEN-001 — Canonical DB-AT-001 Golden Dataset
 
 ## Phase A — Canonical tensor capture
-- [ ] **A1 — Environment + dependency validation**: Confirm `nanobrag_torch` editable install is available (or document acquisition plan) and verify refGeom dataset inputs (expt/refl/mtz) plus structure-factor sources exist (`docs/spec-db-core.md:20-41`, `plans/nanobrag_integration_plan.md:23-54`). Record validation log under `reports/<timestamp>/golden_dataset/`.
+- [ ] **A1 — Environment + dependency validation**: Record evidence that the existing `simtbx` conda env is active (`which python`, `python -c "import simtbx"`) and confirm `nanobrag_torch` availability (install from `https://github.com/hoidn/nanoBragg` if missing) along with refGeom dataset inputs (expt/refl/mtz, structure-factor source) (`docs/spec-db-core.md:20-41`, `plans/nanobrag_integration_plan.md:23-54`). Append details to `reports/<timestamp>/golden_dataset/`.
 - [ ] **A2 — DiffBragg baseline export**: Run legacy DiffBragg forward-only pipeline to capture `bragg_diffbragg.npy`, ROI metrics, and config JSON; stash under `golden_dataset/legacy/` with command log (`docs/forward_equivalence.md:21-37`).
 - [ ] **A3 — nanoBragg2 forward capture**: Invoke `nanobrag_torch` via bridge helpers to produce canonical torch `bragg` tensors for all panels, ensuring `[panel, slow, fast]` ordering and mask alignment; persist under `golden_dataset/torch/` with simulator config snapshots (`docs/nanobrag_api.md:21-83`).
 

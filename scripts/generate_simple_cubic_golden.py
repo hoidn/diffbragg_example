@@ -17,7 +17,7 @@ Output structure:
     ├── torch/
     │   ├── bragg_torch.npy          # nanobrag_torch baseline [panel, slow, fast]
     │   ├── target_panel_0.npy       # Background-subtracted targets [slow, fast]
-    │   ├── loss_mask_panel_0.npy    # Loss mask [slow, fast] uint8
+    │   ├── loss_mask_panel_0.npy    # Loss mask [slow, fast] bool
     │   ├── config_torch.json        # Torch config metadata
     │   └── panel_metrics.json       # Per-panel peak stats
     ├── logs/
@@ -613,11 +613,27 @@ def generate_simple_cubic_golden(
     # === Manifest emission (if requested) ===
     if emit_manifest:
         logger.info("Generating manifest.json with SHA256 checksums...")
+
+        # Capture actual CLI command from sys.argv
+        import subprocess
+        generator_command = " ".join(sys.argv)
+
+        # Get actual git revision
+        try:
+            git_rev = subprocess.check_output(
+                ["git", "rev-parse", "HEAD"],
+                cwd=repo_root,
+                text=True
+            ).strip()
+        except Exception as e:
+            logger.warning(f"Could not get git revision: {e}")
+            git_rev = "unknown"
+
         manifest_data = {
             "dataset_name": "simple_cubic_canonical",
             "generation_timestamp": datetime.datetime.utcnow().isoformat() + "Z",
-            "generator_command": "scripts/generate_simple_cubic_golden.py --emit-manifest",
-            "git_revision": "integration",  # TODO: extract from git if needed
+            "generator_command": generator_command,
+            "git_revision": git_rev,
             "structure_factor_source": "scaled.mtz",
             "experiment_source": "refGeom.expt",
             "files": {}
@@ -648,6 +664,15 @@ def generate_simple_cubic_golden(
         with open(manifest_path, "w") as fh:
             json.dump(to_native(manifest_data), fh, indent=2)
         logger.info(f"Manifest written to {manifest_path}")
+
+        # Compute manifest self-checksum and update it
+        manifest_sha256 = compute_sha256(manifest_path)
+        manifest_data["manifest_sha256"] = manifest_sha256
+
+        # Rewrite manifest with self-checksum included
+        with open(manifest_path, "w") as fh:
+            json.dump(to_native(manifest_data), fh, indent=2)
+        logger.info(f"  manifest.json: {manifest_sha256[:16]}... (self-checksum)")
 
     # === Fixture copy (if requested) ===
     if fixtures_dir is not None:

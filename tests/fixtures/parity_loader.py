@@ -27,7 +27,9 @@ class GoldenData(NamedTuple):
     Golden parity dataset container.
 
     Attributes:
-        bragg: Predicted Bragg intensities [slow, fast] float32
+        bragg: Predicted Bragg intensities [slow, fast] float32 (torch baseline, primary)
+        bragg_diffbragg: DiffBragg baseline [slow, fast] float32 (optional, for parity comparison)
+        bragg_torch: nanobrag_torch baseline [slow, fast] float32 (alias for bragg, for clarity)
         target: Background-subtracted targets [slow, fast] float32
         loss_mask: Loss mask [slow, fast] bool
         metadata: Configuration metadata dict
@@ -40,6 +42,8 @@ class GoldenData(NamedTuple):
     metadata: dict
     manifest: dict
     panel_id: int
+    bragg_diffbragg: Optional[np.ndarray] = None
+    bragg_torch: Optional[np.ndarray] = None
 
 
 def compute_sha256(file_path: Path) -> str:
@@ -225,23 +229,47 @@ def load_golden_data(
     target_path = golden_dir / f"target_panel_{panel_id}.npy"
     loss_mask_path = golden_dir / f"loss_mask_panel_{panel_id}.npy"
 
-    # Fallback: check for multi-panel stack files
-    if not bragg_path.exists():
-        bragg_stack_path = golden_dir / "bragg_torch.npy"
-        if bragg_stack_path.exists():
-            bragg_stack = np.load(bragg_stack_path)
-            if panel_id >= bragg_stack.shape[0]:
+    # Load both DiffBragg and torch baselines for parity comparison
+    bragg_diffbragg_stack_path = golden_dir / "bragg_diffbragg.npy"
+    bragg_torch_stack_path = golden_dir / "bragg_torch.npy"
+
+    bragg_diffbragg = None
+    bragg_torch_baseline = None
+
+    # Load DiffBragg baseline if available
+    if bragg_diffbragg_stack_path.exists():
+        bragg_diffbragg_stack = np.load(bragg_diffbragg_stack_path)
+        if bragg_diffbragg_stack.ndim == 3:  # [panel, slow, fast]
+            if panel_id >= bragg_diffbragg_stack.shape[0]:
                 raise ValueError(
-                    f"Panel {panel_id} out of range for bragg_torch.npy (shape {bragg_stack.shape})"
+                    f"Panel {panel_id} out of range for bragg_diffbragg.npy (shape {bragg_diffbragg_stack.shape})"
                 )
-            bragg = bragg_stack[panel_id]
-        else:
-            raise ValueError(
-                f"Golden Bragg tensor not found: {bragg_path}\n"
-                f"Panel {panel_id} may not be available in this dataset."
-            )
-    else:
+            bragg_diffbragg = bragg_diffbragg_stack[panel_id]
+        else:  # [slow, fast] single panel
+            bragg_diffbragg = bragg_diffbragg_stack
+
+    # Load torch baseline if available
+    if bragg_torch_stack_path.exists():
+        bragg_torch_stack = np.load(bragg_torch_stack_path)
+        if bragg_torch_stack.ndim == 3:  # [panel, slow, fast]
+            if panel_id >= bragg_torch_stack.shape[0]:
+                raise ValueError(
+                    f"Panel {panel_id} out of range for bragg_torch.npy (shape {bragg_torch_stack.shape})"
+                )
+            bragg_torch_baseline = bragg_torch_stack[panel_id]
+        else:  # [slow, fast] single panel
+            bragg_torch_baseline = bragg_torch_stack
+
+    # Primary bragg field: prefer per-panel file, fallback to torch stack, then torch baseline
+    if bragg_path.exists():
         bragg = np.load(bragg_path)
+    elif bragg_torch_baseline is not None:
+        bragg = bragg_torch_baseline
+    else:
+        raise ValueError(
+            f"Golden Bragg tensor not found: {bragg_path}\n"
+            f"Panel {panel_id} may not be available in this dataset."
+        )
 
     if not target_path.exists():
         raise ValueError(f"Golden target tensor not found: {target_path}")
@@ -283,7 +311,9 @@ def load_golden_data(
         loss_mask=loss_mask,
         metadata=metadata,
         manifest=manifest,
-        panel_id=panel_id
+        panel_id=panel_id,
+        bragg_diffbragg=bragg_diffbragg,
+        bragg_torch=bragg_torch_baseline
     )
 
 

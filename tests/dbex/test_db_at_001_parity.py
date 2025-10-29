@@ -707,15 +707,15 @@ class TestDB_AT_001_Parity:
 
     def test_db_at_001_parity_smoke(self, simple_cubic_golden):
         """
-        DB-AT-001 parity smoke test with metrics computation.
+        DB-AT-001 parity smoke test with canonical DiffBragg vs torch comparison.
 
-        Per docs/forward_equivalence.md:46-52, this test:
-        - Loads golden data (bragg, target, loss_mask)
-        - Computes parity metrics
+        Per docs/forward_equivalence.md:46-52 and NANOBRAG-GOLDEN-001, this test:
+        - Loads canonical golden data (bragg_diffbragg, bragg_torch, target, loss_mask)
+        - Computes parity metrics between DiffBragg and torch baselines
         - Emits artifacts with manifest checksum
-        - xfails if thresholds not met (expected with synthetic data)
+        - xfails if thresholds not met (expected with known scale mismatch)
 
-        Thresholds (future enforcement when real simulator lands):
+        Thresholds (DB-AT-001 acceptance criteria):
         - Median ROI correlation ≥ 0.2
         - ≥90% ROIs with localized peaks
 
@@ -725,49 +725,45 @@ class TestDB_AT_001_Parity:
         """
         golden = simple_cubic_golden
 
-        # Set deterministic RNG seed for reproducibility
-        np.random.seed(42)
+        # Use canonical DiffBragg vs torch tensors for parity comparison
+        # (No synthetic noise; comparing real captured baselines)
+        if golden.bragg_torch is None:
+            pytest.skip("Canonical torch baseline not available in golden data")
+        if golden.bragg_diffbragg is None:
+            pytest.skip("Canonical DiffBragg baseline not available in golden data")
 
-        # For Phase B, we use golden data directly as "predicted" vs "target"
-        # (In Phase C, predicted will come from torch forward pass)
-        # For now, introduce synthetic mismatch to test metrics
-        predicted = golden.bragg.copy()
-        # Add noise to simulate imperfect parity
-        noise = np.random.randn(*predicted.shape).astype(np.float32) * 5.0
-        predicted = predicted + noise
+        predicted = golden.bragg_torch  # nanobrag_torch baseline
+        target_baseline = golden.bragg_diffbragg  # DiffBragg baseline
 
-        # Compute parity metrics
+        # Compute parity metrics (DiffBragg vs torch comparison)
         metrics = compute_parity_metrics(
             predicted=predicted,
-            target=golden.target,
+            target=target_baseline,
             loss_mask=golden.loss_mask,
             check_localization=True
         )
 
         # Get manifest checksum from golden data
-        manifest_files = golden.manifest.get("files", {})
-        manifest_checksum = None
-        if "manifest" in manifest_files:
-            manifest_checksum = manifest_files["manifest"]["sha256"]
+        manifest_checksum = golden.manifest.get("manifest_sha256")
 
         # Find first divergence (per docs/spec-db-tracing.md:15-19)
         first_div = find_first_divergence(
             predicted=predicted,
-            target=golden.target,
+            target=target_baseline,
             loss_mask=golden.loss_mask,
             abs_threshold=1e-6,
             rel_threshold=1e-4,
         )
 
-        # Write artifacts
+        # Write artifacts to current report directory (per input.md)
         repo_root = Path(__file__).parent.parent.parent
-        artifact_dir = repo_root / "plans/active/PARITY-HARNESS-002/reports/2025-10-29T020937Z"
+        artifact_dir = repo_root / "plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T181603Z/parity_harness"
 
         artifacts = write_parity_artifacts(
             artifact_dir=artifact_dir,
             metrics=metrics,
             predicted=predicted,
-            target=golden.target,
+            target=target_baseline,
             manifest_checksum=manifest_checksum,
             metadata=golden.metadata
         )

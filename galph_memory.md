@@ -329,3 +329,12 @@ Notes
 - Reality Check: Verified canonical tensors remain missing and fallback manifest still active; replayed spec anchors (docs/spec-db-core.md, docs/forward_equivalence.md) to confirm non-zero torch panels are required before manifest swap.
 - <Action State>: [ready_for_implementation]
 2025-10-29T093203Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=6 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T092655Z/ next_action=swap_reciprocal_vectors_and_rerun_db_at_001
+## 2025-10-29T095110Z — NANOBRAG-GOLDEN-001 real-space HKL plan
+- Focus: NANOBRAG-GOLDEN-001 — Replace fallback DB-AT-001 golden dataset
+- Action Type: planning
+- Key Observations: Reviewed 2025-10-29T092655Z canonical_capture.log showing torch_max=0 and HKL hit rate 0/6,224,001; compared against torch_hkl_debug.json bounds (h∈[-24,24], k∈[-28,28], l∈[-31,31]); confirmed simulator currently dots scattering with reciprocal vectors after Å⁻¹ conversion, deviating from nanoBragg.c real-space projection.
+- Artifact Path: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T094859Z/
+- Next Actions: Restore real-space projection in compute_physics_for_position, log HKL extrema per panel, regenerate canonical tensors, and rerun DB_AT_001 selector.
+- Reality Check: Validated canonical dataset still missing non-zero torch tensors and that fallback manifest remains active; rescoped loop from reciprocal-vector debugging to reconnecting the pure function with the C reference while preserving Environment Freeze.
+- <Action State>: [ready_for_implementation]
+2025-10-29T095110Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=7 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T094859Z/ next_action=restore_real_space_projection_and_regenerate

@@ -1,4 +1,4 @@
-**Summary**: Align nanobrag_torch Miller index math with reciprocal vectors so the torch forward baseline emits non-zero intensities for DB_AT_001.
+**Summary**: Realign nanoBragg torch HKL projection with the C reference so DB_AT_001 panels receive non-zero structure factors.
 
 **Mode**: Parity
 
@@ -8,43 +8,46 @@
 
 **Mapped tests**: KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_forward_equivalence_complete.py -k DB_AT_001
 
-**Artifacts**: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T092655Z/
+**Artifacts**: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T094859Z/
 
 **Do Now**
 - NANOBRAG-GOLDEN-001:
-  - Implement: /home/ollie/Documents/nanoBragg/src/nanobrag_torch/simulator.py::compute_physics_for_position — swap to rotated reciprocal vectors (a*/b*/c*) when computing `h,k,l` and add bounded logging to capture in-range hit rates per panel.
+  - Implement (A3): nanobrag_torch/simulator.py::_compute_physics_for_position — revert Miller index projection to the rotated real-space vectors (meters) used in nanoBragg.c, remove the incorrect Å⁻¹ conversion, and emit bounded HKL min/max + hit-rate diagnostics per panel into the capture log.
   - Validate: KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_forward_equivalence_complete.py -k DB_AT_001
-  - Artifacts: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T092655Z/
+  - Artifacts: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T094859Z/
 
 **Priorities & Rationale**
-- Respect docs/architecture/parameter_trace_analysis.md:47 guidance that Miller indices use reciprocal vectors, eliminating the zero-output bug observed in 2025-10-29T091339Z/canonical_capture.log.
-- Keep structure-factor ingestion compliant with docs/spec-db-core.md:20-47 so canonical tensors align `[panel, slow, fast]` ordering when parity tests reload them.
-- Honor forward-equivalence thresholds from docs/forward_equivalence.md:30-58 to confirm parity metrics become meaningful once torch output is non-zero.
-- Preserve CONFIG-001 mapping guarantees (docs/config_crosswalk.md:15-72) while altering the simulator math so downstream fixtures stay valid.
+- Honor docs/spec-db-core.md:35-54 geometry and `[panel, slow, fast]` ordering so real-space vectors remain meter-scaled before dotting the scattering vector.
+- Follow docs/nanobrag_api.md:71-105 guidance that Simulator physics matches the C reference per-pixel, ensuring non-zero `bragg_torch` tensors.
+- Apply docs/development/testing_strategy.md:112 trace requirements to capture Miller index stats that explain first divergence when torch output is zero.
+- Keep mapped selector in docs/TESTING_GUIDE.md:64-87 passing so DB_AT_001 remains an Active acceptance guard per CONFORMANCE-001.
+- Preserve CONFIG-001 safeguards from docs/config_crosswalk.md:32-72 so detector/beam mappings stay unchanged while adjusting physics math.
 
 **How-To Map**
-- Edit /home/ollie/Documents/nanoBragg/src/nanobrag_torch/simulator.py near the `h = dot_product(...)` block to replace real-space rotations with cached reciprocal vectors and emit debug counters guarded by the existing logger.
-- Regenerate torch tensors by running `python scripts/generate_simple_cubic_golden.py --out plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T092655Z/golden_dataset` (Environment Freeze: reuse existing env inputs).
-- Archive updated capture logs and tensor artifacts under the loop directory before invoking pytest.
-- Run `KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_forward_equivalence_complete.py -k DB_AT_001` and store `--collect-only` + test logs alongside metrics.json in the artifacts directory.
+- Edit nanobrag_torch/simulator.py, updating `compute_physics_for_position` to project the 1/m scattering vector against `rot_a/rot_b/rot_c`, record `h0/k0/l0` extrema, and print a single `[HKL stats]` line per panel.
+- Regenerate tensors: `python scripts/generate_simple_cubic_golden.py --canonical-out plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T094859Z/golden_dataset --hkldebug plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T094859Z/torch_hkl_debug.json | tee plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T094859Z/canonical_capture.log`.
+- Archive HKL stats (copy `torch_hkl_debug.json` and capture log) alongside updated tensors before running tests.
+- Run parity smoke: `KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_forward_equivalence_complete.py -k DB_AT_001 | tee plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T094859Z/pytest_forward.log`.
+- If the selector still xfails after fix, capture `pytest --collect-only` output to confirm >0 tests and log metrics deltas in `metrics.json`.
 
 **Pitfalls To Avoid**
-- Do not touch package installs or rebuilds (Environment Freeze).
-- Keep structure-factor tensors on the same device/dtype as the simulator to avoid implicit CPU copies zeroing data.
-- Ensure logging stays bounded (<100 lines) to prevent canonical_capture.log bloat.
-- Reuse existing ROI masks; never invert trusted mask polarity (per CONFIG-001 / GEOMETRY-001).
-- Confirm steps multiplier stays non-zero when editing `_compute_physics_for_position` to avoid divide-by-zero after normalization.
-- Save a `.patch` capturing simulator changes in the artifact directory for reproducibility.
-- Avoid modifying DiffBragg baseline paths; only touch torch-side math this loop.
-- Watch for torch compile caches; keep `NANOBRAGG_DISABLE_COMPILE=1` unset unless debugging per RUNTIME-001.
-- Record new metric deltas (torch_max, roi coverage) in metrics.json before parity test.
-- Keep pytest to the mapped selector; no extra modules beyond evidence scope.
+- Do not touch environment packages or rebuild simtbx (Environment Freeze); treat missing imports as blockers.
+- Keep scattering math device-neutral—no `.cpu()` or dtype casts that break CONFIG-001 guarantees.
+- Ensure the HKL diagnostics print once per panel to keep logs under 100 lines.
+- Confirm `h0/k0/l0` tensors stay on simulator device before min/max to avoid graph breaks under torch.compile.
+- Preserve polarization and lattice-factor logic; only adjust the projection math and logging guards.
+- Maintain canonical `[panel, slow, fast]` tensor ordering when saving `bragg_torch.npy`.
+- Capture and store a `.patch` of simulator changes in the artifacts directory for reproducibility.
+- Reuse existing ROI masks; never flip trusted mask polarity.
+- Record updated `torch_max`, `hit_rate`, and HKL bounds in `metrics.json` to document the change.
+- Stop immediately if generator still reports `torch_max=0` and log the failure before re-running tests.
 
 **If Blocked**
-- If simulator changes still return all-zero frames, mark NANOBRAG-GOLDEN-001 as `blocked` in docs/fix_plan.md with the new log snippet, note the failing `torch_max=0` signature in docs/findings.md, and pivot to dependency analysis.
+- If HKL stats remain out of bounds or torch output stays zero, mark NANOBRAG-GOLDEN-001 `blocked` in docs/fix_plan.md with the new `[HKL stats]` excerpt, note the failing signature in docs/findings.md, and halt implementation pending clarification on scattering vector conventions.
 
 **Findings Applied (Mandatory)**
-- CONFIG-001 — Maintain beam/geometry mapping consistency while adjusting Miller index math.
-- CONFORMANCE-001 — Validate against DB_AT_001 acceptance thresholds once torch outputs are non-zero.
-- PARITY-001 — Capture first-divergence style metrics in metrics.json to trace earliest mismatch after the fix.
-- TESTING-003 — Reconfirm the DB_AT_001 selector via pytest `--collect-only` and log the artifact in the loop directory.
+- CONFIG-001 — Fix keeps dxtbx→simulator mappings intact while adjusting lattice math.
+- CONFORMANCE-001 — Uphold DB_AT acceptance thresholds by validating the canonical selector after the fix.
+- PARITY-001 — Use HKL diagnostics to feed first-divergence tracing once tensors go non-zero.
+- TESTING-003 — Reconfirm the mapped selector collects >0 tests and archive logs as evidence.
+- DIAGNOSTICS-001 — Log structured HKL metrics alongside canonical artifacts for reproducible debugging.

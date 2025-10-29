@@ -1,0 +1,5 @@
+PATH=/home/ollie/miniconda3/envs/simtbx/bin:/home/ollie/bin:/home/ollie/.cargo/bin:/home/ollie/anaconda3/bin:/home/ollie/bin:/home/ollie/.local/bin:/home/ollie/bin:/home/ollie/miniconda3/condabin:/home/ollie/.nvm/versions/node/v20.19.4/bin:/home/ollie/.cargo/bin:/home/ollie/anaconda3/bin:/home/ollie/bin:/home/ollie/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/home/ollie/.fzf/bin
+/home/ollie/miniconda3/envs/simtbx/bin/python3
+Python 3.9.23
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources

@@ -3,7 +3,7 @@
 ID: FINDINGS-LEDGER-002
 Title: Extend knowledge base with torch experiment lessons
 Owner: Unassigned
-Status: in_progress
+Status: done
 
 ## Goals
 - Review recent torch bridge and CLI artifacts to extract durable lessons.
@@ -19,9 +19,9 @@ Status: in_progress
 
 ## Phase A — Artifact Survey
 ### Checklist
-- [ ] A1: Inventory existing reports under `plans/active/TORCH-BRIDGE-001/` and `plans/active/TORCH-CLI-003/`; capture key metrics and diagnostics (e.g., `smoke_metrics.json`, `pytest_cli.log`).
-- [ ] A2: Extract candidate lessons (geometry, runtime, CLI diagnostics) into a working notes file; ensure coverage across bridge + CLI domains.
-- [ ] A3: Validate that proposed findings do not duplicate existing ledger entries (`docs/findings.md`).
+- [x] A1: Inventory existing reports under `plans/active/TORCH-BRIDGE-001/` and `plans/active/TORCH-CLI-003/`; capture key metrics and diagnostics (e.g., `smoke_metrics.json`, `pytest_cli.log`).
+- [x] A2: Extract candidate lessons (geometry, runtime, CLI diagnostics) into a working notes file; ensure coverage across bridge + CLI domains.
+- [x] A3: Validate that proposed findings do not duplicate existing ledger entries (`docs/findings.md`).
 
 ### Validation & Artifacts
 - Commands: `ls plans/active/TORCH-BRIDGE-001/reports/*`, `ls plans/active/TORCH-CLI-003/reports/*`
@@ -29,9 +29,9 @@ Status: in_progress
 
 ## Phase B — Findings Drafting
 ### Checklist
-- [ ] B1: Define new finding IDs, tags, and summaries mapped to source specs/code (minimum three entries).
-- [ ] B2: Update `docs/findings.md` with drafted entries; preserve table formatting.
-- [ ] B3: Self-review for clarity and spec/code citation accuracy; adjust wording to match ledger style.
+- [x] B1: Define new finding IDs, tags, and summaries mapped to source specs/code (minimum three entries).
+- [x] B2: Update `docs/findings.md` with drafted entries; preserve table formatting.
+- [x] B3: Self-review for clarity and spec/code citation accuracy; adjust wording to match ledger style.
 
 ### Validation & Artifacts
 - Commands: `python scripts/orchestration/check_input.py --validate-findings docs/findings.md` (if available), manual formatting review.
@@ -39,9 +39,9 @@ Status: in_progress
 
 ## Phase C — Cross-References & Registry
 ### Checklist
-- [ ] C1: Add cross-links to new findings within `docs/TESTING_GUIDE.md`, `docs/development/testing_strategy.md`, or `docs/architecture.md` where applicable.
-- [ ] C2: Ensure `docs/index.md` and `docs/prompt_sources_map.json` still reference the knowledge base accurately; update if new sections introduced.
-- [ ] C3: Capture `pytest --collect-only` evidence for any selectors referenced by new findings (max 2 selectors) and store logs.
+- [x] C1: Add cross-links to new findings within `docs/TESTING_GUIDE.md`, `docs/development/testing_strategy.md`, or `docs/architecture.md` where applicable.
+- [x] C2: Ensure `docs/index.md` and `docs/prompt_sources_map.json` still reference the knowledge base accurately; update if new sections introduced.
+- [x] C3: Capture `pytest --collect-only` evidence for any selectors referenced by new findings (max 2 selectors) and store logs.
 
 ### Validation & Artifacts
 - Commands:
@@ -51,9 +51,9 @@ Status: in_progress
 
 ## Phase D — Ledger & Evidence Sync
 ### Checklist
-- [ ] D1: Update `docs/fix_plan.md` Attempts History with Metrics (counts of new findings/selectors) and Artifacts (reports path).
-- [ ] D2: Save `summary.md` enumerating lessons, cross-links, and verification commands to `$ART/summary.md`.
-- [ ] D3: Verify repo status clean except intended changes; ensure new findings referenced in `galph_memory.md` entry.
+- [x] D1: Update `docs/fix_plan.md` Attempts History with Metrics (counts of new findings/selectors) and Artifacts (reports path).
+- [x] D2: Save `summary.md` enumerating lessons, cross-links, and verification commands to `$ART/summary.md`.
+- [x] D3: Verify repo status clean except intended changes; ensure new findings referenced in `galph_memory.md` entry.
 
 ### Validation & Artifacts
 - Commands: `git status --short`, `ls $ART`

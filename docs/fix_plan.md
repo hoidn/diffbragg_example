@@ -95,7 +95,7 @@
 
 ### [FINDINGS-LEDGER-002] Extend knowledge base with torch experiment lessons
 - Depends on: TORCH-BRIDGE-001, TORCH-CLI-003
-- Status: in_progress
+- Status: done
 - Owner/Date: Unassigned / 2025-10-29
 - Exit Criteria:
   1. Review artifacts under `plans/active/TORCH-BRIDGE-001/reports/` and `plans/active/TORCH-CLI-003/reports/` to extract durable lessons spanning geometry, runtime, and CLI diagnostics (see `docs/spec-db-tracing.md:10-72`).
@@ -105,6 +105,7 @@
 - Working Plan: plans/active/FINDINGS-LEDGER-002/implementation.md
 - Attempts History:
   * 2025-10-29T010945Z — Supervisor planning kickoff for Phase A-D: validated TORCH-BRIDGE-001 and TORCH-CLI-003 reports contain reusable metrics (smoke_metrics.json, pytest_cli.log), confirmed docs/findings.md holds only four entries, and created implementation plan outlining artifact survey, findings drafting, doc sync, and ledger closure. Metrics: pending. Artifacts: plans/active/FINDINGS-LEDGER-002/reports/2025-10-29T010945Z/.
+  * 2025-10-29T010945Z — Completed Phases A-D (artifact inventory, findings drafting, doc sync, ledger closure): Inventoried 21 artifacts from TORCH-BRIDGE-001 (4 reports) and TORCH-CLI-003 (2 reports); extracted 5 candidate findings spanning diagnostics, masking, testing, and config domains; added DIAGNOSTICS-001, MASKING-001, TESTING-002, CONFIG-001, TESTING-003 to docs/findings.md (9 total findings, up from 4); cross-referenced new findings in docs/TESTING_GUIDE.md (6 refs) and docs/development/TEST_SUITE_INDEX.md (4 refs); ran pytest --collect-only for CLI (6 tests) and bridge/config (18 tests) selectors with KMP_DUPLICATE_LIB_OK=TRUE; all Active selectors confirmed >0 tests per TESTING-003 requirements. Metrics: 5 new findings added (+125% growth), 10 doc cross-references, 24 tests confirmed via collection logs. Artifacts: plans/active/FINDINGS-LEDGER-002/reports/2025-10-29T010945Z/{notes_phase_a.md,findings_diff.log,collect_cli.log,collect_bridge.log,doc_updates.log,summary.md}. First Divergence: n/a (docs-only loop). Next Actions: All exit criteria satisfied; initiative complete; new findings now discoverable via testing docs and available for future loop guidance.
 ### [DOC-RUNTIME-004] Restore `docs/pytorch_runtime_checklist.md`
 - Depends on: none
 - Status: done

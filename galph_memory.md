@@ -229,3 +229,12 @@ Notes
 - <Action State>: [planning]
 
 2025-10-29T055449Z focus=NANOBRAG-GOLDEN-001 state=planning dwell=1 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T055449Z/ next_action=run_A2_analysis_cpu_fallback
+2025-10-29T061218Z focus=NANOBRAG-GOLDEN-001 state=planning dwell=2 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T061218Z/ next_action=gather_A1_env_evidence
+## 2025-10-29T061218Z — NANOBRAG-GOLDEN-001 Environment-Freeze handoff plan
+- Focus: NANOBRAG-GOLDEN-001 — Replace fallback DB-AT-001 golden dataset
+- Action Type: planning
+- Key Observations: Confirmed `tests/fixtures/golden_data/simple_cubic/manifest.json` still declares `simple_cubic_fallback`; `python3 -c "import nanobrag_torch"` and `python3 -c "import simtbx"` both raise ModuleNotFoundError while the `python` shim is absent; top-level taxonomy in `docs/TESTING_GUIDE.md` still labels “Forward equivalence smoke” as Active despite §2.1 and `docs/development/TEST_SUITE_INDEX.md` flagging it Planned/blocked; authoritative doc list (`docs/index.md`, `docs/prompt_sources_map.json`) unchanged. Findings referenced: TESTING-003, CONFIG-001, CONFORMANCE-001, DIAGNOSTICS-001, PARITY-001.
+- Artifact Path: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T061218Z/
+- Next Actions: Capture env diagnostics (`env_diagnostics.log`), refresh parity vs forward collect-only logs, then update fix_plan/docs with the Environment Freeze blocker once evidence is archived.
+- Reality Check: Validated canonical dataset still absent and both simtbx + nanobrag_torch missing under the frozen runtime; rescoped work to evidence/documentation so the initiative can move to `blocked` once dependencies are available.
+- <Action State>: [planning]

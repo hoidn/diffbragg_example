@@ -54,6 +54,17 @@ nl -ba ../easyBragg/simtbx_project/simtbx/diffBragg/src/diffBraggCUDA.cu | sed -
 - DiffBragg maintainer consultation
 - Alternative capture path (e.g., extract intermediate HDF5 from refinement state before the problematic forward pass)
 
+## Bug Fix Attempt and Results
+
+**Bug Identified**: `dbex/run_diffbragg.py:134` had `cuda=True` hardcoded
+**Fix Applied**: Changed to `cuda=(devId >= 0)` to respect device ID setting
+**Result**: CUDA error persists
+
+**Root Cause Analysis**:
+The error occurs in the simtbx compiled library (`/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/simtbx/modeling/forward_models.py` calls compiled C++/CUDA extensions). Even with `cuda=False` passed to `diffBragg_forward()`, the library's cleanup code at `/home/ollie/Documents/easyBragg/simtbx_project/simtbx/diffBragg/src/diffBraggCUDA.cu:708` attempts to free CUDA pointers that were never allocated.
+
+**Conclusion**: The Python-level fix is correct but insufficient. The simtbx library has a compiled C++/CUDA bug where cleanup code doesn't properly guard CUDA operations with device checks. This requires a patch to the simtbx source code itself.
+
 ## Task A2.2 Execution Results
 
 **Status**: COMPLETE — Environment fully provisioned
@@ -154,9 +165,12 @@ Logged to:
 **Recommendations for Supervisor**:
 1. **DiffBragg baseline path**: Three options:
    - Extract baseline from intermediate refinement state (HDF5) before the problematic forward pass
-   - Contact DiffBragg maintainers about CUDA error at diffBraggCUDA.cu:708
+   - Contact DiffBragg/simtbx maintainers about C++/CUDA bug at diffBraggCUDA.cu:708 (cleanup doesn't guard CUDA operations)
    - Skip DiffBragg baseline entirely, proceed with torch-only canonical dataset (Phase A3)
 
-2. **Documentation update**: Remove obsolete "source setup_env.sh" references from remaining docs (already updated README.md)
+2. **Code fixes applied**:
+   - ✅ Fixed Python bug: `dbex/run_diffbragg.py:134` changed `cuda=True` to `cuda=(devId >= 0)`
+   - ✅ Updated README.md: Removed obsolete "source setup_env.sh" references
+   - ❌ C++/CUDA bug remains: simtbx library cleanup code doesn't respect device flag
 
-3. **Forward path**: Since nanobrag_torch 0.1.0 is available and test selectors collect successfully, recommend proceeding directly to Phase A3 (nanoBragg2 forward capture) to generate canonical torch baseline independent of DiffBragg blocker.
+3. **Forward path**: Since nanobrag_torch 0.1.0 is available and test selectors collect successfully, recommend proceeding directly to Phase A3 (nanoBragg2 forward capture) to generate canonical torch baseline independent of DiffBragg blocker. The Python-level fix improves code correctness even though deeper C++ issue persists.

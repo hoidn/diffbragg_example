@@ -1,0 +1,25 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 8 items
+
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_perfect_match PASSED [ 12%]
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_correlation_computation PASSED [ 25%]
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_error_metrics PASSED [ 37%]
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_sum_ratio PASSED [ 50%]
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_localization_metric PASSED [ 62%]
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_mask_application PASSED [ 75%]
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_edge_cases PASSED [ 87%]
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_to_dict_serialization PASSED [100%]
+
+=============================== warnings summary ===============================
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_error_metrics
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_sum_ratio
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_to_dict_serialization
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/fixtures/parity_loader.py:387: ConstantInputWarning: An input array is constant; the correlation coefficient is not defined.
+    corr, _ = scipy.stats.pearsonr(pred_flat, targ_flat)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 8 passed, 3 warnings in 0.25s =========================

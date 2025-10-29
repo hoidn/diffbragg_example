@@ -17,8 +17,9 @@ import json
 import hashlib
 import numpy as np
 from pathlib import Path
-from typing import NamedTuple, Optional
+from typing import NamedTuple, Optional, Dict, Any
 from dataclasses import dataclass
+import scipy.stats
 
 
 class GoldenData(NamedTuple):
@@ -262,3 +263,285 @@ def load_golden_data(
         manifest=manifest,
         panel_id=panel_id
     )
+
+
+@dataclass
+class ParityMetrics:
+    """
+    Container for parity comparison metrics between two tensors.
+
+    Per docs/forward_equivalence.md:30-53 and docs/spec-db-conformance.md:23-26,
+    parity metrics include correlation, RMSE, MSE, max absolute difference,
+    sum ratio, and peak localization statistics.
+
+    Attributes:
+        correlation: Pearson correlation coefficient
+        rmse: Root mean squared error
+        mse: Mean squared error
+        max_abs_diff: Maximum absolute difference
+        sum_ratio: Ratio of sums (predicted/target)
+        localization: Peak localization success rate (fraction of pixels)
+        n_pixels: Number of valid pixels compared
+        n_masked: Number of masked pixels excluded
+    """
+    correlation: float
+    rmse: float
+    mse: float
+    max_abs_diff: float
+    sum_ratio: float
+    localization: float
+    n_pixels: int
+    n_masked: int
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for JSON serialization."""
+        return {
+            "correlation": float(self.correlation),
+            "rmse": float(self.rmse),
+            "mse": float(self.mse),
+            "max_abs_diff": float(self.max_abs_diff),
+            "sum_ratio": float(self.sum_ratio),
+            "localization": float(self.localization),
+            "n_pixels": int(self.n_pixels),
+            "n_masked": int(self.n_masked),
+        }
+
+
+def compute_parity_metrics(
+    predicted: np.ndarray,
+    target: np.ndarray,
+    loss_mask: Optional[np.ndarray] = None,
+    check_localization: bool = True,
+    localization_radius: int = None
+) -> ParityMetrics:
+    """
+    Compute parity metrics between predicted and target tensors.
+
+    Per docs/forward_equivalence.md:30-53 and docs/spec-db-conformance.md:23-26,
+    computes correlation, RMSE, MSE, max|Δ|, sum ratio, and localization stats.
+
+    Args:
+        predicted: Predicted tensor [slow, fast] or [panel, slow, fast]
+        target: Target tensor (same shape as predicted)
+        loss_mask: Optional mask [slow, fast] or [panel, slow, fast].
+                   True = include pixel, False = exclude pixel.
+                   If None, all pixels are included.
+        check_localization: Compute peak localization metric (default True)
+        localization_radius: Radius for peak localization check.
+                             If None, uses half-box width per
+                             docs/forward_equivalence.md:48-49.
+
+    Returns:
+        ParityMetrics instance
+
+    Raises:
+        ValueError: If shapes don't match or arrays are empty
+
+    Notes:
+        - Correlation uses scipy.stats.pearsonr for numerical stability
+        - Localization checks if brightest pixel is within central half-box
+        - Masked pixels (loss_mask=False) are excluded from all metrics
+        - NaN handling: if no valid pixels, returns NaN metrics
+    """
+    # Validate shapes
+    if predicted.shape != target.shape:
+        raise ValueError(
+            f"Shape mismatch: predicted {predicted.shape} != target {target.shape}"
+        )
+
+    # Flatten arrays for easier computation
+    pred_flat = predicted.flatten()
+    targ_flat = target.flatten()
+
+    # Apply loss mask if provided
+    if loss_mask is not None:
+        if loss_mask.shape != predicted.shape:
+            raise ValueError(
+                f"Mask shape {loss_mask.shape} != predicted shape {predicted.shape}"
+            )
+        mask_flat = loss_mask.flatten()
+        pred_flat = pred_flat[mask_flat]
+        targ_flat = targ_flat[mask_flat]
+        n_masked = int((~loss_mask).sum())
+    else:
+        n_masked = 0
+
+    n_pixels = len(pred_flat)
+
+    # Handle empty arrays
+    if n_pixels == 0:
+        return ParityMetrics(
+            correlation=np.nan,
+            rmse=np.nan,
+            mse=np.nan,
+            max_abs_diff=np.nan,
+            sum_ratio=np.nan,
+            localization=np.nan,
+            n_pixels=0,
+            n_masked=n_masked,
+        )
+
+    # Compute correlation
+    if n_pixels > 1:
+        # Use scipy for numerical stability
+        corr, _ = scipy.stats.pearsonr(pred_flat, targ_flat)
+        correlation = float(corr)
+    else:
+        correlation = np.nan
+
+    # Compute error metrics
+    diff = pred_flat - targ_flat
+    mse = float(np.mean(diff ** 2))
+    rmse = float(np.sqrt(mse))
+    max_abs_diff = float(np.max(np.abs(diff)))
+
+    # Compute sum ratio
+    target_sum = float(np.sum(targ_flat))
+    pred_sum = float(np.sum(pred_flat))
+    if target_sum != 0:
+        sum_ratio = pred_sum / target_sum
+    else:
+        sum_ratio = np.nan if pred_sum == 0 else np.inf
+
+    # Compute localization metric
+    if check_localization and predicted.ndim == 2:
+        # Per docs/forward_equivalence.md:48-49, check if peak is within
+        # central half-box
+        if localization_radius is None:
+            # Use half-box width (central half-box check)
+            slow_size, fast_size = predicted.shape
+            localization_radius = min(slow_size, fast_size) // 4
+
+        # Find peak location in predicted and target
+        pred_peak_idx = np.unravel_index(np.argmax(predicted), predicted.shape)
+        targ_peak_idx = np.unravel_index(np.argmax(target), target.shape)
+
+        # Compute center of array
+        slow_center = predicted.shape[0] // 2
+        fast_center = predicted.shape[1] // 2
+
+        # Check if predicted peak is within radius of center
+        pred_dist = np.sqrt(
+            (pred_peak_idx[0] - slow_center) ** 2 +
+            (pred_peak_idx[1] - fast_center) ** 2
+        )
+        pred_localized = pred_dist <= localization_radius
+
+        # Check if target peak is within radius of center
+        targ_dist = np.sqrt(
+            (targ_peak_idx[0] - slow_center) ** 2 +
+            (targ_peak_idx[1] - fast_center) ** 2
+        )
+        targ_localized = targ_dist <= localization_radius
+
+        # Localization is 1.0 if both peaks are localized, 0.5 if one is,
+        # 0.0 if neither is
+        if pred_localized and targ_localized:
+            localization = 1.0
+        elif pred_localized or targ_localized:
+            localization = 0.5
+        else:
+            localization = 0.0
+    else:
+        localization = np.nan
+
+    return ParityMetrics(
+        correlation=correlation,
+        rmse=rmse,
+        mse=mse,
+        max_abs_diff=max_abs_diff,
+        sum_ratio=sum_ratio,
+        localization=localization,
+        n_pixels=n_pixels,
+        n_masked=n_masked,
+    )
+
+
+def write_parity_artifacts(
+    artifact_dir: Path,
+    metrics: ParityMetrics,
+    predicted: Optional[np.ndarray] = None,
+    target: Optional[np.ndarray] = None,
+    manifest_checksum: Optional[str] = None,
+    metadata: Optional[dict] = None,
+) -> dict:
+    """
+    Write parity comparison artifacts to disk.
+
+    Per docs/spec-db-tracing.md:10-24 and docs/forward_equivalence.md:54-74,
+    artifacts include metrics JSON, optional CSV, and diff overlays.
+
+    Args:
+        artifact_dir: Directory to write artifacts (will be created if needed)
+        metrics: ParityMetrics instance
+        predicted: Optional predicted tensor [slow, fast] for diff computation
+        target: Optional target tensor [slow, fast] for diff computation
+        manifest_checksum: Optional SHA256 checksum of golden data manifest
+        metadata: Optional metadata dict to include in metrics JSON
+
+    Returns:
+        Dict of artifact paths written
+
+    Raises:
+        ValueError: If artifact_dir cannot be created
+
+    Notes:
+        - Creates artifact_dir/parity_harness/ subdirectory
+        - Writes metrics.json with all metrics + metadata
+        - If predicted/target provided, writes diff overlay stub
+        - Includes manifest checksum if provided for traceability
+    """
+    # Create artifact directory
+    artifact_dir = Path(artifact_dir)
+    parity_dir = artifact_dir / "parity_harness"
+    parity_dir.mkdir(parents=True, exist_ok=True)
+
+    artifacts = {}
+
+    # Write metrics JSON
+    metrics_path = parity_dir / "metrics.json"
+    metrics_data = metrics.to_dict()
+
+    # Add metadata if provided
+    if manifest_checksum is not None:
+        metrics_data["manifest_checksum"] = manifest_checksum
+    if metadata is not None:
+        metrics_data["metadata"] = metadata
+
+    with open(metrics_path, 'w') as f:
+        json.dump(metrics_data, f, indent=2)
+    artifacts["metrics_json"] = str(metrics_path)
+
+    # Write CSV stub (for future per-ROI metrics)
+    csv_path = parity_dir / "metrics.csv"
+    with open(csv_path, 'w') as f:
+        # Header
+        f.write("metric,value\n")
+        # Write metrics as rows
+        for key, value in metrics.to_dict().items():
+            if key not in ["metadata", "manifest_checksum"]:
+                f.write(f"{key},{value}\n")
+    artifacts["metrics_csv"] = str(csv_path)
+
+    # Write diff overlay stub if tensors provided
+    if predicted is not None and target is not None:
+        overlay_path = parity_dir / "diff_overlay_stub.txt"
+        diff = predicted - target
+        with open(overlay_path, 'w') as f:
+            f.write("# Diff overlay stub (future: PNG heatmap)\n")
+            f.write(f"# Predicted shape: {predicted.shape}\n")
+            f.write(f"# Target shape: {target.shape}\n")
+            f.write(f"# Diff range: [{np.min(diff):.2e}, {np.max(diff):.2e}]\n")
+            f.write(f"# Diff mean: {np.mean(diff):.2e}\n")
+            f.write(f"# Diff std: {np.std(diff):.2e}\n")
+        artifacts["overlay_stub"] = str(overlay_path)
+
+        # Save predicted and target as NPY for future analysis
+        pred_path = parity_dir / "predicted.npy"
+        targ_path = parity_dir / "target.npy"
+        np.save(pred_path, predicted)
+        np.save(targ_path, target)
+        artifacts["predicted_npy"] = str(pred_path)
+        artifacts["target_npy"] = str(targ_path)
+
+    return artifacts

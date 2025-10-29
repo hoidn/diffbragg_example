@@ -3,10 +3,10 @@
     0,
     582
   ],
-  "predicted_value": 57351.70703125,
-  "target_value": 4.9814948173410034e-12,
-  "abs_diff": 57351.70703124999,
-  "rel_diff": 1.1512951259450048e+16,
+  "predicted_value": 1.8131419217588818e-13,
+  "target_value": 4.836368718702522e-12,
+  "abs_diff": 4.6550545265266335e-12,
+  "rel_diff": 0.9625102628187269,
   "threshold": 1e-06,
   "n_pixels_scanned": 1
 }

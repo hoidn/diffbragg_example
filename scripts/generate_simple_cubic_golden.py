@@ -100,24 +100,21 @@ def build_structure_factor_grid(indices, amplitudes, device, scale_override=None
         indices: Miller indices (h, k, l)
         amplitudes: Structure factor amplitudes |F|
         device: torch device
-        scale_override: DiffBragg spot_scale_override to apply to structure factors.
-                       Since intensity ∝ |F|², scale F by sqrt(scale_override) to
-                       match DiffBragg intensity scaling (per docs/config_crosswalk.md:71)
+        scale_override: DiffBragg spot_scale_override (deprecated parameter; no longer used).
+                       Per SCALE-001, DiffBragg already applies spot_scale_override to intensities,
+                       so applying it here would duplicate the scaling and inflate torch output
+                       by ~6×10^8. Structure factors are used as-is from MTZ.
     """
     hkls = np.asarray(indices, dtype=int)
     amps = np.abs(np.asarray(amplitudes, dtype=np.float32))
 
-    # CRITICAL FIX: Apply scale to structure factors
-    # DiffBragg multiplies final intensity by spot_scale_override
-    # nanobrag_torch has no scale parameter, so we scale F by sqrt(scale)
-    # since intensity ∝ |F|² → scale on F² equals spot_scale_override
+    # Per SCALE-001: Do NOT scale structure factors
+    # DiffBragg applies spot_scale_override internally to final intensities
+    # Applying sqrt(scale_override) here duplicates the scale and breaks parity
     logger = logging.getLogger("canonical_capture")
-    if scale_override is not None and scale_override > 0:
-        scale_factor = np.sqrt(float(scale_override))
-        logger.info(f"BEFORE scaling: amps min={amps.min():.3e}, max={amps.max():.3e}, mean={amps.mean():.3e}")
-        amps = amps * scale_factor
-        logger.info(f"Scaling structure factors by sqrt(scale_override)={scale_factor:.3e}")
-        logger.info(f"AFTER scaling: amps min={amps.min():.3e}, max={amps.max():.3e}, mean={amps.mean():.3e}")
+    logger.info(f"Structure factors (no scaling applied per SCALE-001): min={amps.min():.3e}, max={amps.max():.3e}, mean={amps.mean():.3e}")
+    if scale_override is not None:
+        logger.info(f"Ignoring scale_override={scale_override:.3e} per SCALE-001 (DiffBragg handles scaling internally)")
     h_min, h_max = hkls[:, 0].min(), hkls[:, 0].max()
     k_min, k_max = hkls[:, 1].min(), hkls[:, 1].max()
     l_min, l_max = hkls[:, 2].min(), hkls[:, 2].max()
@@ -457,7 +454,7 @@ def generate_simple_cubic_golden(
         Fopt.indices(),
         Fopt.data().as_numpy_array(),
         device=device,
-        scale_override=mdl_parm["scale"]  # CRITICAL: Apply DiffBragg scale to match intensity
+        scale_override=mdl_parm["scale"]  # Passed for logging; not applied per SCALE-001
     )
     logger.info(f"HKL grid: {hkl_meta['n_in_range']}/{hkl_meta['n_reflections']} reflections in range ({hkl_meta['in_range_fraction']*100:.1f}%)")
     logger.info(f"HKL grid nonzero: {hkl_meta['grid_nonzero']}")

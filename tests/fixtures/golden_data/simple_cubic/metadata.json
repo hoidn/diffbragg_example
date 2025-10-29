@@ -1,9 +1,9 @@
 {
-  "provenance": "DBEX fallback golden data generator (simple cubic stub)",
+  "provenance": "Canonical DiffBragg + nanobrag_torch capture (plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T104500Z/)",
   "source_experiment": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/refGeom.expt",
   "source_reflections": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/refGeom.refl",
   "source_mtz": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/scaled.mtz",
-  "generation_date": "2025-10-29T010131Z",
+  "generation_date": "2025-10-29T10:31:41.351510Z",
   "panel_id": 0,
   "shape": {
     "bragg": [
@@ -42,9 +42,8 @@
     "pixel_size_mm": 0.17200000000000001
   },
   "notes": [
-    "This is a FALLBACK dataset pending canonical nanoBragg2 golden data.",
-    "Bragg tensor is synthetic (Gaussian pattern on ROI support).",
-    "Target tensor is background-subtracted refGeom data.",
-    "Replace with real parity baseline when available."
+    "DiffBragg baseline captured with scripts/generate_simple_cubic_golden.py",
+    "Torch baseline matches HKL-ORIENT-001 fix; loss_mask stored as bool",
+    "Metrics logged under plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T104500Z/metrics.json"
   ]
 }

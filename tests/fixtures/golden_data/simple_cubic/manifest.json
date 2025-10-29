@@ -4,37 +4,21 @@
     "bragg_diffbragg": {
       "dtype": "float32",
       "filename": "bragg_diffbragg.npy",
-      "sha256": "06fd77004f0201532e09f259e27eaaaf729aaf3af65ef030a6b6b48e28f91f85",
+      "sha256": "702b9492bcdaabadaa4bb1231c6d46eeebe71528fd05d46a519b521dd7b942d7",
       "shape": [
         1,
         2527,
         2463
       ]
     },
-    "bragg_torch": {
+    "bragg": {
       "dtype": "float32",
-      "filename": "bragg_torch.npy",
-      "sha256": "ca947669559af796afabc0c402e56b3cf5f863c8105414e21b2a99ffb7e35c62",
-      "shape": [
-        1,
-        2527,
-        2463
-      ]
-    },
-    "loss_mask": {
-      "dtype": "uint8",
-      "filename": "loss_mask_panel_0.npy",
-      "sha256": "7fa32126763f8808a265be078dd5585a13aa968e60c060aee813f88f33c6ee7b",
+      "filename": "bragg_panel_0.npy",
+      "sha256": "c228fdc02ae4799220930a51d02156df4a249f21bb7a8273d797a509d13f4f2f",
       "shape": [
         2527,
         2463
       ]
-    },
-    "metadata": {
-      "dtype": "json",
-      "filename": "metadata.json",
-      "sha256": "7e919e5948dfbe7f33b40f664af2d0ffe0bacca97564779ee320d3f541122e91",
-      "shape": null
     },
     "target": {
       "dtype": "float32",
@@ -44,10 +28,19 @@
         2527,
         2463
       ]
+    },
+    "loss_mask": {
+      "dtype": "bool",
+      "filename": "loss_mask_panel_0.npy",
+      "sha256": "9301d36f09eb6a155bab9f1115e4d8b429866003d272e8892db535965239db82",
+      "shape": [
+        2527,
+        2463
+      ]
     }
   },
-  "generation_date": "2025-10-29T082521Z",
-  "provenance": "Canonical DB_AT_001 dataset from refGeom via capture_forward.py (DiffBragg + nanobrag_torch)",
+  "generation_date": "2025-10-29T10:31:41.351510Z",
+  "provenance": "Canonical nanoBragg capture \u2014 see plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T104500Z/",
   "spec_reference": "docs/spec-db-core.md:20-41",
-  "version": "1.1.0"
+  "version": "1.2.0"
 }

@@ -1,18 +1,18 @@
 {
-  "correlation": 0.13952400669658788,
-  "rmse": 979.8174893825891,
-  "mse": 960042.3125,
-  "max_abs_diff": 52762.12109375,
-  "sum_ratio": 1.5689594851920874,
-  "localization": 0.5,
+  "correlation": -0.003513248008735533,
+  "rmse": 57517584355.98026,
+  "mse": 3.308272510147305e+21,
+  "max_abs_diff": 3880236875776.0,
+  "sum_ratio": 55599431.76464018,
+  "localization": 1.0,
   "n_pixels": 13086,
   "n_masked": 6210915,
   "metadata": {
-    "provenance": "DBEX fallback golden data generator (simple cubic stub)",
+    "provenance": "Canonical DiffBragg + nanobrag_torch capture (plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T104500Z/)",
     "source_experiment": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/refGeom.expt",
     "source_reflections": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/refGeom.refl",
     "source_mtz": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/scaled.mtz",
-    "generation_date": "2025-10-29T010131Z",
+    "generation_date": "2025-10-29T10:31:41.351510Z",
     "panel_id": 0,
     "shape": {
       "bragg": [
@@ -51,10 +51,9 @@
       "pixel_size_mm": 0.17200000000000001
     },
     "notes": [
-      "This is a FALLBACK dataset pending canonical nanoBragg2 golden data.",
-      "Bragg tensor is synthetic (Gaussian pattern on ROI support).",
-      "Target tensor is background-subtracted refGeom data.",
-      "Replace with real parity baseline when available."
+      "DiffBragg baseline captured with scripts/generate_simple_cubic_golden.py",
+      "Torch baseline matches HKL-ORIENT-001 fix; loss_mask stored as bool",
+      "Metrics logged under plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T104500Z/metrics.json"
     ]
   }
 }

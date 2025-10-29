@@ -219,3 +219,13 @@ Notes
 - <Action State>: [ready_for_implementation]
 
 2025-10-29T040641Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=1 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T040641Z/ next_action=execute_A1-A2_env_baseline
+## 2025-10-29T055449Z — NANOBRAG-GOLDEN-001 Environment-Freeze planning
+- Focus: NANOBRAG-GOLDEN-001 — Replace fallback DB-AT-001 golden dataset
+- Action Type: planning
+- Key Observations: Fallback manifest still advertises `simple_cubic_fallback`; `setup_env.sh` aborts because `simforge/` is absent so prior rebuild commands violate the Environment Freeze guardrail; `diffBraggCUDA.cu:708` wraps `cudaFree(cp.cu_sourceI_scale)`, indicating the GPU assert is triggered while freeing source-intensity buffers. Logged these observations in planning_notes.md with a CPU fallback approach staged under the new report directory.
+- Artifact Path: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T055449Z/
+- Next Actions: Execute Do Now A2 analysis: capture annotated snippet of diffBraggCUDA.cu, log setup_env.sh failure, and attempt CPU devId=-1 export with diagnostics.
+- Reality Check: Verified exit criteria remain unmet (canonical tensors absent); dependencies still marked done; rescoped Do Now away from package installs to pure analysis/CPU fallback per Environment Freeze policy.
+- <Action State>: [planning]
+
+2025-10-29T055449Z focus=NANOBRAG-GOLDEN-001 state=planning dwell=1 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T055449Z/ next_action=run_A2_analysis_cpu_fallback

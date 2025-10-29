@@ -95,15 +95,16 @@
 
 ### [FINDINGS-LEDGER-002] Extend knowledge base with torch experiment lessons
 - Depends on: TORCH-BRIDGE-001, TORCH-CLI-003
-- Status: pending
-- Owner/Date: Unassigned / 2025-10-28
+- Status: in_progress
+- Owner/Date: Unassigned / 2025-10-29
 - Exit Criteria:
   1. Review artifacts under `plans/active/TORCH-BRIDGE-001/reports/` and `plans/active/TORCH-CLI-003/reports/` to extract durable lessons spanning geometry, runtime, and CLI diagnostics (see `docs/spec-db-tracing.md:10-72`).
   2. Add at least three new entries to `docs/findings.md`, each with ID, tags, summary, spec/code source (e.g., `docs/spec-db-core.md`, `dbex/refine_one.py`), and status per ledger format (`docs/index.md:70-90`).
   3. Cross-link new findings within relevant docs (e.g., `docs/TESTING_GUIDE.md`, `docs/architecture.md`) where the lessons inform workflows, ensuring references appear in `docs/prompt_sources_map.json`.
   4. Capture evidence summary (`summary.md`) under `plans/active/FINDINGS-LEDGER-002/reports/<timestamp>/` documenting reviewed artifacts and resulting ledger updates.
+- Working Plan: plans/active/FINDINGS-LEDGER-002/implementation.md
 - Attempts History:
-  * pending — Metrics: pending. Artifacts: pending.
+  * 2025-10-29T010945Z — Supervisor planning kickoff for Phase A-D: validated TORCH-BRIDGE-001 and TORCH-CLI-003 reports contain reusable metrics (smoke_metrics.json, pytest_cli.log), confirmed docs/findings.md holds only four entries, and created implementation plan outlining artifact survey, findings drafting, doc sync, and ledger closure. Metrics: pending. Artifacts: plans/active/FINDINGS-LEDGER-002/reports/2025-10-29T010945Z/.
 ### [DOC-RUNTIME-004] Restore `docs/pytorch_runtime_checklist.md`
 - Depends on: none
 - Status: done

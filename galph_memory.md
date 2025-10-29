@@ -121,3 +121,14 @@ Notes
 - <Action State>: [planning]
 
 2025-10-29T003751Z focus=TORCH-CLI-003 state=planning dwell=1 artifacts=plans/active/TORCH-CLI-003/reports/2025-10-29T003751Z/ next_action=execute_C1-C3
+
+## 2025-10-29T010945Z — FINDINGS-LEDGER-002 planning kickoff
+- Focus: FINDINGS-LEDGER-002 — Extend knowledge base with torch experiment lessons
+- Action Type: planning
+- Key Observations: Dependencies TORCH-BRIDGE-001 and TORCH-CLI-003 are complete with rich artifacts (smoke_metrics.json, pytest_cli.log); docs/findings.md still contains only four entries covering geometry/runtime/parity basics; authored implementation plan with Phases A-D to guide artifact survey, findings drafting, doc sync, and ledger closure; new reports root created at plans/active/FINDINGS-LEDGER-002/reports/2025-10-29T010945Z/.
+- Artifact Path: plans/active/FINDINGS-LEDGER-002/reports/2025-10-29T010945Z/
+- Next Actions: Execute Phase A (A1-A3) to inventory bridge/CLI evidence and capture candidate lessons before drafting ledger updates.
+- Reality Check: Confirmed required artifacts exist and exit criteria remain unmet (knowledge base lacks torch bridge/CLI lessons); no rescope needed because new findings and cross-links still outstanding.
+- <Action State>: [planning]
+
+2025-10-29T010945Z focus=FINDINGS-LEDGER-002 state=planning dwell=1 artifacts=plans/active/FINDINGS-LEDGER-002/reports/2025-10-29T010945Z/ next_action=run_phase_A_inventory

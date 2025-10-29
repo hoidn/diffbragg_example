@@ -302,3 +302,12 @@ Notes
 - Reality Check: Validated canonical tensors were never produced (JSON crash) and rescoped the loop to redo Phase A before manifest/parity updates; confirmed fallback dataset remains active and dependencies (TORCH-BRIDGE-001/FORWARD-EQUIV-001) still satisfied.
 - <Action State>: [ready_for_implementation]
 2025-10-29T082521Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=3 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T082521Z/ next_action=execute_A2_to_D2
+2025-10-29T085401Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=4 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T084244Z/ next_action=run_canonical_capture_debug
+## 2025-10-29T085401Z — NANOBRAG-GOLDEN-001 canonical capture debug plan
+- Focus: NANOBRAG-GOLDEN-001 — Replace fallback DB-AT-001 golden dataset
+- Action Type: planning
+- Key Observations: Torch simulator still emits all-zero panels even with raw F amplitudes; `crystal.get_structure_factor` returns non-zero so HKL mapping/orientation is the likely culprit; fixtures only contain manifest/metadata so canonical tensors haven’t landed; new report root (2025-10-29T084244Z) staged for capture artifacts.
+- Artifact Path: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T084244Z/
+- Next Actions: Apply input.md Do Now—refactor generator into canonical capture with HKL debug, confirm non-zero torch maxima, refresh fixtures/manifest, and rerun DB_AT_001 parity.
+- Reality Check: Verified canonical `.npy` files absent from fixtures and confirmed torch output zero via local simulation; plan scoped to re-run capture with added instrumentation under Environment Freeze constraints.
+- <Action State>: [ready_for_implementation]

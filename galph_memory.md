@@ -365,3 +365,12 @@ Notes
 - Reality Check: Validated canonical dataset absent in fixtures, so focus stays on fixture swap rather than documentation-only cleanup.
 - <Action State>: [ready_for_implementation]
 2025-10-29T110900Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=10 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T110900Z/ next_action=regenerate_tensors_update_fixtures_and_run_db_at_001
+## 2025-10-29T181603Z — NANOBRAG-GOLDEN-001 canonical parity handoff
+- Focus: NANOBRAG-GOLDEN-001 — Replace fallback DB-AT-001 golden dataset
+- Action Type: planning
+- Key Observations: Fixture directory still only holds manifest/metadata (no `.npy` tensors); canonical tensors remain under 2025-10-29T110900Z/golden_dataset; manifest lacks real CLI/git data and no self-checksum; parity test still injects synthetic noise so DB_AT_001 thresholds never exercise canonical DiffBragg↔torch pairs.
+- Artifact Path: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T181603Z/
+- Next Actions: Patch generator/loader/parity test per Do Now, rerun canonical capture with `--emit-manifest --fixtures`, and collect DB_AT_001 pytest evidence into the new report directory.
+- Reality Check: Rescoped initiative to fixture propagation + parity enforcement after verifying canonical capture already exists but is not wired into tracked fixtures.
+- <Action State>: [ready_for_implementation]
+2025-10-29T181603Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=11 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T181603Z/ next_action=apply_generator_loader_parity_updates_and_run_db_at_001

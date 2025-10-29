@@ -1,4 +1,4 @@
-**Summary**: Regenerate the canonical DB_AT_001 tensors, wire them into fixtures with manifest provenance, and confirm the parity harness exercises the bool-masked dataset.
+**Summary**: Refresh the canonical DB_AT_001 fixtures and parity harness so tests operate on the captured DiffBragg↔torch tensors with complete manifest provenance.
 
 **Mode**: Parity
 
@@ -8,51 +8,47 @@
 
 **Mapped tests**: KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py -k DB_AT_001
 
-**Artifacts**: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T110900Z/
+**Artifacts**: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T181603Z/
 
 **Do Now (hard validity contract)**
-- Focus Item: NANOBRAG-GOLDEN-001 (A2, A3, B1, B2)
-- Implement: scripts/generate_simple_cubic_golden.py::generate_simple_cubic_golden and tests/fixtures/parity_loader.py::load_golden_data — add bool-mask export + manifest emission + fixture loader updates so canonical tensors replace the fallback dataset end-to-end.
-- Prep: PYTHONPATH=../nanoBragg/src:$PYTHONPATH KMP_DUPLICATE_LIB_OK=TRUE python scripts/generate_simple_cubic_golden.py --canonical-out plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T110900Z/golden_dataset --hkldebug plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T110900Z/torch_hkl_debug.json --emit-manifest --fixtures tests/fixtures/golden_data/simple_cubic (captures DiffBragg + torch tensors and refreshes manifest/metadata after code changes).
+- Focus Item: NANOBRAG-GOLDEN-001 (A2, A3, B1, B2, C1)
+- Implement: scripts/generate_simple_cubic_golden.py::generate_simple_cubic_golden; tests/fixtures/parity_loader.py::load_golden_data; tests/dbex/test_db_at_001_parity.py::TestDB_AT_001_Parity.test_db_at_001_parity_smoke
 - Validate: KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py -k DB_AT_001
-- Artifacts: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T110900Z/
+- Artifacts: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T181603Z/implementation/
 
 **Priorities & Rationale**
-- Finding HKL-ORIENT-001 + docs/nanobrag_api.md:22-44 — Maintain the corrected incident-beam orientation while regenerating tensors so HKL coverage stays in-range in the canonical capture.
-- Finding CONFIG-001 + docs/spec-db-core.md:20-41 — Fixture refresh must preserve `[panel, slow, fast]` ordering and bool mask polarity when bridging configs back into parity loader.
-- Finding CONFORMANCE-001 + docs/spec-db-conformance.md:23-26 — DB_AT_001 acceptance hinges on canonical baselines with manifest provenance; without it the acceptance selector remains non-actionable.
-- Finding TESTING-003 + docs/TESTING_GUIDE.md:63-88 — Active selector `KMP_DUPLICATE_LIB_OK=TRUE ... -k DB_AT_001` must continue to collect >0 tests with updated fixtures and fresh artifact logs.
-- docs/forward_equivalence.md:21-53 & Finding PARITY-001 — Paired DiffBragg/torch metrics and first-divergence evidence must be regenerated whenever the dataset changes to keep parity debugging deterministic.
+- CONFIG-001 & docs/spec-db-core.md:20-41 — Loader updates must honor `[panel, slow, fast]` ordering and mask polarity when ingesting the canonical stacks.
+- docs/spec-db-conformance.md:23-26 & CONFORMANCE-001 — Canonical manifest provenance (actual command, git rev, checksums) is required before enforcing DB_AT_001 thresholds.
+- docs/TESTING_GUIDE.md:86-87 & TESTING-003 — Keep the Active parity selector collecting >0 tests with refreshed fixtures and logs.
+- docs/forward_equivalence.md:21-53 — Parity harness needs paired DiffBragg vs torch tensors to compute correlation/localization metrics without synthetic noise.
+- docs/nanobrag_api.md:22-44 & HKL-ORIENT-001 — Preserve the corrected beam orientation and panel conventions when regenerating tensors so HKL coverage stays valid.
 
 **How-To Map**
-1. Edit scripts/generate_simple_cubic_golden.py::generate_simple_cubic_golden (and helper CLI glue) to emit bool-mask `.npy`, manifest JSON, checksum table, and optional fixture copy when `--emit-manifest/--fixtures` flags are supplied (use apply_patch).
-2. Update tests/fixtures/parity_loader.py::load_golden_data to load new manifest schema, coerce loss masks to bool, and surface provenance strings for parity tests (apply_patch).
-3. Narrow `.gitignore` so canonical fixture `.npy` files under tests/fixtures/golden_data/simple_cubic/ are tracked while other `.npy` artifacts remain ignored.
-4. `mkdir -p plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T110900Z/golden_dataset` (ensure clean artifact staging for regenerated tensors and manifests).
-5. `PYTHONPATH=../nanoBragg/src:$PYTHONPATH KMP_DUPLICATE_LIB_OK=TRUE python scripts/generate_simple_cubic_golden.py --canonical-out plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T110900Z/golden_dataset --hkldebug plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T110900Z/torch_hkl_debug.json --emit-manifest --fixtures tests/fixtures/golden_data/simple_cubic | tee plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T110900Z/canonical_capture.log`
-6. Snapshot generated manifest/metadata/metrics via `cp` or `python - <<'PY'` helpers into the artifact directory (sha256 summary, metrics.json, roi_metrics.csv) for ledger linking.
-7. `KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py -k DB_AT_001 | tee plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T110900Z/pytest_db_at_001.log`
-8. Update docs/fix_plan.md Attempts History with new metrics/paths and log durable lessons in docs/findings.md if new pitfalls emerge.
+1. `apply_patch` scripts/generate_simple_cubic_golden.py to capture `sys.argv` as the generator command, resolve `git rev-parse HEAD`, add manifest self-checksums, and ensure fixture copy writes bool masks.
+2. `apply_patch` tests/fixtures/parity_loader.py to load both DiffBragg and torch tensors from the canonical stack, extend `GoldenData`, and validate bool masks/shapes per the manifest.
+3. `apply_patch` tests/dbex/test_db_at_001_parity.py::TestDB_AT_001_Parity.test_db_at_001_parity_smoke to consume canonical tensors (no RNG noise), enforce DB_AT_001 thresholds, and write artifacts under `plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T181603Z/parity_harness/`.
+4. `PYTHONPATH=../nanoBragg/src:$PYTHONPATH KMP_DUPLICATE_LIB_OK=TRUE python scripts/generate_simple_cubic_golden.py --canonical-out plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T181603Z/golden_dataset --hkldebug plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T181603Z/torch_hkl_debug.json --emit-manifest --fixtures tests/fixtures/golden_data/simple_cubic | tee plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T181603Z/implementation/canonical_capture.log`
+5. `KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py -k DB_AT_001 | tee plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T181603Z/implementation/pytest_db_at_001.log`
+6. Copy manifest/metrics/roi CSV plus sha256 summaries into the implementation directory for ledger evidence and update docs/fix_plan.md + docs/findings.md accordingly.
 
 **Pitfalls To Avoid**
-- Do not regress mask dtype: persist bool (`np.bool_`) in fixtures and manifests or loader assertions will fail.
-- Keep `[panel, slow, fast]` ordering intact when slicing torch stacks; avoid accidental transpose or squeeze.
-- Ensure `.gitignore` exceptions stay scoped to simple_cubic fixtures so other captured `.npy` logs remain ignored.
-- Preserve HKL metadata when saving manifest; missing bounds will break parity loader sanity checks.
-- Run generator after code edits; stale captures from earlier loops will not include manifest changes.
-- Stop immediately if nanobrag_torch import or CUDA init fails—log the error, mark the initiative blocked, and do not attempt environment changes.
-- Record canonical_capture.log and pytest log under the new artifact directory for ledger compliance.
-- Verify parity loader unit tests still reference bool masks; adjust assertions before running pytest to prevent false negatives.
-- Avoid editing unrelated tests/docs in the same loop to keep scope under the work-in-progress cap.
-- Keep sha256 calculations consistent (newline-terminated JSON) so manifest validation in tests passes.
+- Do not mutate the environment; missing imports must block and be logged.
+- Keep bool mask dtype when saving/loading; uint8 fallbacks violate CONFIG-001.
+- Ensure manifest references every tensor (including itself) so validation passes.
+- Avoid reintroducing synthetic noise in parity tests; use canonical tensors only.
+- Collect pytest artifacts under the new timestamped directory for ledger compliance.
+- Confirm `.npy` fixtures land in git-tracked paths; do not relax `.gitignore` broadly.
+- Watch for HKL coverage regressions in torch_hkl_debug.json and log deviations.
+- Stop if nanobrag_torch import fails; record the error and mark the focus blocked.
+- Keep parity selector assertions aligned with docs/spec-db-conformance.md:23-26 thresholds.
+- Verify `pytest --collect-only` still finds the DB_AT_001 node before exiting the loop.
 
 **If Blocked**
-- Capture the failure log (e.g., ImportError stack trace) into plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T110900Z/, mark NANOBRAG-GOLDEN-001 as `blocked` in docs/fix_plan.md with the error signature, and append the block to galph_memory.
-- Defer to supervisor guidance and pivot to the highest-priority unblocked item only after documenting the block in docs/findings.md Attempts History with Metrics/Artifacts placeholders.
+- Capture the failure log under plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T181603Z/implementation/, mark NANOBRAG-GOLDEN-001 `blocked` in docs/fix_plan.md with error signature + Metrics/Artifacts placeholders, append the block to galph_memory, and notify the supervisor before pivoting.
 
 **Findings Applied (Mandatory)**
-- HKL-ORIENT-001 — Generator changes must retain the corrected beam orientation so regenerated tensors populate the HKL grid.
-- CONFIG-001 — Fixture copy + loader update will follow the documented dxtbx→nanobrag mapping, keeping mask polarity and geometry contracts intact.
-- CONFORMANCE-001 — Canonical dataset + manifest refresh is required to keep DB_AT_001 acceptance meaningful.
-- TESTING-003 — Plan includes fresh pytest collection evidence to maintain Active selector compliance.
-- PARITY-001 — Regenerating parity artifacts ensures first-divergence traces remain deterministic with the new tensors.
+- CONFIG-001 — Maintains dxtbx→nanobrag mapping (pixel pitch, mask polarity) during fixture refresh.
+- CONFORMANCE-001 — Manifest provenance + checksum validation keep DB_AT_001 thresholds meaningful.
+- TESTING-003 — Active selector evidence (collect + pytest log) stays current after fixture updates.
+- HKL-ORIENT-001 — Generator changes must preserve incident-vector negation fix for valid HKL coverage.
+- PARITY-001 — Canonical tensors + artifacts enable deterministic first-divergence tracing when thresholds fail.

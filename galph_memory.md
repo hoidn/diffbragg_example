@@ -347,3 +347,12 @@ Notes
 - Reality Check: Verified canonical fixtures still point at fallback data and torch tensors remain all zeros; rescoped to focus on the incident-beam orientation fix before touching manifest/tests.
 - <Action State>: [ready_for_implementation]
 2025-10-29T100617Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=8 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T100617Z/ next_action=negate_incident_vector_and_regenerate
+## 2025-10-29T103845Z — NANOBRAG-GOLDEN-001 canonical fixtures plan
+- Focus: NANOBRAG-GOLDEN-001 — Replace fallback DB-AT-001 golden dataset
+- Action Type: planning
+- Key Observations: Confirmed `tests/fixtures/golden_data/simple_cubic/` still contains only manifest/metadata with fallback hashes; no `.npy` tensors exist in repo or latest artifacts, and parity loader expects per-panel files with bool masks. Verified generator script outputs uint8 masks and that `.gitignore` currently drops fixture `.npy`, explaining why canonical tensors never landed in git.
+- Artifact Path: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T104500Z/
+- Next Actions: Regenerate canonical DiffBragg + torch tensors into the new report directory, copy them into fixtures with bool loss mask + fresh SHA256, adjust `.gitignore` to allow the fixture npy files, update `tests/fixtures/parity_loader.py::load_golden_data`, and rerun DB_AT_001 parity selector.
+- Reality Check: Rescoped initiative from simulator physics to fixture integration after validating the beam fix artifacts exist but the fixtures remain fallback-only; plan centers on checklist items A2/A3/B1/B2 with ready code changes.
+- <Action State>: [ready_for_implementation]
+2025-10-29T103845Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=9 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T104500Z/ next_action=regen_dataset_update_loader_and_run_db_at_001

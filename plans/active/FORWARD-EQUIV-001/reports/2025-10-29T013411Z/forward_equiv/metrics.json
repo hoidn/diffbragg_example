@@ -1,0 +1,8 @@
+{
+  "n_rois_sampled": 18,
+  "median_correlation": NaN,
+  "median_rmse": 255.98046875,
+  "localization_success_rate": 0.0,
+  "loss_mask_coverage": 0.00210250608892897,
+  "n_rois_total": 92
+}

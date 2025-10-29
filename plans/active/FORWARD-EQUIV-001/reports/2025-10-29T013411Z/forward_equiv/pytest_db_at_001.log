@@ -1,0 +1,38 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 1 item
+
+tests/dbex/test_forward_equivalence_complete.py::TestForwardEquiv::test_DB_AT_001_forward_equiv 
+[DB-AT-001] Artifacts: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/FORWARD-EQUIV-001/reports/2025-10-29T013411Z/forward_equiv
+[DB-AT-001] ROIs sampled: 18/92
+[DB-AT-001] Median correlation: nan
+[DB-AT-001] Localization success: 0.0%
+XFAIL
+
+=============================== warnings summary ===============================
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+tests/dbex/test_forward_equivalence_complete.py::TestForwardEquiv::test_DB_AT_001_forward_equiv
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/numpy/lib/function_base.py:2897: RuntimeWarning: invalid value encountered in divide
+    c /= stddev[:, None]
+
+tests/dbex/test_forward_equivalence_complete.py::TestForwardEquiv::test_DB_AT_001_forward_equiv
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/numpy/lib/function_base.py:2898: RuntimeWarning: invalid value encountered in divide
+    c /= stddev[None, :]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 1 xfailed, 6 warnings in 2.12s ========================

@@ -25,3 +25,30 @@
 - Need coordination with PARITY-HARNESS-002 so manifest tests coexist with forward-equivalence suite (possibly separate module or mark subset with `pytest.mark.manifest`).
 - Ensure artifact directory creation uses repo-relative path and is cleaned or ignored by `.gitignore`.
 
+## A1 Reality Check — Asset Verification (2025-10-29T013411Z)
+
+### Required Files Status
+All required refGeom assets confirmed present in project root:
+- `refGeom.expt` (5,169 bytes) ✓
+- `refGeom.refl` (205,852 bytes) ✓
+- `scaled.mtz` (2,927,468 bytes) ✓
+
+### Asset Availability
+✓ All required files exist and have non-zero size
+✓ No fallback steps from README:60-90 required
+✓ Assets generated from prior runs (TORCH-BRIDGE-001 used these successfully)
+
+### Artifact Directory Structure
+Created artifact structure per `docs/forward_equivalence.md:54-74`:
+```
+plans/active/FORWARD-EQUIV-001/reports/2025-10-29T013411Z/forward_equiv/
+    legacy/      # DiffBragg forward Bragg tensor + config
+    torch/       # nanobrag_torch stub Bragg tensor + config
+    metrics/     # (moved to root of forward_equiv/)
+    overlays/    # diff/residual heatmaps
+    traces/      # optional trace logs
+```
+
+### Next Steps
+Proceed to A2-A4: Capture baseline tensors from both DiffBragg and torch stub paths using existing bridge infrastructure.
+

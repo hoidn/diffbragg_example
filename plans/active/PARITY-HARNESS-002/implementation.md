@@ -20,3 +20,8 @@
 - [x] **D1 — First divergence capture**: Integrate trace hooks to record first-difference metrics per ROI when parity thresholds fail (`docs/spec-db-tracing.md:15-24`).
 - [x] **D2 — Findings updates**: Document durable lessons (e.g., manifest maintenance, parity thresholds) in `docs/findings.md` and link from testing docs.
 - [x] **D3 — Simulator upgrade readiness**: Outline TODOs for replacing stub tensors with `nanobrag_torch` once available, including threshold adjustments and new regression artifacts.
+
+## Phase E — Closure Validation (Pending)
+- [ ] **E1 — Exit criteria audit**: Re-verify `docs/fix_plan.md` exit criteria against current artifacts by running the authoritative selector (`KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py -k DB_AT_001`) and capturing fresh `--collect-only` evidence; ensure parity metrics align with `docs/spec-db-conformance.md:23-26` and diagnostics remain within expectations from synthetic stubs.
+- [ ] **E2 — Ledger closure**: Update `docs/fix_plan.md` status to `done`, append final Attempts History entry with latest artifacts, and confirm `docs/TESTING_GUIDE.md:56-90` plus `docs/development/TEST_SUITE_INDEX.md:14-36` point to the new logs.
+- [ ] **E3 — Archive readiness**: Produce closing summary under `plans/active/PARITY-HARNESS-002/reports/<timestamp>/closing/` that enumerates outstanding simulator-dependent TODOs and references relevant findings (CONFORMANCE-001, TESTING-003, PARITY-001); flag readiness to archive or revisit once real simulator lands.

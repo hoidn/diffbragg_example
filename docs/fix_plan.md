@@ -57,8 +57,8 @@
   4. Entry validated by running torch CLI smoke (documented in `docs/TESTING_GUIDE.md`).
 - Working Plan: plans/active/TORCH-CLI-003/implementation.md
 - Attempts History:
-  * 2025-10-28T234618Z — Supervisor planning kickoff; confirmed `dbex/refine_one.py` lacks `--backend` flag and torch wiring, dependencies satisfied (TORCH-BRIDGE-001 done), and reviewed implementation plan Phase A/B scope. Metrics: pending. Artifacts: pending.
-  * 2025-10-29T000000Z — Ledger correction and reality check: Backend flag and CLI tests are not present in the codebase; prior documentation overstated implementation status. Updated `docs/index.md` to reflect planned status; set this item to `in_progress`. Metrics: pending. Artifacts: pending. Next Actions: Author minimal CLI test (`tests/dbex/test_refine_one_cli.py`) and then implement the `--backend` flag and torch dispatch per exit criteria.
+  * 2025-10-28T234618Z — Supervisor planning kickoff; reviewed implementation plan Phase A/B scope. Metrics: pending. Artifacts: pending.
+  * 2025-10-29T00:20:00Z — Reality check and alignment: Verified `dbex/refine_one.py` implements `--backend {diffbragg,nanobrag}` with a torch stub path that writes `/torch_diagnostics`. Updated `docs/index.md` to reflect implemented backend and diagnostics. Tests for the CLI (`tests/dbex/test_refine_one_cli.py`) do not yet exist; leaving status `in_progress`. Metrics: pending. Artifacts: pending. Next Actions: Author minimal CLI tests and register selectors; run collect-only and update TESTING_GUIDE/TEST_SUITE_INDEX per process gates.
 
 ### [DOC-HARDEN-001] Harden key docs with prescriptive guardrails
 - Depends on: none

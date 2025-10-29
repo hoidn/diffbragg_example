@@ -87,7 +87,7 @@ Run `--collect-only` for each selector and save logs under the current loop’s 
 ART=plans/active/<initiative-id>/reports/<YYYY-MM-DDTHHMMSSZ>
 mkdir -p "$ART"
 KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q tests/dbex/test_nanobrag_bridge.py | tee "$ART/collect_bridge.log"
-KMP_DUPLICIATE_LIB_OK=TRUE pytest --collect-only -q tests/dbex/test_nanobrag_bridge_configs.py | tee "$ART/collect_configs.log"
+KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q tests/dbex/test_nanobrag_bridge_configs.py | tee "$ART/collect_configs.log"
 KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q tests/dbex/test_nanobrag_smoke.py | tee "$ART/collect_smoke.log"
 ```
 

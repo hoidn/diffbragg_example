@@ -1,0 +1,21 @@
+Obtaining file:///home/ollie/Documents/easyBragg
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Checking if build backend supports build_editable: started
+  Checking if build backend supports build_editable: finished with status 'done'
+  Getting requirements to build editable: started
+  Getting requirements to build editable: finished with status 'done'
+  Preparing editable metadata (pyproject.toml): started
+  Preparing editable metadata (pyproject.toml): finished with status 'done'
+Building wheels for collected packages: simtbx
+  Building editable for simtbx (pyproject.toml): started
+  Building editable for simtbx (pyproject.toml): finished with status 'done'
+  Created wheel for simtbx: filename=simtbx-0.1-0.editable-py3-none-any.whl size=29814 sha256=f1b8994dfaaf88d636810aec217bc42d864e73873c761b4d9647cfcf10057caa
+  Stored in directory: /tmp/pip-ephem-wheel-cache-ba2jpasp/wheels/50/de/50/d6c1f7bb30598c845ad1f605137d9c5385d44c3cb1fad21048
+Successfully built simtbx
+Installing collected packages: simtbx
+  Attempting uninstall: simtbx
+    Found existing installation: simtbx 0.1
+    Uninstalling simtbx-0.1:
+      Successfully uninstalled simtbx-0.1
+Successfully installed simtbx-0.1

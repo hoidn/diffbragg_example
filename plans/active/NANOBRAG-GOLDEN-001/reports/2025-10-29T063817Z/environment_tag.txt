@@ -1,0 +1,5 @@
+simtbx-patched-diffBraggCUDA708
+2025-10-29T00:25Z
+- diffBraggCUDA.cu guard fix
+- diffuse_util.h <cassert> include
+- simtbx_diffBragg_ext.so md5 1506a48bee414ffcec041083b1496a44

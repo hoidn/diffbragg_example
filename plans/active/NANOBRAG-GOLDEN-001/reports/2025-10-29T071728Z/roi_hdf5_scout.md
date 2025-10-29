@@ -1,0 +1,102 @@
+# DiffBragg ROI Inventory
+
+Total ROI groups: 92
+
+## ROI Bounds and Stats
+- roi0: shape=(12, 12), bbox=None, max_intensity=11.787
+- roi1: shape=(12, 12), bbox=None, max_intensity=39.129
+- roi10: shape=(12, 12), bbox=None, max_intensity=0.234
+- roi11: shape=(12, 12), bbox=None, max_intensity=0.000
+- roi12: shape=(12, 12), bbox=None, max_intensity=11203.051
+- roi13: shape=(12, 12), bbox=None, max_intensity=31150.637
+- roi14: shape=(12, 12), bbox=None, max_intensity=1012.488
+- roi15: shape=(12, 12), bbox=None, max_intensity=37700.579
+- roi16: shape=(12, 12), bbox=None, max_intensity=7.980
+- roi17: shape=(12, 12), bbox=None, max_intensity=158.447
+- roi18: shape=(12, 12), bbox=None, max_intensity=288.491
+- roi19: shape=(12, 12), bbox=None, max_intensity=17969.378
+- roi2: shape=(12, 12), bbox=None, max_intensity=1.066
+- roi20: shape=(12, 12), bbox=None, max_intensity=69.379
+- roi21: shape=(12, 12), bbox=None, max_intensity=21.230
+- roi22: shape=(12, 12), bbox=None, max_intensity=334.790
+- roi23: shape=(12, 12), bbox=None, max_intensity=1418.067
+- roi24: shape=(12, 12), bbox=None, max_intensity=2222.109
+- roi25: shape=(12, 12), bbox=None, max_intensity=178.233
+- roi26: shape=(12, 12), bbox=None, max_intensity=3.865
+- roi27: shape=(12, 12), bbox=None, max_intensity=3549.048
+- roi28: shape=(12, 12), bbox=None, max_intensity=1.169
+- roi29: shape=(12, 12), bbox=None, max_intensity=75.671
+- roi3: shape=(12, 12), bbox=None, max_intensity=56.512
+- roi30: shape=(12, 12), bbox=None, max_intensity=33.335
+- roi31: shape=(12, 12), bbox=None, max_intensity=14419.967
+- roi32: shape=(12, 12), bbox=None, max_intensity=1313.762
+- roi33: shape=(12, 12), bbox=None, max_intensity=10.451
+- roi34: shape=(12, 12), bbox=None, max_intensity=9.662
+- roi35: shape=(12, 12), bbox=None, max_intensity=134.717
+- roi36: shape=(12, 12), bbox=None, max_intensity=26.697
+- roi37: shape=(12, 12), bbox=None, max_intensity=0.017
+- roi38: shape=(12, 12), bbox=None, max_intensity=38766.527
+- roi39: shape=(12, 12), bbox=None, max_intensity=13.036
+- roi4: shape=(12, 12), bbox=None, max_intensity=65.560
+- roi40: shape=(12, 12), bbox=None, max_intensity=3974.773
+- roi41: shape=(12, 12), bbox=None, max_intensity=20.432
+- roi42: shape=(12, 12), bbox=None, max_intensity=248.824
+- roi43: shape=(12, 12), bbox=None, max_intensity=54.286
+- roi44: shape=(12, 12), bbox=None, max_intensity=23.759
+- roi45: shape=(12, 12), bbox=None, max_intensity=35710.630
+- roi46: shape=(12, 12), bbox=None, max_intensity=11.232
+- roi47: shape=(12, 12), bbox=None, max_intensity=436.072
+- roi48: shape=(12, 12), bbox=None, max_intensity=13.690
+- roi49: shape=(12, 12), bbox=None, max_intensity=1144.754
+- roi5: shape=(12, 12), bbox=None, max_intensity=1265.743
+- roi50: shape=(12, 12), bbox=None, max_intensity=139.168
+- roi51: shape=(12, 12), bbox=None, max_intensity=3956.099
+- roi52: shape=(12, 12), bbox=None, max_intensity=486.433
+- roi53: shape=(12, 12), bbox=None, max_intensity=7519.423
+- roi54: shape=(12, 12), bbox=None, max_intensity=52.914
+- roi55: shape=(12, 12), bbox=None, max_intensity=13.566
+- roi56: shape=(12, 12), bbox=None, max_intensity=6.205
+- roi57: shape=(12, 12), bbox=None, max_intensity=20215.622
+- roi58: shape=(12, 12), bbox=None, max_intensity=7.386
+- roi59: shape=(12, 12), bbox=None, max_intensity=2847.450
+- roi6: shape=(12, 12), bbox=None, max_intensity=1079.001
+- roi60: shape=(12, 12), bbox=None, max_intensity=8506.304
+- roi61: shape=(12, 12), bbox=None, max_intensity=3092.515
+- roi62: shape=(12, 12), bbox=None, max_intensity=208.212
+- roi63: shape=(12, 12), bbox=None, max_intensity=187.243
+- roi64: shape=(12, 12), bbox=None, max_intensity=8.891
+- roi65: shape=(12, 12), bbox=None, max_intensity=262.949
+- roi66: shape=(12, 12), bbox=None, max_intensity=474.943
+- roi67: shape=(12, 12), bbox=None, max_intensity=6.112
+- roi68: shape=(12, 12), bbox=None, max_intensity=2104.544
+- roi69: shape=(12, 12), bbox=None, max_intensity=79.585
+- roi7: shape=(12, 12), bbox=None, max_intensity=283.546
+- roi70: shape=(12, 12), bbox=None, max_intensity=4274.032
+- roi71: shape=(12, 12), bbox=None, max_intensity=3968.211
+- roi72: shape=(12, 12), bbox=None, max_intensity=5322.166
+- roi73: shape=(12, 12), bbox=None, max_intensity=119.461
+- roi74: shape=(12, 12), bbox=None, max_intensity=2944.705
+- roi75: shape=(12, 12), bbox=None, max_intensity=61.869
+- roi76: shape=(12, 12), bbox=None, max_intensity=4446.404
+- roi77: shape=(12, 12), bbox=None, max_intensity=1.264
+- roi78: shape=(12, 12), bbox=None, max_intensity=700.946
+- roi79: shape=(12, 12), bbox=None, max_intensity=1904.931
+- roi8: shape=(12, 12), bbox=None, max_intensity=5.620
+- roi80: shape=(12, 12), bbox=None, max_intensity=180.610
+- roi81: shape=(12, 12), bbox=None, max_intensity=1.423
+- roi82: shape=(12, 12), bbox=None, max_intensity=24.324
+- roi83: shape=(12, 12), bbox=None, max_intensity=0.114
+- roi84: shape=(12, 12), bbox=None, max_intensity=886.321
+- roi85: shape=(12, 12), bbox=None, max_intensity=47.848
+- roi86: shape=(12, 12), bbox=None, max_intensity=7.987
+- roi87: shape=(12, 12), bbox=None, max_intensity=328.939
+- roi88: shape=(12, 12), bbox=None, max_intensity=0.426
+- roi89: shape=(12, 12), bbox=None, max_intensity=0.498
+- roi9: shape=(12, 12), bbox=None, max_intensity=542.132
+- roi90: shape=(12, 12), bbox=None, max_intensity=59.111
+- roi91: shape=(12, 12), bbox=None, max_intensity=32.180
+
+## Full-panel datasets present?
+Found full-panel groups: []
+
+Source: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T063817Z/golden_dataset/legacy/dbex_diffbragg_gpu.h5

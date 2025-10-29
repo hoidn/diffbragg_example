@@ -7,7 +7,6 @@
     "docs/spec-db-interfaces.md",
     "docs/spec-db-conformance.md",
     "docs/spec-db-tracing.md",
-    "docs/parity_harness_spec.md",
     "docs/spec_authoring_guide.md",
     "docs/config_crosswalk.md",
     "docs/dials_api.md",
@@ -42,6 +41,7 @@
     "docs/development/testing_strategy.md",
     "docs/pytorch_runtime_checklist.md"
   ],
+  "forward_equivalence": "docs/forward_equivalence.md",
   "findings": "docs/findings.md",
   "ledger": "docs/fix_plan.md",
   "agent_workflow": [

@@ -6,11 +6,9 @@ Overview (Normative)
 Status
 - These acceptance tests target the forthcoming `nanobrag_torch` backend and are currently placeholders. They are not wired to the existing DiffBragg CLI.
 - Until the torch backend is available, use `python -m dbex.refine_one` (see `dbex/refine_one.py:5-26`) and treat these tests as future work.
-
 Conformance Profiles (Normative)
-- C‑Parity Profile:
-  - DB‑AT‑001 Reference parity baseline (image correlation ≥ 0.99 vs golden; dataset TBD, skip if unavailable).
-  - DB‑AT‑002 Determinism under fixed seeds (bitwise or tolerance‑stable outputs).
+- Forward Equivalence Profile:
+  - DB‑AT‑001 Forward equivalence smoke (DiffBragg vs `nanobrag_torch` forward pass; run without refinement and compare coarse ROI metrics per `plans/nanobrag_integration_plan.md` Phase 1).
 - Gradient‑Safe Profile:
   - DB‑AT‑010 Gradcheck on refined parameters (cell logs/angles, quaternion seed → XYZ).
   - DB‑AT‑011 No graph breaks under runtime mask/loss operations.
@@ -22,10 +20,10 @@ Conformance Profiles (Normative)
   - DB‑AT‑024 Mapping consistency (zero‑iteration forward vs data‑minus‑background overlay).
 
 Acceptance Tests (Normative)
-- DB‑AT‑001 Reference parity baseline
-  - Setup: consume the designated parity dataset manifest (once published) and compare PyTorch output to the golden frame. Until the dataset exists, mark the selector xfailed/skipped with reason `parity dataset unavailable` and record the attempted dataset lookup.
-  - Expectation: image correlation ≥ 0.99; residual RMS within tolerance when dataset is available.
-  - Command: `KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests -k DB_AT_001`
+- DB‑AT‑001 Forward equivalence smoke
+  - Setup: Using the same `DataLoad` inputs, generate a single forward `Bragg` tensor with the legacy DiffBragg pipeline and the torch bridge (no parameter updates). Compare coarse metrics (ROI correlation ≥ 0.2, localized intensity per `plans/nanobrag_integration_plan.md` Phase 1) and capture visual overlays/logs. Optional trace capture for representative pixels is described in `docs/forward_equivalence.md`. If thresholds are not met, emit diagnostic artifacts instead of failing the run.
+  - Expectation: median ROI correlation ≥ 0.2 and ≥90% of sampled ROIs contain a local intensity maximum within the central half-box; failing runs SHOULD attach diagnostic overlays instead of asserting.
+  - Command: `KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests -k DB_AT_001` (selector MAY xfail when only diagnostic evidence is captured).
 - DB‑AT‑020 Reflection ingestion sanity
   - Setup: load .expt/.refl; extract first ROI; slice data with bbox; verify shape, exclusivity, panel ordering.
   - Expectation: `shoebox.shape == (y1-y0, x1-x0)`; panel indices align.

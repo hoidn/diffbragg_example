@@ -65,6 +65,8 @@ Configuration mismatches are the most common source of test failures. Always ver
 
 ## 2.1 Golden Reference Data
 
+> **Note:** The detailed parity harness flow captured in this section was inherited from the earlier nanoBragg torch translation effort. DBEX currently relies only on the forward equivalence smoke described in `plans/nanobrag_integration_plan.md` Phase 1; treat the remaining subsections as historical reference until a new golden dataset is sanctioned.
+
 The testing strategy relies on a PyTorch-generated Golden Suite. For each case we maintain:
 1. **Golden Output Image:** The simulator’s final tensor serialized to `.bin`.
 2. **PyTorch Trace Log:** A step-by-step log for a representative pixel captured via `debug_config`.

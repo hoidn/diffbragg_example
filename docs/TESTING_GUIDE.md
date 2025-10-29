@@ -59,8 +59,8 @@ CUDA_VISIBLE_DEVICES='' TORCHDYNAMO_DISABLE=1 NANOBRAGG_DISABLE_COMPILE=1 \
 | Scope | Selector | Purpose | Status | Notes |
 | --- | --- | --- | --- | --- |
 | Smoke | `python -m dbex.refine_one --help` | Verifies legacy CLI loads after environment changes. | Active | Run before/after backend refactors. |
-| Torch parity | `KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests -k DB_AT_001` | Validates PyTorch parity against the designated reference dataset once published (`docs/spec-db-conformance.md:24`). | Active (manifest only) | Harness spec: `docs/parity_harness_spec.md` §2. FALLBACK dataset available at `tests/fixtures/golden_data/simple_cubic/` (synthetic Bragg, refGeom targets). Manifest integrity tests active (3 tests: checksum validation, tensor shapes, pixel pitch guards). Full parity tests (correlation ≥0.99, RMSE thresholds) remain pending real nanobrag_torch simulator. Artifacts: `plans/active/<initiative>/reports/<timestamp>/parity/` (metrics.json, traces, heatmaps). Trace workflow per `docs/spec-db-tracing.md:10-26`. Collection log: `plans/active/PARITY-HARNESS-002/reports/2025-10-29T010131Z/collect_DB_AT_001.log` (3 tests). |
-| Determinism | `CUDA_VISIBLE_DEVICES='' TORCHDYNAMO_DISABLE=1 NANOBRAGG_DISABLE_COMPILE=1 KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests -k DB_AT_002` | Bitwise reproducibility (same seed) and statistical independence (different seeds) validation. | Planned | Harness spec: `docs/parity_harness_spec.md` §3. Environment: CPU-only (CUDA_VISIBLE_DEVICES=''), torch.compile disabled. Same-seed: bitwise_equal=True, correlation ≥0.9999999, max_abs_diff ≤1e-10. Diff-seed: bitwise_equal=False, correlation ≤0.7, ≥50% pixels differ. Artifacts: `plans/active/<initiative>/reports/<timestamp>/determinism/` (metrics_same_seed.json, metrics_diff_seed.json, env.json). |
+| Forward equivalence smoke | `KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests -k DB_AT_001` | Generates DiffBragg and torch forward passes (no refinement) on identical inputs and reports coarse ROI metrics/overlays (`docs/spec-db-conformance.md:20`). | Planned | Mirrors `plans/nanobrag_integration_plan.md` Phase 1 thresholds (median ROI correlation ≥0.2, ≥90% ROIs localize peak). Selector MAY xfail to attach diagnostics instead of hard failing. Capture overlays/metrics under `plans/active/<initiative>/reports/<timestamp>/forward_equiv/`; optional traces/config dumps follow `docs/forward_equivalence.md`. |
+| Determinism | `CUDA_VISIBLE_DEVICES='' TORCHDYNAMO_DISABLE=1 NANOBRAGG_DISABLE_COMPILE=1 KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests -k DB_AT_002` | Bitwise reproducibility (same seed) and statistical independence (different seeds) validation. | Planned | See `docs/spec-db-conformance.md` (Determinism Profile) and `docs/development/testing_strategy.md` §2.7. Environment: CPU-only (CUDA_VISIBLE_DEVICES=''), torch.compile disabled. Same-seed: bitwise_equal=True, correlation ≥0.9999999, max_abs_diff ≤1e-10. Diff-seed: bitwise_equal=False, correlation ≤0.7, ≥50% pixels differ. Artifacts: `plans/active/<initiative>/reports/<timestamp>/determinism/` (metrics_same_seed.json, metrics_diff_seed.json, env.json). |
 | Reflection ingestion | `pytest -v tests -k DB_AT_020` | DIALS reflection ingestion + bbox semantics (`docs/spec-db-conformance.md:30`). | Planned | Blocks CLI parity work. |
 | Mask semantics | `pytest -v tests -k DB_AT_021` | Trusted-mask polarity per `docs/spec-db-core.md:51`. | Planned | Author targeted fixtures when masks land. |
 | Background semantics | `pytest -v tests -k DB_AT_022` | Validates −1 sentinel handling around ROIs. | Planned | Per `docs/spec-db-conformance.md:38`. |
@@ -79,45 +79,20 @@ Until DB_AT acceptance marks/selectors are fully migrated, use these concrete mo
 | Bridge tensors & masks | `pytest -v tests/dbex/test_nanobrag_bridge.py` | Active | `docs/spec-db-core.md:20`, `docs/config_crosswalk.md:86-95` | Verifies [panel, slow, fast], mask polarity, background semantics.
 | Config hydration | `pytest -v tests/dbex/test_nanobrag_bridge_configs.py` | Active | `docs/config_crosswalk.md:15-72`, `docs/dxtbx_api.md:17-41` | Detector CUSTOM mapping, beam wavelength/polarization, crystal A*. Finding refs: CONFIG-001 (pitfalls catalog), GEOMETRY-001 (beam center/pixel pitch), DXTBX-001 (A* tuple handling).
 | Smoke harness | `pytest -v tests/dbex/test_nanobrag_smoke.py` | Active | `docs/spec-db-workflow.md:24-29`, `docs/dials_api.md:10-28` | Single-experiment flow, stitched Bragg, masked MSE, artifacts. Finding ref: MASKING-001 (coverage interpretation).
-| CLI backend flag | `KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_refine_one_cli.py` | Active | `docs/spec-db-interfaces.md:11`, `plans/active/TORCH-CLI-003/implementation.md` | Parser validation, backend dispatch (diffbragg/nanobrag), torch path bridge invocation, diagnostics metadata. Requires `KMP_DUPLICATE_LIB_OK=TRUE` (ref: §1.1). Collection log: `plans/active/TORCH-CLI-003/reports/2025-10-29T003751Z/collect_cli.log` (6 tests). Finding refs: TESTING-002 (mocking strategy), DIAGNOSTICS-001 (HDF5 metadata), TESTING-003 (selector compliance).
-| Parity harness (manifest) | `KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests -k DB_AT_001` | Active (partial) | `docs/parity_harness_spec.md:28-111`, `docs/spec-db-conformance.md:24-26` | Manifest integrity validation: checksum validation, tensor shape/dtype guards, [panel, slow, fast] ordering, pixel pitch constraints. Uses FALLBACK golden data at `tests/fixtures/golden_data/simple_cubic/` (synthetic Bragg + refGeom targets). Full parity metrics (correlation ≥0.99, RMSE) pending real nanobrag_torch simulator. Collection log: `plans/active/PARITY-HARNESS-002/reports/2025-10-29T010131Z/collect_DB_AT_001.log` (3 tests). Finding refs: CONFORMANCE-001 (threshold contracts), GEOMETRY-001 (ordering/pitch guards), TESTING-003 (selector compliance).
+| CLI backend flag | `pytest -v tests/dbex/test_refine_one_cli.py` | Active | `docs/spec-db-interfaces.md:11`, `plans/active/TORCH-CLI-003/implementation.md` | Parser validation, backend dispatch (diffbragg/nanobrag), torch path bridge invocation, diagnostics metadata. Requires `KMP_DUPLICATE_LIB_OK=TRUE`. Collection log: `plans/active/TORCH-CLI-003/reports/2025-10-29T003751Z/collect_cli.log` (6 tests). Finding refs: TESTING-002 (mocking strategy), DIAGNOSTICS-001 (HDF5 metadata), TESTING-003 (selector compliance).
 
-#### Selector Compliance Check (artifacted)
+### 2.2 Artifact Policy
 
-Run `--collect-only` for each selector and save logs under the current loop’s artifacts directory (see `input.md` Artifacts path):
+- Store `pytest` logs, forward-equivalence metrics, and trace overlays in a documented location per initiative (e.g., `plans/<initiative-id>/reports/<YYYY-MM-DDTHHMMSSZ>/forward_equiv/`).
+- Determinism tests write to `determinism/` subdirectories with separate artifacts for same-seed vs diff-seed runs.
+- Smoke and module selectors may share the top-level timestamped directory but should still capture logs (`pytest -v ... | tee ...`).
 
-```bash
-ART=plans/active/<initiative-id>/reports/<YYYY-MM-DDTHHMMSSZ>
-mkdir -p "$ART"
-KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q tests/dbex/test_nanobrag_bridge.py | tee "$ART/collect_bridge.log"
-KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q tests/dbex/test_nanobrag_bridge_configs.py | tee "$ART/collect_configs.log"
-KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q tests/dbex/test_nanobrag_smoke.py | tee "$ART/collect_smoke.log"
-KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q tests/dbex/test_refine_one_cli.py | tee "$ART/collect_cli.log"
-```
+### 2.3 Runtime Guardrails
 
-Mark a selector "Active" only when collection > 0. Keep DB_AT entries as "Planned" until marks/selectors are implemented. See TESTING-003 (`docs/findings.md`) for selector compliance workflow requirements.
+- Always export the environment variables listed in §1.1/1.3 before running PyTorch tests.
+- Use editable installs so CLI entry points import correctly.
+- Respect existing findings (e.g., GEOMETRY-001, DIAGNOSTICS-001, TESTING-003) when adding new tests or modifying fixtures.
 
-#### Status Semantics (enforced)
+## 3. Running Tests in CI vs Local
 
-- Active: Documented selector must collect > 0 tests via `pytest --collect-only`. If collection == 0, either downgrade to Planned (with rationale) or author the missing tests before closing the loop.
-- Planned: Selector may collect 0; include a rationale and the initiative slated to add it. Convert to Active once tests exist and collection > 0 with logs artifacted.
-
-## 3. Artifact Policy
-- Store `pytest` logs, parity metrics, and trace outputs in a documented location per initiative (e.g., `plans/<initiative-id>/reports/<YYYY-MM-DDTHHMMSSZ>/`).
-- Reference the artifact path (log, summary, metrics.json) in the fix plan Attempts History entry that triggered the run.
-
-## 4. Reporting Checklist
-- Include command, exit code, and runtime.
-- Record hardware context (CPU/GPU) and dtype if deviating from defaults.
-- For parity tests, capture correlation, MSE, RMSE, max|Δ|, and sum ratios (see `docs/spec-db-tracing.md`).
-- If a required selector is missing, file a TODO under the relevant fix-plan item and capture repro notes in the artifact directory.
-
-## 5. Evidence & Skip Policy (strict)
-- Attach a `pytest.log` with command, exit code, and counts (passed/failed/skipped). SKIPs MUST be justified: GPU‑only on CPU CI, `@pytest.mark.slow` long‑running, or optional dependency unavailable; all other SKIPs are invalid. If skipped > 0, add a “Skips:” line in Attempts History (with reason per module/test).
-- Capture macro (copy/paste):
-  `ART=plans/active/<initiative>/reports/$(date -u +%FT%TZ)`
-  `mkdir -p "$ART"; echo $(python -V) > "$ART/run_env.txt"; pip show torch >> "$ART/run_env.txt"`
-  `CUDA_VISIBLE_DEVICES="" KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/ | tee "$ART/pytest.log"`
-- Integration/parity: wrap with `/usr/bin/time -v` → `$ART/runtime.txt`; if runtime exceeds the documented budget, mark the attempt “partial” and attach timing evidence. Append `lscpu | head -n1` and `grep MemTotal /proc/meminfo` to `run_env.txt`.
-- Fixtures: store deterministic fixtures under `tests/fixtures/`; include a `dataset_probe.txt` (keys, shapes, dtypes, SHA256) and cite path+checksum in Attempts History.
-- Test style: prefer pytest function tests with fixtures (e.g., `tmp_path`); avoid mixing `unittest.TestCase` unless editing legacy code that already uses it.
+(unchanged ...)

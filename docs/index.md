@@ -137,10 +137,10 @@ Description: Canonical environment flags, smoke/acceptance selectors, and artifa
 Keywords: testing, pytest, selectors
 Use this when: Running or authoring tests for parity, ingestion, or runtime guardrails.
 
-### [Parity Harness Specification](parity_harness_spec.md)
-Description: Normative requirements for DB-AT-001 (reference parity baseline) and DB-AT-002 (determinism) test harnesses, including golden data expectations, metrics computation, trace capture workflow, and artifact layouts.
-Keywords: parity, harness, DB-AT-001, DB-AT-002, golden-data, metrics, traces
-Use this when: Implementing or running parity tests, authoring test fixtures with standardized metrics, or debugging first-divergence issues via trace comparison.
+### [Forward Equivalence Smoke](forward_equivalence.md)
+Description: Procedure and artifact expectations for the DiffBragg vs `nanobrag_torch` forward-only comparison, including optional trace capture.
+Keywords: forward-equiv, diagnostics, traces, ROI
+Use this when: Implementing or auditing the DB-AT-001 forward equivalence selector or capturing diagnostics for bridge validation.
 
 ### [Test Suite Index](development/TEST_SUITE_INDEX.md)
 Description: Status table for DB-AT selectors and runtime regression tests.

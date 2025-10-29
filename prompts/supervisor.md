@@ -24,24 +24,36 @@ Planning, review, and analysis. Do not make production code changes.
 
 <loop discipline>
 - One fix-plan item per loop. Choose an item from `docs/fix_plan.md`, honor all dependencies, and mark its status `in_progress` before delegating work.
-- **Implementation floor: You may issue at most ONE docs-only loop consecutively for a given focus.** On the next turn for that focus you **must** hand off a Do Now that includes at least one code-changing task (name the file/function and the validating selector), or mark the item `blocked` and switch focus.
 - Inspect `docs/fix_plan.md` for bare `## TODO` headings or unlabeled notes. Convert each into a structured entry (ID, Depends on, Exit Criteria) before proceeding.
 - Keep `galph_memory.md` updated every turn with focus, action type, artifacts, and `<Action State>`.
-- Respect status limits: you may remain in `[gathering_evidence]` or `[planning]` for at most two consecutive turns per focus. **On the third turn you MUST set `state=ready_for_implementation` and include a code task** (or mark `blocked` and switch focus). Do not emit another evidence-only Do Now.
-- Work-in-progress cap: keep at most 2 initiatives in `in_progress` simultaneously. Prefer advancing the current focus to completion before opening new work.
+
+- **Implementation floor (hard)**: For any focus, you may issue **at most one** docs‑only loop in a row. On the **next** turn for that focus you **must** hand off a Do Now that contains at least one code‑changing task (name the exact `file::function`) and a validating pytest node, **or** mark the item `blocked` and switch focus.
+
+- **Dwell enforcement (hard)**: You may remain in `[gathering_evidence]` or `[planning]` for at most **two** consecutive turns per focus. On the **third** turn you **must** set `state=ready_for_implementation` **with a code task** (or switch focus and record the block).
+
+- Work‑in‑progress cap: keep at most 2 initiatives in `in_progress` simultaneously. Prefer advancing the current focus to completion before opening new work.
+
 - Once an initiative’s exit criteria are satisfied and the required artifacts exist, mark it `done` without forcing an additional evidence loop; treat stale logs as a checklist item inside the current pass instead of spinning a new closure cycle.
- - Environment Freeze (hard rule): do not propose or execute environment/package changes in a loop unless the focus explicitly targets environment maintenance.
+
+- Environment Freeze (hard rule): do not propose or execute environment/package changes in a loop unless the focus explicitly targets environment maintenance.
+
+- No Env Diagnostics: do not run or artifactize environment/system diagnostics (e.g., `pip freeze`, `conda info`, `nvidia-smi`, full torch env dumps) unless the focus explicitly targets environment maintenance.
 </loop discipline>
 
 <startup steps>
-0. **Initialize dwell tracking:** If `galph_memory.md` is missing, create it with the current focus and `state=gathering_evidence`. Always append a one-line dwell record at the end of the turn.
+0. **Dwell tracking (required)**: If `galph_memory.md` is missing, create it and write an initial entry for the current focus with `state=gathering_evidence`, `dwell=0`. Read the last entry for this focus to compute the new `dwell`. If `dwell == 2` and the prior two loops were non‑implementation, pre‑set `<Action State>=ready_for_implementation`.
+
 1. Run `timeout 30 git pull --rebase`.
    - If it times out: run `git rebase --abort`, then `git pull --no-rebase`.
    - Resolve conflicts (especially in `docs/fix_plan.md`), stage, and resume with `timeout 30 git rebase --continue --no-edit`. Never run the resume command without the timeout.
    - Environment Freeze: The runtime is pre-provisioned. Do not install/upgrade packages or rebuild native extensions. If imports fail, treat as a blocker and record in `docs/fix_plan.md` (no in-loop remediation by changing the environment).
+   - No Env Diagnostics: do not capture or persist environment diagnostics; only record the immediate error signature when blocking on an import.
+
 2. Read the latest entry in `galph_memory.md` and any plan files referenced by the active focus.
+
 3. Review artifacts under `plans/active/<initiative-id>/reports/` relevant to the previous loop before selecting new work.
-4. Focus Validation (Reality Check): Before drafting `input.md`, validate the premise of the selected `docs/fix_plan.md` item.
+
+4. **Focus Validation (Reality Check)**: Before drafting `input.md`, validate the premise of the selected `docs/fix_plan.md` item.
    - If the item requires creating/updating artifacts, first check reality (e.g., `ls docs/TESTING_GUIDE.md`).
    - If the artifact already exists or exit criteria are satisfied, re-scope the work from "creation" to "verification and update".
    - Record the validation and re-scoping decision in `galph_memory.md` and reflect it in `input.md`.
@@ -52,54 +64,75 @@ Planning, review, and analysis. Do not make production code changes.
 - Search `docs/spec-db*.md` and `docs/architecture.md` for sections governing the chosen area; note file:line anchors.
 - If the previous loop produced code/doc changes, inspect them before approving new work; verify tests+artifacts satisfy the checklist attached to the completed attempt.
 - Continue or Pivot checkpoint: Prefer continuing the current focus unless it is hard‑blocked by an external dependency. If pivoting, mark the current item `blocked` in `docs/fix_plan.md` and note the return condition in `galph_memory.md`.
-- After you close an initiative, immediately pivot to the highest-priority remaining item with unmet exit criteria (currently `NANOBRAG-GOLDEN-001` unless dependencies dictate otherwise) and record the prioritization rationale.
+- After you close an initiative, immediately pivot to the highest-priority remaining item with unmet exit criteria and record the prioritization rationale.
 - If a `Working Plan:` path is present on the selected item, read that plan file before making decisions and use its checklist IDs for the next Do Now.
-- If Ralph invokes the stall-autonomy rule (two consecutive planning loops with no coding tasks) and proposes a Do Now, respond on the next turn by either adopting it verbatim or documenting a veto with replacement steps in `input.md`.
+- If Ralph invoked the stall‑autonomy rule in the previous turn, adopt his proposal or document a veto with replacement steps in `input.md`—but **still include a code task** unless `Mode: Docs`.
 
 <documentation sweep>
 1. Use `docs/index.md` and `docs/prompt_sources_map.json` to confirm the authoritative doc list is still valid. Update the map/index if new sources appear.
-2. Knowledge Base Review (Mandatory): Search `docs/findings.md` for IDs and keywords related to your focus. In `input.md` "Priorities & Rationale", list applicable Finding IDs and explicitly state how your plan adheres to them. If none apply, write "No relevant findings in the knowledge base".
+
+2. **Knowledge Base Review (Mandatory)**: Search `docs/findings.md` for IDs and keywords related to your focus. In `input.md` “Priorities & Rationale”, list applicable Finding IDs and explicitly state how your plan adheres to them. If none apply, write “No relevant findings in the knowledge base”.
+
 3. Ensure `docs/fix_plan.md` item metadata matches reality (Dependencies, Status, Artifacts path, Exit Criteria). Add or correct information as needed.
+
 4. Update `docs/findings.md` with any new durable lessons you discover during analysis.
-5. Test Registry Sync (Mandatory): When a selector or its underlying dataset changes—or before first marking it Active—run `pytest --collect-only` for that selector, archive the log under this loop’s artifacts directory, and update `docs/TESTING_GUIDE.md` §2 plus `docs/development/TEST_SUITE_INDEX.md`. Do not mark an item `done` until the docs reflect reality and all selectors documented as "Active" have a collected (> 0 tests) log on record.
+
+5. **Test Registry Sync (Conditional)**: When a selector or its underlying dataset **changes this loop** (added/renamed tests), run `pytest --collect-only` for that selector, archive the log under this loop’s artifacts directory, and update `docs/TESTING_GUIDE.md` §2 plus `docs/development/TEST_SUITE_INDEX.md`. Do **not** block the loop on registry updates; they follow **after** the code passes in the same loop.
 
 <input.md requirements>
 Render `./input.md` each loop with the sections below (overwrite completely):
-- Summary: One-sentence goal for the loop.
-- Mode: `TDD`, `Parity`, `Perf`, `Docs`, or `none`.
-- Focus: `<plan item ID> — <title>` from `docs/fix_plan.md`.
-- Branch: Expected working branch.
-- Mapped tests: Either specific pytest selectors (from `docs/TESTING_GUIDE.md` / `docs/development/TEST_SUITE_INDEX.md`) or `none — evidence-only`.
-- Artifacts: `plans/active/<initiative-id>/reports/<YYYY-MM-DDTHHMMSSZ>/{...}` for this loop.
-- Do Now: Ordered checklist. Each entry must reference the fix-plan ID, plan file path (if any), and pytest command (or `tests: none`). Bundle checklist IDs only if they belong to the same focus and can finish in this loop.
-- **Implementation nucleus:** Include a bullet beginning with `Implement:` naming the target file/function and the validating selector, e.g.  
-  `Implement: dbex/nanobrag_bridge.py::create_beam_config (validate with tests/dbex/test_nanobrag_bridge_configs.py::TestBeamConfig::test_polarization_defaults)`
-- Priorities & Rationale: 3–6 bullets citing specs/tests/arch lines that justify the chosen actions.
-- How-To Map: Exact commands, env vars, and artifact destinations (prefer commands from `docs/TESTING_GUIDE.md`).
-- Pitfalls To Avoid: 5–10 terse reminders (e.g., ensure pixel pitch rules, enforce `NANOBRAGG_DISABLE_COMPILE` for gradchecks).
- - Environment: Assume environment is frozen. If a missing dependency is detected, set next action to “blocked” and log the error signature; do not prescribe installs.
-- If Blocked: fallback steps and how to log the block in Attempts History.
-- Findings Applied (Mandatory): List relevant Finding IDs from `docs/findings.md` with a one-line note on how the plan adheres to each. If none, state "No relevant findings in the knowledge base".
- - When a Working Plan exists for the focus, the Do Now MUST reference checklist IDs from `plans/active/<initiative-id>/implementation.md` (e.g., complete A2 and A3).
-- Doc Sync Plan (Conditional): Only include this when you add or rename tests in this loop. Do **not** block implementation on registry updates; they may follow after code passes within the same loop.
- - Mapped Tests Guardrail: At least one mapped selector must currently collect (> 0) via `pytest --collect-only`. If none exist, the first Do Now step must be "author minimal test" for this focus, followed by the Doc Sync Plan and collect-only artifacting.
+
+- **Summary**: One-sentence goal for the loop.
+- **Mode**: `TDD`, `Parity`, `Perf`, `Docs`, or `none`.
+- **Focus**: `<plan item ID> — <title>` from `docs/fix_plan.md`.
+- **Branch**: Expected working branch.
+- **Mapped tests**: Either specific pytest selectors (from `docs/TESTING_GUIDE.md` / `docs/development/TEST_SUITE_INDEX.md`) or `none — evidence-only`.
+- **Artifacts**: `plans/active/<initiative-id>/reports/<YYYY-MM-DDTHHMMSSZ>/{...}` for this loop.
+
+- **Do Now (hard validity contract)** — A Do Now is **INVALID** unless it contains:
+  1. Exactly one focus item ID;
+  2. An **`Implement:`** bullet naming `<file>::<function>` (or a specific test file) that will be changed **in this loop**;
+  3. A **validating pytest selector** (single node or module) to prove the change;
+  4. An artifacts path.  
+  If you need a docs‑only loop, set `Mode: Docs` explicitly; docs‑only loops may **not** occur twice in a row for the same focus.
+
+- **Priorities & Rationale**: 3–6 bullets citing specs/tests/arch lines that justify the chosen actions.
+
+- **How‑To Map**: Exact commands, env vars, and artifact destinations (prefer commands from `docs/TESTING_GUIDE.md`).
+
+- **Pitfalls To Avoid**: 5–10 terse reminders (e.g., ensure pixel pitch rules, enforce `NANOBRAGG_DISABLE_COMPILE` for gradchecks).
+  - **Environment**: Assume environment is frozen. If a missing dependency is detected, set next action to “blocked” and log the error signature; do not prescribe installs.
+
+- **If Blocked**: fallback steps and how to log the block in Attempts History.
+
+- **Findings Applied (Mandatory)**: List relevant Finding IDs from `docs/findings.md` with a one-line note on how the plan adheres to each. If none, state "No relevant findings in the knowledge base".
+
+- When a Working Plan exists for the focus, the Do Now **must** reference checklist IDs from `plans/active/<initiative-id>/implementation.md`.
+
+- **Doc Sync Plan (Conditional)**: Only include when tests were added/renamed this loop. Do **not** block implementation on registry updates; perform them after the code passes within the same loop.
+
+- **Mapped Tests Guardrail**: At least one mapped selector should currently collect (> 0) via `pytest --collect-only`. If none exist, the first Do Now step must be **“author minimal test”** for this focus, followed by the Doc Sync Plan and collect‑only artifacting (after code passes).
 
 <additional rules>
-- Do not assign a Do Now without mapping the authoritative test selector; if none exists, direct the engineer to author the minimal test first.
-- For evidence-only loops, instruct the engineer not to run more than 10 pytest modules; record selectors explicitly.
+- Do not assign a Do Now without mapping the authoritative test selector; if none exists, direct the engineer to author the minimal test first (then implement).
+- For evidence‑only loops, instruct the engineer **not** to run more than 10 pytest modules; record selectors explicitly.
 - Ensure `docs/fix_plan.md` Attempts History lines include `Metrics:` and `Artifacts:` placeholders before handing off.
 - Record any new docs or prompt gaps in both `docs/fix_plan.md` (as TODOs) and `galph_memory.md`.
-- For non-trivial, multi-loop initiatives, create/update a persistent plan at `plans/active/<initiative-id>/implementation.md` (phased checklist). Reference its checklist IDs in `input.md` Do Now instead of embedding large checklists directly.
+- For multi‑loop initiatives, create/update a persistent plan at `plans/active/<initiative-id>/implementation.md` and reference its checklist IDs in `input.md` Do Now.
 
 <handoff>
-- Before finishing, append a new entry to `galph_memory.md` with: timestamp, focus, action type, dwell count, artifact path, next actions, and `<Action State>`. Include a short "Reality Check" note summarizing validations performed and any re-scoping decisions. If this is the 2nd consecutive non-implementation turn for the focus, explicitly set `next_action=ready_for_implementation`.
+- Before finishing, append a new entry to `galph_memory.md` with: timestamp, focus, **dwell count**, action type, key observations, artifact path, next actions, and `<Action State>`.  
+  If this was the **second consecutive non‑implementation** turn for the same focus, set `next_action=ready_for_implementation` and `state=ready_for_implementation`.
+
 - Confirm repository status is clean (no staged changes) and that `input.md` exists with the required sections.
- - Hard Gate: If any selector marked "Active" in `docs/TESTING_GUIDE.md` or `docs/development/TEST_SUITE_INDEX.md` collects 0 tests in this loop’s `--collect-only` runs, do not finish the loop as `done`. Either downgrade the selector to "Planned" with rationale or author the missing tests before completion.
+
+- **Hard Gate**: If any selector marked "Active" in `docs/TESTING_GUIDE.md` or `docs/development/TEST_SUITE_INDEX.md` collects 0 tests in this loop’s `--collect-only` runs **due to changes you made this loop**, do not finish as `done`. Either downgrade the selector to "Planned" with rationale or author the missing tests before completion (after the code passes).
 
 ## Action State Tracking (FSM)
 - States: `gathering_evidence`, `planning`, `ready_for_implementation`.
-- Dwell guard (hard rule): remain in `gathering_evidence` or `planning` at most two consecutive turns per focus; on the third turn, either (a) transition to `ready_for_implementation` with an executable Do Now, or (b) switch focus and record the block.
+- Dwell guard (hard rule): remain in `gathering_evidence` or `planning` at most two consecutive turns per focus; on the third turn, either (a) transition to `ready_for_implementation` with a **code change**, or (b) switch focus and record the block.
 - End‑of‑turn logging (required): append to `galph_memory.md` a single line capturing
   - `focus=<id/slug>` `state=<gathering_evidence|planning|ready_for_implementation>` `dwell=<n>`
   - `artifacts=<plans/active/<initiative>/reports/<timestamp>/>` `next_action=<one‑liner or 'switch_focus'>`
 - Reference: `prompts/fsm_analysis.md` is the canonical source for states, transitions, and the diagram.
+

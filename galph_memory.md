@@ -293,3 +293,12 @@ Notes
 - Next Actions: Execute input.md (2025-10-29T080253Z) Do Now checklist—log env evidence (A1), run capture_forward.py for canonical tensors (A2+A3), and archive metrics plus DB_AT_001 collect-only logs with doc updates (D1).
 - Reality Check: Validated the previous blocker (nanobrag_torch missing) is cleared and rescoped the focus from docs-only prep to ready-for-execution canonical capture while keeping Environment Freeze constraints explicit.
 - <Action State>: [ready_for_implementation]
+## 2025-10-29T082521Z — NANOBRAG-GOLDEN-001 canonical capture recovery plan
+- Focus: NANOBRAG-GOLDEN-001 — Replace fallback DB-AT-001 golden dataset
+- Action Type: planning
+- Key Observations: 2025-10-29T080253Z canonical_capture.log ends with `TypeError: Object of type float32 is not JSON serializable`; golden_dataset directory lacks bragg_diffbragg.npy/bragg_torch.npy outputs; manifest in tests/fixtures/golden_data/simple_cubic/ still points at simple_cubic_fallback.
+- Artifact Path: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T082521Z/
+- Next Actions: Repatch capture_forward.py with numpy→Python conversion, rerun canonical capture, replace fixtures with canonical tensors, update parity tests/docs, and log new findings.
+- Reality Check: Validated canonical tensors were never produced (JSON crash) and rescoped the loop to redo Phase A before manifest/parity updates; confirmed fallback dataset remains active and dependencies (TORCH-BRIDGE-001/FORWARD-EQUIV-001) still satisfied.
+- <Action State>: [ready_for_implementation]
+2025-10-29T082521Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=3 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T082521Z/ next_action=execute_A2_to_D2

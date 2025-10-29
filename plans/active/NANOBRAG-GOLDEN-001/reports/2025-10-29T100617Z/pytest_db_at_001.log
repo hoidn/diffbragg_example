@@ -1,0 +1,499 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 14 items
+
+tests/dbex/test_db_at_001_parity.py::TestManifestIntegrity::test_manifest_integrity ERROR [  7%]
+tests/dbex/test_db_at_001_parity.py::TestManifestIntegrity::test_golden_data_sanity ERROR [ 14%]
+tests/dbex/test_db_at_001_parity.py::TestManifestIntegrity::test_pixel_pitch_guard ERROR [ 21%]
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_perfect_match PASSED [ 28%]
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_correlation_computation PASSED [ 35%]
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_error_metrics PASSED [ 42%]
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_sum_ratio PASSED [ 50%]
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_localization_metric PASSED [ 57%]
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_mask_application PASSED [ 64%]
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_edge_cases PASSED [ 71%]
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_to_dict_serialization PASSED [ 78%]
+tests/dbex/test_db_at_001_parity.py::TestArtifactEmission::test_artifact_emission PASSED [ 85%]
+tests/dbex/test_db_at_001_parity.py::TestArtifactEmission::test_artifact_emission_minimal PASSED [ 92%]
+tests/dbex/test_db_at_001_parity.py::TestDB_AT_001_Parity::test_db_at_001_parity_smoke ERROR [100%]
+
+==================================== ERRORS ====================================
+_______ ERROR at setup of TestManifestIntegrity.test_manifest_integrity ________
+
+golden_dir = PosixPath('/home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/fixtures/golden_data/simple_cubic')
+
+    @pytest.fixture(scope="module")
+    def simple_cubic_golden(golden_dir):
+        """
+        Load simple cubic golden data for parity testing.
+    
+        Returns GoldenData with:
+            - bragg: Predicted Bragg intensities [slow, fast] float32
+            - target: Background-subtracted targets [slow, fast] float32
+            - loss_mask: Loss mask [slow, fast] bool
+            - metadata: Configuration metadata dict
+            - manifest: Full manifest dict
+            - panel_id: Panel ID (default 0)
+    
+        Per docs/parity_harness_spec.md:36-37, checksums are validated on load.
+        """
+>       golden_data = load_golden_data(
+            golden_dir=golden_dir,
+            panel_id=0,
+            validate_checksums=True
+        )
+
+tests/dbex/test_db_at_001_parity.py:77: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+golden_dir = PosixPath('/home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/fixtures/golden_data/simple_cubic')
+panel_id = 0, validate_checksums = True
+
+    def load_golden_data(
+        golden_dir: Path,
+        panel_id: int = 0,
+        validate_checksums: bool = True
+    ) -> GoldenData:
+        """
+        Load golden parity data for a specific panel.
+    
+        Per docs/parity_harness_spec.md:28-41:
+        - Validates manifest checksums if validate_checksums=True
+        - Enforces [slow, fast] tensor ordering
+        - Guards pixel pitch square constraint
+    
+        Args:
+            golden_dir: Path to tests/fixtures/golden_data/simple_cubic/
+            panel_id: Panel ID to load (default 0)
+            validate_checksums: Validate SHA256 checksums (default True)
+    
+        Returns:
+            GoldenData instance with tensors and metadata
+    
+        Raises:
+            ValueError: If checksums fail, files missing, or tensor shapes invalid
+        """
+        manifest_path = golden_dir / "manifest.json"
+        metadata_path = golden_dir / "metadata.json"
+    
+        if not manifest_path.exists():
+            raise ValueError(
+                f"Manifest not found: {manifest_path}\n"
+                f"Run scripts/generate_simple_cubic_golden.py to create golden data."
+            )
+    
+        # Validate manifest checksums
+        if validate_checksums:
+            manifest = validate_manifest(manifest_path, golden_dir)
+        else:
+            with open(manifest_path, 'r') as f:
+                manifest = json.load(f)
+    
+        # Load metadata
+        with open(metadata_path, 'r') as f:
+            metadata = json.load(f)
+    
+        # Validate pixel pitch
+        validate_pixel_pitch(metadata)
+    
+        # Load tensors
+        bragg_path = golden_dir / f"bragg_panel_{panel_id}.npy"
+        target_path = golden_dir / f"target_panel_{panel_id}.npy"
+        loss_mask_path = golden_dir / f"loss_mask_panel_{panel_id}.npy"
+    
+        if not bragg_path.exists():
+            raise ValueError(
+                f"Golden Bragg tensor not found: {bragg_path}\n"
+                f"Panel {panel_id} may not be available in this dataset."
+            )
+    
+        bragg = np.load(bragg_path)
+        target = np.load(target_path)
+        loss_mask = np.load(loss_mask_path)
+    
+        # Validate tensor ordering ([slow, fast] for per-panel data)
+        expected_shape = tuple(metadata["shape"]["bragg"])
+        validate_tensor_ordering(bragg, expected_shape, "bragg")
+        validate_tensor_ordering(target, expected_shape, "target")
+        validate_tensor_ordering(loss_mask, expected_shape, "loss_mask")
+    
+        # Validate dtypes
+        if bragg.dtype != np.float32:
+            raise ValueError(
+                f"Golden Bragg tensor has dtype {bragg.dtype}, expected float32"
+            )
+        if target.dtype != np.float32:
+            raise ValueError(
+                f"Golden target tensor has dtype {target.dtype}, expected float32"
+            )
+        if loss_mask.dtype != bool:
+>           raise ValueError(
+                f"Golden loss_mask tensor has dtype {loss_mask.dtype}, expected bool"
+            )
+E           ValueError: Golden loss_mask tensor has dtype uint8, expected bool
+
+tests/fixtures/parity_loader.py:254: ValueError
+_______ ERROR at setup of TestManifestIntegrity.test_golden_data_sanity ________
+
+golden_dir = PosixPath('/home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/fixtures/golden_data/simple_cubic')
+
+    @pytest.fixture(scope="module")
+    def simple_cubic_golden(golden_dir):
+        """
+        Load simple cubic golden data for parity testing.
+    
+        Returns GoldenData with:
+            - bragg: Predicted Bragg intensities [slow, fast] float32
+            - target: Background-subtracted targets [slow, fast] float32
+            - loss_mask: Loss mask [slow, fast] bool
+            - metadata: Configuration metadata dict
+            - manifest: Full manifest dict
+            - panel_id: Panel ID (default 0)
+    
+        Per docs/parity_harness_spec.md:36-37, checksums are validated on load.
+        """
+>       golden_data = load_golden_data(
+            golden_dir=golden_dir,
+            panel_id=0,
+            validate_checksums=True
+        )
+
+tests/dbex/test_db_at_001_parity.py:77: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+golden_dir = PosixPath('/home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/fixtures/golden_data/simple_cubic')
+panel_id = 0, validate_checksums = True
+
+    def load_golden_data(
+        golden_dir: Path,
+        panel_id: int = 0,
+        validate_checksums: bool = True
+    ) -> GoldenData:
+        """
+        Load golden parity data for a specific panel.
+    
+        Per docs/parity_harness_spec.md:28-41:
+        - Validates manifest checksums if validate_checksums=True
+        - Enforces [slow, fast] tensor ordering
+        - Guards pixel pitch square constraint
+    
+        Args:
+            golden_dir: Path to tests/fixtures/golden_data/simple_cubic/
+            panel_id: Panel ID to load (default 0)
+            validate_checksums: Validate SHA256 checksums (default True)
+    
+        Returns:
+            GoldenData instance with tensors and metadata
+    
+        Raises:
+            ValueError: If checksums fail, files missing, or tensor shapes invalid
+        """
+        manifest_path = golden_dir / "manifest.json"
+        metadata_path = golden_dir / "metadata.json"
+    
+        if not manifest_path.exists():
+            raise ValueError(
+                f"Manifest not found: {manifest_path}\n"
+                f"Run scripts/generate_simple_cubic_golden.py to create golden data."
+            )
+    
+        # Validate manifest checksums
+        if validate_checksums:
+            manifest = validate_manifest(manifest_path, golden_dir)
+        else:
+            with open(manifest_path, 'r') as f:
+                manifest = json.load(f)
+    
+        # Load metadata
+        with open(metadata_path, 'r') as f:
+            metadata = json.load(f)
+    
+        # Validate pixel pitch
+        validate_pixel_pitch(metadata)
+    
+        # Load tensors
+        bragg_path = golden_dir / f"bragg_panel_{panel_id}.npy"
+        target_path = golden_dir / f"target_panel_{panel_id}.npy"
+        loss_mask_path = golden_dir / f"loss_mask_panel_{panel_id}.npy"
+    
+        if not bragg_path.exists():
+            raise ValueError(
+                f"Golden Bragg tensor not found: {bragg_path}\n"
+                f"Panel {panel_id} may not be available in this dataset."
+            )
+    
+        bragg = np.load(bragg_path)
+        target = np.load(target_path)
+        loss_mask = np.load(loss_mask_path)
+    
+        # Validate tensor ordering ([slow, fast] for per-panel data)
+        expected_shape = tuple(metadata["shape"]["bragg"])
+        validate_tensor_ordering(bragg, expected_shape, "bragg")
+        validate_tensor_ordering(target, expected_shape, "target")
+        validate_tensor_ordering(loss_mask, expected_shape, "loss_mask")
+    
+        # Validate dtypes
+        if bragg.dtype != np.float32:
+            raise ValueError(
+                f"Golden Bragg tensor has dtype {bragg.dtype}, expected float32"
+            )
+        if target.dtype != np.float32:
+            raise ValueError(
+                f"Golden target tensor has dtype {target.dtype}, expected float32"
+            )
+        if loss_mask.dtype != bool:
+>           raise ValueError(
+                f"Golden loss_mask tensor has dtype {loss_mask.dtype}, expected bool"
+            )
+E           ValueError: Golden loss_mask tensor has dtype uint8, expected bool
+
+tests/fixtures/parity_loader.py:254: ValueError
+________ ERROR at setup of TestManifestIntegrity.test_pixel_pitch_guard ________
+
+golden_dir = PosixPath('/home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/fixtures/golden_data/simple_cubic')
+
+    @pytest.fixture(scope="module")
+    def simple_cubic_golden(golden_dir):
+        """
+        Load simple cubic golden data for parity testing.
+    
+        Returns GoldenData with:
+            - bragg: Predicted Bragg intensities [slow, fast] float32
+            - target: Background-subtracted targets [slow, fast] float32
+            - loss_mask: Loss mask [slow, fast] bool
+            - metadata: Configuration metadata dict
+            - manifest: Full manifest dict
+            - panel_id: Panel ID (default 0)
+    
+        Per docs/parity_harness_spec.md:36-37, checksums are validated on load.
+        """
+>       golden_data = load_golden_data(
+            golden_dir=golden_dir,
+            panel_id=0,
+            validate_checksums=True
+        )
+
+tests/dbex/test_db_at_001_parity.py:77: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+golden_dir = PosixPath('/home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/fixtures/golden_data/simple_cubic')
+panel_id = 0, validate_checksums = True
+
+    def load_golden_data(
+        golden_dir: Path,
+        panel_id: int = 0,
+        validate_checksums: bool = True
+    ) -> GoldenData:
+        """
+        Load golden parity data for a specific panel.
+    
+        Per docs/parity_harness_spec.md:28-41:
+        - Validates manifest checksums if validate_checksums=True
+        - Enforces [slow, fast] tensor ordering
+        - Guards pixel pitch square constraint
+    
+        Args:
+            golden_dir: Path to tests/fixtures/golden_data/simple_cubic/
+            panel_id: Panel ID to load (default 0)
+            validate_checksums: Validate SHA256 checksums (default True)
+    
+        Returns:
+            GoldenData instance with tensors and metadata
+    
+        Raises:
+            ValueError: If checksums fail, files missing, or tensor shapes invalid
+        """
+        manifest_path = golden_dir / "manifest.json"
+        metadata_path = golden_dir / "metadata.json"
+    
+        if not manifest_path.exists():
+            raise ValueError(
+                f"Manifest not found: {manifest_path}\n"
+                f"Run scripts/generate_simple_cubic_golden.py to create golden data."
+            )
+    
+        # Validate manifest checksums
+        if validate_checksums:
+            manifest = validate_manifest(manifest_path, golden_dir)
+        else:
+            with open(manifest_path, 'r') as f:
+                manifest = json.load(f)
+    
+        # Load metadata
+        with open(metadata_path, 'r') as f:
+            metadata = json.load(f)
+    
+        # Validate pixel pitch
+        validate_pixel_pitch(metadata)
+    
+        # Load tensors
+        bragg_path = golden_dir / f"bragg_panel_{panel_id}.npy"
+        target_path = golden_dir / f"target_panel_{panel_id}.npy"
+        loss_mask_path = golden_dir / f"loss_mask_panel_{panel_id}.npy"
+    
+        if not bragg_path.exists():
+            raise ValueError(
+                f"Golden Bragg tensor not found: {bragg_path}\n"
+                f"Panel {panel_id} may not be available in this dataset."
+            )
+    
+        bragg = np.load(bragg_path)
+        target = np.load(target_path)
+        loss_mask = np.load(loss_mask_path)
+    
+        # Validate tensor ordering ([slow, fast] for per-panel data)
+        expected_shape = tuple(metadata["shape"]["bragg"])
+        validate_tensor_ordering(bragg, expected_shape, "bragg")
+        validate_tensor_ordering(target, expected_shape, "target")
+        validate_tensor_ordering(loss_mask, expected_shape, "loss_mask")
+    
+        # Validate dtypes
+        if bragg.dtype != np.float32:
+            raise ValueError(
+                f"Golden Bragg tensor has dtype {bragg.dtype}, expected float32"
+            )
+        if target.dtype != np.float32:
+            raise ValueError(
+                f"Golden target tensor has dtype {target.dtype}, expected float32"
+            )
+        if loss_mask.dtype != bool:
+>           raise ValueError(
+                f"Golden loss_mask tensor has dtype {loss_mask.dtype}, expected bool"
+            )
+E           ValueError: Golden loss_mask tensor has dtype uint8, expected bool
+
+tests/fixtures/parity_loader.py:254: ValueError
+______ ERROR at setup of TestDB_AT_001_Parity.test_db_at_001_parity_smoke ______
+
+golden_dir = PosixPath('/home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/fixtures/golden_data/simple_cubic')
+
+    @pytest.fixture(scope="module")
+    def simple_cubic_golden(golden_dir):
+        """
+        Load simple cubic golden data for parity testing.
+    
+        Returns GoldenData with:
+            - bragg: Predicted Bragg intensities [slow, fast] float32
+            - target: Background-subtracted targets [slow, fast] float32
+            - loss_mask: Loss mask [slow, fast] bool
+            - metadata: Configuration metadata dict
+            - manifest: Full manifest dict
+            - panel_id: Panel ID (default 0)
+    
+        Per docs/parity_harness_spec.md:36-37, checksums are validated on load.
+        """
+>       golden_data = load_golden_data(
+            golden_dir=golden_dir,
+            panel_id=0,
+            validate_checksums=True
+        )
+
+tests/dbex/test_db_at_001_parity.py:77: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+golden_dir = PosixPath('/home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/fixtures/golden_data/simple_cubic')
+panel_id = 0, validate_checksums = True
+
+    def load_golden_data(
+        golden_dir: Path,
+        panel_id: int = 0,
+        validate_checksums: bool = True
+    ) -> GoldenData:
+        """
+        Load golden parity data for a specific panel.
+    
+        Per docs/parity_harness_spec.md:28-41:
+        - Validates manifest checksums if validate_checksums=True
+        - Enforces [slow, fast] tensor ordering
+        - Guards pixel pitch square constraint
+    
+        Args:
+            golden_dir: Path to tests/fixtures/golden_data/simple_cubic/
+            panel_id: Panel ID to load (default 0)
+            validate_checksums: Validate SHA256 checksums (default True)
+    
+        Returns:
+            GoldenData instance with tensors and metadata
+    
+        Raises:
+            ValueError: If checksums fail, files missing, or tensor shapes invalid
+        """
+        manifest_path = golden_dir / "manifest.json"
+        metadata_path = golden_dir / "metadata.json"
+    
+        if not manifest_path.exists():
+            raise ValueError(
+                f"Manifest not found: {manifest_path}\n"
+                f"Run scripts/generate_simple_cubic_golden.py to create golden data."
+            )
+    
+        # Validate manifest checksums
+        if validate_checksums:
+            manifest = validate_manifest(manifest_path, golden_dir)
+        else:
+            with open(manifest_path, 'r') as f:
+                manifest = json.load(f)
+    
+        # Load metadata
+        with open(metadata_path, 'r') as f:
+            metadata = json.load(f)
+    
+        # Validate pixel pitch
+        validate_pixel_pitch(metadata)
+    
+        # Load tensors
+        bragg_path = golden_dir / f"bragg_panel_{panel_id}.npy"
+        target_path = golden_dir / f"target_panel_{panel_id}.npy"
+        loss_mask_path = golden_dir / f"loss_mask_panel_{panel_id}.npy"
+    
+        if not bragg_path.exists():
+            raise ValueError(
+                f"Golden Bragg tensor not found: {bragg_path}\n"
+                f"Panel {panel_id} may not be available in this dataset."
+            )
+    
+        bragg = np.load(bragg_path)
+        target = np.load(target_path)
+        loss_mask = np.load(loss_mask_path)
+    
+        # Validate tensor ordering ([slow, fast] for per-panel data)
+        expected_shape = tuple(metadata["shape"]["bragg"])
+        validate_tensor_ordering(bragg, expected_shape, "bragg")
+        validate_tensor_ordering(target, expected_shape, "target")
+        validate_tensor_ordering(loss_mask, expected_shape, "loss_mask")
+    
+        # Validate dtypes
+        if bragg.dtype != np.float32:
+            raise ValueError(
+                f"Golden Bragg tensor has dtype {bragg.dtype}, expected float32"
+            )
+        if target.dtype != np.float32:
+            raise ValueError(
+                f"Golden target tensor has dtype {target.dtype}, expected float32"
+            )
+        if loss_mask.dtype != bool:
+>           raise ValueError(
+                f"Golden loss_mask tensor has dtype {loss_mask.dtype}, expected bool"
+            )
+E           ValueError: Golden loss_mask tensor has dtype uint8, expected bool
+
+tests/fixtures/parity_loader.py:254: ValueError
+=============================== warnings summary ===============================
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_error_metrics
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_sum_ratio
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_to_dict_serialization
+tests/dbex/test_db_at_001_parity.py::TestArtifactEmission::test_artifact_emission
+tests/dbex/test_db_at_001_parity.py::TestArtifactEmission::test_artifact_emission_minimal
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/fixtures/parity_loader.py:387: ConstantInputWarning: An input array is constant; the correlation coefficient is not defined.
+    corr, _ = scipy.stats.pearsonr(pred_flat, targ_flat)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+ERROR tests/dbex/test_db_at_001_parity.py::TestManifestIntegrity::test_manifest_integrity
+ERROR tests/dbex/test_db_at_001_parity.py::TestManifestIntegrity::test_golden_data_sanity
+ERROR tests/dbex/test_db_at_001_parity.py::TestManifestIntegrity::test_pixel_pitch_guard
+ERROR tests/dbex/test_db_at_001_parity.py::TestDB_AT_001_Parity::test_db_at_001_parity_smoke
+=================== 10 passed, 5 warnings, 4 errors in 0.38s ===================

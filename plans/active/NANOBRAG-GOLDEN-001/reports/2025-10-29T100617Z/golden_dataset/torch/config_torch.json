@@ -1,0 +1,84 @@
+{
+  "device": "cuda:0",
+  "timestamp": "2025-10-29T10:17:42.101210Z",
+  "beam": {
+    "wavelength_A": 0.9768000000000001,
+    "polarization_factor": 0.0,
+    "nopolar": false,
+    "polarization_axis": [
+      0.0,
+      1.0,
+      0.0
+    ],
+    "flux": 1000000000000.0,
+    "beamsize_mm": 1.0,
+    "exposure": 1.0
+  },
+  "crystal": {
+    "cell": {
+      "a": 27.363677592112797,
+      "b": 32.05835662265328,
+      "c": 34.4689673476891,
+      "alpha": 88.67149284441896,
+      "beta": 71.55039020756624,
+      "gamma": 68.122160799445
+    },
+    "mosflm_a_star": [
+      -0.027604516595602036,
+      -0.02852814272046089,
+      -0.012917858548462391
+    ],
+    "mosflm_b_star": [
+      -0.00417349673807621,
+      0.02994678169488907,
+      -0.015129875391721725
+    ],
+    "mosflm_c_star": [
+      0.02525518462061882,
+      -0.001580115407705307,
+      -0.017492635175585747
+    ],
+    "misset_deg": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "phi_steps": 1,
+    "osc_range_deg": 0.0,
+    "mosaic_domains": 1,
+    "mosaic_spread_deg": 0.0,
+    "N_cells": [
+      36,
+      28,
+      26
+    ],
+    "scale_override": 3.185699102979783e+17
+  },
+  "structure_factors": {
+    "h_min": -24,
+    "h_max": 24,
+    "k_min": -28,
+    "k_max": 28,
+    "l_min": -31,
+    "l_max": 31,
+    "h_range": 49,
+    "k_range": 57,
+    "l_range": 63,
+    "n_reflections": 69614,
+    "n_in_range": 69614,
+    "in_range_fraction": 1.0,
+    "grid_nonzero": 69614,
+    "grid_min": 0.0,
+    "grid_max": 292557881344.0,
+    "grid_mean": 10586836992.0
+  },
+  "panel_configs": [
+    {
+      "panel_id": 0,
+      "distance_mm": 231.28733746620574,
+      "beam_center_s": 213.89426716458874,
+      "beam_center_f": 217.7285590237984,
+      "pixel_size_mm": 0.17200000000000001
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "pixel_index": [
+    0,
+    582
+  ],
+  "predicted_value": 0.00010141448001377285,
+  "target_value": 5.218392992029086e-12,
+  "abs_diff": 0.00010141447479537985,
+  "rel_diff": 19434043.191129327,
+  "threshold": 1e-06,
+  "n_pixels_scanned": 1
+}

@@ -181,3 +181,13 @@ Notes
 - Reality Check: Validated that prior artifacts satisfy conformance/tracing specs but require fresh logs before marking initiative done; rescoped work from implementation to verification/closure.
 
 2025-10-29T022319Z focus=PARITY-HARNESS-002 state=ready_for_implementation dwell=1 artifacts=plans/active/PARITY-HARNESS-002/reports/2025-10-29T022212Z/ next_action=execute_E1-E3_closure
+## 2025-10-29T023905Z — NANOBRAG-GOLDEN-001 planning kickoff
+- Focus: NANOBRAG-GOLDEN-001 — Replace fallback DB-AT-001 golden dataset
+- Action Type: planning
+- Key Observations: Confirmed simple_cubic manifest still marked FALLBACK with synthetic Gaussian Bragg tensor; refGeom inputs and scaled.mtz present; no canonical nanoBragg2 tensors archived yet; established new implementation checklist (A1–D3) and artifacts directory; cited governing specs (`docs/spec-db-core.md:20-41`, `docs/spec-db-conformance.md:23-26`, `docs/forward_equivalence.md:21-52`, `plans/nanobrag_integration_plan.md:23-88`).
+- Artifact Path: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T023547Z/
+- Next Actions: Execute A1–A3 canonical dataset capture, then enforce DB_AT_001 thresholds and sync docs per Do Now.
+- Reality Check: Validated that fallback tensors remain the only dataset, refGeom assets exist, and nanobrag_torch availability still unverified—no rescope required but environment check is first Do Now step.
+- <Action State>: [ready_for_implementation]
+
+2025-10-29T023905Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=1 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T023547Z/ next_action=execute_A1-A3_canonical_capture

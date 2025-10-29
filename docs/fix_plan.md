@@ -12,6 +12,19 @@
 
 ## Active Initiatives
 
+### [NANOBRAG-GOLDEN-001] Replace fallback DB-AT-001 golden dataset
+- Depends on: TORCH-BRIDGE-001, FORWARD-EQUIV-001, PARITY-HARNESS-002
+- Status: in_progress
+- Owner/Date: Unassigned / 2025-10-29
+- Exit Criteria:
+  1. Replace `tests/fixtures/golden_data/simple_cubic/` fallback tensors with a canonical nanoBragg2 baseline derived from the refGeom dataset; persist per-panel `bragg`, `target`, and `loss_mask` arrays aligned to `[panel, slow, fast]` contracts (`docs/spec-db-core.md:20-41`, `plans/nanobrag_integration_plan.md:32-73`).
+  2. Capture provenance and manifest metadata (generator command, structure-factor source, checksums) for the canonical dataset; update manifest/metadata JSON and validate via pytest fixtures (`docs/spec-db-conformance.md:23-26`, `docs/forward_equivalence.md:21-52`).
+  3. Update parity loader/tests to consume the canonical dataset, enforce DB_AT_001 thresholds without synthetic noise, and ensure `KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py -k DB_AT_001` collects/passes with artifact logging (`docs/TESTING_GUIDE.md:74-85`, `docs/development/TEST_SUITE_INDEX.md:13-14`).
+  4. Archive generation artifacts (DiffBragg + nanoBragg2 tensors, metrics.json, ROI overlays) under `plans/active/<initiative-id>/reports/<timestamp>/golden_dataset/`, synchronize documentation (`docs/index.md`, `docs/prompt_sources_map.json`), and record any new durable findings (`docs/spec-db-tracing.md:15-24`, `docs/findings.md`).
+- Working Plan: plans/active/NANOBRAG-GOLDEN-001/implementation.md
+- Attempts History:
+  * 2025-10-29T023547Z — Supervisor planning kickoff: validated fallback manifest metadata, confirmed absence of canonical nanoBragg2 tensors, and inventoried dependencies on TORCH-BRIDGE-001/FORWARD-EQUIV-001 artifacts; captured spec anchors (`docs/spec-db-core.md:20-41`, `docs/spec-db-conformance.md:23-26`, `docs/forward_equivalence.md:21-52`, `plans/nanobrag_integration_plan.md:23-88`). Metrics: pending. Artifacts: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T023547Z/. First Divergence: n/a. Next Actions: Draft implementation plan phases for dataset generation, manifest update, and harness/doc sync.
+
 ### [PARITY-HARNESS-002] Implement DB-AT parity harness tests
 - Depends on: TORCH-BRIDGE-001, FORWARD-EQUIV-001
 - Status: done

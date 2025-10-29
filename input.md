@@ -1,104 +1,146 @@
-Summary: Map ROI-level evidence tasks to re-scope the DB-AT-001 canonical dataset plan under the Environment Freeze.
+Summary: Prepare ROI bounding-box catalog and canonical dataset playbook to unblock NANOBRAG-GOLDEN-001 canonical capture under Environment Freeze.
 Mode: Docs
 Focus: NANOBRAG-GOLDEN-001 — Replace fallback DB-AT-001 golden dataset
 Branch: integration
 Mapped tests: KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q tests/dbex/test_db_at_001_parity.py -k DB_AT_001; KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q tests/dbex/test_forward_equivalence_complete.py -k DB_AT_001
-Artifacts: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T071728Z/{planning_notes.md,roi_hdf5_scout.md,torch_roi_plan.md,manifest_update_outline.md}
+Artifacts: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T075930Z/{roi_bbox_catalog.json,roi_bbox_summary.md,torch_capture_playbook.md,manifest_delta_outline.md}
 Do Now:
-  1. NANOBRAG-GOLDEN-001::A2 (plans/active/NANOBRAG-GOLDEN-001/implementation.md) — Inspect dbex_diffbragg_gpu.h5 ROIs to catalog bounding boxes, per-ROI stats, and confirm the absence of full-panel datasets; log findings to roi_hdf5_scout.md. tests: none.
-  2. NANOBRAG-GOLDEN-001::A3 (plans/active/NANOBRAG-GOLDEN-001/implementation.md) — Outline torch replay steps to regenerate full-panel tensors and slice them to match ROI footprints, documenting commands and expected artifacts in torch_roi_plan.md. tests: none.
-  3. NANOBRAG-GOLDEN-001::B1 (plans/active/NANOBRAG-GOLDEN-001/implementation.md) — Draft manifest/metadata adjustments for a hybrid ROI/full-panel dataset, including checksum strategy and provenance notes, in manifest_update_outline.md. tests: none.
-  4. NANOBRAG-GOLDEN-001::D1 (plans/active/NANOBRAG-GOLDEN-001/implementation.md) — Define the test/doc sync approach for refreshed DB_AT_001 selectors, specifying the collect-only commands and log destinations for this report. tests: KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q tests/dbex/test_db_at_001_parity.py -k DB_AT_001; KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q tests/dbex/test_forward_equivalence_complete.py -k DB_AT_001.
+  1. NANOBRAG-GOLDEN-001::A2 (plans/active/NANOBRAG-GOLDEN-001/implementation.md) — Extract ROI bbox catalog from refGeom.refl using dxtbx, emit JSON to roi_bbox_catalog.json, and log summary stats to roi_bbox_summary.md while cross-checking the legacy HDF5 ROI groups; tests: none.
+  2. NANOBRAG-GOLDEN-001::A3 (plans/active/NANOBRAG-GOLDEN-001/implementation.md) — Draft torch capture playbook mapping the bbox catalog onto `[panel, slow, fast]` tensor writes with seeding/device policy, storing the outline in torch_capture_playbook.md; tests: none.
+  3. NANOBRAG-GOLDEN-001::B1 (plans/active/NANOBRAG-GOLDEN-001/implementation.md) — Outline manifest/metadata deltas introducing canonical dataset entries plus roi_catalog references and checksum plan inside manifest_delta_outline.md; tests: none.
+  4. NANOBRAG-GOLDEN-001::D1 (plans/active/NANOBRAG-GOLDEN-001/implementation.md) — Refresh DB_AT_001 collect-only evidence (parity + forward selectors) with logs under the new report directory and note doc-sync targets; tests: KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q tests/dbex/test_db_at_001_parity.py -k DB_AT_001; KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q tests/dbex/test_forward_equivalence_complete.py -k DB_AT_001.
 Priorities & Rationale:
-- docs/spec-db-core.md:20-41 — Canonical tensors demand `[panel, slow, fast]` contracts; ROI inventory must prove how we satisfy or amend this requirement.
-- docs/spec-db-tracing.md:15-60 — ROI diagnostics governance drives the need to log bounding boxes and stats before proposing spec changes.
-- docs/forward_equivalence.md:21-52 — Exit criteria tie DiffBragg and torch baselines together, so plans for torch replay and manifest updates must stay aligned.
-- docs/findings.md:15 — DIFFBRAGG-001 enforces documentation-first handling of diffBraggCUDA.cu:708 until a sanctioned patch exists.
-- docs/TESTING_GUIDE.md:74-86 — Selector evidence must remain synchronized with collect-only logs whenever dataset contracts change.
+- docs/spec-db-core.md:20-33 — Bounding-box semantics and `[panel, slow, fast]` ordering demand a vetted ROI catalog before canonical tensors are regenerated.
+- docs/spec-db-conformance.md:23-26 — Manifest provenance/checksum rules require pre-planned metadata updates aligned with canonical files.
+- docs/forward_equivalence.md:21-52 — DiffBragg vs torch comparison workflow drives the torch capture playbook requirements.
+- docs/TESTING_GUIDE.md:63-66 — Selector taxonomy mandates fresh collect-only logs whenever DB_AT_001 evidence is updated.
+- docs/findings.md (DIFFBRAGG-001, TESTING-003) — Documentation-first handling of the diffBragg bug and selector activation guardrails shape the plan.
 How-To Map:
-- `python - <<'PY' > plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T071728Z/roi_hdf5_scout.md
+- `python - <<'PY' > plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T075930Z/roi_bbox_catalog.json
+import json
+import sys
+from pathlib import Path
+from dials.array_family import flex
+
+table = flex.reflection_table.from_file('refGeom.refl')
+records = []
+for idx, (panel, bbox) in enumerate(zip(table['panel'], table['bbox'])):
+    records.append({
+        "roi_id": f"roi{idx}",
+        "panel": int(panel),
+        "bbox": {
+            "fast0": int(bbox[0]),
+            "fast1": int(bbox[1]),
+            "slow0": int(bbox[2]),
+            "slow1": int(bbox[3])
+        }
+    })
+json.dump({"source": "refGeom.refl", "roi_count": len(records), "entries": records}, sys.stdout, indent=2, sort_keys=True)
+PY`
+- `python - <<'PY' > plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T075930Z/roi_bbox_summary.md
+import json
+from pathlib import Path
 import h5py
-import json
-from pathlib import Path
+
+catalog_path = Path('plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T075930Z/roi_bbox_catalog.json')
 h5_path = Path('plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T063817Z/golden_dataset/legacy/dbex_diffbragg_gpu.h5')
-report = ["# DiffBragg ROI Inventory", ""]
-if not h5_path.exists():
-    report.append(f"Missing legacy HDF5 at {h5_path}")
+
+lines = ["# ROI Bounding Box Summary", ""]
+if catalog_path.exists():
+    data = json.loads(catalog_path.read_text())
+    lines.append(f"- Catalog entries: {data['roi_count']}")
+    if data['entries']:
+        lines.append(f"- First ROI bbox: {data['entries'][0]['bbox']}")
 else:
+    lines.append(f"- Missing catalog at {catalog_path}")
+
+if h5_path.exists():
     with h5py.File(h5_path, 'r') as handle:
-        rois = sorted([k for k in handle['/bragg'].keys() if k.startswith('roi')])
-        report.append(f"Total ROI groups: {len(rois)}")
-        report.append("\n## ROI Bounds and Stats")
-        for key in rois:
-            ds = handle['/bragg'][key]
-            bbox = handle['/bragg'][key].attrs.get('bbox', None)
-            peak = float(ds[()].max()) if ds.size else float('nan')
-            report.append(f"- {key}: shape={ds.shape}, bbox={bbox}, max_intensity={peak:.3f}")
-        report.append("\n## Full-panel datasets present?")
-        full_panel = [name for name in handle.keys() if name in {'bragg_full', 'target_full', 'loss_mask_full'}]
-        report.append(f"Found full-panel groups: {full_panel}")
-report.append("\nSource: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T063817Z/golden_dataset/legacy/dbex_diffbragg_gpu.h5")
-print('\n'.join(report))
+        roi_keys = sorted(k for k in handle['/bragg'].keys() if k.startswith('roi'))
+        lines.append(f"- Legacy HDF5 ROI groups: {len(roi_keys)}")
+        bbox_attrs = sum(1 for k in roi_keys if handle['/bragg'][k].attrs.get('bbox') is not None)
+        lines.append(f"- Stored bbox attributes in HDF5: {bbox_attrs} (expected 0)")
+else:
+    lines.append(f"- Missing legacy HDF5 at {h5_path}")
+
+lines.append("")
+lines.append("Source artifacts: refGeom.refl, plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T063817Z/golden_dataset/legacy/dbex_diffbragg_gpu.h5")
+print('\\n'.join(lines))
 PY`
-- `python - <<'PY' > plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T071728Z/torch_roi_plan.md
+- `python - <<'PY' > plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T075930Z/torch_capture_playbook.md
 from pathlib import Path
-report = ["# Torch ROI Replay Plan", ""]
-script = Path('plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T063817Z/capture_torch_only.py')
-report.append(f"Existing torch capture script present: {script.exists()} at {script}")
-report.append("\n## Proposed Steps")
-report.extend([
-    "1. Reuse capture_torch_only.py to emit per-panel `[panel, slow, fast]` tensors under a new golden_dataset/torch/ directory.",
-    "2. Emit ROI slices by reading roi_hdf5_scout.md bbox definitions and slicing torch tensors before serialization.",
-    "3. Save numpy outputs with deterministic filenames (`bragg_panel_{idx:02d}.npy`) and matching loss masks.",
-    "4. Record torch command invocations, device selection, and seed values in capture logs for reproducibility.",
-])
-report.append("\n## Preconditions")
-report.append("- Confirm `nanobrag_torch` import availability inside the frozen environment before scheduling execution.")
-report.append("- Ensure `KMP_DUPLICATE_LIB_OK=TRUE` and `CUDA_VISIBLE_DEVICES` policy alignment to avoid runtime divergence.")
-report.append("\nArtifacts will be staged under plans/active/NANOBRAG-GOLDEN-001/reports/<loop>/golden_dataset/torch/ once capture is authorized.")
-print('\n'.join(report))
+
+lines = [
+    "# Torch Capture Playbook",
+    "",
+    "## Overview",
+    "Leverage the ROI bbox catalog to drive canonical `[panel, slow, fast]` tensor exports via `nanobrag_torch`, aligning with docs/forward_equivalence.md:21-52.",
+    "",
+    "## Steps",
+    "1. Activate Environment Freeze-compliant simtbx env (`which python`) and verify `import nanobrag_torch` succeeds.",
+    "2. Load detector/beam/crystal configs via `dbex.prepare_refinement_inputs` and honor mapping rules from docs/config_crosswalk.md:15-72.",
+    "3. Run per-panel forward pass with deterministic seed + device (`CUDA_VISIBLE_DEVICES=0`, `torch.manual_seed(1337)`) and write tensors to `golden_dataset/torch/bragg_panel_{panel:02d}.npy`.",
+    "4. Slice ROI tensors using bbox entries from `roi_bbox_catalog.json`, persisting ROI extracts and documenting ordering.",
+    "5. Capture metrics (`metrics.json`) and config snapshots for parity harness ingestion.",
+    "",
+    "## Preconditions",
+    "- DIFFBRAGG-001 still blocks legacy fallback; avoid rerunning broken diffBragg capture.",
+    "- Confirm ROI catalog covers exactly the legacy ROI groups (92 entries).",
+    "",
+    "## Artifacts",
+    "- Tensor dumps under `plans/active/NANOBRAG-GOLDEN-001/reports/<loop>/golden_dataset/torch/`.",
+    "- Logs: `torch_capture.log`, `metrics.json`, ROI overlay placeholders.",
+]
+
+print('\\n'.join(lines))
 PY`
-- `python - <<'PY' > plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T071728Z/manifest_update_outline.md
-from pathlib import Path
+- `python - <<'PY' > plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T075930Z/manifest_delta_outline.md
 import json
+from pathlib import Path
+
 manifest_path = Path('tests/fixtures/golden_data/simple_cubic/manifest.json')
-outline = ["# Manifest Update Outline", ""]
-outline.append(f"Current manifest dataset_name: {json.loads(manifest_path.read_text())['dataset_name'] if manifest_path.exists() else 'missing'}")
-outline.append("\n## Proposed Fields")
-outline.extend([
-    "- `datasets`: expand to list Diptych entries with `kind` (ROI|panel), `panel_index`, `filename`, `sha256_placeholder`.",
-    "- `provenance`: add `diffbragg_capture` and `torch_capture` sub-sections with command logs and git SHAs.",
-    "- `roi_catalog`: document bbox coordinates and ROI id ordering for parity harness alignment.",
-    "- `spec_version`: bump to indicate hybrid ROI/full-panel compliance requirements.",
-])
-outline.append("\n## Verification Hooks")
-outline.extend([
-    "- Update parity_loader fixtures to validate ROI-to-panel mapping and bbox integrity.",
-    "- Embed checksum verification for both ROI and panel files using existing loader utilities.",
-])
-outline.append("\nAll new text will cite docs/spec-db-conformance.md:23-26 and docs/spec-db-tracing.md:15-60 when implemented.")
-print('\n'.join(outline))
+dataset_name = None
+if manifest_path.exists():
+    dataset_name = json.loads(manifest_path.read_text()).get('dataset_name')
+
+lines = [
+    "# Manifest Delta Outline",
+    "",
+    f"- Current dataset_name: {dataset_name or 'missing'}",
+    "",
+    "## Planned Changes",
+    "- Replace fallback dataset name with canonical identifier (e.g., `nanoBragg_canonical_v1`).",
+    "- Introduce `datasets` array entries for `panel` and `roi` payloads with SHA256 placeholders.",
+    "- Add `roi_catalog` reference pointing to roi_bbox_catalog.json (docs/spec-db-core.md:20-33 alignment).",
+    "- Expand `provenance` with DiffBragg/torch command logs, git SHAs, and environment tags per POLICY-001.",
+    "",
+    "## Verification Hooks",
+    "- Update parity_loader to validate checksums and ROI ordering.",
+    "- Ensure docs/spec-db-conformance.md:23-26 thresholds are testable via pytest fixtures.",
+    "",
+    "## Follow-up",
+    "- After canonical tensors exist, compute SHA256 hashes and refresh metadata.json accordingly.",
+]
+
+print('\\n'.join(lines))
 PY`
-- `KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q tests/dbex/test_db_at_001_parity.py -k DB_AT_001 |& tee plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T071728Z/collect_db_at_001_parity.log`
-- `KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q tests/dbex/test_forward_equivalence_complete.py -k DB_AT_001 |& tee plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T071728Z/collect_db_at_001_forward.log`
+- `KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q tests/dbex/test_db_at_001_parity.py -k DB_AT_001 |& tee plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T075930Z/collect_db_at_001_parity.log`
+- `KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q tests/dbex/test_forward_equivalence_complete.py -k DB_AT_001 |& tee plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T075930Z/collect_db_at_001_forward.log`
 Pitfalls To Avoid:
-- Do not modify simtbx or install packages; Environment Freeze still applies.
-- Avoid overwriting prior report artifacts; write new evidence under 2025-10-29T071728Z/.
-- Keep ROI indices ordered to preserve deterministic first-divergence analysis.
-- Validate HDF5 reads without extracting large tensors into memory to prevent OOM.
-- Document any gaps immediately in docs/fix_plan.md before considering scope changes.
-- Ensure planned torch replay commands respect `KMP_DUPLICATE_LIB_OK=TRUE` and device selection requirements.
-- Leave Metrics/Artifacts placeholders intact when appending ledger attempts.
-- Coordinate manifest changes with parity_loader expectations to avoid breaking existing tests.
-- Do not downgrade selectors without collecting evidence; use doc sync instead.
-- Capture hash strategies without computing new SHA256 values until artifacts exist.
-If Blocked: Record the blocking condition in docs/fix_plan.md Attempts History, stash partial notes under the report directory, and update galph_memory with `next_action=switch_focus`.
+- Do not mutate `tests/fixtures/golden_data/simple_cubic/` assets until canonical tensors are validated.
+- Preserve ROI ordering from reflection table indices to maintain first-divergence determinism (PARITY-001).
+- Avoid rerunning DiffBragg capture while DIFFBRAGG-001 remains unresolved; rely on existing artifacts.
+- Keep catalog JSON stable (sorted keys, integers) to ease future checksum comparisons.
+- Document any dxtbx import failures immediately and treat them as Environment Freeze blockers.
+- Maintain artifact isolation per loop; never append to prior timestamp directories.
+- Capture commands verbatim for provenance to satisfy docs/spec-db-conformance.md:23-26.
+If Blocked: Record the blocker in docs/fix_plan.md Attempts History with Metrics/Artifacts placeholders, stash partial outputs under the report directory, and set `next_action=switch_focus` in galph_memory.md.
 Findings Applied (Mandatory):
-- DIFFBRAGG-001 — Plan prioritizes evidence/documentation for the diffBragg cleanup bug before any patch proposal.
-- CONFORMANCE-001 — Maintains focus on selector compliance while reshaping dataset plans.
-- TESTING-003 — Ensures collect-only commands/log paths are defined for selector synchronization.
-- PARITY-001 — Preserves ROI ordering and first-divergence metadata obligations in the planning steps.
+- DIFFBRAGG-001 — Plan avoids executing the broken DiffBragg forward path and focuses on documentation until a sanctioned patch is available.
+- TESTING-003 — Fresh collect-only commands/log destinations ensure selector status stays truthful.
+- PARITY-001 — ROI catalog + playbook steps retain deterministic ROI ordering required for first-divergence tracing.
+- CONFIG-001 — Torch playbook explicitly references config_crosswalk mappings to prevent hydration regressions.
 Doc Sync Plan (Mandatory):
-- `KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q tests/dbex/test_db_at_001_parity.py -k DB_AT_001 |& tee plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T071728Z/collect_db_at_001_parity.log`
-- `KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q tests/dbex/test_forward_equivalence_complete.py -k DB_AT_001 |& tee plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T071728Z/collect_db_at_001_forward.log`
-- Update docs/TESTING_GUIDE.md §2 and docs/development/TEST_SUITE_INDEX.md entries for DB_AT_001 to reference the new 2025-10-29T071728Z logs after collection.
+- DB_AT_001 parity (`tests/dbex/test_db_at_001_parity.py`) — `KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q tests/dbex/test_db_at_001_parity.py -k DB_AT_001 |& tee plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T075930Z/collect_db_at_001_parity.log`
+- DB_AT_001 forward equivalence (`tests/dbex/test_forward_equivalence_complete.py`) — `KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q tests/dbex/test_forward_equivalence_complete.py -k DB_AT_001 |& tee plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T075930Z/collect_db_at_001_forward.log`
+- After collection, update docs/TESTING_GUIDE.md §2 and docs/development/TEST_SUITE_INDEX.md to cite the new 2025-10-29T075930Z artifact paths.

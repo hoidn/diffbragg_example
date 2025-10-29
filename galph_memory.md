@@ -266,3 +266,12 @@ Notes
 - Next Actions: Execute ROI HDF5 scout, torch replay outline, manifest update outline, and doc/test sync definition per input.md; reassess readiness for implementation afterward.
 - Reality Check: Validated canonical `[panel,slow,fast]` tensors remain absent while ROI data is available; rescoped initiative to gather ROI evidence and manifest/test plans before requesting spec change or targeted simtbx patch.
 - <Action State>: [planning]
+2025-10-29T075930Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=1 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T075930Z/ next_action=run_A2_catalog
+## 2025-10-29T075930Z — NANOBRAG-GOLDEN-001 bbox catalog planning
+- Focus: NANOBRAG-GOLDEN-001 — Replace fallback DB-AT-001 golden dataset
+- Action Type: planning
+- Key Observations: Confirmed `refGeom.refl` still provides bbox metadata (282 reflections) while legacy ROI HDF5 lacks bbox attrs; fallback manifest remains `simple_cubic_fallback`; Environment Freeze intact so plan targets docs/evidence only.
+- Artifact Path: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T075930Z/
+- Next Actions: Follow Do Now (A2 catalog emission, A3 torch playbook, B1 manifest delta, D1 collect-only refresh) to unblock canonical capture prep.
+- Reality Check: Revalidated absence of canonical tensors and verified ROI bbox data availability before scheduling catalog emission.
+- <Action State>: [ready_for_implementation]

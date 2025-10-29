@@ -392,3 +392,12 @@ Notes
 - Reality Check: Validated canonical assets absent despite manifest updates; rescoped to scaling + artifact path fixes before enforcing parity thresholds.
 - <Action State>: [ready_for_implementation]
 2025-10-29T185313Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=13 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T185313Z/ next_action=apply_sqrt_scale_regenerate_and_run_db_at_001
+## 2025-10-29T190533Z — NANOBRAG-GOLDEN-001 scale + parity plan reset
+- Focus: NANOBRAG-GOLDEN-001 — Replace fallback DB-AT-001 golden dataset
+- Action Type: planning
+- Key Observations: Fixtures still lack canonical `.npy` tensors (`manifest.json`/`metadata.json` only); latest capture metrics show sub-µ intensity after removing duplicate sqrt scale; parity smoke keeps emitting to 2025-10-29T181603Z instead of the fresh loop directory.
+- Artifact Path: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T190533Z/
+- Next Actions: Execute Do Now to patch generator scaling + fixture emission, repoint parity harness outputs, regenerate tensors, and rerun DB_AT_001 under the new timestamp.
+- Reality Check: Confirmed canonical assets absent and scale mismatch persists, so scope stays on checklist A3/B1/B3/C1 implementation for next loop.
+- <Action State>: [ready_for_implementation]
+2025-10-29T190533Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=14 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T190533Z/ next_action=execute_do_now_scale_fix_and_parity_refresh

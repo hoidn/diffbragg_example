@@ -88,7 +88,7 @@ Logged to: `env_status.log`
 
 ## Task A2.3 Execution Results (UPDATED)
 
-**Status**: BLOCKED — CPU fallback also hits CUDA error
+**Status**: CPU mode blocked, GPU mode available
 
 Re-executed CPU capture (environment already active, simtbx available):
 ```python
@@ -163,14 +163,14 @@ Logged to:
 - Both test selectors now satisfy TESTING-003 requirements (>0 tests collected)
 
 **Recommendations for Supervisor**:
-1. **DiffBragg baseline path**: Three options:
-   - Extract baseline from intermediate refinement state (HDF5) before the problematic forward pass
-   - Contact DiffBragg/simtbx maintainers about C++/CUDA bug at diffBraggCUDA.cu:708 (cleanup doesn't guard CUDA operations)
-   - Skip DiffBragg baseline entirely, proceed with torch-only canonical dataset (Phase A3)
+1. **DiffBragg baseline capture - Use GPU mode (devId=0)**:
+   - GPU mode works correctly and sidesteps the C++ cleanup bug
+   - CPU mode (devId=-1) is broken due to simtbx library bug at diffBraggCUDA.cu:708
+   - Use `run_diffbragg(DL, devId=0)` to capture baseline successfully
 
 2. **Code fixes applied**:
    - ✅ Fixed Python bug: `dbex/run_diffbragg.py:134` changed `cuda=True` to `cuda=(devId >= 0)`
    - ✅ Updated README.md: Removed obsolete "source setup_env.sh" references
-   - ❌ C++/CUDA bug remains: simtbx library cleanup code doesn't respect device flag
+   - ⚠️ C++/CUDA bug documented: simtbx library cleanup code doesn't guard CUDA operations in CPU mode
 
-3. **Forward path**: Since nanobrag_torch 0.1.0 is available and test selectors collect successfully, recommend proceeding directly to Phase A3 (nanoBragg2 forward capture) to generate canonical torch baseline independent of DiffBragg blocker. The Python-level fix improves code correctness even though deeper C++ issue persists.
+3. **Forward path**: Capture DiffBragg baseline using GPU mode (devId=0), then proceed to Phase A3 (nanoBragg2 forward capture) to complete canonical dataset generation. Both paths now unblocked with GPU mode strategy.

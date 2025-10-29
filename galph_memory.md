@@ -200,3 +200,12 @@ Notes
 - Reality Check: Validated that golden dataset exit criteria remain unmet (fallback tensors, missing torch backend) and rescoped loop toward restoring the simforge/simtbx toolchain before attempting canonical tensor generation.
 
 2025-10-29T024902Z focus=NANOBRAG-GOLDEN-001 state=planning dwell=1 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T024902Z/ next_action=execute_A1_env_bootstrap
+2025-10-29T030352Z focus=NANOBRAG-GOLDEN-001 state=planning dwell=2 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T030352Z/ next_action=ready_env_and_canonical_capture_A1-A3
+## 2025-10-29T030352Z — NANOBRAG-GOLDEN-001 environment recovery plan
+- Focus: NANOBRAG-GOLDEN-001 — Replace fallback DB-AT-001 golden dataset
+- Action Type: planning
+- Key Observations: torch import still trips libc10_cuda symbol error under simtbx despite reinstall attempts; nanobrag_torch remains absent locally; canonical dataset plan depends on restoring DiffBragg baseline and installing torch simulator before manifest updates; copied parity findings (CONFORMANCE-001, CONFIG-001, DIAGNOSTICS-001, PARITY-001, TESTING-003) remain applicable.
+- Artifact Path: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T030352Z/
+- Next Actions: Execute A1 diagnostics, install nanobrag_torch, rerun DiffBragg baseline, and prototype panel-0 nanobrag capture per new input.md Do Now.
+- Reality Check: Verified exit criteria unmet (fallback tensors still active, nanobrag_torch missing, DiffBragg command fails); rescoped loop toward environment restoration plus first canonical capture attempt before manifest work.
+- <Action State>: [planning]

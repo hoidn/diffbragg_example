@@ -1,0 +1,9 @@
+{
+  "device": "cuda:0",
+  "timestamp": "2025-10-29T08:17:28.170438Z",
+  "beam": {
+    "wavelength_A": 0.9768000000000001,
+    "polarization_factor": 0.0,
+    "nopolar": false,
+    "polarization_axis": [
+      

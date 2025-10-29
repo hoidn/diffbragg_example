@@ -24,15 +24,17 @@ Planning, review, and analysis. Do not make production code changes.
 
 <loop discipline>
 - One fix-plan item per loop. Choose an item from `docs/fix_plan.md`, honor all dependencies, and mark its status `in_progress` before delegating work.
+- **Implementation floor: You may issue at most ONE docs-only loop consecutively for a given focus.** On the next turn for that focus you **must** hand off a Do Now that includes at least one code-changing task (name the file/function and the validating selector), or mark the item `blocked` and switch focus.
 - Inspect `docs/fix_plan.md` for bare `## TODO` headings or unlabeled notes. Convert each into a structured entry (ID, Depends on, Exit Criteria) before proceeding.
 - Keep `galph_memory.md` updated every turn with focus, action type, artifacts, and `<Action State>`.
-- Respect status limits: you may remain in `[gathering_evidence]` or `[planning]` for at most two consecutive turns per focus. On the third turn, either advance to `[ready_for_implementation]` with a concrete Do Now or switch focus (record the block).
+- Respect status limits: you may remain in `[gathering_evidence]` or `[planning]` for at most two consecutive turns per focus. **On the third turn you MUST set `state=ready_for_implementation` and include a code task** (or mark `blocked` and switch focus). Do not emit another evidence-only Do Now.
 - Work-in-progress cap: keep at most 2 initiatives in `in_progress` simultaneously. Prefer advancing the current focus to completion before opening new work.
 - Once an initiative’s exit criteria are satisfied and the required artifacts exist, mark it `done` without forcing an additional evidence loop; treat stale logs as a checklist item inside the current pass instead of spinning a new closure cycle.
  - Environment Freeze (hard rule): do not propose or execute environment/package changes in a loop unless the focus explicitly targets environment maintenance.
 </loop discipline>
 
 <startup steps>
+0. **Initialize dwell tracking:** If `galph_memory.md` is missing, create it with the current focus and `state=gathering_evidence`. Always append a one-line dwell record at the end of the turn.
 1. Run `timeout 30 git pull --rebase`.
    - If it times out: run `git rebase --abort`, then `git pull --no-rebase`.
    - Resolve conflicts (especially in `docs/fix_plan.md`), stage, and resume with `timeout 30 git rebase --continue --no-edit`. Never run the resume command without the timeout.
@@ -70,6 +72,8 @@ Render `./input.md` each loop with the sections below (overwrite completely):
 - Mapped tests: Either specific pytest selectors (from `docs/TESTING_GUIDE.md` / `docs/development/TEST_SUITE_INDEX.md`) or `none — evidence-only`.
 - Artifacts: `plans/active/<initiative-id>/reports/<YYYY-MM-DDTHHMMSSZ>/{...}` for this loop.
 - Do Now: Ordered checklist. Each entry must reference the fix-plan ID, plan file path (if any), and pytest command (or `tests: none`). Bundle checklist IDs only if they belong to the same focus and can finish in this loop.
+- **Implementation nucleus:** Include a bullet beginning with `Implement:` naming the target file/function and the validating selector, e.g.  
+  `Implement: dbex/nanobrag_bridge.py::create_beam_config (validate with tests/dbex/test_nanobrag_bridge_configs.py::TestBeamConfig::test_polarization_defaults)`
 - Priorities & Rationale: 3–6 bullets citing specs/tests/arch lines that justify the chosen actions.
 - How-To Map: Exact commands, env vars, and artifact destinations (prefer commands from `docs/TESTING_GUIDE.md`).
 - Pitfalls To Avoid: 5–10 terse reminders (e.g., ensure pixel pitch rules, enforce `NANOBRAGG_DISABLE_COMPILE` for gradchecks).
@@ -77,7 +81,7 @@ Render `./input.md` each loop with the sections below (overwrite completely):
 - If Blocked: fallback steps and how to log the block in Attempts History.
 - Findings Applied (Mandatory): List relevant Finding IDs from `docs/findings.md` with a one-line note on how the plan adheres to each. If none, state "No relevant findings in the knowledge base".
  - When a Working Plan exists for the focus, the Do Now MUST reference checklist IDs from `plans/active/<initiative-id>/implementation.md` (e.g., complete A2 and A3).
- - Doc Sync Plan (Mandatory): List selectors to add/update in `docs/TESTING_GUIDE.md` and `docs/development/TEST_SUITE_INDEX.md`, include the exact `pytest --collect-only` commands for each, and specify the artifact paths where these logs will be saved.
+- Doc Sync Plan (Conditional): Only include this when you add or rename tests in this loop. Do **not** block implementation on registry updates; they may follow after code passes within the same loop.
  - Mapped Tests Guardrail: At least one mapped selector must currently collect (> 0) via `pytest --collect-only`. If none exist, the first Do Now step must be "author minimal test" for this focus, followed by the Doc Sync Plan and collect-only artifacting.
 
 <additional rules>
@@ -88,7 +92,7 @@ Render `./input.md` each loop with the sections below (overwrite completely):
 - For non-trivial, multi-loop initiatives, create/update a persistent plan at `plans/active/<initiative-id>/implementation.md` (phased checklist). Reference its checklist IDs in `input.md` Do Now instead of embedding large checklists directly.
 
 <handoff>
-- Before finishing, append a new entry to `galph_memory.md` with: timestamp, focus, action type, key observations, artifact path, next actions, and `<Action State>`. Include a short "Reality Check" note summarizing validations performed and any re-scoping decisions.
+- Before finishing, append a new entry to `galph_memory.md` with: timestamp, focus, action type, dwell count, artifact path, next actions, and `<Action State>`. Include a short "Reality Check" note summarizing validations performed and any re-scoping decisions. If this is the 2nd consecutive non-implementation turn for the focus, explicitly set `next_action=ready_for_implementation`.
 - Confirm repository status is clean (no staged changes) and that `input.md` exists with the required sections.
  - Hard Gate: If any selector marked "Active" in `docs/TESTING_GUIDE.md` or `docs/development/TEST_SUITE_INDEX.md` collects 0 tests in this loop’s `--collect-only` runs, do not finish the loop as `done`. Either downgrade the selector to "Planned" with rationale or author the missing tests before completion.
 

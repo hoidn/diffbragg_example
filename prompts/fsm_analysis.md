@@ -11,7 +11,7 @@
 ## Dwell Guard (hard rule)
 - You may remain in `gathering_evidence` or `planning` for at most 2 consecutive turns per focus.
 - On the 3rd turn for the same focus:
-  - EITHER transition to `ready_for_implementation` and emit an executable Do Now
+  - EITHER transition to `ready_for_implementation` and emit an executable Do Now that includes a code change
   - OR `switch_focus` and record the block in `docs/fix_plan.md` + `galph_memory.md`
 
 ## Transitions (examples)

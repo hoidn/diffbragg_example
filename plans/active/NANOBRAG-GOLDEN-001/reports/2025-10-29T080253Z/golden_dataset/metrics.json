@@ -1,0 +1,9 @@
+{
+  "median_correlation": null,
+  "median_rmse": null,
+  "localization_success_rate": null,
+  "loss_mask_coverage": 0.00210250608892897,
+  "n_panels": 1,
+  "n_pixels_in_mask": 13086,
+  "note": "Partial metrics: canonical tensors captured successfully, correlation/RMSE require parity harness"
+}

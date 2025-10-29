@@ -71,6 +71,7 @@ CUDA_VISIBLE_DEVICES='' TORCHDYNAMO_DISABLE=1 NANOBRAGG_DISABLE_COMPILE=1 \
 | Runtime vectorization | `pytest tests/test_cli_scaling.py::TestSourceWeights* -v` | Equal-weight source handling and vectorized loops (`docs/pytorch_runtime_checklist.md:31`). | Planned | Currently in `nanoBragg2/tests/`; port to DBEX. |
 
 **Note**: Tests marked "Planned" must be authored before declaring their parent fix-plan items complete. Record TODO entries in `docs/fix_plan.md` with the relevant selector. See also `docs/development/TEST_SUITE_INDEX.md` for synchronized selector registry.
+**Registry updates are conditional:** Run `pytest --collect-only` and update the registry **only when you add or rename tests** in this loop. Do not block implementation on registry updates.
 
 ### 2.1 Active Implementation Coverage (module selectors)
 

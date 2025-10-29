@@ -374,3 +374,12 @@ Notes
 - Reality Check: Rescoped initiative to fixture propagation + parity enforcement after verifying canonical capture already exists but is not wired into tracked fixtures.
 - <Action State>: [ready_for_implementation]
 2025-10-29T181603Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=11 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T181603Z/ next_action=apply_generator_loader_parity_updates_and_run_db_at_001
+## 2025-10-29T212500Z — NANOBRAG-GOLDEN-001 parity scaling checkpoint
+- Focus: NANOBRAG-GOLDEN-001 — Replace fallback DB-AT-001 golden dataset
+- Action Type: planning
+- Key Observations: Repo fixtures still lack canonical `.npy` tensors (manifest/metadata only); latest capture dir (2025-10-29T181603Z/golden_dataset) holds metadata without arrays; canonical_capture.log shows structure factors multiplied by sqrt(scale_override)=5.645e+08, yielding torch_max 2.19e13 vs DiffBragg 3.62e4 and negative correlation; HKL stats remain 69614/69614 so geometry intact; working plan checklist A2/A3/B1/B2 unresolved; docs/index.md & prompt_sources_map.json already reflect current sources.
+- Artifact Path: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T212500Z/
+- Next Actions: Remove duplicate sqrt(scale_override) scaling, rerun canonical capture with --emit-manifest --fixtures in this repo, and rerun DB_AT_001 parity selector capturing logs.
+- Reality Check: Verified canonical `.npy` tensors absent and manifest references stale repo path; rescoped loop to scale correction + regeneration before parity enforcement.
+- <Action State>: [ready_for_implementation]
+2025-10-29T212500Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=12 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T212500Z/ next_action=remove_sqrt_scale_regenerate_and_run_db_at_001

@@ -1,0 +1,139 @@
+{
+    "arch": null,
+    "build": "pyhd8ed1ab_1",
+    "build_number": 1,
+    "build_string": "pyhd8ed1ab_1",
+    "channel": "conda-forge",
+    "constrains": [],
+    "depends": [
+        "h5py",
+        "numpy <2.0",
+        "pint",
+        "python >=3.9",
+        "python-dateutil",
+        "scipy"
+    ],
+    "extracted_package_dir": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/simforge/pkgs/nxmx-0.0.4-pyhd8ed1ab_1",
+    "files": [
+        "lib/python3.9/site-packages/nxmx-0.0.4.dist-info/INSTALLER",
+        "lib/python3.9/site-packages/nxmx-0.0.4.dist-info/LICENCE",
+        "lib/python3.9/site-packages/nxmx-0.0.4.dist-info/METADATA",
+        "lib/python3.9/site-packages/nxmx-0.0.4.dist-info/RECORD",
+        "lib/python3.9/site-packages/nxmx-0.0.4.dist-info/REQUESTED",
+        "lib/python3.9/site-packages/nxmx-0.0.4.dist-info/WHEEL",
+        "lib/python3.9/site-packages/nxmx-0.0.4.dist-info/direct_url.json",
+        "lib/python3.9/site-packages/nxmx-0.0.4.dist-info/top_level.txt",
+        "lib/python3.9/site-packages/nxmx/__init__.py",
+        "lib/python3.9/site-packages/nxmx/_version.py",
+        "lib/python3.9/site-packages/nxmx/py.typed",
+        "lib/python3.9/site-packages/nxmx/__pycache__/__init__.cpython-39.pyc",
+        "lib/python3.9/site-packages/nxmx/__pycache__/_version.cpython-39.pyc"
+    ],
+    "fn": "nxmx-0.0.4-pyhd8ed1ab_1.conda",
+    "license": "BSD-3-Clause",
+    "link": {
+        "source": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/simforge/pkgs/nxmx-0.0.4-pyhd8ed1ab_1",
+        "type": 1
+    },
+    "md5": "764e361b981796d8f88ed8780bd68c32",
+    "name": "nxmx",
+    "noarch": "python",
+    "package_tarball_full_path": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/simforge/pkgs/nxmx-0.0.4-pyhd8ed1ab_1.tar.bz2",
+    "paths_data": {
+        "paths": [
+            {
+                "_path": "lib/python3.9/site-packages/nxmx-0.0.4.dist-info/INSTALLER",
+                "path_type": "hardlink",
+                "sha256": "d0edee15f91b406f3f99726e44eb990be6e34fd0345b52b910c568e0eef6a2a8",
+                "sha256_in_prefix": "d0edee15f91b406f3f99726e44eb990be6e34fd0345b52b910c568e0eef6a2a8",
+                "size_in_bytes": 5
+            },
+            {
+                "_path": "lib/python3.9/site-packages/nxmx-0.0.4.dist-info/LICENCE",
+                "path_type": "hardlink",
+                "sha256": "4d9ffdacdfaf05baf47e935461a44a7f9be64723e5a385e5250f6cf4882caf35",
+                "sha256_in_prefix": "4d9ffdacdfaf05baf47e935461a44a7f9be64723e5a385e5250f6cf4882caf35",
+                "size_in_bytes": 1570
+            },
+            {
+                "_path": "lib/python3.9/site-packages/nxmx-0.0.4.dist-info/METADATA",
+                "path_type": "hardlink",
+                "sha256": "9eb61f370c1a94ef0f0b0f67d5f70b40d70680a3f11c16931537f17486a9a60c",
+                "sha256_in_prefix": "9eb61f370c1a94ef0f0b0f67d5f70b40d70680a3f11c16931537f17486a9a60c",
+                "size_in_bytes": 3080
+            },
+            {
+                "_path": "lib/python3.9/site-packages/nxmx-0.0.4.dist-info/RECORD",
+                "path_type": "hardlink",
+                "sha256": "a752c65b2f99a2605516f8d073e756fd797f1128ee7afeb4a99987f10a4c2dd2",
+                "sha256_in_prefix": "a752c65b2f99a2605516f8d073e756fd797f1128ee7afeb4a99987f10a4c2dd2",
+                "size_in_bytes": 942
+            },
+            {
+                "_path": "lib/python3.9/site-packages/nxmx-0.0.4.dist-info/REQUESTED",
+                "path_type": "hardlink",
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "sha256_in_prefix": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            {
+                "_path": "lib/python3.9/site-packages/nxmx-0.0.4.dist-info/WHEEL",
+                "path_type": "hardlink",
+                "sha256": "227f454cdc5e3fad0a9d3906c3bc24ea624f61dfdd4128c46665dd05d30223ef",
+                "sha256_in_prefix": "227f454cdc5e3fad0a9d3906c3bc24ea624f61dfdd4128c46665dd05d30223ef",
+                "size_in_bytes": 91
+            },
+            {
+                "_path": "lib/python3.9/site-packages/nxmx-0.0.4.dist-info/direct_url.json",
+                "path_type": "hardlink",
+                "sha256": "ccea2863f93c9628c1c7721814ba343b38567090482d33fbb5a9bc864ba1531d",
+                "sha256_in_prefix": "ccea2863f93c9628c1c7721814ba343b38567090482d33fbb5a9bc864ba1531d",
+                "size_in_bytes": 100
+            },
+            {
+                "_path": "lib/python3.9/site-packages/nxmx-0.0.4.dist-info/top_level.txt",
+                "path_type": "hardlink",
+                "sha256": "708a9319665b317358453bf90513995c92c01296a425960834a3e634c505815e",
+                "sha256_in_prefix": "708a9319665b317358453bf90513995c92c01296a425960834a3e634c505815e",
+                "size_in_bytes": 5
+            },
+            {
+                "_path": "lib/python3.9/site-packages/nxmx/__init__.py",
+                "path_type": "hardlink",
+                "sha256": "32d4b860f15309f26289b3aa01492be056cb828d0c502959ae16ffb735b0b497",
+                "sha256_in_prefix": "32d4b860f15309f26289b3aa01492be056cb828d0c502959ae16ffb735b0b497",
+                "size_in_bytes": 48005
+            },
+            {
+                "_path": "lib/python3.9/site-packages/nxmx/_version.py",
+                "path_type": "hardlink",
+                "sha256": "c8154e29d5cb11c4d573b615ed93ea4578510d1b7ea4aadf5f17201e480f6398",
+                "sha256_in_prefix": "c8154e29d5cb11c4d573b615ed93ea4578510d1b7ea4aadf5f17201e480f6398",
+                "size_in_bytes": 411
+            },
+            {
+                "_path": "lib/python3.9/site-packages/nxmx/py.typed",
+                "path_type": "hardlink",
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "sha256_in_prefix": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            {
+                "_path": "lib/python3.9/site-packages/nxmx/__pycache__/__init__.cpython-39.pyc",
+                "path_type": "pyc_file"
+            },
+            {
+                "_path": "lib/python3.9/site-packages/nxmx/__pycache__/_version.cpython-39.pyc",
+                "path_type": "pyc_file"
+            }
+        ],
+        "paths_version": 1
+    },
+    "platform": null,
+    "requested_spec": "",
+    "sha256": "824d82455361c1474360c5d22d128b4705c9d4c017c9dcc4f77fcd314ced0ba0",
+    "size": 25374,
+    "subdir": "noarch",
+    "timestamp": 1737039039,
+    "track_features": "",
+    "url": "https://conda.anaconda.org/conda-forge/noarch/nxmx-0.0.4-pyhd8ed1ab_1.conda",
+    "version": "0.0.4"
+}

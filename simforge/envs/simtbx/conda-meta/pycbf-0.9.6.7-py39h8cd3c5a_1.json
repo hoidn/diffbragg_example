@@ -1,0 +1,208 @@
+{
+    "arch": "x86_64",
+    "build": "py39h8cd3c5a_1",
+    "build_number": 1,
+    "build_string": "py39h8cd3c5a_1",
+    "channel": "conda-forge",
+    "constrains": [],
+    "depends": [
+        "__glibc >=2.17,<3.0.a0",
+        "libgcc >=13",
+        "numpy >=1.17",
+        "python >=3.9,<3.10.0a0",
+        "python_abi 3.9.* *_cp39"
+    ],
+    "extracted_package_dir": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/simforge/pkgs/pycbf-0.9.6.7-py39h8cd3c5a_1",
+    "files": [
+        "lib/python3.9/site-packages/pycbf-0.9.6.7.dist-info/INSTALLER",
+        "lib/python3.9/site-packages/pycbf-0.9.6.7.dist-info/METADATA",
+        "lib/python3.9/site-packages/pycbf-0.9.6.7.dist-info/RECORD",
+        "lib/python3.9/site-packages/pycbf-0.9.6.7.dist-info/REQUESTED",
+        "lib/python3.9/site-packages/pycbf-0.9.6.7.dist-info/WHEEL",
+        "lib/python3.9/site-packages/pycbf-0.9.6.7.dist-info/direct_url.json",
+        "lib/python3.9/site-packages/pycbf-0.9.6.7.dist-info/licenses/LICENCE.txt",
+        "lib/python3.9/site-packages/pycbf-0.9.6.7.dist-info/top_level.txt",
+        "lib/python3.9/site-packages/pycbf/__init__.py",
+        "lib/python3.9/site-packages/pycbf/__pycache__/__init__.cpython-39.pyc",
+        "lib/python3.9/site-packages/pycbf/__pycache__/_wrapper.cpython-39.pyc",
+        "lib/python3.9/site-packages/pycbf/__pycache__/utils.cpython-39.pyc",
+        "lib/python3.9/site-packages/pycbf/_pycbf.cpython-39-x86_64-linux-gnu.so",
+        "lib/python3.9/site-packages/pycbf/_wrapper.py",
+        "lib/python3.9/site-packages/pycbf/img.c",
+        "lib/python3.9/site-packages/pycbf/img.cpython-39-x86_64-linux-gnu.so",
+        "lib/python3.9/site-packages/pycbf/img.pxd",
+        "lib/python3.9/site-packages/pycbf/img.pyi",
+        "lib/python3.9/site-packages/pycbf/img.pyx",
+        "lib/python3.9/site-packages/pycbf/py.typed",
+        "lib/python3.9/site-packages/pycbf/utils.py"
+    ],
+    "fn": "pycbf-0.9.6.7-py39h8cd3c5a_1.conda",
+    "license": "LGPL-2.1-or-later",
+    "license_family": "LGPL",
+    "link": {
+        "source": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/simforge/pkgs/pycbf-0.9.6.7-py39h8cd3c5a_1",
+        "type": 1
+    },
+    "md5": "40617308f360d756ad56e908927d4163",
+    "name": "pycbf",
+    "package_tarball_full_path": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/simforge/pkgs/pycbf-0.9.6.7-py39h8cd3c5a_1.tar.bz2",
+    "paths_data": {
+        "paths": [
+            {
+                "_path": "lib/python3.9/site-packages/pycbf-0.9.6.7.dist-info/INSTALLER",
+                "path_type": "hardlink",
+                "sha256": "d0edee15f91b406f3f99726e44eb990be6e34fd0345b52b910c568e0eef6a2a8",
+                "sha256_in_prefix": "d0edee15f91b406f3f99726e44eb990be6e34fd0345b52b910c568e0eef6a2a8",
+                "size_in_bytes": 5
+            },
+            {
+                "_path": "lib/python3.9/site-packages/pycbf-0.9.6.7.dist-info/METADATA",
+                "path_type": "hardlink",
+                "sha256": "43324d3b95f981454ac85e1d8859e6b4199873afd8ea7a098721efc884a323a8",
+                "sha256_in_prefix": "43324d3b95f981454ac85e1d8859e6b4199873afd8ea7a098721efc884a323a8",
+                "size_in_bytes": 2348
+            },
+            {
+                "_path": "lib/python3.9/site-packages/pycbf-0.9.6.7.dist-info/RECORD",
+                "path_type": "hardlink",
+                "sha256": "419ba22596f9f0c31afa9cd4eb9208722454cc5a458a49748c2f506e50e23059",
+                "sha256_in_prefix": "419ba22596f9f0c31afa9cd4eb9208722454cc5a458a49748c2f506e50e23059",
+                "size_in_bytes": 1587
+            },
+            {
+                "_path": "lib/python3.9/site-packages/pycbf-0.9.6.7.dist-info/REQUESTED",
+                "path_type": "hardlink",
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "sha256_in_prefix": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            {
+                "_path": "lib/python3.9/site-packages/pycbf-0.9.6.7.dist-info/WHEEL",
+                "path_type": "hardlink",
+                "sha256": "1ed1147bf238c15a772e4ae4b81ecb29e0842d917302f92d23efecf05724c234",
+                "sha256_in_prefix": "1ed1147bf238c15a772e4ae4b81ecb29e0842d917302f92d23efecf05724c234",
+                "size_in_bytes": 102
+            },
+            {
+                "_path": "lib/python3.9/site-packages/pycbf-0.9.6.7.dist-info/direct_url.json",
+                "path_type": "hardlink",
+                "sha256": "78bf6ae20716c617a20826b43955babc8ef1f5f9c0b187b48f51f82ffca7e977",
+                "sha256_in_prefix": "78bf6ae20716c617a20826b43955babc8ef1f5f9c0b187b48f51f82ffca7e977",
+                "size_in_bytes": 101
+            },
+            {
+                "_path": "lib/python3.9/site-packages/pycbf-0.9.6.7.dist-info/licenses/LICENCE.txt",
+                "path_type": "hardlink",
+                "sha256": "6da7ddf40cfea6f568961825b14478e879875f6ad033fad57889ae5bd52103f4",
+                "sha256_in_prefix": "6da7ddf40cfea6f568961825b14478e879875f6ad033fad57889ae5bd52103f4",
+                "size_in_bytes": 26527
+            },
+            {
+                "_path": "lib/python3.9/site-packages/pycbf-0.9.6.7.dist-info/top_level.txt",
+                "path_type": "hardlink",
+                "sha256": "43d3ca793c2c0fffbaf918e7092e097f483467b47696041d9634ed05ac0b820e",
+                "sha256_in_prefix": "43d3ca793c2c0fffbaf918e7092e097f483467b47696041d9634ed05ac0b820e",
+                "size_in_bytes": 6
+            },
+            {
+                "_path": "lib/python3.9/site-packages/pycbf/__init__.py",
+                "path_type": "hardlink",
+                "sha256": "5899ae72c807ee1395c928a6a2e876bf0c7b163403d2cd2102f75eb6e548dea2",
+                "sha256_in_prefix": "5899ae72c807ee1395c928a6a2e876bf0c7b163403d2cd2102f75eb6e548dea2",
+                "size_in_bytes": 165
+            },
+            {
+                "_path": "lib/python3.9/site-packages/pycbf/__pycache__/__init__.cpython-39.pyc",
+                "path_type": "hardlink",
+                "sha256": "fa14e96f4487d83e363635c12575ea642cda5ce77fe5d9b170a7077154fc610a",
+                "sha256_in_prefix": "fa14e96f4487d83e363635c12575ea642cda5ce77fe5d9b170a7077154fc610a",
+                "size_in_bytes": 232
+            },
+            {
+                "_path": "lib/python3.9/site-packages/pycbf/__pycache__/_wrapper.cpython-39.pyc",
+                "path_type": "hardlink",
+                "sha256": "757196a1f7586981801253c5e77b2cef7d9bfd8ff1c6d9cc3a58b3ce4a42d0df",
+                "sha256_in_prefix": "757196a1f7586981801253c5e77b2cef7d9bfd8ff1c6d9cc3a58b3ce4a42d0df",
+                "size_in_bytes": 452771
+            },
+            {
+                "_path": "lib/python3.9/site-packages/pycbf/__pycache__/utils.cpython-39.pyc",
+                "path_type": "hardlink",
+                "sha256": "49cce59eb8ae81d60d15afcf16776ad99860058acf17d68181cfcbcb7d16a21b",
+                "sha256_in_prefix": "49cce59eb8ae81d60d15afcf16776ad99860058acf17d68181cfcbcb7d16a21b",
+                "size_in_bytes": 976
+            },
+            {
+                "_path": "lib/python3.9/site-packages/pycbf/_pycbf.cpython-39-x86_64-linux-gnu.so",
+                "path_type": "hardlink",
+                "sha256": "5ad794cd9dde46dacdff3b9f00d853fecc8874fc416980efe7296e5dcbf26e12",
+                "sha256_in_prefix": "5ad794cd9dde46dacdff3b9f00d853fecc8874fc416980efe7296e5dcbf26e12",
+                "size_in_bytes": 1217888
+            },
+            {
+                "_path": "lib/python3.9/site-packages/pycbf/_wrapper.py",
+                "path_type": "hardlink",
+                "sha256": "43fb1dc058d011f9b1e6122b27f1f8a61e887d056a53d1c468d0b278a33a2b8b",
+                "sha256_in_prefix": "43fb1dc058d011f9b1e6122b27f1f8a61e887d056a53d1c468d0b278a33a2b8b",
+                "size_in_bytes": 437884
+            },
+            {
+                "_path": "lib/python3.9/site-packages/pycbf/img.c",
+                "path_type": "hardlink",
+                "sha256": "ef5c05494e3a6635cd22d56106569cc8ed3e527a9fe17a0011022f80371df112",
+                "sha256_in_prefix": "ef5c05494e3a6635cd22d56106569cc8ed3e527a9fe17a0011022f80371df112",
+                "size_in_bytes": 561901
+            },
+            {
+                "_path": "lib/python3.9/site-packages/pycbf/img.cpython-39-x86_64-linux-gnu.so",
+                "path_type": "hardlink",
+                "sha256": "0fb120a748667917a89ed86438a1a3981e9595d7cac9c0b384cfcd2cc371f894",
+                "sha256_in_prefix": "0fb120a748667917a89ed86438a1a3981e9595d7cac9c0b384cfcd2cc371f894",
+                "size_in_bytes": 128992
+            },
+            {
+                "_path": "lib/python3.9/site-packages/pycbf/img.pxd",
+                "path_type": "hardlink",
+                "sha256": "d1e47d7a8df877f7401d9b852b435fe8a4cbba2f242a5a27d58c6c1662fbbd7c",
+                "sha256_in_prefix": "d1e47d7a8df877f7401d9b852b435fe8a4cbba2f242a5a27d58c6c1662fbbd7c",
+                "size_in_bytes": 2375
+            },
+            {
+                "_path": "lib/python3.9/site-packages/pycbf/img.pyi",
+                "path_type": "hardlink",
+                "sha256": "329f36433cfdac63a6cce5e058af36195ccffa1700ba591abb2654d980ee62fb",
+                "sha256_in_prefix": "329f36433cfdac63a6cce5e058af36195ccffa1700ba591abb2654d980ee62fb",
+                "size_in_bytes": 963
+            },
+            {
+                "_path": "lib/python3.9/site-packages/pycbf/img.pyx",
+                "path_type": "hardlink",
+                "sha256": "6af7462dcb579181b67581672408230d1d2d4f991ce2927ec5fac25e7bd6d889",
+                "sha256_in_prefix": "6af7462dcb579181b67581672408230d1d2d4f991ce2927ec5fac25e7bd6d889",
+                "size_in_bytes": 8907
+            },
+            {
+                "_path": "lib/python3.9/site-packages/pycbf/py.typed",
+                "path_type": "hardlink",
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "sha256_in_prefix": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            {
+                "_path": "lib/python3.9/site-packages/pycbf/utils.py",
+                "path_type": "hardlink",
+                "sha256": "7634dfe28af042914f7786d7cc87d76b1c74e2e0bdff9af18363356dc061079f",
+                "sha256_in_prefix": "7634dfe28af042914f7786d7cc87d76b1c74e2e0bdff9af18363356dc061079f",
+                "size_in_bytes": 944
+            }
+        ],
+        "paths_version": 1
+    },
+    "platform": "linux",
+    "requested_spec": "",
+    "sha256": "81e686fee5f9d407e309e9d3c184866b3ba053a14eb0c52c5956551608aaaaa0",
+    "size": 431605,
+    "subdir": "linux-64",
+    "timestamp": 1748805011,
+    "track_features": "",
+    "url": "https://conda.anaconda.org/conda-forge/linux-64/pycbf-0.9.6.7-py39h8cd3c5a_1.conda",
+    "version": "0.9.6.7"
+}

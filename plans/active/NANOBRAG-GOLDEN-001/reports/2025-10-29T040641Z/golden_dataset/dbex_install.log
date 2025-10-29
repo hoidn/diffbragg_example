@@ -1,0 +1,32 @@
+Obtaining file:///home/ollie/Documents/diffbragg_example_2/diffbragg_example
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Checking if build backend supports build_editable: started
+  Checking if build backend supports build_editable: finished with status 'done'
+  Getting requirements to build editable: started
+  Getting requirements to build editable: finished with status 'done'
+  Preparing editable metadata (pyproject.toml): started
+  Preparing editable metadata (pyproject.toml): finished with status 'done'
+Requirement already satisfied: h5py in ./simforge/envs/simtbx/lib/python3.9/site-packages (from dbex==0.1) (3.13.0)
+Requirement already satisfied: scipy in ./simforge/envs/simtbx/lib/python3.9/site-packages (from dbex==0.1) (1.13.1)
+Requirement already satisfied: matplotlib in ./simforge/envs/simtbx/lib/python3.9/site-packages (from dbex==0.1) (3.9.4)
+Requirement already satisfied: numpy in ./simforge/envs/simtbx/lib/python3.9/site-packages (from dbex==0.1) (1.26.4)
+Requirement already satisfied: contourpy>=1.0.1 in ./simforge/envs/simtbx/lib/python3.9/site-packages (from matplotlib->dbex==0.1) (1.3.0)
+Requirement already satisfied: cycler>=0.10 in ./simforge/envs/simtbx/lib/python3.9/site-packages (from matplotlib->dbex==0.1) (0.12.1)
+Requirement already satisfied: fonttools>=4.22.0 in ./simforge/envs/simtbx/lib/python3.9/site-packages (from matplotlib->dbex==0.1) (4.59.1)
+Requirement already satisfied: kiwisolver>=1.3.1 in ./simforge/envs/simtbx/lib/python3.9/site-packages (from matplotlib->dbex==0.1) (1.4.7)
+Requirement already satisfied: packaging>=20.0 in ./simforge/envs/simtbx/lib/python3.9/site-packages (from matplotlib->dbex==0.1) (25.0)
+Requirement already satisfied: pillow>=8 in ./simforge/envs/simtbx/lib/python3.9/site-packages (from matplotlib->dbex==0.1) (11.3.0)
+Requirement already satisfied: pyparsing>=2.3.1 in ./simforge/envs/simtbx/lib/python3.9/site-packages (from matplotlib->dbex==0.1) (3.2.3)
+Requirement already satisfied: python-dateutil>=2.7 in ./simforge/envs/simtbx/lib/python3.9/site-packages (from matplotlib->dbex==0.1) (2.9.0.post0)
+Requirement already satisfied: importlib-resources>=3.2.0 in ./simforge/envs/simtbx/lib/python3.9/site-packages (from matplotlib->dbex==0.1) (6.5.2)
+Requirement already satisfied: zipp>=3.1.0 in ./simforge/envs/simtbx/lib/python3.9/site-packages (from importlib-resources>=3.2.0->matplotlib->dbex==0.1) (3.23.0)
+Requirement already satisfied: six>=1.5 in ./simforge/envs/simtbx/lib/python3.9/site-packages (from python-dateutil>=2.7->matplotlib->dbex==0.1) (1.17.0)
+Building wheels for collected packages: dbex
+  Building editable for dbex (pyproject.toml): started
+  Building editable for dbex (pyproject.toml): finished with status 'done'
+  Created wheel for dbex: filename=dbex-0.1-0.editable-py3-none-any.whl size=2601 sha256=9e95f32e26bd8219d344ff1426d5472c28b48f4bbedca869627e9a6b2cf6540d
+  Stored in directory: /tmp/pip-ephem-wheel-cache-dok_abn2/wheels/03/c7/e3/740510fabc509bcc441125c5b58ccec9770f101f21e43da5c6
+Successfully built dbex
+Installing collected packages: dbex
+Successfully installed dbex-0.1

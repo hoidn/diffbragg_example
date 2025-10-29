@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T040641Z/scratch/capture_diffbragg.py", line 8, in <module>
+    from dbex.data_load import DataLoad
+  File "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/dbex/data_load.py", line 3, in <module>
+    from simtbx.diffBragg import utils
+ModuleNotFoundError: No module named 'simtbx'

@@ -1,0 +1,392 @@
+{
+    "arch": "x86_64",
+    "build": "py39h74842e3_2",
+    "build_number": 2,
+    "build_string": "py39h74842e3_2",
+    "channel": "conda-forge",
+    "constrains": [],
+    "depends": [
+        "__glibc >=2.17,<3.0.a0",
+        "libgcc >=13",
+        "libstdcxx >=13",
+        "numpy >=1.23",
+        "python >=3.9,<3.10.0a0",
+        "python_abi 3.9.* *_cp39"
+    ],
+    "extracted_package_dir": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/simforge/pkgs/contourpy-1.3.0-py39h74842e3_2",
+    "files": [
+        "lib/python3.9/site-packages/contourpy-1.3.0.dist-info/INSTALLER",
+        "lib/python3.9/site-packages/contourpy-1.3.0.dist-info/LICENSE",
+        "lib/python3.9/site-packages/contourpy-1.3.0.dist-info/METADATA",
+        "lib/python3.9/site-packages/contourpy-1.3.0.dist-info/RECORD",
+        "lib/python3.9/site-packages/contourpy-1.3.0.dist-info/REQUESTED",
+        "lib/python3.9/site-packages/contourpy-1.3.0.dist-info/WHEEL",
+        "lib/python3.9/site-packages/contourpy-1.3.0.dist-info/direct_url.json",
+        "lib/python3.9/site-packages/contourpy/__init__.py",
+        "lib/python3.9/site-packages/contourpy/__pycache__/__init__.cpython-39.pyc",
+        "lib/python3.9/site-packages/contourpy/__pycache__/_version.cpython-39.pyc",
+        "lib/python3.9/site-packages/contourpy/__pycache__/array.cpython-39.pyc",
+        "lib/python3.9/site-packages/contourpy/__pycache__/chunk.cpython-39.pyc",
+        "lib/python3.9/site-packages/contourpy/__pycache__/convert.cpython-39.pyc",
+        "lib/python3.9/site-packages/contourpy/__pycache__/dechunk.cpython-39.pyc",
+        "lib/python3.9/site-packages/contourpy/__pycache__/enum_util.cpython-39.pyc",
+        "lib/python3.9/site-packages/contourpy/__pycache__/typecheck.cpython-39.pyc",
+        "lib/python3.9/site-packages/contourpy/__pycache__/types.cpython-39.pyc",
+        "lib/python3.9/site-packages/contourpy/_contourpy.cpython-39-x86_64-linux-gnu.so",
+        "lib/python3.9/site-packages/contourpy/_contourpy.pyi",
+        "lib/python3.9/site-packages/contourpy/_version.py",
+        "lib/python3.9/site-packages/contourpy/array.py",
+        "lib/python3.9/site-packages/contourpy/chunk.py",
+        "lib/python3.9/site-packages/contourpy/convert.py",
+        "lib/python3.9/site-packages/contourpy/dechunk.py",
+        "lib/python3.9/site-packages/contourpy/enum_util.py",
+        "lib/python3.9/site-packages/contourpy/py.typed",
+        "lib/python3.9/site-packages/contourpy/typecheck.py",
+        "lib/python3.9/site-packages/contourpy/types.py",
+        "lib/python3.9/site-packages/contourpy/util/__init__.py",
+        "lib/python3.9/site-packages/contourpy/util/__pycache__/__init__.cpython-39.pyc",
+        "lib/python3.9/site-packages/contourpy/util/__pycache__/_build_config.cpython-39.pyc",
+        "lib/python3.9/site-packages/contourpy/util/__pycache__/bokeh_renderer.cpython-39.pyc",
+        "lib/python3.9/site-packages/contourpy/util/__pycache__/bokeh_util.cpython-39.pyc",
+        "lib/python3.9/site-packages/contourpy/util/__pycache__/data.cpython-39.pyc",
+        "lib/python3.9/site-packages/contourpy/util/__pycache__/mpl_renderer.cpython-39.pyc",
+        "lib/python3.9/site-packages/contourpy/util/__pycache__/mpl_util.cpython-39.pyc",
+        "lib/python3.9/site-packages/contourpy/util/__pycache__/renderer.cpython-39.pyc",
+        "lib/python3.9/site-packages/contourpy/util/_build_config.py",
+        "lib/python3.9/site-packages/contourpy/util/bokeh_renderer.py",
+        "lib/python3.9/site-packages/contourpy/util/bokeh_util.py",
+        "lib/python3.9/site-packages/contourpy/util/data.py",
+        "lib/python3.9/site-packages/contourpy/util/mpl_renderer.py",
+        "lib/python3.9/site-packages/contourpy/util/mpl_util.py",
+        "lib/python3.9/site-packages/contourpy/util/renderer.py"
+    ],
+    "fn": "contourpy-1.3.0-py39h74842e3_2.conda",
+    "license": "BSD-3-Clause",
+    "link": {
+        "source": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/simforge/pkgs/contourpy-1.3.0-py39h74842e3_2",
+        "type": 1
+    },
+    "md5": "5645190ef7f6d3aebee71e298dc9677b",
+    "name": "contourpy",
+    "package_tarball_full_path": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/simforge/pkgs/contourpy-1.3.0-py39h74842e3_2.tar.bz2",
+    "paths_data": {
+        "paths": [
+            {
+                "_path": "lib/python3.9/site-packages/contourpy-1.3.0.dist-info/INSTALLER",
+                "path_type": "hardlink",
+                "sha256": "d0edee15f91b406f3f99726e44eb990be6e34fd0345b52b910c568e0eef6a2a8",
+                "sha256_in_prefix": "d0edee15f91b406f3f99726e44eb990be6e34fd0345b52b910c568e0eef6a2a8",
+                "size_in_bytes": 5
+            },
+            {
+                "_path": "lib/python3.9/site-packages/contourpy-1.3.0.dist-info/LICENSE",
+                "path_type": "hardlink",
+                "sha256": "c7d0a153bffaa104044463ebc633793d451722efd3138b5ffd2527b40f1505a2",
+                "sha256_in_prefix": "c7d0a153bffaa104044463ebc633793d451722efd3138b5ffd2527b40f1505a2",
+                "size_in_bytes": 1534
+            },
+            {
+                "_path": "lib/python3.9/site-packages/contourpy-1.3.0.dist-info/METADATA",
+                "path_type": "hardlink",
+                "sha256": "ab0120dd49923686c0ce561607c6e824d0cdab3df6347cb1ee2a52d6bc88080c",
+                "sha256_in_prefix": "ab0120dd49923686c0ce561607c6e824d0cdab3df6347cb1ee2a52d6bc88080c",
+                "size_in_bytes": 5434
+            },
+            {
+                "_path": "lib/python3.9/site-packages/contourpy-1.3.0.dist-info/RECORD",
+                "path_type": "hardlink",
+                "sha256": "991b22821745f72c3307fcc8152b15a39ba352f1df855eb92ef1ba934b5fa873",
+                "sha256_in_prefix": "991b22821745f72c3307fcc8152b15a39ba352f1df855eb92ef1ba934b5fa873",
+                "size_in_bytes": 3115
+            },
+            {
+                "_path": "lib/python3.9/site-packages/contourpy-1.3.0.dist-info/REQUESTED",
+                "path_type": "hardlink",
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "sha256_in_prefix": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            {
+                "_path": "lib/python3.9/site-packages/contourpy-1.3.0.dist-info/WHEEL",
+                "path_type": "hardlink",
+                "sha256": "a8dfb2feb84a1cbbcd1dc7db7942ee7525a9830dc642503134791829ebc9c766",
+                "sha256_in_prefix": "a8dfb2feb84a1cbbcd1dc7db7942ee7525a9830dc642503134791829ebc9c766",
+                "size_in_bytes": 86
+            },
+            {
+                "_path": "lib/python3.9/site-packages/contourpy-1.3.0.dist-info/direct_url.json",
+                "path_type": "hardlink",
+                "sha256": "5d2e8832826f87e6d8b20d1f5c549c251fda0058d50fbd5e9debdea570f55edd",
+                "sha256_in_prefix": "5d2e8832826f87e6d8b20d1f5c549c251fda0058d50fbd5e9debdea570f55edd",
+                "size_in_bytes": 105
+            },
+            {
+                "_path": "lib/python3.9/site-packages/contourpy/__init__.py",
+                "path_type": "hardlink",
+                "sha256": "562d986ed52133d57160f6373c1bf17eed31658afa7c1cac9798103c9128f3c9",
+                "sha256_in_prefix": "562d986ed52133d57160f6373c1bf17eed31658afa7c1cac9798103c9128f3c9",
+                "size_in_bytes": 11831
+            },
+            {
+                "_path": "lib/python3.9/site-packages/contourpy/__pycache__/__init__.cpython-39.pyc",
+                "path_type": "hardlink",
+                "sha256": "ce94fb26fd68af11a5a18f8694ef1a2f87e69ed3922d35e8a8dfc8e73698d7c0",
+                "sha256_in_prefix": "ce94fb26fd68af11a5a18f8694ef1a2f87e69ed3922d35e8a8dfc8e73698d7c0",
+                "size_in_bytes": 9611
+            },
+            {
+                "_path": "lib/python3.9/site-packages/contourpy/__pycache__/_version.cpython-39.pyc",
+                "path_type": "hardlink",
+                "sha256": "cd4a92e24447c63774607bc4e82a37c9490263ab4c8a5d9fed29a904237c4d6e",
+                "sha256_in_prefix": "cd4a92e24447c63774607bc4e82a37c9490263ab4c8a5d9fed29a904237c4d6e",
+                "size_in_bytes": 161
+            },
+            {
+                "_path": "lib/python3.9/site-packages/contourpy/__pycache__/array.cpython-39.pyc",
+                "path_type": "hardlink",
+                "sha256": "a52cd843caf407dc082563e82eca8c014a1eab594111b98d0d0728c50727f03d",
+                "sha256_in_prefix": "a52cd843caf407dc082563e82eca8c014a1eab594111b98d0d0728c50727f03d",
+                "size_in_bytes": 9740
+            },
+            {
+                "_path": "lib/python3.9/site-packages/contourpy/__pycache__/chunk.cpython-39.pyc",
+                "path_type": "hardlink",
+                "sha256": "02a453fd59f475428c83807df61d122a90c3d088ee659398a0c4b6469dbaac53",
+                "sha256_in_prefix": "02a453fd59f475428c83807df61d122a90c3d088ee659398a0c4b6469dbaac53",
+                "size_in_bytes": 2708
+            },
+            {
+                "_path": "lib/python3.9/site-packages/contourpy/__pycache__/convert.cpython-39.pyc",
+                "path_type": "hardlink",
+                "sha256": "1e079412f321e04a77e0455731634e54cd6de0171180fb0cceec3d2dea4d7125",
+                "sha256_in_prefix": "1e079412f321e04a77e0455731634e54cd6de0171180fb0cceec3d2dea4d7125",
+                "size_in_bytes": 16647
+            },
+            {
+                "_path": "lib/python3.9/site-packages/contourpy/__pycache__/dechunk.cpython-39.pyc",
+                "path_type": "hardlink",
+                "sha256": "c48bb95f162e26600f504e68654dc994158f6dda72be3a799957554ed44de654",
+                "sha256_in_prefix": "c48bb95f162e26600f504e68654dc994158f6dda72be3a799957554ed44de654",
+                "size_in_bytes": 6200
+            },
+            {
+                "_path": "lib/python3.9/site-packages/contourpy/__pycache__/enum_util.cpython-39.pyc",
+                "path_type": "hardlink",
+                "sha256": "06327d8b68e103d38e7c9eabc11b6d7ed6e94feea84b2420ff6328cf3d646aee",
+                "sha256_in_prefix": "06327d8b68e103d38e7c9eabc11b6d7ed6e94feea84b2420ff6328cf3d646aee",
+                "size_in_bytes": 1743
+            },
+            {
+                "_path": "lib/python3.9/site-packages/contourpy/__pycache__/typecheck.cpython-39.pyc",
+                "path_type": "hardlink",
+                "sha256": "26113172fa4edc543aeb32be9def39f15ffab004c71c20fd7604aa7f6a7f8a2a",
+                "sha256_in_prefix": "26113172fa4edc543aeb32be9def39f15ffab004c71c20fd7604aa7f6a7f8a2a",
+                "size_in_bytes": 6443
+            },
+            {
+                "_path": "lib/python3.9/site-packages/contourpy/__pycache__/types.cpython-39.pyc",
+                "path_type": "hardlink",
+                "sha256": "bb99019410cbb2f46de4e939a98b515858d83257dcd94519156aad5dcbd3ac33",
+                "sha256_in_prefix": "bb99019410cbb2f46de4e939a98b515858d83257dcd94519156aad5dcbd3ac33",
+                "size_in_bytes": 351
+            },
+            {
+                "_path": "lib/python3.9/site-packages/contourpy/_contourpy.cpython-39-x86_64-linux-gnu.so",
+                "path_type": "hardlink",
+                "sha256": "b5a0eeec293f6c8f9753d98f02e9e2efc08a36ede000d59533accde1ac312cdb",
+                "sha256_in_prefix": "b5a0eeec293f6c8f9753d98f02e9e2efc08a36ede000d59533accde1ac312cdb",
+                "size_in_bytes": 742336
+            },
+            {
+                "_path": "lib/python3.9/site-packages/contourpy/_contourpy.pyi",
+                "path_type": "hardlink",
+                "sha256": "0d9c0f2f966bdeb1d662bf05b9204d6248d180e3763858a71e1ab04b08b85b7c",
+                "sha256_in_prefix": "0d9c0f2f966bdeb1d662bf05b9204d6248d180e3763858a71e1ab04b08b85b7c",
+                "size_in_bytes": 7151
+            },
+            {
+                "_path": "lib/python3.9/site-packages/contourpy/_version.py",
+                "path_type": "hardlink",
+                "sha256": "179996d3ba52c86aea0cd636121afe5290f3a41b4df85b185344066567fa3c91",
+                "sha256_in_prefix": "179996d3ba52c86aea0cd636121afe5290f3a41b4df85b185344066567fa3c91",
+                "size_in_bytes": 22
+            },
+            {
+                "_path": "lib/python3.9/site-packages/contourpy/array.py",
+                "path_type": "hardlink",
+                "sha256": "b070dbb7b34e43ee08b89c0276ddaa32df9e9bb1a5dd88c9934bedc6c52488ff",
+                "sha256_in_prefix": "b070dbb7b34e43ee08b89c0276ddaa32df9e9bb1a5dd88c9934bedc6c52488ff",
+                "size_in_bytes": 8986
+            },
+            {
+                "_path": "lib/python3.9/site-packages/contourpy/chunk.py",
+                "path_type": "hardlink",
+                "sha256": "f278c342a969b83db646369a0b203be455d0b124036398591894abc45a6f1865",
+                "sha256_in_prefix": "f278c342a969b83db646369a0b203be455d0b124036398591894abc45a6f1865",
+                "size_in_bytes": 3279
+            },
+            {
+                "_path": "lib/python3.9/site-packages/contourpy/convert.py",
+                "path_type": "hardlink",
+                "sha256": "dd1d4ef868eb8633fce6e662cb21be2f8630edc454e53b1b4179481cb2d7d640",
+                "sha256_in_prefix": "dd1d4ef868eb8633fce6e662cb21be2f8630edc454e53b1b4179481cb2d7d640",
+                "size_in_bytes": 26142
+            },
+            {
+                "_path": "lib/python3.9/site-packages/contourpy/dechunk.py",
+                "path_type": "hardlink",
+                "sha256": "12014bea1c391f9e1c72ea1fe2d2767a176792d4fbb6b8198e266aa69b07f102",
+                "sha256_in_prefix": "12014bea1c391f9e1c72ea1fe2d2767a176792d4fbb6b8198e266aa69b07f102",
+                "size_in_bytes": 7756
+            },
+            {
+                "_path": "lib/python3.9/site-packages/contourpy/enum_util.py",
+                "path_type": "hardlink",
+                "sha256": "a3c308b4946cd3ca2acf03cfdc8c02ef9041018f50abde6c688ce3917057c2a0",
+                "sha256_in_prefix": "a3c308b4946cd3ca2acf03cfdc8c02ef9041018f50abde6c688ce3917057c2a0",
+                "size_in_bytes": 1519
+            },
+            {
+                "_path": "lib/python3.9/site-packages/contourpy/py.typed",
+                "path_type": "hardlink",
+                "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                "sha256_in_prefix": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+            },
+            {
+                "_path": "lib/python3.9/site-packages/contourpy/typecheck.py",
+                "path_type": "hardlink",
+                "sha256": "b759efbc2b8a318bdad59c787dcdf412974a15c3b4127cf79ff5057d706cabda",
+                "sha256_in_prefix": "b759efbc2b8a318bdad59c787dcdf412974a15c3b4127cf79ff5057d706cabda",
+                "size_in_bytes": 10747
+            },
+            {
+                "_path": "lib/python3.9/site-packages/contourpy/types.py",
+                "path_type": "hardlink",
+                "sha256": "d8ae13e6d2693088d8ae4920d4baa1dc2d992a59ce86732d626b70cfdda5ff2f",
+                "sha256_in_prefix": "d8ae13e6d2693088d8ae4920d4baa1dc2d992a59ce86732d626b70cfdda5ff2f",
+                "size_in_bytes": 247
+            },
+            {
+                "_path": "lib/python3.9/site-packages/contourpy/util/__init__.py",
+                "path_type": "hardlink",
+                "sha256": "795849fdcace1cbee7906e0a6f474ea3b34be161cccbf3f1ebae5a00dff777ef",
+                "sha256_in_prefix": "795849fdcace1cbee7906e0a6f474ea3b34be161cccbf3f1ebae5a00dff777ef",
+                "size_in_bytes": 118
+            },
+            {
+                "_path": "lib/python3.9/site-packages/contourpy/util/__pycache__/__init__.cpython-39.pyc",
+                "path_type": "hardlink",
+                "sha256": "e17e158679faa597ebff2990f14a0a223dfc61aa1b6510c4ea8bfd82d0b66a94",
+                "sha256_in_prefix": "e17e158679faa597ebff2990f14a0a223dfc61aa1b6510c4ea8bfd82d0b66a94",
+                "size_in_bytes": 278
+            },
+            {
+                "_path": "lib/python3.9/site-packages/contourpy/util/__pycache__/_build_config.cpython-39.pyc",
+                "path_type": "hardlink",
+                "sha256": "9ec56ec8c20d4d96c55a84f9de6d538ceab8eb5c0eecaadf7c1d5c2cbd2fc8a2",
+                "sha256_in_prefix": "9ec56ec8c20d4d96c55a84f9de6d538ceab8eb5c0eecaadf7c1d5c2cbd2fc8a2",
+                "size_in_bytes": 2087
+            },
+            {
+                "_path": "lib/python3.9/site-packages/contourpy/util/__pycache__/bokeh_renderer.cpython-39.pyc",
+                "path_type": "hardlink",
+                "sha256": "714adedfb749f49bb30867785e9d780c63b9ee9b4b2fd6f680ad9e7603150a23",
+                "sha256_in_prefix": "714adedfb749f49bb30867785e9d780c63b9ee9b4b2fd6f680ad9e7603150a23",
+                "size_in_bytes": 13297
+            },
+            {
+                "_path": "lib/python3.9/site-packages/contourpy/util/__pycache__/bokeh_util.cpython-39.pyc",
+                "path_type": "hardlink",
+                "sha256": "14781544aff68c34cc4edd7bc64ebb9639fddea7328e5955378ab28c50f3a88c",
+                "sha256_in_prefix": "14781544aff68c34cc4edd7bc64ebb9639fddea7328e5955378ab28c50f3a88c",
+                "size_in_bytes": 2145
+            },
+            {
+                "_path": "lib/python3.9/site-packages/contourpy/util/__pycache__/data.cpython-39.pyc",
+                "path_type": "hardlink",
+                "sha256": "2336e86fc136a62b845af70d317fe4e8263d168726dea64814b84b373bedb57b",
+                "sha256_in_prefix": "2336e86fc136a62b845af70d317fe4e8263d168726dea64814b84b373bedb57b",
+                "size_in_bytes": 2640
+            },
+            {
+                "_path": "lib/python3.9/site-packages/contourpy/util/__pycache__/mpl_renderer.cpython-39.pyc",
+                "path_type": "hardlink",
+                "sha256": "39be5f4df1d1d5674b5f28c16b2a8495b2e6c8408c2b2401b1de294c5bd722bd",
+                "sha256_in_prefix": "39be5f4df1d1d5674b5f28c16b2a8495b2e6c8408c2b2401b1de294c5bd722bd",
+                "size_in_bytes": 17844
+            },
+            {
+                "_path": "lib/python3.9/site-packages/contourpy/util/__pycache__/mpl_util.cpython-39.pyc",
+                "path_type": "hardlink",
+                "sha256": "cefa72b72e9ae955cad3ebe0b1558af9479f70d287aec31e5fe69e9765e715e8",
+                "sha256_in_prefix": "cefa72b72e9ae955cad3ebe0b1558af9479f70d287aec31e5fe69e9765e715e8",
+                "size_in_bytes": 3042
+            },
+            {
+                "_path": "lib/python3.9/site-packages/contourpy/util/__pycache__/renderer.cpython-39.pyc",
+                "path_type": "hardlink",
+                "sha256": "047a066d66835b3801cdb1f1e283ad0a06ec30a40850649b36c98d2ab08aa6ac",
+                "sha256_in_prefix": "047a066d66835b3801cdb1f1e283ad0a06ec30a40850649b36c98d2ab08aa6ac",
+                "size_in_bytes": 5811
+            },
+            {
+                "_path": "lib/python3.9/site-packages/contourpy/util/_build_config.py",
+                "path_type": "hardlink",
+                "sha256": "d11d59e2079771289ac2ae10ee64baa4e6081b00a1aa3779588e39bb2f2e04a1",
+                "sha256_in_prefix": "b18a813f0bbc1001a17f5932d441477b1ed8b795b9dcad5984d0c2853ec928a8",
+                "size_in_bytes": 2372
+            },
+            {
+                "_path": "lib/python3.9/site-packages/contourpy/util/bokeh_renderer.py",
+                "path_type": "hardlink",
+                "sha256": "8283bb39174e7a33f5f5867b5273e59c1b8a23875525b2916bf1bf1d76df1928",
+                "sha256_in_prefix": "8283bb39174e7a33f5f5867b5273e59c1b8a23875525b2916bf1bf1d76df1928",
+                "size_in_bytes": 13717
+            },
+            {
+                "_path": "lib/python3.9/site-packages/contourpy/util/bokeh_util.py",
+                "path_type": "hardlink",
+                "sha256": "c1cf92ddec015185b222412ff639211724887ab8232d09786745045671341e10",
+                "sha256_in_prefix": "c1cf92ddec015185b222412ff639211724887ab8232d09786745045671341e10",
+                "size_in_bytes": 2804
+            },
+            {
+                "_path": "lib/python3.9/site-packages/contourpy/util/data.py",
+                "path_type": "hardlink",
+                "sha256": "fbb49218c2d7fe037ed47d89ce9352101fc470417fb8cb5874ea3f78f448720f",
+                "sha256_in_prefix": "fbb49218c2d7fe037ed47d89ce9352101fc470417fb8cb5874ea3f78f448720f",
+                "size_in_bytes": 2586
+            },
+            {
+                "_path": "lib/python3.9/site-packages/contourpy/util/mpl_renderer.py",
+                "path_type": "hardlink",
+                "sha256": "006c8d0327ad3e79a29f613821ac65beb42fd9ebebc3b74afb241bdfad5274f2",
+                "sha256_in_prefix": "006c8d0327ad3e79a29f613821ac65beb42fd9ebebc3b74afb241bdfad5274f2",
+                "size_in_bytes": 20071
+            },
+            {
+                "_path": "lib/python3.9/site-packages/contourpy/util/mpl_util.py",
+                "path_type": "hardlink",
+                "sha256": "ab638eda01923bb6d8829363dc3089b51502f018ee052ad00a5ad9f76b6b4f45",
+                "sha256_in_prefix": "ab638eda01923bb6d8829363dc3089b51502f018ee052ad00a5ad9f76b6b4f45",
+                "size_in_bytes": 3438
+            },
+            {
+                "_path": "lib/python3.9/site-packages/contourpy/util/renderer.py",
+                "path_type": "hardlink",
+                "sha256": "f02047ccf995b053dfaac5b1aabc46061a85a498557851c5783cd55c0813f057",
+                "sha256_in_prefix": "f02047ccf995b053dfaac5b1aabc46061a85a498557851c5783cd55c0813f057",
+                "size_in_bytes": 5118
+            }
+        ],
+        "paths_version": 1
+    },
+    "platform": "linux",
+    "requested_spec": "",
+    "sha256": "52207e19ea006c87c3a416a234a34bfee2920f363b91819e89ff5345678d532d",
+    "size": 261801,
+    "subdir": "linux-64",
+    "timestamp": 1727293684,
+    "track_features": "",
+    "url": "https://conda.anaconda.org/conda-forge/linux-64/contourpy-1.3.0-py39h74842e3_2.conda",
+    "version": "1.3.0"
+}

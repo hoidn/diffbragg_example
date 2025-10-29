@@ -1,0 +1,78 @@
+{
+    "arch": "x86_64",
+    "build": "hb03c661_0",
+    "build_number": 0,
+    "build_string": "hb03c661_0",
+    "channel": "conda-forge",
+    "constrains": [],
+    "depends": [
+        "__glibc >=2.17,<3.0.a0",
+        "libgcc >=14",
+        "xorg-libx11 >=1.8.12,<2.0a0"
+    ],
+    "extracted_package_dir": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/simforge/pkgs/xorg-libxfixes-6.0.2-hb03c661_0",
+    "files": [
+        "include/X11/extensions/Xfixes.h",
+        "lib/libXfixes.so",
+        "lib/libXfixes.so.3",
+        "lib/libXfixes.so.3.1.0",
+        "lib/pkgconfig/xfixes.pc"
+    ],
+    "fn": "xorg-libxfixes-6.0.2-hb03c661_0.conda",
+    "license": "MIT",
+    "license_family": "MIT",
+    "link": {
+        "source": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/simforge/pkgs/xorg-libxfixes-6.0.2-hb03c661_0",
+        "type": 1
+    },
+    "md5": "ba231da7fccf9ea1e768caf5c7099b84",
+    "name": "xorg-libxfixes",
+    "package_tarball_full_path": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/simforge/pkgs/xorg-libxfixes-6.0.2-hb03c661_0.tar.bz2",
+    "paths_data": {
+        "paths": [
+            {
+                "_path": "include/X11/extensions/Xfixes.h",
+                "path_type": "hardlink",
+                "sha256": "88529b62352d98ec0c25d32bdb9708aa076ed67b2283d2dc320f86ac84596dd9",
+                "sha256_in_prefix": "88529b62352d98ec0c25d32bdb9708aa076ed67b2283d2dc320f86ac84596dd9",
+                "size_in_bytes": 7750
+            },
+            {
+                "_path": "lib/libXfixes.so",
+                "path_type": "softlink",
+                "sha256_in_prefix": "ccd5cd819702159812afd6428ed2f9fd3437ec9127f2e9a5e17ace461d2f05e6",
+                "size_in_bytes": 34720
+            },
+            {
+                "_path": "lib/libXfixes.so.3",
+                "path_type": "softlink",
+                "sha256_in_prefix": "ccd5cd819702159812afd6428ed2f9fd3437ec9127f2e9a5e17ace461d2f05e6",
+                "size_in_bytes": 34720
+            },
+            {
+                "_path": "lib/libXfixes.so.3.1.0",
+                "path_type": "hardlink",
+                "sha256": "ccd5cd819702159812afd6428ed2f9fd3437ec9127f2e9a5e17ace461d2f05e6",
+                "sha256_in_prefix": "ccd5cd819702159812afd6428ed2f9fd3437ec9127f2e9a5e17ace461d2f05e6",
+                "size_in_bytes": 34720
+            },
+            {
+                "_path": "lib/pkgconfig/xfixes.pc",
+                "path_type": "hardlink",
+                "sha256": "6735f9668f59cda9717c7b04e0eeb2c1573e6abed5be32f69d35a4c886b52395",
+                "sha256_in_prefix": "b18a813f0bbc1001a17f5932d441477b1ed8b795b9dcad5984d0c2853ec928a8",
+                "size_in_bytes": 562
+            }
+        ],
+        "paths_version": 1
+    },
+    "platform": "linux",
+    "requested_spec": "",
+    "sha256": "83c4c99d60b8784a611351220452a0a85b080668188dce5dfa394b723d7b64f4",
+    "size": 20071,
+    "subdir": "linux-64",
+    "timestamp": 1759282564,
+    "track_features": "",
+    "url": "https://conda.anaconda.org/conda-forge/linux-64/xorg-libxfixes-6.0.2-hb03c661_0.conda",
+    "version": "6.0.2"
+}

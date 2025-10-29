@@ -1,0 +1,17 @@
+
+==================================== ERRORS ====================================
+_______ ERROR collecting tests/dbex/test_forward_equivalence_complete.py _______
+ImportError while importing test module '/home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_forward_equivalence_complete.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+simforge/envs/simtbx/lib/python3.9/importlib/__init__.py:127: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+tests/dbex/test_forward_equivalence_complete.py:16: in <module>
+    from dbex.data_load import DataLoad
+dbex/data_load.py:3: in <module>
+    from simtbx.diffBragg import utils
+E   ModuleNotFoundError: No module named 'simtbx'
+=========================== short test summary info ============================
+ERROR tests/dbex/test_forward_equivalence_complete.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+no tests collected, 1 error in 0.14s

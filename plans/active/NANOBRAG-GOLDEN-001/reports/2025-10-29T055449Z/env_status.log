@@ -1,0 +1,39 @@
+[0;34m═══════════════════════════════════════════════════════════[0m
+[0;34m  diffBragg Example Environment Setup[0m
+[0;34m═══════════════════════════════════════════════════════════[0m
+[0;32m✓ simtbx environment activated[0m
+  Location: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/simforge/envs/simtbx
+  Python: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/simforge/envs/simtbx/bin/python
+
+Available helper functions:
+  dbex_status     - Check installation status
+  dbex_test       - Run verification tests
+  dbex_help       - Show all available functions
+
+Run [0;32mdbex_status[0m to verify your installation
+[0;34m═══════════════════════════════════════════════════════════[0m
+[0;34m═══════════════════════════════════════════════════════════[0m
+[0;34m  diffBragg Environment Status[0m
+[0;34m═══════════════════════════════════════════════════════════[0m
+
+[0;32m✓ Python:[0m Python 3.9.23 at /home/ollie/Documents/diffbragg_example_2/diffbragg_example/simforge/envs/simtbx/bin/python
+
+Python Packages:
+  [0;31m✗ simtbx[0m
+  [0;31m✗ dials[0m
+  [1;33m⚠ xfel (optional)[0m
+  [1;33m⚠ score_trainer (optional)[0m
+  [0;32m✓ dbex[0m
+
+Commands:
+  [0;32m✓ dials.stills_process[0m
+  [0;32m✓ score.getMod[0m
+
+GPU Status:
+  [0;32m✓ NVIDIA GPU detected: NVIDIA GeForce RTX 3090[0m
+    Driver version: 570.195.03
+
+Installation Directories:
+  [1;33m⚠ easyBragg not found[0m (run Step 1)
+  [0;32m✓ dbex[0m at /home/ollie/Documents/diffbragg_example_2/diffbragg_example/dbex
+

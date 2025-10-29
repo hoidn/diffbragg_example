@@ -1,0 +1,11 @@
+Name: nanobrag-torch
+Version: 0.1.0
+Summary: PyTorch implementation of nanoBragg diffraction simulator
+Home-page: 
+Author: nanoBragg Team
+Author-email: 
+License: 
+Location: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/simforge/envs/simtbx/lib/python3.9/site-packages
+Editable project location: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/src/nanobrag-torch
+Requires: fabio, matplotlib, numpy, pytest, scipy, torch
+Required-by: 

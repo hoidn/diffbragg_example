@@ -1,0 +1,132 @@
+{
+    "arch": "x86_64",
+    "build": "h3f801dc_0",
+    "build_number": 0,
+    "build_string": "h3f801dc_0",
+    "channel": "conda-forge",
+    "constrains": [],
+    "depends": [
+        "__glibc >=2.17,<3.0.a0",
+        "libgcc >=13",
+        "libstdcxx >=13"
+    ],
+    "extracted_package_dir": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/simforge/pkgs/libaec-1.1.4-h3f801dc_0",
+    "files": [
+        "include/libaec.h",
+        "include/szlib.h",
+        "lib/cmake/libaec/libaec-config-version.cmake",
+        "lib/cmake/libaec/libaec-config.cmake",
+        "lib/cmake/libaec/libaec-targets-release.cmake",
+        "lib/cmake/libaec/libaec-targets.cmake",
+        "lib/libaec.so",
+        "lib/libaec.so.0",
+        "lib/libaec.so.0.1.4",
+        "lib/libsz.so",
+        "lib/libsz.so.2",
+        "lib/libsz.so.2.0.1"
+    ],
+    "fn": "libaec-1.1.4-h3f801dc_0.conda",
+    "license": "BSD-2-Clause",
+    "license_family": "BSD",
+    "link": {
+        "source": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/simforge/pkgs/libaec-1.1.4-h3f801dc_0",
+        "type": 1
+    },
+    "md5": "01ba04e414e47f95c03d6ddd81fd37be",
+    "name": "libaec",
+    "package_tarball_full_path": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/simforge/pkgs/libaec-1.1.4-h3f801dc_0.tar.bz2",
+    "paths_data": {
+        "paths": [
+            {
+                "_path": "include/libaec.h",
+                "path_type": "hardlink",
+                "sha256": "b0a605fd39e70dd907b8aa743866936ef57544502a4dfdee58e048cd4fabd04f",
+                "sha256_in_prefix": "b0a605fd39e70dd907b8aa743866936ef57544502a4dfdee58e048cd4fabd04f",
+                "size_in_bytes": 6629
+            },
+            {
+                "_path": "include/szlib.h",
+                "path_type": "hardlink",
+                "sha256": "70cd48f31444734c04a45f7f569f1494b5bddaa098035477ce5334eec678fb6d",
+                "sha256_in_prefix": "70cd48f31444734c04a45f7f569f1494b5bddaa098035477ce5334eec678fb6d",
+                "size_in_bytes": 2670
+            },
+            {
+                "_path": "lib/cmake/libaec/libaec-config-version.cmake",
+                "path_type": "hardlink",
+                "sha256": "eb0eaf46407c528dc76c9073e9bb48988287adb75154d133eb9d7548d3eadd03",
+                "sha256_in_prefix": "eb0eaf46407c528dc76c9073e9bb48988287adb75154d133eb9d7548d3eadd03",
+                "size_in_bytes": 2762
+            },
+            {
+                "_path": "lib/cmake/libaec/libaec-config.cmake",
+                "path_type": "hardlink",
+                "sha256": "9007091516e12932d6a6a41fbc5a4d9a5887f951bf78777285d51847ae2d4801",
+                "sha256_in_prefix": "9007091516e12932d6a6a41fbc5a4d9a5887f951bf78777285d51847ae2d4801",
+                "size_in_bytes": 4031
+            },
+            {
+                "_path": "lib/cmake/libaec/libaec-targets-release.cmake",
+                "path_type": "hardlink",
+                "sha256": "8b433bd4acf4608911e31de4b9bc17fa88a1bfad6492e6ceba2230ac14ea137d",
+                "sha256_in_prefix": "8b433bd4acf4608911e31de4b9bc17fa88a1bfad6492e6ceba2230ac14ea137d",
+                "size_in_bytes": 1336
+            },
+            {
+                "_path": "lib/cmake/libaec/libaec-targets.cmake",
+                "path_type": "hardlink",
+                "sha256": "b5b245923a6c939b8515af4007f8aeb9ce36f71f7bbeaa6a9ecaa88c9ccc5127",
+                "sha256_in_prefix": "b5b245923a6c939b8515af4007f8aeb9ce36f71f7bbeaa6a9ecaa88c9ccc5127",
+                "size_in_bytes": 5023
+            },
+            {
+                "_path": "lib/libaec.so",
+                "path_type": "softlink",
+                "sha256_in_prefix": "4eed729f4df497f1dc8d292931ba90bdf3d6eab65d5a2cffcab2f21d5e5437cd",
+                "size_in_bytes": 46928
+            },
+            {
+                "_path": "lib/libaec.so.0",
+                "path_type": "softlink",
+                "sha256_in_prefix": "4eed729f4df497f1dc8d292931ba90bdf3d6eab65d5a2cffcab2f21d5e5437cd",
+                "size_in_bytes": 46928
+            },
+            {
+                "_path": "lib/libaec.so.0.1.4",
+                "path_type": "hardlink",
+                "sha256": "4eed729f4df497f1dc8d292931ba90bdf3d6eab65d5a2cffcab2f21d5e5437cd",
+                "sha256_in_prefix": "4eed729f4df497f1dc8d292931ba90bdf3d6eab65d5a2cffcab2f21d5e5437cd",
+                "size_in_bytes": 46928
+            },
+            {
+                "_path": "lib/libsz.so",
+                "path_type": "softlink",
+                "sha256_in_prefix": "46d714620cdaf659b8843a69fc9da1e89033fe1a4caf63c899837f2f3451cd6e",
+                "size_in_bytes": 51240
+            },
+            {
+                "_path": "lib/libsz.so.2",
+                "path_type": "softlink",
+                "sha256_in_prefix": "46d714620cdaf659b8843a69fc9da1e89033fe1a4caf63c899837f2f3451cd6e",
+                "size_in_bytes": 51240
+            },
+            {
+                "_path": "lib/libsz.so.2.0.1",
+                "path_type": "hardlink",
+                "sha256": "46d714620cdaf659b8843a69fc9da1e89033fe1a4caf63c899837f2f3451cd6e",
+                "sha256_in_prefix": "46d714620cdaf659b8843a69fc9da1e89033fe1a4caf63c899837f2f3451cd6e",
+                "size_in_bytes": 51240
+            }
+        ],
+        "paths_version": 1
+    },
+    "platform": "linux",
+    "requested_spec": "",
+    "sha256": "410ab78fe89bc869d435de04c9ffa189598ac15bb0fe1ea8ace8fb1b860a2aa3",
+    "size": 36825,
+    "subdir": "linux-64",
+    "timestamp": 1749993532,
+    "track_features": "",
+    "url": "https://conda.anaconda.org/conda-forge/linux-64/libaec-1.1.4-h3f801dc_0.conda",
+    "version": "1.1.4"
+}

@@ -27,13 +27,11 @@
 git clone https://github.com/pixel-modelers/diffbragg_example.git
 cd diffbragg_example
 
-# Run the automated setup (steps 1-3)
-source setup_env.sh
-
+# The simtbx environment is pre-activated with all required packages
 # Continue with steps 4-7 below
 ```
 
-> **Note:** The environment pin installs torch==2.4.1+cu121 by default. Keep that version; upgrading torch or torchvision will reintroduce the CUDA runtime mismatch and break DiffBragg.
+> **Note:** The environment uses torch==2.4.1+cu121 by default. Keep that version; upgrading torch or torchvision will reintroduce the CUDA runtime mismatch and break DiffBragg.
 
 ## Detailed Setup Instructions
 
@@ -405,14 +403,10 @@ python -m dbex.look dbex_0000_0.h5
 ## Troubleshooting
 
 ### "No module named 'dbex'" or "No module named 'simtbx'"
-**Solution:** Activate the conda environment:
+**Solution:** The simtbx environment should already be activated. Verify with:
 ```bash
-export PATH=/path/to/diffbragg_example/simforge/envs/simtbx/bin:$PATH
-export CONDA_PREFIX=/path/to/diffbragg_example/simforge/envs/simtbx
-```
-Or use the provided environment script:
-```bash
-source setup_env.sh
+python -c "import simtbx; import dbex; print('Environment OK')"
+dbex_status  # Shows detailed package status
 ```
 
 ### "cmake: Compatibility with CMake < 3.5 has been removed"
@@ -449,21 +443,15 @@ python -m dbex.refine_one [...] 2>&1 | grep -E '(Iteration|Final|Average score)'
 
 ## Environment Management
 
-For convenience, source the provided environment setup script:
+The simtbx conda environment is pre-activated and includes all required packages:
+- simtbx (with diffBragg/nanoBragg)
+- dials
+- dbex
+- torch 2.4.1+cu121
+- nanobrag_torch 0.1.0
 
-```bash
-# From diffbragg_example/ directory
-source setup_env.sh
-
-# This will:
-# - Detect your simtbx installation
-# - Set PATH and CONDA_PREFIX
-# - Provide helper functions
-```
-
-The script provides these functions:
-- `dbex_activate` - Activate the simtbx environment
-- `dbex_status` - Check environment status
+Helper functions available in the environment:
+- `dbex_status` - Check environment status and package availability
 - `dbex_test` - Run verification tests
 
 ---

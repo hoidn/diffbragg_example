@@ -16,7 +16,7 @@
 - [x] **C2 — Artifact capture**: Emit diff heatmaps, per-ROI metrics, and trace logs, linking to manifest checksum; record artifact paths in pytest output to satisfy ledger cross-references (`docs/spec-db-tracing.md:10-24`).
 - [x] **C3 — Doc & ledger sync**: Update `docs/TESTING_GUIDE.md` §2 and `docs/development/TEST_SUITE_INDEX.md` with final selector status + environment flags; append Metrics/Artifacts lines in `docs/fix_plan.md`. Ensure `pytest --collect-only` logs archived (TESTING-003).
 
-## Phase D — Traceability Enhancements (Optional)
-- [ ] **D1 — First divergence capture**: Integrate trace hooks to record first-difference metrics per ROI when parity thresholds fail (`docs/spec-db-tracing.md:15-24`).  
-- [ ] **D2 — Findings updates**: Document durable lessons (e.g., manifest maintenance, parity thresholds) in `docs/findings.md` and link from testing docs.  
-- [ ] **D3 — Simulator upgrade readiness**: Outline TODOs for replacing stub tensors with `nanobrag_torch` once available, including threshold adjustments and new regression artifacts.
+## Phase D — Traceability Enhancements (Complete)
+- [x] **D1 — First divergence capture**: Integrate trace hooks to record first-difference metrics per ROI when parity thresholds fail (`docs/spec-db-tracing.md:15-24`).
+- [x] **D2 — Findings updates**: Document durable lessons (e.g., manifest maintenance, parity thresholds) in `docs/findings.md` and link from testing docs.
+- [x] **D3 — Simulator upgrade readiness**: Outline TODOs for replacing stub tensors with `nanobrag_torch` once available, including threshold adjustments and new regression artifacts.

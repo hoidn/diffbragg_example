@@ -545,3 +545,133 @@ def write_parity_artifacts(
         artifacts["target_npy"] = str(targ_path)
 
     return artifacts
+
+
+@dataclass
+class FirstDivergence:
+    """
+    First divergence metadata for parity debugging.
+
+    Per docs/spec-db-tracing.md:15-19, captures the first pixel/ROI where
+    predicted and target diverge beyond a threshold.
+
+    Attributes:
+        pixel_index: (slow, fast) index of first diverging pixel
+        predicted_value: Predicted intensity at divergence point
+        target_value: Target intensity at divergence point
+        abs_diff: Absolute difference at divergence point
+        rel_diff: Relative difference (abs_diff / target_value)
+        threshold: Threshold used to detect divergence
+        n_pixels_scanned: Number of pixels scanned before divergence
+    """
+    pixel_index: tuple
+    predicted_value: float
+    target_value: float
+    abs_diff: float
+    rel_diff: float
+    threshold: float
+    n_pixels_scanned: int
+
+    def to_dict(self) -> dict:
+        """Convert to JSON-serializable dict."""
+        return {
+            "pixel_index": [int(x) for x in self.pixel_index],
+            "predicted_value": float(self.predicted_value),
+            "target_value": float(self.target_value),
+            "abs_diff": float(self.abs_diff),
+            "rel_diff": float(self.rel_diff),
+            "threshold": float(self.threshold),
+            "n_pixels_scanned": int(self.n_pixels_scanned),
+        }
+
+
+def find_first_divergence(
+    predicted: np.ndarray,
+    target: np.ndarray,
+    loss_mask: Optional[np.ndarray] = None,
+    abs_threshold: float = 1e-6,
+    rel_threshold: float = 1e-4,
+) -> Optional[FirstDivergence]:
+    """
+    Find first pixel where predicted and target diverge.
+
+    Per docs/spec-db-tracing.md:15-19, first-divergence debugging requires
+    capturing the earliest mismatch point with metrics.
+
+    Scans pixels in row-major order ([slow, fast] for 2D arrays) and returns
+    metadata for the first pixel where:
+        abs(predicted - target) > abs_threshold OR
+        abs(predicted - target) / abs(target) > rel_threshold
+
+    Args:
+        predicted: Predicted tensor [slow, fast] float32
+        target: Target tensor [slow, fast] float32
+        loss_mask: Optional mask [slow, fast] bool (True = include)
+        abs_threshold: Absolute difference threshold (default 1e-6)
+        rel_threshold: Relative difference threshold (default 1e-4)
+
+    Returns:
+        FirstDivergence instance if divergence found, None if perfect match
+
+    Notes:
+        - Scans in row-major order for reproducibility
+        - Respects loss_mask (skips masked pixels)
+        - Returns None if no divergence found (perfect parity)
+    """
+    if predicted.shape != target.shape:
+        raise ValueError(
+            f"Shape mismatch: predicted {predicted.shape} != target {target.shape}"
+        )
+
+    # Flatten for scanning
+    pred_flat = predicted.flatten()
+    targ_flat = target.flatten()
+
+    # Apply loss mask if provided
+    if loss_mask is not None:
+        if loss_mask.shape != predicted.shape:
+            raise ValueError(
+                f"Mask shape {loss_mask.shape} != predicted shape {predicted.shape}"
+            )
+        mask_flat = loss_mask.flatten()
+    else:
+        mask_flat = np.ones(pred_flat.shape, dtype=bool)
+
+    # Scan for first divergence
+    n_pixels_scanned = 0
+    for i in range(len(pred_flat)):
+        # Skip masked pixels
+        if not mask_flat[i]:
+            continue
+
+        n_pixels_scanned += 1
+        pred_val = float(pred_flat[i])
+        targ_val = float(targ_flat[i])
+        abs_diff = abs(pred_val - targ_val)
+
+        # Check thresholds
+        abs_diverge = abs_diff > abs_threshold
+        rel_diverge = False
+        if abs(targ_val) > 1e-12:  # Avoid division by near-zero
+            rel_diff = abs_diff / abs(targ_val)
+            rel_diverge = rel_diff > rel_threshold
+        else:
+            rel_diff = np.inf if abs_diff > 0 else 0.0
+
+        if abs_diverge or rel_diverge:
+            # Found first divergence
+            # Convert flat index to (slow, fast)
+            pixel_index = np.unravel_index(i, predicted.shape)
+
+            return FirstDivergence(
+                pixel_index=pixel_index,
+                predicted_value=pred_val,
+                target_value=targ_val,
+                abs_diff=abs_diff,
+                rel_diff=rel_diff,
+                threshold=abs_threshold,  # Store abs threshold
+                n_pixels_scanned=n_pixels_scanned,
+            )
+
+    # No divergence found (perfect parity)
+    return None

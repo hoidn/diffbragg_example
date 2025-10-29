@@ -34,6 +34,8 @@ from tests.fixtures.parity_loader import (
     compute_parity_metrics,
     ParityMetrics,
     write_parity_artifacts,
+    find_first_divergence,
+    FirstDivergence,
 )
 
 
@@ -748,9 +750,18 @@ class TestDB_AT_001_Parity:
         if "manifest" in manifest_files:
             manifest_checksum = manifest_files["manifest"]["sha256"]
 
+        # Find first divergence (per docs/spec-db-tracing.md:15-19)
+        first_div = find_first_divergence(
+            predicted=predicted,
+            target=golden.target,
+            loss_mask=golden.loss_mask,
+            abs_threshold=1e-6,
+            rel_threshold=1e-4,
+        )
+
         # Write artifacts
         repo_root = Path(__file__).parent.parent.parent
-        artifact_dir = repo_root / "plans/active/PARITY-HARNESS-002/reports/2025-10-29T015235Z"
+        artifact_dir = repo_root / "plans/active/PARITY-HARNESS-002/reports/2025-10-29T020937Z"
 
         artifacts = write_parity_artifacts(
             artifact_dir=artifact_dir,
@@ -761,6 +772,16 @@ class TestDB_AT_001_Parity:
             metadata=golden.metadata
         )
 
+        # Write first divergence metadata to separate JSON file
+        # Per input.md:22-27, emit first_divergence.json for parity debugging
+        if first_div is not None:
+            import json
+            parity_dir = artifact_dir / "parity_harness"
+            first_div_path = parity_dir / "first_divergence.json"
+            with open(first_div_path, 'w') as f:
+                json.dump(first_div.to_dict(), f, indent=2)
+            artifacts["first_divergence_json"] = str(first_div_path)
+
         # Log metrics
         print(f"\n[DB-AT-001] Parity metrics computed")
         print(f"[DB-AT-001] Correlation: {metrics.correlation:.4f}")
@@ -769,6 +790,16 @@ class TestDB_AT_001_Parity:
         print(f"[DB-AT-001] Sum ratio: {metrics.sum_ratio:.4f}")
         print(f"[DB-AT-001] Localization: {metrics.localization:.2f}")
         print(f"[DB-AT-001] n_pixels: {metrics.n_pixels}")
+
+        # Log first divergence
+        if first_div is not None:
+            print(f"[DB-AT-001] First divergence: pixel {first_div.pixel_index}, "
+                  f"abs_diff={first_div.abs_diff:.2e}, "
+                  f"rel_diff={first_div.rel_diff:.2e}, "
+                  f"scanned={first_div.n_pixels_scanned}")
+        else:
+            print(f"[DB-AT-001] No divergence found (perfect parity)")
+
         print(f"[DB-AT-001] Artifacts: {len(artifacts)} files")
 
         # Conditional xfail for Phase B (synthetic data)

@@ -275,3 +275,12 @@ Notes
 - Next Actions: Follow Do Now (A2 catalog emission, A3 torch playbook, B1 manifest delta, D1 collect-only refresh) to unblock canonical capture prep.
 - Reality Check: Revalidated absence of canonical tensors and verified ROI bbox data availability before scheduling catalog emission.
 - <Action State>: [ready_for_implementation]
+## 2025-10-29T074614Z — NANOBRAG-GOLDEN-001 canonical capture prep
+- Focus: NANOBRAG-GOLDEN-001 — Replace fallback DB-AT-001 golden dataset
+- Action Type: planning
+- Key Observations: Fallback manifest still active (`simple_cubic_fallback`); patched simtbx build evidence exists but latest canonical_capture log retains `GPUassert` at diffBraggCUDA.cu:708; `nanobrag_torch` imports cleanly; ROI catalog (282 entries) + legacy ROI set (92) remain available for parity alignment; staged new report directory (2025-10-29T074423Z) with planning notes outlining DiffBragg retest + torch capture sequencing.
+- Artifact Path: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T074423Z/
+- Next Actions: Execute A2 DiffBragg rerun, A3 torch capture, then D1 parity/forward pytest per input.md.
+- Reality Check: Validated canonical tensors absent, confirmed torch dependency present, and rescoped plan to re-verify the DIFFBRAGG-001 fix before proceeding with torch capture and test/doc updates.
+- <Action State>: [planning]
+2025-10-29T074614Z focus=NANOBRAG-GOLDEN-001 state=planning dwell=1 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T074423Z/ next_action=run_A2_diffbragg_rerun

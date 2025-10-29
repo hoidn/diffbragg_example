@@ -1,19 +1,30 @@
 {
-  "dataset_name": "simple_cubic_fallback",
+  "dataset_name": "DB_AT_001_canonical",
   "files": {
-    "bragg": {
+    "bragg_diffbragg": {
       "dtype": "float32",
-      "filename": "bragg_panel_0.npy",
-      "sha256": "110abca6a4417e0ec577b8098ec0672e88b0fc32168d3f4572b1712016d13241",
+      "filename": "bragg_diffbragg.npy",
+      "sha256": "06fd77004f0201532e09f259e27eaaaf729aaf3af65ef030a6b6b48e28f91f85",
       "shape": [
+        1,
+        2527,
+        2463
+      ]
+    },
+    "bragg_torch": {
+      "dtype": "float32",
+      "filename": "bragg_torch.npy",
+      "sha256": "ca947669559af796afabc0c402e56b3cf5f863c8105414e21b2a99ffb7e35c62",
+      "shape": [
+        1,
         2527,
         2463
       ]
     },
     "loss_mask": {
-      "dtype": "bool",
+      "dtype": "uint8",
       "filename": "loss_mask_panel_0.npy",
-      "sha256": "9301d36f09eb6a155bab9f1115e4d8b429866003d272e8892db535965239db82",
+      "sha256": "7fa32126763f8808a265be078dd5585a13aa968e60c060aee813f88f33c6ee7b",
       "shape": [
         2527,
         2463
@@ -35,8 +46,8 @@
       ]
     }
   },
-  "generation_date": "2025-10-29T010131Z",
-  "provenance": "DBEX fallback generator (pending canonical nanoBragg2 data)",
-  "spec_reference": "docs/parity_harness_spec.md:28-41",
-  "version": "1.0.0"
+  "generation_date": "2025-10-29T082521Z",
+  "provenance": "Canonical DB_AT_001 dataset from refGeom via capture_forward.py (DiffBragg + nanobrag_torch)",
+  "spec_reference": "docs/spec-db-core.md:20-41",
+  "version": "1.1.0"
 }

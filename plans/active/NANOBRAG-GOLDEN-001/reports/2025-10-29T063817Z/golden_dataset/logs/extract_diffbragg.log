@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T063817Z/capture_diffbragg_only.py", line 48, in <module>
+    main()
+  File "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T063817Z/capture_diffbragg_only.py", line 21, in main
+    bragg = np.array(f["/bragg"][:], dtype=np.float32)
+  File "h5py/_objects.pyx", line 54, in h5py._objects.with_phil.wrapper
+  File "h5py/_objects.pyx", line 55, in h5py._objects.with_phil.wrapper
+  File "/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/h5py/_hl/group.py", line 362, in __getitem__
+    raise TypeError("Accessing a group is done with bytes or str, "
+TypeError: Accessing a group is done with bytes or str, not <class 'slice'>

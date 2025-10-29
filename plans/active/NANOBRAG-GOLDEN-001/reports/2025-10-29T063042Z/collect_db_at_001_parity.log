@@ -1,0 +1,16 @@
+tests/dbex/test_db_at_001_parity.py::TestManifestIntegrity::test_manifest_integrity
+tests/dbex/test_db_at_001_parity.py::TestManifestIntegrity::test_golden_data_sanity
+tests/dbex/test_db_at_001_parity.py::TestManifestIntegrity::test_pixel_pitch_guard
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_perfect_match
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_correlation_computation
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_error_metrics
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_sum_ratio
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_localization_metric
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_mask_application
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_edge_cases
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_to_dict_serialization
+tests/dbex/test_db_at_001_parity.py::TestArtifactEmission::test_artifact_emission
+tests/dbex/test_db_at_001_parity.py::TestArtifactEmission::test_artifact_emission_minimal
+tests/dbex/test_db_at_001_parity.py::TestDB_AT_001_Parity::test_db_at_001_parity_smoke
+
+14 tests collected in 0.23s

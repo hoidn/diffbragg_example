@@ -70,7 +70,7 @@ The testing strategy relies on a PyTorch-generated Golden Suite. For each case w
 2. **PyTorch Trace Log:** A step-by-step log for a representative pixel captured via `debug_config`.
 3. **Configuration Metadata:** JSON describing detector, beam, crystal, and sampling settings.
 
-All artifacts are versioned under `nanoBragg2/tests/golden_data/` alongside the test harness.
+All artifacts will be versioned under `nanoBragg2/tests/golden_data/` alongside the test harness once a reference parity dataset is finalized.
 
 ### 2.2 Trace Capture
 
@@ -78,14 +78,7 @@ Use the simulator `debug_config.trace_pixel` option (or the trace fixtures in `n
 
 ### 2.3 Golden Test Cases
 
-The following PyTorch-generated scenarios make up the Golden Suite. Each lives under `nanoBragg2/tests/golden_data/` with output, trace, and metadata files.
-
-| Test Case Name | Description | Purpose |
-| :--- | :--- | :--- |
-| `simple_cubic` | A 100Å cubic cell, single wavelength, no mosaicity, no oscillation. | Baseline geometry and spot calculation. |
-| `triclinic_P1` | A low-symmetry triclinic cell with misset orientation. | Stress-test reciprocal space and geometry calculations. |
-| `simple_cubic_mosaic` | The `simple_cubic` case with mosaic spread. | Validate mosaic domain implementation. |
-| `cubic_tilted_detector` | Cubic cell with rotated and tilted detector. | Validate general detector geometry. |
+The canonical PyTorch golden suite is pending. Populate this section with a table of sanctioned scenarios once the reference dataset (and any companion cases) are selected. Until then, record dataset gaps in `docs/fix_plan.md` and ensure parity selectors skip with a clear message.
 
 ### 2.4 Refreshing Golden Data
 
@@ -193,7 +186,7 @@ Before any parity run in a debugging loop:
 To prevent drift, CI should enforce the following fast gates on CPU:
 
 - Detector geometry visual parity: generate overlays comparing simulator output with the golden dataset and fail if any reported correlation drops below the documented thresholds (e.g., ≥0.999 for baseline/tilted unless otherwise specified). Save PNG and metrics JSON as artifacts.
-- Trace parity check: generate one golden trace and one PyTorch trace for the canonical pixel (`tests/golden_data/simple_cubic_pixel_trace.log` spec) and assert no first‑difference at the named checkpoints (e.g., pix0_vector, basis vectors, q, h,k,l, omega_pixel). Attach golden_trace.log/py_trace.log on failure.
+- Trace parity check: once a parity dataset is available, generate one golden trace and one PyTorch trace for a manifest-designated canonical pixel and assert no first‑difference at the named checkpoints (e.g., pix0_vector, basis vectors, q, h,k,l, omega_pixel). Attach golden_trace.log/py_trace.log on failure.
 
 Optional visual parity harness (sanity check): When a helper script exists to generate overlays, run it and archive the resulting PNGs and `metrics.json`.
 

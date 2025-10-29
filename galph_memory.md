@@ -401,3 +401,12 @@ Notes
 - Reality Check: Confirmed canonical assets absent and scale mismatch persists, so scope stays on checklist A3/B1/B3/C1 implementation for next loop.
 - <Action State>: [ready_for_implementation]
 2025-10-29T190533Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=14 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T190533Z/ next_action=execute_do_now_scale_fix_and_parity_refresh
+## 2025-10-29T191906Z — NANOBRAG-GOLDEN-001 manifest guard planning
+- Focus: NANOBRAG-GOLDEN-001 — Replace fallback DB-AT-001 golden dataset
+- Action Type: planning
+- Key Observations: Fixtures and `golden_dataset/` still miss all canonical `.npy` tensors; manifest points at `/home/ollie/Documents/diffbragg_example_2/...`, confirming last capture ran in a different checkout; logged MANIFEST-001 finding so generator must fail when payloads are absent.
+- Artifact Path: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T191906Z/
+- Next Actions: Add payload existence checks in `generate_simple_cubic_golden.py`, rerun canonical capture within this repo, and re-run DB_AT_001 parity selector archiving artifacts under 2025-10-29T191906Z.
+- Reality Check: Exit criteria A3/B1/B3/C1 remain unmet locally because canonical tensors are missing despite manifest timestamps.
+- <Action State>: [ready_for_implementation]
+2025-10-29T191906Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=15 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T191906Z/ next_action=add_generator_payload_guards_and_regenerate

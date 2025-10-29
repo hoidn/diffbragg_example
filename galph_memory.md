@@ -410,3 +410,12 @@ Notes
 - Reality Check: Exit criteria A3/B1/B3/C1 remain unmet locally because canonical tensors are missing despite manifest timestamps.
 - <Action State>: [ready_for_implementation]
 2025-10-29T191906Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=15 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T191906Z/ next_action=add_generator_payload_guards_and_regenerate
+## 2025-10-29T193557Z — NANOBRAG-GOLDEN-001 SCALE-002 planning refresh
+- Focus: NANOBRAG-GOLDEN-001 — Replace fallback DB-AT-001 golden dataset
+- Action Type: planning
+- Key Observations: `tests/fixtures/golden_data/simple_cubic/` still lacks `.npy` tensors (manifest/metadata only); latest canonical capture log points to `diffbragg_example_2` checkout; SCALE-002 finding requires √scale post-sim application and current script logs lack the diagnostic; spec shards (`docs/spec-db-core.md:16-33`, `docs/spec-db-conformance.md:23-26`, `docs/nanobrag_api.md:22-68`) confirm canonical tensors must be photon-scaled and provenance rich.
+- Artifact Path: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T193557Z/
+- Next Actions: Instrument √(spot_scale_override) diagnostics in `generate_simple_cubic_golden.py`, regenerate canonical tensors within this repo, and rerun DB_AT_001 parity capturing logs + scale ratios under the new report directory.
+- Reality Check: Validated canonical payloads missing locally and manifest paths stale, so scope remains scaling + local regeneration before tightening parity thresholds.
+- <Action State>: [ready_for_implementation]
+2025-10-29T193557Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=16 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T193557Z/ next_action=instrument_scale_regenerate_and_run_db_at_001

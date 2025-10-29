@@ -1,52 +1,63 @@
-**Summary**: Restore canonical DB-AT-001 tensors inside this checkout and harden the generator so manifest emission fails when payload files are missing.
+**Summary**: Apply SCALE-002 by fixing post-simulation scaling diagnostics and regenerating the canonical DB-AT-001 tensors inside this repo so parity evidence reflects local payloads.
 **Mode**: Parity
 **Focus**: NANOBRAG-GOLDEN-001 — Replace fallback DB-AT-001 golden dataset
 **Branch**: integration
 **Mapped tests**: KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py::TestDB_AT_001_Parity::test_db_at_001_parity_smoke
-**Artifacts**: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T191906Z/
+**Artifacts**: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T193557Z/
 
 **Do Now (hard validity contract)**
 - Focus Item: NANOBRAG-GOLDEN-001
-- Implement: scripts/generate_simple_cubic_golden.py::generate_simple_cubic_golden — add co-located tensor existence checks before manifest/copy steps and rerun capture so implementation.md A3/B1/B3/C1 stay satisfied in this workspace.
+- Implement: scripts/generate_simple_cubic_golden.py::generate_simple_cubic_golden — instrument √(spot_scale_override) diagnostics, ensure torch panels are scaled and copied into this checkout, and satisfy implementation.md checklists A3/B1/B3/C1.
 - Validate: KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py::TestDB_AT_001_Parity::test_db_at_001_parity_smoke
-- Artifacts: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T191906Z/
+- Artifacts: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T193557Z/
 
 **Priorities & Rationale**
-- docs/spec-db-core.md:20-41 — Canonical fixtures must persist `[panel, slow, fast]` tensors/masks locally to honor the core data contract.
-- docs/spec-db-conformance.md:22-26 — DB_AT_001 acceptance requires provenance-rich manifests and canonical tensors to enforce correlation/localization thresholds.
-- docs/forward_equivalence.md:46-52 — Parity loops must hit correlation ≥0.2 and ≥90% localization once real tensors are wired in, so we need reliable payloads before tightening thresholds.
-- docs/nanobrag_api.md:22-45 — Regeneration must keep the detector/beam conventions aligned when re-running the capture after code safeguards.
-- docs/spec-db-tracing.md:15-24 — First-divergence workflow depends on reproducible tensor artifacts; missing `.npy` files block tracing.
-- docs/findings.md (MANIFEST-001, SCALE-002) — Generator changes must enforce co-resident payloads and maintain post-sim √scale so regenerated tensors remain comparable to DiffBragg.
+- docs/spec-db-core.md:16-33 — Canonical fixtures must surface `[panel, slow, fast]` photon-intensity tensors locally, so scaling fixes and tensor copies are mandatory.
+- docs/spec-db-conformance.md:23-26 — DB_AT_001 parity requires provenance-rich manifolds plus canonical tensors before thresholds can pass.
+- docs/forward_equivalence.md:46-52 — Correlation ≥0.2 and ≥90% localization depend on torch intensities matching DiffBragg after √scale is applied.
+- docs/nanobrag_api.md:22-68 — Regeneration must align with torch beam/detector conventions when post-sim scaling is injected.
+- docs/findings.md:48-71 — MANIFEST-001 and SCALE-002 findings enforce local payload presence and √scale post-processing during capture.
 
 **How-To Map**
-1. export LOOP_TS=2025-10-29T191906Z
-2. export REPORT_DIR=plans/active/NANOBRAG-GOLDEN-001/reports/$LOOP_TS
+1. export LOOP_TS=2025-10-29T193557Z; export REPORT_DIR=plans/active/NANOBRAG-GOLDEN-001/reports/$LOOP_TS
+2. mkdir -p "$REPORT_DIR" "$REPORT_DIR/golden_dataset" "$REPORT_DIR/logs"
 3. export PYTHONPATH="../nanoBragg/src:$PYTHONPATH"
-4. KMP_DUPLICATE_LIB_OK=TRUE python scripts/generate_simple_cubic_golden.py --canonical-out "$REPORT_DIR/golden_dataset" --emit-manifest --fixtures tests/fixtures/golden_data/simple_cubic --hkldebug "$REPORT_DIR/torch_hkl_debug.json" | tee "$REPORT_DIR/canonical_capture.log"
-5. ls tests/fixtures/golden_data/simple_cubic/*.npy > "$REPORT_DIR/fixture_files.txt" and record sha256sum outputs into "$REPORT_DIR/tensor_checksums.txt"
-6. KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py::TestDB_AT_001_Parity::test_db_at_001_parity_smoke | tee "$REPORT_DIR/pytest_db_at_001.log"
-7. Copy parity artifacts (`parity_harness/*`, metrics, first_divergence) into "$REPORT_DIR/parity_harness/"
+4. KMP_DUPLICATE_LIB_OK=TRUE python scripts/generate_simple_cubic_golden.py --canonical-out "$REPORT_DIR/golden_dataset" --hkldebug "$REPORT_DIR/torch_hkl_debug.json" --emit-manifest --fixtures tests/fixtures/golden_data/simple_cubic | tee "$REPORT_DIR/canonical_capture.log"
+5. python - <<'PY' | tee "$REPORT_DIR/scale_diagnostics.txt"
+import numpy as np, json
+from pathlib import Path
+report = Path("$REPORT_DIR")
+diff = np.load(report/"golden_dataset"/"legacy"/"bragg_diffbragg.npy")
+torch = np.load(report/"golden_dataset"/"torch"/"bragg_torch.npy")
+ratio = float(torch.max() / diff.max()) if diff.max() else float('nan')
+print(f"torch_max={torch.max():.6e}")
+print(f"diff_max={diff.max():.6e}")
+print(f"max_ratio={ratio:.6e}")
+with open(report/"golden_dataset"/"torch"/"panel_metrics.json") as fh:
+    metrics = json.load(fh)
+print(f"panel_metrics[0]: torch_max={metrics[0]['torch_max']:.6e}, loss_mask_coverage={metrics[0]['loss_mask_coverage']:.6e}")
+PY
+6. ls tests/fixtures/golden_data/simple_cubic/*.npy > "$REPORT_DIR/fixture_files.txt" && sha256sum tests/fixtures/golden_data/simple_cubic/*.npy > "$REPORT_DIR/tensor_checksums.txt"
+7. KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py::TestDB_AT_001_Parity::test_db_at_001_parity_smoke | tee "$REPORT_DIR/pytest_db_at_001.log"
+8. tar -C tests/fixtures/parity_harness -cf "$REPORT_DIR/parity_harness_artifacts.tar" . && ls "$REPORT_DIR"
 
 **Pitfalls To Avoid**
-- Do not run the generator from a sibling checkout; stay in this repo so manifest paths and payloads align (MANIFEST-001).
-- Keep environment frozen — no package installs or rebuilds.
-- Ensure `np.save` writes succeed and verify `.npy` files exist before emitting manifest/metadata.
-- Preserve SCALE-001/SCALE-002 guarantees: structure factors remain unscaled, apply √(spot_scale_override) post simulation only.
-- Maintain HKL orientation (sample→source beam vector) when regenerating configs to avoid zero hit rates.
-- Always set `KMP_DUPLICATE_LIB_OK=TRUE` for DB_AT_001 parity runs per CONFORMANCE-001.
-- Archive torch_hkl_debug.json and parity metrics under the loop timestamp for tracing (PARITY-001).
-- Fail fast if fixtures lack `.npy` payloads after generation; do not let pytest proceed with synthetic fallbacks.
-- Keep loss mask dtype bool and confirm shapes before copying to fixtures.
-- Watch for leftover artifacts in older timestamp directories; ensure new evidence lives under `$REPORT_DIR`.
+- Environment: treat missing deps as blockers; log the error and mark the focus blocked (no installs).
+- Ensure generator runs from this checkout so manifest paths and tensors align (MANIFEST-001).
+- Keep structure factors unscaled and apply √(spot_scale_override) only after simulation (SCALE-001/002).
+- Confirm torch panels remain float32 and preserve `[panel, slow, fast]` ordering when stacking.
+- Verify loss masks stay boolean before copying; do not regress CONFIG-001 guard.
+- Capture scaling diagnostics before running pytest to avoid chasing parity noise without evidence.
+- Avoid overwriting previous artifacts; use the LOOP_TS path for all outputs.
+- Fail fast if torch/diff max ratio is off by >5% and record the mismatch in docs/fix_plan.md Attempts History.
 
 **If Blocked**
-- Capture the failing command and stderr into $REPORT_DIR/blocker.log, add the signature to docs/fix_plan.md Attempts History (Metrics/Artifacts placeholders), set focus status to `blocked`, and log the condition plus return criteria in galph_memory before pivoting.
+- Save failing command output to "$REPORT_DIR/blocker.log", append the signature plus return criteria to docs/fix_plan.md Attempts History (Metrics/Artifacts placeholders), set focus status to `blocked`, and log the block with next steps in galph_memory.md before pivoting.
 
 **Findings Applied (Mandatory)**
-- MANIFEST-001 — Co-locate tensor payloads with manifest; abort if `.npy` files are missing before checksum.
-- SCALE-002 — Reapply √(spot_scale_override) after simulation when regenerating tensors to match DiffBragg scale.
-- SCALE-001 — Leave structure factors unscaled so generator avoids double application of DiffBragg scale.
-- PARITY-001 — Emit parity metrics/first-divergence artifacts for reproducible tracing under the loop timestamp.
-- CONFORMANCE-001 — Use the documented DB_AT_001 selector with `KMP_DUPLICATE_LIB_OK=TRUE` and enforce provenance expectations.
-- TESTING-003 — Keep DB_AT_001 selector Active by archiving the new pytest log under $REPORT_DIR.
+- MANIFEST-001 — Generator must abort if fixtures lack co-resident tensors before manifest emission.
+- SCALE-001 — Prevent duplicate √scale application by leaving structure factors untouched.
+- SCALE-002 — Reapply √(spot_scale_override) post simulation so torch intensities match DiffBragg scale.
+- CONFIG-001 — Maintain detector/beam/mask conventions when regenerating canonical tensors.
+- PARITY-001 — Archive parity metrics and diagnostics for reproducible first-divergence tracing.
+- CONFORMANCE-001 — Use the documented DB_AT_001 selector with `KMP_DUPLICATE_LIB_OK=TRUE` when validating the regeneration.

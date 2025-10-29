@@ -1,0 +1,22 @@
+{
+  "dataset_name": "simple_cubic_canonical",
+  "generation_timestamp": "2025-10-29T19:28:06.341426Z",
+  "shape": {
+    "bragg": [
+      2527,
+      2463
+    ],
+    "n_panels": 1
+  },
+  "detector_config": {
+    "pixel_size_mm": 0.17200000000000001,
+    "spixels": 2527,
+    "fpixels": 2463
+  },
+  "provenance": {
+    "generator": "scripts/generate_simple_cubic_golden.py",
+    "experiment": "refGeom.expt",
+    "structure_factors": "scaled.mtz",
+    "branch": "integration"
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "specs": [
+    "docs/spec-db.md",
+    "docs/spec-db-core.md",
+    "docs/spec-db-runtime.md",
+    "docs/spec-db-workflow.md",
+    "docs/spec-db-interfaces.md",
+    "docs/spec-db-conformance.md",
+    "docs/spec-db-tracing.md",
+    "docs/spec_authoring_guide.md",
+    "docs/config_crosswalk.md",
+    "docs/dials_api.md",
+    "docs/dxtbx_api.md",
+    "docs/simtbx_api.md",
+    "docs/nanobrag_api.md"
+  ],
+  "architecture": "docs/architecture.md",
+  "developer_guide": "docs/development/testing_strategy.md",
+  "testing_guide": "docs/TESTING_GUIDE.md",
+  "test_index": "docs/development/TEST_SUITE_INDEX.md",
+  "debugging": [
+    "docs/spec-db-tracing.md",
+    "docs/debugging/TROUBLESHOOTING.md"
+  ],
+  "workflows": [
+    "docs/spec-db-workflow.md",
+    "docs/config_crosswalk.md"
+  ],
+  "plan_templates": [
+    "plans/templates/implementation_plan.md",
+    "plans/templates/phase_checklist.md"
+  ],
+  "orchestration_scripts": [
+    "scripts/orchestration/focus_check.py",
+    "scripts/orchestration/plan_lint.py",
+    "scripts/orchestration/check_input.py"
+  ],
+  "pytorch_development": [
+    "docs/architecture/pytorch_design.md",
+    "docs/development/c_to_pytorch_config_map.md",
+    "docs/development/testing_strategy.md",
+    "docs/pytorch_runtime_checklist.md"
+  ],
+  "forward_equivalence": "docs/forward_equivalence.md",
+  "findings": "docs/findings.md",
+  "ledger": "docs/fix_plan.md",
+  "agent_workflow": [
+    "CLAUDE.md",
+    "AGENTS.md"
+  ]
+}

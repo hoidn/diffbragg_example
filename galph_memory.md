@@ -338,3 +338,12 @@ Notes
 - Reality Check: Validated canonical dataset still missing non-zero torch tensors and that fallback manifest remains active; rescoped loop from reciprocal-vector debugging to reconnecting the pure function with the C reference while preserving Environment Freeze.
 - <Action State>: [ready_for_implementation]
 2025-10-29T095110Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=7 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T094859Z/ next_action=restore_real_space_projection_and_regenerate
+## 2025-10-29T100617Z — NANOBRAG-GOLDEN-001 incident-beam orientation plan
+- Focus: NANOBRAG-GOLDEN-001 — Replace fallback DB-AT-001 golden dataset
+- Action Type: planning
+- Key Observations: `canonical_capture.log` (2025-10-29T094859Z) logs `INCIDENT_BEAM_DIRECTION= 0 0 1` while the detector normal points toward the sample, proving the cached incident vector is sample→source; multi-source code already negates `source_directions`, so single-source defaults must follow suit. Logged HKL min/max remain `[18,48] / [14,53] / [23,61]` with 0% hit rate; added HKL-ORIENT-001 to docs/findings.md and recorded the plan in docs/fix_plan.md Attempts History.
+- Artifact Path: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T100617Z/
+- Next Actions: Negate the cached incident beam vector in `Simulator.__init__`, regenerate canonical tensors, confirm HKL stats within grid bounds, and rerun DB_AT_001 parity.
+- Reality Check: Verified canonical fixtures still point at fallback data and torch tensors remain all zeros; rescoped to focus on the incident-beam orientation fix before touching manifest/tests.
+- <Action State>: [ready_for_implementation]
+2025-10-29T100617Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=8 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T100617Z/ next_action=negate_incident_vector_and_regenerate

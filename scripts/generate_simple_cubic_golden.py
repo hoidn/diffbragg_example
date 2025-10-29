@@ -93,10 +93,29 @@ def to_native(obj):
         return obj
 
 
-def build_structure_factor_grid(indices, amplitudes, device):
-    """Build dense 3D HKL grid for nanobrag_torch from cctbx reflections."""
+def build_structure_factor_grid(indices, amplitudes, device, scale_override=None):
+    """Build dense 3D HKL grid for nanobrag_torch from cctbx reflections.
+
+    Args:
+        indices: Miller indices (h, k, l)
+        amplitudes: Structure factor amplitudes |F|
+        device: torch device
+        scale_override: DiffBragg spot_scale_override to apply to structure factors.
+                       Since intensity ∝ |F|², scale F by sqrt(scale_override) to
+                       match DiffBragg intensity scaling (per docs/config_crosswalk.md:71)
+    """
     hkls = np.asarray(indices, dtype=int)
     amps = np.abs(np.asarray(amplitudes, dtype=np.float32))
+
+    # CRITICAL FIX: Apply scale to structure factors
+    # DiffBragg multiplies final intensity by spot_scale_override
+    # nanobrag_torch has no scale parameter, so we scale F by sqrt(scale)
+    # since intensity ∝ |F|² → scale on F² equals spot_scale_override
+    if scale_override is not None and scale_override > 0:
+        scale_factor = np.sqrt(float(scale_override))
+        amps = amps * scale_factor
+        logger = logging.getLogger("canonical_capture")
+        logger.info(f"Scaling structure factors by sqrt(scale_override)={scale_factor:.3e}")
     h_min, h_max = hkls[:, 0].min(), hkls[:, 0].max()
     k_min, k_max = hkls[:, 1].min(), hkls[:, 1].max()
     l_min, l_max = hkls[:, 2].min(), hkls[:, 2].max()
@@ -415,7 +434,12 @@ def generate_simple_cubic_golden(output_dir: Path, hkl_debug_path: Path = None):
     )
 
     logger.info("Building structure factor grid...")
-    torch_grid, hkl_meta = build_structure_factor_grid(Fopt.indices(), Fopt.data().as_numpy_array(), device=device)
+    torch_grid, hkl_meta = build_structure_factor_grid(
+        Fopt.indices(),
+        Fopt.data().as_numpy_array(),
+        device=device,
+        scale_override=mdl_parm["scale"]  # CRITICAL: Apply DiffBragg scale to match intensity
+    )
     logger.info(f"HKL grid: {hkl_meta['n_in_range']}/{hkl_meta['n_reflections']} reflections in range ({hkl_meta['in_range_fraction']*100:.1f}%)")
     logger.info(f"HKL grid nonzero: {hkl_meta['grid_nonzero']}")
 

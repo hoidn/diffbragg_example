@@ -1,6 +1,6 @@
 # DBEX Fix Plan Ledger
 
-**Last Updated:** 2025-10-28
+**Last Updated:** 2025-10-29
 
 ## Working Agreements
 - Artifact policy: store loop outputs under a dedicated `plans/<initiative-id>/reports/<YYYY-MM-DDTHHMMSSZ>/` directory (or another documented location) and record the path in each Attempts History entry.
@@ -11,6 +11,19 @@
 ---
 
 ## Active Initiatives
+
+### [PARITY-HARNESS-002] Implement DB-AT parity harness tests
+- Depends on: TORCH-BRIDGE-001, FORWARD-EQUIV-001
+- Status: in_progress
+- Owner/Date: Unassigned / 2025-10-29
+- Exit Criteria:
+  1. Document DB-AT-001 golden dataset provenance, manifest schema, and checksum validation helpers per `docs/spec-db-conformance.md:23-26` and `docs/spec-db-core.md:20-58`, capturing FALLBACK handling when nanoBragg2 mirrors are absent.
+  2. Author reusable parity harness utilities (metrics, trace hooks, artifact writers) that compute correlation/RMSE/max|Δ|/sum_ratio and persist outputs under `plans/active/<initiative>/reports/<timestamp>/parity_harness/` as required by `docs/spec-db-tracing.md:18-72`.
+  3. Implement pytest selector `DB_AT_001` that exercises DiffBragg vs torch forward passes (no refinement), enforces median ROI correlation ≥0.2 and localization ≥90%, and xfails with diagnostics when thresholds are unmet, matching `docs/spec-db-conformance.md:23-26` and `docs/forward_equivalence.md:28-74`.
+  4. Synchronize `docs/TESTING_GUIDE.md` §2 and `docs/development/TEST_SUITE_INDEX.md` with selector status, environment requirements (`KMP_DUPLICATE_LIB_OK=TRUE`, `NANOBRAGG_DISABLE_COMPILE=1` when applicable), and cite artifact paths; ensure ledger Attempts History references collection logs (`docs/spec-db-conformance.md:25-26`, `docs/TESTING_GUIDE.md:52-78`).
+- Working Plan: plans/active/PARITY-HARNESS-002/implementation.md
+- Attempts History:
+  * 2025-10-29T010131Z — Completed Phase A (A1-A4) fallback golden dataset bootstrap: Inventoried missing nanoBragg2 mirror, generated synthetic simple cubic tensors under `tests/fixtures/golden_data/simple_cubic/` with manifest + SHA256 checksums, implemented `tests/fixtures/parity_loader.py` loader/validation helpers, and authored three DB_AT_001 manifest integrity tests plus smoke regression; reran smoke harness to confirm no regressions. Metrics: 3/3 DB_AT_001 manifest tests passed (1.07s, CPU), 3/3 smoke tests passed (1.82s, CPU), `manifest.json` SHA256=df88c7d20757f0900c2829d01ceb00fade96b68203bfbd00e4fcb1b5238ebf6d, selectors collect DB_AT_001=3 tests, smoke=3 tests. Artifacts: plans/active/PARITY-HARNESS-002/reports/2025-10-29T010131Z/{summary.md,notes_phase_a.md,pytest_DB_AT_001.log,collect_DB_AT_001.log,pytest_smoke.log,collect_smoke.log,checksums.txt}. First Divergence: n/a. Next Actions: Phase B metrics helper + artifact writers; Phase C parity thresholds pending simulator availability.
 
 ### [TORCH-BRIDGE-001] Bridge DataLoad to `nanobrag_torch`
 - Depends on: plans/nanobrag_integration_plan.md §Phase 1

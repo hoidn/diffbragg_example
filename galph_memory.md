@@ -152,3 +152,13 @@ Notes
 - <Action State>: [ready_for_implementation]
 
 2025-10-29T013411Z focus=FORWARD-EQUIV-001 state=ready_for_implementation dwell=1 artifacts=plans/active/FORWARD-EQUIV-001/reports/2025-10-29T013411Z/ next_action=execute_A1-A4_baseline_capture
+## 2025-10-29T015235Z — PARITY-HARNESS-002 planning restart
+- Focus: PARITY-HARNESS-002 — Implement DB-AT parity harness tests
+- Action Type: planning
+- Key Observations: Added missing fix-plan entry (status in_progress) and authored implementation checklist (A-D); confirmed dependencies TORCH-BRIDGE-001 and FORWARD-EQUIV-001 are done; existing DB_AT_001 manifest tests collect 3 passes but emit no metrics/artifacts beyond checksum logs; no parity metrics helper or traces exist yet, and torch simulator remains stubbed so future test must xfail while capturing diagnostics; planning notes stored under new reports timestamp with spec anchors (`docs/spec-db-conformance.md:23-26`, `docs/forward_equivalence.md:30-53`).
+- Artifact Path: plans/active/PARITY-HARNESS-002/reports/2025-10-29T015235Z/
+- Next Actions: Execute B1-B3 metrics harness build-out then sync docs per Do Now checklist.
+- Reality Check: Validated FALLBACK golden dataset checksum (`df88c7d2…`) matches recorded manifest, and confirmed spec thresholds still govern DB_AT_001; rescoped initiative from manifest-only coverage to metrics+artifact parity work with conditional xfail.
+- <Action State>: [planning]
+
+2025-10-29T015235Z focus=PARITY-HARNESS-002 state=planning dwell=1 artifacts=plans/active/PARITY-HARNESS-002/reports/2025-10-29T015235Z/ next_action=execute_B1-B3_metrics_harness

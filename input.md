@@ -1,42 +1,48 @@
-Summary: Prepare DB_AT_001 to compare DiffBragg vs torch forward passes and capture parity diagnostics.
+Summary: Advance DB_AT_001 parity harness from manifest-only coverage to metric-producing parity smoke with documented artifacts.
 Mode: Parity
-Focus: FORWARD-EQUIV-001 — Forward equivalence smoke validation
+Focus: PARITY-HARNESS-002 — Implement DB-AT parity harness tests
 Branch: integration
-Mapped tests: KMP_DUPLICATE_LIB_OK=TRUE python3 -m pytest -v tests -k DB_AT_001
-Artifacts: plans/active/FORWARD-EQUIV-001/reports/2025-10-29T013411Z/forward_equiv/
+Mapped tests: KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py -k DB_AT_001
+Artifacts: plans/active/PARITY-HARNESS-002/reports/2025-10-29T015235Z/
 Do Now:
-  1. FORWARD-EQUIV-001.A1 (plans/active/FORWARD-EQUIV-001/implementation.md) — Validate refGeom assets and golden parity dataset availability; log findings in reports/2025-10-29T013411Z/notes_planning.md; tests: none.
-  2. FORWARD-EQUIV-001.A2-A4 (plans/active/FORWARD-EQUIV-001/implementation.md) — Capture DiffBragg and torch baseline tensors/configs and establish forward_equiv/{legacy,torch} artifact layout; tests: none.
-  3. FORWARD-EQUIV-001.B1-B3 (plans/active/FORWARD-EQUIV-001/implementation.md) — Implement ROI metrics + xfail policy and persist metrics.json, roi_metrics.csv, overlays/traces; tests: KMP_DUPLICATE_LIB_OK=TRUE python3 -m pytest -v tests/dbex/test_forward_equivalence.py -k DB_AT_001.
-  4. FORWARD-EQUIV-001.C1-C3 (plans/active/FORWARD-EQUIV-001/implementation.md) — Sync selector docs, update spec references, and refresh ledger Metrics/Artifacts; tests: KMP_DUPLICATE_LIB_OK=TRUE python3 -m pytest --collect-only -q tests -k DB_AT_001.
+  1. PARITY-HARNESS-002.B1 (plans/active/PARITY-HARNESS-002/implementation.md) — Implement `compute_parity_metrics()` with correlation, RMSE, MSE, max|Δ|, sum ratio, and localization stats; add targeted unit coverage in `tests/dbex/test_db_at_001_parity.py`; tests: KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py -k parity_metrics.
+  2. PARITY-HARNESS-002.B2 (plans/active/PARITY-HARNESS-002/implementation.md) — Wire artifact writers that persist metrics JSON/CSV and overlay stubs under `parity_harness/`; ensure manifest checksum recorded; tests: KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py -k artifact_emission.
+  3. PARITY-HARNESS-002.B3 (plans/active/PARITY-HARNESS-002/implementation.md) — Extend fixtures to hydrate DiffBragg + torch forward tensors, seed RNG for determinism, and integrate metrics helper into DB_AT_001 parity test with conditional xfail; tests: KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py -k DB_AT_001.
+  4. PARITY-HARNESS-002.C3 (plans/active/PARITY-HARNESS-002/implementation.md) — Update docs/TESTING_GUIDE.md §2 and docs/development/TEST_SUITE_INDEX.md with revised selector scope, env vars, and artifact paths; refresh docs/fix_plan.md Metrics/Artifacts lines; tests: KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q tests -k DB_AT_001.
 Priorities & Rationale:
-- CONFORMANCE-001 (`docs/spec-db-conformance.md:18-33`) mandates DB_AT selectors capture parity metrics with KMP_DUPLICATE_LIB_OK=TRUE, so steps B/C focus on metric helpers, xfail policy, and documentation sync.
-- CONFIG-001 (`docs/config_crosswalk.md:15-95`) and DXTBX-001 (`dbex/nanobrag_bridge.py:120-399`) require us to reuse bridge hydrations for both DiffBragg and torch paths to ensure geometry consistency in Phase A/B helpers.
-- MASKING-001 (`docs/spec-db-workflow.md:24-29`) highlights sparse loss mask coverage, guiding B1 metric calculations to avoid treating low coverage as failure.
-- TESTING-003 (`docs/TESTING_GUIDE.md:56-68`) requires selector collection evidence; Do Now step 4 records collect-only logs and syncs docs.
-- docs/forward_equivalence.md:12-98 defines acceptance thresholds and artifact layout, informing the structure of A2-A4 and B2-B3 deliverables.
+- `docs/spec-db-conformance.md:23-26` (CONFORMANCE-001) requires DB_AT_001 to enforce correlation/localization thresholds with xfail diagnostics, motivating B1-B3 and step 4 doc sync.
+- `docs/forward_equivalence.md:30-53` defines ROI metrics and acceptance strategy we must mirror for parity harness metric helper and xfail behavior.
+- `docs/spec-db-core.md:20-40` (GEOMETRY-001) mandates `[panel, slow, fast]` ordering and square pixel guards that parity fixtures and metrics must respect.
+- `docs/spec-db-tracing.md:10-24` (DIAGNOSTICS-001) prescribes trace/artifact layout, guiding B2 artifact writers and doc updates.
+- `docs/TESTING_GUIDE.md:59-83` & `docs/development/TEST_SUITE_INDEX.md:5-23` (TESTING-003) require selector documentation and collect-only evidence once DB_AT_001 expands beyond manifest checks.
+- `docs/spec-db-workflow.md:24-29` (MASKING-001) confirms sparse loss mask coverage is expected, ensuring metrics interpretation doesn’t false-positive failures.
 How-To Map:
 - `export KMP_DUPLICATE_LIB_OK=TRUE`
-- `python3 -m pytest -v tests/dbex/test_forward_equivalence.py -k DB_AT_001`
-- `python3 -m pytest --collect-only -q tests -k DB_AT_001 > plans/active/FORWARD-EQUIV-001/reports/2025-10-29T013411Z/forward_equiv/collect_db_at_001.log`
-- `python3 -m pytest -v tests/dbex/test_db_at_001_parity.py > plans/active/FORWARD-EQUIV-001/reports/2025-10-29T013411Z/forward_equiv/pytest_db_at_001.log`
-- `python3 -m pytest -v tests/dbex/test_nanobrag_smoke.py > plans/active/FORWARD-EQUIV-001/reports/2025-10-29T013411Z/forward_equiv/pytest_smoke.log`
+- `pytest -v tests/dbex/test_db_at_001_parity.py -k parity_metrics | tee plans/active/PARITY-HARNESS-002/reports/2025-10-29T015235Z/pytest_parity_metrics.log`
+- `pytest -v tests/dbex/test_db_at_001_parity.py -k artifact_emission | tee plans/active/PARITY-HARNESS-002/reports/2025-10-29T015235Z/pytest_artifact_emission.log`
+- `pytest -v tests/dbex/test_db_at_001_parity.py -k DB_AT_001 | tee plans/active/PARITY-HARNESS-002/reports/2025-10-29T015235Z/pytest_db_at_001.log`
+- `pytest --collect-only -q tests -k DB_AT_001 | tee plans/active/PARITY-HARNESS-002/reports/2025-10-29T015235Z/collect_db_at_001.log`
+- `python scripts/generate_simple_cubic_golden.py --verify-manifest > plans/active/PARITY-HARNESS-002/reports/2025-10-29T015235Z/manifest_verify.log` (optional sanity before commits)
 Pitfalls To Avoid:
-- Forgetting to seed the torch stub RNG, leading to non-reproducible metrics.
-- Overwriting existing parity manifest tests; keep manifest integrity suite intact.
-- Failing to capture artifact paths in pytest output/logs for ledger references.
-- Letting DB_AT_001 fail hard when thresholds miss; enforce xfail with diagnostics.
-- Skipping collect-only evidence or doc sync, violating TESTING-003.
-- Neglecting KMP_DUPLICATE_LIB_OK=TRUE, causing OMP duplicate library crashes.
-- Writing artifacts outside `forward_equiv/`, breaking policy.
+- Skipping RNG seeding for torch stub, causing flaky metrics.
+- Writing artifacts outside `plans/active/PARITY-HARNESS-002/reports/.../parity_harness/`.
+- Forgetting to record manifest checksum alongside metric artifacts.
+- Allowing DB_AT_001 to hard fail instead of conditional xfail on stubbed simulator gaps.
+- Neglecting collect-only evidence before claiming selector Active status.
+- Missing `KMP_DUPLICATE_LIB_OK=TRUE`, triggering OMP duplicate library faults.
+- Omitting doc updates, leaving TESTING_GUIDE/TEST_SUITE_INDEX unsynchronized.
+- Overwriting existing manifest fixtures instead of extending them.
+- Ignoring square pixel/ordering guards when hydrating tensors.
+- Leaving metrics helper untested, reducing confidence in thresholds.
 If Blocked:
-- If DiffBragg forward capture fails, document error, downgrade status to blocked in docs/fix_plan.md, and log issue in attempts history before pivoting.
-- If refGeom assets absent, run README Step 5 to regenerate or record TODO in docs/fix_plan.md and galph_memory.md; pause further work until assets restored.
+- If torch forward tensor generation remains stubbed and blocks thresholds, log diagnostic reason, set docs/fix_plan.md status to `blocked`, and capture artifact evidence in reports/2025-10-29T015235Z/ before pivoting.
+- If golden dataset checksum mismatches, rerun generator to refresh manifest or document TODO + blocker in fix_plan Attempts History and galph_memory, then halt further steps.
 Findings Applied (Mandatory):
-- CONFORMANCE-001 — Plan enforces selector parity metrics and environment flag.
-- CONFIG-001 — Bridge hydration reused to ensure consistent geometry across backends.
-- MASKING-001 — Loss mask coverage expectations shape metric interpretation.
-- TESTING-003 — Collect-only evidence and doc sync explicitly scheduled.
+- CONFORMANCE-001 — Enforces DB_AT_001 selector thresholds with required env flags.
+- GEOMETRY-001 — Preserves detector geometry and pixel pitch guards through fixtures.
+- MASKING-001 — Interprets sparse loss mask coverage correctly in metric helper.
+- DIAGNOSTICS-001 — Captures diagnostics and artifact paths for parity runs.
+- TESTING-003 — Schedules collect-only evidence and documentation sync for selector changes.
 Doc Sync Plan (Mandatory):
-- Selector `DB_AT_001`: `KMP_DUPLICATE_LIB_OK=TRUE python3 -m pytest --collect-only -q tests -k DB_AT_001 > plans/active/FORWARD-EQUIV-001/reports/2025-10-29T013411Z/forward_equiv/collect_db_at_001.log`; update docs/TESTING_GUIDE.md §2 and docs/development/TEST_SUITE_INDEX.md entries with artifact path.
-- Smoke companion selector (nanobrag bridge): `KMP_DUPLICATE_LIB_OK=TRUE python3 -m pytest --collect-only -q tests/dbex/test_nanobrag_smoke.py > plans/active/FORWARD-EQUIV-001/reports/2025-10-29T013411Z/forward_equiv/collect_smoke.log`; cross-check docs already referencing selector stay accurate.
+- `KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q tests -k DB_AT_001 | tee plans/active/PARITY-HARNESS-002/reports/2025-10-29T015235Z/collect_db_at_001.log` — update docs/TESTING_GUIDE.md §2 parity row and docs/development/TEST_SUITE_INDEX.md Active tables with new scope & artifact link.
+- `KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q tests/dbex/test_db_at_001_parity.py -k parity_metrics | tee plans/active/PARITY-HARNESS-002/reports/2025-10-29T015235Z/collect_parity_metrics.log` — document new unit selector or mark as sub-checklist in docs/TESTING_GUIDE.md §2.1 and ensure TEST_SUITE_INDEX references the helper coverage.

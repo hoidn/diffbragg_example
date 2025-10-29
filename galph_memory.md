@@ -142,3 +142,13 @@ Notes
 - <Action State>: [ready_for_implementation]
 
 2025-10-29T010326Z focus=PARITY-HARNESS-002 state=ready_for_implementation dwell=1 artifacts=plans/active/PARITY-HARNESS-002/reports/2025-10-29T010131Z/ next_action=execute_A1-A4_fixture_bootstrap
+## 2025-10-29T013411Z — FORWARD-EQUIV-001 planning kickoff
+- Focus: FORWARD-EQUIV-001 — Forward equivalence smoke validation
+- Action Type: planning
+- Key Observations: TORCH-BRIDGE-001 and TORCH-CLI-003 artifacts verified; parity harness manifest tests already occupy DB_AT_001 but emit no forward metrics; golden dataset directory currently holds manifest/metadata only (no .npy arrays), so forward harness must regenerate or supply tensors before metrics can run; torch backend still stubbed with random peaks, so DB_AT_001 must xfail while capturing diagnostics.
+- Artifact Path: plans/active/FORWARD-EQUIV-001/reports/2025-10-29T013411Z/
+- Next Actions: Execute implementation.md Phase A-B checklist to capture DiffBragg/torch baselines, compute ROI metrics, and emit forward_equiv artifacts prior to doc sync.
+- Reality Check: Confirmed refGeom.expt/refl and scaled.mtz exist; noted absence of golden `.npy` tensors and planned RNG seeding + xfail policy to keep harness reproducible until real simulator lands; no rescope needed.
+- <Action State>: [ready_for_implementation]
+
+2025-10-29T013411Z focus=FORWARD-EQUIV-001 state=ready_for_implementation dwell=1 artifacts=plans/active/FORWARD-EQUIV-001/reports/2025-10-29T013411Z/ next_action=execute_A1-A4_baseline_capture

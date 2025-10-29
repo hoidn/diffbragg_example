@@ -79,15 +79,15 @@
 
 ### [FORWARD-EQUIV-001] Forward equivalence smoke validation
 - Depends on: TORCH-BRIDGE-001, TORCH-CLI-003
-- Status: pending
+- Status: in_progress
 - Owner/Date: Unassigned / 2025-10-29
 - Exit Criteria:
   1. Author a pytest selector (`DB_AT_001`) that runs both DiffBragg and torch forward passes (no refinement) on the same inputs and records ROI correlation + localization metrics per `plans/nanobrag_integration_plan.md` Phase 1 and `docs/forward_equivalence.md`.
   2. Emit human-readable overlays/metrics under `plans/active/<initiative>/reports/<timestamp>/forward_equiv/` (including optional trace logs) and document thresholds in `docs/TESTING_GUIDE.md` and `docs/development/TEST_SUITE_INDEX.md`.
   3. Update `docs/spec-db-conformance.md` and related prompts to point to the forward equivalence smoke test, noting diagnostic-only runs MAY xfail instead of failing hard.
-- Working Plan: _(pending)_
+- Working Plan: plans/active/FORWARD-EQUIV-001/implementation.md
 - Attempts History:
-  * _(pending)_
+  * 2025-10-29T013411Z — Supervisor planning kickoff: validated TORCH-BRIDGE-001 and TORCH-CLI-003 artifacts, reviewed parity harness status, drafted phased implementation plan, and captured planning notes outlining harness shape, metrics expectations, and stub-related risks. Metrics: pending. Artifacts: plans/active/FORWARD-EQUIV-001/reports/2025-10-29T013411Z/notes_planning.md.
 
 ### [FINDINGS-LEDGER-002] Extend knowledge base with torch experiment lessons
 - Depends on: TORCH-BRIDGE-001, TORCH-CLI-003

@@ -13,8 +13,8 @@
 ## Active Initiatives
 
 ### [NANOBRAG-GOLDEN-001] Replace fallback DB-AT-001 golden dataset
-- Depends on: TORCH-BRIDGE-001, FORWARD-EQUIV-001, PARITY-HARNESS-002, nanobrag_torch package availability, CUDA runtime compatibility
-- Status: blocked
+- Depends on: TORCH-BRIDGE-001, FORWARD-EQUIV-001, PARITY-HARNESS-002, simforge/simtbx environment availability, nanobrag_torch package availability, CUDA runtime compatibility
+- Status: in_progress
 - Owner/Date: Unassigned / 2025-10-29
 - Exit Criteria:
   1. Replace `tests/fixtures/golden_data/simple_cubic/` fallback tensors with a canonical nanoBragg2 baseline derived from the refGeom dataset; persist per-panel `bragg`, `target`, and `loss_mask` arrays aligned to `[panel, slow, fast]` contracts (`docs/spec-db-core.md:20-41`, `plans/nanobrag_integration_plan.md:32-73`).

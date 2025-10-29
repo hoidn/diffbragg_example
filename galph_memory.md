@@ -191,3 +191,12 @@ Notes
 - <Action State>: [ready_for_implementation]
 
 2025-10-29T023905Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=1 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T023547Z/ next_action=execute_A1-A3_canonical_capture
+## 2025-10-29T024902Z — NANOBRAG-GOLDEN-001 dependency unblock planning
+- Focus: NANOBRAG-GOLDEN-001 — Replace fallback DB-AT-001 golden dataset
+- Action Type: planning
+- Key Observations: Fallback manifest still reports `simple_cubic_fallback`; `python3 -c "import nanobrag_torch"` fails (ModuleNotFoundError) and base python lacks pip; no `simforge/` or `easyBragg/` directories present; updated fix_plan dependency list with explicit simforge requirement and returned status to in_progress; staged new report root `plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T024902Z/` for upcoming env logs.
+- Artifact Path: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T024902Z/
+- Next Actions: execute A1 env bootstrap + nanobrag_torch install, then rerun DiffBragg baseline per updated Do Now.
+- Reality Check: Validated that golden dataset exit criteria remain unmet (fallback tensors, missing torch backend) and rescoped loop toward restoring the simforge/simtbx toolchain before attempting canonical tensor generation.
+
+2025-10-29T024902Z focus=NANOBRAG-GOLDEN-001 state=planning dwell=1 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T024902Z/ next_action=execute_A1_env_bootstrap

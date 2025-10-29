@@ -1,44 +1,45 @@
-Summary: Replace the fallback simple_cubic tensors with a canonical nanoBragg2 DB-AT-001 golden dataset and prep the parity harness to enforce real thresholds.
+Summary: Unblock NANOBRAG-GOLDEN-001 by restoring the simforge/simtbx environment, acquiring nanobrag_torch, and recapturing the DiffBragg baseline evidence.
 Mode: Parity
 Focus: NANOBRAG-GOLDEN-001 — Replace fallback DB-AT-001 golden dataset
 Branch: integration
 Mapped tests: KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py -k DB_AT_001
-Artifacts: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T023547Z/{notes.md,golden_dataset/,collect_db_at_001.log}
+Artifacts: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T024902Z/{golden_dataset/env_bootstrap.log,golden_dataset/legacy/diffbragg_forward.log,collect_db_at_001.log}
 Do Now:
-  1. NANOBRAG-GOLDEN-001 A1 (plans/active/NANOBRAG-GOLDEN-001/implementation.md) — Validate nanobrag_torch availability and confirm refGeom inputs/structure-factor assets exist; capture import checks under the new reports directory. tests: none — environment validation only
-  2. NANOBRAG-GOLDEN-001 A2 (plans/active/NANOBRAG-GOLDEN-001/implementation.md) — Run the DiffBragg forward-only path to export `bragg_diffbragg.npy` plus config snapshots into `golden_dataset/legacy/`. tests: none — capture via CLI command and log output
-  3. NANOBRAG-GOLDEN-001 A3+B1 (plans/active/NANOBRAG-GOLDEN-001/implementation.md) — Extend `scripts/generate_simple_cubic_golden.py` to invoke nanobrag_torch, regenerate canonical tensors/manifest under `golden_dataset/torch/`, and update checksum metadata. tests: none — generator execution produces artifacts
-  4. NANOBRAG-GOLDEN-001 C1+C2 (plans/active/NANOBRAG-GOLDEN-001/implementation.md) — Swap DB_AT_001 parity harness to the canonical dataset, remove synthetic noise, and enforce correlation/localization thresholds while recording metrics + artifacts. tests: KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py -k DB_AT_001
-  5. NANOBRAG-GOLDEN-001 C3 (plans/active/NANOBRAG-GOLDEN-001/implementation.md) — Update docs/TESTING_GUIDE.md §2, docs/development/TEST_SUITE_INDEX.md, and docs/index.md with new artifact paths; capture collect-only evidence for the selector and stage ledger/doc updates. tests: KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q tests/dbex/test_db_at_001_parity.py -k DB_AT_001
+  1. NANOBRAG-GOLDEN-001 A1 (plans/active/NANOBRAG-GOLDEN-001/implementation.md) — Bootstrap or reactivate the simforge/simtbx environment per README.md:50-140, then source setup_env.sh to capture `dbex_status` output and python import checks in plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T024902Z/golden_dataset/env_bootstrap.log. tests: none — environment provisioning.
+  2. NANOBRAG-GOLDEN-001 A1 (plans/active/NANOBRAG-GOLDEN-001/implementation.md) — Install or vendor nanobrag_torch into the simtbx environment (clone/build nanoBragg2 per plans/nanobrag_integration_plan.md:23-54 or use an available wheel), verify `python -c "import nanobrag_torch, torch"` succeeds, and append version/device details to env_bootstrap.log. tests: none — dependency acquisition.
+  3. NANOBRAG-GOLDEN-001 A2 (plans/active/NANOBRAG-GOLDEN-001/implementation.md) — With the environment active, run `python -m dbex.refine_one --backend diffbragg ...` to export the legacy bragg tensor and configs into golden_dataset/legacy/, logging stdout/stderr to diffbragg_forward.log to confirm the CUDA runtime mismatch is resolved. tests: none — baseline capture.
+  4. NANOBRAG-GOLDEN-001 C3 (plans/active/NANOBRAG-GOLDEN-001/implementation.md) — Re-collect DB_AT_001 evidence via `KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q tests/dbex/test_db_at_001_parity.py -k DB_AT_001` and store the log at plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T024902Z/collect_db_at_001.log to keep selector docs synchronized (doc edits deferred until canonical tensors land). tests: KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q tests/dbex/test_db_at_001_parity.py -k DB_AT_001.
 Priorities & Rationale:
-- docs/spec-db-core.md:20-41 — Canonical tensors must honor `[panel, slow, fast]` ordering and detector geometry contracts during regeneration.
-- docs/spec-db-conformance.md:23-26 — DB_AT_001 thresholds drive the parity harness updates once real data replaces the fallback tensors.
-- docs/forward_equivalence.md:21-52 — Forward-only capture requirements define the DiffBragg/torch baseline artifacts and diagnostics to persist.
-- plans/nanobrag_integration_plan.md:23-88 — Bridge responsibilities and simulator invocation guidance scope the generator rewrite and config exports.
-- docs/TESTING_GUIDE.md:74-85 & docs/development/TEST_SUITE_INDEX.md:13-14 — Selector documentation must stay synchronized with the new artifact paths and evidence.
+- README.md:50-140 — Step 1 describes the required simforge/simtbx bootstrap that A1 must complete before canonical tensor capture.
+- setup_env.sh:40-108 — Activation script expects the simforge env; capturing dbex_status output documents readiness and failures.
+- plans/nanobrag_integration_plan.md:23-54 — Implementation roadmap requires nanobrag_torch install prior to bridge/tensor generation.
+- docs/spec-db-conformance.md:23-26 — DB_AT_001 thresholds necessitate a trustworthy DiffBragg baseline before swapping golden data.
+- docs/spec-db-core.md:20-41 — `[panel, slow, fast]` contracts demand validated simulator outputs, driving the DiffBragg rerun.
+- docs/TESTING_GUIDE.md:74-85 — Selector remains Active; collect-only evidence must stay current alongside environment changes.
 How-To Map:
-- Validate environment: python -c "import nanobrag_torch, torch; print('nanobrag_torch ok', torch.__version__)" | tee plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T023547Z/golden_dataset/env_check.log
-- Confirm inputs present: ls refGeom.expt refGeom.refl scaled.mtz 747_mask.pkl | tee -a plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T023547Z/golden_dataset/env_check.log
-- Capture DiffBragg baseline: python -m dbex.refine_one --backend diffbragg -e refGeom.expt -r refGeom.refl -i 0 -o plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T023547Z/golden_dataset/legacy/dbex_diffbragg.h5 -m 747_mask.pkl -z scaled.mtz | tee plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T023547Z/golden_dataset/legacy/diffbragg_forward.log
-- Generate canonical tensors (after script update): python scripts/generate_simple_cubic_golden.py --output plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T023547Z/golden_dataset/torch/ | tee plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T023547Z/golden_dataset/torch/generator.log
-- Run parity harness: KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py -k DB_AT_001 | tee plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T023547Z/pytest_db_at_001.log
-- Collect-only evidence: KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q tests/dbex/test_db_at_001_parity.py -k DB_AT_001 | tee plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T023547Z/collect_db_at_001.log
+- Detect platform and install Miniforge: `wget https://github.com/conda-forge/miniforge/releases/latest/download/$INSTALLER; bash $INSTALLER -b -u -p "$PWD/simforge"`.
+- Create simtbx env: `./simforge/bin/mamba create -n simtbx -c conda-forge cctbx-base libboost-devel libboost-python-devel dxtbx python=3.9 cmake -y`.
+- Build easyBragg + simtbx: `git clone --recurse-submodules https://github.com/pixel-modelers/easyBragg.git; cd easyBragg; export PATH=$PWD/../simforge/envs/simtbx/bin:$PATH; cmake -B build_ext -DCMAKE_POLICY_VERSION_MINIMUM=3.5 .; make -C build_ext -j4 install; python -m build; pip install dist/simtbx-0.1.tar.gz`.
+- Activate environment: `source ./setup_env.sh; dbex_status | tee plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T024902Z/golden_dataset/env_bootstrap.log`.
+- Install nanobrag_torch: `git clone https://github.com/pixel-modelers/nanoBragg2.git; cd nanoBragg2; pip install -e .`; verify with `python -c "import nanobrag_torch, torch; print(torch.__version__)" | tee -a .../env_bootstrap.log`.
+- Capture DiffBragg baseline: `python -m dbex.refine_one --backend diffbragg -e refGeom.expt -r refGeom.refl -i 0 -o plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T024902Z/golden_dataset/legacy/dbex_diffbragg.h5 -m 747_mask.pkl -z scaled.mtz |& tee plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T024902Z/golden_dataset/legacy/diffbragg_forward.log`.
+- Re-run collect-only: `KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q tests/dbex/test_db_at_001_parity.py -k DB_AT_001 | tee plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T024902Z/collect_db_at_001.log`.
 Pitfalls To Avoid:
-- Forgetting KMP_DUPLICATE_LIB_OK=TRUE before invoking pytest or nanobrag_torch-backed scripts.
-- Overwriting fallback tensors without archiving canonical outputs under the initiative reports directory.
-- Neglecting `[panel, slow, fast]` ordering or mask alignment when stitching per-panel tensors.
-- Leaving manifest checksums stale after regenerating `.npy` files.
-- Running torch simulator without validating structure-factor provenance (DiffBragg vs HKL grid).
-- Allowing large intermediate artifacts outside `plans/active/NANOBRAG-GOLDEN-001/reports/` (keep repo clean).
-- Removing parity xfail guards without ensuring thresholds actually pass or documenting a residual gap.
-- Failing to update docs/prompt map with the new canonical dataset reference.
+- Do not execute `setup_env.sh` with `bash`; it must be sourced to export PATH/CONDA_PREFIX.
+- Avoid running python commands before the simforge path precedes system python (`which python` should point into simforge/envs/simtbx/bin).
+- Keep all bootstrap logs under the 2025-10-29T024902Z report directory; don’t scatter artifacts elsewhere.
+- Ensure `KMP_DUPLICATE_LIB_OK=TRUE` is set before any pytest or torch imports to avoid OpenMP crashes.
+- Capture and append full tracebacks for any missing package or CUDA errors; don’t silently retry with system python.
+- Skip overwriting fallback tensors until canonical outputs exist; treat legacy data as read-only for now.
+- Confirm GPU toolkit compatibility (`nvidia-smi`, libcudart) before assuming DiffBragg errors are fixed.
+- Avoid mixing `pip` from the base OS with the simtbx environment to prevent dependency drift.
 If Blocked:
-- If nanobrag_torch import fails or simulator binaries are unavailable, capture the traceback in `golden_dataset/env_check.log`, mark NANOBRAG-GOLDEN-001 blocked in docs/fix_plan.md Attempts History with the failure reason, log the block in galph_memory, and coordinate on acquiring the dependency before proceeding.
+- Record the failure (command, stderr) in env_bootstrap.log or diffbragg_forward.log, update docs/fix_plan.md Attempts History with `Status: blocked` rationale, add the block to galph_memory, and hand back to supervisor once dependency acquisition is confirmed externally.
 Findings Applied (Mandatory):
-- CONFORMANCE-001 — Keeps DB_AT_001 selector thresholds and env flag aligned when swapping to canonical data.
-- CONFIG-001 — Ensures bridge-generated configs remain faithful during DiffBragg/nanobrag capture.
-- MASKING-001 — Interprets sparse loss mask coverage correctly when evaluating metrics.
-- PARITY-001 — Preserves deterministic first-divergence diagnostics alongside new canonical tensors.
-- TESTING-003 — Drives collect-only evidence and doc sync so selector status remains authoritative.
+- CONFORMANCE-001 — Keeps DB_AT_001 selector thresholds aligned by revalidating environment and test evidence before dataset changes.
+- CONFIG-001 — Honors the dxtbx→nanobrag mapping requirements by ensuring bridge dependencies load inside the simtbx env.
+- DIAGNOSTICS-001 — Restoring the torch backend and diagnostics stack enables required parity traces once tests rerun.
+- PARITY-001 — DiffBragg baseline capture plus collect-only evidence preserves first-divergence readiness for upcoming parity runs.
+- TESTING-003 — Collect-only log refresh maintains selector documentation fidelity alongside environment restoration.
 Doc Sync Plan (Mandatory):
-- DB_AT_001 selector (`tests/dbex/test_db_at_001_parity.py -k DB_AT_001`): run KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q tests/dbex/test_db_at_001_parity.py -k DB_AT_001, store the log at plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T023547Z/collect_db_at_001.log, then update docs/TESTING_GUIDE.md §2 and docs/development/TEST_SUITE_INDEX.md with the new artifact path.
+- DB_AT_001 parity harness — run `KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q tests/dbex/test_db_at_001_parity.py -k DB_AT_001` after the environment is restored; store the log at plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T024902Z/collect_db_at_001.log and reference it when updating docs/TESTING_GUIDE.md §2 and docs/development/TEST_SUITE_INDEX.md once canonical tensors are generated.

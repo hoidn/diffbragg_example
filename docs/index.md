@@ -5,7 +5,7 @@ This index provides a concise map of the project documentation and key code poin
 Status note
 - The `--backend` flag is implemented in `dbex.refine_one` to select between `diffbragg` (default, legacy) and `nanobrag` (PyTorch-based) backends.
 - Other Spec DB CLI flags (e.g., `--device`, `--adu-per-photon`, `--nabc`) target future nanobrag_torch features and are not yet implemented.
- - Environment Freeze: The runtime is pre-provisioned. Do not install/upgrade packages or modify CUDA/torch/toolchains inside agent loops. If an import fails, treat it as a blocker and record it in `docs/fix_plan.md`.
+ - Environment Freeze: The runtime is pre-provisioned. Do not install/upgrade packages or modify CUDA/torch/toolchains inside agent loops. **Exception**: Targeted bugfixes to locally available source code (e.g., `simtbx_project/`) are permitted when blocking critical paths; document all patches with diff files, rebuild steps, and update `docs/findings.md`. If an import fails, treat it as a blocker and record it in `docs/fix_plan.md`.
 
 ## Quick Start
 

@@ -209,3 +209,13 @@ Notes
 - Next Actions: Execute A1 diagnostics, install nanobrag_torch, rerun DiffBragg baseline, and prototype panel-0 nanobrag capture per new input.md Do Now.
 - Reality Check: Verified exit criteria unmet (fallback tensors still active, nanobrag_torch missing, DiffBragg command fails); rescoped loop toward environment restoration plus first canonical capture attempt before manifest work.
 - <Action State>: [planning]
+## 2025-10-29T040641Z — NANOBRAG-GOLDEN-001 environment recovery plan
+- Focus: NANOBRAG-GOLDEN-001 — Replace fallback DB-AT-001 golden dataset
+- Action Type: planning
+- Key Observations: `setup_env.sh` currently exits early because `simforge/` is missing, so no python/torch on PATH; prior env logs confirm torch 2.8.0+cu128 is still active instead of the pinned 2.4.1+cu121; `nanoBragg_torch` sources are absent locally; DiffBragg baseline artifacts (`bragg_diffbragg.npy`, metadata.txt) are still missing while the last run ends with `GPUassert: invalid argument diffBraggCUDA.cu:708`; `tests/fixtures/golden_data/simple_cubic/manifest.json` remains flagged `simple_cubic_fallback`.
+- Artifact Path: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T040641Z/
+- Next Actions: Execute A1 environment rebuild with pinned torch + editable nanobrag_torch, then A2 baseline capture (GPU + CPU fallback) followed by DB_AT_001 collect-only refresh.
+- Reality Check: Validated the fix-plan premise remains unmet—fallback tensors still live, nanobrag_torch missing, and DiffBragg baseline absent—so the work stays scoped to environment restoration and baseline capture before any manifest updates.
+- <Action State>: [ready_for_implementation]
+
+2025-10-29T040641Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=1 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T040641Z/ next_action=execute_A1-A2_env_baseline

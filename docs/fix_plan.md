@@ -119,6 +119,8 @@
 
 ## Backlog
 
+  * 2025-10-29T073200Z — DIFFBRAGG-001 remediation under POLICY-001: Applied guard patch to `diffBraggCUDA.cu`, added `<cassert>` to `diffuse_util.h`, rebuilt `simtbx_diffBragg_ext.so`, and confirmed CPU/GPU smoke runs succeed (diffBragg_forward no longer asserts). Metrics: 2/2 source patches applied, 1/1 CMake rebuild succeeded, 2/2 smoke tests (CPU/GPU) passed, 2/2 `.so` deployments (ext + site-packages) updated. Artifacts: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T063817Z/{rebuild_status.md,patch_progress.md,patch_documentation.md,environment_tag.txt,logs/diffBragg_forward_smoke.log}. First Divergence: n/a. Next Actions: Resume Phase A2/A3 canonical capture with patched DiffBragg; remain blocked on nanoBragg2 canonical dataset capture until nanobrag_torch workflow completed.
+
 ### [FORWARD-EQUIV-001] Forward equivalence smoke validation
 - Depends on: TORCH-BRIDGE-001, TORCH-CLI-003
 - Status: done

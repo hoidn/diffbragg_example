@@ -1,209 +1,77 @@
-# diffBraggCUDA.cu Line 708 Bugfix Patch
+# diffBragg Forward Crash – Patch & Rebuild Record
 
-**Date**: 2025-10-29
-**Reporter**: Ralph (NANOBRAG-GOLDEN-001 loop 2025-10-29T063817Z)
-**Finding**: DIFFBRAGG-001
+**Date**: 2025-10-29  
+**Loop**: NANOBRAG-GOLDEN-001 / 2025-10-29T063817Z  
+**Finding**: DIFFBRAGG-001 (Resolved)  
 **Policy**: POLICY-001 (Environment Freeze bugfix exception)
 
-## Problem
+---
 
-`diffBragg_forward` standalone forward pass crashes with `GPUassert: invalid argument` at `diffBraggCUDA.cu:708` on both CPU (devId=-1) and GPU (devId=0) modes.
+## 1. Problem Statement
+- `diffBragg_forward` crashed on both CPU (`device_Id=-1`) and GPU (`device_Id=0`) with `GPUassert: invalid argument diffBraggCUDA.cu:708`.
+- Root cause: `gpu_free_all()` unconditionally freed `cp.cu_sourceI_scale/grad`; double free or free-before-alloc corrupted CUDA cleanup.
 
-## Root Cause
+## 2. Patches Applied
+| Patch | File | Purpose | Artifact |
+| --- | --- | --- | --- |
+| `diffBraggCUDA_cu_line708_fix.patch` | `simtbx/diffBragg/src/diffBraggCUDA.cu` | Guard `cudaFree` calls with `cp.previous_nsource` and reset flag to prevent double freeing | `.../diffBraggCUDA_cu_line708_fix.patch` |
+| `diffuse_util_assert_include.patch` | `simtbx/diffBragg/src/diffuse_util.h` | Add `<cassert>` so NVCC recognises `assert` during rebuild | `.../diffuse_util_assert_include.patch` |
 
-Lines 708-709 in `gpu_free_all()` unconditionally call `cudaFree()` on `cp.cu_sourceI_scale` and `cp.cu_sourceI_grad` without checking if these pointers were ever allocated or already freed:
+Both patches live under `plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T063817Z/`.
 
-```cuda
-// BEFORE (buggy code):
-if (cp.Fhkl_grad_arrays_allocated){
-    gpuErr(cudaFree(cp.FhklLinear_ASUid));
-    gpuErr(cudaFree(cp.Fhkl_scale));
-    gpuErr(cudaFree(cp.Fhkl_scale_deriv));
-    cp.Fhkl_grad_arrays_allocated=false;
-}
-gpuErr(cudaFree(cp.cu_sourceI_scale));  // ← Line 708: UNCONDITIONAL FREE
-gpuErr(cudaFree(cp.cu_sourceI_grad));   // ← Line 709: UNCONDITIONAL FREE
-if (cp.grad_arrays_allocated){
-    gpuErr(cudaFree(cp.data_trusted));
-    ...
-}
+## 3. Rebuild Procedure
+Executed with the `simtbx` Conda environment active.
+
+```bash
+# Refresh CMake cache
+cmake -S /home/ollie/Documents/easyBragg \
+      -B /home/ollie/Documents/easyBragg/build_ext \
+      -DCMAKE_BUILD_TYPE=Release
+
+# Rebuild CUDA/C++ extension (clean to force new objects)
+cmake --build /home/ollie/Documents/easyBragg/build_ext \
+      --target simtbx_diffBragg_ext \
+      --clean-first -- -j$(nproc)
+
+# Deploy rebuilt shared library
+cp /home/ollie/Documents/easyBragg/build_ext/simtbx_diffBragg_ext.so \
+   /home/ollie/Documents/easyBragg/ext/simtbx_diffBragg_ext.so
+cp /home/ollie/Documents/easyBragg/build_ext/simtbx_diffBragg_ext.so \
+   /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/simtbx_diffBragg_ext.so
 ```
 
-### Allocation Pattern
+Build notes:
+- Initial attempt failed (`identifier "assert" is undefined`) until `<cassert>` was added to `diffuse_util.h`.
+- Final artifact hash: `1506a48bee414ffcec041083b1496a44`.
 
-These arrays are allocated in two places:
-
-1. **Dynamic reallocation** (lines 76-95): When `previous_nsource` changes
-2. **Initial allocation** (lines 122-130): When `!device_is_allocated`
-
-In both cases, `cp.previous_nsource` is set to `db_beam.number_of_sources` after allocation.
-
-### Why It Fails
-
-When `gpu_free_all()` is called:
-- If the arrays were never allocated (first call, no sources): `cudaFree()` on uninitialized pointers → assertion
-- If called multiple times: double-free → assertion
-
-## Fix
-
-Add conditional guard using `cp.previous_nsource != 0` as the allocation flag, matching the pattern used by other array groups:
-
-```cuda
-// AFTER (fixed code):
-if (cp.previous_nsource != 0) {
-    gpuErr(cudaFree(cp.cu_sourceI_scale));
-    gpuErr(cudaFree(cp.cu_sourceI_grad));
-    cp.previous_nsource = 0;
-}
+## 4. Verification
+```bash
+python plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T063817Z/logs/diffBragg_forward_smoke.log
 ```
+The captured script runs `diffBragg_forward` twice:
+- CPU path (`device_Id=-1`, `cuda=False`)
+- GPU path (`device_Id=0`, `cuda=True`)
 
-## Patch File
+Both complete without assertions. Importing `simtbx_diffBragg_ext` succeeds implicitly during the run.
 
-**Location**: `plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T063817Z/diffBraggCUDA_cu_line708_fix.patch`
+## 5. Environment Tag
+`environment_tag.txt` records the state tag: `simtbx-patched-diffBraggCUDA708`, timestamp, and artifact hash.
 
-**Apply command**:
+## 6. Follow-up Actions
+- `docs/findings.md` updated (DIFFBRAGG-001 → Resolved; references new patches and logs).
+- `rebuild_status.md` and `patch_progress.md` capture the command log and verification checklist.
+- Proceed with canonical capture tasks; the runtime now includes patched cleanup.
+
+## 7. Rollback
+To revert if needed:
 ```bash
 cd /home/ollie/Documents/easyBragg/simtbx_project
-patch -p1 < /home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T063817Z/diffBraggCUDA_cu_line708_fix.patch
+patch -R -p1 < .../diffBraggCUDA_cu_line708_fix.patch
+patch -R -p1 < .../diffuse_util_assert_include.patch
+
+cmake --build /home/ollie/Documents/easyBragg/build_ext --target simtbx_diffBragg_ext --clean-first -- -j$(nproc)
+cp build_ext/simtbx_diffBragg_ext.so ext/simtbx_diffBragg_ext.so
+cp build_ext/simtbx_diffBragg_ext.so $CONDA_PREFIX/lib/python3.9/site-packages/simtbx_diffBragg_ext.so
 ```
 
-**Verify**:
-```bash
-grep -A 5 "if (cp.Fhkl_grad_arrays_allocated)" simtbx/diffBragg/src/diffBraggCUDA.cu | tail -8
-```
-
-Expected output after patch:
-```cuda
-    if (cp.previous_nsource != 0) {
-        gpuErr(cudaFree(cp.cu_sourceI_scale));
-        gpuErr(cudaFree(cp.cu_sourceI_grad));
-        cp.previous_nsource = 0;
-    }
-```
-
-## Rebuild Steps
-
-### Prerequisites
-
-- CUDA Toolkit (nvcc compiler)
-- CMake >= 3.15
-- C++ compiler (g++/clang++)
-- Python 3.9 (simtbx environment active)
-
-### Build Commands
-
-```bash
-# Navigate to simtbx build directory
-cd /home/ollie/Documents/easyBragg/simtbx_project
-
-# If build directory exists, clean it
-if [ -d build ]; then
-    rm -rf build
-fi
-
-# Create fresh build directory
-mkdir build && cd build
-
-# Configure with CMake (adjust paths as needed)
-cmake .. \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_CUDA_ARCHITECTURES=86 \
-    -DPYTHON_EXECUTABLE=$(which python3)
-
-# Build (adjust -j flag based on CPU cores)
-make -j8
-
-# Install to conda environment
-make install
-```
-
-### Alternative: Build in-place
-
-If CMake is not available or simtbx uses a different build system:
-
-```bash
-cd /home/ollie/Documents/easyBragg/simtbx_project
-python setup.py build_ext --inplace
-```
-
-## Testing
-
-### Minimal test script
-
-```python
-import numpy as np
-from simtbx.modeling.forward_models import diffBragg_forward
-from dxtbx.model import ExperimentList
-
-# Load experiment
-el = ExperimentList.from_file("refGeom.expt", check_format=False)
-expt = el[0]
-
-# Minimal forward pass (should not crash)
-result = diffBragg_forward(
-    CRYSTAL=expt.crystal,
-    DETECTOR=expt.detector,
-    BEAM=expt.beam,
-    Famp=None,  # Will use default_F
-    energies=[12398.4],
-    fluxes=[1e12],
-    device_Id=0,
-    cuda=True,
-    default_F=100,
-    Ncells_abc=(10, 10, 10)
-)
-
-print(f"Success! Forward pass produced shape: {result.shape}")
-```
-
-**Expected**: No CUDA assertion, returns 3D array
-
-## Environment Tagging
-
-After successful rebuild and test:
-
-```bash
-# Create environment tag file
-cat > /home/ollie/miniconda3/envs/simtbx/.environment_patches << 'EOF'
-simtbx-patched-diffbraggCUDA708
-Date: 2025-10-29
-Patch: diffBraggCUDA_cu_line708_fix.patch
-Issue: DIFFBRAGG-001 - gpu_free_all unconditional cudaFree
-Source: /home/ollie/Documents/easyBragg/simtbx_project/simtbx/diffBragg/src/diffBraggCUDA.cu:708-709
-EOF
-```
-
-## Verification Checklist
-
-- [ ] Patch file created and saved
-- [ ] Patch applies cleanly (no conflicts)
-- [ ] Rebuild completes without errors
-- [ ] Extension loads in Python (`import simtbx_diffBragg_ext`)
-- [ ] Minimal forward pass test succeeds
-- [ ] Full canonical capture script succeeds
-- [ ] Environment tagged
-- [ ] DIFFBRAGG-001 finding updated with patch status
-
-## Rollback
-
-If the patch causes issues:
-
-```bash
-# Revert patch
-cd /home/ollie/Documents/easyBragg/simtbx_project
-patch -R -p1 < /path/to/diffBraggCUDA_cu_line708_fix.patch
-
-# Rebuild original version
-cd build && make clean && make -j8 && make install
-
-# Remove environment tag
-rm /home/ollie/miniconda3/envs/simtbx/.environment_patches
-```
-
-## References
-
-- **Finding**: DIFFBRAGG-001 (docs/findings.md:16)
-- **Policy**: POLICY-001 (docs/findings.md:15)
-- **Blocking issue**: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T063817Z/blocking_summary.md
-- **Source file**: /home/ollie/Documents/easyBragg/simtbx_project/simtbx/diffBragg/src/diffBraggCUDA.cu
-
+Remove or update `environment_tag.txt` accordingly.

@@ -57,7 +57,7 @@ Planning, review, and analysis. Do not make production code changes.
 2. Knowledge Base Review (Mandatory): Search `docs/findings.md` for IDs and keywords related to your focus. In `input.md` "Priorities & Rationale", list applicable Finding IDs and explicitly state how your plan adheres to them. If none apply, write "No relevant findings in the knowledge base".
 3. Ensure `docs/fix_plan.md` item metadata matches reality (Dependencies, Status, Artifacts path, Exit Criteria). Add or correct information as needed.
 4. Update `docs/findings.md` with any new durable lessons you discover during analysis.
-5. Test Registry Sync (Mandatory): Update `docs/TESTING_GUIDE.md` §2 and `docs/development/TEST_SUITE_INDEX.md` with any new or renamed tests/selectors from this loop. For each documented selector, run `pytest --collect-only` and save the logs under this loop’s artifacts directory. Do not mark an item `done` until both docs reflect reality and all selectors marked "Active" successfully collect (> 0 tests).
+5. Test Registry Sync (Mandatory): When a selector or its underlying dataset changes—or before first marking it Active—run `pytest --collect-only` for that selector, archive the log under this loop’s artifacts directory, and update `docs/TESTING_GUIDE.md` §2 plus `docs/development/TEST_SUITE_INDEX.md`. Do not mark an item `done` until the docs reflect reality and all selectors documented as "Active" have a collected (> 0 tests) log on record.
 
 <input.md requirements>
 Render `./input.md` each loop with the sections below (overwrite completely):

@@ -1,35 +1,39 @@
-Summary: Advance Phase B of PARITY-HARNESS-001 by drafting the DB-AT-001/002 harness spec and aligning the checklist with parity metrics requirements.
+Summary: Move PARITY-HARNESS-001 into Phase C by syncing parity harness guidance across testing docs and prompt sources.
 Mode: Docs
 Focus: PARITY-HARNESS-001 — Author DB-AT parity harness specs
 Branch: integration
 Mapped tests: KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q -k DB_AT_001; KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q -k DB_AT_002
-Artifacts: plans/active/PARITY-HARNESS-001/reports/2025-10-29T001027Z/
+Artifacts: plans/active/PARITY-HARNESS-001/reports/2025-10-29T002248Z/
 Do Now:
-1. PARITY-HARNESS-001 B1 — Draft docs/parity_harness_spec.md with normative DB-AT-001/002 datasets, env flags, metrics, and trace workflow (plans/active/PARITY-HARNESS-001/implementation.md §Phase B) — tests: KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q -k DB_AT_001
-2. PARITY-HARNESS-001 B2 — Update plans/active/PARITY-HARNESS-001/implementation.md Phase B checklist with sub-tasks tied to the new spec and artifact schema — tests: KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q -k DB_AT_002
-3. PARITY-HARNESS-001 B3 — Publish metrics/trace template and artifact layout snippet in docs/parity_harness_spec.md and capture copies under the report path — tests: none — evidence-only
+1. PARITY-HARNESS-001 C1 — Update docs/TESTING_GUIDE.md §2 and docs/development/TEST_SUITE_INDEX.md parity rows with harness metrics, env flags, and artifact requirements (plans/active/PARITY-HARNESS-001/implementation.md §Phase C) — tests: KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q -k DB_AT_001
+2. PARITY-HARNESS-001 C2 — Add docs/parity_harness_spec.md to docs/index.md and docs/prompt_sources_map.json so prompts surface the harness blueprint (plans/active/PARITY-HARNESS-001/implementation.md §Phase C) — tests: KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q -k DB_AT_002
+3. PARITY-HARNESS-001 C3 — Capture doc diff summary + pytest collect logs under the new report path and append Metrics/Artifacts lines in docs/fix_plan.md Attempts History (plans/active/PARITY-HARNESS-001/implementation.md §Phase C) — tests: none — evidence-only
 Priorities & Rationale:
-- docs/spec-db-conformance.md:10-28 mandates DB-AT-001/002 thresholds and commands, so the harness spec must codify datasets, metrics, and env guards.
-- docs/development/testing_strategy.md:168-180 requires standardized parity metrics and artifact-backed closure, guiding the metrics template deliverable.
-- docs/spec-db-tracing.md:10-19 prescribes the trace-first workflow we must embed in the harness blueprint.
-- docs/TESTING_GUIDE.md:58-67 lists DB_AT selectors that the spec must reference to keep guidance unified.
-- docs/development/TEST_SUITE_INDEX.md:7-13 expects selector metadata to mirror the guide; plan updates ensure future doc sync.
+- docs/parity_harness_spec.md:7 anchors the normative harness requirements we must propagate into downstream guidance.
+- docs/TESTING_GUIDE.md:61 still lists DB_AT_001/002 as planned without harness details; Phase C requires synchronizing these entries.
+- docs/development/TEST_SUITE_INDEX.md:17 mirrors the taxonomy and must advertise the same parity metadata to stay authoritative.
+- docs/index.md:137 currently omits the new harness spec, so readers cannot discover the blueprint without this update.
+- docs/spec-db-tracing.md:10 enforces the trace-first workflow that needs to be reflected in the updated documentation.
 How-To Map:
-- export ART=plans/active/PARITY-HARNESS-001/reports/2025-10-29T001027Z; mkdir -p "$ART/parity"
+- export ART=plans/active/PARITY-HARNESS-001/reports/2025-10-29T002248Z; mkdir -p "$ART"
 - KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q -k DB_AT_001 | tee "$ART/collect_DB_AT_001.log"
 - KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q -k DB_AT_002 | tee "$ART/collect_DB_AT_002.log"
-- Use $EDITOR docs/parity_harness_spec.md to author normative sections citing docs/spec-db-conformance.md, testing_strategy.md, TESTING_GUIDE.md, and spec-db-tracing.md
-- Update plans/active/PARITY-HARNESS-001/implementation.md Phase B checklist entries when B1-B3 deliverables land
-- Copy finalized metrics schema and trace checklist into "$ART/parity/metrics_template.json" and "$ART/parity/trace_requirements.md" for evidence
+- python -m json.tool docs/prompt_sources_map.json >/dev/null  # run after edits to validate JSON
+- git diff docs/TESTING_GUIDE.md docs/development/TEST_SUITE_INDEX.md docs/index.md docs/prompt_sources_map.json > "$ART/doc_diffs.log"
+- printf "Phase C doc sync summary\n" > "$ART/summary.md"  # expand with key updates before handoff
 Pitfalls To Avoid:
-- Skipping correlation ≥0.99 requirement or tolerances from specs when drafting the harness.
-- Forgetting determinism env flags (`CUDA_VISIBLE_DEVICES=''`, `TORCHDYNAMO_DISABLE=1`, `NANOBRAGG_DISABLE_COMPILE=1`) for DB-AT-002 guidance.
-- Assuming nanoBragg2 golden data exists locally without documenting verification steps.
-- Leaving docs/index.md or prompt_sources_map.json without hooks to the new spec once published.
-- Marking checklist items complete without artifacts in the report directory.
-- Omitting trace capture workflow mandated by spec-db-tracing.md in the spec draft.
-- Diverging metrics schema from proposed correlation/MSE/RMSE/max|Δ|/sum_ratio core fields.
-If Blocked: Document the blocker in plans/active/PARITY-HARNESS-001/reports/2025-10-29T001027Z/blockers.md, update docs/fix_plan.md Attempts History with the issue and `Status: blocked`, then pivot per dwell guard.
+- Do not mark DB_AT selectors Active while they still collect 0 tests.
+- Keep docs/TESTING_GUIDE.md and docs/development/TEST_SUITE_INDEX.md tables perfectly synchronized.
+- Preserve all environment guards (`KMP_DUPLICATE_LIB_OK`, `NANOBRAGG_DISABLE_COMPILE`, `CUDA_VISIBLE_DEVICES=''`) when updating guidance.
+- Maintain JSON validity in docs/prompt_sources_map.json (no trailing commas).
+- Reference docs/parity_harness_spec.md with correct relative paths in both index and prompt map.
+- Use the new artifact directory (2025-10-29T002248Z) for every log and summary; avoid mixing with earlier runs.
+- Capture pytest collect logs even though selectors remain planned (0 tests expected).
+- Avoid rewriting unrelated selectors or sections when editing documentation tables.
+If Blocked: Record the issue in plans/active/PARITY-HARNESS-001/reports/2025-10-29T002248Z/blockers.md, set the fix-plan item to `blocked` with rationale, log the block in galph_memory.md, and pivot focus per FSM dwell rules.
 Findings Applied (Mandatory):
-- CONFORMANCE-001 — Harness spec keeps DB-AT selectors and KMP_DUPLICATE_LIB_OK=TRUE canonical (docs/findings.md:7).
-- RUNTIME-001 — Determinism guidance reiterates NANOBRAGG_DISABLE_COMPILE=1 and related flags (docs/findings.md:6).
+- CONFORMANCE-001 — Plan keeps DB-AT selectors canonical and uses KMP_DUPLICATE_LIB_OK=TRUE in every command (docs/findings.md:7).
+- RUNTIME-001 — Determinism updates will reiterate NANOBRAGG_DISABLE_COMPILE=1 and related guards for DB-AT-002 (docs/findings.md:6).
+Doc Sync Plan (Mandatory):
+- DB_AT_001 — KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q -k DB_AT_001 (expected 0; keep Planned) → plans/active/PARITY-HARNESS-001/reports/2025-10-29T002248Z/collect_DB_AT_001.log
+- DB_AT_002 — KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only -q -k DB_AT_002 (expected 0; keep Planned) → plans/active/PARITY-HARNESS-001/reports/2025-10-29T002248Z/collect_DB_AT_002.log

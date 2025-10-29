@@ -99,3 +99,14 @@ Notes
 - <Action State>: [planning]
 
 2025-10-29T001132Z focus=PARITY-HARNESS-001 state=planning dwell=2 artifacts=plans/active/PARITY-HARNESS-001/reports/2025-10-29T001027Z/ next_action=execute_B1-B3_spec_draft
+
+## 2025-10-29T002248Z — PARITY-HARNESS-001 Phase C planning
+- Focus: PARITY-HARNESS-001 — Author DB-AT parity harness specs
+- Action Type: planning
+- Key Observations: Implementation plan now shows Phase B complete; docs/TESTING_GUIDE.md §2 and docs/development/TEST_SUITE_INDEX.md parity rows still lack harness metrics/env guards; docs/index.md and docs/prompt_sources_map.json do not reference docs/parity_harness_spec.md; selectors DB_AT_001/002 remain Planned with 0 collection (expected); exit criteria C1-C3 remain open.
+- Artifact Path: plans/active/PARITY-HARNESS-001/reports/2025-10-29T002248Z/
+- Next Actions: Execute C1-C3 doc sync checklist (update testing docs, index and prompt map, capture evidence, refresh fix-plan Attempts History).
+- Reality Check: Validated required docs exist but are out of sync with the newly published parity_harness_spec.md; no rescope needed because exit criteria 3-4 still unmet and dependencies remain satisfied.
+- <Action State>: [ready_for_implementation]
+
+2025-10-29T002248Z focus=PARITY-HARNESS-001 state=ready_for_implementation dwell=1 artifacts=plans/active/PARITY-HARNESS-001/reports/2025-10-29T002248Z/ next_action=execute_C1-C3_doc_sync

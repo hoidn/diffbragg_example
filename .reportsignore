@@ -1,0 +1,3 @@
+# Paths (relative) to exclude from watchdog report auto-commit.
+# Lines accept simple directory prefixes; comments start with '#'.
+simforge/

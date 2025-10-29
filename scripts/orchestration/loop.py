@@ -77,20 +77,24 @@ def main() -> int:
     ap.add_argument("--report-path-globs", type=str,
                     default=os.getenv("REPORT_PATH_GLOBS", ""),
                     help="Comma-separated glob allowlist for report auto-commit paths (default: none)")
-    ap.add_argument("--report-skip-prefixes", type=str,
-                    default=os.getenv("REPORT_SKIP_PREFIXES", "simforge"),
-                    help="Comma-separated path prefixes to skip entirely during report auto-commit (default: simforge)")
 
     args, unknown = ap.parse_known_args()
 
     log_path = _log_file("claudelog")
     report_path_globs = tuple(p.strip() for p in args.report_path_globs.split(',') if p.strip())
     logdir_prefix_parts = tuple(part for part in PurePath(args.logdir).parts if part not in {"", "."})
-    report_skip_prefixes = tuple(p.strip() for p in args.report_skip_prefixes.split(',') if p.strip())
-    skip_prefix_specs = tuple(
-        tuple(part for part in PurePath(prefix).parts if part not in {"", "."})
-        for prefix in report_skip_prefixes
-    )
+    skip_config_path = Path(os.getenv("REPORT_SKIP_CONFIG", ".reportsignore"))
+    skip_prefix_specs: tuple[tuple[str, ...], ...] = tuple()
+    if skip_config_path.exists():
+        specs: list[tuple[str, ...]] = []
+        for raw_line in skip_config_path.read_text(encoding="utf-8").splitlines():
+            line = raw_line.partition("#")[0].strip()
+            if not line:
+                continue
+            parts = tuple(part for part in PurePath(line).parts if part not in {"", "."})
+            if parts:
+                specs.append(parts)
+        skip_prefix_specs = tuple(specs)
 
     def _within(parts: tuple[str, ...], prefix: tuple[str, ...]) -> bool:
         return bool(prefix) and parts[:len(prefix)] == prefix

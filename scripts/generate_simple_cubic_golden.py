@@ -472,6 +472,11 @@ def generate_simple_cubic_golden(
     torch_panels = []
     panel_summaries = []
 
+    # Per SCALE-002: Apply √(spot_scale_override) as post-simulation global scale
+    # DiffBragg applies spot_scale_override internally; nanobrag_torch requires explicit scaling
+    post_sim_scale = float(np.sqrt(mdl_parm["scale"]))
+    logger.info(f"Post-simulation global scale factor: sqrt({mdl_parm['scale']:.6e}) = {post_sim_scale:.6e}")
+
     for panel_id, panel in enumerate(Expt.detector):
         det_stub = create_detector_config(panel, Expt.beam, inputs.trusted_mask[panel_id])
         mask_tensor = torch.tensor(inputs.trusted_mask[panel_id].astype(np.float32), device=device)
@@ -503,7 +508,12 @@ def generate_simple_cubic_golden(
                    f"max={raw_torch_output.max().item():.6e}, mean={raw_torch_output.mean().item():.6e}, "
                    f"nonzero={int((raw_torch_output != 0).sum().item())}")
 
-        torch_panel = raw_torch_output.detach().cpu().numpy().astype(np.float32)
+        # Per SCALE-002: Apply post-simulation global scale to match DiffBragg intensity units
+        scaled_torch_output = raw_torch_output * post_sim_scale
+        logger.info(f"Panel {panel_id} SCALED torch output: min={scaled_torch_output.min().item():.6e}, "
+                   f"max={scaled_torch_output.max().item():.6e}, mean={scaled_torch_output.mean().item():.6e}")
+
+        torch_panel = scaled_torch_output.detach().cpu().numpy().astype(np.float32)
         torch_panels.append(torch_panel)
 
         panel_summaries.append(

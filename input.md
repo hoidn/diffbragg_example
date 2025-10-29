@@ -1,40 +1,50 @@
-Summary: Restore the canonical DB_AT_001 capture so nanobrag_torch outputs non-zero panels by propagating the DiffBragg scale and verifying parity evidence lands in the current report root.
-Mode: Parity
-Focus: NANOBRAG-GOLDEN-001 — Replace fallback DB-AT-001 golden dataset
-Branch: integration
-Mapped tests: KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py -k DB_AT_001
-Artifacts: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T091339Z/{planning_notes.md,canonical_capture.log,torch_panel_metrics.json,pytest_db_at_001.log}
-Do Now:
-  - NANOBRAG-GOLDEN-001:
-    - Implement: scripts/generate_simple_cubic_golden.py::generate_simple_cubic_golden (A3) — log raw torch intensities, inject the DiffBragg global scale into the torch capture path, and ensure `.npy` tensors land in the 2025-10-29T091339Z/golden_dataset/ tree before copying to fixtures.
-    - Validate: KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py -k DB_AT_001
-    - Artifacts: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T091339Z/{canonical_capture.log,torch_panel_metrics.json,pytest_db_at_001.log}
-Priorities & Rationale:
-- docs/spec-db-core.md:20 — Canonical tensors must retain `[panel, slow, fast]` ordering and trusted mask polarity when we rewrite the generator.
-- docs/spec-db-conformance.md:23 — DB_AT_001 parity thresholds (corr ≥0.2, localization ≥0.9) require a physically scaled torch baseline before we switch fixtures.
-- docs/config_crosswalk.md:70 — Torch lacks `no_Nabc_scale`, so DiffBragg’s global scale has to be propagated during capture to avoid zero intensities.
-- docs/forward_equivalence.md:46 — Re-running capture must emit metrics that satisfy forward-equivalence smoke expectations before parity passes.
-- docs/TESTING_GUIDE.md:86 — DB_AT_001 selector remains Active; successful collect + run evidence is mandatory after regenerating tensors.
-How-To Map:
-- `report_root=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T091339Z`; ensure directory exists for new artifacts.
-- `CUDA_VISIBLE_DEVICES=0 KMP_DUPLICATE_LIB_OK=TRUE python scripts/generate_simple_cubic_golden.py --canonical-out "$report_root"/golden_dataset --hkldebug "$report_root"/torch_hkl_debug.json |& tee "$report_root"/canonical_capture.log`
-- Inspect raw simulator stats with `jq '.[] | {panel_id, torch_max, torch_sum}' "$report_root"/golden_dataset/torch/panel_metrics.json` to confirm non-zero panels.
-- Copy regenerated tensors into fixtures once non-zero: `cp "$report_root"/golden_dataset/torch/bragg_torch.npy tests/fixtures/golden_data/simple_cubic/bragg_torch.npy` (repeat for diffbragg, target, loss_mask) and refresh manifest checksums.
-- Run parity validation: `KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py -k DB_AT_001 |& tee "$report_root"/pytest_db_at_001.log`
-Pitfalls To Avoid:
-- Do not double-apply the global scale; multiply torch tensors exactly once before persistence.
-- Keep mask tensors float32 {0,1} to avoid boolean serialization issues in torch configs.
-- Ensure HKL metadata matches the refined bounds; off-by-one indices will zero panels again.
-- Don’t overwrite the fallback manifest until new SHA256 values are captured and logged.
-- Avoid running capture on CPU—the current nanobrag_torch build expects CUDA and may silently return zeros otherwise.
-- Preserve DiffBragg baseline copies when re-running; parity still compares against the legacy tensor.
-- Keep plan artifacts under the 2025-10-29T091339Z root so ledger references stay coherent.
-If Blocked:
-- If torch output stays zero after scaling, archive the new `canonical_capture.log`, snapshot raw tensor stats, mark focus `blocked` in docs/fix_plan.md with the error signature, and escalate via galph_memory plus Findings entry.
-- If pytest selector fails due to threshold gaps, preserve metrics, keep fallback fixtures intact, and log the regression before pivoting.
-Findings Applied (Mandatory):
-- CONFIG-001 — Geometry/config mapping constraints steer ROI/mask validation during capture.
-- DIFFBRAGG-001 — Confirms the DiffBragg baseline remains trustworthy before scaling torch outputs.
-- PARITY-001 — Requires deterministic ROI metrics and artifact emission when regenerating tensors.
-- MASKING-001 — Loss mask coverage expectations (~0.21%) inform sanity checks on regenerated data.
-- TESTING-003 — Forces collect/run evidence and documentation sync for the DB_AT_001 selector after fixture updates.
+**Summary**: Align nanobrag_torch Miller index math with reciprocal vectors so the torch forward baseline emits non-zero intensities for DB_AT_001.
+
+**Mode**: Parity
+
+**Focus**: NANOBRAG-GOLDEN-001 — Replace fallback DB-AT-001 golden dataset
+
+**Branch**: integration
+
+**Mapped tests**: KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_forward_equivalence_complete.py -k DB_AT_001
+
+**Artifacts**: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T092655Z/
+
+**Do Now**
+- NANOBRAG-GOLDEN-001:
+  - Implement: /home/ollie/Documents/nanoBragg/src/nanobrag_torch/simulator.py::compute_physics_for_position — swap to rotated reciprocal vectors (a*/b*/c*) when computing `h,k,l` and add bounded logging to capture in-range hit rates per panel.
+  - Validate: KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_forward_equivalence_complete.py -k DB_AT_001
+  - Artifacts: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T092655Z/
+
+**Priorities & Rationale**
+- Respect docs/architecture/parameter_trace_analysis.md:47 guidance that Miller indices use reciprocal vectors, eliminating the zero-output bug observed in 2025-10-29T091339Z/canonical_capture.log.
+- Keep structure-factor ingestion compliant with docs/spec-db-core.md:20-47 so canonical tensors align `[panel, slow, fast]` ordering when parity tests reload them.
+- Honor forward-equivalence thresholds from docs/forward_equivalence.md:30-58 to confirm parity metrics become meaningful once torch output is non-zero.
+- Preserve CONFIG-001 mapping guarantees (docs/config_crosswalk.md:15-72) while altering the simulator math so downstream fixtures stay valid.
+
+**How-To Map**
+- Edit /home/ollie/Documents/nanoBragg/src/nanobrag_torch/simulator.py near the `h = dot_product(...)` block to replace real-space rotations with cached reciprocal vectors and emit debug counters guarded by the existing logger.
+- Regenerate torch tensors by running `python scripts/generate_simple_cubic_golden.py --out plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T092655Z/golden_dataset` (Environment Freeze: reuse existing env inputs).
+- Archive updated capture logs and tensor artifacts under the loop directory before invoking pytest.
+- Run `KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_forward_equivalence_complete.py -k DB_AT_001` and store `--collect-only` + test logs alongside metrics.json in the artifacts directory.
+
+**Pitfalls To Avoid**
+- Do not touch package installs or rebuilds (Environment Freeze).
+- Keep structure-factor tensors on the same device/dtype as the simulator to avoid implicit CPU copies zeroing data.
+- Ensure logging stays bounded (<100 lines) to prevent canonical_capture.log bloat.
+- Reuse existing ROI masks; never invert trusted mask polarity (per CONFIG-001 / GEOMETRY-001).
+- Confirm steps multiplier stays non-zero when editing `_compute_physics_for_position` to avoid divide-by-zero after normalization.
+- Save a `.patch` capturing simulator changes in the artifact directory for reproducibility.
+- Avoid modifying DiffBragg baseline paths; only touch torch-side math this loop.
+- Watch for torch compile caches; keep `NANOBRAGG_DISABLE_COMPILE=1` unset unless debugging per RUNTIME-001.
+- Record new metric deltas (torch_max, roi coverage) in metrics.json before parity test.
+- Keep pytest to the mapped selector; no extra modules beyond evidence scope.
+
+**If Blocked**
+- If simulator changes still return all-zero frames, mark NANOBRAG-GOLDEN-001 as `blocked` in docs/fix_plan.md with the new log snippet, note the failing `torch_max=0` signature in docs/findings.md, and pivot to dependency analysis.
+
+**Findings Applied (Mandatory)**
+- CONFIG-001 — Maintain beam/geometry mapping consistency while adjusting Miller index math.
+- CONFORMANCE-001 — Validate against DB_AT_001 acceptance thresholds once torch outputs are non-zero.
+- PARITY-001 — Capture first-divergence style metrics in metrics.json to trace earliest mismatch after the fix.
+- TESTING-003 — Reconfirm the DB_AT_001 selector via pytest `--collect-only` and log the artifact in the loop directory.

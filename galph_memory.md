@@ -320,3 +320,12 @@ Notes
 - Reality Check: Verified canonical tensors absent in repo fixtures and confirmed parity selector remains gated by zero-output torch baseline; rescoped loop to focus on scale propagation instead of additional diagnostics.
 - <Action State>: [planning]
 2025-10-29T091339Z focus=NANOBRAG-GOLDEN-001 state=planning dwell=5 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T091339Z/ next_action=ready_for_implementation
+## 2025-10-29T093203Z — NANOBRAG-GOLDEN-001 reciprocal index plan
+- Focus: NANOBRAG-GOLDEN-001 — Replace fallback DB-AT-001 golden dataset
+- Action Type: planning
+- Key Observations: docs/architecture/parameter_trace_analysis.md:47 confirms Miller indices must use rotated reciprocal vectors; 2025-10-29T091339Z canonical_capture.log shows `_compute_physics_for_position` still using real-space axes, explaining torch_max=0.0 despite scaled structure factors; staged new loop directory 2025-10-29T092655Z with placeholder artifacts.
+- Artifact Path: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T092655Z/
+- Next Actions: Patch nanobrag_torch.simulator.compute_physics_for_position to use rot_*_star, regenerate canonical capture via scripts/generate_simple_cubic_golden.py into the new directory, then rerun DB_AT_001 forward-equivalence pytest with updated tensors.
+- Reality Check: Verified canonical tensors remain missing and fallback manifest still active; replayed spec anchors (docs/spec-db-core.md, docs/forward_equivalence.md) to confirm non-zero torch panels are required before manifest swap.
+- <Action State>: [ready_for_implementation]
+2025-10-29T093203Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=6 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T092655Z/ next_action=swap_reciprocal_vectors_and_rerun_db_at_001

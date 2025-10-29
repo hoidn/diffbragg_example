@@ -73,8 +73,30 @@
 ---
 
 ## Backlog
-- Populate parity harness specs from `docs/spec-db-conformance.md` once torch backend stabilizes.
-- Extend Findings ledger with lessons from `reports/` once torch experiments begin.
+
+### [PARITY-HARNESS-001] Author DB-AT parity harness specs
+- Depends on: TORCH-BRIDGE-001, TORCH-CLI-003
+- Status: in_progress
+- Owner/Date: Unassigned / 2025-10-28
+- Exit Criteria:
+  1. Draft normative harness specs for DB-AT-001 and DB-AT-002 covering datasets, metrics, and tolerance targets in `docs/spec-db-conformance.md` (§Conformance Profiles, `docs/spec-db-conformance.md:10-36`), promoting placeholders to actionable checklists.
+  2. Publish a supporting blueprint under `plans/active/PARITY-HARNESS-001/implementation.md` with phased tasks for authoring tests and capturing parity metrics per `docs/development/testing_strategy.md:1-120`.
+  3. Sync `docs/TESTING_GUIDE.md` §2 and `docs/development/TEST_SUITE_INDEX.md` entries so selectors `DB_AT_001` and `DB_AT_002` include command scaffolds, required environment flags, and artifact expectations (referencing `docs/spec-db-tracing.md:15-60` for metric capture).
+  4. Update `docs/index.md` and `docs/prompt_sources_map.json` to reference the finalized parity harness spec and blueprint.
+- Attempts History:
+  * 2025-10-29T000004Z — Supervisor planning kickoff; converted backlog note into structured initiative, created implementation plan with Phase A-C checklist, and drafted audit-focused Do Now covering DB-AT-001/002 evidence collection. Metrics: pending. Artifacts: plans/active/PARITY-HARNESS-001/reports/2025-10-29T000004Z/.
+
+### [FINDINGS-LEDGER-002] Extend knowledge base with torch experiment lessons
+- Depends on: TORCH-BRIDGE-001, TORCH-CLI-003
+- Status: pending
+- Owner/Date: Unassigned / 2025-10-28
+- Exit Criteria:
+  1. Review artifacts under `plans/active/TORCH-BRIDGE-001/reports/` and `plans/active/TORCH-CLI-003/reports/` to extract durable lessons spanning geometry, runtime, and CLI diagnostics (see `docs/spec-db-tracing.md:10-72`).
+  2. Add at least three new entries to `docs/findings.md`, each with ID, tags, summary, spec/code source (e.g., `docs/spec-db-core.md`, `dbex/refine_one.py`), and status per ledger format (`docs/index.md:70-90`).
+  3. Cross-link new findings within relevant docs (e.g., `docs/TESTING_GUIDE.md`, `docs/architecture.md`) where the lessons inform workflows, ensuring references appear in `docs/prompt_sources_map.json`.
+  4. Capture evidence summary (`summary.md`) under `plans/active/FINDINGS-LEDGER-002/reports/<timestamp>/` documenting reviewed artifacts and resulting ledger updates.
+- Attempts History:
+  * pending — Metrics: pending. Artifacts: pending.
 ### [DOC-RUNTIME-004] Restore `docs/pytorch_runtime_checklist.md`
 - Depends on: none
 - Status: done

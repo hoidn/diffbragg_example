@@ -1,0 +1,4 @@
+torch_max=3.896027e+04
+diff_max=3.619517e+04
+max_ratio=1.076394e+00
+panel_metrics[0]: torch_scaled_max=3.896027e+04, post_sim_scale_factor=5.643742e+08, loss_mask_coverage=2.102506e-03

@@ -520,8 +520,11 @@ def generate_simple_cubic_golden(
             {
                 "panel_id": int(panel_id),
                 "shape": torch_panel.shape,
-                "torch_max": float(torch_panel.max()),
-                "torch_sum": float(torch_panel.sum()),
+                "torch_raw_max": float(raw_torch_output.max().item()),
+                "torch_raw_sum": float(raw_torch_output.sum().item()),
+                "torch_scaled_max": float(torch_panel.max()),
+                "torch_scaled_sum": float(torch_panel.sum()),
+                "post_sim_scale_factor": float(post_sim_scale),
                 "loss_mask_coverage": float(np.mean(inputs.loss_mask[panel_id])),
             }
         )
@@ -575,6 +578,8 @@ def generate_simple_cubic_golden(
             "mosaic_spread_deg": float(crystal_cfg.mosaic_spread_deg),
             "N_cells": list(map(int, crystal_cfg.N_cells)),
             "scale_override": float(mdl_parm["scale"]),
+            "post_sim_scale_factor": float(post_sim_scale),
+            "scale_factor_source": "sqrt(scale_override) per SCALE-002",
         },
         "structure_factors": hkl_meta,
         "panel_configs": panel_results,

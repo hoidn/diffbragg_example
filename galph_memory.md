@@ -284,3 +284,12 @@ Notes
 - Reality Check: Validated canonical tensors absent, confirmed torch dependency present, and rescoped plan to re-verify the DIFFBRAGG-001 fix before proceeding with torch capture and test/doc updates.
 - <Action State>: [planning]
 2025-10-29T074614Z focus=NANOBRAG-GOLDEN-001 state=planning dwell=1 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T074423Z/ next_action=run_A2_diffbragg_rerun
+2025-10-29T080253Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=2 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T080253Z/ next_action=execute_A1_A2_A3
+## 2025-10-29T080253Z — NANOBRAG-GOLDEN-001 canonical capture plan refresh
+- Focus: NANOBRAG-GOLDEN-001 — Replace fallback DB-AT-001 golden dataset
+- Action Type: planning
+- Key Observations: `nanobrag_torch` now imports successfully inside the frozen simtbx env (`python -c "import nanobrag_torch"`); ROI catalog/playbook artifacts from 2025-10-29T075930Z remain intact; capture_forward.py covers DiffBragg + torch outputs so a single run can satisfy A2+A3 once environment evidence is recorded.
+- Artifact Path: plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T080253Z/
+- Next Actions: Execute input.md (2025-10-29T080253Z) Do Now checklist—log env evidence (A1), run capture_forward.py for canonical tensors (A2+A3), and archive metrics plus DB_AT_001 collect-only logs with doc updates (D1).
+- Reality Check: Validated the previous blocker (nanobrag_torch missing) is cleared and rescoped the focus from docs-only prep to ready-for-execution canonical capture while keeping Environment Freeze constraints explicit.
+- <Action State>: [ready_for_implementation]

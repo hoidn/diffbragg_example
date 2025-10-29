@@ -657,15 +657,31 @@ def generate_simple_cubic_golden(
             tensor_files.append((f"target_panel_{panel_id}", torch_dir / f"target_panel_{panel_id}.npy"))
             tensor_files.append((f"loss_mask_panel_{panel_id}", torch_dir / f"loss_mask_panel_{panel_id}.npy"))
 
+        # === MANIFEST-001: Validate all tensor files exist before manifest emission ===
+        missing_files = []
         for key, file_path in tensor_files:
-            if file_path.exists():
-                sha256 = compute_sha256(file_path)
-                manifest_data["files"][key] = {
-                    "filename": file_path.name,
-                    "sha256": sha256,
-                    "size_bytes": int(file_path.stat().st_size),
-                }
-                logger.info(f"  {file_path.name}: {sha256[:16]}...")
+            if not file_path.exists():
+                missing_files.append(str(file_path))
+
+        if missing_files:
+            logger.error("MANIFEST-001 violation: Cannot emit manifest - missing tensor payload files:")
+            for missing in missing_files:
+                logger.error(f"  Missing: {missing}")
+            raise FileNotFoundError(
+                f"Manifest emission requires all tensor files to exist. "
+                f"Missing {len(missing_files)} file(s). "
+                f"See docs/findings.md MANIFEST-001."
+            )
+
+        # All files exist - proceed with checksum computation
+        for key, file_path in tensor_files:
+            sha256 = compute_sha256(file_path)
+            manifest_data["files"][key] = {
+                "filename": file_path.name,
+                "sha256": sha256,
+                "size_bytes": int(file_path.stat().st_size),
+            }
+            logger.info(f"  {file_path.name}: {sha256[:16]}...")
 
         manifest_path = output_dir / "manifest.json"
         with open(manifest_path, "w") as fh:
@@ -704,10 +720,26 @@ def generate_simple_cubic_golden(
                 fixtures_dir / f"loss_mask_panel_{panel_id}.npy"
             ))
 
+        # === MANIFEST-001: Validate all source files exist before copy ===
+        missing_sources = []
         for src, dst in files_to_copy:
-            if src.exists():
-                shutil.copy2(src, dst)
-                logger.info(f"  Copied {src.name} -> {dst}")
+            if not src.exists():
+                missing_sources.append(str(src))
+
+        if missing_sources:
+            logger.error("MANIFEST-001 violation: Cannot copy to fixtures - missing source files:")
+            for missing in missing_sources:
+                logger.error(f"  Missing: {missing}")
+            raise FileNotFoundError(
+                f"Fixture copy requires all source tensor files to exist. "
+                f"Missing {len(missing_sources)} file(s). "
+                f"See docs/findings.md MANIFEST-001."
+            )
+
+        # All files exist - proceed with copy
+        for src, dst in files_to_copy:
+            shutil.copy2(src, dst)
+            logger.info(f"  Copied {src.name} -> {dst}")
 
         # Copy manifest if it was generated
         if emit_manifest:

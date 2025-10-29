@@ -1,0 +1,5 @@
+-rw-rw-r-- 1 ollie ollie  24M Oct 29 12:28 tests/fixtures/golden_data/simple_cubic/bragg_diffbragg.npy
+-rw-rw-r-- 1 ollie ollie  24M Oct 29 03:31 tests/fixtures/golden_data/simple_cubic/bragg_panel_0.npy
+-rw-rw-r-- 1 ollie ollie  24M Oct 29 12:28 tests/fixtures/golden_data/simple_cubic/bragg_torch.npy
+-rw-rw-r-- 1 ollie ollie 6.0M Oct 29 12:28 tests/fixtures/golden_data/simple_cubic/loss_mask_panel_0.npy
+-rw-rw-r-- 1 ollie ollie  24M Oct 29 12:28 tests/fixtures/golden_data/simple_cubic/target_panel_0.npy

@@ -428,3 +428,12 @@ Notes
 - Reality Check: Validated canonical tensors absent locally and manifest points to foreign checkout, so loop is rescoped to local regeneration safeguards before further parity tightening.
 - <Action State>: [ready_for_implementation]
 2025-10-29T194739Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=17 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T194739Z/ next_action=guard_paths_regenerate_and_run_db_at_001
+## 2025-11-03T233556Z — NANOBRAG-GOLDEN-001 ROI diagnostics plan
+- Focus: NANOBRAG-GOLDEN-001 — Replace fallback DB-AT-001 golden dataset
+- Action Type: planning
+- Key Observations: Local checkout still missing canonical `.npy` payloads under prior report directories even though fixtures now hold tensors; numpy probe confirms masked ROI correlation ≈ -0.004 with torch energy bleeding into masked-out pixels, so scaling fixes (SCALE-001/002) were insufficient. Authored parity_gap_notes.md and refreshed fix_plan Attempts History; drafted Do Now for ROI triptych instrumentation + local regeneration under 2025-11-03T233556Z artifacts.
+- Artifact Path: plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-03T233556Z/
+- Next Actions: Implement ROI triptych emission in `compute_roi_metrics`, regenerate canonical tensors inside this repo with `--roi-dump`, archive diagnostics, then rerun DB_AT_001 parity smoke.
+- Reality Check: Dependencies satisfied; dwell guard hit long streak so next loop must execute implementation + pytest.
+- <Action State>: [ready_for_implementation]
+2025-11-03T233556Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=18 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-03T233556Z/ next_action=instrument_roi_triptychs_and_regenerate

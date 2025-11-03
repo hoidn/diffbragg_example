@@ -224,7 +224,33 @@ def generate_simple_cubic_golden(
         hkl_debug_path: Optional path for HKL debugging JSON (default: output_dir/torch_hkl_debug.json)
         emit_manifest: If True, generate manifest.json with SHA256 checksums (default False)
         fixtures_dir: If provided, copy canonical tensors to fixtures directory (default None)
+
+    Raises:
+        ValueError: If output_dir or fixtures_dir point outside the repository root
     """
+    # === MANIFEST-001: Guard canonical_out against cross-checkout outputs ===
+    output_dir = Path(output_dir).resolve()
+    try:
+        output_dir.relative_to(repo_root)
+    except ValueError:
+        raise ValueError(
+            f"canonical_out must be within repository root {repo_root}. "
+            f"Got: {output_dir}. "
+            f"This guard prevents cross-checkout manifest pollution per MANIFEST-001."
+        )
+
+    # === MANIFEST-001: Guard fixtures_dir against cross-checkout outputs ===
+    if fixtures_dir is not None:
+        fixtures_dir = Path(fixtures_dir).resolve()
+        try:
+            fixtures_dir.relative_to(repo_root)
+        except ValueError:
+            raise ValueError(
+                f"fixtures_dir must be within repository root {repo_root}. "
+                f"Got: {fixtures_dir}. "
+                f"This guard prevents cross-checkout manifest pollution per MANIFEST-001."
+            )
+
     output_dir.mkdir(parents=True, exist_ok=True)
     legacy_dir = output_dir / "legacy"
     torch_dir = output_dir / "torch"

@@ -1,0 +1,5 @@
+tests/fixtures/golden_data/simple_cubic/bragg_diffbragg.npy
+tests/fixtures/golden_data/simple_cubic/bragg_panel_0.npy
+tests/fixtures/golden_data/simple_cubic/bragg_torch.npy
+tests/fixtures/golden_data/simple_cubic/loss_mask_panel_0.npy
+tests/fixtures/golden_data/simple_cubic/target_panel_0.npy

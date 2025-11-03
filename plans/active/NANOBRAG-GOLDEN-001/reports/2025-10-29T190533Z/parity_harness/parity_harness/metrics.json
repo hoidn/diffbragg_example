@@ -1,16 +1,16 @@
 {
-  "correlation": -0.004107876153522044,
-  "rmse": 888.6555153713952,
-  "mse": 789708.625,
-  "max_abs_diff": 36194.46484375,
-  "sum_ratio": 0.08769715766523144,
+  "correlation": -0.004104471176260302,
+  "rmse": 888.823731118831,
+  "mse": 790007.625,
+  "max_abs_diff": 36177.0,
+  "sum_ratio": 0.08762092968702748,
   "localization": 1.0,
   "n_pixels": 13086,
   "n_masked": 6210915,
-  "manifest_checksum": "1d7f1ea89b4ba86a2806cb45fd2251ef51622d8f67ef2b96bef6c6792a17fe69",
+  "manifest_checksum": "d47a7362fa4df19e5644ba5235388b073d3dbbb2a42ff166704dc48cad57bb1f",
   "metadata": {
     "dataset_name": "simple_cubic_canonical",
-    "generation_timestamp": "2025-10-29T19:41:32.256560Z",
+    "generation_timestamp": "2025-11-03T23:21:14.748134Z",
     "shape": {
       "bragg": [
         2527,

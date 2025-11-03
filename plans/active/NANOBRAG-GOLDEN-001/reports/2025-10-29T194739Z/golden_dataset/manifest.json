@@ -1,0 +1,31 @@
+{
+  "dataset_name": "simple_cubic_canonical",
+  "generation_timestamp": "2025-11-03T23:21:14.623383Z",
+  "generator_command": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/scripts/generate_simple_cubic_golden.py --canonical-out /home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T194739Z/golden_dataset --hkldebug plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T194739Z/torch_hkl_debug.json --emit-manifest --fixtures /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/fixtures/golden_data/simple_cubic",
+  "git_revision": "27f1261f0c0682a336b0ec173134d8db8ffbcf0a",
+  "structure_factor_source": "scaled.mtz",
+  "experiment_source": "refGeom.expt",
+  "files": {
+    "bragg_diffbragg": {
+      "filename": "bragg_diffbragg.npy",
+      "sha256": "1ce51fa018fca84e0ababbca4bec79b0b919609488f1b68f8231574ca75b5e67",
+      "size_bytes": 24896132
+    },
+    "bragg_torch": {
+      "filename": "bragg_torch.npy",
+      "sha256": "7452c91de95214b1acf3d4fa12bff68173677e117ad17645b9b9bef906036666",
+      "size_bytes": 24896132
+    },
+    "target_panel_0": {
+      "filename": "target_panel_0.npy",
+      "sha256": "3ae4d01ef0a57dd8f38e33882bf25bc83f0e4277e7d7cbee63317ba120672e1c",
+      "size_bytes": 24896132
+    },
+    "loss_mask_panel_0": {
+      "filename": "loss_mask_panel_0.npy",
+      "sha256": "9301d36f09eb6a155bab9f1115e4d8b429866003d272e8892db535965239db82",
+      "size_bytes": 6224129
+    }
+  },
+  "manifest_sha256": "d47a7362fa4df19e5644ba5235388b073d3dbbb2a42ff166704dc48cad57bb1f"
+}

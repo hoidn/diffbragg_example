@@ -164,10 +164,30 @@ def build_structure_factor_grid(indices, amplitudes, device, scale_override=None
     return grid, metadata
 
 
-def compute_roi_metrics(db_stack, torch_stack, loss_mask, panel_slices, sample_frac=0.2):
-    """Compute per-ROI parity metrics (correlation, RMSE, localization) for debugging."""
+def compute_roi_metrics(db_stack, torch_stack, loss_mask, panel_slices, target_stack=None, sample_frac=0.2, roi_dump_dir=None):
+    """Compute per-ROI parity metrics (correlation, RMSE, localization) for debugging.
+
+    Args:
+        db_stack: DiffBragg baseline tensor [panel, slow, fast]
+        torch_stack: nanobrag_torch baseline tensor [panel, slow, fast]
+        loss_mask: Loss mask tensor [panel, slow, fast] bool
+        panel_slices: List of (panel_id, bbox) tuples
+        target_stack: Optional target tensor [panel, slow, fast] for triptych dumps
+        sample_frac: Fraction of ROIs to sample (default 0.2)
+        roi_dump_dir: Optional Path to save per-ROI .npz bundles (diff, torch, target, mask)
+
+    Returns:
+        list: Sampled ROI metric records
+
+    Side effects:
+        If roi_dump_dir is provided:
+        - Writes roi_<idx>.npz files containing {diff, torch, target, mask} arrays
+        - Writes index.json with ROI metadata and metrics
+    """
     rng = np.random.RandomState(42)
     records = []
+    samples_to_dump = []
+
     for roi_idx, (pid, bbox) in enumerate(panel_slices):
         x0, x1, y0, y1 = bbox
         db_roi = db_stack[pid, y0:y1, x0:x1]
@@ -190,27 +210,84 @@ def compute_roi_metrics(db_stack, torch_stack, loss_mask, panel_slices, sample_f
         torch_peak = np.unravel_index(np.argmax(torch_roi), torch_roi.shape)
         db_loc = abs(db_peak[0] - center_h) < center_h // 2 and abs(db_peak[1] - center_w) < center_w // 2
         torch_loc = abs(torch_peak[0] - center_h) < center_h // 2 and abs(torch_peak[1] - center_w) < center_w // 2
-        records.append(
-            {
-                "roi_idx": int(roi_idx),
-                "panel_id": int(pid),
-                "correlation": corr,
-                "rmse": rmse,
-                "mse": mse,
-                "max_abs_diff": max_diff,
-                "peak_localized": bool(db_loc and torch_loc),
-            }
-        )
+
+        record = {
+            "roi_idx": int(roi_idx),
+            "panel_id": int(pid),
+            "bbox": [int(x0), int(x1), int(y0), int(y1)],
+            "correlation": corr,
+            "rmse": rmse,
+            "mse": mse,
+            "max_abs_diff": max_diff,
+            "peak_localized": bool(db_loc and torch_loc),
+        }
+        records.append(record)
+
+        # Collect all valid ROIs for deterministic sampling
+        if roi_dump_dir is not None:
+            samples_to_dump.append((roi_idx, pid, bbox, db_roi, torch_roi, mask_roi, record))
+
+    # Deterministic sampling for reproducibility
     rng.shuffle(records)
     sample_count = max(1, int(len(records) * sample_frac))
-    return records[:sample_count]
+    sampled_records = records[:sample_count]
+
+    # Write ROI dumps if requested
+    if roi_dump_dir is not None:
+        roi_dump_dir = Path(roi_dump_dir)
+        roi_dump_dir.mkdir(parents=True, exist_ok=True)
+
+        # Sample the same indices used for metrics
+        sampled_indices = set(r["roi_idx"] for r in sampled_records)
+        dump_count = 0
+
+        for roi_idx, pid, bbox, db_roi, torch_roi, mask_roi, record in samples_to_dump:
+            if roi_idx not in sampled_indices:
+                continue
+
+            x0, x1, y0, y1 = bbox
+
+            # Prepare triptych bundle
+            bundle = {
+                "diff": db_roi.astype(np.float32),
+                "torch": torch_roi.astype(np.float32),
+                "mask": mask_roi.astype(bool),
+            }
+
+            # Add target if available
+            if target_stack is not None:
+                target_roi = target_stack[pid, y0:y1, x0:x1]
+                bundle["target"] = target_roi.astype(np.float32)
+
+            # Save bundle
+            npz_path = roi_dump_dir / f"roi_{roi_idx:04d}.npz"
+            np.savez_compressed(npz_path, **bundle)
+            dump_count += 1
+
+        # Write index.json with metadata and metrics
+        index_data = {
+            "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+            "n_rois_total": len(panel_slices),
+            "n_rois_valid": len(records),
+            "sample_frac": sample_frac,
+            "n_samples": len(sampled_records),
+            "n_dumps": dump_count,
+            "samples": sampled_records,
+        }
+
+        index_path = roi_dump_dir / "index.json"
+        with open(index_path, "w") as fh:
+            json.dump(to_native(index_data), fh, indent=2)
+
+    return sampled_records
 
 
 def generate_simple_cubic_golden(
     output_dir: Path,
     hkl_debug_path: Path = None,
     emit_manifest: bool = False,
-    fixtures_dir: Path = None
+    fixtures_dir: Path = None,
+    roi_dump_dir: Path = None
 ):
     """
     Generate canonical golden dataset using DiffBragg refinement + nanobrag_torch.
@@ -224,6 +301,7 @@ def generate_simple_cubic_golden(
         hkl_debug_path: Optional path for HKL debugging JSON (default: output_dir/torch_hkl_debug.json)
         emit_manifest: If True, generate manifest.json with SHA256 checksums (default False)
         fixtures_dir: If provided, copy canonical tensors to fixtures directory (default None)
+        roi_dump_dir: If provided, save sampled ROI triptychs (diff, torch, target, mask) as .npz bundles (default None)
 
     Raises:
         ValueError: If output_dir or fixtures_dir point outside the repository root
@@ -618,7 +696,12 @@ def generate_simple_cubic_golden(
     # === ROI Metrics & Summary ===
     logger.info("Computing parity metrics...")
     loss_mask = inputs.loss_mask.astype(bool)
-    metrics = compute_roi_metrics(Bragg, torch_stack, loss_mask, inputs.panel_slices)
+    # Build target stack [panel, slow, fast] for ROI triptych dumps
+    target_stack = inputs.target.astype(np.float32)
+    metrics = compute_roi_metrics(
+        Bragg, torch_stack, loss_mask, inputs.panel_slices,
+        target_stack=target_stack, roi_dump_dir=roi_dump_dir
+    )
 
     summary = {
         "n_panels": int(torch_stack.shape[0]),
@@ -841,6 +924,12 @@ if __name__ == "__main__":
         default=None,
         help="Copy tensors to fixtures directory and update manifest",
     )
+    parser.add_argument(
+        "--roi-dump",
+        type=Path,
+        default=None,
+        help="Save sampled ROI triptychs (diff, torch, target, mask) as .npz bundles for parity debugging",
+    )
 
     args_cli = parser.parse_args()
 
@@ -848,7 +937,8 @@ if __name__ == "__main__":
         args_cli.canonical_out,
         args_cli.hkldebug,
         emit_manifest=args_cli.emit_manifest,
-        fixtures_dir=args_cli.fixtures
+        fixtures_dir=args_cli.fixtures,
+        roi_dump_dir=args_cli.roi_dump
     )
 
     print(f"\nCanonical dataset written to: {output_dir}")

@@ -719,3 +719,12 @@ Notes
 - <Action State>: [ready_for_implementation]
 
 2025-11-04T182918Z focus=MAP-SCALE-001 state=ready_for_implementation dwell=2 artifacts=plans/active/MAP-SCALE-001/reports/2025-11-04T203000Z/ next_action=attach_beam_config_and_rerun_db_at_024
+
+## 2025-11-04T190041Z — MAP-SCALE-001 sample clipping plan
+- Focus: MAP-SCALE-001 — Zero-iteration mapping scale alignment
+- Action Type: planning
+- Key Observations: Manual parity run with DiffBragg beam sample clipping + calibrated `N_cells` matches golden metrics (corr≈0.811, localization=100%), confirming bridge delta is missing beam_config propagation plus domain counts. Updated fix_plan attempts, SCALE-005 finding, and Phase D checklist accordingly.
+- Artifact Path: plans/active/MAP-SCALE-001/reports/2025-11-04T185107Z/
+- Next Actions: Ralph to wire beam_config into simulate_forward_once, re-enable calibrated `N_cells`, and rerun DB_AT_024 with new artifact capture.
+- <Action State>: [ready_for_implementation]
+2025-11-04T190041Z focus=MAP-SCALE-001 state=ready_for_implementation dwell=2 artifacts=plans/active/MAP-SCALE-001/reports/2025-11-04T185107Z/ next_action=propagate_beam_config_and_reenable_n_cells

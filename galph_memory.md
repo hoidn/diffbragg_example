@@ -623,3 +623,10 @@ Notes
 - Dirty State: `.claude` submodule pointer reflects upstream commit (8a09df2…) after pull; left unstaged to avoid unintended submodule update in this planning loop.
 - <Action State>: [planning]
 2025-11-04T054053Z focus=DB-AT-024 state=planning dwell=0 artifacts=plans/active/DB-AT-024/reports/2025-11-04T054053Z/ next_action=prepare_do_now_for_mapping_helper_and_test
+
+## 2025-11-04T054939Z: Supervisor soft-recovery note
+- Iteration: 61
+- Reason: doc/meta whitelist violation
+- Guidance: Update input.md to include a valid Do Now (single focus, Implement nucleus, validating pytest selector, artifacts path).
+  Avoid two consecutive Docs loops for the same focus. Re-run supervisor to proceed.
+- Iter log: logs/integration/galph/iter-00061_20251104_053814.log

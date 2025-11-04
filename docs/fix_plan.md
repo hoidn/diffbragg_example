@@ -220,8 +220,8 @@
 
 ### [DB-AT-020] Reflection ingestion sanity
 - Depends on: TORCH-BRIDGE-001, NANOBRAG-BACKEND-002, docs/dials_api.md contract
-- Status: in_progress
-- Owner/Date: Unassigned / 2025-11-04
+- Status: done
+- Owner/Date: Ralph / 2025-11-04
 - Exit Criteria:
   1. Author `tests/dbex/test_reflection_ingestion.py` (DB_AT_020) validating DIALS bbox exclusivity and panel ordering with canonical refGeom assets; include skip guard when `refGeom.refl` is absent and assertions covering slice shapes, bounds, and `DataLoad` ↔ reflection table alignment.
   2. Persist evidence under `plans/active/DB-AT-020/reports/<timestamp>/` (baseline probe metrics, pytest log, collect-only log) demonstrating `bbox` deltas match sliced data/background shapes and panel IDs fall within detector range.
@@ -230,6 +230,7 @@
 - Working Plan: plans/active/DB-AT-020/implementation.md
 - Attempts History:
   * 2025-11-04T042625Z (planning) — Drafted reflection ingestion implementation plan (Phases A-C) and captured DataLoad probe confirming 1 panel, 92 ROIs, sample bbox `(582, 594, 0, 12)`, and exclusive deltas `(12, 12)` with slice shape `(12, 12)`; documented evidence in `plans/active/DB-AT-020/reports/2025-11-04T042625Z/summary.md`. Next Actions: Execute A1-A3 validations then implement DB_AT_020 pytest harness (B1-B3) followed by documentation/test registry sync.
+  * 2025-11-04T052000Z (implementation) — Implemented `tests/dbex/test_reflection_ingestion.py` with 2 tests (test_DB_AT_020_reflection_bbox, test_DB_AT_020_panel_alignment) validating bbox exclusivity (x1 > x0, y1 > y0), slice shape consistency ((y1-y0, x1-x0)), panel alignment (reflection['panel'] == DataLoad.pids), and detector bounds (0 <= pid < n_panels, bbox within panel dimensions). Targeted tests: `pytest -v tests/dbex/test_reflection_ingestion.py -k DB_AT_020` (2 passed). Collection: `pytest --collect-only tests -k DB_AT_020` (2 selected). Full suite: `pytest -v tests/` (51 passed, 1 skipped, no regressions). Metrics: 92 ROIs validated, 1 panel, sample bbox=(582,594,0,12), shape=(12,12), pid=0. Artifacts: `plans/active/DB-AT-020/reports/2025-11-04T052000Z/` (pytest_db_at_020.log, collect_db_at_020.log, reflection_metrics.json). Updated `docs/TESTING_GUIDE.md` and `docs/development/TEST_SUITE_INDEX.md` to Active status with selector details. Findings Applied: CONFORMANCE-001, TESTING-003, CONFIG-001. Next Actions: Mark DB-AT-020 done and select next priority focus (DB-AT-021 mask polarity or DB-AT-022 background sentinel verification).
 
 ### [FINDINGS-LEDGER-002] Extend knowledge base with torch experiment lessons
 - Depends on: TORCH-BRIDGE-001, TORCH-CLI-003

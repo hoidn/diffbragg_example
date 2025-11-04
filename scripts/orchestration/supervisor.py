@@ -462,7 +462,6 @@ def main() -> int:
 
         # Determine post-run success without early-returning
         post_ok = (rc == 0)
-        forbidden: list[str] = []
         if args.auto_commit_docs:
             committed_docs, forbidden = _supervisor_autocommit_docs(args, logp)
             if forbidden:
@@ -477,81 +476,18 @@ def main() -> int:
             add([str(args.state_file)])
             commit(f"[SYNC i={st.iteration}] actor=galph → next=ralph status=ok galph_commit={sha}")
         else:
-            # Print a concise failure reason to console and log, then attempt soft recovery
-            def _tail_file(path: Path, n: int = 40) -> list[str]:
-                try:
-                    with open(path, "r", encoding="utf-8") as f:
-                        lines = f.readlines()
-                        return lines[-n:]
-                except Exception:
-                    return []
-
-            # Heuristic reason based on rc vs forbidden paths
-            if rc != 0:
-                msg = (
-                    "[supervisor] ERROR: Prompt run failed (rc!=0). "
-                    "Likely invalid Do Now (missing Implement/selector or second Docs loop)."
-                )
-            else:
-                msg = (
-                    "[supervisor] ERROR: Doc/meta whitelist violation after run. "
-                    "Forbidden paths present; see iter log."
-                )
-            print(msg)
-            logp(msg)
-
-            # Tail iter log to console to aid debugging
-            tail = _tail_file(iter_log, 40)
-            if tail:
-                print("[supervisor] --- iter log tail ---")
-                for line in tail:
-                    sys.stdout.write(line)
-                print("[supervisor] --- end iter log tail ---")
-
-            # Append recovery guidance to galph_memory.md so the next turn can correct input.md
-            try:
-                now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H%M%SZ")
-                # coalesce: avoid repeated notes for the same iteration
-                existing_note = False
-                try:
-                    with open("galph_memory.md", "r", encoding="utf-8") as mf_r:
-                        txt = mf_r.read()
-                        if f"- Iteration: {st.iteration}\n" in txt and "Supervisor soft-recovery note" in txt:
-                            existing_note = True
-                except FileNotFoundError:
-                    existing_note = False
-
-                if not existing_note:
-                    rec = [
-                        f"\n## {now_iso}: Supervisor soft-recovery note",
-                        f"- Iteration: {st.iteration}",
-                        f"- Reason: {'rc!=0 invalid Do Now' if rc != 0 else 'doc/meta whitelist violation'}",
-                        "- Guidance: Update input.md to include a valid Do Now (single focus, Implement nucleus, validating pytest selector, artifacts path).",
-                        "  Avoid two consecutive Docs loops for the same focus. Re-run supervisor to proceed.",
-                        f"- Iter log: {iter_log}",
-                    ]
-                    with open("galph_memory.md", "a", encoding="utf-8") as mf:
-                        mf.write("\n".join(rec) + "\n")
-                # Attempt to auto-commit the memory note
-                _supervisor_autocommit_docs(args, logp)
-            except Exception as e:
-                logp(f"[supervisor] WARN: could not append recovery note: {e}")
-
-            # Stamp soft recovery: stay on galph and leave status idle to allow immediate next turn
-            st.stamp(expected_actor="galph", status="idle", galph_commit=sha)
+            st.stamp(expected_actor="galph", status="failed", galph_commit=sha)
             st.write(str(args.state_file))
             add([str(args.state_file)])
-            commit(f"[SYNC i={st.iteration}] actor=galph status=recover galph_commit={sha}")
+            commit(f"[SYNC i={st.iteration}] actor=galph status=fail galph_commit={sha}")
 
         # Publish stamped state. If push fails, exit; restart will resume push without re-running work.
         if not push_with_rebase(branch_target, logp):
             print("[sync] ERROR: failed to push stamped state; resolve and relaunch to resume push.")
             return 1
         if not post_ok:
-            # Do not hard-exit; allow recovery next iteration without blocking
-            logp(f"Supervisor soft-failure handled (rc={rc}). Recovery note recorded; remaining on galph.")
-            # Proceed to next supervisor iteration
-            continue
+            logp(f"Supervisor iteration failed rc={rc}. Stamped failure and pushed; exiting.")
+            return rc
 
         # Wait for Ralph to finish and increment iteration
         logp(f"Waiting for Ralph to complete i={st.iteration}...")

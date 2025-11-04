@@ -511,16 +511,27 @@ def main() -> int:
             # Append recovery guidance to galph_memory.md so the next turn can correct input.md
             try:
                 now_iso = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H%M%SZ")
-                rec = [
-                    f"\n## {now_iso}: Supervisor soft-recovery note",
-                    f"- Iteration: {st.iteration}",
-                    f"- Reason: {'rc!=0 invalid Do Now' if rc != 0 else 'doc/meta whitelist violation'}",
-                    "- Guidance: Update input.md to include a valid Do Now (single focus, Implement nucleus, validating pytest selector, artifacts path).",
-                    "  Avoid two consecutive Docs loops for the same focus. Re-run supervisor to proceed.",
-                    f"- Iter log: {iter_log}",
-                ]
-                with open("galph_memory.md", "a", encoding="utf-8") as mf:
-                    mf.write("\n".join(rec) + "\n")
+                # coalesce: avoid repeated notes for the same iteration
+                existing_note = False
+                try:
+                    with open("galph_memory.md", "r", encoding="utf-8") as mf_r:
+                        txt = mf_r.read()
+                        if f"- Iteration: {st.iteration}\n" in txt and "Supervisor soft-recovery note" in txt:
+                            existing_note = True
+                except FileNotFoundError:
+                    existing_note = False
+
+                if not existing_note:
+                    rec = [
+                        f"\n## {now_iso}: Supervisor soft-recovery note",
+                        f"- Iteration: {st.iteration}",
+                        f"- Reason: {'rc!=0 invalid Do Now' if rc != 0 else 'doc/meta whitelist violation'}",
+                        "- Guidance: Update input.md to include a valid Do Now (single focus, Implement nucleus, validating pytest selector, artifacts path).",
+                        "  Avoid two consecutive Docs loops for the same focus. Re-run supervisor to proceed.",
+                        f"- Iter log: {iter_log}",
+                    ]
+                    with open("galph_memory.md", "a", encoding="utf-8") as mf:
+                        mf.write("\n".join(rec) + "\n")
                 # Attempt to auto-commit the memory note
                 _supervisor_autocommit_docs(args, logp)
             except Exception as e:

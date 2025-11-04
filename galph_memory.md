@@ -796,3 +796,14 @@ Notes
 - Reality Check: Refined telemetry guard absent in CLI; DB_AT_024 covers only zero-iteration path so CLI enforcement is still a gap.
 - <Action State>: [planning]
 2025-11-06T020000Z focus=MAP-SCALE-005 state=planning dwell=0 artifacts=plans/active/MAP-SCALE-005/reports/2025-11-06T020000Z/ next_action=harden_cli_refined_guard_do_now
+
+## 2025-11-04T222435Z — TORCH-CLI-004 ROI score coercion planning
+- Focus: TORCH-CLI-004 — Torch diagnostics ROI score coercion
+- Action Type: planning
+- Key Observations: Captured failure signature for `test_torch_diagnostics_metadata` (TypeError from `_write_torch_outputs` when mocks return `MagicMock` scores); authored implementation plan detailing float coercion + empty-ROI guards and updated fix_plan ledger. Logged analysis summary under new report directory.
+- Artifact Path: plans/active/TORCH-CLI-004/reports/2025-11-04T222435Z/
+- Next Actions: Handoff Do Now directing ROI score coercion implementation and targeted CLI test runs.
+- Reality Check: No dependencies blocked; full suite currently fails on gradcheck and diagnostics tests, so stabilizing CLI path is prerequisite for clean CLI runs.
+- <Action State>: [planning]
+
+2025-11-04T222435Z focus=TORCH-CLI-004 state=planning dwell=0 artifacts=plans/active/TORCH-CLI-004/reports/2025-11-04T222435Z/ next_action=handoff_roi_score_coercion_do_now

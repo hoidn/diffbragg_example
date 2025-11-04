@@ -1,6 +1,6 @@
 # DBEX Fix Plan Ledger
 
-**Last Updated:** 2025-11-06 (MAP-SCALE-005 kickoff; telemetry enforcement for CLI refined MTZ usage)
+**Last Updated:** 2025-11-04 (TORCH-CLI-004 kickoff; ROI score coercion for CLI diagnostics)
 
 ## Working Agreements
 - Artifact policy: store loop outputs under a dedicated `plans/<initiative-id>/reports/<YYYY-MM-DDTHHMMSSZ>/` directory (or another documented location) and record the path in each Attempts History entry.
@@ -90,3 +90,15 @@
 - Attempts History:
   * 2025-11-06T020000Z (planning) — Logged CLI fallback risk: `run_nanobrag_backend` currently warns and reverts to raw MTZ when `--refined-mtz` load fails (lines 218-248), leaving `hkl_source=\"raw\"` telemetry. Captured plan in `plans/active/MAP-SCALE-005/reports/2025-11-06T020000Z/summary.md`; defined guardrails for hard failure and tests to enforce SCALE-007.
   * 2025-11-06T050000Z (implementation) — Implemented CLI refined MTZ enforcement per input.md Do Now. Modified `run_nanobrag_backend` (dbex/refine_one.py:234-240) to raise RuntimeError when `--refined-mtz` provided but `load_refined_mtz` fails (FileNotFoundError, ValueError, ImportError), with actionable message referencing flag, provided path, and "MUST be consumed" enforcement; replaced silent fallback to raw MTZ. Authored `test_nanobrag_backend_refined_mtz_missing_errors` (tests/dbex/test_refine_one_cli.py:585-677) validating failure path: asserts error contains "--refined-mtz", provided path, "MUST be consumed"; uses mocked DataLoad with square pixels (0.1mm) and background image with -1 sentinel outside ROIs per spec. Updated `docs/TESTING_GUIDE.md:86` and `docs/development/TEST_SUITE_INDEX.md:12` CLI backend flag entries with SCALE-007 cross-reference, collection log (9 tests), and test log paths. Ran targeted tests: `pytest --collect-only` (1 test collected), `pytest -v test_nanobrag_backend_refined_mtz_missing_errors` (1 passed in 3.57s), `pytest -v test_nanobrag_backend_uses_refined_mtz` (1 passed in 3.31s, regression check). Full suite: 66 passed, 3 skipped, 3 failed (2 pre-existing gradient tests test_db_at_010_gradcheck_crystal_cell_a/test_db_at_010_gradcheck; 1 unrelated test_torch_diagnostics_metadata with mock configuration issue) in 349.67s. Metrics: 9 CLI tests collected, new enforcement test passed, refined success test passed (no regression). Artifacts: plans/active/MAP-SCALE-005/reports/2025-11-06T050000Z/{collect_refined_mtz_guard.log, pytest_refined_mtz_guard.log, pytest_refined_mtz_success.log, pytest_full_suite.log, summary.md}. Outcome: All exit criteria satisfied—CLI enforces SCALE-007 guardrail (RuntimeError with actionable message when --refined-mtz fails), regression coverage complete (test_nanobrag_backend_refined_mtz_missing_errors + test_nanobrag_backend_uses_refined_mtz passing), documentation synchronized with artifact references. Next Actions: Audit user-facing CLI docs (optional) to describe refined MTZ failure mode; archive MAP-SCALE-005 artifacts during housekeeping.
+
+### [TORCH-CLI-004] Torch diagnostics ROI score coercion
+- Depends on: MAP-SCALE-005, TORCH-CLI-003, docs/spec-db-tracing.md §2, docs/spec-db-workflow.md §4, SCALE-003
+- Status: in_progress (planning kickoff)
+- Owner/Date: Galph / 2025-11-04
+- Exit Criteria:
+  1. `_write_torch_outputs` coerces ROI scores returned by `score_trainer.roi_check` (or test doubles) to concrete floats before aggregation/HDF5 emission, preventing `Mock`/`MagicMock` objects from propagating.
+  2. ROI aggregation handles empty `scores` collections gracefully (skip division-by-zero, emit explicit 0 or NaN with logged message) and continues to print stable diagnostics without RuntimeWarnings.
+  3. `pytest -v tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata` passes with mocks; targeted pytest and collect-only logs archived under `plans/active/TORCH-CLI-004/reports/<timestamp>/`; documentation ledgers remain current (note guardrail improvement if updated).
+- Working Plan: plans/active/TORCH-CLI-004/implementation.md
+- Attempts History:
+  * 2025-11-04T222435Z (planning) — Reviewed failure in `plans/active/MAP-SCALE-005/reports/2025-11-06T050000Z/pytest_full_suite.log` (TypeError from `_write_torch_outputs` when mocked ROI scores return `MagicMock` instances). Captured analysis summary and seeded implementation plan outlining score coercion + empty-ROI guards. Artifacts: plans/active/TORCH-CLI-004/reports/2025-11-04T222435Z/summary.md.

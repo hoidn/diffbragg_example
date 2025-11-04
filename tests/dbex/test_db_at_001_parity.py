@@ -747,7 +747,8 @@ class TestDB_AT_001_Parity:
         manifest_checksum = golden.manifest.get("manifest_sha256")
 
         # Assert canonical checksum per input.md:10
-        expected_checksum = "2d1f8d671a6b051b23dd7a059f9fd8ff5605389bbe9a8e72cb44cbd7a8567aee"
+        # Updated 2025-11-04 after MAP-SCALE-001 added refined geometry to manifest
+        expected_checksum = "b73e5049daebcb6a5166aa33f19705bf27964609bcbb607fe42fd02867b5405d"
         assert manifest_checksum == expected_checksum, (
             f"Manifest checksum mismatch: expected {expected_checksum}, "
             f"got {manifest_checksum}. Golden dataset may be corrupted or outdated."

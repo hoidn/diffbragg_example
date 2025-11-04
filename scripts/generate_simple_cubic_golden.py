@@ -733,28 +733,52 @@ def generate_simple_cubic_golden(
                 f"{record['rmse']:.6f},{record['mse']:.6f},{record['max_abs_diff']:.6f},{record['peak_localized']}\n"
             )
 
-    # Persist refined structure factors for MAP-SCALE-001
-    # Copy _temp.mtz (DiffBragg-refined Fopt) to output directories
+    # Persist refined structure factors and geometry for MAP-SCALE-001
+    # Copy _temp.mtz (DiffBragg-refined Fopt) and _geom_ref.{expt,refl} to output directories
+    import shutil
     temp_mtz_path = repo_root / "_temp.mtz"
-    if temp_mtz_path.exists():
-        logger.info("Persisting refined structure factors for parity testing (MAP-SCALE-001)...")
+    refined_expt_path = repo_root / "_geom_ref.expt"
+    refined_refl_path = repo_root / "_geom_ref.refl"
+
+    if temp_mtz_path.exists() and refined_expt_path.exists() and refined_refl_path.exists():
+        logger.info("Persisting refined structure factors and geometry for parity testing (MAP-SCALE-001)...")
 
         # Save to torch directory for golden dataset
         refined_mtz_torch = torch_dir / "refined_structure_factors.mtz"
-        import shutil
+        refined_expt_torch = torch_dir / "refined.expt"
+        refined_refl_torch = torch_dir / "refined.refl"
+
         shutil.copy(temp_mtz_path, refined_mtz_torch)
+        shutil.copy(refined_expt_path, refined_expt_torch)
+        shutil.copy(refined_refl_path, refined_refl_torch)
         logger.info(f"Refined MTZ saved to {refined_mtz_torch}")
+        logger.info(f"Refined geometry saved to {refined_expt_torch}, {refined_refl_torch}")
 
         # Optionally copy to fixtures directory if --fixtures flag is provided
         if fixtures_dir is not None:
             refined_mtz_fixtures = fixtures_dir / "refined_structure_factors.mtz"
-            shutil.copy(temp_mtz_path, refined_mtz_fixtures)
-            logger.info(f"Refined MTZ copied to fixtures: {refined_mtz_fixtures}")
+            refined_expt_fixtures = fixtures_dir / "refined.expt"
+            refined_refl_fixtures = fixtures_dir / "refined.refl"
 
-        # Clean up temp file after copying
+            shutil.copy(temp_mtz_path, refined_mtz_fixtures)
+            shutil.copy(refined_expt_path, refined_expt_fixtures)
+            shutil.copy(refined_refl_path, refined_refl_fixtures)
+            logger.info(f"Refined MTZ copied to fixtures: {refined_mtz_fixtures}")
+            logger.info(f"Refined geometry copied to fixtures: {refined_expt_fixtures}, {refined_refl_fixtures}")
+
+        # Clean up temp files after copying
         temp_mtz_path.unlink()
+        refined_expt_path.unlink()
+        refined_refl_path.unlink()
     else:
-        logger.warning("_temp.mtz not found; refined structure factors not persisted")
+        missing = []
+        if not temp_mtz_path.exists():
+            missing.append("_temp.mtz")
+        if not refined_expt_path.exists():
+            missing.append("_geom_ref.expt")
+        if not refined_refl_path.exists():
+            missing.append("_geom_ref.refl")
+        logger.warning(f"Refined assets not found ({', '.join(missing)}); skipping refined asset persistence")
 
     # === Manifest emission (if requested) ===
     if emit_manifest:
@@ -775,13 +799,19 @@ def generate_simple_cubic_golden(
             logger.warning(f"Could not get git revision: {e}")
             git_rev = "unknown"
 
+        # Check if refined geometry was persisted (MAP-SCALE-001)
+        refined_expt_torch = torch_dir / "refined.expt"
+        refined_refl_torch = torch_dir / "refined.refl"
+        has_refined_geometry = refined_expt_torch.exists() and refined_refl_torch.exists()
+
         manifest_data = {
             "dataset_name": "simple_cubic_canonical",
             "generation_timestamp": datetime.datetime.utcnow().isoformat() + "Z",
             "generator_command": generator_command,
             "git_revision": git_rev,
-            "structure_factor_source": "scaled.mtz",
-            "experiment_source": "refGeom.expt",
+            "structure_factor_source": "refined_structure_factors.mtz" if (torch_dir / "refined_structure_factors.mtz").exists() else "scaled.mtz",
+            "experiment_source": "refined.expt" if has_refined_geometry else "refGeom.expt",
+            "reflection_source": "refined.refl" if has_refined_geometry else "refGeom.refl",
             "files": {}
         }
 
@@ -796,10 +826,14 @@ def generate_simple_cubic_golden(
             tensor_files.append((f"target_panel_{panel_id}", torch_dir / f"target_panel_{panel_id}.npy"))
             tensor_files.append((f"loss_mask_panel_{panel_id}", torch_dir / f"loss_mask_panel_{panel_id}.npy"))
 
-        # Add refined structure factors MTZ (MAP-SCALE-001)
+        # Add refined structure factors MTZ and geometry (MAP-SCALE-001)
         refined_mtz_path = torch_dir / "refined_structure_factors.mtz"
         if refined_mtz_path.exists():
             tensor_files.append(("refined_structure_factors", refined_mtz_path))
+
+        if has_refined_geometry:
+            tensor_files.append(("refined_experiment", refined_expt_torch))
+            tensor_files.append(("refined_reflections", refined_refl_torch))
 
         # === MANIFEST-001: Validate all tensor files exist before manifest emission ===
         missing_files = []
@@ -864,13 +898,23 @@ def generate_simple_cubic_golden(
                 fixtures_dir / f"loss_mask_panel_{panel_id}.npy"
             ))
 
-        # Add refined structure factors MTZ if present (MAP-SCALE-001)
+        # Add refined assets if present (MAP-SCALE-001)
         # Note: Already copied to fixtures_dir in persistence block above,
         # but add to validation list for completeness
         refined_mtz_src = torch_dir / "refined_structure_factors.mtz"
         refined_mtz_dst = fixtures_dir / "refined_structure_factors.mtz"
         if refined_mtz_src.exists():
             files_to_copy.append((refined_mtz_src, refined_mtz_dst))
+
+        refined_expt_src = torch_dir / "refined.expt"
+        refined_expt_dst = fixtures_dir / "refined.expt"
+        if refined_expt_src.exists():
+            files_to_copy.append((refined_expt_src, refined_expt_dst))
+
+        refined_refl_src = torch_dir / "refined.refl"
+        refined_refl_dst = fixtures_dir / "refined.refl"
+        if refined_refl_src.exists():
+            files_to_copy.append((refined_refl_src, refined_refl_dst))
 
         # === MANIFEST-001: Validate all source files exist before copy ===
         missing_sources = []

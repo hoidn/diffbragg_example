@@ -62,28 +62,52 @@ class TestDB_AT_024_Mapping:
 
     @pytest.fixture(scope="class")
     def canonical_assets(self):
-        """Load canonical assets for DB-AT-024."""
+        """Load canonical assets for DB-AT-024.
+
+        Prefers DiffBragg-refined geometry (refined.expt/refined.refl) per SCALE-004.
+        Falls back to legacy refGeom if refined assets are unavailable.
+        """
         import argparse
+        import warnings
 
         repo_root = Path.cwd()
         fixtures_root = repo_root / "tests" / "fixtures" / "golden_data" / "simple_cubic"
 
+        # Define asset paths with refined geometry preference
+        refined_expt = fixtures_root / "refined.expt"
+        refined_refl = fixtures_root / "refined.refl"
+        legacy_expt = repo_root / "refGeom.expt"
+        legacy_refl = repo_root / "refGeom.refl"
+
+        # Prefer refined geometry, fallback to legacy (SCALE-004)
+        has_refined_geometry = refined_expt.exists() and refined_refl.exists()
+        expt_path = refined_expt if has_refined_geometry else legacy_expt
+        refl_path = refined_refl if has_refined_geometry else legacy_refl
+
+        if not has_refined_geometry:
+            warnings.warn(
+                "Refined geometry not found in fixtures; falling back to legacy refGeom. "
+                "This may prevent DB_AT_024 thresholds from passing per SCALE-004. "
+                "Run golden generator with --fixtures to persist refined assets."
+            )
+
         assets = {
             "mtz": repo_root / "scaled.mtz",
-            "expt": repo_root / "refGeom.expt",
-            "refl": repo_root / "refGeom.refl",
+            "expt": expt_path,
+            "refl": refl_path,
             "mask": repo_root / "747_mask.pkl",
             "calibration": fixtures_root / "config_torch.json",
             "refined_mtz": fixtures_root / "refined_structure_factors.mtz",
+            "using_refined_geometry": has_refined_geometry,
         }
 
-        # Check required assets exist (refined_mtz is optional with fallback)
+        # Check required assets exist
         required = ["mtz", "expt", "refl", "mask", "calibration"]
         missing = [name for name in required if not assets[name].exists()]
         if missing:
             pytest.skip(f"Missing canonical assets: {missing}")
 
-        # Load via DataLoad
+        # Load via DataLoad with chosen geometry
         dataload_args = argparse.Namespace(
             mtzFile=str(assets["mtz"]),
             mtzCol="F,SIGF",
@@ -117,6 +141,7 @@ class TestDB_AT_024_Mapping:
             "paths": assets,
             "calibration": calibration,
             "refined_hkl": refined_hkl,
+            "using_refined_geometry": has_refined_geometry,
         }
 
     @pytest.mark.db_at_024
@@ -218,6 +243,8 @@ class TestDB_AT_024_Mapping:
             "localization_success_rate": localization_success_rate,
             "global_scale_hint": inputs.global_scale_hint,
             "hkl_source": hkl_source,
+            "using_refined_geometry": canonical_assets.get("using_refined_geometry", False),
+            "geometry_source": str(canonical_assets["paths"]["expt"]),
             "calibration": {
                 "spot_scale_override": float(spot_scale_override),
                 "sqrt_spot_scale": float(np.sqrt(spot_scale_override)),
@@ -285,6 +312,8 @@ class TestDB_AT_024_Mapping:
         print(f"  Localization success rate: {localization_success_rate:.2%}")
         print(f"  Global scale hint: {inputs.global_scale_hint:.2f}")
         print(f"  HKL source: {hkl_source}")
+        print(f"  Geometry source: {summary_metrics['geometry_source']}")
+        print(f"  Using refined geometry: {summary_metrics['using_refined_geometry']}")
         print(f"  Calibration: spot_scale_override={spot_scale_override:.3e}, sqrt={np.sqrt(spot_scale_override):.3e}")
         print(f"  Artifacts: {artifact_dir}/")
 

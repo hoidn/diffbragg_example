@@ -1,40 +1,93 @@
-# MAP-SCALE-001 Supervisor Loop Summary (2025-11-04T130000Z)
+# MAP-SCALE-001 Summary (2025-11-04T130000Z)
 
-## Focus
-- Align zero-iteration mapping outputs with DiffBragg-calibrated targets so DB_AT_024 can assert corr ≥ 0.2 and localization ≥ 0.90.
+## Problem Statement
+Per SCALE-004 (docs/findings.md:27), DiffBragg-refined Fopt require matching refined geometry to achieve parity. Prior loop (2025-11-04T120500Z) identified that mixing refined MTZ with legacy refGeom caused poor metrics (corr≈0.035, localization=0%).
 
-## Evidence Reviewed
-- `plans/active/MAP-SCALE-001/reports/2025-11-04T120500Z/summary.md` & `blockers.md` — refined MTZ plumbing complete; thresholds still failing because test uses unrefined geometry.
-- `docs/spec-db-conformance.md:44-55` — DB_AT_024 acceptance contract (corr/localization thresholds) to enforce.
-- `docs/architecture.md:1-45` — DiffBragg→torch bridge expects coupled geometry + structure-factor inputs.
-- `docs/findings.md` (SCALE-001/002/004) — calibration guardrails already in place; SCALE-004 missing refined-geometry clause.
+## Implementation
+**SPEC quotes**: 
+- docs/spec-db-conformance.md:44-46: "DB‑AT‑024 Mapping consistency...median ROI correlation ≥ 0.2 and ≥90% ROIs contain a local intensity maximum within the central half‑box."
 
-## Key Observations
-- Golden generator now emits `refined_structure_factors.mtz`; golden capture metrics (corr≈0.81, localization=100%) confirm DiffBragg refinement produces aligned amplitudes when geometry matches.
-- DB_AT_024 still uses `refGeom.expt/refGeom.refl`, so refined Fopt are applied to an incompatible geometry, leaving corr≈0.0352 and localization=0% (artifact: `.../2025-11-04T120500Z/mapping_metrics.json`).
-- Generator manifest still reports `experiment_source="refGeom.expt"`; fixtures lack refined `.expt/.refl`, so Ralph must propagate them to keep fixtures + manifest internally consistent.
+**ADR alignment**:
+- docs/architecture.md (implied): data ingestion should load refined geometry when available
 
-## Decision
-Adopt blockers.md Option 1: persist the DiffBragg-refined experiment/reflection set alongside the refined MTZ and update DB_AT_024 to consume the refined geometry.
+**Search evidence**:
+- scripts/generate_simple_cubic_golden.py:736: Existing refined MTZ persistence block
+- tests/dbex/test_mapping_consistency.py:64: canonical_assets fixture (legacy geometry hardcoded)
+- dbex/run_diffbragg.py:20-24: DiffBragg writes refined geometry to `_geom_ref.expt/.refl`
 
-## Implementation Guidance (hand-off to Ralph)
-1. **Extend generator persistence:** In `scripts/generate_simple_cubic_golden.py::generate_simple_cubic_golden`, copy the refined experiment (`*_refined.expt`) and reflections (`*_refined.refl`) emitted by DiffBragg to both the canonical output (`torch/`) and `--fixtures` directory. Update manifest/metadata provenance fields to cite the refined assets. Keep MANIFEST-001 validations intact.
-2. **Load refined assets in DB_AT_024:** In `tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::canonical_assets`, prefer the refined experiment/reflections from fixtures when present (fall back to legacy assets if missing) so `prepare_refinement_inputs` receives geometry consistent with the refined MTZ.
-3. **Fixture hygiene:** After regeneration with `--fixtures`, ensure `tests/fixtures/golden_data/simple_cubic/` contains the refined `.expt/.refl/.mtz`. Leave legacy `refGeom.*` in repo root for backward compatibility; document selection logic in the fixture.
-4. **Finding update:** Promote SCALE-004 to note the refined-geometry dependency (captured in this loop).
+**Changes made**:
 
-## Validation Targets
-- Regenerate fixtures (authoritative command below) to refresh refined assets + manifest.
-- Run targeted selector: `pytest -v tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke --maxfail=1` with `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md` and existing env flags; expect PASS meeting thresholds.
-- Optional confidence: `pytest --collect-only -k DB_AT_024` to confirm selector discovery after fixture swap.
+1. **scripts/generate_simple_cubic_golden.py:736-781** — Extended refined asset persistence:
+   - Added `_geom_ref.expt` and `_geom_ref.refl` to copy workflow alongside `_temp.mtz`
+   - Saves to `torch/refined.expt` and `torch/refined.refl` in canonical output
+   - Copies to fixtures if `--fixtures` flag provided
+   - Added comprehensive warning if any refined asset is missing
 
-## Next-Loop Inputs
-Use this summary plus the updated finding + fix-plan entry to populate `input.md` for Ralph. Commands for Ralph (see How-To map):
-```bash
-AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-python scripts/generate_simple_cubic_golden.py \
-  --canonical-out plans/active/MAP-SCALE-001/reports/2025-11-04T130000Z/refined_capture \
-  --emit-manifest \
-  --fixtures tests/fixtures/golden_data/simple_cubic
-```
-(Artifacts from this rerun should be copied into `.../2025-11-04T130000Z/refined_capture/`.)
+2. **scripts/generate_simple_cubic_golden.py:802-836** — Updated manifest metadata:
+   - Added logic to detect refined geometry presence (`has_refined_geometry`)
+   - Updated `structure_factor_source`, `experiment_source`, `reflection_source` fields to cite refined assets when available
+   - Added `refined_experiment` and `refined_reflections` entries to manifest checksums
+
+3. **scripts/generate_simple_cubic_golden.py:901-917** — Extended fixture copy validation:
+   - Added refined.expt and refined.refl to files_to_copy list with existence checks
+   - Maintained MANIFEST-001 guard (no copy if sources missing)
+
+4. **tests/dbex/test_mapping_consistency.py:63-145** — Updated canonical_assets fixture:
+   - Added refined geometry path resolution with fallback to legacy
+   - Emits warning if refined geometry not found
+   - Passes `using_refined_geometry` flag to test for diagnostics
+   - DataLoad now consumes refined geometry when available
+
+5. **tests/dbex/test_mapping_consistency.py:236-255** — Enhanced test diagnostics:
+   - Added `using_refined_geometry` and `geometry_source` to metrics JSON
+   - Added print statements showing which geometry was loaded
+
+## Test Results
+
+**Targeted test** (pytest DB_AT_024):
+- Command: `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBAT024_ARTIFACT_DIR=plans/active/MAP-SCALE-001/reports/2025-11-04T130000Z KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke --maxfail=1`
+- **FAILED**: corr_median=0.0190 (threshold 0.2), localization=1.09% (threshold 90%)
+- Confirmed refined geometry loaded successfully (`using_refined_geometry: True`, `geometry_source: .../refined.expt`)
+- Refined MTZ loaded (`hkl_source: refined_structure_factors.mtz`)
+- Calibration applied (spot_scale_override=3.185e17, sqrt=5.643e8)
+
+**Golden generator** (canonical capture):
+- Successfully persisted refined.expt (5.1K), refined.refl (67K), refined_structure_factors.mtz (955K)
+- DiffBragg refinement converged (5 cycles, final sigZ=6.311)
+- Parity metrics (DiffBragg vs nanobrag_torch simulators): median_correlation=0.807, localization=100%
+- Assets confirmed in fixtures: `ls tests/fixtures/golden_data/simple_cubic/refined*`
+
+## First Divergence
+**Issue**: Zero-iteration simulation with refined geometry + refined Fopt + calibration still produces poor correlation (0.019) against background-subtracted target data, despite:
+1. Refined geometry being loaded correctly (path confirmed, no fallback warning)
+2. Refined structure factors being used (load_refined_mtz succeeded)
+3. Calibration metadata applied (spot_scale_override from config_torch.json)
+
+**Hypothesis**:
+- Golden capture's 0.807 correlation is **simulator parity** (DiffBragg output vs nanobrag_torch output), NOT target data alignment
+- DB_AT_024 compares **simulator output vs real detector data**
+- Zero-iteration forward pass (no iterative refinement) may legitimately have poor correlation with real data even when using refined assets
+- Alternatively, there may be a subtle bug in how refined geometry is being consumed by DataLoad or simulate_forward_once
+
+**Comparison**:
+- Golden capture: 18 ROIs, corr=0.807 (simulator parity, post-refinement)
+- DB_AT_024 test: 92 ROIs, corr=0.019 (zero-iteration vs real data)
+- Prior attempt with legacy geometry: 92 ROIs, corr=0.035
+
+**Next Actions**:
+- Run full pytest suite to check if other tests regressed
+- Document this divergence in fix_plan Attempts History
+- Recommend follow-up investigation: either (a) test expectation needs adjustment (zero-iteration may not hit thresholds), or (b) there's a loading bug preventing refined geometry from being used correctly by simulator
+
+## Artifacts
+- plans/active/MAP-SCALE-001/reports/2025-11-04T130000Z/golden_capture.log (DiffBragg refinement, asset persistence)
+- plans/active/MAP-SCALE-001/reports/2025-11-04T130000Z/pytest_db_at_024.log (test failure log)
+- plans/active/MAP-SCALE-001/reports/2025-11-04T130000Z/mapping_metrics.json (corr=0.019, diagnostics)
+- plans/active/MAP-SCALE-001/reports/2025-11-04T130000Z/refined_capture/manifest.json (refined asset checksums)
+- tests/fixtures/golden_data/simple_cubic/{refined.expt,refined.refl,refined_structure_factors.mtz} (persisted assets)
+
+## Metrics
+- Refined assets persisted: 3 files (expt=5.1K, refl=67K, mtz=955K)
+- Canonical capture: DiffBragg sigZ=6.311, torch max=45855, simulator parity corr=0.807
+- DB_AT_024 test: n_roi=92, corr_median=0.0190, localization=1.09%, calibration applied
+- Full suite: pending

@@ -1,0 +1,8 @@
+{
+  "loss_mask_match": true,
+  "loss_mask_coverage_adu": 0.0021021847522196737,
+  "loss_mask_coverage_photon": 0.0021021847522196737,
+  "panel_slices_match": true,
+  "trusted_mask_match": true,
+  "n_panel_slices": 92
+}

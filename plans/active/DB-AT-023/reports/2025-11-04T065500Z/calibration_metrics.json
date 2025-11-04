@@ -1,0 +1,15 @@
+{
+  "adu_per_photon": 10.0,
+  "target_adu_mean": 63.02534484863281,
+  "target_adu_std": 988.8021850585938,
+  "target_photon_mean": 6.3025336265563965,
+  "target_photon_std": 98.88021087646484,
+  "conversion_ratio": 10.000000953674316,
+  "max_conversion_error": 0.00048828125,
+  "tolerance": 0.532346171875,
+  "target_representation_adu": "adu",
+  "target_representation_photon": "photons",
+  "global_scale_hint_adu": 62.65738056380318,
+  "global_scale_hint_photon": null,
+  "valid_pixels": 13084
+}

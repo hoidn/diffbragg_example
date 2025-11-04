@@ -1,0 +1,8 @@
+{
+  "target_representation": "adu",
+  "global_scale_hint": 62.65738056380318,
+  "target_mean": 63.02534484863281,
+  "target_median": 0.6293767690658569,
+  "target_std": 988.8021850585938,
+  "valid_pixels": 13084
+}

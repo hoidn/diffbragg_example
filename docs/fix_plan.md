@@ -234,7 +234,7 @@
 
 ### [DB-AT-021] Mask semantics guard
 - Depends on: DB-AT-020, TORCH-BRIDGE-001, docs/spec-db-core.md mask contracts
-- Status: in_progress
+- Status: done
 - Owner/Date: Galph / 2025-11-04
 - Exit Criteria:
   1. `DataLoad` hydrates the DIALS trusted mask (`args.maskFile`) into `trusted_mask` aligned to `[panel, slow, fast]` (bool, True=include) and exposes detector/beam fixtures required by `prepare_refinement_inputs`; mask polarity guard rejects inverted inputs per `docs/spec-db-core.md:29-55`.
@@ -244,6 +244,7 @@
 - Working Plan: plans/active/DB-AT-021/implementation.md
 - Attempts History:
   * 2025-11-04T044251Z (planning) — Inspected `747_mask.pkl` via flex bool probe confirming single-panel mask with shape (2527, 2463) and 91.53% trusted coverage (True polarity), establishing acceptance-test baselines. Noted DataLoad currently omits `trusted_mask` hydration despite CLI usage (`refine_one.py:173`). Collected references across `docs/spec-db-core.md:29-55`, `docs/spec-db-conformance.md:32-37`, `docs/dials_api.md:12-24`, and `docs/TESTING_GUIDE.md:67-69` to drive mask semantics assertions. Metrics: panels=1, true_fraction=0.9153, false_pixels=527005. Artifacts: `plans/active/DB-AT-021/reports/2025-11-04T044251Z/summary.md`. Next Actions: Draft implementation plan (Phase A-C) and schedule Do Now for DB_AT_021 test + DataLoad mask wiring.
+  * 2025-11-04T060900Z (complete) — Implemented `DataLoad.__init__` mask loading (pickle.load → flex.bool → numpy [panel,slow,fast] with >50% polarity guard); authored `tests/dbex/test_mask_semantics.py` (3 tests: shape/polarity, loss-mask consistency, fixtures validation); all tests passed. (Code changes) Modified `dbex/data_loader.py::DataLoad.__init__` to hydrate `args.maskFile` as `trusted_mask` with 3-D alignment and polarity validation (True polarity rejects <50% coverage). Updated `tests/dbex/test_mask_semantics.py` with test_DB_AT_021_mask_shape_polarity (validates shape match + >50% trusted), test_DB_AT_021_mask_loss_consistency (verifies loss-mask target zeroing + background guard), test_DB_AT_021_fixtures_validation (skip when 747_mask.pkl absent). (Test execution) Ran commands: `DBAT021_ARTIFACT_DIR=plans/active/DB-AT-021/reports/2025-11-04T060900Z KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_mask_semantics.py -k DB_AT_021` → 3 passed; `pytest --collect-only tests -k DB_AT_021` → 3 collected; `KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/` → 54 passed, 1 skipped. Metrics: 3 tests collected + 3 passed, trusted_fraction=91.5%, loss_mask_fraction=0.21%, mean_roi_loss_coverage=98.8%, full suite status 54 passed 1 skipped. Artifacts: `plans/active/DB-AT-021/reports/2025-11-04T060900Z/{pytest_db_at_021.log,collect_db_at_021.log,mask_metrics.json,mask_shape_polarity_metrics.json,pytest_full_suite.log}`. First Divergence: N/A (no parity work). Next Actions: DB-AT-022 background sentinel validation; extend parity selectors to include mask-aware ROI sampling.
 
 ### [FINDINGS-LEDGER-002] Extend knowledge base with torch experiment lessons
 - Depends on: TORCH-BRIDGE-001, TORCH-CLI-003

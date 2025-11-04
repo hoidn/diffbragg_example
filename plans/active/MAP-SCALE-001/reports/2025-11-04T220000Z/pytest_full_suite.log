@@ -1,0 +1,339 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 69 items
+
+tests/dbex/test_background_semantics.py::TestBackgroundSemantics::test_DB_AT_022_sentinel_complement PASSED [  1%]
+tests/dbex/test_background_semantics.py::TestBackgroundSemantics::test_DB_AT_022_guard_enforcement PASSED [  2%]
+tests/dbex/test_background_semantics.py::TestBackgroundSemantics::test_DB_AT_022_roi_coverage_metrics PASSED [  4%]
+tests/dbex/test_calibration_policy.py::TestCalibrationPolicy::test_DB_AT_023_photon_conversion_correctness PASSED [  5%]
+tests/dbex/test_calibration_policy.py::TestCalibrationPolicy::test_DB_AT_023_adu_mode_metadata PASSED [  7%]
+tests/dbex/test_calibration_policy.py::TestCalibrationPolicy::test_DB_AT_023_invalid_adu_per_photon_guard PASSED [  8%]
+tests/dbex/test_calibration_policy.py::TestCalibrationPolicy::test_DB_AT_023_photon_vs_adu_loss_mask_consistency PASSED [ 10%]
+tests/dbex/test_db_at_001_parity.py::TestManifestIntegrity::test_manifest_integrity PASSED [ 11%]
+tests/dbex/test_db_at_001_parity.py::TestManifestIntegrity::test_golden_data_sanity PASSED [ 13%]
+tests/dbex/test_db_at_001_parity.py::TestManifestIntegrity::test_pixel_pitch_guard PASSED [ 14%]
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_perfect_match PASSED [ 15%]
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_correlation_computation PASSED [ 17%]
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_error_metrics PASSED [ 18%]
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_sum_ratio PASSED [ 20%]
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_localization_metric PASSED [ 21%]
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_mask_application PASSED [ 23%]
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_edge_cases PASSED [ 24%]
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_to_dict_serialization PASSED [ 26%]
+tests/dbex/test_db_at_001_parity.py::TestArtifactEmission::test_artifact_emission PASSED [ 27%]
+tests/dbex/test_db_at_001_parity.py::TestArtifactEmission::test_artifact_emission_minimal PASSED [ 28%]
+tests/dbex/test_db_at_001_parity.py::TestDB_AT_001_Parity::test_db_at_001_parity_smoke PASSED [ 30%]
+tests/dbex/test_forward_determinism.py::TestForwardDeterminism::test_DB_AT_002_same_seed PASSED [ 31%]
+tests/dbex/test_forward_determinism.py::TestForwardDeterminism::test_DB_AT_002_diff_seed PASSED [ 33%]
+tests/dbex/test_forward_equivalence_complete.py::TestForwardEquiv::test_DB_AT_001_forward_equiv PASSED [ 34%]
+tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_crystal_cell_a FAILED [ 36%]
+tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_crystal_cell_gamma PASSED [ 37%]
+tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_detector_distance PASSED [ 39%]
+tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_beam_wavelength PASSED [ 40%]
+tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck FAILED [ 42%]
+tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke SKIPPED [ 43%]
+tests/dbex/test_mask_semantics.py::TestMaskSemantics::test_DB_AT_021_trusted_mask_shape_and_polarity PASSED [ 44%]
+tests/dbex/test_mask_semantics.py::TestMaskSemantics::test_DB_AT_021_loss_mask_consistency PASSED [ 46%]
+tests/dbex/test_mask_semantics.py::TestMaskSemantics::test_DB_AT_021_detector_beam_crystal_fixtures PASSED [ 47%]
+tests/dbex/test_nanobrag_bridge.py::TestPrepareRefinementInputs::test_tensor_contract PASSED [ 49%]
+tests/dbex/test_nanobrag_bridge.py::TestPrepareRefinementInputs::test_mask_polarity PASSED [ 50%]
+tests/dbex/test_nanobrag_bridge.py::TestPrepareRefinementInputs::test_pixel_pitch_guard PASSED [ 52%]
+tests/dbex/test_nanobrag_bridge.py::TestPrepareRefinementInputs::test_tuple_mask_input PASSED [ 53%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_beam_center_swap PASSED [ 55%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_sample_to_source_vector SKIPPED [ 56%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_detector_convention_dials PASSED [ 57%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_mask_array_float_conversion PASSED [ 59%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_pixel_size_and_dimensions PASSED [ 60%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_distance_mm PASSED [ 62%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_detector_basis_reconstruction_from_real_geom PASSED [ 63%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_returns_real_nanobrag_torch_config PASSED [ 65%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_detector_model_roundtrip PASSED [ 66%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_beam_wavelength PASSED [ 68%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_polarization_factor_parity_default PASSED [ 69%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_polarization_metadata_extraction PASSED [ 71%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_polarization_fallback PASSED [ 72%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_crystal_unit_cell_parameters PASSED [ 73%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_mosflm_astar_injection PASSED [ 75%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_stills_phi_defaults PASSED [ 76%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_crystal_misset_zero_default PASSED [ 78%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_returns_real_nanobrag_torch_beam_config PASSED [ 79%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_returns_real_nanobrag_torch_crystal_config PASSED [ 81%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_crystal_model_roundtrip PASSED [ 82%]
+tests/dbex/test_nanobrag_smoke.py::TestSmokeHarness::test_single_experiment_flow PASSED [ 84%]
+tests/dbex/test_nanobrag_smoke.py::TestSmokeHarness::test_masked_mse_and_shapes PASSED [ 85%]
+tests/dbex/test_nanobrag_smoke.py::test_artifact_generation PASSED       [ 86%]
+tests/dbex/test_refine_one_cli.py::test_parser_has_backend_flag PASSED   [ 88%]
+tests/dbex/test_refine_one_cli.py::test_parser_rejects_invalid_backend PASSED [ 89%]
+tests/dbex/test_refine_one_cli.py::test_main_dispatches_to_diffbragg_backend PASSED [ 91%]
+tests/dbex/test_refine_one_cli.py::test_main_dispatches_to_nanobrag_backend PASSED [ 92%]
+tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_runs_simulator PASSED [ 94%]
+tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata PASSED [ 95%]
+tests/dbex/test_reflection_ingestion.py::TestReflectionIngestion::test_DB_AT_020_reflection_bbox PASSED [ 97%]
+tests/dbex/test_reflection_ingestion.py::TestReflectionIngestion::test_DB_AT_020_panel_alignment PASSED [ 98%]
+tests/dbex/test_runtime_vectorization.py::TestRuntimeVectorization::test_source_weights_ignored_per_spec SKIPPED [100%]
+
+=================================== FAILURES ===================================
+_______ TestDB_AT_010_Gradcheck.test_db_at_010_gradcheck_crystal_cell_a ________
+
+self = <tests.dbex.test_gradients.TestDB_AT_010_Gradcheck object at 0x781b4880a3a0>
+refinement_inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0.,...  [False,  True,  True, ...,  True, False, False]]]), target_representation='adu', global_scale_hint=62.65738056380318)
+geometry_objects = {'beam': <dxtbx_model_ext.Beam object at 0x781b57afdf20>, 'crystal': <dxtbx_model_ext.MosaicCrystalSauter2014 object a...xtbx_model_ext.Detector object at 0x781b57afd820>, 'experiment': <dxtbx_model_ext.Experiment object at 0x781b57afdeb0>}
+hkl_data = {'amplitudes': <scitbx_array_family_flex_ext.double object at 0x781b57fdd940>, 'indices': <cctbx_array_family_flex_ext.miller_index object at 0x781b57fdddc0>}
+artifact_dir = PosixPath('plans/active/DB-AT-010/reports/default')
+
+    def test_db_at_010_gradcheck_crystal_cell_a(
+        self,
+        refinement_inputs,
+        geometry_objects,
+        hkl_data,
+        artifact_dir
+    ):
+        """
+        DB-AT-010 (1/4): Verify gradients for crystal unit cell parameter cell_a.
+    
+        Tests that torch.autograd.gradcheck passes for the cell_a parameter
+        with eps=1e-6, atol=1e-5, rtol≈0.05 per testing_strategy.md:364.
+        """
+        from dbex.nanobrag_bridge import (
+            simulate_forward_torch,
+            compute_masked_mse_loss,
+            create_crystal_config
+        )
+    
+        device = torch.device('cpu')
+        dtype = torch.float64
+    
+        # Convert inputs to torch
+        target_torch = torch.tensor(refinement_inputs.target, dtype=dtype, device=device)
+        loss_mask_torch = torch.tensor(refinement_inputs.loss_mask, dtype=torch.bool, device=device)
+    
+        # Get base crystal config
+        base_crystal = geometry_objects["crystal"]
+        experiment = geometry_objects["experiment"]
+    
+        # Create a loss function parameterized by cell_a
+        def loss_fn(cell_a_tensor):
+            # Clone crystal and update cell_a
+            # Note: dxtbx Crystal objects are immutable, so we work with config
+            from dxtbx.model import Crystal as DxtbxCrystal
+    
+            # Get original unit cell params
+            uc = base_crystal.get_unit_cell()
+            a, b, c, alpha, beta, gamma = uc.parameters()
+    
+            # Replace cell_a with differentiable parameter
+            # Convert tensor to float (gradcheck will handle perturbations)
+            new_a = float(cell_a_tensor.item())
+    
+            # Create new crystal with perturbed cell_a
+            new_crystal = DxtbxCrystal(
+                real_space_a=base_crystal.get_real_space_vectors()[0],
+                real_space_b=base_crystal.get_real_space_vectors()[1],
+                real_space_c=base_crystal.get_real_space_vectors()[2],
+                space_group=base_crystal.get_space_group()
+            )
+            # Set unit cell with new cell_a
+            from cctbx import uctbx
+            new_uc = uctbx.unit_cell((new_a, b, c, alpha, beta, gamma))
+            new_crystal.set_unit_cell(new_uc)
+    
+            # Run forward simulation
+            bragg_torch = simulate_forward_torch(
+                inputs=refinement_inputs,
+                detector=geometry_objects["detector"],
+                beam=geometry_objects["beam"],
+                crystal=new_crystal,
+                experiment=experiment,
+                hkl_indices=hkl_data["indices"],
+                hkl_amplitudes=hkl_data["amplitudes"],
+                spot_scale_override=1.0,
+                device=device,
+                dtype=dtype
+            )
+    
+            # Compute masked MSE loss
+            loss = compute_masked_mse_loss(bragg_torch, target_torch, loss_mask_torch)
+            return loss
+    
+        # Get base cell_a value
+        uc = base_crystal.get_unit_cell()
+        base_cell_a = uc.parameters()[0]
+    
+        # Create differentiable parameter tensor
+        cell_a_param = torch.tensor(base_cell_a, dtype=dtype, device=device, requires_grad=True)
+    
+        # Run gradcheck
+>       gradcheck_passed = gradcheck(
+            loss_fn,
+            (cell_a_param,),
+            eps=1e-6,
+            atol=1e-5,
+            rtol=0.05,
+            raise_exception=True
+        )
+
+tests/dbex/test_gradients.py:242: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/autograd/gradcheck.py:2053: in gradcheck
+    return _gradcheck_helper(**args)
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/autograd/gradcheck.py:2082: in _gradcheck_helper
+    _gradcheck_real_imag(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/autograd/gradcheck.py:1492: in _gradcheck_real_imag
+    gradcheck_fn(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/autograd/gradcheck.py:1593: in _slow_gradcheck
+    return _check_no_differentiable_outputs(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+func = <function TestDB_AT_010_Gradcheck.test_db_at_010_gradcheck_crystal_cell_a.<locals>.loss_fn at 0x781b57a921f0>
+inputs = (tensor(27.3758, dtype=torch.float64, requires_grad=True),)
+func_out = (tensor(981700.6430, dtype=torch.float64),), eps = 1e-06
+
+    def _check_no_differentiable_outputs(
+        func, inputs, func_out, eps, *, is_forward_ad
+    ) -> bool:
+        # When there are no differentiable outputs, numerical gradient for a function is
+        # expected to be zero.
+        jacobians_all_inputs_outputs = _get_numerical_jacobian(
+            func, inputs, func_out, eps=eps, is_forward_ad=is_forward_ad
+        )
+        for jacobians_all_outputs_and_fixed_input in jacobians_all_inputs_outputs:
+            for jacobian in jacobians_all_outputs_and_fixed_input:
+                if torch.ne(jacobian, 0).sum() > 0:
+>                   raise GradcheckError(
+                        "Numerical gradient for function expected to be zero"
+                    )
+E                   torch.autograd.gradcheck.GradcheckError: Numerical gradient for function expected to be zero
+
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/autograd/gradcheck.py:981: GradcheckError
+----------------------------- Captured stdout call -----------------------------
+auto-selected 1-fold oversampling
+[HKL stats] h=[-23,8] k=[-27,11] l=[-28,10] hit_rate=6207106/6224001 (99.73%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-23,8] k=[-27,11] l=[-28,10] hit_rate=6207106/6224001 (99.73%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-23,8] k=[-27,11] l=[-28,10] hit_rate=6207107/6224001 (99.73%)
+_______________ TestDB_AT_010_Gradcheck.test_db_at_010_gradcheck _______________
+
+self = <tests.dbex.test_gradients.TestDB_AT_010_Gradcheck object at 0x781a920060d0>
+refinement_inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0.,...  [False,  True,  True, ...,  True, False, False]]]), target_representation='adu', global_scale_hint=62.65738056380318)
+geometry_objects = {'beam': <dxtbx_model_ext.Beam object at 0x781b57afdf20>, 'crystal': <dxtbx_model_ext.MosaicCrystalSauter2014 object a...xtbx_model_ext.Detector object at 0x781b57afd820>, 'experiment': <dxtbx_model_ext.Experiment object at 0x781b57afdeb0>}
+hkl_data = {'amplitudes': <scitbx_array_family_flex_ext.double object at 0x781b57fdd940>, 'indices': <cctbx_array_family_flex_ext.miller_index object at 0x781b57fdddc0>}
+artifact_dir = PosixPath('plans/active/DB-AT-010/reports/default')
+
+    def test_db_at_010_gradcheck(
+        self,
+        refinement_inputs,
+        geometry_objects,
+        hkl_data,
+        artifact_dir
+    ):
+        """
+        DB-AT-010: Comprehensive gradient correctness guard (wrapper).
+    
+        This wrapper test invokes all four parameter-specific gradcheck tests
+        to ensure comprehensive coverage. Designed for selector activation via:
+    
+        KMP_DUPLICATE_LIB_OK=TRUE DBAT010_ARTIFACT_DIR=<path> NANOBRAGG_DISABLE_COMPILE=1 \
+          pytest -v tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck
+    
+        The selector exercises:
+        - Crystal parameters: cell_a, cell_gamma
+        - Detector parameters: distance_mm
+        - Beam parameters: wavelength_A
+    
+        Emits consolidated metrics to gradcheck_metrics.json.
+        """
+        # Run all four gradcheck tests
+        passed_tests = []
+        failed_tests = []
+    
+        # Test 1: Crystal cell_a
+        try:
+>           self.test_db_at_010_gradcheck_crystal_cell_a(
+                refinement_inputs, geometry_objects, hkl_data, artifact_dir
+            )
+
+tests/dbex/test_gradients.py:610: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/dbex/test_gradients.py:242: in test_db_at_010_gradcheck_crystal_cell_a
+    gradcheck_passed = gradcheck(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/autograd/gradcheck.py:2053: in gradcheck
+    return _gradcheck_helper(**args)
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/autograd/gradcheck.py:2082: in _gradcheck_helper
+    _gradcheck_real_imag(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/autograd/gradcheck.py:1492: in _gradcheck_real_imag
+    gradcheck_fn(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/autograd/gradcheck.py:1593: in _slow_gradcheck
+    return _check_no_differentiable_outputs(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+func = <function TestDB_AT_010_Gradcheck.test_db_at_010_gradcheck_crystal_cell_a.<locals>.loss_fn at 0x781b57a928b0>
+inputs = (tensor(27.3758, dtype=torch.float64, requires_grad=True),)
+func_out = (tensor(981700.6430, dtype=torch.float64),), eps = 1e-06
+
+    def _check_no_differentiable_outputs(
+        func, inputs, func_out, eps, *, is_forward_ad
+    ) -> bool:
+        # When there are no differentiable outputs, numerical gradient for a function is
+        # expected to be zero.
+        jacobians_all_inputs_outputs = _get_numerical_jacobian(
+            func, inputs, func_out, eps=eps, is_forward_ad=is_forward_ad
+        )
+        for jacobians_all_outputs_and_fixed_input in jacobians_all_inputs_outputs:
+            for jacobian in jacobians_all_outputs_and_fixed_input:
+                if torch.ne(jacobian, 0).sum() > 0:
+>                   raise GradcheckError(
+                        "Numerical gradient for function expected to be zero"
+                    )
+E                   torch.autograd.gradcheck.GradcheckError: Numerical gradient for function expected to be zero
+
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/autograd/gradcheck.py:981: GradcheckError
+----------------------------- Captured stdout call -----------------------------
+auto-selected 1-fold oversampling
+[HKL stats] h=[-23,8] k=[-27,11] l=[-28,10] hit_rate=6207106/6224001 (99.73%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-23,8] k=[-27,11] l=[-28,10] hit_rate=6207106/6224001 (99.73%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-23,8] k=[-27,11] l=[-28,10] hit_rate=6207107/6224001 (99.73%)
+=============================== warnings summary ===============================
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+tests/dbex/test_mapping_consistency.py:147
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_mapping_consistency.py:147: PytestUnknownMarkWarning: Unknown pytest.mark.db_at_024 - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.db_at_024
+
+tests/dbex/test_mapping_consistency.py:148
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_mapping_consistency.py:148: PytestUnknownMarkWarning: Unknown pytest.mark.mapping - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.mapping
+
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_error_metrics
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_sum_ratio
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_to_dict_serialization
+tests/dbex/test_db_at_001_parity.py::TestArtifactEmission::test_artifact_emission
+tests/dbex/test_db_at_001_parity.py::TestArtifactEmission::test_artifact_emission_minimal
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/fixtures/parity_loader.py:439: ConstantInputWarning: An input array is constant; the correlation coefficient is not defined.
+    corr, _ = scipy.stats.pearsonr(pred_flat, targ_flat)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_crystal_cell_a
+FAILED tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck
+======= 2 failed, 64 passed, 3 skipped, 11 warnings in 332.83s (0:05:32) =======

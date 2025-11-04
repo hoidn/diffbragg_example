@@ -487,3 +487,13 @@ Notes
 - <Action State>: [ready_for_implementation]
 
 2025-11-04T020930Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=23 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T020930Z/ next_action=rerun_parity_and_doc_sync
+## 2025-11-04T015420Z — NANOBRAG-GOLDEN-001 checksum guard staging
+- Focus: NANOBRAG-GOLDEN-001 — Replace fallback DB-AT-001 golden dataset
+- Action Type: planning
+- Key Observations: Verified 2025-11-04T020930Z parity artifacts, marked C3/D1/D2 complete in the working plan, and logged GEOMETRY-002 capturing the analytic Euler inversion requirement; checksum guard still missing in the parity smoke.
+- Artifact Path: plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T015420Z/
+- Next Actions: Add manifest checksum assert, rerun DB_AT_001 parity into 2025-11-04T030000Z/, update Testing Guide + Test Suite Index, and mark NANOBRAG-GOLDEN-001 done in fix_plan after artifacts land.
+- Reality Check: Exit criteria satisfied pending checksum guard + ledger closure; ready for implementation handoff this loop.
+- <Action State>: [ready_for_implementation]
+
+2025-11-04T015420Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=24 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T015420Z/ next_action=implement_manifest_checksum_guard

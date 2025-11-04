@@ -1,52 +1,57 @@
-Summary: Align DB-AT-001 parity harness artifacts/docs with the canonical 2025-11-04 capture and rerun the smoke selector.
-Mode: Parity
+Summary: Add a manifest checksum assertion to the DB_AT_001 parity smoke test and refresh docs/artifacts so NANOBRAG-GOLDEN-001 can close cleanly.
+Mode: none
 Focus: NANOBRAG-GOLDEN-001 — Replace fallback DB-AT-001 golden dataset
 Branch: integration
-Mapped tests: tests/dbex/test_db_at_001_parity.py::TestDB_AT_001_Parity::test_db_at_001_parity_smoke
-Artifacts: plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T020930Z/
+Mapped tests: KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py::TestDB_AT_001_Parity::test_db_at_001_parity_smoke
+Artifacts: plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T030000Z/
 
-Do Now:
-- Implement: tests/dbex/test_db_at_001_parity.py::TestDB_AT_001_Parity.test_db_at_001_parity_smoke — repoint parity harness artifacts to plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T020930Z/, refresh messaging for canonical metrics, and ensure manifest checksum + metadata remain logged.
-- Doc: docs/TESTING_GUIDE.md §2 (DB_AT_001 parity entry) and docs/development/TEST_SUITE_INDEX.md (parity harness row) — update collection log, artifact directory, and status notes to the 2025-11-04 canonical capture.
-- Validate: KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py::TestDB_AT_001_Parity::test_db_at_001_parity_smoke | tee plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T020930Z/pytest_db_at_001.log
-- Artifacts: plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T020930Z/
+Do Now (hard validity contract)
+- Focus: NANOBRAG-GOLDEN-001
+- Implement: tests/dbex/test_db_at_001_parity.py::TestDB_AT_001_Parity::test_db_at_001_parity_smoke — assert manifest_checksum equals 2d1f8d671a6b051b23dd7a059f9fd8ff5605389bbe9a8e72cb44cbd7a8567aee and point artifact_dir to plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T030000Z before writing parity artifacts.
+- Sync Docs: docs/TESTING_GUIDE.md, docs/development/TEST_SUITE_INDEX.md — update parity harness rows with the 2025-11-04T030000Z report paths/log names and note the checksum guard.
+- Update Ledger: docs/fix_plan.md — add a completion attempt for the checksum guard rerun and flip status to done once artifacts/logs are in place.
+- Validate: KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py::TestDB_AT_001_Parity::test_db_at_001_parity_smoke | tee plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T030000Z/pytest_db_at_001.log
+- Artifacts: plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T030000Z/
 
-How-To Map:
+How-To Map
 1. export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
-2. mkdir -p plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T020930Z
-3. Edit tests/dbex/test_db_at_001_parity.py per Do Now (artifact path, messaging), then update docs/TESTING_GUIDE.md §2 and docs/development/TEST_SUITE_INDEX.md parity rows.
-4. KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py::TestDB_AT_001_Parity::test_db_at_001_parity_smoke | tee plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T020930Z/pytest_db_at_001.log
-5. ls plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T020930Z/parity_harness to confirm metrics.json, metrics.csv, first_divergence.json, predicted.npy, target.npy
-6. git status --short
+2. export REPORT_DIR=plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T030000Z
+3. mkdir -p "$REPORT_DIR"/parity_harness
+4. Edit tests/dbex/test_db_at_001_parity.py to harden the manifest checksum assert and bump artifact_dir to "$REPORT_DIR"/parity_harness (leave thresholds unchanged).
+5. Edit docs/TESTING_GUIDE.md §2 and docs/development/TEST_SUITE_INDEX.md parity rows to replace 2025-11-04T020930Z with 2025-11-04T030000Z and mention the checksum assertion.
+6. KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py::TestDB_AT_001_Parity::test_db_at_001_parity_smoke | tee "$REPORT_DIR"/pytest_db_at_001.log
+7. KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only tests/dbex/test_db_at_001_parity.py | tee "$REPORT_DIR"/collect_db_at_001_parity.log
+8. Confirm "$REPORT_DIR"/parity_harness/parity_harness/ contains metrics.json, metrics.csv, predicted.npy, target.npy, first_divergence.json; capture their checksums if diffs appear.
+9. Update docs/fix_plan.md Attempts History + status (set to done) referencing the new report directory and pytest log.
 
-Pitfalls To Avoid:
-- Do not modify or reinstall environment packages (Environment Freeze).
-- Keep canonical fixtures in tests/fixtures/golden_data/simple_cubic/ untouched; only update test/doc references.
-- Ensure artifact_dir points to 2025-11-04T020930Z (avoid reusing 2025-10-29 paths).
-- Preserve manifest checksum + metadata in write_parity_artifacts calls; no silent drops.
-- Run pytest with KMP_DUPLICATE_LIB_OK=TRUE to avoid MKL duplication errors.
-- Do not tighten DB-AT-001 thresholds beyond spec (≥0.2 corr, ≥0.9 localization) in this loop.
-- Sync docs after code passes; keep TESTING_GUIDE and TEST_SUITE_INDEX consistent.
-- Record pytest log under artifacts directory; no stdout-only runs.
-- Avoid deleting prior report directories—new evidence must live under 2025-11-04T020930Z.
-- Leave ROI offset summary generation untouched (golden dataset already validated).
+Pitfalls To Avoid
+- Do not touch fixtures in tests/fixtures/golden_data/simple_cubic; only the parity test and docs should change.
+- Keep correlation/localization thresholds at 0.2 and 0.9; no tightening this loop.
+- Preserve existing artifact naming (pytest_db_at_001.log, collect_db_at_001_parity.log, parity_harness/ subdir) so docs remain accurate.
+- Ensure REPORT_DIR uses the new timestamp; do not overwrite 2025-11-04T020930Z evidence.
+- Export KMP_DUPLICATE_LIB_OK=TRUE for both pytest commands to avoid MKL contention failures.
+- Leave write_parity_artifacts semantics untouched; only pass the new artifact_dir and assert on manifest_checksum.
+- Avoid changing parity metric calculations; the goal is a guard, not new tolerances.
+- Document any unexpected failures in docs/fix_plan.md before retrying.
 
-If Blocked:
-- If parity test fails or artifacts missing, capture the failing command output, log the minimal error in plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T020930Z/summary.md, append a blocked Attempts History entry in docs/fix_plan.md, update galph_memory.md with state=planning, and notify supervisor before retrying.
+If Blocked
+- If the manifest checksum assertion fails, capture the observed checksum in "$REPORT_DIR"/summary.md, mark NANOBRAG-GOLDEN-001 as blocked in docs/fix_plan.md with the failure signature, and ping supervisor before modifying fixtures.
 
-Findings Applied (Mandatory):
-- CONFIG-001 — Maintain bridge mapping invariants when editing parity harness (beam center swap, mask polarity).
-- MANIFEST-001 — Keep manifest paths/checksums local to this checkout when updating docs/test messaging.
-- SCALE-001 — Do not reapply structure-factor scaling when comparing canonical tensors.
-- SCALE-002 — Preserve torch post-scale outputs (no extra normalization) when logging parity metrics.
-- HKL-ORIENT-001 — Ensure source→sample vector conventions remain intact in parity docs/tests.
-- TESTING-003 — Update TESTING_GUIDE and TEST_SUITE_INDEX in lockstep after verifying pytest collection.
+Findings Applied (Mandatory)
+- MANIFEST-001 — Guard fixture availability and checksum integrity when emitting manifests; the new assert enforces this.
+- SCALE-001 — No extra sqrt(scale_override) multiplication; leave generator outputs untouched when asserting metrics.
+- SCALE-002 — Preserve global post-simulation scaling; metrics comparison must reflect canonical tensors.
+- GEOMETRY-002 — Analytic XYZ inversion remains the source of canonical geometry; the checksum guard protects the aligned dataset.
+- PARITY-001 — Maintain deterministic artifact emission (first_divergence.json, parity metrics) under the refreshed timestamp.
+- TESTING-003 — Update Testing Guide and Test Suite Index in lockstep with new collection logs and ensure the selector stays Active.
 
-Pointers:
-- tests/dbex/test_db_at_001_parity.py:708 — parity smoke test requiring artifact path refresh.
-- docs/TESTING_GUIDE.md:87 — DB_AT_001 parity harness entry to sync with new artifacts.
-- docs/development/TEST_SUITE_INDEX.md:14 — Parity harness registry row with outdated collection log.
-- plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T020930Z/summary.md — Current loop evidence + next-step notes.
+Pointers
+- docs/fix_plan.md:15 — NANOBRAG-GOLDEN-001 exit criteria and latest attempts.
+- plans/active/NANOBRAG-GOLDEN-001/implementation.md:21 — Phase D checklist showing D3 still open for ledger wrap-up.
+- tests/dbex/test_db_at_001_parity.py:746 — Location to add the manifest checksum assertion and bump artifact_dir.
+- docs/TESTING_GUIDE.md:87 — Parity harness row needing the new timestamp/log references.
+- docs/development/TEST_SUITE_INDEX.md:14 — Mirror parity row for selector status/log paths.
+- docs/findings.md:3 — GEOMETRY-002 knowledge base entry recorded this loop.
 
-Next Up (optional):
-- D2 knowledge-base update once parity rerun + docs sync complete.
+Next Up (optional)
+- Review docs/index.md parity references after closure to confirm canonical capture metadata is surfaced.

@@ -16,9 +16,9 @@
 ## Phase C — Parity harness integration
 - [x] **C1 — Harness dataset swap**: Parity harness consumes canonical tensors from `tests/fixtures/golden_data/simple_cubic/` (torch vs DiffBragg baseline, no synthetic noise).
 - [x] **C2 — Threshold enforcement**: `TestDB_AT_001_Parity::test_db_at_001_parity_smoke` enforces correlation ≥0.2 and localization ≥0.9 with artifact logging + conditional xfail.
-- [ ] **C3 — Documentation sync**: Update `docs/TESTING_GUIDE.md`, `docs/development/TEST_SUITE_INDEX.md`, and `docs/index.md` with canonical dataset + new artifact paths (pending).
+- [x] **C3 — Documentation sync**: Update `docs/TESTING_GUIDE.md`, `docs/development/TEST_SUITE_INDEX.md`, and `docs/index.md` with canonical dataset + new artifact paths (complete 2025-11-04T020930Z).
 
 ## Phase D — Closure
-- [ ] **D1 — Artifact archival**: Capture fresh parity log + metrics under `plans/active/NANOBRAG-GOLDEN-001/reports/<next_timestamp>/parity_harness/` referencing canonical tensors (pending this loop).
-- [ ] **D2 — Knowledge base update**: Add durable lessons (e.g., detector Euler inversion guard) to `docs/findings.md` if not already recorded.
+- [x] **D1 — Artifact archival**: Capture fresh parity log + metrics under `plans/active/NANOBRAG-GOLDEN-001/reports/<next_timestamp>/parity_harness/` referencing canonical tensors (captured 2025-11-04T020930Z).
+- [x] **D2 — Knowledge base update**: Add durable lessons (e.g., detector Euler inversion guard) to `docs/findings.md` if not already recorded.
 - [ ] **D3 — Ledger wrap-up**: Update `docs/fix_plan.md` Attempts History + status once canonical parity rerun/log sync completes.

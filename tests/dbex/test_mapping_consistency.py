@@ -35,6 +35,7 @@ from dbex.data_load import DataLoad
 from dbex.nanobrag_bridge import (
     prepare_refinement_inputs,
     simulate_forward_once,
+    load_calibration_metadata,
 )
 
 
@@ -69,6 +70,7 @@ class TestDB_AT_024_Mapping:
             "expt": repo_root / "refGeom.expt",
             "refl": repo_root / "refGeom.refl",
             "mask": repo_root / "747_mask.pkl",
+            "calibration": repo_root / "tests" / "fixtures" / "golden_data" / "simple_cubic" / "config_torch.json",
         }
 
         # Check all assets exist
@@ -87,9 +89,13 @@ class TestDB_AT_024_Mapping:
         )
         dl = DataLoad(dataload_args)
 
+        # Load calibration metadata
+        calibration = load_calibration_metadata(assets["calibration"])
+
         return {
             "dataload": dl,
             "paths": assets,
+            "calibration": calibration,
         }
 
     @pytest.mark.db_at_024
@@ -128,7 +134,11 @@ class TestDB_AT_024_Mapping:
             adu_per_photon=None,  # ADU mode per DB-AT-024 baseline
         )
 
-        # Run zero-iteration forward simulation via helper
+        # Load calibration metadata for spot_scale_override
+        calibration = canonical_assets["calibration"]
+        spot_scale_override = calibration["spot_scale_override"]
+
+        # Run zero-iteration forward simulation with DiffBragg calibration
         bragg, diagnostics = simulate_forward_once(
             inputs=inputs,
             detector=dl.detector,
@@ -137,7 +147,7 @@ class TestDB_AT_024_Mapping:
             experiment=dl.Expt,
             hkl_indices=dl.F.indices(),
             hkl_amplitudes=dl.F.data(),
-            spot_scale_override=None,  # Default to 1.0
+            spot_scale_override=spot_scale_override,
             device="cpu",
         )
 
@@ -175,6 +185,13 @@ class TestDB_AT_024_Mapping:
             "localization_mean": float(np.mean(localizations)) if localizations else float("nan"),
             "localization_success_rate": localization_success_rate,
             "global_scale_hint": inputs.global_scale_hint,
+            "calibration": {
+                "spot_scale_override": float(spot_scale_override),
+                "sqrt_spot_scale": float(np.sqrt(spot_scale_override)),
+                "beam_flux": calibration["beam_flux"],
+                "beam_exposure": calibration["beam_exposure"],
+                "source": "tests/fixtures/golden_data/simple_cubic/config_torch.json",
+            },
             "diagnostics": diagnostics,
         }
 
@@ -234,6 +251,7 @@ class TestDB_AT_024_Mapping:
         print(f"  Median correlation: {median_corr:.4f}")
         print(f"  Localization success rate: {localization_success_rate:.2%}")
         print(f"  Global scale hint: {inputs.global_scale_hint:.2f}")
+        print(f"  Calibration: spot_scale_override={spot_scale_override:.3e}, sqrt={np.sqrt(spot_scale_override):.3e}")
         print(f"  Artifacts: {artifact_dir}/")
 
         # Provisional xfail with measured metrics until thresholds improve

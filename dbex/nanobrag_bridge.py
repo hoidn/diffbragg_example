@@ -600,6 +600,85 @@ def build_structure_factor_grid(indices, amplitudes, device=None):
 
 
 # ============================================================================
+# Calibration metadata loader
+# ============================================================================
+
+def load_calibration_metadata(config_json_path):
+    """Load DiffBragg calibration metadata from config_torch.json.
+
+    Extracts spot_scale_override and beam flux/exposure from a canonical
+    config_torch.json file produced by DiffBragg refinement. This metadata
+    is required to align zero-iteration simulations with calibrated intensities.
+
+    Args:
+        config_json_path: Path to config_torch.json file containing DiffBragg metadata
+
+    Returns:
+        dict with keys:
+            - spot_scale_override: float, DiffBragg scale factor (to be sqrt'ed per SCALE-002)
+            - beam_flux: float, beam flux in photons/s
+            - beam_exposure: float, exposure time in seconds
+
+    Raises:
+        FileNotFoundError: If config_json_path does not exist
+        KeyError: If required fields are missing from JSON
+        ValueError: If calibration values are invalid (non-positive)
+
+    Notes:
+        - Per SCALE-002 (docs/findings.md), sqrt(spot_scale_override) is applied post-simulation
+        - Beam flux and exposure are informational; intensity calibration uses spot_scale_override
+        - Config format matches plans/active/NANOBRAG-GOLDEN-001/reports/.../config_torch.json
+    """
+    import json
+    from pathlib import Path
+
+    config_path = Path(config_json_path)
+    if not config_path.exists():
+        raise FileNotFoundError(
+            f"Calibration config not found: {config_json_path}. "
+            f"Expected config_torch.json with DiffBragg metadata (spot_scale_override, beam flux/exposure)."
+        )
+
+    with open(config_path, "r") as f:
+        config = json.load(f)
+
+    # Extract spot_scale_override from crystal section
+    try:
+        spot_scale_override = float(config["crystal"]["scale_override"])
+    except (KeyError, TypeError) as e:
+        raise KeyError(
+            f"Missing crystal.scale_override in {config_json_path}. "
+            f"Expected DiffBragg calibration metadata. Error: {e}"
+        )
+
+    # Extract beam flux and exposure (informational)
+    try:
+        beam_flux = float(config["beam"]["flux"])
+        beam_exposure = float(config["beam"]["exposure"])
+    except (KeyError, TypeError) as e:
+        raise KeyError(
+            f"Missing beam.flux or beam.exposure in {config_json_path}. "
+            f"Expected DiffBragg beam metadata. Error: {e}"
+        )
+
+    # Validate calibration values are positive
+    if spot_scale_override <= 0:
+        raise ValueError(
+            f"Invalid spot_scale_override={spot_scale_override}. Must be positive per SCALE-002."
+        )
+    if beam_flux <= 0 or beam_exposure <= 0:
+        raise ValueError(
+            f"Invalid beam metadata: flux={beam_flux}, exposure={beam_exposure}. Must be positive."
+        )
+
+    return {
+        "spot_scale_override": spot_scale_override,
+        "beam_flux": beam_flux,
+        "beam_exposure": beam_exposure,
+    }
+
+
+# ============================================================================
 # Forward simulation helper for testing and validation
 # ============================================================================
 
@@ -630,7 +709,9 @@ def simulate_forward_once(
         experiment: dxtbx Experiment object (for create_crystal_config)
         hkl_indices: Miller indices array from MTZ, shape (n_refl, 3)
         hkl_amplitudes: Structure factor amplitudes from MTZ, shape (n_refl,)
-        spot_scale_override: Optional scale factor (default 1.0 if None)
+        spot_scale_override: Optional scale factor (default 1.0 if None).
+                           For calibrated simulations, source from DiffBragg
+                           metadata via load_calibration_metadata().
         device: torch.device for simulation (default cpu)
 
     Returns:

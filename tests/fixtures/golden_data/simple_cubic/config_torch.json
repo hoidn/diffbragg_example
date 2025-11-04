@@ -1,0 +1,86 @@
+{
+  "device": "cuda:0",
+  "timestamp": "2025-11-04T01:28:28.363692Z",
+  "beam": {
+    "wavelength_A": 0.9768000000000001,
+    "polarization_factor": 0.0,
+    "nopolar": false,
+    "polarization_axis": [
+      0.0,
+      1.0,
+      0.0
+    ],
+    "flux": 1000000000000.0,
+    "beamsize_mm": 1.0,
+    "exposure": 1.0
+  },
+  "crystal": {
+    "cell": {
+      "a": 27.363803081443752,
+      "b": 32.0581549993603,
+      "c": 34.469052376441525,
+      "alpha": 88.6717901191182,
+      "beta": 71.55015086179934,
+      "gamma": 68.12239869937338
+    },
+    "mosflm_a_star": [
+      -0.027604136615991592,
+      -0.028528261929750443,
+      -0.012917856685817242
+    ],
+    "mosflm_b_star": [
+      -0.004173880908638239,
+      0.029946913942694664,
+      -0.015129907056689262
+    ],
+    "mosflm_c_star": [
+      0.025255192071199417,
+      -0.0015795775689184666,
+      -0.01749265007674694
+    ],
+    "misset_deg": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "phi_steps": 1,
+    "osc_range_deg": 0.0,
+    "mosaic_domains": 1,
+    "mosaic_spread_deg": 0.0,
+    "N_cells": [
+      36,
+      28,
+      26
+    ],
+    "scale_override": 3.184711299019782e+17,
+    "post_sim_scale_factor": 564332463.9802128,
+    "scale_factor_source": "sqrt(scale_override) per SCALE-002"
+  },
+  "structure_factors": {
+    "h_min": -24,
+    "h_max": 24,
+    "k_min": -28,
+    "k_max": 28,
+    "l_min": -31,
+    "l_max": 31,
+    "h_range": 49,
+    "k_range": 57,
+    "l_range": 63,
+    "n_reflections": 69614,
+    "n_in_range": 69614,
+    "in_range_fraction": 1.0,
+    "grid_nonzero": 69614,
+    "grid_min": 0.0,
+    "grid_max": 518.3336791992188,
+    "grid_mean": 18.757061004638672
+  },
+  "panel_configs": [
+    {
+      "panel_id": 0,
+      "distance_mm": 231.2873864984519,
+      "beam_center_s": 213.89393597605041,
+      "beam_center_f": 217.7285333623291,
+      "pixel_size_mm": 0.17200000000000001
+    }
+  ]
+}

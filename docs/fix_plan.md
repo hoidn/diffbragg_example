@@ -36,7 +36,7 @@
 
 ### [MAP-SCALE-002] Nanobrag CLI calibration parity
 - Depends on: MAP-SCALE-001, TORCH-BRIDGE-001, SCALE-006, docs/spec-db-workflow.md §4, docs/config_crosswalk.md §2
-- Status: in_progress (Ralph 2025-11-05T030000Z)
+- Status: done (Ralph 2025-11-05T030000Z)
 - Owner/Date: Galph / 2025-11-04
 - Exit Criteria:
   1. Extend `dbex.refine_one.create_parser` to accept DiffBragg calibration metadata (`--torch-config`) and optional refined structure-factor path; document defaults and environment guards.

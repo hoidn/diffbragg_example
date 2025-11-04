@@ -1,72 +1,54 @@
-Summary: Derive DIALS detector rotations in the torch bridge and regenerate the canonical DB-AT-001 dataset to eliminate peak offsets.
+Summary: Replace the bridge’s Euler extraction with the analytic XYZ inversion so the canonical DB-AT-001 tensors align pixel-for-pixel with dxtbx geometry.
 Mode: none
 Focus: NANOBRAG-GOLDEN-001 — Replace fallback DB-AT-001 golden dataset
 Branch: integration
 Mapped tests: tests/dbex/test_db_at_001_parity.py::TestDB_AT_001_Parity::test_db_at_001_parity_smoke
-Artifacts: plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T005115Z/
+Artifacts: plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T011029Z/
 
 Do Now:
 - Focus: NANOBRAG-GOLDEN-001
 - Implement: dbex/nanobrag_bridge.py::create_detector_config
 - Validate: KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py::TestDB_AT_001_Parity::test_db_at_001_parity_smoke
-- Artifacts: plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T005115Z/
+- Artifacts: plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T011029Z/
 
 How-To Map:
-1. Update `dbex/nanobrag_bridge.py::create_detector_config` to extract per-panel fast/slow/normal axes, form a rotation matrix with `scitbx.matrix.sqr`, convert to XYZ radians via `r3_rotation_matrix_as_x_y_z_angles`, then store the degree values in `DetectorConfig.detector_rotx_deg`, `.detector_roty_deg`, `.detector_rotz_deg`; keep beam center swap + square-pixel guard.
-2. Ensure multi-panel safety: if more than one panel appears, iterate per panel and raise a clear error when axes fail `is_r3_rotation_matrix`.
-3. Refresh docs so `docs/nanobrag_api.md` and `docs/config_crosswalk.md` describe DIALS rotations instead of CUSTOM basis vectors (note BEAM pivot preservation).
-4. Regenerate canonical tensors with DIALS rotations:
-   ```bash
-   PYTHONPATH=../nanoBragg/src:$PYTHONPATH KMP_DUPLICATE_LIB_OK=TRUE \
-   python scripts/generate_simple_cubic_golden.py \
-     --canonical-out plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T005115Z/golden_dataset \
-     --hkldebug plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T005115Z/torch_hkl_debug.json \
-     --emit-manifest \
-     --fixtures tests/fixtures/golden_data/simple_cubic \
-     --roi-dump plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T005115Z/roi_triptychs
-   ```
-5. Summarize offsets to confirm success (expect median_abs_offset ≤1 px, torch_max ≈ diffbragg_max):
-   ```bash
-   python plans/active/NANOBRAG-GOLDEN-001/bin/summarize_roi_offsets.py \
-     --index-json plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T005115Z/roi_triptychs/index.json \
-     --write-json plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T005115Z/roi_offset_summary.json
-   ```
-6. Run parity selector and tee logs to artifacts:
-   ```bash
-   KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py::TestDB_AT_001_Parity::test_db_at_001_parity_smoke | tee plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T005115Z/pytest_db_at_001.log
-   ```
-7. Archive generator stdout (`canonical_capture.log`) and updated metrics/manifest under the same report directory.
+1. Edit `dbex/nanobrag_bridge.py::create_detector_config`: build rotation matrix `R = np.column_stack([panel.get_fast_axis(), panel.get_slow_axis(), panel.get_normal()])`, compute analytic Euler angles with `phi_y = -np.arcsin(np.clip(R[2,0], -1.0, 1.0))`, `phi_x = np.arctan2(R[2,1], R[2,2])`, `phi_z = np.arctan2(R[1,0], R[0,0])`, convert to degrees, and optional asserts that `angles_to_rotation_matrix` reconstructs `R` within 1e-9; remove the previous `r3_rotation_matrix_as_x_y_z_angles()` call.
+2. Extend `tests/dbex/test_nanobrag_bridge_configs.py::test_detector_convention_custom` (or add a sibling test) to load `refGeom.expt` via `ExperimentListFactory`, call `create_detector_config`, build a `TorchDetectorConfig`/`TorchDetector`, and `np.testing.assert_allclose` the returned fast/slow/normal vectors to dxtbx axes with atol=1e-6. Guard the environments with `pytest.importorskip("nanobrag_torch")` to keep CPU-only runs green.
+3. Generate a fresh canonical dataset in this checkout (no `_2` paths) into a new timestamp directory beneath `plans/active/NANOBRAG-GOLDEN-001/reports/`: `RUN_TS=$(date -u +%Y-%m-%dT%H%M%SZ)`; `REPORT_DIR=plans/active/NANOBRAG-GOLDEN-001/reports/$RUN_TS`; `mkdir -p "$REPORT_DIR"`; then `PYTHONPATH=../nanoBragg/src:$PYTHONPATH KMP_DUPLICATE_LIB_OK=TRUE python scripts/generate_simple_cubic_golden.py --canonical-out "$REPORT_DIR/golden_dataset" --hkldebug "$REPORT_DIR/torch_hkl_debug.json" --emit-manifest --fixtures tests/fixtures/golden_data/simple_cubic --roi-dump "$REPORT_DIR/roi_triptychs"`.
+4. Confirm alignment post-change: `python plans/active/NANOBRAG-GOLDEN-001/bin/summarize_roi_offsets.py --index-json "$REPORT_DIR/roi_triptychs/index.json" --write-json "$REPORT_DIR/roi_offset_summary.json"` (expect median_abs_offset ≤ 1 px) and spot-check manifest paths stay inside this workspace.
+5. Run `KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py::TestDB_AT_001_Parity::test_db_at_001_parity_smoke | tee "$REPORT_DIR/pytest_db_at_001.log"`; archive generator stdout/stderr as `$REPORT_DIR/canonical_capture.log` and attach the offset summary + parity log in the report directory.
+6. Update ledger/docs: append Attempts History entry with metrics and cite `$REPORT_DIR`, refresh `docs/fix_plan.md`/`plans/.../implementation.md` status, and note any new lessons in `docs/findings.md` if discovered; leave repo clean.
 
 Pitfalls To Avoid:
-- Do not revert SCALE-001/002 fixes; keep post-sim √scale applied once.
-- Preserve BEAM pivot semantics—no `DetectorConvention.CUSTOM` basis vectors.
-- Ensure rotation matrix validation before converting to Euler angles; guard against numerical drift.
-- Keep `[panel, slow, fast]` ordering intact when touching generator outputs.
-- Stay within Environment Freeze; no package installs or rebuilds this loop.
-- Retain manifest paths within this workspace per MANIFEST-001 guard.
-- Capture ROI + parity artifacts using the new timestamped directory only.
-- Keep pytest selector xfail expectation intact; document if status changes.
-- Maintain device neutrality (avoid hard-coded CUDA-only paths during generator run).
-- Avoid writing ad-hoc scripts outside `plans/active/.../bin`; reuse inline probes in summary only.
+- Do not reintroduce CUSTOM detector vectors—keep `DetectorConvention.DIALS` so pivot stays BEAM.
+- Clamp the arcsin argument to [-1,1] before inversion to avoid math domain errors from floating noise.
+- Ensure generator runs from this repository; manifests pointing at `diffbragg_example_2` violate MANIFEST-001.
+- Preserve SCALE-001/002 fixes (no pre-scaling structure factors; keep √scale post sim) and HKL-ORIENT-001 beam-direction handling.
+- Always export `KMP_DUPLICATE_LIB_OK=TRUE` for parity run and disable compile if gradcheck fixtures engage.
+- Capture artifacts under the new timestamp directory only; avoid overwriting historical reports.
+- Keep GPU/CPU neutrality—tests must pass on CPU-only boxes (use `importorskip` for torch GPU features where needed).
+- Don’t leave the new test without collect-only evidence; ensure it runs under pytest selectors without skipping silently.
+- Maintain Environment Freeze: no conda/pip installs or nanoBragg rebuilds.
+- Guard against gimbal lock fallback; if `cos(phi_y)` ≈ 0, log and branch appropriately instead of returning bogus angles.
 
 If Blocked:
-- If `nanobrag_torch` import fails or generator errors, capture the traceback snippet in `plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T005115Z/errors.log`, mark `docs/fix_plan.md` Attempts History with the error signature, set input Mode=Docs on next loop, and halt implementation until resolved.
-- If computed rotations still yield >1 px median offsets, stop after logging metrics, attach ROI overlays, and record the regression in Attempts History before proceeding.
+- If Euler inversion blows up (e.g., |R[2,0]| > 1 + 1e-9), dump the offending matrix and panel id to `$REPORT_DIR/errors.log`, revert the code tweak in-place, log the blocker in `docs/fix_plan.md`, and halt for supervisor guidance.
+- If generator or pytest crashes, tee stderr to `$REPORT_DIR/failure.log`, preserve stack traces, update Attempts History with the failure signature, and stop—do not chase environment fixes solo.
 
 Findings Applied (Mandatory):
-- MANIFEST-001 — Keep manifest emission bound to local tensor paths; validate SHA entries post-regeneration.
-- SCALE-001 — Do not rescale structure factors again during generation; only torch outputs receive the √scale factor.
-- SCALE-002 — Ensure post-simulation global scale remains active and is reported in panel_metrics.json.
-- HKL-ORIENT-001 — Maintain correct incident beam direction (sample→source) when mapping DetectorConfig to avoid HKL drift.
+- MANIFEST-001 — Keep manifest emission scoped to tensors verified in this workspace; re-run validation after regeneration.
+- SCALE-001 — Avoid double-applying structure-factor scaling when refitting the bridge.
+- SCALE-002 — Ensure the √scale post-simulation factor remains active and documented in metrics.
+- HKL-ORIENT-001 — Maintain sample→source incident beam direction so HKL grids stay populated.
 
 Pointers:
-- docs/config_crosswalk.md:15 — Detector mapping inputs/outputs and required guards.
-- docs/nanobrag_api.md:32 — DetectorConfig expectations and convention notes.
-- docs/forward_equivalence.md:46 — DB-AT-001 artifact checklist for parity runs.
-- docs/TESTING_GUIDE.md:74 — Selector flags and environment requirements for DB_AT_001.
-- docs/spec-db-tracing.md:15 — ROI instrumentation requirements for first-divergence analysis.
-- docs/fix_plan.md:15 — Initiative metadata and Attempts History for NANOBRAG-GOLDEN-001.
+- docs/config_crosswalk.md:15 — Detector mapping requirements and angle conventions.
+- docs/nanobrag_api.md:32 — DetectorConfig fields (convention, pivot, masks).
+- dbex/nanobrag_bridge.py:232 — Current geometry extraction logic to replace.
+- tests/dbex/test_nanobrag_bridge_configs.py:80 — Detector config test harness to extend for axis checks.
+- docs/fix_plan.md:15 — Initiative Attempts History and exit criteria snapshot.
+- plans/active/NANOBRAG-GOLDEN-001/implementation.md:20 — Phase A checklist for canonical tensor capture.
 
 Next Up (optional):
-1. Begin B1 manifest/metadata rewrite once geometry parity is validated.
-2. Draft parity threshold tightening plan (C2) based on updated localization metrics.
+1. If offsets fall below 1 px, proceed to Phase B1 manifest/metadata rewrite.
+2. After parity metrics improve, tighten DB_AT_001 thresholds per spec in Phase C2.

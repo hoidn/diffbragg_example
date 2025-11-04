@@ -466,3 +466,13 @@ Notes
 - Reality Check: Exit criteria unmet; canonical dataset still misaligned and manifest still references stale tensors. Ready for implementation handoff this loop.
 - <Action State>: [ready_for_implementation]
 2025-11-04T005115Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=21 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T005115Z/ next_action=apply_dials_rotations_regenerate_and_run_db_at_001
+
+## 2025-11-04T011029Z — NANOBRAG-GOLDEN-001 Euler inversion validation
+- Focus: NANOBRAG-GOLDEN-001 — Replace fallback DB-AT-001 golden dataset
+- Action Type: planning
+- Key Observations: ROI sample still shows large localization error (median_abs_offset=8 px, max=15); recreated TorchDetector from current bridge output and confirmed fast/slow/normal vectors deviate from dxtbx axes (‖Δfast‖≈3.7e-3). Derived analytic Euler recovery (`phi_y = -asin(R[2,0])`, `phi_x = atan2(R[2,1], R[2,2])`, `phi_z = atan2(R[1,0], R[0,0])`) that reproduces the dxtbx column matrix with <2e-16 error, explaining mismatch introduced by `r3_rotation_matrix_as_x_y_z_angles()`. Logged micro/T1 probes under 2025-11-04T011029Z/summary.md.
+- Artifact Path: plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T011029Z/
+- Next Actions: Patch `dbex/nanobrag_bridge.create_detector_config` to use the analytic XYZ inversion, add assertions/tests to guard future regressions, regenerate canonical tensors into a fresh report, verify TorchDetector basis matches dxtbx axes, then rerun DB_AT_001 parity pytest and update fixture manifest/metrics + ledger.
+- Reality Check: Ready for implementation; dwell guard already exceeded so next loop must execute code + pytest.
+- <Action State>: [ready_for_implementation]
+2025-11-04T011029Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=22 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T011029Z/ next_action=replace_euler_conversion_regenerate_and_run_db_at_001

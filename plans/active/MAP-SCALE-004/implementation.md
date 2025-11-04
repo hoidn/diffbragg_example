@@ -19,14 +19,14 @@ Carry the refined structure-factor telemetry contract landed in the CLI into the
 ## Phase Breakdown
 
 - **Phase A — Telemetry design**
-  - [ ] A1: Audit `simulate_forward_once` / `simulate_forward_once_torch` to identify where to compute telemetry and ensure device/dtype neutrality.
-  - [ ] A2: Define telemetry payload shape and fallbacks (e.g., empty path when MTZ absent, reflection count from `hkl_indices`) consistent with CLI implementation.
-  - [ ] A3: Document gaps in DB_AT_024 (current string logging) and decide assertion strategy for refined vs raw scenarios.
+  - [x] A1: Audit `simulate_forward_once` / `simulate_forward_once_torch` to identify where to compute telemetry and ensure device/dtype neutrality.
+  - [x] A2: Define telemetry payload shape and fallbacks (e.g., empty path when MTZ absent, reflection count from `hkl_indices`) consistent with CLI implementation.
+  - [x] A3: Document gaps in DB_AT_024 (current string logging) and decide assertion strategy for refined vs raw scenarios.
 
 - **Phase B — Implementation & Tests**
-  - [ ] B1: Update bridge helpers to return telemetry in diagnostics and propagate canonical MTZ path; add unit/utility coverage if needed.
-  - [ ] B2: Extend `tests/dbex/test_mapping_consistency.py` to assert telemetry fields and regression-fail when refined MTZ usage is lost.
-  - [ ] B3: Refresh DB_AT_024 artifacts (collect/run) confirming telemetry surfaces as expected with canonical assets.
+  - [x] B1: Update bridge helpers to return telemetry in diagnostics and propagate canonical MTZ path; add unit/utility coverage if needed.
+  - [x] B2: Extend `tests/dbex/test_mapping_consistency.py` to assert telemetry fields and regression-fail when refined MTZ usage is lost.
+  - [x] B3: Refresh DB_AT_024 artifacts (collect/run) confirming telemetry surfaces as expected with canonical assets.
 
 - **Phase C — Documentation & Knowledge Base**
   - [ ] C1: Update `docs/TESTING_GUIDE.md` and `docs/development/TEST_SUITE_INDEX.md` referencing telemetry assertions and artifact locations.

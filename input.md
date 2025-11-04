@@ -1,41 +1,38 @@
-Summary: Surface refined structure-factor telemetry in the zero-iteration helper and guard DB_AT_024 with assertions.
-Mode: none
+Summary: Sync DB_AT_024 documentation with the new structure-factor telemetry guard.
+Mode: Docs
 Focus: MAP-SCALE-004 — Zero-iteration telemetry parity
 Branch: integration
 Mapped tests:
+- pytest --collect-only tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke
 - pytest -v tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke --maxfail=1
-- pytest -v tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_uses_refined_mtz --maxfail=1 -q
-Artifacts: plans/active/MAP-SCALE-004/reports/2025-11-05T220000Z/
+Artifacts: plans/active/MAP-SCALE-004/reports/2025-11-06T010000Z/
 Do Now:
-- MAP-SCALE-004: Implement: dbex/nanobrag_bridge.py::simulate_forward_once + tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping.test_db_at_024_mapping_smoke — surface structure-factor telemetry (hkl_source/count/mean/path) in zero-iteration diagnostics and harden DB_AT_024 assertions while keeping CLI telemetry unchanged. Validate: pytest -v tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke --maxfail=1; pytest -v tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_uses_refined_mtz --maxfail=1 -q.
+- MAP-SCALE-004: Implement: docs/TESTING_GUIDE.md::<DB_AT_024 selector row> + docs/development/TEST_SUITE_INDEX.md::<DB_AT_024 entry> — document telemetry requirements (hkl_source/count/mean/path), refresh metrics/artifact references to 2025-11-05T220000Z, and call out SCALE-007 guardrail. Validate: pytest --collect-only tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke; pytest -v tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke --maxfail=1.
 How-To Map:
 1. export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
-2. NANOBRAGG_DISABLE_COMPILE=1 KMP_DUPLICATE_LIB_OK=TRUE DBAT024_ARTIFACT_DIR=plans/active/MAP-SCALE-004/reports/2025-11-05T220000Z pytest --collect-only tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke | tee plans/active/MAP-SCALE-004/reports/2025-11-05T220000Z/collect_db_at_024.log
-3. NANOBRAGG_DISABLE_COMPILE=1 KMP_DUPLICATE_LIB_OK=TRUE DBAT024_ARTIFACT_DIR=plans/active/MAP-SCALE-004/reports/2025-11-05T220000Z pytest -v tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke --maxfail=1 | tee plans/active/MAP-SCALE-004/reports/2025-11-05T220000Z/pytest_db_at_024.log
-4. pytest -v tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_uses_refined_mtz --maxfail=1 -q | tee plans/active/MAP-SCALE-004/reports/2025-11-05T220000Z/pytest_cli_refined_mtz.log
+2. NANOBRAGG_DISABLE_COMPILE=1 KMP_DUPLICATE_LIB_OK=TRUE DBAT024_ARTIFACT_DIR=plans/active/MAP-SCALE-004/reports/2025-11-06T010000Z pytest --collect-only tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke | tee plans/active/MAP-SCALE-004/reports/2025-11-06T010000Z/collect_db_at_024.log
+3. NANOBRAGG_DISABLE_COMPILE=1 KMP_DUPLICATE_LIB_OK=TRUE DBAT024_ARTIFACT_DIR=plans/active/MAP-SCALE-004/reports/2025-11-06T010000Z pytest -v tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke --maxfail=1 | tee plans/active/MAP-SCALE-004/reports/2025-11-06T010000Z/pytest_db_at_024.log
 Pitfalls To Avoid:
-- Preserve device/dtype neutrality in bridge helpers; no hard-coded CPU conversions.
-- Avoid breaking existing diagnostics keys; telemetry must be additive.
-- Keep DB_AT_024 artifacts under the provided report directory; no stray outputs.
-- Do not relax acceptance thresholds; telemetry enforcement should fail loudly when refined MTZ missing.
-- Respect Environment Freeze; no installs or external data fetches.
-- Ensure tests remain hermetic by mocking filesystem/MTZ where practical.
-- Maintain CLI telemetry contract; run the CLI regression to confirm no regressions.
-- Keep telemetry values serializable (native Python scalars/strings for HDF5/JSON).
-If Blocked: Document the blocker in plans/active/MAP-SCALE-004/reports/2025-11-05T220000Z/blocked.md, append the summary and return conditions to docs/fix_plan.md Attempts History, and note the blocked state in galph_memory.md before pivoting focus.
+- Do not touch production bridge code; this loop is documentation-only.
+- Keep telemetry field names exact (`hkl_source`, `hkl_n_reflections`, `hkl_mean_amplitude`, `hkl_path`).
+- Reference the latest artifacts directory (2025-11-05T220000Z) and note metrics verbatim.
+- Maintain selector status tables (no column drift) when editing docs.
+- Ensure SCALE-007 stays marked Active and cross-linked in notes.
+- Capture pytest output under the new artifact directory via tee.
+- Respect Environment Freeze—no package installs or environment mutations.
+- Preserve markdown table formatting (pipes aligned, no stray spaces causing parser issues).
+If Blocked: Record the blocking issue in plans/active/MAP-SCALE-004/reports/2025-11-06T010000Z/blocked.md, add the summary + return conditions to docs/fix_plan.md Attempts History, flag the focus as blocked in galph_memory.md, and pivot per loop discipline.
 Findings Applied:
-- SCALE-003 — Enforce refined |F| usage by exposing telemetry; acceptance tests must fail on raw fallback.
-- SCALE-004 — Couple calibration metadata with refined structure factors; diagnostics should surface provenance.
-- DIAGNOSTICS-001 — Keep torch diagnostics schema authoritative and additive.
-- TESTING-002 — Use CLI/bridge mocks to keep tests deterministic.
-- TESTING-003 — Maintain selector hygiene with collect-only evidence before claiming Active status.
+- SCALE-003 — Refined |F| amplitudes must be present for zero-iteration parity; telemetry documents their provenance.
+- SCALE-004 — Calibration metadata and refined structure factors travel together; docs must reinforce this contract.
+- SCALE-005 — Bridge telemetry should continue noting `n_cells_applied` so sample clipping guardrails stay discoverable.
+- SCALE-007 — New guard: zero-iteration diagnostics must emit structure-factor telemetry and DB_AT_024 fails on raw fallbacks.
+- DIAGNOSTICS-001 — Torch diagnostics schema changes must be additive and documented.
+- TESTING-003 — Selector registry updates require fresh collect-only evidence and artifact references.
 Pointers:
-- dbex/nanobrag_bridge.py:843 — simulate_forward_once diagnostics payload
-- dbex/nanobrag_bridge.py:1098 — simulate_forward_torch HKL handling
-- tests/dbex/test_mapping_consistency.py:149 — DB_AT_024 acceptance test body
-- docs/spec-db-tracing.md:20 — Torch diagnostics contract
-- docs/TESTING_GUIDE.md:71 — DB_AT_024 selector requirements
-Next Up (optional):
-1) Teach DB_AT_024 to record refined geometry metadata (expt/refl provenance) in artifacts once telemetry lands.
-Doc Sync Plan:
-- After implementation, rerun collect-only + full DB_AT_024 logs (already scripted above) and update docs/TESTING_GUIDE.md §2 plus docs/development/TEST_SUITE_INDEX.md with the telemetry enforcement notes, referencing the new artifacts under plans/active/MAP-SCALE-004/reports/2025-11-05T220000Z/.
+- dbex/nanobrag_bridge.py:843 — Telemetry-enabled `simulate_forward_once` signature and docstring.
+- tests/dbex/test_mapping_consistency.py:339 — DB_AT_024 telemetry assertions that docs need to describe.
+- docs/TESTING_GUIDE.md:71 — DB_AT_024 selector table row requiring telemetry updates.
+- docs/development/TEST_SUITE_INDEX.md:27 — DB_AT_024 registry entry to sync with telemetry details.
+- docs/fix_plan.md:67 — MAP-SCALE-004 Attempts History noting doc/test sync is still outstanding.
+Next Up (optional): 1) Audit CLI docs for refined telemetry references once DB_AT_024 documentation is refreshed.

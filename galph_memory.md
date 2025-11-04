@@ -776,3 +776,13 @@ Notes
 - Next Actions: Implement telemetry emission in bridge helpers, extend DB_AT_024 assertions/log capture, and update selector docs.
 - <Action State>: [planning]
 2025-11-05T220000Z focus=MAP-SCALE-004 state=planning dwell=0 artifacts=plans/active/MAP-SCALE-004/reports/2025-11-05T220000Z/ next_action=implement_zero_iteration_telemetry
+
+## 2025-11-06T010000Z — MAP-SCALE-004 doc sync planning
+- Focus: MAP-SCALE-004 — Zero-iteration telemetry parity
+- Action Type: planning
+- Key Observations: Verified telemetry implementation landed (`simulate_forward_once` exposes `hkl_telemetry`, DB_AT_024 asserts refined source) and canonical artifacts under 2025-11-05T220000Z capture corr_median=0.6206, localization=0.9348, hkl_n_reflections=69614. Documentation still references pre-telemetry metrics (2025-11-04 paths) and lacks SCALE-007 guardrail; Phase C checklist remains open.
+- Artifact Path: plans/active/MAP-SCALE-004/reports/2025-11-06T010000Z/
+- Next Actions: Deliver docs/test registry sync Do Now covering DB_AT_024 tables, SCALE-007 linkage, and fresh collect-only/log artifacts.
+- <Action State>: [planning]
+
+2025-11-06T010000Z focus=MAP-SCALE-004 state=planning dwell=1 artifacts=plans/active/MAP-SCALE-004/reports/2025-11-06T010000Z/ next_action=deliver_doc_registry_sync_do_now

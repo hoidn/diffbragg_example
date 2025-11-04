@@ -1,36 +1,38 @@
-Summary: Harden `_write_torch_outputs` so CLI diagnostics always emit numeric ROI scores and stable aggregates.
-Mode: none
-Focus: TORCH-CLI-004 — Torch diagnostics ROI score coercion
+Summary: Restore DB-AT-010 gradcheck coverage by keeping differentiable tensors alive through the bridge helper.
+Mode: Parity
+Focus: DB-AT-010 — Gradient correctness guard (regression recovery)
 Branch: integration
 Mapped tests:
-- pytest --collect-only tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata
-- pytest -v tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata --maxfail=1
-Artifacts: plans/active/TORCH-CLI-004/reports/2025-11-04T222435Z/
+- tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck
+- tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_crystal_cell_a
+Artifacts: plans/active/DB-AT-010/reports/2025-11-04T225149Z/
 Do Now:
-- TORCH-CLI-004: Implement: dbex/refine_one.py::_write_torch_outputs — coerce ROI scores to floats before aggregating, guard empty-score collections, and keep telemetry attributes numeric; update tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata to assert the stabilized diagnostics. Validate: pytest --collect-only tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata; pytest -v tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata --maxfail=1. Capture logs in the artifact directory and confirm HDF5 payload reflects numeric scores.
+- DB-AT-010: Implement: dbex/nanobrag_bridge.py::simulate_forward_torch — introduce a tensor-preserving override path for gradcheck inputs and update tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_crystal_cell_a to consume it (no `.item()`/`.numpy()` detaches). Validate: pytest --collect-only tests -k DB_AT_010; pytest -v tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck --maxfail=1. Archive logs in the artifact directory.
 How-To Map:
 1. export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
-2. TORCHCLI004_ARTIFACT_DIR=plans/active/TORCH-CLI-004/reports/2025-11-04T222435Z pytest --collect-only tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata | tee "$TORCHCLI004_ARTIFACT_DIR/collect_torch_diag.log"
-3. TORCHCLI004_ARTIFACT_DIR=plans/active/TORCH-CLI-004/reports/2025-11-04T222435Z pytest -v tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata --maxfail=1 | tee "$TORCHCLI004_ARTIFACT_DIR/pytest_torch_diag.log"
+2. export DBAT010_ARTIFACT_DIR=plans/active/DB-AT-010/reports/2025-11-04T225149Z
+3. env KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest --collect-only tests -k DB_AT_010 | tee "$DBAT010_ARTIFACT_DIR/collect_db_at_010.log"
+4. env KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck --maxfail=1 | tee "$DBAT010_ARTIFACT_DIR/pytest_db_at_010_wrapper.log"
+5. If the wrapper still fails, rerun the focused case: env KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_crystal_cell_a --maxfail=1 | tee "$DBAT010_ARTIFACT_DIR/pytest_db_at_010_cell_a.log"
 Pitfalls To Avoid:
-- Keep `_write_torch_outputs` telemetry schema intact (attributes + datasets) to preserve downstream tooling.
-- Do not swallow real runtime errors; only guard the aggregation for empty lists or non-scalars.
-- Respect Environment Freeze—no new dependencies or external tooling.
-- Ensure mocks in the test still exercise telemetry fields; avoid hard-coding production paths.
-- Maintain deterministic prints/logs so existing diagnostics remain readable.
-- Leave MAP-SCALE-005 guard behavior untouched (refined MTZ enforcement must keep raising on failure).
-- Refrain from loosening test assertions; strengthen them to cover numeric coercion instead.
-- Keep pytest selectors deterministic—no wildcard `-k` usage.
-- Update documentation only if behavior description changes; otherwise verify existing entries remain accurate.
-If Blocked: Log minimal error signature in plans/active/TORCH-CLI-004/reports/2025-11-04T222435Z/blocked.md, add Attempts History entry to docs/fix_plan.md, update galph_memory.md with `state=blocked`, and pivot per loop discipline.
-Findings Applied:
-- DIAGNOSTICS-001 — Maintain `/torch_diagnostics` metadata contract while adjusting score coercion.
-- SCALE-003 — Preserve refined/raw HKL telemetry attributes when editing diagnostics.
-- TESTING-002 — Use deterministic mocks within CLI tests to validate behavior without real simulator runs.
-- TESTING-003 — Capture collect-only evidence for documented selectors.
+- Do not call `.item()`/`.numpy()` on tensors that should retain gradients; rely on torch-native overrides.
+- Keep SCALE-001/002 contracts intact—no premature scaling changes when threading overrides.
+- Preserve existing simulator defaults (device, dtype) and keep overrides opt-in to avoid regressing other callers.
+- Maintain `NANOBRAGG_DISABLE_COMPILE=1` for every gradcheck run; verify the env var before running pytest.
+- Avoid introducing new dependencies or touching environment configuration (Environment Freeze).
+- Ensure updated tests remain deterministic and reuse canonical assets; no random seeds without documentation.
+- Leave MAP-SCALE selectors untouched; any telemetry adjustments belong to this initiative only if required for gradients.
+- Keep doc ledgers accurate—if behavior stays the same, simply confirm existing entries rather than rewriting.
+- Watch runtime: gradcheck is slow; use targeted selectors instead of full-suite runs for validation.
+If Blocked: Capture the exact gradcheck traceback and offending parameter in a new `blocked.md` under the artifact path, update docs/fix_plan.md Attempts History with the failure signature, set galph_memory state=blocked for DB-AT-010, and coordinate on dependencies before reattempting.
+Findings Applied (Mandatory):
+- RUNTIME-001 — Enforce `NANOBRAGG_DISABLE_COMPILE=1` for reliable gradchecks.
+- SCALE-001 — Keep structure factors unscaled while introducing overrides.
+- SCALE-002 — Apply sqrt(spot_scale_override) inside torch so gradients remain differentiable.
+- GRADIENT-001 — Never detach gradcheck tensors via `.item()`/`.numpy()`; use bridge helpers that preserve autograd graphs.
 Pointers:
-- dbex/refine_one.py:384 — ROI scoring aggregation and diagnostics emission logic.
-- tests/dbex/test_refine_one_cli.py:520 — Torch diagnostics metadata test harness to update.
-- docs/spec-db-tracing.md:22 — Telemetry payload expectations for torch diagnostics.
-- plans/active/MAP-SCALE-005/reports/2025-11-06T050000Z/pytest_full_suite.log — Source TypeError trace.
-Next Up (optional): 1) Re-run full CLI module pytest (`pytest -v tests/dbex/test_refine_one_cli.py`) to confirm broader coverage once the fix lands.
+- dbex/nanobrag_bridge.py:1101 — `simulate_forward_torch` implementation to extend.
+- tests/dbex/test_gradients.py:202 — `.item()` usage breaking the gradient graph.
+- docs/development/testing_strategy.md:416 — Guidance on avoiding `.item()` in gradient flows.
+- plans/active/DB-AT-010/implementation.md:31 — Phase D regression recovery checklist.
+Next Up (optional): 1) Audit detector/beam override patterns once crystal overrides land, ensuring gradients propagate for distance and wavelength parameters without custom per-test patches.

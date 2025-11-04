@@ -14,3 +14,8 @@
 - [x] C1: Run targeted and full-suite pytest commands with `KMP_DUPLICATE_LIB_OK=TRUE` and `NANOBRAGG_DISABLE_COMPILE=1`; archive stdout/stderr logs and metrics JSON in `plans/active/DB-AT-010/reports/<ts>/`.
 - [x] C2: Update `docs/TESTING_GUIDE.md` and `docs/development/TEST_SUITE_INDEX.md` to promote DB_AT_010 selector (command, env flags, artifact paths, expected runtime) per TESTING-003; cross-reference findings (RUNTIME-001, SCALE-001/002).
 - [x] C3: Append fix_plan Attempts History with metrics summary, confirm selector Active (>0 tests collected), and log durable lessons in `docs/findings.md` if new gradient guardrails arise.
+
+## Phase D — Regression Recovery (2025-11)
+- [ ] D1: Extend `simulate_forward_torch` (or introduce a dedicated gradcheck helper) to accept tensor-valued overrides for crystal/detector/beam parameters so `.item()`/`.numpy()` calls are unnecessary in DB-AT-010 tests.
+- [ ] D2: Update `tests/dbex/test_gradients.py` gradcheck cases to exercise the override path while keeping `torch.Tensor` inputs differentiable; ensure the wrapper and parameter-specific tests cover eps=1e-6, atol=1e-5, rtol=0.05.
+- [ ] D3: Re-run `pytest --collect-only tests -k DB_AT_010` and `pytest -v tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck --maxfail=1`, archive logs under a new timestamped report, and verify documentation/test ledgers remain accurate after the fix.

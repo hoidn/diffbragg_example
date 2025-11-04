@@ -807,3 +807,12 @@ Notes
 - <Action State>: [planning]
 
 2025-11-04T222435Z focus=TORCH-CLI-004 state=planning dwell=0 artifacts=plans/active/TORCH-CLI-004/reports/2025-11-04T222435Z/ next_action=handoff_roi_score_coercion_do_now
+
+## 2025-11-04T225149Z — DB-AT-010 gradcheck regression planning
+- Focus: DB-AT-010 — Gradient correctness guard (regression recovery)
+- Action Type: planning
+- Key Observations: Full-suite log (plans/active/MAP-SCALE-005/reports/2025-11-06T050000Z/pytest_full_suite.log) shows `test_db_at_010_gradcheck_crystal_cell_a` failing with GradcheckError after `.item()` detaches the gradient input; captured regression triage and outlined helper/test refactor strategy in plans/active/DB-AT-010/reports/2025-11-04T225149Z/summary.md.
+- Artifact Path: plans/active/DB-AT-010/reports/2025-11-04T225149Z/
+- Next Actions: Draft ready-for-implementation Do Now directing tensor override helper + gradcheck test updates and mapped selectors.
+- <Action State>: [planning]
+2025-11-04T225149Z focus=DB-AT-010 state=planning dwell=0 artifacts=plans/active/DB-AT-010/reports/2025-11-04T225149Z/ next_action=draft_gradcheck_override_do_now

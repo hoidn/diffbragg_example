@@ -1,38 +1,41 @@
-Summary: Sync DB_AT_024 documentation with the new structure-factor telemetry guard.
-Mode: Docs
-Focus: MAP-SCALE-004 — Zero-iteration telemetry parity
+Summary: Enforce CLI failure when refined structure factors are requested but not consumed, with regression tests and doc sync.
+Mode: none
+Focus: MAP-SCALE-005 — CLI refined telemetry enforcement
 Branch: integration
 Mapped tests:
-- pytest --collect-only tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke
-- pytest -v tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke --maxfail=1
-Artifacts: plans/active/MAP-SCALE-004/reports/2025-11-06T010000Z/
+- pytest --collect-only tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_refined_mtz_missing_errors
+- pytest -v tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_refined_mtz_missing_errors --maxfail=1
+- pytest -v tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_uses_refined_mtz --maxfail=1
+Artifacts: plans/active/MAP-SCALE-005/reports/2025-11-06T050000Z/
 Do Now:
-- MAP-SCALE-004: Implement: docs/TESTING_GUIDE.md::<DB_AT_024 selector row> + docs/development/TEST_SUITE_INDEX.md::<DB_AT_024 entry> — document telemetry requirements (hkl_source/count/mean/path), refresh metrics/artifact references to 2025-11-05T220000Z, and call out SCALE-007 guardrail. Validate: pytest --collect-only tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke; pytest -v tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke --maxfail=1.
+- MAP-SCALE-005: Implement: dbex/refine_one.py::run_nanobrag_backend — raise a RuntimeError (or SystemExit with code 1) when `--refined-mtz` is supplied but refined structure factors are not loaded or telemetry downgrades to "raw"; extend tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_refined_mtz_missing_errors to cover the failure path (expecting the new error) and keep test_nanobrag_backend_uses_refined_mtz asserting telemetry remains "refined". Validate: pytest --collect-only tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_refined_mtz_missing_errors; pytest -v tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_refined_mtz_missing_errors --maxfail=1; pytest -v tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_uses_refined_mtz --maxfail=1. Capture stdout/stderr via tee into the new artifact directory and update docs/TESTING_GUIDE.md plus docs/development/TEST_SUITE_INDEX.md with the guard behavior.
 How-To Map:
 1. export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
-2. NANOBRAGG_DISABLE_COMPILE=1 KMP_DUPLICATE_LIB_OK=TRUE DBAT024_ARTIFACT_DIR=plans/active/MAP-SCALE-004/reports/2025-11-06T010000Z pytest --collect-only tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke | tee plans/active/MAP-SCALE-004/reports/2025-11-06T010000Z/collect_db_at_024.log
-3. NANOBRAGG_DISABLE_COMPILE=1 KMP_DUPLICATE_LIB_OK=TRUE DBAT024_ARTIFACT_DIR=plans/active/MAP-SCALE-004/reports/2025-11-06T010000Z pytest -v tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke --maxfail=1 | tee plans/active/MAP-SCALE-004/reports/2025-11-06T010000Z/pytest_db_at_024.log
+2. MAPSCALE005_ARTIFACT_DIR=plans/active/MAP-SCALE-005/reports/2025-11-06T050000Z pytest --collect-only tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_refined_mtz_missing_errors | tee plans/active/MAP-SCALE-005/reports/2025-11-06T050000Z/collect_refined_mtz_guard.log
+3. MAPSCALE005_ARTIFACT_DIR=plans/active/MAP-SCALE-005/reports/2025-11-06T050000Z pytest -v tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_refined_mtz_missing_errors --maxfail=1 | tee plans/active/MAP-SCALE-005/reports/2025-11-06T050000Z/pytest_refined_mtz_guard.log
+4. MAPSCALE005_ARTIFACT_DIR=plans/active/MAP-SCALE-005/reports/2025-11-06T050000Z pytest -v tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_uses_refined_mtz --maxfail=1 | tee plans/active/MAP-SCALE-005/reports/2025-11-06T050000Z/pytest_refined_mtz_success.log
 Pitfalls To Avoid:
-- Do not touch production bridge code; this loop is documentation-only.
-- Keep telemetry field names exact (`hkl_source`, `hkl_n_reflections`, `hkl_mean_amplitude`, `hkl_path`).
-- Reference the latest artifacts directory (2025-11-05T220000Z) and note metrics verbatim.
-- Maintain selector status tables (no column drift) when editing docs.
-- Ensure SCALE-007 stays marked Active and cross-linked in notes.
-- Capture pytest output under the new artifact directory via tee.
-- Respect Environment Freeze—no package installs or environment mutations.
-- Preserve markdown table formatting (pipes aligned, no stray spaces causing parser issues).
-If Blocked: Record the blocking issue in plans/active/MAP-SCALE-004/reports/2025-11-06T010000Z/blocked.md, add the summary + return conditions to docs/fix_plan.md Attempts History, flag the focus as blocked in galph_memory.md, and pivot per loop discipline.
+- Do not allow `run_nanobrag_backend` to silently fall back to raw MTZ when `--refined-mtz` is requested.
+- Keep the error message actionable (reference the flag and expected asset path) without exposing stack traces.
+- Preserve legacy behavior when `--refined-mtz` is absent; only enforce for refined requests.
+- Ensure new tests rely on mocks (no real nanobrag_torch execution) and clean up temp files.
+- Capture logs under the specified artifact directory; no ad-hoc paths.
+- Maintain telemetry field names and existing diagnostics structure.
+- Update docs/test registries in the same loop once code passes; no TODO deferrals.
+- Respect Environment Freeze—no package installs or tooling changes.
+- Avoid `sys.exit` without message; prefer raising RuntimeError that tests can assert.
+- Keep pytest selectors deterministic (no `-k` wildcards that could miss new tests).
+If Blocked: Document the failure cause in plans/active/MAP-SCALE-005/reports/2025-11-06T050000Z/blocked.md, add a blocked entry to docs/fix_plan.md Attempts History (include minimal error signature), update galph_memory.md with block status, and pivot per loop discipline.
 Findings Applied:
-- SCALE-003 — Refined |F| amplitudes must be present for zero-iteration parity; telemetry documents their provenance.
-- SCALE-004 — Calibration metadata and refined structure factors travel together; docs must reinforce this contract.
-- SCALE-005 — Bridge telemetry should continue noting `n_cells_applied` so sample clipping guardrails stay discoverable.
-- SCALE-007 — New guard: zero-iteration diagnostics must emit structure-factor telemetry and DB_AT_024 fails on raw fallbacks.
-- DIAGNOSTICS-001 — Torch diagnostics schema changes must be additive and documented.
-- TESTING-003 — Selector registry updates require fresh collect-only evidence and artifact references.
+- SCALE-003 — Refined |F| amplitudes must be used for calibrated parity; CLI guard enforces ingestion.
+- SCALE-004 — Calibration metadata and refined structure factors travel together; falling back to raw violates this pairing.
+- SCALE-007 — Telemetry must fail fast when refined assets report `raw`; CLI now mirrors DB_AT_024 guard.
+- TESTING-003 — New selector coverage requires collect-only evidence and synchronized documentation.
 Pointers:
-- dbex/nanobrag_bridge.py:843 — Telemetry-enabled `simulate_forward_once` signature and docstring.
-- tests/dbex/test_mapping_consistency.py:339 — DB_AT_024 telemetry assertions that docs need to describe.
-- docs/TESTING_GUIDE.md:71 — DB_AT_024 selector table row requiring telemetry updates.
-- docs/development/TEST_SUITE_INDEX.md:27 — DB_AT_024 registry entry to sync with telemetry details.
-- docs/fix_plan.md:67 — MAP-SCALE-004 Attempts History noting doc/test sync is still outstanding.
-Next Up (optional): 1) Audit CLI docs for refined telemetry references once DB_AT_024 documentation is refreshed.
+- dbex/refine_one.py:218 — Current warning-based fallback logic for refined MTZ ingestion.
+- dbex/refine_one.py:347 — Telemetry payload passed to `_write_torch_outputs`.
+- tests/dbex/test_refine_one_cli.py:357 — Existing refined MTZ regression test structure to extend.
+- docs/findings.md:20 — SCALE-007 guardrail definition.
+- docs/TESTING_GUIDE.md:86 — CLI selector row that must reflect the new failure behavior.
+Next Up (optional): 1) After guard lands, audit user-facing CLI docs to describe the refined MTZ failure mode.
+Doc Sync Plan (Conditional): After tests pass, rerun `pytest --collect-only tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_refined_mtz_missing_errors` with logs archived to the artifact directory, then update docs/TESTING_GUIDE.md and docs/development/TEST_SUITE_INDEX.md to document the enforced failure (include log paths and refined telemetry notes) before marking the initiative ready for closure.

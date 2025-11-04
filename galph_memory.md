@@ -786,3 +786,13 @@ Notes
 - <Action State>: [planning]
 
 2025-11-06T010000Z focus=MAP-SCALE-004 state=planning dwell=1 artifacts=plans/active/MAP-SCALE-004/reports/2025-11-06T010000Z/ next_action=deliver_doc_registry_sync_do_now
+
+## 2025-11-06T020000Z — MAP-SCALE-005 planning kickoff
+- Focus: MAP-SCALE-005 — CLI refined telemetry enforcement
+- Action Type: planning
+- Key Observations: CLI currently logs a warning and falls back to raw MTZ when `--refined-mtz` ingestion fails (`dbex/refine_one.py:218-248`), leaving telemetry marked `raw` and violating SCALE-007. Authored new working plan + fix-plan entry defining hard-fail guardrails and regression coverage requirements; summary captured in plans/active/MAP-SCALE-005/reports/2025-11-06T020000Z/summary.md.
+- Artifact Path: plans/active/MAP-SCALE-005/reports/2025-11-06T020000Z/
+- Next Actions: Deliver ready-for-implementation Do Now directing CLI guard changes, new failure-path pytest, and doc/test registry updates.
+- Reality Check: Refined telemetry guard absent in CLI; DB_AT_024 covers only zero-iteration path so CLI enforcement is still a gap.
+- <Action State>: [planning]
+2025-11-06T020000Z focus=MAP-SCALE-005 state=planning dwell=0 artifacts=plans/active/MAP-SCALE-005/reports/2025-11-06T020000Z/ next_action=harden_cli_refined_guard_do_now

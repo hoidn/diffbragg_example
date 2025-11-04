@@ -29,9 +29,9 @@ Carry the refined structure-factor telemetry contract landed in the CLI into the
   - [x] B3: Refresh DB_AT_024 artifacts (collect/run) confirming telemetry surfaces as expected with canonical assets.
 
 - **Phase C — Documentation & Knowledge Base**
-  - [ ] C1: Update `docs/TESTING_GUIDE.md` and `docs/development/TEST_SUITE_INDEX.md` referencing telemetry assertions and artifact locations.
-  - [ ] C2: Append durable lesson to `docs/findings.md` if telemetry contract introduces new guardrails.
-  - [ ] C3: Ensure fix plan attempts history and selector registry cross-links are current; archive obsolete MAP-SCALE-003 references after closeout.
+  - [x] C1: Update `docs/TESTING_GUIDE.md` and `docs/development/TEST_SUITE_INDEX.md` referencing telemetry assertions and artifact locations.
+  - [x] C2: Append durable lesson to `docs/findings.md` if telemetry contract introduces new guardrails.
+  - [x] C3: Ensure fix plan attempts history and selector registry cross-links are current; archive obsolete MAP-SCALE-003 references after closeout.
 
 ## Artifacts Index
 - Reports root: `plans/active/MAP-SCALE-004/reports/`

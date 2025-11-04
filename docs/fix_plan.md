@@ -218,7 +218,7 @@
 
 ### [DB-AT-010] Gradient correctness guard
 - Depends on: NANOBRAG-BACKEND-002, TORCH-BRIDGE-001, docs/spec-db-runtime.md §4.1, docs/development/testing_strategy.md §4.1, docs/pytorch_runtime_checklist.md §1-3
-- Status: in_progress
+- Status: done
 - Owner/Date: Galph / 2025-11-04
 - Exit Criteria:
   1. Implement a differentiable masked-loss helper in `dbex` (reusing canonical assets via `DataLoad` and bridge configs) that produces a scalar loss suitable for `torch.autograd.gradcheck`, honoring RUNTIME-001 and SCALE-001/002 contracts.
@@ -227,6 +227,20 @@
 - Working Plan: plans/active/DB-AT-010/implementation.md
 - Attempts History:
   * 2025-11-04T065345Z (planning) — Reviewed gradient profile in spec-db-runtime.md, testing strategy §4.1, and nanoBragg gradient suite; confirmed `simulate_forward_once` currently detaches to NumPy (needs torch-return path). Gathered canonical asset access via `DataLoad`, identified requirement for torch masked MSE helper and environment guard fixture, and outlined Do Now for gradcheck harness + selector activation.
+  * 2025-11-04T065717Z (implementation) — Added `simulate_forward_torch` + `compute_masked_mse_loss` torch helpers (preserving gradients, honoring SCALE-001/002) and authored `tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck` with parameter-specific gradchecks + wrapper selector. Targeted run: `KMP_DUPLICATE_LIB_OK=TRUE DBAT010_ARTIFACT_DIR=plans/active/DB-AT-010/reports/2025-11-04T065717Z NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck --maxfail=1` (1 passed in 190.87s). Collect-only: `pytest --collect-only tests -k DB_AT_010` (5 tests collected). Artifacts: `plans/active/DB-AT-010/reports/2025-11-04T065717Z/` (`pytest_db_at_010.log`, `collect_db_at_010.log`, `gradcheck_metrics.json`, parameter JSON metrics, beam/crystal/detector logs). Documentation: promoted DB_AT_010 rows in `docs/TESTING_GUIDE.md:70` and `docs/development/TEST_SUITE_INDEX.md:26`; references findings RUNTIME-001, TESTING-003, SCALE-001/002.
+  * 2025-11-04T074253Z (review) — Confirmed exit criteria met with artifacts + doc sync in place; prepared supervisor report `plans/active/DB-AT-010/reports/2025-11-04T074253Z/summary.md` and closed initiative.
+
+### [RUNTIME-VEC-001] Source weighting runtime guard
+- Depends on: docs/pytorch_runtime_checklist.md §4, docs/architecture/pytorch_design.md §1.1.5, availability of `nanobrag_torch`
+- Status: in_progress
+- Owner/Date: Galph / 2025-11-04
+- Exit Criteria:
+  1. Port the nanoBragg2 `TestSourceWeights` equal-weight validation into DBEX (new `tests/dbex/test_runtime_vectorization.py` or equivalent), reusing temporary sourcefiles to prove correlation ≥0.999 and |sum_ratio−1| ≤5e-3 when weights vary; capture metrics JSON on failure and respect Environment Freeze (no package installs).
+  2. Archive targeted pytest (`KMP_DUPLICATE_LIB_OK=TRUE RUNTIME_VEC_ARTIFACT_DIR=plans/active/RUNTIME-VEC-001/reports/<timestamp> pytest -v tests/dbex/test_runtime_vectorization.py::TestRuntimeVectorization::test_source_weights_ignored_per_spec --maxfail=1`) and collect-only logs under `plans/active/RUNTIME-VEC-001/reports/<timestamp>/`, noting environment guards and runtime.
+  3. Promote the Runtime Vectorization selector rows in `docs/TESTING_GUIDE.md` and `docs/development/TEST_SUITE_INDEX.md` from Planned → Active with artifact references and Finding IDs (RUNTIME-001, SCALE-001/002); update Attempts History accordingly.
+- Working Plan: plans/active/RUNTIME-VEC-001/implementation.md
+- Attempts History:
+  * 2025-11-04T074738Z (planning) — Logged runtime vectorization gap after DB-AT-010 completion: documented upstream `TestSourceWeights*` suite (`../nanoBragg/tests/test_cli_scaling.py`) reliance on `python -m nanobrag_torch`, captured spec references (`docs/pytorch_runtime_checklist.md` §4, `docs/architecture/pytorch_design.md` §1.1.5), and outlined porting strategy in `plans/active/RUNTIME-VEC-001/implementation.md`. Established artifact plan and Do Now prerequisites in `plans/active/RUNTIME-VEC-001/reports/2025-11-04T074738Z/summary.md`.
 
 ### [DB-AT-002] Determinism selector scaffold
 - Depends on: FORWARD-EQUIV-002, NANOBRAG-BACKEND-002, TORCH-RUNTIME-002, PARITY-HARNESS-002

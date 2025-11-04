@@ -651,3 +651,12 @@ Notes
 - Reality Check: No code yet; ready for implementation once helper + tests are wired.
 - <Action State>: [ready_for_implementation]
 2025-11-04T065345Z focus=DB-AT-010 state=ready_for_implementation dwell=0 artifacts=plans/active/DB-AT-010/reports/2025-11-04T065345Z/ next_action=implement_torch_gradcheck_helper_and_selector
+
+## 2025-11-04T074738Z — RUNTIME-VEC-001 planning kickoff
+- Focus: RUNTIME-VEC-001 — Source weighting runtime guard
+- Action Type: planning
+- Key Observations: Closed DB-AT-010 (grad guard) and identified remaining runtime gap—the Runtime Vectorization selector still Planned; upstream `TestSourceWeights*` suite in nanoBragg2 provides equal-weight spec enforcement (corr ≥0.999, |sum_ratio−1| ≤5e-3) via `python -m nanobrag_torch`. Drafted implementation checklist and planning summary under `plans/active/RUNTIME-VEC-001/` to port the equal-weight guard into DBEX with artifact policy.
+- Artifact Path: plans/active/RUNTIME-VEC-001/reports/2025-11-04T074738Z/
+- Next Actions: Execute Do Now (implement DBEX runtime_vectorization test + docs sync, capture pytest/collect logs, update fix_plan attempts).
+- <Action State>: [planning]
+2025-11-04T074738Z focus=RUNTIME-VEC-001 state=planning dwell=0 artifacts=plans/active/RUNTIME-VEC-001/reports/2025-11-04T074738Z/ next_action=implement_runtime_vectorization_guard

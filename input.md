@@ -1,63 +1,61 @@
-Summary: Implement torch-preserving gradcheck helper + DB_AT_010 acceptance test with logs and metrics.
+Summary: Port the source-weight runtime guard into DBEX and activate the Runtime Vectorization selector.
 Mode: none
-Focus: DB-AT-010 — Gradient correctness guard
+Focus: RUNTIME-VEC-001 — Source weighting runtime guard
 Branch: integration
-Mapped tests: tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck
-Artifacts: plans/active/DB-AT-010/reports/2025-11-04T065717Z/{pytest_db_at_010.log,collect_db_at_010.log,gradcheck_metrics.json}
+Mapped tests: tests/dbex/test_runtime_vectorization.py::TestRuntimeVectorization::test_source_weights_ignored_per_spec
+Artifacts: plans/active/RUNTIME-VEC-001/reports/2025-11-04T080000Z/{pytest_runtime_vec.log,collect_runtime_vec.log}
 
 Do Now (hard validity contract)
-- Focus Item: DB-AT-010
-- Implement: dbex/nanobrag_bridge.py::simulate_forward_once (add torch-return + masked loss helper) and tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck (new gradcheck selector).
-- Validate: KMP_DUPLICATE_LIB_OK=TRUE DBAT010_ARTIFACT_DIR=plans/active/DB-AT-010/reports/2025-11-04T065717Z NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck --maxfail=1
-- Artifacts: plans/active/DB-AT-010/reports/2025-11-04T065717Z/{pytest_db_at_010.log,collect_db_at_010.log,gradcheck_metrics.json}
+- Focus Item: RUNTIME-VEC-001
+- Implement: tests/dbex/test_runtime_vectorization.py::TestRuntimeVectorization::test_source_weights_ignored_per_spec (new module ensuring equal-weight enforcement)
+- Validate: KMP_DUPLICATE_LIB_OK=TRUE RUNTIME_VEC_ARTIFACT_DIR=plans/active/RUNTIME-VEC-001/reports/2025-11-04T080000Z pytest -v tests/dbex/test_runtime_vectorization.py::TestRuntimeVectorization::test_source_weights_ignored_per_spec --maxfail=1 | tee plans/active/RUNTIME-VEC-001/reports/2025-11-04T080000Z/pytest_runtime_vec.log
+- Artifacts: plans/active/RUNTIME-VEC-001/reports/2025-11-04T080000Z/{pytest_runtime_vec.log,collect_runtime_vec.log}
 
 How-To Map
 1. export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
-2. export DBAT010_ARTIFACT_DIR=plans/active/DB-AT-010/reports/2025-11-04T065717Z && mkdir -p "$DBAT010_ARTIFACT_DIR"
-3. export NANOBRAGG_DISABLE_COMPILE=1 && export KMP_DUPLICATE_LIB_OK=TRUE
-4. Review plans/active/DB-AT-010/implementation.md and reports/2025-11-04T065345Z/summary.md for coverage matrix and helper requirements.
-5. Refactor dbex/nanobrag_bridge.py::simulate_forward_once to optionally return torch tensors (no `.detach().numpy()` in grad mode) and add a torch masked-MSE loss helper honoring SCALE-001/002.
-6. Implement tests/dbex/test_gradients.py (TestDB_AT_010_Gradcheck) with env guard fixture, gradcheck parameter coverage (crystal cell_a/cell_gamma, detector distance_mm, beam wavelength_A, model fluence or spot scale), and JSON metrics emission into "$DBAT010_ARTIFACT_DIR".
-7. Run KMP_DUPLICATE_LIB_OK=TRUE DBAT010_ARTIFACT_DIR=$DBAT010_ARTIFACT_DIR NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck --maxfail=1 | tee "$DBAT010_ARTIFACT_DIR/pytest_db_at_010.log"
-8. Run DBAT010_ARTIFACT_DIR=$DBAT010_ARTIFACT_DIR NANOBRAGG_DISABLE_COMPILE=1 pytest --collect-only tests -k DB_AT_010 | tee "$DBAT010_ARTIFACT_DIR/collect_db_at_010.log"
-9. After success, update docs/TESTING_GUIDE.md and docs/development/TEST_SUITE_INDEX.md with selector details and artifact paths, then append Attempts History + findings references.
+2. export RUNTIME_VEC_ARTIFACT_DIR=plans/active/RUNTIME-VEC-001/reports/2025-11-04T080000Z && mkdir -p "$RUNTIME_VEC_ARTIFACT_DIR"
+3. export KMP_DUPLICATE_LIB_OK=TRUE && export NANOBRAGG_DISABLE_COMPILE=1
+4. Sanity check CLI availability: python -m nanobrag_torch --help > "$RUNTIME_VEC_ARTIFACT_DIR/cli_help.txt"; treat failure as Environment Freeze block and log signature.
+5. Author new module tests/dbex/test_runtime_vectorization.py using ../nanoBragg/tests/test_cli_scaling.py::TestSourceWeights as reference; create temporary sourcefiles in test using pathlib/tempfile, call `python -m nanobrag_torch` with weighted vs equal source lists, assert correlation ≥0.999 and |sum_ratio−1| ≤5e-3, and emit metrics JSON into "$RUNTIME_VEC_ARTIFACT_DIR/mapping_metrics.json" on failure.
+6. Update docs/TESTING_GUIDE.md (Runtime vectorization row) and docs/development/TEST_SUITE_INDEX.md to mark selector Active, include command, env flags, runtime, artifact path, and referenced findings (RUNTIME-001, SCALE-001/002).
+7. Run KMP_DUPLICATE_LIB_OK=TRUE RUNTIME_VEC_ARTIFACT_DIR="$RUNTIME_VEC_ARTIFACT_DIR" pytest -v tests/dbex/test_runtime_vectorization.py::TestRuntimeVectorization::test_source_weights_ignored_per_spec --maxfail=1 | tee "$RUNTIME_VEC_ARTIFACT_DIR/pytest_runtime_vec.log"
+8. Run KMP_DUPLICATE_LIB_OK=TRUE RUNTIME_VEC_ARTIFACT_DIR="$RUNTIME_VEC_ARTIFACT_DIR" pytest --collect-only tests/dbex/test_runtime_vectorization.py -k TestRuntimeVectorization | tee "$RUNTIME_VEC_ARTIFACT_DIR/collect_runtime_vec.log"
+9. Append Attempts History for RUNTIME-VEC-001 in docs/fix_plan.md with command strings, artifact paths, and references to updated docs.
 
 Pitfalls To Avoid
-- Do not detach or convert gradients to NumPy in the gradcheck path; keep operations in torch.float64 (RUNTIME-001).
-- Make SCALE-002 sqrt application differentiable (use torch operations) and avoid double scaling (SCALE-001/002).
-- Ensure masks/targets move to the same device/dtype as simulator before loss computation (device neutrality).
-- Guard tests with `pytest.skip` when canonical assets missing to avoid false failures.
-- Keep metrics/JSON confined to "$DBAT010_ARTIFACT_DIR"; no stray files elsewhere.
-- Use tight gradcheck tolerances (eps=1e-6, atol=1e-5, rtol≈5e-2) per testing_strategy.md §4.1.
-- Mark any slow tests with `@pytest.mark.slow_gradient` and document expected runtime ceiling (905s) if needed.
-- Preserve existing simulate_forward_once API for DB-AT-024 callers (default numpy behavior maintained).
-- Synchronize selector docs only after pytest and collect-only logs exist (TESTING-003).
-- Record new findings only if novel guardrails emerge; otherwise reference existing IDs.
+- Do not install or upgrade packages; Environment Freeze applies (missing CLI import is a blocker).
+- Keep temporary files inside pytest tmp_path or tempfile directories; no artifacts outside "$RUNTIME_VEC_ARTIFACT_DIR".
+- Preserve torch environment flags (KMP_DUPLICATE_LIB_OK=TRUE, NANOBRAGG_DISABLE_COMPILE=1) before importing torch or running `python -m nanobrag_torch`.
+- Ensure weighted vs equal runs share identical geometry parameters; only weights should differ.
+- Capture failure metrics before assertions to aid reproducibility; include both correlation and sum_ratio.
+- Avoid copying the entire nanoBragg2 suite verbatim—pare to the equal-weight guard for this loop and leave TODOs for remaining cases.
+- Do not mark docs rows Active until pytest and collect-only artifacts exist (TESTING-003).
+- Do not hard-code host-specific paths; rely on pathlib relative paths.
+- Keep runtime under control (use 128×128 detector size and minimal oversample) to avoid slow CI regressions.
 
 If Blocked
-- Capture failing command + traceback, archive under "$DBAT010_ARTIFACT_DIR", add blocked note to docs/fix_plan.md Attempts History, and log next steps in galph_memory.
-- If nanobrag_torch import fails (environment freeze), halt implementation, document the ImportError signature, and mark focus blocked.
+- Record failing command and stderr/stdout in "$RUNTIME_VEC_ARTIFACT_DIR/blocker_log.txt".
+- Update docs/fix_plan.md Attempts History entry with the block reason and commands run.
+- Append galph_memory next_action with `switch_focus` if CLI import or environment freeze cannot be resolved.
 
 Findings Applied (Mandatory)
-- RUNTIME-001 — Set NANOBRAGG_DISABLE_COMPILE=1 to prevent torch.compile interference with gradcheck.
-- TESTING-003 — Collect-only proof and documentation sync before marking selector Active.
-- SCALE-001 — Keep structure factors unscaled in forward helper; scaling handled post-sim.
-- SCALE-002 — Apply sqrt(spot_scale_override) as differentiable torch op during masking loss.
+- RUNTIME-001 — Disable torch.compile (`NANOBRAGG_DISABLE_COMPILE=1`) for gradient/runtime tests.
+- SCALE-001 — Prevent duplicate spot-scale application when preparing HKL data.
+- SCALE-002 — Apply sqrt(spot_scale_override) as differentiable torch operation if scaling is required.
+- TESTING-003 — Promote selectors to Active only after collect-only proves >0 tests and artifacts are archived.
 
 Pointers
-- docs/development/testing_strategy.md:338 — Gradcheck targets, tolerances, and env guard.
-- docs/pytorch_runtime_checklist.md:7 — Runtime compile/disabling guidance for gradient tests.
-- dbex/nanobrag_bridge.py:602 — Current simulate_forward_once detaches to NumPy (refactor target).
-- nanoBragg/tests/test_gradients.py:1 — Reference implementation for gradcheck patterns.
-- docs/spec-db-conformance.md:24 — Gradient-safe profile expectations (DB-AT-010, DB-AT-011).
-- plans/active/DB-AT-010/implementation.md:1 — Phase checklist for this initiative.
-- docs/TESTING_GUIDE.md:68 — Selector registry update location (will add DB_AT_010 row).
+- docs/pytorch_runtime_checklist.md:31 — Runtime vectorization + equal weighting guidance.
+- docs/architecture/pytorch_design.md:90 — Source weighting thresholds (corr ≥0.999, |sum_ratio−1| ≤5e-3).
+- ../nanoBragg/tests/test_cli_scaling.py:252 — Reference implementation of `TestSourceWeights::test_source_weights_ignored_per_spec`.
+- plans/active/RUNTIME-VEC-001/implementation.md:1 — Phased checklist for this initiative.
+- docs/TESTING_GUIDE.md:70 — Runtime vectorization row to update once artifacts exist.
 
 Next Up (optional)
-- DB-AT-011 — Graph-break runtime guard once DB-AT-010 passes.
+- Port `TestSourceWeightsDivergence` parity assertions once the equal-weight guard is active.
 
 Doc Sync Plan (Conditional)
-- After tests pass, run DBAT010_ARTIFACT_DIR=$DBAT010_ARTIFACT_DIR NANOBRAG_DISABLE_COMPILE=1 pytest --collect-only tests -k DB_AT_010, archive log, then update docs/TESTING_GUIDE.md §2 and docs/development/TEST_SUITE_INDEX.md with selector status, commands, env flags, and artifact references before closing the loop.
+- After the test passes, rerun Step 8 (`pytest --collect-only ...`) with logs saved to "$RUNTIME_VEC_ARTIFACT_DIR/collect_runtime_vec.log", then update docs/TESTING_GUIDE.md §2 and docs/development/TEST_SUITE_INDEX.md to reflect Active status and artifact paths.
 
 Mapped Tests Guardrail
-- Verify `pytest --collect-only tests -k DB_AT_010` reports ≥1 test; if it collects 0, author the missing test before finishing the loop.
+- Ensure `pytest --collect-only tests/dbex/test_runtime_vectorization.py -k TestRuntimeVectorization` reports ≥1 test; if it collects 0, stop and author the missing test before finishing the loop.

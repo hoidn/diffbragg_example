@@ -112,13 +112,14 @@ class TestDetectorConfigMapping:
         convention with XYZ rotation angles derived from panel basis vectors.
         This preserves BEAM pivot and avoids beam center drift.
         """
-        from dbex.nanobrag_bridge import create_detector_config, DetectorConvention
+        from dbex.nanobrag_bridge import create_detector_config
+        from nanobrag_torch.config import DetectorConvention
 
         config = create_detector_config(mock_panel, mock_beam)
 
-        # Verify convention is DIALS
+        # Verify convention is DIALS enum value
         assert config.detector_convention == DetectorConvention.DIALS, \
-            "detector_convention must be DIALS to preserve BEAM pivot"
+            f"detector_convention must be DetectorConvention.DIALS to preserve BEAM pivot, got {config.detector_convention}"
 
         # Verify rotation angles are present (for identity rotation, all should be ~0)
         assert hasattr(config, 'detector_rotx_deg'), \
@@ -255,32 +256,9 @@ class TestDetectorConfigMapping:
         # Create detector config using the bridge
         bridge_config = create_detector_config(panel, beam)
 
-        # Convert to torch DetectorConfig
-        # Map bridge's DetectorConvention to torch's
-        from nanobrag_torch.config import DetectorConvention as TorchDetectorConvention
-        from dbex.nanobrag_bridge import DetectorConvention as BridgeDetectorConvention
-
-        if bridge_config.detector_convention == BridgeDetectorConvention.DIALS:
-            torch_convention = TorchDetectorConvention.DIALS
-        elif bridge_config.detector_convention == BridgeDetectorConvention.CUSTOM:
-            torch_convention = TorchDetectorConvention.CUSTOM
-        else:
-            raise ValueError(f"Unsupported detector convention: {bridge_config.detector_convention}")
-
-        torch_config = TorchDetectorConfig(
-            distance_mm=bridge_config.distance_mm,
-            pixel_size_mm=bridge_config.pixel_size_mm,
-            spixels=bridge_config.spixels,
-            fpixels=bridge_config.fpixels,
-            beam_center_s=bridge_config.beam_center_s,
-            beam_center_f=bridge_config.beam_center_f,
-            beam_center_source=bridge_config.beam_center_source,
-            detector_convention=torch_convention,
-            detector_rotx_deg=bridge_config.detector_rotx_deg,
-            detector_roty_deg=bridge_config.detector_roty_deg,
-            detector_rotz_deg=bridge_config.detector_rotz_deg,
-            mask_array=bridge_config.mask_array
-        )
+        # The bridge now returns real nanobrag_torch.config.DetectorConfig objects,
+        # so bridge_config IS already a torch DetectorConfig and can be used directly
+        torch_config = bridge_config
 
         # Build Detector from config
         torch_detector = Detector(torch_config)
@@ -313,8 +291,58 @@ class TestDetectorConfigMapping:
         )
 
         # Verify we're using DIALS convention with BEAM pivot
-        assert bridge_config.detector_convention == BridgeDetectorConvention.DIALS, \
-            "Detector convention must be DIALS to preserve BEAM pivot"
+        from nanobrag_torch.config import DetectorConvention
+        assert bridge_config.detector_convention == DetectorConvention.DIALS, \
+            "Detector convention must be DetectorConvention.DIALS to preserve BEAM pivot"
+
+    def test_returns_real_nanobrag_torch_config(self, mock_panel, mock_beam):
+        """
+        Test that create_detector_config returns real nanobrag_torch.config.DetectorConfig.
+
+        Per NANOBRAG-BACKEND-002, the bridge should retire local dataclass stubs
+        and emit real nanobrag_torch config objects.
+        """
+        from dbex.nanobrag_bridge import create_detector_config
+        from nanobrag_torch.config import DetectorConfig as TorchDetectorConfig
+
+        config = create_detector_config(mock_panel, mock_beam)
+
+        # Verify config is an instance of the real nanobrag_torch DetectorConfig
+        assert isinstance(config, TorchDetectorConfig), \
+            f"create_detector_config should return nanobrag_torch.config.DetectorConfig, got {type(config)}"
+
+    def test_detector_model_roundtrip(self, mock_panel, mock_beam):
+        """
+        Test that detector config from bridge can instantiate nanobrag_torch Detector model.
+
+        Per NANOBRAG-BACKEND-002 input.md, add a roundtrip check that instantiates
+        nanobrag_torch.models.detector.Detector using the bridge output to guard compatibility.
+        """
+        pytest.importorskip("nanobrag_torch")
+
+        from dbex.nanobrag_bridge import create_detector_config
+        from nanobrag_torch.models.detector import Detector
+        import torch
+
+        # Create detector config via bridge
+        detector_config = create_detector_config(mock_panel, mock_beam)
+
+        # Instantiate Detector model - this validates config compatibility
+        detector = Detector(detector_config)
+
+        # Verify detector has expected attributes
+        assert hasattr(detector, 'fdet_vec'), "Detector should have fdet_vec attribute"
+        assert hasattr(detector, 'sdet_vec'), "Detector should have sdet_vec attribute"
+        assert hasattr(detector, 'odet_vec'), "Detector should have odet_vec attribute"
+
+        # Verify basis vectors are tensors
+        assert isinstance(detector.fdet_vec, torch.Tensor), "fdet_vec should be a tensor"
+        assert isinstance(detector.sdet_vec, torch.Tensor), "sdet_vec should be a tensor"
+        assert isinstance(detector.odet_vec, torch.Tensor), "odet_vec should be a tensor"
+
+        # Verify config attributes are present
+        assert detector.config.spixels == detector_config.spixels, "Detector config should be set"
+        assert detector.config.fpixels == detector_config.fpixels, "Detector config should be set"
 
 
 class TestBeamCrystalConfigMapping:
@@ -434,13 +462,15 @@ class TestBeamCrystalConfigMapping:
         expected_axis = mock_beam.get_polarization_normal.return_value
         expected_fraction = mock_beam.get_polarization_fraction.return_value
 
+        # Verify polarization axis is a tuple (as expected by nanobrag_torch)
+        assert isinstance(config.polarization_axis, tuple), \
+            f"polarization_axis should be a tuple, got {type(config.polarization_axis)}"
         np.testing.assert_array_equal(
-            config.polarization_axis,
+            np.array(config.polarization_axis),
             expected_axis,
             err_msg="polarization_axis should match beam.get_polarization_normal()"
         )
-        assert config.polarization_fraction == expected_fraction, \
-            f"polarization_fraction should be {expected_fraction}, got {config.polarization_fraction}"
+        # Note: BeamConfig does not have polarization_fraction field in real API
 
     def test_polarization_fallback(self, mock_beam_no_polarization):
         """
@@ -455,13 +485,14 @@ class TestBeamCrystalConfigMapping:
         config = create_beam_config(mock_beam_no_polarization)
 
         # Verify fallback values
+        assert isinstance(config.polarization_axis, tuple), \
+            f"polarization_axis should be a tuple, got {type(config.polarization_axis)}"
         np.testing.assert_array_equal(
-            config.polarization_axis,
+            np.array(config.polarization_axis),
             np.array([0.0, 0.0, 1.0]),
-            err_msg="polarization_axis should fallback to [0,0,1]"
+            err_msg="polarization_axis should fallback to (0,0,1)"
         )
-        assert config.polarization_fraction == 0.999, \
-            f"polarization_fraction should fallback to 0.999, got {config.polarization_fraction}"
+        # Note: BeamConfig does not have polarization_fraction field in real API
 
     def test_crystal_unit_cell_parameters(self, mock_crystal, mock_experiment_stills):
         """
@@ -574,3 +605,68 @@ class TestBeamCrystalConfigMapping:
             expected_misset,
             err_msg="misset_deg should default to [0, 0, 0]"
         )
+
+    def test_returns_real_nanobrag_torch_beam_config(self, mock_beam):
+        """
+        Test that create_beam_config returns real nanobrag_torch.config.BeamConfig.
+
+        Per NANOBRAG-BACKEND-002, the bridge should retire local dataclass stubs
+        and emit real nanobrag_torch config objects.
+        """
+        from dbex.nanobrag_bridge import create_beam_config
+        from nanobrag_torch.config import BeamConfig as TorchBeamConfig
+
+        config = create_beam_config(mock_beam)
+
+        # Verify config is an instance of the real nanobrag_torch BeamConfig
+        assert isinstance(config, TorchBeamConfig), \
+            f"create_beam_config should return nanobrag_torch.config.BeamConfig, got {type(config)}"
+
+    def test_returns_real_nanobrag_torch_crystal_config(self, mock_crystal, mock_experiment_stills):
+        """
+        Test that create_crystal_config returns real nanobrag_torch.config.CrystalConfig.
+
+        Per NANOBRAG-BACKEND-002, the bridge should retire local dataclass stubs
+        and emit real nanobrag_torch config objects.
+        """
+        from dbex.nanobrag_bridge import create_crystal_config
+        from nanobrag_torch.config import CrystalConfig as TorchCrystalConfig
+
+        config = create_crystal_config(mock_crystal, mock_experiment_stills)
+
+        # Verify config is an instance of the real nanobrag_torch CrystalConfig
+        assert isinstance(config, TorchCrystalConfig), \
+            f"create_crystal_config should return nanobrag_torch.config.CrystalConfig, got {type(config)}"
+
+    def test_crystal_model_roundtrip(self, mock_crystal, mock_experiment_stills):
+        """
+        Test that crystal config from bridge can instantiate nanobrag_torch Crystal model.
+
+        Per NANOBRAG-BACKEND-002 input.md, add a roundtrip check that instantiates
+        nanobrag_torch.models.crystal.Crystal using the bridge output to guard compatibility.
+        """
+        pytest.importorskip("nanobrag_torch")
+
+        from dbex.nanobrag_bridge import create_crystal_config
+        from nanobrag_torch.models.crystal import Crystal
+        import torch
+
+        # Create crystal config via bridge
+        crystal_config = create_crystal_config(mock_crystal, mock_experiment_stills)
+
+        # Instantiate Crystal model - this validates config compatibility
+        # Crystal constructor: __init__(self, config, beam_config=None, device=None, dtype=torch.float32)
+        device = torch.device("cpu")
+        dtype = torch.float32
+
+        # Instantiate Crystal - validates that config is compatible
+        crystal = Crystal(
+            config=crystal_config,
+            device=device,
+            dtype=dtype
+        )
+
+        # Verify crystal instantiation succeeded and config is set
+        assert crystal is not None, "Crystal should instantiate successfully"
+        assert hasattr(crystal, 'config'), "Crystal should have config attribute"
+        assert crystal.config == crystal_config, "Crystal should store the provided config"

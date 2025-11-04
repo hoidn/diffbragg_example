@@ -17,97 +17,26 @@ Config hydration functions map dxtbx geometry to nanobrag_torch configs per:
 
 from dataclasses import dataclass, field
 from typing import List, Tuple, Optional, Any
-from enum import Enum
 import numpy as np
 
 
 # ============================================================================
-# Config dataclass stubs matching nanobrag_torch API
-# These will be replaced with actual imports when nanobrag_torch is available
+# Import real nanobrag_torch config classes
 # ============================================================================
 
-class DetectorConvention(Enum):
-    """Detector convention enum stub matching nanobrag_torch."""
-    DIALS = "DIALS"
-    CUSTOM = "CUSTOM"
-
-
-@dataclass
-class DetectorConfig:
-    """
-    Detector configuration stub matching nanobrag_torch.config.DetectorConfig.
-
-    Per docs/nanobrag_api.md:23-39 and docs/config_crosswalk.md:15-37.
-    Uses DIALS convention to preserve BEAM pivot and avoid beam center drift.
-    """
-    # Distance and pixel metrics
-    distance_mm: float
-    pixel_size_mm: float
-    spixels: int
-    fpixels: int
-
-    # Beam center (explicit, no MOSFLM +0.5px offset)
-    beam_center_s: float  # slow direction, mm
-    beam_center_f: float  # fast direction, mm
-    beam_center_source: str = "explicit"
-
-    # DIALS convention with XYZ rotation angles
-    detector_convention: DetectorConvention = field(default_factory=lambda: DetectorConvention.DIALS)
-    detector_rotx_deg: float = 0.0
-    detector_roty_deg: float = 0.0
-    detector_rotz_deg: float = 0.0
-
-    # Mask (0/1 float)
-    mask_array: Optional[np.ndarray] = None
-
-
-@dataclass
-class BeamConfig:
-    """
-    Beam configuration stub matching nanobrag_torch.config.BeamConfig.
-
-    Per docs/nanobrag_api.md:52-58 and docs/config_crosswalk.md:39-53.
-    """
-    wavelength_A: float
-
-    # Polarization (parity defaults)
-    polarization_factor: float = 0.0
-    nopolar: bool = False
-    polarization_axis: np.ndarray = field(default_factory=lambda: np.array([0., 0., 1.]))
-    polarization_fraction: float = 0.999
-
-    # Resolution cutoff
-    dmin: float = 0.0
-
-
-@dataclass
-class CrystalConfig:
-    """
-    Crystal configuration stub matching nanobrag_torch.config.CrystalConfig.
-
-    Per docs/nanobrag_api.md:41-50 and docs/config_crosswalk.md:55-72.
-    """
-    # Unit cell (Angstroms and degrees)
-    cell_a: float
-    cell_b: float
-    cell_c: float
-    cell_alpha: float  # degrees
-    cell_beta: float   # degrees
-    cell_gamma: float  # degrees
-
-    # MOSFLM A* orientation (1/Angstrom)
-    mosflm_a_star: np.ndarray = field(default_factory=lambda: np.array([1., 0., 0.]))
-    mosflm_b_star: np.ndarray = field(default_factory=lambda: np.array([0., 1., 0.]))
-    mosflm_c_star: np.ndarray = field(default_factory=lambda: np.array([0., 0., 1.]))
-
-    # Misset angles (extrinsic XYZ rotations after MOSFLM injection)
-    misset_deg: np.ndarray = field(default_factory=lambda: np.array([0., 0., 0.]))
-
-    # Stills defaults
-    phi_steps: int = 1
-    osc_range_deg: float = 0.0
-    mosaic_domains: int = 1
-    mosaic_spread_deg: float = 0.0
+try:
+    from nanobrag_torch.config import (
+        DetectorConfig,
+        BeamConfig,
+        CrystalConfig,
+        DetectorConvention
+    )
+except ImportError as e:
+    raise ImportError(
+        "nanobrag_torch.config is required for bridge functionality. "
+        "Please ensure nanobrag_torch is installed. "
+        f"Import error: {e}"
+    )
 
 
 # ============================================================================
@@ -378,7 +307,7 @@ def create_beam_config(beam) -> BeamConfig:
     Implements beam mapping per docs/config_crosswalk.md:39-53:
     - Wavelength in Angstroms
     - Polarization factor=0.0 for parity
-    - Polarization axis/fraction from metadata or fallback defaults
+    - Polarization axis from metadata or fallback defaults
 
     Args:
         beam: dxtbx Beam object
@@ -392,19 +321,17 @@ def create_beam_config(beam) -> BeamConfig:
     # Polarization: try to extract metadata, fallback to defaults
     # (config_crosswalk.md:48-49, spec-db-core.md:44)
     try:
-        polarization_axis = np.array(beam.get_polarization_normal())
-        polarization_fraction = beam.get_polarization_fraction()
+        polarization_axis_array = np.array(beam.get_polarization_normal())
+        polarization_axis = tuple(polarization_axis_array.tolist())
     except (AttributeError, TypeError):
         # Fallback defaults
-        polarization_axis = np.array([0.0, 0.0, 1.0])
-        polarization_fraction = 0.999
+        polarization_axis = (0.0, 0.0, 1.0)
 
     return BeamConfig(
         wavelength_A=wavelength_A,
         polarization_factor=0.0,  # Parity default
         nopolar=False,
         polarization_axis=polarization_axis,
-        polarization_fraction=polarization_fraction,
         dmin=0.0
     )
 

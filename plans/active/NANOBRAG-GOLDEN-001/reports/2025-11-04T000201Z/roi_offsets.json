@@ -1,0 +1,133 @@
+{
+  "n_dumps": 18,
+  "max_abs_offset": 7.810249675906656,
+  "median_abs_offset": 5.099019513592785,
+  "samples": [
+    {
+      "roi_idx": 40,
+      "panel_id": 0,
+      "dy": 4,
+      "dx": 2,
+      "filename": "roi_0040.npz"
+    },
+    {
+      "roi_idx": 22,
+      "panel_id": 0,
+      "dy": 4,
+      "dx": 0,
+      "filename": "roi_0022.npz"
+    },
+    {
+      "roi_idx": 55,
+      "panel_id": 0,
+      "dy": 3,
+      "dx": 2,
+      "filename": "roi_0055.npz"
+    },
+    {
+      "roi_idx": 72,
+      "panel_id": 0,
+      "dy": 5,
+      "dx": 2,
+      "filename": "roi_0072.npz"
+    },
+    {
+      "roi_idx": 0,
+      "panel_id": 0,
+      "dy": 6,
+      "dx": 1,
+      "filename": "roi_0000.npz"
+    },
+    {
+      "roi_idx": 26,
+      "panel_id": 0,
+      "dy": 6,
+      "dx": 1,
+      "filename": "roi_0026.npz"
+    },
+    {
+      "roi_idx": 39,
+      "panel_id": 0,
+      "dy": 4,
+      "dx": 1,
+      "filename": "roi_0039.npz"
+    },
+    {
+      "roi_idx": 67,
+      "panel_id": 0,
+      "dy": 4,
+      "dx": 2,
+      "filename": "roi_0067.npz"
+    },
+    {
+      "roi_idx": 10,
+      "panel_id": 0,
+      "dy": 5,
+      "dx": 1,
+      "filename": "roi_0010.npz"
+    },
+    {
+      "roi_idx": 44,
+      "panel_id": 0,
+      "dy": 5,
+      "dx": 1,
+      "filename": "roi_0044.npz"
+    },
+    {
+      "roi_idx": 83,
+      "panel_id": 0,
+      "dy": 5,
+      "dx": 5,
+      "filename": "roi_0083.npz"
+    },
+    {
+      "roi_idx": 35,
+      "panel_id": 0,
+      "dy": 5,
+      "dx": 1,
+      "filename": "roi_0035.npz"
+    },
+    {
+      "roi_idx": 89,
+      "panel_id": 0,
+      "dy": 5,
+      "dx": 6,
+      "filename": "roi_0089.npz"
+    },
+    {
+      "roi_idx": 62,
+      "panel_id": 0,
+      "dy": 1,
+      "dx": 0,
+      "filename": "roi_0062.npz"
+    },
+    {
+      "roi_idx": 12,
+      "panel_id": 0,
+      "dy": 5,
+      "dx": 1,
+      "filename": "roi_0012.npz"
+    },
+    {
+      "roi_idx": 4,
+      "panel_id": 0,
+      "dy": 5,
+      "dx": -3,
+      "filename": "roi_0004.npz"
+    },
+    {
+      "roi_idx": 18,
+      "panel_id": 0,
+      "dy": 4,
+      "dx": 0,
+      "filename": "roi_0018.npz"
+    },
+    {
+      "roi_idx": 28,
+      "panel_id": 0,
+      "dy": 5,
+      "dx": 1,
+      "filename": "roi_0028.npz"
+    }
+  ]
+}

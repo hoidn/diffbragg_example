@@ -1,0 +1,442 @@
+{
+  "timestamp": "2025-11-04T00:09:25.039801Z",
+  "n_rois_total": 92,
+  "n_rois_valid": 92,
+  "sample_frac": 0.2,
+  "n_samples": 18,
+  "n_dumps": 18,
+  "samples": [
+    {
+      "roi_idx": 40,
+      "panel_id": 0,
+      "bbox": [
+        257,
+        269,
+        1127,
+        1139
+      ],
+      "correlation": -0.049143374081582925,
+      "rmse": 417.23891537103776,
+      "mse": 174088.3125,
+      "max_abs_diff": 2815.955322265625,
+      "peak_localized": false,
+      "diff_peak": [
+        7,
+        6
+      ],
+      "torch_peak": [
+        11,
+        8
+      ],
+      "filename": "roi_0040.npz"
+    },
+    {
+      "roi_idx": 22,
+      "panel_id": 0,
+      "bbox": [
+        1395,
+        1407,
+        740,
+        752
+      ],
+      "correlation": -0.03632953336765975,
+      "rmse": 30.363042793431973,
+      "mse": 921.9143676757812,
+      "max_abs_diff": 253.80152893066406,
+      "peak_localized": false,
+      "diff_peak": [
+        7,
+        6
+      ],
+      "torch_peak": [
+        11,
+        6
+      ],
+      "filename": "roi_0022.npz"
+    },
+    {
+      "roi_idx": 55,
+      "panel_id": 0,
+      "bbox": [
+        451,
+        463,
+        1418,
+        1430
+      ],
+      "correlation": -0.04035311153977734,
+      "rmse": 1.8986526178999286,
+      "mse": 3.604881763458252,
+      "max_abs_diff": 13.020971298217773,
+      "peak_localized": false,
+      "diff_peak": [
+        8,
+        6
+      ],
+      "torch_peak": [
+        11,
+        8
+      ],
+      "filename": "roi_0055.npz"
+    },
+    {
+      "roi_idx": 72,
+      "panel_id": 0,
+      "bbox": [
+        647,
+        659,
+        1748,
+        1760
+      ],
+      "correlation": -0.04078269092928196,
+      "rmse": 619.8980510938875,
+      "mse": 384273.59375,
+      "max_abs_diff": 4776.85791015625,
+      "peak_localized": false,
+      "diff_peak": [
+        6,
+        7
+      ],
+      "torch_peak": [
+        11,
+        9
+      ],
+      "filename": "roi_0072.npz"
+    },
+    {
+      "roi_idx": 0,
+      "panel_id": 0,
+      "bbox": [
+        582,
+        594,
+        0,
+        12
+      ],
+      "correlation": -0.07213460057811048,
+      "rmse": 2.063600997675229,
+      "mse": 4.258449077606201,
+      "max_abs_diff": 10.739959716796875,
+      "peak_localized": false,
+      "diff_peak": [
+        5,
+        7
+      ],
+      "torch_peak": [
+        11,
+        8
+      ],
+      "filename": "roi_0000.npz"
+    },
+    {
+      "roi_idx": 26,
+      "panel_id": 0,
+      "bbox": [
+        1690,
+        1702,
+        784,
+        796
+      ],
+      "correlation": -0.03199431773954112,
+      "rmse": 0.9564487786723905,
+      "mse": 0.9147942662239075,
+      "max_abs_diff": 8.147086143493652,
+      "peak_localized": false,
+      "diff_peak": [
+        5,
+        7
+      ],
+      "torch_peak": [
+        11,
+        8
+      ],
+      "filename": "roi_0026.npz"
+    },
+    {
+      "roi_idx": 39,
+      "panel_id": 0,
+      "bbox": [
+        717,
+        729,
+        1120,
+        1132
+      ],
+      "correlation": -0.0426597901004218,
+      "rmse": 1.7990227510117367,
+      "mse": 3.236482858657837,
+      "max_abs_diff": 13.731385231018066,
+      "peak_localized": false,
+      "diff_peak": [
+        6,
+        7
+      ],
+      "torch_peak": [
+        10,
+        8
+      ],
+      "filename": "roi_0039.npz"
+    },
+    {
+      "roi_idx": 67,
+      "panel_id": 0,
+      "bbox": [
+        207,
+        219,
+        1632,
+        1644
+      ],
+      "correlation": -0.055765892875361635,
+      "rmse": 0.597812632128496,
+      "mse": 0.3573799431324005,
+      "max_abs_diff": 3.8741965293884277,
+      "peak_localized": false,
+      "diff_peak": [
+        7,
+        8
+      ],
+      "torch_peak": [
+        11,
+        10
+      ],
+      "filename": "roi_0067.npz"
+    },
+    {
+      "roi_idx": 10,
+      "panel_id": 0,
+      "bbox": [
+        1115,
+        1127,
+        509,
+        521
+      ],
+      "correlation": -0.031068766695462543,
+      "rmse": 2.2561497885304806,
+      "mse": 5.090211868286133,
+      "max_abs_diff": 21.527297973632812,
+      "peak_localized": false,
+      "diff_peak": [
+        6,
+        7
+      ],
+      "torch_peak": [
+        11,
+        8
+      ],
+      "filename": "roi_0010.npz"
+    },
+    {
+      "roi_idx": 44,
+      "panel_id": 0,
+      "bbox": [
+        1182,
+        1194,
+        1153,
+        1165
+      ],
+      "correlation": -0.025235690507977946,
+      "rmse": 7.407582609789081,
+      "mse": 54.87228012084961,
+      "max_abs_diff": 79.01457214355469,
+      "peak_localized": false,
+      "diff_peak": [
+        6,
+        6
+      ],
+      "torch_peak": [
+        11,
+        7
+      ],
+      "filename": "roi_0044.npz"
+    },
+    {
+      "roi_idx": 83,
+      "panel_id": 0,
+      "bbox": [
+        1851,
+        1863,
+        2185,
+        2197
+      ],
+      "correlation": -0.06374101982844453,
+      "rmse": 0.18555109119644372,
+      "mse": 0.03442920744419098,
+      "max_abs_diff": 1.3702881336212158,
+      "peak_localized": false,
+      "diff_peak": [
+        6,
+        6
+      ],
+      "torch_peak": [
+        11,
+        11
+      ],
+      "filename": "roi_0083.npz"
+    },
+    {
+      "roi_idx": 35,
+      "panel_id": 0,
+      "bbox": [
+        872,
+        884,
+        1007,
+        1019
+      ],
+      "correlation": -0.035226320102455515,
+      "rmse": 16.064350422354075,
+      "mse": 258.0633544921875,
+      "max_abs_diff": 142.44760131835938,
+      "peak_localized": false,
+      "diff_peak": [
+        6,
+        6
+      ],
+      "torch_peak": [
+        11,
+        7
+      ],
+      "filename": "roi_0035.npz"
+    },
+    {
+      "roi_idx": 89,
+      "panel_id": 0,
+      "bbox": [
+        2063,
+        2075,
+        2423,
+        2435
+      ],
+      "correlation": 0.07728075311668471,
+      "rmse": 0.32863203111413064,
+      "mse": 0.10799901187419891,
+      "max_abs_diff": 1.7307851314544678,
+      "peak_localized": false,
+      "diff_peak": [
+        6,
+        5
+      ],
+      "torch_peak": [
+        11,
+        11
+      ],
+      "filename": "roi_0089.npz"
+    },
+    {
+      "roi_idx": 62,
+      "panel_id": 0,
+      "bbox": [
+        1286,
+        1298,
+        1561,
+        1573
+      ],
+      "correlation": 0.4290370787369746,
+      "rmse": 101.4240209775278,
+      "mse": 10286.83203125,
+      "max_abs_diff": 814.6060180664062,
+      "peak_localized": true,
+      "diff_peak": [
+        7,
+        7
+      ],
+      "torch_peak": [
+        8,
+        7
+      ],
+      "filename": "roi_0062.npz"
+    },
+    {
+      "roi_idx": 12,
+      "panel_id": 0,
+      "bbox": [
+        908,
+        920,
+        534,
+        546
+      ],
+      "correlation": -0.034497601300854316,
+      "rmse": 1137.1111972889898,
+      "mse": 1293021.875,
+      "max_abs_diff": 9138.70703125,
+      "peak_localized": false,
+      "diff_peak": [
+        6,
+        6
+      ],
+      "torch_peak": [
+        11,
+        7
+      ],
+      "filename": "roi_0012.npz"
+    },
+    {
+      "roi_idx": 4,
+      "panel_id": 0,
+      "bbox": [
+        178,
+        190,
+        312,
+        324
+      ],
+      "correlation": -0.11430287264058221,
+      "rmse": 6.9430033532142374,
+      "mse": 48.20529556274414,
+      "max_abs_diff": 42.944183349609375,
+      "peak_localized": false,
+      "diff_peak": [
+        6,
+        6
+      ],
+      "torch_peak": [
+        11,
+        3
+      ],
+      "filename": "roi_0004.npz"
+    },
+    {
+      "roi_idx": 18,
+      "panel_id": 0,
+      "bbox": [
+        1607,
+        1619,
+        689,
+        701
+      ],
+      "correlation": -0.029034997845087247,
+      "rmse": 25.28102064559128,
+      "mse": 639.1300048828125,
+      "max_abs_diff": 209.6251983642578,
+      "peak_localized": false,
+      "diff_peak": [
+        7,
+        6
+      ],
+      "torch_peak": [
+        11,
+        6
+      ],
+      "filename": "roi_0018.npz"
+    },
+    {
+      "roi_idx": 28,
+      "panel_id": 0,
+      "bbox": [
+        1356,
+        1368,
+        875,
+        887
+      ],
+      "correlation": -0.03229541885092255,
+      "rmse": 2.0716381507234702,
+      "mse": 4.291684627532959,
+      "max_abs_diff": 16.16182518005371,
+      "peak_localized": false,
+      "diff_peak": [
+        5,
+        7
+      ],
+      "torch_peak": [
+        10,
+        8
+      ],
+      "filename": "roi_0028.npz"
+    }
+  ]
+}

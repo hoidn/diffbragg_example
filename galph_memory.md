@@ -682,3 +682,12 @@ Notes
 - <Action State>: [ready_for_implementation]
 
 2025-11-04T084948Z focus=MAP-SCALE-001 state=ready_for_implementation dwell=1 artifacts=plans/active/MAP-SCALE-001/reports/2025-11-04T084948Z/ next_action=apply_diffbragg_calibration_to_zero_iteration
+
+## 2025-11-04T120500Z — MAP-SCALE-001 refined Fopt handoff
+- Focus: MAP-SCALE-001 — Zero-iteration mapping scale alignment
+- Action Type: planning
+- Key Observations: Documented refined-structure-factor remediation—retain DiffBragg `_temp.mtz`, copy to fixtures, load via new helper so DB_AT_024 consumes Fopt while keeping √spot_scale post-sim. Prepared Do Now + How-To covering script regeneration, test updates, and selector validation under plans/active/MAP-SCALE-001/reports/2025-11-04T120500Z/.
+- Artifact Path: plans/active/MAP-SCALE-001/reports/2025-11-04T120500Z/
+- Next Actions: Ralph to implement refined MTZ export/loading, rerun DB_AT_024, and sync docs after selector passes.
+- <Action State>: [ready_for_implementation]
+2025-11-04T120500Z focus=MAP-SCALE-001 state=ready_for_implementation dwell=2 artifacts=plans/active/MAP-SCALE-001/reports/2025-11-04T120500Z/ next_action=delegate_refined_Fopt_plumbing

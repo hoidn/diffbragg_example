@@ -24,11 +24,12 @@ Resolve the scale mismatch between `simulate_forward_once` outputs and backgroun
 - **Phase B — Strategy Prototyping (analysis-mode)**
   - [x] B1: Evaluate candidate scaling rules (e.g., apply `global_scale_hint`, ratio-of-means, shared `spot_scale_override`) via analysis script that multiplies `simulate_forward_once` outputs without modifying production code.
   - [x] B2: Record resulting metrics (corr, localization) for each rule; store in `reports/<ts>/strategy_comparison.json`.
-  - [ ] B3: Select preferred strategy aligned with SCALE-001/002 (no structure-factor rescale; strictly post-sim scaling).
+  - [x] B3: Select preferred strategy aligned with SCALE-001/002 (no structure-factor rescale; strictly post-sim scaling).
+    - Outcome: Adopt DiffBragg-refined `Fopt` amplitudes plus √spot_scale post-sim scaling (per SCALE-001/002/003) as the viable remediation path.
 
 - **Phase C — Implementation Prep**
-  - [ ] C1: Draft Do Now with concrete production edits (`dbex/nanobrag_bridge.py::simulate_forward_once`, optional CLI plumbing) and mapped pytest selector `tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke`.
-  - [ ] C2: Outline artifact capture + documentation sync (TESTING_GUIDE.md, TEST_SUITE_INDEX.md) for Ralph.
+  - [x] C1: Draft Do Now with concrete production edits (`dbex/nanobrag_bridge.py::simulate_forward_once`, optional CLI plumbing) and mapped pytest selector `tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke`.
+  - [x] C2: Outline artifact capture + documentation sync (TESTING_GUIDE.md, TEST_SUITE_INDEX.md) for Ralph.
   - [ ] C3: Update `docs/findings.md` if new guardrails emerge (e.g., scale initialization best practice).
 
 ## Risks / Open Questions

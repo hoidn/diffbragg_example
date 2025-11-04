@@ -20,20 +20,18 @@ Detector (per panel)
   - `panel.get_pixel_size()` → (fast_mm, slow_mm)
   - `panel.get_image_size()` → (fast_px, slow_px)
 - torch mapping (DetectorConfig)
-  - `detector_convention = CUSTOM`
-  - `custom_fdet_vector = panel.get_fast_axis()`
-  - `custom_sdet_vector = panel.get_slow_axis()`
-  - `custom_odet_vector = panel.get_normal()`
-  - `custom_beam_vector = -beam.get_s0()/||s0||` (sample→source)
+  - `detector_convention = DIALS`
+  - Detector rotations derived from panel axes: form rotation matrix with columns `[fast, slow, normal]`, validate via `scitbx.matrix.is_r3_rotation_matrix()`, convert to XYZ Euler angles in degrees via `r3_rotation_matrix_as_x_y_z_angles()`
+  - `detector_rotx_deg`, `detector_roty_deg`, `detector_rotz_deg` set from computed Euler angles
   - `distance_mm = panel.get_directed_distance()`
-  - `beam_center_s = slow_mm`, `beam_center_f = fast_mm`, `beam_center_source = "explicit"`
+  - `beam_center_s = slow_mm`, `beam_center_f = fast_mm`, `beam_center_source = "explicit"` (preserves BEAM pivot per `nanobrag_api.md`)
   - `pixel_size_mm = px_fast_mm` (guard: require `abs(px_fast_mm - px_slow_mm) <= 1e-9`)
   - `spixels = slow_px`, `fpixels = fast_px`
   - ROI defaults to full detector when omitted
   - `mask_array = trusted_mask[panel].float()` with shape `(spixels, fpixels)` (1=include)
 - Refined vs Fixed (Stage C)
   - Refine: translation along detector normal (distance offset) per panel
-  - Fixed (v1): basis vectors, beam vector, beam center, pixel size; rotations optional later
+  - Fixed (v1): detector rotations (derived from dxtbx panel axes), beam center, pixel size
   - Constraints: small step sizes; optional L2 penalties
 
 Beam

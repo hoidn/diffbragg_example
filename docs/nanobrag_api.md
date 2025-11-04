@@ -36,8 +36,9 @@ Import name
 - `spixels`, `fpixels` (int): image dimensions (slow, fast).
 - `beam_center_s`, `beam_center_f` (float, mm): beam center in mm; set `beam_center_source="explicit"` to skip MOSFLM +0.5 px offset.
 - Conventions:
-  - Use `DetectorConvention.CUSTOM` with `custom_*` basis vectors from dxtbx panel axes and `custom_beam_vector` = sample→source.
-  - Pivot defaults per spec; custom basis vectors force SAMPLE pivot internally.
+  - Use `DetectorConvention.DIALS` with rotation angles derived from dxtbx panel axes (fast/slow/normal). Form rotation matrix with columns `[fast, slow, normal]`, validate via `scitbx.matrix.is_r3_rotation_matrix()`, and convert to XYZ Euler angles via `r3_rotation_matrix_as_x_y_z_angles()`.
+  - Set `detector_rotx_deg`, `detector_roty_deg`, `detector_rotz_deg` from computed angles (in degrees).
+  - DIALS convention with BEAM pivot preserves beam center position without drift.
 - ROI and mask:
   - `roi_xmin/xmax/ymin/ymax`: optional; default is full detector when omitted. Must be within `[0..spixels-1]`/`[0..fpixels-1]`.
   - `mask_array`: tensor (0/1) with shape `(spixels, fpixels)`; multiplied post‑compute to zero masked pixels.

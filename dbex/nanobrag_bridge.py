@@ -239,10 +239,14 @@ def create_detector_config(
 
     Implements geometry mapping per docs/config_crosswalk.md:15-37:
     - Beam center swap: dxtbx (fast, slow) -> torch (s, f)
-    - DIALS convention with XYZ rotation angles (no custom basis vectors)
+    - DIALS convention with XYZ rotation angles derived from panel axes
     - Uses BEAM pivot to preserve beam center per docs/nanobrag_api.md:32-45
     - Square pixel guard
     - Mask array conversion to float (1=include, 0=exclude)
+
+    The detector rotation angles are extracted from the panel's fast/slow/normal
+    axes by forming a rotation matrix and converting to XYZ Euler angles via
+    scitbx.matrix utilities.
 
     Args:
         panel: dxtbx Panel object
@@ -253,8 +257,10 @@ def create_detector_config(
         DetectorConfig with geometry, beam center, and mask
 
     Raises:
-        ValueError: If pixels are not square
+        ValueError: If pixels are not square or panel axes do not form a valid rotation matrix
     """
+    from scitbx import matrix as scitbx_matrix
+
     # Pixel pitch guard (config_crosswalk.md:30)
     px_fast_mm, px_slow_mm = panel.get_pixel_size()
     if abs(px_fast_mm - px_slow_mm) > 1e-9:
@@ -275,14 +281,44 @@ def create_detector_config(
     beam_center_s = slow_mm
     beam_center_f = fast_mm
 
+    # Extract per-panel detector rotations from fast/slow/normal axes
+    # Form rotation matrix with columns = (fast, slow, normal)
+    fast_axis = panel.get_fast_axis()
+    slow_axis = panel.get_slow_axis()
+    normal_axis = panel.get_normal()
+
+    # Build 3x3 rotation matrix as columns [fast, slow, normal]
+    rot_matrix_elements = (
+        fast_axis[0], slow_axis[0], normal_axis[0],
+        fast_axis[1], slow_axis[1], normal_axis[1],
+        fast_axis[2], slow_axis[2], normal_axis[2]
+    )
+    rot_matrix = scitbx_matrix.sqr(rot_matrix_elements)
+
+    # Validate that the matrix is a proper rotation (within numerical tolerance)
+    if not rot_matrix.is_r3_rotation_matrix():
+        rms_error = rot_matrix.is_r3_rotation_matrix_rms()
+        raise ValueError(
+            f"Panel axes do not form a valid rotation matrix. "
+            f"RMS error from orthonormality: {rms_error:.6e}. "
+            f"Fast axis: {fast_axis}, Slow axis: {slow_axis}, Normal: {normal_axis}"
+        )
+
+    # Convert rotation matrix to XYZ Euler angles (radians)
+    xyz_angles_rad = rot_matrix.r3_rotation_matrix_as_x_y_z_angles()
+
+    # Convert to degrees
+    detector_rotx_deg = np.degrees(xyz_angles_rad[0])
+    detector_roty_deg = np.degrees(xyz_angles_rad[1])
+    detector_rotz_deg = np.degrees(xyz_angles_rad[2])
+
     # Mask array: convert bool to float (config_crosswalk.md:33)
     mask_array = None
     if trusted_mask is not None:
         mask_array = trusted_mask.astype(np.float32)
 
-    # Use DIALS convention with identity rotation (zero XYZ angles)
-    # This preserves BEAM pivot and avoids the beam center drift caused by
-    # CUSTOM convention forcing SAMPLE pivot (see input.md pitfalls)
+    # Use DIALS convention with rotation angles derived from panel axes
+    # This preserves BEAM pivot and correctly represents panel geometry
     return DetectorConfig(
         distance_mm=distance_mm,
         pixel_size_mm=px_fast_mm,
@@ -292,9 +328,9 @@ def create_detector_config(
         beam_center_f=beam_center_f,
         beam_center_source="explicit",
         detector_convention=DetectorConvention.DIALS,
-        detector_rotx_deg=0.0,
-        detector_roty_deg=0.0,
-        detector_rotz_deg=0.0,
+        detector_rotx_deg=detector_rotx_deg,
+        detector_roty_deg=detector_roty_deg,
+        detector_rotz_deg=detector_rotz_deg,
         mask_array=mask_array
     )
 

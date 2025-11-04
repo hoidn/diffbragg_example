@@ -118,6 +118,24 @@ def main() -> int:
     ap.add_argument("--report-path-globs", type=str,
                     default=os.getenv("SUPERVISOR_REPORT_PATH_GLOBS", ""),
                     help="Comma-separated glob allowlist for report auto-commit paths (default: none)")
+    # Tracked outputs (e.g., regenerated fixtures) auto-commit
+    ap.add_argument("--auto-commit-tracked-outputs", dest="auto_commit_tracked_outputs", action="store_true",
+                    help="Auto-stage+commit modified tracked output files (e.g., fixtures) when within limits (default: on)")
+    ap.add_argument("--no-auto-commit-tracked-outputs", dest="auto_commit_tracked_outputs", action="store_false",
+                    help="Disable auto commit of modified tracked outputs")
+    ap.set_defaults(auto_commit_tracked_outputs=True)
+    ap.add_argument("--tracked-output-globs", type=str,
+                    default=os.getenv("SUPERVISOR_TRACKED_OUTPUT_GLOBS", "tests/fixtures/**/*.npy,tests/fixtures/**/*.npz,tests/fixtures/**/*.json,tests/fixtures/**/*.pkl"),
+                    help="Comma-separated glob allowlist for tracked output paths (default targets test fixtures)")
+    ap.add_argument("--tracked-output-extensions", type=str,
+                    default=os.getenv("SUPERVISOR_TRACKED_OUTPUT_EXTENSIONS", ".npy,.npz,.json,.pkl"),
+                    help="Comma-separated list of allowed file extensions for tracked outputs")
+    ap.add_argument("--max-tracked-output-file-bytes", type=int,
+                    default=int(os.getenv("SUPERVISOR_MAX_TRACKED_OUTPUT_FILE_BYTES", str(32 * 1024 * 1024))),
+                    help="Maximum per-file size (bytes) eligible for tracked outputs auto-commit (default 32 MiB)")
+    ap.add_argument("--max-tracked-output-total-bytes", type=int,
+                    default=int(os.getenv("SUPERVISOR_MAX_TRACKED_OUTPUT_TOTAL_BYTES", str(100 * 1024 * 1024))),
+                    help="Maximum total size (bytes) staged per iteration for tracked outputs (default 100 MiB)")
     args, unknown = ap.parse_known_args()
 
     report_path_globs = tuple(p.strip() for p in args.report_path_globs.split(',') if p.strip())
@@ -184,6 +202,70 @@ def main() -> int:
             committed = commit("SUPERVISOR AUTO: doc/meta hygiene — tests: not run" + body)
             # Do not push here; let subsequent logic push state or later commits
         return committed, []
+
+    def _supervisor_autocommit_tracked_outputs(args_ns, log_func) -> tuple[bool, list[str], list[str]]:
+        """
+        Attempt to auto-stage+commit modified tracked output files (e.g., regenerated fixtures).
+        Returns (committed: bool, staged_paths: list[str], skipped_paths: list[str]).
+
+        Policy:
+        - Only considers tracked modifications (no untracked/ignored files).
+        - Restricts to a glob allowlist and extension allowlist.
+        - Enforces per-file and total size caps to avoid runaway commits.
+        """
+        # Collect modified tracked files only
+        modified = _list(["git", "diff", "--name-only", "--diff-filter=M"])
+        if not modified:
+            return False, [], []
+
+        # Normalize allowlists
+        path_globs = [p.strip() for p in (args_ns.tracked_output_globs or "").split(',') if p.strip()]
+        exts = {e.strip().lower() for e in (args_ns.tracked_output_extensions or "").split(',') if e.strip()}
+        max_file = int(args_ns.max_tracked_output_file_bytes)
+        max_total = int(args_ns.max_tracked_output_total_bytes)
+
+        staged: list[str] = []
+        skipped: list[str] = []
+        total_bytes = 0
+
+        for p in modified:
+            # Extension filter
+            _, ext = os.path.splitext(p)
+            if ext.lower() not in exts:
+                skipped.append(p)
+                continue
+            # Path globs filter
+            if path_globs and not _matches_any(p, path_globs):
+                skipped.append(p)
+                continue
+            # Size guard
+            try:
+                if not os.path.isfile(p):
+                    skipped.append(p)
+                    continue
+                sz = os.path.getsize(p)
+            except FileNotFoundError:
+                skipped.append(p)
+                continue
+            if sz > max_file or (total_bytes + sz) > max_total:
+                skipped.append(p)
+                continue
+
+            # Stage the file
+            try:
+                add([p])
+                staged.append(p)
+                total_bytes += sz
+            except Exception:
+                skipped.append(p)
+
+        committed = False
+        if staged:
+            body = "\n\nFiles:\n" + "\n".join(f" - {x}" for x in staged)
+            committed = commit("SUPERVISOR AUTO: tracked outputs — tests: not run" + body)
+            if committed and log_func:
+                log_func(f"[tracked-outputs] Auto-committed {len(staged)} files ({total_bytes} bytes)")
+        return committed, staged, skipped
 
     def _pull_with_error(log_func, ctx: str) -> bool:
         """Run safe_pull while capturing log lines; on failure, print last error."""
@@ -373,6 +455,10 @@ def main() -> int:
                 skip_predicate=_skip_reports,
                 allowed_path_globs=report_path_globs,
             )
+
+        # Auto-commit modified tracked outputs (e.g., regenerated fixtures) before doc hygiene
+        if args.auto_commit_tracked_outputs:
+            _supervisor_autocommit_tracked_outputs(args, logp)
 
         # Determine post-run success without early-returning
         post_ok = (rc == 0)

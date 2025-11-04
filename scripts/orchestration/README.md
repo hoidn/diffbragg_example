@@ -159,6 +159,12 @@ Notes:
     - `--max-report-file-bytes N` (default 5 MiB) · `--max-report-total-bytes N` (default 20 MiB)
     - `--force-add-reports` (default: on) — force-add files even if ignored by .gitignore
     - Notes: stamp-first handoff ensures reports + state publish together; adjust caps/extension list / path globs as needed for your workflow.
+  - Tracked outputs auto-commit (publishes modified tracked artifacts like fixtures)
+    - `--auto-commit-tracked-outputs` / `--no-auto-commit-tracked-outputs` (default: on)
+    - `--tracked-output-globs "tests/fixtures/**/*.npy,tests/fixtures/**/*.npz,tests/fixtures/**/*.json,tests/fixtures/**/*.pkl"` — path allowlist (glob); only tracked modifications are considered
+    - `--tracked-output-extensions ".npy,.npz,.json,.pkl"` — allowed extensions
+    - `--max-tracked-output-file-bytes N` (default 32 MiB) · `--max-tracked-output-total-bytes N` (default 100 MiB)
+    - Notes: runs before doc/meta hygiene; keeps repo clean when fixture‑like binaries are legitimately regenerated during a supervisor loop. Files exceeding caps remain dirty and will trigger the whitelist guard (handoff abort).
   - `--prepull-auto-commit-docs` / `--no-prepull-auto-commit-docs` (default: on)
     - If the initial git pull fails (e.g., due to local modified doc/meta files), supervisor will attempt a doc/meta whitelist auto‑commit first, then retry the pull.
     - If non‑whitelisted dirty files are present, the supervisor exits with a clear error (prevents accidental commits of code/large files).

@@ -520,3 +520,14 @@ Notes
 - <Action State>: [ready_for_implementation]
 
 2025-11-04T024056Z focus=NANOBRAG-BACKEND-002 state=ready_for_implementation dwell=1 artifacts=plans/active/NANOBRAG-BACKEND-002/reports/2025-11-04T024056Z/ next_action=wire_simulator_and_run_targeted_pytest
+
+## 2025-11-04T024719Z — NANOBRAG-BACKEND-002 simulator wiring plan refresh
+- Focus: NANOBRAG-BACKEND-002 — Replace CLI torch backend stub with nanobrag_torch simulator
+- Action Type: planning
+- Key Observations: Confirmed Phase B items remain open (stubbed `_stub_bragg_tensor`, no CLI scale override, no HKL helper), reviewed nanobrag API/spec guardrails (GEOMETRY-002, SCALE-001/002, HKL-ORIENT-001), captured new report 2025-11-04T024719Z with handoff instructions, and updated docs/fix_plan.md Attempts History.
+- Artifact Path: plans/active/NANOBRAG-BACKEND-002/reports/2025-11-04T024719Z/
+- Next Actions: Implement simulator wiring Do Now (port structure-factor helper, add CLI override, invoke nanobrag_torch Simulator with √scale, add targeted pytest) and capture pytest logs under the new report.
+- Reality Check: Exit criteria 2-4 still unmet; dependencies satisfied; dwell guard now at 2 so upcoming loop must execute implementation handoff.
+- <Action State>: [ready_for_implementation]
+
+2025-11-04T024719Z focus=NANOBRAG-BACKEND-002 state=ready_for_implementation dwell=2 artifacts=plans/active/NANOBRAG-BACKEND-002/reports/2025-11-04T024719Z/ next_action=wire_simulator_backend_and_run_pytest

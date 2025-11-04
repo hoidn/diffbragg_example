@@ -154,13 +154,19 @@ class TestDB_AT_024_Mapping:
         background-subtracted data for K ROIs. Emits metrics JSON/CSV under
         $DBAT024_ARTIFACT_DIR.
 
-        Current thresholds (provisional xfail until improved):
+        Thresholds per docs/spec-db-conformance.md:43-46:
         - Median correlation >= 0.2
         - Localization success rate >= 90%
 
-        Metrics from 2025-11-04T063053Z baseline:
-        - corr_median: 0.0488
-        - localization_success_rate: 0.0
+        Latest metrics (2025-11-04T190041Z) with calibration + sample clipping:
+        - corr_median: 0.621 (PASS)
+        - localization_success_rate: 0.935 (PASS)
+        - n_cells_applied: true
+        - calibration: spot_scale_override=3.185e17, N_cells=[36,28,26]
+
+        The sample clipping guard (SCALE-005) enables N_cells when beam_config
+        (flux/exposure/beamsize) is forwarded to nanobrag_torch.Simulator,
+        preventing intensity blow-up and achieving parity with canonical captures.
         """
         os.environ.setdefault("NANOBRAGG_DISABLE_COMPILE", "1")
 

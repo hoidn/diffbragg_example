@@ -1,0 +1,17 @@
+{
+  "correlation": 0.9878917805329821,
+  "rmse": 180.41070765755563,
+  "mse": 32548.0234375,
+  "max_abs_diff": 9808.15625,
+  "sum_ratio": 1.105569321267936,
+  "localization": 1.0,
+  "n_pixels": 13086,
+  "n_masked": 6210915,
+  "manifest_checksum": "2d1f8d671a6b051b23dd7a059f9fd8ff5605389bbe9a8e72cb44cbd7a8567aee",
+  "metadata": {
+    "test": "DB_AT_001_forward_equiv",
+    "initiative": "FORWARD-EQUIV-002",
+    "timestamp": "2025-11-04T041500Z",
+    "panel_id": 0
+  }
+}

@@ -29,11 +29,11 @@ Bring the `dbex.refine_one` nanobrag backend up-to-date with MAP-SCALE-001 guard
 - **Phase C — Regression coverage**
   - [x] C1: Update `tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_runs_simulator` to assert calibration forwarding (mock `load_calibration_metadata`, beam_config arguments, `apply_n_cells`).
   - [x] C2: Author targeted CLI smoke (fixture-driven) or reuse DB_AT_024 to confirm thresholds after CLI path changes; capture artifacts under `plans/active/MAP-SCALE-002/reports/<timestamp>/`.
-  - [ ] C3: Run mapped pytest selectors and `--collect-only`, archive logs with environment flags noted.
+  - [x] C3: Run mapped pytest selectors and `--collect-only`, archive logs with environment flags noted.
 
 - **Phase D — Documentation sync & closeout**
-  - [ ] D1: Update `docs/TESTING_GUIDE.md` and `docs/development/TEST_SUITE_INDEX.md` with new CLI regression selectors.
-  - [ ] D2: Append fix_plan attempts + findings if new lessons emerge; mark status `done` after artifacts validated.
+  - [x] D1: Update `docs/TESTING_GUIDE.md` and `docs/development/TEST_SUITE_INDEX.md` with new CLI regression selectors.
+  - [x] D2: Append fix_plan attempts + findings if new lessons emerge; mark status `done` after artifacts validated.
 
 ## Artifacts Index
 - Reports root: `plans/active/MAP-SCALE-002/reports/`

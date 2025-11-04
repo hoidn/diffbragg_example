@@ -757,3 +757,13 @@ Notes
 - Reality Check: Exit criterion #3 not fully satisfied without collect-only artifact; documentation still references pre-calibration CLI usage, so status remains `in_progress`.
 - <Action State>: [ready_for_implementation]
 2025-11-05T020206Z focus=MAP-SCALE-002 state=ready_for_implementation dwell=0 artifacts=plans/active/MAP-SCALE-002/reports/2025-11-05T020206Z/ next_action=calibration_docs_closeout
+
+## 2025-11-05T110000Z — MAP-SCALE-003 telemetry planning
+- Focus: MAP-SCALE-003 — CLI refined structure factor telemetry
+- Action Type: planning
+- Key Observations: CLI refined MTZ branch logs provenance to stdout but does not persist telemetry; `/torch_diagnostics` lacks `hkl_source`, so regressions could silently fall back to raw MTZ despite SCALE-003/004 requirements. `tests/dbex/test_refine_one_cli.py` covers calibration path only; no asserts around `load_refined_mtz` usage. Decided to surface telemetry (source, reflection_count, mean_amplitude, mtz_path) via `_write_torch_outputs` and guard with new regression test plus DB_AT_024 rerun.
+- Artifact Path: plans/active/MAP-SCALE-003/reports/2025-11-05T110000Z/
+- Next Actions: Ship refined MTZ telemetry wiring + tests, then refresh docs/test registry with new diagnostics evidence.
+- Reality Check: MAP-SCALE-002 closed; new initiative depends on SCALE-003/004/006 guardrails—no blocking prerequisites.
+- <Action State>: [planning]
+2025-11-05T110000Z focus=MAP-SCALE-003 state=planning dwell=0 artifacts=plans/active/MAP-SCALE-003/reports/2025-11-05T110000Z/ next_action=wire_cli_refined_mtz_telemetry

@@ -93,71 +93,49 @@ class TestDetectorConfigMapping:
         assert config.beam_center_source == "explicit", \
             "beam_center_source must be 'explicit' to skip MOSFLM +0.5px offset"
 
+    @pytest.mark.skip(reason="Beam vector belongs in BeamConfig, not DetectorConfig")
     def test_sample_to_source_vector(self, mock_panel, mock_beam):
         """
         Test that beam vector is correctly converted from source->sample to sample->source.
 
-        dxtbx beam.get_s0() returns source->sample (dxtbx_api.md:27).
-        torch requires sample->source as custom_beam_vector (config_crosswalk.md:27).
-
-        This test will fail until create_detector_config is implemented.
+        Note: This test was misplaced. Beam vectors belong in BeamConfig,
+        not DetectorConfig. DetectorConfig should only contain detector geometry.
+        See create_beam_config for beam vector handling.
         """
-        from dbex.nanobrag_bridge import create_detector_config
+        pass
+
+    def test_detector_convention_dials(self, mock_panel, mock_beam):
+        """
+        Test that detector convention is set to DIALS with rotation angles.
+
+        Per config_crosswalk.md:23-24 and NANOBRAG-GOLDEN-001, we now use DIALS
+        convention with XYZ rotation angles derived from panel basis vectors.
+        This preserves BEAM pivot and avoids beam center drift.
+        """
+        from dbex.nanobrag_bridge import create_detector_config, DetectorConvention
 
         config = create_detector_config(mock_panel, mock_beam)
 
-        s0 = mock_beam.get_s0.return_value
-        expected_beam_vector = -s0 / np.linalg.norm(s0)
+        # Verify convention is DIALS
+        assert config.detector_convention == DetectorConvention.DIALS, \
+            "detector_convention must be DIALS to preserve BEAM pivot"
 
-        # Verify normalization and direction reversal
-        np.testing.assert_allclose(
-            config.custom_beam_vector,
-            expected_beam_vector,
-            rtol=1e-6,
-            err_msg="custom_beam_vector should be normalized -s0 (sample->source)"
-        )
+        # Verify rotation angles are present (for identity rotation, all should be ~0)
+        assert hasattr(config, 'detector_rotx_deg'), \
+            "DIALS convention must have detector_rotx_deg"
+        assert hasattr(config, 'detector_roty_deg'), \
+            "DIALS convention must have detector_roty_deg"
+        assert hasattr(config, 'detector_rotz_deg'), \
+            "DIALS convention must have detector_rotz_deg"
 
-        # Verify unit vector
-        norm = np.linalg.norm(config.custom_beam_vector)
-        assert abs(norm - 1.0) < 1e-9, \
-            f"custom_beam_vector should be normalized, got norm={norm}"
-
-    def test_detector_convention_custom(self, mock_panel, mock_beam):
-        """
-        Test that detector convention is set to CUSTOM with all required basis vectors.
-
-        Per config_crosswalk.md:23, we use CUSTOM convention with explicit basis vectors
-        from dxtbx panel.get_*_axis() methods.
-
-        This test will fail until create_detector_config is implemented.
-        """
-        from dbex.nanobrag_bridge import create_detector_config
-
-        config = create_detector_config(mock_panel, mock_beam)
-
-        # Verify convention
-        # Note: We'll need to import DetectorConvention from nanobrag_torch
-        # For now, check the string/enum value
-        assert str(config.detector_convention) == "DetectorConvention.CUSTOM" or \
-               config.detector_convention == "CUSTOM", \
-            "detector_convention must be CUSTOM"
-
-        # Verify basis vectors match panel axes
-        np.testing.assert_array_equal(
-            config.custom_fdet_vector,
-            mock_panel.get_fast_axis.return_value,
-            err_msg="custom_fdet_vector should match panel.get_fast_axis()"
-        )
-        np.testing.assert_array_equal(
-            config.custom_sdet_vector,
-            mock_panel.get_slow_axis.return_value,
-            err_msg="custom_sdet_vector should match panel.get_slow_axis()"
-        )
-        np.testing.assert_array_equal(
-            config.custom_odet_vector,
-            mock_panel.get_normal.return_value,
-            err_msg="custom_odet_vector should match panel.get_normal()"
-        )
+        # For identity rotation, angles should be near zero
+        # (mock panel has orthonormal basis aligned with lab frame)
+        assert abs(config.detector_rotx_deg) < 1e-6, \
+            f"Expected rotx ~0 for identity rotation, got {config.detector_rotx_deg}"
+        assert abs(config.detector_roty_deg) < 1e-6, \
+            f"Expected roty ~0 for identity rotation, got {config.detector_roty_deg}"
+        assert abs(config.detector_rotz_deg) < 1e-6, \
+            f"Expected rotz ~0 for identity rotation, got {config.detector_rotz_deg}"
 
     def test_mask_array_float_conversion(self, mock_panel, mock_beam):
         """
@@ -238,6 +216,105 @@ class TestDetectorConfigMapping:
 
         assert config.distance_mm == expected_distance, \
             f"distance_mm should be {expected_distance}, got {config.distance_mm}"
+
+    def test_detector_basis_reconstruction_from_real_geom(self):
+        """
+        Test that detector basis vectors are correctly reconstructed from real geometry.
+
+        Loads refGeom.expt via ExperimentListFactory, creates detector config,
+        builds a TorchDetector, and verifies that the detector's fast/slow/normal
+        basis vectors match the original dxtbx panel axes within 1e-6 tolerance.
+
+        This validates that the analytic Euler angle inversion correctly preserves
+        the detector geometry per input.md How-To Map step 2.
+
+        Requires nanobrag_torch to be available; skips otherwise.
+        """
+        pytest.importorskip("nanobrag_torch")
+
+        from dxtbx.model import ExperimentList
+        from dbex.nanobrag_bridge import create_detector_config
+        from nanobrag_torch.models.detector import Detector
+        from nanobrag_torch.config import DetectorConfig as TorchDetectorConfig
+        import torch
+
+        # Load real geometry from refGeom.expt
+        expt_path = "refGeom.expt"
+        expt_list = ExperimentList.from_file(expt_path)
+        assert len(expt_list) > 0, "refGeom.expt must contain at least one experiment"
+
+        expt = expt_list[0]
+        panel = expt.detector[0]
+        beam = expt.beam
+
+        # Get original dxtbx basis vectors
+        original_fast = np.array(panel.get_fast_axis())
+        original_slow = np.array(panel.get_slow_axis())
+        original_normal = np.array(panel.get_normal())
+
+        # Create detector config using the bridge
+        bridge_config = create_detector_config(panel, beam)
+
+        # Convert to torch DetectorConfig
+        # Map bridge's DetectorConvention to torch's
+        from nanobrag_torch.config import DetectorConvention as TorchDetectorConvention
+        from dbex.nanobrag_bridge import DetectorConvention as BridgeDetectorConvention
+
+        if bridge_config.detector_convention == BridgeDetectorConvention.DIALS:
+            torch_convention = TorchDetectorConvention.DIALS
+        elif bridge_config.detector_convention == BridgeDetectorConvention.CUSTOM:
+            torch_convention = TorchDetectorConvention.CUSTOM
+        else:
+            raise ValueError(f"Unsupported detector convention: {bridge_config.detector_convention}")
+
+        torch_config = TorchDetectorConfig(
+            distance_mm=bridge_config.distance_mm,
+            pixel_size_mm=bridge_config.pixel_size_mm,
+            spixels=bridge_config.spixels,
+            fpixels=bridge_config.fpixels,
+            beam_center_s=bridge_config.beam_center_s,
+            beam_center_f=bridge_config.beam_center_f,
+            beam_center_source=bridge_config.beam_center_source,
+            detector_convention=torch_convention,
+            detector_rotx_deg=bridge_config.detector_rotx_deg,
+            detector_roty_deg=bridge_config.detector_roty_deg,
+            detector_rotz_deg=bridge_config.detector_rotz_deg,
+            mask_array=bridge_config.mask_array
+        )
+
+        # Build Detector from config
+        torch_detector = Detector(torch_config)
+
+        # Extract reconstructed basis vectors from Detector
+        # The detector should have fdet_vec, sdet_vec, odet_vec attributes
+        # after initialization
+        reconstructed_fast = torch_detector.fdet_vec.cpu().numpy()
+        reconstructed_slow = torch_detector.sdet_vec.cpu().numpy()
+        reconstructed_normal = torch_detector.odet_vec.cpu().numpy()
+
+        # Verify basis vectors match within tolerance
+        np.testing.assert_allclose(
+            reconstructed_fast,
+            original_fast,
+            atol=1e-6,
+            err_msg="Reconstructed fast axis does not match original dxtbx fast axis"
+        )
+        np.testing.assert_allclose(
+            reconstructed_slow,
+            original_slow,
+            atol=1e-6,
+            err_msg="Reconstructed slow axis does not match original dxtbx slow axis"
+        )
+        np.testing.assert_allclose(
+            reconstructed_normal,
+            original_normal,
+            atol=1e-6,
+            err_msg="Reconstructed normal does not match original dxtbx normal"
+        )
+
+        # Verify we're using DIALS convention with BEAM pivot
+        assert bridge_config.detector_convention == BridgeDetectorConvention.DIALS, \
+            "Detector convention must be DIALS to preserve BEAM pivot"
 
 
 class TestBeamCrystalConfigMapping:

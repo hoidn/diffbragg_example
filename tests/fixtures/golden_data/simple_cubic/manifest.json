@@ -1,19 +1,19 @@
 {
   "dataset_name": "simple_cubic_canonical",
-  "generation_timestamp": "2025-11-04T01:02:11.764067Z",
-  "generator_command": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/scripts/generate_simple_cubic_golden.py --canonical-out plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T005115Z/golden_dataset --hkldebug plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T005115Z/torch_hkl_debug.json --emit-manifest --fixtures /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/fixtures/golden_data/simple_cubic --roi-dump plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T005115Z/roi_triptychs",
-  "git_revision": "dbbc6fa44980d35306be0d62c79f82e0de435032",
+  "generation_timestamp": "2025-11-04T01:28:28.458522Z",
+  "generator_command": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/scripts/generate_simple_cubic_golden.py --canonical-out plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T012616Z/golden_dataset --hkldebug plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T012616Z/torch_hkl_debug.json --emit-manifest --fixtures /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/fixtures/golden_data/simple_cubic --roi-dump plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T012616Z/roi_triptychs",
+  "git_revision": "344632b5b1e718c6112ee1a473ac0c2693717d2a",
   "structure_factor_source": "scaled.mtz",
   "experiment_source": "refGeom.expt",
   "files": {
     "bragg_diffbragg": {
       "filename": "bragg_diffbragg.npy",
-      "sha256": "46a262548a9ddf981be9d6727818acf476b8b9a39deab91fb59fe880e92872a5",
+      "sha256": "6e0c76a0a6476d6413c1a802927e39d2cb2149e594f95b19e4d10ace790836c3",
       "size_bytes": 24896132
     },
     "bragg_torch": {
       "filename": "bragg_torch.npy",
-      "sha256": "015d92a4b37c43cc5eadc2ad211252fda9ac6e94af0b669030ab9a4b666f5939",
+      "sha256": "8b84f2290707afbc1946e99a6640b35b8fbb6196db44d2e74ba9d0562173687f",
       "size_bytes": 24896132
     },
     "target_panel_0": {
@@ -27,5 +27,5 @@
       "size_bytes": 6224129
     }
   },
-  "manifest_sha256": "27b573e83a40950bcd1935c0118c9931049366b32e4d16ab9a64d2919460dd21"
+  "manifest_sha256": "2d1f8d671a6b051b23dd7a059f9fd8ff5605389bbe9a8e72cb44cbd7a8567aee"
 }

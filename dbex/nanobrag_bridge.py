@@ -283,34 +283,70 @@ def create_detector_config(
 
     # Extract per-panel detector rotations from fast/slow/normal axes
     # Form rotation matrix with columns = (fast, slow, normal)
-    fast_axis = panel.get_fast_axis()
-    slow_axis = panel.get_slow_axis()
-    normal_axis = panel.get_normal()
+    fast_axis = np.array(panel.get_fast_axis())
+    slow_axis = np.array(panel.get_slow_axis())
+    normal_axis = np.array(panel.get_normal())
 
     # Build 3x3 rotation matrix as columns [fast, slow, normal]
-    rot_matrix_elements = (
-        fast_axis[0], slow_axis[0], normal_axis[0],
-        fast_axis[1], slow_axis[1], normal_axis[1],
-        fast_axis[2], slow_axis[2], normal_axis[2]
-    )
-    rot_matrix = scitbx_matrix.sqr(rot_matrix_elements)
+    R = np.column_stack([fast_axis, slow_axis, normal_axis])
 
     # Validate that the matrix is a proper rotation (within numerical tolerance)
-    if not rot_matrix.is_r3_rotation_matrix():
-        rms_error = rot_matrix.is_r3_rotation_matrix_rms()
+    # Check: R @ R^T = I and det(R) = 1
+    identity_error = np.linalg.norm(R @ R.T - np.eye(3))
+    det_error = abs(np.linalg.det(R) - 1.0)
+    if identity_error > 1e-6 or det_error > 1e-6:
         raise ValueError(
             f"Panel axes do not form a valid rotation matrix. "
-            f"RMS error from orthonormality: {rms_error:.6e}. "
+            f"Identity error: {identity_error:.6e}, Det error: {det_error:.6e}. "
             f"Fast axis: {fast_axis}, Slow axis: {slow_axis}, Normal: {normal_axis}"
         )
 
-    # Convert rotation matrix to XYZ Euler angles (radians)
-    xyz_angles_rad = rot_matrix.r3_rotation_matrix_as_x_y_z_angles()
+    # Convert rotation matrix to XYZ Euler angles using analytic inversion
+    # The forward rotation is R = Rz @ Ry @ Rx, which gives:
+    # R[0,2] = sin(phi_y), R[2,1] = -sin(phi_x)*cos(phi_y), R[2,2] = cos(phi_x)*cos(phi_y)
+    # R[1,0] = sin(phi_x)*sin(phi_y)*cos(phi_z) + cos(phi_x)*sin(phi_z)
+    # R[0,0] = cos(phi_y)*cos(phi_z)
+    #
+    # Solving: phi_y = arcsin(R[0,2]), phi_x = atan2(-R[2,1], R[2,2]), phi_z = atan2(-R[1,0], R[0,0])
+    # However, the nanobrag convention uses negated signs for the inversion
+    # Per input.md analysis, the correct inversion is:
+    phi_y_rad = -np.arcsin(np.clip(R[2, 0], -1.0, 1.0))
+    phi_x_rad = np.arctan2(R[2, 1], R[2, 2])
+    phi_z_rad = np.arctan2(R[1, 0], R[0, 0])
+
+    # Verify reconstruction to ensure the inversion is correct
+    # Reconstruct R from the extracted angles and compare
+    cos_x, sin_x = np.cos(phi_x_rad), np.sin(phi_x_rad)
+    cos_y, sin_y = np.cos(phi_y_rad), np.sin(phi_y_rad)
+    cos_z, sin_z = np.cos(phi_z_rad), np.sin(phi_z_rad)
+
+    # Build individual rotation matrices
+    Rx = np.array([[1, 0, 0],
+                   [0, cos_x, -sin_x],
+                   [0, sin_x, cos_x]])
+    Ry = np.array([[cos_y, 0, sin_y],
+                   [0, 1, 0],
+                   [-sin_y, 0, cos_y]])
+    Rz = np.array([[cos_z, -sin_z, 0],
+                   [sin_z, cos_z, 0],
+                   [0, 0, 1]])
+
+    # Compose in XYZ order: R_reconstructed = Rz @ Ry @ Rx
+    R_reconstructed = Rz @ Ry @ Rx
+    reconstruction_error = np.linalg.norm(R - R_reconstructed)
+
+    if reconstruction_error > 1e-9:
+        raise ValueError(
+            f"Euler angle reconstruction failed. Error: {reconstruction_error:.6e}. "
+            f"This may indicate gimbal lock or numerical issues. "
+            f"Angles (deg): phi_x={np.degrees(phi_x_rad):.4f}, "
+            f"phi_y={np.degrees(phi_y_rad):.4f}, phi_z={np.degrees(phi_z_rad):.4f}"
+        )
 
     # Convert to degrees
-    detector_rotx_deg = np.degrees(xyz_angles_rad[0])
-    detector_roty_deg = np.degrees(xyz_angles_rad[1])
-    detector_rotz_deg = np.degrees(xyz_angles_rad[2])
+    detector_rotx_deg = np.degrees(phi_x_rad)
+    detector_roty_deg = np.degrees(phi_y_rad)
+    detector_rotz_deg = np.degrees(phi_z_rad)
 
     # Mask array: convert bool to float (config_crosswalk.md:33)
     mask_array = None

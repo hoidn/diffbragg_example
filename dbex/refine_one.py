@@ -57,6 +57,14 @@ def create_parser():
                     help="Calibration factor to convert ADU to photons (must be >0 if provided). "
                          "When set, targets are converted to photons; otherwise targets remain in ADU "
                          "with learnable global scale per spec-db-workflow.md:20")
+    ap.add_argument("--torch-config", type=str, default=None,
+                    help="Path to DiffBragg config_torch.json with calibration metadata (spot_scale_override, "
+                         "beam flux/exposure/beamsize, N_cells). When provided, overrides --spot-scale-override "
+                         "and enables sample clipping per SCALE-005/SCALE-006. Gracefully skipped if missing.")
+    ap.add_argument("--refined-mtz", type=str, default=None,
+                    help="Path to DiffBragg-refined structure factor MTZ (e.g., refined_structure_factors.mtz). "
+                         "When provided, uses refined Fopt instead of raw MTZ amplitudes per SCALE-003/SCALE-004. "
+                         "Falls back to --mtzFile if missing or invalid.")
 
     return ap
 
@@ -144,6 +152,8 @@ def run_nanobrag_backend(args, DL, devid=0):
     Implements:
     - SCALE-001: Structure factors pass through unscaled in HKL grid
     - SCALE-002: Apply sqrt(spot_scale_override) post-simulation
+    - SCALE-005: Enable N_cells sample clipping when beam_config provided
+    - SCALE-006: CLI loads DiffBragg calibration metadata for zero-iteration parity
     - GEOMETRY-002: Detector configs use analytic Euler inversion
     - HKL-ORIENT-001: Use source→sample incident direction
     - ADR-02: ADU vs photon calibration policy (spec-db-workflow.md:20)
@@ -156,7 +166,9 @@ def run_nanobrag_backend(args, DL, devid=0):
         create_detector_config,
         create_beam_config,
         create_crystal_config,
-        build_structure_factor_grid
+        build_structure_factor_grid,
+        load_calibration_metadata,
+        load_refined_mtz
     )
 
     # Import nanobrag_torch components
@@ -186,18 +198,57 @@ def run_nanobrag_backend(args, DL, devid=0):
     print(f"[nanobrag backend] Loss mask coverage: {inputs.loss_mask.mean():.4%}")
     print(f"[nanobrag backend] Number of ROIs: {len(inputs.panel_slices)}")
 
-    # Build structure factor grid (SCALE-001: unscaled)
+    # Load calibration metadata (SCALE-006: CLI must forward DiffBragg metadata)
+    calibration_metadata = None
+    if args.torch_config is not None:
+        try:
+            calibration_metadata = load_calibration_metadata(args.torch_config)
+            print(f"[nanobrag backend] Loaded calibration from {args.torch_config}:")
+            print(f"  spot_scale_override={calibration_metadata['spot_scale_override']:.3e}")
+            print(f"  beam_flux={calibration_metadata['beam_flux']:.3e}, exposure={calibration_metadata['beam_exposure']:.3e}")
+            if calibration_metadata['beamsize_mm'] is not None:
+                print(f"  beamsize_mm={calibration_metadata['beamsize_mm']:.3e}")
+            if calibration_metadata['N_cells'] is not None:
+                print(f"  N_cells={calibration_metadata['N_cells']}")
+        except (FileNotFoundError, KeyError, ValueError) as e:
+            print(f"[nanobrag backend] WARNING: Could not load calibration metadata from {args.torch_config}: {e}")
+            print(f"[nanobrag backend] Falling back to CLI flags and defaults")
+            calibration_metadata = None
+
+    # Load structure factors (SCALE-003/SCALE-004: prefer refined MTZ)
     print(f"[nanobrag backend] Building structure factor grid from MTZ...")
     device = torch.device('cpu')  # Force CPU for reproducibility
+
+    # Try refined MTZ first if provided, fall back to raw MTZ
+    hkl_indices = None
+    hkl_amplitudes = None
+    if args.refined_mtz is not None:
+        try:
+            hkl_indices, hkl_amplitudes = load_refined_mtz(args.refined_mtz, column="F")
+            print(f"[nanobrag backend] Using refined structure factors from {args.refined_mtz}")
+            print(f"  n_reflections={len(hkl_indices)}, mean_amplitude={hkl_amplitudes.mean():.3e}")
+        except (FileNotFoundError, ValueError, ImportError) as e:
+            print(f"[nanobrag backend] WARNING: Could not load refined MTZ from {args.refined_mtz}: {e}")
+            print(f"[nanobrag backend] Falling back to raw MTZ from --mtzFile")
+
+    # Use raw MTZ if refined not available
+    if hkl_indices is None:
+        hkl_indices = DL.F.indices()
+        hkl_amplitudes = DL.F.data()
+        print(f"[nanobrag backend] Using raw structure factors from {args.mtzFile}")
+
     hkl_grid, hkl_metadata = build_structure_factor_grid(
-        indices=DL.F.indices(),
-        amplitudes=DL.F.data(),
+        indices=hkl_indices,
+        amplitudes=hkl_amplitudes,
         device=device
     )
     print(f"[nanobrag backend] HKL grid shape: {hkl_grid.shape}, nonzero: {hkl_metadata['grid_nonzero']}")
 
-    # Determine spot scale override (SCALE-002)
-    if args.spot_scale_override is not None:
+    # Determine spot scale override (SCALE-002: calibration overrides CLI flag)
+    if calibration_metadata is not None:
+        spot_scale = calibration_metadata['spot_scale_override']
+        print(f"[nanobrag backend] Using calibration spot_scale_override={spot_scale:.3e}")
+    elif args.spot_scale_override is not None:
         spot_scale = args.spot_scale_override
         print(f"[nanobrag backend] Using CLI spot_scale_override={spot_scale:.3e}")
     else:
@@ -223,8 +274,31 @@ def run_nanobrag_backend(args, DL, devid=0):
             beam=DL.beam,
             trusted_mask=inputs.trusted_mask[panel_id]
         )
-        beam_config = create_beam_config(DL.beam)
-        crystal_config, _ = create_crystal_config(DL.crystal, DL.Expt)
+
+        # Create beam config with optional calibration metadata (SCALE-005/SCALE-006)
+        if calibration_metadata is not None:
+            beam_config = create_beam_config(
+                DL.beam,
+                flux=calibration_metadata['beam_flux'],
+                beamsize_mm=calibration_metadata['beamsize_mm'],
+                exposure=calibration_metadata['beam_exposure']
+            )
+        else:
+            beam_config = create_beam_config(DL.beam)
+
+        # Create crystal config with optional N_cells (SCALE-005: gate sample clipping)
+        # apply_n_cells=True only when calibration provides N_cells AND beam_config has flux/exposure
+        apply_n_cells = (calibration_metadata is not None and
+                        calibration_metadata['N_cells'] is not None)
+        if calibration_metadata is not None and calibration_metadata['N_cells'] is not None:
+            crystal_config, n_cells_applied = create_crystal_config(
+                DL.crystal,
+                DL.Expt,
+                N_cells=calibration_metadata['N_cells'],
+                apply_n_cells=apply_n_cells
+            )
+        else:
+            crystal_config, n_cells_applied = create_crystal_config(DL.crystal, DL.Expt)
 
         # Instantiate models
         detector_model = Detector(detector_config)
@@ -234,8 +308,15 @@ def run_nanobrag_backend(args, DL, devid=0):
         crystal_model.hkl_data = hkl_grid
         crystal_model.hkl_metadata = hkl_metadata
 
-        # Run simulator (single source, GEOMETRY-002/HKL-ORIENT-001 applied in bridge)
-        simulator = Simulator(detector=detector_model, crystal=crystal_model)
+        # Run simulator with optional beam_config (SCALE-005: enables sample clipping when N_cells present)
+        if calibration_metadata is not None:
+            simulator = Simulator(
+                detector=detector_model,
+                crystal=crystal_model,
+                beam_config=beam_config
+            )
+        else:
+            simulator = Simulator(detector=detector_model, crystal=crystal_model)
         panel_output = simulator.run()  # Returns torch.Tensor on device
 
         # Move to CPU and convert to numpy

@@ -113,9 +113,10 @@ def test_nanobrag_backend_runs_simulator(
     mock_panel = Mock()
     mock_dl.detector = [mock_panel]
 
-    # Mock beam and crystal
+    # Mock beam, crystal, and Expt
     mock_dl.beam = Mock()
     mock_dl.crystal = Mock()
+    mock_dl.Expt = Mock()
 
     # Mock MTZ Miller array
     mock_F = Mock()
@@ -158,10 +159,13 @@ def test_nanobrag_backend_runs_simulator(
     mock_simulator_instance.run.return_value = mock_panel_output
     mock_Simulator.return_value = mock_simulator_instance
 
-    # Setup mock args with spot_scale_override
+    # Setup mock args with spot_scale_override (no calibration file)
     args = Mock()
     args.outFile = 'test.h5'
     args.spot_scale_override = 4.0  # sqrt(4.0) = 2.0
+    args.torch_config = None  # No calibration metadata
+    args.refined_mtz = None  # No refined MTZ
+    args.adu_per_photon = None
 
     run_nanobrag_backend(args, mock_dl)
 
@@ -171,10 +175,12 @@ def test_nanobrag_backend_runs_simulator(
     assert 'indices' in call_kwargs
     assert 'amplitudes' in call_kwargs
 
-    # Verify configs were created per panel
+    # Verify configs were created per panel WITHOUT calibration overrides (SCALE-006)
     mock_detector_config.assert_called_once()
-    mock_beam_config.assert_called_once()
-    mock_crystal_config.assert_called_once()
+    # When no calibration metadata, beam_config called without flux/exposure/beamsize
+    mock_beam_config.assert_called_once_with(mock_dl.beam)
+    # When no calibration metadata, crystal_config called without N_cells
+    mock_crystal_config.assert_called_once_with(mock_dl.crystal, mock_dl.Expt)
 
     # Verify models were instantiated
     mock_Detector.assert_called_once()

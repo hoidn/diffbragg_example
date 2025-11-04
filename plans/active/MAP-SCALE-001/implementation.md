@@ -17,13 +17,13 @@ Resolve the scale mismatch between `simulate_forward_once` outputs and backgroun
 ## Phase Breakdown
 
 - **Phase A — Evidence & Diagnostics**
-  - [ ] A1: Snapshot baseline metrics (correlation, localization, bragg/target means) into `reports/<ts>/baseline_metrics.json`.
-  - [ ] A2: Compute per-ROI scale ratios (target_mean / bragg_mean) and histogram to confirm systematic under-scaling.
-  - [ ] A3: Document findings + spec cross-links in `reports/<ts>/summary.md`.
+  - [x] A1: Snapshot baseline metrics (correlation, localization, bragg/target means) into `reports/<ts>/baseline_metrics.json`.
+  - [x] A2: Compute per-ROI scale ratios (target_mean / bragg_mean) and histogram to confirm systematic under-scaling.
+  - [x] A3: Document findings + spec cross-links in `reports/<ts>/summary.md`.
 
 - **Phase B — Strategy Prototyping (analysis-mode)**
-  - [ ] B1: Evaluate candidate scaling rules (e.g., apply `global_scale_hint`, ratio-of-means, shared `spot_scale_override`) via analysis script that multiplies `simulate_forward_once` outputs without modifying production code.
-  - [ ] B2: Record resulting metrics (corr, localization) for each rule; store in `reports/<ts>/strategy_comparison.json`.
+  - [x] B1: Evaluate candidate scaling rules (e.g., apply `global_scale_hint`, ratio-of-means, shared `spot_scale_override`) via analysis script that multiplies `simulate_forward_once` outputs without modifying production code.
+  - [x] B2: Record resulting metrics (corr, localization) for each rule; store in `reports/<ts>/strategy_comparison.json`.
   - [ ] B3: Select preferred strategy aligned with SCALE-001/002 (no structure-factor rescale; strictly post-sim scaling).
 
 - **Phase C — Implementation Prep**
@@ -35,4 +35,3 @@ Resolve the scale mismatch between `simulate_forward_once` outputs and backgroun
 - Ensure scaling fix does not regress photon-mode (adu_per_photon) paths.
 - Spot scale override might require sourcing from MTZ or CLI; need to spec retrieval if fixed ratio is insufficient.
 - Must avoid violating Environment Freeze; all prototyping stays in analysis artifacts.
-

@@ -32,6 +32,7 @@ plans/active/
 plans/active
 # Allow tracking per-initiative plans but keep reports/artifacts ignored
 !plans/active/**/implementation.md
+!plans/active/**/bin/*.py
 !plans/active/**/.gitkeep
 scratch/
 scratch

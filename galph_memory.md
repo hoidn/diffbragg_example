@@ -671,3 +671,14 @@ Notes
 - <Action State>: [planning]
 
 2025-11-04T082456Z focus=MAP-SCALE-001 state=planning dwell=0 artifacts=plans/active/MAP-SCALE-001/reports/2025-11-04T082000Z/ next_action=instrument_simulate_forward_once_diagnostics
+
+## 2025-11-04T084948Z — MAP-SCALE-001 calibration analysis
+- Focus: MAP-SCALE-001 — Zero-iteration mapping scale alignment
+- Action Type: planning
+- Key Observations: Authored T2 script `plans/active/MAP-SCALE-001/bin/compare_simulator_to_golden.py` and captured `golden_comparison.json` showing canonical √spot_scale≈5.64e8 (spot_scale_override≈3.18e17) with golden panels matching targets (median target/golden≈0.99) while zero-iteration output remains ~6.0e3× dimmer and its raw tensor ~9.4e4× larger than DiffBragg’s calibrated raw tensor. Exit criterion #2 satisfied—missing calibration factors isolated to DiffBragg √spot_scale plus refined beam flux/exposure metadata.
+- Artifact Path: plans/active/MAP-SCALE-001/reports/2025-11-04T084948Z/
+- Next Actions: Wire the DiffBragg calibration metadata into `simulate_forward_once` and DB_AT_024 so the selector can assert thresholds without xfail.
+- Reality Check: Calibration data lives in canonical `config_torch.json`; implementation path unblock—ready for code updates next loop.
+- <Action State>: [ready_for_implementation]
+
+2025-11-04T084948Z focus=MAP-SCALE-001 state=ready_for_implementation dwell=1 artifacts=plans/active/MAP-SCALE-001/reports/2025-11-04T084948Z/ next_action=apply_diffbragg_calibration_to_zero_iteration

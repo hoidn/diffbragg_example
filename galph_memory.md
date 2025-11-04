@@ -700,3 +700,11 @@ Notes
 - Next Actions: Ralph to extend generator + canonical_assets fixture, regenerate fixtures, rerun DB_AT_024, and sync testing docs with passing metrics per How-To.
 - <Action State>: [ready_for_implementation]
 2025-11-04T130000Z focus=MAP-SCALE-001 state=ready_for_implementation dwell=0 artifacts=plans/active/MAP-SCALE-001/reports/2025-11-04T130000Z/ next_action=implement_refined_geometry_pipeline
+## 2025-11-04T175020Z — MAP-SCALE-001 calibration gap triage
+- Focus: MAP-SCALE-001 — Zero-iteration mapping scale alignment
+- Action Type: planning
+- Key Observations: DiffBragg refined capture still correlates 0.817 with data, but simulate_forward_once diverges from canonical bragg_torch (corr≈0.063, intensity ratio≈2.35e4) despite refined assets—bridge omits beam flux/beamsize/exposure and crystal N_cells from config_torch metadata. Captured probes under 2025-11-04T175020Z showing canonical metadata required for parity, drafted input.md to route calibration payload through bridge helpers.
+- Artifact Path: plans/active/MAP-SCALE-001/reports/2025-11-04T175020Z/
+- Next Actions: Wire calibration metadata (flux, beamsize, exposure, N_cells) through load_calibration_metadata → create_beam_config/create_crystal_config → simulate_forward_once and rerun DB_AT_024.
+- <Action State>: [ready_for_implementation]
+2025-11-04T175020Z focus=MAP-SCALE-001 state=ready_for_implementation dwell=2 artifacts=plans/active/MAP-SCALE-001/reports/2025-11-04T175020Z/ next_action=propagate_calibration_into_bridge

@@ -1,45 +1,43 @@
-Summary: Persist DiffBragg-refined geometry in the golden fixtures and DB_AT_024 harness so the mapping guard meets its correlation/localization thresholds.
+Summary: Align simulate_forward_once with canonical nanobrag capture by propagating flux/beamsize/N_cells calibration so DB_AT_024 meets its correlation/localization thresholds.
 Mode: Parity
 Focus: MAP-SCALE-001 — Zero-iteration mapping scale alignment
 Branch: integration
 Mapped tests: tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke
-Artifacts: plans/active/MAP-SCALE-001/reports/2025-11-04T130000Z/
+Artifacts: plans/active/MAP-SCALE-001/reports/2025-11-04T190000Z/
 Do Now:
-- Implement: scripts/generate_simple_cubic_golden.py::generate_simple_cubic_golden (persist refined experiment/reflection assets + update manifest metadata) and tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::canonical_assets (load refined geometry, retain fallback).
-- Pytest: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBAT024_ARTIFACT_DIR=plans/active/MAP-SCALE-001/reports/2025-11-04T130000Z KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke --maxfail=1
-- Artifacts: plans/active/MAP-SCALE-001/reports/2025-11-04T130000Z/
+- Implement: dbex/nanobrag_bridge.py::simulate_forward_once (ingest beam flux/beamsize/exposure + crystal N_cells from calibration metadata and flow them through the bridge helpers before invoking nanobrag_torch).
+- Pytest: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBAT024_ARTIFACT_DIR=plans/active/MAP-SCALE-001/reports/2025-11-04T190000Z KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke --maxfail=1 | tee plans/active/MAP-SCALE-001/reports/2025-11-04T190000Z/pytest_db_at_024.log
+- Artifacts: plans/active/MAP-SCALE-001/reports/2025-11-04T190000Z/
 How-To Map:
-1. AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md python scripts/generate_simple_cubic_golden.py --canonical-out plans/active/MAP-SCALE-001/reports/2025-11-04T130000Z/refined_capture --emit-manifest --fixtures tests/fixtures/golden_data/simple_cubic | tee plans/active/MAP-SCALE-001/reports/2025-11-04T130000Z/golden_capture.log
-2. Verify refined assets landed: ls tests/fixtures/golden_data/simple_cubic/{refined_structure_factors.mtz,refined.expt,refined.refl} > plans/active/MAP-SCALE-001/reports/2025-11-04T130000Z/fixture_inventory.txt
-3. Update scripts/generate_simple_cubic_golden.py::generate_simple_cubic_golden per summary (copy refined .expt/.refl, update manifest metadata to cite refined sources, keep MANIFEST-001 guards), then adjust tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::canonical_assets to prefer refined geometry with fallback to legacy assets.
-4. Run AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBAT024_ARTIFACT_DIR=plans/active/MAP-SCALE-001/reports/2025-11-04T130000Z KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke --maxfail=1 | tee plans/active/MAP-SCALE-001/reports/2025-11-04T130000Z/pytest_db_at_024.log
-5. Capture fresh metrics snapshot: jq -r '"corr_median=" + (.corr_median|tostring) + "\nlocalization_success_rate=" + (.localization_success_rate|tostring)' plans/active/MAP-SCALE-001/reports/2025-11-04T130000Z/mapping_metrics.json > plans/active/MAP-SCALE-001/reports/2025-11-04T130000Z/metrics_snapshot.txt
-6. Sanity-check selector discovery: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest --collect-only -k DB_AT_024 > plans/active/MAP-SCALE-001/reports/2025-11-04T130000Z/collect_db_at_024.log
-7. Update docs/TESTING_GUIDE.md:71 and docs/development/TEST_SUITE_INDEX.md:27 with new passing metrics + artifact paths; note refined geometry requirement per SCALE-004.
-8. Note outcomes + log references in docs/fix_plan.md Attempts History and plans/active/MAP-SCALE-001/reports/2025-11-04T130000Z/summary.md before handoff back to Galph.
+1. export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
+2. Extend `load_calibration_metadata` to parse `beam` (flux, beamsize, exposure) and `crystal.N_cells` from `config_torch.json`; return these alongside `spot_scale_override` so callers avoid re-reading the file.
+3. Update `create_beam_config` and `create_crystal_config` to accept optional calibration overrides—set flux/beamsize/exposure on the BeamConfig and crystal `N_cells` when metadata is provided (fall back to existing defaults otherwise).
+4. Refactor `simulate_forward_once` to take the calibration dict, route it into the helper calls, and keep applying √spot_scale post-sim; ensure detector instantiation still uses trusted mask tensors and stays device-neutral.
+5. Adjust `tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke` to pass the calibration payload into `simulate_forward_once`, keep diagnostics up to date, and fail loudly if metadata is missing.
+6. DBAT024_ARTIFACT_DIR=plans/active/MAP-SCALE-001/reports/2025-11-04T190000Z KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke --maxfail=1 | tee plans/active/MAP-SCALE-001/reports/2025-11-04T190000Z/pytest_db_at_024.log
+7. jq -r '.corr_median, .localization_success_rate, .calibration.spot_scale_override' plans/active/MAP-SCALE-001/reports/2025-11-04T190000Z/mapping_metrics.json > plans/active/MAP-SCALE-001/reports/2025-11-04T190000Z/mapping_metrics_summary.txt
 Pitfalls To Avoid:
-- Do not delete or overwrite legacy refGeom assets; provide fallback path for older workflows.
-- Keep MANIFEST-001 guard intact—validate refined files exist before manifest/copy steps.
-- Preserve SCALE-001/002 behavior: never pre-scale structure factors; apply sqrt(spot_scale_override) post-sim only.
-- Respect Environment Freeze: no package installs or external downloads.
-- Ensure DBAT024_ARTIFACT_DIR points at this loop’s report dir so metrics land under plans/active/MAP-SCALE-001.
-- Maintain device neutrality in loader changes (no `.cuda()` assumptions).
-- Capture pytest logs via tee; missing logs break artifact expectations.
-- Update docs in sync with evidence; stale metrics in TESTING_GUIDE/INDEX violate TESTING-003.
-- Keep refined assets out of gitignore—confirm they appear in fixtures and manifests.
+- Do not pre-scale structure factors—SCALE-001 mandates they stay unscaled; apply √spot_scale only after simulation.
+- Preserve SCALE-002 semantics: a single post-sim global scale, no duplicate spot_scale multiplication.
+- Keep calibration parsing tolerant but strict: raise useful errors if config_torch.json lacks flux/exposure/N_cells instead of silently defaulting.
+- Maintain device neutrality in bridge helpers; avoid hard-coding CUDA or mixing torch/numpy without .to(device).
+- Ensure trusted mask tensors remain float32 (0/1) when passed into DetectorConfig; no boolean tensors to dodge torch matmul issues.
+- Capture pytest output via tee to populate the new report directory; missing logs break artifact expectations.
+- Leave Environment Freeze intact—no package installs or conda tweaks while adjusting the bridge.
+- Double-check ROI metrics after the run; median corr must be ≥0.2 and localization ≥0.90 before marking success.
 If Blocked:
-- Stop, capture failing metrics/logs under plans/active/MAP-SCALE-001/reports/2025-11-04T130000Z/, append blocker note to blockers.md, and record the issue plus selector output in docs/fix_plan.md Attempts History. Ping Galph with failure signature.
+- Record failing metrics/logs under plans/active/MAP-SCALE-001/reports/2025-11-04T190000Z/, summarize the calibration values and error in docs/fix_plan.md Attempts History, and flag Galph with the assertion text.
 Findings Applied (Mandatory):
-- SCALE-001 — Leave structure-factor amplitudes unscaled until after simulation; refined loader must honor this.
-- SCALE-002 — Apply sqrt(spot_scale_override) post-sim only; confirm calibration metadata still flows.
-- SCALE-004 — Refined Fopt require matching DiffBragg-refined geometry; plan persists both assets.
-- TESTING-003 — Keep selector docs + artifact paths current after metrics change.
-- CONFIG-001 — Loss masks/trusted masks must remain boolean when persisted or loaded.
+- SCALE-001 — Bridge must leave |F| amplitudes unscaled until after nanobrag_torch completes.
+- SCALE-002 — √spot_scale_override comes from DiffBragg metadata and is applied once post-sim.
+- SCALE-003 — Zero-iteration helper must ingest refined DiffBragg calibration data for intensity parity.
+- SCALE-004 — Use refined geometry plus refined structure factors together; plan keeps those fixtures in play.
+- TESTING-003 — Maintain selector/docs sync after DB_AT_024 metrics change (update TESTING_GUIDE + INDEX once passing).
 Pointers:
-- docs/spec-db-conformance.md:46 — DB_AT_024 acceptance thresholds to enforce.
-- docs/TESTING_GUIDE.md:71 — Current DB_AT_024 entry (needs metric refresh + refined geometry note).
-- docs/development/TEST_SUITE_INDEX.md:27 — Suite registry row to update post-pass.
-- scripts/generate_simple_cubic_golden.py:736 — Refined MTZ persistence block to extend for .expt/.refl.
-- tests/dbex/test_mapping_consistency.py:64 — canonical_assets fixture to swap to refined geometry.
+- docs/spec-db-conformance.md:43-46 — Mapping thresholds and acceptance wording.
+- docs/architecture.md:82-109 — Bridge responsibilities and calibration surfaces.
+- docs/nanobrag_api.md:18-67 — Required fields for nanobrag_torch configs (beam/crystal/detector).
+- docs/development/testing_strategy.md:24-34 — Guidance for parity selectors + artifact expectations.
+- plans/active/MAP-SCALE-001/reports/2025-11-04T175020Z/summary.md — Latest analysis proving missing flux/N_cells cause the divergence.
 Next Up (optional):
-- MAP-SCALE-001 B-side: if time remains, draft notes for MAP-SCALE-002 on automating refined asset ingestion for additional datasets.
+- If DB_AT_024 passes quickly, capture a follow-up probe comparing simulate_forward_once output to canonical `bragg_torch.npy` to confirm correlation ≥0.8 and attach the delta plot.

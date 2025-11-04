@@ -641,3 +641,13 @@ Notes
 - <Action State>: [ready_for_implementation]
 
 2025-11-04T063053Z focus=DB-AT-024 state=ready_for_implementation dwell=0 artifacts=plans/active/DB-AT-024/reports/2025-11-04T063053Z/ next_action=deploy_helper_and_pytest_db_at_024
+
+## 2025-11-04T065345Z — DB-AT-010 gradient guard planning kickoff
+- Focus: DB-AT-010 — Gradient correctness guard
+- Action Type: planning
+- Key Observations: Canonical assets available via DataLoad; `simulate_forward_once` detaches to NumPy so gradients are lost; SCALE-002 currently applied with NumPy sqrt; gradcheck requirements from docs/spec-db-runtime.md §4.1 and testing_strategy.md §4 demand torch-return path, masked MSE helper, and environment guard. Noted nanoBragg gradient suite as exemplar for tolerances.
+- Artifact Path: plans/active/DB-AT-010/reports/2025-11-04T065345Z/
+- Next Actions: Deliver Do Now for torch-return helper + gradcheck selector implementation, ensure docs/test sync and artifact capture per TESTING-003.
+- Reality Check: No code yet; ready for implementation once helper + tests are wired.
+- <Action State>: [ready_for_implementation]
+2025-11-04T065345Z focus=DB-AT-010 state=ready_for_implementation dwell=0 artifacts=plans/active/DB-AT-010/reports/2025-11-04T065345Z/ next_action=implement_torch_gradcheck_helper_and_selector

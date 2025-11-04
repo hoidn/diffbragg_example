@@ -1,64 +1,63 @@
-Summary: Hand off helper extraction + DB_AT_024 acceptance test with diagnostic artifacts.
+Summary: Implement torch-preserving gradcheck helper + DB_AT_010 acceptance test with logs and metrics.
 Mode: none
-Focus: DB-AT-024 — Mapping consistency guard
+Focus: DB-AT-010 — Gradient correctness guard
 Branch: integration
-Mapped tests: pytest -v tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke
-Artifacts: plans/active/DB-AT-024/reports/2025-11-04T070000Z/{pytest_db_at_024.log,collect_db_at_024.log,mapping_metrics.json,summary.md}
+Mapped tests: tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck
+Artifacts: plans/active/DB-AT-010/reports/2025-11-04T065717Z/{pytest_db_at_010.log,collect_db_at_010.log,gradcheck_metrics.json}
 
 Do Now (hard validity contract)
-- Focus Item: DB-AT-024
-- Implement: dbex/nanobrag_bridge.py::simulate_forward_once — extract the zero-iteration helper returning per-panel tensors + diagnostics and author `tests/dbex/test_mapping_consistency.py` (DB_AT_024 selector) to consume it with artifact logging and provisional xfail messaging until thresholds improve.
-- Validate: KMP_DUPLICATE_LIB_OK=TRUE DBAT024_ARTIFACT_DIR=plans/active/DB-AT-024/reports/2025-11-04T070000Z pytest -v tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke
-- Artifacts: plans/active/DB-AT-024/reports/2025-11-04T070000Z/{pytest_db_at_024.log,collect_db_at_024.log,mapping_metrics.json,summary.md}
+- Focus Item: DB-AT-010
+- Implement: dbex/nanobrag_bridge.py::simulate_forward_once (add torch-return + masked loss helper) and tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck (new gradcheck selector).
+- Validate: KMP_DUPLICATE_LIB_OK=TRUE DBAT010_ARTIFACT_DIR=plans/active/DB-AT-010/reports/2025-11-04T065717Z NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck --maxfail=1
+- Artifacts: plans/active/DB-AT-010/reports/2025-11-04T065717Z/{pytest_db_at_010.log,collect_db_at_010.log,gradcheck_metrics.json}
 
 How-To Map
 1. export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
-2. export DBAT024_ARTIFACT_DIR=plans/active/DB-AT-024/reports/2025-11-04T070000Z && mkdir -p "$DBAT024_ARTIFACT_DIR"
-3. Review plans/active/DB-AT-024/implementation.md and reports/2025-11-04T063053Z/summary.md for baseline metrics + script usage.
-4. Use plans/active/DB-AT-024/bin/compute_zero_iteration_metrics.py to sanity-check helper output (timeout 120 python … --artifact-dir "$DBAT024_ARTIFACT_DIR") before wiring pytest.
-5. Refactor run_nanobrag_backend to delegate zero-iteration work to new helper while preserving HDF5 emission; ensure helper exposes `(bragg, inputs, diagnostics)` plus `global_scale_hint`.
-6. Implement DB_AT_024 pytest: compute ROI metrics via tests/fixtures/parity_loader.py::compute_parity_metrics, write mapping_metrics.json (and CSV) into "$DBAT024_ARTIFACT_DIR", and mark the test xfail with measured thresholds + remediation note.
-7. Run KMP_DUPLICATE_LIB_OK=TRUE DBAT024_ARTIFACT_DIR=$DBAT024_ARTIFACT_DIR pytest -v tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke | tee "$DBAT024_ARTIFACT_DIR/pytest_db_at_024.log"
-8. Run DBAT024_ARTIFACT_DIR=$DBAT024_ARTIFACT_DIR pytest --collect-only tests -k DB_AT_024 | tee "$DBAT024_ARTIFACT_DIR/collect_db_at_024.log"
-9. After tests pass, update docs/TESTING_GUIDE.md §2, docs/development/TEST_SUITE_INDEX.md, docs/spec-db-conformance.md, and docs/fix_plan.md Attempts History with artifact paths + findings.
+2. export DBAT010_ARTIFACT_DIR=plans/active/DB-AT-010/reports/2025-11-04T065717Z && mkdir -p "$DBAT010_ARTIFACT_DIR"
+3. export NANOBRAGG_DISABLE_COMPILE=1 && export KMP_DUPLICATE_LIB_OK=TRUE
+4. Review plans/active/DB-AT-010/implementation.md and reports/2025-11-04T065345Z/summary.md for coverage matrix and helper requirements.
+5. Refactor dbex/nanobrag_bridge.py::simulate_forward_once to optionally return torch tensors (no `.detach().numpy()` in grad mode) and add a torch masked-MSE loss helper honoring SCALE-001/002.
+6. Implement tests/dbex/test_gradients.py (TestDB_AT_010_Gradcheck) with env guard fixture, gradcheck parameter coverage (crystal cell_a/cell_gamma, detector distance_mm, beam wavelength_A, model fluence or spot scale), and JSON metrics emission into "$DBAT010_ARTIFACT_DIR".
+7. Run KMP_DUPLICATE_LIB_OK=TRUE DBAT010_ARTIFACT_DIR=$DBAT010_ARTIFACT_DIR NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck --maxfail=1 | tee "$DBAT010_ARTIFACT_DIR/pytest_db_at_010.log"
+8. Run DBAT010_ARTIFACT_DIR=$DBAT010_ARTIFACT_DIR NANOBRAGG_DISABLE_COMPILE=1 pytest --collect-only tests -k DB_AT_010 | tee "$DBAT010_ARTIFACT_DIR/collect_db_at_010.log"
+9. After success, update docs/TESTING_GUIDE.md and docs/development/TEST_SUITE_INDEX.md with selector details and artifact paths, then append Attempts History + findings references.
 
 Pitfalls To Avoid
-- Keep helper device-neutral and disable torch.compile via NANOBRAGG_DISABLE_COMPILE=1 (RUNTIME-001).
-- Do not rescale targets twice; use `global_scale_hint` only for diagnostic messaging (SCALE-002).
-- Preserve loss mask polarity (MASKING-001) and return numpy arrays for artifact emission.
-- Ensure pytest xfail reason cites current metrics instead of failing hard (CONFORMANCE-001 guidance).
-- Gate test on canonical asset availability before running heavy simulation.
-- Avoid writing outside "$DBAT024_ARTIFACT_DIR"; no temp artifacts in repo root.
-- Maintain deterministic ROI ordering so metrics compare cleanly over time.
-- Keep helper pure (no HDF5 writes) to avoid interfering with CLI workflows.
+- Do not detach or convert gradients to NumPy in the gradcheck path; keep operations in torch.float64 (RUNTIME-001).
+- Make SCALE-002 sqrt application differentiable (use torch operations) and avoid double scaling (SCALE-001/002).
+- Ensure masks/targets move to the same device/dtype as simulator before loss computation (device neutrality).
+- Guard tests with `pytest.skip` when canonical assets missing to avoid false failures.
+- Keep metrics/JSON confined to "$DBAT010_ARTIFACT_DIR"; no stray files elsewhere.
+- Use tight gradcheck tolerances (eps=1e-6, atol=1e-5, rtol≈5e-2) per testing_strategy.md §4.1.
+- Mark any slow tests with `@pytest.mark.slow_gradient` and document expected runtime ceiling (905s) if needed.
+- Preserve existing simulate_forward_once API for DB-AT-024 callers (default numpy behavior maintained).
+- Synchronize selector docs only after pytest and collect-only logs exist (TESTING-003).
+- Record new findings only if novel guardrails emerge; otherwise reference existing IDs.
 
 If Blocked
-- Capture failure signature + command, archive logs in "$DBAT024_ARTIFACT_DIR", add blocked entry to docs/fix_plan.md, and note next steps in galph_memory.
-- If helper import fails (missing nanobrag_torch), stop and record blocker—environment freeze prohibits installs.
+- Capture failing command + traceback, archive under "$DBAT010_ARTIFACT_DIR", add blocked note to docs/fix_plan.md Attempts History, and log next steps in galph_memory.
+- If nanobrag_torch import fails (environment freeze), halt implementation, document the ImportError signature, and mark focus blocked.
 
 Findings Applied (Mandatory)
-- CONFORMANCE-001 — Selector must emit actionable diagnostics with env flag noted.
-- TESTING-003 — Collect-only confirmation + doc sync required before marking Active.
-- PARITY-001 — Reuse parity utilities for ROI diagnostics and artifact layout.
-- DIAGNOSTICS-001 — Include metrics JSON within parity_harness-style structure.
-- MASKING-001 — Loss mask coverage expectations inform assertions.
-- CONFIG-001 — Maintain bridge-derived detector/beam configs inside helper.
-- RUNTIME-001 — Disable torch.compile for deterministic CPU execution.
+- RUNTIME-001 — Set NANOBRAGG_DISABLE_COMPILE=1 to prevent torch.compile interference with gradcheck.
+- TESTING-003 — Collect-only proof and documentation sync before marking selector Active.
+- SCALE-001 — Keep structure factors unscaled in forward helper; scaling handled post-sim.
+- SCALE-002 — Apply sqrt(spot_scale_override) as differentiable torch op during masking loss.
 
 Pointers
-- docs/spec-db-conformance.md:43 — DB_AT_024 acceptance contract.
-- docs/forward_equivalence.md:48 — Correlation/localization definitions.
-- docs/spec-db-tracing.md:10 — Artifact policy for diagnostics.
-- docs/TESTING_GUIDE.md:68 — Selector registry and env flags.
-- plans/active/DB-AT-024/implementation.md:1 — Phase breakdown.
-- plans/active/DB-AT-024/bin/compute_zero_iteration_metrics.py:1 — Baseline probe script.
-- plans/active/DB-AT-024/reports/2025-11-04T063053Z/summary.md:1 — Current metrics + context.
-- dbex/refine_one.py:141 — run_nanobrag_backend entry point to refactor.
-- dbex/nanobrag_bridge.py:48 — RefinementInputs definition + helper context.
-- tests/fixtures/parity_loader.py:362 — compute_parity_metrics utility for ROI checks.
+- docs/development/testing_strategy.md:338 — Gradcheck targets, tolerances, and env guard.
+- docs/pytorch_runtime_checklist.md:7 — Runtime compile/disabling guidance for gradient tests.
+- dbex/nanobrag_bridge.py:602 — Current simulate_forward_once detaches to NumPy (refactor target).
+- nanoBragg/tests/test_gradients.py:1 — Reference implementation for gradcheck patterns.
+- docs/spec-db-conformance.md:24 — Gradient-safe profile expectations (DB-AT-010, DB-AT-011).
+- plans/active/DB-AT-010/implementation.md:1 — Phase checklist for this initiative.
+- docs/TESTING_GUIDE.md:68 — Selector registry update location (will add DB_AT_010 row).
 
 Next Up (optional)
-- If helper/test land quickly, begin drafting scaling strategy to lift correlation above 0.2 for future loop.
+- DB-AT-011 — Graph-break runtime guard once DB-AT-010 passes.
 
 Doc Sync Plan (Conditional)
-- After test passes, run pytest --collect-only tests -k DB_AT_024 (logged to "$DBAT024_ARTIFACT_DIR/collect_db_at_024.log") and update docs/TESTING_GUIDE.md §2 + docs/development/TEST_SUITE_INDEX.md rows before flipping selector to Active.
+- After tests pass, run DBAT010_ARTIFACT_DIR=$DBAT010_ARTIFACT_DIR NANOBRAG_DISABLE_COMPILE=1 pytest --collect-only tests -k DB_AT_010, archive log, then update docs/TESTING_GUIDE.md §2 and docs/development/TEST_SUITE_INDEX.md with selector status, commands, env flags, and artifact references before closing the loop.
+
+Mapped Tests Guardrail
+- Verify `pytest --collect-only tests -k DB_AT_010` reports ≥1 test; if it collects 0, author the missing test before finishing the loop.

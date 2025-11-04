@@ -216,6 +216,18 @@
   * 2025-11-04T041500Z (implementation) — Modernized test_forward_equivalence_complete.py to consume canonical parity loader utilities (load_golden_data, compute_parity_metrics, write_parity_artifacts, find_first_divergence), removed stub fixtures (stub_diffbragg, stub_torch, compute_roi_metrics), routed artifacts to FORWARD-EQUIV-002/reports/2025-11-04T041500Z/forward_equiv/, and enforced DB-AT-001 thresholds without xfail. Metrics: correlation=0.988 (threshold ≥0.2), localization=1.0 (threshold ≥0.90), RMSE=180.4. Artifacts: plans/active/FORWARD-EQUIV-002/reports/2025-11-04T041500Z/{forward_equiv/parity_harness/{metrics.json,first_divergence.json,predicted.npy,target.npy},pytest_forward_equiv.log,collect_db_at_001_forward.log}. Updated docs/TESTING_GUIDE.md §2 and docs/development/TEST_SUITE_INDEX.md with new artifact paths and canonical metrics. Full test suite: pytest -v tests/ → 47 passed, 1 skipped. Next Actions: Mark initiative done; exit criteria met.
   * 2025-11-04T043500Z (review) — Verified canonical parity artifacts (metrics.json correlation=0.988, localization=1.0) and targeted pytest/collect logs under reports/2025-11-04T041500Z/, confirmed documentation sync (`docs/TESTING_GUIDE.md:64`, `docs/development/TEST_SUITE_INDEX.md:20`), and marked implementation plan phases A-C complete. Metrics: review-only (no new tests executed). Artifacts: plans/active/FORWARD-EQUIV-002/reports/2025-11-04T043500Z/summary.md. Next Actions: Initiative closed; tee up DB_AT_002 determinism selector as follow-on focus.
 
+### [DB-AT-010] Gradient correctness guard
+- Depends on: NANOBRAG-BACKEND-002, TORCH-BRIDGE-001, docs/spec-db-runtime.md §4.1, docs/development/testing_strategy.md §4.1, docs/pytorch_runtime_checklist.md §1-3
+- Status: in_progress
+- Owner/Date: Galph / 2025-11-04
+- Exit Criteria:
+  1. Implement a differentiable masked-loss helper in `dbex` (reusing canonical assets via `DataLoad` and bridge configs) that produces a scalar loss suitable for `torch.autograd.gradcheck`, honoring RUNTIME-001 and SCALE-001/002 contracts.
+  2. Author acceptance selector `tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck` (with focused parameter tests) covering at least crystal (`cell_a`, `cell_gamma`), detector (`distance_mm`), beam (`wavelength_A`), and model (`fluence` or spot scale) parameters with strict gradcheck tolerances; enforce `NANOBRAGG_DISABLE_COMPILE=1` guard and emit JSON metrics under `plans/active/DB-AT-010/reports/<timestamp>/`.
+  3. Document selector activation in `docs/TESTING_GUIDE.md` and `docs/development/TEST_SUITE_INDEX.md`, archive pytest/collect logs, and reference findings (RUNTIME-001, TESTING-003, SCALE-001/002) in Attempts History.
+- Working Plan: plans/active/DB-AT-010/implementation.md
+- Attempts History:
+  * 2025-11-04T065345Z (planning) — Reviewed gradient profile in spec-db-runtime.md, testing strategy §4.1, and nanoBragg gradient suite; confirmed `simulate_forward_once` currently detaches to NumPy (needs torch-return path). Gathered canonical asset access via `DataLoad`, identified requirement for torch masked MSE helper and environment guard fixture, and outlined Do Now for gradcheck harness + selector activation.
+
 ### [DB-AT-002] Determinism selector scaffold
 - Depends on: FORWARD-EQUIV-002, NANOBRAG-BACKEND-002, TORCH-RUNTIME-002, PARITY-HARNESS-002
 - Status: done

@@ -16,6 +16,7 @@
 - [x] C3: Append fix_plan Attempts History with metrics summary, confirm selector Active (>0 tests collected), and log durable lessons in `docs/findings.md` if new gradient guardrails arise.
 
 ## Phase D — Regression Recovery (2025-11)
-- [ ] D1: Extend `simulate_forward_torch` (or introduce a dedicated gradcheck helper) to accept tensor-valued overrides for crystal/detector/beam parameters so `.item()`/`.numpy()` calls are unnecessary in DB-AT-010 tests.
-- [ ] D2: Update `tests/dbex/test_gradients.py` gradcheck cases to exercise the override path while keeping `torch.Tensor` inputs differentiable; ensure the wrapper and parameter-specific tests cover eps=1e-6, atol=1e-5, rtol=0.05.
+- _Status update (2025-11-04T232350Z): Gradcheck failure for `crystal_cell_a` resurfaced per `plans/active/MAP-SCALE-005/reports/2025-11-06T050000Z/pytest_full_suite.log`; see `reports/2025-11-04T232350Z/summary.md` for hypotheses._
+- [ ] D1: Audit the `simulate_forward_torch` override path end-to-end (bridge → TorchCrystal) and patch any conversions that coerce `crystal_overrides` tensors to scalars before autograd; preserve differentiable unit-cell parameters.
+- [ ] D2: Update `tests/dbex/test_gradients.py` gradcheck cases (cell_a + wrapper) with assertions or fixtures that guard against future `.item()` regressions and verify tolerances `eps=1e-6`, `atol=1e-5`, `rtol=0.05` still pass.
 - [ ] D3: Re-run `pytest --collect-only tests -k DB_AT_010` and `pytest -v tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck --maxfail=1`, archive logs under a new timestamped report, and verify documentation/test ledgers remain accurate after the fix.

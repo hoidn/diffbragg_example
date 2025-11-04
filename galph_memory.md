@@ -816,3 +816,13 @@ Notes
 - Next Actions: Draft ready-for-implementation Do Now directing tensor override helper + gradcheck test updates and mapped selectors.
 - <Action State>: [planning]
 2025-11-04T225149Z focus=DB-AT-010 state=planning dwell=0 artifacts=plans/active/DB-AT-010/reports/2025-11-04T225149Z/ next_action=draft_gradcheck_override_do_now
+
+## 2025-11-04T232350Z — DB-AT-010 gradcheck regression planning restart
+- Focus: DB-AT-010 — Gradient correctness guard (regression recovery)
+- Action Type: planning
+- Key Observations: MAP-SCALE-005 full-suite log shows `test_db_at_010_gradcheck_crystal_cell_a` and wrapper failing with `GradcheckError`; captured regression snapshot under `plans/active/DB-AT-010/reports/2025-11-04T232350Z/summary.md` and reopened fix_plan status to in_progress. Implementation plan Phase D notes updated to audit override coercion before TorchCrystal.
+- Artifact Path: plans/active/DB-AT-010/reports/2025-11-04T232350Z/
+- Next Actions: Hand off Do Now directing override path repair + gradcheck validation (collect-only + wrapper).
+- <Action State>: [planning]
+
+2025-11-04T232350Z focus=DB-AT-010 state=planning dwell=1 artifacts=plans/active/DB-AT-010/reports/2025-11-04T232350Z/ next_action=handoff_grad_override_fix

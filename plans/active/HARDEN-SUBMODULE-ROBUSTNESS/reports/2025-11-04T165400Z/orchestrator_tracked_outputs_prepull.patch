@@ -1,0 +1,103 @@
+diff --git a/scripts/orchestration/README.md b/scripts/orchestration/README.md
+index c598586..62afd6f 100644
+--- a/scripts/orchestration/README.md
++++ b/scripts/orchestration/README.md
+@@ -165,10 +165,12 @@ Notes:
+     - `--tracked-output-extensions ".npy,.npz,.json,.pkl"` — allowed extensions
+     - `--max-tracked-output-file-bytes N` (default 32 MiB) · `--max-tracked-output-total-bytes N` (default 100 MiB)
+     - Notes: runs before doc/meta hygiene; keeps repo clean when fixture‑like binaries are legitimately regenerated during a supervisor loop. Files exceeding caps remain dirty and will trigger the whitelist guard (handoff abort).
+-- `--prepull-auto-commit-docs` / `--no-prepull-auto-commit-docs` (default: on)
+-  - If the initial git pull fails (e.g., due to local modified doc/meta files), supervisor will attempt a doc/meta whitelist auto-commit first, then retry the pull.
+-  - If non-whitelisted dirty files are present, the supervisor exits with a clear error (prevents accidental commits of code/large files).
+-  - Pointer drift hardening: supervisor now performs a one-time submodule scrub (`git submodule sync --recursive && git submodule update --init --recursive --checkout --force`) before falling back to doc/meta auto-commit, to clear gitlink dirtiness.
++  - `--prepull-auto-commit-docs` / `--no-prepull-auto-commit-docs` (default: on)
++    - If the initial git pull fails (e.g., due to local modified files), supervisor now follows a three-step recovery:
++      1) Submodule scrub: `git submodule sync --recursive` then `git submodule update --init --recursive --checkout --force` (with manual gitlink align fallback)  
++      2) Tracked outputs auto-commit: stage+commit modified fixture-like files within limits (default globs `tests/fixtures/**/*.npy,*.npz,*.json,*.pkl`)  
++      3) Doc/meta whitelist auto-commit: stage+commit changes to `input.md`, `galph_memory.md`, `docs/fix_plan.md`, `plans/**/*.md`, `prompts/**/*.md` within size caps
++    - The pull is retried after each step; if dirty paths remain outside these guards, the supervisor exits with a clear error.
+ - Loop
+   - `--sync-via-git` · `--sync-loops N` · `--poll-interval S` · `--max-wait-sec S`
+   - `--branch NAME` · `--logdir PATH` · `--prompt {main,debug}`
+diff --git a/scripts/orchestration/supervisor.py b/scripts/orchestration/supervisor.py
+index d4303b5..867939a 100644
+--- a/scripts/orchestration/supervisor.py
++++ b/scripts/orchestration/supervisor.py
+@@ -195,6 +195,23 @@ def main() -> int:
+             cp2 = run(["git", "submodule", "update", "--init", "--recursive", "--checkout", "--force"], capture_output=True, text=True)
+             if log_func and (cp2.stdout or cp2.stderr):
+                 log_func((cp2.stdout or "") + (cp2.stderr or ""))
++            # Fallback: manually align any gitlinks to recorded HEAD pointers when .gitmodules lacks URL
++            gitlinks = _gitlink_paths()
++            for p in sorted(gitlinks):
++                # Get recorded pointer from HEAD tree
++                tree = run(["git", "ls-tree", "HEAD", "--", p], capture_output=True, text=True)
++                sha = None
++                if tree.stdout:
++                    parts = tree.stdout.strip().split()
++                    if len(parts) >= 3:
++                        sha = parts[2]
++                if not sha:
++                    continue
++                # If p is an initialized submodule, force checkout to recorded sha
++                if os.path.isdir(os.path.join(p, ".git")) or os.path.isfile(os.path.join(p, ".git")):
++                    run(["git", "-C", p, "checkout", "-f", sha], capture_output=True, text=True)
++                    if log_func:
++                        log_func(f"[submodules] aligned {p} to {sha}")
+         except Exception as e:
+             if log_func:
+                 log_func(f"[submodules] WARN: scrub failed: {e}")
+@@ -378,16 +395,18 @@ def main() -> int:
+             if args.prepull_auto_commit_docs:
+                 # First, scrub submodules and retry pull (more robust than committing)
+                 _submodule_scrub(lambda m: None)
+-                if _pull_with_error(lambda m: None, "pre-pull (after submodule scrub)"):
+-                    pass
+-                else:
+-                    committed, forbidden = _supervisor_autocommit_docs(args, lambda m: None)
+-                    if committed and not forbidden:
+-                        if not _pull_with_error(lambda m: None, "pre-pull (after autocommit)"):
++                if not _pull_with_error(lambda m: None, "pre-pull (after submodule scrub)"):
++                    # Next, try auto-committing modified tracked outputs (fixtures) within limits
++                    _supervisor_autocommit_tracked_outputs(args, lambda m: None)
++                    if not _pull_with_error(lambda m: None, "pre-pull (after tracked-outputs)"):
++                        # Finally, attempt doc/meta auto-commit
++                        committed, forbidden = _supervisor_autocommit_docs(args, lambda m: None)
++                        if committed and not forbidden:
++                            if not _pull_with_error(lambda m: None, "pre-pull (after autocommit)"):
++                                return 1
++                        else:
++                            print("[sync] ERROR: git pull failed; pre-pull auto-commit not applicable or blocked.")
+                             return 1
+-                    else:
+-                        print("[sync] ERROR: git pull failed; pre-pull auto-commit not applicable or blocked.")
+-                        return 1
+             else:
+                 # Error already printed by _pull_with_error
+                 return 1
+@@ -400,16 +419,16 @@ def main() -> int:
+         if not _pull_with_error(logp, "pre-wait"):
+             if args.prepull_auto_commit_docs:
+                 _submodule_scrub(logp)
+-                if _pull_with_error(logp, "pre-wait (after submodule scrub)"):
+-                    pass
+-                else:
+-                    committed, forbidden = _supervisor_autocommit_docs(args, logp)
+-                    if committed and not forbidden:
+-                        if not _pull_with_error(logp, "pre-wait (after autocommit)"):
++                if not _pull_with_error(logp, "pre-wait (after submodule scrub)"):
++                    _supervisor_autocommit_tracked_outputs(args, logp)
++                    if not _pull_with_error(logp, "pre-wait (after tracked-outputs)"):
++                        committed, forbidden = _supervisor_autocommit_docs(args, logp)
++                        if committed and not forbidden:
++                            if not _pull_with_error(logp, "pre-wait (after autocommit)"):
++                                return 1
++                        else:
++                            print("[sync] ERROR: git pull failed; pre-pull auto-commit not applicable or blocked.")
+                             return 1
+-                    else:
+-                        print("[sync] ERROR: git pull failed; pre-pull auto-commit not applicable or blocked.")
+-                        return 1
+             else:
+                 # Error already printed by _pull_with_error
+                 return 1

@@ -1,0 +1,30 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collected 14 items
+
+<Dir diffbragg_example>
+  <Package tests>
+    <Package dbex>
+      <Module test_db_at_001_parity.py>
+        <Class TestManifestIntegrity>
+          <Function test_manifest_integrity>
+          <Function test_golden_data_sanity>
+          <Function test_pixel_pitch_guard>
+        <Class TestParityMetrics>
+          <Function test_perfect_match>
+          <Function test_correlation_computation>
+          <Function test_error_metrics>
+          <Function test_sum_ratio>
+          <Function test_localization_metric>
+          <Function test_mask_application>
+          <Function test_edge_cases>
+          <Function test_to_dict_serialization>
+        <Class TestArtifactEmission>
+          <Function test_artifact_emission>
+          <Function test_artifact_emission_minimal>
+        <Class TestDB_AT_001_Parity>
+          <Function test_db_at_001_parity_smoke>
+
+========================= 14 tests collected in 0.24s ==========================

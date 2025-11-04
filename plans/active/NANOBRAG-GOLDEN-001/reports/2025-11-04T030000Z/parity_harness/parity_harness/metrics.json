@@ -1,0 +1,33 @@
+{
+  "correlation": 0.9878917805329821,
+  "rmse": 180.41070765755563,
+  "mse": 32548.0234375,
+  "max_abs_diff": 9808.15625,
+  "sum_ratio": 1.105569321267936,
+  "localization": 1.0,
+  "n_pixels": 13086,
+  "n_masked": 6210915,
+  "manifest_checksum": "2d1f8d671a6b051b23dd7a059f9fd8ff5605389bbe9a8e72cb44cbd7a8567aee",
+  "metadata": {
+    "dataset_name": "simple_cubic_canonical",
+    "generation_timestamp": "2025-11-04T01:28:28.588436Z",
+    "shape": {
+      "bragg": [
+        2527,
+        2463
+      ],
+      "n_panels": 1
+    },
+    "detector_config": {
+      "pixel_size_mm": 0.17200000000000001,
+      "spixels": 2527,
+      "fpixels": 2463
+    },
+    "provenance": {
+      "generator": "scripts/generate_simple_cubic_golden.py",
+      "experiment": "refGeom.expt",
+      "structure_factors": "scaled.mtz",
+      "branch": "integration"
+    }
+  }
+}

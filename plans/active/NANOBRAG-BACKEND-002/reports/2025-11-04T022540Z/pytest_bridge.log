@@ -1,0 +1,194 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 20 items
+
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_beam_center_swap PASSED [  5%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_sample_to_source_vector SKIPPED [ 10%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_detector_convention_dials PASSED [ 15%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_mask_array_float_conversion PASSED [ 20%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_pixel_size_and_dimensions PASSED [ 25%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_distance_mm PASSED [ 30%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_detector_basis_reconstruction_from_real_geom PASSED [ 35%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_returns_real_nanobrag_torch_config PASSED [ 40%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_detector_model_roundtrip FAILED [ 45%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_beam_wavelength PASSED [ 50%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_polarization_factor_parity_default PASSED [ 55%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_polarization_metadata_extraction FAILED [ 60%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_polarization_fallback FAILED [ 65%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_crystal_unit_cell_parameters PASSED [ 70%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_mosflm_astar_injection PASSED [ 75%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_stills_phi_defaults PASSED [ 80%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_crystal_misset_zero_default PASSED [ 85%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_returns_real_nanobrag_torch_beam_config PASSED [ 90%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_returns_real_nanobrag_torch_crystal_config PASSED [ 95%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_crystal_model_roundtrip FAILED [100%]
+
+=================================== FAILURES ===================================
+___________ TestDetectorConfigMapping.test_detector_model_roundtrip ____________
+
+self = <tests.dbex.test_nanobrag_bridge_configs.TestDetectorConfigMapping object at 0x76f0799beaf0>
+mock_panel = <Mock id='130775251341376'>
+mock_beam = <Mock id='130775251341472'>
+
+    def test_detector_model_roundtrip(self, mock_panel, mock_beam):
+        """
+        Test that detector config from bridge can instantiate nanobrag_torch Detector model.
+    
+        Per NANOBRAG-BACKEND-002 input.md, add a roundtrip check that instantiates
+        nanobrag_torch.models.detector.Detector using the bridge output to guard compatibility.
+        """
+        pytest.importorskip("nanobrag_torch")
+    
+        from dbex.nanobrag_bridge import create_detector_config
+        from nanobrag_torch.models.detector import Detector
+        import torch
+    
+        # Create detector config via bridge
+        detector_config = create_detector_config(mock_panel, mock_beam)
+    
+        # Instantiate Detector model - this validates config compatibility
+        detector = Detector(detector_config)
+    
+        # Verify detector has expected attributes
+        assert hasattr(detector, 'fdet_vec'), "Detector should have fdet_vec attribute"
+        assert hasattr(detector, 'sdet_vec'), "Detector should have sdet_vec attribute"
+        assert hasattr(detector, 'odet_vec'), "Detector should have odet_vec attribute"
+    
+        # Verify basis vectors are tensors
+        assert isinstance(detector.fdet_vec, torch.Tensor), "fdet_vec should be a tensor"
+        assert isinstance(detector.sdet_vec, torch.Tensor), "sdet_vec should be a tensor"
+        assert isinstance(detector.odet_vec, torch.Tensor), "odet_vec should be a tensor"
+    
+        # Verify dimensions match config
+        # Detector should have pixel_coords with shape (spixels, fpixels, 3)
+>       assert hasattr(detector, 'pixel_coords'), "Detector should have pixel_coords attribute"
+E       AssertionError: Detector should have pixel_coords attribute
+E       assert False
+E        +  where False = hasattr(<nanobrag_torch.models.detector.Detector object at 0x76f07c66dc10>, 'pixel_coords')
+
+tests/dbex/test_nanobrag_bridge_configs.py:345: AssertionError
+______ TestBeamCrystalConfigMapping.test_polarization_metadata_extraction ______
+
+self = <tests.dbex.test_nanobrag_bridge_configs.TestBeamCrystalConfigMapping object at 0x76f0799beeb0>
+mock_beam = <Mock id='130775251763744'>
+
+    def test_polarization_metadata_extraction(self, mock_beam):
+        """
+        Test that polarization axis and fraction are extracted when available.
+    
+        Per config_crosswalk.md:48-49, use beam.get_polarization_normal() and
+        beam.get_polarization_fraction() when available.
+    
+        This test will fail until create_beam_config is implemented.
+        """
+        from dbex.nanobrag_bridge import create_beam_config
+    
+        config = create_beam_config(mock_beam)
+    
+        expected_axis = mock_beam.get_polarization_normal.return_value
+        expected_fraction = mock_beam.get_polarization_fraction.return_value
+    
+        np.testing.assert_array_equal(
+            config.polarization_axis,
+            expected_axis,
+            err_msg="polarization_axis should match beam.get_polarization_normal()"
+        )
+>       assert config.polarization_fraction == expected_fraction, \
+            f"polarization_fraction should be {expected_fraction}, got {config.polarization_fraction}"
+E       AttributeError: 'BeamConfig' object has no attribute 'polarization_fraction'
+
+tests/dbex/test_nanobrag_bridge_configs.py:470: AttributeError
+___________ TestBeamCrystalConfigMapping.test_polarization_fallback ____________
+
+self = <tests.dbex.test_nanobrag_bridge_configs.TestBeamCrystalConfigMapping object at 0x76f0799be7c0>
+mock_beam_no_polarization = <Mock id='130775251765280'>
+
+    def test_polarization_fallback(self, mock_beam_no_polarization):
+        """
+        Test that polarization falls back to defaults when metadata is missing.
+    
+        Per config_crosswalk.md:48-49, fallback to axis=[0,0,1], fraction=0.999.
+    
+        This test will fail until create_beam_config is implemented.
+        """
+        from dbex.nanobrag_bridge import create_beam_config
+    
+        config = create_beam_config(mock_beam_no_polarization)
+    
+        # Verify fallback values
+        np.testing.assert_array_equal(
+            config.polarization_axis,
+            np.array([0.0, 0.0, 1.0]),
+            err_msg="polarization_axis should fallback to [0,0,1]"
+        )
+>       assert config.polarization_fraction == 0.999, \
+            f"polarization_fraction should fallback to 0.999, got {config.polarization_fraction}"
+E       AttributeError: 'BeamConfig' object has no attribute 'polarization_fraction'
+
+tests/dbex/test_nanobrag_bridge_configs.py:491: AttributeError
+__________ TestBeamCrystalConfigMapping.test_crystal_model_roundtrip ___________
+
+self = <tests.dbex.test_nanobrag_bridge_configs.TestBeamCrystalConfigMapping object at 0x76f0799c99d0>
+mock_crystal = <Mock id='130775251501456'>
+mock_experiment_stills = <Mock id='130775251501744'>
+
+    def test_crystal_model_roundtrip(self, mock_crystal, mock_experiment_stills):
+        """
+        Test that crystal config from bridge can instantiate nanobrag_torch Crystal model.
+    
+        Per NANOBRAG-BACKEND-002 input.md, add a roundtrip check that instantiates
+        nanobrag_torch.models.crystal.Crystal using the bridge output to guard compatibility.
+        """
+        pytest.importorskip("nanobrag_torch")
+    
+        from dbex.nanobrag_bridge import create_crystal_config
+        from nanobrag_torch.models.crystal import Crystal
+        import torch
+    
+        # Create crystal config via bridge
+        crystal_config = create_crystal_config(mock_crystal, mock_experiment_stills)
+    
+        # Instantiate Crystal model - this validates config compatibility
+        # Crystal requires structure factor data; use a dummy grid
+        device = torch.device("cpu")
+        dtype = torch.float32
+    
+        # Create minimal dummy structure factor grid (e.g., 10x10x10 P1 grid)
+        F_grid = torch.ones((10, 10, 10), dtype=torch.complex64, device=device)
+        h_range = (-5, 5)
+        k_range = (-5, 5)
+        l_range = (-5, 5)
+    
+        # Crystal constructor: __init__(self, config, F_grid, h_range, k_range, l_range, **kwargs)
+>       crystal = Crystal(
+            crystal_config,
+            F_grid,
+            h_range,
+            k_range,
+            l_range,
+            device=device,
+            dtype=dtype
+        )
+E       TypeError: __init__() got multiple values for argument 'device'
+
+tests/dbex/test_nanobrag_bridge_configs.py:666: TypeError
+=============================== warnings summary ===============================
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_detector_basis_reconstruction_from_real_geom
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_detector_basis_reconstruction_from_real_geom
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_detector_basis_reconstruction_from_real_geom
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_detector_model_roundtrip
+FAILED tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_polarization_metadata_extraction
+FAILED tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_polarization_fallback
+FAILED tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_crystal_model_roundtrip
+============= 4 failed, 15 passed, 1 skipped, 3 warnings in 2.76s ==============

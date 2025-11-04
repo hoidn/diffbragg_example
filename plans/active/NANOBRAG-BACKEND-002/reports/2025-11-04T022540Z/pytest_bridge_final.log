@@ -1,0 +1,89 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 20 items
+
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_beam_center_swap PASSED [  5%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_sample_to_source_vector SKIPPED [ 10%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_detector_convention_dials PASSED [ 15%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_mask_array_float_conversion PASSED [ 20%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_pixel_size_and_dimensions PASSED [ 25%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_distance_mm PASSED [ 30%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_detector_basis_reconstruction_from_real_geom PASSED [ 35%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_returns_real_nanobrag_torch_config PASSED [ 40%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_detector_model_roundtrip PASSED [ 45%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_beam_wavelength PASSED [ 50%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_polarization_factor_parity_default PASSED [ 55%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_polarization_metadata_extraction PASSED [ 60%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_polarization_fallback PASSED [ 65%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_crystal_unit_cell_parameters PASSED [ 70%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_mosflm_astar_injection PASSED [ 75%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_stills_phi_defaults PASSED [ 80%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_crystal_misset_zero_default PASSED [ 85%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_returns_real_nanobrag_torch_beam_config PASSED [ 90%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_returns_real_nanobrag_torch_crystal_config PASSED [ 95%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_crystal_model_roundtrip FAILED [100%]
+
+=================================== FAILURES ===================================
+__________ TestBeamCrystalConfigMapping.test_crystal_model_roundtrip ___________
+
+self = <tests.dbex.test_nanobrag_bridge_configs.TestBeamCrystalConfigMapping object at 0x7f154e019ca0>
+mock_crystal = <Mock id='139729526670576'>
+mock_experiment_stills = <Mock id='139729526670432'>
+
+    def test_crystal_model_roundtrip(self, mock_crystal, mock_experiment_stills):
+        """
+        Test that crystal config from bridge can instantiate nanobrag_torch Crystal model.
+    
+        Per NANOBRAG-BACKEND-002 input.md, add a roundtrip check that instantiates
+        nanobrag_torch.models.crystal.Crystal using the bridge output to guard compatibility.
+        """
+        pytest.importorskip("nanobrag_torch")
+    
+        from dbex.nanobrag_bridge import create_crystal_config
+        from nanobrag_torch.models.crystal import Crystal
+        import torch
+    
+        # Create crystal config via bridge
+        crystal_config = create_crystal_config(mock_crystal, mock_experiment_stills)
+    
+        # Instantiate Crystal model - this validates config compatibility
+        # Crystal requires structure factor data; use a dummy grid
+        device = torch.device("cpu")
+        dtype = torch.float32
+    
+        # Create minimal dummy structure factor grid (e.g., 10x10x10 P1 grid)
+        F_grid = torch.ones((10, 10, 10), dtype=torch.complex64, device=device)
+        h_range = (-5, 5)
+        k_range = (-5, 5)
+        l_range = (-5, 5)
+    
+        # Crystal constructor signature from nanobrag_torch
+        # __init__(self, config, F_grid, h_range, k_range, l_range, **kwargs)
+        # kwargs include device and dtype
+>       crystal = Crystal(
+            config=crystal_config,
+            F_grid=F_grid,
+            h_range=h_range,
+            k_range=k_range,
+            l_range=l_range
+        )
+E       TypeError: __init__() got an unexpected keyword argument 'F_grid'
+
+tests/dbex/test_nanobrag_bridge_configs.py:671: TypeError
+=============================== warnings summary ===============================
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_detector_basis_reconstruction_from_real_geom
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_detector_basis_reconstruction_from_real_geom
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_detector_basis_reconstruction_from_real_geom
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_crystal_model_roundtrip
+============= 1 failed, 18 passed, 1 skipped, 3 warnings in 2.77s ==============

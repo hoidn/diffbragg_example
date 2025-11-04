@@ -1,0 +1,1041 @@
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+<frozen importlib._bootstrap>:228: RuntimeWarning: to-Python converter for scitbx::af::shared<scitbx::af::shared<scitbx::vec3<double> > > already registered; second conversion method ignored.
+COMMANDLINE: libtbx.python /home/ollie/Documents/diffbragg_example_2/diffbragg_example/scripts/generate_simple_cubic_golden.py --canonical-out plans/active/MAP-SCALE-001/reports/2025-11-04T120500Z/refined_capture --emit-manifest --fixtures /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/fixtures/golden_data/simple_cubic
+INFO: === Canonical Golden Dataset Generation ===
+INFO: Loading refGeom experiment...
+INFO: Loaded 92 reflections from /home/ollie/Documents/diffbragg_example_2/diffbragg_example/refGeom.refl
+INFO: Starting DiffBragg refinement (GPU devId=0 per DIFFBRAGG-001)...
+INFO: Refinement macro cycle 1/5...
+Warning, crystal system not determined, assuming triclinic
+Warning, crystal system not determined, assuming triclinic
+Warning, crystal system not determined, assuming triclinic
+Warning, crystal system not determined, assuming triclinic
+Warning, crystal system not determined, assuming triclinic
+Will optimize using 1 experiments
+RANK0000 | 2025-11-04 01:31:33,216 | Loading nrefls per shot
+Found 1 shots originally, but only 1 had finite number of refls to model
+RANK0000 | 2025-11-04 01:31:33,218 | EVENT: begin loading inputs
+RANK0000 | 2025-11-04 01:31:33,247 | Will use space group symbol P 1
+RANK0000 | 2025-11-04 01:31:33,380 | EVENT: BEGIN loading experiment list
+RANK0000 | 2025-11-04 01:31:33,382 | EVENT: DONE loading experiment list
+Warning, crystal system not determined, assuming triclinic
+RANK0000 | 2025-11-04 01:31:33,383 | EVENT: LOADING ROI DATA
+RANK0000 | 2025-11-04 01:31:33,452 | Number of ROIS that will proceed to refinement: 87/92
+RANK0000 | 2025-11-04 01:31:33,470 | Setting initial mosaicity from params.init.eta_abc: 0.000000 0.000000 0.000000
+RANK0000 | 2025-11-04 01:31:33,470 | Number of mosaic domains from params: 1
+RANK0000 | 2025-11-04 01:31:33,542 | Loaded simulator
+RANK0000 | 2025-11-04 01:31:33,542 | Will not use mosaic models, as simulator.crystal.num_mosaicity_samples=1
+RANK0000 | 2025-11-04 01:31:33,581 | EVENT: DONE LOADING ROI
+RANK0000 | 2025-11-04 01:31:33,581 | Will simulate 1 energy channels
+RANK0000 | 2025-11-04 01:31:33,581 | Process memory usage: 1.239037 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:31:33,581 | Finished loading image 1 / 1 (1 / 1)
+Warning, crystal system not determined, assuming triclinic
+RANK0000 | 2025-11-04 01:31:33,582 | DONE LOADING DATA; ENTER BARRIER
+RANK0000 | 2025-11-04 01:31:33,582 | DONE LOADING DATA; EXIT BARRIER
+RANK0000 | 2025-11-04 01:31:33,582 | Mem after panel groups: 1.239037 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:31:33,582 | EVENT: Gathering global HKL information
+RANK0000 | 2025-11-04 01:31:33,688 | EVENT: FINISHED gather global HKL information
+RANK0000 | 2025-11-04 01:31:33,689 | Mem after gather Hi info: 1.239037 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:31:33,689 | BEGIN DETERMINE MAX PIX
+RANK0000 | 2025-11-04 01:31:33,689 | Rank 0, max pix to be modeled: 8700
+RANK0000 | 2025-11-04 01:31:33,689 | DONE DETERMINE MAX PIX
+RANK0000 | 2025-11-04 01:31:33,689 | Mem after determine max num pix: 1.239037 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:31:33,689 | Mem after load_inputs: 1.239037 GB on node ollie-System-Product-Name
+How many pixels each rank will allocate for on its device:
+(rnk0, dev0): 8700 pix
+Iteration 1:
+	Resid=242623.295220, sigmaZ 7.147279, t-per-iter=0.0339 sec, pred_offsets=
+Iteration 2:
+	Resid=281477044.323482, sigmaZ 253.604838, t-per-iter=0.0340 sec, pred_offsets=
+Iteration 3:
+	Resid=281476832.960654, sigmaZ 253.603633, t-per-iter=0.0341 sec, pred_offsets=
+Iteration 4:
+	Resid=261777.088314, sigmaZ 7.449009, t-per-iter=0.0338 sec, pred_offsets=
+Iteration 5:
+	Resid=241356.786137, sigmaZ 7.126871, t-per-iter=0.0337 sec, pred_offsets=
+Iteration 6:
+	Resid=240786.254040, sigmaZ 7.117659, t-per-iter=0.0336 sec, pred_offsets=
+Iteration 7:
+	Resid=239705.853976, sigmaZ 7.100181, t-per-iter=0.0335 sec, pred_offsets=
+Iteration 8:
+	Resid=239420.744381, sigmaZ 7.095560, t-per-iter=0.0335 sec, pred_offsets=
+Iteration 9:
+	Resid=239357.018135, sigmaZ 7.094529, t-per-iter=0.0334 sec, pred_offsets=
+Iteration 10:
+	Resid=239336.787527, sigmaZ 7.094201, t-per-iter=0.0334 sec, pred_offsets=
+Iteration 11:
+	Resid=239199.622647, sigmaZ 7.091978, t-per-iter=0.0334 sec, pred_offsets=
+Iteration 12:
+	Resid=239064.961816, sigmaZ 7.089794, t-per-iter=0.0335 sec, pred_offsets=
+Iteration 13:
+	Resid=238955.408809, sigmaZ 7.088016, t-per-iter=0.0335 sec, pred_offsets=
+Iteration 14:
+	Resid=238938.915331, sigmaZ 7.087748, t-per-iter=0.0334 sec, pred_offsets=
+Iteration 15:
+	Resid=238938.155211, sigmaZ 7.087735, t-per-iter=0.0334 sec, pred_offsets=
+Iteration 16:
+	Resid=238938.138993, sigmaZ 7.087735, t-per-iter=0.0334 sec, pred_offsets=
+Iteration 17:
+	Resid=238938.138808, sigmaZ 7.087735, t-per-iter=0.0334 sec, pred_offsets=
+Iteration 18:
+	Resid=238938.138792, sigmaZ 7.087735, t-per-iter=0.0334 sec, pred_offsets=
+Final Iteration 18:
+	Resid=238938.138792, sigmaZ 7.087735
+Saved detector model to _geom.out/diffBragg_detector.expt
+INFO: Refinement macro cycle 2/5...
+INFO:canonical_capture:Refinement macro cycle 2/5...
+RANK0000 | 2025-11-04 01:31:34,362 | Number of ROIS that will proceed to refinement: 87/92
+RANK0000 | 2025-11-04 01:31:34,379 | Setting initial mosaicity from params.init.eta_abc: 0.000000 0.000000 0.000000
+RANK0000 | 2025-11-04 01:31:34,379 | Number of mosaic domains from params: 1
+RANK0000 | 2025-11-04 01:31:34,452 | Loaded simulator
+RANK0000 | 2025-11-04 01:31:34,452 | Will not use mosaic models, as simulator.crystal.num_mosaicity_samples=1
+Warning, crystal system not determined, assuming triclinic
+RANK0000 | 2025-11-04 01:31:34,452 | Unit cell variable a_Ang (currently=27.359348) is bounded by 24.623414 and 30.095283
+RANK0000 | 2025-11-04 01:31:34,452 | Unit cell variable b_Ang (currently=32.053346) is bounded by 28.848012 and 35.258681
+RANK0000 | 2025-11-04 01:31:34,452 | Unit cell variable c_Ang (currently=34.447265) is bounded by 31.002539 and 37.891992
+RANK0000 | 2025-11-04 01:31:34,452 | Unit cell variable alpha_rad (currently=1.548473) is bounded by 1.461207 and 1.635740
+RANK0000 | 2025-11-04 01:31:34,452 | Unit cell variable beta_rad (currently=1.249642) is bounded by 1.162376 and 1.336909
+RANK0000 | 2025-11-04 01:31:34,452 | Unit cell variable gamma_rad (currently=1.189223) is bounded by 1.101956 and 1.276489
+Warning, crystal system not determined, assuming triclinic
+RANK0000 | 2025-11-04 01:31:41,098 | Filtered 5 / 92 reflections which did not show peaks in model
+RANK0000 | 2025-11-04 01:31:41,166 | Number of ROIS that will proceed to refinement: 87/92
+RANK0000 | 2025-11-04 01:31:41,184 | Setting initial mosaicity from params.init.eta_abc: 0.000000 0.000000 0.000000
+RANK0000 | 2025-11-04 01:31:41,184 | Number of mosaic domains from params: 1
+RANK0000 | 2025-11-04 01:31:41,255 | Loaded simulator
+RANK0000 | 2025-11-04 01:31:41,255 | Will not use mosaic models, as simulator.crystal.num_mosaicity_samples=1
+Warning, crystal system not determined, assuming triclinic
+RANK0000 | 2025-11-04 01:31:41,375 | Unit cell variable a_Ang (currently=27.360161) is bounded by 24.624145 and 30.096177
+RANK0000 | 2025-11-04 01:31:41,375 | Unit cell variable b_Ang (currently=32.057000) is bounded by 28.851300 and 35.262700
+RANK0000 | 2025-11-04 01:31:41,375 | Unit cell variable c_Ang (currently=34.454273) is bounded by 31.008846 and 37.899700
+RANK0000 | 2025-11-04 01:31:41,375 | Unit cell variable alpha_rad (currently=1.548181) is bounded by 1.460914 and 1.635447
+RANK0000 | 2025-11-04 01:31:41,375 | Unit cell variable beta_rad (currently=1.249337) is bounded by 1.162071 and 1.336604
+RANK0000 | 2025-11-04 01:31:41,375 | Unit cell variable gamma_rad (currently=1.189185) is bounded by 1.101919 and 1.276452
+Warning, crystal system not determined, assuming triclinic
+RANK0000 | 2025-11-04 01:31:46,831 | Filtered 5 / 92 reflections which did not show peaks in model
+Warning, crystal system not determined, assuming triclinic
+Will optimize using 1 experiments
+RANK0000 | 2025-11-04 01:31:46,962 | Loading nrefls per shot
+RANK0000 | 2025-11-04 01:31:46,962 | Loading nrefls per shot
+Found 1 shots originally, but only 1 had finite number of refls to model
+RANK0000 | 2025-11-04 01:31:46,964 | EVENT: begin loading inputs
+RANK0000 | 2025-11-04 01:31:46,964 | EVENT: begin loading inputs
+RANK0000 | 2025-11-04 01:31:46,991 | Will use space group symbol P 1
+RANK0000 | 2025-11-04 01:31:46,991 | Will use space group symbol P 1
+RANK0000 | 2025-11-04 01:31:47,120 | EVENT: BEGIN loading experiment list
+RANK0000 | 2025-11-04 01:31:47,120 | EVENT: BEGIN loading experiment list
+RANK0000 | 2025-11-04 01:31:47,122 | EVENT: DONE loading experiment list
+RANK0000 | 2025-11-04 01:31:47,122 | EVENT: DONE loading experiment list
+Warning, crystal system not determined, assuming triclinic
+RANK0000 | 2025-11-04 01:31:47,123 | EVENT: LOADING ROI DATA
+RANK0000 | 2025-11-04 01:31:47,123 | EVENT: LOADING ROI DATA
+RANK0000 | 2025-11-04 01:31:47,196 | Number of ROIS that will proceed to refinement: 87/92
+RANK0000 | 2025-11-04 01:31:47,196 | Number of ROIS that will proceed to refinement: 87/92
+RANK0000 | 2025-11-04 01:31:47,212 | Setting initial mosaicity from params.init.eta_abc: 0.000000 0.000000 0.000000
+RANK0000 | 2025-11-04 01:31:47,212 | Setting initial mosaicity from params.init.eta_abc: 0.000000 0.000000 0.000000
+RANK0000 | 2025-11-04 01:31:47,213 | Number of mosaic domains from params: 1
+RANK0000 | 2025-11-04 01:31:47,213 | Number of mosaic domains from params: 1
+RANK0000 | 2025-11-04 01:31:47,283 | Loaded simulator
+RANK0000 | 2025-11-04 01:31:47,283 | Loaded simulator
+RANK0000 | 2025-11-04 01:31:47,283 | Will not use mosaic models, as simulator.crystal.num_mosaicity_samples=1
+RANK0000 | 2025-11-04 01:31:47,283 | Will not use mosaic models, as simulator.crystal.num_mosaicity_samples=1
+RANK0000 | 2025-11-04 01:31:47,322 | EVENT: DONE LOADING ROI
+RANK0000 | 2025-11-04 01:31:47,322 | EVENT: DONE LOADING ROI
+RANK0000 | 2025-11-04 01:31:47,322 | Will simulate 1 energy channels
+RANK0000 | 2025-11-04 01:31:47,322 | Will simulate 1 energy channels
+RANK0000 | 2025-11-04 01:31:47,322 | Process memory usage: 1.411713 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:31:47,322 | Process memory usage: 1.411713 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:31:47,322 | Finished loading image 1 / 1 (1 / 1)
+RANK0000 | 2025-11-04 01:31:47,322 | Finished loading image 1 / 1 (1 / 1)
+Warning, crystal system not determined, assuming triclinic
+RANK0000 | 2025-11-04 01:31:47,323 | DONE LOADING DATA; ENTER BARRIER
+RANK0000 | 2025-11-04 01:31:47,323 | DONE LOADING DATA; ENTER BARRIER
+RANK0000 | 2025-11-04 01:31:47,323 | DONE LOADING DATA; EXIT BARRIER
+RANK0000 | 2025-11-04 01:31:47,323 | DONE LOADING DATA; EXIT BARRIER
+RANK0000 | 2025-11-04 01:31:47,323 | Mem after panel groups: 1.411713 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:31:47,323 | Mem after panel groups: 1.411713 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:31:47,323 | EVENT: Gathering global HKL information
+RANK0000 | 2025-11-04 01:31:47,323 | EVENT: Gathering global HKL information
+RANK0000 | 2025-11-04 01:31:47,423 | EVENT: FINISHED gather global HKL information
+RANK0000 | 2025-11-04 01:31:47,423 | EVENT: FINISHED gather global HKL information
+RANK0000 | 2025-11-04 01:31:47,423 | Mem after gather Hi info: 1.411713 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:31:47,423 | Mem after gather Hi info: 1.411713 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:31:47,423 | BEGIN DETERMINE MAX PIX
+RANK0000 | 2025-11-04 01:31:47,423 | BEGIN DETERMINE MAX PIX
+RANK0000 | 2025-11-04 01:31:47,423 | Rank 0, max pix to be modeled: 8700
+RANK0000 | 2025-11-04 01:31:47,423 | Rank 0, max pix to be modeled: 8700
+RANK0000 | 2025-11-04 01:31:47,423 | DONE DETERMINE MAX PIX
+RANK0000 | 2025-11-04 01:31:47,423 | DONE DETERMINE MAX PIX
+RANK0000 | 2025-11-04 01:31:47,423 | Mem after determine max num pix: 1.411713 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:31:47,423 | Mem after determine max num pix: 1.411713 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:31:47,423 | Mem after load_inputs: 1.411713 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:31:47,423 | Mem after load_inputs: 1.411713 GB on node ollie-System-Product-Name
+How many pixels each rank will allocate for on its device:
+(rnk0, dev0): 8700 pix
+Iteration 1:
+	Resid=196896.917373, sigmaZ 6.355073, t-per-iter=0.0340 sec, pred_offsets=
+Iteration 2:
+	Resid=276457596.562458, sigmaZ 251.362443, t-per-iter=0.0337 sec, pred_offsets=
+Iteration 3:
+	Resid=4131517.668948, sigmaZ 30.708839, t-per-iter=0.0336 sec, pred_offsets=
+Iteration 4:
+	Resid=241530.110587, sigmaZ 7.118698, t-per-iter=0.0336 sec, pred_offsets=
+Iteration 5:
+	Resid=196554.125234, sigmaZ 6.348789, t-per-iter=0.0335 sec, pred_offsets=
+Iteration 6:
+	Resid=197024.415463, sigmaZ 6.357312, t-per-iter=0.0334 sec, pred_offsets=
+Iteration 7:
+	Resid=196478.639487, sigmaZ 6.347412, t-per-iter=0.0334 sec, pred_offsets=
+Iteration 8:
+	Resid=196459.245431, sigmaZ 6.347066, t-per-iter=0.0335 sec, pred_offsets=
+Iteration 9:
+	Resid=196435.945157, sigmaZ 6.346662, t-per-iter=0.0335 sec, pred_offsets=
+Iteration 10:
+	Resid=196435.923634, sigmaZ 6.346661, t-per-iter=0.0334 sec, pred_offsets=
+Iteration 11:
+	Resid=196435.851453, sigmaZ 6.346660, t-per-iter=0.0334 sec, pred_offsets=
+Iteration 12:
+	Resid=196435.679362, sigmaZ 6.346657, t-per-iter=0.0334 sec, pred_offsets=
+Iteration 13:
+	Resid=196435.665514, sigmaZ 6.346656, t-per-iter=0.0334 sec, pred_offsets=
+Iteration 14:
+	Resid=196435.665504, sigmaZ 6.346656, t-per-iter=0.0334 sec, pred_offsets=
+Final Iteration 14:
+	Resid=196435.665504, sigmaZ 6.346656
+Saved detector model to _geom.out/diffBragg_detector.expt
+INFO: Refinement macro cycle 3/5...
+INFO:canonical_capture:Refinement macro cycle 3/5...
+RANK0000 | 2025-11-04 01:31:47,963 | Number of ROIS that will proceed to refinement: 87/92
+RANK0000 | 2025-11-04 01:31:47,963 | Number of ROIS that will proceed to refinement: 87/92
+RANK0000 | 2025-11-04 01:31:47,980 | Setting initial mosaicity from params.init.eta_abc: 0.000000 0.000000 0.000000
+RANK0000 | 2025-11-04 01:31:47,980 | Setting initial mosaicity from params.init.eta_abc: 0.000000 0.000000 0.000000
+RANK0000 | 2025-11-04 01:31:47,980 | Number of mosaic domains from params: 1
+RANK0000 | 2025-11-04 01:31:47,980 | Number of mosaic domains from params: 1
+RANK0000 | 2025-11-04 01:31:48,050 | Loaded simulator
+RANK0000 | 2025-11-04 01:31:48,050 | Loaded simulator
+RANK0000 | 2025-11-04 01:31:48,050 | Will not use mosaic models, as simulator.crystal.num_mosaicity_samples=1
+RANK0000 | 2025-11-04 01:31:48,050 | Will not use mosaic models, as simulator.crystal.num_mosaicity_samples=1
+Warning, crystal system not determined, assuming triclinic
+RANK0000 | 2025-11-04 01:31:48,051 | Unit cell variable a_Ang (currently=27.360161) is bounded by 24.624145 and 30.096177
+RANK0000 | 2025-11-04 01:31:48,051 | Unit cell variable a_Ang (currently=27.360161) is bounded by 24.624145 and 30.096177
+RANK0000 | 2025-11-04 01:31:48,051 | Unit cell variable b_Ang (currently=32.057000) is bounded by 28.851300 and 35.262700
+RANK0000 | 2025-11-04 01:31:48,051 | Unit cell variable b_Ang (currently=32.057000) is bounded by 28.851300 and 35.262700
+RANK0000 | 2025-11-04 01:31:48,051 | Unit cell variable c_Ang (currently=34.454273) is bounded by 31.008846 and 37.899700
+RANK0000 | 2025-11-04 01:31:48,051 | Unit cell variable c_Ang (currently=34.454273) is bounded by 31.008846 and 37.899700
+RANK0000 | 2025-11-04 01:31:48,051 | Unit cell variable alpha_rad (currently=1.548181) is bounded by 1.460914 and 1.635447
+RANK0000 | 2025-11-04 01:31:48,051 | Unit cell variable alpha_rad (currently=1.548181) is bounded by 1.460914 and 1.635447
+RANK0000 | 2025-11-04 01:31:48,051 | Unit cell variable beta_rad (currently=1.249337) is bounded by 1.162071 and 1.336604
+RANK0000 | 2025-11-04 01:31:48,051 | Unit cell variable beta_rad (currently=1.249337) is bounded by 1.162071 and 1.336604
+RANK0000 | 2025-11-04 01:31:48,051 | Unit cell variable gamma_rad (currently=1.189185) is bounded by 1.101919 and 1.276452
+RANK0000 | 2025-11-04 01:31:48,051 | Unit cell variable gamma_rad (currently=1.189185) is bounded by 1.101919 and 1.276452
+Warning, crystal system not determined, assuming triclinic
+RANK0000 | 2025-11-04 01:31:57,536 | Filtered 5 / 92 reflections which did not show peaks in model
+RANK0000 | 2025-11-04 01:31:57,536 | Filtered 5 / 92 reflections which did not show peaks in model
+RANK0000 | 2025-11-04 01:31:57,606 | Number of ROIS that will proceed to refinement: 87/92
+RANK0000 | 2025-11-04 01:31:57,606 | Number of ROIS that will proceed to refinement: 87/92
+RANK0000 | 2025-11-04 01:31:57,623 | Setting initial mosaicity from params.init.eta_abc: 0.000000 0.000000 0.000000
+RANK0000 | 2025-11-04 01:31:57,623 | Setting initial mosaicity from params.init.eta_abc: 0.000000 0.000000 0.000000
+RANK0000 | 2025-11-04 01:31:57,623 | Number of mosaic domains from params: 1
+RANK0000 | 2025-11-04 01:31:57,623 | Number of mosaic domains from params: 1
+RANK0000 | 2025-11-04 01:31:57,694 | Loaded simulator
+RANK0000 | 2025-11-04 01:31:57,694 | Loaded simulator
+RANK0000 | 2025-11-04 01:31:57,694 | Will not use mosaic models, as simulator.crystal.num_mosaicity_samples=1
+RANK0000 | 2025-11-04 01:31:57,694 | Will not use mosaic models, as simulator.crystal.num_mosaicity_samples=1
+Warning, crystal system not determined, assuming triclinic
+RANK0000 | 2025-11-04 01:31:57,805 | Unit cell variable a_Ang (currently=27.361518) is bounded by 24.625367 and 30.097670
+RANK0000 | 2025-11-04 01:31:57,805 | Unit cell variable a_Ang (currently=27.361518) is bounded by 24.625367 and 30.097670
+RANK0000 | 2025-11-04 01:31:57,805 | Unit cell variable b_Ang (currently=32.057596) is bounded by 28.851836 and 35.263355
+RANK0000 | 2025-11-04 01:31:57,805 | Unit cell variable b_Ang (currently=32.057596) is bounded by 28.851836 and 35.263355
+RANK0000 | 2025-11-04 01:31:57,805 | Unit cell variable c_Ang (currently=34.460339) is bounded by 31.014305 and 37.906373
+RANK0000 | 2025-11-04 01:31:57,805 | Unit cell variable c_Ang (currently=34.460339) is bounded by 31.014305 and 37.906373
+RANK0000 | 2025-11-04 01:31:57,805 | Unit cell variable alpha_rad (currently=1.547950) is bounded by 1.460684 and 1.635217
+RANK0000 | 2025-11-04 01:31:57,805 | Unit cell variable alpha_rad (currently=1.547950) is bounded by 1.460684 and 1.635217
+RANK0000 | 2025-11-04 01:31:57,805 | Unit cell variable beta_rad (currently=1.249119) is bounded by 1.161852 and 1.336385
+RANK0000 | 2025-11-04 01:31:57,805 | Unit cell variable beta_rad (currently=1.249119) is bounded by 1.161852 and 1.336385
+RANK0000 | 2025-11-04 01:31:57,805 | Unit cell variable gamma_rad (currently=1.189095) is bounded by 1.101829 and 1.276362
+RANK0000 | 2025-11-04 01:31:57,805 | Unit cell variable gamma_rad (currently=1.189095) is bounded by 1.101829 and 1.276362
+Warning, crystal system not determined, assuming triclinic
+RANK0000 | 2025-11-04 01:32:03,200 | Filtered 5 / 92 reflections which did not show peaks in model
+RANK0000 | 2025-11-04 01:32:03,200 | Filtered 5 / 92 reflections which did not show peaks in model
+Warning, crystal system not determined, assuming triclinic
+Will optimize using 1 experiments
+RANK0000 | 2025-11-04 01:32:03,327 | Loading nrefls per shot
+RANK0000 | 2025-11-04 01:32:03,327 | Loading nrefls per shot
+RANK0000 | 2025-11-04 01:32:03,327 | Loading nrefls per shot
+Found 1 shots originally, but only 1 had finite number of refls to model
+RANK0000 | 2025-11-04 01:32:03,328 | EVENT: begin loading inputs
+RANK0000 | 2025-11-04 01:32:03,328 | EVENT: begin loading inputs
+RANK0000 | 2025-11-04 01:32:03,328 | EVENT: begin loading inputs
+RANK0000 | 2025-11-04 01:32:03,355 | Will use space group symbol P 1
+RANK0000 | 2025-11-04 01:32:03,355 | Will use space group symbol P 1
+RANK0000 | 2025-11-04 01:32:03,355 | Will use space group symbol P 1
+RANK0000 | 2025-11-04 01:32:03,485 | EVENT: BEGIN loading experiment list
+RANK0000 | 2025-11-04 01:32:03,485 | EVENT: BEGIN loading experiment list
+RANK0000 | 2025-11-04 01:32:03,485 | EVENT: BEGIN loading experiment list
+RANK0000 | 2025-11-04 01:32:03,487 | EVENT: DONE loading experiment list
+RANK0000 | 2025-11-04 01:32:03,487 | EVENT: DONE loading experiment list
+RANK0000 | 2025-11-04 01:32:03,487 | EVENT: DONE loading experiment list
+Warning, crystal system not determined, assuming triclinic
+RANK0000 | 2025-11-04 01:32:03,488 | EVENT: LOADING ROI DATA
+RANK0000 | 2025-11-04 01:32:03,488 | EVENT: LOADING ROI DATA
+RANK0000 | 2025-11-04 01:32:03,488 | EVENT: LOADING ROI DATA
+RANK0000 | 2025-11-04 01:32:03,549 | Number of ROIS that will proceed to refinement: 87/92
+RANK0000 | 2025-11-04 01:32:03,549 | Number of ROIS that will proceed to refinement: 87/92
+RANK0000 | 2025-11-04 01:32:03,549 | Number of ROIS that will proceed to refinement: 87/92
+RANK0000 | 2025-11-04 01:32:03,566 | Setting initial mosaicity from params.init.eta_abc: 0.000000 0.000000 0.000000
+RANK0000 | 2025-11-04 01:32:03,566 | Setting initial mosaicity from params.init.eta_abc: 0.000000 0.000000 0.000000
+RANK0000 | 2025-11-04 01:32:03,566 | Setting initial mosaicity from params.init.eta_abc: 0.000000 0.000000 0.000000
+RANK0000 | 2025-11-04 01:32:03,566 | Number of mosaic domains from params: 1
+RANK0000 | 2025-11-04 01:32:03,566 | Number of mosaic domains from params: 1
+RANK0000 | 2025-11-04 01:32:03,566 | Number of mosaic domains from params: 1
+RANK0000 | 2025-11-04 01:32:03,640 | Loaded simulator
+RANK0000 | 2025-11-04 01:32:03,640 | Loaded simulator
+RANK0000 | 2025-11-04 01:32:03,640 | Loaded simulator
+RANK0000 | 2025-11-04 01:32:03,640 | Will not use mosaic models, as simulator.crystal.num_mosaicity_samples=1
+RANK0000 | 2025-11-04 01:32:03,640 | Will not use mosaic models, as simulator.crystal.num_mosaicity_samples=1
+RANK0000 | 2025-11-04 01:32:03,640 | Will not use mosaic models, as simulator.crystal.num_mosaicity_samples=1
+RANK0000 | 2025-11-04 01:32:03,680 | EVENT: DONE LOADING ROI
+RANK0000 | 2025-11-04 01:32:03,680 | EVENT: DONE LOADING ROI
+RANK0000 | 2025-11-04 01:32:03,680 | EVENT: DONE LOADING ROI
+RANK0000 | 2025-11-04 01:32:03,680 | Will simulate 1 energy channels
+RANK0000 | 2025-11-04 01:32:03,680 | Will simulate 1 energy channels
+RANK0000 | 2025-11-04 01:32:03,680 | Will simulate 1 energy channels
+RANK0000 | 2025-11-04 01:32:03,680 | Process memory usage: 1.499397 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:03,680 | Process memory usage: 1.499397 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:03,680 | Process memory usage: 1.499397 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:03,680 | Finished loading image 1 / 1 (1 / 1)
+RANK0000 | 2025-11-04 01:32:03,680 | Finished loading image 1 / 1 (1 / 1)
+RANK0000 | 2025-11-04 01:32:03,680 | Finished loading image 1 / 1 (1 / 1)
+Warning, crystal system not determined, assuming triclinic
+RANK0000 | 2025-11-04 01:32:03,681 | DONE LOADING DATA; ENTER BARRIER
+RANK0000 | 2025-11-04 01:32:03,681 | DONE LOADING DATA; ENTER BARRIER
+RANK0000 | 2025-11-04 01:32:03,681 | DONE LOADING DATA; ENTER BARRIER
+RANK0000 | 2025-11-04 01:32:03,681 | DONE LOADING DATA; EXIT BARRIER
+RANK0000 | 2025-11-04 01:32:03,681 | DONE LOADING DATA; EXIT BARRIER
+RANK0000 | 2025-11-04 01:32:03,681 | DONE LOADING DATA; EXIT BARRIER
+RANK0000 | 2025-11-04 01:32:03,681 | Mem after panel groups: 1.499397 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:03,681 | Mem after panel groups: 1.499397 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:03,681 | Mem after panel groups: 1.499397 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:03,681 | EVENT: Gathering global HKL information
+RANK0000 | 2025-11-04 01:32:03,681 | EVENT: Gathering global HKL information
+RANK0000 | 2025-11-04 01:32:03,681 | EVENT: Gathering global HKL information
+RANK0000 | 2025-11-04 01:32:03,781 | EVENT: FINISHED gather global HKL information
+RANK0000 | 2025-11-04 01:32:03,781 | EVENT: FINISHED gather global HKL information
+RANK0000 | 2025-11-04 01:32:03,781 | EVENT: FINISHED gather global HKL information
+RANK0000 | 2025-11-04 01:32:03,781 | Mem after gather Hi info: 1.499397 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:03,781 | Mem after gather Hi info: 1.499397 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:03,781 | Mem after gather Hi info: 1.499397 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:03,782 | BEGIN DETERMINE MAX PIX
+RANK0000 | 2025-11-04 01:32:03,782 | BEGIN DETERMINE MAX PIX
+RANK0000 | 2025-11-04 01:32:03,782 | BEGIN DETERMINE MAX PIX
+RANK0000 | 2025-11-04 01:32:03,782 | Rank 0, max pix to be modeled: 8700
+RANK0000 | 2025-11-04 01:32:03,782 | Rank 0, max pix to be modeled: 8700
+RANK0000 | 2025-11-04 01:32:03,782 | Rank 0, max pix to be modeled: 8700
+RANK0000 | 2025-11-04 01:32:03,782 | DONE DETERMINE MAX PIX
+RANK0000 | 2025-11-04 01:32:03,782 | DONE DETERMINE MAX PIX
+RANK0000 | 2025-11-04 01:32:03,782 | DONE DETERMINE MAX PIX
+RANK0000 | 2025-11-04 01:32:03,782 | Mem after determine max num pix: 1.499397 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:03,782 | Mem after determine max num pix: 1.499397 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:03,782 | Mem after determine max num pix: 1.499397 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:03,782 | Mem after load_inputs: 1.499397 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:03,782 | Mem after load_inputs: 1.499397 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:03,782 | Mem after load_inputs: 1.499397 GB on node ollie-System-Product-Name
+How many pixels each rank will allocate for on its device:
+(rnk0, dev0): 8700 pix
+Iteration 1:
+	Resid=195044.568181, sigmaZ 6.319621, t-per-iter=0.0393 sec, pred_offsets=
+Iteration 2:
+	Resid=276996210.807010, sigmaZ 251.588040, t-per-iter=0.0391 sec, pred_offsets=
+Iteration 3:
+	Resid=281477072.086115, sigmaZ 253.604396, t-per-iter=0.0393 sec, pred_offsets=
+Iteration 4:
+	Resid=769660.058067, sigmaZ 13.122230, t-per-iter=0.0392 sec, pred_offsets=
+Iteration 5:
+	Resid=194952.642813, sigmaZ 6.317781, t-per-iter=0.0392 sec, pred_offsets=
+Iteration 6:
+	Resid=195054.044944, sigmaZ 6.319757, t-per-iter=0.0391 sec, pred_offsets=
+Iteration 7:
+	Resid=194826.196595, sigmaZ 6.315520, t-per-iter=0.0390 sec, pred_offsets=
+Iteration 8:
+	Resid=194727.163779, sigmaZ 6.313770, t-per-iter=0.0389 sec, pred_offsets=
+Iteration 9:
+	Resid=194716.610054, sigmaZ 6.313562, t-per-iter=0.0389 sec, pred_offsets=
+Iteration 10:
+	Resid=194716.052989, sigmaZ 6.313551, t-per-iter=0.0388 sec, pred_offsets=
+Iteration 11:
+	Resid=194714.972034, sigmaZ 6.313529, t-per-iter=0.0388 sec, pred_offsets=
+Iteration 12:
+	Resid=194712.809815, sigmaZ 6.313487, t-per-iter=0.0388 sec, pred_offsets=
+Iteration 13:
+	Resid=194708.512958, sigmaZ 6.313405, t-per-iter=0.0387 sec, pred_offsets=
+Iteration 14:
+	Resid=194705.185943, sigmaZ 6.313343, t-per-iter=0.0387 sec, pred_offsets=
+Iteration 15:
+	Resid=194704.527691, sigmaZ 6.313335, t-per-iter=0.0387 sec, pred_offsets=
+Iteration 16:
+	Resid=194704.322691, sigmaZ 6.313330, t-per-iter=0.0387 sec, pred_offsets=
+Iteration 17:
+	Resid=194704.265747, sigmaZ 6.313329, t-per-iter=0.0386 sec, pred_offsets=
+Iteration 18:
+	Resid=194704.075921, sigmaZ 6.313325, t-per-iter=0.0386 sec, pred_offsets=
+Iteration 19:
+	Resid=194703.831141, sigmaZ 6.313320, t-per-iter=0.0386 sec, pred_offsets=
+Iteration 20:
+	Resid=194703.922760, sigmaZ 6.313317, t-per-iter=0.0386 sec, pred_offsets=
+Iteration 21:
+	Resid=194703.721966, sigmaZ 6.313316, t-per-iter=0.0386 sec, pred_offsets=
+Iteration 22:
+	Resid=194703.633427, sigmaZ 6.313314, t-per-iter=0.0386 sec, pred_offsets=
+Iteration 23:
+	Resid=194703.615402, sigmaZ 6.313314, t-per-iter=0.0386 sec, pred_offsets=
+Iteration 24:
+	Resid=194703.615294, sigmaZ 6.313314, t-per-iter=0.0386 sec, pred_offsets=
+Iteration 25:
+	Resid=194703.615292, sigmaZ 6.313314, t-per-iter=0.0386 sec, pred_offsets=
+Final Iteration 25:
+	Resid=194703.615292, sigmaZ 6.313314
+Saved detector model to _geom.out/diffBragg_detector.expt
+INFO: Refinement macro cycle 4/5...
+INFO:canonical_capture:Refinement macro cycle 4/5...
+RANK0000 | 2025-11-04 01:32:04,817 | Number of ROIS that will proceed to refinement: 87/92
+RANK0000 | 2025-11-04 01:32:04,817 | Number of ROIS that will proceed to refinement: 87/92
+RANK0000 | 2025-11-04 01:32:04,817 | Number of ROIS that will proceed to refinement: 87/92
+RANK0000 | 2025-11-04 01:32:04,834 | Setting initial mosaicity from params.init.eta_abc: 0.000000 0.000000 0.000000
+RANK0000 | 2025-11-04 01:32:04,834 | Setting initial mosaicity from params.init.eta_abc: 0.000000 0.000000 0.000000
+RANK0000 | 2025-11-04 01:32:04,834 | Setting initial mosaicity from params.init.eta_abc: 0.000000 0.000000 0.000000
+RANK0000 | 2025-11-04 01:32:04,834 | Number of mosaic domains from params: 1
+RANK0000 | 2025-11-04 01:32:04,834 | Number of mosaic domains from params: 1
+RANK0000 | 2025-11-04 01:32:04,834 | Number of mosaic domains from params: 1
+RANK0000 | 2025-11-04 01:32:04,902 | Loaded simulator
+RANK0000 | 2025-11-04 01:32:04,902 | Loaded simulator
+RANK0000 | 2025-11-04 01:32:04,902 | Loaded simulator
+RANK0000 | 2025-11-04 01:32:04,903 | Will not use mosaic models, as simulator.crystal.num_mosaicity_samples=1
+RANK0000 | 2025-11-04 01:32:04,903 | Will not use mosaic models, as simulator.crystal.num_mosaicity_samples=1
+RANK0000 | 2025-11-04 01:32:04,903 | Will not use mosaic models, as simulator.crystal.num_mosaicity_samples=1
+Warning, crystal system not determined, assuming triclinic
+RANK0000 | 2025-11-04 01:32:04,903 | Unit cell variable a_Ang (currently=27.361518) is bounded by 24.625367 and 30.097670
+RANK0000 | 2025-11-04 01:32:04,903 | Unit cell variable a_Ang (currently=27.361518) is bounded by 24.625367 and 30.097670
+RANK0000 | 2025-11-04 01:32:04,903 | Unit cell variable a_Ang (currently=27.361518) is bounded by 24.625367 and 30.097670
+RANK0000 | 2025-11-04 01:32:04,903 | Unit cell variable b_Ang (currently=32.057596) is bounded by 28.851836 and 35.263355
+RANK0000 | 2025-11-04 01:32:04,903 | Unit cell variable b_Ang (currently=32.057596) is bounded by 28.851836 and 35.263355
+RANK0000 | 2025-11-04 01:32:04,903 | Unit cell variable b_Ang (currently=32.057596) is bounded by 28.851836 and 35.263355
+RANK0000 | 2025-11-04 01:32:04,903 | Unit cell variable c_Ang (currently=34.460339) is bounded by 31.014305 and 37.906373
+RANK0000 | 2025-11-04 01:32:04,903 | Unit cell variable c_Ang (currently=34.460339) is bounded by 31.014305 and 37.906373
+RANK0000 | 2025-11-04 01:32:04,903 | Unit cell variable c_Ang (currently=34.460339) is bounded by 31.014305 and 37.906373
+RANK0000 | 2025-11-04 01:32:04,903 | Unit cell variable alpha_rad (currently=1.547950) is bounded by 1.460684 and 1.635217
+RANK0000 | 2025-11-04 01:32:04,903 | Unit cell variable alpha_rad (currently=1.547950) is bounded by 1.460684 and 1.635217
+RANK0000 | 2025-11-04 01:32:04,903 | Unit cell variable alpha_rad (currently=1.547950) is bounded by 1.460684 and 1.635217
+RANK0000 | 2025-11-04 01:32:04,903 | Unit cell variable beta_rad (currently=1.249119) is bounded by 1.161852 and 1.336385
+RANK0000 | 2025-11-04 01:32:04,903 | Unit cell variable beta_rad (currently=1.249119) is bounded by 1.161852 and 1.336385
+RANK0000 | 2025-11-04 01:32:04,903 | Unit cell variable beta_rad (currently=1.249119) is bounded by 1.161852 and 1.336385
+RANK0000 | 2025-11-04 01:32:04,903 | Unit cell variable gamma_rad (currently=1.189095) is bounded by 1.101829 and 1.276362
+RANK0000 | 2025-11-04 01:32:04,903 | Unit cell variable gamma_rad (currently=1.189095) is bounded by 1.101829 and 1.276362
+RANK0000 | 2025-11-04 01:32:04,903 | Unit cell variable gamma_rad (currently=1.189095) is bounded by 1.101829 and 1.276362
+Warning, crystal system not determined, assuming triclinic
+RANK0000 | 2025-11-04 01:32:13,547 | Filtered 5 / 92 reflections which did not show peaks in model
+RANK0000 | 2025-11-04 01:32:13,547 | Filtered 5 / 92 reflections which did not show peaks in model
+RANK0000 | 2025-11-04 01:32:13,547 | Filtered 5 / 92 reflections which did not show peaks in model
+RANK0000 | 2025-11-04 01:32:13,621 | Number of ROIS that will proceed to refinement: 87/92
+RANK0000 | 2025-11-04 01:32:13,621 | Number of ROIS that will proceed to refinement: 87/92
+RANK0000 | 2025-11-04 01:32:13,621 | Number of ROIS that will proceed to refinement: 87/92
+RANK0000 | 2025-11-04 01:32:13,638 | Setting initial mosaicity from params.init.eta_abc: 0.000000 0.000000 0.000000
+RANK0000 | 2025-11-04 01:32:13,638 | Setting initial mosaicity from params.init.eta_abc: 0.000000 0.000000 0.000000
+RANK0000 | 2025-11-04 01:32:13,638 | Setting initial mosaicity from params.init.eta_abc: 0.000000 0.000000 0.000000
+RANK0000 | 2025-11-04 01:32:13,638 | Number of mosaic domains from params: 1
+RANK0000 | 2025-11-04 01:32:13,638 | Number of mosaic domains from params: 1
+RANK0000 | 2025-11-04 01:32:13,638 | Number of mosaic domains from params: 1
+RANK0000 | 2025-11-04 01:32:13,707 | Loaded simulator
+RANK0000 | 2025-11-04 01:32:13,707 | Loaded simulator
+RANK0000 | 2025-11-04 01:32:13,707 | Loaded simulator
+RANK0000 | 2025-11-04 01:32:13,707 | Will not use mosaic models, as simulator.crystal.num_mosaicity_samples=1
+RANK0000 | 2025-11-04 01:32:13,707 | Will not use mosaic models, as simulator.crystal.num_mosaicity_samples=1
+RANK0000 | 2025-11-04 01:32:13,707 | Will not use mosaic models, as simulator.crystal.num_mosaicity_samples=1
+Warning, crystal system not determined, assuming triclinic
+RANK0000 | 2025-11-04 01:32:13,823 | Unit cell variable a_Ang (currently=27.362863) is bounded by 24.626577 and 30.099149
+RANK0000 | 2025-11-04 01:32:13,823 | Unit cell variable a_Ang (currently=27.362863) is bounded by 24.626577 and 30.099149
+RANK0000 | 2025-11-04 01:32:13,823 | Unit cell variable a_Ang (currently=27.362863) is bounded by 24.626577 and 30.099149
+RANK0000 | 2025-11-04 01:32:13,823 | Unit cell variable b_Ang (currently=32.057776) is bounded by 28.851998 and 35.263553
+RANK0000 | 2025-11-04 01:32:13,823 | Unit cell variable b_Ang (currently=32.057776) is bounded by 28.851998 and 35.263553
+RANK0000 | 2025-11-04 01:32:13,823 | Unit cell variable b_Ang (currently=32.057776) is bounded by 28.851998 and 35.263553
+RANK0000 | 2025-11-04 01:32:13,823 | Unit cell variable c_Ang (currently=34.465234) is bounded by 31.018710 and 37.911757
+RANK0000 | 2025-11-04 01:32:13,823 | Unit cell variable c_Ang (currently=34.465234) is bounded by 31.018710 and 37.911757
+RANK0000 | 2025-11-04 01:32:13,823 | Unit cell variable c_Ang (currently=34.465234) is bounded by 31.018710 and 37.911757
+RANK0000 | 2025-11-04 01:32:13,824 | Unit cell variable alpha_rad (currently=1.547767) is bounded by 1.460501 and 1.635034
+RANK0000 | 2025-11-04 01:32:13,824 | Unit cell variable alpha_rad (currently=1.547767) is bounded by 1.460501 and 1.635034
+RANK0000 | 2025-11-04 01:32:13,824 | Unit cell variable alpha_rad (currently=1.547767) is bounded by 1.460501 and 1.635034
+RANK0000 | 2025-11-04 01:32:13,824 | Unit cell variable beta_rad (currently=1.248933) is bounded by 1.161667 and 1.336200
+RANK0000 | 2025-11-04 01:32:13,824 | Unit cell variable beta_rad (currently=1.248933) is bounded by 1.161667 and 1.336200
+RANK0000 | 2025-11-04 01:32:13,824 | Unit cell variable beta_rad (currently=1.248933) is bounded by 1.161667 and 1.336200
+RANK0000 | 2025-11-04 01:32:13,824 | Unit cell variable gamma_rad (currently=1.189023) is bounded by 1.101756 and 1.276289
+RANK0000 | 2025-11-04 01:32:13,824 | Unit cell variable gamma_rad (currently=1.189023) is bounded by 1.101756 and 1.276289
+RANK0000 | 2025-11-04 01:32:13,824 | Unit cell variable gamma_rad (currently=1.189023) is bounded by 1.101756 and 1.276289
+Warning, crystal system not determined, assuming triclinic
+RANK0000 | 2025-11-04 01:32:19,261 | Filtered 5 / 92 reflections which did not show peaks in model
+RANK0000 | 2025-11-04 01:32:19,261 | Filtered 5 / 92 reflections which did not show peaks in model
+RANK0000 | 2025-11-04 01:32:19,261 | Filtered 5 / 92 reflections which did not show peaks in model
+Warning, crystal system not determined, assuming triclinic
+Will optimize using 1 experiments
+RANK0000 | 2025-11-04 01:32:19,389 | Loading nrefls per shot
+RANK0000 | 2025-11-04 01:32:19,389 | Loading nrefls per shot
+RANK0000 | 2025-11-04 01:32:19,389 | Loading nrefls per shot
+RANK0000 | 2025-11-04 01:32:19,389 | Loading nrefls per shot
+Found 1 shots originally, but only 1 had finite number of refls to model
+RANK0000 | 2025-11-04 01:32:19,390 | EVENT: begin loading inputs
+RANK0000 | 2025-11-04 01:32:19,390 | EVENT: begin loading inputs
+RANK0000 | 2025-11-04 01:32:19,390 | EVENT: begin loading inputs
+RANK0000 | 2025-11-04 01:32:19,390 | EVENT: begin loading inputs
+RANK0000 | 2025-11-04 01:32:19,418 | Will use space group symbol P 1
+RANK0000 | 2025-11-04 01:32:19,418 | Will use space group symbol P 1
+RANK0000 | 2025-11-04 01:32:19,418 | Will use space group symbol P 1
+RANK0000 | 2025-11-04 01:32:19,418 | Will use space group symbol P 1
+RANK0000 | 2025-11-04 01:32:19,548 | EVENT: BEGIN loading experiment list
+RANK0000 | 2025-11-04 01:32:19,548 | EVENT: BEGIN loading experiment list
+RANK0000 | 2025-11-04 01:32:19,548 | EVENT: BEGIN loading experiment list
+RANK0000 | 2025-11-04 01:32:19,548 | EVENT: BEGIN loading experiment list
+RANK0000 | 2025-11-04 01:32:19,550 | EVENT: DONE loading experiment list
+RANK0000 | 2025-11-04 01:32:19,550 | EVENT: DONE loading experiment list
+RANK0000 | 2025-11-04 01:32:19,550 | EVENT: DONE loading experiment list
+RANK0000 | 2025-11-04 01:32:19,550 | EVENT: DONE loading experiment list
+Warning, crystal system not determined, assuming triclinic
+RANK0000 | 2025-11-04 01:32:19,551 | EVENT: LOADING ROI DATA
+RANK0000 | 2025-11-04 01:32:19,551 | EVENT: LOADING ROI DATA
+RANK0000 | 2025-11-04 01:32:19,551 | EVENT: LOADING ROI DATA
+RANK0000 | 2025-11-04 01:32:19,551 | EVENT: LOADING ROI DATA
+RANK0000 | 2025-11-04 01:32:19,622 | Number of ROIS that will proceed to refinement: 87/92
+RANK0000 | 2025-11-04 01:32:19,622 | Number of ROIS that will proceed to refinement: 87/92
+RANK0000 | 2025-11-04 01:32:19,622 | Number of ROIS that will proceed to refinement: 87/92
+RANK0000 | 2025-11-04 01:32:19,622 | Number of ROIS that will proceed to refinement: 87/92
+RANK0000 | 2025-11-04 01:32:19,639 | Setting initial mosaicity from params.init.eta_abc: 0.000000 0.000000 0.000000
+RANK0000 | 2025-11-04 01:32:19,639 | Setting initial mosaicity from params.init.eta_abc: 0.000000 0.000000 0.000000
+RANK0000 | 2025-11-04 01:32:19,639 | Setting initial mosaicity from params.init.eta_abc: 0.000000 0.000000 0.000000
+RANK0000 | 2025-11-04 01:32:19,639 | Setting initial mosaicity from params.init.eta_abc: 0.000000 0.000000 0.000000
+RANK0000 | 2025-11-04 01:32:19,639 | Number of mosaic domains from params: 1
+RANK0000 | 2025-11-04 01:32:19,639 | Number of mosaic domains from params: 1
+RANK0000 | 2025-11-04 01:32:19,639 | Number of mosaic domains from params: 1
+RANK0000 | 2025-11-04 01:32:19,639 | Number of mosaic domains from params: 1
+RANK0000 | 2025-11-04 01:32:19,715 | Loaded simulator
+RANK0000 | 2025-11-04 01:32:19,715 | Loaded simulator
+RANK0000 | 2025-11-04 01:32:19,715 | Loaded simulator
+RANK0000 | 2025-11-04 01:32:19,715 | Loaded simulator
+RANK0000 | 2025-11-04 01:32:19,715 | Will not use mosaic models, as simulator.crystal.num_mosaicity_samples=1
+RANK0000 | 2025-11-04 01:32:19,715 | Will not use mosaic models, as simulator.crystal.num_mosaicity_samples=1
+RANK0000 | 2025-11-04 01:32:19,715 | Will not use mosaic models, as simulator.crystal.num_mosaicity_samples=1
+RANK0000 | 2025-11-04 01:32:19,715 | Will not use mosaic models, as simulator.crystal.num_mosaicity_samples=1
+RANK0000 | 2025-11-04 01:32:19,755 | EVENT: DONE LOADING ROI
+RANK0000 | 2025-11-04 01:32:19,755 | EVENT: DONE LOADING ROI
+RANK0000 | 2025-11-04 01:32:19,755 | EVENT: DONE LOADING ROI
+RANK0000 | 2025-11-04 01:32:19,755 | EVENT: DONE LOADING ROI
+RANK0000 | 2025-11-04 01:32:19,755 | Will simulate 1 energy channels
+RANK0000 | 2025-11-04 01:32:19,755 | Will simulate 1 energy channels
+RANK0000 | 2025-11-04 01:32:19,755 | Will simulate 1 energy channels
+RANK0000 | 2025-11-04 01:32:19,755 | Will simulate 1 energy channels
+RANK0000 | 2025-11-04 01:32:19,755 | Process memory usage: 1.624683 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:19,755 | Process memory usage: 1.624683 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:19,755 | Process memory usage: 1.624683 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:19,755 | Process memory usage: 1.624683 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:19,756 | Finished loading image 1 / 1 (1 / 1)
+RANK0000 | 2025-11-04 01:32:19,756 | Finished loading image 1 / 1 (1 / 1)
+RANK0000 | 2025-11-04 01:32:19,756 | Finished loading image 1 / 1 (1 / 1)
+RANK0000 | 2025-11-04 01:32:19,756 | Finished loading image 1 / 1 (1 / 1)
+Warning, crystal system not determined, assuming triclinic
+RANK0000 | 2025-11-04 01:32:19,756 | DONE LOADING DATA; ENTER BARRIER
+RANK0000 | 2025-11-04 01:32:19,756 | DONE LOADING DATA; ENTER BARRIER
+RANK0000 | 2025-11-04 01:32:19,756 | DONE LOADING DATA; ENTER BARRIER
+RANK0000 | 2025-11-04 01:32:19,756 | DONE LOADING DATA; ENTER BARRIER
+RANK0000 | 2025-11-04 01:32:19,756 | DONE LOADING DATA; EXIT BARRIER
+RANK0000 | 2025-11-04 01:32:19,756 | DONE LOADING DATA; EXIT BARRIER
+RANK0000 | 2025-11-04 01:32:19,756 | DONE LOADING DATA; EXIT BARRIER
+RANK0000 | 2025-11-04 01:32:19,756 | DONE LOADING DATA; EXIT BARRIER
+RANK0000 | 2025-11-04 01:32:19,756 | Mem after panel groups: 1.624683 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:19,756 | Mem after panel groups: 1.624683 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:19,756 | Mem after panel groups: 1.624683 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:19,756 | Mem after panel groups: 1.624683 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:19,756 | EVENT: Gathering global HKL information
+RANK0000 | 2025-11-04 01:32:19,756 | EVENT: Gathering global HKL information
+RANK0000 | 2025-11-04 01:32:19,756 | EVENT: Gathering global HKL information
+RANK0000 | 2025-11-04 01:32:19,756 | EVENT: Gathering global HKL information
+RANK0000 | 2025-11-04 01:32:19,859 | EVENT: FINISHED gather global HKL information
+RANK0000 | 2025-11-04 01:32:19,859 | EVENT: FINISHED gather global HKL information
+RANK0000 | 2025-11-04 01:32:19,859 | EVENT: FINISHED gather global HKL information
+RANK0000 | 2025-11-04 01:32:19,859 | EVENT: FINISHED gather global HKL information
+RANK0000 | 2025-11-04 01:32:19,859 | Mem after gather Hi info: 1.624683 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:19,859 | Mem after gather Hi info: 1.624683 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:19,859 | Mem after gather Hi info: 1.624683 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:19,859 | Mem after gather Hi info: 1.624683 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:19,859 | BEGIN DETERMINE MAX PIX
+RANK0000 | 2025-11-04 01:32:19,859 | BEGIN DETERMINE MAX PIX
+RANK0000 | 2025-11-04 01:32:19,859 | BEGIN DETERMINE MAX PIX
+RANK0000 | 2025-11-04 01:32:19,859 | BEGIN DETERMINE MAX PIX
+RANK0000 | 2025-11-04 01:32:19,859 | Rank 0, max pix to be modeled: 8700
+RANK0000 | 2025-11-04 01:32:19,859 | Rank 0, max pix to be modeled: 8700
+RANK0000 | 2025-11-04 01:32:19,859 | Rank 0, max pix to be modeled: 8700
+RANK0000 | 2025-11-04 01:32:19,859 | Rank 0, max pix to be modeled: 8700
+RANK0000 | 2025-11-04 01:32:19,859 | DONE DETERMINE MAX PIX
+RANK0000 | 2025-11-04 01:32:19,859 | DONE DETERMINE MAX PIX
+RANK0000 | 2025-11-04 01:32:19,859 | DONE DETERMINE MAX PIX
+RANK0000 | 2025-11-04 01:32:19,859 | DONE DETERMINE MAX PIX
+RANK0000 | 2025-11-04 01:32:19,859 | Mem after determine max num pix: 1.624683 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:19,859 | Mem after determine max num pix: 1.624683 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:19,859 | Mem after determine max num pix: 1.624683 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:19,859 | Mem after determine max num pix: 1.624683 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:19,859 | Mem after load_inputs: 1.624683 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:19,859 | Mem after load_inputs: 1.624683 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:19,859 | Mem after load_inputs: 1.624683 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:19,859 | Mem after load_inputs: 1.624683 GB on node ollie-System-Product-Name
+How many pixels each rank will allocate for on its device:
+(rnk0, dev0): 8700 pix
+Iteration 1:
+	Resid=193869.913901, sigmaZ 6.298295, t-per-iter=0.0394 sec, pred_offsets=
+Iteration 2:
+	Resid=281476832.960654, sigmaZ 253.603633, t-per-iter=0.0395 sec, pred_offsets=
+Iteration 3:
+	Resid=281714797.584657, sigmaZ 253.781304, t-per-iter=0.0392 sec, pred_offsets=
+Iteration 4:
+	Resid=193855.858908, sigmaZ 6.298035, t-per-iter=0.0391 sec, pred_offsets=
+Iteration 5:
+	Resid=193705.482430, sigmaZ 6.295220, t-per-iter=0.0390 sec, pred_offsets=
+Iteration 6:
+	Resid=193862.628063, sigmaZ 6.298064, t-per-iter=0.0389 sec, pred_offsets=
+Iteration 7:
+	Resid=193668.327976, sigmaZ 6.294528, t-per-iter=0.0388 sec, pred_offsets=
+Iteration 8:
+	Resid=193664.363677, sigmaZ 6.294459, t-per-iter=0.0388 sec, pred_offsets=
+Iteration 9:
+	Resid=193658.807400, sigmaZ 6.294367, t-per-iter=0.0389 sec, pred_offsets=
+Iteration 10:
+	Resid=193658.425987, sigmaZ 6.294361, t-per-iter=0.0389 sec, pred_offsets=
+Iteration 11:
+	Resid=193657.194943, sigmaZ 6.294339, t-per-iter=0.0388 sec, pred_offsets=
+Iteration 12:
+	Resid=193654.285894, sigmaZ 6.294283, t-per-iter=0.0388 sec, pred_offsets=
+Iteration 13:
+	Resid=193653.412849, sigmaZ 6.294263, t-per-iter=0.0388 sec, pred_offsets=
+Iteration 14:
+	Resid=193653.296599, sigmaZ 6.294259, t-per-iter=0.0388 sec, pred_offsets=
+Iteration 15:
+	Resid=193653.241290, sigmaZ 6.294257, t-per-iter=0.0387 sec, pred_offsets=
+Iteration 16:
+	Resid=193653.174897, sigmaZ 6.294256, t-per-iter=0.0387 sec, pred_offsets=
+Iteration 17:
+	Resid=193653.166514, sigmaZ 6.294256, t-per-iter=0.0387 sec, pred_offsets=
+Iteration 18:
+	Resid=193653.166132, sigmaZ 6.294256, t-per-iter=0.0387 sec, pred_offsets=
+Iteration 19:
+	Resid=193653.166126, sigmaZ 6.294256, t-per-iter=0.0387 sec, pred_offsets=
+Final Iteration 19:
+	Resid=193653.166126, sigmaZ 6.294256
+Saved detector model to _geom.out/diffBragg_detector.expt
+INFO: Refinement macro cycle 5/5...
+INFO:canonical_capture:Refinement macro cycle 5/5...
+RANK0000 | 2025-11-04 01:32:20,663 | Number of ROIS that will proceed to refinement: 87/92
+RANK0000 | 2025-11-04 01:32:20,663 | Number of ROIS that will proceed to refinement: 87/92
+RANK0000 | 2025-11-04 01:32:20,663 | Number of ROIS that will proceed to refinement: 87/92
+RANK0000 | 2025-11-04 01:32:20,663 | Number of ROIS that will proceed to refinement: 87/92
+RANK0000 | 2025-11-04 01:32:20,680 | Setting initial mosaicity from params.init.eta_abc: 0.000000 0.000000 0.000000
+RANK0000 | 2025-11-04 01:32:20,680 | Setting initial mosaicity from params.init.eta_abc: 0.000000 0.000000 0.000000
+RANK0000 | 2025-11-04 01:32:20,680 | Setting initial mosaicity from params.init.eta_abc: 0.000000 0.000000 0.000000
+RANK0000 | 2025-11-04 01:32:20,680 | Setting initial mosaicity from params.init.eta_abc: 0.000000 0.000000 0.000000
+RANK0000 | 2025-11-04 01:32:20,680 | Number of mosaic domains from params: 1
+RANK0000 | 2025-11-04 01:32:20,680 | Number of mosaic domains from params: 1
+RANK0000 | 2025-11-04 01:32:20,680 | Number of mosaic domains from params: 1
+RANK0000 | 2025-11-04 01:32:20,680 | Number of mosaic domains from params: 1
+RANK0000 | 2025-11-04 01:32:20,751 | Loaded simulator
+RANK0000 | 2025-11-04 01:32:20,751 | Loaded simulator
+RANK0000 | 2025-11-04 01:32:20,751 | Loaded simulator
+RANK0000 | 2025-11-04 01:32:20,751 | Loaded simulator
+RANK0000 | 2025-11-04 01:32:20,752 | Will not use mosaic models, as simulator.crystal.num_mosaicity_samples=1
+RANK0000 | 2025-11-04 01:32:20,752 | Will not use mosaic models, as simulator.crystal.num_mosaicity_samples=1
+RANK0000 | 2025-11-04 01:32:20,752 | Will not use mosaic models, as simulator.crystal.num_mosaicity_samples=1
+RANK0000 | 2025-11-04 01:32:20,752 | Will not use mosaic models, as simulator.crystal.num_mosaicity_samples=1
+Warning, crystal system not determined, assuming triclinic
+RANK0000 | 2025-11-04 01:32:20,752 | Unit cell variable a_Ang (currently=27.362863) is bounded by 24.626577 and 30.099149
+RANK0000 | 2025-11-04 01:32:20,752 | Unit cell variable a_Ang (currently=27.362863) is bounded by 24.626577 and 30.099149
+RANK0000 | 2025-11-04 01:32:20,752 | Unit cell variable a_Ang (currently=27.362863) is bounded by 24.626577 and 30.099149
+RANK0000 | 2025-11-04 01:32:20,752 | Unit cell variable a_Ang (currently=27.362863) is bounded by 24.626577 and 30.099149
+RANK0000 | 2025-11-04 01:32:20,752 | Unit cell variable b_Ang (currently=32.057776) is bounded by 28.851998 and 35.263553
+RANK0000 | 2025-11-04 01:32:20,752 | Unit cell variable b_Ang (currently=32.057776) is bounded by 28.851998 and 35.263553
+RANK0000 | 2025-11-04 01:32:20,752 | Unit cell variable b_Ang (currently=32.057776) is bounded by 28.851998 and 35.263553
+RANK0000 | 2025-11-04 01:32:20,752 | Unit cell variable b_Ang (currently=32.057776) is bounded by 28.851998 and 35.263553
+RANK0000 | 2025-11-04 01:32:20,752 | Unit cell variable c_Ang (currently=34.465234) is bounded by 31.018710 and 37.911757
+RANK0000 | 2025-11-04 01:32:20,752 | Unit cell variable c_Ang (currently=34.465234) is bounded by 31.018710 and 37.911757
+RANK0000 | 2025-11-04 01:32:20,752 | Unit cell variable c_Ang (currently=34.465234) is bounded by 31.018710 and 37.911757
+RANK0000 | 2025-11-04 01:32:20,752 | Unit cell variable c_Ang (currently=34.465234) is bounded by 31.018710 and 37.911757
+RANK0000 | 2025-11-04 01:32:20,752 | Unit cell variable alpha_rad (currently=1.547767) is bounded by 1.460501 and 1.635034
+RANK0000 | 2025-11-04 01:32:20,752 | Unit cell variable alpha_rad (currently=1.547767) is bounded by 1.460501 and 1.635034
+RANK0000 | 2025-11-04 01:32:20,752 | Unit cell variable alpha_rad (currently=1.547767) is bounded by 1.460501 and 1.635034
+RANK0000 | 2025-11-04 01:32:20,752 | Unit cell variable alpha_rad (currently=1.547767) is bounded by 1.460501 and 1.635034
+RANK0000 | 2025-11-04 01:32:20,752 | Unit cell variable beta_rad (currently=1.248933) is bounded by 1.161667 and 1.336200
+RANK0000 | 2025-11-04 01:32:20,752 | Unit cell variable beta_rad (currently=1.248933) is bounded by 1.161667 and 1.336200
+RANK0000 | 2025-11-04 01:32:20,752 | Unit cell variable beta_rad (currently=1.248933) is bounded by 1.161667 and 1.336200
+RANK0000 | 2025-11-04 01:32:20,752 | Unit cell variable beta_rad (currently=1.248933) is bounded by 1.161667 and 1.336200
+RANK0000 | 2025-11-04 01:32:20,752 | Unit cell variable gamma_rad (currently=1.189023) is bounded by 1.101756 and 1.276289
+RANK0000 | 2025-11-04 01:32:20,752 | Unit cell variable gamma_rad (currently=1.189023) is bounded by 1.101756 and 1.276289
+RANK0000 | 2025-11-04 01:32:20,752 | Unit cell variable gamma_rad (currently=1.189023) is bounded by 1.101756 and 1.276289
+RANK0000 | 2025-11-04 01:32:20,752 | Unit cell variable gamma_rad (currently=1.189023) is bounded by 1.101756 and 1.276289
+Warning, crystal system not determined, assuming triclinic
+RANK0000 | 2025-11-04 01:32:29,386 | Filtered 5 / 92 reflections which did not show peaks in model
+RANK0000 | 2025-11-04 01:32:29,386 | Filtered 5 / 92 reflections which did not show peaks in model
+RANK0000 | 2025-11-04 01:32:29,386 | Filtered 5 / 92 reflections which did not show peaks in model
+RANK0000 | 2025-11-04 01:32:29,386 | Filtered 5 / 92 reflections which did not show peaks in model
+RANK0000 | 2025-11-04 01:32:29,454 | Number of ROIS that will proceed to refinement: 87/92
+RANK0000 | 2025-11-04 01:32:29,454 | Number of ROIS that will proceed to refinement: 87/92
+RANK0000 | 2025-11-04 01:32:29,454 | Number of ROIS that will proceed to refinement: 87/92
+RANK0000 | 2025-11-04 01:32:29,454 | Number of ROIS that will proceed to refinement: 87/92
+RANK0000 | 2025-11-04 01:32:29,471 | Setting initial mosaicity from params.init.eta_abc: 0.000000 0.000000 0.000000
+RANK0000 | 2025-11-04 01:32:29,471 | Setting initial mosaicity from params.init.eta_abc: 0.000000 0.000000 0.000000
+RANK0000 | 2025-11-04 01:32:29,471 | Setting initial mosaicity from params.init.eta_abc: 0.000000 0.000000 0.000000
+RANK0000 | 2025-11-04 01:32:29,471 | Setting initial mosaicity from params.init.eta_abc: 0.000000 0.000000 0.000000
+RANK0000 | 2025-11-04 01:32:29,471 | Number of mosaic domains from params: 1
+RANK0000 | 2025-11-04 01:32:29,471 | Number of mosaic domains from params: 1
+RANK0000 | 2025-11-04 01:32:29,471 | Number of mosaic domains from params: 1
+RANK0000 | 2025-11-04 01:32:29,471 | Number of mosaic domains from params: 1
+RANK0000 | 2025-11-04 01:32:29,543 | Loaded simulator
+RANK0000 | 2025-11-04 01:32:29,543 | Loaded simulator
+RANK0000 | 2025-11-04 01:32:29,543 | Loaded simulator
+RANK0000 | 2025-11-04 01:32:29,543 | Loaded simulator
+RANK0000 | 2025-11-04 01:32:29,543 | Will not use mosaic models, as simulator.crystal.num_mosaicity_samples=1
+RANK0000 | 2025-11-04 01:32:29,543 | Will not use mosaic models, as simulator.crystal.num_mosaicity_samples=1
+RANK0000 | 2025-11-04 01:32:29,543 | Will not use mosaic models, as simulator.crystal.num_mosaicity_samples=1
+RANK0000 | 2025-11-04 01:32:29,543 | Will not use mosaic models, as simulator.crystal.num_mosaicity_samples=1
+Warning, crystal system not determined, assuming triclinic
+RANK0000 | 2025-11-04 01:32:29,653 | Unit cell variable a_Ang (currently=27.363949) is bounded by 24.627555 and 30.100344
+RANK0000 | 2025-11-04 01:32:29,653 | Unit cell variable a_Ang (currently=27.363949) is bounded by 24.627555 and 30.100344
+RANK0000 | 2025-11-04 01:32:29,653 | Unit cell variable a_Ang (currently=27.363949) is bounded by 24.627555 and 30.100344
+RANK0000 | 2025-11-04 01:32:29,653 | Unit cell variable a_Ang (currently=27.363949) is bounded by 24.627555 and 30.100344
+RANK0000 | 2025-11-04 01:32:29,653 | Unit cell variable b_Ang (currently=32.057987) is bounded by 28.852188 and 35.263786
+RANK0000 | 2025-11-04 01:32:29,653 | Unit cell variable b_Ang (currently=32.057987) is bounded by 28.852188 and 35.263786
+RANK0000 | 2025-11-04 01:32:29,653 | Unit cell variable b_Ang (currently=32.057987) is bounded by 28.852188 and 35.263786
+RANK0000 | 2025-11-04 01:32:29,653 | Unit cell variable b_Ang (currently=32.057987) is bounded by 28.852188 and 35.263786
+RANK0000 | 2025-11-04 01:32:29,653 | Unit cell variable c_Ang (currently=34.469189) is bounded by 31.022271 and 37.916108
+RANK0000 | 2025-11-04 01:32:29,653 | Unit cell variable c_Ang (currently=34.469189) is bounded by 31.022271 and 37.916108
+RANK0000 | 2025-11-04 01:32:29,653 | Unit cell variable c_Ang (currently=34.469189) is bounded by 31.022271 and 37.916108
+RANK0000 | 2025-11-04 01:32:29,653 | Unit cell variable c_Ang (currently=34.469189) is bounded by 31.022271 and 37.916108
+RANK0000 | 2025-11-04 01:32:29,653 | Unit cell variable alpha_rad (currently=1.547616) is bounded by 1.460350 and 1.634882
+RANK0000 | 2025-11-04 01:32:29,653 | Unit cell variable alpha_rad (currently=1.547616) is bounded by 1.460350 and 1.634882
+RANK0000 | 2025-11-04 01:32:29,653 | Unit cell variable alpha_rad (currently=1.547616) is bounded by 1.460350 and 1.634882
+RANK0000 | 2025-11-04 01:32:29,653 | Unit cell variable alpha_rad (currently=1.547616) is bounded by 1.460350 and 1.634882
+RANK0000 | 2025-11-04 01:32:29,653 | Unit cell variable beta_rad (currently=1.248780) is bounded by 1.161513 and 1.336046
+RANK0000 | 2025-11-04 01:32:29,653 | Unit cell variable beta_rad (currently=1.248780) is bounded by 1.161513 and 1.336046
+RANK0000 | 2025-11-04 01:32:29,653 | Unit cell variable beta_rad (currently=1.248780) is bounded by 1.161513 and 1.336046
+RANK0000 | 2025-11-04 01:32:29,653 | Unit cell variable beta_rad (currently=1.248780) is bounded by 1.161513 and 1.336046
+RANK0000 | 2025-11-04 01:32:29,654 | Unit cell variable gamma_rad (currently=1.188962) is bounded by 1.101695 and 1.276228
+RANK0000 | 2025-11-04 01:32:29,654 | Unit cell variable gamma_rad (currently=1.188962) is bounded by 1.101695 and 1.276228
+RANK0000 | 2025-11-04 01:32:29,654 | Unit cell variable gamma_rad (currently=1.188962) is bounded by 1.101695 and 1.276228
+RANK0000 | 2025-11-04 01:32:29,654 | Unit cell variable gamma_rad (currently=1.188962) is bounded by 1.101695 and 1.276228
+Warning, crystal system not determined, assuming triclinic
+RANK0000 | 2025-11-04 01:32:35,162 | Filtered 5 / 92 reflections which did not show peaks in model
+RANK0000 | 2025-11-04 01:32:35,162 | Filtered 5 / 92 reflections which did not show peaks in model
+RANK0000 | 2025-11-04 01:32:35,162 | Filtered 5 / 92 reflections which did not show peaks in model
+RANK0000 | 2025-11-04 01:32:35,162 | Filtered 5 / 92 reflections which did not show peaks in model
+Warning, crystal system not determined, assuming triclinic
+Will optimize using 1 experiments
+RANK0000 | 2025-11-04 01:32:35,295 | Loading nrefls per shot
+RANK0000 | 2025-11-04 01:32:35,295 | Loading nrefls per shot
+RANK0000 | 2025-11-04 01:32:35,295 | Loading nrefls per shot
+RANK0000 | 2025-11-04 01:32:35,295 | Loading nrefls per shot
+RANK0000 | 2025-11-04 01:32:35,295 | Loading nrefls per shot
+Found 1 shots originally, but only 1 had finite number of refls to model
+RANK0000 | 2025-11-04 01:32:35,297 | EVENT: begin loading inputs
+RANK0000 | 2025-11-04 01:32:35,297 | EVENT: begin loading inputs
+RANK0000 | 2025-11-04 01:32:35,297 | EVENT: begin loading inputs
+RANK0000 | 2025-11-04 01:32:35,297 | EVENT: begin loading inputs
+RANK0000 | 2025-11-04 01:32:35,297 | EVENT: begin loading inputs
+RANK0000 | 2025-11-04 01:32:35,324 | Will use space group symbol P 1
+RANK0000 | 2025-11-04 01:32:35,324 | Will use space group symbol P 1
+RANK0000 | 2025-11-04 01:32:35,324 | Will use space group symbol P 1
+RANK0000 | 2025-11-04 01:32:35,324 | Will use space group symbol P 1
+RANK0000 | 2025-11-04 01:32:35,324 | Will use space group symbol P 1
+RANK0000 | 2025-11-04 01:32:35,455 | EVENT: BEGIN loading experiment list
+RANK0000 | 2025-11-04 01:32:35,455 | EVENT: BEGIN loading experiment list
+RANK0000 | 2025-11-04 01:32:35,455 | EVENT: BEGIN loading experiment list
+RANK0000 | 2025-11-04 01:32:35,455 | EVENT: BEGIN loading experiment list
+RANK0000 | 2025-11-04 01:32:35,455 | EVENT: BEGIN loading experiment list
+RANK0000 | 2025-11-04 01:32:35,457 | EVENT: DONE loading experiment list
+RANK0000 | 2025-11-04 01:32:35,457 | EVENT: DONE loading experiment list
+RANK0000 | 2025-11-04 01:32:35,457 | EVENT: DONE loading experiment list
+RANK0000 | 2025-11-04 01:32:35,457 | EVENT: DONE loading experiment list
+RANK0000 | 2025-11-04 01:32:35,457 | EVENT: DONE loading experiment list
+Warning, crystal system not determined, assuming triclinic
+RANK0000 | 2025-11-04 01:32:35,459 | EVENT: LOADING ROI DATA
+RANK0000 | 2025-11-04 01:32:35,459 | EVENT: LOADING ROI DATA
+RANK0000 | 2025-11-04 01:32:35,459 | EVENT: LOADING ROI DATA
+RANK0000 | 2025-11-04 01:32:35,459 | EVENT: LOADING ROI DATA
+RANK0000 | 2025-11-04 01:32:35,459 | EVENT: LOADING ROI DATA
+RANK0000 | 2025-11-04 01:32:35,523 | Number of ROIS that will proceed to refinement: 87/92
+RANK0000 | 2025-11-04 01:32:35,523 | Number of ROIS that will proceed to refinement: 87/92
+RANK0000 | 2025-11-04 01:32:35,523 | Number of ROIS that will proceed to refinement: 87/92
+RANK0000 | 2025-11-04 01:32:35,523 | Number of ROIS that will proceed to refinement: 87/92
+RANK0000 | 2025-11-04 01:32:35,523 | Number of ROIS that will proceed to refinement: 87/92
+RANK0000 | 2025-11-04 01:32:35,542 | Setting initial mosaicity from params.init.eta_abc: 0.000000 0.000000 0.000000
+RANK0000 | 2025-11-04 01:32:35,542 | Setting initial mosaicity from params.init.eta_abc: 0.000000 0.000000 0.000000
+RANK0000 | 2025-11-04 01:32:35,542 | Setting initial mosaicity from params.init.eta_abc: 0.000000 0.000000 0.000000
+RANK0000 | 2025-11-04 01:32:35,542 | Setting initial mosaicity from params.init.eta_abc: 0.000000 0.000000 0.000000
+RANK0000 | 2025-11-04 01:32:35,542 | Setting initial mosaicity from params.init.eta_abc: 0.000000 0.000000 0.000000
+RANK0000 | 2025-11-04 01:32:35,542 | Number of mosaic domains from params: 1
+RANK0000 | 2025-11-04 01:32:35,542 | Number of mosaic domains from params: 1
+RANK0000 | 2025-11-04 01:32:35,542 | Number of mosaic domains from params: 1
+RANK0000 | 2025-11-04 01:32:35,542 | Number of mosaic domains from params: 1
+RANK0000 | 2025-11-04 01:32:35,542 | Number of mosaic domains from params: 1
+RANK0000 | 2025-11-04 01:32:35,613 | Loaded simulator
+RANK0000 | 2025-11-04 01:32:35,613 | Loaded simulator
+RANK0000 | 2025-11-04 01:32:35,613 | Loaded simulator
+RANK0000 | 2025-11-04 01:32:35,613 | Loaded simulator
+RANK0000 | 2025-11-04 01:32:35,613 | Loaded simulator
+RANK0000 | 2025-11-04 01:32:35,614 | Will not use mosaic models, as simulator.crystal.num_mosaicity_samples=1
+RANK0000 | 2025-11-04 01:32:35,614 | Will not use mosaic models, as simulator.crystal.num_mosaicity_samples=1
+RANK0000 | 2025-11-04 01:32:35,614 | Will not use mosaic models, as simulator.crystal.num_mosaicity_samples=1
+RANK0000 | 2025-11-04 01:32:35,614 | Will not use mosaic models, as simulator.crystal.num_mosaicity_samples=1
+RANK0000 | 2025-11-04 01:32:35,614 | Will not use mosaic models, as simulator.crystal.num_mosaicity_samples=1
+RANK0000 | 2025-11-04 01:32:35,653 | EVENT: DONE LOADING ROI
+RANK0000 | 2025-11-04 01:32:35,653 | EVENT: DONE LOADING ROI
+RANK0000 | 2025-11-04 01:32:35,653 | EVENT: DONE LOADING ROI
+RANK0000 | 2025-11-04 01:32:35,653 | EVENT: DONE LOADING ROI
+RANK0000 | 2025-11-04 01:32:35,653 | EVENT: DONE LOADING ROI
+RANK0000 | 2025-11-04 01:32:35,654 | Will simulate 1 energy channels
+RANK0000 | 2025-11-04 01:32:35,654 | Will simulate 1 energy channels
+RANK0000 | 2025-11-04 01:32:35,654 | Will simulate 1 energy channels
+RANK0000 | 2025-11-04 01:32:35,654 | Will simulate 1 energy channels
+RANK0000 | 2025-11-04 01:32:35,654 | Will simulate 1 energy channels
+RANK0000 | 2025-11-04 01:32:35,654 | Process memory usage: 1.727074 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:35,654 | Process memory usage: 1.727074 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:35,654 | Process memory usage: 1.727074 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:35,654 | Process memory usage: 1.727074 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:35,654 | Process memory usage: 1.727074 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:35,654 | Finished loading image 1 / 1 (1 / 1)
+RANK0000 | 2025-11-04 01:32:35,654 | Finished loading image 1 / 1 (1 / 1)
+RANK0000 | 2025-11-04 01:32:35,654 | Finished loading image 1 / 1 (1 / 1)
+RANK0000 | 2025-11-04 01:32:35,654 | Finished loading image 1 / 1 (1 / 1)
+RANK0000 | 2025-11-04 01:32:35,654 | Finished loading image 1 / 1 (1 / 1)
+Warning, crystal system not determined, assuming triclinic
+RANK0000 | 2025-11-04 01:32:35,654 | DONE LOADING DATA; ENTER BARRIER
+RANK0000 | 2025-11-04 01:32:35,654 | DONE LOADING DATA; ENTER BARRIER
+RANK0000 | 2025-11-04 01:32:35,654 | DONE LOADING DATA; ENTER BARRIER
+RANK0000 | 2025-11-04 01:32:35,654 | DONE LOADING DATA; ENTER BARRIER
+RANK0000 | 2025-11-04 01:32:35,654 | DONE LOADING DATA; ENTER BARRIER
+RANK0000 | 2025-11-04 01:32:35,655 | DONE LOADING DATA; EXIT BARRIER
+RANK0000 | 2025-11-04 01:32:35,655 | DONE LOADING DATA; EXIT BARRIER
+RANK0000 | 2025-11-04 01:32:35,655 | DONE LOADING DATA; EXIT BARRIER
+RANK0000 | 2025-11-04 01:32:35,655 | DONE LOADING DATA; EXIT BARRIER
+RANK0000 | 2025-11-04 01:32:35,655 | DONE LOADING DATA; EXIT BARRIER
+RANK0000 | 2025-11-04 01:32:35,655 | Mem after panel groups: 1.727074 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:35,655 | Mem after panel groups: 1.727074 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:35,655 | Mem after panel groups: 1.727074 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:35,655 | Mem after panel groups: 1.727074 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:35,655 | Mem after panel groups: 1.727074 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:35,655 | EVENT: Gathering global HKL information
+RANK0000 | 2025-11-04 01:32:35,655 | EVENT: Gathering global HKL information
+RANK0000 | 2025-11-04 01:32:35,655 | EVENT: Gathering global HKL information
+RANK0000 | 2025-11-04 01:32:35,655 | EVENT: Gathering global HKL information
+RANK0000 | 2025-11-04 01:32:35,655 | EVENT: Gathering global HKL information
+RANK0000 | 2025-11-04 01:32:35,758 | EVENT: FINISHED gather global HKL information
+RANK0000 | 2025-11-04 01:32:35,758 | EVENT: FINISHED gather global HKL information
+RANK0000 | 2025-11-04 01:32:35,758 | EVENT: FINISHED gather global HKL information
+RANK0000 | 2025-11-04 01:32:35,758 | EVENT: FINISHED gather global HKL information
+RANK0000 | 2025-11-04 01:32:35,758 | EVENT: FINISHED gather global HKL information
+RANK0000 | 2025-11-04 01:32:35,759 | Mem after gather Hi info: 1.727074 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:35,759 | Mem after gather Hi info: 1.727074 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:35,759 | Mem after gather Hi info: 1.727074 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:35,759 | Mem after gather Hi info: 1.727074 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:35,759 | Mem after gather Hi info: 1.727074 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:35,759 | BEGIN DETERMINE MAX PIX
+RANK0000 | 2025-11-04 01:32:35,759 | BEGIN DETERMINE MAX PIX
+RANK0000 | 2025-11-04 01:32:35,759 | BEGIN DETERMINE MAX PIX
+RANK0000 | 2025-11-04 01:32:35,759 | BEGIN DETERMINE MAX PIX
+RANK0000 | 2025-11-04 01:32:35,759 | BEGIN DETERMINE MAX PIX
+RANK0000 | 2025-11-04 01:32:35,759 | Rank 0, max pix to be modeled: 8700
+RANK0000 | 2025-11-04 01:32:35,759 | Rank 0, max pix to be modeled: 8700
+RANK0000 | 2025-11-04 01:32:35,759 | Rank 0, max pix to be modeled: 8700
+RANK0000 | 2025-11-04 01:32:35,759 | Rank 0, max pix to be modeled: 8700
+RANK0000 | 2025-11-04 01:32:35,759 | Rank 0, max pix to be modeled: 8700
+RANK0000 | 2025-11-04 01:32:35,759 | DONE DETERMINE MAX PIX
+RANK0000 | 2025-11-04 01:32:35,759 | DONE DETERMINE MAX PIX
+RANK0000 | 2025-11-04 01:32:35,759 | DONE DETERMINE MAX PIX
+RANK0000 | 2025-11-04 01:32:35,759 | DONE DETERMINE MAX PIX
+RANK0000 | 2025-11-04 01:32:35,759 | DONE DETERMINE MAX PIX
+RANK0000 | 2025-11-04 01:32:35,759 | Mem after determine max num pix: 1.727074 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:35,759 | Mem after determine max num pix: 1.727074 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:35,759 | Mem after determine max num pix: 1.727074 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:35,759 | Mem after determine max num pix: 1.727074 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:35,759 | Mem after determine max num pix: 1.727074 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:35,759 | Mem after load_inputs: 1.727074 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:35,759 | Mem after load_inputs: 1.727074 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:35,759 | Mem after load_inputs: 1.727074 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:35,759 | Mem after load_inputs: 1.727074 GB on node ollie-System-Product-Name
+RANK0000 | 2025-11-04 01:32:35,759 | Mem after load_inputs: 1.727074 GB on node ollie-System-Product-Name
+How many pixels each rank will allocate for on its device:
+(rnk0, dev0): 8700 pix
+Iteration 1:
+	Resid=193070.897268, sigmaZ 6.283842, t-per-iter=0.0341 sec, pred_offsets=
+Iteration 2:
+	Resid=281476860.364297, sigmaZ 253.603838, t-per-iter=0.0342 sec, pred_offsets=
+Iteration 3:
+	Resid=281695770.938004, sigmaZ 253.767826, t-per-iter=0.0339 sec, pred_offsets=
+Iteration 4:
+	Resid=193068.997544, sigmaZ 6.283806, t-per-iter=0.0337 sec, pred_offsets=
+Iteration 5:
+	Resid=193040.800853, sigmaZ 6.283273, t-per-iter=0.0337 sec, pred_offsets=
+Iteration 6:
+	Resid=192999.010821, sigmaZ 6.282493, t-per-iter=0.0336 sec, pred_offsets=
+Iteration 7:
+	Resid=192952.005181, sigmaZ 6.281618, t-per-iter=0.0336 sec, pred_offsets=
+Iteration 8:
+	Resid=192949.085871, sigmaZ 6.281571, t-per-iter=0.0336 sec, pred_offsets=
+Iteration 9:
+	Resid=192948.904120, sigmaZ 6.281569, t-per-iter=0.0335 sec, pred_offsets=
+Iteration 10:
+	Resid=192948.669778, sigmaZ 6.281565, t-per-iter=0.0335 sec, pred_offsets=
+Iteration 11:
+	Resid=192948.269343, sigmaZ 6.281559, t-per-iter=0.0335 sec, pred_offsets=
+Iteration 12:
+	Resid=192947.886331, sigmaZ 6.281550, t-per-iter=0.0335 sec, pred_offsets=
+Iteration 13:
+	Resid=192947.790967, sigmaZ 6.281547, t-per-iter=0.0334 sec, pred_offsets=
+Iteration 14:
+	Resid=192947.786857, sigmaZ 6.281547, t-per-iter=0.0334 sec, pred_offsets=
+Iteration 15:
+	Resid=192947.786765, sigmaZ 6.281547, t-per-iter=0.0334 sec, pred_offsets=
+Iteration 16:
+	Resid=192947.786765, sigmaZ 6.281547, t-per-iter=0.0334 sec, pred_offsets=
+Final Iteration 16:
+	Resid=192947.786765, sigmaZ 6.281547
+Saved detector model to _geom.out/diffBragg_detector.expt
+INFO: Refinement converged. Generating DiffBragg baseline...
+INFO:canonical_capture:Refinement converged. Generating DiffBragg baseline...
+Spot scale=318518211659619200.000000
+INFO: DiffBragg baseline saved: max=36195.17, shape=(1, 2527, 2463)
+INFO:canonical_capture:DiffBragg baseline saved: max=36195.17, shape=(1, 2527, 2463)
+INFO: Building nanobrag_torch configs...
+INFO:canonical_capture:Building nanobrag_torch configs...
+INFO: Building structure factor grid...
+INFO:canonical_capture:Building structure factor grid...
+INFO: Structure factors (no scaling applied per SCALE-001): min=1.546e+00, max=5.183e+02, mean=4.741e+01
+INFO:canonical_capture:Structure factors (no scaling applied per SCALE-001): min=1.546e+00, max=5.183e+02, mean=4.741e+01
+INFO: Ignoring scale_override=3.185e+17 per SCALE-001 (DiffBragg handles scaling internally)
+INFO:canonical_capture:Ignoring scale_override=3.185e+17 per SCALE-001 (DiffBragg handles scaling internally)
+INFO: Structure factor grid stats: min=0.000e+00, max=5.183e+02, mean=1.876e+01, nonzero=69614
+INFO:canonical_capture:Structure factor grid stats: min=0.000e+00, max=5.183e+02, mean=1.876e+01, nonzero=69614
+INFO: HKL grid: 69614/69614 reflections in range (100.0%)
+INFO:canonical_capture:HKL grid: 69614/69614 reflections in range (100.0%)
+INFO: HKL grid nonzero: 69614
+INFO:canonical_capture:HKL grid nonzero: 69614
+INFO: Running nanobrag_torch simulator per panel...
+INFO:canonical_capture:Running nanobrag_torch simulator per panel...
+INFO: Post-simulation global scale factor: sqrt(3.185182e+17) = 5.643742e+08
+INFO:canonical_capture:Post-simulation global scale factor: sqrt(3.185182e+17) = 5.643742e+08
+W1104 01:32:38.215756 127258311255552 torch/_dynamo/variables/tensor.py:715] [0/0] Graph break from `Tensor.item()`, consider setting:
+W1104 01:32:38.215756 127258311255552 torch/_dynamo/variables/tensor.py:715] [0/0]     torch._dynamo.config.capture_scalar_outputs = True
+W1104 01:32:38.215756 127258311255552 torch/_dynamo/variables/tensor.py:715] [0/0] or:
+W1104 01:32:38.215756 127258311255552 torch/_dynamo/variables/tensor.py:715] [0/0]     env TORCHDYNAMO_CAPTURE_SCALAR_OUTPUTS=1
+W1104 01:32:38.215756 127258311255552 torch/_dynamo/variables/tensor.py:715] [0/0] to include these operations in the captured graph.
+W1104 01:32:38.215756 127258311255552 torch/_dynamo/variables/tensor.py:715] [0/0] 
+nanoBragg nanocrystal diffraction simulator - James Holton and Ken Frankel 8-1-17
+  69614 initialized hkls (all others =0)
+  gaussian xtal: 36.5x28.0x26.5 cells
+Unit Cell: 27.3639 32.058 34.4692 88.6792 71.6452 68.1147
+Recp Cell: 0.0417459 0.0338294 0.0307605 83.8482 109.29 112.667
+volume = 26462.9 A^3
+  amorphous part of sample is 0 m thick x 0.0001 m high x 0.0001 m wide, 1 g/cm^3 and 18 g/mol (0 molecules)
+missets:  0.00000000  0.00000000  0.00000000
+real-space cell vectors (Angstrom):
+     a           b           c         
+X: 23.96779991 -0.00000000  0.00000000
+Y: 10.00394834 32.04946988 -0.00000000
+Z:  8.61692038  0.73893257 34.46918950
+reciprocal-space cell vectors (Angstrom^-1):
+     a_star      b_star      c_star    
+X:  0.04174588 -0.01303060 -0.01015667
+Y:  0.00000000  0.03121914 -0.00066926
+Z:  0.00000000  0.00000000  0.02902758
+  wave=9.768e-11 meters +/- 0% in 1 steps
+  Kahn polarization factor: 1.000000
+  incident fluence: 1e+18 photons/m^2
+  distance=0.23129 detsize=0.423636x0.434644  pixel=0.000172 meters (2463x2527 pixels)
+  Xbeam=0.217729 Ybeam=0.213894
+  Fbeam=0.217729 Sbeam=0.213894
+  Xclose=0.217514 Yclose=0.21279
+  Fclose=0.217514 Sclose=0.21279
+  DIRECTION_OF_DETECTOR_X-AXIS= 0.999998 0.00169876 -0.000925822
+  DIRECTION_OF_DETECTOR_Y-AXIS= 0.00169433 -0.999987 -0.00477062
+  DIRECTION_OF_DETECTOR_Z-AXIS= -0.000933915 0.00476905 -0.999988
+  INCIDENT_BEAM_DIRECTION= 0 0 1
+  spindle ROTATION_AXIS= 0.999998 0.00169876 -0.000925822
+  POLARIZATION_PLANE_NORMAL= 0 -1 0
+  dials origin= -217.514 213.891 -230.27
+  roi: 0 < x < 2463 && 0 < y < 2527
+  hdivrange=0 hdivstep=0  radians
+  vdivrange=0 vdivstep=0  radians
+  1 divergence steps
+  1 sources
+  1 mosaic domains over mosaic spread of 0 degrees
+  1 phi steps from 0 to 0 degrees
+  1x1 pixel oversample steps
+[HKL stats] h=[-23,8] k=[-28,12] l=[-28,10] hit_rate=6144044/6224001 (98.72%)
+INFO: Panel 0 RAW torch output: device=cuda:0, dtype=torch.float32, shape=torch.Size([2527, 2463]), min=0.000000e+00, max=8.144369e-05, mean=3.737499e-10, nonzero=5620743
+INFO:canonical_capture:Panel 0 RAW torch output: device=cuda:0, dtype=torch.float32, shape=torch.Size([2527, 2463]), min=0.000000e+00, max=8.144369e-05, mean=3.737499e-10, nonzero=5620743
+INFO: Panel 0 SCALED torch output: min=0.000000e+00, max=4.596471e+04, mean=2.109348e-01
+INFO:canonical_capture:Panel 0 SCALED torch output: min=0.000000e+00, max=4.596471e+04, mean=2.109348e-01
+INFO: Panel 0: torch_max=45964.71, shape=(2527, 2463)
+INFO:canonical_capture:Panel 0: torch_max=45964.71, shape=(2527, 2463)
+INFO: Torch baseline saved: max=45964.71, shape=(1, 2527, 2463)
+INFO:canonical_capture:Torch baseline saved: max=45964.71, shape=(1, 2527, 2463)
+INFO: Computing parity metrics...
+INFO:canonical_capture:Computing parity metrics...
+INFO: Persisting refined structure factors for parity testing (MAP-SCALE-001)...
+INFO:canonical_capture:Persisting refined structure factors for parity testing (MAP-SCALE-001)...
+INFO: Refined MTZ saved to /home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/MAP-SCALE-001/reports/2025-11-04T120500Z/refined_capture/torch/refined_structure_factors.mtz
+INFO:canonical_capture:Refined MTZ saved to /home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/MAP-SCALE-001/reports/2025-11-04T120500Z/refined_capture/torch/refined_structure_factors.mtz
+INFO: Refined MTZ copied to fixtures: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/fixtures/golden_data/simple_cubic/refined_structure_factors.mtz
+INFO:canonical_capture:Refined MTZ copied to fixtures: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/fixtures/golden_data/simple_cubic/refined_structure_factors.mtz
+INFO: Generating manifest.json with SHA256 checksums...
+INFO:canonical_capture:Generating manifest.json with SHA256 checksums...
+INFO:   bragg_diffbragg.npy: 06fd77004f020153...
+INFO:canonical_capture:  bragg_diffbragg.npy: 06fd77004f020153...
+INFO:   bragg_torch.npy: 650fbd4ec82d1cc1...
+INFO:canonical_capture:  bragg_torch.npy: 650fbd4ec82d1cc1...
+INFO:   target_panel_0.npy: 3ae4d01ef0a57dd8...
+INFO:canonical_capture:  target_panel_0.npy: 3ae4d01ef0a57dd8...
+INFO:   loss_mask_panel_0.npy: 9301d36f09eb6a15...
+INFO:canonical_capture:  loss_mask_panel_0.npy: 9301d36f09eb6a15...
+INFO:   refined_structure_factors.mtz: 830199fb10aa448a...
+INFO:canonical_capture:  refined_structure_factors.mtz: 830199fb10aa448a...
+INFO: Manifest written to /home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/MAP-SCALE-001/reports/2025-11-04T120500Z/refined_capture/manifest.json
+INFO:canonical_capture:Manifest written to /home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/MAP-SCALE-001/reports/2025-11-04T120500Z/refined_capture/manifest.json
+INFO:   manifest.json: 851b2381bb4f0da1... (self-checksum)
+INFO:canonical_capture:  manifest.json: 851b2381bb4f0da1... (self-checksum)
+INFO: Copying canonical tensors to fixtures directory: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/fixtures/golden_data/simple_cubic
+INFO:canonical_capture:Copying canonical tensors to fixtures directory: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/fixtures/golden_data/simple_cubic
+INFO:   Copied bragg_diffbragg.npy -> /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/fixtures/golden_data/simple_cubic/bragg_diffbragg.npy
+INFO:canonical_capture:  Copied bragg_diffbragg.npy -> /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/fixtures/golden_data/simple_cubic/bragg_diffbragg.npy
+INFO:   Copied bragg_torch.npy -> /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/fixtures/golden_data/simple_cubic/bragg_torch.npy
+INFO:canonical_capture:  Copied bragg_torch.npy -> /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/fixtures/golden_data/simple_cubic/bragg_torch.npy
+INFO:   Copied target_panel_0.npy -> /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/fixtures/golden_data/simple_cubic/target_panel_0.npy
+INFO:canonical_capture:  Copied target_panel_0.npy -> /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/fixtures/golden_data/simple_cubic/target_panel_0.npy
+INFO:   Copied loss_mask_panel_0.npy -> /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/fixtures/golden_data/simple_cubic/loss_mask_panel_0.npy
+INFO:canonical_capture:  Copied loss_mask_panel_0.npy -> /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/fixtures/golden_data/simple_cubic/loss_mask_panel_0.npy
+INFO:   Copied refined_structure_factors.mtz -> /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/fixtures/golden_data/simple_cubic/refined_structure_factors.mtz
+INFO:canonical_capture:  Copied refined_structure_factors.mtz -> /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/fixtures/golden_data/simple_cubic/refined_structure_factors.mtz
+INFO:   Copied manifest.json -> /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/fixtures/golden_data/simple_cubic/manifest.json
+INFO:canonical_capture:  Copied manifest.json -> /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/fixtures/golden_data/simple_cubic/manifest.json
+INFO:   Wrote metadata.json -> /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/fixtures/golden_data/simple_cubic/metadata.json
+INFO:canonical_capture:  Wrote metadata.json -> /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/fixtures/golden_data/simple_cubic/metadata.json
+INFO: === Canonical Capture Complete ===
+INFO:canonical_capture:=== Canonical Capture Complete ===
+INFO: DiffBragg baseline: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/MAP-SCALE-001/reports/2025-11-04T120500Z/refined_capture/legacy/bragg_diffbragg.npy (max=36195.17)
+INFO:canonical_capture:DiffBragg baseline: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/MAP-SCALE-001/reports/2025-11-04T120500Z/refined_capture/legacy/bragg_diffbragg.npy (max=36195.17)
+INFO: Torch baseline: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/MAP-SCALE-001/reports/2025-11-04T120500Z/refined_capture/torch/bragg_torch.npy (max=45964.71)
+INFO:canonical_capture:Torch baseline: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/MAP-SCALE-001/reports/2025-11-04T120500Z/refined_capture/torch/bragg_torch.npy (max=45964.71)
+INFO: Metrics: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/MAP-SCALE-001/reports/2025-11-04T120500Z/refined_capture/metrics.json
+INFO:canonical_capture:Metrics: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/MAP-SCALE-001/reports/2025-11-04T120500Z/refined_capture/metrics.json
+INFO: Median correlation: 0.8125
+INFO:canonical_capture:Median correlation: 0.8125
+INFO: Localization success: 100.0%
+INFO:canonical_capture:Localization success: 100.0%
+
+Canonical dataset written to: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/MAP-SCALE-001/reports/2025-11-04T120500Z/refined_capture
+Next steps:
+  1. Inspect metrics: jq '.torch_max' /home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/MAP-SCALE-001/reports/2025-11-04T120500Z/refined_capture/torch/panel_metrics.json
+  2. Check HKL stats: jq '.in_range_fraction' /home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/MAP-SCALE-001/reports/2025-11-04T120500Z/torch_hkl_debug.json
+  3. Run parity tests: KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py -k DB_AT_001
+
+Manifest emitted to: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/MAP-SCALE-001/reports/2025-11-04T120500Z/refined_capture/manifest.json
+Fixtures copied to: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/fixtures/golden_data/simple_cubic

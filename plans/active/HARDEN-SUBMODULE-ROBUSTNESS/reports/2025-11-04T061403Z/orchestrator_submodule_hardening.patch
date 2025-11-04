@@ -1,0 +1,185 @@
+diff --git a/scripts/orchestration/README.md b/scripts/orchestration/README.md
+index 790c1f3..c598586 100644
+--- a/scripts/orchestration/README.md
++++ b/scripts/orchestration/README.md
+@@ -165,9 +165,10 @@ Notes:
+     - `--tracked-output-extensions ".npy,.npz,.json,.pkl"` — allowed extensions
+     - `--max-tracked-output-file-bytes N` (default 32 MiB) · `--max-tracked-output-total-bytes N` (default 100 MiB)
+     - Notes: runs before doc/meta hygiene; keeps repo clean when fixture‑like binaries are legitimately regenerated during a supervisor loop. Files exceeding caps remain dirty and will trigger the whitelist guard (handoff abort).
+-  - `--prepull-auto-commit-docs` / `--no-prepull-auto-commit-docs` (default: on)
+-    - If the initial git pull fails (e.g., due to local modified doc/meta files), supervisor will attempt a doc/meta whitelist auto‑commit first, then retry the pull.
+-    - If non‑whitelisted dirty files are present, the supervisor exits with a clear error (prevents accidental commits of code/large files).
++- `--prepull-auto-commit-docs` / `--no-prepull-auto-commit-docs` (default: on)
++  - If the initial git pull fails (e.g., due to local modified doc/meta files), supervisor will attempt a doc/meta whitelist auto-commit first, then retry the pull.
++  - If non-whitelisted dirty files are present, the supervisor exits with a clear error (prevents accidental commits of code/large files).
++  - Pointer drift hardening: supervisor now performs a one-time submodule scrub (`git submodule sync --recursive && git submodule update --init --recursive --checkout --force`) before falling back to doc/meta auto-commit, to clear gitlink dirtiness.
+ - Loop
+   - `--sync-via-git` · `--sync-loops N` · `--poll-interval S` · `--max-wait-sec S`
+   - `--branch NAME` · `--logdir PATH` · `--prompt {main,debug}`
+@@ -181,6 +182,7 @@ Notes:
+ 
+ ## Troubleshooting
+ - Pull failures: both orchestrators now fail fast on git pull errors (including untracked‑file or local‑modification collisions). Read the console/log message, resolve locally (commit/stash/move), and rerun.
++- Submodule pointer drift: if `.claude/` or other gitlinks appear dirty, the supervisor auto-scrubs submodules (sync + update with `--checkout --force`) before retries. This is idempotent and does not commit pointer bumps; it aligns worktrees to the recorded superproject commits.
+ - Push rejected / rebase in progress: orchestrators auto‑abort in‑progress rebase before pulling. If conflicts arise, fix them locally, commit, and rerun.
+ - Branch mismatch: checkout the correct branch or adjust `--branch`.
+ - Missing prompt: ensure `prompts/<name>.md` exists (default is `main`).
+diff --git a/scripts/orchestration/supervisor.py b/scripts/orchestration/supervisor.py
+index caca7df..d4303b5 100644
+--- a/scripts/orchestration/supervisor.py
++++ b/scripts/orchestration/supervisor.py
+@@ -163,27 +163,48 @@ def main() -> int:
+     def _matches_any(path: str, patterns: list[str]) -> bool:
+         return any(fnmatch.fnmatch(path, pat) for pat in patterns)
+ 
++    def _gitlink_paths() -> set[str]:
++        """Return submodule (gitlink) paths recorded in the index.
++
++        Uses `git ls-files -s` and filters mode 160000 entries which represent
++        gitlinks. This is more robust than parsing .gitmodules alone and
++        reflects the actual superproject index state.
++        """
++        paths: set[str] = set()
++        try:
++            lines = _list(["git", "ls-files", "-s"])  # mode sha stage path
++            for ln in lines:
++                parts = ln.split()
++                if len(parts) >= 4 and parts[0] == "160000":
++                    paths.add(parts[3])
++        except Exception:
++            pass
++        return paths
++
++    def _submodule_scrub(log_func) -> None:
++        """Attempt to normalize submodules to the recorded commits.
++
++        Safe to run idempotently; helps clear working-tree dirtiness caused by
++        out-of-sync submodule worktrees (pointer drift).
++        """
++        try:
++            from subprocess import run, PIPE
++            cp1 = run(["git", "submodule", "sync", "--recursive"], capture_output=True, text=True)
++            if log_func and (cp1.stdout or cp1.stderr):
++                log_func((cp1.stdout or "") + (cp1.stderr or ""))
++            cp2 = run(["git", "submodule", "update", "--init", "--recursive", "--checkout", "--force"], capture_output=True, text=True)
++            if log_func and (cp2.stdout or cp2.stderr):
++                log_func((cp2.stdout or "") + (cp2.stderr or ""))
++        except Exception as e:
++            if log_func:
++                log_func(f"[submodules] WARN: scrub failed: {e}")
++
+     def _supervisor_autocommit_docs(args_ns, log_func) -> tuple[bool, list[str]]:
+         """
+         Attempt to auto-stage+commit doc/meta whitelist changes.
+         Returns (committed: bool, forbidden_paths: list[str]).
+         If forbidden_paths non-empty, caller should abort handoff.
+         """
+-        # Discover submodule paths to avoid treating gitlinks as dirty/forbidden
+-        def _submodule_paths() -> set[str]:
+-            paths: set[str] = set()
+-            try:
+-                lines = _list(["git", "config", "--file", ".gitmodules", "--get-regexp", "path"]) or []
+-                for ln in lines:
+-                    parts = ln.strip().split()
+-                    if len(parts) >= 2:
+-                        # last token is the submodule path
+-                        paths.add(parts[-1])
+-            except Exception:
+-                # No submodules or .gitmodules missing
+-                pass
+-            return paths
+-
+         whitelist = [p.strip() for p in args_ns.autocommit_whitelist.split(',') if p.strip()]
+         max_bytes = args_ns.max_autocommit_bytes
+         # Collect dirty paths (modifications and untracked)
+@@ -192,7 +213,7 @@ def main() -> int:
+         untracked = _list(["git", "ls-files", "--others", "--exclude-standard"]) 
+         dirty_all = sorted(set(unstaged_mod) | set(staged_mod) | set(untracked))
+         # Filter out submodule gitlinks (and any paths within submodules)
+-        submods = _submodule_paths()
++        submods = _gitlink_paths()
+         if submods:
+             def _in_submodule(p: str) -> bool:
+                 for sp in submods:
+@@ -300,6 +321,10 @@ def main() -> int:
+             buf.append(msg)
+         ok = safe_pull(_cap)
+         if not ok:
++            # Retry once after scrubbing submodules (pointer drift robustness)
++            _submodule_scrub(log_func)
++            buf.clear()
++            ok = safe_pull(_cap)
+             err_line = None
+             for line in reversed(buf):
+                 low = line.lower()
+@@ -351,13 +376,18 @@ def main() -> int:
+         if not _pull_with_error(lambda m: None, "pre-pull"):
+             # Pre-pull fallback: attempt doc/meta auto-commit if enabled, then retry pull
+             if args.prepull_auto_commit_docs:
+-                committed, forbidden = _supervisor_autocommit_docs(args, lambda m: None)
+-                if committed and not forbidden:
+-                    if not _pull_with_error(lambda m: None, "pre-pull (after autocommit)"):
+-                        return 1
++                # First, scrub submodules and retry pull (more robust than committing)
++                _submodule_scrub(lambda m: None)
++                if _pull_with_error(lambda m: None, "pre-pull (after submodule scrub)"):
++                    pass
+                 else:
+-                    print("[sync] ERROR: git pull failed; pre-pull auto-commit not applicable or blocked.")
+-                    return 1
++                    committed, forbidden = _supervisor_autocommit_docs(args, lambda m: None)
++                    if committed and not forbidden:
++                        if not _pull_with_error(lambda m: None, "pre-pull (after autocommit)"):
++                            return 1
++                    else:
++                        print("[sync] ERROR: git pull failed; pre-pull auto-commit not applicable or blocked.")
++                        return 1
+             else:
+                 # Error already printed by _pull_with_error
+                 return 1
+@@ -369,13 +399,17 @@ def main() -> int:
+ 
+         if not _pull_with_error(logp, "pre-wait"):
+             if args.prepull_auto_commit_docs:
+-                committed, forbidden = _supervisor_autocommit_docs(args, logp)
+-                if committed and not forbidden:
+-                    if not _pull_with_error(logp, "pre-wait (after autocommit)"):
+-                        return 1
++                _submodule_scrub(logp)
++                if _pull_with_error(logp, "pre-wait (after submodule scrub)"):
++                    pass
+                 else:
+-                    print("[sync] ERROR: git pull failed; pre-pull auto-commit not applicable or blocked.")
+-                    return 1
++                    committed, forbidden = _supervisor_autocommit_docs(args, logp)
++                    if committed and not forbidden:
++                        if not _pull_with_error(logp, "pre-wait (after autocommit)"):
++                            return 1
++                    else:
++                        print("[sync] ERROR: git pull failed; pre-pull auto-commit not applicable or blocked.")
++                        return 1
+             else:
+                 # Error already printed by _pull_with_error
+                 return 1
+@@ -487,10 +521,19 @@ def main() -> int:
+         # Determine post-run success without early-returning
+         post_ok = (rc == 0)
+         if args.auto_commit_docs:
++            # Scrub submodules once before checking doc/meta dirtiness (pointer drift resilience)
++            _submodule_scrub(logp)
+             committed_docs, forbidden = _supervisor_autocommit_docs(args, logp)
+             if forbidden:
+-                logp("[sync] Doc/meta whitelist violation detected; marking post-run as failed.")
+-                post_ok = False
++                # Second-chance: if all forbidden paths are gitlinks, scrub and retry once
++                gitlinks = _gitlink_paths()
++                only_gitlinks = all((p in gitlinks) or any(p.startswith(gl + os.sep) for gl in gitlinks) for p in forbidden)
++                if only_gitlinks:
++                    _submodule_scrub(logp)
++                    committed_docs, forbidden = _supervisor_autocommit_docs(args, logp)
++                if forbidden:
++                    logp("[sync] Doc/meta whitelist violation detected; marking post-run as failed.")
++                    post_ok = False
+ 
+         # Stamp FIRST (idempotent): write local handoff or failure before any pushes
+         st = OrchestrationState.read(str(args.state_file))

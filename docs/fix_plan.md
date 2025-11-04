@@ -12,6 +12,18 @@
 
 ## Active Initiatives
 
+### [ORCH-ROBUST-001] Supervisor robustness to submodule pointer drift
+- Depends on: None
+- Status: done
+- Owner/Date: Engineering / 2025-11-04
+- Exit Criteria:
+  1. Supervisor ignores submodule gitlinks in doc/meta whitelist gating and does not fail loops solely due to gitlink dirtiness.
+  2. Pre-pull path auto-scrubs submodules once before falling back to doc/meta auto-commit; post-run hygiene scrubs once before evaluating whitelist, with a single retry.
+  3. Change captured as a `.patch` under `plans/active/HARDEN-SUBMODULE-ROBUSTNESS/reports/<timestamp>/` and documented in `docs/findings.md` with an environment tag.
+- Working Plan: right-sized hardening in `scripts/orchestration/supervisor.py` and readme documentation.
+- Attempts History:
+* 2025-11-04T061403Z (complete) — Implemented submodule-pointer hardening: added robust gitlink detection via index (mode 160000), introduced idempotent submodule scrub routine (`git submodule sync --recursive && git submodule update --init --recursive --checkout --force`), invoked around pre-pull and post-run hygiene with a single retry. Updated `scripts/orchestration/README.md` Troubleshooting and Flag Reference. Patch saved: `plans/active/HARDEN-SUBMODULE-ROBUSTNESS/reports/2025-11-04T061403Z/orchestrator_submodule_hardening.patch`. Tests: verified `git ls-files -s` enumerates `.claude` and `src/nanobrag-torch` as gitlinks; local scrub executes without error. Rationale: prevent `.claude` pointer drift from blocking planning/doc-only loops. Environment State Tag: orchestration-submodule-scrub-v1.
+
 ### [NANOBRAG-GOLDEN-001] Replace fallback DB-AT-001 golden dataset
 - Depends on: TORCH-BRIDGE-001, FORWARD-EQUIV-001, PARITY-HARNESS-002, nanobrag_torch package availability (https://github.com/hoidn/nanoBragg), pinned torch==2.4.1+cu121
 - Status: done

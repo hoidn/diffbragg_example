@@ -1,0 +1,12 @@
+{
+  "trusted_fraction": 0.9153269737585197,
+  "shape": [
+    1,
+    2527,
+    2463
+  ],
+  "dtype": "bool",
+  "n_panels": 1,
+  "n_trusted": 5696996,
+  "n_total": 6224001
+}

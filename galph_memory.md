@@ -497,3 +497,14 @@ Notes
 - <Action State>: [ready_for_implementation]
 
 2025-11-04T015420Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=24 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T015420Z/ next_action=implement_manifest_checksum_guard
+
+## 2025-11-04T021626Z — NANOBRAG-BACKEND-002 planning kickoff
+- Focus: NANOBRAG-BACKEND-002 — Replace CLI torch backend stub with nanobrag_torch simulator
+- Action Type: planning
+- Key Observations: Verified `nanobrag_torch` Simulator/Detector/Crystal imports succeed; bridge helpers still emit local dataclass stubs; drafted phased implementation plan (config promotion → simulator integration → parity validation) and captured right-sized plan artifacts under 2025-11-04T021141Z.
+- Artifact Path: plans/active/NANOBRAG-BACKEND-002/reports/2025-11-04T021141Z/
+- Next Actions: Promote bridge helpers to construct real `nanobrag_torch.config` objects and extend bridge tests with a round-trip detector/crystal instantiation guard.
+- Reality Check: New focus initialized; no prior dwell, ready to hand off implementation Do Now to Ralph.
+- <Action State>: [planning]
+
+2025-11-04T021626Z focus=NANOBRAG-BACKEND-002 state=planning dwell=0 artifacts=plans/active/NANOBRAG-BACKEND-002/reports/2025-11-04T021141Z/ next_action=promote_bridge_configs_to_real_nanobrag

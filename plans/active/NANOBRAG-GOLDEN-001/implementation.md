@@ -21,4 +21,4 @@
 ## Phase D — Closure
 - [x] **D1 — Artifact archival**: Capture fresh parity log + metrics under `plans/active/NANOBRAG-GOLDEN-001/reports/<next_timestamp>/parity_harness/` referencing canonical tensors (captured 2025-11-04T020930Z).
 - [x] **D2 — Knowledge base update**: Add durable lessons (e.g., detector Euler inversion guard) to `docs/findings.md` if not already recorded.
-- [ ] **D3 — Ledger wrap-up**: Update `docs/fix_plan.md` Attempts History + status once canonical parity rerun/log sync completes.
+- [x] **D3 — Ledger wrap-up**: Update `docs/fix_plan.md` Attempts History + status once canonical parity rerun/log sync completes. (Completed 2025-11-04T030000Z with checksum guard entry and status flip.)

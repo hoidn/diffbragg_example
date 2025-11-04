@@ -15,9 +15,13 @@ Config hydration functions map dxtbx geometry to nanobrag_torch configs per:
 - docs/spec-db-core.md
 """
 
+from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import List, Tuple, Optional, Any
+from typing import List, Tuple, Optional, Any, TYPE_CHECKING
 import numpy as np
+
+if TYPE_CHECKING:
+    import torch
 
 
 # ============================================================================
@@ -751,3 +755,208 @@ def simulate_forward_once(
     }
 
     return bragg, diagnostics
+
+
+# ============================================================================
+# Torch-mode helpers for gradient testing (DB-AT-010)
+# ============================================================================
+
+def simulate_forward_torch(
+    inputs: RefinementInputs,
+    detector,
+    beam,
+    crystal,
+    experiment,
+    hkl_indices: np.ndarray,
+    hkl_amplitudes: np.ndarray,
+    spot_scale_override: Optional[float] = None,
+    device=None,
+    dtype=None
+) -> "torch.Tensor":
+    """
+    Run forward simulation returning torch tensor for gradient testing.
+
+    Similar to simulate_forward_once but preserves torch gradients by avoiding
+    .detach().numpy() conversions. Designed for DB-AT-010 gradcheck acceptance
+    testing with RUNTIME-001 (NANOBRAGG_DISABLE_COMPILE=1) enforcement.
+
+    Args:
+        inputs: RefinementInputs from prepare_refinement_inputs containing
+                target, loss_mask, panel_slices, and global_scale_hint
+        detector: dxtbx Detector object for geometry
+        beam: dxtbx Beam object for wavelength/polarization
+        crystal: dxtbx Crystal object for unit cell/orientation
+        experiment: dxtbx Experiment object (for create_crystal_config)
+        hkl_indices: Miller indices array from MTZ, shape (n_refl, 3)
+        hkl_amplitudes: Structure factor amplitudes from MTZ, shape (n_refl,)
+        spot_scale_override: Optional scale factor (default 1.0 if None)
+        device: torch.device for simulation (default cpu)
+        dtype: torch.dtype for computation (default float32, use float64 for gradcheck)
+
+    Returns:
+        bragg_torch: Per-panel Bragg tensors [panel, slow, fast] as torch.Tensor
+                     with SCALE-002 sqrt(spot_scale_override) applied differentiably
+
+    Raises:
+        ImportError: If nanobrag_torch is not available
+        ValueError: If config creation fails or simulation errors
+
+    Notes:
+        - RUNTIME-001: Use with NANOBRAGG_DISABLE_COMPILE=1 for gradient tests
+        - SCALE-001: Structure factors unscaled in grid
+        - SCALE-002: sqrt(spot_scale) applied post-simulation as differentiable torch op
+        - Preserves gradient graph (no .detach() or .numpy() conversions)
+        - Defaults to float32 but accepts float64 for gradcheck (per runtime checklist §2)
+    """
+    try:
+        import torch
+        from nanobrag_torch.simulator import Simulator
+        from nanobrag_torch.models.detector import Detector as TorchDetector
+        from nanobrag_torch.models.crystal import Crystal as TorchCrystal
+    except ImportError as e:
+        raise ImportError(
+            f"nanobrag_torch is required for simulate_forward_torch. Import error: {e}"
+        )
+
+    # Default device and dtype per runtime checklist §2
+    if device is None:
+        device = torch.device('cpu')
+    elif not isinstance(device, torch.device):
+        device = torch.device(device)
+
+    if dtype is None:
+        dtype = torch.float32
+
+    # Build structure factor grid (SCALE-001: unscaled)
+    hkl_grid, hkl_metadata = build_structure_factor_grid(
+        indices=hkl_indices,
+        amplitudes=hkl_amplitudes,
+        device=device
+    )
+
+    # Ensure hkl_grid is correct dtype
+    if hkl_grid.dtype != dtype:
+        hkl_grid = hkl_grid.to(dtype=dtype)
+
+    # Determine spot scale override (SCALE-002)
+    if spot_scale_override is None:
+        spot_scale_override = 1.0
+    # Convert to tensor for differentiable scaling
+    sqrt_spot_scale_tensor = torch.tensor(
+        np.sqrt(spot_scale_override), dtype=dtype, device=device
+    )
+
+    # Prepare configs (shared across panels where applicable)
+    beam_config = create_beam_config(beam)
+    crystal_config = create_crystal_config(crystal, experiment)
+
+    # Run simulator per panel
+    n_panels = len(detector)
+    panel_shape = inputs.target.shape[1:]  # (slow, fast)
+    bragg_panels = []
+
+    for panel_id in range(n_panels):
+        panel = detector[panel_id]
+
+        # Create detector config for this panel
+        detector_config = create_detector_config(
+            panel=panel,
+            beam=beam,
+            trusted_mask=inputs.trusted_mask[panel_id]
+        )
+
+        # Convert mask_array to torch.Tensor with correct dtype
+        if detector_config.mask_array is not None and not isinstance(detector_config.mask_array, torch.Tensor):
+            detector_config.mask_array = torch.tensor(
+                detector_config.mask_array, dtype=dtype, device=device
+            )
+        elif isinstance(detector_config.mask_array, torch.Tensor):
+            # Ensure dtype matches
+            if detector_config.mask_array.dtype != dtype:
+                detector_config.mask_array = detector_config.mask_array.to(dtype=dtype, device=device)
+
+        # Instantiate models
+        detector_model = TorchDetector(detector_config, device=device)
+        crystal_model = TorchCrystal(crystal_config)
+
+        # Attach HKL data to crystal model
+        crystal_model.hkl_data = hkl_grid
+        crystal_model.hkl_metadata = hkl_metadata
+
+        # Run simulator (single source, GEOMETRY-002/HKL-ORIENT-001 applied in bridge)
+        simulator = Simulator(detector=detector_model, crystal=crystal_model, device=device)
+        panel_output = simulator.run()  # Returns torch.Tensor on device
+
+        # Ensure correct dtype
+        if panel_output.dtype != dtype:
+            panel_output = panel_output.to(dtype=dtype)
+
+        # Apply sqrt(spot_scale_override) post-simulation (SCALE-002, differentiable)
+        panel_output_scaled = panel_output * sqrt_spot_scale_tensor
+
+        bragg_panels.append(panel_output_scaled)
+
+    # Stack panels into single tensor [panel, slow, fast]
+    bragg_torch = torch.stack(bragg_panels, dim=0)
+
+    return bragg_torch
+
+
+def compute_masked_mse_loss(
+    prediction: "torch.Tensor",
+    target: "torch.Tensor",
+    mask: "torch.Tensor"
+) -> "torch.Tensor":
+    """
+    Compute masked MSE loss for gradient-based optimization.
+
+    Computes mean squared error over pixels where mask is True, preserving
+    gradient graph for torch.autograd.gradcheck. Follows SCALE-001/002 policy
+    (target and prediction must already include any spot scale adjustments).
+
+    Args:
+        prediction: Predicted Bragg intensities [panel, slow, fast], torch.Tensor
+        target: Target intensities [panel, slow, fast], torch.Tensor
+        mask: Loss mask [panel, slow, fast], torch.Tensor with dtype bool or numeric
+
+    Returns:
+        loss: Scalar tensor with mean squared error over masked pixels
+
+    Raises:
+        ValueError: If shapes don't match or mask has no valid pixels
+
+    Notes:
+        - Preserves gradient graph (no .detach() or numpy conversions)
+        - Respects SCALE-002: target/prediction must have same post-simulation scaling
+        - Returns scalar tensor suitable for torch.autograd.gradcheck
+        - Mask expected to be boolean or numeric (0/1); numeric values treated as weights
+    """
+    import torch
+
+    # Validate shapes
+    if prediction.shape != target.shape:
+        raise ValueError(
+            f"Shape mismatch: prediction {prediction.shape} vs target {target.shape}"
+        )
+    if mask.shape != prediction.shape:
+        raise ValueError(
+            f"Mask shape {mask.shape} doesn't match prediction shape {prediction.shape}"
+        )
+
+    # Ensure mask is boolean
+    if mask.dtype != torch.bool:
+        mask = mask.bool()
+
+    # Check for valid mask pixels
+    n_valid = mask.sum()
+    if n_valid == 0:
+        raise ValueError("Loss mask contains no valid pixels")
+
+    # Compute masked squared error
+    squared_error = (prediction - target) ** 2
+    masked_squared_error = torch.where(mask, squared_error, torch.zeros_like(squared_error))
+
+    # Mean over valid pixels
+    loss = masked_squared_error.sum() / n_valid.to(prediction.dtype)
+
+    return loss

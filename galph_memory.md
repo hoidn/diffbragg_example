@@ -747,3 +747,13 @@ Notes
 - Next Actions: Handoff MAP-SCALE-002 Do Now so Ralph wires calibration + refined MTZ plumbing into CLI and updates regression tests.
 - <Action State>: [ready_for_implementation]
 2025-11-04T233500Z focus=MAP-SCALE-001 state=ready_for_implementation dwell=3 artifacts=plans/active/MAP-SCALE-001/reports/2025-11-04T233500Z/ next_action=handoff_cli_calibration_do_now
+
+## 2025-11-05T020206Z — MAP-SCALE-002 calibration closeout planning
+- Focus: MAP-SCALE-002 — Nanobrag CLI calibration parity
+- Action Type: planning
+- Key Observations: Reviewed 2025-11-05T000500Z implementation summary; CLI flags landed and DB_AT_024 passes, but collect-only log absent and documentation sync still pending. Updated implementation checklist (A2/B1-B3/C1-C2 complete) and fix_plan attempts to flag outstanding C3/D1/D2 work; created audit report `plans/active/MAP-SCALE-002/reports/2025-11-05T020206Z/summary.md`.
+- Artifact Path: plans/active/MAP-SCALE-002/reports/2025-11-05T020206Z/
+- Next Actions: Deliver Do Now directing Ralph to add calibration-positive CLI test coverage, capture collect-only log, and update docs/TEST_SUITE_INDEX before marking initiative done.
+- Reality Check: Exit criterion #3 not fully satisfied without collect-only artifact; documentation still references pre-calibration CLI usage, so status remains `in_progress`.
+- <Action State>: [ready_for_implementation]
+2025-11-05T020206Z focus=MAP-SCALE-002 state=ready_for_implementation dwell=0 artifacts=plans/active/MAP-SCALE-002/reports/2025-11-05T020206Z/ next_action=calibration_docs_closeout

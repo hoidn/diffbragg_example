@@ -19,16 +19,16 @@ Bring the `dbex.refine_one` nanobrag backend up-to-date with MAP-SCALE-001 guard
 
 - **Phase A — Gap confirmation & fixture alignment**
   - [x] A1: Inspect existing CLI backend for calibration/sample clipping omissions (2025-11-04T233500Z summary).
-  - [ ] A2: Inventory CLI-accessible fixtures (config_torch.json, refined MTZ) and confirm expected workspace locations.
+  - [x] A2: Inventory CLI-accessible fixtures (config_torch.json, refined MTZ) and confirm expected workspace locations.
 
 - **Phase B — CLI plumbing**
-  - [ ] B1: Add parser arguments (`--torch-config`, `--refined-mtz`) with validation and docs cross-links.
-  - [ ] B2: Load calibration metadata + refined structure factors inside `run_nanobrag_backend`, defaulting to legacy behavior when omitted.
-  - [ ] B3: Propagate calibration to `create_beam_config`/`create_crystal_config`, toggling `apply_n_cells` only when metadata includes domain counts; attach diagnostics to `_write_torch_outputs` payload.
+  - [x] B1: Add parser arguments (`--torch-config`, `--refined-mtz`) with validation and docs cross-links.
+  - [x] B2: Load calibration metadata + refined structure factors inside `run_nanobrag_backend`, defaulting to legacy behavior when omitted.
+  - [x] B3: Propagate calibration to `create_beam_config`/`create_crystal_config`, toggling `apply_n_cells` only when metadata includes domain counts; attach diagnostics to `_write_torch_outputs` payload.
 
 - **Phase C — Regression coverage**
-  - [ ] C1: Update `tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_runs_simulator` to assert calibration forwarding (mock `load_calibration_metadata`, beam_config arguments, `apply_n_cells`).
-  - [ ] C2: Author targeted CLI smoke (fixture-driven) or reuse DB_AT_024 to confirm thresholds after CLI path changes; capture artifacts under `plans/active/MAP-SCALE-002/reports/<timestamp>/`.
+  - [x] C1: Update `tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_runs_simulator` to assert calibration forwarding (mock `load_calibration_metadata`, beam_config arguments, `apply_n_cells`).
+  - [x] C2: Author targeted CLI smoke (fixture-driven) or reuse DB_AT_024 to confirm thresholds after CLI path changes; capture artifacts under `plans/active/MAP-SCALE-002/reports/<timestamp>/`.
   - [ ] C3: Run mapped pytest selectors and `--collect-only`, archive logs with environment flags noted.
 
 - **Phase D — Documentation sync & closeout**

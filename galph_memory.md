@@ -767,3 +767,12 @@ Notes
 - Reality Check: MAP-SCALE-002 closed; new initiative depends on SCALE-003/004/006 guardrails—no blocking prerequisites.
 - <Action State>: [planning]
 2025-11-05T110000Z focus=MAP-SCALE-003 state=planning dwell=0 artifacts=plans/active/MAP-SCALE-003/reports/2025-11-05T110000Z/ next_action=wire_cli_refined_mtz_telemetry
+
+## 2025-11-05T220000Z — MAP-SCALE-004 telemetry planning
+- Focus: MAP-SCALE-004 — Zero-iteration telemetry parity
+- Action Type: planning
+- Key Observations: Verified MAP-SCALE-003 artifacts satisfy exit criteria; CLI path now writes `hkl_source` attrs, but `simulate_forward_once` diagnostics only expose `hkl_stats`, so DB_AT_024 cannot detect refined MTZ regressions. Acceptance test still logs human-readable HKL source strings without assertions. Planned to retrofit telemetry payload into zero-iteration helpers and harden DB_AT_024 asserts.
+- Artifact Path: plans/active/MAP-SCALE-004/reports/2025-11-05T220000Z/
+- Next Actions: Implement telemetry emission in bridge helpers, extend DB_AT_024 assertions/log capture, and update selector docs.
+- <Action State>: [planning]
+2025-11-05T220000Z focus=MAP-SCALE-004 state=planning dwell=0 artifacts=plans/active/MAP-SCALE-004/reports/2025-11-05T220000Z/ next_action=implement_zero_iteration_telemetry

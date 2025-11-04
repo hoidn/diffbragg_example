@@ -903,11 +903,11 @@ def simulate_forward_once(
         - Honors RUNTIME-001 (NANOBRAGG_DISABLE_COMPILE=1 recommended)
         - Applies SCALE-001 (unscaled HKL grid) and SCALE-002 (post-sim scaling)
         - Applies GEOMETRY-002 (analytic Euler inversion in create_detector_config)
-        - Applies SCALE-005 (N_cells gated until sample clipping semantics validated)
+        - Applies SCALE-005 (N_cells enabled when calibration provides domain counts)
         - Device-neutral design: defaults to CPU, respects passed device
         - Does not write HDF5 or persist artifacts (caller's responsibility)
         - Calibration dict sources beam flux/exposure/beamsize per SCALE-003
-        - beam_config is wired to TorchCrystal for future sample clipping (AT-FLU-001)
+        - beam_config propagated to Simulator for sample clipping (2025-11-04T185107Z)
     """
     try:
         import torch
@@ -961,12 +961,14 @@ def simulate_forward_once(
     )
 
     # Build crystal_config with N_cells gating per SCALE-005
-    # apply_n_cells=False prevents 3.2e5× intensity inflation until sample clipping validated
+    # Enable apply_n_cells when calibration provides N_cells (sample clipping via beam_config)
+    # Per 2025-11-04T185107Z analysis: N_cells + beam sample clipping recovers parity
+    apply_n_cells = N_cells is not None
     crystal_config, n_cells_applied = create_crystal_config(
         crystal,
         experiment,
         N_cells=N_cells,
-        apply_n_cells=False  # SCALE-005: Gate N_cells until semantics match generator
+        apply_n_cells=apply_n_cells
     )
 
     # Run simulator per panel
@@ -1005,7 +1007,13 @@ def simulate_forward_once(
         crystal_model.hkl_metadata = hkl_metadata
 
         # Run simulator (single source, GEOMETRY-002/HKL-ORIENT-001 applied in bridge)
-        simulator = Simulator(detector=detector_model, crystal=crystal_model, device=device)
+        # Per input.md Do Now: propagate beam_config for sample clipping when N_cells is enabled
+        simulator = Simulator(
+            detector=detector_model,
+            crystal=crystal_model,
+            beam_config=beam_config,
+            device=device
+        )
         panel_output = simulator.run()  # Returns torch.Tensor on device
 
         # Move to CPU and convert to numpy

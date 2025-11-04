@@ -143,7 +143,8 @@ def test_nanobrag_backend_runs_simulator(
     # Mock config objects
     mock_detector_config.return_value = Mock()
     mock_beam_config.return_value = Mock()
-    mock_crystal_config.return_value = Mock()
+    # create_crystal_config returns (config, n_cells_applied) tuple
+    mock_crystal_config.return_value = (Mock(), False)
 
     # Mock model instantiation
     mock_detector_instance = Mock()

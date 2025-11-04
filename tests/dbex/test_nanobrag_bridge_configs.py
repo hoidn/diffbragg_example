@@ -652,7 +652,8 @@ class TestBeamCrystalConfigMapping:
         import torch
 
         # Create crystal config via bridge
-        crystal_config = create_crystal_config(mock_crystal, mock_experiment_stills)
+        # Note: create_crystal_config returns (config, n_cells_applied) tuple
+        crystal_config, n_cells_applied = create_crystal_config(mock_crystal, mock_experiment_stills)
 
         # Instantiate Crystal model - this validates config compatibility
         # Crystal constructor: __init__(self, config, beam_config=None, device=None, dtype=torch.float32)

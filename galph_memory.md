@@ -574,3 +574,13 @@ Notes
 - <Action State>: [planning]
 
 2025-11-04T043900Z focus=DB-AT-002 state=planning dwell=0 artifacts=plans/active/DB-AT-002/reports/2025-11-04T043700Z/ next_action=phase_A_env_and_seed_rehearsal
+## 2025-11-04T052930Z — DB-AT-020 reflection ingestion plan kickoff
+- Focus: DB-AT-020 — Reflection ingestion sanity
+- Action Type: planning
+- Key Observations: Created implementation plan (A1-C3) and planning report `2025-11-04T042625Z` outlining bbox exclusivity + panel alignment checks; ran DataLoad probe confirming 1 panel, 92 ROIs, sample bbox (582,594,0,12) with exclusive deltas (12,12); updated docs/fix_plan.md with new initiative (status in_progress) and prepared Do Now for test authoring + doc sync.
+- Artifact Path: plans/active/DB-AT-020/reports/2025-11-04T042625Z/
+- Next Actions: Execute DB_AT_020 test implementation (B1-B3), capture pytest/collect logs, and promote selector docs.
+- Reality Check: Verified DB_AT_020 remains Planned in testing docs; assets (`scaled.mtz`, `refGeom.expt`, `refGeom.refl`) present locally; no blockers detected.
+- <Action State>: [ready_for_implementation]
+
+2025-11-04T052930Z focus=DB-AT-020 state=ready_for_implementation dwell=0 artifacts=plans/active/DB-AT-020/reports/2025-11-04T042625Z/ next_action=implement_db_at_020_bbox_harness

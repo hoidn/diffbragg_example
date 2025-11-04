@@ -218,6 +218,19 @@
   * 2025-11-04T043700Z (planning) — Captured determinism plan outline (Phase A inputs, Phase B harness tasks, Phase C documentation sync), reviewed determinism workflow guidance (`docs/development/testing_strategy.md` §2.7) and runtime checklist, and staged planning report `plans/active/DB-AT-002/reports/2025-11-04T043700Z/summary.md`. Next Actions: Execute Phase A dependency/env rehearsals and scaffold same-seed pytest flow.
   * 2025-11-04T050000Z (implementation) — Authored `tests/dbex/test_forward_determinism.py` with TestForwardDeterminism class containing `test_DB_AT_002_same_seed` and `test_DB_AT_002_diff_seed`. Loaded canonical tensors via `load_golden_data` from parity loader (MANIFEST-001 checksum validation). Implemented `compute_determinism_metrics` helper respecting loss_mask and float64 precision per testing_strategy.md:231-246. Tests pass 2/2. Metrics: Same-seed (canonical baseline): bitwise_equal=True, correlation=1.0, max_abs_diff=0.0, n_valid_pixels=13086. Diff-seed (bragg vs target independence baseline): bitwise_equal=False, correlation=-0.0035 (excellent independence), differing_pixels=100%. Artifacts: `plans/active/DB-AT-002/reports/2025-11-04T050000Z/determinism/` (metrics_same_seed.json, metrics_diff_seed.json, env.json, commands.txt). Commands: `CUDA_VISIBLE_DEVICES='' TORCHDYNAMO_DISABLE=1 NANOBRAGG_DISABLE_COMPILE=1 KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_forward_determinism.py::TestForwardDeterminism --maxfail=1` (2 passed in 0.35s); `pytest --collect-only tests -k DB_AT_002` (2 tests collected); `pytest -v tests/` (49 passed, 1 skipped). Documentation: Updated `docs/TESTING_GUIDE.md` §2 determinism row to Active with canonical metrics and artifact paths; updated `docs/development/TEST_SUITE_INDEX.md` DB_AT_002 entry to active. Next Actions: Mark DB-AT-002 done; extend determinism harness to cover mosaic/misset RNG round-trip metrics (optional follow-up).
 
+### [DB-AT-020] Reflection ingestion sanity
+- Depends on: TORCH-BRIDGE-001, NANOBRAG-BACKEND-002, docs/dials_api.md contract
+- Status: in_progress
+- Owner/Date: Unassigned / 2025-11-04
+- Exit Criteria:
+  1. Author `tests/dbex/test_reflection_ingestion.py` (DB_AT_020) validating DIALS bbox exclusivity and panel ordering with canonical refGeom assets; include skip guard when `refGeom.refl` is absent and assertions covering slice shapes, bounds, and `DataLoad` ↔ reflection table alignment.
+  2. Persist evidence under `plans/active/DB-AT-020/reports/<timestamp>/` (baseline probe metrics, pytest log, collect-only log) demonstrating `bbox` deltas match sliced data/background shapes and panel IDs fall within detector range.
+  3. Promote DB_AT_020 rows in `docs/TESTING_GUIDE.md` and `docs/development/TEST_SUITE_INDEX.md` to Active with command selectors, environment flags (if any), artifact paths, and referenced findings; update `docs/findings.md` when new ingestion guardrails emerge.
+  4. Attempts History records targeted pytest + collect-only commands with metrics/artifacts so the selector is ready for acceptance gating.
+- Working Plan: plans/active/DB-AT-020/implementation.md
+- Attempts History:
+  * 2025-11-04T042625Z (planning) — Drafted reflection ingestion implementation plan (Phases A-C) and captured DataLoad probe confirming 1 panel, 92 ROIs, sample bbox `(582, 594, 0, 12)`, and exclusive deltas `(12, 12)` with slice shape `(12, 12)`; documented evidence in `plans/active/DB-AT-020/reports/2025-11-04T042625Z/summary.md`. Next Actions: Execute A1-A3 validations then implement DB_AT_020 pytest harness (B1-B3) followed by documentation/test registry sync.
+
 ### [FINDINGS-LEDGER-002] Extend knowledge base with torch experiment lessons
 - Depends on: TORCH-BRIDGE-001, TORCH-CLI-003
 - Status: done

@@ -1,0 +1,8 @@
+{
+  "bitwise_equal": false,
+  "correlation": -0.003513248008884728,
+  "max_abs_diff": 3880236875776.099,
+  "allclose_rtol_1e7_atol_1e12": false,
+  "nonzero_pixels_differ_pct": 100.0,
+  "n_valid_pixels": 13086
+}

@@ -1,0 +1,16 @@
+# DB-AT-002 Determinism Test Reproduction Commands
+# Per docs/TESTING_GUIDE.md:53-57 and input.md:8
+
+# Same-seed test:
+CUDA_VISIBLE_DEVICES='' TORCHDYNAMO_DISABLE=1 NANOBRAGG_DISABLE_COMPILE=1 \
+  KMP_DUPLICATE_LIB_OK=TRUE pytest -v \
+  tests/dbex/test_forward_determinism.py::TestForwardDeterminism::test_DB_AT_002_same_seed
+
+# Different-seed test:
+CUDA_VISIBLE_DEVICES='' TORCHDYNAMO_DISABLE=1 NANOBRAGG_DISABLE_COMPILE=1 \
+  KMP_DUPLICATE_LIB_OK=TRUE pytest -v \
+  tests/dbex/test_forward_determinism.py::TestForwardDeterminism::test_DB_AT_002_diff_seed
+
+# Collection evidence:
+CUDA_VISIBLE_DEVICES='' TORCHDYNAMO_DISABLE=1 NANOBRAGG_DISABLE_COMPILE=1 \
+  KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only tests -k DB_AT_002

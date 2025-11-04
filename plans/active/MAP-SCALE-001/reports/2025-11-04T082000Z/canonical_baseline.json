@@ -1,0 +1,8 @@
+{
+  "median_corr": 0.5932268769658128,
+  "corr_min": -0.04501022067652129,
+  "corr_max": 0.9735680788082817,
+  "localization_mean": 0.967391304347826,
+  "localization_success_rate": 0.9347826086956522,
+  "n_roi": 92
+}

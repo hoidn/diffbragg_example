@@ -1,0 +1,46 @@
+{
+  "mode": "mean_ratio",
+  "scale_factor": 7821.083293436959,
+  "pred_mean_before": 0.008011342957615852,
+  "target_mean": 63.02534484863281,
+  "metrics": {
+    "n_roi": 92,
+    "corr_median": 0.04887102116994264,
+    "corr_min": -0.26733034344847995,
+    "corr_max": 0.43076184872750356,
+    "localization_mean": 0.5,
+    "localization_success_rate": 0.0
+  },
+  "diagnostics": {
+    "masked_mse": 981700.0501375726,
+    "loss_mask_coverage": 0.0021021847522196737,
+    "n_rois": 92,
+    "target_shape": "(1, 2527, 2463)",
+    "global_scale_hint": 62.65738056380318,
+    "spot_scale_override": 1.0,
+    "sqrt_spot_scale": 1.0,
+    "bragg_stats": {
+      "min": 0.0,
+      "max": 0.08569871634244919,
+      "mean": 0.0025611945893615484
+    },
+    "hkl_stats": {
+      "h_min": -24,
+      "h_max": 24,
+      "k_min": -28,
+      "k_max": 28,
+      "l_min": -31,
+      "l_max": 31,
+      "h_range": 49,
+      "k_range": 57,
+      "l_range": 63,
+      "n_reflections": 69614,
+      "n_in_range": 69614,
+      "in_range_fraction": 1.0,
+      "grid_nonzero": 69614,
+      "grid_min": 0.0,
+      "grid_max": 518.3336791992188,
+      "grid_mean": 18.78112030029297
+    }
+  }
+}

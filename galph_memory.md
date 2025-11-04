@@ -660,3 +660,14 @@ Notes
 - Next Actions: Execute Do Now (implement DBEX runtime_vectorization test + docs sync, capture pytest/collect logs, update fix_plan attempts).
 - <Action State>: [planning]
 2025-11-04T074738Z focus=RUNTIME-VEC-001 state=planning dwell=0 artifacts=plans/active/RUNTIME-VEC-001/reports/2025-11-04T074738Z/ next_action=implement_runtime_vectorization_guard
+
+## 2025-11-04T082456Z — MAP-SCALE-001 planning diagnostics
+- Focus: MAP-SCALE-001 — Zero-iteration mapping scale alignment
+- Action Type: planning
+- Key Observations: Captured scale diagnostics via bin/compute_mapping_scale_probe.py (global ratio≈2.46e4, ROI median ratio≈5.9e3); uniform scaling strategies (none/global_hint/mean_ratio) leave corr≈0.049 and localization success=0.0; canonical bragg_torch baseline meets corr≈0.59, localization≈0.94, confirming missing DiffBragg scale/|F| inputs.
+- Artifact Path: plans/active/MAP-SCALE-001/reports/2025-11-04T082000Z/
+- Next Actions: Instrument simulate_forward_once diagnostics (raw means + ratios) and update DB_AT_024 metrics emission per input.md Do Now.
+- Reality Check: Need additional metadata surfaces before removing DB_AT_024 xfail; instrumentation will unblock further analysis.
+- <Action State>: [planning]
+
+2025-11-04T082456Z focus=MAP-SCALE-001 state=planning dwell=0 artifacts=plans/active/MAP-SCALE-001/reports/2025-11-04T082000Z/ next_action=instrument_simulate_forward_once_diagnostics

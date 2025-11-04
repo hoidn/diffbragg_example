@@ -552,3 +552,25 @@ Notes
 - <Action State>: [planning]
 
 2025-11-04T034834Z focus=FORWARD-EQUIV-002 state=planning dwell=0 artifacts=plans/active/FORWARD-EQUIV-002/reports/2025-11-04T034834Z/ next_action=modernize_forward_equiv_harness
+
+## 2025-11-04T043600Z — FORWARD-EQUIV-002 closure audit
+- Focus: FORWARD-EQUIV-002 — Promote forward equivalence smoke to canonical parity
+- Action Type: review_or_housekeeping
+- Key Observations: Verified targeted pytest/collect logs and parity metrics at reports/2025-11-04T041500Z/, marked implementation checklist complete, and flipped fix_plan status to done with closure summary at reports/2025-11-04T043500Z/.
+- Artifact Path: plans/active/FORWARD-EQUIV-002/reports/2025-11-04T043500Z/
+- Next Actions: None—initiative closed; pivot to DB-AT-002 determinism plan.
+- Reality Check: All exit criteria satisfied; no remaining work.
+- <Action State>: [ready_for_implementation]
+
+2025-11-04T043600Z focus=FORWARD-EQUIV-002 state=ready_for_implementation dwell=1 artifacts=plans/active/FORWARD-EQUIV-002/reports/2025-11-04T043500Z/ next_action=switch_focus
+
+## 2025-11-04T043900Z — DB-AT-002 determinism planning kickoff
+- Focus: DB-AT-002 — Determinism selector scaffold
+- Action Type: planning / review wrap-up
+- Key Observations: Closed FORWARD-EQUIV-002 (status→done, checklist A1-C3 marked, summary at reports/2025-11-04T043500Z/), reviewed canonical parity metrics/logs, and drafted DB-AT-002 implementation plan plus planning report (Phase A env/inputs, Phase B harness tasks, Phase C doc sync). Updated fix_plan with new initiative + attempts history.
+- Artifact Path: plans/active/DB-AT-002/reports/2025-11-04T043700Z/
+- Next Actions: Execute Phase A dependency/env rehearsals then scaffold same-seed determinism test and artifact writer.
+- Reality Check: No blockers; determinism selector still Planned in docs; readiness confirmed for implementation handoff next loop.
+- <Action State>: [planning]
+
+2025-11-04T043900Z focus=DB-AT-002 state=planning dwell=0 artifacts=plans/active/DB-AT-002/reports/2025-11-04T043700Z/ next_action=phase_A_env_and_seed_rehearsal

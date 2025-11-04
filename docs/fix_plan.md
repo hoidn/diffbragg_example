@@ -1,6 +1,6 @@
 # DBEX Fix Plan Ledger
 
-**Last Updated:** 2025-10-29
+**Last Updated:** 2025-11-04
 
 ## Working Agreements
 - Artifact policy: store loop outputs under a dedicated `plans/<initiative-id>/reports/<YYYY-MM-DDTHHMMSSZ>/` directory (or another documented location) and record the path in each Attempts History entry.
@@ -191,7 +191,7 @@
 
 ### [FORWARD-EQUIV-002] Promote forward equivalence smoke to canonical parity
 - Depends on: FORWARD-EQUIV-001, NANOBRAG-GOLDEN-001, NANOBRAG-BACKEND-002, PARITY-HARNESS-002
-- Status: in_progress
+- Status: done
 - Owner/Date: Unassigned / 2025-11-04
 - Exit Criteria:
   1. `tests/dbex/test_forward_equivalence_complete.py` consumes the canonical DiffBragg and nanobrag tensors via parity loader utilities, removes stub fixtures, and directly asserts DB-AT-001 thresholds (median correlation ≥0.2, localization ≥0.90) without xfail.
@@ -202,6 +202,20 @@
 - Attempts History:
   * 2025-11-04T034834Z (planning) — Audited forward equivalence harness stubs and outdated documentation, drafted Phase A-C plan to swap in canonical parity utilities, and created artifact hub `plans/active/FORWARD-EQUIV-002/reports/2025-11-04T034834Z/` with loop summary capturing problem statement, evidence, and implementation outline. Next Actions: Execute Phase B modernization (fixture swap, artifact routing, assertion tightening), then rerun selector/collect logs and refresh docs per Phase C.
   * 2025-11-04T041500Z (implementation) — Modernized test_forward_equivalence_complete.py to consume canonical parity loader utilities (load_golden_data, compute_parity_metrics, write_parity_artifacts, find_first_divergence), removed stub fixtures (stub_diffbragg, stub_torch, compute_roi_metrics), routed artifacts to FORWARD-EQUIV-002/reports/2025-11-04T041500Z/forward_equiv/, and enforced DB-AT-001 thresholds without xfail. Metrics: correlation=0.988 (threshold ≥0.2), localization=1.0 (threshold ≥0.90), RMSE=180.4. Artifacts: plans/active/FORWARD-EQUIV-002/reports/2025-11-04T041500Z/{forward_equiv/parity_harness/{metrics.json,first_divergence.json,predicted.npy,target.npy},pytest_forward_equiv.log,collect_db_at_001_forward.log}. Updated docs/TESTING_GUIDE.md §2 and docs/development/TEST_SUITE_INDEX.md with new artifact paths and canonical metrics. Full test suite: pytest -v tests/ → 47 passed, 1 skipped. Next Actions: Mark initiative done; exit criteria met.
+  * 2025-11-04T043500Z (review) — Verified canonical parity artifacts (metrics.json correlation=0.988, localization=1.0) and targeted pytest/collect logs under reports/2025-11-04T041500Z/, confirmed documentation sync (`docs/TESTING_GUIDE.md:64`, `docs/development/TEST_SUITE_INDEX.md:20`), and marked implementation plan phases A-C complete. Metrics: review-only (no new tests executed). Artifacts: plans/active/FORWARD-EQUIV-002/reports/2025-11-04T043500Z/summary.md. Next Actions: Initiative closed; tee up DB_AT_002 determinism selector as follow-on focus.
+
+### [DB-AT-002] Determinism selector scaffold
+- Depends on: FORWARD-EQUIV-002, NANOBRAG-BACKEND-002, TORCH-RUNTIME-002, PARITY-HARNESS-002
+- Status: in_progress
+- Owner/Date: Unassigned / 2025-11-04
+- Exit Criteria:
+  1. Author a pytest module (e.g., `tests/dbex/test_forward_determinism.py`) that sets determinism env guards before importing torch and provides DB_AT_002 same-seed + diff-seed tests using canonical parity loader outputs.
+  2. Determinism artifacts (metrics_same_seed.json, metrics_diff_seed.json, env.json, commands.txt) are emitted under `plans/active/DB-AT-002/reports/<timestamp>/determinism/`, capturing `array_equal`, correlation, max|Δ|, and differing-pixel percentage for both scenarios.
+  3. Documentation rows for DB_AT_002 in `docs/TESTING_GUIDE.md` and `docs/development/TEST_SUITE_INDEX.md` are promoted to Active with updated artifact paths, environment flags, and observed metrics; `docs/findings.md` reflects any determinism guardrails encountered.
+  4. Attempts History records targeted pytest + collect-only runs with command strings and log paths, and the selector is ready for inclusion in the acceptance test battery.
+- Working Plan: plans/active/DB-AT-002/implementation.md
+- Attempts History:
+  * 2025-11-04T043700Z (planning) — Captured determinism plan outline (Phase A inputs, Phase B harness tasks, Phase C documentation sync), reviewed determinism workflow guidance (`docs/development/testing_strategy.md` §2.7) and runtime checklist, and staged planning report `plans/active/DB-AT-002/reports/2025-11-04T043700Z/summary.md`. Next Actions: Execute Phase A dependency/env rehearsals and scaffold same-seed pytest flow.
 
 ### [FINDINGS-LEDGER-002] Extend knowledge base with torch experiment lessons
 - Depends on: TORCH-BRIDGE-001, TORCH-CLI-003

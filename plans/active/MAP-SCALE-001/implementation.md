@@ -30,7 +30,7 @@ Resolve the scale mismatch between `simulate_forward_once` outputs and backgroun
 - **Phase C — Implementation Prep**
   - [x] C1: Draft Do Now with concrete production edits (`dbex/nanobrag_bridge.py::simulate_forward_once`, optional CLI plumbing) and mapped pytest selector `tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke`.
   - [x] C2: Outline artifact capture + documentation sync (TESTING_GUIDE.md, TEST_SUITE_INDEX.md) for Ralph.
-  - [ ] C3: Update `docs/findings.md` if new guardrails emerge (e.g., scale initialization best practice).
+  - [x] C3: Update `docs/findings.md` if new guardrails emerge (e.g., scale initialization best practice).
 
 ## Risks / Open Questions
 - Ensure scaling fix does not regress photon-mode (adu_per_photon) paths.

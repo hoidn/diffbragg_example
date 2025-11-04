@@ -708,3 +708,14 @@ Notes
 - Next Actions: Wire calibration metadata (flux, beamsize, exposure, N_cells) through load_calibration_metadata → create_beam_config/create_crystal_config → simulate_forward_once and rerun DB_AT_024.
 - <Action State>: [ready_for_implementation]
 2025-11-04T175020Z focus=MAP-SCALE-001 state=ready_for_implementation dwell=2 artifacts=plans/active/MAP-SCALE-001/reports/2025-11-04T175020Z/ next_action=propagate_calibration_into_bridge
+
+## 2025-11-04T182918Z — MAP-SCALE-001 calibration guard reshuffle
+- Focus: MAP-SCALE-001 — Zero-iteration mapping scale alignment
+- Action Type: planning
+- Key Observations: Captured calibration sweep (203000Z) confirming `N_cells` overrides blow up intensity (~3.2e5×) while flux/exposure toggles are inert because beam_config never reaches the torch crystal. Added SCALE-005 to findings, refreshed implementation plan C3, and rewrote Do Now to attach beam_config + gate `N_cells` before rerunning DB_AT_024 with diagnostics exposing whether the override was applied.
+- Artifact Path: plans/active/MAP-SCALE-001/reports/2025-11-04T203000Z/
+- Next Actions: Execute new Do Now—patch bridge to pass beam_config, suppress `N_cells` until sample clipping semantics validated, rerun DB_AT_024 under 2025-11-04T210000Z artifacts, and record metrics.
+- Reality Check: Test still fails (corr=-0.043) due to double counting; calibrated Do Now now targets root cause. Dwell capped at 2, ready for implementation handoff.
+- <Action State>: [ready_for_implementation]
+
+2025-11-04T182918Z focus=MAP-SCALE-001 state=ready_for_implementation dwell=2 artifacts=plans/active/MAP-SCALE-001/reports/2025-11-04T203000Z/ next_action=attach_beam_config_and_rerun_db_at_024

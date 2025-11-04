@@ -1,0 +1,443 @@
+================================================================================
+                    PERFORMANCE ANALYSIS: ITERATIONS 18-47
+             Per-Iteration Ratings (0-100 scale) - Sequential Review
+================================================================================
+
+LEGEND: █ = 10 points, ▓ = 5 points, ░ = Failed/Blocked (<50)
+Phases: [P1: Env Hell] [P2: Debug Spiral] [P3: Breakthrough] [P4: Scale Wars] [P5: Geometry]
+
+================================================================================
+                              GALPH (Planning Agent)
+================================================================================
+
+Iter  Score  Grade  Performance Bar                                    Phase
+──────────────────────────────────────────────────────────────────────────────
+ 18    88     B+    ████████▓░░░░░░░░░░                                P1
+ 19    74     C     ███████░░░░░░░░░░░░░                                P1
+ 20    77     C+    ███████▓░░░░░░░░░░░░                                P1
+ 21    --     --    ────────────── (no galph log) ──────────────        P1
+ 22    70     C-    ███████░░░░░░░░░░░░░                                P1
+ 23    76     C+    ███████▓░░░░░░░░░░░░                                P1
+ 24    82     B     ████████░░░░░░░░░░░░                                P1
+ 25    75     C     ███████▓░░░░░░░░░░░░                                P1
+──────────────────────────────────────────────────────────────────────────────
+ 26    79     C+    ███████▓░░░░░░░░░░░░                                P2
+ 27    78     C+    ███████▓░░░░░░░░░░░░                                P2
+ 28    73     C     ███████░░░░░░░░░░░░░                                P2
+ 29    80     B-    ████████░░░░░░░░░░░░                                P2
+ 30    76     C+    ███████▓░░░░░░░░░░░░                                P2
+ 31    74     C     ███████░░░░░░░░░░░░░                                P2
+ 32    77     C+    ███████▓░░░░░░░░░░░░                                P2
+ 33    81     B     ████████░░░░░░░░░░░░                                P2
+──────────────────────────────────────────────────────────────────────────────
+ 34    79     C+    ███████▓░░░░░░░░░░░░                                P3
+ 35    96     A     █████████▓░░░░░░░░░░ ⭐ BREAKTHROUGH               P3
+ 36    84     B     ████████░░░░░░░░░░░░                                P3
+ 37    82     B     ████████░░░░░░░░░░░░                                P3
+──────────────────────────────────────────────────────────────────────────────
+ 38    75     C     ███████▓░░░░░░░░░░░░                                P4
+ 39    81     B     ████████░░░░░░░░░░░░                                P4
+ 40    77     C+    ███████▓░░░░░░░░░░░░                                P4
+ 41    73     C     ███████░░░░░░░░░░░░░                                P4
+ 42    79     C+    ███████▓░░░░░░░░░░░░                                P4
+ 43    76     C+    ███████▓░░░░░░░░░░░░                                P4
+ 44    74     C     ███████░░░░░░░░░░░░░                                P4
+──────────────────────────────────────────────────────────────────────────────
+ 45    --     --    ────────────── (no galph log) ──────────────        P5
+ 46    80     B-    ████████░░░░░░░░░░░░                                P5
+ 47    83     B     ████████░░░░░░░░░░░░                                P5
+──────────────────────────────────────────────────────────────────────────────
+
+Galph Average: 78.3/100  |  Range: 70-96  |  Std Dev: ~5.2
+
+
+================================================================================
+                              RALPH (Engineer Agent)
+================================================================================
+
+Iter  Score  Grade  Performance Bar                                    Phase
+──────────────────────────────────────────────────────────────────────────────
+ 18    87     B+    ████████▓░░░░░░░░░░                                P1
+ 19    43     F     ████░░░░░░░░░░░░░░░░ ⚠ BLOCKED                     P1
+ 20    52     F     █████░░░░░░░░░░░░░░░ ⚠ CUDA ERROR                  P1
+ 21    68     D+    ██████▓░░░░░░░░░░░░░                                P1
+ 22    38     F     ███▓░░░░░░░░░░░░░░░░ ⚠ SIMTBX MISSING              P1
+ 23    87     B+    ████████▓░░░░░░░░░░  ✓ ENV VALIDATED               P1
+ 24    48     F     ████▓░░░░░░░░░░░░░░░ ⚠ CUDA BLOCKER                P1
+ 25    66     D     ██████▓░░░░░░░░░░░░░                                P1
+──────────────────────────────────────────────────────────────────────────────
+ 26    84     B     ████████░░░░░░░░░░░░                                P2
+ 27    90     A-    █████████░░░░░░░░░░░                                P2
+ 28    63     D     ██████░░░░░░░░░░░░░░                                P2
+ 29    91     A-    █████████░░░░░░░░░░░ ✓ 4 PATCHES                   P2
+ 30    58     F     █████▓░░░░░░░░░░░░░░                                P2
+ 31    53     F     █████░░░░░░░░░░░░░░░ ⚠ TORCH ZEROS                 P2
+ 32    68     D+    ██████▓░░░░░░░░░░░░░                                P2
+ 33    48     F     ████▓░░░░░░░░░░░░░░░ ⚠ 0% HKL HIT                  P2
+──────────────────────────────────────────────────────────────────────────────
+ 34    70     C     ███████░░░░░░░░░░░░░                                P3
+ 35    76     C+    ███████▓░░░░░░░░░░░░                                P3
+ 36    99     A+    █████████▓░░░░░░░░░░ ⭐⭐ OUTSTANDING               P3
+ 37    93     A     █████████░░░░░░░░░░░ ✓ FIXTURES                    P3
+──────────────────────────────────────────────────────────────────────────────
+ 38    82     B     ████████░░░░░░░░░░░░                                P4
+ 39    63     D     ██████░░░░░░░░░░░░░░                                P4
+ 40    68     D+    ██████▓░░░░░░░░░░░░░                                P4
+ 41    89     B+    ████████▓░░░░░░░░░░  ✓ SCALE-002                   P4
+ 42    87     B+    ████████▓░░░░░░░░░░  ✓ MANIFEST-001                P4
+ 43    88     B+    ████████▓░░░░░░░░░░  ✓ SCALE FIXED                 P4
+ 44    91     A-    █████████░░░░░░░░░░░ ✓ VALIDATION                  P4
+──────────────────────────────────────────────────────────────────────────────
+ 45    89     B+    ████████▓░░░░░░░░░░  ✓ ROI TRIPTYCHS               P5
+ 46    87     B+    ████████▓░░░░░░░░░░                                P5
+ 47    73     C     ███████░░░░░░░░░░░░░                                P5
+──────────────────────────────────────────────────────────────────────────────
+
+Ralph Average: 72.1/100  |  Range: 38-99  |  Std Dev: ~16.8  (high variance!)
+
+
+================================================================================
+                           COMBINED PERFORMANCE TREND
+================================================================================
+
+Iteration:  18  20  22  24  26  28  30  32  34  36  38  40  42  44  46
+            │   │   │   │   │   │   │   │   │   │   │   │   │   │   │
+      100 ─ ┼───┼───┼───┼───┼───┼───┼───┼───┼───┼──★┼───┼───┼───┼───┼───
+            │   │   │   │   │   │   │   │   │   │  R│   │   │   │   │
+       95 ─ ┼───┼───┼───┼───┼───┼───┼───┼───┼───┼──3┼───┼───┼───┼───┼───
+            │   │   │   │   │   │   │   │   │  G│  6│   │   │   │   │
+       90 ─ ┼───┼───┼───┼───┼───┼───┼───┼───┼──3│  9│ R │   │   │ R │───
+            │   │   │   │   │   │   │   │   │  5│  9│37,│   │   │44,│
+       85 ─ ┼─R─┼───┼───┼───┼───┼───┼───┼───┼──★┼─G─┼29,┼───┼─R─┼41,┼───
+            │18,│   │   │   │   │   │   │   │   │36 │41 │   │42,│   │
+       80 ─ ┼─G─┼───┼───┼─G─┼─G─┼───┼─G─┼─G─┼─G─┼───┼─G─┼───┼43 │   │─G─
+            │18 │   │   │24 │26,│   │29 │33 │34 │   │39,│   │   │   │46
+       75 ─ ┼23 ┼───┼───┼───┼27 │   │   │   │   │   │42 │   │   │   │───
+            │   │   │   │   │28 │   │   │   │   │   │   │   │   │   │
+       70 ─ ┼───┼─G─┼─G─┼───┼───┼───┼───┼───┼─R─┼───┼───┼───┼───┼───┼───
+            │   │20 │22 │   │   │   │   │   │34 │   │   │   │   │   │
+       65 ─ ┼───┼───┼───┼───┼───┼─R─┼───┼─R─┼───┼───┼─R─┼─R─┼───┼───┼───
+            │   │   │   │   │   │28 │   │32 │   │   │39 │40 │   │   │
+       60 ─ ┼───┼───┼───┼───┼───┼───┼─R─┼───┼───┼───┼───┼───┼───┼───┼───
+            │   │   │   │   │   │   │30 │   │   │   │   │   │   │   │
+       55 ─ ┼───┼─R─┼───┼───┼───┼───┼───┼───┼───┼───┼───┼───┼───┼───┼───
+            │   │20 │   │   │   │   │ R │   │   │   │   │   │   │   │
+       50 ─ ┼───┼───┼───┼─R─┼───┼───┼─3┼───┼───┼───┼───┼───┼───┼───┼───
+            │   │   │   │24 │   │   │ 1│   │   │   │   │   │   │   │
+       45 ─ ┼─R─┼───┼───┼───┼───┼───┼───┼─R─┼───┼───┼───┼───┼───┼───┼───
+            │19 │   │   │   │   │   │   │33 │   │   │   │   │   │   │
+       40 ─ ┼───┼───┼─R─┼───┼───┼───┼───┼───┼───┼───┼───┼───┼───┼───┼───
+            │   │   │22 │   │   │   │   │   │   │   │   │   │   │   │
+            └───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───
+         Phase: ──────P1────────│────────P2────────│──P3──│─────P4─────│P5
+
+Legend: G = Galph, R = Ralph, ★ = Exceptional (95+)
+
+
+================================================================================
+                            PHASE AVERAGES COMPARISON
+================================================================================
+
+Phase                   Galph   Ralph   Combined   Iterations
+─────────────────────────────────────────────────────────────
+P1: Env Hell (18-25)     77      61        67         8 iter  ████████
+P2: Debug Spiral (26-33) 77      69        72         8 iter  ████████
+P3: Breakthrough (34-37) 85      85        84         4 iter  ████     ⭐
+P4: Scale Wars (38-44)   76      81        78         7 iter  ███████
+P5: Geometry (45-47)     82      83        82         3 iter  ███
+
+Overall Average:         78.3    72.1      75.0      30 iter  ██████████████████████████████
+
+
+================================================================================
+                              PERFORMANCE METRICS
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│  GALPH STATISTICS                                                       │
+├─────────────────────────────────────────────────────────────────────────┤
+│  Average Score:      78.3/100                                           │
+│  Median Score:       77/100                                             │
+│  Best Performance:   Iter 35 (96/100) - HKL orientation discovery       │
+│  Worst Performance:  Iter 22 (70/100) - Planning under constraints      │
+│  Standard Deviation: 5.2 (low variance = consistent)                    │
+│  A-Range Count:      2 iterations (7%)                                  │
+│  B-Range Count:      13 iterations (46%)                                │
+│  C-Range Count:      13 iterations (46%)                                │
+│  Failures (<60):     0 iterations (0%) ✓                                │
+└─────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│  RALPH STATISTICS                                                       │
+├─────────────────────────────────────────────────────────────────────────┤
+│  Average Score:      72.1/100                                           │
+│  Median Score:       73/100                                             │
+│  Best Performance:   Iter 36 (99/100) - HKL fix & fixture promotion     │
+│  Worst Performance:  Iter 22 (38/100) - simtbx missing blocker          │
+│  Standard Deviation: 16.8 (HIGH variance = inconsistent)                │
+│  A-Range Count:      6 iterations (20%)                                 │
+│  B-Range Count:      10 iterations (33%)                                │
+│  C-Range Count:      6 iterations (20%)                                 │
+│  D-Range Count:      4 iterations (13%)                                 │
+│  Failures (<60):     6 iterations (20%) ⚠                               │
+└─────────────────────────────────────────────────────────────────────────┘
+
+
+================================================================================
+                           KEY PERFORMANCE PATTERNS
+================================================================================
+
+GALPH PATTERNS:
+  ✓ Consistent performance (low variance)
+  ✓ No failures (<60)
+  ✓ Exceptional diagnostics (iter 35, 39, 47)
+  ⚠ Dwell crisis (reached dwell=20)
+  ⚠ Planning fatigue evident in later iterations
+  ⚠ Slow transitions to implementation
+
+RALPH PATTERNS:
+  ✓ Exceptional when unblocked (iter 36: 99/100)
+  ✓ Strong execution in breakthrough phase
+  ⚠ High variance (38-99 range)
+  ⚠ 6 failure iterations due to blockers
+  ⚠ Thrashing on complex bugs (8+ iterations)
+  ⚠ False starts (reciprocal vectors, scaling)
+
+BREAKTHROUGH MOMENTS:
+  ⭐ Iter 35 (Galph 96): HKL orientation root cause
+  ⭐⭐ Iter 36 (Ralph 99): Complete HKL fix implementation
+  ✓ Iter 29 (Ralph 91): 4 patches in single iteration
+  ✓ Iter 41 (Ralph 89): SCALE-002 resolution
+
+CRISIS POINTS:
+  ⚠ Iter 19-22: Environment hell (4 iterations blocked)
+  ⚠ Iter 30-33: Torch zero-output spiral (4 iterations)
+  ⚠ Iter 41-44: Galph dwell crisis (dwell=14→18)
+
+
+================================================================================
+                            EFFICIENCY TIMELINE
+================================================================================
+
+ACTUAL (30 iterations):
+├──────────────────────────────────────────────────────────┤ 100%
+│  P1   │  P2   │P3│    P4    │P5│
+└───────┴───────┴──┴──────────┴──┘
+  8 iter  8 iter 4i   7 iter   3i
+
+OPTIMAL (estimated 15 iterations):
+├──────────────────────────┤ 50%
+│P1│ P2 │P3│P4│P5│
+└──┴────┴──┴──┴──┘
+ 2i  4i  3i 3i 3i
+
+WASTE: ████████████████ 50% efficiency loss
+       (15 iterations wasted on thrashing and over-planning)
+
+
+================================================================================
+                                  SUMMARY
+================================================================================
+
+The NANOBRAG-GOLDEN-001 initiative shows a classic "breakthrough after 
+struggle" pattern. Early iterations (18-25) thrashed on environment issues.
+Middle iterations (26-35) spiraled debugging torch zero-output. The break-
+through phase (34-37) was exceptional with Galph's brilliant diagnostics and
+Ralph's outstanding execution. Late iterations (38-47) resolved scaling but
+encountered planning fatigue.
+
+Key takeaway: When unblocked, both agents perform at A/B+ level. Blockers
+cause severe thrashing. Need better early detection and escalation protocols.
+
+Overall Grade: C (75/100) - Solid technical work, poor efficiency
+
+================================================================================
+
+
+================================================================================
+                      UPDATED WITH ITERATIONS 48-49
+================================================================================
+
+**Iter 48 (galph): 81/100 - B**
+- Planning loop on detector orientation angles
+- Derived DIALS rotation parameters (179.72°, -0.0448°, -0.0970°)
+- Created reusable tooling (summarize_roi_offsets.py)
+- Ready-for-implementation, **dwell=21** (CRITICAL)
+- **Strength:** Methodical investigation, good tooling
+- **Weakness:** Dwell count extremely high
+
+**Iter 48 (ralph): 76/100 - C+**
+- Implemented DIALS detector rotations in dbex/nanobrag_bridge.py
+- Regenerated canonical dataset with rotation extraction
+- **Median offset: 3.0 px** (target ≤1 px) - NOT RESOLVED
+- Test xfailed (expected)
+- **Strength:** Clean implementation with scitbx validation
+- **Weakness:** Did not achieve offset reduction goal
+
+**Iter 49 (galph): 85/100 - B**
+- **BREAKTHROUGH:** Discovered Euler angle conversion mismatch
+- scitbx uses Z→Y→X, nanobrag_torch uses X→Y→Z
+- Derived analytical Euler inversion formula
+- Validated with **<2e-16 machine precision error**
+- **dwell=22** (MAXIMUM EVER)
+- **Strength:** Exceptional root cause diagnostics
+- **Weakness:** Dwell crisis at critical level
+
+**Iter 49 (ralph): 50/100 - F**
+- Repository synchronization only
+- Fast-forward merge (2e73ab2 → 1acd879)
+- State file updates
+- **No real work performed**
+- **Strength:** Clean repo operations
+- **Weakness:** Zero progress on initiative
+
+================================================================================
+                      UPDATED PERFORMANCE BARS (48-49)
+================================================================================
+
+Iter  Score  Grade  Performance Bar                                    Phase
+──────────────────────────────────────────────────────────────────────────────
+GALPH:
+ 48    81     B     ████████░░░░░░░░░░░░  dwell=21                     P5
+ 49    85     B     ████████▓░░░░░░░░░░░  dwell=22 ⚠ CRITICAL          P5
+
+RALPH:
+ 48    76     C+    ███████▓░░░░░░░░░░░░  offset still 3px             P5
+ 49    50     F     █████░░░░░░░░░░░░░░░  ⚠ SYNC ONLY                  P5
+
+================================================================================
+                      UPDATED COMBINED TREND (EXTENDED)
+================================================================================
+
+Iteration:  36  38  40  42  44  46  48
+            │   │   │   │   │   │   │
+      100 ─ ┼──★┼───┼───┼───┼───┼───┼───
+            │  R│   │   │   │   │   │
+       95 ─ ┼──3│   │   │   │   │   │───
+            │  6│   │   │   │   │   │
+       90 ─ ┼──9│   │   │   │ R │   │───
+            │   │   │   │   │44,│   │
+       85 ─ ┼─G─┼───┼───┼─R─┼41 │───┼─G─
+            │36 │   │   │42,│   │   │49
+       80 ─ ┼───┼─G─┼───┼43 │   │─G─┼───
+            │   │39,│   │   │   │46 │
+       75 ─ ┼───┼42 │   │   │   │   │─R─
+            │   │   │   │   │   │   │48
+       70 ─ ┼───┼───┼───┼───┼───┼───┼───
+            │   │   │   │   │   │   │
+       65 ─ ┼───┼───┼───┼───┼───┼───┼───
+            │   │   │   │   │   │   │
+       60 ─ ┼───┼───┼───┼───┼───┼───┼───
+            │   │   │   │   │   │   │
+       55 ─ ┼───┼───┼───┼───┼───┼───┼───
+            │   │   │   │   │   │   │
+       50 ─ ┼───┼───┼───┼───┼───┼───┼─R─
+            │   │   │   │   │   │   │49
+            └───┴───┴───┴───┴───┴───┴───
+         Phase:     P4     │─────P5─────│
+
+================================================================================
+                      UPDATED STATISTICS (Iters 18-49)
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│  GALPH UPDATED STATISTICS (30 summaries)                                │
+├─────────────────────────────────────────────────────────────────────────┤
+│  Average Score:      79.0/100  (↑ from 78.3)                            │
+│  Median Score:       79/100                                             │
+│  Best Performance:   Iter 35 (96/100) - HKL orientation discovery       │
+│  Worst Performance:  Iter 22 (70/100) - Planning under constraints      │
+│  Standard Deviation: 5.4 (low variance = consistent)                    │
+│  DWELL CRISIS:       Reached dwell=22 (EXTREME) ⚠⚠⚠                     │
+└─────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│  RALPH UPDATED STATISTICS (32 summaries)                                │
+├─────────────────────────────────────────────────────────────────────────┤
+│  Average Score:      71.5/100  (↓ from 72.1)                            │
+│  Median Score:       73/100                                             │
+│  Best Performance:   Iter 36 (99/100) - HKL fix & fixture promotion     │
+│  Worst Performance:  Iter 22 (38/100) - simtbx missing blocker          │
+│  Standard Deviation: 16.5 (HIGH variance = inconsistent)                │
+│  Failures (<60):     7 iterations (22%) - includes iter 49              │
+└─────────────────────────────────────────────────────────────────────────┘
+
+OVERALL PROJECT PROGRESS (32 iterations):
+- Average: 75.3/100 (C)
+- Efficiency: ~47% (32 iterations for ~75% completion)
+- Phase 5 extended to 5 iterations (45-49)
+
+================================================================================
+                      PHASE 5 COMPLETE BREAKDOWN
+================================================================================
+
+Phase 5: Geometry Fix (Iter 45-49) - Avg: 76/100
+
+| Iter | Agent  | Score | Grade | Summary |
+|------|--------|-------|-------|---------|
+| 45   | ralph  | 89    | B+    | ROI triptych instrumentation |
+| 46   | galph  | 80    | B-    | Peak offset analysis (5.1px median) |
+| 46   | ralph  | 87    | B+    | Peak coordinate logging |
+| 47   | galph  | 83    | B     | DIALS pivot bug identified |
+| 47   | ralph  | 73    | C     | DIALS convention started (incomplete) |
+| 48   | galph  | 81    | B     | Detector orientation angles derived |
+| 48   | ralph  | 76    | C+    | DIALS rotations implemented (3px offset remains) |
+| 49   | galph  | 85    | B     | Euler conversion mismatch discovered ⭐ |
+| 49   | ralph  | 50    | F     | Sync only, no work |
+
+Phase 5 Average: 78.2/100 (C+)
+Phase 5 Iterations: 5 (expected 3, overran by 2)
+
+================================================================================
+                      KEY INSIGHTS FROM ITER 48-49
+================================================================================
+
+ITER 48 ACHIEVEMENTS:
+✓ DIALS detector rotations implemented with scitbx validation
+✓ Rotation matrix orthonormality verified with RMS error reporting
+✓ Canonical dataset regenerated with proper Euler angles
+✗ Median offset 3.0 px (target ≤1 px) - GOAL NOT MET
+✗ Localization success: 61.1% (target ≥90%)
+
+ITER 49 BREAKTHROUGH:
+⭐ ROOT CAUSE DISCOVERED: Euler angle convention mismatch
+  - scitbx.matrix uses Z→Y→X composition
+  - nanobrag_torch uses X→Y→Z composition
+  - Basis vector reconstruction error: 3.7e-3 (unacceptable)
+⭐ ANALYTICAL SOLUTION: Derived manual Euler inversion formula
+  - Validated with <2e-16 machine precision error
+  - Direct inversion of [fast, slow, normal] rotation matrix
+
+CRITICAL CONCERNS:
+⚠ Galph dwell=22 (EXTREME - far beyond acceptable limit of 5)
+⚠ Ralph iter 49 did zero work (sync only)
+⚠ Geometry fix now spans 5 iterations (45-49) vs expected 3
+⚠ Parity correlation STILL unresolved after 32 iterations
+
+================================================================================
+                      UPDATED RECOMMENDATIONS
+================================================================================
+
+IMMEDIATE (Iter 50):
+1. **IMPLEMENT Euler fix** - Replace scitbx call with analytical formula
+2. **VALIDATE geometry** - Confirm basis reconstruction <1e-6 error
+3. **REGENERATE dataset** - Final canonical tensor generation
+4. **RUN parity test** - Verify offset reduction to <2px
+5. **HARD DECISION POINT:**
+   - If offset <2px: CLOSE initiative as substantially complete
+   - If offset >2px: DOCUMENT as simulator limitation and CLOSE
+   - DO NOT continue beyond iter 50 without closing or blocking
+
+PROCESS ENFORCEMENT:
+⚠ Galph must be PREVENTED from reaching dwell=23
+⚠ No more planning-only iterations
+⚠ Next iteration MUST be implementation + validation
+⚠ Force FSM transition to blocked if not executable
+
+REALISTIC ASSESSMENT:
+- 32 iterations for 75% completion is inefficient
+- Parity correlation may be fundamental simulator difference
+- Detector geometry likely fixable with Euler correction
+- Initiative should close at iter 50 with lessons learned
+
+================================================================================

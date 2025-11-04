@@ -1,0 +1,2 @@
+ls: cannot access 'tests/fixtures/golden_data/simple_cubic/refined.{expt,refl}': No such file or directory
+-rw-rw-r-- 1 ollie ollie 955K Nov  4 09:19 tests/fixtures/golden_data/simple_cubic/refined_structure_factors.mtz

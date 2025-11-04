@@ -1,0 +1,242 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 1 item
+
+tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke FAILED [100%]
+
+=================================== FAILURES ===================================
+______________ TestDB_AT_024_Mapping.test_db_at_024_mapping_smoke ______________
+
+self = <tests.dbex.test_mapping_consistency.TestDB_AT_024_Mapping object at 0x76336c925130>
+canonical_assets = {'calibration': {'beam_exposure': 1.0, 'beam_flux': 1000000000000.0, 'spot_scale_override': 3.184711299019782e+17}, 'd...], dtype=int32), array([22.999327, 22.999327, 31.390171, ..., 20.195526, 18.983612,
+       18.983612], dtype=float32))}
+artifact_dir = PosixPath('plans/active/MAP-SCALE-001/reports/2025-11-04T130000Z')
+
+    @pytest.mark.db_at_024
+    @pytest.mark.mapping
+    def test_db_at_024_mapping_smoke(self, canonical_assets, artifact_dir):
+        """
+        DB-AT-024 smoke test: zero-iteration mapping consistency.
+    
+        Measures correlation and localization between torch Bragg output and
+        background-subtracted data for K ROIs. Emits metrics JSON/CSV under
+        $DBAT024_ARTIFACT_DIR.
+    
+        Current thresholds (provisional xfail until improved):
+        - Median correlation >= 0.2
+        - Localization success rate >= 90%
+    
+        Metrics from 2025-11-04T063053Z baseline:
+        - corr_median: 0.0488
+        - localization_success_rate: 0.0
+        """
+        os.environ.setdefault("NANOBRAGG_DISABLE_COMPILE", "1")
+    
+        # Import parity utilities
+        from tests.fixtures.parity_loader import compute_parity_metrics
+    
+        dl = canonical_assets["dataload"]
+    
+        # Prepare refinement inputs
+        inputs = prepare_refinement_inputs(
+            data=dl.data,
+            background_image=dl.background_image,
+            trusted_mask=dl.trusted_mask,
+            bbox=dl.bbox,
+            pids=dl.pids,
+            detector=dl.detector,
+            adu_per_photon=None,  # ADU mode per DB-AT-024 baseline
+        )
+    
+        # Load calibration metadata for spot_scale_override
+        calibration = canonical_assets["calibration"]
+        spot_scale_override = calibration["spot_scale_override"]
+    
+        # Use refined structure factors if available (MAP-SCALE-001)
+        # Otherwise fall back to raw MTZ (may not meet thresholds)
+        refined_hkl = canonical_assets.get("refined_hkl")
+        if refined_hkl is not None:
+            hkl_indices, hkl_amplitudes = refined_hkl
+            hkl_source = "refined_structure_factors.mtz"
+        else:
+            hkl_indices = dl.F.indices()
+            hkl_amplitudes = dl.F.data()
+            hkl_source = "scaled.mtz (raw, not refined)"
+    
+        # Run zero-iteration forward simulation with DiffBragg calibration
+        bragg, diagnostics = simulate_forward_once(
+            inputs=inputs,
+            detector=dl.detector,
+            beam=dl.beam,
+            crystal=dl.crystal,
+            experiment=dl.Expt,
+            hkl_indices=hkl_indices,
+            hkl_amplitudes=hkl_amplitudes,
+            spot_scale_override=spot_scale_override,
+            device="cpu",
+        )
+    
+        # Compute per-ROI metrics
+        roi_metrics = []
+        correlations = []
+        localizations = []
+    
+        for pid, (x0, x1, y0, y1) in inputs.panel_slices:
+            pred = bragg[pid, y0:y1, x0:x1]
+            targ = inputs.target[pid, y0:y1, x0:x1]
+            mask = inputs.loss_mask[pid, y0:y1, x0:x1]
+    
+            roi_result = compute_parity_metrics(pred, targ, loss_mask=mask)
+            roi_metrics.append(roi_result)
+    
+            if not np.isnan(roi_result.correlation):
+                correlations.append(float(roi_result.correlation))
+            if not np.isnan(roi_result.localization):
+                localizations.append(float(roi_result.localization))
+    
+        # Aggregate metrics
+        median_corr = median(correlations) if correlations else float("nan")
+        localization_success_rate = (
+            float(np.mean([loc == 1.0 for loc in localizations]))
+            if localizations
+            else float("nan")
+        )
+    
+        summary_metrics = {
+            "n_roi": len(roi_metrics),
+            "corr_median": median_corr,
+            "corr_min": float(min(correlations)) if correlations else float("nan"),
+            "corr_max": float(max(correlations)) if correlations else float("nan"),
+            "localization_mean": float(np.mean(localizations)) if localizations else float("nan"),
+            "localization_success_rate": localization_success_rate,
+            "global_scale_hint": inputs.global_scale_hint,
+            "hkl_source": hkl_source,
+            "calibration": {
+                "spot_scale_override": float(spot_scale_override),
+                "sqrt_spot_scale": float(np.sqrt(spot_scale_override)),
+                "beam_flux": calibration["beam_flux"],
+                "beam_exposure": calibration["beam_exposure"],
+                "source": "tests/fixtures/golden_data/simple_cubic/config_torch.json",
+            },
+            "diagnostics": diagnostics,
+        }
+    
+        # Write metrics JSON
+        metrics_json_path = artifact_dir / "mapping_metrics.json"
+        with open(metrics_json_path, "w") as f:
+            json.dump(summary_metrics, f, indent=2)
+    
+        # Write per-ROI metrics CSV
+        metrics_csv_path = artifact_dir / "mapping_metrics.csv"
+        with open(metrics_csv_path, "w", newline="") as f:
+            writer = csv.DictWriter(
+                f,
+                fieldnames=[
+                    "roi_idx",
+                    "panel_id",
+                    "x0",
+                    "x1",
+                    "y0",
+                    "y1",
+                    "correlation",
+                    "rmse",
+                    "mse",
+                    "max_abs_diff",
+                    "sum_ratio",
+                    "localization",
+                    "n_pixels",
+                    "n_masked",
+                ],
+            )
+            writer.writeheader()
+            for idx, ((pid, (x0, x1, y0, y1)), m) in enumerate(
+                zip(inputs.panel_slices, roi_metrics)
+            ):
+                writer.writerow(
+                    {
+                        "roi_idx": idx,
+                        "panel_id": pid,
+                        "x0": x0,
+                        "x1": x1,
+                        "y0": y0,
+                        "y1": y1,
+                        "correlation": m.correlation,
+                        "rmse": m.rmse,
+                        "mse": m.mse,
+                        "max_abs_diff": m.max_abs_diff,
+                        "sum_ratio": m.sum_ratio,
+                        "localization": m.localization,
+                        "n_pixels": m.n_pixels,
+                        "n_masked": m.n_masked,
+                    }
+                )
+    
+        # Emit summary
+        print(f"\n[DB-AT-024] Metrics summary:")
+        print(f"  N ROIs: {summary_metrics['n_roi']}")
+        print(f"  Median correlation: {median_corr:.4f}")
+        print(f"  Localization success rate: {localization_success_rate:.2%}")
+        print(f"  Global scale hint: {inputs.global_scale_hint:.2f}")
+        print(f"  HKL source: {hkl_source}")
+        print(f"  Calibration: spot_scale_override={spot_scale_override:.3e}, sqrt={np.sqrt(spot_scale_override):.3e}")
+        print(f"  Artifacts: {artifact_dir}/")
+    
+        # DB-AT-024 thresholds per docs/spec-db-conformance.md:43-46
+        threshold_corr = 0.2
+        threshold_loc = 0.90
+    
+        # Assert thresholds are met
+        # MAP-SCALE-001: With refined structure factors + calibration, thresholds should pass
+>       assert median_corr >= threshold_corr, (
+            f"DB-AT-024 FAILED: Median correlation {median_corr:.4f} below threshold {threshold_corr}. "
+            f"HKL source: {hkl_source}. "
+            f"Expected refined structure factors (refined_structure_factors.mtz) + calibration metadata "
+            f"to align intensities per SCALE-003/SCALE-004 (docs/findings.md). "
+            f"Metrics logged to {metrics_json_path}."
+        )
+E       AssertionError: DB-AT-024 FAILED: Median correlation 0.0190 below threshold 0.2. HKL source: refined_structure_factors.mtz. Expected refined structure factors (refined_structure_factors.mtz) + calibration metadata to align intensities per SCALE-003/SCALE-004 (docs/findings.md). Metrics logged to plans/active/MAP-SCALE-001/reports/2025-11-04T130000Z/mapping_metrics.json.
+E       assert 0.019009893167782385 >= 0.2
+
+tests/dbex/test_mapping_consistency.py:321: AssertionError
+----------------------------- Captured stdout call -----------------------------
+auto-selected 1-fold oversampling
+[HKL stats] h=[-22,8] k=[-27,12] l=[-28,9] hit_rate=6191206/6224001 (99.47%)
+
+[DB-AT-024] Metrics summary:
+  N ROIs: 92
+  Median correlation: 0.0190
+  Localization success rate: 1.09%
+  Global scale hint: 62.66
+  HKL source: refined_structure_factors.mtz
+  Calibration: spot_scale_override=3.185e+17, sqrt=5.643e+08
+  Artifacts: plans/active/MAP-SCALE-001/reports/2025-11-04T130000Z/
+=============================== warnings summary ===============================
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+tests/dbex/test_mapping_consistency.py:146
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_mapping_consistency.py:146: PytestUnknownMarkWarning: Unknown pytest.mark.db_at_024 - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.db_at_024
+
+tests/dbex/test_mapping_consistency.py:147
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_mapping_consistency.py:147: PytestUnknownMarkWarning: Unknown pytest.mark.mapping - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.mapping
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+======================== 1 failed, 6 warnings in 17.00s ========================

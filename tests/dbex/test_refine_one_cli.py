@@ -581,6 +581,15 @@ def test_torch_diagnostics_metadata():
                 assert diag.attrs['n_rois'] == 1
                 assert diag.attrs['backend'] == 'nanobrag'
 
+                # TORCH-CLI-004: Verify score dataset contains numeric values (not Mock objects)
+                assert 'score' in h
+                scores_ds = h['score'][:]
+                assert len(scores_ds) == 1
+                assert isinstance(scores_ds[0], (int, float, np.number))
+                # Score should be numeric and finite (coercion guards against Mock objects)
+                assert np.isfinite(scores_ds[0])
+                assert 0.0 <= scores_ds[0] <= 1.0
+
 
 @patch('dbex.data_load.DataLoad')
 def test_nanobrag_backend_refined_mtz_missing_errors(mock_DataLoad):

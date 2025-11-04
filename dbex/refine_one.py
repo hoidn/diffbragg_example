@@ -412,14 +412,16 @@ def _write_torch_outputs(args, DL, Bragg, inputs, masked_mse, hkl_telemetry):
 
         mod_im = bg_im + opt_bragg_scale*bragg_im
         score = CHECKER.score(dat_im, mod_im)
-        print("roi=%d : score= %.1f" % (i_sb, score*100))
+        # TORCH-CLI-004: Coerce score to float to guard against mocks/non-scalars
+        score_float = float(score)
+        print("roi=%d : score= %.1f" % (i_sb, score_float*100))
 
         model_subims.append(mod_im)
         data_subims.append(dat_im)
         bg_subims.append(bg_im)
         bragg_subims.append(bragg_im)
         opt_bragg_scales.append(opt_bragg_scale)
-        scores.append(score)
+        scores.append(score_float)
 
     with h5py.File(args.outFile, "w") as h:
         h.create_dataset("score", data=scores)
@@ -445,8 +447,13 @@ def _write_torch_outputs(args, DL, Bragg, inputs, masked_mse, hkl_telemetry):
         diag.attrs["hkl_mean_amplitude"] = float(hkl_telemetry["hkl_mean_amplitude"])
         diag.attrs["hkl_path"] = str(hkl_telemetry["hkl_path"])
 
-    print("Average score:", 100*np.mean(scores), "+-", 100*np.std(scores))
-    print("Fraction of spots well modeled= %.1f%%" % (100*sum([s >= 0.5 for s in scores])/len(scores), ))
+    # TORCH-CLI-004: Guard against empty scores collection
+    if len(scores) > 0:
+        print("Average score:", 100*np.mean(scores), "+-", 100*np.std(scores))
+        print("Fraction of spots well modeled= %.1f%%" % (100*sum([s >= 0.5 for s in scores])/len(scores), ))
+    else:
+        print("Average score: N/A (no ROIs processed)")
+        print("Fraction of spots well modeled= N/A (no ROIs processed)")
 
 
 def main(argv=None):

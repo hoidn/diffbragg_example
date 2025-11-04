@@ -93,8 +93,8 @@
 
 ### [TORCH-CLI-004] Torch diagnostics ROI score coercion
 - Depends on: MAP-SCALE-005, TORCH-CLI-003, docs/spec-db-tracing.md §2, docs/spec-db-workflow.md §4, SCALE-003
-- Status: in_progress (planning kickoff)
-- Owner/Date: Galph / 2025-11-04
+- Status: done (Ralph 2025-11-04T222435Z)
+- Owner/Date: Ralph / 2025-11-04
 - Exit Criteria:
   1. `_write_torch_outputs` coerces ROI scores returned by `score_trainer.roi_check` (or test doubles) to concrete floats before aggregation/HDF5 emission, preventing `Mock`/`MagicMock` objects from propagating.
   2. ROI aggregation handles empty `scores` collections gracefully (skip division-by-zero, emit explicit 0 or NaN with logged message) and continues to print stable diagnostics without RuntimeWarnings.
@@ -102,3 +102,4 @@
 - Working Plan: plans/active/TORCH-CLI-004/implementation.md
 - Attempts History:
   * 2025-11-04T222435Z (planning) — Reviewed failure in `plans/active/MAP-SCALE-005/reports/2025-11-06T050000Z/pytest_full_suite.log` (TypeError from `_write_torch_outputs` when mocked ROI scores return `MagicMock` instances). Captured analysis summary and seeded implementation plan outlining score coercion + empty-ROI guards. Artifacts: plans/active/TORCH-CLI-004/reports/2025-11-04T222435Z/summary.md.
+  * 2025-11-04T222435Z (implementation) — Implemented ROI score coercion and empty collection guards per input.md Do Now. Modified `_write_torch_outputs` (dbex/refine_one.py:414-424,448-456) to coerce `CHECKER.score()` results to `float` before appending to scores list and added conditional guard for empty scores to prevent division-by-zero in aggregation printouts. Updated `test_torch_diagnostics_metadata` (tests/dbex/test_refine_one_cli.py:584-591) to assert score dataset contains numeric values (isinstance check for int/float/np.number, finite check, 0-1 range validation). Ran targeted tests: `pytest --collect-only` (1 test collected), `pytest -v test_torch_diagnostics_metadata --maxfail=1` (1 passed in 0.92s). Full test suite: 67 passed, 2 failed (pre-existing gradient tests test_db_at_010_gradcheck_crystal_cell_a/test_db_at_010_gradcheck), 3 skipped in 350.96s. Metrics: 11 lines added/modified across 2 files, no new failures, test_torch_diagnostics_metadata now passes with mocked ROI scores. Artifacts: plans/active/TORCH-CLI-004/reports/2025-11-04T222435Z/{collect_torch_diag.log,pytest_torch_diag.log,pytest_full_suite.log,summary.md}. Outcome: All exit criteria satisfied—ROI scores coerced to float, empty collection guarded, test passes with numeric telemetry validation. Next Actions: Archive TORCH-CLI-004 artifacts during housekeeping.

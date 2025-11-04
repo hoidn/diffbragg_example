@@ -169,13 +169,37 @@ def main() -> int:
         Returns (committed: bool, forbidden_paths: list[str]).
         If forbidden_paths non-empty, caller should abort handoff.
         """
+        # Discover submodule paths to avoid treating gitlinks as dirty/forbidden
+        def _submodule_paths() -> set[str]:
+            paths: set[str] = set()
+            try:
+                lines = _list(["git", "config", "--file", ".gitmodules", "--get-regexp", "path"]) or []
+                for ln in lines:
+                    parts = ln.strip().split()
+                    if len(parts) >= 2:
+                        # last token is the submodule path
+                        paths.add(parts[-1])
+            except Exception:
+                # No submodules or .gitmodules missing
+                pass
+            return paths
+
         whitelist = [p.strip() for p in args_ns.autocommit_whitelist.split(',') if p.strip()]
         max_bytes = args_ns.max_autocommit_bytes
         # Collect dirty paths (modifications and untracked)
-        unstaged_mod = _list(["git", "diff", "--name-only", "--diff-filter=M"])
-        staged_mod = _list(["git", "diff", "--cached", "--name-only", "--diff-filter=AM"])
-        untracked = _list(["git", "ls-files", "--others", "--exclude-standard"])
+        unstaged_mod = _list(["git", "diff", "--name-only", "--diff-filter=M"]) 
+        staged_mod = _list(["git", "diff", "--cached", "--name-only", "--diff-filter=AM"]) 
+        untracked = _list(["git", "ls-files", "--others", "--exclude-standard"]) 
         dirty_all = sorted(set(unstaged_mod) | set(staged_mod) | set(untracked))
+        # Filter out submodule gitlinks (and any paths within submodules)
+        submods = _submodule_paths()
+        if submods:
+            def _in_submodule(p: str) -> bool:
+                for sp in submods:
+                    if p == sp or p.startswith(sp + os.sep):
+                        return True
+                return False
+            dirty_all = [p for p in dirty_all if not _in_submodule(p)]
         allowed: list[str] = []
         forbidden: list[str] = []
         for p in dirty_all:

@@ -531,3 +531,13 @@ Notes
 - <Action State>: [ready_for_implementation]
 
 2025-11-04T024719Z focus=NANOBRAG-BACKEND-002 state=ready_for_implementation dwell=2 artifacts=plans/active/NANOBRAG-BACKEND-002/reports/2025-11-04T024719Z/ next_action=wire_simulator_backend_and_run_pytest
+## 2025-11-04T033317Z — NANOBRAG-BACKEND-002 parity handoff briefing
+- Focus: NANOBRAG-BACKEND-002 — Replace CLI torch backend stub with nanobrag_torch simulator
+- Action Type: planning
+- Key Observations: Validated simulator integration artifacts (2025-11-04T024719Z), confirmed canonical manifest checksum 2d1f8d67…8567aee, and noted parity smoke still writes to NANOBRAG-GOLDEN-001 report. Marked Phase A2/B1-B3 complete in implementation plan, added Phase C reminder about artifact path bump, logged new fix_plan Attempts entry, and prepared 2025-11-04T033317Z report directory with loop summary + Do Now.
+- Artifact Path: plans/active/NANOBRAG-BACKEND-002/reports/2025-11-04T033317Z/
+- Next Actions: Update parity test artifact path, rerun DB_AT_001 selector with real simulator, capture pytest/collect logs + parity metrics under new report, and sync TESTING_GUIDE/TEST_SUITE_INDEX before closing exit criterion 3.
+- Reality Check: Implementation required next loop; dwell cap reached so Do Now must be executed immediately.
+- <Action State>: [ready_for_implementation]
+
+2025-11-04T033317Z focus=NANOBRAG-BACKEND-002 state=ready_for_implementation dwell=2 artifacts=plans/active/NANOBRAG-BACKEND-002/reports/2025-11-04T033317Z/ next_action=run_parity_smoke_and_doc_sync

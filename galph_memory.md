@@ -437,3 +437,12 @@ Notes
 - Reality Check: Dependencies satisfied; dwell guard hit long streak so next loop must execute implementation + pytest.
 - <Action State>: [ready_for_implementation]
 2025-11-03T233556Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=18 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-03T233556Z/ next_action=instrument_roi_triptychs_and_regenerate
+2025-11-04T000201Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=19 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T000201Z/ next_action=log_peak_offsets_regenerate_and_run_parity
+## 2025-11-04T000201Z — NANOBRAG-GOLDEN-001 parity offset reconnaissance
+- Focus: NANOBRAG-GOLDEN-001 — Replace fallback DB-AT-001 golden dataset
+- Action Type: planning
+- Key Observations: Local checkout still lacks ROI `.npz` dumps under 2025-11-03T233556Z; manifest + fixtures point at `/home/ollie/Documents/diffbragg_example_2/...`. Recomputed masked metrics from fixtures (`prepare_refinement_inputs`) confirmed global_corr=-0.0041, localization=5.6%, and torch peaks displaced (roi_idx=5 diff peak (6,6) vs torch (11,7)). Logged findings in analysis_notes.md.
+- Artifact Path: plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T000201Z/
+- Next Actions: Patch compute_roi_metrics to emit peak offsets+filenames, regenerate canonical dataset locally via scripts/generate_simple_cubic_golden.py, rerun DB_AT_001 parity smoke with artifacts in the new report directory.
+- Reality Check: Exit criteria unmet; canonical tensors and parity metrics remain stale in this repo, so next loop must execute the implementation+pytest Do Now.
+- <Action State>: [ready_for_implementation]

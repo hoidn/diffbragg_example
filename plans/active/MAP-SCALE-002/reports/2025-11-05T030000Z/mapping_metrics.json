@@ -1,0 +1,70 @@
+{
+  "n_roi": 92,
+  "corr_median": 0.62063814611757,
+  "corr_min": -0.040748402521966126,
+  "corr_max": 0.9706548081939481,
+  "localization_mean": 0.967391304347826,
+  "localization_success_rate": 0.9347826086956522,
+  "global_scale_hint": 62.65738056380318,
+  "hkl_source": "refined_structure_factors.mtz",
+  "using_refined_geometry": true,
+  "geometry_source": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/fixtures/golden_data/simple_cubic/refined.expt",
+  "calibration": {
+    "spot_scale_override": 3.184711299019782e+17,
+    "sqrt_spot_scale": 564332463.9802128,
+    "beam_flux": 1000000000000.0,
+    "beam_exposure": 1.0,
+    "beamsize_mm": 1.0,
+    "N_cells": [
+      36,
+      28,
+      26
+    ],
+    "n_cells_applied": true,
+    "source": "tests/fixtures/golden_data/simple_cubic/config_torch.json"
+  },
+  "diagnostics": {
+    "masked_mse": 342968.5453989606,
+    "loss_mask_coverage": 0.0021021847522196737,
+    "n_rois": 92,
+    "target_shape": "(1, 2527, 2463)",
+    "global_scale_hint": 62.65738056380318,
+    "spot_scale_override": 3.184711299019782e+17,
+    "sqrt_spot_scale": 564332463.9802128,
+    "n_cells_applied": true,
+    "bragg_stats": {
+      "min": 0.0,
+      "max": 38406.93359375,
+      "mean": 0.21078123152256012
+    },
+    "bragg_raw_stats": {
+      "mean": 3.7350578185879613e-10,
+      "max": 6.805727753089741e-05
+    },
+    "target_stats": {
+      "mean_masked": 63.02534484863281
+    },
+    "target_bragg_ratios": {
+      "mean_ratio_scaled": 0.8139002482630552,
+      "mean_ratio_raw": 459310347.8363597
+    },
+    "hkl_stats": {
+      "h_min": -24,
+      "h_max": 24,
+      "k_min": -28,
+      "k_max": 28,
+      "l_min": -31,
+      "l_max": 31,
+      "h_range": 49,
+      "k_range": 57,
+      "l_range": 63,
+      "n_reflections": 69614,
+      "n_in_range": 69614,
+      "in_range_fraction": 1.0,
+      "grid_nonzero": 69614,
+      "grid_min": 0.0,
+      "grid_max": 518.3336791992188,
+      "grid_mean": 18.757036209106445
+    }
+  }
+}

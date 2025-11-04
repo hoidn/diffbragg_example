@@ -189,6 +189,19 @@
   * 2025-10-29T013411Z — Supervisor planning kickoff: validated TORCH-BRIDGE-001 and TORCH-CLI-003 artifacts, reviewed parity harness status, drafted phased implementation plan, and captured planning notes outlining harness shape, metrics expectations, and stub-related risks. Metrics: pending. Artifacts: plans/active/FORWARD-EQUIV-001/reports/2025-10-29T013411Z/notes_planning.md.
   * 2025-10-29T014512Z — Completed Phases A-C (A1-A4, B1-B3, C1-C3): Validated refGeom assets (refGeom.expt, refGeom.refl, scaled.mtz) present and artifact directory structure created; authored tests/dbex/test_forward_equivalence_complete.py implementing DB_AT_001 selector with ROI metrics computation (correlation, RMSE, MSE, max|Δ|, peak localization), xfail policy for stub simulators, and artifact persistence (metrics.json, roi_metrics.csv, legacy/torch Bragg tensors); ran test with KMP_DUPLICATE_LIB_OK=TRUE achieving xfail status as expected (18 ROIs sampled from 92 total, median_corr=nan due to stub mismatch, localization=0.0%, RMSE=256); executed collect-only command confirming 1 test collected; synchronized docs/TESTING_GUIDE.md §2 taxonomy table and §2.1 module selectors plus docs/development/TEST_SUITE_INDEX.md with Active status and collection log reference. Metrics: 1/1 test xfailed (expected), 18/92 ROIs sampled, median_rmse=255.98, loss_mask_coverage=0.21%, 1 test collected via --collect-only, Python 3.9.23, pytest 8.4.2. Artifacts: plans/active/FORWARD-EQUIV-001/reports/2025-10-29T013411Z/forward_equiv/{metrics.json,roi_metrics.csv,legacy/bragg_diffbragg.npy,torch/bragg_torch.npy,pytest_db_at_001.log,collect_db_at_001.log,notes_planning.md}. First Divergence: n/a (stub simulators intentionally produce uncorrelated outputs). Next Actions: All exit criteria satisfied; DB_AT_001 selector active and documented; test xfails as expected pending real simulator integration; ready for archival or follow-up when nanobrag_torch simulator replaces stubs.
 
+### [FORWARD-EQUIV-002] Promote forward equivalence smoke to canonical parity
+- Depends on: FORWARD-EQUIV-001, NANOBRAG-GOLDEN-001, NANOBRAG-BACKEND-002, PARITY-HARNESS-002
+- Status: in_progress
+- Owner/Date: Unassigned / 2025-11-04
+- Exit Criteria:
+  1. `tests/dbex/test_forward_equivalence_complete.py` consumes the canonical DiffBragg and nanobrag tensors via parity loader utilities, removes stub fixtures, and directly asserts DB-AT-001 thresholds (median correlation ≥0.2, localization ≥0.90) without xfail.
+  2. Artifact emission for the selector targets `plans/active/FORWARD-EQUIV-002/reports/<timestamp>/forward_equiv/`, reusing `write_parity_artifacts`/`compute_parity_metrics` and capturing metrics + first divergence metadata consistent with parity harness outputs.
+  3. Selector documentation (`docs/TESTING_GUIDE.md` §2, `docs/development/TEST_SUITE_INDEX.md`) references the new artifact path, canonical metrics (correlation≈0.988, localization≈1.0), and passing status; `docs/spec-db-conformance.md` narrative remains aligned.
+  4. Attempts History records targeted pytest + collect-only runs with artifact logs under this initiative, and the initiative is ready to mark `done` once evidence passes.
+- Working Plan: plans/active/FORWARD-EQUIV-002/implementation.md
+- Attempts History:
+  * 2025-11-04T034834Z (planning) — Audited forward equivalence harness stubs and outdated documentation, drafted Phase A-C plan to swap in canonical parity utilities, and created artifact hub `plans/active/FORWARD-EQUIV-002/reports/2025-11-04T034834Z/` with loop summary capturing problem statement, evidence, and implementation outline. Next Actions: Execute Phase B modernization (fixture swap, artifact routing, assertion tightening), then rerun selector/collect logs and refresh docs per Phase C.
+
 ### [FINDINGS-LEDGER-002] Extend knowledge base with torch experiment lessons
 - Depends on: TORCH-BRIDGE-001, TORCH-CLI-003
 - Status: done

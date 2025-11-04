@@ -541,3 +541,14 @@ Notes
 - <Action State>: [ready_for_implementation]
 
 2025-11-04T033317Z focus=NANOBRAG-BACKEND-002 state=ready_for_implementation dwell=2 artifacts=plans/active/NANOBRAG-BACKEND-002/reports/2025-11-04T033317Z/ next_action=run_parity_smoke_and_doc_sync
+
+## 2025-11-04T034834Z — FORWARD-EQUIV-002 canonical parity promotion
+- Focus: FORWARD-EQUIV-002 — Promote forward equivalence smoke to canonical parity
+- Action Type: planning
+- Key Observations: Forward equivalence selector still fabricates tensors via `stub_diffbragg`/`stub_torch` and unconditionally xfails when thresholds miss; documentation (`docs/TESTING_GUIDE.md`, `docs/development/TEST_SUITE_INDEX.md`) references 2025-10-29 artifacts despite NANOBRAG-BACKEND-002 delivering real metrics; drafted Phase A-C plan leveraging parity loader utilities and created 2025-11-04T034834Z report with implementation outline.
+- Artifact Path: plans/active/FORWARD-EQUIV-002/reports/2025-11-04T034834Z/
+- Next Actions: Execute Phase B modernization (swap fixtures to canonical data, reuse parity utilities, enforce thresholds) then Phase C doc/test sync with fresh logs.
+- Reality Check: New initiative started; dwell reset to 0.
+- <Action State>: [planning]
+
+2025-11-04T034834Z focus=FORWARD-EQUIV-002 state=planning dwell=0 artifacts=plans/active/FORWARD-EQUIV-002/reports/2025-11-04T034834Z/ next_action=modernize_forward_equiv_harness

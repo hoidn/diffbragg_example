@@ -691,3 +691,12 @@ Notes
 - Next Actions: Ralph to implement refined MTZ export/loading, rerun DB_AT_024, and sync docs after selector passes.
 - <Action State>: [ready_for_implementation]
 2025-11-04T120500Z focus=MAP-SCALE-001 state=ready_for_implementation dwell=2 artifacts=plans/active/MAP-SCALE-001/reports/2025-11-04T120500Z/ next_action=delegate_refined_Fopt_plumbing
+
+## 2025-11-04T130000Z — MAP-SCALE-001 geometry persistence plan
+- Focus: MAP-SCALE-001 — Zero-iteration mapping scale alignment
+- Action Type: planning
+- Key Observations: Reviewed 2025-11-04T120500Z blocker artifacts confirming refined MTZ succeeds only with matching DiffBragg geometry; verified docs/spec-db-conformance.md:44-55 and SCALE-001/002 enforce corr/localization thresholds and calibration sequencing; noted docs/TESTING_GUIDE.md + TEST_SUITE_INDEX still describe provisional xfail. Authored new report (plans/active/MAP-SCALE-001/reports/2025-11-04T130000Z/summary.md) selecting blockers.md Option 1 to persist refined `.expt/.refl` alongside MTZ and update DB_AT_024 fixtures accordingly; refreshed input.md with generator/test/doc steps.
+- Artifact Path: plans/active/MAP-SCALE-001/reports/2025-11-04T130000Z/
+- Next Actions: Ralph to extend generator + canonical_assets fixture, regenerate fixtures, rerun DB_AT_024, and sync testing docs with passing metrics per How-To.
+- <Action State>: [ready_for_implementation]
+2025-11-04T130000Z focus=MAP-SCALE-001 state=ready_for_implementation dwell=0 artifacts=plans/active/MAP-SCALE-001/reports/2025-11-04T130000Z/ next_action=implement_refined_geometry_pipeline

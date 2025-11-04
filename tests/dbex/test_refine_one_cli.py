@@ -83,22 +83,45 @@ def test_main_dispatches_to_nanobrag_backend(mock_nanobrag, mock_dataload):
     assert args.backend == 'nanobrag'
 
 
+@patch('nanobrag_torch.simulator.Simulator')
+@patch('nanobrag_torch.models.detector.Detector')
+@patch('nanobrag_torch.models.crystal.Crystal')
 @patch('dbex.nanobrag_bridge.prepare_refinement_inputs')
-@patch('dbex.refine_one._stub_bragg_tensor')
+@patch('dbex.nanobrag_bridge.build_structure_factor_grid')
+@patch('dbex.nanobrag_bridge.create_detector_config')
+@patch('dbex.nanobrag_bridge.create_beam_config')
+@patch('dbex.nanobrag_bridge.create_crystal_config')
 @patch('dbex.refine_one._write_torch_outputs')
-def test_nanobrag_backend_calls_bridge(mock_write, mock_stub, mock_prepare):
-    """A2: Verify nanobrag backend uses bridge helpers."""
+def test_nanobrag_backend_runs_simulator(
+    mock_write, mock_crystal_config, mock_beam_config, mock_detector_config,
+    mock_build_grid, mock_prepare, mock_Crystal, mock_Detector, mock_Simulator
+):
+    """A2: Verify nanobrag backend uses real simulator with SCALE-001/002 guardrails."""
     import numpy as np
+    import torch
     from dbex.nanobrag_bridge import RefinementInputs
 
-    # Setup mock DataLoad
+    # Setup mock DataLoad with MTZ data
     mock_dl = Mock()
     mock_dl.data = np.zeros((1, 100, 100), dtype=np.float32)
     mock_dl.background_image = np.ones((1, 100, 100), dtype=np.float32) * -1
     mock_dl.trusted_mask = np.ones((1, 100, 100), dtype=bool)
     mock_dl.bbox = np.array([[10, 20, 10, 20]])
     mock_dl.pids = np.array([0])
-    mock_dl.detector = Mock()
+
+    # Mock detector with single panel
+    mock_panel = Mock()
+    mock_dl.detector = [mock_panel]
+
+    # Mock beam and crystal
+    mock_dl.beam = Mock()
+    mock_dl.crystal = Mock()
+
+    # Mock MTZ Miller array
+    mock_F = Mock()
+    mock_F.indices.return_value = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+    mock_F.data.return_value = np.array([100.0, 200.0, 150.0])
+    mock_dl.F = mock_F
 
     # Setup mock bridge output
     mock_inputs = RefinementInputs(
@@ -108,24 +131,70 @@ def test_nanobrag_backend_calls_bridge(mock_write, mock_stub, mock_prepare):
         trusted_mask=np.ones((1, 100, 100), dtype=bool)
     )
     mock_prepare.return_value = mock_inputs
-    mock_stub.return_value = np.zeros((1, 100, 100), dtype=np.float32)
 
-    # Setup mock args
+    # Mock structure factor grid (SCALE-001: unscaled)
+    mock_hkl_grid = torch.zeros((3, 3, 3), dtype=torch.float32)
+    mock_hkl_metadata = {
+        'h_min': 0, 'h_max': 2, 'k_min': 0, 'k_max': 2, 'l_min': 0, 'l_max': 2,
+        'grid_nonzero': 3
+    }
+    mock_build_grid.return_value = (mock_hkl_grid, mock_hkl_metadata)
+
+    # Mock config objects
+    mock_detector_config.return_value = Mock()
+    mock_beam_config.return_value = Mock()
+    mock_crystal_config.return_value = Mock()
+
+    # Mock model instantiation
+    mock_detector_instance = Mock()
+    mock_Detector.return_value = mock_detector_instance
+    mock_crystal_instance = Mock()
+    mock_Crystal.return_value = mock_crystal_instance
+
+    # Mock simulator run output (base intensity before scaling)
+    mock_panel_output = torch.ones((100, 100), dtype=torch.float32) * 1000.0
+    mock_simulator_instance = Mock()
+    mock_simulator_instance.run.return_value = mock_panel_output
+    mock_Simulator.return_value = mock_simulator_instance
+
+    # Setup mock args with spot_scale_override
     args = Mock()
     args.outFile = 'test.h5'
+    args.spot_scale_override = 4.0  # sqrt(4.0) = 2.0
 
     run_nanobrag_backend(args, mock_dl)
 
-    # Verify bridge was called
-    mock_prepare.assert_called_once()
-    assert mock_prepare.call_args[1]['data'] is mock_dl.data
-    assert mock_prepare.call_args[1]['background_image'] is mock_dl.background_image
+    # Verify structure factor grid was built (SCALE-001: unscaled)
+    mock_build_grid.assert_called_once()
+    call_kwargs = mock_build_grid.call_args[1]
+    assert 'indices' in call_kwargs
+    assert 'amplitudes' in call_kwargs
 
-    # Verify stub tensor was generated
-    mock_stub.assert_called_once()
+    # Verify configs were created per panel
+    mock_detector_config.assert_called_once()
+    mock_beam_config.assert_called_once()
+    mock_crystal_config.assert_called_once()
+
+    # Verify models were instantiated
+    mock_Detector.assert_called_once()
+    mock_Crystal.assert_called_once()
+
+    # Verify HKL data was attached to crystal model
+    assert mock_crystal_instance.hkl_data is mock_hkl_grid
+    assert mock_crystal_instance.hkl_metadata == mock_hkl_metadata
+
+    # Verify simulator was run
+    mock_Simulator.assert_called_once()
+    mock_simulator_instance.run.assert_called_once()
 
     # Verify output writer was called
     mock_write.assert_called_once()
+
+    # Verify SCALE-002: sqrt(spot_scale_override) applied post-simulation
+    # The Bragg array passed to _write_torch_outputs should be scaled
+    bragg_array = mock_write.call_args[0][2]
+    expected_scaled = 1000.0 * np.sqrt(4.0)  # 1000.0 * 2.0 = 2000.0
+    assert bragg_array[0, 0, 0] == pytest.approx(expected_scaled, rel=1e-5)
 
 
 def test_torch_diagnostics_metadata():

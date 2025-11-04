@@ -392,3 +392,119 @@ def create_crystal_config(crystal, experiment) -> CrystalConfig:
         mosaic_domains=mosaic_domains,
         mosaic_spread_deg=mosaic_spread_deg
     )
+
+
+# ============================================================================
+# Structure factor grid helper
+# ============================================================================
+
+
+def build_structure_factor_grid(indices, amplitudes, device=None):
+    """Build dense 3D HKL grid for nanobrag_torch from MTZ reflections.
+
+    Implements SCALE-001: Structure factors pass through unscaled.
+    DiffBragg applies spot_scale_override internally to final intensities;
+    applying it here would duplicate scaling and break parity.
+
+    Args:
+        indices: Miller indices array-like, shape (n_reflections, 3), dtype int
+        amplitudes: Structure factor amplitudes |F|, shape (n_reflections,), dtype float
+        device: torch device (optional; defaults to CPU if not provided)
+
+    Returns:
+        tuple: (grid, metadata) where
+            - grid: torch.Tensor, shape (h_range, k_range, l_range), dtype float32
+            - metadata: dict with HKL range, grid stats, and coverage info
+
+    Raises:
+        ImportError: If torch is not available
+
+    Note:
+        Per SCALE-001 (docs/findings.md:15), structure factors are NOT scaled by
+        spot_scale_override. Scaling is applied post-simulation per SCALE-002.
+    """
+    import logging
+
+    try:
+        import torch
+    except ImportError as e:
+        raise ImportError(
+            "torch is required for build_structure_factor_grid. "
+            f"Import error: {e}"
+        )
+
+    logger = logging.getLogger(__name__)
+
+    # Default to CPU if device not specified
+    if device is None:
+        device = torch.device('cpu')
+
+    # Convert inputs to numpy arrays
+    hkls = np.asarray(indices, dtype=int)
+    amps = np.abs(np.asarray(amplitudes, dtype=np.float32))
+
+    # Per SCALE-001: Do NOT scale structure factors
+    # DiffBragg applies spot_scale_override internally to final intensities
+    # Applying sqrt(scale_override) here duplicates the scale and breaks parity
+    logger.info(
+        f"Structure factors (no scaling applied per SCALE-001): "
+        f"min={amps.min():.3e}, max={amps.max():.3e}, mean={amps.mean():.3e}"
+    )
+
+    # Compute HKL grid bounds
+    h_min, h_max = int(hkls[:, 0].min()), int(hkls[:, 0].max())
+    k_min, k_max = int(hkls[:, 1].min()), int(hkls[:, 1].max())
+    l_min, l_max = int(hkls[:, 2].min()), int(hkls[:, 2].max())
+
+    h_range = h_max - h_min + 1
+    k_range = k_max - k_min + 1
+    l_range = l_max - l_min + 1
+
+    # Allocate grid on specified device
+    grid = torch.zeros((h_range, k_range, l_range), device=device, dtype=torch.float32)
+
+    # Populate grid with structure factor amplitudes
+    n_total = len(hkls)
+    n_inrange = 0
+
+    for (h, k, l), amp in zip(hkls, amps):
+        idx_h = int(h - h_min)
+        idx_k = int(k - k_min)
+        idx_l = int(l - l_min)
+
+        if 0 <= idx_h < h_range and 0 <= idx_k < k_range and 0 <= idx_l < l_range:
+            grid[idx_h, idx_k, idx_l] = float(amp)
+            n_inrange += 1
+
+    # Compute grid statistics for diagnostics
+    grid_nonzero_count = int((grid != 0).sum().item())
+    grid_min = float(grid.min().item())
+    grid_max = float(grid.max().item())
+    grid_mean = float(grid.mean().item())
+
+    logger.info(
+        f"Structure factor grid stats: min={grid_min:.3e}, max={grid_max:.3e}, "
+        f"mean={grid_mean:.3e}, nonzero={grid_nonzero_count}"
+    )
+
+    # Build metadata dict
+    metadata = {
+        "h_min": h_min,
+        "h_max": h_max,
+        "k_min": k_min,
+        "k_max": k_max,
+        "l_min": l_min,
+        "l_max": l_max,
+        "h_range": h_range,
+        "k_range": k_range,
+        "l_range": l_range,
+        "n_reflections": n_total,
+        "n_in_range": n_inrange,
+        "in_range_fraction": float(n_inrange / n_total) if n_total > 0 else 0.0,
+        "grid_nonzero": grid_nonzero_count,
+        "grid_min": grid_min,
+        "grid_max": grid_max,
+        "grid_mean": grid_mean,
+    }
+
+    return grid, metadata

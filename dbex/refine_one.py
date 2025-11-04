@@ -51,6 +51,8 @@ def create_parser():
                     help="MTZ file containing structure factors")
     ap.add_argument("-c", "--mtzCol", type=str, default="F,SIGF",
                     help="MTZ column names (default: F,SIGF)")
+    ap.add_argument("--spot-scale-override", type=float, default=None,
+                    help="Optional spot scale override for nanobrag backend (applies sqrt(scale) post-simulation per SCALE-002)")
 
     return ap
 
@@ -133,10 +135,34 @@ def run_diffbragg_backend(args, DL, devid=0):
 
 
 def run_nanobrag_backend(args, DL, devid=0):
-    """Run PyTorch nanobrag_torch refinement backend."""
+    """Run PyTorch nanobrag_torch refinement backend with real simulator.
+
+    Implements:
+    - SCALE-001: Structure factors pass through unscaled in HKL grid
+    - SCALE-002: Apply sqrt(spot_scale_override) post-simulation
+    - GEOMETRY-002: Detector configs use analytic Euler inversion
+    - HKL-ORIENT-001: Use source→sample incident direction
+    """
     import h5py
     import numpy as np
-    from dbex.nanobrag_bridge import prepare_refinement_inputs
+    import torch
+    from dbex.nanobrag_bridge import (
+        prepare_refinement_inputs,
+        create_detector_config,
+        create_beam_config,
+        create_crystal_config,
+        build_structure_factor_grid
+    )
+
+    # Import nanobrag_torch components
+    try:
+        from nanobrag_torch.simulator import Simulator
+        from nanobrag_torch.models.detector import Detector
+        from nanobrag_torch.models.crystal import Crystal
+    except ImportError as e:
+        raise ImportError(
+            f"nanobrag_torch is required for nanobrag backend. Import error: {e}"
+        )
 
     print(f"[nanobrag backend] Preparing refinement inputs from DataLoad...")
 
@@ -154,12 +180,69 @@ def run_nanobrag_backend(args, DL, devid=0):
     print(f"[nanobrag backend] Loss mask coverage: {inputs.loss_mask.mean():.4%}")
     print(f"[nanobrag backend] Number of ROIs: {len(inputs.panel_slices)}")
 
-    # Stub Bragg tensor (Gaussian peaks) until nanobrag_torch simulator is available
-    # This will be replaced with:
-    # from nanobrag_torch import forward_model
-    # Bragg = forward_model(detector_config, beam_config, crystal_config, ...)
-    print(f"[nanobrag backend] Generating stub Bragg tensor (will use real simulator when available)...")
-    Bragg = _stub_bragg_tensor(inputs.target.shape)
+    # Build structure factor grid (SCALE-001: unscaled)
+    print(f"[nanobrag backend] Building structure factor grid from MTZ...")
+    device = torch.device('cpu')  # Force CPU for reproducibility
+    hkl_grid, hkl_metadata = build_structure_factor_grid(
+        indices=DL.F.indices(),
+        amplitudes=DL.F.data(),
+        device=device
+    )
+    print(f"[nanobrag backend] HKL grid shape: {hkl_grid.shape}, nonzero: {hkl_metadata['grid_nonzero']}")
+
+    # Determine spot scale override (SCALE-002)
+    if args.spot_scale_override is not None:
+        spot_scale = args.spot_scale_override
+        print(f"[nanobrag backend] Using CLI spot_scale_override={spot_scale:.3e}")
+    else:
+        # Default to 1.0 if not provided
+        spot_scale = 1.0
+        print(f"[nanobrag backend] No spot_scale_override provided, using default={spot_scale:.3e}")
+
+    sqrt_spot_scale = np.sqrt(spot_scale)
+    print(f"[nanobrag backend] Will apply sqrt(spot_scale)={sqrt_spot_scale:.3e} post-simulation per SCALE-002")
+
+    # Run simulator per panel
+    print(f"[nanobrag backend] Running nanobrag_torch Simulator on {len(DL.detector)} panels...")
+    n_panels = len(DL.detector)
+    panel_shape = inputs.target.shape[1:]  # (slow, fast)
+    Bragg = np.zeros((n_panels, *panel_shape), dtype=np.float32)
+
+    for panel_id in range(n_panels):
+        panel = DL.detector[panel_id]
+
+        # Create configs for this panel
+        detector_config = create_detector_config(
+            panel=panel,
+            beam=DL.beam,
+            trusted_mask=inputs.trusted_mask[panel_id]
+        )
+        beam_config = create_beam_config(DL.beam)
+        crystal_config = create_crystal_config(DL.crystal)
+
+        # Instantiate models
+        detector_model = Detector(detector_config)
+        crystal_model = Crystal(crystal_config)
+
+        # Attach HKL data to crystal model
+        crystal_model.hkl_data = hkl_grid
+        crystal_model.hkl_metadata = hkl_metadata
+
+        # Run simulator (single source, GEOMETRY-002/HKL-ORIENT-001 applied in bridge)
+        simulator = Simulator(detector=detector_model, crystal=crystal_model)
+        panel_output = simulator.run()  # Returns torch.Tensor on device
+
+        # Move to CPU and convert to numpy
+        panel_output_np = panel_output.cpu().detach().numpy().astype(np.float32)
+
+        # Apply sqrt(spot_scale_override) post-simulation (SCALE-002)
+        panel_output_scaled = panel_output_np * sqrt_spot_scale
+
+        # Store in Bragg array
+        Bragg[panel_id] = panel_output_scaled
+
+    print(f"[nanobrag backend] Simulator complete. Bragg shape: {Bragg.shape}")
+    print(f"[nanobrag backend] Bragg stats: min={Bragg.min():.3e}, max={Bragg.max():.3e}, mean={Bragg.mean():.3e}")
 
     # Compute masked MSE for torch diagnostics
     masked_diff = np.where(inputs.loss_mask, inputs.target - Bragg, 0.0)
@@ -171,16 +254,6 @@ def run_nanobrag_backend(args, DL, devid=0):
     _write_torch_outputs(args, DL, Bragg, inputs, masked_mse)
 
     print(f"Visualize using `python -m dbex.look {args.outFile}`")
-
-
-def _stub_bragg_tensor(shape):
-    """Generate stub Bragg tensor with Gaussian peaks for testing."""
-    import numpy as np
-
-    # Create Gaussian peaks at ROI centers (very simple stub)
-    stub = np.random.randn(*shape).astype(np.float32) * 5 + 100
-    stub = np.maximum(stub, 0.0)  # No negative intensities
-    return stub
 
 
 def _write_torch_outputs(args, DL, Bragg, inputs, masked_mse):

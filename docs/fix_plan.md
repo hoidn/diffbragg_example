@@ -12,6 +12,19 @@
 
 ## Active Initiatives
 
+### [TORCH-REFINE-001] Implement LBFGS refinement nucleus (Stage A)
+- Depends on: NANOBRAG-BACKEND-002 (done), MAP-SCALE-001..004 (done), DB-AT-024 (Active), docs/spec-db-workflow.md §“Optimization Strategy”, plans/nanobrag_integration_plan.md §“Refinement Nucleus”
+- Status: pending
+- Owner/Date: Galph/Ralph / 2025-11-04
+- Exit Criteria:
+  1. Minimal torch refinement nucleus (Stage A) implemented behind a feature/flag, optimizing a tiny parameter set (global scale + one crystal DoF) using `torch.optim.LBFGS` with a closure that recomputes full loss.
+  2. Deterministic ROI-sample loss decreases by ≥ 5% within ≤ 20 LBFGS steps; full-frame validation loss is non-increasing across the last 3 validations (or meets LBFGS tolerances), captured in telemetry.
+  3. HDF5 `/torch_diagnostics` includes optimizer telemetry: optimizer config, stage label, ROI sample fraction/counts, `loss_trace_sample`, `loss_trace_full`, `best_loss_full`, `param_deltas`, and `status`.
+  4. Targeted pytest selector collects and passes (refinement smoke: loss decreases) without introducing new collection failures elsewhere; logs archived.
+- Working Plan: plans/active/TORCH-REFINE-001/implementation.md
+- Attempts History:
+  * 2025-11-04T230000Z (planning) — Created initiative placeholder and acceptance; linked to integration plan “Refinement Nucleus”. No code executed (Docs-only). Next: author Do Now with `<file>::<function>` nucleus target and a validating pytest node.
+
 ### [MAP-SCALE-001] Zero-iteration mapping scale alignment
 - Depends on: DB-AT-024, DB-AT-023, SCALE-001, SCALE-002, docs/spec-db-workflow.md §4, docs/architecture.md §4.3, CONFORMANCE-001
 - Status: done (Phase D complete — docs & metrics synchronized)

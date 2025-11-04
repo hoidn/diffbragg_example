@@ -169,6 +169,46 @@ Each stage runs within a single training loop, swapping optimizer parameter grou
 
 References: docs/nanobrag_api.md (runtime/caching).
 
+### Refinement Nucleus (new)
+
+Purpose: Define the minimal, verifiable core of the torch refinement loop that can be delivered first and expanded in subsequent iterations. The nucleus focuses on a tiny parameter set, deterministic masked MSE loss, and LBFGS closure semantics with explicit convergence gates and telemetry.
+
+Scope (Stage A first):
+- Parameters (initial nucleus):
+  - Global scale (ADU mode) or `spot_scale_override` proxy when training in photons
+  - One crystal DoF to start (e.g., `cell_a` or a single small orientation perturbation)
+- Loss: `mean(((Bragg - target_tensor)[loss_mask]) ** 2)` in float64 when under gradcheck; float32 otherwise (device/dtype neutral)
+- ROI policy: Evaluate loss on a fixed, deterministic subset of ROIs (e.g., 1–2 tiles per panel) during LBFGS inner iterations; validate full-frame loss every `M` outer steps (M≥1). Record both traces.
+
+LBFGS Closure (normative):
+- Use `torch.optim.LBFGS(params, history_size≈10, max_iter≈20, line_search_fn=None)`
+- Closure recomputes `(bragg, loss)` end-to-end with current parameter values; zeroes grads; calls `loss.backward()`; returns `loss`
+- Convergence tolerances:
+  - `tolerance_grad`: 1e-7 to 1e-6 (tunable per dataset size)
+  - `tolerance_change`: 1e-9 to 1e-7 (tunable)
+  - Additional guard: stop early if rolling median of full-loss deltas over the last K validations (K≈3) is ≤ ε (e.g., 1e-5 relative)
+
+Rollback / Early-stop Rules:
+- If full-frame validation loss increases by > δ (e.g., 2%) compared to the best seen, revert to the best snapshot and stop
+- If gradients are NaN/Inf or any simulator call fails, abort and emit an explicit failure status in telemetry (no partial commits)
+
+Optimizer Telemetry (to HDF5 `/torch_diagnostics`):
+- `optimizer`: "LBFGS"; `history_size`, `max_iter`, `tolerance_grad`, `tolerance_change`
+- `stage`: "A|B|C" label; `roi_sample_fraction`; `roi_count_sampled`; `roi_count_total`
+- `loss_trace_sample`: per-iteration sample-ROI loss values
+- `loss_trace_full`: periodic full-frame loss values with iteration index
+- `best_loss_full`: best observed full-frame loss and iteration index
+- `param_deltas`: per-parameter initial → final snapshot (small JSON with names and deltas)
+- `status`: "ok|early_stop|rollback|error" and `message` for failures
+
+Acceptance for the Nucleus (Stage A):
+- On canonical assets, masked MSE decreases by ≥ X% (e.g., 5–10%) within N≤20 LBFGS steps on the deterministic ROI sample and is non-increasing across the last K validations (K≈3) on the full frame
+- `param_deltas` show non-zero updates for at least the chosen DoF and the scale parameter
+- Telemetry present with all required keys; no NaN/Inf in final loss
+
+Extensibility:
+- After the nucleus: widen Stage A parameter set (full crystal logs/angles), enable Stage C (detector normal translations), and optionally Stage B (shell modifiers) with the same closure + telemetry contract.
+
 ## Phase 4 – CLI Integration & Output (2 days)
 
 ### Tasks

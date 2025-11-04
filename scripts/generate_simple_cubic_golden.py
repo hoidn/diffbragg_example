@@ -508,7 +508,7 @@ def generate_simple_cubic_golden(
     device = torch.device("cuda:0")
 
     beam_stub = create_beam_config(Expt.beam)
-    crystal_stub = create_crystal_config(Expt.crystal, Expt)
+    crystal_stub, _ = create_crystal_config(Expt.crystal, Expt)
 
     # Build trusted masks
     trusted_masks = []

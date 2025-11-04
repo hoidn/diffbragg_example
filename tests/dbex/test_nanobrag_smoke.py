@@ -191,7 +191,8 @@ def beam_config(refgeom_dataload):
 def crystal_config(refgeom_dataload):
     """Create CrystalConfig from dxtbx crystal and experiment."""
     dl = refgeom_dataload
-    return create_crystal_config(dl.Expt.crystal, dl.Expt)
+    config, _ = create_crystal_config(dl.Expt.crystal, dl.Expt)
+    return config
 
 
 @pytest.fixture(scope="module")

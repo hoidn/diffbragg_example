@@ -224,7 +224,7 @@ def run_nanobrag_backend(args, DL, devid=0):
             trusted_mask=inputs.trusted_mask[panel_id]
         )
         beam_config = create_beam_config(DL.beam)
-        crystal_config = create_crystal_config(DL.crystal)
+        crystal_config, _ = create_crystal_config(DL.crystal, DL.Expt)
 
         # Instantiate models
         detector_model = Detector(detector_config)

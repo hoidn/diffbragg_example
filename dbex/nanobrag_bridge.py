@@ -442,7 +442,7 @@ def create_beam_config(beam, flux=None, beamsize_mm=None, exposure=None) -> Beam
     return BeamConfig(**beam_kwargs)
 
 
-def create_crystal_config(crystal, experiment, N_cells=None) -> CrystalConfig:
+def create_crystal_config(crystal, experiment, N_cells=None, apply_n_cells=True) -> Tuple[CrystalConfig, bool]:
     """
     Create CrystalConfig from dxtbx crystal and experiment with optional calibration overrides.
 
@@ -451,15 +451,17 @@ def create_crystal_config(crystal, experiment, N_cells=None) -> CrystalConfig:
     - MOSFLM A* injection from crystal.get_A() columns
     - Misset angles default to zero (identity rotation)
     - Stills defaults: phi_steps=1, osc_range_deg=0, mosaic off
-    - Optional N_cells from DiffBragg calibration metadata
+    - Optional N_cells from DiffBragg calibration metadata (gated by apply_n_cells per SCALE-005)
 
     Args:
         crystal: dxtbx Crystal object
         experiment: dxtbx Experiment object (for scan/goniometer)
         N_cells: Optional tuple of 3 ints for mosaic domain counts (from calibration metadata)
+        apply_n_cells: If False, ignore N_cells even if provided (SCALE-005 guard)
 
     Returns:
-        CrystalConfig with cell, orientation, stills defaults, and optional N_cells
+        Tuple of (CrystalConfig, n_cells_applied: bool) where n_cells_applied indicates
+        whether N_cells was actually included in the config
     """
     # Unit cell parameters (config_crosswalk.md:61)
     # dxtbx returns (a, b, c, alpha, beta, gamma) in Angstroms and degrees
@@ -484,7 +486,7 @@ def create_crystal_config(crystal, experiment, N_cells=None) -> CrystalConfig:
     mosaic_domains = 1
     mosaic_spread_deg = 0.0
 
-    # Build kwargs for CrystalConfig, only including N_cells if provided
+    # Build kwargs for CrystalConfig, only including N_cells if provided AND apply_n_cells=True
     crystal_kwargs = {
         'cell_a': a,
         'cell_b': b,
@@ -502,11 +504,14 @@ def create_crystal_config(crystal, experiment, N_cells=None) -> CrystalConfig:
         'mosaic_spread_deg': mosaic_spread_deg
     }
 
-    # Only add N_cells if provided (avoids passing None to CrystalConfig)
-    if N_cells is not None:
+    # Guard: Only add N_cells if provided AND apply_n_cells=True (SCALE-005)
+    # Prevents 3.2e5× intensity inflation until sample clipping semantics are validated
+    n_cells_applied = False
+    if N_cells is not None and apply_n_cells:
         crystal_kwargs['N_cells'] = N_cells
+        n_cells_applied = True
 
-    return CrystalConfig(**crystal_kwargs)
+    return CrystalConfig(**crystal_kwargs), n_cells_applied
 
 
 # ============================================================================
@@ -886,6 +891,7 @@ def simulate_forward_once(
             - global_scale_hint: Scale hint from inputs (ADU mode only)
             - spot_scale_override: Scale override used
             - sqrt_spot_scale: Sqrt(spot_scale_override) applied
+            - n_cells_applied: Bool indicating whether N_cells was passed to CrystalConfig
             - bragg_stats: Dict with min/max/mean of bragg output
             - hkl_stats: HKL grid metadata from build_structure_factor_grid
 
@@ -897,9 +903,11 @@ def simulate_forward_once(
         - Honors RUNTIME-001 (NANOBRAGG_DISABLE_COMPILE=1 recommended)
         - Applies SCALE-001 (unscaled HKL grid) and SCALE-002 (post-sim scaling)
         - Applies GEOMETRY-002 (analytic Euler inversion in create_detector_config)
+        - Applies SCALE-005 (N_cells gated until sample clipping semantics validated)
         - Device-neutral design: defaults to CPU, respects passed device
         - Does not write HDF5 or persist artifacts (caller's responsibility)
-        - Calibration dict sources beam flux/exposure/beamsize and N_cells per SCALE-003
+        - Calibration dict sources beam flux/exposure/beamsize per SCALE-003
+        - beam_config is wired to TorchCrystal for future sample clipping (AT-FLU-001)
     """
     try:
         import torch
@@ -944,17 +952,21 @@ def simulate_forward_once(
     sqrt_spot_scale = np.sqrt(spot_scale_override)
 
     # Prepare configs (shared across panels where applicable)
-    # Pass calibration overrides to config builders per input.md Do Now step 3
+    # Build beam_config with calibration overrides (input.md Do Now step 4)
     beam_config = create_beam_config(
         beam,
         flux=beam_flux,
         beamsize_mm=beamsize_mm,
         exposure=beam_exposure
     )
-    crystal_config = create_crystal_config(
+
+    # Build crystal_config with N_cells gating per SCALE-005
+    # apply_n_cells=False prevents 3.2e5× intensity inflation until sample clipping validated
+    crystal_config, n_cells_applied = create_crystal_config(
         crystal,
         experiment,
-        N_cells=N_cells
+        N_cells=N_cells,
+        apply_n_cells=False  # SCALE-005: Gate N_cells until semantics match generator
     )
 
     # Run simulator per panel
@@ -980,9 +992,13 @@ def simulate_forward_once(
                 detector_config.mask_array, dtype=torch.float32, device=device
             )
 
-        # Instantiate models
+        # Instantiate models (input.md Do Now step 4: wire beam_config to TorchCrystal)
         detector_model = TorchDetector(detector_config, device=device)
-        crystal_model = TorchCrystal(crystal_config)
+        crystal_model = TorchCrystal(
+            crystal_config,
+            beam_config=beam_config,
+            device=device
+        )
 
         # Attach HKL data to crystal model
         crystal_model.hkl_data = hkl_grid
@@ -1032,6 +1048,7 @@ def simulate_forward_once(
         "global_scale_hint": inputs.global_scale_hint,
         "spot_scale_override": float(spot_scale_override),
         "sqrt_spot_scale": float(sqrt_spot_scale),
+        "n_cells_applied": n_cells_applied,  # input.md Do Now step 4: track whether N_cells was used
         "bragg_stats": {
             "min": float(bragg.min()),
             "max": float(bragg.max()),
@@ -1145,7 +1162,9 @@ def simulate_forward_torch(
 
     # Prepare configs (shared across panels where applicable)
     beam_config = create_beam_config(beam)
-    crystal_config = create_crystal_config(crystal, experiment)
+    # simulate_forward_torch doesn't use calibration, so apply_n_cells=True (default)
+    # is fine for gradient testing; N_cells will be None anyway
+    crystal_config, _ = create_crystal_config(crystal, experiment)
 
     # Run simulator per panel
     n_panels = len(detector)
@@ -1172,9 +1191,14 @@ def simulate_forward_torch(
             if detector_config.mask_array.dtype != dtype:
                 detector_config.mask_array = detector_config.mask_array.to(dtype=dtype, device=device)
 
-        # Instantiate models
+        # Instantiate models (wire beam_config for consistency with simulate_forward_once)
         detector_model = TorchDetector(detector_config, device=device)
-        crystal_model = TorchCrystal(crystal_config)
+        crystal_model = TorchCrystal(
+            crystal_config,
+            beam_config=beam_config,
+            device=device,
+            dtype=dtype
+        )
 
         # Attach HKL data to crystal model
         crystal_model.hkl_data = hkl_grid

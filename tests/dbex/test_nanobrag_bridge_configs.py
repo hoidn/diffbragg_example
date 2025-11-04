@@ -505,7 +505,7 @@ class TestBeamCrystalConfigMapping:
         """
         from dbex.nanobrag_bridge import create_crystal_config
 
-        config = create_crystal_config(mock_crystal, mock_experiment_stills)
+        config, _ = create_crystal_config(mock_crystal, mock_experiment_stills)
 
         a, b, c, alpha, beta, gamma = mock_crystal.get_unit_cell().parameters()
 
@@ -533,7 +533,7 @@ class TestBeamCrystalConfigMapping:
         """
         from dbex.nanobrag_bridge import create_crystal_config
 
-        config = create_crystal_config(mock_crystal, mock_experiment_stills)
+        config, _ = create_crystal_config(mock_crystal, mock_experiment_stills)
 
         A = mock_crystal.get_A.return_value
         expected_a_star = A[:, 0]
@@ -573,7 +573,7 @@ class TestBeamCrystalConfigMapping:
         """
         from dbex.nanobrag_bridge import create_crystal_config
 
-        config = create_crystal_config(mock_crystal, mock_experiment_stills)
+        config, _ = create_crystal_config(mock_crystal, mock_experiment_stills)
 
         # Verify stills defaults
         assert config.phi_steps == 1, \
@@ -596,7 +596,7 @@ class TestBeamCrystalConfigMapping:
         """
         from dbex.nanobrag_bridge import create_crystal_config
 
-        config = create_crystal_config(mock_crystal, mock_experiment_stills)
+        config, _ = create_crystal_config(mock_crystal, mock_experiment_stills)
 
         # Verify misset defaults to zero
         expected_misset = np.array([0.0, 0.0, 0.0])
@@ -632,7 +632,7 @@ class TestBeamCrystalConfigMapping:
         from dbex.nanobrag_bridge import create_crystal_config
         from nanobrag_torch.config import CrystalConfig as TorchCrystalConfig
 
-        config = create_crystal_config(mock_crystal, mock_experiment_stills)
+        config, _ = create_crystal_config(mock_crystal, mock_experiment_stills)
 
         # Verify config is an instance of the real nanobrag_torch CrystalConfig
         assert isinstance(config, TorchCrystalConfig), \

@@ -255,6 +255,7 @@ class TestDB_AT_024_Mapping:
                 "beam_exposure": calibration["beam_exposure"],
                 "beamsize_mm": calibration.get("beamsize_mm"),
                 "N_cells": calibration.get("N_cells"),
+                "n_cells_applied": diagnostics.get("n_cells_applied", False),  # input.md Do Now step 5
                 "source": "tests/fixtures/golden_data/simple_cubic/config_torch.json",
             },
             "diagnostics": diagnostics,

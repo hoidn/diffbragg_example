@@ -1,0 +1,7 @@
+{
+  "median_dy": 1.0,
+  "median_dx": 2.0,
+  "median_abs_offset": 3.0,
+  "max_offset": 8,
+  "n_samples": 18
+}

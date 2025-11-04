@@ -594,3 +594,12 @@ Notes
 - <Action State>: [planning]
 
 2025-11-04T044251Z focus=DB-AT-021 state=planning dwell=0 artifacts=plans/active/DB-AT-021/reports/2025-11-04T044251Z/ next_action=implement_db_at_021_mask_tests
+## 2025-11-04T050402Z — DB-AT-022 sentinel planning kickoff
+- Focus: DB-AT-022 — Background sentinel guard
+- Action Type: planning
+- Key Observations: Canonical DataLoad background shows sentinel mask (`background == -1`) complementing ROI union exactly (13,248 ROI pixels vs 6,210,753 sentinel pixels, zero overlap); minor negative (>-0.49 ADU) background values remain confined within ROIs and are still excluded via `(background >= 0)` loss mask. Authored implementation plan with sentinel guard + acceptance tests, logged probes under new report directory, and added DB-AT-022 entry to docs/fix_plan.md.
+- Artifact Path: plans/active/DB-AT-022/reports/2025-11-04T050402Z/
+- Next Actions: Prepare Do Now directing sentinel guard insertion, DB_AT_022 test authoring, and mapped pytest/collect runs.
+- Reality Check: Assets (`scaled.mtz`, `refGeom.*`, `747_mask.pkl`) present; DB_AT_022 remains Planned in testing registry; work ready to advance to implementation.
+- <Action State>: [planning]
+2025-11-04T050402Z focus=DB-AT-022 state=planning dwell=0 artifacts=plans/active/DB-AT-022/reports/2025-11-04T050402Z/ next_action=deliver_do_now_for_sentinel_guard

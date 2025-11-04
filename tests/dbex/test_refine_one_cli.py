@@ -345,6 +345,158 @@ def test_nanobrag_backend_applies_calibration(
     mock_write.assert_called_once()
 
 
+@patch('dbex.data_load.DataLoad')
+@patch('nanobrag_torch.simulator.Simulator')
+@patch('nanobrag_torch.models.detector.Detector')
+@patch('nanobrag_torch.models.crystal.Crystal')
+@patch('dbex.nanobrag_bridge.prepare_refinement_inputs')
+@patch('dbex.nanobrag_bridge.build_structure_factor_grid')
+@patch('dbex.nanobrag_bridge.create_detector_config')
+@patch('dbex.nanobrag_bridge.create_beam_config')
+@patch('dbex.nanobrag_bridge.create_crystal_config')
+@patch('dbex.nanobrag_bridge.load_refined_mtz')
+@patch('dbex.refine_one._write_torch_outputs')
+def test_nanobrag_backend_uses_refined_mtz(
+    mock_write, mock_load_refined, mock_crystal_config, mock_beam_config,
+    mock_detector_config, mock_build_grid, mock_prepare, mock_Crystal,
+    mock_Detector, mock_Simulator, mock_DataLoad
+):
+    """
+    SCALE-003: Verify CLI loads refined MTZ and telemetry reflects refined source.
+
+    Validates that when --refined-mtz is provided:
+    1. load_refined_mtz is invoked with the correct path
+    2. Refined indices/amplitudes are passed to build_structure_factor_grid
+    3. Telemetry passed to _write_torch_outputs marks hkl_source="refined"
+
+    This regression test guards SCALE-003/SCALE-004 assumptions that refined
+    structure factors are applied when available.
+    """
+    import tempfile
+    import sys
+    import numpy as np
+    from unittest.mock import MagicMock
+    from dbex.nanobrag_bridge import RefinementInputs
+
+    # Setup: mock refined MTZ loading
+    refined_indices = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]], dtype=np.int32)
+    refined_amplitudes = np.array([100.0, 200.0, 300.0], dtype=np.float32)
+    mock_load_refined.return_value = (refined_indices, refined_amplitudes)
+
+    # Setup: mock structure factor grid builder
+    hkl_grid_mock = np.zeros((10, 10, 10), dtype=np.float32)
+    hkl_metadata_mock = {"grid_nonzero": 3}
+    mock_build_grid.return_value = (hkl_grid_mock, hkl_metadata_mock)
+
+    # Setup: mock config builders
+    mock_detector_config.return_value = MagicMock()
+    mock_beam_config.return_value = MagicMock()
+    mock_crystal_cfg = MagicMock()
+    mock_crystal_config.return_value = (mock_crystal_cfg, False)  # no n_cells
+
+    # Setup: mock models
+    mock_Detector.return_value = MagicMock()
+    mock_Crystal.return_value = MagicMock()
+
+    # Setup: mock simulator
+    import torch
+    mock_simulator_instance = MagicMock()
+    mock_simulator_instance.run.return_value = torch.zeros((2527, 2463), dtype=torch.float32)
+    mock_Simulator.return_value = mock_simulator_instance
+
+    # Setup: mock refinement inputs
+    target_mock = np.zeros((2, 2527, 2463), dtype=np.float32)
+    loss_mask_mock = np.ones((2, 2527, 2463), dtype=bool)
+    mock_prepare.return_value = RefinementInputs(
+        target=target_mock,
+        loss_mask=loss_mask_mock,
+        panel_slices=[],
+        trusted_mask=np.ones((2, 2527, 2463), dtype=np.float32)
+    )
+
+    # Setup: mock DataLoad
+    mock_DL_instance = MagicMock()
+    mock_DL_instance.detector = [MagicMock(), MagicMock()]  # 2 panels
+    mock_DL_instance.beam = MagicMock()
+    mock_DL_instance.crystal = MagicMock()
+    mock_DL_instance.Expt = MagicMock()
+    mock_DL_instance.F = MagicMock()
+    mock_DL_instance.F.indices.return_value = np.array([[0, 0, 1]], dtype=np.int32)
+    mock_DL_instance.F.data.return_value = np.array([50.0], dtype=np.float32)
+    mock_DL_instance.pids = [0, 1]
+    mock_DL_instance.bbox = [(0, 100, 0, 100), (0, 100, 0, 100)]
+    mock_DL_instance.background_image = np.zeros((2, 2527, 2463), dtype=np.float32)
+    mock_DL_instance.data = np.zeros((2, 2527, 2463), dtype=np.float32)
+    mock_DataLoad.return_value = mock_DL_instance
+
+    # Mock DataLoad and run CLI
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as exp_file:
+        exp_file.write('{"fake": "experiment"}')
+        exp_file.flush()
+        exp_path = exp_file.name
+
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.refl', delete=False) as refl_file:
+        refl_path = refl_file.name
+
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.pkl', delete=False) as mask_file:
+        mask_path = mask_file.name
+
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.mtz', delete=False) as mtz_file:
+        mtz_path = mtz_file.name
+
+    with tempfile.NamedTemporaryFile(mode='w', suffix='_refined.mtz', delete=False) as refined_mtz_file:
+        refined_mtz_path = refined_mtz_file.name
+
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.h5', delete=False) as out_file:
+        out_path = out_file.name
+
+    try:
+        # Inject mocks into sys.modules
+        sys.modules['simtbx.diffBragg.utils'] = MagicMock()
+        sys.modules['simtbx.diffBragg.hopper_utils'] = MagicMock()
+        sys.modules['score_trainer'] = MagicMock()
+        sys.modules['score_trainer.roi_check'] = MagicMock()
+
+        from dbex.refine_one import main
+
+        # Run CLI with --refined-mtz
+        main([
+            '-e', exp_path,
+            '-r', refl_path,
+            '-i', '0',
+            '-o', out_path,
+            '-m', mask_path,
+            '-z', mtz_path,
+            '--refined-mtz', refined_mtz_path,
+            '--backend', 'nanobrag'
+        ])
+
+        # Verify load_refined_mtz was invoked with correct path
+        mock_load_refined.assert_called_once_with(refined_mtz_path, column="F")
+
+        # Verify build_structure_factor_grid received refined arrays
+        build_grid_call_kwargs = mock_build_grid.call_args[1]
+        np.testing.assert_array_equal(build_grid_call_kwargs['indices'], refined_indices)
+        np.testing.assert_array_equal(build_grid_call_kwargs['amplitudes'], refined_amplitudes)
+
+        # Verify _write_torch_outputs received telemetry marking refined source
+        mock_write.assert_called_once()
+        write_call_args = mock_write.call_args[0]
+        hkl_telemetry = write_call_args[5]  # 6th positional arg is hkl_telemetry
+        assert hkl_telemetry["hkl_source"] == "refined"
+        assert hkl_telemetry["hkl_n_reflections"] == len(refined_indices)
+        assert hkl_telemetry["hkl_mean_amplitude"] == pytest.approx(refined_amplitudes.mean(), rel=1e-5)
+        assert hkl_telemetry["hkl_path"] == refined_mtz_path
+
+    finally:
+        import os
+        for path in [exp_path, refl_path, mask_path, mtz_path, refined_mtz_path, out_path]:
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
+
+
 def test_torch_diagnostics_metadata():
     """B1: Verify torch diagnostics HDF5 metadata."""
     import h5py
@@ -392,9 +544,17 @@ def test_torch_diagnostics_metadata():
             mock_bragg = np.zeros((1, 100, 100), dtype=np.float32)
             masked_mse = 1234.5
 
+            # Prepare HKL telemetry (SCALE-003)
+            hkl_telemetry = {
+                "hkl_source": "raw",
+                "hkl_n_reflections": 100,
+                "hkl_mean_amplitude": 50.0,
+                "hkl_path": "/path/to/test.mtz"
+            }
+
             # Import the function to test
             from dbex.refine_one import _write_torch_outputs
-            _write_torch_outputs(mock_args, mock_dl, mock_bragg, mock_inputs, masked_mse)
+            _write_torch_outputs(mock_args, mock_dl, mock_bragg, mock_inputs, masked_mse, hkl_telemetry)
 
             # Verify diagnostics group exists and has correct metadata
             with h5py.File(outfile, 'r') as h:
@@ -405,6 +565,15 @@ def test_torch_diagnostics_metadata():
                 assert 'n_rois' in diag.attrs
                 assert 'target_shape' in diag.attrs
                 assert 'backend' in diag.attrs
+                # SCALE-003: verify HKL telemetry fields
+                assert 'hkl_source' in diag.attrs
+                assert 'hkl_n_reflections' in diag.attrs
+                assert 'hkl_mean_amplitude' in diag.attrs
+                assert 'hkl_path' in diag.attrs
+                assert diag.attrs['hkl_source'] == "raw"
+                assert diag.attrs['hkl_n_reflections'] == 100
+                assert diag.attrs['hkl_mean_amplitude'] == 50.0
+                assert diag.attrs['hkl_path'] == "/path/to/test.mtz"
 
                 assert diag.attrs['masked_mse'] == masked_mse
                 assert diag.attrs['loss_mask_coverage'] == pytest.approx(0.25)

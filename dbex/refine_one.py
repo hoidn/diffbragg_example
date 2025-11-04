@@ -222,9 +222,13 @@ def run_nanobrag_backend(args, DL, devid=0):
     # Try refined MTZ first if provided, fall back to raw MTZ
     hkl_indices = None
     hkl_amplitudes = None
+    hkl_source = "raw"  # Track telemetry: "refined" or "raw"
+    hkl_path = None
     if args.refined_mtz is not None:
         try:
             hkl_indices, hkl_amplitudes = load_refined_mtz(args.refined_mtz, column="F")
+            hkl_source = "refined"
+            hkl_path = args.refined_mtz
             print(f"[nanobrag backend] Using refined structure factors from {args.refined_mtz}")
             print(f"  n_reflections={len(hkl_indices)}, mean_amplitude={hkl_amplitudes.mean():.3e}")
         except (FileNotFoundError, ValueError, ImportError) as e:
@@ -235,6 +239,8 @@ def run_nanobrag_backend(args, DL, devid=0):
     if hkl_indices is None:
         hkl_indices = DL.F.indices()
         hkl_amplitudes = DL.F.data()
+        hkl_source = "raw"
+        hkl_path = args.mtzFile
         print(f"[nanobrag backend] Using raw structure factors from {args.mtzFile}")
 
     hkl_grid, hkl_metadata = build_structure_factor_grid(
@@ -337,14 +343,35 @@ def run_nanobrag_backend(args, DL, devid=0):
 
     print(f"[nanobrag backend] Masked MSE: {masked_mse:.2e}")
 
+    # Prepare structure-factor telemetry for diagnostics (SCALE-003)
+    hkl_telemetry = {
+        "hkl_source": hkl_source,
+        "hkl_n_reflections": len(hkl_indices),
+        "hkl_mean_amplitude": float(hkl_amplitudes.mean()),
+        "hkl_path": hkl_path if hkl_path else ""
+    }
+
     # Score ROIs and write HDF5 output
-    _write_torch_outputs(args, DL, Bragg, inputs, masked_mse)
+    _write_torch_outputs(args, DL, Bragg, inputs, masked_mse, hkl_telemetry)
 
     print(f"Visualize using `python -m dbex.look {args.outFile}`")
 
 
-def _write_torch_outputs(args, DL, Bragg, inputs, masked_mse):
-    """Write torch backend outputs to HDF5 with diagnostics."""
+def _write_torch_outputs(args, DL, Bragg, inputs, masked_mse, hkl_telemetry):
+    """Write torch backend outputs to HDF5 with diagnostics.
+
+    Args:
+        args: Argument namespace from CLI parser
+        DL: DataLoad object with experiment/reflection/detector data
+        Bragg: Simulated Bragg intensities array
+        inputs: RefinementInputs namedtuple with target/loss_mask/panel_slices/trusted_mask
+        masked_mse: Masked mean squared error between target and Bragg
+        hkl_telemetry: Dictionary with structure-factor metadata:
+            - hkl_source: "refined" or "raw"
+            - hkl_n_reflections: Number of reflections
+            - hkl_mean_amplitude: Mean structure factor amplitude
+            - hkl_path: Path to MTZ file used
+    """
     import h5py
     import numpy as np
     from scipy.optimize import minimize
@@ -400,13 +427,19 @@ def _write_torch_outputs(args, DL, Bragg, inputs, masked_mse):
             h.create_dataset("bragg/roi%d" % i, data=bragg_subims[i])
             h.create_dataset("bg/roi%d" % i, data=bg_subims[i])
 
-        # Add torch diagnostics group
+        # Add torch diagnostics group (DIAGNOSTICS-001, SCALE-003)
         diag = h.create_group("torch_diagnostics")
         diag.attrs["masked_mse"] = float(masked_mse)
         diag.attrs["loss_mask_coverage"] = float(inputs.loss_mask.mean())
         diag.attrs["n_rois"] = len(inputs.panel_slices)
         diag.attrs["target_shape"] = str(inputs.target.shape)
         diag.attrs["backend"] = "nanobrag"
+
+        # Structure-factor telemetry (SCALE-003: track refined vs raw MTZ)
+        diag.attrs["hkl_source"] = hkl_telemetry["hkl_source"]
+        diag.attrs["hkl_n_reflections"] = int(hkl_telemetry["hkl_n_reflections"])
+        diag.attrs["hkl_mean_amplitude"] = float(hkl_telemetry["hkl_mean_amplitude"])
+        diag.attrs["hkl_path"] = str(hkl_telemetry["hkl_path"])
 
     print("Average score:", 100*np.mean(scores), "+-", 100*np.std(scores))
     print("Fraction of spots well modeled= %.1f%%" % (100*sum([s >= 0.5 for s in scores])/len(scores), ))

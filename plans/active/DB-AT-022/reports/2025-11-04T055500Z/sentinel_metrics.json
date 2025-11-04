@@ -1,0 +1,12 @@
+{
+  "roi_count": 92,
+  "sentinel_fraction": 0.997871465637618,
+  "roi_fraction": 0.002128534362382011,
+  "overlap_count": 0,
+  "sentinel_mean": -1.0,
+  "sentinel_std": 0.0,
+  "coverage_sum": 1.0,
+  "total_pixels": 6224001,
+  "sentinel_pixels": 6210753,
+  "roi_pixels": 13248
+}

@@ -129,6 +129,49 @@ def prepare_refinement_inputs(
     assert data.shape == mask_array.shape, \
         f"data shape {data.shape} != mask {mask_array.shape}"
 
+    # Guard: validate sentinel integrity per simtbx_api.md:14
+    # Background should use -1 sentinel outside ROIs
+    # Inside ROIs, background is typically >= 0, but plane fitting can produce
+    # slightly negative values (> -0.5). Sentinel is specifically <= -0.5.
+    # Build ROI union mask from bbox/pids to validate sentinel coverage
+    roi_union = np.zeros(data.shape, dtype=bool)
+    for pid, (x0, x1, y0, y1) in zip(pids, bbox):
+        roi_union[int(pid), int(y0):int(y1), int(x0):int(x1)] = True
+
+    # Sentinel pixels are <= -0.5 (tolerant to floating point, but expect ~-1.0)
+    # ROI pixels should not contain sentinel values (though may be slightly negative from fitting)
+    sentinel_mask = background_image <= -0.5
+    valid_background_mask = background_image >= 0
+
+    # Check 1: Sentinel pixels should be outside ROI union
+    sentinel_inside_roi = sentinel_mask & roi_union
+    if np.any(sentinel_inside_roi):
+        n_violations = np.sum(sentinel_inside_roi)
+        first_violation = np.argwhere(sentinel_inside_roi)[0]
+        pid, slow, fast = first_violation
+        raise ValueError(
+            f"Sentinel guard violation: {n_violations} pixels with background <= -0.5 "
+            f"found inside ROI union. First violation at panel={pid}, slow={slow}, fast={fast} "
+            f"with background={background_image[pid, slow, fast]:.3f}. "
+            f"Expected background >= 0 inside ROIs per docs/simtbx_api.md:14"
+        )
+
+    # Check 2: Pixels outside ROI union should be sentinel (allow some tolerance for edge effects)
+    outside_roi = ~roi_union
+    non_sentinel_outside = outside_roi & ~sentinel_mask
+    # Count pixels that are significantly different from -1 (not just rounding errors)
+    significant_deviation = non_sentinel_outside & (np.abs(background_image + 1.0) > 0.1)
+    if np.any(significant_deviation):
+        n_violations = np.sum(significant_deviation)
+        first_violation = np.argwhere(significant_deviation)[0]
+        pid, slow, fast = first_violation
+        raise ValueError(
+            f"Sentinel guard violation: {n_violations} pixels outside ROI union "
+            f"deviate significantly from -1 sentinel. First violation at panel={pid}, slow={slow}, fast={fast} "
+            f"with background={background_image[pid, slow, fast]:.3f}. "
+            f"Expected background ≈ -1 outside ROIs per docs/simtbx_api.md:14"
+        )
+
     # Background-subtract target
     # Where background >= 0 (valid ROI pixels), subtract; elsewhere zero
     target = np.where(background_image >= 0, data - background_image, 0.0)

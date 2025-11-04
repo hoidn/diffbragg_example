@@ -248,8 +248,8 @@
 
 ### [DB-AT-022] Background sentinel guard
 - Depends on: DB-AT-020, DB-AT-021, docs/simtbx_api.md sentinel contract
-- Status: in_progress
-- Owner/Date: Galph / 2025-11-04
+- Status: done
+- Owner/Date: Ralph / 2025-11-04
 - Exit Criteria:
   1. `dbex.nanobrag_bridge.prepare_refinement_inputs` enforces a sentinel integrity guard (verifies `background_image` uses -1 outside ROIs and raises descriptive errors when deviating) without regressing existing loss mask behavior.
   2. Author `tests/dbex/test_background_semantics.py` (DB_AT_022) asserting sentinel mask equals the complement of ROI union (derived from `bbox`/`pids`), zero overlap, and coverage metrics align with reflection metadata; capture mismatch diagnostics.
@@ -258,6 +258,7 @@
 - Working Plan: plans/active/DB-AT-022/implementation.md
 - Attempts History:
   * 2025-11-04T050402Z (planning) — Captured sentinel coverage probe showing ROI union (13,248 pixels, 92 ROIs) complements the `background == -1` mask exactly (6,210,753 pixels, zero overlap) using canonical assets; noted minor negative background values inside ROIs (> -0.49 ADU) that remain filtered by `(background >= 0)` loss mask logic. Logged probe outputs and references in `plans/active/DB-AT-022/reports/2025-11-04T050402Z/summary.md`. Next Actions: add sentinel guard to `prepare_refinement_inputs`, implement DB_AT_022 test module, run mapped pytest selectors, and sync documentation per TESTING-003.
+  * 2025-11-04T055500Z (complete) — Implemented sentinel integrity guard in `dbex.nanobrag_bridge.prepare_refinement_inputs` (lines 132-171) enforcing background <= -0.5 outside ROI union with actionable ValueError messages; authored `tests/dbex/test_background_semantics.py` (3 tests: sentinel complement validation, guard enforcement with tampered data, ROI coverage metrics); all acceptance tests passed. (Code changes) Added ROI union construction from bbox/pids, sentinel detection (<= -0.5), dual guards (no sentinel inside ROI, non-sentinel outside ROI with 0.1 tolerance), and clarified that simtbx plane fitting can produce slightly negative values (> -0.5) inside ROIs; updated test to allow this minor deviation. (Test execution) Ran commands: `DBAT022_ARTIFACT_DIR=plans/active/DB-AT-022/reports/2025-11-04T055500Z KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_background_semantics.py -k DB_AT_022` → 3 passed in 4.84s; `pytest --collect-only tests -k DB_AT_022` → 3/58 collected; `pytest -v tests/` → 57 passed, 1 skipped. Metrics: sentinel_fraction=99.8%, roi_fraction=0.2%, overlap_count=0, sentinel_mean=-1.0, sentinel_std=0.0, coverage_sum=1.0, mean_roi_bg_valid_fraction=99.3%, 92 ROIs. Artifacts: `plans/active/DB-AT-022/reports/2025-11-04T055500Z/{pytest_db_at_022.log,collect_db_at_022.log,sentinel_metrics.json,roi_coverage.json,summary.md}`. Documentation updated: docs/TESTING_GUIDE.md:68 (Planned → Active with env flags, canonical metrics, findings), docs/development/TEST_SUITE_INDEX.md:24 (planned → active with test file reference). Applied findings: CONFORMANCE-001, TESTING-003, MASKING-001, CONFIG-001. First Divergence: N/A. Next Actions: DB-AT-023 calibration guard (adu-per-photon policy).
 
 ### [FINDINGS-LEDGER-002] Extend knowledge base with torch experiment lessons
 - Depends on: TORCH-BRIDGE-001, TORCH-CLI-003

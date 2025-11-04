@@ -232,8 +232,8 @@
 
 ### [RUNTIME-VEC-001] Source weighting runtime guard
 - Depends on: docs/pytorch_runtime_checklist.md §4, docs/architecture/pytorch_design.md §1.1.5, availability of `nanobrag_torch`
-- Status: in_progress
-- Owner/Date: Galph / 2025-11-04
+- Status: done
+- Owner/Date: Ralph / 2025-11-04
 - Exit Criteria:
   1. Port the nanoBragg2 `TestSourceWeights` equal-weight validation into DBEX (new `tests/dbex/test_runtime_vectorization.py` or equivalent), reusing temporary sourcefiles to prove correlation ≥0.999 and |sum_ratio−1| ≤5e-3 when weights vary; capture metrics JSON on failure and respect Environment Freeze (no package installs).
   2. Archive targeted pytest (`KMP_DUPLICATE_LIB_OK=TRUE RUNTIME_VEC_ARTIFACT_DIR=plans/active/RUNTIME-VEC-001/reports/<timestamp> pytest -v tests/dbex/test_runtime_vectorization.py::TestRuntimeVectorization::test_source_weights_ignored_per_spec --maxfail=1`) and collect-only logs under `plans/active/RUNTIME-VEC-001/reports/<timestamp>/`, noting environment guards and runtime.
@@ -241,6 +241,7 @@
 - Working Plan: plans/active/RUNTIME-VEC-001/implementation.md
 - Attempts History:
   * 2025-11-04T074738Z (planning) — Logged runtime vectorization gap after DB-AT-010 completion: documented upstream `TestSourceWeights*` suite (`../nanoBragg/tests/test_cli_scaling.py`) reliance on `python -m nanobrag_torch`, captured spec references (`docs/pytorch_runtime_checklist.md` §4, `docs/architecture/pytorch_design.md` §1.1.5), and outlined porting strategy in `plans/active/RUNTIME-VEC-001/implementation.md`. Established artifact plan and Do Now prerequisites in `plans/active/RUNTIME-VEC-001/reports/2025-11-04T074738Z/summary.md`.
+  * 2025-11-04T080000Z (implementation) — Authored `tests/dbex/test_runtime_vectorization.py:1-194` with CLI-based equal-weight test (`test_source_weights_ignored_per_spec`). Test creates two sourcefiles (weighted: 1.0/2.5/0.3; equal: 1.0/1.0/1.0) with identical positions/wavelengths, runs `python -m nanobrag_torch -sourcefile ... -floatfile ...` for both, compares 128×128 binary outputs via correlation and sum_ratio metrics. Metrics: correlation=1.0, sum_ratio=1.0, sum_ratio_delta=0.0 (perfect match, exceeds thresholds ≥0.999 and ≤5e-3). Environment: `KMP_DUPLICATE_LIB_OK=TRUE`, `NANOBRAGG_DISABLE_COMPILE=1` (set in test), `RUNTIME_VEC_ARTIFACT_DIR`. Runtime: ≈2s. Artifacts: `plans/active/RUNTIME-VEC-001/reports/2025-11-04T080000Z/` (pytest_runtime_vec.log: 1 passed, collect_runtime_vec.log: 1 test collected, mapping_metrics.json, source_weight_test_summary.txt). Full test suite: `pytest -v tests/` (66 passed, 3 skipped, 11 warnings, 6m24s). Updated `docs/TESTING_GUIDE.md:72` and `docs/development/TEST_SUITE_INDEX.md:28` to promote selector from Planned → Active with command, environment flags, canonical metrics, and finding refs (RUNTIME-001, SCALE-001/002, TESTING-003). Exit criteria met: test authored (exit 1), logs archived (exit 2), docs promoted (exit 3).
 
 ### [DB-AT-002] Determinism selector scaffold
 - Depends on: FORWARD-EQUIV-002, NANOBRAG-BACKEND-002, TORCH-RUNTIME-002, PARITY-HARNESS-002

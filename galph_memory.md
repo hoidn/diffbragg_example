@@ -584,3 +584,13 @@ Notes
 - <Action State>: [ready_for_implementation]
 
 2025-11-04T052930Z focus=DB-AT-020 state=ready_for_implementation dwell=0 artifacts=plans/active/DB-AT-020/reports/2025-11-04T042625Z/ next_action=implement_db_at_020_bbox_harness
+## 2025-11-04T044251Z — DB-AT-021 mask semantics planning kickoff
+- Focus: DB-AT-021 — Mask semantics guard
+- Action Type: planning
+- Key Observations: Validated canonical trusted mask (`747_mask.pkl`) is single-panel (2527×2463) with True polarity (≈91.5% trusted coverage), establishing expected metrics for DB_AT_021; identified DataLoad currently omits `trusted_mask` hydration even though CLI consumes it, so implementation must wire mask loading + polarity guard and expose detector/beam/crystal handles; drafted Phase A-C plan plus Do Now for Ralph to author DB_AT_021 acceptance tests and documentation sync.
+- Artifact Path: plans/active/DB-AT-021/reports/2025-11-04T044251Z/
+- Next Actions: Prepare implementation loop to modify DataLoad + add tests per plan, then run targeted pytest/collect and sync docs.
+- Reality Check: Assets (`refGeom.*`, `scaled.mtz`, `747_mask.pkl`) present; no blockers detected; ready for implementation handoff next turn.
+- <Action State>: [planning]
+
+2025-11-04T044251Z focus=DB-AT-021 state=planning dwell=0 artifacts=plans/active/DB-AT-021/reports/2025-11-04T044251Z/ next_action=implement_db_at_021_mask_tests

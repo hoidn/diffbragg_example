@@ -4,7 +4,7 @@
 - ID: NANOBRAG-BACKEND-002
 - Title: Replace CLI torch backend stub with nanobrag_torch simulator
 - Owner: Galph/Ralph pairing
-- Status: in_progress
+- Status: done
 
 ## Goals
 - Promote `dbex.nanobrag_bridge` helpers to instantiate real `nanobrag_torch` config objects (Detector/Beam/Crystal) without relying on local stubs.
@@ -44,9 +44,9 @@
 
 ## Phase C — Parity validation & docs
 ### Checklist
-- [ ] C1: Update DB-AT-001 parity selector to exercise the real torch backend (drop xfail once metrics hit thresholds) and capture new artifacts.
-- [ ] C2: Sync documentation and Fix Plan Attempts History with new backend behavior, including SCALE-002 guard rationale and runtime pitfalls.
-- [ ] C3: Close initiative once `docs/fix_plan.md` status is `done` and all mapped selectors collect >0 tests (artifact logs archived under this initiative).
+- [x] C1: Update DB-AT-001 parity selector to exercise the real torch backend (drop xfail once metrics hit thresholds) and capture new artifacts.
+- [x] C2: Sync documentation and Fix Plan Attempts History with new backend behavior, including SCALE-002 guard rationale and runtime pitfalls.
+- [x] C3: Close initiative once `docs/fix_plan.md` status is `done` and all mapped selectors collect >0 tests (artifact logs archived under this initiative).
 
 ### Notes & Risks
 - Ensure parity metrics remain within thresholds; if they regress, capture `first_divergence.json` diffs and pause rollout rather than weakening assertions.

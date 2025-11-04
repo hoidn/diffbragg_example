@@ -764,7 +764,7 @@ class TestDB_AT_001_Parity:
 
         # Write artifacts to current report directory (per input.md)
         repo_root = Path(__file__).parent.parent.parent
-        artifact_dir = repo_root / "plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T030000Z/parity_harness"
+        artifact_dir = repo_root / "plans/active/NANOBRAG-BACKEND-002/reports/2025-11-04T033317Z/parity_harness"
 
         artifacts = write_parity_artifacts(
             artifact_dir=artifact_dir,

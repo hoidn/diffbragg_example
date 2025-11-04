@@ -189,42 +189,23 @@ class TestDB_AT_010_Gradcheck:
 
         # Create a loss function parameterized by cell_a
         def loss_fn(cell_a_tensor):
-            # Clone crystal and update cell_a
-            # Note: dxtbx Crystal objects are immutable, so we work with config
-            from dxtbx.model import Crystal as DxtbxCrystal
+            # Use crystal_overrides to inject tensor parameter directly (GRADIENT-001)
+            # This avoids .item() call that would break gradient flow
+            crystal_overrides = {'cell_a': cell_a_tensor}
 
-            # Get original unit cell params
-            uc = base_crystal.get_unit_cell()
-            a, b, c, alpha, beta, gamma = uc.parameters()
-
-            # Replace cell_a with differentiable parameter
-            # Convert tensor to float (gradcheck will handle perturbations)
-            new_a = float(cell_a_tensor.item())
-
-            # Create new crystal with perturbed cell_a
-            new_crystal = DxtbxCrystal(
-                real_space_a=base_crystal.get_real_space_vectors()[0],
-                real_space_b=base_crystal.get_real_space_vectors()[1],
-                real_space_c=base_crystal.get_real_space_vectors()[2],
-                space_group=base_crystal.get_space_group()
-            )
-            # Set unit cell with new cell_a
-            from cctbx import uctbx
-            new_uc = uctbx.unit_cell((new_a, b, c, alpha, beta, gamma))
-            new_crystal.set_unit_cell(new_uc)
-
-            # Run forward simulation
+            # Run forward simulation with tensor override
             bragg_torch = simulate_forward_torch(
                 inputs=refinement_inputs,
                 detector=geometry_objects["detector"],
                 beam=geometry_objects["beam"],
-                crystal=new_crystal,
+                crystal=base_crystal,  # Use base crystal, overrides applied internally
                 experiment=experiment,
                 hkl_indices=hkl_data["indices"],
                 hkl_amplitudes=hkl_data["amplitudes"],
                 spot_scale_override=1.0,
                 device=device,
-                dtype=dtype
+                dtype=dtype,
+                crystal_overrides=crystal_overrides  # Pass tensor override
             )
 
             # Compute masked MSE loss
@@ -296,38 +277,23 @@ class TestDB_AT_010_Gradcheck:
 
         # Create a loss function parameterized by cell_gamma
         def loss_fn(cell_gamma_tensor):
-            from dxtbx.model import Crystal as DxtbxCrystal
-            from cctbx import uctbx
+            # Use crystal_overrides to inject tensor parameter directly (GRADIENT-001)
+            # This avoids .item() call that would break gradient flow
+            crystal_overrides = {'cell_gamma': cell_gamma_tensor}
 
-            # Get original unit cell params
-            uc = base_crystal.get_unit_cell()
-            a, b, c, alpha, beta, gamma = uc.parameters()
-
-            # Replace cell_gamma with differentiable parameter
-            new_gamma = float(cell_gamma_tensor.item())
-
-            # Create new crystal with perturbed cell_gamma
-            new_crystal = DxtbxCrystal(
-                real_space_a=base_crystal.get_real_space_vectors()[0],
-                real_space_b=base_crystal.get_real_space_vectors()[1],
-                real_space_c=base_crystal.get_real_space_vectors()[2],
-                space_group=base_crystal.get_space_group()
-            )
-            new_uc = uctbx.unit_cell((a, b, c, alpha, beta, new_gamma))
-            new_crystal.set_unit_cell(new_uc)
-
-            # Run forward simulation
+            # Run forward simulation with tensor override
             bragg_torch = simulate_forward_torch(
                 inputs=refinement_inputs,
                 detector=geometry_objects["detector"],
                 beam=geometry_objects["beam"],
-                crystal=new_crystal,
+                crystal=base_crystal,  # Use base crystal, overrides applied internally
                 experiment=experiment,
                 hkl_indices=hkl_data["indices"],
                 hkl_amplitudes=hkl_data["amplitudes"],
                 spot_scale_override=1.0,
                 device=device,
-                dtype=dtype
+                dtype=dtype,
+                crystal_overrides=crystal_overrides  # Pass tensor override
             )
 
             # Compute masked MSE loss

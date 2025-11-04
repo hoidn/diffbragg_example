@@ -1108,7 +1108,8 @@ def simulate_forward_torch(
     hkl_amplitudes: np.ndarray,
     spot_scale_override: Optional[float] = None,
     device=None,
-    dtype=None
+    dtype=None,
+    crystal_overrides: Optional[dict] = None
 ) -> "torch.Tensor":
     """
     Run forward simulation returning torch tensor for gradient testing.
@@ -1129,6 +1130,10 @@ def simulate_forward_torch(
         spot_scale_override: Optional scale factor (default 1.0 if None)
         device: torch.device for simulation (default cpu)
         dtype: torch.dtype for computation (default float32, use float64 for gradcheck)
+        crystal_overrides: Optional dict of tensor-valued crystal parameter overrides
+                          for gradcheck. Supports keys: 'cell_a', 'cell_b', 'cell_c',
+                          'cell_alpha', 'cell_beta', 'cell_gamma'. Tensors must have
+                          requires_grad=True to preserve gradient flow (GRADIENT-001).
 
     Returns:
         bragg_torch: Per-panel Bragg tensors [panel, slow, fast] as torch.Tensor
@@ -1142,6 +1147,8 @@ def simulate_forward_torch(
         - RUNTIME-001: Use with NANOBRAGG_DISABLE_COMPILE=1 for gradient tests
         - SCALE-001: Structure factors unscaled in grid
         - SCALE-002: sqrt(spot_scale) applied post-simulation as differentiable torch op
+        - GRADIENT-001: crystal_overrides enables tensor-valued parameter injection without
+                       .item()/.numpy() detaching, preserving autograd graph for gradcheck
         - Preserves gradient graph (no .detach() or .numpy() conversions)
         - Defaults to float32 but accepts float64 for gradcheck (per runtime checklist §2)
     """
@@ -1188,6 +1195,35 @@ def simulate_forward_torch(
     # simulate_forward_torch doesn't use calibration, so apply_n_cells=True (default)
     # is fine for gradient testing; N_cells will be None anyway
     crystal_config, _ = create_crystal_config(crystal, experiment)
+
+    # Apply crystal_overrides if provided (GRADIENT-001)
+    # This allows tensor-valued parameters to flow through without .item() detaching
+    if crystal_overrides is not None:
+        # Get base unit cell parameters
+        a, b, c, alpha, beta, gamma = crystal.get_unit_cell().parameters()
+
+        # Override with tensor values (keep as torch tensors for autograd)
+        if 'cell_a' in crystal_overrides:
+            a = crystal_overrides['cell_a']
+        if 'cell_b' in crystal_overrides:
+            b = crystal_overrides['cell_b']
+        if 'cell_c' in crystal_overrides:
+            c = crystal_overrides['cell_c']
+        if 'cell_alpha' in crystal_overrides:
+            alpha = crystal_overrides['cell_alpha']
+        if 'cell_beta' in crystal_overrides:
+            beta = crystal_overrides['cell_beta']
+        if 'cell_gamma' in crystal_overrides:
+            gamma = crystal_overrides['cell_gamma']
+
+        # Rebuild crystal_config with possibly-tensor unit cell params
+        # CrystalConfig accepts numeric values, torch tensors should work
+        crystal_config.cell_a = a
+        crystal_config.cell_b = b
+        crystal_config.cell_c = c
+        crystal_config.cell_alpha = alpha
+        crystal_config.cell_beta = beta
+        crystal_config.cell_gamma = gamma
 
     # Run simulator per panel
     n_panels = len(detector)

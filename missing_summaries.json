@@ -1,0 +1,338 @@
+{
+  "branch_prefix": "integration",
+  "missing": [
+    {
+      "role": "galph",
+      "iteration": 18,
+      "log_file": "logs/integration/galph/iter-00018_20251029_023116.log"
+    },
+    {
+      "role": "galph",
+      "iteration": 19,
+      "log_file": "logs/integration/galph/iter-00019_20251029_025819.log"
+    },
+    {
+      "role": "galph",
+      "iteration": 20,
+      "log_file": "logs/integration/galph/iter-00020_20251029_031452.log"
+    },
+    {
+      "role": "galph",
+      "iteration": 21,
+      "log_file": "None"
+    },
+    {
+      "role": "galph",
+      "iteration": 22,
+      "log_file": "logs/integration/galph/iter-00022_20251029_055152.log"
+    },
+    {
+      "role": "galph",
+      "iteration": 23,
+      "log_file": "logs/integration/galph/iter-00023_20251029_060804.log"
+    },
+    {
+      "role": "galph",
+      "iteration": 24,
+      "log_file": "logs/integration/galph/iter-00024_20251029_063437.log"
+    },
+    {
+      "role": "galph",
+      "iteration": 25,
+      "log_file": "logs/integration/galph/iter-00025_20251029_070106.log"
+    },
+    {
+      "role": "galph",
+      "iteration": 26,
+      "log_file": "logs/integration/galph/iter-00026_20251029_071555.log"
+    },
+    {
+      "role": "galph",
+      "iteration": 27,
+      "log_file": "logs/integration/galph/iter-00027_20251029_072743.log"
+    },
+    {
+      "role": "galph",
+      "iteration": 28,
+      "log_file": "logs/integration/galph/iter-00028_20251029_074119.log"
+    },
+    {
+      "role": "galph",
+      "iteration": 29,
+      "log_file": "logs/integration/galph/iter-00029_20251029_075956.log"
+    },
+    {
+      "role": "galph",
+      "iteration": 30,
+      "log_file": "logs/integration/galph/iter-00030_20251029_082209.log"
+    },
+    {
+      "role": "galph",
+      "iteration": 31,
+      "log_file": "logs/integration/galph/iter-00031_20251029_083952.log"
+    },
+    {
+      "role": "galph",
+      "iteration": 32,
+      "log_file": "logs/integration/galph/iter-00032_20251029_090850.log"
+    },
+    {
+      "role": "galph",
+      "iteration": 33,
+      "log_file": "logs/integration/galph/iter-00033_20251029_092520.log"
+    },
+    {
+      "role": "galph",
+      "iteration": 34,
+      "log_file": "logs/integration/galph/iter-00034_20251029_094216.log"
+    },
+    {
+      "role": "galph",
+      "iteration": 35,
+      "log_file": "logs/integration/galph/iter-00035_20251029_100112.log"
+    },
+    {
+      "role": "galph",
+      "iteration": 36,
+      "log_file": "logs/integration/galph/iter-00036_20251029_102026.log"
+    },
+    {
+      "role": "galph",
+      "iteration": 37,
+      "log_file": "logs/integration/galph/iter-00037_20251029_103344.log"
+    },
+    {
+      "role": "galph",
+      "iteration": 38,
+      "log_file": "logs/integration/galph/iter-00038_20251029_181328.log"
+    },
+    {
+      "role": "galph",
+      "iteration": 39,
+      "log_file": "logs/integration/galph/iter-00039_20251029_182926.log"
+    },
+    {
+      "role": "galph",
+      "iteration": 40,
+      "log_file": "logs/integration/galph/iter-00040_20251029_184618.log"
+    },
+    {
+      "role": "galph",
+      "iteration": 41,
+      "log_file": "logs/integration/galph/iter-00041_20251029_190340.log"
+    },
+    {
+      "role": "galph",
+      "iteration": 42,
+      "log_file": "logs/integration/galph/iter-00042_20251029_191520.log"
+    },
+    {
+      "role": "galph",
+      "iteration": 43,
+      "log_file": "logs/integration/galph/iter-00043_20251029_193213.log"
+    },
+    {
+      "role": "galph",
+      "iteration": 44,
+      "log_file": "logs/integration/galph/iter-00044_20251103_231732.log"
+    },
+    {
+      "role": "galph",
+      "iteration": 45,
+      "log_file": "None"
+    },
+    {
+      "role": "galph",
+      "iteration": 46,
+      "log_file": "logs/integration/galph/iter-00046_20251103_235237.log"
+    },
+    {
+      "role": "galph",
+      "iteration": 47,
+      "log_file": "logs/integration/galph/iter-00047_20251104_001336.log"
+    },
+    {
+      "role": "ralph",
+      "iteration": 18,
+      "log_file": "logs/integration/ralph/iter-00018_20251029_023115_main.log"
+    },
+    {
+      "role": "ralph",
+      "iteration": 19,
+      "log_file": "logs/integration/ralph/iter-00019_20251029_024651_main.log"
+    },
+    {
+      "role": "ralph",
+      "iteration": 20,
+      "log_file": "logs/integration/ralph/iter-00020_20251029_030800_main.log"
+    },
+    {
+      "role": "ralph",
+      "iteration": 21,
+      "log_file": "logs/integration/ralph/iter-00021_20251029_040505_main.log"
+    },
+    {
+      "role": "ralph",
+      "iteration": 22,
+      "log_file": "logs/integration/ralph/iter-00022_20251029_060053_main.log"
+    },
+    {
+      "role": "ralph",
+      "iteration": 23,
+      "log_file": "logs/integration/ralph/iter-00023_20251029_062209_main.log"
+    },
+    {
+      "role": "ralph",
+      "iteration": 24,
+      "log_file": "logs/integration/ralph/iter-00024_20251029_063541_main.log"
+    },
+    {
+      "role": "ralph",
+      "iteration": 25,
+      "log_file": "logs/integration/ralph/iter-00025_20251029_065817_main.log"
+    },
+    {
+      "role": "ralph",
+      "iteration": 26,
+      "log_file": "logs/integration/ralph/iter-00026_20251029_072020_main.log"
+    },
+    {
+      "role": "ralph",
+      "iteration": 27,
+      "log_file": "logs/integration/ralph/iter-00027_20251029_073603_main.log"
+    },
+    {
+      "role": "ralph",
+      "iteration": 28,
+      "log_file": "logs/integration/ralph/iter-00028_20251029_074713_main.log"
+    },
+    {
+      "role": "ralph",
+      "iteration": 29,
+      "log_file": "logs/integration/ralph/iter-00029_20251029_075951_main.log"
+    },
+    {
+      "role": "ralph",
+      "iteration": 30,
+      "log_file": "logs/integration/ralph/iter-00030_20251029_082206_main.log"
+    },
+    {
+      "role": "ralph",
+      "iteration": 31,
+      "log_file": "logs/integration/ralph/iter-00031_20251029_083951_main.log"
+    },
+    {
+      "role": "ralph",
+      "iteration": 32,
+      "log_file": "logs/integration/ralph/iter-00032_20251029_091505_main.log"
+    },
+    {
+      "role": "ralph",
+      "iteration": 33,
+      "log_file": "logs/integration/ralph/iter-00033_20251029_092514_main.log"
+    },
+    {
+      "role": "ralph",
+      "iteration": 34,
+      "log_file": "logs/integration/ralph/iter-00034_20251029_094210_main.log"
+    },
+    {
+      "role": "ralph",
+      "iteration": 35,
+      "log_file": "logs/integration/ralph/iter-00035_20251029_100111_main.log"
+    },
+    {
+      "role": "ralph",
+      "iteration": 36,
+      "log_file": "logs/integration/ralph/iter-00036_20251029_102024_main.log"
+    },
+    {
+      "role": "ralph",
+      "iteration": 37,
+      "log_file": "logs/integration/ralph/iter-00037_20251029_180711_main.log"
+    },
+    {
+      "role": "ralph",
+      "iteration": 38,
+      "log_file": "logs/integration/ralph/iter-00038_20251029_181326_main.log"
+    },
+    {
+      "role": "ralph",
+      "iteration": 39,
+      "log_file": "logs/integration/ralph/iter-00039_20251029_182924_main.log"
+    },
+    {
+      "role": "ralph",
+      "iteration": 40,
+      "log_file": "logs/integration/ralph/iter-00040_20251029_184615_main.log"
+    },
+    {
+      "role": "ralph",
+      "iteration": 41,
+      "log_file": "logs/integration/ralph/iter-00041_20251029_190338_main.log"
+    },
+    {
+      "role": "ralph",
+      "iteration": 42,
+      "log_file": "logs/integration/ralph/iter-00042_20251029_191516_main.log"
+    },
+    {
+      "role": "ralph",
+      "iteration": 43,
+      "log_file": "logs/integration/ralph/iter-00043_20251029_193212_main.log"
+    },
+    {
+      "role": "ralph",
+      "iteration": 44,
+      "log_file": "logs/integration/ralph/iter-00044_20251103_231749_main.log"
+    },
+    {
+      "role": "ralph",
+      "iteration": 45,
+      "log_file": "logs/integration/ralph/iter-00045_20251103_232707_main.log"
+    },
+    {
+      "role": "ralph",
+      "iteration": 46,
+      "log_file": "logs/integration/ralph/iter-00046_20251103_235234_main.log"
+    },
+    {
+      "role": "ralph",
+      "iteration": 47,
+      "log_file": "logs/integration/ralph/iter-00047_20251104_004118_main.log"
+    }
+  ],
+  "total_missing": 60,
+  "recent_iterations": [
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    45,
+    46,
+    47
+  ]
+}

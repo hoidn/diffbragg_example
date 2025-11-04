@@ -28,6 +28,7 @@ import numpy as np
 
 class DetectorConvention(Enum):
     """Detector convention enum stub matching nanobrag_torch."""
+    DIALS = "DIALS"
     CUSTOM = "CUSTOM"
 
 
@@ -37,6 +38,7 @@ class DetectorConfig:
     Detector configuration stub matching nanobrag_torch.config.DetectorConfig.
 
     Per docs/nanobrag_api.md:23-39 and docs/config_crosswalk.md:15-37.
+    Uses DIALS convention to preserve BEAM pivot and avoid beam center drift.
     """
     # Distance and pixel metrics
     distance_mm: float
@@ -49,12 +51,11 @@ class DetectorConfig:
     beam_center_f: float  # fast direction, mm
     beam_center_source: str = "explicit"
 
-    # CUSTOM convention vectors
-    detector_convention: DetectorConvention = DetectorConvention.CUSTOM
-    custom_fdet_vector: np.ndarray = field(default_factory=lambda: np.array([1., 0., 0.]))
-    custom_sdet_vector: np.ndarray = field(default_factory=lambda: np.array([0., 1., 0.]))
-    custom_odet_vector: np.ndarray = field(default_factory=lambda: np.array([0., 0., 1.]))
-    custom_beam_vector: np.ndarray = field(default_factory=lambda: np.array([0., 0., 1.]))
+    # DIALS convention with XYZ rotation angles
+    detector_convention: DetectorConvention = field(default_factory=lambda: DetectorConvention.DIALS)
+    detector_rotx_deg: float = 0.0
+    detector_roty_deg: float = 0.0
+    detector_rotz_deg: float = 0.0
 
     # Mask (0/1 float)
     mask_array: Optional[np.ndarray] = None
@@ -238,8 +239,8 @@ def create_detector_config(
 
     Implements geometry mapping per docs/config_crosswalk.md:15-37:
     - Beam center swap: dxtbx (fast, slow) -> torch (s, f)
-    - Sample->source vector: -s0/||s0||
-    - CUSTOM convention with explicit basis vectors
+    - DIALS convention with XYZ rotation angles (no custom basis vectors)
+    - Uses BEAM pivot to preserve beam center per docs/nanobrag_api.md:32-45
     - Square pixel guard
     - Mask array conversion to float (1=include, 0=exclude)
 
@@ -269,25 +270,19 @@ def create_detector_config(
     distance_mm = panel.get_directed_distance()
 
     # Beam center swap: dxtbx returns (fast_mm, slow_mm), torch expects (s, f)
-    # (config_crosswalk.md:29)
+    # (config_crosswalk.md:29, docs/nanobrag_api.md:28)
     fast_mm, slow_mm = panel.get_beam_centre(beam.get_s0())
     beam_center_s = slow_mm
     beam_center_f = fast_mm
-
-    # Basis vectors (config_crosswalk.md:24-26)
-    custom_fdet_vector = np.array(panel.get_fast_axis())
-    custom_sdet_vector = np.array(panel.get_slow_axis())
-    custom_odet_vector = np.array(panel.get_normal())
-
-    # Sample->source beam vector: -s0/||s0|| (config_crosswalk.md:27)
-    s0 = np.array(beam.get_s0())
-    custom_beam_vector = -s0 / np.linalg.norm(s0)
 
     # Mask array: convert bool to float (config_crosswalk.md:33)
     mask_array = None
     if trusted_mask is not None:
         mask_array = trusted_mask.astype(np.float32)
 
+    # Use DIALS convention with identity rotation (zero XYZ angles)
+    # This preserves BEAM pivot and avoids the beam center drift caused by
+    # CUSTOM convention forcing SAMPLE pivot (see input.md pitfalls)
     return DetectorConfig(
         distance_mm=distance_mm,
         pixel_size_mm=px_fast_mm,
@@ -296,11 +291,10 @@ def create_detector_config(
         beam_center_s=beam_center_s,
         beam_center_f=beam_center_f,
         beam_center_source="explicit",
-        detector_convention=DetectorConvention.CUSTOM,
-        custom_fdet_vector=custom_fdet_vector,
-        custom_sdet_vector=custom_sdet_vector,
-        custom_odet_vector=custom_odet_vector,
-        custom_beam_vector=custom_beam_vector,
+        detector_convention=DetectorConvention.DIALS,
+        detector_rotx_deg=0.0,
+        detector_roty_deg=0.0,
+        detector_rotz_deg=0.0,
         mask_array=mask_array
     )
 

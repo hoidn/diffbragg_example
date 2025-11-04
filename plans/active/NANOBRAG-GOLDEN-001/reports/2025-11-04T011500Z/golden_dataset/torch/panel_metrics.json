@@ -1,0 +1,15 @@
+[
+  {
+    "panel_id": 0,
+    "shape": [
+      2527,
+      2463
+    ],
+    "torch_raw_max": 9.470871009398252e-05,
+    "torch_raw_sum": 0.0035677533596754074,
+    "torch_scaled_max": 53451.13671875,
+    "torch_scaled_sum": 2013547.625,
+    "post_sim_scale_factor": 564374034.1765522,
+    "loss_mask_coverage": 0.00210250608892897
+  }
+]

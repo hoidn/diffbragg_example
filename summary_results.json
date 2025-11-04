@@ -1,0 +1,372 @@
+{
+  "created": [
+    {
+      "status": "created",
+      "file": "logs/integration/galph-summaries/iter-00021_20251104_004237-summary.md",
+      "role": "galph",
+      "iteration": 21
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/galph-summaries/iter-00018_20251104_004237-summary.md",
+      "role": "galph",
+      "iteration": 18
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/galph-summaries/iter-00020_20251104_004237-summary.md",
+      "role": "galph",
+      "iteration": 20
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/galph-summaries/iter-00019_20251104_004237-summary.md",
+      "role": "galph",
+      "iteration": 19
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/galph-summaries/iter-00022_20251104_004237-summary.md",
+      "role": "galph",
+      "iteration": 22
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/galph-summaries/iter-00026_20251104_004237-summary.md",
+      "role": "galph",
+      "iteration": 26
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/galph-summaries/iter-00028_20251104_004237-summary.md",
+      "role": "galph",
+      "iteration": 28
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/galph-summaries/iter-00024_20251104_004237-summary.md",
+      "role": "galph",
+      "iteration": 24
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/galph-summaries/iter-00030_20251104_004237-summary.md",
+      "role": "galph",
+      "iteration": 30
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/galph-summaries/iter-00025_20251104_004237-summary.md",
+      "role": "galph",
+      "iteration": 25
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/galph-summaries/iter-00031_20251104_004237-summary.md",
+      "role": "galph",
+      "iteration": 31
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/galph-summaries/iter-00032_20251104_004237-summary.md",
+      "role": "galph",
+      "iteration": 32
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/galph-summaries/iter-00033_20251104_004237-summary.md",
+      "role": "galph",
+      "iteration": 33
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/galph-summaries/iter-00029_20251104_004237-summary.md",
+      "role": "galph",
+      "iteration": 29
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/galph-summaries/iter-00023_20251104_004237-summary.md",
+      "role": "galph",
+      "iteration": 23
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/galph-summaries/iter-00034_20251104_004237-summary.md",
+      "role": "galph",
+      "iteration": 34
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/galph-summaries/iter-00027_20251104_004237-summary.md",
+      "role": "galph",
+      "iteration": 27
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/galph-summaries/iter-00036_20251104_004237-summary.md",
+      "role": "galph",
+      "iteration": 36
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/galph-summaries/iter-00041_20251104_004237-summary.md",
+      "role": "galph",
+      "iteration": 41
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/galph-summaries/iter-00038_20251104_004237-summary.md",
+      "role": "galph",
+      "iteration": 38
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/galph-summaries/iter-00035_20251104_004237-summary.md",
+      "role": "galph",
+      "iteration": 35
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/galph-summaries/iter-00045_20251104_004237-summary.md",
+      "role": "galph",
+      "iteration": 45
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/galph-summaries/iter-00040_20251104_004237-summary.md",
+      "role": "galph",
+      "iteration": 40
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/galph-summaries/iter-00039_20251104_004237-summary.md",
+      "role": "galph",
+      "iteration": 39
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/galph-summaries/iter-00043_20251104_004237-summary.md",
+      "role": "galph",
+      "iteration": 43
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/galph-summaries/iter-00037_20251104_004237-summary.md",
+      "role": "galph",
+      "iteration": 37
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/ralph-summaries/iter-00018_20251104_004237-summary.md",
+      "role": "ralph",
+      "iteration": 18
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/galph-summaries/iter-00042_20251104_004237-summary.md",
+      "role": "galph",
+      "iteration": 42
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/ralph-summaries/iter-00019_20251104_004237-summary.md",
+      "role": "ralph",
+      "iteration": 19
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/galph-summaries/iter-00046_20251104_004237-summary.md",
+      "role": "galph",
+      "iteration": 46
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/ralph-summaries/iter-00021_20251104_004237-summary.md",
+      "role": "ralph",
+      "iteration": 21
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/ralph-summaries/iter-00020_20251104_004237-summary.md",
+      "role": "ralph",
+      "iteration": 20
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/ralph-summaries/iter-00023_20251104_004237-summary.md",
+      "role": "ralph",
+      "iteration": 23
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/ralph-summaries/iter-00022_20251104_004237-summary.md",
+      "role": "ralph",
+      "iteration": 22
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/ralph-summaries/iter-00024_20251104_004237-summary.md",
+      "role": "ralph",
+      "iteration": 24
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/ralph-summaries/iter-00025_20251104_004237-summary.md",
+      "role": "ralph",
+      "iteration": 25
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/ralph-summaries/iter-00026_20251104_004237-summary.md",
+      "role": "ralph",
+      "iteration": 26
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/galph-summaries/iter-00044_20251104_004237-summary.md",
+      "role": "galph",
+      "iteration": 44
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/ralph-summaries/iter-00027_20251104_004237-summary.md",
+      "role": "ralph",
+      "iteration": 27
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/ralph-summaries/iter-00028_20251104_004237-summary.md",
+      "role": "ralph",
+      "iteration": 28
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/ralph-summaries/iter-00029_20251104_004237-summary.md",
+      "role": "ralph",
+      "iteration": 29
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/ralph-summaries/iter-00032_20251104_004237-summary.md",
+      "role": "ralph",
+      "iteration": 32
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/ralph-summaries/iter-00030_20251104_004237-summary.md",
+      "role": "ralph",
+      "iteration": 30
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/ralph-summaries/iter-00031_20251104_004237-summary.md",
+      "role": "ralph",
+      "iteration": 31
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/ralph-summaries/iter-00033_20251104_004237-summary.md",
+      "role": "ralph",
+      "iteration": 33
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/ralph-summaries/iter-00034_20251104_004237-summary.md",
+      "role": "ralph",
+      "iteration": 34
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/ralph-summaries/iter-00035_20251104_004237-summary.md",
+      "role": "ralph",
+      "iteration": 35
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/galph-summaries/iter-00047_20251104_004237-summary.md",
+      "role": "galph",
+      "iteration": 47
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/ralph-summaries/iter-00036_20251104_004237-summary.md",
+      "role": "ralph",
+      "iteration": 36
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/ralph-summaries/iter-00037_20251104_004237-summary.md",
+      "role": "ralph",
+      "iteration": 37
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/ralph-summaries/iter-00038_20251104_004237-summary.md",
+      "role": "ralph",
+      "iteration": 38
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/ralph-summaries/iter-00039_20251104_004237-summary.md",
+      "role": "ralph",
+      "iteration": 39
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/ralph-summaries/iter-00040_20251104_004237-summary.md",
+      "role": "ralph",
+      "iteration": 40
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/ralph-summaries/iter-00041_20251104_004237-summary.md",
+      "role": "ralph",
+      "iteration": 41
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/ralph-summaries/iter-00043_20251104_004237-summary.md",
+      "role": "ralph",
+      "iteration": 43
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/ralph-summaries/iter-00042_20251104_004237-summary.md",
+      "role": "ralph",
+      "iteration": 42
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/ralph-summaries/iter-00044_20251104_004237-summary.md",
+      "role": "ralph",
+      "iteration": 44
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/ralph-summaries/iter-00047_20251104_004237-summary.md",
+      "role": "ralph",
+      "iteration": 47
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/ralph-summaries/iter-00046_20251104_004237-summary.md",
+      "role": "ralph",
+      "iteration": 46
+    },
+    {
+      "status": "created",
+      "file": "logs/integration/ralph-summaries/iter-00045_20251104_004237-summary.md",
+      "role": "ralph",
+      "iteration": 45
+    }
+  ],
+  "skipped": [],
+  "failed": [],
+  "summary": {
+    "total": 60,
+    "created": 60,
+    "skipped": 0,
+    "failed": 0
+  }
+}

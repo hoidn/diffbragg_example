@@ -1,9 +1,9 @@
 # DB-AT-024 — Mapping Consistency Guard
 
 ## Phase A — Baseline validation & probes
-- [ ] A1: Confirm canonical assets present (`refGeom.expt`, `refGeom.refl`, `scaled.mtz`, `747_mask.pkl`, golden tensors) and log inventory under reports.
-- [ ] A2: Reproduce zero-iteration baseline by loading `DataLoad` with canonical inputs; capture reference metrics for `data - background` (per-panel mean/max, ROI count, loss-mask coverage) to anchor acceptance thresholds.
-- [ ] A3: Summarize normative expectations from `docs/spec-db-conformance.md` (workflow integration), `docs/forward_equivalence.md` (correlation/localization math), and `docs/spec-db-tracing.md` (diagnostic artifacts) inside report summary to guide implementation.
+- [x] A1: Confirm canonical assets present (`refGeom.expt`, `refGeom.refl`, `scaled.mtz`, `747_mask.pkl`, golden tensors) and log inventory under reports.
+- [x] A2: Reproduce zero-iteration baseline by loading `DataLoad` with canonical inputs; capture reference metrics for `data - background` (per-panel mean/max, ROI count, loss-mask coverage) to anchor acceptance thresholds.
+- [x] A3: Summarize normative expectations from `docs/spec-db-conformance.md` (workflow integration), `docs/forward_equivalence.md` (correlation/localization math), and `docs/spec-db-tracing.md` (diagnostic artifacts) inside report summary to guide implementation.
 
 ## Phase B — Implementation & testing
 - [ ] B1: Extract a reusable zero-iteration helper (e.g., `simulate_forward_once`) from `dbex.refine_one.run_nanobrag_backend` that returns `(bragg, target_adu, target_photons, loss_mask, panel_slices, diagnostics)` without touching HDF5; ensure helper reuses `prepare_refinement_inputs` and honors ADU/photon metadata.

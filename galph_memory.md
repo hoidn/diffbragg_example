@@ -630,3 +630,14 @@ Notes
 - Guidance: Update input.md to include a valid Do Now (single focus, Implement nucleus, validating pytest selector, artifacts path).
   Avoid two consecutive Docs loops for the same focus. Re-run supervisor to proceed.
 - Iter log: logs/integration/galph/iter-00061_20251104_053814.log
+
+## 2025-11-04T063053Z — DB-AT-024 baseline metrics probe
+- Focus: DB-AT-024 — Mapping consistency guard
+- Action Type: planning
+- Key Observations: Promoted zero-iteration probe to T2 script (`plans/active/DB-AT-024/bin/compute_zero_iteration_metrics.py`) and captured canonical metrics (92 ROIs, corr_median≈0.049, corr_min≈-0.267, localization_success=0.0, global_scale_hint≈62.66 ADU, HKL hit rate 99.73%). Threshold gap (≥0.2 / ≥0.90) persists, so DB_AT_024 pytest must emit diagnostics with provisional xfail until mapping aligns. Implementation plan Phase A marked complete; refreshed Do Now pointing Ralph at helper extraction + xfail harness with artifact logging.
+- Artifact Path: plans/active/DB-AT-024/reports/2025-11-04T063053Z/
+- Next Actions: Execute helper extraction + DB_AT_024 pytest per new input.md; capture artifacts and doc sync after run.
+- Reality Check: Ready for implementation — helper/test work is unblocked; maintain xfail while metrics remain below spec.
+- <Action State>: [ready_for_implementation]
+
+2025-11-04T063053Z focus=DB-AT-024 state=ready_for_implementation dwell=0 artifacts=plans/active/DB-AT-024/reports/2025-11-04T063053Z/ next_action=deploy_helper_and_pytest_db_at_024

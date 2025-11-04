@@ -220,6 +220,8 @@ def compute_roi_metrics(db_stack, torch_stack, loss_mask, panel_slices, target_s
             "mse": mse,
             "max_abs_diff": max_diff,
             "peak_localized": bool(db_loc and torch_loc),
+            "diff_peak": [int(db_peak[0]), int(db_peak[1])],
+            "torch_peak": [int(torch_peak[0]), int(torch_peak[1])],
         }
         records.append(record)
 
@@ -260,9 +262,16 @@ def compute_roi_metrics(db_stack, torch_stack, loss_mask, panel_slices, target_s
                 bundle["target"] = target_roi.astype(np.float32)
 
             # Save bundle
-            npz_path = roi_dump_dir / f"roi_{roi_idx:04d}.npz"
+            npz_filename = f"roi_{roi_idx:04d}.npz"
+            npz_path = roi_dump_dir / npz_filename
             np.savez_compressed(npz_path, **bundle)
             dump_count += 1
+
+            # Update corresponding record with filename
+            for rec in sampled_records:
+                if rec["roi_idx"] == roi_idx:
+                    rec["filename"] = npz_filename
+                    break
 
         # Write index.json with metadata and metrics
         index_data = {

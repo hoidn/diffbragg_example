@@ -4,7 +4,7 @@
 - ID: NANOBRAG-BACKEND-002
 - Title: Replace CLI torch backend stub with nanobrag_torch simulator
 - Owner: Galph/Ralph pairing
-- Status: pending
+- Status: in_progress
 
 ## Goals
 - Promote `dbex.nanobrag_bridge` helpers to instantiate real `nanobrag_torch` config objects (Detector/Beam/Crystal) without relying on local stubs.

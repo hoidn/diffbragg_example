@@ -509,3 +509,14 @@ Notes
 
 2025-11-04T021626Z focus=NANOBRAG-BACKEND-002 state=planning dwell=0 artifacts=plans/active/NANOBRAG-BACKEND-002/reports/2025-11-04T021141Z/ next_action=promote_bridge_configs_to_real_nanobrag
 2025-11-04T031500Z focus=NANOBRAG-BACKEND-002 state=ready_for_implementation dwell=0 artifacts=plans/active/NANOBRAG-BACKEND-002/reports/2025-11-04T031500Z/ next_action=wire_nanobrag_simulator_and_run_targeted_pytest
+
+## 2025-11-04T024056Z — NANOBRAG-BACKEND-002 simulator handoff brief
+- Focus: NANOBRAG-BACKEND-002 — Replace CLI torch backend stub with nanobrag_torch simulator
+- Action Type: planning
+- Key Observations: Confirmed stubbed `run_nanobrag_backend` flow, identified need to promote `build_structure_factor_grid` into bridge, and mapped SCALE-001/002 + GEOMETRY-002 guardrails for Simulator wiring. Authored Do Now + How-To in `input.md` and refreshed fix_plan/implementation plan status to `in_progress`.
+- Artifact Path: plans/active/NANOBRAG-BACKEND-002/reports/2025-11-04T024056Z/
+- Next Actions: Execute Do Now—add structure-factor helper, CLI `--spot-scale-override`, Simulator loop with √scale, and targeted pytest.
+- Reality Check: Implementation required next loop; dwell now 1 (non-implementation streak capped at 2).
+- <Action State>: [ready_for_implementation]
+
+2025-11-04T024056Z focus=NANOBRAG-BACKEND-002 state=ready_for_implementation dwell=1 artifacts=plans/active/NANOBRAG-BACKEND-002/reports/2025-11-04T024056Z/ next_action=wire_simulator_and_run_targeted_pytest

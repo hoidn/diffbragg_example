@@ -734,6 +734,25 @@ def simulate_forward_once(
         # Store in bragg array
         bragg[panel_id] = panel_output_scaled
 
+    # Compute pre-scale Bragg statistics (before SCALE-002 sqrt adjustment)
+    # This is the raw simulator output divided by sqrt_spot_scale
+    bragg_raw = bragg / sqrt_spot_scale if sqrt_spot_scale != 0.0 else bragg
+    bragg_raw_mean = float(bragg_raw.mean())
+    bragg_raw_max = float(bragg_raw.max())
+
+    # Compute target mean over loss mask (background-subtracted data in ROIs)
+    target_masked = inputs.target[inputs.loss_mask]
+    target_mean_masked = float(target_masked.mean()) if len(target_masked) > 0 else float('nan')
+
+    # Compute derived ratios: target/bragg for scale alignment analysis
+    # Use masked mean to exclude sentinel/invalid pixels
+    bragg_mean_masked = float(bragg[inputs.loss_mask].mean()) if inputs.loss_mask.sum() > 0 else float('nan')
+    target_bragg_mean_ratio = target_mean_masked / bragg_mean_masked if bragg_mean_masked != 0.0 and not np.isnan(bragg_mean_masked) else float('nan')
+
+    # Also compute raw (pre-scale) ratios for forensics
+    bragg_raw_mean_masked = float(bragg_raw[inputs.loss_mask].mean()) if inputs.loss_mask.sum() > 0 else float('nan')
+    target_bragg_raw_mean_ratio = target_mean_masked / bragg_raw_mean_masked if bragg_raw_mean_masked != 0.0 and not np.isnan(bragg_raw_mean_masked) else float('nan')
+
     # Compute diagnostics
     masked_diff = np.where(inputs.loss_mask, inputs.target - bragg, 0.0)
     masked_mse = float((masked_diff ** 2).sum() / inputs.loss_mask.sum()) if inputs.loss_mask.sum() > 0 else float('nan')
@@ -750,6 +769,17 @@ def simulate_forward_once(
             "min": float(bragg.min()),
             "max": float(bragg.max()),
             "mean": float(bragg.mean())
+        },
+        "bragg_raw_stats": {
+            "mean": bragg_raw_mean,
+            "max": bragg_raw_max
+        },
+        "target_stats": {
+            "mean_masked": target_mean_masked
+        },
+        "target_bragg_ratios": {
+            "mean_ratio_scaled": target_bragg_mean_ratio,
+            "mean_ratio_raw": target_bragg_raw_mean_ratio
         },
         "hkl_stats": hkl_metadata
     }

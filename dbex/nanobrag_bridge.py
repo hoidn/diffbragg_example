@@ -678,6 +678,114 @@ def load_calibration_metadata(config_json_path):
     }
 
 
+def load_refined_mtz(mtz_path, column="F"):
+    """Load refined structure factors from DiffBragg-refined MTZ file.
+
+    Reads Miller indices and refined amplitudes from an MTZ file produced by
+    DiffBragg refinement (e.g., refined_structure_factors.mtz). These refined
+    Fopt values are typically ~94k× smaller than raw MTZ amplitudes and are
+    required for zero-iteration mapping tests per SCALE-003/SCALE-004.
+
+    Args:
+        mtz_path: Path to refined MTZ file (e.g., "refined_structure_factors.mtz")
+        column: MTZ column name for structure factor amplitudes (default "F")
+
+    Returns:
+        tuple: (indices, amplitudes) where:
+            - indices: numpy array of Miller indices, shape (n_refl, 3), dtype int
+            - amplitudes: numpy array of refined |F| values, shape (n_refl,), dtype float32
+
+    Raises:
+        FileNotFoundError: If mtz_path does not exist
+        ImportError: If iotbx.mtz is not available
+        ValueError: If MTZ file is invalid or column is missing
+
+    Notes:
+        - Per SCALE-001, amplitudes are returned unscaled (no sqrt(spot_scale) multiplication)
+        - Per SCALE-003/SCALE-004, these refined amplitudes must be used with calibration
+          metadata (spot_scale_override) to achieve mapping thresholds
+        - MTZ format matches DiffBragg output: column root "F" with (+)/(-) Friedel pairs
+        - Returns CPU numpy arrays (device-neutral per runtime checklist)
+
+    Example:
+        >>> indices, amps = load_refined_mtz("tests/fixtures/.../refined_structure_factors.mtz")
+        >>> bragg, diag = simulate_forward_once(..., hkl_indices=indices, hkl_amplitudes=amps)
+    """
+    from pathlib import Path
+
+    mtz_file = Path(mtz_path)
+    if not mtz_file.exists():
+        raise FileNotFoundError(
+            f"Refined MTZ not found: {mtz_path}. "
+            f"Expected DiffBragg-refined structure factors for parity testing."
+        )
+
+    try:
+        from iotbx import mtz as iotbx_mtz
+    except ImportError as e:
+        raise ImportError(
+            f"iotbx.mtz is required to read MTZ files. Import error: {e}"
+        )
+
+    # Read MTZ object
+    try:
+        mtz_obj = iotbx_mtz.object(str(mtz_file))
+    except Exception as e:
+        raise ValueError(
+            f"Failed to parse MTZ file {mtz_path}. "
+            f"Expected valid DiffBragg-refined MTZ. Error: {e}"
+        )
+
+    # Extract Miller array for specified column
+    # DiffBragg writes with column_root_label="F", creating F(+),SIGF(+),F(-),SIGF(-) labels
+    try:
+        miller_arrays = mtz_obj.as_miller_arrays()
+        # Find array matching column label
+        # For DiffBragg MTZ: label is "F(+),SIGF(+),F(-),SIGF(-)" and type is "amplitude"
+        # We want the amplitude array (not just SIGF)
+        f_array = None
+        for ma in miller_arrays:
+            label = ma.info().label_string()
+            type_hints = str(ma.info().type_hints_from_file)
+            # Check if this is an amplitude array (not just sigma)
+            # The label will contain both F and SIGF, but type_hints should be "amplitude"
+            if column in label and "amplitude" in type_hints:
+                f_array = ma
+                break
+
+        if f_array is None:
+            available_labels = [
+                f"{ma.info().label_string()} (type: {ma.info().type_hints_from_file})"
+                for ma in miller_arrays
+            ]
+            raise ValueError(
+                f"Column '{column}' with type 'amplitude' not found in {mtz_path}. "
+                f"Available arrays: {available_labels}"
+            )
+
+    except Exception as e:
+        raise ValueError(
+            f"Failed to extract structure factors from {mtz_path}. Error: {e}"
+        )
+
+    # Extract indices and amplitudes
+    indices = np.array(f_array.indices(), dtype=np.int32)  # shape (n_refl, 3)
+    amplitudes = np.array(f_array.data(), dtype=np.float32)  # shape (n_refl,)
+
+    # Validate shapes
+    if indices.ndim != 2 or indices.shape[1] != 3:
+        raise ValueError(
+            f"Invalid Miller indices shape: {indices.shape}. Expected (n_refl, 3)."
+        )
+    if amplitudes.ndim != 1 or len(amplitudes) != len(indices):
+        raise ValueError(
+            f"Invalid amplitudes shape: {amplitudes.shape}. "
+            f"Expected ({len(indices)},) to match indices."
+        )
+
+    return indices, amplitudes
+
+
 # ============================================================================
 # Forward simulation helper for testing and validation
 # ============================================================================

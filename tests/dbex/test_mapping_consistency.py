@@ -36,6 +36,7 @@ from dbex.nanobrag_bridge import (
     prepare_refinement_inputs,
     simulate_forward_once,
     load_calibration_metadata,
+    load_refined_mtz,
 )
 
 
@@ -65,16 +66,20 @@ class TestDB_AT_024_Mapping:
         import argparse
 
         repo_root = Path.cwd()
+        fixtures_root = repo_root / "tests" / "fixtures" / "golden_data" / "simple_cubic"
+
         assets = {
             "mtz": repo_root / "scaled.mtz",
             "expt": repo_root / "refGeom.expt",
             "refl": repo_root / "refGeom.refl",
             "mask": repo_root / "747_mask.pkl",
-            "calibration": repo_root / "tests" / "fixtures" / "golden_data" / "simple_cubic" / "config_torch.json",
+            "calibration": fixtures_root / "config_torch.json",
+            "refined_mtz": fixtures_root / "refined_structure_factors.mtz",
         }
 
-        # Check all assets exist
-        missing = [name for name, path in assets.items() if not path.exists()]
+        # Check required assets exist (refined_mtz is optional with fallback)
+        required = ["mtz", "expt", "refl", "mask", "calibration"]
+        missing = [name for name in required if not assets[name].exists()]
         if missing:
             pytest.skip(f"Missing canonical assets: {missing}")
 
@@ -92,10 +97,26 @@ class TestDB_AT_024_Mapping:
         # Load calibration metadata
         calibration = load_calibration_metadata(assets["calibration"])
 
+        # Load refined structure factors if available (MAP-SCALE-001)
+        # Fallback to raw scaled.mtz if refined MTZ is missing
+        refined_hkl = None
+        if assets["refined_mtz"].exists():
+            try:
+                refined_indices, refined_amps = load_refined_mtz(assets["refined_mtz"])
+                refined_hkl = (refined_indices, refined_amps)
+            except Exception as e:
+                # Log warning but continue with fallback
+                import warnings
+                warnings.warn(
+                    f"Failed to load refined MTZ from {assets['refined_mtz']}: {e}. "
+                    f"Falling back to raw scaled.mtz (may not meet thresholds)."
+                )
+
         return {
             "dataload": dl,
             "paths": assets,
             "calibration": calibration,
+            "refined_hkl": refined_hkl,
         }
 
     @pytest.mark.db_at_024
@@ -138,6 +159,17 @@ class TestDB_AT_024_Mapping:
         calibration = canonical_assets["calibration"]
         spot_scale_override = calibration["spot_scale_override"]
 
+        # Use refined structure factors if available (MAP-SCALE-001)
+        # Otherwise fall back to raw MTZ (may not meet thresholds)
+        refined_hkl = canonical_assets.get("refined_hkl")
+        if refined_hkl is not None:
+            hkl_indices, hkl_amplitudes = refined_hkl
+            hkl_source = "refined_structure_factors.mtz"
+        else:
+            hkl_indices = dl.F.indices()
+            hkl_amplitudes = dl.F.data()
+            hkl_source = "scaled.mtz (raw, not refined)"
+
         # Run zero-iteration forward simulation with DiffBragg calibration
         bragg, diagnostics = simulate_forward_once(
             inputs=inputs,
@@ -145,8 +177,8 @@ class TestDB_AT_024_Mapping:
             beam=dl.beam,
             crystal=dl.crystal,
             experiment=dl.Expt,
-            hkl_indices=dl.F.indices(),
-            hkl_amplitudes=dl.F.data(),
+            hkl_indices=hkl_indices,
+            hkl_amplitudes=hkl_amplitudes,
             spot_scale_override=spot_scale_override,
             device="cpu",
         )
@@ -185,6 +217,7 @@ class TestDB_AT_024_Mapping:
             "localization_mean": float(np.mean(localizations)) if localizations else float("nan"),
             "localization_success_rate": localization_success_rate,
             "global_scale_hint": inputs.global_scale_hint,
+            "hkl_source": hkl_source,
             "calibration": {
                 "spot_scale_override": float(spot_scale_override),
                 "sqrt_spot_scale": float(np.sqrt(spot_scale_override)),
@@ -251,26 +284,26 @@ class TestDB_AT_024_Mapping:
         print(f"  Median correlation: {median_corr:.4f}")
         print(f"  Localization success rate: {localization_success_rate:.2%}")
         print(f"  Global scale hint: {inputs.global_scale_hint:.2f}")
+        print(f"  HKL source: {hkl_source}")
         print(f"  Calibration: spot_scale_override={spot_scale_override:.3e}, sqrt={np.sqrt(spot_scale_override):.3e}")
         print(f"  Artifacts: {artifact_dir}/")
 
-        # Provisional xfail with measured metrics until thresholds improve
+        # DB-AT-024 thresholds per docs/spec-db-conformance.md:43-46
         threshold_corr = 0.2
         threshold_loc = 0.90
 
-        if median_corr < threshold_corr or localization_success_rate < threshold_loc:
-            pytest.xfail(
-                f"DB-AT-024 thresholds not met (provisional xfail until mapping improves): "
-                f"median_corr={median_corr:.4f} (target >={threshold_corr}), "
-                f"localization_success_rate={localization_success_rate:.2%} (target >={threshold_loc:.0%}). "
-                f"Metrics logged to {metrics_json_path}. "
-                f"Per input.md:29, xfail reason cites current metrics instead of failing hard."
-            )
-
-        # If thresholds met, assertions pass
+        # Assert thresholds are met
+        # MAP-SCALE-001: With refined structure factors + calibration, thresholds should pass
         assert median_corr >= threshold_corr, (
-            f"Median correlation {median_corr:.4f} below threshold {threshold_corr}"
+            f"DB-AT-024 FAILED: Median correlation {median_corr:.4f} below threshold {threshold_corr}. "
+            f"HKL source: {hkl_source}. "
+            f"Expected refined structure factors (refined_structure_factors.mtz) + calibration metadata "
+            f"to align intensities per SCALE-003/SCALE-004 (docs/findings.md). "
+            f"Metrics logged to {metrics_json_path}."
         )
         assert localization_success_rate >= threshold_loc, (
-            f"Localization success rate {localization_success_rate:.2%} below threshold {threshold_loc:.0%}"
+            f"DB-AT-024 FAILED: Localization success rate {localization_success_rate:.2%} below threshold {threshold_loc:.0%}. "
+            f"HKL source: {hkl_source}. "
+            f"Expected ≥90% ROIs to contain local maximum within central half-box per spec-db-conformance.md:45. "
+            f"Metrics logged to {metrics_json_path}."
         )

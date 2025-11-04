@@ -733,11 +733,28 @@ def generate_simple_cubic_golden(
                 f"{record['rmse']:.6f},{record['mse']:.6f},{record['max_abs_diff']:.6f},{record['peak_localized']}\n"
             )
 
-    # Clean up temp files
-    for temp_file in ("_temp.mtz",):
-        temp_path = repo_root / temp_file
-        if temp_path.exists():
-            temp_path.unlink()
+    # Persist refined structure factors for MAP-SCALE-001
+    # Copy _temp.mtz (DiffBragg-refined Fopt) to output directories
+    temp_mtz_path = repo_root / "_temp.mtz"
+    if temp_mtz_path.exists():
+        logger.info("Persisting refined structure factors for parity testing (MAP-SCALE-001)...")
+
+        # Save to torch directory for golden dataset
+        refined_mtz_torch = torch_dir / "refined_structure_factors.mtz"
+        import shutil
+        shutil.copy(temp_mtz_path, refined_mtz_torch)
+        logger.info(f"Refined MTZ saved to {refined_mtz_torch}")
+
+        # Optionally copy to fixtures directory if --fixtures flag is provided
+        if fixtures_dir is not None:
+            refined_mtz_fixtures = fixtures_dir / "refined_structure_factors.mtz"
+            shutil.copy(temp_mtz_path, refined_mtz_fixtures)
+            logger.info(f"Refined MTZ copied to fixtures: {refined_mtz_fixtures}")
+
+        # Clean up temp file after copying
+        temp_mtz_path.unlink()
+    else:
+        logger.warning("_temp.mtz not found; refined structure factors not persisted")
 
     # === Manifest emission (if requested) ===
     if emit_manifest:
@@ -778,6 +795,11 @@ def generate_simple_cubic_golden(
         for panel_id in range(len(Expt.detector)):
             tensor_files.append((f"target_panel_{panel_id}", torch_dir / f"target_panel_{panel_id}.npy"))
             tensor_files.append((f"loss_mask_panel_{panel_id}", torch_dir / f"loss_mask_panel_{panel_id}.npy"))
+
+        # Add refined structure factors MTZ (MAP-SCALE-001)
+        refined_mtz_path = torch_dir / "refined_structure_factors.mtz"
+        if refined_mtz_path.exists():
+            tensor_files.append(("refined_structure_factors", refined_mtz_path))
 
         # === MANIFEST-001: Validate all tensor files exist before manifest emission ===
         missing_files = []
@@ -841,6 +863,14 @@ def generate_simple_cubic_golden(
                 torch_dir / f"loss_mask_panel_{panel_id}.npy",
                 fixtures_dir / f"loss_mask_panel_{panel_id}.npy"
             ))
+
+        # Add refined structure factors MTZ if present (MAP-SCALE-001)
+        # Note: Already copied to fixtures_dir in persistence block above,
+        # but add to validation list for completeness
+        refined_mtz_src = torch_dir / "refined_structure_factors.mtz"
+        refined_mtz_dst = fixtures_dir / "refined_structure_factors.mtz"
+        if refined_mtz_src.exists():
+            files_to_copy.append((refined_mtz_src, refined_mtz_dst))
 
         # === MANIFEST-001: Validate all source files exist before copy ===
         missing_sources = []

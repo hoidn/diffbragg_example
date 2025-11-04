@@ -593,3 +593,161 @@ def build_structure_factor_grid(indices, amplitudes, device=None):
     }
 
     return grid, metadata
+
+
+# ============================================================================
+# Forward simulation helper for testing and validation
+# ============================================================================
+
+def simulate_forward_once(
+    inputs: RefinementInputs,
+    detector,
+    beam,
+    crystal,
+    experiment,
+    hkl_indices: np.ndarray,
+    hkl_amplitudes: np.ndarray,
+    spot_scale_override: Optional[float] = None,
+    device=None
+) -> Tuple[np.ndarray, dict]:
+    """
+    Run zero-iteration forward simulation without HDF5 emission.
+
+    Extracts per-panel Bragg tensors using nanobrag_torch Simulator with
+    SCALE-002 post-simulation scaling applied. Designed for acceptance testing
+    (DB-AT-024) and diagnostic artifact emission.
+
+    Args:
+        inputs: RefinementInputs from prepare_refinement_inputs containing
+                target, loss_mask, panel_slices, and global_scale_hint
+        detector: dxtbx Detector object for geometry
+        beam: dxtbx Beam object for wavelength/polarization
+        crystal: dxtbx Crystal object for unit cell/orientation
+        experiment: dxtbx Experiment object (for create_crystal_config)
+        hkl_indices: Miller indices array from MTZ, shape (n_refl, 3)
+        hkl_amplitudes: Structure factor amplitudes from MTZ, shape (n_refl,)
+        spot_scale_override: Optional scale factor (default 1.0 if None)
+        device: torch.device for simulation (default cpu)
+
+    Returns:
+        bragg: Per-panel Bragg tensors [panel, slow, fast] as float32 numpy array
+               with SCALE-002 sqrt(spot_scale_override) applied post-simulation
+        diagnostics: Dict containing:
+            - masked_mse: Masked MSE between target and bragg
+            - loss_mask_coverage: Fraction of pixels in loss mask
+            - n_rois: Number of ROI bboxes
+            - target_shape: Shape of target tensor (as string)
+            - global_scale_hint: Scale hint from inputs (ADU mode only)
+            - spot_scale_override: Scale override used
+            - sqrt_spot_scale: Sqrt(spot_scale_override) applied
+            - bragg_stats: Dict with min/max/mean of bragg output
+            - hkl_stats: HKL grid metadata from build_structure_factor_grid
+
+    Raises:
+        ImportError: If nanobrag_torch is not available
+        ValueError: If config creation fails or simulation errors
+
+    Notes:
+        - Honors RUNTIME-001 (NANOBRAGG_DISABLE_COMPILE=1 recommended)
+        - Applies SCALE-001 (unscaled HKL grid) and SCALE-002 (post-sim scaling)
+        - Applies GEOMETRY-002 (analytic Euler inversion in create_detector_config)
+        - Device-neutral design: defaults to CPU, respects passed device
+        - Does not write HDF5 or persist artifacts (caller's responsibility)
+    """
+    try:
+        import torch
+        from nanobrag_torch.simulator import Simulator
+        from nanobrag_torch.models.detector import Detector as TorchDetector
+        from nanobrag_torch.models.crystal import Crystal as TorchCrystal
+    except ImportError as e:
+        raise ImportError(
+            f"nanobrag_torch is required for simulate_forward_once. Import error: {e}"
+        )
+
+    # Default device to CPU if not provided
+    if device is None:
+        device = torch.device('cpu')
+    elif not isinstance(device, torch.device):
+        device = torch.device(device)
+
+    # Build structure factor grid (SCALE-001: unscaled)
+    hkl_grid, hkl_metadata = build_structure_factor_grid(
+        indices=hkl_indices,
+        amplitudes=hkl_amplitudes,
+        device=device
+    )
+
+    # Determine spot scale override (SCALE-002)
+    if spot_scale_override is None:
+        spot_scale_override = 1.0
+    sqrt_spot_scale = np.sqrt(spot_scale_override)
+
+    # Prepare configs (shared across panels where applicable)
+    beam_config = create_beam_config(beam)
+    crystal_config = create_crystal_config(crystal, experiment)
+
+    # Run simulator per panel
+    n_panels = len(detector)
+    panel_shape = inputs.target.shape[1:]  # (slow, fast)
+    bragg = np.zeros((n_panels, *panel_shape), dtype=np.float32)
+
+    for panel_id in range(n_panels):
+        panel = detector[panel_id]
+
+        # Create detector config for this panel
+        detector_config = create_detector_config(
+            panel=panel,
+            beam=beam,
+            trusted_mask=inputs.trusted_mask[panel_id]
+        )
+
+        # Convert mask_array to torch.Tensor if it's a numpy array
+        # Per compute_zero_iteration_metrics.py:88-89, nanobrag_torch Simulator
+        # expects torch.Tensor for mask_array
+        if detector_config.mask_array is not None and not isinstance(detector_config.mask_array, torch.Tensor):
+            detector_config.mask_array = torch.tensor(
+                detector_config.mask_array, dtype=torch.float32, device=device
+            )
+
+        # Instantiate models
+        detector_model = TorchDetector(detector_config, device=device)
+        crystal_model = TorchCrystal(crystal_config)
+
+        # Attach HKL data to crystal model
+        crystal_model.hkl_data = hkl_grid
+        crystal_model.hkl_metadata = hkl_metadata
+
+        # Run simulator (single source, GEOMETRY-002/HKL-ORIENT-001 applied in bridge)
+        simulator = Simulator(detector=detector_model, crystal=crystal_model, device=device)
+        panel_output = simulator.run()  # Returns torch.Tensor on device
+
+        # Move to CPU and convert to numpy
+        panel_output_np = panel_output.cpu().detach().numpy().astype(np.float32)
+
+        # Apply sqrt(spot_scale_override) post-simulation (SCALE-002)
+        panel_output_scaled = panel_output_np * sqrt_spot_scale
+
+        # Store in bragg array
+        bragg[panel_id] = panel_output_scaled
+
+    # Compute diagnostics
+    masked_diff = np.where(inputs.loss_mask, inputs.target - bragg, 0.0)
+    masked_mse = float((masked_diff ** 2).sum() / inputs.loss_mask.sum()) if inputs.loss_mask.sum() > 0 else float('nan')
+
+    diagnostics = {
+        "masked_mse": masked_mse,
+        "loss_mask_coverage": float(inputs.loss_mask.mean()),
+        "n_rois": len(inputs.panel_slices),
+        "target_shape": str(inputs.target.shape),
+        "global_scale_hint": inputs.global_scale_hint,
+        "spot_scale_override": float(spot_scale_override),
+        "sqrt_spot_scale": float(sqrt_spot_scale),
+        "bragg_stats": {
+            "min": float(bragg.min()),
+            "max": float(bragg.max()),
+            "mean": float(bragg.mean())
+        },
+        "hkl_stats": hkl_metadata
+    }
+
+    return bragg, diagnostics

@@ -746,6 +746,13 @@ class TestDB_AT_001_Parity:
         # Get manifest checksum from golden data
         manifest_checksum = golden.manifest.get("manifest_sha256")
 
+        # Assert canonical checksum per input.md:10
+        expected_checksum = "2d1f8d671a6b051b23dd7a059f9fd8ff5605389bbe9a8e72cb44cbd7a8567aee"
+        assert manifest_checksum == expected_checksum, (
+            f"Manifest checksum mismatch: expected {expected_checksum}, "
+            f"got {manifest_checksum}. Golden dataset may be corrupted or outdated."
+        )
+
         # Find first divergence (per docs/spec-db-tracing.md:15-19)
         first_div = find_first_divergence(
             predicted=predicted,
@@ -757,7 +764,7 @@ class TestDB_AT_001_Parity:
 
         # Write artifacts to current report directory (per input.md)
         repo_root = Path(__file__).parent.parent.parent
-        artifact_dir = repo_root / "plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T020930Z/parity_harness"
+        artifact_dir = repo_root / "plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T030000Z/parity_harness"
 
         artifacts = write_parity_artifacts(
             artifact_dir=artifact_dir,

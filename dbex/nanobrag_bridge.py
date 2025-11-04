@@ -850,6 +850,8 @@ def simulate_forward_once(
     hkl_amplitudes: np.ndarray,
     spot_scale_override: Optional[float] = None,
     calibration: Optional[dict] = None,
+    hkl_source: Optional[str] = None,
+    hkl_path: Optional[str] = None,
     device=None
 ) -> Tuple[np.ndarray, dict]:
     """
@@ -878,6 +880,8 @@ def simulate_forward_once(
                     - beam_exposure: Exposure time in seconds
                     - beamsize_mm: Beam size in mm (optional)
                     - N_cells: Crystal mosaic domain counts (optional)
+        hkl_source: Optional telemetry tag ("refined" or "raw") for MTZ provenance
+        hkl_path: Optional path to MTZ file for diagnostics
         device: torch.device for simulation (default cpu)
 
     Returns:
@@ -894,6 +898,11 @@ def simulate_forward_once(
             - n_cells_applied: Bool indicating whether N_cells was passed to CrystalConfig
             - bragg_stats: Dict with min/max/mean of bragg output
             - hkl_stats: HKL grid metadata from build_structure_factor_grid
+            - hkl_telemetry: Dict with structure-factor metadata:
+                - hkl_source: "refined" or "raw" (or None if not provided)
+                - hkl_n_reflections: Number of reflections
+                - hkl_mean_amplitude: Mean structure factor amplitude
+                - hkl_path: Path to MTZ file (or empty string if not provided)
 
     Raises:
         ImportError: If nanobrag_torch is not available
@@ -1073,7 +1082,13 @@ def simulate_forward_once(
             "mean_ratio_scaled": target_bragg_mean_ratio,
             "mean_ratio_raw": target_bragg_raw_mean_ratio
         },
-        "hkl_stats": hkl_metadata
+        "hkl_stats": hkl_metadata,
+        "hkl_telemetry": {
+            "hkl_source": hkl_source if hkl_source is not None else None,
+            "hkl_n_reflections": len(hkl_indices),
+            "hkl_mean_amplitude": float(hkl_amplitudes.mean()),
+            "hkl_path": hkl_path if hkl_path is not None else ""
+        }
     }
 
     return bragg, diagnostics

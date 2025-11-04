@@ -66,7 +66,7 @@
 
 ### [MAP-SCALE-004] Zero-iteration telemetry parity
 - Depends on: MAP-SCALE-003, SCALE-003, SCALE-004, docs/spec-db-workflow.md §4, docs/spec-db-tracing.md §2, docs/config_crosswalk.md §2
-- Status: in_progress (Galph 2025-11-05T220000Z)
+- Status: in_progress (Ralph 2025-11-05T220000Z)
 - Owner/Date: Galph / 2025-11-05
 - Exit Criteria:
   1. Extend `dbex.nanobrag_bridge.simulate_forward_once` (and torch-return helper) to compute structure-factor telemetry (`hkl_source`, reflection count, mean amplitude, MTZ path) and include it in the diagnostics payload alongside existing `hkl_stats`, mirroring the CLI path semantics.

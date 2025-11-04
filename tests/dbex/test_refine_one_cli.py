@@ -507,7 +507,8 @@ def test_torch_diagnostics_metadata():
     # Mock score_trainer.roi_check before it gets imported
     mock_roi_check_module = Mock()
     mock_checker = Mock()
-    mock_checker.score.return_value = 0.85
+    # Return a real float, not a Mock, so >= comparisons work
+    mock_checker.score = Mock(return_value=0.85)
     mock_roi_check_class = Mock(return_value=mock_checker)
     mock_roi_check_module.roiCheck = mock_roi_check_class
     sys.modules['score_trainer.roi_check'] = mock_roi_check_module

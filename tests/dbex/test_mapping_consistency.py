@@ -196,15 +196,18 @@ class TestDB_AT_024_Mapping:
         refined_hkl = canonical_assets.get("refined_hkl")
         if refined_hkl is not None:
             hkl_indices, hkl_amplitudes = refined_hkl
-            hkl_source = "refined_structure_factors.mtz"
+            hkl_source = "refined"
+            hkl_path = str(canonical_assets["paths"].get("refined_mtz", ""))
         else:
             hkl_indices = dl.F.indices()
             hkl_amplitudes = dl.F.data()
-            hkl_source = "scaled.mtz (raw, not refined)"
+            hkl_source = "raw"
+            hkl_path = str(canonical_assets["paths"].get("mtz", ""))
 
         # Run zero-iteration forward simulation with DiffBragg calibration
         # Pass calibration dict to simulate_forward_once so beam flux/beamsize/exposure
         # and crystal N_cells flow through to nanobrag_torch configs per input.md Do Now step 4
+        # MAP-SCALE-004: Pass hkl_source and hkl_path for telemetry
         bragg, diagnostics = simulate_forward_once(
             inputs=inputs,
             detector=dl.detector,
@@ -214,6 +217,8 @@ class TestDB_AT_024_Mapping:
             hkl_indices=hkl_indices,
             hkl_amplitudes=hkl_amplitudes,
             calibration=calibration,
+            hkl_source=hkl_source,
+            hkl_path=hkl_path,
             device="cpu",
         )
 
@@ -251,7 +256,7 @@ class TestDB_AT_024_Mapping:
             "localization_mean": float(np.mean(localizations)) if localizations else float("nan"),
             "localization_success_rate": localization_success_rate,
             "global_scale_hint": inputs.global_scale_hint,
-            "hkl_source": hkl_source,
+            "hkl_source": hkl_source,  # Legacy field (kept for backward compat)
             "using_refined_geometry": canonical_assets.get("using_refined_geometry", False),
             "geometry_source": str(canonical_assets["paths"]["expt"]),
             "calibration": {
@@ -264,6 +269,7 @@ class TestDB_AT_024_Mapping:
                 "n_cells_applied": diagnostics.get("n_cells_applied", False),  # input.md Do Now step 5
                 "source": "tests/fixtures/golden_data/simple_cubic/config_torch.json",
             },
+            "hkl_telemetry": diagnostics.get("hkl_telemetry", {}),  # MAP-SCALE-004
             "diagnostics": diagnostics,
         }
 
@@ -328,6 +334,30 @@ class TestDB_AT_024_Mapping:
         print(f"  Using refined geometry: {summary_metrics['using_refined_geometry']}")
         print(f"  Calibration: spot_scale_override={spot_scale_override:.3e}, sqrt={np.sqrt(spot_scale_override):.3e}")
         print(f"  Artifacts: {artifact_dir}/")
+
+        # MAP-SCALE-004: Assert telemetry fields are present and correct
+        assert "hkl_telemetry" in diagnostics, (
+            "DB-AT-024 FAILED: Missing hkl_telemetry in diagnostics. "
+            "MAP-SCALE-004 requires structure-factor telemetry to enforce refined MTZ usage."
+        )
+        hkl_telemetry = diagnostics["hkl_telemetry"]
+        assert "hkl_source" in hkl_telemetry, "Missing hkl_source in hkl_telemetry"
+        assert "hkl_n_reflections" in hkl_telemetry, "Missing hkl_n_reflections in hkl_telemetry"
+        assert "hkl_mean_amplitude" in hkl_telemetry, "Missing hkl_mean_amplitude in hkl_telemetry"
+        assert "hkl_path" in hkl_telemetry, "Missing hkl_path in hkl_telemetry"
+
+        # MAP-SCALE-004: When canonical assets provide refined structure factors, telemetry must reflect this
+        if refined_hkl is not None:
+            assert hkl_telemetry["hkl_source"] == "refined", (
+                f"DB-AT-024 FAILED: Refined structure factors provided but telemetry reports "
+                f"hkl_source='{hkl_telemetry['hkl_source']}'. Expected 'refined'. "
+                f"This indicates a regression in structure-factor loading per SCALE-003/SCALE-004."
+            )
+            print(f"  ✓ Telemetry confirms refined structure factors: "
+                  f"n_reflections={hkl_telemetry['hkl_n_reflections']}, "
+                  f"mean_amplitude={hkl_telemetry['hkl_mean_amplitude']:.3e}")
+        else:
+            print(f"  ⚠ Using raw structure factors (canonical assets lack refined MTZ)")
 
         # DB-AT-024 thresholds per docs/spec-db-conformance.md:43-46
         threshold_corr = 0.2

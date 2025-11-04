@@ -262,8 +262,8 @@
 
 ### [DB-AT-023] Calibration policy guard
 - Depends on: DB-AT-020, DB-AT-021, DB-AT-022, docs/spec-db-workflow.md §4, docs/architecture.md §13
-- Status: in_progress
-- Owner/Date: Galph / 2025-11-04
+- Status: done
+- Owner/Date: Ralph / 2025-11-04
 - Exit Criteria:
   1. CLI wiring threads optional `--adu-per-photon > 0` through DataLoad → `prepare_refinement_inputs`, emitting actionable error messages for invalid values.
   2. `prepare_refinement_inputs` converts targets to photons when `adu_per_photon` is supplied, preserves ADU otherwise, and surfaces representation metadata plus a `global_scale_hint`.
@@ -272,6 +272,7 @@
 - Working Plan: plans/active/DB-AT-023/implementation.md
 - Attempts History:
   * 2025-11-04T052222Z (planning) — Established calibration guard initiative: drafted implementation plan (Phases A-C), captured canonical DataLoad metrics confirming ADU-valued targets (data_mean=1.26, ROI_sum=279 ADU vs background 207), and enumerated normative sources (`docs/spec-db-workflow.md:21-28`, `docs/architecture.md:175-194`, `docs/config_crosswalk.md:96-112`). Recorded evidence under `plans/active/DB-AT-023/reports/2025-11-04T052222Z/summary.md`. Next Actions: Prepare Do Now directing CLI plumbing, bridge conversion logic, DB_AT_023 test authoring, and documentation sync.
+  * 2025-11-04T065500Z — Ralph implementation complete: Extended `dbex.refine_one.create_parser` to accept `--adu-per-photon` (float >0) at refine_one.py:56-59 and threaded value through `run_nanobrag_backend` → `prepare_refinement_inputs` at refine_one.py:182. Updated `dbex.nanobrag_bridge.RefinementInputs` to carry `target_representation` and `global_scale_hint` fields at nanobrag_bridge.py:59-67. Implemented calibration policy per spec-db-workflow.md:20 and ADR-02: (1) Guard: ValueError for adu_per_photon<=0 at nanobrag_bridge.py:111-116. (2) Photon conversion: target_photons = target_adu / adu_per_photon using float64 intermediate at nanobrag_bridge.py:204-208. (3) ADU mode: computed global_scale_hint as mean(valid_pixels) at nanobrag_bridge.py:210-217. Authored tests/dbex/test_calibration_policy.py (354 lines, 4 tests): test_DB_AT_023_photon_conversion_correctness (validates conversion ratio≈10.0, max_error<1e-5, target_representation="photons", global_scale_hint=None), test_DB_AT_023_adu_mode_metadata (validates target_representation="adu", global_scale_hint≈63.0), test_DB_AT_023_invalid_adu_per_photon_guard (tests ValueError for 0, -1.0, -1e-6), test_DB_AT_023_photon_vs_adu_loss_mask_consistency (confirms loss_mask/panel_slices/trusted_mask identical across modes). Targeted pytest: 4 collected, 4 passed in 5.94s. Full suite: 62 collected, 61 passed, 1 skipped in 13.32s (no regressions). Updated docs/TESTING_GUIDE.md:69 and docs/development/TEST_SUITE_INDEX.md:25 to promote DB-AT-023 to Active with metrics/artifacts. Metrics: adu_per_photon=10.0, conversion_ratio=10.000005 (rtol<1e-4), max_conversion_error=6.056e-05 (<tolerance), target_representation="photons"/"adu", global_scale_hint=63.025345 (ADU mode), loss_mask_match=True. Artifacts: plans/active/DB-AT-023/reports/2025-11-04T065500Z/ (pytest_db_at_023.log, collect_db_at_023.log [4 tests], calibration_metrics.json, adu_mode_metrics.json, consistency_metrics.json, summary.md). First Divergence: N/A (calibration policy implementation, not parity debug). Next Actions: All exit criteria met. Selector DB_AT_023 active with 4 passing tests. No new findings required (applied CONFORMANCE-001, CONFIG-001, SCALE-001/002, TESTING-003).
 
 ### [FINDINGS-LEDGER-002] Extend knowledge base with torch experiment lessons
 - Depends on: TORCH-BRIDGE-001, TORCH-CLI-003

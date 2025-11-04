@@ -51,15 +51,20 @@ class RefinementInputs:
 
     Attributes:
         target: Background-subtracted pixel data in [panel, slow, fast] order
+                (in photons if adu_per_photon was provided, else ADU)
         loss_mask: Boolean mask where loss should be computed, (background >= 0) & trusted
         panel_slices: List of (panel_id, bbox) tuples for per-panel ROIs
                      bbox format: (x0, x1, y0, y1) with exclusive upper bounds
         trusted_mask: Original trusted mask in [panel, slow, fast] order (True=include)
+        target_representation: "photons" or "adu" indicating target units
+        global_scale_hint: Optional scale hint for ADU mode (mean(target)/mean(sim) estimate)
     """
     target: np.ndarray  # [panel, slow, fast] float, background-subtracted
     loss_mask: np.ndarray  # [panel, slow, fast] bool, (background >= 0) & trusted
     panel_slices: List[Tuple[int, Tuple[int, int, int, int]]]  # [(pid, (x0,x1,y0,y1))]
     trusted_mask: np.ndarray  # [panel, slow, fast] bool, True=include
+    target_representation: str = "adu"  # "adu" or "photons"
+    global_scale_hint: Optional[float] = None  # For ADU mode initialization
 
 
 def prepare_refinement_inputs(
@@ -68,7 +73,8 @@ def prepare_refinement_inputs(
     trusted_mask: np.ndarray,
     bbox: np.ndarray,
     pids: np.ndarray,
-    detector
+    detector,
+    adu_per_photon: Optional[float] = None
 ) -> RefinementInputs:
     """
     Prepare background-subtracted targets, loss masks, and panel slices for torch simulator.
@@ -78,10 +84,12 @@ def prepare_refinement_inputs(
     - Loss mask: (background >= 0) ∧ trusted_mask (spec-db-core.md:55)
     - Zeroing invalid pixels where loss_mask is False
     - ROI bbox semantics: (x0, x1, y0, y1) with exclusive upper bounds (spec-db-core.md:22)
+    - ADU vs photon calibration policy (spec-db-workflow.md:20, ADR-02)
 
     Guards:
     - Pixel pitch must be square (config_crosswalk.md:30)
     - Trusted mask polarity must be True=include (spec-db-core.md:29)
+    - adu_per_photon must be strictly positive if provided (spec-db-workflow.md:20)
 
     Args:
         data: Raw pixel data [panel, slow, fast] in ADU
@@ -90,13 +98,23 @@ def prepare_refinement_inputs(
         bbox: ROI bounding boxes, shape (n_roi, 4) as (x0, x1, y0, y1)
         pids: Panel IDs for each ROI, shape (n_roi,)
         detector: dxtbx Detector object for pixel pitch validation
+        adu_per_photon: Optional calibration factor to convert ADU to photons (must be >0)
 
     Returns:
-        RefinementInputs with background-subtracted target, loss mask, and panel slices
+        RefinementInputs with background-subtracted target (ADU or photons), loss mask,
+        panel slices, representation metadata, and global_scale_hint for ADU mode
 
     Raises:
-        ValueError: If pixel pitch is not square or mask polarity is inverted
+        ValueError: If pixel pitch is not square, mask polarity is inverted,
+                   or adu_per_photon is invalid (<=0)
     """
+    # Guard: validate adu_per_photon is strictly positive if provided
+    if adu_per_photon is not None and adu_per_photon <= 0:
+        raise ValueError(
+            f"adu_per_photon must be strictly positive (>0), got {adu_per_photon}. "
+            f"Per spec-db-workflow.md:20, calibration factor must be positive to convert ADU to photons."
+        )
+
     # Guard: validate pixel pitch is square for all panels
     for panel_id, panel in enumerate(detector):
         px_fast, px_slow = panel.get_pixel_size()
@@ -174,13 +192,35 @@ def prepare_refinement_inputs(
 
     # Background-subtract target
     # Where background >= 0 (valid ROI pixels), subtract; elsewhere zero
-    target = np.where(background_image >= 0, data - background_image, 0.0)
+    # Use float64 intermediate for numerical stability, then cast to float32
+    target = np.where(background_image >= 0,
+                     (data - background_image).astype(np.float64),
+                     0.0)
+
+    # Apply photon conversion if adu_per_photon is provided (ADR-02, spec-db-workflow.md:20)
+    target_representation = "adu"
+    global_scale_hint = None
+
+    if adu_per_photon is not None:
+        # Convert ADU to photons: target_photons = target_adu / adu_per_photon
+        # Use float64 for the division, then cast back to float32
+        target = (target / adu_per_photon).astype(np.float64)
+        target_representation = "photons"
+    else:
+        # ADU mode: compute global_scale_hint for initialization
+        # Estimate as mean of background-subtracted ROI intensities
+        # Use simple mean over valid pixels (robust clipping not needed for scale hint)
+        valid_target_pixels = target[background_image >= 0]
+        if len(valid_target_pixels) > 0:
+            global_scale_hint = float(np.mean(valid_target_pixels))
+        else:
+            global_scale_hint = 1.0  # Fallback if no valid pixels
 
     # Loss mask: (background >= 0) & trusted_mask
     loss_mask = (background_image >= 0) & mask_array
 
-    # Zero out invalid pixels in target
-    target = np.where(loss_mask, target, 0.0)
+    # Zero out invalid pixels in target and cast to float32
+    target = np.where(loss_mask, target, 0.0).astype(np.float32)
 
     # Build panel slices list
     panel_slices = []
@@ -190,10 +230,12 @@ def prepare_refinement_inputs(
         panel_slices.append((int(pid), (int(x0), int(x1), int(y0), int(y1))))
 
     return RefinementInputs(
-        target=target.astype(np.float32),
+        target=target,
         loss_mask=loss_mask,
         panel_slices=panel_slices,
-        trusted_mask=mask_array
+        trusted_mask=mask_array,
+        target_representation=target_representation,
+        global_scale_hint=global_scale_hint
     )
 
 

@@ -53,6 +53,10 @@ def create_parser():
                     help="MTZ column names (default: F,SIGF)")
     ap.add_argument("--spot-scale-override", type=float, default=None,
                     help="Optional spot scale override for nanobrag backend (applies sqrt(scale) post-simulation per SCALE-002)")
+    ap.add_argument("--adu-per-photon", type=float, default=None,
+                    help="Calibration factor to convert ADU to photons (must be >0 if provided). "
+                         "When set, targets are converted to photons; otherwise targets remain in ADU "
+                         "with learnable global scale per spec-db-workflow.md:20")
 
     return ap
 
@@ -142,6 +146,7 @@ def run_nanobrag_backend(args, DL, devid=0):
     - SCALE-002: Apply sqrt(spot_scale_override) post-simulation
     - GEOMETRY-002: Detector configs use analytic Euler inversion
     - HKL-ORIENT-001: Use source→sample incident direction
+    - ADR-02: ADU vs photon calibration policy (spec-db-workflow.md:20)
     """
     import h5py
     import numpy as np
@@ -166,14 +171,15 @@ def run_nanobrag_backend(args, DL, devid=0):
 
     print(f"[nanobrag backend] Preparing refinement inputs from DataLoad...")
 
-    # Prepare inputs via bridge
+    # Prepare inputs via bridge (with optional ADU→photon conversion)
     inputs = prepare_refinement_inputs(
         data=DL.data,
         background_image=DL.background_image,
         trusted_mask=DL.trusted_mask,
         bbox=DL.bbox,
         pids=DL.pids,
-        detector=DL.detector
+        detector=DL.detector,
+        adu_per_photon=args.adu_per_photon
     )
 
     print(f"[nanobrag backend] Target shape: {inputs.target.shape}")

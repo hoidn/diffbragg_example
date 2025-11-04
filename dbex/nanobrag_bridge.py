@@ -389,20 +389,24 @@ def create_detector_config(
     )
 
 
-def create_beam_config(beam) -> BeamConfig:
+def create_beam_config(beam, flux=None, beamsize_mm=None, exposure=None) -> BeamConfig:
     """
-    Create BeamConfig from dxtbx beam.
+    Create BeamConfig from dxtbx beam with optional calibration overrides.
 
     Implements beam mapping per docs/config_crosswalk.md:39-53:
     - Wavelength in Angstroms
     - Polarization factor=0.0 for parity
     - Polarization axis from metadata or fallback defaults
+    - Optional flux/beamsize/exposure from DiffBragg calibration metadata
 
     Args:
         beam: dxtbx Beam object
+        flux: Optional beam flux in photons/s (from calibration metadata)
+        beamsize_mm: Optional beam size in mm (from calibration metadata)
+        exposure: Optional exposure time in seconds (from calibration metadata)
 
     Returns:
-        BeamConfig with wavelength and polarization
+        BeamConfig with wavelength, polarization, and optional calibration fields
     """
     # Wavelength (config_crosswalk.md:46)
     wavelength_A = beam.get_wavelength()
@@ -416,31 +420,46 @@ def create_beam_config(beam) -> BeamConfig:
         # Fallback defaults
         polarization_axis = (0.0, 0.0, 1.0)
 
-    return BeamConfig(
-        wavelength_A=wavelength_A,
-        polarization_factor=0.0,  # Parity default
-        nopolar=False,
-        polarization_axis=polarization_axis,
-        dmin=0.0
-    )
+    # Build kwargs for BeamConfig, only including calibration overrides if provided
+    # BeamConfig.__post_init__ doesn't handle None gracefully (TypeError: '>' not supported)
+    beam_kwargs = {
+        'wavelength_A': wavelength_A,
+        'polarization_factor': 0.0,  # Parity default
+        'nopolar': False,
+        'polarization_axis': polarization_axis,
+        'dmin': 0.0
+    }
+
+    # Only add flux/beamsize/exposure if all three are provided
+    # (BeamConfig.__post_init__ requires all three to compute fluence)
+    if flux is not None:
+        beam_kwargs['flux'] = flux
+    if beamsize_mm is not None:
+        beam_kwargs['beamsize_mm'] = beamsize_mm
+    if exposure is not None:
+        beam_kwargs['exposure'] = exposure
+
+    return BeamConfig(**beam_kwargs)
 
 
-def create_crystal_config(crystal, experiment) -> CrystalConfig:
+def create_crystal_config(crystal, experiment, N_cells=None) -> CrystalConfig:
     """
-    Create CrystalConfig from dxtbx crystal and experiment.
+    Create CrystalConfig from dxtbx crystal and experiment with optional calibration overrides.
 
     Implements crystal mapping per docs/config_crosswalk.md:55-72:
     - Unit cell parameters in Angstroms and degrees (no conversion)
     - MOSFLM A* injection from crystal.get_A() columns
     - Misset angles default to zero (identity rotation)
     - Stills defaults: phi_steps=1, osc_range_deg=0, mosaic off
+    - Optional N_cells from DiffBragg calibration metadata
 
     Args:
         crystal: dxtbx Crystal object
         experiment: dxtbx Experiment object (for scan/goniometer)
+        N_cells: Optional tuple of 3 ints for mosaic domain counts (from calibration metadata)
 
     Returns:
-        CrystalConfig with cell, orientation, and stills defaults
+        CrystalConfig with cell, orientation, stills defaults, and optional N_cells
     """
     # Unit cell parameters (config_crosswalk.md:61)
     # dxtbx returns (a, b, c, alpha, beta, gamma) in Angstroms and degrees
@@ -465,22 +484,29 @@ def create_crystal_config(crystal, experiment) -> CrystalConfig:
     mosaic_domains = 1
     mosaic_spread_deg = 0.0
 
-    return CrystalConfig(
-        cell_a=a,
-        cell_b=b,
-        cell_c=c,
-        cell_alpha=alpha,
-        cell_beta=beta,
-        cell_gamma=gamma,
-        mosflm_a_star=mosflm_a_star,
-        mosflm_b_star=mosflm_b_star,
-        mosflm_c_star=mosflm_c_star,
-        misset_deg=misset_deg,
-        phi_steps=phi_steps,
-        osc_range_deg=osc_range_deg,
-        mosaic_domains=mosaic_domains,
-        mosaic_spread_deg=mosaic_spread_deg
-    )
+    # Build kwargs for CrystalConfig, only including N_cells if provided
+    crystal_kwargs = {
+        'cell_a': a,
+        'cell_b': b,
+        'cell_c': c,
+        'cell_alpha': alpha,
+        'cell_beta': beta,
+        'cell_gamma': gamma,
+        'mosflm_a_star': mosflm_a_star,
+        'mosflm_b_star': mosflm_b_star,
+        'mosflm_c_star': mosflm_c_star,
+        'misset_deg': misset_deg,
+        'phi_steps': phi_steps,
+        'osc_range_deg': osc_range_deg,
+        'mosaic_domains': mosaic_domains,
+        'mosaic_spread_deg': mosaic_spread_deg
+    }
+
+    # Only add N_cells if provided (avoids passing None to CrystalConfig)
+    if N_cells is not None:
+        crystal_kwargs['N_cells'] = N_cells
+
+    return CrystalConfig(**crystal_kwargs)
 
 
 # ============================================================================
@@ -606,9 +632,9 @@ def build_structure_factor_grid(indices, amplitudes, device=None):
 def load_calibration_metadata(config_json_path):
     """Load DiffBragg calibration metadata from config_torch.json.
 
-    Extracts spot_scale_override and beam flux/exposure from a canonical
-    config_torch.json file produced by DiffBragg refinement. This metadata
-    is required to align zero-iteration simulations with calibrated intensities.
+    Extracts spot_scale_override, beam flux/beamsize/exposure, and crystal N_cells
+    from a canonical config_torch.json file produced by DiffBragg refinement. This
+    metadata is required to align zero-iteration simulations with calibrated intensities.
 
     Args:
         config_json_path: Path to config_torch.json file containing DiffBragg metadata
@@ -618,15 +644,17 @@ def load_calibration_metadata(config_json_path):
             - spot_scale_override: float, DiffBragg scale factor (to be sqrt'ed per SCALE-002)
             - beam_flux: float, beam flux in photons/s
             - beam_exposure: float, exposure time in seconds
+            - beamsize_mm: float or None, beam size in mm (optional)
+            - N_cells: tuple of 3 ints or None, crystal mosaic domain counts (optional)
 
     Raises:
         FileNotFoundError: If config_json_path does not exist
-        KeyError: If required fields are missing from JSON
-        ValueError: If calibration values are invalid (non-positive)
+        KeyError: If required fields (spot_scale_override, flux, exposure) are missing
+        ValueError: If calibration values are invalid (non-positive or wrong shape)
 
     Notes:
         - Per SCALE-002 (docs/findings.md), sqrt(spot_scale_override) is applied post-simulation
-        - Beam flux and exposure are informational; intensity calibration uses spot_scale_override
+        - Beam flux/exposure/beamsize and N_cells flow through to nanobrag_torch simulator configs
         - Config format matches plans/active/NANOBRAG-GOLDEN-001/reports/.../config_torch.json
     """
     import json
@@ -671,10 +699,27 @@ def load_calibration_metadata(config_json_path):
             f"Invalid beam metadata: flux={beam_flux}, exposure={beam_exposure}. Must be positive."
         )
 
+    # Extract beam beamsize (optional, with fallback)
+    try:
+        beamsize_mm = float(config["beam"]["beamsize_mm"])
+    except (KeyError, TypeError):
+        beamsize_mm = None  # Will use BeamConfig default if not provided
+
+    # Extract crystal N_cells (optional, with fallback)
+    try:
+        N_cells_list = config["crystal"]["N_cells"]
+        N_cells = tuple(int(x) for x in N_cells_list)
+        if len(N_cells) != 3:
+            raise ValueError(f"N_cells must have 3 elements, got {len(N_cells)}")
+    except (KeyError, TypeError):
+        N_cells = None  # Will use CrystalConfig default if not provided
+
     return {
         "spot_scale_override": spot_scale_override,
         "beam_flux": beam_flux,
         "beam_exposure": beam_exposure,
+        "beamsize_mm": beamsize_mm,
+        "N_cells": N_cells,
     }
 
 
@@ -799,6 +844,7 @@ def simulate_forward_once(
     hkl_indices: np.ndarray,
     hkl_amplitudes: np.ndarray,
     spot_scale_override: Optional[float] = None,
+    calibration: Optional[dict] = None,
     device=None
 ) -> Tuple[np.ndarray, dict]:
     """
@@ -818,8 +864,15 @@ def simulate_forward_once(
         hkl_indices: Miller indices array from MTZ, shape (n_refl, 3)
         hkl_amplitudes: Structure factor amplitudes from MTZ, shape (n_refl,)
         spot_scale_override: Optional scale factor (default 1.0 if None).
+                           DEPRECATED: Use calibration dict instead.
                            For calibrated simulations, source from DiffBragg
                            metadata via load_calibration_metadata().
+        calibration: Optional dict from load_calibration_metadata() containing:
+                    - spot_scale_override: Scale factor (overrides spot_scale_override param)
+                    - beam_flux: Beam flux in photons/s
+                    - beam_exposure: Exposure time in seconds
+                    - beamsize_mm: Beam size in mm (optional)
+                    - N_cells: Crystal mosaic domain counts (optional)
         device: torch.device for simulation (default cpu)
 
     Returns:
@@ -846,6 +899,7 @@ def simulate_forward_once(
         - Applies GEOMETRY-002 (analytic Euler inversion in create_detector_config)
         - Device-neutral design: defaults to CPU, respects passed device
         - Does not write HDF5 or persist artifacts (caller's responsibility)
+        - Calibration dict sources beam flux/exposure/beamsize and N_cells per SCALE-003
     """
     try:
         import torch
@@ -870,14 +924,38 @@ def simulate_forward_once(
         device=device
     )
 
+    # Extract calibration values if provided (SCALE-003)
+    # Calibration dict takes precedence over spot_scale_override parameter
+    if calibration is not None:
+        spot_scale_override = calibration.get('spot_scale_override', spot_scale_override)
+        beam_flux = calibration.get('beam_flux')
+        beam_exposure = calibration.get('beam_exposure')
+        beamsize_mm = calibration.get('beamsize_mm')
+        N_cells = calibration.get('N_cells')
+    else:
+        beam_flux = None
+        beam_exposure = None
+        beamsize_mm = None
+        N_cells = None
+
     # Determine spot scale override (SCALE-002)
     if spot_scale_override is None:
         spot_scale_override = 1.0
     sqrt_spot_scale = np.sqrt(spot_scale_override)
 
     # Prepare configs (shared across panels where applicable)
-    beam_config = create_beam_config(beam)
-    crystal_config = create_crystal_config(crystal, experiment)
+    # Pass calibration overrides to config builders per input.md Do Now step 3
+    beam_config = create_beam_config(
+        beam,
+        flux=beam_flux,
+        beamsize_mm=beamsize_mm,
+        exposure=beam_exposure
+    )
+    crystal_config = create_crystal_config(
+        crystal,
+        experiment,
+        N_cells=N_cells
+    )
 
     # Run simulator per panel
     n_panels = len(detector)

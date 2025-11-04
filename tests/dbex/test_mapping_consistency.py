@@ -180,7 +180,8 @@ class TestDB_AT_024_Mapping:
             adu_per_photon=None,  # ADU mode per DB-AT-024 baseline
         )
 
-        # Load calibration metadata for spot_scale_override
+        # Load calibration metadata (MAP-SCALE-001)
+        # Contains spot_scale_override, beam flux/beamsize/exposure, and crystal N_cells
         calibration = canonical_assets["calibration"]
         spot_scale_override = calibration["spot_scale_override"]
 
@@ -196,6 +197,8 @@ class TestDB_AT_024_Mapping:
             hkl_source = "scaled.mtz (raw, not refined)"
 
         # Run zero-iteration forward simulation with DiffBragg calibration
+        # Pass calibration dict to simulate_forward_once so beam flux/beamsize/exposure
+        # and crystal N_cells flow through to nanobrag_torch configs per input.md Do Now step 4
         bragg, diagnostics = simulate_forward_once(
             inputs=inputs,
             detector=dl.detector,
@@ -204,7 +207,7 @@ class TestDB_AT_024_Mapping:
             experiment=dl.Expt,
             hkl_indices=hkl_indices,
             hkl_amplitudes=hkl_amplitudes,
-            spot_scale_override=spot_scale_override,
+            calibration=calibration,
             device="cpu",
         )
 
@@ -250,6 +253,8 @@ class TestDB_AT_024_Mapping:
                 "sqrt_spot_scale": float(np.sqrt(spot_scale_override)),
                 "beam_flux": calibration["beam_flux"],
                 "beam_exposure": calibration["beam_exposure"],
+                "beamsize_mm": calibration.get("beamsize_mm"),
+                "N_cells": calibration.get("N_cells"),
                 "source": "tests/fixtures/golden_data/simple_cubic/config_torch.json",
             },
             "diagnostics": diagnostics,

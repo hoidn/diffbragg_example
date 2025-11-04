@@ -1,0 +1,19 @@
+{
+  "timestamp": "2025-11-04T052000Z",
+  "test_selector": "DB_AT_020",
+  "n_rois": 92,
+  "n_panels": 1,
+  "sample_bbox": [582, 594, 0, 12],
+  "sample_bbox_deltas": [12, 12],
+  "sample_pid": 0,
+  "panel_size_fast": 1475,
+  "panel_size_slow": 1679,
+  "tests_collected": 2,
+  "tests_passed": 2,
+  "validation_checks": {
+    "bbox_exclusivity": "all ROIs satisfy x1 > x0 and y1 > y0",
+    "panel_alignment": "all pids in range [0, 1)",
+    "detector_bounds": "all bboxes within panel dimensions",
+    "slice_shapes": "all slices match (y1-y0, x1-x0)"
+  }
+}

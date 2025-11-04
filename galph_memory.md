@@ -612,3 +612,14 @@ Notes
 - Reality Check: DB_AT_020/021/022 prerequisites complete; assets available; selector still Planned in testing docs.
 - <Action State>: [planning]
 2025-11-04T052222Z focus=DB-AT-023 state=planning dwell=0 artifacts=plans/active/DB-AT-023/reports/2025-11-04T052222Z/ next_action=prepare_do_now_for_calibration_guard
+
+## 2025-11-04T054053Z — DB-AT-024 mapping consistency planning
+- Focus: DB-AT-024 — Mapping consistency guard
+- Action Type: planning
+- Key Observations: Established new initiative for DB_AT_024 as remaining workflow acceptance gap; confirmed canonical assets (refGeom.expt/refl, scaled.mtz, 747_mask.pkl, golden tensors) live in this checkout; identified need to refactor zero-iteration forward routine out of `run_nanobrag_backend` so tests can access arrays without HDF5 side effects; aligned thresholds with `docs/spec-db-conformance.md` and parity metrics helpers.
+- Artifact Path: plans/active/DB-AT-024/reports/2025-11-04T054053Z/
+- Next Actions: Finalize plan milestones, capture baseline `data - background` probes, and author Do Now for helper extraction + DB_AT_024 test implementation.
+- Reality Check: No dependencies blocked; DB_AT_024 listed as Planned in testing docs, so initiative moves to implementation setup next loop.
+- Dirty State: `.claude` submodule pointer reflects upstream commit (8a09df2…) after pull; left unstaged to avoid unintended submodule update in this planning loop.
+- <Action State>: [planning]
+2025-11-04T054053Z focus=DB-AT-024 state=planning dwell=0 artifacts=plans/active/DB-AT-024/reports/2025-11-04T054053Z/ next_action=prepare_do_now_for_mapping_helper_and_test

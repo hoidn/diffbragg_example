@@ -476,3 +476,14 @@ Notes
 - Reality Check: Ready for implementation; dwell guard already exceeded so next loop must execute code + pytest.
 - <Action State>: [ready_for_implementation]
 2025-11-04T011029Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=22 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T011029Z/ next_action=replace_euler_conversion_regenerate_and_run_db_at_001
+
+## 2025-11-04T020930Z — NANOBRAG-GOLDEN-001 parity doc sync staging
+- Focus: NANOBRAG-GOLDEN-001 — Replace fallback DB-AT-001 golden dataset
+- Action Type: planning
+- Key Observations: Implementation plan Phase A–C marked complete; parity smoke test still writes artifacts to 2025-10-29T190533Z; docs/TESTING_GUIDE.md and TEST_SUITE_INDEX parity entries reference stale logs; prepared 2025-11-04T020930Z report directory and summary for next rerun.
+- Artifact Path: plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T020930Z/
+- Next Actions: Execute Do Now (refresh test artifact path, rerun parity selector, sync docs) and capture new pytest log/metrics under the prepared report.
+- Reality Check: Canonical dataset metrics remain valid (median_corr=0.8134, localization=1.0); exit criteria 1-3 satisfied; outstanding work is documentation + D-phase archival prior to closing initiative.
+- <Action State>: [ready_for_implementation]
+
+2025-11-04T020930Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=23 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T020930Z/ next_action=rerun_parity_and_doc_sync

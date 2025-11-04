@@ -3,22 +3,22 @@
 ## Phase A — Canonical tensor capture
 > Status note (2025-10-29): DIFFBRAGG-001 resolved; rebuilt `simtbx_diffBragg_ext.so` (md5 1506a48bee414ffcec041083b1496a44). A2 capture can proceed once nanobrag_torch workflow is ready.
 
-- [ ] **A1 — Environment + dependency validation**: Record evidence that the existing `simtbx` conda env is active (`which python`, `python -c "import simtbx"`) and confirm `nanobrag_torch` availability (install from `https://github.com/hoidn/nanoBragg` if missing) along with refGeom dataset inputs (expt/refl/mtz, structure-factor source) (`docs/spec-db-core.md:20-41`, `plans/nanobrag_integration_plan.md:23-54`). Append details to `reports/<timestamp>/golden_dataset/`.
-- [ ] **A2 — DiffBragg baseline export**: Run legacy DiffBragg forward-only pipeline to capture `bragg_diffbragg.npy`, ROI metrics, and config JSON; stash under `golden_dataset/legacy/` with command log (`docs/forward_equivalence.md:21-37`).
-- [ ] **A3 — nanoBragg2 forward capture**: Invoke `nanobrag_torch` via bridge helpers to produce canonical torch `bragg` tensors for all panels, ensuring `[panel, slow, fast]` ordering and mask alignment; persist under `golden_dataset/torch/` with simulator config snapshots (`docs/nanobrag_api.md:21-83`).
-- [ ] **A4 — Torch geometry pivot alignment**: Update `dbex/nanobrag_bridge.create_detector_config` to emit DIALS-convention rotation angles (XYZ) instead of CUSTOM basis vectors so the Detector runs in BEAM-pivot mode; verify beam-center preservation against `refGeom.expt` and regenerate canonical tensors with offsets ≈0 px (`docs/config_crosswalk.md:24-37`, `docs/nanobrag_api.md:21-83`).
+- [x] **A1 — Environment + dependency validation**: Evidence captured in `reports/2025-11-04T012616Z/canonical_capture.log` (`which python`, `nanobrag_torch` import, dataset paths) per `docs/spec-db-core.md:20-41`.
+- [x] **A2 — DiffBragg baseline export**: DiffBragg tensors/configs persisted under `reports/2025-11-04T012616Z/golden_dataset/legacy/` with command log (`docs/forward_equivalence.md:21-37`).
+- [x] **A3 — nanoBragg2 forward capture**: Canonical torch tensors + configs written to `reports/2025-11-04T012616Z/golden_dataset/torch/`, ROI dumps stored alongside (`docs/nanobrag_api.md:21-83`).
+- [x] **A4 — Torch geometry pivot alignment**: `dbex/nanobrag_bridge.create_detector_config` emits DIALS XYZ angles; `roi_offset_summary.json` shows median_abs_offset=0.0 px (`reports/2025-11-04T012616Z/`).
 
 ## Phase B — Manifest + verification
-- [ ] **B1 — Manifest & metadata update**: Rewrite `tests/fixtures/golden_data/simple_cubic/manifest.json` (or successor path) with canonical provenance fields (generator command, git rev, structure-factor source) and SHA256 checksums; update `metadata.json` with beam/detector/crystal records referencing captured configs (`docs/spec-db-conformance.md:23-26`).
-- [ ] **B2 — Fixture + checksum tests**: Extend `tests/fixtures/parity_loader.py` and related pytest fixtures to validate new manifest layout (multi-panel support, canonical notes) while keeping square pixel/panel guards (`docs/TESTING_GUIDE.md:74-85`).
-- [ ] **B3 — Regeneration tooling**: Update or replace `scripts/generate_simple_cubic_golden.py` with canonical generator that calls DiffBragg + `nanobrag_torch`; document usage and inputs inside the script header and in `docs/index.md` (`plans/nanobrag_integration_plan.md:32-88`).
+- [x] **B1 — Manifest & metadata update**: Canonical `manifest.json`/`metadata.json` under `tests/fixtures/golden_data/simple_cubic/` include SHA256 + provenance (generated 2025-11-04T012816Z).
+- [x] **B2 — Fixture + checksum tests**: `tests/dbex/test_db_at_001_parity.py::TestManifestIntegrity` + loader checksum guards validate canonical layout (`docs/TESTING_GUIDE.md:74-85`).
+- [x] **B3 — Regeneration tooling**: `scripts/generate_simple_cubic_golden.py` documents canonical workflow and produced `reports/2025-11-04T012616Z/golden_dataset/` (`plans/nanobrag_integration_plan.md:32-88`).
 
 ## Phase C — Parity harness integration
-- [ ] **C1 — Harness dataset swap**: Point DB_AT_001 parity tests at canonical dataset directory, remove synthetic noise injection, and compare torch output vs target/diffbragg baseline as dictated by the spec (`docs/forward_equivalence.md:46-52`, `docs/spec-db-tracing.md:15-24`).
-- [ ] **C2 — Threshold enforcement**: Update parity test assertions to require correlation ≥0.2 and localization ≥0.9 (xfail only on documented simulator gaps) and ensure artifact writers log canonical manifest checksums (`docs/spec-db-conformance.md:23-26`).
-- [ ] **C3 — Documentation sync**: Refresh `docs/TESTING_GUIDE.md` §2, `docs/development/TEST_SUITE_INDEX.md`, and `docs/index.md` to reflect canonical dataset availability, artifact paths, and new selector status; reference artifacts from this initiative (`docs/prompt_sources_map.json`).
+- [x] **C1 — Harness dataset swap**: Parity harness consumes canonical tensors from `tests/fixtures/golden_data/simple_cubic/` (torch vs DiffBragg baseline, no synthetic noise).
+- [x] **C2 — Threshold enforcement**: `TestDB_AT_001_Parity::test_db_at_001_parity_smoke` enforces correlation ≥0.2 and localization ≥0.9 with artifact logging + conditional xfail.
+- [ ] **C3 — Documentation sync**: Update `docs/TESTING_GUIDE.md`, `docs/development/TEST_SUITE_INDEX.md`, and `docs/index.md` with canonical dataset + new artifact paths (pending).
 
 ## Phase D — Closure
-- [ ] **D1 — Artifact archival**: Collect DiffBragg vs torch metrics, overlays, and generation logs under `plans/active/NANOBRAG-GOLDEN-001/reports/<timestamp>/golden_dataset/` with summary README.
-- [ ] **D2 — Knowledge base update**: Add durable lessons (e.g., simulator invocation pitfalls, structure-factor prep) to `docs/findings.md` if not already recorded; cite source paths.
-- [ ] **D3 — Ledger wrap-up**: Update `docs/fix_plan.md` Attempts History with final metrics/artifacts and transition status to `done`.
+- [ ] **D1 — Artifact archival**: Capture fresh parity log + metrics under `plans/active/NANOBRAG-GOLDEN-001/reports/<next_timestamp>/parity_harness/` referencing canonical tensors (pending this loop).
+- [ ] **D2 — Knowledge base update**: Add durable lessons (e.g., detector Euler inversion guard) to `docs/findings.md` if not already recorded.
+- [ ] **D3 — Ledger wrap-up**: Update `docs/fix_plan.md` Attempts History + status once canonical parity rerun/log sync completes.

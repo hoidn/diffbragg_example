@@ -738,3 +738,12 @@ Notes
 - Reality Check: Exit criteria satisfied; focus remains MAP-SCALE-001 to land the remaining documentation sync instead of pivoting.
 - <Action State>: [ready_for_implementation]
 2025-11-04T213000Z focus=MAP-SCALE-001 state=ready_for_implementation dwell=2 artifacts=plans/active/MAP-SCALE-001/reports/2025-11-04T213000Z/ next_action=execute_phase_D3_doc_sync
+
+## 2025-11-04T233500Z — MAP-SCALE-001 closure & CLI parity plan
+- Focus: MAP-SCALE-001 — Zero-iteration mapping scale alignment
+- Action Type: planning
+- Key Observations: Closed Phase D3 by confirming doc/test sync artifacts; captured CLI gap where `run_nanobrag_backend` omits DiffBragg calibration metadata (beam flux/exposure, beamsize, `N_cells`) and logged SCALE-006 to guard sample clipping. Marked MAP-SCALE-001 done and opened successor MAP-SCALE-002 for CLI calibration parity.
+- Artifact Path: plans/active/MAP-SCALE-001/reports/2025-11-04T233500Z/
+- Next Actions: Handoff MAP-SCALE-002 Do Now so Ralph wires calibration + refined MTZ plumbing into CLI and updates regression tests.
+- <Action State>: [ready_for_implementation]
+2025-11-04T233500Z focus=MAP-SCALE-001 state=ready_for_implementation dwell=3 artifacts=plans/active/MAP-SCALE-001/reports/2025-11-04T233500Z/ next_action=handoff_cli_calibration_do_now

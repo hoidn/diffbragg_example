@@ -35,9 +35,10 @@ Resolve the scale mismatch between `simulate_forward_once` outputs and backgroun
 - **Phase D — Sample clipping integration**
   - [x] D1: Propagate DiffBragg calibration `beam_config` into `nanobrag_torch.Simulator` and allow `create_crystal_config(..., apply_n_cells=True)` when metadata provides domain counts; preserve `n_cells_applied` diagnostics.
   - [x] D2: Re-run DB_AT_024 selector with refined MTZ + geometry to confirm corr ≥ 0.2 and localization ≥ 0.90, capturing metrics JSON/CSV under a fresh artifact directory.
-  - [ ] D3: After thresholds pass, update `docs/TESTING_GUIDE.md` §2 and `docs/development/TEST_SUITE_INDEX.md` plus log the selector’s `--collect-only` output.
+- [x] D3: After thresholds pass, update `docs/TESTING_GUIDE.md` §2 and `docs/development/TEST_SUITE_INDEX.md` plus log the selector’s `--collect-only` output. (Completed 2025-11-04T220000Z; artifacts under `reports/2025-11-04T220000Z/`)
 
 ## Risks / Open Questions
 - Ensure scaling fix does not regress photon-mode (adu_per_photon) paths.
 - Spot scale override might require sourcing from MTZ or CLI; need to spec retrieval if fixed ratio is insufficient.
 - Must avoid violating Environment Freeze; all prototyping stays in analysis artifacts.
+- CLI backend parity tracked separately under MAP-SCALE-002; archive this risk once successor initiative lands.

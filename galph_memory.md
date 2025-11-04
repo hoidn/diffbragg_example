@@ -457,3 +457,12 @@ Notes
 - <Action State>: [ready_for_implementation]
 
 2025-11-04T002805Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=20 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T011500Z/ next_action=refactor_detector_config_BEAM_pivot
+## 2025-11-04T005115Z — NANOBRAG-GOLDEN-001 detector rotation handoff plan
+- Focus: NANOBRAG-GOLDEN-001 — Replace fallback DB-AT-001 golden dataset
+- Action Type: planning
+- Key Observations: ROI offsets remain ≈5–7 px in latest capture; derived dxtbx XYZ angles (179.72°, -0.045°, -0.097°) explain drift; added reusable ROI offset summary tool; `AUTHORITATIVE_CMDS_DOC` exported per testing guide.
+- Artifact Path: plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T005115Z/
+- Next Actions: Implement DIALS rotation extraction in `dbex/nanobrag_bridge.create_detector_config`, regen canonical tensors with new geometry, summarize offsets via bin script, rerun DB_AT_001 parity pytest, update docs + ledger.
+- Reality Check: Exit criteria unmet; canonical dataset still misaligned and manifest still references stale tensors. Ready for implementation handoff this loop.
+- <Action State>: [ready_for_implementation]
+2025-11-04T005115Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=21 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T005115Z/ next_action=apply_dials_rotations_regenerate_and_run_db_at_001

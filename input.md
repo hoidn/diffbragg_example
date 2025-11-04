@@ -1,53 +1,55 @@
-Summary: Replace the nanobrag bridge stubs with real nanobrag_torch config objects and harden the geometry tests so the CLI can graduate off the Gaussian placeholder.
+Summary: Replace the CLI nanobrag backend stub with the real nanobrag_torch simulator (structure-factor hydration + √scale) and lock in targeted pytest coverage.
 Mode: none
 Focus: NANOBRAG-BACKEND-002 — Replace CLI torch backend stub with nanobrag_torch simulator
 Branch: integration
-Mapped tests: KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_nanobrag_bridge_configs.py
-Artifacts: plans/active/NANOBRAG-BACKEND-002/reports/2025-11-04T022540Z/
+Mapped tests: KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_refine_one_cli.py -k nanobrag_backend
+Artifacts: plans/active/NANOBRAG-BACKEND-002/reports/2025-11-04T031500Z/
 
 Do Now (hard validity contract)
 - Focus: NANOBRAG-BACKEND-002
-- Implement: dbex/nanobrag_bridge.py::{DetectorConfig, BeamConfig, CrystalConfig, create_detector_config, create_beam_config, create_crystal_config} + tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping — retire the local dataclass stubs, build real `nanobrag_torch.config` objects, and extend the tests to assert against those classes (including a new round-trip check that instantiates `nanobrag_torch.models.detector.Detector` and `Crystal`).
-- Validate: KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_nanobrag_bridge_configs.py | tee "$REPORT_DIR"/pytest_bridge.log
-- Artifacts: plans/active/NANOBRAG-BACKEND-002/reports/2025-11-04T022540Z/
+- Implement: dbex/refine_one.py::{create_parser, run_nanobrag_backend} + dbex/nanobrag_bridge.py::build_structure_factor_grid + tests/dbex/test_refine_one_cli.py::TestNanobragBackend — accept an optional spot-scale override, hydrate nanobrag_torch Simulator per panel using real configs, and add regression tests that guard simulator invocation plus √(spot_scale_override) scaling.
+- Validate: KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_refine_one_cli.py -k nanobrag_backend | tee "$REPORT_DIR"/pytest_nanobrag_backend.log
+- Artifacts: plans/active/NANOBRAG-BACKEND-002/reports/2025-11-04T031500Z/
 
 How-To Map
 1. export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
-2. export REPORT_DIR=plans/active/NANOBRAG-BACKEND-002/reports/2025-11-04T022540Z
+2. export REPORT_DIR=plans/active/NANOBRAG-BACKEND-002/reports/2025-11-04T031500Z
 3. mkdir -p "$REPORT_DIR"
-4. Edit dbex/nanobrag_bridge.py to replace the local dataclass definitions with thin adapters that import `nanobrag_torch.config` and return real config objects; keep the analytic XYZ inversion (GEOMETRY-002) and mask polarity guards intact.
-5. Update tests/dbex/test_nanobrag_bridge_configs.py to assert against the new config classes and add a `test_detector_model_roundtrip` (or similar) that builds `nanobrag_torch.models.detector.Detector` and `nanobrag_torch.models.crystal.Crystal` using the bridge outputs to guard compatibility.
-6. KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_nanobrag_bridge_configs.py | tee "$REPORT_DIR"/pytest_bridge.log
+4. Port the canonical HKL grid builder from scripts/generate_simple_cubic_golden.py:565 into dbex/nanobrag_bridge.py::build_structure_factor_grid (torch device-neutral, SCALE-001 compliant) and expose metadata needed by the backend.
+5. Update dbex/refine_one.py::{create_parser, run_nanobrag_backend} to wire optional --spot-scale-override (default 1), instantiate nanobrag_torch Crystal/Detector/Simulator on CPU, run per-panel simulation, apply √(spot_scale_override), and reuse _write_torch_outputs; drop the Gaussian stub.
+6. Extend tests/dbex/test_refine_one_cli.py::TestNanobragBackend with deterministic patches for Simulator/bridge helpers to assert structure-factor hydration, scaling, and output hand-off; skip via pytest.importorskip when nanobrag_torch is unavailable.
+7. KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_refine_one_cli.py -k nanobrag_backend | tee "$REPORT_DIR"/pytest_nanobrag_backend.log
 
 Pitfalls To Avoid
-- Do not reintroduce `r3_rotation_matrix_as_x_y_z_angles`; keep the analytic inversion from GEOMETRY-002.
-- Preserve True=include mask polarity; a polarity flip will break MANIFEST-001 safeguards.
-- Avoid eager Simulator runs inside tests that rely on GPU-only features; keep everything CPU/device-neutral per docs/pytorch_runtime_checklist.md.
-- Do not touch SCALE-002 post-sim scaling logic yet; that belongs in run_nanobrag_backend.
-- Leave canonical fixtures untouched; the bridge should consume existing trusted_mask arrays without rewriting fixtures.
-- Respect Environment Freeze: no pip installs or editing external packages.
-- Keep new tests deterministic (seed torch/numpy if randomness is introduced).
-- Ensure imports succeed without optional CUDA extras; skip tests gracefully if `nanobrag_torch` is absent and log the block in docs/fix_plan.md.
-- Do not move file locations or rename existing helper functions without updating downstream imports.
+- Keep GEOMETRY-002 analytic Euler inversion; do not revert to scitbx angle helpers.
+- Structure factors must stay unscaled before the simulator (SCALE-001); apply only the post-sim √scale (SCALE-002).
+- Default the simulator device to CPU; ensure tests patch heavy classes so they remain device-neutral.
+- Respect Environment Freeze: no pip installs or edits to external packages/modules.
+- Preserve `_write_torch_outputs` contract (ROI scoring + diagnostics) and reuse existing artifact layout.
+- Ensure tests use deterministic tensors and seeded randomness if needed; avoid GPU-only assertions.
+- If `nanobrag_torch` import fails, short-circuit with pytest.skip and record the blocker per Fix Plan instructions.
+- Guard mask polarity (MANIFEST-001) and incident beam conventions (HKL-ORIENT-001) when constructing configs.
 
 If Blocked
-- If `import nanobrag_torch.config` fails, capture the ImportError text in "$REPORT_DIR"/import_error.txt, mark NANOBRAG-BACKEND-002 as blocked in docs/fix_plan.md (include the signature), and stop.
-- If the detector/crystal constructors reject the bridge output, save the traceback plus offending values in "$REPORT_DIR"/compatibility_fail.md and pause for supervisor guidance.
+- Capture the exact ImportError or runtime exception in "$REPORT_DIR"/nanobrag_backend_blocker.md, update docs/fix_plan.md Attempts with the signature, and halt further edits pending supervisor guidance.
 
 Findings Applied (Mandatory)
-- GEOMETRY-002 — Maintain analytic Euler inversion when producing detector rotation angles.
-- SCALE-001 — Do not rescale structure factors while constructing nanobrag_torch configs.
-- SCALE-002 — Remember that √(spot_scale_override) post-sim scaling stays in run_nanobrag_backend; bridge helpers should not apply it early.
-- MANIFEST-001 — Preserve trusted mask polarity so checksum guards remain valid.
-- HKL-ORIENT-001 — Keep incident beam direction conventions consistent (source→sample) when instantiating beam/crystal helpers.
+- GEOMETRY-002 — Maintain analytic detector Euler inversion when filling DetectorConfig.
+- SCALE-001 — Do not pre-scale structure factors while hydrating the HKL grid.
+- SCALE-002 — Apply √(spot_scale_override) post-simulation to align with DiffBragg intensity units.
+- MANIFEST-001 — Keep trusted mask polarity True=include throughout the bridge/backend.
+- HKL-ORIENT-001 — Preserve incident beam orientation when feeding nanobrag_torch Crystal/Detector models.
+- CONFIG-002 / CONFIG-003 — Continue using DetectorConvention enum values and tuple polarization axes.
+- MODEL-001 — Ensure configs still instantiate nanobrag_torch Detector/Crystal models without regression.
+- RUNTIME-001 — Set KMP_DUPLICATE_LIB_OK=TRUE before running torch-based tests.
 
 Pointers
-- dbex/nanobrag_bridge.py:232 — Detector config hydration path that currently returns local stubs.
-- tests/dbex/test_nanobrag_bridge_configs.py:1 — Existing bridge config tests to update with real nanobrag_torch classes.
-- scripts/generate_simple_cubic_golden.py:565 — Reference implementation of nanobrag_torch config + simulator usage.
-- docs/nanobrag_api.md:1 — Official config/dataclass contract for Detector/Beam/Crystal.
-- docs/config_crosswalk.md:15 — Mapping of DIALS metadata to nanobrag_torch config fields and guards.
+- dbex/refine_one.py:135 — Current nanobrag backend stub to replace with real simulator wiring.
+- scripts/generate_simple_cubic_golden.py:565 — Reference HKL grid + simulator loop with √scale.
+- docs/nanobrag_api.md:1 — Official simulator/config contract.
+- docs/config_crosswalk.md:60 — Geometry/beam/crystal mapping + SCALE guardrails.
+- tests/dbex/test_refine_one_cli.py:89 — Existing backend tests to extend for simulator coverage.
+- docs/TESTING_GUIDE.md:74 — Parity harness runtime flags and logging expectations.
 
 Next Up (optional)
-- Draft helper to hydrate nanobrag_torch structure-factor grids inside dbex nanobrag bridge (Phase A2).
-
+- Refresh DB_AT_001 parity selector to consume the nanobrag backend once simulator wiring passes tests.

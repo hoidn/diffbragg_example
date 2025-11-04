@@ -75,7 +75,7 @@
 
 ### [NANOBRAG-BACKEND-002] Replace CLI torch backend stub with nanobrag_torch simulator
 - Depends on: TORCH-BRIDGE-001, NANOBRAG-GOLDEN-001, PARITY-HARNESS-002, SCALE-001, SCALE-002, GEOMETRY-002
-- Status: pending
+- Status: in_progress
 - Owner/Date: Unassigned / 2025-11-04
 - Exit Criteria:
   1. Bridge helpers emit real `nanobrag_torch.config` dataclasses + model instances (Detector/Crystal/Beam) and retire local dataclass stubs.
@@ -86,6 +86,7 @@
 - Attempts History:
   * 2025-11-04T021141Z — Planning kickoff: confirmed `nanobrag_torch` Simulator/Detector/Crystal imports succeed, noted bridge still relies on dataclass stubs, and drafted phased plan (config promotion → simulator integration → parity validation). Artifacts: plans/active/NANOBRAG-BACKEND-002/reports/2025-11-04T021141Z/summary.md. Next Actions: Promote bridge helpers to real config objects and extend bridge tests to guard geometry/polarization invariants.
   * 2025-11-04T022540Z — Completed exit criterion 1 (config promotion): Replaced local DetectorConfig/BeamConfig/CrystalConfig dataclass stubs with real `nanobrag_torch.config` imports; fixed DetectorConvention to use enum value (not string), BeamConfig.polarization_axis to use tuple (not array); extended tests with type assertions and roundtrip tests instantiating Detector/Crystal models; all 19/19 bridge config tests pass, full suite 46/46 tests pass (no regressions). Metrics: targeted 2.78s CPU, full 5.53s, config types 3/3, roundtrips 2/2, geometry preservation PASSED. Artifacts: plans/active/NANOBRAG-BACKEND-002/reports/2025-11-04T022540Z/{pytest_bridge.log,pytest_bridge_final.log,pytest_full.log,summary.md}. First Divergence: n/a. Next Actions: Exit criterion 2 — integrate real Simulator in `run_nanobrag_backend` to replace stub, apply √(spot_scale_override) scaling, emit parity artifacts; then run DB_AT_001 selector (criterion 3).
+  * 2025-11-04T031500Z — Phase B planning & scale reconnaissance: Verified stubbed `run_nanobrag_backend` still emits Gaussian tensors; promoted working plan A1/A3 checkboxes; confirmed `DataLoad` surface lacks stored `spot_scale_override` so CLI must accept/derive the scale. Prepared artifact hub `plans/active/NANOBRAG-BACKEND-002/reports/2025-11-04T031500Z/` capturing DataLoad probes and simulator wiring strategy. Next Actions: Port canonical `build_structure_factor_grid` into `dbex.nanobrag_bridge`, extend CLI parser with optional `--spot-scale-override`, implement nanobrag_torch Simulator loop with √scale post-factor, and add targeted pytest coverage guarding simulator invocation + scaling.
 
 ### [PARITY-HARNESS-002] Implement DB-AT parity harness tests
 - Depends on: TORCH-BRIDGE-001, FORWARD-EQUIV-001

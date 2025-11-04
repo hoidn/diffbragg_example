@@ -508,3 +508,4 @@ Notes
 - <Action State>: [planning]
 
 2025-11-04T021626Z focus=NANOBRAG-BACKEND-002 state=planning dwell=0 artifacts=plans/active/NANOBRAG-BACKEND-002/reports/2025-11-04T021141Z/ next_action=promote_bridge_configs_to_real_nanobrag
+2025-11-04T031500Z focus=NANOBRAG-BACKEND-002 state=ready_for_implementation dwell=0 artifacts=plans/active/NANOBRAG-BACKEND-002/reports/2025-11-04T031500Z/ next_action=wire_nanobrag_simulator_and_run_targeted_pytest

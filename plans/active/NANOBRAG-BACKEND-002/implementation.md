@@ -24,9 +24,9 @@
 
 ## Phase A — Config promotion
 ### Checklist
-- [ ] A1: Replace stub dataclasses in `dbex.nanobrag_bridge` with thin adapters that construct `nanobrag_torch.config.DetectorConfig`, `.BeamConfig`, and `.CrystalConfig`.
+- [x] A1: Replace stub dataclasses in `dbex.nanobrag_bridge` with thin adapters that construct `nanobrag_torch.config.DetectorConfig`, `.BeamConfig`, and `.CrystalConfig`.
 - [ ] A2: Implement helpers to build `nanobrag_torch.models.detector.Detector` and `nanobrag_torch.models.crystal.Crystal` (including HKL grid hydration + SCALE-001 enforcement).
-- [ ] A3: Extend `tests/dbex/test_nanobrag_bridge_configs.py` (or new module) to assert geometry, polarization, and orientation invariants using the real config classes with deterministic fixtures.
+- [x] A3: Extend `tests/dbex/test_nanobrag_bridge_configs.py` (or new module) to assert geometry, polarization, and orientation invariants using the real config classes with deterministic fixtures.
 
 ### Notes & Risks
 - Ensure the analytic Euler inversion (GEOMETRY-002) survives migration to real config types; numerical drift could reintroduce ROI offsets.

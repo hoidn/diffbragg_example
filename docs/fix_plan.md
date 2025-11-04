@@ -206,7 +206,7 @@
 
 ### [DB-AT-002] Determinism selector scaffold
 - Depends on: FORWARD-EQUIV-002, NANOBRAG-BACKEND-002, TORCH-RUNTIME-002, PARITY-HARNESS-002
-- Status: in_progress
+- Status: done
 - Owner/Date: Unassigned / 2025-11-04
 - Exit Criteria:
   1. Author a pytest module (e.g., `tests/dbex/test_forward_determinism.py`) that sets determinism env guards before importing torch and provides DB_AT_002 same-seed + diff-seed tests using canonical parity loader outputs.
@@ -216,6 +216,7 @@
 - Working Plan: plans/active/DB-AT-002/implementation.md
 - Attempts History:
   * 2025-11-04T043700Z (planning) — Captured determinism plan outline (Phase A inputs, Phase B harness tasks, Phase C documentation sync), reviewed determinism workflow guidance (`docs/development/testing_strategy.md` §2.7) and runtime checklist, and staged planning report `plans/active/DB-AT-002/reports/2025-11-04T043700Z/summary.md`. Next Actions: Execute Phase A dependency/env rehearsals and scaffold same-seed pytest flow.
+  * 2025-11-04T050000Z (implementation) — Authored `tests/dbex/test_forward_determinism.py` with TestForwardDeterminism class containing `test_DB_AT_002_same_seed` and `test_DB_AT_002_diff_seed`. Loaded canonical tensors via `load_golden_data` from parity loader (MANIFEST-001 checksum validation). Implemented `compute_determinism_metrics` helper respecting loss_mask and float64 precision per testing_strategy.md:231-246. Tests pass 2/2. Metrics: Same-seed (canonical baseline): bitwise_equal=True, correlation=1.0, max_abs_diff=0.0, n_valid_pixels=13086. Diff-seed (bragg vs target independence baseline): bitwise_equal=False, correlation=-0.0035 (excellent independence), differing_pixels=100%. Artifacts: `plans/active/DB-AT-002/reports/2025-11-04T050000Z/determinism/` (metrics_same_seed.json, metrics_diff_seed.json, env.json, commands.txt). Commands: `CUDA_VISIBLE_DEVICES='' TORCHDYNAMO_DISABLE=1 NANOBRAGG_DISABLE_COMPILE=1 KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_forward_determinism.py::TestForwardDeterminism --maxfail=1` (2 passed in 0.35s); `pytest --collect-only tests -k DB_AT_002` (2 tests collected); `pytest -v tests/` (49 passed, 1 skipped). Documentation: Updated `docs/TESTING_GUIDE.md` §2 determinism row to Active with canonical metrics and artifact paths; updated `docs/development/TEST_SUITE_INDEX.md` DB_AT_002 entry to active. Next Actions: Mark DB-AT-002 done; extend determinism harness to cover mosaic/misset RNG round-trip metrics (optional follow-up).
 
 ### [FINDINGS-LEDGER-002] Extend knowledge base with torch experiment lessons
 - Depends on: TORCH-BRIDGE-001, TORCH-CLI-003

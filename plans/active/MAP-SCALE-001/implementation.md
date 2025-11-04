@@ -33,8 +33,8 @@ Resolve the scale mismatch between `simulate_forward_once` outputs and backgroun
   - [x] C3: Update `docs/findings.md` if new guardrails emerge (e.g., scale initialization best practice).
 
 - **Phase D — Sample clipping integration**
-  - [ ] D1: Propagate DiffBragg calibration `beam_config` into `nanobrag_torch.Simulator` and allow `create_crystal_config(..., apply_n_cells=True)` when metadata provides domain counts; preserve `n_cells_applied` diagnostics.
-  - [ ] D2: Re-run DB_AT_024 selector with refined MTZ + geometry to confirm corr ≥ 0.2 and localization ≥ 0.90, capturing metrics JSON/CSV under a fresh artifact directory.
+  - [x] D1: Propagate DiffBragg calibration `beam_config` into `nanobrag_torch.Simulator` and allow `create_crystal_config(..., apply_n_cells=True)` when metadata provides domain counts; preserve `n_cells_applied` diagnostics.
+  - [x] D2: Re-run DB_AT_024 selector with refined MTZ + geometry to confirm corr ≥ 0.2 and localization ≥ 0.90, capturing metrics JSON/CSV under a fresh artifact directory.
   - [ ] D3: After thresholds pass, update `docs/TESTING_GUIDE.md` §2 and `docs/development/TEST_SUITE_INDEX.md` plus log the selector’s `--collect-only` output.
 
 ## Risks / Open Questions

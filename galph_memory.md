@@ -728,3 +728,13 @@ Notes
 - Next Actions: Ralph to wire beam_config into simulate_forward_once, re-enable calibrated `N_cells`, and rerun DB_AT_024 with new artifact capture.
 - <Action State>: [ready_for_implementation]
 2025-11-04T190041Z focus=MAP-SCALE-001 state=ready_for_implementation dwell=2 artifacts=plans/active/MAP-SCALE-001/reports/2025-11-04T185107Z/ next_action=propagate_beam_config_and_reenable_n_cells
+
+## 2025-11-04T213000Z — MAP-SCALE-001 doc/test sync setup
+- Focus: MAP-SCALE-001 — Zero-iteration mapping scale alignment
+- Action Type: planning
+- Key Observations: Confirmed DB_AT_024 artifacts from 2025-11-04T190041Z meet thresholds (corr_median=0.6206, localization_success_rate=0.9348, n_cells_applied=true); Phase D1-D2 complete, with Phase D3 doc/test sync still pending. Docs/TESTING_GUIDE.md and TEST_SUITE_INDEX continue to label the selector as provisional xfail, and SCALE-005 lacks the conditional-success note requiring beam metadata.
+- Artifact Path: plans/active/MAP-SCALE-001/reports/2025-11-04T213000Z/
+- Next Actions: Execute Phase D3 by updating DB_AT_024 documentation, refreshing SCALE-005, and capturing fresh pytest/collect-only logs under 2025-11-04T220000Z.
+- Reality Check: Exit criteria satisfied; focus remains MAP-SCALE-001 to land the remaining documentation sync instead of pivoting.
+- <Action State>: [ready_for_implementation]
+2025-11-04T213000Z focus=MAP-SCALE-001 state=ready_for_implementation dwell=2 artifacts=plans/active/MAP-SCALE-001/reports/2025-11-04T213000Z/ next_action=execute_phase_D3_doc_sync

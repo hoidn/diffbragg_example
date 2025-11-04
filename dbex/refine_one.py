@@ -219,7 +219,7 @@ def run_nanobrag_backend(args, DL, devid=0):
     print(f"[nanobrag backend] Building structure factor grid from MTZ...")
     device = torch.device('cpu')  # Force CPU for reproducibility
 
-    # Try refined MTZ first if provided, fall back to raw MTZ
+    # Try refined MTZ first if provided, FAIL if not consumed (SCALE-007)
     hkl_indices = None
     hkl_amplitudes = None
     hkl_source = "raw"  # Track telemetry: "refined" or "raw"
@@ -232,10 +232,14 @@ def run_nanobrag_backend(args, DL, devid=0):
             print(f"[nanobrag backend] Using refined structure factors from {args.refined_mtz}")
             print(f"  n_reflections={len(hkl_indices)}, mean_amplitude={hkl_amplitudes.mean():.3e}")
         except (FileNotFoundError, ValueError, ImportError) as e:
-            print(f"[nanobrag backend] WARNING: Could not load refined MTZ from {args.refined_mtz}: {e}")
-            print(f"[nanobrag backend] Falling back to raw MTZ from --mtzFile")
+            # SCALE-007: Fail fast when --refined-mtz is provided but cannot be loaded
+            raise RuntimeError(
+                f"Failed to load refined structure factors from --refined-mtz '{args.refined_mtz}': {e}\n"
+                f"When --refined-mtz is provided, refined structure factors MUST be consumed.\n"
+                f"Ensure the MTZ file exists and contains valid F(+)/F(-) or F/SIGF columns."
+            ) from e
 
-    # Use raw MTZ if refined not available
+    # Use raw MTZ if refined not requested
     if hkl_indices is None:
         hkl_indices = DL.F.indices()
         hkl_amplitudes = DL.F.data()

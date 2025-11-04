@@ -580,3 +580,106 @@ def test_torch_diagnostics_metadata():
                 assert diag.attrs['loss_mask_coverage'] == pytest.approx(0.25)
                 assert diag.attrs['n_rois'] == 1
                 assert diag.attrs['backend'] == 'nanobrag'
+
+
+@patch('dbex.data_load.DataLoad')
+def test_nanobrag_backend_refined_mtz_missing_errors(mock_DataLoad):
+    """
+    MAP-SCALE-005: Verify CLI fails fast when --refined-mtz is provided but cannot be loaded.
+
+    Validates SCALE-007 guardrail: when --refined-mtz is supplied, the CLI MUST raise
+    a RuntimeError (not SystemExit, to avoid masking stack traces) if:
+    1. The refined MTZ file does not exist
+    2. The refined MTZ file cannot be parsed
+    3. The refined MTZ file lacks expected columns
+
+    This test ensures the CLI does not silently fall back to raw MTZ when refined
+    structure factors are explicitly requested, preventing calibration metadata
+    from being ignored.
+    """
+    import tempfile
+    import sys
+    import numpy as np
+    from unittest.mock import MagicMock
+
+    # Setup: mock DataLoad to avoid file I/O
+    mock_DL_instance = MagicMock()
+    # Mock detector panels with get_pixel_size returning tuple
+    mock_panel1 = MagicMock()
+    mock_panel1.get_pixel_size.return_value = (0.1, 0.1)  # Square pixels
+    mock_panel2 = MagicMock()
+    mock_panel2.get_pixel_size.return_value = (0.1, 0.1)
+    mock_DL_instance.detector = [mock_panel1, mock_panel2]
+    mock_DL_instance.beam = MagicMock()
+    mock_DL_instance.crystal = MagicMock()
+    mock_DL_instance.Expt = MagicMock()
+    mock_DL_instance.F = MagicMock()
+    mock_DL_instance.F.indices.return_value = np.array([[0, 0, 1]], dtype=np.int32)
+    mock_DL_instance.F.data.return_value = np.array([50.0], dtype=np.float32)
+    mock_DL_instance.pids = [0, 1]
+    mock_DL_instance.bbox = [(0, 100, 0, 100), (0, 100, 0, 100)]
+    # Background image: -1 sentinel outside ROIs, 0 inside ROIs
+    background_image = np.full((2, 2527, 2463), -1.0, dtype=np.float32)
+    background_image[0, 0:100, 0:100] = 0.0  # ROI 1
+    background_image[1, 0:100, 0:100] = 0.0  # ROI 2
+    mock_DL_instance.background_image = background_image
+    mock_DL_instance.data = np.zeros((2, 2527, 2463), dtype=np.float32)
+    mock_DL_instance.trusted_mask = np.ones((2, 2527, 2463), dtype=bool)
+    mock_DataLoad.return_value = mock_DL_instance
+
+    # Create temp files
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as exp_file:
+        exp_file.write('{"fake": "experiment"}')
+        exp_file.flush()
+        exp_path = exp_file.name
+
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.refl', delete=False) as refl_file:
+        refl_path = refl_file.name
+
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.pkl', delete=False) as mask_file:
+        mask_path = mask_file.name
+
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.mtz', delete=False) as mtz_file:
+        mtz_path = mtz_file.name
+
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.h5', delete=False) as out_file:
+        out_path = out_file.name
+
+    # Nonexistent refined MTZ path
+    nonexistent_refined_mtz = "/tmp/does_not_exist_refined_12345.mtz"
+
+    try:
+        # Inject mocks into sys.modules
+        sys.modules['simtbx.diffBragg.utils'] = MagicMock()
+        sys.modules['simtbx.diffBragg.hopper_utils'] = MagicMock()
+        sys.modules['score_trainer'] = MagicMock()
+        sys.modules['score_trainer.roi_check'] = MagicMock()
+
+        from dbex.refine_one import main
+
+        # Test 1: FileNotFoundError when refined MTZ does not exist
+        with pytest.raises(RuntimeError) as exc_info:
+            main([
+                '-e', exp_path,
+                '-r', refl_path,
+                '-i', '0',
+                '-o', out_path,
+                '-m', mask_path,
+                '-z', mtz_path,
+                '--refined-mtz', nonexistent_refined_mtz,
+                '--backend', 'nanobrag'
+            ])
+
+        # Verify error message is actionable and mentions the flag
+        error_msg = str(exc_info.value)
+        assert "--refined-mtz" in error_msg, f"Error message should reference --refined-mtz flag: {error_msg}"
+        assert nonexistent_refined_mtz in error_msg, f"Error message should include the path provided: {error_msg}"
+        assert "MUST be consumed" in error_msg, f"Error message should explain the enforcement: {error_msg}"
+
+    finally:
+        import os
+        for path in [exp_path, refl_path, mask_path, mtz_path, out_path]:
+            try:
+                os.unlink(path)
+            except OSError:
+                pass

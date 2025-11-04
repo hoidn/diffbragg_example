@@ -603,3 +603,12 @@ Notes
 - Reality Check: Assets (`scaled.mtz`, `refGeom.*`, `747_mask.pkl`) present; DB_AT_022 remains Planned in testing registry; work ready to advance to implementation.
 - <Action State>: [planning]
 2025-11-04T050402Z focus=DB-AT-022 state=planning dwell=0 artifacts=plans/active/DB-AT-022/reports/2025-11-04T050402Z/ next_action=deliver_do_now_for_sentinel_guard
+## 2025-11-04T052222Z — DB-AT-023 calibration guard planning kickoff
+- Focus: DB-AT-023 — Calibration policy guard
+- Action Type: planning
+- Key Observations: Confirmed canonical pipeline remains ADU-valued (data_mean=1.26, ROI_sum=279 ADU vs background 207), so photon conversion must hang off explicit `--adu-per-photon` plumbing; recorded normative sources across spec workflow, architecture ADR-02, and config crosswalk to guide guardrails. Authored implementation plan (Phases A-C) and seeded report summary with calibration probe output.
+- Artifact Path: plans/active/DB-AT-023/reports/2025-11-04T052222Z/
+- Next Actions: Draft Do Now covering CLI `--adu-per-photon` wiring, bridge conversion metadata, DB_AT_023 acceptance tests, and documentation sync.
+- Reality Check: DB_AT_020/021/022 prerequisites complete; assets available; selector still Planned in testing docs.
+- <Action State>: [planning]
+2025-11-04T052222Z focus=DB-AT-023 state=planning dwell=0 artifacts=plans/active/DB-AT-023/reports/2025-11-04T052222Z/ next_action=prepare_do_now_for_calibration_guard

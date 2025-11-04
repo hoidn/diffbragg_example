@@ -446,3 +446,14 @@ Notes
 - Next Actions: Patch compute_roi_metrics to emit peak offsets+filenames, regenerate canonical dataset locally via scripts/generate_simple_cubic_golden.py, rerun DB_AT_001 parity smoke with artifacts in the new report directory.
 - Reality Check: Exit criteria unmet; canonical tensors and parity metrics remain stale in this repo, so next loop must execute the implementation+pytest Do Now.
 - <Action State>: [ready_for_implementation]
+
+## 2025-11-04T002805Z — NANOBRAG-GOLDEN-001 detector pivot alignment plan
+- Focus: NANOBRAG-GOLDEN-001 — Replace fallback DB-AT-001 golden dataset
+- Action Type: planning
+- Key Observations: Replayed torch vs DiffBragg arrays confirmed a global shift (torch peak at [1315,1701] vs DiffBragg [1308,1700]); manual instantiation of `nanobrag_torch.Detector` showed CUSTOM basis vectors force SAMPLE pivot with `distance_corrected=-0.231m` and beam center drift. Switching to DIALS convention with XYZ rotation angles preserved the refGeom beam center exactly, validating that bridge should emit rotations instead of custom vectors. Updated fix_plan Attempts History and Phase A plan with new A4 geometry task; drafted Do Now instructing Ralph to refactor create_detector_config, regenerate canonical tensors, compute offsets, and rerun DB_AT_001 parity.
+- Artifact Path: plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T011500Z/
+- Next Actions: Implement DIALS-rotation DetectorConfig (keep BEAM pivot), rerun canonical generator with new report timestamp, capture offset stats, and execute parity pytest per Do Now.
+- Reality Check: Canonical tensors still misaligned (median_abs_offset≈5 px) and fixtures reference prior checkout; geometry fix remains prerequisite before tightening parity thresholds.
+- <Action State>: [ready_for_implementation]
+
+2025-11-04T002805Z focus=NANOBRAG-GOLDEN-001 state=ready_for_implementation dwell=20 artifacts=plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T011500Z/ next_action=refactor_detector_config_BEAM_pivot

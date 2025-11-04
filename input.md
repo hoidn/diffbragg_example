@@ -1,83 +1,50 @@
-**Summary**: Capture per-ROI peak offsets, regenerate canonical tensors inside this checkout, and rerun DB_AT_001 parity smoke to localize the torch vs DiffBragg misalignment.
-**Mode**: Parity
+**Summary**: Realign nanobrag detector geometry so torch peaks land on DiffBragg pixels for DB_AT_001 parity.
+**Mode**: none
 **Focus**: NANOBRAG-GOLDEN-001 — Replace fallback DB-AT-001 golden dataset
 **Branch**: integration
 **Mapped tests**: KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py::TestDB_AT_001_Parity::test_db_at_001_parity_smoke
-**Artifacts**: plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T000201Z/
+**Artifacts**: plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T011500Z/
 
-**Do Now (hard validity contract)**
-- Focus Item: NANOBRAG-GOLDEN-001
-- Implement: scripts/generate_simple_cubic_golden.py::compute_roi_metrics — log per-ROI torch/diff peak coordinates, offsets, and emitted `roi_XXXX.npz` filenames so parity gaps can be traced without ad-hoc probes.
-- Validate: KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py::TestDB_AT_001_Parity::test_db_at_001_parity_smoke
-- Artifacts: plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T000201Z/
+**Do Now (hard validity contract)**  
+- Implement: dbex/nanobrag_bridge.py::create_detector_config — emit DIALS-convention XYZ rotation angles (no CUSTOM vectors) so DetectorConfig stays in BEAM pivot and preserves the refGeom beam center.  
+- Validate: KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py::TestDB_AT_001_Parity::test_db_at_001_parity_smoke  
+- Artifacts: plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T011500Z/
 
 **Priorities & Rationale**
-- docs/spec-db-tracing.md:12 — First-divergence workflow expects peak metadata to accompany triptych dumps before tightening thresholds.
-- docs/findings.md:13 — MANIFEST-001 requires canonical generators to emit artifacts within the active workspace; regeneration must stay local.
-- docs/findings.md:15 — SCALE-002 mandates consistent post-sim scaling; logging offsets ensures we don’t regress while re-running the capture.
-- docs/spec-db-conformance.md:23 — DB_AT_001 metrics must trend upward; parity smoke remains the acceptance checkpoint.
+- Geometry parity (docs/config_crosswalk.md:22-37) demands canonical tensors share `[panel, slow, fast]` alignment; eliminating the 6 px offset is prerequisite for Exit Criteria 1.  
+- docs/nanobrag_api.md:32-45 documents pivot behavior; staying in BEAM mode ensures beam-center provenance required by specs/spec-db-conformance.md:23-26.  
+- specs/forward_equivalence.md:21-37 requires tight ROI metrics before manifest/test enforcement; geometry drift currently blocks these thresholds.
 
 **How-To Map**
-1. export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
-2. export LOOP_TS=2025-11-04T000201Z; export REPORT_DIR=plans/active/NANOBRAG-GOLDEN-001/reports/$LOOP_TS; mkdir -p "$REPORT_DIR" "$REPORT_DIR/golden_dataset" "$REPORT_DIR/roi_triptychs"
-3. Update `compute_roi_metrics` to capture torch/diff peak coordinates, compute `(dy, dx)` offsets, and include the corresponding `roi_XXXX.npz` filename in both the returned records and `index.json`; ensure existing sampling/seed logic stays deterministic.
-4. Re-run `scripts/generate_simple_cubic_golden.py` with local paths: `PYTHONPATH=../nanoBragg/src:$PYTHONPATH KMP_DUPLICATE_LIB_OK=TRUE python scripts/generate_simple_cubic_golden.py --canonical-out "$REPORT_DIR/golden_dataset" --hkldebug "$REPORT_DIR/torch_hkl_debug.json" --emit-manifest --fixtures tests/fixtures/golden_data/simple_cubic --roi-dump "$REPORT_DIR/roi_triptychs" | tee "$REPORT_DIR/canonical_capture.log"`
-5. python - <<'PY' > "$REPORT_DIR/roi_offsets.json"
-import json, math, os, pathlib
-report = pathlib.Path(os.environ["REPORT_DIR"])
-index_path = report/"roi_triptychs"/"index.json"
-index = json.loads(index_path.read_text()) if index_path.exists() else {}
-logs = {"n_dumps": index.get("n_dumps"), "max_abs_offset": 0.0, "median_abs_offset": 0.0, "samples": []}
-offsets = []
-for sample in index.get('samples', []):
-    torch_peak = sample.get('torch_peak')
-    diff_peak = sample.get('diff_peak')
-    if torch_peak and diff_peak:
-        dy = torch_peak[0] - diff_peak[0]
-        dx = torch_peak[1] - diff_peak[1]
-        offsets.append(math.hypot(dy, dx))
-        logs['samples'].append({
-            'roi_idx': sample.get('roi_idx'),
-            'panel_id': sample.get('panel_id'),
-            'dy': dy,
-            'dx': dx,
-            'filename': sample.get('filename')
-        })
-if offsets:
-    offsets.sort()
-    logs['max_abs_offset'] = max(offsets)
-    logs['median_abs_offset'] = offsets[len(offsets)//2]
-print(json.dumps(logs, indent=2))
-PY
-find "$REPORT_DIR/roi_triptychs" -maxdepth 1 -name 'roi_*.npz' -print > "$REPORT_DIR/roi_npz_listing.txt"
-6. KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py::TestDB_AT_001_Parity::test_db_at_001_parity_smoke | tee "$REPORT_DIR/pytest_db_at_001.log"
-7. Append metrics + artifact pointers to docs/fix_plan.md Attempts History and stash parity notes under "$REPORT_DIR/"
+- `export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md`
+- `PYTHONPATH=../nanoBragg/src:$PYTHONPATH KMP_DUPLICATE_LIB_OK=TRUE python scripts/generate_simple_cubic_golden.py --canonical-out plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T011500Z/golden_dataset --hkldebug plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T011500Z/torch_hkl_debug.json --emit-manifest --fixtures tests/fixtures/golden_data/simple_cubic --roi-dump plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T011500Z/roi_triptychs`
+- `python - <<'PY'\nimport json\nimport numpy as np\nfrom pathlib import Path\nreport = Path('plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T011500Z')\ntriptych_index = report/'roi_triptychs/index.json'\nif triptych_index.exists():\n    data = json.loads(triptych_index.read_text())\n    offsets = [abs(sample['dy']) + abs(sample['dx']) for sample in data.get('samples', [])]\n    stats = {\n        'n_samples': len(offsets),\n        'median_abs_offset': float(np.median(np.abs(offsets))) if offsets else 0.0,\n        'max_abs_offset': float(np.max(np.abs(offsets))) if offsets else 0.0,\n    }\nelse:\n    base = Path('tests/fixtures/golden_data/simple_cubic')\n    diff = np.load(base/'bragg_diffbragg.npy')[0]\n    torch = np.load(base/'bragg_torch.npy')[0]\n    idx_diff = np.array(np.unravel_index(diff.argmax(), diff.shape))\n    idx_torch = np.array(np.unravel_index(torch.argmax(), torch.shape))\n    shift = (idx_torch - idx_diff).tolist()\n    stats = {\n        'n_samples': 1,\n        'median_abs_offset': float(np.linalg.norm(shift, ord=1)),\n        'max_abs_offset': float(np.linalg.norm(shift, ord=1)),\n        'offset_vector': shift,\n    }\n(report/'roi_offsets.json').write_text(json.dumps(stats, indent=2))\nPY`
+- `KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_db_at_001_parity.py::TestDB_AT_001_Parity::test_db_at_001_parity_smoke | tee plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T011500Z/pytest_db_at_001.log`
 
 **Pitfalls To Avoid**
-- No package installs (Environment Freeze)
-- Keep roi_dump payloads inside this repo; do not reference `_2` checkout paths
-- Preserve float32/bool dtypes when writing `.npz`
-- Respect deterministic RNG seed for ROI sampling
-- Avoid mutating manifest schema beyond adding offset metadata references
-- Don’t drop existing metrics fields from `index.json`
-- Preserve `[panel, slow, fast]` ordering when slicing
-- Keep torch post-sim scaling (√scale) unchanged while adding logging
-- Capture command outputs if failures occur (redirect to blocker log)
+- Do not reintroduce `DetectorConvention.CUSTOM`; it forces SAMPLE pivot and recreates the 6 px drift.  
+- Keep beam-center mm values swapped (slow→s, fast→f) per docs/nanobrag_api.md:28 to avoid axis inversion.  
+- Preserve SCALE-002 post-simulation scaling; do not tweak intensity normalization.  
+- Ensure ROI `.npz` payloads are written inside this checkout before updating manifests (MANIFEST-001).  
+- Respect Environment Freeze: no package installs or edits outside repo; treat missing imports as blockers.  
+- Retain trusted mask polarity (True=include) when regenerating metrics.  
+- Do not drop existing findings or change xfail reason in parity test.
 
 **If Blocked**
-- Save failing command output to "$REPORT_DIR/blocker.log", update docs/fix_plan.md Attempts History with Metrics:/Artifacts: placeholders and unblock criteria, mark the focus blocked, and record the block & return conditions in galph_memory.md.
+- If `nanobrag_torch` import fails, capture the stack trace tail, note blocker in docs/fix_plan.md Attempts History, and halt without edits.  
+- If canonical generator exits non-zero, preserve `canonical_capture.log`, record failure signature in `plans/.../reports/2025-11-04T011500Z/` and flag focus as blocked in galph_memory.md.  
+- Should pytest selector collect 0 tests, downgrade mapped selector status in docs/TESTING_GUIDE.md and record the gap before exiting.
 
 **Findings Applied (Mandatory)**
-- MANIFEST-001 — Regenerate tensors and manifests within this checkout, error if payloads missing.
-- SCALE-002 — Retain √(spot_scale_override) scaling before logging offsets.
-- PARITY-001 — Enrich first-divergence artifacts with localized metadata for ROI inspection.
-- CONFIG-001 — Ensure mask/axis contracts remain `[panel, slow, fast]` when writing offsets.
-- TESTING-003 — Parity selector stays Active; capture pytest log in artifacts.
+- MANIFEST-001 — verify regenerated tensors reside in this workspace before manifest emission.  
+- SCALE-002 — retain √scale post-simulation factor when comparing torch vs DiffBragg outputs.  
+- HKL-ORIENT-001 — keep beam vector sample→source (`-s0/||s0||`) to avoid HKL miss rate regressions.
 
 **Pointers**
-- docs/spec-db-tracing.md:12
-- docs/findings.md:13
-- docs/spec-db-conformance.md:23
-- plans/active/NANOBRAG-GOLDEN-001/implementation.md:1
+- docs/config_crosswalk.md:22  
+- docs/nanobrag_api.md:32  
+- docs/TESTING_GUIDE.md:86  
+- docs/forward_equivalence.md:21
 
-**Next Up (optional)**: Investigate torch detector geometry (beam center / basis vectors) once peak offsets are logged.
+**Next Up (optional)**
+- Tighten DB_AT_001 parity thresholds after geometry alignment if localization ≥90% is achieved.

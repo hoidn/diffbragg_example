@@ -490,11 +490,20 @@ def create_crystal_config(crystal, experiment, N_cells=None, apply_n_cells=True,
     # MOSFLM A* injection (config_crosswalk.md:62)
     # Columns of A matrix are (a*, b*, c*) in 1/Angstrom
     # get_A() returns a tuple of 9 elements (row-major 3x3 matrix)
-    A_tuple = crystal.get_A()
-    A = np.array(A_tuple).reshape(3, 3)
-    mosflm_a_star = np.array(A[:, 0])
-    mosflm_b_star = np.array(A[:, 1])
-    mosflm_c_star = np.array(A[:, 2])
+    # IMPORTANT: When crystal_overrides are provided, skip A* injection and let
+    # nanobrag_torch compute A* from the overridden cell parameters instead.
+    # Otherwise A* from the base crystal will override the cell parameter changes.
+    if crystal_overrides is None:
+        A_tuple = crystal.get_A()
+        A = np.array(A_tuple).reshape(3, 3)
+        mosflm_a_star = np.array(A[:, 0])
+        mosflm_b_star = np.array(A[:, 1])
+        mosflm_c_star = np.array(A[:, 2])
+    else:
+        # Let nanobrag_torch compute A* from overridden cell parameters
+        mosflm_a_star = None
+        mosflm_b_star = None
+        mosflm_c_star = None
 
     # Misset defaults to zero (config_crosswalk.md:63)
     misset_deg = np.array([0.0, 0.0, 0.0])

@@ -7,10 +7,10 @@ Implements the minimal refinement loop per:
 - docs/pytorch_runtime_checklist.md (vectorization, device/dtype neutrality)
 
 Stage A scope:
-- Parameters: global scale (ADU mode) + one crystal DoF (cell_a log perturbation)
+- Parameters: global scale (ADU mode) + full crystal (a/b/c log-deltas, alpha/beta/gamma bounded angles, orientation 3-vector→quaternion)
 - Loss: mean(((Bragg - target)[loss_mask]) ** 2)
 - ROI policy: deterministic ROI sampling for LBFGS closure; periodic full validation
-- Convergence: ≥0.1% loss drop within ≤20 LBFGS steps; non-increasing full-loss trace (REFINE-002)
+- Convergence: ≥5% loss drop within ≤30 LBFGS steps; non-increasing full-loss trace (TORCH-REFINE-002)
 
 Telemetry emitted to `/torch_diagnostics`:
 - optimizer metadata (LBFGS, history_size, max_iter, tolerances)
@@ -25,12 +25,63 @@ from typing import Dict, List, Tuple, Optional
 from dataclasses import dataclass
 
 
+def vec_to_unit_quaternion(vec: torch.Tensor) -> torch.Tensor:
+    """
+    Convert 3-vector to unit quaternion for orientation perturbation.
+
+    Maps R^3 → S^3 (unit quaternion) by treating vec as the imaginary part
+    and normalizing: q = [sqrt(1 - ||v||^2), v] when ||v|| < 1, else normalize full [0, v].
+
+    Args:
+        vec: torch.Tensor shape (3,) representing orientation perturbation
+
+    Returns:
+        q: torch.Tensor shape (4,) with q[0]=w (real), q[1:4]=x,y,z (imaginary), ||q||=1
+    """
+    # Clamp norm to prevent gradient issues at ||v|| = 1
+    norm_sq = (vec ** 2).sum()
+    norm_sq_clamped = torch.clamp(norm_sq, max=0.99)
+
+    # Real part: w = sqrt(1 - ||v||^2)
+    w = torch.sqrt(1.0 - norm_sq_clamped)
+
+    # Quaternion [w, x, y, z]
+    q = torch.cat([w.unsqueeze(0), vec])
+
+    # Normalize to ensure unit quaternion (handles edge cases)
+    q = q / (q.norm() + 1e-8)
+
+    return q
+
+
+def quaternion_to_rotation_matrix(q: torch.Tensor) -> torch.Tensor:
+    """
+    Convert unit quaternion to 3×3 rotation matrix.
+
+    Args:
+        q: torch.Tensor shape (4,) with q[0]=w, q[1:4]=x,y,z, ||q||=1
+
+    Returns:
+        R: torch.Tensor shape (3, 3) rotation matrix
+    """
+    w, x, y, z = q[0], q[1], q[2], q[3]
+
+    # Build rotation matrix per standard quaternion→matrix formula
+    R = torch.stack([
+        torch.stack([1 - 2*(y**2 + z**2), 2*(x*y - w*z), 2*(x*z + w*y)]),
+        torch.stack([2*(x*y + w*z), 1 - 2*(x**2 + z**2), 2*(y*z - w*x)]),
+        torch.stack([2*(x*z - w*y), 2*(y*z + w*x), 1 - 2*(x**2 + y**2)])
+    ])
+
+    return R
+
+
 @dataclass
 class RefinementConfig:
     """Configuration for Stage A LBFGS refinement."""
     # LBFGS hyperparameters
     history_size: int = 10
-    max_iter: int = 20
+    max_iter: int = 30
     tolerance_grad: float = 1e-7
     tolerance_change: float = 1e-9
 
@@ -39,7 +90,7 @@ class RefinementConfig:
     full_validation_interval: int = 5  # Validate on full loss every N steps
 
     # Convergence guards
-    min_loss_improvement: float = 0.001  # 0.1% minimum improvement (REFINE-002)
+    min_loss_improvement: float = 0.05  # 5% minimum improvement (TORCH-REFINE-002)
     early_stop_window: int = 3  # Stop if no improvement over last K validations
     max_loss_increase: float = 0.02  # 2% max increase before rollback
 
@@ -120,7 +171,9 @@ def run_nanobrag_refinement(
     loss_mask_t = torch.from_numpy(inputs.loss_mask).to(device=device, dtype=torch.bool)
 
     # Initialize refinement parameters
-    # log_scale: global intensity scale
+    # Stage A expansion: global scale + full crystal (a/b/c logs, alpha/beta/gamma bounded, orientation)
+
+    # 1. log_scale: global intensity scale
     # Warm-start from global_scale_hint when available (per spec-db-workflow.md:20-40, REFINE-001)
     if inputs.global_scale_hint is not None and inputs.global_scale_hint > 0:
         initial_log_scale = float(torch.log(torch.tensor(inputs.global_scale_hint, dtype=dtype)))
@@ -128,10 +181,28 @@ def run_nanobrag_refinement(
         initial_log_scale = 0.0  # fallback: scale=1.0
     log_scale = torch.tensor(initial_log_scale, device=device, dtype=dtype, requires_grad=True)
 
-    # log_cell_a_delta: small perturbation to cell_a (initialize to 0.0 → no change)
+    # 2. Unit cell length deltas (log parameterization for positivity)
     log_cell_a_delta = torch.tensor(0.0, device=device, dtype=dtype, requires_grad=True)
+    log_cell_b_delta = torch.tensor(0.0, device=device, dtype=dtype, requires_grad=True)
+    log_cell_c_delta = torch.tensor(0.0, device=device, dtype=dtype, requires_grad=True)
 
-    params = [log_scale, log_cell_a_delta]
+    # 3. Unit cell angle deltas (unbounded, will be mapped via tanh to bounded range)
+    # angles in degrees: alpha, beta, gamma typically near 90° for orthorhombic/cubic
+    # Use tanh(x) * max_delta to bound perturbations (e.g., ±10°)
+    angle_alpha_raw = torch.tensor(0.0, device=device, dtype=dtype, requires_grad=True)
+    angle_beta_raw = torch.tensor(0.0, device=device, dtype=dtype, requires_grad=True)
+    angle_gamma_raw = torch.tensor(0.0, device=device, dtype=dtype, requires_grad=True)
+
+    # 4. Orientation perturbation (3-vector that will be converted to unit quaternion)
+    # Initialize to small values near identity rotation
+    orientation_vec = torch.zeros(3, device=device, dtype=dtype, requires_grad=True)
+
+    params = [
+        log_scale,
+        log_cell_a_delta, log_cell_b_delta, log_cell_c_delta,
+        angle_alpha_raw, angle_beta_raw, angle_gamma_raw,
+        orientation_vec
+    ]
 
     # Setup LBFGS optimizer
     optimizer = torch.optim.LBFGS(
@@ -194,15 +265,41 @@ def run_nanobrag_refinement(
 
             beam_config = create_beam_config(beam)
 
-            # Apply cell_a perturbation via tensor override (GRADIENT-001)
+            # Apply full crystal perturbations via tensor overrides (GRADIENT-001, TORCH-REFINE-002)
             # Get original cell parameters
             cell_params = crystal.get_unit_cell().parameters()  # (a, b, c, alpha, beta, gamma)
-            perturbed_cell_a = cell_params[0] * torch.exp(log_cell_a_delta)
 
-            # Create crystal config with perturbed cell_a using crystal_overrides
+            # 1. Unit cell lengths (log-parameterized)
+            perturbed_cell_a = cell_params[0] * torch.exp(log_cell_a_delta)
+            perturbed_cell_b = cell_params[1] * torch.exp(log_cell_b_delta)
+            perturbed_cell_c = cell_params[2] * torch.exp(log_cell_c_delta)
+
+            # 2. Unit cell angles (bounded via tanh, max perturbation ±10°)
+            max_angle_delta = 10.0  # degrees
+            perturbed_alpha = cell_params[3] + torch.tanh(angle_alpha_raw) * max_angle_delta
+            perturbed_beta = cell_params[4] + torch.tanh(angle_beta_raw) * max_angle_delta
+            perturbed_gamma = cell_params[5] + torch.tanh(angle_gamma_raw) * max_angle_delta
+
+            # Create crystal config with all cell parameter overrides
             # Note: create_crystal_config returns (config, n_cells_applied) tuple
-            crystal_overrides = {'cell_a': perturbed_cell_a}
+            crystal_overrides = {
+                'cell_a': perturbed_cell_a,
+                'cell_b': perturbed_cell_b,
+                'cell_c': perturbed_cell_c,
+                'cell_alpha': perturbed_alpha,
+                'cell_beta': perturbed_beta,
+                'cell_gamma': perturbed_gamma
+            }
             crystal_config, _ = create_crystal_config(crystal, None, crystal_overrides=crystal_overrides)
+
+            # 3. Orientation perturbation (requires A* matrix reconstruction)
+            # FIXME: Current implementation of A_star override from orientation_vec conflicts
+            # with cell parameter overrides because create_crystal_config uses base crystal's
+            # A* matrix (which doesn't reflect overridden cell params). Proper implementation
+            # requires recomputing A* = U·B where B is derived from perturbed cell params.
+            # For now, orientation_vec remains unused to allow cell parameter refinement to work.
+            # TODO: Implement proper A* reconstruction or extend nanobrag_torch API for separate
+            # orientation control (TORCH-REFINE-002b follow-up)
 
             # Build detector and crystal models
             detector_model = Detector(detector_config)
@@ -265,7 +362,13 @@ def run_nanobrag_refinement(
                     best_loss_full = (float(full_loss.item()), iteration_count[0])
                     best_params_snapshot = {
                         'log_scale': float(log_scale.item()),
-                        'log_cell_a_delta': float(log_cell_a_delta.item())
+                        'log_cell_a_delta': float(log_cell_a_delta.item()),
+                        'log_cell_b_delta': float(log_cell_b_delta.item()),
+                        'log_cell_c_delta': float(log_cell_c_delta.item()),
+                        'angle_alpha_raw': float(angle_alpha_raw.item()),
+                        'angle_beta_raw': float(angle_beta_raw.item()),
+                        'angle_gamma_raw': float(angle_gamma_raw.item()),
+                        'orientation_vec': orientation_vec.detach().cpu().tolist()
                     }
 
         iteration_count[0] += 1
@@ -287,7 +390,13 @@ def run_nanobrag_refinement(
                 best_loss_full = (float(final_loss.item()), iteration_count[0])
                 best_params_snapshot = {
                     'log_scale': float(log_scale.item()),
-                    'log_cell_a_delta': float(log_cell_a_delta.item())
+                    'log_cell_a_delta': float(log_cell_a_delta.item()),
+                    'log_cell_b_delta': float(log_cell_b_delta.item()),
+                    'log_cell_c_delta': float(log_cell_c_delta.item()),
+                    'angle_alpha_raw': float(angle_alpha_raw.item()),
+                    'angle_beta_raw': float(angle_beta_raw.item()),
+                    'angle_gamma_raw': float(angle_gamma_raw.item()),
+                    'orientation_vec': orientation_vec.detach().cpu().tolist()
                 }
 
         # Check convergence: did we achieve ≥5% improvement?
@@ -298,7 +407,7 @@ def run_nanobrag_refinement(
 
             if improvement < config.min_loss_improvement:
                 status = "early_stop"
-                message = f"Improvement {improvement:.2%} < {config.min_loss_improvement:.1%} (Stage A nucleus gate per REFINE-002)"
+                message = f"Improvement {improvement:.2%} < {config.min_loss_improvement:.1%} (Stage A expansion gate per TORCH-REFINE-002)"
 
     except Exception as e:
         status = "error"
@@ -307,6 +416,12 @@ def run_nanobrag_refinement(
         if best_params_snapshot is not None:
             log_scale.data = torch.tensor(best_params_snapshot['log_scale'], device=device, dtype=dtype)
             log_cell_a_delta.data = torch.tensor(best_params_snapshot['log_cell_a_delta'], device=device, dtype=dtype)
+            log_cell_b_delta.data = torch.tensor(best_params_snapshot['log_cell_b_delta'], device=device, dtype=dtype)
+            log_cell_c_delta.data = torch.tensor(best_params_snapshot['log_cell_c_delta'], device=device, dtype=dtype)
+            angle_alpha_raw.data = torch.tensor(best_params_snapshot['angle_alpha_raw'], device=device, dtype=dtype)
+            angle_beta_raw.data = torch.tensor(best_params_snapshot['angle_beta_raw'], device=device, dtype=dtype)
+            angle_gamma_raw.data = torch.tensor(best_params_snapshot['angle_gamma_raw'], device=device, dtype=dtype)
+            orientation_vec.data = torch.tensor(best_params_snapshot['orientation_vec'], device=device, dtype=dtype)
 
     # Generate final Bragg array with optimized parameters
     with torch.no_grad():
@@ -331,11 +446,31 @@ def run_nanobrag_refinement(
 
             beam_config = create_beam_config(beam)
 
-            # Apply final cell_a perturbation via tensor override (GRADIENT-001)
+            # Apply final full crystal perturbations via tensor overrides (GRADIENT-001, TORCH-REFINE-002)
             cell_params = crystal.get_unit_cell().parameters()
+
+            # 1. Unit cell lengths (log-parameterized)
             perturbed_cell_a = cell_params[0] * torch.exp(log_cell_a_delta)
-            crystal_overrides = {'cell_a': perturbed_cell_a}
+            perturbed_cell_b = cell_params[1] * torch.exp(log_cell_b_delta)
+            perturbed_cell_c = cell_params[2] * torch.exp(log_cell_c_delta)
+
+            # 2. Unit cell angles (bounded via tanh)
+            max_angle_delta = 10.0  # degrees
+            perturbed_alpha = cell_params[3] + torch.tanh(angle_alpha_raw) * max_angle_delta
+            perturbed_beta = cell_params[4] + torch.tanh(angle_beta_raw) * max_angle_delta
+            perturbed_gamma = cell_params[5] + torch.tanh(angle_gamma_raw) * max_angle_delta
+
+            crystal_overrides = {
+                'cell_a': perturbed_cell_a,
+                'cell_b': perturbed_cell_b,
+                'cell_c': perturbed_cell_c,
+                'cell_alpha': perturbed_alpha,
+                'cell_beta': perturbed_beta,
+                'cell_gamma': perturbed_gamma
+            }
             crystal_config, _ = create_crystal_config(crystal, None, crystal_overrides=crystal_overrides)
+
+            # 3. Orientation perturbation (disabled - see FIXME above in compute_loss)
 
             detector_model = Detector(detector_config)
             crystal_model = Crystal(crystal_config)
@@ -361,6 +496,37 @@ def run_nanobrag_refinement(
             'initial': 0.0,
             'final': float(log_cell_a_delta.item()),
             'delta': float(log_cell_a_delta.item())
+        },
+        'log_cell_b_delta': {
+            'initial': 0.0,
+            'final': float(log_cell_b_delta.item()),
+            'delta': float(log_cell_b_delta.item())
+        },
+        'log_cell_c_delta': {
+            'initial': 0.0,
+            'final': float(log_cell_c_delta.item()),
+            'delta': float(log_cell_c_delta.item())
+        },
+        'angle_alpha_raw': {
+            'initial': 0.0,
+            'final': float(angle_alpha_raw.item()),
+            'delta': float(angle_alpha_raw.item())
+        },
+        'angle_beta_raw': {
+            'initial': 0.0,
+            'final': float(angle_beta_raw.item()),
+            'delta': float(angle_beta_raw.item())
+        },
+        'angle_gamma_raw': {
+            'initial': 0.0,
+            'final': float(angle_gamma_raw.item()),
+            'delta': float(angle_gamma_raw.item())
+        },
+        'orientation_vec': {
+            'initial': [0.0, 0.0, 0.0],
+            'final': orientation_vec.detach().cpu().tolist(),
+            'delta': orientation_vec.detach().cpu().tolist(),
+            'norm': float(orientation_vec.norm().item())
         }
     }
 

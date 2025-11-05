@@ -12,6 +12,20 @@
 
 ## Active Initiatives
 
+### [PERF-WARM-SIM-001] Warm simulator; eliminate per-iteration re-instantiation
+- Depends on: `nanobrag_torch` simulator in place; current refinement loops in `dbex/nanobrag_refinement.py`.
+- Status: pending (2025-11-05)
+- Priority: high (perf focus)
+- Owner/Date: Team / 2025-11-05
+- Exit Criteria:
+  1. 2–5× speedup on CPU for Stage A smoke selector with identical dataset/seed; documented baseline vs improved timings.
+  2. Numeric parity within existing tolerances for Stage A; where applicable for B/C.
+  3. Perf telemetry (closure evals, forward time, validations) added under `/torch_diagnostics` without breaking existing consumers.
+  4. No environment/toolchain changes; tests remain deterministic.
+- Working Plan: `plans/active/PERF-WARM-SIM-001/implementation.md`
+- Attempts History:
+  * 2025-11-05T111800Z (planning) — Authored implementation plan to introduce stage-scoped context and parameter-only updates; identified hotspots (Detector/Crystal/Simulator rebuilds; mask retensoring; frequent full validations) and outlined telemetry additions + micro-bench artifacts.
+
 ### [REPORT-NANOBRAG-STATUS-001] Nanobrag Progress Reporting Pack
 - Depends on: `plans/nanobrag_integration_plan.md` Phase 5 (Validation & Documentation); torch backend HDF5 outputs with `/torch_diagnostics`.
 - Status: in_progress (2025-11-05)

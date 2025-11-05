@@ -1,5 +1,5 @@
 ### Turn Summary
-Catalogued the Stage B full-suite regression and refreshed TORCH-REFINE-004 plans/input to target the bridge mask contract fix.
-Documented that create_detector_config must keep emitting torch masks (CLI-001) and updated config_crosswalk so specs match reality while tests still expect the old path.
-Next: Ralph updates the bridge mask coercion + test per new Do Now and reruns the bridge + Stage B selectors.
-Artifacts: plans/active/TORCH-REFINE-004/reports/2025-11-05T200729Z/
+Tightened bridge mask contract to use `torch.as_tensor` with explicit float32 dtype and added 0/1-value assertions so CLI-001 compliance stays verifiable.
+Updated test to handle torch.Tensor masks via `torch.is_floating_point` check; reverted automatic linter addition of `custom_beam_vector` which broke Stage B torch.compile.
+Next: re-run CLI refine-one telemetry smoke once bridge/test contract stabilizes to ensure mask asserts stay silent end-to-end.
+Artifacts: plans/active/TORCH-REFINE-004/reports/2025-11-05T200729Z/ (pytest_bridge_mask.log, pytest_stage_b_regression.log)

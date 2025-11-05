@@ -201,6 +201,15 @@ Optimizer Telemetry (to HDF5 `/torch_diagnostics`):
 - `param_deltas`: per-parameter initial → final snapshot (small JSON with names and deltas)
 - `status`: "ok|early_stop|rollback|error" and `message` for failures
 
+Gradient Boundaries (clarification):
+- Bridge outputs (targets, masks, telemetry) are numpy/CPU and non‑differentiable by design.
+- The differentiable surface begins in refinement: convert inputs to torch tensors once, then keep them on the autograd path through `nanobrag_torch` and the masked‑MSE loss.
+- Prohibited anywhere on the optimization path (closure and callees): `.cpu()`, `.detach()`, `.numpy()`, `.item()` on values that influence the forward pass, or `with torch.no_grad()`.
+- Allowed detaches: zero‑iteration diagnostics, ROI viewer, HDF5 writes — only outside the LBFGS step/closure.
+- Stage B requires differentiable HKL sampling (e.g., tricubic interpolation); if not enabled, Stage B remains out‑of‑scope for that loop.
+- Calibration metadata (spot_scale_override, flux/exposure, N_cells) are constants unless explicitly promoted to trainable parameters.
+- Test‑only helpers (`simulate_forward_torch`, `compute_masked_mse_loss`) exist for DB‑AT‑010 and MUST NOT be invoked by the production optimization closure.
+
 Acceptance for the Nucleus (Stage A):
 - On canonical assets, masked MSE decreases by ≥ X% (e.g., 5–10%) within N≤20 LBFGS steps on the deterministic ROI sample and is non-increasing across the last K validations (K≈3) on the full frame
 - `param_deltas` show non-zero updates for at least the chosen DoF and the scale parameter

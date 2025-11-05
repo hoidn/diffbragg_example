@@ -37,6 +37,13 @@ Optimization Strategy (Normative)
 - ROI minibatching MAY be used inside the L‑BFGS closure for cost control, provided periodic full‑image validation confirms descent (documented in logs).
 - Stage B (optional shell modifiers) MAY use L‑BFGS or Adam; default SHOULD be L‑BFGS unless ROI minibatching proves impractical.
 
+Gradient Hygiene (Normative)
+- Inputs to optimization MUST be torch tensors constructed at loop start; the loss MUST be computed purely from torch tensors on the same graph.
+- The optimization path (LBFGS closure and any functions it calls) MUST NOT call `.cpu()`, `.detach()`, `.numpy()`, `.item()`, or run under `with torch.no_grad()` for values that influence the forward pass.
+- HDF5 persistence and viewer artifacts MUST be written from detached copies outside the optimization step.
+- Stage parameter sets MUST be enumerated per stage; non‑active parameters are treated as constants.
+- Stage B MAY run only when differentiable HKL interpolation (e.g., tricubic) is enabled; otherwise Stage B SHALL be skipped.
+
 Outputs (Normative)
 - Full‑frame `Bragg` tensor on the simulator device; HDF5 outputs MAY mirror viewer layout for ROIs.
 

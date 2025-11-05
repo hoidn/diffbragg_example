@@ -1,0 +1,5 @@
+status early_stop
+improvement 0.0022166201111774027
+orientation delta norm 0.0
+misset_xyz_deg [0.0, 0.0, 0.0]
+HKL hit_rate ~97.84% (see console log)

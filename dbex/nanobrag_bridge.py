@@ -375,12 +375,18 @@ def create_detector_config(
     detector_roty_deg = np.degrees(phi_y_rad)
     detector_rotz_deg = np.degrees(phi_z_rad)
 
-    # Mask array: convert bool to float tensor (config_crosswalk.md:33)
-    # CRITICAL: Simulator expects mask_array as torch.Tensor, not numpy
+    # Mask array: convert bool to float tensor (config_crosswalk.md:31)
+    # CRITICAL: Simulator expects mask_array as torch.Tensor, not numpy (CLI-001)
+    # Use torch.as_tensor to avoid device changes; assert 0/1 values
     import torch
     mask_array = None
     if trusted_mask is not None:
-        mask_array = torch.tensor(trusted_mask.astype(np.float32))
+        # Coerce to float32 tensor without implicit device change
+        mask_array = torch.as_tensor(trusted_mask.astype(np.float32), dtype=torch.float32)
+        # Assert tensor stays 0/1-valued per nanobrag_api.md:44
+        unique_vals = torch.unique(mask_array)
+        assert torch.all((unique_vals == 0.0) | (unique_vals == 1.0)), \
+            f"mask_array must be 0/1-valued, got unique values: {unique_vals.tolist()}"
 
     # Use DIALS convention with rotation angles derived from panel axes
     # This preserves BEAM pivot and correctly represents panel geometry

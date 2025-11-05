@@ -144,10 +144,11 @@ class TestDetectorConfigMapping:
 
         Input: DIALS trusted mask (bool, True=include)
         Output: torch mask_array (float, 1=include) with shape (spixels, fpixels)
-        per config_crosswalk.md:33 and nanobrag_api.md:34.
+        per config_crosswalk.md:31 and nanobrag_api.md:44.
 
-        This test will fail until create_detector_config is implemented.
+        Validates CLI-001 compliance: bridge emits torch.Tensor masks.
         """
+        import torch
         from dbex.nanobrag_bridge import create_detector_config
 
         # Create sample trusted mask
@@ -162,17 +163,25 @@ class TestDetectorConfigMapping:
         assert config.mask_array.shape == (slow_px, fast_px), \
             f"mask_array shape should be (spixels={slow_px}, fpixels={fast_px})"
 
-        # Verify dtype is float
-        assert config.mask_array.dtype in [np.float32, np.float64], \
-            f"mask_array dtype should be float, got {config.mask_array.dtype}"
+        # Accept torch.Tensor by checking torch.is_floating_point
+        assert torch.is_tensor(config.mask_array), \
+            f"mask_array should be torch.Tensor, got {type(config.mask_array)}"
+        assert torch.is_floating_point(config.mask_array), \
+            f"mask_array dtype should be floating-point, got {config.mask_array.dtype}"
 
-        # Verify polarity: True -> 1.0, False -> 0.0
+        # Convert to numpy for polarity asserts: True -> 1.0, False -> 0.0
+        mask_np = config.mask_array.cpu().numpy()
         expected_float = trusted_mask.astype(np.float32)
         np.testing.assert_array_equal(
-            config.mask_array,
+            mask_np,
             expected_float,
             err_msg="mask_array should be float with 1=include, 0=exclude"
         )
+
+        # Fail fast if tensor leaves {0.0, 1.0}
+        unique_vals = torch.unique(config.mask_array)
+        assert torch.all((unique_vals == 0.0) | (unique_vals == 1.0)), \
+            f"mask_array must be 0/1-valued, got unique values: {unique_vals.tolist()}"
 
     def test_pixel_size_and_dimensions(self, mock_panel, mock_beam):
         """

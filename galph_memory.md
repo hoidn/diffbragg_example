@@ -886,3 +886,12 @@ Notes
 - Next Actions: Ralph to implement expanded Stage A parameter surface & updated smoke selector, capture telemetry, and sync test docs.
 - <Action State>: [ready_for_implementation]
 2025-11-05T031241Z focus=TORCH-REFINE-002 state=ready_for_implementation dwell=0 artifacts=plans/active/TORCH-REFINE-002/reports/2025-11-05T031241Z/ next_action=stage_a_expansion_implementation
+
+## 2025-11-05T033936Z — TORCH-REFINE-002 orientation gate planning refresh
+- Focus: TORCH-REFINE-002 — Stage A expansion — full crystal and orientation
+- Action Type: planning
+- Key Observations: Confirmed orientation_vec still unused (no misset override) and documented the follow-up to map quaternion→misset, extend bridge overrides, and seed a deterministic refGeom perturbation so the ≥5% gate is meaningful. Updated implementation checklist, fix plan attempts, new REFINE-004 finding, and refreshed input.md with the handoff.
+- Artifact Path: plans/active/TORCH-REFINE-002/reports/2025-11-05T033936Z/
+- Next Actions: Issue Do Now for quaternion→misset plumbing plus smoke test perturbation, then rerun Stage A expansion selector.
+- <Action State>: [planning]
+2025-11-05T033936Z focus=TORCH-REFINE-002 state=planning dwell=0 artifacts=plans/active/TORCH-REFINE-002/reports/2025-11-05T033936Z/ next_action=handoff_quaternion_misset_do_now

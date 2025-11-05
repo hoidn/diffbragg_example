@@ -16,9 +16,9 @@ Extend the Stage A refinement loop from the nucleus (scale + cell_a) to the full
 
 ## Phase Breakdown
 - Phase 1 — Parameter Surface & Warm-starts
-  - [ ] P1.1: Introduce new trainable tensors for log_cell_b_delta/log_cell_c_delta and bounded angle deltas (alpha/beta/gamma) with clamped/tanh mapping around the baseline angles.
-  - [ ] P1.2: Add orientation perturbation tensor (e.g., 3-vector mapped to quaternion) and integrate through `create_crystal_config` misset fields without leaving autograd.
-  - [ ] P1.3: Ensure global scale warm-start + clamp logic still applies with the expanded parameter list; add appropriate bounds for new parameters (length exponent clamp, angle delta ceiling, orientation norm guard).
+  - [x] P1.1: Introduce new trainable tensors for log_cell_b_delta/log_cell_c_delta and bounded angle deltas (alpha/beta/gamma) with clamped/tanh mapping around the baseline angles. *(Landed in 2025-11-05T031241Z implementation; telemetry confirms non-zero cell movement.)*
+  - [ ] P1.2: Add orientation perturbation tensor (e.g., 3-vector mapped to quaternion) and integrate through `create_crystal_config` misset fields without leaving autograd. *TODO: Map quaternion → XYZ misset and plumb overrides so orientation deltas influence Simulator inputs (REFINE-003).*
+  - [x] P1.3: Ensure global scale warm-start + clamp logic still applies with the expanded parameter list; add appropriate bounds for new parameters (length exponent clamp, angle delta ceiling, orientation norm guard).
 - Phase 2 — Telemetry & Safety Rails
   - [ ] P2.1: Extend `param_deltas` telemetry to include all new Stage A DoFs (lengths, angles, orientation components) with clear naming.
   - [ ] P2.2: Capture best-parameter snapshots for rollback covering the expanded tensor set; update early-stop messaging to the ≥5% gate.
@@ -26,6 +26,11 @@ Extend the Stage A refinement loop from the nucleus (scale + cell_a) to the full
 - Phase 3 — Test & Docs Sync
   - [ ] P3.1: Update Stage A smoke test (or add a companion) asserting ≥5% improvement, non-zero deltas for additional DoFs, and telemetry completeness.
   - [ ] P3.2: Archive pytest logs under plans/active/TORCH-REFINE-002/reports/<timestamp>/ and update testing guides only if selectors change.
+
+- Phase 4 — Deterministic Miscalibration & Gate Rebaseline
+  - [ ] P4.1: Introduce a deterministic refGeom perturbation (cell + small orientation misset) used only inside the Stage A expansion smoke to guarantee ≥5% masked-MSE headroom while keeping production defaults unchanged.
+  - [ ] P4.2: Document the perturbation (magnitude, axes, rationale) in `docs/fix_plan.md` and add a matching finding so future datasets can reuse or retire it.
+  - [ ] P4.3: Once perturbation lands, re-run telemetry to capture the new improvement baseline and update `RefinementConfig.min_loss_improvement`/smoke assertions accordingly.
 
 ## Mapped Tests (planned)
 - Stage A expansion smoke: `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` (new) or upgraded existing `test_loss_decreases`.

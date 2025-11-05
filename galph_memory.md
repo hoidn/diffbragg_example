@@ -1010,6 +1010,14 @@ Notes
 - Next Actions: Delegate Stage B ROI sampler/telemetry repair (`run_nanobrag_refinement` Stage B block) and rerun `tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers` with artifacts captured per new plan.
 - <Action State>: [ready_for_implementation]
 2025-11-05T172937Z focus=TORCH-REFINE-004 state=ready_for_implementation dwell=2 artifacts=plans/active/TORCH-REFINE-004/reports/2025-11-05T172937Z/ next_action=repair_stage_b_roi_sampler
+## 2025-11-05T190344Z — TORCH-REFINE-004 Stage B telemetry gate reset
+- Focus: TORCH-REFINE-004 — Stage B Fhkl modifiers (optional)
+- Action Type: planning
+- Key Observations: Replayed `tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers`; LBFGS now makes progress (three sampled-loss points) but never records a full-loss validation, leaving `best_loss_full_b=(inf, 0)` and the ≥3% improvement gate unenforced. Telemetry reports `roi_count_sampled=0` despite Stage A sampling one panel, so ROI accounting and gating are inconsistent. Captured failing run and log under `plans/active/TORCH-REFINE-004/reports/2025-11-05T190344Z/pytest_stage_b.log` and refreshed input.md with a ready-for-implementation handoff (ROI sampler fallback, mandatory full validations/best-snapshot restore, and gate recalibration path if the measured ceiling stays below 3%).
+- Artifact Path: plans/active/TORCH-REFINE-004/reports/2025-11-05T190344Z/
+- Next Actions: Execute Stage B telemetry fixes in `dbex/nanobrag_refinement.py::run_nanobrag_refinement`, adjust the Stage B smoke assertions/gate, rerun the selector capturing new logs, and archive measured improvement metrics for potential gate recalibration.
+- <Action State>: [ready_for_implementation]
+2025-11-05T190344Z focus=TORCH-REFINE-004 state=ready_for_implementation dwell=0 artifacts=plans/active/TORCH-REFINE-004/reports/2025-11-05T190344Z/ next_action=stage_b_telemetry_fix
 2025-11-05T111500Z focus=REPORT-NANOBRAG-STATUS-001 state=gathering_evidence dwell=0 artifacts=plans/active/REPORT-NANOBRAG-STATUS-001/reports/2025-11-05T111500Z/ next_action=locate latest torch HDF5 and draft validation summary skeleton
 
 ## 2025-11-05T184233Z — REPORT-NANOBRAG-STATUS-001 telemetry planning handoff

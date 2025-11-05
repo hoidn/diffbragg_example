@@ -43,3 +43,9 @@ Root cause: 5% threshold assumes either poor initial guesses OR multiple crystal
 
 ## Artifacts
 - pytest log: plans/active/TORCH-REFINE-001/reports/2025-11-05T021259Z/pytest_refine_smoke.log
+
+### Turn Summary
+Implemented tensor override pathway for log_cell_a_delta enabling differentiable crystal DoF refinement in LBFGS closure per GRADIENT-001.
+Extended create_crystal_config with crystal_overrides dict parameter and wired perturbed cell_a through refinement closure and final render paths; no .item() detaching preserves autograd.
+Implementation is correct (69 tests passed, 0 regressions), but 5% loss threshold not met (0.15% achieved) due to excellent scale warm-start and single-DoF limitation—supervisor decision needed on expanding Stage A DoFs vs adjusting test expectations.
+Artifacts: plans/active/TORCH-REFINE-001/reports/2025-11-05T021259Z/ (pytest_refine_smoke.log, pytest_full_suite.log)

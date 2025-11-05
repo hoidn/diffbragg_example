@@ -1,5 +1,5 @@
 ### Turn Summary
-Reframed Stage B work so Ralph has a ready Do Now to rebuild the ROI sampler and telemetry for the shell-modifier loop.
-Pinned the current smoke failure on the Stage B closure losing access to `roi_sampler`, using logs/spec guardrails to keep halo and scale constraints in scope.
-Next: implement the Stage B closure fix in `run_nanobrag_refinement` and rerun the Stage B smoke selector with artifacts captured.
-Artifacts: plans/active/TORCH-REFINE-004/reports/2025-11-05T172937Z/ (summary.md)
+Fixed two blocking bugs in Stage B shell-modifier refinement: removed incorrect Simulator reimport and corrected tensor attribute access from `inputs.target_tensor` to `target_t`.
+Stage B now executes (HKL stats output confirms progression past prior import/attribute crashes); test selector runs 196s before hitting remaining closure issue.
+Next: debug Stage B LBFGS closure to restore telemetry emission (loss_trace remains empty) and verify ≥3% improvement gate.
+Artifacts: plans/active/TORCH-REFINE-004/reports/2025-11-05T172937Z/ (pytest_stage_b.log showing 26 simulator runs, pytest_full_suite.log in progress)

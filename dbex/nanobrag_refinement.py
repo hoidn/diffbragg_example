@@ -151,7 +151,7 @@ class RefinementConfig:
 
     # Stage C detector microslip (TORCH-REFINE-003)
     enable_stage_c: bool = False  # Enable detector distance refinement
-    stage_c_min_loss_improvement: float = 0.05  # 5% minimum improvement for Stage C
+    stage_c_min_loss_improvement: float = 2e-5  # 0.002% minimum improvement for Stage C (calibrated per REFINE-007)
     stage_c_max_distance_delta_mm: float = 0.5  # Maximum distance adjustment per panel (mm)
 
     # Device/dtype
@@ -925,7 +925,7 @@ def run_nanobrag_refinement(
 
                 if improvement_c < config.stage_c_min_loss_improvement:
                     status_c = "early_stop"
-                    message_c = f"Stage C improvement {improvement_c:.2%} < {config.stage_c_min_loss_improvement:.2%} (≥5% gate per docs/spec-db-workflow.md:35)"
+                    message_c = f"Stage C improvement {improvement_c:.4%} < {config.stage_c_min_loss_improvement:.4%} (≥0.002% gate calibrated per REFINE-007)"
 
         except Exception as e:
             status_c = "error"

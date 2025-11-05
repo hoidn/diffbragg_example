@@ -965,3 +965,12 @@ Notes
 - <Action State>: [ready_for_implementation]
 
 2025-11-05T110500Z focus=TORCH-REFINE-003 state=ready_for_implementation dwell=0 artifacts=plans/active/TORCH-REFINE-003/reports/2025-11-05T110500Z/ next_action=stage_c_lbfgs_integration
+
+## 2025-11-06T130000Z — TORCH-REFINE-003 Stage C Do Now refresh
+- Focus: TORCH-REFINE-003 — Stage C detector microslip
+- Action Type: planning
+- Key Observations: Stage C TODO remains in run_nanobrag_refinement; Stage A telemetry dict stable post-infrastructure. Drafted refreshed Do Now covering Stage C LBFGS loop, multi-stage telemetry persistence, new smoke test, and metrics script; updated docs/fix_plan.md and input.md accordingly.
+- Artifact Path: plans/active/TORCH-REFINE-003/reports/2025-11-06T130000Z/
+- Next Actions: Ralph implements Stage C LBFGS loop + telemetry, adds smoke test/metrics script, and runs Stage C/A selectors per the new How-To map.
+- <Action State>: [ready_for_implementation]
+2025-11-06T130000Z focus=TORCH-REFINE-003 state=ready_for_implementation dwell=0 artifacts=plans/active/TORCH-REFINE-003/reports/2025-11-06T130000Z/ next_action=implement_stage_c_lbfgs_and_smoke

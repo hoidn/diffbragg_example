@@ -32,6 +32,11 @@ This README documents the cross‑machine orchestration for the supervisor (galp
 - Loop prompt: `main` (feature work). Switch with `--prompt debug` for parity/trace loops.
 - Per‑iteration logs under `logs/` (see Logging).
 
+### Doc/meta auto‑commit whitelist
+- The supervisor auto‑stages/commits a limited set of doc/meta paths at end of turn to keep the tree clean.
+- Default whitelist includes: `input.md`, `galph_memory.md`, `docs/fix_plan.md`, `plans/**/*.md`, `prompts/**/*.md`, and core Git meta files: `.gitignore`, `.gitmodules`, `.gitattributes`.
+- Rationale: allow intentional repo‑hygiene edits made by the supervisor without tripping the post‑run guard. Override via `--autocommit-whitelist` if needed.
+
 ## Sync via Git (two machines)
 1) Preconditions:
    - Both machines share the same remote and branch (e.g., `feature/spec-based-2`).

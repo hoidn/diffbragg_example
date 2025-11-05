@@ -87,7 +87,8 @@ def main() -> int:
                     help="Disable auto commit of doc/meta whitelist")
     ap.set_defaults(auto_commit_docs=True)
     ap.add_argument("--autocommit-whitelist", type=str,
-                    default="input.md,galph_memory.md,docs/fix_plan.md,plans/**/*.md,prompts/**/*.md",
+                    # Include core meta files to avoid self-failing when supervisor updates repo hygiene
+                    default="input.md,galph_memory.md,docs/fix_plan.md,plans/**/*.md,prompts/**/*.md,.gitignore,.gitmodules,.gitattributes",
                     help="Comma-separated glob whitelist for supervisor auto-commit (doc/meta only)")
     ap.add_argument("--max-autocommit-bytes", type=int, default=int(os.getenv("MAX_AUTOCOMMIT_BYTES", "1048576")),
                     help="Maximum per-file size (bytes) eligible for auto-commit")

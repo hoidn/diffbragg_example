@@ -916,3 +916,23 @@ Notes
 - <Action State>: [ready_for_implementation]
 
 2025-11-05T041539Z focus=TORCH-REFINE-002 state=ready_for_implementation dwell=1 artifacts=plans/active/TORCH-REFINE-002/reports/2025-11-05T041539Z/ next_action=stage_a_xfail_implementation
+
+## 2025-11-05T044720Z — TORCH-REFINE-002 closeout pivot
+- Focus: TORCH-REFINE-002 — Stage A expansion — full crystal and orientation
+- Action Type: review_or_housekeeping
+- Key Observations: Audited Option D logs (telemetry assertions precede the expected `xfail`, full suite clean), marked fix-plan status `done`, refreshed implementation checklist to defer perturbation work, and spun up TORCH-REFINE-002D for HKL-aware dataset follow-up.
+- Artifact Path: plans/active/TORCH-REFINE-002/reports/2025-11-05T044720Z/
+- Next Actions: Switch focus to TORCH-REFINE-002D to deliver HKL-grid probe + dataset plan.
+- <Action State>: [review_or_housekeeping]
+
+2025-11-05T044720Z focus=TORCH-REFINE-002 state=ready_for_implementation dwell=0 artifacts=plans/active/TORCH-REFINE-002/reports/2025-11-05T044720Z/ next_action=switch_focus_to_TORCH-REFINE-002D
+
+## 2025-11-05T044720Z — TORCH-REFINE-002D kickoff plan
+- Focus: TORCH-REFINE-002D — Stage A HKL-aware perturbation dataset
+- Action Type: planning
+- Key Observations: Authored implementation plan covering HKL grid rebuild phases, updated fix plan entry, and published Do Now directing a coverage probe script plus Stage A regression run.
+- Artifact Path: plans/active/TORCH-REFINE-002D/reports/2025-11-05T044720Z/
+- Next Actions: Ralph to implement the HKL hit-rate probe script (`plans/active/TORCH-REFINE-002D/bin/probe_hkl_hit_rate.py`) and capture JSON metrics + smoke selector logs.
+- <Action State>: [ready_for_implementation]
+
+2025-11-05T044720Z focus=TORCH-REFINE-002D state=ready_for_implementation dwell=0 artifacts=plans/active/TORCH-REFINE-002D/reports/2025-11-05T044720Z/ next_action=hkl_probe_script_implementation

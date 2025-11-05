@@ -62,7 +62,7 @@ def refgeom_dataload():
 
 @pytest.fixture
 def refinement_inputs(refgeom_dataload):
-    """Prepare RefinementInputs from refGeom DataLoad."""
+    """Prepare RefinementInputs from refGeom DataLoad (no perturbation)."""
     from dbex.nanobrag_bridge import prepare_refinement_inputs
     import numpy as np
 

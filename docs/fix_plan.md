@@ -30,7 +30,7 @@
 
 ### [TORCH-REFINE-002] Stage A expansion — full crystal and orientation
 - Depends on: TORCH-REFINE-001, docs/spec-db-workflow.md §"Optimization Strategy", plans/nanobrag_integration_plan.md §Phase 3
-- Status: in_progress (Ralph executing 2025-11-05T031241Z)
+- Status: in_progress (Ralph executing 2025-11-05T033936Z)
 - Owner/Date: Galph/Ralph / 2025-11-05
 - Exit Criteria:
   1. Expand Stage A parameter set to include crystal unit‑cell lengths (log‑param), angles (bounded map), orientation (quaternion→XYZ), and global scale; run LBFGS with closure and convergence tolerances as per plan; record `param_deltas` for all enabled DoFs.

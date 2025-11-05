@@ -442,7 +442,7 @@ def create_beam_config(beam, flux=None, beamsize_mm=None, exposure=None) -> Beam
     return BeamConfig(**beam_kwargs)
 
 
-def create_crystal_config(crystal, experiment, N_cells=None, apply_n_cells=True, crystal_overrides=None) -> Tuple[CrystalConfig, bool]:
+def create_crystal_config(crystal, experiment, N_cells=None, apply_n_cells=True, crystal_overrides=None, misset_deg_override=None) -> Tuple[CrystalConfig, bool]:
     """
     Create CrystalConfig from dxtbx crystal and experiment with optional calibration overrides.
 
@@ -462,6 +462,10 @@ def create_crystal_config(crystal, experiment, N_cells=None, apply_n_cells=True,
                           for refinement. Supports keys: 'cell_a', 'cell_b', 'cell_c',
                           'cell_alpha', 'cell_beta', 'cell_gamma'. Tensors must have
                           requires_grad=True to preserve gradient flow (GRADIENT-001).
+        misset_deg_override: Optional array/tensor of XYZ extrinsic Euler angles (degrees)
+                            for orientation refinement (TORCH-REFINE-002). When provided,
+                            overrides the default zero misset. Can be torch.Tensor to preserve
+                            gradient flow for differentiable orientation refinement.
 
     Returns:
         Tuple of (CrystalConfig, n_cells_applied: bool) where n_cells_applied indicates
@@ -506,7 +510,11 @@ def create_crystal_config(crystal, experiment, N_cells=None, apply_n_cells=True,
         mosflm_c_star = None
 
     # Misset defaults to zero (config_crosswalk.md:63)
-    misset_deg = np.array([0.0, 0.0, 0.0])
+    # Allow override for orientation refinement (TORCH-REFINE-002)
+    if misset_deg_override is not None:
+        misset_deg = misset_deg_override
+    else:
+        misset_deg = np.array([0.0, 0.0, 0.0])
 
     # Stills defaults (config_crosswalk.md:64)
     # For stills (no scan), use phi_steps=1, osc_range_deg=0

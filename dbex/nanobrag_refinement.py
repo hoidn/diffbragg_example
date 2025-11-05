@@ -76,6 +76,56 @@ def quaternion_to_rotation_matrix(q: torch.Tensor) -> torch.Tensor:
     return R
 
 
+def quaternion_to_xyz_euler(q: torch.Tensor) -> torch.Tensor:
+    """
+    Convert unit quaternion to XYZ extrinsic Euler angles (degrees).
+
+    Per docs/spec-db-workflow.md:30 and docs/nanobrag_api.md:55-56, orientation
+    is controlled via misset_deg XYZ extrinsic rotations applied after MOSFLM A*.
+
+    Args:
+        q: torch.Tensor of shape (4,) representing unit quaternion [w, x, y, z]
+           where w is the scalar part
+
+    Returns:
+        xyz_deg: torch.Tensor of shape (3,) with XYZ extrinsic Euler angles in degrees
+                 Convention: R = R_z(gamma) @ R_y(beta) @ R_x(alpha) (extrinsic XYZ)
+
+    References:
+        - reports/maintainer_responses.md:685 — misset_deg applied as XYZ extrinsic rotations
+        - plans/nanobrag_integration_plan.md:114 — quaternion→XYZ conversion pattern
+    """
+    # Normalize quaternion to ensure unit length (differentiable)
+    q = q / torch.sqrt(torch.sum(q**2) + 1e-8)
+
+    w, x, y, z = q[0], q[1], q[2], q[3]
+
+    # XYZ extrinsic Euler angles from quaternion
+    # R = R_z(gamma) @ R_y(beta) @ R_x(alpha)
+    # See: https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
+
+    # Roll (alpha, rotation about X-axis)
+    sinr_cosp = 2 * (w * x + y * z)
+    cosr_cosp = 1 - 2 * (x**2 + y**2)
+    alpha_rad = torch.atan2(sinr_cosp, cosr_cosp)
+
+    # Pitch (beta, rotation about Y-axis)
+    sinp = 2 * (w * y - z * x)
+    # Clamp to avoid NaN from asin at ±1
+    sinp = torch.clamp(sinp, -1.0, 1.0)
+    beta_rad = torch.asin(sinp)
+
+    # Yaw (gamma, rotation about Z-axis)
+    siny_cosp = 2 * (w * z + x * y)
+    cosy_cosp = 1 - 2 * (y**2 + z**2)
+    gamma_rad = torch.atan2(siny_cosp, cosy_cosp)
+
+    # Convert to degrees
+    xyz_deg = torch.stack([alpha_rad, beta_rad, gamma_rad]) * (180.0 / np.pi)
+
+    return xyz_deg
+
+
 @dataclass
 class RefinementConfig:
     """Configuration for Stage A LBFGS refinement."""
@@ -280,7 +330,18 @@ def run_nanobrag_refinement(
             perturbed_beta = cell_params[4] + torch.tanh(angle_beta_raw) * max_angle_delta
             perturbed_gamma = cell_params[5] + torch.tanh(angle_gamma_raw) * max_angle_delta
 
-            # Create crystal config with all cell parameter overrides
+            # 3. Orientation perturbation via quaternion→XYZ misset (TORCH-REFINE-002)
+            # Convert 3-vector → unit quaternion → XYZ extrinsic Euler angles (degrees)
+            # Per docs/spec-db-workflow.md:30, misset_deg is applied after MOSFLM A* injection
+            # Bound magnitude to ±3° by scaling orientation_vec with tanh
+            max_orientation_deg = 3.0  # degrees (per input.md pitfalls)
+            bounded_orientation_vec = torch.tanh(orientation_vec) * max_orientation_deg * (np.pi / 180.0)  # convert bound to radians for vec magnitude
+
+            # Map to unit quaternion, then to XYZ Euler angles
+            quat = vec_to_unit_quaternion(bounded_orientation_vec)
+            misset_xyz_deg = quaternion_to_xyz_euler(quat)
+
+            # Create crystal config with all cell parameter overrides + misset
             # Note: create_crystal_config returns (config, n_cells_applied) tuple
             crystal_overrides = {
                 'cell_a': perturbed_cell_a,
@@ -290,16 +351,11 @@ def run_nanobrag_refinement(
                 'cell_beta': perturbed_beta,
                 'cell_gamma': perturbed_gamma
             }
-            crystal_config, _ = create_crystal_config(crystal, None, crystal_overrides=crystal_overrides)
-
-            # 3. Orientation perturbation (requires A* matrix reconstruction)
-            # FIXME: Current implementation of A_star override from orientation_vec conflicts
-            # with cell parameter overrides because create_crystal_config uses base crystal's
-            # A* matrix (which doesn't reflect overridden cell params). Proper implementation
-            # requires recomputing A* = U·B where B is derived from perturbed cell params.
-            # For now, orientation_vec remains unused to allow cell parameter refinement to work.
-            # TODO: Implement proper A* reconstruction or extend nanobrag_torch API for separate
-            # orientation control (TORCH-REFINE-002b follow-up)
+            crystal_config, _ = create_crystal_config(
+                crystal, None,
+                crystal_overrides=crystal_overrides,
+                misset_deg_override=misset_xyz_deg
+            )
 
             # Build detector and crystal models
             detector_model = Detector(detector_config)
@@ -460,6 +516,12 @@ def run_nanobrag_refinement(
             perturbed_beta = cell_params[4] + torch.tanh(angle_beta_raw) * max_angle_delta
             perturbed_gamma = cell_params[5] + torch.tanh(angle_gamma_raw) * max_angle_delta
 
+            # 3. Orientation perturbation via quaternion→XYZ misset (TORCH-REFINE-002)
+            max_orientation_deg = 3.0  # degrees
+            bounded_orientation_vec = torch.tanh(orientation_vec) * max_orientation_deg * (np.pi / 180.0)
+            quat = vec_to_unit_quaternion(bounded_orientation_vec)
+            misset_xyz_deg = quaternion_to_xyz_euler(quat)
+
             crystal_overrides = {
                 'cell_a': perturbed_cell_a,
                 'cell_b': perturbed_cell_b,
@@ -468,9 +530,11 @@ def run_nanobrag_refinement(
                 'cell_beta': perturbed_beta,
                 'cell_gamma': perturbed_gamma
             }
-            crystal_config, _ = create_crystal_config(crystal, None, crystal_overrides=crystal_overrides)
-
-            # 3. Orientation perturbation (disabled - see FIXME above in compute_loss)
+            crystal_config, _ = create_crystal_config(
+                crystal, None,
+                crystal_overrides=crystal_overrides,
+                misset_deg_override=misset_xyz_deg
+            )
 
             detector_model = Detector(detector_config)
             crystal_model = Crystal(crystal_config)

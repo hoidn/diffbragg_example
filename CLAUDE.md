@@ -14,5 +14,6 @@ Key policy: Environment Freeze — the runtime is pre-provisioned and MUST NOT b
   5. Tag environment state (e.g., "simtbx-patched-diffbraggCUDA708")
 - Rationale: Blocking bugs in local source prevent progress; targeted fixes with documentation maintain reproducibility without external package churn
 
-See: `CLAUDE.md` for full rules, FSM, artifact policy, and required reading.
-
+Quick router:
+- prompts/supervisor.md (supervisor rules), prompts/main.md (engineer loop)
+- docs/index.md (docs hub), docs/TESTING_GUIDE.md (pytest selectors), docs/fix_plan.md (ledger), prompts/fsm_analysis.md (FSM)

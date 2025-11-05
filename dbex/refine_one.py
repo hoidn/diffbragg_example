@@ -361,7 +361,7 @@ def run_nanobrag_backend(args, DL, devid=0):
     )
 
     try:
-        Bragg_refined, refine_telemetry = run_nanobrag_refinement(
+        Bragg_refined, refine_telemetry_dict = run_nanobrag_refinement(
             inputs=inputs,
             detector=DL.detector,
             beam=DL.beam,
@@ -371,13 +371,21 @@ def run_nanobrag_backend(args, DL, devid=0):
             config=refine_config
         )
 
+        # Extract Stage A telemetry (always present); Stage C is optional
+        refine_telemetry = refine_telemetry_dict["A"]
+
         # Compute refined masked MSE
         masked_diff_refined = np.where(inputs.loss_mask, inputs.target - Bragg_refined, 0.0)
         masked_mse_refined = (masked_diff_refined ** 2).sum() / inputs.loss_mask.sum()
 
-        print(f"[nanobrag backend] Refinement status: {refine_telemetry.status}")
+        print(f"[nanobrag backend] Stage A status: {refine_telemetry.status}")
         print(f"[nanobrag backend] Masked MSE (refined): {masked_mse_refined:.2e}")
         print(f"[nanobrag backend] Improvement: {(masked_mse - masked_mse_refined) / masked_mse * 100:.1f}%")
+
+        # Log Stage C if enabled
+        if "C" in refine_telemetry_dict:
+            refine_telemetry_c = refine_telemetry_dict["C"]
+            print(f"[nanobrag backend] Stage C status: {refine_telemetry_c.status}")
 
         # Use refined Bragg for output
         Bragg = Bragg_refined

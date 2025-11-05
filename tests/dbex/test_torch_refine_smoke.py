@@ -60,9 +60,9 @@ def refgeom_dataload():
     return DataLoad(args)
 
 
-def create_perturbed_geometry(crystal, detector, beam, seed=42):
+def create_perturbed_geometry(crystal, detector, beam, seed=42, enable_detector_perturbation=False, detector_distance_offset_mm=0.25):
     """
-    Create deterministically perturbed copies of crystal/detector/beam for Stage A smoke testing.
+    Create deterministically perturbed copies of crystal/detector/beam for Stage A/C smoke testing.
 
     Per REFINE-004: Canonical refGeom assets are too well-calibrated for Stage A to clear
     the ≥5% masked-MSE gate. This helper introduces reproducible miscalibrations to provide
@@ -71,21 +71,24 @@ def create_perturbed_geometry(crystal, detector, beam, seed=42):
     Perturbations (test-only, never applied to production geometry):
     - Unit cell: +2% stretch on a-axis, +1% on b/c-axes
     - Orientation: +1.5° misset along Z-axis (simulating small rotation error)
-    - Detector: unchanged (Stage A doesn't refine detector)
-    - Beam: unchanged (Stage A doesn't refine beam)
+    - Detector: optional per-panel distance offset along normal (Stage C) when enable_detector_perturbation=True
+    - Beam: unchanged (Stage A/C don't refine beam)
 
     Args:
         crystal: dxtbx Crystal object (unmodified)
-        detector: dxtbx Detector object (returned as-is)
+        detector: dxtbx Detector object (perturbed if enable_detector_perturbation=True)
         beam: dxtbx Beam object (returned as-is)
         seed: Random seed for reproducibility (currently unused; reserved for future extensions)
+        enable_detector_perturbation: If True, apply deterministic distance offsets to detector panels (TORCH-REFINE-003)
+        detector_distance_offset_mm: Distance offset magnitude (mm) to apply along panel normal when enabled
 
     Returns:
-        tuple: (perturbed_crystal, detector, beam) where detector/beam are pass-through
+        tuple: (perturbed_crystal, perturbed_detector, beam) where beam is pass-through
 
     References:
         - plans/active/TORCH-REFINE-002/reports/2025-11-05T033936Z/summary.md — perturbation strategy
         - docs/fix_plan.md REFINE-004 — dataset calibration ceiling rationale
+        - plans/active/TORCH-REFINE-003/implementation.md — Stage C detector microslip
     """
     from dxtbx.model import Crystal
 
@@ -137,7 +140,39 @@ def create_perturbed_geometry(crystal, detector, beam, seed=42):
     U_perturbed = rotation_z * U
     perturbed_crystal.set_U(U_perturbed)
 
-    return perturbed_crystal, detector, beam
+    # Detector perturbation (Stage C): apply distance offset along panel normal
+    # Per docs/spec-db-workflow.md:35 and CONFIG-001, translations are along odet_vec (panel normal)
+    if enable_detector_perturbation:
+        from dxtbx.model import Detector as dxtbx_Detector
+        import copy
+
+        # Create a deep copy of the detector to avoid mutating the original
+        perturbed_detector = copy.deepcopy(detector)
+
+        # Apply deterministic distance offset to each panel
+        # Use alternating pattern: +offset for even panels, -offset for odd panels
+        for pid, panel in enumerate(perturbed_detector):
+            # Get panel geometry
+            origin = panel.get_origin()
+            normal = panel.get_normal()
+
+            # Deterministic offset pattern (alternating sign)
+            offset_sign = 1.0 if pid % 2 == 0 else -1.0
+            offset_mm = offset_sign * detector_distance_offset_mm
+
+            # Translate along normal: new_origin = origin + offset * normal
+            new_origin = tuple(origin[i] + offset_mm * normal[i] for i in range(3))
+
+            # Update panel origin (preserves fast/slow/normal axes)
+            panel.set_frame(
+                panel.get_fast_axis(),
+                panel.get_slow_axis(),
+                new_origin
+            )
+
+        return perturbed_crystal, perturbed_detector, beam
+    else:
+        return perturbed_crystal, detector, beam
 
 
 @pytest.fixture
@@ -241,7 +276,7 @@ def test_stage_a_expansion(refgeom_dataload, refinement_inputs, hkl_data):
     )
 
     # Run refinement with perturbed geometry and baseline crystal for misset extraction
-    bragg_refined, telemetry = run_nanobrag_refinement(
+    bragg_refined, telemetry_dict = run_nanobrag_refinement(
         inputs=refinement_inputs,
         detector=perturbed_detector,
         beam=perturbed_beam,
@@ -251,6 +286,10 @@ def test_stage_a_expansion(refgeom_dataload, refinement_inputs, hkl_data):
         config=config,
         baseline_crystal=baseline_crystal  # Enables U_delta extraction for orientation telemetry
     )
+
+    # Extract Stage A telemetry (Stage C not enabled in this test)
+    assert "A" in telemetry_dict, "Stage A telemetry missing"
+    telemetry = telemetry_dict["A"]
 
     # Acceptance 1: Refinement completed without errors
     assert telemetry.status != "error", f"Refinement failed: {telemetry.message}"

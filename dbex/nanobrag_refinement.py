@@ -128,8 +128,8 @@ def quaternion_to_xyz_euler(q: torch.Tensor) -> torch.Tensor:
 
 @dataclass
 class RefinementConfig:
-    """Configuration for Stage A LBFGS refinement."""
-    # LBFGS hyperparameters
+    """Configuration for Stage A and Stage C LBFGS refinement."""
+    # LBFGS hyperparameters (shared across stages)
     history_size: int = 10
     max_iter: int = 30
     tolerance_grad: float = 1e-7
@@ -139,7 +139,7 @@ class RefinementConfig:
     roi_sample_fraction: float = 0.15  # ~15% of ROIs per iteration
     full_validation_interval: int = 5  # Validate on full loss every N steps
 
-    # Convergence guards
+    # Convergence guards (Stage A)
     min_loss_improvement: float = 0.002  # 0.2% minimum improvement (TORCH-REFINE-002D)
     early_stop_window: int = 3  # Stop if no improvement over last K validations
     max_loss_increase: float = 0.02  # 2% max increase before rollback
@@ -149,6 +149,11 @@ class RefinementConfig:
     # Defaults to False (nearest-neighbor) to protect datasets without halo support
     enable_hkl_interpolation: bool = False
 
+    # Stage C detector microslip (TORCH-REFINE-003)
+    enable_stage_c: bool = False  # Enable detector distance refinement
+    stage_c_min_loss_improvement: float = 0.05  # 5% minimum improvement for Stage C
+    stage_c_max_distance_delta_mm: float = 0.5  # Maximum distance adjustment per panel (mm)
+
     # Device/dtype
     device: str = "cpu"
     dtype: torch.dtype = torch.float32
@@ -156,7 +161,12 @@ class RefinementConfig:
 
 @dataclass
 class RefinementTelemetry:
-    """Telemetry captured during refinement."""
+    """Telemetry captured during refinement.
+
+    For multi-stage refinement (Stage A + Stage C), this structure represents
+    a single stage. The calling code aggregates multiple telemetry objects into
+    a Dict[str, RefinementTelemetry] keyed by stage label ("A", "C").
+    """
     optimizer: str
     stage: str
     history_size: int
@@ -183,17 +193,22 @@ def run_nanobrag_refinement(
     hkl_metadata: Dict,
     config: Optional[RefinementConfig] = None,
     baseline_crystal=None
-) -> Tuple[np.ndarray, RefinementTelemetry]:
+) -> Tuple[np.ndarray, Dict[str, RefinementTelemetry]]:
     """
-    Run Stage A LBFGS refinement nucleus on nanobrag_torch simulator.
+    Run Stage A (+ optional Stage C) LBFGS refinement on nanobrag_torch simulator.
 
-    Optimizes:
+    Stage A optimizes:
     - log_scale: global intensity scale (ADU mode)
-    - log_cell_a_delta: small perturbation to crystal cell_a parameter
+    - log_cell_*_delta: unit cell length perturbations (a/b/c)
+    - angle_*_raw: unit cell angle perturbations (alpha/beta/gamma)
+    - orientation_vec: crystal misorientation (3-vector → quaternion → XYZ Euler)
+
+    Stage C (when config.enable_stage_c=True) optimizes:
+    - per-panel detector distance offsets along panel normal (odet_vec)
 
     Args:
         inputs: RefinementInputs with target, loss_mask, panel_slices, trusted_mask
-        detector: dxtbx Detector object (multi-panel)
+        detector: dxtbx Detector object (multi-panel, possibly perturbed for Stage C smoke)
         beam: dxtbx Beam object
         crystal: dxtbx Crystal object (possibly perturbed from baseline)
         hkl_grid: torch.Tensor structure factor grid (P1 dense)
@@ -206,8 +221,9 @@ def run_nanobrag_refinement(
 
     Returns:
         Tuple of:
-        - Bragg: np.ndarray [panel, slow, fast] final simulated intensities (CPU, float32)
-        - telemetry: RefinementTelemetry with optimizer traces and status
+        - Bragg: np.ndarray [panel, slow, fast] final simulated intensities after all stages (CPU, float32)
+        - telemetry_dict: Dict[str, RefinementTelemetry] keyed by stage label ("A", "C")
+                         Always contains "A"; contains "C" only when config.enable_stage_c=True
 
     Raises:
         RuntimeError: If simulator fails or gradients are NaN/Inf
@@ -695,7 +711,7 @@ def run_nanobrag_refinement(
             'quaternion_norm': float(quat_final.norm().item())
         }
 
-    telemetry = RefinementTelemetry(
+    telemetry_a = RefinementTelemetry(
         optimizer="LBFGS",
         stage="A",
         history_size=config.history_size,
@@ -713,4 +729,15 @@ def run_nanobrag_refinement(
         message=message
     )
 
-    return bragg_full, telemetry
+    telemetry_dict = {"A": telemetry_a}
+
+    # TODO(TORCH-REFINE-003): Stage C implementation goes here
+    # When config.enable_stage_c is True:
+    # 1. Freeze Stage A parameters (no grad)
+    # 2. Initialize per-panel distance offsets
+    # 3. Run LBFGS with detector distance closure
+    # 4. Generate final Bragg with Stage C adjustments
+    # 5. Add telemetry_c to telemetry_dict["C"]
+    # 6. Update bragg_full with Stage C result
+
+    return bragg_full, telemetry_dict

@@ -250,7 +250,8 @@ def prepare_refinement_inputs(
 def create_detector_config(
     panel,
     beam,
-    trusted_mask: Optional[np.ndarray] = None
+    trusted_mask: Optional[np.ndarray] = None,
+    distance_mm_override: Optional[torch.Tensor] = None
 ) -> DetectorConfig:
     """
     Create DetectorConfig from dxtbx panel and beam.
@@ -270,6 +271,8 @@ def create_detector_config(
         panel: dxtbx Panel object
         beam: dxtbx Beam object
         trusted_mask: Optional boolean mask [slow, fast], True=include
+        distance_mm_override: Optional torch.Tensor scalar for distance override (TORCH-REFINE-003)
+                             If provided, replaces panel.get_directed_distance() for Stage C
 
     Returns:
         DetectorConfig with geometry, beam center, and mask
@@ -291,7 +294,13 @@ def create_detector_config(
     fast_px, slow_px = panel.get_image_size()
 
     # Distance (config_crosswalk.md:28)
-    distance_mm = panel.get_directed_distance()
+    # Allow Stage C to override distance with differentiable tensor (TORCH-REFINE-003)
+    if distance_mm_override is not None:
+        # distance_mm_override is a torch.Tensor; extract scalar value or use directly
+        # DetectorConfig expects a Python float, so we need to handle tensor→scalar conversion
+        distance_mm = distance_mm_override
+    else:
+        distance_mm = panel.get_directed_distance()
 
     # Beam center swap: dxtbx returns (fast_mm, slow_mm), torch expects (s, f)
     # (config_crosswalk.md:29, docs/nanobrag_api.md:28)

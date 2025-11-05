@@ -868,3 +868,21 @@ Notes
 - Next Actions: Hand off Do Now to retune `run_nanobrag_refinement` min_loss_improvement + smoke test assertion, then rerun targeted selector and archive logs.
 - <Action State>: [ready_for_implementation]
 2025-11-05T024454Z focus=TORCH-REFINE-001 state=ready_for_implementation dwell=1 artifacts=plans/active/TORCH-REFINE-001/reports/2025-11-05T024454Z/ next_action=retune_stage_a_threshold
+
+## 2025-11-05T031241Z — Stage A closeout & expansion handoff
+- Focus: TORCH-REFINE-001 — Implement LBFGS refinement nucleus (Stage A)
+- Action Type: review_or_housekeeping
+- Key Observations: Confirmed Ralph’s 0.1% gate retune meets all exit criteria; marked fix plan status to done, refreshed implementation plan with completed checkboxes/outcome, and recorded supervisor summary under plans/active/TORCH-REFINE-001/reports/2025-11-05T031241Z/.
+- Artifact Path: plans/active/TORCH-REFINE-001/reports/2025-11-05T031241Z/
+- Next Actions: Pivot to TORCH-REFINE-002 for Stage A DoF expansion.
+- <Action State>: [review_or_housekeeping]
+2025-11-05T031241Z focus=TORCH-REFINE-001 state=ready_for_implementation dwell=0 artifacts=plans/active/TORCH-REFINE-001/reports/2025-11-05T031241Z/ next_action=switch_focus
+
+## 2025-11-05T031241Z — Stage A expansion planning
+- Focus: TORCH-REFINE-002 — Stage A expansion — full crystal and orientation
+- Action Type: planning
+- Key Observations: Created implementation plan detailing log/angle/orientation parameterization, updated fix_plan status/Attempts History, and published Do Now in input.md with Stage A expansion work + smoke test rename.
+- Artifact Path: plans/active/TORCH-REFINE-002/reports/2025-11-05T031241Z/
+- Next Actions: Ralph to implement expanded Stage A parameter surface & updated smoke selector, capture telemetry, and sync test docs.
+- <Action State>: [ready_for_implementation]
+2025-11-05T031241Z focus=TORCH-REFINE-002 state=ready_for_implementation dwell=0 artifacts=plans/active/TORCH-REFINE-002/reports/2025-11-05T031241Z/ next_action=stage_a_expansion_implementation

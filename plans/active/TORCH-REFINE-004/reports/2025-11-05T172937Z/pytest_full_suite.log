@@ -78,4 +78,42 @@ tests/dbex/test_reflection_ingestion.py::TestReflectionIngestion::test_DB_AT_020
 tests/dbex/test_reflection_ingestion.py::TestReflectionIngestion::test_DB_AT_020_panel_alignment PASSED [ 94%]
 tests/dbex/test_runtime_vectorization.py::TestRuntimeVectorization::test_source_weights_ignored_per_spec SKIPPED [ 96%]
 tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion PASSED     [ 97%]
-tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip 
+tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip PASSED [ 98%]
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers FAILED [100%]
+
+=================================== FAILURES ===================================
+/home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_torch_refine_smoke.py:650: AssertionError: Insufficient Stage B full-loss validations
+=============================== warnings summary ===============================
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+tests/dbex/test_mapping_consistency.py:147
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_mapping_consistency.py:147: PytestUnknownMarkWarning: Unknown pytest.mark.db_at_024 - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.db_at_024
+
+tests/dbex/test_mapping_consistency.py:148
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_mapping_consistency.py:148: PytestUnknownMarkWarning: Unknown pytest.mark.mapping - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.mapping
+
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_error_metrics
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_sum_ratio
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_to_dict_serialization
+tests/dbex/test_db_at_001_parity.py::TestArtifactEmission::test_artifact_emission
+tests/dbex/test_db_at_001_parity.py::TestArtifactEmission::test_artifact_emission_minimal
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/fixtures/parity_loader.py:439: ConstantInputWarning: An input array is constant; the correlation coefficient is not defined.
+    corr, _ = scipy.stats.pearsonr(pred_flat, targ_flat)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers - ...
+====== 1 failed, 71 passed, 3 skipped, 11 warnings in 1528.84s (0:25:28) =======

@@ -1,40 +1,55 @@
-Summary: Recover DB-AT-010 gradcheck by repairing the crystal override gradient path and revalidating the selector.
-Mode: Parity
-Focus: DB-AT-010 — Gradient correctness guard (regression recovery)
+Summary: Prepare Stage A LBFGS nucleus handoff so nanobrag torch refinement can descend and record telemetry.
+Mode: TDD
+Focus: TORCH-REFINE-001 — Implement LBFGS refinement nucleus (Stage A)
 Branch: integration
 Mapped tests:
-- tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_crystal_cell_a
-- tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck
-Artifacts: plans/active/DB-AT-010/reports/2025-11-04T232350Z/
+- tests/dbex/test_torch_refine_smoke.py::test_loss_decreases
+- tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata
+Artifacts: plans/active/TORCH-REFINE-001/reports/2025-11-05T002425Z/
 Do Now:
-- DB-AT-010: Implement: dbex/nanobrag_bridge.py::simulate_forward_torch — keep `crystal_overrides` tensors differentiable end-to-end (patch any scalar coercion before TorchCrystal) and tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_crystal_cell_a — add regression guard/asserts ensuring the override tensor stays attached. Validate: env KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest --collect-only tests -k DB_AT_010; env KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck --maxfail=1. Artifacts: plans/active/DB-AT-010/reports/2025-11-04T232350Z/.
+- TORCH-REFINE-001: Implement: dbex/nanobrag_refinement.py::run_nanobrag_refinement — add Stage A LBFGS nucleus optimizing global scale + one crystal DoF with deterministic ROI sampling and telemetry capture; Implement: dbex/refine_one.py::run_nanobrag_backend — invoke the nucleus, plumb optimizer telemetry into `_write_torch_outputs`, and keep existing SCALE-003/006 guards intact; Implement: tests/dbex/test_torch_refine_smoke.py::test_loss_decreases — deterministic ROI smoke verifying ≥5% loss drop, telemetry keys, and non-increasing full-loss trace. Validate: env KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_loss_decreases; env KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/dbex/test_torch_refine_smoke.py::test_loss_decreases --maxfail=1; env KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata --maxfail=1. Artifacts: plans/active/TORCH-REFINE-001/reports/2025-11-05T002425Z/.
 How-To Map:
 1. export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
-2. export DBAT010_ARTIFACT_DIR=plans/active/DB-AT-010/reports/2025-11-04T232350Z
-3. env KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest --collect-only tests -k DB_AT_010 | tee "$DBAT010_ARTIFACT_DIR/collect_db_at_010.log"
-4. env KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_crystal_cell_a --maxfail=1 --durations=1 | tee "$DBAT010_ARTIFACT_DIR/pytest_db_at_010_cell_a.log"
-5. env KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck --maxfail=1 --durations=1 | tee "$DBAT010_ARTIFACT_DIR/pytest_db_at_010_wrapper.log"
-6. If gradients still mismatch, insert temporary `print` / `torch.autograd.grad` probes inside dbex/nanobrag_bridge.py::simulate_forward_torch (guarded by `if crystal_overrides:`) and capture the snippet/output in `$DBAT010_ARTIFACT_DIR/override_probe.txt` (remove before committing).
+2. export TORCH_REFINE_ARTIFACTS=plans/active/TORCH-REFINE-001/reports/2025-11-05T002425Z
+3. env KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_loss_decreases | tee "$TORCH_REFINE_ARTIFACTS/collect_refine_smoke.log"
+4. env KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/dbex/test_torch_refine_smoke.py::test_loss_decreases --maxfail=1 --durations=1 | tee "$TORCH_REFINE_ARTIFACTS/pytest_refine_smoke.log"
+5. env KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata --maxfail=1 --durations=1 | tee "$TORCH_REFINE_ARTIFACTS/pytest_cli_diag.log"
+6. env KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python -m dbex.refine_one --backend nanobrag -e refGeom.expt -r refGeom.refl -i 0 -o tmp/torch_refine_stage_a.h5 -m 747_mask.pkl -z scaled.mtz --mtzCol F,SIGF | tee "$TORCH_REFINE_ARTIFACTS/refine_cli.log"
+7. python - <<'PY' > "$TORCH_REFINE_ARTIFACTS/telemetry_snapshot.json"
+import json, h5py
+from pathlib import Path
+h5_path = Path("tmp/torch_refine_stage_a.h5")
+if not h5_path.exists():
+    raise SystemExit(f"missing {h5_path}; rerun refine_one before dumping telemetry")
+with h5py.File(h5_path, "r") as h:
+    diag = h["torch_diagnostics"]
+    payload = {"attrs": {k: diag.attrs[k] for k in diag.attrs}}
+    for name in diag.keys():
+        payload[name] = diag[name][() if diag[name].shape == () else ...].tolist()
+print(json.dumps(payload, indent=2))
+PY
+8. cp tmp/torch_refine_stage_a.h5 "$TORCH_REFINE_ARTIFACTS/torch_refine_stage_a.h5"
 Pitfalls To Avoid:
-- Keep override tensors on the same device/dtype (`torch.as_tensor` or `.to`)—no implicit CPU copies.
-- Do not introduce `.item()`/`.numpy()` anywhere on differentiable tensors (GRADIENT-001).
-- Retain SCALE-001/002 semantics; do not reorder scaling or mutate HKL grids while debugging.
-- Ensure `NANOBRAGG_DISABLE_COMPILE=1` is set before importing torch; otherwise gradcheck will flake.
-- Avoid widening scope to other acceptance tests—stay on DB-AT-010 until the regression clears.
-- Preserve existing detector/beam overrides and masks; do not shortcut via new fixtures.
-- Drop any debugging prints before final diff; keep artifact logging in reports only.
-- No environment/package changes (Environment Freeze).
-If Blocked: Capture the exact gradcheck traceback plus any probe output into `$DBAT010_ARTIFACT_DIR/blocked.md`, update docs/fix_plan.md Attempts History with the failure signature, set galph_memory state=blocked for DB-AT-010, and coordinate on upstream dependencies before retrying.
+- Keep LBFGS parameters (`log_scale`, crystal perturbation) as torch tensors on the same device; never convert to numpy mid-loop.
+- Reuse warmed Simulator objects per panel to avoid torch.compile recompiles and respect Environment Freeze (no cache clears via reinstall).
+- Maintain deterministic ROI sampling order so smoke test assertions remain stable; seed any randomness explicitly.
+- Flush or invalidate Crystal geometry caches when mutating cell parameters so gradients reflect updated state.
+- Preserve SCALE-003/006/007 telemetry: do not drop refined MTZ provenance or calibration when threading new telemetry payloads.
+- Ensure `_write_torch_outputs` continues to coerce ROI scores to floats (TORCH-CLI-004) while adding new datasets.
+- Skip or xfail gracefully if `refGeom.refl` is absent—document in test to protect CI.
+- Keep torch tensors in float32 for runtime but support float64 in tests when `torch.set_default_dtype` flips for gradcheck.
+If Blocked: Capture failing LBFGS traces (loss_sample/full per iteration) plus stack trace into `$TORCH_REFINE_ARTIFACTS/blocked.md`, update docs/fix_plan.md Attempts History with the blocker summary, append the same to galph_memory (state=blocked), and flag whether dependency (e.g., nanobrag_torch gradients) needs upstream work before reattempt.
 Findings Applied (Mandatory):
-- RUNTIME-001 — Always run gradient tests with `NANOBRAGG_DISABLE_COMPILE=1` to avoid Dynamo interference.
-- SCALE-001 — Leave structure factors unscaled prior to the simulator; overrides must respect this contract.
-- SCALE-002 — Apply sqrt spot-scale inside torch to keep gradients differentiable (no numpy intermediates).
-- GRADIENT-001 — Never detach override tensors; rely on tensor-aware helpers in the bridge.
+- DIAGNOSTICS-001 — `/torch_diagnostics` must remain authoritative; extend rather than replace existing attrs.
+- SCALE-003 — Continue preferring refined structure factors and surface provenance in telemetry/HDF5.
+- SCALE-006 — Thread DiffBragg calibration metadata through the refinement loop without regressions.
+- TESTING-002 — Keep CLI coverage via mocks deterministic; extend assertions when adding telemetry keys.
 Pointers:
-- dbex/nanobrag_bridge.py:1101 — `simulate_forward_torch` override path to audit for tensor coercion.
-- tests/dbex/test_gradients.py:190 — Gradcheck cell_a test invoking the override path.
-- docs/TESTING_GUIDE.md:70 — DB_AT_010 selector commands and environment guards.
-- docs/development/testing_strategy.md:340 — Gradcheck methodology and tolerances.
-- docs/findings.md:31 — GRADIENT-001 guardrail against `.item()` detaches.
-- plans/active/DB-AT-010/implementation.md:32 — Phase D checklist for the regression recovery loop.
-Next Up (optional): Audit whether other unit-cell overrides (cell_b/c) need the same guard once cell_a passes.
+- plans/nanobrag_integration_plan.md:150 — LBFGS closure + telemetry requirements for the refinement nucleus.
+- docs/spec-db-workflow.md:24 — Stage A staging/optimizer mandates (LBFGS, ROI policy).
+- docs/nanobrag_api.md:1 — Crystal/Simulator API surfaces for parameter updates.
+- dbex/refine_one.py:200 — Current nanobrag backend flow and `_write_torch_outputs` telemetry plumbing.
+- tests/dbex/test_nanobrag_smoke.py:1 — Canonical fixtures for refGeom dataset ingestion and ROI handling.
+- docs/TESTING_GUIDE.md:60 — Selector table to extend with the new refinement smoke test.
+Next Up (optional): Stage B checklist stub once Stage A nucleus lands (telemetry for full loss trace).
+Doc Sync Plan: After code passes, append the new smoke selector (name, env flags, artifact logs) to `docs/TESTING_GUIDE.md` §2 and `docs/development/TEST_SUITE_INDEX.md`, referencing `$TORCH_REFINE_ARTIFACTS/collect_refine_smoke.log`; regenerate artifact listings if telemetry datasets change.

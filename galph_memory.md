@@ -826,3 +826,13 @@ Notes
 - <Action State>: [planning]
 
 2025-11-04T232350Z focus=DB-AT-010 state=planning dwell=1 artifacts=plans/active/DB-AT-010/reports/2025-11-04T232350Z/ next_action=handoff_grad_override_fix
+
+## 2025-11-05T002425Z — TORCH-REFINE-001 Stage A nucleus planning
+- Focus: TORCH-REFINE-001 — Implement LBFGS refinement nucleus (Stage A)
+- Action Type: planning
+- Key Observations: Reviewed nucleus requirements across plans/nanobrag_integration_plan.md:150-220 and docs/spec-db-workflow.md:24-40 confirming LBFGS + deterministic ROI sampling mandate; verified no existing `run_nanobrag_refinement` implementation and outlined telemetry payload (optimizer config, traces, param_deltas) alongside CLI smoke/test coverage. Authored Do Now with new refinement module, CLI wiring, smoke pytest, CLI telemetry verification, and doc sync instructions; artifacts captured under plans/active/TORCH-REFINE-001/reports/2025-11-05T002425Z/summary.md.
+- Artifact Path: plans/active/TORCH-REFINE-001/reports/2025-11-05T002425Z/
+- Next Actions: Issue Stage A LBFGS Do Now to Ralph and monitor execution (expect ready_for_implementation next loop if not already acted upon).
+- Reality Check: `run_nanobrag_backend` still performs zero-iteration forward simulation only; `/torch_diagnostics` lacks optimizer telemetry, so nucleus remains outstanding.
+- <Action State>: [planning]
+2025-11-05T002425Z focus=TORCH-REFINE-001 state=planning dwell=0 artifacts=plans/active/TORCH-REFINE-001/reports/2025-11-05T002425Z/ next_action=issue_stage_a_do_now

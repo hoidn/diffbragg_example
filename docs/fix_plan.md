@@ -24,6 +24,7 @@
 - Working Plan: plans/active/TORCH-REFINE-001/implementation.md
 - Attempts History:
   * 2025-11-04T230000Z (planning) — Created initiative placeholder and acceptance; linked to integration plan “Refinement Nucleus”. No code executed (Docs-only). Next: author Do Now with `<file>::<function>` nucleus target and a validating pytest node.
+  * 2025-11-05T002425Z (planning) — Reviewed refinement nucleus scope across `plans/nanobrag_integration_plan.md:150-220`, `docs/spec-db-workflow.md:24-40`, and `docs/nanobrag_api.md:1-120`; confirmed no existing `run_nanobrag_refinement` implementation and zero prior reports. Drafted TDD handoff covering Stage A LBFGS closure (optimize global scale + single crystal DoF), telemetry emission (`optimizer`, traces, `param_deltas`), and a deterministic ROI-smoke pytest (`tests/dbex/test_torch_refine_smoke.py::test_loss_decreases`). Artifacts: plans/active/TORCH-REFINE-001/reports/2025-11-05T002425Z/summary.md. Next Actions: Issue ready-for-implementation Do Now directing code/test updates plus TESTING_GUIDE/TEST_SUITE_INDEX sync.
 
 ### [MAP-SCALE-001] Zero-iteration mapping scale alignment
 - Depends on: DB-AT-024, DB-AT-023, SCALE-001, SCALE-002, docs/spec-db-workflow.md §4, docs/architecture.md §4.3, CONFORMANCE-001

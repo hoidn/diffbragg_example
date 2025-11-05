@@ -17,10 +17,10 @@ Extend the Stage A refinement loop from the nucleus (scale + cell_a) to the full
 ## Phase Breakdown
 - Phase 1 — Parameter Surface & Warm-starts
   - [x] P1.1: Introduce new trainable tensors for log_cell_b_delta/log_cell_c_delta and bounded angle deltas (alpha/beta/gamma) with clamped/tanh mapping around the baseline angles. *(Landed in 2025-11-05T031241Z implementation; telemetry confirms non-zero cell movement.)*
-  - [ ] P1.2: Add orientation perturbation tensor (e.g., 3-vector mapped to quaternion) and integrate through `create_crystal_config` misset fields without leaving autograd. *TODO: Map quaternion → XYZ misset and plumb overrides so orientation deltas influence Simulator inputs (REFINE-003).*
+  - [ ] P1.2: Add orientation perturbation tensor (3-vector mapped to quaternion) and integrate through `create_crystal_config` misset fields without leaving autograd. *Current code maps to Euler angles (dbex/nanobrag_refinement.py:333-357) but telemetry stays zero → confirm `misset_deg_override` survives CrystalConfig instantiation and rotates nanobrag_torch crystals; add asserts to catch identity passthrough (REFINE-003).*
   - [x] P1.3: Ensure global scale warm-start + clamp logic still applies with the expanded parameter list; add appropriate bounds for new parameters (length exponent clamp, angle delta ceiling, orientation norm guard).
 - Phase 2 — Telemetry & Safety Rails
-  - [ ] P2.1: Extend `param_deltas` telemetry to include all new Stage A DoFs (lengths, angles, orientation components) with clear naming.
+  - [ ] P2.1: Extend `param_deltas` telemetry to include all new Stage A DoFs (lengths, angles, orientation components) with clear naming. *Telemetry currently records orientation norm only; ensure misset degrees (XYZ) and quaternion magnitude/bounds surface for debugging.*
   - [ ] P2.2: Capture best-parameter snapshots for rollback covering the expanded tensor set; update early-stop messaging to the ≥5% gate.
   - [ ] P2.3: Maintain NaN/Inf guards and add orientation normalization (unit quaternion) check to avoid invalid crystals.
 - Phase 3 — Test & Docs Sync
@@ -28,7 +28,7 @@ Extend the Stage A refinement loop from the nucleus (scale + cell_a) to the full
   - [ ] P3.2: Archive pytest logs under plans/active/TORCH-REFINE-002/reports/<timestamp>/ and update testing guides only if selectors change.
 
 - Phase 4 — Deterministic Miscalibration & Gate Rebaseline
-  - [ ] P4.1: Introduce a deterministic refGeom perturbation (cell + small orientation misset) used only inside the Stage A expansion smoke to guarantee ≥5% masked-MSE headroom while keeping production defaults unchanged.
+  - [ ] P4.1: Introduce a deterministic refGeom perturbation (cell + small orientation misset) used only inside the Stage A expansion smoke to guarantee ≥5% masked-MSE headroom while keeping production defaults unchanged. *Sketch helper returning perturbed copies (no in-place mutation) so Stage A retains reproducibility.*
   - [ ] P4.2: Document the perturbation (magnitude, axes, rationale) in `docs/fix_plan.md` and add a matching finding so future datasets can reuse or retire it.
   - [ ] P4.3: Once perturbation lands, re-run telemetry to capture the new improvement baseline and update `RefinementConfig.min_loss_improvement`/smoke assertions accordingly.
 

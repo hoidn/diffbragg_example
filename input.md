@@ -1,50 +1,54 @@
-Summary: Plan quaternion→misset plumbing and deterministic perturbation so Stage A clears the ≥5% gate with full telemetry.
+Summary: Hand off orientation misset plumbing plus deterministic perturbation so Stage A reliably clears the ≥5% gate with telemetry proof.
 Mode: none
 Focus: TORCH-REFINE-002 — Stage A expansion — full crystal and orientation
 Branch: integration
 Mapped tests: pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion --maxfail=1
-Artifacts: plans/active/TORCH-REFINE-002/reports/2025-11-05T033936Z/
+Artifacts: plans/active/TORCH-REFINE-002/reports/2025-11-05T035905Z/
 
 Do Now:
 - TORCH-REFINE-002
-  - Implement: dbex/nanobrag_refinement.py::run_nanobrag_refinement — map `orientation_vec` to a bounded quaternion→XYZ misset override, plumb it through `dbex/nanobrag_bridge.py::create_crystal_config` without reintroducing MOSFLM A* injection, and extend `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` with a deterministic refGeom perturbation that drives ≥5% masked-MSE improvement plus telemetry assertions for the new orientation deltas.
+  - Implement: dbex/nanobrag_bridge.py::create_crystal_config — ensure tensor `misset_deg_override` survives CrystalConfig instantiation and rotates the torch simulator without breaking autograd; dbex/nanobrag_refinement.py::run_nanobrag_refinement — surface bounded orientation misset telemetry (XYZ degrees + quaternion norm) and wire the deltas into Stage A rollback snapshots; tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion — inject a deterministic refGeom perturbation helper so the smoke asserts ≥5% improvement and non-zero orientation delta.
   - Validate: pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion --maxfail=1
-  - Artifacts: plans/active/TORCH-REFINE-002/reports/2025-11-05T033936Z/
+  - Artifacts: plans/active/TORCH-REFINE-002/reports/2025-11-05T035905Z/
 
 How-To Map:
 1. export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
-2. KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion | tee plans/active/TORCH-REFINE-002/reports/2025-11-05T033936Z/collect_stage_a.log
-3. KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion --maxfail=1 | tee plans/active/TORCH-REFINE-002/reports/2025-11-05T033936Z/pytest_stage_a.log
-4. (Optional) KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion -k telemetry_snapshot | tee plans/active/TORCH-REFINE-002/reports/2025-11-05T033936Z/pytest_stage_a_telemetry.log
+2. KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion | tee plans/active/TORCH-REFINE-002/reports/2025-11-05T035905Z/collect_stage_a.log
+3. KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion --maxfail=1 | tee plans/active/TORCH-REFINE-002/reports/2025-11-05T035905Z/pytest_stage_a.log
+4. python - <<'PY' > plans/active/TORCH-REFINE-002/reports/2025-11-05T035905Z/orientation_delta.txt
+from pathlib import Path
+log = Path("plans/active/TORCH-REFINE-002/reports/2025-11-05T035905Z/pytest_stage_a.log").read_text()
+for line in log.splitlines():
+    if "Orientation norm" in line or "Improvement" in line:
+        print(line)
+PY
 
 Pitfalls To Avoid:
-- Keep quaternion normalization differentiable; avoid `.detach()` when converting to misset angles.
-- Do not reintroduce `mosflm_*` injection when tensor overrides are provided (GRADIENT-001).
-- Bound orientation magnitude (e.g., tanh to ±3°) so LBFGS steps stay in the linear regime.
-- Preserve existing ROI sampling/full validation cadence and telemetry key names.
-- Deterministic perturbation must live in the test harness only; production defaults stay untouched.
-- Capture all new logs in the designated artifacts directory; avoid clobbering prior runs.
-- Ensure `pytest --collect-only` still reports ≥1 test for the mapped selector.
-- Leave environment untouched per Environment Freeze—no new dependencies or installs.
+- Preserve gradient flow: do not call `.item()`/`.detach()` when threading orientation tensors into configs.
+- Maintain quaternion normalization and clip orientation magnitude to ±3° before conversion.
+- Keep deterministic perturbation test-only; never mutate canonical refGeom artifacts on disk.
+- Ensure ROI sampling and validation cadence stay unchanged so telemetry comparisons remain valid.
+- Capture updated telemetry keys without renaming existing fields relied on by downstream tooling.
+- Archive fresh logs under the 2025-11-05T035905Z path—no overwriting earlier runs.
+- Respect Environment Freeze: no installs, compiles, or torch upgrades.
 
 If Blocked:
-- Record the failure signature (traceback + last telemetry message) in plans/active/TORCH-REFINE-002/reports/2025-11-05T033936Z/blocked.md.
-- Update docs/fix_plan.md Attempts History with blocker details and log the status in galph_memory before pausing.
+- Record the exact failure signature (telemetry status, traceback) in plans/active/TORCH-REFINE-002/reports/2025-11-05T035905Z/blocked.md and update docs/fix_plan.md Attempts History with the blocker summary.
+- Append a galph_memory entry marking focus blocked and note prerequisites (e.g., nanobrag_torch API gaps) before switching focus.
 
 Findings Applied (Mandatory):
-- REFINE-001 (docs/findings.md:14) — Warm-start global scale and clamp before exponentiation.
-- REFINE-002 (docs/findings.md:15) — Recognize nucleus improvement ceiling; wider gate now depends on added DoFs.
-- REFINE-003 (docs/findings.md:34) — Orientation must flow through quaternion→misset without conflicting with cell overrides.
-- REFINE-004 (docs/findings.md:35) — Use deterministic calibration perturbation in the smoke test to satisfy the ≥5% gate while keeping production defaults pristine.
-- GRADIENT-001 (docs/findings.md:33) — Crystal parameter overrides stay as tensors; no `.item()` inside the refinement path.
+- REFINE-001 — Warm-start `log_scale` and clamp before exponentiation to avoid gradient explosions.
+- REFINE-002 — Recognize nucleus improvement ceiling; expanded DoFs must justify restoring the ≥5% gate.
+- REFINE-003 — Orientation path must stay differentiable through quaternion→misset routing and CrystalConfig.
+- REFINE-004 — Guarantee ≥5% gate via deterministic perturbation scoped to the smoke harness only.
+- GRADIENT-001 — Crystal overrides remain tensors; no MOSFLM A* reinjection when overrides are active.
 
 Pointers:
-- docs/spec-db-workflow.md:30 — Stage A parameterization and gate expectations.
-- plans/nanobrag_integration_plan.md:176 — Stage A expansion contract for quaternion orientation and telemetry.
-- docs/fix_plan.md:31 — Current TORCH-REFINE-002 status and attempts history.
-- plans/active/TORCH-REFINE-002/implementation.md:12 — Phase checklist highlighting outstanding orientation/gate work.
-- dbex/nanobrag_refinement.py:185 — Current Stage A parameter initialization (orientation_vec still unused).
-- dbex/nanobrag_bridge.py:480 — Crystal config override plumbing that needs misset support.
+- docs/spec-db-workflow.md:30 — Stage A gate and orientation contract details.
+- plans/nanobrag_integration_plan.md:176 — Stage A expansion milestones and telemetry expectations.
+- dbex/nanobrag_refinement.py:333 — Current quaternion→misset mapping inside compute_loss.
+- dbex/nanobrag_bridge.py:512 — CrystalConfig override plumbing for `misset_deg` and tensor overrides.
+- tests/dbex/test_torch_refine_smoke.py:132 — Stage A expansion smoke assertions awaiting ≥5% improvement and orientation deltas.
 
 Next Up (optional):
-1. TORCH-REFINE-003 — Stage C detector microslip once Stage A gate lands.
+1. TORCH-REFINE-003 — Stage C detector microslip once Stage A orientation gate lands.

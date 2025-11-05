@@ -895,3 +895,14 @@ Notes
 - Next Actions: Issue Do Now for quaternion→misset plumbing plus smoke test perturbation, then rerun Stage A expansion selector.
 - <Action State>: [planning]
 2025-11-05T033936Z focus=TORCH-REFINE-002 state=planning dwell=0 artifacts=plans/active/TORCH-REFINE-002/reports/2025-11-05T033936Z/ next_action=handoff_quaternion_misset_do_now
+
+## 2025-11-05T035905Z — TORCH-REFINE-002 orientation gate handoff
+- Focus: TORCH-REFINE-002 — Stage A expansion — full crystal and orientation
+- Action Type: planning
+- Key Observations: Orientation quaternion path still reads as inert in telemetry (norm 0.0) so we need to verify `misset_deg_override` survives CrystalConfig; deterministic perturbation remains the only viable path to exercise the ≥5% gate without mutating production assets. Refreshed implementation checklist and fix_plan attempts to flag these checkpoints and published updated Do Now/input.md under the new artifact hub.
+- Artifact Path: plans/active/TORCH-REFINE-002/reports/2025-11-05T035905Z/
+- Next Actions: Ralph to wire misset override validation, emit richer orientation telemetry, add the deterministic perturbation helper, and rerun the Stage A expansion smoke.
+- Reality Check: Exit criteria still unmet (orientation deltas zero, gate <5%); artifacts and docs now point to the new report directory and ready-for-implementation instructions.
+- <Action State>: [ready_for_implementation]
+
+2025-11-05T035905Z focus=TORCH-REFINE-002 state=ready_for_implementation dwell=0 artifacts=plans/active/TORCH-REFINE-002/reports/2025-11-05T035905Z/ next_action=orientation_misset_implementation

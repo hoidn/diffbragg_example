@@ -555,7 +555,7 @@ def test_torch_diagnostics_metadata():
 
             # Import the function to test
             from dbex.refine_one import _write_torch_outputs
-            _write_torch_outputs(mock_args, mock_dl, mock_bragg, mock_inputs, masked_mse, hkl_telemetry)
+            _write_torch_outputs(mock_args, mock_dl, mock_bragg, mock_inputs, masked_mse, hkl_telemetry, refine_telemetry=None)
 
             # Verify diagnostics group exists and has correct metadata
             with h5py.File(outfile, 'r') as h:

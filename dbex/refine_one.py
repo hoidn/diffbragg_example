@@ -345,7 +345,44 @@ def run_nanobrag_backend(args, DL, devid=0):
     masked_diff = np.where(inputs.loss_mask, inputs.target - Bragg, 0.0)
     masked_mse = (masked_diff ** 2).sum() / inputs.loss_mask.sum()
 
-    print(f"[nanobrag backend] Masked MSE: {masked_mse:.2e}")
+    print(f"[nanobrag backend] Masked MSE (zero-iteration): {masked_mse:.2e}")
+
+    # Run Stage A LBFGS refinement nucleus (TORCH-REFINE-001)
+    print(f"[nanobrag backend] Running Stage A LBFGS refinement nucleus...")
+    from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig
+
+    refine_config = RefinementConfig(
+        device='cpu',
+        dtype=torch.float32
+    )
+
+    try:
+        Bragg_refined, refine_telemetry = run_nanobrag_refinement(
+            inputs=inputs,
+            detector=DL.detector,
+            beam=DL.beam,
+            crystal=DL.crystal,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            config=refine_config
+        )
+
+        # Compute refined masked MSE
+        masked_diff_refined = np.where(inputs.loss_mask, inputs.target - Bragg_refined, 0.0)
+        masked_mse_refined = (masked_diff_refined ** 2).sum() / inputs.loss_mask.sum()
+
+        print(f"[nanobrag backend] Refinement status: {refine_telemetry.status}")
+        print(f"[nanobrag backend] Masked MSE (refined): {masked_mse_refined:.2e}")
+        print(f"[nanobrag backend] Improvement: {(masked_mse - masked_mse_refined) / masked_mse * 100:.1f}%")
+
+        # Use refined Bragg for output
+        Bragg = Bragg_refined
+        masked_mse = masked_mse_refined
+
+    except Exception as e:
+        print(f"[nanobrag backend] WARNING: Refinement failed: {e}")
+        print(f"[nanobrag backend] Falling back to zero-iteration Bragg")
+        refine_telemetry = None
 
     # Prepare structure-factor telemetry for diagnostics (SCALE-003)
     hkl_telemetry = {
@@ -356,12 +393,12 @@ def run_nanobrag_backend(args, DL, devid=0):
     }
 
     # Score ROIs and write HDF5 output
-    _write_torch_outputs(args, DL, Bragg, inputs, masked_mse, hkl_telemetry)
+    _write_torch_outputs(args, DL, Bragg, inputs, masked_mse, hkl_telemetry, refine_telemetry)
 
     print(f"Visualize using `python -m dbex.look {args.outFile}`")
 
 
-def _write_torch_outputs(args, DL, Bragg, inputs, masked_mse, hkl_telemetry):
+def _write_torch_outputs(args, DL, Bragg, inputs, masked_mse, hkl_telemetry, refine_telemetry=None):
     """Write torch backend outputs to HDF5 with diagnostics.
 
     Args:
@@ -375,6 +412,7 @@ def _write_torch_outputs(args, DL, Bragg, inputs, masked_mse, hkl_telemetry):
             - hkl_n_reflections: Number of reflections
             - hkl_mean_amplitude: Mean structure factor amplitude
             - hkl_path: Path to MTZ file used
+        refine_telemetry: Optional RefinementTelemetry from run_nanobrag_refinement
     """
     import h5py
     import numpy as np
@@ -446,6 +484,37 @@ def _write_torch_outputs(args, DL, Bragg, inputs, masked_mse, hkl_telemetry):
         diag.attrs["hkl_n_reflections"] = int(hkl_telemetry["hkl_n_reflections"])
         diag.attrs["hkl_mean_amplitude"] = float(hkl_telemetry["hkl_mean_amplitude"])
         diag.attrs["hkl_path"] = str(hkl_telemetry["hkl_path"])
+
+        # Refinement telemetry (TORCH-REFINE-001: optimizer traces and status)
+        if refine_telemetry is not None:
+            import json
+
+            diag.attrs["refine_optimizer"] = refine_telemetry.optimizer
+            diag.attrs["refine_stage"] = refine_telemetry.stage
+            diag.attrs["refine_history_size"] = refine_telemetry.history_size
+            diag.attrs["refine_max_iter"] = refine_telemetry.max_iter
+            diag.attrs["refine_tolerance_grad"] = refine_telemetry.tolerance_grad
+            diag.attrs["refine_tolerance_change"] = refine_telemetry.tolerance_change
+            diag.attrs["refine_roi_sample_fraction"] = refine_telemetry.roi_sample_fraction
+            diag.attrs["refine_roi_count_sampled"] = refine_telemetry.roi_count_sampled
+            diag.attrs["refine_roi_count_total"] = refine_telemetry.roi_count_total
+            diag.attrs["refine_status"] = refine_telemetry.status
+            diag.attrs["refine_message"] = refine_telemetry.message
+
+            # Store loss traces as datasets
+            if len(refine_telemetry.loss_trace_sample) > 0:
+                diag.create_dataset("refine_loss_trace_sample", data=refine_telemetry.loss_trace_sample)
+
+            if len(refine_telemetry.loss_trace_full) > 0:
+                # Store as structured array: [(iteration, loss), ...]
+                loss_trace_full_arr = np.array(refine_telemetry.loss_trace_full, dtype=[('iteration', 'i4'), ('loss', 'f8')])
+                diag.create_dataset("refine_loss_trace_full", data=loss_trace_full_arr)
+
+            diag.attrs["refine_best_loss_full"] = refine_telemetry.best_loss_full[0]
+            diag.attrs["refine_best_loss_iteration"] = refine_telemetry.best_loss_full[1]
+
+            # Store param_deltas as JSON string
+            diag.attrs["refine_param_deltas"] = json.dumps(refine_telemetry.param_deltas)
 
     # TORCH-CLI-004: Guard against empty scores collection
     if len(scores) > 0:

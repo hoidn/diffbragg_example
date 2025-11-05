@@ -992,3 +992,12 @@ Notes
 - Next Actions: Ralph to implement Stage B shell modifier stage per new input.md (LBFGS loop + telemetry + tests) and capture Stage B improvement artifacts.
 - <Action State>: [ready_for_implementation]
 2025-11-05T100554Z focus=TORCH-REFINE-004 state=ready_for_implementation dwell=0 artifacts=plans/active/TORCH-REFINE-004/reports/2025-11-05T100554Z/ next_action=implement_stage_b_shell_modifiers
+
+## 2025-11-05T164800Z — TORCH-REFINE-004 Stage B bridge audit
+- Focus: TORCH-REFINE-004 — Stage B Fhkl modifiers (optional)
+- Action Type: gathering_evidence
+- Key Observations: Replayed the Stage B selector; failure occurs before telemetry because `run_nanobrag_refinement` passes unsupported `device`/`dtype` kwargs into `create_beam_config` during the Stage B post-pass. Logs confirm bridge helpers still expect the Stage A signature (beam only), so the current Stage B implementation is out of sync with `dbex.nanobrag_bridge`. No default_F fallback or structure-factor violations observed; failure is purely the API mismatch. Collected fresh collect-only + pytest logs under 2025-11-05T164800Z.
+- Artifact Path: plans/active/TORCH-REFINE-004/reports/2025-11-05T164800Z/
+- Next Actions: Realign Stage B loop with bridge helpers (pass trusted_mask to `create_detector_config`, reuse Stage A `Detector`/`Crystal` models, drop unsupported kwargs), then rerun the Stage B smoke to calibrate improvement vs the ≥3% gate and capture telemetry for doc sync.
+- <Action State>: [gathering_evidence]
+2025-11-05T164800Z focus=TORCH-REFINE-004 state=gathering_evidence dwell=1 artifacts=plans/active/TORCH-REFINE-004/reports/2025-11-05T164800Z/ next_action=realign_stage_b_bridge_calls

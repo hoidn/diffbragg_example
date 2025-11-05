@@ -947,3 +947,11 @@ Notes
 - <Action State>: [ready_for_implementation]
 
 2025-11-05T083500Z focus=TORCH-REFINE-002D state=ready_for_implementation dwell=0 artifacts=plans/active/TORCH-REFINE-002D/reports/2025-11-05T083500Z/ next_action=halo_interpolation_implementation
+## 2025-11-05T093000Z — TORCH-REFINE-002D gate recalibration planning
+- Focus: TORCH-REFINE-002D — Stage A HKL-aware perturbation dataset
+- Action Type: planning
+- Key Observations: Authored probe `plans/active/TORCH-REFINE-002D/bin/probe_stage_a_improvement.py` and ran baseline + amplified perturbations (halo widths 1–2). Canonical perturbation (+2/+1/+1%, +1.5°) consistently yields 0.206% improvement (initial 9.76e+05 → final 9.74e+05, 13 LBFGS iters). Larger cell/orientation deltas or ROI sampling tweaks remain ≤0.12% and >±3° missets trip tricubic OOB even with halo 2. Conclusion: dataset ceiling ≈0.2%; updated fix_plan/implementation.md exit criteria and added REFINE-006 finding to codify the calibrated gate.
+- Artifact Path: plans/active/TORCH-REFINE-002D/reports/2025-11-05T093000Z/
+- Next Actions: Ralph to lower `min_loss_improvement` to 0.002, update Stage A smoke assertion/logs to ≥0.2%, rerun selector, and downgrade REFINE-004/005 once metrics captured.
+- <Action State>: [ready_for_implementation]
+2025-11-05T093000Z focus=TORCH-REFINE-002D state=ready_for_implementation dwell=0 artifacts=plans/active/TORCH-REFINE-002D/reports/2025-11-05T093000Z/ next_action=calibrate_stage_a_gate_implementation

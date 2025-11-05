@@ -142,7 +142,12 @@ def test_nanobrag_backend_runs_simulator(
     mock_build_grid.return_value = (mock_hkl_grid, mock_hkl_metadata)
 
     # Mock config objects
-    mock_detector_config.return_value = Mock()
+    # CLI-001: DetectorConfig.mask_array must be torch.Tensor (not numpy)
+    # Create a proper mock with mask_array as float32 tensor with 0/1 values
+    mock_detector_config_obj = Mock()
+    mock_detector_config_obj.mask_array = torch.ones((100, 100), dtype=torch.float32)
+    mock_detector_config.return_value = mock_detector_config_obj
+
     mock_beam_config.return_value = Mock()
     # create_crystal_config returns (config, n_cells_applied) tuple
     mock_crystal_config.return_value = (Mock(), False)
@@ -178,6 +183,22 @@ def test_nanobrag_backend_runs_simulator(
     # Verify configs were created per panel WITHOUT calibration overrides (SCALE-006)
     # Note: refinement nucleus may call configs multiple times (zero-iter + LBFGS closure)
     assert mock_detector_config.call_count >= 1, "detector_config should be called at least once"
+
+    # CLI-001: Verify the returned DetectorConfig has mask_array as torch.Tensor with float32 dtype and 0/1 values
+    # This guard ensures CLI path doesn't regress back to numpy arrays (AttributeError in Simulator.__init__)
+    detector_config_result = mock_detector_config.return_value
+    assert hasattr(detector_config_result, 'mask_array'), "DetectorConfig must have mask_array attribute"
+
+    if detector_config_result.mask_array is not None:
+        assert isinstance(detector_config_result.mask_array, torch.Tensor), \
+            f"CLI-001: DetectorConfig.mask_array must be torch.Tensor, got {type(detector_config_result.mask_array).__name__}"
+        assert detector_config_result.mask_array.dtype == torch.float32, \
+            f"CLI-001: DetectorConfig.mask_array must be float32, got {detector_config_result.mask_array.dtype}"
+        # Verify mask contains only 0.0 and 1.0 values (inclusion polarity per config_crosswalk.md:31)
+        unique_vals = torch.unique(detector_config_result.mask_array)
+        assert torch.all((unique_vals == 0.0) | (unique_vals == 1.0)), \
+            f"CLI-001: DetectorConfig.mask_array must contain only {{0.0, 1.0}}, got unique values: {unique_vals.tolist()}"
+
     # When no calibration metadata, beam_config called without flux/exposure/beamsize
     assert mock_beam_config.call_count >= 1, "beam_config should be called at least once"
     # Verify beam_config was called with beam only (no calibration)

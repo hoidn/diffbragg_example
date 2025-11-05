@@ -416,6 +416,12 @@ def run_nanobrag_refinement(
                 nonlocal best_loss_full, best_params_snapshot
                 if full_loss.item() < best_loss_full[0]:
                     best_loss_full = (float(full_loss.item()), iteration_count[0])
+                    # Compute misset XYZ for snapshot (TORCH-REFINE-002)
+                    max_orientation_deg = 3.0
+                    bounded_orientation_vec_snap = torch.tanh(orientation_vec) * max_orientation_deg * (np.pi / 180.0)
+                    quat_snap = vec_to_unit_quaternion(bounded_orientation_vec_snap)
+                    misset_xyz_deg_snap = quaternion_to_xyz_euler(quat_snap)
+
                     best_params_snapshot = {
                         'log_scale': float(log_scale.item()),
                         'log_cell_a_delta': float(log_cell_a_delta.item()),
@@ -424,7 +430,8 @@ def run_nanobrag_refinement(
                         'angle_alpha_raw': float(angle_alpha_raw.item()),
                         'angle_beta_raw': float(angle_beta_raw.item()),
                         'angle_gamma_raw': float(angle_gamma_raw.item()),
-                        'orientation_vec': orientation_vec.detach().cpu().tolist()
+                        'orientation_vec': orientation_vec.detach().cpu().tolist(),
+                        'misset_xyz_deg': misset_xyz_deg_snap.detach().cpu().tolist()
                     }
 
         iteration_count[0] += 1
@@ -444,6 +451,12 @@ def run_nanobrag_refinement(
 
             if final_loss.item() < best_loss_full[0]:
                 best_loss_full = (float(final_loss.item()), iteration_count[0])
+                # Compute misset XYZ for final snapshot (TORCH-REFINE-002)
+                max_orientation_deg = 3.0
+                bounded_orientation_vec_final = torch.tanh(orientation_vec) * max_orientation_deg * (np.pi / 180.0)
+                quat_final = vec_to_unit_quaternion(bounded_orientation_vec_final)
+                misset_xyz_deg_final = quaternion_to_xyz_euler(quat_final)
+
                 best_params_snapshot = {
                     'log_scale': float(log_scale.item()),
                     'log_cell_a_delta': float(log_cell_a_delta.item()),
@@ -452,7 +465,8 @@ def run_nanobrag_refinement(
                     'angle_alpha_raw': float(angle_alpha_raw.item()),
                     'angle_beta_raw': float(angle_beta_raw.item()),
                     'angle_gamma_raw': float(angle_gamma_raw.item()),
-                    'orientation_vec': orientation_vec.detach().cpu().tolist()
+                    'orientation_vec': orientation_vec.detach().cpu().tolist(),
+                    'misset_xyz_deg': misset_xyz_deg_final.detach().cpu().tolist()
                 }
 
         # Check convergence: did we achieve ≥5% improvement?
@@ -593,6 +607,22 @@ def run_nanobrag_refinement(
             'norm': float(orientation_vec.norm().item())
         }
     }
+
+    # Compute final misset XYZ degrees for telemetry (TORCH-REFINE-002)
+    # This surfaces the actual rotation applied to the crystal
+    with torch.no_grad():
+        max_orientation_deg = 3.0
+        bounded_orientation_vec_final = torch.tanh(orientation_vec) * max_orientation_deg * (np.pi / 180.0)
+        quat_final = vec_to_unit_quaternion(bounded_orientation_vec_final)
+        misset_xyz_deg_final = quaternion_to_xyz_euler(quat_final)
+
+        # Add misset telemetry
+        param_deltas['misset_xyz_deg'] = {
+            'initial': [0.0, 0.0, 0.0],
+            'final': misset_xyz_deg_final.cpu().tolist(),
+            'delta': misset_xyz_deg_final.cpu().tolist(),
+            'quaternion_norm': float(quat_final.norm().item())
+        }
 
     telemetry = RefinementTelemetry(
         optimizer="LBFGS",

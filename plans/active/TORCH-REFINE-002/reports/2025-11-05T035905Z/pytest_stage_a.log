@@ -1,0 +1,204 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 1 item
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion FAILED     [100%]
+
+=================================== FAILURES ===================================
+____________________________ test_stage_a_expansion ____________________________
+
+refgeom_dataload = <dbex.data_load.DataLoad object at 0x71d2c8abaa30>
+refinement_inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0.,...  [ True,  True,  True, ...,  True,  True,  True]]]), target_representation='adu', global_scale_hint=62.65738056380318)
+hkl_data = (tensor([[[0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0.,..., 0.]]]), {'grid_max': 518.3336791992188, 'grid_mean': 18.78112030029297, 'grid_min': 0.0, 'grid_nonzero': 69614, ...})
+
+    def test_stage_a_expansion(refgeom_dataload, refinement_inputs, hkl_data):
+        """
+        Verify Stage A LBFGS refinement with full crystal DoFs achieves ≥5% loss decrease.
+    
+        Acceptance criteria (TORCH-REFINE-002):
+        1. Refinement runs without errors (status != "error")
+        2. Final masked MSE is ≥5% lower than initial within ≤30 LBFGS steps
+        3. Telemetry contains all required keys (scale, cell a/b/c, angles, orientation) and reports Stage A expansion gate
+        4. Full-loss trace is non-increasing over last 3 validations
+        5. Param deltas show non-zero updates for scale (>1e-6) and cell/angle/orientation components
+    
+        Environment:
+        - Requires: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1
+        - Selector: pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+        """
+        from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig
+    
+        hkl_grid, hkl_metadata = hkl_data
+    
+        # Configure refinement (Stage A expansion per TORCH-REFINE-002)
+        config = RefinementConfig(
+            device='cpu',
+            dtype=torch.float32,
+            history_size=10,
+            max_iter=30,  # ≤30 steps for Stage A expansion
+            roi_sample_fraction=0.15,
+            full_validation_interval=5,
+            min_loss_improvement=0.05  # 5% threshold for full crystal DoFs
+        )
+    
+        # Apply deterministic perturbation to create miscalibrated starting geometry (REFINE-004)
+>       perturbed_crystal, detector, beam = create_perturbed_geometry(
+            refgeom_dataload.crystal,
+            refgeom_dataload.detector,
+            refgeom_dataload.beam,
+            seed=42
+        )
+
+tests/dbex/test_torch_refine_smoke.py:220: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/dbex/test_torch_refine_smoke.py:135: in create_perturbed_geometry
+    U_perturbed = rotation_z * U
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = matrix.rec(elems=(0.9996573249755573, ..., 1.0), n=(3,3))
+other = matrix.rec(elems=(-0.5302621124475502, ..., -0.5683610654212028), n=(9,1))
+
+    def __mul__(self, other):
+      if (not hasattr(other, "elems")):
+        if (not isinstance(other, (list, tuple))):
+          return rec([x * other for x in self.elems], self.n)
+        other = col(other)
+      a = self.elems
+      ar = self.n_rows()
+      ac = self.n_columns()
+      b = other.elems
+      if (other.n_rows() != ac):
+>       raise RuntimeError(
+          "Incompatible matrices:\n"
+          "  self.n:  %s\n"
+          "  other.n: %s" % (str(self.n), str(other.n)))
+E       RuntimeError: Incompatible matrices:
+E         self.n:  (3, 3)
+E         other.n: (9, 1)
+
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/scitbx/matrix/__init__.py:92: RuntimeError
+=============================== warnings summary ===============================
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion - Runtim...
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+======================== 1 failed, 4 warnings in 3.14s =========================
+        Verify Stage A LBFGS refinement with full crystal DoFs achieves ≥5% loss decrease.
+    
+        Acceptance criteria (TORCH-REFINE-002):
+        1. Refinement runs without errors (status != "error")
+        2. Final masked MSE is ≥5% lower than initial within ≤30 LBFGS steps
+        3. Telemetry contains all required keys (scale, cell a/b/c, angles, orientation) and reports Stage A expansion gate
+        4. Full-loss trace is non-increasing over last 3 validations
+        5. Param deltas show non-zero updates for scale (>1e-6) and cell/angle/orientation components
+    
+        Environment:
+        - Requires: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1
+        - Selector: pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+        """
+        from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig
+    
+        hkl_grid, hkl_metadata = hkl_data
+    
+        # Configure refinement (Stage A expansion per TORCH-REFINE-002)
+        config = RefinementConfig(
+            device='cpu',
+            dtype=torch.float32,
+            history_size=10,
+            max_iter=30,  # ≤30 steps for Stage A expansion
+            roi_sample_fraction=0.15,
+            full_validation_interval=5,
+            min_loss_improvement=0.05  # 5% threshold for full crystal DoFs
+        )
+    
+        # Apply deterministic perturbation to create miscalibrated starting geometry (REFINE-004)
+        perturbed_crystal, detector, beam = create_perturbed_geometry(
+            refgeom_dataload.crystal,
+            refgeom_dataload.detector,
+            refgeom_dataload.beam,
+            seed=42
+        )
+    
+        # Run refinement with perturbed geometry
+        bragg_refined, telemetry = run_nanobrag_refinement(
+            inputs=refinement_inputs,
+            detector=detector,
+            beam=beam,
+            crystal=perturbed_crystal,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            config=config
+        )
+    
+        # Acceptance 1: Refinement completed without errors
+        assert telemetry.status != "error", f"Refinement failed: {telemetry.message}"
+    
+        # Acceptance 2: Loss decreased by ≥5% (TORCH-REFINE-002)
+        assert len(telemetry.loss_trace_full) >= 2, "Insufficient full-loss validations"
+        initial_loss = telemetry.loss_trace_full[0][1]
+        final_loss = telemetry.loss_trace_full[-1][1]
+        improvement = (initial_loss - final_loss) / initial_loss
+    
+>       assert improvement >= 0.05, (
+            f"Loss improvement {improvement:.2%} < 5% threshold (TORCH-REFINE-002) "
+            f"(initial={initial_loss:.2e}, final={final_loss:.2e})"
+        )
+E       AssertionError: Loss improvement 0.00% < 5% threshold (TORCH-REFINE-002) (initial=9.76e+05, final=9.76e+05)
+E       assert 0.0 >= 0.05
+
+tests/dbex/test_torch_refine_smoke.py:249: AssertionError
+----------------------------- Captured stdout call -----------------------------
+auto-selected 1-fold oversampling
+WARNING: out of range for three point interpolation
+WARNING: further warnings will not be printed!
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=0/6224001 (0.00%)
+auto-selected 1-fold oversampling
+WARNING: out of range for three point interpolation
+WARNING: further warnings will not be printed!
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=0/6224001 (0.00%)
+auto-selected 1-fold oversampling
+WARNING: out of range for three point interpolation
+WARNING: further warnings will not be printed!
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=0/6224001 (0.00%)
+auto-selected 1-fold oversampling
+WARNING: out of range for three point interpolation
+WARNING: further warnings will not be printed!
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=0/6224001 (0.00%)
+=============================== warnings summary ===============================
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion - Assert...
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+======================== 1 failed, 4 warnings in 6.88s =========================

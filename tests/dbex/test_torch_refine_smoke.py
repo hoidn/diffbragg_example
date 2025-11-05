@@ -60,6 +60,86 @@ def refgeom_dataload():
     return DataLoad(args)
 
 
+def create_perturbed_geometry(crystal, detector, beam, seed=42):
+    """
+    Create deterministically perturbed copies of crystal/detector/beam for Stage A smoke testing.
+
+    Per REFINE-004: Canonical refGeom assets are too well-calibrated for Stage A to clear
+    the ≥5% masked-MSE gate. This helper introduces reproducible miscalibrations to provide
+    headroom for refinement to demonstrate recovery.
+
+    Perturbations (test-only, never applied to production geometry):
+    - Unit cell: +2% stretch on a-axis, +1% on b/c-axes
+    - Orientation: +1.5° misset along Z-axis (simulating small rotation error)
+    - Detector: unchanged (Stage A doesn't refine detector)
+    - Beam: unchanged (Stage A doesn't refine beam)
+
+    Args:
+        crystal: dxtbx Crystal object (unmodified)
+        detector: dxtbx Detector object (returned as-is)
+        beam: dxtbx Beam object (returned as-is)
+        seed: Random seed for reproducibility (currently unused; reserved for future extensions)
+
+    Returns:
+        tuple: (perturbed_crystal, detector, beam) where detector/beam are pass-through
+
+    References:
+        - plans/active/TORCH-REFINE-002/reports/2025-11-05T033936Z/summary.md — perturbation strategy
+        - docs/fix_plan.md REFINE-004 — dataset calibration ceiling rationale
+    """
+    from dxtbx.model import Crystal
+
+    # Extract baseline cell parameters
+    base_cell = crystal.get_unit_cell().parameters()  # (a, b, c, alpha, beta, gamma)
+
+    # Apply deterministic cell stretch
+    perturbed_a = base_cell[0] * 1.02  # +2% on a-axis
+    perturbed_b = base_cell[1] * 1.01  # +1% on b-axis
+    perturbed_c = base_cell[2] * 1.01  # +1% on c-axis
+    perturbed_alpha = base_cell[3]  # unchanged
+    perturbed_beta = base_cell[4]   # unchanged
+    perturbed_gamma = base_cell[5]  # unchanged
+
+    # Create new crystal with perturbed cell
+    perturbed_crystal = Crystal(
+        real_space_a=crystal.get_real_space_vectors()[0],
+        real_space_b=crystal.get_real_space_vectors()[1],
+        real_space_c=crystal.get_real_space_vectors()[2],
+        space_group=crystal.get_space_group()
+    )
+
+    # Set perturbed unit cell
+    from cctbx import uctbx
+    perturbed_uc = uctbx.unit_cell((perturbed_a, perturbed_b, perturbed_c,
+                                     perturbed_alpha, perturbed_beta, perturbed_gamma))
+    perturbed_crystal.set_unit_cell(perturbed_uc)
+
+    # Apply small Z-axis rotation (+1.5° misorientation)
+    # This is applied via U matrix rotation (not A*)
+    from scitbx.matrix import sqr
+    import math
+    misset_z_deg = 1.5
+    misset_z_rad = misset_z_deg * (math.pi / 180.0)
+
+    # Rotation matrix around Z-axis: R_z(θ)
+    cos_z = math.cos(misset_z_rad)
+    sin_z = math.sin(misset_z_rad)
+    rotation_z = sqr([
+        cos_z, -sin_z, 0.0,
+        sin_z,  cos_z, 0.0,
+        0.0,    0.0,   1.0
+    ])
+
+    # Apply rotation to U matrix
+    # get_U() returns (9,1) col vector; reshape to 3x3 matrix
+    U_tuple = perturbed_crystal.get_U()
+    U = sqr(U_tuple)  # Convert to 3x3 matrix
+    U_perturbed = rotation_z * U
+    perturbed_crystal.set_U(U_perturbed)
+
+    return perturbed_crystal, detector, beam
+
+
 @pytest.fixture
 def refinement_inputs(refgeom_dataload):
     """Prepare RefinementInputs from refGeom DataLoad (no perturbation)."""
@@ -138,12 +218,20 @@ def test_stage_a_expansion(refgeom_dataload, refinement_inputs, hkl_data):
         min_loss_improvement=0.05  # 5% threshold for full crystal DoFs
     )
 
-    # Run refinement
+    # Apply deterministic perturbation to create miscalibrated starting geometry (REFINE-004)
+    perturbed_crystal, detector, beam = create_perturbed_geometry(
+        refgeom_dataload.crystal,
+        refgeom_dataload.detector,
+        refgeom_dataload.beam,
+        seed=42
+    )
+
+    # Run refinement with perturbed geometry
     bragg_refined, telemetry = run_nanobrag_refinement(
         inputs=refinement_inputs,
-        detector=refgeom_dataload.detector,
-        beam=refgeom_dataload.beam,
-        crystal=refgeom_dataload.crystal,
+        detector=detector,
+        beam=beam,
+        crystal=perturbed_crystal,
         hkl_grid=hkl_grid,
         hkl_metadata=hkl_metadata,
         config=config
@@ -172,9 +260,9 @@ def test_stage_a_expansion(refgeom_dataload, refinement_inputs, hkl_data):
     assert len(telemetry.loss_trace_full) > 0, "Full loss trace empty"
     assert telemetry.best_loss_full[0] > 0, "Best loss invalid"
 
-    # Verify all new DoF deltas are present
+    # Verify all new DoF deltas are present (including misset_xyz_deg per TORCH-REFINE-002)
     required_params = ['log_scale', 'log_cell_a_delta', 'log_cell_b_delta', 'log_cell_c_delta',
-                      'angle_alpha_raw', 'angle_beta_raw', 'angle_gamma_raw', 'orientation_vec']
+                      'angle_alpha_raw', 'angle_beta_raw', 'angle_gamma_raw', 'orientation_vec', 'misset_xyz_deg']
     for param in required_params:
         assert param in telemetry.param_deltas, f"{param} delta missing"
 
@@ -195,8 +283,26 @@ def test_stage_a_expansion(refgeom_dataload, refinement_inputs, hkl_data):
 
     # Acceptance 5: Param deltas non-zero (relaxed for well-initialized scenarios)
     scale_delta = telemetry.param_deltas['log_scale']['delta']
-
     assert abs(scale_delta) > 1e-6, f"log_scale delta too small: {scale_delta:.3e}"
+
+    # Acceptance 6: Orientation telemetry surfaces misset_xyz_deg with non-zero components (TORCH-REFINE-002)
+    misset_xyz = telemetry.param_deltas['misset_xyz_deg']
+    assert 'final' in misset_xyz, "misset_xyz_deg missing 'final' field"
+    assert 'quaternion_norm' in misset_xyz, "misset_xyz_deg missing 'quaternion_norm' field"
+
+    misset_xyz_final = misset_xyz['final']
+    assert len(misset_xyz_final) == 3, f"misset_xyz_deg should have 3 components, got {len(misset_xyz_final)}"
+
+    # Check quaternion normalization (should be ~1.0)
+    quat_norm = misset_xyz['quaternion_norm']
+    assert abs(quat_norm - 1.0) < 1e-3, f"Quaternion norm {quat_norm:.6f} far from 1.0"
+
+    # At least one orientation component should be non-zero after refinement from perturbed geometry
+    orientation_magnitude = sum(abs(x) for x in misset_xyz_final)
+    assert orientation_magnitude > 1e-3, (
+        f"Orientation misset magnitude {orientation_magnitude:.3e} too small; "
+        f"expected non-zero recovery from REFINE-004 perturbation (XYZ: {misset_xyz_final})"
+    )
 
     # Note: With Stage A expansion, at least one crystal DoF should show non-trivial movement
     # Check if any cell/angle/orientation parameter moved significantly

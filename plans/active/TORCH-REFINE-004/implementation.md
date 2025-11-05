@@ -29,7 +29,8 @@
 - [x] Measure observed Stage B improvement on canonical refGeom assets, calibrate `stage_b_min_loss_improvement` threshold + test assertion, and document outcome in `docs/findings.md` if the acceptance gate shifts from the current ≥3% placeholder.
 
 ## Outstanding cleanup
-- [ ] Realign bridge config tests/docs with the torch mask emission (CLI-001), ensuring polarity/dtype checks stay meaningful without breaking Stage B refinement paths.
+- [x] Realign bridge config tests/docs with the torch mask emission (CLI-001), ensuring polarity/dtype checks stay meaningful without breaking Stage B refinement paths. (2025-11-05T200729Z artifacts)
+- [ ] Replay the CLI refine-one telemetry smoke and archive logs to prove the bridge mask asserts stay silent end-to-end.
 
 ## Exit reminders
 - Capture targeted logs (`collect_stage_b.log`, `pytest_stage_b_shell.log`, Stage A comparison traces) under `plans/active/TORCH-REFINE-004/reports/<timestamp>/`.

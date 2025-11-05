@@ -1037,3 +1037,11 @@ Notes
 - Next Actions: Ralph to update `create_detector_config` mask coercion (`torch.as_tensor` + asserts), refresh the bridge config test, and rerun the bridge + Stage B selectors per new input.md.
 - <Action State>: [planning]
 2025-11-05T200729Z focus=TORCH-REFINE-004 state=planning dwell=0 artifacts=plans/active/TORCH-REFINE-004/reports/2025-11-05T200729Z/ next_action=run_bridge_mask_realignment_do_now
+## 2025-11-05T210730Z — TORCH-REFINE-004 CLI mask guard handoff
+- Focus: TORCH-REFINE-004 — Stage B Fhkl modifiers (optional)
+- Action Type: planning
+- Key Observations: Marked Stage B gate calibration (1e-8) in docs/fix_plan.md, closed the bridge mask cleanup in the implementation plan, and drafted a ready-for-implementation Do Now directing Ralph to harden the nanobrag CLI test for torch masks plus rerun the CLI/Stage B selectors with fresh artifacts under 2025-11-05T210730Z/. Findings CLI-001, REFINE-008, TESTING-003, and RUNTIME-001 are all referenced in the new handoff.
+- Artifact Path: plans/active/TORCH-REFINE-004/reports/2025-11-05T210730Z/
+- Next Actions: Execute CLI mask guard Do Now (update CLI test, rerun targeted selectors, capture refine_one telemetry).
+- <Action State>: [ready_for_implementation]
+2025-11-05T210730Z focus=TORCH-REFINE-004 state=ready_for_implementation dwell=0 artifacts=plans/active/TORCH-REFINE-004/reports/2025-11-05T210730Z/ next_action=execute_cli_mask_guard_do_now

@@ -27,11 +27,11 @@ Pipeline (Normative)
 6) Loss (Masked MSE)
    - Loss SHALL be `mean(((Bragg - target)[loss_mask])^2)`.
 7) Staging
-   - Stage A (Crystal + Scale): refine cell (logs/angles), orientation (quaternion→XYZ), global scale; fix N_cells and mosaic/phi for stills.
+   - Stage A (Crystal + Scale): refine cell (logs/angles), orientation (quaternion→XYZ), global scale; fix N_cells and mosaic/phi for stills. Simulator SHALL use nearest‑neighbor |F| lookup (interpolate=False) to avoid HKL‑grid halo/OOB artifacts during geometry updates.
    - Stage B (Optional Fhkl): two strategies are supported —
      • Production (default): refine a small number of per‑shell/global F modifiers (softplus); keep base |F| fixed.  
      • Parity (opt‑in): refine per‑reflection multipliers F′ = sqrt(scale) × F to match DiffBragg semantics for diagnostics.
-     Differentiable HKL interpolation (tricubic or equivalent) is required; if nanobrag_torch does not expose this, treat it as an upstream bug to resolve.
+     Differentiable HKL interpolation (tricubic or equivalent) is required; the dense |F| grid MUST include a ±1 halo in h/k/l when interpolation is enabled. Any default_F fallback during interpolation is a failure condition for Stage B. If nanobrag_torch does not expose this, treat it as an upstream bug to resolve.
    - Stage C (Detector): refine per‑panel translation along detector normal (distance offset); rotations fixed initially.
 
 Optimization Strategy (Normative)

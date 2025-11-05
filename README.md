@@ -450,6 +450,10 @@ The simtbx conda environment is pre-activated and includes all required packages
 - torch 2.4.1+cu121
 - nanobrag_torch 0.1.0
 
+Backend staging policy (torch):
+- Stage A (geometry + scale): the simulator uses nearest‑neighbor |F| (interpolate disabled) to avoid HKL‑grid halo/OOB artifacts while preserving geometry gradients.
+- Stage B (Fhkl): tricubic interpolation enabled with a ±1 halo in the dense |F| grid; any default_F fallback is considered a failure for Stage B runs.
+
 Helper functions available in the environment:
 - `dbex_status` - Check environment status and package availability
 - `dbex_test` - Run verification tests

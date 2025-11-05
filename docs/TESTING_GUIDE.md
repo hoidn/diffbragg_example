@@ -106,3 +106,8 @@ Until DB_AT acceptance marks/selectors are fully migrated, use these concrete mo
 ## 3. Running Tests in CI vs Local
 
 (unchanged ...)
+
+## 4. Stage Policy Acceptance Notes
+
+- Stage A (geometry + scale): Ensure `crystal.interpolate` is disabled (nearest‑neighbor |F|) in refinement paths and assert non‑zero geometry gradients. Any reliance on tricubic in Stage A is a test failure.
+- Stage B (Fhkl modifiers): When interpolation is enabled, the dense |F| grid MUST include a ±1 halo. Tests SHOULD assert zero usage of `default_F` (via telemetry once exposed). Any default_F fallback with interpolate=True is a failure condition.

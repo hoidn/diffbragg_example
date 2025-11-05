@@ -12,6 +12,16 @@
 
 ## Active Initiatives
 
+### [POLICY-REFINE-STAGES] Stage A no-interp; Stage B tricubic with halo
+- Status: done (2025-11-05)
+- Rationale: Tricubic without a ±1 halo reverts to `default_F` near bounds and kills gradients. Geometry refinement does not need interpolation; per DiffBragg semantics, geometry updates are robust with a fixed Miller set.
+- Changes (code policy, no environment mods):
+  1) Stage A: disable interpolation at Crystal construction (`crystal.interpolate = False`) in zero-iteration forward and in `run_nanobrag_refinement`.
+  2) Stage B: require tricubic with a ±1 halo in the dense |F| grid; treat any default_F fallback as a failure.
+  3) Grid bounds derive from MTZ index envelope; UB changes do not require rebuilds in Stage A.
+- Docs updated: plans/nanobrag_integration_plan.md (Stage Policy), docs/spec-db-workflow.md (Staging), docs/nanobrag_api.md (Crystal/IO), docs/architecture/pytorch_design.md (Halo Requirement), docs/findings.md (REFINE-004), docs/TESTING_GUIDE.md (acceptance notes), docs/forward_equivalence.md (note on interp), docs/spec-db-conformance.md (halo requirement), README.md (backend notes).
+- Reproducibility: No package installs; pure docs/policy change. Tag: simtbx-policy-stageA-nointerp-20251105.
+
 ### [TORCH-REFINE-001] Implement LBFGS refinement nucleus (Stage A)
 - Depends on: NANOBRAG-BACKEND-002 (done), MAP-SCALE-001..004 (done), DB-AT-024 (active), docs/spec-db-workflow.md §“Optimization Strategy”, plans/nanobrag_integration_plan.md §“Refinement Nucleus”
 - Status: done (2025-11-05)

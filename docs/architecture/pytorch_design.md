@@ -32,6 +32,12 @@ The core simulator physics loops have been fully vectorized to eliminate Python-
 
 **CUDA Status:** CPU validation complete. CUDA execution blocked by pre-existing device-placement defect (tracked in `docs/fix_plan.md` Attempt #14; see PERF-PYTORCH-004).
 
+#### Halo Requirement and Stage Policy
+
+- Tricubic requires a ±1 neighborhood in each of h/k/l. The dense |F| grid MUST include a ±1 halo; otherwise queries near bounds fall back to `default_F`, degrading gradients and parity.
+- Stage A (geometry) SHALL disable interpolation and use nearest‑neighbor |F| to avoid halo/OOB artifacts while preserving geometry gradients via kinematics and lattice factors.
+- Stage B (Fhkl) SHALL enable interpolation with a halo and SHOULD add a guard/telemetry to detect any default_F fallback when interpolation is on.
+
 ### 1.1.2 Detector Absorption Vectorization
 
 **Objective:** Process detector thickness layers in parallel to compute depth-dependent capture fractions.

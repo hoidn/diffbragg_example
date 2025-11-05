@@ -50,6 +50,12 @@ This analysis examined ACTUAL code commits and diffs for iterations 35-49, not a
 
 ---
 
+## What Changed (Policy Updates for Torch Backend)
+
+- Stage A geometry refinement now uses nearest‑neighbor structure‑factor lookup (interpolate=False) to eliminate HKL‑grid halo/OOB artifacts while preserving geometry gradients via kinematics and lattice factors.
+- Stage B amplitude work requires tricubic interpolation with a ±1 halo added to the dense |F| grid; any default_F fallback during interpolation is considered a failure condition for Stage B runs.
+- No UB‑driven grid rebuilds are needed: grid bounds are sized from the MTZ index envelope; changes to UB move reciprocal vectors but do not change the integer index domain.
+
 ## Per-Iteration Analysis
 
 ### Iteration 35 (Oct 29, early)

@@ -609,6 +609,11 @@ def build_structure_factor_grid(indices, amplitudes, device=None):
     )
 
     # Compute HKL grid bounds
+    # TODO(STAGE-B): Add a ±1 halo to each axis (h/k/l) when building the grid
+    # for tricubic interpolation. This padding prevents out‑of‑bounds lookups
+    # from falling back to default_F near the edges during Stage B.
+    # When implemented, update h_min/h_max, k_min/k_max, l_min/l_max accordingly
+    # and reflect the padded extents in the returned metadata.
     h_min, h_max = int(hkls[:, 0].min()), int(hkls[:, 0].max())
     k_min, k_max = int(hkls[:, 1].min()), int(hkls[:, 1].max())
     l_min, l_max = int(hkls[:, 2].min()), int(hkls[:, 2].max())
@@ -645,6 +650,8 @@ def build_structure_factor_grid(indices, amplitudes, device=None):
     )
 
     # Build metadata dict
+    # TODO(TELEMETRY): Consider adding a flag (e.g., 'has_halo': True/False)
+    # once halo padding is implemented, so Stage B tests can assert halo presence.
     metadata = {
         "h_min": h_min,
         "h_max": h_max,

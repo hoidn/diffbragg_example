@@ -79,8 +79,9 @@ Import name
 - Cell tensors computed honoring MOSFLM A*, then applying `misset_deg` (XYZ extrinsic).
 - Structure factors:
   - Dense P1 grid expected; see IO section.
-  - `crystal.interpolate = True` enables tricubic; requires ±1 halo.
-  - Incomplete halo → interpolation falls back to `default_F`.
+  - Stage A (geometry): set `crystal.interpolate = False` (nearest‑neighbor |F|). Gradients flow via kinematics/lattice factors; avoids halo/OOB artifacts.
+  - Stage B (Fhkl): set `crystal.interpolate = True` and ensure the grid includes a ±1 halo in h/k/l.
+  - Without halo, tricubic will fall back to `default_F` and zero gradients near bounds.
 
 ### Simulator
 - Constructor: `Simulator(crystal, detector, crystal_config=None, beam_config=None, device=None, dtype=torch.float32, debug_config=None)`
@@ -102,7 +103,7 @@ Import name
   - Iterate reflections, track min/max, allocate `F_grid`, fill by indices, assign:
     - `crystal.hkl_data = F_grid`
     - `crystal.hkl_metadata = {'h_min':..., 'h_max':..., ...}`
-  - Tricubic needs ±1 halo; pad grid or include extra indices beyond the sampled range.
+  - Tricubic needs a ±1 halo; pad grid or include extra indices beyond the sampled range. Grid bounds should derive from the MTZ index envelope; UB changes do not require rebuilds.
 
 ## ROI‑Only Compute (Performance)
 - ROI/mask zeroes pixels post‑compute; to compute only an ROI:

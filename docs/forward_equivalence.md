@@ -24,7 +24,7 @@ Forward equivalence is the only parallel numerical check required between the tw
 
 2. **Generate Torch Forward**
    - Hydrate the torch configs (detector/beam/crystal) from the bridge outputs.
-   - Run `nanobrag_torch` once per panel to obtain the torch `Bragg` tensor.
+   - Run `nanobrag_torch` once per panel to obtain the torch `Bragg` tensor. For this smoke, set `crystal.interpolate = False` unless the |F| grid is known to include a ±1 halo; this avoids halo/OOB artifacts in metrics attributable to interpolation rather than geometry.
    - Persist the torch result alongside the DiffBragg output.
 
 3. **Compute Metrics**
@@ -87,4 +87,3 @@ Guidelines:
 - `docs/spec-db-conformance.md` — Forward Equivalence Profile (DB-AT-001).
 - `docs/TESTING_GUIDE.md` §2 — Selector mapping.
 - `docs/development/TEST_SUITE_INDEX.md` — Registry entry for DB-AT-001.
-

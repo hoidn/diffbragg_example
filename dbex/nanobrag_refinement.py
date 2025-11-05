@@ -360,6 +360,10 @@ def run_nanobrag_refinement(
             # Build detector and crystal models
             detector_model = Detector(detector_config)
             crystal_model = Crystal(crystal_config)
+            # TODO(STAGE-A): Disable HKL interpolation for geometry stage (nearest‑neighbor |F|)
+            # Implement by setting:
+            #   crystal_model.interpolate = False
+            # prior to Simulator construction, per Stage A policy.
 
             # Attach HKL data
             crystal_model.hkl_data = hkl_grid.to(device=device, dtype=dtype)
@@ -552,6 +556,10 @@ def run_nanobrag_refinement(
 
             detector_model = Detector(detector_config)
             crystal_model = Crystal(crystal_config)
+            # TODO(STAGE-A): Disable HKL interpolation for geometry stage (nearest‑neighbor |F|)
+            # Implement by setting:
+            #   crystal_model.interpolate = False
+            # prior to Simulator construction, per Stage A policy.
             crystal_model.hkl_data = hkl_grid.to(device=device, dtype=dtype)
             crystal_model.hkl_metadata = hkl_metadata
 

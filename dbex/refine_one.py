@@ -313,6 +313,10 @@ def run_nanobrag_backend(args, DL, devid=0):
         # Instantiate models
         detector_model = Detector(detector_config)
         crystal_model = Crystal(crystal_config)
+        # TODO(STAGE-A): Disable HKL interpolation for geometry stage (nearest‑neighbor |F|)
+        # This avoids halo/OOB artifacts during Stage A. Implement by setting:
+        #   crystal_model.interpolate = False
+        # when wiring the Stage A policy toggle.
 
         # Attach HKL data to crystal model
         crystal_model.hkl_data = hkl_grid

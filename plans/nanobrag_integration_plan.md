@@ -20,6 +20,11 @@ Estimated timeline: 12–18 engineering days (5 phased milestones with validatio
  
 See supporting API references: docs/nanobrag_api.md, docs/simtbx_api.md, docs/dxtbx_api.md, docs/dials_api.md.
 
+## Stage Policy (Refinement Source Separation)
+
+- Stage A (Crystal + Global Scale): Simulator SHALL use nearest‑neighbor structure‑factor lookup (disable interpolation). This removes HKL‑grid halo/OOB concerns and matches DiffBragg’s per‑reflection semantics for geometry updates. Grid bounds derive from MTZ index envelope; UB changes do not require grid rebuild in this stage.
+- Stage B (Fhkl Modifiers): Simulator SHALL enable tricubic interpolation and the |F| grid MUST include a ±1 halo in h/k/l. Any default_F fallback when interpolation is enabled is a failure condition for Stage B.
+
 ## Phase 0 – Environment & Baseline (verification only, 1–2 days)
 - Environment Freeze: Do not install or upgrade packages, clone external repos, or modify toolchains. If `nanobrag_torch` or its tests are unavailable, record a blocker in `docs/fix_plan.md` and proceed with evidence‑only steps.
 - Verify imports and runtime flags without modification:

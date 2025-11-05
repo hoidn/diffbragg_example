@@ -18,6 +18,7 @@ Conformance Profiles (Normative)
   - DB‑AT‑022 ROI background semantics (−1 outside ROI, masked MSE).
   - DB‑AT‑023 ADU vs photons policy (flag honored; scale init for ADU mode).
   - DB‑AT‑024 Mapping consistency (zero‑iteration forward vs data‑minus‑background overlay).
+  - DB‑AT‑025 HKL interpolation conformance (tricubic halo): when `crystal.interpolate=True`, the dense |F| grid MUST include a ±1 halo; any default_F fallback is a failure. Stage A SHALL disable interpolation.
 
 Acceptance Tests (Normative)
 - DB‑AT‑001 Forward equivalence smoke
@@ -40,10 +41,15 @@ Acceptance Tests (Normative)
   - Setup: run with and without `--adu-per-photon`; compare scale behavior and loss.
   - Expectation: photon mode yields scale near 1; ADU mode learns positive scale with stable initialization.
   - Command: `pytest -v tests -k DB_AT_023`
- - DB‑AT‑024 Mapping consistency
+- DB‑AT‑024 Mapping consistency
   - Setup: build per‑panel configs from a real Experiment; run a forward pass with initial parameters; evaluate K ROIs (e.g., 32) for correlation and localization.
   - Expectation: median ROI correlation ≥ 0.2 and ≥90% ROIs contain a local intensity maximum within the central half‑box.
   - Command: `pytest -v tests -k DB_AT_024`
+
+- DB‑AT‑025 HKL interpolation conformance (tricubic halo)
+  - Setup: enable `crystal.interpolate=True` and run a forward pass using a dense |F| grid built with a declared ±1 halo (metadata flag). Capture telemetry for default_F fallback count.
+  - Expectation: halo present in metadata; default_F fallback count == 0 (no out‑of‑bounds lookups while interpolating). Stage A SHALL disable interpolation; this test applies to Stage B and forward runs where interpolation is enabled.
+  - Command: (selector TBD; activate once telemetry and halo flag are exposed)
 
 Notes (Informative)
 - Provide real commands in the test suite once scaffolding is in place; these are placeholders for the conformance contract.

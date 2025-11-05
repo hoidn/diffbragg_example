@@ -555,3 +555,148 @@ def test_stage_c_detector_microslip(refgeom_dataload, refinement_inputs, hkl_dat
         print(f"    Panel {pid}: {offset:+.4f} mm")
     if n_panels > 3:
         print(f"    ... ({n_panels - 3} more panels)")
+
+
+def test_stage_b_shell_modifiers(refgeom_dataload, refinement_inputs, hkl_data):
+    """
+    Smoke test for Stage B shell-modifier LBFGS refinement (TORCH-REFINE-004).
+
+    Tests exercise run_nanobrag_refinement with Stage B enabled (enable_stage_b=True)
+    after Stage A, validating:
+    - ≥3% loss descent from Stage A final to Stage B final within ≤30 LBFGS iterations
+    - Telemetry presence for shell modifiers (param_deltas with d-spacing ranges)
+    - Non-increasing full-loss trace across last 3 validations
+    - Halo-padded HKL grid and interpolation are required (guards enforced)
+
+    Per input.md:
+    - docs/spec-db-workflow.md:31-34 mandates Stage B optional shell modifiers with tricubic interpolation
+    - plans/nanobrag_integration_plan.md:226-244 specifies Stage B shell mode contract
+    - docs/architecture/pytorch_design.md:35-40 requires ±1 halo for interpolation
+    - docs/findings.md REFINE-005 confirms halo requirement for Stage B
+
+    Findings applied:
+    - RUNTIME-001: Run with NANOBRAGG_DISABLE_COMPILE=1 to avoid torch.compile interference
+    - CONFORMANCE-001: Requires KMP_DUPLICATE_LIB_OK=TRUE
+    - REFINE-005: Halo-padded HKL grid mandatory for Stage B; guard enforced in run_nanobrag_refinement
+    - SCALE-001/002: Structure factors unscaled; shell modifiers applied multiplicatively
+    """
+    from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig
+
+    DL = refgeom_dataload
+    hkl_grid, hkl_metadata = hkl_data
+
+    # Guard: Stage B requires halo-padded HKL grid (REFINE-005)
+    assert hkl_metadata["has_halo"], (
+        "Stage B smoke test requires halo-padded HKL grid. "
+        "hkl_data fixture must be configured with halo=True per TORCH-REFINE-004."
+    )
+
+    # Refinement config: enable Stage B with 5 resolution shells
+    # Keep Stage A and Stage C disabled to isolate Stage B behavior
+    config = RefinementConfig(
+        max_iter=30,
+        min_loss_improvement=0.002,  # Stage A gate (0.2%)
+        enable_hkl_interpolation=True,  # Required for Stage B (REFINE-005)
+        enable_stage_b=True,  # Enable shell modifiers
+        stage_b_n_shells=5,
+        stage_b_min_loss_improvement=0.03,  # 3% gate per TORCH-REFINE-004
+        stage_b_max_modifier=2.0,
+        enable_stage_c=False,  # Disable Stage C for this test
+        device="cpu",
+        dtype=torch.float32
+    )
+
+    # Run refinement (Stage A + Stage B)
+    bragg_refined, telemetry_dict = run_nanobrag_refinement(
+        inputs=refinement_inputs,
+        detector=DL.detector,
+        beam=DL.beam,
+        crystal=DL.crystal,
+        hkl_grid=hkl_grid,
+        hkl_metadata=hkl_metadata,
+        config=config
+    )
+
+    # Extract telemetry
+    assert "A" in telemetry_dict, "Stage A telemetry missing"
+    assert "B" in telemetry_dict, "Stage B telemetry missing (enable_stage_b=True)"
+
+    telemetry_a = telemetry_dict["A"]
+    telemetry_b = telemetry_dict["B"]
+
+    # Acceptance 1: Stage B telemetry structure
+    assert telemetry_b.optimizer == "LBFGS"
+    assert telemetry_b.stage == "B"
+    assert len(telemetry_b.loss_trace_sample) > 0, "Stage B loss trace empty"
+    assert len(telemetry_b.loss_trace_full) > 0, "Stage B full-loss validations missing"
+    assert telemetry_b.status in ["ok", "early_stop", "error"], f"Unknown Stage B status: {telemetry_b.status}"
+
+    # Acceptance 2: Shell modifier param_deltas present with d-spacing labels
+    assert len(telemetry_b.param_deltas) == config.stage_b_n_shells, (
+        f"Expected {config.stage_b_n_shells} shell modifiers, got {len(telemetry_b.param_deltas)}"
+    )
+    for param_name, param_value in telemetry_b.param_deltas.items():
+        assert "shell_" in param_name, f"Unexpected param name format: {param_name}"
+        assert "modifier" in param_name, f"Missing 'modifier' in param name: {param_name}"
+        assert "d=" in param_name, f"Missing d-spacing range in param name: {param_name}"
+        # Shell modifiers should be positive and within clamp bounds
+        assert 0 < param_value <= config.stage_b_max_modifier * 1.01, (  # +1% tolerance for floating point
+            f"Shell modifier {param_name}={param_value:.3f} outside (0, {config.stage_b_max_modifier}] clamp"
+        )
+
+    # Acceptance 3: ≥3% improvement from Stage A final to Stage B final (calibrated per TORCH-REFINE-004)
+    # Note: This gate may be relaxed in future if refGeom proves insufficiently miscalibrated
+    assert len(telemetry_a.loss_trace_full) >= 2, "Insufficient Stage A full-loss validations"
+    assert len(telemetry_b.loss_trace_full) >= 2, "Insufficient Stage B full-loss validations"
+
+    stage_a_final_loss = telemetry_a.loss_trace_full[-1][1]
+    stage_b_final_loss = telemetry_b.loss_trace_full[-1][1]
+    improvement_b = (stage_a_final_loss - stage_b_final_loss) / stage_a_final_loss
+
+    # Per input.md: ≥3% gate may require dataset-specific calibration
+    # If this assertion fails with canonical refGeom, document observed ceiling and adjust gate
+    assert improvement_b >= 0.03, (
+        f"Stage B improvement {improvement_b:.4%} < 3% threshold. "
+        f"TORCH-REFINE-004: If observed ceiling <3% on canonical refGeom, document probe artifacts "
+        f"and recalibrate gate (see REFINE-007 precedent). "
+        f"(Stage A final={stage_a_final_loss:.2e}, Stage B final={stage_b_final_loss:.2e}, "
+        f"Stage B iterations={len(telemetry_b.loss_trace_sample)}, shell modifiers={telemetry_b.param_deltas})"
+    )
+
+    # Acceptance 4: Stage B full-loss trace is non-increasing over last 3 validations
+    if len(telemetry_b.loss_trace_full) >= 3:
+        last_three_losses = [loss for _, loss in telemetry_b.loss_trace_full[-3:]]
+        for i in range(1, len(last_three_losses)):
+            assert last_three_losses[i] <= last_three_losses[i-1] * 1.02, (
+                f"Stage B full-loss increased by >2% at validation {i}: "
+                f"{last_three_losses[i-1]:.2e} → {last_three_losses[i]:.2e}"
+            )
+
+    # Acceptance 5: Stage A telemetry preserved (sanity check)
+    assert len(telemetry_a.loss_trace_full) >= 2, "Stage A full-loss trace truncated"
+    stage_a_initial_loss = telemetry_a.loss_trace_full[0][1]
+    improvement_a = (stage_a_initial_loss - stage_a_final_loss) / stage_a_initial_loss
+    assert improvement_a >= 0.001, (  # Relaxed gate; primary focus is Stage B
+        f"Stage A regressed: {improvement_a:.2%} < 0.1% threshold "
+        f"(initial={stage_a_initial_loss:.2e}, final={stage_a_final_loss:.2e})"
+    )
+
+    # Output shape correctness
+    assert bragg_refined.shape == refinement_inputs.target.shape
+    assert bragg_refined.dtype == np.float32
+
+    # Diagnostic printout
+    total_improvement = (stage_a_initial_loss - stage_b_final_loss) / stage_a_initial_loss
+
+    print(f"\n[test_stage_b_shell_modifiers] SUCCESS")
+    print(f"  Stage A initial loss: {stage_a_initial_loss:.2e}")
+    print(f"  Stage A final loss: {stage_a_final_loss:.2e}")
+    print(f"  Stage A improvement: {improvement_a:.1%}")
+    print(f"  Stage A iterations: {len(telemetry_a.loss_trace_sample)}")
+    print(f"  Stage A status: {telemetry_a.status}")
+    print(f"  Stage B final loss: {stage_b_final_loss:.2e}")
+    print(f"  Stage B improvement (vs Stage A): {improvement_b:.1%}")
+    print(f"  Stage B iterations: {len(telemetry_b.loss_trace_sample)}")
+    print(f"  Stage B status: {telemetry_b.status}")
+    print(f"  Total improvement (A+B): {total_improvement:.1%}")
+    print(f"  Shell modifiers: {telemetry_b.param_deltas}")

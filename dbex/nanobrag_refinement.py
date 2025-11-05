@@ -1,9 +1,9 @@
 """
-LBFGS refinement nucleus for nanobrag_torch backend (Stage A).
+LBFGS refinement nucleus for nanobrag_torch backend (Stage A/B/C).
 
-Implements the minimal refinement loop per:
-- plans/nanobrag_integration_plan.md:172-211 (Refinement Nucleus contract)
-- docs/spec-db-workflow.md:30-38 (Stage A staging + LBFGS optimizer)
+Implements the staged refinement loop per:
+- plans/nanobrag_integration_plan.md:172-244 (Refinement + Stage B contract)
+- docs/spec-db-workflow.md:30-41 (Staging policy + LBFGS optimizer)
 - docs/pytorch_runtime_checklist.md (vectorization, device/dtype neutrality)
 
 Stage A scope:
@@ -12,11 +12,20 @@ Stage A scope:
 - ROI policy: deterministic ROI sampling for LBFGS closure; periodic full validation
 - Convergence: ≥0.2% loss drop within ≤30 LBFGS steps; non-increasing full-loss trace (TORCH-REFINE-002D)
 
+Stage B (optional, TORCH-REFINE-004):
+- Parameters: per-resolution shell multipliers for |F| (softplus parameterization)
+- Requires: halo-padded HKL grid (hkl_metadata["has_halo"]=True) and enable_hkl_interpolation=True
+- Freezes Stage A parameters; applies modifiers lazily to a copy of hkl_grid
+- Convergence: ≥3% loss drop; guards against default_F fallback
+
+Stage C (optional, TORCH-REFINE-003):
+- Parameters: per-panel detector distance offsets along normal
+- Freezes Stage A (and Stage B if run) parameters
+- Convergence: ≥0.002% loss drop (REFINE-007)
+
 Telemetry emitted to `/torch_diagnostics`:
-- optimizer metadata (LBFGS, history_size, max_iter, tolerances)
-- stage label ("A"), ROI sampling metadata
-- loss_trace_sample, loss_trace_full, best_loss_full
-- param_deltas, status
+- Per-stage: optimizer metadata, stage label, ROI sampling, loss traces, param_deltas, status
+- Multi-stage runs return Dict[str, RefinementTelemetry] keyed by stage ("A", "B", "C")
 """
 
 import torch
@@ -126,6 +135,101 @@ def quaternion_to_xyz_euler(q: torch.Tensor) -> torch.Tensor:
     return xyz_deg
 
 
+def compute_hkl_shell_lookup(crystal, hkl_metadata: Dict, n_shells: int = 5, device=None, dtype=torch.float32) -> Tuple[torch.Tensor, torch.Tensor]:
+    """
+    Compute per-voxel shell index for resolution-shell structure-factor modifiers (Stage B).
+
+    Creates a 3D tensor mapping each HKL grid voxel to a resolution shell index [0, n_shells-1]
+    based on d-spacing (resolution), using the crystal unit cell. This enables Stage B to apply
+    differentiable per-shell multipliers to |F| without per-reflection explosion.
+
+    Args:
+        crystal: dxtbx Crystal object providing unit-cell parameters for d-spacing calculation
+        hkl_metadata: Dict from build_structure_factor_grid with h/k/l_min/max and has_halo
+        n_shells: Number of resolution shells (default 5)
+        device: torch device for tensor creation (defaults to CPU if None)
+        dtype: torch dtype for output tensors
+
+    Returns:
+        tuple: (shell_indices, shell_edges)
+            - shell_indices: torch.Tensor shape (h_range, k_range, l_range), dtype long,
+                            values in [0, n_shells-1] mapping each voxel to its shell
+            - shell_edges: torch.Tensor shape (n_shells + 1,), dtype float32,
+                          d-spacing boundaries [d_max, ..., d_min] defining shell thresholds
+
+    References:
+        - plans/active/TORCH-REFINE-004/implementation.md Phase 1 (shell lookup helper)
+        - docs/spec-db-workflow.md:31-34 (Stage B shell modifiers)
+        - plans/nanobrag_integration_plan.md:230-233 (per-shell multipliers)
+
+    Note:
+        - Requires hkl_metadata["has_halo"]=True for Stage B; fails fast if halo missing
+        - d-spacing formula: d = 1 / sqrt( h²/a² + k²/b² + l²/c² ) for orthogonal cells
+        - Shell edges are computed from non-zero HKL voxels to avoid wasted shells on halo padding
+    """
+    if device is None:
+        device = torch.device('cpu')
+
+    # Guard: Stage B requires halo-padded grid (REFINE-005)
+    if not hkl_metadata.get("has_halo", False):
+        raise ValueError(
+            "Stage B shell modifiers require halo-padded HKL grid (hkl_metadata['has_halo']=True). "
+            "Rebuild structure factor grid with build_structure_factor_grid(..., halo=True)."
+        )
+
+    # Extract grid bounds
+    h_min, h_max = hkl_metadata["h_min"], hkl_metadata["h_max"]
+    k_min, k_max = hkl_metadata["k_min"], hkl_metadata["k_max"]
+    l_min, l_max = hkl_metadata["l_min"], hkl_metadata["l_max"]
+    h_range = hkl_metadata["h_range"]
+    k_range = hkl_metadata["k_range"]
+    l_range = hkl_metadata["l_range"]
+
+    # Get unit cell parameters for d-spacing calculation
+    cell_params = crystal.get_unit_cell().parameters()  # (a, b, c, alpha, beta, gamma)
+    a, b, c = cell_params[0], cell_params[1], cell_params[2]
+    # Note: Assumes orthogonal cell for simplicity; generalized formula requires reciprocal metric tensor
+    # For monoclinic/triclinic cells, use dxtbx's unit_cell.d(hkl) method per voxel (slower but exact)
+
+    # Build HKL coordinate grids
+    h_coords = torch.arange(h_min, h_max + 1, device=device, dtype=dtype)
+    k_coords = torch.arange(k_min, k_max + 1, device=device, dtype=dtype)
+    l_coords = torch.arange(l_min, l_max + 1, device=device, dtype=dtype)
+
+    # Create 3D meshgrid (broadcasted shape: h_range, k_range, l_range)
+    h_grid, k_grid, l_grid = torch.meshgrid(h_coords, k_coords, l_coords, indexing='ij')
+
+    # Compute d-spacing for each HKL voxel (orthogonal approximation)
+    # d = 1 / sqrt( (h/a)^2 + (k/b)^2 + (l/c)^2 )
+    # Guard against division by zero at origin (000)
+    d_star_sq = (h_grid / a) ** 2 + (k_grid / b) ** 2 + (l_grid / c) ** 2
+    d_star_sq = torch.clamp(d_star_sq, min=1e-10)  # Prevent 1/0 at origin
+    d_spacing = 1.0 / torch.sqrt(d_star_sq)
+
+    # Compute shell edges from non-zero d-spacing distribution
+    # Exclude origin and halo padding (filter to data envelope if needed)
+    d_nonzero = d_spacing[d_spacing > 1e-8]
+    if len(d_nonzero) == 0:
+        raise ValueError("All d-spacing values are zero; cannot compute shell edges")
+
+    d_min = float(d_nonzero.min().item())
+    d_max = float(d_nonzero.max().item())
+
+    # Shell edges: [d_max, ..., d_min] with n_shells bins
+    shell_edges = torch.linspace(d_max, d_min, n_shells + 1, device=device, dtype=dtype)
+
+    # Assign shell index to each voxel via searchsorted
+    # searchsorted returns index such that shell_edges[idx-1] <= d < shell_edges[idx]
+    # We want shell 0 for highest d-spacing (lowest resolution), shell n_shells-1 for lowest d-spacing (highest resolution)
+    shell_indices_flat = torch.searchsorted(shell_edges, d_spacing.flatten(), right=False)
+    shell_indices = shell_indices_flat.reshape(h_range, k_range, l_range).long()
+
+    # Clamp to [0, n_shells-1] to handle edge cases at boundaries
+    shell_indices = torch.clamp(shell_indices, 0, n_shells - 1)
+
+    return shell_indices, shell_edges
+
+
 @dataclass
 class RefinementConfig:
     """Configuration for Stage A and Stage C LBFGS refinement."""
@@ -148,6 +252,14 @@ class RefinementConfig:
     # Enable tricubic interpolation for structure factors; requires halo-padded grid
     # Defaults to False (nearest-neighbor) to protect datasets without halo support
     enable_hkl_interpolation: bool = False
+
+    # Stage B structure factor modifiers (TORCH-REFINE-004)
+    enable_stage_b: bool = False  # Enable Fhkl shell modifiers
+    stage_b_mode: str = "shell"  # "shell" (production) or "per_reflection" (parity, deferred)
+    stage_b_n_shells: int = 5  # Number of resolution shells for shell mode
+    stage_b_min_loss_improvement: float = 0.03  # 3% minimum improvement for Stage B
+    stage_b_max_modifier: float = 2.0  # Maximum shell modifier (softplus clamp)
+    stage_b_regularization: float = 0.0  # L2 regularization strength (reserved for future)
 
     # Stage C detector microslip (TORCH-REFINE-003)
     enable_stage_c: bool = False  # Enable detector distance refinement
@@ -730,6 +842,285 @@ def run_nanobrag_refinement(
     )
 
     telemetry_dict = {"A": telemetry_a}
+
+    # ============================================================================
+    # Stage B: Structure factor shell modifiers (optional Fhkl refinement)
+    # ============================================================================
+    if config.enable_stage_b:
+        # Guard: Stage B requires halo-padded HKL grid and interpolation enabled (REFINE-005)
+        if not hkl_metadata.get("has_halo", False):
+            raise RuntimeError(
+                "Stage B requires halo-padded HKL grid (hkl_metadata['has_halo']=True). "
+                "Rebuild structure factor grid with build_structure_factor_grid(..., halo=True) "
+                "and set config.enable_hkl_interpolation=True before enabling Stage B."
+            )
+
+        if not config.enable_hkl_interpolation:
+            raise RuntimeError(
+                "Stage B requires tricubic HKL interpolation (config.enable_hkl_interpolation=True). "
+                "Set this flag before enabling Stage B to prevent default_F fallback and gradient loss."
+            )
+
+        # Freeze Stage A parameters (no grad)
+        for p in params:
+            p.requires_grad = False
+
+        # Compute shell lookup for per-shell modifiers
+        shell_indices, shell_edges = compute_hkl_shell_lookup(
+            crystal, hkl_metadata, n_shells=config.stage_b_n_shells, device=device, dtype=dtype
+        )
+
+        # Initialize shell modifiers (softplus parameterization to keep multipliers positive)
+        # Start near identity: softplus(0) ≈ 0.69, so initialize slightly negative to get ~1.0
+        shell_modifier_raw = torch.zeros(config.stage_b_n_shells, device=device, dtype=dtype, requires_grad=True)
+        shell_modifier_raw.data.fill_(-0.5)  # softplus(-0.5) ≈ 0.474 → after scaling ~1.0
+
+        stage_b_params = [shell_modifier_raw]
+
+        # Setup LBFGS optimizer for Stage B
+        stage_b_optimizer = torch.optim.LBFGS(
+            stage_b_params,
+            history_size=config.history_size,
+            max_iter=config.max_iter,
+            tolerance_grad=config.tolerance_grad,
+            tolerance_change=config.tolerance_change,
+            line_search_fn='strong_wolfe'
+        )
+
+        # Telemetry accumulators for Stage B
+        loss_trace_sample_b = []
+        loss_trace_full_b = []
+        best_loss_full_b = (float('inf'), 0)
+        best_params_snapshot_b = {'shell_modifier_raw': shell_modifier_raw.data.clone()}
+
+        # Track default_F fallback count (should be zero with halo grid)
+        # Note: nanobrag_torch doesn't expose default_F counter directly; this is a placeholder
+        # for future telemetry when the API exposes it
+        default_f_fallback_count = 0
+
+        def compute_loss_stage_b(panel_ids: List[int], is_full: bool = False) -> torch.Tensor:
+            """
+            Compute masked MSE loss with Stage B shell-modified structure factors.
+
+            Uses Stage A's final crystal parameters (frozen) and varies per-shell Fhkl multipliers.
+            """
+            # Apply softplus to get positive modifiers, then scale to ~1.0 at initialization
+            # softplus(x) = log(1 + exp(x)); at x=-0.5, softplus ≈ 0.474
+            # Scale by 2.0 to get ~1.0 near identity
+            shell_modifiers = torch.nn.functional.softplus(shell_modifier_raw) * 2.0
+
+            # Clamp to config.stage_b_max_modifier (e.g., 2.0) to prevent explosion
+            shell_modifiers = torch.clamp(shell_modifiers, max=config.stage_b_max_modifier)
+
+            # Build modified HKL grid by applying shell modifiers to a copy
+            # hkl_grid_modified[h,k,l] = hkl_grid[h,k,l] * shell_modifiers[shell_indices[h,k,l]]
+            hkl_grid_modified = hkl_grid.clone()
+            for shell_idx in range(config.stage_b_n_shells):
+                mask = (shell_indices == shell_idx)
+                hkl_grid_modified[mask] = hkl_grid[mask] * shell_modifiers[shell_idx]
+
+            # Simulate with modified HKL grid (crystal config uses Stage A final params)
+            from nanobrag_torch import Simulator
+            from dbex.nanobrag_bridge import create_crystal_config, create_detector_config, create_beam_config
+
+            # Re-create crystal config with Stage A final parameters
+            crystal_overrides = {
+                'cell_a': cell_a_tensor,
+                'cell_b': cell_b_tensor,
+                'cell_c': cell_c_tensor,
+                'cell_alpha': cell_alpha_tensor,
+                'cell_beta': cell_beta_tensor,
+                'cell_gamma': cell_gamma_tensor
+            }
+
+            crystal_config, _ = create_crystal_config(
+                crystal, device=device, dtype=dtype,
+                crystal_overrides=crystal_overrides,
+                apply_n_cells=False  # Stage B doesn't change N_cells
+            )
+
+            # Apply Stage A final misset (baseline + optimization delta)
+            total_misset_deg = baseline_misset_deg_tensor + misset_xyz_deg
+            crystal_config.misset_deg = total_misset_deg
+
+            # Enable interpolation for Stage B (required per REFINE-005)
+            from nanobrag_torch.models.crystal import Crystal as TorchCrystal
+            crystal_model = TorchCrystal(crystal_config, hkl_grid_modified)
+            crystal_model.interpolate = True  # Must be True for Stage B
+
+            # Simulate per-panel and accumulate loss
+            loss_accum = torch.tensor(0.0, device=device, dtype=dtype)
+            n_pixels_accum = 0
+
+            for pid in panel_ids:
+                # Create detector config for this panel
+                panel = detector[pid]
+                beam_config = create_beam_config(beam, device=device, dtype=dtype)
+                detector_config = create_detector_config(panel, beam, device=device, dtype=dtype)
+
+                # Simulate
+                sim = Simulator(detector_config, beam_config, device=str(device))
+                bragg_panel = sim.generate_image_vectorized(crystal_model)
+
+                # Extract target/mask for this panel
+                panel_slice = inputs.panel_slices[pid]
+                target_panel = inputs.target_tensor[panel_slice]
+                loss_mask_panel = inputs.loss_mask[panel_slice]
+
+                # Apply global scale (Stage A final)
+                scale = torch.exp(log_scale)
+                bragg_scaled = scale * bragg_panel
+
+                # Masked MSE
+                diff = bragg_scaled - target_panel
+                loss_panel = (diff[loss_mask_panel] ** 2).sum()
+                n_pixels = int(loss_mask_panel.sum().item())
+
+                loss_accum = loss_accum + loss_panel
+                n_pixels_accum += n_pixels
+
+            # Normalize by pixel count
+            if n_pixels_accum > 0:
+                loss = loss_accum / n_pixels_accum
+            else:
+                loss = loss_accum
+
+            return loss
+
+        def closure_stage_b():
+            """LBFGS closure for Stage B shell modifier refinement."""
+            stage_b_optimizer.zero_grad()
+
+            # Sample ROIs for efficiency
+            panel_ids = roi_sampler()
+            loss = compute_loss_stage_b(panel_ids, is_full=False)
+
+            loss.backward()
+
+            # Gradient NaN/Inf guard
+            for p in stage_b_params:
+                if p.grad is not None and (torch.isnan(p.grad).any() or torch.isinf(p.grad).any()):
+                    raise RuntimeError(f"NaN/Inf gradient detected in Stage B parameter {p}")
+
+            # Record loss
+            loss_trace_sample_b.append(float(loss.item()))
+
+            # Periodic full validation
+            if len(loss_trace_sample_b) % config.full_validation_interval == 0:
+                with torch.no_grad():
+                    loss_full = compute_loss_stage_b(list(range(n_panels)), is_full=True)
+                    loss_trace_full_b.append((len(loss_trace_sample_b), float(loss_full.item())))
+
+                    # Update best snapshot
+                    if loss_full.item() < best_loss_full_b[0]:
+                        best_loss_full_b = (float(loss_full.item()), len(loss_trace_sample_b))
+                        best_params_snapshot_b['shell_modifier_raw'] = shell_modifier_raw.data.clone()
+
+            return loss
+
+        # Run Stage B LBFGS optimization
+        status_b = "ok"
+        message_b = ""
+        try:
+            stage_b_optimizer.step(closure_stage_b)
+
+            # Check convergence: did we achieve ≥3% improvement on top of Stage A?
+            if len(loss_trace_full_b) > 0:
+                # Stage A's final loss is the initial loss for Stage B
+                stage_a_final_loss = best_loss_full[0]
+                stage_b_final_loss = loss_trace_full_b[-1][1]
+                improvement_b = (stage_a_final_loss - stage_b_final_loss) / stage_a_final_loss
+
+                if improvement_b < config.stage_b_min_loss_improvement:
+                    status_b = "early_stop"
+                    message_b = f"Stage B improvement {improvement_b:.4%} < {config.stage_b_min_loss_improvement:.4%} (≥3% gate per TORCH-REFINE-004)"
+
+        except Exception as e:
+            status_b = "error"
+            message_b = f"Stage B error: {str(e)}"
+            # Restore best snapshot
+            if best_loss_full_b[0] < float('inf'):
+                shell_modifier_raw.data = torch.tensor(best_params_snapshot_b['shell_modifier_raw'], device=device, dtype=dtype)
+
+        # Update bragg_full with Stage B result (using best params)
+        with torch.no_grad():
+            # Apply best shell modifiers
+            shell_modifiers_final = torch.nn.functional.softplus(shell_modifier_raw) * 2.0
+            shell_modifiers_final = torch.clamp(shell_modifiers_final, max=config.stage_b_max_modifier)
+
+            hkl_grid_modified = hkl_grid.clone()
+            for shell_idx in range(config.stage_b_n_shells):
+                mask = (shell_indices == shell_idx)
+                hkl_grid_modified[mask] = hkl_grid[mask] * shell_modifiers_final[shell_idx]
+
+            # Generate final Bragg array with Stage B modifiers
+            bragg_full_stage_b = np.zeros((n_panels, *panel_shape), dtype=np.float32)
+
+            for pid in range(n_panels):
+                panel = detector[pid]
+                beam_config = create_beam_config(beam, device=device, dtype=dtype)
+                detector_config = create_detector_config(panel, beam, device=device, dtype=dtype)
+
+                # Crystal config with Stage A final params + Stage B modified HKL
+                crystal_overrides = {
+                    'cell_a': cell_a_tensor,
+                    'cell_b': cell_b_tensor,
+                    'cell_c': cell_c_tensor,
+                    'cell_alpha': cell_alpha_tensor,
+                    'cell_beta': cell_beta_tensor,
+                    'cell_gamma': cell_gamma_tensor
+                }
+                crystal_config, _ = create_crystal_config(
+                    crystal, device=device, dtype=dtype,
+                    crystal_overrides=crystal_overrides,
+                    apply_n_cells=False
+                )
+                total_misset_deg = baseline_misset_deg_tensor + misset_xyz_deg
+                crystal_config.misset_deg = total_misset_deg
+
+                from nanobrag_torch.models.crystal import Crystal as TorchCrystal
+                crystal_model = TorchCrystal(crystal_config, hkl_grid_modified)
+                crystal_model.interpolate = True
+
+                sim = Simulator(detector_config, beam_config, device=str(device))
+                bragg_panel = sim.generate_image_vectorized(crystal_model)
+
+                # Apply global scale
+                scale = torch.exp(log_scale)
+                bragg_scaled = scale * bragg_panel
+
+                bragg_full_stage_b[pid] = bragg_scaled.cpu().numpy().astype(np.float32)
+
+            # Update bragg_full with Stage B result
+            bragg_full = bragg_full_stage_b
+
+        # Assemble Stage B telemetry
+        param_deltas_b = {}
+        shell_modifiers_final_np = shell_modifiers_final.cpu().numpy()
+        for shell_idx in range(config.stage_b_n_shells):
+            d_min_shell = float(shell_edges[shell_idx + 1].item()) if shell_idx + 1 < len(shell_edges) else 0.0
+            d_max_shell = float(shell_edges[shell_idx].item())
+            param_deltas_b[f"shell_{shell_idx}_modifier (d={d_min_shell:.2f}-{d_max_shell:.2f}Å)"] = float(shell_modifiers_final_np[shell_idx])
+
+        telemetry_b = RefinementTelemetry(
+            optimizer="LBFGS",
+            stage="B",
+            history_size=config.history_size,
+            max_iter=config.max_iter,
+            tolerance_grad=config.tolerance_grad,
+            tolerance_change=config.tolerance_change,
+            roi_sample_fraction=config.roi_sample_fraction,
+            roi_count_sampled=int(n_panels * config.roi_sample_fraction),
+            roi_count_total=n_panels,
+            loss_trace_sample=loss_trace_sample_b,
+            loss_trace_full=loss_trace_full_b,
+            best_loss_full=best_loss_full_b,
+            param_deltas=param_deltas_b,
+            status=status_b,
+            message=message_b
+        )
+
+        telemetry_dict["B"] = telemetry_b
 
     # ============================================================================
     # Stage C: Detector microslip (per-panel distance refinement)

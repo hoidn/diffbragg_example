@@ -371,7 +371,7 @@ def run_nanobrag_backend(args, DL, devid=0):
             config=refine_config
         )
 
-        # Extract Stage A telemetry (always present); Stage C is optional
+        # Extract Stage A telemetry (always present); Stage B and Stage C are optional
         refine_telemetry = refine_telemetry_dict["A"]
 
         # Compute refined masked MSE
@@ -381,6 +381,11 @@ def run_nanobrag_backend(args, DL, devid=0):
         print(f"[nanobrag backend] Stage A status: {refine_telemetry.status}")
         print(f"[nanobrag backend] Masked MSE (refined): {masked_mse_refined:.2e}")
         print(f"[nanobrag backend] Improvement: {(masked_mse - masked_mse_refined) / masked_mse * 100:.1f}%")
+
+        # Log Stage B if enabled
+        if "B" in refine_telemetry_dict:
+            refine_telemetry_b = refine_telemetry_dict["B"]
+            print(f"[nanobrag backend] Stage B status: {refine_telemetry_b.status}")
 
         # Log Stage C if enabled
         if "C" in refine_telemetry_dict:
@@ -425,7 +430,7 @@ def _write_torch_outputs(args, DL, Bragg, inputs, masked_mse, hkl_telemetry, ref
             - hkl_mean_amplitude: Mean structure factor amplitude
             - hkl_path: Path to MTZ file used
         refine_telemetry: Optional Dict[str, RefinementTelemetry] from run_nanobrag_refinement
-                         (multi-stage: {"A": telemetry_a, "C": telemetry_c})
+                         (multi-stage: {"A": telemetry_a, "B": telemetry_b, "C": telemetry_c})
                          or single RefinementTelemetry (legacy, mapped to {"A": telemetry})
     """
     import h5py
@@ -511,7 +516,7 @@ def _write_torch_outputs(args, DL, Bragg, inputs, masked_mse, hkl_telemetry, ref
                 telemetry_dict = refine_telemetry
 
             # Persist per-stage telemetry as separate HDF5 groups
-            # Stage A always present; Stage C optional when enable_stage_c=True
+            # Stage A always present; Stage B/C optional when enable_stage_b/enable_stage_c=True
             for stage_label, stage_telem in telemetry_dict.items():
                 stage_group = diag.create_group(f"stage_{stage_label}")
 

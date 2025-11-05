@@ -12,6 +12,19 @@
 
 ## Active Initiatives
 
+### [REPORT-NANOBRAG-STATUS-001] Nanobrag Progress Reporting Pack
+- Depends on: `plans/nanobrag_integration_plan.md` Phase 5 (Validation & Documentation); torch backend HDF5 outputs with `/torch_diagnostics`.
+- Status: pending (2025-11-05)
+- Owner/Date: Team / 2025-11-05
+- Exit Criteria:
+  1. `reports/nanobrag_validation.md` committed with Phase 0–5 and Stage A/B/C status.
+  2. ≥1 recent HDF5 run parsed; loss traces and parameter‑delta tables included; HKL source provenance recorded.
+  3. Figures or tables showing Stage A progress (and B/C if enabled). If plotting unavailable, document limitation and provide JSON/tables.
+  4. JSON summaries emitted under `plans/active/REPORT-NANOBRAG-STATUS-001/reports/<timestamp>/` and linked from the report.
+- Working Plan: `plans/active/REPORT-NANOBRAG-STATUS-001/implementation.md`
+- Attempts History:
+  * 2025-11-05T110200Z (planning) — Created reporting plan skeleton with inputs/deliverables/exit criteria and artifact structure. No runtime/toolchain changes per Environment Freeze. Next: identify latest HDF5 torch backend output and draft `reports/nanobrag_validation.md` with plan‑vs‑status checklist; generate JSON summaries and, if available, figures.
+
 ### [POLICY-REFINE-STAGES] Stage A no-interp; Stage B tricubic with halo
 - Status: done (2025-11-05)
 - Rationale: Tricubic without a ±1 halo reverts to `default_F` near bounds and kills gradients. Geometry refinement does not need interpolation; per DiffBragg semantics, geometry updates are robust with a fixed Miller set.

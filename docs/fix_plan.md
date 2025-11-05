@@ -39,6 +39,7 @@
 - Working Plan: `plans/active/REPORT-NANOBRAG-STATUS-001/implementation.md`
 - Attempts History:
   * 2025-11-05T110200Z (planning) — Created reporting plan skeleton with inputs/deliverables/exit criteria and artifact structure. No runtime/toolchain changes per Environment Freeze. Next: identify latest HDF5 torch backend output and draft `reports/nanobrag_validation.md` with plan‑vs‑status checklist; generate JSON summaries and, if available, figures.
+  * 2025-11-05T184233Z (planning) — Reality check confirmed no prior `reports/nanobrag_validation.md` or `/torch_diagnostics` artifacts exist in the workspace. Authored new input.md Do Now directing a fresh `dbex.refine_one --backend nanobrag` run (refGeom assets, refined MTZ) with logs under `plans/active/REPORT-NANOBRAG-STATUS-001/reports/2025-11-05T184233Z/`, a scripted telemetry summarizer (`bin/emit_nanobrag_summary.py`), and documentation updates to `reports/nanobrag_validation.md`. Mapped validation to `pytest -v tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata` with collect-only/log capture per TESTING-003.
 
 ### [POLICY-REFINE-STAGES] Stage A no-interp; Stage B tricubic with halo
 - Status: done (2025-11-05)

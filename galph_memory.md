@@ -1011,3 +1011,12 @@ Notes
 - <Action State>: [ready_for_implementation]
 2025-11-05T172937Z focus=TORCH-REFINE-004 state=ready_for_implementation dwell=2 artifacts=plans/active/TORCH-REFINE-004/reports/2025-11-05T172937Z/ next_action=repair_stage_b_roi_sampler
 2025-11-05T111500Z focus=REPORT-NANOBRAG-STATUS-001 state=gathering_evidence dwell=0 artifacts=plans/active/REPORT-NANOBRAG-STATUS-001/reports/2025-11-05T111500Z/ next_action=locate latest torch HDF5 and draft validation summary skeleton
+
+## 2025-11-05T184233Z — REPORT-NANOBRAG-STATUS-001 telemetry planning handoff
+- Focus: REPORT-NANOBRAG-STATUS-001 — Nanobrag Progress Reporting Pack
+- Action Type: planning
+- Key Observations: No existing `/torch_diagnostics` HDF5 artifacts or `reports/nanobrag_validation.md`; staged a fresh nanobrag CLI run using refGeom assets and scripted telemetry summarizer in input.md so Ralph can emit JSON tables plus the stakeholder report in one loop. Logged refined HKL guardrails (SCALE-006/007) and pytest telemetry selector to keep documentation synchronized.
+- Artifact Path: plans/active/REPORT-NANOBRAG-STATUS-001/reports/2025-11-05T184233Z/
+- Next Actions: Ralph executes the CLI run, authors `bin/emit_nanobrag_summary.py`, updates `reports/nanobrag_validation.md`, and captures pytest telemetry logs per Do Now.
+- <Action State>: [ready_for_implementation]
+2025-11-05T184233Z focus=REPORT-NANOBRAG-STATUS-001 state=ready_for_implementation dwell=2 artifacts=plans/active/REPORT-NANOBRAG-STATUS-001/reports/2025-11-05T184233Z/ next_action=execute_telemetry_run_and_report

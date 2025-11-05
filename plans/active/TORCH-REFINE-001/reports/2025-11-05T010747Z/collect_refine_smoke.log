@@ -1,6 +1,6 @@
 ============================= test session starts ==============================
 platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0
-rootdir: /home/ollie/Documents/diffbragg_example
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
 configfile: pyproject.toml
 collected 1 item
 
@@ -10,4 +10,4 @@ collected 1 item
       <Module test_torch_refine_smoke.py>
         <Function test_loss_decreases>
 
-========================== 1 test collected in 0.81s ===========================
+========================== 1 test collected in 0.85s ===========================

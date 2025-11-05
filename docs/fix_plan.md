@@ -94,13 +94,15 @@
 
 ### [TORCH-REFINE-004] Stage B Fhkl modifiers (optional)
 - Depends on: TORCH-REFINE-001, docs/spec-db-workflow.md §“Staging”, plans/nanobrag_integration_plan.md §Phase 3
-- Status: pending
+- Status: in_progress
 - Owner/Date: Galph/Ralph / 2025-11-05
 - Exit Criteria:
   1. Introduce differentiable per‑resolution shell/global multipliers for |F| (regularized); train with LBFGS (or Adam if justified) using the same closure semantics; avoid per‑reflection explosion; record `param_deltas`.
   2. Deterministic ROI‑sample loss decreases by ≥ 3% within ≤ 30 steps without overfitting signals (loss_trace_full agrees with sample trend). Telemetry includes modifier count and regularization strength.
   3. Targeted pytest selector (Stage B smoke) collects and passes; document skip if dataset/golden not yet available.
 - Working Plan: plans/active/TORCH-REFINE-004/implementation.md
+- Attempts History:
+  * 2025-11-05T100554Z (planning) — Confirmed Stage B remains unimplemented (RefinementConfig lacks Stage B toggles; run_nanobrag_refinement only wires Stage A/C). Reviewed Stage B contract in docs/spec-db-workflow.md §7 and plans/nanobrag_integration_plan.md §Stage B, plus halo/interpolation guardrails (REFINE-005) and scaling findings (SCALE-001/002/003/007). Authored implementation plan (plans/active/TORCH-REFINE-004/implementation.md) covering config plumbing, shell lookup helper, LBFGS loop insertion, telemetry persistence, and Stage B smoke/test documentation. Artifact path: plans/active/TORCH-REFINE-004/reports/2025-11-05T100554Z/.
 
 ### [TORCH-REFINE-005] Stage B per‑reflection parity (opt‑in)
 - Depends on: TORCH-REFINE-001, docs/spec-db-workflow.md §“Staging”, plans/nanobrag_integration_plan.md §Phase 3

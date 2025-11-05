@@ -983,3 +983,12 @@ Notes
 - Next Actions: Ralph updates config/test thresholds per REFINE-007 and reruns Stage C selector with artifacts captured.
 - <Action State>: [ready_for_implementation]
 2025-11-05T090201Z focus=TORCH-REFINE-003 state=ready_for_implementation dwell=1 artifacts=plans/active/TORCH-REFINE-003/reports/2025-11-05T090201Z/ next_action=lower_stage_c_gate_impl
+
+## 2025-11-05T100554Z — TORCH-REFINE-004 Stage B launch plan
+- Focus: TORCH-REFINE-004 — Stage B Fhkl modifiers (optional)
+- Action Type: planning
+- Key Observations: Stage B path is still unimplemented (RefinementConfig lacks Stage B controls and `run_nanobrag_refinement` exits after Stage A/C). Reviewed Stage B contract (spec-db-workflow §7, integration plan §Stage B) plus halo/default_F guard (REFINE-005) and scaling findings (SCALE-001/002/003/007). Authored new implementation plan with config plumbing, shell lookup helper, Stage B LBFGS loop, telemetry/HDF5 persistence, and smoke test/doc updates; fix_plan status set to in_progress with Attempts History captured.
+- Artifact Path: plans/active/TORCH-REFINE-004/reports/2025-11-05T100554Z/
+- Next Actions: Ralph to implement Stage B shell modifier stage per new input.md (LBFGS loop + telemetry + tests) and capture Stage B improvement artifacts.
+- <Action State>: [ready_for_implementation]
+2025-11-05T100554Z focus=TORCH-REFINE-004 state=ready_for_implementation dwell=0 artifacts=plans/active/TORCH-REFINE-004/reports/2025-11-05T100554Z/ next_action=implement_stage_b_shell_modifiers

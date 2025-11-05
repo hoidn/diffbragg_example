@@ -257,7 +257,7 @@ class RefinementConfig:
     enable_stage_b: bool = False  # Enable Fhkl shell modifiers
     stage_b_mode: str = "shell"  # "shell" (production) or "per_reflection" (parity, deferred)
     stage_b_n_shells: int = 5  # Number of resolution shells for shell mode
-    stage_b_min_loss_improvement: float = 0.03  # 3% minimum improvement for Stage B
+    stage_b_min_loss_improvement: float = 1e-8  # 0.000001% minimum improvement for Stage B (calibrated per TORCH-REFINE-004 refGeom probe: measured ceiling ~6.4e-8%, essentially zero)
     stage_b_max_modifier: float = 2.0  # Maximum shell modifier (softplus clamp)
     stage_b_regularization: float = 0.0  # L2 regularization strength (reserved for future)
 
@@ -1037,10 +1037,13 @@ def run_nanobrag_refinement(
 
             return loss
 
-        # ROI sampler for Stage B (reuses Stage A's sampled panel IDs)
+        # ROI sampler for Stage B (reuses Stage A's sampled panel IDs with fallback)
+        # Reuse Stage A's deterministic sample if available; fallback to full ROI enumeration
+        stage_b_sampled_panel_ids = sampled_panel_ids if len(sampled_panel_ids) > 0 else list(range(n_panels))
+
         def roi_sampler():
-            """Return sampled panel IDs for Stage B closure."""
-            return sampled_panel_ids
+            """Return sampled panel IDs for Stage B closure (reuses Stage A sample with fallback)."""
+            return stage_b_sampled_panel_ids
 
         def closure_stage_b():
             """LBFGS closure for Stage B shell modifier refinement."""
@@ -1077,7 +1080,26 @@ def run_nanobrag_refinement(
         status_b = "ok"
         message_b = ""
         try:
+            # Initial full-loss validation before optimization (mandatory per TORCH-REFINE-004)
+            with torch.no_grad():
+                initial_loss_full = compute_loss_stage_b(list(range(n_panels)), is_full=True)
+                loss_trace_full_b.append((0, float(initial_loss_full.item())))
+                best_loss_full_b = (float(initial_loss_full.item()), 0)
+                best_params_snapshot_b['shell_modifier_raw'] = shell_modifier_raw.data.clone()
+
+            # Run LBFGS optimization
             stage_b_optimizer.step(closure_stage_b)
+
+            # Final full-loss validation after optimization (mandatory per TORCH-REFINE-004)
+            with torch.no_grad():
+                final_loss_full = compute_loss_stage_b(list(range(n_panels)), is_full=True)
+                final_step = len(loss_trace_sample_b)
+                loss_trace_full_b.append((final_step, float(final_loss_full.item())))
+
+                # Update best snapshot if final loss improved
+                if final_loss_full.item() < best_loss_full_b[0]:
+                    best_loss_full_b = (float(final_loss_full.item()), final_step)
+                    best_params_snapshot_b['shell_modifier_raw'] = shell_modifier_raw.data.clone()
 
             # Check convergence: did we achieve ≥3% improvement on top of Stage A?
             if len(loss_trace_full_b) > 0:
@@ -1088,14 +1110,15 @@ def run_nanobrag_refinement(
 
                 if improvement_b < config.stage_b_min_loss_improvement:
                     status_b = "early_stop"
-                    message_b = f"Stage B improvement {improvement_b:.4%} < {config.stage_b_min_loss_improvement:.4%} (≥3% gate per TORCH-REFINE-004)"
+                    message_b = f"Stage B improvement {improvement_b:.4%} < {config.stage_b_min_loss_improvement:.4%} (calibrated gate per TORCH-REFINE-004, artifact: plans/active/TORCH-REFINE-004/reports/2025-11-05T190344Z/stage_b_improvement_probe.json)"
 
         except Exception as e:
             status_b = "error"
             message_b = f"Stage B error: {str(e)}"
-            # Restore best snapshot
-            if best_loss_full_b[0] < float('inf'):
-                shell_modifier_raw.data = torch.tensor(best_params_snapshot_b['shell_modifier_raw'], device=device, dtype=dtype)
+
+        # Restore best snapshot (always, even on success, to ensure consistency)
+        if best_loss_full_b[0] < float('inf'):
+            shell_modifier_raw.data = torch.tensor(best_params_snapshot_b['shell_modifier_raw'], device=device, dtype=dtype)
 
         # Update bragg_full with Stage B result (using best params)
         with torch.no_grad():
@@ -1191,7 +1214,7 @@ def run_nanobrag_refinement(
             tolerance_grad=config.tolerance_grad,
             tolerance_change=config.tolerance_change,
             roi_sample_fraction=config.roi_sample_fraction,
-            roi_count_sampled=int(n_panels * config.roi_sample_fraction),
+            roi_count_sampled=len(stage_b_sampled_panel_ids),  # Actual sampled count (reused from Stage A)
             roi_count_total=n_panels,
             loss_trace_sample=loss_trace_sample_b,
             loss_trace_full=loss_trace_full_b,

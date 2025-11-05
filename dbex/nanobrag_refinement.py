@@ -120,8 +120,13 @@ def run_nanobrag_refinement(
     loss_mask_t = torch.from_numpy(inputs.loss_mask).to(device=device, dtype=torch.bool)
 
     # Initialize refinement parameters
-    # log_scale: global intensity scale (initialize to 0.0 → scale=1.0)
-    log_scale = torch.tensor(0.0, device=device, dtype=dtype, requires_grad=True)
+    # log_scale: global intensity scale
+    # Warm-start from global_scale_hint when available (per spec-db-workflow.md:20-40, REFINE-001)
+    if inputs.global_scale_hint is not None and inputs.global_scale_hint > 0:
+        initial_log_scale = float(torch.log(torch.tensor(inputs.global_scale_hint, dtype=dtype)))
+    else:
+        initial_log_scale = 0.0  # fallback: scale=1.0
+    log_scale = torch.tensor(initial_log_scale, device=device, dtype=dtype, requires_grad=True)
 
     # log_cell_a_delta: small perturbation to cell_a (initialize to 0.0 → no change)
     log_cell_a_delta = torch.tensor(0.0, device=device, dtype=dtype, requires_grad=True)
@@ -135,7 +140,7 @@ def run_nanobrag_refinement(
         max_iter=config.max_iter,
         tolerance_grad=config.tolerance_grad,
         tolerance_change=config.tolerance_change,
-        line_search_fn=None  # Default strong Wolfe
+        line_search_fn="strong_wolfe"  # Enable strong Wolfe line search for stability
     )
 
     # Telemetry accumulators
@@ -231,7 +236,10 @@ def run_nanobrag_refinement(
 
         # Stack panels and apply global scale
         bragg_stacked = torch.stack(bragg_panels, dim=0)  # [n_sampled, slow, fast]
-        bragg_scaled = bragg_stacked * torch.exp(log_scale)
+        # Clamp log_scale before exp to prevent overflow/NaN gradients (per REFINE-001)
+        # Range [-10, 10] → scale in [4.5e-5, 22026], balanced for stability vs exploration
+        log_scale_clamped = torch.clamp(log_scale, min=-10.0, max=10.0)
+        bragg_scaled = bragg_stacked * torch.exp(log_scale_clamped)
 
         # Extract corresponding target and mask slices
         target_subset = target_t[panel_ids]
@@ -348,16 +356,17 @@ def run_nanobrag_refinement(
             simulator = Simulator(detector=detector_model, crystal=crystal_model)
             panel_bragg = simulator.run()
 
-            # Apply optimized scale
-            panel_bragg_scaled = panel_bragg * torch.exp(log_scale)
+            # Apply optimized scale (with same clamping as in compute_loss)
+            log_scale_clamped = torch.clamp(log_scale, min=-10.0, max=10.0)
+            panel_bragg_scaled = panel_bragg * torch.exp(log_scale_clamped)
             bragg_full[pid] = panel_bragg_scaled.cpu().numpy().astype(np.float32)
 
     # Assemble telemetry
     param_deltas = {
         'log_scale': {
-            'initial': 0.0,
+            'initial': initial_log_scale,
             'final': float(log_scale.item()),
-            'delta': float(log_scale.item())
+            'delta': float(log_scale.item()) - initial_log_scale
         },
         'log_cell_a_delta': {
             'initial': 0.0,

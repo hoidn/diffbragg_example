@@ -28,12 +28,13 @@ easyBragg/
 easyBragg
 nanoBragg2/
 nanoBragg2
-plans/active/
-plans/active
+plans/active/**
 # Allow tracking per-initiative plans but keep reports/artifacts ignored
+!plans/active/**/
+plans/active/**/reports/**
 !plans/active/**/implementation.md
+!plans/active/**/bin/
 !plans/active/**/bin/*.py
-!plans/active/**/.gitkeep
 scratch/
 scratch
 simforge/

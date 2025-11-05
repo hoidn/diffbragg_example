@@ -28,7 +28,7 @@
 
 ### [REPORT-NANOBRAG-STATUS-001] Nanobrag Progress Reporting Pack
 - Depends on: `plans/nanobrag_integration_plan.md` Phase 5 (Validation & Documentation); torch backend HDF5 outputs with `/torch_diagnostics`.
-- Status: in_progress (2025-11-05)
+- Status: done (2025-11-05)
 - Priority: high (next focus)
 - Owner/Date: Team / 2025-11-05
 - Exit Criteria:
@@ -40,6 +40,7 @@
 - Attempts History:
   * 2025-11-05T110200Z (planning) — Created reporting plan skeleton with inputs/deliverables/exit criteria and artifact structure. No runtime/toolchain changes per Environment Freeze. Next: identify latest HDF5 torch backend output and draft `reports/nanobrag_validation.md` with plan‑vs‑status checklist; generate JSON summaries and, if available, figures.
   * 2025-11-05T184233Z (planning) — Reality check confirmed no prior `reports/nanobrag_validation.md` or `/torch_diagnostics` artifacts exist in the workspace. Authored new input.md Do Now directing a fresh `dbex.refine_one --backend nanobrag` run (refGeom assets, refined MTZ) with logs under `plans/active/REPORT-NANOBRAG-STATUS-001/reports/2025-11-05T184233Z/`, a scripted telemetry summarizer (`bin/emit_nanobrag_summary.py`), and documentation updates to `reports/nanobrag_validation.md`. Mapped validation to `pytest -v tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata` with collect-only/log capture per TESTING-003.
+  * 2025-11-05T184233Z (implementation + docs) — **BLOCKED twice; fixed CLI path bugs.** (1) `create_detector_config` was emitting numpy mask_array instead of torch.Tensor, causing AttributeError in Simulator.__init__; fixed by adding `torch.tensor()` coercion at `dbex/nanobrag_bridge.py:383`. (2) HKL amplitude mean calculation failed (flex.double has no `.mean()` method); added graceful flex→numpy conversion via `as_numpy_array()` fallback at `dbex/refine_one.py:406-416`. Successfully ran full nanobrag CLI: refGeom assets, 92 ROIs, Stage A LBFGS (14 iterations), ~0% improvement per well-calibrated dataset (979335.55 → 979335.56). Implemented `bin/emit_nanobrag_summary.py` with NumpyEncoder to parse `/torch_diagnostics` HDF5 attrs and emit telemetry_summary.json + `reports/nanobrag_validation.md` with Phase 0–5 status, Stage A/B/C tables, HKL provenance (raw MTZ, 69614 reflections, mean_amp=47.47), parameter deltas (log_scale Δ4.30, cell deltas ~1e-5, angles ~1e-7, orientation zeroed per REFINE-003), and ROI snapshot notes. Validated with `pytest -v tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata --maxfail=1` (PASSED). Artifacts: plans/active/REPORT-NANOBRAG-STATUS-001/reports/2025-11-05T184233Z/{nanobrag_stage_progress.h5, refine_cli.log, telemetry_summary.json, collect_cli_diag.log, pytest_cli_diag.log}, reports/nanobrag_validation.md. Metrics: 516KB HDF5, 1 test collected/passed, no regression. Next Actions: Commit the reporting pack; follow-on initiative to run CLI with `--refined-mtz` for SCALE-006/007 validation.
 
 ### [POLICY-REFINE-STAGES] Stage A no-interp; Stage B tricubic with halo
 - Status: done (2025-11-05)

@@ -375,10 +375,12 @@ def create_detector_config(
     detector_roty_deg = np.degrees(phi_y_rad)
     detector_rotz_deg = np.degrees(phi_z_rad)
 
-    # Mask array: convert bool to float (config_crosswalk.md:33)
+    # Mask array: convert bool to float tensor (config_crosswalk.md:33)
+    # CRITICAL: Simulator expects mask_array as torch.Tensor, not numpy
+    import torch
     mask_array = None
     if trusted_mask is not None:
-        mask_array = trusted_mask.astype(np.float32)
+        mask_array = torch.tensor(trusted_mask.astype(np.float32))
 
     # Use DIALS convention with rotation angles derived from panel axes
     # This preserves BEAM pivot and correctly represents panel geometry

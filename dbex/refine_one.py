@@ -402,10 +402,18 @@ def run_nanobrag_backend(args, DL, devid=0):
         refine_telemetry = None
 
     # Prepare structure-factor telemetry for diagnostics (SCALE-003)
+    # Convert flex arrays to numpy if needed for mean calculation
+    if hasattr(hkl_amplitudes, 'as_numpy_array'):
+        hkl_amp_array = hkl_amplitudes.as_numpy_array()
+    elif hasattr(hkl_amplitudes, 'mean'):
+        hkl_amp_array = hkl_amplitudes
+    else:
+        hkl_amp_array = np.array(hkl_amplitudes)
+
     hkl_telemetry = {
         "hkl_source": hkl_source,
         "hkl_n_reflections": len(hkl_indices),
-        "hkl_mean_amplitude": float(hkl_amplitudes.mean()),
+        "hkl_mean_amplitude": float(hkl_amp_array.mean() if hasattr(hkl_amp_array, 'mean') else np.mean(hkl_amp_array)),
         "hkl_path": hkl_path if hkl_path else ""
     }
 

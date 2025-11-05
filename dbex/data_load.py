@@ -1,5 +1,6 @@
 
-
+import pickle
+import numpy as np
 from simtbx.diffBragg import utils
 from dials.array_family import flex
 from dxtbx.model import ExperimentList
@@ -92,5 +93,69 @@ class DataLoad:
         self.background_image
         """
         A np.ndarray the same size of self.data of the **estimated background** pixels for the regions
-        of interest and pixels set to -1 otherwise. 
+        of interest and pixels set to -1 otherwise.
+        """
+
+        # --- Trusted Mask and Geometry Fixtures ---
+        # Load DIALS trusted mask per spec-db-core.md:29-55 if provided
+        # Expected format: tuple of flex.bool per panel (True=trusted) shaped (slow, fast)
+        if hasattr(args, 'maskFile') and args.maskFile is not None:
+            with open(args.maskFile, 'rb') as f:
+                mask_raw = pickle.load(f)
+
+            # Convert DIALS mask tuple to numpy array [panel, slow, fast]
+            # flex.bool has .all() method returning (slow, fast) dimensions
+            if isinstance(mask_raw, tuple):
+                mask_list = []
+                for panel_mask in mask_raw:
+                    slow, fast = panel_mask.all()
+                    arr = np.asarray(panel_mask, dtype=bool).reshape((slow, fast))
+                    mask_list.append(arr)
+                trusted_mask_array = np.array(mask_list)
+            else:
+                # If already array-like, ensure correct dtype/shape
+                trusted_mask_array = np.asarray(mask_raw, dtype=bool)
+
+            # Guard: validate mask polarity (True should be majority for include semantics)
+            # Per spec-db-core.md:29, DIALS trusted mask uses True=trusted polarity
+            true_fraction = np.mean(trusted_mask_array)
+            if true_fraction < 0.5:
+                raise ValueError(
+                    f"Trusted mask appears inverted: only {true_fraction*100:.1f}% True pixels. "
+                    f"Expected True=include polarity per spec-db-core.md:29. "
+                    f"Mask shape: {trusted_mask_array.shape}, file: {args.maskFile}"
+                )
+
+            self.trusted_mask = trusted_mask_array
+            """
+            A boolean :py:class:`np.ndarray` with shape ``[panel, slow, fast]`` where
+            ``True`` indicates a trusted/good pixel (include in analysis).
+            Polarity follows DIALS convention (True=trusted) per spec-db-core.md:29.
+            """
+        else:
+            # No mask file provided - create a fully-trusted mask matching data shape
+            self.trusted_mask = np.ones_like(self.data, dtype=bool)
+            """
+            A boolean :py:class:`np.ndarray` with shape ``[panel, slow, fast]`` where
+            ``True`` indicates a trusted/good pixel (include in analysis).
+            When no maskFile is provided, all pixels are trusted by default.
+            """
+
+        # Expose detector/beam/crystal fixtures for bridge compatibility
+        self.detector = self.Expt.detector
+        """
+        The :py:class:`dxtbx.model.Detector` object from the experiment.
+        Required by prepare_refinement_inputs for pixel pitch validation.
+        """
+
+        self.beam = self.Expt.beam
+        """
+        The :py:class:`dxtbx.model.Beam` object from the experiment.
+        Provides wavelength, polarization, and beam direction metadata.
+        """
+
+        self.crystal = self.Expt.crystal
+        """
+        The :py:class:`dxtbx.model.Crystal` object from the experiment.
+        Provides unit cell, space group, and orientation matrix.
         """

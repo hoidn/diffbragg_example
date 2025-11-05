@@ -1,0 +1,53 @@
+{
+  "baseline_hkl_ranges": {
+    "h": [
+      -24,
+      24
+    ],
+    "k": [
+      -28,
+      28
+    ],
+    "l": [
+      -31,
+      31
+    ]
+  },
+  "perturbed_hkl_ranges": {
+    "h": [
+      -23.49232030595983,
+      23.49232030595983
+    ],
+    "k": [
+      -27.924742425050905,
+      27.924742425050905
+    ],
+    "l": [
+      -30.609971706652836,
+      30.609971706652836
+    ]
+  },
+  "in_bounds_fraction": 1.0,
+  "in_bounds_count": 69614,
+  "total_reflections": 69614,
+  "max_deviation": {
+    "overall": 1.0301362216296113,
+    "h": 1.0301362216296113,
+    "k": 0.5059848734437846,
+    "l": 0.40123945435385266
+  },
+  "non_integer_count": 69614,
+  "anomalies": [
+    "69614/69614 perturbed HKL indices are non-integer (max fractional part: 0.499996)"
+  ],
+  "perturbation_parameters": {
+    "cell_stretch_pct": {
+      "a": 2.0,
+      "b": 1.0,
+      "c": 1.0
+    },
+    "orientation_misset_deg": {
+      "z_axis": 1.5
+    }
+  }
+}

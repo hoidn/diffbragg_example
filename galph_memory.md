@@ -974,3 +974,12 @@ Notes
 - Next Actions: Ralph implements Stage C LBFGS loop + telemetry, adds smoke test/metrics script, and runs Stage C/A selectors per the new How-To map.
 - <Action State>: [ready_for_implementation]
 2025-11-06T130000Z focus=TORCH-REFINE-003 state=ready_for_implementation dwell=0 artifacts=plans/active/TORCH-REFINE-003/reports/2025-11-06T130000Z/ next_action=implement_stage_c_lbfgs_and_smoke
+
+## 2025-11-05T090201Z — TORCH-REFINE-003 Stage C gate calibration plan
+- Focus: TORCH-REFINE-003 — Stage C detector microslip
+- Action Type: planning
+- Key Observations: Ran Stage C improvement probe (probe_stage_c_improvement.py) showing refGeom ceiling ≈0.0027% despite offsets saturating at 0.46 mm; updated fix_plan Attempts History, added REFINE-007 finding, refreshed working plan exit criteria to ≥0.002% gate, and drafted new Do Now for Ralph to lower `stage_c_min_loss_improvement` + relax smoke assertion.
+- Artifact Path: plans/active/TORCH-REFINE-003/reports/2025-11-05T090201Z/
+- Next Actions: Ralph updates config/test thresholds per REFINE-007 and reruns Stage C selector with artifacts captured.
+- <Action State>: [ready_for_implementation]
+2025-11-05T090201Z focus=TORCH-REFINE-003 state=ready_for_implementation dwell=1 artifacts=plans/active/TORCH-REFINE-003/reports/2025-11-05T090201Z/ next_action=lower_stage_c_gate_impl

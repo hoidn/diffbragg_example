@@ -1,0 +1,13 @@
+{
+  "stage_a_improvement_pct": 0.20732517359161348,
+  "stage_c_improvement_pct": 0.0027140440809521717,
+  "stage_a_final_loss": 974099.875,
+  "stage_c_final_loss": 974073.4375,
+  "stage_c_iterations": 14,
+  "stage_c_status": "early_stop",
+  "stage_c_message": "Stage C improvement 0.00% < 5.00% (\u22655% gate per docs/spec-db-workflow.md:35)",
+  "max_abs_offset_mm": 0.4636651277542114,
+  "offset_samples_mm": [
+    0.4636651277542114
+  ]
+}

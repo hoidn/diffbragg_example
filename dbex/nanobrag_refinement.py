@@ -176,7 +176,8 @@ def run_nanobrag_refinement(
     crystal,
     hkl_grid: torch.Tensor,
     hkl_metadata: Dict,
-    config: Optional[RefinementConfig] = None
+    config: Optional[RefinementConfig] = None,
+    baseline_crystal=None
 ) -> Tuple[np.ndarray, RefinementTelemetry]:
     """
     Run Stage A LBFGS refinement nucleus on nanobrag_torch simulator.
@@ -189,10 +190,14 @@ def run_nanobrag_refinement(
         inputs: RefinementInputs with target, loss_mask, panel_slices, trusted_mask
         detector: dxtbx Detector object (multi-panel)
         beam: dxtbx Beam object
-        crystal: dxtbx Crystal object
+        crystal: dxtbx Crystal object (possibly perturbed from baseline)
         hkl_grid: torch.Tensor structure factor grid (P1 dense)
         hkl_metadata: dict with grid dimensions and metadata
         config: Optional RefinementConfig; uses defaults if None
+        baseline_crystal: Optional baseline dxtbx Crystal object for extracting deterministic
+                        misset when `crystal` is perturbed (TORCH-REFINE-002D). When provided,
+                        computes U_delta = U_perturbed @ U_baseline^{-1} and adds it to the
+                        orientation refinement path as a tensor to preserve differentiability.
 
     Returns:
         Tuple of:
@@ -210,6 +215,7 @@ def run_nanobrag_refinement(
         create_beam_config,
         create_crystal_config
     )
+    from scitbx.matrix import sqr
 
     if config is None:
         config = RefinementConfig()
@@ -219,6 +225,37 @@ def run_nanobrag_refinement(
     dtype = config.dtype
     target_t = torch.from_numpy(inputs.target).to(device=device, dtype=dtype)
     loss_mask_t = torch.from_numpy(inputs.loss_mask).to(device=device, dtype=torch.bool)
+
+    # Extract deterministic misset from perturbed geometry (TORCH-REFINE-002D)
+    # Compute U_delta = U_perturbed @ U_baseline^{-1} and convert to XYZ Euler angles
+    baseline_misset_deg_tensor = None
+    if baseline_crystal is not None:
+        # Get U matrices (scitbx 3x3 matrix objects)
+        U_baseline_tuple = baseline_crystal.get_U()
+        U_perturbed_tuple = crystal.get_U()
+
+        # Convert to scitbx sqr matrices
+        U_baseline = sqr(U_baseline_tuple)
+        U_perturbed = sqr(U_perturbed_tuple)
+
+        # Compute U_delta = U_perturbed @ inv(U_baseline)
+        U_delta = U_perturbed * U_baseline.inverse()
+
+        # Convert to numpy array for euler decomposition
+        U_delta_np = np.array(U_delta).reshape(3, 3)
+
+        # Extract XYZ Euler angles from U_delta using same analytic formulas as GEOMETRY-002
+        # R = R_z(gamma) @ R_y(beta) @ R_x(alpha)
+        # phi_y = -asin(R[2,0])
+        # phi_x = atan2(R[2,1], R[2,2])
+        # phi_z = atan2(R[1,0], R[0,0])
+        phi_y_rad = -np.arcsin(np.clip(U_delta_np[2, 0], -1.0, 1.0))
+        phi_x_rad = np.arctan2(U_delta_np[2, 1], U_delta_np[2, 2])
+        phi_z_rad = np.arctan2(U_delta_np[1, 0], U_delta_np[0, 0])
+
+        # Convert to degrees and create torch tensor
+        baseline_misset_xyz_deg = np.array([phi_x_rad, phi_y_rad, phi_z_rad]) * (180.0 / np.pi)
+        baseline_misset_deg_tensor = torch.tensor(baseline_misset_xyz_deg, dtype=dtype, device=device)
 
     # Initialize refinement parameters
     # Stage A expansion: global scale + full crystal (a/b/c logs, alpha/beta/gamma bounded, orientation)
@@ -341,6 +378,12 @@ def run_nanobrag_refinement(
             quat = vec_to_unit_quaternion(bounded_orientation_vec)
             misset_xyz_deg = quaternion_to_xyz_euler(quat)
 
+            # Add baseline misset from perturbed geometry if provided (TORCH-REFINE-002D)
+            # This plumbs the deterministic perturbation through the refinement path
+            # so the smoke test can exercise orientation recovery with nearest-neighbor HKL
+            if baseline_misset_deg_tensor is not None:
+                misset_xyz_deg = misset_xyz_deg + baseline_misset_deg_tensor
+
             # Create crystal config with all cell parameter overrides + misset
             # Note: create_crystal_config returns (config, n_cells_applied) tuple
             crystal_overrides = {
@@ -360,10 +403,11 @@ def run_nanobrag_refinement(
             # Build detector and crystal models
             detector_model = Detector(detector_config)
             crystal_model = Crystal(crystal_config)
-            # TODO(STAGE-A): Disable HKL interpolation for geometry stage (nearest‑neighbor |F|)
-            # Implement by setting:
-            #   crystal_model.interpolate = False
-            # prior to Simulator construction, per Stage A policy.
+
+            # Stage A policy: disable HKL interpolation (nearest-neighbor |F|)
+            # Per REFINE-005 and input.md, Stage A uses nearest-neighbor to avoid
+            # tricubic halo requirements and gradient issues with fractional HKL indices
+            crystal_model.interpolate = False
 
             # Attach HKL data
             crystal_model.hkl_data = hkl_grid.to(device=device, dtype=dtype)
@@ -540,6 +584,10 @@ def run_nanobrag_refinement(
             quat = vec_to_unit_quaternion(bounded_orientation_vec)
             misset_xyz_deg = quaternion_to_xyz_euler(quat)
 
+            # Add baseline misset from perturbed geometry if provided (TORCH-REFINE-002D)
+            if baseline_misset_deg_tensor is not None:
+                misset_xyz_deg = misset_xyz_deg + baseline_misset_deg_tensor
+
             crystal_overrides = {
                 'cell_a': perturbed_cell_a,
                 'cell_b': perturbed_cell_b,
@@ -556,10 +604,12 @@ def run_nanobrag_refinement(
 
             detector_model = Detector(detector_config)
             crystal_model = Crystal(crystal_config)
-            # TODO(STAGE-A): Disable HKL interpolation for geometry stage (nearest‑neighbor |F|)
-            # Implement by setting:
-            #   crystal_model.interpolate = False
-            # prior to Simulator construction, per Stage A policy.
+
+            # Stage A policy: disable HKL interpolation (nearest-neighbor |F|)
+            # Per REFINE-005 and input.md, Stage A uses nearest-neighbor to avoid
+            # tricubic halo requirements and gradient issues with fractional HKL indices
+            crystal_model.interpolate = False
+
             crystal_model.hkl_data = hkl_grid.to(device=device, dtype=dtype)
             crystal_model.hkl_metadata = hkl_metadata
 
@@ -624,11 +674,19 @@ def run_nanobrag_refinement(
         quat_final = vec_to_unit_quaternion(bounded_orientation_vec_final)
         misset_xyz_deg_final = quaternion_to_xyz_euler(quat_final)
 
+        # Add baseline misset from perturbed geometry if provided (TORCH-REFINE-002D)
+        if baseline_misset_deg_tensor is not None:
+            misset_xyz_deg_final_total = misset_xyz_deg_final + baseline_misset_deg_tensor
+            initial_misset = baseline_misset_deg_tensor.cpu().tolist()
+        else:
+            misset_xyz_deg_final_total = misset_xyz_deg_final
+            initial_misset = [0.0, 0.0, 0.0]
+
         # Add misset telemetry
         param_deltas['misset_xyz_deg'] = {
-            'initial': [0.0, 0.0, 0.0],
-            'final': misset_xyz_deg_final.cpu().tolist(),
-            'delta': misset_xyz_deg_final.cpu().tolist(),
+            'initial': initial_misset,
+            'final': misset_xyz_deg_final_total.cpu().tolist(),
+            'delta': misset_xyz_deg_final.cpu().tolist(),  # Delta from LBFGS optimization (excluding baseline)
             'quaternion_norm': float(quat_final.norm().item())
         }
 

@@ -192,16 +192,18 @@ def test_stage_a_expansion(refgeom_dataload, refinement_inputs, hkl_data):
     """
     Verify Stage A LBFGS refinement with full crystal DoFs achieves ≥5% loss decrease.
 
-    Acceptance criteria (TORCH-REFINE-002 Option D):
+    Acceptance criteria (TORCH-REFINE-002D):
     1. Refinement runs without errors (status != "error")
     2. Telemetry contains all required keys (scale, cell a/b/c, angles, orientation, misset_xyz_deg)
-    3. Orientation telemetry structure validated (misset_xyz_deg keys + quaternion norm)
-    4. Improvement gate (≥5%) marked as xfail due to REFINE-004/005 (HKL grid incompatibility)
+    3. Orientation telemetry reports deterministic misset angles from perturbed geometry
+    4. Improvement gate (≥5%) marked as xfail until HKL-aware dataset lands (REFINE-005)
     5. Full-loss trace is non-increasing over last 3 validations
 
-    Per REFINE-005: Perturbing geometry without rebuilding HKL grid yields 0% hit rate;
-    baseline geometry testing preserves telemetry validation while deferring gate to
-    future HKL-aware datasets.
+    Per TORCH-REFINE-002D: Stage A now runs on nearest-neighbor HKL (interpolate=False)
+    with deterministic geometry perturbation (+2/+1/+1% cell stretch, +1.5° Z-misset)
+    plumbed through baseline_crystal parameter so orientation telemetry exercises the
+    misset path while remaining HKL-compatible (fractional indices handled by NN lookup).
+    ≥5% gate still deferred awaiting additional perturbation amplitude or HKL rebuild.
 
     Environment:
     - Requires: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1
@@ -222,16 +224,27 @@ def test_stage_a_expansion(refgeom_dataload, refinement_inputs, hkl_data):
         min_loss_improvement=0.05  # 5% threshold for full crystal DoFs
     )
 
-    # Run refinement with baseline refGeom geometry (no perturbation per Option D)
-    # Note: create_perturbed_geometry helper remains available for future HKL-ready datasets
+    # Create perturbed geometry (TORCH-REFINE-002D)
+    # Applies deterministic cell stretch and orientation misset to exercise Stage A recovery
+    # with nearest-neighbor HKL lookup (no tricubic, no grid rebuild required)
+    baseline_crystal = refgeom_dataload.Expt.crystal
+    baseline_detector = refgeom_dataload.Expt.detector
+    baseline_beam = refgeom_dataload.Expt.beam
+
+    perturbed_crystal, perturbed_detector, perturbed_beam = create_perturbed_geometry(
+        baseline_crystal, baseline_detector, baseline_beam
+    )
+
+    # Run refinement with perturbed geometry and baseline crystal for misset extraction
     bragg_refined, telemetry = run_nanobrag_refinement(
         inputs=refinement_inputs,
-        detector=refgeom_dataload.Expt.detector,
-        beam=refgeom_dataload.Expt.beam,
-        crystal=refgeom_dataload.Expt.crystal,
+        detector=perturbed_detector,
+        beam=perturbed_beam,
+        crystal=perturbed_crystal,
         hkl_grid=hkl_grid,
         hkl_metadata=hkl_metadata,
-        config=config
+        config=config,
+        baseline_crystal=baseline_crystal  # Enables U_delta extraction for orientation telemetry
     )
 
     # Acceptance 1: Refinement completed without errors
@@ -252,18 +265,36 @@ def test_stage_a_expansion(refgeom_dataload, refinement_inputs, hkl_data):
     for param in required_params:
         assert param in telemetry.param_deltas, f"{param} delta missing"
 
-    # Acceptance 3: Orientation telemetry structure validation (TORCH-REFINE-002 Option D)
+    # Acceptance 3: Orientation telemetry structure validation (TORCH-REFINE-002D)
     # Validate BEFORE improvement gating to ensure plumbing is exercised regardless of dataset
     misset_xyz = telemetry.param_deltas['misset_xyz_deg']
     assert 'final' in misset_xyz, "misset_xyz_deg missing 'final' field"
+    assert 'initial' in misset_xyz, "misset_xyz_deg missing 'initial' field"
     assert 'quaternion_norm' in misset_xyz, "misset_xyz_deg missing 'quaternion_norm' field"
 
     misset_xyz_final = misset_xyz['final']
+    misset_xyz_initial = misset_xyz['initial']
     assert len(misset_xyz_final) == 3, f"misset_xyz_deg should have 3 components, got {len(misset_xyz_final)}"
+    assert len(misset_xyz_initial) == 3, f"misset_xyz_deg initial should have 3 components, got {len(misset_xyz_initial)}"
 
     # Check quaternion normalization (should be ~1.0)
     quat_norm = misset_xyz['quaternion_norm']
     assert abs(quat_norm - 1.0) < 1e-3, f"Quaternion norm {quat_norm:.6f} far from 1.0"
+
+    # TORCH-REFINE-002D: Assert deterministic misset angles are reported in telemetry
+    # create_perturbed_geometry applies +1.5° Z-axis rotation, which should appear in initial misset
+    # Expected: ~[0, 0, 1.5] degrees (XYZ extrinsic Euler angles)
+    # Tolerance: ±0.2° to account for U_delta reconstruction and Euler conversion
+    expected_z_misset_deg = 1.5
+    misset_z_initial = misset_xyz_initial[2]  # Z-component (yaw/gamma)
+    assert abs(misset_z_initial - expected_z_misset_deg) < 0.2, (
+        f"Initial Z-misset {misset_z_initial:.3f}° differs from expected {expected_z_misset_deg:.1f}° "
+        f"(perturbed geometry Z-rotation). Full initial misset: {misset_xyz_initial}"
+    )
+
+    # X and Y components should be near zero (no perturbation applied to those axes)
+    assert abs(misset_xyz_initial[0]) < 0.2, f"Initial X-misset {misset_xyz_initial[0]:.3f}° should be ~0"
+    assert abs(misset_xyz_initial[1]) < 0.2, f"Initial Y-misset {misset_xyz_initial[1]:.3f}° should be ~0"
 
     # Acceptance 4: Non-increasing full-loss trace over last 3 validations
     if len(telemetry.loss_trace_full) >= 3:
@@ -278,10 +309,12 @@ def test_stage_a_expansion(refgeom_dataload, refinement_inputs, hkl_data):
     scale_delta = telemetry.param_deltas['log_scale']['delta']
     assert abs(scale_delta) > 1e-6, f"log_scale delta too small: {scale_delta:.3e}"
 
-    # Acceptance 6: ≥5% improvement gate (XFAIL due to REFINE-004/005)
-    # Per REFINE-004: Canonical refGeom assets are too well-calibrated for ≥5% gate.
-    # Per REFINE-005: Perturbing geometry without rebuilding HKL grid yields 0% hit rate,
-    # preventing validation. Gate deferred until HKL-aware perturbation dataset available.
+    # Acceptance 6: ≥5% improvement gate (XFAIL awaiting HKL-aware dataset)
+    # Per TORCH-REFINE-002D: Deterministic perturbation (+2/+1/+1% cell, +1.5° Z-misset)
+    # now plumbed with nearest-neighbor HKL (interpolate=False), enabling orientation
+    # telemetry validation. However, NN lookup provides negligible orientation gradient
+    # (<0.3% improvement per 2025-11-05T060833Z analysis), so ≥5% gate remains deferred
+    # until either (a) HKL grid rebuild for perturbed A*, or (b) larger perturbation amplitude.
     assert len(telemetry.loss_trace_full) >= 2, "Insufficient full-loss validations"
     initial_loss = telemetry.loss_trace_full[0][1]
     final_loss = telemetry.loss_trace_full[-1][1]
@@ -290,9 +323,10 @@ def test_stage_a_expansion(refgeom_dataload, refinement_inputs, hkl_data):
     if improvement < 0.05:
         pytest.xfail(
             f"Loss improvement {improvement:.2%} < 5% threshold. "
-            f"REFINE-004: Canonical refGeom too well-calibrated for ≥5% gate. "
-            f"REFINE-005: Perturbing geometry requires HKL grid rebuild (0% hit rate without reindex). "
-            f"Deferring ≥5% gate to future HKL-aware perturbation dataset. "
+            f"TORCH-REFINE-002D: Deterministic perturbation (+1.5° Z-misset) plumbed via "
+            f"baseline_crystal parameter and interpolate=False enables fractional HKL access, "
+            f"but nearest-neighbor lookup yields negligible orientation gradient. ≥5% gate "
+            f"deferred until HKL grid rebuild or larger perturbation amplitude available. "
             f"(initial={initial_loss:.2e}, final={final_loss:.2e})"
         )
 

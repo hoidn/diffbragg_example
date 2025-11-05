@@ -1,0 +1,98 @@
+{
+  "backend": "nanobrag",
+  "hkl_mean_amplitude": 47.47187762172829,
+  "hkl_n_reflections": 69614,
+  "hkl_path": "scaled.mtz",
+  "hkl_source": "raw",
+  "loss_mask_coverage": 0.0021021847522196737,
+  "masked_mse": 979335.5524304494,
+  "n_rois": 92,
+  "refine_best_loss_full": 979335.5625,
+  "refine_best_loss_iteration": 10,
+  "refine_history_size": 10,
+  "refine_max_iter": 30,
+  "refine_message": "",
+  "refine_optimizer": "LBFGS",
+  "refine_param_deltas": "{\"log_scale\": {\"initial\": 4.137681484222412, \"final\": 8.441648483276367, \"delta\": 4.303966999053955}, \"log_cell_a_delta\": {\"initial\": 0.0, \"final\": 9.20753700484056e-06, \"delta\": 9.20753700484056e-06}, \"log_cell_b_delta\": {\"initial\": 0.0, \"final\": -1.8231431795356912e-06, \"delta\": -1.8231431795356912e-06}, \"log_cell_c_delta\": {\"initial\": 0.0, \"final\": 2.07590182981221e-05, \"delta\": 2.07590182981221e-05}, \"angle_alpha_raw\": {\"initial\": 0.0, \"final\": 1.7085520198634185e-07, \"delta\": 1.7085520198634185e-07}, \"angle_beta_raw\": {\"initial\": 0.0, \"final\": 2.284758409132337e-07, \"delta\": 2.284758409132337e-07}, \"angle_gamma_raw\": {\"initial\": 0.0, \"final\": -2.494325030966138e-07, \"delta\": -2.494325030966138e-07}, \"orientation_vec\": {\"initial\": [0.0, 0.0, 0.0], \"final\": [0.0, 0.0, 0.0], \"delta\": [0.0, 0.0, 0.0], \"norm\": 0.0}, \"misset_xyz_deg\": {\"initial\": [0.0, 0.0, 0.0], \"final\": [0.0, 0.0, 0.0], \"delta\": [0.0, 0.0, 0.0], \"quaternion_norm\": 1.0}}",
+  "refine_roi_count_sampled": 1,
+  "refine_roi_count_total": 1,
+  "refine_roi_sample_fraction": 0.15,
+  "refine_stage": "A",
+  "refine_status": "ok",
+  "refine_tolerance_change": 1e-09,
+  "refine_tolerance_grad": 1e-07,
+  "target_shape": "(1, 2527, 2463)",
+  "refine_param_deltas_parsed": {
+    "log_scale": {
+      "initial": 4.137681484222412,
+      "final": 8.441648483276367,
+      "delta": 4.303966999053955
+    },
+    "log_cell_a_delta": {
+      "initial": 0.0,
+      "final": 9.20753700484056e-06,
+      "delta": 9.20753700484056e-06
+    },
+    "log_cell_b_delta": {
+      "initial": 0.0,
+      "final": -1.8231431795356912e-06,
+      "delta": -1.8231431795356912e-06
+    },
+    "log_cell_c_delta": {
+      "initial": 0.0,
+      "final": 2.07590182981221e-05,
+      "delta": 2.07590182981221e-05
+    },
+    "angle_alpha_raw": {
+      "initial": 0.0,
+      "final": 1.7085520198634185e-07,
+      "delta": 1.7085520198634185e-07
+    },
+    "angle_beta_raw": {
+      "initial": 0.0,
+      "final": 2.284758409132337e-07,
+      "delta": 2.284758409132337e-07
+    },
+    "angle_gamma_raw": {
+      "initial": 0.0,
+      "final": -2.494325030966138e-07,
+      "delta": -2.494325030966138e-07
+    },
+    "orientation_vec": {
+      "initial": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "final": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "delta": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "norm": 0.0
+    },
+    "misset_xyz_deg": {
+      "initial": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "final": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "delta": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "quaternion_norm": 1.0
+    }
+  }
+}

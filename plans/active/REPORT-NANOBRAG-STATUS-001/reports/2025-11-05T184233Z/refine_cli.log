@@ -1,0 +1,146 @@
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+[DBEX] Loading experiment data...
+[DBEX] Using backend: nanobrag
+[nanobrag backend] Preparing refinement inputs from DataLoad...
+[nanobrag backend] Target shape: (1, 2527, 2463)
+[nanobrag backend] Loss mask coverage: 0.2102%
+[nanobrag backend] Number of ROIs: 92
+[nanobrag backend] Building structure factor grid from MTZ...
+[nanobrag backend] Using raw structure factors from scaled.mtz
+[nanobrag backend] HKL grid shape: torch.Size([49, 57, 63]), nonzero: 69614
+[nanobrag backend] No spot_scale_override provided, using default=1.000e+00
+[nanobrag backend] Will apply sqrt(spot_scale)=1.000e+00 post-simulation per SCALE-002
+[nanobrag backend] Running nanobrag_torch Simulator on 1 panels...
+auto-selected 1-fold oversampling
+[HKL stats] h=[-23,8] k=[-27,11] l=[-28,10] hit_rate=6207106/6224001 (99.73%)
+[nanobrag backend] Simulator complete. Bragg shape: (1, 2527, 2463)
+[nanobrag backend] Bragg stats: min=0.000e+00, max=8.570e-02, mean=2.561e-03
+[nanobrag backend] Masked MSE (zero-iteration): 9.82e+05
+[nanobrag backend] Running Stage A LBFGS refinement nucleus...
+auto-selected 1-fold oversampling
+[HKL stats] h=[-16,22] k=[-22,22] l=[0,14] hit_rate=6132536/6224001 (98.53%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-16,22] k=[-22,22] l=[0,14] hit_rate=6132536/6224001 (98.53%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-16,22] k=[-22,22] l=[0,14] hit_rate=6132535/6224001 (98.53%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-16,22] k=[-22,22] l=[0,14] hit_rate=6132522/6224001 (98.53%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-16,22] k=[-22,22] l=[0,14] hit_rate=6132526/6224001 (98.53%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-16,22] k=[-22,22] l=[0,14] hit_rate=6132522/6224001 (98.53%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-16,22] k=[-22,22] l=[0,14] hit_rate=6132525/6224001 (98.53%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-16,22] k=[-22,22] l=[0,14] hit_rate=6132525/6224001 (98.53%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-16,22] k=[-22,22] l=[0,14] hit_rate=6132525/6224001 (98.53%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-16,22] k=[-22,22] l=[0,14] hit_rate=6132101/6224001 (98.52%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-16,22] k=[-22,22] l=[0,14] hit_rate=6132522/6224001 (98.53%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-16,22] k=[-22,22] l=[0,14] hit_rate=6132521/6224001 (98.53%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-16,22] k=[-22,22] l=[0,14] hit_rate=6132521/6224001 (98.53%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-16,22] k=[-22,22] l=[0,14] hit_rate=6132521/6224001 (98.53%)
+[nanobrag backend] Stage A status: ok
+[nanobrag backend] Masked MSE (refined): 9.79e+05
+[nanobrag backend] Improvement: 0.2%
+roi=0 : score= 61.4
+roi=1 : score= 25.0
+roi=2 : score= 57.6
+roi=3 : score= 4.6
+roi=4 : score= 46.4
+roi=5 : score= 0.0
+roi=6 : score= 0.0
+roi=7 : score= 0.0
+roi=8 : score= 5.5
+roi=9 : score= 0.5
+roi=10 : score= 33.4
+roi=11 : score= 0.0
+roi=12 : score= 0.0
+roi=13 : score= 0.0
+roi=14 : score= 0.0
+roi=15 : score= 0.0
+roi=16 : score= 58.0
+roi=17 : score= 25.7
+roi=18 : score= 19.5
+roi=19 : score= 0.0
+roi=20 : score= 44.3
+roi=21 : score= 19.8
+roi=22 : score= 18.6
+roi=23 : score= 0.0
+roi=24 : score= 0.0
+roi=25 : score= 1.8
+roi=26 : score= 65.0
+roi=27 : score= 0.0
+roi=28 : score= 61.4
+roi=29 : score= 52.3
+roi=30 : score= 66.2
+roi=31 : score= 0.0
+roi=32 : score= 0.0
+roi=33 : score= 54.2
+roi=34 : score= 6.9
+roi=35 : score= 0.3
+roi=36 : score= 39.9
+roi=37 : score= 49.9
+roi=38 : score= 0.0
+roi=39 : score= 37.4
+roi=40 : score= 0.0
+roi=41 : score= 53.0
+roi=42 : score= 1.1
+roi=43 : score= 29.5
+roi=44 : score= 49.4
+roi=45 : score= 0.0
+roi=46 : score= 66.6
+roi=47 : score= 0.0
+roi=48 : score= 66.9
+roi=49 : score= 0.0
+roi=50 : score= 20.0
+roi=51 : score= 0.0
+roi=52 : score= 0.0
+roi=53 : score= 0.0
+roi=54 : score= 26.7
+roi=55 : score= 63.5
+roi=56 : score= 67.4
+roi=57 : score= 0.0
+roi=58 : score= 42.3
+roi=59 : score= 0.0
+roi=60 : score= 0.0
+roi=61 : score= 0.0
+roi=62 : score= 13.8
+roi=63 : score= 21.3
+roi=64 : score= 52.7
+roi=65 : score= 0.0
+roi=66 : score= 0.0
+roi=67 : score= 58.2
+roi=68 : score= 0.0
+roi=69 : score= 4.0
+roi=70 : score= 0.0
+roi=71 : score= 0.0
+roi=72 : score= 0.0
+roi=73 : score= 44.1
+roi=74 : score= 0.0
+roi=75 : score= 13.1
+roi=76 : score= 0.0
+roi=77 : score= 45.1
+roi=78 : score= 0.0
+roi=79 : score= 0.0
+roi=80 : score= 9.3
+roi=81 : score= 3.2
+roi=82 : score= 62.1
+roi=83 : score= 67.3
+roi=84 : score= 0.0
+roi=85 : score= 60.0
+roi=86 : score= 64.0
+roi=87 : score= 60.6
+roi=88 : score= 36.1
+roi=89 : score= 21.5
+roi=90 : score= 9.9
+roi=91 : score= 18.7
+Average score: 21.819741773205596 +- 25.001164561966878
+Fraction of spots well modeled= 21.7%
+Visualize using `python -m dbex.look plans/active/REPORT-NANOBRAG-STATUS-001/reports/2025-11-05T184233Z/nanobrag_stage_progress.h5`

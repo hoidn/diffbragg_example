@@ -940,8 +940,7 @@ def run_nanobrag_refinement(
                 hkl_grid_modified[mask] = hkl_grid[mask] * shell_modifiers[shell_idx]
 
             # Simulate with modified HKL grid (crystal config uses Stage A final params)
-            from nanobrag_torch import Simulator
-            from dbex.nanobrag_bridge import create_crystal_config, create_detector_config, create_beam_config
+            # Note: Simulator, Detector, Crystal already imported at function level (line 343-345)
 
             # Re-create crystal config with Stage A final parameters
             crystal_overrides = {
@@ -1014,9 +1013,9 @@ def run_nanobrag_refinement(
                 bragg_panel = simulator.run()
 
                 # Extract target/mask for this panel
-                panel_slice = inputs.panel_slices[pid]
-                target_panel = inputs.target_tensor[panel_slice]
-                loss_mask_panel = inputs.loss_mask[panel_slice]
+                # target_t and loss_mask_t are already torch tensors with shape [panel, slow, fast]
+                target_panel = target_t[pid]
+                loss_mask_panel = loss_mask_t[pid]
 
                 # Apply global scale (Stage A final)
                 scale = torch.exp(log_scale)

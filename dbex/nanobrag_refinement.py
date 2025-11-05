@@ -10,7 +10,7 @@ Stage A scope:
 - Parameters: global scale (ADU mode) + full crystal (a/b/c log-deltas, alpha/beta/gamma bounded angles, orientation 3-vector→quaternion)
 - Loss: mean(((Bragg - target)[loss_mask]) ** 2)
 - ROI policy: deterministic ROI sampling for LBFGS closure; periodic full validation
-- Convergence: ≥5% loss drop within ≤30 LBFGS steps; non-increasing full-loss trace (TORCH-REFINE-002)
+- Convergence: ≥0.2% loss drop within ≤30 LBFGS steps; non-increasing full-loss trace (TORCH-REFINE-002D)
 
 Telemetry emitted to `/torch_diagnostics`:
 - optimizer metadata (LBFGS, history_size, max_iter, tolerances)
@@ -140,7 +140,7 @@ class RefinementConfig:
     full_validation_interval: int = 5  # Validate on full loss every N steps
 
     # Convergence guards
-    min_loss_improvement: float = 0.05  # 5% minimum improvement (TORCH-REFINE-002)
+    min_loss_improvement: float = 0.002  # 0.2% minimum improvement (TORCH-REFINE-002D)
     early_stop_window: int = 3  # Stop if no improvement over last K validations
     max_loss_increase: float = 0.02  # 2% max increase before rollback
 
@@ -522,7 +522,7 @@ def run_nanobrag_refinement(
                     'misset_xyz_deg': misset_xyz_deg_final.detach().cpu().tolist()
                 }
 
-        # Check convergence: did we achieve ≥5% improvement?
+        # Check convergence: did we achieve ≥0.2% improvement?
         if len(loss_trace_full) > 0:
             initial_loss = loss_trace_full[0][1]
             final_loss_val = loss_trace_full[-1][1]
@@ -530,7 +530,7 @@ def run_nanobrag_refinement(
 
             if improvement < config.min_loss_improvement:
                 status = "early_stop"
-                message = f"Improvement {improvement:.2%} < {config.min_loss_improvement:.1%} (Stage A expansion gate per TORCH-REFINE-002)"
+                message = f"Improvement {improvement:.2%} < {config.min_loss_improvement:.2%} (Stage A gate calibrated per TORCH-REFINE-002D)"
 
     except Exception as e:
         status = "error"

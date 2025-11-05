@@ -865,6 +865,26 @@ def run_nanobrag_refinement(
         for p in params:
             p.requires_grad = False
 
+        # Compute Stage A final crystal parameters as tensors (for Stage B)
+        # These will be frozen during Stage B optimization
+        cell_params = crystal.get_unit_cell().parameters()
+
+        # Apply Stage A final perturbations to get frozen crystal tensors
+        cell_a_tensor = cell_params[0] * torch.exp(log_cell_a_delta)
+        cell_b_tensor = cell_params[1] * torch.exp(log_cell_b_delta)
+        cell_c_tensor = cell_params[2] * torch.exp(log_cell_c_delta)
+
+        max_angle_delta = 10.0  # degrees
+        cell_alpha_tensor = cell_params[3] + torch.tanh(angle_alpha_raw) * max_angle_delta
+        cell_beta_tensor = cell_params[4] + torch.tanh(angle_beta_raw) * max_angle_delta
+        cell_gamma_tensor = cell_params[5] + torch.tanh(angle_gamma_raw) * max_angle_delta
+
+        # Compute Stage A final misset (for Stage B)
+        max_orientation_deg = 3.0
+        bounded_orientation_vec = torch.tanh(orientation_vec) * max_orientation_deg * (np.pi / 180.0)
+        quat = vec_to_unit_quaternion(bounded_orientation_vec)
+        misset_xyz_deg = quaternion_to_xyz_euler(quat)
+
         # Compute shell lookup for per-shell modifiers
         shell_indices, shell_edges = compute_hkl_shell_lookup(
             crystal, hkl_metadata, n_shells=config.stage_b_n_shells, device=device, dtype=dtype
@@ -933,34 +953,65 @@ def run_nanobrag_refinement(
                 'cell_gamma': cell_gamma_tensor
             }
 
-            crystal_config, _ = create_crystal_config(
-                crystal, device=device, dtype=dtype,
-                crystal_overrides=crystal_overrides,
-                apply_n_cells=False  # Stage B doesn't change N_cells
-            )
-
-            # Apply Stage A final misset (baseline + optimization delta)
-            total_misset_deg = baseline_misset_deg_tensor + misset_xyz_deg
-            crystal_config.misset_deg = total_misset_deg
-
-            # Enable interpolation for Stage B (required per REFINE-005)
-            from nanobrag_torch.models.crystal import Crystal as TorchCrystal
-            crystal_model = TorchCrystal(crystal_config, hkl_grid_modified)
-            crystal_model.interpolate = True  # Must be True for Stage B
-
             # Simulate per-panel and accumulate loss
             loss_accum = torch.tensor(0.0, device=device, dtype=dtype)
             n_pixels_accum = 0
 
             for pid in panel_ids:
-                # Create detector config for this panel
+                # Create detector config for this panel (Stage A pattern)
                 panel = detector[pid]
-                beam_config = create_beam_config(beam, device=device, dtype=dtype)
-                detector_config = create_detector_config(panel, beam, device=device, dtype=dtype)
+
+                detector_config = create_detector_config(
+                    panel=panel,
+                    beam=beam,
+                    trusted_mask=inputs.trusted_mask[pid]
+                )
+
+                # Convert mask_array to torch.Tensor if needed
+                if detector_config.mask_array is not None and not isinstance(detector_config.mask_array, torch.Tensor):
+                    detector_config.mask_array = torch.tensor(
+                        detector_config.mask_array, dtype=torch.float32, device=device
+                    )
+
+                beam_config = create_beam_config(beam)
+
+                # Create crystal config with Stage A final params
+                crystal_overrides_local = {
+                    'cell_a': cell_a_tensor,
+                    'cell_b': cell_b_tensor,
+                    'cell_c': cell_c_tensor,
+                    'cell_alpha': cell_alpha_tensor,
+                    'cell_beta': cell_beta_tensor,
+                    'cell_gamma': cell_gamma_tensor
+                }
+
+                # Apply Stage A final misset (baseline + optimization delta) if baseline provided
+                if baseline_misset_deg_tensor is not None:
+                    total_misset_deg = baseline_misset_deg_tensor + misset_xyz_deg
+                else:
+                    total_misset_deg = misset_xyz_deg
+
+                crystal_config, _ = create_crystal_config(
+                    crystal, None,
+                    crystal_overrides=crystal_overrides_local,
+                    misset_deg_override=total_misset_deg,
+                    apply_n_cells=False  # Stage B doesn't change N_cells
+                )
+
+                # Instantiate detector and crystal models
+                detector_model = Detector(detector_config)
+                crystal_model = Crystal(crystal_config)
+
+                # Enable interpolation for Stage B (required per REFINE-005)
+                crystal_model.interpolate = True  # Must be True for Stage B
+
+                # Assign modified HKL grid to crystal model
+                crystal_model.hkl_data = hkl_grid_modified.to(device=device, dtype=dtype)
+                crystal_model.hkl_metadata = hkl_metadata
 
                 # Simulate
-                sim = Simulator(detector_config, beam_config, device=str(device))
-                bragg_panel = sim.generate_image_vectorized(crystal_model)
+                simulator = Simulator(detector=detector_model, crystal=crystal_model)
+                bragg_panel = simulator.run()
 
                 # Extract target/mask for this panel
                 panel_slice = inputs.panel_slices[pid]
@@ -986,6 +1037,11 @@ def run_nanobrag_refinement(
                 loss = loss_accum
 
             return loss
+
+        # ROI sampler for Stage B (reuses Stage A's sampled panel IDs)
+        def roi_sampler():
+            """Return sampled panel IDs for Stage B closure."""
+            return sampled_panel_ids
 
         def closure_stage_b():
             """LBFGS closure for Stage B shell modifier refinement."""
@@ -1058,8 +1114,20 @@ def run_nanobrag_refinement(
 
             for pid in range(n_panels):
                 panel = detector[pid]
-                beam_config = create_beam_config(beam, device=device, dtype=dtype)
-                detector_config = create_detector_config(panel, beam, device=device, dtype=dtype)
+
+                detector_config = create_detector_config(
+                    panel=panel,
+                    beam=beam,
+                    trusted_mask=inputs.trusted_mask[pid]
+                )
+
+                # Convert mask_array to torch.Tensor if needed
+                if detector_config.mask_array is not None and not isinstance(detector_config.mask_array, torch.Tensor):
+                    detector_config.mask_array = torch.tensor(
+                        detector_config.mask_array, dtype=torch.float32, device=device
+                    )
+
+                beam_config = create_beam_config(beam)
 
                 # Crystal config with Stage A final params + Stage B modified HKL
                 crystal_overrides = {
@@ -1070,24 +1138,38 @@ def run_nanobrag_refinement(
                     'cell_beta': cell_beta_tensor,
                     'cell_gamma': cell_gamma_tensor
                 }
+
+                # Compute total misset (baseline + optimization delta) if baseline provided
+                if baseline_misset_deg_tensor is not None:
+                    total_misset_deg = baseline_misset_deg_tensor + misset_xyz_deg
+                else:
+                    total_misset_deg = misset_xyz_deg
+
                 crystal_config, _ = create_crystal_config(
-                    crystal, device=device, dtype=dtype,
+                    crystal, None,
                     crystal_overrides=crystal_overrides,
+                    misset_deg_override=total_misset_deg,
                     apply_n_cells=False
                 )
-                total_misset_deg = baseline_misset_deg_tensor + misset_xyz_deg
-                crystal_config.misset_deg = total_misset_deg
 
-                from nanobrag_torch.models.crystal import Crystal as TorchCrystal
-                crystal_model = TorchCrystal(crystal_config, hkl_grid_modified)
+                # Instantiate detector and crystal models
+                detector_model = Detector(detector_config)
+                crystal_model = Crystal(crystal_config)
+
+                # Enable interpolation for Stage B (required per REFINE-005)
                 crystal_model.interpolate = True
 
-                sim = Simulator(detector_config, beam_config, device=str(device))
-                bragg_panel = sim.generate_image_vectorized(crystal_model)
+                # Assign modified HKL grid to crystal model
+                crystal_model.hkl_data = hkl_grid_modified.to(device=device, dtype=dtype)
+                crystal_model.hkl_metadata = hkl_metadata
+
+                # Simulate
+                simulator = Simulator(detector=detector_model, crystal=crystal_model)
+                bragg_panel = simulator.run()
 
                 # Apply global scale
-                scale = torch.exp(log_scale)
-                bragg_scaled = scale * bragg_panel
+                log_scale_clamped = torch.clamp(log_scale, min=-10.0, max=10.0)
+                bragg_scaled = bragg_panel * torch.exp(log_scale_clamped)
 
                 bragg_full_stage_b[pid] = bragg_scaled.cpu().numpy().astype(np.float32)
 

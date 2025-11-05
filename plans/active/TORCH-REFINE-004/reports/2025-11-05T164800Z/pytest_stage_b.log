@@ -1,7 +1,7 @@
 ============================= test session starts ==============================
 platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
 cachedir: .pytest_cache
-rootdir: /home/ollie/Documents/diffbragg_example
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
 configfile: pyproject.toml
 collecting ... collected 1 item
 
@@ -10,7 +10,7 @@ tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers FAILED [100%
 =================================== FAILURES ===================================
 _________________________ test_stage_b_shell_modifiers _________________________
 
-refgeom_dataload = <dbex.data_load.DataLoad object at 0x772134480f70>
+refgeom_dataload = <dbex.data_load.DataLoad object at 0x7ee3f0c9b100>
 refinement_inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
         [0., 0., 0., ..., 0., 0., 0.],
         [0., 0.,...  [ True,  True,  True, ...,  True,  True,  True]]]), target_representation='adu', global_scale_hint=62.65738056380318)
@@ -84,9 +84,9 @@ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
         [0., 0., 0., ..., 0., 0., 0.],
         [0., 0.,...  [ True,  True,  True, ...,  True,  True,  True]]]), target_representation='adu', global_scale_hint=62.65738056380318)
-detector = <dxtbx_model_ext.Detector object at 0x772140c3ceb0>
-beam = <dxtbx_model_ext.Beam object at 0x772140c3cba0>
-crystal = <dxtbx_model_ext.MosaicCrystalSauter2014 object at 0x772140c54e00>
+detector = <dxtbx_model_ext.Detector object at 0x7ee3fd469c80>
+beam = <dxtbx_model_ext.Beam object at 0x7ee3fd469b30>
+crystal = <dxtbx_model_ext.MosaicCrystalSauter2014 object at 0x7ee3fd47ff40>
 hkl_grid = tensor([[[0., 0., 0.,  ..., 0., 0., 0.],
          [0., 0., 0.,  ..., 0., 0., 0.],
          [0., 0., 0.,  ..., 0., 0., ...    [0., 0., 0.,  ..., 0., 0., 0.],
@@ -733,34 +733,62 @@ baseline_crystal = None
                     'cell_gamma': cell_gamma_tensor
                 }
     
-                crystal_config, _ = create_crystal_config(
-                    crystal, device=device, dtype=dtype,
-                    crystal_overrides=crystal_overrides,
-                    apply_n_cells=False  # Stage B doesn't change N_cells
-                )
-    
-                # Apply Stage A final misset (baseline + optimization delta)
-                total_misset_deg = baseline_misset_deg_tensor + misset_xyz_deg
-                crystal_config.misset_deg = total_misset_deg
-    
-                # Enable interpolation for Stage B (required per REFINE-005)
-                from nanobrag_torch.models.crystal import Crystal as TorchCrystal
-                crystal_model = TorchCrystal(crystal_config, hkl_grid_modified)
-                crystal_model.interpolate = True  # Must be True for Stage B
-    
                 # Simulate per-panel and accumulate loss
                 loss_accum = torch.tensor(0.0, device=device, dtype=dtype)
                 n_pixels_accum = 0
     
                 for pid in panel_ids:
-                    # Create detector config for this panel
+                    # Create detector config for this panel (Stage A pattern)
                     panel = detector[pid]
-                    beam_config = create_beam_config(beam, device=device, dtype=dtype)
-                    detector_config = create_detector_config(panel, beam, device=device, dtype=dtype)
+    
+                    detector_config = create_detector_config(
+                        panel=panel,
+                        beam=beam,
+                        trusted_mask=inputs.trusted_mask[pid]
+                    )
+    
+                    # Convert mask_array to torch.Tensor if needed
+                    if detector_config.mask_array is not None and not isinstance(detector_config.mask_array, torch.Tensor):
+                        detector_config.mask_array = torch.tensor(
+                            detector_config.mask_array, dtype=torch.float32, device=device
+                        )
+    
+                    beam_config = create_beam_config(beam)
+    
+                    # Create crystal config with Stage A final params
+                    crystal_overrides_local = {
+                        'cell_a': cell_a_tensor,
+                        'cell_b': cell_b_tensor,
+                        'cell_c': cell_c_tensor,
+                        'cell_alpha': cell_alpha_tensor,
+                        'cell_beta': cell_beta_tensor,
+                        'cell_gamma': cell_gamma_tensor
+                    }
+    
+                    # Apply Stage A final misset (baseline + optimization delta)
+                    total_misset_deg = baseline_misset_deg_tensor + misset_xyz_deg
+    
+                    crystal_config, _ = create_crystal_config(
+                        crystal, None,
+                        crystal_overrides=crystal_overrides_local,
+                        misset_deg_override=total_misset_deg,
+                        apply_n_cells=False  # Stage B doesn't change N_cells
+                    )
+    
+                    # Instantiate detector and crystal models
+                    detector_model = Detector(detector_config)
+                    crystal_model = Crystal(crystal_config)
+    
+                    # Enable interpolation for Stage B (required per REFINE-005)
+                    crystal_model.interpolate = True  # Must be True for Stage B
+    
+                    # Assign modified HKL grid to crystal model
+                    crystal_model.hkl_data = hkl_grid_modified.to(device=device, dtype=dtype)
+                    crystal_model.hkl_metadata = hkl_metadata
     
                     # Simulate
-                    sim = Simulator(detector_config, beam_config, device=str(device))
-                    bragg_panel = sim.generate_image_vectorized(crystal_model)
+                    simulator = Simulator(detector=detector_model, crystal=crystal_model)
+                    bragg_panel = simulator.run()
     
                     # Extract target/mask for this panel
                     panel_slice = inputs.panel_slices[pid]
@@ -858,10 +886,33 @@ baseline_crystal = None
     
                 for pid in range(n_panels):
                     panel = detector[pid]
->                   beam_config = create_beam_config(beam, device=device, dtype=dtype)
-E                   TypeError: create_beam_config() got an unexpected keyword argument 'device'
+    
+                    detector_config = create_detector_config(
+                        panel=panel,
+                        beam=beam,
+                        trusted_mask=inputs.trusted_mask[pid]
+                    )
+    
+                    # Convert mask_array to torch.Tensor if needed
+                    if detector_config.mask_array is not None and not isinstance(detector_config.mask_array, torch.Tensor):
+                        detector_config.mask_array = torch.tensor(
+                            detector_config.mask_array, dtype=torch.float32, device=device
+                        )
+    
+                    beam_config = create_beam_config(beam)
+    
+                    # Crystal config with Stage A final params + Stage B modified HKL
+                    crystal_overrides = {
+>                       'cell_a': cell_a_tensor,
+                        'cell_b': cell_b_tensor,
+                        'cell_c': cell_c_tensor,
+                        'cell_alpha': cell_alpha_tensor,
+                        'cell_beta': cell_beta_tensor,
+                        'cell_gamma': cell_gamma_tensor
+                    }
+E                   NameError: name 'cell_a_tensor' is not defined
 
-dbex/nanobrag_refinement.py:1061: TypeError
+dbex/nanobrag_refinement.py:1106: NameError
 ----------------------------- Captured stdout call -----------------------------
 auto-selected 1-fold oversampling
 [HKL stats] h=[-16,22] k=[-22,22] l=[0,14] hit_rate=6132536/6224001 (98.53%)
@@ -919,4 +970,4 @@ tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
 =========================== short test summary info ============================
 FAILED tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers - ...
 !!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
-================== 1 failed, 4 warnings in 183.92s (0:03:03) ===================
+================== 1 failed, 4 warnings in 184.21s (0:03:04) ===================

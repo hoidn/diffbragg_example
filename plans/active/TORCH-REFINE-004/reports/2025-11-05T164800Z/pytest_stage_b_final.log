@@ -1,0 +1,60 @@
+----------------------------- Captured stdout call -----------------------------
+auto-selected 1-fold oversampling
+[HKL stats] h=[-16,22] k=[-22,22] l=[0,14] hit_rate=6132536/6224001 (98.53%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-16,22] k=[-22,22] l=[0,14] hit_rate=6132536/6224001 (98.53%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-16,22] k=[-22,22] l=[0,14] hit_rate=6132536/6224001 (98.53%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-16,22] k=[-22,22] l=[0,14] hit_rate=6132527/6224001 (98.53%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-16,22] k=[-22,22] l=[0,14] hit_rate=6132528/6224001 (98.53%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-16,22] k=[-22,22] l=[0,14] hit_rate=6132529/6224001 (98.53%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-16,22] k=[-22,22] l=[0,14] hit_rate=6132529/6224001 (98.53%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-16,22] k=[-22,22] l=[0,14] hit_rate=6132529/6224001 (98.53%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-16,22] k=[-22,22] l=[0,14] hit_rate=6132529/6224001 (98.53%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-16,22] k=[-22,22] l=[0,14] hit_rate=6132820/6224001 (98.54%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-16,22] k=[-22,22] l=[0,14] hit_rate=6132529/6224001 (98.53%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-16,22] k=[-22,22] l=[0,14] hit_rate=6132532/6224001 (98.53%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-16,22] k=[-22,22] l=[0,14] hit_rate=6132529/6224001 (98.53%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-16,22] k=[-22,22] l=[0,14] hit_rate=6132529/6224001 (98.53%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-16,22] k=[-22,22] l=[0,14] hit_rate=6132529/6224001 (98.53%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-16,22] k=[-22,22] l=[0,14] hit_rate=6132529/6224001 (98.53%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-16,22] k=[-22,22] l=[0,14] hit_rate=6132529/6224001 (98.53%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-16,22] k=[-22,22] l=[0,14] hit_rate=6132529/6224001 (98.53%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-16,22] k=[-22,22] l=[0,14] hit_rate=6132529/6224001 (98.53%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-16,22] k=[-22,22] l=[0,14] hit_rate=6132529/6224001 (98.53%)
+=============================== warnings summary ===============================
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers - ...
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+================== 1 failed, 4 warnings in 191.89s (0:03:11) ===================

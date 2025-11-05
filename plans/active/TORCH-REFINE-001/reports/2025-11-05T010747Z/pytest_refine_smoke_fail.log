@@ -1,0 +1,272 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 1 item
+
+tests/dbex/test_torch_refine_smoke.py::test_loss_decreases FAILED        [100%]
+
+=================================== FAILURES ===================================
+_____________________________ test_loss_decreases ______________________________
+
+refgeom_dataload = <dbex.data_load.DataLoad object at 0x7e85a26b54f0>
+refinement_inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0.,...  [ True,  True,  True, ...,  True,  True,  True]]]), target_representation='adu', global_scale_hint=62.65738056380318)
+hkl_data = (tensor([[[0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0.,..., 0.]]]), {'grid_max': 518.3336791992188, 'grid_mean': 18.78112030029297, 'grid_min': 0.0, 'grid_nonzero': 69614, ...})
+
+    def test_loss_decreases(refgeom_dataload, refinement_inputs, hkl_data):
+        """
+        Verify Stage A LBFGS refinement achieves ≥5% loss decrease.
+    
+        Acceptance criteria:
+        1. Refinement runs without errors (status != "error")
+        2. Final masked MSE is ≥5% lower than initial
+        3. Telemetry contains all required keys
+        4. Full-loss trace is non-increasing over last 3 validations
+        5. Param deltas show non-zero updates for scale and crystal DoF
+    
+        Environment:
+        - Requires: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1
+        - Selector: pytest -v tests/dbex/test_torch_refine_smoke.py::test_loss_decreases
+        """
+        from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig
+    
+        hkl_grid, hkl_metadata = hkl_data
+    
+        # Configure refinement
+        config = RefinementConfig(
+            device='cpu',
+            dtype=torch.float32,
+            history_size=10,
+            max_iter=20,
+            roi_sample_fraction=0.15,
+            full_validation_interval=5,
+            min_loss_improvement=0.05
+        )
+    
+        # Run refinement
+>       bragg_refined, telemetry = run_nanobrag_refinement(
+            inputs=refinement_inputs,
+            detector=refgeom_dataload.detector,
+            beam=refgeom_dataload.beam,
+            crystal=refgeom_dataload.crystal,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            config=config
+        )
+
+tests/dbex/test_torch_refine_smoke.py:141: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+dbex/nanobrag_refinement.py:332: in run_nanobrag_refinement
+    simulator = Simulator(detector=detector_model, crystal=crystal_model)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <nanobrag_torch.simulator.Simulator object at 0x7e85ae36b670>
+crystal = <nanobrag_torch.models.crystal.Crystal object at 0x7e85ae36b790>
+detector = <nanobrag_torch.models.detector.Detector object at 0x7e84dc818e80>
+crystal_config = None, beam_config = None, device = None, dtype = torch.float32
+debug_config = None
+
+    def __init__(
+        self,
+        crystal: Crystal,
+        detector: Detector,
+        crystal_config: Optional[CrystalConfig] = None,
+        beam_config: Optional[BeamConfig] = None,
+        device=None,
+        dtype=torch.float32,
+        debug_config: Optional[dict] = None,
+    ):
+        """
+        Initialize simulator with crystal, detector, and configurations.
+    
+        Args:
+            crystal: Crystal object containing unit cell and structure factors
+            detector: Detector object with geometry parameters
+            crystal_config: Configuration for crystal rotation parameters (phi, mosaic)
+            beam_config: Beam configuration (optional, for future use)
+            device: PyTorch device (cpu/cuda)
+            dtype: PyTorch data type
+            debug_config: Debug configuration with printout, printout_pixel, trace_pixel options
+        """
+        self.crystal = crystal
+        self.detector = detector
+        # If crystal_config is provided, update only the rotation-related parameters
+        # This preserves essential parameters like cell dimensions and default_F
+        if crystal_config is not None:
+            # Update only the rotation-related fields that are explicitly set
+            # This preserves the crystal's essential parameters while allowing rotation updates
+            if hasattr(crystal_config, 'phi_start_deg'):
+                self.crystal.config.phi_start_deg = crystal_config.phi_start_deg
+            if hasattr(crystal_config, 'osc_range_deg'):
+                self.crystal.config.osc_range_deg = crystal_config.osc_range_deg
+            if hasattr(crystal_config, 'phi_steps'):
+                self.crystal.config.phi_steps = crystal_config.phi_steps
+            if hasattr(crystal_config, 'mosaic_spread_deg'):
+                self.crystal.config.mosaic_spread_deg = crystal_config.mosaic_spread_deg
+            if hasattr(crystal_config, 'mosaic_domains'):
+                self.crystal.config.mosaic_domains = crystal_config.mosaic_domains
+            if hasattr(crystal_config, 'mosaic_seed'):
+                self.crystal.config.mosaic_seed = crystal_config.mosaic_seed
+            if hasattr(crystal_config, 'spindle_axis'):
+                self.crystal.config.spindle_axis = crystal_config.spindle_axis
+        # Use the provided beam_config, or Crystal's beam_config, or default
+        if beam_config is not None:
+            self.beam_config = beam_config
+        elif hasattr(crystal, 'beam_config') and crystal.beam_config is not None:
+            self.beam_config = crystal.beam_config
+        else:
+            self.beam_config = BeamConfig()
+        # Normalize device to ensure consistency
+        if device is not None:
+            # Create a dummy tensor on the device to get the actual device with index
+            temp = torch.zeros(1, device=device)
+            self.device = temp.device
+        else:
+            self.device = torch.device("cpu")
+        self.dtype = dtype
+    
+        # PERF-PYTORCH-004 Attempt #14: Ensure detector is on the same device/dtype as simulator
+        # This prevents device mismatch errors when detector tensors (beam_vector, pixel_coords)
+        # interact with simulator tensors (wavelength, incident_beam_direction) during compilation
+        if self.detector is not None:
+            self.detector = self.detector.to(device=self.device, dtype=self.dtype)
+    
+        # Store debug configuration
+        self.debug_config = debug_config if debug_config is not None else {}
+        self.printout = self.debug_config.get('printout', False)
+        self.printout_pixel = self.debug_config.get('printout_pixel', None)  # [fast, slow]
+        self.trace_pixel = self.debug_config.get('trace_pixel', None)  # [slow, fast]
+    
+        # Phase CLI-FLAGS-003 M0a: Enable trace instrumentation on Crystal when trace_pixel is active
+        # This guards _last_tricubic_neighborhood population to prevent unconditional debug payload retention
+        if self.trace_pixel is not None:
+            self.crystal._enable_trace = True
+    
+        # Set incident beam direction from detector.beam_vector
+        # This is critical for convention consistency (AT-PARALLEL-004) and CLI override support (CLI-FLAGS-003 Phase H2)
+        # The detector.beam_vector property handles both convention defaults and CUSTOM overrides (e.g., -beam_vector)
+        # HKL-ORIENT-001: Must NEGATE to convert sample→source to source→sample for q = (k_f - k_i) calculation
+        if self.detector is not None:
+            # Use detector's beam_vector property which handles:
+            # - CUSTOM convention with user-supplied custom_beam_vector
+            # - Convention defaults (MOSFLM: [1,0,0], XDS/DIALS: [0,0,1])
+            # The detector normalizes and returns the vector with correct device/dtype
+            # CRITICAL: Negate to flip sample→source to source→sample direction
+            self.incident_beam_direction = -self.detector.beam_vector.clone()
+        else:
+            # If no detector provided, default to MOSFLM beam direction (source→sample)
+            self.incident_beam_direction = torch.tensor(
+                [-1.0, 0.0, 0.0], device=self.device, dtype=self.dtype
+            )
+        # PERF-PYTORCH-006: Store wavelength as tensor with correct dtype
+        self.wavelength = torch.tensor(self.beam_config.wavelength_A, device=self.device, dtype=self.dtype)
+    
+        # Physical constants (from nanoBragg.c ~line 240)
+        # PERF-PYTORCH-006: Store as tensors with correct dtype to avoid implicit float64 upcasting
+        self.r_e_sqr = torch.tensor(
+            7.94079248018965e-30, device=self.device, dtype=self.dtype  # classical electron radius squared (meters squared)
+        )
+        # Use fluence from beam config (AT-FLU-001)
+        self.fluence = torch.tensor(self.beam_config.fluence, device=self.device, dtype=self.dtype)
+        # Polarization setup from beam config
+        # PERF-PYTORCH-006: Store as tensor with correct dtype
+        kahn_value = self.beam_config.polarization_factor if not self.beam_config.nopolar else 0.0
+        self.kahn_factor = torch.tensor(kahn_value, device=self.device, dtype=self.dtype)
+        self.polarization_axis = torch.tensor(
+            self.beam_config.polarization_axis, device=self.device, dtype=self.dtype
+        )
+    
+        # PERF-PYTORCH-004 P1.2 + P3.0: Pre-normalize source tensors to avoid repeated .to() calls in run()
+        # Move source direction/wavelength/weight tensors to correct device/dtype once during init
+        # P3.0: Seed fallback tensors (equal weights, primary wavelength) when omitted before device cast
+        _has_sources = (self.beam_config.source_directions is not None and
+                       len(self.beam_config.source_directions) > 0)
+        if _has_sources:
+            self._source_directions = self.beam_config.source_directions.to(device=self.device, dtype=self.dtype)
+    
+            # P3.0: Default source_wavelengths to primary wavelength if not provided (AT-SRC-001)
+            if self.beam_config.source_wavelengths is not None:
+                self._source_wavelengths = self.beam_config.source_wavelengths.to(device=self.device, dtype=self.dtype)  # meters
+            else:
+                # Use primary wavelength for all sources
+                primary_wavelength_m = self.beam_config.wavelength_A * 1e-10
+                n_sources = len(self.beam_config.source_directions)
+                self._source_wavelengths = torch.full((n_sources,), primary_wavelength_m, device=self.device, dtype=self.dtype)
+    
+            self._source_wavelengths_A = self._source_wavelengths * 1e10  # Convert to Angstroms once
+    
+            # P3.0: Default source_weights to equal weights if not provided
+            if self.beam_config.source_weights is not None:
+                self._source_weights = self.beam_config.source_weights.to(device=self.device, dtype=self.dtype)
+            else:
+                # Default to equal weights if not provided
+                self._source_weights = torch.ones(len(self.beam_config.source_directions), device=self.device, dtype=self.dtype)
+        else:
+            self._source_directions = None
+            self._source_wavelengths_A = None
+            self._source_weights = None
+    
+        # PERF-PYTORCH-004 P3.4: Cache frequently-accessed tensors to reduce per-run allocations
+        # Pre-convert pixel coordinates to correct device/dtype once
+        self._cached_pixel_coords_meters = self.detector.get_pixel_coords().to(device=self.device, dtype=self.dtype)
+    
+        # Build ROI mask once and cache it (AT-ROI-001)
+        # Start with all pixels enabled
+        self._cached_roi_mask = torch.ones(
+            self.detector.config.spixels,
+            self.detector.config.fpixels,
+            device=self.device,
+            dtype=self.dtype
+        )
+    
+        # Apply ROI bounds if specified
+        # Note: ROI is in pixel indices (xmin/xmax for fast axis, ymin/ymax for slow axis)
+        roi_ymin = self.detector.config.roi_ymin
+        roi_ymax = self.detector.config.roi_ymax
+        roi_xmin = self.detector.config.roi_xmin
+        roi_xmax = self.detector.config.roi_xmax
+    
+        # BL-2: Guard against None values (should be set by DetectorConfig.__post_init__, but defend)
+        if roi_ymin is None or roi_ymax is None or roi_xmin is None or roi_xmax is None:
+            raise ValueError(
+                "ROI bounds (roi_ymin, roi_ymax, roi_xmin, roi_xmax) must be set. "
+                "DetectorConfig.__post_init__ should have set defaults."
+            )
+    
+        # Set everything outside ROI to zero
+        self._cached_roi_mask[:roi_ymin, :] = 0  # Below ymin
+        self._cached_roi_mask[roi_ymax+1:, :] = 0  # Above ymax
+        self._cached_roi_mask[:, :roi_xmin] = 0  # Left of xmin
+        self._cached_roi_mask[:, roi_xmax+1:] = 0  # Right of xmax
+    
+        # Apply external mask if provided and cache it
+        if self.detector.config.mask_array is not None:
+            # Pre-convert mask_array to correct device/dtype and combine with ROI mask
+>           mask_array = self.detector.config.mask_array.to(device=self.device, dtype=self.dtype)
+E           AttributeError: 'numpy.ndarray' object has no attribute 'to'
+
+../nanoBragg/src/nanobrag_torch/simulator.py:633: AttributeError
+=============================== warnings summary ===============================
+tests/dbex/test_torch_refine_smoke.py::test_loss_decreases
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_loss_decreases
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_loss_decreases
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_loss_decreases
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_torch_refine_smoke.py::test_loss_decreases - Attribute...
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+======================== 1 failed, 4 warnings in 3.79s =========================

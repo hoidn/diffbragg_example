@@ -13,8 +13,8 @@
 ## Active Initiatives
 
 ### [TORCH-REFINE-001] Implement LBFGS refinement nucleus (Stage A)
-- Depends on: NANOBRAG-BACKEND-002 (done), MAP-SCALE-001..004 (done), DB-AT-024 (Active), docs/spec-db-workflow.md §“Optimization Strategy”, plans/nanobrag_integration_plan.md §“Refinement Nucleus”
-- Status: pending
+- Depends on: NANOBRAG-BACKEND-002 (done), MAP-SCALE-001..004 (done), DB-AT-024 (active), docs/spec-db-workflow.md §“Optimization Strategy”, plans/nanobrag_integration_plan.md §“Refinement Nucleus”
+- Status: in_progress
 - Owner/Date: Galph/Ralph / 2025-11-04
 - Exit Criteria:
   1. Minimal torch refinement nucleus (Stage A) implemented behind a feature/flag, optimizing a tiny parameter set (global scale + one crystal DoF) using `torch.optim.LBFGS` with a closure that recomputes full loss.
@@ -25,6 +25,7 @@
 - Attempts History:
   * 2025-11-04T230000Z (planning) — Created initiative placeholder and acceptance; linked to integration plan “Refinement Nucleus”. No code executed (Docs-only). Next: author Do Now with `<file>::<function>` nucleus target and a validating pytest node.
   * 2025-11-05T002425Z (planning) — Reviewed refinement nucleus scope across `plans/nanobrag_integration_plan.md:150-220`, `docs/spec-db-workflow.md:24-40`, and `docs/nanobrag_api.md:1-120`; confirmed no existing `run_nanobrag_refinement` implementation and zero prior reports. Drafted TDD handoff covering Stage A LBFGS closure (optimize global scale + single crystal DoF), telemetry emission (`optimizer`, traces, `param_deltas`), and a deterministic ROI-smoke pytest (`tests/dbex/test_torch_refine_smoke.py::test_loss_decreases`). Artifacts: plans/active/TORCH-REFINE-001/reports/2025-11-05T002425Z/summary.md. Next Actions: Issue ready-for-implementation Do Now directing code/test updates plus TESTING_GUIDE/TEST_SUITE_INDEX sync.
+  * 2025-11-05T010747Z (analysis) — Reality check confirms `run_nanobrag_refinement`/telemetry scaffolding already present on integration branch, but targeted smoke fails: `pytest -v tests/dbex/test_torch_refine_smoke.py::test_loss_decreases` trips `AttributeError: 'numpy.ndarray' object has no attribute 'to'` inside `nanobrag_torch.simulator.Simulator` because Stage A path passes numpy `mask_array` into `Detector` without tensor coercion. ROI sampling and LBFGS loop otherwise initialize; failure occurs before any loss evaluation. Collected selector evidence: `pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_loss_decreases` (1 test). Artifacts: plans/active/TORCH-REFINE-001/reports/2025-11-05T010747Z/{collect_refine_smoke.log,pytest_refine_smoke_fail.log}. Next Actions: add tensor conversion for panel masks in Stage A refinement path, re-run smoke selector, and tee telemetry snapshot once loss descent succeeds.
 
 ### [TORCH-REFINE-002] Stage A expansion — full crystal and orientation
 - Depends on: TORCH-REFINE-001, docs/spec-db-workflow.md §“Optimization Strategy”, plans/nanobrag_integration_plan.md §Phase 3

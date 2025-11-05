@@ -27,6 +27,10 @@ Establish the minimal, verifiable torch refinement loop using `torch.optim.LBFGS
   - [ ] C1: Expose a backend flag/mode to run the nucleus; keep default behavior unchanged.
   - [ ] C2: Update docs (fix_plan Attempts History, TESTING_GUIDE/TEST_SUITE_INDEX if a new selector is added); archive artifacts.
 
+### Current Issues (2025-11-05T010747Z)
+- Stage A refinement path instantiates `nanobrag_torch.Detector` with numpy `mask_array`, triggering `AttributeError: 'numpy.ndarray' object has no attribute 'to'` during simulator init. Mirror the zero-iteration path by coercing panel masks to torch tensors (device/dtype aware) before building the detector model.
+- Smoke selector `tests/dbex/test_torch_refine_smoke.py::test_loss_decreases` currently fails; re-run after mask conversion to validate ≥5% loss drop and telemetry payload.
+
 ## Mapped Tests (initial)
 - Refinement smoke (to be added): `tests/dbex/test_torch_refine_smoke.py::test_loss_decreases`
   - Acceptance: sample ROI masked MSE decreases by ≥ 5% in ≤ 20 steps; telemetry keys present.
@@ -43,8 +47,11 @@ Establish the minimal, verifiable torch refinement loop using `torch.optim.LBFGS
   - `KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/dbex/test_torch_refine_smoke.py::test_loss_decreases`
 - Full suite (after nucleus stabilized):
   - `KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/`
+<<<<<<< HEAD
 
 ## Next Up (crumbs for supervisor)
 - TORCH-REFINE-002 — Stage A expansion: full crystal (logs a,b,c; angles α,β,γ), orientation, global scale; same LBFGS closure, convergence/telemetry gates. See plans/nanobrag_integration_plan.md §Phase 3.
 - TORCH-REFINE-003 — Stage C detector microslip: per‑panel normal translations (and optional small rotations), convergence/telemetry gates. See plans/nanobrag_integration_plan.md §Phase 3.
 - TORCH-REFINE-004 — Stage B Fhkl modifiers (optional): per‑shell/global multipliers with regularization. See plans/nanobrag_integration_plan.md §Phase 3.
+=======
+>>>>>>> c79b20d (SUPERVISOR AUTO: reports evidence — tests: not run)

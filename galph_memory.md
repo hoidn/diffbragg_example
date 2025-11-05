@@ -836,3 +836,13 @@ Notes
 - Reality Check: `run_nanobrag_backend` still performs zero-iteration forward simulation only; `/torch_diagnostics` lacks optimizer telemetry, so nucleus remains outstanding.
 - <Action State>: [planning]
 2025-11-05T002425Z focus=TORCH-REFINE-001 state=planning dwell=0 artifacts=plans/active/TORCH-REFINE-001/reports/2025-11-05T002425Z/ next_action=issue_stage_a_do_now
+
+## 2025-11-05T010747Z — TORCH-REFINE-001 Stage A smoke triage
+- Focus: TORCH-REFINE-001 — Implement LBFGS refinement nucleus (Stage A)
+- Action Type: gathering_evidence
+- Key Observations: Reality check showed Stage A code already wired but smoke fails: `pytest -v tests/dbex/test_torch_refine_smoke.py::test_loss_decreases` hit `AttributeError: 'numpy.ndarray' object has no attribute 'to'` inside `nanobrag_torch.simulator.Simulator` because `run_nanobrag_refinement` feeds numpy masks to `Detector`. Mirrored zero-iteration helper for contrast (dbex/nanobrag_bridge.py:991-1004) and captured logs under new report dir. Crafted Do Now directing mask tensor coercion + telemetry validation; updated fix_plan status to in_progress.
+- Artifact Path: plans/active/TORCH-REFINE-001/reports/2025-11-05T010747Z/
+- Next Actions: Apply mask tensor conversion in Stage A path, rerun smoke selector, and capture telemetry snapshot/CLI log.
+- <Action State>: [ready_for_implementation]
+
+2025-11-05T010747Z focus=TORCH-REFINE-001 state=ready_for_implementation dwell=1 artifacts=plans/active/TORCH-REFINE-001/reports/2025-11-05T010747Z/ next_action=stage_a_mask_tensor_fix

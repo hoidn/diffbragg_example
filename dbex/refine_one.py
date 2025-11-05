@@ -424,7 +424,9 @@ def _write_torch_outputs(args, DL, Bragg, inputs, masked_mse, hkl_telemetry, ref
             - hkl_n_reflections: Number of reflections
             - hkl_mean_amplitude: Mean structure factor amplitude
             - hkl_path: Path to MTZ file used
-        refine_telemetry: Optional RefinementTelemetry from run_nanobrag_refinement
+        refine_telemetry: Optional Dict[str, RefinementTelemetry] from run_nanobrag_refinement
+                         (multi-stage: {"A": telemetry_a, "C": telemetry_c})
+                         or single RefinementTelemetry (legacy, mapped to {"A": telemetry})
     """
     import h5py
     import numpy as np
@@ -497,36 +499,73 @@ def _write_torch_outputs(args, DL, Bragg, inputs, masked_mse, hkl_telemetry, ref
         diag.attrs["hkl_mean_amplitude"] = float(hkl_telemetry["hkl_mean_amplitude"])
         diag.attrs["hkl_path"] = str(hkl_telemetry["hkl_path"])
 
-        # Refinement telemetry (TORCH-REFINE-001: optimizer traces and status)
+        # Refinement telemetry (TORCH-REFINE-001, TORCH-REFINE-003: multi-stage support)
         if refine_telemetry is not None:
             import json
 
-            diag.attrs["refine_optimizer"] = refine_telemetry.optimizer
-            diag.attrs["refine_stage"] = refine_telemetry.stage
-            diag.attrs["refine_history_size"] = refine_telemetry.history_size
-            diag.attrs["refine_max_iter"] = refine_telemetry.max_iter
-            diag.attrs["refine_tolerance_grad"] = refine_telemetry.tolerance_grad
-            diag.attrs["refine_tolerance_change"] = refine_telemetry.tolerance_change
-            diag.attrs["refine_roi_sample_fraction"] = refine_telemetry.roi_sample_fraction
-            diag.attrs["refine_roi_count_sampled"] = refine_telemetry.roi_count_sampled
-            diag.attrs["refine_roi_count_total"] = refine_telemetry.roi_count_total
-            diag.attrs["refine_status"] = refine_telemetry.status
-            diag.attrs["refine_message"] = refine_telemetry.message
+            # Normalize to dict format (support legacy single RefinementTelemetry)
+            if not isinstance(refine_telemetry, dict):
+                # Legacy: single RefinementTelemetry → {"A": telemetry}
+                telemetry_dict = {"A": refine_telemetry}
+            else:
+                telemetry_dict = refine_telemetry
 
-            # Store loss traces as datasets
-            if len(refine_telemetry.loss_trace_sample) > 0:
-                diag.create_dataset("refine_loss_trace_sample", data=refine_telemetry.loss_trace_sample)
+            # Persist per-stage telemetry as separate HDF5 groups
+            # Stage A always present; Stage C optional when enable_stage_c=True
+            for stage_label, stage_telem in telemetry_dict.items():
+                stage_group = diag.create_group(f"stage_{stage_label}")
 
-            if len(refine_telemetry.loss_trace_full) > 0:
-                # Store as structured array: [(iteration, loss), ...]
-                loss_trace_full_arr = np.array(refine_telemetry.loss_trace_full, dtype=[('iteration', 'i4'), ('loss', 'f8')])
-                diag.create_dataset("refine_loss_trace_full", data=loss_trace_full_arr)
+                stage_group.attrs["refine_optimizer"] = stage_telem.optimizer
+                stage_group.attrs["refine_stage"] = stage_telem.stage
+                stage_group.attrs["refine_history_size"] = stage_telem.history_size
+                stage_group.attrs["refine_max_iter"] = stage_telem.max_iter
+                stage_group.attrs["refine_tolerance_grad"] = stage_telem.tolerance_grad
+                stage_group.attrs["refine_tolerance_change"] = stage_telem.tolerance_change
+                stage_group.attrs["refine_roi_sample_fraction"] = stage_telem.roi_sample_fraction
+                stage_group.attrs["refine_roi_count_sampled"] = stage_telem.roi_count_sampled
+                stage_group.attrs["refine_roi_count_total"] = stage_telem.roi_count_total
+                stage_group.attrs["refine_status"] = stage_telem.status
+                stage_group.attrs["refine_message"] = stage_telem.message
 
-            diag.attrs["refine_best_loss_full"] = refine_telemetry.best_loss_full[0]
-            diag.attrs["refine_best_loss_iteration"] = refine_telemetry.best_loss_full[1]
+                # Store loss traces as datasets
+                if len(stage_telem.loss_trace_sample) > 0:
+                    stage_group.create_dataset("refine_loss_trace_sample", data=stage_telem.loss_trace_sample)
 
-            # Store param_deltas as JSON string
-            diag.attrs["refine_param_deltas"] = json.dumps(refine_telemetry.param_deltas)
+                if len(stage_telem.loss_trace_full) > 0:
+                    # Store as structured array: [(iteration, loss), ...]
+                    loss_trace_full_arr = np.array(stage_telem.loss_trace_full, dtype=[('iteration', 'i4'), ('loss', 'f8')])
+                    stage_group.create_dataset("refine_loss_trace_full", data=loss_trace_full_arr)
+
+                stage_group.attrs["refine_best_loss_full"] = stage_telem.best_loss_full[0]
+                stage_group.attrs["refine_best_loss_iteration"] = stage_telem.best_loss_full[1]
+
+                # Store param_deltas as JSON string
+                stage_group.attrs["refine_param_deltas"] = json.dumps(stage_telem.param_deltas)
+
+            # Legacy single-stage compatibility: mirror Stage A to top-level attrs if only Stage A exists
+            if "A" in telemetry_dict and len(telemetry_dict) == 1:
+                stage_a_telem = telemetry_dict["A"]
+                diag.attrs["refine_optimizer"] = stage_a_telem.optimizer
+                diag.attrs["refine_stage"] = stage_a_telem.stage
+                diag.attrs["refine_history_size"] = stage_a_telem.history_size
+                diag.attrs["refine_max_iter"] = stage_a_telem.max_iter
+                diag.attrs["refine_tolerance_grad"] = stage_a_telem.tolerance_grad
+                diag.attrs["refine_tolerance_change"] = stage_a_telem.tolerance_change
+                diag.attrs["refine_roi_sample_fraction"] = stage_a_telem.roi_sample_fraction
+                diag.attrs["refine_roi_count_sampled"] = stage_a_telem.roi_count_sampled
+                diag.attrs["refine_roi_count_total"] = stage_a_telem.roi_count_total
+                diag.attrs["refine_status"] = stage_a_telem.status
+                diag.attrs["refine_message"] = stage_a_telem.message
+                diag.attrs["refine_best_loss_full"] = stage_a_telem.best_loss_full[0]
+                diag.attrs["refine_best_loss_iteration"] = stage_a_telem.best_loss_full[1]
+                diag.attrs["refine_param_deltas"] = json.dumps(stage_a_telem.param_deltas)
+
+                # Top-level loss trace datasets (legacy)
+                if len(stage_a_telem.loss_trace_sample) > 0:
+                    diag.create_dataset("refine_loss_trace_sample", data=stage_a_telem.loss_trace_sample)
+                if len(stage_a_telem.loss_trace_full) > 0:
+                    loss_trace_full_arr = np.array(stage_a_telem.loss_trace_full, dtype=[('iteration', 'i4'), ('loss', 'f8')])
+                    diag.create_dataset("refine_loss_trace_full", data=loss_trace_full_arr)
 
     # TORCH-CLI-004: Guard against empty scores collection
     if len(scores) > 0:

@@ -404,3 +404,152 @@ def test_stage_a_expansion(refgeom_dataload, refinement_inputs, hkl_data):
     print(f"  Orientation norm: {orientation_norm:.3e}")
     print(f"  Misset XYZ (deg): {misset_xyz_final}")
     print(f"  Quaternion norm: {quat_norm:.6f}")
+
+
+def test_stage_c_detector_microslip(refgeom_dataload, refinement_inputs, hkl_data):
+    """
+    Verify Stage C detector distance refinement achieves ≥5% loss decrease on top of Stage A.
+
+    Acceptance criteria (TORCH-REFINE-003):
+    1. Stage A + Stage C run without errors (status != "error")
+    2. Stage C telemetry contains per-panel distance_offset parameters
+    3. Improvement gate (≥5%) relative to Stage A's final loss is met
+    4. Full-loss trace (Stage C) is non-increasing over last 3 validations
+    5. Stage A telemetry is preserved and not regressed by Stage C
+
+    Environment:
+    - Requires: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1
+    - Selector: pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip
+
+    Per docs/spec-db-workflow.md:35, Stage C refines per-panel translations along detector
+    normal (distance offset) with rotations fixed. The test applies deterministic detector
+    perturbation via create_perturbed_geometry(enable_detector_perturbation=True), then runs
+    Stage A followed by Stage C to validate ≥5% improvement.
+    """
+    from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig
+
+    hkl_grid, hkl_metadata = hkl_data
+
+    # Configure refinement (Stage A + Stage C per TORCH-REFINE-003)
+    config = RefinementConfig(
+        device='cpu',
+        dtype=torch.float32,
+        history_size=10,
+        max_iter=30,  # ≤30 steps per stage
+        roi_sample_fraction=0.15,
+        full_validation_interval=5,
+        min_loss_improvement=0.002,  # 0.2% threshold for Stage A
+        enable_hkl_interpolation=True,  # Tricubic with haloed grid
+        enable_stage_c=True,  # Enable Stage C detector distance refinement
+        stage_c_min_loss_improvement=0.05,  # 5% threshold for Stage C (relative to Stage A final)
+        stage_c_max_distance_delta_mm=0.5  # ±0.5mm max offset per panel
+    )
+
+    # Create perturbed geometry with detector offsets (TORCH-REFINE-003)
+    # Applies alternating ±0.25mm distance offsets to detector panels
+    baseline_crystal = refgeom_dataload.Expt.crystal
+    baseline_detector = refgeom_dataload.Expt.detector
+    baseline_beam = refgeom_dataload.Expt.beam
+
+    perturbed_crystal, perturbed_detector, perturbed_beam = create_perturbed_geometry(
+        baseline_crystal, baseline_detector, baseline_beam,
+        enable_detector_perturbation=True,  # Enable detector distance offsets
+        detector_distance_offset_mm=0.25  # ±0.25mm alternating pattern
+    )
+
+    # Run refinement with Stage A + Stage C
+    bragg_refined, telemetry_dict = run_nanobrag_refinement(
+        inputs=refinement_inputs,
+        detector=perturbed_detector,
+        beam=perturbed_beam,
+        crystal=perturbed_crystal,
+        hkl_grid=hkl_grid,
+        hkl_metadata=hkl_metadata,
+        config=config,
+        baseline_crystal=baseline_crystal
+    )
+
+    # Extract Stage A and Stage C telemetry
+    assert "A" in telemetry_dict, "Stage A telemetry missing"
+    assert "C" in telemetry_dict, "Stage C telemetry missing (config.enable_stage_c=True)"
+    telemetry_a = telemetry_dict["A"]
+    telemetry_c = telemetry_dict["C"]
+
+    # Acceptance 1: Both stages completed without errors
+    assert telemetry_a.status != "error", f"Stage A failed: {telemetry_a.message}"
+    assert telemetry_c.status != "error", f"Stage C failed: {telemetry_c.message}"
+
+    # Acceptance 2: Stage C telemetry completeness
+    assert telemetry_c.optimizer == "LBFGS"
+    assert telemetry_c.stage == "C"
+    assert telemetry_c.history_size == config.history_size
+    assert telemetry_c.max_iter == config.max_iter
+    assert len(telemetry_c.loss_trace_sample) > 0, "Stage C sample loss trace empty"
+    assert len(telemetry_c.loss_trace_full) > 0, "Stage C full loss trace empty"
+    assert telemetry_c.best_loss_full[0] > 0, "Stage C best loss invalid"
+
+    # Verify per-panel distance offsets are present
+    n_panels = len(perturbed_detector)
+    for pid in range(n_panels):
+        param_key = f'panel_{pid}_distance_offset_mm'
+        assert param_key in telemetry_c.param_deltas, f"Panel {pid} distance offset missing"
+        offset_data = telemetry_c.param_deltas[param_key]
+        assert 'initial' in offset_data and 'final' in offset_data and 'delta' in offset_data
+
+    # Acceptance 3: ≥5% improvement from Stage A final to Stage C final
+    assert len(telemetry_a.loss_trace_full) >= 2, "Insufficient Stage A full-loss validations"
+    assert len(telemetry_c.loss_trace_full) >= 2, "Insufficient Stage C full-loss validations"
+
+    stage_a_final_loss = telemetry_a.loss_trace_full[-1][1]
+    stage_c_final_loss = telemetry_c.loss_trace_full[-1][1]
+    improvement_c = (stage_a_final_loss - stage_c_final_loss) / stage_a_final_loss
+
+    assert improvement_c >= 0.05, (
+        f"Stage C improvement {improvement_c:.2%} < 5% threshold. "
+        f"docs/spec-db-workflow.md:35 mandates ≥5% additional recovery for detector microslip. "
+        f"(Stage A final={stage_a_final_loss:.2e}, Stage C final={stage_c_final_loss:.2e}, "
+        f"Stage C iterations={len(telemetry_c.loss_trace_sample)})"
+    )
+
+    # Acceptance 4: Stage C full-loss trace is non-increasing over last 3 validations
+    if len(telemetry_c.loss_trace_full) >= 3:
+        last_three_losses = [loss for _, loss in telemetry_c.loss_trace_full[-3:]]
+        for i in range(1, len(last_three_losses)):
+            assert last_three_losses[i] <= last_three_losses[i-1] * 1.02, (
+                f"Stage C full-loss increased by >2% at validation {i}: "
+                f"{last_three_losses[i-1]:.2e} → {last_three_losses[i]:.2e}"
+            )
+
+    # Acceptance 5: Stage A telemetry preserved (sanity check)
+    assert len(telemetry_a.loss_trace_full) >= 2, "Stage A full-loss trace truncated"
+    stage_a_initial_loss = telemetry_a.loss_trace_full[0][1]
+    improvement_a = (stage_a_initial_loss - stage_a_final_loss) / stage_a_initial_loss
+    assert improvement_a >= 0.001, (  # Relaxed gate; primary focus is Stage C
+        f"Stage A regressed: {improvement_a:.2%} < 0.1% threshold "
+        f"(initial={stage_a_initial_loss:.2e}, final={stage_a_final_loss:.2e})"
+    )
+
+    # Output shape correctness
+    assert bragg_refined.shape == refinement_inputs.target.shape
+    assert bragg_refined.dtype == np.float32
+
+    # Diagnostic printout
+    total_improvement = (stage_a_initial_loss - stage_c_final_loss) / stage_a_initial_loss
+
+    print(f"\n[test_stage_c_detector_microslip] SUCCESS")
+    print(f"  Stage A initial loss: {stage_a_initial_loss:.2e}")
+    print(f"  Stage A final loss: {stage_a_final_loss:.2e}")
+    print(f"  Stage A improvement: {improvement_a:.1%}")
+    print(f"  Stage A iterations: {len(telemetry_a.loss_trace_sample)}")
+    print(f"  Stage A status: {telemetry_a.status}")
+    print(f"  Stage C final loss: {stage_c_final_loss:.2e}")
+    print(f"  Stage C improvement (vs Stage A): {improvement_c:.1%}")
+    print(f"  Stage C iterations: {len(telemetry_c.loss_trace_sample)}")
+    print(f"  Stage C status: {telemetry_c.status}")
+    print(f"  Total improvement (A+C): {total_improvement:.1%}")
+    print(f"  Detector distance offsets (mm):")
+    for pid in range(min(3, n_panels)):  # Print first 3 panels
+        offset = telemetry_c.param_deltas[f'panel_{pid}_distance_offset_mm']['final']
+        print(f"    Panel {pid}: {offset:+.4f} mm")
+    if n_panels > 3:
+        print(f"    ... ({n_panels - 3} more panels)")

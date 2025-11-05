@@ -1,37 +1,43 @@
-Summary: Stabilize the Stage A LBFGS scale parameter so the refinement smoke runs without gradient guard failures.
-Mode: Parity
+Summary: Prepare ready-for-implementation handoff so Stage A refinement hits ≥5% loss drop by wiring log_cell_a_delta through the torch crystal config.
+Mode: none
 Focus: TORCH-REFINE-001 — Implement LBFGS refinement nucleus (Stage A)
 Branch: integration
-Mapped tests:
-- tests/dbex/test_torch_refine_smoke.py::test_loss_decreases
-Artifacts: plans/active/TORCH-REFINE-001/reports/2025-11-05T015500Z/
-Do Now:
-- TORCH-REFINE-001: Implement: dbex/nanobrag_refinement.py::run_nanobrag_refinement — warm-start `log_scale` from `inputs.global_scale_hint` (fallback to 0 when hint missing) and clamp/bound the exponent before `torch.exp` so LBFGS cannot blow up the scale; preserve telemetry deltas/status and keep the closure differentiable; Validate: env KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/dbex/test_torch_refine_smoke.py::test_loss_decreases --maxfail=1; Artifacts: plans/active/TORCH-REFINE-001/reports/2025-11-05T015500Z/
-How-To Map:
+Mapped tests: tests/dbex/test_torch_refine_smoke.py::test_loss_decreases
+Artifacts: plans/active/TORCH-REFINE-001/reports/2025-11-05T021259Z/
+
+Do Now (hard validity contract)
+- Implement: dbex/nanobrag_refinement.py::run_nanobrag_refinement — route `log_cell_a_delta` into a differentiable `create_crystal_config` override (update dbex/nanobrag_bridge.py::create_crystal_config as needed) so LBFGS can move cell_a and achieve ≥5% loss drop.
+- Validate: pytest -v tests/dbex/test_torch_refine_smoke.py::test_loss_decreases --maxfail=1
+- Artifacts: plans/active/TORCH-REFINE-001/reports/2025-11-05T021259Z/pytest_refine_smoke.log
+
+How-To Map
 1. export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
-2. export TORCH_REFINE_ARTIFACTS=plans/active/TORCH-REFINE-001/reports/2025-11-05T015500Z
-3. env KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_loss_decreases | tee "$TORCH_REFINE_ARTIFACTS/collect_refine_smoke.log"
-4. env KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/dbex/test_torch_refine_smoke.py::test_loss_decreases --maxfail=1 --durations=1 | tee "$TORCH_REFINE_ARTIFACTS/pytest_refine_smoke.log"
-5. env KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python -m dbex.refine_one --backend nanobrag -e refGeom.expt -r refGeom.refl -i 0 -o tmp/torch_refine_stage_a.h5 -m 747_mask.pkl -z scaled.mtz --mtzCol F,SIGF | tee "$TORCH_REFINE_ARTIFACTS/refine_cli.log"
-6. python plans/active/TORCH-REFINE-001/bin/dump_refine_telemetry.py --h5 tmp/torch_refine_stage_a.h5 --output "$TORCH_REFINE_ARTIFACTS/telemetry_snapshot.json"
-7. cp tmp/torch_refine_stage_a.h5 "$TORCH_REFINE_ARTIFACTS/torch_refine_stage_a.h5"
-Pitfalls To Avoid:
-- Do not leave `log_scale` starting at 0 when `inputs.global_scale_hint` is present; spec requires using the calibration seed.
-- Clamp or otherwise bound the log-scale before exponentiation instead of clamping the raw scale (maintains smooth gradients).
-- Keep the LBFGS closure fully differentiable—no `.detach()`/`.item()`/`.cpu()` on tensors that influence the loss.
-- Preserve `/torch_diagnostics` structure (DIAGNOSTICS-001); append fields without removing existing telemetry.
-- Maintain deterministic ROI sampling and np.random seeding; avoid introducing nondeterminism that would destabilize loss traces.
-- Respect Environment Freeze; do not install packages or touch nanobrag_torch sources unless a separate patch workflow is invoked.
-If Blocked: Capture the failing telemetry/status plus stack trace under "$TORCH_REFINE_ARTIFACTS/blocked.md", update docs/fix_plan.md Attempts History with the blocker, and log the same in galph_memory before pivoting focus.
-Findings Applied (Mandatory):
-- DIAGNOSTICS-001 — `/torch_diagnostics` stays authoritative; ensure telemetry remains complete after the scale fix.
-- MASKING-001 — Sparse loss mask coverage is expected; avoid “fixes” that rely on dense coverage assumptions when adjusting ROI sampling.
-- REFINE-001 — Warm-start the Stage A scale from the calibration hint and bound `log_scale` to keep LBFGS stable.
-Pointers:
-- dbex/nanobrag_refinement.py:129 — Stage A LBFGS implementation where the scale parameter is initialized and exponentiated.
-- docs/spec-db-workflow.md:20 — Stage A calibration warm-start and optimization rules.
-- plans/nanobrag_integration_plan.md:172 — Refinement nucleus contract (LBFGS closure + telemetry expectations).
-- tests/dbex/test_torch_refine_smoke.py:121 — Smoke test enforcing ≥5% loss descent and telemetry checks.
-- plans/active/TORCH-REFINE-001/reports/2025-11-05T013525Z/pytest_refine_smoke_fail.log — Evidence of the current NaN/Inf gradient failure to reproduce.
-Next Up (optional): Consider adding a regression assert on telemetry.status once the scale fix lands.
-Doc Sync Plan: After the smoke passes, refresh docs/TESTING_GUIDE.md §2 and docs/development/TEST_SUITE_INDEX.md with the new artifact timestamp, and stash the updated telemetry snapshot path in the fixture ledger before marking the initiative ready for Stage B.
+2. env KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/dbex/test_torch_refine_smoke.py::test_loss_decreases --maxfail=1 | tee plans/active/TORCH-REFINE-001/reports/2025-11-05T021259Z/pytest_refine_smoke.log
+3. jot telemetry status + improvement delta into plans/active/TORCH-REFINE-001/reports/2025-11-05T021259Z/summary.md
+
+Pitfalls To Avoid
+- Do not break deterministic ROI sampling (leave seed=42, reuse sampled panels).
+- Keep all optimization-path tensors on device without `.detach()`/`.item()` conversions (see GRADIENT-001).
+- Preserve existing log_scale warm-start/clamp behavior from REFINE-001 while adding cell overrides.
+- Ensure `create_crystal_config` overrides accept torch.Tensor without casting to numpy; guard other call sites.
+- Update both closure and final render paths so Bragg outputs use the same perturbed crystal config.
+- Avoid environment/tooling changes; rely only on repository sources.
+- Keep telemetry schema stable (no key renames) and include improvement message when status="early_stop".
+- When touching tests, keep selector stable; do not downgrade acceptance threshold without supervisor sign-off.
+
+If Blocked
+- Capture the failure signature (stack trace or unexpected telemetry) in plans/active/TORCH-REFINE-001/reports/2025-11-05T021259Z/summary.md and downgrade fix_plan status to blocked with rationale; notify supervisor for rescoping.
+
+Findings Applied (Mandatory)
+- REFINE-001 — Maintain scale warm-start and log-scale clamp while extending nucleus to cover crystal DoF.
+- GRADIENT-001 — Preserve tensor-based overrides so autograd path remains intact (no `.item()` when wiring crystal parameters).
+
+Pointers
+- docs/spec-db-workflow.md:24 — Stage A requires global scale + crystal DoF with ≥5% loss drop.
+- plans/nanobrag_integration_plan.md:172 — Refinement nucleus contract for LBFGS closure and DoF set.
+- dbex/nanobrag_refinement.py:200 — Current placeholder for applying `log_cell_a_delta` (needs real crystal override).
+- dbex/nanobrag_bridge.py:445 — CrystalConfig helper to extend with tensor overrides.
+- tests/dbex/test_torch_refine_smoke.py:108 — Acceptance criteria enforcing ≥5% improvement.
+
+Next Up (optional)
+- Investigate tensor override plumbing for additional Stage A DoFs once loss threshold clears.

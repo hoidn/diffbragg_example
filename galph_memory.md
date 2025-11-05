@@ -848,3 +848,14 @@ Notes
 2025-11-05T010747Z focus=TORCH-REFINE-001 state=ready_for_implementation dwell=1 artifacts=plans/active/TORCH-REFINE-001/reports/2025-11-05T010747Z/ next_action=stage_a_mask_tensor_fix
 
 2025-11-05T014128Z focus=TORCH-REFINE-001 state=ready_for_implementation dwell=2 artifacts=plans/active/TORCH-REFINE-001/reports/2025-11-05T013525Z/ next_action=warm_start_log_scale_and_rerun_smoke
+
+## 2025-11-05T021259Z — TORCH-REFINE-001 Stage A override handoff
+- Focus: TORCH-REFINE-001 — Implement LBFGS refinement nucleus (Stage A)
+- Action Type: planning
+- Key Observations: Smoke telemetry (`plans/active/TORCH-REFINE-001/reports/2025-11-05T015500Z/pytest_refine_smoke.log`) ends with status="early_stop" and only 0.01% improvement because `log_cell_a_delta` stays at 0.0; comments at dbex/nanobrag_refinement.py:200-232 cite the missing tensor override path. Reviewed `dbex/nanobrag_bridge.py:445-514` confirming `CrystalConfig` can accept torch.Tensor values but helper never exposes overrides.
+- Artifact Path: plans/active/TORCH-REFINE-001/reports/2025-11-05T021259Z/
+- Next Actions: Implement tensor-friendly overrides in `create_crystal_config`, wire them through `run_nanobrag_refinement`, rerun smoke selector, and capture ≥5% improvement telemetry.
+- Reality Check: Exit criterion #2 remains unmet (≤0.01% loss improvement); others hold. Scope remains accurate—no need to rescope beyond enabling the crystal DoF.
+- <Action State>: [ready_for_implementation]
+
+2025-11-05T021259Z focus=TORCH-REFINE-001 state=ready_for_implementation dwell=0 artifacts=plans/active/TORCH-REFINE-001/reports/2025-11-05T021259Z/ next_action=implement_cell_override_and_rerun_smoke

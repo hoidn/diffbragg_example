@@ -14,7 +14,8 @@
 
 ### [REPORT-NANOBRAG-STATUS-001] Nanobrag Progress Reporting Pack
 - Depends on: `plans/nanobrag_integration_plan.md` Phase 5 (Validation & Documentation); torch backend HDF5 outputs with `/torch_diagnostics`.
-- Status: pending (2025-11-05)
+- Status: in_progress (2025-11-05)
+- Priority: high (next focus)
 - Owner/Date: Team / 2025-11-05
 - Exit Criteria:
   1. `reports/nanobrag_validation.md` committed with Phase 0–5 and Stage A/B/C status.

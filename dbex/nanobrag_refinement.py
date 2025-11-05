@@ -179,6 +179,14 @@ def run_nanobrag_refinement(
                 trusted_mask=inputs.trusted_mask[pid]
             )
 
+            # Convert mask_array to torch.Tensor if it's a numpy array
+            # Per dbex/nanobrag_bridge.py:998-1004, nanobrag_torch Simulator
+            # expects torch.Tensor for mask_array
+            if detector_config.mask_array is not None and not isinstance(detector_config.mask_array, torch.Tensor):
+                detector_config.mask_array = torch.tensor(
+                    detector_config.mask_array, dtype=torch.float32, device=device
+                )
+
             beam_config = create_beam_config(beam)
 
             # Apply cell_a perturbation
@@ -320,6 +328,14 @@ def run_nanobrag_refinement(
                 beam=beam,
                 trusted_mask=inputs.trusted_mask[pid]
             )
+
+            # Convert mask_array to torch.Tensor if it's a numpy array
+            # Per dbex/nanobrag_bridge.py:998-1004, nanobrag_torch Simulator
+            # expects torch.Tensor for mask_array
+            if detector_config.mask_array is not None and not isinstance(detector_config.mask_array, torch.Tensor):
+                detector_config.mask_array = torch.tensor(
+                    detector_config.mask_array, dtype=torch.float32, device=device
+                )
 
             beam_config = create_beam_config(beam)
             crystal_config, _ = create_crystal_config(crystal, None)

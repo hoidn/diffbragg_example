@@ -1,52 +1,55 @@
-Summary: Restore Stage B shell-modifier telemetry (ROI counts + full-loss validations) so the smoke test can enforce the ≥3% gate with real data.
+Summary: Align the nanobrag bridge mask contract with torch tensor emission while keeping Stage B telemetry green.
 Mode: none
 Focus: TORCH-REFINE-004 — Stage B Fhkl modifiers (optional)
 Branch: integration
-Mapped tests: tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
-Artifacts: plans/active/TORCH-REFINE-004/reports/2025-11-05T190344Z/
+Mapped tests: tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_mask_array_float_conversion, tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+Artifacts: plans/active/TORCH-REFINE-004/reports/2025-11-05T200729Z/
 
 Do Now:
 - TORCH-REFINE-004 — Stage B Fhkl modifiers (optional)
-  - Implement: dbex/nanobrag_refinement.py::run_nanobrag_refinement — repair the Stage B ROI sampler/full-validation loop so it reuses Stage A sampled panels (with full fallback), appends at least one full-loss validation + best-snapshot restore, updates roi_count_sampled from the actual panel list, and recomputes the ≥3% improvement gate from Stage A’s final loss (document if the measured ceiling forces recalibration).
-  - Implement: tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers — tighten assertions around Stage B telemetry (roi_count_sampled >= 1, full-loss trace present) and, if the measured improvement remains <3%, rebase the gate + assertion to the observed ceiling with artifact references.
-  - Validate: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --maxfail=1 | tee $ARTIFACTS/pytest_stage_b_fix.log
-  - Artifacts: plans/active/TORCH-REFINE-004/reports/2025-11-05T190344Z/
+  - Implement: dbex/nanobrag_bridge.py::create_detector_config — coerce `trusted_mask` with `torch.as_tensor(..., dtype=torch.float32)` (no implicit device change), assert the tensor stays 0/1-valued, and refresh the inline comment/doc reference so CLI-001 and Stage B conversions remain aligned.
+  - Implement: tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_mask_array_float_conversion — accept torch.Tensor masks by checking `torch.is_floating_point`, convert to numpy for polarity asserts, and fail fast if the tensor leaves {0.0, 1.0} or shape drifts.
+  - Validate: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest -vv tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_mask_array_float_conversion --maxfail=1 | tee $ARTIFACTS/pytest_bridge_mask.log && KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --maxfail=1 | tee $ARTIFACTS/pytest_stage_b_regression.log
+  - Artifacts: plans/active/TORCH-REFINE-004/reports/2025-11-05T200729Z/
 
 How-To Map:
 - export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
-- export ARTIFACTS=plans/active/TORCH-REFINE-004/reports/2025-11-05T190344Z
+- export ARTIFACTS=plans/active/TORCH-REFINE-004/reports/2025-11-05T200729Z
 - mkdir -p "$ARTIFACTS"
+- pytest --collect-only tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_mask_array_float_conversion | tee "$ARTIFACTS/collect_bridge_mask.log"
+- pytest -vv tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_mask_array_float_conversion --maxfail=1 --capture=tee-sys | tee "$ARTIFACTS/pytest_bridge_mask.log"
 - KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers | tee "$ARTIFACTS/collect_stage_b.log"
-- KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --maxfail=1 --capture=tee-sys | tee "$ARTIFACTS/pytest_stage_b_fix.log"
-- rg "Stage [AB] (final|improvement)" "$ARTIFACTS/pytest_stage_b_fix.log" | tee "$ARTIFACTS/stage_b_metrics.txt"
-- printf "Stage B improvement gate evidence recorded in %s\\n" "$ARTIFACTS/stage_b_metrics.txt" >> "$ARTIFACTS/summary.md"
+- KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --maxfail=1 --capture=tee-sys | tee "$ARTIFACTS/pytest_stage_b_regression.log"
+- rg "Stage [AB] (final|improvement)" "$ARTIFACTS/pytest_stage_b_regression.log" | tee "$ARTIFACTS/stage_b_metrics.txt"
+- printf "Bridge mask + Stage B telemetry verified; see %s and %s\n" "$ARTIFACTS/pytest_bridge_mask.log" "$ARTIFACTS/pytest_stage_b_regression.log" >> "$ARTIFACTS/summary.md"
 
 Pitfalls To Avoid:
-- Respect Environment Freeze: no conda/pip installs; treat missing torch deps as blockers and record them.
-- Keep Stage B tensor ops device/dtype neutral (float32 CPU path) and do not hard-code panel counts.
-- Do not regress REFINE-005: Stage B must error if halo/interpolation prerequisites fail; keep guards intact.
-- Clamp shell modifiers after softplus so gradients remain stable; avoid in-place ops that break autograd snapshots.
-- Ensure LBFGS full-loss validations run under `torch.no_grad()` to avoid graph capture; keep NANOBRAGG_DISABLE_COMPILE=1 for determinism.
-- When adjusting thresholds, cite measured improvement and archive artifacts before changing constants/tests.
+- Respect Environment Freeze; treat missing deps as blockers instead of installing anything.
+- Do NOT revert CLI-001: `create_detector_config` must keep returning torch float masks so the CLI path remains functional.
+- Preserve Stage B tensor conversions in `run_nanobrag_refinement`; keep them device/dtype neutral and idempotent.
+- Maintain halo/interpolation guards from REFINE-005; mask updates must not bypass default_F protections.
+- Keep ROI sampling deterministic and reuse Stage A panel IDs to avoid telemetry regressions.
+- Capture any dtype/device mismatches via asserts rather than silent casts so failures surface quickly.
 
 If Blocked:
-- Capture the failing command, stack trace, and the partial telemetry in $ARTIFACTS/blocker.log, set the fix-plan item to blocked with rationale, and log the next retry condition in galph_memory.md before exiting.
+- Record the failing command, traceback, and `type/dtype` of `mask_array` in $ARTIFACTS/blocker_mask.log, flag the fix-plan item as blocked with rationale, and log the next retry condition in galph_memory.md before exit.
 
 Findings Applied (Mandatory):
-- REFINE-005 — Stage B requires halo grids + interpolation; maintain guards while adjusting telemetry.
-- REFINE-006 — Stage A gate stays at ≥0.2%; reuse Stage A baseline loss when computing Stage B improvement.
-- SCALE-001/002 — Shell modifiers must not rescale structure factors globally; keep multiplicative per-shell semantics.
-- RUNTIME-001 — Disable torch.compile (NANOBRAGG_DISABLE_COMPILE=1) to avoid graph capture with LBFGS closures.
+- CLI-001 — Bridge must emit torch float masks for CLI paths; validating we stay in compliance after tightening tests.
+- REFINE-005 — Halo + interpolation guardrails remain enforced; Stage B tweaks must not reintroduce default_F fallbacks.
+- REFINE-008 — Stage B gate calibrated to 1e-8; smoke run needs to keep telemetry consistent while we adjust mask handling.
+- SCALE-001/002 — Shell modifiers stay multiplicative; mask updates must not sneak in intensity rescaling.
+- RUNTIME-001 — Keep `NANOBRAGG_DISABLE_COMPILE=1` during Stage B pytest to avoid torch.compile side effects.
 
 Pointers:
-- dbex/nanobrag_refinement.py:900 — Stage B LBFGS closure + telemetry path to be fixed.
-- tests/dbex/test_torch_refine_smoke.py:604 — Stage B smoke acceptance criteria and gate assertions.
-- docs/spec-db-workflow.md:31 — Stage B contract across staging phases.
-- plans/nanobrag_integration_plan.md:226 — Shell modifier requirements and telemetry expectations.
-- docs/findings.md:6 — REFINE-005/006 guardrails informing ROI sampling and gate calibration.
+- dbex/nanobrag_bridge.py:379 — Mask tensor emission path tied to CLI-001.
+- tests/dbex/test_nanobrag_bridge_configs.py:141 — Bridge mask dtype/polarity assertions to update.
+- docs/nanobrag_api.md:44 — Mask semantics (tensor 0/1, shape requirements).
+- docs/config_crosswalk.md:31 — Detector mask mapping reference; cross-check after edits.
+- docs/findings.md:41 — CLI-001 details on torch mask requirement.
 
 Next Up (optional):
-- Once Stage B gate stabilizes, draft a metrics script under plans/active/TORCH-REFINE-004/bin to chart Stage B improvement versus shell count.
+- Re-run the CLI refine-one telemetry smoke once bridge/test contract stabilizes to ensure mask asserts stay silent end-to-end.
 
 Doc Sync Plan (Conditional):
-- None — selectors unchanged; update docs only if gate recalibration introduces new findings.
+- None — selectors unchanged; note doc edits in the commit if mask semantics text moves.

@@ -1028,3 +1028,12 @@ Notes
 - Next Actions: Ralph executes the CLI run, authors `bin/emit_nanobrag_summary.py`, updates `reports/nanobrag_validation.md`, and captures pytest telemetry logs per Do Now.
 - <Action State>: [ready_for_implementation]
 2025-11-05T184233Z focus=REPORT-NANOBRAG-STATUS-001 state=ready_for_implementation dwell=2 artifacts=plans/active/REPORT-NANOBRAG-STATUS-001/reports/2025-11-05T184233Z/ next_action=execute_telemetry_run_and_report
+
+## 2025-11-05T200729Z — TORCH-REFINE-004 bridge/test contract reset
+- Focus: TORCH-REFINE-004 — Stage B Fhkl modifiers (optional)
+- Action Type: planning
+- Key Observations: Full-suite replay surfaced `TestDetectorConfigMapping::test_mask_array_float_conversion` failure because the bridge now returns `torch.float32` masks (per CLI-001) while the test still asserts numpy floats. Confirmed Stage B smoke remains green and documented plan to update the bridge test + docs to accept torch tensors while keeping polarity checks. `docs/config_crosswalk.md` now calls out the torch.as_tensor contract.
+- Artifact Path: plans/active/TORCH-REFINE-004/reports/2025-11-05T200729Z/
+- Next Actions: Ralph to update `create_detector_config` mask coercion (`torch.as_tensor` + asserts), refresh the bridge config test, and rerun the bridge + Stage B selectors per new input.md.
+- <Action State>: [planning]
+2025-11-05T200729Z focus=TORCH-REFINE-004 state=planning dwell=0 artifacts=plans/active/TORCH-REFINE-004/reports/2025-11-05T200729Z/ next_action=run_bridge_mask_realignment_do_now

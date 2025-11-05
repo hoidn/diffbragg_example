@@ -28,7 +28,7 @@ Detector (per panel)
   - `pixel_size_mm = px_fast_mm` (guard: require `abs(px_fast_mm - px_slow_mm) <= 1e-9`)
   - `spixels = slow_px`, `fpixels = fast_px`
   - ROI defaults to full detector when omitted
-  - `mask_array = trusted_mask[panel].float()` with shape `(spixels, fpixels)` (1=include)
+- `mask_array = torch.as_tensor(trusted_mask[panel], dtype=torch.float32)` with shape `(spixels, fpixels)` (1=include); CLI-001 requires torch tensors so the simulator can call `.to(device, dtype)`
 - Refined vs Fixed (Stage C)
   - Refine: translation along detector normal (distance offset) per panel
   - Fixed (v1): detector rotations (derived from dxtbx panel axes), beam center, pixel size
@@ -109,4 +109,3 @@ References
 - docs/simtbx_api.md — Image loading, background, ROI, masks
 - docs/dials_api.md — Reflections, bbox, mask formats, shapes
 - docs/nanobrag_api.md — torch configs, units, runtime, structure‑factor ingestion, ROI‑only compute
-

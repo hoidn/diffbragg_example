@@ -1,0 +1,136 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 1 item
+
+tests/dbex/test_torch_refine_smoke.py::test_loss_decreases FAILED        [100%]
+
+=================================== FAILURES ===================================
+_____________________________ test_loss_decreases ______________________________
+
+refgeom_dataload = <dbex.data_load.DataLoad object at 0x71a8ea410a00>
+refinement_inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0.,...  [ True,  True,  True, ...,  True,  True,  True]]]), target_representation='adu', global_scale_hint=62.65738056380318)
+hkl_data = (tensor([[[0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0.,..., 0.]]]), {'grid_max': 518.3336791992188, 'grid_mean': 18.78112030029297, 'grid_min': 0.0, 'grid_nonzero': 69614, ...})
+
+    def test_loss_decreases(refgeom_dataload, refinement_inputs, hkl_data):
+        """
+        Verify Stage A LBFGS refinement achieves ≥5% loss decrease.
+    
+        Acceptance criteria:
+        1. Refinement runs without errors (status != "error")
+        2. Final masked MSE is ≥5% lower than initial
+        3. Telemetry contains all required keys
+        4. Full-loss trace is non-increasing over last 3 validations
+        5. Param deltas show non-zero updates for scale and crystal DoF
+    
+        Environment:
+        - Requires: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1
+        - Selector: pytest -v tests/dbex/test_torch_refine_smoke.py::test_loss_decreases
+        """
+        from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig
+    
+        hkl_grid, hkl_metadata = hkl_data
+    
+        # Configure refinement
+        config = RefinementConfig(
+            device='cpu',
+            dtype=torch.float32,
+            history_size=10,
+            max_iter=20,
+            roi_sample_fraction=0.15,
+            full_validation_interval=5,
+            min_loss_improvement=0.05
+        )
+    
+        # Run refinement
+>       bragg_refined, telemetry = run_nanobrag_refinement(
+            inputs=refinement_inputs,
+            detector=refgeom_dataload.detector,
+            beam=refgeom_dataload.beam,
+            crystal=refgeom_dataload.crystal,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            config=config
+        )
+
+tests/dbex/test_torch_refine_smoke.py:141: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0.,...  [ True,  True,  True, ...,  True,  True,  True]]]), target_representation='adu', global_scale_hint=62.65738056380318)
+detector = <dxtbx_model_ext.Detector object at 0x71a8f6bed9e0>
+beam = <dxtbx_model_ext.Beam object at 0x71a8f6bed890>
+crystal = <dxtbx_model_ext.MosaicCrystalSauter2014 object at 0x71a8f6c0f130>
+hkl_grid = tensor([[[0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., ...    [0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., 0.]]])
+hkl_metadata = {'grid_max': 518.3336791992188, 'grid_mean': 18.78112030029297, 'grid_min': 0.0, 'grid_nonzero': 69614, ...}
+config = RefinementConfig(history_size=10, max_iter=20, tolerance_grad=1e-07, tolerance_change=1e-09, roi_sample_fraction=0.15,..._interval=5, min_loss_improvement=0.05, early_stop_window=3, max_loss_increase=0.02, device='cpu', dtype=torch.float32)
+
+    def run_nanobrag_refinement(
+        inputs,
+        detector,
+        beam,
+        crystal,
+        hkl_grid: torch.Tensor,
+        hkl_metadata: Dict,
+        config: Optional[RefinementConfig] = None
+    ) -> Tuple[np.ndarray, RefinementTelemetry]:
+        """
+        Run Stage A LBFGS refinement nucleus on nanobrag_torch simulator.
+    
+        Optimizes:
+        - log_scale: global intensity scale (ADU mode)
+        - log_cell_a_delta: small perturbation to crystal cell_a parameter
+    
+        Args:
+            inputs: RefinementInputs with target, loss_mask, panel_slices, trusted_mask
+            detector: dxtbx Detector object (multi-panel)
+            beam: dxtbx Beam object
+            crystal: dxtbx Crystal object
+            hkl_grid: torch.Tensor structure factor grid (P1 dense)
+            hkl_metadata: dict with grid dimensions and metadata
+            config: Optional RefinementConfig; uses defaults if None
+    
+        Returns:
+            Tuple of:
+            - Bragg: np.ndarray [panel, slow, fast] final simulated intensities (CPU, float32)
+            - telemetry: RefinementTelemetry with optimizer traces and status
+    
+        Raises:
+            RuntimeError: If simulator fails or gradients are NaN/Inf
+        """
+>       from nanobrag_torch import Simulator, Detector, Crystal
+E       ImportError: cannot import name 'Simulator' from 'nanobrag_torch' (/home/ollie/Documents/nanoBragg/src/nanobrag_torch/__init__.py)
+
+dbex/nanobrag_refinement.py:104: ImportError
+=============================== warnings summary ===============================
+tests/dbex/test_torch_refine_smoke.py::test_loss_decreases
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_loss_decreases
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_loss_decreases
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_loss_decreases
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+============================= slowest 1 durations ==============================
+2.33s setup    tests/dbex/test_torch_refine_smoke.py::test_loss_decreases
+=========================== short test summary info ============================
+FAILED tests/dbex/test_torch_refine_smoke.py::test_loss_decreases - ImportErr...
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+======================== 1 failed, 4 warnings in 3.24s =========================

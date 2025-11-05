@@ -1001,3 +1001,12 @@ Notes
 - Next Actions: Realign Stage B loop with bridge helpers (pass trusted_mask to `create_detector_config`, reuse Stage A `Detector`/`Crystal` models, drop unsupported kwargs), then rerun the Stage B smoke to calibrate improvement vs the ≥3% gate and capture telemetry for doc sync.
 - <Action State>: [gathering_evidence]
 2025-11-05T164800Z focus=TORCH-REFINE-004 state=gathering_evidence dwell=1 artifacts=plans/active/TORCH-REFINE-004/reports/2025-11-05T164800Z/ next_action=realign_stage_b_bridge_calls
+
+## 2025-11-05T172937Z — TORCH-REFINE-004 Stage B ROI sampler handoff
+- Focus: TORCH-REFINE-004 — Stage B Fhkl modifiers (optional)
+- Action Type: planning
+- Key Observations: Reviewed `pytest_stage_b_v2.log` (2025-11-05T164800Z) and `dbex/nanobrag_refinement.py:847-1179`; Stage B now dies inside the LBFGS closure with `NameError: roi_sampler`, leaving loss traces empty and telemetry status `error`. Stage A’s deterministic `sampled_panel_ids` exists but the Stage B helper no longer captures it, and there is no fallback when the ROI sample list is empty. Re-confirmed Stage B contract/guards via docs/spec-db-workflow.md:31-34, plans/nanobrag_integration_plan.md:226-244, and findings REFINE-005/SCALE-001. Authored updated Do Now + How-To map directing a closure refactor that reuses the Stage A ROI sample (with a full-panel fallback), restores telemetry/improvement gating, and archives fresh collect/test logs under 2025-11-05T172937Z.
+- Artifact Path: plans/active/TORCH-REFINE-004/reports/2025-11-05T172937Z/
+- Next Actions: Delegate Stage B ROI sampler/telemetry repair (`run_nanobrag_refinement` Stage B block) and rerun `tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers` with artifacts captured per new plan.
+- <Action State>: [ready_for_implementation]
+2025-11-05T172937Z focus=TORCH-REFINE-004 state=ready_for_implementation dwell=2 artifacts=plans/active/TORCH-REFINE-004/reports/2025-11-05T172937Z/ next_action=repair_stage_b_roi_sampler

@@ -93,3 +93,11 @@ Do not proceed with Option B (larger perturbation) without supervisor approval p
 - `collect_stage_a.log` — 1 test collected
 - `pytest_stage_a.log` — FAILED (improvement 0.21% < 5%)
 - `summary.md` (this file)
+
+---
+
+### Turn Summary
+Implemented HKL grid halo padding and tricubic interpolation toggle to restore gradient flow for Stage A perturbed geometry refinement.
+Haloed grid + interpolation implementation is correct and functioning (98% HKL hit rate validates halo prevents default_F fallback), but achieved only 0.21% improvement vs ≥5% exit criterion — blocked by dataset/perturbation limitation rather than implementation bug.
+Next: Supervisor decision required per blocked.md — accept lower threshold (≥0.2%) and close, authorize larger perturbation trial, or defer ≥5% gate to future dataset work.
+Artifacts: plans/active/TORCH-REFINE-002D/reports/2025-11-05T083500Z/ (collect_stage_a.log, pytest_stage_a.log, blocked.md)

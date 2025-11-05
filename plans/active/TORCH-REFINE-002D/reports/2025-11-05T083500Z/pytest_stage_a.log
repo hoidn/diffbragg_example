@@ -1,0 +1,216 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 1 item
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion FAILED     [100%]
+
+=================================== FAILURES ===================================
+____________________________ test_stage_a_expansion ____________________________
+
+refgeom_dataload = <dbex.data_load.DataLoad object at 0x7d0a21ffb970>
+refinement_inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0.,...  [ True,  True,  True, ...,  True,  True,  True]]]), target_representation='adu', global_scale_hint=62.65738056380318)
+hkl_data = (tensor([[[0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0.,... 0.]]]), {'grid_max': 518.3336791992188, 'grid_mean': 16.896526336669922, 'grid_min': 0.0, 'grid_nonzero': 69614, ...})
+
+    def test_stage_a_expansion(refgeom_dataload, refinement_inputs, hkl_data):
+        """
+        Verify Stage A LBFGS refinement with full crystal DoFs achieves ≥5% loss decrease.
+    
+        Acceptance criteria (TORCH-REFINE-002D):
+        1. Refinement runs without errors (status != "error")
+        2. Telemetry contains all required keys (scale, cell a/b/c, angles, orientation, misset_xyz_deg)
+        3. Orientation telemetry reports deterministic misset angles from perturbed geometry
+        4. Improvement gate (≥5%) now enabled with haloed grid + tricubic interpolation
+        5. Full-loss trace is non-increasing over last 3 validations
+    
+        Per TORCH-REFINE-002D: Stage A now runs with tricubic HKL interpolation (interpolate=True)
+        against a haloed grid (±1 padding) to prevent default_F fallback near grid boundaries.
+        Deterministic geometry perturbation (+2/+1/+1% cell stretch, +1.5° Z-misset) plumbed
+        through baseline_crystal parameter exercises orientation recovery while fractional HKL
+        coordinates from the perturbed basis stay within haloed grid bounds.
+    
+        Environment:
+        - Requires: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1
+        - Selector: pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+        """
+        from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig
+    
+        hkl_grid, hkl_metadata = hkl_data
+    
+        # Configure refinement (Stage A expansion per TORCH-REFINE-002D)
+        config = RefinementConfig(
+            device='cpu',
+            dtype=torch.float32,
+            history_size=10,
+            max_iter=30,  # ≤30 steps for Stage A expansion
+            roi_sample_fraction=0.15,
+            full_validation_interval=5,
+            min_loss_improvement=0.05,  # 5% threshold for full crystal DoFs
+            enable_hkl_interpolation=True  # TORCH-REFINE-002D: Enable tricubic with haloed grid
+        )
+    
+        # Create perturbed geometry (TORCH-REFINE-002D)
+        # Applies deterministic cell stretch and orientation misset to exercise Stage A recovery
+        # with tricubic HKL interpolation enabled (haloed grid prevents default_F fallback)
+        baseline_crystal = refgeom_dataload.Expt.crystal
+        baseline_detector = refgeom_dataload.Expt.detector
+        baseline_beam = refgeom_dataload.Expt.beam
+    
+        perturbed_crystal, perturbed_detector, perturbed_beam = create_perturbed_geometry(
+            baseline_crystal, baseline_detector, baseline_beam
+        )
+    
+        # Run refinement with perturbed geometry and baseline crystal for misset extraction
+        bragg_refined, telemetry = run_nanobrag_refinement(
+            inputs=refinement_inputs,
+            detector=perturbed_detector,
+            beam=perturbed_beam,
+            crystal=perturbed_crystal,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            config=config,
+            baseline_crystal=baseline_crystal  # Enables U_delta extraction for orientation telemetry
+        )
+    
+        # Acceptance 1: Refinement completed without errors
+        assert telemetry.status != "error", f"Refinement failed: {telemetry.message}"
+    
+        # Acceptance 2: Telemetry completeness (validate structure BEFORE gating per Option D)
+        assert telemetry.optimizer == "LBFGS"
+        assert telemetry.stage == "A"
+        assert telemetry.history_size == config.history_size
+        assert telemetry.max_iter == config.max_iter
+        assert len(telemetry.loss_trace_sample) > 0, "Sample loss trace empty"
+        assert len(telemetry.loss_trace_full) > 0, "Full loss trace empty"
+        assert telemetry.best_loss_full[0] > 0, "Best loss invalid"
+    
+        # Verify all new DoF deltas are present (including misset_xyz_deg per TORCH-REFINE-002)
+        required_params = ['log_scale', 'log_cell_a_delta', 'log_cell_b_delta', 'log_cell_c_delta',
+                          'angle_alpha_raw', 'angle_beta_raw', 'angle_gamma_raw', 'orientation_vec', 'misset_xyz_deg']
+        for param in required_params:
+            assert param in telemetry.param_deltas, f"{param} delta missing"
+    
+        # Acceptance 3: Orientation telemetry structure validation (TORCH-REFINE-002D)
+        # Validate BEFORE improvement gating to ensure plumbing is exercised regardless of dataset
+        misset_xyz = telemetry.param_deltas['misset_xyz_deg']
+        assert 'final' in misset_xyz, "misset_xyz_deg missing 'final' field"
+        assert 'initial' in misset_xyz, "misset_xyz_deg missing 'initial' field"
+        assert 'quaternion_norm' in misset_xyz, "misset_xyz_deg missing 'quaternion_norm' field"
+    
+        misset_xyz_final = misset_xyz['final']
+        misset_xyz_initial = misset_xyz['initial']
+        assert len(misset_xyz_final) == 3, f"misset_xyz_deg should have 3 components, got {len(misset_xyz_final)}"
+        assert len(misset_xyz_initial) == 3, f"misset_xyz_deg initial should have 3 components, got {len(misset_xyz_initial)}"
+    
+        # Check quaternion normalization (should be ~1.0)
+        quat_norm = misset_xyz['quaternion_norm']
+        assert abs(quat_norm - 1.0) < 1e-3, f"Quaternion norm {quat_norm:.6f} far from 1.0"
+    
+        # TORCH-REFINE-002D: Assert deterministic misset angles are reported in telemetry
+        # create_perturbed_geometry applies +1.5° Z-axis rotation, which should appear in initial misset
+        # Expected: ~[0, 0, 1.5] degrees (XYZ extrinsic Euler angles)
+        # Tolerance: ±0.2° to account for U_delta reconstruction and Euler conversion
+        expected_z_misset_deg = 1.5
+        misset_z_initial = misset_xyz_initial[2]  # Z-component (yaw/gamma)
+        assert abs(misset_z_initial - expected_z_misset_deg) < 0.2, (
+            f"Initial Z-misset {misset_z_initial:.3f}° differs from expected {expected_z_misset_deg:.1f}° "
+            f"(perturbed geometry Z-rotation). Full initial misset: {misset_xyz_initial}"
+        )
+    
+        # X and Y components should be near zero (no perturbation applied to those axes)
+        assert abs(misset_xyz_initial[0]) < 0.2, f"Initial X-misset {misset_xyz_initial[0]:.3f}° should be ~0"
+        assert abs(misset_xyz_initial[1]) < 0.2, f"Initial Y-misset {misset_xyz_initial[1]:.3f}° should be ~0"
+    
+        # Acceptance 4: Non-increasing full-loss trace over last 3 validations
+        if len(telemetry.loss_trace_full) >= 3:
+            last_three_losses = [loss for _, loss in telemetry.loss_trace_full[-3:]]
+            for i in range(1, len(last_three_losses)):
+                assert last_three_losses[i] <= last_three_losses[i-1] * 1.02, (
+                    f"Full-loss increased by >2% at validation {i}: "
+                    f"{last_three_losses[i-1]:.2e} → {last_three_losses[i]:.2e}"
+                )
+    
+        # Acceptance 5: Param deltas non-zero (relaxed for well-initialized scenarios)
+        scale_delta = telemetry.param_deltas['log_scale']['delta']
+        assert abs(scale_delta) > 1e-6, f"log_scale delta too small: {scale_delta:.3e}"
+    
+        # Acceptance 6: ≥5% improvement gate (TORCH-REFINE-002D)
+        # Haloed grid + tricubic interpolation restores gradient flow for perturbed geometry
+        assert len(telemetry.loss_trace_full) >= 2, "Insufficient full-loss validations"
+        initial_loss = telemetry.loss_trace_full[0][1]
+        final_loss = telemetry.loss_trace_full[-1][1]
+        improvement = (initial_loss - final_loss) / initial_loss
+    
+>       assert improvement >= 0.05, (
+            f"Loss improvement {improvement:.2%} < 5% threshold. "
+            f"TORCH-REFINE-002D: Haloed grid (±1 padding) + tricubic interpolation enabled, "
+            f"but improvement remains below gate. Check HKL hit rate, interpolation correctness, "
+            f"and telemetry logs. (initial={initial_loss:.2e}, final={final_loss:.2e}, "
+            f"iterations={len(telemetry.loss_trace_sample)})"
+        )
+E       AssertionError: Loss improvement 0.21% < 5% threshold. TORCH-REFINE-002D: Haloed grid (±1 padding) + tricubic interpolation enabled, but improvement remains below gate. Check HKL hit rate, interpolation correctness, and telemetry logs. (initial=9.76e+05, final=9.74e+05, iterations=13)
+E       assert 0.0020644160293241585 >= 0.05
+
+tests/dbex/test_torch_refine_smoke.py:324: AssertionError
+----------------------------- Captured stdout call -----------------------------
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6103634/6224001 (98.07%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6103634/6224001 (98.07%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6103634/6224001 (98.07%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6103626/6224001 (98.07%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6103629/6224001 (98.07%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6103628/6224001 (98.07%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6103628/6224001 (98.07%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6103628/6224001 (98.07%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6103628/6224001 (98.07%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6104665/6224001 (98.08%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6103634/6224001 (98.07%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6103638/6224001 (98.07%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6103634/6224001 (98.07%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6103634/6224001 (98.07%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6103634/6224001 (98.07%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6103634/6224001 (98.07%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6103634/6224001 (98.07%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6103634/6224001 (98.07%)
+=============================== warnings summary ===============================
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion - Assert...
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+================== 1 failed, 4 warnings in 173.61s (0:02:53) ===================

@@ -1,0 +1,219 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 1 item
+
+tests/dbex/test_torch_refine_smoke.py::test_loss_decreases FAILED        [100%]
+
+=================================== FAILURES ===================================
+_____________________________ test_loss_decreases ______________________________
+
+refgeom_dataload = <dbex.data_load.DataLoad object at 0x7249f19fa7f0>
+refinement_inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0.,...  [ True,  True,  True, ...,  True,  True,  True]]]), target_representation='adu', global_scale_hint=62.65738056380318)
+hkl_data = (tensor([[[0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0.,..., 0.]]]), {'grid_max': 518.3336791992188, 'grid_mean': 18.78112030029297, 'grid_min': 0.0, 'grid_nonzero': 69614, ...})
+
+    def test_loss_decreases(refgeom_dataload, refinement_inputs, hkl_data):
+        """
+        Verify Stage A LBFGS refinement achieves ≥5% loss decrease.
+    
+        Acceptance criteria:
+        1. Refinement runs without errors (status != "error")
+        2. Final masked MSE is ≥5% lower than initial
+        3. Telemetry contains all required keys
+        4. Full-loss trace is non-increasing over last 3 validations
+        5. Param deltas show non-zero updates for scale and crystal DoF
+    
+        Environment:
+        - Requires: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1
+        - Selector: pytest -v tests/dbex/test_torch_refine_smoke.py::test_loss_decreases
+        """
+        from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig
+    
+        hkl_grid, hkl_metadata = hkl_data
+    
+        # Configure refinement
+        config = RefinementConfig(
+            device='cpu',
+            dtype=torch.float32,
+            history_size=10,
+            max_iter=20,
+            roi_sample_fraction=0.15,
+            full_validation_interval=5,
+            min_loss_improvement=0.05
+        )
+    
+        # Run refinement
+        bragg_refined, telemetry = run_nanobrag_refinement(
+            inputs=refinement_inputs,
+            detector=refgeom_dataload.detector,
+            beam=refgeom_dataload.beam,
+            crystal=refgeom_dataload.crystal,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            config=config
+        )
+    
+        # Acceptance 1: Refinement completed without errors
+        assert telemetry.status != "error", f"Refinement failed: {telemetry.message}"
+    
+        # Acceptance 2: Loss decreased by ≥5%
+        assert len(telemetry.loss_trace_full) >= 2, "Insufficient full-loss validations"
+        initial_loss = telemetry.loss_trace_full[0][1]
+        final_loss = telemetry.loss_trace_full[-1][1]
+        improvement = (initial_loss - final_loss) / initial_loss
+    
+>       assert improvement >= 0.05, (
+            f"Loss improvement {improvement:.2%} < 5% threshold "
+            f"(initial={initial_loss:.2e}, final={final_loss:.2e})"
+        )
+E       AssertionError: Loss improvement 0.01% < 5% threshold (initial=9.76e+05, final=9.76e+05)
+E       assert 0.00010174358018178485 >= 0.05
+
+tests/dbex/test_torch_refine_smoke.py:160: AssertionError
+----------------------------- Captured stdout call -----------------------------
+auto-selected 1-fold oversampling
+[HKL stats] h=[-23,8] k=[-27,11] l=[-28,10] hit_rate=6207106/6224001 (99.73%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-23,8] k=[-27,11] l=[-28,10] hit_rate=6207106/6224001 (99.73%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-23,8] k=[-27,11] l=[-28,10] hit_rate=6207106/6224001 (99.73%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-23,8] k=[-27,11] l=[-28,10] hit_rate=6207106/6224001 (99.73%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-23,8] k=[-27,11] l=[-28,10] hit_rate=6207106/6224001 (99.73%)
+=============================== warnings summary ===============================
+tests/dbex/test_torch_refine_smoke.py::test_loss_decreases
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_loss_decreases
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_loss_decreases
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_loss_decreases
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+============================= slowest 1 durations ==============================
+36.07s call     tests/dbex/test_torch_refine_smoke.py::test_loss_decreases
+=========================== short test summary info ============================
+FAILED tests/dbex/test_torch_refine_smoke.py::test_loss_decreases - Assertion...
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+======================== 1 failed, 4 warnings in 39.24s ========================
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 1 item
+
+tests/dbex/test_torch_refine_smoke.py::test_loss_decreases auto-selected 1-fold oversampling
+[HKL stats] h=[-23,8] k=[-27,11] l=[-28,10] hit_rate=6207106/6224001 (99.73%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-23,8] k=[-27,11] l=[-28,10] hit_rate=6207106/6224001 (99.73%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-23,8] k=[-27,11] l=[-28,10] hit_rate=6207106/6224001 (99.73%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-23,8] k=[-27,11] l=[-28,10] hit_rate=6207106/6224001 (99.73%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-23,8] k=[-27,11] l=[-28,10] hit_rate=6207106/6224001 (99.73%)
+FAILED
+
+=================================== FAILURES ===================================
+_____________________________ test_loss_decreases ______________________________
+
+refgeom_dataload = <dbex.data_load.DataLoad object at 0x74e57ce383a0>
+refinement_inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0.,...  [ True,  True,  True, ...,  True,  True,  True]]]), target_representation='adu', global_scale_hint=62.65738056380318)
+hkl_data = (tensor([[[0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0.,..., 0.]]]), {'grid_max': 518.3336791992188, 'grid_mean': 18.78112030029297, 'grid_min': 0.0, 'grid_nonzero': 69614, ...})
+
+    def test_loss_decreases(refgeom_dataload, refinement_inputs, hkl_data):
+        """
+        Verify Stage A LBFGS refinement achieves ≥5% loss decrease.
+    
+        Acceptance criteria:
+        1. Refinement runs without errors (status != "error")
+        2. Final masked MSE is ≥5% lower than initial
+        3. Telemetry contains all required keys
+        4. Full-loss trace is non-increasing over last 3 validations
+        5. Param deltas show non-zero updates for scale and crystal DoF
+    
+        Environment:
+        - Requires: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1
+        - Selector: pytest -v tests/dbex/test_torch_refine_smoke.py::test_loss_decreases
+        """
+        from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig
+    
+        hkl_grid, hkl_metadata = hkl_data
+    
+        # Configure refinement
+        config = RefinementConfig(
+            device='cpu',
+            dtype=torch.float32,
+            history_size=10,
+            max_iter=20,
+            roi_sample_fraction=0.15,
+            full_validation_interval=5,
+            min_loss_improvement=0.05
+        )
+    
+        # Run refinement
+        bragg_refined, telemetry = run_nanobrag_refinement(
+            inputs=refinement_inputs,
+            detector=refgeom_dataload.detector,
+            beam=refgeom_dataload.beam,
+            crystal=refgeom_dataload.crystal,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            config=config
+        )
+    
+        # Acceptance 1: Refinement completed without errors
+        assert telemetry.status != "error", f"Refinement failed: {telemetry.message}"
+    
+        # Acceptance 2: Loss decreased by ≥5%
+        assert len(telemetry.loss_trace_full) >= 2, "Insufficient full-loss validations"
+        initial_loss = telemetry.loss_trace_full[0][1]
+        final_loss = telemetry.loss_trace_full[-1][1]
+        improvement = (initial_loss - final_loss) / initial_loss
+    
+>       assert improvement >= 0.05, (
+            f"Loss improvement {improvement:.2%} < 5% threshold "
+            f"(initial={initial_loss:.2e}, final={final_loss:.2e})"
+        )
+E       AssertionError: Loss improvement 0.01% < 5% threshold (initial=9.76e+05, final=9.76e+05)
+E       assert 0.00010174358018178485 >= 0.05
+
+tests/dbex/test_torch_refine_smoke.py:160: AssertionError
+=============================== warnings summary ===============================
+tests/dbex/test_torch_refine_smoke.py::test_loss_decreases
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_loss_decreases
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_loss_decreases
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_loss_decreases
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+============================= slowest 1 durations ==============================
+35.61s call     tests/dbex/test_torch_refine_smoke.py::test_loss_decreases
+=========================== short test summary info ============================
+FAILED tests/dbex/test_torch_refine_smoke.py::test_loss_decreases - Assertion...
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+======================== 1 failed, 4 warnings in 38.81s ========================

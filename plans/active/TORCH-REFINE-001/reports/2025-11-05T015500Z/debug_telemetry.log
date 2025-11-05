@@ -1,0 +1,5 @@
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+Traceback (most recent call last):
+  File "<string>", line 5, in <module>
+ImportError: cannot import name 'RefinementInputs' from 'dbex.nanobrag_refinement' (/home/ollie/Documents/diffbragg_example_2/diffbragg_example/dbex/nanobrag_refinement.py)

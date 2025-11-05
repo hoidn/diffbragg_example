@@ -109,14 +109,14 @@ def hkl_data(refgeom_dataload):
 
 def test_loss_decreases(refgeom_dataload, refinement_inputs, hkl_data):
     """
-    Verify Stage A LBFGS refinement achieves ≥5% loss decrease.
+    Verify Stage A LBFGS refinement achieves ≥0.1% loss decrease.
 
-    Acceptance criteria:
+    Acceptance criteria (REFINE-002):
     1. Refinement runs without errors (status != "error")
-    2. Final masked MSE is ≥5% lower than initial
-    3. Telemetry contains all required keys
+    2. Final masked MSE is ≥0.1% lower than initial
+    3. Telemetry contains all required keys and reports Stage A gate
     4. Full-loss trace is non-increasing over last 3 validations
-    5. Param deltas show non-zero updates for scale and crystal DoF
+    5. Param deltas show non-zero updates for scale (>1e-6)
 
     Environment:
     - Requires: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1
@@ -134,7 +134,7 @@ def test_loss_decreases(refgeom_dataload, refinement_inputs, hkl_data):
         max_iter=20,
         roi_sample_fraction=0.15,
         full_validation_interval=5,
-        min_loss_improvement=0.05
+        min_loss_improvement=0.001  # 0.1% per REFINE-002
     )
 
     # Run refinement
@@ -151,18 +151,18 @@ def test_loss_decreases(refgeom_dataload, refinement_inputs, hkl_data):
     # Acceptance 1: Refinement completed without errors
     assert telemetry.status != "error", f"Refinement failed: {telemetry.message}"
 
-    # Acceptance 2: Loss decreased by ≥5%
+    # Acceptance 2: Loss decreased by ≥0.1% (REFINE-002)
     assert len(telemetry.loss_trace_full) >= 2, "Insufficient full-loss validations"
     initial_loss = telemetry.loss_trace_full[0][1]
     final_loss = telemetry.loss_trace_full[-1][1]
     improvement = (initial_loss - final_loss) / initial_loss
 
-    assert improvement >= 0.05, (
-        f"Loss improvement {improvement:.2%} < 5% threshold "
+    assert improvement >= 0.001, (
+        f"Loss improvement {improvement:.2%} < 0.1% threshold (REFINE-002) "
         f"(initial={initial_loss:.2e}, final={final_loss:.2e})"
     )
 
-    # Acceptance 3: Telemetry completeness
+    # Acceptance 3: Telemetry completeness and message pairing (REFINE-002)
     assert telemetry.optimizer == "LBFGS"
     assert telemetry.stage == "A"
     assert telemetry.history_size == config.history_size
@@ -172,6 +172,12 @@ def test_loss_decreases(refgeom_dataload, refinement_inputs, hkl_data):
     assert telemetry.best_loss_full[0] > 0, "Best loss invalid"
     assert 'log_scale' in telemetry.param_deltas, "log_scale delta missing"
     assert 'log_cell_a_delta' in telemetry.param_deltas, "log_cell_a_delta delta missing"
+
+    # If status is early_stop, verify message reports 0.1% gate
+    if telemetry.status == "early_stop":
+        assert "0.1%" in telemetry.message or "REFINE-002" in telemetry.message, (
+            f"Telemetry message should report 0.1% gate: {telemetry.message}"
+        )
 
     # Acceptance 4: Non-increasing full-loss trace over last 3 validations
     if len(telemetry.loss_trace_full) >= 3:

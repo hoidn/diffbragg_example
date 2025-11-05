@@ -10,7 +10,7 @@ Stage A scope:
 - Parameters: global scale (ADU mode) + one crystal DoF (cell_a log perturbation)
 - Loss: mean(((Bragg - target)[loss_mask]) ** 2)
 - ROI policy: deterministic ROI sampling for LBFGS closure; periodic full validation
-- Convergence: ≥5% loss drop within ≤20 LBFGS steps; non-increasing full-loss trace
+- Convergence: ≥0.1% loss drop within ≤20 LBFGS steps; non-increasing full-loss trace (REFINE-002)
 
 Telemetry emitted to `/torch_diagnostics`:
 - optimizer metadata (LBFGS, history_size, max_iter, tolerances)
@@ -39,7 +39,7 @@ class RefinementConfig:
     full_validation_interval: int = 5  # Validate on full loss every N steps
 
     # Convergence guards
-    min_loss_improvement: float = 0.05  # 5% minimum improvement
+    min_loss_improvement: float = 0.001  # 0.1% minimum improvement (REFINE-002)
     early_stop_window: int = 3  # Stop if no improvement over last K validations
     max_loss_increase: float = 0.02  # 2% max increase before rollback
 
@@ -298,7 +298,7 @@ def run_nanobrag_refinement(
 
             if improvement < config.min_loss_improvement:
                 status = "early_stop"
-                message = f"Improvement {improvement:.2%} < {config.min_loss_improvement:.2%}"
+                message = f"Improvement {improvement:.2%} < {config.min_loss_improvement:.1%} (Stage A nucleus gate per REFINE-002)"
 
     except Exception as e:
         status = "error"

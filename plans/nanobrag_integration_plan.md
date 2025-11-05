@@ -218,6 +218,26 @@ Acceptance for the Nucleus (Stage A):
 Extensibility:
 - After the nucleus: widen Stage A parameter set (full crystal logs/angles), enable Stage C (detector normal translations), and optionally Stage B (shell modifiers) with the same closure + telemetry contract.
 
+### Stage B — Structure‑Factor Refinement Modes
+
+Purpose: Support two strategies for refining structure‑factor amplitudes, keeping production scalable while enabling apples‑to‑apples parity with DiffBragg when needed.
+
+- Production (default): Per‑shell/global modifiers
+  - Optimize a small set of per‑resolution shell or global multipliers applied to |F|.
+  - Requires differentiable HKL interpolation (tricubic or equivalent) so modifiers back‑propagate correctly.
+  - Telemetry: `stage_b_mode="shell"`, `modifier_count`, `loss_trace_sample/full`, `param_deltas` (shell bins).
+
+- Parity (opt‑in): Per‑reflection multipliers (DiffBragg‑style)
+  - One parameter per unique reflection in the dense HKL grid; apply as F′ = sqrt(scale) × F.
+  - Positive parameterization (e.g., exp or softplus+ε) to keep scales > 0.
+  - Preserve ASU/Friedel mapping semantics to match DiffBragg updates and MTZ write‑back behavior.
+  - Differentiable HKL interpolation is required; if nanobrag_torch cannot expose differentiable sampling, treat this as an upstream bug to be filed (do not add local non‑diff paths).
+  - Telemetry: `stage_b_mode="per_reflection"`, `param_count`, `loss_trace_sample/full`, `param_deltas` (summary stats), and optional `fopt_writeback_stats` for audit.
+
+Notes
+- ROI minibatching may be used inside the LBFGS closure to control cost; validate on full loss periodically.
+- Choose the mode via CLI/config flag; default to `shell` for production, use `per_reflection` for diagnostics/parity reports.
+
 ## Phase 4 – CLI Integration & Output (2 days)
 
 ### Tasks

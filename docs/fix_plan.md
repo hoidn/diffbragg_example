@@ -58,6 +58,16 @@
   3. Targeted pytest selector (Stage B smoke) collects and passes; document skip if dataset/golden not yet available.
 - Working Plan: plans/active/TORCH-REFINE-004/implementation.md
 
+### [TORCH-REFINE-005] Stage B per‑reflection parity (opt‑in)
+- Depends on: TORCH-REFINE-001, docs/spec-db-workflow.md §“Staging”, plans/nanobrag_integration_plan.md §Phase 3
+- Status: pending
+- Owner/Date: Galph/Ralph / 2025-11-05
+- Exit Criteria:
+  1. Implement per‑reflection multipliers applied as F′ = sqrt(scale) × F with positive parameterization (exp/softplus+ε); preserve ASU/Friedel mapping to mirror DiffBragg updates.
+  2. Achieve parity against DiffBragg on a canonical dataset: ROI correlation/score deltas within documented tolerances; MTZ write‑back semantics match (audit artifact).
+  3. Differentiable HKL interpolation is used end‑to‑end; no non‑differentiable fallbacks on the optimization path. Telemetry records `stage_b_mode=per_reflection`, `param_count`, loss traces, and summary `param_deltas`.
+- Working Plan: plans/active/TORCH-REFINE-005/implementation.md
+
 ### [MAP-SCALE-001] Zero-iteration mapping scale alignment
 - Depends on: DB-AT-024, DB-AT-023, SCALE-001, SCALE-002, docs/spec-db-workflow.md §4, docs/architecture.md §4.3, CONFORMANCE-001
 - Status: done (Phase D complete — docs & metrics synchronized)

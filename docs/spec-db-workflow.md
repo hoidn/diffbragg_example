@@ -28,7 +28,10 @@ Pipeline (Normative)
    - Loss SHALL be `mean(((Bragg - target)[loss_mask])^2)`.
 7) Staging
    - Stage A (Crystal + Scale): refine cell (logs/angles), orientation (quaternion→XYZ), global scale; fix N_cells and mosaic/phi for stills.
-   - Stage B (Optional Fhkl): enable tricubic; refine a small number of per‑shell/global F modifiers (softplus); keep base |F| fixed.
+   - Stage B (Optional Fhkl): two strategies are supported —
+     • Production (default): refine a small number of per‑shell/global F modifiers (softplus); keep base |F| fixed.  
+     • Parity (opt‑in): refine per‑reflection multipliers F′ = sqrt(scale) × F to match DiffBragg semantics for diagnostics.
+     Differentiable HKL interpolation (tricubic or equivalent) is required; if nanobrag_torch does not expose this, treat it as an upstream bug to resolve.
    - Stage C (Detector): refine per‑panel translation along detector normal (distance offset); rotations fixed initially.
 
 Optimization Strategy (Normative)
@@ -42,7 +45,7 @@ Gradient Hygiene (Normative)
 - The optimization path (LBFGS closure and any functions it calls) MUST NOT call `.cpu()`, `.detach()`, `.numpy()`, `.item()`, or run under `with torch.no_grad()` for values that influence the forward pass.
 - HDF5 persistence and viewer artifacts MUST be written from detached copies outside the optimization step.
 - Stage parameter sets MUST be enumerated per stage; non‑active parameters are treated as constants.
-- Stage B MAY run only when differentiable HKL interpolation (e.g., tricubic) is enabled; otherwise Stage B SHALL be skipped.
+- Stage B assumes differentiable HKL interpolation in nanobrag_torch; if it is unavailable or broken, treat this as an upstream defect rather than introducing non‑differentiable fallbacks in the optimization path.
 
 Outputs (Normative)
 - Full‑frame `Bragg` tensor on the simulator device; HDF5 outputs MAY mirror viewer layout for ROIs.

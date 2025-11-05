@@ -1,0 +1,38 @@
+{
+  "cell_scales": [
+    1.05,
+    1.03,
+    1.03
+  ],
+  "misset_deg": 5.0,
+  "max_iter": 30,
+  "roi_sample_fraction": 0.15,
+  "iterations": 12,
+  "status": "early_stop",
+  "initial_loss": 976138.5625,
+  "final_loss": 975007.9375,
+  "improvement_fraction": 0.0011582628157874872,
+  "improvement_percent": 0.11582628157874872,
+  "misset_initial": [
+    1.5902773592947552e-15,
+    -9.541664367526768e-15,
+    5.0
+  ],
+  "misset_final": [
+    7.036715942376759e-06,
+    5.587546183960512e-06,
+    4.999997615814209
+  ],
+  "orientation_norm": 1.540624566587212e-06,
+  "hkl_in_range_fraction": 1.0,
+  "hkl_bounds": {
+    "h_min": -26,
+    "h_max": 26,
+    "k_min": -30,
+    "k_max": 30,
+    "l_min": -33,
+    "l_max": 33,
+    "has_halo": true,
+    "halo_width": 2
+  }
+}

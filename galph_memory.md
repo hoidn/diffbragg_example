@@ -955,3 +955,13 @@ Notes
 - Next Actions: Ralph to lower `min_loss_improvement` to 0.002, update Stage A smoke assertion/logs to ≥0.2%, rerun selector, and downgrade REFINE-004/005 once metrics captured.
 - <Action State>: [ready_for_implementation]
 2025-11-05T093000Z focus=TORCH-REFINE-002D state=ready_for_implementation dwell=0 artifacts=plans/active/TORCH-REFINE-002D/reports/2025-11-05T093000Z/ next_action=calibrate_stage_a_gate_implementation
+
+## 2025-11-05T110500Z — TORCH-REFINE-003 stage C planning handoff
+- Focus: TORCH-REFINE-003 — Stage C detector microslip
+- Action Type: planning
+- Key Observations: Authored Stage C implementation plan (phases covering detector distance parameterization, LBFGS loop, telemetry, validation), confirmed Stage C contract in docs/spec-db-workflow.md §7 and plans/nanobrag_integration_plan.md §Phase 3, and probed nanobrag_torch DetectorConfig fields to plan distance overrides. Fix plan marked in_progress with attempt history and reports scaffolding seeded.
+- Artifact Path: plans/active/TORCH-REFINE-003/reports/2025-11-05T110500Z/
+- Next Actions: Delegate Stage C LBFGS integration + smoke test implementation per new input.md Do Now.
+- <Action State>: [ready_for_implementation]
+
+2025-11-05T110500Z focus=TORCH-REFINE-003 state=ready_for_implementation dwell=0 artifacts=plans/active/TORCH-REFINE-003/reports/2025-11-05T110500Z/ next_action=stage_c_lbfgs_integration

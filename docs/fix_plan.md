@@ -78,13 +78,15 @@
 
 ### [TORCH-REFINE-003] Stage C detector microslip
 - Depends on: TORCH-REFINE-001, docs/spec-db-workflow.md §“Staging”, plans/nanobrag_integration_plan.md §Phase 3
-- Status: pending
+- Status: in_progress
 - Owner/Date: Galph/Ralph / 2025-11-05
 - Exit Criteria:
   1. Enable per‑panel translation along detector normal (distance offset) with optional small rotations deferred; optimize via LBFGS closure with same convergence/telemetry gates; record per‑panel `param_deltas`.
   2. Deterministic ROI‑sample loss decreases by ≥ 5% within ≤ 30 LBFGS steps; full‑frame validations are non‑increasing across last 3 validations (or tolerances reached). Telemetry includes stage label and panel counts.
   3. Targeted pytest selector (Stage C smoke) collects and passes; no new collection failures introduced.
 - Working Plan: plans/active/TORCH-REFINE-003/implementation.md
+- Attempts History:
+  * 2025-11-05T110500Z (planning) — Established Stage C working plan and artifact scaffolding. Summarized detector microslip objectives, codified phased checklist (parameterization, LBFGS integration, telemetry, testing), and enumerated mapped tests + commands for Ralph. Referenced docs/spec-db-workflow.md §7 and plans/nanobrag_integration_plan.md §Phase 3 to confirm Stage C contract (per-panel odet translations, ≥5% gate). Captured DetectorConfig field probe output and seeded reports directory `plans/active/TORCH-REFINE-003/reports/2025-11-05T110500Z/`. Next Actions: Hand off ready-for-implementation Do Now covering Stage C LBFGS integration + Stage C smoke test authoring.
 
 ### [TORCH-REFINE-004] Stage B Fhkl modifiers (optional)
 - Depends on: TORCH-REFINE-001, docs/spec-db-workflow.md §“Staging”, plans/nanobrag_integration_plan.md §Phase 3

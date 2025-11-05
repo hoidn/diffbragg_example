@@ -906,3 +906,13 @@ Notes
 - <Action State>: [ready_for_implementation]
 
 2025-11-05T035905Z focus=TORCH-REFINE-002 state=ready_for_implementation dwell=0 artifacts=plans/active/TORCH-REFINE-002/reports/2025-11-05T035905Z/ next_action=orientation_misset_implementation
+
+## 2025-11-05T041539Z — TORCH-REFINE-002 HKL grid block triage
+- Focus: TORCH-REFINE-002 — Stage A expansion — full crystal and orientation
+- Action Type: planning
+- Key Observations: Confirmed the deterministic perturbation triggers 0% HKL hit rate (REFINE-005) so the ≥5% gate cannot pass until structure factors are reindexed; logged the new finding, refreshed implementation checklist (Option D), and rewrote `input.md` with the baseline-geometry + `pytest.xfail` handoff. Perturbation helper remains in place for future HKL-ready assets.
+- Artifact Path: plans/active/TORCH-REFINE-002/reports/2025-11-05T041539Z/
+- Next Actions: Ralph implements the Stage A smoke rewrite (telemetry assertions + `pytest.xfail`), captures selector logs, and records the HKL dependency before pivoting to the dataset initiative.
+- <Action State>: [ready_for_implementation]
+
+2025-11-05T041539Z focus=TORCH-REFINE-002 state=ready_for_implementation dwell=1 artifacts=plans/active/TORCH-REFINE-002/reports/2025-11-05T041539Z/ next_action=stage_a_xfail_implementation

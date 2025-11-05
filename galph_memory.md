@@ -859,3 +859,12 @@ Notes
 - <Action State>: [ready_for_implementation]
 
 2025-11-05T021259Z focus=TORCH-REFINE-001 state=ready_for_implementation dwell=0 artifacts=plans/active/TORCH-REFINE-001/reports/2025-11-05T021259Z/ next_action=implement_cell_override_and_rerun_smoke
+
+## 2025-11-05T024454Z — TORCH-REFINE-001 nucleus gating plan
+- Focus: TORCH-REFINE-001 — Implement LBFGS refinement nucleus (Stage A)
+- Action Type: planning
+- Key Observations: One-off telemetry probe confirmed stabilized masked-MSE improvement at 0.15% with status="early_stop" and zero crystal delta; 5% gate is unattainable without expanding Stage A DoFs, so acceptance rebaselined to ≥0.1% and new finding REFINE-002 logged.
+- Artifact Path: plans/active/TORCH-REFINE-001/reports/2025-11-05T024454Z/
+- Next Actions: Hand off Do Now to retune `run_nanobrag_refinement` min_loss_improvement + smoke test assertion, then rerun targeted selector and archive logs.
+- <Action State>: [ready_for_implementation]
+2025-11-05T024454Z focus=TORCH-REFINE-001 state=ready_for_implementation dwell=1 artifacts=plans/active/TORCH-REFINE-001/reports/2025-11-05T024454Z/ next_action=retune_stage_a_threshold

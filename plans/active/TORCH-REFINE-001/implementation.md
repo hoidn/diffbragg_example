@@ -44,3 +44,7 @@ Establish the minimal, verifiable torch refinement loop using `torch.optim.LBFGS
 - Full suite (after nucleus stabilized):
   - `KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/`
 
+## Next Up (crumbs for supervisor)
+- TORCH-REFINE-002 — Stage A expansion: full crystal (logs a,b,c; angles α,β,γ), orientation, global scale; same LBFGS closure, convergence/telemetry gates. See plans/nanobrag_integration_plan.md §Phase 3.
+- TORCH-REFINE-003 — Stage C detector microslip: per‑panel normal translations (and optional small rotations), convergence/telemetry gates. See plans/nanobrag_integration_plan.md §Phase 3.
+- TORCH-REFINE-004 — Stage B Fhkl modifiers (optional): per‑shell/global multipliers with regularization. See plans/nanobrag_integration_plan.md §Phase 3.

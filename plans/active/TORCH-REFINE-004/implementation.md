@@ -30,7 +30,7 @@
 
 ## Outstanding cleanup
 - [x] Realign bridge config tests/docs with the torch mask emission (CLI-001), ensuring polarity/dtype checks stay meaningful without breaking Stage B refinement paths. (2025-11-05T200729Z artifacts)
-- [ ] Replay the CLI refine-one telemetry smoke and archive logs to prove the bridge mask asserts stay silent end-to-end.
+- [x] Replay the CLI refine-one telemetry smoke and archive logs to prove the bridge mask asserts stay silent end-to-end (2025-11-05T210730Z artifacts).
 
 ## Exit reminders
 - Capture targeted logs (`collect_stage_b.log`, `pytest_stage_b_shell.log`, Stage A comparison traces) under `plans/active/TORCH-REFINE-004/reports/<timestamp>/`.

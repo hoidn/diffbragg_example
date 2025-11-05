@@ -1,59 +1,54 @@
-Summary: Verify the nanobrag CLI path honors the torch mask contract and keep Stage B telemetry green while tightening test coverage.
-Mode: none
-Focus: TORCH-REFINE-004 — Stage B Fhkl modifiers (optional)
+Summary: Hoist Stage A detector context so LBFGS stops rebuilding per ROI while keeping telemetry unchanged.
+Mode: Perf
+Focus: PERF-WARM-SIM-001 — Warm Simulator; Eliminate Per-Iteration Re-Instantiation
 Branch: integration
-Mapped tests: tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_runs_simulator, tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
-Artifacts: plans/active/TORCH-REFINE-004/reports/2025-11-05T210730Z/
+Mapped tests: tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion, tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+Artifacts: plans/active/PERF-WARM-SIM-001/reports/2025-11-05T221200Z/
 
 Do Now:
-- TORCH-REFINE-004 — Stage B Fhkl modifiers (optional)
-  - Implement: tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_runs_simulator — capture the mocked Detector config, assert `mask_array` is a torch float tensor with {0.0, 1.0} values (CLI-001), and document the guard so the CLI path can’t regress back to numpy.
-  - Validate: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest --collect-only tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_runs_simulator | tee $ARTIFACTS/collect_cli_bridge.log && AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest -vv tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_runs_simulator --maxfail=1 --capture=tee-sys | tee $ARTIFACTS/pytest_cli_bridge.log
-  - Validate: export KMP_DUPLICATE_LIB_OK=TRUE; export NANOBRAGG_DISABLE_COMPILE=1; AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers | tee $ARTIFACTS/collect_stage_b.log && AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --maxfail=1 --capture=tee-sys | tee $ARTIFACTS/pytest_stage_b.log
-  - Validate: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md python -m dbex.refine_one --backend nanobrag -e refGeom.expt -r refGeom.refl -i 0 -o $ARTIFACTS/nanobrag_stage_progress.h5 -m 747_mask.pkl -z scaled.mtz | tee $ARTIFACTS/refine_cli.log
-  - Artifacts: plans/active/TORCH-REFINE-004/reports/2025-11-05T210730Z/
+- PERF-WARM-SIM-001 — Warm Simulator; Eliminate Per-Iteration Re-Instantiation
+  - Implement: dbex/nanobrag_refinement.py::run_nanobrag_refinement — introduce a Stage A panel context cache that precomputes detector configs/models plus trusted mask/target tensors so the LBFGS closure reuses them instead of rebuilding per panel, while keeping Stage B/C telemetry dictionaries identical.
+  - Validate: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion | tee $ARTIFACTS/collect_stage_a.log && KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion --maxfail=1 --capture=tee-sys | tee $ARTIFACTS/pytest_stage_a.log
+  - Validate: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers | tee $ARTIFACTS/collect_stage_b.log && KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --maxfail=1 --capture=tee-sys | tee $ARTIFACTS/pytest_stage_b.log
+  - Artifacts: plans/active/PERF-WARM-SIM-001/reports/2025-11-05T221200Z/
 
 How-To Map:
 - export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
-- export ARTIFACTS=plans/active/TORCH-REFINE-004/reports/2025-11-05T210730Z
+- export ARTIFACTS=plans/active/PERF-WARM-SIM-001/reports/2025-11-05T221200Z
 - mkdir -p "$ARTIFACTS"
-- AUTHORITATIVE_CMDS_DOC=$AUTHORITATIVE_CMDS_DOC pytest --collect-only tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_runs_simulator | tee "$ARTIFACTS/collect_cli_bridge.log"
-- AUTHORITATIVE_CMDS_DOC=$AUTHORITATIVE_CMDS_DOC pytest -vv tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_runs_simulator --maxfail=1 --capture=tee-sys | tee "$ARTIFACTS/pytest_cli_bridge.log"
-- export KMP_DUPLICATE_LIB_OK=TRUE
-- export NANOBRAGG_DISABLE_COMPILE=1
+- AUTHORITATIVE_CMDS_DOC=$AUTHORITATIVE_CMDS_DOC pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion | tee "$ARTIFACTS/collect_stage_a.log"
+- KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 AUTHORITATIVE_CMDS_DOC=$AUTHORITATIVE_CMDS_DOC pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion --maxfail=1 --capture=tee-sys | tee "$ARTIFACTS/pytest_stage_a.log"
 - AUTHORITATIVE_CMDS_DOC=$AUTHORITATIVE_CMDS_DOC pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers | tee "$ARTIFACTS/collect_stage_b.log"
-- AUTHORITATIVE_CMDS_DOC=$AUTHORITATIVE_CMDS_DOC pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --maxfail=1 --capture=tee-sys | tee "$ARTIFACTS/pytest_stage_b.log"
-- KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 AUTHORITATIVE_CMDS_DOC=$AUTHORITATIVE_CMDS_DOC python -m dbex.refine_one --backend nanobrag -e refGeom.expt -r refGeom.refl -i 0 -o "$ARTIFACTS/nanobrag_stage_progress.h5" -m 747_mask.pkl -z scaled.mtz | tee "$ARTIFACTS/refine_cli.log"
-- rg "mask_array" dbex/nanobrag_bridge.py | tee "$ARTIFACTS/mask_guard_probe.txt"
-- printf "CLI mask guard + Stage B smoke verified; see %s, %s, %s\\n" "$ARTIFACTS/pytest_cli_bridge.log" "$ARTIFACTS/pytest_stage_b.log" "$ARTIFACTS/refine_cli.log" >> "$ARTIFACTS/summary.md"
+- KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 AUTHORITATIVE_CMDS_DOC=$AUTHORITATIVE_CMDS_DOC pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --maxfail=1 --capture=tee-sys | tee "$ARTIFACTS/pytest_stage_b.log"
+- printf "Stage A/B warm-sim cache validated; see %s and %s\n" "$ARTIFACTS/pytest_stage_a.log" "$ARTIFACTS/pytest_stage_b.log" >> "$ARTIFACTS/summary.md"
 
 Pitfalls To Avoid:
-- Keep Environment Freeze intact; no installs or conda tweaks if imports fail.
-- Do not revert torch mask emission—CLI-001 requires `torch.Tensor` with float32 dtype.
-- Ensure Stage B smoke runs with `NANOBRAGG_DISABLE_COMPILE=1` (RUNTIME-001) to avoid Dynamo interference.
-- Preserve deterministic ROI sampling; Stage B sampler must reuse Stage A IDs (REFINE-008).
-- Capture collect-only logs before running selectors (TESTING-003) so documentation stays synchronized.
-- When running the CLI, confirm output paths live under `$ARTIFACTS` to avoid polluting prior reports.
-- Keep CLI run on CPU; do not set CUDA-specific flags that might change telemetry.
-- Do not modify `RefinementConfig.stage_b_min_loss_improvement`; calibration already landed at 1e-8.
-- Preserve mask polarity (1=include) when asserting in tests; no tolerance for float drift.
-- If CLI throws, record minimal traceback and exit rather than continuing with stale artifacts.
+- Keep Environment Freeze intact; no package installs or runtime tweaks to chase perf.
+- Preserve Stage A telemetry structure (`loss_trace_*`, `roi_count_sampled`, snapshots) byte-for-byte for downstream consumers.
+- Do not reorder sampled panels; Stage B expects Stage A sample IDs in deterministic order (REFINE-008).
+- Maintain `log_scale` warm-start/clamp semantics per REFINE-001 when refactoring closures.
+- Ensure cached detector masks stay as float32 tensors with {0.0,1.0} polarity (CONFIG-001).
+- Avoid keeping CUDA tensors; stay on CPU and honor `NANOBRAGG_DISABLE_COMPILE=1` (RUNTIME-001).
+- Update cache invalidation when cell/orientation tensors change to prevent stale geometry.
+- Capture collect-only logs before running selectors (TESTING-003) so docs remain synchronized.
 
 If Blocked:
-- Save the failing command output to $ARTIFACTS/blocker.log, note the traceback and offending dtype/device, update docs/fix_plan.md status to `blocked` with the error signature, and log the retry condition in galph_memory.md before exiting.
+- Tee the failing command output to $ARTIFACTS/blocker.log, note the exception and offending panel/context, set docs/fix_plan.md status to `blocked` with the signature, and record the retry condition in galph_memory.md before exiting.
 
 Findings Applied (Mandatory):
-- CLI-001 — Guard torch mask emission in CLI paths; new test must enforce tensor dtype/polarity.
-- REFINE-008 — Stage B gate calibrated to 1e-8; smoke rerun ensures telemetry stays consistent.
-- TESTING-003 — Collect-only logs precede pytest runs so selector status remains authoritative.
-- RUNTIME-001 — Disable torch.compile via `NANOBRAGG_DISABLE_COMPILE=1` for refinement selectors.
+- REFINE-001 — Maintain scale warm-start and clamp bounds while reorganizing Stage A closure.
+- REFINE-002 — Keep the ≥0.1% Stage A improvement gate semantics intact when caching detectors.
+- CONFIG-001 — Cached detector masks must preserve polarity and dtype expected by nanobrag_torch.
+- RUNTIME-001 — Run smokes with `NANOBRAGG_DISABLE_COMPILE=1` to avoid Dynamo interference.
+- TESTING-003 — Collect-only logs precede pytest runs and land under the artifacts directory.
 
 Pointers:
-- dbex/nanobrag_bridge.py:379 — Torch mask coercion logic referenced by CLI-001.
-- tests/dbex/test_refine_one_cli.py:90 — Nanobrag backend simulator test to enhance with mask assertions.
-- tests/dbex/test_torch_refine_smoke.py:647 — Stage B telemetry assertions that must remain green post-CLI run.
-- docs/config_crosswalk.md:31 — Detector mask mapping reference confirming torch float32 requirement.
-- plans/active/TORCH-REFINE-004/reports/2025-11-05T200729Z/pytest_stage_b_regression.log — Previous Stage B telemetry pass baseline.
+- dbex/nanobrag_refinement.py:394 — Stage A parameter initialization block targeted for cache reuse.
+- dbex/nanobrag_refinement.py:537 — Current per-panel Detector instantiation inside the closure.
+- plans/active/PERF-WARM-SIM-001/implementation.md:1 — Warm simulator implementation plan and task breakdown.
+- docs/pytorch_runtime_checklist.md:26 — Runtime flags required for deterministic refinement tests.
+- docs/development/testing_strategy.md:34 — Selector/collect-only cadence guardrails.
 
 Next Up (optional):
-- Re-run full pytest suite once CLI smoke and Stage B pass to confirm no latent regressions.
+- Extend the Stage A cache to reuse Crystal/Simulator objects and add perf counters under `/torch_diagnostics`.
+- Apply the warm context pattern to Stage B shell modifiers once Stage A reuse is stable.

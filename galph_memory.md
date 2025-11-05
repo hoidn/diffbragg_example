@@ -1045,3 +1045,21 @@ Notes
 - Next Actions: Execute CLI mask guard Do Now (update CLI test, rerun targeted selectors, capture refine_one telemetry).
 - <Action State>: [ready_for_implementation]
 2025-11-05T210730Z focus=TORCH-REFINE-004 state=ready_for_implementation dwell=0 artifacts=plans/active/TORCH-REFINE-004/reports/2025-11-05T210730Z/ next_action=execute_cli_mask_guard_do_now
+
+## 2025-11-05T221000Z — TORCH-REFINE-004 Stage B closeout
+- Focus: TORCH-REFINE-004 — Stage B Fhkl modifiers (optional)
+- Action Type: review_or_housekeeping
+- Key Observations: Verified the CLI mask guard loop landed cleanly, marked the initiative `done` in docs/fix_plan.md with a closeout attempt referencing 2025-11-05T210730Z artifacts, and checked the implementation plan so the outstanding cleanup item is now complete. Stage B telemetry gate, findings (REFINE-008/CLI-001), and artifacts all reflect the calibrated 1e-8 ceiling.
+- Artifact Path: plans/active/TORCH-REFINE-004/reports/2025-11-05T210730Z/
+- Next Actions: Switch focus to PERF-WARM-SIM-001 for Stage A warm-simulator work.
+- <Action State>: [review_or_housekeeping]
+2025-11-05T221000Z focus=TORCH-REFINE-004 state=ready_for_implementation dwell=0 artifacts=plans/active/TORCH-REFINE-004/reports/2025-11-05T210730Z/ next_action=switch_focus
+
+## 2025-11-05T221200Z — PERF-WARM-SIM-001 Stage A cache plan
+- Focus: PERF-WARM-SIM-001 — Warm Simulator; Eliminate Per-Iteration Re-Instantiation
+- Action Type: planning
+- Key Observations: Audited Stage A closure in `dbex/nanobrag_refinement.py` and confirmed each LBFGS step rebuilds detector configs/models and retensors masks per panel. Updated docs/fix_plan.md and input.md with a Do Now that introduces a reusable Stage A panel cache (detector config/model + mask/target views) so we can drop the rebuild churn while preserving Stage B/C telemetry semantics.
+- Artifact Path: plans/active/PERF-WARM-SIM-001/reports/2025-11-05T221200Z/
+- Next Actions: Implement stage_a_panel_cache_impl in `run_nanobrag_refinement`, rerun Stage A/B smokes under `NANOBRAGG_DISABLE_COMPILE=1`, and capture logs + perf notes for the new artifact set.
+- <Action State>: [planning]
+2025-11-05T221200Z focus=PERF-WARM-SIM-001 state=planning dwell=0 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-05T221200Z/ next_action=stage_a_panel_cache_impl

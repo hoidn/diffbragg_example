@@ -173,7 +173,10 @@ def refinement_inputs(refgeom_dataload):
 
 @pytest.fixture
 def hkl_data(refgeom_dataload):
-    """Build HKL grid from refGeom MTZ."""
+    """Build HKL grid from refGeom MTZ with ±1 halo for interpolation.
+
+    Per TORCH-REFINE-002D: Enables tricubic interpolation support for Stage A expansion.
+    """
     from dbex.nanobrag_bridge import build_structure_factor_grid
 
     hkl_indices = refgeom_dataload.F.indices()
@@ -182,7 +185,8 @@ def hkl_data(refgeom_dataload):
     hkl_grid, hkl_metadata = build_structure_factor_grid(
         indices=hkl_indices,
         amplitudes=hkl_amplitudes,
-        device=torch.device('cpu')
+        device=torch.device('cpu'),
+        halo=True  # TORCH-REFINE-002D: Add ±1 padding for tricubic interpolation
     )
 
     return hkl_grid, hkl_metadata
@@ -196,14 +200,14 @@ def test_stage_a_expansion(refgeom_dataload, refinement_inputs, hkl_data):
     1. Refinement runs without errors (status != "error")
     2. Telemetry contains all required keys (scale, cell a/b/c, angles, orientation, misset_xyz_deg)
     3. Orientation telemetry reports deterministic misset angles from perturbed geometry
-    4. Improvement gate (≥5%) marked as xfail until HKL-aware dataset lands (REFINE-005)
+    4. Improvement gate (≥5%) now enabled with haloed grid + tricubic interpolation
     5. Full-loss trace is non-increasing over last 3 validations
 
-    Per TORCH-REFINE-002D: Stage A now runs on nearest-neighbor HKL (interpolate=False)
-    with deterministic geometry perturbation (+2/+1/+1% cell stretch, +1.5° Z-misset)
-    plumbed through baseline_crystal parameter so orientation telemetry exercises the
-    misset path while remaining HKL-compatible (fractional indices handled by NN lookup).
-    ≥5% gate still deferred awaiting additional perturbation amplitude or HKL rebuild.
+    Per TORCH-REFINE-002D: Stage A now runs with tricubic HKL interpolation (interpolate=True)
+    against a haloed grid (±1 padding) to prevent default_F fallback near grid boundaries.
+    Deterministic geometry perturbation (+2/+1/+1% cell stretch, +1.5° Z-misset) plumbed
+    through baseline_crystal parameter exercises orientation recovery while fractional HKL
+    coordinates from the perturbed basis stay within haloed grid bounds.
 
     Environment:
     - Requires: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1
@@ -213,7 +217,7 @@ def test_stage_a_expansion(refgeom_dataload, refinement_inputs, hkl_data):
 
     hkl_grid, hkl_metadata = hkl_data
 
-    # Configure refinement (Stage A expansion per TORCH-REFINE-002)
+    # Configure refinement (Stage A expansion per TORCH-REFINE-002D)
     config = RefinementConfig(
         device='cpu',
         dtype=torch.float32,
@@ -221,12 +225,13 @@ def test_stage_a_expansion(refgeom_dataload, refinement_inputs, hkl_data):
         max_iter=30,  # ≤30 steps for Stage A expansion
         roi_sample_fraction=0.15,
         full_validation_interval=5,
-        min_loss_improvement=0.05  # 5% threshold for full crystal DoFs
+        min_loss_improvement=0.05,  # 5% threshold for full crystal DoFs
+        enable_hkl_interpolation=True  # TORCH-REFINE-002D: Enable tricubic with haloed grid
     )
 
     # Create perturbed geometry (TORCH-REFINE-002D)
     # Applies deterministic cell stretch and orientation misset to exercise Stage A recovery
-    # with nearest-neighbor HKL lookup (no tricubic, no grid rebuild required)
+    # with tricubic HKL interpolation enabled (haloed grid prevents default_F fallback)
     baseline_crystal = refgeom_dataload.Expt.crystal
     baseline_detector = refgeom_dataload.Expt.detector
     baseline_beam = refgeom_dataload.Expt.beam
@@ -309,26 +314,28 @@ def test_stage_a_expansion(refgeom_dataload, refinement_inputs, hkl_data):
     scale_delta = telemetry.param_deltas['log_scale']['delta']
     assert abs(scale_delta) > 1e-6, f"log_scale delta too small: {scale_delta:.3e}"
 
-    # Acceptance 6: ≥5% improvement gate (XFAIL awaiting HKL-aware dataset)
-    # Per TORCH-REFINE-002D: Deterministic perturbation (+2/+1/+1% cell, +1.5° Z-misset)
-    # now plumbed with nearest-neighbor HKL (interpolate=False), enabling orientation
-    # telemetry validation. However, NN lookup provides negligible orientation gradient
-    # (<0.3% improvement per 2025-11-05T060833Z analysis), so ≥5% gate remains deferred
-    # until either (a) HKL grid rebuild for perturbed A*, or (b) larger perturbation amplitude.
+    # Acceptance 6: ≥5% improvement gate (TORCH-REFINE-002D)
+    # Haloed grid + tricubic interpolation restores gradient flow for perturbed geometry
     assert len(telemetry.loss_trace_full) >= 2, "Insufficient full-loss validations"
     initial_loss = telemetry.loss_trace_full[0][1]
     final_loss = telemetry.loss_trace_full[-1][1]
     improvement = (initial_loss - final_loss) / initial_loss
 
-    if improvement < 0.05:
-        pytest.xfail(
-            f"Loss improvement {improvement:.2%} < 5% threshold. "
-            f"TORCH-REFINE-002D: Deterministic perturbation (+1.5° Z-misset) plumbed via "
-            f"baseline_crystal parameter and interpolate=False enables fractional HKL access, "
-            f"but nearest-neighbor lookup yields negligible orientation gradient. ≥5% gate "
-            f"deferred until HKL grid rebuild or larger perturbation amplitude available. "
-            f"(initial={initial_loss:.2e}, final={final_loss:.2e})"
-        )
+    assert improvement >= 0.05, (
+        f"Loss improvement {improvement:.2%} < 5% threshold. "
+        f"TORCH-REFINE-002D: Haloed grid (±1 padding) + tricubic interpolation enabled, "
+        f"but improvement remains below gate. Check HKL hit rate, interpolation correctness, "
+        f"and telemetry logs. (initial={initial_loss:.2e}, final={final_loss:.2e}, "
+        f"iterations={len(telemetry.loss_trace_sample)})"
+    )
+
+    # Log achieved improvement for tracking
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(
+        f"Stage A expansion achieved {improvement:.2%} improvement "
+        f"({initial_loss:.2e} → {final_loss:.2e}) in {len(telemetry.loss_trace_sample)} iterations"
+    )
 
     # Output shape correctness
     assert bragg_refined.shape == refinement_inputs.target.shape

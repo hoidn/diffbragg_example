@@ -144,6 +144,11 @@ class RefinementConfig:
     early_stop_window: int = 3  # Stop if no improvement over last K validations
     max_loss_increase: float = 0.02  # 2% max increase before rollback
 
+    # HKL interpolation (TORCH-REFINE-002D, REFINE-005)
+    # Enable tricubic interpolation for structure factors; requires halo-padded grid
+    # Defaults to False (nearest-neighbor) to protect datasets without halo support
+    enable_hkl_interpolation: bool = False
+
     # Device/dtype
     device: str = "cpu"
     dtype: torch.dtype = torch.float32
@@ -404,10 +409,10 @@ def run_nanobrag_refinement(
             detector_model = Detector(detector_config)
             crystal_model = Crystal(crystal_config)
 
-            # Stage A policy: disable HKL interpolation (nearest-neighbor |F|)
-            # Per REFINE-005 and input.md, Stage A uses nearest-neighbor to avoid
-            # tricubic halo requirements and gradient issues with fractional HKL indices
-            crystal_model.interpolate = False
+            # HKL interpolation control (TORCH-REFINE-002D, REFINE-005)
+            # Defaults to nearest-neighbor (False) unless explicitly enabled via config
+            # Tricubic interpolation requires halo-padded grid to avoid default_F fallback
+            crystal_model.interpolate = config.enable_hkl_interpolation
 
             # Attach HKL data
             crystal_model.hkl_data = hkl_grid.to(device=device, dtype=dtype)
@@ -605,10 +610,10 @@ def run_nanobrag_refinement(
             detector_model = Detector(detector_config)
             crystal_model = Crystal(crystal_config)
 
-            # Stage A policy: disable HKL interpolation (nearest-neighbor |F|)
-            # Per REFINE-005 and input.md, Stage A uses nearest-neighbor to avoid
-            # tricubic halo requirements and gradient issues with fractional HKL indices
-            crystal_model.interpolate = False
+            # HKL interpolation control (TORCH-REFINE-002D, REFINE-005)
+            # Defaults to nearest-neighbor (False) unless explicitly enabled via config
+            # Tricubic interpolation requires halo-padded grid to avoid default_F fallback
+            crystal_model.interpolate = config.enable_hkl_interpolation
 
             crystal_model.hkl_data = hkl_grid.to(device=device, dtype=dtype)
             crystal_model.hkl_metadata = hkl_metadata

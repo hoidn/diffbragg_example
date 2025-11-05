@@ -556,7 +556,7 @@ def create_crystal_config(crystal, experiment, N_cells=None, apply_n_cells=True,
 # ============================================================================
 
 
-def build_structure_factor_grid(indices, amplitudes, device=None):
+def build_structure_factor_grid(indices, amplitudes, device=None, halo=False):
     """Build dense 3D HKL grid for nanobrag_torch from MTZ reflections.
 
     Implements SCALE-001: Structure factors pass through unscaled.
@@ -567,11 +567,15 @@ def build_structure_factor_grid(indices, amplitudes, device=None):
         indices: Miller indices array-like, shape (n_reflections, 3), dtype int
         amplitudes: Structure factor amplitudes |F|, shape (n_reflections,), dtype float
         device: torch device (optional; defaults to CPU if not provided)
+        halo: bool (optional; default False). If True, adds a ±1 padding layer to each
+            axis (h/k/l) to support tricubic interpolation without default_F fallback
+            near grid boundaries (REFINE-005, TORCH-REFINE-002D). Padded cells are
+            filled with zeros.
 
     Returns:
         tuple: (grid, metadata) where
             - grid: torch.Tensor, shape (h_range, k_range, l_range), dtype float32
-            - metadata: dict with HKL range, grid stats, and coverage info
+            - metadata: dict with HKL range, grid stats, coverage info, and 'has_halo' flag
 
     Raises:
         ImportError: If torch is not available
@@ -579,6 +583,8 @@ def build_structure_factor_grid(indices, amplitudes, device=None):
     Note:
         Per SCALE-001 (docs/findings.md:15), structure factors are NOT scaled by
         spot_scale_override. Scaling is applied post-simulation per SCALE-002.
+        Per REFINE-005 (docs/findings.md:18), halo padding prevents tricubic
+        interpolation from falling back to default_F near grid boundaries.
     """
     import logging
 
@@ -609,21 +615,34 @@ def build_structure_factor_grid(indices, amplitudes, device=None):
     )
 
     # Compute HKL grid bounds
-    # TODO(STAGE-B): Add a ±1 halo to each axis (h/k/l) when building the grid
-    # for tricubic interpolation. This padding prevents out‑of‑bounds lookups
-    # from falling back to default_F near the edges during Stage B.
-    # When implemented, update h_min/h_max, k_min/k_max, l_min/l_max accordingly
-    # and reflect the padded extents in the returned metadata.
-    h_min, h_max = int(hkls[:, 0].min()), int(hkls[:, 0].max())
-    k_min, k_max = int(hkls[:, 1].min()), int(hkls[:, 1].max())
-    l_min, l_max = int(hkls[:, 2].min()), int(hkls[:, 2].max())
+    # Base bounds from reflection data
+    h_min_data, h_max_data = int(hkls[:, 0].min()), int(hkls[:, 0].max())
+    k_min_data, k_max_data = int(hkls[:, 1].min()), int(hkls[:, 1].max())
+    l_min_data, l_max_data = int(hkls[:, 2].min()), int(hkls[:, 2].max())
+
+    # Apply ±1 halo if requested (TORCH-REFINE-002D, REFINE-005)
+    # Halo padding prevents tricubic interpolation from falling back to default_F
+    # near grid boundaries when fractional HKL indices land outside the data envelope
+    halo_width = 1 if halo else 0
+    h_min = h_min_data - halo_width
+    h_max = h_max_data + halo_width
+    k_min = k_min_data - halo_width
+    k_max = k_max_data + halo_width
+    l_min = l_min_data - halo_width
+    l_max = l_max_data + halo_width
 
     h_range = h_max - h_min + 1
     k_range = k_max - k_min + 1
     l_range = l_max - l_min + 1
 
-    # Allocate grid on specified device
+    # Allocate grid on specified device (padded if halo enabled)
     grid = torch.zeros((h_range, k_range, l_range), device=device, dtype=torch.float32)
+
+    if halo:
+        logger.info(
+            f"HKL grid with ±1 halo: h=[{h_min},{h_max}], k=[{k_min},{k_max}], l=[{l_min},{l_max}] "
+            f"(data envelope: h=[{h_min_data},{h_max_data}], k=[{k_min_data},{k_max_data}], l=[{l_min_data},{l_max_data}])"
+        )
 
     # Populate grid with structure factor amplitudes
     n_total = len(hkls)
@@ -650,8 +669,6 @@ def build_structure_factor_grid(indices, amplitudes, device=None):
     )
 
     # Build metadata dict
-    # TODO(TELEMETRY): Consider adding a flag (e.g., 'has_halo': True/False)
-    # once halo padding is implemented, so Stage B tests can assert halo presence.
     metadata = {
         "h_min": h_min,
         "h_max": h_max,
@@ -669,6 +686,7 @@ def build_structure_factor_grid(indices, amplitudes, device=None):
         "grid_min": grid_min,
         "grid_max": grid_max,
         "grid_mean": grid_mean,
+        "has_halo": halo,  # TORCH-REFINE-002D: Flag for Stage B interpolation tests
     }
 
     return grid, metadata

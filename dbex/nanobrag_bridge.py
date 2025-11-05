@@ -442,7 +442,7 @@ def create_beam_config(beam, flux=None, beamsize_mm=None, exposure=None) -> Beam
     return BeamConfig(**beam_kwargs)
 
 
-def create_crystal_config(crystal, experiment, N_cells=None, apply_n_cells=True) -> Tuple[CrystalConfig, bool]:
+def create_crystal_config(crystal, experiment, N_cells=None, apply_n_cells=True, crystal_overrides=None) -> Tuple[CrystalConfig, bool]:
     """
     Create CrystalConfig from dxtbx crystal and experiment with optional calibration overrides.
 
@@ -458,6 +458,10 @@ def create_crystal_config(crystal, experiment, N_cells=None, apply_n_cells=True)
         experiment: dxtbx Experiment object (for scan/goniometer)
         N_cells: Optional tuple of 3 ints for mosaic domain counts (from calibration metadata)
         apply_n_cells: If False, ignore N_cells even if provided (SCALE-005 guard)
+        crystal_overrides: Optional dict of tensor-valued crystal parameter overrides
+                          for refinement. Supports keys: 'cell_a', 'cell_b', 'cell_c',
+                          'cell_alpha', 'cell_beta', 'cell_gamma'. Tensors must have
+                          requires_grad=True to preserve gradient flow (GRADIENT-001).
 
     Returns:
         Tuple of (CrystalConfig, n_cells_applied: bool) where n_cells_applied indicates
@@ -466,6 +470,22 @@ def create_crystal_config(crystal, experiment, N_cells=None, apply_n_cells=True)
     # Unit cell parameters (config_crosswalk.md:61)
     # dxtbx returns (a, b, c, alpha, beta, gamma) in Angstroms and degrees
     a, b, c, alpha, beta, gamma = crystal.get_unit_cell().parameters()
+
+    # Apply crystal_overrides if provided (GRADIENT-001)
+    # This allows tensor-valued parameters to flow through for refinement
+    if crystal_overrides is not None:
+        if 'cell_a' in crystal_overrides:
+            a = crystal_overrides['cell_a']
+        if 'cell_b' in crystal_overrides:
+            b = crystal_overrides['cell_b']
+        if 'cell_c' in crystal_overrides:
+            c = crystal_overrides['cell_c']
+        if 'cell_alpha' in crystal_overrides:
+            alpha = crystal_overrides['cell_alpha']
+        if 'cell_beta' in crystal_overrides:
+            beta = crystal_overrides['cell_beta']
+        if 'cell_gamma' in crystal_overrides:
+            gamma = crystal_overrides['cell_gamma']
 
     # MOSFLM A* injection (config_crosswalk.md:62)
     # Columns of A matrix are (a*, b*, c*) in 1/Angstrom

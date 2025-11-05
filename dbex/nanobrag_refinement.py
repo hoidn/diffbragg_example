@@ -194,31 +194,15 @@ def run_nanobrag_refinement(
 
             beam_config = create_beam_config(beam)
 
-            # Apply cell_a perturbation
+            # Apply cell_a perturbation via tensor override (GRADIENT-001)
             # Get original cell parameters
             cell_params = crystal.get_unit_cell().parameters()  # (a, b, c, alpha, beta, gamma)
             perturbed_cell_a = cell_params[0] * torch.exp(log_cell_a_delta)
 
-            # Create crystal config with perturbed cell_a
+            # Create crystal config with perturbed cell_a using crystal_overrides
             # Note: create_crystal_config returns (config, n_cells_applied) tuple
-            crystal_config, _ = create_crystal_config(crystal, None)
-
-            # Override cell_a in the config (hack: modify namedtuple via _replace if available,
-            # or rebuild the config object)
-            # For now, we'll rebuild the crystal geometry with perturbed cell
-            # This requires dxtbx crystal modification, which breaks the gradient graph.
-            # Instead, we need to pass crystal_overrides to create_crystal_config.
-
-            # GRADIENT-001: Use tensor override path to preserve autograd
-            # However, create_crystal_config doesn't support tensor overrides yet.
-            # For this nucleus, we'll apply the perturbation post-hoc by scaling
-            # the crystal A* matrix columns (cell_a affects first column magnitude).
-
-            # Simplified approach for nucleus: apply cell_a perturbation as a
-            # multiplicative factor to the HKL grid intensities, since cell_a
-            # primarily affects the reciprocal lattice spacing.
-            # This is a proxy DoF that demonstrates gradient flow without
-            # requiring full crystal geometry rebuilding.
+            crystal_overrides = {'cell_a': perturbed_cell_a}
+            crystal_config, _ = create_crystal_config(crystal, None, crystal_overrides=crystal_overrides)
 
             # Build detector and crystal models
             detector_model = Detector(detector_config)
@@ -346,7 +330,12 @@ def run_nanobrag_refinement(
                 )
 
             beam_config = create_beam_config(beam)
-            crystal_config, _ = create_crystal_config(crystal, None)
+
+            # Apply final cell_a perturbation via tensor override (GRADIENT-001)
+            cell_params = crystal.get_unit_cell().parameters()
+            perturbed_cell_a = cell_params[0] * torch.exp(log_cell_a_delta)
+            crystal_overrides = {'cell_a': perturbed_cell_a}
+            crystal_config, _ = create_crystal_config(crystal, None, crystal_overrides=crystal_overrides)
 
             detector_model = Detector(detector_config)
             crystal_model = Crystal(crystal_config)

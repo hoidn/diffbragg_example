@@ -846,3 +846,5 @@ Notes
 - <Action State>: [ready_for_implementation]
 
 2025-11-05T010747Z focus=TORCH-REFINE-001 state=ready_for_implementation dwell=1 artifacts=plans/active/TORCH-REFINE-001/reports/2025-11-05T010747Z/ next_action=stage_a_mask_tensor_fix
+
+2025-11-05T014128Z focus=TORCH-REFINE-001 state=ready_for_implementation dwell=2 artifacts=plans/active/TORCH-REFINE-001/reports/2025-11-05T013525Z/ next_action=warm_start_log_scale_and_rerun_smoke

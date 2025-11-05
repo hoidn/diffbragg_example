@@ -27,9 +27,9 @@ Establish the minimal, verifiable torch refinement loop using `torch.optim.LBFGS
   - [ ] C1: Expose a backend flag/mode to run the nucleus; keep default behavior unchanged.
   - [ ] C2: Update docs (fix_plan Attempts History, TESTING_GUIDE/TEST_SUITE_INDEX if a new selector is added); archive artifacts.
 
-### Current Issues (2025-11-05T010747Z)
-- Stage A refinement path instantiates `nanobrag_torch.Detector` with numpy `mask_array`, triggering `AttributeError: 'numpy.ndarray' object has no attribute 'to'` during simulator init. Mirror the zero-iteration path by coercing panel masks to torch tensors (device/dtype aware) before building the detector model.
-- Smoke selector `tests/dbex/test_torch_refine_smoke.py::test_loss_decreases` currently fails; re-run after mask conversion to validate ≥5% loss drop and telemetry payload.
+### Current Issues (2025-11-05T013525Z)
+- Mask coercion fix landed (see plans/active/TORCH-REFINE-001/reports/2025-11-05T014500Z/summary.md), so the simulator now initializes, but Stage A LBFGS aborts because `log_scale` leaps to ~8.99e+01 and `torch.exp(log_scale)` overflows, triggering the NaN/Inf gradient guard (`dbex/nanobrag_refinement.py:233-238`). Telemetry shows best snapshot restoring `log_scale≈4.29` (scale≈72) while `RefinementInputs.global_scale_hint=62.66`, matching the warm-start requirements in `docs/spec-db-workflow.md:20-40`. We must seed `log_scale` from the hint and bound updates (clamp or similar) so LBFGS stays finite.
+- Targeted selector `tests/dbex/test_torch_refine_smoke.py::test_loss_decreases` still fails with telemetry.status `"error"` (artifacts: plans/active/TORCH-REFINE-001/reports/2025-11-05T013525Z/pytest_refine_smoke_fail.log); rerun after stabilizing the scale parameterization and capture telemetry snapshot to confirm ≥5% loss drop.
 
 ## Mapped Tests (initial)
 - Refinement smoke (to be added): `tests/dbex/test_torch_refine_smoke.py::test_loss_decreases`
@@ -47,11 +47,8 @@ Establish the minimal, verifiable torch refinement loop using `torch.optim.LBFGS
   - `KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/dbex/test_torch_refine_smoke.py::test_loss_decreases`
 - Full suite (after nucleus stabilized):
   - `KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/`
-<<<<<<< HEAD
 
 ## Next Up (crumbs for supervisor)
 - TORCH-REFINE-002 — Stage A expansion: full crystal (logs a,b,c; angles α,β,γ), orientation, global scale; same LBFGS closure, convergence/telemetry gates. See plans/nanobrag_integration_plan.md §Phase 3.
 - TORCH-REFINE-003 — Stage C detector microslip: per‑panel normal translations (and optional small rotations), convergence/telemetry gates. See plans/nanobrag_integration_plan.md §Phase 3.
 - TORCH-REFINE-004 — Stage B Fhkl modifiers (optional): per‑shell/global multipliers with regularization. See plans/nanobrag_integration_plan.md §Phase 3.
-=======
->>>>>>> c79b20d (SUPERVISOR AUTO: reports evidence — tests: not run)

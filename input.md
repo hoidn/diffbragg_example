@@ -1,45 +1,50 @@
-Summary: Plumb the deterministic Stage A misset into the refinement loop so the smoke can exercise the perturbation while staying on nearest-neighbor HKL.
+Summary: Halo the Stage A HKL grid and re-enable interpolation so the smoke regains the ≥5% gate.
 Mode: none
 Focus: TORCH-REFINE-002D — Stage A HKL-aware perturbation dataset
 Branch: integration
 Mapped tests: tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
-Artifacts: plans/active/TORCH-REFINE-002D/reports/2025-11-05T070500Z/
+Artifacts: plans/active/TORCH-REFINE-002D/reports/2025-11-05T083500Z/
 
 Do Now:
 - TORCH-REFINE-002D
-  - Implement: dbex/nanobrag_refinement.py::run_nanobrag_refinement — extract the refGeom→perturbed misset (U_delta) as torch tensors, add it to the quaternion-derived orientation delta before calling `create_crystal_config`, and set `crystal_model.interpolate = False` both inside the LBFGS closure and during the final full-image render.
-  - Implement: tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion — feed `create_perturbed_geometry` back into the smoke, assert telemetry reports the deterministic misset angles, and keep the ≥5% gate guarded with an updated xfail rationale until the HKL-aware dataset lands.
-  - Validate: pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion --maxfail=1
-  - Artifacts: plans/active/TORCH-REFINE-002D/reports/2025-11-05T070500Z/
+  - Implement: dbex/nanobrag_bridge.py::build_structure_factor_grid — add an optional ±1 halo (metadata + tensor padding) and document the toggle so Stage A can interpolate fractional HKL coordinates without hitting `default_F`.
+  - Implement: dbex/nanobrag_refinement.py::run_nanobrag_refinement — extend `RefinementConfig` with an interpolation flag and honor it when wiring `Crystal.interpolate`, preserving the NN default for datasets without a halo.
+  - Implement: tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion — request the haloed grid, enable interpolation, drop the interim xfail, and assert ≥5% masked-MSE improvement with telemetry logging the achieved delta.
+  - Validate: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion --maxfail=1
+  - Artifacts: plans/active/TORCH-REFINE-002D/reports/2025-11-05T083500Z/
 
 How-To Map:
 1. export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
-2. mkdir -p plans/active/TORCH-REFINE-002D/reports/2025-11-05T070500Z
-3. KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion | tee plans/active/TORCH-REFINE-002D/reports/2025-11-05T070500Z/collect_stage_a.log
-4. KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion --maxfail=1 | tee plans/active/TORCH-REFINE-002D/reports/2025-11-05T070500Z/pytest_stage_a.log
+2. mkdir -p plans/active/TORCH-REFINE-002D/reports/2025-11-05T083500Z
+3. KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion | tee plans/active/TORCH-REFINE-002D/reports/2025-11-05T083500Z/collect_stage_a.log
+4. KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion --maxfail=1 | tee plans/active/TORCH-REFINE-002D/reports/2025-11-05T083500Z/pytest_stage_a.log
+5. Record the post-run improvement + iteration count in plans/active/TORCH-REFINE-002D/reports/2025-11-05T083500Z/summary.md alongside telemetry excerpts.
 
 Pitfalls To Avoid:
-- Keep Stage A on nearest-neighbor |F| (do not enable tricubic) but ensure interpolation is explicitly disabled on the Crystal instance.
-- Derive the baseline misset from U_perturbed @ U_base^{-1}; do not reuse the absolute U or you will double-count the lattice rotation.
-- Preserve gradient flow: keep misset tensors on the refinement device/dtype without `.item()`/`.detach()` in the optimization path (GRADIENT-001).
-- Leave the perturbation helper deterministic and confined to the smoke test; no production assets or HKL grids may be mutated (REFINE-004/005).
-- Update the xfail rationale to reflect the remaining HKL dataset dependency so the report stays truthful once misset telemetry is live.
-- Respect Environment Freeze; no external installs or MTZ regeneration.
+- Do not mutate canonical HKL assets; halo padding must be applied in-memory only (Environment Freeze).
+- Keep tensor overrides on the refinement device/dtype without `.detach()` to satisfy GRADIENT-001.
+- Preserve the deterministic perturbation magnitudes (+2/+1/+1% cell, +1.5° Z) so REFINE-004 remains truthful.
+- Maintain ≥95% HKL hit rate; log new metadata if padding shifts ranges.
+- Ensure interpolation toggle defaults to False to protect other datasets until halo support is proven.
+- Avoid introducing new scripts outside plans/active/TORCH-REFINE-002D/bin/ unless promotion criteria are met.
+- Capture failing selectors verbatim if improvement <5% and mark the block before retrying.
+- Respect existing findings: do not remove the telemetry assertions that guard misset plumbing.
 
 If Blocked:
-- Capture the failure signature (stack trace, tensor device mismatch, or missing refGeom asset) in plans/active/TORCH-REFINE-002D/reports/2025-11-05T070500Z/blocked.md, update docs/fix_plan.md Attempts History with the timestamp, and log the block in galph_memory before switching focus.
+- Capture stack traces or sub-5% improvement metrics in plans/active/TORCH-REFINE-002D/reports/2025-11-05T083500Z/blocked.md, update docs/fix_plan.md Attempts History, and log the block in galph_memory.md before pivoting focus.
 
 Findings Applied (Mandatory):
-- REFINE-003 — Orientation overrides must flow through misset_deg rather than A*; reconstruct the baseline misset from U_delta.
-- REFINE-004 — Perturbation stays test-only; document the deterministic angles while we work toward restoring the ≥5% gate.
-- REFINE-005 — HKL grid is still built from the baseline crystal; keep the xfail and record hit-rate metrics until the dataset rebuild lands.
-- GRADIENT-001 — Maintain tensor-valued overrides without `.item()` to keep Stage A differentiable.
+- REFINE-003 — Orientation overrides must flow through `misset_deg_override`; retain deterministic misset telemetry when enabling interpolation.
+- REFINE-004 — Deterministic perturbation stays test-scoped; ≥5% gate must pass before we retire the finding.
+- REFINE-005 — Halo + interpolation must prevent `default_F` fallback when fractional HKL land near grid edges.
+- GRADIENT-001 — Orientation tensors must remain differentiable; avoid scalar conversions in the new toggle path.
 
 Pointers:
-- docs/fix_plan.md:60 — TORCH-REFINE-002D attempts and exit criteria.
-- plans/active/TORCH-REFINE-002D/implementation.md:18 — Phase 1/2 tasks for HKL-aware perturbation.
-- tests/dbex/test_torch_refine_smoke.py:63 — Deterministic perturbation helper details.
-- dbex/nanobrag_refinement.py:300 — Current crystal override plumbing and TODO to disable interpolation.
+- docs/fix_plan.md:60 — TORCH-REFINE-002D status, attempts, and refreshed Phase 1 plan.
+- plans/active/TORCH-REFINE-002D/implementation.md:18 — Halo/interpolation work breakdown (P1.1–P1.3, P2.1–P2.2).
+- tests/dbex/test_torch_refine_smoke.py:200 — Stage A acceptance criteria and telemetry assertions.
+- dbex/nanobrag_bridge.py:559 — Current HKL grid builder stub targeted for halo support.
+- dbex/nanobrag_refinement.py:340 — Crystal wiring where interpolation toggle must be honored.
 
 Next Up (optional):
-1. Measure gradient magnitudes after misset plumbing to size the HKL grid rebuild or perturbation amplitude adjustments.
+1. Run the Stage A smoke on GPU to confirm device-agnostic gradients once halo interpolation lands.

@@ -937,3 +937,13 @@ Notes
 
 2025-11-05T044720Z focus=TORCH-REFINE-002D state=ready_for_implementation dwell=0 artifacts=plans/active/TORCH-REFINE-002D/reports/2025-11-05T044720Z/ next_action=hkl_probe_script_implementation
 2025-11-05T060833Z focus=TORCH-REFINE-002D state=planning dwell=1 artifacts=plans/active/TORCH-REFINE-002D/reports/2025-11-05T060833Z/ next_action=prep_misset_override_do_now
+
+## 2025-11-05T083500Z — TORCH-REFINE-002D halo plan
+- Focus: TORCH-REFINE-002D — Stage A HKL-aware perturbation dataset
+- Action Type: planning
+- Key Observations: Nearest-neighbor HKL tops out at 0.22% improvement despite deterministic misset; refreshed Phase 1 to add optional ±1 halo in `build_structure_factor_grid`, gate interpolation via `RefinementConfig`, and update the Stage A smoke to consume the haloed grid while logging improvement ≥5%.
+- Artifact Path: plans/active/TORCH-REFINE-002D/reports/2025-11-05T083500Z/
+- Next Actions: Ralph to implement halo/interpolation toggles, enable Stage A interpolation, rerun the smoke, and capture improvement + telemetry metrics.
+- <Action State>: [ready_for_implementation]
+
+2025-11-05T083500Z focus=TORCH-REFINE-002D state=ready_for_implementation dwell=0 artifacts=plans/active/TORCH-REFINE-002D/reports/2025-11-05T083500Z/ next_action=halo_interpolation_implementation

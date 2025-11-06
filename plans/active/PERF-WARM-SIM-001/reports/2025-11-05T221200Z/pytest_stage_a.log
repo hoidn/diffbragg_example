@@ -1,0 +1,310 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 1 item
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion FAILED     [100%]
+
+=================================== FAILURES ===================================
+____________________________ test_stage_a_expansion ____________________________
+
+refgeom_dataload = <dbex.data_load.DataLoad object at 0x70f1d6a41fd0>
+refinement_inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0.,...  [ True,  True,  True, ...,  True,  True,  True]]]), target_representation='adu', global_scale_hint=62.65738056380318)
+hkl_data = (tensor([[[0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0.,... 0.]]]), {'grid_max': 518.3336791992188, 'grid_mean': 16.896526336669922, 'grid_min': 0.0, 'grid_nonzero': 69614, ...})
+
+    def test_stage_a_expansion(refgeom_dataload, refinement_inputs, hkl_data):
+        """
+        Verify Stage A LBFGS refinement with full crystal DoFs achieves ≥0.2% loss decrease.
+    
+        Acceptance criteria (TORCH-REFINE-002D):
+        1. Refinement runs without errors (status != "error")
+        2. Telemetry contains all required keys (scale, cell a/b/c, angles, orientation, misset_xyz_deg)
+        3. Orientation telemetry reports deterministic misset angles from perturbed geometry
+        4. Improvement gate (≥0.2%) calibrated to achievable ceiling per empirical probe
+        5. Full-loss trace is non-increasing over last 3 validations
+    
+        Per TORCH-REFINE-002D: Stage A now runs with tricubic HKL interpolation (interpolate=True)
+        against a haloed grid (±1 padding) to prevent default_F fallback near grid boundaries.
+        Deterministic geometry perturbation (+2/+1/+1% cell stretch, +1.5° Z-misset) plumbed
+        through baseline_crystal parameter exercises orientation recovery while fractional HKL
+        coordinates from the perturbed basis stay within haloed grid bounds.
+    
+        Environment:
+        - Requires: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1
+        - Selector: pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+        """
+>       from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig
+
+tests/dbex/test_torch_refine_smoke.py:251: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    """
+    LBFGS refinement nucleus for nanobrag_torch backend (Stage A/B/C).
+    
+    Implements the staged refinement loop per:
+    - plans/nanobrag_integration_plan.md:172-244 (Refinement + Stage B contract)
+    - docs/spec-db-workflow.md:30-41 (Staging policy + LBFGS optimizer)
+    - docs/pytorch_runtime_checklist.md (vectorization, device/dtype neutrality)
+    
+    Stage A scope:
+    - Parameters: global scale (ADU mode) + full crystal (a/b/c log-deltas, alpha/beta/gamma bounded angles, orientation 3-vector→quaternion)
+    - Loss: mean(((Bragg - target)[loss_mask]) ** 2)
+    - ROI policy: deterministic ROI sampling for LBFGS closure; periodic full validation
+    - Convergence: ≥0.2% loss drop within ≤30 LBFGS steps; non-increasing full-loss trace (TORCH-REFINE-002D)
+    
+    Stage B (optional, TORCH-REFINE-004):
+    - Parameters: per-resolution shell multipliers for |F| (softplus parameterization)
+    - Requires: halo-padded HKL grid (hkl_metadata["has_halo"]=True) and enable_hkl_interpolation=True
+    - Freezes Stage A parameters; applies modifiers lazily to a copy of hkl_grid
+    - Convergence: ≥3% loss drop; guards against default_F fallback
+    
+    Stage C (optional, TORCH-REFINE-003):
+    - Parameters: per-panel detector distance offsets along normal
+    - Freezes Stage A (and Stage B if run) parameters
+    - Convergence: ≥0.002% loss drop (REFINE-007)
+    
+    Telemetry emitted to `/torch_diagnostics`:
+    - Per-stage: optimizer metadata, stage label, ROI sampling, loss traces, param_deltas, status
+    - Multi-stage runs return Dict[str, RefinementTelemetry] keyed by stage ("A", "B", "C")
+    """
+    
+    import torch
+    import numpy as np
+    from typing import Dict, List, Tuple, Optional
+    from dataclasses import dataclass
+    
+    
+    def vec_to_unit_quaternion(vec: torch.Tensor) -> torch.Tensor:
+        """
+        Convert 3-vector to unit quaternion for orientation perturbation.
+    
+        Maps R^3 → S^3 (unit quaternion) by treating vec as the imaginary part
+        and normalizing: q = [sqrt(1 - ||v||^2), v] when ||v|| < 1, else normalize full [0, v].
+    
+        Args:
+            vec: torch.Tensor shape (3,) representing orientation perturbation
+    
+        Returns:
+            q: torch.Tensor shape (4,) with q[0]=w (real), q[1:4]=x,y,z (imaginary), ||q||=1
+        """
+        # Clamp norm to prevent gradient issues at ||v|| = 1
+        norm_sq = (vec ** 2).sum()
+        norm_sq_clamped = torch.clamp(norm_sq, max=0.99)
+    
+        # Real part: w = sqrt(1 - ||v||^2)
+        w = torch.sqrt(1.0 - norm_sq_clamped)
+    
+        # Quaternion [w, x, y, z]
+        q = torch.cat([w.unsqueeze(0), vec])
+    
+        # Normalize to ensure unit quaternion (handles edge cases)
+        q = q / (q.norm() + 1e-8)
+    
+        return q
+    
+    
+    def quaternion_to_rotation_matrix(q: torch.Tensor) -> torch.Tensor:
+        """
+        Convert unit quaternion to 3×3 rotation matrix.
+    
+        Args:
+            q: torch.Tensor shape (4,) with q[0]=w, q[1:4]=x,y,z, ||q||=1
+    
+        Returns:
+            R: torch.Tensor shape (3, 3) rotation matrix
+        """
+        w, x, y, z = q[0], q[1], q[2], q[3]
+    
+        # Build rotation matrix per standard quaternion→matrix formula
+        R = torch.stack([
+            torch.stack([1 - 2*(y**2 + z**2), 2*(x*y - w*z), 2*(x*z + w*y)]),
+            torch.stack([2*(x*y + w*z), 1 - 2*(x**2 + z**2), 2*(y*z - w*x)]),
+            torch.stack([2*(x*z - w*y), 2*(y*z + w*x), 1 - 2*(x**2 + y**2)])
+        ])
+    
+        return R
+    
+    
+    def quaternion_to_xyz_euler(q: torch.Tensor) -> torch.Tensor:
+        """
+        Convert unit quaternion to XYZ extrinsic Euler angles (degrees).
+    
+        Per docs/spec-db-workflow.md:30 and docs/nanobrag_api.md:55-56, orientation
+        is controlled via misset_deg XYZ extrinsic rotations applied after MOSFLM A*.
+    
+        Args:
+            q: torch.Tensor of shape (4,) representing unit quaternion [w, x, y, z]
+               where w is the scalar part
+    
+        Returns:
+            xyz_deg: torch.Tensor of shape (3,) with XYZ extrinsic Euler angles in degrees
+                     Convention: R = R_z(gamma) @ R_y(beta) @ R_x(alpha) (extrinsic XYZ)
+    
+        References:
+            - reports/maintainer_responses.md:685 — misset_deg applied as XYZ extrinsic rotations
+            - plans/nanobrag_integration_plan.md:114 — quaternion→XYZ conversion pattern
+        """
+        # Normalize quaternion to ensure unit length (differentiable)
+        q = q / torch.sqrt(torch.sum(q**2) + 1e-8)
+    
+        w, x, y, z = q[0], q[1], q[2], q[3]
+    
+        # XYZ extrinsic Euler angles from quaternion
+        # R = R_z(gamma) @ R_y(beta) @ R_x(alpha)
+        # See: https://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
+    
+        # Roll (alpha, rotation about X-axis)
+        sinr_cosp = 2 * (w * x + y * z)
+        cosr_cosp = 1 - 2 * (x**2 + y**2)
+        alpha_rad = torch.atan2(sinr_cosp, cosr_cosp)
+    
+        # Pitch (beta, rotation about Y-axis)
+        sinp = 2 * (w * y - z * x)
+        # Clamp to avoid NaN from asin at ±1
+        sinp = torch.clamp(sinp, -1.0, 1.0)
+        beta_rad = torch.asin(sinp)
+    
+        # Yaw (gamma, rotation about Z-axis)
+        siny_cosp = 2 * (w * z + x * y)
+        cosy_cosp = 1 - 2 * (y**2 + z**2)
+        gamma_rad = torch.atan2(siny_cosp, cosy_cosp)
+    
+        # Convert to degrees
+        xyz_deg = torch.stack([alpha_rad, beta_rad, gamma_rad]) * (180.0 / np.pi)
+    
+        return xyz_deg
+    
+    
+    def compute_hkl_shell_lookup(crystal, hkl_metadata: Dict, n_shells: int = 5, device=None, dtype=torch.float32) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Compute per-voxel shell index for resolution-shell structure-factor modifiers (Stage B).
+    
+        Creates a 3D tensor mapping each HKL grid voxel to a resolution shell index [0, n_shells-1]
+        based on d-spacing (resolution), using the crystal unit cell. This enables Stage B to apply
+        differentiable per-shell multipliers to |F| without per-reflection explosion.
+    
+        Args:
+            crystal: dxtbx Crystal object providing unit-cell parameters for d-spacing calculation
+            hkl_metadata: Dict from build_structure_factor_grid with h/k/l_min/max and has_halo
+            n_shells: Number of resolution shells (default 5)
+            device: torch device for tensor creation (defaults to CPU if None)
+            dtype: torch dtype for output tensors
+    
+        Returns:
+            tuple: (shell_indices, shell_edges)
+                - shell_indices: torch.Tensor shape (h_range, k_range, l_range), dtype long,
+                                values in [0, n_shells-1] mapping each voxel to its shell
+                - shell_edges: torch.Tensor shape (n_shells + 1,), dtype float32,
+                              d-spacing boundaries [d_max, ..., d_min] defining shell thresholds
+    
+        References:
+            - plans/active/TORCH-REFINE-004/implementation.md Phase 1 (shell lookup helper)
+            - docs/spec-db-workflow.md:31-34 (Stage B shell modifiers)
+            - plans/nanobrag_integration_plan.md:230-233 (per-shell multipliers)
+    
+        Note:
+            - Requires hkl_metadata["has_halo"]=True for Stage B; fails fast if halo missing
+            - d-spacing formula: d = 1 / sqrt( h²/a² + k²/b² + l²/c² ) for orthogonal cells
+            - Shell edges are computed from non-zero HKL voxels to avoid wasted shells on halo padding
+        """
+        if device is None:
+            device = torch.device('cpu')
+    
+        # Guard: Stage B requires halo-padded grid (REFINE-005)
+        if not hkl_metadata.get("has_halo", False):
+            raise ValueError(
+                "Stage B shell modifiers require halo-padded HKL grid (hkl_metadata['has_halo']=True). "
+                "Rebuild structure factor grid with build_structure_factor_grid(..., halo=True)."
+            )
+    
+        # Extract grid bounds
+        h_min, h_max = hkl_metadata["h_min"], hkl_metadata["h_max"]
+        k_min, k_max = hkl_metadata["k_min"], hkl_metadata["k_max"]
+        l_min, l_max = hkl_metadata["l_min"], hkl_metadata["l_max"]
+        h_range = hkl_metadata["h_range"]
+        k_range = hkl_metadata["k_range"]
+        l_range = hkl_metadata["l_range"]
+    
+        # Get unit cell parameters for d-spacing calculation
+        cell_params = crystal.get_unit_cell().parameters()  # (a, b, c, alpha, beta, gamma)
+        a, b, c = cell_params[0], cell_params[1], cell_params[2]
+        # Note: Assumes orthogonal cell for simplicity; generalized formula requires reciprocal metric tensor
+        # For monoclinic/triclinic cells, use dxtbx's unit_cell.d(hkl) method per voxel (slower but exact)
+    
+        # Build HKL coordinate grids
+        h_coords = torch.arange(h_min, h_max + 1, device=device, dtype=dtype)
+        k_coords = torch.arange(k_min, k_max + 1, device=device, dtype=dtype)
+        l_coords = torch.arange(l_min, l_max + 1, device=device, dtype=dtype)
+    
+        # Create 3D meshgrid (broadcasted shape: h_range, k_range, l_range)
+        h_grid, k_grid, l_grid = torch.meshgrid(h_coords, k_coords, l_coords, indexing='ij')
+    
+        # Compute d-spacing for each HKL voxel (orthogonal approximation)
+        # d = 1 / sqrt( (h/a)^2 + (k/b)^2 + (l/c)^2 )
+        # Guard against division by zero at origin (000)
+        d_star_sq = (h_grid / a) ** 2 + (k_grid / b) ** 2 + (l_grid / c) ** 2
+        d_star_sq = torch.clamp(d_star_sq, min=1e-10)  # Prevent 1/0 at origin
+        d_spacing = 1.0 / torch.sqrt(d_star_sq)
+    
+        # Compute shell edges from non-zero d-spacing distribution
+        # Exclude origin and halo padding (filter to data envelope if needed)
+        d_nonzero = d_spacing[d_spacing > 1e-8]
+        if len(d_nonzero) == 0:
+            raise ValueError("All d-spacing values are zero; cannot compute shell edges")
+    
+        d_min = float(d_nonzero.min().item())
+        d_max = float(d_nonzero.max().item())
+    
+        # Shell edges: [d_max, ..., d_min] with n_shells bins
+        shell_edges = torch.linspace(d_max, d_min, n_shells + 1, device=device, dtype=dtype)
+    
+        # Assign shell index to each voxel via searchsorted
+        # searchsorted returns index such that shell_edges[idx-1] <= d < shell_edges[idx]
+        # We want shell 0 for highest d-spacing (lowest resolution), shell n_shells-1 for lowest d-spacing (highest resolution)
+        shell_indices_flat = torch.searchsorted(shell_edges, d_spacing.flatten(), right=False)
+        shell_indices = shell_indices_flat.reshape(h_range, k_range, l_range).long()
+    
+        # Clamp to [0, n_shells-1] to handle edge cases at boundaries
+        shell_indices = torch.clamp(shell_indices, 0, n_shells - 1)
+    
+        return shell_indices, shell_edges
+    
+    
+    def _build_stage_a_context(
+        detector,
+        beam,
+        trusted_mask,
+        hkl_grid: torch.Tensor,
+        hkl_metadata: Dict,
+        enable_hkl_interpolation: bool,
+        device: torch.device,
+        dtype: torch.dtype
+>   ) -> StageAContext:
+E   NameError: name 'StageAContext' is not defined
+
+dbex/nanobrag_refinement.py:242: NameError
+=============================== warnings summary ===============================
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion - NameError: name 'StageAContext' is not defined
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+======================== 1 failed, 4 warnings in 3.17s =========================

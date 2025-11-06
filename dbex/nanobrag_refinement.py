@@ -30,7 +30,8 @@ Telemetry emitted to `/torch_diagnostics`:
 
 import torch
 import numpy as np
-from typing import Dict, List, Tuple, Optional
+import time
+from typing import Dict, List, Tuple, Optional, Any
 from dataclasses import dataclass
 
 
@@ -327,6 +328,7 @@ class RefinementTelemetry:
     param_deltas: Dict[str, float]
     status: str  # "ok" | "early_stop" | "rollback" | "error"
     message: str
+    perf_counters: Optional[Dict[str, Any]] = None  # PERF-WARM-SIM-001: closure_evals, forward_time_ms, validations
 
 
 def _build_stage_a_context(
@@ -563,6 +565,11 @@ def run_nanobrag_refinement(
     best_params_snapshot = None
     iteration_count = [0]  # Mutable counter for closure
 
+    # Perf counters (PERF-WARM-SIM-001)
+    perf_closure_evals = [0]  # Total closure calls
+    perf_validation_runs = [0]  # Full validation runs
+    perf_forward_times_ms = []  # Per-closure forward pass timings
+
     # Deterministic ROI sampling
     np.random.seed(42)  # Fixed seed for deterministic behavior
     n_panels = len(detector)
@@ -597,6 +604,9 @@ def run_nanobrag_refinement(
         Returns:
             loss: torch.Tensor scalar loss value
         """
+        # Time forward pass (CPU-only, PERF-WARM-SIM-001)
+        t0 = time.perf_counter()
+
         # Accumulate Bragg predictions per panel
         bragg_panels = []
 
@@ -687,11 +697,19 @@ def run_nanobrag_refinement(
         masked_diff = torch.where(mask_subset, bragg_scaled - target_subset, torch.tensor(0.0, device=device, dtype=dtype))
         loss = (masked_diff ** 2).sum() / mask_subset.sum()
 
+        # Record forward timing (PERF-WARM-SIM-001)
+        if not is_full:  # Only track closure forward times, not validation
+            elapsed_ms = (time.perf_counter() - t0) * 1000.0
+            perf_forward_times_ms.append(elapsed_ms)
+
         return loss
 
     def closure():
         """LBFGS closure: recompute loss and gradients."""
         optimizer.zero_grad()
+
+        # Increment closure evaluation counter (PERF-WARM-SIM-001)
+        perf_closure_evals[0] += 1
 
         # Compute loss on sampled ROIs
         loss = compute_loss(sampled_panel_ids, is_full=False)
@@ -709,6 +727,7 @@ def run_nanobrag_refinement(
 
         # Periodic full validation
         if iteration_count[0] % config.full_validation_interval == 0:
+            perf_validation_runs[0] += 1  # PERF-WARM-SIM-001
             with torch.no_grad():
                 full_loss = compute_loss(list(range(n_panels)), is_full=True)
                 loss_trace_full.append((iteration_count[0], float(full_loss.item())))
@@ -746,6 +765,7 @@ def run_nanobrag_refinement(
         optimizer.step(closure)
 
         # Final full validation
+        perf_validation_runs[0] += 1  # PERF-WARM-SIM-001
         with torch.no_grad():
             final_loss = compute_loss(list(range(n_panels)), is_full=True)
             loss_trace_full.append((iteration_count[0], float(final_loss.item())))
@@ -943,6 +963,18 @@ def run_nanobrag_refinement(
             'quaternion_norm': float(quat_final.norm().item())
         }
 
+    # Build perf counters payload (PERF-WARM-SIM-001)
+    perf_counters = {
+        'closure_evals': perf_closure_evals[0],
+        'validation_runs': perf_validation_runs[0],
+        'forward_time_ms': {
+            'mean': float(np.mean(perf_forward_times_ms)) if perf_forward_times_ms else 0.0,
+            'min': float(np.min(perf_forward_times_ms)) if perf_forward_times_ms else 0.0,
+            'max': float(np.max(perf_forward_times_ms)) if perf_forward_times_ms else 0.0,
+            'total': float(np.sum(perf_forward_times_ms)) if perf_forward_times_ms else 0.0
+        }
+    }
+
     telemetry_a = RefinementTelemetry(
         optimizer="LBFGS",
         stage="A",
@@ -958,7 +990,8 @@ def run_nanobrag_refinement(
         best_loss_full=best_loss_full,
         param_deltas=param_deltas,
         status=status,
-        message=message
+        message=message,
+        perf_counters=perf_counters
     )
 
     telemetry_dict = {"A": telemetry_a}
@@ -1341,7 +1374,8 @@ def run_nanobrag_refinement(
             best_loss_full=best_loss_full_b,
             param_deltas=param_deltas_b,
             status=status_b,
-            message=message_b
+            message=message_b,
+            perf_counters={}  # PERF-WARM-SIM-001: Stage B not instrumented yet
         )
 
         telemetry_dict["B"] = telemetry_b
@@ -1654,7 +1688,8 @@ def run_nanobrag_refinement(
             best_loss_full=best_loss_full_c,
             param_deltas=param_deltas_c,
             status=status_c,
-            message=message_c
+            message=message_c,
+            perf_counters={}  # PERF-WARM-SIM-001: Stage C not instrumented yet
         )
 
         telemetry_dict["C"] = telemetry_c

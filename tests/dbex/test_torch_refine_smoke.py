@@ -367,6 +367,42 @@ def test_stage_a_expansion(refgeom_dataload, refinement_inputs, hkl_data):
         f"(initial={initial_loss:.2e}, final={final_loss:.2e}, iterations={len(telemetry.loss_trace_sample)})"
     )
 
+    # Acceptance 7: Perf counters presence and validity (PERF-WARM-SIM-001)
+    assert telemetry.perf_counters is not None, "perf_counters missing from Stage A telemetry"
+    assert isinstance(telemetry.perf_counters, dict), f"perf_counters should be dict, got {type(telemetry.perf_counters)}"
+
+    # Validate closure_evals counter
+    assert 'closure_evals' in telemetry.perf_counters, "closure_evals missing from perf_counters"
+    closure_evals = telemetry.perf_counters['closure_evals']
+    assert isinstance(closure_evals, int), f"closure_evals should be int, got {type(closure_evals)}"
+    assert closure_evals > 0, f"closure_evals should be positive, got {closure_evals}"
+
+    # Validate validation_runs counter
+    assert 'validation_runs' in telemetry.perf_counters, "validation_runs missing from perf_counters"
+    validation_runs = telemetry.perf_counters['validation_runs']
+    assert isinstance(validation_runs, int), f"validation_runs should be int, got {type(validation_runs)}"
+    assert validation_runs > 0, f"validation_runs should be positive, got {validation_runs}"
+
+    # Validate forward_time_ms structure
+    assert 'forward_time_ms' in telemetry.perf_counters, "forward_time_ms missing from perf_counters"
+    forward_time_ms = telemetry.perf_counters['forward_time_ms']
+    assert isinstance(forward_time_ms, dict), f"forward_time_ms should be dict, got {type(forward_time_ms)}"
+
+    # Check required timing keys
+    required_timing_keys = ['mean', 'min', 'max', 'total']
+    for key in required_timing_keys:
+        assert key in forward_time_ms, f"{key} missing from forward_time_ms"
+        value = forward_time_ms[key]
+        assert isinstance(value, float), f"forward_time_ms[{key}] should be float, got {type(value)}"
+        assert value >= 0.0, f"forward_time_ms[{key}] should be non-negative, got {value}"
+
+    # Sanity check: mean should be within [min, max] range
+    if forward_time_ms['mean'] > 0:
+        assert forward_time_ms['min'] <= forward_time_ms['mean'] <= forward_time_ms['max'], (
+            f"Timing stats inconsistent: min={forward_time_ms['min']:.2f}, "
+            f"mean={forward_time_ms['mean']:.2f}, max={forward_time_ms['max']:.2f}"
+        )
+
     # Log achieved improvement for tracking
     import logging
     logger = logging.getLogger(__name__)

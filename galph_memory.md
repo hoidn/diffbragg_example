@@ -1080,3 +1080,12 @@ Notes
 - Next Actions: Ralph implements warm-cache toggle + benchmark script, reruns Stage A smoke, runs the benchmark to gather timings, and updates findings with the measured ratio.
 - <Action State>: [planning]
 2025-11-06T090721Z focus=PERF-WARM-SIM-001 state=planning dwell=0 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-06T090721Z/ next_action=implement_warm_cache_benchmark
+
+## 2025-11-06T095520Z — PERF-WARM-SIM-001 benchmark unblock plan
+- Focus: PERF-WARM-SIM-001 — Warm Simulator; Eliminate Per-Iteration Re-Instantiation
+- Action Type: planning
+- Key Observations: Benchmark script currently resolves the installed `dbex` distribution instead of the workspace checkout, so `RefinementConfig` appears without the warm-cache flag and warm/cold runs bail before emitting metrics. Stage A telemetry also lacks an explicit cache-mode tag, making future artifacts ambiguous. Prepared new Do Now to prepend the repo root to the script `sys.path`, record cache mode in telemetry/tests, rerun warm vs cold benchmarks, and log speedup evidence under 2025-11-06T095520Z.
+- Artifact Path: plans/active/PERF-WARM-SIM-001/reports/2025-11-06T095520Z/
+- Next Actions: Execute cache-mode telemetry + benchmark script fix, rerun Stage A smoke, run warm/cold benchmark, and update findings with measured speedup.
+- <Action State>: [planning]
+2025-11-06T095520Z focus=PERF-WARM-SIM-001 state=planning dwell=1 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-06T095520Z/ next_action=ship_cache_mode_benchmark_handoff

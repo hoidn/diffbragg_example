@@ -1063,3 +1063,12 @@ Notes
 - Next Actions: Implement stage_a_panel_cache_impl in `run_nanobrag_refinement`, rerun Stage A/B smokes under `NANOBRAGG_DISABLE_COMPILE=1`, and capture logs + perf notes for the new artifact set.
 - <Action State>: [planning]
 2025-11-05T221200Z focus=PERF-WARM-SIM-001 state=planning dwell=0 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-05T221200Z/ next_action=stage_a_panel_cache_impl
+## 2025-11-06T081209Z — PERF-WARM-SIM-001 perf telemetry planning
+- Focus: PERF-WARM-SIM-001 — Warm Simulator; Eliminate Per-Iteration Re-Instantiation
+- Action Type: planning
+- Key Observations: Reviewed Stage A warm cache artifacts (pytest_stage_a_v2.log shows 180.29s runtime) and confirmed perf exit criteria 1/3 remain unmet—no baseline/improved timing diff captured yet and `/torch_diagnostics` lacks perf counters. Fix plan marked in_progress and new Do Now drafted to extend `RefinementTelemetry` with perf counters plus Stage A timing instrumentation.
+- Artifact Path: plans/active/PERF-WARM-SIM-001/reports/2025-11-06T081209Z/
+- Next Actions: Ralph to add Stage A perf counters in `run_nanobrag_refinement`, emit them via telemetry (with safe defaults for Stage B/C), update Stage A smoke assertions, and rerun Stage A/B selectors with logs + perf JSON.
+- <Action State>: [ready_for_implementation]
+
+2025-11-06T081209Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=0 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-06T081209Z/ next_action=stage_a_perf_counters_impl

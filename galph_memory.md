@@ -1072,3 +1072,11 @@ Notes
 - <Action State>: [ready_for_implementation]
 
 2025-11-06T081209Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=0 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-06T081209Z/ next_action=stage_a_perf_counters_impl
+## 2025-11-06T090721Z — PERF-WARM-SIM-001 Stage A speedup planning
+- Focus: PERF-WARM-SIM-001 — Warm simulator; eliminate per-iteration re-instantiation
+- Action Type: planning
+- Key Observations: Baseline Stage A runtime before warm cache (`plans/active/TORCH-REFINE-002/reports/2025-11-05T041539Z/pytest_stage_a.log`) still sits at 184.55s vs warm-cache telemetry run at 175.22s (plans/active/PERF-WARM-SIM-001/reports/2025-11-06T081209Z/), leaving exit criterion #1 unmet. Need reproducible cold vs warm comparison, so plan is to add a guarded config flag that reinstates the cold rebuild path for benchmarking and a T2 script that runs both modes, capturing wall-clock + perf counters for findings update.
+- Artifact Path: plans/active/PERF-WARM-SIM-001/reports/2025-11-06T090721Z/
+- Next Actions: Ralph implements warm-cache toggle + benchmark script, reruns Stage A smoke, runs the benchmark to gather timings, and updates findings with the measured ratio.
+- <Action State>: [planning]
+2025-11-06T090721Z focus=PERF-WARM-SIM-001 state=planning dwell=0 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-06T090721Z/ next_action=implement_warm_cache_benchmark

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import shutil
 import sys
 import time
 from datetime import datetime
@@ -207,7 +208,34 @@ def main() -> int:
         if not prompt_path.exists():
             logp(f"ERROR: prompt file not found: {prompt_path}")
             return 2
-        rc = tee_run([args.claude_cmd, "-p", "--dangerously-skip-permissions", "--verbose", "--output-format", "stream-json"], prompt_path, iter_log)
+        # Resolve execution command: invoke Claude Code via login shell to ensure Node is available on PATH
+        def _resolve_cmd() -> list[str]:
+            def _fmt(path: Path | str) -> list[str]:
+                # Use login shell so user PATH (nvm, etc.) is applied; pass prompt via stdin unchanged
+                quoted = str(path).replace('"', '\\"')
+                cmd_str = f'"{quoted}" -p --dangerously-skip-permissions --verbose --output-format stream-json'
+                return ["/bin/bash", "-lc", cmd_str]
+
+            # Prefer explicit/existing Claude binary
+            cc = args.claude_cmd
+            if cc:
+                p = Path(cc)
+                if p.is_file() and os.access(str(p), os.X_OK):
+                    return _fmt(p)
+                which = shutil.which(cc)
+                if which:
+                    return _fmt(which)
+
+            # Repo-local Claude (common submodule layout)
+            repo_local = Path(".claude") / "local" / "claude"
+            if repo_local.is_file() and os.access(str(repo_local), os.X_OK):
+                return _fmt(repo_local)
+
+            # Fall back to user default path
+            return _fmt(Path("/home/ollie/.claude/local/claude"))
+
+        cmd = _resolve_cmd()
+        rc = tee_run(cmd, prompt_path, iter_log)
 
         # Auto-commit reports evidence (before stamping) — constrained by extension and size caps
         if args.auto_commit_reports:

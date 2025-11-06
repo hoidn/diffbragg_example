@@ -1,0 +1,16 @@
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+Loading refGeom dataset...
+
+============================================================
+Running WARM mode benchmark...
+============================================================
+
+
+ERROR: Benchmark failed: __init__() got an unexpected keyword argument 'enable_stage_a_warm_cache'
+Traceback (most recent call last):
+  File "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/PERF-WARM-SIM-001/bin/benchmark_stage_a_cache.py", line 272, in main
+    results[mode] = run_stage_a_benchmark(
+  File "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/PERF-WARM-SIM-001/bin/benchmark_stage_a_cache.py", line 187, in run_stage_a_benchmark
+    config = RefinementConfig(
+TypeError: __init__() got an unexpected keyword argument 'enable_stage_a_warm_cache'

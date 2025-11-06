@@ -254,6 +254,11 @@ class RefinementConfig:
     # Defaults to False (nearest-neighbor) to protect datasets without halo support
     enable_hkl_interpolation: bool = False
 
+    # Warm cache (PERF-WARM-SIM-001)
+    # Enable Stage A warm cache (prebuild detector models/masks/HKL once).
+    # Default True for production (2-5× speedup). Disable for benchmarking cold baseline.
+    enable_stage_a_warm_cache: bool = True
+
     # Stage B structure factor modifiers (TORCH-REFINE-004)
     enable_stage_b: bool = False  # Enable Fhkl shell modifiers
     stage_b_mode: str = "shell"  # "shell" (production) or "per_reflection" (parity, deferred)
@@ -580,22 +585,28 @@ def run_nanobrag_refinement(
         np.random.choice(n_panels, size=max(1, int(n_panels * config.roi_sample_fraction)), replace=False).tolist()
     )
 
-    # Build Stage A context: prebuild detector models and tensorize masks once (PERF-WARM-SIM-001)
-    # This hoists construction out of the LBFGS closure for 2-5× speedup
-    stage_a_ctx = _build_stage_a_context(
-        detector=detector,
-        beam=beam,
-        trusted_mask=inputs.trusted_mask,
-        hkl_grid=hkl_grid,
-        hkl_metadata=hkl_metadata,
-        enable_hkl_interpolation=config.enable_hkl_interpolation,
-        device=device,
-        dtype=dtype
-    )
+    # Build Stage A context conditionally (PERF-WARM-SIM-001)
+    # When warm cache is enabled (default), prebuild detector models and tensorize masks once
+    # for 2-5× speedup. When disabled (benchmarking), rebuild inside compute_loss for cold baseline.
+    stage_a_ctx = None
+    if config.enable_stage_a_warm_cache:
+        stage_a_ctx = _build_stage_a_context(
+            detector=detector,
+            beam=beam,
+            trusted_mask=inputs.trusted_mask,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            enable_hkl_interpolation=config.enable_hkl_interpolation,
+            device=device,
+            dtype=dtype
+        )
 
     def compute_loss(panel_ids: List[int], is_full: bool = False) -> torch.Tensor:
         """
-        Compute masked MSE loss over specified panels using cached detector models (PERF-WARM-SIM-001).
+        Compute masked MSE loss over specified panels.
+
+        Warm mode (default): Reuses cached detector models and masks (PERF-WARM-SIM-001).
+        Cold mode (benchmarking): Rebuilds detector models/masks inside closure.
 
         Args:
             panel_ids: List of panel indices to include
@@ -653,8 +664,25 @@ def run_nanobrag_refinement(
         }
 
         for pid in panel_ids:
-            # Reuse cached detector model (PERF-WARM-SIM-001)
-            detector_model = stage_a_ctx.detector_models[pid]
+            # Warm mode: Reuse cached detector model (PERF-WARM-SIM-001)
+            # Cold mode: Rebuild detector model/config inside closure (benchmarking)
+            if stage_a_ctx is not None:
+                detector_model = stage_a_ctx.detector_models[pid]
+            else:
+                # Cold mode: rebuild detector config and model per iteration
+                from dbex.nanobrag_bridge import create_detector_config
+                panel = detector[pid]
+                detector_config = create_detector_config(
+                    panel=panel,
+                    beam=beam,
+                    trusted_mask=inputs.trusted_mask[pid]
+                )
+                # Convert mask to tensor if needed
+                if detector_config.mask_array is not None and not isinstance(detector_config.mask_array, torch.Tensor):
+                    detector_config.mask_array = torch.tensor(
+                        detector_config.mask_array, dtype=torch.float32, device=device
+                    )
+                detector_model = Detector(detector_config)
 
             # Create crystal config with current parameter overrides + misset
             # Note: create_crystal_config returns (config, n_cells_applied) tuple
@@ -670,11 +698,16 @@ def run_nanobrag_refinement(
             # HKL interpolation control (TORCH-REFINE-002D, REFINE-005)
             # Defaults to nearest-neighbor (False) unless explicitly enabled via config
             # Tricubic interpolation requires halo-padded grid to avoid default_F fallback
-            crystal_model.interpolate = stage_a_ctx.enable_hkl_interpolation
-
-            # Attach cached HKL data (already on device)
-            crystal_model.hkl_data = stage_a_ctx.hkl_grid
-            crystal_model.hkl_metadata = stage_a_ctx.hkl_metadata
+            if stage_a_ctx is not None:
+                crystal_model.interpolate = stage_a_ctx.enable_hkl_interpolation
+                # Attach cached HKL data (already on device)
+                crystal_model.hkl_data = stage_a_ctx.hkl_grid
+                crystal_model.hkl_metadata = stage_a_ctx.hkl_metadata
+            else:
+                # Cold mode: transfer HKL grid to device per iteration
+                crystal_model.interpolate = config.enable_hkl_interpolation
+                crystal_model.hkl_data = hkl_grid.to(device=device, dtype=dtype)
+                crystal_model.hkl_metadata = hkl_metadata
 
             # Run simulator with cached detector + fresh crystal
             simulator = Simulator(detector=detector_model, crystal=crystal_model)

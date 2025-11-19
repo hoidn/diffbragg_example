@@ -45,7 +45,7 @@ Pipeline (Normative)
        - Fixed: Structure factors, detector geometry, source spectrum.
        - Physics: Nearest-neighbor HKL lookup (`interpolation=False`) to avoid halo/OOB artifacts while geometry moves.
      - **Stage B (Structure Factors — optional):**
-       - Trainable: Per-shell or global Fhkl multipliers (softplus-backed) keyed to the current |F| grid.
+       - Trainable: Global Fhkl multipliers (softplus-backed) keyed to the current |F| grid SHALL be the default; per-shell granularity is OPTIONAL and only when justified by data volume.
        - Fixed: Geometry, global scale unless explicitly declared otherwise.
        - Physics: Tricubic interpolation (`interpolation=True`) with ±1 HKL halo; default_F fallbacks are failure conditions.
      - **Stage C (Detector):**

@@ -44,10 +44,10 @@ Pipeline (Normative)
        - Trainable: Unit cell logs/angles, orientation (quaternion → XYZ), global scale.
        - Fixed: Structure factors, detector geometry, source spectrum.
        - Physics: Nearest-neighbor HKL lookup (`interpolation=False`) to avoid halo/OOB artifacts while geometry moves.
-     - **Stage B (Structure Factors — optional):**
-       - Trainable: Global Fhkl multipliers (softplus-backed) keyed to the current |F| grid SHALL be the default; per-shell granularity is OPTIONAL and only when justified by data volume.
-       - Fixed: Geometry, global scale unless explicitly declared otherwise.
-       - Physics: Tricubic interpolation (`interpolation=True`) with ±1 HKL halo; default_F fallbacks are failure conditions.
+    - **Stage B (Structure Factors — optional):**
+      - Trainable: Per-reflection Fhkl multipliers SHALL be the default; aggregated per-shell/global modifiers are OPTIONAL fallbacks when data volume or memory precludes full-resolution refinement. All multipliers MUST be softplus-backed to enforce positivity.
+      - Fixed: Geometry, global scale unless explicitly declared otherwise.
+      - Physics: Tricubic interpolation (`interpolation=True`) with ±1 HKL halo; default_F fallbacks are failure conditions.
      - **Stage C (Detector):**
        - Trainable: Per-panel translation along detector normal (distance offsets).
        - Fixed: Crystal, scale, Fhkl.
@@ -57,7 +57,7 @@ Optimization Strategy (Normative)
 - Default optimizer SHALL be L‑BFGS for Stage A and Stage C, implemented via `torch.optim.LBFGS` with a closure that recomputes the full loss.
 - Parameterization MUST enforce constraints without bound constraints (e.g., logs for lengths, bounded map for angles, quaternion→XYZ for misset).
 - ROI minibatching MAY be used inside the L‑BFGS closure for cost control, provided periodic full‑image validation confirms descent (documented in logs).
-- Stage B (optional shell modifiers) MAY use L‑BFGS or Adam; default SHOULD be L‑BFGS unless ROI minibatching proves impractical.
+- Stage B (structure-factor modifiers) MAY use L‑BFGS or Adam; default SHOULD be L‑BFGS unless per-reflection parameter counts make limited-memory methods impractical.
 
 Gradient Hygiene (Normative)
 - Inputs to optimization MUST be torch tensors constructed at loop start; the loss MUST be computed purely from torch tensors on the same graph.

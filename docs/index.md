@@ -110,9 +110,9 @@ Keywords: detector, beam, crystal, geometry
 Use this when: Extracting geometry and wavelength/polarization metadata.
 
 ### [simtbx/diffBragg Utilities](simtbx_api.md)
-Description: Image loading, ROI/background helpers, and MTZ handling used by `dbex`.  
-Keywords: image_data_from_expt, background, MTZ  
-Use this when: Running or modifying ROI/background estimation.
+Description: Image loading, ROI/background helpers, MTZ handling, and the new Noise / Sigma Handling section that explains how Poisson + readout variance enters hopper/diffBragg.
+Keywords: image_data_from_expt, background, MTZ, variance
+Use this when: Running or modifying ROI/background estimation or tracing how `sigma_r` feeds refinement weights.
 
 ### [nanobrag_torch API](nanobrag_api.md)
 Description: Integration‑oriented guide for Detector/Crystal/Beam configs, simulator runtime, and HKL IO.  

@@ -26,6 +26,7 @@ Import name
 - Output intensity: physical “photons” with r_e² × fluence scaling.
 - Beam vector direction: pass sample→source as `DetectorConfig.custom_beam_vector` (normalize −s0).
 - Beam center ordering: DetectorConfig expects `(beam_center_s, beam_center_f)`. dxtbx returns `(fast, slow)`; swap.
+- Variance contract: the downstream loss MUST reuse the spec’d `V = model_Lambda + sigma_r^2` (shot noise from the model plus readout noise supplied in photon units). See `docs/spec-db-core.md`.
 
 ## Public Configuration Dataclasses
 

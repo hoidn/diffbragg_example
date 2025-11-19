@@ -23,6 +23,13 @@ This document captures the simtbx helpers dbex relies on for image loading and R
     - External “hot pixel” masks are loaded via `utils.load_mask(path)` and must be DIALS‑pickled (tuple of flex.bool per panel). Internally inverted for “bad pixel” semantics during ROI gathering.
     - See also `utils.save_numpy_mask_as_flex` to convert NumPy masks to the required pickled flex format.
 
+## Noise / Sigma Handling
+- Readout noise enters through `params.refiner.sigma_r` (ADU) and `params.refiner.adu_per_photon`. Hopper converts once per shot: `nominal_sigma_rdout = sigma_r / adu_per_photon` (`diffBragg/hopper_utils.py:517`), so downstream arrays are already in photon units.
+- Detectors with per-pixel pedestal RMS (e.g., Jungfrau) override the nominal value by loading the calib image via `get_pedestalRMS_from_jungfrau`, scaling by the same `adu_per_photon`, and slicing per ROI (`diffBragg/hopper_utils.py:646`). When no map exists, the scalar nominal term is broadcast.
+- Background fits weight pixels with `1 / (sigma_rdout^2 + rho_bg)` (rho_bg is the fitted plane intensity), so both Poisson and readout noise influence the covariance the same way the refiner expects (`diffBragg/utils.py:669`).
+- For each ROI pixel, simtbx stores `all_sigma_rdout` (either scalar or per-pixel array) and computes `all_sigmas = sqrt(data + sigma_rdout^2)`; untrusted pixels include those with `NaN` sigmas (`diffBragg/hopper_utils.py:699` and `:746`). These arrays are exactly what Stage One/Two use when forming residual Z-scores and variance terms, so integrators should not recompute the variance model independently.
+- When serializing ROI triptychs (e.g., for pandas artifacts), the same variance formula is applied: `sigma = sqrt(model + sigma_rdout^2)`. This ensures Z-scores match the refinement objective and keeps diagnostics aligned with the Poisson+readout contract formalized in `docs/spec-db-core.md`.
+
 ## MTZ / Structure Factors
 - `simtbx.diffBragg.utils.open_mtz(mtzFile, mtzCol) -> cctbx.miller.array`
   - Returns a Miller array derived from the requested label(s) (`"F,SIGF"`, or `"F(+),SIGF(+),F(-),SIGF(-)"` etc.).
@@ -34,4 +41,3 @@ This document captures the simtbx helpers dbex relies on for image loading and R
   - Arrays: `[panel, slow, fast]`
   - ROI bbox: `(x1, x2, y1, y2)` with exclusive upper bounds.
   - Panel indices align across `image_data_from_expt`, reflection table `panel` column, and simtbx ROI `panel_ids`.
-

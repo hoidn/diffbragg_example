@@ -54,6 +54,22 @@ Masks and Loss Policy (Normative)
 - Loss mask:
   - The loss SHALL be computed only over `(background >= 0) ∧ trusted_mask`.
 
+Noise / Variance Model (Normative)
+- Per-pixel variance SHALL be modeled as `V = model_Lambda + sigma_r^2`, where `model_Lambda`
+  is the expected photon signal (Bragg prediction plus background) and `sigma_r` is the detector
+  readout noise expressed in photon units.
+- Shot noise contribution MUST originate solely from `model_Lambda` (Poisson statistics). Readout
+  noise MUST be added in quadrature via `sigma_r^2`; no other variance terms are permitted unless
+  formally added to this spec shard.
+- `sigma_r` SHALL be derived from the ingestion layer: either the CLI-provided
+  `--sigma-r/--adu-per-photon` pair or calibrated per-pixel dark-RMS maps divided by the same gain
+  factor. Upstream normalization MUST guarantee that `sigma_r` matches the units of
+  `model_Lambda`.
+- All downstream consumers (background fitting, ROI scoring, loss/gradient accumulation) MUST use
+  the same `V` definition. Deviations SHALL be treated as bugs and recorded in docs/fix_plan.md.
+- Workflow documents (e.g., `docs/spec-db-workflow.md` steps 2 and 6) SHOULD reference this
+  section rather than redefining variance policy.
+
 Non‑Goals (Informative)
 - Ncells_def (defect envelope) is not modeled in v1.
 - Multi‑panel batching inside one Simulator instance is not required; per‑panel simulation is the normative path.

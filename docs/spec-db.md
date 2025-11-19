@@ -8,9 +8,9 @@ This index lists the normative specification shards for the DiffBragg/DBEX + PyT
 - spec-db-interfaces.md — CLI/API surface and precedence rules.
 - spec-db-conformance.md — Acceptance tests (DB‑AT‑XXX) and parity profiles.
 - spec-db-tracing.md — Tracing/instrumentation and parity workflows.
+- spec-db-vis.md — Visual diagnostics standards and plot definitions.
 
 References (informative)
 - docs/config_crosswalk.md — Mapping between DIALS/dxtbx/simtbx, DiffBragg concepts, and nanobrag_torch configs.
 - docs/nanobrag_api.md, docs/simtbx_api.md, docs/dxtbx_api.md, docs/dials_api.md — API detail.
 - plans/nanobrag_integration_plan.md — Execution plan implementing this spec.
-

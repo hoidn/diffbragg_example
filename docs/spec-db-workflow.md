@@ -26,13 +26,32 @@ Pipeline (Normative)
    - ROI‑only compute MAY be used by constructing cropped Detectors per ROI and stitching outputs.
 6) Loss (Masked MSE)
    - Loss SHALL be `mean(((Bragg - target)[loss_mask])^2)`.
-7) Staging
-   - Stage A (Crystal + Scale): refine cell (logs/angles), orientation (quaternion→XYZ), global scale; fix N_cells and mosaic/phi for stills. Simulator SHALL use nearest‑neighbor |F| lookup (interpolate=False) to avoid HKL‑grid halo/OOB artifacts during geometry updates.
-   - Stage B (Optional Fhkl): two strategies are supported —
-     • Production (default): refine a small number of per‑shell/global F modifiers (softplus); keep base |F| fixed.  
-     • Parity (opt‑in): refine per‑reflection multipliers F′ = sqrt(scale) × F to match DiffBragg semantics for diagnostics.
-     Differentiable HKL interpolation (tricubic or equivalent) is required; the dense |F| grid MUST include a ±1 halo in h/k/l when interpolation is enabled. Any default_F fallback during interpolation is a failure condition for Stage B. If nanobrag_torch does not expose this, treat it as an upstream bug to resolve.
-   - Stage C (Detector): refine per‑panel translation along detector normal (distance offset); rotations fixed initially.
+7) Refinement Protocol Architecture
+   - **Engine Contract:** The internal Python API (`RefinementEngine` or equivalent) SHALL accept an ordered list of Stage objects and MUST NOT hardcode the Stage A→B→C flow.
+   - **CLI Contract (v1):** `refine_one.py` SHALL instantiate the default sequence based on CLI flags:
+     1. Stage A (always)
+     2. Stage B (only when `--optimize-fhkl` is supplied)
+     3. Stage C (only when `--optimize-det` is supplied)
+   - **Configuration:** External configuration files (YAML/JSON) are out of scope for v1.
+   - Stage Interface:
+     1. **Active Parameters:** Each stage MUST enumerate which parameter groups (Crystal, Detector, Source, Structure factors, Scale) are trainable; all others MUST be frozen.
+     2. **Optimizer Config:** Learning rate schedule (or optimizer choice), convergence tolerance, and max iterations MUST be set per stage.
+     3. **Physics Toggles:** Flags such as interpolation on/off, HKL padding requirements, polarization/solid-angle parity MUST be declared so simulators can be configured deterministically.
+   - State Persistence:
+     - Simulator/optimizer state (current best parameters) MUST persist between stages, and telemetry MUST be aggregated per stage (e.g., `history["stage_0_A"]`, `history["stage_1_C"]`).
+   - Standard Stages (Normative Definitions):
+     - **Stage A (Geometry & Scale):**
+       - Trainable: Unit cell logs/angles, orientation (quaternion → XYZ), global scale.
+       - Fixed: Structure factors, detector geometry, source spectrum.
+       - Physics: Nearest-neighbor HKL lookup (`interpolation=False`) to avoid halo/OOB artifacts while geometry moves.
+     - **Stage B (Structure Factors — optional):**
+       - Trainable: Per-shell or global Fhkl multipliers (softplus-backed) keyed to the current |F| grid.
+       - Fixed: Geometry, global scale unless explicitly declared otherwise.
+       - Physics: Tricubic interpolation (`interpolation=True`) with ±1 HKL halo; default_F fallbacks are failure conditions.
+     - **Stage C (Detector):**
+       - Trainable: Per-panel translation along detector normal (distance offsets).
+       - Fixed: Crystal, scale, Fhkl.
+       - Physics: Tricubic interpolation (`interpolation=True`) is MANDATORY so detector motion yields differentiable HKL gradients.
 
 Optimization Strategy (Normative)
 - Default optimizer SHALL be L‑BFGS for Stage A and Stage C, implemented via `torch.optim.LBFGS` with a closure that recomputes the full loss.

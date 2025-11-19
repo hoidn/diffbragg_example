@@ -48,27 +48,24 @@ Physics Toggles (Normative)
 Structure Factors (Normative)
 - Dense P1 |F| grid and min/max metadata SHALL be provided to the simulator. Tricubic interpolation SHALL require a ±1 halo; otherwise the simulator falls back to `default_F` at the edge.
 
-Masks and Loss Policy (Normative)
+Objective Function & Variance Model (Normative)
 - Simulator mask:
   - `mask_array` SHALL be a 0/1 tensor per panel (1=include), aligned to `(spixels, fpixels)`.
-- Loss mask:
-  - The loss SHALL be computed only over `(background >= 0) ∧ trusted_mask`.
-
-Noise / Variance Model (Normative)
-- Per-pixel variance SHALL be modeled as `V = model_Lambda + sigma_r^2`, where `model_Lambda`
-  is the expected photon signal (Bragg prediction plus background) and `sigma_r` is the detector
-  readout noise expressed in photon units.
-- Shot noise contribution MUST originate solely from `model_Lambda` (Poisson statistics). Readout
-  noise MUST be added in quadrature via `sigma_r^2`; no other variance terms are permitted unless
-  formally added to this spec shard.
-- `sigma_r` SHALL be derived from the ingestion layer: either the CLI-provided
-  `--sigma-r/--adu-per-photon` pair or calibrated per-pixel dark-RMS maps divided by the same gain
-  factor. Upstream normalization MUST guarantee that `sigma_r` matches the units of
-  `model_Lambda`.
-- All downstream consumers (background fitting, ROI scoring, loss/gradient accumulation) MUST use
-  the same `V` definition. Deviations SHALL be treated as bugs and recorded in docs/fix_plan.md.
-- Workflow documents (e.g., `docs/spec-db-workflow.md` steps 2 and 6) SHOULD reference this
-  section rather than redefining variance policy.
+- Loss Function:
+  - The refinement objective SHALL be the variance-weighted mean squared error (Chi-squared).
+  - Formula: `L = Sum( (I_model - I_obs)^2 / V_detached )` over trusted pixels.
+  - `I_model`: The current differentiable model prediction (Bragg + background).
+  - `I_obs`: Observed targets (photons or ADU after calibration policy).
+- Variance Definition:
+  - Variance SHALL be modeled as `V = I_model + sigma_readout^2`, where `I_model` is the current prediction (Bragg + background). Using `I_obs` in the variance term is PROHIBITED.
+  - `sigma_readout` is the detector readout noise in photon units derived from the ingestion layer via the CLI-provided `--sigma-r/--adu-per-photon` pair or calibrated dark-RMS maps divided by the same gain factor.
+  - Shot noise contribution MUST originate solely from `I_model` (Poisson statistics). Readout noise MUST be added in quadrature via `sigma_readout^2`; no other variance terms are permitted unless formally added to this shard.
+  - All downstream consumers (background fitting, ROI scoring, loss/gradient accumulation) MUST use the same `V` definition. Deviations SHALL be treated as bugs and recorded in `docs/fix_plan.md`.
+- Gradient Mechanics (Canonical for v1):
+  - The variance term `V` in the denominator SHALL be detached from the computation graph (treated as a constant) during the backward pass.
+  - This implements an Iteratively Reweighted Least Squares (IRLS) approach that prevents “attraction to zero,” where the optimizer lowers `I_model` solely to reduce variance.
+- Masking:
+  - The loss SHALL be computed only where `(background >= 0) ∧ trusted_mask`, and invalid pixels SHALL NOT contribute to the gradient.
 
 Non‑Goals (Informative)
 - Ncells_def (defect envelope) is not modeled in v1.

@@ -8,20 +8,65 @@
 ## Goals
 - Implement the visual standards defined in `docs/spec-db-vis.md`.
 - Replace ad-hoc plotting scripts with a reusable library `dbex.vis`.
-- Ensure visual artifacts (PNGs) are generated automatically by the CLI for rapid verification.
+- Ensure visual artifacts (PNGs) are generated automatically by the CLI.
 
 ## Exit Criteria
-1. `dbex.vis` module exists and implements `plot_triptych` and `plot_z_scores` matching the Spec.
-2. `dbex/look.py` is refactored to use `dbex.vis` (removing hardcoded layouts).
-3. `refine_one.py` (CLI) generates a summary PNG report at the end of refinement.
-4. Visuals correctly handle `(slow, fast)` coordinates and use diverging colormaps for residuals.
+1. `dbex.vis` module exists and implements `plot_triptych` and `plot_z_scores`.
+2. `dbex/look.py` refactored to use `dbex.vis`.
+3. `refine_one.py` generates a summary PNG report automatically.
+4. Visuals respect `(slow, fast)` coordinates and Z-score definitions.
+5. Test harnesses (smoke/parity) use `dbex.vis` for artifact generation.
 
 ## Spec Alignment
 - **Normative Spec:** `docs/spec-db-vis.md`
-- **Key Clauses:**
-    - Coordinate Systems: `(slow, fast)` origin top-left.
-    - Triptych Layout: `[Data | Model | Residual]`.
-    - Residual Definition: Z-score `(Data - Model) / sqrt(Variance)`.
+- **Key Clauses:** Coordinate Systems, Triptych Layout, Residual Definition.
+
+## Reference Implementation (Prototype)
+*Use this logic as the seed for `dbex/vis/triptych.py`. Do not copy-paste monolithic scripts; extract the plotting functions.*
+
+```python
+def _roi_scale_and_corr(data_roi, bg_roi, bragg_roi):
+    """Closed-form scale and correlation for a single ROI."""
+    y = data_roi - bg_roi
+    x = bragg_roi
+    num = np.sum(x * y)
+    den = np.sum(x * x)
+    s = float(num / den) if den > 1e-12 else 0.0
+    if s < 0: s = 0.0
+    model = bg_roi + s * bragg_roi
+    
+    # Correlation
+    y0 = data_roi - np.mean(data_roi)
+    m0 = model - np.mean(model)
+    denom = (np.linalg.norm(y0) * np.linalg.norm(m0))
+    corr = float(np.sum(y0 * m0) / denom) if denom > 1e-12 else 0.0
+    return s, corr, model
+
+def plot_roi_grid(rois, data_stack, model_stack, bg_stack, filename):
+    """
+    rois: list of (pid, x0, x1, y0, y1)
+    data_stack, model_stack: [panel, slow, fast] arrays
+    """
+    rows = len(rois)
+    fig, axes = plt.subplots(rows, 3, figsize=(10, 3 * rows), constrained_layout=True)
+    
+    for r, (pid, x0, x1, y0, y1) in enumerate(rois):
+        # Slice: [pid, y0:y1, x0:x1] (Slow, Fast)
+        data = data_stack[pid, y0:y1, x0:x1]
+        model = model_stack[pid, y0:y1, x0:x1]
+        bg = bg_stack[pid, y0:y1, x0:x1]
+        
+        # Calculate residuals (Z-score logic goes here per spec)
+        resid = data - model 
+        
+        # Plot Data | Model | Residual
+        axes[r, 0].imshow(data, cmap="gray", origin="upper")
+        axes[r, 1].imshow(model, cmap="gray", origin="upper")
+        axes[r, 2].imshow(resid, cmap="seismic", origin="upper")
+        
+    fig.savefig(filename)
+    plt.close(fig)
+```
 
 ## Phase A — Library Implementation
 ### Checklist
@@ -33,6 +78,11 @@
 ### Checklist
 - [ ] B1: Refactor `dbex/look.py` to consume `dbex.vis`.
 - [ ] B2: Update `dbex/refine_one.py` to generate a static report on exit.
+
+## Phase C — Test Infrastructure Unification
+### Checklist
+- [ ] C1: Refactor `tests/dbex/test_nanobrag_smoke.py` to use `dbex.vis.save_triptych`.
+- [ ] C2: Update parity harness (tests/fixtures/parity_loader.py) to use `dbex.vis`.
 
 ## Artifacts Index
 - Reports root: `plans/active/TOOLING-VIS-001/reports/`

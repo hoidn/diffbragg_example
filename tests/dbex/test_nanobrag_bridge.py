@@ -130,11 +130,13 @@ class TestPrepareRefinementInputs:
         assert result.target.shape == (2, 512, 512)
         assert result.loss_mask.shape == (2, 512, 512)
         assert result.trusted_mask.shape == (2, 512, 512)
+        assert result.sigma_readout.shape == (2, 512, 512)
 
         # Check dtypes
         assert result.target.dtype == np.float32
         assert result.loss_mask.dtype == bool
         assert result.trusted_mask.dtype == bool
+        assert result.sigma_readout.dtype == np.float32
 
         # Verify background subtraction in ROI 1 (panel 0, 100:120, 100:120)
         roi1_data = sample_data['data'][0, 100:120, 100:120]
@@ -177,6 +179,42 @@ class TestPrepareRefinementInputs:
         # Verify pixels are zeroed where loss_mask is False
         assert np.all(result.target[~result.loss_mask] == 0.0), \
             "Target should be zeroed where loss_mask is False"
+        assert np.all(result.sigma_readout[~result.loss_mask] == 0.0), \
+            "Sigma_readout should be zeroed where loss_mask is False"
+
+    def test_sigma_readout_broadcast_and_conversion(self, mock_detector, sample_data):
+        """Ensure sigma_readout supports broadcast inputs and photon conversion."""
+        sigma_constant = 5.0  # ADU units
+        result_adu = prepare_refinement_inputs(
+            data=sample_data['data'],
+            background_image=sample_data['background'],
+            trusted_mask=sample_data['trusted_mask'],
+            bbox=sample_data['bbox'],
+            pids=sample_data['pids'],
+            detector=mock_detector,
+            sigma_readout=sigma_constant
+        )
+        assert np.allclose(
+            result_adu.sigma_readout[result_adu.loss_mask],
+            sigma_constant,
+            rtol=1e-6
+        )
+
+        result_photons = prepare_refinement_inputs(
+            data=sample_data['data'],
+            background_image=sample_data['background'],
+            trusted_mask=sample_data['trusted_mask'],
+            bbox=sample_data['bbox'],
+            pids=sample_data['pids'],
+            detector=mock_detector,
+            adu_per_photon=2.0,
+            sigma_readout=sigma_constant
+        )
+        assert np.allclose(
+            result_photons.sigma_readout[result_photons.loss_mask],
+            sigma_constant / 2.0,
+            rtol=1e-6
+        )
 
     def test_mask_polarity(self, mock_detector):
         """

@@ -217,7 +217,7 @@ def hkl_data(refgeom_dataload):
     hkl_indices = refgeom_dataload.F.indices()
     hkl_amplitudes = refgeom_dataload.F.data()
 
-    hkl_grid, hkl_metadata = build_structure_factor_grid(
+    hkl_grid, hkl_metadata, _ = build_structure_factor_grid(
         indices=hkl_indices,
         amplitudes=hkl_amplitudes,
         device=torch.device('cpu'),

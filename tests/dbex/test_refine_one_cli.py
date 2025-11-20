@@ -125,11 +125,13 @@ def test_nanobrag_backend_runs_simulator(
     mock_dl.F = mock_F
 
     # Setup mock bridge output
+    sigma_stub = np.zeros((1, 100, 100), dtype=np.float32)
     mock_inputs = RefinementInputs(
         target=np.zeros((1, 100, 100), dtype=np.float32),
         loss_mask=np.ones((1, 100, 100), dtype=bool),
         panel_slices=[(0, (10, 20, 10, 20))],
-        trusted_mask=np.ones((1, 100, 100), dtype=bool)
+        trusted_mask=np.ones((1, 100, 100), dtype=bool),
+        sigma_readout=sigma_stub
     )
     mock_prepare.return_value = mock_inputs
 
@@ -139,7 +141,8 @@ def test_nanobrag_backend_runs_simulator(
         'h_min': 0, 'h_max': 2, 'k_min': 0, 'k_max': 2, 'l_min': 0, 'l_max': 2,
         'grid_nonzero': 3
     }
-    mock_build_grid.return_value = (mock_hkl_grid, mock_hkl_metadata)
+    mock_asu_map = torch.zeros_like(mock_hkl_grid, dtype=torch.int32)
+    mock_build_grid.return_value = (mock_hkl_grid, mock_hkl_metadata, mock_asu_map)
 
     # Mock config objects
     # CLI-001: DetectorConfig.mask_array must be torch.Tensor (not numpy)
@@ -284,11 +287,13 @@ def test_nanobrag_backend_applies_calibration(
     mock_dl.F = mock_F
 
     # Setup mock bridge output
+    sigma_stub = np.zeros((1, 100, 100), dtype=np.float32)
     mock_inputs = RefinementInputs(
         target=np.zeros((1, 100, 100), dtype=np.float32),
         loss_mask=np.ones((1, 100, 100), dtype=bool),
         panel_slices=[(0, (10, 20, 10, 20))],
-        trusted_mask=np.ones((1, 100, 100), dtype=bool)
+        trusted_mask=np.ones((1, 100, 100), dtype=bool),
+        sigma_readout=sigma_stub
     )
     mock_prepare.return_value = mock_inputs
 
@@ -298,7 +303,8 @@ def test_nanobrag_backend_applies_calibration(
         'h_min': 0, 'h_max': 2, 'k_min': 0, 'k_max': 2, 'l_min': 0, 'l_max': 2,
         'grid_nonzero': 3
     }
-    mock_build_grid.return_value = (mock_hkl_grid, mock_hkl_metadata)
+    mock_asu_map = torch.zeros_like(mock_hkl_grid, dtype=torch.int32)
+    mock_build_grid.return_value = (mock_hkl_grid, mock_hkl_metadata, mock_asu_map)
 
     # Mock calibration metadata load (SCALE-006 guard)
     calibration_metadata = {
@@ -412,7 +418,8 @@ def test_nanobrag_backend_uses_refined_mtz(
     # Setup: mock structure factor grid builder
     hkl_grid_mock = np.zeros((10, 10, 10), dtype=np.float32)
     hkl_metadata_mock = {"grid_nonzero": 3}
-    mock_build_grid.return_value = (hkl_grid_mock, hkl_metadata_mock)
+    mock_asu_map = np.zeros((10, 10, 10), dtype=np.int32)
+    mock_build_grid.return_value = (hkl_grid_mock, hkl_metadata_mock, mock_asu_map)
 
     # Setup: mock config builders
     mock_detector_config.return_value = MagicMock()
@@ -437,7 +444,8 @@ def test_nanobrag_backend_uses_refined_mtz(
         target=target_mock,
         loss_mask=loss_mask_mock,
         panel_slices=[],
-        trusted_mask=np.ones((2, 2527, 2463), dtype=np.float32)
+        trusted_mask=np.ones((2, 2527, 2463), dtype=np.float32),
+        sigma_readout=np.zeros((2, 2527, 2463), dtype=np.float32)
     )
 
     # Setup: mock DataLoad
@@ -556,7 +564,8 @@ def test_torch_diagnostics_metadata():
                 target=np.zeros((1, 100, 100), dtype=np.float32),
                 loss_mask=np.ones((1, 100, 100), dtype=bool) * 0.25,  # 25% coverage
                 panel_slices=[(0, (10, 20, 10, 20))],
-                trusted_mask=np.ones((1, 100, 100), dtype=bool)
+                trusted_mask=np.ones((1, 100, 100), dtype=bool),
+                sigma_readout=np.zeros((1, 100, 100), dtype=np.float32)
             )
 
             mock_dl = Mock()

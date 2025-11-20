@@ -165,7 +165,7 @@ def main():
     refinement_inputs = build_inputs(dataload)
 
     from dbex.nanobrag_bridge import build_structure_factor_grid
-    hkl_grid, hkl_metadata = build_structure_factor_grid(
+    hkl_grid, hkl_metadata, _ = build_structure_factor_grid(
         indices=dataload.F.indices(),
         amplitudes=dataload.F.data(),
         device=torch.device("cpu"),

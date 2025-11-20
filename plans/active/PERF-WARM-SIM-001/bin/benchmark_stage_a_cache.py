@@ -155,7 +155,7 @@ def run_stage_a_benchmark(mode: str, DL, perturbed_crystal, artifacts_dir: Path)
     # Build HKL grid (shared across modes)
     hkl_indices = DL.F.indices()
     hkl_amplitudes = DL.F.data()
-    hkl_grid, hkl_metadata = build_structure_factor_grid(
+    hkl_grid, hkl_metadata, _ = build_structure_factor_grid(
         indices=hkl_indices,
         amplitudes=hkl_amplitudes,
         device=torch.device('cpu'),

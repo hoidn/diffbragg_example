@@ -69,7 +69,7 @@ def run(args: argparse.Namespace) -> dict:
     )
 
     device = torch.device("cpu")
-    hkl_grid, hkl_meta = build_structure_factor_grid(
+    hkl_grid, hkl_meta, _ = build_structure_factor_grid(
         indices=dl.F.indices(),
         amplitudes=dl.F.data(),
         device=device,

@@ -1068,7 +1068,7 @@ def simulate_forward_once(
         device = torch.device(device)
 
     # Build structure factor grid (SCALE-001: unscaled)
-    hkl_grid, hkl_metadata = build_structure_factor_grid(
+    hkl_grid, hkl_metadata, asu_map = build_structure_factor_grid(
         indices=hkl_indices,
         amplitudes=hkl_amplitudes,
         device=device
@@ -1305,7 +1305,7 @@ def simulate_forward_torch(
         dtype = torch.float32
 
     # Build structure factor grid (SCALE-001: unscaled)
-    hkl_grid, hkl_metadata = build_structure_factor_grid(
+    hkl_grid, hkl_metadata, asu_map = build_structure_factor_grid(
         indices=hkl_indices,
         amplitudes=hkl_amplitudes,
         device=device

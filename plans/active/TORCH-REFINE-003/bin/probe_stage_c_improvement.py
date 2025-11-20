@@ -78,7 +78,7 @@ def run_probe(detector_offset_mm: float) -> Dict[str, Any]:
     hkl_indices = data_load.F.indices()
     hkl_amplitudes = data_load.F.data()
 
-    hkl_grid, hkl_metadata = build_structure_factor_grid(
+    hkl_grid, hkl_metadata, _ = build_structure_factor_grid(
         indices=hkl_indices,
         amplitudes=hkl_amplitudes,
         device=torch.device("cpu"),

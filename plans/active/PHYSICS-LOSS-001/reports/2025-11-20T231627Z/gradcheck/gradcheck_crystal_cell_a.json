@@ -1,0 +1,10 @@
+{
+  "parameter": "crystal_cell_a",
+  "base_value": 27.3758389202232,
+  "gradcheck_passed": true,
+  "eps": 1e-06,
+  "atol": 1e-05,
+  "rtol": 0.05,
+  "device": "cpu",
+  "dtype": "torch.float64"
+}

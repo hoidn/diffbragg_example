@@ -40,12 +40,14 @@ Pipeline (Normative)
    - State Persistence:
      - Simulator/optimizer state (current best parameters) MUST persist between stages, and telemetry MUST be aggregated per stage (e.g., `history["stage_0_A"]`, `history["stage_1_C"]`).
    - Standard Stages (Normative Definitions):
-     - **Stage A (Geometry & Scale):**
-       - Trainable: Unit cell logs/angles, orientation (quaternion → XYZ), global scale.
-       - Fixed: Structure factors, detector geometry, source spectrum.
-       - Physics: Nearest-neighbor HKL lookup (`interpolation=False`) to avoid halo/OOB artifacts while geometry moves.
+    - **Stage A (Geometry & Scale):**
+      - Trainable: Unit cell logs/angles, orientation (quaternion → XYZ), global scale.
+      - Fixed: Structure factors, detector geometry, source spectrum.
+      - Physics: Tricubic interpolation (`interpolation=True`) is preferred for smooth orientation/cell gradients whenever the |F| grid includes a ±1 halo; nearest-neighbor (`interpolation=False`) remains a permitted fallback when halo support is unavailable.
     - **Stage B (Structure Factors — optional):**
-      - Trainable: Per-reflection Fhkl multipliers SHALL be the default; aggregated per-shell/global modifiers are OPTIONAL fallbacks when data volume or memory precludes full-resolution refinement. All multipliers MUST be softplus-backed to enforce positivity.
+      - Trainable: Per-reflection Fhkl multipliers SHALL be the default.
+      - Symmetry Constraint: Multipliers MUST be keyed by unique Asymmetric Unit (ASU) indices so Friedel mates `(h,k,l)` and `(-h,-k,-l)` share the same parameter.
+      - Parameterization: All multipliers MUST be softplus-backed to enforce positivity; aggregated per-shell/global modifiers remain OPTIONAL fallbacks when required by data volume or memory.
       - Fixed: Geometry, global scale unless explicitly declared otherwise.
       - Physics: Tricubic interpolation (`interpolation=True`) with ±1 HKL halo; default_F fallbacks are failure conditions.
      - **Stage C (Detector):**

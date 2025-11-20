@@ -75,11 +75,11 @@ Structure Factors
   - Build dense P1 tensor grid in memory:
     - Track `h_min..h_max`, `k_min..k_max`, `l_min..l_max`, allocate `[h_range, k_range, l_range]`, fill with |F|
     - Assign `crystal.hkl_data`, `crystal.hkl_metadata`
-  - Enable tricubic via `crystal.interpolate = True`; requires ±1 halo (pad FDUMP‑style or extend bounds)
+  - Enable tricubic via `crystal.interpolate = True`; requires ±1 halo (pad FDUMP-style or extend bounds)
   - Interpolation fallback: when halo incomplete, returns `default_F`
-- Refined vs Fixed (Stage B optional)
-  - Fixed in v1; optionally refine a few per‑shell/global scale parameters (softplus) with tricubic on
-  - DiffBragg’s ASU per‑reflection scales are not replicated in v1
+- Stage B refinement
+  - Per-reflection multipliers SHALL map to unique ASymmetric Unit (ASU) indices so `(h,k,l)` and `(-h,-k,-l)` share the same parameter.
+  - Implementation pattern: maintain parameter vector `G_asu` sized to `N_unique`, scatter into the dense P1 grid before simulation, and gather/sum gradients back into `G_asu` after backpropagation.
 
 ROI, Background, and Masks
 - simtbx background

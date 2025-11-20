@@ -10,8 +10,8 @@ Status
 CLI Flags (Normative)
 - `--backend {diffbragg,nanobrag}`: selects implementation; default MAY be `nanobrag` once stable.
 - `--adu-per-photon <float>`: converts ADU→photons for target; if omitted, ADU target with learnable global scale.
-- `--nabc <Na Nb Nc>`: sets `CrystalConfig.N_cells`; default `(20,20,20)` for parity with xtal_refine.
-- `--device <cuda|cpu>:<index>`: selects device.
+- `--torch-config <path>`: Path to DiffBragg `config_torch.json`. Loads calibration metadata (N_cells, flux, exposure) to supersede manual flags.
+- `--device <cuda|cpu>:<index>`: selects device. (v1 implementation currently hardcodes CPU for reproducibility.)
 - `--debug-save-artifacts`: persist otherwise temporary artifacts (HKL, etc.).
 - `--optimizer {lbfgs,adam}` (optional): selects optimizer; default SHALL be `lbfgs` for Stage A/C, `adam` MAY be used only for Stage B if chosen.
 

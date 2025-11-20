@@ -104,11 +104,10 @@
     7. **Static analysis (hard gate)**
        - Run configured linters/formatters/type‑checkers for touched code; resolve new issues before full suite.
 
-    8. **Comprehensive Testing (hard gate, once)**
-       - After targeted tests pass, run the **entire suite** from project root: `pytest -v tests/`.
-         a) All tests must pass (no `FAILED`/`ERROR`).  
-         b) **Collection must succeed** (no ImportError, etc.).  
-         c) If you added/renamed tests, verify selectors still collect (>0). If not: either author missing tests immediately or temporarily downgrade the selector to “Planned” with rationale and file a follow‑up fix‑plan item.
+    8. **Collection Verification**
+       - Do **not** run the full test suite unless explicitly directed by `input.md`.
+       - **Collection check:** If you added or renamed tests, run `pytest --collect-only` on those specific modules to ensure they are discoverable and free of ImportErrors.
+       - If collection fails, fix it immediately.
 
     9. **Artifacts**
        - Save `pytest.log`, `summary.md`, metrics JSONs under the loop’s reports directory.
@@ -154,7 +153,7 @@
     - Search summary (what exists/missing; file pointers).
     - Diff or file list of changes.
     - Targeted test(s)/example(s) added/updated and results.
-    - Exact pytest commands executed (targeted and the single full‑suite run).
+    - Exact pytest commands executed (targeted selectors only).
     - `docs/fix_plan.md` delta (items done/new), Attempts History snippet.
     - Any `CLAUDE.md` or `docs/architecture.md` updates (1–3 lines each).
     - Next most‑important item you would pick if you had another loop.
@@ -174,7 +173,7 @@
     - Acceptance & module scope declared; stayed within a single module category (or deferral recorded).
     - SPEC/ADR quotes present; search‑first evidence (file:line pointers) captured.
     - Static analysis passed for touched files.
-    - Full `pytest -v tests/` run executed once and passed (no collection failures).
+    - Targeted tests passed; collection verified for new/renamed tests.
     - New issues added to `docs/fix_plan.md` as TODOs.
   </completion_checklist>
 

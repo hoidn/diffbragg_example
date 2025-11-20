@@ -53,9 +53,11 @@
 - Priority: Medium
 - Owner/Date: Unassigned
 - Exit Criteria:
-  1. `dbex.vis` module created implementing `spec-db-vis.md` standards (Z-scores, triptychs).
-  2. `dbex/look.py` refactored to use `dbex.vis` for rendering.
-  3. CLI automatically generates a standard report (PNG/PDF) at the end of refinement.
+  1. `dbex.vis` module implements `plot_triptych` and `plot_z_scores` per `spec-db-vis.md`.
+  2. `dbex/look.py` refactored to consume `dbex.vis`.
+  3. CLI generates a summary PNG report automatically.
+  4. Visuals respect `(slow, fast)` coordinates and Z-score definitions.
+- Working Plan: plans/active/TOOLING-VIS-001/implementation.md
 
 ### [PERF-WARM-SIM-001] Warm simulator; eliminate per-iteration re-instantiation
 - Depends on: `nanobrag_torch` simulator in place; current refinement loops in `dbex/nanobrag_refinement.py`.

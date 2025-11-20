@@ -247,7 +247,7 @@ def run_nanobrag_backend(args, DL, devid=0):
         hkl_path = args.mtzFile
         print(f"[nanobrag backend] Using raw structure factors from {args.mtzFile}")
 
-    hkl_grid, hkl_metadata = build_structure_factor_grid(
+    hkl_grid, hkl_metadata, asu_map = build_structure_factor_grid(
         indices=hkl_indices,
         amplitudes=hkl_amplitudes,
         device=device

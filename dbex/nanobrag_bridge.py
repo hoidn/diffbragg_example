@@ -17,7 +17,7 @@ Config hydration functions map dxtbx geometry to nanobrag_torch configs per:
 
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import List, Tuple, Optional, Any, TYPE_CHECKING
+from typing import List, Tuple, Optional, Any, TYPE_CHECKING, Dict
 import numpy as np
 
 if TYPE_CHECKING:
@@ -60,6 +60,7 @@ class RefinementInputs:
         panel_slices: List of (panel_id, bbox) tuples for per-panel ROIs
                      bbox format: (x0, x1, y0, y1) with exclusive upper bounds
         trusted_mask: Original trusted mask in [panel, slow, fast] order (True=include)
+        sigma_readout: Per-pixel or per-panel readout noise aligned with target units.
         target_representation: "photons" or "adu" indicating target units
         global_scale_hint: Optional scale hint for ADU mode (mean(target)/mean(sim) estimate)
     """
@@ -67,6 +68,7 @@ class RefinementInputs:
     loss_mask: np.ndarray  # [panel, slow, fast] bool, (background >= 0) & trusted
     panel_slices: List[Tuple[int, Tuple[int, int, int, int]]]  # [(pid, (x0,x1,y0,y1))]
     trusted_mask: np.ndarray  # [panel, slow, fast] bool, True=include
+    sigma_readout: np.ndarray  # [panel, slow, fast] float, readout noise in target units
     target_representation: str = "adu"  # "adu" or "photons"
     global_scale_hint: Optional[float] = None  # For ADU mode initialization
 
@@ -78,7 +80,8 @@ def prepare_refinement_inputs(
     bbox: np.ndarray,
     pids: np.ndarray,
     detector,
-    adu_per_photon: Optional[float] = None
+    adu_per_photon: Optional[float] = None,
+    sigma_readout: Optional[np.ndarray] = None
 ) -> RefinementInputs:
     """
     Prepare background-subtracted targets, loss masks, and panel slices for torch simulator.
@@ -103,6 +106,9 @@ def prepare_refinement_inputs(
         pids: Panel IDs for each ROI, shape (n_roi,)
         detector: dxtbx Detector object for pixel pitch validation
         adu_per_photon: Optional calibration factor to convert ADU to photons (must be >0)
+        sigma_readout: Optional readout noise estimates aligned with target units (photons if
+                       adu_per_photon provided, else ADU). Accepts scalar, per-panel, or per-pixel
+                       arrays broadcastable to data shape.
 
     Returns:
         RefinementInputs with background-subtracted target (ADU or photons), loss mask,
@@ -194,6 +200,19 @@ def prepare_refinement_inputs(
             f"Expected background ≈ -1 outside ROIs per docs/simtbx_api.md:14"
         )
 
+    # Prepare sigma_readout array; allow scalars or broadcastable inputs.
+    if sigma_readout is not None:
+        sigma_array = np.asarray(sigma_readout, dtype=np.float64)
+        if sigma_array.shape != data.shape:
+            try:
+                sigma_array = np.broadcast_to(sigma_array, data.shape).copy()
+            except ValueError as e:
+                raise ValueError(
+                    f"sigma_readout shape {sigma_array.shape} is not broadcastable to data shape {data.shape}"
+                ) from e
+    else:
+        sigma_array = None
+
     # Background-subtract target
     # Where background >= 0 (valid ROI pixels), subtract; elsewhere zero
     # Use float64 intermediate for numerical stability, then cast to float32
@@ -210,6 +229,8 @@ def prepare_refinement_inputs(
         # Use float64 for the division, then cast back to float32
         target = (target / adu_per_photon).astype(np.float64)
         target_representation = "photons"
+        if sigma_array is not None:
+            sigma_array = sigma_array / adu_per_photon
     else:
         # ADU mode: compute global_scale_hint for initialization
         # Estimate as mean of background-subtracted ROI intensities
@@ -223,8 +244,12 @@ def prepare_refinement_inputs(
     # Loss mask: (background >= 0) & trusted_mask
     loss_mask = (background_image >= 0) & mask_array
 
-    # Zero out invalid pixels in target and cast to float32
+    # Zero out invalid pixels in target and sigma, then cast to float32
     target = np.where(loss_mask, target, 0.0).astype(np.float32)
+    if sigma_array is None:
+        sigma_array = np.zeros_like(target, dtype=np.float32)
+    else:
+        sigma_array = np.where(loss_mask, sigma_array, 0.0).astype(np.float32)
 
     # Build panel slices list
     panel_slices = []
@@ -238,6 +263,7 @@ def prepare_refinement_inputs(
         loss_mask=loss_mask,
         panel_slices=panel_slices,
         trusted_mask=mask_array,
+        sigma_readout=sigma_array,
         target_representation=target_representation,
         global_scale_hint=global_scale_hint
     )
@@ -574,7 +600,7 @@ def create_crystal_config(crystal, experiment, N_cells=None, apply_n_cells=True,
 
 
 def build_structure_factor_grid(indices, amplitudes, device=None, halo=False):
-    """Build dense 3D HKL grid for nanobrag_torch from MTZ reflections.
+    """Build dense 3D HKL grid and ASU mapping for nanobrag_torch from MTZ reflections.
 
     Implements SCALE-001: Structure factors pass through unscaled.
     DiffBragg applies spot_scale_override internally to final intensities;
@@ -590,9 +616,10 @@ def build_structure_factor_grid(indices, amplitudes, device=None, halo=False):
             filled with zeros.
 
     Returns:
-        tuple: (grid, metadata) where
+        tuple: (grid, metadata, asu_map) where
             - grid: torch.Tensor, shape (h_range, k_range, l_range), dtype float32
             - metadata: dict with HKL range, grid stats, coverage info, and 'has_halo' flag
+            - asu_map: torch.Tensor, same shape as grid, dtype int32 with ASU indices or -1
 
     Raises:
         ImportError: If torch is not available
@@ -652,8 +679,27 @@ def build_structure_factor_grid(indices, amplitudes, device=None, halo=False):
     k_range = k_max - k_min + 1
     l_range = l_max - l_min + 1
 
-    # Allocate grid on specified device (padded if halo enabled)
+    # Allocate grid and ASU map on specified device (padded if halo enabled)
     grid = torch.zeros((h_range, k_range, l_range), device=device, dtype=torch.float32)
+    asu_map = torch.full(
+        (h_range, k_range, l_range), fill_value=-1, device=device, dtype=torch.int32
+    )
+    asu_lookup: Dict[Tuple[int, int, int], int] = {}
+    next_asu_idx = 0
+
+    def canonicalize_asu(h: int, k: int, l: int) -> Tuple[int, int, int]:
+        """Map Friedel mates to a deterministic ASU representative."""
+        if h > 0:
+            return (h, k, l)
+        if h < 0:
+            return (-h, -k, -l)
+        if k > 0:
+            return (h, k, l)
+        if k < 0:
+            return (-h, -k, -l)
+        if l >= 0:
+            return (h, k, l)
+        return (-h, -k, -l)
 
     if halo:
         logger.info(
@@ -672,6 +718,13 @@ def build_structure_factor_grid(indices, amplitudes, device=None, halo=False):
 
         if 0 <= idx_h < h_range and 0 <= idx_k < k_range and 0 <= idx_l < l_range:
             grid[idx_h, idx_k, idx_l] = float(amp)
+            canonical_hkl = canonicalize_asu(int(h), int(k), int(l))
+            asu_idx = asu_lookup.get(canonical_hkl)
+            if asu_idx is None:
+                asu_idx = next_asu_idx
+                asu_lookup[canonical_hkl] = asu_idx
+                next_asu_idx += 1
+            asu_map[idx_h, idx_k, idx_l] = asu_idx
             n_inrange += 1
 
     # Compute grid statistics for diagnostics
@@ -704,9 +757,10 @@ def build_structure_factor_grid(indices, amplitudes, device=None, halo=False):
         "grid_max": grid_max,
         "grid_mean": grid_mean,
         "has_halo": halo,  # TORCH-REFINE-002D: Flag for Stage B interpolation tests
+        "n_unique_asu": len(asu_lookup),
     }
 
-    return grid, metadata
+    return grid, metadata, asu_map
 
 
 # ============================================================================

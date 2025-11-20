@@ -1,6 +1,6 @@
 # DBEX Fix Plan Ledger
 
-**Last Updated:** 2025-11-05 (TORCH-REFINE-002 HKL grid block triage + telemetry stabilization)
+**Last Updated:** 2025-11-20 (Manual override — variance-weighted loss + Stage B staging realignment)
 
 ## Working Agreements
 - Artifact policy: store loop outputs under a dedicated `plans/<initiative-id>/reports/<YYYY-MM-DDTHHMMSSZ>/` directory (or another documented location) and record the path in each Attempts History entry.
@@ -14,7 +14,7 @@
 
 ### [PHYSICS-LOSS-001] Implement variance-weighted loss function
 - Depends on: docs/spec-db-core.md (Variance Model)
-- Status: pending
+- Status: in_progress (2025-11-20)
 - Priority: Critical (Scientific Validity)
 - Owner/Date: Unassigned
 - Exit Criteria:
@@ -23,6 +23,8 @@
   3. DB-AT-010 gradchecks pass with the new loss function.
   4. Telemetry records `chi_squared` (weighted loss) alongside `masked_mse`.
 - Working Plan: plans/active/PHYSICS-LOSS-001/implementation.md
+- Attempts History:
+  * 2025-11-20T231627Z (planning) — Manual override realigned `plans/nanobrag_integration_plan.md` Stage 3 Loss/Staging sections to mandate variance-weighted chi-squared and per-reflection Stage B refinement, inserted PHYSICS-LOSS/ARCH-REFINE-FLOW/TOOLING-VIS initiatives, and drafted a new ready-for-implementation Do Now for weighted-loss plumbing (bridge sigma verification, chi-squared closure changes, telemetry) targeting DB-AT-010.
 
 ### [ARCH-REFINE-FLOW-001] Refactor to Protocol-based Refinement Engine
 - Depends on: PHYSICS-LOSS-001

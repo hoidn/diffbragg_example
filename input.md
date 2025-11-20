@@ -1,46 +1,53 @@
 # Input
 
-- Summary: Kick off PHYSICS-LOSS-001 by wiring sigma_rdout through the bridge + CLI and switching Stage A to the variance-weighted chi-squared loss with telemetry updates.
-- Mode: TDD
+- Summary: Land the variance-weighted chi-squared loss path so Stage A/B run against the PhysSpec denominator and emit chi-squared telemetry.
+- Mode: none
 - Focus: PHYSICS-LOSS-001 — Implement variance-weighted loss function
 - Branch: integration
-- Mapped tests: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -k DB_AT_010
-- Artifacts: plans/active/PHYSICS-LOSS-001/reports/2025-11-21T000000Z/
+- Mapped tests: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_crystal_cell_a
+- Artifacts: plans/active/PHYSICS-LOSS-001/reports/2025-11-20T231627Z/
 
 ## Do Now
 - Focus Item: PHYSICS-LOSS-001
-- Implement: dbex/nanobrag_bridge.py::prepare_refinement_inputs (thread `sigma_rdout` from detector metadata/CLI into RefinementInputs), dbex/refine_one.py::main (expose `--sigma-rdout` CLI flag and plumb it), and dbex/nanobrag_refinement.py::run_nanobrag_refinement (replace masked MSE with `Sum((pred - obs)^2 / (pred.detach() + sigma_rdout^2))`, persist `chi_squared` telemetry, and guard against zero denominators).
-- Test: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -k DB_AT_010
-- Artifacts: plans/active/PHYSICS-LOSS-001/reports/2025-11-21T000000Z/
+- Implement: dbex/refine_one.py::create_parser + run_nanobrag_backend (add --sigma-rdout CLI plumbing, compute/emit chi_squared), dbex/nanobrag_refinement.py::run_nanobrag_refinement (Stage A/B/C closures consume inputs.sigma_readout tensors and minimize `Sum((pred-obs)^2 / (pred.detach()+sigma_rdout^2))` while persisting chi-squared telemetry), dbex/nanobrag_bridge.py::compute_masked_mse_loss + tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck (replace the masked-MSE helper with a variance-weighted version, update gradcheck fixtures/selectors to feed sigma tensors, and assert diagnostics capture chi_squared alongside masked_mse).
+- Test: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_crystal_cell_a
+- Artifacts: plans/active/PHYSICS-LOSS-001/reports/2025-11-20T231627Z/
 
 ## How-To Map
-1. Read detector metadata via `DataLoad`/experiment files; normalize sigma to photon units and default to CLI override when provided; document fallback path in plans/active/PHYSICS-LOSS-001/implementation.md.
-2. Update `RefinementInputs` dataclass plus serialization so sigma is mandatory (shape `[panel, slow, fast]` or broadcastable scalar); add unit assertions inside `prepare_refinement_inputs`.
-3. Modify `run_nanobrag_refinement` Stage A closure to compute `chi_squared = torch.sum((bragg - target) ** 2 / (bragg.detach() + sigma_rdout**2 + eps))` on the trusted mask, keep `masked_mse` for telemetry during migration, and log both.
-4. Extend DB-AT-010 gradcheck selector to assert gradients agree with numerical diff when sigma varies per panel; capture fail logs if gradients explode.
-5. Update docs/spec-db-core.md references inside `plans/nanobrag_integration_plan.md` or telemetry docs if expectations move.
+1. Extend `dbex.refine_one` parser with `--sigma-rdout` (units: photons) and default to CLI override or metadata helper; plumb the parsed float into `prepare_refinement_inputs(..., sigma_readout=sigma)`.
+2. Convert `inputs.sigma_readout` to a torch tensor in `run_nanobrag_refinement`, slice it per ROI sample, and compute `variance = torch.clamp(bragg_scaled.detach() + sigma_slice**2, min=1e-12)` before forming the chi-squared numerator/denominator in Stage A/B/C `compute_loss*` helpers.
+3. While updating `run_nanobrag_refinement`, add telemetry fields for `chi_squared_initial/final` (per stage) and have `_write_torch_outputs` persist both `chi_squared` and `masked_mse` into `/torch_diagnostics` along with existing loss traces.
+4. Refactor `dbex.nanobrag_bridge.compute_masked_mse_loss` into a variance-weighted helper (e.g., accept `sigma_readout` and rename as needed); update `tests/dbex/test_gradients.py` fixtures to synthesize deterministic sigma tensors so DB-AT-010 continues to run with float64 tolerances.
+5. Capture logs with `KMP_DUPLICATE_LIB_OK=TRUE DBAT010_ARTIFACT_DIR=plans/active/PHYSICS-LOSS-001/reports/2025-11-20T231627Z/gradcheck NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_crystal_cell_a | tee plans/active/PHYSICS-LOSS-001/reports/2025-11-20T231627Z/pytest_db_at_010.log`.
 
 ## Pitfalls To Avoid
-- Do not detach tensors that participate in gradients (only the denominator receives `.detach()` per spec).
-- Guard sigma against zeros/negatives; failing to clamp or validate units will destabilize LBFGS.
-- Telemetry must include `chi_squared` for every stage transition so downstream dashboards stay coherent.
-- Respect Environment Freeze—modify only local source; record issues in docs/fix_plan.md if dependencies are missing.
+- Detach only the variance term (`pred.detach() + sigma^2`); never detach numerator or ROI tensors that influence gradients.
+- Do not let sigma broadcast silently change dtype/device—ensure conversions happen once near the top of `run_nanobrag_refinement`.
+- Guard the denominator with a tiny epsilon to avoid divide-by-zero when Bragg hits exactly 0 and sigma defaults to 0.
+- Maintain Stage B’s deterministic ROI sampler so weighted loss comparisons remain apples-to-apples with Stage A traces (REFINE-008 gate still applies).
+- Update `RefinementTelemetry` without breaking existing consumers in `_write_torch_outputs` (keep JSON serializable fields, include chi-squared but preserve masked-mse traces for legacy readers).
+- Environment stays frozen: no package installs or CLI dependencies beyond the repo.
+- Keep CLI help text explicit about sigma units so users don’t mix ADU vs photons; add warning when both CLI + metadata disagree.
+- Make sure DB-AT-010 fixtures fall back gracefully (skip) if canonical assets absent; never catch-and-ignore gradcheck failures.
+- Document any default sigma (e.g., zeros) in the plan if metadata unavailable so future loops know this still needs CLI support per specs.
 
 ## If Blocked
-- If detector metadata lacks sigma, log the missing field, set placeholder zeros, and mark PHYSICS-LOSS-001 as blocked with rationale in docs/fix_plan.md before proceeding.
-- If DB-AT-010 selector is absent or broken, capture pytest --collect-only output and document the gap in plans/active/PHYSICS-LOSS-001/reports/2025-11-21T000000Z/summary.md.
+- If canonical refGeom assets are missing, run the selector with `--collect-only`, stash the log under the artifacts path, mark PHYSICS-LOSS-001 as blocked in docs/fix_plan.md with the missing asset list, and halt further code changes.
+- If sigma metadata cannot be sourced (no CLI or detector auxiliary files), capture the attempted lookup + error in `plans/active/PHYSICS-LOSS-001/reports/2025-11-20T231627Z/summary.md`, leave placeholders in code guarded behind feature flags, and mark the initiative blocked until data ownership is resolved.
 
 ## Findings Applied
-- Re-aligning with PHYSICS-LOSS-001 spec update (variance-weighted chi-squared objective) per user_input.md override.
+- DIAGNOSTICS-001 — Torch diagnostics must emit standardized metrics; add `chi_squared` alongside `masked_mse` in `/torch_diagnostics`.
+- REFINE-008 — Stage B loss gating and ROI sampling must match Stage A semantics, so weighted loss wiring cannot change the sampler or telemetry structure.
 
 ## Pointers
-- plans/nanobrag_integration_plan.md: Phase 3 Loss/Staging definitions (Variance-Weighted / Stage B per-reflection multipliers).
-- docs/spec-db-core.md §Variance Model: normative sigma_rdout guidance.
-- docs/fix_plan.md: new initiatives + dependencies for PHYSICS-LOSS-001 and ARCH-REFINE-FLOW-001.
+- docs/fix_plan.md:15 — PHYSICS-LOSS-001 entry (status, exit criteria, attempts).
+- plans/nanobrag_integration_plan.md:142 — Phase 3 Loss/Staging requirements for variance-weighted chi-squared and per-reflection Stage B.
+- docs/spec-db-core.md:53 — Variance model (detach denominator, sigma in photon units).
+- docs/TESTING_GUIDE.md:70 — DB-AT-010 selector/env flags for gradcheck coverage.
 
 ## Next Up (optional)
-1. After chi-squared loss lands, schedule ARCH-REFINE-FLOW-001 to introduce the protocol-based refinement engine.
-2. Update telemetry/visualization stack (TOOLING-VIS-001) once weighted losses are recorded in HDF5.
+1. ARCH-REFINE-FLOW-001 — codify Stage A/B/C into protocol objects once chi-squared loss is stable.
+2. TOOLING-VIS-001 — update `dbex.vis` / ROI viewer once chi-squared telemetry is persisted.
 
 ## Mapped Tests Guardrail
-- `pytest -k DB_AT_010` must collect and fail until chi-squared implementation is complete; capture logs + gradcheck deltas in the artifacts directory.
+- `tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_crystal_cell_a` collects 1 test when assets exist; if collection drops to 0 after changes, stop, capture `--collect-only` output, and treat the fix as incomplete.

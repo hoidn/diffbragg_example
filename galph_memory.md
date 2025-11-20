@@ -1098,3 +1098,11 @@ Notes
 - Next Actions: Implement cache-mode telemetry + benchmark fixes, rerun Stage A smoke, run warm/cold comparison, and refresh docs/findings.md with speedup ratios.
 - <Action State>: [ready_for_implementation]
 2025-11-06T111515Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=0 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-06T111515Z/ next_action=implement_cache_mode_benchmark_fix
+## 2025-11-20T231627Z — PHYSICS-LOSS-001 chi-squared planning
+- Focus: PHYSICS-LOSS-001 — Implement variance-weighted loss function
+- Action Type: planning
+- Key Observations: Manual override demanded variance-weighted (chi-squared) loss + Stage B per-reflection staging, so patched `plans/nanobrag_integration_plan.md` §Phase 3 to the mandated text, inserted PHYSICS-LOSS/ARCH-REFINE-FLOW/TOOLING-VIS initiatives at the top of `docs/fix_plan.md`, marked PHYSICS-LOSS-001 in_progress with Attempts History, and rewrote `input.md` with a ready-for-implementation Do Now covering sigma plumbing, weighted loss in `run_nanobrag_refinement`, telemetry, and DB-AT-010 validation. TORCH-REFINE-005 now depends on ARCH-REFINE-FLOW-001 per override.
+- Artifact Path: plans/active/PHYSICS-LOSS-001/reports/2025-11-20T231627Z/
+- Next Actions: Execute the Do Now (implement chi-squared loss + telemetry + DB-AT-010) and capture pytest logs under the artifact directory.
+- <Action State>: [ready_for_implementation]
+2025-11-20T231627Z focus=PHYSICS-LOSS-001 state=ready_for_implementation dwell=0 artifacts=plans/active/PHYSICS-LOSS-001/reports/2025-11-20T231627Z/ next_action=implement_variance_weighted_loss

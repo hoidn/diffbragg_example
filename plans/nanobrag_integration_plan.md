@@ -22,8 +22,8 @@ See supporting API references: docs/nanobrag_api.md, docs/simtbx_api.md, docs/dx
 
 ## Stage Policy (Refinement Source Separation)
 
-- Stage A (Crystal + Global Scale): Simulator SHALL use nearest‑neighbor structure‑factor lookup (disable interpolation). This removes HKL‑grid halo/OOB concerns and matches DiffBragg’s per‑reflection semantics for geometry updates. Grid bounds derive from MTZ index envelope; UB changes do not require grid rebuild in this stage.
-- Stage B (Fhkl Modifiers): Simulator SHALL enable tricubic interpolation and the |F| grid MUST include a ±1 halo in h/k/l. Any default_F fallback when interpolation is enabled is a failure condition for Stage B.
+- Stage A (Crystal + Global Scale): Simulator SHOULD enable tricubic interpolation with a ±1 halo to retain smooth gradients. Nearest-neighbor lookup is a permitted fallback only when halo support is unavailable. Grid bounds derive from the MTZ envelope; UB changes do not require grid rebuild in this stage.
+- Stage B (ASU Fhkl Modifiers): Simulator SHALL enable tricubic interpolation and the |F| grid MUST include a ±1 halo in h/k/l. Any default_F fallback when interpolation is enabled is a failure condition for Stage B, and per-ASU symmetry constraints MUST be enforced.
 
 ## Phase 0 – Environment & Baseline (verification only, 1–2 days)
 - Environment Freeze: Do not install or upgrade packages, clone external repos, or modify toolchains. If `nanobrag_torch` or its tests are unavailable, record a blocker in `docs/fix_plan.md` and proceed with evidence‑only steps.
@@ -65,7 +65,7 @@ References: docs/simtbx_api.md (ROI semantics, masks), docs/dxtbx_api.md (detect
 ### Mask Handling (Simulator And Loss)
 - Load DIALS pickled masks (tuple of flex.bool per panel) to a boolean array `[panel, slow, fast]`, then convert to a device‑local torch tensor.
 - Simulator: set `DetectorConfig.mask_array = trusted_mask.float()` (1 = include, 0 = exclude). Do not invert.
-- Loss: build `loss_mask = (background >= 0) & trusted_mask` and apply in the masked MSE so simulator and loss share the same inclusion policy.
+- Loss: build `loss_mask = (background >= 0) & trusted_mask` and apply in the variance-weighted loss so simulator and loss share the same inclusion policy.
 - If persisting a DiffBragg‑style “hot/bad” mask for ROI preprocessing, invert at save time only.
 - Optional background recomputation for parity: If a trusted mask is available, you may re‑run `simtbx.diffBragg.utils.get_roi_background_and_selection_flags` using that mask (instead of `data < 0`) to align background estimation with DiffBragg’s masked ROI semantics; otherwise use the existing `DataLoad.background_image`.
 
@@ -146,14 +146,15 @@ Mirror the staged refinement logic from DiffBragg to maintain convergence charac
 
 ### Strategy
 1. **Stage A – Crystal + scale (Nabc, orientation, scale):**
-   - Freeze structure-factor parameters; optimize crystal parameters for `N_stage_a` iterations using masked MSE:
+   - Freeze structure-factor parameters; optimize crystal parameters for `N_stage_a` iterations using the variance-weighted loss:
      ```python
-     loss = torch.mean(((bragg - target_tensor)[mask_tensor]) ** 2)
+     var = (bragg.detach() + sigma_rdout**2).clamp_min(eps)
+     loss = torch.sum(((bragg - target_tensor) ** 2)[mask_tensor] / var[mask_tensor])
      ```
    - Warm-start the next stage using the final parameter values.
-2. **Stage B – Structure factor tweaks (optional):**
-   - Enable tricubic interpolation (`crystal.interpolate = True`) to obtain differentiable Fhkl gradients.
-   - Optimize a small set of global modifiers (e.g., per-resolution shell scale or `torch.nn.Parameter` multipliers) instead of all individual reflections to reduce dimensionality.
+2. **Stage B – Structure factors (ASU-constrained):**
+   - Enable tricubic interpolation (`crystal.interpolate = True`) and refine per-ASU multipliers using the scatter/gather map emitted by the bridge.
+   - Ensure `(h,k,l)` and `(-h,-k,-l)` indices share the same parameter; keep multipliers positive (softplus/exp).
 3. **Stage C – Detector microslip:**
    - Introduce small per‑panel translations along the detector normal (`odet_vec`) first to mirror the DiffBragg geometry stage, which fixes rotations and optimizes translation along one axis; optionally extend to small rotations later if needed.
    - Run a short optimization stage with a reduced learning rate.
@@ -166,7 +167,7 @@ Each stage runs within a single training loop, swapping optimizer parameter grou
   - Use a closure that recomputes `(bragg, loss)` end‑to‑end; set `line_search_fn=None` (default) and tune `max_iter`, `history_size` (e.g., 10), `tolerance_grad`, and `tolerance_change`.
   - Maintain parameterizations for constraints (logs for lengths, bounded angles, quaternion→XYZ) so box constraints are not required (PyTorch LBFGS has no bounds).
   - To keep step latency reasonable, optionally evaluate the loss over a fixed ROI minibatch (e.g., 1–2 tiles per panel) during LBFGS inner iterations, and refresh the ROI sample every few outer cycles; validate on full loss periodically.
-  - Fall back to Adam (or SGD) only for the optional Stage B shell modifiers or when experimenting with very large ROI batches that make LBFGS closures too expensive.
+  - Fall back to Adam (or SGD) only for Stage B ASU multipliers or when experimenting with very large ROI batches that make LBFGS closures too expensive.
 
 ### Logging
 - Emit structured logs (JSON lines) recording stage transitions, losses, and parameter deltas to simplify validation against the baseline.
@@ -182,7 +183,7 @@ Scope (Stage A first):
 - Parameters (initial nucleus):
   - Global scale (ADU mode) or `spot_scale_override` proxy when training in photons
   - One crystal DoF to start (e.g., `cell_a` or a single small orientation perturbation)
-- Loss: `mean(((Bragg - target_tensor)[loss_mask]) ** 2)` in float64 when under gradcheck; float32 otherwise (device/dtype neutral)
+- Loss: Variance-weighted Chi-squared (`sum((Bragg - target_tensor)^2 / (Bragg.detach() + sigma_rdout^2))` on the masked subset) evaluated in float64 under gradcheck; float32 otherwise (device/dtype neutral)
 - ROI policy: Evaluate loss on a fixed, deterministic subset of ROIs (e.g., 1–2 tiles per panel) during LBFGS inner iterations; validate full-frame loss every `M` outer steps (M≥1). Record both traces.
 
 LBFGS Closure (normative):
@@ -221,23 +222,17 @@ Acceptance for the Nucleus (Stage A):
 - Telemetry present with all required keys; no NaN/Inf in final loss
 
 Extensibility:
-- After the nucleus: widen Stage A parameter set (full crystal logs/angles), enable Stage C (detector normal translations), and optionally Stage B (shell modifiers) with the same closure + telemetry contract.
+- After the nucleus: widen Stage A parameter set (full crystal logs/angles), enable Stage C (detector normal translations), and optionally Stage B (ASU multipliers) with the same closure + telemetry contract.
 
-### Stage B — Structure‑Factor Refinement Modes
+### Stage B — Structure-Factor Refinement
 
-Purpose: Support two strategies for refining structure‑factor amplitudes, keeping production scalable while enabling apples‑to‑apples parity with DiffBragg when needed.
+Purpose: Refine structure factors with DiffBragg-equivalent symmetry constraints.
 
-- Production (default): Per‑shell/global modifiers
-  - Optimize a small set of per‑resolution shell or global multipliers applied to |F|.
-  - Requires differentiable HKL interpolation (tricubic or equivalent) so modifiers back‑propagate correctly.
-  - Telemetry: `stage_b_mode="shell"`, `modifier_count`, `loss_trace_sample/full`, `param_deltas` (shell bins).
-
-- Parity (opt‑in): Per‑reflection multipliers (DiffBragg‑style)
-  - One parameter per unique reflection in the dense HKL grid; apply as F′ = sqrt(scale) × F.
-  - Positive parameterization (e.g., exp or softplus+ε) to keep scales > 0.
-  - Preserve ASU/Friedel mapping semantics to match DiffBragg updates and MTZ write‑back behavior.
-  - Differentiable HKL interpolation is required; if nanobrag_torch cannot expose differentiable sampling, treat this as an upstream bug to be filed (do not add local non‑diff paths).
-  - Telemetry: `stage_b_mode="per_reflection"`, `param_count`, `loss_trace_sample/full`, `param_deltas` (summary stats), and optional `fopt_writeback_stats` for audit.
+- Default mode (required): Per-ASU multipliers
+  - Maintain one positive parameter per unique ASU index; apply as `F′ = Scatter(G_asu, asu_map) * |F|`.
+  - Scatter multipliers across `(h,k,l)` and `(-h,-k,-l)` mates; gather summed gradients back to `G_asu`.
+  - Requires tricubic interpolation with a ±1 halo so gradients flow through Fhkl samples.
+  - Telemetry: `stage_b_mode="asu_scatter"`, `param_count`, `loss_trace_sample/full`, `param_deltas`, optional `fopt_writeback_stats`.
 
 Notes
 - ROI minibatching may be used inside the LBFGS closure to control cost; validate on full loss periodically.

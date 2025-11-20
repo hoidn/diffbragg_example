@@ -1106,3 +1106,12 @@ Notes
 - Next Actions: Execute the Do Now (implement chi-squared loss + telemetry + DB-AT-010) and capture pytest logs under the artifact directory.
 - <Action State>: [ready_for_implementation]
 2025-11-20T231627Z focus=PHYSICS-LOSS-001 state=ready_for_implementation dwell=0 artifacts=plans/active/PHYSICS-LOSS-001/reports/2025-11-20T231627Z/ next_action=implement_variance_weighted_loss
+## 2025-11-20T233552Z — PHYSICS-LOSS-001 Stage B/C readiness plan
+- Focus: PHYSICS-LOSS-001 — Implement variance-weighted loss function
+- Action Type: planning
+- Key Observations: Verified Stage A chi-squared path landed and DB-AT-010 artifacts exist, but Stage B/C closures (dbex/nanobrag_refinement.py:1132-1515) still emit masked-MSE values. `RefinementTelemetry` lacks chi-squared vs masked-MSE fields and `_write_torch_outputs` only records masked_mse, so exit criteria 2/4 remain open. Updated implementation plan (Phase B checklist split), fix plan attempts, findings ledger, and drafted a ready-for-implementation input.md targeting Stage B/C variance wiring plus telemetry/HDF5 updates. New artifacts directory: plans/active/PHYSICS-LOSS-001/reports/2025-11-20T233552Z/.
+- Artifact Path: plans/active/PHYSICS-LOSS-001/reports/2025-11-20T233552Z/
+- Next Actions: Execute Stage B/C chi-squared wiring + telemetry emission and run Stage B/C smokes plus CLI diagnostics test per the new Do Now.
+- <Action State>: [planning]
+
+2025-11-20T233552Z focus=PHYSICS-LOSS-001 state=planning dwell=0 artifacts=plans/active/PHYSICS-LOSS-001/reports/2025-11-20T233552Z/ next_action=ship_stage_b_c_chi_squared_impl

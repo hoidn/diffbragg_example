@@ -25,6 +25,7 @@
 - Working Plan: plans/active/PHYSICS-LOSS-001/implementation.md
 - Attempts History:
   * 2025-11-20T231627Z (planning) — Manual override realigned `plans/nanobrag_integration_plan.md` Stage 3 Loss/Staging sections to mandate variance-weighted chi-squared and per-reflection Stage B refinement, inserted PHYSICS-LOSS/ARCH-REFINE-FLOW/TOOLING-VIS initiatives, and drafted a new ready-for-implementation Do Now for weighted-loss plumbing (bridge sigma verification, chi-squared closure changes, telemetry) targeting DB-AT-010.
+  * 2025-11-20T231627Z (implementation) — Landed the variance-weighted loss path for Stage A: `RefinementInputs` now always carries `sigma_readout`, CLI flag `--sigma-rdout` broadcasts photons/ADU arrays, `compute_masked_mse_loss` implements the detached IRLS denominator, and Stage A closures minimize chi-squared with masked-MSE companions for telemetry. DB-AT-010 gradcheck (`tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_crystal_cell_a`) passes with deterministic sigma tensors (artifacts: plans/active/PHYSICS-LOSS-001/reports/2025-11-20T231627Z/). **Outstanding:** Stage B/C closures still emit legacy masked-MSE values (dbex/nanobrag_refinement.py:1132-1515), so Stage comparisons use different loss units, and `_write_torch_outputs` + `RefinementTelemetry` lack explicit `chi_squared` vs `masked_mse` fields, leaving exit criteria 2 & 4 open. Next actions captured under 2025-11-20T233552Z artifacts.
 
 ### [ARCH-REFINE-FLOW-001] Refactor to Protocol-based Refinement Engine
 - Depends on: PHYSICS-LOSS-001

@@ -3,7 +3,7 @@
 ## Initiative
 - ID: PHYSICS-LOSS-001
 - Title: Implement Variance-Weighted Loss (Poisson + Readout)
-- Status: pending
+- Status: in_progress (2025-11-20)
 
 ## Goals
 - Replace the scientifically incorrect "Masked MSE" (homoscedastic) loss with a variance-weighted loss (heteroscedastic) matching `spec-db-core.md`.
@@ -22,21 +22,22 @@
 
 ## Phase A — Bridge Data
 ### Checklist
-- [ ] A1: Update `RefinementInputs` dataclass in `dbex/nanobrag_bridge.py` to include `sigma_rdout` (tensor).
-- [ ] A2: Update `prepare_refinement_inputs` to extract readout noise.
+- [x] A1: Update `RefinementInputs` dataclass in `dbex/nanobrag_bridge.py` to include `sigma_readout` tensors.
+- [x] A2: Update `prepare_refinement_inputs` to normalize readout noise (broadcast scalars, convert to photons when `adu_per_photon` supplied, zero outside the loss mask).
     - Logic: If `adu_per_photon` provided, `sigma_photons = sigma_adu / gain`.
-    - Fallback: If no metadata, assume `sigma_rdout = 0` (Poisson only) or a sensible default, but log a warning.
-- [ ] A3: Update `test_nanobrag_bridge.py` to assert `sigma_rdout` presence and shape.
+    - Fallback: If no metadata, assume `sigma_readout = 0` (Poisson-only variance) and warn via CLI flag help text.
+- [x] A3: Update `tests/dbex/test_nanobrag_bridge.py` to assert `sigma_readout` presence, dtype, broadcast handling, and photon conversion.
 
 ## Phase B — Engine Logic
 ### Checklist
-- [ ] B1: Update `compute_masked_mse_loss` (used in tests) to accept variance or rename/replace with `compute_weighted_loss`.
-- [ ] B2: Update `run_nanobrag_refinement` (Stage A/B/C closures) to calculate `V = bragg.detach() + sigma_rdout**2` and use it as the loss denominator.
-- [ ] B3: Add `chi_squared` to `RefinementTelemetry`.
+- [x] B1: Update `compute_masked_mse_loss` (used in tests) to accept variance or rename/replace with `compute_weighted_loss`.
+- [x] B2a: Update Stage A LBFGS closures to minimize `chi_squared = Sum((pred-target)^2 / (pred.detach() + sigma_readout**2))` while logging masked-MSE companions.
+- [ ] B2b: Update Stage B shell-modifier closures to consume `inputs.sigma_readout` (same variance model as Stage A) so Stage A↔Stage B improvements use consistent units.
+- [ ] B2c: Update Stage C detector distance closures to consume `inputs.sigma_readout` and report chi-squared traces that align with Stage A’s denominator.
+- [ ] B3: Add `chi_squared` to `RefinementTelemetry` and `_write_torch_outputs`, preserving masked-MSE traces for legacy consumers.
 
 ## Phase C — Validation
-### Checklist
-- [ ] C1: Run `DB-AT-010` (Gradcheck). *Note: The loss value will change, but gradients must remain correct.*
+- [x] C1: Run `DB-AT-010` (Gradcheck). *Note: The loss value will change, but gradients must remain correct.*
 - [ ] C2: Run `DB-AT-024` (Mapping). *Note: Zero-iteration metrics shouldn't change, but we should ensure the new inputs don't break the forward pass.*
 - [ ] C3: Run Stage A Smoke. *Expectation: Convergence might behave differently (better/worse) as the landscape changes. Adjust `min_loss_improvement` thresholds if the scale of the loss function shifts significantly (Chi^2 is unitless/normalized, MSE was ADU^2).* 
 

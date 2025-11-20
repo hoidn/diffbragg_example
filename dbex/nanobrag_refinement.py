@@ -1129,11 +1129,14 @@ def run_nanobrag_refinement(
         # for future telemetry when the API exposes it
         default_f_fallback_count = 0
 
-        def compute_loss_stage_b(panel_ids: List[int], is_full: bool = False) -> torch.Tensor:
+        def compute_loss_stage_b(panel_ids: List[int], is_full: bool = False) -> Tuple[torch.Tensor, torch.Tensor]:
             """
-            Compute masked MSE loss with Stage B shell-modified structure factors.
+            Compute variance-weighted chi-squared loss with Stage B shell-modified structure factors.
 
             Uses Stage A's final crystal parameters (frozen) and varies per-shell Fhkl multipliers.
+
+            Returns:
+                Tuple of (chi_squared_loss, masked_mse_loss): Both scalar tensors for telemetry
             """
             # Apply softplus to get positive modifiers, then scale to ~1.0 at initialization
             # softplus(x) = log(1 + exp(x)); at x=-0.5, softplus ≈ 0.474
@@ -1163,8 +1166,9 @@ def run_nanobrag_refinement(
                 'cell_gamma': cell_gamma_tensor
             }
 
-            # Simulate per-panel and accumulate loss
-            loss_accum = torch.tensor(0.0, device=device, dtype=dtype)
+            # Simulate per-panel and accumulate chi-squared and MSE
+            chi_squared_accum = torch.tensor(0.0, device=device, dtype=dtype)
+            mse_numerator_accum = torch.tensor(0.0, device=device, dtype=dtype)
             n_pixels_accum = 0
 
             for pid in panel_ids:
@@ -1223,30 +1227,45 @@ def run_nanobrag_refinement(
                 simulator = Simulator(detector=detector_model, crystal=crystal_model, device=device, dtype=dtype)
                 bragg_panel = simulator.run()
 
-                # Extract target/mask for this panel
-                # target_t and loss_mask_t are already torch tensors with shape [panel, slow, fast]
+                # Extract target/mask/sigma for this panel
+                # target_t, loss_mask_t, sigma_readout_t are already torch tensors with shape [panel, slow, fast]
                 target_panel = target_t[pid]
                 loss_mask_panel = loss_mask_t[pid]
+                sigma_panel = sigma_readout_t[pid]
 
                 # Apply global scale (Stage A final)
                 scale = torch.exp(log_scale)
                 bragg_scaled = scale * bragg_panel
 
-                # Masked MSE
-                diff = bragg_scaled - target_panel
-                loss_panel = (diff[loss_mask_panel] ** 2).sum()
-                n_pixels = int(loss_mask_panel.sum().item())
+                # Variance-weighted chi-squared loss (spec-db-core.md:57-68)
+                # Variance = I_model.detach() + sigma_readout^2 (Poisson + readout noise in quadrature)
+                variance = torch.clamp(bragg_scaled.detach() + sigma_panel**2, min=1e-12)
 
-                loss_accum = loss_accum + loss_panel
+                # Numerator: (I_model - I_obs)^2, masked
+                diff = bragg_scaled - target_panel
+                squared_error = diff ** 2
+                masked_squared_error = torch.where(loss_mask_panel, squared_error, torch.tensor(0.0, device=device, dtype=dtype))
+
+                # Chi-squared accumulation
+                weighted_error = squared_error / variance
+                masked_weighted_error = torch.where(loss_mask_panel, weighted_error, torch.tensor(0.0, device=device, dtype=dtype))
+                chi_squared_accum = chi_squared_accum + masked_weighted_error.sum()
+
+                # MSE accumulation (for legacy telemetry)
+                mse_numerator_accum = mse_numerator_accum + masked_squared_error.sum()
+                n_pixels = int(loss_mask_panel.sum().item())
                 n_pixels_accum += n_pixels
 
-            # Normalize by pixel count
-            if n_pixels_accum > 0:
-                loss = loss_accum / n_pixels_accum
-            else:
-                loss = loss_accum
+            # Chi-squared loss (sum over masked pixels)
+            chi_squared_loss = chi_squared_accum
 
-            return loss
+            # Masked MSE for legacy telemetry (mean over masked pixels)
+            if n_pixels_accum > 0:
+                masked_mse_loss = mse_numerator_accum / n_pixels_accum
+            else:
+                masked_mse_loss = mse_numerator_accum
+
+            return chi_squared_loss, masked_mse_loss
 
         # ROI sampler for Stage B (reuses Stage A's sampled panel IDs with fallback)
         # Reuse Stage A's deterministic sample if available; fallback to full ROI enumeration
@@ -1262,9 +1281,9 @@ def run_nanobrag_refinement(
 
             # Sample ROIs for efficiency
             panel_ids = roi_sampler()
-            loss = compute_loss_stage_b(panel_ids, is_full=False)
+            chi_squared_loss, mse_loss = compute_loss_stage_b(panel_ids, is_full=False)
 
-            loss.backward()
+            chi_squared_loss.backward()
 
             # Gradient NaN/Inf guard
             for p in stage_b_params:
@@ -1272,20 +1291,20 @@ def run_nanobrag_refinement(
                     raise RuntimeError(f"NaN/Inf gradient detected in Stage B parameter {p}")
 
             # Record loss
-            loss_trace_sample_b.append(float(loss.item()))
+            loss_trace_sample_b.append(float(chi_squared_loss.item()))
 
             # Periodic full validation
             if len(loss_trace_sample_b) % config.full_validation_interval == 0:
                 with torch.no_grad():
-                    loss_full = compute_loss_stage_b(list(range(n_panels)), is_full=True)
-                    loss_trace_full_b.append((len(loss_trace_sample_b), float(loss_full.item())))
+                    full_chi_squared_b, full_mse_b = compute_loss_stage_b(list(range(n_panels)), is_full=True)
+                    loss_trace_full_b.append((len(loss_trace_sample_b), float(full_chi_squared_b.item())))
 
                     # Update best snapshot
-                    if loss_full.item() < best_loss_full_b[0]:
-                        best_loss_full_b = (float(loss_full.item()), len(loss_trace_sample_b))
+                    if full_chi_squared_b.item() < best_loss_full_b[0]:
+                        best_loss_full_b = (float(full_chi_squared_b.item()), len(loss_trace_sample_b))
                         best_params_snapshot_b['shell_modifier_raw'] = shell_modifier_raw.data.clone()
 
-            return loss
+            return chi_squared_loss
 
         # Run Stage B LBFGS optimization
         status_b = "ok"
@@ -1293,9 +1312,9 @@ def run_nanobrag_refinement(
         try:
             # Initial full-loss validation before optimization (mandatory per TORCH-REFINE-004)
             with torch.no_grad():
-                initial_loss_full = compute_loss_stage_b(list(range(n_panels)), is_full=True)
-                loss_trace_full_b.append((0, float(initial_loss_full.item())))
-                best_loss_full_b = (float(initial_loss_full.item()), 0)
+                initial_chi_squared_b, initial_mse_b = compute_loss_stage_b(list(range(n_panels)), is_full=True)
+                loss_trace_full_b.append((0, float(initial_chi_squared_b.item())))
+                best_loss_full_b = (float(initial_chi_squared_b.item()), 0)
                 best_params_snapshot_b['shell_modifier_raw'] = shell_modifier_raw.data.clone()
 
             # Run LBFGS optimization
@@ -1303,13 +1322,13 @@ def run_nanobrag_refinement(
 
             # Final full-loss validation after optimization (mandatory per TORCH-REFINE-004)
             with torch.no_grad():
-                final_loss_full = compute_loss_stage_b(list(range(n_panels)), is_full=True)
+                final_chi_squared_b, final_mse_b = compute_loss_stage_b(list(range(n_panels)), is_full=True)
                 final_step = len(loss_trace_sample_b)
-                loss_trace_full_b.append((final_step, float(final_loss_full.item())))
+                loss_trace_full_b.append((final_step, float(final_chi_squared_b.item())))
 
                 # Update best snapshot if final loss improved
-                if final_loss_full.item() < best_loss_full_b[0]:
-                    best_loss_full_b = (float(final_loss_full.item()), final_step)
+                if final_chi_squared_b.item() < best_loss_full_b[0]:
+                    best_loss_full_b = (float(final_chi_squared_b.item()), final_step)
                     best_params_snapshot_b['shell_modifier_raw'] = shell_modifier_raw.data.clone()
 
             # Check convergence: did we achieve ≥3% improvement on top of Stage A?
@@ -1469,11 +1488,14 @@ def run_nanobrag_refinement(
         best_params_snapshot_c = None
         iteration_count_c = [0]
 
-        def compute_loss_stage_c(panel_ids: List[int], is_full: bool = False) -> torch.Tensor:
+        def compute_loss_stage_c(panel_ids: List[int], is_full: bool = False) -> Tuple[torch.Tensor, torch.Tensor]:
             """
-            Compute masked MSE loss with Stage C detector distance adjustments.
+            Compute variance-weighted chi-squared loss with Stage C detector distance adjustments.
 
             Uses Stage A's final crystal parameters (frozen) and varies per-panel distances.
+
+            Returns:
+                Tuple of (chi_squared_loss, masked_mse_loss): Both scalar tensors for telemetry
             """
             bragg_panels = []
 
@@ -1560,25 +1582,42 @@ def run_nanobrag_refinement(
             log_scale_clamped = torch.clamp(log_scale, min=-10.0, max=10.0)
             bragg_scaled = bragg_stacked * torch.exp(log_scale_clamped)
 
-            # Extract corresponding target and mask slices
+            # Extract corresponding target, mask, and sigma slices
             target_subset = target_t[panel_ids]
             mask_subset = loss_mask_t[panel_ids]
+            sigma_subset = sigma_readout_t[panel_ids]
 
-            # Masked MSE
-            masked_diff = torch.where(mask_subset, bragg_scaled - target_subset, torch.tensor(0.0, device=device, dtype=dtype))
-            loss = (masked_diff ** 2).sum() / mask_subset.sum()
+            # Variance-weighted chi-squared loss (spec-db-core.md:57-68)
+            # Variance = I_model.detach() + sigma_readout^2 (Poisson + readout noise in quadrature)
+            # Detach denominator to prevent "attraction to zero" (IRLS approach)
+            variance = torch.clamp(bragg_scaled.detach() + sigma_subset**2, min=1e-12)
 
-            return loss
+            # Numerator: (I_model - I_obs)^2, masked
+            diff = bragg_scaled - target_subset
+            masked_diff = torch.where(mask_subset, diff, torch.tensor(0.0, device=device, dtype=dtype))
+            numerator = (masked_diff ** 2).sum()
+
+            # Denominator: Sum(V) over masked pixels
+            masked_variance = torch.where(mask_subset, variance, torch.tensor(0.0, device=device, dtype=dtype))
+            denominator = masked_variance.sum()
+
+            # Chi-squared loss: Sum((I_model - I_obs)^2 / V)
+            chi_squared_loss = numerator / torch.clamp(denominator, min=1e-12)
+
+            # Also compute masked MSE for legacy telemetry comparison
+            masked_mse_loss = numerator / mask_subset.sum()
+
+            return chi_squared_loss, masked_mse_loss
 
         def closure_stage_c():
             """LBFGS closure for Stage C detector refinement."""
             stage_c_optimizer.zero_grad()
 
             # Compute loss on sampled ROIs
-            loss = compute_loss_stage_c(sampled_panel_ids, is_full=False)
+            chi_squared_loss, mse_loss = compute_loss_stage_c(sampled_panel_ids, is_full=False)
 
             # Backward pass
-            loss.backward()
+            chi_squared_loss.backward()
 
             # Check for NaN/Inf gradients
             for p in stage_c_params:
@@ -1586,24 +1625,24 @@ def run_nanobrag_refinement(
                     raise RuntimeError(f"NaN/Inf gradient detected in Stage C parameter {p}")
 
             # Record loss
-            loss_trace_sample_c.append(float(loss.item()))
+            loss_trace_sample_c.append(float(chi_squared_loss.item()))
 
             # Periodic full validation
             if iteration_count_c[0] % config.full_validation_interval == 0:
                 with torch.no_grad():
-                    full_loss = compute_loss_stage_c(list(range(n_panels)), is_full=True)
-                    loss_trace_full_c.append((iteration_count_c[0], float(full_loss.item())))
+                    full_chi_squared_c, full_mse_c = compute_loss_stage_c(list(range(n_panels)), is_full=True)
+                    loss_trace_full_c.append((iteration_count_c[0], float(full_chi_squared_c.item())))
 
                     # Update best snapshot
                     nonlocal best_loss_full_c, best_params_snapshot_c
-                    if full_loss.item() < best_loss_full_c[0]:
-                        best_loss_full_c = (float(full_loss.item()), iteration_count_c[0])
+                    if full_chi_squared_c.item() < best_loss_full_c[0]:
+                        best_loss_full_c = (float(full_chi_squared_c.item()), iteration_count_c[0])
                         best_params_snapshot_c = {
                             'distance_offset_raw': distance_offset_raw.detach().cpu().tolist()
                         }
 
             iteration_count_c[0] += 1
-            return loss
+            return chi_squared_loss
 
         # Run Stage C LBFGS optimization
         status_c = "ok"
@@ -1614,11 +1653,11 @@ def run_nanobrag_refinement(
 
             # Final full validation
             with torch.no_grad():
-                final_loss_c = compute_loss_stage_c(list(range(n_panels)), is_full=True)
-                loss_trace_full_c.append((iteration_count_c[0], float(final_loss_c.item())))
+                final_chi_squared_c, final_mse_c = compute_loss_stage_c(list(range(n_panels)), is_full=True)
+                loss_trace_full_c.append((iteration_count_c[0], float(final_chi_squared_c.item())))
 
-                if final_loss_c.item() < best_loss_full_c[0]:
-                    best_loss_full_c = (float(final_loss_c.item()), iteration_count_c[0])
+                if final_chi_squared_c.item() < best_loss_full_c[0]:
+                    best_loss_full_c = (float(final_chi_squared_c.item()), iteration_count_c[0])
                     best_params_snapshot_c = {
                         'distance_offset_raw': distance_offset_raw.detach().cpu().tolist()
                     }

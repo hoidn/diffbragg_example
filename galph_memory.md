@@ -1089,3 +1089,12 @@ Notes
 - Next Actions: Execute cache-mode telemetry + benchmark script fix, rerun Stage A smoke, run warm/cold benchmark, and update findings with measured speedup.
 - <Action State>: [planning]
 2025-11-06T095520Z focus=PERF-WARM-SIM-001 state=planning dwell=1 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-06T095520Z/ next_action=ship_cache_mode_benchmark_handoff
+
+## 2025-11-06T111515Z — PERF-WARM-SIM-001 cache-mode telemetry handoff
+- Focus: PERF-WARM-SIM-001 — Warm Simulator; Eliminate Per-Iteration Re-Instantiation
+- Action Type: planning
+- Key Observations: Verified Stage A telemetry still lacks a `cache_mode` tag and the benchmark harness continues to import the packaged `dbex` while reading stale perf counter keys, so warm/cold runs can’t be attributed or compared. Updated docs/fix_plan.md and input.md with a ready-for-implementation Do Now covering the telemetry field, benchmark script `sys.path` fix + schema sync, Stage A smoke rerun, and warm/cold benchmark artifacts under 2025-11-06T111515Z.
+- Artifact Path: plans/active/PERF-WARM-SIM-001/reports/2025-11-06T111515Z/
+- Next Actions: Implement cache-mode telemetry + benchmark fixes, rerun Stage A smoke, run warm/cold comparison, and refresh docs/findings.md with speedup ratios.
+- <Action State>: [ready_for_implementation]
+2025-11-06T111515Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=0 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-06T111515Z/ next_action=implement_cache_mode_benchmark_fix

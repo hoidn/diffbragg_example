@@ -33,6 +33,10 @@ import sys
 import time
 from pathlib import Path
 
+# Prepend repo root to sys.path to ensure we import workspace dbex, not installed wheel
+_repo_root = Path(__file__).parent.parent.parent.parent.parent
+sys.path.insert(0, str(_repo_root))
+
 import torch
 import numpy as np
 
@@ -211,13 +215,17 @@ def run_stage_a_benchmark(mode: str, DL, perturbed_crystal, artifacts_dir: Path)
     stage_a_telem = telemetry_dict["A"]
     perf_counters = stage_a_telem.perf_counters or {}
 
+    # Extract forward timing from nested dict structure
+    forward_time_ms = perf_counters.get("forward_time_ms", {})
+
     results = {
         "mode": mode,
+        "cache_mode": perf_counters.get("cache_mode", "unknown"),
         "wall_clock_sec": elapsed_sec,
         "closure_evals": perf_counters.get("closure_evals", 0),
-        "validation_runs": perf_counters.get("validations", 0),
-        "forward_time_ms_mean": perf_counters.get("forward_time_ms_mean", 0.0),
-        "forward_time_ms_total": perf_counters.get("forward_time_ms_total", 0.0),
+        "validation_runs": perf_counters.get("validation_runs", 0),
+        "forward_time_ms_mean": forward_time_ms.get("mean", 0.0),
+        "forward_time_ms_total": forward_time_ms.get("total", 0.0),
         "lbfgs_iterations": len(stage_a_telem.loss_trace_sample),
         "final_loss": stage_a_telem.best_loss_full[0],
         "status": stage_a_telem.status,

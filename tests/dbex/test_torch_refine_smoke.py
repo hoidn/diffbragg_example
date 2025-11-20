@@ -371,6 +371,12 @@ def test_stage_a_expansion(refgeom_dataload, refinement_inputs, hkl_data):
     assert telemetry.perf_counters is not None, "perf_counters missing from Stage A telemetry"
     assert isinstance(telemetry.perf_counters, dict), f"perf_counters should be dict, got {type(telemetry.perf_counters)}"
 
+    # Validate cache_mode tag
+    assert 'cache_mode' in telemetry.perf_counters, "cache_mode missing from perf_counters"
+    cache_mode = telemetry.perf_counters['cache_mode']
+    assert isinstance(cache_mode, str), f"cache_mode should be str, got {type(cache_mode)}"
+    assert cache_mode == "warm", f"cache_mode should be 'warm' (default), got '{cache_mode}'"
+
     # Validate closure_evals counter
     assert 'closure_evals' in telemetry.perf_counters, "closure_evals missing from perf_counters"
     closure_evals = telemetry.perf_counters['closure_evals']

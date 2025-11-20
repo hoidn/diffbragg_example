@@ -396,7 +396,7 @@ def _build_stage_a_context(
             )
 
         # Instantiate Detector model
-        detector_model = Detector(detector_config)
+        detector_model = Detector(detector_config, device=device, dtype=dtype)
 
         detector_configs.append(detector_config)
         detector_models.append(detector_model)
@@ -682,7 +682,7 @@ def run_nanobrag_refinement(
                     detector_config.mask_array = torch.tensor(
                         detector_config.mask_array, dtype=torch.float32, device=device
                     )
-                detector_model = Detector(detector_config)
+                detector_model = Detector(detector_config, device=device, dtype=dtype)
 
             # Create crystal config with current parameter overrides + misset
             # Note: create_crystal_config returns (config, n_cells_applied) tuple
@@ -693,7 +693,7 @@ def run_nanobrag_refinement(
             )
 
             # Build crystal model with current parameters
-            crystal_model = Crystal(crystal_config)
+            crystal_model = Crystal(crystal_config, device=device, dtype=dtype)
 
             # HKL interpolation control (TORCH-REFINE-002D, REFINE-005)
             # Defaults to nearest-neighbor (False) unless explicitly enabled via config
@@ -710,7 +710,7 @@ def run_nanobrag_refinement(
                 crystal_model.hkl_metadata = hkl_metadata
 
             # Run simulator with cached detector + fresh crystal
-            simulator = Simulator(detector=detector_model, crystal=crystal_model)
+            simulator = Simulator(detector=detector_model, crystal=crystal_model, device=device, dtype=dtype)
             panel_bragg = simulator.run()  # [slow, fast]
 
             bragg_panels.append(panel_bragg)
@@ -908,8 +908,8 @@ def run_nanobrag_refinement(
                 misset_deg_override=misset_xyz_deg
             )
 
-            detector_model = Detector(detector_config)
-            crystal_model = Crystal(crystal_config)
+            detector_model = Detector(detector_config, device=device, dtype=dtype)
+            crystal_model = Crystal(crystal_config, device=device, dtype=dtype)
 
             # HKL interpolation control (TORCH-REFINE-002D, REFINE-005)
             # Defaults to nearest-neighbor (False) unless explicitly enabled via config
@@ -919,7 +919,7 @@ def run_nanobrag_refinement(
             crystal_model.hkl_data = hkl_grid.to(device=device, dtype=dtype)
             crystal_model.hkl_metadata = hkl_metadata
 
-            simulator = Simulator(detector=detector_model, crystal=crystal_model)
+            simulator = Simulator(detector=detector_model, crystal=crystal_model, device=device, dtype=dtype)
             panel_bragg = simulator.run()
 
             # Apply optimized scale (with same clamping as in compute_loss)
@@ -997,7 +997,9 @@ def run_nanobrag_refinement(
         }
 
     # Build perf counters payload (PERF-WARM-SIM-001)
+    cache_mode = "warm" if config.enable_stage_a_warm_cache else "cold"
     perf_counters = {
+        'cache_mode': cache_mode,
         'closure_evals': perf_closure_evals[0],
         'validation_runs': perf_validation_runs[0],
         'forward_time_ms': {
@@ -1184,8 +1186,8 @@ def run_nanobrag_refinement(
                 )
 
                 # Instantiate detector and crystal models
-                detector_model = Detector(detector_config)
-                crystal_model = Crystal(crystal_config)
+                detector_model = Detector(detector_config, device=device, dtype=dtype)
+                crystal_model = Crystal(crystal_config, device=device, dtype=dtype)
 
                 # Enable interpolation for Stage B (required per REFINE-005)
                 crystal_model.interpolate = True  # Must be True for Stage B
@@ -1195,7 +1197,7 @@ def run_nanobrag_refinement(
                 crystal_model.hkl_metadata = hkl_metadata
 
                 # Simulate
-                simulator = Simulator(detector=detector_model, crystal=crystal_model)
+                simulator = Simulator(detector=detector_model, crystal=crystal_model, device=device, dtype=dtype)
                 bragg_panel = simulator.run()
 
                 # Extract target/mask for this panel
@@ -1361,8 +1363,8 @@ def run_nanobrag_refinement(
                 )
 
                 # Instantiate detector and crystal models
-                detector_model = Detector(detector_config)
-                crystal_model = Crystal(crystal_config)
+                detector_model = Detector(detector_config, device=device, dtype=dtype)
+                crystal_model = Crystal(crystal_config, device=device, dtype=dtype)
 
                 # Enable interpolation for Stage B (required per REFINE-005)
                 crystal_model.interpolate = True
@@ -1372,7 +1374,7 @@ def run_nanobrag_refinement(
                 crystal_model.hkl_metadata = hkl_metadata
 
                 # Simulate
-                simulator = Simulator(detector=detector_model, crystal=crystal_model)
+                simulator = Simulator(detector=detector_model, crystal=crystal_model, device=device, dtype=dtype)
                 bragg_panel = simulator.run()
 
                 # Apply global scale
@@ -1515,8 +1517,8 @@ def run_nanobrag_refinement(
                 )
 
                 # Build detector and crystal models
-                detector_model = Detector(detector_config)
-                crystal_model = Crystal(crystal_config)
+                detector_model = Detector(detector_config, device=device, dtype=dtype)
+                crystal_model = Crystal(crystal_config, device=device, dtype=dtype)
 
                 # HKL interpolation control (same as Stage A)
                 crystal_model.interpolate = config.enable_hkl_interpolation
@@ -1525,7 +1527,7 @@ def run_nanobrag_refinement(
                 crystal_model.hkl_metadata = hkl_metadata
 
                 # Run simulator
-                simulator = Simulator(detector=detector_model, crystal=crystal_model)
+                simulator = Simulator(detector=detector_model, crystal=crystal_model, device=device, dtype=dtype)
                 panel_bragg = simulator.run()
 
                 bragg_panels.append(panel_bragg)

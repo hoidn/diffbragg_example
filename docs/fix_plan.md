@@ -12,31 +12,17 @@
 
 ## Active Initiatives
 
-### [DOCS-ROADMAP-001] Thin nanobrag_integration_plan
-- Depends on: specs/spec-db-workflow.md (current normative content)
-- Status: pending
-- Priority: Medium
-- Owner/Date: Unassigned
-- Exit Criteria:
-  1. `plans/nanobrag_integration_plan.md` no longer repeats normative requirements; instead it references the relevant spec shards.
-  2. Phase descriptions focus on scope, sequencing, and dependencies.
-  3. Docs/tests referencing the plan are updated to point to the specs for authoritative definitions.
-- Working Plan: plans/active/DOCS-ROADMAP-001/implementation.md
-
-
 ### [PHYSICS-LOSS-001] Implement variance-weighted loss function
 - Depends on: docs/spec-db-core.md (Variance Model)
-- Status: in_progress
+- Status: pending
 - Priority: Critical (Scientific Validity)
-- Owner/Date: Ralph / 2025-11-20
+- Owner/Date: Unassigned
 - Exit Criteria:
   1. `RefinementInputs` carries `sigma_rdout` (photon units) derived from detector metadata or CLI args.
   2. `run_nanobrag_refinement` minimizes `Sum((pred - obs)^2 / (pred.detach() + sigma^2))` instead of MSE.
   3. DB-AT-010 gradchecks pass with the new loss function.
   4. Telemetry records `chi_squared` (weighted loss) alongside `masked_mse`.
 - Working Plan: plans/active/PHYSICS-LOSS-001/implementation.md
-- Attempts History:
-  * 2025-11-20 (initialization audit) — Audited Phase A (bridge data plumbing): `RefinementInputs.sigma_readout` field exists (dbex/nanobrag_bridge.py:71), `prepare_refinement_inputs` accepts optional sigma_readout param with broadcast/conversion logic (lines 84,203-233), test coverage validates shape/dtype/conversion (tests/dbex/test_nanobrag_bridge.py:133,139,182-217). Gap identified: CLI missing `--sigma-r` flag; refine_one.py:187-195 does not pass sigma_readout to prepare_refinement_inputs (defaults to zeros, Poisson-only mode). Phase B (loss function) and Phase C (validation) not started. Artifacts: plans/active/PHYSICS-LOSS-001/reports/init/audit.md
 
 ### [ARCH-REFINE-FLOW-001] Refactor to Protocol-based Refinement Engine
 - Depends on: PHYSICS-LOSS-001
@@ -55,11 +41,21 @@
 - Priority: Medium
 - Owner/Date: Unassigned
 - Exit Criteria:
-  1. `dbex.vis` module implements `plot_triptych` and `plot_z_scores` per `spec-db-vis.md`.
-  2. `dbex/look.py` refactored to consume `dbex.vis`.
-  3. CLI generates a summary PNG report automatically.
-  4. Visuals respect `(slow, fast)` coordinates and Z-score definitions.
-- Working Plan: plans/active/TOOLING-VIS-001/implementation.md
+  1. `dbex.vis` module created implementing `spec-db-vis.md` standards (Z-scores, triptychs).
+  2. `dbex/look.py` refactored to use `dbex.vis` for rendering.
+  3. CLI automatically generates a standard report (PNG/PDF) at the end of refinement.
+
+### [DOCS-ROADMAP-001] Thin nanobrag_integration_plan
+- Depends on: specs/spec-db-workflow.md (current normative content)
+- Status: pending
+- Priority: Medium
+- Owner/Date: Unassigned
+- Exit Criteria:
+  1. `plans/nanobrag_integration_plan.md` no longer repeats normative requirements; instead it references the relevant spec shards.
+  2. Phase descriptions focus on scope, sequencing, and dependencies.
+  3. Docs/tests referencing the plan are updated to point to the specs for authoritative definitions.
+- Working Plan: plans/active/DOCS-ROADMAP-001/implementation.md
+
 
 ### [PERF-WARM-SIM-001] Warm simulator; eliminate per-iteration re-instantiation
 - Depends on: `nanobrag_torch` simulator in place; current refinement loops in `dbex/nanobrag_refinement.py`.
@@ -193,7 +189,7 @@
   * 2025-11-05T172937Z (planning) — Audited Stage B smoke failure logs (`plans/active/TORCH-REFINE-004/reports/2025-11-05T164800Z/pytest_stage_b_v2.log`) and the current Stage B implementation (`dbex/nanobrag_refinement.py:847-1179`). Failure now trips `NameError: roi_sampler` inside the Stage B LBFGS closure, leaving `loss_trace_*` empty and telemetry status=`error`, so the ≥3% gate never evaluates. Confirmed Stage A’s deterministic panel sample lives in `sampled_panel_ids` but Stage B no longer closes over it safely after the refactor, and there is no fallback when the sample list is empty. Reviewed docs/spec-db-workflow.md:31-34, plans/nanobrag_integration_plan.md:226-244, and findings REFINE-005/SCALE-001 to restate Stage B requirements (halo-only execution, reuse Stage A ROI mask, keep shell modifiers multiplicative). Drafted refreshed Do Now to (a) rewire Stage B closure/helpers to reuse Stage A sampled panels or fall back to full ROI enumeration, (b) restore Stage B telemetry emission + improvement gating, and (c) capture collect-only + pytest artifacts under `plans/active/TORCH-REFINE-004/reports/2025-11-05T172937Z/`. Next Actions: Ralph updates `run_nanobrag_refinement` Stage B block accordingly, reruns `tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers`, and archives logs/telemetry for ledger + doc sync.
 
 ### [TORCH-REFINE-005] Stage B per‑reflection parity (opt‑in)
-- Depends on: TORCH-REFINE-001, docs/spec-db-workflow.md §“Staging”, plans/nanobrag_integration_plan.md §Phase 3
+- Depends on: ARCH-REFINE-FLOW-001, TORCH-REFINE-001, docs/spec-db-workflow.md §“Staging”, plans/nanobrag_integration_plan.md §Phase 3
 - Status: pending
 - Owner/Date: Galph/Ralph / 2025-11-05
 - Exit Criteria:

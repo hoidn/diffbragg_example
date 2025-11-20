@@ -1,52 +1,46 @@
 # Input
 
-- Summary: Tag Stage A telemetry with cache-mode metadata and repair the warm/cold benchmark harness so we can capture reproducible speedup evidence.
-- Mode: Perf
-- Focus: PERF-WARM-SIM-001 — Warm simulator; eliminate per-iteration re-instantiation
+- Summary: Kick off PHYSICS-LOSS-001 by wiring sigma_rdout through the bridge + CLI and switching Stage A to the variance-weighted chi-squared loss with telemetry updates.
+- Mode: TDD
+- Focus: PHYSICS-LOSS-001 — Implement variance-weighted loss function
 - Branch: integration
-- Mapped tests: tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
-- Artifacts: plans/active/PERF-WARM-SIM-001/reports/2025-11-06T111515Z/
+- Mapped tests: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -k DB_AT_010
+- Artifacts: plans/active/PHYSICS-LOSS-001/reports/2025-11-21T000000Z/
 
 ## Do Now
-- Focus Item: PERF-WARM-SIM-001
-- Implement: dbex/nanobrag_refinement.py::run_nanobrag_refinement (emit `perf_counters["cache_mode"]` for Stage A), tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion (assert warm cache telemetry), and plans/active/PERF-WARM-SIM-001/bin/benchmark_stage_a_cache.py::main (prepend repo root to `sys.path` and consume live perf counter keys) so warm/cold benchmarks can attribute telemetry.
-- Test: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
-- Artifacts: plans/active/PERF-WARM-SIM-001/reports/2025-11-06T111515Z/
+- Focus Item: PHYSICS-LOSS-001
+- Implement: dbex/nanobrag_bridge.py::prepare_refinement_inputs (thread `sigma_rdout` from detector metadata/CLI into RefinementInputs), dbex/refine_one.py::main (expose `--sigma-rdout` CLI flag and plumb it), and dbex/nanobrag_refinement.py::run_nanobrag_refinement (replace masked MSE with `Sum((pred - obs)^2 / (pred.detach() + sigma_rdout^2))`, persist `chi_squared` telemetry, and guard against zero denominators).
+- Test: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -k DB_AT_010
+- Artifacts: plans/active/PHYSICS-LOSS-001/reports/2025-11-21T000000Z/
 
 ## How-To Map
-1. Edit `dbex/nanobrag_refinement.py::run_nanobrag_refinement` to compute `cache_mode = "warm" if config.enable_stage_a_warm_cache else "cold"` and include it in `telemetry_a.perf_counters`; keep the dict schema stable for other counters.
-2. Extend `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` so Acceptance 7 verifies `perf_counters["cache_mode"] == "warm"` (string check plus non-empty guard) without weakening existing assertions.
-3. Update `plans/active/PERF-WARM-SIM-001/bin/benchmark_stage_a_cache.py`: prepend the repo root to `sys.path` before any `dbex` imports, and rewrite the perf counter extraction so it uses `perf_counters.get("validation_runs", 0)` and the nested `forward_time_ms` dict (`mean`, `total`, etc.) instead of the stale `validations`/`forward_time_ms_total` keys.
-4. Re-run the mapped selector with `KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion | tee plans/active/PERF-WARM-SIM-001/reports/2025-11-06T111515Z/pytest_stage_a.log` to prove telemetry didn’t regress.
-5. Execute `python plans/active/PERF-WARM-SIM-001/bin/benchmark_stage_a_cache.py --modes warm cold --artifacts plans/active/PERF-WARM-SIM-001/reports/2025-11-06T111515Z/` (env: `KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1`) so the JSON/report/per-mode counters land beside the pytest log.
-6. Append the measured warm vs cold timings + cache-mode telemetry summary to `docs/findings.md` entry PERF-WARM-001 and note the artifact timestamp.
+1. Read detector metadata via `DataLoad`/experiment files; normalize sigma to photon units and default to CLI override when provided; document fallback path in plans/active/PHYSICS-LOSS-001/implementation.md.
+2. Update `RefinementInputs` dataclass plus serialization so sigma is mandatory (shape `[panel, slow, fast]` or broadcastable scalar); add unit assertions inside `prepare_refinement_inputs`.
+3. Modify `run_nanobrag_refinement` Stage A closure to compute `chi_squared = torch.sum((bragg - target) ** 2 / (bragg.detach() + sigma_rdout**2 + eps))` on the trusted mask, keep `masked_mse` for telemetry during migration, and log both.
+4. Extend DB-AT-010 gradcheck selector to assert gradients agree with numerical diff when sigma varies per panel; capture fail logs if gradients explode.
+5. Update docs/spec-db-core.md references inside `plans/nanobrag_integration_plan.md` or telemetry docs if expectations move.
 
 ## Pitfalls To Avoid
-- Do not touch `nanobrag_torch` or external packages; Environment Freeze requires source-only fixes.
-- Keep Stage A cache toggle default `True` and guard against side effects on Stage B/C flows (device/dtype neutrality per docs/pytorch_runtime_checklist.md:1).
-- Preserve deterministic ROI sampling (seed=42) so benchmark telemetry matches existing artifacts.
-- Stage A smoke must run with `NANOBRAG_DISABLE_COMPILE=1` and CPU tensors; no CUDA shortcuts per docs/spec-db-runtime.md.
-- Ensure the benchmark script only imports the workspace `dbex` (sys.path prepend) to avoid mixing installed wheels.
-- When parsing perf counters, tolerate missing keys but never silently swallow schema mismatches—fail loudly if dict shape changes.
-- Artifacts must include pytest log plus `benchmark_summary.json`, `benchmark_report.txt`, and `{warm,cold}_perf_counters.json` under the timestamped directory.
+- Do not detach tensors that participate in gradients (only the denominator receives `.detach()` per spec).
+- Guard sigma against zeros/negatives; failing to clamp or validate units will destabilize LBFGS.
+- Telemetry must include `chi_squared` for every stage transition so downstream dashboards stay coherent.
+- Respect Environment Freeze—modify only local source; record issues in docs/fix_plan.md if dependencies are missing.
 
 ## If Blocked
-- If the Stage A selector fails before hitting the new assertion, capture the pytest log under the artifacts path, note the stack trace in `plans/active/PERF-WARM-SIM-001/reports/2025-11-06T111515Z/summary.md`, and mark the fix-plan Attempts History with the error signature.
-- If the benchmark script still resolves the wrong module (e.g., ModuleNotFoundError), log the exact import error, keep the repro command, and stop—treat as environment drift per CLAUDE.md.
+- If detector metadata lacks sigma, log the missing field, set placeholder zeros, and mark PHYSICS-LOSS-001 as blocked with rationale in docs/fix_plan.md before proceeding.
+- If DB-AT-010 selector is absent or broken, capture pytest --collect-only output and document the gap in plans/active/PHYSICS-LOSS-001/reports/2025-11-21T000000Z/summary.md.
 
 ## Findings Applied
-- PERF-WARM-001 — Warm Stage A cache & perf telemetry: keep cache toggles plumbed through telemetry/scripts and document measured speedups before closing the initiative.
+- Re-aligning with PHYSICS-LOSS-001 spec update (variance-weighted chi-squared objective) per user_input.md override.
 
 ## Pointers
-- docs/fix_plan.md:64 — Initiative metadata, exit criteria, and Attempts history for PERF-WARM-SIM-001.
-- plans/active/PERF-WARM-SIM-001/implementation.md:1 — Stage A warm-cache design sketch and checklist references (A1/B1/etc.).
-- docs/pytorch_runtime_checklist.md:1 — Device/dtype and perf counter guardrails for nanobrag_torch edits.
-- docs/TESTING_GUIDE.md:82 — Active implementation selectors + Stage A staging notes for the mapped pytest node.
-- plans/active/PERF-WARM-SIM-001/bin/benchmark_stage_a_cache.py:1 — Benchmark harness consuming telemetry and writing perf artifacts.
+- plans/nanobrag_integration_plan.md: Phase 3 Loss/Staging definitions (Variance-Weighted / Stage B per-reflection multipliers).
+- docs/spec-db-core.md §Variance Model: normative sigma_rdout guidance.
+- docs/fix_plan.md: new initiatives + dependencies for PHYSICS-LOSS-001 and ARCH-REFINE-FLOW-001.
 
 ## Next Up (optional)
-1. Instrument Stage B telemetry/perf counters once warm vs cold evidence lands.
-2. Add CLI flag plumbing so end users can flip the warm-cache benchmark mode directly from `dbex.refine_one`.
+1. After chi-squared loss lands, schedule ARCH-REFINE-FLOW-001 to introduce the protocol-based refinement engine.
+2. Update telemetry/visualization stack (TOOLING-VIS-001) once weighted losses are recorded in HDF5.
 
 ## Mapped Tests Guardrail
-- `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` collects exactly 1 test; if collection breaks, fix/author the selector before delivering code changes.
+- `pytest -k DB_AT_010` must collect and fail until chi-squared implementation is complete; capture logs + gradcheck deltas in the artifacts directory.

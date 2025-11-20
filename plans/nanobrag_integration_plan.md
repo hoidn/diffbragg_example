@@ -147,15 +147,14 @@ Mirror the staged refinement logic from DiffBragg to maintain convergence charac
 ### Strategy
 6) Loss (Variance-Weighted / Chi-Squared)
    - Loss SHALL be `Sum( (Bragg - target)^2 / (Bragg.detach() + sigma_rdout^2) )` over trusted pixels.
-   - This approximates an IRLS (Iteratively Reweighted Least Squares) objective compatible with Poisson + Readout noise.
-
+   - This implements an IRLS (Iteratively Reweighted Least Squares) objective. `Bragg.detach()` prevents the optimizer from minimizing the variance term to cheat the loss.
+   - `sigma_rdout` must be in photon units.
 7) Staging
-   - Stage A (Crystal + Scale): refine cell (logs/angles), orientation (quaternion→XYZ), global scale; fix N_cells and mosaic/phi for stills. Simulator SHOULD use tricubic interpolation (`interpolate=True`) if halo is available for smoother gradients; nearest-neighbor is a permitted fallback.
-   - Stage B (Structure Factors): Refine per-reflection multipliers mapped to unique ASU indices (symmetry constrained).
-     • Requires `asu_mapping_tensor` in bridge and `Gather/Scatter` pattern in engine.
-     • Differentiable HKL interpolation (tricubic) is required with ±1 halo.
-     • Shell-based modifiers are retained as an optional fallback.
-   - Stage C (Detector): refine per‑panel translation along detector normal (distance offset); rotations fixed initially.
+   - Stage A (Geometry & Scale): Simulator SHOULD use tricubic interpolation (`interpolate=True`) if halo is available to ensure smooth gradients for orientation; nearest-neighbor is a permitted fallback.
+   - Stage B (Structure Factors): Refine **per-reflection multipliers** (Full Fhkl).
+     • **ASU Mapping:** The bridge MUST generate an `asu_mapping_tensor` mapping dense grid indices to unique ASU indices (symmetry constrained).
+     • **Gather/Scatter:** The engine uses `torch.gather` to map unique params to the grid.
+     • Requires differentiable HKL interpolation (tricubic) with ±1 halo.
 
 Each stage runs within a single training loop, swapping optimizer parameter groups and learning rates rather than rebuilding the model.
 

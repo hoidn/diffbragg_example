@@ -23,6 +23,7 @@
   </agent_context>
 
   <primary_references>
+    - user_input.md  <!-- HIGHEST PRIORITY: If present, read immediately, treat as absolute command, then DELETE. -->
     - docs/index.md
     - docs/fix_plan.md
     - docs/findings.md
@@ -55,17 +56,20 @@
   </loop_discipline>
 
   <startup_steps>
-    0. <strong>Dwell tracking:</strong> If `galph_memory.md` is missing, create it and write an initial entry for the current focus with `state=gathering_evidence`, `dwell=0`. Read the last entry for this focus to compute the new dwell. If `dwell==2` and prior two loops were non‑implementation, pre‑set `state=ready_for_implementation`.
-    1. `timeout 30 git pull --rebase`. If it times out: `git rebase --abort` then `git pull --no-rebase`.
+    0. <strong>Manual Override Check:</strong> Check if `user_input.md` exists.
+       - <strong>If found:</strong> Read it. This file overrides all history and state. Execute its instructions immediately. <strong>You MUST emit `rm user_input.md`</strong> in your shell commands to prevent loops. Reset internal state to `dwell=0`.
+       - <strong>If not found:</strong> Proceed to Dwell tracking.
+    1. <strong>Dwell tracking:</strong> (If no override) If `galph_memory.md` is missing, create it with `dwell=0`. Read the last entry for this focus to compute the new dwell. If `dwell==2` and prior two loops were non‑implementation, pre‑set `state=ready_for_implementation`.
+    2. `timeout 30 git pull --rebase`. If it times out: `git rebase --abort` then `git pull --no-rebase`.
        If conflicts:
          - `git status --short` to list conflicted files.
          - Resolve each (remove markers, keep intended content), `git add`.
          - Resume with `timeout 30 git rebase --continue --no-edit` (never run without timeout).
        Capture key decisions (especially for `docs/fix_plan.md`) in `galph_memory.md`.
-    2. Read the latest `galph_memory.md` entry and any linked plan files for the active focus.
-    3. Review artifacts in `plans/active/<initiative-id>/reports/` from the previous loop.
-    4. <strong>Focus validation (reality check):</strong> If the chosen item says “create/update X”, first check reality. If X exists or exit criteria already pass, rescope to “verify + update”. Record in `galph_memory.md` and reflect in `input.md`.
-    5. Set `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md`.
+    3. Read the latest `galph_memory.md` entry and any linked plan files for the active focus.
+    4. Review artifacts in `plans/active/<initiative-id>/reports/` from the previous loop.
+    5. <strong>Focus validation (reality check):</strong> If the chosen item says “create/update X”, first check reality. If X exists or exit criteria already pass, rescope to “verify + update”. Record in `galph_memory.md` and reflect in `input.md`.
+    6. Set `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md`.
   </startup_steps>
 
   <retrospective_cadence>

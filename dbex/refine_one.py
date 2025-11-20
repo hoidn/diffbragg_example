@@ -68,8 +68,8 @@ def create_parser():
     ap.add_argument(
         "--device",
         type=str,
-        default="cpu",
-        help="Torch device for nanobrag backend tensors (e.g., 'cpu', 'cuda:0', 'mps')."
+        default="cuda:0",
+        help="Torch device for nanobrag backend tensors (default: cuda:0; falls back to CPU if unavailable)."
     )
 
     return ap
@@ -227,6 +227,9 @@ def run_nanobrag_backend(args, DL, devid=0):
         device = torch.device(args.device)
     except (TypeError, RuntimeError, ValueError) as e:
         raise ValueError(f"Invalid --device '{args.device}': {e}") from e
+    if device.type == "cuda" and not torch.cuda.is_available():
+        print(f"[nanobrag backend] WARNING: CUDA device requested ({args.device}) but torch reports no CUDA runtime. Falling back to CPU.")
+        device = torch.device("cpu")
     print(f"[nanobrag backend] Using device={device} for zero-iteration simulation and refinement.")
 
     # Try refined MTZ first if provided, FAIL if not consumed (SCALE-007)

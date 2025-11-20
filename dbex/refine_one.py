@@ -71,6 +71,16 @@ def create_parser():
         default="cuda:0",
         help="Torch device for nanobrag backend tensors (default: cuda:0; falls back to CPU if unavailable)."
     )
+    ap.add_argument(
+        "--sigma-rdout",
+        type=float,
+        default=None,
+        help="Detector readout noise in photons (must be >=0 if provided). "
+             "Used to compute variance-weighted chi-squared loss per spec-db-core.md:62-64. "
+             "If not provided, defaults to 0.0 (Poisson-only variance). Units must match target "
+             "representation (photons if --adu-per-photon given, else ADU). "
+             "Warning: ensure consistency between CLI value and detector metadata."
+    )
 
     return ap
 
@@ -190,6 +200,18 @@ def run_nanobrag_backend(args, DL, devid=0):
     print(f"[nanobrag backend] Preparing refinement inputs from DataLoad...")
 
     # Prepare inputs via bridge (with optional ADU→photon conversion)
+    # sigma_readout: Convert CLI scalar to broadcast-compatible array if provided
+    sigma_readout_array = None
+    if args.sigma_rdout is not None:
+        if args.sigma_rdout < 0:
+            raise ValueError(
+                f"--sigma-rdout must be non-negative, got {args.sigma_rdout}. "
+                f"Per spec-db-core.md:63, readout noise must be >= 0."
+            )
+        # Broadcast scalar to full data shape [panel, slow, fast]
+        sigma_readout_array = np.full_like(DL.data, args.sigma_rdout, dtype=np.float32)
+        print(f"[nanobrag backend] Using CLI sigma_rdout={args.sigma_rdout} (broadcast to data shape)")
+
     inputs = prepare_refinement_inputs(
         data=DL.data,
         background_image=DL.background_image,
@@ -197,7 +219,8 @@ def run_nanobrag_backend(args, DL, devid=0):
         bbox=DL.bbox,
         pids=DL.pids,
         detector=DL.detector,
-        adu_per_photon=args.adu_per_photon
+        adu_per_photon=args.adu_per_photon,
+        sigma_readout=sigma_readout_array
     )
 
     print(f"[nanobrag backend] Target shape: {inputs.target.shape}")

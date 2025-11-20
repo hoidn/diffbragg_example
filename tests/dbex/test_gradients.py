@@ -107,8 +107,14 @@ def refinement_inputs(data_load_instance):
     Prepare RefinementInputs from DataLoad for gradient tests.
 
     Uses default ADU mode (no calibration) to simplify gradient setup.
+    Provides deterministic sigma_readout=3.0 ADU for variance-weighted loss testing (PHYSICS-LOSS-001).
     """
     from dbex.nanobrag_bridge import prepare_refinement_inputs
+    import numpy as np
+
+    # Deterministic sigma_readout for variance-weighted loss testing
+    # Use 3.0 ADU as a representative readout noise value (typical for modern detectors)
+    sigma_array = np.full_like(data_load_instance.data, 3.0, dtype=np.float32)
 
     # Use default ADU mode for simplicity
     inputs = prepare_refinement_inputs(
@@ -118,7 +124,8 @@ def refinement_inputs(data_load_instance):
         bbox=data_load_instance.bbox,
         pids=data_load_instance.pids,
         detector=data_load_instance.detector,
-        adu_per_photon=None  # ADU mode
+        adu_per_photon=None,  # ADU mode
+        sigma_readout=sigma_array  # PHYSICS-LOSS-001: variance-weighted loss path
     )
 
     return inputs
@@ -182,6 +189,7 @@ class TestDB_AT_010_Gradcheck:
         # Convert inputs to torch
         target_torch = torch.tensor(refinement_inputs.target, dtype=dtype, device=device)
         loss_mask_torch = torch.tensor(refinement_inputs.loss_mask, dtype=torch.bool, device=device)
+        sigma_readout_torch = torch.tensor(refinement_inputs.sigma_readout, dtype=dtype, device=device)
 
         # Get base crystal config
         base_crystal = geometry_objects["crystal"]
@@ -208,8 +216,8 @@ class TestDB_AT_010_Gradcheck:
                 crystal_overrides=crystal_overrides  # Pass tensor override
             )
 
-            # Compute masked MSE loss
-            loss = compute_masked_mse_loss(bragg_torch, target_torch, loss_mask_torch)
+            # Compute variance-weighted chi-squared loss (PHYSICS-LOSS-001)
+            loss = compute_masked_mse_loss(bragg_torch, target_torch, loss_mask_torch, sigma_readout_torch)
             return loss
 
         # Get base cell_a value
@@ -270,6 +278,7 @@ class TestDB_AT_010_Gradcheck:
         # Convert inputs to torch
         target_torch = torch.tensor(refinement_inputs.target, dtype=dtype, device=device)
         loss_mask_torch = torch.tensor(refinement_inputs.loss_mask, dtype=torch.bool, device=device)
+        sigma_readout_torch = torch.tensor(refinement_inputs.sigma_readout, dtype=dtype, device=device)
 
         # Get base crystal
         base_crystal = geometry_objects["crystal"]
@@ -296,8 +305,8 @@ class TestDB_AT_010_Gradcheck:
                 crystal_overrides=crystal_overrides  # Pass tensor override
             )
 
-            # Compute masked MSE loss
-            loss = compute_masked_mse_loss(bragg_torch, target_torch, loss_mask_torch)
+            # Compute variance-weighted chi-squared loss (PHYSICS-LOSS-001)
+            loss = compute_masked_mse_loss(bragg_torch, target_torch, loss_mask_torch, sigma_readout_torch)
             return loss
 
         # Get base cell_gamma value
@@ -358,6 +367,7 @@ class TestDB_AT_010_Gradcheck:
         # Convert inputs to torch
         target_torch = torch.tensor(refinement_inputs.target, dtype=dtype, device=device)
         loss_mask_torch = torch.tensor(refinement_inputs.loss_mask, dtype=torch.bool, device=device)
+        sigma_readout_torch = torch.tensor(refinement_inputs.sigma_readout, dtype=dtype, device=device)
 
         # Get base detector
         base_detector = geometry_objects["detector"]
@@ -417,8 +427,8 @@ class TestDB_AT_010_Gradcheck:
                 dtype=dtype
             )
 
-            # Compute masked MSE loss
-            loss = compute_masked_mse_loss(bragg_torch, target_torch, loss_mask_torch)
+            # Compute variance-weighted chi-squared loss (PHYSICS-LOSS-001)
+            loss = compute_masked_mse_loss(bragg_torch, target_torch, loss_mask_torch, sigma_readout_torch)
             return loss
 
         # Create differentiable parameter tensor
@@ -475,6 +485,7 @@ class TestDB_AT_010_Gradcheck:
         # Convert inputs to torch
         target_torch = torch.tensor(refinement_inputs.target, dtype=dtype, device=device)
         loss_mask_torch = torch.tensor(refinement_inputs.loss_mask, dtype=torch.bool, device=device)
+        sigma_readout_torch = torch.tensor(refinement_inputs.sigma_readout, dtype=dtype, device=device)
 
         # Get base objects
         base_detector = geometry_objects["detector"]
@@ -509,8 +520,8 @@ class TestDB_AT_010_Gradcheck:
                 dtype=dtype
             )
 
-            # Compute masked MSE loss
-            loss = compute_masked_mse_loss(bragg_torch, target_torch, loss_mask_torch)
+            # Compute variance-weighted chi-squared loss (PHYSICS-LOSS-001)
+            loss = compute_masked_mse_loss(bragg_torch, target_torch, loss_mask_torch, sigma_readout_torch)
             return loss
 
         # Create differentiable parameter tensor

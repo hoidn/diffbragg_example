@@ -487,6 +487,7 @@ def run_nanobrag_refinement(
     dtype = config.dtype
     target_t = torch.from_numpy(inputs.target).to(device=device, dtype=dtype)
     loss_mask_t = torch.from_numpy(inputs.loss_mask).to(device=device, dtype=torch.bool)
+    sigma_readout_t = torch.from_numpy(inputs.sigma_readout).to(device=device, dtype=dtype)
 
     # Extract deterministic misset from perturbed geometry (TORCH-REFINE-002D)
     # Compute U_delta = U_perturbed @ U_baseline^{-1} and convert to XYZ Euler angles
@@ -601,9 +602,14 @@ def run_nanobrag_refinement(
             dtype=dtype
         )
 
-    def compute_loss(panel_ids: List[int], is_full: bool = False) -> torch.Tensor:
+    def compute_loss(panel_ids: List[int], is_full: bool = False) -> Tuple[torch.Tensor, torch.Tensor]:
         """
-        Compute masked MSE loss over specified panels.
+        Compute variance-weighted chi-squared loss over specified panels.
+
+        Implements spec-db-core.md:57-68 variance model:
+        - Variance: V = I_model.detach() + sigma_readout^2
+        - Loss: Sum((I_model - I_obs)^2 / V) over trusted pixels
+        - Detached denominator implements IRLS (prevents "attraction to zero")
 
         Warm mode (default): Reuses cached detector models and masks (PERF-WARM-SIM-001).
         Cold mode (benchmarking): Rebuilds detector models/masks inside closure.
@@ -613,7 +619,7 @@ def run_nanobrag_refinement(
             is_full: If True, this is a full validation run
 
         Returns:
-            loss: torch.Tensor scalar loss value
+            Tuple of (chi_squared_loss, masked_mse_loss): Both scalar tensors for telemetry
         """
         # Time forward pass (CPU-only, PERF-WARM-SIM-001)
         t0 = time.perf_counter()
@@ -725,17 +731,34 @@ def run_nanobrag_refinement(
         # Extract corresponding target and mask slices
         target_subset = target_t[panel_ids]
         mask_subset = loss_mask_t[panel_ids]
+        sigma_subset = sigma_readout_t[panel_ids]
 
-        # Masked MSE
-        masked_diff = torch.where(mask_subset, bragg_scaled - target_subset, torch.tensor(0.0, device=device, dtype=dtype))
-        loss = (masked_diff ** 2).sum() / mask_subset.sum()
+        # Variance-weighted chi-squared loss (spec-db-core.md:57-68)
+        # Variance = I_model.detach() + sigma_readout^2 (Poisson + readout noise in quadrature)
+        # Detach denominator to prevent "attraction to zero" (IRLS approach)
+        variance = torch.clamp(bragg_scaled.detach() + sigma_subset**2, min=1e-12)
+
+        # Numerator: (I_model - I_obs)^2, masked
+        diff = bragg_scaled - target_subset
+        masked_diff = torch.where(mask_subset, diff, torch.tensor(0.0, device=device, dtype=dtype))
+        numerator = (masked_diff ** 2).sum()
+
+        # Denominator: Sum(V) over masked pixels
+        masked_variance = torch.where(mask_subset, variance, torch.tensor(0.0, device=device, dtype=dtype))
+        denominator = masked_variance.sum()
+
+        # Chi-squared loss: Sum((I_model - I_obs)^2 / V)
+        chi_squared_loss = numerator / torch.clamp(denominator, min=1e-12)
+
+        # Also compute masked MSE for legacy telemetry comparison
+        masked_mse_loss = numerator / mask_subset.sum()
 
         # Record forward timing (PERF-WARM-SIM-001)
         if not is_full:  # Only track closure forward times, not validation
             elapsed_ms = (time.perf_counter() - t0) * 1000.0
             perf_forward_times_ms.append(elapsed_ms)
 
-        return loss
+        return chi_squared_loss, masked_mse_loss
 
     def closure():
         """LBFGS closure: recompute loss and gradients."""
@@ -745,30 +768,30 @@ def run_nanobrag_refinement(
         perf_closure_evals[0] += 1
 
         # Compute loss on sampled ROIs
-        loss = compute_loss(sampled_panel_ids, is_full=False)
+        chi_squared_loss, masked_mse_loss = compute_loss(sampled_panel_ids, is_full=False)
 
-        # Backward pass
-        loss.backward()
+        # Backward pass (optimize chi_squared, not MSE)
+        chi_squared_loss.backward()
 
         # Check for NaN/Inf gradients
         for p in params:
             if p.grad is not None and (torch.isnan(p.grad).any() or torch.isinf(p.grad).any()):
                 raise RuntimeError(f"NaN/Inf gradient detected in {p}")
 
-        # Record loss
-        loss_trace_sample.append(float(loss.item()))
+        # Record loss (use chi_squared for optimizer feedback)
+        loss_trace_sample.append(float(chi_squared_loss.item()))
 
         # Periodic full validation
         if iteration_count[0] % config.full_validation_interval == 0:
             perf_validation_runs[0] += 1  # PERF-WARM-SIM-001
             with torch.no_grad():
-                full_loss = compute_loss(list(range(n_panels)), is_full=True)
-                loss_trace_full.append((iteration_count[0], float(full_loss.item())))
+                full_chi_squared, full_mse = compute_loss(list(range(n_panels)), is_full=True)
+                loss_trace_full.append((iteration_count[0], float(full_chi_squared.item())))
 
                 # Update best snapshot
                 nonlocal best_loss_full, best_params_snapshot
-                if full_loss.item() < best_loss_full[0]:
-                    best_loss_full = (float(full_loss.item()), iteration_count[0])
+                if full_chi_squared.item() < best_loss_full[0]:
+                    best_loss_full = (float(full_chi_squared.item()), iteration_count[0])
                     # Compute misset XYZ for snapshot (TORCH-REFINE-002)
                     max_orientation_deg = 3.0
                     bounded_orientation_vec_snap = torch.tanh(orientation_vec) * max_orientation_deg * (np.pi / 180.0)
@@ -800,11 +823,11 @@ def run_nanobrag_refinement(
         # Final full validation
         perf_validation_runs[0] += 1  # PERF-WARM-SIM-001
         with torch.no_grad():
-            final_loss = compute_loss(list(range(n_panels)), is_full=True)
-            loss_trace_full.append((iteration_count[0], float(final_loss.item())))
+            final_chi_squared, final_mse = compute_loss(list(range(n_panels)), is_full=True)
+            loss_trace_full.append((iteration_count[0], float(final_chi_squared.item())))
 
-            if final_loss.item() < best_loss_full[0]:
-                best_loss_full = (float(final_loss.item()), iteration_count[0])
+            if final_chi_squared.item() < best_loss_full[0]:
+                best_loss_full = (float(final_chi_squared.item()), iteration_count[0])
                 # Compute misset XYZ for final snapshot (TORCH-REFINE-002)
                 max_orientation_deg = 3.0
                 bounded_orientation_vec_final = torch.tanh(orientation_vec) * max_orientation_deg * (np.pi / 180.0)

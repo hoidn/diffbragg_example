@@ -317,6 +317,9 @@ class RefinementTelemetry:
     For multi-stage refinement (Stage A + Stage C), this structure represents
     a single stage. The calling code aggregates multiple telemetry objects into
     a Dict[str, RefinementTelemetry] keyed by stage label ("A", "C").
+
+    PHYSICS-LOSS-001: Tracks both chi_squared (variance-weighted loss, the optimization objective)
+    and masked_mse (legacy metric for comparison). All stages minimize chi_squared per spec-db-core.md:57-68.
     """
     optimizer: str
     stage: str
@@ -327,13 +330,20 @@ class RefinementTelemetry:
     roi_sample_fraction: float
     roi_count_sampled: int
     roi_count_total: int
-    loss_trace_sample: List[float]
-    loss_trace_full: List[Tuple[int, float]]  # [(iteration, loss), ...]
-    best_loss_full: Tuple[float, int]  # (loss, iteration)
+    loss_trace_sample: List[float]  # Deprecated: will be chi_squared_trace_sample after PHYSICS-LOSS-001
+    loss_trace_full: List[Tuple[int, float]]  # Deprecated: will be chi_squared_trace_full after PHYSICS-LOSS-001
+    best_loss_full: Tuple[float, int]  # Deprecated: will be chi_squared_best after PHYSICS-LOSS-001
     param_deltas: Dict[str, float]
     status: str  # "ok" | "early_stop" | "rollback" | "error"
     message: str
     perf_counters: Optional[Dict[str, Any]] = None  # PERF-WARM-SIM-001: closure_evals, forward_time_ms, validations
+    # PHYSICS-LOSS-001: Dual loss metrics for cross-stage comparison
+    chi_squared_trace_sample: Optional[List[float]] = None  # Chi-squared sampled trace (ROI subset)
+    chi_squared_trace_full: Optional[List[Tuple[int, float]]] = None  # Chi-squared full trace [(iter, chi2), ...]
+    chi_squared_best: Optional[Tuple[float, int]] = None  # Best chi-squared (value, iteration)
+    masked_mse_trace_sample: Optional[List[float]] = None  # Masked-MSE sampled trace (legacy metric)
+    masked_mse_trace_full: Optional[List[Tuple[int, float]]] = None  # Masked-MSE full trace [(iter, mse), ...]
+    masked_mse_best: Optional[Tuple[float, int]] = None  # Best masked-MSE (value, iteration)
 
 
 def _build_stage_a_context(
@@ -565,11 +575,19 @@ def run_nanobrag_refinement(
     )
 
     # Telemetry accumulators
-    loss_trace_sample = []
-    loss_trace_full = []
-    best_loss_full = (float('inf'), -1)
+    loss_trace_sample = []  # Deprecated: chi_squared only (PHYSICS-LOSS-001)
+    loss_trace_full = []  # Deprecated: chi_squared only (PHYSICS-LOSS-001)
+    best_loss_full = (float('inf'), -1)  # Deprecated: chi_squared only (PHYSICS-LOSS-001)
     best_params_snapshot = None
     iteration_count = [0]  # Mutable counter for closure
+
+    # PHYSICS-LOSS-001: Dual metric tracking (chi_squared + masked_mse)
+    chi_squared_trace_sample = []
+    chi_squared_trace_full = []
+    chi_squared_best = (float('inf'), -1)
+    masked_mse_trace_sample = []
+    masked_mse_trace_full = []
+    masked_mse_best = (float('inf'), -1)
 
     # Perf counters (PERF-WARM-SIM-001)
     perf_closure_evals = [0]  # Total closure calls
@@ -779,19 +797,27 @@ def run_nanobrag_refinement(
                 raise RuntimeError(f"NaN/Inf gradient detected in {p}")
 
         # Record loss (use chi_squared for optimizer feedback)
-        loss_trace_sample.append(float(chi_squared_loss.item()))
+        loss_trace_sample.append(float(chi_squared_loss.item()))  # Deprecated legacy field
+        # PHYSICS-LOSS-001: Record both metrics
+        chi_squared_trace_sample.append(float(chi_squared_loss.item()))
+        masked_mse_trace_sample.append(float(masked_mse_loss.item()))
 
         # Periodic full validation
         if iteration_count[0] % config.full_validation_interval == 0:
             perf_validation_runs[0] += 1  # PERF-WARM-SIM-001
             with torch.no_grad():
                 full_chi_squared, full_mse = compute_loss(list(range(n_panels)), is_full=True)
-                loss_trace_full.append((iteration_count[0], float(full_chi_squared.item())))
+                loss_trace_full.append((iteration_count[0], float(full_chi_squared.item())))  # Deprecated legacy field
+                # PHYSICS-LOSS-001: Record both metrics
+                chi_squared_trace_full.append((iteration_count[0], float(full_chi_squared.item())))
+                masked_mse_trace_full.append((iteration_count[0], float(full_mse.item())))
 
                 # Update best snapshot
-                nonlocal best_loss_full, best_params_snapshot
-                if full_chi_squared.item() < best_loss_full[0]:
-                    best_loss_full = (float(full_chi_squared.item()), iteration_count[0])
+                nonlocal best_loss_full, best_params_snapshot, chi_squared_best, masked_mse_best
+                # PHYSICS-LOSS-001: Track best for both metrics
+                if full_chi_squared.item() < chi_squared_best[0]:
+                    chi_squared_best = (float(full_chi_squared.item()), iteration_count[0])
+                    best_loss_full = (float(full_chi_squared.item()), iteration_count[0])  # Deprecated legacy field
                     # Compute misset XYZ for snapshot (TORCH-REFINE-002)
                     max_orientation_deg = 3.0
                     bounded_orientation_vec_snap = torch.tanh(orientation_vec) * max_orientation_deg * (np.pi / 180.0)
@@ -809,9 +835,12 @@ def run_nanobrag_refinement(
                         'orientation_vec': orientation_vec.detach().cpu().tolist(),
                         'misset_xyz_deg': misset_xyz_deg_snap.detach().cpu().tolist()
                     }
+                # PHYSICS-LOSS-001: Track masked_mse best separately (informational only, not for rollback)
+                if full_mse.item() < masked_mse_best[0]:
+                    masked_mse_best = (float(full_mse.item()), iteration_count[0])
 
         iteration_count[0] += 1
-        return loss
+        return chi_squared_loss
 
     # Run LBFGS optimization
     status = "ok"
@@ -824,10 +853,20 @@ def run_nanobrag_refinement(
         perf_validation_runs[0] += 1  # PERF-WARM-SIM-001
         with torch.no_grad():
             final_chi_squared, final_mse = compute_loss(list(range(n_panels)), is_full=True)
-            loss_trace_full.append((iteration_count[0], float(final_chi_squared.item())))
+            loss_trace_full.append((iteration_count[0], float(final_chi_squared.item())))  # Deprecated legacy field
+            # PHYSICS-LOSS-001: Record both metrics
+            chi_squared_trace_full.append((iteration_count[0], float(final_chi_squared.item())))
+            masked_mse_trace_full.append((iteration_count[0], float(final_mse.item())))
 
             if final_chi_squared.item() < best_loss_full[0]:
-                best_loss_full = (float(final_chi_squared.item()), iteration_count[0])
+                best_loss_full = (float(final_chi_squared.item()), iteration_count[0])  # Deprecated legacy field
+            # PHYSICS-LOSS-001: Track best for both metrics
+            if final_chi_squared.item() < chi_squared_best[0]:
+                chi_squared_best = (float(final_chi_squared.item()), iteration_count[0])
+            if final_mse.item() < masked_mse_best[0]:
+                masked_mse_best = (float(final_mse.item()), iteration_count[0])
+
+            if final_chi_squared.item() < best_loss_full[0]:
                 # Compute misset XYZ for final snapshot (TORCH-REFINE-002)
                 max_orientation_deg = 3.0
                 bounded_orientation_vec_final = torch.tanh(orientation_vec) * max_orientation_deg * (np.pi / 180.0)
@@ -1043,13 +1082,20 @@ def run_nanobrag_refinement(
         roi_sample_fraction=config.roi_sample_fraction,
         roi_count_sampled=len(sampled_panel_ids),
         roi_count_total=n_panels,
-        loss_trace_sample=loss_trace_sample,
-        loss_trace_full=loss_trace_full,
-        best_loss_full=best_loss_full,
+        loss_trace_sample=loss_trace_sample,  # Deprecated legacy field (chi_squared only)
+        loss_trace_full=loss_trace_full,  # Deprecated legacy field (chi_squared only)
+        best_loss_full=best_loss_full,  # Deprecated legacy field (chi_squared only)
         param_deltas=param_deltas,
         status=status,
         message=message,
-        perf_counters=perf_counters
+        perf_counters=perf_counters,
+        # PHYSICS-LOSS-001: Dual loss metrics
+        chi_squared_trace_sample=chi_squared_trace_sample,
+        chi_squared_trace_full=chi_squared_trace_full,
+        chi_squared_best=chi_squared_best,
+        masked_mse_trace_sample=masked_mse_trace_sample,
+        masked_mse_trace_full=masked_mse_trace_full,
+        masked_mse_best=masked_mse_best
     )
 
     telemetry_dict = {"A": telemetry_a}
@@ -1123,6 +1169,14 @@ def run_nanobrag_refinement(
         loss_trace_full_b = []
         best_loss_full_b = (float('inf'), 0)
         best_params_snapshot_b = {'shell_modifier_raw': shell_modifier_raw.data.clone()}
+
+        # PHYSICS-LOSS-001: Dual metric tracking (chi_squared + masked_mse)
+        chi_squared_trace_sample_b = []
+        chi_squared_trace_full_b = []
+        chi_squared_best_b = (float('inf'), -1)
+        masked_mse_trace_sample_b = []
+        masked_mse_trace_full_b = []
+        masked_mse_best_b = (float('inf'), -1)
 
         # Track default_F fallback count (should be zero with halo grid)
         # Note: nanobrag_torch doesn't expose default_F counter directly; this is a placeholder
@@ -1292,17 +1346,27 @@ def run_nanobrag_refinement(
 
             # Record loss
             loss_trace_sample_b.append(float(chi_squared_loss.item()))
+            # PHYSICS-LOSS-001: Record both metrics
+            chi_squared_trace_sample_b.append(float(chi_squared_loss.item()))
+            masked_mse_trace_sample_b.append(float(mse_loss.item()))
 
             # Periodic full validation
             if len(loss_trace_sample_b) % config.full_validation_interval == 0:
                 with torch.no_grad():
                     full_chi_squared_b, full_mse_b = compute_loss_stage_b(list(range(n_panels)), is_full=True)
                     loss_trace_full_b.append((len(loss_trace_sample_b), float(full_chi_squared_b.item())))
+                    # PHYSICS-LOSS-001: Record both metrics
+                    chi_squared_trace_full_b.append((len(loss_trace_sample_b), float(full_chi_squared_b.item())))
+                    masked_mse_trace_full_b.append((len(loss_trace_sample_b), float(full_mse_b.item())))
 
                     # Update best snapshot
-                    if full_chi_squared_b.item() < best_loss_full_b[0]:
-                        best_loss_full_b = (float(full_chi_squared_b.item()), len(loss_trace_sample_b))
+                    # PHYSICS-LOSS-001: Track best for both metrics
+                    if full_chi_squared_b.item() < chi_squared_best_b[0]:
+                        chi_squared_best_b = (float(full_chi_squared_b.item()), len(loss_trace_sample_b))
+                        best_loss_full_b = (float(full_chi_squared_b.item()), len(loss_trace_sample_b))  # Deprecated legacy field
                         best_params_snapshot_b['shell_modifier_raw'] = shell_modifier_raw.data.clone()
+                    if full_mse_b.item() < masked_mse_best_b[0]:
+                        masked_mse_best_b = (float(full_mse_b.item()), len(loss_trace_sample_b))
 
             return chi_squared_loss
 
@@ -1314,6 +1378,11 @@ def run_nanobrag_refinement(
             with torch.no_grad():
                 initial_chi_squared_b, initial_mse_b = compute_loss_stage_b(list(range(n_panels)), is_full=True)
                 loss_trace_full_b.append((0, float(initial_chi_squared_b.item())))
+                # PHYSICS-LOSS-001: Record both metrics
+                chi_squared_trace_full_b.append((0, float(initial_chi_squared_b.item())))
+                masked_mse_trace_full_b.append((0, float(initial_mse_b.item())))
+                chi_squared_best_b = (float(initial_chi_squared_b.item()), 0)
+                masked_mse_best_b = (float(initial_mse_b.item()), 0)
                 best_loss_full_b = (float(initial_chi_squared_b.item()), 0)
                 best_params_snapshot_b['shell_modifier_raw'] = shell_modifier_raw.data.clone()
 
@@ -1325,11 +1394,18 @@ def run_nanobrag_refinement(
                 final_chi_squared_b, final_mse_b = compute_loss_stage_b(list(range(n_panels)), is_full=True)
                 final_step = len(loss_trace_sample_b)
                 loss_trace_full_b.append((final_step, float(final_chi_squared_b.item())))
+                # PHYSICS-LOSS-001: Record both metrics
+                chi_squared_trace_full_b.append((final_step, float(final_chi_squared_b.item())))
+                masked_mse_trace_full_b.append((final_step, float(final_mse_b.item())))
 
                 # Update best snapshot if final loss improved
-                if final_chi_squared_b.item() < best_loss_full_b[0]:
-                    best_loss_full_b = (float(final_chi_squared_b.item()), final_step)
+                # PHYSICS-LOSS-001: Track best for both metrics
+                if final_chi_squared_b.item() < chi_squared_best_b[0]:
+                    chi_squared_best_b = (float(final_chi_squared_b.item()), final_step)
+                    best_loss_full_b = (float(final_chi_squared_b.item()), final_step)  # Deprecated legacy field
                     best_params_snapshot_b['shell_modifier_raw'] = shell_modifier_raw.data.clone()
+                if final_mse_b.item() < masked_mse_best_b[0]:
+                    masked_mse_best_b = (float(final_mse_b.item()), final_step)
 
             # Check convergence: did we achieve ≥3% improvement on top of Stage A?
             if len(loss_trace_full_b) > 0:
@@ -1452,7 +1528,14 @@ def run_nanobrag_refinement(
             param_deltas=param_deltas_b,
             status=status_b,
             message=message_b,
-            perf_counters={}  # PERF-WARM-SIM-001: Stage B not instrumented yet
+            perf_counters={},  # PERF-WARM-SIM-001: Stage B not instrumented yet
+            # PHYSICS-LOSS-001: Dual loss metrics
+            chi_squared_trace_sample=chi_squared_trace_sample_b,
+            chi_squared_trace_full=chi_squared_trace_full_b,
+            chi_squared_best=chi_squared_best_b,
+            masked_mse_trace_sample=masked_mse_trace_sample_b,
+            masked_mse_trace_full=masked_mse_trace_full_b,
+            masked_mse_best=masked_mse_best_b
         )
 
         telemetry_dict["B"] = telemetry_b
@@ -1487,6 +1570,14 @@ def run_nanobrag_refinement(
         best_loss_full_c = (float('inf'), -1)
         best_params_snapshot_c = None
         iteration_count_c = [0]
+
+        # PHYSICS-LOSS-001: Dual metric tracking (chi_squared + masked_mse)
+        chi_squared_trace_sample_c = []
+        chi_squared_trace_full_c = []
+        chi_squared_best_c = (float('inf'), -1)
+        masked_mse_trace_sample_c = []
+        masked_mse_trace_full_c = []
+        masked_mse_best_c = (float('inf'), -1)
 
         def compute_loss_stage_c(panel_ids: List[int], is_full: bool = False) -> Tuple[torch.Tensor, torch.Tensor]:
             """
@@ -1594,18 +1685,21 @@ def run_nanobrag_refinement(
 
             # Numerator: (I_model - I_obs)^2, masked
             diff = bragg_scaled - target_subset
-            masked_diff = torch.where(mask_subset, diff, torch.tensor(0.0, device=device, dtype=dtype))
-            numerator = (masked_diff ** 2).sum()
+            squared_error = diff ** 2
+            masked_squared_error = torch.where(mask_subset, squared_error, torch.tensor(0.0, device=device, dtype=dtype))
 
-            # Denominator: Sum(V) over masked pixels
-            masked_variance = torch.where(mask_subset, variance, torch.tensor(0.0, device=device, dtype=dtype))
-            denominator = masked_variance.sum()
-
-            # Chi-squared loss: Sum((I_model - I_obs)^2 / V)
-            chi_squared_loss = numerator / torch.clamp(denominator, min=1e-12)
+            # Chi-squared loss: Sum((I_model - I_obs)^2 / V) over masked pixels
+            # Per spec-db-core.md:58, formula is Sum(...) not Mean(...)
+            weighted_error = squared_error / variance
+            masked_weighted_error = torch.where(mask_subset, weighted_error, torch.tensor(0.0, device=device, dtype=dtype))
+            chi_squared_loss = masked_weighted_error.sum()
 
             # Also compute masked MSE for legacy telemetry comparison
-            masked_mse_loss = numerator / mask_subset.sum()
+            n_pixels_masked = int(mask_subset.sum().item())
+            if n_pixels_masked > 0:
+                masked_mse_loss = masked_squared_error.sum() / n_pixels_masked
+            else:
+                masked_mse_loss = masked_squared_error.sum()
 
             return chi_squared_loss, masked_mse_loss
 
@@ -1626,20 +1720,30 @@ def run_nanobrag_refinement(
 
             # Record loss
             loss_trace_sample_c.append(float(chi_squared_loss.item()))
+            # PHYSICS-LOSS-001: Record both metrics
+            chi_squared_trace_sample_c.append(float(chi_squared_loss.item()))
+            masked_mse_trace_sample_c.append(float(mse_loss.item()))
 
             # Periodic full validation
             if iteration_count_c[0] % config.full_validation_interval == 0:
                 with torch.no_grad():
                     full_chi_squared_c, full_mse_c = compute_loss_stage_c(list(range(n_panels)), is_full=True)
                     loss_trace_full_c.append((iteration_count_c[0], float(full_chi_squared_c.item())))
+                    # PHYSICS-LOSS-001: Record both metrics
+                    chi_squared_trace_full_c.append((iteration_count_c[0], float(full_chi_squared_c.item())))
+                    masked_mse_trace_full_c.append((iteration_count_c[0], float(full_mse_c.item())))
 
                     # Update best snapshot
-                    nonlocal best_loss_full_c, best_params_snapshot_c
-                    if full_chi_squared_c.item() < best_loss_full_c[0]:
-                        best_loss_full_c = (float(full_chi_squared_c.item()), iteration_count_c[0])
+                    nonlocal best_loss_full_c, best_params_snapshot_c, chi_squared_best_c, masked_mse_best_c
+                    # PHYSICS-LOSS-001: Track best for both metrics
+                    if full_chi_squared_c.item() < chi_squared_best_c[0]:
+                        chi_squared_best_c = (float(full_chi_squared_c.item()), iteration_count_c[0])
+                        best_loss_full_c = (float(full_chi_squared_c.item()), iteration_count_c[0])  # Deprecated legacy field
                         best_params_snapshot_c = {
                             'distance_offset_raw': distance_offset_raw.detach().cpu().tolist()
                         }
+                    if full_mse_c.item() < masked_mse_best_c[0]:
+                        masked_mse_best_c = (float(full_mse_c.item()), iteration_count_c[0])
 
             iteration_count_c[0] += 1
             return chi_squared_loss
@@ -1655,12 +1759,19 @@ def run_nanobrag_refinement(
             with torch.no_grad():
                 final_chi_squared_c, final_mse_c = compute_loss_stage_c(list(range(n_panels)), is_full=True)
                 loss_trace_full_c.append((iteration_count_c[0], float(final_chi_squared_c.item())))
+                # PHYSICS-LOSS-001: Record both metrics
+                chi_squared_trace_full_c.append((iteration_count_c[0], float(final_chi_squared_c.item())))
+                masked_mse_trace_full_c.append((iteration_count_c[0], float(final_mse_c.item())))
 
-                if final_chi_squared_c.item() < best_loss_full_c[0]:
-                    best_loss_full_c = (float(final_chi_squared_c.item()), iteration_count_c[0])
+                # PHYSICS-LOSS-001: Track best for both metrics
+                if final_chi_squared_c.item() < chi_squared_best_c[0]:
+                    chi_squared_best_c = (float(final_chi_squared_c.item()), iteration_count_c[0])
+                    best_loss_full_c = (float(final_chi_squared_c.item()), iteration_count_c[0])  # Deprecated legacy field
                     best_params_snapshot_c = {
                         'distance_offset_raw': distance_offset_raw.detach().cpu().tolist()
                     }
+                if final_mse_c.item() < masked_mse_best_c[0]:
+                    masked_mse_best_c = (float(final_mse_c.item()), iteration_count_c[0])
 
             # Check convergence: did we achieve ≥5% improvement on top of Stage A?
             if len(loss_trace_full_c) > 0:
@@ -1786,7 +1897,14 @@ def run_nanobrag_refinement(
             param_deltas=param_deltas_c,
             status=status_c,
             message=message_c,
-            perf_counters={}  # PERF-WARM-SIM-001: Stage C not instrumented yet
+            perf_counters={},  # PERF-WARM-SIM-001: Stage C not instrumented yet
+            # PHYSICS-LOSS-001: Dual loss metrics
+            chi_squared_trace_sample=chi_squared_trace_sample_c,
+            chi_squared_trace_full=chi_squared_trace_full_c,
+            chi_squared_best=chi_squared_best_c,
+            masked_mse_trace_sample=masked_mse_trace_sample_c,
+            masked_mse_trace_full=masked_mse_trace_full_c,
+            masked_mse_best=masked_mse_best_c
         )
 
         telemetry_dict["C"] = telemetry_c

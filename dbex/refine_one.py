@@ -583,7 +583,7 @@ def _write_torch_outputs(args, DL, Bragg, inputs, masked_mse, hkl_telemetry, ref
                 stage_group.attrs["refine_status"] = stage_telem.status
                 stage_group.attrs["refine_message"] = stage_telem.message
 
-                # Store loss traces as datasets
+                # Store loss traces as datasets (legacy chi_squared-only fields)
                 if len(stage_telem.loss_trace_sample) > 0:
                     stage_group.create_dataset("refine_loss_trace_sample", data=stage_telem.loss_trace_sample)
 
@@ -594,6 +594,25 @@ def _write_torch_outputs(args, DL, Bragg, inputs, masked_mse, hkl_telemetry, ref
 
                 stage_group.attrs["refine_best_loss_full"] = stage_telem.best_loss_full[0]
                 stage_group.attrs["refine_best_loss_iteration"] = stage_telem.best_loss_full[1]
+
+                # PHYSICS-LOSS-001: Store dual loss metrics (chi_squared + masked_mse)
+                if stage_telem.chi_squared_trace_sample is not None and len(stage_telem.chi_squared_trace_sample) > 0:
+                    stage_group.create_dataset("chi_squared_trace_sample", data=stage_telem.chi_squared_trace_sample)
+                if stage_telem.chi_squared_trace_full is not None and len(stage_telem.chi_squared_trace_full) > 0:
+                    chi2_trace_full_arr = np.array(stage_telem.chi_squared_trace_full, dtype=[('iteration', 'i4'), ('chi_squared', 'f8')])
+                    stage_group.create_dataset("chi_squared_trace_full", data=chi2_trace_full_arr)
+                if stage_telem.chi_squared_best is not None:
+                    stage_group.attrs["chi_squared_best"] = stage_telem.chi_squared_best[0]
+                    stage_group.attrs["chi_squared_best_iteration"] = stage_telem.chi_squared_best[1]
+
+                if stage_telem.masked_mse_trace_sample is not None and len(stage_telem.masked_mse_trace_sample) > 0:
+                    stage_group.create_dataset("masked_mse_trace_sample", data=stage_telem.masked_mse_trace_sample)
+                if stage_telem.masked_mse_trace_full is not None and len(stage_telem.masked_mse_trace_full) > 0:
+                    mse_trace_full_arr = np.array(stage_telem.masked_mse_trace_full, dtype=[('iteration', 'i4'), ('masked_mse', 'f8')])
+                    stage_group.create_dataset("masked_mse_trace_full", data=mse_trace_full_arr)
+                if stage_telem.masked_mse_best is not None:
+                    stage_group.attrs["masked_mse_best"] = stage_telem.masked_mse_best[0]
+                    stage_group.attrs["masked_mse_best_iteration"] = stage_telem.masked_mse_best[1]
 
                 # Store param_deltas as JSON string
                 stage_group.attrs["refine_param_deltas"] = json.dumps(stage_telem.param_deltas)
@@ -622,6 +641,25 @@ def _write_torch_outputs(args, DL, Bragg, inputs, masked_mse, hkl_telemetry, ref
                 if len(stage_a_telem.loss_trace_full) > 0:
                     loss_trace_full_arr = np.array(stage_a_telem.loss_trace_full, dtype=[('iteration', 'i4'), ('loss', 'f8')])
                     diag.create_dataset("refine_loss_trace_full", data=loss_trace_full_arr)
+
+                # PHYSICS-LOSS-001: Top-level dual loss metrics for Stage A (legacy compatibility)
+                if stage_a_telem.chi_squared_trace_sample is not None and len(stage_a_telem.chi_squared_trace_sample) > 0:
+                    diag.create_dataset("chi_squared_trace_sample", data=stage_a_telem.chi_squared_trace_sample)
+                if stage_a_telem.chi_squared_trace_full is not None and len(stage_a_telem.chi_squared_trace_full) > 0:
+                    chi2_trace_arr = np.array(stage_a_telem.chi_squared_trace_full, dtype=[('iteration', 'i4'), ('chi_squared', 'f8')])
+                    diag.create_dataset("chi_squared_trace_full", data=chi2_trace_arr)
+                if stage_a_telem.chi_squared_best is not None:
+                    diag.attrs["chi_squared_best"] = stage_a_telem.chi_squared_best[0]
+                    diag.attrs["chi_squared_best_iteration"] = stage_a_telem.chi_squared_best[1]
+
+                if stage_a_telem.masked_mse_trace_sample is not None and len(stage_a_telem.masked_mse_trace_sample) > 0:
+                    diag.create_dataset("masked_mse_trace_sample", data=stage_a_telem.masked_mse_trace_sample)
+                if stage_a_telem.masked_mse_trace_full is not None and len(stage_a_telem.masked_mse_trace_full) > 0:
+                    mse_trace_arr = np.array(stage_a_telem.masked_mse_trace_full, dtype=[('iteration', 'i4'), ('masked_mse', 'f8')])
+                    diag.create_dataset("masked_mse_trace_full", data=mse_trace_arr)
+                if stage_a_telem.masked_mse_best is not None:
+                    diag.attrs["masked_mse_best"] = stage_a_telem.masked_mse_best[0]
+                    diag.attrs["masked_mse_best_iteration"] = stage_a_telem.masked_mse_best[1]
 
     # TORCH-CLI-004: Guard against empty scores collection
     if len(scores) > 0:

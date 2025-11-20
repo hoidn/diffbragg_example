@@ -588,9 +588,38 @@ def test_torch_diagnostics_metadata():
                 "hkl_path": "/path/to/test.mtz"
             }
 
+            # PHYSICS-LOSS-001: Create mock refinement telemetry with dual loss metrics
+            from dbex.nanobrag_refinement import RefinementTelemetry
+            mock_telemetry_a = RefinementTelemetry(
+                optimizer="LBFGS",
+                stage="A",
+                history_size=10,
+                max_iter=30,
+                tolerance_grad=1e-7,
+                tolerance_change=1e-9,
+                roi_sample_fraction=0.15,
+                roi_count_sampled=1,
+                roi_count_total=1,
+                loss_trace_sample=[1000.0, 900.0, 800.0],  # Legacy chi_squared trace
+                loss_trace_full=[(0, 1000.0), (5, 900.0), (10, 800.0)],  # Legacy chi_squared trace
+                best_loss_full=(800.0, 10),  # Legacy chi_squared best
+                param_deltas={"log_scale": 0.1},
+                status="ok",
+                message="Converged",
+                perf_counters={"cache_mode": "warm"},
+                # PHYSICS-LOSS-001: Dual loss metrics
+                chi_squared_trace_sample=[1000.0, 900.0, 800.0],
+                chi_squared_trace_full=[(0, 1000.0), (5, 900.0), (10, 800.0)],
+                chi_squared_best=(800.0, 10),
+                masked_mse_trace_sample=[500.0, 450.0, 400.0],
+                masked_mse_trace_full=[(0, 500.0), (5, 450.0), (10, 400.0)],
+                masked_mse_best=(400.0, 10)
+            )
+            refine_telemetry_dict = {"A": mock_telemetry_a}
+
             # Import the function to test
             from dbex.refine_one import _write_torch_outputs
-            _write_torch_outputs(mock_args, mock_dl, mock_bragg, mock_inputs, masked_mse, hkl_telemetry, refine_telemetry=None)
+            _write_torch_outputs(mock_args, mock_dl, mock_bragg, mock_inputs, masked_mse, hkl_telemetry, refine_telemetry=refine_telemetry_dict)
 
             # Verify diagnostics group exists and has correct metadata
             with h5py.File(outfile, 'r') as h:
@@ -624,6 +653,58 @@ def test_torch_diagnostics_metadata():
                 # Score should be numeric and finite (coercion guards against Mock objects)
                 assert np.isfinite(scores_ds[0])
                 assert 0.0 <= scores_ds[0] <= 1.0
+
+                # PHYSICS-LOSS-001: Verify dual loss metrics in Stage A telemetry
+                assert 'stage_A' in diag, "stage_A group missing from torch_diagnostics"
+                stage_a_group = diag['stage_A']
+
+                # Chi-squared metrics
+                assert 'chi_squared_trace_sample' in stage_a_group, "chi_squared_trace_sample dataset missing"
+                assert 'chi_squared_trace_full' in stage_a_group, "chi_squared_trace_full dataset missing"
+                assert 'chi_squared_best' in stage_a_group.attrs, "chi_squared_best attr missing"
+                assert 'chi_squared_best_iteration' in stage_a_group.attrs, "chi_squared_best_iteration attr missing"
+
+                chi2_sample = stage_a_group['chi_squared_trace_sample'][:]
+                assert len(chi2_sample) == 3, f"Expected 3 chi_squared_trace_sample entries, got {len(chi2_sample)}"
+                assert np.allclose(chi2_sample, [1000.0, 900.0, 800.0])
+
+                chi2_full = stage_a_group['chi_squared_trace_full'][:]
+                assert len(chi2_full) == 3, f"Expected 3 chi_squared_trace_full entries, got {len(chi2_full)}"
+                assert chi2_full['iteration'][0] == 0
+                assert chi2_full['chi_squared'][0] == pytest.approx(1000.0)
+                assert chi2_full['iteration'][2] == 10
+                assert chi2_full['chi_squared'][2] == pytest.approx(800.0)
+
+                assert stage_a_group.attrs['chi_squared_best'] == pytest.approx(800.0)
+                assert stage_a_group.attrs['chi_squared_best_iteration'] == 10
+
+                # Masked-MSE metrics
+                assert 'masked_mse_trace_sample' in stage_a_group, "masked_mse_trace_sample dataset missing"
+                assert 'masked_mse_trace_full' in stage_a_group, "masked_mse_trace_full dataset missing"
+                assert 'masked_mse_best' in stage_a_group.attrs, "masked_mse_best attr missing"
+                assert 'masked_mse_best_iteration' in stage_a_group.attrs, "masked_mse_best_iteration attr missing"
+
+                mse_sample = stage_a_group['masked_mse_trace_sample'][:]
+                assert len(mse_sample) == 3, f"Expected 3 masked_mse_trace_sample entries, got {len(mse_sample)}"
+                assert np.allclose(mse_sample, [500.0, 450.0, 400.0])
+
+                mse_full = stage_a_group['masked_mse_trace_full'][:]
+                assert len(mse_full) == 3, f"Expected 3 masked_mse_trace_full entries, got {len(mse_full)}"
+                assert mse_full['iteration'][0] == 0
+                assert mse_full['masked_mse'][0] == pytest.approx(500.0)
+                assert mse_full['iteration'][2] == 10
+                assert mse_full['masked_mse'][2] == pytest.approx(400.0)
+
+                assert stage_a_group.attrs['masked_mse_best'] == pytest.approx(400.0)
+                assert stage_a_group.attrs['masked_mse_best_iteration'] == 10
+
+                # PHYSICS-LOSS-001: Verify legacy top-level compatibility (Stage A only)
+                assert 'chi_squared_trace_sample' in diag, "Top-level chi_squared_trace_sample dataset missing"
+                assert 'chi_squared_trace_full' in diag, "Top-level chi_squared_trace_full dataset missing"
+                assert 'chi_squared_best' in diag.attrs, "Top-level chi_squared_best attr missing"
+                assert 'masked_mse_trace_sample' in diag, "Top-level masked_mse_trace_sample dataset missing"
+                assert 'masked_mse_trace_full' in diag, "Top-level masked_mse_trace_full dataset missing"
+                assert 'masked_mse_best' in diag.attrs, "Top-level masked_mse_best attr missing"
 
 
 @patch('dbex.data_load.DataLoad')

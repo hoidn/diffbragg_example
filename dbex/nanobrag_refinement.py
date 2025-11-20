@@ -1679,15 +1679,15 @@ def run_nanobrag_refinement(
                     misset_deg_override=misset_xyz_deg
                 )
 
-                detector_model = Detector(detector_config)
-                crystal_model = Crystal(crystal_config)
+                detector_model = Detector(detector_config, device=device, dtype=dtype)
+                crystal_model = Crystal(crystal_config, device=device, dtype=dtype)
 
                 crystal_model.interpolate = config.enable_hkl_interpolation
 
                 crystal_model.hkl_data = hkl_grid.to(device=device, dtype=dtype)
                 crystal_model.hkl_metadata = hkl_metadata
 
-                simulator = Simulator(detector=detector_model, crystal=crystal_model)
+                simulator = Simulator(detector=detector_model, crystal=crystal_model, device=device, dtype=dtype)
                 panel_bragg = simulator.run()
 
                 # Apply optimized scale (Stage A final)

@@ -1,0 +1,120 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 76 items
+
+tests/dbex/test_background_semantics.py::TestBackgroundSemantics::test_DB_AT_022_sentinel_complement PASSED [  1%]
+tests/dbex/test_background_semantics.py::TestBackgroundSemantics::test_DB_AT_022_guard_enforcement PASSED [  2%]
+tests/dbex/test_background_semantics.py::TestBackgroundSemantics::test_DB_AT_022_roi_coverage_metrics PASSED [  3%]
+tests/dbex/test_calibration_policy.py::TestCalibrationPolicy::test_DB_AT_023_photon_conversion_correctness PASSED [  5%]
+tests/dbex/test_calibration_policy.py::TestCalibrationPolicy::test_DB_AT_023_adu_mode_metadata PASSED [  6%]
+tests/dbex/test_calibration_policy.py::TestCalibrationPolicy::test_DB_AT_023_invalid_adu_per_photon_guard PASSED [  7%]
+tests/dbex/test_calibration_policy.py::TestCalibrationPolicy::test_DB_AT_023_photon_vs_adu_loss_mask_consistency PASSED [  9%]
+tests/dbex/test_db_at_001_parity.py::TestManifestIntegrity::test_manifest_integrity PASSED [ 10%]
+tests/dbex/test_db_at_001_parity.py::TestManifestIntegrity::test_golden_data_sanity PASSED [ 11%]
+tests/dbex/test_db_at_001_parity.py::TestManifestIntegrity::test_pixel_pitch_guard PASSED [ 13%]
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_perfect_match PASSED [ 14%]
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_correlation_computation PASSED [ 15%]
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_error_metrics PASSED [ 17%]
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_sum_ratio PASSED [ 18%]
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_localization_metric PASSED [ 19%]
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_mask_application PASSED [ 21%]
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_edge_cases PASSED [ 22%]
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_to_dict_serialization PASSED [ 23%]
+tests/dbex/test_db_at_001_parity.py::TestArtifactEmission::test_artifact_emission PASSED [ 25%]
+tests/dbex/test_db_at_001_parity.py::TestArtifactEmission::test_artifact_emission_minimal PASSED [ 26%]
+tests/dbex/test_db_at_001_parity.py::TestDB_AT_001_Parity::test_db_at_001_parity_smoke PASSED [ 27%]
+tests/dbex/test_forward_determinism.py::TestForwardDeterminism::test_DB_AT_002_same_seed PASSED [ 28%]
+tests/dbex/test_forward_determinism.py::TestForwardDeterminism::test_DB_AT_002_diff_seed PASSED [ 30%]
+tests/dbex/test_forward_equivalence_complete.py::TestForwardEquiv::test_DB_AT_001_forward_equiv PASSED [ 31%]
+tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_crystal_cell_a PASSED [ 32%]
+tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_crystal_cell_gamma PASSED [ 34%]
+tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_detector_distance PASSED [ 35%]
+tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck_beam_wavelength PASSED [ 36%]
+tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck::test_db_at_010_gradcheck PASSED [ 38%]
+tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke SKIPPED [ 39%]
+tests/dbex/test_mask_semantics.py::TestMaskSemantics::test_DB_AT_021_trusted_mask_shape_and_polarity PASSED [ 40%]
+tests/dbex/test_mask_semantics.py::TestMaskSemantics::test_DB_AT_021_loss_mask_consistency PASSED [ 42%]
+tests/dbex/test_mask_semantics.py::TestMaskSemantics::test_DB_AT_021_detector_beam_crystal_fixtures PASSED [ 43%]
+tests/dbex/test_nanobrag_bridge.py::TestPrepareRefinementInputs::test_tensor_contract PASSED [ 44%]
+tests/dbex/test_nanobrag_bridge.py::TestPrepareRefinementInputs::test_sigma_readout_broadcast_and_conversion PASSED [ 46%]
+tests/dbex/test_nanobrag_bridge.py::TestPrepareRefinementInputs::test_mask_polarity PASSED [ 47%]
+tests/dbex/test_nanobrag_bridge.py::TestPrepareRefinementInputs::test_pixel_pitch_guard PASSED [ 48%]
+tests/dbex/test_nanobrag_bridge.py::TestPrepareRefinementInputs::test_tuple_mask_input PASSED [ 50%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_beam_center_swap PASSED [ 51%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_sample_to_source_vector SKIPPED [ 52%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_detector_convention_dials PASSED [ 53%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_mask_array_float_conversion PASSED [ 55%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_pixel_size_and_dimensions PASSED [ 56%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_distance_mm PASSED [ 57%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_detector_basis_reconstruction_from_real_geom PASSED [ 59%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_returns_real_nanobrag_torch_config PASSED [ 60%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_detector_model_roundtrip PASSED [ 61%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_beam_wavelength PASSED [ 63%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_polarization_factor_parity_default PASSED [ 64%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_polarization_metadata_extraction PASSED [ 65%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_polarization_fallback PASSED [ 67%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_crystal_unit_cell_parameters PASSED [ 68%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_mosflm_astar_injection PASSED [ 69%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_stills_phi_defaults PASSED [ 71%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_crystal_misset_zero_default PASSED [ 72%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_returns_real_nanobrag_torch_beam_config PASSED [ 73%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_returns_real_nanobrag_torch_crystal_config PASSED [ 75%]
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_crystal_model_roundtrip PASSED [ 76%]
+tests/dbex/test_nanobrag_smoke.py::TestSmokeHarness::test_single_experiment_flow PASSED [ 77%]
+tests/dbex/test_nanobrag_smoke.py::TestSmokeHarness::test_masked_mse_and_shapes PASSED [ 78%]
+tests/dbex/test_nanobrag_smoke.py::test_artifact_generation PASSED       [ 80%]
+tests/dbex/test_refine_one_cli.py::test_parser_has_backend_flag PASSED   [ 81%]
+tests/dbex/test_refine_one_cli.py::test_parser_rejects_invalid_backend PASSED [ 82%]
+tests/dbex/test_refine_one_cli.py::test_main_dispatches_to_diffbragg_backend PASSED [ 84%]
+tests/dbex/test_refine_one_cli.py::test_main_dispatches_to_nanobrag_backend PASSED [ 85%]
+tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_runs_simulator PASSED [ 86%]
+tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_applies_calibration PASSED [ 88%]
+tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_uses_refined_mtz PASSED [ 89%]
+tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata PASSED [ 90%]
+tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_refined_mtz_missing_errors PASSED [ 92%]
+tests/dbex/test_reflection_ingestion.py::TestReflectionIngestion::test_DB_AT_020_reflection_bbox PASSED [ 93%]
+tests/dbex/test_reflection_ingestion.py::TestReflectionIngestion::test_DB_AT_020_panel_alignment PASSED [ 94%]
+tests/dbex/test_runtime_vectorization.py::TestRuntimeVectorization::test_source_weights_ignored_per_spec SKIPPED [ 96%]
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion PASSED     [ 97%]
+tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip PASSED [ 98%]
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers PASSED [100%]
+
+=============================== warnings summary ===============================
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+tests/dbex/test_mapping_consistency.py:147
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_mapping_consistency.py:147: PytestUnknownMarkWarning: Unknown pytest.mark.db_at_024 - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.db_at_024
+
+tests/dbex/test_mapping_consistency.py:148
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_mapping_consistency.py:148: PytestUnknownMarkWarning: Unknown pytest.mark.mapping - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.mapping
+
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_error_metrics
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_sum_ratio
+tests/dbex/test_db_at_001_parity.py::TestParityMetrics::test_to_dict_serialization
+tests/dbex/test_db_at_001_parity.py::TestArtifactEmission::test_artifact_emission
+tests/dbex/test_db_at_001_parity.py::TestArtifactEmission::test_artifact_emission_minimal
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/fixtures/parity_loader.py:439: ConstantInputWarning: An input array is constant; the correlation coefficient is not defined.
+    corr, _ = scipy.stats.pearsonr(pred_flat, targ_flat)
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/dbex/nanobrag_refinement.py:1309: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
+    shell_modifier_raw.data = torch.tensor(best_params_snapshot_b['shell_modifier_raw'], device=device, dtype=dtype)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========== 73 passed, 3 skipped, 12 warnings in 1564.60s (0:26:04) ============

@@ -1,0 +1,92 @@
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+Loading refGeom dataset...
+
+============================================================
+Running WARM mode benchmark...
+============================================================
+
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6089611/6224001 (97.84%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6089611/6224001 (97.84%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6089613/6224001 (97.84%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6089639/6224001 (97.84%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6089629/6224001 (97.84%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6089636/6224001 (97.84%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6089633/6224001 (97.84%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6089633/6224001 (97.84%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6089633/6224001 (97.84%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6089126/6224001 (97.83%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6089632/6224001 (97.84%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6089624/6224001 (97.84%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6089624/6224001 (97.84%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6089624/6224001 (97.84%)
+
+WARM results:
+  Wall clock: 133.18s
+  Closure evals: 10
+  Final loss: 973956.437500
+  Status: ok
+
+============================================================
+Running COLD mode benchmark...
+============================================================
+
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6089611/6224001 (97.84%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6089611/6224001 (97.84%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6089613/6224001 (97.84%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6089639/6224001 (97.84%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6089629/6224001 (97.84%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6089636/6224001 (97.84%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6089633/6224001 (97.84%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6089633/6224001 (97.84%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6089633/6224001 (97.84%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6089126/6224001 (97.83%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6089632/6224001 (97.84%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6089624/6224001 (97.84%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6089624/6224001 (97.84%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6089624/6224001 (97.84%)
+
+COLD results:
+  Wall clock: 133.15s
+  Closure evals: 10
+  Final loss: 973956.437500
+  Status: ok
+
+============================================================
+SPEEDUP: 1.00× (cold=133.15s / warm=133.18s)
+============================================================
+
+
+Artifacts written to plans/active/PERF-WARM-SIM-001/reports/2025-11-06T111515Z/
+  - benchmark_summary.json
+  - benchmark_report.txt
+  - warm_perf_counters.json
+  - cold_perf_counters.json

@@ -1,0 +1,173 @@
+{
+  "warm": {
+    "mode": "warm",
+    "cache_mode": "warm",
+    "wall_clock_sec": 133.1817820663564,
+    "closure_evals": 10,
+    "validation_runs": 3,
+    "forward_time_ms_mean": 6452.260425314307,
+    "forward_time_ms_total": 64522.60425314307,
+    "lbfgs_iterations": 10,
+    "final_loss": 973956.4375,
+    "status": "ok",
+    "param_deltas": {
+      "log_scale": {
+        "initial": 4.137681484222412,
+        "final": 8.424616813659668,
+        "delta": 4.286935329437256
+      },
+      "log_cell_a_delta": {
+        "initial": 0.0,
+        "final": -1.460102794226259e-05,
+        "delta": -1.460102794226259e-05
+      },
+      "log_cell_b_delta": {
+        "initial": 0.0,
+        "final": -3.8193587670320994e-07,
+        "delta": -3.8193587670320994e-07
+      },
+      "log_cell_c_delta": {
+        "initial": 0.0,
+        "final": -1.567425442772219e-06,
+        "delta": -1.567425442772219e-06
+      },
+      "angle_alpha_raw": {
+        "initial": 0.0,
+        "final": -1.267785364689189e-06,
+        "delta": -1.267785364689189e-06
+      },
+      "angle_beta_raw": {
+        "initial": 0.0,
+        "final": 1.4853790730740002e-07,
+        "delta": 1.4853790730740002e-07
+      },
+      "angle_gamma_raw": {
+        "initial": 0.0,
+        "final": 3.4173567655670922e-06,
+        "delta": 3.4173567655670922e-06
+      },
+      "orientation_vec": {
+        "initial": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "final": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "delta": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "norm": 0.0
+      },
+      "misset_xyz_deg": {
+        "initial": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "final": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "delta": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "quaternion_norm": 1.0
+      }
+    }
+  },
+  "cold": {
+    "mode": "cold",
+    "cache_mode": "cold",
+    "wall_clock_sec": 133.15359962079674,
+    "closure_evals": 10,
+    "validation_runs": 3,
+    "forward_time_ms_mean": 6536.848916113377,
+    "forward_time_ms_total": 65368.489161133766,
+    "lbfgs_iterations": 10,
+    "final_loss": 973956.4375,
+    "status": "ok",
+    "param_deltas": {
+      "log_scale": {
+        "initial": 4.137681484222412,
+        "final": 8.424616813659668,
+        "delta": 4.286935329437256
+      },
+      "log_cell_a_delta": {
+        "initial": 0.0,
+        "final": -1.460102794226259e-05,
+        "delta": -1.460102794226259e-05
+      },
+      "log_cell_b_delta": {
+        "initial": 0.0,
+        "final": -3.8193587670320994e-07,
+        "delta": -3.8193587670320994e-07
+      },
+      "log_cell_c_delta": {
+        "initial": 0.0,
+        "final": -1.567425442772219e-06,
+        "delta": -1.567425442772219e-06
+      },
+      "angle_alpha_raw": {
+        "initial": 0.0,
+        "final": -1.267785364689189e-06,
+        "delta": -1.267785364689189e-06
+      },
+      "angle_beta_raw": {
+        "initial": 0.0,
+        "final": 1.4853790730740002e-07,
+        "delta": 1.4853790730740002e-07
+      },
+      "angle_gamma_raw": {
+        "initial": 0.0,
+        "final": 3.4173567655670922e-06,
+        "delta": 3.4173567655670922e-06
+      },
+      "orientation_vec": {
+        "initial": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "final": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "delta": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "norm": 0.0
+      },
+      "misset_xyz_deg": {
+        "initial": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "final": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "delta": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "quaternion_norm": 1.0
+      }
+    }
+  },
+  "speedup": 0.9997883911363672
+}

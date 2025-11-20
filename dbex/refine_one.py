@@ -65,6 +65,12 @@ def create_parser():
                     help="Path to DiffBragg-refined structure factor MTZ (e.g., refined_structure_factors.mtz). "
                          "When provided, uses refined Fopt instead of raw MTZ amplitudes per SCALE-003/SCALE-004. "
                          "Falls back to --mtzFile if missing or invalid.")
+    ap.add_argument(
+        "--device",
+        type=str,
+        default="cpu",
+        help="Torch device for nanobrag backend tensors (e.g., 'cpu', 'cuda:0', 'mps')."
+    )
 
     return ap
 
@@ -217,7 +223,11 @@ def run_nanobrag_backend(args, DL, devid=0):
 
     # Load structure factors (SCALE-003/SCALE-004: prefer refined MTZ)
     print(f"[nanobrag backend] Building structure factor grid from MTZ...")
-    device = torch.device('cpu')  # Force CPU for reproducibility
+    try:
+        device = torch.device(args.device)
+    except (TypeError, RuntimeError, ValueError) as e:
+        raise ValueError(f"Invalid --device '{args.device}': {e}") from e
+    print(f"[nanobrag backend] Using device={device} for zero-iteration simulation and refinement.")
 
     # Try refined MTZ first if provided, FAIL if not consumed (SCALE-007)
     hkl_indices = None
@@ -311,8 +321,8 @@ def run_nanobrag_backend(args, DL, devid=0):
             crystal_config, n_cells_applied = create_crystal_config(DL.crystal, DL.Expt)
 
         # Instantiate models
-        detector_model = Detector(detector_config)
-        crystal_model = Crystal(crystal_config)
+        detector_model = Detector(detector_config, device=device, dtype=torch.float32)
+        crystal_model = Crystal(crystal_config, device=device, dtype=torch.float32)
         # TODO(STAGE-A): Disable HKL interpolation for geometry stage (nearest‑neighbor |F|)
         # This avoids halo/OOB artifacts during Stage A. Implement by setting:
         #   crystal_model.interpolate = False
@@ -327,10 +337,17 @@ def run_nanobrag_backend(args, DL, devid=0):
             simulator = Simulator(
                 detector=detector_model,
                 crystal=crystal_model,
-                beam_config=beam_config
+                beam_config=beam_config,
+                device=device,
+                dtype=torch.float32
             )
         else:
-            simulator = Simulator(detector=detector_model, crystal=crystal_model)
+            simulator = Simulator(
+                detector=detector_model,
+                crystal=crystal_model,
+                device=device,
+                dtype=torch.float32
+            )
         panel_output = simulator.run()  # Returns torch.Tensor on device
 
         # Move to CPU and convert to numpy
@@ -356,7 +373,7 @@ def run_nanobrag_backend(args, DL, devid=0):
     from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig
 
     refine_config = RefinementConfig(
-        device='cpu',
+        device=str(device),
         dtype=torch.float32
     )
 

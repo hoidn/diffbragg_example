@@ -26,15 +26,17 @@
 
 ### [PHYSICS-LOSS-001] Implement variance-weighted loss function
 - Depends on: docs/spec-db-core.md (Variance Model)
-- Status: pending
+- Status: in_progress
 - Priority: Critical (Scientific Validity)
-- Owner/Date: Unassigned
+- Owner/Date: Ralph / 2025-11-20
 - Exit Criteria:
   1. `RefinementInputs` carries `sigma_rdout` (photon units) derived from detector metadata or CLI args.
   2. `run_nanobrag_refinement` minimizes `Sum((pred - obs)^2 / (pred.detach() + sigma^2))` instead of MSE.
   3. DB-AT-010 gradchecks pass with the new loss function.
   4. Telemetry records `chi_squared` (weighted loss) alongside `masked_mse`.
 - Working Plan: plans/active/PHYSICS-LOSS-001/implementation.md
+- Attempts History:
+  * 2025-11-20 (initialization audit) — Audited Phase A (bridge data plumbing): `RefinementInputs.sigma_readout` field exists (dbex/nanobrag_bridge.py:71), `prepare_refinement_inputs` accepts optional sigma_readout param with broadcast/conversion logic (lines 84,203-233), test coverage validates shape/dtype/conversion (tests/dbex/test_nanobrag_bridge.py:133,139,182-217). Gap identified: CLI missing `--sigma-r` flag; refine_one.py:187-195 does not pass sigma_readout to prepare_refinement_inputs (defaults to zeros, Poisson-only mode). Phase B (loss function) and Phase C (validation) not started. Artifacts: plans/active/PHYSICS-LOSS-001/reports/init/audit.md
 
 ### [ARCH-REFINE-FLOW-001] Refactor to Protocol-based Refinement Engine
 - Depends on: PHYSICS-LOSS-001

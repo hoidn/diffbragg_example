@@ -12,6 +12,39 @@
 
 ## Active Initiatives
 
+### [PHYSICS-LOSS-001] Implement variance-weighted loss function
+- Depends on: docs/spec-db-core.md (Variance Model)
+- Status: pending
+- Priority: Critical (Scientific Validity)
+- Owner/Date: Unassigned
+- Exit Criteria:
+  1. `RefinementInputs` carries `sigma_rdout` (photon units) derived from detector metadata or CLI args.
+  2. `run_nanobrag_refinement` minimizes `Sum((pred - obs)^2 / (pred.detach() + sigma^2))` instead of MSE.
+  3. DB-AT-010 gradchecks pass with the new loss function.
+  4. Telemetry records `chi_squared` (weighted loss) alongside `masked_mse`.
+- Working Plan: plans/active/PHYSICS-LOSS-001/implementation.md
+
+### [ARCH-REFINE-FLOW-001] Refactor to Protocol-based Refinement Engine
+- Depends on: PHYSICS-LOSS-001
+- Status: pending
+- Priority: High (Architectural Maturity)
+- Owner/Date: Unassigned
+- Exit Criteria:
+  1. `RefinementEngine` class exists and accepts a list of `RefinementStage` objects.
+  2. `run_nanobrag_refinement` is refactored to construct a default protocol (A->B->C) and execute it via the Engine.
+  3. Stages are defined as data (dataclasses), not procedural code blocks.
+  4. Existing smoke tests pass without modification to external behavior.
+
+### [TOOLING-VIS-001] Standardize visual diagnostics library
+- Depends on: PHYSICS-LOSS-001
+- Status: pending
+- Priority: Medium
+- Owner/Date: Unassigned
+- Exit Criteria:
+  1. `dbex.vis` module created implementing `spec-db-vis.md` standards (Z-scores, triptychs).
+  2. `dbex/look.py` refactored to use `dbex.vis` for rendering.
+  3. CLI automatically generates a standard report (PNG/PDF) at the end of refinement.
+
 ### [PERF-WARM-SIM-001] Warm simulator; eliminate per-iteration re-instantiation
 - Depends on: `nanobrag_torch` simulator in place; current refinement loops in `dbex/nanobrag_refinement.py`.
 - Status: in_progress (2025-11-06)

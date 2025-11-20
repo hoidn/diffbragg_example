@@ -145,19 +145,17 @@ References: docs/nanobrag_api.md (IO, tricubic halo).
 Mirror the staged refinement logic from DiffBragg to maintain convergence characteristics.
 
 ### Strategy
-1. **Stage A – Crystal + scale (Nabc, orientation, scale):**
-   - Freeze structure-factor parameters; optimize crystal parameters for `N_stage_a` iterations using the variance-weighted loss:
-     ```python
-     var = (bragg.detach() + sigma_rdout**2).clamp_min(eps)
-     loss = torch.sum(((bragg - target_tensor) ** 2)[mask_tensor] / var[mask_tensor])
-     ```
-   - Warm-start the next stage using the final parameter values.
-2. **Stage B – Structure factors (ASU-constrained):**
-   - Enable tricubic interpolation (`crystal.interpolate = True`) and refine per-ASU multipliers using the scatter/gather map emitted by the bridge.
-   - Ensure `(h,k,l)` and `(-h,-k,-l)` indices share the same parameter; keep multipliers positive (softplus/exp).
-3. **Stage C – Detector microslip:**
-   - Introduce small per‑panel translations along the detector normal (`odet_vec`) first to mirror the DiffBragg geometry stage, which fixes rotations and optimizes translation along one axis; optionally extend to small rotations later if needed.
-   - Run a short optimization stage with a reduced learning rate.
+6) Loss (Variance-Weighted / Chi-Squared)
+   - Loss SHALL be `Sum( (Bragg - target)^2 / (Bragg.detach() + sigma_rdout^2) )` over trusted pixels.
+   - This approximates an IRLS (Iteratively Reweighted Least Squares) objective compatible with Poisson + Readout noise.
+
+7) Staging
+   - Stage A (Crystal + Scale): refine cell (logs/angles), orientation (quaternion→XYZ), global scale; fix N_cells and mosaic/phi for stills. Simulator SHOULD use tricubic interpolation (`interpolate=True`) if halo is available for smoother gradients; nearest-neighbor is a permitted fallback.
+   - Stage B (Structure Factors): Refine per-reflection multipliers mapped to unique ASU indices (symmetry constrained).
+     • Requires `asu_mapping_tensor` in bridge and `Gather/Scatter` pattern in engine.
+     • Differentiable HKL interpolation (tricubic) is required with ±1 halo.
+     • Shell-based modifiers are retained as an optional fallback.
+   - Stage C (Detector): refine per‑panel translation along detector normal (distance offset); rotations fixed initially.
 
 Each stage runs within a single training loop, swapping optimizer parameter groups and learning rates rather than rebuilding the model.
 

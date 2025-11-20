@@ -77,6 +77,7 @@
 
   <focus_selection>
     - Inspect `docs/fix_plan.md` dependencies; pivot to unmet dependencies or mark blocked.
+    - **Spec Drift Check:** Before starting implementation, verify the `implementation.md` aligns with the current `$SPECS`. If they conflict, your Do Now is "Update Plan," not "Implement Code."
     - Before other docs: `grep` `docs/findings.md` for focus keywords; list relevant Finding IDs.
     - From `docs/index.md`, enumerate and read the most relevant documents; note file paths you will rely on (with one‑line rationale each).
     - If focus relates to an in‑progress item, read artifacts under `plans/active/<initiative-id>/reports/` (and commit messages).
@@ -98,6 +99,7 @@
     <evidence_collection>
       - <strong>Scope:</strong> Evidence only—no <em>production</em> edits. Allowed: non‑mutating probes, CLI validation tools (`scripts/tools/*`), nb‑compare, and authoring <em>non‑production analysis artifacts</em> (see Scriptization).
       - <strong>TDD exception:</strong> In supervisor TDD mode, you may author a <em>single minimal failing test</em> only to confirm acceptance criteria (no prod edits). Record selector + expected failure text.
+      - <strong>Refactoring Pre-flight:</strong> Before planning a Refactor initiative, you MUST run `prompts/callchain.md` to map dependencies. Do not plan a move without knowing the imports.
       - <strong>Callchain Tracing (subtype):</strong>
         • When: factor order unclear; onboarding a new surface; parity failures with unknown locus.  
         • First emit: `<analysis_question>`, `<initiative_id>`, `<scope_hints>`, `<roi_hint>`, `<namespace_filter>`, `<time_budget_minutes>`.  
@@ -170,9 +172,15 @@
     </debug>
 
     <planning>
-      - When multi‑turn coordination is needed, draft/retrofit a phased plan under `plans/active/<initiative-id>/implementation.md`.
-      - Keep checklist IDs authoritative (`[ ]`, `[P]`, `[x]`).
-      - Every plan change ships with a same‑loop `docs/fix_plan.md` update and a `galph_memory.md` note referencing the attempt/timestamp.
+      - **Plan Schema:** When drafting a new plan, strictly follow the structure defined in `plans/templates/implementation_plan.md`.
+        • **Header:** ID, Title, Owner, Status.
+        • **Exit Criteria:** Binary (Pass/Fail) conditions tied to `$SPECS` clauses or Test Selectors.
+        • **Spec Alignment:** Explicitly cite the normative spec and clauses.
+        • **Phases:** Atomic checklists with stable IDs (A1, A2...) for `input.md` referencing.
+        • **Dependency Analysis:** Required for refactors; list modules and risks.
+        • **Artifacts:** Explicit path to the report directory.
+      - **Drift Handling:** If `$SPECS` change, do not rewrite old/done plans. Create a **new** fix-plan item (e.g., `PHYSICS-LOSS-001`) with a fresh plan that aligns with the new spec.
+      - Every plan change ships with a same-loop `docs/fix_plan.md` update and a `galph_memory.md` note referencing the attempt/timestamp.
     </planning>
 
     <review_or_housekeeping>
@@ -233,8 +241,10 @@
   </evidence_parameter_sourcing>
 
   <semantics_audit>
-    If intended semantics changed this loop: review `$SPECS` and reconcile.  
-    If actual semantics changed: identify tests requiring updates; note misalignments in `docs/fix_plan.md`.
+    **Drift Detection:**
+    1. Did we change `$SPECS`? -> You MUST audit `plans/` and `tests/` for invalidation.
+    2. Did we change Implementation? -> You MUST verify it matches the *current* `$SPECS`.
+    3. If Spec and Implementation diverge, create a specific Fix Plan Item (e.g., `ALIGN-001`) to resolve it.
   </semantics_audit>
 
   <end_of_loop_hygiene>

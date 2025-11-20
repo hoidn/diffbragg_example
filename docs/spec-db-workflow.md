@@ -24,32 +24,22 @@ Pipeline (Normative)
    - Build one Detector per panel (CUSTOM convention), with square‑pixel guard and explicit beam centre.
    - Run Simulator per panel and stitch into a full‑frame `Bragg` tensor matching `[panel, slow, fast]`.
    - ROI‑only compute MAY be used by constructing cropped Detectors per ROI and stitching outputs.
-6) Loss (Masked MSE)
-   - Loss SHALL be `mean(((Bragg - target)[loss_mask])^2)`.
+6) Loss (Variance-Weighted / Chi-Squared)
+   - Loss SHALL be `Sum( (Bragg - target)^2 / (Bragg.detach() + sigma_rdout^2) )` over trusted pixels.
+   - This approximates an IRLS (Iteratively Reweighted Least Squares) objective compatible with Poisson + Readout noise.
+   - The denominator `V = I_model + sigma_rdout^2` MUST be detached from the computation graph to prevent attraction to infinity.
+
 7) Refinement Protocol Architecture
    - **Engine Contract:** The internal Python API (`RefinementEngine` or equivalent) SHALL accept an ordered list of Stage objects and MUST NOT hardcode the Stage A→B→C flow.
-   - **CLI Contract (v1):** `refine_one.py` SHALL instantiate the default sequence based on CLI flags:
-     1. Stage A (always)
-     2. Stage B (only when `--optimize-fhkl` is supplied)
-     3. Stage C (only when `--optimize-det` is supplied)
-   - **Configuration:** External configuration files (YAML/JSON) are out of scope for v1.
-   - Stage Interface:
-     1. **Active Parameters:** Each stage MUST enumerate which parameter groups (Crystal, Detector, Source, Structure factors, Scale) are trainable; all others MUST be frozen.
-     2. **Optimizer Config:** Learning rate schedule (or optimizer choice), convergence tolerance, and max iterations MUST be set per stage.
-     3. **Physics Toggles:** Flags such as interpolation on/off, HKL padding requirements, polarization/solid-angle parity MUST be declared so simulators can be configured deterministically.
-   - State Persistence:
-     - Simulator/optimizer state (current best parameters) MUST persist between stages, and telemetry MUST be aggregated per stage (e.g., `history["stage_0_A"]`, `history["stage_1_C"]`).
-   - Standard Stages (Normative Definitions):
+   - **Standard Stages (Normative Definitions):**
     - **Stage A (Geometry & Scale):**
       - Trainable: Unit cell logs/angles, orientation (quaternion → XYZ), global scale.
       - Fixed: Structure factors, detector geometry, source spectrum.
       - Physics: Tricubic interpolation (`interpolation=True`) is preferred for smooth orientation/cell gradients whenever the |F| grid includes a ±1 halo; nearest-neighbor (`interpolation=False`) remains a permitted fallback when halo support is unavailable.
     - **Stage B (Structure Factors — optional):**
-      - Trainable: Per-reflection Fhkl multipliers SHALL be the default.
-      - Symmetry Constraint: Multipliers MUST be keyed by unique Asymmetric Unit (ASU) indices so Friedel mates `(h,k,l)` and `(-h,-k,-l)` share the same parameter.
-      - Parameterization: All multipliers MUST be softplus-backed to enforce positivity; aggregated per-shell/global modifiers remain OPTIONAL fallbacks when required by data volume or memory.
-      - Fixed: Geometry, global scale unless explicitly declared otherwise.
-      - Physics: Tricubic interpolation (`interpolation=True`) with ±1 HKL halo; default_F fallbacks are failure conditions.
+      - Trainable: Per-reflection Fhkl multipliers mapped to unique ASU indices SHALL be the default (Parity Mode).
+      - Fallback: Aggregated per-shell modifiers (Shell Mode) are PERMITTED as an optimization or regularization strategy but MUST NOT be the default.
+      - Physics: Tricubic interpolation (`interpolation=True`) with ±1 HKL halo is MANDATORY.
      - **Stage C (Detector):**
        - Trainable: Per-panel translation along detector normal (distance offsets).
        - Fixed: Crystal, scale, Fhkl.

@@ -23,11 +23,20 @@
 3. <criterion 3>
 4. Test registry synchronized: `docs/TESTING_GUIDE.md` §2 and `docs/development/TEST_SUITE_INDEX.md` reflect any new/changed tests; `pytest --collect-only` logs for documented selectors are saved under `plans/active/<initiative-id>/reports/<timestamp>/`. Do not close the initiative if any selector marked "Active" collects 0 tests.
 
+## Spec Alignment
+- **Normative Spec:** [path to spec file]
+- **Key Clauses:** [list of specific requirements this plan satisfies]
+
 ## Phase A — <name>
 ### Checklist
 - [ ] A1: <task> (owner, expected artifacts)
 - [ ] A2: <task>
 - [ ] A3: <task>
+
+### Dependency Analysis (Required for Refactors)
+- **Touched Modules:** [list]
+- **Circular Import Risks:** [analysis]
+- **State Migration:** [how state moves from old to new]
 
 ### Notes & Risks
 - <risk 1>

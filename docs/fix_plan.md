@@ -12,6 +12,18 @@
 
 ## Active Initiatives
 
+### [DOCS-ROADMAP-001] Thin nanobrag_integration_plan
+- Depends on: specs/spec-db-workflow.md (current normative content)
+- Status: pending
+- Priority: Medium
+- Owner/Date: Unassigned
+- Exit Criteria:
+  1. `plans/nanobrag_integration_plan.md` no longer repeats normative requirements; instead it references the relevant spec shards.
+  2. Phase descriptions focus on scope, sequencing, and dependencies.
+  3. Docs/tests referencing the plan are updated to point to the specs for authoritative definitions.
+- Working Plan: plans/active/DOCS-ROADMAP-001/implementation.md
+
+
 ### [PHYSICS-LOSS-001] Implement variance-weighted loss function
 - Depends on: docs/spec-db-core.md (Variance Model)
 - Status: pending

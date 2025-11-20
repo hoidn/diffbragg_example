@@ -28,6 +28,8 @@ Data Contracts (Normative)
   - Masks:
     - DIALS trusted mask SHALL be a tuple of `flex.bool` per panel (True=trusted) shaped `(slow, fast)`.
     - DiffBragg hot/bad masks are inverted; if used upstream, inversion SHALL be explicit.
+  - Variance inputs:
+    - The bridge SHALL supply readout-noise estimates `sigma_readout` in the same units as the loss target (photons or ADU/gain). Granularity MAY be per-pixel or per-panel but MUST align with the simulator tensors and be included in `RefinementInputs` so the variance-weighted loss can be formed.
 - Outputs: Bragg prediction and HDF5 (optional)
   - Full‑frame Bragg tensor SHALL be `(n_panels, slow, fast)` and align with DataLoad.data.
   - HDF5 viewer output MAY include `data/roiN`, `model/roiN`, `bragg/roiN`, `bg/roiN`, and `score` for each ROI as implemented today.

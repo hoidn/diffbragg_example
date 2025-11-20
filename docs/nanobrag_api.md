@@ -104,7 +104,7 @@ Import name
   - Iterate reflections, track min/max, allocate `F_grid`, fill by indices, assign:
     - `crystal.hkl_data = F_grid`
     - `crystal.hkl_metadata = {'h_min':..., 'h_max':..., ...}`
-  - Tricubic needs a ±1 halo; pad grid or include extra indices beyond the sampled range. Grid bounds should derive from the MTZ index envelope; UB changes do not require rebuilds.
+  - **Halo Contract:** When `crystal.interpolate = True`, the caller MUST supply an `F_grid` with a one-voxel halo (zero-padded border) beyond the active HKL range. The simulator does not auto-pad; missing halo cells lead to out-of-bounds reads and `default_F` fallbacks. Grid bounds should still derive from the MTZ envelope; UB changes do not require rebuilds.
 
 ## ROI‑Only Compute (Performance)
 - ROI/mask zeroes pixels post‑compute; to compute only an ROI:

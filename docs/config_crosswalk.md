@@ -78,8 +78,8 @@ Structure Factors
   - Enable tricubic via `crystal.interpolate = True`; requires ±1 halo (pad FDUMP-style or extend bounds)
   - Interpolation fallback: when halo incomplete, returns `default_F`
 - Stage B refinement
-  - Per-reflection multipliers SHALL map to unique ASymmetric Unit (ASU) indices so `(h,k,l)` and `(-h,-k,-l)` share the same parameter.
-  - Implementation pattern: maintain parameter vector `G_asu` sized to `N_unique`, scatter into the dense P1 grid before simulation, and gather/sum gradients back into `G_asu` after backpropagation.
+  - Per-reflection multipliers SHALL map to unique Asymmetric Unit (ASU) indices so `(h,k,l)` and `(-h,-k,-l)` share the same parameter.
+  - Implementation pattern: the bridge MUST emit an `asu_mapping_tensor` aligned to the dense grid. The refinement engine maintains a parameter vector `G_asu` sized to the number of unique ASU entries, scatters via `Grid[h,k,l] = Base[h,k,l] * G_asu[Map[h,k,l]]`, and gathers gradients back to `G_asu` after each backward pass.
 
 ROI, Background, and Masks
 - simtbx background
@@ -101,8 +101,8 @@ Units and Scaling
 
 Staging Summary (Refine vs Fixed)
 - Stage A (Crystal + Scale): refine cell (logs/angles), orientation (quaternion→XYZ), global scale; N_cells fixed; mosaic/phi off for stills
-- Stage B (Optional Fhkl): refine a small number of per‑shell/global scale parameters; tricubic on
-- Stage C (Detector): refine per‑panel translation along detector normal; rotations fixed initially; optional in‑plane/rotational params later
+- Stage B (ASU Fhkl modifiers): refine per-ASU multipliers with tricubic interpolation and ±1 halo.
+- Stage C (Detector): refine per-panel translation along detector normal; rotations fixed initially; optional in-plane/rotational params later
 
 References
 - docs/dxtbx_api.md — Detector/Beam/Crystal/Scan extraction

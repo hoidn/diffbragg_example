@@ -1,0 +1,38 @@
+PERF-WARM-SIM-001 Loop 2025-11-21T124101Z — Blockers
+
+## Blocker: Stage B shell modifiers missing from telemetry
+
+**Status:** Implementation bug — Stage B telemetry does not include `param_deltas` field
+
+**Evidence:**
+- Small-detector test passed (plans/active/PERF-WARM-SIM-001/reports/2025-11-21T124101Z/pytest_stage_b_small.log)
+- Full-detector test failed with: "Shell modifier shell_0_modifier (d=80000.12-100000.00Å) drifted by 1.0000 (>±1%)"
+- Telemetry file: plans/active/PERF-WARM-SIM-001/reports/2025-11-21T124101Z/telemetry_stage_b_small.json
+- Telemetry is missing `param_deltas` field entirely
+- Test expects: telemetry_b.param_deltas = {shell_0_modifier: <value>, shell_1_modifier: <value>, ...}
+- Actual: telemetry has no param_deltas field
+
+**Root Cause:**
+Stage B refinement code path (dbex/nanobrag_refinement.py::run_nanobrag_refinement Stage B section)
+is not populating the shell modifier values into RefinementTelemetry.param_deltas before returning.
+
+**Expected Behavior:**
+After Stage B LBFGS completes, the final shell modifier values (from shell_modifiers tensor)
+should be extracted and written to param_deltas as:
+{
+  "shell_0_modifier (d=XXX-YYYÅ)": <final_value_0>,
+  "shell_1_modifier (d=AAA-BBBÅ)": <final_value_1>,
+  ...
+}
+
+**Impact:**
+- Blocks PERF-WARM-SIM-001 telemetry evidence collection
+- Cannot capture ROI counters + shell modifier telemetry for canonical runs
+- Prevents completion of exit criteria #2 (Stage B/C smokes assert perf-counter contract)
+
+**Next Actions:**
+1. Investigate dbex/nanobrag_refinement.py Stage B telemetry emission code
+2. Add shell_modifiers → param_deltas mapping before _record_stage_telemetry()
+3. Ensure d-spacing range labels are included in param names per test expectations
+4. Re-run Stage B smokes (small + full) to capture corrected telemetry
+5. Resume PERF-WARM-SIM-001 evidence collection once implementation is fixed

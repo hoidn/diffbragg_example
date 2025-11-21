@@ -1,0 +1,164 @@
+[
+  {
+    "stage": "stage_b_shell_modifiers",
+    "dataset": "full",
+    "status": "ok",
+    "message": "",
+    "loss_trace_full": [
+      [
+        0,
+        61562292.0
+      ],
+      [
+        5,
+        61562548.0
+      ],
+      [
+        9,
+        61562292.0
+      ]
+    ],
+    "chi_squared_trace_full": [
+      [
+        0,
+        61562292.0
+      ],
+      [
+        5,
+        61562548.0
+      ],
+      [
+        9,
+        61562292.0
+      ]
+    ],
+    "perf_counters": {
+      "cache_mode": "cold",
+      "roi_mode": "panel",
+      "roi_count_total": 92,
+      "roi_count_sampled": 92,
+      "closure_evals": 9,
+      "validation_runs": 3,
+      "forward_time_ms": {
+        "mean": 6685.425181291066,
+        "min": 6401.357165072113,
+        "max": 6980.710428208113,
+        "total": 80225.1021754928
+      }
+    },
+    "param_deltas": {
+      "shell_0_modifier (d=80000.12-100000.00\u00c5)": 0.9999999403953552,
+      "shell_1_modifier (d=60000.25-80000.12\u00c5)": 0.9999999403953552,
+      "shell_2_modifier (d=40000.38-60000.25\u00c5)": 0.9999999403953552,
+      "shell_3_modifier (d=20000.50-40000.38\u00c5)": 0.9999999403953552,
+      "shell_4_modifier (d=0.63-20000.50\u00c5)": 0.9999999403953552
+    },
+    "loss_improvement": 0.014123010831816031,
+    "n_rois": 92,
+    "detector_shape": [
+      1,
+      2527,
+      2463
+    ],
+    "closure_evals": 9,
+    "validation_runs": 3,
+    "forward_time_ms": {
+      "mean": 6685.425181291066,
+      "min": 6401.357165072113,
+      "max": 6980.710428208113,
+      "total": 80225.1021754928
+    },
+    "cache_mode": "cold",
+    "roi_mode": "panel",
+    "roi_count_total": 92,
+    "roi_count_sampled": 92,
+    "canonical_stage_label": "A",
+    "canonical_chi_squared": 62444192.0,
+    "canonical_chi_squared_iteration": 15,
+    "canonical_roi_count": 92,
+    "canonical_detector_distances_mm": [
+      231.27645547762577
+    ]
+  },
+  {
+    "stage": "stage_b_shell_modifiers",
+    "dataset": "full",
+    "status": "ok",
+    "message": "",
+    "loss_trace_full": [
+      [
+        0,
+        61562292.0
+      ],
+      [
+        5,
+        61562548.0
+      ],
+      [
+        9,
+        61562292.0
+      ]
+    ],
+    "chi_squared_trace_full": [
+      [
+        0,
+        61562292.0
+      ],
+      [
+        5,
+        61562548.0
+      ],
+      [
+        9,
+        61562292.0
+      ]
+    ],
+    "perf_counters": {
+      "cache_mode": "cold",
+      "roi_mode": "panel",
+      "roi_count_total": 92,
+      "roi_count_sampled": 92,
+      "closure_evals": 9,
+      "validation_runs": 3,
+      "forward_time_ms": {
+        "mean": 6694.731658324599,
+        "min": 6392.878423444927,
+        "max": 7129.122506827116,
+        "total": 80336.77989989519
+      }
+    },
+    "param_deltas": {
+      "shell_0_modifier (d=80000.12-100000.00\u00c5)": 0.9999999403953552,
+      "shell_1_modifier (d=60000.25-80000.12\u00c5)": 0.9999999403953552,
+      "shell_2_modifier (d=40000.38-60000.25\u00c5)": 0.9999999403953552,
+      "shell_3_modifier (d=20000.50-40000.38\u00c5)": 0.9999999403953552,
+      "shell_4_modifier (d=0.63-20000.50\u00c5)": 0.9999999403953552
+    },
+    "loss_improvement": 0.014123010831816031,
+    "n_rois": 92,
+    "detector_shape": [
+      1,
+      2527,
+      2463
+    ],
+    "closure_evals": 9,
+    "validation_runs": 3,
+    "forward_time_ms": {
+      "mean": 6694.731658324599,
+      "min": 6392.878423444927,
+      "max": 7129.122506827116,
+      "total": 80336.77989989519
+    },
+    "cache_mode": "cold",
+    "roi_mode": "panel",
+    "roi_count_total": 92,
+    "roi_count_sampled": 92,
+    "canonical_stage_label": "A",
+    "canonical_chi_squared": 62444192.0,
+    "canonical_chi_squared_iteration": 15,
+    "canonical_roi_count": 92,
+    "canonical_detector_distances_mm": [
+      231.27645547762577
+    ]
+  }
+]

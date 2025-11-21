@@ -517,3 +517,13 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-21T172334Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=1 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T172334Z/ next_action=stage_c_telemetry_capture
+
+## 2025-11-21T174147Z — PERF-WARM-SIM-001 Stage C telemetry plan
+- Focus: PERF-WARM-SIM-001 — Warm simulator; eliminate per-iteration re-instantiation
+- Action Type: planning
+- Key Observations: `rg --files plans/active/PERF-WARM-SIM-001/reports | rg stage_c` returned no matches, so Stage C still lacks telemetry artifacts even after the previous CPU cache work; Stage C perf-counter assertions already exist but nothing prints to logs and no summarizer captures ROI stats.
+- Artifact Path: plans/active/PERF-WARM-SIM-001/reports/2025-11-21T174147Z/
+- Next Actions: Ralph adds the Stage C perf-counter logging block, authors `summarize_stage_c_roi.py`, reruns Stage C smokes for small/full detectors with telemetry capture, runs the summarizer, and updates docs/TESTING_GUIDE.md per the new workflow.
+- <Action State>: [ready_for_implementation]
+
+2025-11-21T174147Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=2 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T174147Z/ next_action=stage_c_telemetry_capture

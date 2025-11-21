@@ -430,3 +430,13 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-21T121804Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=0 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T121804Z/ next_action=stage_b_roi_mode_impl
+
+## 2025-11-21T124101Z — PERF-WARM-SIM-001 Stage B ROI telemetry plan
+- Focus: PERF-WARM-SIM-001 — Warm simulator; eliminate per-iteration re-instantiation
+- Action Type: planning
+- Key Observations: Logged the Stage B ROI implementation outcome (small-detector pass, canonical smoke still expecting `roi_mode="panel"`), refreshed docs/fix_plan.md plus docs/findings.md with the ROI-mode drift, and drafted a Do Now that introduces a Stage B telemetry summary script plus dual Stage B smoke reruns so the canonical ROI counts can be archived before updating the ledger.
+- Artifact Path: plans/active/PERF-WARM-SIM-001/reports/2025-11-21T124101Z/
+- Next Actions: Ralph adds the telemetry summarizer, reruns Stage B smokes (small + full) with fresh telemetry, runs the script to emit stage_b_roi_summary.json, and updates docs/fix_plan/findings with the new evidence.
+- <Action State>: [ready_for_implementation]
+
+2025-11-21T124101Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=0 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T124101Z/ next_action=stage_b_roi_telemetry_capture

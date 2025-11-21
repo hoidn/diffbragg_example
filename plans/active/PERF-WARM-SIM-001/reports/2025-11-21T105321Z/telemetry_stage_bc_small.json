@@ -1,0 +1,269 @@
+[
+  {
+    "stage": "stage_b_shell_modifiers",
+    "dataset": "small",
+    "status": "ok",
+    "message": "",
+    "loss_trace_full": [
+      [
+        0,
+        708132096.0
+      ],
+      [
+        2,
+        540091584.0
+      ]
+    ],
+    "chi_squared_trace_full": [
+      [
+        0,
+        708132096.0
+      ],
+      [
+        2,
+        540091584.0
+      ]
+    ],
+    "perf_counters": {
+      "cache_mode": "warm",
+      "roi_mode": "panel",
+      "roi_count_total": 1,
+      "roi_count_sampled": 1,
+      "closure_evals": 2,
+      "validation_runs": 2,
+      "forward_time_ms": {
+        "mean": 43.024588259868324,
+        "min": 42.374331038445234,
+        "max": 43.75265119597316,
+        "total": 172.0983530394733
+      }
+    },
+    "loss_improvement": 0.23730087438624994,
+    "n_rois": 29,
+    "detector_shape": [
+      1,
+      1024,
+      1024
+    ],
+    "closure_evals": 2,
+    "validation_runs": 2,
+    "forward_time_ms": {
+      "mean": 43.024588259868324,
+      "min": 42.374331038445234,
+      "max": 43.75265119597316,
+      "total": 172.0983530394733
+    },
+    "canonical_stage_label": "A",
+    "canonical_chi_squared": 708131904.0,
+    "canonical_chi_squared_iteration": 32,
+    "canonical_roi_count": 29,
+    "canonical_detector_distances_mm": [
+      231.27645547762575
+    ]
+  },
+  {
+    "stage": "stage_b_shell_modifiers",
+    "dataset": "small",
+    "status": "ok",
+    "message": "",
+    "loss_trace_full": [
+      [
+        0,
+        708132096.0
+      ],
+      [
+        2,
+        540091584.0
+      ]
+    ],
+    "chi_squared_trace_full": [
+      [
+        0,
+        708132096.0
+      ],
+      [
+        2,
+        540091584.0
+      ]
+    ],
+    "perf_counters": {
+      "cache_mode": "warm",
+      "roi_mode": "panel",
+      "roi_count_total": 1,
+      "roi_count_sampled": 1,
+      "closure_evals": 2,
+      "validation_runs": 2,
+      "forward_time_ms": {
+        "mean": 43.13250258564949,
+        "min": 42.41370130330324,
+        "max": 44.54176360741258,
+        "total": 172.53001034259796
+      }
+    },
+    "loss_improvement": 0.23730087438624994,
+    "n_rois": 29,
+    "detector_shape": [
+      1,
+      1024,
+      1024
+    ],
+    "closure_evals": 2,
+    "validation_runs": 2,
+    "forward_time_ms": {
+      "mean": 43.13250258564949,
+      "min": 42.41370130330324,
+      "max": 44.54176360741258,
+      "total": 172.53001034259796
+    },
+    "canonical_stage_label": "A",
+    "canonical_chi_squared": 708131904.0,
+    "canonical_chi_squared_iteration": 32,
+    "canonical_roi_count": 29,
+    "canonical_detector_distances_mm": [
+      231.27645547762575
+    ]
+  },
+  {
+    "stage": "stage_b_shell_modifiers",
+    "dataset": "small",
+    "status": "ok",
+    "message": "",
+    "loss_trace_full": [
+      [
+        0,
+        708132096.0
+      ],
+      [
+        2,
+        540091584.0
+      ]
+    ],
+    "chi_squared_trace_full": [
+      [
+        0,
+        708132096.0
+      ],
+      [
+        2,
+        540091584.0
+      ]
+    ],
+    "perf_counters": {
+      "cache_mode": "warm",
+      "roi_mode": "panel",
+      "roi_count_total": 1,
+      "roi_count_sampled": 1,
+      "closure_evals": 2,
+      "validation_runs": 2,
+      "forward_time_ms": {
+        "mean": 43.19543938618153,
+        "min": 42.209121864289045,
+        "max": 44.853891246020794,
+        "total": 172.78175754472613
+      }
+    },
+    "loss_improvement": 0.23730087438624994,
+    "n_rois": 29,
+    "detector_shape": [
+      1,
+      1024,
+      1024
+    ],
+    "closure_evals": 2,
+    "validation_runs": 2,
+    "forward_time_ms": {
+      "mean": 43.19543938618153,
+      "min": 42.209121864289045,
+      "max": 44.853891246020794,
+      "total": 172.78175754472613
+    },
+    "canonical_stage_label": "A",
+    "canonical_chi_squared": 708131904.0,
+    "canonical_chi_squared_iteration": 32,
+    "canonical_roi_count": 29,
+    "canonical_detector_distances_mm": [
+      231.27645547762575
+    ]
+  },
+  {
+    "stage": "stage_c_detector_microslip",
+    "dataset": "small",
+    "status": "ok",
+    "message": "",
+    "loss_trace_full": [
+      [
+        0,
+        657275136.0
+      ],
+      [
+        5,
+        613110208.0
+      ],
+      [
+        10,
+        613106624.0
+      ],
+      [
+        12,
+        613106624.0
+      ]
+    ],
+    "chi_squared_trace_full": [
+      [
+        0,
+        657275136.0
+      ],
+      [
+        5,
+        613110208.0
+      ],
+      [
+        10,
+        613106624.0
+      ],
+      [
+        12,
+        613106624.0
+      ]
+    ],
+    "perf_counters": {
+      "cache_mode": "warm",
+      "roi_mode": "roi",
+      "roi_count_total": 29,
+      "roi_count_sampled": 29,
+      "closure_evals": 12,
+      "validation_runs": 4,
+      "forward_time_ms": {
+        "mean": 52.59424485848285,
+        "min": 51.95903265848756,
+        "max": 53.031579591333866,
+        "total": 841.5079177357256
+      }
+    },
+    "loss_improvement": 0.06719942620802258,
+    "chi_squared_improvement": 0.06719942620802258,
+    "n_rois": 29,
+    "detector_shape": [
+      1,
+      1024,
+      1024
+    ],
+    "closure_evals": 12,
+    "validation_runs": 4,
+    "forward_time_ms": {
+      "mean": 52.59424485848285,
+      "min": 51.95903265848756,
+      "max": 53.031579591333866,
+      "total": 841.5079177357256
+    },
+    "detector_offset_reduction_min": 0.0004450082778930664,
+    "detector_offset_final_abs_max": 0.24988874793052673,
+    "canonical_stage_label": "A",
+    "canonical_chi_squared": 657275136.0,
+    "canonical_chi_squared_iteration": 29,
+    "canonical_roi_count": 29,
+    "canonical_detector_distances_mm": [
+      231.27645547762575
+    ]
+  }
+]

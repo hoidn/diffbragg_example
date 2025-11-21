@@ -1,0 +1,154 @@
+Loading refGeom dataset...
+
+============================================================
+Running WARM mode benchmark...
+============================================================
+
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6089611/6224001 (97.84%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6089611/6224001 (97.84%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6089612/6224001 (97.84%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6089612/6224001 (97.84%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6089612/6224001 (97.84%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6089612/6224001 (97.84%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6089612/6224001 (97.84%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6089612/6224001 (97.84%)
+auto-selected 1-fold oversampling
+WARNING: out of range for three point interpolation
+WARNING: further warnings will not be printed!
+[HKL stats] h=[-10,14] k=[-27,28] l=[0,6] hit_rate=0/6224001 (0.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-24,24] l=[0,10] hit_rate=6217319/6224001 (99.89%)
+auto-selected 1-fold oversampling
+WARNING: out of range for three point interpolation
+WARNING: further warnings will not be printed!
+[HKL stats] h=[-33,44] k=[-12,12] l=[0,10] hit_rate=0/6224001 (0.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-15,21] k=[-22,22] l=[0,10] hit_rate=6219468/6224001 (99.93%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-24,24] l=[0,10] hit_rate=6218747/6224001 (99.92%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-24,24] l=[0,10] hit_rate=6218747/6224001 (99.92%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-24,24] l=[0,10] hit_rate=6217467/6224001 (99.90%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-24,24] l=[0,10] hit_rate=6217386/6224001 (99.89%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-24,24] l=[0,10] hit_rate=6216564/6224001 (99.88%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-24,24] l=[0,10] hit_rate=6217294/6224001 (99.89%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-24,24] l=[0,10] hit_rate=6217294/6224001 (99.89%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-24,24] l=[0,10] hit_rate=6217294/6224001 (99.89%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-24,24] l=[0,10] hit_rate=6201637/6224001 (99.64%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-24,24] l=[0,10] hit_rate=6216612/6224001 (99.88%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-24,24] l=[0,10] hit_rate=6217241/6224001 (99.89%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-24,24] l=[0,10] hit_rate=6217253/6224001 (99.89%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-24,24] l=[0,10] hit_rate=6217241/6224001 (99.89%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-24,24] l=[0,10] hit_rate=6217241/6224001 (99.89%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-24,24] l=[0,10] hit_rate=6217241/6224001 (99.89%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-24,24] l=[0,10] hit_rate=6217241/6224001 (99.89%)
+
+WARM results:
+  Wall clock: 250.77s
+  Closure evals: 21
+  Final loss: 189107696.000000
+  Status: ok
+
+============================================================
+Running COLD mode benchmark...
+============================================================
+
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6089611/6224001 (97.84%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6089611/6224001 (97.84%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6089612/6224001 (97.84%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6089612/6224001 (97.84%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6089612/6224001 (97.84%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6089612/6224001 (97.84%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6089612/6224001 (97.84%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6089612/6224001 (97.84%)
+auto-selected 1-fold oversampling
+WARNING: out of range for three point interpolation
+WARNING: further warnings will not be printed!
+[HKL stats] h=[-10,14] k=[-27,28] l=[0,6] hit_rate=0/6224001 (0.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-24,24] l=[0,10] hit_rate=6217319/6224001 (99.89%)
+auto-selected 1-fold oversampling
+WARNING: out of range for three point interpolation
+WARNING: further warnings will not be printed!
+[HKL stats] h=[-33,44] k=[-12,12] l=[0,10] hit_rate=0/6224001 (0.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-15,21] k=[-22,22] l=[0,10] hit_rate=6219468/6224001 (99.93%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-24,24] l=[0,10] hit_rate=6218747/6224001 (99.92%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-24,24] l=[0,10] hit_rate=6218747/6224001 (99.92%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-24,24] l=[0,10] hit_rate=6217467/6224001 (99.90%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-24,24] l=[0,10] hit_rate=6217386/6224001 (99.89%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-24,24] l=[0,10] hit_rate=6216564/6224001 (99.88%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-24,24] l=[0,10] hit_rate=6217294/6224001 (99.89%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-24,24] l=[0,10] hit_rate=6217294/6224001 (99.89%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-24,24] l=[0,10] hit_rate=6217294/6224001 (99.89%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-24,24] l=[0,10] hit_rate=6201637/6224001 (99.64%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-24,24] l=[0,10] hit_rate=6216612/6224001 (99.88%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-24,24] l=[0,10] hit_rate=6217241/6224001 (99.89%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-24,24] l=[0,10] hit_rate=6217253/6224001 (99.89%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-24,24] l=[0,10] hit_rate=6217241/6224001 (99.89%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-24,24] l=[0,10] hit_rate=6217241/6224001 (99.89%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-24,24] l=[0,10] hit_rate=6217241/6224001 (99.89%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-24,24] l=[0,10] hit_rate=6217241/6224001 (99.89%)
+
+COLD results:
+  Wall clock: 252.94s
+  Closure evals: 21
+  Final loss: 189107696.000000
+  Status: ok
+
+============================================================
+SPEEDUP: 1.01× (cold=252.94s / warm=250.77s)
+============================================================
+
+
+Artifacts written to plans/active/PERF-WARM-SIM-001/reports/2025-11-21T090949Z/
+  - benchmark_summary.json
+  - benchmark_report.txt
+  - warm_perf_counters.json
+  - cold_perf_counters.json

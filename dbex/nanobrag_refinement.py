@@ -302,7 +302,7 @@ class StageAContext:
         detector_configs: List of DetectorConfig objects per panel (length n_panels)
         detector_models: List of Detector model instances per panel (length n_panels)
         beam_config: Single BeamConfig shared across all panels
-        trusted_masks_t: List of torch.Tensor trusted masks per panel (length n_panels)
+        trusted_masks_t: torch.Tensor stacked trusted masks [panel, slow, fast] (dtype=bool)
         hkl_grid: torch.Tensor structure factor grid on target device
         hkl_metadata: dict with grid dimensions and halo status
         device: torch device for all tensors
@@ -313,7 +313,7 @@ class StageAContext:
     detector_configs: List
     detector_models: List
     beam_config: object
-    trusted_masks_t: List[torch.Tensor]
+    trusted_masks_t: Optional[torch.Tensor]
     hkl_grid: torch.Tensor
     hkl_metadata: Dict
     device: torch.device
@@ -459,7 +459,7 @@ def _build_stage_a_context(
     # Build detector configs and models per panel
     detector_configs = []
     detector_models = []
-    trusted_masks_t = []
+    trusted_masks_t_list: List[torch.Tensor] = []
 
     for pid in range(n_panels):
         panel = detector[pid]
@@ -474,10 +474,13 @@ def _build_stage_a_context(
         # Convert mask_array to torch.Tensor if it's a numpy array
         # Per dbex/nanobrag_bridge.py:998-1004, nanobrag_torch Simulator
         # expects torch.Tensor for mask_array
-        if detector_config.mask_array is not None and not isinstance(detector_config.mask_array, torch.Tensor):
-            detector_config.mask_array = torch.tensor(
-                detector_config.mask_array, dtype=torch.float32, device=device
-            )
+        mask_array = detector_config.mask_array
+        if mask_array is not None and not isinstance(mask_array, torch.Tensor):
+            mask_array = torch.tensor(mask_array, dtype=torch.float32, device=device)
+            detector_config.mask_array = mask_array
+        elif mask_array is not None and (mask_array.device != device or mask_array.dtype != torch.float32):
+            mask_array = mask_array.to(device=device, dtype=torch.float32)
+            detector_config.mask_array = mask_array
 
         # Instantiate Detector model
         detector_model = Detector(detector_config, device=device, dtype=dtype)
@@ -485,9 +488,11 @@ def _build_stage_a_context(
         detector_configs.append(detector_config)
         detector_models.append(detector_model)
 
-        # Tensorize trusted mask for this panel
-        mask_t = torch.tensor(trusted_mask[pid], dtype=torch.float32, device=device)
-        trusted_masks_t.append(mask_t)
+        # Tensorize trusted mask (bool) for reuse in loss masks
+        mask_bool = torch.as_tensor(trusted_mask[pid], dtype=torch.bool, device=device)
+        trusted_masks_t_list.append(mask_bool)
+
+    trusted_masks_t = torch.stack(trusted_masks_t_list, dim=0) if trusted_masks_t_list else None
 
     # Build beam config (shared across panels)
     beam_config = create_beam_config(beam)
@@ -799,13 +804,27 @@ def run_nanobrag_refinement(
             'cell_gamma': perturbed_gamma
         }
 
+        warm_crystal_model: Optional[Crystal] = None
+        if stage_a_ctx is not None:
+            # Warm mode: build Crystal once per loss evaluation (PERF-WARM-SIM-001)
+            warm_crystal_config, _ = create_crystal_config(
+                crystal,
+                None,
+                crystal_overrides=crystal_overrides,
+                misset_deg_override=misset_xyz_deg
+            )
+            warm_crystal_model = Crystal(warm_crystal_config, device=device, dtype=dtype)
+            warm_crystal_model.interpolate = stage_a_ctx.enable_hkl_interpolation
+            warm_crystal_model.hkl_data = stage_a_ctx.hkl_grid
+            warm_crystal_model.hkl_metadata = stage_a_ctx.hkl_metadata
+
         for pid in panel_ids:
-            # Warm mode: Reuse cached detector model (PERF-WARM-SIM-001)
-            # Cold mode: Rebuild detector model/config inside closure (benchmarking)
+            # Warm mode: reuse cached detector + hoisted Crystal/ HKL tensors
             if stage_a_ctx is not None:
                 detector_model = stage_a_ctx.detector_models[pid]
+                crystal_model = warm_crystal_model
             else:
-                # Cold mode: rebuild detector config and model per iteration
+                # Cold mode: rebuild detector config/model and Crystal per panel for benchmarking
                 from dbex.nanobrag_bridge import create_detector_config
                 panel = detector[pid]
                 detector_config = create_detector_config(
@@ -813,34 +832,19 @@ def run_nanobrag_refinement(
                     beam=beam,
                     trusted_mask=inputs.trusted_mask[pid]
                 )
-                # Convert mask to tensor if needed
                 if detector_config.mask_array is not None and not isinstance(detector_config.mask_array, torch.Tensor):
                     detector_config.mask_array = torch.tensor(
                         detector_config.mask_array, dtype=torch.float32, device=device
                     )
                 detector_model = Detector(detector_config, device=device, dtype=dtype)
 
-            # Create crystal config with current parameter overrides + misset
-            # Note: create_crystal_config returns (config, n_cells_applied) tuple
-            crystal_config, _ = create_crystal_config(
-                crystal, None,
-                crystal_overrides=crystal_overrides,
-                misset_deg_override=misset_xyz_deg
-            )
-
-            # Build crystal model with current parameters
-            crystal_model = Crystal(crystal_config, device=device, dtype=dtype)
-
-            # HKL interpolation control (TORCH-REFINE-002D, REFINE-005)
-            # Defaults to nearest-neighbor (False) unless explicitly enabled via config
-            # Tricubic interpolation requires halo-padded grid to avoid default_F fallback
-            if stage_a_ctx is not None:
-                crystal_model.interpolate = stage_a_ctx.enable_hkl_interpolation
-                # Attach cached HKL data (already on device)
-                crystal_model.hkl_data = stage_a_ctx.hkl_grid
-                crystal_model.hkl_metadata = stage_a_ctx.hkl_metadata
-            else:
-                # Cold mode: transfer HKL grid to device per iteration
+                crystal_config, _ = create_crystal_config(
+                    crystal,
+                    None,
+                    crystal_overrides=crystal_overrides,
+                    misset_deg_override=misset_xyz_deg
+                )
+                crystal_model = Crystal(crystal_config, device=device, dtype=dtype)
                 crystal_model.interpolate = config.enable_hkl_interpolation
                 crystal_model.hkl_data = hkl_grid.to(device=device, dtype=dtype)
                 crystal_model.hkl_metadata = hkl_metadata
@@ -861,6 +865,9 @@ def run_nanobrag_refinement(
         # Extract corresponding target and mask slices
         target_subset = target_t[panel_ids]
         mask_subset = loss_mask_t[panel_ids]
+        if stage_a_ctx is not None and stage_a_ctx.trusted_masks_t is not None:
+            trusted_subset = stage_a_ctx.trusted_masks_t[panel_ids]
+            mask_subset = torch.logical_and(mask_subset, trusted_subset)
         sigma_subset = sigma_readout_t[panel_ids]
 
         (

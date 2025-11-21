@@ -260,6 +260,8 @@ class RefinementConfig:
     # Enable Stage A warm cache (prebuild detector models/masks/HKL once).
     # Default True for production (2-5× speedup). Disable for benchmarking cold baseline.
     enable_stage_a_warm_cache: bool = True
+    # Enable ROI-aware sampling/cropping when Stage A closures run (PERF-WARM-SIM-001 ROI follow-up)
+    enable_stage_a_roi_mode: bool = True
 
     # Stage B structure factor modifiers (TORCH-REFINE-004)
     enable_stage_b: bool = False  # Enable Fhkl shell modifiers
@@ -290,6 +292,18 @@ class RefinementConfig:
 
 
 @dataclass
+class StageAROIEntry:
+    """Cached ROI detector + simulator pair for Stage A warm cache."""
+    roi_index: int
+    panel_id: int
+    bbox: Tuple[int, int, int, int]
+    slow_slice: slice
+    fast_slice: slice
+    detector_model: Any
+    simulator: Any
+
+
+@dataclass
 class StageAContext:
     """
     Cached detector models and tensors for Stage A refinement (PERF-WARM-SIM-001).
@@ -297,23 +311,28 @@ class StageAContext:
     Hoists per-panel Detector model instantiation, mask tensorization, and HKL grid
     transfers out of the LBFGS closure. The closure then only updates parameter tensors
     and runs forward passes through cached models, eliminating repeated construction overhead.
+    When ROI sampling is enabled, this context additionally stores cropped Detector/Simulator
+    pairs per ROI so closures can simulate only the requested bounding boxes.
 
     Fields:
         detector_configs: List of DetectorConfig objects per panel (length n_panels)
         detector_models: List of Detector model instances per panel (length n_panels)
         simulators: List of Simulator instances per panel cached with detector/beam state
-        beam_config: Single BeamConfig shared across all panels
+        roi_entries: Optional list of StageAROIEntry objects (length roi_count when ROI cache enabled)
+        beam_config: Single BeamConfig shared across all panels/ROIs
         trusted_masks_t: torch.Tensor stacked trusted masks [panel, slow, fast] (dtype=bool)
         hkl_grid: torch.Tensor structure factor grid on target device
         hkl_metadata: dict with grid dimensions and halo status
         device: torch device for all tensors
         dtype: torch dtype for all tensors
         n_panels: int, number of panels
+        roi_count: int, number of cached ROI entries
         enable_hkl_interpolation: bool, tricubic interpolation flag
     """
     detector_configs: List
     detector_models: List
     simulators: List
+    roi_entries: Optional[List[StageAROIEntry]]
     beam_config: object
     trusted_masks_t: Optional[torch.Tensor]
     hkl_grid: torch.Tensor
@@ -321,6 +340,7 @@ class StageAContext:
     device: torch.device
     dtype: torch.dtype
     n_panels: int
+    roi_count: int
     enable_hkl_interpolation: bool
 
 
@@ -431,7 +451,9 @@ def _build_stage_a_context(
     hkl_metadata: Dict,
     enable_hkl_interpolation: bool,
     device: torch.device,
-    dtype: torch.dtype
+    dtype: torch.dtype,
+    panel_slices,
+    enable_roi_mode: bool,
 ) -> StageAContext:
     """
     Prebuild Stage A detector models and tensorize masks/HKL once (PERF-WARM-SIM-001).
@@ -451,6 +473,8 @@ def _build_stage_a_context(
         enable_hkl_interpolation: bool, tricubic interpolation flag
         device: torch device
         dtype: torch dtype
+        panel_slices: List of (panel_id, bbox) tuples describing ROI bounds
+        enable_roi_mode: bool flag for ROI cache construction
 
     Returns:
         StageAContext with prebuilt models and tensorized data
@@ -471,6 +495,7 @@ def _build_stage_a_context(
     detector_models = []
     simulators = []
     trusted_masks_t_list: List[torch.Tensor] = []
+    roi_entries: List[StageAROIEntry] = []
 
     beam_config = create_beam_config(beam)
     hkl_grid_device = hkl_grid.to(device=device, dtype=dtype)
@@ -520,12 +545,51 @@ def _build_stage_a_context(
         mask_bool = torch.as_tensor(trusted_mask[pid], dtype=torch.bool, device=device)
         trusted_masks_t_list.append(mask_bool)
 
+    if enable_roi_mode and panel_slices:
+        for roi_index, (pid, bbox) in enumerate(panel_slices):
+            x0, x1, y0, y1 = bbox
+            panel = detector[int(pid)]
+            detector_config = create_detector_config(
+                panel=panel,
+                beam=beam,
+                trusted_mask=trusted_mask[int(pid)],
+                roi_bbox=bbox,
+            )
+            mask_array = detector_config.mask_array
+            if mask_array is not None and not isinstance(mask_array, torch.Tensor):
+                mask_array = torch.tensor(mask_array, dtype=torch.float32, device=device)
+                detector_config.mask_array = mask_array
+            elif mask_array is not None and (mask_array.device != device or mask_array.dtype != torch.float32):
+                mask_array = mask_array.to(device=device, dtype=torch.float32)
+                detector_config.mask_array = mask_array
+
+            detector_model = Detector(detector_config, device=device, dtype=dtype)
+            simulator = Simulator(
+                detector=detector_model,
+                crystal=base_crystal_model,
+                beam_config=beam_config,
+                device=device,
+                dtype=dtype,
+            )
+            roi_entries.append(
+                StageAROIEntry(
+                    roi_index=roi_index,
+                    panel_id=int(pid),
+                    bbox=tuple(int(v) for v in bbox),
+                    slow_slice=slice(int(y0), int(y1)),
+                    fast_slice=slice(int(x0), int(x1)),
+                    detector_model=detector_model,
+                    simulator=simulator,
+                )
+            )
+
     trusted_masks_t = torch.stack(trusted_masks_t_list, dim=0) if trusted_masks_t_list else None
 
     return StageAContext(
         detector_configs=detector_configs,
         detector_models=detector_models,
         simulators=simulators,
+        roi_entries=roi_entries if roi_entries else None,
         beam_config=beam_config,
         trusted_masks_t=trusted_masks_t,
         hkl_grid=hkl_grid_device,
@@ -533,6 +597,7 @@ def _build_stage_a_context(
         device=device,
         dtype=dtype,
         n_panels=n_panels,
+        roi_count=len(roi_entries),
         enable_hkl_interpolation=enable_hkl_interpolation
     )
 
@@ -556,6 +621,10 @@ def _retarget_stage_a_simulators(stage_a_ctx: StageAContext, crystal_model) -> N
     for simulator in stage_a_ctx.simulators:
         simulator.crystal = crystal_model
         simulator.beam_config = stage_a_ctx.beam_config
+    if stage_a_ctx.roi_entries:
+        for entry in stage_a_ctx.roi_entries:
+            entry.simulator.crystal = crystal_model
+            entry.simulator.beam_config = stage_a_ctx.beam_config
 
 
 def run_nanobrag_refinement(
@@ -732,7 +801,7 @@ def run_nanobrag_refinement(
         sigma_floor_sq_cache, device, dtype, config.sigma_floor_value
     )
 
-    # Deterministic ROI sampling
+    # Deterministic ROI/Panel sampling seeds
     np.random.seed(42)  # Fixed seed for deterministic behavior
     n_panels = len(detector)
     baseline_detector_distances = None
@@ -745,7 +814,8 @@ def run_nanobrag_refinement(
             baseline_detector[pid].get_directed_distance() for pid in range(n_panels)
         ]
     panel_shape = inputs.target.shape[1:]  # (slow, fast)
-    canonical_roi_count = len(inputs.panel_slices)
+    panel_slices = inputs.panel_slices
+    canonical_roi_count = len(panel_slices)
     if baseline_detector_distances is not None:
         canonical_detector_distances = list(baseline_detector_distances)
     else:
@@ -760,10 +830,27 @@ def run_nanobrag_refinement(
         "detector_distances_mm": canonical_detector_distances,
     }
 
-    # Sample ROIs: select ~15% of panels deterministically
+    # Sample panels (~15%) for Stage B reuse + fallback
     sampled_panel_ids = sorted(
-        np.random.choice(n_panels, size=max(1, int(n_panels * config.roi_sample_fraction)), replace=False).tolist()
+        np.random.choice(
+            n_panels,
+            size=max(1, int(n_panels * config.roi_sample_fraction)),
+            replace=False,
+        ).tolist()
     )
+
+    # Stage A ROI sampling (panel_slices-defined) with fallback to panel sampling
+    use_stage_a_roi_mode = bool(config.enable_stage_a_roi_mode and canonical_roi_count > 0)
+    stage_a_total_work_items = canonical_roi_count if use_stage_a_roi_mode else n_panels
+    if use_stage_a_roi_mode:
+        roi_sample_size = max(1, int(stage_a_total_work_items * config.roi_sample_fraction))
+        roi_sample_size = min(stage_a_total_work_items, roi_sample_size)
+        sampled_stage_a_indices = sorted(
+            np.random.choice(stage_a_total_work_items, size=roi_sample_size, replace=False).tolist()
+        )
+    else:
+        sampled_stage_a_indices = list(sampled_panel_ids)
+    full_stage_a_indices = list(range(stage_a_total_work_items))
 
     # Build Stage A context conditionally (PERF-WARM-SIM-001)
     # When warm cache is enabled (default), prebuild detector models and tensorize masks once
@@ -779,12 +866,14 @@ def run_nanobrag_refinement(
             hkl_metadata=hkl_metadata,
             enable_hkl_interpolation=config.enable_hkl_interpolation,
             device=device,
-            dtype=dtype
+            dtype=dtype,
+            panel_slices=panel_slices,
+            enable_roi_mode=use_stage_a_roi_mode,
         )
 
-    def compute_loss(panel_ids: List[int], is_full: bool = False) -> Tuple[torch.Tensor, torch.Tensor]:
+    def compute_loss(work_item_ids: List[int], is_full: bool = False) -> Tuple[torch.Tensor, torch.Tensor]:
         """
-        Compute variance-weighted chi-squared loss over specified panels.
+        Compute variance-weighted chi-squared loss over specified work items.
 
         Implements spec-db-core.md:57-68 variance model:
         - Variance: V = I_model.detach() + sigma_readout^2
@@ -795,7 +884,7 @@ def run_nanobrag_refinement(
         Cold mode (benchmarking): Rebuilds detector models/masks inside closure.
 
         Args:
-            panel_ids: List of panel indices to include
+            work_item_ids: List of ROI indices (when ROI sampling enabled) or panel indices
             is_full: If True, this is a full validation run
 
         Returns:
@@ -804,11 +893,7 @@ def run_nanobrag_refinement(
         # Time forward pass (CPU-only, PERF-WARM-SIM-001)
         t0 = time.perf_counter()
 
-        # Accumulate Bragg predictions per panel
-        bragg_panels = []
-
-        # Compute cell/orientation parameters once per loss evaluation (shared across panels)
-        # Apply full crystal perturbations via tensor overrides (GRADIENT-001, TORCH-REFINE-002)
+        # Compute cell/orientation parameters once per loss evaluation (shared across panels/ROIs)
         cell_params = crystal.get_unit_cell().parameters()  # (a, b, c, alpha, beta, gamma)
 
         # 1. Unit cell lengths (log-parameterized)
@@ -823,23 +908,14 @@ def run_nanobrag_refinement(
         perturbed_gamma = cell_params[5] + torch.tanh(angle_gamma_raw) * max_angle_delta
 
         # 3. Orientation perturbation via quaternion→XYZ misset (TORCH-REFINE-002)
-        # Convert 3-vector → unit quaternion → XYZ extrinsic Euler angles (degrees)
-        # Per docs/spec-db-workflow.md:30, misset_deg is applied after MOSFLM A* injection
-        # Bound magnitude to ±3° by scaling orientation_vec with tanh
         max_orientation_deg = 3.0  # degrees (per input.md pitfalls)
-        bounded_orientation_vec = torch.tanh(orientation_vec) * max_orientation_deg * (np.pi / 180.0)  # convert bound to radians for vec magnitude
-
-        # Map to unit quaternion, then to XYZ Euler angles
+        bounded_orientation_vec = torch.tanh(orientation_vec) * max_orientation_deg * (np.pi / 180.0)
         quat = vec_to_unit_quaternion(bounded_orientation_vec)
         misset_xyz_deg = quaternion_to_xyz_euler(quat)
 
-        # Add baseline misset from perturbed geometry if provided (TORCH-REFINE-002D)
-        # This plumbs the deterministic perturbation through the refinement path
-        # so the smoke test can exercise orientation recovery with nearest-neighbor HKL
         if baseline_misset_deg_tensor is not None:
             misset_xyz_deg = misset_xyz_deg + baseline_misset_deg_tensor
 
-        # Build crystal overrides dict (shared across panels)
         crystal_overrides = {
             'cell_a': perturbed_cell_a,
             'cell_b': perturbed_cell_b,
@@ -849,10 +925,11 @@ def run_nanobrag_refinement(
             'cell_gamma': perturbed_gamma
         }
 
-        warm_crystal_model: Optional[Crystal] = None
+        log_scale_clamped = torch.clamp(log_scale, min=-10.0, max=10.0)
         beam_config_for_run = stage_a_ctx.beam_config if stage_a_ctx is not None else create_beam_config(beam)
+
+        warm_crystal_model: Optional[Crystal] = None
         if stage_a_ctx is not None:
-            # Warm mode: build Crystal once per loss evaluation (PERF-WARM-SIM-001)
             warm_crystal_config, _ = create_crystal_config(
                 crystal,
                 None,
@@ -868,83 +945,156 @@ def run_nanobrag_refinement(
             warm_crystal_model = _sync_stage_a_crystal(stage_a_ctx, warm_crystal_model)
             _retarget_stage_a_simulators(stage_a_ctx, warm_crystal_model)
 
-        for pid in panel_ids:
-            # Warm mode: reuse cached per-panel simulators
-            if stage_a_ctx is not None:
-                simulator = stage_a_ctx.simulators[pid]
-            else:
-                # Cold mode: rebuild detector config/model and Crystal per panel for benchmarking
-                from dbex.nanobrag_bridge import create_detector_config
-                panel = detector[pid]
-                detector_config = create_detector_config(
-                    panel=panel,
-                    beam=beam,
-                    trusted_mask=inputs.trusted_mask[pid]
-                )
-                if detector_config.mask_array is not None and not isinstance(detector_config.mask_array, torch.Tensor):
-                    detector_config.mask_array = torch.tensor(
-                        detector_config.mask_array, dtype=torch.float32, device=device
+        if use_stage_a_roi_mode:
+            indices = work_item_ids if work_item_ids else full_stage_a_indices
+            chi_squared_accum = torch.zeros((), device=device, dtype=dtype)
+            mse_numerator_accum = torch.zeros((), device=device, dtype=dtype)
+            masked_pixels_total = 0
+            clamped_pixels_total = 0
+
+            for roi_index in indices:
+                pid, bbox = panel_slices[roi_index]
+                x0, x1, y0, y1 = map(int, bbox)
+                slow_slice = slice(y0, y1)
+                fast_slice = slice(x0, x1)
+
+                target_subset = target_t[pid, slow_slice, fast_slice]
+                mask_subset = loss_mask_t[pid, slow_slice, fast_slice]
+                if stage_a_ctx is not None and stage_a_ctx.trusted_masks_t is not None:
+                    trusted_slice = stage_a_ctx.trusted_masks_t[pid, slow_slice, fast_slice]
+                    mask_subset = torch.logical_and(mask_subset, trusted_slice)
+                sigma_subset = sigma_readout_t[pid, slow_slice, fast_slice]
+
+                if stage_a_ctx is not None and stage_a_ctx.roi_entries:
+                    simulator = stage_a_ctx.roi_entries[roi_index].simulator
+                else:
+                    detector_config = create_detector_config(
+                        panel=detector[pid],
+                        beam=beam,
+                        trusted_mask=inputs.trusted_mask[pid],
+                        roi_bbox=(x0, x1, y0, y1),
                     )
-                detector_model = Detector(detector_config, device=device, dtype=dtype)
+                    mask_array = detector_config.mask_array
+                    if mask_array is not None and not isinstance(mask_array, torch.Tensor):
+                        detector_config.mask_array = torch.tensor(mask_array, dtype=torch.float32, device=device)
+                    elif mask_array is not None and (mask_array.device != device or mask_array.dtype != torch.float32):
+                        detector_config.mask_array = mask_array.to(device=device, dtype=torch.float32)
+                    detector_model = Detector(detector_config, device=device, dtype=dtype)
 
-                crystal_config, _ = create_crystal_config(
-                    crystal,
-                    None,
-                    crystal_overrides=crystal_overrides,
-                    misset_deg_override=misset_xyz_deg
+                    crystal_config, _ = create_crystal_config(
+                        crystal,
+                        None,
+                        crystal_overrides=crystal_overrides,
+                        misset_deg_override=misset_xyz_deg
+                    )
+                    crystal_model = Crystal(
+                        crystal_config,
+                        beam_config=beam_config_for_run,
+                        device=device,
+                        dtype=dtype
+                    )
+                    crystal_model.interpolate = config.enable_hkl_interpolation
+                    crystal_model.hkl_data = hkl_grid.to(device=device, dtype=dtype)
+                    crystal_model.hkl_metadata = hkl_metadata
+
+                    simulator = Simulator(
+                        detector=detector_model,
+                        crystal=crystal_model,
+                        beam_config=beam_config_for_run,
+                        device=device,
+                        dtype=dtype
+                    )
+
+                bragg_patch = simulator.run()
+                bragg_scaled = bragg_patch * torch.exp(log_scale_clamped)
+
+                chi_sq_roi, mse_roi, masked_pixels, clamped_pixels = _compute_variance_weighted_loss(
+                    bragg_scaled,
+                    target_subset,
+                    mask_subset,
+                    sigma_subset,
+                    sigma_floor_sq_tensor,
                 )
-                crystal_model = Crystal(
-                    crystal_config,
-                    beam_config=beam_config_for_run,
-                    device=device,
-                    dtype=dtype
-                )
-                crystal_model.interpolate = config.enable_hkl_interpolation
-                crystal_model.hkl_data = hkl_grid.to(device=device, dtype=dtype)
-                crystal_model.hkl_metadata = hkl_metadata
+                chi_squared_accum = chi_squared_accum + chi_sq_roi
+                mse_numerator_accum = mse_numerator_accum + (mse_roi * masked_pixels)
+                masked_pixels_total += masked_pixels
+                clamped_pixels_total += clamped_pixels
 
-                simulator = Simulator(
-                    detector=detector_model,
-                    crystal=crystal_model,
-                    beam_config=beam_config_for_run,
-                    device=device,
-                    dtype=dtype
-                )
-            panel_bragg = simulator.run()  # [slow, fast]
+            if masked_pixels_total > 0:
+                masked_mse_loss = mse_numerator_accum / masked_pixels_total
+            else:
+                masked_mse_loss = mse_numerator_accum
+            chi_squared_loss = chi_squared_accum
+            variance_floor_clamped_pixels[0] += clamped_pixels_total
+            variance_floor_masked_pixels[0] += masked_pixels_total
+        else:
+            panel_ids = work_item_ids if work_item_ids else list(range(n_panels))
+            bragg_panels = []
+            for pid in panel_ids:
+                if stage_a_ctx is not None:
+                    simulator = stage_a_ctx.simulators[pid]
+                else:
+                    detector_config = create_detector_config(
+                        panel=detector[pid],
+                        beam=beam,
+                        trusted_mask=inputs.trusted_mask[pid]
+                    )
+                    if detector_config.mask_array is not None and not isinstance(detector_config.mask_array, torch.Tensor):
+                        detector_config.mask_array = torch.tensor(
+                            detector_config.mask_array, dtype=torch.float32, device=device
+                        )
+                    detector_model = Detector(detector_config, device=device, dtype=dtype)
 
-            bragg_panels.append(panel_bragg)
+                    crystal_config, _ = create_crystal_config(
+                        crystal,
+                        None,
+                        crystal_overrides=crystal_overrides,
+                        misset_deg_override=misset_xyz_deg
+                    )
+                    crystal_model = Crystal(
+                        crystal_config,
+                        beam_config=beam_config_for_run,
+                        device=device,
+                        dtype=dtype
+                    )
+                    crystal_model.interpolate = config.enable_hkl_interpolation
+                    crystal_model.hkl_data = hkl_grid.to(device=device, dtype=dtype)
+                    crystal_model.hkl_metadata = hkl_metadata
 
-        # Stack panels and apply global scale
-        bragg_stacked = torch.stack(bragg_panels, dim=0)  # [n_sampled, slow, fast]
-        # Clamp log_scale before exp to prevent overflow/NaN gradients (per REFINE-001)
-        # Range [-10, 10] → scale in [4.5e-5, 22026], balanced for stability vs exploration
-        log_scale_clamped = torch.clamp(log_scale, min=-10.0, max=10.0)
-        bragg_scaled = bragg_stacked * torch.exp(log_scale_clamped)
+                    simulator = Simulator(
+                        detector=detector_model,
+                        crystal=crystal_model,
+                        beam_config=beam_config_for_run,
+                        device=device,
+                        dtype=dtype
+                    )
+                bragg_panels.append(simulator.run())
 
-        # Extract corresponding target and mask slices
-        target_subset = target_t[panel_ids]
-        mask_subset = loss_mask_t[panel_ids]
-        if stage_a_ctx is not None and stage_a_ctx.trusted_masks_t is not None:
-            trusted_subset = stage_a_ctx.trusted_masks_t[panel_ids]
-            mask_subset = torch.logical_and(mask_subset, trusted_subset)
-        sigma_subset = sigma_readout_t[panel_ids]
+            bragg_stacked = torch.stack(bragg_panels, dim=0)
+            bragg_scaled = bragg_stacked * torch.exp(log_scale_clamped)
 
-        (
-            chi_squared_loss,
-            masked_mse_loss,
-            masked_pixels,
-            clamped_pixels,
-        ) = _compute_variance_weighted_loss(
-            bragg_scaled,
-            target_subset,
-            mask_subset,
-            sigma_subset,
-            sigma_floor_sq_tensor,
-        )
-        variance_floor_clamped_pixels[0] += clamped_pixels
-        variance_floor_masked_pixels[0] += masked_pixels
+            target_subset = target_t[panel_ids]
+            mask_subset = loss_mask_t[panel_ids]
+            if stage_a_ctx is not None and stage_a_ctx.trusted_masks_t is not None:
+                trusted_subset = stage_a_ctx.trusted_masks_t[panel_ids]
+                mask_subset = torch.logical_and(mask_subset, trusted_subset)
+            sigma_subset = sigma_readout_t[panel_ids]
 
-        # Record forward timing (PERF-WARM-SIM-001)
+            (
+                chi_squared_loss,
+                masked_mse_loss,
+                masked_pixels,
+                clamped_pixels,
+            ) = _compute_variance_weighted_loss(
+                bragg_scaled,
+                target_subset,
+                mask_subset,
+                sigma_subset,
+                sigma_floor_sq_tensor,
+            )
+            variance_floor_clamped_pixels[0] += clamped_pixels
+            variance_floor_masked_pixels[0] += masked_pixels
+
         if not is_full:  # Only track closure forward times, not validation
             elapsed_ms = (time.perf_counter() - t0) * 1000.0
             perf_forward_times_ms.append(elapsed_ms)
@@ -958,8 +1108,8 @@ def run_nanobrag_refinement(
         # Increment closure evaluation counter (PERF-WARM-SIM-001)
         perf_closure_evals[0] += 1
 
-        # Compute loss on sampled ROIs
-        chi_squared_loss, masked_mse_loss = compute_loss(sampled_panel_ids, is_full=False)
+        # Compute loss on sampled ROIs or panels depending on mode
+        chi_squared_loss, masked_mse_loss = compute_loss(sampled_stage_a_indices, is_full=False)
 
         # Backward pass (optimize chi_squared, not MSE)
         chi_squared_loss.backward()
@@ -979,7 +1129,7 @@ def run_nanobrag_refinement(
         if iteration_count[0] % config.full_validation_interval == 0:
             perf_validation_runs[0] += 1  # PERF-WARM-SIM-001
             with torch.no_grad():
-                full_chi_squared, full_mse = compute_loss(list(range(n_panels)), is_full=True)
+                full_chi_squared, full_mse = compute_loss(full_stage_a_indices, is_full=True)
                 loss_trace_full.append((iteration_count[0], float(full_chi_squared.item())))  # Deprecated legacy field
                 # PHYSICS-LOSS-001: Record both metrics
                 chi_squared_trace_full.append((iteration_count[0], float(full_chi_squared.item())))
@@ -1028,7 +1178,7 @@ def run_nanobrag_refinement(
         # Final full validation
         perf_validation_runs[0] += 1  # PERF-WARM-SIM-001
         with torch.no_grad():
-            final_chi_squared, final_mse = compute_loss(list(range(n_panels)), is_full=True)
+            final_chi_squared, final_mse = compute_loss(full_stage_a_indices, is_full=True)
             final_chi_squared_value = float(final_chi_squared.item())
             final_masked_mse_value = float(final_mse.item())
             loss_trace_full.append((iteration_count[0], final_chi_squared_value))  # Deprecated legacy field
@@ -1279,6 +1429,9 @@ def run_nanobrag_refinement(
     cache_mode = "warm" if config.enable_stage_a_warm_cache else "cold"
     perf_counters = {
         'cache_mode': cache_mode,
+        'roi_mode': use_stage_a_roi_mode,
+        'roi_count_total': stage_a_total_work_items,
+        'roi_count_sampled': len(sampled_stage_a_indices),
         'closure_evals': perf_closure_evals[0],
         'validation_runs': perf_validation_runs[0],
         'forward_time_ms': {
@@ -1297,8 +1450,8 @@ def run_nanobrag_refinement(
         tolerance_grad=config.tolerance_grad,
         tolerance_change=config.tolerance_change,
         roi_sample_fraction=config.roi_sample_fraction,
-        roi_count_sampled=len(sampled_panel_ids),
-        roi_count_total=n_panels,
+        roi_count_sampled=len(sampled_stage_a_indices),
+        roi_count_total=stage_a_total_work_items,
         loss_trace_sample=loss_trace_sample,  # Deprecated legacy field (chi_squared only)
         loss_trace_full=loss_trace_full,  # Deprecated legacy field (chi_squared only)
         best_loss_full=best_loss_full,  # Deprecated legacy field (chi_squared only)

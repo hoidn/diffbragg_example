@@ -280,7 +280,8 @@ def create_detector_config(
     panel,
     beam,
     trusted_mask: Optional[np.ndarray] = None,
-    distance_mm_override: Optional[torch.Tensor] = None
+    distance_mm_override: Optional[torch.Tensor] = None,
+    roi_bbox: Optional[Tuple[int, int, int, int]] = None,
 ) -> DetectorConfig:
     """
     Create DetectorConfig from dxtbx panel and beam.
@@ -302,6 +303,9 @@ def create_detector_config(
         trusted_mask: Optional boolean mask [slow, fast], True=include
         distance_mm_override: Optional torch.Tensor scalar for distance override (TORCH-REFINE-003)
                              If provided, replaces panel.get_directed_distance() for Stage C
+        roi_bbox: Optional tuple (x0, x1, y0, y1) with exclusive upper bounds specifying a cropped
+                  ROI. When provided, the detector's fpixels/spixels and beam center are adjusted
+                  so pixel (0,0) maps to the ROI's top-left corner, and the trusted mask is sliced.
 
     Returns:
         DetectorConfig with geometry, beam center, and mask
@@ -321,6 +325,18 @@ def create_detector_config(
 
     # Image dimensions (config_crosswalk.md:31)
     fast_px, slow_px = panel.get_image_size()
+    roi_offsets: Optional[Tuple[int, int]] = None
+    if roi_bbox is not None:
+        x0, x1, y0, y1 = map(int, roi_bbox)
+        if x0 < 0 or x1 > fast_px or y0 < 0 or y1 > slow_px:
+            raise ValueError(
+                f"ROI bbox {roi_bbox} out of bounds for panel size (fast={fast_px}, slow={slow_px})"
+            )
+        if x0 >= x1 or y0 >= y1:
+            raise ValueError(f"Invalid ROI bbox {roi_bbox}: upper bounds must exceed lower bounds")
+        roi_offsets = (x0, y0)
+        fast_px = x1 - x0
+        slow_px = y1 - y0
 
     # Distance (config_crosswalk.md:28)
     # Allow Stage C to override distance with differentiable tensor (TORCH-REFINE-003)
@@ -336,6 +352,10 @@ def create_detector_config(
     fast_mm, slow_mm = panel.get_beam_centre(beam.get_s0())
     beam_center_s = slow_mm
     beam_center_f = fast_mm
+    if roi_offsets is not None:
+        x0, y0 = roi_offsets
+        beam_center_f -= x0 * px_fast_mm
+        beam_center_s -= y0 * px_slow_mm
 
     # Extract per-panel detector rotations from fast/slow/normal axes
     # Form rotation matrix with columns = (fast, slow, normal)
@@ -410,8 +430,11 @@ def create_detector_config(
     import torch
     mask_array = None
     if trusted_mask is not None:
-        # Coerce to float32 tensor without implicit device change
-        mask_array = torch.as_tensor(trusted_mask.astype(np.float32), dtype=torch.float32)
+        mask_np = np.array(trusted_mask, copy=False)
+        if roi_bbox is not None:
+            x0, x1, y0, y1 = map(int, roi_bbox)
+            mask_np = mask_np[y0:y1, x0:x1]
+        mask_array = torch.as_tensor(mask_np.astype(np.float32), dtype=torch.float32)
         # Assert tensor stays 0/1-valued per nanobrag_api.md:44
         unique_vals = torch.unique(mask_array)
         assert torch.all((unique_vals == 0.0) | (unique_vals == 1.0)), \

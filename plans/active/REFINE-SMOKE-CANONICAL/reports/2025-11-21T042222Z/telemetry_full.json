@@ -1,0 +1,95 @@
+[
+  {
+    "stage": "stage_c_detector_microslip",
+    "dataset": "full",
+    "status": "ok",
+    "message": "",
+    "loss_trace_full": [
+      [
+        0,
+        294089696.0
+      ],
+      [
+        5,
+        294089696.0
+      ],
+      [
+        10,
+        293772416.0
+      ]
+    ],
+    "chi_squared_trace_full": [
+      [
+        0,
+        294089696.0
+      ],
+      [
+        5,
+        294089696.0
+      ],
+      [
+        10,
+        293772416.0
+      ]
+    ],
+    "perf_counters": {},
+    "loss_improvement": 0.001078854527429618,
+    "chi_squared_improvement": 0.001078854527429618,
+    "n_rois": 92,
+    "detector_shape": [
+      1,
+      2527,
+      2463
+    ],
+    "closure_evals": null,
+    "validation_runs": null,
+    "forward_time_ms": null,
+    "detector_offset_reduction_min": 0.9999999403953552,
+    "detector_offset_final_abs_max": 1.4901161193847656e-08
+  },
+  {
+    "stage": "stage_b_shell_modifiers",
+    "dataset": "full",
+    "status": "early_stop",
+    "message": "Stage B improvement -0.0000% < 0.0000% (calibrated gate per TORCH-REFINE-004, artifact: plans/active/TORCH-REFINE-004/reports/2025-11-05T190344Z/stage_b_improvement_probe.json)",
+    "loss_trace_full": [
+      [
+        0,
+        104972264.0
+      ],
+      [
+        5,
+        104972424.0
+      ],
+      [
+        7,
+        104972264.0
+      ]
+    ],
+    "chi_squared_trace_full": [
+      [
+        0,
+        104972264.0
+      ],
+      [
+        5,
+        104972424.0
+      ],
+      [
+        7,
+        104972264.0
+      ]
+    ],
+    "perf_counters": {},
+    "loss_improvement": -7.621061321193288e-08,
+    "n_rois": 92,
+    "detector_shape": [
+      1,
+      2527,
+      2463
+    ],
+    "closure_evals": null,
+    "validation_runs": null,
+    "forward_time_ms": null
+  }
+]

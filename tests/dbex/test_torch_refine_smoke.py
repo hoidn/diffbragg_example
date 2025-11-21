@@ -550,10 +550,11 @@ def test_stage_c_detector_microslip(refgeom_dataload, refinement_inputs, hkl_dat
     baseline_detector = refgeom_dataload.Expt.detector
     baseline_beam = refgeom_dataload.Expt.beam
 
+    detector_offset_mm = 0.25
     perturbed_crystal, perturbed_detector, perturbed_beam = create_perturbed_geometry(
         baseline_crystal, baseline_detector, baseline_beam,
         enable_detector_perturbation=True,  # Enable detector distance offsets
-        detector_distance_offset_mm=0.25  # ±0.25mm alternating pattern
+        detector_distance_offset_mm=detector_offset_mm  # ±0.25mm alternating pattern
     )
 
     # Run refinement with Stage A + Stage C
@@ -565,7 +566,8 @@ def test_stage_c_detector_microslip(refgeom_dataload, refinement_inputs, hkl_dat
         hkl_grid=hkl_grid,
         hkl_metadata=hkl_metadata,
         config=config,
-        baseline_crystal=baseline_crystal
+        baseline_crystal=baseline_crystal,
+        baseline_detector=baseline_detector
     )
 
     # Extract Stage A and Stage C telemetry
@@ -606,6 +608,11 @@ def test_stage_c_detector_microslip(refgeom_dataload, refinement_inputs, hkl_dat
                 "reduction": reduction,
             }
         )
+        if strict_gates:
+            assert initial_abs == pytest.approx(detector_offset_mm, rel=1e-3), (
+                f"Panel {pid} initial offset {initial_abs:.4f} mm "
+                f"!= expected {detector_offset_mm:.4f} mm relative to baseline detector"
+            )
 
     # Acceptance 3: PHYSICS-LOSS-001 telemetry validation (chi-squared + masked-MSE for both Stage A and Stage C)
     # Both stages must emit dual metrics
@@ -781,7 +788,8 @@ def test_stage_b_shell_modifiers(refgeom_dataload, refinement_inputs, hkl_data, 
         crystal=DL.crystal,
         hkl_grid=hkl_grid,
         hkl_metadata=hkl_metadata,
-        config=config
+        config=config,
+        baseline_detector=DL.detector
     )
 
     # Extract telemetry

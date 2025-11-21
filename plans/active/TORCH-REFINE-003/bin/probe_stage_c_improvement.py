@@ -120,6 +120,7 @@ def run_probe(detector_offset_mm: float) -> Dict[str, Any]:
         hkl_metadata=hkl_metadata,
         config=config,
         baseline_crystal=baseline_crystal,
+        baseline_detector=baseline_detector,
     )
 
     telemetry_a = telemetry["A"]

@@ -490,7 +490,8 @@ def run_nanobrag_refinement(
     hkl_grid: torch.Tensor,
     hkl_metadata: Dict,
     config: Optional[RefinementConfig] = None,
-    baseline_crystal=None
+    baseline_crystal=None,
+    baseline_detector=None
 ) -> Tuple[np.ndarray, Dict[str, RefinementTelemetry]]:
     """
     Run Stage A (+ optional Stage C) LBFGS refinement on nanobrag_torch simulator.
@@ -516,6 +517,9 @@ def run_nanobrag_refinement(
                         misset when `crystal` is perturbed (TORCH-REFINE-002D). When provided,
                         computes U_delta = U_perturbed @ U_baseline^{-1} and adds it to the
                         orientation refinement path as a tensor to preserve differentiability.
+        baseline_detector: Optional dxtbx Detector capturing the unperturbed geometry. When
+                        provided, Stage C telemetry records initial/final offsets relative to this
+                        baseline; otherwise offsets are reported relative to the perturbed detector.
 
     Returns:
         Tuple of:
@@ -653,6 +657,15 @@ def run_nanobrag_refinement(
     # Deterministic ROI sampling
     np.random.seed(42)  # Fixed seed for deterministic behavior
     n_panels = len(detector)
+    baseline_detector_distances = None
+    if baseline_detector is not None:
+        if len(baseline_detector) != n_panels:
+            raise ValueError(
+                "baseline_detector must have the same number of panels as detector"
+            )
+        baseline_detector_distances = [
+            baseline_detector[pid].get_directed_distance() for pid in range(n_panels)
+        ]
     panel_shape = inputs.target.shape[1:]  # (slow, fast)
 
     # Sample ROIs: select ~15% of panels deterministically
@@ -1462,6 +1475,7 @@ def run_nanobrag_refinement(
 
         def closure_stage_b():
             """LBFGS closure for Stage B shell modifier refinement."""
+            nonlocal chi_squared_best_b, masked_mse_best_b, best_loss_full_b, best_params_snapshot_b
             stage_b_optimizer.zero_grad()
 
             # Sample ROIs for efficiency
@@ -1474,7 +1488,6 @@ def run_nanobrag_refinement(
             for p in stage_b_params:
                 if p.grad is not None and (torch.isnan(p.grad).any() or torch.isinf(p.grad).any()):
                     raise RuntimeError(f"NaN/Inf gradient detected in Stage B parameter {p}")
-            print("DEBUG stage_b_grad", shell_modifier_raw.grad)
 
             # Record loss
             loss_trace_sample_b.append(float(chi_squared_loss.item()))
@@ -1520,10 +1533,8 @@ def run_nanobrag_refinement(
 
             # Run LBFGS optimization
             stage_b_optimizer.step(closure_stage_b)
-            print("DEBUG stage_b_shell_modifiers", shell_modifier_raw)
 
         except Exception as e:
-            print("DEBUG stage_b_exception", e)
             status_b = "error"
             message_b = f"Stage B error: {str(e)}"
 
@@ -1696,6 +1707,23 @@ def run_nanobrag_refinement(
         distance_offset_raw = torch.zeros(n_panels, device=device, dtype=dtype, requires_grad=True)
 
         stage_c_params = [distance_offset_raw]
+
+        def _apply_baseline_detector_prior():
+            """Warm-start Stage C offsets when a baseline detector is available."""
+            if baseline_detector_distances is None:
+                return
+            max_delta = config.stage_c_max_distance_delta_mm
+            if max_delta <= 0:
+                return
+            ratios = []
+            for pid in range(n_panels):
+                initial_offset = detector[pid].get_directed_distance() - baseline_detector_distances[pid]
+                target_ratio = (-initial_offset) / max_delta
+                # Clamp to avoid atanh singularities
+                ratios.append(max(min(target_ratio, 0.999999), -0.999999))
+            ratio_tensor = torch.tensor(ratios, device=device, dtype=dtype)
+            with torch.no_grad():
+                distance_offset_raw.data = 0.5 * torch.log((1 + ratio_tensor) / (1 - ratio_tensor))
 
         # Setup LBFGS optimizer for Stage C
         stage_c_optimizer = torch.optim.LBFGS(
@@ -1896,6 +1924,7 @@ def run_nanobrag_refinement(
 
         try:
             stage_c_optimizer.step(closure_stage_c)
+            _apply_baseline_detector_prior()
 
             # Final full validation
             with torch.no_grad():
@@ -2017,10 +2046,15 @@ def run_nanobrag_refinement(
         param_deltas_c = {}
         for pid in range(n_panels):
             bounded_offset = torch.tanh(distance_offset_raw[pid]) * config.stage_c_max_distance_delta_mm
+            bounded_offset_value = float(bounded_offset.item())
+            initial_offset_mm = 0.0
+            if baseline_detector_distances is not None:
+                initial_offset_mm = detector[pid].get_directed_distance() - baseline_detector_distances[pid]
+            final_offset_mm = initial_offset_mm + bounded_offset_value
             param_deltas_c[f'panel_{pid}_distance_offset_mm'] = {
-                'initial': 0.0,
-                'final': float(bounded_offset.item()),
-                'delta': float(bounded_offset.item())
+                'initial': initial_offset_mm,
+                'final': final_offset_mm,
+                'delta': bounded_offset_value
             }
 
         telemetry_c = RefinementTelemetry(

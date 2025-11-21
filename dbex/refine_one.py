@@ -75,11 +75,9 @@ def create_parser():
         "--sigma-rdout",
         type=float,
         default=None,
-        help="Detector readout noise in photons (must be >=0 if provided). "
-             "Used to compute variance-weighted chi-squared loss per spec-db-core.md:62-64. "
-             "If not provided, defaults to 0.0 (Poisson-only variance). Units must match target "
-             "representation (photons if --adu-per-photon given, else ADU). "
-             "Warning: ensure consistency between CLI value and detector metadata."
+        help="Detector readout noise scalar (photons or ADU) used in the variance-weighted loss "
+             "per spec-db-core.md:32-68. MUST be >0 unless a calibrated sigma map is injected; "
+             "when omitted and no metadata exists the CLI aborts with an actionable error."
     )
     ap.add_argument(
         "--sigma-floor",
@@ -93,6 +91,58 @@ def create_parser():
     )
 
     return ap
+
+
+def _resolve_sigma_readout(args, dataload):
+    """
+    Resolve sigma_readout source and provenance per spec-db-core.md:32-68.
+
+    Priority order:
+        1. CLI scalar (--sigma-rdout)
+        2. Future calibrated metadata attached to the DataLoad object
+
+    Returns:
+        sigma_array: np.ndarray shaped like dataload.data with strictly positive values
+        provenance: str describing the source ("cli_override", "calibrated_map", etc.)
+        reference_value: float scalar (target units before any ADU→photon conversion)
+    """
+    import numpy as np
+
+    if args.sigma_rdout is not None:
+        if args.sigma_rdout <= 0:
+            raise ValueError(
+                f"--sigma-rdout must be > 0 (got {args.sigma_rdout}). "
+                "spec-db-core.md:32-68 mandates strictly positive readout noise so "
+                "variance weights remain physical."
+            )
+        sigma_value = float(args.sigma_rdout)
+        sigma_array = np.full_like(dataload.data, sigma_value, dtype=np.float32)
+        return sigma_array, "cli_override", sigma_value
+
+    calibrated_sigma = getattr(dataload, "sigma_readout_map", None)
+    if calibrated_sigma is not None:
+        try:
+            sigma_array = np.asarray(calibrated_sigma, dtype=np.float32)
+        except (TypeError, ValueError):
+            sigma_array = None
+        else:
+            if sigma_array.shape != dataload.data.shape:
+                raise ValueError(
+                    f"Calibrated sigma_readout map shape {sigma_array.shape} "
+                    f"does not match data shape {dataload.data.shape}."
+                )
+            if not np.all(sigma_array > 0):
+                raise ValueError(
+                    "Calibrated sigma_readout map must be strictly positive per spec-db-core.md:32-34."
+                )
+            reference_value = float(np.median(sigma_array))
+            return sigma_array, "calibrated_map", reference_value
+
+    raise ValueError(
+        "nanobrag backend requires a positive sigma_readout source (--sigma-rdout or calibrated map). "
+        "Per spec-db-core.md:32-68 and spec-db-workflow.md:26-31 the CLI MUST refuse to run when "
+        "detector metadata cannot supply readout noise; pass --sigma-rdout=<photons> to continue."
+    )
 
 
 def run_diffbragg_backend(args, DL, devid=0):
@@ -209,18 +259,12 @@ def run_nanobrag_backend(args, DL, devid=0):
 
     print(f"[nanobrag backend] Preparing refinement inputs from DataLoad...")
 
-    # Prepare inputs via bridge (with optional ADU→photon conversion)
-    # sigma_readout: Convert CLI scalar to broadcast-compatible array if provided
-    sigma_readout_array = None
-    if args.sigma_rdout is not None:
-        if args.sigma_rdout < 0:
-            raise ValueError(
-                f"--sigma-rdout must be non-negative, got {args.sigma_rdout}. "
-                f"Per spec-db-core.md:63, readout noise must be >= 0."
-            )
-        # Broadcast scalar to full data shape [panel, slow, fast]
-        sigma_readout_array = np.full_like(DL.data, args.sigma_rdout, dtype=np.float32)
-        print(f"[nanobrag backend] Using CLI sigma_rdout={args.sigma_rdout} (broadcast to data shape)")
+    # Resolve sigma_readout source before preparing inputs (spec-db-core.md:32-68)
+    sigma_readout_array, sigma_provenance, sigma_reference_value = _resolve_sigma_readout(args, DL)
+    print(
+        "[nanobrag backend] Resolved sigma_readout source="
+        f"{sigma_provenance} reference={sigma_reference_value:.6g}"
+    )
 
     inputs = prepare_refinement_inputs(
         data=DL.data,
@@ -232,6 +276,14 @@ def run_nanobrag_backend(args, DL, devid=0):
         adu_per_photon=args.adu_per_photon,
         sigma_readout=sigma_readout_array
     )
+
+    sigma_reference_target_units = sigma_reference_value
+    if (
+        sigma_reference_target_units is not None
+        and args.adu_per_photon is not None
+        and args.adu_per_photon > 0
+    ):
+        sigma_reference_target_units = sigma_reference_target_units / args.adu_per_photon
 
     print(f"[nanobrag backend] Target shape: {inputs.target.shape}")
     print(f"[nanobrag backend] Loss mask coverage: {inputs.loss_mask.mean():.4%}")
@@ -417,7 +469,9 @@ def run_nanobrag_backend(args, DL, devid=0):
     refine_config = RefinementConfig(
         device=str(device),
         dtype=torch.float32,
-        sigma_floor_value=sigma_floor_value
+        sigma_floor_value=sigma_floor_value,
+        sigma_readout_provenance=sigma_provenance,
+        sigma_readout_reference_value=sigma_reference_target_units,
     )
 
     try:
@@ -478,12 +532,32 @@ def run_nanobrag_backend(args, DL, devid=0):
     }
 
     # Score ROIs and write HDF5 output
-    _write_torch_outputs(args, DL, Bragg, inputs, masked_mse, hkl_telemetry, refine_telemetry)
+    _write_torch_outputs(
+        args,
+        DL,
+        Bragg,
+        inputs,
+        masked_mse,
+        hkl_telemetry,
+        refine_telemetry,
+        sigma_readout_provenance=sigma_provenance,
+        sigma_readout_reference_value=sigma_reference_target_units,
+    )
 
     print(f"Visualize using `python -m dbex.look {args.outFile}`")
 
 
-def _write_torch_outputs(args, DL, Bragg, inputs, masked_mse, hkl_telemetry, refine_telemetry=None):
+def _write_torch_outputs(
+    args,
+    DL,
+    Bragg,
+    inputs,
+    masked_mse,
+    hkl_telemetry,
+    refine_telemetry=None,
+    sigma_readout_provenance=None,
+    sigma_readout_reference_value=None,
+):
     """Write torch backend outputs to HDF5 with diagnostics.
 
     Args:
@@ -500,6 +574,8 @@ def _write_torch_outputs(args, DL, Bragg, inputs, masked_mse, hkl_telemetry, ref
         refine_telemetry: Optional Dict[str, RefinementTelemetry] from run_nanobrag_refinement
                          (multi-stage: {"A": telemetry_a, "B": telemetry_b, "C": telemetry_c})
                          or single RefinementTelemetry (legacy, mapped to {"A": telemetry})
+        sigma_readout_provenance: Optional string describing sigma source (CLI, calibrated map, etc.)
+        sigma_readout_reference_value: Optional float (target units) for telemetry/diagnostics
     """
     import h5py
     import numpy as np
@@ -565,6 +641,10 @@ def _write_torch_outputs(args, DL, Bragg, inputs, masked_mse, hkl_telemetry, ref
         diag.attrs["n_rois"] = len(inputs.panel_slices)
         diag.attrs["target_shape"] = str(inputs.target.shape)
         diag.attrs["backend"] = "nanobrag"
+        if sigma_readout_provenance is not None:
+            diag.attrs["sigma_readout_provenance"] = sigma_readout_provenance
+        if sigma_readout_reference_value is not None:
+            diag.attrs["sigma_readout_reference_value"] = float(sigma_readout_reference_value)
 
         # Structure-factor telemetry (SCALE-003: track refined vs raw MTZ)
         diag.attrs["hkl_source"] = hkl_telemetry["hkl_source"]
@@ -599,6 +679,12 @@ def _write_torch_outputs(args, DL, Bragg, inputs, masked_mse, hkl_telemetry, ref
                 stage_group.attrs["refine_roi_count_total"] = stage_telem.roi_count_total
                 stage_group.attrs["refine_status"] = stage_telem.status
                 stage_group.attrs["refine_message"] = stage_telem.message
+                if stage_telem.sigma_readout_provenance is not None:
+                    stage_group.attrs["sigma_readout_provenance"] = stage_telem.sigma_readout_provenance
+                if stage_telem.sigma_readout_reference_value is not None:
+                    stage_group.attrs["sigma_readout_reference_value"] = float(
+                        stage_telem.sigma_readout_reference_value
+                    )
 
                 # Store loss traces as datasets (legacy chi_squared-only fields)
                 if len(stage_telem.loss_trace_sample) > 0:
@@ -671,6 +757,12 @@ def _write_torch_outputs(args, DL, Bragg, inputs, masked_mse, hkl_telemetry, ref
                 diag.attrs["refine_best_loss_full"] = stage_a_telem.best_loss_full[0]
                 diag.attrs["refine_best_loss_iteration"] = stage_a_telem.best_loss_full[1]
                 diag.attrs["refine_param_deltas"] = json.dumps(stage_a_telem.param_deltas)
+                if stage_a_telem.sigma_readout_provenance is not None:
+                    diag.attrs["sigma_readout_provenance"] = stage_a_telem.sigma_readout_provenance
+                if stage_a_telem.sigma_readout_reference_value is not None:
+                    diag.attrs["sigma_readout_reference_value"] = float(
+                        stage_a_telem.sigma_readout_reference_value
+                    )
 
                 # Top-level loss trace datasets (legacy)
                 if len(stage_a_telem.loss_trace_sample) > 0:

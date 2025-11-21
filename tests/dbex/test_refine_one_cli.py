@@ -174,6 +174,9 @@ def test_nanobrag_backend_runs_simulator(
     args.torch_config = None  # No calibration metadata
     args.refined_mtz = None  # No refined MTZ
     args.adu_per_photon = None
+    args.sigma_rdout = 3.0
+    args.sigma_floor = 1.0
+    args.device = "cpu"
 
     run_nanobrag_backend(args, mock_dl)
 
@@ -344,6 +347,9 @@ def test_nanobrag_backend_applies_calibration(
     args.torch_config = '/fake/path/config_torch.json'  # Trigger calibration load
     args.refined_mtz = None
     args.adu_per_photon = None
+    args.sigma_rdout = 3.0
+    args.sigma_floor = 1.0
+    args.device = "cpu"
 
     run_nanobrag_backend(args, mock_dl)
 
@@ -375,6 +381,37 @@ def test_nanobrag_backend_applies_calibration(
 
     # Verify output writer was called
     mock_write.assert_called_once()
+
+
+@patch('dbex.nanobrag_bridge.prepare_refinement_inputs')
+def test_nanobrag_backend_requires_sigma_rdout(mock_prepare):
+    """PHYSICS-LOSS-001: Ensure CLI refuses nanobrag backend without sigma_readout input."""
+    import numpy as np
+
+    mock_dl = Mock()
+    mock_dl.data = np.zeros((1, 5, 5), dtype=np.float32)
+    mock_dl.background_image = np.zeros((1, 5, 5), dtype=np.float32)
+    mock_dl.trusted_mask = np.ones((1, 5, 5), dtype=bool)
+    mock_dl.bbox = np.array([[0, 1, 0, 1]])
+    mock_dl.pids = np.array([0])
+    mock_dl.detector = [Mock()]
+    mock_dl.beam = Mock()
+    mock_dl.crystal = Mock()
+
+    args = Mock()
+    args.outFile = 'out.h5'
+    args.spot_scale_override = None
+    args.torch_config = None
+    args.refined_mtz = None
+    args.adu_per_photon = None
+    args.sigma_rdout = None
+    args.sigma_floor = 1.0
+    args.device = "cpu"
+
+    with pytest.raises(ValueError, match="--sigma-rdout"):
+        run_nanobrag_backend(args, mock_dl)
+
+    mock_prepare.assert_not_called()
 
 
 @patch('dbex.data_load.DataLoad')
@@ -501,6 +538,7 @@ def test_nanobrag_backend_uses_refined_mtz(
             '-o', out_path,
             '-m', mask_path,
             '-z', mtz_path,
+            '--sigma-rdout', '3.0',
             '--refined-mtz', refined_mtz_path,
             '--backend', 'nanobrag'
         ])
@@ -614,6 +652,8 @@ def test_torch_diagnostics_metadata():
                 masked_mse_trace_sample=[500.0, 450.0, 400.0],
                 masked_mse_trace_full=[(0, 500.0), (5, 450.0), (10, 400.0)],
                 masked_mse_best=(400.0, 10),
+                sigma_readout_provenance="cli_override",
+                sigma_readout_reference_value=3.0,
                 variance_floor_value=4.0,
                 variance_floor_clamp_fraction=0.125,
                 canonical_stage_label="A",
@@ -626,7 +666,17 @@ def test_torch_diagnostics_metadata():
 
             # Import the function to test
             from dbex.refine_one import _write_torch_outputs
-            _write_torch_outputs(mock_args, mock_dl, mock_bragg, mock_inputs, masked_mse, hkl_telemetry, refine_telemetry=refine_telemetry_dict)
+            _write_torch_outputs(
+                mock_args,
+                mock_dl,
+                mock_bragg,
+                mock_inputs,
+                masked_mse,
+                hkl_telemetry,
+                refine_telemetry=refine_telemetry_dict,
+                sigma_readout_provenance="cli_override",
+                sigma_readout_reference_value=3.0,
+            )
 
             # Verify diagnostics group exists and has correct metadata
             with h5py.File(outfile, 'r') as h:
@@ -651,6 +701,8 @@ def test_torch_diagnostics_metadata():
                 assert diag.attrs['loss_mask_coverage'] == pytest.approx(0.25)
                 assert diag.attrs['n_rois'] == 1
                 assert diag.attrs['backend'] == 'nanobrag'
+                assert diag.attrs['sigma_readout_provenance'] == "cli_override"
+                assert diag.attrs['sigma_readout_reference_value'] == pytest.approx(3.0)
 
                 # TORCH-CLI-004: Verify score dataset contains numeric values (not Mock objects)
                 assert 'score' in h
@@ -712,6 +764,8 @@ def test_torch_diagnostics_metadata():
                 assert stage_a_group.attrs['canonical_roi_count'] == 1
                 assert 'canonical_detector_distances_mm' in stage_a_group
                 assert np.allclose(stage_a_group['canonical_detector_distances_mm'][:], [100.0])
+                assert stage_a_group.attrs['sigma_readout_provenance'] == "cli_override"
+                assert stage_a_group.attrs['sigma_readout_reference_value'] == pytest.approx(3.0)
 
                 # PHYSICS-LOSS-001: Verify legacy top-level compatibility (Stage A only)
                 assert 'chi_squared_trace_sample' in diag, "Top-level chi_squared_trace_sample dataset missing"
@@ -816,6 +870,7 @@ def test_nanobrag_backend_refined_mtz_missing_errors(mock_DataLoad):
                 '-o', out_path,
                 '-m', mask_path,
                 '-z', mtz_path,
+                '--sigma-rdout', '3.0',
                 '--refined-mtz', nonexistent_refined_mtz,
                 '--backend', 'nanobrag'
             ])

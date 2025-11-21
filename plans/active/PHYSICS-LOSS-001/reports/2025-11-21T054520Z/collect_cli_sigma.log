@@ -1,0 +1,22 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collected 10 items
+
+<Dir diffbragg_example>
+  <Package tests>
+    <Package dbex>
+      <Module test_refine_one_cli.py>
+        <Function test_parser_has_backend_flag>
+        <Function test_parser_rejects_invalid_backend>
+        <Function test_main_dispatches_to_diffbragg_backend>
+        <Function test_main_dispatches_to_nanobrag_backend>
+        <Function test_nanobrag_backend_runs_simulator>
+        <Function test_nanobrag_backend_applies_calibration>
+        <Function test_nanobrag_backend_requires_sigma_rdout>
+        <Function test_nanobrag_backend_uses_refined_mtz>
+        <Function test_torch_diagnostics_metadata>
+        <Function test_nanobrag_backend_refined_mtz_missing_errors>
+
+========================= 10 tests collected in 0.02s ==========================

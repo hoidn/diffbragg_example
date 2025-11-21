@@ -77,6 +77,13 @@ CUDA_VISIBLE_DEVICES='' TORCHDYNAMO_DISABLE=1 NANOBRAGG_DISABLE_COMPILE=1 \
   KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests -k DB_AT_013
 ```
 
+### 1.4 Sigma Readout Requirement (nanobrag backend)
+
+- **Normative references**: `docs/spec-db-core.md:32-68`, `docs/spec-db-workflow.md:26-31`, `docs/spec-db-interfaces.md:10-33`.
+- The nanobrag CLI SHALL refuse to launch unless a strictly positive detector readout noise source is available. Until calibrated metadata lands, every `python -m dbex.refine_one --backend nanobrag ...` invocation MUST pass `--sigma-rdout=<photons>` (or ADU equivalent when `--adu-per-photon` is omitted). Silent fallbacks to zero variance are prohibited.
+- Telemetry: Stage A/B/C groups inside `/torch_diagnostics` now record `sigma_readout_provenance` (e.g., `cli_override`, `calibrated_map`) and `sigma_readout_reference_value` (target units, photons when gains are provided). Downstream tooling should assert these attrs when validating chi-squared traces.
+- Regression coverage: `tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_requires_sigma_rdout` exercises the fail-fast guard, while `test_torch_diagnostics_metadata` asserts the new telemetry fields remain populated. Collection logs for the sigma selector live under `plans/active/PHYSICS-LOSS-001/reports/2025-11-21T054520Z/collect_cli_sigma.log`.
+
 ## 2. Test Taxonomy
 
 | Scope | Selector | Purpose | Status | Notes |

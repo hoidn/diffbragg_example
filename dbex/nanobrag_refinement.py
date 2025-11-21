@@ -280,6 +280,10 @@ class RefinementConfig:
     # Shares units with sigma_readout (target units: photons or ADU)
     sigma_floor_value: float = 1.0  # Default: ~1 photon equivalent
 
+    # Sigma provenance metadata (PHYSICS-LOSS-001 A4)
+    sigma_readout_provenance: Optional[str] = None
+    sigma_readout_reference_value: Optional[float] = None
+
     # Device/dtype
     device: str = "cpu"
     dtype: torch.dtype = torch.float32
@@ -352,6 +356,8 @@ class RefinementTelemetry:
     masked_mse_trace_sample: Optional[List[float]] = None  # Masked-MSE sampled trace (legacy metric)
     masked_mse_trace_full: Optional[List[Tuple[int, float]]] = None  # Masked-MSE full trace [(iter, mse), ...]
     masked_mse_best: Optional[Tuple[float, int]] = None  # Best masked-MSE (value, iteration)
+    sigma_readout_provenance: Optional[str] = None  # Source of sigma tensor (cli_override, calibrated_map, etc.)
+    sigma_readout_reference_value: Optional[float] = None  # Reference scalar (target units, e.g., photons)
     # PHYSICS-LOSS-002: Variance floor telemetry (spec-db-core.md:67)
     variance_floor_value: Optional[float] = None  # sigma_floor^2 used in variance clamping
     variance_floor_clamp_fraction: Optional[float] = None  # Fraction of masked pixels where floor engaged
@@ -1241,6 +1247,8 @@ def run_nanobrag_refinement(
         masked_mse_trace_sample=masked_mse_trace_sample,
         masked_mse_trace_full=masked_mse_trace_full,
         masked_mse_best=masked_mse_best,
+        sigma_readout_provenance=config.sigma_readout_provenance,
+        sigma_readout_reference_value=config.sigma_readout_reference_value,
         # PHYSICS-LOSS-002: Variance floor telemetry
         variance_floor_value=config.sigma_floor_value**2,
         variance_floor_clamp_fraction=(
@@ -1733,6 +1741,8 @@ def run_nanobrag_refinement(
             masked_mse_trace_sample=masked_mse_trace_sample_b,
             masked_mse_trace_full=masked_mse_trace_full_b,
             masked_mse_best=masked_mse_best_b,
+            sigma_readout_provenance=config.sigma_readout_provenance,
+            sigma_readout_reference_value=config.sigma_readout_reference_value,
             # PHYSICS-LOSS-002: Variance floor telemetry
             variance_floor_value=config.sigma_floor_value**2,
             variance_floor_clamp_fraction=(
@@ -2135,6 +2145,8 @@ def run_nanobrag_refinement(
             masked_mse_trace_sample=masked_mse_trace_sample_c,
             masked_mse_trace_full=masked_mse_trace_full_c,
             masked_mse_best=masked_mse_best_c,
+            sigma_readout_provenance=config.sigma_readout_provenance,
+            sigma_readout_reference_value=config.sigma_readout_reference_value,
             # PHYSICS-LOSS-002: Variance floor telemetry
             variance_floor_value=config.sigma_floor_value**2,
             variance_floor_clamp_fraction=(

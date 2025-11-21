@@ -272,6 +272,11 @@ class RefinementConfig:
     stage_c_min_loss_improvement: float = 2e-5  # 0.002% minimum improvement for Stage C (calibrated per REFINE-007)
     stage_c_max_distance_delta_mm: float = 0.5  # Maximum distance adjustment per panel (mm)
 
+    # Variance floor guard (PHYSICS-LOSS-002, spec-db-core.md:67)
+    # Prevents infinite weights when I_model → 0 on GPU backends
+    # Shares units with sigma_readout (target units: photons or ADU)
+    sigma_floor_value: float = 1.0  # Default: ~1 photon equivalent
+
     # Device/dtype
     device: str = "cpu"
     dtype: torch.dtype = torch.float32
@@ -344,6 +349,9 @@ class RefinementTelemetry:
     masked_mse_trace_sample: Optional[List[float]] = None  # Masked-MSE sampled trace (legacy metric)
     masked_mse_trace_full: Optional[List[Tuple[int, float]]] = None  # Masked-MSE full trace [(iter, mse), ...]
     masked_mse_best: Optional[Tuple[float, int]] = None  # Best masked-MSE (value, iteration)
+    # PHYSICS-LOSS-002: Variance floor telemetry (spec-db-core.md:67)
+    variance_floor_value: Optional[float] = None  # sigma_floor^2 used in variance clamping
+    variance_floor_clamp_fraction: Optional[float] = None  # Fraction of masked pixels where floor engaged
 
 
 def _build_stage_a_context(
@@ -594,6 +602,10 @@ def run_nanobrag_refinement(
     perf_validation_runs = [0]  # Full validation runs
     perf_forward_times_ms = []  # Per-closure forward pass timings
 
+    # PHYSICS-LOSS-002: Variance floor clamp statistics
+    variance_floor_clamped_pixels = [0]  # Total pixels where floor engaged
+    variance_floor_masked_pixels = [0]  # Total masked pixels evaluated
+
     # Deterministic ROI sampling
     np.random.seed(42)  # Fixed seed for deterministic behavior
     n_panels = len(detector)
@@ -751,11 +763,21 @@ def run_nanobrag_refinement(
         mask_subset = loss_mask_t[panel_ids]
         sigma_subset = sigma_readout_t[panel_ids]
 
-        # Variance-weighted chi-squared loss (spec-db-core.md:57-68)
-        # Variance = I_model.detach() + sigma_readout^2 (Poisson + readout noise in quadrature)
+        # Variance-weighted chi-squared loss (spec-db-core.md:57-68, PHYSICS-LOSS-002)
+        # Variance = max(I_model.detach() + sigma_readout^2, sigma_floor^2)
         # Detach denominator to prevent "attraction to zero" (IRLS approach)
-        # Floor at 1.0 prevents chi-squared explosion when predictions approach zero (GPU stability)
-        variance = torch.clamp(bragg_scaled.detach() + sigma_subset**2, min=1.0)
+        # sigma_floor prevents chi-squared explosion when predictions approach zero (GPU stability)
+        sigma_floor_sq = torch.tensor(config.sigma_floor_value**2, device=device, dtype=dtype)
+        variance_raw = bragg_scaled.detach() + sigma_subset**2
+        variance = torch.maximum(variance_raw, sigma_floor_sq)
+
+        # Track clamp statistics (PHYSICS-LOSS-002): count masked pixels where floor engaged
+        # Only count pixels within the loss mask to match spec-db-core.md:67 "masked pixels" clause
+        clamped_mask = (variance_raw < sigma_floor_sq) & mask_subset
+        n_clamped = clamped_mask.sum().item()
+        n_masked = mask_subset.sum().item()
+        variance_floor_clamped_pixels[0] += n_clamped
+        variance_floor_masked_pixels[0] += n_masked
 
         # Numerator: (I_model - I_obs)^2, masked
         diff = bragg_scaled - target_subset
@@ -1096,7 +1118,13 @@ def run_nanobrag_refinement(
         chi_squared_best=chi_squared_best,
         masked_mse_trace_sample=masked_mse_trace_sample,
         masked_mse_trace_full=masked_mse_trace_full,
-        masked_mse_best=masked_mse_best
+        masked_mse_best=masked_mse_best,
+        # PHYSICS-LOSS-002: Variance floor telemetry
+        variance_floor_value=config.sigma_floor_value**2,
+        variance_floor_clamp_fraction=(
+            float(variance_floor_clamped_pixels[0]) / float(variance_floor_masked_pixels[0])
+            if variance_floor_masked_pixels[0] > 0 else 0.0
+        )
     )
 
     telemetry_dict = {"A": telemetry_a}
@@ -1183,6 +1211,10 @@ def run_nanobrag_refinement(
         # Note: nanobrag_torch doesn't expose default_F counter directly; this is a placeholder
         # for future telemetry when the API exposes it
         default_f_fallback_count = 0
+
+        # PHYSICS-LOSS-002: Variance floor clamp statistics for Stage B
+        variance_floor_clamped_pixels_b = [0]  # Total pixels where floor engaged
+        variance_floor_masked_pixels_b = [0]  # Total masked pixels evaluated
 
         def compute_loss_stage_b(panel_ids: List[int], is_full: bool = False) -> Tuple[torch.Tensor, torch.Tensor]:
             """
@@ -1292,9 +1324,18 @@ def run_nanobrag_refinement(
                 scale = torch.exp(log_scale)
                 bragg_scaled = scale * bragg_panel
 
-                # Variance-weighted chi-squared loss (spec-db-core.md:57-68)
-                # Variance = I_model.detach() + sigma_readout^2 (Poisson + readout noise in quadrature)
-                variance = torch.clamp(bragg_scaled.detach() + sigma_panel**2, min=1.0)
+                # Variance-weighted chi-squared loss (spec-db-core.md:57-68, PHYSICS-LOSS-002)
+                # Variance = max(I_model.detach() + sigma_readout^2, sigma_floor^2)
+                sigma_floor_sq = torch.tensor(config.sigma_floor_value**2, device=device, dtype=dtype)
+                variance_raw = bragg_scaled.detach() + sigma_panel**2
+                variance = torch.maximum(variance_raw, sigma_floor_sq)
+
+                # Track clamp statistics (PHYSICS-LOSS-002)
+                clamped_mask = (variance_raw < sigma_floor_sq) & loss_mask_panel
+                n_clamped = clamped_mask.sum().item()
+                n_masked = loss_mask_panel.sum().item()
+                variance_floor_clamped_pixels_b[0] += n_clamped
+                variance_floor_masked_pixels_b[0] += n_masked
 
                 # Numerator: (I_model - I_obs)^2, masked
                 diff = bragg_scaled - target_panel
@@ -1536,7 +1577,13 @@ def run_nanobrag_refinement(
             chi_squared_best=chi_squared_best_b,
             masked_mse_trace_sample=masked_mse_trace_sample_b,
             masked_mse_trace_full=masked_mse_trace_full_b,
-            masked_mse_best=masked_mse_best_b
+            masked_mse_best=masked_mse_best_b,
+            # PHYSICS-LOSS-002: Variance floor telemetry
+            variance_floor_value=config.sigma_floor_value**2,
+            variance_floor_clamp_fraction=(
+                float(variance_floor_clamped_pixels_b[0]) / float(variance_floor_masked_pixels_b[0])
+                if variance_floor_masked_pixels_b[0] > 0 else 0.0
+            )
         )
 
         telemetry_dict["B"] = telemetry_b
@@ -1579,6 +1626,10 @@ def run_nanobrag_refinement(
         masked_mse_trace_sample_c = []
         masked_mse_trace_full_c = []
         masked_mse_best_c = (float('inf'), -1)
+
+        # PHYSICS-LOSS-002: Variance floor clamp statistics for Stage C
+        variance_floor_clamped_pixels_c = [0]  # Total pixels where floor engaged
+        variance_floor_masked_pixels_c = [0]  # Total masked pixels evaluated
 
         def compute_loss_stage_c(panel_ids: List[int], is_full: bool = False) -> Tuple[torch.Tensor, torch.Tensor]:
             """
@@ -1679,10 +1730,19 @@ def run_nanobrag_refinement(
             mask_subset = loss_mask_t[panel_ids]
             sigma_subset = sigma_readout_t[panel_ids]
 
-            # Variance-weighted chi-squared loss (spec-db-core.md:57-68)
-            # Variance = I_model.detach() + sigma_readout^2 (Poisson + readout noise in quadrature)
+            # Variance-weighted chi-squared loss (spec-db-core.md:57-68, PHYSICS-LOSS-002)
+            # Variance = max(I_model.detach() + sigma_readout^2, sigma_floor^2)
             # Detach denominator to prevent "attraction to zero" (IRLS approach)
-            variance = torch.clamp(bragg_scaled.detach() + sigma_subset**2, min=1.0)
+            sigma_floor_sq = torch.tensor(config.sigma_floor_value**2, device=device, dtype=dtype)
+            variance_raw = bragg_scaled.detach() + sigma_subset**2
+            variance = torch.maximum(variance_raw, sigma_floor_sq)
+
+            # Track clamp statistics (PHYSICS-LOSS-002)
+            clamped_mask = (variance_raw < sigma_floor_sq) & mask_subset
+            n_clamped = clamped_mask.sum().item()
+            n_masked = mask_subset.sum().item()
+            variance_floor_clamped_pixels_c[0] += n_clamped
+            variance_floor_masked_pixels_c[0] += n_masked
 
             # Numerator: (I_model - I_obs)^2, masked
             diff = bragg_scaled - target_subset
@@ -1905,7 +1965,13 @@ def run_nanobrag_refinement(
             chi_squared_best=chi_squared_best_c,
             masked_mse_trace_sample=masked_mse_trace_sample_c,
             masked_mse_trace_full=masked_mse_trace_full_c,
-            masked_mse_best=masked_mse_best_c
+            masked_mse_best=masked_mse_best_c,
+            # PHYSICS-LOSS-002: Variance floor telemetry
+            variance_floor_value=config.sigma_floor_value**2,
+            variance_floor_clamp_fraction=(
+                float(variance_floor_clamped_pixels_c[0]) / float(variance_floor_masked_pixels_c[0])
+                if variance_floor_masked_pixels_c[0] > 0 else 0.0
+            )
         )
 
         telemetry_dict["C"] = telemetry_c

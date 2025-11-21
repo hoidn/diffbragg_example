@@ -81,6 +81,16 @@ def create_parser():
              "representation (photons if --adu-per-photon given, else ADU). "
              "Warning: ensure consistency between CLI value and detector metadata."
     )
+    ap.add_argument(
+        "--sigma-floor",
+        type=float,
+        default=1.0,
+        help="Variance floor guard in target units (photons or ADU, default: 1.0). "
+             "Prevents infinite weights when I_model → 0. Per spec-db-core.md:67, variance is clamped: "
+             "V = max(I_model + sigma_rdout^2, sigma_floor^2). Shares units with --sigma-rdout. "
+             "When --adu-per-photon is set, both sigma_rdout and sigma_floor are divided by gain. "
+             "Telemetry reports the clamp fraction (pixels where floor engaged)."
+    )
 
     return ap
 
@@ -398,9 +408,16 @@ def run_nanobrag_backend(args, DL, devid=0):
     print(f"[nanobrag backend] Running Stage A LBFGS refinement nucleus...")
     from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig
 
+    # Apply ADU→photon conversion to sigma_floor if adu_per_photon is set (PHYSICS-LOSS-002)
+    # Per input.md pitfalls and spec-db-core.md:67, sigma_floor shares units with sigma_rdout (target units)
+    sigma_floor_value = args.sigma_floor
+    if args.adu_per_photon is not None and args.adu_per_photon > 0:
+        sigma_floor_value = args.sigma_floor / args.adu_per_photon
+
     refine_config = RefinementConfig(
         device=str(device),
-        dtype=torch.float32
+        dtype=torch.float32,
+        sigma_floor_value=sigma_floor_value
     )
 
     try:
@@ -614,6 +631,12 @@ def _write_torch_outputs(args, DL, Bragg, inputs, masked_mse, hkl_telemetry, ref
                     stage_group.attrs["masked_mse_best"] = stage_telem.masked_mse_best[0]
                     stage_group.attrs["masked_mse_best_iteration"] = stage_telem.masked_mse_best[1]
 
+                # PHYSICS-LOSS-002: Variance floor telemetry (spec-db-core.md:67)
+                if stage_telem.variance_floor_value is not None:
+                    stage_group.attrs["variance_floor_value"] = float(stage_telem.variance_floor_value)
+                if stage_telem.variance_floor_clamp_fraction is not None:
+                    stage_group.attrs["variance_floor_clamp_fraction"] = float(stage_telem.variance_floor_clamp_fraction)
+
                 # Store param_deltas as JSON string
                 stage_group.attrs["refine_param_deltas"] = json.dumps(stage_telem.param_deltas)
 
@@ -660,6 +683,12 @@ def _write_torch_outputs(args, DL, Bragg, inputs, masked_mse, hkl_telemetry, ref
                 if stage_a_telem.masked_mse_best is not None:
                     diag.attrs["masked_mse_best"] = stage_a_telem.masked_mse_best[0]
                     diag.attrs["masked_mse_best_iteration"] = stage_a_telem.masked_mse_best[1]
+
+                # PHYSICS-LOSS-002: Top-level variance floor telemetry for Stage A (legacy compatibility)
+                if stage_a_telem.variance_floor_value is not None:
+                    diag.attrs["variance_floor_value"] = float(stage_a_telem.variance_floor_value)
+                if stage_a_telem.variance_floor_clamp_fraction is not None:
+                    diag.attrs["variance_floor_clamp_fraction"] = float(stage_a_telem.variance_floor_clamp_fraction)
 
     # TORCH-CLI-004: Guard against empty scores collection
     if len(scores) > 0:

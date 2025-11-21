@@ -467,3 +467,13 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-21T133729Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=1 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T133127Z/ next_action=disable_roi_for_canonical_stage_b
+
+## 2025-11-21T150000Z — PERF-WARM-SIM-001 Stage B telemetry capture plan
+- Focus: PERF-WARM-SIM-001 — Warm simulator; eliminate per-iteration re-instantiation
+- Action Type: planning
+- Key Observations: Canonical Stage B smokes still fail without emitting telemetry because `_record_stage_telemetry` is invoked after the strict ±1% gate, so the pytest abort prevents `telemetry_stage_b_full.json` from being written and `stage_b_roi_summary.json` never includes the canonical dataset. Updated docs/fix_plan.md with the 2025-11-21T150000Z attempt and rewrote input.md so Ralph moves the telemetry call into a try/finally, reruns the small + full Stage B selectors with telemetry/log capture under 2025-11-21T150000Z/, and re-runs the ROI summary script. Once canonical telemetry exists even on failure we can inspect Stage A/B chi-squared traces to scope the shell_0 clamp fix.
+- Artifact Path: plans/active/PERF-WARM-SIM-001/reports/2025-11-21T150000Z/
+- Next Actions: Ralph implements the Stage B telemetry ordering fix, reruns both detector sizes (full run expected to fail but must emit telemetry), and refreshes stage_b_roi_summary.json for the new report.
+- <Action State>: [ready_for_implementation]
+
+2025-11-21T150000Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=2 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T150000Z/ next_action=stage_b_telemetry_guard_impl

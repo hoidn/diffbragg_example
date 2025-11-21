@@ -94,18 +94,41 @@ def plot_roi_grid(rois, data_stack, model_stack, bg_stack, filename):
 - Mapping context: `dbex.vis.mapping.build_mapping_stage_a_context` constructs a
   `MappingStageAContext` from canonical refGeom assets using `simulate_forward_once`
   and DB-AT-024 calibration/MTZ preferences (refined structure factors when present).
-- Vis-only refinement: `dbex.vis.mapping.refine_on_mapping_model` runs a
-  scale-only Adam optimization on top of the mapping Bragg stack using the
+- Vis-only refinement (scale-only): `dbex.vis.mapping.refine_on_mapping_model` runs
+  a scale-only Adam optimization on top of the mapping Bragg stack using the
   variance-weighted chi-squared loss (sigma_floor clamp, detached denominator).
+- Full Stage-A refinement (experimental): plan-local helpers MAY wrap
+  `nanobrag_torch.models.experiment.ExperimentModel(param_init="stage_a")` so
+  that Stage-A DOFs (cell logs/angles, misset, and optional detector/beam
+  deltas) are exposed as learnable tensors. Any such usage MUST:
+  - Reuse the mapping HKL grid and calibration path established by
+    `simulate_forward_once` (refined MTZ + config_torch.json).
+  - Preserve the variance-weighted loss semantics from
+    `docs/spec-db-core.md` and `docs/spec-db-workflow.md`.
+  - Be treated as plan-local tooling only; canonical Stage A remains
+    `run_nanobrag_refinement` and the Stage-smoke selectors documented in
+    `docs/TESTING_GUIDE.md`.
 - Drivers:
   - `plans/active/TOOLING-VIS-001/bin/generate_zero_iter_refined_roi_triptychs.py` —
     zero-iteration triptychs (mapping-only).
   - `plans/active/TOOLING-VIS-001/bin/generate_stage_a_refgeom_roi_triptychs.py` —
     mapping-based before/after ROI triptychs (scale-only refinement).
   - `plans/active/TOOLING-VIS-001/bin/generate_stage_a_refgeom_roi_triptychs_adam.py` —
-    mapping-based Adam scale-only refinement with loss trace and aggregate grids.
+    mapping-based Stage-A Adam refinement with loss trace and aggregate
+    grids, reusing the mapping forward model and calibration path.
   - `plans/active/TOOLING-VIS-001/bin/probe_mapping_stage_a_context_metrics.py` —
     DB-AT-024-aligned probe for mapping context correlation/localization metrics.
+  - `plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py` —
+    plan-local Stage A mapping debug driver implementing the forward-model
+    equality, loss-alignment, single-step Adam, and block-wise DoF probes with
+    JSON artifacts under `reports/stage_a_refgeom_adam_debug/<timestamp>/`.
+  - Phase D zero-point alignment (this plan) extends `stage_a_mapping_adam_debug`
+    with a no-op Stage-A probe (`zero_point_check.json`) that compares the
+    helper’s zero-parameter forward model against `bragg_zero_iter` and records
+    `zero_point_ok`. Geometry experiments (single-step Adam and block-wise
+    DoF sweeps) are automatically skipped unless this flag is true, enforcing
+    the Mapping-Aligned Stage‑A Initialization invariant from
+    `docs/spec-db-conformance.md` and `docs/spec-db-workflow.md`.
 
 ## Artifacts Index
 - Reports root: `plans/active/TOOLING-VIS-001/reports/`

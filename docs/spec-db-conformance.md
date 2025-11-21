@@ -171,6 +171,12 @@ Acceptance Tests (Normative)
 - For any Stage‑A–style refinement or visualization that claims mapping parity (including TOOLING‑VIS‑001 Stage‑A ROI visuals), the initial configuration SHALL be derived from this DB‑AT‑024 mapping pipeline:
   - Geometry, mask, sigma, and `RefinementInputs` MUST be constructed exactly as above.
   - The initial model (`bragg_zero_iter`) used for “before” loss and visuals SHALL be the `simulate_forward_once` Bragg output for that configuration.
+- Stage‑A geometry parameterizations that refine unit cell and/or orientation (cell logs/angles, quaternion→XYZ) over this mapping baseline SHALL satisfy the following zero‑point invariant:
+  - At zero geometry parameters (all cell deltas and orientation deltas equal to zero) and baseline scale, the Stage‑A forward simulator MUST reproduce the DB‑AT‑024 `simulate_forward_once` Bragg tensor for the same `RefinementInputs` and HKL grid, within numerical tolerance. Implementations MAY use either:
+    - MOSFLM A* injection from `crystal.get_A()` with `misset_deg = [0,0,0]`, **or**
+    - A baseline misset tensor (e.g., `baseline_misset_deg`) that encodes the mapping orientation, combined with geometry deltas (e.g., `misset_deg = baseline_misset_deg + delta_misset`) when `crystal_overrides` are used and MOSFLM A* injection is disabled.
+  - Any mapping‑aligned Stage‑A helper that introduces `crystal_overrides` or orientation deltas MUST enforce this zero‑point equality as part of its initialization; helpers which cannot reconstruct the DB‑AT‑024 mapping Bragg at zero parameters SHALL NOT be advertised as mapping‑aligned and SHALL NOT be used as the “before” reference in DB‑AT selectors or TOOLING‑VIS‑001 visuals.
+  - Mapping, Stage‑A “no‑op”, and mapping‑aligned Stage‑A refinement SHALL be implemented as parameterizations of a single forward simulator path: introducing a new forward implementation for mapping‑aligned helpers is only permitted when that implementation demonstrably satisfies the same zero‑point equality against `simulate_forward_once` for the canonical `RefinementInputs` and HKL grid.
 - Stage‑A refinements that start from different initial configurations (e.g., perturbed geometry or alternate MTZ) MAY exist for robustness/performance experiments, but MUST NOT be treated as canonical mapping‑aligned runs, and MUST NOT be used as the baseline for DB‑AT selectors or mapping‑aligned visualization initiatives.
 
 - DB‑AT‑025 HKL interpolation conformance (tricubic halo)

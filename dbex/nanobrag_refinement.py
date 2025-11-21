@@ -689,9 +689,9 @@ def run_nanobrag_refinement(
     from dbex.nanobrag_bridge import (
         create_detector_config,
         create_beam_config,
-        create_crystal_config
+        create_crystal_config,
+        compute_baseline_misset_deg,
     )
-    from scitbx.matrix import sqr
 
     if config is None:
         config = RefinementConfig()
@@ -707,34 +707,12 @@ def run_nanobrag_refinement(
 
     # Extract deterministic misset from perturbed geometry (TORCH-REFINE-002D)
     # Compute U_delta = U_perturbed @ U_baseline^{-1} and convert to XYZ Euler angles
-    baseline_misset_deg_tensor = None
-    if baseline_crystal is not None:
-        # Get U matrices (scitbx 3x3 matrix objects)
-        U_baseline_tuple = baseline_crystal.get_U()
-        U_perturbed_tuple = crystal.get_U()
-
-        # Convert to scitbx sqr matrices
-        U_baseline = sqr(U_baseline_tuple)
-        U_perturbed = sqr(U_perturbed_tuple)
-
-        # Compute U_delta = U_perturbed @ inv(U_baseline)
-        U_delta = U_perturbed * U_baseline.inverse()
-
-        # Convert to numpy array for euler decomposition
-        U_delta_np = np.array(U_delta).reshape(3, 3)
-
-        # Extract XYZ Euler angles from U_delta using same analytic formulas as GEOMETRY-002
-        # R = R_z(gamma) @ R_y(beta) @ R_x(alpha)
-        # phi_y = -asin(R[2,0])
-        # phi_x = atan2(R[2,1], R[2,2])
-        # phi_z = atan2(R[1,0], R[0,0])
-        phi_y_rad = -np.arcsin(np.clip(U_delta_np[2, 0], -1.0, 1.0))
-        phi_x_rad = np.arctan2(U_delta_np[2, 1], U_delta_np[2, 2])
-        phi_z_rad = np.arctan2(U_delta_np[1, 0], U_delta_np[0, 0])
-
-        # Convert to degrees and create torch tensor
-        baseline_misset_xyz_deg = np.array([phi_x_rad, phi_y_rad, phi_z_rad]) * (180.0 / np.pi)
-        baseline_misset_deg_tensor = torch.tensor(baseline_misset_xyz_deg, dtype=dtype, device=device)
+    baseline_misset_deg_tensor = compute_baseline_misset_deg(
+        crystal,
+        baseline_crystal,
+        device=device,
+        dtype=dtype,
+    )
 
     # Initialize refinement parameters
     # Stage A expansion: global scale + full crystal (a/b/c logs, alpha/beta/gamma bounded, orientation)

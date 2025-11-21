@@ -620,6 +620,78 @@ def create_crystal_config(crystal, experiment, N_cells=None, apply_n_cells=True,
     return CrystalConfig(**crystal_kwargs), n_cells_applied
 
 
+def compute_baseline_misset_deg(
+    crystal,
+    baseline_crystal,
+    *,
+    device=None,
+    dtype=None,
+):
+    """
+    Compute baseline misset angles (XYZ extrinsic Euler, degrees).
+
+    This helper mirrors the logic embedded in dbex.nanobrag_refinement.run_nanobrag_refinement:
+    - Compute U_delta = U_perturbed @ U_baseline^{-1} from dxtbx Crystal U matrices.
+    - Decompose U_delta into XYZ extrinsic Euler angles using the GEOMETRY-002 formulas:
+        R = R_z(gamma) @ R_y(beta) @ R_x(alpha)
+        phi_y = -asin(R[2,0])
+        phi_x = atan2(R[2,1], R[2,2])
+        phi_z = atan2(R[1,0], R[0,0])
+
+    When device and dtype are provided (torch device / dtype), this returns a torch.Tensor
+    on the requested device; otherwise it returns a numpy.ndarray of shape (3,) in degrees.
+    If baseline_crystal is None, this helper returns None.
+    """
+    if baseline_crystal is None:
+        return None
+
+    try:
+        from scitbx.matrix import sqr  # type: ignore
+    except Exception as exc:  # pragma: no cover - environment dependent
+        raise ImportError(
+            "compute_baseline_misset_deg requires scitbx.matrix.sqr; "
+            f"import failed: {exc}"
+        ) from exc
+
+    # Get U matrices (scitbx 3x3 matrix objects)
+    U_baseline_tuple = baseline_crystal.get_U()
+    U_perturbed_tuple = crystal.get_U()
+
+    # Convert to scitbx sqr matrices
+    U_baseline = sqr(U_baseline_tuple)
+    U_perturbed = sqr(U_perturbed_tuple)
+
+    # Compute U_delta = U_perturbed @ inv(U_baseline)
+    U_delta = U_perturbed * U_baseline.inverse()
+
+    # Convert to numpy array for Euler decomposition
+    U_delta_np = np.array(U_delta).reshape(3, 3)
+
+    # Extract XYZ Euler angles from U_delta (degrees)
+    # R = R_z(gamma) @ R_y(beta) @ R_x(alpha)
+    # phi_y = -asin(R[2,0])
+    # phi_x = atan2(R[2,1], R[2,2])
+    # phi_z = atan2(R[1,0], R[0,0])
+    phi_y_rad = -np.arcsin(np.clip(U_delta_np[2, 0], -1.0, 1.0))
+    phi_x_rad = np.arctan2(U_delta_np[2, 1], U_delta_np[2, 2])
+    phi_z_rad = np.arctan2(U_delta_np[1, 0], U_delta_np[0, 0])
+
+    baseline_misset_xyz_deg = np.array(
+        [phi_x_rad, phi_y_rad, phi_z_rad], dtype=np.float64
+    ) * (180.0 / np.pi)
+
+    # If torch context requested, return a Tensor on (device, dtype)
+    if device is not None and dtype is not None:
+        try:
+            import torch
+        except ImportError:
+            # Fall back to numpy if torch is unavailable in this environment
+            return baseline_misset_xyz_deg
+        return torch.tensor(baseline_misset_xyz_deg, dtype=dtype, device=device)
+
+    return baseline_misset_xyz_deg
+
+
 # ============================================================================
 # Structure factor grid helper
 # ============================================================================

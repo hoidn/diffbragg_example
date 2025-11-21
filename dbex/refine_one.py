@@ -80,6 +80,14 @@ def create_parser():
              "when omitted and no metadata exists the CLI aborts with an actionable error."
     )
     ap.add_argument(
+        "--sigma-map",
+        type=str,
+        default=None,
+        help="Path to calibrated sigma_readout tensors (.npy/.npz or pickled tuple of per-panel arrays). "
+             "Values should be in ADU unless --adu-per-photon is supplied, in which case they are converted "
+             "to photons alongside the targets per spec-db-core.md:32-68."
+    )
+    ap.add_argument(
         "--sigma-floor",
         type=float,
         default=1.0,
@@ -99,7 +107,7 @@ def _resolve_sigma_readout(args, dataload):
 
     Priority order:
         1. CLI scalar (--sigma-rdout)
-        2. Future calibrated metadata attached to the DataLoad object
+        2. Calibrated map supplied via DataLoad.sigma_readout_map (--sigma-map)
 
     Returns:
         sigma_array: np.ndarray shaped like dataload.data with strictly positive values
@@ -121,27 +129,24 @@ def _resolve_sigma_readout(args, dataload):
 
     calibrated_sigma = getattr(dataload, "sigma_readout_map", None)
     if calibrated_sigma is not None:
-        try:
-            sigma_array = np.asarray(calibrated_sigma, dtype=np.float32)
-        except (TypeError, ValueError):
-            sigma_array = None
-        else:
-            if sigma_array.shape != dataload.data.shape:
-                raise ValueError(
-                    f"Calibrated sigma_readout map shape {sigma_array.shape} "
-                    f"does not match data shape {dataload.data.shape}."
-                )
-            if not np.all(sigma_array > 0):
-                raise ValueError(
-                    "Calibrated sigma_readout map must be strictly positive per spec-db-core.md:32-34."
-                )
-            reference_value = float(np.median(sigma_array))
-            return sigma_array, "calibrated_map", reference_value
+        sigma_array = np.array(calibrated_sigma, dtype=np.float32, copy=True)
+        if sigma_array.shape != dataload.data.shape:
+            raise ValueError(
+                f"Calibrated sigma_readout map shape {sigma_array.shape} "
+                f"does not match data shape {dataload.data.shape}."
+            )
+        if not np.all(sigma_array > 0):
+            raise ValueError(
+                "Calibrated sigma_readout map must be strictly positive per spec-db-core.md:32-34."
+            )
+        reference_value = float(np.median(sigma_array))
+        return sigma_array, "calibrated_map", reference_value
 
     raise ValueError(
-        "nanobrag backend requires a positive sigma_readout source (--sigma-rdout or calibrated map). "
+        "nanobrag backend requires a positive sigma_readout source (--sigma-rdout or --sigma-map). "
         "Per spec-db-core.md:32-68 and spec-db-workflow.md:26-31 the CLI MUST refuse to run when "
-        "detector metadata cannot supply readout noise; pass --sigma-rdout=<photons> to continue."
+        "detector metadata cannot supply readout noise; pass --sigma-rdout=<photons> or provide "
+        "a calibrated sigma map via --sigma-map=<path> to continue."
     )
 
 

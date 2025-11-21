@@ -1,4 +1,10 @@
 ### Turn Summary
+Enabled CLI/DataLoad sigma-map ingestion plus loader tests/docs so calibrated variance tensors unblock PHYSICS-LOSS-001 telemetry.
+Resolved the calibrated-map focus by wiring `--sigma-map`, `_resolve_sigma_readout`, CLI/unit tests, and fix_plan/findings updates; targeted selectors stayed green.
+Next: harvest detector `external_lookup` tiles (or other metadata) so operators can omit the CLI flag once assets land.
+Artifacts: plans/active/PHYSICS-LOSS-001/reports/2025-11-21T060701Z/ (pytest_cli_sigma_map.log, pytest_data_load_sigma_map.log)
+
+### Turn Summary
 Rescoped PHYSICS-LOSS-001 after confirming the sigma guard already shipped and that `_resolve_sigma_readout` never sees calibrated maps because DataLoad never exposes one.
 Updated `docs/fix_plan.md`, the implementation plan, and `input.md` with Phase E deliverables plus a Do Now that adds a `--sigma-map` loader, CLI regression, helper unit tests, and doc/test-index sync.
 Recorded evidence that the refGeom experiments’ `external_lookup.{gain,pedestal,mask}` slots report zero tiles, so future calibrated noise must come from explicit assets.

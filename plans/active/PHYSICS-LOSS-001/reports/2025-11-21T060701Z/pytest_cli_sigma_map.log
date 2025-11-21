@@ -1,0 +1,12 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 12 items / 9 deselected / 3 selected
+
+tests/dbex/test_refine_one_cli.py::test_parser_accepts_sigma_map_flag PASSED [ 33%]
+tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_requires_sigma_rdout PASSED [ 66%]
+tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_accepts_sigma_map PASSED [100%]
+
+======================= 3 passed, 9 deselected in 1.28s ========================

@@ -1,9 +1,134 @@
 
 import pickle
+from pathlib import Path
+from typing import Sequence
 import numpy as np
 from simtbx.diffBragg import utils
 from dials.array_family import flex
 from dxtbx.model import ExperimentList
+
+
+def _coerce_panel_array(
+    panel_payload,
+    expected_panel_shape: Sequence[int],
+    panel_index: int,
+    source_path: Path
+) -> np.ndarray:
+    """
+    Convert a single panel payload (numpy array, flex array, list) into a numpy array
+    with the expected (slow, fast) shape.
+    """
+    slow, fast = expected_panel_shape
+    # Convert flex arrays or numpy-like payloads into numpy arrays
+    if hasattr(panel_payload, "as_numpy_array"):
+        arr = panel_payload.as_numpy_array()
+    else:
+        arr = np.asarray(panel_payload)
+
+    arr = np.asarray(arr, dtype=np.float32)
+
+    if arr.shape == (slow, fast):
+        return arr
+
+    if arr.ndim == 1 and arr.size == slow * fast:
+        return arr.reshape((slow, fast))
+
+    raise ValueError(
+        f"Sigma map panel {panel_index} from '{source_path}' has shape {arr.shape}, "
+        f"expected {(slow, fast)} per spec-db-core.md:32-40."
+    )
+
+
+def load_sigma_readout_map(path: str, expected_shape: Sequence[int]) -> np.ndarray:
+    """
+    Load a calibrated sigma_readout tensor from disk.
+
+    Supports:
+        - .npy files containing a [panel, slow, fast] stack
+        - .npz archives with an array stored under 'sigma' or a single unnamed array
+        - Pickled tuples/lists of per-panel arrays (numpy or flex) aligned to detector panels
+
+    Args:
+        path: Filesystem path to the sigma map asset.
+        expected_shape: Shape tuple matching DataLoad.data (panel, slow, fast).
+
+    Returns:
+        np.ndarray float32 tensor shaped like expected_shape with strictly positive values.
+    """
+    expected_shape = tuple(int(dim) for dim in expected_shape)
+    if len(expected_shape) != 3:
+        raise ValueError(
+            f"Expected sigma map shape (panels, slow, fast), got {expected_shape}."
+        )
+
+    n_panels, slow, fast = expected_shape
+    asset_path = Path(path)
+    if not asset_path.exists():
+        raise FileNotFoundError(f"Sigma map file not found: {asset_path}")
+
+    suffix = asset_path.suffix.lower()
+    sigma_array: np.ndarray
+
+    if suffix in {".npy"}:
+        sigma_array = np.load(asset_path)
+    elif suffix in {".npz"}:
+        with np.load(asset_path) as payload:
+            if "sigma" in payload.files:
+                sigma_array = payload["sigma"]
+            elif len(payload.files) == 1:
+                sigma_array = payload[payload.files[0]]
+            else:
+                raise ValueError(
+                    f"Sigma map .npz archive '{asset_path}' contains multiple datasets "
+                    "but none named 'sigma'. Provide a single array or name the dataset 'sigma'."
+                )
+    else:
+        # Assume pickled tuple/list of per-panel arrays
+        with open(asset_path, "rb") as fh:
+            payload = pickle.load(fh)
+
+        if not isinstance(payload, (list, tuple)):
+            raise ValueError(
+                f"Sigma map '{asset_path}' must be a .npy, .npz, or pickled tuple/list "
+                "of per-panel arrays."
+            )
+
+        if len(payload) != n_panels:
+            raise ValueError(
+                f"Sigma map '{asset_path}' has {len(payload)} panels, "
+                f"expected {n_panels} to align with detector panels."
+            )
+
+        panel_arrays = [
+            _coerce_panel_array(panel_payload, (slow, fast), idx, asset_path)
+            for idx, panel_payload in enumerate(payload)
+        ]
+        sigma_array = np.stack(panel_arrays, axis=0)
+
+    sigma_array = np.asarray(sigma_array, dtype=np.float32)
+
+    if sigma_array.shape != expected_shape:
+        if sigma_array.ndim == 1 and sigma_array.size == n_panels * slow * fast:
+            sigma_array = sigma_array.reshape(expected_shape)
+        else:
+            raise ValueError(
+                f"Sigma map '{asset_path}' shape {sigma_array.shape} does not match "
+                f"expected data shape {expected_shape}. Ensure arrays are [panel, slow, fast] "
+                "per spec-db-core.md:20-34."
+            )
+
+    if not np.all(np.isfinite(sigma_array)):
+        raise ValueError(
+            f"Sigma map '{asset_path}' contains NaN or Inf values. "
+            "Per spec-db-core.md:32-68, readout noise must be finite."
+        )
+    if np.any(sigma_array <= 0):
+        raise ValueError(
+            f"Sigma map '{asset_path}' contains non-positive values. "
+            "spec-db-core.md:32-34 requires strictly positive readout noise."
+        )
+
+    return sigma_array.astype(np.float32, copy=False)
 
 
 class DataLoad:
@@ -140,6 +265,18 @@ class DataLoad:
             ``True`` indicates a trusted/good pixel (include in analysis).
             When no maskFile is provided, all pixels are trusted by default.
             """
+
+        self.sigma_readout_map = None
+        sigma_map_path = getattr(args, "sigma_map", None)
+        if sigma_map_path:
+            self.sigma_readout_map = load_sigma_readout_map(
+                sigma_map_path,
+                self.data.shape
+            )
+        """
+        Optional calibrated sigma_readout tensor (`np.ndarray`) matching `self.data`.
+        Loaded from CLI --sigma-map asset when provided.
+        """
 
         # Expose detector/beam/crystal fixtures for bridge compatibility
         self.detector = self.Expt.detector

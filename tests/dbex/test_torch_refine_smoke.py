@@ -479,11 +479,8 @@ def test_stage_c_detector_microslip(refgeom_dataload, refinement_inputs, hkl_dat
     hkl_grid, hkl_metadata = hkl_data
 
     # Configure refinement (Stage A + Stage C per TORCH-REFINE-003)
-    # TODO(PHYSICS-LOSS-001): Stage C diverges on GPU (chi-squared → 3e8), reverting to CPU
-    # Root cause: variance-weighted loss exhibits numerical instability in Stage C LBFGS on CUDA
-    # See: git commit fab6be6 test failure
     config = RefinementConfig(
-        device='cpu',
+        device='cuda:0',
         dtype=torch.float32,
         history_size=10,
         max_iter=30,  # ≤30 steps per stage

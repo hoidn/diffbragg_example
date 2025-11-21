@@ -27,4 +27,4 @@ Compile Modes (Informative)
 - GPU commonly uses `mode="max-autotune"`; CPU may use `reduce-overhead`.
 
 References (Informative)
-- docs/nanobrag_api.md (runtime details).
+- docs/nanobrag_api.md (runtime details, including `ExperimentModel` Stage‑A parameterization).

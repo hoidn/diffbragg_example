@@ -61,6 +61,13 @@ Crystal
   - `misset_deg` (XYZ extrinsic) applied after MOSFLM injection (set each forward from a quaternion)
   - Stills: `phi_steps=1`, `osc_range_deg=0`, `mosaic_domains=1`, `mosaic_spread_deg=0`
   - Lattice: `N_cells = (--nabc) or (20,20,20)`; `shape = SQUARE`; `fudge = 1.0`
+- Mapping-aligned Stage A (DB‑AT‑024, TOOLING‑VIS‑001):
+  - Baseline mapping orientation SHALL be defined by the DB‑AT‑024 pipeline:
+    - Either via MOSFLM A* injection from `crystal.get_A()` with `misset_deg = [0,0,0]`, **or**
+    - Via an equivalent baseline misset tensor when `crystal_overrides` are used and MOSFLM A* injection is disabled.
+  - Stage‑A geometry parameterizations (cell logs/angles, quaternion→XYZ) used in mapping‑aligned refinement or visualization MUST treat their parameters as **deltas** around this baseline:
+    - At zero deltas and baseline scale, the resulting `CrystalConfig` MUST reproduce the DB‑AT‑024 mapping Bragg tensor (up to numerical tolerance).
+    - When `crystal_overrides` are non‑None, callers SHALL supply a `misset_deg_override` that includes the baseline misset (e.g., `misset_deg = baseline_misset_deg + delta_misset`) so that the zero point remains mapping‑aligned even though MOSFLM A* is omitted in that call.
 - Refined vs Fixed (Stage A)
   - Refine: unit cell parameters (logs/bounded angles), orientation (quaternion→XYZ), global scale
   - Fixed: N_cells (v1), mosaic (0), phi scanning (stills)

@@ -114,8 +114,12 @@ def plot_roi_grid(rois, data_stack, model_stack, bg_stack, filename):
   - `plans/active/TOOLING-VIS-001/bin/generate_stage_a_refgeom_roi_triptychs.py` —
     mapping-based before/after ROI triptychs (scale-only refinement).
   - `plans/active/TOOLING-VIS-001/bin/generate_stage_a_refgeom_roi_triptychs_adam.py` —
-    mapping-based Stage-A Adam refinement with loss trace and aggregate
-    grids, reusing the mapping forward model and calibration path.
+    experimental full Stage-A Adam refinement on top of the mapping context,
+    used for visualization only. This helper is explicitly **non-mapping-aligned**
+    with respect to the zero-point invariant and MUST NOT be used as the
+    canonical "before" reference for TOOLING-VIS-001 visuals or as a DB-AT
+    selector; prefer the mapping context + scale-only refinement for
+    spec-aligned paths.
   - `plans/active/TOOLING-VIS-001/bin/probe_mapping_stage_a_context_metrics.py` —
     DB-AT-024-aligned probe for mapping context correlation/localization metrics.
   - `plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py` —

@@ -1,19 +1,28 @@
 #!/usr/bin/env python3
 """
-Experimental mapping-based Stage A ROI triptychs using Adam (scale-only).
+Experimental mapping-based Stage A ROI triptychs using Adam (full Stage A).
 
 This helper is **visualization-only** and does NOT modify the canonical
 ``run_nanobrag_refinement`` path, which remains LBFGS per spec-db-workflow.
 
-Pipeline:
+Pipeline (current implementation):
 - Load refined geometry + canonical mask/sigma via DataLoad.
 - Build a mapping-based Stage A context using ``build_mapping_stage_a_context``
   (zero-iteration Bragg stack from ``simulate_forward_once`` + sigma_floor).
-- Optimize a single global log_scale parameter with ``refine_on_mapping_model``
-  against the variance-weighted chi-squared loss (geometry fixed).
+- Run an experimental full Stage A Adam refinement helper on top of the
+  mapping context (scale + cell + orientation) using its own forward path.
 - Emit ROI triptychs comparing:
     Data | Model_before | Z-before
-    Data | Model_after  | Z-after (Adam scale-only)
+    Data | Model_after  | Z-after (Adam full Stage A, experimental)
+
+Important:
+- The full Stage A branch here is **not** required to satisfy the
+  Mapping-Aligned Stage‑A Initialization zero-point invariant used by the
+  `stage_a_mapping_adam_debug.py` driver, and it is explicitly treated as
+  non-mapping-aligned tooling.
+- It MUST NOT be used as the canonical "before" reference for TOOLING-VIS-001
+  visuals or as a DB-AT selector. Use the mapping-only context and
+  scale-only refinement (`refine_on_mapping_model`) for spec-aligned paths.
 
 Artifacts are written under:
 
@@ -24,6 +33,7 @@ from __future__ import annotations
 
 import os
 from argparse import Namespace
+import argparse
 from datetime import datetime
 from pathlib import Path
 from pathlib import Path as _Path
@@ -90,26 +100,32 @@ def _run_mapping_full_stage_a(
     *,
     n_steps: int = 100,
     lr: float = 1e-3,
+    device_str: str = "cpu",
 ):
     """Optimize full Stage A parameters (scale + geometry) on the mapping model.
 
     This helper reuses the same HKL grid, calibration path, and sqrt(spot_scale)
     scaling as :func:`simulate_forward_once` so the mapping \"before\" and
     Stage-A-refined \"after\" truly share a forward model.
+
+    Internally it now uses :class:`nanobrag_torch.models.experiment.ExperimentModel`
+    with the external HKL-grid hook (``hkl_data``/``hkl_metadata``) instead of
+    reaching into ``Crystal.hkl_data`` directly. Stage-A degrees of freedom for
+    cell/angles/orientation remain plan-local and are injected via
+    :func:`create_crystal_config`; ``ExperimentModel`` is used as the canonical
+    way to wire configs + HKL grid into the Simulator.
     """
     import torch
-    from nanobrag_torch.models.crystal import Crystal as TorchCrystal  # type: ignore  # noqa: E402
-    from nanobrag_torch.models.detector import (  # type: ignore  # noqa: E402
-        Detector as TorchDetector,
+    from nanobrag_torch.models.experiment import (  # type: ignore  # noqa: E402
+        ExperimentModel,
     )
-    from nanobrag_torch.simulator import Simulator  # type: ignore  # noqa: E402
     from dbex.vis.mapping import MappingRefinementResult  # type: ignore  # noqa: E402
 
     # Build mapping context once (zero-iteration mapping + diagnostics).
-    context = build_mapping_stage_a_context(dataload, device="cpu")
+    context = build_mapping_stage_a_context(dataload, device=device_str)
     inputs = context.inputs
 
-    device = torch.device(context.device or "cpu")
+    device = torch.device(device_str)
     dtype = torch.float32
 
     # HKL grid: mirror simulate_forward_once (no halo).
@@ -153,26 +169,16 @@ def _run_mapping_full_stage_a(
 
     apply_n_cells = N_cells is not None
 
-    # Pre-build Detector models once (geometry-only, no Stage-A params).
+    # Pre-build Detector configs once (geometry-only, no Stage-A params).
     n_panels = len(dataload.detector)
-    detector_models: list[TorchDetector] = []
+    detector_configs: list[object] = []
     for pid in range(n_panels):
         det_cfg = create_detector_config(
             panel=dataload.detector[pid],
             beam=dataload.beam,
             trusted_mask=inputs.trusted_mask[pid],
         )
-        mask_array = det_cfg.mask_array
-        if mask_array is not None and not isinstance(mask_array, torch.Tensor):
-            det_cfg.mask_array = torch.tensor(
-                mask_array, dtype=torch.float32, device=device
-            )
-        elif mask_array is not None and (
-            mask_array.device != device or mask_array.dtype != torch.float32
-        ):
-            det_cfg.mask_array = mask_array.to(device=device, dtype=torch.float32)
-
-        detector_models.append(TorchDetector(det_cfg, device=device, dtype=dtype))
+        detector_configs.append(det_cfg)
 
     target_t = torch.tensor(inputs.target, device=device, dtype=dtype)
     sigma_t = torch.tensor(inputs.sigma_readout, device=device, dtype=dtype)
@@ -233,7 +239,10 @@ def _run_mapping_full_stage_a(
         perturbed_beta = cell_params[4] + torch.tanh(angle_beta_raw) * max_angle_delta
         perturbed_gamma = cell_params[5] + torch.tanh(angle_gamma_raw) * max_angle_delta
 
-        max_orientation_deg = 3.0
+        # Per docs/nanobrag_api.md Stage-A summary, orientation
+        # deltas are bounded to ±10° via tanh; keep this helper
+        # aligned with that convention.
+        max_orientation_deg = 10.0
         bounded_orientation_vec = (
             torch.tanh(orientation_vec) * max_orientation_deg * (np.pi / 180.0)
         )
@@ -258,27 +267,22 @@ def _run_mapping_full_stage_a(
             misset_deg_override=misset_xyz_deg,
         )
 
-        crystal_model = TorchCrystal(
-            crystal_config,
-            beam_config=beam_config,
-            device=device,
-            dtype=dtype,
-        )
-        crystal_model.hkl_data = hkl_grid
-        crystal_model.hkl_metadata = hkl_metadata
-
         log_scale_clamped = torch.clamp(log_scale, min=-10.0, max=10.0)
 
+        # Build per-panel ExperimentModels with the external HKL grid hook.
         bragg_t = torch.zeros_like(target_t, device=device, dtype=dtype)
         for pid in range(n_panels):
-            simulator = Simulator(
-                detector=detector_models[pid],
-                crystal=crystal_model,
+            exp_model = ExperimentModel(
+                crystal_config=crystal_config,
+                detector_config=detector_configs[pid],
                 beam_config=beam_config,
                 device=device,
                 dtype=dtype,
+                param_init="frozen",
+                hkl_data=hkl_grid,
+                hkl_metadata=hkl_metadata,
             )
-            panel_output = simulator.run()
+            panel_output = exp_model()
             panel_scaled = panel_output * sqrt_spot_scale * torch.exp(log_scale_clamped)
             bragg_t[pid] = panel_scaled
 
@@ -301,7 +305,7 @@ def _run_mapping_full_stage_a(
         log_scale_clamped = torch.clamp(log_scale, min=-10.0, max=10.0)
         bragg_after_t = torch.zeros_like(target_t, device=device, dtype=dtype)
 
-        # Rebuild final crystal model with last parameters.
+        # Rebuild final crystal config with last parameters.
         cell_params = dataload.crystal.get_unit_cell().parameters()
         perturbed_cell_a = cell_params[0] * torch.exp(log_cell_a_delta)
         perturbed_cell_b = cell_params[1] * torch.exp(log_cell_b_delta)
@@ -310,7 +314,9 @@ def _run_mapping_full_stage_a(
         perturbed_alpha = cell_params[3] + torch.tanh(angle_alpha_raw) * max_angle_delta
         perturbed_beta = cell_params[4] + torch.tanh(angle_beta_raw) * max_angle_delta
         perturbed_gamma = cell_params[5] + torch.tanh(angle_gamma_raw) * max_angle_delta
-        max_orientation_deg = 3.0
+        # Match the ±10° Stage-A orientation bounds from
+        # docs/nanobrag_api.md when rebuilding the final model.
+        max_orientation_deg = 10.0
         bounded_orientation_vec = (
             torch.tanh(orientation_vec) * max_orientation_deg * (np.pi / 180.0)
         )
@@ -335,24 +341,18 @@ def _run_mapping_full_stage_a(
             misset_deg_override=misset_xyz_deg,
         )
 
-        crystal_model = TorchCrystal(
-            crystal_config,
-            beam_config=beam_config,
-            device=device,
-            dtype=dtype,
-        )
-        crystal_model.hkl_data = hkl_grid
-        crystal_model.hkl_metadata = hkl_metadata
-
         for pid in range(n_panels):
-            simulator = Simulator(
-                detector=detector_models[pid],
-                crystal=crystal_model,
+            exp_model = ExperimentModel(
+                crystal_config=crystal_config,
+                detector_config=detector_configs[pid],
                 beam_config=beam_config,
                 device=device,
                 dtype=dtype,
+                param_init="frozen",
+                hkl_data=hkl_grid,
+                hkl_metadata=hkl_metadata,
             )
-            panel_output = simulator.run()
+            panel_output = exp_model()
             panel_scaled = panel_output * sqrt_spot_scale * torch.exp(log_scale_clamped)
             bragg_after_t[pid] = panel_scaled
 
@@ -520,13 +520,40 @@ def _plot_all_roi_triptychs(
 def main() -> None:
     os.environ.setdefault("NANOBRAGG_DISABLE_COMPILE", "1")
 
+    parser = argparse.ArgumentParser(
+        description=(
+            "Generate mapping-based Stage A ROI triptychs with experimental "
+            "full-DoF Adam refinement on top of the mapping context."
+        )
+    )
+    parser.add_argument(
+        "--device",
+        type=str,
+        default="cpu",
+        help="Torch device for simulation (e.g. 'cpu', 'cuda:0'; default: cpu).",
+    )
+    parser.add_argument(
+        "--steps",
+        type=int,
+        default=20,
+        help="Number of Adam steps for full Stage A refinement (default: 20).",
+    )
+    parser.add_argument(
+        "--lr",
+        type=float,
+        default=1e-3,
+        help="Learning rate for full Stage A Adam refinement (default: 1e-3).",
+    )
+    args = parser.parse_args()
+
     repo_root = Path(__file__).resolve().parents[4]
 
     dataload = _build_dataload(repo_root)
     context, refine_result = _run_mapping_full_stage_a(
         dataload,
-        n_steps=20,
-        lr=1e-3,
+        n_steps=args.steps,
+        lr=args.lr,
+        device_str=args.device,
     )
 
     inputs = context.inputs
@@ -562,7 +589,7 @@ def main() -> None:
         ax.plot(steps, loss_trace, marker="o", linewidth=1)
         ax.set_xlabel("Adam step")
         ax.set_ylabel("Chi-squared loss")
-        ax.set_title("Mapping-based Stage A (Adam scale-only) loss curve")
+        ax.set_title("Mapping-based Stage A (Adam full-DoF, experimental) loss curve")
         ax.grid(True, alpha=0.3)
         fig.tight_layout()
         # Legacy name plus the explicit *_curve variant requested.

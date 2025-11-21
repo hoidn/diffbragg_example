@@ -15,11 +15,14 @@ Findings applied:
 
 import json
 import hashlib
-import numpy as np
-from pathlib import Path
-from typing import NamedTuple, Optional, Dict, Any
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Dict, NamedTuple, Optional
+
+import numpy as np
 import scipy.stats
+
+from dbex.vis import compute_z_scores, plot_triptych
 
 
 class GoldenData(NamedTuple):
@@ -575,7 +578,7 @@ def write_parity_artifacts(
                 f.write(f"{key},{value}\n")
     artifacts["metrics_csv"] = str(csv_path)
 
-    # Write diff overlay stub if tensors provided
+    # Write diff overlay stub and optional triptych if tensors provided
     if predicted is not None and target is not None:
         overlay_path = parity_dir / "diff_overlay_stub.txt"
         diff = predicted - target
@@ -595,6 +598,22 @@ def write_parity_artifacts(
         np.save(targ_path, target)
         artifacts["predicted_npy"] = str(pred_path)
         artifacts["target_npy"] = str(targ_path)
+
+        # Standardized residual triptych for quick visual inspection.
+        # Use a simple Z-score style residual consistent with dbex.vis helpers.
+        z_scores = compute_z_scores(
+            target,
+            predicted,
+        )
+        triptych_path = parity_dir / "diff_triptych.png"
+        plot_triptych(
+            target,
+            predicted,
+            z_scores,
+            out_path=triptych_path,
+            title="Parity residuals (target vs predicted)",
+        )
+        artifacts["diff_triptych_png"] = str(triptych_path)
 
     return artifacts
 

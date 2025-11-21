@@ -38,7 +38,17 @@ from dbex.nanobrag_bridge import (
 
 @dataclass
 class MappingStageAContext:
-    """Container for mapping-based Stage A inputs and outputs."""
+    """Container for mapping-based Stage A inputs and outputs.
+
+    This context is the canonical "truth" configuration for mapping-aligned
+    Stage A helpers:
+    - ``bragg_zero_iter`` and ``diagnostics['chi_squared']`` come directly
+      from :func:`simulate_forward_once` using the DB-AT-024 mapping path
+      (refined MTZ + calibration when available).
+    - Geometry and variance semantics here define the zero-parameter
+      Stage A baseline that plan-local tooling (e.g. Adam debug helpers)
+      must reproduce at their own zero-point before enabling geometry DoFs.
+    """
 
     inputs: RefinementInputs
     bragg_zero_iter: np.ndarray

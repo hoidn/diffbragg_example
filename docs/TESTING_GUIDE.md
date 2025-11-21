@@ -184,6 +184,10 @@ spec-aligned ROI visuals and mapping diagnostics:
 - `probe_mapping_stage_a_context_metrics.py` — computes DB-AT-024-style mapping
   metrics (median correlation, localization success rate) for the mapping context
   and can compare them against reference `mapping_metrics.json` artifacts.
+ - `stage_a_mapping_adam_debug.py` — plan-local Stage A mapping debug driver that
+   enforces CUDA-free runtime knobs, probes forward-model equality and loss alignment,
+   and runs single-step/full and block-wise Adam experiments with JSON telemetry under
+   `plans/active/TOOLING-VIS-001/reports/stage_a_refgeom_adam_debug/<timestamp>/`.
 
 ## 3. Running Tests in CI vs Local
 

@@ -97,6 +97,122 @@ Import name
   - `debug_config` supports `printout`, `printout_pixel`, and `trace_pixel` for diagnostics.
   - Enabling trace incurs overhead; use sparingly (e.g., tracing a single pixel).
 
+## ExperimentModel — Parameterized Stage‑A Wrapper
+
+`nanobrag_torch` now exposes a high‑level `ExperimentModel` that wraps Crystal, Detector, and Beam configs in a single `nn.Module` and adds an optional Stage‑A parameterization.
+
+- Import path:
+  ```python
+  from nanobrag_torch.models.experiment import ExperimentModel
+  from nanobrag_torch.config import CrystalConfig, DetectorConfig, BeamConfig
+  ```
+
+### Constructor
+
+```python
+experiment = ExperimentModel(
+    crystal_config=crystal_cfg,
+    detector_config=detector_cfg,
+    beam_config=beam_cfg,
+    device=torch.device("cpu"),
+    dtype=torch.float32,
+    param_init="frozen",   # or "stage_a"
+)
+```
+
+- `param_init="frozen"`:
+  - Stage‑A DOFs are registered as buffers (no `nn.Parameter`s).
+  - `experiment.parameters()` is empty.
+  - `experiment()` reproduces the legacy `Crystal` + `Detector` + `Simulator.run()` output (tested parity).
+- `param_init="stage_a"`:
+  - Stage‑A DOFs for Crystal, Detector, and Beam are registered as learnable parameters.
+  - `experiment.parameters()` returns exactly the Stage‑A tensors suitable for optimizers.
+
+### Stage‑A Parameterization (Summary)
+
+See `docs/architecture/parameterized_experiment.md` (nanobrag_torch repo) for full details. Briefly:
+
+- **CrystalStageAParams**
+  - Raw parameters:
+    - `δ_log_a/δ_log_b/δ_log_c`: log cell‑length deltas.
+    - `Δα_raw/Δβ_raw/Δγ_raw`: bounded angle deltas via `tanh` (±10°).
+    - `delta_misset_raw`: 3‑vector mapped via `tanh` to ±10° per axis (XYZ extrinsic misset).
+  - Mapping:
+    - Builds a derived `CrystalConfig` with tensor‑valued `cell_*` and `misset_deg` feeding the existing `Crystal` geometry pipeline.
+- **DetectorStageAParams**
+  - Raw parameters:
+    - `δ_log_distance_mm`: log distance delta.
+    - `Δrotx_raw/Δroty_raw/Δrotz_raw/Δtwotheta_raw`: bounded tilt/2θ deltas (±5°).
+    - `Δbeam_s_raw/Δbeam_f_raw`: beam‑center deltas in pixels, mapped to mm via pixel size (±5 pixels).
+  - Mapping:
+    - Builds a derived `DetectorConfig` overriding `distance_mm`, rotation angles, and beam_center_s/f.
+- **BeamStageAParams**
+  - Raw parameter:
+    - `δ_log_fluence`: log‑fluence delta around the base `BeamConfig.fluence`.
+  - Mapping:
+    - Builds a derived `BeamConfig` with tensor‑valued fluence.
+
+All mappings are differentiable and respect the constraints in `docs/spec-db-workflow.md` Stage‑A definitions (bounded angles, unit quaternion misset, etc.). The underlying physics in `Crystal` / `Detector` / `Simulator` is unchanged; only ownership of the Stage‑A scalars moves into learnable tensors.
+
+### Forward Usage
+
+`ExperimentModel` is callable and returns the simulated image:
+
+```python
+image = experiment()  # shape (spixels, fpixels) or stitched panel stack, per config
+```
+
+Internally:
+
+- Builds derived configs from the Stage‑A parameter modules.
+- Instantiates `Crystal`, `Detector`, and `Simulator` on the requested `device`/`dtype`.
+- Configures `crystal.hkl_data` / `hkl_metadata` exactly as in the legacy path (caller still sets the HKL grid as described above).
+- Calls `Simulator.run()` and returns the float image.
+
+### Example: Frozen Parity Path
+
+```python
+experiment = ExperimentModel(
+    crystal_config=crystal_cfg,
+    detector_config=detector_cfg,
+    beam_config=beam_cfg,
+    param_init="frozen",
+    device=torch.device("cpu"),
+    dtype=torch.float32,
+)
+
+image = experiment()  # matches legacy Simulator output (allclose)
+assert not any(p.requires_grad for p in experiment.parameters())
+```
+
+### Example: Stage‑A Optimization Loop
+
+```python
+experiment = ExperimentModel(
+    crystal_config=crystal_cfg,
+    detector_config=detector_cfg,
+    beam_config=beam_cfg,
+    param_init="stage_a",
+    device=torch.device("cpu"),
+    dtype=torch.float32,
+)
+
+optimizer = torch.optim.Adam(experiment.parameters(), lr=1e-2)
+target = target_image.to(experiment.device)  # [slow, fast]
+
+for _ in range(num_steps):
+    optimizer.zero_grad()
+    pred = experiment()
+    loss = ((pred - target) ** 2).mean()
+    loss.backward()
+    optimizer.step()
+```
+
+DBEX mapping/Stage‑A tooling SHOULD reuse this interface when constructing Stage‑A refinement helpers, ensuring that:
+
+- The HKL grid and calibration (beam_config, N_cells, `spot_scale_override`) match `simulate_forward_once`.
+- The variance‑weighted loss follows `docs/spec-db-core.md` and `docs/spec-db-workflow.md` Stage‑A semantics.
+
 ## IO: Structure Factors (HKL/FDUMP)
 - `read_hkl_file(filepath, default_F, device, dtype) -> (F_grid, metadata)`
   - Returns a dense 3D P1 tensor `[h_range, k_range, l_range]` and min/max metadata.

@@ -17,10 +17,11 @@ Findings applied:
 - RUNTIME-001: keep torch.compile disabled for gradient-sensitive paths
 """
 
-import pytest
-import numpy as np
-import json
 from pathlib import Path
+import json
+
+import numpy as np
+import pytest
 from typing import NamedTuple
 from argparse import Namespace
 
@@ -33,6 +34,7 @@ from dbex.nanobrag_bridge import (
     create_crystal_config,
     RefinementInputs
 )
+from dbex.vis import compute_z_scores, save_triptych
 
 
 class SmokeMetrics(NamedTuple):
@@ -387,10 +389,6 @@ def smoke_artifacts(
 
     Returns path to artifacts directory.
     """
-    import matplotlib
-    matplotlib.use('Agg')  # Non-interactive backend
-    import matplotlib.pyplot as plt
-
     inputs = refinement_inputs
     bragg = stub_bragg_tensor
 
@@ -435,7 +433,7 @@ def smoke_artifacts(
     with open(metrics_path, 'w') as f:
         json.dump(metrics._asdict(), f, indent=2)
 
-    # Generate ROI triptych for first ROI
+    # Generate ROI triptych for first ROI using dbex.vis
     if len(inputs.panel_slices) > 0:
         pid, bbox = inputs.panel_slices[0]
         x0, x1, y0, y1 = bbox
@@ -446,37 +444,20 @@ def smoke_artifacts(
         residual_roi = residual[pid, y0:y1, x0:x1]
         mask_roi = inputs.loss_mask[pid, y0:y1, x0:x1]
 
-        # Create triptych
-        fig, axes = plt.subplots(1, 3, figsize=(15, 5))
-
-        # Data panel
-        im0 = axes[0].imshow(data_roi, cmap='viridis', origin='lower')
-        axes[0].set_title(f"Data (ROI 0, panel {pid})")
-        axes[0].set_xlabel("Fast (px)")
-        axes[0].set_ylabel("Slow (px)")
-        plt.colorbar(im0, ax=axes[0], label="Intensity (ADU)")
-
-        # Model panel
-        im1 = axes[1].imshow(bragg_roi, cmap='viridis', origin='lower')
-        axes[1].set_title(f"Model (stub Bragg)")
-        axes[1].set_xlabel("Fast (px)")
-        axes[1].set_ylabel("Slow (px)")
-        plt.colorbar(im1, ax=axes[1], label="Intensity (ADU)")
-
-        # Residual panel with mask overlay
-        im2 = axes[2].imshow(residual_roi, cmap='RdBu_r', origin='lower')
-        axes[2].set_title(f"Residual (Data - Model)")
-        axes[2].set_xlabel("Fast (px)")
-        axes[2].set_ylabel("Slow (px)")
-        plt.colorbar(im2, ax=axes[2], label="Residual (ADU)")
-
-        # Overlay mask as contour
-        axes[2].contour(mask_roi, levels=[0.5], colors='yellow', linewidths=1, alpha=0.5)
-
-        plt.tight_layout()
         triptych_path = artifacts_dir / "roi_triptych.png"
-        plt.savefig(triptych_path, dpi=150)
-        plt.close()
+        # Use Z-score style residuals for the visualization.
+        residual_z = compute_z_scores(
+            data_roi,
+            bragg_roi,
+            mask=mask_roi,
+        )
+        save_triptych(
+            data_roi,
+            bragg_roi,
+            residual_z,
+            out_path=triptych_path,
+            title=f"ROI 0 panel {pid}",
+        )
 
         print(f"[Smoke] ROI triptych saved to {triptych_path}")
         print(f"[Smoke] Metrics saved to {metrics_path}")

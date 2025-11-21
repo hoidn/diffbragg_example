@@ -1,0 +1,33 @@
+{
+  "summaries": [
+    {
+      "dataset_label": "small",
+      "roi_mode": "roi",
+      "cache_mode": "warm",
+      "roi_count_total": 29,
+      "roi_count_sampled": 4,
+      "closure_evals": 2,
+      "validation_runs": 2,
+      "forward_time_ms": {
+        "total": 831.5727892331779,
+        "mean": 207.89319730829448,
+        "min": 52.31045885011554,
+        "max": 363.90560027211905
+      },
+      "loss_delta": {
+        "initial": 708131904.0,
+        "final": 540091584.0,
+        "improvement_frac": 0.23730087438624994
+      },
+      "param_deltas": {
+        "shell_0_modifier (d=80000.12-100000.00\u00c5)": 2.0,
+        "shell_1_modifier (d=60000.25-80000.12\u00c5)": 0.9999999403953552,
+        "shell_2_modifier (d=40000.38-60000.25\u00c5)": 0.9999999403953552,
+        "shell_3_modifier (d=20000.50-40000.38\u00c5)": 0.9999999403953552,
+        "shell_4_modifier (d=0.63-20000.50\u00c5)": 0.9999999403953552
+      },
+      "stage_a_final_chi_squared": 708131904.0
+    }
+  ],
+  "n_datasets": 1
+}

@@ -31,6 +31,23 @@ def _record_stage_telemetry(stage_label: str, telemetry, dataset_size: str, meta
     if path is None:
         return
 
+    # Serialize param_deltas: convert numpy scalars to Python floats, preserve nested structure
+    param_deltas_serialized = {}
+    if hasattr(telemetry, 'param_deltas') and telemetry.param_deltas:
+        for key, value in telemetry.param_deltas.items():
+            if isinstance(value, dict):
+                # Nested dict (e.g., Stage A initial/final pairs)
+                param_deltas_serialized[key] = {
+                    k: float(v) if hasattr(v, 'item') else float(v)
+                    for k, v in value.items()
+                }
+            elif isinstance(value, (list, tuple)):
+                # List/array values
+                param_deltas_serialized[key] = [float(x) if hasattr(x, 'item') else float(x) for x in value]
+            else:
+                # Scalar values (Stage B shell modifiers)
+                param_deltas_serialized[key] = float(value) if hasattr(value, 'item') else float(value)
+
     payload = {
         "stage": stage_label,
         "dataset": dataset_size,
@@ -39,6 +56,7 @@ def _record_stage_telemetry(stage_label: str, telemetry, dataset_size: str, meta
         "loss_trace_full": [[int(step), float(loss)] for step, loss in telemetry.loss_trace_full],
         "chi_squared_trace_full": [[int(step), float(loss)] for step, loss in telemetry.chi_squared_trace_full],
         "perf_counters": telemetry.perf_counters,
+        "param_deltas": param_deltas_serialized,
         **metadata,
     }
 

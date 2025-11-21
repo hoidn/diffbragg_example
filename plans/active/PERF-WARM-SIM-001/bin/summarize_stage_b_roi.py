@@ -44,20 +44,43 @@ def extract_dataset_label(telemetry_path: Path) -> str:
         return "unknown"
 
 
-def extract_stage_b_summary(telemetry: Dict[str, Any], dataset_label: str) -> Dict[str, Any]:
+def extract_stage_b_summary(telemetry_list: List[Dict[str, Any]], dataset_label: str) -> Dict[str, Any]:
     """
-    Extract Stage B ROI counters, perf stats, and loss delta from telemetry JSON.
+    Extract Stage B ROI counters, perf stats, param_deltas, and loss delta from telemetry JSON.
 
     Args:
-        telemetry: Parsed telemetry JSON dict
+        telemetry_list: Parsed telemetry JSON (list of stage entries)
         dataset_label: Detector size tag (small/full)
 
     Returns:
-        Summary dict with ROI/perf/loss fields
+        Summary dict with ROI/perf/loss/modifier fields
     """
-    stage_b = telemetry.get("stage_b", {})
-    perf = stage_b.get("perf_counters", {})
-    loss_trace = stage_b.get("loss_trace_sample", [])
+    # Find Stage B entry in the list
+    stage_b_entry = None
+    for entry in telemetry_list:
+        if entry.get("stage") == "stage_b_shell_modifiers":
+            stage_b_entry = entry
+            break
+
+    if stage_b_entry is None:
+        # Return empty summary if no Stage B found
+        return {
+            "dataset_label": dataset_label,
+            "roi_mode": "unknown",
+            "cache_mode": "unknown",
+            "roi_count_total": 0,
+            "roi_count_sampled": 0,
+            "closure_evals": 0,
+            "validation_runs": 0,
+            "forward_time_ms": {"total": 0.0, "mean": 0.0, "min": 0.0, "max": 0.0},
+            "loss_delta": {"initial": 0.0, "final": 0.0, "improvement_frac": 0.0},
+            "param_deltas": {},
+            "stage_a_final_chi_squared": 0.0,
+        }
+
+    perf = stage_b_entry.get("perf_counters", {})
+    loss_trace = stage_b_entry.get("chi_squared_trace_full", [])
+    param_deltas = stage_b_entry.get("param_deltas", {})
 
     # Extract ROI/cache modes
     roi_mode = perf.get("roi_mode", "unknown")
@@ -97,10 +120,8 @@ def extract_stage_b_summary(telemetry: Dict[str, Any], dataset_label: str) -> Di
         final_loss = 0.0
         improvement_frac = 0.0
 
-    # Extract Stage A final chi-squared for reference
-    stage_a = telemetry.get("stage_a", {})
-    stage_a_loss_trace = stage_a.get("loss_trace_sample", [])
-    stage_a_final = stage_a_loss_trace[-1][1] if stage_a_loss_trace else 0.0
+    # Extract Stage A final chi-squared for reference (canonical baseline)
+    stage_a_final = stage_b_entry.get("canonical_chi_squared", 0.0)
 
     return {
         "dataset_label": dataset_label,
@@ -116,6 +137,7 @@ def extract_stage_b_summary(telemetry: Dict[str, Any], dataset_label: str) -> Di
             "final": final_loss,
             "improvement_frac": improvement_frac,
         },
+        "param_deltas": param_deltas,
         "stage_a_final_chi_squared": stage_a_final,
     }
 

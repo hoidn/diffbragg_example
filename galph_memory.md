@@ -330,3 +330,12 @@
 - <Action State>: [planning]
 
 2025-11-21T065454Z focus=PHYSICS-LOSS-001 state=planning dwell=1 artifacts=plans/active/PHYSICS-LOSS-001/reports/2025-11-21T065454Z/ next_action=metadata_fixture_implementation
+## 2025-11-21T071912Z — PHYSICS-LOSS-001 Stage B/C metadata plan
+- Focus: PHYSICS-LOSS-001 — Implement variance-weighted loss function
+- Action Type: planning
+- Key Observations: Verified Stage B/C smokes still `pytest.skip` whenever `DBEX_SMOKE_SIGMA_SOURCE=metadata` because `tests/dbex/test_torch_refine_smoke.py::refinement_inputs` requires the `allow_metadata_sigma` marker (present only on Stage A) and the Stage B/C configs hard-code `sigma_readout_provenance="cli_override"`, so metadata telemetry never flows past Stage A. Updated the implementation plan with Phase H (Stage B/C metadata coverage), logged a new fix-plan attempt, and rewrote input.md with a ready-for-implementation Do Now covering the Stage B/C markers + telemetry asserts, docs updates, and metadata pytest selectors with artifact targets under 2025-11-21T071912Z/.
+- Artifact Path: plans/active/PHYSICS-LOSS-001/reports/2025-11-21T071912Z/
+- Next Actions: Ralph implements the Stage B/C metadata plumbing + docs per the new Do Now and reruns the Stage B/C smoke selectors with metadata.
+- <Action State>: [ready_for_implementation]
+
+2025-11-21T071912Z focus=PHYSICS-LOSS-001 state=ready_for_implementation dwell=2 artifacts=plans/active/PHYSICS-LOSS-001/reports/2025-11-21T071912Z/ next_action=stage_bc_metadata_smokes

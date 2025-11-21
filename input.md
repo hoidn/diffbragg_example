@@ -1,65 +1,56 @@
 # Input
 
-- Summary: Embed a reusable refGeom metadata fixture and update the Stage A smoke so it proves `external_lookup` sigma tiles drive the chi-squared telemetry without relying on CLI overrides.
+- Summary: Extend Stage B/C smokes plus docs so metadata sigma fixtures run without CLI overrides and still satisfy the Stage B/C telemetry gates.
 - Mode: Parity
 - Focus: PHYSICS-LOSS-001 — Implement variance-weighted loss function
 - Branch: integration
 - Mapped tests:
-  * `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=full KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion`
-- Artifacts: plans/active/PHYSICS-LOSS-001/reports/2025-11-21T065454Z/
+  * `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=full KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=full --smoke-sigma-source=metadata`
+  * `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=full KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=full --smoke-sigma-source=metadata`
+- Artifacts: plans/active/PHYSICS-LOSS-001/reports/2025-11-21T071912Z/
 
 ## Do Now
 - Focus Item: PHYSICS-LOSS-001
-- Implement: `plans/active/PHYSICS-LOSS-001/bin/embed_sigma_external_lookup.py::main` (new script) plus `tests/conftest.py::smoke_dataset_paths`/`tests/dbex/test_torch_refine_smoke.py::{refinement_inputs,test_stage_a_expansion}` — add a CLI that copies `refGeom.expt` with synthetic `ExternalLookupItemDouble` tiles (from `--sigma-map` or `--sigma-value`), add a `--smoke-sigma-source` option/env knob so smoke fixtures can select between CLI overrides and metadata, and update the Stage A test to route metadata-backed inputs + assert telemetry shows `sigma_readout_provenance="external_lookup"` and the canonical chi-squared snapshot.
-- Test: `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=full KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion | tee plans/active/PHYSICS-LOSS-001/reports/2025-11-21T065454Z/pytest_stage_a_metadata.log`
-- Artifacts: plans/active/PHYSICS-LOSS-001/reports/2025-11-21T065454Z/
+- Implement: `tests/dbex/test_torch_refine_smoke.py::{test_stage_b_shell_modifiers,test_stage_c_detector_microslip}` + `tests/conftest.py::smoke_dataset_paths` + `docs/TESTING_GUIDE.md#1.4`/`docs/development/TEST_SUITE_INDEX.md:12` — mark Stage B/C selectors with `@pytest.mark.allow_metadata_sigma`, plumb the `--smoke-sigma-source` knob through their configs so metadata-backed datasets emit `sigma_readout_provenance="external_lookup"`, assert telemetry + clamp stats for both sigma sources, and refresh the docs/registry rows so Stage smoke instructions explain how to run metadata coverage end-to-end.
+- Test: `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=full KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::{test_stage_b_shell_modifiers,test_stage_c_detector_microslip} --smoke-detector-size=full --smoke-sigma-source=metadata | tee plans/active/PHYSICS-LOSS-001/reports/2025-11-21T071912Z/pytest_stage_bc_metadata.log`
+- Artifacts: plans/active/PHYSICS-LOSS-001/reports/2025-11-21T071912Z/
 
 ## How-To Map
-1. Create `plans/active/PHYSICS-LOSS-001/bin/embed_sigma_external_lookup.py` with argparse accepting `--expt`, `--output`, `--expt-idx`, and either `--sigma-map` (npz/npy/pkl via `dbex.data_load.load_sigma_readout_map`) or `--sigma-value` (uniform float). Use `dxtbx.model.ExperimentList.from_file` to clone the requested experiment, build an `ExternalLookupItemDouble` full of per-panel numpy tiles (float32, strictly positive), attach it under `imageset.external_lookup.pedestal`, and write the modified ExperimentList to `--output`. Emit a JSON sidecar in the same directory capturing provenance (source path, constant value) for audit.
-2. Run the script before tests so the metadata fixture exists, e.g.:
-   ```bash
-   python plans/active/PHYSICS-LOSS-001/bin/embed_sigma_external_lookup.py \
-     --expt refGeom.expt --output sp.proc/idx-0000_sigma_metadata.expt \
-     --expt-idx 0 --sigma-value 3.0 \
-     --report plans/active/PHYSICS-LOSS-001/reports/2025-11-21T065454Z/sigma_metadata.json
-   ```
-   (Add `--sigma-map sp.proc/sigma_map.npy` later if a calibrated tensor exists.)
-3. Extend `tests/conftest.py`: add `--smoke-sigma-source` / `DBEX_SMOKE_SIGMA_SOURCE` (choices `cli_override` | `metadata`), include the chosen source in a new fixture, and when `metadata` is requested, rewrite `smoke_dataset_paths.expt_path` to `sp.proc/idx-0000_sigma_metadata.expt` (skip with a helpful message if the file is missing). Document that Stage smokes on metadata require the embedding script to be run first.
-4. Update `tests/dbex/test_torch_refine_smoke.py`:
-   - Thread the new `smoke_sigma_source` fixture into `refinement_inputs` so it either reuses the existing constant sigma tensor (`cli_override`) or pulls `sigma_readout_array = np.asarray(refgeom_dataload.sigma_readout_map)` when metadata is active.
-   - In `test_stage_a_expansion`, branch on the sigma source: omit any CLI overrides when metadata is in use, assert `telemetry.sigma_readout_provenance == "external_lookup"`, log the canonical chi-squared snapshot into the telemetry helper, and keep existing gates for the CLI path untouched.
-   - Guard Stage B/C fixtures to continue using the CLI overrides until we explicitly support metadata there (document via TODO comment).
-5. Refresh `docs/TESTING_GUIDE.md` §1.4 and `docs/development/TEST_SUITE_INDEX.md` with the metadata-fixture workflow: how to run the embedding script, env/pytest knobs (`DBEX_SMOKE_SIGMA_SOURCE`, `--smoke-sigma-source`), and which artifacts (`pytest_stage_a_metadata.log`, telemetry JSON) belong under this report.
-6. Execute the mapped Stage A selector with `DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=full` so it exercises the metadata-backed dataset, then attach the log + telemetry JSON (if captured via `DBEX_SMOKE_TELEMETRY_PATH`) to this loop’s artifact folder.
+1. Inspect current skips via `rg -n "allow_metadata_sigma" tests/dbex/test_torch_refine_smoke.py` so the added markers land on Stage B/C selectors without touching other tests.
+2. Update `tests/conftest.py::smoke_dataset_paths` and `tests/dbex/test_torch_refine_smoke.py::refinement_inputs` so metadata runs reuse the generated `sp.proc/idx-0000_sigma_metadata.expt` and assert `sigma_readout_map` exists before proceeding (continue to skip with actionable messaging when the asset is missing).
+3. Modify `tests/dbex/test_torch_refine_smoke.py::{test_stage_b_shell_modifiers,test_stage_c_detector_microslip}` to accept `smoke_sigma_source`, set `RefinementConfig.sigma_readout_provenance` dynamically, and add asserts that Stage B/C telemetry records `sigma_readout_provenance == ("external_lookup" if metadata else "cli_override")` plus non-zero `variance_floor_clamp_fraction` samples.
+4. Refresh `docs/TESTING_GUIDE.md` §1.4 and `docs/development/TEST_SUITE_INDEX.md` Stage-smoke row so metadata instructions cover Stage B/C selectors, env vars (`DBEX_SMOKE_SIGMA_SOURCE`, `DBEX_SMOKE_DETECTOR_SIZE`), and artifact naming (e.g., `pytest_stage_b_metadata.log`, `pytest_stage_c_metadata.log`).
+5. Run the mapped pytest selectors with metadata enabled, storing stdout/stderr under `plans/active/PHYSICS-LOSS-001/reports/2025-11-21T071912Z/` and capturing telemetry JSON if `DBEX_SMOKE_TELEMETRY_PATH` is set.
 
 ## Pitfalls To Avoid
-- Metadata tiles must stay `[panel, slow, fast]` with positive finite floats; never silently reshape or clamp bad data—raise with actionable errors matching spec-db-core.md.
-- Keep precedence intact: CLI scalars/maps still win; only fall back to metadata when neither override is supplied.
-- Do not mutate the original `refGeom.expt`; always write to a new file under `sp.proc/` so reproducibility reports can cite the exact asset.
-- Ensure the Stage A smoke only drops the `--sigma-rdout` override when `smoke_sigma_source=metadata`; other paths still require deterministic scalars to keep acceptance gates stable.
-- Telemetry assertions must check both provenance and reference medians to avoid masking regressions where metadata accidentally reverts to zeros.
-- Preserve `enable_stage_a_warm_cache` and other perf knobs—metadata plumbing should not reintroduce per-panel model churn.
+1. Do not drop the CLI guard ordering—metadata is a fallback when neither scalar nor map overrides are passed.
+2. Keep REFINE-008 Stage B gates intact (≤±1% modifier drift, χ² regression ≤1e-6) even when metadata changes the variance tensor.
+3. Stage C strict gates (REFINE-007) still require ≥80% detector offset reduction and ≤0.05% χ² regression relative to Stage A; metadata runs must assert the same thresholds.
+4. Ensure telemetry asserts use the canonical Stage A chi-squared snapshot so metadata provenance can be compared across stages.
+5. Guard metadata fixtures with actionable skips when `sp.proc/idx-0000_sigma_metadata.expt` or `.sigma_tiles.pkl` is missing; never auto-regenerate inside tests.
+6. Keep KMP_DUPLICATE_LIB_OK=TRUE + NANOBRAGG_DISABLE_COMPILE=1 in every command to satisfy runtime guardrails (RUNTIME-001).
 
 ## If Blocked
-If the script cannot find the requested experiment or `ExternalLookupItemDouble` APIs fail, capture the exact command/stdout/stderr in `plans/active/PHYSICS-LOSS-001/reports/2025-11-21T065454Z/blocked.log`, note whether the dataset exists under `sp.proc/`, and record the blocker + required asset (e.g., sigma map path) in `docs/fix_plan.md` Attempts History before pausing the initiative.
+Capture failing pytest output plus `DBEX_SMOKE_SIGMA_SOURCE=metadata` env values in `plans/active/PHYSICS-LOSS-001/reports/2025-11-21T071912Z/blocked.log`, note whether metadata fixtures exist under `sp.proc/`, and record the blocker + remedial steps inside `docs/fix_plan.md` Attempts History before pausing the initiative.
 
 ## Findings Applied (Mandatory)
-- PHYSICS-LOSS-001 — Weighted-loss telemetry depends on truthful sigma provenance; Stage A smokes must now cover the metadata path.
-- PHYSICS-LOSS-002 — Sigma-floor guards assume accurate variance, so metadata fixtures must enforce positive finite tiles before refinement.
-- PHYSICS-LOSS-003 — Stage A chi-squared snapshots feed Stage B/C gates; metadata provenance needs to flow into those canonical metrics unchanged.
-- PHYSICS-LOSS-004 — Loader validations (shape/positivity) still apply when building synthetic metadata; reuse the existing helper semantics.
-- PHYSICS-LOSS-005 — DIALS `external_lookup` is the normative sigma source; this loop delivers the fixture + tests required to exercise it.
-- REFINE-007 — Stage smokes remain the acceptance harness for detector offsets; telemetry captured from metadata runs must continue to satisfy the same detector reduction gates.
+- PHYSICS-LOSS-001 — Stage B/C must consume the same variance-weighted denominator as Stage A; metadata runs prove provenance parity.
+- PHYSICS-LOSS-002 — Sigma-floor guards only work when variance tensors remain positive/finite; metadata fixtures must obey the same clamps.
+- PHYSICS-LOSS-003 — Stage A chi-squared snapshots drive Stage C gating; metadata wiring keeps those units aligned.
+- PHYSICS-LOSS-004 — Loader helper validations (shape/positivity) extend to the synthetic metadata assets; reuse the helper rather than rolling new parsing logic.
+- PHYSICS-LOSS-005 — DIALS `external_lookup` remains the normative sigma source; tests must assert `sigma_readout_provenance="external_lookup"` when metadata is active.
+- REFINE-007 — Stage C detector-offset gates rely on telemetry deltas; metadata runs cannot relax the ≥80% reduction rule.
 
 ## Pointers
-- docs/fix_plan.md:15 — PHYSICS-LOSS-001 entry with updated Attempts History and Phase G scope.
-- plans/active/PHYSICS-LOSS-001/implementation.md:1 — Phase checklist (A–G) covering sigma provenance and the new metadata fixture requirements.
-- docs/TESTING_GUIDE.md:80 — Sigma guard workflow + selector policy that needs updating for metadata fixtures.
-- docs/development/TEST_SUITE_INDEX.md:12 — Registry rows for Stage smokes/CLI sigma selectors that must mention the new knob.
-- tests/dbex/test_torch_refine_smoke.py:210 — `refinement_inputs` fixture currently hard-codes sigma tensors; needs parameterization.
+- docs/fix_plan.md:15 — PHYSICS-LOSS-001 ledger + Attempts History.
+- plans/active/PHYSICS-LOSS-001/implementation.md:70 — Phase G/H checklists tracking metadata fixture + smoke coverage.
+- docs/TESTING_GUIDE.md:80 — Sigma readout workflows + Stage smoke command templates that must mention Stage B/C metadata coverage.
+- docs/development/TEST_SUITE_INDEX.md:12 — Stage-smoke registry row to update with metadata selector instructions.
+- tests/dbex/test_torch_refine_smoke.py:211 — `refinement_inputs` guard that currently skips metadata unless tests carry the `allow_metadata_sigma` marker.
 
 ## Next Up (optional)
-1. Once Stage A metadata coverage is stable, extend the same sigma-source knob to Stage B/C smokes and DB-AT selectors so parity runs can validate external_lookup assets end-to-end.
+1. After Stage B/C metadata runs pass, thread the metadata sigma source through DB-AT-024 and CLI diagnostics selectors so telemetry evidence spans all acceptance gates.
+2. Package a reusable script (T2) that regenerates sigma metadata fixtures for other datasets if future detectors demand different tile values.
 
 ## Mapped Tests Guardrail
-- `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=full pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion > plans/active/PHYSICS-LOSS-001/reports/2025-11-21T065454Z/collect_stage_a_metadata.log`
+- `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=full KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=full --smoke-sigma-source=metadata > plans/active/PHYSICS-LOSS-001/reports/2025-11-21T071912Z/collect_stage_b_metadata.log`

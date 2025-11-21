@@ -246,3 +246,13 @@
 - <Action State>: [planning]
 
 2025-11-21T023537Z focus=PERF-SMOKE-DETSIZE state=planning dwell=0 artifacts=plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T023537Z/ next_action=crop_script_and_fixture_parameterization
+
+## 2025-11-21T031620Z — PERF-SMOKE-DETSIZE DB-AT guard plan
+- Focus: PERF-SMOKE-DETSIZE — Stage smoke detector-size split
+- Action Type: planning
+- Key Observations: Confirmed no DB-AT selector enforces the canonical detector footprint even after the `--smoke-detector-size` knob landed, so parity runs could still exercise the cropped assets. Updated docs/fix_plan.md and input.md with the pytest guard handoff (tests/conftest.py), documented the failure mode + telemetry expectations, and earmarked artifacts under 2025-11-21T031620Z/ for the full-detector Stage smokes + DB-AT_021 log plus an optional guard-failure capture.
+- Artifact Path: plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T031620Z/
+- Next Actions: Implement the guard/doc updates, rerun Stage A/B/C smokes with `--smoke-detector-size=full`, and attach both passing + guard-failure logs before unblocking PHYSICS-LOSS-001.
+- <Action State>: [ready_for_implementation]
+
+2025-11-21T031620Z focus=PERF-SMOKE-DETSIZE state=ready_for_implementation dwell=0 artifacts=plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T031620Z/ next_action=implement_db_at_guard

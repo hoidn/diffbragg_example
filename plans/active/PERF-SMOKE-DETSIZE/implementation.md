@@ -75,3 +75,4 @@
 ## Artifacts Index
 - Reports root: `plans/active/PERF-SMOKE-DETSIZE/reports/`
 - Latest run: `<YYYY-MM-DDTHHMMSSZ>/`
+- Stage B/C callchain snapshot + tap points (canonical detector analysis): `plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T035150Z/{callchain/static.md,trace/tap_points.md}`

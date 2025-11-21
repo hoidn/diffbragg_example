@@ -1,71 +1,49 @@
 # Input
 
-- Summary: Re-run the Stage A/B/C full-detector smokes (CLI + metadata sigma) and sync docs/fix-plan checkpoints so PERF-SMOKE-DETSIZE exit criterion #4 can finally close.
-- Mode: none
-- Focus: PERF-SMOKE-DETSIZE — Introduce small-detector fixture for smoke tests
+- Summary: Finish the Stage A warm-cache plumbing so the LBFGS closure stops rebuilding Crystal/Simulator per iteration and capture a new warm vs cold benchmark.
+- Mode: Perf
+- Focus: PERF-WARM-SIM-001 — Warm simulator; eliminate per-iteration re-instantiation
 - Branch: integration
 - Mapped tests:
-  * `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_DETECTOR_SIZE=full DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/telemetry_full_cli.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion`
-  * `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_DETECTOR_SIZE=full DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/telemetry_full_cli.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers`
-  * `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_DETECTOR_SIZE=full DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/telemetry_full_cli.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip`
-  * `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_DETECTOR_SIZE=full DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/telemetry_full_metadata.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion`
-  * `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_DETECTOR_SIZE=full DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/telemetry_full_metadata.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers`
-  * `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_DETECTOR_SIZE=full DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/telemetry_full_metadata.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip`
-- Artifacts: plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/
+  * `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T090949Z/telemetry_stage_a_small.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion`
+- Artifacts: plans/active/PERF-WARM-SIM-001/reports/2025-11-21T090949Z/
 
 ## Do Now
-- Focus Item: PERF-SMOKE-DETSIZE
-- Implement: `docs/TESTING_GUIDE.md#Stage-smoke selectors`, `docs/development/TEST_SUITE_INDEX.md`, `docs/fix_plan.md#perfs-smoke-detsize`, and `plans/active/PERF-SMOKE-DETSIZE/implementation.md::Phase D` — fold in the fresh canonical full-detector runs (CLI + metadata), update artifact pointers/gates, and mark the Phase D checklist complete once telemetry/logs are archived.
-- Test: Execute the mapped Stage A/B/C selectors on the full detector for both sigma sources with `DBEX_SMOKE_TELEMETRY_PATH` pointing into the new report directory so each run records telemetry JSON alongside the pytest logs.
-- Artifacts: plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/
+- Focus Item: PERF-WARM-SIM-001
+- Implement: `dbex/nanobrag_refinement.py::_build_stage_a_context` and `dbex/nanobrag_refinement.py::run_nanobrag_refinement::compute_loss` — plumb StageAContext through the Stage A closure so warm mode reuses cached detector/HKL/mask tensors, hoists `create_crystal_config` + `Crystal` instantiation out of the per-panel loop, and leaves the cold rebuild mode untouched for benchmarking; update perf counter serialization if structures change.
+- Test: `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T090949Z/telemetry_stage_a_small.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion`
+- Artifacts: plans/active/PERF-WARM-SIM-001/reports/2025-11-21T090949Z/
 
 ## How-To Map
-1. `mkdir -p plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z` and `rm -f plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/telemetry_full_cli.json plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/telemetry_full_metadata.json` to start from a clean telemetry slate.
-2. Regenerate metadata fixtures so the Stage smokes can consume `external_lookup` tiles:  
-   `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md python plans/active/PHYSICS-LOSS-001/bin/embed_sigma_external_lookup.py --expt refGeom.expt --expt-idx 0 --sigma-value 3.0 --output sp.proc/idx-0000_sigma_metadata.expt --report plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/sigma_metadata.json --manifest sp.proc/sigma_metadata_manifest.json`
-3. Prove selectors still collect with the canonical knob before running the long smokes:  
-   `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_DETECTOR_SIZE=full pytest --collect-only tests/dbex/test_torch_refine_smoke.py -k 'test_stage_b_shell_modifiers or test_stage_c_detector_microslip' > plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/collect_stage_full.log`
-4. Stage A (full detector, CLI sigma):  
-   `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_DETECTOR_SIZE=full DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/telemetry_full_cli.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion | tee plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/pytest_stage_a_full_cli.log`
-5. Stage B (full detector, CLI sigma): same env as step 4 targeting `::test_stage_b_shell_modifiers` and teeing to `pytest_stage_b_full_cli.log`.
-6. Stage C (full detector, CLI sigma): same env as step 4 targeting `::test_stage_c_detector_microslip` and teeing to `pytest_stage_c_full_cli.log`.
-7. Stage A (full detector, metadata sigma):  
-   `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_DETECTOR_SIZE=full DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/telemetry_full_metadata.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion | tee plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/pytest_stage_a_full_metadata.log`
-8. Stage B (full detector, metadata sigma): same env as step 7 targeting `::test_stage_b_shell_modifiers` and teeing to `pytest_stage_b_full_metadata.log`.
-9. Stage C (full detector, metadata sigma): same env as step 7 targeting `::test_stage_c_detector_microslip` and teeing to `pytest_stage_c_full_metadata.log`.
-10. Update `docs/TESTING_GUIDE.md`, `docs/development/TEST_SUITE_INDEX.md`, `docs/fix_plan.md`, and `plans/active/PERF-SMOKE-DETSIZE/implementation.md` with the new canonical telemetry/log references (chi-squared deltas, detector-offset reduction, manifest hash pointer) and summarize the run in `plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/summary.md`.
+1. Implement the Stage A warm-cache changes: refactor `compute_loss` to instantiate `crystal_config`/`Crystal` once per call, reuse `stage_a_ctx.hkl_grid`/`trusted_masks_t`, and keep the cold-mode branch rebuilding configs for comparison. Preserve `perf_counters["cache_mode"]` so downstream telemetry remains schema-compatible.
+2. Stage A smoke (small detector, CLI sigma) to catch regressions while keeping runtime manageable:  
+   `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T090949Z/telemetry_stage_a_small.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion | tee plans/active/PERF-WARM-SIM-001/reports/2025-11-21T090949Z/pytest_stage_a_small.log`
+3. Benchmark warm vs cold with the updated code to prove the perf delta:  
+   `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python plans/active/PERF-WARM-SIM-001/bin/benchmark_stage_a_cache.py --modes warm cold --artifacts plans/active/PERF-WARM-SIM-001/reports/2025-11-21T090949Z/ | tee plans/active/PERF-WARM-SIM-001/reports/2025-11-21T090949Z/benchmark.log`  
+   Ensure the script emits `benchmark_summary.json` plus `{warm,cold}_perf_counters.json` inside the artifact directory.
+4. Summarize the new warm/cold timings and perf counter deltas in `plans/active/PERF-WARM-SIM-001/reports/2025-11-21T090949Z/summary.md`, then update docs/fix_plan/findings if the speedup still falls short of the 2–5× target.
 
 ## Pitfalls To Avoid
-- `DBEX_SMOKE_DETECTOR_SIZE` must be `full` for every run or the pytest guard will skip/raise before telemetry is recorded.
-- Ensure metadata fixtures exist (both `.expt` and `.sigma_tiles.pkl`) via the embed script before running the metadata smokes; otherwise the fixtures will skip.
-- Always set `DBEX_SMOKE_TELEMETRY_PATH` before invoking pytest and remove any stale JSON to avoid mixing old entries with the new canonical measurements.
-- Keep `KMP_DUPLICATE_LIB_OK=TRUE` and `NANOBRAGG_DISABLE_COMPILE=1` in place so Stage smokes behave deterministically per RUNTIME-001.
-- Do not relax the Stage B/C assertions—use the strict gates already codified in the tests; the goal is to capture real physics improvements, not to downgrade gates.
-- Capture stdout/stderr with `tee` into the artifact directory so telemetry and logs can be cross-referenced later.
-- Treat the metadata embed step as destructive: re-running will overwrite `sp.proc/idx-0000_sigma_metadata.expt`; stash the generated `sigma_metadata.json` under this loop’s report directory for traceability.
-- Avoid editing simulator code or test gates in this loop; the focus is evidence capture + doc/ledger sync.
-- If GPU/CPU resources run out mid-test, bail, log `nvidia-smi` output (if relevant), and surface the failure before reattempting.
-- Maintain `AUTHORITATIVE_CMDS_DOC` on every command so logs remain auditable.
+- Leave the cold-mode rebuild path intact; the benchmark relies on it as a control.
+- Keep tensor devices/dtypes consistent with `RefinementConfig` (no implicit `.to()` inside loops) per `docs/spec-db-runtime.md`.
+- Do not relax Stage A gates or sample fractions; reuse the existing ROI sampler so perf comparisons stay apples-to-apples.
+- Continue writing `perf_counters.cache_mode` and timing arrays to telemetry; downstream tooling expects the schema added on 2025-11-06T111515Z.
+- Avoid touching Stage B/C code paths in this loop—the Do Now is scoped strictly to Stage A warm reuse and benchmarking.
 
 ## If Blocked
-If any Stage smoke fails (e.g., Stage B returns `status=error` again), capture the full pytest log plus the partially written telemetry JSON in `plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/blocked.log`, note which sigma source/detector size triggered it, and append a new entry to `docs/fix_plan.md` + `plans/active/PERF-SMOKE-DETSIZE/implementation.md` describing the failure signature and why Phase D remains open before pausing the initiative.
+- If `nanobrag_torch` raises during the refactor (e.g., due to shared `Crystal` objects), capture the traceback in the artifact directory, revert only the offending hunk, and mark PERF-WARM-SIM-001 as `blocked` in docs/fix_plan.md with the log pointer; do not attempt environment changes.
 
 ## Findings Applied (Mandatory)
-- REFINE-007 — Stage C canonical smokes must show ≥80 % detector-offset reduction and ≤0.05 % χ² regression; log these metrics in telemetry and the docs table.
-- REFINE-008 — Stage B canonical runs expect ≤1e-6 χ² regression and ±1 % shell modifiers; ensure telemetry/log updates cite this guard.
-- REFINE-009 — Always pass the baseline detector so detector-offset telemetry references real geometry rather than zeros.
-- PHYSICS-LOSS-005 — Metadata sigma fixtures (`external_lookup`) are authoritative; metadata runs should assert telemetry provenance equals `external_lookup`.
-- CONFORMANCE-001 — DB-AT/workflow alignment requires forcing the full detector; document the commands/env flags accordingly.
+- PERF-WARM-001 — Stage A warm cache must reuse cached detectors/HKL tensors and log perf counters for cache attribution.
+- PERF-WARM-002 — Hoist `create_crystal_config`/`Crystal` out of the per-panel loop so warm mode can diverge from cold mode and deliver a measurable speedup; benchmark artifacts must prove the delta.
+- RUNTIME-001 — Keep `NANOBRAGG_DISABLE_COMPILE=1` (and `KMP_DUPLICATE_LIB_OK=TRUE`) set for deterministic autograd + torch LBFGS runs.
 
 ## Pointers
-- plans/active/PERF-SMOKE-DETSIZE/implementation.md:70 — Phase D checklist for canonical parity re-validation.
-- docs/fix_plan.md:90 — PERF-SMOKE-DETSIZE ledger entry + attempts history.
-- docs/TESTING_GUIDE.md:40 — Stage smoke selector commands, telemetry expectations, and guard rails.
-- docs/development/TEST_SUITE_INDEX.md:12 — Registry row for Stage A/B/C smokes.
-- tests/dbex/test_torch_refine_smoke.py:316,600,819 — Stage A/B/C selectors and telemetry helpers referenced by the reruns.
+- docs/spec-db-runtime.md:20 — Warm simulator reuse requirement when detector shape/oversample stay constant.
+- docs/TESTING_GUIDE.md:35-100 — Stage A smoke selector, telemetry logging, and canonical gate references.
+- docs/development/TEST_SUITE_INDEX.md:12 — Registry entry + commands for Stage A/B/C smokes.
+- dbex/nanobrag_refinement.py:722-910 — StageAContext construction and Stage A `compute_loss` implementation that still rebuilds Crystal/Simulator per panel.
+- plans/active/PERF-WARM-SIM-001/bin/benchmark_stage_a_cache.py:1-140 — Warm vs cold benchmark harness and artifact contract.
 
 ## Next Up (optional)
-1. Once canonical telemetry is archived, resume PERF-WARM-SIM-001 profiling to chase real CPU speedups now that the smoke suite can run quickly on the cropped assets.
-
-## Mapped Tests Guardrail
-- `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_DETECTOR_SIZE=full pytest --collect-only tests/dbex/test_torch_refine_smoke.py -k 'test_stage_b_shell_modifiers or test_stage_c_detector_microslip' > plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/collect_stage_full.log`
+- If the speedup lands but Stage A remains the only optimized stage, follow up by threading Stage A context or similar caching through the Stage B/C closures.

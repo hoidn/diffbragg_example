@@ -366,3 +366,11 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-21T093500Z focus=PERF-SMOKE-DETSIZE state=ready_for_implementation dwell=0 artifacts=plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/ next_action=canonical_full_detector_smokes
+## 2025-11-21T090949Z — PERF-WARM-SIM-001 Stage A warm-cache refactor plan
+- Focus: PERF-WARM-SIM-001 — Warm simulator; Eliminate Per-Iteration Re-Instantiation
+- Action Type: planning
+- Key Observations: Stage A warm vs cold benchmarks from 2025-11-06 are still 1.00× because `run_nanobrag_refinement.compute_loss` rebuilds `create_crystal_config`/`Crystal` (and per-panel Simulator objects) even when `StageAContext` is available, so cached HKL/mask tensors never amortize the expensive constructor path. Authored a new Do Now telling Ralph to thread StageAContext through `compute_loss`, hoist the crystal instantiation outside the panel loop for warm mode while keeping the cold control path, run `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion`, and regenerate the warm/cold benchmark artifacts under 2025-11-21T090949Z before updating docs/fix_plan if the speedup still lags.
+- Artifact Path: plans/active/PERF-WARM-SIM-001/reports/2025-11-21T090949Z/
+- Next Actions: Implement the Stage A warm-cache reuse (context plumbing + benchmark), run the mapped Stage A smoke, execute the warm/cold benchmark script, and refresh docs/fix_plan/findings if results differ.
+- <Action State>: [ready_for_implementation]
+2025-11-21T090949Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=0 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T090949Z/ next_action=implement_stage_a_warm_cache_refactor

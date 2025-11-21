@@ -348,3 +348,12 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-21T075449Z focus=PHYSICS-LOSS-001 state=ready_for_implementation dwell=0 artifacts=plans/active/PHYSICS-LOSS-001/reports/2025-11-21T075449Z/ next_action=db_at_cli_metadata_implementation
+## 2025-11-21T083500Z — PHYSICS-LOSS-001 metadata manifest gate plan
+- Focus: PHYSICS-LOSS-001 — Implement variance-weighted loss function
+- Action Type: planning
+- Key Observations: Phase I (DB-AT + CLI metadata) artifacts look healthy, so Phase G now needs fixture governance—marked the implementation checklist G4/G5 with manifest + CI-test details, added a fix-plan attempt describing the `--manifest` embedding flag, README, and pytest hash gate, refreshed input.md with log/artifact targets under 2025-11-21T083500Z/, and confirmed docs/fix_plan.md references the new scope.
+- Artifact Path: plans/active/PHYSICS-LOSS-001/reports/2025-11-21T083500Z/
+- Next Actions: Ralph ships the manifest-aware embedding script, publishes `sp.proc/sigma_metadata_manifest.json` + README, adds `tests/sp_proc/test_sigma_metadata_fixture.py`, syncs docs, and runs the new pytest selector with logs/manifest snapshots in the artifact dir.
+- <Action State>: [ready_for_implementation]
+
+2025-11-21T083500Z focus=PHYSICS-LOSS-001 state=ready_for_implementation dwell=0 artifacts=plans/active/PHYSICS-LOSS-001/reports/2025-11-21T083500Z/ next_action=ship_sigma_metadata_manifest_gate

@@ -1,45 +1,54 @@
-Summary: Prove Stage B/C warm caching on the canonical detector by asserting perf telemetry and replaying the Stage smokes plus the warm-vs-cold benchmark.
+Summary: Enable Stage B shell modifiers to reuse warmed ROI slices and prove the ROI/panel telemetry via Stage B smoke runs.
 Mode: Perf
 Focus: PERF-WARM-SIM-001 — Warm simulator; eliminate per-iteration re-instantiation
 Branch: integration
-Mapped tests: tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers, tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip
-Artifacts: plans/active/PERF-WARM-SIM-001/reports/2025-11-21T133500Z/
+Mapped tests: tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+Artifacts: plans/active/PERF-WARM-SIM-001/reports/2025-11-21T121804Z/
 
 Do Now:
 - Focus Item: PERF-WARM-SIM-001
-- Implement: tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers — add asserts that `telemetry_b.perf_counters` exists, reports `cache_mode="warm"`, `roi_mode="panel"`, ROI counts that match `refinement_inputs.panel_slices`, and non-zero closure/validation counts so perf telemetry breaks if warm cache falls back to cold per panel.
-- Implement: tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip — assert `telemetry_c.perf_counters` carries `cache_mode="warm"`, ROI counts that follow Stage A ROI mode, forward_time stats, and detector-offset metadata so canonical runs prove the warm ROI path is active. Emit these metrics via `_record_stage_telemetry`.
-- Test: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=full DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T133500Z/telemetry_stage_bc_full.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::{test_stage_b_shell_modifiers,test_stage_c_detector_microslip} | tee plans/active/PERF-WARM-SIM-001/reports/2025-11-21T133500Z/pytest_stage_bc_full.log
-- Benchmark: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python plans/active/PERF-WARM-SIM-001/bin/benchmark_stage_a_cache.py --modes warm cold --artifacts plans/active/PERF-WARM-SIM-001/reports/2025-11-21T133500Z/
-- Artifacts: plans/active/PERF-WARM-SIM-001/reports/2025-11-21T133500Z/
+- Implement: dbex/nanobrag_refinement.py::run_nanobrag_refinement — add a Stage B ROI-mode path that iterates StageAContext.roi_entries whenever Stage A ROI mode is active, so shell modifiers operate on the warmed ROI simulators instead of whole panels and telemetry/perf counters record ROI totals accurately.
+- Implement: tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers — update the perf counter asserts to expect `roi_mode` to follow the Stage A ROI knob ("roi" for cropped smokes, "panel" for canonical runs) and validate ROI totals/sample counts for both detector sizes.
+- Test: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T121804Z/telemetry_stage_b_small.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small | tee plans/active/PERF-WARM-SIM-001/reports/2025-11-21T121804Z/pytest_stage_b_small.log
+- Re-test: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=full DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T121804Z/telemetry_stage_b_full.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=full | tee plans/active/PERF-WARM-SIM-001/reports/2025-11-21T121804Z/pytest_stage_b_full.log
+- Artifacts: plans/active/PERF-WARM-SIM-001/reports/2025-11-21T121804Z/
 
 How-To Map:
-1. Stage B perf assertions: in tests/dbex/test_torch_refine_smoke.py (~line 819) add a `perf = telemetry_b.perf_counters` guard plus asserts on `cache_mode`, `roi_mode`, `roi_count_total`, `roi_count_sampled`, `closure_evals`, and `forward_time_ms["total"] > 0`. Reuse the canonical ROI count (`len(refinement_inputs.panel_slices)`) for comparisons and include these fields in the `_record_stage_telemetry` payload.
-2. Stage C perf assertions: in tests/dbex/test_torch_refine_smoke.py (~line 600) add the analogous `perf = telemetry_c.perf_counters` asserts plus checks that `telemetry_c.roi_mode == "roi"` when Stage A ROI mode is enabled and that detector-offset stats remain ≥80% reduction for full-detector strict gates. Emit the perf counter dict inside `_record_stage_telemetry` so the telemetry JSON mirrors new asserts.
-3. Full-detector warm run: execute the provided pytest command with `DBEX_SMOKE_DETECTOR_SIZE=full` and telemetry path pointing to `telemetry_stage_bc_full.json`; verify the JSON shows `cache_mode="warm"`, ROI counts, and monotonic chi-squared traces for both stages before archiving the log/telemetry under the artifacts directory.
-4. Warm vs cold benchmark: re-run `benchmark_stage_a_cache.py --modes warm cold` with the same artifact directory to regenerate `benchmark_summary.json`, `benchmark_report.txt`, and `{warm,cold}_perf_counters.json` so the findings ledger can cite the canonical ROI vs panel delta alongside the full-detector Stage smokes.
-5. Documentation updates: append the measured perf deltas to `docs/findings.md` (new PERF-WARM entry) and log the evidence paths in `docs/fix_plan.md` once the tests/benchmark pass.
+1. Wire a `stage_b_roi_mode_active` flag in `dbex/nanobrag_refinement.py` (near lines 1540-2100) that mirrors Stage A’s ROI knob when the warm cache has ROI entries, and branch `compute_loss_stage_b` so ROI work items index `stage_a_ctx.roi_entries` with slice-level target/mask tensors instead of whole panels.
+2. Update the Stage B ROI sampler/perf counters to iterate ROI indices when ROI mode is active, track sampled ROI counts (not just panel IDs), and surface the active `roi_mode` string through both telemetry and the perf counter dict.
+3. Refresh `tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers` to assert the new ROI-mode behavior: cropped smoke runs must report `cache_mode="warm"`, `roi_mode="roi"`, and sampled ROI totals that match `len(refinement_inputs.panel_slices)`, while canonical full-detector runs must fall back to panel mode but keep the perf counters >0.
+4. Run the small-detector Stage B smoke command (env + telemetry path above) and inspect the resulting telemetry JSON/log to ensure ROI metrics populate; repeat with `--smoke-detector-size=full` to confirm panel fallback, storing both logs/telemetry under the new artifacts directory.
 
 Pitfalls To Avoid:
-- Keep `NANOBRAGG_DISABLE_COMPILE=1` and `KMP_DUPLICATE_LIB_OK=TRUE`; the Stage smokes use CUDA contexts and will fail or deadlock if those flags drop.
-- Do not relax Stage B/C gates; strict tolerances from docs/TESTING_GUIDE.md:31 still apply when running the full detector.
-- Ensure perf counter asserts degrade gracefully when `perf_counters` is `None` (e.g., cold mode) by guarding on warm cache flags instead of unconditional indexing.
-- Remember Stage C ROI mode only activates when Stage A warm cache is enabled; avoid forcing ROI assertions in cold control paths.
-- Leave Stage A ROI sampling code untouched—layered-scope guard prohibits mixing Stage A refactors into this loop.
+- Do not touch Stage A ROI sampling seeds or `StageAContext` structure—reuse the existing sampled index lists so determinism holds.
+- Keep the variance-weighted loss math identical for ROI vs panel paths (refs: docs/spec-db-core.md §57-68); only change the loops/samplers.
+- Stage B warm cache must stay optional: when ROI mode is disabled or stage_a_ctx is None, fall back cleanly to the current panel code without dereferencing ROI entries.
+- Ensure perf counter dicts always include numeric values (ints/floats) even in cold-mode to avoid breaking telemetry serialization.
+- Guard the test asserts with informative messages so perf regressions point at `cache_mode`/`roi_mode` mismatches instead of generic failures.
+- Leave Stage C ROI logic untouched; only Stage B should change in this loop per layered-scope guard.
 
 If Blocked:
-- Capture the failing selector output plus the telemetry JSON snippet to plans/active/PERF-WARM-SIM-001/reports/2025-11-21T133500Z/blockers.txt, note the error in docs/fix_plan.md Attempts History, and update galph_memory.md with `state=blocked` plus the failing command before switching focus.
+- Capture the failing pytest output (`tee` log), the telemetry JSON snippet showing the mismatch, and log the command + error message in plans/active/PERF-WARM-SIM-001/reports/2025-11-21T121804Z/blockers.txt.
+- Update docs/fix_plan.md Attempts History and galph_memory.md with the blocking evidence, then switch focus per instructions.
 
 Findings Applied (Mandatory):
-- PERF-WARM-003 — ROI sampling is required to escape the 1.01× plateau, so asserts must guarantee Stage B/C stay on the warm path.
-- PERF-WARM-004 — Simulator instantiation overhead alone was insufficient; perf counters verify we are reusing the warmed context rather than reconstructing per closure.
-- PERF-WARM-005 — Cold control paths must render full panels; benchmark rerun confirms the ≥10× ROI vs panel delta captured earlier still holds on the canonical dataset.
-- PERF-WARM-006 — Stage C relies on Stage A detector configs and ROI metadata; telemetry asserts need to fail fast if the handoff regresses.
+- PERF-WARM-003 — ROI sampling is required to break the 1.01× plateau, so Stage B must honor the ROI mode instead of rendering whole panels.
+- PERF-WARM-005 — Benchmark evidence (plans/active/PERF-WARM-SIM-001/reports/2025-11-21T103232Z/) shows ROI vs panel yields ≥10× wins; this change preserves that ROI mode into Stage B telemetry.
+- PERF-WARM-006 — Stage B/C must reuse Stage A detector configs/masks; ensure the ROI branch takes advantage of StageAContext caches rather than rebuilding.
+- PERF-WARM-007 — Canonical Stage B/C perf counters now gate warm-cache behavior; updated tests must keep those asserts strict so regressions fail quickly.
 
 Pointers:
-- tests/dbex/test_torch_refine_smoke.py:600 — Stage C smoke harness where the new perf assertions belong.
-- tests/dbex/test_torch_refine_smoke.py:819 — Stage B smoke harness that needs the perf counter guard and `_record_stage_telemetry` update.
-- docs/TESTING_GUIDE.md:31 — Detector-size policy and strict gates for canonical Stage smokes.
-- plans/active/PERF-WARM-SIM-001/bin/benchmark_stage_a_cache.py:1 — Warm vs cold benchmark script used to publish ROI vs panel telemetry.
+- dbex/nanobrag_refinement.py:1540 — Stage B warm-cache plumbing and `compute_loss_stage_b` implementation that needs the ROI branch.
+- tests/dbex/test_torch_refine_smoke.py:920 — Stage B smoke harness where the perf counter assertions live.
+- docs/TESTING_GUIDE.md:31-53 — Detector-size and telemetry guardrails that define the strict gates for canonical runs.
+- plans/active/PERF-WARM-SIM-001/reports/2025-11-21T133500Z/benchmark_summary.json — Latest warm-vs-cold metrics to cite in findings after verification.
 
-Next Up (optional): If this loop lands cleanly, explore a follow-on Do Now to add Stage B ROI-aware sampling so perf counters reflect sub-panel batching and we can expand the benchmark script beyond Stage A.
+Next Up (optional): If Stage B ROI mode lands cleanly, consider rerunning `benchmark_stage_a_cache.py --modes warm cold` to refresh the findings with the new ROI counters.
+
+Doc Sync Plan (Conditional): Not needed — no new selectors or renamed tests in this loop.
+
+Mapped Tests Guardrail: Stage B selector already collects >0 cases; if `pytest --collect-only` ever returns 0, author a minimal test before landing code.
+
+Hard Gate: Do not mark the initiative done unless both Stage B smoke runs (small + full) pass with telemetry capturing non-zero ROI/panel counts per docs/TESTING_GUIDE.md §2.
+
+Normative Math/Physics: Follow docs/spec-db-core.md §57-68 for the variance-weighted chi-squared equation; ROI-mode must use the same `Sum((pred-obs)^2 / (pred.detach()+sigma^2))` definition with the sigma_floor clamp.

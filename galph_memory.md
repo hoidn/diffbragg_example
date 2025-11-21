@@ -421,3 +421,12 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-21T133500Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=1 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T133500Z/ next_action=stage_bc_full_detector_perf_impl
+## 2025-11-21T121804Z — PERF-WARM-SIM-001 Stage B ROI planning
+- Focus: PERF-WARM-SIM-001 — Warm simulator; eliminate per-iteration re-instantiation
+- Action Type: planning
+- Key Observations: Stage B still iterates entire panels even when Stage A ROI mode is active, so perf counters always report `roi_mode="panel"` and the warm-cache ROI savings recorded in PERF-WARM-005 never reach Stage B telemetry. Drafted a Do Now for Ralph to add an ROI-aware Stage B closure (reusing `StageAContext.roi_entries`), update the perf counter asserts, and rerun the Stage B smoke on both the cropped and canonical detector sizes so we can verify ROI/panel telemetry in the same loop. Fix-plan ledger now tracks PERF-WARM-SIM-001 with the refreshed scope, and `input.md` maps the Stage B ROI implementation plus twin pytest runs with telemetry capture under the new artifact directory.
+- Artifact Path: plans/active/PERF-WARM-SIM-001/reports/2025-11-21T121804Z/
+- Next Actions: Implement the ROI-aware Stage B compute path, refresh the smoke test asserts, and replay Stage B smokes (small + full) to capture telemetry/log evidence for docs/fix_plan + findings updates.
+- <Action State>: [ready_for_implementation]
+
+2025-11-21T121804Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=0 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T121804Z/ next_action=stage_b_roi_mode_impl

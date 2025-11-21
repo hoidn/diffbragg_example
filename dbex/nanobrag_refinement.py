@@ -2011,9 +2011,11 @@ def run_nanobrag_refinement(
             d_max_shell = float(shell_edges[shell_idx].item())
             param_deltas_b[f"shell_{shell_idx}_modifier (d={d_min_shell:.2f}-{d_max_shell:.2f}Å)"] = float(shell_modifiers_final_np[shell_idx])
 
-        # PERF-WARM-SIM-001: ROI counts reflect the active mode (roi vs panel)
-        stage_b_roi_count_total = stage_b_total_work_items
-        stage_b_roi_count_sampled = len(sampled_stage_b_indices)
+        # PERF-WARM-SIM-001: ROI counts always reflect the canonical ROI count for consistency
+        # When in panel mode, we're evaluating all ROIs via panel rendering
+        # When in ROI mode, we sample a subset. The roi_mode field distinguishes the execution path.
+        stage_b_roi_count_total = canonical_roi_count
+        stage_b_roi_count_sampled = canonical_roi_count if not use_stage_b_roi_mode else len(sampled_stage_b_indices)
 
         forward_stats_b = {
             'mean': float(np.mean(perf_forward_times_ms_b)) if perf_forward_times_ms_b else 0.0,

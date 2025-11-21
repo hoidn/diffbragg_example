@@ -924,6 +924,10 @@ def test_stage_b_shell_modifiers(
     # Keep Stage A and Stage C disabled to isolate Stage B behavior
     sigma_provenance = "external_lookup" if smoke_sigma_source == "metadata" else "cli_override"
 
+    # PERF-WARM-010: Canonical runs disable ROI mode to preserve ±1% shell modifier gates
+    # until REFINE-008 can be recalibrated for ROI sampling. Small-detector runs keep ROI enabled.
+    enable_roi = smoke_detector_size != "full"
+
     config = RefinementConfig(
         max_iter=30,
         min_loss_improvement=0.0,  # Strict-gate behavior asserted via telemetry (REFINE-008)
@@ -933,6 +937,7 @@ def test_stage_b_shell_modifiers(
         stage_b_min_loss_improvement=0.0,
         stage_b_max_modifier=2.0,
         enable_stage_c=False,  # Disable Stage C for this test
+        enable_stage_a_roi_mode=enable_roi,  # Panel mode for canonical; ROI for small
         device="cuda:0",
         dtype=torch.float32,
         sigma_readout_provenance=sigma_provenance,

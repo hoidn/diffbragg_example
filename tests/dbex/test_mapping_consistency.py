@@ -221,6 +221,13 @@ class TestDB_AT_024_Mapping:
             hkl_path=hkl_path,
             device="cpu",
         )
+        assert "chi_squared" in diagnostics, "simulate_forward_once must emit chi_squared telemetry"
+        assert diagnostics["chi_squared"] > 0, "chi_squared should be positive"
+        assert "sigma_floor_value" in diagnostics, "sigma_floor_value missing from diagnostics"
+        assert diagnostics["sigma_floor_value"] > 0, "sigma_floor_value must be > 0"
+        clamp_fraction = diagnostics.get("variance_floor_clamp_fraction")
+        assert clamp_fraction is not None, "variance_floor_clamp_fraction missing from diagnostics"
+        assert 0.0 <= clamp_fraction <= 1.0, "variance_floor_clamp_fraction must be within [0, 1]"
 
         # Compute per-ROI metrics
         roi_metrics = []
@@ -270,6 +277,11 @@ class TestDB_AT_024_Mapping:
                 "source": "tests/fixtures/golden_data/simple_cubic/config_torch.json",
             },
             "hkl_telemetry": diagnostics.get("hkl_telemetry", {}),  # MAP-SCALE-004
+            "canonical_loss": {
+                "chi_squared": float(diagnostics["chi_squared"]),
+                "sigma_floor_value": float(diagnostics["sigma_floor_value"]),
+                "variance_floor_clamp_fraction": float(clamp_fraction),
+            },
             "diagnostics": diagnostics,
         }
 

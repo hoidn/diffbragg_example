@@ -42,6 +42,22 @@ def _record_stage_telemetry(stage_label: str, telemetry, dataset_size: str, meta
         **metadata,
     }
 
+    canonical_stage_label = getattr(telemetry, "canonical_stage_label", None)
+    if canonical_stage_label is not None:
+        payload.update(
+            {
+                "canonical_stage_label": canonical_stage_label,
+                "canonical_chi_squared": getattr(telemetry, "canonical_chi_squared", None),
+                "canonical_chi_squared_iteration": getattr(
+                    telemetry, "canonical_chi_squared_iteration", None
+                ),
+                "canonical_roi_count": getattr(telemetry, "canonical_roi_count", None),
+                "canonical_detector_distances_mm": getattr(
+                    telemetry, "canonical_detector_distances_mm", None
+                ),
+            }
+        )
+
     existing: list = []
     if path.exists():
         try:
@@ -329,6 +345,9 @@ def test_stage_a_expansion(refgeom_dataload, refinement_inputs, hkl_data, smoke_
     assert telemetry.chi_squared_trace_full is not None, "Stage A chi-squared trace missing"
     assert len(telemetry.chi_squared_trace_full) > 0, "Stage A chi-squared trace empty"
     assert telemetry.best_loss_full[0] > 0, "Best loss invalid"
+    stage_a_initial_chi2 = telemetry.chi_squared_trace_full[0][1]
+    stage_a_final_chi2 = telemetry.chi_squared_trace_full[-1][1]
+    stage_a_final_iter = telemetry.chi_squared_trace_full[-1][0]
 
     # Verify all new DoF deltas are present (including misset_xyz_deg per TORCH-REFINE-002)
     required_params = ['log_scale', 'log_cell_a_delta', 'log_cell_b_delta', 'log_cell_c_delta',
@@ -352,6 +371,14 @@ def test_stage_a_expansion(refgeom_dataload, refinement_inputs, hkl_data, smoke_
     assert telemetry.variance_floor_value == pytest.approx(config.sigma_floor_value**2)
     assert telemetry.variance_floor_clamp_fraction is not None
     assert 0.0 <= telemetry.variance_floor_clamp_fraction <= 1.0
+    canonical_roi_count = len(refinement_inputs.panel_slices)
+    assert telemetry.canonical_stage_label == "A"
+    assert telemetry.canonical_chi_squared is not None
+    assert telemetry.canonical_chi_squared_iteration is not None
+    assert telemetry.canonical_roi_count == canonical_roi_count
+    if strict_gates:
+        assert telemetry.canonical_chi_squared == pytest.approx(stage_a_final_chi2, rel=5e-4)
+        assert telemetry.canonical_chi_squared_iteration == stage_a_final_iter
 
     # Check quaternion normalization (should be ~1.0)
     quat_norm = misset_xyz['quaternion_norm']
@@ -491,6 +518,9 @@ def test_stage_a_expansion(refgeom_dataload, refinement_inputs, hkl_data, smoke_
             "closure_evals": telemetry.perf_counters.get("closure_evals"),
             "validation_runs": telemetry.perf_counters.get("validation_runs"),
             "forward_time_ms": telemetry.perf_counters.get("forward_time_ms"),
+            "chi_squared_initial": float(stage_a_initial_chi2),
+            "chi_squared_final": float(stage_a_final_chi2),
+            "variance_floor_clamp_fraction": float(telemetry.variance_floor_clamp_fraction),
         },
     )
 

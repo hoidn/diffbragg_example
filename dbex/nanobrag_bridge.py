@@ -985,7 +985,8 @@ def simulate_forward_once(
     calibration: Optional[dict] = None,
     hkl_source: Optional[str] = None,
     hkl_path: Optional[str] = None,
-    device=None
+    device=None,
+    sigma_floor_value: float = 1.0,
 ) -> Tuple[np.ndarray, dict]:
     """
     Run zero-iteration forward simulation without HDF5 emission.
@@ -1016,6 +1017,7 @@ def simulate_forward_once(
         hkl_source: Optional telemetry tag ("refined" or "raw") for MTZ provenance
         hkl_path: Optional path to MTZ file for diagnostics
         device: torch.device for simulation (default cpu)
+        sigma_floor_value: Variance floor (sigma_floor) in target units (photons or ADU).
 
     Returns:
         bragg: Per-panel Bragg tensors [panel, slow, fast] as float32 numpy array
@@ -1036,6 +1038,9 @@ def simulate_forward_once(
                 - hkl_n_reflections: Number of reflections
                 - hkl_mean_amplitude: Mean structure factor amplitude
                 - hkl_path: Path to MTZ file (or empty string if not provided)
+            - chi_squared: Variance-weighted chi-squared sum (spec-db-core.md:57-68)
+            - sigma_floor_value: Variance floor (sigma_floor) used in diagnostics
+            - variance_floor_clamp_fraction: Fraction of masked pixels clamped to sigma_floor^2
 
     Raises:
         ImportError: If nanobrag_torch is not available
@@ -1186,9 +1191,28 @@ def simulate_forward_once(
     bragg_raw_mean_masked = float(bragg_raw[inputs.loss_mask].mean()) if inputs.loss_mask.sum() > 0 else float('nan')
     target_bragg_raw_mean_ratio = target_mean_masked / bragg_raw_mean_masked if bragg_raw_mean_masked != 0.0 and not np.isnan(bragg_raw_mean_masked) else float('nan')
 
+    if sigma_floor_value <= 0:
+        raise ValueError(
+            f"sigma_floor_value must be > 0 (got {sigma_floor_value}). "
+            "Per spec-db-core.md:67 the variance floor enforces a physical lower bound."
+        )
+
     # Compute diagnostics
-    masked_diff = np.where(inputs.loss_mask, inputs.target - bragg, 0.0)
-    masked_mse = float((masked_diff ** 2).sum() / inputs.loss_mask.sum()) if inputs.loss_mask.sum() > 0 else float('nan')
+    masked_pixels = int(inputs.loss_mask.sum())
+    target_float = inputs.target.astype(np.float64)
+    bragg_float = bragg.astype(np.float64)
+    masked_diff = np.where(inputs.loss_mask, target_float - bragg_float, 0.0)
+    masked_mse = float((masked_diff ** 2).sum() / masked_pixels) if masked_pixels > 0 else float('nan')
+
+    sigma_floor_sq = float(sigma_floor_value ** 2)
+    sigma_sq = inputs.sigma_readout.astype(np.float64) ** 2
+    variance_raw = bragg_float + sigma_sq
+    variance = np.maximum(variance_raw, sigma_floor_sq)
+    diff_sq = (bragg_float - target_float) ** 2
+    weighted = diff_sq / variance
+    chi_squared = float(weighted[inputs.loss_mask].sum()) if masked_pixels > 0 else float('nan')
+    clamp_pixels = int(np.logical_and(inputs.loss_mask, variance_raw < sigma_floor_sq).sum())
+    clamp_fraction = float(clamp_pixels / masked_pixels) if masked_pixels > 0 else 0.0
 
     diagnostics = {
         "masked_mse": masked_mse,
@@ -1221,7 +1245,12 @@ def simulate_forward_once(
             "hkl_n_reflections": len(hkl_indices),
             "hkl_mean_amplitude": float(hkl_amplitudes.mean()),
             "hkl_path": hkl_path if hkl_path is not None else ""
-        }
+        },
+        "chi_squared": chi_squared,
+        "sigma_floor_value": float(sigma_floor_value),
+        "variance_floor_clamp_fraction": clamp_fraction,
+        "variance_floor_masked_pixels": masked_pixels,
+        "variance_floor_clamped_pixels": clamp_pixels,
     }
 
     return bragg, diagnostics

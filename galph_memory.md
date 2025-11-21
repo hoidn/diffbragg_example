@@ -440,3 +440,12 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-21T124101Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=0 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T124101Z/ next_action=stage_b_roi_telemetry_capture
+## 2025-11-21T125551Z — PERF-WARM-SIM-001 Stage B telemetry unblock plan
+- Focus: PERF-WARM-SIM-001 — Warm simulator; eliminate per-iteration re-instantiation
+- Action Type: planning
+- Key Observations: Stage B telemetry files under `plans/active/PERF-WARM-SIM-001/reports/2025-11-21T124101Z/` omit `param_deltas` because `_record_stage_telemetry` (tests/dbex/test_torch_refine_smoke.py:29-80) only persists perf counters/loss traces even though Stage B populates shell modifier deltas inside `dbex/nanobrag_refinement.py:1989-2056`. Documented the gap in docs/fix_plan.md and rewrote input.md with a Do Now that patches the telemetry writer, fixes the ROI summary script parser, reruns both detector-size Stage B smokes with telemetry capture, and records the resulting stage_b_roi_summary.json artifacts under 2025-11-21T125551Z/.
+- Artifact Path: plans/active/PERF-WARM-SIM-001/reports/2025-11-21T125551Z/
+- Next Actions: Ralph implements the telemetry/script fixes, reruns the Stage B smokes (small + full), runs the summary CLI, and updates docs/fix_plan + findings with the new evidence so we can resume ROI benchmarking.
+- <Action State>: [ready_for_implementation]
+
+2025-11-21T125551Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=0 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T125551Z/ next_action=stage_b_telemetry_fix

@@ -208,7 +208,7 @@ def create_perturbed_geometry(crystal, detector, beam, seed=42, enable_detector_
 
 
 @pytest.fixture
-def refinement_inputs(refgeom_dataload):
+def refinement_inputs(refgeom_dataload, smoke_sigma_source, request):
     """Prepare RefinementInputs from refGeom DataLoad (no perturbation)."""
     from dbex.nanobrag_bridge import prepare_refinement_inputs
     import numpy as np
@@ -226,8 +226,24 @@ def refinement_inputs(refgeom_dataload):
         trusted_masks.append(mask)
 
     # Provide deterministic sigma_readout for variance-weighted loss stability (PHYSICS-LOSS-001)
-    # Use 3.0 ADU as representative readout noise (prevents chi-squared explosion when predictions → 0)
-    sigma_readout_array = np.full_like(refgeom_dataload.data, 3.0, dtype=np.float32)
+    if smoke_sigma_source == "metadata":
+        allow_metadata = request.node.get_closest_marker("allow_metadata_sigma") is not None
+        if not allow_metadata:
+            pytest.skip(
+                "Metadata sigma source requested but this test still relies on CLI overrides. "
+                "TODO(PHYSICS-LOSS-001 Phase G): extend Stage B/C smokes to support metadata tiles."
+            )
+        sigma_map = getattr(refgeom_dataload, "sigma_readout_map", None)
+        if sigma_map is None:
+            pytest.skip(
+                "Metadata sigma source requested but DataLoad lacks sigma_readout_map. "
+                "Run plans/active/PHYSICS-LOSS-001/bin/embed_sigma_external_lookup.py "
+                "to embed ExternalLookup tiles."
+            )
+        sigma_readout_array = np.asarray(sigma_map, dtype=np.float32)
+    else:
+        # Use 3.0 ADU as representative readout noise (prevents chi-squared explosion when predictions → 0)
+        sigma_readout_array = np.full_like(refgeom_dataload.data, 3.0, dtype=np.float32)
 
     inputs = prepare_refinement_inputs(
         data=refgeom_dataload.data,
@@ -264,7 +280,14 @@ def hkl_data(refgeom_dataload):
     return hkl_grid, hkl_metadata
 
 
-def test_stage_a_expansion(refgeom_dataload, refinement_inputs, hkl_data, smoke_detector_size):
+@pytest.mark.allow_metadata_sigma
+def test_stage_a_expansion(
+    refgeom_dataload,
+    refinement_inputs,
+    hkl_data,
+    smoke_detector_size,
+    smoke_sigma_source,
+):
     """
     Verify Stage A LBFGS refinement with full crystal DoFs achieves ≥0.2% loss decrease.
 
@@ -302,7 +325,10 @@ def test_stage_a_expansion(refgeom_dataload, refinement_inputs, hkl_data, smoke_
         roi_sample_fraction=0.15,
         full_validation_interval=5,
         min_loss_improvement=0.002 if strict_gates else 0.0,
-        enable_hkl_interpolation=True  # TORCH-REFINE-002D: Enable tricubic with haloed grid
+        enable_hkl_interpolation=True,  # TORCH-REFINE-002D: Enable tricubic with haloed grid
+        sigma_readout_provenance=(
+            "external_lookup" if smoke_sigma_source == "metadata" else "cli_override"
+        ),
     )
 
     # Create perturbed geometry (TORCH-REFINE-002D)
@@ -376,9 +402,15 @@ def test_stage_a_expansion(refgeom_dataload, refinement_inputs, hkl_data, smoke_
     assert telemetry.canonical_chi_squared is not None
     assert telemetry.canonical_chi_squared_iteration is not None
     assert telemetry.canonical_roi_count == canonical_roi_count
-    if strict_gates:
+    if smoke_sigma_source == "metadata":
+        assert telemetry.sigma_readout_provenance == "external_lookup"
         assert telemetry.canonical_chi_squared == pytest.approx(stage_a_final_chi2, rel=5e-4)
         assert telemetry.canonical_chi_squared_iteration == stage_a_final_iter
+    else:
+        assert telemetry.sigma_readout_provenance in {None, "cli_override"}
+        if strict_gates:
+            assert telemetry.canonical_chi_squared == pytest.approx(stage_a_final_chi2, rel=5e-4)
+            assert telemetry.canonical_chi_squared_iteration == stage_a_final_iter
 
     # Check quaternion normalization (should be ~1.0)
     quat_norm = misset_xyz['quaternion_norm']
@@ -521,6 +553,7 @@ def test_stage_a_expansion(refgeom_dataload, refinement_inputs, hkl_data, smoke_
             "chi_squared_initial": float(stage_a_initial_chi2),
             "chi_squared_final": float(stage_a_final_chi2),
             "variance_floor_clamp_fraction": float(telemetry.variance_floor_clamp_fraction),
+            "sigma_readout_provenance": telemetry.sigma_readout_provenance,
         },
     )
 
@@ -571,7 +604,8 @@ def test_stage_c_detector_microslip(refgeom_dataload, refinement_inputs, hkl_dat
         enable_hkl_interpolation=True,  # Tricubic with haloed grid
         enable_stage_c=True,  # Enable Stage C detector distance refinement
         stage_c_min_loss_improvement=0.0,
-        stage_c_max_distance_delta_mm=0.5  # ±0.5mm max offset per panel
+        stage_c_max_distance_delta_mm=0.5,  # ±0.5mm max offset per panel
+        sigma_readout_provenance="cli_override",
     )
 
     # Create perturbed geometry with detector offsets (TORCH-REFINE-003)
@@ -818,7 +852,8 @@ def test_stage_b_shell_modifiers(refgeom_dataload, refinement_inputs, hkl_data, 
         stage_b_max_modifier=2.0,
         enable_stage_c=False,  # Disable Stage C for this test
         device="cuda:0",
-        dtype=torch.float32
+        dtype=torch.float32,
+        sigma_readout_provenance="cli_override",
     )
 
     # Run refinement (Stage A + Stage B)

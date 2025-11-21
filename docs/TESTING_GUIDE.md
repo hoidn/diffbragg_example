@@ -83,6 +83,16 @@ CUDA_VISIBLE_DEVICES='' TORCHDYNAMO_DISABLE=1 NANOBRAGG_DISABLE_COMPILE=1 \
 - The nanobrag CLI SHALL refuse to launch unless a strictly positive detector readout noise source is available via the precedence chain `--sigma-rdout` (scalar) > `--sigma-map` (calibrated tensor) > metadata harvested from `Experiment.imageset.external_lookup`. Calibrated maps may be `.npy/.npz` stacks shaped `[panel, slow, fast]` or pickled tuples of per-panel numpy/flex arrays; metadata tiles are `ExternalLookupItemDouble` payloads (pedestal/dark RMS) that must align with the detector panel count. All values MUST be in ADU (the CLI converts to photons when `--adu-per-photon` is supplied). Silent fallbacks to zero variance remain prohibited.
 - Telemetry: Stage A/B/C groups inside `/torch_diagnostics` now record `sigma_readout_provenance` (e.g., `cli_override`, `calibrated_map`, `external_lookup`) and `sigma_readout_reference_value` (target units, photons when gains are provided). Downstream tooling should assert these attrs when validating chi-squared traces, especially when calibrated maps are injected.
 - Regression coverage: `tests/dbex/test_refine_one_cli.py::{test_nanobrag_backend_requires_sigma_rdout,test_nanobrag_backend_accepts_sigma_map,test_nanobrag_backend_accepts_external_lookup_sigma_map,test_torch_diagnostics_metadata}` exercises the CLI guard, calibrated-map happy path, metadata provenance, and telemetry. Loader coverage lives in `tests/dbex/test_data_load_sigma_map.py::{test_sigma_map_loader_formats,test_external_lookup_sigma_map_ingestion,test_external_lookup_shape_or_value_errors}`. Collection logs for these selectors reside under `plans/active/PHYSICS-LOSS-001/reports/2025-11-21T063052Z/` (`collect_cli_sigma_map.log`, `collect_data_load_sigma_map.log`); pytest logs share the same prefix (`pytest_cli_sigma_map.log`, `pytest_data_load_sigma_map.log`).
+- Metadata fixtures for Stage smokes: `plans/active/PHYSICS-LOSS-001/bin/embed_sigma_external_lookup.py` clones `refGeom.expt` and injects deterministic sigma tiles either from a calibrated map (`--sigma-map`) or a uniform constant (`--sigma-value`). The script writes a new Experiment (`sp.proc/idx-0000_sigma_metadata.expt`) plus a pickle asset (`idx-0000_sigma_metadata.sigma_tiles.pkl`) and JSON provenance. Example command (Phase G canonical):
+  ```
+  python plans/active/PHYSICS-LOSS-001/bin/embed_sigma_external_lookup.py \
+    --expt refGeom.expt \
+    --output sp.proc/idx-0000_sigma_metadata.expt \
+    --expt-idx 0 \
+    --sigma-value 3.0 \
+    --report plans/active/PHYSICS-LOSS-001/reports/2025-11-21T065454Z/sigma_metadata.json
+  ```
+  The Stage A smoke now accepts `--smoke-sigma-source={cli_override,metadata}` (env override `DBEX_SMOKE_SIGMA_SOURCE`). Metadata runs require `DBEX_SMOKE_DETECTOR_SIZE=full` and the pre-generated `.expt`; Stage B/C remain on `cli_override` until follow-up work lands. Artifacts for the metadata acceptance gate (telemetry JSON, `pytest_stage_a_metadata.log`, sigma report) live under `plans/active/PHYSICS-LOSS-001/reports/2025-11-21T065454Z/`.
 
 ## 2. Test Taxonomy
 

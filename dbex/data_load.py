@@ -175,6 +175,18 @@ def _load_external_lookup_sigma_map(
             f"Expected sigma map shape (panels, slow, fast), got {expected}."
         )
 
+    params = getattr(imageset, "params", None)
+    if isinstance(params, dict):
+        sigma_path = params.get("sigma_map_path")
+        if sigma_path and Path(sigma_path).exists():
+            sigma_array = load_sigma_readout_map(sigma_path, expected)
+            metadata = {
+                "lookup_key": "params.sigma_map_path",
+                "filename": str(Path(sigma_path)),
+                "tile_count": int(expected[0]),
+            }
+            return sigma_array, metadata
+
     if imageset is None or not hasattr(imageset, "external_lookup"):
         return None, None
 
@@ -200,6 +212,46 @@ def _load_external_lookup_sigma_map(
     n_panels, slow, fast = expected
     image_data = source_item.data
     n_tiles = image_data.n_tiles()
+    filename = getattr(source_item, "filename", None)
+
+    if n_tiles == 0:
+        path = Path(filename) if filename else None
+        if path and path.exists():
+            sigma_array = None
+            if path.suffix.lower() in {".npy", ".npz"}:
+                sigma_array = load_sigma_readout_map(str(path), expected)
+            else:
+                with open(path, "rb") as fh:
+                    payload = pickle.load(fh)
+                if isinstance(payload, (list, tuple)):
+                    panel_arrays = []
+                    for panel_idx, tile in enumerate(payload):
+                        flex_tile = getattr(tile, "data", None)
+                        if flex_tile is None:
+                            continue
+                        arr = np.array(
+                            flex_tile.as_numpy_array(), dtype=np.float32, copy=True
+                        )
+                        if arr.shape != (slow, fast):
+                            raise ValueError(
+                                f"External lookup '{source_key}' pickle tile {panel_idx} "
+                                f"has shape {arr.shape}, expected {(slow, fast)}."
+                            )
+                        panel_arrays.append(arr)
+                    if panel_arrays:
+                        sigma_array = np.stack(panel_arrays, axis=0)
+            if sigma_array is not None:
+                metadata = {
+                    "lookup_key": source_key,
+                    "filename": str(path),
+                    "tile_count": n_panels,
+                }
+                return sigma_array, metadata
+        raise ValueError(
+            f"External lookup '{source_key}' has no in-memory tiles and filename '{filename}' "
+            "does not reference a readable sigma map. Ensure the embedding script wrote "
+            "a pickle/.npy asset alongside the .expt."
+        )
 
     if n_tiles != n_panels:
         raise ValueError(

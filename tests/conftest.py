@@ -1,5 +1,5 @@
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 import pytest
@@ -24,6 +24,16 @@ def pytest_addoption(parser):
             "Defaults to DBEX_SMOKE_DETECTOR_SIZE env var or 'small'."
         ),
     )
+    parser.addoption(
+        "--smoke-sigma-source",
+        action="store",
+        default=None,
+        choices=("cli_override", "metadata"),
+        help=(
+            "Select sigma_readout source for Stage smokes. Defaults to "
+            "DBEX_SMOKE_SIGMA_SOURCE env var or 'cli_override'."
+        ),
+    )
 
 
 def _resolve_smoke_detector_size(pytestconfig) -> str:
@@ -37,13 +47,29 @@ def _resolve_smoke_detector_size(pytestconfig) -> str:
     return size
 
 
+def _resolve_smoke_sigma_source(pytestconfig) -> str:
+    cli_value = pytestconfig.getoption("--smoke-sigma-source")
+    env_value = os.environ.get("DBEX_SMOKE_SIGMA_SOURCE")
+    source = (cli_value or env_value or "cli_override").lower()
+    if source not in {"cli_override", "metadata"}:
+        raise pytest.UsageError(
+            f"Invalid smoke-sigma-source '{source}'. Expected 'cli_override' or 'metadata'."
+        )
+    return source
+
+
 @pytest.fixture(scope="session")
 def smoke_detector_size(pytestconfig) -> str:
     return _resolve_smoke_detector_size(pytestconfig)
 
 
 @pytest.fixture(scope="session")
-def smoke_dataset_paths(smoke_detector_size) -> SmokeDatasetPaths:
+def smoke_sigma_source(pytestconfig) -> str:
+    return _resolve_smoke_sigma_source(pytestconfig)
+
+
+@pytest.fixture(scope="session")
+def smoke_dataset_paths(smoke_detector_size, smoke_sigma_source) -> SmokeDatasetPaths:
     repo_root = Path(__file__).resolve().parent.parent
     if smoke_detector_size == "small":
         base = repo_root / "sp.proc" / "refGeom_small"
@@ -60,6 +86,17 @@ def smoke_dataset_paths(smoke_detector_size) -> SmokeDatasetPaths:
             refl_path=repo_root / "refGeom.refl",
             mask_path=repo_root / "747_mask.pkl",
         )
+
+    if smoke_sigma_source == "metadata":
+        metadata_expt = repo_root / "sp.proc" / "idx-0000_sigma_metadata.expt"
+        if not metadata_expt.exists():
+            pytest.skip(
+                "Metadata sigma source requested but "
+                "sp.proc/idx-0000_sigma_metadata.expt is missing. "
+                "Run plans/active/PHYSICS-LOSS-001/bin/embed_sigma_external_lookup.py "
+                "with --sigma-value/--sigma-map to generate the fixture."
+            )
+        dataset = replace(dataset, expt_path=metadata_expt)
 
     missing = [
         str(path)

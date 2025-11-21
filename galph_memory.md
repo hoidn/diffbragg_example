@@ -310,3 +310,13 @@
 - Next Actions: Ralph implements the calibrated sigma-map ingestion path, runs the mapped CLI + helper pytest selectors, and syncs docs per the refreshed input.md.
 - <Action State>: [ready_for_implementation]
 2025-11-21T060701Z focus=PHYSICS-LOSS-001 state=ready_for_implementation dwell=2 artifacts=plans/active/PHYSICS-LOSS-001/reports/2025-11-21T060701Z/ next_action=ship_sigma_map_loader
+
+## 2025-11-21T063052Z — PHYSICS-LOSS-001 external-lookup metadata plan
+- Focus: PHYSICS-LOSS-001 — Implement variance-weighted loss function
+- Action Type: planning
+- Key Observations: Reviewed the 2025-11-21T060701Z sigma-map artifacts, re-checked spec-db-core.md §Variance + docs/simtbx_api.md, and re-probed `sp.proc/idx-0000_refined.expt` to confirm `imageset.external_lookup.{gain,pedestal,mask}` still report `n_tiles=0`. Updated `docs/fix_plan.md`, Phase F in `plans/active/PHYSICS-LOSS-001/implementation.md`, and `docs/findings.md` (PHYSICS-LOSS-005) to scope the next increment: add a helper that harvests `ExternalLookupItemDouble` tiles into `[panel, slow, fast]` tensors, enforces positivity, plumbs provenance through `_resolve_sigma_readout`, and extends loader/CLI tests plus Testing Guide/Test Suite Index entries so metadata becomes the default sigma source once available.
+- Artifact Path: plans/active/PHYSICS-LOSS-001/reports/2025-11-21T063052Z/
+- Next Actions: Ralph builds the external-lookup helper + provenance plumbing, updates docs, and reruns the sigma CLI + loader selectors while archiving logs in the new artifact directory.
+- <Action State>: [ready_for_implementation]
+
+2025-11-21T063052Z focus=PHYSICS-LOSS-001 state=ready_for_implementation dwell=0 artifacts=plans/active/PHYSICS-LOSS-001/reports/2025-11-21T063052Z/ next_action=external_lookup_metadata_implementation

@@ -754,7 +754,8 @@ def run_nanobrag_refinement(
         # Variance-weighted chi-squared loss (spec-db-core.md:57-68)
         # Variance = I_model.detach() + sigma_readout^2 (Poisson + readout noise in quadrature)
         # Detach denominator to prevent "attraction to zero" (IRLS approach)
-        variance = torch.clamp(bragg_scaled.detach() + sigma_subset**2, min=1e-12)
+        # Floor at 1.0 prevents chi-squared explosion when predictions approach zero (GPU stability)
+        variance = torch.clamp(bragg_scaled.detach() + sigma_subset**2, min=1.0)
 
         # Numerator: (I_model - I_obs)^2, masked
         diff = bragg_scaled - target_subset
@@ -1293,7 +1294,7 @@ def run_nanobrag_refinement(
 
                 # Variance-weighted chi-squared loss (spec-db-core.md:57-68)
                 # Variance = I_model.detach() + sigma_readout^2 (Poisson + readout noise in quadrature)
-                variance = torch.clamp(bragg_scaled.detach() + sigma_panel**2, min=1e-12)
+                variance = torch.clamp(bragg_scaled.detach() + sigma_panel**2, min=1.0)
 
                 # Numerator: (I_model - I_obs)^2, masked
                 diff = bragg_scaled - target_panel
@@ -1681,7 +1682,7 @@ def run_nanobrag_refinement(
             # Variance-weighted chi-squared loss (spec-db-core.md:57-68)
             # Variance = I_model.detach() + sigma_readout^2 (Poisson + readout noise in quadrature)
             # Detach denominator to prevent "attraction to zero" (IRLS approach)
-            variance = torch.clamp(bragg_scaled.detach() + sigma_subset**2, min=1e-12)
+            variance = torch.clamp(bragg_scaled.detach() + sigma_subset**2, min=1.0)
 
             # Numerator: (I_model - I_obs)^2, masked
             diff = bragg_scaled - target_subset

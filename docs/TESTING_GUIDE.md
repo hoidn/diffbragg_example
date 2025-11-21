@@ -92,7 +92,19 @@ CUDA_VISIBLE_DEVICES='' TORCHDYNAMO_DISABLE=1 NANOBRAGG_DISABLE_COMPILE=1 \
     --sigma-value 3.0 \
     --report plans/active/PHYSICS-LOSS-001/reports/2025-11-21T065454Z/sigma_metadata.json
   ```
-  The Stage A smoke now accepts `--smoke-sigma-source={cli_override,metadata}` (env override `DBEX_SMOKE_SIGMA_SOURCE`). Metadata runs require `DBEX_SMOKE_DETECTOR_SIZE=full` and the pre-generated `.expt`; Stage B/C remain on `cli_override` until follow-up work lands. Artifacts for the metadata acceptance gate (telemetry JSON, `pytest_stage_a_metadata.log`, sigma report) live under `plans/active/PHYSICS-LOSS-001/reports/2025-11-21T065454Z/`.
+  Stage A/B/C smokes are all marked with `@pytest.mark.allow_metadata_sigma`, so pass `--smoke-sigma-source=metadata` (or export `DBEX_SMOKE_SIGMA_SOURCE=metadata`) to exercise DIALS external_lookup provenance; full-detector runs remain mandatory. Canonical metadata commands (run from repo root with `KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 DBEX_SMOKE_DETECTOR_SIZE=full AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md`) capture logs under `plans/active/PHYSICS-LOSS-001/reports/<timestamp>/`:
+  ```
+  # Stage B shell modifiers (metadata sigma)
+  pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers \
+    --smoke-detector-size=full --smoke-sigma-source=metadata \
+    | tee plans/active/PHYSICS-LOSS-001/reports/2025-11-21T071912Z/pytest_stage_b_metadata.log
+
+  # Stage C detector microslip (metadata sigma)
+  pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip \
+    --smoke-detector-size=full --smoke-sigma-source=metadata \
+    | tee plans/active/PHYSICS-LOSS-001/reports/2025-11-21T071912Z/pytest_stage_c_metadata.log
+  ```
+  These runs assert that Stage B/C telemetry emits `sigma_readout_provenance="external_lookup"` and non-zero variance-floor clamp fractions, proving the metadata fixtures thread through every stage. Pair them with collect-only evidence (`... --collect-only > collect_stage_b_metadata.log`) before archival. Stage A artifacts (`pytest_stage_a_metadata.log`, telemetry JSON, sigma report) still live under `plans/active/PHYSICS-LOSS-001/reports/2025-11-21T065454Z/`; Stage B/C metadata logs coexist under the loop-specific directory noted in `input.md`.
 
 ## 2. Test Taxonomy
 

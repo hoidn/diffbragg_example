@@ -89,12 +89,19 @@ def smoke_dataset_paths(smoke_detector_size, smoke_sigma_source) -> SmokeDataset
 
     if smoke_sigma_source == "metadata":
         metadata_expt = repo_root / "sp.proc" / "idx-0000_sigma_metadata.expt"
+        metadata_tiles = metadata_expt.with_suffix(".sigma_tiles.pkl")
+        missing_metadata_assets = []
         if not metadata_expt.exists():
+            missing_metadata_assets.append(str(metadata_expt))
+        if not metadata_tiles.exists():
+            missing_metadata_assets.append(str(metadata_tiles))
+        if missing_metadata_assets:
             pytest.skip(
-                "Metadata sigma source requested but "
-                "sp.proc/idx-0000_sigma_metadata.expt is missing. "
+                "Metadata sigma source requested but required assets are missing: "
+                f"{missing_metadata_assets}. "
                 "Run plans/active/PHYSICS-LOSS-001/bin/embed_sigma_external_lookup.py "
-                "with --sigma-value/--sigma-map to generate the fixture."
+                "with --sigma-value/--sigma-map to regenerate "
+                "sp.proc/idx-0000_sigma_metadata.{expt,sigma_tiles.pkl}."
             )
         dataset = replace(dataset, expt_path=metadata_expt)
 

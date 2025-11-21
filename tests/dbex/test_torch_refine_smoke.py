@@ -230,15 +230,18 @@ def refinement_inputs(refgeom_dataload, smoke_sigma_source, request):
         allow_metadata = request.node.get_closest_marker("allow_metadata_sigma") is not None
         if not allow_metadata:
             pytest.skip(
-                "Metadata sigma source requested but this test still relies on CLI overrides. "
-                "TODO(PHYSICS-LOSS-001 Phase G): extend Stage B/C smokes to support metadata tiles."
+                "Metadata sigma source requested but this test is not marked with "
+                "@pytest.mark.allow_metadata_sigma. Add the marker to opt-in."
             )
         sigma_map = getattr(refgeom_dataload, "sigma_readout_map", None)
-        if sigma_map is None:
+        sigma_map_source = getattr(refgeom_dataload, "sigma_readout_map_source", None)
+        if sigma_map is None or sigma_map_source != "external_lookup":
             pytest.skip(
-                "Metadata sigma source requested but DataLoad lacks sigma_readout_map. "
-                "Run plans/active/PHYSICS-LOSS-001/bin/embed_sigma_external_lookup.py "
-                "to embed ExternalLookup tiles."
+                "Metadata sigma source requested but DataLoad lacks an external_lookup sigma_readout_map. "
+                "Ensure sp.proc/idx-0000_sigma_metadata.expt and "
+                "idx-0000_sigma_metadata.sigma_tiles.pkl exist by running "
+                "plans/active/PHYSICS-LOSS-001/bin/embed_sigma_external_lookup.py "
+                "with --sigma-value/--sigma-map."
             )
         sigma_readout_array = np.asarray(sigma_map, dtype=np.float32)
     else:
@@ -558,7 +561,14 @@ def test_stage_a_expansion(
     )
 
 
-def test_stage_c_detector_microslip(refgeom_dataload, refinement_inputs, hkl_data, smoke_detector_size):
+@pytest.mark.allow_metadata_sigma
+def test_stage_c_detector_microslip(
+    refgeom_dataload,
+    refinement_inputs,
+    hkl_data,
+    smoke_detector_size,
+    smoke_sigma_source,
+):
     """
     Verify Stage C detector distance refinement pulls injected ±0.25 mm offsets back toward zero.
 
@@ -593,6 +603,8 @@ def test_stage_c_detector_microslip(refgeom_dataload, refinement_inputs, hkl_dat
     hkl_grid, hkl_metadata = hkl_data
 
     # Configure refinement (Stage A + Stage C per TORCH-REFINE-003)
+    sigma_provenance = "external_lookup" if smoke_sigma_source == "metadata" else "cli_override"
+
     config = RefinementConfig(
         device='cuda:0',
         dtype=torch.float32,
@@ -605,7 +617,7 @@ def test_stage_c_detector_microslip(refgeom_dataload, refinement_inputs, hkl_dat
         enable_stage_c=True,  # Enable Stage C detector distance refinement
         stage_c_min_loss_improvement=0.0,
         stage_c_max_distance_delta_mm=0.5,  # ±0.5mm max offset per panel
-        sigma_readout_provenance="cli_override",
+        sigma_readout_provenance=sigma_provenance,
     )
 
     # Create perturbed geometry with detector offsets (TORCH-REFINE-003)
@@ -639,6 +651,8 @@ def test_stage_c_detector_microslip(refgeom_dataload, refinement_inputs, hkl_dat
     assert "C" in telemetry_dict, "Stage C telemetry missing (config.enable_stage_c=True)"
     telemetry_a = telemetry_dict["A"]
     telemetry_c = telemetry_dict["C"]
+    assert telemetry_a.sigma_readout_provenance == sigma_provenance
+    assert telemetry_c.sigma_readout_provenance == sigma_provenance
 
     # Acceptance 1: Both stages completed without errors
     assert telemetry_a.status != "error", f"Stage A failed: {telemetry_a.message}"
@@ -703,6 +717,8 @@ def test_stage_c_detector_microslip(refgeom_dataload, refinement_inputs, hkl_dat
     assert telemetry_c.variance_floor_value == pytest.approx(config.sigma_floor_value**2)
     assert telemetry_c.variance_floor_clamp_fraction is not None
     assert 0.0 <= telemetry_c.variance_floor_clamp_fraction <= 1.0
+    masked_pixel_count = int(refinement_inputs.loss_mask.sum())
+    assert masked_pixel_count > 0, "Variance-floor telemetry requires non-zero masked pixels"
 
     # Extract chi-squared values for improvement comparison (REFINE-007)
     stage_a_final_chi2 = telemetry_a.chi_squared_trace_full[-1][1]
@@ -799,7 +815,14 @@ def test_stage_c_detector_microslip(refgeom_dataload, refinement_inputs, hkl_dat
         print(f"    ... ({n_panels - 3} more panels)")
 
 
-def test_stage_b_shell_modifiers(refgeom_dataload, refinement_inputs, hkl_data, smoke_detector_size):
+@pytest.mark.allow_metadata_sigma
+def test_stage_b_shell_modifiers(
+    refgeom_dataload,
+    refinement_inputs,
+    hkl_data,
+    smoke_detector_size,
+    smoke_sigma_source,
+):
     """
     Smoke test for Stage B shell-modifier LBFGS refinement (TORCH-REFINE-004).
 
@@ -842,6 +865,8 @@ def test_stage_b_shell_modifiers(refgeom_dataload, refinement_inputs, hkl_data, 
 
     # Refinement config: enable Stage B with 5 resolution shells
     # Keep Stage A and Stage C disabled to isolate Stage B behavior
+    sigma_provenance = "external_lookup" if smoke_sigma_source == "metadata" else "cli_override"
+
     config = RefinementConfig(
         max_iter=30,
         min_loss_improvement=0.0,  # Strict-gate behavior asserted via telemetry (REFINE-008)
@@ -853,7 +878,7 @@ def test_stage_b_shell_modifiers(refgeom_dataload, refinement_inputs, hkl_data, 
         enable_stage_c=False,  # Disable Stage C for this test
         device="cuda:0",
         dtype=torch.float32,
-        sigma_readout_provenance="cli_override",
+        sigma_readout_provenance=sigma_provenance,
     )
 
     # Run refinement (Stage A + Stage B)
@@ -874,6 +899,8 @@ def test_stage_b_shell_modifiers(refgeom_dataload, refinement_inputs, hkl_data, 
 
     telemetry_a = telemetry_dict["A"]
     telemetry_b = telemetry_dict["B"]
+    assert telemetry_a.sigma_readout_provenance == sigma_provenance
+    assert telemetry_b.sigma_readout_provenance == sigma_provenance
 
     # Acceptance 1: Stage B telemetry structure
     assert telemetry_b.optimizer == "LBFGS"
@@ -905,6 +932,8 @@ def test_stage_b_shell_modifiers(refgeom_dataload, refinement_inputs, hkl_data, 
     assert telemetry_b.variance_floor_value == pytest.approx(config.sigma_floor_value**2)
     assert telemetry_b.variance_floor_clamp_fraction is not None
     assert 0.0 <= telemetry_b.variance_floor_clamp_fraction <= 1.0
+    masked_pixel_count = int(refinement_inputs.loss_mask.sum())
+    assert masked_pixel_count > 0, "Variance-floor telemetry requires non-zero masked pixels"
 
     # Acceptance 2: Shell modifier param_deltas present with d-spacing labels
     assert len(telemetry_b.param_deltas) == config.stage_b_n_shells, (

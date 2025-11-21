@@ -88,7 +88,7 @@
 
 ### [TOOLING-VIS-001] Standardize visual diagnostics library
 - Depends on: PHYSICS-LOSS-001
-- Status: pending
+- Status: in_progress
 - Priority: Medium
 - Owner/Date: Unassigned
 - Exit Criteria:
@@ -96,7 +96,9 @@
   2. `dbex/look.py` refactored to use `dbex.vis` for rendering.
   3. CLI automatically generates a standard report (PNG/PDF) at the end of refinement.
 - Working Plan: `plans/active/TOOLING-VIS-001/implementation.md`
-- Attempts History: deferred until PHYSICS-LOSS-001 unblocks the telemetry stack.
+- Attempts History:
+  * deferred until PHYSICS-LOSS-001 unblocks the telemetry stack.
+  * 2025-11-21T180000Z (implementation) — Created the `dbex.vis` package with `plot_triptych` honoring spec-db-vis colormap/origin rules, plus a smoke test that synthesizes `[panel, slow, fast]` stacks and asserts the PNG artifact exists. Captured selector `pytest -vv tests/dbex/test_vis_triptych_smoke.py::test_plot_triptych_smoke` (1 passed) with logs under `plans/active/TOOLING-VIS-001/reports/2025-11-21T180000Z/pytest_triptych.log`. Artifacts include the pytest log and generated PNG written via the helper.
 
 ### [DOCS-ROADMAP-001] Thin `nanobrag_integration_plan`
 - Depends on: specs/spec-db-workflow.md (current normative content)

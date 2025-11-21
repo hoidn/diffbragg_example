@@ -262,6 +262,8 @@ class RefinementConfig:
     enable_stage_a_warm_cache: bool = True
     # Enable ROI-aware sampling/cropping when Stage A closures run (PERF-WARM-SIM-001 ROI follow-up)
     enable_stage_a_roi_mode: bool = True
+    # Allow ROI sampling even when the warm cache is disabled (default False so cold benchmarks stay panel-scoped)
+    allow_cold_stage_a_roi_mode: bool = False
 
     # Stage B structure factor modifiers (TORCH-REFINE-004)
     enable_stage_b: bool = False  # Enable Fhkl shell modifiers
@@ -389,6 +391,7 @@ class RefinementTelemetry:
     canonical_chi_squared_iteration: Optional[int] = None
     canonical_roi_count: Optional[int] = None
     canonical_detector_distances_mm: Optional[List[float]] = None
+    roi_mode: Optional[str] = None
 
 
 def _compute_variance_weighted_loss(
@@ -840,7 +843,12 @@ def run_nanobrag_refinement(
     )
 
     # Stage A ROI sampling (panel_slices-defined) with fallback to panel sampling
-    use_stage_a_roi_mode = bool(config.enable_stage_a_roi_mode and canonical_roi_count > 0)
+    use_stage_a_roi_mode = bool(
+        config.enable_stage_a_roi_mode
+        and canonical_roi_count > 0
+        and (config.enable_stage_a_warm_cache or config.allow_cold_stage_a_roi_mode)
+    )
+    stage_a_roi_label = "roi" if use_stage_a_roi_mode else "panel"
     stage_a_total_work_items = canonical_roi_count if use_stage_a_roi_mode else n_panels
     if use_stage_a_roi_mode:
         roi_sample_size = max(1, int(stage_a_total_work_items * config.roi_sample_fraction))
@@ -1429,7 +1437,7 @@ def run_nanobrag_refinement(
     cache_mode = "warm" if config.enable_stage_a_warm_cache else "cold"
     perf_counters = {
         'cache_mode': cache_mode,
-        'roi_mode': use_stage_a_roi_mode,
+        'roi_mode': stage_a_roi_label,
         'roi_count_total': stage_a_total_work_items,
         'roi_count_sampled': len(sampled_stage_a_indices),
         'closure_evals': perf_closure_evals[0],
@@ -1480,6 +1488,7 @@ def run_nanobrag_refinement(
         canonical_chi_squared_iteration=canonical_baseline["iteration"],
         canonical_roi_count=canonical_baseline["roi_count"],
         canonical_detector_distances_mm=canonical_baseline["detector_distances_mm"],
+        roi_mode=stage_a_roi_label,
     )
 
     telemetry_dict = {"A": telemetry_a}

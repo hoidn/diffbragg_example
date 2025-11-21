@@ -10,6 +10,7 @@ Usage:
     python plans/active/PERF-WARM-SIM-001/bin/benchmark_stage_a_cache.py \\
         --modes warm cold \\
         --artifacts plans/active/PERF-WARM-SIM-001/reports/2025-11-06T090721Z/
+        [--allow-cold-roi]  # Opt-in ROI sampling for cold mode (defaults to panel rendering)
 
 Outputs:
     - JSON summary: <artifacts>/benchmark_summary.json
@@ -140,7 +141,7 @@ def create_perturbed_crystal(crystal):
     return perturbed_crystal
 
 
-def run_stage_a_benchmark(mode: str, DL, perturbed_crystal, artifacts_dir: Path):
+def run_stage_a_benchmark(mode: str, DL, perturbed_crystal, artifacts_dir: Path, allow_cold_roi: bool = False):
     """
     Run Stage A refinement with specified cache mode.
 
@@ -188,8 +189,9 @@ def run_stage_a_benchmark(mode: str, DL, perturbed_crystal, artifacts_dir: Path)
     )
 
     # Configure refinement
+    is_warm_mode = (mode == "warm")
     config = RefinementConfig(
-        enable_stage_a_warm_cache=(mode == "warm"),
+        enable_stage_a_warm_cache=is_warm_mode,
         enable_hkl_interpolation=True,  # Per REFINE-005
         max_iter=30,
         history_size=10,
@@ -197,6 +199,11 @@ def run_stage_a_benchmark(mode: str, DL, perturbed_crystal, artifacts_dir: Path)
         device="cpu",
         dtype=torch.float32
     )
+    if not is_warm_mode:
+        if allow_cold_roi:
+            config.allow_cold_stage_a_roi_mode = True
+        else:
+            config.enable_stage_a_roi_mode = False
 
     # Time Stage A execution
     t0 = time.perf_counter()
@@ -257,6 +264,11 @@ def main():
         required=True,
         help="Artifacts directory for outputs"
     )
+    parser.add_argument(
+        "--allow-cold-roi",
+        action="store_true",
+        help="Allow ROI sampling in cold mode (defaults to panel rendering for control runs)"
+    )
     args = parser.parse_args()
 
     artifacts_dir = args.artifacts
@@ -278,7 +290,11 @@ def main():
             print(f"{'='*60}\n")
 
             results[mode] = run_stage_a_benchmark(
-                mode, DL, perturbed_crystal, artifacts_dir
+                mode,
+                DL,
+                perturbed_crystal,
+                artifacts_dir,
+                allow_cold_roi=args.allow_cold_roi,
             )
 
             print(f"\n{mode.upper()} results:")

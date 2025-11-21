@@ -1,0 +1,27 @@
+Stage A Warm Cache Benchmark Results
+============================================================
+
+WARM MODE:
+  Wall clock: 14.60s
+  Closure evaluations: 28
+  Validation runs: 7
+  Forward time (mean): 86.68ms
+  Forward time (total): 2426.91ms
+  LBFGS iterations: 28
+  Final loss: 279773248.000000
+  Status: ok
+  Param deltas: {'log_scale': {'initial': 4.137681484222412, 'final': 13584.2841796875, 'delta': 13580.146498203278}, 'log_cell_a_delta': {'initial': 0.0, 'final': -0.005004171747714281, 'delta': -0.005004171747714281}, 'log_cell_b_delta': {'initial': 0.0, 'final': 0.0017997210379689932, 'delta': 0.0017997210379689932}, 'log_cell_c_delta': {'initial': 0.0, 'final': 0.0035348343662917614, 'delta': 0.0035348343662917614}, 'angle_alpha_raw': {'initial': 0.0, 'final': 0.0014836183981969953, 'delta': 0.0014836183981969953}, 'angle_beta_raw': {'initial': 0.0, 'final': -0.0029035296756774187, 'delta': -0.0029035296756774187}, 'angle_gamma_raw': {'initial': 0.0, 'final': -0.003701183246448636, 'delta': -0.003701183246448636}, 'orientation_vec': {'initial': [0.0, 0.0, 0.0], 'final': [0.0, 0.0, 0.0], 'delta': [0.0, 0.0, 0.0], 'norm': 0.0}, 'misset_xyz_deg': {'initial': [0.0, 0.0, 0.0], 'final': [0.0, 0.0, 0.0], 'delta': [0.0, 0.0, 0.0], 'quaternion_norm': 1.0}}
+
+COLD MODE:
+  Wall clock: 169.39s
+  Closure evaluations: 14
+  Validation runs: 4
+  Forward time (mean): 5823.18ms
+  Forward time (total): 81524.55ms
+  LBFGS iterations: 14
+  Final loss: 342230880.000000
+  Status: ok
+  Param deltas: {'log_scale': {'initial': 4.137681484222412, 'final': 281179.71875, 'delta': 281175.5810685158}, 'log_cell_a_delta': {'initial': 0.0, 'final': -0.22210577130317688, 'delta': -0.22210577130317688}, 'log_cell_b_delta': {'initial': 0.0, 'final': 0.022327136248350143, 'delta': 0.022327136248350143}, 'log_cell_c_delta': {'initial': 0.0, 'final': 0.264190137386322, 'delta': 0.264190137386322}, 'angle_alpha_raw': {'initial': 0.0, 'final': 0.010687282308936119, 'delta': 0.010687282308936119}, 'angle_beta_raw': {'initial': 0.0, 'final': -0.013197036460042, 'delta': -0.013197036460042}, 'angle_gamma_raw': {'initial': 0.0, 'final': -0.08075382560491562, 'delta': -0.08075382560491562}, 'orientation_vec': {'initial': [0.0, 0.0, 0.0], 'final': [0.0, 0.0, 0.0], 'delta': [0.0, 0.0, 0.0], 'norm': 0.0}, 'misset_xyz_deg': {'initial': [0.0, 0.0, 0.0], 'final': [0.0, 0.0, 0.0], 'delta': [0.0, 0.0, 0.0], 'quaternion_norm': 1.0}}
+
+SPEEDUP: 11.60×
+  (cold=169.39s / warm=14.60s)

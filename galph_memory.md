@@ -374,3 +374,12 @@
 - Next Actions: Implement the Stage A warm-cache reuse (context plumbing + benchmark), run the mapped Stage A smoke, execute the warm/cold benchmark script, and refresh docs/fix_plan/findings if results differ.
 - <Action State>: [ready_for_implementation]
 2025-11-21T090949Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=0 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T090949Z/ next_action=implement_stage_a_warm_cache_refactor
+## 2025-11-21T093905Z — PERF-WARM-SIM-001 cached simulator plan
+- Focus: PERF-WARM-SIM-001 — Warm simulator; eliminate per-iteration re-instantiation
+- Action Type: planning
+- Key Observations: Reviewed the 2025-11-21T090949Z warm/cold benchmark and verified it still reports only a 1.01× gain because `dbex/nanobrag_refinement.py:821-855` instantiates a fresh `nanobrag_torch.Simulator` per panel, violating docs/spec-db-runtime.md warm-reuse rules. Logged a new ready-for-implementation Do Now: extend `StageAContext` so it prebuilds per-panel simulators + beam config/HKL tensors, retarget them once per closure, keep the cold control path intact, then rerun the Stage A smoke and `benchmark_stage_a_cache.py --modes warm cold` with artifacts under 2025-11-21T093905Z/.
+- Artifact Path: plans/active/PERF-WARM-SIM-001/reports/2025-11-21T093905Z/
+- Next Actions: Ralph implements the cached-simulator pool, runs the mapped Stage A smoke plus the warm/cold benchmark, and captures telemetry/logs in the new report directory.
+- <Action State>: [ready_for_implementation]
+
+2025-11-21T093905Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=1 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T093905Z/ next_action=cache_simulator_pool_impl

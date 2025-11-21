@@ -225,7 +225,7 @@ def hkl_data(refgeom_dataload):
     hkl_grid, hkl_metadata, _ = build_structure_factor_grid(
         indices=hkl_indices,
         amplitudes=hkl_amplitudes,
-        device=torch.device('cpu'),
+        device=torch.device('cuda:0'),
         halo=True  # TORCH-REFINE-002D: Add ±1 padding for tricubic interpolation
     )
 
@@ -259,7 +259,7 @@ def test_stage_a_expansion(refgeom_dataload, refinement_inputs, hkl_data):
 
     # Configure refinement (Stage A expansion per TORCH-REFINE-002D)
     config = RefinementConfig(
-        device='cpu',  # CPU-only for determinism (GPU support validated separately)
+        device='cuda:0',
         dtype=torch.float32,
         history_size=10,
         max_iter=30,  # ≤30 steps for Stage A expansion
@@ -547,21 +547,35 @@ def test_stage_c_detector_microslip(refgeom_dataload, refinement_inputs, hkl_dat
         offset_data = telemetry_c.param_deltas[param_key]
         assert 'initial' in offset_data and 'final' in offset_data and 'delta' in offset_data
 
-    # Acceptance 3: ≥0.002% improvement from Stage A final to Stage C final (calibrated per REFINE-007)
+    # Acceptance 3: PHYSICS-LOSS-001 telemetry validation (chi-squared + masked-MSE for both Stage A and Stage C)
+    # Both stages must emit dual metrics
+    assert telemetry_a.chi_squared_trace_full is not None, "Stage A chi_squared_trace_full missing"
+    assert len(telemetry_a.chi_squared_trace_full) >= 2, "Stage A chi_squared_trace_full insufficient"
+    assert telemetry_c.chi_squared_trace_full is not None, "Stage C chi_squared_trace_full missing"
+    assert len(telemetry_c.chi_squared_trace_full) >= 2, "Stage C chi_squared_trace_full insufficient"
+
+    # Extract chi-squared values for improvement comparison (REFINE-007)
+    stage_a_final_chi2 = telemetry_a.chi_squared_trace_full[-1][1]
+    stage_c_final_chi2 = telemetry_c.chi_squared_trace_full[-1][1]
+    improvement_c_chi2 = (stage_a_final_chi2 - stage_c_final_chi2) / stage_a_final_chi2
+
+    # REFINE-007: Stage C gate is ≥0.002% improvement (calibrated to refGeom ceiling ≈0.003%)
+    # Compare chi-squared (variance-weighted) rather than legacy loss_trace_full
+    assert improvement_c_chi2 >= 2e-5, (
+        f"Stage C chi-squared improvement {improvement_c_chi2:.4%} < 0.002% threshold. "
+        f"REFINE-007: Gate calibrated to measured ≈0.003% ceiling on refGeom (±0.25mm per-panel offsets). "
+        f"See probe artifacts: plans/active/TORCH-REFINE-003/reports/2025-11-05T090201Z/stage_c_improvement_probe.json "
+        f"(Stage A final chi2={stage_a_final_chi2:.2e}, Stage C final chi2={stage_c_final_chi2:.2e}, "
+        f"Stage C iterations={len(telemetry_c.loss_trace_sample)})"
+    )
+
+    # Legacy comparison for backward compatibility (can be removed after PHYSICS-LOSS-001 completes)
     assert len(telemetry_a.loss_trace_full) >= 2, "Insufficient Stage A full-loss validations"
     assert len(telemetry_c.loss_trace_full) >= 2, "Insufficient Stage C full-loss validations"
 
     stage_a_final_loss = telemetry_a.loss_trace_full[-1][1]
     stage_c_final_loss = telemetry_c.loss_trace_full[-1][1]
     improvement_c = (stage_a_final_loss - stage_c_final_loss) / stage_a_final_loss
-
-    assert improvement_c >= 2e-5, (
-        f"Stage C improvement {improvement_c:.4%} < 0.002% threshold. "
-        f"REFINE-007: Gate calibrated to measured ≈0.003% ceiling on refGeom (±0.25mm per-panel offsets). "
-        f"See probe artifacts: plans/active/TORCH-REFINE-003/reports/2025-11-05T090201Z/stage_c_improvement_probe.json "
-        f"(Stage A final={stage_a_final_loss:.2e}, Stage C final={stage_c_final_loss:.2e}, "
-        f"Stage C iterations={len(telemetry_c.loss_trace_sample)})"
-    )
 
     # Acceptance 4: Stage C full-loss trace is non-increasing over last 3 validations
     if len(telemetry_c.loss_trace_full) >= 3:
@@ -652,7 +666,7 @@ def test_stage_b_shell_modifiers(refgeom_dataload, refinement_inputs, hkl_data):
         stage_b_min_loss_improvement=1e-8,  # 0.000001% gate (calibrated per refGeom probe: measured ceiling ~6.4e-8%)
         stage_b_max_modifier=2.0,
         enable_stage_c=False,  # Disable Stage C for this test
-        device="cpu",  # CPU-only for determinism
+        device="cuda:0",
         dtype=torch.float32
     )
 
@@ -715,7 +729,33 @@ def test_stage_b_shell_modifiers(refgeom_dataload, refinement_inputs, hkl_data):
         f"If improvement remains below threshold, verify structure factors are loaded correctly and HKL interpolation is enabled."
     )
 
-    # Acceptance 4: Stage B full-loss trace is non-increasing over last 3 validations
+    # Acceptance 4: PHYSICS-LOSS-001 telemetry validation (chi-squared + masked-MSE)
+    # Stage B must emit both chi_squared (optimized metric) and masked_mse (legacy comparison)
+    assert telemetry_b.chi_squared_trace_sample is not None, "Stage B chi_squared_trace_sample missing"
+    assert len(telemetry_b.chi_squared_trace_sample) > 0, "Stage B chi_squared_trace_sample empty"
+    assert telemetry_b.chi_squared_trace_full is not None, "Stage B chi_squared_trace_full missing"
+    assert len(telemetry_b.chi_squared_trace_full) > 0, "Stage B chi_squared_trace_full empty"
+    assert telemetry_b.chi_squared_best is not None, "Stage B chi_squared_best missing"
+    assert telemetry_b.chi_squared_best[0] > 0, f"Stage B chi_squared_best invalid: {telemetry_b.chi_squared_best}"
+
+    assert telemetry_b.masked_mse_trace_sample is not None, "Stage B masked_mse_trace_sample missing"
+    assert len(telemetry_b.masked_mse_trace_sample) > 0, "Stage B masked_mse_trace_sample empty"
+    assert telemetry_b.masked_mse_trace_full is not None, "Stage B masked_mse_trace_full missing"
+    assert len(telemetry_b.masked_mse_trace_full) > 0, "Stage B masked_mse_trace_full empty"
+    assert telemetry_b.masked_mse_best is not None, "Stage B masked_mse_best missing"
+    assert telemetry_b.masked_mse_best[0] > 0, f"Stage B masked_mse_best invalid: {telemetry_b.masked_mse_best}"
+
+    # PHYSICS-LOSS-001 + REFINE-008: Chi-squared trace should be monotonically non-increasing
+    # (Allows small numerical noise with 2% tolerance)
+    if len(telemetry_b.chi_squared_trace_full) >= 3:
+        last_three_chi2 = [chi2 for _, chi2 in telemetry_b.chi_squared_trace_full[-3:]]
+        for i in range(1, len(last_three_chi2)):
+            assert last_three_chi2[i] <= last_three_chi2[i-1] * 1.02, (
+                f"Stage B chi_squared increased by >2% at validation {i}: "
+                f"{last_three_chi2[i-1]:.2e} → {last_three_chi2[i]:.2e}"
+            )
+
+    # Acceptance 5: Stage B full-loss trace is non-increasing over last 3 validations
     if len(telemetry_b.loss_trace_full) >= 3:
         last_three_losses = [loss for _, loss in telemetry_b.loss_trace_full[-3:]]
         for i in range(1, len(last_three_losses)):
@@ -724,7 +764,7 @@ def test_stage_b_shell_modifiers(refgeom_dataload, refinement_inputs, hkl_data):
                 f"{last_three_losses[i-1]:.2e} → {last_three_losses[i]:.2e}"
             )
 
-    # Acceptance 5: Stage A telemetry preserved (sanity check)
+    # Acceptance 6: Stage A telemetry preserved (sanity check)
     assert len(telemetry_a.loss_trace_full) >= 2, "Stage A full-loss trace truncated"
     stage_a_initial_loss = telemetry_a.loss_trace_full[0][1]
     improvement_a = (stage_a_initial_loss - stage_a_final_loss) / stage_a_initial_loss

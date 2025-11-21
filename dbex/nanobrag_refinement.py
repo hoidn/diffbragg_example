@@ -1612,11 +1612,18 @@ def run_nanobrag_refinement(
         perf_validation_runs_b = [0]
         perf_forward_times_ms_b: List[float] = []
 
-        def compute_loss_stage_b(work_item_ids: List[int], is_full: bool = False) -> Tuple[torch.Tensor, torch.Tensor]:
+        def compute_loss_stage_b(work_item_ids: List[int], is_full: bool = False, force_panel_eval: bool = False) -> Tuple[torch.Tensor, torch.Tensor]:
             """
             Compute variance-weighted chi-squared loss with Stage B shell-modified structure factors.
 
             Uses Stage A's final crystal parameters (frozen) and varies per-shell Fhkl multipliers.
+
+            Args:
+                work_item_ids: List of ROI or panel indices to evaluate
+                is_full: Whether this is a full validation run (counts toward perf telemetry)
+                force_panel_eval: If True, always use panel-mode evaluation regardless of ROI config
+                              (reuses warmed simulators when available). Used for initial/periodic/final
+                              validations to ensure shell modifiers stay within ±1% gate (PERF-WARM-009).
 
             Returns:
                 Tuple of (chi_squared_loss, masked_mse_loss): Both scalar tensors for telemetry
@@ -1695,7 +1702,9 @@ def run_nanobrag_refinement(
                 _retarget_stage_a_simulators(stage_a_ctx, warm_crystal_model)
 
             # PERF-WARM-SIM-001: Branch on ROI vs panel mode
-            if use_stage_b_roi_mode:
+            # PERF-WARM-009: force_panel_eval overrides ROI mode for validations
+            use_roi_for_this_eval = use_stage_b_roi_mode and not force_panel_eval
+            if use_roi_for_this_eval:
                 # ROI mode: iterate over Stage A's cached ROI entries
                 indices = work_item_ids if work_item_ids else full_stage_b_indices
                 for roi_index in indices:
@@ -1828,9 +1837,12 @@ def run_nanobrag_refinement(
             masked_mse_trace_sample_b.append(float(mse_loss.item()))
 
             # Periodic full validation
+            # PERF-WARM-009: Force panel evaluation for periodic validations to keep modifiers within ±1%
             if len(loss_trace_sample_b) % config.full_validation_interval == 0:
                 with torch.no_grad():
-                    full_chi_squared_b, full_mse_b = compute_loss_stage_b(full_stage_b_indices, is_full=True)
+                    full_chi_squared_b, full_mse_b = compute_loss_stage_b(
+                        list(range(n_panels)), is_full=True, force_panel_eval=True
+                    )
                     loss_trace_full_b.append((len(loss_trace_sample_b), float(full_chi_squared_b.item())))
                     # PHYSICS-LOSS-001: Record both metrics
                     chi_squared_trace_full_b.append((len(loss_trace_sample_b), float(full_chi_squared_b.item())))
@@ -1852,8 +1864,11 @@ def run_nanobrag_refinement(
         message_b = ""
         try:
             # Initial full-loss validation before optimization (mandatory per TORCH-REFINE-004)
+            # PERF-WARM-009: Force panel evaluation for initial validation to keep modifiers within ±1%
             with torch.no_grad():
-                initial_chi_squared_b, initial_mse_b = compute_loss_stage_b(full_stage_b_indices, is_full=True)
+                initial_chi_squared_b, initial_mse_b = compute_loss_stage_b(
+                    list(range(n_panels)), is_full=True, force_panel_eval=True
+                )
                 loss_trace_full_b.append((0, float(initial_chi_squared_b.item())))
                 # PHYSICS-LOSS-001: Record both metrics
                 chi_squared_trace_full_b.append((0, float(initial_chi_squared_b.item())))
@@ -1871,9 +1886,12 @@ def run_nanobrag_refinement(
             message_b = f"Stage B error: {str(e)}"
 
         # Restore best snapshot (always, even on success, to ensure consistency)
+        # PERF-WARM-009: Force panel evaluation for final validation to keep modifiers within ±1%
         final_step = len(loss_trace_sample_b)
         with torch.no_grad():
-            candidate_final_chi2, candidate_final_mse = compute_loss_stage_b(full_stage_b_indices, is_full=True)
+            candidate_final_chi2, candidate_final_mse = compute_loss_stage_b(
+                list(range(n_panels)), is_full=True, force_panel_eval=True
+            )
         candidate_loss_value = float(candidate_final_chi2.item())
         candidate_mse_value = float(candidate_final_mse.item())
         if candidate_loss_value < chi_squared_best_b[0]:

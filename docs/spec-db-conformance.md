@@ -46,6 +46,126 @@ Acceptance Tests (Normative)
   - Expectation: median ROI correlation ≥ 0.2 and ≥90% ROIs contain a local intensity maximum within the central half‑box.
   - Command: `pytest -v tests -k DB_AT_024`
 
+## Canonical DIALS→Torch Mapping (DB‑AT‑024)
+
+**Scope (Normative)**
+- Defines the canonical pipeline for mapping DIALS geometry and ROIs into `nanobrag_torch` for zero‑iteration forward simulation.
+- DB‑AT‑024 SHALL implement this exact pipeline. Implementations claiming conformance to Spec‑DB mapping semantics MUST pass DB‑AT‑024.
+
+**Canonical Assets and Precedence (Normative)**
+
+1. **Experiment / reflections**
+   - Primary: `tests/fixtures/golden_data/simple_cubic/refined.expt` and `refined.refl`.
+   - Fallback: `refGeom.expt` and `refGeom.refl` at the repository root.
+   - The loader SHALL prefer refined assets when present; falling back to legacy `refGeom` SHALL be treated as a degraded mode and annotated in telemetry.
+
+2. **Trusted mask**
+   - Source: `747_mask.pkl` at the repository root.
+   - Format: DIALS‑pickled tuple of `flex.bool` per panel, True=trusted polarity.
+   - The canonical mapping MUST convert this mask to a NumPy stack `[panel, slow, fast]` and use it as the trusted mask when preparing refinement inputs.
+
+3. **Structure factors (MTZ)**
+   - Primary: `tests/fixtures/golden_data/simple_cubic/refined_structure_factors.mtz` (refined HKL).
+   - Fallback: `scaled.mtz` at the repository root.
+   - When the refined MTZ is present, telemetry (`hkl_telemetry`) MUST record `hkl_source="refined"` and the corresponding `hkl_path`. When only `scaled.mtz` is used, the source SHALL be `"raw"`.
+
+4. **Calibration metadata**
+   - Source: `tests/fixtures/golden_data/simple_cubic/config_torch.json`.
+   - Required fields:
+     - `spot_scale_override` (scalar),
+     - `beam_flux`, `beam_exposure`,
+     - optional `beamsize_mm`,
+     - optional `N_cells` (per‑panel domain counts).
+   - The calibration dict SHALL be passed verbatim into `simulate_forward_once`, and the simulator MUST honor `spot_scale_override`, flux/exposure, beamsize, and `N_cells` per SCALE‑003/SCALE‑005.
+
+5. **Sigma / readout noise**
+   - Primary: external‑lookup sigma map embedded in `sp.proc/idx-0000_sigma_metadata.expt` / `idx-0000_sigma_metadata.sigma_tiles.pkl` (if present), loaded via `DataLoad` → `sigma_readout_map`.
+   - Fallback: a scalar sigma_r in ADU (e.g., 3.0 ADU) broadcast to `data.shape`.
+   - In either case, `sigma_readout` SHALL be aligned with the target units (ADU for DB‑AT‑024 baseline) and MUST be strictly positive on trusted pixels per `spec-db-core.md`.
+
+**Canonical Pipeline (Normative)**
+
+1. **DataLoad construction**
+   - Construct `DataLoad(args)` with:
+     - `args.exptName = expt_path` (refined or legacy per precedence above),
+     - `args.reflName = refl_path`,
+     - `args.exptIdx = 0`,
+     - `args.mtzFile = scaled.mtz`,
+     - `args.mtzCol = "F,SIGF"`,
+     - `args.maskFile = 747_mask.pkl`.
+   - `DataLoad` SHALL:
+     - Load pixel data via `simtbx.diffBragg.utils.image_data_from_expt(expt)` as `[panel, slow, fast]` (ADU).
+     - Compute ROI background and bbox via `get_roi_background_and_selection_flags` with sentinel `background_image == -1` outside ROIs.
+     - Load and validate the trusted mask from `747_mask.pkl`, preserving True=trusted polarity.
+     - Populate `sigma_readout_map` from external_lookup metadata when available.
+
+2. **RefinementInputs preparation**
+   - Let `dl = DataLoad(args)` as above.
+   - Define `sigma_readout` as:
+     - `dl.sigma_readout_map` (if non‑None and `sigma_readout_map_source == "external_lookup"`), or
+     - `np.full_like(dl.data, sigma_r_ADU, dtype=np.float32)` otherwise.
+   - Call:
+     ```python
+     inputs = prepare_refinement_inputs(
+         data=dl.data,
+         background_image=dl.background_image,
+         trusted_mask=dl.trusted_mask,
+         bbox=dl.bbox,
+         pids=dl.pids,
+         detector=dl.detector,
+         adu_per_photon=None,  # ADU mode per DB-AT-024 baseline
+         sigma_readout=sigma_readout,
+         sigma_readout_provenance=(
+             "external_lookup" if using_metadata_sigma else "cli_override"
+         ),
+     )
+     ```
+   - `prepare_refinement_inputs` MUST:
+     - Enforce `[panel, slow, fast]` ordering and bbox `(x0, x1, y0, y1)` semantics.
+     - Construct `loss_mask = (background_image >= 0) ∧ trusted_mask`.
+     - Background‑subtract ROI pixels (`target = data - background_image` where `background >= 0`, else 0).
+     - Zero out `target` and `sigma_readout` where `loss_mask` is False.
+     - Return `RefinementInputs` with `target`, `loss_mask`, `panel_slices`, `trusted_mask`, and `sigma_readout` all aligned per `spec-db-core.md`.
+
+3. **Zero‑iteration forward simulation**
+   - Determine structure factors:
+     - If refined MTZ is present and loadable: `hkl_indices, hkl_amplitudes = load_refined_mtz(refined_mtz)`, `hkl_source="refined"`.
+     - Else: `hkl_indices, hkl_amplitudes = dl.F.indices(), dl.F.data()`, `hkl_source="raw"`.
+   - Load calibration via `calibration = load_calibration_metadata(config_torch.json)`.
+   - Call:
+     ```python
+     bragg, diagnostics = simulate_forward_once(
+         inputs=inputs,
+         detector=dl.detector,
+         beam=dl.beam,
+         crystal=dl.crystal,
+         experiment=dl.Expt,
+         hkl_indices=hkl_indices,
+         hkl_amplitudes=hkl_amplitudes,
+         calibration=calibration,
+         hkl_source=hkl_source,
+         hkl_path=str(mtz_path),
+         device="cpu",
+     )
+     ```
+   - `simulate_forward_once` MUST:
+     - Build `BeamConfig`, `CrystalConfig`, and `DetectorConfig` per `docs/dxtbx_api.md` and `docs/nanobrag_api.md` (distance from `panel.get_directed_distance()`, beam centre mm from `panel.get_beam_centre(s0)` with (fast,slow)→(s,f) swap, A* from `crystal.get_A()`, etc.).
+     - Attach a dense P1 |F| grid built from `hkl_indices/hkl_amplitudes` (with halo and interpolation semantics per `spec-db-core.md` / `docs/nanobrag_api.md`).
+     - Produce a Bragg stack `bragg` shaped `[panel, slow, fast]` in target units matching `inputs.target`.
+     - Compute diagnostics including `masked_mse`, `chi_squared`, `variance_floor_clamp_fraction`, and `hkl_telemetry` fields.
+
+**DB‑AT‑024 as Enforcement (Normative)**
+
+- DB‑AT‑024 SHALL instantiate this exact pipeline (asset precedence, `DataLoad` construction, `prepare_refinement_inputs`, `simulate_forward_once`) and then evaluate per‑ROI metrics:
+  - Correlation between `bragg[pid, y0:y1, x0:x1]` and `inputs.target[pid, y0:y1, x0:x1]` on the loss mask.
+  - Localization success (whether the brightest model pixel lies within the central half‑box of each ROI), as defined above.
+- The following thresholds are normative for conformance:
+  - Median ROI correlation ≥ 0.2.
+  - Localization success rate ≥ 90% of sampled ROIs.
+- Any implementation that diverges from this mapping (e.g., different geometry source, different trusted mask, alternate loaders) SHALL either:
+  - Prove equivalence by still satisfying DB‑AT‑024 under the same thresholds, or
+  - Be documented as non‑canonical and NOT advertised as Spec‑DB‑conformant for DIALS→Torch mapping.
+
 - DB‑AT‑025 HKL interpolation conformance (tricubic halo)
   - Setup: enable `crystal.interpolate=True` and run a forward pass using a dense |F| grid built with a declared ±1 halo (metadata flag). Capture telemetry for default_F fallback count.
   - Expectation: halo present in metadata; default_F fallback count == 0 (no out‑of‑bounds lookups while interpolating). Stage A SHALL disable interpolation; this test applies to Stage B and forward runs where interpolation is enabled.

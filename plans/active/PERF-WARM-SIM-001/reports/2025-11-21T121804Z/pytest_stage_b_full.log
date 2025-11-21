@@ -1,0 +1,160 @@
+            inputs=refinement_inputs,
+            detector=DL.detector,
+            beam=DL.beam,
+            crystal=DL.crystal,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            config=config,
+            baseline_detector=DL.detector
+        )
+    
+        # Extract telemetry
+        assert "A" in telemetry_dict, "Stage A telemetry missing"
+        assert "B" in telemetry_dict, "Stage B telemetry missing (enable_stage_b=True)"
+    
+        telemetry_a = telemetry_dict["A"]
+        telemetry_b = telemetry_dict["B"]
+        assert telemetry_a.sigma_readout_provenance == sigma_provenance
+        assert telemetry_b.sigma_readout_provenance == sigma_provenance
+    
+        # Acceptance 1: Stage B telemetry structure
+        assert telemetry_b.optimizer == "LBFGS"
+        assert telemetry_b.stage == "B"
+        assert len(telemetry_b.loss_trace_sample) > 0, "Stage B loss trace empty"
+        assert len(telemetry_b.loss_trace_full) > 0, "Stage B full-loss validations missing"
+        assert telemetry_b.status in ["ok", "early_stop", "error"], f"Unknown Stage B status: {telemetry_b.status}"
+        assert telemetry_a.chi_squared_trace_full is not None, "Stage A chi_squared_trace_full missing"
+        assert telemetry_b.chi_squared_trace_full is not None, "Stage B chi_squared_trace_full missing"
+        assert len(telemetry_b.chi_squared_trace_full) >= 2, "Stage B chi_squared_trace_full missing Stage A/Stage B entries"
+        stage_a_final_chi2 = telemetry_a.chi_squared_trace_full[-1][1]
+        stage_b_initial_chi2 = telemetry_b.chi_squared_trace_full[0][1]
+        assert stage_b_initial_chi2 == pytest.approx(stage_a_final_chi2, rel=1e-3), (
+            f"Stage B initial chi-squared {stage_b_initial_chi2:.3e} != Stage A final {stage_a_final_chi2:.3e}"
+        )
+        canonical_roi_count = len(refinement_inputs.panel_slices)
+        assert telemetry_b.canonical_stage_label == "A"
+        assert telemetry_b.canonical_roi_count == canonical_roi_count
+        assert telemetry_b.canonical_chi_squared is not None
+        assert telemetry_b.canonical_chi_squared_iteration == telemetry_a.chi_squared_trace_full[-1][0]
+        assert telemetry_b.canonical_detector_distances_mm is not None
+        assert len(telemetry_b.canonical_detector_distances_mm) == len(DL.detector)
+        if strict_gates:
+            assert telemetry_b.canonical_chi_squared == pytest.approx(stage_a_final_chi2, rel=1e-6)
+        else:
+            assert telemetry_b.canonical_chi_squared == pytest.approx(stage_a_final_chi2, rel=1e-4)
+    
+        # PERF-WARM-SIM-001: Stage B perf counters must prove warm cache stays active
+        perf_b = telemetry_b.perf_counters
+        assert perf_b is not None, "Stage B perf_counters missing"
+        cache_mode_b = perf_b.get("cache_mode")
+        assert cache_mode_b == "warm", f"Stage B cache_mode should be 'warm', got {cache_mode_b}"
+        roi_mode_b = perf_b.get("roi_mode")
+        # ROI mode follows Stage A's ROI knob: "roi" for cropped smokes, "panel" for canonical full-detector
+        expected_roi_mode = "roi" if smoke_detector_size == "small" else "panel"
+>       assert roi_mode_b == expected_roi_mode, f"Stage B roi_mode should be '{expected_roi_mode}', got {roi_mode_b}"
+E       AssertionError: Stage B roi_mode should be 'panel', got roi
+E       assert 'roi' == 'panel'
+E         
+E         - panel
+E         + roi
+
+tests/dbex/test_torch_refine_smoke.py:978: AssertionError
+=============================== warnings summary ===============================
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers - ...
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+======================== 1 failed, 4 warnings in 20.28s ========================
+            inputs=refinement_inputs,
+            detector=DL.detector,
+            beam=DL.beam,
+            crystal=DL.crystal,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            config=config,
+            baseline_detector=DL.detector
+        )
+    
+        # Extract telemetry
+        assert "A" in telemetry_dict, "Stage A telemetry missing"
+        assert "B" in telemetry_dict, "Stage B telemetry missing (enable_stage_b=True)"
+    
+        telemetry_a = telemetry_dict["A"]
+        telemetry_b = telemetry_dict["B"]
+        assert telemetry_a.sigma_readout_provenance == sigma_provenance
+        assert telemetry_b.sigma_readout_provenance == sigma_provenance
+    
+        # Acceptance 1: Stage B telemetry structure
+        assert telemetry_b.optimizer == "LBFGS"
+        assert telemetry_b.stage == "B"
+        assert len(telemetry_b.loss_trace_sample) > 0, "Stage B loss trace empty"
+        assert len(telemetry_b.loss_trace_full) > 0, "Stage B full-loss validations missing"
+        assert telemetry_b.status in ["ok", "early_stop", "error"], f"Unknown Stage B status: {telemetry_b.status}"
+        assert telemetry_a.chi_squared_trace_full is not None, "Stage A chi_squared_trace_full missing"
+        assert telemetry_b.chi_squared_trace_full is not None, "Stage B chi_squared_trace_full missing"
+        assert len(telemetry_b.chi_squared_trace_full) >= 2, "Stage B chi_squared_trace_full missing Stage A/Stage B entries"
+        stage_a_final_chi2 = telemetry_a.chi_squared_trace_full[-1][1]
+        stage_b_initial_chi2 = telemetry_b.chi_squared_trace_full[0][1]
+        assert stage_b_initial_chi2 == pytest.approx(stage_a_final_chi2, rel=1e-3), (
+            f"Stage B initial chi-squared {stage_b_initial_chi2:.3e} != Stage A final {stage_a_final_chi2:.3e}"
+        )
+        canonical_roi_count = len(refinement_inputs.panel_slices)
+        assert telemetry_b.canonical_stage_label == "A"
+        assert telemetry_b.canonical_roi_count == canonical_roi_count
+        assert telemetry_b.canonical_chi_squared is not None
+        assert telemetry_b.canonical_chi_squared_iteration == telemetry_a.chi_squared_trace_full[-1][0]
+        assert telemetry_b.canonical_detector_distances_mm is not None
+        assert len(telemetry_b.canonical_detector_distances_mm) == len(DL.detector)
+        if strict_gates:
+            assert telemetry_b.canonical_chi_squared == pytest.approx(stage_a_final_chi2, rel=1e-6)
+        else:
+            assert telemetry_b.canonical_chi_squared == pytest.approx(stage_a_final_chi2, rel=1e-4)
+    
+        # PERF-WARM-SIM-001: Stage B perf counters must prove warm cache stays active
+        perf_b = telemetry_b.perf_counters
+        assert perf_b is not None, "Stage B perf_counters missing"
+        cache_mode_b = perf_b.get("cache_mode")
+        assert cache_mode_b == "warm", f"Stage B cache_mode should be 'warm', got {cache_mode_b}"
+        roi_mode_b = perf_b.get("roi_mode")
+        # ROI mode follows Stage A's ROI knob: "roi" for cropped smokes, "panel" for canonical full-detector
+        expected_roi_mode = "roi" if smoke_detector_size == "small" else "panel"
+>       assert roi_mode_b == expected_roi_mode, f"Stage B roi_mode should be '{expected_roi_mode}', got {roi_mode_b}"
+E       AssertionError: Stage B roi_mode should be 'panel', got roi
+E       assert 'roi' == 'panel'
+E         
+E         - panel
+E         + roi
+
+tests/dbex/test_torch_refine_smoke.py:978: AssertionError
+=============================== warnings summary ===============================
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers - ...
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+======================== 1 failed, 4 warnings in 20.52s ========================

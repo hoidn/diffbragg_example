@@ -1,0 +1,75 @@
+[
+  {
+    "stage": "stage_b_shell_modifiers",
+    "dataset": "full",
+    "status": "error",
+    "message": "Stage B error: CUDA out of memory. Tried to allocate 6.00 GiB. GPU 0 has a total capacity of 23.56 GiB of which 1.91 GiB is free. Including non-PyTorch memory, this process has 21.58 GiB memory in use. Of the allocated memory 14.25 GiB is allocated by PyTorch, and 7.02 GiB is reserved by PyTorch but unallocated. If reserved but unallocated memory is large try setting PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True to avoid fragmentation.  See documentation for Memory Management  (https://pytorch.org/docs/stable/notes/cuda.html#environment-variables)",
+    "loss_trace_full": [
+      [
+        0,
+        62444200.0
+      ],
+      [
+        1,
+        62444200.0
+      ]
+    ],
+    "chi_squared_trace_full": [
+      [
+        0,
+        62444200.0
+      ],
+      [
+        1,
+        62444200.0
+      ]
+    ],
+    "perf_counters": {
+      "cache_mode": "warm",
+      "roi_mode": "panel",
+      "roi_count_total": 92,
+      "roi_count_sampled": 92,
+      "closure_evals": 2,
+      "validation_runs": 2,
+      "forward_time_ms": {
+        "mean": 206.84579655062407,
+        "min": 205.23644192144275,
+        "max": 208.4863861091435,
+        "total": 827.3831862024963
+      }
+    },
+    "param_deltas": {
+      "shell_0_modifier (d=80000.12-100000.00\u00c5)": 0.9999999403953552,
+      "shell_1_modifier (d=60000.25-80000.12\u00c5)": 0.9999999403953552,
+      "shell_2_modifier (d=40000.38-60000.25\u00c5)": 0.9999999403953552,
+      "shell_3_modifier (d=20000.50-40000.38\u00c5)": 0.9999999403953552,
+      "shell_4_modifier (d=0.63-20000.50\u00c5)": 0.9999999403953552
+    },
+    "loss_improvement": -1.281143969322239e-07,
+    "n_rois": 92,
+    "detector_shape": [
+      1,
+      2527,
+      2463
+    ],
+    "closure_evals": 2,
+    "validation_runs": 2,
+    "forward_time_ms": {
+      "mean": 206.84579655062407,
+      "min": 205.23644192144275,
+      "max": 208.4863861091435,
+      "total": 827.3831862024963
+    },
+    "cache_mode": "warm",
+    "roi_mode": "panel",
+    "roi_count_total": 92,
+    "roi_count_sampled": 92,
+    "canonical_stage_label": "A",
+    "canonical_chi_squared": 62444192.0,
+    "canonical_chi_squared_iteration": 15,
+    "canonical_roi_count": 92,
+    "canonical_detector_distances_mm": [
+      231.27645547762577
+    ]
+  }
+]

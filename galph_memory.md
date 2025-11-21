@@ -293,3 +293,12 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-21T052443Z focus=PHYSICS-LOSS-001 state=ready_for_implementation dwell=0 artifacts=plans/active/PHYSICS-LOSS-001/reports/2025-11-21T052443Z/ next_action=stage_a_full_and_db_at_024_chi_squared_validation
+
+## 2025-11-21T054520Z — PHYSICS-LOSS-001 sigma provenance handoff
+- Focus: PHYSICS-LOSS-001 — Implement variance-weighted loss function
+- Action Type: planning
+- Key Observations: Verified the 2025-11-21T052443Z Stage A full-detector + DB-AT-024 artifacts close Phase C, so the remaining blocker is Phase A4: `run_nanobrag_backend` still allows sigma_readout=0 when `--sigma-rdout` is omitted, violating docs/spec-db-core.md:57-68 and hiding provenance in telemetry. Checked in the implementation-plan updates (C2/C3 marked done) and logged a fix-plan attempt describing the sigma provenance gap, then rewrote input.md with a ready-for-implementation Do Now targeting the CLI fail-fast guard, telemetry provenance fields, unit tests, and docs/TESTING_GUIDE.md sync. Artifacts: plans/active/PHYSICS-LOSS-001/reports/2025-11-21T054520Z/.
+- Artifact Path: plans/active/PHYSICS-LOSS-001/reports/2025-11-21T054520Z/
+- Next Actions: Implement the sigma guard + telemetry provenance in `dbex/refine_one.py::{create_parser,run_nanobrag_backend}` and `_write_torch_outputs`/`RefinementTelemetry`, refresh `tests/dbex/test_refine_one_cli.py`, update docs/TESTING_GUIDE.md, and rerun the targeted CLI pytest selectors before logging results.
+- <Action State>: [ready_for_implementation]
+2025-11-21T054520Z focus=PHYSICS-LOSS-001 state=ready_for_implementation dwell=1 artifacts=plans/active/PHYSICS-LOSS-001/reports/2025-11-21T054520Z/ next_action=ship_sigma_rdout_guard

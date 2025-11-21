@@ -41,8 +41,8 @@
 
 ## Phase C — Validation
 - [x] C1: Run `DB-AT-010` (Gradcheck). *Note: The loss value will change, but gradients must remain correct.*
-- [ ] C2: Run `DB-AT-024` (Mapping). *Re-run the zero-iteration mapping selector (new artifact folder), add variance-weighted chi-squared + sigma-floor clamp telemetry to `simulate_forward_once` diagnostics, and confirm the DB-AT-024 acceptance asserts these new fields before capturing the `pytest_db_at_024.log` output.*
-- [ ] C3: Run Stage A Smoke. *Replay `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` with `DBEX_SMOKE_DETECTOR_SIZE=full`, assert the canonical chi-squared snapshot matches Stage A's final trace, and refresh telemetry/metrics snapshots so REFs (REFINE-007/008) have canonical baselines.* 
+- [x] C2: Run `DB-AT-024` (Mapping). *Re-ran the zero-iteration mapping selector with the new diagnostics, asserted chi-squared/sigma-floor telemetry, and captured artifacts in `plans/active/PHYSICS-LOSS-001/reports/2025-11-21T052443Z/{pytest_db_at_024.log,mapping_metrics.json}`.*
+- [x] C3: Run Stage A Smoke. *Replayed `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` on the full detector, asserted the canonical chi-squared snapshot, and stored telemetry/logs in `plans/active/PHYSICS-LOSS-001/reports/2025-11-21T052443Z/{pytest_stage_a_full.log,telemetry_stage_a.json}`.* 
 
 ### Risks
 - **Scale Shift:** MSE is typically large (~10^6). Chi-squared is normalized (≈ N_pixels). L-BFGS tolerances (`tolerance_change`) are absolute; they may need retuning for the new loss scale (e.g., 1e-9 → 1e-4).

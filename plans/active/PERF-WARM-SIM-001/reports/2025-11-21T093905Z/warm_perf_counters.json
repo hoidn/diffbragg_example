@@ -1,0 +1,11 @@
+{
+  "cache_mode": "warm",
+  "closure_evals": 14,
+  "validation_runs": 4,
+  "forward_time_ms": {
+    "mean": 5628.185662740309,
+    "min": 525.6880517117679,
+    "max": 6966.48324187845,
+    "total": 78794.59927836433
+  }
+}

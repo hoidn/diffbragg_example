@@ -301,6 +301,7 @@ class StageAContext:
     Fields:
         detector_configs: List of DetectorConfig objects per panel (length n_panels)
         detector_models: List of Detector model instances per panel (length n_panels)
+        simulators: List of Simulator instances per panel cached with detector/beam state
         beam_config: Single BeamConfig shared across all panels
         trusted_masks_t: torch.Tensor stacked trusted masks [panel, slow, fast] (dtype=bool)
         hkl_grid: torch.Tensor structure factor grid on target device
@@ -312,6 +313,7 @@ class StageAContext:
     """
     detector_configs: List
     detector_models: List
+    simulators: List
     beam_config: object
     trusted_masks_t: Optional[torch.Tensor]
     hkl_grid: torch.Tensor
@@ -423,6 +425,7 @@ def _get_sigma_floor_sq_tensor(
 def _build_stage_a_context(
     detector,
     beam,
+    crystal,
     trusted_mask,
     hkl_grid: torch.Tensor,
     hkl_metadata: Dict,
@@ -441,6 +444,7 @@ def _build_stage_a_context(
     Args:
         detector: dxtbx Detector object (multi-panel)
         beam: dxtbx Beam object
+        crystal: dxtbx Crystal object providing baseline configuration
         trusted_mask: numpy array or tuple of masks [panel, slow, fast]
         hkl_grid: torch.Tensor structure factor grid (P1 dense)
         hkl_metadata: dict with grid dimensions and halo status
@@ -452,14 +456,29 @@ def _build_stage_a_context(
         StageAContext with prebuilt models and tensorized data
     """
     from nanobrag_torch.models.detector import Detector
-    from dbex.nanobrag_bridge import create_detector_config, create_beam_config
+    from nanobrag_torch.models.crystal import Crystal
+    from nanobrag_torch.simulator import Simulator
+    from dbex.nanobrag_bridge import (
+        create_detector_config,
+        create_beam_config,
+        create_crystal_config,
+    )
 
     n_panels = len(detector)
 
     # Build detector configs and models per panel
     detector_configs = []
     detector_models = []
+    simulators = []
     trusted_masks_t_list: List[torch.Tensor] = []
+
+    beam_config = create_beam_config(beam)
+    hkl_grid_device = hkl_grid.to(device=device, dtype=dtype)
+    crystal_config, _ = create_crystal_config(crystal, None)
+    base_crystal_model = Crystal(crystal_config, beam_config=beam_config, device=device, dtype=dtype)
+    base_crystal_model.interpolate = enable_hkl_interpolation
+    base_crystal_model.hkl_data = hkl_grid_device
+    base_crystal_model.hkl_metadata = hkl_metadata
 
     for pid in range(n_panels):
         panel = detector[pid]
@@ -488,21 +507,25 @@ def _build_stage_a_context(
         detector_configs.append(detector_config)
         detector_models.append(detector_model)
 
+        simulator = Simulator(
+            detector=detector_model,
+            crystal=base_crystal_model,
+            beam_config=beam_config,
+            device=device,
+            dtype=dtype,
+        )
+        simulators.append(simulator)
+
         # Tensorize trusted mask (bool) for reuse in loss masks
         mask_bool = torch.as_tensor(trusted_mask[pid], dtype=torch.bool, device=device)
         trusted_masks_t_list.append(mask_bool)
 
     trusted_masks_t = torch.stack(trusted_masks_t_list, dim=0) if trusted_masks_t_list else None
 
-    # Build beam config (shared across panels)
-    beam_config = create_beam_config(beam)
-
-    # Transfer HKL grid to device
-    hkl_grid_device = hkl_grid.to(device=device, dtype=dtype)
-
     return StageAContext(
         detector_configs=detector_configs,
         detector_models=detector_models,
+        simulators=simulators,
         beam_config=beam_config,
         trusted_masks_t=trusted_masks_t,
         hkl_grid=hkl_grid_device,
@@ -512,6 +535,27 @@ def _build_stage_a_context(
         n_panels=n_panels,
         enable_hkl_interpolation=enable_hkl_interpolation
     )
+
+
+def _sync_stage_a_crystal(stage_a_ctx: StageAContext, crystal_model):
+    """
+    Ensure the warmed Crystal carries the cached HKL grid + interpolation flag.
+    """
+    crystal_model.interpolate = stage_a_ctx.enable_hkl_interpolation
+    crystal_model.hkl_data = stage_a_ctx.hkl_grid
+    crystal_model.hkl_metadata = stage_a_ctx.hkl_metadata
+    # Allow Simulator fallback (when beam_config argument omitted) to pick up cached beam config
+    crystal_model.beam_config = stage_a_ctx.beam_config  # type: ignore[attr-defined]
+    return crystal_model
+
+
+def _retarget_stage_a_simulators(stage_a_ctx: StageAContext, crystal_model) -> None:
+    """
+    Attach the warmed Crystal to every cached Simulator so ROI/pixel caches stay hot.
+    """
+    for simulator in stage_a_ctx.simulators:
+        simulator.crystal = crystal_model
+        simulator.beam_config = stage_a_ctx.beam_config
 
 
 def run_nanobrag_refinement(
@@ -729,6 +773,7 @@ def run_nanobrag_refinement(
         stage_a_ctx = _build_stage_a_context(
             detector=detector,
             beam=beam,
+            crystal=crystal,
             trusted_mask=inputs.trusted_mask,
             hkl_grid=hkl_grid,
             hkl_metadata=hkl_metadata,
@@ -805,6 +850,7 @@ def run_nanobrag_refinement(
         }
 
         warm_crystal_model: Optional[Crystal] = None
+        beam_config_for_run = stage_a_ctx.beam_config if stage_a_ctx is not None else create_beam_config(beam)
         if stage_a_ctx is not None:
             # Warm mode: build Crystal once per loss evaluation (PERF-WARM-SIM-001)
             warm_crystal_config, _ = create_crystal_config(
@@ -813,16 +859,19 @@ def run_nanobrag_refinement(
                 crystal_overrides=crystal_overrides,
                 misset_deg_override=misset_xyz_deg
             )
-            warm_crystal_model = Crystal(warm_crystal_config, device=device, dtype=dtype)
-            warm_crystal_model.interpolate = stage_a_ctx.enable_hkl_interpolation
-            warm_crystal_model.hkl_data = stage_a_ctx.hkl_grid
-            warm_crystal_model.hkl_metadata = stage_a_ctx.hkl_metadata
+            warm_crystal_model = Crystal(
+                warm_crystal_config,
+                beam_config=beam_config_for_run,
+                device=device,
+                dtype=dtype
+            )
+            warm_crystal_model = _sync_stage_a_crystal(stage_a_ctx, warm_crystal_model)
+            _retarget_stage_a_simulators(stage_a_ctx, warm_crystal_model)
 
         for pid in panel_ids:
-            # Warm mode: reuse cached detector + hoisted Crystal/ HKL tensors
+            # Warm mode: reuse cached per-panel simulators
             if stage_a_ctx is not None:
-                detector_model = stage_a_ctx.detector_models[pid]
-                crystal_model = warm_crystal_model
+                simulator = stage_a_ctx.simulators[pid]
             else:
                 # Cold mode: rebuild detector config/model and Crystal per panel for benchmarking
                 from dbex.nanobrag_bridge import create_detector_config
@@ -844,13 +893,23 @@ def run_nanobrag_refinement(
                     crystal_overrides=crystal_overrides,
                     misset_deg_override=misset_xyz_deg
                 )
-                crystal_model = Crystal(crystal_config, device=device, dtype=dtype)
+                crystal_model = Crystal(
+                    crystal_config,
+                    beam_config=beam_config_for_run,
+                    device=device,
+                    dtype=dtype
+                )
                 crystal_model.interpolate = config.enable_hkl_interpolation
                 crystal_model.hkl_data = hkl_grid.to(device=device, dtype=dtype)
                 crystal_model.hkl_metadata = hkl_metadata
 
-            # Run simulator with cached detector + fresh crystal
-            simulator = Simulator(detector=detector_model, crystal=crystal_model, device=device, dtype=dtype)
+                simulator = Simulator(
+                    detector=detector_model,
+                    crystal=crystal_model,
+                    beam_config=beam_config_for_run,
+                    device=device,
+                    dtype=dtype
+                )
             panel_bragg = simulator.run()  # [slow, fast]
 
             bragg_panels.append(panel_bragg)

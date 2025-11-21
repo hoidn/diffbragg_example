@@ -1,0 +1,173 @@
+{
+  "warm": {
+    "mode": "warm",
+    "cache_mode": "warm",
+    "wall_clock_sec": 162.78056179592386,
+    "closure_evals": 14,
+    "validation_runs": 4,
+    "forward_time_ms_mean": 5628.185662740309,
+    "forward_time_ms_total": 78794.59927836433,
+    "lbfgs_iterations": 14,
+    "final_loss": 342230880.0,
+    "status": "ok",
+    "param_deltas": {
+      "log_scale": {
+        "initial": 4.137681484222412,
+        "final": 281179.71875,
+        "delta": 281175.5810685158
+      },
+      "log_cell_a_delta": {
+        "initial": 0.0,
+        "final": -0.22210577130317688,
+        "delta": -0.22210577130317688
+      },
+      "log_cell_b_delta": {
+        "initial": 0.0,
+        "final": 0.022327136248350143,
+        "delta": 0.022327136248350143
+      },
+      "log_cell_c_delta": {
+        "initial": 0.0,
+        "final": 0.264190137386322,
+        "delta": 0.264190137386322
+      },
+      "angle_alpha_raw": {
+        "initial": 0.0,
+        "final": 0.010687282308936119,
+        "delta": 0.010687282308936119
+      },
+      "angle_beta_raw": {
+        "initial": 0.0,
+        "final": -0.013197036460042,
+        "delta": -0.013197036460042
+      },
+      "angle_gamma_raw": {
+        "initial": 0.0,
+        "final": -0.08075382560491562,
+        "delta": -0.08075382560491562
+      },
+      "orientation_vec": {
+        "initial": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "final": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "delta": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "norm": 0.0
+      },
+      "misset_xyz_deg": {
+        "initial": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "final": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "delta": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "quaternion_norm": 1.0
+      }
+    }
+  },
+  "cold": {
+    "mode": "cold",
+    "cache_mode": "cold",
+    "wall_clock_sec": 163.79696102486923,
+    "closure_evals": 14,
+    "validation_runs": 4,
+    "forward_time_ms_mean": 5756.824917392805,
+    "forward_time_ms_total": 80595.54884349927,
+    "lbfgs_iterations": 14,
+    "final_loss": 342230880.0,
+    "status": "ok",
+    "param_deltas": {
+      "log_scale": {
+        "initial": 4.137681484222412,
+        "final": 281179.71875,
+        "delta": 281175.5810685158
+      },
+      "log_cell_a_delta": {
+        "initial": 0.0,
+        "final": -0.22210577130317688,
+        "delta": -0.22210577130317688
+      },
+      "log_cell_b_delta": {
+        "initial": 0.0,
+        "final": 0.022327136248350143,
+        "delta": 0.022327136248350143
+      },
+      "log_cell_c_delta": {
+        "initial": 0.0,
+        "final": 0.264190137386322,
+        "delta": 0.264190137386322
+      },
+      "angle_alpha_raw": {
+        "initial": 0.0,
+        "final": 0.010687282308936119,
+        "delta": 0.010687282308936119
+      },
+      "angle_beta_raw": {
+        "initial": 0.0,
+        "final": -0.013197036460042,
+        "delta": -0.013197036460042
+      },
+      "angle_gamma_raw": {
+        "initial": 0.0,
+        "final": -0.08075382560491562,
+        "delta": -0.08075382560491562
+      },
+      "orientation_vec": {
+        "initial": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "final": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "delta": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "norm": 0.0
+      },
+      "misset_xyz_deg": {
+        "initial": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "final": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "delta": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "quaternion_norm": 1.0
+      }
+    }
+  },
+  "speedup": 1.006243984034283
+}

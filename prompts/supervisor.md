@@ -237,6 +237,8 @@
     - <strong>Mapped Tests Guardrail</strong>: At least one mapped selector must collect (>0) in `--collect-only`. If none exist, first Do Now step is “author minimal targeted test,” then Doc Sync Plan + collect‑only artifacting (after code passes).
 
     - <strong>Hard Gate</strong>: If any selector marked “Active” collects 0 due to changes made this loop, do not finish as `done`. Either downgrade the selector to “Planned” with rationale or author the missing tests before completion (after the code passes).
+
+    - <strong>Normative Math/Physics</strong>: Do not paraphrase spec equations into pseudo-code or sample math. Reference the exact Spec section (e.g., “See `docs/spec-db-core.md §Variance Definition`”) so the engineer reads the normative source.
   </input_md_requirements>
 
   <evidence_parameter_sourcing>

@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "generated_at": "2025-11-21T08:28:17.058630+00:00",
+  "command": "/home/ollie/miniconda3/envs/simtbx/bin/python plans/active/PHYSICS-LOSS-001/bin/embed_sigma_external_lookup.py --expt refGeom.expt --output sp.proc/idx-0000_sigma_metadata.expt --expt-idx 0 --sigma-value 3.0 --report plans/active/PHYSICS-LOSS-001/reports/2025-11-21T083500Z/sigma_metadata.json --manifest sp.proc/sigma_metadata_manifest.json",
+  "cwd": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example",
+  "authoritative_cmds_doc": "./docs/TESTING_GUIDE.md",
+  "sigma_source": {
+    "kind": "sigma_value",
+    "value": 3.0
+  },
+  "sigma_readout_provenance": "external_lookup",
+  "panel_count": 1,
+  "panel_shape": {
+    "slow": 2527,
+    "fast": 2463
+  },
+  "report": {
+    "input_experiment": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/refGeom.expt",
+    "output_experiment": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/idx-0000_sigma_metadata.expt",
+    "expt_idx": 0,
+    "lookup_key": "pedestal",
+    "panel_count": 1,
+    "panel_shape": {
+      "slow": 2527,
+      "fast": 2463
+    },
+    "sigma_source": {
+      "kind": "sigma_value",
+      "value": 3.0
+    },
+    "sigma_tiles_path": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/idx-0000_sigma_metadata.sigma_tiles.pkl",
+    "stats": {
+      "min": 3.0,
+      "max": 3.0,
+      "mean": 3.000000238418579,
+      "std": 2.384185791015625e-07
+    }
+  },
+  "files": [
+    {
+      "role": "experiment",
+      "path": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/idx-0000_sigma_metadata.expt",
+      "size_bytes": 5334,
+      "modified_at": "2025-11-21T08:28:17.048971+00:00",
+      "sha256": "d54f1f21094899995b6031ed7ffb4eddb5032877534873ab5a986c95de69b1da"
+    },
+    {
+      "role": "sigma_tiles_pickle",
+      "path": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/idx-0000_sigma_metadata.sigma_tiles.pkl",
+      "size_bytes": 24896124,
+      "modified_at": "2025-11-21T08:28:17.033259+00:00",
+      "sha256": "5a25042b568ca4f91a5d2fa52b8c2e00ee4443fd95bae98dd57b7f761fa8b2b2"
+    },
+    {
+      "role": "report",
+      "path": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/PHYSICS-LOSS-001/reports/2025-11-21T083500Z/sigma_metadata.json",
+      "size_bytes": 663,
+      "modified_at": "2025-11-21T08:28:17.058506+00:00",
+      "sha256": "a66c79cebe1c1c1cc9c479b771f13cf74214ff3446585723fb6c7e8d497f792a"
+    }
+  ]
+}

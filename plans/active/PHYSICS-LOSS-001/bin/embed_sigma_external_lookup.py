@@ -15,10 +15,16 @@ python plans/active/PHYSICS-LOSS-001/bin/embed_sigma_external_lookup.py \
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
+import os
 import pickle
+import shlex
+import sys
+from datetime import datetime, timezone
 from pathlib import Path
+from typing import Iterable
 
 import numpy as np
 from dials.array_family import flex
@@ -67,6 +73,13 @@ def _parse_args() -> argparse.Namespace:
         help=(
             "Optional JSON path for provenance output. Defaults to "
             "<output>.sigma_metadata.json when omitted."
+        ),
+    )
+    parser.add_argument(
+        "--manifest",
+        help=(
+            "Optional manifest JSON path recording generator command metadata and "
+            "SHA256 hashes for the output .expt, .sigma_tiles.pkl, and provenance JSON."
         ),
     )
     parser.add_argument(
@@ -120,10 +133,66 @@ def _build_image_tiles(stack: np.ndarray) -> tuple[ImageDouble, tuple[flex.doubl
     return image_data, tuple(flex_tiles)
 
 
+def _write_manifest(
+    *,
+    manifest_path: Path,
+    output_experiment: Path,
+    sigma_tiles_path: Path,
+    report_path: Path,
+    sigma_source: dict,
+    report_payload: dict,
+    n_panels: int,
+    slow_px: int,
+    fast_px: int,
+) -> None:
+    """Persist a manifest with reproducibility metadata and file hashes."""
+    manifest_payload = {
+        "schema_version": 1,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "command": " ".join([shlex.quote(sys.executable)] + [shlex.quote(arg) for arg in sys.argv]),
+        "cwd": str(Path.cwd()),
+        "authoritative_cmds_doc": os.environ.get("AUTHORITATIVE_CMDS_DOC"),
+        "sigma_source": sigma_source,
+        "sigma_readout_provenance": "external_lookup",
+        "panel_count": n_panels,
+        "panel_shape": {"slow": slow_px, "fast": fast_px},
+        "report": report_payload,
+        "files": list(
+            _iter_file_metadata(
+                (
+                    ("experiment", output_experiment),
+                    ("sigma_tiles_pickle", sigma_tiles_path),
+                    ("report", report_path),
+                )
+            )
+        ),
+    }
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest_path.write_text(json.dumps(manifest_payload, indent=2))
+
+
+def _iter_file_metadata(entries: Iterable[tuple[str, Path]]) -> Iterable[dict]:
+    for role, path in entries:
+        path = Path(path)
+        digest = hashlib.sha256()
+        with open(path, "rb") as fh:
+            for chunk in iter(lambda: fh.read(65536), b""):
+                digest.update(chunk)
+        stat = path.stat()
+        yield {
+            "role": role,
+            "path": str(path),
+            "size_bytes": stat.st_size,
+            "modified_at": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).isoformat(),
+            "sha256": digest.hexdigest(),
+        }
+
+
 def main() -> None:
     args = _parse_args()
     input_path = Path(args.expt).expanduser().resolve()
     output_path = Path(args.output).expanduser().resolve()
+    manifest_path = Path(args.manifest).expanduser().resolve() if args.manifest else None
 
     experiments = ExperimentList.from_file(str(input_path))
     if args.expt_idx < 0 or args.expt_idx >= len(experiments):
@@ -201,6 +270,20 @@ def main() -> None:
         f"({n_panels} panels @ {slow_px}x{fast_px}) into {output_path}"
     )
     print(f"Provenance report written to {report_path}")
+
+    if manifest_path is not None:
+        _write_manifest(
+            manifest_path=manifest_path,
+            output_experiment=output_path,
+            sigma_tiles_path=sigma_asset_path,
+            report_path=report_path,
+            sigma_source=sigma_source,
+            report_payload=report_payload,
+            n_panels=n_panels,
+            slow_px=slow_px,
+            fast_px=fast_px,
+        )
+        print(f"Manifest written to {manifest_path}")
 
 
 if __name__ == "__main__":

@@ -449,3 +449,12 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-21T125551Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=0 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T125551Z/ next_action=stage_b_telemetry_fix
+## 2025-11-21T142700Z — PERF-WARM-SIM-001 Stage B panel-validation plan
+- Focus: PERF-WARM-SIM-001 — Warm simulator; eliminate per-iteration re-instantiation
+- Action Type: planning
+- Key Observations: Post-telemetry Stage B runs still fail on the canonical detector because ROI-mode full validations reuse the same ~92 Stage A ROI entries as the closures, so the optimizer never sees the 6.2 M detector pixels; shell_0 pegs at 2.0 and REFINE-008 trips before telemetry can log (`plans/active/PERF-WARM-SIM-001/reports/2025-11-21T125551Z/{stage_b_roi_summary.json,pytest_stage_b_full.log:1785-1794}`). Logged finding PERF-WARM-009, updated docs/fix_plan.md, and drafted a Do Now directing Ralph to reuse warmed simulators for panel-scope initial/periodic/final validations while keeping ROI closures, then rerun the Stage B smokes + summary script under 2025-11-21T142700Z/ so shell modifiers stay within ±1% again.
+- Artifact Path: plans/active/PERF-WARM-SIM-001/reports/2025-11-21T142700Z/
+- Next Actions: Implement the panel-validation path, rerun the Stage B small/full selectors with telemetry, emit stage_b_roi_summary.json, and refresh findings/fix_plan with the passing evidence.
+- <Action State>: [ready_for_implementation]
+
+2025-11-21T142700Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=0 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T142700Z/ next_action=stage_b_panel_validations

@@ -166,6 +166,13 @@ Acceptance Tests (Normative)
   - Prove equivalence by still satisfying DB‑AT‑024 under the same thresholds, or
   - Be documented as non‑canonical and NOT advertised as Spec‑DB‑conformant for DIALS→Torch mapping.
 
+**Mapping-Aligned Stage‑A Initialization (Normative)**
+
+- For any Stage‑A–style refinement or visualization that claims mapping parity (including TOOLING‑VIS‑001 Stage‑A ROI visuals), the initial configuration SHALL be derived from this DB‑AT‑024 mapping pipeline:
+  - Geometry, mask, sigma, and `RefinementInputs` MUST be constructed exactly as above.
+  - The initial model (`bragg_zero_iter`) used for “before” loss and visuals SHALL be the `simulate_forward_once` Bragg output for that configuration.
+- Stage‑A refinements that start from different initial configurations (e.g., perturbed geometry or alternate MTZ) MAY exist for robustness/performance experiments, but MUST NOT be treated as canonical mapping‑aligned runs, and MUST NOT be used as the baseline for DB‑AT selectors or mapping‑aligned visualization initiatives.
+
 - DB‑AT‑025 HKL interpolation conformance (tricubic halo)
   - Setup: enable `crystal.interpolate=True` and run a forward pass using a dense |F| grid built with a declared ±1 halo (metadata flag). Capture telemetry for default_F fallback count.
   - Expectation: halo present in metadata; default_F fallback count == 0 (no out‑of‑bounds lookups while interpolating). Stage A SHALL disable interpolation; this test applies to Stage B and forward runs where interpolation is enabled.

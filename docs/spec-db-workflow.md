@@ -41,9 +41,37 @@ Pipeline (Normative)
       - Fallback: Aggregated per-shell modifiers (Shell Mode) are PERMITTED as an optimization or regularization strategy but MUST NOT be the default.
       - Physics: Tricubic interpolation (`interpolation=True`) with ±1 HKL halo is MANDATORY.
      - **Stage C (Detector):**
-     - Trainable: Per-panel translation along detector normal (distance offsets).
+      - Trainable: Per-panel translation along detector normal (distance offsets).
       - Fixed: Crystal, scale, Fhkl.
       - Physics: Tricubic interpolation (`interpolation=True`) is MANDATORY so detector motion yields differentiable HKL gradients.
+
+### Canonical Initial Configuration (Normative)
+
+For workflows whose goal is to validate physics and mapping fidelity (DB‑AT‑024, DB‑AT‑02x selectors, and Stage‑A visualization under TOOLING‑VIS‑001), the initial configuration for Stage‑A–style refinement and diagnostics SHALL be the “mapping configuration” defined in `docs/spec-db-conformance.md` (§DB‑AT‑024 DIALS→Torch Mapping), i.e.:
+
+- Geometry:
+  - Prefer DiffBragg-refined fixtures when available:
+    - `tests/fixtures/golden_data/simple_cubic/refined.expt`
+    - `tests/fixtures/golden_data/simple_cubic/refined.refl`
+  - Otherwise fall back to canonical `refGeom.expt` / `refGeom.refl` under the repository root.
+- Structure Factors:
+  - Prefer refined structure factors:
+    - `tests/fixtures/golden_data/simple_cubic/refined_structure_factors.mtz`
+  - Otherwise fall back to the canonical `scaled.mtz`.
+- Calibration:
+  - Use `tests/fixtures/golden_data/simple_cubic/config_torch.json` to provide `spot_scale_override`, beam flux/exposure, beamsize, and `N_cells` to the mapping helper.
+- Trusted Mask and Sigma:
+  - Trusted mask: `747_mask.pkl` decoded as `[panel, slow, fast]` with True=trusted.
+  - Sigma: external-lookup `sigma_readout_map` when present and valid; otherwise a documented constant ADU floor per `spec-db-core.md`.
+- RefinementInputs:
+  - Prepared exactly as specified for DB‑AT‑024 in `docs/spec-db-conformance.md` (loss mask `(background >= 0) ∧ trusted_mask`, background-subtracted targets, sigma broadcast and zeroed outside the loss mask).
+- Zero-Iteration Model:
+  - The canonical zero-iteration Bragg stack used for Stage‑A “before” diagnostics SHALL be the output of `simulate_forward_once` applied to the configuration above (refined MTZ + calibration when available, or raw MTZ + calibration fallback), and SHALL use the same variance-weighted chi-squared loss and variance model as the Stage‑A objective.
+
+Implementations MAY explore alternative initial configurations (e.g., deliberately perturbed geometry or unrefined MTZ) for robustness or performance experiments, but:
+
+- Such configurations MUST NOT be used when running DB‑AT‑024 / DB‑AT‑02x selectors or TOOLING‑VIS‑001 canonical Stage‑A visuals.
+- Any divergence from the mapping configuration in those contexts MUST be treated as non‑canonical and documented explicitly (including thresholds and artifacts) before being considered Spec‑DB‑conformant.
 
 ### Stage Smoke Dataset Policy (Normative)
 - Purpose: Provide a fast-running refinement harness that exercises the Stage A/B/C code paths without exhausting GPU VRAM. The canonical `refGeom` assets remain authoritative for DB‑AT selectors and parity work; the cropped `refGeom_small` fixture is only for smoke/perf loops.

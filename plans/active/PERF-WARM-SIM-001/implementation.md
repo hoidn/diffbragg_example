@@ -35,17 +35,17 @@ Environment Freeze: No runtime/toolchain changes. Deterministic CPU tests remain
 - Memory footprint growth from cached models: monitor and batch panels if needed; adopt ROI‑cropped models in follow‑ups if memory becomes limiting.
 
 ## Exit Criteria
-1) 2–5× speedup on CPU for Stage A smoke selector at current defaults (same dataset/seed). Document baseline vs improved timings.
+1) 2–5× speedup on CPU for Stage A smoke selector at current defaults (same dataset/seed). Document baseline vs improved timings. **Deferred** — post-2025-11-21 scope change: benchmarking will resume after the engine refactor; until then, no sprinting on perf targets.
 2) Numeric parity within existing tolerances for a fixed seed on Stage A; Stage B/C parity where applicable.
 3) Perf telemetry present in `/torch_diagnostics` (counts/timings) without breaking existing readers/tests.
 4) No environment/toolchain changes; tests remain deterministic.
 
-## Tasks (No environment changes)
-- A1: Add stage context type and refactor Stage A to prebuild models and hoist tensors; update closure to parameter‑only updates.
+## Tasks (deferred benchmarking)
+- A1: Add stage context type and refactor Stage A to prebuild models and hoist tensors; update closure to parameter-only updates.
 - A2: Add perf telemetry counters; wire to HDF5.
 - B1: Apply reuse pattern to Stage B (shell modifiers), ensuring modified HKL grid remains on device.
 - C1: Apply reuse pattern to Stage C with distance override tensors.
-- V1: Add micro‑bench harness (timings printed/logged) and document results in artifacts.
+- V1: **Deferred** — micro-bench harness + pass/fail guard to be implemented when the initiative resumes (requires hardware/dataset spec).
 - D1: Update `docs/findings.md` with before/after timings and lessons; add a brief note in `docs/spec-db-runtime.md` on warm model reuse guidance.
 
 ## Artifacts
@@ -62,4 +62,3 @@ plans/active/PERF-WARM-SIM-001/
 
 ## Timeline
 Estimated 1–2 engineering days across A (Stage A), then C, then B. Prioritize Stage A first to realize immediate gains.
-

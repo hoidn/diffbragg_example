@@ -79,7 +79,7 @@
 
 ### [PERF-WARM-SIM-001] Warm simulator; eliminate per-iteration re-instantiation
 - Depends on: `nanobrag_torch` simulator in place; current refinement loops in `dbex/nanobrag_refinement.py`.
-- Status: in_progress (2025-11-06)
+- Status: blocked (2025-11-21 — deferring benchmark work until engine refactor completes)
 - Priority: high (perf focus)
 - Owner/Date: Team / 2025-11-05
 - Exit Criteria:

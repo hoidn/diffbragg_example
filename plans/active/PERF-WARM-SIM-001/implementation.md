@@ -22,6 +22,10 @@ Environment Freeze: No runtime/toolchain changes. Deterministic CPU tests remain
 - Stage C: Per‑panel distance offsets with prebuilt models + distance override tensors.
 - Bridge helpers remain as‑is; ensure mask tensors and HKL grid are attached once.
 
+### Existing Implementation Note
+- Stage A already implements an ROI‑aware warm cache and perf‑telemetry contract (e.g., `roi_count_total`, `roi_count_sampled`, `cache_mode`, `roi_mode`, `forward_time_ms`) as documented in `docs/fix_plan.md` under `[PERF-WARM-SIM-001]`.
+- Future work that extends warm‑cache/ROI behavior or perf telemetry should **evolve this contract inside PERF-WARM-SIM-001 (or a successor perf initiative)** and keep tests/docs in sync, rather than introducing parallel cache or telemetry schemas in other plans.
+
 ## Design Sketch
 - Introduce a stage context (e.g., `RefinementStageContext`) constructed once per stage:
   - Holds: list of per‑panel `Detector` models, one `Crystal` model, one `Simulator` (or one per panel if required by API), device/dtype, pre‑tensorized masks, HKL tensors/metadata.

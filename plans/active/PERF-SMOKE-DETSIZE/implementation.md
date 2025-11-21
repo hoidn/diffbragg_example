@@ -52,6 +52,7 @@
 
 ### Notes & Risks
 - Ensure Stage B/C still have meaningful ROI coverage; document coordinate transforms to avoid CONFIG-001 regressions.
+- When reasoning about runtime or perf, reuse the existing PERF-WARM-SIM-001 telemetry contract (`roi_count_total`, `roi_count_sampled`, `cache_mode`, `roi_mode`, `forward_time_ms`) rather than introducing new perf counter fields here. If that contract proves insufficient, evolve it inside PERF-WARM-SIM-001 (or a successor perf initiative) and update its docs/tests, then consume the updated fields from this plan.
 
 ## Phase B — Test Integration
 ### Checklist

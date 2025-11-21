@@ -51,6 +51,7 @@
 
 ### Notes & Risks
 - Capturing telemetry on the canonical detector requires GPU RAM; honor `NANOBRAG_DISABLE_COMPILE=1` and `KMP_DUPLICATE_LIB_OK=TRUE` per runtime policy.
+ - When adjusting or inspecting Stage B/C perf behavior, reuse the PERF-WARM-SIM-001 perf-telemetry contract (`roi_count_*`, `cache_mode`, `roi_mode`, `forward_time_ms`) and Stage A warm-cache/ROI semantics rather than defining Stage-specific perf counters. If additional fields are needed, extend the PERF-WARM-SIM-001 contract (and its tests/docs) instead of introducing a parallel schema here.
 
 ## Phase B — Stage B Optimizer Repair
 ### Checklist

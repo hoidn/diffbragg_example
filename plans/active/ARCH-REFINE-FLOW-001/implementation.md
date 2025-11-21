@@ -39,6 +39,7 @@
 - docs/spec-db-tracing.md §2 (telemetry requirements)
 - docs/fix_plan.md entries for TORCH-REFINE-004/005 (Stage B roadmap) and PHYSICS-LOSS-001 (variance-weighted loss)
 - logs/artifacts under plans/active/PHYSICS-LOSS-001/reports/2025-11-21T045800Z/ (canonical Stage telemetry)
+- plans/active/PERF-WARM-SIM-001/implementation.md (Stage A warm-cache, ROI sampling, and perf-telemetry contract)
 - findings REFINE-005, REFINE-007, REFINE-008 (gates), SCALE-001/002 (scale handling)
 
 ## Phase A — Stage Interface & Engine Skeleton
@@ -70,7 +71,7 @@
 - [ ] B5: Update docs/tests to reference the new Stage A class where appropriate (e.g., developer docs showing class layout).
 
 ### Notes & Risks
-- Ensure Stage A ROI sampling + warm-cache options remain available and configurable (StageA should accept `sampled_panel_ids`, cache flags).
+- Ensure Stage A ROI sampling + warm-cache options remain available and configurable (StageA should accept `sampled_panel_ids`, cache flags) and continue to follow the PERF-WARM-SIM-001 telemetry contract (`roi_count_*`, `cache_mode`, `roi_mode`, `forward_time_ms`). If you discover gaps in that contract, extend it inside PERF-WARM-SIM-001 (or a successor perf initiative) rather than introducing a new cache or perf schema in this plan.
 - Regression risk: orientation/quaternion handling must remain inside the stage.
 
 ## Phase C — Stage B Extraction

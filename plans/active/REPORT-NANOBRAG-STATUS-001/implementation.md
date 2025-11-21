@@ -16,6 +16,7 @@ Scope: reporting only. No runtime/toolchain changes and no external installs. Op
   - Stage telemetry: `loss_trace_sample`, `loss_trace_full`, `best_loss_full`, `param_deltas`, optimizer config, `hkl_source` provenance.
   - ROI snapshot manifest for selected panels/indices (triptych references).
   - Plan vs. implementation status matrix.
+ - When describing perf behavior or ROI sampling in the report, reuse the existing PERF-WARM-SIM-001 telemetry contract (`roi_count_*`, `cache_mode`, `roi_mode`, `forward_time_ms`) and Stage A ROI semantics where available. If additional metrics are needed, evolve that contract within PERF-WARM-SIM-001 (or a successor perf initiative) and then consume the new fields here, rather than inventing a reporting-specific perf schema.
 
 Note: If plotting libraries are unavailable, emit JSON + markdown tables only, and record the missing import as a blocker in `docs/fix_plan.md` Attempts History.
 
@@ -57,4 +58,3 @@ reports/
 
 ## Relationship to Integration Plan
 This plan delivers the “Validation & Documentation” reporting artifact referenced by `plans/nanobrag_integration_plan.md` (Phase 5). The integration plan remains unchanged; this plan provides the reporting track to present current progress without altering runtime code.
-

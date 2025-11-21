@@ -21,6 +21,10 @@
 - **Normative Spec:** `docs/spec-db-vis.md`
 - **Key Clauses:** Coordinate Systems, Triptych Layout, Residual Definition.
 
+## Context Priming (read before edits)
+- `scripts/generate_simple_cubic_golden.py` ROI triptych pipeline (`compute_roi_metrics`, ROI `.npz` bundles, and `index.json` metadata).
+- PERF-WARM-SIM-001 Stage A ROI telemetry (`roi_count_*`, `cache_mode`, `roi_mode`, `forward_time_ms`) and `[panel, slow, fast]` tensor conventions.
+
 ## Reference Implementation (Prototype)
 *Use this logic as the seed for `dbex/vis/triptych.py`. Do not copy-paste monolithic scripts; extract the plotting functions.*
 
@@ -73,6 +77,7 @@ def plot_roi_grid(rois, data_stack, model_stack, bg_stack, filename):
 - [ ] A1: Create `dbex/vis/` package.
 - [ ] A2: Implement `triptych.py`: Standard layout, shared colormaps.
 - [ ] A3: Implement `residuals.py`: Z-score calculation (requires variance input).
+ - [ ] A4: Ensure `dbex.vis` can consume existing ROI triptych artifacts and metrics (from `scripts/generate_simple_cubic_golden.py` and PERF-WARM-SIM-001 Stage A telemetry) as first-class inputs, rather than defining a new ROI schema. If those artifacts are missing required fields, extend that pipeline/contract in its home initiative and then adapt `dbex.vis` to the updated schema.
 
 ## Phase B — Integration
 ### Checklist

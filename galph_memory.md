@@ -383,3 +383,12 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-21T093905Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=1 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T093905Z/ next_action=cache_simulator_pool_impl
+## 2025-11-21T103500Z — PERF-WARM-SIM-001 ROI batching plan
+- Focus: PERF-WARM-SIM-001 — Warm simulator; eliminate per-iteration re-instantiation
+- Action Type: planning
+- Key Observations: Warm vs cold still measures ~1.01× because Stage A samples `n_panels` (only one panel) so every closure renders the full 2463×2527 frame despite <0.3 % loss-mask coverage. Drafted a new Do Now to build ROI-aware Stage A context—crop Detector/Simulator pairs per `panel_slices`, sample ROIs inside the closure (preserving the cold-mode rebuild path), update telemetry to report ROI counts, and re-run Stage A smokes (small + full) plus the warm/cold benchmark with artifacts under 2025-11-21T103500Z/.
+- Artifact Path: plans/active/PERF-WARM-SIM-001/reports/2025-11-21T103500Z/
+- Next Actions: Ralph implements the ROI batching refactor, exercises the mapped Stage A selectors, reruns the benchmark, and records the new speedup/telemetry so we can decide whether additional findings or spec updates are needed.
+- <Action State>: [ready_for_implementation]
+
+2025-11-21T103500Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=0 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T103500Z/ next_action=roi_stage_a_impl

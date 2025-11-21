@@ -14,7 +14,7 @@
 
 ### [PHYSICS-LOSS-001] Implement variance-weighted loss function
 - Depends on: docs/spec-db-core.md (Variance Model)
-- Status: blocked (2025-11-21 — awaiting REFINE-SMOKE-CANONICAL Stage B/C repairs)
+- Status: in_progress (2025-11-21 — Stage B/C canonical telemetry back online; prepping shared helper)
 - Priority: Critical (Scientific Validity)
 - Owner/Date: Unassigned
 - Exit Criteria:
@@ -30,6 +30,7 @@
   * 2025-11-21T003959Z (planning) — Stage B/C telemetry upgrades exposed that the variance-weighted denominator still clamps at `1.0` instead of the spec-mandated `sigma_floor^2`, so Stage B immediately raises `RuntimeError: NaN/Inf gradient detected...` on GPU (plans/active/PHYSICS-LOSS-001/reports/2025-11-20T235741Z/pytest_stage_b.log). Authored a Do Now to add a CLI `--sigma-floor` flag (default ≥1 photon or ADU-equivalent), thread `RefinementConfig.sigma_floor_value` through the Stage A/B/C variance calculations, record clamp fractions in `RefinementTelemetry` + `/torch_diagnostics`, refresh `tests/dbex/test_torch_refine_smoke.py::{test_stage_a_expansion,test_stage_b_shell_modifiers,test_stage_c_detector_microslip}`, and extend `tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata` for the new telemetry. Artifacts: plans/active/PHYSICS-LOSS-001/reports/2025-11-21T003959Z/. Next Actions: Implement the sigma_floor guard + telemetry, rerun the mapped selectors, and unblock Phase B4/B5 plus Phase C2/C3.
   * 2025-11-21T010127Z (planning) — Sigma-floor plumbing landed, but Stage B smoke still dies before LBFGS records a single sample because the gradient guard detects NaN/Inf immediately (telemetry status=`error`, Stage B loss_trace_sample=[], see plans/active/PHYSICS-LOSS-001/reports/2025-11-21T003959Z/pytest_stage_b.log:60-99). Stage C gate now compares Stage A final chi-squared ≈8.09e3 against Stage C final ≈3.02e8 because Stage A still emits the legacy `(Σ diff^2)/(Σ variance)` ratio while Stage B/C sum per-pixel `(diff^2 / variance)`, so `/torch_diagnostics` is mixing incompatible units (plans/active/PHYSICS-LOSS-001/reports/2025-11-21T003959Z/pytest_stage_c.log:112-134). Next Do Now: extract a shared variance-weighted loss helper inside `dbex/nanobrag_refinement.py::run_nanobrag_refinement` so Stage A/B/C all compute chi-squared via the spec definition with a single precomputed `sigma_floor_sq` tensor, reuse it for clamp statistics/telemetry, and re-run `tests/dbex/test_torch_refine_smoke.py::{test_stage_a_expansion,test_stage_b_shell_modifiers,test_stage_c_detector_microslip}` plus `tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata` to confirm Stage B no longer raises and all stages report identical units. Artifacts: plans/active/PHYSICS-LOSS-001/reports/2025-11-21T010127Z/.
   * 2025-11-21T023537Z (blocked) — Manual override “Smoke Test Resource Guardrail” halts Stage A/B/C smokes on full refGeom assets until PERF-SMOKE-DETSIZE delivers the cropped dataset + fixtures. Variance-weighted loss validation remains on pause; resume implementation once PERF-SMOKE-DETSIZE exit criteria #1–3 are complete so we can run the mapped selectors again without exhausting GPU VRAM.
+  * 2025-11-21T045800Z (planning) — Dependency cleared: REFINE-SMOKE-CANONICAL shipped the Stage B LBFGS scope fix + Stage C baseline telemetry, and the canonical full-detector smokes now pass with detector_offset_reduction_min = 0.99999994 and detector_offset_final_abs_max = 1.49e-08 mm (`plans/active/REFINE-SMOKE-CANONICAL/reports/2025-11-21T042222Z/{pytest_stage_b_full.log,pytest_stage_c_full.log,telemetry_full.json}`). Recorded the unblock, refreshed status→in_progress, and drafted a ready-for-implementation Do Now to build a shared variance-weighted helper in `dbex/nanobrag_refinement.py` (reuse one cached `sigma_floor_sq` tensor, emit identical Σ((pred-target)^2 / V) traces for stages A/B/C), normalize Stage A telemetry to the canonical detector, and rerun the strict Stage B/C selectors with `DBEX_SMOKE_DETECTOR_SIZE=full` + telemetry capture under `plans/active/PHYSICS-LOSS-001/reports/2025-11-21T045800Z/`. Next Actions: Implement the helper + telemetry wiring, refresh `tests/dbex/test_torch_refine_smoke.py::{test_stage_b_shell_modifiers,test_stage_c_detector_microslip}` and `tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata`, and summarize the new chi-squared metrics in this ledger once the selectors pass.
 
 ### [ARCH-REFINE-FLOW-001] Refactor to Protocol-based Refinement Engine
 - Depends on: PHYSICS-LOSS-001
@@ -231,7 +232,7 @@
 
 ### [REFINE-SMOKE-CANONICAL] Restore canonical Stage B/C smoke convergence
 - Depends on: docs/spec-db-workflow.md §§Stage B/C + Stage Smoke Dataset Policy; docs/spec-db-core.md (variance-weighted loss telemetry)
-- Status: in_progress (2025-11-21 — Stage B nonlocal + Stage C telemetry repair)
+- Status: done (2025-11-21 — full-detector Stage B/C smokes repaired)
 - Priority: High (blocks PHYSICS-LOSS-001 parity runs)
 - Owner/Date: Unassigned
 - Exit Criteria:

@@ -274,3 +274,12 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-21T042222Z focus=REFINE-SMOKE-CANONICAL state=ready_for_implementation dwell=0 artifacts=plans/active/REFINE-SMOKE-CANONICAL/reports/2025-11-21T042222Z/ next_action=ship_stage_b_c_canonical_fix
+## 2025-11-21T045800Z — PHYSICS-LOSS-001 chi-squared alignment planning
+- Focus: PHYSICS-LOSS-001 — Implement variance-weighted loss function
+- Action Type: planning
+- Key Observations: Verified REFINE-SMOKE-CANONICAL artifacts (`plans/active/REFINE-SMOKE-CANONICAL/reports/2025-11-21T042222Z/telemetry_full.json`) show Stage B/C full-detector smokes passing with detector_offset_reduction_min≈0.99999994 and chi-squared traces back in tolerance, so the dependency is closed. Updated docs/fix_plan.md status→in_progress, marked Phase B4/B5 complete in the implementation plan, added Phase D for the shared variance helper, and rewrote input.md with a Do Now that threads the helper through Stage A/B/C plus the Stage B/C full-detector selectors.
+- Artifact Path: plans/active/PHYSICS-LOSS-001/reports/2025-11-21T045800Z/
+- Next Actions: Ralph implements the shared chi-squared helper + telemetry alignment, reruns the Stage B/C full detectors, and refreshes the CLI diagnostics test per the new schema.
+- <Action State>: [ready_for_implementation]
+
+2025-11-21T045800Z focus=PHYSICS-LOSS-001 state=ready_for_implementation dwell=1 artifacts=plans/active/PHYSICS-LOSS-001/reports/2025-11-21T045800Z/ next_action=shared_variance_helper_implementation

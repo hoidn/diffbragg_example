@@ -236,3 +236,13 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-21T010127Z focus=PHYSICS-LOSS-001 state=ready_for_implementation dwell=0 artifacts=plans/active/PHYSICS-LOSS-001/reports/2025-11-21T010127Z/ next_action=shared_variance_helper_implementation
+
+## 2025-11-21T023537Z — PERF-SMOKE-DETSIZE override planning
+- Focus: PERF-SMOKE-DETSIZE — Introduce small-detector fixture for Stage smokes
+- Action Type: planning
+- Key Observations: Manual override “Smoke Test Resource Guardrail” blocks PHYSICS-LOSS-001 until Stage smokes default to a cropped dataset, so I marked PHYSICS-LOSS-001 blocked, promoted PERF-SMOKE-DETSIZE to in_progress, and scoped the deliverables. Micro probes on `refGeom` confirmed a single 2463×2527 panel with 282 ROIs and showed a centred 1024×1024 crop keeps 87 ROIs (31%), satisfying the ≥50 ROI requirement while slashing tensor area by 76%. Authored a Do Now for Ralph covering: the T2 crop script that emits `sp.proc/refGeom_small/{lys_nitr_10_6_0001_small.cbf,refGeom_small.expt,refGeom_small.refl,refGeom_small_mask.pkl,README.md}` with provenance + checksums; Stage A/B/C smoke fixture parameterization via `--smoke-detector-size` defaulting to `small` plus gate recalibration with perf telemetry capture; and doc/test-index updates that codify small-smoke vs full-parity workflows and guard DB-AT selectors against accidentally using the cropped assets. Artifacts recorded under plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T023537Z/.
+- Artifact Path: plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T023537Z/
+- Next Actions: Ralph implements the crop script, rewires `tests/dbex/test_torch_refine_smoke.py` fixtures + gates, and updates docs/TESTING_GUIDE.md + spec workflow text before rerunning the Stage smokes on the new dataset.
+- <Action State>: [planning]
+
+2025-11-21T023537Z focus=PERF-SMOKE-DETSIZE state=planning dwell=0 artifacts=plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T023537Z/ next_action=crop_script_and_fixture_parameterization

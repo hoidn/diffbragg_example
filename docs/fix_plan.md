@@ -14,7 +14,7 @@
 
 ### [PHYSICS-LOSS-001] Implement variance-weighted loss function
 - Depends on: docs/spec-db-core.md (Variance Model)
-- Status: in_progress (2025-11-20)
+- Status: blocked (2025-11-21 — awaiting PERF-SMOKE-DETSIZE assets)
 - Priority: Critical (Scientific Validity)
 - Owner/Date: Unassigned
 - Exit Criteria:
@@ -29,6 +29,7 @@
   * 2025-11-20T233552Z (implementation) — Completed Phase B: Stage B shell-modifier and Stage C detector-distance LBFGS closures now consume `inputs.sigma_readout`, detach the chi-squared denominator, and emit dual loss traces (chi_squared + masked_mse). Extended `RefinementTelemetry` plus `_write_torch_outputs` so `/torch_diagnostics/stage_{A,B,C}` groups include chi-squared datasets/attrs, and refreshed CLI diagnostics metadata tests. Targeted selectors exercised: `tests/dbex/test_torch_refine_smoke.py::{test_stage_b_shell_modifiers,test_stage_c_detector_microslip}` (logs in plans/active/PHYSICS-LOSS-001/reports/2025-11-20T233552Z/pytest_stage_b.log and `_stage_c.log`) and `tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata` (pytest_cli_diag.log). **Outstanding:** Phase C validation runs (DB-AT-024 mapping smoke + Stage A regression) still need to be replayed under the new loss to capture fresh metrics and confirm gates remain calibrated.
   * 2025-11-21T003959Z (planning) — Stage B/C telemetry upgrades exposed that the variance-weighted denominator still clamps at `1.0` instead of the spec-mandated `sigma_floor^2`, so Stage B immediately raises `RuntimeError: NaN/Inf gradient detected...` on GPU (plans/active/PHYSICS-LOSS-001/reports/2025-11-20T235741Z/pytest_stage_b.log). Authored a Do Now to add a CLI `--sigma-floor` flag (default ≥1 photon or ADU-equivalent), thread `RefinementConfig.sigma_floor_value` through the Stage A/B/C variance calculations, record clamp fractions in `RefinementTelemetry` + `/torch_diagnostics`, refresh `tests/dbex/test_torch_refine_smoke.py::{test_stage_a_expansion,test_stage_b_shell_modifiers,test_stage_c_detector_microslip}`, and extend `tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata` for the new telemetry. Artifacts: plans/active/PHYSICS-LOSS-001/reports/2025-11-21T003959Z/. Next Actions: Implement the sigma_floor guard + telemetry, rerun the mapped selectors, and unblock Phase B4/B5 plus Phase C2/C3.
   * 2025-11-21T010127Z (planning) — Sigma-floor plumbing landed, but Stage B smoke still dies before LBFGS records a single sample because the gradient guard detects NaN/Inf immediately (telemetry status=`error`, Stage B loss_trace_sample=[], see plans/active/PHYSICS-LOSS-001/reports/2025-11-21T003959Z/pytest_stage_b.log:60-99). Stage C gate now compares Stage A final chi-squared ≈8.09e3 against Stage C final ≈3.02e8 because Stage A still emits the legacy `(Σ diff^2)/(Σ variance)` ratio while Stage B/C sum per-pixel `(diff^2 / variance)`, so `/torch_diagnostics` is mixing incompatible units (plans/active/PHYSICS-LOSS-001/reports/2025-11-21T003959Z/pytest_stage_c.log:112-134). Next Do Now: extract a shared variance-weighted loss helper inside `dbex/nanobrag_refinement.py::run_nanobrag_refinement` so Stage A/B/C all compute chi-squared via the spec definition with a single precomputed `sigma_floor_sq` tensor, reuse it for clamp statistics/telemetry, and re-run `tests/dbex/test_torch_refine_smoke.py::{test_stage_a_expansion,test_stage_b_shell_modifiers,test_stage_c_detector_microslip}` plus `tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata` to confirm Stage B no longer raises and all stages report identical units. Artifacts: plans/active/PHYSICS-LOSS-001/reports/2025-11-21T010127Z/.
+  * 2025-11-21T023537Z (blocked) — Manual override “Smoke Test Resource Guardrail” halts Stage A/B/C smokes on full refGeom assets until PERF-SMOKE-DETSIZE delivers the cropped dataset + fixtures. Variance-weighted loss validation remains on pause; resume implementation once PERF-SMOKE-DETSIZE exit criteria #1–3 are complete so we can run the mapped selectors again without exhausting GPU VRAM.
 
 ### [ARCH-REFINE-FLOW-001] Refactor to Protocol-based Refinement Engine
 - Depends on: PHYSICS-LOSS-001
@@ -209,9 +210,9 @@
 
 ### [PERF-SMOKE-DETSIZE] Introduce small-detector fixture for smoke tests
 - Depends on: docs/spec-db-workflow.md (Stage smoke validations), CONFIG-001
-- Status: pending
+- Status: in_progress (2025-11-21)
 - Priority: Medium (Test Performance)
-- Owner/Date: Unassigned
+- Owner/Date: Galph/Ralph / 2025-11-21
 - Exit Criteria:
   1. `refGeom_small.expt/.refl` (plus masks) exist under `sp.proc/` with README/provenance and checksums documenting ROI counts.
   2. Stage A/B/C smoke tests (`tests/dbex/test_torch_refine_smoke.py`) parameterize detector size, default to the small fixture, and pass on CPU/GPU; overrides allow running against the full dataset.
@@ -220,6 +221,7 @@
 - Working Plan: plans/active/PERF-SMOKE-DETSIZE/implementation.md
 - Attempts History:
   * 2025-11-21T012300Z (planning) — Authored implementation plan outlining dataset capture (cropping refGeom, maintaining ROI metadata), test integration with parameterized fixtures/gate recalibration, and documentation + parity guardrails. See `plans/active/PERF-SMOKE-DETSIZE/implementation.md`. Next Actions: Script `refGeom_small` capture, validate `DataLoad` on the cropped dataset, and archive artifacts under `plans/active/PERF-SMOKE-DETSIZE/reports/<timestamp>/`.
+  * 2025-11-21T023537Z (planning) — Manual override `user_input.md` (“Smoke Test Resource Guardrail”) promotes this initiative to the critical path. Probed the canonical refGeom assets via one-off scripts (artifacts: plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T023537Z/) and confirmed: single-panel detector (2463×2527), 282 ROIs, and a centred 1024×1024 crop preserves 87 ROIs (31%), exceeding the ≥50 ROI requirement while reducing tensor area by ~76%. Drafted Do Now covering: (1) T2 capture script `plans/active/PERF-SMOKE-DETSIZE/bin/crop_refgeom_to_small.py` that crops `lys_nitr_10_6_0001.cbf`, rewrites `refGeom_small.expt/.refl`, emits `refGeom_small_mask.pkl`, and records checksums/README under `sp.proc/refGeom_small/`; (2) parameterized smoke fixtures in `tests/dbex/test_torch_refine_smoke.py` with pytest option `--smoke-detector-size={small,full}`, defaulting to `small`, recalibrating Stage A/B/C gates + perf telemetry expectations, and ensuring `--smoke-detector-size=full` keeps the legacy dataset available for parity; (3) doc/test-index updates to describe the small-smoke vs full-parity workflow plus a guard in DB-AT selectors so they assert full-detector assets before executing. Exit criteria #1–3 now have concrete steps and artifacts for Ralph to implement next loop.
 ### [MAP-SCALE-001] Zero-iteration mapping scale alignment
 - Depends on: DB-AT-024, DB-AT-023, SCALE-001, SCALE-002, docs/spec-db-workflow.md §4, docs/architecture.md §4.3, CONFORMANCE-001
 - Status: done (Phase D complete — docs & metrics synchronized)

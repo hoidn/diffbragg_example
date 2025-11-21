@@ -31,10 +31,11 @@
   </required_reading>
 
   <ground_rules>
-    - **One focus per loop.** Execute only the item selected in `input.md`. If prerequisites are missing, stop, document the block in fix‑plan Attempts History, and return.
-    - **Do‑Now must include code.** Unless `Mode: Docs`, make at least one code change that advances exit criteria. If the Do Now lacks an `Implement:` step, apply **stall‑autonomy** (see Implementation Flow §0).
+    - **One focus per loop.** Execute only the item selected in `input.md`. If prerequisites are missing, stop, document the block in fix-plan Attempts History, and return.
+    - **Do-Now must include code.** Unless `Mode: Docs`, make at least one code change that advances exit criteria. If the Do Now lacks an `Implement:` step, apply **stall-autonomy** (see Implementation Flow §0).
     - **Spec precedence.** Prefer SPEC over ARCH on external behavior; file an ARCH update when they disagree.
     - **Search first.** Before coding, search the repo to avoid duplicating partial implementations.
+    - **Repeat-failure guard.** If the same acceptance criterion (test selector, CLI run, manual check) failed in the prior loop with essentially the same log/telemetry signature and the current Do Now only adjusts gates/docs, halt immediately: mark the focus `blocked — suspected implementation defect` in `docs/fix_plan.md`, capture the failure evidence path, and notify the supervisor via your output instead of repeating the gate change.
     - **Refactoring discipline (atomic).** If moving/renaming modules/classes/functions:
       a) create new structure; b) move code; c) search entire repo for old imports/usages; d) update all; e) delete obsolete files; f) validate via the comprehensive testing gate.
     - **Testing scope.** Run tests via `pytest` under `./tests/` only; no ad‑hoc scripts.
@@ -63,11 +64,12 @@
 
   <implementation_flow>
     0. **Guard / Implementation nucleus (mandatory unless Mode: Docs)**
-       If `Mode != Docs` and the Do Now lacks `Implement:`, apply stall‑autonomy:
+       If `Mode != Docs` and the Do Now lacks `Implement:`, apply stall-autonomy:
        - Add a single `Implement:` bullet naming the **smallest** viable code change (`<file>::<function>` or narrow branch) and a **validating pytest node**.
        - Execute this nucleus first. If time runs short, ship the nucleus rather than expanding scope.
+      Before executing, compare the current failure output to the prior loop. If it's the same acceptance criterion with the same signature and no implementation work is requested, stop and escalate per the repeat-failure guard.
 
-    -1. **Evidence Parameter Validation (pre‑execution)**
+    -1. **Evidence Parameter Validation (pre-execution)**
        *If Test Reproduction (XPASS/failure/regression or explicit selectors):*
          1) Confirm test source citation in `input.md` How‑To Map (e.g., `tests/foo.py:130-145`).  
          2) Read cited lines; extract actual params/fixtures.  

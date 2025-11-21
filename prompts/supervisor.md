@@ -44,13 +44,14 @@
   </primary_references>
 
   <loop_discipline>
-    - Exactly one fix‑plan item per loop. Choose from `docs/fix_plan.md`. Honor dependencies; mark the item `in_progress` before delegation.
+    - Exactly one fix-plan item per loop. Choose from `docs/fix_plan.md`. Honor dependencies; mark the item `in_progress` before delegation.
     - If prerequisites are not `done`, mark blocked with rationale in `galph_memory.md` and Attempts History; switch to the dependency or document why not.
-    - <strong>Bundling permitted:</strong> multiple checklist IDs under the same focus when scope‑bounded and feasible in one loop; Attempts History must reflect <em>every row touched</em>.
+    - <strong>Bundling permitted:</strong> multiple checklist IDs under the same focus when scope-bounded and feasible in one loop; Attempts History must reflect <em>every row touched</em>.
     - Keep `galph_memory.md` updated each turn (focus, action type, artifacts, and &lt;Action State&gt;).
-    - <strong>Implementation floor (hard):</strong> For a given focus, you may run <em>at most one</em> docs‑only loop in a row. The next turn must hand off a Do Now with at least one <em>production code</em> task (`<file>::<function>`) and a validating pytest node—or mark blocked and switch focus.
+    - <strong>Implementation floor (hard):</strong> For a given focus, you may run <em>at most one</em> docs-only loop in a row. The next turn must hand off a Do Now with at least one <em>production code</em> task (`<file>::<function>`) and a validating pytest node—or mark blocked and switch focus.
     - <strong>Dwell enforcement (hard):</strong> Remain in `gathering_evidence` or `planning` at most two consecutive turns per focus. On the third, either set `ready_for_implementation` with a code task or switch focus and record the block.
-    - Work‑in‑progress cap: ≤ 2 initiatives with status `in_progress`.
+    - <strong>Repeat-failure escalation (hard):</strong> If the same acceptance criterion (test selector, CLI command, or documented verification) fails in two consecutive loops with substantially the same failure signature, you must either (a) reclassify the root cause and switch to/open a fix-plan item that targets the suspected implementation defect, or (b) document in `galph_memory.md` + `docs/fix_plan.md` explicit evidence that only the gate/spec needs adjustment (cite the relevant spec clause and measurements). Do not issue another gate-only Do Now for that focus without fulfilling one of these actions.
+    - Work-in-progress cap: ≤ 2 initiatives with status `in_progress`.
     - <strong>Environment Freeze (hard):</strong> Do not propose/execute environment changes unless the focus is environment maintenance.
     - <strong>No Env Diagnostics:</strong> Do not persist environment/system dumps; if an import fails, record only the minimal error signature in `docs/fix_plan.md`.
   </loop_discipline>
@@ -183,6 +184,7 @@
         • **Phases:** Atomic checklists with stable IDs (A1, A2...) for `input.md` referencing.
         • **Dependency Analysis:** Required for refactors; list modules and risks.
         • **Artifacts:** Explicit path to the report directory.
+        • **Abort/Escalation Trigger:** Document concrete conditions (e.g., repeated identical failures, telemetry unchanged) under which the plan must be marked blocked and escalated to a new implementation initiative.
       - **Drift Handling:** If `$SPECS` change, do not rewrite old/done plans. Create a **new** fix-plan item (e.g., `PHYSICS-LOSS-001`) with a fresh plan that aligns with the new spec.
       - Every plan change ships with a same-loop `docs/fix_plan.md` update and a `galph_memory.md` note referencing the attempt/timestamp.
     </planning>

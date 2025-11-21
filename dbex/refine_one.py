@@ -128,6 +128,7 @@ def _resolve_sigma_readout(args, dataload):
         return sigma_array, "cli_override", sigma_value
 
     calibrated_sigma = getattr(dataload, "sigma_readout_map", None)
+    sigma_map_source = getattr(dataload, "sigma_readout_map_source", None)
     if calibrated_sigma is not None:
         sigma_array = np.array(calibrated_sigma, dtype=np.float32, copy=True)
         if sigma_array.shape != dataload.data.shape:
@@ -140,13 +141,15 @@ def _resolve_sigma_readout(args, dataload):
                 "Calibrated sigma_readout map must be strictly positive per spec-db-core.md:32-34."
             )
         reference_value = float(np.median(sigma_array))
-        return sigma_array, "calibrated_map", reference_value
+        provenance = "external_lookup" if sigma_map_source == "external_lookup" else "calibrated_map"
+        return sigma_array, provenance, reference_value
 
     raise ValueError(
-        "nanobrag backend requires a positive sigma_readout source (--sigma-rdout or --sigma-map). "
-        "Per spec-db-core.md:32-68 and spec-db-workflow.md:26-31 the CLI MUST refuse to run when "
-        "detector metadata cannot supply readout noise; pass --sigma-rdout=<photons> or provide "
-        "a calibrated sigma map via --sigma-map=<path> to continue."
+        "nanobrag backend requires a positive sigma_readout source (--sigma-rdout, --sigma-map, "
+        "or calibrated external_lookup metadata). Per spec-db-core.md:32-68 and "
+        "spec-db-workflow.md:26-31 the CLI MUST refuse to run when detector metadata cannot "
+        "supply readout noise; pass --sigma-rdout=<photons>, provide a calibrated sigma map via "
+        "--sigma-map=<path>, or ensure Experiment.imageset.external_lookup embeds pedestal/dark RMS tiles."
     )
 
 

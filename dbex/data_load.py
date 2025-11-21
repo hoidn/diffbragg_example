@@ -1,7 +1,8 @@
 
 import pickle
 from pathlib import Path
-from typing import Sequence
+from typing import Dict, Optional, Sequence, Tuple
+
 import numpy as np
 from simtbx.diffBragg import utils
 from dials.array_family import flex
@@ -129,6 +130,113 @@ def load_sigma_readout_map(path: str, expected_shape: Sequence[int]) -> np.ndarr
         )
 
     return sigma_array.astype(np.float32, copy=False)
+
+
+# External lookup attributes that may contain calibrated readout-noise tiles
+_EXTERNAL_SIGMA_KEYS = (
+    "pedestal",
+    "dark",
+    "sigma",
+    "sigma_rdout",
+    "readout",
+    "noise",
+)
+
+
+def _load_external_lookup_sigma_map(
+    imageset,
+    expected_shape: Sequence[int]
+) -> Tuple[Optional[np.ndarray], Optional[Dict[str, object]]]:
+    """Harvest calibrated sigma tiles embedded in a DIALS imageset.
+
+    Parameters
+    ----------
+    imageset: dxtbx ImageSet-like
+        Experiment.imageset object exposing `.external_lookup` metadata.
+    expected_shape: Sequence[int]
+        Detector-aligned shape `(panel, slow, fast)` to validate metadata tiles.
+
+    Returns
+    -------
+    (np.ndarray | None, dict | None)
+        Float32 tensor shaped like ``expected_shape`` plus provenance metadata
+        when calibrated tiles exist; otherwise ``(None, None)``.
+
+    Notes
+    -----
+    spec-db-core.md:32-68 mandates that readout noise tensors be strictly
+    positive, finite, and aligned to `[panel, slow, fast]`. This helper copies
+    the external lookup payload into numpy arrays so the original metadata is
+    never mutated.
+    """
+    expected = tuple(int(dim) for dim in expected_shape)
+    if len(expected) != 3:
+        raise ValueError(
+            f"Expected sigma map shape (panels, slow, fast), got {expected}."
+        )
+
+    if imageset is None or not hasattr(imageset, "external_lookup"):
+        return None, None
+
+    lookup = imageset.external_lookup
+    source_item = None
+    source_key = None
+
+    for key in _EXTERNAL_SIGMA_KEYS:
+        item = getattr(lookup, key, None)
+        data = getattr(item, "data", None)
+        if data is None:
+            continue
+        n_tiles = getattr(data, "n_tiles", lambda: 0)()
+        if n_tiles == 0:
+            continue
+        source_item = item
+        source_key = key
+        break
+
+    if source_item is None:
+        return None, None
+
+    n_panels, slow, fast = expected
+    image_data = source_item.data
+    n_tiles = image_data.n_tiles()
+
+    if n_tiles != n_panels:
+        raise ValueError(
+            f"External lookup '{source_key}' provides {n_tiles} tiles but detector "
+            f"requires {n_panels} panels. Ensure metadata tiles align with the detector "
+            "panel count per spec-db-core.md:20-34."
+        )
+
+    panel_arrays = []
+    for panel_idx in range(n_tiles):
+        tile = image_data.tile(panel_idx)
+        flex_tile = tile.data()
+        panel_array = np.array(
+            flex_tile.as_numpy_array(), dtype=np.float32, copy=True
+        )
+        if panel_array.shape != (slow, fast):
+            raise ValueError(
+                f"External lookup '{source_key}' tile {panel_idx} has shape "
+                f"{panel_array.shape}, expected {(slow, fast)} per spec-db-core.md:20-34."
+            )
+        if not np.all(np.isfinite(panel_array)):
+            raise ValueError(
+                f"External lookup '{source_key}' tile {panel_idx} contains NaN/Inf values."
+            )
+        if np.any(panel_array <= 0):
+            raise ValueError(
+                f"External lookup '{source_key}' tile {panel_idx} contains non-positive values."
+            )
+        panel_arrays.append(panel_array)
+
+    sigma_map = np.stack(panel_arrays, axis=0).astype(np.float32, copy=False)
+    metadata = {
+        "lookup_key": source_key,
+        "filename": getattr(source_item, "filename", None),
+        "tile_count": n_tiles,
+    }
+    return sigma_map, metadata
 
 
 class DataLoad:
@@ -267,15 +375,15 @@ class DataLoad:
             """
 
         self.sigma_readout_map = None
-        sigma_map_path = getattr(args, "sigma_map", None)
-        if sigma_map_path:
-            self.sigma_readout_map = load_sigma_readout_map(
-                sigma_map_path,
-                self.data.shape
-            )
+        self.sigma_readout_map_source = None
+        self.sigma_readout_map_metadata = None
+        self._initialize_sigma_readout_map()
         """
         Optional calibrated sigma_readout tensor (`np.ndarray`) matching `self.data`.
-        Loaded from CLI --sigma-map asset when provided.
+        Loaded from CLI --sigma-map when provided or dxtbx external_lookup metadata
+        when available. `sigma_readout_map_source` records the provenance
+        ("cli_map" vs "external_lookup") and `sigma_readout_map_metadata`
+        captures helper-level provenance (lookup key, filenames, etc.).
         """
 
         # Expose detector/beam/crystal fixtures for bridge compatibility
@@ -296,3 +404,28 @@ class DataLoad:
         The :py:class:`dxtbx.model.Crystal` object from the experiment.
         Provides unit cell, space group, and orientation matrix.
         """
+
+    # ------------------------------------------------------------------
+    # Sigma map initialization helpers
+    # ------------------------------------------------------------------
+    def _initialize_sigma_readout_map(self) -> None:
+        """Populate `sigma_readout_map` from CLI assets or metadata."""
+        sigma_map_path = getattr(self.args, "sigma_map", None)
+        if sigma_map_path:
+            self.sigma_readout_map = load_sigma_readout_map(
+                sigma_map_path,
+                self.data.shape
+            )
+            self.sigma_readout_map_source = "cli_map"
+            self.sigma_readout_map_metadata = {"path": str(sigma_map_path)}
+            return
+
+        imageset = getattr(self.Expt, "imageset", None)
+        metadata_map, metadata = _load_external_lookup_sigma_map(
+            imageset,
+            self.data.shape
+        )
+        if metadata_map is not None:
+            self.sigma_readout_map = metadata_map
+            self.sigma_readout_map_source = "external_lookup"
+            self.sigma_readout_map_metadata = metadata

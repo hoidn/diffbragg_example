@@ -1,4 +1,10 @@
 ### Turn Summary
+Harvested ExternalLookup sigma tiles into DataLoad and `_resolve_sigma_readout` so metadata-backed runs tag sigma provenance correctly.
+Extended sigma loader + CLI tests plus docs/test registries to cover metadata precedence; reran the mapped selectors with guardrail env vars.
+Next: rerun the same selectors on a dataset that actually includes external_lookup tiles to confirm no new guards are required.
+Artifacts: plans/active/PHYSICS-LOSS-001/reports/2025-11-21T063052Z/ (pytest_data_load_sigma_map.log, pytest_cli_sigma_map.log)
+
+### Turn Summary
 Scoped Phase F so sigma_readout tensors can come straight from DIALS metadata, updating docs/fix_plan, the implementation plan, input.md, and findings with the external-lookup helper requirements.
 Reconfirmed the current refGeom experiments expose zero `external_lookup` tiles and outlined tests/docs so Ralph can implement the helper + provenance plumbing with clear validation gates.
 Next: Ralph builds the external-lookup ingestion helper, updates `_resolve_sigma_readout` provenance, refreshes docs/tests, and captures the mapped pytest logs under this report directory.

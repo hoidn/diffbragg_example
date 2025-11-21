@@ -1,0 +1,32 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 8 items
+
+tests/dbex/test_data_load_sigma_map.py::test_sigma_map_loader_formats[npy] PASSED [ 12%]
+tests/dbex/test_data_load_sigma_map.py::test_sigma_map_loader_formats[npz_single] PASSED [ 25%]
+tests/dbex/test_data_load_sigma_map.py::test_sigma_map_loader_formats[npz_named] PASSED [ 37%]
+tests/dbex/test_data_load_sigma_map.py::test_sigma_map_loader_formats[pkl_tuple] PASSED [ 50%]
+tests/dbex/test_data_load_sigma_map.py::test_sigma_map_loader_shape_mismatch PASSED [ 62%]
+tests/dbex/test_data_load_sigma_map.py::test_sigma_map_loader_rejects_non_positive PASSED [ 75%]
+tests/dbex/test_data_load_sigma_map.py::test_external_lookup_sigma_map_ingestion PASSED [ 87%]
+tests/dbex/test_data_load_sigma_map.py::test_external_lookup_shape_or_value_errors PASSED [100%]
+
+=============================== warnings summary ===============================
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 8 passed, 4 warnings in 1.02s =========================

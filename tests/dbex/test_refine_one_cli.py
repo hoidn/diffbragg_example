@@ -4,10 +4,13 @@ Tests for refine_one CLI backend dispatch.
 Per docs/TESTING_GUIDE.md, run with:
     KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_refine_one_cli.py
 """
-import pytest
-import tempfile
 import os
-from unittest.mock import Mock, patch, MagicMock
+import tempfile
+from unittest.mock import MagicMock, Mock, patch
+
+import numpy as np
+import pytest
+
 from dbex.refine_one import create_parser, main, run_nanobrag_backend
 
 
@@ -518,6 +521,97 @@ def test_nanobrag_backend_accepts_sigma_map(
     write_kwargs = mock_write.call_args[1]
     assert write_kwargs['sigma_readout_provenance'] == "calibrated_map"
     assert write_kwargs['sigma_readout_reference_value'] == pytest.approx(3.0)
+
+
+@patch('nanobrag_torch.simulator.Simulator')
+@patch('nanobrag_torch.models.detector.Detector')
+@patch('nanobrag_torch.models.crystal.Crystal')
+@patch('dbex.nanobrag_bridge.prepare_refinement_inputs')
+@patch('dbex.nanobrag_bridge.build_structure_factor_grid')
+@patch('dbex.nanobrag_bridge.create_detector_config')
+@patch('dbex.nanobrag_bridge.create_beam_config')
+@patch('dbex.nanobrag_bridge.create_crystal_config')
+@patch('dbex.refine_one._write_torch_outputs')
+def test_nanobrag_backend_accepts_external_lookup_sigma_map(
+    mock_write,
+    mock_crystal_config,
+    mock_beam_config,
+    mock_detector_config,
+    mock_build_grid,
+    mock_prepare,
+    mock_Crystal,
+    mock_Detector,
+    mock_Simulator,
+):
+    """Metadata-derived sigma maps set external_lookup provenance."""
+    import numpy as np
+    import torch
+    from dbex.nanobrag_bridge import RefinementInputs
+
+    sigma_map = np.full((1, 6, 6), 4.0, dtype=np.float32)
+
+    mock_dl = Mock()
+    mock_dl.data = np.zeros((1, 6, 6), dtype=np.float32)
+    mock_dl.background_image = np.ones((1, 6, 6), dtype=np.float32) * -1
+    mock_dl.trusted_mask = np.ones((1, 6, 6), dtype=bool)
+    mock_dl.bbox = np.array([[0, 3, 0, 3]])
+    mock_dl.pids = np.array([0])
+    mock_dl.detector = [Mock()]
+    mock_dl.beam = Mock()
+    mock_dl.crystal = Mock()
+    mock_dl.Expt = Mock()
+    mock_dl.F = Mock()
+    mock_dl.F.indices.return_value = np.array([[0, 0, 1]], dtype=np.int32)
+    mock_dl.F.data.return_value = np.array([10.0], dtype=np.float32)
+    mock_dl.sigma_readout_map = sigma_map
+    mock_dl.sigma_readout_map_source = "external_lookup"
+
+    mock_detector_config.return_value = Mock()
+    mock_beam_config.return_value = Mock()
+    mock_crystal_config.return_value = (Mock(), False)
+    mock_build_grid.return_value = (
+        torch.zeros((3, 3, 3), dtype=torch.float32),
+        {"grid_nonzero": 1},
+        torch.zeros((3, 3, 3), dtype=torch.int32),
+    )
+
+    mock_simulator_instance = Mock()
+    mock_simulator_instance.run.return_value = torch.ones((6, 6), dtype=torch.float32)
+    mock_Simulator.return_value = mock_simulator_instance
+    mock_Detector.return_value = Mock()
+    mock_Crystal.return_value = Mock()
+
+    mock_prepare.return_value = RefinementInputs(
+        target=np.zeros((1, 6, 6), dtype=np.float32),
+        loss_mask=np.ones((1, 6, 6), dtype=bool),
+        panel_slices=[(0, (0, 3, 0, 3))],
+        trusted_mask=np.ones((1, 6, 6), dtype=bool),
+        sigma_readout=np.full((1, 6, 6), 2.0, dtype=np.float32),
+    )
+
+    args = Mock()
+    args.outFile = 'out.h5'
+    args.spot_scale_override = None
+    args.torch_config = None
+    args.refined_mtz = None
+    args.adu_per_photon = 2.0
+    args.sigma_rdout = None
+    args.sigma_floor = 1.0
+    args.device = "cpu"
+
+    run_nanobrag_backend(args, mock_dl)
+
+    mock_prepare.assert_called_once()
+    np.testing.assert_allclose(
+        mock_prepare.call_args[1]['sigma_readout'],
+        sigma_map,
+    )
+
+    mock_write.assert_called_once()
+    write_kwargs = mock_write.call_args[1]
+    assert write_kwargs['sigma_readout_provenance'] == "external_lookup"
+    # Median = 4 ADU, converted to photons by adu_per_photon=2
+    assert write_kwargs['sigma_readout_reference_value'] == pytest.approx(2.0)
 
 
 @patch('dbex.data_load.DataLoad')

@@ -1,0 +1,16 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collected 13 items / 9 deselected / 4 selected
+
+<Dir diffbragg_example>
+  <Package tests>
+    <Package dbex>
+      <Module test_refine_one_cli.py>
+        <Function test_parser_accepts_sigma_map_flag>
+        <Function test_nanobrag_backend_requires_sigma_rdout>
+        <Function test_nanobrag_backend_accepts_sigma_map>
+        <Function test_nanobrag_backend_accepts_external_lookup_sigma_map>
+
+================= 4/13 tests collected (9 deselected) in 0.11s =================

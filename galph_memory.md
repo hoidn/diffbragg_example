@@ -339,3 +339,12 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-21T071912Z focus=PHYSICS-LOSS-001 state=ready_for_implementation dwell=2 artifacts=plans/active/PHYSICS-LOSS-001/reports/2025-11-21T071912Z/ next_action=stage_bc_metadata_smokes
+## 2025-11-21T075449Z — PHYSICS-LOSS-001 Phase I metadata plan
+- Focus: PHYSICS-LOSS-001 — Implement variance-weighted loss function
+- Action Type: planning
+- Key Observations: Closed Phase H by capturing the 2025-11-21T071912Z Stage B/C metadata artifacts, added Phase I to `plans/active/PHYSICS-LOSS-001/implementation.md` for DB-AT-024 + CLI diagnostics coverage, appended the fix-plan ledger with the new attempt, and rewrote `input.md` so Ralph has a ready-for-implementation Do Now covering the DB-AT plumbing (smoke_sigma_source fixture, metadata telemetry asserts, mapping metrics provenance), CLI diagnostics metadata asserts, and Testing Guide/Test Suite Index refresh; artifacts staged under 2025-11-21T075449Z for the upcoming pytest logs/metrics.
+- Artifact Path: plans/active/PHYSICS-LOSS-001/reports/2025-11-21T075449Z/
+- Next Actions: Ralph implements the DB-AT-024/CLI metadata coverage, reruns the mapped selectors with metadata enabled, captures `mapping_metrics.{json,csv}` + pytest logs in the new report dir, and then proceeds to the remaining Phase G manifest tasks.
+- <Action State>: [ready_for_implementation]
+
+2025-11-21T075449Z focus=PHYSICS-LOSS-001 state=ready_for_implementation dwell=0 artifacts=plans/active/PHYSICS-LOSS-001/reports/2025-11-21T075449Z/ next_action=db_at_cli_metadata_implementation

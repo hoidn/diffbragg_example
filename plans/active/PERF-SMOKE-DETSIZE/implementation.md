@@ -6,7 +6,7 @@
 - Title: Introduce small-detector fixture for Stage A/B/C smoke tests
 - Owner: Ralph
 - Spec Owner: docs/spec-db-workflow.md
-- Status: in_progress (2025-11-21 — canonical parity rerun outstanding)
+- Status: done (2025-11-21 — Phase D canonical parity rerun archived)
 
 ## Goals
 - Provide a cropped/small detector dataset for Stage smoke tests to reduce runtime and VRAM while preserving spec coverage.
@@ -74,11 +74,13 @@
 
 ## Phase D — Canonical parity re-validation
 ### Checklist
-- [ ] D1: Rerun Stage A/B/C smokes on the full detector (`--smoke-detector-size=full`) for both sigma sources (CLI override + metadata) now that REFINE-SMOKE-CANONICAL repaired Stage B/C, and archive pytest + telemetry logs under a new `plans/active/PERF-SMOKE-DETSIZE/reports/<timestamp>/`.
-- [ ] D2: Update `docs/TESTING_GUIDE.md` and `docs/development/TEST_SUITE_INDEX.md` with the fresh canonical-detector telemetry/gates plus artifact pointers so parity operators know which logs to inspect.
-- [ ] D3: Refresh `docs/fix_plan.md` Attempts History and supervisor input once the full-detector artifacts exist so exit criterion #4 can close.
+- [x] D1: Rerun Stage A/B/C smokes on the full detector (`--smoke-detector-size=full`) for both sigma sources (CLI override + metadata) now that REFINE-SMOKE-CANONICAL repaired Stage B/C, and archive pytest + telemetry logs under a new `plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/` (`collect_stage_full.log`, `pytest_stage_{a,b,c}_full_{cli,metadata}.log`, `telemetry_full_{cli,metadata}.json`, `sigma_metadata.json`).
+- [x] D2: Update `docs/TESTING_GUIDE.md` and `docs/development/TEST_SUITE_INDEX.md` with the fresh canonical-detector telemetry/gates plus artifact pointers so parity operators know which logs to inspect.
+- [x] D3: Refresh `docs/fix_plan.md` Attempts History and supervisor input once the full-detector artifacts exist so exit criterion #4 can close.
+
+Latest canonical metrics (2025-11-21T093500Z): Stage A loss_improvement 0.9106 (χ² 1.3686e9→1.2233e8 across 17 closure evals), Stage B loss_improvement −7.62e-08 (χ² non-regression within ±1e-6 and shell modifiers at identity), Stage C detector_offset_reduction_min 0.99999994 (final |Δ| ≤1.5 × 10⁻⁸ mm, χ² drift +0.11%). Both telemetry files record the sigma provenance (`sigma_readout_provenance="cli_override"` vs `"external_lookup"`).
 
 ## Artifacts Index
 - Reports root: `plans/active/PERF-SMOKE-DETSIZE/reports/`
-- Latest run: `2025-11-21T035150Z/`
+- Latest run: `2025-11-21T093500Z/`
 - Stage B/C callchain snapshot + tap points (canonical detector analysis): `plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T035150Z/{callchain/static.md,trace/tap_points.md}`

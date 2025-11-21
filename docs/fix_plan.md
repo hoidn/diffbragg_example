@@ -89,7 +89,7 @@
 
 ### [PERF-SMOKE-DETSIZE] Introduce small-detector fixture for smoke tests
 - Depends on: docs/spec-db-workflow.md (Stage smoke validations), CONFIG-001
-- Status: in_progress (2025-11-21 — canonical full-detector parity rerun outstanding)
+- Status: done (2025-11-21 — canonical full-detector regression archived under Phase D)
 - Priority: Medium (Test Performance)
 - Owner/Date: Galph/Ralph / 2025-11-21
 - Exit Criteria:
@@ -106,6 +106,7 @@
   * 2025-11-21T032803Z (planning) — Canonical Stage B/C smokes still red (Stage C improvement 0.0000%, Stage B improvement −7.62e-8%). Drafted recalibration Do Now (detector-offset checks + ≤1e-6 chi-squared regression). Artifacts: `plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T032803Z/`.
   * 2025-11-21T034326Z (implementation) — Recalibrated strict gates (Stage C ≥80% offset reduction / ≤0.05% χ² regression, Stage B ≤1e-6 drift and ±1% modifiers). Tests still fail due to implementation bug; telemetry archived under `plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T032803Z/`.
   * 2025-11-21T090900Z (planning) — REFINE-SMOKE-CANONICAL repaired the Stage B/C implementation bug, so this initiative can resume. Updated `plans/active/PERF-SMOKE-DETSIZE/implementation.md` with Phase D (canonical parity re-validation) covering fresh Stage A/B/C full-detector runs, docs/test-index refresh, and ledger updates once new artifacts exist. Next Actions: rerun `tests/dbex/test_torch_refine_smoke.py::{test_stage_a_expansion,test_stage_b_shell_modifiers,test_stage_c_detector_microslip}` with `DBEX_SMOKE_DETECTOR_SIZE=full` (and `DBEX_SMOKE_SIGMA_SOURCE` cycling through `cli_override`/`metadata`), archive telemetry/logs under `plans/active/PERF-SMOKE-DETSIZE/reports/<new_ts>/`, and sync docs/ledger to close exit criterion #4.
+  * 2025-11-21T090010Z (implementation) — Phase D closed: regenerated metadata fixtures via `embed_sigma_external_lookup.py` (report mirrored at `plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/sigma_metadata.json`, manifest refreshed in `sp.proc/sigma_metadata_manifest.json` and copied alongside the report), proved full-detector selector collection, then replayed Stage A/B/C smokes for both sigma sources with telemetry logging (CLI + metadata) into `telemetry_full_{cli,metadata}.json`. Metrics: Stage A loss_improvement 0.9106 (χ² 1.3686e9→1.2233e8 over 17 closure evals), Stage B loss_improvement −7.62e-08 (≤−1e-6 tolerance, shell modifiers pinned to identity), Stage C detector_offset_reduction_min 0.99999994 with final |Δ| ≤1.5 × 10⁻⁸ mm and χ² drift +0.11%. Artifacts: `plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/{collect_stage_full.log,pytest_stage_{a,b,c}_full_{cli,metadata}.log,telemetry_full_{cli,metadata}.json,sigma_metadata_manifest.json}`. Docs synced: `docs/TESTING_GUIDE.md` (Stage-smoke selectors + sigma provenance), `docs/development/TEST_SUITE_INDEX.md` (registry row), `plans/active/PERF-SMOKE-DETSIZE/implementation.md` Phase D checklist, and this ledger entry. Next Actions: monitor future parity runs for drift; rerun Phase D only if Stage-smoke tolerances change again.
 
 ### [REFINE-SMOKE-CANONICAL] Restore canonical Stage B/C smoke convergence
 - Depends on: docs/spec-db-workflow.md §§Stage B/C + Stage Smoke Dataset Policy; docs/spec-db-core.md (variance-weighted loss telemetry)

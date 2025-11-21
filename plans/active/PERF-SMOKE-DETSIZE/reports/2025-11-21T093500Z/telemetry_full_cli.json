@@ -1,0 +1,196 @@
+[
+  {
+    "stage": "stage_a_expansion",
+    "dataset": "full",
+    "status": "ok",
+    "message": "",
+    "loss_trace_full": [
+      [
+        0,
+        1368632064.0
+      ],
+      [
+        5,
+        1287287552.0
+      ],
+      [
+        10,
+        125158640.0
+      ],
+      [
+        15,
+        122325088.0
+      ],
+      [
+        17,
+        122325088.0
+      ]
+    ],
+    "chi_squared_trace_full": [
+      [
+        0,
+        1368632064.0
+      ],
+      [
+        5,
+        1287287552.0
+      ],
+      [
+        10,
+        125158640.0
+      ],
+      [
+        15,
+        122325088.0
+      ],
+      [
+        17,
+        122325088.0
+      ]
+    ],
+    "perf_counters": {
+      "cache_mode": "warm",
+      "closure_evals": 17,
+      "validation_runs": 5,
+      "forward_time_ms": {
+        "mean": 249.4553837870412,
+        "min": 34.69809330999851,
+        "max": 927.9305529780686,
+        "total": 4240.7415243797
+      }
+    },
+    "loss_improvement": 0.9106223716237588,
+    "n_rois": 92,
+    "detector_shape": [
+      1,
+      2527,
+      2463
+    ],
+    "closure_evals": 17,
+    "validation_runs": 5,
+    "forward_time_ms": {
+      "mean": 249.4553837870412,
+      "min": 34.69809330999851,
+      "max": 927.9305529780686,
+      "total": 4240.7415243797
+    },
+    "chi_squared_initial": 1368632064.0,
+    "chi_squared_final": 122325088.0,
+    "variance_floor_clamp_fraction": 0.0,
+    "sigma_readout_provenance": "cli_override",
+    "canonical_stage_label": "A",
+    "canonical_chi_squared": 122325088.0,
+    "canonical_chi_squared_iteration": 17,
+    "canonical_roi_count": 92,
+    "canonical_detector_distances_mm": [
+      231.27645547762577
+    ]
+  },
+  {
+    "stage": "stage_b_shell_modifiers",
+    "dataset": "full",
+    "status": "early_stop",
+    "message": "Stage B improvement -0.0000% < 0.0000% (calibrated gate per TORCH-REFINE-004, artifact: plans/active/TORCH-REFINE-004/reports/2025-11-05T190344Z/stage_b_improvement_probe.json)",
+    "loss_trace_full": [
+      [
+        0,
+        104972264.0
+      ],
+      [
+        5,
+        104972424.0
+      ],
+      [
+        7,
+        104972264.0
+      ]
+    ],
+    "chi_squared_trace_full": [
+      [
+        0,
+        104972264.0
+      ],
+      [
+        5,
+        104972424.0
+      ],
+      [
+        7,
+        104972264.0
+      ]
+    ],
+    "perf_counters": {},
+    "loss_improvement": -7.621061321193288e-08,
+    "n_rois": 92,
+    "detector_shape": [
+      1,
+      2527,
+      2463
+    ],
+    "closure_evals": null,
+    "validation_runs": null,
+    "forward_time_ms": null,
+    "canonical_stage_label": "A",
+    "canonical_chi_squared": 104972256.0,
+    "canonical_chi_squared_iteration": 33,
+    "canonical_roi_count": 92,
+    "canonical_detector_distances_mm": [
+      231.27645547762577
+    ]
+  },
+  {
+    "stage": "stage_c_detector_microslip",
+    "dataset": "full",
+    "status": "ok",
+    "message": "",
+    "loss_trace_full": [
+      [
+        0,
+        294089696.0
+      ],
+      [
+        5,
+        294089696.0
+      ],
+      [
+        10,
+        293772416.0
+      ]
+    ],
+    "chi_squared_trace_full": [
+      [
+        0,
+        294089696.0
+      ],
+      [
+        5,
+        294089696.0
+      ],
+      [
+        10,
+        293772416.0
+      ]
+    ],
+    "perf_counters": {},
+    "loss_improvement": 0.001078854527429618,
+    "chi_squared_improvement": 0.001078854527429618,
+    "n_rois": 92,
+    "detector_shape": [
+      1,
+      2527,
+      2463
+    ],
+    "closure_evals": null,
+    "validation_runs": null,
+    "forward_time_ms": null,
+    "detector_offset_reduction_min": 0.9999999403953552,
+    "detector_offset_final_abs_max": 1.4901161193847656e-08,
+    "canonical_stage_label": "A",
+    "canonical_chi_squared": 294089696.0,
+    "canonical_chi_squared_iteration": 15,
+    "canonical_roi_count": 92,
+    "canonical_detector_distances_mm": [
+      231.27645547762577
+    ]
+  }
+]

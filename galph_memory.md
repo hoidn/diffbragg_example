@@ -320,3 +320,13 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-21T063052Z focus=PHYSICS-LOSS-001 state=ready_for_implementation dwell=0 artifacts=plans/active/PHYSICS-LOSS-001/reports/2025-11-21T063052Z/ next_action=external_lookup_metadata_implementation
+
+## 2025-11-21T065454Z — PHYSICS-LOSS-001 metadata fixture plan
+- Focus: PHYSICS-LOSS-001 — Implement variance-weighted loss function
+- Action Type: planning
+- Key Observations: Phase F metadata ingestion is complete but we still lack an on-disk fixture + smoke harness to exercise `external_lookup` sigma tiles, so I carved out Phase G (embedding script + smoke sigma-source knob), refreshed the implementation plan/input, and marked PERF-SMOKE-DETSIZE done so only two initiatives remain in progress.
+- Artifact Path: plans/active/PHYSICS-LOSS-001/reports/2025-11-21T065454Z/
+- Next Actions: Ralph implements the embedding script, updates smoke fixtures/tests/docs, and runs the Stage A full-detector selector with metadata provenance logging.
+- <Action State>: [planning]
+
+2025-11-21T065454Z focus=PHYSICS-LOSS-001 state=planning dwell=1 artifacts=plans/active/PHYSICS-LOSS-001/reports/2025-11-21T065454Z/ next_action=metadata_fixture_implementation

@@ -625,6 +625,17 @@ def test_stage_c_detector_microslip(refgeom_dataload, refinement_inputs, hkl_dat
     assert stage_c_initial_chi2 == pytest.approx(stage_a_final_chi2, rel=1e-3), (
         f"Stage C initial chi-squared {stage_c_initial_chi2:.3e} != Stage A final {stage_a_final_chi2:.3e}"
     )
+    canonical_roi_count = len(refinement_inputs.panel_slices)
+    assert telemetry_c.canonical_stage_label == "A"
+    assert telemetry_c.canonical_roi_count == canonical_roi_count
+    assert telemetry_c.canonical_chi_squared is not None
+    assert telemetry_c.canonical_chi_squared_iteration == telemetry_a.chi_squared_trace_full[-1][0]
+    assert telemetry_c.canonical_detector_distances_mm is not None
+    assert len(telemetry_c.canonical_detector_distances_mm) == len(baseline_detector)
+    if strict_gates:
+        assert telemetry_c.canonical_chi_squared == pytest.approx(stage_a_final_chi2, rel=5e-4)
+    else:
+        assert telemetry_c.canonical_chi_squared == pytest.approx(stage_a_final_chi2, rel=1e-3)
     assert telemetry_c.variance_floor_value == pytest.approx(config.sigma_floor_value**2)
     assert telemetry_c.variance_floor_clamp_fraction is not None
     assert 0.0 <= telemetry_c.variance_floor_clamp_fraction <= 1.0
@@ -813,6 +824,17 @@ def test_stage_b_shell_modifiers(refgeom_dataload, refinement_inputs, hkl_data, 
     assert stage_b_initial_chi2 == pytest.approx(stage_a_final_chi2, rel=1e-3), (
         f"Stage B initial chi-squared {stage_b_initial_chi2:.3e} != Stage A final {stage_a_final_chi2:.3e}"
     )
+    canonical_roi_count = len(refinement_inputs.panel_slices)
+    assert telemetry_b.canonical_stage_label == "A"
+    assert telemetry_b.canonical_roi_count == canonical_roi_count
+    assert telemetry_b.canonical_chi_squared is not None
+    assert telemetry_b.canonical_chi_squared_iteration == telemetry_a.chi_squared_trace_full[-1][0]
+    assert telemetry_b.canonical_detector_distances_mm is not None
+    assert len(telemetry_b.canonical_detector_distances_mm) == len(DL.detector)
+    if strict_gates:
+        assert telemetry_b.canonical_chi_squared == pytest.approx(stage_a_final_chi2, rel=1e-6)
+    else:
+        assert telemetry_b.canonical_chi_squared == pytest.approx(stage_a_final_chi2, rel=1e-4)
 
     # Variance floor telemetry propagated through Stage B
     assert telemetry_b.variance_floor_value == pytest.approx(config.sigma_floor_value**2)

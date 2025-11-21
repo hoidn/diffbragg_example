@@ -636,6 +636,20 @@ def _write_torch_outputs(args, DL, Bragg, inputs, masked_mse, hkl_telemetry, ref
                     stage_group.attrs["variance_floor_value"] = float(stage_telem.variance_floor_value)
                 if stage_telem.variance_floor_clamp_fraction is not None:
                     stage_group.attrs["variance_floor_clamp_fraction"] = float(stage_telem.variance_floor_clamp_fraction)
+                # Canonical Stage A metadata propagated downstream
+                if stage_telem.canonical_stage_label is not None:
+                    stage_group.attrs["canonical_stage_label"] = stage_telem.canonical_stage_label
+                if stage_telem.canonical_chi_squared is not None:
+                    stage_group.attrs["canonical_chi_squared"] = float(stage_telem.canonical_chi_squared)
+                if stage_telem.canonical_chi_squared_iteration is not None:
+                    stage_group.attrs["canonical_chi_squared_iteration"] = int(stage_telem.canonical_chi_squared_iteration)
+                if stage_telem.canonical_roi_count is not None:
+                    stage_group.attrs["canonical_roi_count"] = int(stage_telem.canonical_roi_count)
+                if stage_telem.canonical_detector_distances_mm is not None:
+                    stage_group.create_dataset(
+                        "canonical_detector_distances_mm",
+                        data=np.asarray(stage_telem.canonical_detector_distances_mm, dtype=np.float64),
+                    )
 
                 # Store param_deltas as JSON string
                 stage_group.attrs["refine_param_deltas"] = json.dumps(stage_telem.param_deltas)
@@ -689,6 +703,19 @@ def _write_torch_outputs(args, DL, Bragg, inputs, masked_mse, hkl_telemetry, ref
                     diag.attrs["variance_floor_value"] = float(stage_a_telem.variance_floor_value)
                 if stage_a_telem.variance_floor_clamp_fraction is not None:
                     diag.attrs["variance_floor_clamp_fraction"] = float(stage_a_telem.variance_floor_clamp_fraction)
+                if stage_a_telem.canonical_stage_label is not None:
+                    diag.attrs["canonical_stage_label"] = stage_a_telem.canonical_stage_label
+                if stage_a_telem.canonical_chi_squared is not None:
+                    diag.attrs["canonical_chi_squared"] = float(stage_a_telem.canonical_chi_squared)
+                if stage_a_telem.canonical_chi_squared_iteration is not None:
+                    diag.attrs["canonical_chi_squared_iteration"] = int(stage_a_telem.canonical_chi_squared_iteration)
+                if stage_a_telem.canonical_roi_count is not None:
+                    diag.attrs["canonical_roi_count"] = int(stage_a_telem.canonical_roi_count)
+                if stage_a_telem.canonical_detector_distances_mm is not None:
+                    diag.create_dataset(
+                        "canonical_detector_distances_mm",
+                        data=np.asarray(stage_a_telem.canonical_detector_distances_mm, dtype=np.float64),
+                    )
 
     # TORCH-CLI-004: Guard against empty scores collection
     if len(scores) > 0:

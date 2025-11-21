@@ -355,9 +355,15 @@ class RefinementTelemetry:
     # PHYSICS-LOSS-002: Variance floor telemetry (spec-db-core.md:67)
     variance_floor_value: Optional[float] = None  # sigma_floor^2 used in variance clamping
     variance_floor_clamp_fraction: Optional[float] = None  # Fraction of masked pixels where floor engaged
+    # PHYSICS-LOSS-003: Canonical Stage A snapshot propagated to downstream stages
+    canonical_stage_label: Optional[str] = None
+    canonical_chi_squared: Optional[float] = None
+    canonical_chi_squared_iteration: Optional[int] = None
+    canonical_roi_count: Optional[int] = None
+    canonical_detector_distances_mm: Optional[List[float]] = None
 
 
-def _accumulate_variance_weighted_loss(
+def _compute_variance_weighted_loss(
     bragg_tensor: torch.Tensor,
     target_tensor: torch.Tensor,
     loss_mask: torch.Tensor,
@@ -391,6 +397,21 @@ def _accumulate_variance_weighted_loss(
         masked_mse_value = masked_squared_error.sum()
 
     return chi_squared_sum, masked_mse_value, masked_pixels, clamped_pixels
+
+
+def _get_sigma_floor_sq_tensor(
+    cache: Dict[Tuple[str, torch.dtype], torch.Tensor],
+    device: torch.device,
+    dtype: torch.dtype,
+    sigma_floor_value: float,
+) -> torch.Tensor:
+    """Cache sigma_floor^2 scalars per (device, dtype) to avoid re-allocation."""
+    key = (str(device), dtype)
+    tensor = cache.get(key)
+    if tensor is None:
+        tensor = torch.tensor(sigma_floor_value ** 2, device=device, dtype=dtype)
+        cache[key] = tensor
+    return tensor
 
 
 def _build_stage_a_context(
@@ -545,6 +566,8 @@ def run_nanobrag_refinement(
     if config is None:
         config = RefinementConfig()
 
+    sigma_floor_sq_cache: Dict[Tuple[str, torch.dtype], torch.Tensor] = {}
+
     # Move inputs to device
     device = torch.device(config.device)
     dtype = config.dtype
@@ -650,8 +673,8 @@ def run_nanobrag_refinement(
     # PHYSICS-LOSS-002: Variance floor clamp statistics
     variance_floor_clamped_pixels = [0]  # Total pixels where floor engaged
     variance_floor_masked_pixels = [0]  # Total masked pixels evaluated
-    sigma_floor_sq_tensor = torch.tensor(
-        config.sigma_floor_value ** 2, device=device, dtype=dtype
+    sigma_floor_sq_tensor = _get_sigma_floor_sq_tensor(
+        sigma_floor_sq_cache, device, dtype, config.sigma_floor_value
     )
 
     # Deterministic ROI sampling
@@ -667,6 +690,20 @@ def run_nanobrag_refinement(
             baseline_detector[pid].get_directed_distance() for pid in range(n_panels)
         ]
     panel_shape = inputs.target.shape[1:]  # (slow, fast)
+    canonical_roi_count = len(inputs.panel_slices)
+    if baseline_detector_distances is not None:
+        canonical_detector_distances = list(baseline_detector_distances)
+    else:
+        canonical_detector_distances = [
+            detector[pid].get_directed_distance() for pid in range(n_panels)
+        ]
+    canonical_baseline = {
+        "stage_label": "A",
+        "chi_squared": None,
+        "iteration": None,
+        "roi_count": canonical_roi_count,
+        "detector_distances_mm": canonical_detector_distances,
+    }
 
     # Sample ROIs: select ~15% of panels deterministically
     sampled_panel_ids = sorted(
@@ -825,7 +862,7 @@ def run_nanobrag_refinement(
             masked_mse_loss,
             masked_pixels,
             clamped_pixels,
-        ) = _accumulate_variance_weighted_loss(
+        ) = _compute_variance_weighted_loss(
             bragg_scaled,
             target_subset,
             mask_subset,
@@ -953,6 +990,9 @@ def run_nanobrag_refinement(
                     'orientation_vec': orientation_vec.detach().cpu().tolist(),
                     'misset_xyz_deg': misset_xyz_deg_final.detach().cpu().tolist()
                 }
+            if final_chi_squared_value is not None:
+                canonical_baseline["chi_squared"] = final_chi_squared_value
+                canonical_baseline["iteration"] = iteration_count[0]
 
         # Check convergence: did we achieve ≥0.2% improvement?
         if len(loss_trace_full) > 0:
@@ -1004,6 +1044,15 @@ def run_nanobrag_refinement(
             masked_mse_trace_full.append((fallback_iter, fallback_mse))
             if fallback_mse < masked_mse_best[0]:
                 masked_mse_best = (fallback_mse, fallback_iter)
+
+    if canonical_baseline["chi_squared"] is None:
+        if chi_squared_trace_full:
+            last_iter, last_val = chi_squared_trace_full[-1]
+            canonical_baseline["chi_squared"] = last_val
+            canonical_baseline["iteration"] = last_iter
+        elif chi_squared_best[0] < float('inf'):
+            canonical_baseline["chi_squared"] = chi_squared_best[0]
+            canonical_baseline["iteration"] = chi_squared_best[1]
 
     # Generate final Bragg array with optimized parameters
     with torch.no_grad():
@@ -1197,7 +1246,13 @@ def run_nanobrag_refinement(
         variance_floor_clamp_fraction=(
             float(variance_floor_clamped_pixels[0]) / float(variance_floor_masked_pixels[0])
             if variance_floor_masked_pixels[0] > 0 else 0.0
-        )
+        ),
+        # Canonical Stage A metadata propagated to downstream stages
+        canonical_stage_label=canonical_baseline["stage_label"],
+        canonical_chi_squared=canonical_baseline["chi_squared"],
+        canonical_chi_squared_iteration=canonical_baseline["iteration"],
+        canonical_roi_count=canonical_baseline["roi_count"],
+        canonical_detector_distances_mm=canonical_baseline["detector_distances_mm"],
     )
 
     telemetry_dict = {"A": telemetry_a}
@@ -1292,10 +1347,6 @@ def run_nanobrag_refinement(
         # PHYSICS-LOSS-002: Variance floor clamp statistics for Stage B
         variance_floor_clamped_pixels_b = [0]  # Total pixels where floor engaged
         variance_floor_masked_pixels_b = [0]  # Total masked pixels evaluated
-        sigma_floor_sq_tensor_stage_b = torch.tensor(
-            config.sigma_floor_value ** 2, device=device, dtype=dtype
-        )
-
         def compute_loss_stage_b(panel_ids: List[int], is_full: bool = False) -> Tuple[torch.Tensor, torch.Tensor]:
             """
             Compute variance-weighted chi-squared loss with Stage B shell-modified structure factors.
@@ -1333,10 +1384,8 @@ def run_nanobrag_refinement(
             chi_squared_accum = torch.tensor(0.0, device=eval_device, dtype=dtype)
             mse_numerator_accum = torch.tensor(0.0, device=eval_device, dtype=dtype)
             n_pixels_accum = 0
-            sigma_floor_sq_eval = (
-                sigma_floor_sq_tensor_stage_b
-                if eval_device == device
-                else sigma_floor_sq_tensor_stage_b.to(device=eval_device)
+            sigma_floor_sq_eval = _get_sigma_floor_sq_tensor(
+                sigma_floor_sq_cache, eval_device, dtype, config.sigma_floor_value
             )
             cell_a_eval = cell_a_tensor if eval_device == device else cell_a_tensor.to(device=eval_device)
             cell_b_eval = cell_b_tensor if eval_device == device else cell_b_tensor.to(device=eval_device)
@@ -1441,7 +1490,7 @@ def run_nanobrag_refinement(
                     masked_mse_panel,
                     masked_pixels_panel,
                     clamped_pixels_panel,
-                ) = _accumulate_variance_weighted_loss(
+                ) = _compute_variance_weighted_loss(
                     bragg_scaled,
                     target_panel,
                     loss_mask_panel,
@@ -1689,7 +1738,12 @@ def run_nanobrag_refinement(
             variance_floor_clamp_fraction=(
                 float(variance_floor_clamped_pixels_b[0]) / float(variance_floor_masked_pixels_b[0])
                 if variance_floor_masked_pixels_b[0] > 0 else 0.0
-            )
+            ),
+            canonical_stage_label=canonical_baseline["stage_label"],
+            canonical_chi_squared=canonical_baseline["chi_squared"],
+            canonical_chi_squared_iteration=canonical_baseline["iteration"],
+            canonical_roi_count=canonical_baseline["roi_count"],
+            canonical_detector_distances_mm=canonical_baseline["detector_distances_mm"],
         )
 
         telemetry_dict["B"] = telemetry_b
@@ -1753,8 +1807,8 @@ def run_nanobrag_refinement(
         # PHYSICS-LOSS-002: Variance floor clamp statistics for Stage C
         variance_floor_clamped_pixels_c = [0]  # Total pixels where floor engaged
         variance_floor_masked_pixels_c = [0]  # Total masked pixels evaluated
-        sigma_floor_sq_tensor_stage_c = torch.tensor(
-            config.sigma_floor_value ** 2, device=device, dtype=dtype
+        sigma_floor_sq_tensor_stage_c = _get_sigma_floor_sq_tensor(
+            sigma_floor_sq_cache, device, dtype, config.sigma_floor_value
         )
 
         def compute_loss_stage_c(panel_ids: List[int], is_full: bool = False) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -1861,7 +1915,7 @@ def run_nanobrag_refinement(
                 masked_mse_loss,
                 masked_pixels_stage_c,
                 clamped_pixels_stage_c,
-            ) = _accumulate_variance_weighted_loss(
+            ) = _compute_variance_weighted_loss(
                 bragg_scaled,
                 target_subset,
                 mask_subset,
@@ -2086,7 +2140,12 @@ def run_nanobrag_refinement(
             variance_floor_clamp_fraction=(
                 float(variance_floor_clamped_pixels_c[0]) / float(variance_floor_masked_pixels_c[0])
                 if variance_floor_masked_pixels_c[0] > 0 else 0.0
-            )
+            ),
+            canonical_stage_label=canonical_baseline["stage_label"],
+            canonical_chi_squared=canonical_baseline["chi_squared"],
+            canonical_chi_squared_iteration=canonical_baseline["iteration"],
+            canonical_roi_count=canonical_baseline["roi_count"],
+            canonical_detector_distances_mm=canonical_baseline["detector_distances_mm"],
         )
 
         telemetry_dict["C"] = telemetry_c

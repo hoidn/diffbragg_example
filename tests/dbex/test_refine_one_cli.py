@@ -616,6 +616,11 @@ def test_torch_diagnostics_metadata():
                 masked_mse_best=(400.0, 10),
                 variance_floor_value=4.0,
                 variance_floor_clamp_fraction=0.125,
+                canonical_stage_label="A",
+                canonical_chi_squared=800.0,
+                canonical_chi_squared_iteration=10,
+                canonical_roi_count=1,
+                canonical_detector_distances_mm=[100.0],
             )
             refine_telemetry_dict = {"A": mock_telemetry_a}
 
@@ -701,6 +706,12 @@ def test_torch_diagnostics_metadata():
                 assert stage_a_group.attrs['masked_mse_best_iteration'] == 10
                 assert stage_a_group.attrs['variance_floor_value'] == pytest.approx(4.0)
                 assert stage_a_group.attrs['variance_floor_clamp_fraction'] == pytest.approx(0.125)
+                assert stage_a_group.attrs['canonical_stage_label'] == "A"
+                assert stage_a_group.attrs['canonical_chi_squared'] == pytest.approx(800.0)
+                assert stage_a_group.attrs['canonical_chi_squared_iteration'] == 10
+                assert stage_a_group.attrs['canonical_roi_count'] == 1
+                assert 'canonical_detector_distances_mm' in stage_a_group
+                assert np.allclose(stage_a_group['canonical_detector_distances_mm'][:], [100.0])
 
                 # PHYSICS-LOSS-001: Verify legacy top-level compatibility (Stage A only)
                 assert 'chi_squared_trace_sample' in diag, "Top-level chi_squared_trace_sample dataset missing"
@@ -713,6 +724,12 @@ def test_torch_diagnostics_metadata():
                 assert 'variance_floor_clamp_fraction' in diag.attrs
                 assert diag.attrs['variance_floor_value'] == pytest.approx(4.0)
                 assert diag.attrs['variance_floor_clamp_fraction'] == pytest.approx(0.125)
+                assert diag.attrs['canonical_stage_label'] == "A"
+                assert diag.attrs['canonical_chi_squared'] == pytest.approx(800.0)
+                assert diag.attrs['canonical_chi_squared_iteration'] == 10
+                assert diag.attrs['canonical_roi_count'] == 1
+                assert 'canonical_detector_distances_mm' in diag
+                assert np.allclose(diag['canonical_detector_distances_mm'][:], [100.0])
 
 
 @patch('dbex.data_load.DataLoad')

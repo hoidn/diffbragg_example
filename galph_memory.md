@@ -401,3 +401,13 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-21T103232Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=1 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T103232Z/ next_action=roi_warm_only_impl
+
+## 2025-11-21T105321Z — PERF-WARM-SIM-001 Stage B/C warm-cache plan
+- Focus: PERF-WARM-SIM-001 — Warm simulator; eliminate per-iteration re-instantiation
+- Action Type: planning
+- Key Observations: Stage B (`dbex/nanobrag_refinement.py:1499-1968`) and Stage C (`dbex/nanobrag_refinement.py:2052-2368`) still rebuild Detector/Simulator stacks inside every closure even when Stage A has a warmed context, so perf counters never populate past Stage A. Logged a new fix-plan attempt plus ready-for-implementation input.md telling Ralph to reuse `StageAContext` detectors/masks for Stage B/C warm runs, leave the cold path intact, add perf counters mirroring Stage A, and rerun the Stage B/C smoke selectors with telemetry captured under 2025-11-21T105321Z/.
+- Artifact Path: plans/active/PERF-WARM-SIM-001/reports/2025-11-21T105321Z/
+- Next Actions: Implement the Stage B/C warm-cache reuse + perf telemetry and rerun the mapped Stage B/C smokes with telemetry/log capture per the new Do Now.
+- <Action State>: [planning]
+
+2025-11-21T105321Z focus=PERF-WARM-SIM-001 state=planning dwell=0 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T105321Z/ next_action=stage_bc_warm_cache_impl

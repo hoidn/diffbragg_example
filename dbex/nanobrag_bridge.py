@@ -620,6 +620,135 @@ def create_crystal_config(crystal, experiment, N_cells=None, apply_n_cells=True,
     return CrystalConfig(**crystal_kwargs), n_cells_applied
 
 
+def derive_robust_misset(
+    crystal_dxtbx,
+    crystal_nanobrag_default: Optional[Any] = None,
+    *,
+    device=None,
+    dtype=None,
+):
+    """
+    Derive robust misset angles (XYZ extrinsic Euler, degrees) mapping nanobrag's
+    default orthogonalization to the dxtbx A* matrix.
+
+    GEOMETRY-003 (mapping misset):
+    - Let B_ideal be nanobrag_torch's default reciprocal basis constructed from
+      the unit cell parameters (no MOSFLM injection, zero misset).
+    - Let A* be the dxtbx reciprocal lattice matrix from crystal.get_A()
+      (columns a*, b*, c* in 1/Å).
+    - We seek U such that A* ≈ U @ B_ideal.
+    - Compute U_raw = A* @ B_ideal^{-1}, project to the nearest proper rotation
+      matrix R via SVD, then invert to XYZ Euler angles using the GEOMETRY-002
+      convention:
+
+          R = R_z(gamma) @ R_y(beta) @ R_x(alpha)
+          phi_y = -asin(R[2,0])
+          phi_x = atan2(R[2,1], R[2,2])
+          phi_z = atan2(R[1,0], R[0,0])
+
+    Args:
+        crystal_dxtbx: dxtbx Crystal object providing get_A() and unit cell.
+        crystal_nanobrag_default: Optional nanobrag_torch Crystal instance whose
+            compute_cell_tensors() defines B_ideal. When None, a temporary
+            CrystalConfig/Crystal is constructed from crystal_dxtbx's unit cell
+            with MOSFLM injection disabled and misset_deg=[0,0,0].
+        device: Optional torch.device or device-like string for the returned tensor.
+        dtype: Optional torch dtype for the returned tensor.
+
+    Returns:
+        Baseline misset angles as either:
+            - np.ndarray shape (3,) in degrees when device/dtype are None
+            - torch.Tensor shape (3,) on (device, dtype) when both are provided
+
+    Raises:
+        ImportError: If nanobrag_torch or torch are unavailable.
+        ValueError: If B_ideal is singular or ill-conditioned.
+    """
+    try:
+        import torch
+        from nanobrag_torch.config import CrystalConfig as TorchCrystalConfig
+        from nanobrag_torch.models.crystal import Crystal as TorchCrystal
+    except ImportError as exc:  # pragma: no cover - environment dependent
+        raise ImportError(
+            "derive_robust_misset requires nanobrag_torch and torch. "
+            f"Import failed: {exc}"
+        ) from exc
+
+    if device is None:
+        device_t = torch.device("cpu")
+    elif isinstance(device, torch.device):
+        device_t = device
+    else:
+        device_t = torch.device(device)
+
+    if dtype is None:
+        dtype_t = torch.float64
+    else:
+        dtype_t = dtype
+
+    if isinstance(crystal_nanobrag_default, TorchCrystal):
+        crystal_nb = crystal_nanobrag_default.to(device=device_t, dtype=dtype_t)
+    else:
+        # Build a default Crystal using the dxtbx unit cell with MOSFLM injection disabled
+        a, b, c, alpha, beta, gamma = crystal_dxtbx.get_unit_cell().parameters()
+        cfg = TorchCrystalConfig(
+            cell_a=a,
+            cell_b=b,
+            cell_c=c,
+            cell_alpha=alpha,
+            cell_beta=beta,
+            cell_gamma=gamma,
+            misset_deg=(0.0, 0.0, 0.0),
+            mosflm_a_star=None,
+            mosflm_b_star=None,
+            mosflm_c_star=None,
+        )
+        crystal_nb = TorchCrystal(cfg, device=device_t, dtype=dtype_t)
+
+    geom = crystal_nb.compute_cell_tensors()
+    a_star = geom["a_star"]
+    b_star = geom["b_star"]
+    c_star = geom["c_star"]
+
+    # Stack reciprocal vectors into B_ideal with columns (a*, b*, c*)
+    B_mat = torch.stack([a_star, b_star, c_star], dim=1)  # [3,3]
+    B_np = B_mat.detach().cpu().numpy().astype(np.float64)
+
+    # dxtbx A* matrix (columns a*, b*, c*)
+    A_tuple = crystal_dxtbx.get_A()
+    A_np = np.array(A_tuple, dtype=np.float64).reshape(3, 3)
+
+    # Compute U_raw = A* @ B_ideal^{-1}
+    try:
+        B_inv = np.linalg.inv(B_np)
+    except np.linalg.LinAlgError:
+        # Fall back to pseudo-inverse to handle near-singular cases
+        B_inv = np.linalg.pinv(B_np)
+
+    U_raw = A_np @ B_inv
+
+    # Project to the nearest proper rotation matrix via SVD
+    U_u, _, U_vt = np.linalg.svd(U_raw)
+    R = U_u @ U_vt
+    if np.linalg.det(R) < 0:
+        U_u[:, -1] *= -1.0
+        R = U_u @ U_vt
+
+    # Extract XYZ Euler angles in radians using GEOMETRY-002 convention
+    phi_y_rad = -np.arcsin(np.clip(R[2, 0], -1.0, 1.0))
+    phi_x_rad = np.arctan2(R[2, 1], R[2, 2])
+    phi_z_rad = np.arctan2(R[1, 0], R[0, 0])
+
+    misset_xyz_deg = np.array(
+        [phi_x_rad, phi_y_rad, phi_z_rad], dtype=np.float64
+    ) * (180.0 / np.pi)
+
+    if device is not None and dtype is not None:
+        return torch.tensor(misset_xyz_deg, dtype=dtype_t, device=device_t)
+
+    return misset_xyz_deg
+
+
 def compute_baseline_misset_deg(
     crystal,
     baseline_crystal,
@@ -628,66 +757,136 @@ def compute_baseline_misset_deg(
     dtype=None,
 ):
     """
-    Compute baseline misset angles (XYZ extrinsic Euler, degrees).
+    Compute baseline misset angles (XYZ extrinsic Euler, degrees) using a
+    nanobrag_torch-aligned derivation.
 
-    This helper mirrors the logic embedded in dbex.nanobrag_refinement.run_nanobrag_refinement:
-    - Compute U_delta = U_perturbed @ U_baseline^{-1} from dxtbx Crystal U matrices.
-    - Decompose U_delta into XYZ extrinsic Euler angles using the GEOMETRY-002 formulas:
-        R = R_z(gamma) @ R_y(beta) @ R_x(alpha)
-        phi_y = -asin(R[2,0])
-        phi_x = atan2(R[2,1], R[2,2])
-        phi_z = atan2(R[1,0], R[0,0])
+    Updated per TORCH-REFINE-002E / GEOMETRY-003:
+    - Let B_ideal be nanobrag_torch's default reciprocal basis constructed
+      from the baseline crystal's unit cell (no MOSFLM injection, zero misset).
+    - For a given dxtbx crystal with A* matrix A_crystal, define:
+          U_crystal = A_crystal @ B_ideal^{-1}
+      and project U_crystal to the nearest proper rotation matrix.
+    - When baseline_crystal is provided, compute U_baseline from its A* matrix
+      and return the Euler angles corresponding to:
+          R_delta = U_crystal @ U_baseline^{-1}
+      so the baseline misset encodes the rotation from baseline → crystal in
+      nanobrag's XYZ convention.
+    - When baseline_crystal is None, this helper returns the absolute misset
+      of `crystal` relative to B_ideal (useful for mapping-aligned baselines).
 
-    When device and dtype are provided (torch device / dtype), this returns a torch.Tensor
-    on the requested device; otherwise it returns a numpy.ndarray of shape (3,) in degrees.
-    If baseline_crystal is None, this helper returns None.
+    When device and dtype are provided (torch device / dtype), this returns a
+    torch.Tensor on the requested device; otherwise it returns a numpy.ndarray
+    of shape (3,) in degrees.
     """
-    if baseline_crystal is None:
+    if crystal is None:
         return None
 
+    if baseline_crystal is None:
+        return derive_robust_misset(crystal, None, device=device, dtype=dtype)
+
+    # Use the baseline crystal's unit cell to define B_ideal once, then compute
+    # robust orientations for both baseline and perturbed crystals relative to
+    # this shared frame so the delta is purely rotational.
     try:
-        from scitbx.matrix import sqr  # type: ignore
-    except Exception as exc:  # pragma: no cover - environment dependent
-        raise ImportError(
-            "compute_baseline_misset_deg requires scitbx.matrix.sqr; "
-            f"import failed: {exc}"
-        ) from exc
-
-    # Get U matrices (scitbx 3x3 matrix objects)
-    U_baseline_tuple = baseline_crystal.get_U()
-    U_perturbed_tuple = crystal.get_U()
-
-    # Convert to scitbx sqr matrices
-    U_baseline = sqr(U_baseline_tuple)
-    U_perturbed = sqr(U_perturbed_tuple)
-
-    # Compute U_delta = U_perturbed @ inv(U_baseline)
-    U_delta = U_perturbed * U_baseline.inverse()
-
-    # Convert to numpy array for Euler decomposition
-    U_delta_np = np.array(U_delta).reshape(3, 3)
-
-    # Extract XYZ Euler angles from U_delta (degrees)
-    # R = R_z(gamma) @ R_y(beta) @ R_x(alpha)
-    # phi_y = -asin(R[2,0])
-    # phi_x = atan2(R[2,1], R[2,2])
-    # phi_z = atan2(R[1,0], R[0,0])
-    phi_y_rad = -np.arcsin(np.clip(U_delta_np[2, 0], -1.0, 1.0))
-    phi_x_rad = np.arctan2(U_delta_np[2, 1], U_delta_np[2, 2])
-    phi_z_rad = np.arctan2(U_delta_np[1, 0], U_delta_np[0, 0])
-
-    baseline_misset_xyz_deg = np.array(
-        [phi_x_rad, phi_y_rad, phi_z_rad], dtype=np.float64
-    ) * (180.0 / np.pi)
-
-    # If torch context requested, return a Tensor on (device, dtype)
-    if device is not None and dtype is not None:
+        import torch
+        from nanobrag_torch.config import CrystalConfig as TorchCrystalConfig
+        from nanobrag_torch.models.crystal import Crystal as TorchCrystal
+    except ImportError:
+        # Fallback to legacy U-matrix-based derivation when nanobrag_torch is unavailable.
+        # This path preserves prior behavior for environments without the torch backend.
         try:
-            import torch
-        except ImportError:
-            # Fall back to numpy if torch is unavailable in this environment
-            return baseline_misset_xyz_deg
-        return torch.tensor(baseline_misset_xyz_deg, dtype=dtype, device=device)
+            from scitbx.matrix import sqr  # type: ignore
+        except Exception as exc:  # pragma: no cover - environment dependent
+            raise ImportError(
+                "compute_baseline_misset_deg requires scitbx.matrix.sqr when "
+                "nanobrag_torch is unavailable; import failed: "
+                f"{exc}"
+            ) from exc
+
+        U_baseline_tuple = baseline_crystal.get_U()
+        U_perturbed_tuple = crystal.get_U()
+        U_baseline = sqr(U_baseline_tuple)
+        U_perturbed = sqr(U_perturbed_tuple)
+        U_delta = U_perturbed * U_baseline.inverse()
+        U_delta_np = np.array(U_delta).reshape(3, 3)
+
+        phi_y_rad = -np.arcsin(np.clip(U_delta_np[2, 0], -1.0, 1.0))
+        phi_x_rad = np.arctan2(U_delta_np[2, 1], U_delta_np[2, 2])
+        phi_z_rad = np.arctan2(U_delta_np[1, 0], U_delta_np[0, 0])
+        baseline_misset_xyz_deg = np.array(
+            [phi_x_rad, phi_y_rad, phi_z_rad], dtype=np.float64
+        ) * (180.0 / np.pi)
+
+        if device is not None and dtype is not None:
+            try:
+                import torch as _torch  # type: ignore
+            except ImportError:
+                return baseline_misset_xyz_deg
+            return _torch.tensor(baseline_misset_xyz_deg, dtype=dtype, device=device)
+
+        return baseline_misset_xyz_deg
+
+    # nanobrag_torch path: build a shared B_ideal from baseline_crystal
+    if device is None:
+        device_t = torch.device("cpu")
+    elif isinstance(device, torch.device):
+        device_t = device
+    else:
+        device_t = torch.device(device)
+
+    if dtype is None:
+        dtype_t = torch.float64
+    else:
+        dtype_t = dtype
+
+    a_b, b_b, c_b, alpha_b, beta_b, gamma_b = baseline_crystal.get_unit_cell().parameters()
+    baseline_cfg = TorchCrystalConfig(
+        cell_a=a_b,
+        cell_b=b_b,
+        cell_c=c_b,
+        cell_alpha=alpha_b,
+        cell_beta=beta_b,
+        cell_gamma=gamma_b,
+        misset_deg=(0.0, 0.0, 0.0),
+        mosflm_a_star=None,
+        mosflm_b_star=None,
+        mosflm_c_star=None,
+    )
+    baseline_nb = TorchCrystal(baseline_cfg, device=device_t, dtype=dtype_t)
+
+    # Derive robust orientations for both crystals in the shared B_ideal frame
+    misset_baseline = derive_robust_misset(
+        baseline_crystal,
+        crystal_nanobrag_default=baseline_nb,
+        device=device_t,
+        dtype=dtype_t,
+    )
+    misset_crystal = derive_robust_misset(
+        crystal,
+        crystal_nanobrag_default=baseline_nb,
+        device=device_t,
+        dtype=dtype_t,
+    )
+
+    # Convert to numpy for delta computation
+    def _to_numpy(x):
+        import numpy as _np
+        try:
+            import torch as _torch  # type: ignore
+        except ImportError:  # pragma: no cover - torch-less environments
+            return _np.asarray(x, dtype=_np.float64)
+        if isinstance(x, _torch.Tensor):
+            return x.detach().cpu().numpy().astype(_np.float64)
+        return _np.asarray(x, dtype=_np.float64)
+
+    misset_baseline_np = _to_numpy(misset_baseline).reshape(3)
+    misset_crystal_np = _to_numpy(misset_crystal).reshape(3)
+    baseline_misset_xyz_deg = (misset_crystal_np - misset_baseline_np).astype(
+        np.float64
+    )
+
+    if device is not None and dtype is not None:
+        return torch.tensor(baseline_misset_xyz_deg, dtype=dtype_t, device=device_t)
 
     return baseline_misset_xyz_deg
 

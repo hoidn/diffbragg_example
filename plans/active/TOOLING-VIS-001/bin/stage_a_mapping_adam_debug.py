@@ -279,9 +279,12 @@ def _build_stage_a_components(
 
         detector_models.append(TorchDetector(det_cfg, device=device, dtype=dtype))
 
+    # GEOMETRY-003 / TORCH-REFINE-002E:
+    # Use robust misset derivation aligned to nanobrag's B_ideal frame by
+    # requesting absolute misset relative to B_ideal (baseline_crystal=None).
     baseline_misset_deg_tensor = compute_baseline_misset_deg(
         dataload.crystal,
-        dataload.Expt.crystal,
+        None,
         device=device,
         dtype=dtype,
     )

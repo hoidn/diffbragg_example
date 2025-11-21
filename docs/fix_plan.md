@@ -14,7 +14,7 @@
 
 ### [PHYSICS-LOSS-001] Implement variance-weighted loss function
 - Depends on: docs/spec-db-core.md (Variance Model)
-- Status: blocked (2025-11-21 — awaiting PERF-SMOKE-DETSIZE assets)
+- Status: blocked (2025-11-21 — awaiting REFINE-SMOKE-CANONICAL Stage B/C repairs)
 - Priority: Critical (Scientific Validity)
 - Owner/Date: Unassigned
 - Exit Criteria:
@@ -231,7 +231,7 @@
 
 ### [REFINE-SMOKE-CANONICAL] Restore canonical Stage B/C smoke convergence
 - Depends on: docs/spec-db-workflow.md §§Stage B/C + Stage Smoke Dataset Policy; docs/spec-db-core.md (variance-weighted loss telemetry)
-- Status: pending
+- Status: in_progress (2025-11-21 — Stage B nonlocal + Stage C telemetry repair)
 - Priority: High (blocks PHYSICS-LOSS-001 parity runs)
 - Owner/Date: Unassigned
 - Exit Criteria:
@@ -243,6 +243,7 @@
 - Attempts History:
   * 2025-11-21T035200Z (planning) — Canonical Stage B/C smokes still fail despite the PERF-SMOKE-DETSIZE gate edits. Stage B crashes with `UnboundLocalError: local variable 'chi_squared_best_b' referenced before assignment` (see `plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T031620Z/pytest_stage_smokes_full.log:486`), so LBFGS never updates the shell modifiers and telemetry records a fake improvement. Stage C telemetry reports 100 % detector-offset reduction even though chi-squared never changes (`telemetry_probe.json` under `plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T032803Z/`) because `param_deltas` hard-code `'initial': 0`. Spun up REFINE-SMOKE-CANONICAL with a dedicated implementation plan to debug and repair the canonical Stage B/C paths before PHYSICS-LOSS-001 can proceed.
   * 2025-11-21T035150Z (analysis) — Captured Stage B/C callchain snapshot identifying failure points: Stage B LBFGS closure misses `nonlocal` guards for `chi_squared_best_b`/`best_loss_full_b`, causing the UnboundLocalError, and Stage C telemetry never records the injected ±0.25 mm detector offsets so the ≥80 % reduction gate is meaningless despite zero chi-squared change. Artifacts: `plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T035150Z/{callchain/static.md,trace/tap_points.md}`. Next Actions: patch the Stage B closure + instrument Stage C detector baselines before re-running the full-detector smokes.
+  * 2025-11-21T042222Z (planning) — Replayed the canonical Stage B/C smokes (telemetry/logs under `plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T031620Z/pytest_stage_smokes_full.log` and `plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T032803Z/telemetry_full.json:1-49`) to confirm two blockers: (1) `closure_stage_b` assigns to `chi_squared_best_b`/`best_loss_full_b` without `nonlocal`, so Python raises `UnboundLocalError` and Stage B status stays `error`; (2) Stage C telemetry hard-codes `param_deltas['panel_*_distance_offset_mm']['initial']=0.0` in `dbex/nanobrag_refinement.py:2017-2023`, so the smoke harness thinks detector offsets shrink by 100% even when chi-squared is flat. Drafted the next Do Now for Ralph to add the missing `nonlocal` declarations, remove the noisy debug prints, pass baseline detector geometry into `run_nanobrag_refinement`, and emit real initial/final offsets so Stage B/C canonical smokes can pass. Artifacts: plans/active/REFINE-SMOKE-CANONICAL/reports/2025-11-21T042222Z/.
 ### [MAP-SCALE-001] Zero-iteration mapping scale alignment
 - Depends on: DB-AT-024, DB-AT-023, SCALE-001, SCALE-002, docs/spec-db-workflow.md §4, docs/architecture.md §4.3, CONFORMANCE-001
 - Status: done (Phase D complete — docs & metrics synchronized)

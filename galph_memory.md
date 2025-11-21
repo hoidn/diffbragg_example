@@ -265,3 +265,12 @@
 - Next Actions: Implement the Stage B/C gating updates + doc sync, rerun the mapped selectors on `--smoke-detector-size=full`, and publish telemetry/logs so PHYSICS-LOSS-001 can resume.
 - <Action State>: [ready_for_implementation]
 2025-11-21T032803Z focus=PERF-SMOKE-DETSIZE state=ready_for_implementation dwell=0 artifacts=plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T032803Z/ next_action=recalibrate_stage_b_c_full_detector_gates
+## 2025-11-21T042222Z — REFINE-SMOKE-CANONICAL canonical repair plan
+- Focus: REFINE-SMOKE-CANONICAL — Restore canonical Stage B/C smoke convergence
+- Action Type: planning
+- Key Observations: Confirmed the canonical Stage B/C smokes still fail: `plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T031620Z/pytest_stage_smokes_full.log:460-509` shows the Stage B LBFGS closure crashing with `UnboundLocalError: chi_squared_best_b`, and `plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T032803Z/telemetry_full.json:1-49` still reports 100% detector-offset reduction even though chi-squared never changes because `param_deltas` hard-code zero baselines in `dbex/nanobrag_refinement.py:2017-2039`. Updated docs/fix_plan.md (REFINE-SMOKE-CANONICAL now in_progress) and rewrote input.md with a Do Now that adds the missing `nonlocal` declarations, strips the debug prints, threads an optional `baseline_detector` through `run_nanobrag_refinement`, and reruns the strict Stage B/C selectors with telemetry artifacts under 2025-11-21T042222Z/.
+- Artifact Path: plans/active/REFINE-SMOKE-CANONICAL/reports/2025-11-21T042222Z/
+- Next Actions: Ralph implements the Stage B closure + Stage C telemetry fixes, updates the smoke/probe call sites, replays the canonical Stage B/C selectors, and publishes logs + telemetry.
+- <Action State>: [ready_for_implementation]
+
+2025-11-21T042222Z focus=REFINE-SMOKE-CANONICAL state=ready_for_implementation dwell=0 artifacts=plans/active/REFINE-SMOKE-CANONICAL/reports/2025-11-21T042222Z/ next_action=ship_stage_b_c_canonical_fix

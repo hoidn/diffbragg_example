@@ -411,3 +411,13 @@
 - <Action State>: [planning]
 
 2025-11-21T105321Z focus=PERF-WARM-SIM-001 state=planning dwell=0 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T105321Z/ next_action=stage_bc_warm_cache_impl
+
+## 2025-11-21T133500Z — PERF-WARM-SIM-001 canonical warm-cache perf plan
+- Focus: PERF-WARM-SIM-001 — Warm simulator; eliminate per-iteration re-instantiation
+- Action Type: planning
+- Key Observations: Logged new Do Now for Ralph to add perf-counter asserts inside the Stage B/C smoke tests and to rerun those selectors plus the warm-vs-cold benchmark on the canonical detector so we can publish ROI vs panel deltas with telemetry evidence. Fix-plan ledger updated (2025-11-21T133500Z entry) and input.md now points at the full-detector pytest + benchmark commands with telemetry artifacts rooted at 2025-11-21T133500Z/.
+- Artifact Path: plans/active/PERF-WARM-SIM-001/reports/2025-11-21T133500Z/
+- Next Actions: Implement the Stage B/C test edits, run the canonical-detector smokes with telemetry capture, re-run `benchmark_stage_a_cache.py --modes warm cold`, and push the resulting metrics into docs/findings.md + docs/fix_plan.md.
+- <Action State>: [ready_for_implementation]
+
+2025-11-21T133500Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=1 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T133500Z/ next_action=stage_bc_full_detector_perf_impl

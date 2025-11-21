@@ -1,0 +1,95 @@
+[
+  {
+    "stage": "stage_c_detector_microslip",
+    "dataset": "full",
+    "status": "early_stop",
+    "message": "Stage C improvement 0.0000% < 0.0020% (\u22650.002% gate calibrated per REFINE-007)",
+    "loss_trace_full": [
+      [
+        0,
+        294089696.0
+      ],
+      [
+        5,
+        294089696.0
+      ],
+      [
+        10,
+        294089696.0
+      ]
+    ],
+    "chi_squared_trace_full": [
+      [
+        0,
+        294089696.0
+      ],
+      [
+        5,
+        294089696.0
+      ],
+      [
+        10,
+        294089696.0
+      ]
+    ],
+    "perf_counters": {},
+    "loss_improvement": 0.0,
+    "chi_squared_improvement": 0.0,
+    "n_rois": 92,
+    "detector_shape": [
+      1,
+      2527,
+      2463
+    ],
+    "closure_evals": null,
+    "validation_runs": null,
+    "forward_time_ms": null,
+    "detector_offset_reduction_min": 1.0,
+    "detector_offset_final_abs_max": 0.0
+  },
+  {
+    "stage": "stage_b_shell_modifiers",
+    "dataset": "full",
+    "status": "error",
+    "message": "Stage B error: local variable 'chi_squared_best_b' referenced before assignment",
+    "loss_trace_full": [
+      [
+        0,
+        104972264.0
+      ],
+      [
+        5,
+        104972424.0
+      ],
+      [
+        5,
+        104972264.0
+      ]
+    ],
+    "chi_squared_trace_full": [
+      [
+        0,
+        104972264.0
+      ],
+      [
+        5,
+        104972424.0
+      ],
+      [
+        5,
+        104972264.0
+      ]
+    ],
+    "perf_counters": {},
+    "loss_improvement": -7.621061321193288e-08,
+    "n_rois": 92,
+    "detector_shape": [
+      1,
+      2527,
+      2463
+    ],
+    "closure_evals": null,
+    "validation_runs": null,
+    "forward_time_ms": null
+  }
+]

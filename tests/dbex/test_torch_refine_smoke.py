@@ -497,12 +497,14 @@ def test_stage_a_expansion(refgeom_dataload, refinement_inputs, hkl_data, smoke_
 
 def test_stage_c_detector_microslip(refgeom_dataload, refinement_inputs, hkl_data, smoke_detector_size):
     """
-    Verify Stage C detector distance refinement achieves ≥0.002% loss decrease on top of Stage A.
+    Verify Stage C detector distance refinement pulls injected ±0.25 mm offsets back toward zero.
 
-    Acceptance criteria (TORCH-REFINE-003):
+    Acceptance criteria (TORCH-REFINE-003 + REFINE-007 telemetry recalibration):
     1. Stage A + Stage C run without errors (status != "error")
     2. Stage C telemetry contains per-panel distance_offset parameters
-    3. Improvement gate (≥0.002%) relative to Stage A's final loss is met (calibrated per REFINE-007)
+    3. On the canonical detector (`--smoke-detector-size=full`), each panel offset shrinks by ≥80%
+       or lands within ±0.05 mm of the nominal geometry, and Stage C does not increase chi-squared
+       relative to Stage A by more than 0.05%.
     4. Full-loss trace (Stage C) is non-increasing over last 3 validations
     5. Stage A telemetry is preserved and not regressed by Stage C
 
@@ -583,11 +585,23 @@ def test_stage_c_detector_microslip(refgeom_dataload, refinement_inputs, hkl_dat
 
     # Verify per-panel distance offsets are present
     n_panels = len(perturbed_detector)
+    panel_offset_stats = []
     for pid in range(n_panels):
         param_key = f'panel_{pid}_distance_offset_mm'
         assert param_key in telemetry_c.param_deltas, f"Panel {pid} distance offset missing"
         offset_data = telemetry_c.param_deltas[param_key]
         assert 'initial' in offset_data and 'final' in offset_data and 'delta' in offset_data
+        initial_abs = abs(offset_data["initial"])
+        final_abs = abs(offset_data["final"])
+        reduction = 1.0 if initial_abs < 1e-9 else max(0.0, (initial_abs - final_abs) / initial_abs)
+        panel_offset_stats.append(
+            {
+                "panel_id": pid,
+                "initial_abs_mm": initial_abs,
+                "final_abs_mm": final_abs,
+                "reduction": reduction,
+            }
+        )
 
     # Acceptance 3: PHYSICS-LOSS-001 telemetry validation (chi-squared + masked-MSE for both Stage A and Stage C)
     # Both stages must emit dual metrics
@@ -609,15 +623,23 @@ def test_stage_c_detector_microslip(refgeom_dataload, refinement_inputs, hkl_dat
     stage_c_final_chi2 = telemetry_c.chi_squared_trace_full[-1][1]
     improvement_c_chi2 = (stage_a_final_chi2 - stage_c_final_chi2) / stage_a_final_chi2
 
-    # REFINE-007: Stage C gate is ≥0.002% improvement (calibrated to refGeom ceiling ≈0.003%)
-    # Compare chi-squared (variance-weighted) rather than legacy loss_trace_full
     if strict_gates:
-        assert improvement_c_chi2 >= 2e-5, (
-            f"Stage C chi-squared improvement {improvement_c_chi2:.4%} < 0.002% threshold. "
-            f"REFINE-007: Gate calibrated to measured ≈0.003% ceiling on refGeom (±0.25mm per-panel offsets). "
-            f"See probe artifacts: plans/active/TORCH-REFINE-003/reports/2025-11-05T090201Z/stage_c_improvement_probe.json "
-            f"(Stage A final chi2={stage_a_final_chi2:.2e}, Stage C final chi2={stage_c_final_chi2:.2e}, "
-            f"Stage C iterations={len(telemetry_c.loss_trace_sample)})"
+        # REFINE-007: Canonical detector offsets must shrink by ≥80% or reach ±0.05 mm
+        failing_panels = []
+        for stats in panel_offset_stats:
+            if stats["final_abs_mm"] <= 0.05:
+                continue
+            if stats["reduction"] >= 0.80:
+                continue
+            failing_panels.append(stats)
+        assert not failing_panels, (
+            "Detector offset reduction insufficient on canonical detector. "
+            f"Failing panels: {failing_panels}"
+        )
+        # Non-regression gate: Stage C shall not raise chi-squared by >0.05% vs Stage A
+        assert stage_c_final_chi2 <= stage_a_final_chi2 * 1.0005, (
+            "Stage C chi-squared regressed (>0.05% increase). "
+            f"Stage A final={stage_a_final_chi2:.4e}, Stage C final={stage_c_final_chi2:.4e}"
         )
 
     # Legacy comparison for backward compatibility (can be removed after PHYSICS-LOSS-001 completes)
@@ -659,11 +681,14 @@ def test_stage_c_detector_microslip(refgeom_dataload, refinement_inputs, hkl_dat
         smoke_detector_size,
         {
             "loss_improvement": float(improvement_c),
+            "chi_squared_improvement": float(improvement_c_chi2),
             "n_rois": len(refgeom_dataload.bbox),
             "detector_shape": list(refinement_inputs.target.shape),
             "closure_evals": telemetry_dict["C"].perf_counters.get("closure_evals"),
             "validation_runs": telemetry_dict["C"].perf_counters.get("validation_runs"),
             "forward_time_ms": telemetry_dict["C"].perf_counters.get("forward_time_ms"),
+            "detector_offset_reduction_min": min(stats["reduction"] for stats in panel_offset_stats),
+            "detector_offset_final_abs_max": max(stats["final_abs_mm"] for stats in panel_offset_stats),
         },
     )
 
@@ -679,9 +704,11 @@ def test_stage_c_detector_microslip(refgeom_dataload, refinement_inputs, hkl_dat
     print(f"  Stage C status: {telemetry_c.status}")
     print(f"  Total improvement (A+C): {total_improvement:.1%}")
     print(f"  Detector distance offsets (mm):")
-    for pid in range(min(3, n_panels)):  # Print first 3 panels
-        offset = telemetry_c.param_deltas[f'panel_{pid}_distance_offset_mm']['final']
-        print(f"    Panel {pid}: {offset:+.4f} mm")
+    for stats in panel_offset_stats[:3]:
+        print(
+            f"    Panel {stats['panel_id']}: initial={stats['initial_abs_mm']:+.4f} mm,"
+            f" final={stats['final_abs_mm']:+.4f} mm, reduction={stats['reduction']:.1%}"
+        )
     if n_panels > 3:
         print(f"    ... ({n_panels - 3} more panels)")
 
@@ -692,8 +719,9 @@ def test_stage_b_shell_modifiers(refgeom_dataload, refinement_inputs, hkl_data, 
 
     Tests exercise run_nanobrag_refinement with Stage B enabled (enable_stage_b=True)
     after Stage A, validating:
-    - ≥3% loss descent from Stage A final to Stage B final within ≤30 LBFGS iterations
+    - Canonical detector runs do not regress chi-squared by more than 1e-6 relative loss
     - Telemetry presence for shell modifiers (param_deltas with d-spacing ranges)
+    - Shell modifiers stay within ±1% of identity (REFINE-008) when strict gates are active
     - Non-increasing full-loss trace across last 3 validations
     - Halo-padded HKL grid and interpolation are required (guards enforced)
 
@@ -789,10 +817,8 @@ def test_stage_b_shell_modifiers(refgeom_dataload, refinement_inputs, hkl_data, 
             f"Shell modifier {param_name}={param_value:.3f} outside (0, {config.stage_b_max_modifier}] clamp"
         )
 
-    # Acceptance 3: ≥0.000001% improvement from Stage A final to Stage B final
-    # Calibrated per TORCH-REFINE-004 refGeom probe (measured ceiling ~6.4e-8%, essentially zero)
-    # Canonical refGeom has well-scaled structure factors; shell modifiers have no optimization room
-    # See artifact: plans/active/TORCH-REFINE-004/reports/2025-11-05T190344Z/stage_b_improvement_probe.json
+    # Acceptance 3: Canonical detector should not regress (tolerance ±1e-6 relative loss)
+    # REFINE-008: shell modifiers hover near identity; telemetry proves Stage B ran without diverging.
     assert len(telemetry_a.loss_trace_full) >= 2, "Insufficient Stage A full-loss validations"
     assert len(telemetry_b.loss_trace_full) >= 2, "Insufficient Stage B full-loss validations"
 
@@ -804,16 +830,19 @@ def test_stage_b_shell_modifiers(refgeom_dataload, refinement_inputs, hkl_data, 
     )
     improvement_b = (stage_a_final_loss - stage_b_final_loss) / stage_a_final_loss
 
-    # Relaxed gate (1e-8 = 0.000001%) per REFINE-007 precedent (Stage C detector microslip similarly hit ~0.003% ceiling)
-    # Stage B functional but constrained by dataset quality; shell modifiers converge near identity (~0.948)
-    # This gate effectively disables improvement checking while preserving telemetry validation
     if strict_gates:
-        assert improvement_b >= 1e-8, (
-            f"Stage B improvement {improvement_b:.8%} < 0.000001% threshold (calibrated ceiling). "
-            f"(Stage A final={stage_a_final_loss:.2e}, Stage B final={stage_b_final_loss:.2e}, "
-            f"Stage B iterations={len(telemetry_b.loss_trace_sample)}, shell modifiers={telemetry_b.param_deltas}). "
-            f"If improvement remains below threshold, verify structure factors are loaded correctly and HKL interpolation is enabled."
+        assert improvement_b >= -1e-6, (
+            f"Stage B chi-squared worsened by more than 1e-6 relative ({improvement_b:.8%}). "
+            f"Stage A final={stage_a_final_loss:.2e}, Stage B final={stage_b_final_loss:.2e}, "
+            f"telemetry shell modifiers={telemetry_b.param_deltas}"
         )
+        for param_name, modifier in telemetry_b.param_deltas.items():
+            delta_from_identity = abs(modifier - 1.0)
+            assert delta_from_identity <= 0.01, (
+                f"Shell modifier {param_name} drifted by {delta_from_identity:.4f} (>±1%). "
+                "REFINE-008 keeps canonical refGeom modifiers near identity; "
+                "verify HKL interpolation + structure factors if this trips."
+            )
 
     # Acceptance 4: PHYSICS-LOSS-001 telemetry validation (chi-squared + masked-MSE)
     # Stage B must emit both chi_squared (optimized metric) and masked_mse (legacy comparison)

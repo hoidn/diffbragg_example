@@ -256,3 +256,12 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-21T031620Z focus=PERF-SMOKE-DETSIZE state=ready_for_implementation dwell=0 artifacts=plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T031620Z/ next_action=implement_db_at_guard
+
+## 2025-11-21T032803Z — PERF-SMOKE-DETSIZE strict-gate calibration plan
+- Focus: PERF-SMOKE-DETSIZE — Introduce small-detector fixture for smoke tests
+- Action Type: planning
+- Key Observations: DB-AT guard landed but canonical Stage B/C smokes are still red: Stage C chi-squared improvement is flat (0.0000%) and Stage B regresses by −7.6e-8% (plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T031620Z/pytest_stage_smokes_full.log:142-369). Drafted a ready-for-implementation Do Now directing Ralph to capture telemetry via `DBEX_SMOKE_TELEMETRY_PATH`, replace the strict gates with detector-offset reduction + no-regression guards (Stage C) and bounded loss deltas + shell-modifier sanity (Stage B), and sync docs/TESTING_GUIDE.md with the new tolerances so exit criterion #4 can close.
+- Artifact Path: plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T032803Z/
+- Next Actions: Implement the Stage B/C gating updates + doc sync, rerun the mapped selectors on `--smoke-detector-size=full`, and publish telemetry/logs so PHYSICS-LOSS-001 can resume.
+- <Action State>: [ready_for_implementation]
+2025-11-21T032803Z focus=PERF-SMOKE-DETSIZE state=ready_for_implementation dwell=0 artifacts=plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T032803Z/ next_action=recalibrate_stage_b_c_full_detector_gates

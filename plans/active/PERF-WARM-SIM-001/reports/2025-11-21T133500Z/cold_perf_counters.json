@@ -1,0 +1,14 @@
+{
+  "cache_mode": "cold",
+  "roi_mode": "panel",
+  "roi_count_total": 1,
+  "roi_count_sampled": 1,
+  "closure_evals": 14,
+  "validation_runs": 4,
+  "forward_time_ms": {
+    "mean": 5832.827005502103,
+    "min": 687.2893120162189,
+    "max": 7022.89755595848,
+    "total": 81659.57807702944
+  }
+}

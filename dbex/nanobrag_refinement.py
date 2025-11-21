@@ -1942,6 +1942,16 @@ def run_nanobrag_refinement(
             d_max_shell = float(shell_edges[shell_idx].item())
             param_deltas_b[f"shell_{shell_idx}_modifier (d={d_min_shell:.2f}-{d_max_shell:.2f}Å)"] = float(shell_modifiers_final_np[shell_idx])
 
+        if panel_slices:
+            stage_b_roi_count_total = canonical_roi_count
+            sampled_panel_set = set(stage_b_sampled_panel_ids)
+            stage_b_roi_count_sampled = sum(
+                1 for pid, _ in panel_slices if int(pid) in sampled_panel_set
+            )
+        else:
+            stage_b_roi_count_total = n_panels
+            stage_b_roi_count_sampled = len(stage_b_sampled_panel_ids)
+
         forward_stats_b = {
             'mean': float(np.mean(perf_forward_times_ms_b)) if perf_forward_times_ms_b else 0.0,
             'min': float(np.min(perf_forward_times_ms_b)) if perf_forward_times_ms_b else 0.0,
@@ -1951,8 +1961,8 @@ def run_nanobrag_refinement(
         perf_counters_b = {
             'cache_mode': stage_b_cache_mode,
             'roi_mode': 'panel',
-            'roi_count_total': n_panels,
-            'roi_count_sampled': len(stage_b_sampled_panel_ids),
+            'roi_count_total': stage_b_roi_count_total,
+            'roi_count_sampled': stage_b_roi_count_sampled,
             'closure_evals': perf_closure_evals_b[0],
             'validation_runs': perf_validation_runs_b[0],
             'forward_time_ms': forward_stats_b,
@@ -1966,8 +1976,8 @@ def run_nanobrag_refinement(
             tolerance_grad=config.tolerance_grad,
             tolerance_change=config.tolerance_change,
             roi_sample_fraction=config.roi_sample_fraction,
-            roi_count_sampled=len(stage_b_sampled_panel_ids),  # Actual sampled count (reused from Stage A)
-            roi_count_total=n_panels,
+            roi_count_sampled=stage_b_roi_count_sampled,
+            roi_count_total=stage_b_roi_count_total,
             loss_trace_sample=loss_trace_sample_b,
             loss_trace_full=loss_trace_full_b,
             best_loss_full=best_loss_full_b,
@@ -1995,6 +2005,7 @@ def run_nanobrag_refinement(
             canonical_chi_squared_iteration=canonical_baseline["iteration"],
             canonical_roi_count=canonical_baseline["roi_count"],
             canonical_detector_distances_mm=canonical_baseline["detector_distances_mm"],
+            roi_mode="panel",
         )
 
         telemetry_dict["B"] = telemetry_b
@@ -2504,6 +2515,7 @@ def run_nanobrag_refinement(
             canonical_chi_squared_iteration=canonical_baseline["iteration"],
             canonical_roi_count=canonical_baseline["roi_count"],
             canonical_detector_distances_mm=canonical_baseline["detector_distances_mm"],
+            roi_mode=stage_c_roi_mode_label,
         )
 
         telemetry_dict["C"] = telemetry_c

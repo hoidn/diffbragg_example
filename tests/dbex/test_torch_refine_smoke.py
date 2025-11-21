@@ -777,6 +777,41 @@ def test_stage_c_detector_microslip(
     # Diagnostic printout
     total_improvement = (stage_a_initial_loss - stage_c_final_loss) / stage_a_initial_loss
 
+    # PERF-WARM-SIM-001: Stage C perf counters and ROI-mode validation
+    perf_c = telemetry_c.perf_counters
+    assert perf_c is not None, "Stage C perf_counters missing"
+    cache_mode_c = perf_c.get("cache_mode")
+    assert cache_mode_c == "warm", f"Stage C cache_mode should be 'warm', got {cache_mode_c}"
+    expected_roi_mode = "roi" if config.enable_stage_a_roi_mode and len(refinement_inputs.panel_slices) > 0 else "panel"
+    roi_mode_c = perf_c.get("roi_mode")
+    assert roi_mode_c == expected_roi_mode, f"Stage C roi_mode {roi_mode_c} != expected {expected_roi_mode}"
+    assert telemetry_c.roi_mode == roi_mode_c, (
+        f"Telemetry roi_mode {telemetry_c.roi_mode} != perf counters {roi_mode_c}"
+    )
+    assert perf_c.get("roi_count_total") == canonical_roi_count, (
+        f"Stage C roi_count_total {perf_c.get('roi_count_total')} != canonical ROI count {canonical_roi_count}"
+    )
+    roi_sampled_c = perf_c.get("roi_count_sampled")
+    assert isinstance(roi_sampled_c, int) and roi_sampled_c > 0, (
+        f"Stage C roi_count_sampled invalid: {roi_sampled_c}"
+    )
+    assert roi_sampled_c <= canonical_roi_count, (
+        f"Stage C sampled ROI count {roi_sampled_c} exceeds total {canonical_roi_count}"
+    )
+    closure_evals_c = perf_c.get("closure_evals")
+    assert isinstance(closure_evals_c, int) and closure_evals_c > 0, (
+        f"Stage C closure_evals invalid: {closure_evals_c}"
+    )
+    validation_runs_c = perf_c.get("validation_runs")
+    assert isinstance(validation_runs_c, int) and validation_runs_c > 0, (
+        f"Stage C validation_runs invalid: {validation_runs_c}"
+    )
+    forward_time_c = perf_c.get("forward_time_ms")
+    assert isinstance(forward_time_c, dict), f"Stage C forward_time_ms should be dict, got {type(forward_time_c)}"
+    assert forward_time_c.get("total", 0.0) > 0.0, (
+        f"Stage C forward_time_ms.total must be >0, got {forward_time_c.get('total')}"
+    )
+
     _record_stage_telemetry(
         "stage_c_detector_microslip",
         telemetry_dict["C"],
@@ -791,6 +826,10 @@ def test_stage_c_detector_microslip(
             "forward_time_ms": telemetry_dict["C"].perf_counters.get("forward_time_ms"),
             "detector_offset_reduction_min": min(stats["reduction"] for stats in panel_offset_stats),
             "detector_offset_final_abs_max": max(stats["final_abs_mm"] for stats in panel_offset_stats),
+            "cache_mode": telemetry_dict["C"].perf_counters.get("cache_mode"),
+            "roi_mode": telemetry_dict["C"].perf_counters.get("roi_mode"),
+            "roi_count_total": telemetry_dict["C"].perf_counters.get("roi_count_total"),
+            "roi_count_sampled": telemetry_dict["C"].perf_counters.get("roi_count_sampled"),
         },
     )
 
@@ -928,6 +967,35 @@ def test_stage_b_shell_modifiers(
     else:
         assert telemetry_b.canonical_chi_squared == pytest.approx(stage_a_final_chi2, rel=1e-4)
 
+    # PERF-WARM-SIM-001: Stage B perf counters must prove warm cache stays active
+    perf_b = telemetry_b.perf_counters
+    assert perf_b is not None, "Stage B perf_counters missing"
+    cache_mode_b = perf_b.get("cache_mode")
+    assert cache_mode_b == "warm", f"Stage B cache_mode should be 'warm', got {cache_mode_b}"
+    roi_mode_b = perf_b.get("roi_mode")
+    assert roi_mode_b == "panel", f"Stage B roi_mode should be 'panel', got {roi_mode_b}"
+    assert perf_b.get("roi_count_total") == canonical_roi_count, (
+        f"Stage B roi_count_total {perf_b.get('roi_count_total')} != canonical ROI count {canonical_roi_count}"
+    )
+    roi_sampled_b = perf_b.get("roi_count_sampled")
+    assert isinstance(roi_sampled_b, int), f"Stage B roi_count_sampled not int: {type(roi_sampled_b)}"
+    assert 0 < roi_sampled_b <= canonical_roi_count, (
+        f"Stage B sampled ROI count {roi_sampled_b} out of range (total={canonical_roi_count})"
+    )
+    closure_evals_b = perf_b.get("closure_evals")
+    assert isinstance(closure_evals_b, int) and closure_evals_b > 0, (
+        f"Stage B closure_evals invalid: {closure_evals_b}"
+    )
+    validation_runs_b = perf_b.get("validation_runs")
+    assert isinstance(validation_runs_b, int) and validation_runs_b > 0, (
+        f"Stage B validation_runs invalid: {validation_runs_b}"
+    )
+    forward_time_b = perf_b.get("forward_time_ms")
+    assert isinstance(forward_time_b, dict), f"Stage B forward_time_ms should be dict, got {type(forward_time_b)}"
+    assert forward_time_b.get("total", 0.0) > 0.0, (
+        f"Stage B forward_time_ms.total must be >0, got {forward_time_b.get('total')}"
+    )
+
     # Variance floor telemetry propagated through Stage B
     assert telemetry_b.variance_floor_value == pytest.approx(config.sigma_floor_value**2)
     assert telemetry_b.variance_floor_clamp_fraction is not None
@@ -1038,6 +1106,10 @@ def test_stage_b_shell_modifiers(
             "closure_evals": telemetry_dict["B"].perf_counters.get("closure_evals"),
             "validation_runs": telemetry_dict["B"].perf_counters.get("validation_runs"),
             "forward_time_ms": telemetry_dict["B"].perf_counters.get("forward_time_ms"),
+            "cache_mode": telemetry_dict["B"].perf_counters.get("cache_mode"),
+            "roi_mode": telemetry_dict["B"].perf_counters.get("roi_mode"),
+            "roi_count_total": telemetry_dict["B"].perf_counters.get("roi_count_total"),
+            "roi_count_sampled": telemetry_dict["B"].perf_counters.get("roi_count_sampled"),
         },
     )
 

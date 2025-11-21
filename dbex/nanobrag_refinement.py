@@ -28,6 +28,8 @@ Telemetry emitted to `/torch_diagnostics`:
 - Multi-stage runs return Dict[str, RefinementTelemetry] keyed by stage ("A", "B", "C")
 """
 
+import math
+import os
 import torch
 import numpy as np
 import time
@@ -266,6 +268,7 @@ class RefinementConfig:
     stage_b_min_loss_improvement: float = 1e-8  # 0.000001% minimum improvement for Stage B (calibrated per TORCH-REFINE-004 refGeom probe: measured ceiling ~6.4e-8%, essentially zero)
     stage_b_max_modifier: float = 2.0  # Maximum shell modifier (softplus clamp)
     stage_b_regularization: float = 0.0  # L2 regularization strength (reserved for future)
+    stage_b_full_eval_on_cpu: bool = True  # Run Stage B evaluations on CPU to avoid GPU OOM when gradients require large buffers
 
     # Stage C detector microslip (TORCH-REFINE-003)
     enable_stage_c: bool = False  # Enable detector distance refinement
@@ -352,6 +355,42 @@ class RefinementTelemetry:
     # PHYSICS-LOSS-002: Variance floor telemetry (spec-db-core.md:67)
     variance_floor_value: Optional[float] = None  # sigma_floor^2 used in variance clamping
     variance_floor_clamp_fraction: Optional[float] = None  # Fraction of masked pixels where floor engaged
+
+
+def _accumulate_variance_weighted_loss(
+    bragg_tensor: torch.Tensor,
+    target_tensor: torch.Tensor,
+    loss_mask: torch.Tensor,
+    sigma_tensor: torch.Tensor,
+    sigma_floor_sq_tensor: torch.Tensor,
+) -> Tuple[torch.Tensor, torch.Tensor, int, int]:
+    """
+    Sum variance-weighted chi-squared + masked-MSE per spec-db-core.md:57-80.
+
+    Returns:
+        chi-squared sum, masked-MSE value, masked pixel count, clamp pixel count.
+    """
+    variance_raw = bragg_tensor.detach() + sigma_tensor ** 2
+    variance = torch.maximum(variance_raw, sigma_floor_sq_tensor)
+
+    mask_bool = loss_mask
+    masked_pixels = int(mask_bool.sum().item())
+    clamped_pixels = int(((variance_raw < sigma_floor_sq_tensor) & mask_bool).sum().item())
+
+    diff = bragg_tensor - target_tensor
+    squared_error = diff ** 2
+    masked_squared_error = torch.where(mask_bool, squared_error, torch.zeros_like(squared_error))
+
+    weighted_error = squared_error / variance
+    masked_weighted_error = torch.where(mask_bool, weighted_error, torch.zeros_like(weighted_error))
+    chi_squared_sum = masked_weighted_error.sum()
+
+    if masked_pixels > 0:
+        masked_mse_value = masked_squared_error.sum() / masked_pixels
+    else:
+        masked_mse_value = masked_squared_error.sum()
+
+    return chi_squared_sum, masked_mse_value, masked_pixels, clamped_pixels
 
 
 def _build_stage_a_context(
@@ -487,6 +526,8 @@ def run_nanobrag_refinement(
     Raises:
         RuntimeError: If simulator fails or gradients are NaN/Inf
     """
+    if os.environ.get("NANOBRAGG_DISABLE_COMPILE") == "1":
+        os.environ.setdefault("TORCHDYNAMO_DISABLE", "1")
     from nanobrag_torch.simulator import Simulator
     from nanobrag_torch.models.detector import Detector
     from nanobrag_torch.models.crystal import Crystal
@@ -605,6 +646,9 @@ def run_nanobrag_refinement(
     # PHYSICS-LOSS-002: Variance floor clamp statistics
     variance_floor_clamped_pixels = [0]  # Total pixels where floor engaged
     variance_floor_masked_pixels = [0]  # Total masked pixels evaluated
+    sigma_floor_sq_tensor = torch.tensor(
+        config.sigma_floor_value ** 2, device=device, dtype=dtype
+    )
 
     # Deterministic ROI sampling
     np.random.seed(42)  # Fixed seed for deterministic behavior
@@ -763,36 +807,20 @@ def run_nanobrag_refinement(
         mask_subset = loss_mask_t[panel_ids]
         sigma_subset = sigma_readout_t[panel_ids]
 
-        # Variance-weighted chi-squared loss (spec-db-core.md:57-68, PHYSICS-LOSS-002)
-        # Variance = max(I_model.detach() + sigma_readout^2, sigma_floor^2)
-        # Detach denominator to prevent "attraction to zero" (IRLS approach)
-        # sigma_floor prevents chi-squared explosion when predictions approach zero (GPU stability)
-        sigma_floor_sq = torch.tensor(config.sigma_floor_value**2, device=device, dtype=dtype)
-        variance_raw = bragg_scaled.detach() + sigma_subset**2
-        variance = torch.maximum(variance_raw, sigma_floor_sq)
-
-        # Track clamp statistics (PHYSICS-LOSS-002): count masked pixels where floor engaged
-        # Only count pixels within the loss mask to match spec-db-core.md:67 "masked pixels" clause
-        clamped_mask = (variance_raw < sigma_floor_sq) & mask_subset
-        n_clamped = clamped_mask.sum().item()
-        n_masked = mask_subset.sum().item()
-        variance_floor_clamped_pixels[0] += n_clamped
-        variance_floor_masked_pixels[0] += n_masked
-
-        # Numerator: (I_model - I_obs)^2, masked
-        diff = bragg_scaled - target_subset
-        masked_diff = torch.where(mask_subset, diff, torch.tensor(0.0, device=device, dtype=dtype))
-        numerator = (masked_diff ** 2).sum()
-
-        # Denominator: Sum(V) over masked pixels
-        masked_variance = torch.where(mask_subset, variance, torch.tensor(0.0, device=device, dtype=dtype))
-        denominator = masked_variance.sum()
-
-        # Chi-squared loss: Sum((I_model - I_obs)^2 / V)
-        chi_squared_loss = numerator / torch.clamp(denominator, min=1e-12)
-
-        # Also compute masked MSE for legacy telemetry comparison
-        masked_mse_loss = numerator / mask_subset.sum()
+        (
+            chi_squared_loss,
+            masked_mse_loss,
+            masked_pixels,
+            clamped_pixels,
+        ) = _accumulate_variance_weighted_loss(
+            bragg_scaled,
+            target_subset,
+            mask_subset,
+            sigma_subset,
+            sigma_floor_sq_tensor,
+        )
+        variance_floor_clamped_pixels[0] += clamped_pixels
+        variance_floor_masked_pixels[0] += masked_pixels
 
         # Record forward timing (PERF-WARM-SIM-001)
         if not is_full:  # Only track closure forward times, not validation
@@ -869,6 +897,9 @@ def run_nanobrag_refinement(
     status = "ok"
     message = ""
 
+    final_chi_squared_value: Optional[float] = None
+    final_masked_mse_value: Optional[float] = None
+
     try:
         optimizer.step(closure)
 
@@ -876,20 +907,22 @@ def run_nanobrag_refinement(
         perf_validation_runs[0] += 1  # PERF-WARM-SIM-001
         with torch.no_grad():
             final_chi_squared, final_mse = compute_loss(list(range(n_panels)), is_full=True)
-            loss_trace_full.append((iteration_count[0], float(final_chi_squared.item())))  # Deprecated legacy field
+            final_chi_squared_value = float(final_chi_squared.item())
+            final_masked_mse_value = float(final_mse.item())
+            loss_trace_full.append((iteration_count[0], final_chi_squared_value))  # Deprecated legacy field
             # PHYSICS-LOSS-001: Record both metrics
-            chi_squared_trace_full.append((iteration_count[0], float(final_chi_squared.item())))
-            masked_mse_trace_full.append((iteration_count[0], float(final_mse.item())))
+            chi_squared_trace_full.append((iteration_count[0], final_chi_squared_value))
+            masked_mse_trace_full.append((iteration_count[0], final_masked_mse_value))
 
-            if final_chi_squared.item() < best_loss_full[0]:
-                best_loss_full = (float(final_chi_squared.item()), iteration_count[0])  # Deprecated legacy field
+            if final_chi_squared_value < best_loss_full[0]:
+                best_loss_full = (final_chi_squared_value, iteration_count[0])  # Deprecated legacy field
             # PHYSICS-LOSS-001: Track best for both metrics
-            if final_chi_squared.item() < chi_squared_best[0]:
-                chi_squared_best = (float(final_chi_squared.item()), iteration_count[0])
-            if final_mse.item() < masked_mse_best[0]:
-                masked_mse_best = (float(final_mse.item()), iteration_count[0])
+            if final_chi_squared_value < chi_squared_best[0]:
+                chi_squared_best = (final_chi_squared_value, iteration_count[0])
+            if final_masked_mse_value < masked_mse_best[0]:
+                masked_mse_best = (final_masked_mse_value, iteration_count[0])
 
-            if final_chi_squared.item() < best_loss_full[0]:
+            if final_chi_squared_value < best_loss_full[0]:
                 # Compute misset XYZ for final snapshot (TORCH-REFINE-002)
                 max_orientation_deg = 3.0
                 bounded_orientation_vec_final = torch.tanh(orientation_vec) * max_orientation_deg * (np.pi / 180.0)
@@ -931,6 +964,33 @@ def run_nanobrag_refinement(
             angle_beta_raw.data = torch.tensor(best_params_snapshot['angle_beta_raw'], device=device, dtype=dtype)
             angle_gamma_raw.data = torch.tensor(best_params_snapshot['angle_gamma_raw'], device=device, dtype=dtype)
             orientation_vec.data = torch.tensor(best_params_snapshot['orientation_vec'], device=device, dtype=dtype)
+
+    if not chi_squared_trace_full:
+        fallback_chi2 = final_chi_squared_value
+        fallback_iter = iteration_count[0]
+        if fallback_chi2 is None and chi_squared_best[0] < float('inf'):
+            fallback_chi2 = chi_squared_best[0]
+            fallback_iter = chi_squared_best[1]
+        if fallback_chi2 is None and best_loss_full[0] < float('inf'):
+            fallback_chi2 = best_loss_full[0]
+            fallback_iter = best_loss_full[1]
+        if fallback_chi2 is not None:
+            chi_squared_trace_full.append((fallback_iter, fallback_chi2))
+            if not loss_trace_full:
+                loss_trace_full.append((fallback_iter, fallback_chi2))
+            if fallback_chi2 < chi_squared_best[0]:
+                chi_squared_best = (fallback_chi2, fallback_iter)
+
+    if not masked_mse_trace_full:
+        fallback_mse = final_masked_mse_value
+        fallback_iter = iteration_count[0]
+        if fallback_mse is None and masked_mse_best[0] < float('inf'):
+            fallback_mse = masked_mse_best[0]
+            fallback_iter = masked_mse_best[1]
+        if fallback_mse is not None:
+            masked_mse_trace_full.append((fallback_iter, fallback_mse))
+            if fallback_mse < masked_mse_best[0]:
+                masked_mse_best = (fallback_mse, fallback_iter)
 
     # Generate final Bragg array with optimized parameters
     with torch.no_grad():
@@ -1178,8 +1238,12 @@ def run_nanobrag_refinement(
 
         # Initialize shell modifiers (softplus parameterization to keep multipliers positive)
         # Start near identity: softplus(0) ≈ 0.69, so initialize slightly negative to get ~1.0
-        shell_modifier_raw = torch.zeros(config.stage_b_n_shells, device=device, dtype=dtype, requires_grad=True)
-        shell_modifier_raw.data.fill_(-0.5)  # softplus(-0.5) ≈ 0.474 → after scaling ~1.0
+        stage_b_param_device = torch.device(config.device)
+        if config.stage_b_full_eval_on_cpu:
+            stage_b_param_device = torch.device("cpu")
+        shell_modifier_raw = torch.zeros(config.stage_b_n_shells, device=stage_b_param_device, dtype=dtype, requires_grad=True)
+        identity_raw = math.log(math.expm1(0.5))  # softplus(identity_raw)*2 == 1.0
+        shell_modifier_raw.data.fill_(identity_raw)
 
         stage_b_params = [shell_modifier_raw]
 
@@ -1215,6 +1279,9 @@ def run_nanobrag_refinement(
         # PHYSICS-LOSS-002: Variance floor clamp statistics for Stage B
         variance_floor_clamped_pixels_b = [0]  # Total pixels where floor engaged
         variance_floor_masked_pixels_b = [0]  # Total masked pixels evaluated
+        sigma_floor_sq_tensor_stage_b = torch.tensor(
+            config.sigma_floor_value ** 2, device=device, dtype=dtype
+        )
 
         def compute_loss_stage_b(panel_ids: List[int], is_full: bool = False) -> Tuple[torch.Tensor, torch.Tensor]:
             """
@@ -1233,13 +1300,6 @@ def run_nanobrag_refinement(
             # Clamp to config.stage_b_max_modifier (e.g., 2.0) to prevent explosion
             shell_modifiers = torch.clamp(shell_modifiers, max=config.stage_b_max_modifier)
 
-            # Build modified HKL grid by applying shell modifiers to a copy
-            # hkl_grid_modified[h,k,l] = hkl_grid[h,k,l] * shell_modifiers[shell_indices[h,k,l]]
-            hkl_grid_modified = hkl_grid.clone()
-            for shell_idx in range(config.stage_b_n_shells):
-                mask = (shell_indices == shell_idx)
-                hkl_grid_modified[mask] = hkl_grid[mask] * shell_modifiers[shell_idx]
-
             # Simulate with modified HKL grid (crystal config uses Stage A final params)
             # Note: Simulator, Detector, Crystal already imported at function level (line 343-345)
 
@@ -1254,9 +1314,48 @@ def run_nanobrag_refinement(
             }
 
             # Simulate per-panel and accumulate chi-squared and MSE
-            chi_squared_accum = torch.tensor(0.0, device=device, dtype=dtype)
-            mse_numerator_accum = torch.tensor(0.0, device=device, dtype=dtype)
+            eval_device = device
+            if config.stage_b_full_eval_on_cpu:
+                eval_device = torch.device("cpu")
+            chi_squared_accum = torch.tensor(0.0, device=eval_device, dtype=dtype)
+            mse_numerator_accum = torch.tensor(0.0, device=eval_device, dtype=dtype)
             n_pixels_accum = 0
+            sigma_floor_sq_eval = (
+                sigma_floor_sq_tensor_stage_b
+                if eval_device == device
+                else sigma_floor_sq_tensor_stage_b.to(device=eval_device)
+            )
+            cell_a_eval = cell_a_tensor if eval_device == device else cell_a_tensor.to(device=eval_device)
+            cell_b_eval = cell_b_tensor if eval_device == device else cell_b_tensor.to(device=eval_device)
+            cell_c_eval = cell_c_tensor if eval_device == device else cell_c_tensor.to(device=eval_device)
+            cell_alpha_eval = cell_alpha_tensor if eval_device == device else cell_alpha_tensor.to(device=eval_device)
+            cell_beta_eval = cell_beta_tensor if eval_device == device else cell_beta_tensor.to(device=eval_device)
+            cell_gamma_eval = cell_gamma_tensor if eval_device == device else cell_gamma_tensor.to(device=eval_device)
+            misset_eval = misset_xyz_deg if eval_device == device else misset_xyz_deg.to(device=eval_device)
+            baseline_misset_eval = None
+            if baseline_misset_deg_tensor is not None:
+                baseline_misset_eval = (
+                    baseline_misset_deg_tensor
+                    if eval_device == device
+                    else baseline_misset_deg_tensor.to(device=eval_device)
+                )
+            log_scale_eval = log_scale if eval_device == device else log_scale.to(device=eval_device)
+
+            # Build modified HKL grid by applying shell modifiers to a copy
+            # hkl_grid_modified[h,k,l] = hkl_grid[h,k,l] * shell_modifiers[shell_indices[h,k,l]]
+            hkl_grid_local = hkl_grid
+            shell_indices_local = shell_indices
+            if eval_device != device:
+                hkl_grid_local = hkl_grid.to(device=eval_device, dtype=dtype)
+                shell_indices_local = shell_indices.to(device=eval_device)
+
+            hkl_grid_modified = hkl_grid_local.clone()
+            for shell_idx in range(config.stage_b_n_shells):
+                mask = (shell_indices_local == shell_idx)
+                modifier_value = shell_modifiers[shell_idx]
+                if modifier_value.device != eval_device:
+                    modifier_value = modifier_value.to(device=eval_device)
+                hkl_grid_modified[mask] = hkl_grid_local[mask] * modifier_value
 
             for pid in panel_ids:
                 # Create detector config for this panel (Stage A pattern)
@@ -1271,26 +1370,26 @@ def run_nanobrag_refinement(
                 # Convert mask_array to torch.Tensor if needed
                 if detector_config.mask_array is not None and not isinstance(detector_config.mask_array, torch.Tensor):
                     detector_config.mask_array = torch.tensor(
-                        detector_config.mask_array, dtype=torch.float32, device=device
+                        detector_config.mask_array, dtype=torch.float32, device=eval_device
                     )
 
                 beam_config = create_beam_config(beam)
 
                 # Create crystal config with Stage A final params
                 crystal_overrides_local = {
-                    'cell_a': cell_a_tensor,
-                    'cell_b': cell_b_tensor,
-                    'cell_c': cell_c_tensor,
-                    'cell_alpha': cell_alpha_tensor,
-                    'cell_beta': cell_beta_tensor,
-                    'cell_gamma': cell_gamma_tensor
+                    'cell_a': cell_a_eval,
+                    'cell_b': cell_b_eval,
+                    'cell_c': cell_c_eval,
+                    'cell_alpha': cell_alpha_eval,
+                    'cell_beta': cell_beta_eval,
+                    'cell_gamma': cell_gamma_eval
                 }
 
                 # Apply Stage A final misset (baseline + optimization delta) if baseline provided
-                if baseline_misset_deg_tensor is not None:
-                    total_misset_deg = baseline_misset_deg_tensor + misset_xyz_deg
+                if baseline_misset_eval is not None:
+                    total_misset_deg = baseline_misset_eval + misset_eval
                 else:
-                    total_misset_deg = misset_xyz_deg
+                    total_misset_deg = misset_eval
 
                 crystal_config, _ = create_crystal_config(
                     crystal, None,
@@ -1300,57 +1399,47 @@ def run_nanobrag_refinement(
                 )
 
                 # Instantiate detector and crystal models
-                detector_model = Detector(detector_config, device=device, dtype=dtype)
-                crystal_model = Crystal(crystal_config, device=device, dtype=dtype)
+                detector_model = Detector(detector_config, device=eval_device, dtype=dtype)
+                crystal_model = Crystal(crystal_config, device=eval_device, dtype=dtype)
 
                 # Enable interpolation for Stage B (required per REFINE-005)
                 crystal_model.interpolate = True  # Must be True for Stage B
 
                 # Assign modified HKL grid to crystal model
-                crystal_model.hkl_data = hkl_grid_modified.to(device=device, dtype=dtype)
+                crystal_model.hkl_data = hkl_grid_modified.to(device=eval_device, dtype=dtype)
                 crystal_model.hkl_metadata = hkl_metadata
 
                 # Simulate
-                simulator = Simulator(detector=detector_model, crystal=crystal_model, device=device, dtype=dtype)
+                simulator = Simulator(detector=detector_model, crystal=crystal_model, device=eval_device, dtype=dtype)
                 bragg_panel = simulator.run()
 
                 # Extract target/mask/sigma for this panel
                 # target_t, loss_mask_t, sigma_readout_t are already torch tensors with shape [panel, slow, fast]
-                target_panel = target_t[pid]
-                loss_mask_panel = loss_mask_t[pid]
-                sigma_panel = sigma_readout_t[pid]
+                target_panel = target_t[pid].to(device=eval_device, dtype=dtype)
+                loss_mask_panel = loss_mask_t[pid].to(device=eval_device)
+                sigma_panel = sigma_readout_t[pid].to(device=eval_device, dtype=dtype)
 
-                # Apply global scale (Stage A final)
-                scale = torch.exp(log_scale)
-                bragg_scaled = scale * bragg_panel
+                # Apply global scale (Stage A final, clamped to prevent overflow)
+                log_scale_clamped = torch.clamp(log_scale_eval, min=-10.0, max=10.0)
+                bragg_scaled = bragg_panel * torch.exp(log_scale_clamped)
 
-                # Variance-weighted chi-squared loss (spec-db-core.md:57-68, PHYSICS-LOSS-002)
-                # Variance = max(I_model.detach() + sigma_readout^2, sigma_floor^2)
-                sigma_floor_sq = torch.tensor(config.sigma_floor_value**2, device=device, dtype=dtype)
-                variance_raw = bragg_scaled.detach() + sigma_panel**2
-                variance = torch.maximum(variance_raw, sigma_floor_sq)
-
-                # Track clamp statistics (PHYSICS-LOSS-002)
-                clamped_mask = (variance_raw < sigma_floor_sq) & loss_mask_panel
-                n_clamped = clamped_mask.sum().item()
-                n_masked = loss_mask_panel.sum().item()
-                variance_floor_clamped_pixels_b[0] += n_clamped
-                variance_floor_masked_pixels_b[0] += n_masked
-
-                # Numerator: (I_model - I_obs)^2, masked
-                diff = bragg_scaled - target_panel
-                squared_error = diff ** 2
-                masked_squared_error = torch.where(loss_mask_panel, squared_error, torch.tensor(0.0, device=device, dtype=dtype))
-
-                # Chi-squared accumulation
-                weighted_error = squared_error / variance
-                masked_weighted_error = torch.where(loss_mask_panel, weighted_error, torch.tensor(0.0, device=device, dtype=dtype))
-                chi_squared_accum = chi_squared_accum + masked_weighted_error.sum()
-
-                # MSE accumulation (for legacy telemetry)
-                mse_numerator_accum = mse_numerator_accum + masked_squared_error.sum()
-                n_pixels = int(loss_mask_panel.sum().item())
-                n_pixels_accum += n_pixels
+                (
+                    chi_sq_panel,
+                    masked_mse_panel,
+                    masked_pixels_panel,
+                    clamped_pixels_panel,
+                ) = _accumulate_variance_weighted_loss(
+                    bragg_scaled,
+                    target_panel,
+                    loss_mask_panel,
+                    sigma_panel,
+                    sigma_floor_sq_eval,
+                )
+                chi_squared_accum = chi_squared_accum + chi_sq_panel
+                mse_numerator_accum = mse_numerator_accum + masked_mse_panel * masked_pixels_panel
+                n_pixels_accum += masked_pixels_panel
+                variance_floor_clamped_pixels_b[0] += clamped_pixels_panel
+                variance_floor_masked_pixels_b[0] += masked_pixels_panel
 
             # Chi-squared loss (sum over masked pixels)
             chi_squared_loss = chi_squared_accum
@@ -1385,6 +1474,7 @@ def run_nanobrag_refinement(
             for p in stage_b_params:
                 if p.grad is not None and (torch.isnan(p.grad).any() or torch.isinf(p.grad).any()):
                     raise RuntimeError(f"NaN/Inf gradient detected in Stage B parameter {p}")
+            print("DEBUG stage_b_grad", shell_modifier_raw.grad)
 
             # Record loss
             loss_trace_sample_b.append(float(chi_squared_loss.item()))
@@ -1430,43 +1520,48 @@ def run_nanobrag_refinement(
 
             # Run LBFGS optimization
             stage_b_optimizer.step(closure_stage_b)
-
-            # Final full-loss validation after optimization (mandatory per TORCH-REFINE-004)
-            with torch.no_grad():
-                final_chi_squared_b, final_mse_b = compute_loss_stage_b(list(range(n_panels)), is_full=True)
-                final_step = len(loss_trace_sample_b)
-                loss_trace_full_b.append((final_step, float(final_chi_squared_b.item())))
-                # PHYSICS-LOSS-001: Record both metrics
-                chi_squared_trace_full_b.append((final_step, float(final_chi_squared_b.item())))
-                masked_mse_trace_full_b.append((final_step, float(final_mse_b.item())))
-
-                # Update best snapshot if final loss improved
-                # PHYSICS-LOSS-001: Track best for both metrics
-                if final_chi_squared_b.item() < chi_squared_best_b[0]:
-                    chi_squared_best_b = (float(final_chi_squared_b.item()), final_step)
-                    best_loss_full_b = (float(final_chi_squared_b.item()), final_step)  # Deprecated legacy field
-                    best_params_snapshot_b['shell_modifier_raw'] = shell_modifier_raw.data.clone()
-                if final_mse_b.item() < masked_mse_best_b[0]:
-                    masked_mse_best_b = (float(final_mse_b.item()), final_step)
-
-            # Check convergence: did we achieve ≥3% improvement on top of Stage A?
-            if len(loss_trace_full_b) > 0:
-                # Stage A's final loss is the initial loss for Stage B
-                stage_a_final_loss = best_loss_full[0]
-                stage_b_final_loss = loss_trace_full_b[-1][1]
-                improvement_b = (stage_a_final_loss - stage_b_final_loss) / stage_a_final_loss
-
-                if improvement_b < config.stage_b_min_loss_improvement:
-                    status_b = "early_stop"
-                    message_b = f"Stage B improvement {improvement_b:.4%} < {config.stage_b_min_loss_improvement:.4%} (calibrated gate per TORCH-REFINE-004, artifact: plans/active/TORCH-REFINE-004/reports/2025-11-05T190344Z/stage_b_improvement_probe.json)"
+            print("DEBUG stage_b_shell_modifiers", shell_modifier_raw)
 
         except Exception as e:
+            print("DEBUG stage_b_exception", e)
             status_b = "error"
             message_b = f"Stage B error: {str(e)}"
 
         # Restore best snapshot (always, even on success, to ensure consistency)
+        final_step = len(loss_trace_sample_b)
+        with torch.no_grad():
+            candidate_final_chi2, candidate_final_mse = compute_loss_stage_b(list(range(n_panels)), is_full=True)
+        candidate_loss_value = float(candidate_final_chi2.item())
+        candidate_mse_value = float(candidate_final_mse.item())
+        if candidate_loss_value < chi_squared_best_b[0]:
+            chi_squared_best_b = (candidate_loss_value, final_step)
+            best_loss_full_b = (candidate_loss_value, final_step)
+            best_params_snapshot_b['shell_modifier_raw'] = shell_modifier_raw.data.clone()
+        if candidate_mse_value < masked_mse_best_b[0]:
+            masked_mse_best_b = (candidate_mse_value, final_step)
+
         if best_loss_full_b[0] < float('inf'):
-            shell_modifier_raw.data = torch.tensor(best_params_snapshot_b['shell_modifier_raw'], device=device, dtype=dtype)
+            shell_modifier_raw.data = best_params_snapshot_b['shell_modifier_raw'].to(
+                device=stage_b_param_device,
+                dtype=dtype
+            )
+
+        final_loss_value = chi_squared_best_b[0] if chi_squared_best_b[0] < float('inf') else candidate_loss_value
+        final_mse_value = masked_mse_best_b[0] if masked_mse_best_b[0] < float('inf') else candidate_mse_value
+        loss_trace_full_b.append((final_step, final_loss_value))
+        chi_squared_trace_full_b.append((final_step, final_loss_value))
+        masked_mse_trace_full_b.append((final_step, final_mse_value))
+
+        if status_b != "error" and best_loss_full[0] > 0:
+            stage_a_final_loss = best_loss_full[0]
+            improvement_b = (stage_a_final_loss - final_loss_value) / stage_a_final_loss
+            if improvement_b < config.stage_b_min_loss_improvement:
+                status_b = "early_stop"
+                message_b = (
+                    f"Stage B improvement {improvement_b:.4%} < "
+                    f"{config.stage_b_min_loss_improvement:.4%} (calibrated gate per TORCH-REFINE-004, "
+                    "artifact: plans/active/TORCH-REFINE-004/reports/2025-11-05T190344Z/stage_b_improvement_probe.json)"
+                )
 
         # Update bragg_full with Stage B result (using best params)
         with torch.no_grad():
@@ -1630,6 +1725,9 @@ def run_nanobrag_refinement(
         # PHYSICS-LOSS-002: Variance floor clamp statistics for Stage C
         variance_floor_clamped_pixels_c = [0]  # Total pixels where floor engaged
         variance_floor_masked_pixels_c = [0]  # Total masked pixels evaluated
+        sigma_floor_sq_tensor_stage_c = torch.tensor(
+            config.sigma_floor_value ** 2, device=device, dtype=dtype
+        )
 
         def compute_loss_stage_c(panel_ids: List[int], is_full: bool = False) -> Tuple[torch.Tensor, torch.Tensor]:
             """
@@ -1730,37 +1828,20 @@ def run_nanobrag_refinement(
             mask_subset = loss_mask_t[panel_ids]
             sigma_subset = sigma_readout_t[panel_ids]
 
-            # Variance-weighted chi-squared loss (spec-db-core.md:57-68, PHYSICS-LOSS-002)
-            # Variance = max(I_model.detach() + sigma_readout^2, sigma_floor^2)
-            # Detach denominator to prevent "attraction to zero" (IRLS approach)
-            sigma_floor_sq = torch.tensor(config.sigma_floor_value**2, device=device, dtype=dtype)
-            variance_raw = bragg_scaled.detach() + sigma_subset**2
-            variance = torch.maximum(variance_raw, sigma_floor_sq)
-
-            # Track clamp statistics (PHYSICS-LOSS-002)
-            clamped_mask = (variance_raw < sigma_floor_sq) & mask_subset
-            n_clamped = clamped_mask.sum().item()
-            n_masked = mask_subset.sum().item()
-            variance_floor_clamped_pixels_c[0] += n_clamped
-            variance_floor_masked_pixels_c[0] += n_masked
-
-            # Numerator: (I_model - I_obs)^2, masked
-            diff = bragg_scaled - target_subset
-            squared_error = diff ** 2
-            masked_squared_error = torch.where(mask_subset, squared_error, torch.tensor(0.0, device=device, dtype=dtype))
-
-            # Chi-squared loss: Sum((I_model - I_obs)^2 / V) over masked pixels
-            # Per spec-db-core.md:58, formula is Sum(...) not Mean(...)
-            weighted_error = squared_error / variance
-            masked_weighted_error = torch.where(mask_subset, weighted_error, torch.tensor(0.0, device=device, dtype=dtype))
-            chi_squared_loss = masked_weighted_error.sum()
-
-            # Also compute masked MSE for legacy telemetry comparison
-            n_pixels_masked = int(mask_subset.sum().item())
-            if n_pixels_masked > 0:
-                masked_mse_loss = masked_squared_error.sum() / n_pixels_masked
-            else:
-                masked_mse_loss = masked_squared_error.sum()
+            (
+                chi_squared_loss,
+                masked_mse_loss,
+                masked_pixels_stage_c,
+                clamped_pixels_stage_c,
+            ) = _accumulate_variance_weighted_loss(
+                bragg_scaled,
+                target_subset,
+                mask_subset,
+                sigma_subset,
+                sigma_floor_sq_tensor_stage_c,
+            )
+            variance_floor_clamped_pixels_c[0] += clamped_pixels_stage_c
+            variance_floor_masked_pixels_c[0] += masked_pixels_stage_c
 
             return chi_squared_loss, masked_mse_loss
 

@@ -306,6 +306,8 @@ def test_stage_a_expansion(refgeom_dataload, refinement_inputs, hkl_data):
     assert telemetry.max_iter == config.max_iter
     assert len(telemetry.loss_trace_sample) > 0, "Sample loss trace empty"
     assert len(telemetry.loss_trace_full) > 0, "Full loss trace empty"
+    assert telemetry.chi_squared_trace_full is not None, "Stage A chi-squared trace missing"
+    assert len(telemetry.chi_squared_trace_full) > 0, "Stage A chi-squared trace empty"
     assert telemetry.best_loss_full[0] > 0, "Best loss invalid"
 
     # Verify all new DoF deltas are present (including misset_xyz_deg per TORCH-REFINE-002)
@@ -325,6 +327,11 @@ def test_stage_a_expansion(refgeom_dataload, refinement_inputs, hkl_data):
     misset_xyz_initial = misset_xyz['initial']
     assert len(misset_xyz_final) == 3, f"misset_xyz_deg should have 3 components, got {len(misset_xyz_final)}"
     assert len(misset_xyz_initial) == 3, f"misset_xyz_deg initial should have 3 components, got {len(misset_xyz_initial)}"
+
+    # Variance floor telemetry (PHYSICS-LOSS-002)
+    assert telemetry.variance_floor_value == pytest.approx(config.sigma_floor_value**2)
+    assert telemetry.variance_floor_clamp_fraction is not None
+    assert 0.0 <= telemetry.variance_floor_clamp_fraction <= 1.0
 
     # Check quaternion normalization (should be ~1.0)
     quat_norm = misset_xyz['quaternion_norm']
@@ -550,6 +557,14 @@ def test_stage_c_detector_microslip(refgeom_dataload, refinement_inputs, hkl_dat
     assert len(telemetry_a.chi_squared_trace_full) >= 2, "Stage A chi_squared_trace_full insufficient"
     assert telemetry_c.chi_squared_trace_full is not None, "Stage C chi_squared_trace_full missing"
     assert len(telemetry_c.chi_squared_trace_full) >= 2, "Stage C chi_squared_trace_full insufficient"
+    stage_a_final_chi2 = telemetry_a.chi_squared_trace_full[-1][1]
+    stage_c_initial_chi2 = telemetry_c.chi_squared_trace_full[0][1]
+    assert stage_c_initial_chi2 == pytest.approx(stage_a_final_chi2, rel=1e-3), (
+        f"Stage C initial chi-squared {stage_c_initial_chi2:.3e} != Stage A final {stage_a_final_chi2:.3e}"
+    )
+    assert telemetry_c.variance_floor_value == pytest.approx(config.sigma_floor_value**2)
+    assert telemetry_c.variance_floor_clamp_fraction is not None
+    assert 0.0 <= telemetry_c.variance_floor_clamp_fraction <= 1.0
 
     # Extract chi-squared values for improvement comparison (REFINE-007)
     stage_a_final_chi2 = telemetry_a.chi_squared_trace_full[-1][1]
@@ -691,6 +706,19 @@ def test_stage_b_shell_modifiers(refgeom_dataload, refinement_inputs, hkl_data):
     assert len(telemetry_b.loss_trace_sample) > 0, "Stage B loss trace empty"
     assert len(telemetry_b.loss_trace_full) > 0, "Stage B full-loss validations missing"
     assert telemetry_b.status in ["ok", "early_stop", "error"], f"Unknown Stage B status: {telemetry_b.status}"
+    assert telemetry_a.chi_squared_trace_full is not None, "Stage A chi_squared_trace_full missing"
+    assert telemetry_b.chi_squared_trace_full is not None, "Stage B chi_squared_trace_full missing"
+    assert len(telemetry_b.chi_squared_trace_full) >= 2, "Stage B chi_squared_trace_full missing Stage A/Stage B entries"
+    stage_a_final_chi2 = telemetry_a.chi_squared_trace_full[-1][1]
+    stage_b_initial_chi2 = telemetry_b.chi_squared_trace_full[0][1]
+    assert stage_b_initial_chi2 == pytest.approx(stage_a_final_chi2, rel=1e-3), (
+        f"Stage B initial chi-squared {stage_b_initial_chi2:.3e} != Stage A final {stage_a_final_chi2:.3e}"
+    )
+
+    # Variance floor telemetry propagated through Stage B
+    assert telemetry_b.variance_floor_value == pytest.approx(config.sigma_floor_value**2)
+    assert telemetry_b.variance_floor_clamp_fraction is not None
+    assert 0.0 <= telemetry_b.variance_floor_clamp_fraction <= 1.0
 
     # Acceptance 2: Shell modifier param_deltas present with d-spacing labels
     assert len(telemetry_b.param_deltas) == config.stage_b_n_shells, (
@@ -714,6 +742,10 @@ def test_stage_b_shell_modifiers(refgeom_dataload, refinement_inputs, hkl_data):
 
     stage_a_final_loss = telemetry_a.loss_trace_full[-1][1]
     stage_b_final_loss = telemetry_b.loss_trace_full[-1][1]
+    stage_b_final_chi2 = telemetry_b.chi_squared_trace_full[-1][1]
+    assert stage_b_final_chi2 == pytest.approx(stage_b_final_loss, rel=1e-6), (
+        "Stage B chi-squared trace final entry should match loss_trace_full final value"
+    )
     improvement_b = (stage_a_final_loss - stage_b_final_loss) / stage_a_final_loss
 
     # Relaxed gate (1e-8 = 0.000001%) per REFINE-007 precedent (Stage C detector microslip similarly hit ~0.003% ceiling)

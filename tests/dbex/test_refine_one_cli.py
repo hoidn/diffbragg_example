@@ -613,7 +613,9 @@ def test_torch_diagnostics_metadata():
                 chi_squared_best=(800.0, 10),
                 masked_mse_trace_sample=[500.0, 450.0, 400.0],
                 masked_mse_trace_full=[(0, 500.0), (5, 450.0), (10, 400.0)],
-                masked_mse_best=(400.0, 10)
+                masked_mse_best=(400.0, 10),
+                variance_floor_value=4.0,
+                variance_floor_clamp_fraction=0.125,
             )
             refine_telemetry_dict = {"A": mock_telemetry_a}
 
@@ -697,6 +699,8 @@ def test_torch_diagnostics_metadata():
 
                 assert stage_a_group.attrs['masked_mse_best'] == pytest.approx(400.0)
                 assert stage_a_group.attrs['masked_mse_best_iteration'] == 10
+                assert stage_a_group.attrs['variance_floor_value'] == pytest.approx(4.0)
+                assert stage_a_group.attrs['variance_floor_clamp_fraction'] == pytest.approx(0.125)
 
                 # PHYSICS-LOSS-001: Verify legacy top-level compatibility (Stage A only)
                 assert 'chi_squared_trace_sample' in diag, "Top-level chi_squared_trace_sample dataset missing"
@@ -705,6 +709,10 @@ def test_torch_diagnostics_metadata():
                 assert 'masked_mse_trace_sample' in diag, "Top-level masked_mse_trace_sample dataset missing"
                 assert 'masked_mse_trace_full' in diag, "Top-level masked_mse_trace_full dataset missing"
                 assert 'masked_mse_best' in diag.attrs, "Top-level masked_mse_best attr missing"
+                assert 'variance_floor_value' in diag.attrs
+                assert 'variance_floor_clamp_fraction' in diag.attrs
+                assert diag.attrs['variance_floor_value'] == pytest.approx(4.0)
+                assert diag.attrs['variance_floor_clamp_fraction'] == pytest.approx(0.125)
 
 
 @patch('dbex.data_load.DataLoad')

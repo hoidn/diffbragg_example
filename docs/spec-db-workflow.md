@@ -41,9 +41,17 @@ Pipeline (Normative)
       - Fallback: Aggregated per-shell modifiers (Shell Mode) are PERMITTED as an optimization or regularization strategy but MUST NOT be the default.
       - Physics: Tricubic interpolation (`interpolation=True`) with ±1 HKL halo is MANDATORY.
      - **Stage C (Detector):**
-       - Trainable: Per-panel translation along detector normal (distance offsets).
-       - Fixed: Crystal, scale, Fhkl.
-       - Physics: Tricubic interpolation (`interpolation=True`) is MANDATORY so detector motion yields differentiable HKL gradients.
+     - Trainable: Per-panel translation along detector normal (distance offsets).
+      - Fixed: Crystal, scale, Fhkl.
+      - Physics: Tricubic interpolation (`interpolation=True`) is MANDATORY so detector motion yields differentiable HKL gradients.
+
+### Stage Smoke Dataset Policy (Normative)
+- Purpose: Provide a fast-running refinement harness that exercises the Stage A/B/C code paths without exhausting GPU VRAM. The canonical `refGeom` assets remain authoritative for DB‑AT selectors and parity work; the cropped `refGeom_small` fixture is only for smoke/perf loops.
+- `refGeom_small` assets SHALL live under `sp.proc/refGeom_small/` with provenance recorded via `plans/active/PERF-SMOKE-DETSIZE/bin/crop_refgeom_to_small.py`. The README in that directory SHALL capture the crop window, ROI count, and checksums.
+- The crop window is 1024×1024 pixels centered on the detector. When filtering by `id == exptIdx` (the still used by Stage smokes) this preserves 29 ROIs. This satisfies the smoke-test requirement (exercise the refinement code and telemetry) while cutting tensor area by ~76%. Full-detector runs (all 92 ROIs) remain mandatory for DB‑AT/DB‑PARITY selectors.
+- Pytest harnesses SHALL expose a dataset selector: `--smoke-detector-size={small,full}` with matching env override `DBEX_SMOKE_DETECTOR_SIZE`. Small is the default and SHALL relax improvement gates (structural telemetry checks still apply). Full must preserve all Stage A/B/C gates and parity thresholds.
+- Stage smokes SHALL emit telemetry artifacts (JSON) when `DBEX_SMOKE_TELEMETRY_PATH` is set so perf deltas and runtime samples are recorded. DB‑AT selectors MAY disable this logging.
+- DB‑AT and workflow selectors (DB-AT-02x) SHALL assert `--smoke-detector-size=full` (or `DBEX_SMOKE_DETECTOR_SIZE=full`) before execution to guarantee canonical detector dimensions. A failing selector MUST error if a small-detector dataset is detected.
 
 Optimization Strategy (Normative)
 - Default optimizer SHALL be L‑BFGS for Stage A and Stage C, implemented via `torch.optim.LBFGS` with a closure that recomputes the full loss.

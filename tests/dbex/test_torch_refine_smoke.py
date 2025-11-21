@@ -1005,18 +1005,13 @@ def test_stage_b_shell_modifiers(
         else:
             assert telemetry_b.canonical_chi_squared == pytest.approx(stage_a_final_chi2, rel=1e-4)
 
-        # PERF-WARM-SIM-001: Stage B perf counters must prove warm cache stays active (or cold when CPU fallback is used)
+        # PERF-WARM-SIM-001: Stage B perf counters must prove warm cache stays active
+        # PERF-WARM-012: CPU fallback now clones StageAContext to CPU, so canonical runs report "warm"
         perf_b = telemetry_b.perf_counters
         assert perf_b is not None, "Stage B perf_counters missing"
         cache_mode_b = perf_b.get("cache_mode")
-        # PERF-WARM-011: CPU fallback forces cache_mode="cold" for canonical panel-mode runs
-        # Small ROI-mode runs stay on GPU with cache_mode="warm"
-        if smoke_detector_size == "full" and not config.enable_stage_a_roi_mode:
-            # Canonical + panel mode → CPU fallback → cold cache
-            expected_cache_mode = "cold"
-        else:
-            # Small detector or ROI mode → GPU with warm cache
-            expected_cache_mode = "warm"
+        # Both small-detector ROI runs and canonical panel runs should use warm cache
+        expected_cache_mode = "warm"
         assert cache_mode_b == expected_cache_mode, f"Stage B cache_mode should be '{expected_cache_mode}', got {cache_mode_b}"
         roi_mode_b = perf_b.get("roi_mode")
         # ROI mode follows Stage A's ROI knob: "roi" when config enables it and ROI entries exist, "panel" otherwise
@@ -1040,9 +1035,12 @@ def test_stage_b_shell_modifiers(
         )
         forward_time_b = perf_b.get("forward_time_ms")
         assert isinstance(forward_time_b, dict), f"Stage B forward_time_ms should be dict, got {type(forward_time_b)}"
-        assert forward_time_b.get("total", 0.0) > 0.0, (
-            f"Stage B forward_time_ms.total must be >0, got {forward_time_b.get('total')}"
+        forward_total_ms = forward_time_b.get("total", 0.0)
+        assert forward_total_ms > 0.0, (
+            f"Stage B forward_time_ms.total must be >0, got {forward_total_ms}"
         )
+        # PERF-WARM-012: Log forward_time to demonstrate CPU cache saves time vs cold path
+        print(f"[Stage B] detector={smoke_detector_size}, cache_mode={cache_mode_b}, forward_time_ms.total={forward_total_ms:.2f}")
 
         # Variance floor telemetry propagated through Stage B
         assert telemetry_b.variance_floor_value == pytest.approx(config.sigma_floor_value**2)

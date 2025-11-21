@@ -1585,21 +1585,42 @@ def run_nanobrag_refinement(
         variance_floor_clamped_pixels_b = [0]  # Total pixels where floor engaged
         variance_floor_masked_pixels_b = [0]  # Total masked pixels evaluated
 
-        # PERF-WARM-011: CPU fallback for canonical Stage B runs to avoid GPU OOM
+        # PERF-WARM-011 + PERF-WARM-012: CPU fallback for canonical Stage B runs to avoid GPU OOM
         # When config.stage_b_full_eval_on_cpu is True, device is CUDA, and ROI mode is disabled,
-        # route Stage B panel-mode closures/validations to CPU using the cold path
+        # route Stage B panel-mode closures/validations to CPU but KEEP warm cache by cloning
+        # the Stage A context onto CPU so detectors/simulators/masks are reused
         use_stage_b_cpu_fallback = (
             config.stage_b_full_eval_on_cpu
             and str(device).startswith("cuda")
             and not use_stage_a_roi_mode  # ROI mode is disabled (panel mode)
         )
 
+        # PERF-WARM-012: Clone StageAContext to CPU when fallback is active so Stage B can reuse
+        # cached detectors/HKL/masks even on CPU, maintaining cache_mode="warm"
+        stage_b_eval_stage_a_ctx = None
+        if use_stage_b_cpu_fallback and stage_a_ctx is not None and config.enable_stage_a_warm_cache:
+            # Build a fresh Stage A context on CPU device
+            cpu_device = torch.device("cpu")
+            stage_b_eval_stage_a_ctx = _build_stage_a_context(
+                detector=detector,
+                beam=beam,
+                crystal=crystal,
+                trusted_mask=inputs.trusted_mask,
+                hkl_grid=hkl_grid,
+                hkl_metadata=hkl_metadata,
+                enable_hkl_interpolation=config.enable_hkl_interpolation,
+                device=cpu_device,
+                dtype=dtype,
+                panel_slices=panel_slices,
+                enable_roi_mode=False,  # CPU fallback is panel-mode only
+            )
+        elif not use_stage_b_cpu_fallback:
+            # No CPU fallback: reuse the original CUDA Stage A context
+            stage_b_eval_stage_a_ctx = stage_a_ctx
+
         stage_b_use_warm_cache = (
-            stage_a_ctx is not None
+            stage_b_eval_stage_a_ctx is not None
             and config.enable_stage_a_warm_cache
-            and stage_a_ctx.device == device
-            and stage_a_ctx.dtype == dtype
-            and not use_stage_b_cpu_fallback  # Disable warm cache when CPU fallback is active
         )
         stage_b_cache_mode = "warm" if stage_b_use_warm_cache else "cold"
 
@@ -1690,7 +1711,8 @@ def run_nanobrag_refinement(
                     modifier_value = modifier_value.to(device=eval_device)
                 hkl_grid_modified[mask] = hkl_grid_local[mask] * modifier_value
 
-            use_warm_eval = stage_b_use_warm_cache and eval_device == device
+            # PERF-WARM-012: Use the eval-device-specific Stage A context (CPU or CUDA)
+            use_warm_eval = stage_b_use_warm_cache
             if use_warm_eval:
                 misset_override = misset_eval
                 if baseline_misset_eval is not None:
@@ -1704,14 +1726,14 @@ def run_nanobrag_refinement(
                 )
                 warm_crystal_model = Crystal(
                     warm_crystal_config,
-                    beam_config=stage_a_ctx.beam_config,
-                    device=device,
+                    beam_config=stage_b_eval_stage_a_ctx.beam_config,
+                    device=eval_device,
                     dtype=dtype,
                 )
                 warm_crystal_model.interpolate = True
                 warm_crystal_model.hkl_data = hkl_grid_modified
                 warm_crystal_model.hkl_metadata = hkl_metadata
-                _retarget_stage_a_simulators(stage_a_ctx, warm_crystal_model)
+                _retarget_stage_a_simulators(stage_b_eval_stage_a_ctx, warm_crystal_model)
 
             # PERF-WARM-SIM-001: Branch on ROI vs panel mode
             # PERF-WARM-009: force_panel_eval overrides ROI mode for validations
@@ -1720,7 +1742,7 @@ def run_nanobrag_refinement(
                 # ROI mode: iterate over Stage A's cached ROI entries
                 indices = work_item_ids if work_item_ids else full_stage_b_indices
                 for roi_index in indices:
-                    roi_entry = stage_a_ctx.roi_entries[roi_index]
+                    roi_entry = stage_b_eval_stage_a_ctx.roi_entries[roi_index]
                     pid, bbox = roi_entry.panel_id, roi_entry.bbox
                     x0, x1, y0, y1 = map(int, bbox)
                     slow_slice = slice(y0, y1)
@@ -1728,8 +1750,8 @@ def run_nanobrag_refinement(
 
                     target_subset = target_t[pid, slow_slice, fast_slice].to(device=eval_device, dtype=dtype)
                     mask_subset = loss_mask_t[pid, slow_slice, fast_slice].to(device=eval_device)
-                    if stage_a_ctx.trusted_masks_t is not None:
-                        trusted_slice = stage_a_ctx.trusted_masks_t[pid, slow_slice, fast_slice].to(device=eval_device)
+                    if stage_b_eval_stage_a_ctx.trusted_masks_t is not None:
+                        trusted_slice = stage_b_eval_stage_a_ctx.trusted_masks_t[pid, slow_slice, fast_slice].to(device=eval_device)
                         mask_subset = torch.logical_and(mask_subset, trusted_slice)
                     sigma_subset = sigma_readout_t[pid, slow_slice, fast_slice].to(device=eval_device, dtype=dtype)
 
@@ -1760,7 +1782,7 @@ def run_nanobrag_refinement(
                 panel_ids = work_item_ids if work_item_ids else full_stage_b_indices
                 for pid in panel_ids:
                     if use_warm_eval:
-                        simulator = stage_a_ctx.simulators[pid]
+                        simulator = stage_b_eval_stage_a_ctx.simulators[pid]
                         bragg_panel = simulator.run()
                     else:
                         detector_config = create_detector_config(

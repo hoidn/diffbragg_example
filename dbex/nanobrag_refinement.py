@@ -1591,11 +1591,28 @@ def run_nanobrag_refinement(
             and stage_a_ctx.dtype == dtype
         )
         stage_b_cache_mode = "warm" if stage_b_use_warm_cache else "cold"
+
+        # PERF-WARM-SIM-001: Stage B ROI mode mirrors Stage A's ROI knob
+        use_stage_b_roi_mode = use_stage_a_roi_mode and stage_b_use_warm_cache
+        stage_b_roi_label = "roi" if use_stage_b_roi_mode else "panel"
+        stage_b_total_work_items = canonical_roi_count if use_stage_b_roi_mode else n_panels
+
+        # Sample ROIs or panels for Stage B (~15% by default)
+        if use_stage_b_roi_mode:
+            roi_sample_size_b = max(1, int(stage_b_total_work_items * config.roi_sample_fraction))
+            roi_sample_size_b = min(stage_b_total_work_items, roi_sample_size_b)
+            sampled_stage_b_indices = sorted(
+                np.random.choice(stage_b_total_work_items, size=roi_sample_size_b, replace=False).tolist()
+            )
+        else:
+            sampled_stage_b_indices = list(sampled_panel_ids)
+        full_stage_b_indices = list(range(stage_b_total_work_items))
+
         perf_closure_evals_b = [0]
         perf_validation_runs_b = [0]
         perf_forward_times_ms_b: List[float] = []
 
-        def compute_loss_stage_b(panel_ids: List[int], is_full: bool = False) -> Tuple[torch.Tensor, torch.Tensor]:
+        def compute_loss_stage_b(work_item_ids: List[int], is_full: bool = False) -> Tuple[torch.Tensor, torch.Tensor]:
             """
             Compute variance-weighted chi-squared loss with Stage B shell-modified structure factors.
 
@@ -1677,50 +1694,93 @@ def run_nanobrag_refinement(
                 warm_crystal_model.hkl_metadata = hkl_metadata
                 _retarget_stage_a_simulators(stage_a_ctx, warm_crystal_model)
 
-            for pid in panel_ids:
-                if use_warm_eval:
-                    simulator = stage_a_ctx.simulators[pid]
-                    bragg_panel = simulator.run()
-                else:
-                    detector_config = create_detector_config(
-                        panel=detector[pid],
-                        beam=beam,
-                        trusted_mask=inputs.trusted_mask[pid]
-                    )
-                    mask_array = detector_config.mask_array
-                    if mask_array is not None and not isinstance(mask_array, torch.Tensor):
-                        mask_array = torch.tensor(mask_array, dtype=torch.float32, device=eval_device)
-                        detector_config.mask_array = mask_array
-                    elif mask_array is not None and mask_array.device != eval_device:
-                        detector_config.mask_array = mask_array.to(device=eval_device, dtype=torch.float32)
-                    misset_override = misset_eval
-                    if baseline_misset_eval is not None:
-                        misset_override = baseline_misset_eval + misset_eval
-                    crystal_config, _ = create_crystal_config(
-                        crystal,
-                        None,
-                        crystal_overrides=crystal_overrides_eval,
-                        misset_deg_override=misset_override,
-                        apply_n_cells=False
-                    )
-                    detector_model = Detector(detector_config, device=eval_device, dtype=dtype)
-                    crystal_model = Crystal(crystal_config, device=eval_device, dtype=dtype)
-                    crystal_model.interpolate = True
-                    crystal_model.hkl_data = hkl_grid_modified
-                    crystal_model.hkl_metadata = hkl_metadata
-                    simulator = Simulator(detector=detector_model, crystal=crystal_model, device=eval_device, dtype=dtype)
-                    bragg_panel = simulator.run()
+            # PERF-WARM-SIM-001: Branch on ROI vs panel mode
+            if use_stage_b_roi_mode:
+                # ROI mode: iterate over Stage A's cached ROI entries
+                indices = work_item_ids if work_item_ids else full_stage_b_indices
+                for roi_index in indices:
+                    roi_entry = stage_a_ctx.roi_entries[roi_index]
+                    pid, bbox = roi_entry.panel_id, roi_entry.bbox
+                    x0, x1, y0, y1 = map(int, bbox)
+                    slow_slice = slice(y0, y1)
+                    fast_slice = slice(x0, x1)
 
-                target_panel = target_t[pid].to(device=eval_device, dtype=dtype)
-                loss_mask_panel = loss_mask_t[pid].to(device=eval_device)
-                sigma_panel = sigma_readout_t[pid].to(device=eval_device, dtype=dtype)
-                log_scale_clamped = torch.clamp(log_scale_eval, min=-10.0, max=10.0)
-                bragg_scaled = bragg_panel * torch.exp(log_scale_clamped)
+                    target_subset = target_t[pid, slow_slice, fast_slice].to(device=eval_device, dtype=dtype)
+                    mask_subset = loss_mask_t[pid, slow_slice, fast_slice].to(device=eval_device)
+                    if stage_a_ctx.trusted_masks_t is not None:
+                        trusted_slice = stage_a_ctx.trusted_masks_t[pid, slow_slice, fast_slice].to(device=eval_device)
+                        mask_subset = torch.logical_and(mask_subset, trusted_slice)
+                    sigma_subset = sigma_readout_t[pid, slow_slice, fast_slice].to(device=eval_device, dtype=dtype)
 
-                (
-                    chi_sq_panel,
-                    masked_mse_panel,
-                    masked_pixels_panel,
+                    simulator = roi_entry.simulator
+                    bragg_patch = simulator.run()
+                    log_scale_clamped = torch.clamp(log_scale_eval, min=-10.0, max=10.0)
+                    bragg_scaled = bragg_patch * torch.exp(log_scale_clamped)
+
+                    (
+                        chi_sq_roi,
+                        masked_mse_roi,
+                        masked_pixels_roi,
+                        clamped_pixels_roi,
+                    ) = _compute_variance_weighted_loss(
+                        bragg_scaled,
+                        target_subset,
+                        mask_subset,
+                        sigma_subset,
+                        sigma_floor_sq_eval,
+                    )
+                    chi_squared_accum = chi_squared_accum + chi_sq_roi
+                    mse_numerator_accum = mse_numerator_accum + masked_mse_roi * masked_pixels_roi
+                    n_pixels_accum += masked_pixels_roi
+                    variance_floor_clamped_pixels_b[0] += clamped_pixels_roi
+                    variance_floor_masked_pixels_b[0] += masked_pixels_roi
+            else:
+                # Panel mode: iterate over panels
+                panel_ids = work_item_ids if work_item_ids else full_stage_b_indices
+                for pid in panel_ids:
+                    if use_warm_eval:
+                        simulator = stage_a_ctx.simulators[pid]
+                        bragg_panel = simulator.run()
+                    else:
+                        detector_config = create_detector_config(
+                            panel=detector[pid],
+                            beam=beam,
+                            trusted_mask=inputs.trusted_mask[pid]
+                        )
+                        mask_array = detector_config.mask_array
+                        if mask_array is not None and not isinstance(mask_array, torch.Tensor):
+                            mask_array = torch.tensor(mask_array, dtype=torch.float32, device=eval_device)
+                            detector_config.mask_array = mask_array
+                        elif mask_array is not None and mask_array.device != eval_device:
+                            detector_config.mask_array = mask_array.to(device=eval_device, dtype=torch.float32)
+                        misset_override = misset_eval
+                        if baseline_misset_eval is not None:
+                            misset_override = baseline_misset_eval + misset_eval
+                        crystal_config, _ = create_crystal_config(
+                            crystal,
+                            None,
+                            crystal_overrides=crystal_overrides_eval,
+                            misset_deg_override=misset_override,
+                            apply_n_cells=False
+                        )
+                        detector_model = Detector(detector_config, device=eval_device, dtype=dtype)
+                        crystal_model = Crystal(crystal_config, device=eval_device, dtype=dtype)
+                        crystal_model.interpolate = True
+                        crystal_model.hkl_data = hkl_grid_modified
+                        crystal_model.hkl_metadata = hkl_metadata
+                        simulator = Simulator(detector=detector_model, crystal=crystal_model, device=eval_device, dtype=dtype)
+                        bragg_panel = simulator.run()
+
+                    target_panel = target_t[pid].to(device=eval_device, dtype=dtype)
+                    loss_mask_panel = loss_mask_t[pid].to(device=eval_device)
+                    sigma_panel = sigma_readout_t[pid].to(device=eval_device, dtype=dtype)
+                    log_scale_clamped = torch.clamp(log_scale_eval, min=-10.0, max=10.0)
+                    bragg_scaled = bragg_panel * torch.exp(log_scale_clamped)
+
+                    (
+                        chi_sq_panel,
+                        masked_mse_panel,
+                        masked_pixels_panel,
                     clamped_pixels_panel,
                 ) = _compute_variance_weighted_loss(
                     bragg_scaled,
@@ -1745,23 +1805,14 @@ def run_nanobrag_refinement(
 
             return chi_squared_loss, masked_mse_loss
 
-        # ROI sampler for Stage B (reuses Stage A's sampled panel IDs with fallback)
-        # Reuse Stage A's deterministic sample if available; fallback to full ROI enumeration
-        stage_b_sampled_panel_ids = sampled_panel_ids if len(sampled_panel_ids) > 0 else list(range(n_panels))
-
-        def roi_sampler():
-            """Return sampled panel IDs for Stage B closure (reuses Stage A sample with fallback)."""
-            return stage_b_sampled_panel_ids
-
         def closure_stage_b():
             """LBFGS closure for Stage B shell modifier refinement."""
             nonlocal chi_squared_best_b, masked_mse_best_b, best_loss_full_b, best_params_snapshot_b
             stage_b_optimizer.zero_grad()
             perf_closure_evals_b[0] += 1
 
-            # Sample ROIs for efficiency
-            panel_ids = roi_sampler()
-            chi_squared_loss, mse_loss = compute_loss_stage_b(panel_ids, is_full=False)
+            # Sample ROIs or panels for efficiency (PERF-WARM-SIM-001)
+            chi_squared_loss, mse_loss = compute_loss_stage_b(sampled_stage_b_indices, is_full=False)
 
             chi_squared_loss.backward()
 
@@ -1779,7 +1830,7 @@ def run_nanobrag_refinement(
             # Periodic full validation
             if len(loss_trace_sample_b) % config.full_validation_interval == 0:
                 with torch.no_grad():
-                    full_chi_squared_b, full_mse_b = compute_loss_stage_b(list(range(n_panels)), is_full=True)
+                    full_chi_squared_b, full_mse_b = compute_loss_stage_b(full_stage_b_indices, is_full=True)
                     loss_trace_full_b.append((len(loss_trace_sample_b), float(full_chi_squared_b.item())))
                     # PHYSICS-LOSS-001: Record both metrics
                     chi_squared_trace_full_b.append((len(loss_trace_sample_b), float(full_chi_squared_b.item())))
@@ -1802,7 +1853,7 @@ def run_nanobrag_refinement(
         try:
             # Initial full-loss validation before optimization (mandatory per TORCH-REFINE-004)
             with torch.no_grad():
-                initial_chi_squared_b, initial_mse_b = compute_loss_stage_b(list(range(n_panels)), is_full=True)
+                initial_chi_squared_b, initial_mse_b = compute_loss_stage_b(full_stage_b_indices, is_full=True)
                 loss_trace_full_b.append((0, float(initial_chi_squared_b.item())))
                 # PHYSICS-LOSS-001: Record both metrics
                 chi_squared_trace_full_b.append((0, float(initial_chi_squared_b.item())))
@@ -1822,7 +1873,7 @@ def run_nanobrag_refinement(
         # Restore best snapshot (always, even on success, to ensure consistency)
         final_step = len(loss_trace_sample_b)
         with torch.no_grad():
-            candidate_final_chi2, candidate_final_mse = compute_loss_stage_b(list(range(n_panels)), is_full=True)
+            candidate_final_chi2, candidate_final_mse = compute_loss_stage_b(full_stage_b_indices, is_full=True)
         candidate_loss_value = float(candidate_final_chi2.item())
         candidate_mse_value = float(candidate_final_mse.item())
         if candidate_loss_value < chi_squared_best_b[0]:
@@ -1942,15 +1993,9 @@ def run_nanobrag_refinement(
             d_max_shell = float(shell_edges[shell_idx].item())
             param_deltas_b[f"shell_{shell_idx}_modifier (d={d_min_shell:.2f}-{d_max_shell:.2f}Å)"] = float(shell_modifiers_final_np[shell_idx])
 
-        if panel_slices:
-            stage_b_roi_count_total = canonical_roi_count
-            sampled_panel_set = set(stage_b_sampled_panel_ids)
-            stage_b_roi_count_sampled = sum(
-                1 for pid, _ in panel_slices if int(pid) in sampled_panel_set
-            )
-        else:
-            stage_b_roi_count_total = n_panels
-            stage_b_roi_count_sampled = len(stage_b_sampled_panel_ids)
+        # PERF-WARM-SIM-001: ROI counts reflect the active mode (roi vs panel)
+        stage_b_roi_count_total = stage_b_total_work_items
+        stage_b_roi_count_sampled = len(sampled_stage_b_indices)
 
         forward_stats_b = {
             'mean': float(np.mean(perf_forward_times_ms_b)) if perf_forward_times_ms_b else 0.0,
@@ -1960,7 +2005,7 @@ def run_nanobrag_refinement(
         }
         perf_counters_b = {
             'cache_mode': stage_b_cache_mode,
-            'roi_mode': 'panel',
+            'roi_mode': stage_b_roi_label,
             'roi_count_total': stage_b_roi_count_total,
             'roi_count_sampled': stage_b_roi_count_sampled,
             'closure_evals': perf_closure_evals_b[0],
@@ -2005,7 +2050,7 @@ def run_nanobrag_refinement(
             canonical_chi_squared_iteration=canonical_baseline["iteration"],
             canonical_roi_count=canonical_baseline["roi_count"],
             canonical_detector_distances_mm=canonical_baseline["detector_distances_mm"],
-            roi_mode="panel",
+            roi_mode=stage_b_roi_label,
         )
 
         telemetry_dict["B"] = telemetry_b

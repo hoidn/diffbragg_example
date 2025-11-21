@@ -458,3 +458,12 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-21T142700Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=0 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T142700Z/ next_action=stage_b_panel_validations
+## 2025-11-21T133729Z — PERF-WARM-SIM-001 canonical ROI probe
+- Focus: PERF-WARM-SIM-001 — Warm simulator; eliminate per-iteration re-instantiation
+- Action Type: planning
+- Key Observations: Reproduced the canonical Stage B smoke outside pytest via `plans/active/PERF-WARM-SIM-001/bin/probe_stage_b_full.py` and confirmed Stage A now stalls at χ²≈3.0×10⁸ while Stage B drives the loss down to 1.23×10⁸ by pegging `shell_0_modifier=2.0` (telemetry/probe summaries under `plans/active/PERF-WARM-SIM-001/reports/2025-11-21T133127Z/`). The perf counters show `roi_mode="roi"` with only ~13 sampled ROIs, so the canonical run no longer reflects the full detector that REFINE-008 expects. Updated docs/fix_plan.md + docs/findings.md (PERF-WARM-010) to record that canonical executions must disable Stage A ROI mode until the strict gate can be recalibrated, and rewrote input.md with a Do Now that toggles ROI based on detector size so Stage B shell modifiers return to ±1% before rerunning the Stage B smokes + summary script.
+- Artifact Path: plans/active/PERF-WARM-SIM-001/reports/2025-11-21T133127Z/
+- Next Actions: Ralph disables Stage A ROI mode for `smoke-detector-size=full`, reruns Stage B smokes (small/full) with telemetry + stage_b_roi_summary.json, and cites the new evidence in docs/fix_plan/findings once the canonical gate passes again.
+- <Action State>: [ready_for_implementation]
+
+2025-11-21T133729Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=1 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T133127Z/ next_action=disable_roi_for_canonical_stage_b

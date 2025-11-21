@@ -168,6 +168,23 @@ Until DB_AT acceptance marks/selectors are fully migrated, use these concrete mo
 - Use editable installs so CLI entry points import correctly.
 - Respect existing findings (e.g., GEOMETRY-001, DIAGNOSTICS-001, TESTING-003) when adding new tests or modifying fixtures.
 
+### 2.4 Plan-local Visualization Drivers (TOOLING-VIS-001)
+
+The following scripts live under `plans/active/TOOLING-VIS-001/bin/` and are
+**not** part of the canonical pytest suite. They are reproducible drivers for
+spec-aligned ROI visuals and mapping diagnostics:
+
+- `generate_zero_iter_refined_roi_triptychs.py` — emits zero-iteration (mapping-only)
+  ROI triptychs for the canonical refGeom dataset using `simulate_forward_once`.
+- `generate_stage_a_refgeom_roi_triptychs.py` — mapping-based Stage A before/after
+  ROI triptychs where both panels are derived from the DB-AT-024 forward model plus
+  a vis-only scale refinement layer.
+- `generate_stage_a_refgeom_roi_triptychs_adam.py` — mapping-based Adam scale-only
+  refinement with loss curves and aggregate ROI grids (diagnostic only).
+- `probe_mapping_stage_a_context_metrics.py` — computes DB-AT-024-style mapping
+  metrics (median correlation, localization success rate) for the mapping context
+  and can compare them against reference `mapping_metrics.json` artifacts.
+
 ## 3. Running Tests in CI vs Local
 
 (unchanged ...)

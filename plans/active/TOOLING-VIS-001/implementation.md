@@ -89,5 +89,23 @@ def plot_roi_grid(rois, data_stack, model_stack, bg_stack, filename):
 - [ ] C1: Refactor `tests/dbex/test_nanobrag_smoke.py` to use `dbex.vis.save_triptych`.
 - [ ] C2: Update parity harness (tests/fixtures/parity_loader.py) to use `dbex.vis`.
 
+## Stage A Mapping Helpers (Plan-Local)
+
+- Mapping context: `dbex.vis.mapping.build_mapping_stage_a_context` constructs a
+  `MappingStageAContext` from canonical refGeom assets using `simulate_forward_once`
+  and DB-AT-024 calibration/MTZ preferences (refined structure factors when present).
+- Vis-only refinement: `dbex.vis.mapping.refine_on_mapping_model` runs a
+  scale-only Adam optimization on top of the mapping Bragg stack using the
+  variance-weighted chi-squared loss (sigma_floor clamp, detached denominator).
+- Drivers:
+  - `plans/active/TOOLING-VIS-001/bin/generate_zero_iter_refined_roi_triptychs.py` —
+    zero-iteration triptychs (mapping-only).
+  - `plans/active/TOOLING-VIS-001/bin/generate_stage_a_refgeom_roi_triptychs.py` —
+    mapping-based before/after ROI triptychs (scale-only refinement).
+  - `plans/active/TOOLING-VIS-001/bin/generate_stage_a_refgeom_roi_triptychs_adam.py` —
+    mapping-based Adam scale-only refinement with loss trace and aggregate grids.
+  - `plans/active/TOOLING-VIS-001/bin/probe_mapping_stage_a_context_metrics.py` —
+    DB-AT-024-aligned probe for mapping context correlation/localization metrics.
+
 ## Artifacts Index
 - Reports root: `plans/active/TOOLING-VIS-001/reports/`

@@ -37,11 +37,20 @@ if str(_REPO_ROOT) not in _sys.path:
     _sys.path.insert(0, str(_REPO_ROOT))
 
 from dbex.data_load import DataLoad  # type: ignore  # noqa: E402
+from dbex.nanobrag_bridge import (  # type: ignore  # noqa: E402
+    build_structure_factor_grid,
+    create_beam_config,
+    create_crystal_config,
+    create_detector_config,
+)
+from dbex.nanobrag_refinement import (  # type: ignore  # noqa: E402
+    _compute_variance_weighted_loss,
+    quaternion_to_xyz_euler,
+    vec_to_unit_quaternion,
+)
 from dbex.vis import (  # type: ignore  # noqa: E402
-    MappingRefinementConfig,
     build_mapping_stage_a_context,
     emit_stage_a_roi_triptychs,
-    refine_on_mapping_model,
 )
 from dbex.vis.residuals import compute_z_scores  # type: ignore  # noqa: E402
 
@@ -76,24 +85,285 @@ def _build_dataload(repo_root: Path) -> DataLoad:
     return DataLoad(args)
 
 
-def _run_mapping_adam_scale_only(
+def _run_mapping_full_stage_a(
     dataload: DataLoad,
     *,
     n_steps: int = 100,
     lr: float = 1e-3,
 ):
-    """Run mapping-based scale-only refinement using the mapping helpers."""
-    context = build_mapping_stage_a_context(dataload, device="cpu")
-    cfg = MappingRefinementConfig(
-        n_steps=n_steps,
-        learning_rate=lr,
-        device="cpu",
+    """Optimize full Stage A parameters (scale + geometry) on the mapping model.
+
+    This helper reuses the same HKL grid, calibration path, and sqrt(spot_scale)
+    scaling as :func:`simulate_forward_once` so the mapping \"before\" and
+    Stage-A-refined \"after\" truly share a forward model.
+    """
+    import torch
+    from nanobrag_torch.models.crystal import Crystal as TorchCrystal  # type: ignore  # noqa: E402
+    from nanobrag_torch.models.detector import (  # type: ignore  # noqa: E402
+        Detector as TorchDetector,
     )
-    result = refine_on_mapping_model(
-        context.inputs,
-        context.bragg_zero_iter,
-        context.sigma_floor_value,
-        config=cfg,
+    from nanobrag_torch.simulator import Simulator  # type: ignore  # noqa: E402
+    from dbex.vis.mapping import MappingRefinementResult  # type: ignore  # noqa: E402
+
+    # Build mapping context once (zero-iteration mapping + diagnostics).
+    context = build_mapping_stage_a_context(dataload, device="cpu")
+    inputs = context.inputs
+
+    device = torch.device(context.device or "cpu")
+    dtype = torch.float32
+
+    # HKL grid: mirror simulate_forward_once (no halo).
+    if context.hkl_indices is None or context.hkl_amplitudes is None:
+        hkl_indices = dataload.F.indices()
+        hkl_amplitudes = dataload.F.data()
+    else:
+        hkl_indices = context.hkl_indices
+        hkl_amplitudes = context.hkl_amplitudes
+
+    hkl_grid, hkl_metadata, _ = build_structure_factor_grid(
+        indices=hkl_indices,
+        amplitudes=hkl_amplitudes,
+        device=device,
+        halo=False,
+    )
+
+    # Calibration path: same fields as simulate_forward_once.
+    calibration = context.calibration
+    if calibration is not None:
+        spot_scale_override = calibration.get("spot_scale_override", 1.0)
+        beam_flux = calibration.get("beam_flux")
+        beam_exposure = calibration.get("beam_exposure")
+        beamsize_mm = calibration.get("beamsize_mm")
+        N_cells = calibration.get("N_cells")
+    else:
+        spot_scale_override = 1.0
+        beam_flux = None
+        beam_exposure = None
+        beamsize_mm = None
+        N_cells = None
+
+    sqrt_spot_scale = float(np.sqrt(spot_scale_override))
+
+    beam_config = create_beam_config(
+        dataload.beam,
+        flux=beam_flux,
+        beamsize_mm=beamsize_mm,
+        exposure=beam_exposure,
+    )
+
+    apply_n_cells = N_cells is not None
+
+    # Pre-build Detector models once (geometry-only, no Stage-A params).
+    n_panels = len(dataload.detector)
+    detector_models: list[TorchDetector] = []
+    for pid in range(n_panels):
+        det_cfg = create_detector_config(
+            panel=dataload.detector[pid],
+            beam=dataload.beam,
+            trusted_mask=inputs.trusted_mask[pid],
+        )
+        mask_array = det_cfg.mask_array
+        if mask_array is not None and not isinstance(mask_array, torch.Tensor):
+            det_cfg.mask_array = torch.tensor(
+                mask_array, dtype=torch.float32, device=device
+            )
+        elif mask_array is not None and (
+            mask_array.device != device or mask_array.dtype != torch.float32
+        ):
+            det_cfg.mask_array = mask_array.to(device=device, dtype=torch.float32)
+
+        detector_models.append(TorchDetector(det_cfg, device=device, dtype=dtype))
+
+    target_t = torch.tensor(inputs.target, device=device, dtype=dtype)
+    sigma_t = torch.tensor(inputs.sigma_readout, device=device, dtype=dtype)
+    mask_t = torch.tensor(inputs.loss_mask, device=device, dtype=torch.bool)
+
+    # Initialize Stage A parameters.
+    if inputs.global_scale_hint is not None and inputs.global_scale_hint > 0:
+        initial_log_scale = float(np.log(inputs.global_scale_hint))
+    else:
+        initial_log_scale = 0.0
+    log_scale = torch.tensor(
+        initial_log_scale,
+        device=device,
+        dtype=dtype,
+        requires_grad=True,
+    )
+
+    log_cell_a_delta = torch.tensor(0.0, device=device, dtype=dtype, requires_grad=True)
+    log_cell_b_delta = torch.tensor(0.0, device=device, dtype=dtype, requires_grad=True)
+    log_cell_c_delta = torch.tensor(0.0, device=device, dtype=dtype, requires_grad=True)
+
+    angle_alpha_raw = torch.tensor(0.0, device=device, dtype=dtype, requires_grad=True)
+    angle_beta_raw = torch.tensor(0.0, device=device, dtype=dtype, requires_grad=True)
+    angle_gamma_raw = torch.tensor(0.0, device=device, dtype=dtype, requires_grad=True)
+
+    orientation_vec = torch.zeros(3, device=device, dtype=dtype, requires_grad=True)
+
+    params = [
+        log_scale,
+        log_cell_a_delta,
+        log_cell_b_delta,
+        log_cell_c_delta,
+        angle_alpha_raw,
+        angle_beta_raw,
+        angle_gamma_raw,
+        orientation_vec,
+    ]
+    optimizer = torch.optim.Adam(params, lr=lr)
+
+    sigma_floor_sq_tensor = torch.tensor(
+        context.sigma_floor_value ** 2, device=device, dtype=dtype
+    )
+
+    trace: list[float] = []
+
+    for _ in range(n_steps):
+        optimizer.zero_grad()
+
+        # Crystal perturbations (cell lengths, angles, orientation).
+        cell_params = dataload.crystal.get_unit_cell().parameters()
+
+        perturbed_cell_a = cell_params[0] * torch.exp(log_cell_a_delta)
+        perturbed_cell_b = cell_params[1] * torch.exp(log_cell_b_delta)
+        perturbed_cell_c = cell_params[2] * torch.exp(log_cell_c_delta)
+
+        max_angle_delta = 10.0
+        perturbed_alpha = cell_params[3] + torch.tanh(angle_alpha_raw) * max_angle_delta
+        perturbed_beta = cell_params[4] + torch.tanh(angle_beta_raw) * max_angle_delta
+        perturbed_gamma = cell_params[5] + torch.tanh(angle_gamma_raw) * max_angle_delta
+
+        max_orientation_deg = 3.0
+        bounded_orientation_vec = (
+            torch.tanh(orientation_vec) * max_orientation_deg * (np.pi / 180.0)
+        )
+        quat = vec_to_unit_quaternion(bounded_orientation_vec)
+        misset_xyz_deg = quaternion_to_xyz_euler(quat)
+
+        crystal_overrides = {
+            "cell_a": perturbed_cell_a,
+            "cell_b": perturbed_cell_b,
+            "cell_c": perturbed_cell_c,
+            "cell_alpha": perturbed_alpha,
+            "cell_beta": perturbed_beta,
+            "cell_gamma": perturbed_gamma,
+        }
+
+        crystal_config, _ = create_crystal_config(
+            dataload.crystal,
+            dataload.Expt,
+            N_cells=N_cells,
+            apply_n_cells=apply_n_cells,
+            crystal_overrides=crystal_overrides,
+            misset_deg_override=misset_xyz_deg,
+        )
+
+        crystal_model = TorchCrystal(
+            crystal_config,
+            beam_config=beam_config,
+            device=device,
+            dtype=dtype,
+        )
+        crystal_model.hkl_data = hkl_grid
+        crystal_model.hkl_metadata = hkl_metadata
+
+        log_scale_clamped = torch.clamp(log_scale, min=-10.0, max=10.0)
+
+        bragg_t = torch.zeros_like(target_t, device=device, dtype=dtype)
+        for pid in range(n_panels):
+            simulator = Simulator(
+                detector=detector_models[pid],
+                crystal=crystal_model,
+                beam_config=beam_config,
+                device=device,
+                dtype=dtype,
+            )
+            panel_output = simulator.run()
+            panel_scaled = panel_output * sqrt_spot_scale * torch.exp(log_scale_clamped)
+            bragg_t[pid] = panel_scaled
+
+        chi_squared, _, _, _ = _compute_variance_weighted_loss(
+            bragg_t,
+            target_t,
+            mask_t,
+            sigma_t,
+            sigma_floor_sq_tensor,
+        )
+
+        loss = chi_squared
+        loss.backward()
+        optimizer.step()
+
+        trace.append(float(loss.item()))
+
+    # Rebuild full Bragg array at final parameters.
+    with torch.no_grad():
+        log_scale_clamped = torch.clamp(log_scale, min=-10.0, max=10.0)
+        bragg_after_t = torch.zeros_like(target_t, device=device, dtype=dtype)
+
+        # Rebuild final crystal model with last parameters.
+        cell_params = dataload.crystal.get_unit_cell().parameters()
+        perturbed_cell_a = cell_params[0] * torch.exp(log_cell_a_delta)
+        perturbed_cell_b = cell_params[1] * torch.exp(log_cell_b_delta)
+        perturbed_cell_c = cell_params[2] * torch.exp(log_cell_c_delta)
+        max_angle_delta = 10.0
+        perturbed_alpha = cell_params[3] + torch.tanh(angle_alpha_raw) * max_angle_delta
+        perturbed_beta = cell_params[4] + torch.tanh(angle_beta_raw) * max_angle_delta
+        perturbed_gamma = cell_params[5] + torch.tanh(angle_gamma_raw) * max_angle_delta
+        max_orientation_deg = 3.0
+        bounded_orientation_vec = (
+            torch.tanh(orientation_vec) * max_orientation_deg * (np.pi / 180.0)
+        )
+        quat = vec_to_unit_quaternion(bounded_orientation_vec)
+        misset_xyz_deg = quaternion_to_xyz_euler(quat)
+
+        crystal_overrides = {
+            "cell_a": perturbed_cell_a,
+            "cell_b": perturbed_cell_b,
+            "cell_c": perturbed_cell_c,
+            "cell_alpha": perturbed_alpha,
+            "cell_beta": perturbed_beta,
+            "cell_gamma": perturbed_gamma,
+        }
+
+        crystal_config, _ = create_crystal_config(
+            dataload.crystal,
+            dataload.Expt,
+            N_cells=N_cells,
+            apply_n_cells=apply_n_cells,
+            crystal_overrides=crystal_overrides,
+            misset_deg_override=misset_xyz_deg,
+        )
+
+        crystal_model = TorchCrystal(
+            crystal_config,
+            beam_config=beam_config,
+            device=device,
+            dtype=dtype,
+        )
+        crystal_model.hkl_data = hkl_grid
+        crystal_model.hkl_metadata = hkl_metadata
+
+        for pid in range(n_panels):
+            simulator = Simulator(
+                detector=detector_models[pid],
+                crystal=crystal_model,
+                beam_config=beam_config,
+                device=device,
+                dtype=dtype,
+            )
+            panel_output = simulator.run()
+            panel_scaled = panel_output * sqrt_spot_scale * torch.exp(log_scale_clamped)
+            bragg_after_t[pid] = panel_scaled
+
+        bragg_after = bragg_after_t.cpu().numpy().astype(np.float32)
+
+    final_scale = float(torch.exp(log_scale_clamped).cpu().item())
+
+    result = MappingRefinementResult(
+        bragg_after=bragg_after,
+        loss_trace=trace,
+        final_scale=final_scale,
     )
     return context, result
 
@@ -106,7 +376,11 @@ def _plot_all_roi_triptychs(
     triptychs,
     out_root: Path,
 ) -> None:
-    """Render aggregate before/after ROI triptych grids for quick scanning."""
+    """Render a single all-ROI side-by-side comparison PNG.
+
+    Layout per ROI (row):
+        Data | Model_before | Z_before | Model_after | Z_after
+    """
     n = len(triptychs)
     if n == 0:
         return
@@ -115,17 +389,13 @@ def _plot_all_roi_triptychs(
     loss_mask = inputs.loss_mask
     panel_slices = inputs.panel_slices
 
-    ncols = 3
-    fig_b, axes_b = plt.subplots(
-        n, ncols, figsize=(4 * ncols, 2 * n), constrained_layout=True
-    )
-    fig_a, axes_a = plt.subplots(
+    ncols = 5
+    fig, axes = plt.subplots(
         n, ncols, figsize=(4 * ncols, 2 * n), constrained_layout=True
     )
 
     if n == 1:
-        axes_b = np.array([axes_b])
-        axes_a = np.array([axes_a])
+        axes = np.array([axes])
 
     var_floor_sq = sigma_floor_value ** 2
 
@@ -175,74 +445,76 @@ def _plot_all_roi_triptychs(
             sigma_floor=sigma_floor_value,
         )
 
-        ax = axes_b[row]
-        ax[0].imshow(
+        row_axes = axes[row]
+
+        # Data
+        row_axes[0].imshow(
             data_roi,
             origin="upper",
             cmap="cividis",
             vmin=vmin_int,
             vmax=vmax_data,
         )
-        ax[0].set_title(f"ROI {roi_idx} Data")
-        ax[1].imshow(
+        row_axes[0].set_title(f"ROI {roi_idx} Data")
+
+        # Model_before
+        row_axes[1].imshow(
             mb_roi,
             origin="upper",
             cmap="cividis",
             vmin=vmin_int,
             vmax=vmax_before,
         )
-        ax[1].set_title("Model (before)")
+        row_axes[1].set_title(f"Model_before (CC={rec.cc_before:.3f})")
+
+        # Z_before
         zb_abs = np.nanmax(np.abs(z_before))
         zb_extent = zb_abs if zb_abs > 0 else 1.0
-        ax[2].imshow(
+        row_axes[2].imshow(
             z_before,
             origin="upper",
             cmap="coolwarm",
             vmin=-zb_extent,
             vmax=zb_extent,
         )
-        ax[2].set_title("Z (before)")
-        for c in range(ncols):
-            ax[c].set_xticks([])
-            ax[c].set_yticks([])
+        row_axes[2].set_title("Z_before")
 
-        ax = axes_a[row]
-        ax[0].imshow(
-            data_roi,
-            origin="upper",
-            cmap="cividis",
-            vmin=vmin_int,
-            vmax=vmax_data,
-        )
-        ax[0].set_title(f"ROI {roi_idx} Data")
-        ax[1].imshow(
+        # Model_after
+        row_axes[3].imshow(
             ma_roi,
             origin="upper",
             cmap="cividis",
             vmin=vmin_int,
             vmax=vmax_after,
         )
-        ax[1].set_title("Model (after, Adam)")
+        row_axes[3].set_title(f"Model_after (CC={rec.cc_after:.3f})")
+
+        # Z_after
         za_abs = np.nanmax(np.abs(z_after))
         za_extent = za_abs if za_abs > 0 else 1.0
-        ax[2].imshow(
+        row_axes[4].imshow(
             z_after,
             origin="upper",
             cmap="coolwarm",
             vmin=-za_extent,
             vmax=za_extent,
         )
-        ax[2].set_title("Z (after, Adam)")
-        for c in range(ncols):
-            ax[c].set_xticks([])
-            ax[c].set_yticks([])
+        row_axes[4].set_title("Z_after")
 
-    fig_b.suptitle("All ROIs — Data | Model (before) | Z (before)", fontsize=12)
-    fig_a.suptitle("All ROIs — Data | Model (after, Adam) | Z (after)", fontsize=12)
-    fig_b.savefig(out_root / "all_rois_before.png", dpi=150, bbox_inches="tight")
-    fig_a.savefig(out_root / "all_rois_after.png", dpi=150, bbox_inches="tight")
-    plt.close(fig_b)
-    plt.close(fig_a)
+        for c in range(ncols):
+            row_axes[c].set_xticks([])
+            row_axes[c].set_yticks([])
+
+    fig.suptitle(
+        "All ROIs — Data | Model_before | Z_before | Model_after | Z_after",
+        fontsize=12,
+    )
+    fig.savefig(
+        out_root / "all_rois_side_by_side.png",
+        dpi=150,
+        bbox_inches="tight",
+    )
+    plt.close(fig)
 
 
 def main() -> None:
@@ -251,9 +523,9 @@ def main() -> None:
     repo_root = Path(__file__).resolve().parents[4]
 
     dataload = _build_dataload(repo_root)
-    context, refine_result = _run_mapping_adam_scale_only(
+    context, refine_result = _run_mapping_full_stage_a(
         dataload,
-        n_steps=100,
+        n_steps=20,
         lr=1e-3,
     )
 
@@ -286,13 +558,18 @@ def main() -> None:
 
     if loss_trace:
         fig, ax = plt.subplots(figsize=(6, 4))
-        ax.plot(range(len(loss_trace)), loss_trace, marker="o", linewidth=1)
+        steps = range(len(loss_trace))
+        ax.plot(steps, loss_trace, marker="o", linewidth=1)
         ax.set_xlabel("Adam step")
         ax.set_ylabel("Chi-squared loss")
-        ax.set_title("Mapping-based Stage A (Adam scale-only) loss trace")
+        ax.set_title("Mapping-based Stage A (Adam scale-only) loss curve")
         ax.grid(True, alpha=0.3)
         fig.tight_layout()
-        fig.savefig(out_root / "adam_loss_trace.png", dpi=150, bbox_inches="tight")
+        # Legacy name plus the explicit *_curve variant requested.
+        curve_path = out_root / "adam_loss_curve.png"
+        trace_path = out_root / "adam_loss_trace.png"
+        fig.savefig(curve_path, dpi=150, bbox_inches="tight")
+        fig.savefig(trace_path, dpi=150, bbox_inches="tight")
         plt.close(fig)
 
     _plot_all_roi_triptychs(
@@ -356,4 +633,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

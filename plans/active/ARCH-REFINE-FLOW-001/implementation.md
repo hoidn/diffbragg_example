@@ -42,13 +42,14 @@
 - findings REFINE-005, REFINE-007, REFINE-008 (gates), SCALE-001/002 (scale handling)
 
 ## Phase A — Stage Interface & Engine Skeleton
-### Checklist
 - [ ] A0: **TDD nucleus** — author a minimal unit test (`tests/dbex/test_refinement_engine.py::test_engine_executes_mock_stage`) validating that a dummy Stage object runs and emits telemetry via the engine.
 - [ ] A1: Implement `RefinementStage` protocol/dataclass capturing required hooks: `name`, `configure(config)`, `run(inputs, telemetry_sink)`, `telemetry_schema`.
 - [ ] A2: Implement `RefinementEngine` with deterministic execution order, stage registration, and shared telemetry aggregation (`Dict[str, RefinementTelemetry]`).
 - [ ] A3: Extract shared helpers for simulator instantiation (`create_panel_simulator(detector_config, crystal_config, hkl_grid, config)`) and Bragg regeneration (`emit_bragg_frame(stage_params, inputs, config)`), and ensure stages call into these utilities rather than duplicating panel loops.
 - [ ] A4: Update `RefinementTelemetry` (if necessary) to include a `stage_type`/`mode` field so future variants can be distinguished without branching.
-- [ ] A5: Document the interface + shared helpers in `docs/architecture/pytorch_design.md` and `plans/active/ARCH-REFINE-FLOW-001/reports/<timestamp>/summary.md`.
+- [ ] A5: Register the new engine unit test in `docs/TESTING_GUIDE.md` §2 and `docs/development/TEST_SUITE_INDEX.md`, archive `pytest --collect-only tests/dbex/test_refinement_engine.py` logs under the phase report, and note the selector in the ledger per Exit Criterion #4.
+- [ ] A6: Produce compliance evidence: confirm doc/spec alignment (docs/spec-db-workflow.md §7) in the report, and update `docs/fix_plan.md` `[ARCH-REFINE-FLOW-001]` entry with the new plan scope plus referenced findings (REFINE-005/007/008) before moving to Phase B.
+- [ ] A7: Document the interface + shared helpers in `docs/architecture/pytorch_design.md` and `plans/active/ARCH-REFINE-FLOW-001/reports/<timestamp>/summary.md`.
 
 ### Dependency Analysis (Required for Refactors)
 - **Touched Modules:** dbex/nanobrag_refinement.py, dbex/refine_one.py (imports), dbex/refinement (new package)
@@ -61,43 +62,42 @@
 - Shared simulator/Bragg helpers centralize detector/crystal instantiation; audit them once to avoid reintroducing the duplication highlighted in the recent code review.
 
 ## Phase B — Stage A Extraction
-### Checklist
 - [ ] B0: Record baseline artifacts for Stage A smoke (`test_stage_a_expansion`, collect-only + pytest logs) under `plans/active/ARCH-REFINE-FLOW-001/reports/<timestamp>/baseline/`.
 - [ ] B1: Implement `StageA` class wrapping current Stage A parameter initialization, LBFGS closure, and telemetry emission; ensure it implements `RefinementStage`.
 - [ ] B2: Update `run_nanobrag_refinement` to instantiate `RefinementEngine([StageA(...)])` when only Stage A is enabled; keep Stage B/C inline temporarily.
 - [ ] B3: Rerun Stage A smoke (small + full detector) and capture logs + telemetry JSON verifying no regression (telemetry states, perf counters, chi-squared traces).
-- [ ] B4: Update docs/tests to reference the new Stage A class where appropriate (e.g., developer docs showing class layout).
+- [ ] B4: Run the relevant DB-AT selector(s) impacted by Stage A (DB-AT-010 Gradcheck plus DB-AT-024 mapping) in collect-only and pytest modes; archive logs/telemetry alongside smoke artifacts to satisfy Exit Criterion #3 for this phase.
+- [ ] B5: Update docs/tests to reference the new Stage A class where appropriate (e.g., developer docs showing class layout).
 
 ### Notes & Risks
 - Ensure Stage A ROI sampling + warm-cache options remain available and configurable (StageA should accept `sampled_panel_ids`, cache flags).
 - Regression risk: orientation/quaternion handling must remain inside the stage.
 
 ## Phase C — Stage B Extraction
-### Checklist
 - [ ] C0: Baseline Stage B artifacts (full-detector run + telemetry) recorded before refactor.
 - [ ] C1: Implement `StageB` class supporting both shell modifiers and future per-reflection mode (stub enum for `stage_b_mode`).
 - [ ] C2: Wire Stage B into the engine (A→B sequence), dropping the legacy inline code from `run_nanobrag_refinement`.
 - [ ] C3: Ensure Stage B telemetry includes `stage_b_mode`, shell modifier stats, and uses canonical Stage A metadata propagated through the engine context.
 - [ ] C4: Rerun `tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers` (small + full detectors). Capture collect-only logs and telemetry JSON; verify REFINE-008 gates still apply.
+- [ ] C5: Execute DB-AT selectors sensitive to Stage B (e.g., DB-AT-024 mapping) in collect-only + pytest modes, recording artifacts that show parity thresholds remain satisfied after the extraction.
 
 ### Notes & Risks
 - Stage B must respect REFINE-005 (tricubic interpolation + halo). When moving code, ensure HKL grid caching remains correct.
 - Expose switches for future per-reflection implementation (TORCH-REFINE-005) but keep default as shell modifiers.
 
 ## Phase D — Stage C Extraction
-### Checklist
 - [ ] D0: Baseline Stage C artifacts (full-detector run + telemetry) recorded pre-refactor.
 - [ ] D1: Implement `StageC` class managing detector offset parameters, baseline detector seeding, and telemetry.
 - [ ] D2: Plug Stage C into the engine (A→B→C). Remove Stage C inline code from `run_nanobrag_refinement`.
 - [ ] D3: Ensure Stage C telemetry keeps canonical Stage A metadata and detector offset reduction stats.
 - [ ] D4: Rerun `tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip` (small + full) and archive logs/telemetry proving REFINE-007 gates still succeed.
+- [ ] D5: Execute DB-AT selectors that depend on Stage C detector alignment (e.g., DB-AT-021/DB-AT-024 as applicable) in collect-only + pytest modes and capture artifacts confirming canonical gates remain within tolerance post-refactor.
 
 ### Notes & Risks
 - Stage C must maintain baseline detector seeding behavior and variance-floor clamp telemetry.
 - Watch for device/dtype transitions (detector configs currently re-instantiated per panel).
 
 ## Phase E — Orchestration Hooks & Mode Wiring
-### Checklist
 - [ ] E1: Expose stage registry/config knobs in `RefinementEngine`/`run_nanobrag_refinement` (e.g., enable/disable Stage B, set Stage B mode = shell|per_reflection).
 - [ ] E2: Update CLI/config surfaces (`RefinementConfig`, `dbex/refine_one.py`) to accept stage enablement flags and pass them into the engine.
 - [ ] E3: Add telemetry fields capturing the active stage list and modes (`engine_protocol`, `stage_modes`).

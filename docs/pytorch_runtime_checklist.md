@@ -15,6 +15,7 @@ from `docs/spec-db-runtime.md:10-20` and `docs/spec-db-conformance.md:10-48`.
    - Materialize configuration tensors (beam, detector, crystal) on the execution device before the main loop.
    - Avoid per-iteration `.to()`, `.cpu()`, `.cuda()`, or tensor factories (`torch.tensor(...)`) inside compiled regions; cache constants once.
    - Run CPU **and** CUDA smoke commands (`pytest -v -m gpu_smoke`, targeting `nanoBragg2/tests/`) when a GPU is available.
+   - **Performance guidance:** Production refinements SHOULD target CUDA (`python -m dbex.refine_one --backend nanobrag --device cuda:0`) whenever GPUs are present. The CLI defaults to `cuda:0` and falls back to CPU automatically; document the chosen device in telemetry.
    - **Cache dtype neutrality:** When retrieving cached tensors for comparison, use `.to(device=..., dtype=...)` to match both device AND dtype of live tensors. Example from `Detector.get_pixel_coords()`:
      ```python
      # Retrieve cached basis vector with dtype coercion

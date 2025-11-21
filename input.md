@@ -1,55 +1,57 @@
-Summary: Ensure Stage B smokes always emit telemetry (even on failure) so we can inspect chi-squared traces from the canonical detector run.
+Summary: Route canonical Stage B smokes through the existing stage_b_full_eval_on_cpu fallback so the full detector runs on CPU without OOM and still records telemetry for ROI/perf analysis.
 Mode: none
 Focus: PERF-WARM-SIM-001 — Warm simulator; eliminate per-iteration re-instantiation
 Branch: integration
-Mapped tests: tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small; tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=full (expected fail while capturing telemetry)
-Artifacts: plans/active/PERF-WARM-SIM-001/reports/2025-11-21T150000Z/
+Mapped tests: tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small; tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=full
+Artifacts: plans/active/PERF-WARM-SIM-001/reports/2025-11-21T153500Z/
 
 Do Now:
 - Focus Item: PERF-WARM-SIM-001
-- Implement: tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers — wrap the body in a try/finally (or move `_record_stage_telemetry`/summary prints ahead of the REFINE-008 asserts) so Stage B telemetry is written before the ±1% gate fires, ensuring canonical runs still append `telemetry_stage_b_full.json`; keep ROI/cache perf-counter asserts intact and document the PERF-WARM-009/010 rationale inline.
-- Test: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T150000Z/telemetry_stage_b_small.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small | tee plans/active/PERF-WARM-SIM-001/reports/2025-11-21T150000Z/pytest_stage_b_small.log
-- Test: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=full DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T150000Z/telemetry_stage_b_full.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=full | tee plans/active/PERF-WARM-SIM-001/reports/2025-11-21T150000Z/pytest_stage_b_full.log || true  # failure expected once shell_0 hits clamp; telemetry must still be emitted
-- Script: python plans/active/PERF-WARM-SIM-001/bin/summarize_stage_b_roi.py --telemetry plans/active/PERF-WARM-SIM-001/reports/2025-11-21T150000Z/telemetry_stage_b_small.json --telemetry plans/active/PERF-WARM-SIM-001/reports/2025-11-21T150000Z/telemetry_stage_b_full.json --out plans/active/PERF-WARM-SIM-001/reports/2025-11-21T150000Z/stage_b_roi_summary.json
-- Artifacts: Copy both pytest logs, telemetry JSON files, and `stage_b_roi_summary.json` into plans/active/PERF-WARM-SIM-001/reports/2025-11-21T150000Z/ for this loop.
+- Implement: dbex/nanobrag_refinement.py::run_nanobrag_refinement — honor `stage_b_full_eval_on_cpu` by routing Stage B panel-mode closures/validations (canonical runs with ROI disabled) to CPU, resetting `stage_b_use_warm_cache`/perf counters accordingly while keeping ROI-mode small smokes on the warmed CUDA path.
+- Implement: tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers — keep ROI/perf assertions for the small smoke but accept `cache_mode="cold"` + panel ROI counts when the CPU fallback is active on the canonical detector.
+- Test: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T153500Z/telemetry_stage_b_small.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small | tee plans/active/PERF-WARM-SIM-001/reports/2025-11-21T153500Z/pytest_stage_b_small.log
+- Test: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=full DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T153500Z/telemetry_stage_b_full.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=full | tee plans/active/PERF-WARM-SIM-001/reports/2025-11-21T153500Z/pytest_stage_b_full.log
+- Script: python plans/active/PERF-WARM-SIM-001/bin/summarize_stage_b_roi.py --telemetry plans/active/PERF-WARM-SIM-001/reports/2025-11-21T153500Z/telemetry_stage_b_small.json --telemetry plans/active/PERF-WARM-SIM-001/reports/2025-11-21T153500Z/telemetry_stage_b_full.json --out plans/active/PERF-WARM-SIM-001/reports/2025-11-21T153500Z/stage_b_roi_summary.json
 
 How-To Map:
-1. Edit tests/dbex/test_torch_refine_smoke.py around the Stage B smoke so `_record_stage_telemetry` (and the diagnostic prints) live inside a finally block that always runs, even when strict asserts fail or Stage B throws; keep telemetry payload identical so downstream scripts continue to parse it.
-2. Re-run the small-detector Stage B smoke with the env vars above; the test should pass and append telemetry/log files beneath the new artifacts directory.
-3. Re-run the full-detector Stage B smoke with the same env except `DBEX_SMOKE_DETECTOR_SIZE=full` and `--smoke-detector-size=full`; expect the ±1% assert to fail, so pipe output to the artifact log and allow the command to continue via `|| true` after confirming telemetry_stage_b_full.json was written.
-4. Execute summarize_stage_b_roi.py with both telemetry JSON paths so canonical + small datasets appear in `stage_b_roi_summary.json`; cite this file plus pytest logs in docs/fix_plan.md when updating the Attempts History.
-5. If telemetry now captures canonical traces, review the JSON locally to note Stage A/B chi-squared deltas for the next loop’s diagnosis; no spec changes until we understand the divergence.
+1. Update Stage B CPU fallback in `dbex/nanobrag_refinement.py`: detect when `config.stage_b_full_eval_on_cpu` is True, device is CUDA, and ROI mode is disabled, then evaluate Stage B on CPU (use the existing cold path) while forcing `stage_b_use_warm_cache=False` so perf counters report `cache_mode="cold"`; keep ROI-mode small runs untouched so they still use warmed CUDA simulators.
+2. Adjust `tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers` so cache-mode/ROI assertions expect `cache_mode="warm"` for the small detector and `cache_mode="cold"`, `roi_mode="panel"` for the canonical CPU fallback, while leaving the strict chi-squared/modifier gates intact.
+3. Rerun the small-detector Stage B smoke with the env vars above; verify it passes, emits telemetry_stage_b_small.json, and keeps `cache_mode="warm"`, `roi_mode="roi"`.
+4. Rerun the full-detector Stage B smoke (expected to pass with the CPU fallback) and confirm telemetry_stage_b_full.json now reports `status in {ok,early_stop}` instead of `error`; capture the pytest log even if asserts fail and leave the command non-fatal only if a different bug appears.
+5. Run `summarize_stage_b_roi.py` with both telemetry files so stage_b_roi_summary.json includes small + canonical entries; cite these artifacts in docs/fix_plan.md + docs/findings.md once the OOM path is eliminated.
 
 Pitfalls To Avoid:
-- Do not move or delete the strict REFINE-008 checks—only ensure telemetry recording happens before they trigger.
-- Keep telemetry filenames distinct per dataset so summarize_stage_b_roi.py can join them unambiguously.
-- Capture telemetry even when pytest exits non-zero; the canonical run must leave a JSON behind or the loop is blocked.
-- Leave ROI/perf-counter asserts untouched so we keep coverage for PERF-WARM-005/007.
-- Do not weaken the ±1% tolerance or stage_b_min_loss_improvement just to make the full run pass.
-- Keep `AUTHORITATIVE_CMDS_DOC` exported exactly as written.
+- Do not relax the ±1% REFINE-008 gates or Stage B loss tolerances; only reroute execution devices.
+- Keep small-smoke ROI telemetry identical (cache_mode warm, roi counts intact); only canonical panel runs should flip to CPU.
+- Ensure `stage_b_use_warm_cache` and perf counters reflect the actual execution path, otherwise tests will still gate on stale values.
+- Leave Stage C and Stage A code untouched; this loop targets Stage B only.
+- Capture telemetry/logs even if the full-detector run still fails; missing JSON means the loop is blocked again.
+- Respect Environment Freeze—no package installs or CUDA toggles outside the documented env vars.
 
 If Blocked:
-- If full-detector telemetry still fails to write, save the pytest log plus any partial JSON/tracebacks to plans/active/PERF-WARM-SIM-001/reports/2025-11-21T150000Z/blockers.txt, note whether the finally block ran, and update docs/fix_plan.md + galph_memory.md with the failure signature so we can re-plan before attempting code changes again.
+- If the canonical smoke still raises CUDA OOM, save the pytest log plus telemetry snippets (or lack thereof) under the artifacts directory, update docs/fix_plan.md with the failure signature, and note the block in galph_memory.md so we can escalate before another code attempt.
 
 Findings Applied (Mandatory):
-- PERF-WARM-005 — ROI telemetry must still reflect warm-cache mode; ensure new logging doesn’t regress ROI/panel labeling.
-- PERF-WARM-007 — Stage B perf-counter asserts stay in place so warm-cache regressions fail fast.
-- PERF-WARM-009 — Canonical validations must stay panel-scope; this change is only about telemetry ordering.
-- PERF-WARM-010 — Canonical runs keep `enable_stage_a_roi_mode=False`; the new telemetry capture should prove the gate’s behavior.
+- PERF-WARM-003/004 — Warm cache changes must preserve determinism; keep ROI sampling tied to the warm CUDA path for small smokes.
+- PERF-WARM-005 — ROI telemetry must continue to label roi_mode/roi_counts correctly for both warm and cold paths.
+- PERF-WARM-006/007 — Stage B perf counters (`cache_mode`, closure_evals, forward_time_ms) are contractual; update them when CPU fallback activates.
+- PERF-WARM-008 — Canonical runs still require panel validations and ±1% shell modifier bounds.
+- PERF-WARM-009/010 — Canonical detector stays in panel mode until the strict gate is recalibrated; the fallback must not re-enable ROI sampling there.
+- PERF-WARM-011 — GPU OOM on canonical Stage B is now the primary blocker; CPU fallback is the mitigation, not a spec change.
 
 Pointers:
-- docs/fix_plan.md:149 — Latest PERF-WARM-SIM-001 attempt describing this telemetry gap.
-- docs/TESTING_GUIDE.md:40-50 — Stage B strict gate expectations and telemetry workflow.
-- docs/findings.md:18-23 — PERF-WARM series guardrails for ROI/panel behavior.
-- tests/dbex/test_torch_refine_smoke.py:900 — Stage B smoke implementation to edit.
-- plans/active/PERF-WARM-SIM-001/bin/summarize_stage_b_roi.py:1 — Script that consolidates telemetry into stage_b_roi_summary.json.
+- docs/fix_plan.md:37 — PERF-WARM-SIM-001 ledger entry and latest Do Now description.
+- docs/findings.md:16-24 — PERF-WARM guardrails, including the new PERF-WARM-011 OOM finding.
+- docs/TESTING_GUIDE.md:38 — Stage B strict gate expectations for canonical smokes.
+- dbex/nanobrag_refinement.py:1500 — Stage B refinement block where CPU fallback logic lives.
+- tests/dbex/test_torch_refine_smoke.py:876 — Stage B smoke test that asserts telemetry/perf counters.
 
-Next Up (optional): Investigate Stage B shell binning vs Stage A loss traces once canonical telemetry exists, and scope a fix if shell_0 still clamps at 2×.
+Next Up (optional): Investigate shell binning once canonical telemetry lands without OOM and the REFINE-008 gate re-fires.
 
-Doc Sync Plan: none — selectors unchanged (only telemetry ordering inside the existing test).
+Doc Sync Plan (Conditional): none — selectors unchanged beyond telemetry alignment.
 
-Mapped Tests Guardrail: `pytest --collect-only tests/dbex/test_torch_refine_smoke.py -k test_stage_b_shell_modifiers` collects one node; both detector-size variants reuse this selector, so collection already verified.
+Mapped Tests Guardrail: Both Stage B selectors already exist in the suite and collect under the commands above; rerun them with telemetry logging per How-To map.
 
-Hard Gate: Do not call the loop done until telemetry_stage_b_full.json exists under the new artifacts dir and stage_b_roi_summary.json includes both the small and canonical dataset summaries.
+Hard Gate: Do not mark this loop done until telemetry_stage_b_full.json (status not "error") and stage_b_roi_summary.json exist under the new artifacts directory.
 
-Normative Math/Physics: Stage B still optimizes the variance-weighted chi-squared defined in docs/spec-db-core.md:32-68; the telemetry change must not bypass that contract.
+Normative Math/Physics: Stage B must continue minimizing the variance-weighted chi-squared per docs/spec-db-core.md:57-80; CPU fallback cannot alter the loss expression or sigma provenance.

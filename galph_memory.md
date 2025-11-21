@@ -477,3 +477,13 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-21T150000Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=2 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T150000Z/ next_action=stage_b_telemetry_guard_impl
+
+## 2025-11-21T153500Z — PERF-WARM-SIM-001 Stage B CPU fallback plan
+- Focus: PERF-WARM-SIM-001 — Warm simulator; eliminate per-iteration re-instantiation
+- Action Type: planning
+- Key Observations: Reviewed the 2025-11-21T150000Z telemetry/logs confirming canonical Stage B now dies on CUDA OOM despite the telemetry guard, added finding PERF-WARM-011 plus a new fix-plan attempt, and drafted a Do Now instructing Ralph to honor `stage_b_full_eval_on_cpu`, update the Stage B smoke asserts, and rerun both selectors + ROI summary under 2025-11-21T153500Z/.
+- Artifact Path: plans/active/PERF-WARM-SIM-001/reports/2025-11-21T153500Z/
+- Next Actions: Implement the Stage B CPU fallback and rerun the mapped Stage B smokes plus summarize_stage_b_roi.py to capture canonical telemetry without OOM.
+- <Action State>: [ready_for_implementation]
+
+2025-11-21T153500Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=2 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T153500Z/ next_action=stage_b_cpu_fallback_impl

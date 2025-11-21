@@ -507,3 +507,13 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-21T170500Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=0 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T170500Z/ next_action=stage_c_telemetry_capture
+
+## 2025-11-21T172334Z — PERF-WARM-SIM-001 Stage C telemetry prep
+- Focus: PERF-WARM-SIM-001 — Warm simulator; eliminate per-iteration re-instantiation
+- Action Type: planning
+- Key Observations: Confirmed the Stage C smoke (tests/dbex/test_torch_refine_smoke.py:583-854) already asserts cache/ROI counters yet never prints them, so pytest logs cannot prove warm-cache state; `rg --files plans/active/PERF-WARM-SIM-001/reports -g 'telemetry_stage_c*.json'` still returns nothing and `plans/active/PERF-WARM-SIM-001/bin/` lacks a Stage C summarizer. Updated docs/fix_plan.md and input.md with a ready-for-implementation Do Now covering the Stage C log block, a summarize_stage_c_roi.py twin to the Stage B script, the small/full telemetry reruns rooted at 2025-11-21T172334Z/, and the docs/TESTING_GUIDE.md refresh.
+- Artifact Path: plans/active/PERF-WARM-SIM-001/reports/2025-11-21T172334Z/
+- Next Actions: Ralph lands the Stage C logging + summarizer, reruns both Stage C selectors with telemetry capture, generates stage_c_roi_summary.json, and updates docs/TESTING_GUIDE.md with the workflow so exit criterion #2 can close.
+- <Action State>: [ready_for_implementation]
+
+2025-11-21T172334Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=1 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T172334Z/ next_action=stage_c_telemetry_capture

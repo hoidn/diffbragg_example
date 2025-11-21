@@ -1,0 +1,509 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 3 items
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion PASSED     [ 33%]
+tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip FAILED [ 66%]
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers FAILED [100%]
+
+=================================== FAILURES ===================================
+_______________________ test_stage_c_detector_microslip ________________________
+
+refgeom_dataload = <dbex.data_load.DataLoad object at 0x78e3dbb66a90>
+refinement_inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0.,...     [0., 0., 0., ..., 0., 0., 0.]]], dtype=float32), target_representation='adu', global_scale_hint=62.65738056380318)
+hkl_data = (tensor([[[0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0.,...uda:0'), {'grid_max': 518.3336791992188, 'grid_mean': 16.896526336669922, 'grid_min': 0.0, 'grid_nonzero': 69614, ...})
+smoke_detector_size = 'full'
+
+    def test_stage_c_detector_microslip(refgeom_dataload, refinement_inputs, hkl_data, smoke_detector_size):
+        """
+        Verify Stage C detector distance refinement achieves ≥0.002% loss decrease on top of Stage A.
+    
+        Acceptance criteria (TORCH-REFINE-003):
+        1. Stage A + Stage C run without errors (status != "error")
+        2. Stage C telemetry contains per-panel distance_offset parameters
+        3. Improvement gate (≥0.002%) relative to Stage A's final loss is met (calibrated per REFINE-007)
+        4. Full-loss trace (Stage C) is non-increasing over last 3 validations
+        5. Stage A telemetry is preserved and not regressed by Stage C
+    
+        Environment:
+        - Requires: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1
+        - Selector: pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip
+    
+        Per docs/spec-db-workflow.md:35, Stage C refines per-panel translations along detector
+        normal (distance offset) with rotations fixed. The test applies deterministic detector
+        perturbation via create_perturbed_geometry(enable_detector_perturbation=True), then runs
+        Stage A followed by Stage C to validate ≥0.002% improvement (gate calibrated to refGeom
+        empirical ceiling per REFINE-007).
+        """
+        from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig
+    
+        print(f"\n[test_stage_c_detector_microslip] detector={smoke_detector_size}")
+        strict_gates = smoke_detector_size == "full"
+    
+        hkl_grid, hkl_metadata = hkl_data
+    
+        # Configure refinement (Stage A + Stage C per TORCH-REFINE-003)
+        config = RefinementConfig(
+            device='cuda:0',
+            dtype=torch.float32,
+            history_size=10,
+            max_iter=30,  # ≤30 steps per stage
+            roi_sample_fraction=0.15,
+            full_validation_interval=5,
+            min_loss_improvement=0.002 if strict_gates else 0.0,
+            enable_hkl_interpolation=True,  # Tricubic with haloed grid
+            enable_stage_c=True,  # Enable Stage C detector distance refinement
+            stage_c_min_loss_improvement=2e-5 if strict_gates else 0.0,
+            stage_c_max_distance_delta_mm=0.5  # ±0.5mm max offset per panel
+        )
+    
+        # Create perturbed geometry with detector offsets (TORCH-REFINE-003)
+        # Applies alternating ±0.25mm distance offsets to detector panels
+        baseline_crystal = refgeom_dataload.Expt.crystal
+        baseline_detector = refgeom_dataload.Expt.detector
+        baseline_beam = refgeom_dataload.Expt.beam
+    
+        perturbed_crystal, perturbed_detector, perturbed_beam = create_perturbed_geometry(
+            baseline_crystal, baseline_detector, baseline_beam,
+            enable_detector_perturbation=True,  # Enable detector distance offsets
+            detector_distance_offset_mm=0.25  # ±0.25mm alternating pattern
+        )
+    
+        # Run refinement with Stage A + Stage C
+        bragg_refined, telemetry_dict = run_nanobrag_refinement(
+            inputs=refinement_inputs,
+            detector=perturbed_detector,
+            beam=perturbed_beam,
+            crystal=perturbed_crystal,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            config=config,
+            baseline_crystal=baseline_crystal
+        )
+    
+        # Extract Stage A and Stage C telemetry
+        assert "A" in telemetry_dict, "Stage A telemetry missing"
+        assert "C" in telemetry_dict, "Stage C telemetry missing (config.enable_stage_c=True)"
+        telemetry_a = telemetry_dict["A"]
+        telemetry_c = telemetry_dict["C"]
+    
+        # Acceptance 1: Both stages completed without errors
+        assert telemetry_a.status != "error", f"Stage A failed: {telemetry_a.message}"
+        assert telemetry_c.status != "error", f"Stage C failed: {telemetry_c.message}"
+    
+        # Acceptance 2: Stage C telemetry completeness
+        assert telemetry_c.optimizer == "LBFGS"
+        assert telemetry_c.stage == "C"
+        assert telemetry_c.history_size == config.history_size
+        assert telemetry_c.max_iter == config.max_iter
+        assert len(telemetry_c.loss_trace_sample) > 0, "Stage C sample loss trace empty"
+        assert len(telemetry_c.loss_trace_full) > 0, "Stage C full loss trace empty"
+        assert telemetry_c.best_loss_full[0] > 0, "Stage C best loss invalid"
+    
+        # Verify per-panel distance offsets are present
+        n_panels = len(perturbed_detector)
+        for pid in range(n_panels):
+            param_key = f'panel_{pid}_distance_offset_mm'
+            assert param_key in telemetry_c.param_deltas, f"Panel {pid} distance offset missing"
+            offset_data = telemetry_c.param_deltas[param_key]
+            assert 'initial' in offset_data and 'final' in offset_data and 'delta' in offset_data
+    
+        # Acceptance 3: PHYSICS-LOSS-001 telemetry validation (chi-squared + masked-MSE for both Stage A and Stage C)
+        # Both stages must emit dual metrics
+        assert telemetry_a.chi_squared_trace_full is not None, "Stage A chi_squared_trace_full missing"
+        assert len(telemetry_a.chi_squared_trace_full) >= 2, "Stage A chi_squared_trace_full insufficient"
+        assert telemetry_c.chi_squared_trace_full is not None, "Stage C chi_squared_trace_full missing"
+        assert len(telemetry_c.chi_squared_trace_full) >= 2, "Stage C chi_squared_trace_full insufficient"
+        stage_a_final_chi2 = telemetry_a.chi_squared_trace_full[-1][1]
+        stage_c_initial_chi2 = telemetry_c.chi_squared_trace_full[0][1]
+        assert stage_c_initial_chi2 == pytest.approx(stage_a_final_chi2, rel=1e-3), (
+            f"Stage C initial chi-squared {stage_c_initial_chi2:.3e} != Stage A final {stage_a_final_chi2:.3e}"
+        )
+        assert telemetry_c.variance_floor_value == pytest.approx(config.sigma_floor_value**2)
+        assert telemetry_c.variance_floor_clamp_fraction is not None
+        assert 0.0 <= telemetry_c.variance_floor_clamp_fraction <= 1.0
+    
+        # Extract chi-squared values for improvement comparison (REFINE-007)
+        stage_a_final_chi2 = telemetry_a.chi_squared_trace_full[-1][1]
+        stage_c_final_chi2 = telemetry_c.chi_squared_trace_full[-1][1]
+        improvement_c_chi2 = (stage_a_final_chi2 - stage_c_final_chi2) / stage_a_final_chi2
+    
+        # REFINE-007: Stage C gate is ≥0.002% improvement (calibrated to refGeom ceiling ≈0.003%)
+        # Compare chi-squared (variance-weighted) rather than legacy loss_trace_full
+        if strict_gates:
+>           assert improvement_c_chi2 >= 2e-5, (
+                f"Stage C chi-squared improvement {improvement_c_chi2:.4%} < 0.002% threshold. "
+                f"REFINE-007: Gate calibrated to measured ≈0.003% ceiling on refGeom (±0.25mm per-panel offsets). "
+                f"See probe artifacts: plans/active/TORCH-REFINE-003/reports/2025-11-05T090201Z/stage_c_improvement_probe.json "
+                f"(Stage A final chi2={stage_a_final_chi2:.2e}, Stage C final chi2={stage_c_final_chi2:.2e}, "
+                f"Stage C iterations={len(telemetry_c.loss_trace_sample)})"
+            )
+E           AssertionError: Stage C chi-squared improvement 0.0000% < 0.002% threshold. REFINE-007: Gate calibrated to measured ≈0.003% ceiling on refGeom (±0.25mm per-panel offsets). See probe artifacts: plans/active/TORCH-REFINE-003/reports/2025-11-05T090201Z/stage_c_improvement_probe.json (Stage A final chi2=2.94e+08, Stage C final chi2=2.94e+08, Stage C iterations=10)
+E           assert 0.0 >= 2e-05
+
+tests/dbex/test_torch_refine_smoke.py:615: AssertionError
+----------------------------- Captured stdout call -----------------------------
+
+[test_stage_c_detector_microslip] detector=full
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6105669/6224001 (98.10%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6105669/6224001 (98.10%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6105669/6224001 (98.10%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6105669/6224001 (98.10%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6105669/6224001 (98.10%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6105669/6224001 (98.10%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6105669/6224001 (98.10%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6105669/6224001 (98.10%)
+auto-selected 1-fold oversampling
+WARNING: out of range for three point interpolation
+WARNING: further warnings will not be printed!
+[HKL stats] h=[-20,26] k=[-24,25] l=[0,19] hit_rate=0/6224001 (0.00%)
+auto-selected 1-fold oversampling
+WARNING: out of range for three point interpolation
+WARNING: further warnings will not be printed!
+[HKL stats] h=[-18,24] k=[-23,23] l=[0,15] hit_rate=0/6224001 (0.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6047776/6224001 (97.17%)
+auto-selected 1-fold oversampling
+WARNING: out of range for three point interpolation
+WARNING: further warnings will not be printed!
+[HKL stats] h=[-18,25] k=[-13,14] l=[0,6] hit_rate=0/6224001 (0.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-21,21] l=[0,13] hit_rate=6162952/6224001 (99.02%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-21,21] l=[0,13] hit_rate=6162952/6224001 (99.02%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-21,21] l=[0,13] hit_rate=6161333/6224001 (98.99%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-21,21] l=[0,13] hit_rate=6162932/6224001 (99.02%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-21,21] l=[0,13] hit_rate=6162952/6224001 (99.02%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-21,21] l=[0,13] hit_rate=6162952/6224001 (99.02%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-21,21] l=[0,13] hit_rate=6162952/6224001 (99.02%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-21,21] l=[0,13] hit_rate=6162952/6224001 (99.02%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-21,21] l=[0,13] hit_rate=6162952/6224001 (99.02%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-21,21] l=[0,13] hit_rate=6162952/6224001 (99.02%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-21,21] l=[0,13] hit_rate=6164784/6224001 (99.05%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-21,21] l=[0,13] hit_rate=6162955/6224001 (99.02%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-21,21] l=[0,13] hit_rate=6162952/6224001 (99.02%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-21,21] l=[0,13] hit_rate=6162952/6224001 (99.02%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-21,21] l=[0,13] hit_rate=6162952/6224001 (99.02%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-21,21] l=[0,13] hit_rate=6162952/6224001 (99.02%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-21,21] l=[0,13] hit_rate=6162952/6224001 (99.02%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-21,21] l=[0,13] hit_rate=6162952/6224001 (99.02%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-21,21] l=[0,13] hit_rate=6162952/6224001 (99.02%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-21,21] l=[0,13] hit_rate=6162952/6224001 (99.02%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-21,21] l=[0,13] hit_rate=6162952/6224001 (99.02%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-21,21] l=[0,13] hit_rate=6162952/6224001 (99.02%)
+_________________________ test_stage_b_shell_modifiers _________________________
+
+refgeom_dataload = <dbex.data_load.DataLoad object at 0x78e2cf564ee0>
+refinement_inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0.,...     [0., 0., 0., ..., 0., 0., 0.]]], dtype=float32), target_representation='adu', global_scale_hint=62.65738056380318)
+hkl_data = (tensor([[[0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0.,...uda:0'), {'grid_max': 518.3336791992188, 'grid_mean': 16.896526336669922, 'grid_min': 0.0, 'grid_nonzero': 69614, ...})
+smoke_detector_size = 'full'
+
+    def test_stage_b_shell_modifiers(refgeom_dataload, refinement_inputs, hkl_data, smoke_detector_size):
+        """
+        Smoke test for Stage B shell-modifier LBFGS refinement (TORCH-REFINE-004).
+    
+        Tests exercise run_nanobrag_refinement with Stage B enabled (enable_stage_b=True)
+        after Stage A, validating:
+        - ≥3% loss descent from Stage A final to Stage B final within ≤30 LBFGS iterations
+        - Telemetry presence for shell modifiers (param_deltas with d-spacing ranges)
+        - Non-increasing full-loss trace across last 3 validations
+        - Halo-padded HKL grid and interpolation are required (guards enforced)
+    
+        Per input.md:
+        - docs/spec-db-workflow.md:31-34 mandates Stage B optional shell modifiers with tricubic interpolation
+        - plans/nanobrag_integration_plan.md:226-244 specifies Stage B shell mode contract
+        - docs/architecture/pytorch_design.md:35-40 requires ±1 halo for interpolation
+        - docs/findings.md REFINE-005 confirms halo requirement for Stage B
+    
+        Findings applied:
+        - RUNTIME-001: Run with NANOBRAGG_DISABLE_COMPILE=1 to avoid torch.compile interference
+        - CONFORMANCE-001: Requires KMP_DUPLICATE_LIB_OK=TRUE
+        - REFINE-005: Halo-padded HKL grid mandatory for Stage B; guard enforced in run_nanobrag_refinement
+        - SCALE-001/002: Structure factors unscaled; shell modifiers applied multiplicatively
+        """
+        from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig
+    
+        print(f"\n[test_stage_b_shell_modifiers] detector={smoke_detector_size}")
+    
+        DL = refgeom_dataload
+        hkl_grid, hkl_metadata = hkl_data
+        strict_gates = smoke_detector_size == "full"
+    
+        # Guard: Stage B requires halo-padded HKL grid (REFINE-005)
+        assert hkl_metadata["has_halo"], (
+            "Stage B smoke test requires halo-padded HKL grid. "
+            "hkl_data fixture must be configured with halo=True per TORCH-REFINE-004."
+        )
+    
+        # Refinement config: enable Stage B with 5 resolution shells
+        # Keep Stage A and Stage C disabled to isolate Stage B behavior
+        config = RefinementConfig(
+            max_iter=30,
+            min_loss_improvement=0.002 if strict_gates else 0.0,
+            enable_hkl_interpolation=True,  # Required for Stage B (REFINE-005)
+            enable_stage_b=True,  # Enable shell modifiers
+            stage_b_n_shells=5,
+            stage_b_min_loss_improvement=1e-8 if strict_gates else 0.0,
+            stage_b_max_modifier=2.0,
+            enable_stage_c=False,  # Disable Stage C for this test
+            device="cuda:0",
+            dtype=torch.float32
+        )
+    
+        # Run refinement (Stage A + Stage B)
+        bragg_refined, telemetry_dict = run_nanobrag_refinement(
+            inputs=refinement_inputs,
+            detector=DL.detector,
+            beam=DL.beam,
+            crystal=DL.crystal,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            config=config
+        )
+    
+        # Extract telemetry
+        assert "A" in telemetry_dict, "Stage A telemetry missing"
+        assert "B" in telemetry_dict, "Stage B telemetry missing (enable_stage_b=True)"
+    
+        telemetry_a = telemetry_dict["A"]
+        telemetry_b = telemetry_dict["B"]
+    
+        # Acceptance 1: Stage B telemetry structure
+        assert telemetry_b.optimizer == "LBFGS"
+        assert telemetry_b.stage == "B"
+        assert len(telemetry_b.loss_trace_sample) > 0, "Stage B loss trace empty"
+        assert len(telemetry_b.loss_trace_full) > 0, "Stage B full-loss validations missing"
+        assert telemetry_b.status in ["ok", "early_stop", "error"], f"Unknown Stage B status: {telemetry_b.status}"
+        assert telemetry_a.chi_squared_trace_full is not None, "Stage A chi_squared_trace_full missing"
+        assert telemetry_b.chi_squared_trace_full is not None, "Stage B chi_squared_trace_full missing"
+        assert len(telemetry_b.chi_squared_trace_full) >= 2, "Stage B chi_squared_trace_full missing Stage A/Stage B entries"
+        stage_a_final_chi2 = telemetry_a.chi_squared_trace_full[-1][1]
+        stage_b_initial_chi2 = telemetry_b.chi_squared_trace_full[0][1]
+        assert stage_b_initial_chi2 == pytest.approx(stage_a_final_chi2, rel=1e-3), (
+            f"Stage B initial chi-squared {stage_b_initial_chi2:.3e} != Stage A final {stage_a_final_chi2:.3e}"
+        )
+    
+        # Variance floor telemetry propagated through Stage B
+        assert telemetry_b.variance_floor_value == pytest.approx(config.sigma_floor_value**2)
+        assert telemetry_b.variance_floor_clamp_fraction is not None
+        assert 0.0 <= telemetry_b.variance_floor_clamp_fraction <= 1.0
+    
+        # Acceptance 2: Shell modifier param_deltas present with d-spacing labels
+        assert len(telemetry_b.param_deltas) == config.stage_b_n_shells, (
+            f"Expected {config.stage_b_n_shells} shell modifiers, got {len(telemetry_b.param_deltas)}"
+        )
+        for param_name, param_value in telemetry_b.param_deltas.items():
+            assert "shell_" in param_name, f"Unexpected param name format: {param_name}"
+            assert "modifier" in param_name, f"Missing 'modifier' in param name: {param_name}"
+            assert "d=" in param_name, f"Missing d-spacing range in param name: {param_name}"
+            # Shell modifiers should be positive and within clamp bounds
+            assert 0 < param_value <= config.stage_b_max_modifier * 1.01, (  # +1% tolerance for floating point
+                f"Shell modifier {param_name}={param_value:.3f} outside (0, {config.stage_b_max_modifier}] clamp"
+            )
+    
+        # Acceptance 3: ≥0.000001% improvement from Stage A final to Stage B final
+        # Calibrated per TORCH-REFINE-004 refGeom probe (measured ceiling ~6.4e-8%, essentially zero)
+        # Canonical refGeom has well-scaled structure factors; shell modifiers have no optimization room
+        # See artifact: plans/active/TORCH-REFINE-004/reports/2025-11-05T190344Z/stage_b_improvement_probe.json
+        assert len(telemetry_a.loss_trace_full) >= 2, "Insufficient Stage A full-loss validations"
+        assert len(telemetry_b.loss_trace_full) >= 2, "Insufficient Stage B full-loss validations"
+    
+        stage_a_final_loss = telemetry_a.loss_trace_full[-1][1]
+        stage_b_final_loss = telemetry_b.loss_trace_full[-1][1]
+        stage_b_final_chi2 = telemetry_b.chi_squared_trace_full[-1][1]
+        assert stage_b_final_chi2 == pytest.approx(stage_b_final_loss, rel=1e-6), (
+            "Stage B chi-squared trace final entry should match loss_trace_full final value"
+        )
+        improvement_b = (stage_a_final_loss - stage_b_final_loss) / stage_a_final_loss
+    
+        # Relaxed gate (1e-8 = 0.000001%) per REFINE-007 precedent (Stage C detector microslip similarly hit ~0.003% ceiling)
+        # Stage B functional but constrained by dataset quality; shell modifiers converge near identity (~0.948)
+        # This gate effectively disables improvement checking while preserving telemetry validation
+        if strict_gates:
+>           assert improvement_b >= 1e-8, (
+                f"Stage B improvement {improvement_b:.8%} < 0.000001% threshold (calibrated ceiling). "
+                f"(Stage A final={stage_a_final_loss:.2e}, Stage B final={stage_b_final_loss:.2e}, "
+                f"Stage B iterations={len(telemetry_b.loss_trace_sample)}, shell modifiers={telemetry_b.param_deltas}). "
+                f"If improvement remains below threshold, verify structure factors are loaded correctly and HKL interpolation is enabled."
+            )
+E           AssertionError: Stage B improvement -0.00000762% < 0.000001% threshold (calibrated ceiling). (Stage A final=1.05e+08, Stage B final=1.05e+08, Stage B iterations=5, shell modifiers={'shell_0_modifier (d=80000.12-100000.00Å)': 1.0, 'shell_1_modifier (d=60000.25-80000.12Å)': 1.0, 'shell_2_modifier (d=40000.38-60000.25Å)': 1.0, 'shell_3_modifier (d=20000.50-40000.38Å)': 1.0, 'shell_4_modifier (d=0.63-20000.50Å)': 1.0}). If improvement remains below threshold, verify structure factors are loaded correctly and HKL interpolation is enabled.
+E           assert -7.621061321193288e-08 >= 1e-08
+
+tests/dbex/test_torch_refine_smoke.py:811: AssertionError
+----------------------------- Captured stdout call -----------------------------
+
+[test_stage_b_shell_modifiers] detector=full
+auto-selected 1-fold oversampling
+[HKL stats] h=[-16,22] k=[-22,22] l=[0,14] hit_rate=6132536/6224001 (98.53%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-16,22] k=[-22,22] l=[0,14] hit_rate=6132536/6224001 (98.53%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-16,22] k=[-22,22] l=[0,14] hit_rate=6132538/6224001 (98.53%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-16,22] k=[-22,22] l=[0,14] hit_rate=6132538/6224001 (98.53%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-16,22] k=[-22,22] l=[0,14] hit_rate=6132538/6224001 (98.53%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-16,22] k=[-22,22] l=[0,14] hit_rate=6132538/6224001 (98.53%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-16,22] k=[-22,22] l=[0,14] hit_rate=6132538/6224001 (98.53%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-16,22] k=[-22,22] l=[0,14] hit_rate=6132538/6224001 (98.53%)
+auto-selected 1-fold oversampling
+WARNING: out of range for three point interpolation
+WARNING: further warnings will not be printed!
+[HKL stats] h=[-21,29] k=[-28,28] l=[0,11] hit_rate=0/6224001 (0.00%)
+auto-selected 1-fold oversampling
+WARNING: out of range for three point interpolation
+WARNING: further warnings will not be printed!
+[HKL stats] h=[-18,24] k=[-24,24] l=[0,13] hit_rate=0/6224001 (0.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-23,23] l=[0,13] hit_rate=6080236/6224001 (97.69%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,2] k=[-24,24] l=[0,13] hit_rate=6185654/6224001 (99.38%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-0,1] k=[-7,7] l=[0,10] hit_rate=6156054/6224001 (98.91%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-0,1] k=[-7,7] l=[0,10] hit_rate=6156054/6224001 (98.91%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,2] k=[-22,21] l=[0,13] hit_rate=6203396/6224001 (99.67%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,1] k=[-19,18] l=[0,12] hit_rate=6198738/6224001 (99.59%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,1] k=[-19,19] l=[0,12] hit_rate=6199338/6224001 (99.60%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,1] k=[-19,19] l=[0,12] hit_rate=6199514/6224001 (99.61%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,1] k=[-19,19] l=[0,12] hit_rate=6199491/6224001 (99.61%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,1] k=[-19,19] l=[0,12] hit_rate=6199491/6224001 (99.61%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,1] k=[-19,19] l=[0,12] hit_rate=6199511/6224001 (99.61%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,1] k=[-19,19] l=[0,12] hit_rate=6199513/6224001 (99.61%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,1] k=[-19,19] l=[0,12] hit_rate=6199514/6224001 (99.61%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,1] k=[-19,19] l=[0,12] hit_rate=6199514/6224001 (99.61%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,1] k=[-19,19] l=[0,12] hit_rate=6199514/6224001 (99.61%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,1] k=[-19,19] l=[0,12] hit_rate=6199514/6224001 (99.61%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,1] k=[-19,19] l=[0,12] hit_rate=6199514/6224001 (99.61%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,1] k=[-19,19] l=[0,12] hit_rate=6199514/6224001 (99.61%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,1] k=[-19,19] l=[0,12] hit_rate=6199514/6224001 (99.61%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,1] k=[-19,19] l=[0,12] hit_rate=6199514/6224001 (99.61%)
+auto-selected 1-fold oversampling
+WARNING: out of range for three point interpolation
+WARNING: further warnings will not be printed!
+[HKL stats] h=[-9,13] k=[-45,46] l=[0,11] hit_rate=0/6224001 (0.00%)
+auto-selected 1-fold oversampling
+WARNING: out of range for three point interpolation
+WARNING: further warnings will not be printed!
+[HKL stats] h=[-9,13] k=[-45,46] l=[0,11] hit_rate=0/6224001 (0.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,1] k=[-21,20] l=[0,12] hit_rate=6201421/6224001 (99.64%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,1] k=[-21,20] l=[0,12] hit_rate=6201395/6224001 (99.64%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,1] k=[-21,20] l=[0,12] hit_rate=6201418/6224001 (99.64%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,1] k=[-21,21] l=[0,12] hit_rate=6201596/6224001 (99.64%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,1] k=[-21,20] l=[0,12] hit_rate=6201424/6224001 (99.64%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,1] k=[-21,20] l=[0,12] hit_rate=6201424/6224001 (99.64%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,1] k=[-21,20] l=[0,12] hit_rate=6201418/6224001 (99.64%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,1] k=[-21,20] l=[0,12] hit_rate=6201418/6224001 (99.64%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,1] k=[-21,20] l=[0,12] hit_rate=6201418/6224001 (99.64%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,1] k=[-21,20] l=[0,12] hit_rate=6201418/6224001 (99.64%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,1] k=[-21,20] l=[0,12] hit_rate=6201418/6224001 (99.64%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,1] k=[-21,20] l=[0,12] hit_rate=6201418/6224001 (99.64%)
+DEBUG stage_b_grad tensor([3843217.2500,       0.0000,       0.0000,       0.0000,       0.0000])
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,1] k=[-21,20] l=[0,12] hit_rate=6201418/6224001 (99.64%)
+DEBUG stage_b_grad tensor([-992241.1250,       0.0000,       0.0000,       0.0000,       0.0000])
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,1] k=[-21,20] l=[0,12] hit_rate=6201418/6224001 (99.64%)
+DEBUG stage_b_grad tensor([3820132.,       0.,       0.,       0.,       0.])
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,1] k=[-21,20] l=[0,12] hit_rate=6201418/6224001 (99.64%)
+DEBUG stage_b_grad tensor([3840904.7500,       0.0000,       0.0000,       0.0000,       0.0000])
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,1] k=[-21,20] l=[0,12] hit_rate=6201418/6224001 (99.64%)
+DEBUG stage_b_grad tensor([3843206.,       0.,       0.,       0.,       0.])
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,1] k=[-21,20] l=[0,12] hit_rate=6201418/6224001 (99.64%)
+DEBUG stage_b_exception local variable 'chi_squared_best_b' referenced before assignment
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,1] k=[-21,20] l=[0,12] hit_rate=6201418/6224001 (99.64%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,1] k=[-21,20] l=[0,12] hit_rate=6201418/6224001 (99.64%)
+=============================== warnings summary ===============================
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip
+FAILED tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers - ...
+============= 2 failed, 1 passed, 4 warnings in 163.78s (0:02:43) ==============

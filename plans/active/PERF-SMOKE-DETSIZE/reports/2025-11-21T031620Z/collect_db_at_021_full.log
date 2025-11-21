@@ -1,0 +1,16 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collected 3 items
+
+<Dir diffbragg_example>
+  <Package tests>
+    <Package dbex>
+      <Module test_mask_semantics.py>
+        <Class TestMaskSemantics>
+          <Function test_DB_AT_021_trusted_mask_shape_and_polarity>
+          <Function test_DB_AT_021_loss_mask_consistency>
+          <Function test_DB_AT_021_detector_beam_crystal_fixtures>
+
+========================== 3 tests collected in 0.06s ==========================

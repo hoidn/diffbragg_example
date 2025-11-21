@@ -26,8 +26,7 @@ def pytest_addoption(parser):
     )
 
 
-@pytest.fixture(scope="session")
-def smoke_detector_size(pytestconfig) -> str:
+def _resolve_smoke_detector_size(pytestconfig) -> str:
     cli_value = pytestconfig.getoption("--smoke-detector-size")
     env_value = os.environ.get("DBEX_SMOKE_DETECTOR_SIZE")
     size = (cli_value or env_value or "small").lower()
@@ -36,6 +35,11 @@ def smoke_detector_size(pytestconfig) -> str:
             f"Invalid smoke-detector-size '{size}'. Expected 'small' or 'full'."
         )
     return size
+
+
+@pytest.fixture(scope="session")
+def smoke_detector_size(pytestconfig) -> str:
+    return _resolve_smoke_detector_size(pytestconfig)
 
 
 @pytest.fixture(scope="session")
@@ -69,3 +73,16 @@ def smoke_dataset_paths(smoke_detector_size) -> SmokeDatasetPaths:
             "or regenerate refGeom assets."
         )
     return dataset
+
+
+def pytest_runtest_setup(item):
+    detector_size = _resolve_smoke_detector_size(item.config)
+    identifiers = " ".join(
+        list(item.keywords.keys()) + [item.name, item.nodeid]
+    ).lower()
+    if "db_at" in identifiers and detector_size != "full":
+        raise pytest.UsageError(
+            "DB-AT/workflow selectors SHALL assert --smoke-detector-size=full per "
+            "docs/spec-db-workflow.md (Stage Smoke Dataset Policy). "
+            "Re-run with --smoke-detector-size=full or DBEX_SMOKE_DETECTOR_SIZE=full."
+        )

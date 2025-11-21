@@ -1,0 +1,71 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 3 items
+
+tests/dbex/test_mask_semantics.py::TestMaskSemantics::test_DB_AT_021_trusted_mask_shape_and_polarity ERROR [ 33%]
+tests/dbex/test_mask_semantics.py::TestMaskSemantics::test_DB_AT_021_loss_mask_consistency ERROR [ 66%]
+tests/dbex/test_mask_semantics.py::TestMaskSemantics::test_DB_AT_021_detector_beam_crystal_fixtures ERROR [100%]
+
+==================================== ERRORS ====================================
+_ ERROR at setup of TestMaskSemantics.test_DB_AT_021_trusted_mask_shape_and_polarity _
+
+item = <Function test_DB_AT_021_trusted_mask_shape_and_polarity>
+
+    def pytest_runtest_setup(item):
+        detector_size = _resolve_smoke_detector_size(item.config)
+        identifiers = " ".join(
+            list(item.keywords.keys()) + [item.name, item.nodeid]
+        ).lower()
+        if "db_at" in identifiers and detector_size != "full":
+>           raise pytest.UsageError(
+                "DB-AT/workflow selectors SHALL assert --smoke-detector-size=full per "
+                "docs/spec-db-workflow.md (Stage Smoke Dataset Policy). "
+                "Re-run with --smoke-detector-size=full or DBEX_SMOKE_DETECTOR_SIZE=full."
+            )
+E           _pytest.config.exceptions.UsageError: DB-AT/workflow selectors SHALL assert --smoke-detector-size=full per docs/spec-db-workflow.md (Stage Smoke Dataset Policy). Re-run with --smoke-detector-size=full or DBEX_SMOKE_DETECTOR_SIZE=full.
+
+tests/conftest.py:84: UsageError
+___ ERROR at setup of TestMaskSemantics.test_DB_AT_021_loss_mask_consistency ___
+
+item = <Function test_DB_AT_021_loss_mask_consistency>
+
+    def pytest_runtest_setup(item):
+        detector_size = _resolve_smoke_detector_size(item.config)
+        identifiers = " ".join(
+            list(item.keywords.keys()) + [item.name, item.nodeid]
+        ).lower()
+        if "db_at" in identifiers and detector_size != "full":
+>           raise pytest.UsageError(
+                "DB-AT/workflow selectors SHALL assert --smoke-detector-size=full per "
+                "docs/spec-db-workflow.md (Stage Smoke Dataset Policy). "
+                "Re-run with --smoke-detector-size=full or DBEX_SMOKE_DETECTOR_SIZE=full."
+            )
+E           _pytest.config.exceptions.UsageError: DB-AT/workflow selectors SHALL assert --smoke-detector-size=full per docs/spec-db-workflow.md (Stage Smoke Dataset Policy). Re-run with --smoke-detector-size=full or DBEX_SMOKE_DETECTOR_SIZE=full.
+
+tests/conftest.py:84: UsageError
+_ ERROR at setup of TestMaskSemantics.test_DB_AT_021_detector_beam_crystal_fixtures _
+
+item = <Function test_DB_AT_021_detector_beam_crystal_fixtures>
+
+    def pytest_runtest_setup(item):
+        detector_size = _resolve_smoke_detector_size(item.config)
+        identifiers = " ".join(
+            list(item.keywords.keys()) + [item.name, item.nodeid]
+        ).lower()
+        if "db_at" in identifiers and detector_size != "full":
+>           raise pytest.UsageError(
+                "DB-AT/workflow selectors SHALL assert --smoke-detector-size=full per "
+                "docs/spec-db-workflow.md (Stage Smoke Dataset Policy). "
+                "Re-run with --smoke-detector-size=full or DBEX_SMOKE_DETECTOR_SIZE=full."
+            )
+E           _pytest.config.exceptions.UsageError: DB-AT/workflow selectors SHALL assert --smoke-detector-size=full per docs/spec-db-workflow.md (Stage Smoke Dataset Policy). Re-run with --smoke-detector-size=full or DBEX_SMOKE_DETECTOR_SIZE=full.
+
+tests/conftest.py:84: UsageError
+=========================== short test summary info ============================
+ERROR tests/dbex/test_mask_semantics.py::TestMaskSemantics::test_DB_AT_021_trusted_mask_shape_and_polarity
+ERROR tests/dbex/test_mask_semantics.py::TestMaskSemantics::test_DB_AT_021_loss_mask_consistency
+ERROR tests/dbex/test_mask_semantics.py::TestMaskSemantics::test_DB_AT_021_detector_beam_crystal_fixtures
+============================== 3 errors in 0.09s ===============================

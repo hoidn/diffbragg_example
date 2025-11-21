@@ -1584,11 +1584,22 @@ def run_nanobrag_refinement(
         # PHYSICS-LOSS-002: Variance floor clamp statistics for Stage B
         variance_floor_clamped_pixels_b = [0]  # Total pixels where floor engaged
         variance_floor_masked_pixels_b = [0]  # Total masked pixels evaluated
+
+        # PERF-WARM-011: CPU fallback for canonical Stage B runs to avoid GPU OOM
+        # When config.stage_b_full_eval_on_cpu is True, device is CUDA, and ROI mode is disabled,
+        # route Stage B panel-mode closures/validations to CPU using the cold path
+        use_stage_b_cpu_fallback = (
+            config.stage_b_full_eval_on_cpu
+            and str(device).startswith("cuda")
+            and not use_stage_a_roi_mode  # ROI mode is disabled (panel mode)
+        )
+
         stage_b_use_warm_cache = (
             stage_a_ctx is not None
             and config.enable_stage_a_warm_cache
             and stage_a_ctx.device == device
             and stage_a_ctx.dtype == dtype
+            and not use_stage_b_cpu_fallback  # Disable warm cache when CPU fallback is active
         )
         stage_b_cache_mode = "warm" if stage_b_use_warm_cache else "cold"
 
@@ -1635,7 +1646,8 @@ def run_nanobrag_refinement(
             shell_modifiers = torch.nn.functional.softplus(shell_modifier_raw) * 2.0
             shell_modifiers = torch.clamp(shell_modifiers, max=config.stage_b_max_modifier)
 
-            eval_device = device
+            # PERF-WARM-011: Route to CPU when fallback is active (panel mode + CUDA + config flag)
+            eval_device = torch.device("cpu") if use_stage_b_cpu_fallback else device
             chi_squared_accum = torch.tensor(0.0, device=eval_device, dtype=dtype)
             mse_numerator_accum = torch.tensor(0.0, device=eval_device, dtype=dtype)
             n_pixels_accum = 0

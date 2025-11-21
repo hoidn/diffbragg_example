@@ -964,189 +964,201 @@ def test_stage_b_shell_modifiers(
     assert telemetry_a.sigma_readout_provenance == sigma_provenance
     assert telemetry_b.sigma_readout_provenance == sigma_provenance
 
-    # Acceptance 1: Stage B telemetry structure
-    assert telemetry_b.optimizer == "LBFGS"
-    assert telemetry_b.stage == "B"
-    assert len(telemetry_b.loss_trace_sample) > 0, "Stage B loss trace empty"
-    assert len(telemetry_b.loss_trace_full) > 0, "Stage B full-loss validations missing"
-    assert telemetry_b.status in ["ok", "early_stop", "error"], f"Unknown Stage B status: {telemetry_b.status}"
-    assert telemetry_a.chi_squared_trace_full is not None, "Stage A chi_squared_trace_full missing"
-    assert telemetry_b.chi_squared_trace_full is not None, "Stage B chi_squared_trace_full missing"
-    assert len(telemetry_b.chi_squared_trace_full) >= 2, "Stage B chi_squared_trace_full missing Stage A/Stage B entries"
-    stage_a_final_chi2 = telemetry_a.chi_squared_trace_full[-1][1]
-    stage_b_initial_chi2 = telemetry_b.chi_squared_trace_full[0][1]
-    assert stage_b_initial_chi2 == pytest.approx(stage_a_final_chi2, rel=1e-3), (
-        f"Stage B initial chi-squared {stage_b_initial_chi2:.3e} != Stage A final {stage_a_final_chi2:.3e}"
-    )
-    canonical_roi_count = len(refinement_inputs.panel_slices)
-    assert telemetry_b.canonical_stage_label == "A"
-    assert telemetry_b.canonical_roi_count == canonical_roi_count
-    assert telemetry_b.canonical_chi_squared is not None
-    assert telemetry_b.canonical_chi_squared_iteration == telemetry_a.chi_squared_trace_full[-1][0]
-    assert telemetry_b.canonical_detector_distances_mm is not None
-    assert len(telemetry_b.canonical_detector_distances_mm) == len(DL.detector)
-    if strict_gates:
-        assert telemetry_b.canonical_chi_squared == pytest.approx(stage_a_final_chi2, rel=1e-6)
-    else:
-        assert telemetry_b.canonical_chi_squared == pytest.approx(stage_a_final_chi2, rel=1e-4)
+    # PERF-WARM-SIM-001: Wrap acceptance gates in try/finally so telemetry is always emitted,
+    # even when strict REFINE-008 gates fail for canonical detector runs.
+    try:
+        # Acceptance 1: Stage B telemetry structure
+        assert telemetry_b.optimizer == "LBFGS"
+        assert telemetry_b.stage == "B"
+        assert len(telemetry_b.loss_trace_sample) > 0, "Stage B loss trace empty"
+        assert len(telemetry_b.loss_trace_full) > 0, "Stage B full-loss validations missing"
+        assert telemetry_b.status in ["ok", "early_stop", "error"], f"Unknown Stage B status: {telemetry_b.status}"
+        assert telemetry_a.chi_squared_trace_full is not None, "Stage A chi_squared_trace_full missing"
+        assert telemetry_b.chi_squared_trace_full is not None, "Stage B chi_squared_trace_full missing"
+        assert len(telemetry_b.chi_squared_trace_full) >= 2, "Stage B chi_squared_trace_full missing Stage A/Stage B entries"
+        stage_a_final_chi2 = telemetry_a.chi_squared_trace_full[-1][1]
+        stage_b_initial_chi2 = telemetry_b.chi_squared_trace_full[0][1]
+        assert stage_b_initial_chi2 == pytest.approx(stage_a_final_chi2, rel=1e-3), (
+            f"Stage B initial chi-squared {stage_b_initial_chi2:.3e} != Stage A final {stage_a_final_chi2:.3e}"
+        )
+        canonical_roi_count = len(refinement_inputs.panel_slices)
+        assert telemetry_b.canonical_stage_label == "A"
+        assert telemetry_b.canonical_roi_count == canonical_roi_count
+        assert telemetry_b.canonical_chi_squared is not None
+        assert telemetry_b.canonical_chi_squared_iteration == telemetry_a.chi_squared_trace_full[-1][0]
+        assert telemetry_b.canonical_detector_distances_mm is not None
+        assert len(telemetry_b.canonical_detector_distances_mm) == len(DL.detector)
+        if strict_gates:
+            assert telemetry_b.canonical_chi_squared == pytest.approx(stage_a_final_chi2, rel=1e-6)
+        else:
+            assert telemetry_b.canonical_chi_squared == pytest.approx(stage_a_final_chi2, rel=1e-4)
 
-    # PERF-WARM-SIM-001: Stage B perf counters must prove warm cache stays active
-    perf_b = telemetry_b.perf_counters
-    assert perf_b is not None, "Stage B perf_counters missing"
-    cache_mode_b = perf_b.get("cache_mode")
-    assert cache_mode_b == "warm", f"Stage B cache_mode should be 'warm', got {cache_mode_b}"
-    roi_mode_b = perf_b.get("roi_mode")
-    # ROI mode follows Stage A's ROI knob: "roi" when config enables it and ROI entries exist, "panel" otherwise
-    expected_roi_mode = "roi" if config.enable_stage_a_roi_mode and len(refinement_inputs.panel_slices) > 0 else "panel"
-    assert roi_mode_b == expected_roi_mode, f"Stage B roi_mode should be '{expected_roi_mode}', got {roi_mode_b}"
-    assert perf_b.get("roi_count_total") == canonical_roi_count, (
-        f"Stage B roi_count_total {perf_b.get('roi_count_total')} != canonical ROI count {canonical_roi_count}"
-    )
-    roi_sampled_b = perf_b.get("roi_count_sampled")
-    assert isinstance(roi_sampled_b, int), f"Stage B roi_count_sampled not int: {type(roi_sampled_b)}"
-    assert 0 < roi_sampled_b <= canonical_roi_count, (
-        f"Stage B sampled ROI count {roi_sampled_b} out of range (total={canonical_roi_count})"
-    )
-    closure_evals_b = perf_b.get("closure_evals")
-    assert isinstance(closure_evals_b, int) and closure_evals_b > 0, (
-        f"Stage B closure_evals invalid: {closure_evals_b}"
-    )
-    validation_runs_b = perf_b.get("validation_runs")
-    assert isinstance(validation_runs_b, int) and validation_runs_b > 0, (
-        f"Stage B validation_runs invalid: {validation_runs_b}"
-    )
-    forward_time_b = perf_b.get("forward_time_ms")
-    assert isinstance(forward_time_b, dict), f"Stage B forward_time_ms should be dict, got {type(forward_time_b)}"
-    assert forward_time_b.get("total", 0.0) > 0.0, (
-        f"Stage B forward_time_ms.total must be >0, got {forward_time_b.get('total')}"
-    )
-
-    # Variance floor telemetry propagated through Stage B
-    assert telemetry_b.variance_floor_value == pytest.approx(config.sigma_floor_value**2)
-    assert telemetry_b.variance_floor_clamp_fraction is not None
-    assert 0.0 <= telemetry_b.variance_floor_clamp_fraction <= 1.0
-    masked_pixel_count = int(refinement_inputs.loss_mask.sum())
-    assert masked_pixel_count > 0, "Variance-floor telemetry requires non-zero masked pixels"
-
-    # Acceptance 2: Shell modifier param_deltas present with d-spacing labels
-    assert len(telemetry_b.param_deltas) == config.stage_b_n_shells, (
-        f"Expected {config.stage_b_n_shells} shell modifiers, got {len(telemetry_b.param_deltas)}"
-    )
-    for param_name, param_value in telemetry_b.param_deltas.items():
-        assert "shell_" in param_name, f"Unexpected param name format: {param_name}"
-        assert "modifier" in param_name, f"Missing 'modifier' in param name: {param_name}"
-        assert "d=" in param_name, f"Missing d-spacing range in param name: {param_name}"
-        # Shell modifiers should be positive and within clamp bounds
-        assert 0 < param_value <= config.stage_b_max_modifier * 1.01, (  # +1% tolerance for floating point
-            f"Shell modifier {param_name}={param_value:.3f} outside (0, {config.stage_b_max_modifier}] clamp"
+        # PERF-WARM-SIM-001: Stage B perf counters must prove warm cache stays active
+        perf_b = telemetry_b.perf_counters
+        assert perf_b is not None, "Stage B perf_counters missing"
+        cache_mode_b = perf_b.get("cache_mode")
+        assert cache_mode_b == "warm", f"Stage B cache_mode should be 'warm', got {cache_mode_b}"
+        roi_mode_b = perf_b.get("roi_mode")
+        # ROI mode follows Stage A's ROI knob: "roi" when config enables it and ROI entries exist, "panel" otherwise
+        expected_roi_mode = "roi" if config.enable_stage_a_roi_mode and len(refinement_inputs.panel_slices) > 0 else "panel"
+        assert roi_mode_b == expected_roi_mode, f"Stage B roi_mode should be '{expected_roi_mode}', got {roi_mode_b}"
+        assert perf_b.get("roi_count_total") == canonical_roi_count, (
+            f"Stage B roi_count_total {perf_b.get('roi_count_total')} != canonical ROI count {canonical_roi_count}"
+        )
+        roi_sampled_b = perf_b.get("roi_count_sampled")
+        assert isinstance(roi_sampled_b, int), f"Stage B roi_count_sampled not int: {type(roi_sampled_b)}"
+        assert 0 < roi_sampled_b <= canonical_roi_count, (
+            f"Stage B sampled ROI count {roi_sampled_b} out of range (total={canonical_roi_count})"
+        )
+        closure_evals_b = perf_b.get("closure_evals")
+        assert isinstance(closure_evals_b, int) and closure_evals_b > 0, (
+            f"Stage B closure_evals invalid: {closure_evals_b}"
+        )
+        validation_runs_b = perf_b.get("validation_runs")
+        assert isinstance(validation_runs_b, int) and validation_runs_b > 0, (
+            f"Stage B validation_runs invalid: {validation_runs_b}"
+        )
+        forward_time_b = perf_b.get("forward_time_ms")
+        assert isinstance(forward_time_b, dict), f"Stage B forward_time_ms should be dict, got {type(forward_time_b)}"
+        assert forward_time_b.get("total", 0.0) > 0.0, (
+            f"Stage B forward_time_ms.total must be >0, got {forward_time_b.get('total')}"
         )
 
-    # Acceptance 3: Canonical detector should not regress (tolerance ±1e-6 relative loss)
-    # REFINE-008: shell modifiers hover near identity; telemetry proves Stage B ran without diverging.
-    assert len(telemetry_a.loss_trace_full) >= 2, "Insufficient Stage A full-loss validations"
-    assert len(telemetry_b.loss_trace_full) >= 2, "Insufficient Stage B full-loss validations"
+        # Variance floor telemetry propagated through Stage B
+        assert telemetry_b.variance_floor_value == pytest.approx(config.sigma_floor_value**2)
+        assert telemetry_b.variance_floor_clamp_fraction is not None
+        assert 0.0 <= telemetry_b.variance_floor_clamp_fraction <= 1.0
+        masked_pixel_count = int(refinement_inputs.loss_mask.sum())
+        assert masked_pixel_count > 0, "Variance-floor telemetry requires non-zero masked pixels"
 
-    stage_a_final_loss = telemetry_a.loss_trace_full[-1][1]
-    stage_b_final_loss = telemetry_b.loss_trace_full[-1][1]
-    stage_b_final_chi2 = telemetry_b.chi_squared_trace_full[-1][1]
-    assert stage_b_final_chi2 == pytest.approx(stage_b_final_loss, rel=1e-6), (
-        "Stage B chi-squared trace final entry should match loss_trace_full final value"
-    )
-    improvement_b = (stage_a_final_loss - stage_b_final_loss) / stage_a_final_loss
-
-    if strict_gates:
-        assert improvement_b >= -1e-6, (
-            f"Stage B chi-squared worsened by more than 1e-6 relative ({improvement_b:.8%}). "
-            f"Stage A final={stage_a_final_loss:.2e}, Stage B final={stage_b_final_loss:.2e}, "
-            f"telemetry shell modifiers={telemetry_b.param_deltas}"
+        # Acceptance 2: Shell modifier param_deltas present with d-spacing labels
+        assert len(telemetry_b.param_deltas) == config.stage_b_n_shells, (
+            f"Expected {config.stage_b_n_shells} shell modifiers, got {len(telemetry_b.param_deltas)}"
         )
-        for param_name, modifier in telemetry_b.param_deltas.items():
-            delta_from_identity = abs(modifier - 1.0)
-            assert delta_from_identity <= 0.01, (
-                f"Shell modifier {param_name} drifted by {delta_from_identity:.4f} (>±1%). "
-                "REFINE-008 keeps canonical refGeom modifiers near identity; "
-                "verify HKL interpolation + structure factors if this trips."
+        for param_name, param_value in telemetry_b.param_deltas.items():
+            assert "shell_" in param_name, f"Unexpected param name format: {param_name}"
+            assert "modifier" in param_name, f"Missing 'modifier' in param name: {param_name}"
+            assert "d=" in param_name, f"Missing d-spacing range in param name: {param_name}"
+            # Shell modifiers should be positive and within clamp bounds
+            assert 0 < param_value <= config.stage_b_max_modifier * 1.01, (  # +1% tolerance for floating point
+                f"Shell modifier {param_name}={param_value:.3f} outside (0, {config.stage_b_max_modifier}] clamp"
             )
 
-    # Acceptance 4: PHYSICS-LOSS-001 telemetry validation (chi-squared + masked-MSE)
-    # Stage B must emit both chi_squared (optimized metric) and masked_mse (legacy comparison)
-    assert telemetry_b.chi_squared_trace_sample is not None, "Stage B chi_squared_trace_sample missing"
-    assert len(telemetry_b.chi_squared_trace_sample) > 0, "Stage B chi_squared_trace_sample empty"
-    assert telemetry_b.chi_squared_trace_full is not None, "Stage B chi_squared_trace_full missing"
-    assert len(telemetry_b.chi_squared_trace_full) > 0, "Stage B chi_squared_trace_full empty"
-    assert telemetry_b.chi_squared_best is not None, "Stage B chi_squared_best missing"
-    assert telemetry_b.chi_squared_best[0] > 0, f"Stage B chi_squared_best invalid: {telemetry_b.chi_squared_best}"
+        # Acceptance 3: Canonical detector should not regress (tolerance ±1e-6 relative loss)
+        # REFINE-008: shell modifiers hover near identity; telemetry proves Stage B ran without diverging.
+        assert len(telemetry_a.loss_trace_full) >= 2, "Insufficient Stage A full-loss validations"
+        assert len(telemetry_b.loss_trace_full) >= 2, "Insufficient Stage B full-loss validations"
 
-    assert telemetry_b.masked_mse_trace_sample is not None, "Stage B masked_mse_trace_sample missing"
-    assert len(telemetry_b.masked_mse_trace_sample) > 0, "Stage B masked_mse_trace_sample empty"
-    assert telemetry_b.masked_mse_trace_full is not None, "Stage B masked_mse_trace_full missing"
-    assert len(telemetry_b.masked_mse_trace_full) > 0, "Stage B masked_mse_trace_full empty"
-    assert telemetry_b.masked_mse_best is not None, "Stage B masked_mse_best missing"
-    assert telemetry_b.masked_mse_best[0] > 0, f"Stage B masked_mse_best invalid: {telemetry_b.masked_mse_best}"
+        stage_a_final_loss = telemetry_a.loss_trace_full[-1][1]
+        stage_b_final_loss = telemetry_b.loss_trace_full[-1][1]
+        stage_b_final_chi2 = telemetry_b.chi_squared_trace_full[-1][1]
+        assert stage_b_final_chi2 == pytest.approx(stage_b_final_loss, rel=1e-6), (
+            "Stage B chi-squared trace final entry should match loss_trace_full final value"
+        )
+        improvement_b = (stage_a_final_loss - stage_b_final_loss) / stage_a_final_loss
 
-    # PHYSICS-LOSS-001 + REFINE-008: Chi-squared trace should be monotonically non-increasing
-    # (Allows small numerical noise with 2% tolerance)
-    if len(telemetry_b.chi_squared_trace_full) >= 3:
-        last_three_chi2 = [chi2 for _, chi2 in telemetry_b.chi_squared_trace_full[-3:]]
-        for i in range(1, len(last_three_chi2)):
-            assert last_three_chi2[i] <= last_three_chi2[i-1] * 1.02, (
-                f"Stage B chi_squared increased by >2% at validation {i}: "
-                f"{last_three_chi2[i-1]:.2e} → {last_three_chi2[i]:.2e}"
+        if strict_gates:
+            assert improvement_b >= -1e-6, (
+                f"Stage B chi-squared worsened by more than 1e-6 relative ({improvement_b:.8%}). "
+                f"Stage A final={stage_a_final_loss:.2e}, Stage B final={stage_b_final_loss:.2e}, "
+                f"telemetry shell modifiers={telemetry_b.param_deltas}"
+            )
+            for param_name, modifier in telemetry_b.param_deltas.items():
+                delta_from_identity = abs(modifier - 1.0)
+                assert delta_from_identity <= 0.01, (
+                    f"Shell modifier {param_name} drifted by {delta_from_identity:.4f} (>±1%). "
+                    "REFINE-008 keeps canonical refGeom modifiers near identity; "
+                    "verify HKL interpolation + structure factors if this trips."
+                )
+
+        # Acceptance 4: PHYSICS-LOSS-001 telemetry validation (chi-squared + masked-MSE)
+        # Stage B must emit both chi_squared (optimized metric) and masked_mse (legacy comparison)
+        assert telemetry_b.chi_squared_trace_sample is not None, "Stage B chi_squared_trace_sample missing"
+        assert len(telemetry_b.chi_squared_trace_sample) > 0, "Stage B chi_squared_trace_sample empty"
+        assert telemetry_b.chi_squared_trace_full is not None, "Stage B chi_squared_trace_full missing"
+        assert len(telemetry_b.chi_squared_trace_full) > 0, "Stage B chi_squared_trace_full empty"
+        assert telemetry_b.chi_squared_best is not None, "Stage B chi_squared_best missing"
+        assert telemetry_b.chi_squared_best[0] > 0, f"Stage B chi_squared_best invalid: {telemetry_b.chi_squared_best}"
+
+        assert telemetry_b.masked_mse_trace_sample is not None, "Stage B masked_mse_trace_sample missing"
+        assert len(telemetry_b.masked_mse_trace_sample) > 0, "Stage B masked_mse_trace_sample empty"
+        assert telemetry_b.masked_mse_trace_full is not None, "Stage B masked_mse_trace_full missing"
+        assert len(telemetry_b.masked_mse_trace_full) > 0, "Stage B masked_mse_trace_full empty"
+        assert telemetry_b.masked_mse_best is not None, "Stage B masked_mse_best missing"
+        assert telemetry_b.masked_mse_best[0] > 0, f"Stage B masked_mse_best invalid: {telemetry_b.masked_mse_best}"
+
+        # PHYSICS-LOSS-001 + REFINE-008: Chi-squared trace should be monotonically non-increasing
+        # (Allows small numerical noise with 2% tolerance)
+        if len(telemetry_b.chi_squared_trace_full) >= 3:
+            last_three_chi2 = [chi2 for _, chi2 in telemetry_b.chi_squared_trace_full[-3:]]
+            for i in range(1, len(last_three_chi2)):
+                assert last_three_chi2[i] <= last_three_chi2[i-1] * 1.02, (
+                    f"Stage B chi_squared increased by >2% at validation {i}: "
+                    f"{last_three_chi2[i-1]:.2e} → {last_three_chi2[i]:.2e}"
+                )
+
+        # Acceptance 5: Stage B full-loss trace is non-increasing over last 3 validations
+        if len(telemetry_b.loss_trace_full) >= 3:
+            last_three_losses = [loss for _, loss in telemetry_b.loss_trace_full[-3:]]
+            for i in range(1, len(last_three_losses)):
+                assert last_three_losses[i] <= last_three_losses[i-1] * 1.02, (
+                    f"Stage B full-loss increased by >2% at validation {i}: "
+                    f"{last_three_losses[i-1]:.2e} → {last_three_losses[i]:.2e}"
+                )
+
+        # Acceptance 6: Stage A telemetry preserved (sanity check)
+        assert len(telemetry_a.loss_trace_full) >= 2, "Stage A full-loss trace truncated"
+        stage_a_initial_loss = telemetry_a.loss_trace_full[0][1]
+        improvement_a = (stage_a_initial_loss - stage_a_final_loss) / stage_a_initial_loss
+        if strict_gates:
+            assert improvement_a >= 0.001, (
+                f"Stage A regressed: {improvement_a:.2%} < 0.1% threshold "
+                f"(initial={stage_a_initial_loss:.2e}, final={stage_a_final_loss:.2e})"
             )
 
-    # Acceptance 5: Stage B full-loss trace is non-increasing over last 3 validations
-    if len(telemetry_b.loss_trace_full) >= 3:
-        last_three_losses = [loss for _, loss in telemetry_b.loss_trace_full[-3:]]
-        for i in range(1, len(last_three_losses)):
-            assert last_three_losses[i] <= last_three_losses[i-1] * 1.02, (
-                f"Stage B full-loss increased by >2% at validation {i}: "
-                f"{last_three_losses[i-1]:.2e} → {last_three_losses[i]:.2e}"
-            )
+        # Output shape correctness
+        assert bragg_refined.shape == refinement_inputs.target.shape
+        assert bragg_refined.dtype == np.float32
 
-    # Acceptance 6: Stage A telemetry preserved (sanity check)
-    assert len(telemetry_a.loss_trace_full) >= 2, "Stage A full-loss trace truncated"
-    stage_a_initial_loss = telemetry_a.loss_trace_full[0][1]
-    improvement_a = (stage_a_initial_loss - stage_a_final_loss) / stage_a_initial_loss
-    if strict_gates:
-        assert improvement_a >= 0.001, (
-            f"Stage A regressed: {improvement_a:.2%} < 0.1% threshold "
-            f"(initial={stage_a_initial_loss:.2e}, final={stage_a_final_loss:.2e})"
+        # Diagnostic printout
+        total_improvement = (stage_a_initial_loss - stage_b_final_loss) / stage_a_initial_loss
+
+        print(f"\n[test_stage_b_shell_modifiers] SUCCESS")
+        print(f"  Stage A initial loss: {stage_a_initial_loss:.2e}")
+        print(f"  Stage A final loss: {stage_a_final_loss:.2e}")
+        print(f"  Stage A improvement: {improvement_a:.1%}")
+        print(f"  Stage A iterations: {len(telemetry_a.loss_trace_sample)}")
+        print(f"  Stage A status: {telemetry_a.status}")
+        print(f"  Stage B final loss: {stage_b_final_loss:.2e}")
+        print(f"  Stage B improvement (vs Stage A): {improvement_b:.1%}")
+        print(f"  Stage B iterations: {len(telemetry_b.loss_trace_sample)}")
+    finally:
+        # PERF-WARM-SIM-001: Always record telemetry, even if strict gates fail
+        # This ensures canonical runs produce telemetry_stage_b_full.json for chi-squared analysis
+        stage_a_final_loss = telemetry_a.loss_trace_full[-1][1]
+        stage_b_final_loss = telemetry_b.loss_trace_full[-1][1]
+        stage_a_initial_loss = telemetry_a.loss_trace_full[0][1]
+        improvement_b = (stage_a_final_loss - stage_b_final_loss) / stage_a_final_loss
+        total_improvement = (stage_a_initial_loss - stage_b_final_loss) / stage_a_initial_loss
+
+        _record_stage_telemetry(
+            "stage_b_shell_modifiers",
+            telemetry_dict["B"],
+            smoke_detector_size,
+            {
+                "loss_improvement": float(improvement_b),
+                "n_rois": len(refgeom_dataload.bbox),
+                "detector_shape": list(refinement_inputs.target.shape),
+                "closure_evals": telemetry_dict["B"].perf_counters.get("closure_evals"),
+                "validation_runs": telemetry_dict["B"].perf_counters.get("validation_runs"),
+                "forward_time_ms": telemetry_dict["B"].perf_counters.get("forward_time_ms"),
+                "cache_mode": telemetry_dict["B"].perf_counters.get("cache_mode"),
+                "roi_mode": telemetry_dict["B"].perf_counters.get("roi_mode"),
+                "roi_count_total": telemetry_dict["B"].perf_counters.get("roi_count_total"),
+                "roi_count_sampled": telemetry_dict["B"].perf_counters.get("roi_count_sampled"),
+            },
         )
 
-    # Output shape correctness
-    assert bragg_refined.shape == refinement_inputs.target.shape
-    assert bragg_refined.dtype == np.float32
-
-    # Diagnostic printout
-    total_improvement = (stage_a_initial_loss - stage_b_final_loss) / stage_a_initial_loss
-
-    _record_stage_telemetry(
-        "stage_b_shell_modifiers",
-        telemetry_dict["B"],
-        smoke_detector_size,
-        {
-            "loss_improvement": float(improvement_b),
-            "n_rois": len(refgeom_dataload.bbox),
-            "detector_shape": list(refinement_inputs.target.shape),
-            "closure_evals": telemetry_dict["B"].perf_counters.get("closure_evals"),
-            "validation_runs": telemetry_dict["B"].perf_counters.get("validation_runs"),
-            "forward_time_ms": telemetry_dict["B"].perf_counters.get("forward_time_ms"),
-            "cache_mode": telemetry_dict["B"].perf_counters.get("cache_mode"),
-            "roi_mode": telemetry_dict["B"].perf_counters.get("roi_mode"),
-            "roi_count_total": telemetry_dict["B"].perf_counters.get("roi_count_total"),
-            "roi_count_sampled": telemetry_dict["B"].perf_counters.get("roi_count_sampled"),
-        },
-    )
-
-    print(f"\n[test_stage_b_shell_modifiers] SUCCESS")
-    print(f"  Stage A initial loss: {stage_a_initial_loss:.2e}")
-    print(f"  Stage A final loss: {stage_a_final_loss:.2e}")
-    print(f"  Stage A improvement: {improvement_a:.1%}")
-    print(f"  Stage A iterations: {len(telemetry_a.loss_trace_sample)}")
-    print(f"  Stage A status: {telemetry_a.status}")
-    print(f"  Stage B final loss: {stage_b_final_loss:.2e}")
-    print(f"  Stage B improvement (vs Stage A): {improvement_b:.1%}")
-    print(f"  Stage B iterations: {len(telemetry_b.loss_trace_sample)}")
-    print(f"  Stage B status: {telemetry_b.status}")
-    print(f"  Total improvement (A+B): {total_improvement:.1%}")
-    print(f"  Shell modifiers: {telemetry_b.param_deltas}")
+        print(f"  Stage B status: {telemetry_b.status}")
+        print(f"  Total improvement (A+B): {total_improvement:.1%}")
+        print(f"  Shell modifiers: {telemetry_b.param_deltas}")

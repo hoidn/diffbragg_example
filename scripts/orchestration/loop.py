@@ -54,6 +54,9 @@ def main() -> int:
     ap.add_argument("--max-wait-sec", type=int, default=int(os.getenv("MAX_WAIT_SEC", 0)))
     ap.add_argument("--state-file", type=Path, default=Path(os.getenv("STATE_FILE", "sync/state.json")))
     ap.add_argument("--claude-cmd", type=str, default=os.getenv("CLAUDE_CMD", "/home/ollie/.claude/local/claude"))
+    ap.add_argument("--codex-cmd", type=str, default=os.getenv("CODEX_CMD", "codex"))
+    ap.add_argument("--agent", type=str, choices=["auto", "claude", "codex"], default=os.getenv("LOOP_AGENT", "auto"),
+                    help="Model CLI used for engineer loops (auto: prefer Claude, fallback Codex).")
     ap.add_argument("--prompt", type=str, choices=["main", "debug"], default=os.getenv("LOOP_PROMPT", "main"), help="Select which prompt to run (default: main)")
     ap.add_argument("--branch", type=str, default=os.getenv("ORCHESTRATION_BRANCH", ""))
     ap.add_argument("--logdir", type=Path, default=Path("logs"), help="Base directory for per-iteration logs (default: logs/)")
@@ -208,15 +211,13 @@ def main() -> int:
         if not prompt_path.exists():
             logp(f"ERROR: prompt file not found: {prompt_path}")
             return 2
-        # Resolve execution command: invoke Claude Code via login shell to ensure Node is available on PATH
-        def _resolve_cmd() -> list[str]:
+        # Resolve execution command per --agent (Claude vs Codex)
+        def _claude_cmd() -> list[str] | None:
             def _fmt(path: Path | str) -> list[str]:
-                # Use login shell so user PATH (nvm, etc.) is applied; pass prompt via stdin unchanged
                 quoted = str(path).replace('"', '\\"')
                 cmd_str = f'"{quoted}" -p --dangerously-skip-permissions --verbose --output-format stream-json'
                 return ["/bin/bash", "-lc", cmd_str]
 
-            # Prefer explicit/existing Claude binary
             cc = args.claude_cmd
             if cc:
                 p = Path(cc)
@@ -226,15 +227,55 @@ def main() -> int:
                 if which:
                     return _fmt(which)
 
-            # Repo-local Claude (common submodule layout)
             repo_local = Path(".claude") / "local" / "claude"
             if repo_local.is_file() and os.access(str(repo_local), os.X_OK):
                 return _fmt(repo_local)
 
-            # Fall back to user default path
-            return _fmt(Path("/home/ollie/.claude/local/claude"))
+            default_path = Path("/home/ollie/.claude/local/claude")
+            if default_path.is_file() and os.access(str(default_path), os.X_OK):
+                return _fmt(default_path)
+            return None
 
-        cmd = _resolve_cmd()
+        def _codex_cmd() -> list[str] | None:
+            codex_bin = shutil.which(args.codex_cmd) or args.codex_cmd
+            if not codex_bin:
+                return None
+            return [
+                codex_bin,
+                "exec",
+                "-m",
+                "gpt-5-codex",
+                "-c",
+                "model_reasoning_effort=high",
+                "--dangerously-bypass-approvals-and-sandbox",
+            ]
+
+        def _resolve_cmd() -> list[str]:
+            if args.agent == "claude":
+                cmd = _claude_cmd()
+                if not cmd:
+                    raise RuntimeError("Claude CLI not found; set --claude-cmd or choose --agent=codex.")
+                return cmd
+            if args.agent == "codex":
+                cmd = _codex_cmd()
+                if not cmd:
+                    raise RuntimeError("Codex CLI not found; set --codex-cmd or choose --agent=claude.")
+                return cmd
+
+            cmd = _claude_cmd()
+            if cmd:
+                return cmd
+            cmd = _codex_cmd()
+            if cmd:
+                return cmd
+            raise RuntimeError("Neither Claude nor Codex CLI could be resolved; configure --claude-cmd/--codex-cmd.")
+
+        try:
+            cmd = _resolve_cmd()
+        except RuntimeError as e:
+            logp(f"ERROR: {e}")
+            print(f"[sync] ERROR: {e}")
+            return 2
         rc = tee_run(cmd, prompt_path, iter_log)
 
         # Auto-commit reports evidence (before stamping) — constrained by extension and size caps

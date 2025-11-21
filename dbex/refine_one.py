@@ -282,7 +282,8 @@ def run_nanobrag_backend(args, DL, devid=0):
         pids=DL.pids,
         detector=DL.detector,
         adu_per_photon=args.adu_per_photon,
-        sigma_readout=sigma_readout_array
+        sigma_readout=sigma_readout_array,
+        sigma_readout_provenance=sigma_provenance,
     )
 
     sigma_reference_target_units = sigma_reference_value

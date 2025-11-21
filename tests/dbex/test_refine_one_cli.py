@@ -769,7 +769,11 @@ def test_nanobrag_backend_uses_refined_mtz(
                 pass
 
 
-def test_torch_diagnostics_metadata():
+@pytest.mark.parametrize(
+    ("sigma_source", "sigma_reference"),
+    [("cli_override", 3.0), ("external_lookup", 5.0)],
+)
+def test_torch_diagnostics_metadata(sigma_source, sigma_reference):
     """B1: Verify torch diagnostics HDF5 metadata."""
     import h5py
     import numpy as np
@@ -811,6 +815,11 @@ def test_torch_diagnostics_metadata():
             mock_dl.background_image = np.ones((1, 100, 100), dtype=np.float32) * -1
             mock_dl.pids = np.array([0])
             mock_dl.bbox = np.array([[10, 20, 10, 20]])
+            if sigma_source == "external_lookup":
+                mock_dl.sigma_readout_map = np.full(
+                    (1, 100, 100), sigma_reference, dtype=np.float32
+                )
+                mock_dl.sigma_readout_map_source = "external_lookup"
 
             mock_args = Mock()
             mock_args.outFile = outfile
@@ -852,8 +861,8 @@ def test_torch_diagnostics_metadata():
                 masked_mse_trace_sample=[500.0, 450.0, 400.0],
                 masked_mse_trace_full=[(0, 500.0), (5, 450.0), (10, 400.0)],
                 masked_mse_best=(400.0, 10),
-                sigma_readout_provenance="cli_override",
-                sigma_readout_reference_value=3.0,
+                sigma_readout_provenance=sigma_source,
+                sigma_readout_reference_value=sigma_reference,
                 variance_floor_value=4.0,
                 variance_floor_clamp_fraction=0.125,
                 canonical_stage_label="A",
@@ -874,8 +883,8 @@ def test_torch_diagnostics_metadata():
                 masked_mse,
                 hkl_telemetry,
                 refine_telemetry=refine_telemetry_dict,
-                sigma_readout_provenance="cli_override",
-                sigma_readout_reference_value=3.0,
+                sigma_readout_provenance=sigma_source,
+                sigma_readout_reference_value=sigma_reference,
             )
 
             # Verify diagnostics group exists and has correct metadata
@@ -901,8 +910,8 @@ def test_torch_diagnostics_metadata():
                 assert diag.attrs['loss_mask_coverage'] == pytest.approx(0.25)
                 assert diag.attrs['n_rois'] == 1
                 assert diag.attrs['backend'] == 'nanobrag'
-                assert diag.attrs['sigma_readout_provenance'] == "cli_override"
-                assert diag.attrs['sigma_readout_reference_value'] == pytest.approx(3.0)
+                assert diag.attrs['sigma_readout_provenance'] == sigma_source
+                assert diag.attrs['sigma_readout_reference_value'] == pytest.approx(sigma_reference)
 
                 # TORCH-CLI-004: Verify score dataset contains numeric values (not Mock objects)
                 assert 'score' in h
@@ -964,8 +973,8 @@ def test_torch_diagnostics_metadata():
                 assert stage_a_group.attrs['canonical_roi_count'] == 1
                 assert 'canonical_detector_distances_mm' in stage_a_group
                 assert np.allclose(stage_a_group['canonical_detector_distances_mm'][:], [100.0])
-                assert stage_a_group.attrs['sigma_readout_provenance'] == "cli_override"
-                assert stage_a_group.attrs['sigma_readout_reference_value'] == pytest.approx(3.0)
+                assert stage_a_group.attrs['sigma_readout_provenance'] == sigma_source
+                assert stage_a_group.attrs['sigma_readout_reference_value'] == pytest.approx(sigma_reference)
 
                 # PHYSICS-LOSS-001: Verify legacy top-level compatibility (Stage A only)
                 assert 'chi_squared_trace_sample' in diag, "Top-level chi_squared_trace_sample dataset missing"

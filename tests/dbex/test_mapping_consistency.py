@@ -31,7 +31,7 @@ from statistics import median
 import numpy as np
 import pytest
 
-from dbex.data_load import DataLoad
+from dbex.data_load import DataLoad, _load_external_lookup_sigma_map
 from dbex.nanobrag_bridge import (
     prepare_refinement_inputs,
     simulate_forward_once,
@@ -61,7 +61,7 @@ class TestDB_AT_024_Mapping:
         return artifact_path
 
     @pytest.fixture(scope="class")
-    def canonical_assets(self):
+    def canonical_assets(self, smoke_sigma_source):
         """Load canonical assets for DB-AT-024.
 
         Prefers DiffBragg-refined geometry (refined.expt/refined.refl) per SCALE-004.
@@ -78,9 +78,25 @@ class TestDB_AT_024_Mapping:
         refined_refl = fixtures_root / "refined.refl"
         legacy_expt = repo_root / "refGeom.expt"
         legacy_refl = repo_root / "refGeom.refl"
+        metadata_expt = repo_root / "sp.proc" / "idx-0000_sigma_metadata.expt"
+        metadata_tiles = metadata_expt.with_suffix(".sigma_tiles.pkl")
 
         # Prefer refined geometry, fallback to legacy (SCALE-004)
         has_refined_geometry = refined_expt.exists() and refined_refl.exists()
+        using_metadata_sigma = smoke_sigma_source == "metadata"
+        if using_metadata_sigma:
+            missing_metadata = [
+                str(path)
+                for path in (metadata_expt, metadata_tiles)
+                if not path.exists()
+            ]
+            if missing_metadata:
+                pytest.skip(
+                    "Metadata sigma source requested but required assets are missing: "
+                    f"{missing_metadata}. Run "
+                    "plans/active/PHYSICS-LOSS-001/bin/embed_sigma_external_lookup.py "
+                    "to regenerate sp.proc/idx-0000_sigma_metadata.{expt,sigma_tiles.pkl}."
+                )
         expt_path = refined_expt if has_refined_geometry else legacy_expt
         refl_path = refined_refl if has_refined_geometry else legacy_refl
 
@@ -118,6 +134,24 @@ class TestDB_AT_024_Mapping:
         )
         dl = DataLoad(dataload_args)
 
+        if using_metadata_sigma:
+            from dxtbx.model import ExperimentList
+
+            metadata_expts = ExperimentList.from_file(str(metadata_expt))
+            metadata_imageset = metadata_expts[0].imageset if len(metadata_expts) > 0 else None
+            sigma_map, sigma_meta = _load_external_lookup_sigma_map(
+                metadata_imageset,
+                dl.data.shape,
+            )
+            if sigma_map is None:
+                pytest.skip(
+                    "Metadata sigma source requested but metadata experiment lacks external_lookup tiles. "
+                    "Regenerate sp.proc/idx-0000_sigma_metadata.{expt,sigma_tiles.pkl}."
+                )
+            dl.sigma_readout_map = sigma_map
+            dl.sigma_readout_map_source = "external_lookup"
+            dl.sigma_readout_map_metadata = sigma_meta
+
         # Load calibration metadata
         calibration = load_calibration_metadata(assets["calibration"])
 
@@ -142,11 +176,21 @@ class TestDB_AT_024_Mapping:
             "calibration": calibration,
             "refined_hkl": refined_hkl,
             "using_refined_geometry": has_refined_geometry,
+            "sigma_readout_map_source": getattr(dl, "sigma_readout_map_source", None),
+            "sigma_readout_map_metadata": getattr(dl, "sigma_readout_map_metadata", None),
+            "sigma_readout_map": getattr(dl, "sigma_readout_map", None),
+            "using_metadata_sigma": using_metadata_sigma,
         }
 
     @pytest.mark.db_at_024
     @pytest.mark.mapping
-    def test_db_at_024_mapping_smoke(self, canonical_assets, artifact_dir):
+    @pytest.mark.allow_metadata_sigma
+    def test_db_at_024_mapping_smoke(
+        self,
+        canonical_assets,
+        artifact_dir,
+        smoke_sigma_source,
+    ):
         """
         DB-AT-024 smoke test: zero-iteration mapping consistency.
 
@@ -176,6 +220,20 @@ class TestDB_AT_024_Mapping:
         dl = canonical_assets["dataload"]
 
         # Prepare refinement inputs
+        if smoke_sigma_source == "metadata":
+            sigma_map = canonical_assets.get("sigma_readout_map")
+            sigma_map_source = canonical_assets.get("sigma_readout_map_source")
+            if sigma_map is None or sigma_map_source != "external_lookup":
+                pytest.skip(
+                    "Metadata sigma source requested but DataLoad lacks an external_lookup "
+                    "sigma_readout_map. Ensure sp.proc/idx-0000_sigma_metadata assets exist."
+                )
+            sigma_readout = np.asarray(sigma_map, dtype=np.float32)
+            sigma_provenance = "external_lookup"
+        else:
+            sigma_readout = np.full_like(dl.data, 3.0, dtype=np.float32)
+            sigma_provenance = "cli_override"
+
         inputs = prepare_refinement_inputs(
             data=dl.data,
             background_image=dl.background_image,
@@ -184,6 +242,8 @@ class TestDB_AT_024_Mapping:
             pids=dl.pids,
             detector=dl.detector,
             adu_per_photon=None,  # ADU mode per DB-AT-024 baseline
+            sigma_readout=sigma_readout,
+            sigma_readout_provenance=sigma_provenance,
         )
 
         # Load calibration metadata (MAP-SCALE-001)
@@ -228,6 +288,14 @@ class TestDB_AT_024_Mapping:
         clamp_fraction = diagnostics.get("variance_floor_clamp_fraction")
         assert clamp_fraction is not None, "variance_floor_clamp_fraction missing from diagnostics"
         assert 0.0 <= clamp_fraction <= 1.0, "variance_floor_clamp_fraction must be within [0, 1]"
+        assert diagnostics.get("sigma_readout_provenance") == sigma_provenance, (
+            f"Expected sigma_readout_provenance={sigma_provenance} but got "
+            f"{diagnostics.get('sigma_readout_provenance')}"
+        )
+
+        sigma_reference_value = diagnostics.get("sigma_readout_reference_value")
+        assert sigma_reference_value is not None, "sigma_readout_reference_value missing from diagnostics"
+        assert sigma_reference_value > 0, "sigma_readout_reference_value must be positive"
 
         # Compute per-ROI metrics
         roi_metrics = []
@@ -281,6 +349,10 @@ class TestDB_AT_024_Mapping:
                 "chi_squared": float(diagnostics["chi_squared"]),
                 "sigma_floor_value": float(diagnostics["sigma_floor_value"]),
                 "variance_floor_clamp_fraction": float(clamp_fraction),
+            },
+            "sigma_readout": {
+                "provenance": diagnostics.get("sigma_readout_provenance"),
+                "reference_value": float(sigma_reference_value),
             },
             "diagnostics": diagnostics,
         }

@@ -71,6 +71,7 @@ class RefinementInputs:
     sigma_readout: np.ndarray  # [panel, slow, fast] float, readout noise in target units
     target_representation: str = "adu"  # "adu" or "photons"
     global_scale_hint: Optional[float] = None  # For ADU mode initialization
+    sigma_readout_provenance: Optional[str] = None  # Source of sigma tensor (cli_override, external_lookup, ...)
 
 
 def prepare_refinement_inputs(
@@ -81,7 +82,8 @@ def prepare_refinement_inputs(
     pids: np.ndarray,
     detector,
     adu_per_photon: Optional[float] = None,
-    sigma_readout: Optional[np.ndarray] = None
+    sigma_readout: Optional[np.ndarray] = None,
+    sigma_readout_provenance: Optional[str] = None,
 ) -> RefinementInputs:
     """
     Prepare background-subtracted targets, loss masks, and panel slices for torch simulator.
@@ -265,7 +267,8 @@ def prepare_refinement_inputs(
         trusted_mask=mask_array,
         sigma_readout=sigma_array,
         target_representation=target_representation,
-        global_scale_hint=global_scale_hint
+        global_scale_hint=global_scale_hint,
+        sigma_readout_provenance=sigma_readout_provenance,
     )
 
 
@@ -1214,6 +1217,11 @@ def simulate_forward_once(
     clamp_pixels = int(np.logical_and(inputs.loss_mask, variance_raw < sigma_floor_sq).sum())
     clamp_fraction = float(clamp_pixels / masked_pixels) if masked_pixels > 0 else 0.0
 
+    sigma_values = inputs.sigma_readout[inputs.loss_mask]
+    if sigma_values.size == 0:
+        sigma_values = inputs.sigma_readout.reshape(-1)
+    sigma_reference_value = float(np.median(sigma_values)) if sigma_values.size > 0 else float("nan")
+
     diagnostics = {
         "masked_mse": masked_mse,
         "loss_mask_coverage": float(inputs.loss_mask.mean()),
@@ -1251,6 +1259,8 @@ def simulate_forward_once(
         "variance_floor_clamp_fraction": clamp_fraction,
         "variance_floor_masked_pixels": masked_pixels,
         "variance_floor_clamped_pixels": clamp_pixels,
+        "sigma_readout_provenance": inputs.sigma_readout_provenance,
+        "sigma_readout_reference_value": sigma_reference_value,
     }
 
     return bragg, diagnostics

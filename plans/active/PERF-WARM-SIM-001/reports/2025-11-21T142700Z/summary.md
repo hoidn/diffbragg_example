@@ -1,5 +1,5 @@
 ### Turn Summary
-Traced the canonical Stage B failure to ROI-mode full validations that never touch the full detector and documented the fix-plan updates plus new finding PERF-WARM-009.
-Captured evidence from plans/active/PERF-WARM-SIM-001/reports/2025-11-21T125551Z/{pytest_stage_b_full.log,stage_b_roi_summary.json} showing shell_0_modifier pegged at 2.0 and wrote a ready-for-implementation Do Now forcing panel-scope validations while keeping ROI closures.
-Next: add the panel-validation path in `dbex/nanobrag_refinement.py`, rerun the Stage B small/full smokes with telemetry, and refresh docs/findings once the ±1% gate passes.
-Artifacts: plans/active/PERF-WARM-SIM-001/reports/2025-11-21T142700Z/ (input.md)
+Implemented `force_panel_eval` flag in Stage B validations so initial/periodic/final loss checks iterate full panels (reusing warmed simulators) while closures continue ROI sampling for perf.
+The strict ±1% shell-modifier gate still fails because panel chi-squared genuinely improves with shell_0_modifier=2.0 (708M→540M, 23.7% gain), contradicting PERF-WARM-009's hypothesis that ROI-only evaluations caused the clamp.
+Next: escalate blocker to supervisor—panel evaluations alone don't prevent shell_0=2.0; likely needs deeper Stage B debugging or spec clarification.
+Artifacts: plans/active/PERF-WARM-SIM-001/reports/2025-11-21T142700Z/ (pytest_stage_b_small.log, telemetry_stage_b_small.json, pytest_stage_b_full.log)

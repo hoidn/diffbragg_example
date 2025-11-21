@@ -27,7 +27,7 @@
     - Logic: If `adu_per_photon` provided, `sigma_photons = sigma_adu / gain`.
     - Guardrail (new): If detector metadata cannot supply `sigma_readout`, the CLI MUST require a non-zero override; silent fallback to zeros violates `spec-db-core.md`.
 - [x] A3: Update `tests/dbex/test_nanobrag_bridge.py` to assert `sigma_readout` presence, dtype, broadcast handling, and photon conversion.
-- [ ] A4: Update CLI ingestion (`dbex/refine_one.py`) so `--sigma-rdout` (or equivalent metadata source) is mandatory when the detector lacks calibrated dark noise, and fail fast with actionable messaging; emit telemetry describing the provenance (`calibrated`, `cli_override`).
+- [x] A4: Update CLI ingestion (`dbex/refine_one.py`) so `--sigma-rdout` (or equivalent metadata source) is mandatory when the detector lacks calibrated dark noise, and fail fast with actionable messaging; emit telemetry describing the provenance (`calibrated`, `cli_override`).
 
 ## Phase B — Engine Logic
 ### Checklist
@@ -52,3 +52,8 @@
 - [x] D1: Add a shared variance-weighted loss helper in `dbex/nanobrag_refinement.py` that consumes a cached `sigma_floor_sq` tensor and returns Σ((pred-target)^2 / V), masked-MSE companions, and clamp counts so every stage (sampled + full validations) executes the exact spec-db-core.md:57-68 equation. *(Delivered 2025-11-21T051747Z — `_compute_variance_weighted_loss` now powers Stage A/B/C closures.)*
 - [x] D2: Thread the helper through Stage A/B/C closures + telemetry, ensuring Stage C improvement logic compares Stage A final chi-squared against Stage C final using identical units and that Stage B gates reference the Stage A canonical chi-squared snapshot. *(Delivered 2025-11-21T051747Z — canonical chi-squared metadata recorded for Stage B/C + CLI diagnostics.)*
 - [x] D3: Update `tests/dbex/test_torch_refine_smoke.py::{test_stage_b_shell_modifiers,test_stage_c_detector_microslip}` and `tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata` to assert Stage A/B/C chi-squared traces fall within ≤1e-6 relative agreement when run on the canonical detector, and archive the new telemetry/logs under `plans/active/PHYSICS-LOSS-001/reports/<timestamp>/`. *(Delivered 2025-11-21T051747Z — canonical Stage A telemetry asserted in Stage B/C smokes and CLI metadata test.)*
+
+## Phase E — Calibrated sigma-map ingestion
+- [ ] E1: Extend the CLI/DataLoad surface to accept calibrated readout-noise tensors (e.g., `--sigma-map` pointing to `.npy` or pickled tuple of per-panel arrays), validate the payload is strictly positive and shape-aligned with `DataLoad.data`, and expose it via `DataLoad.sigma_readout_map`.
+- [ ] E2: Teach `_resolve_sigma_readout()` to consume `DataLoad.sigma_readout_map` when present (priority below CLI scalars), convert to photons when `--adu-per-photon` is specified, compute the reference median, and tag telemetry/`RefinementConfig` with `sigma_readout_provenance="calibrated_map"`.
+- [ ] E3: Add regression coverage (`tests/dbex/test_refine_one_cli.py`) proving nanobrag runs without `--sigma-rdout` when a calibrated map is injected, plus unit tests for the loader helper; update `docs/TESTING_GUIDE.md` + `docs/development/TEST_SUITE_INDEX.md` instructions to describe the new workflow and emit artifacts showing both CLI selectors pass with the sigma-map path.

@@ -302,3 +302,11 @@
 - Next Actions: Implement the sigma guard + telemetry provenance in `dbex/refine_one.py::{create_parser,run_nanobrag_backend}` and `_write_torch_outputs`/`RefinementTelemetry`, refresh `tests/dbex/test_refine_one_cli.py`, update docs/TESTING_GUIDE.md, and rerun the targeted CLI pytest selectors before logging results.
 - <Action State>: [ready_for_implementation]
 2025-11-21T054520Z focus=PHYSICS-LOSS-001 state=ready_for_implementation dwell=1 artifacts=plans/active/PHYSICS-LOSS-001/reports/2025-11-21T054520Z/ next_action=ship_sigma_rdout_guard
+## 2025-11-21T060701Z — PHYSICS-LOSS-001 sigma-map ingestion plan
+- Focus: PHYSICS-LOSS-001 — Implement variance-weighted loss function
+- Action Type: planning
+- Key Observations: Confirmed `_resolve_sigma_readout` already refuses missing noise sources and inspects `DataLoad.sigma_readout_map`, but DataLoad never sets that attribute—python probes on `sp.proc/idx-0000_refined.expt` show `external_lookup.{gain,pedestal,mask}` expose zero tiles, so the calibrated-map path is unused. Updated docs/fix_plan.md and the implementation plan with Phase E checklist items plus a Do Now covering the new `--sigma-map` parser option, loader helper, CLI regression, helper unit tests, and Testing Guide/Test Suite Index refresh. Published the new instructions + artifacts under 2025-11-21T060701Z/.
+- Artifact Path: plans/active/PHYSICS-LOSS-001/reports/2025-11-21T060701Z/
+- Next Actions: Ralph implements the calibrated sigma-map ingestion path, runs the mapped CLI + helper pytest selectors, and syncs docs per the refreshed input.md.
+- <Action State>: [ready_for_implementation]
+2025-11-21T060701Z focus=PHYSICS-LOSS-001 state=ready_for_implementation dwell=2 artifacts=plans/active/PHYSICS-LOSS-001/reports/2025-11-21T060701Z/ next_action=ship_sigma_map_loader

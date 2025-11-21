@@ -44,6 +44,10 @@ export DBEX_SMOKE_TELEMETRY_PATH=plans/active/<initiative>/reports/<timestamp>/t
 - **Rationale**: When set, each Stage smoke test appends perf counters, loss traces, and ROI counts to the JSON file so perf deltas and VRAM wins are auditable.
 - **Scope**: Use for smoke/perf loops; parity selectors generally leave this unset.
 - **Canonical workflow**: PERF-SMOKE-DETSIZE loops record full-detector telemetry under `plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T032803Z/telemetry_full.json`; keep this convention so PHYSICS-LOSS-001 can mine detector offset reductions without chasing per-loop filenames.
+- **Strict-gate capture**: When recalibrating the canonical detector, set `DBEX_SMOKE_DETECTOR_SIZE=full` and `DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T032803Z/telemetry_full.json`, then run
+  `pytest -v tests/dbex/test_torch_refine_smoke.py::{test_stage_c_detector_microslip,test_stage_b_shell_modifiers} --smoke-detector-size=full`
+  so the JSON records offset reductions and shell modifier deltas. Stage C must prove ≥80 % detector-offset reduction (or ≤±0.05 mm absolute distance) and keep chi-squared within +0.05 % of Stage A (REFINE-007).
+  Stage B must show `improvement_b >= -1e-6` and every shell modifier within ±1 % of identity (REFINE-008). These tolerances backstop PHYSICS-LOSS-001 parity evidence; archive the telemetry alongside the pytest logs under `plans/active/PERF-SMOKE-DETSIZE/reports/<timestamp>/`.
 
 ### 1.2 Environment Assumptions (Freeze)
 

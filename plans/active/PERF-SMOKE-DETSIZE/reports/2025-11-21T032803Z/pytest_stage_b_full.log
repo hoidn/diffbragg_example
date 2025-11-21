@@ -22,4 +22,4 @@ tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
     import pkg_resources
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-================== 1 passed, 4 warnings in 147.82s (0:02:27) ===================
+================== 1 passed, 4 warnings in 137.97s (0:02:17) ===================

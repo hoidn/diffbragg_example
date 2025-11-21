@@ -10,4 +10,4 @@ collected 1 item
       <Module test_torch_refine_smoke.py>
         <Function test_stage_b_shell_modifiers>
 
-========================== 1 test collected in 0.83s ===========================
+========================== 1 test collected in 0.81s ===========================

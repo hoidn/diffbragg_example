@@ -1,61 +1,66 @@
 # Input
 
-- Summary: Finish PHYSICS-LOSS-001 by upgrading Stage B/C to the chi-squared loss and emitting chi-squared + masked-MSE telemetry/diagnostics.
-- Mode: none
+- Summary: Validate the chi-squared telemetry rollout by upgrading the Stage B/C smokes to assert the new metrics and replay Stage A + DB-AT-024 selectors under the weighted loss.
+- Mode: Parity
 - Focus: PHYSICS-LOSS-001 — Implement variance-weighted loss function
 - Branch: integration
 - Mapped tests:
   * `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers`
   * `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip`
-  * `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE pytest tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata`
-- Artifacts: plans/active/PHYSICS-LOSS-001/reports/2025-11-20T233552Z/
+  * `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion`
+  * `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBAT024_ARTIFACT_DIR=plans/active/PHYSICS-LOSS-001/reports/2025-11-20T235741Z/db_at_024 KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke`
+- Artifacts: plans/active/PHYSICS-LOSS-001/reports/2025-11-20T235741Z/
 
 ## Do Now
 - Focus Item: PHYSICS-LOSS-001
-- Implement: `dbex/nanobrag_refinement.py::compute_loss_stage_b + compute_loss_stage_c + RefinementTelemetry/run_nanobrag_refinement` (reuse `inputs.sigma_readout` so Stage B/C minimize the same chi-squared denominator as Stage A, capture per-stage chi-squared + masked-MSE traces, and expose those metrics via telemetry); `dbex/refine_one.py::_write_torch_outputs` (persist per-stage `chi_squared` + `masked_mse` attrs/datasets while keeping legacy trace fields); `tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata` (assert new diagnostics attributes so regressions surface).
-- Test: `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers`, `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip`, and `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE pytest tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata` (tee logs into the artifacts directory).
-- Artifacts: plans/active/PHYSICS-LOSS-001/reports/2025-11-20T233552Z/
+- Implement: `tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers` — extend the Stage B and Stage C smoke tests to assert the new `chi_squared_trace_*`, `chi_squared_best`, and `masked_mse_*` telemetry so regressions in the weighted-loss plumbing are caught immediately (update the Stage C section in the same file while you are here).
+- Test: `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers`, `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip`, `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion`, and `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBAT024_ARTIFACT_DIR=plans/active/PHYSICS-LOSS-001/reports/2025-11-20T235741Z/db_at_024 KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke` (tee each log into the artifacts directory).
+- Artifacts: plans/active/PHYSICS-LOSS-001/reports/2025-11-20T235741Z/
 
 ## How-To Map
-1. `export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md` before editing to document provenance for every command/run in the artifacts log.
-2. In `dbex/nanobrag_refinement.py`, thread `inputs.sigma_readout` through Stage B/C: convert to device/dtype once, fetch panel slices like Stage A, reuse the chi-squared formula (detached denominator) for both sample/full evaluations, and keep masked-MSE companions for telemetry reporting. Ensure Stage B’s improvement gates compare Stage A vs Stage B chi-squared values, and Stage C’s improvement uses Stage A vs Stage C chi-squared. Guard `sigma_readout` shape mismatches explicitly.
-3. Extend `RefinementTelemetry` (and the per-stage builders inside `run_nanobrag_refinement`) with explicit `chi_squared_trace_full`, `chi_squared_best`, `masked_mse_trace_full`, and `masked_mse_best` fields plus scalar `chi_squared_initial/final` helpers so downstream consumers can read both metrics without re-parsing traces.
-4. Update `_write_torch_outputs` to emit the new metrics under `/torch_diagnostics` (top-level Stage A attrs + per-stage `stage_<label>` groups). Keep existing datasets/attrs for backward compatibility; simply add new attrs/datasets for chi-squared + masked-MSE where appropriate.
-5. Refresh `tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata` to assert the new telemetry attrs exist and reflect the mocked values so CLI regressions trip quickly.
-6. Run the Stage B and Stage C smokes with `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers | tee plans/active/PHYSICS-LOSS-001/reports/2025-11-20T233552Z/pytest_stage_b.log` and the analogous Stage C command (tee to `pytest_stage_c.log`). Capture the CLI diagnostics unit test log as `pytest_cli_diag.log`. Note skips/missing assets explicitly in the artifacts summary.
+1. `export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md` before editing so every command recorded in artifacts inherits the authoritative reference.
+2. In `tests/dbex/test_torch_refine_smoke.py`, update `test_stage_b_shell_modifiers` to read `telemetry_b.chi_squared_trace_sample/full`, `chi_squared_best`, and the masked-MSE companions, asserting that the chi-squared traces are monotonically non-increasing and that Stage B reports both metrics (Document PHYSICS-LOSS-001 + REFINE-008 in comments where you add assertions).
+3. In the same file, extend `test_stage_c_detector_microslip` to compare Stage A vs Stage C `chi_squared_trace_full` entries (ensuring the gate still honors the ~0.003% improvement ceiling per REFINE-007) and assert the new telemetry datasets/attrs exist.
+4. Run the Stage B smoke: `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers | tee plans/active/PHYSICS-LOSS-001/reports/2025-11-20T235741Z/pytest_stage_b.log`.
+5. Run the Stage C smoke with the same env vars, teeing to `.../pytest_stage_c.log` to capture telemetry + improvement metrics.
+6. Replay Stage A regression (`test_stage_a_expansion`) to ensure the chi-squared scaling still satisfies the ≥0.2% gate; tee output to `pytest_stage_a.log`.
+7. Set `DBAT024_ARTIFACT_DIR=plans/active/PHYSICS-LOSS-001/reports/2025-11-20T235741Z/db_at_024` (mkdir first), then execute `pytest tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke | tee plans/active/PHYSICS-LOSS-001/reports/2025-11-20T235741Z/pytest_db_at_024.log`, ensuring the metrics JSON/CSV land under the db_at_024 directory.
+8. Summarize pass/fail status plus key telemetry deltas in `plans/active/PHYSICS-LOSS-001/reports/2025-11-20T235741Z/summary.md` (include Stage A/B/C improvements and the DB-AT-024 correlation/localization numbers).
 
 ## Pitfalls To Avoid
-- Keep the variance denominator detached per spec-db-core.md:67; detaching numerators or ROI masks will break gradients.
-- Stage B must stay behind halo/interpolation guards (REFINE-005); don’t bypass the halo check when wiring `sigma_readout`.
-- Do not mutate `RefinementTelemetry` fields in-place after serialization; copy tensors to CPU scalars/lists to keep JSON encoding safe.
-- Stage B/C ROI samplers rely on deterministic panel IDs; avoid re-randomizing when plumbing new tensors.
-- `tests/dbex/test_torch_refine_smoke.py` requires refGeom assets; skip politely if `refGeom.refl` missing and record the skip reason in artifacts instead of forcing failures.
+- Do not touch simulator/dtorch packages outside the repo (Environment Freeze); any missing imports must be recorded as blockers.
+- Stage B/C fixtures depend on `refGeom` assets; skip with rationale instead of deleting assertions if the data are unavailable.
+- DB-AT-024 requires `DBAT024_ARTIFACT_DIR` and canonical fixtures; record the skip reason if assets are missing rather than forcing failure.
+- Keep `NANOBRAGG_DISABLE_COMPILE=1` to avoid torch.compile caching during long smokes.
+- Ensure telemetry assertions read tensors on CPU (convert to Python floats) before comparing; otherwise pytest will report device mismatch errors.
+- Do not downgrade the chi-squared gate thresholds—any adjustments must cite REFINE-007/008 and live in the config, not inline in the tests.
+- Avoid deleting the legacy `loss_trace_*` asserts; they remain for backward compatibility until TORCH-REFINE-005 completes.
+- Always tee logs into the artifacts directory; collectors rely on these filenames for attempts history.
+- Keep `DBAT024_ARTIFACT_DIR` unique per run to avoid overwriting prior parity evidence.
 
 ## If Blocked
-- If refGeom assets are unavailable, run each smoke selector with `--collect-only`, save the log under `plans/active/PHYSICS-LOSS-001/reports/2025-11-20T233552Z/collect_stage_b.log` (and `_stage_c.log`), mark PHYSICS-LOSS-001 as blocked in `docs/fix_plan.md`, and halt implementation work.
-- If CLI diagnostics test fails because `score_trainer` or `h5py` is missing, capture the ImportError trace in the artifacts summary and record the failure in `docs/fix_plan.md` before stopping.
+- If Stage B/C smokes cannot collect due to missing refGeom assets, run each selector with `--collect-only`, save the log in the artifacts directory, and record the missing asset list plus skip reason in `docs/fix_plan.md` under PHYSICS-LOSS-001 (status -> blocked) before stopping.
+- If DB-AT-024 fixtures (refined.expt, mask, scaled.mtz) are absent, capture the `pytest.skip` output, stash metrics if partially generated, and mark the initiative blocked with the asset list and log path.
+- If tests fail because chi-squared telemetry is absent, stop after capturing the failure logs and escalate in `docs/fix_plan.md` + `plans/active/PHYSICS-LOSS-001/reports/.../summary.md` instead of pushing partial fixes.
 
 ## Findings Applied (Mandatory)
-- DIAGNOSTICS-001 — `/torch_diagnostics` must retain standardized metadata; extend attrs without removing `masked_mse`, `loss_mask_coverage`, etc.
-- REFINE-005 — Stage B/C must keep tricubic interpolation with haloed HKL grids while reworking the loss.
-- REFINE-007 — Stage C improvement gate is calibrated to ≈0.003% on refGeom; keep chi-squared telemetry to preserve that guard.
-- REFINE-008 — Stage B improvement ceiling is ~1e-8, so telemetry must still track deterministic ROI sampling and best-loss iterations under the chi-squared metric.
-- PHYSICS-LOSS-001 — Stage B/C telemetry must capture chi-squared + masked-MSE so cross-stage comparisons stay meaningful.
+- PHYSICS-LOSS-001 — Stage B/C must carry the same variance-weighted denominator and emit chi-squared + masked-MSE telemetry (docs/findings.md line 19).
+- DIAGNOSTICS-001 — `/torch_diagnostics` schema stability requires additive attrs/datasets; never remove legacy `masked_mse` entries when extending telemetry.
+- REFINE-005 — Stage B hinges on halo/interpolation guards; ensure asserts continue to enforce `hkl_metadata["has_halo"]` after telemetry edits.
+- REFINE-007 — Stage C detector microslip gates sit around 0.002% improvement; telemetry comparisons must preserve that calibration.
+- REFINE-008 — Stage B improvement ceiling is ~1e-8, so tests must keep the relaxed gate and treat chi-squared telemetry as the authoritative metric.
 
 ## Pointers
-- `docs/spec-db-core.md:32-68` — Variance-weighted loss contract (sigma plumbing + detached denominator).
-- `plans/active/PHYSICS-LOSS-001/implementation.md:31-63` — Phase B checklist split (B2b/B2c describe the Stage B/C tasks plus telemetry exit criteria).
-- `tests/dbex/test_torch_refine_smoke.py:602-741` — Stage B smoke requirements, gates, and ROI sampling expectations.
-- `tests/dbex/test_torch_refine_smoke.py:453-590` — Stage C smoke requirements and calibrated improvement gate.
-- `dbex/refine_one.py:520-640` — `_write_torch_outputs` structure for `/torch_diagnostics`; extend here for chi-squared attrs.
+- docs/spec-db-core.md:32-94 — Variance-weighted loss and detached denominator requirements.
+- plans/active/PHYSICS-LOSS-001/implementation.md:31-70 — Phase B completion notes + Phase C validation checklist.
+- tests/dbex/test_torch_refine_smoke.py:360-750 — Stage A/B/C smoke implementations and acceptance criteria.
+- tests/dbex/test_mapping_consistency.py:1-200 — DB-AT-024 selector structure, env requirements, and metrics expectations.
+- docs/TESTING_GUIDE.md:1-140 — Canonical pytest invocation flags + artifact policy for Stage smokes and DB-AT selectors.
 
 ## Next Up (optional)
-1. DB-AT-024 (C2) — Re-run the mapping selector once telemetry is stable to confirm variance plumbing didn’t regress zero-iteration parity.
-2. Stage A smoke revisit — Re-tune `min_loss_improvement` if chi-squared scaling alters convergence (C3).
-
-## Doc Sync Plan (Conditional)
-- Not needed this loop (no new selectors); reuse existing Stage B/C smoke + CLI unit selectors.
+1. If the above lands quickly, capture a telemetry excerpt from a real CLI run and update docs/findings.md with Stage B/C chi-squared baselines.
+2. Run DB-AT-010 again under GPU to ensure variance-plumbing remains device-neutral before closing the initiative.
 
 ## Mapped Tests Guardrail
-- Each Stage B/C smoke selector currently collects one test when refGeom assets exist; if `pytest --collect-only` drops to 0, stop and document the missing assets instead of proceeding.
-- `tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata` always collects 1 test; treat missing `score_trainer` as a blocker and log the ImportError.
+- Stage B/C smokes and Stage A expansion must collect exactly one test each; run `--collect-only` if fixtures are missing and log the skip.
+- DB-AT-024 mapping smoke collects one test when the canonical fixtures exist; if collection drops to 0, capture the skip reason and treat the loop as blocked rather than forging ahead.

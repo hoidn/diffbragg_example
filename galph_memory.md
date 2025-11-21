@@ -1115,3 +1115,13 @@ Notes
 - <Action State>: [planning]
 
 2025-11-20T233552Z focus=PHYSICS-LOSS-001 state=planning dwell=0 artifacts=plans/active/PHYSICS-LOSS-001/reports/2025-11-20T233552Z/ next_action=ship_stage_b_c_chi_squared_impl
+
+## 2025-11-20T235741Z — PHYSICS-LOSS-001 chi-squared validation handoff
+- Focus: PHYSICS-LOSS-001 — Implement variance-weighted loss function
+- Action Type: planning
+- Key Observations: Confirmed commit ec6f485 threads `inputs.sigma_readout` plus dual chi-squared/masked-MSE telemetry through Stage B/C and `_write_torch_outputs`; Phase B checklist + fix-plan attempts updated and a fresh Do Now now targets smoke-test assertion upgrades plus DB-AT-024/Stage A replays. Artifacts staged under 2025-11-20T235741Z for the upcoming evidence capture.
+- Artifact Path: plans/active/PHYSICS-LOSS-001/reports/2025-11-20T235741Z/
+- Next Actions: Ralph updates `tests/dbex/test_torch_refine_smoke.py` telemetry asserts, reruns Stage A/B/C smokes + DB-AT-024, and captures metrics/logs per the new input.md.
+- <Action State>: [planning]
+
+2025-11-20T235741Z focus=PHYSICS-LOSS-001 state=planning dwell=1 artifacts=plans/active/PHYSICS-LOSS-001/reports/2025-11-20T235741Z/ next_action=stage_b_c_chi_squared_validation

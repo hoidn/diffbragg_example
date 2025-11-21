@@ -1,0 +1,223 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 1 item
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip FAILED [100%]
+
+=================================== FAILURES ===================================
+_______________________ test_stage_c_detector_microslip ________________________
+
+refgeom_dataload = <dbex.data_load.DataLoad object at 0x7aabb544c370>
+refinement_inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0.,...     [0., 0., 0., ..., 0., 0., 0.]]], dtype=float32), target_representation='adu', global_scale_hint=62.65738056380318)
+hkl_data = (tensor([[[0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0.,... 0.]]]), {'grid_max': 518.3336791992188, 'grid_mean': 16.896526336669922, 'grid_min': 0.0, 'grid_nonzero': 69614, ...})
+
+    def test_stage_c_detector_microslip(refgeom_dataload, refinement_inputs, hkl_data):
+        """
+        Verify Stage C detector distance refinement achieves ≥0.002% loss decrease on top of Stage A.
+    
+        Acceptance criteria (TORCH-REFINE-003):
+        1. Stage A + Stage C run without errors (status != "error")
+        2. Stage C telemetry contains per-panel distance_offset parameters
+        3. Improvement gate (≥0.002%) relative to Stage A's final loss is met (calibrated per REFINE-007)
+        4. Full-loss trace (Stage C) is non-increasing over last 3 validations
+        5. Stage A telemetry is preserved and not regressed by Stage C
+    
+        Environment:
+        - Requires: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1
+        - Selector: pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip
+    
+        Per docs/spec-db-workflow.md:35, Stage C refines per-panel translations along detector
+        normal (distance offset) with rotations fixed. The test applies deterministic detector
+        perturbation via create_perturbed_geometry(enable_detector_perturbation=True), then runs
+        Stage A followed by Stage C to validate ≥0.002% improvement (gate calibrated to refGeom
+        empirical ceiling per REFINE-007).
+        """
+        from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig
+    
+        hkl_grid, hkl_metadata = hkl_data
+    
+        # Configure refinement (Stage A + Stage C per TORCH-REFINE-003)
+        config = RefinementConfig(
+            device='cuda:0',
+            dtype=torch.float32,
+            history_size=10,
+            max_iter=30,  # ≤30 steps per stage
+            roi_sample_fraction=0.15,
+            full_validation_interval=5,
+            min_loss_improvement=0.002,  # 0.2% threshold for Stage A
+            enable_hkl_interpolation=True,  # Tricubic with haloed grid
+            enable_stage_c=True,  # Enable Stage C detector distance refinement
+            stage_c_min_loss_improvement=2e-5,  # 0.002% threshold for Stage C (calibrated per REFINE-007)
+            stage_c_max_distance_delta_mm=0.5  # ±0.5mm max offset per panel
+        )
+    
+        # Create perturbed geometry with detector offsets (TORCH-REFINE-003)
+        # Applies alternating ±0.25mm distance offsets to detector panels
+        baseline_crystal = refgeom_dataload.Expt.crystal
+        baseline_detector = refgeom_dataload.Expt.detector
+        baseline_beam = refgeom_dataload.Expt.beam
+    
+        perturbed_crystal, perturbed_detector, perturbed_beam = create_perturbed_geometry(
+            baseline_crystal, baseline_detector, baseline_beam,
+            enable_detector_perturbation=True,  # Enable detector distance offsets
+            detector_distance_offset_mm=0.25  # ±0.25mm alternating pattern
+        )
+    
+        # Run refinement with Stage A + Stage C
+        bragg_refined, telemetry_dict = run_nanobrag_refinement(
+            inputs=refinement_inputs,
+            detector=perturbed_detector,
+            beam=perturbed_beam,
+            crystal=perturbed_crystal,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            config=config,
+            baseline_crystal=baseline_crystal
+        )
+    
+        # Extract Stage A and Stage C telemetry
+        assert "A" in telemetry_dict, "Stage A telemetry missing"
+        assert "C" in telemetry_dict, "Stage C telemetry missing (config.enable_stage_c=True)"
+        telemetry_a = telemetry_dict["A"]
+        telemetry_c = telemetry_dict["C"]
+    
+        # Acceptance 1: Both stages completed without errors
+        assert telemetry_a.status != "error", f"Stage A failed: {telemetry_a.message}"
+        assert telemetry_c.status != "error", f"Stage C failed: {telemetry_c.message}"
+    
+        # Acceptance 2: Stage C telemetry completeness
+        assert telemetry_c.optimizer == "LBFGS"
+        assert telemetry_c.stage == "C"
+        assert telemetry_c.history_size == config.history_size
+        assert telemetry_c.max_iter == config.max_iter
+        assert len(telemetry_c.loss_trace_sample) > 0, "Stage C sample loss trace empty"
+        assert len(telemetry_c.loss_trace_full) > 0, "Stage C full loss trace empty"
+        assert telemetry_c.best_loss_full[0] > 0, "Stage C best loss invalid"
+    
+        # Verify per-panel distance offsets are present
+        n_panels = len(perturbed_detector)
+        for pid in range(n_panels):
+            param_key = f'panel_{pid}_distance_offset_mm'
+            assert param_key in telemetry_c.param_deltas, f"Panel {pid} distance offset missing"
+            offset_data = telemetry_c.param_deltas[param_key]
+            assert 'initial' in offset_data and 'final' in offset_data and 'delta' in offset_data
+    
+        # Acceptance 3: PHYSICS-LOSS-001 telemetry validation (chi-squared + masked-MSE for both Stage A and Stage C)
+        # Both stages must emit dual metrics
+        assert telemetry_a.chi_squared_trace_full is not None, "Stage A chi_squared_trace_full missing"
+        assert len(telemetry_a.chi_squared_trace_full) >= 2, "Stage A chi_squared_trace_full insufficient"
+        assert telemetry_c.chi_squared_trace_full is not None, "Stage C chi_squared_trace_full missing"
+        assert len(telemetry_c.chi_squared_trace_full) >= 2, "Stage C chi_squared_trace_full insufficient"
+    
+        # Extract chi-squared values for improvement comparison (REFINE-007)
+        stage_a_final_chi2 = telemetry_a.chi_squared_trace_full[-1][1]
+        stage_c_final_chi2 = telemetry_c.chi_squared_trace_full[-1][1]
+        improvement_c_chi2 = (stage_a_final_chi2 - stage_c_final_chi2) / stage_a_final_chi2
+    
+        # REFINE-007: Stage C gate is ≥0.002% improvement (calibrated to refGeom ceiling ≈0.003%)
+        # Compare chi-squared (variance-weighted) rather than legacy loss_trace_full
+        assert improvement_c_chi2 >= 2e-5, (
+            f"Stage C chi-squared improvement {improvement_c_chi2:.4%} < 0.002% threshold. "
+            f"REFINE-007: Gate calibrated to measured ≈0.003% ceiling on refGeom (±0.25mm per-panel offsets). "
+>           f"See probe artifacts: plans/active/TORCH-REFINE-003/reports/2025-11-05T090201Z/stage_c_improvement_probe.json "
+            f"(Stage A final chi2={stage_a_final_chi2:.2e}, Stage C final chi2={stage_c_final_chi2:.2e}, "
+            f"Stage C iterations={len(telemetry_c.loss_trace_sample)})"
+        )
+E       AssertionError: Stage C chi-squared improvement -3730660.0437% < 0.002% threshold. REFINE-007: Gate calibrated to measured ≈0.003% ceiling on refGeom (±0.25mm per-panel offsets). See probe artifacts: plans/active/TORCH-REFINE-003/reports/2025-11-05T090201Z/stage_c_improvement_probe.json (Stage A final chi2=8.08e+03, Stage C final chi2=3.02e+08, Stage C iterations=10)
+E       assert -37306.60043747149 >= 2e-05
+
+tests/dbex/test_torch_refine_smoke.py:564: AssertionError
+----------------------------- Captured stdout call -----------------------------
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6105669/6224001 (98.10%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6105669/6224001 (98.10%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6105669/6224001 (98.10%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6105669/6224001 (98.10%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6105669/6224001 (98.10%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6105669/6224001 (98.10%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6105669/6224001 (98.10%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6105669/6224001 (98.10%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6105670/6224001 (98.10%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6105020/6224001 (98.09%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6105010/6224001 (98.09%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6105010/6224001 (98.09%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6105010/6224001 (98.09%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6105010/6224001 (98.09%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6105010/6224001 (98.09%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6105010/6224001 (98.09%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6103056/6224001 (98.06%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6105010/6224001 (98.09%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6105010/6224001 (98.09%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6105010/6224001 (98.09%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6105010/6224001 (98.09%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6105010/6224001 (98.09%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6108032/6224001 (98.14%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6105053/6224001 (98.09%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6105012/6224001 (98.09%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6105010/6224001 (98.09%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6105010/6224001 (98.09%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6105010/6224001 (98.09%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6105010/6224001 (98.09%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6105010/6224001 (98.09%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6105010/6224001 (98.09%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6105010/6224001 (98.09%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6105010/6224001 (98.09%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,22] l=[0,14] hit_rate=6105010/6224001 (98.09%)
+=============================== warnings summary ===============================
+tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip
+================== 1 failed, 4 warnings in 491.14s (0:08:11) ===================

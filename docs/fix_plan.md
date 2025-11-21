@@ -205,6 +205,21 @@
   3. Differentiable HKL interpolation is used end‑to‑end; no non‑differentiable fallbacks on the optimization path. Telemetry records `stage_b_mode=per_reflection`, `param_count`, loss traces, and summary `param_deltas`.
 - Working Plan: plans/active/TORCH-REFINE-005/implementation.md
 
+
+
+### [PERF-SMOKE-DETSIZE] Introduce small-detector fixture for smoke tests
+- Depends on: docs/spec-db-workflow.md (Stage smoke validations), CONFIG-001
+- Status: pending
+- Priority: Medium (Test Performance)
+- Owner/Date: Unassigned
+- Exit Criteria:
+  1. `refGeom_small.expt/.refl` (plus masks) exist under `sp.proc/` with README/provenance and checksums documenting ROI counts.
+  2. Stage A/B/C smoke tests (`tests/dbex/test_torch_refine_smoke.py`) parameterize detector size, default to the small fixture, and pass on CPU/GPU; overrides allow running against the full dataset.
+  3. `docs/spec-db-workflow.md` and `docs/TESTING_GUIDE.md` document the small smoke dataset vs full parity suite; collect-only artifacts recorded for both selectors.
+  4. DB-AT parity selectors assert canonical detector dimensions and continue to run on the full dataset with no telemetry regressions.
+- Working Plan: plans/active/PERF-SMOKE-DETSIZE/implementation.md
+- Attempts History:
+  * 2025-11-21T012300Z (planning) — Authored implementation plan outlining dataset capture (cropping refGeom, maintaining ROI metadata), test integration with parameterized fixtures/gate recalibration, and documentation + parity guardrails. See `plans/active/PERF-SMOKE-DETSIZE/implementation.md`. Next Actions: Script `refGeom_small` capture, validate `DataLoad` on the cropped dataset, and archive artifacts under `plans/active/PERF-SMOKE-DETSIZE/reports/<timestamp>/`.
 ### [MAP-SCALE-001] Zero-iteration mapping scale alignment
 - Depends on: DB-AT-024, DB-AT-023, SCALE-001, SCALE-002, docs/spec-db-workflow.md §4, docs/architecture.md §4.3, CONFORMANCE-001
 - Status: done (Phase D complete — docs & metrics synchronized)

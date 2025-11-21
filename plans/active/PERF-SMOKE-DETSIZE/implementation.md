@@ -6,7 +6,7 @@
 - Title: Introduce small-detector fixture for Stage A/B/C smoke tests
 - Owner: Ralph
 - Spec Owner: docs/spec-db-workflow.md
-- Status: pending
+- Status: in_progress (2025-11-21 — canonical parity rerun outstanding)
 
 ## Goals
 - Provide a cropped/small detector dataset for Stage smoke tests to reduce runtime and VRAM while preserving spec coverage.
@@ -40,10 +40,10 @@
 
 ## Phase A — Dataset Capture
 ### Checklist
-- [ ] A0: **Nucleus:** Run a `dials.slice_sweep`/`reindex` probe on refGeom to verify we can crop detectors while preserving ROI metadata (capture command + log).
-- [ ] A1: Define the crop/decimation strategy (e.g., central 512×512 region, maintain ≥50 ROIs) and update ROI bbox/pid mapping script.
-- [ ] A2: Emit `refGeom_small.expt/.refl` (+ masks) under `sp.proc/` with README capturing provenance and ROI counts; compute checksums.
-- [ ] A3: Validate `DataLoad`/`prepare_refinement_inputs` on refGeom_small (mask polarity, sentinel guards) and archive artifacts under `plans/active/PERF-SMOKE-DETSIZE/reports/<ts>/`.
+- [x] A0: **Nucleus:** Probed refGeom geometry/ROI coverage to confirm a centered 1024×1024 crop preserves 87 ROIs (~31%) and archived the command/output in `plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T023537Z/summary.md`.
+- [x] A1: Defined the crop window + ROI filtering strategy, codified it in `plans/active/PERF-SMOKE-DETSIZE/bin/crop_refgeom_to_small.py`, and documented bbox/pid handling (same artifact set).
+- [x] A2: Generated `sp.proc/refGeom_small/{refGeom_small.expt,refGeom_small.refl,refGeom_small_mask.pkl}` with README + checksum report (`refGeom_small_report.json`), stashing assets per Phase A exit criteria.
+- [x] A3: Validated `DataLoad`/`prepare_refinement_inputs` against the cropped assets (telemetry + Stage A run stored under `plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T023537Z/{collect_stage_a_small.log,telemetry_small.json}`).
 
 ### Dependency Analysis (Required for Refactors)
 - **Touched Modules:** dataset capture scripts, `tests/dbex/test_torch_refine_smoke.py`, `dbex/data_load.py` (if dataset selection is parameterized).
@@ -55,24 +55,30 @@
 
 ## Phase B — Test Integration
 ### Checklist
-- [ ] B0: **Nucleus:** Add a temporary micro-test to assert Stage A LBFGS on the small dataset runs ≤5 s on CPU.
-- [ ] B1: Parameterize smoke test fixtures (e.g., `@pytest.mark.parametrize("detector_size", ["small","full"], ids=...)`) and default Stage smoke tests to `small`.
-- [ ] B2: Recalibrate Stage A/B/C improvement gates based on the small dataset (document telemetry); ensure GPU + CPU runs pass.
-- [ ] B3: Update CLI/test docs to show how to force full-detector runs (env flag, pytest marker); add guard to prevent DB-AT selectors from accidentally using the small fixture.
+- [x] B0: Captured a Stage A runtime probe on the cropped assets (telemetry + log under `plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T023537Z/collect_stage_a_small.log`) establishing the new baseline.
+- [x] B1: Parameterized smoke fixtures via `tests/conftest.py::smoke_detector_size`/`smoke_dataset_paths`, defaulting to `"small"` while allowing `"full"` overrides; selectors honor `--smoke-detector-size` / env flags.
+- [x] B2: Recalibrated Stage A/B/C strict gates for the small dataset (Stage A improvement ≥0.1%, Stage B non-regression ±1e-6, Stage C offset ≥80%) and archived telemetry in `plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T032803Z/`.
+- [x] B3: Updated docs (`docs/TESTING_GUIDE.md`, `docs/development/TEST_SUITE_INDEX.md`) and added `pytest_runtest_setup` guard so DB-AT/workflow selectors enforce `--smoke-detector-size=full` before executing (artifacts: 2025-11-21T031620Z/ summary + logs).
 
 ### Notes & Risks
 - Watch for coupling between Stage B shell counts and ROI distribution; adjust test assertions accordingly.
 
 ## Phase C — Documentation & Parity Guard
 ### Checklist
-- [ ] C1: Update `docs/spec-db-workflow.md` and `docs/TESTING_GUIDE.md` with the new fixture, commands, and rationale.
-- [ ] C2: Log fix-plan attempt capturing runtime/VRAM deltas and reference artifacts.
-- [ ] C3: Update supervisor prompt / How-To Map templates to mention the small smoke dataset vs full parity dataset; ensure parity selectors assert full detector dimensions.
+- [x] C1: Synced `docs/spec-db-workflow.md` and `docs/TESTING_GUIDE.md` with the small-detector smoke workflow, commands, and rationale plus canonical-detector override instructions.
+- [x] C2: Logged the runtime/ROI deltas plus sigma-source mapping in `docs/fix_plan.md` Attempts History and `plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T023537Z/refGeom_small_report.json`.
+- [x] C3: Updated supervisor/input templates (docs + guard rails) so parity selectors require `--smoke-detector-size=full`, preventing accidental small-fixture runs on DB-AT selectors.
 
 ### Notes & Risks
 - Communicate clearly in `input.md` (via supervisor) when the small dataset is acceptable; avoid accidental use during parity investigations.
 
+## Phase D — Canonical parity re-validation
+### Checklist
+- [ ] D1: Rerun Stage A/B/C smokes on the full detector (`--smoke-detector-size=full`) for both sigma sources (CLI override + metadata) now that REFINE-SMOKE-CANONICAL repaired Stage B/C, and archive pytest + telemetry logs under a new `plans/active/PERF-SMOKE-DETSIZE/reports/<timestamp>/`.
+- [ ] D2: Update `docs/TESTING_GUIDE.md` and `docs/development/TEST_SUITE_INDEX.md` with the fresh canonical-detector telemetry/gates plus artifact pointers so parity operators know which logs to inspect.
+- [ ] D3: Refresh `docs/fix_plan.md` Attempts History and supervisor input once the full-detector artifacts exist so exit criterion #4 can close.
+
 ## Artifacts Index
 - Reports root: `plans/active/PERF-SMOKE-DETSIZE/reports/`
-- Latest run: `<YYYY-MM-DDTHHMMSSZ>/`
+- Latest run: `2025-11-21T035150Z/`
 - Stage B/C callchain snapshot + tap points (canonical detector analysis): `plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T035150Z/{callchain/static.md,trace/tap_points.md}`

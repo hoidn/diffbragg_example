@@ -5,7 +5,7 @@
 - Title: Restore canonical Stage B/C smoke convergence
 - Owner: Ralph
 - Spec Owner: docs/spec-db-workflow.md
-- Status: pending
+- Status: done (2025-11-21)
 
 ## Goals
 - Diagnose and fix the canonical (full-detector) Stage B LBFGS failure so shell modifiers actually execute an optimization step and chi-squared deltas stay within the spec-calibrated tolerances.
@@ -23,9 +23,9 @@
 4. Test registry synchronized: `docs/TESTING_GUIDE.md` §2 and `docs/development/TEST_SUITE_INDEX.md` reflect any test/gate updates; `pytest --collect-only` logs for the Stage B and Stage C selectors are saved under `plans/active/REFINE-SMOKE-CANONICAL/reports/<timestamp>/`. Do not close the initiative if either selector marked "Active" collects 0 tests.
 
 ## Compliance Matrix (Mandatory)
-- [ ] **Spec Constraint:** docs/spec-db-workflow.md §§Stage B/C definitions + Stage Smoke Dataset Policy (lines 36‑95).
-- [ ] **Fix-Plan Link:** docs/fix_plan.md — Row [REFINE-SMOKE-CANONICAL].
-- [ ] **Finding/Policy ID:** REFINE-007 (Stage C detector microslip gate), REFINE-008 (Stage B shell modifier telemetry), PHYSICS-LOSS-001 (chi-squared telemetry fidelity).
+- [x] **Spec Constraint:** docs/spec-db-workflow.md §§Stage B/C definitions + Stage Smoke Dataset Policy (lines 36‑95).
+- [x] **Fix-Plan Link:** docs/fix_plan.md — Row [REFINE-SMOKE-CANONICAL] (closed 2025-11-21).
+- [x] **Finding/Policy ID:** REFINE-007 (Stage C detector microslip gate), REFINE-008 (Stage B shell modifier telemetry), PHYSICS-LOSS-001 (chi-squared telemetry fidelity).
 
 ## Spec Alignment
 - **Normative Spec:** docs/spec-db-workflow.md
@@ -40,9 +40,9 @@
 
 ## Phase A — Telemetry Validation
 ### Checklist
-- [ ] A0: **Nucleus — Canonical reproduction:** Rerun the Stage B and Stage C selectors with `DBEX_SMOKE_DETECTOR_SIZE=full DBEX_SMOKE_TELEMETRY_PATH` set, saving logs + telemetry JSON under this plan’s reports directory; annotate the observed Stage B exception (`chi_squared_best_b` scope) and Stage C zero-improvement traces.
-- [ ] A1: Summarize telemetry deltas (chi-squared traces, shell modifiers, detector offsets) from the failing runs and link to specific spec clauses they violate in `docs/fix_plan.md`.
-- [ ] A2: Draft debugging hypotheses (e.g., LBFGS closure scoping, detector offset baseline mismatch) and capture them in `plans/active/REFINE-SMOKE-CANONICAL/reports/<timestamp>/analysis.md` for traceability.
+- [x] A0: **Nucleus — Canonical reproduction:** Reran the Stage B/C selectors with `DBEX_SMOKE_DETECTOR_SIZE=full` and captured logs + telemetry under `plans/active/REFINE-SMOKE-CANONICAL/reports/2025-11-21T042222Z/` to document the `chi_squared_best_b` exception and Stage C’s bogus 100% shrinkage.
+- [x] A1: Summarized the failing telemetry deltas (chi-squared traces, shell modifiers, detector offsets) and cited the violated clauses in `docs/fix_plan.md` and the report summary.
+- [x] A2: Recorded debugging hypotheses (LBFGS scope bug, missing baseline detector) inside the same report directory before implementation.
 
 ### Dependency Analysis (Required for Refactors)
 - **Touched Modules:** `dbex/nanobrag_refinement.py` (Stage B/C closures + telemetry), `tests/dbex/test_torch_refine_smoke.py` (gate assertions), potential updates to `docs/TESTING_GUIDE.md`.
@@ -54,22 +54,22 @@
 
 ## Phase B — Stage B Optimizer Repair
 ### Checklist
-- [ ] B1: Fix the LBFGS closure variables (add `nonlocal` declarations, remove stray debug prints, ensure best-parameter snapshots copy tensors before device moves) so Stage B completes without `UnboundLocalError`.
-- [ ] B2: Validate that Stage B chi-squared deltas, shell modifiers, and telemetry traces propagate through `telemetry_dict["B"]`; add unit tests or smoke-level assertions that fail if Stage B never records an improvement or deviates beyond ±1 % modifiers.
-- [ ] B3: Update docs/test guidance (if thresholds change) and capture full-detector logs demonstrating the repaired behavior.
+- [x] B1: Added the missing `nonlocal` declarations + snapshot fixes inside the Stage B LBFGS closure so canonical runs complete without `UnboundLocalError`. (See `dbex/nanobrag_refinement.py` + artifacts under `plans/active/REFINE-SMOKE-CANONICAL/reports/2025-11-21T042222Z/`.)
+- [x] B2: Verified Stage B chi-squared/loss traces and shell modifiers propagate through telemetry (telemetry JSON + pytest logs) and tightened the smoke assertions to guard ±1 % modifiers with non-regression gates.
+- [x] B3: Synced the test guidance/registry via PHYSICS-LOSS-001 and archived the full-detector Stage B logs showing the repaired behavior.
 
 ### Notes & Risks
 - LBFGS snapshots must remain on CPU when `stage_b_full_eval_on_cpu=True`; careless `.to(device)` calls can thrash memory or change semantics.
 
 ## Phase C — Stage C Detector Physics
 ### Checklist
-- [ ] C1: Thread the actual detector perturbation baseline into Stage C telemetry (e.g., stash `create_perturbed_geometry` offsets or compute differences against `perturbed_detector`) so reduction calculations reference real initial offsets.
-- [ ] C2: Ensure Stage C chi-squared traces respond to detector motion by verifying gradients propagate (check `compute_loss_stage_c` ROI sampler + warm cache) and adjust the smoke test to flag zero-improvement scenarios.
-- [ ] C3: Re-run Stage C smokes, archive telemetry/logs, and update docs/TESTING_GUIDE.md tolerances only if the physics-driven gates need slight rewording (not wholesale relaxation).
+- [x] C1: Threaded baseline detector distances through Stage C telemetry (baseline cache + `_apply_baseline_detector_prior`) so reduction metrics reference the true perturbations.
+- [x] C2: Verified Stage C chi-squared/loss traces respond to detector motion (telemetry JSON shows ≥0.001 improvement) and kept the smoke assertions strict to flag zero-improvement cases.
+- [x] C3: Replayed Stage C smokes on the full detector, archived logs/telemetry in the report directory, and confirmed no tolerance changes beyond the documented REFINE-007 gates were needed.
 
 ### Notes & Risks
 - Detector geometry updates must respect CUSTOM convention and distance pivots; regressions here could break DB-AT selectors beyond the smoke suite.
 
 ## Artifacts Index
 - Reports root: `plans/active/REFINE-SMOKE-CANONICAL/reports/`
-- Latest run: `<YYYY-MM-DDTHHMMSSZ>/`
+- Latest run: `2025-11-21T042222Z/`

@@ -1,59 +1,71 @@
 # Input
 
-- Summary: Lock down the metadata sigma fixtures with a reproducible manifest + CI gate so Phase G assets can’t drift without detection.
+- Summary: Re-run the Stage A/B/C full-detector smokes (CLI + metadata sigma) and sync docs/fix-plan checkpoints so PERF-SMOKE-DETSIZE exit criterion #4 can finally close.
 - Mode: none
-- Focus: PHYSICS-LOSS-001 — Implement variance-weighted loss function
+- Focus: PERF-SMOKE-DETSIZE — Introduce small-detector fixture for smoke tests
 - Branch: integration
 - Mapped tests:
-  * `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE pytest -vv tests/sp_proc/test_sigma_metadata_fixture.py`
-- Artifacts: plans/active/PHYSICS-LOSS-001/reports/2025-11-21T083500Z/
+  * `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_DETECTOR_SIZE=full DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/telemetry_full_cli.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion`
+  * `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_DETECTOR_SIZE=full DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/telemetry_full_cli.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers`
+  * `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_DETECTOR_SIZE=full DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/telemetry_full_cli.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip`
+  * `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_DETECTOR_SIZE=full DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/telemetry_full_metadata.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion`
+  * `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_DETECTOR_SIZE=full DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/telemetry_full_metadata.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers`
+  * `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_DETECTOR_SIZE=full DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/telemetry_full_metadata.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip`
+- Artifacts: plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/
 
 ## Do Now
-- Focus Item: PHYSICS-LOSS-001
-- Implement: `plans/active/PHYSICS-LOSS-001/bin/embed_sigma_external_lookup.py::main`, `sp.proc/README.md`, `sp.proc/sigma_metadata_manifest.json`, `tests/sp_proc/test_sigma_metadata_fixture.py::test_sigma_metadata_manifest_and_loading`, `docs/TESTING_GUIDE.md#1.4`, `docs/development/TEST_SUITE_INDEX.md:1` — extend the embedding script with a `--manifest` flag that records generator command + SHA256 hashes for `idx-0000_sigma_metadata.{expt,sigma_tiles.pkl}` and the provenance JSON, publish the manifest + README so Phase G operators know how to regenerate the fixtures, and add a pytest module that reads the manifest, recomputes hashes, and reloads the experiment via `_load_external_lookup_sigma_map` to assert `sigma_readout_provenance="external_lookup"`.
-- Test: `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE pytest -vv tests/sp_proc/test_sigma_metadata_fixture.py | tee plans/active/PHYSICS-LOSS-001/reports/2025-11-21T083500Z/pytest_sigma_metadata_fixture.log`
-- Artifacts: plans/active/PHYSICS-LOSS-001/reports/2025-11-21T083500Z/
+- Focus Item: PERF-SMOKE-DETSIZE
+- Implement: `docs/TESTING_GUIDE.md#Stage-smoke selectors`, `docs/development/TEST_SUITE_INDEX.md`, `docs/fix_plan.md#perfs-smoke-detsize`, and `plans/active/PERF-SMOKE-DETSIZE/implementation.md::Phase D` — fold in the fresh canonical full-detector runs (CLI + metadata), update artifact pointers/gates, and mark the Phase D checklist complete once telemetry/logs are archived.
+- Test: Execute the mapped Stage A/B/C selectors on the full detector for both sigma sources with `DBEX_SMOKE_TELEMETRY_PATH` pointing into the new report directory so each run records telemetry JSON alongside the pytest logs.
+- Artifacts: plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/
 
 ## How-To Map
-1. Run `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md python plans/active/PHYSICS-LOSS-001/bin/embed_sigma_external_lookup.py --expt refGeom.expt --output sp.proc/idx-0000_sigma_metadata.expt --sigma-value 3.0 --report plans/active/PHYSICS-LOSS-001/reports/2025-11-21T083500Z/sigma_metadata.json --manifest sp.proc/sigma_metadata_manifest.json` so the new flag captures command metadata, stats, sizes, and SHA256 hashes for the `.expt`, `.sigma_tiles.pkl`, and report files.
-2. Author `sp.proc/README.md` to document the metadata fixture workflow (script invocation, manifest expectations, hash validation procedure, artifact locations) and reference spec-db-core.md:32-68 plus docs/TESTING_GUIDE.md §1.4.
-3. Add `tests/sp_proc/test_sigma_metadata_fixture.py` that loads `sp.proc/sigma_metadata_manifest.json`, recomputes hashes for `idx-0000_sigma_metadata.{expt,sigma_tiles.pkl}` (warn if files missing), asserts manifest timestamps/commands are present, and uses `dxtbx.model.ExperimentList` + `dbex.data_load._load_external_lookup_sigma_map` to confirm the embedded tiles materialize and report the correct provenance metadata.
-4. Update `docs/TESTING_GUIDE.md` §1.4 and `docs/development/TEST_SUITE_INDEX.md` to describe the manifest/validation command, required env vars, and artifact expectations (`pytest_sigma_metadata_fixture.log`, updated manifest snapshot) so CI operators know how to gate the fixtures.
-5. Run the mapped pytest command (step above) with `AUTHORITATIVE_CMDS_DOC` + `KMP_DUPLICATE_LIB_OK=TRUE`, teeing stdout/stderr into `plans/active/PHYSICS-LOSS-001/reports/2025-11-21T083500Z/pytest_sigma_metadata_fixture.log` and copying the refreshed `sp.proc/sigma_metadata_manifest.json` + `sigma_metadata.json` into the same directory for archival.
+1. `mkdir -p plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z` and `rm -f plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/telemetry_full_cli.json plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/telemetry_full_metadata.json` to start from a clean telemetry slate.
+2. Regenerate metadata fixtures so the Stage smokes can consume `external_lookup` tiles:  
+   `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md python plans/active/PHYSICS-LOSS-001/bin/embed_sigma_external_lookup.py --expt refGeom.expt --expt-idx 0 --sigma-value 3.0 --output sp.proc/idx-0000_sigma_metadata.expt --report plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/sigma_metadata.json --manifest sp.proc/sigma_metadata_manifest.json`
+3. Prove selectors still collect with the canonical knob before running the long smokes:  
+   `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_DETECTOR_SIZE=full pytest --collect-only tests/dbex/test_torch_refine_smoke.py -k 'test_stage_b_shell_modifiers or test_stage_c_detector_microslip' > plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/collect_stage_full.log`
+4. Stage A (full detector, CLI sigma):  
+   `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_DETECTOR_SIZE=full DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/telemetry_full_cli.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion | tee plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/pytest_stage_a_full_cli.log`
+5. Stage B (full detector, CLI sigma): same env as step 4 targeting `::test_stage_b_shell_modifiers` and teeing to `pytest_stage_b_full_cli.log`.
+6. Stage C (full detector, CLI sigma): same env as step 4 targeting `::test_stage_c_detector_microslip` and teeing to `pytest_stage_c_full_cli.log`.
+7. Stage A (full detector, metadata sigma):  
+   `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_DETECTOR_SIZE=full DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/telemetry_full_metadata.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion | tee plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/pytest_stage_a_full_metadata.log`
+8. Stage B (full detector, metadata sigma): same env as step 7 targeting `::test_stage_b_shell_modifiers` and teeing to `pytest_stage_b_full_metadata.log`.
+9. Stage C (full detector, metadata sigma): same env as step 7 targeting `::test_stage_c_detector_microslip` and teeing to `pytest_stage_c_full_metadata.log`.
+10. Update `docs/TESTING_GUIDE.md`, `docs/development/TEST_SUITE_INDEX.md`, `docs/fix_plan.md`, and `plans/active/PERF-SMOKE-DETSIZE/implementation.md` with the new canonical telemetry/log references (chi-squared deltas, detector-offset reduction, manifest hash pointer) and summarize the run in `plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/summary.md`.
 
 ## Pitfalls To Avoid
-- Don’t mutate `refGeom.expt` in-place; always write the metadata clone under `sp.proc/idx-0000_sigma_metadata.expt` per docs/spec-db-workflow.md Stage Smoke policy.
-- Keep manifest hashes deterministic: no relative paths, no timestamps in the hashed payloads, and ensure files are closed before hashing per MANIFEST-001.
-- Avoid embedding metadata during pytest collection; the fixtures should assume files already exist and skip with actionable messaging when missing.
-- Don’t relax sigma positivity or provenance assertions—PHYSICS-LOSS-004/005 require strict enforcement even in the new test.
-- Never drop `AUTHORITATIVE_CMDS_DOC` when running the new pytest selector; every CI invocation must self-document commands.
-- Treat pickled `.sigma_tiles.pkl` as binary; hash and copy via `shutil.copyfile` or equivalent, not text transforms.
-- Keep the new README/docs under 100 cols and cite canonical commands; do not invent ad-hoc env vars for metadata smokes.
-- Respect Environment Freeze: if dxtbx import fails while hashing/loading, log the minimal error and stop instead of installing packages.
-- Ensure pytest logs and manifest snapshots land in the artifacts directory before finishing so Attempts History stays auditable.
-- Preserve Stage smoke skips—if metadata assets are missing locally, the validation test should fail fast with clear remediation steps, not silently regenerate them.
+- `DBEX_SMOKE_DETECTOR_SIZE` must be `full` for every run or the pytest guard will skip/raise before telemetry is recorded.
+- Ensure metadata fixtures exist (both `.expt` and `.sigma_tiles.pkl`) via the embed script before running the metadata smokes; otherwise the fixtures will skip.
+- Always set `DBEX_SMOKE_TELEMETRY_PATH` before invoking pytest and remove any stale JSON to avoid mixing old entries with the new canonical measurements.
+- Keep `KMP_DUPLICATE_LIB_OK=TRUE` and `NANOBRAGG_DISABLE_COMPILE=1` in place so Stage smokes behave deterministically per RUNTIME-001.
+- Do not relax the Stage B/C assertions—use the strict gates already codified in the tests; the goal is to capture real physics improvements, not to downgrade gates.
+- Capture stdout/stderr with `tee` into the artifact directory so telemetry and logs can be cross-referenced later.
+- Treat the metadata embed step as destructive: re-running will overwrite `sp.proc/idx-0000_sigma_metadata.expt`; stash the generated `sigma_metadata.json` under this loop’s report directory for traceability.
+- Avoid editing simulator code or test gates in this loop; the focus is evidence capture + doc/ledger sync.
+- If GPU/CPU resources run out mid-test, bail, log `nvidia-smi` output (if relevant), and surface the failure before reattempting.
+- Maintain `AUTHORITATIVE_CMDS_DOC` on every command so logs remain auditable.
 
 ## If Blocked
-Capture the failing command + traceback in `plans/active/PHYSICS-LOSS-001/reports/2025-11-21T083500Z/blocked.log`, note whether `sp.proc/idx-0000_sigma_metadata.{expt,sigma_tiles.pkl}` existed (`ls -l` output), and append the blocker description plus remediation ideas to `docs/fix_plan.md` Attempts History before pausing the initiative.
+If any Stage smoke fails (e.g., Stage B returns `status=error` again), capture the full pytest log plus the partially written telemetry JSON in `plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/blocked.log`, note which sigma source/detector size triggered it, and append a new entry to `docs/fix_plan.md` + `plans/active/PERF-SMOKE-DETSIZE/implementation.md` describing the failure signature and why Phase D remains open before pausing the initiative.
 
 ## Findings Applied (Mandatory)
-- PHYSICS-LOSS-004 — Loader constraints enforce `[panel, slow, fast]` shapes and positivity for sigma maps; manifest/test updates must keep those guards intact.
-- PHYSICS-LOSS-005 — External_lookup tiles are the authoritative metadata source; the new pytest needs to assert `sigma_readout_provenance="external_lookup"` whenever metadata mode is active.
-- MANIFEST-001 — Canonical fixtures require SHA256 verification before emitting manifests; reuse the same guard when hashing the metadata experiment and tiles.
+- REFINE-007 — Stage C canonical smokes must show ≥80 % detector-offset reduction and ≤0.05 % χ² regression; log these metrics in telemetry and the docs table.
+- REFINE-008 — Stage B canonical runs expect ≤1e-6 χ² regression and ±1 % shell modifiers; ensure telemetry/log updates cite this guard.
+- REFINE-009 — Always pass the baseline detector so detector-offset telemetry references real geometry rather than zeros.
+- PHYSICS-LOSS-005 — Metadata sigma fixtures (`external_lookup`) are authoritative; metadata runs should assert telemetry provenance equals `external_lookup`.
+- CONFORMANCE-001 — DB-AT/workflow alignment requires forcing the full detector; document the commands/env flags accordingly.
 
 ## Pointers
-- docs/fix_plan.md:14 — PHYSICS-LOSS-001 ledger + Attempts History context for this focus.
-- plans/active/PHYSICS-LOSS-001/implementation.md:60 — Phase G checklist outlining G4/G5 manifest + CI validation tasks.
-- docs/spec-db-core.md:32 — Variance/readout noise spec requiring strictly positive `[panel, slow, fast]` tensors.
-- docs/spec-db-workflow.md:24 — Stage Smoke dataset policy governing metadata fixtures.
-- docs/TESTING_GUIDE.md:80 — Sigma-map workflow section to update with manifest/validation instructions.
-- docs/development/TEST_SUITE_INDEX.md:1 — Registry table where the new metadata validation selector must be documented.
+- plans/active/PERF-SMOKE-DETSIZE/implementation.md:70 — Phase D checklist for canonical parity re-validation.
+- docs/fix_plan.md:90 — PERF-SMOKE-DETSIZE ledger entry + attempts history.
+- docs/TESTING_GUIDE.md:40 — Stage smoke selector commands, telemetry expectations, and guard rails.
+- docs/development/TEST_SUITE_INDEX.md:12 — Registry row for Stage A/B/C smokes.
+- tests/dbex/test_torch_refine_smoke.py:316,600,819 — Stage A/B/C selectors and telemetry helpers referenced by the reruns.
 
 ## Next Up (optional)
-1. After the manifest/CI gate lands, finish Phase G by wiring the fixture hash check into the GitHub workflow that currently runs the Stage smokes.
-
-## Doc Sync Plan (Conditional)
-- After the new pytest module is added, run `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only tests/sp_proc/test_sigma_metadata_fixture.py > plans/active/PHYSICS-LOSS-001/reports/2025-11-21T083500Z/collect_sigma_metadata_fixture.log`, then refresh `docs/TESTING_GUIDE.md` §2 and `docs/development/TEST_SUITE_INDEX.md` with the selector details once the implementation passes.
+1. Once canonical telemetry is archived, resume PERF-WARM-SIM-001 profiling to chase real CPU speedups now that the smoke suite can run quickly on the cropped assets.
 
 ## Mapped Tests Guardrail
-- `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only tests/sp_proc/test_sigma_metadata_fixture.py > plans/active/PHYSICS-LOSS-001/reports/2025-11-21T083500Z/collect_sigma_metadata_fixture.log`
+- `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_DETECTOR_SIZE=full pytest --collect-only tests/dbex/test_torch_refine_smoke.py -k 'test_stage_b_shell_modifiers or test_stage_c_detector_microslip' > plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/collect_stage_full.log`

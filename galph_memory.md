@@ -357,3 +357,12 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-21T083500Z focus=PHYSICS-LOSS-001 state=ready_for_implementation dwell=0 artifacts=plans/active/PHYSICS-LOSS-001/reports/2025-11-21T083500Z/ next_action=ship_sigma_metadata_manifest_gate
+## 2025-11-21T093500Z — PERF-SMOKE-DETSIZE canonical parity relaunch
+- Focus: PERF-SMOKE-DETSIZE — Introduce small-detector fixture for smoke tests
+- Action Type: planning
+- Key Observations: REFINE-SMOKE-CANONICAL closed the Stage B/C implementation bug, so PERF-SMOKE-DETSIZE can resume. Phase A–C checklists and the ledger were stale, so I backfilled the completed crop/script/doc work (artifacts: 2025-11-21T023537Z/031620Z/032803Z/), added Phase D for canonical parity re-validation, and drafted a new Do Now directing Ralph to regenerate the metadata sigma fixtures, rerun Stage A/B/C smokes on the full detector for both sigma sources, capture fresh telemetry/logs under 2025-11-21T093500Z/, and refresh docs/test-index/fix-plan pointers with the new canonical metrics. Input.md now maps every pytest command + telemetry target so exit criterion #4 can close once the artifacts land.
+- Artifact Path: plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/
+- Next Actions: Ralph executes the Stage A/B/C full-detector smokes (CLI + metadata), archives logs/telemetry in the new report directory, and then updates docs/ledger per the Do Now.
+- <Action State>: [ready_for_implementation]
+
+2025-11-21T093500Z focus=PERF-SMOKE-DETSIZE state=ready_for_implementation dwell=0 artifacts=plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/ next_action=canonical_full_detector_smokes

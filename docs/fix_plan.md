@@ -36,7 +36,7 @@
 
 ### [PERF-WARM-SIM-001] Warm simulator; eliminate per-iteration re-instantiation
 - Depends on: docs/spec-db-runtime.md (Torch runtime guardrails), docs/TESTING_GUIDE.md §2 (Stage smoke selectors), docs/pytorch_runtime_checklist.md (cache hygiene)
-- Status: in_progress (2025-11-21 — Stage C telemetry logging + docs refresh pending)
+- Status: in_progress (2025-11-21 — Stage C warm-cache detector reuse + ROI retarget pending)
 - Priority: High (perf focus)
 - Owner/Date: Team / 2025-11-05
 - Exit Criteria:
@@ -46,6 +46,7 @@
   4. docs/TESTING_GUIDE.md §2 and `docs/development/TEST_SUITE_INDEX.md` spell out the warm-cache benchmark workflow plus Stage B/C perf gates so future initiatives can rerun the selectors verbatim.
 - Working Plan: `plans/active/PERF-WARM-SIM-001/implementation.md`
 - Attempts History:
+  * 2025-11-21T175716Z (planning) — Verified the Stage C telemetry/logging artifacts under `plans/active/PERF-WARM-SIM-001/reports/2025-11-21T174147Z/` and confirmed the latest `input.md` Do Now (Stage C perf-counter logging + summarizer) completed successfully. Stage C warm runs still instantiate new `Detector`/`Simulator` objects for every ROI/panel even when `stage_a_ctx` is available (`dbex/nanobrag_refinement.py:2238-2545`), so exit-criterion #1 remains unmet. Authored a ready-for-implementation Do Now directing Ralph to (1) extend `StageAContext` and `_build_stage_a_context` with per-panel distance baselines + a retarget helper that mutates cached simulators instead of recreating them, (2) update Stage C warm branches (`compute_loss_stage_c` plus the final Stage C reconstruction loop) to call the helper and avoid cold instantiation, and (3) rerun the Stage C small/full smokes with telemetry capture + `summarize_stage_c_roi.py` outputs rooted at `plans/active/PERF-WARM-SIM-001/reports/2025-11-21T175716Z/`. Docs/fix_plan/input all reference the new workflow so exit-criterion #2 stays compliant while we chase the Stage C reuse win.
   * 2025-11-21T182300Z (implementation) — Landed the Stage C logging/summarizer loop so exit criterion #2 finally has artifacts. Added the Stage C perf-counter print block in `tests/dbex/test_torch_refine_smoke.py` so pytest logs include `cache_mode`, `roi_mode`, ROI totals, closure/validation counts, and `forward_time_ms` alongside the existing asserts, then cloned the Stage B ROI summarizer into `plans/active/PERF-WARM-SIM-001/bin/summarize_stage_c_roi.py` and documented the workflow in `docs/TESTING_GUIDE.md` §1.1 (Stage C telemetry bullet now describes the env vars + summarizer command). Captured telemetry for both detector footprints via the mapped selectors, storing logs/JSON under `plans/active/PERF-WARM-SIM-001/reports/2025-11-21T174147Z/`:
     - `pytest_stage_c_small.log` / `telemetry_stage_c_small.json`
     - `pytest_stage_c_full.log` / `telemetry_stage_c_full.json`

@@ -62,3 +62,10 @@ plans/active/PERF-WARM-SIM-001/
 
 ## Timeline
 Estimated 1–2 engineering days across A (Stage A), then C, then B. Prioritize Stage A first to realize immediate gains.
+
+## Phase D — Stage C Detector Reuse (PERF-WARM-013)
+
+- **D1 — Context metadata**: Extend `StageAContext` (and `_build_stage_a_context`) with baseline per-panel distance vectors plus ROI→panel maps so downstream stages can mutate cached detectors without cloning configs. Spec refs: `docs/spec-db-runtime.md §2.1` (cache reuse) and `docs/spec-db-workflow.md §Stage C`.
+- **D2 — Retarget helpers**: Add a helper (e.g., `_retarget_stage_a_detectors`) that applies bounded distance deltas to every cached simulator/ROI entry, mirroring `_retarget_stage_a_simulators` but operating on detector geometry. Guard CPU fallbacks and dtype/device parity.
+- **D3 — Stage C warm path**: Refactor `compute_loss_stage_c` plus the final Stage C reconstruction block (`dbex/nanobrag_refinement.py:2238-2545`) to call the new helper whenever `stage_c_use_warm_cache` is true so we stop instantiating fresh `Detector`/`Simulator` objects per ROI/panel. Cold mode stays untouched.
+- **D4 — Telemetry + docs**: Rerun Stage C smokes (small + full detectors) with `DBEX_SMOKE_TELEMETRY_PATH` rooted at the new report directory, capture `telemetry_stage_c_{small,full}.json`, regenerate `stage_c_roi_summary.json`, and update `docs/TESTING_GUIDE.md` / `docs/development/TEST_SUITE_INDEX.md` only if the workflow changes (per Test Registry Sync rules).

@@ -527,3 +527,13 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-21T174147Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=2 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T174147Z/ next_action=stage_c_telemetry_capture
+
+## 2025-11-21T175716Z — PERF-WARM-SIM-001 Stage C detector reuse plan
+- Focus: PERF-WARM-SIM-001 — Stage C warm-cache detector reuse
+- Action Type: planning
+- Key Observations: Verified the 2025-11-21T174147Z Stage C telemetry/logging artifacts, logged new finding PERF-WARM-013 to capture the remaining detector-instantiation debt, refreshed the implementation plan/status, and rewrote input.md with a ready-for-implementation Do Now covering the StageAContext metadata/retarget helper plus Stage C smoke reruns.
+- Artifact Path: plans/active/PERF-WARM-SIM-001/reports/2025-11-21T175716Z/
+- Next Actions: Ralph implements the Stage C detector retarget helper + warm-path refactor and reruns both Stage C selectors with telemetry + summary artifacts.
+- <Action State>: [ready_for_implementation]
+
+2025-11-21T175716Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=0 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T175716Z/ next_action=stage_c_detector_retarget_implementation

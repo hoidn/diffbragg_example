@@ -1,7 +1,7 @@
 # TORCH-REFINE-004 — Stage B Fhkl modifiers implementation plan
 
 ## Context & guardrails
-- Stage B is optional but must preserve Stage A geometry behavior (docs/spec-db-workflow.md §7; plans/nanobrag_integration_plan.md §Stage B).
+- Stage B is optional but must preserve Stage A geometry behavior (docs/spec-db-workflow.md §7; plans/nanobrag_integration_plan.md §Stage B) and operate strictly on the mapping-aligned Stage A baseline defined by DB-AT-024 (`simulate_forward_once` + Stage-A zero-point invariant).
 - Differentiable HKL interpolation is mandatory when Stage B runs and requires the ±1 halo grid (REFINE-005, docs/architecture/pytorch_design.md §1.1.1).
 - Structure factors remain unscaled pre-simulation (SCALE-001/002) and refined MTZ telemetry stays authoritative (SCALE-003/007).
 - Default behavior keeps Stage B disabled; opt in via config/CLI so Stage C smoke and nucleus paths remain stable until Stage B clears its gate.

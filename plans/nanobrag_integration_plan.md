@@ -18,12 +18,20 @@ Estimated timeline: 12–18 engineering days (5 phased milestones with validatio
 - Compile/runtime: Reuse a warmed Simulator for fixed shapes; re‑instantiate if detector size/oversample changes (shape changes invalidate compiled kernel caches). ROI defaults to full detector when omitted.
 - Pixel geometry: Only square pixels supported per Detector; if fast/slow pitch differs across hardware, instantiate separate Detectors per unique pixel size or defer until `pixel_size_s_mm/pixel_size_f_mm` lands.
  
-See supporting API references: docs/nanobrag_api.md, docs/simtbx_api.md, docs/dxtbx_api.md, docs/dials_api.md.
+See supporting API references: docs/nanobrag_api.md (including `ExperimentModel` Stage‑A parameterization), docs/simtbx_api.md, docs/dxtbx_api.md, docs/dials_api.md.
 
 ## Stage Policy (Refinement Source Separation)
 
 - Stage A (Crystal + Global Scale): Simulator SHOULD enable tricubic interpolation with a ±1 halo to retain smooth gradients. Nearest-neighbor lookup is a permitted fallback only when halo support is unavailable. Grid bounds derive from the MTZ envelope; UB changes do not require grid rebuild in this stage.
 - Stage B (ASU Fhkl Modifiers): Simulator SHALL enable tricubic interpolation and the |F| grid MUST include a ±1 halo in h/k/l. Any default_F fallback when interpolation is enabled is a failure condition for Stage B, and per-ASU symmetry constraints MUST be enforced.
+
+Mapping-Aligned Baseline (Stage A → B/C)
+- For any refinement that claims Spec-DB mapping parity, Stage A defines the canonical baseline:
+  - Geometry, masks, sigma tensors, and `RefinementInputs` are constructed per DB-AT-024 and `spec-db-conformance.md` (Mapping-Aligned Stage-A Initialization).
+  - The Stage A zero point (all geometry deltas zero, baseline scale) MUST reproduce the `simulate_forward_once` Bragg tensor for the same `RefinementInputs` and HKL grid.
+- Stage B and Stage C SHALL be implemented strictly as extensions of this mapping-aligned Stage A baseline:
+  - Stage B (structure factors) refines Fhkl multipliers on top of the Stage A zero point without introducing a new geometry or loss definition.
+  - Stage C (detector microslip) applies detector distance deltas relative to the same Stage A mapping geometry and MUST preserve the variance-weighted loss semantics already validated for Stage A.
 
 ## Phase 0 – Environment & Baseline (verification only, 1–2 days)
 - Environment Freeze: Do not install or upgrade packages, clone external repos, or modify toolchains. If `nanobrag_torch` or its tests are unavailable, record a blocker in `docs/fix_plan.md` and proceed with evidence‑only steps.

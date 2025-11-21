@@ -4,7 +4,7 @@
 Enable the Stage C refinement stage for the nanobrag torch backend by introducing per-panel detector translations along the panel normal. The goal is to recover deterministic detector distance miscalibrations (microslip) using LBFGS with the same closure/telemetry contract as Stage A, achieving ≥0.002% masked-MSE loss reduction (calibrated to refGeom ceiling) within ≤30 steps and capturing per-panel parameter deltas for diagnostics.
 
 ## References
-- docs/spec-db-workflow.md:20-56 — Stage staging contract (Stage C detector translations + LBFGS requirement)
+- docs/spec-db-workflow.md:20-56 — Stage staging contract (Stage C detector translations + LBFGS requirement, mapping-aligned Stage A zero point)
 - plans/nanobrag_integration_plan.md:157-206 — Stage C strategy, optimizer expectations, telemetry notes
 - docs/config_crosswalk.md:24-69 — Detector distance/axes mapping, beam centre semantics
 - docs/findings.md:REFINE-001, REFINE-006 — Scale warm-start/telemetry guardrails and calibrated improvement gates carried forward
@@ -12,7 +12,7 @@ Enable the Stage C refinement stage for the nanobrag torch backend by introducin
 
 ## Exit Criteria (mirror fix_plan)
 1. Introduce differentiable per-panel detector distance offsets (translation along normal) optimized via LBFGS; record per-panel `param_deltas`.
-2. Deterministic Stage C smoke (refGeom with synthetic panel offsets) achieves ≥0.002% masked-MSE improvement within ≤30 LBFGS iterations while maintaining non-increasing full-loss validations.
+2. Deterministic Stage C smoke (refGeom with synthetic panel offsets) achieves ≥0.002% masked-MSE improvement within ≤30 LBFGS iterations while maintaining non-increasing full-loss validations, starting from the mapping-aligned Stage A zero point defined by DB-AT-024 / `simulate_forward_once`.
 3. Targeted pytest selector for Stage C collects/passes; artifacts (collect-only + selector logs + JSON metrics) archived; docs/findings/fix_plan updated.
 
 ## Phase Breakdown

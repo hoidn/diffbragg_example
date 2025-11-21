@@ -1,5 +1,5 @@
 ### Turn Summary
-Pinned down why the Stage B CPU fallback still reports `cache_mode="cold"` (dbex/nanobrag_refinement.py:1588-1604 + stage_b_roi_summary.json:32-44) and wrote the new fix-plan attempt/input.md so Ralph clones StageAContext onto CPU and keeps canonical runs warm.
-Captured the telemetry/runtime evidence plus logged finding PERF-WARM-012 and the 2025-11-21T160700Z plan update so the engineer can focus purely on the cache plumbing + smoke/test reruns.
-Next: Ralph implements the CPU Stage A cache clone in run_nanobrag_refinement, refreshes the Stage B smoke asserts, reruns both selectors, and regenerates summarize_stage_b_roi.py artifacts under plans/active/PERF-WARM-SIM-001/reports/2025-11-21T160700Z/.
-Artifacts: plans/active/PERF-WARM-SIM-001/reports/2025-11-21T160700Z/ (input.md, summary.md)
+Implemented CPU cache cloning so canonical Stage B runs reuse cached detectors/simulators/masks even on CPU, restoring cache_mode="warm" telemetry and reducing runtime from ~80s to ~72s.
+The small-detector smoke stays on CUDA with ROI mode (~193ms), while the canonical smoke now runs on CPU with warm panel cache, proving cache reuse works across devices.
+Next: Exit criteria satisfied (canonical Stage B reports cache_mode="warm" with ~10% runtime improvement); PERF-WARM-SIM-001 can remain active for future ROI recalibration or Stage C optimizations.
+Artifacts: plans/active/PERF-WARM-SIM-001/reports/2025-11-21T160700Z/ (pytest_stage_b_small.log, telemetry_stage_b_small.json, pytest_stage_b_full.log, telemetry_stage_b_full.json, stage_b_roi_summary.json)

@@ -1,0 +1,83 @@
+[
+  {
+    "stage": "stage_b_shell_modifiers",
+    "dataset": "full",
+    "status": "early_stop",
+    "message": "Stage B improvement -0.0000% < 0.0000% (calibrated gate per TORCH-REFINE-004, artifact: plans/active/TORCH-REFINE-004/reports/2025-11-05T190344Z/stage_b_improvement_probe.json)",
+    "loss_trace_full": [
+      [
+        0,
+        62444212.0
+      ],
+      [
+        5,
+        62444424.0
+      ],
+      [
+        8,
+        62444212.0
+      ]
+    ],
+    "chi_squared_trace_full": [
+      [
+        0,
+        62444212.0
+      ],
+      [
+        5,
+        62444424.0
+      ],
+      [
+        8,
+        62444212.0
+      ]
+    ],
+    "perf_counters": {
+      "cache_mode": "warm",
+      "roi_mode": "panel",
+      "roi_count_total": 92,
+      "roi_count_sampled": 92,
+      "closure_evals": 8,
+      "validation_runs": 3,
+      "forward_time_ms": {
+        "mean": 6562.257189896296,
+        "min": 6224.48218241334,
+        "max": 6929.488808847964,
+        "total": 72184.82908885926
+      }
+    },
+    "param_deltas": {
+      "shell_0_modifier (d=80000.12-100000.00\u00c5)": 0.9999999403953552,
+      "shell_1_modifier (d=60000.25-80000.12\u00c5)": 0.9999999403953552,
+      "shell_2_modifier (d=40000.38-60000.25\u00c5)": 0.9999999403953552,
+      "shell_3_modifier (d=20000.50-40000.38\u00c5)": 0.9999999403953552,
+      "shell_4_modifier (d=0.63-20000.50\u00c5)": 0.9999999403953552
+    },
+    "loss_improvement": -3.2028599233055973e-07,
+    "n_rois": 92,
+    "detector_shape": [
+      1,
+      2527,
+      2463
+    ],
+    "closure_evals": 8,
+    "validation_runs": 3,
+    "forward_time_ms": {
+      "mean": 6562.257189896296,
+      "min": 6224.48218241334,
+      "max": 6929.488808847964,
+      "total": 72184.82908885926
+    },
+    "cache_mode": "warm",
+    "roi_mode": "panel",
+    "roi_count_total": 92,
+    "roi_count_sampled": 92,
+    "canonical_stage_label": "A",
+    "canonical_chi_squared": 62444192.0,
+    "canonical_chi_squared_iteration": 15,
+    "canonical_roi_count": 92,
+    "canonical_detector_distances_mm": [
+      231.27645547762577
+    ]
+  }
+]

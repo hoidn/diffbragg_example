@@ -25,8 +25,9 @@
 - [x] A1: Update `RefinementInputs` dataclass in `dbex/nanobrag_bridge.py` to include `sigma_readout` tensors.
 - [x] A2: Update `prepare_refinement_inputs` to normalize readout noise (broadcast scalars, convert to photons when `adu_per_photon` supplied, zero outside the loss mask).
     - Logic: If `adu_per_photon` provided, `sigma_photons = sigma_adu / gain`.
-    - Fallback: If no metadata, assume `sigma_readout = 0` (Poisson-only variance) and warn via CLI flag help text.
+    - Guardrail (new): If detector metadata cannot supply `sigma_readout`, the CLI MUST require a non-zero override; silent fallback to zeros violates `spec-db-core.md`.
 - [x] A3: Update `tests/dbex/test_nanobrag_bridge.py` to assert `sigma_readout` presence, dtype, broadcast handling, and photon conversion.
+- [ ] A4: Update CLI ingestion (`dbex/refine_one.py`) so `--sigma-rdout` (or equivalent metadata source) is mandatory when the detector lacks calibrated dark noise, and fail fast with actionable messaging; emit telemetry describing the provenance (`calibrated`, `cli_override`).
 
 ## Phase B — Engine Logic
 ### Checklist
@@ -35,6 +36,8 @@
 - [x] B2b: Update Stage B shell-modifier closures to consume `inputs.sigma_readout` (same variance model as Stage A) so Stage A↔Stage B improvements use consistent units. (Delivered in `ec6f485` with artifacts at `plans/active/PHYSICS-LOSS-001/reports/2025-11-20T233552Z/pytest_stage_b.log`.)
 - [x] B2c: Update Stage C detector distance closures to consume `inputs.sigma_readout` and report chi-squared traces that align with Stage A’s denominator. (Delivered in `ec6f485`; see `pytest_stage_c.log` in the same artifact set.)
 - [x] B3: Add `chi_squared` to `RefinementTelemetry` and `_write_torch_outputs`, preserving masked-MSE traces for legacy consumers. (Validated via `tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata` artifacts.)
+- [ ] B4: Implement variance flooring per `spec-db-core.md` (`V = max(I_model + sigma_readout^2, sigma_floor^2)`) across Stage A/B/C, expose `sigma_floor` via CLI/env, and emit telemetry covering clamp rate + floor value.
+- [ ] B5: Update Stage A/B/C GPU smoke tests (`tests/dbex/test_torch_refine_smoke.py`) to supply deterministic `sigma_readout` fixtures and assert that telemetry reports the correct provenance + clamp statistics.
 
 ## Phase C — Validation
 - [x] C1: Run `DB-AT-010` (Gradcheck). *Note: The loss value will change, but gradients must remain correct.*

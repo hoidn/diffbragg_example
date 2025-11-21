@@ -8,6 +8,7 @@ import time
 from datetime import datetime
 from pathlib import Path, PurePath
 from subprocess import Popen, PIPE
+import shlex
 
 from .state import OrchestrationState
 from .git_bus import safe_pull, add, commit, push_to, short_head, has_unpushed_commits, assert_on_branch, current_branch, push_with_rebase
@@ -28,22 +29,27 @@ def _log_file(prefix: str) -> Path:
     return p
 
 
-def tee_run(cmd: list[str], stdin_file: Path, log_path: Path) -> int:
-    with open(stdin_file, "rb") as fin, open(log_path, "a", encoding="utf-8") as flog:
-        flog.write(f"$ {' '.join(cmd)}\n")
-        flog.flush()
-        proc = Popen(cmd, stdin=fin, stdout=PIPE, stderr=PIPE, text=True, bufsize=1)
-        while True:
-            line = proc.stdout.readline() if proc.stdout else ""
-            if not line:
-                break
-            sys.stdout.write(line)
-            flog.write(line)
-        err = proc.stderr.read() if proc.stderr else ""
-        if err:
-            sys.stderr.write(err)
-            flog.write(err)
-        return proc.wait()
+def tee_run(cmd: list[str], stdin_file: Path | None, log_path: Path) -> int:
+    fin = open(stdin_file, "rb") if stdin_file else None
+    try:
+        with open(log_path, "a", encoding="utf-8") as flog:
+            flog.write(f"$ {' '.join(cmd)}\n")
+            flog.flush()
+            proc = Popen(cmd, stdin=fin, stdout=PIPE, stderr=PIPE, text=True, bufsize=1)
+            while True:
+                line = proc.stdout.readline() if proc.stdout else ""
+                if not line:
+                    break
+                sys.stdout.write(line)
+                flog.write(line)
+            err = proc.stderr.read() if proc.stderr else ""
+            if err:
+                sys.stderr.write(err)
+                flog.write(err)
+            return proc.wait()
+    finally:
+        if fin:
+            fin.close()
 
 
 def main() -> int:
@@ -276,7 +282,22 @@ def main() -> int:
             logp(f"ERROR: {e}")
             print(f"[sync] ERROR: {e}")
             return 2
-        rc = tee_run(cmd, prompt_path, iter_log)
+        script_bin = shutil.which("script")
+        if script_bin:
+            cmd_str = shlex.join(cmd)
+            script_cmd = [
+                script_bin,
+                "-q",
+                "-c",
+                f"cat {shlex.quote(str(prompt_path))} | {cmd_str}",
+                "/dev/null",
+            ]
+            run_cmd = script_cmd
+            stdin_arg = None
+        else:
+            run_cmd = cmd
+            stdin_arg = prompt_path
+        rc = tee_run(run_cmd, stdin_arg, iter_log)
 
         # Auto-commit reports evidence (before stamping) — constrained by extension and size caps
         if args.auto_commit_reports:

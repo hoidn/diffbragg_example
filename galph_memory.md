@@ -1134,3 +1134,13 @@ Notes
 - Artifact Path: plans/active/PHYSICS-LOSS-001/reports/2025-11-21T003959Z/
 - Next Actions: Implement sigma-floor guard + telemetry, rerun the mapped Stage A/B/C selectors, and unblock Phase B4/B5 + Phase C2/C3.
 - <Action State>: [ready_for_implementation]
+
+## 2025-11-21T010127Z — PHYSICS-LOSS-001 variance helper planning
+- Focus: PHYSICS-LOSS-001 — Stage A/B/C variance-weighted loss
+- Action Type: planning
+- Key Observations: Stage B smoke still records zero LBFGS samples because the NaN/Inf guard fires immediately after the sigma-floor patch (telemetry status=`error`, see plans/active/PHYSICS-LOSS-001/reports/2025-11-21T003959Z/pytest_stage_b.log:60-99) and Stage C gate compares ≈8.09e3 vs ≈3.02e8 chi-squared values because Stage A still divides Σ(diff²) by Σ(variance) instead of summing per-pixel ratios (plans/active/PHYSICS-LOSS-001/reports/2025-11-21T003959Z/pytest_stage_c.log:112-134). Logged PHYSICS-LOSS-003 and refreshed the fix plan/input to mandate a shared helper in `dbex/nanobrag_refinement.py` so Stage A/B/C reuse the spec equation with one cached `sigma_floor_sq` tensor and aligned telemetry.
+- Artifact Path: plans/active/PHYSICS-LOSS-001/reports/2025-11-21T010127Z/
+- Next Actions: Implement the shared variance-weighted helper + telemetry wiring, then rerun Stage A/B/C smokes and the CLI diagnostics test per the new input.
+- <Action State>: [ready_for_implementation]
+
+2025-11-21T010127Z focus=PHYSICS-LOSS-001 state=ready_for_implementation dwell=0 artifacts=plans/active/PHYSICS-LOSS-001/reports/2025-11-21T010127Z/ next_action=shared_variance_helper_implementation

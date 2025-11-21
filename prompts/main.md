@@ -38,7 +38,7 @@
     - **Do-Now must include code.** Unless `Mode: Docs`, make at least one code change that advances exit criteria. If the Do Now lacks an `Implement:` step, apply **stall-autonomy** (see Implementation Flow §0).
     - **Spec precedence.** Prefer SPEC over ARCH on external behavior; file an ARCH update when they disagree.
     - **Search first.** Before coding, search the repo to avoid duplicating partial implementations.
-    - **Repeat-failure guard.** If the same acceptance criterion (test selector, CLI run, manual check) failed in the prior loop with essentially the same log/telemetry signature and the current Do Now only adjusts gates/docs, halt immediately: mark the focus `blocked — suspected implementation defect` in `docs/fix_plan.md`, capture the failure evidence path, and notify the supervisor via your output instead of repeating the gate change.
+    - **Repeat-failure guard.** If the same acceptance criterion (test selector, CLI run, manual check) failed in the prior loop with essentially the same log/telemetry signature and the current Do Now only adjusts gates/docs, halt immediately: mark the focus `blocked — suspected implementation defect (bug)` in `docs/fix_plan.md`, capture the failure evidence path, and notify the supervisor via your output instead of repeating the gate change.
     - **Refactoring discipline (atomic).** If moving/renaming modules/classes/functions:
       a) create new structure; b) move code; c) search entire repo for old imports/usages; d) update all; e) delete obsolete files; f) validate via the comprehensive testing gate.
     - **Testing scope.** Run tests via `pytest` under `./tests/` only; no ad‑hoc scripts.

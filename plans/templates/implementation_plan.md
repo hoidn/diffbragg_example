@@ -6,6 +6,7 @@
 - ID: <initiative-id>
 - Title: <short title>
 - Owner: <name>
+- Spec Owner: <normative spec filename>  <!-- e.g., docs/spec-db-core.md -->
 - Status: pending | in_progress | blocked | done | archived
 
 ## Goals
@@ -23,12 +24,24 @@
 3. <criterion 3>
 4. Test registry synchronized: `docs/TESTING_GUIDE.md` §2 and `docs/development/TEST_SUITE_INDEX.md` reflect any new/changed tests; `pytest --collect-only` logs for documented selectors are saved under `plans/active/<initiative-id>/reports/<timestamp>/`. Do not close the initiative if any selector marked "Active" collects 0 tests.
 
+## Compliance Matrix (Mandatory)
+> List the specific Spec constraints, Fix-Plan ledger rows, and Findings/Policies this initiative must honor. Missing a relevant entry is a plan defect per ARRP.
+- [ ] **Spec Constraint:** <e.g., `spec-db-core.md §5.2 — Variance model definition`>
+- [ ] **Fix-Plan Link:** <e.g., `docs/fix_plan.md — Row [PHYSICS-LOSS-001]`>
+- [ ] **Finding/Policy ID:** <e.g., `CONFIG-001`, `POLICY-001 (PyTorch Optional)`>
+
 ## Spec Alignment
 - **Normative Spec:** [path to spec file]
 - **Key Clauses:** [list of specific requirements this plan satisfies]
 
+## Context Priming (read before edits)
+- Primary docs/specs to re-read: <list explicit files + sections>
+- Required findings/case law: <docs/findings.md IDs + summary>
+- Related telemetry/attempts: <links to relevant artifacts or plan history>
+
 ## Phase A — <name>
 ### Checklist
+- [ ] A0: **Nucleus / Test-first gate:** <minimal probe or selector to validate assumptions before implementation>
 - [ ] A1: <task> (owner, expected artifacts)
 - [ ] A2: <task>
 - [ ] A3: <task>

@@ -392,3 +392,12 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-21T103500Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=0 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T103500Z/ next_action=roi_stage_a_impl
+## 2025-11-21T103232Z — PERF-WARM-SIM-001 warm-only ROI gate plan
+- Focus: PERF-WARM-SIM-001 — Warm simulator; eliminate per-iteration re-instantiation
+- Action Type: planning
+- Key Observations: ROI batching proved the warm path can finish Stage A in ~14.5 s but the cold control path now follows the same ROI sampling pipeline, so the benchmark’s speedup is still ≈1.01× (`plans/active/PERF-WARM-SIM-001/reports/2025-11-21T103500Z/benchmark_summary.json`). Updated the fix-plan entry and rewrote `input.md` so Ralph adds an `allow_cold_stage_a_roi_mode` override, gates ROI sampling on the warm cache by default, stamps the ROI mode into Stage A perf telemetry, and refreshes the benchmark script/artifacts (2025-11-21T103232Z/) to compare warm(ROI) against cold(panel) again.
+- Artifact Path: plans/active/PERF-WARM-SIM-001/reports/2025-11-21T103232Z/
+- Next Actions: Implement the warm-only ROI gate + benchmark refresh, rerun the Stage A smoke with telemetry, capture the new `benchmark_summary.json`/perf counters in the artifacts dir, and update findings once the ≥2× ratio is recorded.
+- <Action State>: [ready_for_implementation]
+
+2025-11-21T103232Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=1 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T103232Z/ next_action=roi_warm_only_impl

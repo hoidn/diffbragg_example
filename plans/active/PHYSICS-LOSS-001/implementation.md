@@ -41,14 +41,14 @@
 
 ## Phase C — Validation
 - [x] C1: Run `DB-AT-010` (Gradcheck). *Note: The loss value will change, but gradients must remain correct.*
-- [ ] C2: Run `DB-AT-024` (Mapping). *Re-run the zero-iteration mapping selector (new artifact folder) and confirm chi-squared telemetry matches masked-MSE companions; capture the `pytest_db_at_024.log` output.*
-- [ ] C3: Run Stage A Smoke. *Replay `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` with chi-squared telemetry enabled, refresh metrics snapshots, and document any gate adjustments caused by the new loss scale.* 
+- [ ] C2: Run `DB-AT-024` (Mapping). *Re-run the zero-iteration mapping selector (new artifact folder), add variance-weighted chi-squared + sigma-floor clamp telemetry to `simulate_forward_once` diagnostics, and confirm the DB-AT-024 acceptance asserts these new fields before capturing the `pytest_db_at_024.log` output.*
+- [ ] C3: Run Stage A Smoke. *Replay `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` with `DBEX_SMOKE_DETECTOR_SIZE=full`, assert the canonical chi-squared snapshot matches Stage A's final trace, and refresh telemetry/metrics snapshots so REFs (REFINE-007/008) have canonical baselines.* 
 
 ### Risks
 - **Scale Shift:** MSE is typically large (~10^6). Chi-squared is normalized (≈ N_pixels). L-BFGS tolerances (`tolerance_change`) are absolute; they may need retuning for the new loss scale (e.g., 1e-9 → 1e-4).
 
 ## Phase D — Canonical chi-squared alignment
 ### Checklist
-- [ ] D1: Add a shared variance-weighted loss helper in `dbex/nanobrag_refinement.py` that consumes a cached `sigma_floor_sq` tensor and returns Σ((pred-target)^2 / V), masked-MSE companions, and clamp counts so every stage (sampled + full validations) executes the exact spec-db-core.md:57-68 equation.
-- [ ] D2: Thread the helper through Stage A/B/C closures + telemetry, ensuring Stage C improvement logic compares Stage A final chi-squared against Stage C final using identical units and that Stage B gates reference the Stage A canonical chi-squared snapshot.
-- [ ] D3: Update `tests/dbex/test_torch_refine_smoke.py::{test_stage_b_shell_modifiers,test_stage_c_detector_microslip}` and `tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata` to assert Stage A/B/C chi-squared traces fall within ≤1e-6 relative agreement when run on the canonical detector, and archive the new telemetry/logs under `plans/active/PHYSICS-LOSS-001/reports/<timestamp>/`.
+- [x] D1: Add a shared variance-weighted loss helper in `dbex/nanobrag_refinement.py` that consumes a cached `sigma_floor_sq` tensor and returns Σ((pred-target)^2 / V), masked-MSE companions, and clamp counts so every stage (sampled + full validations) executes the exact spec-db-core.md:57-68 equation. *(Delivered 2025-11-21T051747Z — `_compute_variance_weighted_loss` now powers Stage A/B/C closures.)*
+- [x] D2: Thread the helper through Stage A/B/C closures + telemetry, ensuring Stage C improvement logic compares Stage A final chi-squared against Stage C final using identical units and that Stage B gates reference the Stage A canonical chi-squared snapshot. *(Delivered 2025-11-21T051747Z — canonical chi-squared metadata recorded for Stage B/C + CLI diagnostics.)*
+- [x] D3: Update `tests/dbex/test_torch_refine_smoke.py::{test_stage_b_shell_modifiers,test_stage_c_detector_microslip}` and `tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata` to assert Stage A/B/C chi-squared traces fall within ≤1e-6 relative agreement when run on the canonical detector, and archive the new telemetry/logs under `plans/active/PHYSICS-LOSS-001/reports/<timestamp>/`. *(Delivered 2025-11-21T051747Z — canonical Stage A telemetry asserted in Stage B/C smokes and CLI metadata test.)*

@@ -283,3 +283,13 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-21T045800Z focus=PHYSICS-LOSS-001 state=ready_for_implementation dwell=1 artifacts=plans/active/PHYSICS-LOSS-001/reports/2025-11-21T045800Z/ next_action=shared_variance_helper_implementation
+
+## 2025-11-21T052443Z — PHYSICS-LOSS-001 Stage A + DB-AT chi-squared plan
+- Focus: PHYSICS-LOSS-001 — Implement variance-weighted loss function
+- Action Type: planning
+- Key Observations: Marked Phase D checklist items complete after verifying the shared helper + canonical telemetry landed, refreshed Phase C tasks to emphasize Stage A full-detector smoke evidence and DB-AT-024 chi-squared diagnostics, added a new fix-plan attempt plus report directory, and rewrote input.md with simulate_forward_once + test updates plus strict env commands.
+- Artifact Path: plans/active/PHYSICS-LOSS-001/reports/2025-11-21T052443Z/
+- Next Actions: Ralph adds chi-squared/sigma-floor diagnostics to simulate_forward_once, updates the Stage A smoke + DB-AT-024 tests, and reruns the mapped selectors with telemetry logging per the new instructions.
+- <Action State>: [ready_for_implementation]
+
+2025-11-21T052443Z focus=PHYSICS-LOSS-001 state=ready_for_implementation dwell=0 artifacts=plans/active/PHYSICS-LOSS-001/reports/2025-11-21T052443Z/ next_action=stage_a_full_and_db_at_024_chi_squared_validation

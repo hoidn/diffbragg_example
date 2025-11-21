@@ -1,0 +1,47 @@
+{
+  "summaries": [
+    {
+      "dataset_label": "small",
+      "status": "ok",
+      "cache_mode": "warm",
+      "roi_mode": "roi",
+      "roi_count_total": 29,
+      "roi_count_sampled": 29,
+      "closure_evals": 12,
+      "validation_runs": 4,
+      "forward_time_ms": {
+        "total": 842.2565716318786,
+        "mean": 52.64103572699241,
+        "min": 51.78776988759637,
+        "max": 53.96260833367705
+      },
+      "loss_improvement": 0.06719942620802258,
+      "chi_squared_improvement": 0.06719942620802258,
+      "detector_offset_reduction_min": 0.0004450082778930664,
+      "detector_offset_final_abs_max": 0.24988874793052673,
+      "canonical_chi_squared": 657275136.0
+    },
+    {
+      "dataset_label": "full",
+      "status": "ok",
+      "cache_mode": "warm",
+      "roi_mode": "roi",
+      "roi_count_total": 92,
+      "roi_count_sampled": 92,
+      "closure_evals": 11,
+      "validation_runs": 4,
+      "forward_time_ms": {
+        "total": 3443.0521177127957,
+        "mean": 229.53680784751973,
+        "min": 227.67723025754094,
+        "max": 230.79290287569165
+      },
+      "loss_improvement": 0.5993581465687864,
+      "chi_squared_improvement": 0.5993581465687864,
+      "detector_offset_reduction_min": 0.9999999403953552,
+      "detector_offset_final_abs_max": 1.4901161193847656e-08,
+      "canonical_chi_squared": 250280192.0
+    }
+  ],
+  "n_datasets": 2
+}

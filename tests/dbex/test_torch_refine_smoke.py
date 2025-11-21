@@ -829,6 +829,16 @@ def test_stage_c_detector_microslip(
     assert forward_time_c.get("total", 0.0) > 0.0, (
         f"Stage C forward_time_ms.total must be >0, got {forward_time_c.get('total')}"
     )
+    print(
+        "[Stage C] "
+        f"detector={smoke_detector_size}, cache_mode={cache_mode_c}, roi_mode={roi_mode_c}, "
+        f"roi_total={canonical_roi_count}, roi_sampled={roi_sampled_c}, "
+        f"closure_evals={closure_evals_c}, validation_runs={validation_runs_c}, "
+        f"forward_time_ms(total={forward_time_c.get('total', 0.0):.2f}, "
+        f"mean={forward_time_c.get('mean', 0.0):.2f}, "
+        f"min={forward_time_c.get('min', 0.0):.2f}, "
+        f"max={forward_time_c.get('max', 0.0):.2f})"
+    )
 
     _record_stage_telemetry(
         "stage_c_detector_microslip",

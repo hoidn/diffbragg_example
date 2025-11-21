@@ -48,6 +48,15 @@ export DBEX_SMOKE_TELEMETRY_PATH=plans/active/<initiative>/reports/<timestamp>/t
   `pytest -v tests/dbex/test_torch_refine_smoke.py::{test_stage_c_detector_microslip,test_stage_b_shell_modifiers} --smoke-detector-size=full`
   so the JSON records offset reductions and shell modifier deltas. Stage C must prove ≥80 % detector-offset reduction (or ≤±0.05 mm absolute distance) and keep chi-squared within +0.05 % of Stage A (REFINE-007).
   Stage B must show `improvement_b >= -1e-6` and every shell modifier within ±1 % of identity (REFINE-008). These tolerances backstop PHYSICS-LOSS-001 parity evidence; archive the telemetry alongside the pytest logs under `plans/active/PERF-SMOKE-DETSIZE/reports/<timestamp>/`.
+- **Stage C telemetry workflow (PERF-WARM-SIM-001)**: Warm-cache evidence for Stage C now ships with:
+  1. Unique telemetry files per detector size:  
+     `DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-WARM-SIM-001/reports/<timestamp>/telemetry_stage_c_small.json` (repeat with `_full.json`).  
+     Always tee pytest output to the same directory (e.g., `tee .../pytest_stage_c_small.log`) so logs + telemetry stay co-located.
+  2. Canonical commands (per `input.md`):  
+     `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=<size> DBEX_SMOKE_TELEMETRY_PATH=<path> KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=<size> | tee <artifacts>/pytest_stage_c_<size>.log`.
+  3. Consolidated summary via `plans/active/PERF-WARM-SIM-001/bin/summarize_stage_c_roi.py`, which ingests both telemetry files and emits `stage_c_roi_summary.json` plus a `summarize_stage_c_roi.log`. Example:  
+     `python plans/active/PERF-WARM-SIM-001/bin/summarize_stage_c_roi.py --telemetry .../telemetry_stage_c_small.json --telemetry .../telemetry_stage_c_full.json --out .../stage_c_roi_summary.json | tee .../summarize_stage_c_roi.log`.
+     This summary captures cache/ROI counters (`cache_mode`, `roi_mode`, `roi_count_*`, `closure_evals`, `validation_runs`, `forward_time_ms`) and detector-offset telemetry (`detector_offset_reduction_min`, `detector_offset_final_abs_max`) for both detector sizes so exit-criterion #2 has a self-contained artifact.
 
 ### 1.2 Environment Assumptions (Freeze)
 

@@ -497,3 +497,13 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-21T160700Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=0 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T160700Z/ next_action=warm_cpu_stage_b_cache
+
+## 2025-11-21T170500Z — PERF-WARM-SIM-001 Stage C telemetry plan
+- Focus: PERF-WARM-SIM-001 — Warm simulator; eliminate per-iteration re-instantiation
+- Action Type: planning
+- Key Observations: Stage B CPU-cache evidence now lives under 2025-11-21T160700Z, but `rg --files plans/active/PERF-WARM-SIM-001/reports | rg stage_c` shows zero Stage C telemetry captures, so exit criterion #2 still lacks warm-cache proof for detector microslip runs. Authored a Do Now that adds Stage C perf-counter logging to the smoke test, creates a Stage C telemetry summarizer, reruns the small/full Stage C selectors with DBEX_SMOKE_TELEMETRY_PATH rooted at 2025-11-21T170500Z, and documents the workflow in docs/TESTING_GUIDE.md so future loops can reproduce it.
+- Artifact Path: plans/active/PERF-WARM-SIM-001/reports/2025-11-21T170500Z/
+- Next Actions: Ralph lands the Stage C logging + summarizer updates, reruns both Stage C smokes with telemetry capture, generates stage_c_roi_summary.json, and updates docs per the new workflow to close the outstanding exit criteria.
+- <Action State>: [ready_for_implementation]
+
+2025-11-21T170500Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=0 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T170500Z/ next_action=stage_c_telemetry_capture

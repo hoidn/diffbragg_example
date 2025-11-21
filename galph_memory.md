@@ -1125,3 +1125,12 @@ Notes
 - <Action State>: [planning]
 
 2025-11-20T235741Z focus=PHYSICS-LOSS-001 state=planning dwell=1 artifacts=plans/active/PHYSICS-LOSS-001/reports/2025-11-20T235741Z/ next_action=stage_b_c_chi_squared_validation
+2025-11-21T003959Z focus=PHYSICS-LOSS-001 state=ready_for_implementation dwell=0 artifacts=plans/active/PHYSICS-LOSS-001/reports/2025-11-21T003959Z/ next_action=implement_sigma_floor_guard
+
+## 2025-11-21T003959Z — PHYSICS-LOSS-001 sigma-floor planning
+- Focus: PHYSICS-LOSS-001 — Implement variance-weighted loss function
+- Action Type: planning
+- Key Observations: Stage B/C smokes still fail because the variance term clamps at 1.0 instead of `sigma_floor^2`, producing NaN/Inf gradients on GPU. Spec-db-core.md:67 mandates the floor plus telemetry, so I drafted a Do Now to add a CLI `--sigma-floor`, carry `RefinementConfig.sigma_floor_value` through Stage A/B/C variance math, log the clamp fraction inside `RefinementTelemetry`/`/torch_diagnostics`, and refresh Stage A/B/C smokes plus the CLI metadata test. Findings ledger now records PHYSICS-LOSS-002 for the sigma-floor guard, and docs/fix_plan.md attempts describe the new work scope.
+- Artifact Path: plans/active/PHYSICS-LOSS-001/reports/2025-11-21T003959Z/
+- Next Actions: Implement sigma-floor guard + telemetry, rerun the mapped Stage A/B/C selectors, and unblock Phase B4/B5 + Phase C2/C3.
+- <Action State>: [ready_for_implementation]

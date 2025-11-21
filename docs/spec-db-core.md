@@ -28,8 +28,11 @@ Data Contracts (Normative)
   - Masks:
     - DIALS trusted mask SHALL be a tuple of `flex.bool` per panel (True=trusted) shaped `(slow, fast)`.
     - DiffBragg hot/bad masks are inverted; if used upstream, inversion SHALL be explicit.
-  - Variance inputs:
+- Variance inputs:
     - The bridge SHALL supply readout-noise estimates `sigma_readout` in the same units as the loss target (photons or ADU/gain). Granularity MAY be per-pixel or per-panel but MUST align with the simulator tensors and be included in `RefinementInputs` so the variance-weighted loss can be formed.
+    - `sigma_readout` values SHALL be strictly positive. Zero-filled placeholders are prohibited because they produce infinite IRLS weights when `I_model → 0`.
+    - When detector metadata cannot provide a calibrated dark-RMS (or equivalent) value, the CLI MUST require an explicit override via `--sigma-rdout` (or abort with a descriptive error). Silent fallback to zeros is non-compliant.
+    - The bridge SHALL record the provenance of the supplied noise (e.g., `calibrated_dark`, `cli_override`) in `RefinementInputs` telemetry so downstream tools can audit whether instrument data or overrides were used.
 - Outputs: Bragg prediction and HDF5 (optional)
   - Full‑frame Bragg tensor SHALL be `(n_panels, slow, fast)` and align with DataLoad.data.
   - HDF5 viewer output MAY include `data/roiN`, `model/roiN`, `bragg/roiN`, `bg/roiN`, and `score` for each ROI as implemented today.
@@ -60,7 +63,8 @@ Objective Function & Variance Model (Normative)
   - `I_obs`: Observed targets (photons or ADU after calibration policy).
 - Variance Definition:
   - Variance SHALL be modeled as `V = I_model + sigma_readout^2`, where `I_model` is the current prediction (Bragg + background). Using `I_obs` in the variance term is PROHIBITED.
-  - `sigma_readout` is the detector readout noise in photon units derived from the ingestion layer via the CLI-provided `--sigma-r/--adu-per-photon` pair or calibrated dark-RMS maps divided by the same gain factor.
+  - `sigma_readout` is the detector readout noise in photon units derived from the ingestion layer via the CLI-provided `--sigma-r/--adu-per-photon` pair or calibrated dark-RMS maps divided by the same gain factor. Values MUST be > 0 per the Data Contracts clause above.
+  - A physical lower bound SHALL be enforced: `V = max(I_model + sigma_readout^2, sigma_floor^2)` where `sigma_floor` defaults to the instrument’s published readout noise (≥ 1 photon or the ADU-equivalent) and is configurable via CLI. The clamp exists to prevent infinite weights when `I_model → 0` on GPU backends; telemetry SHALL report `sigma_floor` and the fraction of pixels where the clamp engaged.
   - Shot noise contribution MUST originate solely from `I_model` (Poisson statistics). Readout noise MUST be added in quadrature via `sigma_readout^2`; no other variance terms are permitted unless formally added to this shard.
   - All downstream consumers (background fitting, ROI scoring, loss/gradient accumulation) MUST use the same `V` definition. Deviations SHALL be treated as bugs and recorded in `docs/fix_plan.md`.
 - Gradient Mechanics (Canonical for v1):

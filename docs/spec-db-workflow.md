@@ -27,7 +27,7 @@ Pipeline (Normative)
 6) Loss (Variance-Weighted / Chi-Squared)
    - Loss SHALL be `Sum( (Bragg - target)^2 / (Bragg.detach() + sigma_rdout^2) )` over trusted pixels.
    - This approximates an IRLS (Iteratively Reweighted Least Squares) objective compatible with Poisson + Readout noise.
-   - The denominator `V = I_model + sigma_rdout^2` MUST be detached from the computation graph to prevent attraction to infinity.
+   - The denominator `V = I_model + sigma_rdout^2` MUST be detached from the computation graph to prevent attraction to infinity, and MUST obey the `sigma_readout` data contract (strictly positive inputs with CLI override required if instrumentation cannot supply them). Implementations SHALL apply a physical lower bound `V = max(I_model + sigma_rdout^2, sigma_floor^2)` using the instrument’s readout noise (≥ 1 photon/ADU) and record both `sigma_floor` and the percentage of clamped pixels in telemetry for parity review.
 
 7) Refinement Protocol Architecture
    - **Engine Contract:** The internal Python API (`RefinementEngine` or equivalent) SHALL accept an ordered list of Stage objects and MUST NOT hardcode the Stage A→B→C flow.

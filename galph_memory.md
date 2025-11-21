@@ -487,3 +487,13 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-21T153500Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=2 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T153500Z/ next_action=stage_b_cpu_fallback_impl
+
+## 2025-11-21T160700Z — PERF-WARM-SIM-001 Stage B CPU cache plan
+- Focus: PERF-WARM-SIM-001 — Warm simulator; eliminate per-iteration re-instantiation
+- Action Type: planning
+- Key Observations: Verified the CPU fallback landed but canonical telemetry now reports `cache_mode="cold"` with 80 s runtimes because `stage_b_use_warm_cache` disables the Stage A context whenever eval_device=CPU (dbex/nanobrag_refinement.py:1588-1604). The latest stage_b_roi_summary.json (`plans/active/PERF-WARM-SIM-001/reports/2025-11-21T153500Z/stage_b_roi_summary.json:32-44`) shows `roi_mode="panel"`, `closure_evals=9`, yet `forward_time_ms.total≈8.0e4`, proving every closure rebuilds detector/mask tensors. Logged finding PERF-WARM-012 and added a fix-plan attempt directing Ralph to clone StageAContext onto CPU when the fallback engages so canonical Stage B once again benefits from cached detectors/HKL tensors. Rewrote input.md with a ready-for-implementation Do Now that targets the new CPU cache helper, Stage B smoke assertions, and the telemetry/summary reruns under 2025-11-21T160700Z/.
+- Artifact Path: plans/active/PERF-WARM-SIM-001/reports/2025-11-21T160700Z/
+- Next Actions: Implement the CPU StageAContext clone + Stage B cache plumbing, update the Stage B smoke test expectations, rerun both detector-size selectors, and capture summarize_stage_b_roi.py output showing warm cache telemetry on CPU.
+- <Action State>: [ready_for_implementation]
+
+2025-11-21T160700Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=0 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T160700Z/ next_action=warm_cpu_stage_b_cache

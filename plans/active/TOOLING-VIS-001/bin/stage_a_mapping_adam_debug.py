@@ -312,18 +312,20 @@ def _build_stage_a_components(
         cell = dataload.crystal.get_unit_cell()
         cell_params = cell.parameters()  # Convert to tuple (a, b, c, alpha, beta, gamma)
         # Derive U-matrix (no SO(3) projection - preserve mapping geometry exactly)
-        U_matrix = derive_u_matrix_from_mosflm_a_star(A_star_mosflm, cell_params)
-        # Convert to quaternion
+        # Get BOTH U and B_ideal from same TorchCrystal computation (CONVERGENCE-001 bugfix)
+        # Ensures U @ B_ideal == A_star_mosflm numerically at initialization
+        U_matrix, B_ideal_reciprocal_np = derive_u_matrix_from_mosflm_a_star(A_star_mosflm, cell_params)
+
+        # Convert U to quaternion
         q_initial_np = matrix_to_quaternion(torch.tensor(U_matrix, dtype=torch.float64))
         q_initial = torch.tensor(q_initial_np, device=device, dtype=dtype)
-        # Store B_ideal reciprocal for A* reconstruction: A* = U @ B_ideal_reciprocal
-        # B_ideal is derived from unit cell (same as in derive_u_matrix_from_mosflm_a_star)
-        from cctbx.uctbx import unit_cell as cctbx_cell
-        cell_params = cell.parameters()
-        B_ideal = np.array(
-            cctbx_cell(cell_params).fractionalization_matrix(), dtype=np.float64
-        ).reshape(3, 3).T  # cctbx gives row-major flat (9,) → reshape to (3,3) then transpose
-        B_ideal_reciprocal = torch.tensor(B_ideal, device=device, dtype=dtype)
+
+        # Convert B_ideal to torch tensor
+        B_ideal_reciprocal = torch.tensor(B_ideal_reciprocal_np, device=device, dtype=dtype)
+
+        # DELETE the cctbx_cell() code below - no longer needed (CONVERGENCE-001 bugfix)
+        # Prior bug: cctbx fractionalization_matrix() produced different B_ideal than TorchCrystal,
+        # causing U @ B_ideal reconstruction to fail (chi²=1.425B vs expected ~990k)
 
     return _StageAComponents(
         torch=torch,

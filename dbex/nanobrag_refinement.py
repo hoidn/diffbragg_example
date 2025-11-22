@@ -776,7 +776,10 @@ def run_nanobrag_refinement(
         cell_params = crystal.get_unit_cell().parameters()
 
         # Derive U-matrix from mapping MOSFLM A* (no SO(3) projection)
-        U_0 = derive_u_matrix_from_mosflm_a_star(A_star_np, cell_params)
+        # Get BOTH U and B_ideal from same TorchCrystal computation (CONVERGENCE-001 bugfix)
+        U_0, _ = derive_u_matrix_from_mosflm_a_star(A_star_np, cell_params)
+        # Note: B_ideal is discarded here (not used in this function), but returned for consistency
+        # with stage_a_mapping_adam_debug.py which DOES need it
 
         # Convert to quaternion
         q_0 = matrix_to_quaternion(torch.tensor(U_0, dtype=torch.float64))

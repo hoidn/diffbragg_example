@@ -791,7 +791,7 @@ def derive_b_ideal_from_mosflm_a_star(a_star: np.ndarray, device: str = "cpu") -
         ) from exc
 
 
-def derive_u_matrix_from_mosflm_a_star(a_star: np.ndarray, cell: Tuple[float, float, float, float, float, float]) -> np.ndarray:
+def derive_u_matrix_from_mosflm_a_star(a_star: np.ndarray, cell: Tuple[float, float, float, float, float, float]) -> Tuple[np.ndarray, np.ndarray]:
     """
     Extract U-matrix from mapping MOSFLM A* without SO(3) projection (GEOMETRY-004, TORCH-GEOMETRY-PARITY-002).
 
@@ -812,8 +812,15 @@ def derive_u_matrix_from_mosflm_a_star(a_star: np.ndarray, cell: Tuple[float, fl
               where a, b, c are in Å and angles are in degrees.
 
     Returns:
-        3×3 U-matrix (numpy array, dtype=float64).
-        May have det(U) ≈ 1 ± ε if strain is present in the mapping A*.
+        Tuple of (U_matrix, B_ideal_reciprocal), both 3×3 numpy arrays (dtype=float64).
+        U_matrix: Orientation matrix from A* = U @ B_ideal relationship (may have det ≈ 1 ± ε if strain present).
+        B_ideal_reciprocal: Ideal reciprocal cell matrix from TorchCrystal computation (same source as U extraction).
+
+    Notes:
+        - CONVERGENCE-001 bugfix: Both U and B_ideal are derived from the SAME TorchCrystal computation
+          to ensure numerical consistency when reconstructing A* = U @ B_ideal.
+        - Prior to this fix, callers independently computed B_ideal via cctbx, causing reconstruction errors
+          and catastrophic forward model chi-squared (1.425B vs expected ~990k).
 
     Raises:
         ValueError: If a_star shape is invalid or B_ideal is singular.
@@ -877,7 +884,7 @@ def derive_u_matrix_from_mosflm_a_star(a_star: np.ndarray, cell: Tuple[float, fl
 
     U = a_star @ B_inv
 
-    return U
+    return U, B_ideal_reciprocal
 
 
 def matrix_to_quaternion(U: Union[np.ndarray, 'torch.Tensor']) -> 'torch.Tensor':

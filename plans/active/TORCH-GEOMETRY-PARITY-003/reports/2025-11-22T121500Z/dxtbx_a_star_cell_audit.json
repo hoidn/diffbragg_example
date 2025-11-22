@@ -1,0 +1,19 @@
+{
+  "experiment_path": "refGeom.expt",
+  "cell_parameters": {
+    "a": 27.3758389202232,
+    "b": 32.06579930050022,
+    "c": 34.46635719191433,
+    "alpha_deg": 88.76861581157905,
+    "beta_deg": 71.6300065859712,
+    "gamma_deg": 68.18891879154103
+  },
+  "det_A_star": 3.773462827444198e-05,
+  "det_B_ideal": 3.7734628274441913e-05,
+  "det_U_from_dxtbx": 1.0000000000000007,
+  "isotropic_scale_factor": 1.0000000000000002,
+  "volume_offset_percent": 6.661338147750939e-14,
+  "A_star_identity_max_abs_diff": 3.469446951953614e-18,
+  "dxtbx_has_get_B": true,
+  "B_dxtbx_vs_B_ideal_max_diff": 0.0
+}

@@ -1,0 +1,6 @@
+{
+  "imageset_template": "N/A",
+  "scan_properties": "No scan",
+  "detector_description": "SENSOR_PAD",
+  "beam_wavelength": 0.9768000000000001
+}

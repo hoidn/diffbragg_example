@@ -323,6 +323,31 @@ def _build_stage_a_components(
         # Convert B_ideal to torch tensor
         B_ideal_reciprocal = torch.tensor(B_ideal_reciprocal_np, device=device, dtype=dtype)
 
+        # CONVERGENCE-001 Phase C4: Verify A* reconstruction accuracy
+        # Test if quaternion round-trip preserves A* to sufficient precision
+        U_matrix_torch = torch.tensor(U_matrix, dtype=torch.float64, device=device)
+        B_ideal_torch_f64 = torch.tensor(B_ideal_reciprocal_np, dtype=torch.float64, device=device)
+        A_star_reconstructed_f64 = U_matrix_torch @ B_ideal_torch_f64
+        A_star_original_f64 = torch.tensor(A_star_mosflm, dtype=torch.float64, device=device)
+
+        reconstruction_error = torch.norm(A_star_reconstructed_f64 - A_star_original_f64).item()
+        print(f"[C4 DIAGNOSTIC] A* reconstruction error (float64): {reconstruction_error:.15e}")
+
+        # Test quaternion round-trip precision
+        q_test = matrix_to_quaternion(U_matrix_torch)
+        from dbex.nanobrag_bridge import quaternion_to_matrix
+        U_roundtrip = quaternion_to_matrix(q_test / torch.norm(q_test))
+        U_error = torch.norm(U_roundtrip - U_matrix_torch).item()
+        print(f"[C4 DIAGNOSTIC] U matrix round-trip error (quat→matrix→quat→matrix): {U_error:.15e}")
+
+        # Test float32 precision loss
+        B_ideal_f32 = B_ideal_reciprocal  # Already converted to dtype (float32)
+        U_f32 = U_matrix_torch.to(dtype=dtype)
+        A_star_reconstructed_f32 = U_f32 @ B_ideal_f32
+        A_star_original_f32 = A_star_original_f64.to(dtype=dtype)
+        f32_error = torch.norm(A_star_reconstructed_f32 - A_star_original_f32).item()
+        print(f"[C4 DIAGNOSTIC] A* reconstruction error (float32): {f32_error:.15e}")
+
         # DELETE the cctbx_cell() code below - no longer needed (CONVERGENCE-001 bugfix)
         # Prior bug: cctbx fractionalization_matrix() produced different B_ideal than TorchCrystal,
         # causing U @ B_ideal reconstruction to fail (chi²=1.425B vs expected ~990k)

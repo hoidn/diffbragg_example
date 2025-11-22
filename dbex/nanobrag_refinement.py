@@ -783,9 +783,8 @@ def run_nanobrag_refinement(
 
         # Derive U-matrix from mapping MOSFLM A* (no SO(3) projection)
         # Get BOTH U and B_ideal from same TorchCrystal computation (CONVERGENCE-001 bugfix)
-        U_0, _ = derive_u_matrix_from_mosflm_a_star(A_star_np, cell_params)
-        # Note: B_ideal is discarded here (not used in this function), but returned for consistency
-        # with stage_a_mapping_adam_debug.py which DOES need it
+        # CRITICAL FIX (Phase B Deep Diagnostic): Use the MOSFLM-derived B_ideal, do NOT recompute from cctbx
+        U_0, B_ideal_reciprocal_np = derive_u_matrix_from_mosflm_a_star(A_star_np, cell_params)
 
         # Convert to quaternion
         q_0 = matrix_to_quaternion(torch.tensor(U_0, dtype=torch.float64))
@@ -793,29 +792,11 @@ def run_nanobrag_refinement(
         # Initialize trainable quaternion params (float64 for precision)
         q_params = q_0.clone().to(device=device, dtype=dtype).requires_grad_(True)
 
-        # Compute B_ideal_reciprocal once for U-matrix path (A* = U @ B_ideal)
-        # Use the same cell as the mapping zero point
-        from nanobrag_torch.config import CrystalConfig as TorchCrystalConfig
-        from nanobrag_torch.models.crystal import Crystal as TorchCrystal
-        a, b, c, alpha, beta, gamma = cell_params
-        cfg_b_ideal = TorchCrystalConfig(
-            cell_a=a,
-            cell_b=b,
-            cell_c=c,
-            cell_alpha=alpha,
-            cell_beta=beta,
-            cell_gamma=gamma,
-            misset_deg=(0.0, 0.0, 0.0),
-            mosflm_a_star=None,
-            mosflm_b_star=None,
-            mosflm_c_star=None,
-        )
-        crystal_nb_b_ideal = TorchCrystal(cfg_b_ideal, device=device, dtype=dtype)
-        geom = crystal_nb_b_ideal.compute_cell_tensors()
-        a_star_nb = geom["a_star"].reshape(3)
-        b_star_nb = geom["b_star"].reshape(3)
-        c_star_nb = geom["c_star"].reshape(3)
-        B_ideal_reciprocal_torch = torch.stack([a_star_nb, b_star_nb, c_star_nb], dim=1)  # 3x3 matrix
+        # Use the MOSFLM-derived B_ideal (ensures U @ B_ideal == A*_MOSFLM at initialization)
+        # Prior bug: recomputed B_ideal from cctbx cell, causing catastrophic chi²=1.425B divergence
+        # Root cause: cctbx cell.parameters() → TorchCrystal → compute_cell_tensors() produces
+        # DIFFERENT B_ideal than MOSFLM A* decomposition, breaking U @ B_ideal = A*_MOSFLM invariant
+        B_ideal_reciprocal_torch = torch.tensor(B_ideal_reciprocal_np, device=device, dtype=dtype)
 
     params = [
         log_scale,

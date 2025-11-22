@@ -83,7 +83,7 @@
 - [x] A0: **Probe extension** (2025-11-22T090505Z) — Confirmed H1: symmetric strain dominates (log_u_symmetric_norm ≈ 1.4e-3 >> antisymmetric ≈ 1.4e-7)
 - [ ] A1: **Multi‑config sweep** — Deferred (low ROI given A0/A2 results; revisit if Phase B requires)
 - [x] A2: **Baseline B_ideal variants** (2025-11-22T091200Z) — Rejected H2: both PathB variants show identical strain (1.369e-3); cell recovery worked but strain persists
-- [ ] A3: **Mapping forward vs Stage‑A configs** — Deferred pending Phase B gradient probe results
+- [ ] A3: **Mapping forward vs Stage‑A configs** — UNBLOCKED by Phase B1; now critical path to isolate encoding vs simulator differences before Branch G
 
 ### Dependency Analysis (Required for Refactors)
 - **Touched Modules:** `plans/active/TORCH-REFINE-002E/bin/probe_crystal_matrix_parity.py` (tooling only).
@@ -103,8 +103,8 @@
 - **H5 (Loss/variance subtlety):** The variance‑weighted loss (detached denominator and sigma_floor clamp) is not perfectly identical between mapping diagnostics and Stage‑A, so “same image” does not mean “zero gradient”.
 
 ### Checklist
-- [x] B1: **Local gradient probe at mapping zero:** (2025-11-22T094500Z) Confirmed large non-zero gradients at mapping zero point (orientation_vec magnitude ≈2.88e8, cell_logs ≈9.82e7, angle_raws ≈1.55e8, log_scale ≈4.28e5); chi-squared at explicit zero-delta parameterization (2.98e6) is ~2.6× higher than mapping MOSFLM path (1.13e6 from Phase 1), proving "zero parameters ≠ mapping geometry" and validating that Adam legitimately walks away from this starting point.
-- [ ] B2: **Scale analytical optimum check:** With geometry frozen at mapping:
+- [x] B1: **Local gradient probe at mapping zero:** (2025-11-22T094500Z) Confirmed large non-zero gradients at mapping zero point (orientation_vec magnitude ≈2.88e8, cell_logs ≈9.82e7, angle_raws ≈1.55e8, log_scale ≈4.28e5); chi-squared at explicit zero-delta parameterization (2.98e6) is ~2.6× higher than mapping MOSFLM path (1.13e6 from Phase 1), proving "zero parameters ≠ mapping geometry" and validating that Adam legitimately walks away from this starting point. **Critical Decision:** H3/H4/H5 are now moot—the global χ² mismatch (2.6× penalty) dominates any scale/outlier/loss subtleties. Proceed to Phase C Branch G (geometry fix) after completing Phase A3 (forward-model comparison) to isolate cell/misset encoding vs simulator differences.
+- [ ] B2: **Scale analytical optimum check:** DEFERRED — With geometry frozen at mapping:
   - Derive the closed‑form optimal scale α* for a simplified variance model around the mapping point.
   - Compare α* to `global_scale_hint` and the initial `exp(log_scale)`; check whether zero log_scale is already near optimal.
 - [ ] B3: **LR / step sensitivity sweep:** Use the existing Phase 5 driver but:

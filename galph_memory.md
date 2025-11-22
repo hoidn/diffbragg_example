@@ -572,3 +572,13 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-22T094500Z focus=TORCH-REFINE-002E state=ready_for_implementation dwell=0 artifacts=plans/active/TORCH-REFINE-002E/reports/2025-11-22T094500Z/ next_action=phase_b1_gradient_probe_implementation
+
+## 2025-11-22T100330Z — TORCH-REFINE-002E Phase A3 planning
+- Focus: TORCH-REFINE-002E — Fix Stage A Zero-Point Geometry Discontinuity
+- Action Type: planning
+- Key Observations: Reviewed Phase B1 gradient probe artifacts confirming that the explicit cell+misset parameterization at zero deltas yields χ² ≈ 2.98e6 (≈2.6× higher than mapping MOSFLM path χ² ≈ 1.13e6), with large non-zero gradients (orientation_vec magnitude ≈2.88e8). Concluded H3/H4/H5 (scale mismatch, outlier gradients, loss subtleties) are moot—the global chi-squared mismatch dominates. Updated implementation.md checklist (B1 marked complete with critical decision note, B2-B5 marked DEFERRED, A3 unblocked). **Critical Decision:** Proceed to Phase A3 (mapping forward model comparison) to isolate whether the 2.6× chi-squared discrepancy originates from (a) cell/misset encoding conventions or (b) simulator numerical differences (interpolation, spot shape, HKL grid). Once A3 completes, transition to Phase C Branch G (geometry fix—adjust baseline geometry so explicit path reproduces mapping's effective cell). Authored comprehensive Do Now for Ralph to implement `compare_mapping_vs_stage_a_forward.py` script that runs both paths through nanobrag_torch on a single panel and emits pixel-level/chi-squared comparisons.
+- Artifact Path: plans/active/TORCH-REFINE-002E/reports/2025-11-22T100330Z/
+- Next Actions: Ralph implements Phase A3 comparison script, executes on canonical refGeom panel 0, captures forward_model_comparison.json showing whether forward models are identical (<1e-6 photon pixel diffs) or differ numerically, and runs regression guard for Stage A expansion smoke. Decision tree: if identical → proceed to Branch G (geometry fix); if different → open TORCH-SIMULATOR-PARITY-001 blocker initiative.
+- <Action State>: [ready_for_implementation]
+
+2025-11-22T100330Z focus=TORCH-REFINE-002E state=ready_for_implementation dwell=0 artifacts=plans/active/TORCH-REFINE-002E/reports/2025-11-22T100330Z/ next_action=phase_a3_forward_model_comparison

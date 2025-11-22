@@ -1,7 +1,7 @@
-# Input — TORCH-GEOMETRY-CONVERGENCE-001 Phase C4 First Closure Parameter Staleness Audit
+# Phase C5 — Code Path Equivalence Diagnostic
 
 ## Summary
-Audit first U-matrix closure evaluation for log_scale parameter staleness bug after Phase C3 confirmed catastrophic chi²=8.8M BEFORE first optimizer.step().
+Instrument and test whether `use_mapping_zero_geometry=False` with zero-valued parameters produces different A* than `use_mapping_zero_geometry=True`, causing catastrophic chi² despite correct parameter handling.
 
 ## Mode
 none
@@ -12,400 +12,278 @@ TORCH-GEOMETRY-CONVERGENCE-001 — Diagnose & Fix Quaternion U-Matrix Catastroph
 ## Branch
 integration
 
-## Mapped Tests
-- `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` — Regression guard
-- Evidence-only (no new test nodes until fix implemented)
+## Mapped tests
+- **Active:** `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` (regression guard)
+- **Validation:** Manual 2-step diagnostic via `stage_a_mapping_adam_debug.py`
 
 ## Artifacts
-`plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T232000Z/`
+`plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T232200Z/`
 
 ## Do Now
 
-**CRITICAL FINDING (Phase C3):** Parameter lifecycle diagnostic proved catastrophic chi²=8.8M occurs **BEFORE** first optimizer.step(), NOT after. Pattern matches Phase B5 code path discrepancy (crystal_overrides["A_star"] bypassed MOSFLM tuple).
+Phase C4 audit found NO parameter staleness bugs (HIGH confidence ~95%). All parameters (log_scale, q_params, U, A*, crystal_overrides) are correctly captured and used. However, Ralph identified a new hypothesis: **code path divergence** between zero-point validation path and first closure path may produce different results even at zero parameters.
 
-**Evidence:**
-- chi² BEFORE step 0: 8,837,164 (catastrophic)
-- chi² AFTER step 0: 8,837,085 (essentially unchanged, -79 = -0.0009%)
-- Δlog_scale: +1e-5 (wrong direction AND magnitude)
-- Expected Δ: -1.5 (from -LR × gradient)
-- **Interpretation:** Forward model uses STALE log_scale (or other stale parameter) during FIRST closure call
+**Your task:** Implement Priority 1 diagnostic from `phase_c4_parameter_staleness_decision.md` to prove/disprove this hypothesis.
 
-**Phase C3 Verdict:** **Path C CONFIRMED** (forward model parameter staleness) with HIGH confidence (~90%)
+### Implementation Steps
 
-**Root Cause Hypothesis:** Similar to Phase B5's B_ideal mismatch, there's a code path where:
-1. Parameters (log_scale, q_params) are correctly initialized at zero-point
-2. But when the first closure runs, the forward model uses DIFFERENT (stale or default) parameter values
-3. This causes chi² to jump to 8.8M during first closure evaluation
-4. The optimizer then tries to recover but can't (parameter update is only +1e-5 instead of -1.5)
+1. **Review Phase C4 artifacts:**
+   - Read `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T232000Z/phase_c4_parameter_staleness_decision.md`
+   - Read `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T232000Z/phase_c4_first_closure_audit.md`
+   - Understand the code path divergence hypothesis (§Evidence Summary, §Recommended Next Actions Priority 1)
 
-### Step 1: Review Phase C3 Evidence
-- **Read:** `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T224717Z/phase_c3_parameter_lifecycle_decision.md`
-- **Confirm:** Path C verdict (forward model staleness) with detailed lifecycle metrics
-- **Note:** Zero-point validation continues to PASS (chi²=989k, correlation=1.0) while first closure is catastrophic
+2. **Instrument `_stage_a_forward` with A* checksum logging:**
+   - File: `plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py`
+   - Target function: `_stage_a_forward` (lines ~397-464)
+   - Add checksum logging at two points:
 
-### Step 2: Audit First Closure U-Matrix/A* Derivation
+     **Point A** (after line ~410, zero-point path):
+     ```python
+     if use_mapping_zero_geometry:
+         crystal_config, _ = create_crystal_config(...)
+         # Extract A* from crystal_config for logging
+         A_star_direct = np.array([
+             crystal_config.mosflm_a_star,
+             crystal_config.mosflm_b_star,
+             crystal_config.mosflm_c_star
+         ], dtype=np.float64).reshape(3, 3)
+         a_star_checksum_direct = A_star_direct.sum()
+         a_star_max_elem_direct = np.abs(A_star_direct).max()
+     ```
 
-**Target:** `dbex/nanobrag_refinement.py` — Stage A closure (U-matrix branch, lines ~966-1116)
+     **Point B** (after line ~442, closure path):
+     ```python
+     else:
+         # After A_star_new computation and numpy conversion
+         A_star_roundtrip = A_star_new.detach().cpu().numpy()
+         a_star_checksum_roundtrip = A_star_roundtrip.sum()
+         a_star_max_elem_roundtrip = np.abs(A_star_roundtrip).max()
 
-**Checklist (Priority 1 from phase_c3_parameter_lifecycle_decision.md §Recommended Next Actions):**
+         # Compute divergence vs direct path (requires zero-point reference)
+         # This will be logged in telemetry below
+     ```
 
-1. **Verify log_scale tensor is SAME object:**
-   - Locate log_scale_param definition (line ~925: `log_scale_param = torch.tensor(...)`)
-   - Trace into closure: does closure use `log_scale_param` or a DIFFERENT tensor?
-   - Check for `.clone()`, `.detach()`, or reassignment inside closure
-   - **Expected:** Closure should compute `scale = torch.exp(log_scale_param)` directly
+3. **Extend telemetry schema to include A* checksums:**
+   - In `_forward_once` (line ~473), add fields to telemetry dict:
+     ```python
+     telemetry_data = {
+         # existing fields...
+         "a_star_checksum": a_star_checksum_roundtrip if not use_mapping_zero_geometry else a_star_checksum_direct,
+         "a_star_max_element": a_star_max_elem_roundtrip if not use_mapping_zero_geometry else a_star_max_elem_direct,
+         "code_path": "closure" if not use_mapping_zero_geometry else "zero_point",
+     }
+     ```
 
-2. **Verify q_params tensor is SAME object:**
-   - Locate q_params definition (line ~920: `q_params = torch.tensor(...)`)
-   - Trace into closure: does quaternion_to_matrix use the CORRECT q_params?
-   - Check for stale q_params_0 or default quaternion [1,0,0,0]
-   - **Expected:** Closure should normalize THEN convert: `U = quaternion_to_matrix(q_params / ||q_params||)`
+4. **Run 2-step diagnostic with dual telemetry capture:**
+   - Execute `python plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py \
+       --use-u-matrix \
+       --u-matrix-lr 1e-5 \
+       --phases 5 \
+       --dof-variants A_scale_only \
+       --adam-steps 2 \
+       --device cpu \
+       --telemetry-dir telemetry \
+       --out-dir plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T232200Z/c5_diagnostic \
+       --timeout 1200`
+   - Expected artifacts:
+     - `c5_diagnostic/zero_point_check.json` (chi²~990k, code_path=zero_point)
+     - `c5_diagnostic/telemetry/telemetry_step_000_init.json` (chi², code_path=closure, A* checksum)
+     - `c5_diagnostic/telemetry/telemetry_step_000_post.json` (after first step)
+     - `c5_diagnostic/telemetry/telemetry_step_001_init.json` (before second step)
+     - `c5_diagnostic/block_dof_results_u_matrix.json` (if completes)
 
-3. **Audit U-matrix derivation in first closure:**
-   - Locate U-matrix computation in closure (line ~987: `U = quaternion_to_matrix(...)`)
-   - Verify quaternion_to_matrix receives `q_params` (not q_params_0)
-   - Verify normalization: `q_normed = q_params / torch.norm(q_params)`
-   - **Expected:** U derived from CURRENT q_params, not initialization value
+5. **Extract code path equivalence metrics:**
+   - Create `c5_diagnostic/code_path_equivalence_metrics.txt` with:
+     ```
+     === Code Path Equivalence Metrics (Phase C5) ===
 
-4. **Audit A* reconstruction formula:**
-   - Locate A* reconstruction (line ~995: `A* = U @ B_ideal_reciprocal`)
-   - Verify B_ideal_reciprocal comes from StageAContext (Phase B5 fix)
-   - Verify U is computed from CURRENT q_params
-   - **Expected:** A* = U_current @ B_ideal_mosflm
+     Zero-Point Path (use_mapping_zero_geometry=True):
+       chi_squared: <value from zero_point_check.json>
+       correlation: <value>
+       a_star_checksum: <value>
+       a_star_max_element: <value>
 
-5. **Audit scale application:**
-   - Locate where `scale = torch.exp(log_scale_param)` is computed
-   - Trace scale into forward model (crystal_config creation or N_cells override)
-   - Check if scale comes from `log_scale_param` or a STALE/DEFAULT value
-   - **Expected:** Scale derived from CURRENT log_scale_param
+     First Closure Path (use_mapping_zero_geometry=False, step 0 INIT):
+       chi_squared: <value from telemetry_step_000_init.json>
+       a_star_checksum: <value>
+       a_star_max_element: <value>
 
-6. **Check crystal_overrides construction:**
-   - Locate crystal_overrides dict (line ~1000: `crystal_overrides = {...}`)
-   - Verify it uses:
-     - `mosflm_a_star`: from A* = U @ B_ideal (CURRENT)
-     - `mosflm_b_star`: from A* = U @ B_ideal (CURRENT)
-     - `mosflm_c_star`: from A* = U @ B_ideal (CURRENT)
-   - **Expected:** crystal_overrides built from CURRENT parameters, not initialization
+     Divergence Metrics:
+       delta_chi_squared: <closure_chi² - zero_point_chi²>
+       delta_chi_squared_pct: <(delta / zero_point) * 100>%
+       delta_a_star_checksum: <abs(closure_checksum - zero_checksum)>
+       delta_a_star_max_element: <abs(closure_max - zero_max)>
 
-**Side-by-side comparison:**
-- Compare first closure (Phase 5 optimization loop) vs zero-point validation path
-- Look for code path divergence similar to Phase B5 (script vs production paths)
+     Code Path Equivalence Verdict:
+       [ ] PASS — delta_chi_squared < 1% AND delta_a_star_checksum < 1e-10
+       [ ] FAIL — delta_chi_squared > 10% OR delta_a_star_checksum > 1e-6
+       [ ] INCONCLUSIVE — intermediate values
+     ```
 
-### Step 3: Document Audit Findings
+6. **Synthesize Phase C5 decision:**
+   - Create `phase_c5_code_path_divergence_decision.md` using this template:
+     ```markdown
+     # Phase C5 Decision — Code Path Equivalence Diagnostic
 
-**Create:** `phase_c4_first_closure_audit.md`
+     **Initiative:** TORCH-GEOMETRY-CONVERGENCE-001
+     **Phase:** C5 (Code Path Equivalence)
+     **Date:** 2025-11-22T232200Z
 
-**Template:**
-```markdown
-# Phase C4 First Closure Audit — Parameter Staleness Investigation
+     ## Verdict
 
-## Audit Scope
-Trace log_scale and q_params from initialization through first closure evaluation to identify WHERE stale values are introduced.
+     **[ ] Path A — Code paths EQUIVALENT (delta_chi² < 1%, delta_A* < 1e-10)**
+     **[ ] Path B — Code paths DIVERGE (delta_chi² > 10%, delta_A* > 1e-6)**
+     **[ ] Path C — INCONCLUSIVE (intermediate metrics OR test failed)**
 
-## Findings
+     **DIAGNOSIS:** <Fill based on metrics>
 
-### 1. log_scale Tensor Identity
-- Initialization: dbex/nanobrag_refinement.py:LINE
-- Closure usage: dbex/nanobrag_refinement.py:LINE
-- **Issue:** <SAME TENSOR / DIFFERENT TENSOR / STALE VALUE>
-- **Evidence:** <code snippet>
+     ## Evidence Summary
 
-### 2. q_params Tensor Identity
-- Initialization: dbex/nanobrag_refinement.py:LINE
-- Closure usage: dbex/nanobrag_refinement.py:LINE
-- **Issue:** <SAME TENSOR / DIFFERENT TENSOR / STALE VALUE>
-- **Evidence:** <code snippet>
+     <Paste code_path_equivalence_metrics.txt>
 
-### 3. U-Matrix Derivation
-- Code path: dbex/nanobrag_refinement.py:LINE
-- Formula: U = quaternion_to_matrix(q_params / ||q_params||)
-- **Issue:** <CORRECT / USES STALE q_params / USES DEFAULT>
-- **Evidence:** <code snippet>
+     ## Root Cause Analysis
 
-### 4. A* Reconstruction
-- Code path: dbex/nanobrag_refinement.py:LINE
-- Formula: A* = U @ B_ideal_reciprocal
-- **Issue:** <CORRECT / USES STALE U / USES STALE B_ideal>
-- **Evidence:** <code snippet>
+     <If Path B confirmed, analyze WHERE the divergence occurs:>
+     - U-matrix computation from q_params?
+     - B_ideal derivation?
+     - A* reconstruction (U @ B_ideal)?
+     - Numpy tuple conversion?
+     - create_crystal_config handling of crystal_overrides?
 
-### 5. Scale Application
-- Code path: dbex/nanobrag_refinement.py:LINE
-- Formula: scale = exp(log_scale_param)
-- **Issue:** <CORRECT / USES STALE log_scale / USES DEFAULT>
-- **Evidence:** <code snippet>
+     ## Recommended Next Actions
 
-### 6. crystal_overrides Construction
-- Code path: dbex/nanobrag_refinement.py:LINE
-- Keys: mosflm_a/b/c_star
-- **Issue:** <CORRECT / USES STALE A* / MISSING OVERRIDE>
-- **Evidence:** <code snippet>
+     ### If Path A (Equivalence CONFIRMED):
+     - Reject code path divergence hypothesis
+     - Escalate to Priority 2: audit `create_crystal_config` internals for subtle differences
+     - Or Priority 3: test LBFGS optimizer
 
-## Root Cause Determination
+     ### If Path B (Divergence CONFIRMED):
+     - Implement fix to make paths equivalent at zero parameters:
+       - Option 1: Bypass crystal_overrides when all deltas are zero (use direct MOSFLM path)
+       - Option 2: Fix numerical precision in U/B_ideal round-trip
+       - Option 3: Audit `create_crystal_config` for phase-B5-style override bugs
+     - Validate fix with rerun of this diagnostic
 
-**PRIMARY BUG:** <Describe the exact line/variable causing staleness>
+     ### If Path C (Inconclusive):
+     - Review test execution logs for premature termination or telemetry corruption
+     - Rerun diagnostic with extended timeout or reduced ROI count
+     ```
 
-**CONFIDENCE:** <HIGH/MEDIUM/LOW> (~XX%)
+7. **Update implementation.md checklist:**
+   - Mark `C5` as `[x]` if diagnostic completes OR `[~]` if blocked
+   - Add Path verdict (A/B/C) and recommended next phase
+   - Update `C4` entry with cross-reference to C5 artifacts
 
-**MECHANISM:** <Explain HOW stale value is introduced>
+8. **Regression guard:**
+   - Run `pytest tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion -v`
+   - Capture to `pytest_regression.log`
+   - MUST PASS before proceeding
 
-## Recommended Fix
+9. **Write summary:**
+   - Create `summary.md` with Turn Summary format (3-5 sentences: what shipped, main problem, next step, artifacts pointer)
 
-**Option 1 (if simple variable reference):**
-- Change line XXX from `<old code>` to `<new code>`
-- Rationale: <...>
+10. **Commit and push:**
+    - `git add -A`
+    - `git commit -m "TORCH-GEOMETRY-CONVERGENCE-001 Phase C5: Code path equivalence diagnostic (tests: test_stage_a_expansion)"`
+    - `git push`
 
-**Option 2 (if code path discrepancy):**
-- Refactor closure to use <...>
-- Similar to Phase B5 fix (commit fe6048f)
-```
-
-### Step 4: Implement Fix (If Root Cause Found)
-
-**Only if audit identifies CLEAR bug (HIGH confidence):**
-
-1. Edit `dbex/nanobrag_refinement.py` to fix the staleness bug
-2. Document fix rationale in `phase_c4_fix_implementation.md`
-3. Proceed to Step 5 (validation)
-
-**If audit is INCONCLUSIVE or multiple candidates:**
-- Skip implementation
-- Proceed to Step 6 (decision doc) with recommendation for deeper diagnostic
-
-### Step 5: Validation Diagnostic (If Fix Implemented)
-
-**Command:**
-```bash
-timeout 1200 KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
-python plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py \
-  --use-u-matrix \
-  --u-matrix-lr 1e-5 \
-  --phases 5 \
-  --dof-variants A_scale_only \
-  --adam-steps 2 \
-  --device cpu \
-  --telemetry-dir telemetry \
-  --out-dir plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T232000Z/validation_postfix/ \
-  > plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T232000Z/validation_postfix.log 2>&1
-```
-
-**Extract validation metrics:**
-```bash
-python3 << 'PYEOF'
-import json
-
-with open('plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T232000Z/validation_postfix/telemetry/telemetry_step_000_init.json') as f:
-    init = json.load(f)
-with open('plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T232000Z/validation_postfix/zero_point_check.json') as f:
-    zp = json.load(f)
-
-print("=== VALIDATION METRICS ===")
-print(f"Zero-point chi² (mapping): {zp.get('chi_squared_mapping', 'N/A'):,.0f}")
-print(f"Zero-point chi² (stage_a):  {zp.get('chi_squared_stage_a', 'N/A'):,.0f}")
-print(f"Zero-point correlation:    {zp.get('correlation', 'N/A'):.10f}")
-print(f"\nFirst closure chi² (BEFORE step): {init['chi_squared']:,.0f}")
-print(f"Expected (healthy):               ~1,130,000")
-print(f"\nFIX STATUS:")
-if init['chi_squared'] < 2_000_000:
-    print("✓ SUCCESS — chi² healthy, staleness bug FIXED")
-else:
-    print("✗ FAIL — chi² still catastrophic, fix INCOMPLETE")
-PYEOF
-```
-
-**Decision criteria:**
-- **Path A (Fix SUCCESS):** chi² BEFORE step < 2M (healthy) → proceed to Phase C5 (full convergence test)
-- **Path B (Fix INCOMPLETE):** chi² BEFORE step > 5M (catastrophic) → escalate to deeper diagnostic
-- **Path C (Fix PARTIAL):** chi² BEFORE step 2M-5M → rerun with GPU or investigate secondary bug
-
-### Step 6: Synthesize Decision
-
-**Create:** `phase_c4_parameter_staleness_decision.md`
-
-**Decision tree (3 paths):**
-
-**Path A — Audit found clear bug, fix implemented and validated**
-- Verdict: H5 (forward model staleness) CONFIRMED and FIXED
-- Evidence: Audit identified line XXX using stale parameter YYY
-- Fix: Changed <...> to <...>
-- Validation: chi² BEFORE step dropped from 8.8M → ~1.13M
-- Next action: Phase C5 (10-step convergence test to verify optimizer can now optimize)
-
-**Path B — Audit found multiple bugs OR fix didn't resolve issue**
-- Verdict: H5 (forward model staleness) CONFIRMED but fix INCOMPLETE
-- Evidence: Audit identified <N> candidate bugs
-- Validation (if fix attempted): chi² BEFORE step still > 5M
-- Next action: Implement instrumentation to disambiguate (checksum logging per Priority 1 checklist items 1-6)
-
-**Path C — Audit inconclusive, no clear staleness found**
-- Verdict: H5 (forward model staleness) UNCERTAIN
-- Evidence: Code path inspection shows no obvious staleness bugs
-- Next action: Escalate to Priority 2 (test LBFGS optimizer to rule out Adam-specific bug) OR implement checksum logging to track parameter flow
-
-### Step 7: Regression Guard
-```bash
-pytest tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion -xvs \
-  > plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T232000Z/pytest_regression.log 2>&1
-```
-
-### Step 8: Update Implementation Plan
-
-**Edit:** `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/implementation.md`
-
-**Mark C3 as [x] DONE:**
-```markdown
-- [x] C3: **Parameter Lifecycle Investigation** — COMPLETED (2025-11-22T224717Z): Path C CONFIRMED with HIGH confidence (~90%). Catastrophic chi²=8.8M occurs BEFORE first optimizer.step(), proving forward model uses stale parameters during first closure evaluation. See `phase_c3_parameter_lifecycle_decision.md`.
-```
-
-**Add C4 entry:**
-```markdown
-- [x/~] C4: **First Closure Parameter Staleness Audit** — <Path A: Fix SUCCESS / Path B: Fix INCOMPLETE / Path C: Audit INCONCLUSIVE>. Audited log_scale/q_params/U/A*/crystal_overrides in first closure. <Root cause: line XXX uses stale YYY / No clear staleness found>. See `phase_c4_first_closure_audit.md`, `phase_c4_parameter_staleness_decision.md`.
-```
-
-### Step 9: Write Summary and Commit
-
-**Summary:** Prepend to `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T232000Z/summary.md`
-
-**Template:**
-```markdown
-### Turn Summary
-Audited first U-matrix closure for parameter staleness after Phase C3 confirmed chi²=8.8M BEFORE optimizer.step().
-<Path A: Found and fixed stale <parameter> at line XXX; validation shows chi² healthy ~1.13M / Path B: Found candidate bug but fix incomplete; chi² still catastrophic / Path C: No clear staleness found; recommend checksum logging>.
-Next: <Phase C5 convergence test / deeper diagnostic with checksums / test LBFGS optimizer>.
-Artifacts: plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T232000Z/ (phase_c4_first_closure_audit.md, phase_c4_parameter_staleness_decision.md, validation_postfix/)
-```
-
-**Commit:**
-```bash
-git add -A
-git commit -m "TORCH-GEOMETRY-CONVERGENCE-001 Phase C4: First closure parameter staleness audit <+ fix if implemented> (tests: test_stage_a_expansion)"
-git push
-```
 
 ## How-To Map
 
-### Audit Methodology (Step 2)
-
-**Tool:** Manual code inspection + git blame for context
-
-**Process:**
-1. Open `dbex/nanobrag_refinement.py` in editor
-2. Search for "def build_stage_a_lbfgs_closure" (line ~920)
-3. Identify parameter initialization:
-   ```python
-   log_scale_param = torch.tensor([log_scale_0], dtype=torch.float32, requires_grad=True)
-   q_params = torch.tensor(q_init, dtype=torch.float32, requires_grad=True)
-   ```
-4. Trace into closure definition (line ~970: `def closure():`)
-5. For each parameter, verify closure uses THE SAME TENSOR (not a clone/copy/stale value)
-
-**Specific searches:**
-```bash
-# Find all references to log_scale within closure
-grep -n "log_scale" dbex/nanobrag_refinement.py | grep -A 5 -B 5 "def closure"
-
-# Find all references to q_params within closure
-grep -n "q_params" dbex/nanobrag_refinement.py | grep -A 5 -B 5 "def closure"
-
-# Find crystal_overrides construction
-grep -n "crystal_overrides" dbex/nanobrag_refinement.py | grep -A 10 "mosflm_a_star"
+### A* Checksum Extraction (Zero-Point Path)
+```python
+# After create_crystal_config call in use_mapping_zero_geometry=True branch
+crystal_config, _ = create_crystal_config(...)
+A_star_direct = np.array([
+    crystal_config.mosflm_a_star,
+    crystal_config.mosflm_b_star,
+    crystal_config.mosflm_c_star
+], dtype=np.float64).reshape(3, 3)
+checksum = A_star_direct.sum()
+max_elem = np.abs(A_star_direct).max()
 ```
 
-**Pattern to look for (similar to Phase B5 bug):**
-- Phase B5 bug: `crystal_overrides["A_star"] = ...` (unsupported key) → create_crystal_config ignored it
-- Phase C4 suspect: `crystal_overrides["mosflm_X_star"] = ...` using STALE A* or missing override entirely
+### A* Checksum Extraction (Closure Path)
+```python
+# After A_star_new computation (line ~436)
+A_star_roundtrip = A_star_new.detach().cpu().numpy()
+checksum = A_star_roundtrip.sum()
+max_elem = np.abs(A_star_roundtrip).max()
+```
 
-### Validation Execution (Step 5)
+### Metrics Extraction (Python one-liner)
+```bash
+python -c "
+import json
+zp = json.load(open('c5_diagnostic/zero_point_check.json'))
+t0 = json.load(open('c5_diagnostic/telemetry/telemetry_step_000_init.json'))
+print(f'delta_chi²={(t0['chi_squared']-zp['chi_squared_stage_a'])/zp['chi_squared_stage_a']*100:.2f}%')
+print(f'delta_A*_checksum={abs(t0.get('a_star_checksum',0)-zp.get('a_star_checksum',0)):.12e}')
+"
+```
 
-**Precondition:** Fix implemented in Step 4
+## Pitfalls To Avoid
 
-**Expected runtime:** ~5-10 min (2 Adam steps, A_scale_only, CPU)
+1. **Do NOT implement fixes yet** — This is a diagnostic loop. Only instrument and measure. Fix implementation happens in C6 after confirmation.
 
-**Success criteria:**
-- chi² BEFORE step 0 < 2M (healthy, ~1.13M expected)
-- Zero-point correlation ≥ 0.99999 (unchanged from Phase B5 fix)
-- Δlog_scale magnitude ~ -1.5 (LR × gradient, not +1e-5)
+2. **Device/dtype neutrality** — All A* checksum computations must use `.detach().cpu().numpy()` and `dtype=np.float64` for consistency.
 
-**Failure signatures:**
-- chi² still 8.8M → fix didn't work, need deeper diagnostic
-- chi² 2M-5M → partial fix, possible secondary bug
-- Regression guard fails → fix broke cell+misset path, revert
+3. **Protected Assets** — Do NOT modify `dbex/nanobrag_bridge.py:create_crystal_config` in this loop. Only modify the script.
 
-## Pitfalls to Avoid
+4. **Telemetry schema stability** — Add new fields (`a_star_checksum`, `code_path`) WITHOUT removing existing fields to maintain backward compatibility with Phase C3 telemetry analysis tools.
 
-1. **Don't edit production code before completing audit** — gather evidence first, implement fix second
-2. **Check ALL parameter uses, not just one** — log_scale AND q_params AND B_ideal AND crystal_overrides
-3. **Beware variable scope capture** — Python closures capture by reference; check if closure sees CURRENT value
-4. **Don't assume fix works** — always run validation diagnostic after editing code
-5. **Verify Phase B5 fix still works** — zero-point check must PASS after any edits
-6. **Compare to zero-point code path** — why does zero-point succeed but first closure fail?
-7. **Document exact line numbers** — phase_c4_first_closure_audit.md needs file:line citations
-8. **Run regression guard** — cell+misset path must not break
-9. **Don't batch multiple fixes** — if audit finds 2+ bugs, fix ONE at a time and validate
-10. **Preserve telemetry** — don't remove lifecycle logging from Phase C3
+5. **Test completion** — If diagnostic times out or terminates early:
+   - Check for HKL grid timeout (common blocker, ~20 min on CPU)
+   - If timeout: reduce `--adam-steps` to 1 (only need step 0 init telemetry)
+   - If still blocks: capture partial results and mark Path C (inconclusive)
+
+6. **ROI scoring overhead** — Do NOT compute full ROI correlation in telemetry. Use chi² only for speed.
+
+7. **Metrics precision** — Use at least 12 decimal places (`.12e`, `.12f`) for A* checksums to detect sub-1e-6 differences.
+
+8. **Cross-reference accuracy** — When updating implementation.md, ensure all artifact paths point to `2025-11-22T232200Z/` (THIS loop's directory), not prior loops.
 
 ## If Blocked
 
-**Blocker 1: Audit finds no obvious staleness**
-- Proceed to Path C decision
-- Recommend checksum logging (Priority 1 checklist items 1-6)
-- Don't implement speculative fixes without evidence
+**Scenario 1: Test times out during HKL grid building**
+- Reduce `--adam-steps` to 1
+- If still times out: reduce ROI count via `--n-rois 2` (if flag exists)
+- Capture whatever telemetry was emitted before timeout
+- Mark Path C (inconclusive) and document timeout in decision
 
-**Blocker 2: Fix implemented but validation still fails**
-- Document in Path B decision
-- Capture validation artifacts
-- Recommend deeper diagnostic (checksum logging OR Priority 2 test LBFGS)
+**Scenario 2: Telemetry files missing `a_star_checksum` field**
+- Review instrumentation code for scoping bugs (checksum vars defined inside wrong if-block)
+- Check for exceptions during telemetry emission (wrap in try-except, log errors)
+- If unfixable: use log output to manually extract checksums, note workaround in decision
 
-**Blocker 3: Regression guard fails after fix**
-- Revert fix immediately
-- Document in decision.md
-- Recommend alternative fix approach
+**Scenario 3: Regression guard fails**
+- Revert instrumentation changes
+- Investigate what broke (likely: variable scope issue or indentation error)
+- Fix, retest, then proceed
 
-**Blocker 4: Validation diagnostic times out**
-- Reduce to 1 step
-- Capture whatever telemetry completed
-- Mark validation as PARTIAL
+**Scenario 4: A* checksum values are identical but chi² diverges**
+- Document this surprising result in decision
+- Hypothesize that divergence happens AFTER crystal_config creation (in simulator)
+- Recommend Priority 2 audit: `create_crystal_config` internals or nanobrag_torch forward pass
 
 ## Findings Applied
 
-**Relevant findings (HIGH priority):**
-
-- **Phase B5 (Code path discrepancy):** Script `_stage_a_forward` set unsupported `crystal_overrides["A_star"]` key → create_crystal_config ignored MOSFLM tuple. Fix: Convert A* to `mosflm_a/b/c_star` keys. **Pattern recognition:** Current symptom (initialization healthy, first closure catastrophic) matches Phase B5 exactly → audit should focus on crystal_overrides construction.
-
-- **Phase B4 (Extended diagnostic):** Script-level `_forward_once` produced chi²=1.425B while `run_nanobrag_refinement` produced chi²=1.13M at SAME parameters → code path divergence. **Implication:** First closure may use DIFFERENT code path than zero-point validation (which succeeds).
-
-- **GRADIENT-001 (autograd graph preservation):** Production refinement must avoid `.item()`/`.numpy()`/`.detach()` on differentiable tensors. **Check:** Ensure log_scale_param not detached before closure.
-
-**Findings NOT directly applicable (but keep in mind):**
-- REFINE-001 (LBFGS scale warm-start) — not relevant (staleness not initialization)
-- PHYSICS-LOSS-002 (variance sigma-floor) — not relevant (chi² catastrophic before loss computation)
+- **REFINE-001** (LBFGS scale warm-start): Not directly applicable (this is Adam diagnostic, not LBFGS)
+- **PHYSICS-LOSS-002** (variance sigma-floor guard): Variance telemetry instrumentation already present from Phase C1
+- **GRADIENT-001** (autograd graph preservation): A* checksum logging uses `.detach()` to avoid breaking autograd
+- **CONVERGENCE-001 Phase B5** (B_ideal mismatch): Phase C4 audit checked for similar issues; none found in parameter flow
+- **CONVERGENCE-001 Phase C4** (no parameter staleness): This loop tests the NEW hypothesis (code path divergence) identified by C4
 
 ## Pointers
 
-- **Phase C3 Decision:** `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T224717Z/phase_c3_parameter_lifecycle_decision.md` — Path C verdict, Priority 1 recommendation
-- **Phase B5 Fix:** `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T183012Z/code_path_audit.md` — Similar diagnostic approach
-- **Phase B5 Commit:** `fe6048f` — crystal_overrides fix pattern (convert A* to mosflm_X_star keys)
-- **Closure Code:** `dbex/nanobrag_refinement.py:~920-1116` — Stage A closure (U-matrix branch)
-- **Implementation Plan:** `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/implementation.md` — Phase C checklist
-- **Spec:** `docs/spec-db-runtime.md` §Optimizer Convergence — Parameter lifecycle requirements
+- **Spec alignment:** `docs/spec-db-workflow.md §Stage A — Optimizer convergence`, `docs/spec-db-runtime.md §Gradient stability`
+- **Test selector reference:** `docs/TESTING_GUIDE.md §2.2` (test_stage_a_expansion regression guard)
+- **Architecture:** `docs/architecture/pytorch_design.md §Parameterization` (U-matrix vs cell+misset)
+- **Prior phase:** `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T232000Z/phase_c4_parameter_staleness_decision.md §Priority 1`
+- **Fix plan row:** `docs/fix_plan.md:44-69` (TORCH-GEOMETRY-CONVERGENCE-001 Attempts History entry 69)
 
-## Next Up
+## Next Up (if you finish early)
 
-If audit completes early AND verdict is Path A (fix SUCCESS):
-
-**Phase C5: Full Convergence Test (10 steps)**
-- Run A_scale_only with 10 Adam steps
-- Expect monotonic chi² improvement
-- Expect median CC ≥ 0.99 final
-- Validate optimizer can now optimize from healthy initialization
-
-If verdict is Path B/C (fix INCOMPLETE or audit INCONCLUSIVE):
-
-**Option 1: Checksum Logging (Priority 1 extension)**
-- Implement U_matrix/A* checksum logging per priority 1 checklist items 1-6
-- Run 2-step diagnostic
-- Identify EXACT point where parameter diverges
-
-**Option 2: Test LBFGS (Priority 2)**
-- Switch optimizer to LBFGS
-- Check if LBFGS shows healthy chi² BEFORE first step
-- If yes → Adam-specific bug; if no → forward model bug confirmed
+- If Path A (equivalence confirmed): Begin Priority 2 audit of `create_crystal_config` internals
+- If Path B (divergence confirmed): Draft fix options (bypass overrides, fix precision, audit config function)
+- If Path C (inconclusive): Review test logs and prepare retry plan with reduced timeout scope

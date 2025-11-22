@@ -221,7 +221,11 @@ def main() -> int:
         def _claude_cmd() -> list[str] | None:
             def _fmt(path: Path | str) -> list[str]:
                 quoted = str(path).replace('"', '\\"')
-                cmd_str = f'"{quoted}" -p --dangerously-skip-permissions --verbose'
+                # Use stream-json for incremental events, then pretty-print to text.
+                cmd_str = (
+                    f'"{quoted}" -p --dangerously-skip-permissions --verbose '
+                    f'--output-format stream-json | python -u scripts/orchestration/claude_stream_to_text.py'
+                )
                 return ["/bin/bash", "-lc", cmd_str]
 
             cc = args.claude_cmd

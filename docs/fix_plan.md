@@ -11,6 +11,19 @@
 
 ## Active / Pending Initiatives
 
+### [TORCH-REFINE-002E] Fix Stage A Zero-Point Geometry Discontinuity
+- Depends on: docs/spec-db-core.md, docs/spec-db-workflow.md, docs/spec-db-conformance.md
+- Status: in_progress
+- Priority: High (Geometry Mapping)
+- Owner/Date: Unassigned
+- Exit Criteria:
+  1. `plans/active/TORCH-REFINE-002E/bin/probe_crystal_matrix_parity.py` reports A* parity between mapping MOSFLM injection and Stage‑A explicit cell+misset parameterization with `max_abs_diff < 1e-6` and `U_error` projected to a proper rotation (GEOMETRY‑003).
+  2. `plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py` Phase 5 `A_scale_only` variant maintains median ROI correlation ≈1.0 and stable chi-squared after 10 Adam steps when seeded at the mapping zero point.
+  3. Phase 5 `D_full` variant shows monotonic chi-squared improvement across validations without “sidelobe” artifacts (no large ROI-wise correlation collapses).
+- Working Plan: plans/active/TORCH-REFINE-002E/implementation.md
+- Attempts History:
+  * 2025-11-22T000230Z (implementation) — Implemented GEOMETRY‑003 baseline misset derivation via `derive_robust_misset`/`compute_baseline_misset_deg` in `dbex/nanobrag_bridge.py` so Stage‑A explicit cell+misset parameterizations are aligned to nanobrag_torch’s default B\_ideal reciprocal basis instead of dxtbx’s U‑matrix convention. Authored Phase‑A probe script `plans/active/TORCH-REFINE-002E/bin/probe_crystal_matrix_parity.py` (A* parity metrics, JSON under `plans/active/TORCH-REFINE-002E/reports/20251121T234012Z/`) and retuned `plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py` to use the robust baseline misset in its Stage‑A components. Verified Stage‑A expansion smoke `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` passes on CUDA with `KMP_DUPLICATE_LIB_OK=TRUE NANOBRAG_DISABLE_COMPILE=1`, and executed `stage_a_mapping_adam_debug.py --phases 1,2,4,5 --device cpu` (artifacts under `plans/active/TOOLING-VIS-001/reports/stage_a_refgeom_adam_debug/20251121T234215Z/`). Current status: A* parity probe reports `max_abs_diff≈4.0e-5` and Phase‑5 scale‑only/full‑DoF variants still degrade median ROI correlation, so exit criteria remain unmet; further iterations must investigate residual strain/B‑matrix differences and optimizer behavior at the mapping zero point.
+
 ### [PHYSICS-LOSS-001] Implement variance-weighted loss function
 - Depends on: docs/spec-db-core.md (Variance Model)
 - Status: done (2025-11-21 — variance-weighted loss + metadata manifest gate fully landed)

@@ -133,11 +133,11 @@
 
 ## Phase B — Hypothesis Testing
 ### Checklist
-- [ ] B0: **Test Protocol Design** — Based on Phase A root cause determination, design 2-3 targeted tests (e.g., if H1: test LBFGS, lower LR, gradient clipping; if H2: test loss clamping, FP64; if H3/H4: test normalization frequency, Riemannian projection). Document in `phase_b_test_protocol.md`.
-- [ ] B1: **Execute Test 1** — Implement and run first hypothesis test (e.g., LBFGS optimizer for A_scale_only with U-matrix); validate convergence metrics (CC ≥ 0.99, χ² stable). Emit `phase_b_test1_results.json`.
-- [ ] B2: **Execute Test 2** — Implement and run second hypothesis test (e.g., Adam LR=1e-6 instead of 1e-4); validate convergence. Emit `phase_b_test2_results.json`.
-- [ ] B3: **Execute Test 3 (Optional)** — If first two tests fail or are inconclusive, run third test (e.g., gradient clipping or FP64 precision). Emit `phase_b_test3_results.json`.
-- [ ] B4: **Test Result Synthesis** — Compare test results; select best-performing fix (or combination); validate it achieves exit criteria thresholds. Document in `phase_b_fix_selection.md`.
+- [x] B0: **Test Protocol Design** — Based on Phase A root cause determination (B_ideal mismatch), prioritized H1 (LBFGS) → H1+H3 (LR+gradients) → H2 (variance). **DONE (2025-11-22T165000Z):** Documented test protocol with LBFGS as priority 1 to bypass Adam momentum pathology. See `phase_b_test_protocol.md`.
+- [~] B1: **Execute Test 1 (LBFGS)** — Implement and run LBFGS optimizer for A_scale_only with U-matrix; validate convergence metrics (CC ≥ 0.99, χ² stable). **BLOCKED (2025-11-22T172000Z):** Test B1 executed twice with corrected telemetry paths and foreground execution. Zero-point validation PASSED (chi²=989k), confirming B_ideal bugfix works in that code path. However, LBFGS step 0 shows chi²=1.425B (catastrophic, matches pre-bugfix signature), indicating B_ideal mismatch PERSISTS in optimization loop despite bugfix 826f4c9. Test timed out after 1200s (only 2/10 steps completed - LBFGS too slow on CPU). **Decision: Path B - Escalate to deep diagnostic** to identify WHERE B_ideal diverges in the LBFGS closure. See `phase_b1_decision.md`.
+- [ ] B2: **Execute Test 2 (Adam LR tuning)** — Implement and run Adam LR=1e-6 instead of 1e-4 with gradient validation; validate convergence. **SKIPPED if B1 diagnostic resolves issue; PENDING if diagnostic reveals optimizer-agnostic problem.** Emit `phase_b_test2_results.json`.
+- [ ] B3: **Execute Test 3 (Variance analysis)** — If first two tests fail or are inconclusive, run variance component analysis with full telemetry. **SKIPPED if B1 diagnostic resolves issue; PENDING otherwise.** Emit `phase_b_test3_results.json`.
+- [ ] B4: **Test Result Synthesis** — Compare test results; select best-performing fix (or combination); validate it achieves exit criteria thresholds. **PENDING: Requires B1 diagnostic completion.** Document in `phase_b_fix_selection.md`.
 
 ### Notes & Risks
 - Risk: Multiple optimizer/loss variants may require significant code changes; prefer config flags over rewriting closures.

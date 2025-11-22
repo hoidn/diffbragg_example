@@ -200,6 +200,10 @@ class _StageAComponents:
     N_cells: object
     apply_n_cells: bool
     baseline_misset_deg_tensor: object
+    # TORCH-GEOMETRY-PARITY-002 Phase C2: U-matrix parameterization support
+    use_u_matrix: bool = False
+    q_initial: object = None  # Initial quaternion from MOSFLM A*
+    B_ideal_reciprocal: object = None  # Reciprocal B_ideal for U @ B conversion
 
 
 def _build_stage_a_components(
@@ -207,8 +211,14 @@ def _build_stage_a_components(
     context,
     *,
     device_str: str,
+    use_u_matrix: bool = False,
 ) -> _StageAComponents:
-    """Construct shared Stage A tensors/config used by mapping helpers."""
+    """Construct shared Stage A tensors/config used by mapping helpers.
+
+    Args:
+        use_u_matrix: If True, initialize quaternion U-matrix params for orientation
+            instead of cell+misset (TORCH-GEOMETRY-PARITY-002).
+    """
     torch, TorchCrystal, TorchDetector, Simulator = _import_stage_a_dependencies()
 
     device = torch.device(device_str)
@@ -289,6 +299,32 @@ def _build_stage_a_components(
         dtype=dtype,
     )
 
+    # TORCH-GEOMETRY-PARITY-002 Phase C2: U-matrix initialization
+    q_initial = None
+    B_ideal_reciprocal = None
+    if use_u_matrix:
+        from dbex.nanobrag_bridge import (
+            derive_u_matrix_from_mosflm_a_star,
+            matrix_to_quaternion,
+        )
+        # Extract MOSFLM A* from crystal
+        A_star_mosflm = np.array(dataload.crystal.get_A(), dtype=np.float64).reshape(3, 3)
+        cell = dataload.crystal.get_unit_cell()
+        cell_params = cell.parameters()  # Convert to tuple (a, b, c, alpha, beta, gamma)
+        # Derive U-matrix (no SO(3) projection - preserve mapping geometry exactly)
+        U_matrix = derive_u_matrix_from_mosflm_a_star(A_star_mosflm, cell_params)
+        # Convert to quaternion
+        q_initial_np = matrix_to_quaternion(torch.tensor(U_matrix, dtype=torch.float64))
+        q_initial = torch.tensor(q_initial_np, device=device, dtype=dtype)
+        # Store B_ideal reciprocal for A* reconstruction: A* = U @ B_ideal_reciprocal
+        # B_ideal is derived from unit cell (same as in derive_u_matrix_from_mosflm_a_star)
+        from cctbx.uctbx import unit_cell as cctbx_cell
+        cell_params = cell.parameters()
+        B_ideal = np.array(
+            cctbx_cell(cell_params).fractionalization_matrix(), dtype=np.float64
+        ).T  # cctbx gives row-major, we need column-major
+        B_ideal_reciprocal = torch.tensor(B_ideal, device=device, dtype=dtype)
+
     return _StageAComponents(
         torch=torch,
         device=device,
@@ -304,6 +340,9 @@ def _build_stage_a_components(
         N_cells=N_cells,
         apply_n_cells=apply_n_cells,
         baseline_misset_deg_tensor=baseline_misset_deg_tensor,
+        use_u_matrix=use_u_matrix,
+        q_initial=q_initial,
+        B_ideal_reciprocal=B_ideal_reciprocal,
     )
 
 
@@ -320,10 +359,16 @@ def _stage_a_forward(
     angle_beta_raw,
     angle_gamma_raw,
     orientation_vec,
+    q_params,  # TORCH-GEOMETRY-PARITY-002: quaternion for U-matrix mode (None if cell+misset)
     sigma_floor_sq_tensor,
     use_mapping_zero_geometry: bool,
 ):
-    """Shared Stage A forward model used by no-op and Adam helpers."""
+    """Shared Stage A forward model used by no-op and Adam helpers.
+
+    Args:
+        q_params: Quaternion parameters for U-matrix mode (4-DOF). If None, uses
+            cell+misset path with orientation_vec.
+    """
     torch = components.torch
     device = components.device
     dtype = components.dtype
@@ -345,6 +390,8 @@ def _stage_a_forward(
     #   MOSFLM A* injection and mapping geometry are preserved.
     # - Non-zero parameters use baseline misset + deltas and explicit
     #   crystal_overrides, matching Stage A refinement conventions.
+    # TORCH-GEOMETRY-PARITY-002: When use_u_matrix=True, orientation is via
+    # quaternion → U → A* instead of cell+misset decomposition.
     if use_mapping_zero_geometry:
         crystal_config, _ = create_crystal_config(
             dataload.crystal,
@@ -366,17 +413,6 @@ def _stage_a_forward(
         perturbed_beta = cell_params[4] + torch.tanh(angle_beta_raw) * max_angle_delta
         perturbed_gamma = cell_params[5] + torch.tanh(angle_gamma_raw) * max_angle_delta
 
-        max_orientation_deg = 10.0
-        bounded_orientation_vec = (
-            torch.tanh(orientation_vec) * max_orientation_deg * (np.pi / 180.0)
-        )
-        quat = vec_to_unit_quaternion(bounded_orientation_vec)
-        delta_misset_deg = quaternion_to_xyz_euler(quat)
-        if baseline_misset_deg_tensor is not None:
-            misset_xyz_deg = baseline_misset_deg_tensor + delta_misset_deg
-        else:
-            misset_xyz_deg = delta_misset_deg
-
         crystal_overrides = {
             "cell_a": perturbed_cell_a,
             "cell_b": perturbed_cell_b,
@@ -385,6 +421,31 @@ def _stage_a_forward(
             "cell_beta": perturbed_beta,
             "cell_gamma": perturbed_gamma,
         }
+
+        # TORCH-GEOMETRY-PARITY-002: Branch on U-matrix vs cell+misset orientation
+        if components.use_u_matrix:
+            # U-matrix path: quaternion → rotation matrix → A*
+            from dbex.nanobrag_bridge import quaternion_to_matrix
+            # Normalize quaternion to unit sphere
+            q_norm = q_params / torch.norm(q_params)
+            # Convert to rotation matrix U ∈ SO(3)
+            U_matrix = quaternion_to_matrix(q_norm)
+            # Reconstruct A* = U @ B_ideal_reciprocal
+            A_star_new = U_matrix @ components.B_ideal_reciprocal
+            crystal_overrides["A_star"] = A_star_new
+            misset_xyz_deg = None  # No misset override in U-matrix mode
+        else:
+            # Cell+misset path: orientation_vec → Euler angles
+            max_orientation_deg = 10.0
+            bounded_orientation_vec = (
+                torch.tanh(orientation_vec) * max_orientation_deg * (np.pi / 180.0)
+            )
+            quat = vec_to_unit_quaternion(bounded_orientation_vec)
+            delta_misset_deg = quaternion_to_xyz_euler(quat)
+            if baseline_misset_deg_tensor is not None:
+                misset_xyz_deg = baseline_misset_deg_tensor + delta_misset_deg
+            else:
+                misset_xyz_deg = delta_misset_deg
 
         crystal_config, _ = create_crystal_config(
             dataload.crystal,
@@ -625,12 +686,19 @@ def _stage_a_adam_core(
     train_scale: bool,
     train_cell: bool,
     train_orientation: bool,
+    use_u_matrix: bool = False,
 ) -> Dict[str, object]:
-    """Core helper for Stage A Adam experiments (Phase 4 / Phase 5)."""
+    """Core helper for Stage A Adam experiments (Phase 4 / Phase 5).
+
+    Args:
+        use_u_matrix: If True, use quaternion U-matrix parameterization for
+            orientation (TORCH-GEOMETRY-PARITY-002).
+    """
     components = _build_stage_a_components(
         dataload,
         context,
         device_str=device_str,
+        use_u_matrix=use_u_matrix,
     )
 
     torch = components.torch
@@ -681,6 +749,12 @@ def _stage_a_adam_core(
         3, device=device, dtype=dtype, requires_grad=train_orientation
     )
 
+    # TORCH-GEOMETRY-PARITY-002: U-matrix initialization
+    q_params = None
+    if use_u_matrix:
+        # Initialize quaternion from q_initial (already computed in components)
+        q_params = components.q_initial.clone().requires_grad_(train_orientation)
+
     params = [
         log_scale,
         log_cell_a_delta,
@@ -689,8 +763,13 @@ def _stage_a_adam_core(
         angle_alpha_raw,
         angle_beta_raw,
         angle_gamma_raw,
-        orientation_vec,
     ]
+    # Add orientation params based on mode
+    if use_u_matrix and q_params is not None:
+        params.append(q_params)
+    else:
+        params.append(orientation_vec)
+
     trainable_params = [p for p in params if p.requires_grad]
     optimizer = torch.optim.Adam(trainable_params, lr=lr) if trainable_params else None
 
@@ -713,6 +792,7 @@ def _stage_a_adam_core(
             angle_beta_raw=angle_beta_raw,
             angle_gamma_raw=angle_gamma_raw,
             orientation_vec=orientation_vec,
+            q_params=q_params,
             sigma_floor_sq_tensor=sigma_floor_sq_tensor,
             use_mapping_zero_geometry=use_mapping_zero_geometry,
         )
@@ -950,8 +1030,14 @@ def _run_blockwise_dof_experiments(
     lr: float,
     out_dir: Path,
     dof_variants: list[str] | None = None,
+    use_u_matrix: bool = False,
 ) -> Dict[str, object]:
-    """Phase 5 — Block-wise DoF isolation experiments."""
+    """Phase 5 — Block-wise DoF isolation experiments.
+
+    Args:
+        use_u_matrix: If True, use quaternion U-matrix parameterization for
+            orientation instead of cell+misset (TORCH-GEOMETRY-PARITY-002).
+    """
     all_variants = {
         "A_scale_only": dict(train_scale=True, train_cell=False, train_orientation=False),
         "B_scale_plus_cell": dict(train_scale=True, train_cell=True, train_orientation=False),
@@ -976,6 +1062,7 @@ def _run_blockwise_dof_experiments(
             train_scale=cfg["train_scale"],
             train_cell=cfg["train_cell"],
             train_orientation=cfg["train_orientation"],
+            use_u_matrix=use_u_matrix,
         )
         chi = payload.get("chi_squared", {})
         cc = payload.get("cc_summary", {})
@@ -986,7 +1073,9 @@ def _run_blockwise_dof_experiments(
         }
 
     block_payload: Dict[str, object] = {"variants": results}
-    (out_dir / "block_dof_results.json").write_text(json.dumps(block_payload, indent=2))
+    # TORCH-GEOMETRY-PARITY-002: Use different filename for U-matrix mode
+    output_filename = "block_dof_results_u_matrix.json" if use_u_matrix else "block_dof_results.json"
+    (out_dir / output_filename).write_text(json.dumps(block_payload, indent=2))
     return block_payload
 
 
@@ -1273,6 +1362,15 @@ def _parse_args() -> argparse.Namespace:
             "If not provided, all variants are run."
         ),
     )
+    parser.add_argument(
+        "--use-u-matrix",
+        action="store_true",
+        help=(
+            "Enable quaternion U-matrix parameterization for Stage A orientation "
+            "(TORCH-GEOMETRY-PARITY-002). When enabled, refines orientation via 4-DOF "
+            "quaternion → rotation matrix → A* instead of cell+misset decomposition."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -1366,6 +1464,7 @@ def main(argv: List[str] | None = None) -> None:
                 lr=args.adam_lr,
                 out_dir=out_root,
                 dof_variants=dof_variants_list,
+                use_u_matrix=args.use_u_matrix,
             )
 
         # This script is debug-only; no exceptions here are converted to non-zero

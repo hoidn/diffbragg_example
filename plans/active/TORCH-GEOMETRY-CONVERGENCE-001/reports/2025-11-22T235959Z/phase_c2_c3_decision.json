@@ -1,0 +1,21 @@
+{
+  "phase_c2_a_scale_only": {
+    "chi_squared_before": 1133420.75,
+    "chi_squared_after": 8836375.0,
+    "chi_squared_drift_pct": 679.62,
+    "median_roi_cc_after": 0.765,
+    "learning_rate_applied": 1e-5,
+    "verdict": "FAIL",
+    "notes": "LR reduction from 1e-4 to 1e-5 did NOT resolve catastrophic convergence failure. Chi² 1.13M → 8.84M (+679.6%) after 10 steps, identical signature to Phase C1 pre-fix (8.84M vs 8.83M). Median CC degraded to 0.765 (not ≥0.99 required). Zero-point validation PASSED (chi²=989k, correlation=1.0), confirming initialization remains healthy. This proves H1 (Adam LR too high) was INCORRECT or INCOMPLETE as primary root cause. The 10× LR reduction produced ZERO improvement in convergence behavior, suggesting a different pathology (forward model bug, loss numerical instability, or gradient/parameter update propagation issue) is dominant."
+  },
+  "phase_c3_d_full": {
+    "chi_squared_before": null,
+    "chi_squared_after": null,
+    "chi_squared_improvement_pct": null,
+    "median_roi_cc_after": null,
+    "verdict": "SKIPPED",
+    "notes": "Phase C3 D_full validation skipped per input.md conditional rule: 'Do NOT run D_full test if A_scale_only FAILS catastrophically (chi² >8M, CC <0.9)'. Phase C2 failed with chi²=8.84M >8M and CC=0.765 <0.9."
+  },
+  "overall_verdict": "Path C: FAIL (escalate to alternative fix)",
+  "recommended_next_action": "Escalate to alternative hypothesis investigation. H1 (Adam LR too high) is REJECTED with HIGH confidence based on Phase C2 null result. Re-examine Phase C1 telemetry for alternative root causes: (a) H2 (variance-weighted loss numerical instability) - check variance denominator behavior, clamp fraction, weighted residuals distribution; (b) H3b (gradient explosion as PRIMARY not symptom) - validate autograd correctness, check for accumulation artifacts; (c) H4 (quaternion constraint handling) - investigate normalization frequency, off-manifold gradient propagation; (d) NEW hypothesis: parameter update propagation bug in quaternion forward model path (similar to Phase B5 B_ideal mismatch but for quaternion ops). Recommended actions: (1) Re-analyze Phase C1 telemetry with H2/H3b/H4 lens, (2) Implement finite-difference gradient validation at step 0 to confirm autograd correctness, (3) Try alternative optimizer (LBFGS with max_iter=5, history_size=5) to bypass Adam momentum entirely, (4) If all fail, escalate to hybrid parameterization (PARITY-003 Option 1: cell+misset for refinement, quaternion for parity)."
+}

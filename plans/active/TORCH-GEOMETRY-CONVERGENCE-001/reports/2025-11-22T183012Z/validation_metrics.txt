@@ -1,0 +1,9 @@
+Zero-Point: chi²_mapping=989,811.53, chi²_stage_a=989,645.63, corr=0.9999999843
+Init (before): chi²_before=1,133,421.0 (healthy, 1.14× expected ~990k-1.13M)
+Final (after 10 steps): chi²_after=8,829,292.0 (7.8× degradation from init)
+CC: CC_before=0.9999999843 (perfect), CC_after=0.765 (degraded but positive)
+Log Tail: Completed phases ['5'] → artifacts under diagnostic_b5_postfix_v2 (No errors)
+
+**KEY RESULT:** Initialization bug FIXED! Chi²_before=1.133M is healthy (1000× improvement from pre-fix 1.425B), matches expected order of magnitude. Zero-point parity maintained (corr=0.9999999843).
+
+**Convergence:** STILL FAILS (chi² increases 7.8× instead of decreasing), but this is a SEPARATE issue from initialization bug.

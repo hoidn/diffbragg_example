@@ -1,0 +1,9 @@
+# Stage A mapping Adam debug run
+
+command: plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py --use-u-matrix --phases 5 --dof-variants A_scale_only --adam-steps 1 --device cpu --out-dir plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T183012Z/diagnostic_b5_postfix_v2/
+seed: 20251121
+
+env:
+  CUDA_VISIBLE_DEVICES=
+  NANOBRAG_DISABLE_COMPILE=1
+  KMP_DUPLICATE_LIB_OK=True

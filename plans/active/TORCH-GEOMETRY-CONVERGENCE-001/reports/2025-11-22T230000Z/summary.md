@@ -1,6 +1,5 @@
 ### Turn Summary
-Reviewed Ralph's Phase B5 fix (commits fe6048f + 00b3228): initialization bug RESOLVED (chi² step 0 = 1.13M, 1000× improvement from catastrophic 1.425B).
-Code path discrepancy root cause identified (script set unsupported `A_star` override key, config ignored MOSFLM tuple injection) and fixed in both script and nanobrag_bridge.
-Convergence pathology persists (chi² 1.13M → 8.8M over 10 steps, CC 1.0 → 0.765), but this is a DIFFERENT failure mode (healthier initialization, positive CC, no catastrophic collapse).
-Next: Phase C convergence validation with telemetry to diagnose remaining optimizer/loss pathology (likely H2 variance instability or H1 Adam LR incompatibility).
-Artifacts: plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T230000Z/ (input.md, phase_c_convergence_test_protocol.md)
+Executed Phase C1 convergence telemetry with 10-step A_scale_only test capturing full diagnostic trajectory after Phase B5 initialization fix.
+Identified H1 (Adam LR too high) as primary root cause with HIGH confidence: first optimizer step causes catastrophic overshoot (chi² 1.13M → 8.84M, +679%) due to LR=1e-4 being 1000× too high for quaternion gradients O(150k).
+Next: Phase C2 targeted fix (reduce LR to 1e-5) with validation test to confirm convergence success.
+Artifacts: plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T230000Z/ (phase_c1_convergence_analysis.md, phase_c1_decision.md, convergence_trajectory.txt, telemetry JSONs, pytest_regression.log)

@@ -1,7 +1,7 @@
-# TORCH-GEOMETRY-PARITY-002 Phase C Validation
+# Supervisor Input — 2025-11-22T114945Z
 
 ## Summary
-Extend parity probe with U-matrix mode, validate <1e-6 A* parity at zero deltas, and validate Phase 5 convergence (scale-only + full-DoF variants).
+Test quaternion U-matrix parameterization convergence sensitivity despite ~4e-05 parity gap (Alternative Path 3).
 
 ## Mode
 none
@@ -13,342 +13,276 @@ TORCH-GEOMETRY-PARITY-002 — Direct U-Matrix Parameterization for Stage A Geome
 integration
 
 ## Mapped Tests
-- `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` (regression guard)
-- `tests/dbex/test_u_matrix_gradcheck.py::test_quaternion_roundtrip` (quaternion ops validation)
+- `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` (regression guard — cell+misset default path unchanged)
+- Phase 5 convergence metrics from `stage_a_mapping_adam_debug.py` (not a pytest selector, CLI-driven validation)
 
 ## Artifacts
-`plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T113409Z/`
-
-## Do Now (Phase C1-C3: Parity + Convergence Validation)
-
-**Context:** Phase B implementation (B1-B5) complete in commits 2793ba9 + b353b77 (scoping bugfix). All helpers, config flags, initialization logic, and closure branching for U-matrix parameterization are in place. Quaternion roundtrip test passes (<1e-6 error). Regression guard (test_stage_a_expansion) passes with default cell+misset path (use_u_matrix_parameterization=False).
-
-**Goal:** Validate that the U-matrix parameterization achieves <1e-6 A* parity and restores convergent refinement behavior (Exit Criteria #1-#2).
-
-**Scope (bundled Phase C items C1-C3):**
-
-### Implement: C1 — Parity Validation (B6 deferred from Phase B)
-
-**Target:** `plans/active/TORCH-REFINE-002E/bin/probe_crystal_matrix_parity.py::run_probe`
-
-Extend `probe_crystal_matrix_parity.py` with `--use-u-matrix` flag to validate U-matrix path achieves <1e-6 A* parity:
-
-1. Add `--use-u-matrix` boolean flag to argparse (default=False)
-2. Update `run_probe(device: str, use_u_matrix: bool = False)` signature
-3. When `use_u_matrix=True`:
-   - Import helpers from `dbex.nanobrag_bridge`: `derive_u_matrix_from_mosflm_a_star`, `matrix_to_quaternion`, `quaternion_to_matrix`
-   - Extract MOSFLM A* from dataload crystal
-   - Call `derive_u_matrix_from_mosflm_a_star(a_star, cell)` to get U₀ (3×3 numpy array)
-   - Convert U₀ to quaternion q₀ via `matrix_to_quaternion` (returns torch.Tensor[4])
-   - Normalize q₀: `q_norm = q₀ / torch.norm(q₀)` (enforce unit norm constraint)
-   - Convert back to rotation matrix: `U = quaternion_to_matrix(q_norm)` (torch.Tensor[3,3])
-   - Compute A*_pathB = U @ B_ideal_reciprocal (use same B_ideal from Path A)
-   - Compare A*_pathA (mapping MOSFLM) vs A*_pathB (U-matrix at zero deltas)
-   - Compute diagnostics: `max_abs_diff`, `quaternion_delta_norm = torch.norm(q_norm - q₀).item()`, eigenvalues, singular values, log_u symmetric/antisymmetric
-   - Emit results to JSON under `path_B_u_matrix` key (alongside existing variants)
-4. Pass `use_u_matrix=args.use_u_matrix` to `run_probe()`
-5. Update output JSON schema to include `path_B_u_matrix: PathBVariantSummary` alongside existing `path_B_unitcell`, `path_B_recovered`, `path_B_mapping_aligned`
-
-**Execution:**
-```bash
-python plans/active/TORCH-REFINE-002E/bin/probe_crystal_matrix_parity.py \
-  --use-u-matrix \
-  --device cpu \
-  --out-dir plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T113409Z/ \
-  > plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T113409Z/probe_u_matrix.log 2>&1
+```
+plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T114945Z/
+  block_dof_results_u_matrix.json
+  phase_c2_c3_decision.json
+  stage_a_debug_u_matrix.log
+  pytest_stage_a_regression.log
+  commands.txt
+  summary.md
 ```
 
-**Exit Criterion #1 validation:** Verify `path_B_u_matrix.max_abs_diff < 1e-6` (U-matrix path reproduces mapping MOSFLM A* exactly at zero deltas, eliminating the 1.37e-3 symmetric strain artifact from GEOMETRY-003 cell+misset path)
+## Do Now
 
-### Implement: C2/C3 — Phase 5 Convergence Validation
+**Context:** Ralph's Phase C1 (2025-11-22T113409Z) discovered that raw U-matrix achieves perfect parity (`max_abs_diff=3.469e-18`) but `det(U₀)=1.000557` (NOT in SO(3)). Quaternion parameterization enforces SO(3) projection, losing the 0.06% volume offset and degrading parity back to `~4e-05` (same as cell+misset variants). Per phase_c1_parity_failure_diagnosis.md:58-74 Alternative Path 3, we now test **convergence sensitivity** — can quaternion U-matrix improve refinement despite the parity gap?
 
-**Target:** `plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py::main`
+**Hypothesis:** Quaternion U-matrix may still succeed because it directly parameterizes the 9-DOF orientation (4-param quaternion → 3×3 rotation) without the cell+misset decomposition that created the 1.37e-3 symmetric strain gradient artifact. Even though quaternion parity is ~4e-05 (same as cell+misset), the gradient flow may be cleaner and enable convergence at the mapping zero point.
 
-Extend `stage_a_mapping_adam_debug.py` with `--use-u-matrix` flag to run Phase 5 validation with U-matrix parameterization:
+**Decision Tree (CRITICAL):**
+- **If A_scale_only shows:** median ROI CC ≥ 0.99 AND χ² drift ≤ 0.5% after 10 Adam steps → **ACCEPT** quaternion as viable; proceed to Phase C5 (findings update GEOMETRY-004 documenting ~4e-05 parity as SO(3) vs mapping geometry limitation)
+- **If A_scale_only degrades:** CC < 0.99 OR χ² drift > 0.5% → **ESCALATE** to TORCH-GEOMETRY-PARITY-003 (investigate `det(U)≠1` root cause via dxtbx A*/cell audit OR evaluate hybrid cell+U+scale factorization per Alternative Path 2)
+- **If D_full degrades:** (secondary check) — log in decision.json but quaternion viability hinges on A_scale_only only per exit criterion #2
 
-1. Add `--use-u-matrix` boolean flag to argparse (default=False)
-2. In Stage A setup section (where `RefinementConfig` or similar config is built):
-   - Set `config.use_u_matrix_parameterization = args.use_u_matrix`
-   - Ensure this config is passed to `run_nanobrag_refinement` so the LBFGS closure uses U-matrix path (already implemented in Phase B5)
-3. Phase 5 execution will automatically use the U-matrix initialization and closure branching
+**Phase C2/C3 Convergence Test (bundled):**
 
-**Execution (C2 — Scale-Only):**
+1. **Implement:** Verify `stage_a_mapping_adam_debug.py` already has `--use-u-matrix` flag wired from Phase C1 probe extension (if missing, add it now per implementation.md:151-153 checklist B6).
+
+2. **Execute Phase 5 convergence test** with quaternion U-matrix mode:
+   ```bash
+   KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
+   python plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py \
+     --use-u-matrix \
+     --phases 5 \
+     --dof-variants A_scale_only,D_full \
+     --adam-steps 10 \
+     --device cpu \
+     --out-dir plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T114945Z/
+   ```
+
+   **Expected outputs:**
+   - `block_dof_results_u_matrix.json` with per-variant metrics (chi_squared_initial, chi_squared_final, median_roi_correlation_initial, median_roi_correlation_final, improvement_pct)
+   - `stage_a_debug_u_matrix.log` (console output)
+
+   **Time budget:** 20 minutes (same as TORCH-REFINE-002E reduced-scope Phase 5); if timeout, capture partial results and document in decision.json
+
+3. **Synthesize decision.json:**
+   ```json
+   {
+     "decision": "accept_quaternion" | "escalate_to_geometry_parity_003",
+     "rationale": "<1-2 sentences explaining which decision tree branch triggered>",
+     "a_scale_only": {
+       "chi_squared_initial": <float>,
+       "chi_squared_final": <float>,
+       "chi_squared_drift_pct": <float>,
+       "median_roi_correlation_initial": <float>,
+       "median_roi_correlation_final": <float>,
+       "verdict": "pass" | "fail",
+       "exit_criterion": "CC ≥ 0.99 and χ² drift ≤ 0.5%"
+     },
+     "d_full": {
+       "chi_squared_initial": <float>,
+       "chi_squared_final": <float>,
+       "improvement_pct": <float>,
+       "median_roi_correlation_final": <float>,
+       "verdict": "monotonic_improvement" | "degrade",
+       "exit_criterion": "monotonic χ² improvement, no large CC collapses"
+     },
+     "parity_context": {
+       "quaternion_parity_max_abs_diff": 4.0221959352493286e-05,
+       "det_u_zero": 1.0005572899796854,
+       "so3_projection_loss": "0.06% volume scaling lost during quaternion conversion"
+     }
+   }
+   ```
+   Write to `plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T114945Z/phase_c2_c3_decision.json`
+
+4. **Regression guard:**
+   ```bash
+   AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+   DBEX_SMOKE_SIGMA_SOURCE=cli_override \
+   DBEX_SMOKE_DETECTOR_SIZE=small \
+   KMP_DUPLICATE_LIB_OK=TRUE \
+   NANOBRAGG_DISABLE_COMPILE=1 \
+   pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+   ```
+
+   **Verify:** Test PASSES (no regressions from U-matrix implementation; cell+misset default path unchanged because `use_u_matrix_parameterization` defaults to `False` per implementation.md:149)
+
+   Log to `plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T114945Z/pytest_stage_a_regression.log`
+
+5. **Conditional findings update (only if decision="accept_quaternion"):**
+   - Add GEOMETRY-004 to `docs/findings.md`:
+     ```markdown
+     | GEOMETRY-004 | 2025-11-22 | geometry, crystal, u-matrix, so3 | Quaternion U-matrix parameterization for Stage A enables direct 4-DOF orientation refinement (quaternion → rotation matrix → A*) without cell+misset decomposition. Achieves same A* parity as cell+misset (~4e-05) due to SO(3) projection discarding the 0.06% volume scaling embedded in mapping MOSFLM A* (`det(U₀)=1.000557`). Raw U-matrix (no SO(3) constraint) achieves perfect parity (3.5e-18) but is not a valid rotation. Quaternion normalization (`q_norm = q / ||q||`) enforces unit sphere constraint; SO(3) manifold is maintained via scipy.spatial.transform.Rotation conversion. Convergence tests (Phase C2/C3) show [FILL: A_scale_only CC/χ² results] confirming quaternion is viable for Stage A refinement despite parity gap. | dbex/nanobrag_bridge.py:matrix_to_quaternion, dbex/nanobrag_refinement.py:use_u_matrix_parameterization, plans/active/TORCH-GEOMETRY-PARITY-002/reports/ | Active |
+     ```
+   - Cross-reference TORCH-GEOMETRY-PARITY-002 and cite phase_c2_c3_decision.json metrics
+   - Only execute this step if `decision.json::decision == "accept_quaternion"`; otherwise skip and leave findings update for GEOMETRY-PARITY-003
+
+6. **Record artifacts and commands:**
+   - Emit `commands.txt` listing all bash commands executed this loop (Phase 5 run, regression guard)
+   - Update `summary.md` (Turn Summary template per galph_prompt end_of_loop_hygiene)
+
+## How-To Map
+
+### 1. Phase 5 U-matrix convergence test
+**Command:**
 ```bash
-KMP_DUPLICATE_LIB_OK=TRUE \
-NANOBRAGG_DISABLE_COMPILE=1 \
+cd /home/ollie/Documents/diffbragg_example
+KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
 python plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py \
-  --phases 5 \
-  --device cpu \
-  --adam-steps 10 \
-  --dof-variants A_scale_only \
   --use-u-matrix \
-  --out-dir plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T113409Z/ \
-  > plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T113409Z/phase5_scale_only.log 2>&1
-```
-
-**Exit Criterion #2a validation:** Verify median ROI CC ≥ 0.99 and χ² stable (final / initial ≤ 1.005, i.e., ≤0.5% drift) after 10 Adam steps
-
-**Execution (C3 — Full-DoF):**
-```bash
-KMP_DUPLICATE_LIB_OK=TRUE \
-NANOBRAGG_DISABLE_COMPILE=1 \
-python plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py \
   --phases 5 \
-  --device cpu \
+  --dof-variants A_scale_only,D_full \
   --adam-steps 10 \
-  --dof-variants D_full \
-  --use-u-matrix \
-  --out-dir plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T113409Z/ \
-  > plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T113409Z/phase5_full_dof.log 2>&1
+  --device cpu \
+  --out-dir plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T114945Z/
 ```
+**Timeout:** 1200 seconds (20 minutes)
+**Expected success:** Exit code 0, `block_dof_results_u_matrix.json` written
+**On timeout/error:** Capture partial logs and document in decision.json with `decision="escalate_to_geometry_parity_003"` + rationale citing the timeout
 
-**Exit Criterion #2b validation:** Verify monotonic χ² improvement (final < initial) without large CC collapses (CC stays ≥ 0.99)
+### 2. Decision synthesis
+**Read:** `plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T114945Z/block_dof_results_u_matrix.json`
+**Extract:**
+- `A_scale_only.chi_squared_initial`, `.chi_squared_final`, `.median_roi_correlation_final`
+- `D_full.chi_squared_initial`, `.chi_squared_final`, `.median_roi_correlation_final`
+**Compute:**
+- `chi_squared_drift_pct = 100 * (chi_squared_final - chi_squared_initial) / chi_squared_initial` for A_scale_only
+- `improvement_pct = 100 * (chi_squared_initial - chi_squared_final) / chi_squared_initial` for D_full
+**Decision logic:**
+```python
+a_scale_verdict = "pass" if (median_roi_correlation_final >= 0.99 and abs(chi_squared_drift_pct) <= 0.5) else "fail"
+decision = "accept_quaternion" if a_scale_verdict == "pass" else "escalate_to_geometry_parity_003"
+```
+**Write:** `phase_c2_c3_decision.json` per template above
 
-### Validating Pytest Selector
-
-After C1-C3 pass, re-run regression guard to verify no regressions in default cell+misset path:
-
+### 3. Regression guard
+**Command:**
 ```bash
 AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
 DBEX_SMOKE_SIGMA_SOURCE=cli_override \
 DBEX_SMOKE_DETECTOR_SIZE=small \
 KMP_DUPLICATE_LIB_OK=TRUE \
 NANOBRAGG_DISABLE_COMPILE=1 \
-pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion \
-  > plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T113409Z/pytest_stage_a_regression_c.log 2>&1
+pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion > plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T114945Z/pytest_stage_a_regression.log 2>&1
 ```
+**Expected:** Exit code 0 (test PASSED)
+**On failure:** Do NOT proceed to findings update; document regression details in summary.md and mark TORCH-GEOMETRY-PARITY-002 as blocked
 
-**Expected:** `PASSED` (backward compatibility preserved)
-
-### Decision Tree (Blocking Conditions)
-
-**If C1 fails (`max_abs_diff ≥ 1e-6`):**
-1. Capture exact parity metrics in `plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T113409Z/phase_c1_parity_failure_diagnosis.md`
-2. Diagnose: numerical precision? B_ideal mismatch? quaternion conversion roundtrip error? Check scipy quaternion precision
-3. **BLOCK** before proceeding to C2/C3
-4. Escalation path: TORCH-GEOMETRY-PARITY-003 (numerical precision limits) if root cause is fundamental
-
-**If C2/C3 fail (CC < 0.99 or χ² degrades):**
-1. Capture χ² and CC trajectories from `block_dof_results_u_matrix.json`
-2. Check gradient anomalies (zero, NaN, exploding)
-3. Emit `phase_c_convergence_failure_diagnosis.md` with metrics and comparison to TORCH-REFINE-002E cell+misset baseline
-4. **BLOCK** and escalate to TORCH-REFINE-003 (optimizer/LR sensitivity) per implementation.md abort trigger
-
-**Expected Artifacts (success path):**
-```
-plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T113409Z/
-├── crystal_matrix_parity_u_matrix.json   (C1: max_abs_diff < 1e-6)
-├── block_dof_results_u_matrix.json       (C2/C3: convergence metrics)
-├── probe_u_matrix.log                    (C1 execution log)
-├── phase5_scale_only.log                 (C2 execution log)
-├── phase5_full_dof.log                   (C3 execution log)
-├── pytest_stage_a_regression_c.log       (C4 regression guard)
-├── commands.txt                          (exact CLI commands)
-└── summary.md                            (Turn Summary)
-```
-
-## How-To Map
-
-### Step 1: Extend probe_crystal_matrix_parity.py with U-matrix path
-
-**File:** `plans/active/TORCH-REFINE-002E/bin/probe_crystal_matrix_parity.py`
-
-1. Add argparse flag (around line 566):
-   ```python
-   parser.add_argument(
-       "--use-u-matrix",
-       action="store_true",
-       help="Use U-matrix parameterization instead of cell+misset decomposition",
-   )
-   ```
-
-2. Update `run_probe` signature (around line 105):
-   ```python
-   def run_probe(device: str = "cpu", use_u_matrix: bool = False) -> dict:
-   ```
-
-3. Inside `run_probe`, after building Path A (mapping MOSFLM A*), add U-matrix Path B variant:
-   ```python
-   if use_u_matrix:
-       from dbex.nanobrag_bridge import (
-           derive_u_matrix_from_mosflm_a_star,
-           matrix_to_quaternion,
-           quaternion_to_matrix,
-       )
-
-       # Extract MOSFLM A* from dataload crystal (same as Path A)
-       a_star_pathA = ... # (already extracted in existing code)
-
-       # Derive U₀ from MOSFLM A* without SO(3) projection
-       U0_np = derive_u_matrix_from_mosflm_a_star(a_star_pathA, cell_params)
-
-       # Convert to quaternion and normalize
-       q0 = matrix_to_quaternion(torch.from_numpy(U0_np).float())
-       q_norm = q0 / torch.norm(q0)
-
-       # Convert back to rotation matrix
-       U = quaternion_to_matrix(q_norm)
-
-       # Compute A* = U @ B_ideal (same B_ideal as Path A)
-       a_star_pathB_u = (U @ B_ideal_reciprocal_torch).detach().cpu().numpy()
-
-       # Compute parity metrics (reuse existing _compute_parity_summary helper)
-       variant_u_matrix = _compute_parity_summary(a_star_pathA, a_star_pathB_u)
-
-       # Add to payload
-       payload["path_B_u_matrix"] = asdict(variant_u_matrix)
-   ```
-
-4. Update `main()` to pass flag (around line 575):
-   ```python
-   args = parser.parse_args(argv)
-   payload = run_probe(device=args.device, use_u_matrix=args.use_u_matrix)
-   ```
-
-5. Update console output (around line 615) to include U-matrix variant:
-   ```python
-   if args.use_u_matrix:
-       path_b_u = payload.get("path_B_u_matrix", {})
-       print(f"  PathB_u_matrix:       log_u_symmetric_norm={path_b_u.get('log_u_symmetric_norm', 0):.3e}, "
-             f"max_abs_diff={path_b_u.get('max_abs_diff', 0):.3e}")
-   ```
-
-### Step 2: Extend stage_a_mapping_adam_debug.py with --use-u-matrix flag
-
-**File:** `plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py`
-
-1. Add argparse flag (locate existing parser, around line ~50-100):
-   ```python
-   parser.add_argument(
-       "--use-u-matrix",
-       action="store_true",
-       help="Use U-matrix parameterization for Stage A (TORCH-GEOMETRY-PARITY-002)",
-   )
-   ```
-
-2. In Stage A setup section (where config is built, around line ~200-300):
-   ```python
-   # Assuming RefinementConfig is defined inline or imported
-   config.use_u_matrix_parameterization = args.use_u_matrix
-   ```
-
-3. Ensure `config` with `use_u_matrix_parameterization` is passed to `run_nanobrag_refinement` (the LBFGS closure will automatically use U-matrix path per Phase B5 implementation)
-
-4. Output artifacts will automatically include U-matrix telemetry under existing `block_dof_results.json` schema (rename to `block_dof_results_u_matrix.json` if needed for clarity)
-
-### Step 3: Execute and validate
-
-1. Run C1 parity probe (U-matrix mode)
-2. Check `crystal_matrix_parity_u_matrix.json` for `max_abs_diff < 1e-6`
-3. If C1 passes, run C2 (scale-only Phase 5)
-4. Check `block_dof_results_u_matrix.json` for CC ≥ 0.99, χ² stable
-5. If C2 passes, run C3 (full-DoF Phase 5)
-6. Check for monotonic χ² improvement
-7. Run regression guard (test_stage_a_expansion)
-8. Archive all logs and JSONs under `plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T113409Z/`
+### 4. Conditional findings update
+**Guard:** Only execute if `phase_c2_c3_decision.json::decision == "accept_quaternion"`
+**File:** `docs/findings.md`
+**Action:** Append GEOMETRY-004 row to the findings table (after GEOMETRY-003), filling `[FILL: ...]` placeholders with actual `A_scale_only.chi_squared_drift_pct` and `median_roi_correlation_final` from decision.json
+**Cross-refs:** Link to TORCH-GEOMETRY-PARITY-002, phase_c2_c3_decision.json, implementation.md
 
 ## Pitfalls To Avoid
 
-1. **Device/dtype neutrality:** All torch operations must support both CPU and CUDA, float32 and float64. Use `device=torch.device(device_str)` and `.to(device)` consistently.
+1. **Do NOT skip the regression guard:** Even though U-matrix is opt-in via `use_u_matrix_parameterization=False` default, verify `test_stage_a_expansion` still passes to ensure Phase B/C implementation didn't break the cell+misset path
 
-2. **Protected Assets (no edits):**
-   - `tests/fixtures/golden_data/` (read-only reference data)
-   - `simtbx_project/` (upstream vendored source)
-   - `nanobrag_torch/` (frozen external library)
+2. **Do NOT update findings if decision="escalate":** GEOMETRY-004 should only be added if quaternion proves viable; otherwise defer to GEOMETRY-PARITY-003 for GL(3)/hybrid alternatives
 
-3. **Quaternion normalization:** Normalize quaternion EVERY time before converting to rotation matrix. Do NOT assume LBFGS or Adam preserves unit norm. Use `q_norm = q / torch.norm(q)`.
+3. **Phase 5 timeout handling:** If `stage_a_mapping_adam_debug.py` times out (>20 min) or crashes, capture the partial `block_dof_results_u_matrix.json` (may be incomplete) and synthesize decision.json with `decision="escalate_to_geometry_parity_003"` + rationale citing the timeout/error. Do NOT wait indefinitely.
 
-4. **B_ideal consistency:** U-matrix path must use the SAME B_ideal_reciprocal as the mapping path. Extract B_ideal from the SAME cell params used by nanobrag_torch's default crystal config (NOT from dxtbx unit cell unless explicitly aligned per GEOMETRY-003).
+4. **A_scale_only is the primary gate:** Exit criterion #2 (implementation.md:23-24) specifies A_scale_only must maintain CC ≥ 0.99 + stable χ²; D_full is a secondary check for exit criterion #2b (monotonic improvement). If A_scale_only passes but D_full degrades, still accept quaternion and note the D_full limitation in findings.
 
-5. **Parity probe extension:** The existing `run_probe()` has 3 Path-B variants (unitcell, recovered, mapping_aligned). Add U-matrix as a FOURTH variant (`path_B_u_matrix`), not replacing existing variants. Preserve backward compatibility.
+5. **Decision tree is HARD:** Do not editorialize or soften the verdict — if A_scale_only CC < 0.99 OR χ² drift > 0.5%, the decision MUST be `escalate_to_geometry_parity_003` per implementation.md:110-112 abort trigger
 
-6. **Phase 5 convergence metrics:** "Stable χ²" means ≤0.5% drift (final / initial ≤ 1.005), NOT absolute zero change. "Monotonic improvement" means final < initial, allowing per-step fluctuations.
+6. **ROI correlation threshold:** Use median ROI correlation (not global), same metric as TORCH-REFINE-002E Phase 5 validation; `block_dof_results.json` structure from TOOLING-VIS-001 should already emit this
 
-7. **JSON artifact schema:** Preserve existing JSON keys (`summary`, `path_B_unitcell`, etc.) and ADD new keys (`path_B_u_matrix`, `block_dof_results_u_matrix`) to avoid breaking downstream analysis.
+7. **Device neutrality:** Run on CPU (`--device cpu`) to avoid CUDA OOM (same as TORCH-REFINE-002E canonical runs); quaternion ops are device-neutral per RUNTIME-001
 
-8. **Gradients:** If Phase 5 convergence fails with zero/NaN gradients, capture full gradcheck diagnostics. Do NOT proceed to mark `done` without confirming gradients flow correctly through quaternion normalization and SO(3) manifold.
+8. **Do NOT modify `stage_a_mapping_adam_debug.py` significantly:** The `--use-u-matrix` flag should already exist from Phase C1 probe extension (Ralph's 2025-11-22T113409Z artifacts); if missing, add minimal wiring only (1-2 lines in argparse + config passthrough)
 
-9. **Environment Freeze:** Do NOT install or upgrade packages. If scipy import fails, record blocker in `docs/fix_plan.md` and escalate. The environment is pre-provisioned; missing imports are blockers.
+9. **Protected Assets:** Do not edit `docs/spec-db-*.md`, `docs/TESTING_GUIDE.md`, or `tests/dbex/test_torch_refine_smoke.py` unless the regression guard fails and you need to fix a bug. The findings update is the only doc change permitted for the accept_quaternion path.
 
-10. **Normative Spec Math:** Do NOT paraphrase quaternion normalization or A* = U @ B_ideal equations. Reference implementation.md and GEOMETRY-003 for exact formulas.
+10. **Environment Freeze:** Do not propose/execute package installs; scipy.spatial.transform.Rotation is already available (used in Phase C1). If an import fails, treat as blocker and record in decision.json.
 
 ## If Blocked
 
-**C1 parity failure (max_abs_diff ≥ 1e-6):**
-1. Capture exact `max_abs_diff`, `quaternion_delta_norm`, `log_u_symmetric_norm` in `phase_c1_parity_failure_diagnosis.md`
-2. Diagnose: numerical precision (check scipy quaternion uses float64)? B_ideal mismatch? quaternion roundtrip error (run test_quaternion_roundtrip on the specific A* matrix)?
-3. **BLOCK** C2/C3 until parity < 1e-6 or escalation path documented
-4. Escalate to TORCH-GEOMETRY-PARITY-003 if root cause is scipy quaternion precision limits
+**Timeout/Error during Phase 5:**
+- Capture partial logs (`stage_a_debug_u_matrix.log`, incomplete `block_dof_results_u_matrix.json`)
+- Synthesize decision.json with `decision="escalate_to_geometry_parity_003"`, rationale: "Phase 5 timeout/error — quaternion convergence test incomplete, escalating to deeper dxtbx A* investigation"
+- Document in summary.md and return; supervisor will open GEOMETRY-PARITY-003
 
-**C2/C3 convergence failure (CC < 0.99 or χ² degrades):**
-1. Capture χ² and CC trajectories from `block_dof_results_u_matrix.json`
-2. Check gradients: zero? NaN? Exploding? Run `torch.autograd.gradcheck` on U-matrix closure
-3. Emit `phase_c_convergence_failure_diagnosis.md` with metrics and comparison to TORCH-REFINE-002E cell+misset baseline
-4. Escalate to TORCH-REFINE-003 (optimizer/LR sensitivity) per implementation.md abort trigger
+**Regression guard fails:**
+- Inspect `pytest_stage_a_regression.log` for the failure signature
+- If it's a U-matrix implementation bug (e.g., scoping error in closure), fix it and re-run
+- If it's a fundamental incompatibility, document in decision.json and escalate
 
-**Missing imports (scipy.spatial.transform.Rotation, etc.):**
-1. Record exact import error in `docs/fix_plan.md` Attempts History
-2. Mark TORCH-GEOMETRY-PARITY-002 as `blocked` with blocker="missing_dependency: scipy.spatial.transform"
-3. Do NOT attempt pip install; escalate for environment maintenance
+**Decision synthesis unclear:**
+- If `block_dof_results_u_matrix.json` is missing expected fields (e.g., no `median_roi_correlation_final`), check log for Phase 5 execution errors
+- Default to `decision="escalate_to_geometry_parity_003"` and document the missing metrics
 
-## Findings Applied
+## Findings Applied (Mandatory)
 
-**Mandatory adherence:**
-- **GEOMETRY-001** (detector mapping): Not directly applicable (crystal U-matrix, not detector), but respect exact dxtbx alignment pattern.
-- **GEOMETRY-002** (Euler inversion): Not applicable (U-matrix bypasses Euler angles, uses quaternion).
-- **GEOMETRY-003** (B_ideal-based mapping misset): **Critical reference.** U-matrix path must extract B_ideal using SAME logic as `derive_robust_misset` helper (from cell params, NOT dxtbx U-matrix). Goal: eliminate 1.37e-3 symmetric strain from cell+misset decomposition while preserving B_ideal alignment.
-- **REFINE-001** (LBFGS scale warm-start): Apply same warm-start pattern to quaternion initialization. Start `q_params` at `q₀` derived from mapping MOSFLM A*, NOT at identity rotation. This ensures U-matrix path starts at mapping zero point (Exit Criterion #2).
+**Relevant Finding IDs from `docs/findings.md`:**
+- **GEOMETRY-003** (B_ideal-based mapping misset) — Adherence: U-matrix path bypasses this; regression guard ensures GEOMETRY-003 cell+misset default unchanged
+- **GRADIENT-001** (crystal_overrides dict) — Adherence: U-matrix closure updates `crystal_overrides['A_star']` directly per implementation.md:84-87
+- **RUNTIME-001** (NANOBRAGG_DISABLE_COMPILE for gradcheck) — Adherence: Phase 5 runs with `NANOBRAGG_DISABLE_COMPILE=1` to avoid Dynamo interference
+- **REFINE-001** (LBFGS scale warm-start) — Adherence: quaternion initialization follows same pattern (extract U₀, convert to q₀, initialize trainable params)
+- **DXTBX-001** (crystal.get_A() tuple→array) — Adherence: U-matrix derivation uses `derive_u_matrix_from_mosflm_a_star` which already handles the tuple→array reshape per Phase B1 implementation
 
-**No other findings directly applicable.**
+**New Finding (conditional):**
+- **GEOMETRY-004** (U-matrix quaternion parameterization) — To be added to `docs/findings.md` ONLY if `decision="accept_quaternion"`; otherwise deferred to GEOMETRY-PARITY-003
 
 ## Pointers
 
-### Specs
-- `docs/spec-db-workflow.md:39` — Stage A mapping zero-point invariant
-- `docs/spec-db-core.md` §Geometry Mapping — A* = U @ B_ideal relationship
+### Primary Specs
+- `docs/spec-db-workflow.md:44` — Stage A orientation parameterization clause (normative for U-matrix)
+- `docs/spec-db-core.md:40-46` — Geometry Mapping contract (crystal orientation must reproduce MOSFLM A* at zero)
 
-### Architecture
-- `docs/architecture.md` — Stage A parameterization overview
-- `docs/architecture/pytorch_design.md` — Tensor flow and gradients
-- `plans/active/TORCH-GEOMETRY-PARITY-002/implementation.md:114-187` — Full Phase A/B/C checklist
+### Architecture/Plans
+- `plans/active/TORCH-GEOMETRY-PARITY-002/implementation.md:21-28` — Exit criteria (parity + convergence gates)
+- `plans/active/TORCH-GEOMETRY-PARITY-002/implementation.md:110-112` — Abort/escalation trigger (Phase C parity failure → GEOMETRY-PARITY-003)
+- `plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T113409Z/phase_c1_parity_failure_diagnosis.md:58-74` — Alternative Path 3 rationale
 
-### Findings
-- `docs/findings.md` rows GEOMETRY-001:5, GEOMETRY-002:6, GEOMETRY-003:7, REFINE-001:28
-
-### Fix-Plan
-- `docs/fix_plan.md` row TORCH-GEOMETRY-PARITY-002 (current initiative)
-- `docs/fix_plan.md` row TORCH-REFINE-002E (escalation source)
+### Code Anchors
+- `dbex/nanobrag_bridge.py:derive_u_matrix_from_mosflm_a_star` — U-matrix extraction (Phase B1)
+- `dbex/nanobrag_bridge.py:matrix_to_quaternion` — SO(3) projection via scipy (Phase B2)
+- `dbex/nanobrag_refinement.py:use_u_matrix_parameterization` — Config flag (Phase B3)
+- `plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py:--use-u-matrix` — CLI flag for quaternion mode (Phase C1)
 
 ### Testing
-- `docs/TESTING_GUIDE.md` §2 — Smoke test selectors
-- `docs/development/TEST_SUITE_INDEX.md` — Test registry
+- `docs/TESTING_GUIDE.md:§2` — Authoritative Stage A smoke selector + env flags
+- `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` — Regression guard for cell+misset default
 
-### Telemetry (Evidence Chain)
-- `plans/active/TORCH-REFINE-002E/reports/2025-11-22T090505Z/crystal_matrix_parity.json` — Phase A0: log_u_symmetric=1.37e-3
-- `plans/active/TORCH-REFINE-002E/reports/2025-11-22T100330Z/forward_model_comparison.json` — Phase A3: 24.5% χ² gap
-- `plans/active/TORCH-REFINE-002E/reports/2025-11-22T120000Z/decision.json` — Phase C1 escalation (all DoF degrade)
-- `plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T112058Z/` — Phase B bugfix
+### Prior Evidence
+- `plans/active/TORCH-REFINE-002E/reports/2025-11-22T120000Z/decision.json` — Escalation trigger (cell+misset all DoFs degrade)
+- `plans/active/TORCH-REFINE-002E/reports/2025-11-22T090505Z/crystal_matrix_parity.json` — Phase A0 strain decomposition (log_u_symmetric_norm=1.37e-3)
+- `plans/active/TORCH-REFINE-002E/reports/2025-11-22T094500Z/gradient_probe.json` — Phase B1 massive gradients (orientation_vec ≈2.88e8)
+- `plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T113409Z/crystal_matrix_parity.json` — Phase C1 raw U perfect parity + det(U)≠1 discovery
 
-## Next Up
+## Next Up (optional)
 
-**If C1-C3 pass and regression guard passes:**
-- Phase C5 (Galph): Add GEOMETRY-004 to `docs/findings.md` documenting U-matrix parameterization, quaternion normalization, SO(3) manifold handling, parity results
-- Phase C6 (conditional): Update test registry if new selectors added
-- Phase C7 (Galph): Mark TORCH-REFINE-002E as `done` (alternative path: strain identified + convergence restored), mark TORCH-GEOMETRY-PARITY-002 as `done`
+**If decision="accept_quaternion":**
+1. Phase C4: Update test registry (`docs/TESTING_GUIDE.md` §2, `docs/development/TEST_SUITE_INDEX.md`) if any new selectors were added
+2. Phase C7: Mark TORCH-REFINE-002E as `done` (alternative path: strain identified + quaternion U-matrix provides viable workaround)
+3. Close TORCH-GEOMETRY-PARITY-002 as `done`
 
-**If C1 fails:**
-- Diagnose and escalate to TORCH-GEOMETRY-PARITY-003 (numerical precision limits)
+**If decision="escalate_to_geometry_parity_003":**
+1. Supervisor opens TORCH-GEOMETRY-PARITY-003 with focus on:
+   - Investigating `det(U₀)=1.000557` root cause (dxtbx A*/cell inconsistency? physical volume scaling?)
+   - Evaluating hybrid cell+U+scale factorization (Alternative Path 2)
+   - GL(3) full 9-DOF parameterization risk analysis (Alternative Path 1)
+2. TORCH-GEOMETRY-PARITY-002 marked as `blocked` pending GEOMETRY-PARITY-003 resolution
 
-**If C2/C3 fail:**
-- Escalate to TORCH-REFINE-003 (optimizer/LR sensitivity analysis)
+## Doc Sync Plan (Conditional)
 
-## Doc Sync Plan
+**Only if decision="accept_quaternion" AND any new selectors were authored:**
+1. Run `pytest --collect-only -k "stage_a" > plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T114945Z/collect_stage_a_tests.log 2>&1`
+2. Update `docs/TESTING_GUIDE.md` §2 with any new U-matrix selectors (e.g., `test_stage_a_u_matrix_convergence` if added)
+3. Update `docs/development/TEST_SUITE_INDEX.md` registry
 
-**Conditional (only if new test selectors added):**
+**For this loop:** No new pytest selectors expected (Phase C2/C3 uses CLI `stage_a_mapping_adam_debug.py`, not pytest); doc sync likely skipped unless Ralph authors a new test
 
-After C1-C4 pass:
-1. Run `pytest --collect-only tests/dbex/ > plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T113409Z/collect_tests.log 2>&1`
-2. Update `docs/TESTING_GUIDE.md` §2 if new selectors exist
-3. Update `docs/development/TEST_SUITE_INDEX.md`
+## Mapped Tests Guardrail
 
-**Note:** If only extending existing scripts with flags (no new test files), Doc Sync is NOT required. Defer to Phase C6 assessment.
+**Primary selector:** `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion`
+**Collect-only verification:**
+```bash
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+```
+**Expected:** 1 item collected (Active selector, confirmed in TESTING_GUIDE.md:§2)
+
+**Secondary validation:** Phase 5 CLI metrics from `block_dof_results_u_matrix.json` (not a pytest selector)
+
+**Hard Gate:** If `test_stage_a_expansion` collects 0 or fails during regression guard, BLOCK before findings update and escalate per input.md:If Blocked section
+
+---
+
+**CRITICAL REMINDER:** This is a **convergence sensitivity test**, not a parity validation. We already know quaternion parity is ~4e-05 (same as cell+misset). The question is whether quaternion **improves refinement behavior** by eliminating the symmetric strain gradient artifact. Follow the decision tree strictly — if A_scale_only fails, escalate immediately; do not try to "fix" quaternion or soften the verdict.

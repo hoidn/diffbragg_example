@@ -1,7 +1,7 @@
-# Supervisor Handoff — TORCH-GEOMETRY-CONVERGENCE-001 Phase B2 Deep Diagnostic
+# Phase B3 Forward Model Sanity Check — Parameter Update Propagation Diagnostic
 
 ## Summary
-Diagnose catastrophic convergence failure via gradient/variance/forward-model telemetry to identify root cause (NaN/Inf, exploding magnitudes, variance instability).
+Execute lightweight 1-step LBFGS diagnostic to capture U_matrix/A*/gradient checksums and validate parameter update propagation, confirming/refuting H4 (Forward Model Bug) hypothesis.
 
 ## Mode
 none
@@ -13,297 +13,332 @@ TORCH-GEOMETRY-CONVERGENCE-001 — Diagnose & Fix Quaternion U-Matrix Catastroph
 integration
 
 ## Mapped Tests
-tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion — regression guard (cell+misset default path)
+- `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` (regression guard)
 
 ## Artifacts
-plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T190000Z/
+plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T195000Z/
 
 ## Do Now
 
-**Checklist Items:** Phase B2 (Deep Diagnostic — Gradient Validation & Variance Analysis)
+Execute Phase B3 forward model sanity checks per phase_b2_diagnostic_decision.md §Path H4 recommendations. Goal: Determine if parameter updates (log_scale, q_params) propagate correctly to forward model (U_matrix, A*, I_model) or if staleness/detachment causes catastrophic chi².
 
-**Context:** Ralph's Phase B1 LBFGS validation (2025-11-22T183000Z) proved **Path B (Fix INCOMPLETE)** — B_ideal mismatch fix (commit e86fd4e) successfully resolved INITIALIZATION bug (zero-point chi²=989,811, step 0 chi²=1.13M, both healthy) but CONVERGENCE pathology persists unchanged (LBFGS steps 1-3: chi² 1.13M → 1.425B, CC 1.0 → -0.045). Failure signature is IDENTICAL to pre-fix PARITY-003 Phase C2 and optimizer-agnostic (reproduced with both Adam and LBFGS). **Root Cause Assessment:** Failure is NOT initialization (step 0 healthy), NOT optimizer choice (Adam+LBFGS both fail), so it MUST be a forward model/loss/gradient bug that manifests DURING OPTIMIZATION. Hypothesis verdicts: H1 (Adam hyperparameters) REJECTED, H2 (variance instability) PLAUSIBLE, H3 (gradient pathology) PLAUSIBLE, H4 (quaternion constraint) NOT TESTABLE with A_scale_only.
+### Implementation Tasks
 
-**Objective:** Execute Phase B2 deep diagnostic to identify SPECIFIC pathology: (a) NaN/Inf gradients, (b) exploding gradient magnitudes, (c) variance denominator instability, or (d) forward model numerical bug in updated-parameter path.
+**1. Review Phase B2 Instrumentation**
+- Read `dbex/nanobrag_refinement.py` lines 960-1100 (U-matrix closure branch) to confirm Phase B2 telemetry (commit 3338df1) captures:
+  - U_matrix checksum (`U.sum().item()`)
+  - Enhanced gradient stats (element-wise min/max/mean/std, sign consistency)
+  - V_denom histograms
+  - Weighted residuals stats
+- Verify telemetry is conditionally emitted only when `config.telemetry_output_dir` is set (no overhead by default)
 
-### Step 1: Implement Phase B2 Instrumentation
+**2. Execute Lightweight 1-Step Diagnostic**
+- Run reduced diagnostic variant (1 LBFGS step instead of 2) to minimize timeout risk:
+  ```bash
+  KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 timeout 1200 \
+  python plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py \
+    --use-u-matrix \
+    --phases 5 \
+    --dof-variants A_scale_only \
+    --use-lbfgs \
+    --optimizer-steps 1 \
+    --telemetry-dir telemetry \
+    --out-dir plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T195000Z/diagnostic_1step \
+    --device cpu \
+    2>&1 | tee plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T195000Z/diagnostic_1step.log
+  ```
+- Timeout: 1200s (20 minutes, same as prior runs)
+- Expected outputs:
+  - `diagnostic_1step/telemetry/telemetry_step_000.json` (initialization, before optimizer.step())
+  - `diagnostic_1step/telemetry/telemetry_step_001.json` (after 1 LBFGS step with line search)
+  - `diagnostic_1step/zero_point_check.json` (B_ideal fix validation)
+  - `diagnostic_1step/block_dof_results_u_matrix.json` (chi² before/after, CC metrics)
 
-**Extend** `dbex/nanobrag_refinement.py` (Stage A LBFGS closure, U-matrix branch ~lines 968-1116) to capture comprehensive telemetry:
+**3. Extract Forward Model Sanity Check Metrics**
 
-**1a. Gradient Telemetry** (before optimizer.step())
-- Per-parameter gradient norms: `||∂L/∂q||`, `||∂L/∂log_scale||` (global L2 norms)
-- Element-wise gradient stats: min/max/mean/std for `q_params.grad`, `log_scale.grad`
-- NaN/Inf flags: `torch.isnan(grad).any()`, `torch.isinf(grad).any()` for each grad tensor
-- Gradient sign consistency: count positive vs negative elements
+From `telemetry_step_000.json` and `telemetry_step_001.json`, extract and compare:
 
-**1b. Variance/Loss Telemetry** (after forward pass, before loss computation)
-- I_model histogram: min/median/max/mean/std (on flattened valid pixels)
-- V_denom = max(I_model + sigma_readout^2, sigma_floor^2): same histogram stats
-- Clamp fraction: `(V_denom == sigma_floor^2).float().mean()` (fraction where sigma_floor dominates)
-- Weighted residuals: `((I_target - I_model)^2 / V_denom)` histogram stats
-- Loss components: total chi_squared, mean per-pixel chi_squared
+**A. U-matrix Checksum:**
+- Step 000: `U_matrix_checksum` (should be non-zero, e.g., ~5-15 range for typical orientation matrix)
+- Step 001: `U_matrix_checksum` (MUST differ from step 000 if q_params updated OR should be identical if A_scale_only with train_orientation=False)
+- **Sanity Check:** If A_scale_only (train_orientation=False), U_matrix_checksum SHOULD be CONSTANT (q_params frozen). If U changes, bug detected.
 
-**1c. Forward Model State** (after parameter update, before forward pass)
-- log_scale value: current scalar
-- q_params values: 4-element quaternion
-- q_norm: `||q||` before normalization
-- U_matrix checksum: `U_matrix.sum()` (simple hash to detect matrix changes)
+**B. Log-Scale Update:**
+- Step 000: `parameters.log_scale` (initial value, typically ~-0.2 to 0.0)
+- Step 001: `parameters.log_scale` (should differ by small delta, e.g., ±0.01 to ±0.1 depending on gradient magnitude)
+- **Sanity Check:** If log_scale UNCHANGED after LBFGS step → optimizer not updating parameters (bug). If changed but clamped to ±10.0 boundary → clamp may be interfering.
 
-**1d. Emit JSON per optimizer step:**
-```python
-telemetry = {
-    "step": i,
-    "parameters": {
-        "log_scale": log_scale.item(),
-        "q_params": q_params.detach().cpu().tolist(),
-        "q_norm": torch.norm(q_params).item(),
-        "u_matrix_checksum": U_matrix.sum().item()
-    },
-    "gradients": {
-        "log_scale": {
-            "norm": torch.norm(log_scale.grad).item() if log_scale.grad is not None else None,
-            "value": log_scale.grad.item() if log_scale.grad is not None else None,
-            "has_nan": bool(torch.isnan(log_scale.grad).any()) if log_scale.grad is not None else None,
-            "has_inf": bool(torch.isinf(log_scale.grad).any()) if log_scale.grad is not None else None
-        },
-        "q_params": {
-            "norm": torch.norm(q_params.grad).item() if q_params.grad is not None else None,
-            "min": q_params.grad.min().item() if q_params.grad is not None else None,
-            "max": q_params.grad.max().item() if q_params.grad is not None else None,
-            "has_nan": bool(torch.isnan(q_params.grad).any()) if q_params.grad is not None else None,
-            "has_inf": bool(torch.isinf(q_params.grad).any()) if q_params.grad is not None else None
-        }
-    },
-    "variance": {
-        "i_model_min": I_model_valid.min().item(),
-        "i_model_median": I_model_valid.median().item(),
-        "i_model_max": I_model_valid.max().item(),
-        "i_model_mean": I_model_valid.mean().item(),
-        "v_denom_min": V_denom_valid.min().item(),
-        "v_denom_median": V_denom_valid.median().item(),
-        "v_denom_max": V_denom_valid.max().item(),
-        "clamp_fraction": (V_denom_valid == sigma_floor**2).float().mean().item()
-    },
-    "loss": {
-        "chi_squared": loss.item(),
-        "mean_per_pixel_chi_squared": (weighted_residuals.sum() / valid_pixel_count).item()
-    }
-}
-```
+**C. Gradient Magnitude (Post-Fix):**
+- Step 000: `gradients.log_scale.norm`
+- Step 001: `gradients.log_scale.norm`
+- **Compare to Pre-Fix (Phase A1 telemetry):** ~295k gradient at step 000
+- **H3b Test:** If post-fix gradient is ALSO ~295k → H3b (gradient explosion) is PRIMARY, not symptom of H4
+- **H3b Test:** If post-fix gradient is O(1-100) → H3b was symptom of B_ideal mismatch (now fixed), H4 is separate issue
 
-Write to: `{out_dir}/telemetry/telemetry_step_{i:03d}.json`
+**D. Chi-Squared Trajectory:**
+- Step 000: `loss.chi_squared` (should be ~1.13M per Phase B1 validation, post-fix initialization)
+- Step 001: `loss.chi_squared` (CRITICAL: if ~1.425B catastrophic OR if ~1.13M unchanged OR if improved <1.13M)
+- **H4 Verdict:**
+  - If chi² step_001 ~1.425B → **H4 CONFIRMED** (forward model bug triggered by parameter update)
+  - If chi² step_001 ~1.13M (unchanged) → Forward model may be stale (parameters didn't propagate OR LBFGS rejected update)
+  - If chi² step_001 <1.13M (improved) → **H4 RULED OUT** (forward model is working, likely variance or optimizer issue)
 
-**Notes:**
-- Only instrument the U-matrix branch (lines 968-1116, where `config.use_u_matrix_parameterization` is True)
-- Do NOT instrument cell+misset default path (keep regression guard unaffected)
-- Ensure telemetry writes happen AFTER loss.backward() so gradients are populated
-- Use `.detach().cpu()` to avoid device/autograd issues
+**E. Variance Components (If Captured):**
+- Step 000 vs Step 001: `variance.V_denom_min`, `variance.V_denom_median`, `variance.V_denom_max`
+- **H2 Test:** If V_denom_min→0 OR V_denom_max explodes >1e9 → variance instability (H2)
+- **H2 Test:** If clamp_fraction→1.0 → variance floor dominates (symptom of I_model collapse, likely H4)
 
-### Step 2: Run Phase B2 Diagnostic Test (2-step LBFGS)
+**4. Synthesize Phase B3 Diagnostic Decision**
 
-**Rationale:** 2 steps (not 10) — we need step 0 (initialization check) + step 1 (first catastrophic failure). Estimated ~10 minutes CPU.
+Write `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T195000Z/phase_b3_forward_model_sanity_check.md` with:
 
-```bash
-mkdir -p plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T190000Z/diagnostic/
+**A. Metrics Summary Table:**
+| Metric | Step 000 | Step 001 | Delta | Verdict |
+|--------|----------|----------|-------|---------|
+| U_matrix_checksum | X.XX | X.XX | ±Y.YY | CONSTANT (expected for A_scale_only) OR CHANGED (bug if A_scale_only) |
+| log_scale | -0.XXX | -0.YYY | ±0.ZZZ | UPDATED (healthy) OR UNCHANGED (optimizer stalled) OR CLAMPED (at ±10.0 boundary) |
+| grad_log_scale.norm | XXXK | XXXK | ±YYK | LARGE ~295k (H3b primary) OR SMALL O(1-100) (H3b was symptom) |
+| chi_squared | 1.13M | Z.ZZM/B | +ΔΔΔΔ% | CATASTROPHIC ~1.425B (H4 confirmed) OR UNCHANGED (stale) OR IMPROVED (H4 ruled out) |
+| V_denom_min | X.XX | Y.YY | ±Z.ZZ | HEALTHY ≥sigma_floor² OR →0 (H2 variance bug) |
+| V_denom_max | X.XXK | Y.YYK | ±Z.ZZK | HEALTHY O(1e3-1e6) OR EXPLODES O(1e9+) (H2) |
 
-KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 timeout 1200 python \
-  plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py \
-  --use-u-matrix --use-lbfgs --phases 5 --dof-variants A_scale_only \
-  --optimizer-steps 2 --device cpu \
-  --out-dir plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T190000Z/diagnostic/ \
-  2>&1 | tee plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T190000Z/diagnostic_test.log
-```
+**B. Hypothesis Verdict Update:**
+- H4 (Forward Model Bug): [CONFIRMED | RULED OUT | INCONCLUSIVE] — confidence [HIGH | MEDIUM | LOW]
+  - Evidence: [chi² catastrophic at step 001 | log_scale updated but chi² exploded | U_matrix stale | etc.]
+- H3b (Gradient Explosion): [PRIMARY | SYMPTOM | RULED OUT] — confidence [HIGH | MEDIUM | LOW]
+  - Evidence: [grad_log_scale ~295k post-fix | grad_log_scale O(100) post-fix]
+- H2 (Variance Instability): [PLAUSIBLE | RULED OUT] — confidence [MEDIUM | LOW]
+  - Evidence: [V_denom pathology observed | V_denom healthy]
 
-**Success Criteria:**
-- Telemetry step_000.json and step_001.json exist
-- Zero-point check shows chi² ≈ 989k (reconfirm B_ideal fix)
-- Diagnostic captures first catastrophic step (step 1)
+**C. Root Cause Determination:**
+- **Primary Hypothesis:** [H4 | H3b | H2] with [HIGH | MEDIUM | LOW] confidence
+- **Rationale:** [Explain key evidence supporting primary hypothesis]
+- **Candidate Bug (if H4 confirmed):** [U-matrix staleness | log_scale clamp interference | crystal_overrides aliasing | detach placement]
 
-### Step 3: Extract Diagnostic Metrics
+**D. Recommended Next Actions:**
+- **If H4 CONFIRMED with candidate bug identified:** Proceed to Phase C1 (implement targeted fix per candidate)
+- **If H4 CONFIRMED but candidate unclear:** Add A* checksum logging (extend telemetry, rerun 1-step diagnostic)
+- **If H3b PRIMARY:** Proceed to Phase C1 (implement gradient clipping or LR reduction)
+- **If H2 PRIMARY:** Proceed to variance analysis (increase sigma_floor, add loss clamping, investigate I_model collapse)
+- **If INCONCLUSIVE:** Extend diagnostic to 2 steps OR accept MEDIUM-HIGH confidence H4 verdict from Phase B2 and proceed to fix attempt
 
-```bash
-echo "=== Step 0 (Initialization) ===" | tee plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T190000Z/diagnostic_summary.txt
-
-jq '{step, chi_squared: .loss.chi_squared, log_scale: .parameters.log_scale, q_norm: .parameters.q_norm, gradients: {log_scale_norm: .gradients.log_scale.norm, q_params_norm: .gradients.q_params.norm, has_nan: (.gradients.log_scale.has_nan or .gradients.q_params.has_nan), has_inf: (.gradients.log_scale.has_inf or .gradients.q_params.has_inf)}, variance: {i_model_median, clamp_fraction}}' \
-  plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T190000Z/diagnostic/telemetry/telemetry_step_000.json \
-  | tee -a plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T190000Z/diagnostic_summary.txt
-
-echo -e "\n=== Step 1 (First Catastrophic Failure) ===" | tee -a plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T190000Z/diagnostic_summary.txt
-
-jq '{step, chi_squared: .loss.chi_squared, log_scale: .parameters.log_scale, q_norm: .parameters.q_norm, gradients: {log_scale_norm: .gradients.log_scale.norm, q_params_norm: .gradients.q_params.norm, has_nan: (.gradients.log_scale.has_nan or .gradients.q_params.has_nan), has_inf: (.gradients.log_scale.has_inf or .gradients.q_params.has_inf)}, variance: {i_model_median, clamp_fraction}}' \
-  plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T190000Z/diagnostic/telemetry/telemetry_step_001.json \
-  | tee -a plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T190000Z/diagnostic_summary.txt
-```
-
-### Step 4: Finite-Difference Gradient Validation (Step 0 Only)
-
-**Objective:** Validate autograd gradients vs finite-difference approximation to detect sign flips, magnitude mismatches, or NaN bugs.
-
-**Create script:** `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/bin/validate_gradients_fd.py`
-
-**Pseudocode:**
-```python
-# Load step_000 telemetry to get parameter values at step 0
-# Reconstruct forward pass: create simulator, compute loss with those parameters
-# Compute autograd gradient: loss.backward()
-# For log_scale:
-#   - Compute FD gradient: (loss(log_scale + ε) - loss(log_scale - ε)) / (2ε), ε=1e-5
-#   - Compare: ratio = autograd_grad / fd_grad, sign_match = sign(autograd) == sign(fd)
-# Emit fd_validation.json with {parameter, autograd_grad, fd_grad, ratio, sign_match}
-```
-
-**Run:**
-```bash
-python plans/active/TORCH-GEOMETRY-CONVERGENCE-001/bin/validate_gradients_fd.py \
-  --telemetry-step plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T190000Z/diagnostic/telemetry/telemetry_step_000.json \
-  --out-file plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T190000Z/fd_validation.json
-```
-
-**Expected Output:**
-- If autograd correct: ratio ≈ 1.0 (within 5%), sign_match=true
-- If autograd wrong: ratio ≫ 1.0 or ≪ 1.0, or sign_match=false, or NaN
-
-### Step 5: Synthesize Phase B2 Decision
-
-Use Write tool to create `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T190000Z/phase_b2_diagnostic_decision.md`
-
-**Decision Paths:**
-
-**Path H2 (Variance Instability):** If step_001 shows:
-- clamp_fraction → 1.0 (sigma_floor dominates most pixels), OR
-- v_denom_min → 0 (near-zero denominators), OR
-- i_model values go negative/extreme
-→ **Verdict:** Variance-weighted loss is numerically unstable with updated parameters
-→ **Fix:** Adjust sigma_floor (increase from current value), add loss clamping (cap max chi² contribution per pixel), or switch to robust loss (Huber, etc.)
-
-**Path H3a (Gradient NaN/Inf):** If step_000 or step_001 shows:
-- has_nan=true OR has_inf=true in gradients
-→ **Verdict:** Autograd produces NaN/Inf during backprop through forward model
-→ **Fix:** Add gradient clipping (max_norm=1.0), switch to FP64 precision, investigate specific autograd operations (quaternion normalization, U @ B_ideal matmul)
-
-**Path H3b (Gradient Explosion):** If step_000 shows:
-- log_scale gradient norm > 1e6 (exploding), OR
-- FD validation shows ratio > 10 (autograd overstates gradient by 10×)
-→ **Verdict:** Gradients are numerically correct but catastrophically large
-→ **Fix:** Gradient clipping (max_norm=1.0), lower learning rate (1e-6), or parameter reparameterization
-
-**Path H3c (Gradient Sign Flip):** If FD validation shows:
-- sign_match=false (autograd and FD have opposite signs)
-→ **Verdict:** Autograd gradient direction is wrong (loss increases when it should decrease)
-→ **Fix:** Investigate autograd graph for incorrect operations (missing .detach(), wrong loss formula)
-
-**Path H4 (Forward Model Bug):** If step_000 gradients look healthy (no NaN/Inf, reasonable magnitudes, FD matches) BUT step_001 chi² explodes:
-- Compare step_000 parameters vs step_001 parameters (did log_scale change by huge amount?)
-- Check u_matrix_checksum change (did U matrix update correctly?)
-→ **Verdict:** Updated parameters (after optimizer.step()) produce catastrophically wrong forward model
-→ **Fix:** Investigate parameter update logic (log_scale clamping, quaternion renormalization, U-matrix reconstruction)
-
-**Document must include:**
-- Root cause hypothesis (H2, H3a, H3b, H3c, or H4) with HIGH/MEDIUM/LOW confidence
-- Evidence summary (telemetry metrics, FD validation results)
-- Recommended fix with implementation steps
-- Next phase (B3: implement fix and validate, or escalate to alternative parameterization)
-
-### Step 6: Update Implementation Plan
-
-Edit `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/implementation.md` Phase B checklist line B2:
-- Mark `[x]` with diagnostic verdict summary
-- Add pointer to phase_b2_diagnostic_decision.md
-
-### Step 7: Regression Guard
-
+**5. Regression Guard**
 ```bash
 KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest \
   tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion \
-  -v --tb=short \
-  2>&1 | tee plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T190000Z/pytest_regression.log
+  -xvs 2>&1 | tee plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T195000Z/pytest_regression.log
 ```
+- Expected: PASSED (cell+misset default path unaffected by Phase B2 telemetry instrumentation)
+- If FAILED: Revert Phase B2 changes, investigate regression
 
-Verify cell+misset default path (no --use-u-matrix) still passes.
+**6. Update Implementation Plan Checklist**
 
-### Step 8: Write Summary
+Edit `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/implementation.md`:
+- Mark B3 as [x] DONE with brief note: "1-step diagnostic executed, forward model sanity check complete, H4 verdict: [CONFIRMED|RULED OUT|INCONCLUSIVE]"
+- If H4 CONFIRMED: Update "Recommended Next Actions" to point to specific Phase C1 fix (e.g., "Fix U-matrix staleness bug")
+- If H4 RULED OUT: Update to pivot to H3b (gradient clipping) or H2 (variance analysis)
 
-Create `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T190000Z/summary.md` with Turn Summary format (3-5 sentences):
-- Diagnostic test execution (2 steps, telemetry captured)
-- Root cause verdict (H2/H3a/H3b/H3c/H4 with confidence)
-- Recommended fix
-- Next step (Phase B3 fix implementation or escalation)
-- Artifacts pointer
+**7. Write Loop Summary**
 
-### Step 9: Commit and Push
+Emit `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T195000Z/summary.md` with:
+- Execution outcome (diagnostic completed OR timed out again)
+- Key metrics (U_matrix checksum delta, log_scale delta, chi² step_001, gradient magnitude post-fix)
+- H4 verdict (CONFIRMED/RULED OUT/INCONCLUSIVE) with confidence level
+- Recommended next phase (C1 fix implementation OR deeper diagnostic OR pivot to H3b/H2)
 
+**8. Commit Changes**
 ```bash
 git add -A
-git commit -m "TORCH-GEOMETRY-CONVERGENCE-001 Phase B2 diagnostic: [H2/H3/H4 verdict] - [brief finding] (tests: test_stage_a_expansion)"
+git commit -m "TORCH-GEOMETRY-CONVERGENCE-001 Phase B3: Forward model sanity check - [H4 verdict] (tests: test_stage_a_expansion)"
 git push
 ```
 
 ## How-To Map
 
-See Do Now steps above for exact commands and implementation guidance.
-
-**Key Implementation Notes:**
-
-**Telemetry Placement:** Insert telemetry capture AFTER `loss.backward()` call (so gradients are populated) but BEFORE `optimizer.step()` (so parameters haven't changed yet). Typical structure:
-```python
-for i in range(num_steps):
-    def closure():
-        optimizer.zero_grad()
-        # Forward pass → loss
-        loss.backward()
-        return loss
-
-    # LBFGS calls closure() internally during line search
-    optimizer.step(closure)
-
-    # AFTER optimizer.step(), capture telemetry with CURRENT parameters + gradients from LAST closure call
-    # (Note: gradients may be stale after optimizer.step(); best to capture INSIDE closure before return)
+**Environment:**
+```bash
+export KMP_DUPLICATE_LIB_OK=TRUE  # Suppress duplicate libiomp5 warnings
+export NANOBRAGG_DISABLE_COMPILE=1  # Disable torch.compile for CPU diagnostics
+# No other env vars needed (CPU execution, no CUDA)
 ```
 
-**Better approach:** Capture telemetry INSIDE closure (after loss.backward(), before return loss) so gradients are fresh.
+**Execute 1-Step Diagnostic:**
+```bash
+cd /home/ollie/Documents/diffbragg_example
+mkdir -p plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T195000Z/diagnostic_1step
 
-**FD Validation Script:** Can be a standalone script that reconstructs the forward pass from telemetry parameters, or integrated into the closure as a one-time check at step 0.
+timeout 1200 python plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py \
+  --use-u-matrix \
+  --phases 5 \
+  --dof-variants A_scale_only \
+  --use-lbfgs \
+  --optimizer-steps 1 \
+  --telemetry-dir telemetry \
+  --out-dir plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T195000Z/diagnostic_1step \
+  --device cpu \
+  2>&1 | tee plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T195000Z/diagnostic_1step.log
+```
+
+**Extract Metrics (Python one-liner for quick checks):**
+```python
+import json
+from pathlib import Path
+
+base = Path("plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T195000Z/diagnostic_1step/telemetry")
+t0 = json.load(open(base / "telemetry_step_000.json"))
+t1 = json.load(open(base / "telemetry_step_001.json"))
+
+print(f"U_matrix checksum: step 000={t0.get('U_matrix_checksum', 'N/A')} step 001={t1.get('U_matrix_checksum', 'N/A')}")
+print(f"log_scale: step 000={t0['parameters']['log_scale']:.6f} step 001={t1['parameters']['log_scale']:.6f} delta={t1['parameters']['log_scale']-t0['parameters']['log_scale']:.6f}")
+print(f"chi²: step 000={t0['loss']['chi_squared']:.2e} step 001={t1['loss']['chi_squared']:.2e} ratio={t1['loss']['chi_squared']/t0['loss']['chi_squared']:.2f}")
+print(f"grad_log_scale norm: step 000={t0['gradients']['log_scale']['norm']:.2e} step 001={t1['gradients']['log_scale']['norm']:.2e}")
+```
+
+**Regression Guard:**
+```bash
+pytest tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion -xvs
+```
 
 ## Pitfalls To Avoid
 
-1. **Capturing telemetry BEFORE loss.backward()** — Gradients will be None
-2. **Telemetry on cell+misset path** — Only instrument U-matrix branch to avoid regression guard pollution
-3. **Expecting quaternion gradients with A_scale_only** — train_orientation=False, so q_params.grad is None. FD validation must focus on log_scale gradient only.
-4. **Confusing step 0 initialization vs step 1 catastrophic failure** — Step 0 should show healthy chi² ~1.13M (matching B1 validation "before" metric), step 1 should show catastrophic chi² ~1.4B
-5. **Not checking u_matrix_checksum** — If U matrix doesn't change between steps 0→1 despite optimizer.step(), quaternion update may be broken
-6. **Premature fix implementation** — Diagnostic + decision ONLY this loop. Fix implementation is Phase B3 (next loop).
+**1. Timeout Management:**
+- Use `timeout 1200` prefix for diagnostic command
+- If timeout hits again, do NOT rerun with longer timeout; synthesize decision from Phase B1+B2 evidence (MEDIUM-HIGH confidence H4 is sufficient to proceed to fix attempt)
+
+**2. Telemetry Path:**
+- Use relative path `--telemetry-dir telemetry` (script prepends out_root automatically per bugfix in 2025-11-22T172000Z)
+- Do NOT pass absolute path (causes double-prepending)
+
+**3. A_scale_only Interpretation:**
+- train_orientation=False → q_params.grad is None → U_matrix should NOT change between steps
+- If U_matrix checksum DIFFERS between steps, this is a BUG (quaternion updated despite being frozen)
+- log_scale IS trainable → should update every step (unless LBFGS line search rejects update)
+
+**4. Chi² Catastrophic Threshold:**
+- Step 001 chi² ~1.425B is catastrophic (1000× worse than initialization ~1.13M)
+- Step 001 chi² ~1.13M (±10%) is "unchanged" (optimizer stalled OR forward model ignoring updates)
+- Step 001 chi² <1.0M is improvement (H4 likely ruled out, forward model working)
+
+**5. Gradient Magnitude Context:**
+- Pre-fix gradient ~295k was measured at step 000 (catastrophic initialization with B_ideal bug)
+- Post-fix gradient at step 000 is KEY: if still ~295k → H3b is primary; if O(1-100) → H3b was symptom
+- Do NOT compare step 001 gradient to pre-fix step 000 gradient (different parameter values, different forward model state)
+
+**6. Variance Telemetry May Be Incomplete:**
+- Phase B2 instrumentation (commit 3338df1) added V_denom histograms, but if timeout occurred during closure construction, step 001 telemetry may be missing variance section
+- If variance section is null/missing: H2 hypothesis NOT TESTABLE this loop; defer to next diagnostic OR accept H4 verdict without variance evidence
+
+**7. Protected Assets (No Changes to Production Logic):**
+- Phase B2 telemetry is OBSERVATION ONLY (conditional JSON emission)
+- Do NOT modify optimizer.step() logic, loss computation, or forward model during this diagnostic
+- If extending telemetry (A* checksum), add ONLY logging, no behavioral changes
+
+**8. Device/Dtype Neutrality:**
+- Diagnostic runs on CPU (--device cpu), so all tensors are CPU tensors
+- When logging checksums (.sum().item()), ensure tensors are NOT detached prematurely (breaks autograd graph for gradient checks)
+
+**9. LBFGS Line Search Behavior:**
+- LBFGS may call closure MULTIPLE TIMES per optimizer.step() (each line search evaluation)
+- Telemetry emits JSON only AFTER optimizer.step() completes (not per closure call)
+- If step 001 chi² is UNCHANGED from step 000, LBFGS may have rejected ALL candidate updates (strong Wolfe conditions not satisfied)
+
+**10. No New Scripts:**
+- Use existing `stage_a_mapping_adam_debug.py` with CLI flags
+- Metrics extraction via Python one-liner is T0 (micro probe, inline only) per scriptization policy
+- Analysis document (phase_b3_forward_model_sanity_check.md) contains analysis text only
 
 ## If Blocked
 
-**If telemetry step_000.json is missing:**
-- Check log for errors during closure execution
-- Verify telemetry_dir path construction (no double-prepending like B1 diagnostic)
-- Run with --device cpu (no CUDA sync issues)
+**Blocker 1: Diagnostic Times Out Again (exit code 143 after 1200s)**
+- Cause: HKL grid building is prohibitively slow on CPU for this experiment
+- Immediate Action:
+  1. Check if telemetry_step_000.json was captured (initialization before timeout)
+  2. If step 000 exists: Analyze initialization state (U_matrix, log_scale, chi², gradients) and synthesize PARTIAL decision
+  3. If step 000 missing: Timeout occurred before first closure call → telemetry overhead is NOT the issue, HKL grid is blocker
+- Fallback:
+  - Option A: Analyze existing zero_point_check.json from diagnostic_1step/ directory
+  - Option B: Accept that 1-step diagnostic is infeasible on CPU; synthesize decision from Phase B1 validation + Phase A1 telemetry (already sufficient for H4 MEDIUM-HIGH confidence)
+- Document in `phase_b3_diagnostic_blocker.md` with timeout analysis
+- Update implementation.md: mark B3 as [~] BLOCKED with rationale
+- Next loop: Proceed to Phase C1 fix implementation based on H4 hypothesis (MEDIUM-HIGH confidence sufficient for targeted fix attempt)
 
-**If FD validation script too complex:**
-- Skip FD validation for this loop; rely on NaN/Inf/magnitude analysis from telemetry
-- Document as "FD validation deferred pending simpler harness"
+**Blocker 2: Telemetry Files Missing/Corrupted**
+- Cause: Script may have crashed or telemetry path misconfigured
+- Immediate Action:
+  1. Check diagnostic_1step.log for Python exceptions
+  2. Verify telemetry directory exists and has correct permissions
+  3. Check if --telemetry-dir path was double-prepended (prior bugfix in 2025-11-22T172000Z should prevent this)
+- Fallback: Rerun diagnostic with explicit absolute path for telemetry-dir (bypass script auto-prepending)
+- Document in phase_b3_diagnostic_blocker.md
 
-**If diagnostic test times out before 2 steps:**
-- Reduce to 1 step (step 0 only) and analyze initialization telemetry
-- Compare step_000 telemetry to step_001 from B1 validation run (reuse artifacts)
+**Blocker 3: Regression Guard Fails**
+- Cause: Phase B2 telemetry instrumentation may have introduced bug in cell+misset default path
+- Immediate Action:
+  1. Review pytest output for specific failure (assertion, exception, timeout)
+  2. Check if telemetry code is ALWAYS executed (should be gated by `if config.telemetry_output_dir is not None`)
+  3. If telemetry guard missing: Add conditional gate, rerun regression guard
+- Fallback: Revert Phase B2 telemetry instrumentation (git revert 3338df1), mark B2/B3 as BLOCKED, escalate to alternative diagnostic approach
+- Document in phase_b3_regression_failure.md
+
+**Blocker 4: Inconclusive Verdict (Multiple Hypotheses Remain Plausible)**
+- Cause: Step 001 metrics don't clearly point to single root cause (e.g., chi² catastrophic but U/log_scale/gradients all look healthy)
+- Immediate Action:
+  1. Accept H4 verdict from Phase B2 with MEDIUM-HIGH confidence (~70%)
+  2. Proceed to Phase C1 fix implementation with targeted fix attempt
+  3. If fix fails, will iterate back to deeper diagnostic
+- Rationale: Phase B2 evidence (initialization healthy, optimization catastrophic, optimizer-agnostic) is sufficient for fix attempt; perfect diagnosis not required
+- Document in phase_b3_forward_model_sanity_check.md with MEDIUM-HIGH confidence rating
 
 ## Findings Applied
 
-- **REFINE-001** (LBFGS scale warm-start, NaN/Inf guards) — Check if log_scale gradient triggers NaN guard
-- **PHYSICS-LOSS-002** (variance-weighted loss sigma-floor guard) — Analyze clamp_fraction and V_denom stability
-- **GRADIENT-001** (autograd graph preservation) — Verify no .item()/.numpy() in forward model path
+**REFINE-001** (LBFGS scale warm-start, NaN/Inf guards):
+- Applies to LBFGS optimizer choice for A_scale_only variant
+- NaN/Inf guards already implemented in Phase B2 telemetry (grad_has_nan, grad_has_inf flags)
+
+**PHYSICS-LOSS-002** (variance-weighted chi-squared sigma-floor guard):
+- Variance floor guard implemented in nanobrag_refinement.py
+- Phase B2 telemetry captures V_denom histograms to verify guard is working
+- If H2 (variance instability) is confirmed, may need to adjust sigma_floor value
+
+**GRADIENT-001** (autograd graph preservation, crystal_overrides):
+- Telemetry checksums (.sum().item()) must not detach tensors prematurely
+- crystal_overrides (mosflm_a_star_tuple) construction is candidate bug for H4
+- If A* staleness confirmed, verify crystal_overrides are recomputed per step, not aliased
+
+**GEOMETRY-003** (U-matrix proper rotation, det(U)=1):
+- Not directly relevant to this diagnostic (focuses on parameter update propagation, not det(U) validation)
+- If U_matrix checksum changes unexpectedly in A_scale_only (train_orientation=False), revisit GEOMETRY-003
 
 ## Pointers
 
-- **Prior Validation:** plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T183000Z/phase_b1_validation_decision.md (Path B verdict, convergence FAILED)
-- **Implementation Plan:** plans/active/TORCH-GEOMETRY-CONVERGENCE-001/implementation.md (Phase B checklist)
-- **Production Code (Closure):** dbex/nanobrag_refinement.py:968-1116 (Stage A U-matrix branch)
-- **Test Script:** plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py
-- **Telemetry Examples:** plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T140000Z/telemetry/ (prior instrumentation, less comprehensive)
+**Spec/Arch:**
+- docs/spec-db-workflow.md §Stage A — Optimizer convergence criteria
+- docs/spec-db-runtime.md §Gradient stability (NaN/Inf checks)
+- docs/spec-db-core.md §Variance Model (sigma-floor guard)
+
+**Fix Plan:**
+- docs/fix_plan.md — Row [TORCH-GEOMETRY-CONVERGENCE-001], Attempts History entry 2025-11-22T190000Z
+
+**Implementation Plan:**
+- plans/active/TORCH-GEOMETRY-CONVERGENCE-001/implementation.md
+  - Phase B checklist (B0/B1/B2 done, B3 this loop, B4 pending)
+  - Exit Criteria (CC ≥ 0.99, stable/improving χ²)
+
+**Prior Evidence:**
+- Phase B2 diagnostic decision: plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T190000Z/phase_b2_diagnostic_decision.md
+- Phase B1 validation: plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T183000Z/phase_b1_validation_decision.md
+- Phase A1 telemetry: plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T172000Z/telemetry/
+
+**Testing:**
+- docs/TESTING_GUIDE.md §Stage A selectors
+- docs/development/TEST_SUITE_INDEX.md — test_stage_a_expansion status
 
 ## Next Up
 
-If Ralph finishes Phase B2 early and decision is clear:
-- Can proceed to Phase B3 (implement fix) in same loop
-- Otherwise, wait for supervisor review before fix implementation
+If Phase B3 completes successfully with clear H4 verdict:
+- **Next Loop:** Phase C1 — Implement targeted fix based on H4 candidate bug (U-matrix staleness, log_scale clamp, crystal_overrides aliasing, or detach placement)
+- **Validation:** Phase C2/C3 convergence tests (A_scale_only + D_full) to confirm fix resolves catastrophic failure
+
+If Phase B3 blocked or inconclusive:
+- **Alternative 1:** Proceed to Phase C1 based on Phase B2 MEDIUM-HIGH confidence H4 verdict (accept that perfect diagnosis is not required for fix attempt)
+- **Alternative 2:** Pivot to simpler approach (disable quaternion U-matrix, revert to cell+misset only, document quaternion approach as infeasible)

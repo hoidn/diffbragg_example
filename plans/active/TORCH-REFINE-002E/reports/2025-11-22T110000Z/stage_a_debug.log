@@ -1,0 +1,67 @@
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+auto-selected 3-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-28,10] hit_rate=55296101/56016009 (98.71%)
+/home/ollie/Documents/nanoBragg/src/nanobrag_torch/simulator.py:579: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
+  self.fluence = torch.tensor(self.beam_config.fluence, device=self.device, dtype=self.dtype)
+auto-selected 3-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-28,10] hit_rate=55296103/56016009 (98.71%)
+auto-selected 3-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-28,10] hit_rate=55281654/56016009 (98.69%)
+auto-selected 3-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-28,10] hit_rate=55296103/56016009 (98.71%)
+auto-selected 3-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-28,10] hit_rate=55296103/56016009 (98.71%)
+auto-selected 3-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-28,10] hit_rate=55281654/56016009 (98.69%)
+auto-selected 3-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-28,10] hit_rate=55280521/56016009 (98.69%)
+auto-selected 3-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-28,10] hit_rate=55296103/56016009 (98.71%)
+auto-selected 3-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-28,10] hit_rate=55281654/56016009 (98.69%)
+auto-selected 3-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-28,10] hit_rate=55281654/56016009 (98.69%)
+auto-selected 3-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-28,10] hit_rate=55281654/56016009 (98.69%)
+auto-selected 3-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-28,10] hit_rate=55281654/56016009 (98.69%)
+auto-selected 3-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-28,10] hit_rate=55281654/56016009 (98.69%)
+auto-selected 3-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-28,10] hit_rate=55281654/56016009 (98.69%)
+auto-selected 3-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-28,10] hit_rate=55281654/56016009 (98.69%)
+auto-selected 3-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-28,10] hit_rate=55281654/56016009 (98.69%)
+auto-selected 3-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-28,10] hit_rate=55281654/56016009 (98.69%)
+auto-selected 3-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-28,10] hit_rate=55281654/56016009 (98.69%)
+auto-selected 3-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-28,10] hit_rate=55281654/56016009 (98.69%)
+auto-selected 3-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-28,10] hit_rate=55296103/56016009 (98.71%)
+auto-selected 3-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-28,10] hit_rate=55281654/56016009 (98.69%)
+auto-selected 3-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-28,10] hit_rate=55280105/56016009 (98.69%)
+auto-selected 3-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-28,10] hit_rate=55280274/56016009 (98.69%)
+auto-selected 3-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-28,10] hit_rate=55280350/56016009 (98.69%)
+auto-selected 3-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-28,10] hit_rate=55279853/56016009 (98.69%)
+auto-selected 3-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-28,10] hit_rate=55279310/56016009 (98.68%)
+auto-selected 3-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-28,10] hit_rate=55279040/56016009 (98.68%)
+auto-selected 3-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-28,10] hit_rate=55278752/56016009 (98.68%)
+auto-selected 3-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-28,10] hit_rate=55278240/56016009 (98.68%)
+auto-selected 3-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-28,10] hit_rate=55278675/56016009 (98.68%)
+auto-selected 3-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-28,10] hit_rate=55279009/56016009 (98.68%)
+auto-selected 3-fold oversampling

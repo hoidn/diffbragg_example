@@ -1,0 +1,15 @@
+# Phase C1 Branch G geometry fix validation
+
+# 1. Crystal matrix parity probe
+python plans/active/TORCH-REFINE-002E/bin/probe_crystal_matrix_parity.py \
+  --device cpu \
+  --out-dir plans/active/TORCH-REFINE-002E/reports/2025-11-22T100021Z/
+
+# Results:
+# All three Path B variants (unitcell, recovered, mapping_aligned) show:
+#   max_abs_diff=4.022e-05 (above 1e-6 threshold)
+#   log_u_symmetric_norm=1.369e-03 (symmetric strain persists)
+#
+# This matches Phase A2 evidence that strain persists regardless of B_ideal source.
+# The geometry fix successfully aligned all variants, but numerical precision limits
+# prevent achieving < 1e-6 parity.

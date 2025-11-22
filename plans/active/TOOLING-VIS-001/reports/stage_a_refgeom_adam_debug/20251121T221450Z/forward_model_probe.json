@@ -1,0 +1,1391 @@
+{
+  "summary": {
+    "max_abs_diff": 123.171875,
+    "mean_abs_diff": 0.00010064947734368596,
+    "n_roi": 92,
+    "corr_median_mapping": 0.6206380488982322,
+    "corr_median_stage_a_noop": 0.6207256253754666
+  },
+  "per_roi": [
+    {
+      "roi_index": 0,
+      "panel_id": 0,
+      "bbox": [
+        582,
+        594,
+        0,
+        12
+      ],
+      "corr_mapping": 0.403396961177725,
+      "corr_stage_a_noop": 0.40344491978188357,
+      "corr_delta": 4.7958604158571116e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 1,
+      "panel_id": 0,
+      "bbox": [
+        477,
+        489,
+        43,
+        55
+      ],
+      "corr_mapping": 0.3098240703101902,
+      "corr_stage_a_noop": 0.30984891348928056,
+      "corr_delta": 2.4843179090350276e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 2,
+      "panel_id": 0,
+      "bbox": [
+        1150,
+        1162,
+        91,
+        103
+      ],
+      "corr_mapping": 0.004874717029353218,
+      "corr_stage_a_noop": 0.0049254070557470525,
+      "corr_delta": 5.06900263938341e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 3,
+      "panel_id": 0,
+      "bbox": [
+        1292,
+        1304,
+        109,
+        121
+      ],
+      "corr_mapping": 0.22878266052884325,
+      "corr_stage_a_noop": 0.22881258652160985,
+      "corr_delta": 2.9925992766605125e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 4,
+      "panel_id": 0,
+      "bbox": [
+        178,
+        190,
+        312,
+        324
+      ],
+      "corr_mapping": 0.6005368522727303,
+      "corr_stage_a_noop": 0.6004995108022676,
+      "corr_delta": -3.734147046274838e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 5,
+      "panel_id": 0,
+      "bbox": [
+        715,
+        727,
+        429,
+        441
+      ],
+      "corr_mapping": 0.6651449154252098,
+      "corr_stage_a_noop": 0.6652049342910002,
+      "corr_delta": 6.001886579043436e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 6,
+      "panel_id": 0,
+      "bbox": [
+        1837,
+        1849,
+        440,
+        452
+      ],
+      "corr_mapping": 0.7058958283211595,
+      "corr_stage_a_noop": 0.7059477276744067,
+      "corr_delta": 5.189935324723116e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 7,
+      "panel_id": 0,
+      "bbox": [
+        570,
+        582,
+        448,
+        460
+      ],
+      "corr_mapping": 0.6225307234785138,
+      "corr_stage_a_noop": 0.6238990221955323,
+      "corr_delta": 0.0013682987170184902,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 8,
+      "panel_id": 0,
+      "bbox": [
+        1155,
+        1167,
+        455,
+        467
+      ],
+      "corr_mapping": 0.35266842393107584,
+      "corr_stage_a_noop": 0.3527115168925011,
+      "corr_delta": 4.309296142523955e-05,
+      "localization_mapping": 0.5,
+      "localization_stage_a_noop": 0.5
+    },
+    {
+      "roi_index": 9,
+      "panel_id": 0,
+      "bbox": [
+        1280,
+        1292,
+        469,
+        481
+      ],
+      "corr_mapping": 0.8313638160680743,
+      "corr_stage_a_noop": 0.8314449968473142,
+      "corr_delta": 8.118077923990885e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 10,
+      "panel_id": 0,
+      "bbox": [
+        1115,
+        1127,
+        509,
+        521
+      ],
+      "corr_mapping": 0.35510828818287465,
+      "corr_stage_a_noop": 0.3551025028147001,
+      "corr_delta": -5.785368174526795e-06,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 11,
+      "panel_id": 0,
+      "bbox": [
+        1438,
+        1450,
+        523,
+        535
+      ],
+      "corr_mapping": 0.10320137775192943,
+      "corr_stage_a_noop": 0.10322239688326688,
+      "corr_delta": 2.1019131337451924e-05,
+      "localization_mapping": 0.5,
+      "localization_stage_a_noop": 0.5
+    },
+    {
+      "roi_index": 12,
+      "panel_id": 0,
+      "bbox": [
+        908,
+        920,
+        534,
+        546
+      ],
+      "corr_mapping": 0.8516522904881018,
+      "corr_stage_a_noop": 0.8516671505077302,
+      "corr_delta": 1.4860019628470944e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 13,
+      "panel_id": 0,
+      "bbox": [
+        1076,
+        1088,
+        562,
+        574
+      ],
+      "corr_mapping": 0.8928562711192145,
+      "corr_stage_a_noop": 0.892645324464113,
+      "corr_delta": -0.0002109466551014627,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 14,
+      "panel_id": 0,
+      "bbox": [
+        1762,
+        1774,
+        570,
+        582
+      ],
+      "corr_mapping": 0.691130146302264,
+      "corr_stage_a_noop": 0.6912013573042984,
+      "corr_delta": 7.121100203444364e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 15,
+      "panel_id": 0,
+      "bbox": [
+        1278,
+        1290,
+        635,
+        647
+      ],
+      "corr_mapping": 0.9287600617851571,
+      "corr_stage_a_noop": 0.9290343686299621,
+      "corr_delta": 0.00027430684480500567,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 16,
+      "panel_id": 0,
+      "bbox": [
+        1850,
+        1862,
+        670,
+        682
+      ],
+      "corr_mapping": 0.4913766693918042,
+      "corr_stage_a_noop": 0.4913755607931893,
+      "corr_delta": -1.108598614907308e-06,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 17,
+      "panel_id": 0,
+      "bbox": [
+        1121,
+        1133,
+        673,
+        685
+      ],
+      "corr_mapping": 0.5860388696174148,
+      "corr_stage_a_noop": 0.5860795927060956,
+      "corr_delta": 4.07230886807497e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 18,
+      "panel_id": 0,
+      "bbox": [
+        1607,
+        1619,
+        689,
+        701
+      ],
+      "corr_mapping": 0.7207956276539959,
+      "corr_stage_a_noop": 0.7207997393252724,
+      "corr_delta": 4.1116712765632e-06,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 19,
+      "panel_id": 0,
+      "bbox": [
+        1520,
+        1532,
+        691,
+        703
+      ],
+      "corr_mapping": 0.6122460102764954,
+      "corr_stage_a_noop": 0.612200330089391,
+      "corr_delta": -4.568018710437993e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 20,
+      "panel_id": 0,
+      "bbox": [
+        166,
+        178,
+        693,
+        705
+      ],
+      "corr_mapping": 0.19599862250619055,
+      "corr_stage_a_noop": 0.19594070510829828,
+      "corr_delta": -5.7917397892265354e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 21,
+      "panel_id": 0,
+      "bbox": [
+        1648,
+        1660,
+        736,
+        748
+      ],
+      "corr_mapping": 0.490084459177583,
+      "corr_stage_a_noop": 0.49007468887838324,
+      "corr_delta": -9.770299199740595e-06,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 22,
+      "panel_id": 0,
+      "bbox": [
+        1395,
+        1407,
+        740,
+        752
+      ],
+      "corr_mapping": 0.7074965036700478,
+      "corr_stage_a_noop": 0.707491404780545,
+      "corr_delta": -5.0988895028414305e-06,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 23,
+      "panel_id": 0,
+      "bbox": [
+        1008,
+        1020,
+        756,
+        768
+      ],
+      "corr_mapping": 0.9337386322885636,
+      "corr_stage_a_noop": 0.9337758551991053,
+      "corr_delta": 3.7222910541756526e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 24,
+      "panel_id": 0,
+      "bbox": [
+        719,
+        731,
+        760,
+        772
+      ],
+      "corr_mapping": 0.803187981008706,
+      "corr_stage_a_noop": 0.8031116093144002,
+      "corr_delta": -7.637169430585455e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 25,
+      "panel_id": 0,
+      "bbox": [
+        534,
+        546,
+        774,
+        786
+      ],
+      "corr_mapping": 0.4589055855835864,
+      "corr_stage_a_noop": 0.4590036974371359,
+      "corr_delta": 9.811185354952068e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 26,
+      "panel_id": 0,
+      "bbox": [
+        1690,
+        1702,
+        784,
+        796
+      ],
+      "corr_mapping": 0.30568936755000364,
+      "corr_stage_a_noop": 0.30577468065263924,
+      "corr_delta": 8.531310263559799e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 27,
+      "panel_id": 0,
+      "bbox": [
+        1089,
+        1101,
+        811,
+        823
+      ],
+      "corr_mapping": 0.9445384918344975,
+      "corr_stage_a_noop": 0.9445377916665719,
+      "corr_delta": -7.001679255269622e-07,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 28,
+      "panel_id": 0,
+      "bbox": [
+        1356,
+        1368,
+        875,
+        887
+      ],
+      "corr_mapping": 0.2675934614940997,
+      "corr_stage_a_noop": 0.26757672496771207,
+      "corr_delta": -1.6736526387617356e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 29,
+      "panel_id": 0,
+      "bbox": [
+        601,
+        613,
+        884,
+        896
+      ],
+      "corr_mapping": 0.24790885984475505,
+      "corr_stage_a_noop": 0.2479166616543891,
+      "corr_delta": 7.801809634055967e-06,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 30,
+      "panel_id": 0,
+      "bbox": [
+        1727,
+        1739,
+        921,
+        933
+      ],
+      "corr_mapping": 0.5559121146692155,
+      "corr_stage_a_noop": 0.5558372203720721,
+      "corr_delta": -7.489429714346851e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 31,
+      "panel_id": 0,
+      "bbox": [
+        1357,
+        1369,
+        961,
+        973
+      ],
+      "corr_mapping": 0.9035147144051062,
+      "corr_stage_a_noop": 0.9034252057550631,
+      "corr_delta": -8.950865004309083e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 32,
+      "panel_id": 0,
+      "bbox": [
+        1098,
+        1110,
+        985,
+        997
+      ],
+      "corr_mapping": 0.6301890703777958,
+      "corr_stage_a_noop": 0.6301945591447523,
+      "corr_delta": 5.488766956496249e-06,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 33,
+      "panel_id": 0,
+      "bbox": [
+        1210,
+        1222,
+        994,
+        1006
+      ],
+      "corr_mapping": 0.5291313682230901,
+      "corr_stage_a_noop": 0.5291021007313079,
+      "corr_delta": -2.926749178222554e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 34,
+      "panel_id": 0,
+      "bbox": [
+        1396,
+        1408,
+        1003,
+        1015
+      ],
+      "corr_mapping": 0.37065896061528303,
+      "corr_stage_a_noop": 0.3706570377685891,
+      "corr_delta": -1.922846693924729e-06,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 35,
+      "panel_id": 0,
+      "bbox": [
+        872,
+        884,
+        1007,
+        1019
+      ],
+      "corr_mapping": 0.7905877836030272,
+      "corr_stage_a_noop": 0.7906363579481183,
+      "corr_delta": 4.8574345091090265e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 36,
+      "panel_id": 0,
+      "bbox": [
+        100,
+        112,
+        1009,
+        1021
+      ],
+      "corr_mapping": 0.6187453743179505,
+      "corr_stage_a_noop": 0.6188005995502845,
+      "corr_delta": 5.522523233403298e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 37,
+      "panel_id": 0,
+      "bbox": [
+        1026,
+        1038,
+        1022,
+        1034
+      ],
+      "corr_mapping": 0.016488395370437767,
+      "corr_stage_a_noop": 0.016486555907043683,
+      "corr_delta": -1.8394633940835292e-06,
+      "localization_mapping": 0.5,
+      "localization_stage_a_noop": 0.5
+    },
+    {
+      "roi_index": 38,
+      "panel_id": 0,
+      "bbox": [
+        953,
+        965,
+        1057,
+        1069
+      ],
+      "corr_mapping": 0.6916528208477051,
+      "corr_stage_a_noop": 0.6916879251132492,
+      "corr_delta": 3.510426554409474e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 39,
+      "panel_id": 0,
+      "bbox": [
+        717,
+        729,
+        1120,
+        1132
+      ],
+      "corr_mapping": 0.5773883550711043,
+      "corr_stage_a_noop": 0.5773652492862758,
+      "corr_delta": -2.310578482855874e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 40,
+      "panel_id": 0,
+      "bbox": [
+        257,
+        269,
+        1127,
+        1139
+      ],
+      "corr_mapping": 0.7966753118615375,
+      "corr_stage_a_noop": 0.7966429981068749,
+      "corr_delta": -3.231375466261621e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 41,
+      "panel_id": 0,
+      "bbox": [
+        377,
+        389,
+        1136,
+        1148
+      ],
+      "corr_mapping": 0.811687474033824,
+      "corr_stage_a_noop": 0.8117038746553321,
+      "corr_delta": 1.6400621508094737e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 42,
+      "panel_id": 0,
+      "bbox": [
+        435,
+        447,
+        1141,
+        1153
+      ],
+      "corr_mapping": 0.5564176292022402,
+      "corr_stage_a_noop": 0.5563533910388349,
+      "corr_delta": -6.423816340539457e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 43,
+      "panel_id": 0,
+      "bbox": [
+        2042,
+        2054,
+        1142,
+        1154
+      ],
+      "corr_mapping": 0.7419754173212996,
+      "corr_stage_a_noop": 0.7419718506529802,
+      "corr_delta": -3.5666683193547044e-06,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 44,
+      "panel_id": 0,
+      "bbox": [
+        1182,
+        1194,
+        1153,
+        1165
+      ],
+      "corr_mapping": 0.3918718373595102,
+      "corr_stage_a_noop": 0.3918742250735784,
+      "corr_delta": 2.387714068186053e-06,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 45,
+      "panel_id": 0,
+      "bbox": [
+        1694,
+        1706,
+        1302,
+        1314
+      ],
+      "corr_mapping": 0.887884630444194,
+      "corr_stage_a_noop": 0.8878926717525821,
+      "corr_delta": 8.041308388162527e-06,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 46,
+      "panel_id": 0,
+      "bbox": [
+        1228,
+        1240,
+        1314,
+        1326
+      ],
+      "corr_mapping": 0.6536517748504808,
+      "corr_stage_a_noop": 0.6536502791960898,
+      "corr_delta": -1.4956543910038533e-06,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 47,
+      "panel_id": 0,
+      "bbox": [
+        1998,
+        2010,
+        1321,
+        1333
+      ],
+      "corr_mapping": 0.7584588668482797,
+      "corr_stage_a_noop": 0.7586588306118857,
+      "corr_delta": 0.00019996376360598145,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 48,
+      "panel_id": 0,
+      "bbox": [
+        1490,
+        1502,
+        1329,
+        1341
+      ],
+      "corr_mapping": 0.6288016597074323,
+      "corr_stage_a_noop": 0.6288144474434422,
+      "corr_delta": 1.2787736009878259e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 49,
+      "panel_id": 0,
+      "bbox": [
+        895,
+        907,
+        1338,
+        1350
+      ],
+      "corr_mapping": 0.9011836916405518,
+      "corr_stage_a_noop": 0.9012068688362558,
+      "corr_delta": 2.3177195703993902e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 50,
+      "panel_id": 0,
+      "bbox": [
+        1158,
+        1170,
+        1349,
+        1361
+      ],
+      "corr_mapping": 0.8485438079303746,
+      "corr_stage_a_noop": 0.848542973644447,
+      "corr_delta": -8.342859276755377e-07,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 51,
+      "panel_id": 0,
+      "bbox": [
+        1946,
+        1958,
+        1362,
+        1374
+      ],
+      "corr_mapping": 0.8061091795818216,
+      "corr_stage_a_noop": 0.8076962403979964,
+      "corr_delta": 0.001587060816174768,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 52,
+      "panel_id": 0,
+      "bbox": [
+        1459,
+        1471,
+        1407,
+        1419
+      ],
+      "corr_mapping": 0.4556807367692873,
+      "corr_stage_a_noop": 0.45565492895856724,
+      "corr_delta": -2.5807810720035462e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 53,
+      "panel_id": 0,
+      "bbox": [
+        1538,
+        1550,
+        1413,
+        1425
+      ],
+      "corr_mapping": 0.785811407928281,
+      "corr_stage_a_noop": 0.7858584282965794,
+      "corr_delta": 4.7020368298400506e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 54,
+      "panel_id": 0,
+      "bbox": [
+        820,
+        832,
+        1419,
+        1431
+      ],
+      "corr_mapping": 0.8170225238416389,
+      "corr_stage_a_noop": 0.8172624520083512,
+      "corr_delta": 0.0002399281667123665,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 55,
+      "panel_id": 0,
+      "bbox": [
+        451,
+        463,
+        1418,
+        1430
+      ],
+      "corr_mapping": 0.6709958937213932,
+      "corr_stage_a_noop": 0.670920934528019,
+      "corr_delta": -7.49591933741911e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 56,
+      "panel_id": 0,
+      "bbox": [
+        144,
+        156,
+        1425,
+        1437
+      ],
+      "corr_mapping": 0.664524732357452,
+      "corr_stage_a_noop": 0.6646515453715122,
+      "corr_delta": 0.00012681301406014533,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 57,
+      "panel_id": 0,
+      "bbox": [
+        695,
+        707,
+        1506,
+        1518
+      ],
+      "corr_mapping": 0.9156619117437885,
+      "corr_stage_a_noop": 0.9156451063008186,
+      "corr_delta": -1.6805442969891615e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 58,
+      "panel_id": 0,
+      "bbox": [
+        1170,
+        1182,
+        1513,
+        1525
+      ],
+      "corr_mapping": 0.17952776119384398,
+      "corr_stage_a_noop": 0.1795256749266998,
+      "corr_delta": -2.086267144180143e-06,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 59,
+      "panel_id": 0,
+      "bbox": [
+        1357,
+        1369,
+        1524,
+        1536
+      ],
+      "corr_mapping": 0.5001502273359163,
+      "corr_stage_a_noop": 0.5001411223491925,
+      "corr_delta": -9.104986723795783e-06,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 60,
+      "panel_id": 0,
+      "bbox": [
+        945,
+        957,
+        1549,
+        1561
+      ],
+      "corr_mapping": 0.9706548127110337,
+      "corr_stage_a_noop": 0.9706556482807734,
+      "corr_delta": 8.355697397322004e-07,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 61,
+      "panel_id": 0,
+      "bbox": [
+        2046,
+        2058,
+        1557,
+        1569
+      ],
+      "corr_mapping": 0.6749174271131331,
+      "corr_stage_a_noop": 0.6751979133835945,
+      "corr_delta": 0.00028048627046139973,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 62,
+      "panel_id": 0,
+      "bbox": [
+        1286,
+        1298,
+        1561,
+        1573
+      ],
+      "corr_mapping": 0.37045418913815786,
+      "corr_stage_a_noop": 0.3704127573461808,
+      "corr_delta": -4.1431791977075694e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 63,
+      "panel_id": 0,
+      "bbox": [
+        1101,
+        1113,
+        1596,
+        1608
+      ],
+      "corr_mapping": 0.7603152952017764,
+      "corr_stage_a_noop": 0.7603072529021554,
+      "corr_delta": -8.042299621036086e-06,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 64,
+      "panel_id": 0,
+      "bbox": [
+        394,
+        406,
+        1616,
+        1628
+      ],
+      "corr_mapping": 0.22868723498714327,
+      "corr_stage_a_noop": 0.22844718241109335,
+      "corr_delta": -0.00024005257604992059,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 65,
+      "panel_id": 0,
+      "bbox": [
+        335,
+        347,
+        1621,
+        1633
+      ],
+      "corr_mapping": 0.9087400335848632,
+      "corr_stage_a_noop": 0.9087625096341718,
+      "corr_delta": 2.247604930860625e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 66,
+      "panel_id": 0,
+      "bbox": [
+        272,
+        284,
+        1627,
+        1639
+      ],
+      "corr_mapping": 0.958002438895002,
+      "corr_stage_a_noop": 0.957932649280393,
+      "corr_delta": -6.978961460901711e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 67,
+      "panel_id": 0,
+      "bbox": [
+        207,
+        219,
+        1632,
+        1644
+      ],
+      "corr_mapping": 0.2713472174772562,
+      "corr_stage_a_noop": 0.2713371186153133,
+      "corr_delta": -1.0098861942919868e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 68,
+      "panel_id": 0,
+      "bbox": [
+        2012,
+        2024,
+        1649,
+        1661
+      ],
+      "corr_mapping": 0.7815167221691584,
+      "corr_stage_a_noop": 0.7815740074581866,
+      "corr_delta": 5.72852890282638e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 69,
+      "panel_id": 0,
+      "bbox": [
+        1412,
+        1424,
+        1659,
+        1671
+      ],
+      "corr_mapping": 0.6226139397119314,
+      "corr_stage_a_noop": 0.6226506512006487,
+      "corr_delta": 3.671148871731145e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 70,
+      "panel_id": 0,
+      "bbox": [
+        601,
+        613,
+        1701,
+        1713
+      ],
+      "corr_mapping": 0.930127063075806,
+      "corr_stage_a_noop": 0.9300876655768049,
+      "corr_delta": -3.9397499001059266e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 71,
+      "panel_id": 0,
+      "bbox": [
+        1813,
+        1825,
+        1713,
+        1725
+      ],
+      "corr_mapping": 0.9408530711568581,
+      "corr_stage_a_noop": 0.9408050687624421,
+      "corr_delta": -4.800239441604681e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 72,
+      "panel_id": 0,
+      "bbox": [
+        647,
+        659,
+        1748,
+        1760
+      ],
+      "corr_mapping": 0.8694206142555863,
+      "corr_stage_a_noop": 0.8693744150939464,
+      "corr_delta": -4.619916163983717e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 73,
+      "panel_id": 0,
+      "bbox": [
+        1271,
+        1283,
+        1789,
+        1801
+      ],
+      "corr_mapping": 0.4399032233673694,
+      "corr_stage_a_noop": 0.43988105079998246,
+      "corr_delta": -2.217256738695772e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 74,
+      "panel_id": 0,
+      "bbox": [
+        1689,
+        1701,
+        1791,
+        1803
+      ],
+      "corr_mapping": 0.902260765747009,
+      "corr_stage_a_noop": 0.9023260424418896,
+      "corr_delta": 6.527669488065602e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 75,
+      "panel_id": 0,
+      "bbox": [
+        1701,
+        1713,
+        1846,
+        1858
+      ],
+      "corr_mapping": 0.1813019731258891,
+      "corr_stage_a_noop": 0.18056073809000728,
+      "corr_delta": -0.000741235035881832,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 76,
+      "panel_id": 0,
+      "bbox": [
+        1717,
+        1729,
+        1904,
+        1916
+      ],
+      "corr_mapping": 0.5726448199965225,
+      "corr_stage_a_noop": 0.5728420654015255,
+      "corr_delta": 0.00019724540500298815,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 77,
+      "panel_id": 0,
+      "bbox": [
+        1732,
+        1744,
+        1961,
+        1973
+      ],
+      "corr_mapping": 0.18649713932274925,
+      "corr_stage_a_noop": 0.18648757613688094,
+      "corr_delta": -9.563185868310953e-06,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 78,
+      "panel_id": 0,
+      "bbox": [
+        1304,
+        1316,
+        2071,
+        2083
+      ],
+      "corr_mapping": 0.5499420268363039,
+      "corr_stage_a_noop": 0.5501537454520893,
+      "corr_delta": 0.00021171861578539453,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 79,
+      "panel_id": 0,
+      "bbox": [
+        914,
+        926,
+        2132,
+        2144
+      ],
+      "corr_mapping": 0.8307515377983459,
+      "corr_stage_a_noop": 0.831204482558837,
+      "corr_delta": 0.0004529447604911807,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 80,
+      "panel_id": 0,
+      "bbox": [
+        1403,
+        1415,
+        2149,
+        2161
+      ],
+      "corr_mapping": 0.43950765615880405,
+      "corr_stage_a_noop": 0.439391266183619,
+      "corr_delta": -0.00011638997518503835,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 81,
+      "panel_id": 0,
+      "bbox": [
+        2365,
+        2377,
+        2155,
+        2167
+      ],
+      "corr_mapping": 0.39651154601464855,
+      "corr_stage_a_noop": 0.3970105252379518,
+      "corr_delta": 0.0004989792233032198,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 82,
+      "panel_id": 0,
+      "bbox": [
+        1497,
+        1509,
+        2165,
+        2177
+      ],
+      "corr_mapping": 0.18827068415915962,
+      "corr_stage_a_noop": 0.18813423438563773,
+      "corr_delta": -0.00013644977352189613,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 83,
+      "panel_id": 0,
+      "bbox": [
+        1851,
+        1863,
+        2185,
+        2197
+      ],
+      "corr_mapping": 0.07292348566554555,
+      "corr_stage_a_noop": 0.07287011549046032,
+      "corr_delta": -5.337017508522113e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 84,
+      "panel_id": 0,
+      "bbox": [
+        1186,
+        1198,
+        2198,
+        2210
+      ],
+      "corr_mapping": 0.7173969483316351,
+      "corr_stage_a_noop": 0.7183403601296038,
+      "corr_delta": 0.0009434117979686407,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 85,
+      "panel_id": 0,
+      "bbox": [
+        863,
+        875,
+        2286,
+        2298
+      ],
+      "corr_mapping": 0.5638201577170464,
+      "corr_stage_a_noop": 0.5637753051306804,
+      "corr_delta": -4.485258636599543e-05,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 86,
+      "panel_id": 0,
+      "bbox": [
+        1947,
+        1959,
+        2296,
+        2308
+      ],
+      "corr_mapping": -0.040748402661918724,
+      "corr_stage_a_noop": -0.03797790611336467,
+      "corr_delta": 0.0027704965485540536,
+      "localization_mapping": 0.5,
+      "localization_stage_a_noop": 0.5
+    },
+    {
+      "roi_index": 87,
+      "panel_id": 0,
+      "bbox": [
+        2225,
+        2237,
+        2329,
+        2341
+      ],
+      "corr_mapping": -0.040239622927309024,
+      "corr_stage_a_noop": -0.04024315356911368,
+      "corr_delta": -3.530641804652679e-06,
+      "localization_mapping": 0.5,
+      "localization_stage_a_noop": 0.5
+    },
+    {
+      "roi_index": 88,
+      "panel_id": 0,
+      "bbox": [
+        600,
+        612,
+        2332,
+        2344
+      ],
+      "corr_mapping": 0.024461819633408346,
+      "corr_stage_a_noop": 0.02448350981939354,
+      "corr_delta": 2.1690185985193816e-05,
+      "localization_mapping": 0.5,
+      "localization_stage_a_noop": 0.5
+    },
+    {
+      "roi_index": 89,
+      "panel_id": 0,
+      "bbox": [
+        2063,
+        2075,
+        2423,
+        2435
+      ],
+      "corr_mapping": 0.04224770954854527,
+      "corr_stage_a_noop": 0.04225255418115236,
+      "corr_delta": 4.844632607088617e-06,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 90,
+      "panel_id": 0,
+      "bbox": [
+        462,
+        474,
+        2463,
+        2475
+      ],
+      "corr_mapping": 0.5962548424471367,
+      "corr_stage_a_noop": 0.5968048894624461,
+      "corr_delta": 0.0005500470153094739,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    },
+    {
+      "roi_index": 91,
+      "panel_id": 0,
+      "bbox": [
+        1783,
+        1795,
+        2490,
+        2502
+      ],
+      "corr_mapping": 0.8045803068279864,
+      "corr_stage_a_noop": 0.804782146344182,
+      "corr_delta": 0.00020183951619556773,
+      "localization_mapping": 1.0,
+      "localization_stage_a_noop": 1.0
+    }
+  ]
+}

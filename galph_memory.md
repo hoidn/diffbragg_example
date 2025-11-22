@@ -612,3 +612,13 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-22T120000Z focus=TORCH-REFINE-002E state=ready_for_implementation dwell=1 artifacts=plans/active/TORCH-REFINE-002E/reports/2025-11-22T120000Z/ next_action=phase_5_reduced_scope_decisive_validation
+
+## 2025-11-22T105837Z — TORCH-GEOMETRY-PARITY-002 Initiative Creation
+- Focus: TORCH-GEOMETRY-PARITY-002 — Direct U-Matrix Parameterization for Stage A Geometry Refinement
+- Action Type: planning
+- Key Observations: Escalated from TORCH-REFINE-002E Phase C1 final validation (2025-11-22T120000Z decision.json). Evidence chain complete: (A0) symmetric strain 1.37e-3 dominates (1000× larger than antisymmetric), (A2) cell recovery doesn't eliminate strain, (A3) forward models differ by 24.5% χ² due to geometry encoding not simulator bugs, (B1) massive gradients at zero (orientation_vec ≈2.88e8) prove zero-point mismatch, (C1) all DoF variants degrade (A_scale_only: 3.10× χ², CC→0.846; D_full: 1.71× χ², CC→0.895). Root cause: `orientation_vec` in cell+misset parameterization encodes rotation only, cannot express the symmetric strain embedded in MOSFLM A*. Created new initiative TORCH-GEOMETRY-PARITY-002 with comprehensive implementation plan (3 phases: Analysis & Design, Implementation, Validation & Integration). Updated docs/fix_plan.md roadmap (moved TORCH-GEOMETRY-PARITY-002 to top of Tier 1, marked TORCH-REFINE-002E as blocked). Next focus: Phase A0 evidence synthesis to document the causal chain before implementing quaternion-based U-matrix parameterization.
+- Artifact Path: plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T105837Z/
+- Next Actions: Execute Phase A checklist (A0: evidence synthesis, A1: SO(3) survey, A2: API design, A3: risk analysis) to prepare for Phase B implementation. Recommend quaternion (4-param, unit norm) for numerical stability and gradient quality.
+- <Action State>: [planning]
+
+2025-11-22T105837Z focus=TORCH-GEOMETRY-PARITY-002 state=planning dwell=0 artifacts=plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T105837Z/ next_action=phase_a_analysis_and_design

@@ -1,5 +1,5 @@
 ### Turn Summary
-Planned Phase B Test B1 (LBFGS optimizer alternative) to resolve catastrophic quaternion U-matrix convergence failure that persists DESPITE Phase A bugfix successfully resolving initialization pathology (chi² step_0 now 1.13M, 1000× improvement).
-Authored comprehensive test protocol prioritizing H1 (Adam/quaternion manifold incompatibility) with 10-step implementation (RefinementConfig extension, LBFGS branch with closure pattern, CLI flags, metrics extraction, 3-path decision tree).
-Next: Ralph implements LBFGS test (A_scale_only, 10 steps, strong_wolfe line search), extracts convergence metrics, and synthesizes decision per template (SUCCESS→Phase C fix, FAILURE→Test B2 gradient validation, INCONCLUSIVE→tighter tolerances rerun).
-Artifacts: plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T165000Z/ (input.md with Phase B Do Now, galph_memory.md updated, docs/fix_plan.md Attempts History extended)
+Implemented LBFGS optimizer as alternative to catastrophically-failing Adam for quaternion U-matrix convergence testing (TORCH-GEOMETRY-CONVERGENCE-001 Phase B Test B1).
+Added `use_lbfgs_for_u_matrix` config field and `--use-lbfgs`/`--optimizer-steps` CLI flags; implemented LBFGS (lr=1.0, strong_wolfe line search) vs Adam branching in optimization loop with closure pattern refactor; regression guard test_stage_a_expansion passed (13.16s, cell+misset default path unaffected).
+LBFGS test execution initiated in background (bash_id=1aebe3); convergence metrics and decision synthesis pending test completion (block_dof_results.json artifact pending).
+Artifacts: plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T165000Z/ (phase_b_test_protocol.md, pytest_stage_a_regression.log, stage_a_lbfgs_test.log)

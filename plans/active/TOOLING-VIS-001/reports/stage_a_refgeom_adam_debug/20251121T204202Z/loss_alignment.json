@@ -1,0 +1,9 @@
+{
+  "chi2_mapping": 989763.9308670142,
+  "chi2_stage_a": 989764.0,
+  "chi2_abs_diff": 0.06913298578001559,
+  "chi2_rel_diff": 6.984795426870771e-08,
+  "masked_pixels": 13084,
+  "clamped_pixels": 0,
+  "sigma_floor_value": 1.0
+}

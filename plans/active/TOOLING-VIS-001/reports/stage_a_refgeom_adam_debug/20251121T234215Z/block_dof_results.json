@@ -1,0 +1,76 @@
+{
+  "variants": {
+    "A_scale_only": {
+      "optimizer": {
+        "type": "Adam",
+        "learning_rate": 0.0001,
+        "steps": 10,
+        "train_scale": true,
+        "train_cell": false,
+        "train_orientation": false
+      },
+      "chi_squared": {
+        "before": 1133421.0,
+        "after": 3519607.0
+      },
+      "cc_summary": {
+        "median_before": 0.9999999843167922,
+        "median_after": 0.8461689077514131
+      }
+    },
+    "B_scale_plus_cell": {
+      "optimizer": {
+        "type": "Adam",
+        "learning_rate": 0.0001,
+        "steps": 10,
+        "train_scale": true,
+        "train_cell": true,
+        "train_orientation": false
+      },
+      "chi_squared": {
+        "before": 1133421.0,
+        "after": 3672471.0
+      },
+      "cc_summary": {
+        "median_before": 0.9999999843167922,
+        "median_after": 0.8438125611848155
+      }
+    },
+    "C_scale_plus_orientation": {
+      "optimizer": {
+        "type": "Adam",
+        "learning_rate": 0.0001,
+        "steps": 10,
+        "train_scale": true,
+        "train_cell": false,
+        "train_orientation": true
+      },
+      "chi_squared": {
+        "before": 1133421.0,
+        "after": 1438120.5
+      },
+      "cc_summary": {
+        "median_before": 0.9999999843167922,
+        "median_after": 0.8895957627371185
+      }
+    },
+    "D_full": {
+      "optimizer": {
+        "type": "Adam",
+        "learning_rate": 0.0001,
+        "steps": 10,
+        "train_scale": true,
+        "train_cell": true,
+        "train_orientation": true
+      },
+      "chi_squared": {
+        "before": 1133421.0,
+        "after": 2697940.75
+      },
+      "cc_summary": {
+        "median_before": 0.9999999843167922,
+        "median_after": 0.8808291947859863
+      }
+    }
+  }
+}

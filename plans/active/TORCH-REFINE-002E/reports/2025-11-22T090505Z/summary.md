@@ -1,5 +1,5 @@
 ### Turn Summary
-Switched focus from deferred PERF-WARM-SIM-001 to Tier 1 TORCH-REFINE-002E and authored Phase A0 probe extension to decompose the 4e-5 A* gap into rotation vs strain components.
-Reviewed prior attempt showing `max_abs_diff≈4.0e-5` (fails < 1e-6 exit criterion) and Phase 5 Adam degradation; next step is extending the parity probe with eigenvalue/SVD/logm diagnostics.
-Next: Ralph implements the extended probe per implementation.md checklist A0, runs it on canonical refGeom, and emits rotation vs strain metrics to guide Phase A1/A2 decision.
-Artifacts: plans/active/TORCH-REFINE-002E/reports/2025-11-22T090505Z/ (summary.md, planning notes; probe artifacts pending Ralph's execution)
+Implemented Phase A0 extended diagnostics for crystal matrix parity probe to decompose the 4e-5 A* gap into rotation vs strain components.
+Key finding: log_u_symmetric_norm=1.37e-3 confirms the gap is dominated by symmetric strain (≈1000× larger than rotation), validating Hypothesis H1 from the implementation plan.
+Next: Proceed to Phase A2 to test baseline B_ideal variants derived from mapping's MOSFLM A* to eliminate the strain component.
+Artifacts: plans/active/TORCH-REFINE-002E/reports/2025-11-22T090505Z/ (crystal_matrix_parity.json, probe_extended.log)

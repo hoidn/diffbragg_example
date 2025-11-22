@@ -1,121 +1,134 @@
-# Ralph Input — 2025-11-22T110000Z
+# Ralph Input — 2025-11-22T120000Z
 
 ## Summary
-Validate Phase C1 partial success via Phase 5 convergence testing (exit criteria #2-3).
+Complete Phase 5 with reduced scope (A_scale_only + D_full only, 5 steps) to determine convergence viability.
 
 ## Mode
-none (validation run + decision synthesis)
+none (final validation → decision synthesis)
 
 ## Focus
-TORCH-REFINE-002E — Fix Stage A Zero-Point Geometry Discontinuity (Phase C1 validation + decision)
+TORCH-REFINE-002E — Fix Stage A Zero-Point Geometry Discontinuity (Phase C1 decisive validation)
 
 ## Branch
 integration
 
 ## Mapped tests
-- `plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py --phases 1,2,4,5` (tooling, exit-criterion #2-3)
-- `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` (Active, regression guard already passed in 2025-11-22T100021Z)
+- `plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py --phases 5 --adam-steps 5 --dof-variants A_scale_only,D_full` (tooling, exit-criterion #2-3)
+- `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` (Active, regression guard - skip if Phase 5 completes)
 
 ## Artifacts
-`plans/active/TORCH-REFINE-002E/reports/2025-11-22T110000Z/`
-- `stage_a_debug_phase5.json` (Phase 5 A_scale_only/D_full results)
-- `zero_point_check.json` (Phase 1 zero-point chi-squared validation)
-- `block_dof_results.json` (Phase 5 per-variant trajectories)
+`plans/active/TORCH-REFINE-002E/reports/2025-11-22T120000Z/`
+- `block_dof_results_reduced.json` (Phase 5 A_scale_only/D_full only, 5 Adam steps)
 - `stage_a_debug.log`
 - `decision.json` (synthesis of all phases → final recommendation)
 - `commands.txt`
 
 ## Do Now
 
-**Context:** Phase C1 (Branch G geometry fix) achieved **partial success**:
-- ✅ All three B_ideal variants (dxtbx unitcell, recovered, mapping-aligned) now produce **identical** results
-- ✅ Implementation correctly derives B_ideal from MOSFLM A* (verified by identical baseline missets)
-- ✅ Regression guard (`test_stage_a_expansion`) PASSED
-- ❌ Exit criterion #1 literal threshold unmet: `max_abs_diff = 4.022e-05` (40× above 1e-6)
-- ✅ Exit criterion #1 alternative satisfied: "clearly identified non-rotational strain component with quantified magnitude"
-  - Symmetric strain: 1.369e-3 (1000× larger than antisymmetric 1.37e-7)
-  - Not fixable by B_ideal choice (all variants identical to 4 significant figures)
-  - Impact quantified: 24.5% χ² gap between mapping and explicit parameterization at zero deltas
+**Context:** Phase C1 validation (2025-11-22T110000Z) was incomplete—Phase 5 ran >12 minutes building HKL grids without producing `block_dof_results.json`. However, **Phase 1-4 artifacts provide decisive evidence**:
 
-**Decision Point:** Per `implementation.md:30-35`, Exit Criterion #1 has **two paths**:
-1. Pure-rotation with `max_abs_diff < 1e-6` (NOT achieved), **OR**
-2. Clearly identified strain with quantified magnitude and **documented impact on gradients** (ACHIEVED)
+- ✅ Exit criterion #1 **alternative path satisfied**: Symmetric strain 1.369e-3 identified, impact quantified (24.5% χ² gap, orientation_vec gradient magnitude ≈2.88e8)
+- ❌ Exit criteria #2-3 **unmet**: Phase 4 shows **convergence degradation** (χ²: 1.13M → 2.80M after 1 Adam step, all DoFs walk away from zero)
+- ❓ **Missing decisive data**: Phase 5 block-DoF trajectories (would show if `A_scale_only` subset maintains stability despite geometry gap)
 
-The remaining question is **whether this 4e-5 gap blocks refinement convergence** (exit criteria #2-3). If Phase 5 validation shows stable/improving convergence despite the geometry gap, we can document the residual strain and **proceed**.
+**Escalation Trigger:** Per **repeat-failure escalation** rule, this is the **final validation attempt** for TORCH-REFINE-002E before escalation. If Phase 5 reduced-scope run shows degradation for *both* A_scale_only and D_full, mark initiative as `blocked` and escalate to new implementation initiative (TORCH-GEOMETRY-PARITY-002 or alternative parameterization).
 
-**Validation Plan:**
-1. Run `stage_a_mapping_adam_debug.py --phases 1,2,4,5` with the **mapping-aligned baseline misset** from Phase C1
-2. Capture Phase 1 zero-point chi-squared (expect ≈2.98e6 explicit vs ≈2.39e6 mapping, confirming 24.5% gap persists)
-3. Capture Phase 5 A_scale_only and D_full trajectories
-4. **Decision synthesis:**
-   - If A_scale_only maintains CC ≥ 0.99 and stable χ² (≤0.5% drift) → **Accept documented residual, mark initiative done**
-   - If D_full shows monotonic χ² improvement without large CC collapses → **Accept documented residual, mark initiative done**
-   - If both fail (degrade CC or diverge) → **Pivot to Phase B3 (LR sensitivity sweep)** to test if convergence can be recovered with tuning
-   - If LR sweep also fails → **Escalate to new initiative** (TORCH-SIMULATOR-PARITY-001 or alternative parameterization)
+**Validation Plan (Reduced Scope):**
+
+Run Phase 5 with **minimal scope** to avoid HKL grid rebuilding timeout:
+1. **Skip Phases 1-4** (already have artifacts from 2025-11-22T110000Z)
+2. **Run Phase 5 ONLY** with:
+   - DoF variants: `A_scale_only` and `D_full` (skip B/C)
+   - Adam steps: **5** (reduced from default 10)
+   - This should cut HKL grid builds from ~28+ to ~12-14 (2 variants × 5 steps + validation)
+3. **Timeout**: 20 minutes (double the previous run's observed duration)
+4. **Capture**: `block_dof_results_reduced.json` with A_scale_only/D_full trajectories
+
+**Decision Synthesis (Required):**
+
+After Phase 5 completes (or times out), create `decision.json` per this logic:
+
+```json
+{
+  "decision": "<accept_residual|escalate_to_new_initiative>",
+  "rationale": "<1-2 sentence explanation>",
+  "exit_criterion_1_status": "alternative_path_satisfied",
+  "exit_criterion_2_status": "<pass|fail>",
+  "exit_criterion_3_status": "<pass|fail>",
+  "phase_5_completion": "<completed|timeout>",
+  "residual_strain_magnitude": 1.369e-3,
+  "max_abs_diff_a_star": 4.022e-05,
+  "chi_squared_gap_percent": 24.5,
+  "phase_4_single_step": {
+    "chi_squared_before": 1133420.75,
+    "chi_squared_after": 2799388.5,
+    "degradation_factor": 2.47
+  },
+  "phase_5_a_scale_only": {
+    "median_cc_final": "<value or null>",
+    "chi_squared_final": "<value or null>",
+    "stable_convergence": "<true|false|null>"
+  },
+  "phase_5_d_full": {
+    "median_cc_final": "<value or null>",
+    "chi_squared_final": "<value or null>",
+    "monotonic_improvement": "<true|false|null>"
+  },
+  "recommended_next_action": "<specific action>"
+}
+```
+
+**Decision Tree:**
+
+1. **If Phase 5 completes and A_scale_only maintains CC ≥ 0.99 + stable χ² (≤0.5% drift):**
+   - `decision = "accept_residual"`
+   - `exit_criterion_2_status = "pass"`
+   - Update `docs/findings.md` GEOMETRY-003 with residual strain documentation
+   - Mark TORCH-REFINE-002E as `done`
+
+2. **If Phase 5 completes but A_scale_only degrades (CC < 0.99 or large χ² drift):**
+   - `decision = "escalate_to_new_initiative"`
+   - `exit_criterion_2_status = "fail"`
+   - Do NOT update GEOMETRY-003
+   - Mark TORCH-REFINE-002E as `blocked`
+   - Recommend opening TORCH-GEOMETRY-PARITY-002 (U-matrix direct override) or alternative
+
+3. **If Phase 5 times out again (>20 min):**
+   - `decision = "escalate_to_new_initiative"`
+   - `exit_criterion_2_status = "inconclusive"`
+   - Recommend either (a) opening PERF-PHASE5-HKL-001 to fix Phase 5 performance, or (b) accepting Phase 4 evidence as sufficient to escalate geometry parity initiative
 
 **Checklist:**
 
-1. **Run Phase 5 validation:**
+1. **Run Phase 5 reduced scope:**
    ```bash
+   timeout 1200 \
    KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
    python plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py \
-     --phases 1,2,4,5 \
+     --phases 5 \
      --device cpu \
-     --out-dir plans/active/TORCH-REFINE-002E/reports/2025-11-22T110000Z/
+     --adam-steps 5 \
+     --dof-variants A_scale_only,D_full \
+     --out-dir plans/active/TORCH-REFINE-002E/reports/2025-11-22T120000Z/
    ```
-   - Capture all Phase 1-5 artifacts (zero_point_check.json, block_dof_results.json, etc.)
-   - Expected: Phase 1 will show χ²_mapping ≈ 2.39e6, χ²_explicit_zero ≈ 2.98e6 (24.5% gap)
-   - Critical metrics from Phase 5:
-     - A_scale_only: median_cc_after, chi_squared_after (compare to before)
-     - D_full: median_cc_after, chi_squared_after, trajectory monotonicity
+   - Expected outputs: `block_dof_results_reduced.json`, `stage_a_debug.log`
+   - If timeout: capture partial log and proceed to decision synthesis
 
 2. **Synthesize decision:**
-   - Review Phase 5 results and compare to exit criteria #2-3
-   - Create `decision.json` capturing:
-     ```json
-     {
-       "decision": "accept_residual" | "pivot_to_lr_sweep" | "escalate_to_new_initiative",
-       "rationale": "<1-2 sentence explanation>",
-       "exit_criterion_1_status": "alternative_path_satisfied",
-       "exit_criterion_2_status": "pass" | "fail" | "conditional",
-       "exit_criterion_3_status": "pass" | "fail" | "conditional",
-       "residual_strain_magnitude": 1.369e-3,
-       "max_abs_diff_a_star": 4.022e-05,
-       "chi_squared_gap_percent": 24.5,
-       "phase_5_a_scale_only": {
-         "median_cc_before": <value>,
-         "median_cc_after": <value>,
-         "chi_squared_before": <value>,
-         "chi_squared_after": <value>,
-         "stable_convergence": true | false
-       },
-       "phase_5_d_full": {
-         "median_cc_before": <value>,
-         "median_cc_after": <value>,
-         "chi_squared_before": <value>,
-         "chi_squared_after": <value>,
-         "monotonic_improvement": true | false
-       },
-       "recommended_next_action": "<specific action if not done>"
-     }
-     ```
+   - Review Phase 5 results (or timeout signature)
+   - Create `decision.json` per template above
+   - **Critical**: If Phase 5 shows degradation for *both* variants, this is a **blocker** requiring escalation
 
 3. **Update findings (conditional):**
-   - If decision is "accept_residual" and exit criteria #2-3 pass:
-     - Update `docs/findings.md` GEOMETRY-003 row with:
-       - The mapping-aligned baseline misset uses `B_ideal_mapping = (A*_mapping)^{-T}` (implemented)
-       - Residual symmetric strain 1.369e-3 persists across all B_ideal variants (documented)
-       - 4e-5 A* parity gap does **not** block Stage-A refinement convergence per Phase 5 validation
-       - Reference: `plans/active/TORCH-REFINE-002E/reports/2025-11-22T110000Z/decision.json`
-   - If decision is "pivot_to_lr_sweep", do NOT update GEOMETRY-003 yet
+   - **Only if** `decision = "accept_residual"` and exit criteria #2 pass:
+     - Update `docs/findings.md` GEOMETRY-003 row with residual strain documentation
+     - Reference: `plans/active/TORCH-REFINE-002E/reports/2025-11-22T120000Z/decision.json`
+   - **Otherwise**: Do NOT update GEOMETRY-003
 
-4. **Update fix_plan (conditional):**
-   - If decision is "accept_residual" and exit criteria #2-3 pass:
-     - Mark TORCH-REFINE-002E as `done` in `docs/fix_plan.md`
-     - Append final Attempts History entry with decision synthesis
-   - If decision is "pivot_to_lr_sweep":
-     - Keep TORCH-REFINE-002E as `in_progress`
-     - Append Attempts History with Phase C1 validation outcome and next action (Phase B3)
+4. **Update fix_plan (required):**
+   - Append Attempts History entry with Phase C1 validation outcome and decision
+   - If `decision = "accept_residual"`: mark TORCH-REFINE-002E as `done`
+   - If `decision = "escalate_to_new_initiative"`: mark as `blocked` with rationale and recommended next initiative
 
 ## How-To Map
 
@@ -126,63 +139,61 @@ export KMP_DUPLICATE_LIB_OK=TRUE
 export NANOBRAGG_DISABLE_COMPILE=1
 ```
 
-**Phase 5 Validation Command:**
+**Phase 5 Reduced-Scope Command:**
 ```bash
+timeout 1200 \
 KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
 python plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py \
-  --phases 1,2,4,5 \
+  --phases 5 \
   --device cpu \
-  --out-dir plans/active/TORCH-REFINE-002E/reports/2025-11-22T110000Z/
+  --adam-steps 5 \
+  --dof-variants A_scale_only,D_full \
+  --out-dir plans/active/TORCH-REFINE-002E/reports/2025-11-22T120000Z/
 ```
 
 **Expected Outputs:**
-- `plans/active/TORCH-REFINE-002E/reports/2025-11-22T110000Z/zero_point_check.json` (Phase 1)
-- `plans/active/TORCH-REFINE-002E/reports/2025-11-22T110000Z/block_dof_results.json` (Phase 5)
-- `plans/active/TORCH-REFINE-002E/reports/2025-11-22T110000Z/stage_a_debug.log`
-- `plans/active/TORCH-REFINE-002E/reports/2025-11-22T110000Z/commands.txt`
+- `plans/active/TORCH-REFINE-002E/reports/2025-11-22T120000Z/block_dof_results_reduced.json`
+- `plans/active/TORCH-REFINE-002E/reports/2025-11-22T120000Z/stage_a_debug.log`
+- `plans/active/TORCH-REFINE-002E/reports/2025-11-22T120000Z/commands.txt`
 
-**Decision Synthesis:**
-After Phase 5 completes, manually create `decision.json` per template in step 2 above.
+**Decision Synthesis (manual):**
+After Phase 5 completes or times out, create `decision.json` per template in Do Now step 2.
 
 ## Pitfalls To Avoid
 
-1. **Do not revert Phase C1 implementation:** The mapping-aligned B_ideal derivation is correct even though it didn't close the gap to 1e-6. Keep it.
-2. **Do not adjust exit criteria without evidence:** Only relax threshold if Phase 5 shows stable convergence.
-3. **Do not skip decision synthesis:** The `decision.json` artifact is **required** to close the loop.
+1. **Do not revert Phase C1 implementation:** The mapping-aligned B_ideal derivation is correct even though it didn't close the gap.
+2. **Do not relax exit criteria without Phase 5 evidence:** Only accept residual if Phase 5 shows A_scale_only stability.
+3. **Timeout handling:** If Phase 5 times out again, treat it as evidence for escalation (Phase 4 shows degradation, Phase 5 can't complete).
 4. **Device/dtype neutrality:** Phase 5 runs on CPU (`--device cpu`); no GPU-specific code needed.
-5. **Protected Assets:** Do NOT modify `tests/fixtures/golden_data/` or Phase C1 implementation unless decision is "escalate".
+5. **Protected Assets:** Do NOT modify `tests/fixtures/golden_data/` or Phase C1 implementation.
 6. **No normative math paraphrasing:** Reference `implementation.md:30-35` for exit criterion interpretation.
 7. **Exit criteria precision:** Focus on **convergence behavior** (CC stability, χ² monotonicity), not literal A* parity.
-8. **Regression discipline:** Stage-A expansion smoke already passed in 2025-11-22T100021Z; no need to re-run.
+8. **Escalation discipline:** If both A_scale_only and D_full fail, this is a **hard blocker** requiring new initiative.
 9. **Commit hygiene:** Commit the decision.json and any findings/fix_plan updates **only after synthesis is complete**.
 10. **No environment changes:** Do not install packages or upgrade dependencies.
 
 ## If Blocked
 
-1. **If `stage_a_mapping_adam_debug.py` fails to run:**
-   - Capture the error log in `plans/active/TORCH-REFINE-002E/reports/2025-11-22T110000Z/error.log`
-   - Check if the Phase C1 mapping-aligned baseline misset is properly wired into the debug driver
-   - Return to supervisor with the failure signature and recommend revisiting Phase C1 integration
+1. **If Phase 5 times out again (>20 min):**
+   - Capture the timeout signature in `plans/active/TORCH-REFINE-002E/reports/2025-11-22T120000Z/timeout.log`
+   - Set `decision = "escalate_to_new_initiative"` with `phase_5_completion = "timeout"`
+   - Document that Phase 4 evidence (2.47× degradation) is sufficient to escalate
+   - Recommend either PERF-PHASE5-HKL-001 (Phase 5 performance fix) or accept Phase 4 as decisive
 
-2. **If Phase 5 A_scale_only degrades CC below 0.99:**
-   - Capture the exact trajectory in `block_dof_results.json`
-   - Set `decision = "pivot_to_lr_sweep"` in `decision.json`
-   - Document the recommended LR/step grid for Phase B3 (e.g., LR: [1e-5, 5e-5, 1e-4], steps: [1, 3, 10])
-   - Return to supervisor with explicit next-action
-
-3. **If Phase 5 D_full shows non-monotonic χ² or large CC collapses:**
-   - Capture the trajectory showing the divergence
-   - Set `decision = "conditional"` and note that D_full may need to be gated/disabled
-   - Return to supervisor with recommendation to either accept A_scale_only-only convergence or pursue Phase B3
-
-4. **If both A_scale_only and D_full fail convergence checks:**
+2. **If Phase 5 completes but both A_scale_only AND D_full degrade:**
    - Set `decision = "escalate_to_new_initiative"`
-   - Document that the 4e-5 geometry gap **does** block refinement convergence
-   - Recommend opening TORCH-SIMULATOR-PARITY-001 to investigate crystal tensor numerical precision or alternative parameterizations (quaternion, axis-angle)
-   - Return to supervisor with the recommendation
+   - `exit_criterion_2_status = "fail"`, `exit_criterion_3_status = "fail"`
+   - Document that the 4e-5 geometry gap **blocks all refinement DoF convergence**
+   - Recommend opening TORCH-GEOMETRY-PARITY-002 to implement U-matrix direct override (bypass cell+misset parameterization)
 
-5. **Log all blockers** in `plans/active/TORCH-REFINE-002E/reports/2025-11-22T110000Z/blocker.md` with:
-   - Specific failure mode (Phase 5 variant + metric that failed)
+3. **If Phase 5 shows A_scale_only stable but D_full degrades:**
+   - Set `decision = "accept_residual"` with `exit_criterion_3_status = "conditional"`
+   - Document that full-DoF geometry refinement is blocked but scale-only convergence works
+   - Update GEOMETRY-003 with this constraint
+   - Mark TORCH-REFINE-002E as `done` with caveat
+
+4. **Log all blockers** in `plans/active/TORCH-REFINE-002E/reports/2025-11-22T120000Z/blocker.md` with:
+   - Specific failure mode (Phase 5 timeout or degradation signature)
    - Which exit criterion is unmet (#2 or #3)
    - Recommended next action from the decision tree above
 
@@ -192,7 +203,7 @@ After Phase 5 completes, manually create `decision.json` per template in step 2 
 
 - **GEOMETRY-001** (detector mapping): Not directly relevant, maintained for hygiene.
 - **GEOMETRY-002** (Euler inversion): Applies—baseline misset uses analytic XYZ Euler inversion.
-- **GEOMETRY-003** (baseline misset): **CRITICAL**—Phase C1 extended this to use mapping-derived B_ideal; will update after decision synthesis.
+- **GEOMETRY-003** (baseline misset): **CRITICAL**—Phase C1 extended this to use mapping-derived B_ideal; will update after decision synthesis if `accept_residual`.
 - **GRADIENT-001** (tensor overrides): Applies—no .detach() or .cpu() in forward pass.
 - **REFINE-004** (HKL interpolation): Not changed by Phase C1.
 - **REFINE-005** (HKL halo): Tricubic interpolation enabled.
@@ -219,10 +230,11 @@ After Phase 5 completes, manually create `decision.json` per template in step 2 
 - `plans/active/TORCH-REFINE-002E/implementation.md:124-156` — Phase C decision branches
 
 **Prior Phase Artifacts:**
-- `plans/active/TORCH-REFINE-002E/reports/2025-11-22T100021Z/blocker.md` — Phase C1 outcome
-- `plans/active/TORCH-REFINE-002E/reports/2025-11-22T100021Z/crystal_matrix_parity.json` — All three B_ideal variants identical
+- `plans/active/TORCH-REFINE-002E/reports/2025-11-22T110000Z/blocker.md` — Phase 5 incomplete
+- `plans/active/TORCH-REFINE-002E/reports/2025-11-22T110000Z/single_step_adam.json` — Phase 4 shows 2.47× degradation
 - `plans/active/TORCH-REFINE-002E/reports/2025-11-22T100330Z/forward_model_comparison.json` — 24.5% χ² gap
 - `plans/active/TORCH-REFINE-002E/reports/2025-11-22T094500Z/gradient_probe.json` — Large non-zero gradients at zero
+- `plans/active/TORCH-REFINE-002E/reports/2025-11-22T091200Z/crystal_matrix_parity.json` — All three B_ideal variants identical
 
 **Fix Plan:**
 - `docs/fix_plan.md` — TORCH-REFINE-002E entry (will update after decision synthesis)
@@ -232,21 +244,16 @@ After Phase 5 completes, manually create `decision.json` per template in step 2 
 
 ## Next Up (optional)
 
-**If decision is "accept_residual" (exit criteria #2-3 pass):**
+**If decision is "accept_residual" (A_scale_only stable):**
 1. Mark TORCH-REFINE-002E as `done` in `docs/fix_plan.md`
-2. Update GEOMETRY-003 in `docs/findings.md` with residual strain documentation
-3. Proceed to TOOLING-VIS-001 validation (all Stage-A visualizations with geometry fix)
-4. Return control to supervisor for Tier 1 completion review
+2. Update GEOMETRY-003 in `docs/findings.md` with residual strain documentation + convergence constraint
+3. Proceed to next Tier 1 item per Roadmap
+4. Return control to supervisor for focus selection
 
-**If decision is "pivot_to_lr_sweep":**
-1. Keep TORCH-REFINE-002E as `in_progress`
-2. Supervisor will author Phase B3 input.md (LR sensitivity sweep)
-3. Do NOT proceed to other initiatives until B3 completes
-
-**If decision is "escalate_to_new_initiative":**
-1. Keep TORCH-REFINE-002E as `blocked`
-2. Supervisor will open TORCH-SIMULATOR-PARITY-001 or alternative
-3. Return control to supervisor with blocker documentation
+**If decision is "escalate_to_new_initiative" (both variants degrade or timeout):**
+1. Mark TORCH-REFINE-002E as `blocked` in `docs/fix_plan.md`
+2. Supervisor will open TORCH-GEOMETRY-PARITY-002 (U-matrix direct override) or alternative
+3. Return control to supervisor with blocker documentation and recommended initiative spec
 
 ## Doc Sync Plan
 
@@ -257,4 +264,4 @@ After Phase 5 completes, manually create `decision.json` per template in step 2 
 See `implementation.md:30-35` for exit criterion interpretation:
 > Exit Criterion #1: either achieve `max_abs_diff < 1e-6` **OR** "a clearly identified non-rotational strain component with quantified magnitude and documented impact on gradients."
 
-Phase C1 achieved the **alternative path** (strain identified, quantified, impact measured). Now we validate whether this residual blocks convergence (exit criteria #2-3).
+Phase C1 achieved the **alternative path** (strain identified: 1.369e-3, impact quantified: 24.5% χ² gap, orientation_vec gradient magnitude ≈2.88e8). Phase 5 determines whether this residual blocks convergence (exit criteria #2-3).

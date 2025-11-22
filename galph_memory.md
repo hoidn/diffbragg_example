@@ -602,3 +602,13 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-22T110000Z focus=TORCH-REFINE-002E state=ready_for_implementation dwell=0 artifacts=plans/active/TORCH-REFINE-002E/reports/2025-11-22T110000Z/ next_action=phase_5_validation_decision_synthesis
+
+## 2025-11-22T120000Z — TORCH-REFINE-002E Phase C1 decisive validation (reduced scope)
+- Focus: TORCH-REFINE-002E — Fix Stage A Zero-Point Geometry Discontinuity
+- Action Type: planning
+- Key Observations: Reviewed Phase C1 validation artifacts (2025-11-22T110000Z) showing incomplete Phase 5 (ran >12min building HKL grids, never produced `block_dof_results.json`) but decisive Phase 1-4 evidence: Exit criterion #1 alternative path satisfied (symmetric strain 1.369e-3 identified, 24.5% χ² gap quantified, orientation_vec gradient magnitude ≈2.88e8), Phase 4 shows convergence degradation (χ²: 1.13M → 2.80M after 1 Adam step, all DoFs walk away from zero). Per repeat-failure escalation rule, this is the **final validation attempt** before escalation. Authored reduced-scope Phase 5 Do Now (A_scale_only + D_full only, 5 Adam steps instead of 10, 20-minute timeout) to avoid HKL grid rebuild bottleneck. Decision tree: if A_scale_only maintains CC ≥ 0.99 + stable χ² → accept residual and mark done; if both variants degrade or timeout → escalate to TORCH-GEOMETRY-PARITY-002 (U-matrix direct override) or alternative. Updated input.md with comprehensive decision synthesis template and blocker handling protocol.
+- Artifact Path: plans/active/TORCH-REFINE-002E/reports/2025-11-22T120000Z/
+- Next Actions: Ralph runs Phase 5 reduced scope (timeout 1200s), synthesizes decision.json per template, and updates findings/fix_plan based on convergence viability (accept_residual vs escalate_to_new_initiative).
+- <Action State>: [ready_for_implementation]
+
+2025-11-22T120000Z focus=TORCH-REFINE-002E state=ready_for_implementation dwell=1 artifacts=plans/active/TORCH-REFINE-002E/reports/2025-11-22T120000Z/ next_action=phase_5_reduced_scope_decisive_validation

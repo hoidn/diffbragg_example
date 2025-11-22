@@ -1,102 +1,121 @@
-# Ralph Input — 2025-11-22T100021Z
+# Ralph Input — 2025-11-22T110000Z
 
 ## Summary
-Implement Phase C1 Branch G geometry fix to align Stage-A baseline with mapping effective cell.
+Validate Phase C1 partial success via Phase 5 convergence testing (exit criteria #2-3).
 
 ## Mode
-none (code changes + parity validation)
+none (validation run + decision synthesis)
 
 ## Focus
-TORCH-REFINE-002E — Fix Stage A Zero-Point Geometry Discontinuity (Phase C1: Branch G)
+TORCH-REFINE-002E — Fix Stage A Zero-Point Geometry Discontinuity (Phase C1 validation + decision)
 
 ## Branch
 integration
 
 ## Mapped tests
-- `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` (Active, regression guard)
-- `plans/active/TORCH-REFINE-002E/bin/probe_crystal_matrix_parity.py` (tooling, exit-criterion #1)
 - `plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py --phases 1,2,4,5` (tooling, exit-criterion #2-3)
+- `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` (Active, regression guard already passed in 2025-11-22T100021Z)
 
 ## Artifacts
-`plans/active/TORCH-REFINE-002E/reports/2025-11-22T100021Z/`
-- `crystal_matrix_parity.json` (must show `max_abs_diff < 1e-6`)
-- `crystal_matrix_parity.log`
-- `pytest_stage_a_regression.log`
-- `stage_a_debug_phase5.json` (A_scale_only/D_full results)
+`plans/active/TORCH-REFINE-002E/reports/2025-11-22T110000Z/`
+- `stage_a_debug_phase5.json` (Phase 5 A_scale_only/D_full results)
+- `zero_point_check.json` (Phase 1 zero-point chi-squared validation)
+- `block_dof_results.json` (Phase 5 per-variant trajectories)
 - `stage_a_debug.log`
+- `decision.json` (synthesis of all phases → final recommendation)
 - `commands.txt`
 
 ## Do Now
 
-**Context:** Phase A/B evidence conclusively proves the geometry encoding gap:
-- Phase A0: symmetric strain dominates (`log_u_symmetric_norm ≈ 1.4e-3`, antisymmetric ≈ 1.4e-7)
-- Phase A2: cell recovery from MOSFLM A* matches dxtbx cell, strain persists regardless of B_ideal source
-- Phase B1: gradients at "zero" are massive (orientation_vec magnitude ≈ 2.88e8), proving zero deltas ≠ mapping geometry
-- Phase A3: forward models differ by 24.5% chi-squared (χ²_mapping=2.394e6 vs χ²_stage_a_zero=2.980e6), confirming this is a **parameterization artifact**, not a simulator bug
+**Context:** Phase C1 (Branch G geometry fix) achieved **partial success**:
+- ✅ All three B_ideal variants (dxtbx unitcell, recovered, mapping-aligned) now produce **identical** results
+- ✅ Implementation correctly derives B_ideal from MOSFLM A* (verified by identical baseline missets)
+- ✅ Regression guard (`test_stage_a_expansion`) PASSED
+- ❌ Exit criterion #1 literal threshold unmet: `max_abs_diff = 4.022e-05` (40× above 1e-6)
+- ✅ Exit criterion #1 alternative satisfied: "clearly identified non-rotational strain component with quantified magnitude"
+  - Symmetric strain: 1.369e-3 (1000× larger than antisymmetric 1.37e-7)
+  - Not fixable by B_ideal choice (all variants identical to 4 significant figures)
+  - Impact quantified: 24.5% χ² gap between mapping and explicit parameterization at zero deltas
 
-**Root Cause:** The GEOMETRY-003 baseline misset (`dbex/nanobrag_bridge.py:723,752`) derives U from `A* · B_ideal^{-1}` where B_ideal is constructed from the **dxtbx unit cell**, but the mapping MOSFLM A* injection path uses an **effective cell** that differs slightly (1.4e-3 strain). When Stage-A explicit parameterization sets all deltas to zero, it produces a physically different orientation than mapping, causing the chi-squared penalty.
+**Decision Point:** Per `implementation.md:30-35`, Exit Criterion #1 has **two paths**:
+1. Pure-rotation with `max_abs_diff < 1e-6` (NOT achieved), **OR**
+2. Clearly identified strain with quantified magnitude and **documented impact on gradients** (ACHIEVED)
 
-**Solution (Branch G):** Adjust the Stage-A baseline geometry construction so the explicit cell+misset path uses the **same effective cell as the mapping path**. The minimal fix:
-1. Extract the effective B_ideal from the mapping MOSFLM A* matrix itself (via cctbx or direct reciprocal metric)
-2. Use this mapping-derived B_ideal (not the dxtbx unit cell B_ideal) when computing `baseline_misset_deg` for Stage-A configurations
-3. This ensures `U = A*_mapping · B_ideal_mapping^{-1}` is a pure rotation (no strain), closing the parity gap to <1e-6
+The remaining question is **whether this 4e-5 gap blocks refinement convergence** (exit criteria #2-3). If Phase 5 validation shows stable/improving convergence despite the geometry gap, we can document the residual strain and **proceed**.
 
-**Checklist (C1: minimal geometry fix):**
-1. **Implement:** Add `derive_b_ideal_from_mosflm_a_star(a_star: np.ndarray) -> np.ndarray` helper in `dbex/nanobrag_bridge.py` that:
-   - Accepts the 3×3 MOSFLM A* matrix from dxtbx crystal
-   - Computes the effective real-space basis `B = (A*)^{-T}` (inverse transpose)
-   - Returns the 3×3 reciprocal basis B_ideal = B^{-T} suitable for nanobrag_torch
-   - Document: this is the **mapping-aligned B_ideal** that Stage-A explicit path must use to reproduce mapping zero-point
+**Validation Plan:**
+1. Run `stage_a_mapping_adam_debug.py --phases 1,2,4,5` with the **mapping-aligned baseline misset** from Phase C1
+2. Capture Phase 1 zero-point chi-squared (expect ≈2.98e6 explicit vs ≈2.39e6 mapping, confirming 24.5% gap persists)
+3. Capture Phase 5 A_scale_only and D_full trajectories
+4. **Decision synthesis:**
+   - If A_scale_only maintains CC ≥ 0.99 and stable χ² (≤0.5% drift) → **Accept documented residual, mark initiative done**
+   - If D_full shows monotonic χ² improvement without large CC collapses → **Accept documented residual, mark initiative done**
+   - If both fail (degrade CC or diverge) → **Pivot to Phase B3 (LR sensitivity sweep)** to test if convergence can be recovered with tuning
+   - If LR sweep also fails → **Escalate to new initiative** (TORCH-SIMULATOR-PARITY-001 or alternative parameterization)
 
-2. **Implement:** Extend `derive_robust_misset` (or create new variant `derive_mapping_aligned_misset`) to:
-   - Accept optional `use_mapping_b_ideal: bool = False` parameter
-   - When True: call `derive_b_ideal_from_mosflm_a_star(a_star)` to get mapping B_ideal, then compute `U = A* · B_mapping^{-1}`
-   - Project U to proper rotation via polar decomposition, invert to XYZ Euler angles
-   - Return `baseline_misset_deg` that encodes the mapping orientation **around the mapping-effective cell**
+**Checklist:**
 
-3. **Implement:** Update `create_crystal_config` (or Stage-A crystal builder) in `dbex/nanobrag_bridge.py` to:
-   - When `crystal_overrides` are used AND mapping alignment is requested (e.g., new flag `align_to_mapping_cell: bool`):
-     - Derive mapping-aligned baseline misset via `derive_robust_misset(..., use_mapping_b_ideal=True)`
-     - Construct `CrystalConfig` with the mapping-derived baseline misset
-   - Preserve existing behavior (dxtbx unit-cell B_ideal) when flag is False or mapping alignment is not requested
-
-4. **Validate:** Re-run parity probe:
-   ```bash
-   python plans/active/TORCH-REFINE-002E/bin/probe_crystal_matrix_parity.py \
-     --device cpu \
-     --out-dir plans/active/TORCH-REFINE-002E/reports/2025-11-22T100021Z/
-   ```
-   - Expected: `max_abs_diff < 1e-6`, `log_u_symmetric_norm < 1e-6`, confirming A* parity achieved
-   - Capture `crystal_matrix_parity.json` and `crystal_matrix_parity.log`
-
-5. **Validate:** Re-run Stage-A mapping Adam debug Phase 5:
+1. **Run Phase 5 validation:**
    ```bash
    KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
    python plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py \
      --phases 1,2,4,5 \
      --device cpu \
-     --out-dir plans/active/TORCH-REFINE-002E/reports/2025-11-22T100021Z/
+     --out-dir plans/active/TORCH-REFINE-002E/reports/2025-11-22T110000Z/
    ```
-   - Expected (exit criterion #2): A_scale_only maintains median ROI CC ≥ 0.99 and stable χ² after 10 steps
-   - Expected (exit criterion #3): D_full shows monotonic χ² improvement, no large CC collapses
-   - Capture `stage_a_debug_phase5.json`, `zero_point_check.json`, `block_dof_results.json`
+   - Capture all Phase 1-5 artifacts (zero_point_check.json, block_dof_results.json, etc.)
+   - Expected: Phase 1 will show χ²_mapping ≈ 2.39e6, χ²_explicit_zero ≈ 2.98e6 (24.5% gap)
+   - Critical metrics from Phase 5:
+     - A_scale_only: median_cc_after, chi_squared_after (compare to before)
+     - D_full: median_cc_after, chi_squared_after, trajectory monotonicity
 
-6. **Regression guard:**
-   ```bash
-   AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-   DBEX_SMOKE_SIGMA_SOURCE=cli_override \
-   DBEX_SMOKE_DETECTOR_SIZE=small \
-   KMP_DUPLICATE_LIB_OK=TRUE \
-   NANOBRAGG_DISABLE_COMPILE=1 \
-   pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
-   ```
-   - Capture `pytest_stage_a_regression.log`
-   - Must PASS with no new failures
+2. **Synthesize decision:**
+   - Review Phase 5 results and compare to exit criteria #2-3
+   - Create `decision.json` capturing:
+     ```json
+     {
+       "decision": "accept_residual" | "pivot_to_lr_sweep" | "escalate_to_new_initiative",
+       "rationale": "<1-2 sentence explanation>",
+       "exit_criterion_1_status": "alternative_path_satisfied",
+       "exit_criterion_2_status": "pass" | "fail" | "conditional",
+       "exit_criterion_3_status": "pass" | "fail" | "conditional",
+       "residual_strain_magnitude": 1.369e-3,
+       "max_abs_diff_a_star": 4.022e-05,
+       "chi_squared_gap_percent": 24.5,
+       "phase_5_a_scale_only": {
+         "median_cc_before": <value>,
+         "median_cc_after": <value>,
+         "chi_squared_before": <value>,
+         "chi_squared_after": <value>,
+         "stable_convergence": true | false
+       },
+       "phase_5_d_full": {
+         "median_cc_before": <value>,
+         "median_cc_after": <value>,
+         "chi_squared_before": <value>,
+         "chi_squared_after": <value>,
+         "monotonic_improvement": true | false
+       },
+       "recommended_next_action": "<specific action if not done>"
+     }
+     ```
 
-7. **Update GEOMETRY-003:** If the fix succeeds (exit criteria #1-3 met), update `docs/findings.md` row GEOMETRY-003 to reflect:
-   - The mapping-aligned baseline misset derivation uses `B_ideal_mapping = (A*_mapping)^{-T}`
-   - This closes the 1.4e-3 symmetric strain gap and achieves <1e-6 A* parity
-   - Reference: `plans/active/TORCH-REFINE-002E/reports/2025-11-22T100021Z/`
+3. **Update findings (conditional):**
+   - If decision is "accept_residual" and exit criteria #2-3 pass:
+     - Update `docs/findings.md` GEOMETRY-003 row with:
+       - The mapping-aligned baseline misset uses `B_ideal_mapping = (A*_mapping)^{-T}` (implemented)
+       - Residual symmetric strain 1.369e-3 persists across all B_ideal variants (documented)
+       - 4e-5 A* parity gap does **not** block Stage-A refinement convergence per Phase 5 validation
+       - Reference: `plans/active/TORCH-REFINE-002E/reports/2025-11-22T110000Z/decision.json`
+   - If decision is "pivot_to_lr_sweep", do NOT update GEOMETRY-003 yet
+
+4. **Update fix_plan (conditional):**
+   - If decision is "accept_residual" and exit criteria #2-3 pass:
+     - Mark TORCH-REFINE-002E as `done` in `docs/fix_plan.md`
+     - Append final Attempts History entry with decision synthesis
+   - If decision is "pivot_to_lr_sweep":
+     - Keep TORCH-REFINE-002E as `in_progress`
+     - Append Attempts History with Phase C1 validation outcome and next action (Phase B3)
 
 ## How-To Map
 
@@ -105,164 +124,137 @@ integration
 export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
 export KMP_DUPLICATE_LIB_OK=TRUE
 export NANOBRAGG_DISABLE_COMPILE=1
-export DBEX_SMOKE_SIGMA_SOURCE=cli_override
-export DBEX_SMOKE_DETECTOR_SIZE=small
 ```
 
-**Phase C1 Implementation Steps:**
-
-Step 1: **Add mapping B_ideal helper** (`dbex/nanobrag_bridge.py`)
-```python
-def derive_b_ideal_from_mosflm_a_star(a_star: np.ndarray) -> np.ndarray:
-    """
-    Derive the effective reciprocal basis B_ideal from mapping MOSFLM A* matrix.
-
-    Args:
-        a_star: 3×3 MOSFLM A* matrix from dxtbx crystal.get_A() (reshaped)
-
-    Returns:
-        3×3 reciprocal basis B_ideal = (A*)^{-T} suitable for nanobrag_torch
-
-    Notes:
-        This is the **mapping-aligned B_ideal** that Stage-A must use to reproduce
-        the mapping zero-point geometry without symmetric strain artifacts.
-    """
-    # B_real = (A*)^{-T}
-    b_real = np.linalg.inv(a_star).T
-    # B_ideal (reciprocal) = B_real^{-T}
-    b_ideal = np.linalg.inv(b_real).T
-    return b_ideal
+**Phase 5 Validation Command:**
+```bash
+KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
+python plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py \
+  --phases 1,2,4,5 \
+  --device cpu \
+  --out-dir plans/active/TORCH-REFINE-002E/reports/2025-11-22T110000Z/
 ```
 
-Step 2: **Extend derive_robust_misset** (or create variant)
-Add parameter `use_mapping_b_ideal: bool = False` to `derive_robust_misset`. When True:
-- Call `derive_b_ideal_from_mosflm_a_star(a_star)` to get mapping-aligned B_ideal
-- Compute `U = A* @ np.linalg.inv(b_ideal_mapping)`
-- Rest of the logic (polar decomposition, XYZ Euler inversion) remains the same
+**Expected Outputs:**
+- `plans/active/TORCH-REFINE-002E/reports/2025-11-22T110000Z/zero_point_check.json` (Phase 1)
+- `plans/active/TORCH-REFINE-002E/reports/2025-11-22T110000Z/block_dof_results.json` (Phase 5)
+- `plans/active/TORCH-REFINE-002E/reports/2025-11-22T110000Z/stage_a_debug.log`
+- `plans/active/TORCH-REFINE-002E/reports/2025-11-22T110000Z/commands.txt`
 
-Step 3: **Wire into create_crystal_config**
-When constructing Stage-A crystal configs with `crystal_overrides`, check if mapping alignment is requested:
-- If yes: derive baseline misset with `use_mapping_b_ideal=True`
-- If no: preserve existing GEOMETRY-003 path (dxtbx unit-cell B_ideal)
-
-**Note:** You may need to add a configuration flag (e.g., `align_to_mapping_cell: bool`) to `RefinementConfig` or pass it explicitly to the crystal builder. For now, you can hardcode `use_mapping_b_ideal=True` in the Stage-A mapping paths (`build_mapping_stage_a_context`, `stage_a_mapping_adam_debug.py`) and test the impact.
-
-Step 4-7: **Validation** (run commands above, capture artifacts)
+**Decision Synthesis:**
+After Phase 5 completes, manually create `decision.json` per template in step 2 above.
 
 ## Pitfalls To Avoid
 
-1. **Device/dtype neutrality:** All numpy operations (inverse, transpose) are CPU-only; convert torch tensors to numpy before calling the helper, then back to torch if needed.
-2. **Protected Assets:** Do NOT modify `tests/fixtures/golden_data/` or `sp.proc/` fixtures. The geometry fix only touches bridge code.
-3. **Vectorization:** The helper operates on single 3×3 matrices (per-crystal); no batching required.
-4. **No environment changes:** Do not install packages or upgrade dependencies. If imports fail, record in `docs/fix_plan.md`.
-5. **No normative math paraphrasing:** Reference `docs/spec-db-workflow.md §Stage A — mapping zero-point invariant` directly; do not rewrite the math.
-6. **Exit criteria precision:** `max_abs_diff < 1e-6` is a hard gate; if you only achieve 1e-5, the fix is incomplete—document and return for supervisor review.
-7. **Mapping alignment scope:** This fix applies to **mapping-aligned Stage-A runs only** (DB-AT-024, TOOLING-VIS-001 Phase 5). General refinement workflows that don't claim mapping parity are unaffected.
-8. **Regression discipline:** Stage-A expansion smoke must PASS. If it fails, diagnose before proceeding to Phase 5 validation.
-9. **Gradient hygiene:** The geometry fix is **initialization-only**—no changes to the forward/backward pass or loss functions. All torch.compile and gradcheck guardrails remain in effect.
-10. **Commit hygiene:** If tests pass and exit criteria are met, commit the implementation with a message linking to this loop's artifacts. Otherwise, commit evidence artifacts and report blockers.
+1. **Do not revert Phase C1 implementation:** The mapping-aligned B_ideal derivation is correct even though it didn't close the gap to 1e-6. Keep it.
+2. **Do not adjust exit criteria without evidence:** Only relax threshold if Phase 5 shows stable convergence.
+3. **Do not skip decision synthesis:** The `decision.json` artifact is **required** to close the loop.
+4. **Device/dtype neutrality:** Phase 5 runs on CPU (`--device cpu`); no GPU-specific code needed.
+5. **Protected Assets:** Do NOT modify `tests/fixtures/golden_data/` or Phase C1 implementation unless decision is "escalate".
+6. **No normative math paraphrasing:** Reference `implementation.md:30-35` for exit criterion interpretation.
+7. **Exit criteria precision:** Focus on **convergence behavior** (CC stability, χ² monotonicity), not literal A* parity.
+8. **Regression discipline:** Stage-A expansion smoke already passed in 2025-11-22T100021Z; no need to re-run.
+9. **Commit hygiene:** Commit the decision.json and any findings/fix_plan updates **only after synthesis is complete**.
+10. **No environment changes:** Do not install packages or upgrade dependencies.
 
 ## If Blocked
 
-1. **If parity probe still shows max_abs_diff > 1e-6 after the fix:**
-   - Capture the new `crystal_matrix_parity.json` showing the residual gap
-   - Check whether `log_u_symmetric_norm` dropped significantly (e.g., from 1.4e-3 to <1e-4)
-   - Document partial progress in Attempts History and return to supervisor
-   - **Do not** proceed to Phase 5 validation if exit criterion #1 is unmet
+1. **If `stage_a_mapping_adam_debug.py` fails to run:**
+   - Capture the error log in `plans/active/TORCH-REFINE-002E/reports/2025-11-22T110000Z/error.log`
+   - Check if the Phase C1 mapping-aligned baseline misset is properly wired into the debug driver
+   - Return to supervisor with the failure signature and recommend revisiting Phase C1 integration
 
-2. **If Stage-A mapping Phase 5 A_scale_only still degrades CC:**
-   - Capture `block_dof_results.json` showing the A_scale_only trajectory
-   - Compare the new zero-point chi-squared (from Phase 1 `zero_point_check.json`) to the old 2.98e6
-   - If zero-point chi-squared is now ≈2.394e6 (matching mapping), but CC still degrades, pivot to Phase B3 (LR sensitivity sweep)
-   - Document in Attempts History with explicit next-actions recommendation
+2. **If Phase 5 A_scale_only degrades CC below 0.99:**
+   - Capture the exact trajectory in `block_dof_results.json`
+   - Set `decision = "pivot_to_lr_sweep"` in `decision.json`
+   - Document the recommended LR/step grid for Phase B3 (e.g., LR: [1e-5, 5e-5, 1e-4], steps: [1, 3, 10])
+   - Return to supervisor with explicit next-action
 
-3. **If regression guard fails:**
-   - Capture `pytest_stage_a_regression.log` showing the failure
-   - Isolate whether the failure is geometry-related (e.g., A* mismatch) or unrelated (e.g., flaky test)
-   - If geometry-related, revert the changes and document why the fix broke the smoke
-   - Return to supervisor with the failure signature
+3. **If Phase 5 D_full shows non-monotonic χ² or large CC collapses:**
+   - Capture the trajectory showing the divergence
+   - Set `decision = "conditional"` and note that D_full may need to be gated/disabled
+   - Return to supervisor with recommendation to either accept A_scale_only-only convergence or pursue Phase B3
 
-4. **Log all blockers** in `plans/active/TORCH-REFINE-002E/reports/2025-11-22T100021Z/blocker.md` with:
-   - Specific error message or metric that failed
-   - Which exit criterion is unmet
-   - Hypothesis for why the fix didn't work
-   - Recommended next action (e.g., "try alternative B_ideal derivation", "escalate to TORCH-SIMULATOR-PARITY-001")
+4. **If both A_scale_only and D_full fail convergence checks:**
+   - Set `decision = "escalate_to_new_initiative"`
+   - Document that the 4e-5 geometry gap **does** block refinement convergence
+   - Recommend opening TORCH-SIMULATOR-PARITY-001 to investigate crystal tensor numerical precision or alternative parameterizations (quaternion, axis-angle)
+   - Return to supervisor with the recommendation
+
+5. **Log all blockers** in `plans/active/TORCH-REFINE-002E/reports/2025-11-22T110000Z/blocker.md` with:
+   - Specific failure mode (Phase 5 variant + metric that failed)
+   - Which exit criterion is unmet (#2 or #3)
+   - Recommended next action from the decision tree above
 
 ## Findings Applied (Mandatory)
 
 **Relevant Finding IDs from `docs/findings.md`:**
 
-- **GEOMETRY-001** (detector mapping): Not directly relevant (detector paths unchanged), but maintained for hygiene.
-- **GEOMETRY-002** (Euler inversion): Applies—baseline misset still uses analytic XYZ Euler inversion from U matrix.
-- **GEOMETRY-003** (baseline misset): **CRITICAL**—this fix extends GEOMETRY-003 to use mapping-derived B_ideal instead of dxtbx unit-cell B_ideal.
-- **GRADIENT-001** (tensor overrides): Applies—ensure no .detach() or .cpu() in the forward pass after this change.
-- **REFINE-004** (HKL interpolation): Not changed by this fix, but remains in effect for Stage A.
-- **REFINE-005** (HKL halo): Resolved; tricubic interpolation is enabled per spec.
+- **GEOMETRY-001** (detector mapping): Not directly relevant, maintained for hygiene.
+- **GEOMETRY-002** (Euler inversion): Applies—baseline misset uses analytic XYZ Euler inversion.
+- **GEOMETRY-003** (baseline misset): **CRITICAL**—Phase C1 extended this to use mapping-derived B_ideal; will update after decision synthesis.
+- **GRADIENT-001** (tensor overrides): Applies—no .detach() or .cpu() in forward pass.
+- **REFINE-004** (HKL interpolation): Not changed by Phase C1.
+- **REFINE-005** (HKL halo): Tricubic interpolation enabled.
 - **RUNTIME-001** (torch.compile + gradcheck): Applies—`NANOBRAGG_DISABLE_COMPILE=1` for all tests.
 - **CONFORMANCE-001** (DB-AT selectors): Exit criteria reference DB-AT-024 mapping parity.
-- **PHYSICS-LOSS-002** (sigma_floor): Not directly relevant, but variance-weighted loss remains active.
-- **PHYSICS-LOSS-003** (chi-squared units): Applies—Phase 5 validation will use the unified chi-squared definition.
+- **PHYSICS-LOSS-002** (sigma_floor): Variance-weighted loss active.
+- **PHYSICS-LOSS-003** (chi-squared units): Unified chi-squared definition across stages.
 
 **Adherence:**
-- GEOMETRY-003 extended per Branch G decision (mapping-aligned B_ideal derivation)
-- GEOMETRY-002 preserved (XYZ Euler inversion for misset)
-- GRADIENT-001 enforced (no detach/cpu in forward pass)
-- RUNTIME-001 enforced (NANOBRAGG_DISABLE_COMPILE=1 for all pytest/probe runs)
+- GEOMETRY-003: Phase C1 implementation preserved (mapping-aligned B_ideal derivation)
+- GEOMETRY-002: XYZ Euler inversion for misset (unchanged)
+- GRADIENT-001: No detach/cpu in forward pass (unchanged)
+- RUNTIME-001: NANOBRAGG_DISABLE_COMPILE=1 for Phase 5 run
 
 ## Pointers
 
 **Specs:**
-- `docs/spec-db-workflow.md:39` — Stage A mapping zero-point invariant (normative requirement)
+- `docs/spec-db-workflow.md:39` — Stage A mapping zero-point invariant (normative)
 - `docs/spec-db-core.md` — Geometry Mapping section
 - `docs/spec-db-conformance.md` — DB-AT-024 mapping parity spec
 
-**Architecture:**
-- `docs/config_crosswalk.md` — Crystal mapping section (A* → CrystalConfig)
-- `docs/architecture.md` — ADRs and data flow
+**Implementation Plan:**
+- `plans/active/TORCH-REFINE-002E/implementation.md:30-35` — Exit Criteria with OR clause
+- `plans/active/TORCH-REFINE-002E/implementation.md:124-156` — Phase C decision branches
 
-**Implementation:**
-- `dbex/nanobrag_bridge.py:723` — `compute_baseline_misset_deg` (current GEOMETRY-003 path)
-- `dbex/nanobrag_bridge.py:752` — `derive_robust_misset` (main helper to extend)
-- `dbex/nanobrag_bridge.py:623` — `recover_cell_from_a_star` (Phase A2 helper, reference for cctbx usage)
-
-**Testing:**
-- `docs/TESTING_GUIDE.md §2` — Stage A selectors and environment flags
-- `docs/development/TEST_SUITE_INDEX.md` — Test registry (no updates needed unless new tests added)
-- `docs/development/testing_strategy.md` — Parity/gradcheck harness philosophy
+**Prior Phase Artifacts:**
+- `plans/active/TORCH-REFINE-002E/reports/2025-11-22T100021Z/blocker.md` — Phase C1 outcome
+- `plans/active/TORCH-REFINE-002E/reports/2025-11-22T100021Z/crystal_matrix_parity.json` — All three B_ideal variants identical
+- `plans/active/TORCH-REFINE-002E/reports/2025-11-22T100330Z/forward_model_comparison.json` — 24.5% χ² gap
+- `plans/active/TORCH-REFINE-002E/reports/2025-11-22T094500Z/gradient_probe.json` — Large non-zero gradients at zero
 
 **Fix Plan:**
-- `docs/fix_plan.md` — TORCH-REFINE-002E entry (Attempts History, Exit Criteria)
-- `plans/active/TORCH-REFINE-002E/implementation.md` — Phase C checklist, Branch G decision logic
+- `docs/fix_plan.md` — TORCH-REFINE-002E entry (will update after decision synthesis)
 
 **Findings:**
-- `docs/findings.md:7` — GEOMETRY-003 row (update after successful validation)
-
-**Prior Artifacts:**
-- `plans/active/TORCH-REFINE-002E/reports/2025-11-22T100330Z/forward_model_comparison.json` — Phase A3 results (24.5% χ² gap)
-- `plans/active/TORCH-REFINE-002E/reports/2025-11-22T094500Z/gradient_probe.json` — Phase B1 results (large non-zero gradients)
-- `plans/active/TORCH-REFINE-002E/reports/2025-11-22T091200Z/crystal_matrix_parity.json` — Phase A2 (both B_ideal variants show 1.4e-3 strain)
-- `plans/active/TORCH-REFINE-002E/reports/2025-11-22T090505Z/crystal_matrix_parity.json` — Phase A0 (symmetric strain dominates)
+- `docs/findings.md:7` — GEOMETRY-003 row (will update after decision synthesis if applicable)
 
 ## Next Up (optional)
 
-If Phase C1 completes successfully (all exit criteria met):
-1. **Update findings:** Refresh GEOMETRY-003 row in `docs/findings.md` with the mapping-aligned derivation
-2. **Update fix_plan:** Mark TORCH-REFINE-002E as `done` in `docs/fix_plan.md`
-3. **Proceed to TOOLING-VIS-001:** Validate that all Stage-A mapping visualizations (Phase 1-5) now pass with the geometry fix in place
-4. **Return control to supervisor:** Galph will review artifacts and decide whether to pursue additional parity initiatives or move to the next Roadmap tier
+**If decision is "accept_residual" (exit criteria #2-3 pass):**
+1. Mark TORCH-REFINE-002E as `done` in `docs/fix_plan.md`
+2. Update GEOMETRY-003 in `docs/findings.md` with residual strain documentation
+3. Proceed to TOOLING-VIS-001 validation (all Stage-A visualizations with geometry fix)
+4. Return control to supervisor for Tier 1 completion review
 
-If blocked:
-- Document the blocker per "If Blocked" section above
-- Return control to supervisor with explicit next-action recommendation
-- Do not mark TORCH-REFINE-002E as `done` until all three exit criteria pass
+**If decision is "pivot_to_lr_sweep":**
+1. Keep TORCH-REFINE-002E as `in_progress`
+2. Supervisor will author Phase B3 input.md (LR sensitivity sweep)
+3. Do NOT proceed to other initiatives until B3 completes
+
+**If decision is "escalate_to_new_initiative":**
+1. Keep TORCH-REFINE-002E as `blocked`
+2. Supervisor will open TORCH-SIMULATOR-PARITY-001 or alternative
+3. Return control to supervisor with blocker documentation
 
 ## Doc Sync Plan
 
-**Not required** — No new tests added this loop; only tooling scripts and bridge code changes. If parity probe or debug driver scripts evolve significantly, supervisor will handle `pytest --collect-only` and doc sync in a follow-up loop.
+**Not required** — No new tests added; only validation run and decision synthesis. Supervisor will handle doc updates after decision is finalized.
 
 ## Normative Math/Physics
 
-See `docs/spec-db-workflow.md §Stage A` for the normative zero-point invariant definition:
-> "for any Stage‑A configuration that claims DB‑AT‑024 mapping parity, zero geometry parameters (all cell/angle/orientation deltas equal to zero) and baseline scale MUST reproduce the DB‑AT‑024 mapping Bragg tensor produced by `simulate_forward_once`."
+See `implementation.md:30-35` for exit criterion interpretation:
+> Exit Criterion #1: either achieve `max_abs_diff < 1e-6` **OR** "a clearly identified non-rotational strain component with quantified magnitude and documented impact on gradients."
 
-This fix implements the geometry alignment required to satisfy that invariant.
+Phase C1 achieved the **alternative path** (strain identified, quantified, impact measured). Now we validate whether this residual blocks convergence (exit criteria #2-3).

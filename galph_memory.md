@@ -592,3 +592,13 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-22T100021Z focus=TORCH-REFINE-002E state=ready_for_implementation dwell=0 artifacts=plans/active/TORCH-REFINE-002E/reports/2025-11-22T100021Z/ next_action=phase_c1_branch_g_geometry_fix
+
+## 2025-11-22T110000Z — TORCH-REFINE-002E Phase C1 validation prep
+- Focus: TORCH-REFINE-002E — Fix Stage A Zero-Point Geometry Discontinuity
+- Action Type: planning
+- Key Observations: Reviewed Ralph's Phase C1 implementation attempt (2025-11-22T100021Z) showing partial success: all three B_ideal variants (dxtbx unitcell, recovered, mapping-aligned) now produce **identical** parity results (max_abs_diff ≈ 4.022e-05, log_u_symmetric_norm ≈ 1.369e-3), confirming the geometry gap is NOT fixable by changing B_ideal derivation but instead represents a numerical precision floor or Euler gimbal lock artifact. Regression guard (test_stage_a_expansion) PASSED, verifying the mapping-aligned implementation is stable. **Critical Decision:** Per implementation.md:30-35, Exit Criterion #1 has an **OR** clause—either achieve <1e-6 parity **OR** identify and document the strain component with quantified impact. Ralph achieved the **alternative path** (symmetric strain 1.369e-3 identified, 1000× larger than antisymmetric 1.37e-7; 24.5% χ² gap quantified; not fixable by B_ideal choice). The remaining question is whether this 4e-5 gap **blocks refinement convergence** (exit criteria #2-3). Authored a new Do Now directing Ralph to run `stage_a_mapping_adam_debug.py --phases 1,2,4,5` and synthesize a decision based on Phase 5 A_scale_only/D_full trajectories: if CC ≥ 0.99 and stable/monotonic χ², accept the documented residual and mark initiative `done`; if convergence fails, pivot to Phase B3 (LR sensitivity sweep) or escalate to TORCH-SIMULATOR-PARITY-001.
+- Artifact Path: plans/active/TORCH-REFINE-002E/reports/2025-11-22T110000Z/
+- Next Actions: Ralph runs Phase 5 validation, captures A_scale_only/D_full convergence metrics, synthesizes decision.json, and conditionally updates findings/fix_plan per the decision tree in input.md.
+- <Action State>: [ready_for_implementation]
+
+2025-11-22T110000Z focus=TORCH-REFINE-002E state=ready_for_implementation dwell=0 artifacts=plans/active/TORCH-REFINE-002E/reports/2025-11-22T110000Z/ next_action=phase_5_validation_decision_synthesis

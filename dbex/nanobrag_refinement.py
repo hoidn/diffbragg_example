@@ -266,6 +266,12 @@ class RefinementConfig:
     # mapping MOSFLM A* strain and eliminating the 1.37e-3 symmetric strain artifact.
     use_u_matrix_parameterization: bool = False
 
+    # LBFGS optimizer for U-matrix path (TORCH-GEOMETRY-CONVERGENCE-001 Phase B Test B1)
+    # When True, uses LBFGS optimizer instead of Adam for quaternion U-matrix refinement.
+    # LBFGS eliminates momentum accumulation (H4), uses line search (H3), proven for scale-only.
+    # Only applies when use_u_matrix_parameterization=True.
+    use_lbfgs_for_u_matrix: bool = False
+
     # Warm cache (PERF-WARM-SIM-001)
     # Enable Stage A warm cache (prebuild detector models/masks/HKL once).
     # Default True for production (2-5× speedup). Disable for benchmarking cold baseline.

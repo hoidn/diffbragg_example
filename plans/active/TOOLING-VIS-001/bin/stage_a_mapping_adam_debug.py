@@ -689,6 +689,7 @@ def _stage_a_adam_core(
     train_cell: bool,
     train_orientation: bool,
     use_u_matrix: bool = False,
+    use_lbfgs: bool = False,
     telemetry_output_dir: str | None = None,
 ) -> Dict[str, object]:
     """Core helper for Stage A Adam experiments (Phase 4 / Phase 5).
@@ -696,6 +697,8 @@ def _stage_a_adam_core(
     Args:
         use_u_matrix: If True, use quaternion U-matrix parameterization for
             orientation (TORCH-GEOMETRY-PARITY-002).
+        use_lbfgs: If True, use LBFGS optimizer instead of Adam for U-matrix path
+            (TORCH-GEOMETRY-CONVERGENCE-001 Test B1).
     """
     components = _build_stage_a_components(
         dataload,
@@ -774,7 +777,30 @@ def _stage_a_adam_core(
         params.append(orientation_vec)
 
     trainable_params = [p for p in params if p.requires_grad]
-    optimizer = torch.optim.Adam(trainable_params, lr=lr) if trainable_params else None
+
+    # TORCH-GEOMETRY-CONVERGENCE-001 Test B1: Support LBFGS optimizer for U-matrix path
+    if trainable_params:
+        if use_lbfgs and use_u_matrix:
+            # LBFGS for quaternion U-matrix refinement
+            optimizer = torch.optim.LBFGS(
+                trainable_params,
+                lr=1.0,  # LBFGS uses line search; LR=1.0 is standard
+                max_iter=20,  # Per-step line search iterations
+                tolerance_grad=1e-7,
+                tolerance_change=1e-9,
+                history_size=10,
+                line_search_fn='strong_wolfe'
+            )
+            print("Stage A: Using LBFGS optimizer for U-matrix path (CONVERGENCE-001 Test B1)")
+        else:
+            # Default Adam optimizer
+            optimizer = torch.optim.Adam(trainable_params, lr=lr)
+            if use_u_matrix:
+                print("Stage A: Using Adam optimizer for U-matrix path (default)")
+            else:
+                print("Stage A: Using Adam optimizer for cell+misset path (default)")
+    else:
+        optimizer = None
 
     sigma_floor_sq_tensor = torch.tensor(
         float(context.sigma_floor_value ** 2),
@@ -807,72 +833,153 @@ def _stage_a_adam_core(
     loss_trace: List[float] = [float(chi_sq_before_t.item())]
 
     if optimizer is not None and n_steps > 0:
-        for step_idx in range(n_steps):
-            optimizer.zero_grad()
-            bragg_t, chi_sq_t = _forward_once(use_mapping_zero_geometry=False)
-            chi_sq_t.backward()
+        if use_lbfgs and use_u_matrix:
+            # LBFGS requires closure pattern
+            for step_idx in range(n_steps):
+                def closure():
+                    optimizer.zero_grad()
+                    bragg_t, chi_sq_t = _forward_once(use_mapping_zero_geometry=False)
+                    chi_sq_t.backward()
+                    return chi_sq_t
 
-            # Telemetry: Emit per-step metrics (TORCH-GEOMETRY-CONVERGENCE-001 Phase A1)
-            if telemetry_output_dir and use_u_matrix and q_params is not None:
-                from pathlib import Path
+                # Get loss value before optimizer step for telemetry
+                with torch.no_grad():
+                    _, chi_sq_before_step = _forward_once(use_mapping_zero_geometry=False)
 
-                # Capture parameters (before optimizer step)
-                q_norm_value = torch.norm(q_params).item()
-                telemetry_params = {
-                    'step_index': step_idx,
-                    'q_params': q_params.detach().cpu().tolist(),
-                    'q_norm_value': q_norm_value,
-                    'log_scale': log_scale.item(),
-                }
+                # Telemetry: Emit per-step metrics (TORCH-GEOMETRY-CONVERGENCE-001 Phase A1)
+                if telemetry_output_dir and q_params is not None:
+                    from pathlib import Path
 
-                # Capture gradients (after backward, before step)
-                telemetry_gradients = {
-                    'grad_q_norm': torch.norm(q_params.grad).item() if q_params.grad is not None else None,
-                    'grad_q_max': torch.max(torch.abs(q_params.grad)).item() if q_params.grad is not None else None,
-                    'grad_q_min': torch.min(torch.abs(q_params.grad)).item() if q_params.grad is not None else None,
-                    'grad_log_scale': torch.abs(log_scale.grad).item() if log_scale.grad is not None else None,
-                    'grad_has_nan': torch.isnan(q_params.grad).any().item() if q_params.grad is not None else False,
-                    'grad_has_inf': torch.isinf(q_params.grad).any().item() if q_params.grad is not None else False,
-                }
+                    # Capture parameters (before optimizer step)
+                    q_norm_value = torch.norm(q_params).item()
+                    telemetry_params = {
+                        'step_index': step_idx,
+                        'q_params': q_params.detach().cpu().tolist(),
+                        'q_norm_value': q_norm_value,
+                        'log_scale': log_scale.item(),
+                    }
 
-                # Capture loss (chi_squared from forward pass)
-                # Note: This script doesn't have per-pixel variance stats available inline
-                # so we emit simplified telemetry with chi_squared only
-                telemetry_loss = {
-                    'chi_squared': chi_sq_t.item(),
-                    'masked_mse': None,  # Not available in this simplified loop
-                    'masked_pixels': None,
-                    'clamped_pixels': None,
-                    'clamp_fraction': None,
-                }
+                    # For LBFGS, gradients are computed inside closure
+                    # We capture them after a forward/backward pass before step()
+                    optimizer.zero_grad()
+                    _, chi_sq_temp = _forward_once(use_mapping_zero_geometry=False)
+                    chi_sq_temp.backward()
 
-                # Variance components: Not available in this simplified forward loop
-                telemetry_variance = {
-                    'i_model_min': None,
-                    'i_model_median': None,
-                    'i_model_max': None,
-                    'i_model_std': None,
-                }
+                    telemetry_gradients = {
+                        'grad_q_norm': torch.norm(q_params.grad).item() if q_params.grad is not None else None,
+                        'grad_q_max': torch.max(torch.abs(q_params.grad)).item() if q_params.grad is not None else None,
+                        'grad_q_min': torch.min(torch.abs(q_params.grad)).item() if q_params.grad is not None else None,
+                        'grad_log_scale': torch.abs(log_scale.grad).item() if log_scale.grad is not None else None,
+                        'grad_has_nan': torch.isnan(q_params.grad).any().item() if q_params.grad is not None else False,
+                        'grad_has_inf': torch.isinf(q_params.grad).any().item() if q_params.grad is not None else False,
+                    }
 
-                # Combine and emit
-                telemetry_step = {
-                    **telemetry_params,
-                    **telemetry_gradients,
-                    **telemetry_loss,
-                    **telemetry_variance,
-                }
+                    telemetry_loss = {
+                        'chi_squared': chi_sq_before_step.item(),
+                        'masked_mse': None,
+                        'masked_pixels': None,
+                        'clamped_pixels': None,
+                        'clamp_fraction': None,
+                    }
 
-                try:
-                    telemetry_path = Path(telemetry_output_dir) / f"telemetry_step_{step_idx:03d}.json"
-                    telemetry_path.parent.mkdir(parents=True, exist_ok=True)
-                    with open(telemetry_path, 'w') as f:
-                        json.dump(telemetry_step, f, indent=2)
-                except Exception as e:
-                    import sys
-                    print(f"Warning: Failed to write telemetry JSON at step {step_idx}: {e}", file=sys.stderr)
+                    telemetry_variance = {
+                        'i_model_min': None,
+                        'i_model_median': None,
+                        'i_model_max': None,
+                        'i_model_std': None,
+                    }
 
-            optimizer.step()
-            loss_trace.append(float(chi_sq_t.item()))
+                    telemetry_step = {
+                        **telemetry_params,
+                        **telemetry_gradients,
+                        **telemetry_loss,
+                        **telemetry_variance,
+                    }
+
+                    try:
+                        telemetry_path = Path(telemetry_output_dir) / f"telemetry_step_{step_idx:03d}.json"
+                        telemetry_path.parent.mkdir(parents=True, exist_ok=True)
+                        with open(telemetry_path, 'w') as f:
+                            json.dump(telemetry_step, f, indent=2)
+                    except Exception as e:
+                        import sys
+                        print(f"Warning: Failed to write telemetry JSON at step {step_idx}: {e}", file=sys.stderr)
+
+                # LBFGS step with closure
+                optimizer.step(closure)
+
+                # Record loss after step
+                with torch.no_grad():
+                    _, chi_sq_after_step = _forward_once(use_mapping_zero_geometry=False)
+                    loss_trace.append(float(chi_sq_after_step.item()))
+        else:
+            # Adam pattern (no closure)
+            for step_idx in range(n_steps):
+                optimizer.zero_grad()
+                bragg_t, chi_sq_t = _forward_once(use_mapping_zero_geometry=False)
+                chi_sq_t.backward()
+
+                # Telemetry: Emit per-step metrics (TORCH-GEOMETRY-CONVERGENCE-001 Phase A1)
+                if telemetry_output_dir and use_u_matrix and q_params is not None:
+                    from pathlib import Path
+
+                    # Capture parameters (before optimizer step)
+                    q_norm_value = torch.norm(q_params).item()
+                    telemetry_params = {
+                        'step_index': step_idx,
+                        'q_params': q_params.detach().cpu().tolist(),
+                        'q_norm_value': q_norm_value,
+                        'log_scale': log_scale.item(),
+                    }
+
+                    # Capture gradients (after backward, before step)
+                    telemetry_gradients = {
+                        'grad_q_norm': torch.norm(q_params.grad).item() if q_params.grad is not None else None,
+                        'grad_q_max': torch.max(torch.abs(q_params.grad)).item() if q_params.grad is not None else None,
+                        'grad_q_min': torch.min(torch.abs(q_params.grad)).item() if q_params.grad is not None else None,
+                        'grad_log_scale': torch.abs(log_scale.grad).item() if log_scale.grad is not None else None,
+                        'grad_has_nan': torch.isnan(q_params.grad).any().item() if q_params.grad is not None else False,
+                        'grad_has_inf': torch.isinf(q_params.grad).any().item() if q_params.grad is not None else False,
+                    }
+
+                    # Capture loss (chi_squared from forward pass)
+                    # Note: This script doesn't have per-pixel variance stats available inline
+                    # so we emit simplified telemetry with chi_squared only
+                    telemetry_loss = {
+                        'chi_squared': chi_sq_t.item(),
+                        'masked_mse': None,  # Not available in this simplified loop
+                        'masked_pixels': None,
+                        'clamped_pixels': None,
+                        'clamp_fraction': None,
+                    }
+
+                    # Variance components: Not available in this simplified forward loop
+                    telemetry_variance = {
+                        'i_model_min': None,
+                        'i_model_median': None,
+                        'i_model_max': None,
+                        'i_model_std': None,
+                    }
+
+                    # Combine and emit
+                    telemetry_step = {
+                        **telemetry_params,
+                        **telemetry_gradients,
+                        **telemetry_loss,
+                        **telemetry_variance,
+                    }
+
+                    try:
+                        telemetry_path = Path(telemetry_output_dir) / f"telemetry_step_{step_idx:03d}.json"
+                        telemetry_path.parent.mkdir(parents=True, exist_ok=True)
+                        with open(telemetry_path, 'w') as f:
+                            json.dump(telemetry_step, f, indent=2)
+                    except Exception as e:
+                        import sys
+                        print(f"Warning: Failed to write telemetry JSON at step {step_idx}: {e}", file=sys.stderr)
+
+                optimizer.step()
+                loss_trace.append(float(chi_sq_t.item()))
 
     with torch.no_grad():
         bragg_after_t, chi_sq_after_t = _forward_once(use_mapping_zero_geometry=False)
@@ -1094,6 +1201,7 @@ def _run_blockwise_dof_experiments(
     out_dir: Path,
     dof_variants: list[str] | None = None,
     use_u_matrix: bool = False,
+    use_lbfgs: bool = False,
     telemetry_output_dir: str | None = None,
 ) -> Dict[str, object]:
     """Phase 5 — Block-wise DoF isolation experiments.
@@ -1129,6 +1237,7 @@ def _run_blockwise_dof_experiments(
             train_cell=cfg["train_cell"],
             train_orientation=cfg["train_orientation"],
             use_u_matrix=use_u_matrix,
+            use_lbfgs=use_lbfgs,
             telemetry_output_dir=telemetry_output_dir,
         )
         chi = payload.get("chi_squared", {})
@@ -1439,6 +1548,21 @@ def _parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--use-lbfgs",
+        action="store_true",
+        help=(
+            "Use LBFGS optimizer instead of Adam for U-matrix path "
+            "(TORCH-GEOMETRY-CONVERGENCE-001 Test B1). LBFGS eliminates momentum accumulation, "
+            "uses line search for stability. Only applies when --use-u-matrix is enabled."
+        ),
+    )
+    parser.add_argument(
+        "--optimizer-steps",
+        type=int,
+        default=10,
+        help="Number of optimizer steps (Adam or LBFGS). Default: 10.",
+    )
+    parser.add_argument(
         "--telemetry-dir",
         type=str,
         default=None,
@@ -1549,11 +1673,12 @@ def main(argv: List[str] | None = None) -> None:
                 dataload,
                 context,
                 device_str=args.device,
-                n_steps=max(args.adam_steps, 0),
+                n_steps=max(args.optimizer_steps, 0),
                 lr=args.adam_lr,
                 out_dir=out_root,
                 dof_variants=dof_variants_list,
                 use_u_matrix=args.use_u_matrix,
+                use_lbfgs=args.use_lbfgs,
                 telemetry_output_dir=telemetry_dir_resolved,
             )
 

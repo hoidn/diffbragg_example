@@ -1,0 +1,17 @@
+{
+  "step_index": 9,
+  "closure_state": "after_optimizer_step",
+  "q_params": [
+    -0.31253644824028015,
+    0.8748083114624023,
+    -0.25495991110801697,
+    0.2683781683444977
+  ],
+  "q_norm_value": 1.0,
+  "log_scale": -0.2049177587032318,
+  "chi_squared": 8829291.0,
+  "grad_q_norm": null,
+  "grad_log_scale": null,
+  "grad_has_nan": null,
+  "grad_has_inf": null
+}

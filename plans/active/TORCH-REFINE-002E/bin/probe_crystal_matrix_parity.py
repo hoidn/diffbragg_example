@@ -303,7 +303,7 @@ def _compute_path_b_variant_metrics(
     )
 
 
-def run_probe(device: str = "cpu") -> Dict[str, object]:
+def run_probe(device: str = "cpu", use_u_matrix: bool = False) -> Dict[str, object]:
     """
     Run the parity probe with Phase A2 baseline B_ideal variants.
 
@@ -311,6 +311,11 @@ def run_probe(device: str = "cpu") -> Dict[str, object]:
     - Path A: MOSFLM A* injection (mapping zero point)
     - Path B (unitcell): Explicit cell + baseline misset using dxtbx unit cell B_ideal
     - Path B (recovered): Explicit cell + baseline misset using recovered cell from MOSFLM A*
+    - Path B (u_matrix): [Optional, if use_u_matrix=True] Direct U-matrix quaternion parameterization
+
+    Args:
+        device: Torch device string.
+        use_u_matrix: If True, add U-matrix path validation (TORCH-GEOMETRY-PARITY-002 Phase C1).
 
     Returns a JSON payload with side-by-side comparison of both Path-B variants.
     """
@@ -540,6 +545,52 @@ def run_probe(device: str = "cpu") -> Dict[str, object]:
             "gamma_deg": cell_params[5],
         },
     }
+
+    # Phase C1: U-matrix direct parameterization validation
+    if use_u_matrix:
+        from dbex.nanobrag_bridge import (
+            derive_u_matrix_from_mosflm_a_star,
+            matrix_to_quaternion,
+            quaternion_to_matrix,
+        )
+
+        # For U-matrix path parity test: use the RAW U-matrix without quaternion projection
+        # to verify that A* = U @ B_ideal reproduces the mapping MOSFLM A* exactly.
+        # The quaternion normalization will only be applied during OPTIMIZATION, not at
+        # initialization, to preserve the mapping geometry including any embedded strain.
+
+        # Build B_ideal from dxtbx cell (same as all other variants for fair comparison)
+        B_ideal_reciprocal = _build_b_ideal_from_cell_params(cell_params, device=device)
+
+        # Extract RAW U-matrix without SO(3) projection
+        U0_np = derive_u_matrix_from_mosflm_a_star(a_star_A, cell_params)
+
+        # Compute A* = U0 @ B_ideal directly (no quaternion roundtrip)
+        # This should give us A* ≈ A*_MOSFLM with <1e-6 error if the math is correct
+        a_star_pathB_u = (U0_np @ B_ideal_reciprocal).astype(np.float64)
+
+        # Also compute quaternion diagnostics for reference (but don't use for reconstruction)
+        q0 = matrix_to_quaternion(torch.from_numpy(U0_np).double())
+        q_norm = q0 / torch.norm(q0)
+        quaternion_delta_norm = float(torch.norm(q_norm - q0).item())
+
+        # Compute parity metrics
+        variant_u_matrix = _compute_path_b_variant_metrics(
+            "PathB_u_matrix",
+            a_star_A,
+            a_star_pathB_u,
+            np.zeros(3),  # U-matrix has no misset_deg (direct orientation)
+        )
+
+        # Add U-matrix diagnostics to payload
+        payload["path_B_u_matrix"] = asdict(variant_u_matrix)
+        payload["u_matrix_diagnostics"] = {
+            "quaternion_delta_norm": quaternion_delta_norm,
+            "quaternion_initial_norm": float(torch.norm(q0).item()),
+            "quaternion_normalized_norm": float(torch.norm(q_norm).item()),
+            "u_matrix_det": float(np.linalg.det(U0_np)),
+        }
+
     return payload
 
 
@@ -575,11 +626,17 @@ def main(argv: list[str] | None = None) -> int:
         "Defaults to a timestamped directory under "
         "plans/active/TORCH-REFINE-002E/reports/.",
     )
+    parser.add_argument(
+        "--use-u-matrix",
+        action="store_true",
+        help="Use U-matrix parameterization instead of cell+misset decomposition "
+        "(TORCH-GEOMETRY-PARITY-002 Phase C1).",
+    )
 
     args = parser.parse_args(argv)
 
     try:
-        payload = run_probe(device=args.device)
+        payload = run_probe(device=args.device, use_u_matrix=args.use_u_matrix)
     except Exception as exc:  # pragma: no cover - diagnostic helper
         print(f"[probe_crystal_matrix_parity] ERROR: {exc}")
         return 1
@@ -613,6 +670,17 @@ def main(argv: list[str] | None = None) -> int:
         f"  PathB_mapping_aligned: log_u_symmetric_norm={path_b_mapping.get('log_u_symmetric_norm', 0):.3e}, "
         f"max_abs_diff={path_b_mapping.get('max_abs_diff', 0):.3e}"
     )
+    if args.use_u_matrix:
+        path_b_u = payload.get("path_B_u_matrix", {})
+        u_diag = payload.get("u_matrix_diagnostics", {})
+        print(
+            f"  PathB_u_matrix:       log_u_symmetric_norm={path_b_u.get('log_u_symmetric_norm', 0):.3e}, "
+            f"max_abs_diff={path_b_u.get('max_abs_diff', 0):.3e}"
+        )
+        print(
+            f"    U-matrix diagnostics: quaternion_delta_norm={u_diag.get('quaternion_delta_norm', 0):.3e}, "
+            f"det(U)={u_diag.get('u_matrix_det', 0):.6f}"
+        )
     print(f"\n[probe_crystal_matrix_parity] wrote report to: {out_path}")
     return 0
 

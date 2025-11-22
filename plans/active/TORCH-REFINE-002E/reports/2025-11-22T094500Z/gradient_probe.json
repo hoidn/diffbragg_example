@@ -1,0 +1,43 @@
+{
+  "mode": "gradient_probe",
+  "zero_point": {
+    "chi_squared": 2978945.0,
+    "masked_mse": 640995.875,
+    "masked_pixels": 13084,
+    "clamped_pixels": 0,
+    "dof_gradients": {
+      "log_scale": {
+        "value": 428189.5,
+        "magnitude": 428189.5
+      },
+      "cell_logs": {
+        "value": [
+          -97892824.0,
+          -6553928.5,
+          -4398323.0
+        ],
+        "magnitude": 98210512.0,
+        "element_wise_max_abs": 97892824.0
+      },
+      "angle_raws": {
+        "value": [
+          33267600.0,
+          99547504.0,
+          -113767448.0
+        ],
+        "magnitude": 154788464.0,
+        "element_wise_max_abs": 113767448.0
+      },
+      "orientation_vec": {
+        "value": [
+          -216415600.0,
+          178990432.0,
+          -61616448.0
+        ],
+        "magnitude": 287523680.0,
+        "element_wise_max_abs": 216415600.0
+      }
+    }
+  },
+  "trusted_roi_subset": null
+}

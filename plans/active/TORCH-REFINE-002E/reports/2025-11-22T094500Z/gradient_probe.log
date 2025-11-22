@@ -1,0 +1,19 @@
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+auto-selected 3-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-28,10] hit_rate=55296101/56016009 (98.71%)
+[gradient_probe] Initializing Stage-A components at mapping zero point...
+[gradient_probe] Computing global gradients...
+/home/ollie/Documents/nanoBragg/src/nanobrag_torch/simulator.py:579: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
+  self.fluence = torch.tensor(self.beam_config.fluence, device=self.device, dtype=self.dtype)
+auto-selected 3-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-28,10] hit_rate=55281654/56016009 (98.69%)
+[gradient_probe] Warning: roi_cc_mapping not available in context; skipping trusted ROI subset.
+[gradient_probe] Wrote gradient_probe.json to /home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/TORCH-REFINE-002E/reports/2025-11-22T094500Z/
+[gradient_probe] Chi-squared at zero point: 2.978945e+06
+[gradient_probe] Gradient magnitudes:
+  log_scale:       4.281895e+05
+  cell_logs:       9.821051e+07
+  angle_raws:      1.547885e+08
+  orientation_vec: 2.875237e+08
+[stage_a_mapping_adam_debug] Gradient probe completed → artifacts under /home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/TORCH-REFINE-002E/reports/2025-11-22T094500Z

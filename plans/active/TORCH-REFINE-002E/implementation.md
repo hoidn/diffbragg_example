@@ -80,19 +80,10 @@
 - **H2 (Baseline cell mismatch):** Mapping uses a slightly different effective unit cell (via MOSFLM A* + cctbx internals) than the Stage‑A baseline cell, so we’re rotating about the “wrong” B_ideal.
 
 ### Checklist
-- [ ] A0: **Probe extension:** Extend `probe_crystal_matrix_parity.py` to compute and report:
-  - `A*_pathA` and `A*_pathB` eigenvalues/singular values.
-  - Symmetric/antisymmetric decomposition of `logm(U_error)` to separate pure rotation from symmetric strain.
-  - Per‑column norms and angles between corresponding a*, b*, c*.
-- [ ] A1: **Multi‑config sweep:** Run the probe for:
-  - Baseline refGeom vs refined.expt geometry (if available).
-  - Small synthetic cell perturbations (e.g. ±1% on a/b/c) without orientation change. Record whether `U_error` remains close to a pure rotation in each case.
-- [ ] A2: **Baseline B_ideal variants:** Construct alternative B_ideal candidates:
-  - From mapping MOSFLM A* (via a “recovered” cell) instead of the pure unit cell.
-  - From the refined.expt crystal instead of refGeom. Recompute misset with each B_ideal, re‑run the probe, and compare `max_abs_diff` and rotation/strain metrics.
-- [ ] A3: **Mapping forward vs Stage‑A configs:** For a single panel and a short HKL subset:
-  - Build a `CrystalConfig` using the mapping path (MOSFLM A* + `misset=[0,0,0]`).
-  - Build a config using explicit cell+misset with the new robust baseline. Numerically compare reciprocal vectors and real‑space vectors from `compute_cell_tensors()`. Decide whether the geometry gap is dominated by strain or is within acceptable rotational noise.
+- [x] A0: **Probe extension** (2025-11-22T090505Z) — Confirmed H1: symmetric strain dominates (log_u_symmetric_norm ≈ 1.4e-3 >> antisymmetric ≈ 1.4e-7)
+- [ ] A1: **Multi‑config sweep** — Deferred (low ROI given A0/A2 results; revisit if Phase B requires)
+- [x] A2: **Baseline B_ideal variants** (2025-11-22T091200Z) — Rejected H2: both PathB variants show identical strain (1.369e-3); cell recovery worked but strain persists
+- [ ] A3: **Mapping forward vs Stage‑A configs** — Deferred pending Phase B gradient probe results
 
 ### Dependency Analysis (Required for Refactors)
 - **Touched Modules:** `plans/active/TORCH-REFINE-002E/bin/probe_crystal_matrix_parity.py` (tooling only).

@@ -562,3 +562,13 @@
 - <Action State>: [planning]
 
 2025-11-22T091200Z focus=TORCH-REFINE-002E state=ready_for_implementation dwell=0 artifacts=plans/active/TORCH-REFINE-002E/reports/2025-11-22T091200Z/ next_action=phase_a2_baseline_b_ideal_implementation
+
+## 2025-11-22T094500Z — TORCH-REFINE-002E Phase A→B transition
+- Focus: TORCH-REFINE-002E — Fix Stage A Zero-Point Geometry Discontinuity
+- Action Type: planning
+- Key Observations: Phase A geometry characterization complete—H1 (residual strain) confirmed with log_u_symmetric_norm ≈ 1.4e-3 (1000× larger than antisymmetric), H2 (baseline cell mismatch) rejected as both B_ideal variants show identical strain. Synthesized evidence in phase_a_review.md showing geometry parity gap (~4e-5 A*) persists but TOOLING-VIS-001 Phase 5 reveals all Adam DoF combos degrade χ² and CC from mapping zero (scale-only: +210% χ², CC 1.0→0.846). Transitioned to Phase B1 (local gradient probe) to directly measure ∂χ²/∂θ and determine if gradients are truly zero or if Adam walks away legitimately. Updated implementation.md (A0/A2 marked done, A1/A3 deferred) and authored comprehensive input.md directing gradient-probe mode extension to stage_a_mapping_adam_debug.py.
+- Artifact Path: plans/active/TORCH-REFINE-002E/reports/2025-11-22T094500Z/
+- Next Actions: Ralph implements Phase B1 gradient probe (--mode gradient_probe), executes forward/backward pass at mapping zero point, reports global+trusted-ROI gradient magnitudes/signs for all DoFs, and reruns Stage-A expansion smoke for regression guard before returning results.
+- <Action State>: [ready_for_implementation]
+
+2025-11-22T094500Z focus=TORCH-REFINE-002E state=ready_for_implementation dwell=0 artifacts=plans/active/TORCH-REFINE-002E/reports/2025-11-22T094500Z/ next_action=phase_b1_gradient_probe_implementation

@@ -1,0 +1,9 @@
+{
+  "mode": "forward_model_comparison_simplified",
+  "device": "cpu",
+  "chi_squared_mapping": 2394359.984960943,
+  "chi_squared_stage_a_zero": 2980000.0,
+  "chi_squared_diff_abs": 585640.015039057,
+  "chi_squared_diff_rel": 0.24459146440697388,
+  "conclusion": "differs_numerically"
+}

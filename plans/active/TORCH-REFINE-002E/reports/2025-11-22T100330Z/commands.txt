@@ -1,0 +1,17 @@
+# Phase A3 — Mapping forward model comparison
+# Date: 2025-11-22T100330Z
+
+# 1. Forward model comparison (simplified)
+export KMP_DUPLICATE_LIB_OK=TRUE
+export NANOBRAGG_DISABLE_COMPILE=1
+python plans/active/TORCH-REFINE-002E/bin/compare_mapping_vs_stage_a_forward_simple.py \
+  --device cpu \
+  --out-dir plans/active/TORCH-REFINE-002E/reports/2025-11-22T100330Z/
+
+# 2. Regression guard
+export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
+export DBEX_SMOKE_SIGMA_SOURCE=cli_override
+export DBEX_SMOKE_DETECTOR_SIZE=small
+export KMP_DUPLICATE_LIB_OK=TRUE
+export NANOBRAGG_DISABLE_COMPILE=1
+pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion

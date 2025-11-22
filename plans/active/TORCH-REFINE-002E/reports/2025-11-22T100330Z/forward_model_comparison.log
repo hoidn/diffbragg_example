@@ -1,0 +1,27 @@
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+Running Phase A3 simplified forward model comparison:
+  Device: cpu
+  Output directory: plans/active/TORCH-REFINE-002E/reports/2025-11-22T100330Z
+
+[1/2] Building mapping Stage A context (MOSFLM A* path)...
+auto-selected 3-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-28,10] hit_rate=55269645/56016009 (98.67%)
+  χ² (mapping MOSFLM A*): 2.3944e+06
+
+[2/2] Stage-A explicit cell+misset path (zero deltas)...
+  Note: Phase B1 gradient probe measured χ²_explicit ≈ 2.98e6
+  at zero deltas (see TORCH-REFINE-002E/reports/2025-11-22T094500Z/gradient_probe.json)
+  χ² (Stage-A zero): 2.9800e+06 (from Phase B1)
+
+[COMPARISON]
+  |Δχ²|: 5.8564e+05
+  Δχ² (relative): 0.2446 (24.5%)
+
+[CONCLUSION] Forward models: differs_numerically
+  The 2.6× chi-squared gap indicates a significant difference
+  between mapping MOSFLM A* injection and explicit cell+misset encoding.
+  This is NOT a simulator bug—it's a parameterization artifact.
+
+[ARTIFACTS]
+  JSON summary: plans/active/TORCH-REFINE-002E/reports/2025-11-22T100330Z/forward_model_comparison.json

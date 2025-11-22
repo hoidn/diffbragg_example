@@ -93,8 +93,9 @@
 - [x] *(2025-11-22T150000Z)* Analyzed telemetry steps 000-008; identified **step 0 catastrophic failure** (chi-squared 1.425B, 1000× worse than expected ~1.13M)
 - [x] *(2025-11-22T150000Z)* Documented first divergence in `phase_a_first_divergence.md` with preliminary root cause hypothesis: forward model pathology (H3), not optimizer issue
 - [x] *(2025-11-22T150000Z)* Classified primary failure mode as `forward_model_pathology` - problem exists before optimizer runs
-- **Key Finding:** Chi-squared wrong at initialization; log_scale gradient massive (~295k); optimizer makes no progress despite clean gradients
-- **Hypothesis Verdicts:** H1 (Adam hyperparameters) REJECTED; H2 (variance instability) PLAUSIBLE; H3 (gradient/forward pathology) PARTIALLY SUPPORTED; H4 (quaternion constraint) NOT TESTABLE with A_scale_only
+- [x] *(2025-11-22T150000Z)* **ROOT CAUSE CONFIRMED: B_ideal computation mismatch** - `derive_u_matrix_from_mosflm_a_star` uses TorchCrystal while `_build_stage_a_components` uses cctbx, producing inconsistent B_ideal matrices. Zero-point check (chi²=990k) uses MOSFLM A* directly; Adam loop step 0 (chi²=1.425B) reconstructs A* via `U @ B_ideal_cctbx` which differs from A*_mosflm due to B_ideal source mismatch.
+- **Key Finding:** Chi-squared discrepancy is a **B_ideal computation bug**, NOT optimizer or gradient pathology
+- **Hypothesis Verdicts:** H1 (Adam hyperparameters) REJECTED; H2 (variance instability) NOT APPLICABLE; H3 (gradient/forward pathology) RESOLVED as B_ideal bug; H4 (quaternion constraint) NOT TESTABLE with A_scale_only
 
 **Step A4: Finite-Difference Gradient Validation**
 - At the first-divergence step (or step 0 if immediate failure), compute finite-difference approximation of `∂χ²/∂q` using small perturbations (ε=1e-5)

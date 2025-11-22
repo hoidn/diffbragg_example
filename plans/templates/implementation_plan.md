@@ -34,6 +34,22 @@
 - **Normative Spec:** [path to spec file]
 - **Key Clauses:** [list of specific requirements this plan satisfies]
 
+## Architecture / Interfaces (optional)
+- **Key Data Types / Protocols:**  
+  e.g., `User`, `OrderService`, `PaymentGateway` in a web app, or `Model`, `Trainer`, `MetricSink` in an ML pipeline. You can sketch these in a tiny IDL-style block if helpful (e.g., `types: User { id: UUID; email: string }`).
+- **Boundary Definitions:**  
+  Briefly describe the main seams between components (layers, services, processes, or subsystems), e.g., `[Client] -> [API] -> [Service] -> [DB]`.
+- **Sequence Sketch (Happy Path):**  
+  Short textual outline of the primary request/response or job execution path, e.g., `Client -> API: POST /orders -> Service -> DB -> Client`.
+- **Data-Flow Notes:**  
+  Note what data moves where (shape, format, rate) and across which boundaries (in‑process, network, devices, storage), e.g., `[Raw events] -> [Validate] -> [Transform] -> [Warehouse]`.
+
+> One-shot example (replace with your own):
+> - types: `User { id: UUID; email: string }`, `Order { id: UUID; user_id: UUID; total_cents: int }`
+> - boundaries: `[Browser] -> [HTTP API] -> [OrderService] -> [Postgres]`
+> - sequence: `Browser -> API: POST /orders -> OrderService -> DB -> API -> Browser`
+> - data-flow: JSON request (~2 KB) → row in `orders` table → JSON response with `order_id`, or for a training step: batch tensor `[B, C, H, W]` on GPU → forward pass → loss scalar → gradient tensors → optimizer step
+
 ## Context Priming (read before edits)
 - Primary docs/specs to re-read: <list explicit files + sections>
 - Required findings/case law: <docs/findings.md IDs + summary>

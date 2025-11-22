@@ -1,153 +1,88 @@
-# Ralph Work Order — TORCH-REFINE-002E Phase A3: Mapping Forward Model Comparison
+# Ralph Input — 2025-11-22T100021Z
 
 ## Summary
-Compare forward-model outputs between the mapping MOSFLM A* injection path and the Stage-A explicit cell+misset parameterization at zero deltas on a single panel to isolate whether the 2.6× chi-squared discrepancy originates from encoding conventions or simulator numerical differences.
+Implement Phase C1 Branch G geometry fix to align Stage-A baseline with mapping effective cell.
 
 ## Mode
-none
+none (code changes + parity validation)
 
 ## Focus
-TORCH-REFINE-002E — Fix Stage A Zero-Point Geometry Discontinuity
+TORCH-REFINE-002E — Fix Stage A Zero-Point Geometry Discontinuity (Phase C1: Branch G)
 
 ## Branch
 integration
 
 ## Mapped tests
-- `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` (regression guard)
-- none — diagnostic comparison script (CPU-only analysis tool)
+- `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` (Active, regression guard)
+- `plans/active/TORCH-REFINE-002E/bin/probe_crystal_matrix_parity.py` (tooling, exit-criterion #1)
+- `plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py --phases 1,2,4,5` (tooling, exit-criterion #2-3)
 
 ## Artifacts
-```
-plans/active/TORCH-REFINE-002E/reports/2025-11-22T100330Z/
-├── forward_model_comparison.json      (Phase A3 deliverable — per-pixel/chi² comparison)
-├── forward_model_comparison.log       (script execution log)
-├── pytest_stage_a_regression.log      (collect + test logs for regression guard)
-└── commands.txt                       (reproducible commands)
-```
+`plans/active/TORCH-REFINE-002E/reports/2025-11-22T100021Z/`
+- `crystal_matrix_parity.json` (must show `max_abs_diff < 1e-6`)
+- `crystal_matrix_parity.log`
+- `pytest_stage_a_regression.log`
+- `stage_a_debug_phase5.json` (A_scale_only/D_full results)
+- `stage_a_debug.log`
+- `commands.txt`
 
 ## Do Now
 
-### Context
+**Context:** Phase A/B evidence conclusively proves the geometry encoding gap:
+- Phase A0: symmetric strain dominates (`log_u_symmetric_norm ≈ 1.4e-3`, antisymmetric ≈ 1.4e-7)
+- Phase A2: cell recovery from MOSFLM A* matches dxtbx cell, strain persists regardless of B_ideal source
+- Phase B1: gradients at "zero" are massive (orientation_vec magnitude ≈ 2.88e8), proving zero deltas ≠ mapping geometry
+- Phase A3: forward models differ by 24.5% chi-squared (χ²_mapping=2.394e6 vs χ²_stage_a_zero=2.980e6), confirming this is a **parameterization artifact**, not a simulator bug
 
-**Phase B1 confirmed:** The gradient probe shows that the explicit cell+misset parameterization at zero deltas yields χ² ≈ 2.98e6, which is **~2.6× higher** than the mapping MOSFLM A* path (χ² ≈ 1.13e6 from TOOLING-VIS-001 Phase 1 zero_point_check.json). All DoF gradients are large and non-zero (orientation_vec magnitude ≈2.88e8), proving Adam **legitimately walks away** from this starting point.
+**Root Cause:** The GEOMETRY-003 baseline misset (`dbex/nanobrag_bridge.py:723,752`) derives U from `A* · B_ideal^{-1}` where B_ideal is constructed from the **dxtbx unit cell**, but the mapping MOSFLM A* injection path uses an **effective cell** that differs slightly (1.4e-3 strain). When Stage-A explicit parameterization sets all deltas to zero, it produces a physically different orientation than mapping, causing the chi-squared penalty.
 
-**Critical Question for Phase A3:** Does this 2.6× chi-squared gap arise from:
-1. **Encoding/convention differences** in how the two paths construct the crystal A* matrix (e.g., MOSFLM injection vs cell+misset composition), OR
-2. **Simulator numerical differences** (e.g., interpolation schemes, spot shape models, HKL grid coverage) that manifest when comparing Bragg stack outputs pixel-by-pixel?
+**Solution (Branch G):** Adjust the Stage-A baseline geometry construction so the explicit cell+misset path uses the **same effective cell as the mapping path**. The minimal fix:
+1. Extract the effective B_ideal from the mapping MOSFLM A* matrix itself (via cctbx or direct reciprocal metric)
+2. Use this mapping-derived B_ideal (not the dxtbx unit cell B_ideal) when computing `baseline_misset_deg` for Stage-A configurations
+3. This ensures `U = A*_mapping · B_ideal_mapping^{-1}` is a pure rotation (no strain), closing the parity gap to <1e-6
 
-Phase A3 will answer this by running **both** paths through the same nanobrag_torch simulator on a **single panel** and comparing:
-- Per-pixel absolute differences in the Bragg stack
-- Per-pixel relative differences (as % of mapping intensity)
-- Chi-squared contribution differences
-- HKL grid statistics (hits, weights, out-of-bounds counts)
+**Checklist (C1: minimal geometry fix):**
+1. **Implement:** Add `derive_b_ideal_from_mosflm_a_star(a_star: np.ndarray) -> np.ndarray` helper in `dbex/nanobrag_bridge.py` that:
+   - Accepts the 3×3 MOSFLM A* matrix from dxtbx crystal
+   - Computes the effective real-space basis `B = (A*)^{-T}` (inverse transpose)
+   - Returns the 3×3 reciprocal basis B_ideal = B^{-T} suitable for nanobrag_torch
+   - Document: this is the **mapping-aligned B_ideal** that Stage-A explicit path must use to reproduce mapping zero-point
 
-If the forward models are **numerically identical** (pixel differences << 1e-6 photons, χ² identical to machine precision), the 2.6× gap is purely a **parameterization artifact** → proceed directly to **Branch G (geometry fix)**.
+2. **Implement:** Extend `derive_robust_misset` (or create new variant `derive_mapping_aligned_misset`) to:
+   - Accept optional `use_mapping_b_ideal: bool = False` parameter
+   - When True: call `derive_b_ideal_from_mosflm_a_star(a_star)` to get mapping B_ideal, then compute `U = A* · B_mapping^{-1}`
+   - Project U to proper rotation via polar decomposition, invert to XYZ Euler angles
+   - Return `baseline_misset_deg` that encodes the mapping orientation **around the mapping-effective cell**
 
-If the forward models **differ significantly** despite "zero deltas", there's a **simulator parity bug** between the mapping injection path and the explicit parameterization path → open a new blocker initiative to fix the simulator before attempting geometry realignment.
+3. **Implement:** Update `create_crystal_config` (or Stage-A crystal builder) in `dbex/nanobrag_bridge.py` to:
+   - When `crystal_overrides` are used AND mapping alignment is requested (e.g., new flag `align_to_mapping_cell: bool`):
+     - Derive mapping-aligned baseline misset via `derive_robust_misset(..., use_mapping_b_ideal=True)`
+     - Construct `CrystalConfig` with the mapping-derived baseline misset
+   - Preserve existing behavior (dxtbx unit-cell B_ideal) when flag is False or mapping alignment is not requested
 
-### Implementation Tasks
-
-1. **Author Phase A3 comparison script**
-
-   **File:** `plans/active/TORCH-REFINE-002E/bin/compare_mapping_vs_stage_a_forward.py`
-
-   **Purpose:** Run both the mapping MOSFLM A* path and the Stage-A explicit cell+misset path (at zero deltas) through nanobrag_torch on a single panel, compare outputs pixel-by-pixel.
-
-   **Requirements:**
-   - Accept CLI args: `--device {cpu,cuda}`, `--panel-id {int}` (default 0), `--out-dir {path}`
-   - Load canonical refGeom assets (`sp.proc/refGeom.{expt,refl}`, `sp.proc/idx-0000_refined.expt`)
-   - Extract panel `--panel-id` metadata (detector config, beam, wavelength, etc.)
-   - Build **two** crystal configurations:
-     - **Path A (Mapping):** Use MOSFLM A* injection from mapping (`simulate_forward_once` / `build_mapping_stage_a_context` machinery)
-     - **Path B (Stage-A zero):** Use GEOMETRY-003 baseline misset + zero cell/angle/orientation deltas (explicit cell+misset parameterization from `derive_robust_misset`)
-   - For both paths:
-     - Construct `nanobrag_torch.Crystal` with same HKL grid, beam config, spot_scale, global_scale_hint
-     - Run simulator on the **same** detector ROI/panel
-     - Extract Bragg stack (forward model image) as `[panel, slow, fast]` tensor
-   - Compute comparisons:
-     - `bragg_diff = abs(bragg_mapping - bragg_stage_a_zero)`
-     - `bragg_rel_diff = bragg_diff / (bragg_mapping + 1.0)`  # avoid divide-by-zero
-     - `chi_squared_mapping` using variance-weighted loss on mapping Bragg vs target
-     - `chi_squared_stage_a_zero` using same loss on Stage-A zero Bragg vs target
-     - HKL grid stats for both paths (num_hkl_hits, out_of_bounds_count, etc.)
-   - Emit JSON summary:
-     ```json
-     {
-       "mode": "forward_model_comparison",
-       "panel_id": 0,
-       "device": "cpu",
-       "mapping_path": {
-         "chi_squared": <float>,
-         "bragg_stack_shape": [panel, slow, fast],
-         "bragg_stack_sum": <float>,
-         "hkl_hits": <int>,
-         "hkl_out_of_bounds": <int>
-       },
-       "stage_a_zero_path": {
-         "chi_squared": <float>,
-         "bragg_stack_shape": [panel, slow, fast],
-         "bragg_stack_sum": <float>,
-         "hkl_hits": <int>,
-         "hkl_out_of_bounds": <int>
-       },
-       "comparison": {
-         "bragg_diff_max": <float>,
-         "bragg_diff_mean": <float>,
-         "bragg_diff_median": <float>,
-         "bragg_rel_diff_max": <float>,
-         "bragg_rel_diff_mean": <float>,
-         "chi_squared_diff_abs": <float>,
-         "chi_squared_diff_rel": <float>
-       },
-       "conclusion": "identical|differs_numerically"
-     }
-     ```
-   - **Conclusion heuristics:**
-     - If `bragg_diff_max < 1e-6` photons AND `chi_squared_diff_abs < 1e-6`: emit `"identical"`
-     - Else: emit `"differs_numerically"`
-
-2. **Execute the comparison script**
-
-   **Command:**
+4. **Validate:** Re-run parity probe:
    ```bash
-   python plans/active/TORCH-REFINE-002E/bin/compare_mapping_vs_stage_a_forward.py \
+   python plans/active/TORCH-REFINE-002E/bin/probe_crystal_matrix_parity.py \
      --device cpu \
-     --panel-id 0 \
-     --out-dir plans/active/TORCH-REFINE-002E/reports/2025-11-22T100330Z/
+     --out-dir plans/active/TORCH-REFINE-002E/reports/2025-11-22T100021Z/
    ```
+   - Expected: `max_abs_diff < 1e-6`, `log_u_symmetric_norm < 1e-6`, confirming A* parity achieved
+   - Capture `crystal_matrix_parity.json` and `crystal_matrix_parity.log`
 
-   **Expected output:** `forward_model_comparison.json` + `.log`
-
-3. **Regression guard**
-
-   Run the Stage A expansion smoke to ensure no regressions from Phase B1 work:
-
+5. **Validate:** Re-run Stage-A mapping Adam debug Phase 5:
    ```bash
-   AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-   DBEX_SMOKE_SIGMA_SOURCE=cli_override \
-   DBEX_SMOKE_DETECTOR_SIZE=small \
-   KMP_DUPLICATE_LIB_OK=TRUE \
-   NANOBRAGG_DISABLE_COMPILE=1 \
-   pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion \
-     2>&1 | tee plans/active/TORCH-REFINE-002E/reports/2025-11-22T100330Z/pytest_stage_a_regression.log
-   ```
-
-4. **Save commands for reproducibility**
-
-   **File:** `plans/active/TORCH-REFINE-002E/reports/2025-11-22T100330Z/commands.txt`
-
-   Content:
-   ```bash
-   # Phase A3 — Mapping forward model comparison
-   # Date: 2025-11-22T100330Z
-
-   # 1. Forward model comparison
-   python plans/active/TORCH-REFINE-002E/bin/compare_mapping_vs_stage_a_forward.py \
+   KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
+   python plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py \
+     --phases 1,2,4,5 \
      --device cpu \
-     --panel-id 0 \
-     --out-dir plans/active/TORCH-REFINE-002E/reports/2025-11-22T100330Z/
+     --out-dir plans/active/TORCH-REFINE-002E/reports/2025-11-22T100021Z/
+   ```
+   - Expected (exit criterion #2): A_scale_only maintains median ROI CC ≥ 0.99 and stable χ² after 10 steps
+   - Expected (exit criterion #3): D_full shows monotonic χ² improvement, no large CC collapses
+   - Capture `stage_a_debug_phase5.json`, `zero_point_check.json`, `block_dof_results.json`
 
-   # 2. Regression guard
+6. **Regression guard:**
+   ```bash
    AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
    DBEX_SMOKE_SIGMA_SOURCE=cli_override \
    DBEX_SMOKE_DETECTOR_SIZE=small \
@@ -155,151 +90,179 @@ If the forward models **differ significantly** despite "zero deltas", there's a 
    NANOBRAGG_DISABLE_COMPILE=1 \
    pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
    ```
+   - Capture `pytest_stage_a_regression.log`
+   - Must PASS with no new failures
+
+7. **Update GEOMETRY-003:** If the fix succeeds (exit criteria #1-3 met), update `docs/findings.md` row GEOMETRY-003 to reflect:
+   - The mapping-aligned baseline misset derivation uses `B_ideal_mapping = (A*_mapping)^{-T}`
+   - This closes the 1.4e-3 symmetric strain gap and achieves <1e-6 A* parity
+   - Reference: `plans/active/TORCH-REFINE-002E/reports/2025-11-22T100021Z/`
 
 ## How-To Map
 
-### Environment Setup
+**Environment:**
 ```bash
 export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
 export KMP_DUPLICATE_LIB_OK=TRUE
 export NANOBRAGG_DISABLE_COMPILE=1
+export DBEX_SMOKE_SIGMA_SOURCE=cli_override
+export DBEX_SMOKE_DETECTOR_SIZE=small
 ```
 
-### Script Implementation Guidance
+**Phase C1 Implementation Steps:**
 
-**Reuse existing helpers:**
-- From `plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py`:
-  - `build_mapping_stage_a_context()` for mapping path crystal config
-  - `_stage_a_forward()` machinery (adapt to extract just Bragg stack, not full loss)
-- From `dbex/nanobrag_bridge.py`:
-  - `derive_robust_misset()` with GEOMETRY-003 baseline for Stage-A zero path
-  - `create_crystal_config()` for explicit cell+misset encoding
+Step 1: **Add mapping B_ideal helper** (`dbex/nanobrag_bridge.py`)
+```python
+def derive_b_ideal_from_mosflm_a_star(a_star: np.ndarray) -> np.ndarray:
+    """
+    Derive the effective reciprocal basis B_ideal from mapping MOSFLM A* matrix.
 
-**Key comparisons to emit:**
-1. **Pixel-level:** `max/mean/median(abs(bragg_mapping - bragg_stage_a_zero))`
-2. **Relative:** `max/mean/median(abs_diff / (bragg_mapping + 1.0))`
-3. **Chi-squared:** Variance-weighted loss for both paths using same target/sigma_readout
-4. **HKL grid:** Confirm both paths hit same HKL indices (if HKL coverage differs, that's a clue to the simulator parity bug)
+    Args:
+        a_star: 3×3 MOSFLM A* matrix from dxtbx crystal.get_A() (reshaped)
 
-**Decision tree based on results:**
-- **Scenario 1 (Identical forward models):**
-  - `bragg_diff_max < 1e-6 photons`, `chi_squared_diff_abs < 1e-6`
-  - **Conclusion:** The 2.6× global chi-squared gap is NOT from the simulator—it's purely a **geometry parameterization artifact** (the Phase A strain encodes a real physics difference that manifests when switching from MOSFLM A* injection to explicit cell+misset).
-  - **Next Actions:** Proceed to **Phase C Branch G** (geometry fix) — adjust baseline geometry so the explicit path reproduces mapping's effective cell.
+    Returns:
+        3×3 reciprocal basis B_ideal = (A*)^{-T} suitable for nanobrag_torch
 
-- **Scenario 2 (Different forward models):**
-  - `bragg_diff_max > 1e-4 photons` OR `chi_squared_diff_abs > 1.0`
-  - **Conclusion:** There's a **simulator parity bug** between the mapping injection path and the explicit parameterization path (e.g., different HKL grid, interpolation, spot shape).
-  - **Next Actions:** Open a new blocker initiative (`TORCH-SIMULATOR-PARITY-001`) to diagnose and fix the simulator before attempting geometry realignment.
-
-### Regression Guard
-```bash
-# Small-detector Stage A expansion smoke
-AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-DBEX_SMOKE_SIGMA_SOURCE=cli_override \
-DBEX_SMOKE_DETECTOR_SIZE=small \
-KMP_DUPLICATE_LIB_OK=TRUE \
-NANOBRAGG_DISABLE_COMPILE=1 \
-pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
-
-# Expected: PASSED (no regressions from Phase B1)
+    Notes:
+        This is the **mapping-aligned B_ideal** that Stage-A must use to reproduce
+        the mapping zero-point geometry without symmetric strain artifacts.
+    """
+    # B_real = (A*)^{-T}
+    b_real = np.linalg.inv(a_star).T
+    # B_ideal (reciprocal) = B_real^{-T}
+    b_ideal = np.linalg.inv(b_real).T
+    return b_ideal
 ```
+
+Step 2: **Extend derive_robust_misset** (or create variant)
+Add parameter `use_mapping_b_ideal: bool = False` to `derive_robust_misset`. When True:
+- Call `derive_b_ideal_from_mosflm_a_star(a_star)` to get mapping-aligned B_ideal
+- Compute `U = A* @ np.linalg.inv(b_ideal_mapping)`
+- Rest of the logic (polar decomposition, XYZ Euler inversion) remains the same
+
+Step 3: **Wire into create_crystal_config**
+When constructing Stage-A crystal configs with `crystal_overrides`, check if mapping alignment is requested:
+- If yes: derive baseline misset with `use_mapping_b_ideal=True`
+- If no: preserve existing GEOMETRY-003 path (dxtbx unit-cell B_ideal)
+
+**Note:** You may need to add a configuration flag (e.g., `align_to_mapping_cell: bool`) to `RefinementConfig` or pass it explicitly to the crystal builder. For now, you can hardcode `use_mapping_b_ideal=True` in the Stage-A mapping paths (`build_mapping_stage_a_context`, `stage_a_mapping_adam_debug.py`) and test the impact.
+
+Step 4-7: **Validation** (run commands above, capture artifacts)
 
 ## Pitfalls To Avoid
 
-1. **Don't assume "zero deltas" = identical simulator inputs**
-   - Phase B1 showed χ²_explicit ≠ χ²_mapping at zero deltas
-   - Phase A3 will isolate whether that gap is from encoding OR simulator
-
-2. **Preserve device/dtype neutrality**
-   - Use same device for both paths (default: CPU)
-   - All tensors must match device/dtype before comparison
-
-3. **Use the same HKL grid / structure factors for both paths**
-   - Both paths should consume identical `structure_factor_grid` from mapping
-   - If Path B rebuilds HKL grid from cell, that's a clue to the encoding difference
-
-4. **Variance-weighted chi-squared (PHYSICS-LOSS-001 contract)**
-   - Use detached denominator: `(pred - obs)^2 / (pred.detach() + sigma^2)`
-   - Same `sigma_readout` and `sigma_floor_value` for both paths
-
-5. **Single-panel scope only**
-   - Phase A3 is a diagnostic probe, not a full-dataset run
-   - Panel 0 is sufficient to isolate encoding vs simulator differences
-
-6. **Don't modify production code**
-   - All implementation goes into `plans/active/TORCH-REFINE-002E/bin/compare_mapping_vs_stage_a_forward.py`
-   - Reuse bridge helpers (`derive_robust_misset`, `create_crystal_config`) but don't change them
+1. **Device/dtype neutrality:** All numpy operations (inverse, transpose) are CPU-only; convert torch tensors to numpy before calling the helper, then back to torch if needed.
+2. **Protected Assets:** Do NOT modify `tests/fixtures/golden_data/` or `sp.proc/` fixtures. The geometry fix only touches bridge code.
+3. **Vectorization:** The helper operates on single 3×3 matrices (per-crystal); no batching required.
+4. **No environment changes:** Do not install packages or upgrade dependencies. If imports fail, record in `docs/fix_plan.md`.
+5. **No normative math paraphrasing:** Reference `docs/spec-db-workflow.md §Stage A — mapping zero-point invariant` directly; do not rewrite the math.
+6. **Exit criteria precision:** `max_abs_diff < 1e-6` is a hard gate; if you only achieve 1e-5, the fix is incomplete—document and return for supervisor review.
+7. **Mapping alignment scope:** This fix applies to **mapping-aligned Stage-A runs only** (DB-AT-024, TOOLING-VIS-001 Phase 5). General refinement workflows that don't claim mapping parity are unaffected.
+8. **Regression discipline:** Stage-A expansion smoke must PASS. If it fails, diagnose before proceeding to Phase 5 validation.
+9. **Gradient hygiene:** The geometry fix is **initialization-only**—no changes to the forward/backward pass or loss functions. All torch.compile and gradcheck guardrails remain in effect.
+10. **Commit hygiene:** If tests pass and exit criteria are met, commit the implementation with a message linking to this loop's artifacts. Otherwise, commit evidence artifacts and report blockers.
 
 ## If Blocked
 
-**Blocker:** Comparison script shows large differences in forward models (`bragg_diff_max > 1e-4 photons`) despite zero deltas.
+1. **If parity probe still shows max_abs_diff > 1e-6 after the fix:**
+   - Capture the new `crystal_matrix_parity.json` showing the residual gap
+   - Check whether `log_u_symmetric_norm` dropped significantly (e.g., from 1.4e-3 to <1e-4)
+   - Document partial progress in Attempts History and return to supervisor
+   - **Do not** proceed to Phase 5 validation if exit criterion #1 is unmet
 
-**Capture:**
-1. Save `forward_model_comparison.json` with `"conclusion": "differs_numerically"`
-2. Log the specific divergence (pixel locations, HKL indices, intensities)
-3. Mark TORCH-REFINE-002E as `blocked` in `docs/fix_plan.md`
-4. Open new initiative `TORCH-SIMULATOR-PARITY-001` with artifacts pointing to Phase A3 results
-5. Record in `galph_memory.md` that geometry fix (Branch G) is deferred pending simulator parity fix
+2. **If Stage-A mapping Phase 5 A_scale_only still degrades CC:**
+   - Capture `block_dof_results.json` showing the A_scale_only trajectory
+   - Compare the new zero-point chi-squared (from Phase 1 `zero_point_check.json`) to the old 2.98e6
+   - If zero-point chi-squared is now ≈2.394e6 (matching mapping), but CC still degrades, pivot to Phase B3 (LR sensitivity sweep)
+   - Document in Attempts History with explicit next-actions recommendation
 
-**Fallback:**
-- If script fails to execute (e.g., missing dependencies, import errors), capture the traceback
-- Document the blocker in Attempts History with exact error message
-- Recommend environment audit or simpler reproducer before retrying
+3. **If regression guard fails:**
+   - Capture `pytest_stage_a_regression.log` showing the failure
+   - Isolate whether the failure is geometry-related (e.g., A* mismatch) or unrelated (e.g., flaky test)
+   - If geometry-related, revert the changes and document why the fix broke the smoke
+   - Return to supervisor with the failure signature
+
+4. **Log all blockers** in `plans/active/TORCH-REFINE-002E/reports/2025-11-22T100021Z/blocker.md` with:
+   - Specific error message or metric that failed
+   - Which exit criterion is unmet
+   - Hypothesis for why the fix didn't work
+   - Recommended next action (e.g., "try alternative B_ideal derivation", "escalate to TORCH-SIMULATOR-PARITY-001")
 
 ## Findings Applied (Mandatory)
 
 **Relevant Finding IDs from `docs/findings.md`:**
 
-- **GEOMETRY-001** (Detector mapping) — Enforces Cartesian conventions for beam/detector origins; both paths must honor these.
-- **GEOMETRY-002** (Euler inversion) — Misset derivation uses cctbx Euler conventions; Phase A3 must verify both paths produce identical orientation matrices.
-- **GEOMETRY-003** (B_ideal-based mapping misset) — Stage-A zero path uses `derive_robust_misset()` to align baseline orientation; Phase A3 will test whether this encoding matches mapping MOSFLM A*.
-- **PHYSICS-LOSS-001** (Variance-weighted loss) — Both paths must use identical chi-squared formula with detached denominator.
-- **REFINE-004** (Stage-A gate) — Not directly applicable (Phase A3 is diagnostic only), but chi-squared comparison informs whether the 0.9× improvement gate is achievable.
-- **REFINE-005** (HKL halo/interpolation) — Both paths should use same HKL grid/interpolation mode; if they differ, that's evidence of simulator parity gap.
+- **GEOMETRY-001** (detector mapping): Not directly relevant (detector paths unchanged), but maintained for hygiene.
+- **GEOMETRY-002** (Euler inversion): Applies—baseline misset still uses analytic XYZ Euler inversion from U matrix.
+- **GEOMETRY-003** (baseline misset): **CRITICAL**—this fix extends GEOMETRY-003 to use mapping-derived B_ideal instead of dxtbx unit-cell B_ideal.
+- **GRADIENT-001** (tensor overrides): Applies—ensure no .detach() or .cpu() in the forward pass after this change.
+- **REFINE-004** (HKL interpolation): Not changed by this fix, but remains in effect for Stage A.
+- **REFINE-005** (HKL halo): Resolved; tricubic interpolation is enabled per spec.
+- **RUNTIME-001** (torch.compile + gradcheck): Applies—`NANOBRAGG_DISABLE_COMPILE=1` for all tests.
+- **CONFORMANCE-001** (DB-AT selectors): Exit criteria reference DB-AT-024 mapping parity.
+- **PHYSICS-LOSS-002** (sigma_floor): Not directly relevant, but variance-weighted loss remains active.
+- **PHYSICS-LOSS-003** (chi-squared units): Applies—Phase 5 validation will use the unified chi-squared definition.
 
-**Adherence notes:**
-- GEOMETRY-003 baseline misset is used in Path B (Stage-A zero)
-- PHYSICS-LOSS-001 variance-weighted loss used for chi-squared computation on both paths
-- If REFINE-005 halo/interpolation settings differ between paths, log that as a potential simulator parity bug
+**Adherence:**
+- GEOMETRY-003 extended per Branch G decision (mapping-aligned B_ideal derivation)
+- GEOMETRY-002 preserved (XYZ Euler inversion for misset)
+- GRADIENT-001 enforced (no detach/cpu in forward pass)
+- RUNTIME-001 enforced (NANOBRAGG_DISABLE_COMPILE=1 for all pytest/probe runs)
 
 ## Pointers
 
 **Specs:**
-- `docs/spec-db-workflow.md:35-50` — Stage A mapping zero-point invariant (normative requirement that zero deltas = mapping geometry)
-- `docs/spec-db-core.md:25-45` — Geometry Mapping (A* matrix conventions, reciprocal basis)
-- `docs/spec-db-conformance.md:15-30` — Mapping-Aligned Stage-A Initialization (DB-AT-024 contract)
+- `docs/spec-db-workflow.md:39` — Stage A mapping zero-point invariant (normative requirement)
+- `docs/spec-db-core.md` — Geometry Mapping section
+- `docs/spec-db-conformance.md` — DB-AT-024 mapping parity spec
 
 **Architecture:**
-- `docs/config_crosswalk.md:80-120` — Crystal mapping section (MOSFLM A* injection vs cell+misset)
+- `docs/config_crosswalk.md` — Crystal mapping section (A* → CrystalConfig)
+- `docs/architecture.md` — ADRs and data flow
+
+**Implementation:**
+- `dbex/nanobrag_bridge.py:723` — `compute_baseline_misset_deg` (current GEOMETRY-003 path)
+- `dbex/nanobrag_bridge.py:752` — `derive_robust_misset` (main helper to extend)
+- `dbex/nanobrag_bridge.py:623` — `recover_cell_from_a_star` (Phase A2 helper, reference for cctbx usage)
+
+**Testing:**
+- `docs/TESTING_GUIDE.md §2` — Stage A selectors and environment flags
+- `docs/development/TEST_SUITE_INDEX.md` — Test registry (no updates needed unless new tests added)
+- `docs/development/testing_strategy.md` — Parity/gradcheck harness philosophy
+
+**Fix Plan:**
+- `docs/fix_plan.md` — TORCH-REFINE-002E entry (Attempts History, Exit Criteria)
+- `plans/active/TORCH-REFINE-002E/implementation.md` — Phase C checklist, Branch G decision logic
 
 **Findings:**
-- `docs/findings.md:GEOMETRY-001` — Detector mapping conventions
-- `docs/findings.md:GEOMETRY-002` — Euler inversion for misset derivation
-- `docs/findings.md:GEOMETRY-003` — B_ideal-based baseline misset (used in Path B)
-- `docs/findings.md:PHYSICS-LOSS-001` — Variance-weighted loss formula
+- `docs/findings.md:7` — GEOMETRY-003 row (update after successful validation)
 
-**Implementation plan:**
-- `plans/active/TORCH-REFINE-002E/implementation.md:78-96` — Phase A checklist (A3 now unblocked)
-- `plans/active/TORCH-REFINE-002E/implementation.md:126-156` — Phase C decision branches (Branch G awaits A3 results)
-
-**Prior artifacts:**
-- `plans/active/TORCH-REFINE-002E/reports/2025-11-22T094500Z/gradient_probe.json` — Phase B1 results showing χ²_explicit ≈ 2.98e6 vs χ²_mapping ≈ 1.13e6
-- `plans/active/TOOLING-VIS-001/reports/stage_a_refgeom_adam_debug/20251121T234215Z/zero_point_check.json` — Phase 1 zero-point check showing mapping MOSFLM path χ² ≈ 1.13e6
+**Prior Artifacts:**
+- `plans/active/TORCH-REFINE-002E/reports/2025-11-22T100330Z/forward_model_comparison.json` — Phase A3 results (24.5% χ² gap)
+- `plans/active/TORCH-REFINE-002E/reports/2025-11-22T094500Z/gradient_probe.json` — Phase B1 results (large non-zero gradients)
+- `plans/active/TORCH-REFINE-002E/reports/2025-11-22T091200Z/crystal_matrix_parity.json` — Phase A2 (both B_ideal variants show 1.4e-3 strain)
+- `plans/active/TORCH-REFINE-002E/reports/2025-11-22T090505Z/crystal_matrix_parity.json` — Phase A0 (symmetric strain dominates)
 
 ## Next Up (optional)
 
-**If Phase A3 shows identical forward models:**
-- Transition to **Phase C Branch G** (geometry fix) — adjust baseline geometry in next loop
+If Phase C1 completes successfully (all exit criteria met):
+1. **Update findings:** Refresh GEOMETRY-003 row in `docs/findings.md` with the mapping-aligned derivation
+2. **Update fix_plan:** Mark TORCH-REFINE-002E as `done` in `docs/fix_plan.md`
+3. **Proceed to TOOLING-VIS-001:** Validate that all Stage-A mapping visualizations (Phase 1-5) now pass with the geometry fix in place
+4. **Return control to supervisor:** Galph will review artifacts and decide whether to pursue additional parity initiatives or move to the next Roadmap tier
 
-**If Phase A3 shows different forward models:**
-- Open **TORCH-SIMULATOR-PARITY-001** initiative to fix simulator parity bug before attempting geometry realignment
+If blocked:
+- Document the blocker per "If Blocked" section above
+- Return control to supervisor with explicit next-action recommendation
+- Do not mark TORCH-REFINE-002E as `done` until all three exit criteria pass
 
-## Doc Sync Plan (Conditional)
+## Doc Sync Plan
 
-**Not applicable** — Phase A3 is diagnostic only; no new tests added, no pytest collection changes.
+**Not required** — No new tests added this loop; only tooling scripts and bridge code changes. If parity probe or debug driver scripts evolve significantly, supervisor will handle `pytest --collect-only` and doc sync in a follow-up loop.
 
-**Future sync trigger:** If Phase C Branch G creates new geometry helpers or tests, then:
-1. Run `pytest --collect-only` for affected selectors
-2. Archive logs under the Branch G artifacts directory
-3. Update `docs/TESTING_GUIDE.md` §2 and `docs/development/TEST_SUITE_INDEX.md` after code passes
+## Normative Math/Physics
+
+See `docs/spec-db-workflow.md §Stage A` for the normative zero-point invariant definition:
+> "for any Stage‑A configuration that claims DB‑AT‑024 mapping parity, zero geometry parameters (all cell/angle/orientation deltas equal to zero) and baseline scale MUST reproduce the DB‑AT‑024 mapping Bragg tensor produced by `simulate_forward_once`."
+
+This fix implements the geometry alignment required to satisfy that invariant.

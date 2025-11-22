@@ -83,7 +83,7 @@
 - [x] A0: **Probe extension** (2025-11-22T090505Z) — Confirmed H1: symmetric strain dominates (log_u_symmetric_norm ≈ 1.4e-3 >> antisymmetric ≈ 1.4e-7)
 - [ ] A1: **Multi‑config sweep** — Deferred (low ROI given A0/A2 results; revisit if Phase B requires)
 - [x] A2: **Baseline B_ideal variants** (2025-11-22T091200Z) — Rejected H2: both PathB variants show identical strain (1.369e-3); cell recovery worked but strain persists
-- [ ] A3: **Mapping forward vs Stage‑A configs** — UNBLOCKED by Phase B1; now critical path to isolate encoding vs simulator differences before Branch G
+- [x] A3: **Mapping forward vs Stage‑A configs** (2025-11-22T100330Z) — Confirmed geometry encoding gap: χ²_mapping=2.394e6 vs χ²_stage_a_zero=2.980e6 (24.5% difference). Both use nanobrag_torch, proving the gap is parameterization artifact, NOT simulator bug. Proceed to Branch G.
 
 ### Dependency Analysis (Required for Refactors)
 - **Touched Modules:** `plans/active/TORCH-REFINE-002E/bin/probe_crystal_matrix_parity.py` (tooling only).

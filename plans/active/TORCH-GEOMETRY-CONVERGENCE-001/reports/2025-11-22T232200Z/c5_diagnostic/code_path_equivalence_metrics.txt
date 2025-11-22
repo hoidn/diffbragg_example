@@ -1,0 +1,29 @@
+=== Code Path Equivalence Metrics (Phase C5) ===
+
+Zero-Point Path (use_mapping_zero_geometry=True):
+  chi_squared: 989645.62
+  correlation: 0.999999984318
+  a_star_checksum: NOT CAPTURED (zero-point check needs instrumentation)
+  a_star_max_element: NOT CAPTURED
+
+First Closure Path (use_mapping_zero_geometry=False, step 0 INIT):
+  chi_squared: 8837165.00
+  a_star_checksum: -5.223643779755e-02
+  a_star_max_element: 2.995361387730e-02
+  code_path: closure
+
+Divergence Metrics:
+  delta_chi_squared: 7847519.38
+  delta_chi_squared_pct: 792.96%
+  delta_a_star_checksum: NOT COMPUTABLE (zero-point missing)
+  delta_a_star_max_element: NOT COMPUTABLE (zero-point missing)
+
+Code Path Equivalence Verdict:
+  [ ] PASS — delta_chi_squared < 1%
+  [X] FAIL — delta_chi_squared > 10% (CATASTROPHIC: 793%)
+  [ ] INCONCLUSIVE — intermediate values
+
+LIMITATION: Zero-point check A* checksums not captured.
+The zero-point validation uses use_mapping_zero_geometry=True but this data
+is generated before the telemetry infrastructure was instrumented.
+We can still diagnose the failure from the catastrophic chi² divergence.

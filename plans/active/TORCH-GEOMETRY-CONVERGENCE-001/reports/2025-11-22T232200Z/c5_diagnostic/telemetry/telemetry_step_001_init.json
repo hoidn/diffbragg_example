@@ -1,0 +1,30 @@
+{
+  "step_index": 1,
+  "q_params": [
+    -0.31253644824028015,
+    0.8748083114624023,
+    -0.25495991110801697,
+    0.2683781683444977
+  ],
+  "q_norm_value": 1.0,
+  "log_scale": -0.2059076577425003,
+  "grad_q_norm": null,
+  "grad_q_max": null,
+  "grad_q_min": null,
+  "grad_log_scale": 149648.328125,
+  "grad_has_nan": false,
+  "grad_has_inf": false,
+  "chi_squared": 8837086.0,
+  "masked_mse": null,
+  "masked_pixels": null,
+  "clamped_pixels": null,
+  "clamp_fraction": null,
+  "i_model_min": null,
+  "i_model_median": null,
+  "i_model_max": null,
+  "i_model_std": null,
+  "a_star_checksum": -0.05223643779754639,
+  "a_star_max_element": 0.029953613877296448,
+  "code_path": "closure",
+  "closure_state": "before_optimizer_step"
+}

@@ -687,6 +687,7 @@ def _stage_a_adam_core(
     train_cell: bool,
     train_orientation: bool,
     use_u_matrix: bool = False,
+    telemetry_output_dir: str | None = None,
 ) -> Dict[str, object]:
     """Core helper for Stage A Adam experiments (Phase 4 / Phase 5).
 
@@ -804,10 +805,70 @@ def _stage_a_adam_core(
     loss_trace: List[float] = [float(chi_sq_before_t.item())]
 
     if optimizer is not None and n_steps > 0:
-        for _ in range(n_steps):
+        for step_idx in range(n_steps):
             optimizer.zero_grad()
             bragg_t, chi_sq_t = _forward_once(use_mapping_zero_geometry=False)
             chi_sq_t.backward()
+
+            # Telemetry: Emit per-step metrics (TORCH-GEOMETRY-CONVERGENCE-001 Phase A1)
+            if telemetry_output_dir and use_u_matrix and q_params is not None:
+                from pathlib import Path
+
+                # Capture parameters (before optimizer step)
+                q_norm_value = torch.norm(q_params).item()
+                telemetry_params = {
+                    'step_index': step_idx,
+                    'q_params': q_params.detach().cpu().tolist(),
+                    'q_norm_value': q_norm_value,
+                    'log_scale': log_scale.item(),
+                }
+
+                # Capture gradients (after backward, before step)
+                telemetry_gradients = {
+                    'grad_q_norm': torch.norm(q_params.grad).item() if q_params.grad is not None else None,
+                    'grad_q_max': torch.max(torch.abs(q_params.grad)).item() if q_params.grad is not None else None,
+                    'grad_q_min': torch.min(torch.abs(q_params.grad)).item() if q_params.grad is not None else None,
+                    'grad_log_scale': torch.abs(log_scale.grad).item() if log_scale.grad is not None else None,
+                    'grad_has_nan': torch.isnan(q_params.grad).any().item() if q_params.grad is not None else False,
+                    'grad_has_inf': torch.isinf(q_params.grad).any().item() if q_params.grad is not None else False,
+                }
+
+                # Capture loss (chi_squared from forward pass)
+                # Note: This script doesn't have per-pixel variance stats available inline
+                # so we emit simplified telemetry with chi_squared only
+                telemetry_loss = {
+                    'chi_squared': chi_sq_t.item(),
+                    'masked_mse': None,  # Not available in this simplified loop
+                    'masked_pixels': None,
+                    'clamped_pixels': None,
+                    'clamp_fraction': None,
+                }
+
+                # Variance components: Not available in this simplified forward loop
+                telemetry_variance = {
+                    'i_model_min': None,
+                    'i_model_median': None,
+                    'i_model_max': None,
+                    'i_model_std': None,
+                }
+
+                # Combine and emit
+                telemetry_step = {
+                    **telemetry_params,
+                    **telemetry_gradients,
+                    **telemetry_loss,
+                    **telemetry_variance,
+                }
+
+                try:
+                    telemetry_path = Path(telemetry_output_dir) / f"telemetry_step_{step_idx:03d}.json"
+                    telemetry_path.parent.mkdir(parents=True, exist_ok=True)
+                    with open(telemetry_path, 'w') as f:
+                        json.dump(telemetry_step, f, indent=2)
+                except Exception as e:
+                    import sys
+                    print(f"Warning: Failed to write telemetry JSON at step {step_idx}: {e}", file=sys.stderr)
+
             optimizer.step()
             loss_trace.append(float(chi_sq_t.item()))
 
@@ -1031,12 +1092,15 @@ def _run_blockwise_dof_experiments(
     out_dir: Path,
     dof_variants: list[str] | None = None,
     use_u_matrix: bool = False,
+    telemetry_output_dir: str | None = None,
 ) -> Dict[str, object]:
     """Phase 5 — Block-wise DoF isolation experiments.
 
     Args:
         use_u_matrix: If True, use quaternion U-matrix parameterization for
             orientation instead of cell+misset (TORCH-GEOMETRY-PARITY-002).
+        telemetry_output_dir: If provided, emit per-step telemetry JSON files
+            for convergence diagnosis (TORCH-GEOMETRY-CONVERGENCE-001 Phase A1).
     """
     all_variants = {
         "A_scale_only": dict(train_scale=True, train_cell=False, train_orientation=False),
@@ -1063,6 +1127,7 @@ def _run_blockwise_dof_experiments(
             train_cell=cfg["train_cell"],
             train_orientation=cfg["train_orientation"],
             use_u_matrix=use_u_matrix,
+            telemetry_output_dir=telemetry_output_dir,
         )
         chi = payload.get("chi_squared", {})
         cc = payload.get("cc_summary", {})
@@ -1371,6 +1436,17 @@ def _parse_args() -> argparse.Namespace:
             "quaternion → rotation matrix → A* instead of cell+misset decomposition."
         ),
     )
+    parser.add_argument(
+        "--telemetry-dir",
+        type=str,
+        default=None,
+        help=(
+            "Directory for per-step telemetry JSON files (TORCH-GEOMETRY-CONVERGENCE-001 Phase A1). "
+            "When set, enables instrumentation of quaternion U-matrix closure to emit parameter, "
+            "gradient, loss, and variance metrics for convergence diagnosis. Relative paths are "
+            "resolved relative to --out-dir if provided, otherwise relative to the current directory."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -1456,6 +1532,17 @@ def main(argv: List[str] | None = None) -> None:
             dof_variants_list = None
             if args.dof_variants is not None:
                 dof_variants_list = [v.strip() for v in args.dof_variants.split(",") if v.strip()]
+
+            # Resolve telemetry_dir relative to out_root if it's a relative path
+            telemetry_dir_resolved = None
+            if args.telemetry_dir is not None:
+                from pathlib import Path as PPath
+                telemetry_p = PPath(args.telemetry_dir)
+                if not telemetry_p.is_absolute():
+                    telemetry_dir_resolved = str(out_root / telemetry_p)
+                else:
+                    telemetry_dir_resolved = args.telemetry_dir
+
             _run_blockwise_dof_experiments(
                 dataload,
                 context,
@@ -1465,6 +1552,7 @@ def main(argv: List[str] | None = None) -> None:
                 out_dir=out_root,
                 dof_variants=dof_variants_list,
                 use_u_matrix=args.use_u_matrix,
+                telemetry_output_dir=telemetry_dir_resolved,
             )
 
         # This script is debug-only; no exceptions here are converted to non-zero

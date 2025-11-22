@@ -298,6 +298,10 @@ class RefinementConfig:
     sigma_readout_provenance: Optional[str] = None
     sigma_readout_reference_value: Optional[float] = None
 
+    # Telemetry output directory (TORCH-GEOMETRY-CONVERGENCE-001 Phase A1)
+    # When set, enables per-step telemetry emission for convergence diagnosis
+    telemetry_output_dir: Optional[str] = None
+
     # Device/dtype
     device: str = "cpu"
     dtype: torch.dtype = torch.float32
@@ -927,6 +931,10 @@ def run_nanobrag_refinement(
             enable_roi_mode=use_stage_a_roi_mode,
         )
 
+    # Telemetry step counter (TORCH-GEOMETRY-CONVERGENCE-001 Phase A1)
+    # Mutable list for closure capture; increments after each closure call
+    telemetry_step_counter = [0]
+
     def compute_loss(work_item_ids: List[int], is_full: bool = False) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Compute variance-weighted chi-squared loss over specified work items.
@@ -969,6 +977,17 @@ def run_nanobrag_refinement(
             # U-matrix path: Normalize quaternion, convert to U, compute A*
             from dbex.nanobrag_bridge import quaternion_to_matrix
             q_norm = q_params / torch.norm(q_params)  # Enforce ||q|| = 1
+
+            # Telemetry: Capture parameters (TORCH-GEOMETRY-CONVERGENCE-001 Phase A1)
+            if not is_full and config.telemetry_output_dir:
+                q_norm_value = torch.norm(q_params).item()
+                telemetry_params = {
+                    'step_index': telemetry_step_counter[0],
+                    'q_params': q_params.detach().cpu().tolist(),
+                    'q_norm_value': q_norm_value,
+                    'log_scale': log_scale.item(),
+                }
+
             U = quaternion_to_matrix(q_norm)  # 3x3 rotation matrix
             A_star_new = U @ B_ideal_reciprocal_torch  # Compute updated A*
 
@@ -1039,6 +1058,12 @@ def run_nanobrag_refinement(
             masked_pixels_total = 0
             clamped_pixels_total = 0
 
+            # Telemetry: Initialize variance component accumulators (TORCH-GEOMETRY-CONVERGENCE-001 Phase A1)
+            if not is_full and config.telemetry_output_dir and config.use_u_matrix_parameterization:
+                i_model_min_global = float('inf')
+                i_model_max_global = float('-inf')
+                i_model_values_list = []
+
             for roi_index in indices:
                 pid, bbox = panel_slices[roi_index]
                 x0, x1, y0, y1 = map(int, bbox)
@@ -1095,6 +1120,13 @@ def run_nanobrag_refinement(
                 bragg_patch = simulator.run()
                 bragg_scaled = bragg_patch * torch.exp(log_scale_clamped)
 
+                # Telemetry: Capture I_model variance components (TORCH-GEOMETRY-CONVERGENCE-001 Phase A1)
+                if not is_full and config.telemetry_output_dir and config.use_u_matrix_parameterization:
+                    i_model_values = bragg_scaled[mask_subset]
+                    i_model_min_global = min(i_model_min_global, torch.min(bragg_scaled).item())
+                    i_model_max_global = max(i_model_max_global, torch.max(bragg_scaled).item())
+                    i_model_values_list.append(i_model_values.detach().cpu())
+
                 chi_sq_roi, mse_roi, masked_pixels, clamped_pixels = _compute_variance_weighted_loss(
                     bragg_scaled,
                     target_subset,
@@ -1112,6 +1144,35 @@ def run_nanobrag_refinement(
             else:
                 masked_mse_loss = mse_numerator_accum
             chi_squared_loss = chi_squared_accum
+
+            # Telemetry: Capture loss components and variance stats (TORCH-GEOMETRY-CONVERGENCE-001 Phase A1)
+            if not is_full and config.telemetry_output_dir and config.use_u_matrix_parameterization:
+                clamp_fraction = clamped_pixels_total / max(masked_pixels_total, 1)
+                telemetry_loss = {
+                    'chi_squared': chi_squared_loss.item(),
+                    'masked_mse': masked_mse_loss.item() if masked_pixels_total > 0 else 0.0,
+                    'masked_pixels': masked_pixels_total,
+                    'clamped_pixels': clamped_pixels_total,
+                    'clamp_fraction': clamp_fraction,
+                }
+
+                # Compute variance component statistics
+                if i_model_values_list:
+                    i_model_all = torch.cat(i_model_values_list)
+                    telemetry_variance = {
+                        'i_model_min': i_model_min_global,
+                        'i_model_median': torch.median(i_model_all).item(),
+                        'i_model_max': i_model_max_global,
+                        'i_model_std': torch.std(i_model_all).item() if i_model_all.numel() > 1 else 0.0,
+                    }
+                else:
+                    telemetry_variance = {
+                        'i_model_min': None,
+                        'i_model_median': None,
+                        'i_model_max': None,
+                        'i_model_std': None,
+                    }
+
             variance_floor_clamped_pixels[0] += clamped_pixels_total
             variance_floor_masked_pixels[0] += masked_pixels_total
         else:
@@ -1205,6 +1266,42 @@ def run_nanobrag_refinement(
         for p in params:
             if p.grad is not None and (torch.isnan(p.grad).any() or torch.isinf(p.grad).any()):
                 raise RuntimeError(f"NaN/Inf gradient detected in {p}")
+
+        # Telemetry: Capture gradients and emit JSON (TORCH-GEOMETRY-CONVERGENCE-001 Phase A1)
+        if config.telemetry_output_dir and config.use_u_matrix_parameterization:
+            # Capture gradient norms
+            telemetry_gradients = {
+                'grad_q_norm': torch.norm(q_params.grad).item() if q_params.grad is not None else None,
+                'grad_q_max': torch.max(torch.abs(q_params.grad)).item() if q_params.grad is not None else None,
+                'grad_q_min': torch.min(torch.abs(q_params.grad)).item() if q_params.grad is not None else None,
+                'grad_log_scale': torch.abs(log_scale.grad).item() if log_scale.grad is not None else None,
+                'grad_has_nan': torch.isnan(q_params.grad).any().item() if q_params.grad is not None else False,
+                'grad_has_inf': torch.isinf(q_params.grad).any().item() if q_params.grad is not None else False,
+            }
+
+            # Combine all telemetry (telemetry_params, telemetry_loss, telemetry_variance are nonlocal from compute_loss)
+            # Note: These variables are set in compute_loss U-matrix path, guaranteed to exist here
+            telemetry_step = {
+                **telemetry_params,
+                **telemetry_gradients,
+                **telemetry_loss,
+                **telemetry_variance,
+            }
+
+            # Emit telemetry JSON
+            import json
+            from pathlib import Path
+            try:
+                telemetry_path = Path(config.telemetry_output_dir) / f"telemetry_step_{telemetry_step_counter[0]:03d}.json"
+                telemetry_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(telemetry_path, 'w') as f:
+                    json.dump(telemetry_step, f, indent=2)
+            except Exception as e:
+                import sys
+                print(f"Warning: Failed to write telemetry JSON: {e}", file=sys.stderr)
+
+            # Increment step counter
+            telemetry_step_counter[0] += 1
 
         # Record loss (use chi_squared for optimizer feedback)
         loss_trace_sample.append(float(chi_squared_loss.item()))  # Deprecated legacy field

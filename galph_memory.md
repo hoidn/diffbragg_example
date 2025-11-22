@@ -537,3 +537,13 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-21T175716Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=0 artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T175716Z/ next_action=stage_c_detector_retarget_implementation
+
+## 2025-11-22T090505Z — TORCH-REFINE-002E Phase A0 probe extension
+- Focus: TORCH-REFINE-002E — Fix Stage A Zero-Point Geometry Discontinuity
+- Action Type: planning
+- Key Observations: Reviewed fix_plan.md:48 attempt history showing the Phase A probe reported `max_abs_diff≈4.0e-5` (exceeds the < 1e-6 exit criterion) and Phase 5 Adam sweeps still degrade CC. Confirmed PERF-WARM-SIM-001 is deferred per manual override at fix_plan.md:95, so input.md focus was stale. Switched to TORCH-REFINE-002E per Tier 1 Roadmap and authored a new Do Now targeting Phase A checklist item A0: extend `probe_crystal_matrix_parity.py` with eigenvalue/singular-value decomposition, symmetric/antisymmetric logm(U_error) splits, and reciprocal-column norm/angle comparisons to diagnose whether the 4e-5 gap is pure rotation or contains symmetric strain. New artifacts directory: plans/active/TORCH-REFINE-002E/reports/2025-11-22T090505Z/.
+- Artifact Path: plans/active/TORCH-REFINE-002E/reports/2025-11-22T090505Z/
+- Next Actions: Ralph extends the probe script per Phase A0, runs it on canonical refGeom assets, and emits `crystal_matrix_parity_extended.json` + log so we can quantify the rotation vs strain decomposition and decide whether to pursue Phase A1 (multi-config) or Phase A2 (baseline B_ideal variants) next.
+- <Action State>: [ready_for_implementation]
+
+2025-11-22T090505Z focus=TORCH-REFINE-002E state=ready_for_implementation dwell=0 artifacts=plans/active/TORCH-REFINE-002E/reports/2025-11-22T090505Z/ next_action=phase_a0_probe_extension

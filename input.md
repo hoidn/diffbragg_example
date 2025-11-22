@@ -1,58 +1,55 @@
-Summary: Plan Stage C warm-cache reuse so we stop rebuilding Detector/Simulator objects each iteration while keeping telemetry artifacts reproducible.
-Mode: Perf
-Focus: PERF-WARM-SIM-001 — Warm simulator; eliminate per-iteration re-instantiation
+Summary: Extend the A* parity probe to decompose the residual U_error into rotation vs strain components and diagnose the 4e-5 matrix gap.
+Mode: none
+Focus: TORCH-REFINE-002E — Fix Stage A Zero-Point Geometry Discontinuity
 Branch: integration
-Mapped tests:
-  * tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small
-  * tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=full
-Artifacts: plans/active/PERF-WARM-SIM-001/reports/2025-11-21T175716Z/
+Mapped tests: none — evidence-only
+Artifacts: plans/active/TORCH-REFINE-002E/reports/2025-11-22T090505Z/
 
 Do Now:
-- Focus Item: PERF-WARM-SIM-001
-- Implement: dbex/nanobrag_refinement.py::_build_stage_a_context — stash baseline per-panel distances/ROI maps in StageAContext so later stages can mutate cached detectors without recreating configs; include any helper you need to surface these tensors.
-- Implement: dbex/nanobrag_refinement.py::compute_loss_stage_c — add a retarget helper that applies the bounded Stage C distance offsets to StageAContext simulators/ROI entries so warm-mode stops instantiating fresh Detector/Simulator objects; update the final Stage C reconstruction loop to reuse the warmed simulators as well, keeping the cold path unchanged.
-- Test: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T175716Z/telemetry_stage_c_small.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small | tee plans/active/PERF-WARM-SIM-001/reports/2025-11-21T175716Z/pytest_stage_c_small.log
-- Test: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=full DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-WARM-SIM-001/reports/2025-11-21T175716Z/telemetry_stage_c_full.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=full | tee plans/active/PERF-WARM-SIM-001/reports/2025-11-21T175716Z/pytest_stage_c_full.log
-- Test: python plans/active/PERF-WARM-SIM-001/bin/summarize_stage_c_roi.py --telemetry plans/active/PERF-WARM-SIM-001/reports/2025-11-21T175716Z/telemetry_stage_c_small.json --telemetry plans/active/PERF-WARM-SIM-001/reports/2025-11-21T175716Z/telemetry_stage_c_full.json --out plans/active/PERF-WARM-SIM-001/reports/2025-11-21T175716Z/stage_c_roi_summary.json | tee plans/active/PERF-WARM-SIM-001/reports/2025-11-21T175716Z/summarize_stage_c_roi.log
+- Focus Item: TORCH-REFINE-002E
+- Implement: plans/active/TORCH-REFINE-002E/bin/probe_crystal_matrix_parity.py — extend Phase A0 diagnostics per implementation.md checklist A0. Add eigenvalue/singular-value decomposition of A*_pathA and A*_pathB, symmetric/antisymmetric decomposition of `logm(U_error)` to separate pure rotation from strain, and per-column norm + angle comparisons for reciprocal vectors a*/b*/c*.
+- Implement: Save extended metrics to `plans/active/TORCH-REFINE-002E/reports/2025-11-22T090505Z/crystal_matrix_parity_extended.json` so we can quantify whether the 4e-5 gap is dominated by rotational error or symmetric strain.
+- Test: Run the extended probe on canonical refGeom assets via `python plans/active/TORCH-REFINE-002E/bin/probe_crystal_matrix_parity.py --expt sp.proc/refGeom.expt --refl sp.proc/refGeom.refl --mtz scaled.mtz --mask 747_mask.pkl --calibration tests/fixtures/golden_data/simple_cubic/config_torch.json --refined-mtz tests/fixtures/golden_data/simple_cubic/refined_structure_factors.mtz --output plans/active/TORCH-REFINE-002E/reports/2025-11-22T090505Z/crystal_matrix_parity_extended.json | tee plans/active/TORCH-REFINE-002E/reports/2025-11-22T090505Z/probe_extended.log`
 
 How-To Map:
-1. Modify `StageAContext` and `_build_stage_a_context` so each panel entry carries its baseline `distance_mm` tensor plus ROI→panel indices; expose a helper that returns per-panel mutable detector handles without copying.
-2. Add `_retarget_stage_a_detectors(stage_a_ctx, distance_offsets, device)` (name flexible) beside `_retarget_stage_a_simulators`; it should apply the bounded offsets to every cached simulator plus ROI entry, respecting CPU fallbacks and keeping masks/tensors on the correct dtype/device.
-3. In `compute_loss_stage_c`, replace the warm-cache branches that currently copy detector configs with calls to the new helper so ROI-mode iterations simply reuse cached simulators/detector tensors before running the loss; keep the cold-mode code path untouched.
-4. Update the final Stage C reconstruction loop to reuse the warmed simulators after applying the distance offsets rather than instantiating another Detector/Simulator pair; ensure log_scale scaling + telemetry stay identical to current output.
-5. Run the Stage C small-detector selector with the canonical env vars above, teeing output + telemetry JSON into the new artifacts directory.
-6. Repeat for the full-detector selector (expect longer runtime); collect telemetry + pytest log under the same directory.
-7. Generate `stage_c_roi_summary.json` via the summarizer so exit criterion #2 has the consolidated evidence; inspect the JSON for `cache_mode="warm"` and non-zero ROI counts before uploading.
+1. Extend `probe_crystal_matrix_parity.py` with a new helper function `compute_extended_diagnostics(A_star_pathA, A_star_pathB, U_error)` that:
+   - Computes eigenvalues of both A* matrices via `np.linalg.eigvalsh()` (symmetric part only for now; if needed, use `np.linalg.eig()` for full eigendecomposition).
+   - Computes singular values via `np.linalg.svd()` to quantify scaling/strain in the principal axes.
+   - Forms `log_U = scipy.linalg.logm(U_error)` and decomposes it into symmetric `(log_U + log_U.T)/2` and antisymmetric `(log_U - log_U.T)/2` parts so we can see how much of the error is a pure rotation vs a symmetric stretch.
+   - Computes per-column norms (`||a*_A||`, `||a*_B||`, etc.) and inter-column angles for the reciprocal vectors to see if lattice distortion is axis-dependent.
+2. Update the `MatrixParitySummary` dataclass to include new fields: `A_star_pathA_eigenvalues`, `A_star_pathB_eigenvalues`, `A_star_pathA_singular_values`, `A_star_pathB_singular_values`, `log_U_symmetric_norm`, `log_U_antisymmetric_norm`, `reciprocal_column_norms`, `reciprocal_column_angles`.
+3. Invoke the new helper inside `main()` after computing `U_error` and merge the extended metrics into the summary dict before JSON emission.
+4. Run the probe CLI command above with the canonical refGeom assets, capturing the JSON + log under the new artifacts directory.
+5. Inspect the JSON to determine whether:
+   - `log_U_symmetric_norm` is negligible (< 1e-6) → pure rotation error, focus on numerical/convention fixes.
+   - `log_U_symmetric_norm` is significant (≥ 1e-5) → true strain component, investigate baseline B_ideal mismatch or cell recovery.
 
 Pitfalls To Avoid:
-- Do not mutate the cached detectors when `stage_c_use_warm_cache` is false; cold path must still rebuild configs per iteration.
-- Keep Stage B behavior intact—retarget helpers should only fire within the Stage C code paths you touch.
-- Preserve dtype/device fidelity when retargeting detectors so CPU fallback (stage_b_full_eval_on_cpu) does not break Stage C telemetry.
-- Reuse the existing perf-counter fields; do not rename telemetry keys or relax asserts in the smoke tests.
-- Guard ROI mode carefully: Stage C canonical runs still expect `roi_mode="panel"` whenever Stage A ROI is disabled for canonical detectors.
-- Avoid introducing new dependencies or scripts outside the initiative bin directory (environment freeze still applies).
-- Validate that the retarget helper updates ROI simulators before reuse; stale geometry will invalidate Stage C offset gates.
-- Capture telemetry/log artifacts directly under the new timestamped folder so docs/fix_plan references remain accurate.
-- Keep the summarizer output schema identical so downstream tooling (`plans/active/PERF-WARM-SIM-001/bin/summarize_stage_c_roi.py`) continues to parse it.
-- Honor `NANOBRAGG_DISABLE_COMPILE=1` and `KMP_DUPLICATE_LIB_OK=TRUE` in all pytest runs per runtime guardrails.
+- Do not change the baseline misset logic or bridge helpers in this loop; Phase A0 is strictly diagnostic—edits confined to the probe script.
+- Preserve the existing JSON schema fields (`max_abs_diff`, `frobenius_norm`, `det_U_error`) so prior artifacts remain comparable.
+- Avoid running the probe on refined.expt yet (that's checklist A1); this loop targets refGeom only per the canonical dataset policy.
+- Keep imports minimal; `scipy.linalg.logm` is already available in the simtbx environment, so no new dependencies should be added.
+- Ensure the probe runs on CPU to avoid CUDA/compile noise; the extended metrics are purely linear algebra on small 3×3 matrices.
+- Do not emit log outputs or print statements that could clutter the pytest/CI logs if this probe gets wired into a selector later.
+- Capture both the JSON artifact and the probe log under the timestamped directory so fix_plan can cite them in the Attempts History.
 
 If Blocked:
-- If Stage C still instantiates new detectors after your changes (e.g., because simulator API lacks setters), capture the failing evidence (stack traces, perf counters) in the artifact directory, log the limitation plus error signature in `docs/fix_plan.md`, and mark the fix-plan item blocked in galph_memory so we can reprioritize helper work.
-- Should the smoke selector crash (CUDA OOM, telemetry mismatch), save the pytest log + telemetry JSON, reference the selector/gate that failed, and halt additional implementation until we triage it in the plan ledger.
+- If `scipy.linalg.logm` is missing or raises import errors, fall back to a simpler Frobenius-norm comparison of `U_error - I` and defer the log-matrix decomposition to a follow-up loop; record the block in `docs/fix_plan.md` Attempts History.
+- Should the probe crash on canonical refGeom due to singular A* matrices or degenerate crystal configs, save the stack trace + input paths in `plans/active/TORCH-REFINE-002E/reports/2025-11-22T090505Z/blocker.txt` and mark the initiative blocked so we can triage the geometry bug first.
 
 Findings Applied (Mandatory):
-- PERF-WARM-006 — Stage B/C must reuse Stage A cache structures; the retarget helper enforces this requirement for Stage C warm runs.
-- PERF-WARM-007 — Keep Stage C perf-counter asserts/logging intact while capturing new telemetry evidence after the refactor.
-- PERF-WARM-012 — CPU fallback must continue to report `cache_mode="warm"`; retarget helper needs to respect the cloned Stage A context when Stage B forces CPU evals.
-- PERF-WARM-013 — Current Stage C warm runs still rebuild Detector/Simulator instances; this Do Now resolves that gap by mutating cached simulators instead of cloning configs.
-- RUNTIME-001 — Pytest commands must continue to run with `NANOBRAGG_DISABLE_COMPILE=1` to avoid torch.compile interference.
+- GEOMETRY-003 — Probe must use the robust baseline misset path (`derive_robust_misset`) when building the Path B crystal config; the existing probe already does this per e8c763b.
+- RUNTIME-001 — Probe runs on CPU only (no `--device cuda`); `NANOBRAGG_DISABLE_COMPILE=1` not strictly needed here but harmless.
+- CONFIG-001 — Ensure probe reuses the bridge helpers (`create_crystal_config`) with the same conventions (beam center swap, mask polarity, etc.) so A* extraction is consistent with production paths.
+- GRADIENT-001 — Probe must avoid `.item()` or `.numpy()` on any tensor that might later participate in autograd; for this diagnostic-only script, all tensors are detached/CPU, so no gradient concerns.
 
 Pointers:
-- docs/fix_plan.md:37 — PERF-WARM-SIM-001 ledger entry, exit criteria, and Attempts History.
-- plans/active/PERF-WARM-SIM-001/implementation.md:70 — Phase D checklist for the Stage C detector reuse scope.
-- dbex/nanobrag_refinement.py:2238 — Stage C warm/cold branching that still instantiates new Detector/Simulator objects.
-- docs/TESTING_GUIDE.md:51 — Stage C telemetry workflow (env vars + summarizer command) for mapped selectors.
-- docs/development/TEST_SUITE_INDEX.md:12 — Registry row for the Stage A/B/C smoke selectors and canonical commands.
+- docs/fix_plan.md:37 — TORCH-REFINE-002E ledger entry, exit criteria, Attempts History.
+- plans/active/TORCH-REFINE-002E/implementation.md:82 — Phase A checklist A0 details.
+- plans/active/TORCH-REFINE-002E/bin/probe_crystal_matrix_parity.py:1 — Current probe implementation (eigenvalue/logm extensions to be added).
+- docs/spec-db-conformance.md — Mapping-Aligned Stage A Initialization clause (normative zero-point requirement).
+- docs/findings.md:7 — GEOMETRY-003 finding documenting the baseline misset derivation.
 
 Next Up (optional):
-- If Stage C reuse lands quickly, rerun the Stage B canonical smoke on CPU to confirm cache_mode stays warm and refresh ROI telemetry under the same artifact folder.
+- If the extended probe shows `log_U_symmetric_norm < 1e-6`, proceed to Phase A checklist item A1 (multi-config sweep on refined.expt and synthetic perturbations) to confirm the gap is numerical/convention-only.
+- If `log_U_symmetric_norm >= 1e-5`, pivot to Phase A checklist item A2 (baseline B_ideal variants) to test whether using a recovered cell from MOSFLM A* eliminates the strain component.

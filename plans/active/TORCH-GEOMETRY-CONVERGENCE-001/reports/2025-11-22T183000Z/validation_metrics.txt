@@ -1,0 +1,33 @@
+=== Zero-Point Validation ===
+{
+  "chi_squared_initial_mapping": null,
+  "chi_squared_after_stage_a": null,
+  "relative_diff": null,
+  "corr_median_vs_mapping": 0.9999999843318911
+}
+
+=== LBFGS Step 0 Chi² (KEY FIX VALIDATION) ===
+
+=== LBFGS Steps 1-2 Chi² Trend ===
+
+=== Test Log Tail ===
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=54503055/56016009 (97.30%)
+auto-selected 3-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=54503055/56016009 (97.30%)
+auto-selected 3-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=54503055/56016009 (97.30%)
+auto-selected 3-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=54503055/56016009 (97.30%)
+auto-selected 3-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=54503055/56016009 (97.30%)
+auto-selected 3-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=54503055/56016009 (97.30%)
+auto-selected 3-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=54503055/56016009 (97.30%)
+auto-selected 3-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=54503055/56016009 (97.30%)
+auto-selected 3-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=54503055/56016009 (97.30%)
+/home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/fixtures/parity_loader.py:442: ConstantInputWarning: An input array is constant; the correlation coefficient is not defined.
+  corr, _ = scipy.stats.pearsonr(pred_flat, targ_flat)
+[stage_a_mapping_adam_debug] Completed phases ['5'] → artifacts under /home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T183000Z/lbfgs_validation (timestamp=20251122T162936Z)

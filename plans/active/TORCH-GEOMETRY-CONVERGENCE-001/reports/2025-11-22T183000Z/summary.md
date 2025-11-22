@@ -1,5 +1,6 @@
-### Turn Summary (Galph 2025-11-22T183000Z)
-Reviewed Ralph's Phase B deep diagnostic (commit e86fd4e) showing successful B_ideal mismatch fix via code audit—dbex/nanobrag_refinement.py:786 was discarding returned B_ideal and recomputing from cctbx, now fixed to use MOSFLM-derived value consistently.
-Zero-point validation PASSED (chi²=989k), but LBFGS optimization loop validation INCOMPLETE (log shows only HKL grid builds, no step 0 telemetry to confirm chi² dropped from 1.425B → ~1M).
-Next: Ralph executes decisive 3-step LBFGS validation test to confirm fix works in optimization loop (Step 0 chi² < 2M = SUCCESS → Phase C, else escalate to instrumentation or alternative test).
-Artifacts: plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T183000Z/ (input.md with 6-step validation protocol, galph_memory.md)
+### Turn Summary
+Executed Phase B1 LBFGS validation test to confirm B_ideal mismatch fix resolves catastrophic convergence failure.
+Zero-point validation PASSED (chi²=989k, CC≈1.0), confirming B_ideal fix works for initialization, but LBFGS optimization CATASTROPHICALLY FAILED (chi² 1.13M→1.425B, CC 1.0→-0.045) with identical pre-fix signature.
+Root cause: B_ideal fix resolved INITIALIZATION bug but NOT CONVERGENCE pathology; failure is optimizer-agnostic (reproduced with Adam and LBFGS), indicating forward model/loss/gradient bug during optimization.
+Decision: Path B (Fix INCOMPLETE) — Escalate to Phase B2 gradient/variance telemetry diagnostic to identify specific pathology (NaN/Inf gradients, exploding magnitudes, variance instability).
+Artifacts: plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T183000Z/ (phase_b1_validation_decision.md, lbfgs_validation/zero_point_check.json, lbfgs_validation/block_dof_results_u_matrix.json)

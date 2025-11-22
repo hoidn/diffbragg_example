@@ -1,10 +1,10 @@
-# Phase C5 — Code Path Equivalence Diagnostic
+# Phase C6 — Code Path Divergence Fix Implementation
 
 ## Summary
-Instrument and test whether `use_mapping_zero_geometry=False` with zero-valued parameters produces different A* than `use_mapping_zero_geometry=True`, causing catastrophic chi² despite correct parameter handling.
+Implement bypass fix to eliminate code path divergence confirmed by Phase C5 diagnostic (793% chi² difference at mapping zero point).
 
 ## Mode
-none
+TDD
 
 ## Focus
 TORCH-GEOMETRY-CONVERGENCE-001 — Diagnose & Fix Quaternion U-Matrix Catastrophic Convergence Failure
@@ -14,68 +14,88 @@ integration
 
 ## Mapped tests
 - **Active:** `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` (regression guard)
-- **Validation:** Manual 2-step diagnostic via `stage_a_mapping_adam_debug.py`
+- **Validation:** Manual rerun of Phase C5 diagnostic (code path equivalence check)
+- **Full validation:** Manual 10-step A_scale_only convergence test
 
 ## Artifacts
-`plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T232200Z/`
+`plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T240000Z/`
 
 ## Do Now
 
-Phase C4 audit found NO parameter staleness bugs (HIGH confidence ~95%). All parameters (log_scale, q_params, U, A*, crystal_overrides) are correctly captured and used. However, Ralph identified a new hypothesis: **code path divergence** between zero-point validation path and first closure path may produce different results even at zero parameters.
+Phase C5 diagnostic CONFIRMED catastrophic code path divergence (delta_chi²=+793% at mapping zero point). Zero-point validation path (use_mapping_zero_geometry=True, chi²=989,646) and first closure path (use_mapping_zero_geometry=False, chi²=8,837,165) produce DIFFERENT forward models even when all parameters are at their zero values.
 
-**Your task:** Implement Priority 1 diagnostic from `phase_c4_parameter_staleness_decision.md` to prove/disprove this hypothesis.
+**Root Cause:** The closure path reconstructs A* via `U @ B_ideal` round-trip and passes through `crystal_overrides`, while the zero-point path uses direct MOSFLM A* injection. This round-trip introduces numerical error or triggers different handling in `create_crystal_config`.
+
+**Your task:** Implement Option 1 fix (bypass crystal_overrides at mapping zero point), validate with C5 diagnostic rerun, then execute full convergence test.
 
 ### Implementation Steps
 
-1. **Review Phase C4 artifacts:**
-   - Read `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T232000Z/phase_c4_parameter_staleness_decision.md`
-   - Read `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T232000Z/phase_c4_first_closure_audit.md`
-   - Understand the code path divergence hypothesis (§Evidence Summary, §Recommended Next Actions Priority 1)
+1. **Review Phase C5 diagnostic findings:**
+   - Read `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T232200Z/phase_c5_code_path_divergence_decision.md`
+   - Understand Path B verdict (code paths DIVERGE, delta_chi²=793%)
+   - Review recommended fix options (§Priority 3, Option 1)
 
-2. **Instrument `_stage_a_forward` with A* checksum logging:**
+2. **Implement zero-check bypass logic in `_stage_a_forward`:**
    - File: `plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py`
-   - Target function: `_stage_a_forward` (lines ~397-464)
-   - Add checksum logging at two points:
+   - Target function: `_stage_a_forward` (lines ~420-540)
+   - Add parameter delta check BEFORE the `if use_mapping_zero_geometry:` conditional (line ~428):
 
-     **Point A** (after line ~410, zero-point path):
+   ```python
+   # CONVERGENCE-001 Phase C6: Check if ALL parameter deltas are zero (at mapping zero point)
+   # If true, bypass U/B_ideal round-trip and use direct MOSFLM A* injection
+   # to avoid numerical precision divergence confirmed by Phase C5 diagnostic.
+   all_params_at_zero = True  # Assume true, falsify below
+
+   # Check cell parameter deltas (6 DOF)
+   if not torch.allclose(log_cell_a_delta, torch.tensor(0.0, device=device, dtype=dtype), atol=1e-9):
+       all_params_at_zero = False
+   if not torch.allclose(log_cell_b_delta, torch.tensor(0.0, device=device, dtype=dtype), atol=1e-9):
+       all_params_at_zero = False
+   if not torch.allclose(log_cell_c_delta, torch.tensor(0.0, device=device, dtype=dtype), atol=1e-9):
+       all_params_at_zero = False
+   if not torch.allclose(angle_alpha_raw, torch.tensor(0.0, device=device, dtype=dtype), atol=1e-9):
+       all_params_at_zero = False
+   if not torch.allclose(angle_beta_raw, torch.tensor(0.0, device=device, dtype=dtype), atol=1e-9):
+       all_params_at_zero = False
+   if not torch.allclose(angle_gamma_raw, torch.tensor(0.0, device=device, dtype=dtype), atol=1e-9):
+       all_params_at_zero = False
+
+   # Check orientation parameter delta (4 DOF quaternion for U-matrix, or 3 DOF orientation_vec for cell+misset)
+   if components.use_u_matrix:
+       # U-matrix path: compare q_params to q_initial
+       if q_params is not None and not torch.allclose(q_params, components.q_initial, atol=1e-9):
+           all_params_at_zero = False
+   else:
+       # Cell+misset path: check orientation_vec
+       if not torch.allclose(orientation_vec, torch.tensor([0.0, 0.0, 0.0], device=device, dtype=dtype), atol=1e-9):
+           all_params_at_zero = False
+
+   # If all deltas are zero AND we're in closure mode, force direct MOSFLM injection
+   use_direct_mosflm_injection = use_mapping_zero_geometry or all_params_at_zero
+   ```
+
+3. **Replace the `if use_mapping_zero_geometry:` condition:**
+   - Change line ~428 from:
      ```python
      if use_mapping_zero_geometry:
-         crystal_config, _ = create_crystal_config(...)
-         # Extract A* from crystal_config for logging
-         A_star_direct = np.array([
-             crystal_config.mosflm_a_star,
-             crystal_config.mosflm_b_star,
-             crystal_config.mosflm_c_star
-         ], dtype=np.float64).reshape(3, 3)
-         a_star_checksum_direct = A_star_direct.sum()
-         a_star_max_elem_direct = np.abs(A_star_direct).max()
      ```
-
-     **Point B** (after line ~442, closure path):
+   - To:
      ```python
-     else:
-         # After A_star_new computation and numpy conversion
-         A_star_roundtrip = A_star_new.detach().cpu().numpy()
-         a_star_checksum_roundtrip = A_star_roundtrip.sum()
-         a_star_max_elem_roundtrip = np.abs(A_star_roundtrip).max()
-
-         # Compute divergence vs direct path (requires zero-point reference)
-         # This will be logged in telemetry below
+     if use_direct_mosflm_injection:
      ```
+   - This applies the bypass logic without duplicating code
 
-3. **Extend telemetry schema to include A* checksums:**
-   - In `_forward_once` (line ~473), add fields to telemetry dict:
+4. **Update telemetry code_path field:**
+   - In the `use_direct_mosflm_injection` branch (formerly zero-point path), update:
      ```python
-     telemetry_data = {
-         # existing fields...
-         "a_star_checksum": a_star_checksum_roundtrip if not use_mapping_zero_geometry else a_star_checksum_direct,
-         "a_star_max_element": a_star_max_elem_roundtrip if not use_mapping_zero_geometry else a_star_max_elem_direct,
-         "code_path": "closure" if not use_mapping_zero_geometry else "zero_point",
-     }
+     code_path = "zero_point" if use_mapping_zero_geometry else "closure_bypass_at_zero"
      ```
+   - This distinguishes between explicit zero-point check vs zero-detected bypass in telemetry
 
-4. **Run 2-step diagnostic with dual telemetry capture:**
-   - Execute `python plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py \
+5. **Rerun Phase C5 diagnostic to validate fix:**
+   - Execute same diagnostic as C5:
+     ```bash
+     python plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py \
        --use-u-matrix \
        --u-matrix-lr 1e-5 \
        --phases 5 \
@@ -83,207 +103,195 @@ Phase C4 audit found NO parameter staleness bugs (HIGH confidence ~95%). All par
        --adam-steps 2 \
        --device cpu \
        --telemetry-dir telemetry \
-       --out-dir plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T232200Z/c5_diagnostic \
-       --timeout 1200`
-   - Expected artifacts:
-     - `c5_diagnostic/zero_point_check.json` (chi²~990k, code_path=zero_point)
-     - `c5_diagnostic/telemetry/telemetry_step_000_init.json` (chi², code_path=closure, A* checksum)
-     - `c5_diagnostic/telemetry/telemetry_step_000_post.json` (after first step)
-     - `c5_diagnostic/telemetry/telemetry_step_001_init.json` (before second step)
-     - `c5_diagnostic/block_dof_results_u_matrix.json` (if completes)
-
-5. **Extract code path equivalence metrics:**
-   - Create `c5_diagnostic/code_path_equivalence_metrics.txt` with:
+       --out-dir plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T240000Z/c6_fix_validation \
+       --timeout 1200
      ```
-     === Code Path Equivalence Metrics (Phase C5) ===
+   - Expected artifacts: `c6_fix_validation/{zero_point_check.json, telemetry/, block_dof_results_u_matrix.json}`
 
-     Zero-Point Path (use_mapping_zero_geometry=True):
-       chi_squared: <value from zero_point_check.json>
+6. **Extract fix validation metrics:**
+   - Create `c6_fix_validation/fix_validation_metrics.txt` with:
+     ```
+     === Fix Validation Metrics (Phase C6) ===
+
+     Zero-Point Path:
+       chi_squared: <from zero_point_check.json>
        correlation: <value>
-       a_star_checksum: <value>
-       a_star_max_element: <value>
 
-     First Closure Path (use_mapping_zero_geometry=False, step 0 INIT):
-       chi_squared: <value from telemetry_step_000_init.json>
+     First Closure Path (with bypass fix):
+       chi_squared: <from telemetry_step_000_init.json>
        a_star_checksum: <value>
-       a_star_max_element: <value>
+       code_path: <should be "closure_bypass_at_zero">
 
      Divergence Metrics:
-       delta_chi_squared: <closure_chi² - zero_point_chi²>
+       delta_chi_squared: <abs diff>
        delta_chi_squared_pct: <(delta / zero_point) * 100>%
-       delta_a_star_checksum: <abs(closure_checksum - zero_checksum)>
-       delta_a_star_max_element: <abs(closure_max - zero_max)>
 
-     Code Path Equivalence Verdict:
-       [ ] PASS — delta_chi_squared < 1% AND delta_a_star_checksum < 1e-10
-       [ ] FAIL — delta_chi_squared > 10% OR delta_a_star_checksum > 1e-6
-       [ ] INCONCLUSIVE — intermediate values
+     Fix Validation Verdict:
+       [ ] SUCCESS — delta_chi² < 1% (paths now equivalent)
+       [ ] PARTIAL — delta_chi² 1-10% (improved but not equivalent)
+       [ ] FAIL — delta_chi² > 10% (fix didn't work)
      ```
 
-6. **Synthesize Phase C5 decision:**
-   - Create `phase_c5_code_path_divergence_decision.md` using this template:
+7. **Synthesize Phase C6 fix decision:**
+   - Create `phase_c6_fix_validation_decision.md` with template:
      ```markdown
-     # Phase C5 Decision — Code Path Equivalence Diagnostic
+     # Phase C6 Decision — Code Path Divergence Fix Validation
 
      **Initiative:** TORCH-GEOMETRY-CONVERGENCE-001
-     **Phase:** C5 (Code Path Equivalence)
-     **Date:** 2025-11-22T232200Z
+     **Phase:** C6 (Fix Implementation & Validation)
+     **Date:** 2025-11-22T240000Z
 
      ## Verdict
 
-     **[ ] Path A — Code paths EQUIVALENT (delta_chi² < 1%, delta_A* < 1e-10)**
-     **[ ] Path B — Code paths DIVERGE (delta_chi² > 10%, delta_A* > 1e-6)**
-     **[ ] Path C — INCONCLUSIVE (intermediate metrics OR test failed)**
+     **[ ] Path A — Fix SUCCESS (delta_chi² < 1%)**
+     **[ ] Path B — Fix PARTIAL (1% ≤ delta_chi² < 10%)**
+     **[ ] Path C — Fix FAIL (delta_chi² ≥ 10%)**
 
      **DIAGNOSIS:** <Fill based on metrics>
 
      ## Evidence Summary
 
-     <Paste code_path_equivalence_metrics.txt>
+     <Paste fix_validation_metrics.txt>
 
-     ## Root Cause Analysis
+     ## Next Actions
 
-     <If Path B confirmed, analyze WHERE the divergence occurs:>
-     - U-matrix computation from q_params?
-     - B_ideal derivation?
-     - A* reconstruction (U @ B_ideal)?
-     - Numpy tuple conversion?
-     - create_crystal_config handling of crystal_overrides?
+     ### If Path A (Fix SUCCESS):
+     - Execute full Phase 5 A_scale_only convergence test (10 steps)
+     - Success criteria: CC ≥ 0.99, chi² drift ≤ 1%
+     - If convergence test passes: mark C6 DONE, proceed to findings update
+     - If convergence test fails: new pathology discovered, escalate to Phase C7
 
-     ## Recommended Next Actions
+     ### If Path B (Fix PARTIAL):
+     - Investigate residual divergence (1-10% chi² diff)
+     - Audit create_crystal_config for numerical precision issues
+     - Consider tightening atol in zero-check logic (currently 1e-9)
 
-     ### If Path A (Equivalence CONFIRMED):
-     - Reject code path divergence hypothesis
-     - Escalate to Priority 2: audit `create_crystal_config` internals for subtle differences
-     - Or Priority 3: test LBFGS optimizer
-
-     ### If Path B (Divergence CONFIRMED):
-     - Implement fix to make paths equivalent at zero parameters:
-       - Option 1: Bypass crystal_overrides when all deltas are zero (use direct MOSFLM path)
-       - Option 2: Fix numerical precision in U/B_ideal round-trip
-       - Option 3: Audit `create_crystal_config` for phase-B5-style override bugs
-     - Validate fix with rerun of this diagnostic
-
-     ### If Path C (Inconclusive):
-     - Review test execution logs for premature termination or telemetry corruption
-     - Rerun diagnostic with extended timeout or reduced ROI count
+     ### If Path C (Fix FAIL):
+     - Revert bypass fix
+     - Escalate to Priority 2: audit create_crystal_config internals
+     - Alternative: test LBFGS optimizer (may have different closure behavior)
      ```
 
-7. **Update implementation.md checklist:**
-   - Mark `C5` as `[x]` if diagnostic completes OR `[~]` if blocked
-   - Add Path verdict (A/B/C) and recommended next phase
-   - Update `C4` entry with cross-reference to C5 artifacts
+8. **Conditional: If Path A, execute full convergence test:**
+   - Run 10-step A_scale_only test:
+     ```bash
+     python plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py \
+       --use-u-matrix \
+       --u-matrix-lr 1e-5 \
+       --phases 5 \
+       --dof-variants A_scale_only \
+       --adam-steps 10 \
+       --device cpu \
+       --telemetry-dir telemetry \
+       --out-dir plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T240000Z/c6_convergence_validation \
+       --timeout 2400
+     ```
+   - Extract convergence metrics: chi²_before, chi²_after, median CC, trajectory
+   - Success criteria: CC ≥ 0.99, chi² drift ≤ 1% (or CC ≥ 0.95 if gradual improvement visible)
 
-8. **Regression guard:**
+9. **Regression guard:**
    - Run `pytest tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion -v`
    - Capture to `pytest_regression.log`
-   - MUST PASS before proceeding
+   - MUST PASS before marking C6 complete
 
-9. **Write summary:**
-   - Create `summary.md` with Turn Summary format (3-5 sentences: what shipped, main problem, next step, artifacts pointer)
+10. **Update implementation.md checklist:**
+    - Mark `C6` as `[x]` if fix validated AND convergence test passed
+    - Or `[~]` if fix validated but convergence test failed
+    - Add Path verdict (A/B/C) and convergence metrics
 
-10. **Commit and push:**
+11. **Write summary:**
+    - Create `summary.md` with Turn Summary format
+
+12. **Commit and push:**
     - `git add -A`
-    - `git commit -m "TORCH-GEOMETRY-CONVERGENCE-001 Phase C5: Code path equivalence diagnostic (tests: test_stage_a_expansion)"`
+    - `git commit -m "TORCH-GEOMETRY-CONVERGENCE-001 Phase C6: Fix code path divergence via zero-point bypass (tests: test_stage_a_expansion)"`
     - `git push`
 
 
 ## How-To Map
 
-### A* Checksum Extraction (Zero-Point Path)
+### Zero-Check Logic (atol=1e-9)
 ```python
-# After create_crystal_config call in use_mapping_zero_geometry=True branch
-crystal_config, _ = create_crystal_config(...)
-A_star_direct = np.array([
-    crystal_config.mosflm_a_star,
-    crystal_config.mosflm_b_star,
-    crystal_config.mosflm_c_star
-], dtype=np.float64).reshape(3, 3)
-checksum = A_star_direct.sum()
-max_elem = np.abs(A_star_direct).max()
+# Check if tensor is zero within numerical tolerance
+is_zero = torch.allclose(param_tensor, torch.tensor(0.0, device=device, dtype=dtype), atol=1e-9)
 ```
 
-### A* Checksum Extraction (Closure Path)
+### Quaternion Comparison
 ```python
-# After A_star_new computation (line ~436)
-A_star_roundtrip = A_star_new.detach().cpu().numpy()
-checksum = A_star_roundtrip.sum()
-max_elem = np.abs(A_star_roundtrip).max()
+# U-matrix path: compare q_params to q_initial
+q_at_zero = torch.allclose(q_params, components.q_initial, atol=1e-9)
 ```
 
-### Metrics Extraction (Python one-liner)
+### Metrics Extraction (Python one-liner T0)
 ```bash
 python -c "
 import json
-zp = json.load(open('c5_diagnostic/zero_point_check.json'))
-t0 = json.load(open('c5_diagnostic/telemetry/telemetry_step_000_init.json'))
-print(f'delta_chi²={(t0['chi_squared']-zp['chi_squared_stage_a'])/zp['chi_squared_stage_a']*100:.2f}%')
-print(f'delta_A*_checksum={abs(t0.get('a_star_checksum',0)-zp.get('a_star_checksum',0)):.12e}')
+zp = json.load(open('c6_fix_validation/zero_point_check.json'))
+t0 = json.load(open('c6_fix_validation/telemetry/telemetry_step_000_init.json'))
+delta_pct = abs(t0['chi_squared'] - zp['chi_squared_stage_a']) / zp['chi_squared_stage_a'] * 100
+print(f'delta_chi²={delta_pct:.2f}%')
+print(f'SUCCESS' if delta_pct < 1.0 else ('PARTIAL' if delta_pct < 10.0 else 'FAIL'))
 "
 ```
 
 ## Pitfalls To Avoid
 
-1. **Do NOT implement fixes yet** — This is a diagnostic loop. Only instrument and measure. Fix implementation happens in C6 after confirmation.
+1. **Tolerance too tight** — Using atol=1e-12 may fail due to floating-point accumulation; 1e-9 is appropriate for geometry parameters.
 
-2. **Device/dtype neutrality** — All A* checksum computations must use `.detach().cpu().numpy()` and `dtype=np.float64` for consistency.
+2. **Missing orientation check** — Must check BOTH cell deltas (6 DOF) AND orientation deltas (q_params for U-matrix, orientation_vec for cell+misset).
 
-3. **Protected Assets** — Do NOT modify `dbex/nanobrag_bridge.py:create_crystal_config` in this loop. Only modify the script.
+3. **Variable scope** — Ensure `all_params_at_zero` is computed BEFORE the `if use_direct_mosflm_injection:` conditional, not inside it.
 
-4. **Telemetry schema stability** — Add new fields (`a_star_checksum`, `code_path`) WITHOUT removing existing fields to maintain backward compatibility with Phase C3 telemetry analysis tools.
+4. **Telemetry schema** — Add new `code_path="closure_bypass_at_zero"` value WITHOUT removing existing "zero_point" and "closure" values (backward compatibility).
 
-5. **Test completion** — If diagnostic times out or terminates early:
-   - Check for HKL grid timeout (common blocker, ~20 min on CPU)
-   - If timeout: reduce `--adam-steps` to 1 (only need step 0 init telemetry)
-   - If still blocks: capture partial results and mark Path C (inconclusive)
+5. **Regression risk** — The bypass logic affects EVERY closure evaluation at zero deltas, not just first step; ensure it doesn't break gradient flow for non-zero parameters.
 
-6. **ROI scoring overhead** — Do NOT compute full ROI correlation in telemetry. Use chi² only for speed.
+6. **Test completion** — If diagnostic times out during HKL grid building, reduce `--adam-steps` to 1 (only need step 0 init telemetry for fix validation).
 
-7. **Metrics precision** — Use at least 12 decimal places (`.12e`, `.12f`) for A* checksums to detect sub-1e-6 differences.
+7. **Convergence test timing** — Full 10-step test may take ~20-30 min on CPU; budget time accordingly.
 
-8. **Cross-reference accuracy** — When updating implementation.md, ensure all artifact paths point to `2025-11-22T232200Z/` (THIS loop's directory), not prior loops.
+8. **Metrics precision** — Use `.12e` format for chi² differences to capture sub-1% divergence accurately.
 
 ## If Blocked
 
-**Scenario 1: Test times out during HKL grid building**
-- Reduce `--adam-steps` to 1
-- If still times out: reduce ROI count via `--n-rois 2` (if flag exists)
-- Capture whatever telemetry was emitted before timeout
-- Mark Path C (inconclusive) and document timeout in decision
+**Scenario 1: Fix validation shows Path B (partial improvement 1-10%)**
+- Document residual divergence in decision
+- Investigate whether crystal_overrides path has subtle numerical precision loss
+- Consider tightening atol to 1e-12 if parameters are stable enough
 
-**Scenario 2: Telemetry files missing `a_star_checksum` field**
-- Review instrumentation code for scoping bugs (checksum vars defined inside wrong if-block)
-- Check for exceptions during telemetry emission (wrap in try-except, log errors)
-- If unfixable: use log output to manually extract checksums, note workaround in decision
+**Scenario 2: Fix validation shows Path C (fail, delta_chi² still >10%)**
+- Revert bypass fix (git checkout stage_a_mapping_adam_debug.py)
+- Mark C6 as BLOCKED
+- Escalate to Priority 2: audit create_crystal_config for numerical bugs
 
-**Scenario 3: Regression guard fails**
-- Revert instrumentation changes
-- Investigate what broke (likely: variable scope issue or indentation error)
-- Fix, retest, then proceed
+**Scenario 3: Fix succeeds but convergence test fails (chi²>8M, CC<0.95)**
+- New pathology discovered AFTER fixing initialization divergence
+- Document convergence failure in decision
+- Mark C6 as [~] with "fix validated but convergence failed" note
+- Escalate to Phase C7 (new diagnostic for post-bypass convergence pathology)
 
-**Scenario 4: A* checksum values are identical but chi² diverges**
-- Document this surprising result in decision
-- Hypothesize that divergence happens AFTER crystal_config creation (in simulator)
-- Recommend Priority 2 audit: `create_crystal_config` internals or nanobrag_torch forward pass
+**Scenario 4: Regression guard fails**
+- Revert all Phase C6 changes
+- Investigate what broke (likely: bypass logic incorrectly triggers for non-zero parameters)
+- Fix, retest regression guard, then proceed
 
 ## Findings Applied
 
-- **REFINE-001** (LBFGS scale warm-start): Not directly applicable (this is Adam diagnostic, not LBFGS)
-- **PHYSICS-LOSS-002** (variance sigma-floor guard): Variance telemetry instrumentation already present from Phase C1
-- **GRADIENT-001** (autograd graph preservation): A* checksum logging uses `.detach()` to avoid breaking autograd
-- **CONVERGENCE-001 Phase B5** (B_ideal mismatch): Phase C4 audit checked for similar issues; none found in parameter flow
-- **CONVERGENCE-001 Phase C4** (no parameter staleness): This loop tests the NEW hypothesis (code path divergence) identified by C4
+- **CONVERGENCE-001 Phase C5** (code path divergence): This fix directly addresses the 793% chi² divergence root cause
+- **CONVERGENCE-001 Phase B5** (B_ideal mismatch): Similar pattern (code path bug fixed by alignment); bypass logic follows same principle
+- **GRADIENT-001** (autograd graph preservation): Zero-check uses torch.allclose (no .item() or .numpy()) to preserve gradients
+- **REFINE-001** (LBFGS scale warm-start): Not directly applicable (this is closure bug, not optimizer issue)
 
 ## Pointers
 
 - **Spec alignment:** `docs/spec-db-workflow.md §Stage A — Optimizer convergence`, `docs/spec-db-runtime.md §Gradient stability`
 - **Test selector reference:** `docs/TESTING_GUIDE.md §2.2` (test_stage_a_expansion regression guard)
-- **Architecture:** `docs/architecture/pytorch_design.md §Parameterization` (U-matrix vs cell+misset)
-- **Prior phase:** `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T232000Z/phase_c4_parameter_staleness_decision.md §Priority 1`
-- **Fix plan row:** `docs/fix_plan.md:44-69` (TORCH-GEOMETRY-CONVERGENCE-001 Attempts History entry 69)
+- **Prior phase:** `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T232200Z/phase_c5_code_path_divergence_decision.md §Priority 3 Option 1`
+- **Fix plan row:** `docs/fix_plan.md:44-69` (TORCH-GEOMETRY-CONVERGENCE-001 Attempts History)
+- **Implementation plan:** `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/implementation.md` (Phase C checklist C6)
 
 ## Next Up (if you finish early)
 
-- If Path A (equivalence confirmed): Begin Priority 2 audit of `create_crystal_config` internals
-- If Path B (divergence confirmed): Draft fix options (bypass overrides, fix precision, audit config function)
-- If Path C (inconclusive): Review test logs and prepare retry plan with reduced timeout scope
+- If Path A (fix success) AND convergence test passes: Begin Phase C8 (findings update CONVERGENCE-002)
+- If Path A but convergence test reveals new issue: Draft Phase C7 plan for post-bypass diagnostic
+- If Path B/C: Prepare Priority 2 audit plan (create_crystal_config numerical precision investigation)

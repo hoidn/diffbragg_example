@@ -221,7 +221,7 @@ def main() -> int:
         def _claude_cmd() -> list[str] | None:
             def _fmt(path: Path | str) -> list[str]:
                 quoted = str(path).replace('"', '\\"')
-                cmd_str = f'"{quoted}" -p --dangerously-skip-permissions --verbose --output-format stream-json'
+                cmd_str = f'"{quoted}" -p --dangerously-skip-permissions --verbose'
                 return ["/bin/bash", "-lc", cmd_str]
 
             cc = args.claude_cmd

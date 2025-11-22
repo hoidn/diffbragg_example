@@ -39,6 +39,7 @@ from pathlib import Path
 from typing import Dict
 
 import numpy as np
+from scipy.linalg import logm  # type: ignore
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 if str(REPO_ROOT) not in sys.path:
@@ -53,6 +54,15 @@ class MatrixParitySummary:
     frobenius_norm_diff: float
     det_u_error: float
     u_error_is_rotation: bool
+    # Extended diagnostics (Phase A0)
+    a_star_pathA_eigenvalues: list[float]
+    a_star_pathB_eigenvalues: list[float]
+    a_star_pathA_singular_values: list[float]
+    a_star_pathB_singular_values: list[float]
+    log_u_symmetric_norm: float
+    log_u_antisymmetric_norm: float
+    reciprocal_column_norms: dict[str, dict[str, float]]
+    reciprocal_column_angles: dict[str, float]
 
 
 def _build_dataload() -> "DataLoad":
@@ -96,6 +106,93 @@ def _compute_a_star_matrix(crystal_nb) -> np.ndarray:
     b_star = geom["b_star"].detach().cpu().numpy().reshape(3)
     c_star = geom["c_star"].detach().cpu().numpy().reshape(3)
     return np.column_stack([a_star, b_star, c_star]).astype(np.float64)
+
+
+def compute_extended_diagnostics(
+    a_star_pathA: np.ndarray,
+    a_star_pathB: np.ndarray,
+    u_error: np.ndarray,
+) -> Dict[str, object]:
+    """
+    Compute extended diagnostics to decompose the A* gap into rotation vs strain.
+
+    Diagnostics:
+    - Eigenvalues of A*_A and A*_B (symmetric part)
+    - Singular values of A*_A and A*_B
+    - Symmetric/antisymmetric decomposition of logm(U_error)
+    - Per-column norms and inter-column angles for reciprocal vectors
+
+    Returns dict with keys matching MatrixParitySummary extended fields.
+    """
+    # Eigenvalues (use eigvalsh for symmetric part; for full matrix use eig)
+    # Since A* matrices are generally not symmetric, use eig for full eigendecomposition
+    eigvals_A = np.linalg.eigvals(a_star_pathA)
+    eigvals_B = np.linalg.eigvals(a_star_pathB)
+    # Sort by magnitude for consistent reporting
+    eigvals_A = np.sort(np.abs(eigvals_A))[::-1]
+    eigvals_B = np.sort(np.abs(eigvals_B))[::-1]
+
+    # Singular values
+    _, svals_A, _ = np.linalg.svd(a_star_pathA)
+    _, svals_B, _ = np.linalg.svd(a_star_pathB)
+
+    # Logarithmic map decomposition
+    log_u = logm(u_error)
+    # Handle potential complex results from logm (should be real for near-rotations)
+    if np.iscomplexobj(log_u):
+        log_u = np.real(log_u)
+
+    log_u_symmetric = 0.5 * (log_u + log_u.T)
+    log_u_antisymmetric = 0.5 * (log_u - log_u.T)
+
+    log_u_symmetric_norm = float(np.linalg.norm(log_u_symmetric))
+    log_u_antisymmetric_norm = float(np.linalg.norm(log_u_antisymmetric))
+
+    # Per-column norms for reciprocal vectors a*, b*, c*
+    col_norms_A = {
+        "a_star": float(np.linalg.norm(a_star_pathA[:, 0])),
+        "b_star": float(np.linalg.norm(a_star_pathA[:, 1])),
+        "c_star": float(np.linalg.norm(a_star_pathA[:, 2])),
+    }
+    col_norms_B = {
+        "a_star": float(np.linalg.norm(a_star_pathB[:, 0])),
+        "b_star": float(np.linalg.norm(a_star_pathB[:, 1])),
+        "c_star": float(np.linalg.norm(a_star_pathB[:, 2])),
+    }
+
+    # Inter-column angles (in degrees) between corresponding vectors
+    def angle_between(v1: np.ndarray, v2: np.ndarray) -> float:
+        """Compute angle in degrees between two vectors."""
+        cos_angle = np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))
+        # Clamp to [-1, 1] to handle numerical errors
+        cos_angle = np.clip(cos_angle, -1.0, 1.0)
+        return float(np.degrees(np.arccos(cos_angle)))
+
+    col_angles = {
+        "a_star_angle_deg": angle_between(
+            a_star_pathA[:, 0], a_star_pathB[:, 0]
+        ),
+        "b_star_angle_deg": angle_between(
+            a_star_pathA[:, 1], a_star_pathB[:, 1]
+        ),
+        "c_star_angle_deg": angle_between(
+            a_star_pathA[:, 2], a_star_pathB[:, 2]
+        ),
+    }
+
+    return {
+        "a_star_pathA_eigenvalues": eigvals_A.tolist(),
+        "a_star_pathB_eigenvalues": eigvals_B.tolist(),
+        "a_star_pathA_singular_values": svals_A.tolist(),
+        "a_star_pathB_singular_values": svals_B.tolist(),
+        "log_u_symmetric_norm": log_u_symmetric_norm,
+        "log_u_antisymmetric_norm": log_u_antisymmetric_norm,
+        "reciprocal_column_norms": {
+            "pathA": col_norms_A,
+            "pathB": col_norms_B,
+        },
+        "reciprocal_column_angles": col_angles,
+    }
 
 
 def run_probe(device: str = "cpu") -> Dict[str, object]:
@@ -178,11 +275,22 @@ def run_probe(device: str = "cpu") -> Dict[str, object]:
         abs(det_u - 1.0) < 1e-6 and rot_gap < 1e-6
     )
 
+    # Compute extended diagnostics
+    extended = compute_extended_diagnostics(a_star_A, a_star_B, u_error)
+
     summary = MatrixParitySummary(
         max_abs_diff=max_abs_diff,
         frobenius_norm_diff=fro_norm,
         det_u_error=det_u,
         u_error_is_rotation=u_error_is_rotation,
+        a_star_pathA_eigenvalues=extended["a_star_pathA_eigenvalues"],
+        a_star_pathB_eigenvalues=extended["a_star_pathB_eigenvalues"],
+        a_star_pathA_singular_values=extended["a_star_pathA_singular_values"],
+        a_star_pathB_singular_values=extended["a_star_pathB_singular_values"],
+        log_u_symmetric_norm=extended["log_u_symmetric_norm"],
+        log_u_antisymmetric_norm=extended["log_u_antisymmetric_norm"],
+        reciprocal_column_norms=extended["reciprocal_column_norms"],
+        reciprocal_column_angles=extended["reciprocal_column_angles"],
     )
 
     payload: Dict[str, object] = {

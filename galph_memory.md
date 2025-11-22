@@ -631,3 +631,13 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-22T112058Z focus=TORCH-GEOMETRY-PARITY-002 state=ready_for_implementation dwell=0 artifacts=plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T112058Z/ next_action=phase_b_regression_fix
+
+## 2025-11-22T113409Z — TORCH-GEOMETRY-PARITY-002 Phase C Planning
+- Focus: TORCH-GEOMETRY-PARITY-002 — Direct U-Matrix Parameterization for Stage A Geometry Refinement
+- Action Type: planning
+- Key Observations: Reviewed Ralph's Phase B regression bugfix (commits 2793ba9 + b353b77) confirming test_stage_a_expansion PASSED (regression guard validated) and test_quaternion_roundtrip PASSED (quaternion ops stable). Phase B checklist B1-B5 fully complete: U-matrix helpers (derive_u_matrix_from_mosflm_a_star, matrix_to_quaternion, quaternion_to_matrix) implemented in dbex/nanobrag_bridge.py, use_u_matrix_parameterization config flag added to RefinementConfig, initialization logic in run_nanobrag_refinement extracts U₀ from MOSFLM A* and converts to trainable quaternion q_params, closure branching in build_stage_a_lbfgs_closure normalizes q→U→A*. Scoping bug (misset_deg_for_crystal referenced before definition) fixed in both Stage A and Stage C closures. Transition to Phase C validation (B6 parity probe extension + C1-C3 convergence tests). Authored comprehensive Do Now bundling C1 (parity probe with --use-u-matrix flag), C2 (Phase 5 scale-only convergence), C3 (Phase 5 full-DoF convergence), C4 (regression guard), with explicit decision tree for blocking conditions (C1 fails → diagnose numerical precision/B_ideal/quaternion roundtrip; C2/C3 fail → escalate to TORCH-REFINE-003). New artifacts directory: plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T113409Z/. Implementation floor satisfied: Do Now contains production code tasks (extend probe_crystal_matrix_parity.py::run_probe, extend stage_a_mapping_adam_debug.py::main with --use-u-matrix flags) AND validating pytest selectors (test_stage_a_expansion regression guard).
+- Artifact Path: plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T113409Z/
+- Next Actions: Ralph implements C1-C3 (parity probe extension + Phase 5 validation with U-matrix mode), executes parity test expecting max_abs_diff < 1e-6, runs Phase 5 scale-only/full-DoF variants expecting CC ≥ 0.99 and stable/monotonic χ², and returns artifacts under 2025-11-22T113409Z/ with decision on whether to proceed to Phase C5 (findings update) or escalate per blocking conditions.
+- <Action State>: [ready_for_implementation]
+
+2025-11-22T113409Z focus=TORCH-GEOMETRY-PARITY-002 state=ready_for_implementation dwell=0 artifacts=plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T113409Z/ next_action=phase_c1_c3_parity_convergence_validation

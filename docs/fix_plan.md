@@ -9,6 +9,29 @@
 
 ---
 
+## Execution Roadmap
+> **Agent Rule:** Prioritize initiatives in lower-numbered tiers. Within a tier, follow dependency chains. Do not start a Tier N+1 item if a Tier N item is unblocked.
+
+### Tier 1: Core Physics & Stability
+**Goal:** Ensure the math is correct, the loss function is normative, and the smoke tests are green.
+- [TORCH-REFINE-002E] (Fix Stage A Zero-Point Geometry) — **In Progress**
+- [PHYSICS-LOSS-001] (Variance-weighted loss) — **Done**
+- [REFINE-SMOKE-CANONICAL] (Restore Stage B/C convergence) — **Done**
+- [PERF-SMOKE-DETSIZE] (Small-detector fixture) — **Done**
+
+### Tier 2: Architectural Maturity
+**Goal:** Break the monolithic `run_nanobrag_refinement` into a maintainable Protocol Engine.
+- [ARCH-REFINE-FLOW-001] (Protocol Engine) — *Pending*
+- [PERF-WARM-SIM-001] (Warm Simulator) — *Deferred (Wait for Engine Refactor)*
+
+### Tier 3: Tooling & Observability
+**Goal:** Standardize visuals, documentation, and runtime guardrails.
+- [TOOLING-VIS-001] (Standardized Triptychs) — *In Progress*
+- [DOC-RUNTIME-004] (Restore Runtime Checklist) — *In Progress*
+- [TORCH-RUNTIME-002] (Runtime Harness Seed) — *Pending*
+
+---
+
 ## Active / Pending Initiatives
 
 ### [TORCH-REFINE-002E] Fix Stage A Zero-Point Geometry Discontinuity

@@ -1,0 +1,7 @@
+dbex/nanobrag_refinement.py:814:        geom = crystal_nb_b_ideal.compute_cell_tensors()
+dbex/nanobrag_bridge.py:725:        3. Extract B_ideal from nanobrag_torch's compute_cell_tensors()
+dbex/nanobrag_bridge.py:782:        geom = crystal_nb.compute_cell_tensors()
+dbex/nanobrag_bridge.py:865:        geom = crystal_nb.compute_cell_tensors()
+dbex/nanobrag_bridge.py:1023:            compute_cell_tensors() defines B_ideal. When None, a temporary
+dbex/nanobrag_bridge.py:1085:        geom = crystal_nb.compute_cell_tensors()
+dbex/nanobrag_bridge.py:1108:        geom = crystal_nb.compute_cell_tensors()

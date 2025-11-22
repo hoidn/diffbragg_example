@@ -1,0 +1,3 @@
+plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py:304:    B_ideal_reciprocal = None
+plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py:324:        B_ideal_reciprocal = torch.tensor(B_ideal_reciprocal_np, device=device, dtype=dtype)
+plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py:347:        B_ideal_reciprocal=B_ideal_reciprocal,

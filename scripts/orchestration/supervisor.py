@@ -76,6 +76,19 @@ def main() -> int:
     ap.add_argument("--max-wait-sec", type=int, default=int(os.getenv("MAX_WAIT_SEC", 0)))
     ap.add_argument("--state-file", type=Path, default=Path(os.getenv("STATE_FILE", "sync/state.json")))
     ap.add_argument("--codex-cmd", type=str, default=os.getenv("CODEX_CMD", "codex"))
+    ap.add_argument(
+        "--claude-cmd",
+        type=str,
+        default=os.getenv("CLAUDE_CMD", "/home/ollie/.claude/local/claude"),
+        help="Path or name of the Claude CLI executable (default: CLAUDE_CMD or ~/.claude/local/claude)",
+    )
+    ap.add_argument(
+        "--agent",
+        type=str,
+        choices=["auto", "claude", "codex"],
+        default=os.getenv("SUPERVISOR_AGENT", "auto"),
+        help="Model CLI used for supervisor loops (auto: prefer Claude, fallback Codex).",
+    )
     ap.add_argument("--branch", type=str, default=os.getenv("ORCHESTRATION_BRANCH", ""), help="Expected Git branch to operate on")
     ap.add_argument("--verbose", action="store_true", help="Print state changes to console during polling")
     ap.add_argument("--heartbeat-secs", type=int, default=int(os.getenv("HEARTBEAT_SECS", "0")), help="Console heartbeat interval while polling (0=off)")
@@ -363,6 +376,65 @@ def main() -> int:
                 f.write(msg + "\n")
         return _log
 
+    # Resolve execution command per --agent (Claude vs Codex)
+    def _claude_cmd() -> list[str] | None:
+        def _fmt(path: Path | str) -> list[str]:
+            quoted = str(path).replace('"', '\\"')
+            cmd_str = f'"{quoted}" -p --dangerously-skip-permissions --verbose --output-format stream-json'
+            return ["/bin/bash", "-lc", cmd_str]
+
+        cc = args.claude_cmd
+        if cc:
+            p = Path(cc)
+            if p.is_file() and os.access(str(p), os.X_OK):
+                return _fmt(p)
+            which = shutil.which(cc)
+            if which:
+                return _fmt(which)
+
+        repo_local = Path(".claude") / "local" / "claude"
+        if repo_local.is_file() and os.access(str(repo_local), os.X_OK):
+            return _fmt(repo_local)
+
+        default_path = Path("/home/ollie/.claude/local/claude")
+        if default_path.is_file() and os.access(str(default_path), os.X_OK):
+            return _fmt(default_path)
+        return None
+
+    def _codex_cmd() -> list[str] | None:
+        codex_bin = shutil.which(args.codex_cmd) or args.codex_cmd
+        if not codex_bin:
+            return None
+        return [
+            codex_bin,
+            "exec",
+            "-m",
+            "gpt-5-codex",
+            "-c",
+            "model_reasoning_effort=high",
+            "--dangerously-bypass-approvals-and-sandbox",
+        ]
+
+    def _resolve_cmd() -> list[str]:
+        if args.agent == "claude":
+            cmd = _claude_cmd()
+            if not cmd:
+                raise RuntimeError("Claude CLI not found; set --claude-cmd or choose --agent=codex.")
+            return cmd
+        if args.agent == "codex":
+            cmd = _codex_cmd()
+            if not cmd:
+                raise RuntimeError("Codex CLI not found; set --codex-cmd or choose --agent=claude.")
+            return cmd
+
+        cmd = _claude_cmd()
+        if cmd:
+            return cmd
+        cmd = _codex_cmd()
+        if cmd:
+            return cmd
+        raise RuntimeError("Neither Claude nor Codex CLI could be resolved; configure --claude-cmd/--codex-cmd.")
+
     # Branch guard (if provided) and target branch resolution
     if args.branch:
         def _branch_guard_log(message: str) -> None:
@@ -376,9 +448,30 @@ def main() -> int:
 
     if not args.sync_via_git:
         # Legacy async mode: run N iterations back-to-back
+        prompt_file = Path("prompts/supervisor.md")
         for _ in range(args.sync_loops):
             iter_log_path = _log_file("supervisor-legacy-")
-            rc = tee_run([args.codex_cmd, "exec", "-m", "gpt-5-codex", "-c", "model_reasoning_effort=high", "--dangerously-bypass-approvals-and-sandbox"], Path("prompts/supervisor.md"), iter_log_path)
+            try:
+                cmd = _resolve_cmd()
+            except RuntimeError as e:
+                # Log to per-iteration log and console, then abort
+                with open(iter_log_path, "a", encoding="utf-8") as f:
+                    f.write(f"ERROR: {e}\n")
+                print(f"[supervisor] ERROR: {e}")
+                return 2
+            script_bin = shutil.which("script")
+            if script_bin:
+                cmd_str = shlex.join(cmd)
+                script_cmd = [
+                    script_bin,
+                    "-q",
+                    "-c",
+                    f"cat {shlex.quote(str(prompt_file))} | {cmd_str}",
+                    "/dev/null",
+                ]
+                rc = tee_run(script_cmd, None, iter_log_path)
+            else:
+                rc = tee_run(cmd, prompt_file, iter_log_path)
             if rc != 0:
                 return rc
         return 0
@@ -491,32 +584,30 @@ def main() -> int:
 
         # Execute one supervisor iteration (wrap with script(1) when available to preserve PTY behaviour)
         prompt_file = Path("prompts/supervisor.md")
-        codex_args = [
-            args.codex_cmd,
-            "exec",
-            "-m",
-            "gpt-5-codex",
-            "-c",
-            "model_reasoning_effort=high",
-            "--dangerously-bypass-approvals-and-sandbox",
-        ]
+        try:
+            cmd = _resolve_cmd()
+        except RuntimeError as e:
+            logp(f"ERROR: {e}")
+            print(f"[sync] ERROR: {e}")
+            return 2
 
-        if shutil.which("script"):
+        script_bin = shutil.which("script")
+        if script_bin:
             # When using script wrapper, pipe file content into the command
             # (script wrapper needs stdin to come from within the -c command)
-            codex_cmd_str = shlex.join(codex_args)
+            cmd_str = shlex.join(cmd)
             script_cmd = [
-                "script",
+                script_bin,
                 "-q",
                 "-c",
-                f"cat {shlex.quote(str(prompt_file))} | {codex_cmd_str}",
+                f"cat {shlex.quote(str(prompt_file))} | {cmd_str}",
                 "/dev/null",
             ]
             # Pass None for stdin since cat will provide it
             rc = tee_run(script_cmd, None, iter_log)
         else:
             # Without script wrapper, use stdin as before
-            rc = tee_run(codex_args, prompt_file, iter_log)
+            rc = tee_run(cmd, prompt_file, iter_log)
 
         sha = short_head()
 

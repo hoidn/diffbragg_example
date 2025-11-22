@@ -1,315 +1,294 @@
-# Engineering Task — TORCH-GEOMETRY-CONVERGENCE-001 Phase C2: Adam LR Reduction Fix
+# Input — TORCH-GEOMETRY-CONVERGENCE-001 Phase C3 Parameter Update Investigation
 
 ## Summary
-Implement Adam learning rate reduction fix (LR=1e-5 for U-matrix path) to resolve catastrophic first-step overshoot in quaternion parameterization, validated by Phase C1 root cause analysis showing LR=1e-4 is 1000× too high for quaternion gradient magnitudes O(150k).
+Investigate why first optimizer step causes catastrophic failure (chi² 1.13M → 8.84M) INDEPENDENT of learning rate after H1 (LR tuning) decisively rejected.
 
 ## Mode
-TDD
+none
 
 ## Focus
-TORCH-GEOMETRY-CONVERGENCE-001 — Diagnose & Fix Quaternion U-Matrix Catastrophic Convergence Failure (Phase C2: LR Reduction Fix Implementation & Validation)
+TORCH-GEOMETRY-CONVERGENCE-001 — Diagnose & Fix Quaternion U-Matrix Catastrophic Convergence Failure
 
 ## Branch
-`integration`
+integration
 
 ## Mapped Tests
-**Active Selectors:**
-- `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` (regression guard for cell+misset default path)
-
-**Validation Criteria:**
-- Phase C2: Phase 5 A_scale_only with `--use-u-matrix --u-matrix-lr 1e-5` must achieve:
-  - chi² ≤ 1.2M after 10 steps (≤5% drift from initialization ~1.13M)
-  - median ROI CC ≥ 0.99
-  - monotonic chi² improvement OR stable oscillation (no catastrophic jumps)
-- Phase C3: Phase 5 D_full with `--use-u-matrix --u-matrix-lr 1e-5` must achieve:
-  - Monotonic chi² improvement (no large CC collapses <0.9)
-  - Final chi² < initial chi² (convergence toward optimum)
+- `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` — Regression guard
+- Evidence-only (no new test nodes)
 
 ## Artifacts
-`plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T235959Z/`
-- `phase_c2_validation_a_scale_only.log` (convergence test log)
-- `phase_c2_validation/block_dof_results_u_matrix.json` (A_scale_only metrics)
-- `phase_c2_validation/zero_point_check.json` (initialization parity validation)
-- `phase_c2_validation/telemetry/` (optional: telemetry JSONs if needed for debugging)
-- `phase_c3_validation_d_full.log` (D_full convergence test log)
-- `phase_c3_validation/block_dof_results_u_matrix.json` (D_full metrics)
-- `phase_c2_c3_decision.json` (decision template with Path A/B/C verdicts)
-- `pytest_regression.log` (regression guard results)
-- `summary.md` (turn summary)
+`plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T224717Z/`
 
----
+## Do Now
 
-## Do Now (Phase C2 + C3 Implementation & Validation)
+**CRITICAL PIVOT:** Phase C2 LR reduction (1e-5) produced IDENTICAL failure to Phase C1 (1e-4): chi²_after=8.84M (+679.6%), CC=0.765. **H1 (Adam LR too high) REJECTED** — 10× LR change → 0% improvement.
 
-**Context:** Phase C1 convergence telemetry (2025-11-22T230000Z) identified **H1 (Adam LR too high)** as primary root cause with HIGH confidence (~85%). First optimizer step causes catastrophic overshoot (chi² 1.13M → 8.84M, +679%) because LR=1e-4 (designed for cell/misset gradients O(1-100)) produces massive quaternion update Δq = -1e-4 × 150k = -15.0 (~35° rotation). Recommended fix: Reduce Adam LR to 1e-5 for U-matrix path. This loop implements the fix and validates convergence success.
+**Pattern recognition from Phase B history:** Similar symptom (initialization healthy, first step catastrophic, optimizer-agnostic) previously indicated CODE PATH DISCREPANCY (Phase B4: script _forward_once vs run_nanobrag_refinement used different B_ideal sources; Phase B5: crystal_overrides["A_star"] bypassed MOSFLM tuple injection).
 
-**Implementation Tasks:**
+**Hypothesis H5 (NEW):** Parameter update propagation bug — optimizer.step() modifies `log_scale` parameter correctly, but forward model in NEXT closure evaluation uses STALE or WRONG log_scale value (similar to B_ideal mismatch pattern).
 
-1. **Extend `RefinementConfig` with `u_matrix_learning_rate` field** (`dbex/nanobrag_refinement.py`):
-   - Add field: `u_matrix_learning_rate: float = 1e-5` (default 10× lower than standard LR=1e-4)
-   - Location: After existing `use_u_matrix_parameterization` field
-   - Docstring: "Learning rate for Adam optimizer when use_u_matrix_parameterization=True. Default 1e-5 (10× lower than cell/misset LR) to accommodate quaternion gradient scale O(150k). Per CONVERGENCE-001 Phase C1 root cause analysis."
+### Step 1: Review Phase C1/C2 Evidence
+- **Read:** `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T235959Z/phase_c2_c3_decision.json`
+- **Confirm:** LR change produced ZERO effect (chi²_after 8.836M vs 8.829M, <0.1% difference)
+- **Note:** This rules out step-size issues and points to forward model/parameter propagation bug
 
-2. **Update Adam optimizer setup in `run_nanobrag_refinement`** (`dbex/nanobrag_refinement.py`):
-   - Location: Stage A closure, line ~1080-1085 (Adam optimizer instantiation)
-   - Conditional LR selection:
+### Step 2: Add Parameter Lifecycle Logging to Closure
+- **Target:** `dbex/nanobrag_refinement.py` — Stage A LBFGS closure (U-matrix branch, lines ~966-1116)
+- **Scope:** Add minimal logging BEFORE and AFTER optimizer.step() to track log_scale parameter value changes
+- **Implementation:**
+  1. Locate closure definition (line ~970: `def closure():`)
+  2. Add logging INSIDE closure at entry:
      ```python
-     lr = config.u_matrix_learning_rate if config.use_u_matrix_parameterization else 1e-4
-     optimizer = torch.optim.Adam([log_scale_param], lr=lr, betas=(0.9, 0.999))
+     # Top of closure, after "def closure():" and before forward model
+     if telemetry_output_dir is not None:
+         log_scale_before = log_scale_param.item()
+         # Log to telemetry file
      ```
-   - Ensure cell+misset path UNCHANGED (default LR=1e-4 preserved when `use_u_matrix_parameterization=False`)
-
-3. **Extend script with `--u-matrix-lr` CLI flag**:
-   - Script path: `plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py`
-   - Add argument: `--u-matrix-lr`, type=float, default=1e-5
-   - Help text: "Learning rate for Adam optimizer when --use-u-matrix is enabled (default: 1e-5, per CONVERGENCE-001 Phase C1 root cause)"
-   - Integration: Pass `u_matrix_learning_rate=args.u_matrix_lr` to `RefinementConfig(...)` in script main
-   - Location: After `--use-u-matrix` flag definition (~line 80-90)
-
-4. **Phase C2 Validation Test (A_scale_only)**:
-   - Run command:
-     ```bash
-     timeout 1200 python plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py \
-       --use-u-matrix \
-       --u-matrix-lr 1e-5 \
-       --phases 5 \
-       --dof-variants A_scale_only \
-       --adam-steps 10 \
-       --device cpu \
-       --out-dir plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T235959Z/phase_c2_validation/ \
-       > plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T235959Z/phase_c2_validation_a_scale_only.log 2>&1
+  3. Log log_scale value AFTER forward/backward but BEFORE return:
+     ```python
+     # After loss.backward(), before return loss
+     if telemetry_output_dir is not None:
+         log_scale_after_backward = log_scale_param.item()
+         # Check if log_scale changed during backward (should NOT change)
      ```
-   - Extract metrics from `block_dof_results_u_matrix.json`:
-     - `chi_squared_after` (expect ≤ 1.2M, within 5% of initialization ~1.13M)
-     - `median_roi_cc_after` (expect ≥ 0.99)
-     - `chi_squared_before` (sanity check: ~1.13M initialization healthy per Phase B5 fix)
-     - `correlation_zero_point` (sanity check: ≥ 0.999999, parity maintained)
-
-5. **Phase C3 Validation Test (D_full)** (CONDITIONAL: Run ONLY if Phase C2 succeeds):
-   - Run command:
-     ```bash
-     timeout 1200 python plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py \
-       --use-u-matrix \
-       --u-matrix-lr 1e-5 \
-       --phases 5 \
-       --dof-variants D_full \
-       --adam-steps 10 \
-       --device cpu \
-       --out-dir plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T235959Z/phase_c3_validation/ \
-       > plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T235959Z/phase_c3_validation_d_full.log 2>&1
+  4. In outer loop (AFTER optimizer.step()), log the updated log_scale:
+     ```python
+     # After optimizer.step(closure) completes
+     if telemetry_output_dir is not None:
+         log_scale_post_step = log_scale_param.item()
+         # This should differ from log_scale_before by ~-LR * gradient
      ```
-   - Extract metrics from `block_dof_results_u_matrix.json`:
-     - `chi_squared_after` vs `chi_squared_before` (expect monotonic improvement OR stable)
-     - `median_roi_cc_after` (expect ≥ 0.9, no catastrophic collapse)
+- **Diagnostic question:** Does log_scale value ACTUALLY CHANGE after optimizer.step()? If not → parameter update not propagating. If yes → forward model using wrong value.
 
-6. **Decision Synthesis** (write `phase_c2_c3_decision.json`):
-   - Template (fill based on validation results):
-     ```json
-     {
-       "phase_c2_a_scale_only": {
-         "chi_squared_before": <value>,
-         "chi_squared_after": <value>,
-         "chi_squared_drift_pct": <(after-before)/before*100>,
-         "median_roi_cc_after": <value>,
-         "verdict": "SUCCESS|PARTIAL|FAIL",
-         "notes": "<interpretation>"
-       },
-       "phase_c3_d_full": {
-         "chi_squared_before": <value>,
-         "chi_squared_after": <value>,
-         "chi_squared_improvement_pct": <(before-after)/before*100>,
-         "median_roi_cc_after": <value>,
-         "verdict": "SUCCESS|PARTIAL|FAIL|SKIPPED",
-         "notes": "<interpretation>"
-       },
-       "overall_verdict": "Path A: SUCCESS (proceed to Phase C4-C6)|Path B: PARTIAL (tune LR further)|Path C: FAIL (escalate to alternative fix)",
-       "recommended_next_action": "<describe>"
-     }
-     ```
-   - Decision tree:
-     - **Path A (SUCCESS):** C2 chi² drift ≤ 5% AND CC ≥ 0.99 AND C3 monotonic improvement → Proceed to Phase C4 (regression guard), C5 (findings update CONVERGENCE-002), C6 (close initiative)
-     - **Path B (PARTIAL):** C2 improved vs pre-fix (chi² <8.8M) but not within 5% tolerance → Try tighter LR (1e-6 or 1e-7) OR per-parameter LR OR gradient clipping
-     - **Path C (FAIL):** C2 still catastrophic (chi² >8M, CC <0.9) → Escalate to alternative fix (LBFGS, Riemannian Adam, hybrid parameterization)
+### Step 3: Execute 2-Step Diagnostic with Lifecycle Logging
+- **Command:**
+  ```bash
+  timeout 1200 python plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py \
+    --use-u-matrix \
+    --u-matrix-lr 1e-5 \
+    --phases 5 \
+    --dof-variants A_scale_only \
+    --adam-steps 2 \
+    --device cpu \
+    --telemetry-dir telemetry \
+    --out-dir plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T224717Z/lifecycle_diagnostic/ \
+    > plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T224717Z/lifecycle_diagnostic.log 2>&1
+  ```
+- **Expected artifacts:**
+  - `telemetry/telemetry_step_000_init.json` (log_scale BEFORE step)
+  - `telemetry/telemetry_step_000_post.json` (log_scale AFTER step)
+  - `telemetry/telemetry_step_001_init.json`
+  - `block_dof_results_u_matrix.json` (sanity check: chi²_before ~1.13M, chi²_after ~8.84M)
 
-7. **Regression Guard** (run AFTER C2/C3 validation):
-   - Execute: `pytest tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion -v`
-   - Capture output to: `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T235959Z/pytest_regression.log`
-   - Verify PASSED (cell+misset default path unchanged)
-
-8. **Update `implementation.md` Checklist**:
-   - Mark Phase C1 as complete (already done per commit 04ea022)
-   - Mark Phase C2 as complete (with decision verdict from step 6)
-   - Mark Phase C3 as complete OR note "SKIPPED if C2 failed" OR "PARTIAL (needs tuning)"
-   - Note C4-C6 status based on Path A/B/C verdict
-
-9. **Emit `summary.md`**:
-   - Location: `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T235959Z/summary.md`
-   - Content: Turn summary paragraph (3-5 sentences) + decision verdict + next action + artifacts list
-
----
-
-## How-To Map (Exact Commands & ROI Definitions)
-
-### Phase C2 Validation (A_scale_only)
+### Step 4: Extract Lifecycle Metrics
 ```bash
-# 1. Implement config field + optimizer LR branch + CLI flag (steps 1-3 above)
+python3 << 'PYEOF'
+import json
 
-# 2. Run A_scale_only validation test
+# Read telemetry files
+with open('plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T224717Z/lifecycle_diagnostic/telemetry/telemetry_step_000_init.json') as f:
+    step0_init = json.load(f)
+with open('plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T224717Z/lifecycle_diagnostic/telemetry/telemetry_step_000_post.json') as f:
+    step0_post = json.load(f)
+
+print("=== STEP 0 LIFECYCLE ===")
+print(f"log_scale BEFORE optimizer.step(): {step0_init['log_scale']:.6f}")
+print(f"grad_log_scale: {step0_init['grad_log_scale']:.2e}")
+print(f"log_scale AFTER optimizer.step(): {step0_post['log_scale']:.6f}")
+print(f"Δlog_scale: {step0_post['log_scale'] - step0_init['log_scale']:.6e}")
+print(f"Expected Δ (≈ -LR × grad): {-1e-5 * step0_init['grad_log_scale']:.6e}")
+print(f"chi² BEFORE: {step0_init.get('chi_squared', 'N/A')}")
+print(f"chi² AFTER: {step0_post.get('chi_squared', 'N/A')}")
+PYEOF
+```
+
+### Step 5: Synthesize Root Cause Determination
+- **Create:** `phase_c3_parameter_lifecycle_decision.md`
+- **Decision tree (4 paths):**
+
+  **Path A: Parameter update WORKS, forward model uses NEW value (Δlog_scale matches expected)**
+  - Verdict: H5 (parameter propagation bug) REJECTED
+  - Evidence: log_scale changed by ≈ -LR × gradient, forward model evaluated at NEW log_scale
+  - Interpretation: Optimizer and forward model are communicating correctly → root cause is ELSEWHERE (likely variance weighting, loss formula, or gradient correctness)
+  - Next action: Finite-difference gradient validation (Phase C4) OR variance component analysis (Phase C5)
+
+  **Path B: Parameter update FAILS (Δlog_scale ≈ 0 despite non-zero gradient)**
+  - Verdict: H5 (parameter not updating) CONFIRMED
+  - Evidence: log_scale UNCHANGED after optimizer.step() despite gradient ~150k
+  - Root cause: Likely detach() placement error, requires_grad=False, or parameter not in optimizer.param_groups
+  - Next action: Audit log_scale_param initialization, check requires_grad flag, verify optimizer.param_groups contains log_scale
+  - Fix: Remove accidental detach, set requires_grad=True
+
+  **Path C: Parameter update CORRECT, but forward model uses OLD value (chi² doesn't respond to Δlog_scale)**
+  - Verdict: H5 (stale parameter in forward model) CONFIRMED
+  - Evidence: log_scale changed correctly by optimizer, BUT chi² UNCHANGED or wrong magnitude change
+  - Root cause: Forward model closure captures OLD log_scale value (variable scope issue, similar to Phase B5 crystal_overrides aliasing)
+  - Next action: Audit closure variable scope, check if log_scale is captured by reference vs value
+  - Fix: Ensure forward model reads log_scale_param.item() fresh each closure call
+
+  **Path D: Parameter update TOO LARGE (Δlog_scale >> expected, suggests different LR or gradient)**
+  - Verdict: LR not being applied correctly OR gradient wrong
+  - Evidence: Δlog_scale far from -LR × gradient (e.g., 10× larger)
+  - Root cause: LR config not propagating to optimizer OR gradient includes unexpected term
+  - Next action: Print optimizer.param_groups[0]['lr'] to verify LR value used
+  - Fix: Audit RefinementConfig.u_matrix_learning_rate propagation to optimizer
+
+### Step 6: Update Implementation Plan
+- **Edit:** `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/implementation.md`
+- **Mark C2 as [~] BLOCKED** with "LR reduction ZERO effect, H1 rejected"
+- **Add C3 entry:** `- [x] C3: Parameter Lifecycle Investigation — <verdict from Path A/B/C/D>`
+
+### Step 7: Regression Guard
+```bash
+pytest tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion -xvs \
+  > plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T224717Z/pytest_regression.log 2>&1
+```
+
+### Step 8: Write Summary and Commit
+- **Summary:** Prepend to `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T224717Z/summary.md`
+- **Format:**
+  ```markdown
+  ### Turn Summary
+  Investigated parameter update lifecycle after H1 (LR tuning) rejected (C2 FAIL: LR 1e-5 → identical chi²=8.84M).
+  Lifecycle diagnostic showed <Path A/B/C/D verdict>: <parameter update works/fails/uses stale value/wrong magnitude>.
+  Next: <Phase C4 gradient validation / fix parameter update bug / audit closure scope> based on evidence.
+  Artifacts: plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T224717Z/ (lifecycle_diagnostic.log, telemetry/, phase_c3_parameter_lifecycle_decision.md)
+  ```
+- **Commit:**
+  ```bash
+  git add -A
+  git commit -m "TORCH-GEOMETRY-CONVERGENCE-001 Phase C3: Parameter lifecycle diagnostic to investigate LR-independent failure (tests: test_stage_a_expansion)"
+  git push
+  ```
+
+## How-To Map
+
+### Lifecycle Logging Implementation (Step 2)
+```python
+# In dbex/nanobrag_refinement.py, Stage A closure (U-matrix branch)
+# Add at top of closure definition (after "def closure():", line ~970):
+
+def closure():
+    # Capture log_scale BEFORE forward model
+    if telemetry_output_dir is not None:
+        log_scale_entry = log_scale_param.item()
+
+    # ... existing forward model code ...
+    loss.backward()
+
+    # Capture log_scale AFTER backward (should be UNCHANGED by backward)
+    if telemetry_output_dir is not None:
+        log_scale_post_backward = log_scale_param.item()
+        assert abs(log_scale_post_backward - log_scale_entry) < 1e-9, \
+            f"log_scale changed during backward: {log_scale_entry} → {log_scale_post_backward}"
+
+    return loss
+
+# In outer optimization loop (AFTER optimizer.step(closure), line ~1090):
+optimizer.step(closure)
+
+if telemetry_output_dir is not None:
+    log_scale_post_step = log_scale_param.item()
+    # Emit to telemetry_step_{i}_post.json:
+    telemetry_data['log_scale_post_step'] = log_scale_post_step
+    telemetry_data['delta_log_scale'] = log_scale_post_step - log_scale_entry
+    telemetry_data['expected_delta'] = -optimizer.param_groups[0]['lr'] * log_scale_param.grad.item()
+```
+
+### Diagnostic Execution (Step 3)
+```bash
 cd /home/ollie/Documents/diffbragg_example
-timeout 1200 KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py \
+mkdir -p plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T224717Z/lifecycle_diagnostic
+
+timeout 1200 KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
+python plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py \
   --use-u-matrix \
   --u-matrix-lr 1e-5 \
   --phases 5 \
   --dof-variants A_scale_only \
-  --adam-steps 10 \
+  --adam-steps 2 \
   --device cpu \
-  --out-dir plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T235959Z/phase_c2_validation/ \
-  > plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T235959Z/phase_c2_validation_a_scale_only.log 2>&1
-echo "Exit code: $?"
+  --telemetry-dir telemetry \
+  --out-dir plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T224717Z/lifecycle_diagnostic/ \
+  > plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T224717Z/lifecycle_diagnostic.log 2>&1
 
-# 3. Extract metrics
-jq '{chi_squared_before, chi_squared_after, median_roi_cc_after, correlation_zero_point}' \
-  plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T235959Z/phase_c2_validation/block_dof_results_u_matrix.json
+echo "Exit code: $?" >> plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T224717Z/lifecycle_diagnostic.log
 ```
 
-### Phase C3 Validation (D_full, CONDITIONAL)
-```bash
-# Only run if C2 verdict is SUCCESS or PARTIAL with chi² <8M
+### Metrics Extraction (Step 4)
+Paste the Python script from Step 4 into terminal, or save as micro probe in summary.md.
 
-timeout 1200 KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py \
-  --use-u-matrix \
-  --u-matrix-lr 1e-5 \
-  --phases 5 \
-  --dof-variants D_full \
-  --adam-steps 10 \
-  --device cpu \
-  --out-dir plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T235959Z/phase_c3_validation/ \
-  > plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T235959Z/phase_c3_validation_d_full.log 2>&1
-```
+## Pitfalls to Avoid
 
-### Regression Guard
-```bash
-AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-DBEX_SMOKE_SIGMA_SOURCE=cli_override \
-DBEX_SMOKE_DETECTOR_SIZE=small \
-KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
-pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion \
-> plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T235959Z/pytest_regression.log 2>&1
-tail -20 plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T235959Z/pytest_regression.log
-```
-
-### Decision Synthesis
-```bash
-# Manually author phase_c2_c3_decision.json based on extracted metrics
-# Use decision tree from step 6 to determine Path A/B/C
-```
-
----
-
-## Pitfalls To Avoid
-
-1. **Device/Dtype Neutrality:** Ensure LR change applies ONLY to optimizer initialization, not forward model or gradient computation.
-2. **Protected Assets:** Do NOT modify cell+misset default path (LR=1e-4 preserved when `use_u_matrix_parameterization=False`).
-3. **Regression Guard:** Run `test_stage_a_expansion` AFTER implementing LR fix to ensure backward compatibility.
-4. **Conditional Phase C3:** Do NOT run D_full test if A_scale_only FAILS catastrophically (chi² >8M, CC <0.9).
-5. **Telemetry Overhead:** Telemetry is OPTIONAL for C2/C3; omit `--telemetry-dir` flag unless debugging is needed (Phase C1 already captured gradient behavior).
-6. **Environment Freeze:** Do NOT install new packages or modify environment; LR fix is pure config/code change.
-7. **Timeout Handling:** If validation test times out (>20min), capture partial log and note in decision.json as BLOCKED; do NOT retry without investigation.
-8. **Decision Template Completion:** Fill ALL fields in `phase_c2_c3_decision.json` with actual metrics (no placeholders like "TBD" or "N/A" unless test was skipped).
-9. **Implementation.md Sync:** Update checklist AFTER validation completes, not before (avoid marking C2/C3 complete prematurely).
-10. **LR Range Validation:** If C2 shows partial improvement (chi² 1.13M → 3M instead of catastrophic 8.8M), try LR=1e-6 as fallback before marking as FAIL.
-
----
+1. **Telemetry Scope:** Emit lifecycle metrics (log_scale_before/after) to BOTH _init and _post telemetry files for complete picture.
+2. **Closure Variable Capture:** Beware Python closure variable capture by reference vs value — ensure log_scale_param is the SAME tensor object accessed by optimizer.
+3. **Detach Placement:** Do NOT call .detach() on log_scale_param anywhere in lifecycle; would break gradient flow.
+4. **LR Verification:** ALWAYS print `optimizer.param_groups[0]['lr']` in telemetry to confirm config value propagated.
+5. **Chi² Evaluation Timing:** chi² in _init telemetry is BEFORE optimizer.step(), chi² in _post is AFTER step (should be catastrophic 8.84M).
+6. **Backward Side Effects:** Backward pass should NOT modify parameter VALUES (only .grad attribute); assert to catch bugs.
+7. **Adam State:** Adam optimizer maintains momentum buffers; first step uses zero momentum, second step uses momentum from first → Δlog_scale may differ between steps.
+8. **FP Precision:** Use abs(Δ) < 1e-9 for "unchanged" checks (not ==), account for float32 rounding.
+9. **Regression Guard:** Run BEFORE committing lifecycle logging changes (ensure no side effects on cell+misset path).
+10. **Normalization:** This diagnostic focuses on log_scale only (A_scale_only variant); quaternion parameters have train_orientation=False so no q_params updates to track.
 
 ## If Blocked
 
-**Scenario 1: Phase C2 A_scale_only FAILS (chi² >8M, CC <0.9)**
-- Capture logs/metrics in `phase_c2_validation_a_scale_only.log` and `block_dof_results_u_matrix.json`
-- Mark decision.json verdict as "Path C: FAIL (LR reduction insufficient)"
-- Log in Attempts History: "Phase C2 A_scale_only failed with chi²=<value>, CC=<value>; LR=1e-5 insufficient to resolve overshoot. Next action: Try LR=1e-6 OR escalate to LBFGS/Riemannian Adam alternative."
-- Do NOT proceed to Phase C3; do NOT update findings
+**Blocker 1: Diagnostic test times out**
+- Reduce to 1 step instead of 2
+- Capture whatever telemetry completed
+- Mark decision as PARTIAL
 
-**Scenario 2: Phase C2 validation test TIMES OUT (>20min)**
-- Capture partial log (first 100 lines + last 100 lines) to `phase_c2_validation_a_scale_only.log`
-- Mark decision.json verdict as "BLOCKED: timeout during HKL grid building or ROI scoring"
-- Log in Attempts History: "Phase C2 timed out at <timestamp>; investigate HKL warmup or ROI overhead before retry."
-- Do NOT mark C2 as complete; do NOT proceed to C3
+**Blocker 2: Telemetry files missing lifecycle fields**
+- Fallback: Add print() statements instead of JSON emission
+- Capture from log file via grep
+- Proceed with decision based on printed values
 
-**Scenario 3: Regression guard `test_stage_a_expansion` FAILS**
-- Capture full pytest output to `pytest_regression.log`
-- Mark decision.json overall_verdict as "BLOCKED: regression in cell+misset path"
-- Log in Attempts History: "Regression guard failed; LR change broke cell+misset default path. Revert LR change and audit optimizer setup."
-- Do NOT proceed to findings update; do NOT close initiative
-
----
+**Blocker 3: Regression guard fails**
+- Revert lifecycle logging changes
+- Run diagnostic manually via REPL
+- Document blocker in decision.md
 
 ## Findings Applied
 
-**Relevant Finding IDs:**
-- **REFINE-001:** LBFGS scale warm-start, NaN/Inf guards, gradient stability conventions → Adherence: LR reduction fix maintains gradient stability (no NaN/Inf), preserves LBFGS fallback option if Adam fails
-- **PHYSICS-LOSS-002:** Variance-weighted chi-squared sigma-floor guard → Adherence: LR change does NOT modify loss function; sigma-floor guard remains active
-- **GRADIENT-001:** Autograd graph preservation, crystal_overrides handling → Adherence: LR change is optimizer-only; autograd graph UNCHANGED
-- **CONVERGENCE-001 Phase C1:** Adam LR=1e-4 too high for quaternion gradients O(150k); first-step overshoot causes chi² 1.13M → 8.84M → Adherence: Implementing recommended fix (LR=1e-5) per Phase C1 decision.md Path A
+**Relevant findings:**
+- **Phase B5** (Code path discrepancy pattern): Script _forward_once vs run_nanobrag_refinement used different crystal_overrides handling → initialization healthy, optimization catastrophic. Current symptom matches → investigate parameter propagation similar to B_ideal mismatch.
+- **GRADIENT-001** (autograd graph preservation): Parameter update requires requires_grad=True and no accidental detach() → lifecycle diagnostic will verify.
+- **REFINE-001** (optimizer stability): Adam vs LBFGS behavior differences understood → lifecycle diagnostic applies to BOTH (currently testing Adam, but Path B4 showed LBFGS has same failure).
 
-**No relevant findings in the knowledge base** beyond those listed above.
-
----
+No relevant findings for parameter lifecycle logging methodology (novel diagnostic for CONVERGENCE-001).
 
 ## Pointers
 
-**Spec References:**
-- `docs/spec-db-workflow.md` §Stage A — Optimizer convergence (line ~150-180)
-- `docs/spec-db-runtime.md` §Gradient stability (line ~200-220)
-- `docs/spec-db-core.md` §Variance Model (line ~300-350)
+- **Implementation Plan:** `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/implementation.md` — Phase C checklist
+- **Phase C2 Failure:** `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T235959Z/phase_c2_c3_decision.json` — LR reduction null result
+- **Phase B5 Pattern:** `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T183012Z/code_path_audit.md` — Similar diagnostic approach (audit parameter propagation)
+- **Closure Code:** `dbex/nanobrag_refinement.py:~966-1116` — Stage A LBFGS closure (U-matrix branch)
+- **Spec:** `docs/spec-db-runtime.md` §Optimizer Convergence — Parameter update mechanics
 
-**Architecture References:**
-- `docs/architecture/pytorch_design.md` — RefinementConfig field conventions (line ~80-120)
-- `docs/pytorch_runtime_checklist.md` — Optimizer setup patterns (line ~40-60)
+## Next Up
 
-**Testing References:**
-- `docs/TESTING_GUIDE.md` §2.1 — `test_stage_a_expansion` selector (smoke test for Stage A default path)
-- `docs/development/TEST_SUITE_INDEX.md` — test_stage_a_expansion entry (line ~50-70)
+If lifecycle diagnostic completes early AND verdict is Path A (parameter update works correctly):
 
-**Fix Plan References:**
-- `docs/fix_plan.md` — Row [TORCH-GEOMETRY-CONVERGENCE-001] (Tier 1, in_progress, Phase C2 pending)
-- `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/implementation.md` — Phase C checklist (C1 complete, C2-C6 pending)
-- `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T230000Z/phase_c1_decision.md` — LR reduction fix specification (line 113-131)
+**Option 1: Finite-Difference Gradient Validation**
+- Implement FD validation script (compare autograd vs numerical gradients for log_scale)
+- Check if autograd is computing correct ∂χ²/∂log_scale
 
-**Code Locations:**
-- `dbex/nanobrag_refinement.py:~750-800` — RefinementConfig definition (add `u_matrix_learning_rate` field)
-- `dbex/nanobrag_refinement.py:~1080-1085` — Adam optimizer setup in Stage A closure (conditional LR selection)
-- `plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py:~80-90` — CLI argument parser (add `--u-matrix-lr` flag)
-
----
-
-## Next Up (Optional Early Completion Tasks)
-
-If you finish Phase C2/C3 validation early AND Path A verdict (SUCCESS):
-
-1. **Phase C4 Extended Regression Guard** (optional):
-   - Run full `tests/dbex/test_torch_refine_smoke.py` module (not just `test_stage_a_expansion`)
-   - Validate Stage B/C smoke tests unaffected by LR change
-
-2. **Draft CONVERGENCE-002 Finding** (preparation for Phase C5):
-   - Document root cause: Adam LR=1e-4 incompatible with quaternion gradient scale O(150k), causing first-step overshoot (chi² 1.13M → 8.84M)
-   - Document fix: Reduce LR to 1e-5 for U-matrix path via `RefinementConfig.u_matrix_learning_rate`
-   - Document validation metrics: Phase C2 A_scale_only chi² drift <5%, CC ≥ 0.99 after 10 steps
-   - Save draft to `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T235959Z/convergence_002_finding_draft.md`
-
----
-
-## Doc Sync Plan
-
-**Not applicable** — No new tests added/renamed this loop. Phase C2/C3 validation uses existing script infrastructure. If Phase C2 succeeds and initiative closes (Phase C6), update `docs/TESTING_GUIDE.md` §3 (Usage Examples) with `--use-u-matrix --u-matrix-lr 1e-5` example.
-
----
+**Option 2: Variance Component Analysis**
+- Log variance denominator components (V_denom histogram, clamp_fraction, weighted_residuals)
+- Check if variance weighting becomes unstable after parameter update
 
 ## Normative Math/Physics
 
-**Learning Rate Scaling:** See `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T230000Z/phase_c1_decision.md` §Physics Interpretation (line 87-109) for normative derivation of quaternion update magnitude Δq = -LR × gradient and rotation angle equivalence. Do NOT paraphrase the gradient scale calculation; reference the exact section for parameter update physics.
+**Adam Parameter Update Rule:** See `docs/spec-db-runtime.md` §Adam Optimizer
 
-**Quaternion Normalization:** See `docs/spec-db-core.md` §U-Matrix Parameterization (if exists) OR `dbex/nanobrag_bridge.py:quaternion_to_matrix` docstring for normative quaternion → SO(3) rotation matrix mapping. Ensure LR change does NOT modify normalization frequency or manifold constraints.
+Expected parameter change after one step:
+```
+Δθ ≈ -LR × gradient  (first step, zero momentum)
+```
 
----
+For log_scale with gradient ~150k and LR=1e-5:
+```
+Δlog_scale ≈ -1e-5 × 150,000 = -1.5
+```
 
-**End of input.md**
+**Lifecycle invariant:** Parameter value must ONLY change after optimizer.step(), NOT during forward() or backward().

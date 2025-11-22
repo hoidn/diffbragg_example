@@ -1,0 +1,22 @@
+{
+  "variant": "A_scale_only",
+  "optimizer": {
+    "type": "Adam",
+    "learning_rate": 0.0001,
+    "steps": 10,
+    "train_scale": true,
+    "train_cell": false,
+    "train_orientation": false
+  },
+  "chi_squared": {
+    "initial": 1133420.75,
+    "final": 1425250048.0,
+    "drift_percent": 125647.65796373501
+  },
+  "correlation_coefficient": {
+    "median_initial": 0.9999999843318174,
+    "median_final": -0.044678101875131465
+  },
+  "convergence_success": false,
+  "failure_mode": "cc_collapse"
+}

@@ -1,0 +1,5 @@
+### Turn Summary
+Diagnosed forward model discrepancy between zero-point check (chi²≈990k, perfect parity) and Adam loop step 0 (chi²=1.425B, 1000× worse); root cause confirmed as B_ideal computation mismatch bug in stage_a_mapping_adam_debug.py:323-326 using cctbx while derive_u_matrix_from_mosflm_a_star:844-862 uses TorchCrystal, producing inconsistent B_ideal matrices.
+The bug causes U_initial @ B_ideal_cctbx ≠ A_star_mosflm at initialization, creating catastrophic forward model error; zero-point check bypasses reconstruction (use_mapping_zero_geometry=True), while Adam loop forces reconstruction even at step 0 (use_mapping_zero_geometry=False).
+Next: implement bugfix (refactor derive_u_matrix_from_mosflm_a_star to return both U and B_ideal, update callers in script + dbex/nanobrag_refinement.py), rerun Phase A2 to validate chi-squared matches zero-point check.
+Artifacts: plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T150000Z/ (forward_model_discrepancy_analysis.md, pytest_stage_a_regression.log)

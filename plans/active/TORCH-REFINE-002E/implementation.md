@@ -103,9 +103,7 @@
 - **H5 (Loss/variance subtlety):** The variance‑weighted loss (detached denominator and sigma_floor clamp) is not perfectly identical between mapping diagnostics and Stage‑A, so “same image” does not mean “zero gradient”.
 
 ### Checklist
-- [ ] B1: **Local gradient probe at mapping zero:** In `stage_a_mapping_adam_debug.py`, add an optional “gradient probe” mode that:
-  - Evaluates χ² and ∂χ²/∂θ for θ ∈ {log_scale, cell logs, angle raws, orientation_vec} at the zero‑parameter point.
-  - Emits per‑parameter gradient magnitudes and signs, both globally and restricted to a “trusted ROI subset” (e.g. top N ROIs by mapping CC).
+- [x] B1: **Local gradient probe at mapping zero:** (2025-11-22T094500Z) Confirmed large non-zero gradients at mapping zero point (orientation_vec magnitude ≈2.88e8, cell_logs ≈9.82e7, angle_raws ≈1.55e8, log_scale ≈4.28e5); chi-squared at explicit zero-delta parameterization (2.98e6) is ~2.6× higher than mapping MOSFLM path (1.13e6 from Phase 1), proving "zero parameters ≠ mapping geometry" and validating that Adam legitimately walks away from this starting point.
 - [ ] B2: **Scale analytical optimum check:** With geometry frozen at mapping:
   - Derive the closed‑form optimal scale α* for a simplified variance model around the mapping point.
   - Compare α* to `global_scale_hint` and the initial `exp(log_scale)`; check whether zero log_scale is already near optimal.

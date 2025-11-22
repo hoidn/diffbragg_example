@@ -1,5 +1,5 @@
 ### Turn Summary
-Authored Phase B5 Do Now directing Ralph to fix code path discrepancy between _forward_once (script-level, chi²=1.425B) and run_nanobrag_refinement (production, chi²=1.13M).
-Root cause H4a confirmed with HIGH confidence ~85% from Phase B4; B_ideal fix (commit e86fd4e) works in production but not applied in script path—likely cctbx recompute bug + missing quaternion normalization.
-Next: Ralph audits _forward_once U-matrix logic (4-element comparison), patches B_ideal source + q normalization, validates with 1-step test (expect chi²_init~1.13M healthy), synthesizes Path A/B/C decision.
-Artifacts: plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T183012Z/ (input.md with 10-step protocol, decision tree templates)
+Implemented Phase B5 fix for code path discrepancy: audited _forward_once U-matrix reconstruction, identified unsupported crystal_overrides["A_star"] key (script) and missing mosflm_*_star override handling (create_crystal_config).
+Patched script to convert A* numpy array to mosflm tuple keys, patched create_crystal_config to check for mosflm keys in overrides; validation confirms initialization bug FIXED: chi²_init=1.133M (healthy, 1000× improvement from 1.425B), zero-point parity maintained (corr=0.9999999843).
+Convergence pathology remains (chi² 1.133M → 8.8M after 10 steps, but NO LONGER catastrophic negative CC); this is SEPARATE issue requiring Phase C investigation (likely H2 variance or H3 gradient, NOT H4 code path bug).
+Artifacts: plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T183012Z/ (code_path_audit.md, phase_b5_fix_decision.md, validation_metrics.txt, diagnostic_b5_postfix_v2/)

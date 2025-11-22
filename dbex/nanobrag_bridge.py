@@ -566,12 +566,19 @@ def create_crystal_config(crystal, experiment, N_cells=None, apply_n_cells=True,
     # IMPORTANT: When crystal_overrides are provided, skip A* injection and let
     # nanobrag_torch compute A* from the overridden cell parameters instead.
     # Otherwise A* from the base crystal will override the cell parameter changes.
+    # EXCEPTION (CONVERGENCE-001): If crystal_overrides contains mosflm_a/b/c_star
+    # keys, use those instead of dxtbx crystal.get_A() (for U-matrix mode).
     if crystal_overrides is None:
         A_tuple = crystal.get_A()
         A = np.array(A_tuple).reshape(3, 3)
         mosflm_a_star = np.array(A[:, 0])
         mosflm_b_star = np.array(A[:, 1])
         mosflm_c_star = np.array(A[:, 2])
+    elif 'mosflm_a_star' in crystal_overrides:
+        # Use MOSFLM A* from overrides (U-matrix mode, CONVERGENCE-001 fix)
+        mosflm_a_star = crystal_overrides['mosflm_a_star']
+        mosflm_b_star = crystal_overrides['mosflm_b_star']
+        mosflm_c_star = crystal_overrides['mosflm_c_star']
     else:
         # Let nanobrag_torch compute A* from overridden cell parameters
         mosflm_a_star = None

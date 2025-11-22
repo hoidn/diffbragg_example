@@ -434,7 +434,12 @@ def _stage_a_forward(
             U_matrix = quaternion_to_matrix(q_norm)
             # Reconstruct A* = U @ B_ideal_reciprocal
             A_star_new = U_matrix @ components.B_ideal_reciprocal
-            crystal_overrides["A_star"] = A_star_new
+            # CONVERGENCE-001 Phase B5 fix: Use mosflm_a_star/b_star/c_star keys
+            # (create_crystal_config does NOT support "A_star" key)
+            A_star_np = A_star_new.detach().cpu().numpy()
+            crystal_overrides["mosflm_a_star"] = tuple(A_star_np[:, 0].tolist())
+            crystal_overrides["mosflm_b_star"] = tuple(A_star_np[:, 1].tolist())
+            crystal_overrides["mosflm_c_star"] = tuple(A_star_np[:, 2].tolist())
             misset_xyz_deg = None  # No misset override in U-matrix mode
         else:
             # Cell+misset path: orientation_vec → Euler angles

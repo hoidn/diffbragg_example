@@ -622,3 +622,12 @@
 - <Action State>: [planning]
 
 2025-11-22T105837Z focus=TORCH-GEOMETRY-PARITY-002 state=planning dwell=0 artifacts=plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T105837Z/ next_action=phase_a_analysis_and_design
+## 2025-11-22T112058Z — TORCH-GEOMETRY-PARITY-002 Phase B Regression Detection
+- Focus: TORCH-GEOMETRY-PARITY-002 — Direct U-Matrix Parameterization for Stage A Geometry Refinement
+- Action Type: review_or_housekeeping
+- Key Observations: Reviewed Ralph's commit 2793ba9 (Phase B1-B5 quaternion infrastructure) and artifacts (2025-11-22T105837Z/). Ralph completed Phase A analysis (A0 evidence synthesis, A1 SO(3) survey, A2 API design, A3 risk analysis) AND jumped to Phase B implementation (B1-B5: derive_u_matrix_from_mosflm_a_star helper, quaternion conversion ops, use_u_matrix_parameterization config flag, initialization, closure branching). Quaternion roundtrip test PASSED (<1e-6 error). **Regression detected:** test_stage_a_expansion FAILED with `NameError: name 'misset_deg_for_crystal' is not defined`. Root cause: scoping bug at line 1015—code tries to use `misset_xyz_deg` (only defined in cell+misset else-branch at line 997) before the if/else block completes. The assignment `misset_deg_for_crystal = None if config.use_u_matrix_parameterization else misset_xyz_deg` should be moved INSIDE each branch where the required variables are in scope. Same pattern appears in Stage C closure (~line 1404-1448). Authored comprehensive bug report (`phase_b_regression_bug_report.md`) with exact fix instructions (move misset_deg_for_crystal assignment into each branch, remove line 1015). Ralph must fix this scoping bug and re-run regression guard before proceeding to Phase C validation (B6 parity probe extension, C1-C7).
+- Artifact Path: plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T112058Z/
+- Next Actions: Ralph applies scoping fix to both closures (Stage A + Stage C), re-runs test_stage_a_expansion to confirm PASSED, commits fix, then proceeds to Phase C Do Now (parity probe extension + C1 parity validation).
+- <Action State>: [ready_for_implementation]
+
+2025-11-22T112058Z focus=TORCH-GEOMETRY-PARITY-002 state=ready_for_implementation dwell=0 artifacts=plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T112058Z/ next_action=phase_b_regression_fix

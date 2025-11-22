@@ -1,0 +1,43 @@
+{
+  "decision": "escalate_to_geometry_parity_003",
+  "rationale": "A_scale_only catastrophically degraded: chi² increased by 1257x (from 1.13M to 1.43B), median ROI correlation collapsed from 0.9999999843 to -0.044678 (negative!). This violates exit criterion (CC ≥ 0.99 and χ² drift ≤ 0.5%). Quaternion U-matrix parameterization is NOT viable for Stage A refinement. Must investigate det(U)≠1 root cause and evaluate hybrid cell+U+scale factorization or other alternatives.",
+  "a_scale_only": {
+    "chi_squared_initial": 1133420.75,
+    "chi_squared_final": 1425250048.0,
+    "chi_squared_drift_pct": 125687.7,
+    "median_roi_correlation_initial": 0.9999999843318174,
+    "median_roi_correlation_final": -0.044678101875131465,
+    "verdict": "fail",
+    "exit_criterion": "CC ≥ 0.99 and χ² drift ≤ 0.5%"
+  },
+  "d_full": {
+    "chi_squared_initial": 1133420.75,
+    "chi_squared_final": 1425664512.0,
+    "improvement_pct": -125799.4,
+    "median_roi_correlation_final": -0.04078477432603854,
+    "verdict": "degrade",
+    "exit_criterion": "monotonic χ² improvement, no large CC collapses"
+  },
+  "parity_context": {
+    "quaternion_parity_max_abs_diff": 4.0221959352493286e-05,
+    "det_u_zero": 1.0005572899796854,
+    "so3_projection_loss": "0.06% volume scaling lost during quaternion conversion",
+    "note": "Parity was acceptable (~4e-05) but gradient flow failed catastrophically, suggesting fundamental incompatibility between quaternion parameterization and the refinement objective despite correct forward model at zero deltas."
+  },
+  "zero_point_validation": {
+    "corr_median_vs_mapping": 0.9999999843318911,
+    "chi2_rel_diff": -0.00016771711901888685,
+    "max_abs_diff_photons": 85.13671875,
+    "status": "passed",
+    "note": "Zero-point check passed, confirming U-matrix logic is correct at zero deltas. Failure only manifests during optimization."
+  },
+  "failure_analysis": {
+    "symptom": "Negative correlation, massive chi-squared increase during Adam optimization",
+    "hypothesis": "Quaternion normalization constraint (q/||q||) combined with gradient flow through scipy Rotation conversion may create pathological gradients or non-convex local minima. The 0.06% volume scaling discrepancy (det(U)≠1) may interact badly with refinement dynamics even though forward parity is acceptable.",
+    "next_steps": [
+      "TORCH-GEOMETRY-PARITY-003: Investigate det(U₀)=1.000557 root cause via dxtbx A*/cell audit",
+      "Evaluate hybrid cell+U+scale factorization (Alternative Path 2 from implementation.md:58-67)",
+      "Consider direct A* parameterization with explicit orthogonality/volume constraints"
+    ]
+  }
+}

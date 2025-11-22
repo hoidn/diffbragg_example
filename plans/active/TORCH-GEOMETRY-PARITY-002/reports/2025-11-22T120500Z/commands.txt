@@ -1,0 +1,15 @@
+# Commands executed in loop 2025-11-22T120500Z (Ralph)
+
+# 1. Verify bugfix landed (already applied by supervisor)
+# Line 325 of plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py confirmed to have .reshape(3,3).T
+
+# 2. Fix dtype mismatch in quaternion_to_matrix (implementation bug discovered during Phase 5 run)
+# Modified dbex/nanobrag_bridge.py:980 to preserve dtype and device from input quaternion instead of hardcoding float64
+
+# 3. Phase 5 convergence test with quaternion U-matrix mode
+KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 timeout 1200 python plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py --use-u-matrix --phases 5 --dof-variants A_scale_only,D_full --adam-steps 10 --device cpu --out-dir plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T120500Z/ > plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T120500Z/stage_a_debug_u_matrix.log 2>&1
+
+# 4. Regression guard (cell+misset default path)
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion > plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T120500Z/pytest_stage_a_regression.log 2>&1
+
+# Exit code 0 (PASSED) - cell+misset path unaffected by dtype fix

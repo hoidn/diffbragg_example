@@ -1,0 +1,41 @@
+# TORCH-GEOMETRY-PARITY-003 Phase A Complete → Convergence Verification
+# Timestamp: 2025-11-22T130000Z
+
+## Step 1: Parity Probe (Current File Verification)
+KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
+python plans/active/TORCH-REFINE-002E/bin/probe_crystal_matrix_parity.py \
+  --device cpu \
+  --use-u-matrix \
+  --out-dir plans/active/TORCH-GEOMETRY-PARITY-003/reports/2025-11-22T130000Z/
+
+# Result: max_abs_diff=3.469e-18 (PASS), det(U)=1.000565
+
+## Step 2: Phase C2 Convergence Test (A_scale_only)
+KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
+python plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py \
+  --phases 5 --device cpu --adam-steps 10 \
+  --use-u-matrix \
+  --dof-variants A_scale_only \
+  --out-dir plans/active/TORCH-GEOMETRY-PARITY-003/reports/2025-11-22T130000Z/
+
+# Result: CATASTROPHIC FAILURE (χ² +125,648%, CC → -0.045)
+
+## Step 3: Phase C3 Convergence Test (D_full) - INCOMPLETE
+KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
+python plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py \
+  --phases 5 --device cpu --adam-steps 10 \
+  --use-u-matrix \
+  --dof-variants D_full \
+  --out-dir plans/active/TORCH-GEOMETRY-PARITY-003/reports/2025-11-22T130000Z/
+
+# Status: Still running at decision synthesis time; not required for escalation
+
+## Step 4: Regression Guard
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+DBEX_SMOKE_SIGMA_SOURCE=cli_override \
+DBEX_SMOKE_DETECTOR_SIZE=small \
+KMP_DUPLICATE_LIB_OK=TRUE \
+NANOBRAGG_DISABLE_COMPILE=1 \
+pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+
+# Result: PASSED

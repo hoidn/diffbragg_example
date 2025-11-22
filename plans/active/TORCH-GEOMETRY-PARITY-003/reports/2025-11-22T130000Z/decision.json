@@ -1,0 +1,26 @@
+{
+  "decision": "escalate_to_convergence_debugging",
+  "rationale": "Parity is correct (<1e-17 max_abs_diff) with canonical refGeom.expt (det(U)=1.000565, within 0.06% of unity). However, A_scale_only convergence test catastrophically failed: χ² exploded 1257× (from 1.13M to 1.43B) and median ROI CC collapsed from 1.0 to -0.045 after 10 Adam steps. This reproduces PARITY-002 Phase C2 failure exactly, proving the problem is NOT file-specific. Root cause is convergence pathology (optimizer/loss/gradient), not geometry encoding parity.",
+  "next_actions": [
+    "Mark TORCH-GEOMETRY-PARITY-003 status=blocked (parity solved, convergence blocked)",
+    "Create new initiative TORCH-GEOMETRY-CONVERGENCE-001 to investigate: (a) Adam optimizer hyperparameters incompatible with quaternion U-matrix gradients, (b) variance-weighted loss numerical stability with quaternion parameterization, (c) gradient flow issues (NaN/inf, exploding/vanishing magnitudes), (d) quaternion normalization constraint interaction with optimization",
+    "Capture convergence failure artifacts (parameter trajectories, gradient norms, loss components) for CONVERGENCE-001 Phase A evidence",
+    "Investigate alternative: LBFGS instead of Adam for quaternion U-matrix, or hybrid parameterization (cell+quaternion+isotropic_scale) to decouple orientation and scale DOFs"
+  ],
+  "parity_max_abs_diff": 3.469e-18,
+  "det_u_measured": 1.000565,
+  "a_scale_only_final_cc": -0.044678,
+  "a_scale_only_chi2_drift_percent": 125647.7,
+  "d_full_monotonic_improvement": null,
+  "d_full_final_cc": null,
+  "convergence_failure_mode": "cc_collapse",
+  "phase_a_finding": "det(U)≠1 hypothesis REJECTED: dxtbx audit shows det(U)=1.0 for canonical refGeom.expt (within machine precision 1e-16). Parity probe reports det(U)=1.000565 due to DIFFERENT computation path (nanobrag_torch MOSFLM reconstruction vs dxtbx direct A*/B), NOT a file difference. The 0.06% determinant offset is a nanobrag_torch/dxtbx parity issue, not a convergence blocker (parity is perfect at <1e-17).",
+  "phase_c2_evidence": "A_scale_only variant failed catastrophically with quaternion U-matrix parameterization despite perfect parity initialization. χ² exploded 125,648% and CC collapsed to -0.045, identical to PARITY-002 failure signature.",
+  "phase_c3_status": "not_completed (D_full test still running at decision synthesis time; not required for escalation decision given decisive A_scale_only failure)",
+  "artifacts": {
+    "parity_probe": "plans/active/TORCH-GEOMETRY-PARITY-003/reports/2025-11-22T130000Z/parity_probe_current_file.json",
+    "phase_c2_verification": "plans/active/TORCH-GEOMETRY-PARITY-003/reports/2025-11-22T130000Z/phase_c2_convergence_verification.json",
+    "dof_results": "plans/active/TORCH-GEOMETRY-PARITY-003/reports/2025-11-22T130000Z/block_dof_results_u_matrix.json",
+    "phase_a_audit": "plans/active/TORCH-GEOMETRY-PARITY-003/reports/2025-11-22T121500Z/dxtbx_a_star_cell_audit.json"
+  }
+}

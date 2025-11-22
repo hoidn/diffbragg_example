@@ -113,7 +113,7 @@
 
 ## Phase A — Evidence Collection & Gradient Diagnosis
 ### Checklist
-- [ ] A0: **Evidence Synthesis** — Compile PARITY-003 Phase C2 failure artifacts (block_dof_results_u_matrix.json, convergence telemetry if available); document known failure signature (χ² +125,648%, CC→-0.045, step count=10).
+- [x] A0: **Evidence Synthesis** — Compile PARITY-003 Phase C2 failure artifacts (block_dof_results_u_matrix.json, convergence telemetry if available); document known failure signature (χ² +125,648%, CC→-0.045, step count=10). **DONE (2025-11-22T134421Z):** Synthesized PARITY-003 escalation evidence, cross-referenced REFINE-001/PHYSICS-LOSS-002/GRADIENT-001 findings, documented four hypotheses (H1-H4), archived PARITY-003 artifacts. See `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T134421Z/phase_a0_evidence_synthesis.md`.
 - [ ] A1: **Instrument Quaternion Closure** — Extend `build_stage_a_lbfgs_closure` (U-matrix path) with per-step telemetry logging (q_params, gradients, loss components, variance metrics); emit `telemetry_step_{i}.json`.
 - [ ] A2: **Execute Instrumented Run** — Run `stage_a_mapping_adam_debug.py --use-u-matrix --phases 5 --dof-variants A_scale_only --adam-steps 10 --device cpu` with telemetry enabled; capture all step artifacts.
 - [ ] A3: **First Divergence Analysis** — Identify first step where χ² increases >10% OR CC drops <0.95 OR gradients explode/vanish OR NaN appears; document parameter/gradient state in `phase_a_first_divergence.md`.

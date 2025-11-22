@@ -1,5 +1,5 @@
 ### Turn Summary
-Created TORCH-GEOMETRY-CONVERGENCE-001 initiative after PARITY-003 proved quaternion U-matrix parity is perfect but convergence catastrophically fails.
-Ralph's Phase C2 verification ruled out file-specific failures (χ² exploded +125,648% with canonical refGeom.expt), confirming root cause is optimizer/loss/gradient pathology, not geometry encoding.
-Next: Ralph synthesizes PARITY-003 failure artifacts, drafts Phase A1 telemetry spec for closure instrumentation, and archives evidence for systematic diagnosis.
-Artifacts: plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T134421Z/ (implementation.md, input.md)
+Completed TORCH-GEOMETRY-CONVERGENCE-001 Phase A0 evidence synthesis from PARITY-003 escalation artifacts showing quaternion U-matrix catastrophic convergence failure (χ² +125,648%, CC→-0.045).
+Synthesized four hypotheses (Adam hyperparameters, variance-weighted loss instability, gradient pathology, quaternion constraint handling) and drafted comprehensive Phase A1 instrumentation plan for closure telemetry.
+Next: Phase A1 implementation to inject per-step telemetry into U-matrix closure, then Phase A2 instrumented run to capture gradient/loss/variance diagnostics.
+Artifacts: plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T134421Z/ (phase_a0_evidence_synthesis.md, phase_a1_instrumentation_plan.md)

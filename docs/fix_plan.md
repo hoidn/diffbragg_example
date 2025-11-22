@@ -39,9 +39,9 @@
 
 ### [TORCH-GEOMETRY-CONVERGENCE-001] Diagnose & Fix Quaternion U-Matrix Catastrophic Convergence Failure
 - Depends on: docs/spec-db-workflow.md, docs/spec-db-runtime.md, docs/spec-db-core.md, TORCH-GEOMETRY-PARITY-003 (escalation source)
-- Status: pending (2025-11-22 — top priority Tier 1; parity perfect <1e-17 but quaternion U-matrix Adam optimization catastrophically failed)
+- Status: in_progress (2025-11-22 — Phase A0 evidence synthesis complete; proceeding to Phase A1 instrumentation)
 - Priority: Critical (Tier 1 — Core Physics & Stability)
-- Owner/Date: Unassigned
+- Owner/Date: Ralph (2025-11-22T134421Z)
 - Exit Criteria:
   1. Root cause of quaternion U-matrix convergence failure identified with evidence (gradient telemetry, loss component analysis, parameter trajectories).
   2. Chosen fix (optimizer tuning, loss modification, or constraint handling) enables `stage_a_mapping_adam_debug.py` Phase 5 with `--use-u-matrix` to pass: (a) A_scale_only: median ROI CC ≥ 0.99, χ² drift ≤ 0.5% after 10 Adam steps, (b) D_full: monotonic χ² improvement without large CC collapses.
@@ -49,7 +49,7 @@
   4. Findings ledger updated with CONVERGENCE-002 (or extension to REFINE-001/GRADIENT-001) documenting root cause, fix, and quaternion U-matrix usage conventions.
 - Working Plan: plans/active/TORCH-GEOMETRY-CONVERGENCE-001/implementation.md
 - Attempts History:
-  * (awaiting first attempt)
+  * 2025-11-22T134421Z (docs) — **Phase A0 Evidence Synthesis Complete.** Synthesized PARITY-003 Phase C2 failure artifacts (decision.json, phase_c2_convergence_verification.json, block_dof_results_u_matrix.json) documenting catastrophic failure: χ² +125,648% (1.13M → 1.43B), median CC collapse 1.0 → -0.045 after 10 Adam steps (LR=1e-4, A_scale_only variant). Confirmed failure is NOT file-specific (canonical refGeom.expt, det(U)=1.0 per dxtbx audit). Cross-referenced REFINE-001 (scale gradient explosion), PHYSICS-LOSS-002 (variance-weighted loss sigma-floor guard), GRADIENT-001 (autograd graph preservation) for applicability to quaternion U-matrix convergence pathology. Documented four root cause hypotheses: H1 (Adam hyperparameters incompatible with quaternion gradients on S³ manifold), H2 (variance-weighted loss numerical instability with quaternion parameterization), H3 (gradient pathology: NaN/inf/exploding magnitudes from quaternion normalization or matrix operations), H4 (quaternion constraint handling: normalization frequency vs Riemannian optimization). Drafted Phase A1 instrumentation plan specifying per-step telemetry (q_params, q_norm, log_scale, gradient norms, loss components, variance histograms) to be injected into `build_stage_a_lbfgs_closure` U-matrix branch (dbex/nanobrag_refinement.py:968-1116). Archived PARITY-003 artifacts to CONVERGENCE-001 reports directory. Updated implementation.md checklist (A0 marked complete). **Metrics:** No code changes (docs-only loop per Mode: Docs). **Artifacts:** plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T134421Z/{phase_a0_evidence_synthesis.md, phase_a1_instrumentation_plan.md, parity_003_decision.json, parity_003_phase_c2.json, parity_003_dof_results.json}. **Next Actions:** Phase A1 implementation (instrument closure with telemetry) → Phase A2 (execute instrumented run) → Phase A3-A6 (first divergence analysis, gradient validation, variance analysis, hypothesis decision).
 
 ### [TORCH-REFINE-002E] Fix Stage A Zero-Point Geometry Discontinuity
 - Depends on: docs/spec-db-core.md, docs/spec-db-workflow.md, docs/spec-db-conformance.md

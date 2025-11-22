@@ -65,6 +65,20 @@ class MatrixParitySummary:
     reciprocal_column_angles: dict[str, float]
 
 
+@dataclass
+class PathBVariantSummary:
+    """Summary for a single Path-B variant (Phase A2)."""
+
+    variant_name: str
+    max_abs_diff: float
+    frobenius_norm_diff: float
+    det_u_error: float
+    u_error_is_rotation: bool
+    log_u_symmetric_norm: float
+    log_u_antisymmetric_norm: float
+    baseline_misset_deg: list[float]
+
+
 def _build_dataload() -> "DataLoad":
     """Construct a DataLoad on canonical refGeom or refined fixtures."""
     from dbex.data_load import DataLoad  # type: ignore
@@ -101,6 +115,45 @@ def _build_dataload() -> "DataLoad":
 
 def _compute_a_star_matrix(crystal_nb) -> np.ndarray:
     """Extract A* (a*,b*,c* as columns) from a nanobrag_torch Crystal."""
+    geom = crystal_nb.compute_cell_tensors()
+    a_star = geom["a_star"].detach().cpu().numpy().reshape(3)
+    b_star = geom["b_star"].detach().cpu().numpy().reshape(3)
+    c_star = geom["c_star"].detach().cpu().numpy().reshape(3)
+    return np.column_stack([a_star, b_star, c_star]).astype(np.float64)
+
+
+def _build_b_ideal_from_cell_params(
+    cell_params: tuple[float, float, float, float, float, float],
+    device: str = "cpu",
+) -> np.ndarray:
+    """
+    Build a B_ideal matrix from unit cell parameters using nanobrag_torch.
+
+    Args:
+        cell_params: Tuple (a, b, c, alpha_deg, beta_deg, gamma_deg).
+        device: Torch device string.
+
+    Returns:
+        3×3 numpy array with reciprocal vectors (a*, b*, c*) as columns.
+    """
+    from nanobrag_torch.config import CrystalConfig as TorchCrystalConfig
+    from nanobrag_torch.models.crystal import Crystal as TorchCrystal
+    import torch
+
+    a, b, c, alpha, beta, gamma = cell_params
+    cfg = TorchCrystalConfig(
+        cell_a=a,
+        cell_b=b,
+        cell_c=c,
+        cell_alpha=alpha,
+        cell_beta=beta,
+        cell_gamma=gamma,
+        misset_deg=(0.0, 0.0, 0.0),
+        mosflm_a_star=None,
+        mosflm_b_star=None,
+        mosflm_c_star=None,
+    )
+    crystal_nb = TorchCrystal(cfg, device=torch.device(device), dtype=torch.float64)
     geom = crystal_nb.compute_cell_tensors()
     a_star = geom["a_star"].detach().cpu().numpy().reshape(3)
     b_star = geom["b_star"].detach().cpu().numpy().reshape(3)
@@ -195,11 +248,80 @@ def compute_extended_diagnostics(
     }
 
 
+def _compute_path_b_variant_metrics(
+    variant_name: str,
+    a_star_A: np.ndarray,
+    a_star_B: np.ndarray,
+    baseline_misset_deg: np.ndarray,
+) -> PathBVariantSummary:
+    """
+    Compute parity metrics for a single Path-B variant.
+
+    Args:
+        variant_name: Identifier for this variant (e.g., "PathB_unitcell").
+        a_star_A: 3×3 numpy array from Path A (MOSFLM A* injection).
+        a_star_B: 3×3 numpy array from Path B variant.
+        baseline_misset_deg: Baseline misset angles used for this variant.
+
+    Returns:
+        PathBVariantSummary with key metrics.
+    """
+    diff = a_star_A - a_star_B
+    max_abs_diff = float(np.max(np.abs(diff)))
+    fro_norm = float(np.linalg.norm(diff))
+
+    try:
+        a_star_B_inv = np.linalg.inv(a_star_B)
+    except np.linalg.LinAlgError:
+        a_star_B_inv = np.linalg.pinv(a_star_B)
+
+    u_error = a_star_A @ a_star_B_inv
+    det_u = float(np.linalg.det(u_error))
+    u_u, _, u_vt = np.linalg.svd(u_error)
+    r_proj = u_u @ u_vt
+    rot_gap = float(np.linalg.norm(u_error - r_proj))
+    u_error_is_rotation = bool(abs(det_u - 1.0) < 1e-6 and rot_gap < 1e-6)
+
+    # Symmetric/antisymmetric decomposition of logm(U_error)
+    log_u = logm(u_error)
+    if np.iscomplexobj(log_u):
+        log_u = np.real(log_u)
+    log_u_symmetric = 0.5 * (log_u + log_u.T)
+    log_u_symmetric_norm = float(np.linalg.norm(log_u_symmetric))
+    log_u_antisymmetric = 0.5 * (log_u - log_u.T)
+    log_u_antisymmetric_norm = float(np.linalg.norm(log_u_antisymmetric))
+
+    return PathBVariantSummary(
+        variant_name=variant_name,
+        max_abs_diff=max_abs_diff,
+        frobenius_norm_diff=fro_norm,
+        det_u_error=det_u,
+        u_error_is_rotation=u_error_is_rotation,
+        log_u_symmetric_norm=log_u_symmetric_norm,
+        log_u_antisymmetric_norm=log_u_antisymmetric_norm,
+        baseline_misset_deg=baseline_misset_deg.tolist() if isinstance(baseline_misset_deg, np.ndarray) else list(baseline_misset_deg),
+    )
+
+
 def run_probe(device: str = "cpu") -> Dict[str, object]:
-    """Run the parity probe and return the payload."""
-    from dbex.nanobrag_bridge import create_crystal_config, compute_baseline_misset_deg
-    from nanobrag_torch.models.crystal import Crystal as TorchCrystal  # type: ignore
-    import torch  # type: ignore
+    """
+    Run the parity probe with Phase A2 baseline B_ideal variants.
+
+    Builds three crystal configs:
+    - Path A: MOSFLM A* injection (mapping zero point)
+    - Path B (unitcell): Explicit cell + baseline misset using dxtbx unit cell B_ideal
+    - Path B (recovered): Explicit cell + baseline misset using recovered cell from MOSFLM A*
+
+    Returns a JSON payload with side-by-side comparison of both Path-B variants.
+    """
+    from dbex.nanobrag_bridge import (
+        create_crystal_config,
+        compute_baseline_misset_deg,
+        derive_robust_misset,
+        recover_cell_from_a_star,
+    )
+    from nanobrag_torch.models.crystal import Crystal as TorchCrystal
+    import torch
 
     dataload = _build_dataload()
     crystal = dataload.crystal
@@ -219,64 +341,114 @@ def run_probe(device: str = "cpu") -> Dict[str, object]:
     )
     a_star_A = _compute_a_star_matrix(crystal_nb_A)
 
-    # Path B: explicit cell + baseline misset (Stage A parameterization at zero deltas)
-    # Baseline misset in XYZ Euler degrees, aligned to nanobrag's internal B_ideal.
-    # Use the mapping-aligned robust derivation (baseline_crystal=None) so that
-    # the zero-parameter Stage A geometry is defined as B_ideal rotated to match
-    # the DB-AT-024 mapping orientation.
-    baseline_misset_deg = compute_baseline_misset_deg(
+    # Path B (unitcell): Explicit cell + baseline misset using dxtbx unit cell B_ideal
+    baseline_misset_unitcell = compute_baseline_misset_deg(
         crystal,
         None,
         device=torch.device(device),
         dtype=torch.float64,
     )
+    if isinstance(baseline_misset_unitcell, torch.Tensor):
+        baseline_misset_unitcell_np = baseline_misset_unitcell.detach().cpu().numpy()
+    else:
+        baseline_misset_unitcell_np = np.asarray(baseline_misset_unitcell, dtype=np.float64)
 
     cell_params = crystal.get_unit_cell().parameters()
-    import torch as _torch  # type: ignore
-
-    crystal_overrides = {
-        "cell_a": _torch.tensor(cell_params[0], dtype=_torch.float64),
-        "cell_b": _torch.tensor(cell_params[1], dtype=_torch.float64),
-        "cell_c": _torch.tensor(cell_params[2], dtype=_torch.float64),
-        "cell_alpha": _torch.tensor(cell_params[3], dtype=_torch.float64),
-        "cell_beta": _torch.tensor(cell_params[4], dtype=_torch.float64),
-        "cell_gamma": _torch.tensor(cell_params[5], dtype=_torch.float64),
+    crystal_overrides_unitcell = {
+        "cell_a": torch.tensor(cell_params[0], dtype=torch.float64),
+        "cell_b": torch.tensor(cell_params[1], dtype=torch.float64),
+        "cell_c": torch.tensor(cell_params[2], dtype=torch.float64),
+        "cell_alpha": torch.tensor(cell_params[3], dtype=torch.float64),
+        "cell_beta": torch.tensor(cell_params[4], dtype=torch.float64),
+        "cell_gamma": torch.tensor(cell_params[5], dtype=torch.float64),
     }
 
-    crystal_cfg_B, _ = create_crystal_config(
+    crystal_cfg_B_unitcell, _ = create_crystal_config(
         crystal,
         experiment,
         N_cells=None,
         apply_n_cells=False,
-        crystal_overrides=crystal_overrides,
-        misset_deg_override=baseline_misset_deg,
+        crystal_overrides=crystal_overrides_unitcell,
+        misset_deg_override=baseline_misset_unitcell,
     )
-    crystal_nb_B = TorchCrystal(
-        crystal_cfg_B, beam_config=None, device=torch.device(device)
+    crystal_nb_B_unitcell = TorchCrystal(
+        crystal_cfg_B_unitcell, beam_config=None, device=torch.device(device)
     )
-    a_star_B = _compute_a_star_matrix(crystal_nb_B)
+    a_star_B_unitcell = _compute_a_star_matrix(crystal_nb_B_unitcell)
 
-    # Compute parity metrics
-    diff = a_star_A - a_star_B
+    # Path B (recovered): Recover cell from MOSFLM A* and build alternative B_ideal
+    recovered_cell_params = recover_cell_from_a_star(a_star_A)
+    b_ideal_recovered = _build_b_ideal_from_cell_params(recovered_cell_params, device=device)
+
+    # Derive misset using the recovered B_ideal
+    baseline_misset_recovered = derive_robust_misset(
+        crystal,
+        crystal_nanobrag_default=None,
+        device=torch.device(device),
+        dtype=torch.float64,
+        b_ideal_override=b_ideal_recovered,
+    )
+    if isinstance(baseline_misset_recovered, torch.Tensor):
+        baseline_misset_recovered_np = baseline_misset_recovered.detach().cpu().numpy()
+    else:
+        baseline_misset_recovered_np = np.asarray(baseline_misset_recovered, dtype=np.float64)
+
+    # Build crystal config with recovered cell params
+    crystal_overrides_recovered = {
+        "cell_a": torch.tensor(recovered_cell_params[0], dtype=torch.float64),
+        "cell_b": torch.tensor(recovered_cell_params[1], dtype=torch.float64),
+        "cell_c": torch.tensor(recovered_cell_params[2], dtype=torch.float64),
+        "cell_alpha": torch.tensor(recovered_cell_params[3], dtype=torch.float64),
+        "cell_beta": torch.tensor(recovered_cell_params[4], dtype=torch.float64),
+        "cell_gamma": torch.tensor(recovered_cell_params[5], dtype=torch.float64),
+    }
+
+    crystal_cfg_B_recovered, _ = create_crystal_config(
+        crystal,
+        experiment,
+        N_cells=None,
+        apply_n_cells=False,
+        crystal_overrides=crystal_overrides_recovered,
+        misset_deg_override=baseline_misset_recovered,
+    )
+    crystal_nb_B_recovered = TorchCrystal(
+        crystal_cfg_B_recovered, beam_config=None, device=torch.device(device)
+    )
+    a_star_B_recovered = _compute_a_star_matrix(crystal_nb_B_recovered)
+
+    # Compute metrics for both Path-B variants
+    variant_unitcell = _compute_path_b_variant_metrics(
+        "PathB_unitcell",
+        a_star_A,
+        a_star_B_unitcell,
+        baseline_misset_unitcell_np,
+    )
+    variant_recovered = _compute_path_b_variant_metrics(
+        "PathB_recovered",
+        a_star_A,
+        a_star_B_recovered,
+        baseline_misset_recovered_np,
+    )
+
+    # Also compute the full extended diagnostics for the unitcell variant (legacy output)
+    diff = a_star_A - a_star_B_unitcell
     max_abs_diff = float(np.max(np.abs(diff)))
     fro_norm = float(np.linalg.norm(diff))
 
     try:
-        a_star_B_inv = np.linalg.inv(a_star_B)
+        a_star_B_inv = np.linalg.inv(a_star_B_unitcell)
     except np.linalg.LinAlgError:
-        a_star_B_inv = np.linalg.pinv(a_star_B)
+        a_star_B_inv = np.linalg.pinv(a_star_B_unitcell)
 
     u_error = a_star_A @ a_star_B_inv
     det_u = float(np.linalg.det(u_error))
     u_u, _, u_vt = np.linalg.svd(u_error)
     r_proj = u_u @ u_vt
     rot_gap = float(np.linalg.norm(u_error - r_proj))
-    u_error_is_rotation = bool(
-        abs(det_u - 1.0) < 1e-6 and rot_gap < 1e-6
-    )
+    u_error_is_rotation = bool(abs(det_u - 1.0) < 1e-6 and rot_gap < 1e-6)
 
-    # Compute extended diagnostics
-    extended = compute_extended_diagnostics(a_star_A, a_star_B, u_error)
+    # Compute extended diagnostics for the unitcell variant
+    extended = compute_extended_diagnostics(a_star_A, a_star_B_unitcell, u_error)
 
     summary = MatrixParitySummary(
         max_abs_diff=max_abs_diff,
@@ -294,18 +466,37 @@ def run_probe(device: str = "cpu") -> Dict[str, object]:
     )
 
     payload: Dict[str, object] = {
-        "summary": asdict(summary),
+        "summary": asdict(summary),  # Legacy format (PathB_unitcell)
         "a_star_path_A": a_star_A.tolist(),
-        "a_star_path_B": a_star_B.tolist(),
+        "a_star_path_B": a_star_B_unitcell.tolist(),  # Legacy unitcell variant
         "u_error": u_error.tolist(),
         "rot_gap_norm": rot_gap,
+        # Phase A2 additions:
+        "path_B_unitcell": asdict(variant_unitcell),
+        "path_B_recovered": asdict(variant_recovered),
+        "recovered_cell_params": {
+            "a": recovered_cell_params[0],
+            "b": recovered_cell_params[1],
+            "c": recovered_cell_params[2],
+            "alpha_deg": recovered_cell_params[3],
+            "beta_deg": recovered_cell_params[4],
+            "gamma_deg": recovered_cell_params[5],
+        },
+        "dxtbx_cell_params": {
+            "a": cell_params[0],
+            "b": cell_params[1],
+            "c": cell_params[2],
+            "alpha_deg": cell_params[3],
+            "beta_deg": cell_params[4],
+            "gamma_deg": cell_params[5],
+        },
     }
     return payload
 
 
 def _default_output_dir() -> Path:
     """Create a timestamped reports directory for this probe."""
-    timestamp = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+    timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H%M%SZ")
     out_root = (
         REPO_ROOT
         / "plans"
@@ -350,12 +541,25 @@ def main(argv: list[str] | None = None) -> int:
     out_path.write_text(json.dumps(payload, indent=2))
 
     summary = payload.get("summary", {})
+    path_b_unitcell = payload.get("path_B_unitcell", {})
+    path_b_recovered = payload.get("path_B_recovered", {})
+
+    print("[probe_crystal_matrix_parity] Legacy summary (PathB_unitcell):")
     print(
-        "[probe_crystal_matrix_parity] max_abs_diff={max_abs_diff:.3e}, "
+        "  max_abs_diff={max_abs_diff:.3e}, "
         "fro_norm={frobenius_norm_diff:.3e}, det(U_error)={det_u_error:.6f}, "
         "u_error_is_rotation={u_error_is_rotation}".format(**summary)
     )
-    print(f"[probe_crystal_matrix_parity] wrote report to: {out_path}")
+    print("\n[probe_crystal_matrix_parity] Phase A2 Comparison:")
+    print(
+        f"  PathB_unitcell:   log_u_symmetric_norm={path_b_unitcell.get('log_u_symmetric_norm', 0):.3e}, "
+        f"max_abs_diff={path_b_unitcell.get('max_abs_diff', 0):.3e}"
+    )
+    print(
+        f"  PathB_recovered:  log_u_symmetric_norm={path_b_recovered.get('log_u_symmetric_norm', 0):.3e}, "
+        f"max_abs_diff={path_b_recovered.get('max_abs_diff', 0):.3e}"
+    )
+    print(f"\n[probe_crystal_matrix_parity] wrote report to: {out_path}")
     return 0
 
 

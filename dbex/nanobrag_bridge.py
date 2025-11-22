@@ -620,12 +620,94 @@ def create_crystal_config(crystal, experiment, N_cells=None, apply_n_cells=True,
     return CrystalConfig(**crystal_kwargs), n_cells_applied
 
 
+def recover_cell_from_a_star(a_star_matrix: np.ndarray) -> Tuple[float, float, float, float, float, float]:
+    """
+    Recover real-space unit cell parameters (a, b, c, α, β, γ) from a reciprocal
+    matrix A* using cctbx.
+
+    This helper enables Phase A2 baseline B_ideal variants by reconstructing the
+    effective unit cell encoded in a given 3×3 A* matrix (e.g., from MOSFLM A*
+    injection or mapping geometry).
+
+    Args:
+        a_star_matrix: 3×3 numpy array with reciprocal basis vectors as columns:
+            [a* | b* | c*] in 1/Å.
+
+    Returns:
+        Tuple (a, b, c, alpha_deg, beta_deg, gamma_deg) in Å and degrees.
+
+    Raises:
+        ImportError: If cctbx.uctbx is unavailable.
+        ValueError: If a_star_matrix is singular or produces a degenerate cell.
+    """
+    try:
+        from cctbx import uctbx  # type: ignore
+    except ImportError as exc:
+        raise ImportError(
+            "recover_cell_from_a_star requires cctbx.uctbx. "
+            f"Import failed: {exc}"
+        ) from exc
+
+    # cctbx.uctbx.unit_cell can be constructed from reciprocal space parameters.
+    # Extract reciprocal vectors from columns of A*
+    a_star_vec = a_star_matrix[:, 0]
+    b_star_vec = a_star_matrix[:, 1]
+    c_star_vec = a_star_matrix[:, 2]
+
+    # Compute reciprocal metric tensor G* = A*^T @ A*
+    # This gives us the magnitudes and angles in reciprocal space
+    a_star_len = np.linalg.norm(a_star_vec)
+    b_star_len = np.linalg.norm(b_star_vec)
+    c_star_len = np.linalg.norm(c_star_vec)
+
+    # Compute reciprocal angles (α*, β*, γ*) in radians
+    cos_alpha_star = np.dot(b_star_vec, c_star_vec) / (b_star_len * c_star_len)
+    cos_beta_star = np.dot(a_star_vec, c_star_vec) / (a_star_len * c_star_len)
+    cos_gamma_star = np.dot(a_star_vec, b_star_vec) / (a_star_len * b_star_len)
+
+    # Clamp to [-1, 1] to handle numerical errors
+    cos_alpha_star = np.clip(cos_alpha_star, -1.0, 1.0)
+    cos_beta_star = np.clip(cos_beta_star, -1.0, 1.0)
+    cos_gamma_star = np.clip(cos_gamma_star, -1.0, 1.0)
+
+    alpha_star_deg = float(np.degrees(np.arccos(cos_alpha_star)))
+    beta_star_deg = float(np.degrees(np.arccos(cos_beta_star)))
+    gamma_star_deg = float(np.degrees(np.arccos(cos_gamma_star)))
+
+    # Build a reciprocal cell using cctbx, then extract real-space parameters
+    # cctbx.uctbx.unit_cell can be constructed from reciprocal parameters
+    try:
+        reciprocal_cell = uctbx.unit_cell(
+            (a_star_len, b_star_len, c_star_len, alpha_star_deg, beta_star_deg, gamma_star_deg)
+        )
+        # The reciprocal() method returns the real-space cell
+        real_cell = reciprocal_cell.reciprocal()
+        params = real_cell.parameters()
+
+        # Validate that the cell is not degenerate
+        if any(p <= 0 for p in params[:3]):
+            raise ValueError(
+                f"Recovered cell has non-positive edge lengths: {params[:3]}"
+            )
+
+        return tuple(params)  # (a, b, c, alpha, beta, gamma)
+    except Exception as exc:
+        raise ValueError(
+            f"Failed to recover unit cell from A* matrix. "
+            f"Reciprocal params: a*={a_star_len:.6f}, b*={b_star_len:.6f}, "
+            f"c*={c_star_len:.6f}, α*={alpha_star_deg:.2f}°, "
+            f"β*={beta_star_deg:.2f}°, γ*={gamma_star_deg:.2f}°. "
+            f"Error: {exc}"
+        ) from exc
+
+
 def derive_robust_misset(
     crystal_dxtbx,
     crystal_nanobrag_default: Optional[Any] = None,
     *,
     device=None,
     dtype=None,
+    b_ideal_override: Optional[np.ndarray] = None,
 ):
     """
     Derive robust misset angles (XYZ extrinsic Euler, degrees) mapping nanobrag's
@@ -654,6 +736,10 @@ def derive_robust_misset(
             with MOSFLM injection disabled and misset_deg=[0,0,0].
         device: Optional torch.device or device-like string for the returned tensor.
         dtype: Optional torch dtype for the returned tensor.
+        b_ideal_override: Optional 3×3 numpy array to use as B_ideal instead of
+            deriving it from crystal_nanobrag_default. Enables Phase A2 testing
+            of alternative B_ideal candidates (e.g., from recovered MOSFLM A* cell).
+            When provided, crystal_nanobrag_default is ignored.
 
     Returns:
         Baseline misset angles as either:
@@ -686,8 +772,23 @@ def derive_robust_misset(
     else:
         dtype_t = dtype
 
-    if isinstance(crystal_nanobrag_default, TorchCrystal):
+    # Determine B_ideal matrix
+    if b_ideal_override is not None:
+        # Phase A2: Use the override B_ideal directly (e.g., from recovered MOSFLM A* cell)
+        B_np = np.asarray(b_ideal_override, dtype=np.float64)
+        if B_np.shape != (3, 3):
+            raise ValueError(
+                f"b_ideal_override must be a 3×3 array, got shape {B_np.shape}"
+            )
+    elif isinstance(crystal_nanobrag_default, TorchCrystal):
         crystal_nb = crystal_nanobrag_default.to(device=device_t, dtype=dtype_t)
+        geom = crystal_nb.compute_cell_tensors()
+        a_star = geom["a_star"]
+        b_star = geom["b_star"]
+        c_star = geom["c_star"]
+        # Stack reciprocal vectors into B_ideal with columns (a*, b*, c*)
+        B_mat = torch.stack([a_star, b_star, c_star], dim=1)  # [3,3]
+        B_np = B_mat.detach().cpu().numpy().astype(np.float64)
     else:
         # Build a default Crystal using the dxtbx unit cell with MOSFLM injection disabled
         a, b, c, alpha, beta, gamma = crystal_dxtbx.get_unit_cell().parameters()
@@ -704,15 +805,13 @@ def derive_robust_misset(
             mosflm_c_star=None,
         )
         crystal_nb = TorchCrystal(cfg, device=device_t, dtype=dtype_t)
-
-    geom = crystal_nb.compute_cell_tensors()
-    a_star = geom["a_star"]
-    b_star = geom["b_star"]
-    c_star = geom["c_star"]
-
-    # Stack reciprocal vectors into B_ideal with columns (a*, b*, c*)
-    B_mat = torch.stack([a_star, b_star, c_star], dim=1)  # [3,3]
-    B_np = B_mat.detach().cpu().numpy().astype(np.float64)
+        geom = crystal_nb.compute_cell_tensors()
+        a_star = geom["a_star"]
+        b_star = geom["b_star"]
+        c_star = geom["c_star"]
+        # Stack reciprocal vectors into B_ideal with columns (a*, b*, c*)
+        B_mat = torch.stack([a_star, b_star, c_star], dim=1)  # [3,3]
+        B_np = B_mat.detach().cpu().numpy().astype(np.float64)
 
     # dxtbx A* matrix (columns a*, b*, c*)
     A_tuple = crystal_dxtbx.get_A()

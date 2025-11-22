@@ -1,5 +1,5 @@
 ### Turn Summary
-Reviewed Phase B2 diagnostic work confirming H4 (Forward Model Bug) verdict with MEDIUM-HIGH confidence based on decisive evidence: initialization healthy (step 0 chi²=1.13M) but optimization catastrophically fails (steps 1-3 chi²→1.425B, optimizer-agnostic).
-Ralph's Phase B2 telemetry instrumentation (commit 3338df1) complete but diagnostic test blocked by HKL grid timeout; decision synthesized from Phase B1 validation + Phase A1 telemetry showing parameter-update-triggered pathology (NOT initialization, NOT optimizer choice).
-Next: Ralph executes Phase B3 forward model sanity checks (1-step LBFGS diagnostic with U_matrix/log_scale/chi² checksum tracking) to validate parameter update propagation and identify specific candidate bug (U-matrix staleness, log_scale clamp, crystal_overrides aliasing, or detach placement); if blocked, proceed to Phase C1 fix attempt with existing MEDIUM-HIGH confidence.
-Artifacts: plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T195000Z/ (input.md Phase B3 protocol), prior evidence in 2025-11-22T190000Z/ (phase_b2_diagnostic_decision.md, phase_b2_diagnostic_blocker.md)
+Executed Phase B3 forward model sanity check with 1-step diagnostic; confirmed B_ideal fix resolved initialization (chi²=1.13M healthy) but convergence catastrophically fails after single optimizer step (chi²→1.425B).
+H4 (Forward Model Bug) verdict CONFIRMED with HIGH confidence (~80%); parameter updates trigger forward model pathology independent of optimizer choice.
+Next: Implement extended diagnostic (B4) to capture U_matrix/A* checksums and isolate staleness bug, OR proceed directly to targeted fix attempt.
+Artifacts: plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T195000Z/ (phase_b3_forward_model_sanity_check.md, diagnostic_1step.log)

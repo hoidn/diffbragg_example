@@ -961,25 +961,54 @@ def _stage_a_adam_core(
                         'i_model_std': None,
                     }
 
-                    # Combine and emit
-                    telemetry_step = {
+                    # Combine and emit INIT telemetry (TORCH-GEOMETRY-CONVERGENCE-001 Phase B4)
+                    telemetry_step_init = {
                         **telemetry_params,
                         **telemetry_gradients,
                         **telemetry_loss,
                         **telemetry_variance,
+                        'closure_state': 'before_optimizer_step',
                     }
 
                     try:
-                        telemetry_path = Path(telemetry_output_dir) / f"telemetry_step_{step_idx:03d}.json"
+                        telemetry_path = Path(telemetry_output_dir) / f"telemetry_step_{step_idx:03d}_init.json"
                         telemetry_path.parent.mkdir(parents=True, exist_ok=True)
                         with open(telemetry_path, 'w') as f:
-                            json.dump(telemetry_step, f, indent=2)
+                            json.dump(telemetry_step_init, f, indent=2)
                     except Exception as e:
                         import sys
                         print(f"Warning: Failed to write telemetry JSON at step {step_idx}: {e}", file=sys.stderr)
 
                 optimizer.step()
                 loss_trace.append(float(chi_sq_t.item()))
+
+                # Emit POST telemetry after optimizer step (TORCH-GEOMETRY-CONVERGENCE-001 Phase B4)
+                if telemetry_output_dir and use_u_matrix and q_params is not None:
+                    # Recompute forward pass to get post-step chi²
+                    with torch.no_grad():
+                        _, chi_sq_post = _forward_once(use_mapping_zero_geometry=False)
+
+                    telemetry_step_post = {
+                        'step_index': step_idx,
+                        'closure_state': 'after_optimizer_step',
+                        'q_params': q_params.detach().cpu().tolist(),
+                        'q_norm_value': torch.norm(q_params).item(),
+                        'log_scale': log_scale.item(),
+                        'chi_squared': chi_sq_post.item(),
+                        # Gradients are not available after step (would need another backward pass)
+                        'grad_q_norm': None,
+                        'grad_log_scale': None,
+                        'grad_has_nan': None,
+                        'grad_has_inf': None,
+                    }
+
+                    try:
+                        telemetry_path_post = Path(telemetry_output_dir) / f"telemetry_step_{step_idx:03d}_post.json"
+                        with open(telemetry_path_post, 'w') as f:
+                            json.dump(telemetry_step_post, f, indent=2)
+                    except Exception as e:
+                        import sys
+                        print(f"Warning: Failed to write post-step telemetry JSON at step {step_idx}: {e}", file=sys.stderr)
 
     with torch.no_grad():
         bragg_after_t, chi_sq_after_t = _forward_once(use_mapping_zero_geometry=False)

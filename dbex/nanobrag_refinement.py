@@ -925,6 +925,10 @@ def run_nanobrag_refinement(
     # Mutable list for closure capture; increments after each closure call
     telemetry_step_counter = [0]
 
+    # Lifecycle tracking for U-matrix and A* reconstruction (TORCH-GEOMETRY-CONVERGENCE-001 Phase B4)
+    u_matrix_lifecycle_log = []  # Track U checksum per closure call
+    a_star_lifecycle_log = []    # Track A* reconstruction per closure call
+
     def compute_loss(work_item_ids: List[int], is_full: bool = False) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Compute variance-weighted chi-squared loss over specified work items.
@@ -970,6 +974,26 @@ def run_nanobrag_refinement(
 
             U = quaternion_to_matrix(q_norm)  # 3x3 rotation matrix
             A_star_new = U @ B_ideal_reciprocal_torch  # Compute updated A*
+
+            # Lifecycle logging: U-matrix and A* reconstruction (TORCH-GEOMETRY-CONVERGENCE-001 Phase B4)
+            if not is_full:
+                U_checksum = U.sum().item()
+                A_star_checksum = A_star_new.sum().item()
+                B_ideal_checksum = B_ideal_reciprocal_torch.sum().item()
+
+                u_matrix_lifecycle_log.append({
+                    "closure_call_index": len(u_matrix_lifecycle_log),
+                    "U_checksum": U_checksum,
+                    "q_params_norm": torch.norm(q_params).item(),
+                    "log_scale_value": log_scale.item()
+                })
+
+                a_star_lifecycle_log.append({
+                    "closure_call_index": len(a_star_lifecycle_log),
+                    "A_star_checksum": A_star_checksum,
+                    "U_checksum": U_checksum,
+                    "B_ideal_checksum": B_ideal_checksum
+                })
 
             # Telemetry: Capture parameters (TORCH-GEOMETRY-CONVERGENCE-001 Phase B2)
             if not is_full and config.telemetry_output_dir:
@@ -1424,6 +1448,23 @@ def run_nanobrag_refinement(
                     masked_mse_best = (float(full_mse.item()), iteration_count[0])
 
         iteration_count[0] += 1
+
+        # Emit lifecycle JSON (TORCH-GEOMETRY-CONVERGENCE-001 Phase B4)
+        if config.telemetry_output_dir and config.use_u_matrix_parameterization:
+            import json
+            from pathlib import Path
+            try:
+                lifecycle_path = Path(config.telemetry_output_dir) / f"u_matrix_lifecycle_step_{telemetry_step_counter[0]-1:03d}.json"
+                lifecycle_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(lifecycle_path, 'w') as f:
+                    json.dump({
+                        "u_matrix_lifecycle": u_matrix_lifecycle_log,
+                        "a_star_lifecycle": a_star_lifecycle_log
+                    }, f, indent=2)
+            except Exception as e:
+                import sys
+                print(f"Warning: Failed to write lifecycle JSON: {e}", file=sys.stderr)
+
         return chi_squared_loss
 
     # Run LBFGS optimization

@@ -989,6 +989,8 @@ def run_nanobrag_refinement(
                 'mosflm_b_star': mosflm_b_star_tuple,
                 'mosflm_c_star': mosflm_c_star_tuple,
             }
+            # FIX: Define misset_deg_for_crystal here in U-matrix branch
+            misset_deg_for_crystal = None  # MOSFLM A* is provided directly
         else:
             # Existing cell+misset path (GEOMETRY-003)
             max_orientation_deg = 3.0  # degrees (per input.md pitfalls)
@@ -1007,12 +1009,11 @@ def run_nanobrag_refinement(
                 'cell_beta': perturbed_beta,
                 'cell_gamma': perturbed_gamma
             }
+            # FIX: Define misset_deg_for_crystal here in cell+misset branch
+            misset_deg_for_crystal = misset_xyz_deg
 
         log_scale_clamped = torch.clamp(log_scale, min=-10.0, max=10.0)
         beam_config_for_run = stage_a_ctx.beam_config if stage_a_ctx is not None else create_beam_config(beam)
-
-        # U-matrix path: misset_deg should be zero since MOSFLM A* is provided directly
-        misset_deg_for_crystal = None if config.use_u_matrix_parameterization else misset_xyz_deg
 
         warm_crystal_model: Optional[Crystal] = None
         if stage_a_ctx is not None:

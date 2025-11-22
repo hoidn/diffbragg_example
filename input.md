@@ -1,10 +1,10 @@
-# Do Now — TORCH-GEOMETRY-CONVERGENCE-001 Phase B5 Fix Implementation
+# Do Now — TORCH-GEOMETRY-CONVERGENCE-001 Phase C1: Convergence Telemetry & Root Cause Analysis
 
 ## Summary
-Audit and fix code path discrepancy between `_forward_once` (script-level, chi²=1.425B catastrophic) and `run_nanobrag_refinement` (production path, chi²=1.13M healthy) U-matrix reconstruction logic; validate fix with 1-step diagnostic rerun.
+Diagnose remaining quaternion U-matrix convergence pathology (chi² 1.13M → 8.8M over 10 steps, CC 1.0 → 0.765) via step-by-step telemetry analysis after Phase B5 initialization fix.
 
 ## Mode
-none (implementation + validation)
+none
 
 ## Focus
 TORCH-GEOMETRY-CONVERGENCE-001 — Diagnose & Fix Quaternion U-Matrix Catastrophic Convergence Failure
@@ -13,432 +13,327 @@ TORCH-GEOMETRY-CONVERGENCE-001 — Diagnose & Fix Quaternion U-Matrix Catastroph
 integration
 
 ## Mapped Tests
-- **Active:** `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` (regression guard, must collect >0 and pass)
-- **Validation:** 1-step diagnostic run via `plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py --use-u-matrix --phases 5 --dof-variants A_scale_only --adam-steps 1 --device cpu --out-dir <artifacts>/diagnostic_b5_postfix/` (expect chi²_init~1.13M, grad_log_scale O(1-100), not 295k)
+- `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` (regression guard, Active, collected 1)
 
 ## Artifacts
-`plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T183012Z/`
+`plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T230000Z/`
 
 ## Do Now
 
-**CRITICAL CODE PATH DISCREPANCY FIX — Ralph Execute This 10-Step Protocol**
+**Context:** Phase B5 (commit fe6048f) successfully resolved **initialization bug** (chi² step 0 = 1.13M healthy, 1000× improvement from catastrophic 1.425B). Zero-point parity maintained (corr=0.9999999843). Regression guard PASSED. **However**, convergence pathology persists with a DIFFERENT signature than pre-fix:
+- **Pre-fix:** Started catastrophic (1.425B), ended catastrophic (1.425B), negative CC (-0.045)
+- **Post-fix:** Started healthy (1.13M), degraded moderately (8.8M after 10 steps), positive CC (0.765)
 
-Phase B4 (2025-11-22T201500Z) identified root cause H4a with HIGH confidence (~85%): script-level `_forward_once` produces chi²=1.425B (catastrophic) while `run_nanobrag_refinement` produces chi²=1.13M (healthy) at SAME parameters. This proves B_ideal fix (commit e86fd4e) works correctly in production path but is NOT applied in simplified script path. Your task: audit `_forward_once`, align U-matrix logic with `run_nanobrag_refinement`, validate fix.
+This confirms the initialization bug (code path discrepancy in MOSFLM A* injection) is **separate from** the convergence bug (optimizer/loss/gradient pathology during parameter updates).
 
-### Step 1: Review Phase B4 Evidence (5 min)
-Read the following artifacts to understand the code path discrepancy:
-- `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T201500Z/phase_b4_extended_diagnostic.md` (§Executive Summary, §Root Cause Determination)
-- `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T201500Z/diagnostic_b4_1step/telemetry/telemetry_step_000_init.json` (script path: chi²=1.425B, grad_log_scale=294k)
-- `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T201500Z/diagnostic_b4_1step/block_dof_results_u_matrix.json` (production path: chi²_before=1.13M)
+**Objective:** Execute Phase C1 convergence telemetry analysis to identify root cause of chi² degradation during optimization (likely H1 Adam LR incompatibility, H2 variance instability, or H3 gradient pathology).
 
-**Key Insight:** Script _forward_once uses different/incomplete U-matrix reconstruction logic than run_nanobrag_refinement.
+**Implementation Checklist (Phase C1):**
 
-### Step 2: Locate Target Functions (Code Pointers)
-Identify the two code paths to audit:
-1. **Script-level path (BROKEN):** `plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py` — function `_forward_once` (grep for `def _forward_once`)
-2. **Production path (WORKING):** `dbex/nanobrag_refinement.py` — function `compute_loss` in `build_stage_a_lbfgs_closure`, specifically the U-matrix branch around lines 971-1007 (commit e86fd4e fix location)
+1. **Review Phase B5 artifacts** (2025-11-22T183012Z):
+   - Read `phase_b5_fix_decision.md` (fix summary + convergence failure signature)
+   - Read `diagnostic_b5_postfix_v2/block_dof_results_u_matrix.json` (10-step convergence trajectory)
+   - Note: chi²_before=1.13M (healthy), chi²_after=8.8M (7.8× degradation), CC_after=0.765 (positive but degraded)
 
-### Step 3: Audit U-Matrix Reconstruction Logic (Side-by-Side Comparison)
-For EACH of the following elements, compare script _forward_once vs production compute_loss:
+2. **Execute 10-step convergence test with comprehensive telemetry**:
+   - **Command:**
+     ```bash
+     KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python \
+       plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py \
+       --use-u-matrix \
+       --phases 5 \
+       --dof-variants A_scale_only \
+       --adam-steps 10 \
+       --device cpu \
+       --out-dir plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T230000Z/convergence_telemetry \
+       --telemetry-dir telemetry
+     ```
+   - **Timeout:** 2400s (40 minutes, HKL grid builds ~10-15 min + 10 Adam steps ~20-25 min on CPU)
+   - **Expected outputs:**
+     - `convergence_telemetry/telemetry/telemetry_step_{000..009}.json` (all 10 steps + initialization step)
+     - `convergence_telemetry/block_dof_results_u_matrix.json` (final convergence metrics)
+     - `convergence_telemetry/zero_point_check.json` (zero-point parity validation)
+   - **ROI:** Full telemetry trajectory capturing transition from healthy initialization (step 0) to degraded convergence (steps 1-10)
 
-**A. B_ideal Derivation Source**
-- **Production path (CORRECT per commit e86fd4e):** Uses `derive_u_matrix_from_mosflm_a_star` return value (U_matrix, B_ideal_reciprocal) from MOSFLM A*, stores in `components.B_ideal_reciprocal`.
-- **Script path (CHECK):** Does `_forward_once` call `derive_u_matrix_from_mosflm_a_star`? If YES, does it CAPTURE and USE the returned B_ideal_reciprocal? If NO, does it recompute B_ideal from cctbx cell parameters (WRONG, causes mismatch)?
-- **Expected Bug:** Script likely recomputes B_ideal via `TorchCrystal.compute_cell_tensors()` or `cctbx cell.fractionalization_matrix()` instead of using MOSFLM-derived B_ideal.
+3. **Extract convergence trajectory metrics** into `convergence_trajectory.txt`:
+   - For each telemetry step 000-009:
+     - Step number
+     - `chi_squared` (total loss)
+     - `grad_log_scale` norm (optimizer magnitude signal)
+     - `grad_q_params` norm (if train_orientation=True, else null for A_scale_only)
+     - `q_norm` (quaternion magnitude, should stay ~1.0)
+     - `has_nan` / `has_inf` gradient flags
+   - Summary statistics:
+     - Chi² trajectory: monotonic increase, plateau, oscillation?
+     - Gradient norms: stable O(1-100), exploding >1e5, vanishing <1e-6?
+     - Divergence step: first step where chi² increases >10% from previous step
+   - **Command:**
+     ```bash
+     python -c "
+     import json
+     import pathlib
+     tel_dir = pathlib.Path('plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T230000Z/convergence_telemetry/telemetry')
+     with open('plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T230000Z/convergence_trajectory.txt', 'w') as f:
+         f.write('Step\tChi²\tGrad_log_scale\tq_norm\tHas_NaN\tHas_Inf\n')
+         for i in range(10):
+             tel_file = tel_dir / f'telemetry_step_{i:03d}.json'
+             if tel_file.exists():
+                 data = json.loads(tel_file.read_text())
+                 chi2 = data.get('chi_squared', 'N/A')
+                 grad_ls = data.get('grad_log_scale', 'N/A')
+                 qnorm = data.get('q_norm', 'N/A')
+                 has_nan = data.get('has_nan', False)
+                 has_inf = data.get('has_inf', False)
+                 f.write(f'{i}\t{chi2}\t{grad_ls}\t{qnorm}\t{has_nan}\t{has_inf}\n')
+     "
+     ```
 
-**B. Quaternion Normalization**
-- **Production path:** Normalizes quaternion `q = q / torch.norm(q)` before `quaternion_to_matrix(q)` conversion (see nanobrag_refinement.py U-matrix branch).
-- **Script path (CHECK):** Does `_forward_once` normalize quaternion before converting to U-matrix? If NO, unit-norm constraint violated → wrong U-matrix → wrong A* → catastrophic chi².
+4. **Synthesize root cause hypothesis** in `phase_c1_convergence_analysis.md`:
+   - **Section: Telemetry Trajectory Analysis**
+     - Plot/table chi² vs step (is degradation monotonic, sudden, or oscillating?)
+     - Plot/table gradient norms vs step (stable, exploding, vanishing?)
+     - Identify divergence step (first chi² jump)
+   - **Section: Hypothesis Verdicts**
+     - **H1 (Adam LR too high):** If grad_log_scale stable O(1-100) but chi² increases monotonically → LR overshoot, parameter updates too large
+       - Evidence: Gradient norms healthy, no NaN/Inf, but chi² degrades steadily
+       - Recommended fix: Reduce Adam LR to 1e-5 or 1e-6 for U-matrix path
+     - **H2 (Variance instability):** If variance components show sigma_floor clamping →1.0 or exploding V_denom
+       - Evidence: (Phase B2 telemetry has V_denom histograms, but may not be captured in current run — if missing, note for future)
+       - Recommended fix: Adjust sigma_floor, loss clamping
+     - **H3a (Gradient NaN/Inf):** If has_nan=true OR has_inf=true at any step
+       - Evidence: Telemetry gradient flags
+       - Recommended fix: FP64, gradient clipping, investigate autograd graph
+     - **H3b (Gradient explosion):** If grad_log_scale >1e5 OR q_norm drifts far from 1.0
+       - Evidence: Gradient norms explode during optimization
+       - Recommended fix: Gradient clipping, quaternion renormalization frequency
+   - **Section: Primary Hypothesis** — Choose ONE primary hypothesis with confidence level (HIGH/MEDIUM/LOW) and cite specific telemetry evidence (step numbers, metric values)
+   - **Section: Recommended Next Actions:**
+     - **Path A (Hypothesis testable with simple fix):** Describe targeted fix (e.g., LR reduction, gradient clipping config flag)
+     - **Path B (Hypothesis requires deeper investigation):** Describe additional diagnostic (e.g., variance telemetry, finite-difference gradient validation)
+     - **Path C (No clear hypothesis):** Recommend alternative parameterization (hybrid cell+quaternion, LBFGS-only, mapping-path-only)
 
-**C. A* Reconstruction Formula**
-- **Production path:** Reconstructs `A* = U @ B_ideal_reciprocal` using consistent U (from quaternion) and B_ideal (from MOSFLM).
-- **Script path (CHECK):** Does `_forward_once` use `A* = U @ B_ideal`? If it uses different B_ideal source, reconstruction is wrong.
+5. **Decision template** in `phase_c1_decision.md`:
+   ```markdown
+   # Phase C1 Decision — Convergence Root Cause
 
-**D. Detector/Crystal/Simulator Instantiation**
-- **Production path:** Uses pre-built StageAContext components (detector, crystal, simulator) with consistent geometry.
-- **Script path (CHECK):** Does `_forward_once` rebuild detector/crystal/simulator on-the-fly? If YES, check if it uses SAME U-matrix and B_ideal values as initialization.
+   **Initiative:** TORCH-GEOMETRY-CONVERGENCE-001
+   **Phase:** C1 (Convergence Telemetry & Root Cause Analysis)
+   **Date:** 2025-11-22T230000Z
 
-**Audit Output:** Create `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T183012Z/code_path_audit.md` documenting findings for A-D with file:line references for each discrepancy.
+   ## Verdict
+   [ ] **Path A — Primary Hypothesis CLEAR (implement targeted fix)**
+   [ ] **Path B — Hypothesis requires additional diagnostic**
+   [ ] **Path C — No clear hypothesis (escalate to alternative parameterization)**
 
-### Step 4: Implement Fix (Choose ONE Option Based on Audit)
+   ## Evidence Summary
+   - Divergence step: [step number]
+   - Chi² trajectory: [monotonic increase / plateau / oscillation / sudden jump]
+   - Gradient norms: [stable O(1-100) / exploding >1e5 / vanishing <1e-6]
+   - NaN/Inf flags: [true/false, step numbers if true]
+   - Quaternion norm drift: [q_norm range across steps]
 
-**Option 1 (Quick Patch): Align _forward_once Logic**
-If audit reveals specific bugs in _forward_once (e.g., wrong B_ideal source, missing quaternion normalization):
-- Patch `plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py::_forward_once` to match production logic:
-  - Use MOSFLM-derived B_ideal from `derive_u_matrix_from_mosflm_a_star` return value
-  - Normalize quaternion before `quaternion_to_matrix(q)`
-  - Ensure `A* = U @ B_ideal` uses consistent tensors
-- Document changes in `code_path_audit.md` §Fix Implementation.
+   ## Primary Hypothesis
+   [H1 / H2 / H3a / H3b] with [HIGH / MEDIUM / LOW] confidence
 
-**Option 2 (Robust Refactor): Call run_nanobrag_refinement Directly**
-If _forward_once reimplements too much logic (detector/crystal/simulator rebuilds):
-- Refactor script to call `dbex.nanobrag_refinement.run_nanobrag_refinement` directly for forward passes instead of _forward_once.
-- Pass pre-built StageAContext components (detector, crystal, simulator) to closure.
-- This ensures production path is used for ALL forward model evaluations (script + telemetry + optimization).
-- **Caveat:** May require larger refactor; prefer Option 1 if quick patch is sufficient.
+   **Rationale:** [1-2 sentences citing specific telemetry evidence]
 
-**Decision Criteria:**
-- If audit finds 1-2 isolated bugs (B_ideal source, normalization): Choose Option 1.
-- If audit finds >3 discrepancies or deep architectural differences: Choose Option 2 (escalate to Galph if refactor scope exceeds 1 loop).
+   ## Recommended Next Actions
+   [Targeted fix implementation / Additional diagnostic / Alternative parameterization escalation]
+   ```
 
-### Step 5: Regression Guard (MANDATORY Before Validation)
-Run regression test to ensure fix doesn't break default cell+misset path:
-```bash
-cd /home/ollie/Documents/diffbragg_example
-pytest tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion -v --tb=short --durations=5 > plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T183012Z/pytest_regression_postfix.log 2>&1
-```
-**Expected:** PASSED (typically 12-14s). If FAILED, do NOT proceed to Step 6; fix regression first.
+6. **Update implementation.md checklist** — Mark C1 as `[x] DONE` with timestamp and primary hypothesis verdict.
 
-### Step 6: Validation Diagnostic (1-Step Rerun)
-Execute 1-step diagnostic with fixed code path to validate chi² initialization:
-```bash
-cd /home/ollie/Documents/diffbragg_example
-timeout 1800 python plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py \
-  --use-u-matrix \
-  --phases 5 \
-  --dof-variants A_scale_only \
-  --adam-steps 1 \
-  --device cpu \
-  --out-dir plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T183012Z/diagnostic_b5_postfix/ \
-  > plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T183012Z/diagnostic_b5_postfix.log 2>&1
-echo "Exit code: $?"
-```
-**Timeout:** 1800s (30 min) to allow HKL grid builds + 1 optimizer step.
+7. **Regression guard** — Run `test_stage_a_expansion` to ensure Phase B5 fix didn't introduce regressions:
+   ```bash
+   AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+   DBEX_SMOKE_SIGMA_SOURCE=cli_override \
+   DBEX_SMOKE_DETECTOR_SIZE=small \
+   KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
+   pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion \
+   > plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T230000Z/pytest_regression.log 2>&1
+   ```
+   - **Expected:** PASSED (cell+misset path unaffected by U-matrix telemetry instrumentation)
 
-### Step 7: Extract Validation Metrics
-Capture the following from artifacts directory `diagnostic_b5_postfix/`:
-1. **Zero-Point Check:** `zero_point_check.json` — chi²_mapping, chi²_stage_a, correlation (expect ~989k, ~989k, ~1.0)
-2. **Init Telemetry:** `telemetry/telemetry_step_000_init.json` — chi_squared, grad_log_scale (expect ~1.13M, O(1-100) NOT 295k)
-3. **Convergence Metrics:** `block_dof_results_u_matrix.json` — chi²_before, chi²_after, CC_before, CC_after (expect chi²_before~1.13M healthy)
-4. **Log Tail:** Last 20 lines of `diagnostic_b5_postfix.log` (check for errors/warnings)
+8. **Write summary** in `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T230000Z/summary.md`:
+   - Phase C1 convergence telemetry execution status (success/timeout)
+   - Telemetry file count (10/10 steps captured?)
+   - Primary hypothesis verdict (H1/H2/H3a/H3b with confidence)
+   - Divergence step number and chi² trajectory summary
+   - Recommended next actions (Path A/B/C from decision doc)
+   - Regression guard status (PASSED/FAILED)
 
-Save summary to `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T183012Z/validation_metrics.txt`:
-```
-Zero-Point: chi²_mapping=<value>, chi²_stage_a=<value>, corr=<value>
-Init Telemetry: chi²=<value>, grad_log_scale=<value>
-Convergence: chi²_before=<value>, chi²_after=<value>, CC_before=<value>, CC_after=<value>
-Log Tail: [paste last 5 lines OR error message if failed]
-```
+9. **Commit and push**:
+   ```bash
+   git add plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T230000Z/
+   git add plans/active/TORCH-GEOMETRY-CONVERGENCE-001/implementation.md
+   git commit -m "TORCH-GEOMETRY-CONVERGENCE-001 Phase C1: Convergence telemetry & root cause analysis (tests: test_stage_a_expansion)
 
-### Step 8: Synthesize Decision (3-Path Template)
-Create `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T183012Z/phase_b5_fix_decision.md` with the following structure:
+   **Objective:** Diagnose remaining quaternion U-matrix convergence pathology after Phase B5 initialization fix (chi² 1.13M → 8.8M over 10 steps, CC 1.0 → 0.765).
 
----
-**Initiative:** TORCH-GEOMETRY-CONVERGENCE-001
-**Phase:** B5 (Fix Implementation)
-**Date:** 2025-11-22T183012Z
-**Status:** [Choose ONE: Path A SUCCESS | Path B PARTIAL | Path C FAILURE]
+   **Work Completed:**
+   - Executed 10-step A_scale_only convergence test with telemetry (2025-11-22T230000Z/convergence_telemetry/)
+   - Extracted convergence trajectory metrics (convergence_trajectory.txt)
+   - Synthesized root cause hypothesis (phase_c1_convergence_analysis.md)
+   - Decision: [Path A/B/C] — [Primary hypothesis] with [confidence] confidence
+   - Regression guard: test_stage_a_expansion [PASSED/FAILED]
 
-### Decision Criteria
-| Metric | Expected (SUCCESS) | Observed | Pass/Fail |
-|--------|-------------------|----------|-----------|
-| chi²_init (telemetry) | ~1.13M (within 2× of zero-point) | <fill> | <fill> |
-| grad_log_scale_init | O(1-100), NOT ~295k | <fill> | <fill> |
-| chi²_before (convergence) | ~1.13M | <fill> | <fill> |
-| Zero-point correlation | ≥0.99 | <fill> | <fill> |
+   **Primary Hypothesis:** [H1/H2/H3a/H3b] — [one-line rationale]
 
-### Verdict
+   **Recommended Next Actions:** [Targeted fix / Additional diagnostic / Escalation]
 
-**Path A: FIX SUCCESS** ✅
-- **Criteria:** chi²_init < 2M AND grad_log_scale < 1000 AND zero-point correlation ≥ 0.99
-- **Evidence:** [cite validation_metrics.txt values]
-- **Next Actions:** Mark B5 DONE in implementation.md; proceed to Phase C full convergence validation (10-step A_scale_only + D_full tests, findings update, close CONVERGENCE-001).
+   **Artifacts:** plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T230000Z/
 
-**Path B: FIX PARTIAL** ⚠️
-- **Criteria:** chi²_init improved (2M-10M) but still elevated, OR gradient reduced but still high (1k-10k)
-- **Evidence:** [cite validation_metrics.txt values]
-- **Root Cause:** Fix addressed PART of discrepancy but not all (e.g., fixed B_ideal but missed normalization).
-- **Next Actions:** Re-audit code paths (Step 3 deeper dive), apply additional fixes, rerun Step 6.
+   🤖 Generated with [Claude Code](https://claude.com/claude-code)
 
-**Path C: FIX FAILURE** ❌
-- **Criteria:** chi²_init > 10M OR grad_log_scale > 10k OR test timed out OR regression guard failed
-- **Evidence:** [cite validation_metrics.txt or error logs]
-- **Root Cause:** Fix did not address root cause, OR introduced new bug, OR refactor scope too large.
-- **Next Actions:** Revert changes, escalate to Galph with audit findings and error logs; recommend Option 2 (full refactor) or alternative investigation.
-
-[Fill in the verdict that matches your observed metrics]
----
-
-### Step 9: Update Implementation Checklist
-Edit `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/implementation.md`:
-- Line 141: Replace current B4 entry text with:
-  ```
-  - [x] B4: **Extended Diagnostic (U_matrix/A*/Gradient Lifecycle Tracing)** — COMPLETED (2025-11-22T201500Z). Identified H4a (Code Path Discrepancy) with HIGH confidence ~85%. Script _forward_once produces chi²=1.425B (catastrophic) while run_nanobrag_refinement produces chi²=1.13M (healthy) at SAME parameters. See `phase_b4_extended_diagnostic.md`.
-  ```
-- After line 141, insert NEW line for B5:
-  ```
-  - [x|~|☐] B5: **Fix Code Path Discrepancy** — [DONE|BLOCKED|PENDING] (2025-11-22T183012Z). [Choose based on Path A/B/C]: [Path A: Patched _forward_once U-matrix logic (B_ideal source, quaternion normalization); chi²_init=<value> (healthy). See `phase_b5_fix_decision.md`.] [Path B: Partial fix applied; chi²_init improved to <value> but still elevated. See `phase_b5_fix_decision.md`.] [Path C: Fix FAILED; chi²_init=<value> or test error. See `phase_b5_fix_decision.md`.]
-  ```
-
-### Step 10: Write Summary and Commit
-Create `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T183012Z/summary.md`:
-```markdown
-### Turn Summary
-[Choose based on Path A/B/C]:
-
-**Path A (SUCCESS):**
-Implemented Phase B5 fix for code path discrepancy: audited _forward_once U-matrix reconstruction, identified [list bugs: e.g., "wrong B_ideal source (cctbx recompute), missing quaternion normalization"], patched with MOSFLM-derived B_ideal and q normalization.
-Validation test confirms fix works: chi²_init=<value> (healthy, down from 1.425B), grad_log_scale=<value> (normal, down from 295k), zero-point parity maintained.
-Next: Phase C full convergence validation (10-step A_scale_only + D_full, findings update CONVERGENCE-002, close CONVERGENCE-001).
-Artifacts: plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T183012Z/ (code_path_audit.md, phase_b5_fix_decision.md, validation_metrics.txt)
-
-**Path B (PARTIAL):**
-Implemented Phase B5 partial fix for code path discrepancy: patched [list changes], but chi²_init=<value> still elevated (improved from 1.425B but not fully healthy).
-Additional discrepancies remain; re-audit required.
-Next: Deeper code path audit (Step 3 extended), apply additional fixes, rerun validation.
-Artifacts: plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T183012Z/ (code_path_audit.md, phase_b5_fix_decision.md, validation_metrics.txt)
-
-**Path C (FAILURE):**
-Attempted Phase B5 fix for code path discrepancy but validation FAILED: chi²_init=<value> (still catastrophic) OR test error [cite error].
-Fix did not address root cause; [escalate to Galph with audit findings | recommend Option 2 full refactor].
-Next: Galph review audit findings, decide between deeper investigation vs alternative parameterization.
-Artifacts: plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T183012Z/ (code_path_audit.md, phase_b5_fix_decision.md, error logs)
-```
-
-Commit all changes:
-```bash
-cd /home/ollie/Documents/diffbragg_example
-git add -A
-git commit -m "TORCH-GEOMETRY-CONVERGENCE-001 Phase B5: Fix _forward_once U-matrix code path discrepancy — [Path A SUCCESS | Path B PARTIAL | Path C FAILURE] (tests: test_stage_a_expansion)"
-git push
-```
+   Co-Authored-By: Claude <noreply@anthropic.com>"
+   git push
+   ```
 
 ## How-To Map
 
-### Environment Setup
+**Step 1 — Review Phase B5 artifacts:**
+```bash
+cd plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T183012Z
+cat phase_b5_fix_decision.md
+cat diagnostic_b5_postfix_v2/block_dof_results_u_matrix.json
+```
+
+**Step 2 — Execute convergence test with telemetry:**
 ```bash
 cd /home/ollie/Documents/diffbragg_example
-# No environment changes — frozen per policy
-```
-
-### Step-by-Step Commands
-
-**Step 1-3: Review + Audit (no commands, code inspection)**
-```bash
-# Read artifacts from Phase B4
-cat plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T201500Z/phase_b4_extended_diagnostic.md
-cat plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T201500Z/diagnostic_b4_1step/telemetry/telemetry_step_000_init.json
-cat plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T201500Z/diagnostic_b4_1step/block_dof_results_u_matrix.json
-
-# Locate functions
-grep -n "def _forward_once" plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py
-grep -n "def compute_loss" dbex/nanobrag_refinement.py | head -1
-grep -n "derive_u_matrix_from_mosflm_a_star" dbex/nanobrag_refinement.py dbex/nanobrag_bridge.py
-
-# Audit (manual code inspection, side-by-side comparison)
-# Output: plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T183012Z/code_path_audit.md
-```
-
-**Step 4: Fix Implementation (example for Option 1 quick patch)**
-```bash
-# Edit plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py
-# - Find _forward_once function
-# - Patch B_ideal derivation to use MOSFLM source (match commit e86fd4e logic)
-# - Add quaternion normalization: q = q / torch.norm(q)
-# - Ensure A* = U @ B_ideal uses consistent tensors
-# Document changes in code_path_audit.md §Fix Implementation
-```
-
-**Step 5: Regression Guard**
-```bash
-cd /home/ollie/Documents/diffbragg_example
-pytest tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion -v --tb=short --durations=5 > plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T183012Z/pytest_regression_postfix.log 2>&1
-echo "Exit code: $?"
-# Expected: PASSED (exit 0), ~12-14s
-```
-
-**Step 6: Validation Diagnostic**
-```bash
-cd /home/ollie/Documents/diffbragg_example
-timeout 1800 python plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py \
+timeout 2400 KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python \
+  plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py \
   --use-u-matrix \
   --phases 5 \
   --dof-variants A_scale_only \
-  --adam-steps 1 \
+  --adam-steps 10 \
   --device cpu \
-  --out-dir plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T183012Z/diagnostic_b5_postfix/ \
-  > plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T183012Z/diagnostic_b5_postfix.log 2>&1
+  --out-dir plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T230000Z/convergence_telemetry \
+  --telemetry-dir telemetry \
+  > plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T230000Z/convergence_test.log 2>&1
 echo "Exit code: $?"
+ls -lh plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T230000Z/convergence_telemetry/telemetry/
 ```
 
-**Step 7: Extract Metrics**
+**Step 3 — Extract trajectory metrics:**
 ```bash
-cd plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T183012Z/diagnostic_b5_postfix/
-# Inspect artifacts
-cat zero_point_check.json
-cat telemetry/telemetry_step_000_init.json
-cat block_dof_results_u_matrix.json
-tail -20 ../diagnostic_b5_postfix.log
-
-# Create summary
-cat > ../validation_metrics.txt <<'EOF'
-Zero-Point: chi²_mapping=<value>, chi²_stage_a=<value>, corr=<value>
-Init Telemetry: chi²=<value>, grad_log_scale=<value>
-Convergence: chi²_before=<value>, chi²_after=<value>, CC_before=<value>, CC_after=<value>
-Log Tail: [paste last 5 lines OR error message]
-EOF
+python3 -c "
+import json
+import pathlib
+tel_dir = pathlib.Path('plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T230000Z/convergence_telemetry/telemetry')
+with open('plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T230000Z/convergence_trajectory.txt', 'w') as f:
+    f.write('Step\tChi²\tGrad_log_scale\tq_norm\tHas_NaN\tHas_Inf\n')
+    for i in range(10):
+        tel_file = tel_dir / f'telemetry_step_{i:03d}.json'
+        if tel_file.exists():
+            data = json.loads(tel_file.read_text())
+            chi2 = data.get('chi_squared', 'N/A')
+            grad_ls = data.get('grad_log_scale', 'N/A')
+            qnorm = data.get('q_norm', 'N/A')
+            has_nan = data.get('has_nan', False)
+            has_inf = data.get('has_inf', False)
+            f.write(f'{i}\t{chi2}\t{grad_ls}\t{qnorm}\t{has_nan}\t{has_inf}\n')
+"
+cat plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T230000Z/convergence_trajectory.txt
 ```
 
-**Step 8-9: Decision + Checklist (manual editing)**
+**Step 4 — Synthesize root cause hypothesis:**
+- Read `convergence_trajectory.txt` to identify divergence step and trajectory pattern
+- Analyze gradient norms, NaN/Inf flags, quaternion norm drift
+- Choose primary hypothesis (H1/H2/H3a/H3b) with confidence level
+- Write analysis to `phase_c1_convergence_analysis.md` with evidence citations
+
+**Step 5 — Write decision doc:**
+- Copy decision template above to `phase_c1_decision.md`
+- Fill in verdict (Path A/B/C), evidence summary, primary hypothesis, recommended next actions
+
+**Step 6 — Update implementation checklist:**
+- Mark C1 as `[x] DONE (2025-11-22T230000Z)` with primary hypothesis verdict in `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/implementation.md`
+
+**Step 7 — Regression guard:**
 ```bash
-# Create phase_b5_fix_decision.md with 3-path template (see Step 8)
-# Edit implementation.md Phase B checklist (see Step 9)
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+DBEX_SMOKE_SIGMA_SOURCE=cli_override \
+DBEX_SMOKE_DETECTOR_SIZE=small \
+KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
+pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion \
+> plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T230000Z/pytest_regression.log 2>&1
+tail -20 plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T230000Z/pytest_regression.log
 ```
 
-**Step 10: Summary + Commit**
+**Step 8 — Write summary:**
+- Create `summary.md` with: telemetry execution status, file count, primary hypothesis, divergence step, recommended next actions, regression guard result
+
+**Step 9 — Commit and push:**
 ```bash
-cd /home/ollie/Documents/diffbragg_example
-# Create summary.md (see Step 10)
-git add -A
-git commit -m "TORCH-GEOMETRY-CONVERGENCE-001 Phase B5: Fix _forward_once U-matrix code path discrepancy — [Path A SUCCESS | Path B PARTIAL | Path C FAILURE] (tests: test_stage_a_expansion)"
+git add plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T230000Z/
+git add plans/active/TORCH-GEOMETRY-CONVERGENCE-001/implementation.md
+git commit -m "[See commit message template in Do Now Step 9]"
 git push
 ```
 
-## Pitfalls to Avoid
+## Pitfalls To Avoid
 
-### Code Alignment Pitfalls
-1. **DO NOT** recompute B_ideal from cctbx cell parameters in _forward_once; use MOSFLM-derived B_ideal from `derive_u_matrix_from_mosflm_a_star` return value (matches commit e86fd4e).
-2. **DO NOT** skip quaternion normalization `q = q / torch.norm(q)` before `quaternion_to_matrix(q)` conversion; unit-norm constraint is mandatory for proper rotation.
-3. **DO NOT** mix TorchCrystal B_ideal with cctbx B_ideal; use ONE consistent source (MOSFLM-derived) across all code paths.
-4. **DO NOT** assume script _forward_once is obsolete without auditing first; it may be intentionally simplified for telemetry overhead reduction (just ensure correctness).
-
-### Validation Pitfalls
-5. **DO NOT** skip regression guard (Step 5); cell+misset default path MUST remain unaffected (test_stage_a_expansion PASSED).
-6. **DO NOT** accept chi²_init=1.425B as "improved" in Path B; threshold for PARTIAL is 2M-10M (significantly better than catastrophic but not yet healthy).
-7. **DO NOT** proceed to Phase C if Path B or Path C; re-audit and fix first OR escalate to Galph.
-8. **DO NOT** emit telemetry to non-existent directories; ensure `diagnostic_b5_postfix/telemetry/` is created by script OR auto-constructed.
-
-### Scope Pitfalls
-9. **DO NOT** refactor beyond _forward_once without Galph approval; if audit reveals >3 discrepancies, escalate with recommendation for Option 2 (full refactor).
-10. **DO NOT** add new features (e.g., lifecycle logging to _forward_once) in this loop; focus on fixing existing logic to match production path.
-
-### Documentation Pitfalls
-11. **DO** document EVERY discrepancy found in audit with file:line references (code_path_audit.md).
-12. **DO** fill in validation_metrics.txt with ACTUAL values from artifacts, not placeholders.
-13. **DO** choose exactly ONE path (A/B/C) in phase_b5_fix_decision.md; do not hedge with "unclear" or "inconclusive" (use thresholds in Step 8 criteria).
-
-### Environment
-- **Environment Frozen:** Do NOT install/upgrade packages. If imports fail, record error signature and mark blocked.
-- **Timeout Safety:** 1-step diagnostic should complete in ~10-15 min (HKL grids + 1 step); 1800s timeout is generous. If timeout, log tail shows where test stuck (likely HKL build or simulator warmup).
-
-### Protected Assets
-- **NO EDITS:** `dbex/nanobrag_refinement.py` is WORKING production path (commit e86fd4e fix applied). DO NOT modify unless escalated by Galph.
-- **EDITABLE:** `plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py::_forward_once` is script-level BROKEN path; patch freely to align with production logic.
+1. **DO NOT** modify production code in this loop — Phase C1 is evidence-only (telemetry analysis + hypothesis synthesis).
+2. **DO NOT** skip zero-point validation in telemetry run — confirms Phase B5 fix is still working.
+3. **DO NOT** use background bash for convergence test — run in foreground with `timeout` to ensure completion verification.
+4. **DO NOT** assume hypothesis without telemetry evidence — cite specific step numbers and metric values in analysis.
+5. **DO NOT** bundle multiple hypotheses — choose ONE primary hypothesis with highest confidence.
+6. **Device/dtype neutrality:** Telemetry instrumentation must not assume CUDA (cpu-only test).
+7. **Protected Assets:** Do not modify `dbex/nanobrag_refinement.py` in this loop (telemetry instrumentation from Phase B2 already present).
+8. **Vectorization:** Telemetry extraction script must handle missing files gracefully (some steps may timeout).
+9. **No ad-hoc scripts:** Use inline `python -c` for simple trajectory extraction (T0 tier per scriptization policy).
+10. **Environment freeze:** Do not install packages or upgrade dependencies.
 
 ## If Blocked
 
-### Scenario 1: Regression Guard Fails (test_stage_a_expansion)
-**Action:** Do NOT proceed to Step 6. Fix the regression:
-1. Check if _forward_once is called by default cell+misset path (should NOT be; it's U-matrix-only).
-2. If regression in U-matrix path: revert _forward_once changes, re-audit discrepancies.
-3. Log error in `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T183012Z/regression_blocker.md` with pytest output.
-4. Update Attempts History: "B5 BLOCKED — Regression guard failed after _forward_once patch; error: [cite]".
+**Timeout during convergence test (exit code 143 or 124):**
+- Capture partial telemetry if any steps completed (e.g., steps 0-5 only)
+- Document timeout in `phase_c1_convergence_analysis.md` as blocker
+- Recommend reduced-step rerun (5 steps instead of 10) OR GPU execution for next loop
+- Update fix_plan Attempts History with timeout evidence
 
-### Scenario 2: Validation Test Times Out (Step 6 exit code 143)
-**Action:** Check log tail for stuck operation:
-1. If stuck during HKL grid builds: Not a fix issue; CPU too slow. Reduce --adam-steps to 0 (zero-point check only) and re-validate chi²_init from telemetry.
-2. If stuck during simulator warmup: Same as above; zero-point check is sufficient to validate initialization fix.
-3. Document in phase_b5_fix_decision.md: "Test timed out during [HKL/simulator]; validated chi²_init from zero-point check instead."
+**Telemetry files missing or incomplete:**
+- Document which steps are missing in `phase_c1_convergence_analysis.md`
+- If step 0 missing: initialization telemetry failed, recommend debugging script
+- If steps 1-9 missing: optimizer loop telemetry failed, recommend investigating dbex/nanobrag_refinement.py instrumentation
+- If zero_point_check.json missing: parity validation failed, may indicate Phase B5 fix regression
 
-### Scenario 3: Audit Reveals >3 Discrepancies (Step 3)
-**Action:** Escalate to Galph instead of attempting quick patch:
-1. Finish code_path_audit.md documenting ALL discrepancies (A-D plus any additional findings).
-2. Create `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T183012Z/escalation_recommendation.md`:
-   - List all discrepancies with file:line references.
-   - Recommend Option 2 (full refactor: deprecate _forward_once, call run_nanobrag_refinement directly).
-   - Estimate refactor scope (e.g., "2-3 loops to refactor script architecture").
-3. Update Attempts History: "B5 ESCALATED — Audit found >3 discrepancies; recommend Option 2 full refactor".
-4. Do NOT attempt patch; let Galph decide.
-
-### Scenario 4: Path C (Fix Failure) After Step 8
-**Action:**
-1. Revert _forward_once changes: `git checkout HEAD -- plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py`
-2. Document in phase_b5_fix_decision.md §Path C with error evidence.
-3. Update Attempts History: "B5 FAILED — Fix did not resolve chi² catastrophic failure; chi²_init=<value>; escalate to Galph".
-4. Mark B5 as [~] BLOCKED in implementation.md checklist.
-5. Commit with message: "TORCH-GEOMETRY-CONVERGENCE-001 Phase B5: FAILED fix attempt (reverted) — escalate to Galph (tests: test_stage_a_expansion)"
+**No clear hypothesis after analysis:**
+- Choose **Path C** in decision doc
+- Recommend escalation to alternative parameterization (hybrid cell+quaternion, LBFGS-only, mapping-path-only)
+- Document inconclusive evidence in `phase_c1_convergence_analysis.md`
 
 ## Findings Applied
 
-**Mandatory Findings Integration (from docs/findings.md):**
-
-1. **REFINE-001 (LBFGS Scale Warm-Start, NaN/Inf Guards):**
-   - Relevance: Gradient validation in Step 7 must check for NaN/Inf flags in telemetry.
-   - Application: If grad_log_scale is NaN/Inf (not just high magnitude), note in phase_b5_fix_decision.md as secondary pathology.
-
-2. **PHYSICS-LOSS-002 (Variance-Weighted Chi-Squared Sigma-Floor Guard):**
-   - Relevance: Variance-weighted loss is unchanged by this fix; sigma-floor guard should remain effective.
-   - Application: No action required; variance formula is implementation-agnostic.
-
-3. **GRADIENT-001 (Autograd Graph Preservation, Crystal Overrides):**
-   - Relevance: If _forward_once rebuilds crystal on-the-fly, ensure it uses `torch.no_grad()` context for non-trainable parameters.
-   - Application: Audit Step 3D (detector/crystal instantiation) should check for autograd context mismatches.
-
-4. **Escalation Source — TORCH-GEOMETRY-PARITY-003 (Quaternion U-Matrix Parity Perfect, Convergence Failed):**
-   - Context: PARITY-003 Phase C2 validated parity <1e-17 but convergence catastrophically failed. Phase B4 identified code path discrepancy as root cause (H4a).
-   - Application: This fix (B5) resolves PARITY-003's convergence blocker if Path A SUCCESS achieved. If Path C, may need to revisit parity validation method (does script _forward_once match parity test code path?).
-
-**No Relevant Findings:** No additional findings from knowledge base apply to code path alignment. If NEW findings emerge (e.g., "GEOMETRY-005: Script telemetry must use production path"), document in docs/findings.md after Phase C validation.
+- **REFINE-001:** LBFGS for scale-only warm-start, NaN/Inf gradient guards (H3a check via telemetry flags)
+- **PHYSICS-LOSS-002:** Variance-weighted chi-squared sigma-floor guard (H2 check via variance components if available)
+- **GRADIENT-001:** Autograd graph preservation, crystal_overrides handling (Phase B5 fix applied this)
+- **PARITY-003:** Quaternion U-matrix parity perfect but convergence failed (escalation context)
 
 ## Pointers
 
-### Spec References
-- `docs/spec-db-workflow.md` §Stage A — Optimizer convergence criteria (CC ≥ 0.99, stable/improving χ²)
-- `docs/spec-db-runtime.md` §Gradient stability — NaN/Inf checks, gradient magnitude thresholds
-- `docs/spec-db-core.md` §Variance Model — Variance-weighted chi-squared formula (unchanged by this fix)
+- Spec: `docs/spec-db-workflow.md §Stage A — Optimizer convergence` (Adam LR=1e-4 for orientation/cell, LBFGS for scale-only)
+- Spec: `docs/spec-db-runtime.md §Gradient Stability` (NaN/inf checks, gradient clipping)
+- Spec: `docs/spec-db-core.md §Variance Model` (sigma-floor guard to prevent infinite weights)
+- Architecture: `docs/architecture/pytorch_design.md` (U-matrix parameterization design)
+- Fix Plan: `docs/fix_plan.md` row [TORCH-GEOMETRY-CONVERGENCE-001] (Attempts History entry for Phase C1)
+- Implementation Plan: `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/implementation.md` Phase C checklist
+- Testing: `docs/TESTING_GUIDE.md §2` (test_stage_a_expansion selector)
+- Finding: `docs/findings.md` REFINE-001 (LBFGS usage), PHYSICS-LOSS-002 (variance guards), GRADIENT-001 (autograd preservation)
 
-### Architecture References
-- `docs/architecture.md` §Data Flow — U-matrix reconstruction flow from MOSFLM A* to simulator config
-- `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/implementation.md` — Phase B checklist, hypothesis verdicts
+## Next Up
 
-### Testing References
-- `docs/TESTING_GUIDE.md` §2 (Smoke Tests) — test_stage_a_expansion regression guard
-- `docs/development/TEST_SUITE_INDEX.md` — Selector status (test_stage_a_expansion: Active)
-- `docs/development/testing_strategy.md` — Validation strategy for U-matrix parameterization
+If Ralph finishes Phase C1 early and convergence telemetry analysis is complete with a **clear primary hypothesis** (Path A):
+- **Option 1 (H1 — Adam LR too high):** Implement LR reduction fix in Phase C2 (extend RefinementConfig with `u_matrix_learning_rate` field, update optimizer setup)
+- **Option 2 (H3b — Gradient explosion):** Implement gradient clipping fix in Phase C2 (extend RefinementConfig with `gradient_clip_threshold`, add `torch.nn.utils.clip_grad_norm_` in optimizer loop)
 
-### Key Code Locations
-- `dbex/nanobrag_refinement.py:971-1007` — U-matrix branch in `compute_loss` (WORKING production path, commit e86fd4e)
-- `dbex/nanobrag_bridge.py:794` — `derive_u_matrix_from_mosflm_a_star` signature (returns Tuple[U, B_ideal])
-- `plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py` — `_forward_once` function (BROKEN script path, target for audit/fix)
+If analysis yields **Path B** (hypothesis requires additional diagnostic):
+- Schedule Phase C2 as deeper diagnostic (variance telemetry instrumentation, finite-difference gradient validation, quaternion renormalization frequency analysis)
 
-### Fix-Plan References
-- `docs/fix_plan.md` — Row [TORCH-GEOMETRY-CONVERGENCE-001] Attempts History (latest: 2025-11-22T201500Z Phase B4 diagnostic)
-- `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T201500Z/` — Phase B4 artifacts (phase_b4_extended_diagnostic.md, telemetry, decision)
+If analysis yields **Path C** (no clear hypothesis):
+- Do NOT proceed with fix implementation
+- Galph will escalate to TORCH-GEOMETRY-CONVERGENCE-002 for alternative parameterization (hybrid cell+quaternion, LBFGS-only, or mapping-path-only refinement)
 
-## Next Up (Optional, If Step 10 Completes with Path A SUCCESS AND Time Remains)
-
-**DO NOT** start Phase C in this loop. Phase C requires multi-step convergence validation (10-step A_scale_only + D_full tests, findings update) which is scope for next loop. If you finish Step 10 early with Path A SUCCESS:
-
-1. **Verify Commit Pushed Successfully:**
-   ```bash
-   git log -1 --oneline
-   git status
-   # Ensure clean working tree, latest commit is Phase B5
-   ```
-
-2. **Optional: Collect 10-Step Telemetry Preview (Background, Non-Blocking):**
-   If time permits (>15 min remaining), you MAY launch a 10-step diagnostic in BACKGROUND for Galph to review:
-   ```bash
-   cd /home/ollie/Documents/diffbragg_example
-   timeout 3600 python plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py \
-     --use-u-matrix \
-     --phases 5 \
-     --dof-variants A_scale_only \
-     --adam-steps 10 \
-     --device cpu \
-     --out-dir plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T183012Z/preview_10step/ \
-     > plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T183012Z/preview_10step.log 2>&1 &
-   echo "Background PID: $!"
-   ```
-   **Note in summary.md:** "Launched optional 10-step preview in background (PID <pid>) for Galph; DO NOT wait for completion."
-
-3. **Update galph_memory.md (Galph's Responsibility, NOT Ralph's):**
-   Do NOT edit galph_memory.md. Galph will append entry after reviewing your artifacts.
-
-## Doc Sync Plan (Conditional)
-
-**NOT APPLICABLE** for this loop. No tests added/renamed; only code fix + validation. Test registry (`docs/TESTING_GUIDE.md`, `docs/development/TEST_SUITE_INDEX.md`) remains accurate with existing selector `test_stage_a_expansion`.
-
----
-
-**END OF DO NOW — Ralph, Execute Steps 1-10 in Sequence. Report Results in summary.md with Path A/B/C Verdict.**
+## Doc Sync Plan
+Not applicable (no tests added/renamed in this loop).

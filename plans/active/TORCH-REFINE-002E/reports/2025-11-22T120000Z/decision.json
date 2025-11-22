@@ -1,0 +1,44 @@
+{
+  "decision": "escalate_to_new_initiative",
+  "rationale": "Phase 5 shows both A_scale_only and D_full degrade severely (3.1× and 1.7× χ² increases, CC drops to 0.85-0.89). The 4e-5 geometry gap blocks all refinement DoF convergence at the mapping zero point.",
+  "exit_criterion_1_status": "alternative_path_satisfied",
+  "exit_criterion_2_status": "fail",
+  "exit_criterion_3_status": "fail",
+  "phase_5_completion": "completed",
+  "residual_strain_magnitude": 1.369e-3,
+  "max_abs_diff_a_star": 4.022e-05,
+  "chi_squared_gap_percent": 24.5,
+  "phase_4_single_step": {
+    "chi_squared_before": 1133420.75,
+    "chi_squared_after": 2799388.5,
+    "degradation_factor": 2.47
+  },
+  "phase_5_a_scale_only": {
+    "median_cc_final": 0.846168920385632,
+    "chi_squared_final": 3518091.0,
+    "chi_squared_degradation_factor": 3.10,
+    "stable_convergence": false
+  },
+  "phase_5_d_full": {
+    "median_cc_final": 0.8949170633698845,
+    "chi_squared_final": 1938111.5,
+    "chi_squared_degradation_factor": 1.71,
+    "monotonic_improvement": false
+  },
+  "recommended_next_action": "Open TORCH-GEOMETRY-PARITY-002 to implement U-matrix direct override, bypassing the cell+misset parameterization. The 1.37e-3 symmetric strain cannot be expressed by the current Stage-A parameterization (orientation_vec encodes rotation only), blocking convergence for all DoF variants including scale-only.",
+  "evidence_summary": {
+    "geometry_gap_identified": true,
+    "strain_type": "symmetric",
+    "strain_norm": 1.369e-3,
+    "convergence_blocked": true,
+    "all_dof_variants_degrade": true,
+    "forward_model_chi_squared_gap": "24.5% (mapping: 2.39M vs stage_a_zero: 2.98M)",
+    "gradient_magnitude_orientation_vec": 287523680.0
+  },
+  "artifacts": {
+    "patch_file": "plans/active/TORCH-REFINE-002E/reports/2025-11-22T120000Z/stage_a_debug_dof_variants.patch",
+    "phase_5_reduced_log": "plans/active/TORCH-REFINE-002E/reports/2025-11-22T120000Z/stage_a_debug_reduced.log",
+    "block_dof_results": "plans/active/TORCH-REFINE-002E/reports/2025-11-22T120000Z/block_dof_results.json",
+    "prior_phase_artifacts": "plans/active/TORCH-REFINE-002E/reports/2025-11-22T110000Z/"
+  }
+}

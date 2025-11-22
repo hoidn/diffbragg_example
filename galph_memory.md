@@ -547,3 +547,18 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-22T090505Z focus=TORCH-REFINE-002E state=ready_for_implementation dwell=0 artifacts=plans/active/TORCH-REFINE-002E/reports/2025-11-22T090505Z/ next_action=phase_a0_probe_extension
+
+## 2025-11-22T091200Z — TORCH-REFINE-002E Phase A0 review → A2 planning
+- Focus: TORCH-REFINE-002E — Fix Stage A Zero-Point Geometry Discontinuity
+- Action Type: planning
+- Key Observations: Verified Ralph's Phase A0 implementation landed cleanly (probe extended with eigenvalue/SVD/logm decompositions per implementation.md:83-86) and artifacts confirm H1 (residual strain): `log_u_symmetric_norm=1.37e-3` is ≈1000× larger than `log_u_antisymmetric_norm=1.37e-7`, proving the 4e-5 A* gap is dominated by symmetric strain, not pure rotation. Reciprocal-column angle deviations ≤0.051° and singular-value ratios show ≈0.07% strain along principal axes. Reviewed TOOLING-VIS-001 Phase 5 Adam artifacts (20251121T234215Z/block_dof_results.json) showing all DoF combos (scale-only, full) degrade χ² and CC from the mapping zero point (e.g., A_scale_only: 1.13M→3.52M χ², CC 1.0→0.846). Conclusion: Phase A checklist A0 complete; next is A2 (baseline B_ideal variants) to test whether deriving B_ideal from mapping's MOSFLM A* via cctbx cell recovery eliminates the strain component and closes the parity gap to <1e-6. Corrected missing artifact (copied crystal_matrix_parity.json to 2025-11-22T090505Z/), updated fix_plan Attempts History with Phase A0 outcomes, and drafted new Do Now for Phase A2 implementation.
+- Artifact Path: plans/active/TORCH-REFINE-002E/reports/2025-11-22T091200Z/
+- Next Actions: Implement Phase A2 per implementation.md:90-92: add helpers to recover effective cell from MOSFLM A*, construct alternative B_ideal, recompute baseline misset with recovered B_ideal, extend probe to compare both paths, and rerun with artifacts under new timestamp.
+- <Action State>: [planning]
+
+2025-11-22T091200Z focus=TORCH-REFINE-002E state=planning dwell=1 artifacts=plans/active/TORCH-REFINE-002E/reports/2025-11-22T091200Z/ next_action=phase_a2_baseline_b_ideal_implementation
+- Artifact Path: plans/active/TORCH-REFINE-002E/reports/2025-11-22T091200Z/
+- Next Actions: Implement Phase A2 per implementation.md:90-92: add helpers to recover effective cell from MOSFLM A*, construct alternative B_ideal, recompute baseline misset with recovered B_ideal, extend probe to compare both paths, and rerun with artifacts under new timestamp.
+- <Action State>: [planning]
+
+2025-11-22T091200Z focus=TORCH-REFINE-002E state=ready_for_implementation dwell=0 artifacts=plans/active/TORCH-REFINE-002E/reports/2025-11-22T091200Z/ next_action=phase_a2_baseline_b_ideal_implementation

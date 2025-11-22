@@ -14,7 +14,8 @@
 
 ### Tier 1: Core Physics & Stability
 **Goal:** Ensure the math is correct, the loss function is normative, and the smoke tests are green.
-- [TORCH-GEOMETRY-PARITY-003] (det(U)≠1 Investigation & Hybrid Parameterization) — **Pending** (escalated from PARITY-002; critical blocker for Stage A convergence)
+- [TORCH-GEOMETRY-CONVERGENCE-001] (Diagnose & Fix Quaternion U-Matrix Convergence Failure) — **Pending** (escalated from PARITY-003; top priority — parity solved, convergence catastrophically failed)
+- [TORCH-GEOMETRY-PARITY-003] (det(U)≠1 Investigation & Hybrid Parameterization) — **Blocked** (escalated to CONVERGENCE-001; parity perfect <1e-17 but convergence failed)
 - [TORCH-GEOMETRY-PARITY-002] (Direct U-Matrix Parameterization) — **Blocked** (quaternion SO(3) approach failed; escalated to PARITY-003)
 - [TORCH-REFINE-002E] (Fix Stage A Zero-Point Geometry) — **Blocked** (escalated to TORCH-GEOMETRY-PARITY-002)
 - [PHYSICS-LOSS-001] (Variance-weighted loss) — **Done**
@@ -35,6 +36,20 @@
 ---
 
 ## Active / Pending Initiatives
+
+### [TORCH-GEOMETRY-CONVERGENCE-001] Diagnose & Fix Quaternion U-Matrix Catastrophic Convergence Failure
+- Depends on: docs/spec-db-workflow.md, docs/spec-db-runtime.md, docs/spec-db-core.md, TORCH-GEOMETRY-PARITY-003 (escalation source)
+- Status: pending (2025-11-22 — top priority Tier 1; parity perfect <1e-17 but quaternion U-matrix Adam optimization catastrophically failed)
+- Priority: Critical (Tier 1 — Core Physics & Stability)
+- Owner/Date: Unassigned
+- Exit Criteria:
+  1. Root cause of quaternion U-matrix convergence failure identified with evidence (gradient telemetry, loss component analysis, parameter trajectories).
+  2. Chosen fix (optimizer tuning, loss modification, or constraint handling) enables `stage_a_mapping_adam_debug.py` Phase 5 with `--use-u-matrix` to pass: (a) A_scale_only: median ROI CC ≥ 0.99, χ² drift ≤ 0.5% after 10 Adam steps, (b) D_full: monotonic χ² improvement without large CC collapses.
+  3. `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` regression guard passes.
+  4. Findings ledger updated with CONVERGENCE-002 (or extension to REFINE-001/GRADIENT-001) documenting root cause, fix, and quaternion U-matrix usage conventions.
+- Working Plan: plans/active/TORCH-GEOMETRY-CONVERGENCE-001/implementation.md
+- Attempts History:
+  * (awaiting first attempt)
 
 ### [TORCH-REFINE-002E] Fix Stage A Zero-Point Geometry Discontinuity
 - Depends on: docs/spec-db-core.md, docs/spec-db-workflow.md, docs/spec-db-conformance.md

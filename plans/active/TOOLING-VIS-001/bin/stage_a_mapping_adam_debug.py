@@ -396,6 +396,7 @@ def _stage_a_forward(
         q_params: Quaternion parameters for U-matrix mode (4-DOF). If None, uses
             cell+misset path with orientation_vec.
     """
+    import numpy as np  # CONVERGENCE-001 Phase C5: needed for A* checksum extraction
     torch = components.torch
     device = components.device
     dtype = components.dtype
@@ -419,6 +420,12 @@ def _stage_a_forward(
     #   crystal_overrides, matching Stage A refinement conventions.
     # TORCH-GEOMETRY-PARITY-002: When use_u_matrix=True, orientation is via
     # quaternion → U → A* instead of cell+misset decomposition.
+
+    # CONVERGENCE-001 Phase C5: A* checksum tracking for code path equivalence diagnostic
+    a_star_checksum = None
+    a_star_max_element = None
+    code_path = None
+
     if use_mapping_zero_geometry:
         crystal_config, _ = create_crystal_config(
             dataload.crystal,
@@ -428,6 +435,15 @@ def _stage_a_forward(
             crystal_overrides=None,
             misset_deg_override=None,
         )
+        # CONVERGENCE-001 Phase C5: Extract A* from crystal_config for zero-point path
+        A_star_direct = np.array([
+            crystal_config.mosflm_a_star,
+            crystal_config.mosflm_b_star,
+            crystal_config.mosflm_c_star
+        ], dtype=np.float64).reshape(3, 3)
+        a_star_checksum = float(A_star_direct.sum())
+        a_star_max_element = float(np.abs(A_star_direct).max())
+        code_path = "zero_point"
     else:
         cell_params = dataload.crystal.get_unit_cell().parameters()
 
@@ -466,6 +482,11 @@ def _stage_a_forward(
             crystal_overrides["mosflm_b_star"] = tuple(A_star_np[:, 1].tolist())
             crystal_overrides["mosflm_c_star"] = tuple(A_star_np[:, 2].tolist())
             misset_xyz_deg = None  # No misset override in U-matrix mode
+            # CONVERGENCE-001 Phase C5: Extract A* checksums for closure path
+            A_star_roundtrip = A_star_np  # Already numpy from above
+            a_star_checksum = float(A_star_roundtrip.sum())
+            a_star_max_element = float(np.abs(A_star_roundtrip).max())
+            code_path = "closure"
         else:
             # Cell+misset path: orientation_vec → Euler angles
             max_orientation_deg = 10.0
@@ -517,7 +538,15 @@ def _stage_a_forward(
         sigma_t,
         sigma_floor_sq_tensor,
     )
-    return bragg_t, chi_sq_t
+
+    # CONVERGENCE-001 Phase C5: Return diagnostic data for telemetry
+    diagnostic_data = {
+        "a_star_checksum": a_star_checksum,
+        "a_star_max_element": a_star_max_element,
+        "code_path": code_path,
+    }
+
+    return bragg_t, chi_sq_t, diagnostic_data
 
 
 def _build_stage_a_bragg_noop(
@@ -544,7 +573,7 @@ def _build_stage_a_bragg_noop(
     )
 
     with torch.no_grad():
-        bragg_t, _ = _stage_a_forward(
+        bragg_t, _, _ = _stage_a_forward(
             dataload,
             context,
             components,
@@ -838,7 +867,11 @@ def _stage_a_adam_core(
         dtype=dtype,
     )
 
-    def _forward_once(use_mapping_zero_geometry: bool) -> Tuple[torch.Tensor, torch.Tensor]:
+    def _forward_once(use_mapping_zero_geometry: bool) -> Tuple[torch.Tensor, torch.Tensor, dict]:
+        """Forward model wrapper that returns (bragg, chi_sq, diagnostic_data).
+
+        diagnostic_data contains Phase C5 A* checksum tracking for code path equivalence.
+        """
         return _stage_a_forward(
             dataload,
             context,
@@ -858,7 +891,7 @@ def _stage_a_adam_core(
 
     with torch.no_grad():
         # Always treat the initial parameters as the mapping-aligned zero point.
-        bragg_before_t, chi_sq_before_t = _forward_once(use_mapping_zero_geometry=True)
+        bragg_before_t, chi_sq_before_t, _ = _forward_once(use_mapping_zero_geometry=True)
 
     loss_trace: List[float] = [float(chi_sq_before_t.item())]
 
@@ -868,13 +901,13 @@ def _stage_a_adam_core(
             for step_idx in range(n_steps):
                 def closure():
                     optimizer.zero_grad()
-                    bragg_t, chi_sq_t = _forward_once(use_mapping_zero_geometry=False)
+                    bragg_t, chi_sq_t, _ = _forward_once(use_mapping_zero_geometry=False)
                     chi_sq_t.backward()
                     return chi_sq_t
 
                 # Get loss value before optimizer step for telemetry
                 with torch.no_grad():
-                    _, chi_sq_before_step = _forward_once(use_mapping_zero_geometry=False)
+                    _, chi_sq_before_step, diag_before_step = _forward_once(use_mapping_zero_geometry=False)
 
                 # Telemetry: Emit per-step metrics (TORCH-GEOMETRY-CONVERGENCE-001 Phase A1)
                 if telemetry_output_dir and q_params is not None:
@@ -892,7 +925,7 @@ def _stage_a_adam_core(
                     # For LBFGS, gradients are computed inside closure
                     # We capture them after a forward/backward pass before step()
                     optimizer.zero_grad()
-                    _, chi_sq_temp = _forward_once(use_mapping_zero_geometry=False)
+                    _, chi_sq_temp, diag_temp = _forward_once(use_mapping_zero_geometry=False)
                     chi_sq_temp.backward()
 
                     telemetry_gradients = {
@@ -919,11 +952,19 @@ def _stage_a_adam_core(
                         'i_model_std': None,
                     }
 
+                    # CONVERGENCE-001 Phase C5: Add A* checksum diagnostic data
+                    telemetry_diagnostics = {
+                        'a_star_checksum': diag_temp.get('a_star_checksum'),
+                        'a_star_max_element': diag_temp.get('a_star_max_element'),
+                        'code_path': diag_temp.get('code_path'),
+                    }
+
                     telemetry_step = {
                         **telemetry_params,
                         **telemetry_gradients,
                         **telemetry_loss,
                         **telemetry_variance,
+                        **telemetry_diagnostics,
                     }
 
                     try:
@@ -940,13 +981,13 @@ def _stage_a_adam_core(
 
                 # Record loss after step
                 with torch.no_grad():
-                    _, chi_sq_after_step = _forward_once(use_mapping_zero_geometry=False)
+                    _, chi_sq_after_step, _ = _forward_once(use_mapping_zero_geometry=False)
                     loss_trace.append(float(chi_sq_after_step.item()))
         else:
             # Adam pattern (no closure)
             for step_idx in range(n_steps):
                 optimizer.zero_grad()
-                bragg_t, chi_sq_t = _forward_once(use_mapping_zero_geometry=False)
+                bragg_t, chi_sq_t, diag_data = _forward_once(use_mapping_zero_geometry=False)
                 chi_sq_t.backward()
 
                 # Telemetry: Emit per-step metrics (TORCH-GEOMETRY-CONVERGENCE-001 Phase A1)
@@ -991,12 +1032,20 @@ def _stage_a_adam_core(
                         'i_model_std': None,
                     }
 
+                    # CONVERGENCE-001 Phase C5: Add A* checksum diagnostic data
+                    telemetry_diagnostics = {
+                        'a_star_checksum': diag_data.get('a_star_checksum'),
+                        'a_star_max_element': diag_data.get('a_star_max_element'),
+                        'code_path': diag_data.get('code_path'),
+                    }
+
                     # Combine and emit INIT telemetry (TORCH-GEOMETRY-CONVERGENCE-001 Phase B4)
                     telemetry_step_init = {
                         **telemetry_params,
                         **telemetry_gradients,
                         **telemetry_loss,
                         **telemetry_variance,
+                        **telemetry_diagnostics,
                         'closure_state': 'before_optimizer_step',
                     }
 
@@ -1016,7 +1065,7 @@ def _stage_a_adam_core(
                 if telemetry_output_dir and use_u_matrix and q_params is not None:
                     # Recompute forward pass to get post-step chi²
                     with torch.no_grad():
-                        _, chi_sq_post = _forward_once(use_mapping_zero_geometry=False)
+                        _, chi_sq_post, _ = _forward_once(use_mapping_zero_geometry=False)
 
                     telemetry_step_post = {
                         'step_index': step_idx,
@@ -1041,7 +1090,7 @@ def _stage_a_adam_core(
                         print(f"Warning: Failed to write post-step telemetry JSON at step {step_idx}: {e}", file=sys.stderr)
 
     with torch.no_grad():
-        bragg_after_t, chi_sq_after_t = _forward_once(use_mapping_zero_geometry=False)
+        bragg_after_t, chi_sq_after_t, _ = _forward_once(use_mapping_zero_geometry=False)
 
     # Per-ROI CC vs mapping bragg_zero_iter.
     bragg_before = bragg_before_t.cpu().numpy().astype(np.float32)
@@ -1363,7 +1412,7 @@ def _run_gradient_probe(
 
     # Global gradient evaluation
     print("[gradient_probe] Computing global gradients...")
-    bragg_tensor, chi_squared_global_from_forward = _stage_a_forward(
+    bragg_tensor, chi_squared_global_from_forward, _ = _stage_a_forward(
         dataload,
         context,
         components,

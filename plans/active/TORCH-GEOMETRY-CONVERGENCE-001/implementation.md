@@ -84,15 +84,19 @@
 - Run `stage_a_mapping_adam_debug.py --use-u-matrix --phases 5 --dof-variants A_scale_only --adam-steps 10` with telemetry enabled
 - Emit telemetry JSON per step: `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/<timestamp>/telemetry_step_{0..9}.json`
 
-**Step A2: Identify First Divergence Point**
-- Analyze telemetry to find first step where:
-  - χ² increases dramatically (>10% from initial)
-  - CC drops below 0.95
-  - Gradients explode (norm >1e10) or vanish (norm <1e-10)
-  - NaN/inf appears in loss or gradients
-- Document first-divergence step and parameter/gradient values in `phase_a_first_divergence.md`
+**Step A2: Execute Instrumented Run**
+- [x] *(2025-11-22T140000Z)* Implemented telemetry instrumentation in dbex/nanobrag_refinement.py and stage_a_mapping_adam_debug.py (commit 3d5c613)
+- [~] *(2025-11-22T140000Z)* Executed instrumented run; captured 9/10 telemetry steps (step_000 through step_008); Phase 5 incomplete (no block_dof_results.json)
+- **Status:** Incomplete - only 9 steps captured, missing step_009 and final DoF results. Need to investigate why run stopped early.
 
-**Step A3: Finite-Difference Gradient Validation**
+**Step A3: Identify First Divergence Point**
+- [x] *(2025-11-22T150000Z)* Analyzed telemetry steps 000-008; identified **step 0 catastrophic failure** (chi-squared 1.425B, 1000× worse than expected ~1.13M)
+- [x] *(2025-11-22T150000Z)* Documented first divergence in `phase_a_first_divergence.md` with preliminary root cause hypothesis: forward model pathology (H3), not optimizer issue
+- [x] *(2025-11-22T150000Z)* Classified primary failure mode as `forward_model_pathology` - problem exists before optimizer runs
+- **Key Finding:** Chi-squared wrong at initialization; log_scale gradient massive (~295k); optimizer makes no progress despite clean gradients
+- **Hypothesis Verdicts:** H1 (Adam hyperparameters) REJECTED; H2 (variance instability) PLAUSIBLE; H3 (gradient/forward pathology) PARTIALLY SUPPORTED; H4 (quaternion constraint) NOT TESTABLE with A_scale_only
+
+**Step A4: Finite-Difference Gradient Validation**
 - At the first-divergence step (or step 0 if immediate failure), compute finite-difference approximation of `∂χ²/∂q` using small perturbations (ε=1e-5)
 - Compare FD gradients vs autograd gradients; check for sign flips, magnitude mismatches, or NaN
 - Document in `phase_a_gradient_validation.md`
@@ -114,12 +118,12 @@
 ## Phase A — Evidence Collection & Gradient Diagnosis
 ### Checklist
 - [x] A0: **Evidence Synthesis** — Compile PARITY-003 Phase C2 failure artifacts (block_dof_results_u_matrix.json, convergence telemetry if available); document known failure signature (χ² +125,648%, CC→-0.045, step count=10). **DONE (2025-11-22T134421Z):** Synthesized PARITY-003 escalation evidence, cross-referenced REFINE-001/PHYSICS-LOSS-002/GRADIENT-001 findings, documented four hypotheses (H1-H4), archived PARITY-003 artifacts. See `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T134421Z/phase_a0_evidence_synthesis.md`.
-- [ ] A1: **Instrument Quaternion Closure** — Extend `build_stage_a_lbfgs_closure` (U-matrix path) with per-step telemetry logging (q_params, gradients, loss components, variance metrics); emit `telemetry_step_{i}.json`.
-- [ ] A2: **Execute Instrumented Run** — Run `stage_a_mapping_adam_debug.py --use-u-matrix --phases 5 --dof-variants A_scale_only --adam-steps 10 --device cpu` with telemetry enabled; capture all step artifacts.
-- [ ] A3: **First Divergence Analysis** — Identify first step where χ² increases >10% OR CC drops <0.95 OR gradients explode/vanish OR NaN appears; document parameter/gradient state in `phase_a_first_divergence.md`.
-- [ ] A4: **Finite-Difference Validation** — At first-divergence step (or step 0), compute FD approximation of `∂χ²/∂q` (ε=1e-5); compare vs autograd gradients; check for sign flips, magnitude mismatches, NaN. Document in `phase_a_gradient_validation.md`.
-- [ ] A5: **Variance/Loss Analysis** — At first-divergence step, log variance tensor breakdown (I_model, V_denom, clamp fraction, weighted residuals histograms); check for pathological distributions. Document in `phase_a_variance_analysis.md`.
-- [ ] A6: **Hypothesis Decision** — Synthesize A0-A5 results into root cause determination (H1/H2/H3/H4); assign confidence level; recommend Phase B test. Document in `phase_a_root_cause_determination.md`.
+- [x] A1: **Instrument Quaternion Closure** — Extend `build_stage_a_lbfgs_closure` (U-matrix path) with per-step telemetry logging (q_params, gradients, loss components, variance metrics); emit `telemetry_step_{i}.json`. **DONE (2025-11-22T140000Z):** Implemented telemetry in dbex/nanobrag_refinement.py and stage_a_mapping_adam_debug.py (commit 3d5c613). Captures parameters (q_params, log_scale, q_norm), gradients (norms, NaN/Inf flags), loss (chi_squared), and variance components (simplified in script). See `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T140000Z/`.
+- [~] A2: **Execute Instrumented Run** — Run `stage_a_mapping_adam_debug.py --use-u-matrix --phases 5 --dof-variants A_scale_only --adam-steps 10 --device cpu` with telemetry enabled; capture all step artifacts. **PARTIAL (2025-11-22T140000Z):** Captured 9/10 telemetry steps (step_000 through step_008); Phase 5 incomplete (no block_dof_results.json). Need to investigate early termination and rerun or extract partial results.
+- [x] A3: **First Divergence Analysis** — Identify first step where χ² increases >10% OR CC drops <0.95 OR gradients explode/vanish OR NaN appears; document parameter/gradient state in `phase_a_first_divergence.md`. **DONE (2025-11-22T150000Z):** Identified step 0 catastrophic failure (chi-squared 1.425B, 1000× worse than expected ~1.13M); classified as `forward_model_pathology` (not optimizer issue); preliminary hypotheses: H1 REJECTED, H2 PLAUSIBLE, H3 PARTIALLY SUPPORTED, H4 NOT TESTABLE with A_scale_only. See `phase_a_first_divergence.md`.
+- [ ] A4: **Finite-Difference Validation** — At first-divergence step (or step 0), compute FD approximation of `∂χ²/∂q` (ε=1e-5); compare vs autograd gradients; check for sign flips, magnitude mismatches, NaN. Document in `phase_a_gradient_validation.md`. **BLOCKED:** Requires D_full or C_scale_plus_orientation variant (A_scale_only has train_orientation=False so q_params.grad is None).
+- [ ] A5: **Variance/Loss Analysis** — At first-divergence step, log variance tensor breakdown (I_model, V_denom, clamp fraction, weighted residuals histograms); check for pathological distributions. Document in `phase_a_variance_analysis.md`. **PENDING:** Requires full variance telemetry instrumentation in dbex/nanobrag_refinement.py closure (current script-level telemetry has variance components as null).
+- [ ] A6: **Hypothesis Decision** — Synthesize A0-A5 results into root cause determination (H1/H2/H3/H4); assign confidence level; recommend Phase B test. Document in `phase_a_root_cause_determination.md`. **PENDING:** Requires A4 (gradient validation) and A5 (variance analysis) to complete evidence base.
 
 ### Notes & Risks
 - Risk: Telemetry overhead may slow convergence test; mitigate by running on CPU (no CUDA sync overhead) and emitting JSON only (no visualization).

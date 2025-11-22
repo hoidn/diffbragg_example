@@ -322,7 +322,7 @@ def _build_stage_a_components(
         cell_params = cell.parameters()
         B_ideal = np.array(
             cctbx_cell(cell_params).fractionalization_matrix(), dtype=np.float64
-        ).T  # cctbx gives row-major, we need column-major
+        ).reshape(3, 3).T  # cctbx gives row-major flat (9,) → reshape to (3,3) then transpose
         B_ideal_reciprocal = torch.tensor(B_ideal, device=device, dtype=dtype)
 
     return _StageAComponents(

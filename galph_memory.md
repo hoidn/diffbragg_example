@@ -651,3 +651,13 @@
 - <Action State>: [planning]
 
 2025-11-22T114945Z focus=TORCH-GEOMETRY-PARITY-002 state=planning dwell=1 artifacts=plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T114945Z/ next_action=phase_c2_c3_convergence_sensitivity_despite_parity_gap
+
+## 2025-11-22T120500Z — TORCH-GEOMETRY-PARITY-002 Phase C2 bug triage + fix
+- Focus: TORCH-GEOMETRY-PARITY-002 — Direct U-Matrix Parameterization for Stage A Geometry Refinement
+- Action Type: review_or_housekeeping
+- Key Observations: Reviewed Ralph's Phase C2 execution attempt (2025-11-22T114945Z) showing **decisive partial success**: (1) Zero-point check PASSED with CC=0.9999999843 (essentially perfect) and chi²_rel_diff=-0.017% (well within 0.1% tolerance), confirming U-matrix parameterization logic is correct at zero deltas; (2) Phase 5 convergence test (A_scale_only/D_full Adam optimization) FAILED with `RuntimeError: size mismatch, got input (3), mat (3x3), vec (9)` at line 434 when computing `A_star_new = U_matrix @ components.B_ideal_reciprocal`. Root cause diagnosed: `cctbx_cell(...).fractionalization_matrix()` returns a **flat 9-element array** (row-major), NOT a 3×3 matrix—the `.T` transpose at line 325 did nothing because the array was already 1D with shape (9,). Fixed by adding `.reshape(3,3)` before transpose (line 325: `.reshape(3, 3).T`) so `B_ideal_reciprocal` is a proper (3,3) torch tensor. Documented bug in phase_c2_shape_bug_diagnosis.md. Updated implementation.md checklist (C1 marked complete with zero-point validation note, C2/C3 remain pending bugfix rerun). Next: Ralph reruns Phase C2/C3 convergence test with bugfix applied, executes A_scale_only + D_full Adam optimization for 10 steps per input.md:46-55, synthesizes decision.json per decision tree (accept_quaternion if A_scale_only maintains CC ≥ 0.99 + χ² drift ≤ 0.5%, else escalate_to_geometry_parity_003), runs regression guard test_stage_a_expansion, and conditionally updates findings per decision.
+- Artifact Path: plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T120500Z/
+- Next Actions: Hand off to Ralph with updated input.md for Phase C2/C3 rerun (bugfix applied, convergence test executable). Decision tree outcome determines whether to accept quaternion (→ GEOMETRY-004 findings update + mark TORCH-REFINE-002E done) or escalate to GEOMETRY-PARITY-003 (det(U)≠1 root cause investigation).
+- <Action State>: [ready_for_implementation]
+
+2025-11-22T120500Z focus=TORCH-GEOMETRY-PARITY-002 state=ready_for_implementation dwell=0 artifacts=plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T120500Z/ next_action=phase_c2_c3_convergence_rerun_with_bugfix

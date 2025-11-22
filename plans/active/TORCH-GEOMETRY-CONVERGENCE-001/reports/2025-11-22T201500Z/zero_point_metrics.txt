@@ -1,0 +1,7 @@
+{
+  "chi_squared_mapping": null,
+  "chi_squared_stage_a": null,
+  "abs_diff": null,
+  "rel_diff": null,
+  "correlation": null
+}

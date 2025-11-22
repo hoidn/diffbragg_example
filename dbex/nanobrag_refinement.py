@@ -272,6 +272,13 @@ class RefinementConfig:
     # Only applies when use_u_matrix_parameterization=True.
     use_lbfgs_for_u_matrix: bool = False
 
+    # Learning rate for U-matrix path (TORCH-GEOMETRY-CONVERGENCE-001 Phase C2)
+    # Learning rate for Adam optimizer when use_u_matrix_parameterization=True.
+    # Default 1e-5 (10× lower than cell/misset LR) to accommodate quaternion gradient
+    # scale O(150k). Per CONVERGENCE-001 Phase C1 root cause analysis.
+    # Only applies when use_u_matrix_parameterization=True and use_lbfgs_for_u_matrix=False.
+    u_matrix_learning_rate: float = 1e-5
+
     # Warm cache (PERF-WARM-SIM-001)
     # Enable Stage A warm cache (prebuild detector models/masks/HKL once).
     # Default True for production (2-5× speedup). Disable for benchmarking cold baseline.

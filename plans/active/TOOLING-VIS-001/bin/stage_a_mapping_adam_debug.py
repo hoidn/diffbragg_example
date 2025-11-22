@@ -1542,6 +1542,16 @@ def _parse_args() -> argparse.Namespace:
         help="Learning rate for Phase 4 Adam experiment (default: 1e-4).",
     )
     parser.add_argument(
+        "--u-matrix-lr",
+        type=float,
+        default=1e-5,
+        help=(
+            "Learning rate for Adam optimizer when --use-u-matrix is enabled "
+            "(default: 1e-5, per CONVERGENCE-001 Phase C1 root cause). "
+            "Only applies when --use-u-matrix is True and --use-lbfgs is False."
+        ),
+    )
+    parser.add_argument(
         "--phases",
         type=str,
         default="1,2,4",
@@ -1680,11 +1690,13 @@ def main(argv: List[str] | None = None) -> None:
             )
 
         if "4" in phases:
+            # Use U-matrix LR if U-matrix mode is enabled (CONVERGENCE-001 Phase C2)
+            phase4_lr = args.u_matrix_lr if args.use_u_matrix else args.adam_lr
             _run_single_step_adam(
                 dataload,
                 context,
                 device_str=args.device,
-                lr=args.adam_lr,
+                lr=phase4_lr,
                 out_dir=out_root,
             )
 
@@ -1703,12 +1715,14 @@ def main(argv: List[str] | None = None) -> None:
                 else:
                     telemetry_dir_resolved = args.telemetry_dir
 
+            # Use U-matrix LR if U-matrix mode is enabled (CONVERGENCE-001 Phase C2)
+            phase5_lr = args.u_matrix_lr if args.use_u_matrix else args.adam_lr
             _run_blockwise_dof_experiments(
                 dataload,
                 context,
                 device_str=args.device,
                 n_steps=max(args.optimizer_steps, 0),
-                lr=args.adam_lr,
+                lr=phase5_lr,
                 out_dir=out_root,
                 dof_variants=dof_variants_list,
                 use_u_matrix=args.use_u_matrix,

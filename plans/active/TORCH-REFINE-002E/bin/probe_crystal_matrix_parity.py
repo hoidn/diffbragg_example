@@ -80,24 +80,13 @@ class PathBVariantSummary:
 
 
 def _build_dataload() -> "DataLoad":
-    """Construct a DataLoad on canonical refGeom or refined fixtures."""
+    """Construct a DataLoad on canonical refGeom (PARITY-003: always use workspace root refGeom.expt)."""
     from dbex.data_load import DataLoad  # type: ignore
 
-    fixtures_root = (
-        REPO_ROOT / "tests" / "fixtures" / "golden_data" / "simple_cubic"
-    )
-    refined_expt = fixtures_root / "refined.expt"
-    refined_refl = fixtures_root / "refined.refl"
-
-    legacy_expt = REPO_ROOT / "refGeom.expt"
-    legacy_refl = REPO_ROOT / "refGeom.refl"
-
-    if refined_expt.exists() and refined_refl.exists():
-        expt = refined_expt
-        refl = refined_refl
-    else:
-        expt = legacy_expt
-        refl = legacy_refl
+    # PARITY-003: Always use canonical refGeom.expt in workspace root (det(U)=1.0)
+    # Do NOT use tests/fixtures/golden_data/simple_cubic/refined.expt (det(U)=1.000557)
+    expt = REPO_ROOT / "refGeom.expt"
+    refl = REPO_ROOT / "refGeom.refl"
 
     mtz = REPO_ROOT / "scaled.mtz"
     mask = REPO_ROOT / "747_mask.pkl"

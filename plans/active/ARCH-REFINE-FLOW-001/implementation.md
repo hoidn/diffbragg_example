@@ -11,6 +11,7 @@
 - Replace the monolithic `run_nanobrag_refinement` function with an extensible `RefinementEngine` that executes an ordered list of Stage objects (A, B, C).
 - Make each Stage self-contained (parameters, closures, telemetry contract) so future modes (e.g., Stage B per-reflection parity) can be plugged in without rewriting the entire loop.
 - Preserve existing Stage smoke + DB-AT selectors while providing hooks for alternative Stage implementations and telemetry provenance.
+- Treat the stabilized Stage A implementation (variance-weighted loss, sigma_floor handling, warm-cache/perf counters, mapping-aligned zero point) as the canonical pattern for concrete Stage implementations, while keeping the engine API itself agnostic to Stage-specific physics.
 
 ## Phases Overview
 - Phase A — Stage Interface & Engine Skeleton: define the data/telemetry contract and minimal engine loop.
@@ -61,6 +62,7 @@
 - Enforce Environment Freeze by reusing existing tensors/config; Stage classes must not import optional deps.
 - Telemetry contract must stay backward compatible while new fields (stage type/mode) are added.
 - Shared simulator/Bragg helpers centralize detector/crystal instantiation; audit them once to avoid reintroducing the duplication highlighted in the recent code review.
+- Stage A’s current implementation is the most heavily debugged; when defining the Stage interface, ensure it is generic, and rely on shared helpers (loss/telemetry/caching) that are proven in Stage A so later Stage implementations naturally follow the same patterns without hard-coding Stage-specific behavior into the engine.
 
 ## Phase B — Stage A Extraction
 - [ ] B0: Record baseline artifacts for Stage A smoke (`test_stage_a_expansion`, collect-only + pytest logs) under `plans/active/ARCH-REFINE-FLOW-001/reports/<timestamp>/baseline/`.
@@ -73,6 +75,7 @@
 ### Notes & Risks
 - Ensure Stage A ROI sampling + warm-cache options remain available and configurable (StageA should accept `sampled_panel_ids`, cache flags) and continue to follow the PERF-WARM-SIM-001 telemetry contract (`roi_count_*`, `cache_mode`, `roi_mode`, `forward_time_ms`). If you discover gaps in that contract, extend it inside PERF-WARM-SIM-001 (or a successor perf initiative) rather than introducing a new cache or perf schema in this plan.
 - Regression risk: orientation/quaternion handling must remain inside the stage.
+- Stage A’s final design (after TORCH-REFINE-002D/002E) is the reference implementation for geometry + loss plumbing; later Stage implementations (including B/C) should reuse the same shared helpers (loss closure, sigma_floor plumbing, telemetry serialization) rather than re-inventing variants.
 
 ## Phase C — Stage B Extraction
 - [ ] C0: Baseline Stage B artifacts (full-detector run + telemetry) recorded before refactor.
@@ -85,6 +88,7 @@
 ### Notes & Risks
 - Stage B must respect REFINE-005 (tricubic interpolation + halo). When moving code, ensure HKL grid caching remains correct.
 - Expose switches for future per-reflection implementation (TORCH-REFINE-005) but keep default as shell modifiers.
+- Concrete Stage B implementations should wire loss, variance, and telemetry through the same helpers used by Stage A (PHYSICS-LOSS-001)—including sigma_floor handling, chi-squared vs masked-MSE reporting, and perf counters—so the engine sees a uniform contract across stages.
 
 ## Phase D — Stage C Extraction
 - [ ] D0: Baseline Stage C artifacts (full-detector run + telemetry) recorded pre-refactor.
@@ -97,6 +101,7 @@
 ### Notes & Risks
 - Stage C must maintain baseline detector seeding behavior and variance-floor clamp telemetry.
 - Watch for device/dtype transitions (detector configs currently re-instantiated per panel).
+- Concrete Stage C implementations should mirror Stage A’s pattern for parameter deltas, canonical chi-squared fields, and perf counters, so downstream tooling can reason about all stages via the unified schema established by the Stage A-backed helpers, not by Stage-specific engine special cases.
 
 ## Phase E — Orchestration Hooks & Mode Wiring
 - [ ] E1: Expose stage registry/config knobs in `RefinementEngine`/`run_nanobrag_refinement` (e.g., enable/disable Stage B, set Stage B mode = shell|per_reflection).

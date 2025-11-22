@@ -742,3 +742,13 @@
 - <Action State>: [planning]
 
 2025-11-22T172000Z focus=TORCH-GEOMETRY-CONVERGENCE-001 state=planning dwell=2 artifacts=plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T172000Z/ next_action=phase_b1_diagnostic_rerun_with_telemetry_fix_and_foreground_execution
+
+## 2025-11-22T172000Z — TORCH-GEOMETRY-CONVERGENCE-001 Phase B1 LBFGS diagnostic rerun review
+- Focus: TORCH-GEOMETRY-CONVERGENCE-001 — Diagnose & Fix Quaternion U-Matrix Catastrophic Convergence Failure
+- Action Type: review_or_housekeeping
+- Key Observations: Reviewed Ralph's Phase B1 LBFGS diagnostic rerun (2025-11-22T172000Z) showing decisive Path B verdict: (1) Telemetry path duplication FIXED (simple relative path), (2) Zero-point validation PASSED (chi²=989k, B_ideal bugfix works in that code path), (3) LBFGS step 000 CATASTROPHIC (chi²=1.425B, same pre-bugfix signature), (4) Test TIMED OUT after 2/10 steps (LBFGS too slow on CPU ~600s/step). **Critical finding:** Code path divergence — zero-point check (use_mapping_zero_geometry=True) bypasses U @ B_ideal reconstruction and works, LBFGS optimization (use_mapping_zero_geometry=False) forces U @ B_ideal reconstruction and hits catastrophic chi²=1.425B. Confirms B_ideal mismatch persists in optimization loop despite bugfix 826f4c9. Ralph documented comprehensive decision (phase_b1_decision.md, phase_b1_review.md, summary.md) and updated implementation.md (B1 marked BLOCKED). Fix_plan Attempts History entry 57 already updated by Ralph with full diagnostic summary and escalation to deep diagnostic.
+- Artifact Path: plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T172000Z/
+- Next Actions: Draft input.md for mandatory deep diagnostic (instrument LBFGS closure with B_ideal checksum/hash logging, device/dtype checks, run 2-step variant, identify WHERE B_ideal diverges, implement fix, rerun Test B1).
+- <Action State>: [review_or_housekeeping]
+
+2025-11-22T172000Z focus=TORCH-GEOMETRY-CONVERGENCE-001 state=planning dwell=0 artifacts=plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T172000Z/ next_action=deep_diagnostic_do_now

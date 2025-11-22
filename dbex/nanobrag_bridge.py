@@ -791,6 +791,197 @@ def derive_b_ideal_from_mosflm_a_star(a_star: np.ndarray, device: str = "cpu") -
         ) from exc
 
 
+def derive_u_matrix_from_mosflm_a_star(a_star: np.ndarray, cell: Tuple[float, float, float, float, float, float]) -> np.ndarray:
+    """
+    Extract U-matrix from mapping MOSFLM A* without SO(3) projection (GEOMETRY-004, TORCH-GEOMETRY-PARITY-002).
+
+    Computes the orientation matrix U from the relationship A* = U @ B_ideal_reciprocal,
+    where B_ideal_reciprocal is derived from the specified unit cell parameters.
+    Unlike `derive_robust_misset`, this function does NOT call `proper_rotation()` or
+    perform any SO(3) projection, preserving any symmetric strain embedded in the
+    mapping MOSFLM A* matrix.
+
+    This helper is required for Phase B (TORCH-GEOMETRY-PARITY-002) to enable direct
+    U-matrix parameterization in Stage A refinement, avoiding the 1.37e-3 symmetric
+    strain artifact introduced by the cell+misset decomposition path.
+
+    Args:
+        a_star: 3×3 MOSFLM A* matrix from dxtbx crystal.get_A() (reshaped).
+                Columns are reciprocal basis vectors (a*, b*, c*) in 1/Å.
+        cell: Tuple of 6 unit cell parameters (a, b, c, alpha, beta, gamma)
+              where a, b, c are in Å and angles are in degrees.
+
+    Returns:
+        3×3 U-matrix (numpy array, dtype=float64).
+        May have det(U) ≈ 1 ± ε if strain is present in the mapping A*.
+
+    Raises:
+        ValueError: If a_star shape is invalid or B_ideal is singular.
+
+    References:
+        - docs/spec-db-workflow.md:39 (Stage A mapping zero-point invariant)
+        - plans/active/TORCH-GEOMETRY-PARITY-002/implementation.md:146 (Phase B1)
+    """
+    # Validate inputs
+    a_star = np.asarray(a_star, dtype=np.float64)
+    if a_star.shape != (3, 3):
+        raise ValueError(
+            f"a_star must be a 3×3 array, got shape {a_star.shape}"
+        )
+
+    # Extract cell parameters
+    a, b, c, alpha, beta, gamma = cell
+
+    # Build B_ideal_reciprocal using derive_b_ideal_from_mosflm_a_star logic
+    # (recover cell from A*, then build nanobrag_torch B_ideal)
+    # For U-matrix extraction, we use the provided cell directly instead of
+    # recovering from A*, since the caller provides the authoritative cell.
+    try:
+        from nanobrag_torch.config import CrystalConfig as TorchCrystalConfig
+        from nanobrag_torch.models.crystal import Crystal as TorchCrystal
+        import torch
+
+        # Build B_ideal from the provided cell
+        cfg = TorchCrystalConfig(
+            cell_a=a,
+            cell_b=b,
+            cell_c=c,
+            cell_alpha=alpha,
+            cell_beta=beta,
+            cell_gamma=gamma,
+            misset_deg=(0.0, 0.0, 0.0),
+            mosflm_a_star=None,  # No MOSFLM injection for B_ideal
+            mosflm_b_star=None,
+            mosflm_c_star=None,
+        )
+        crystal_nb = TorchCrystal(cfg, device=torch.device("cpu"), dtype=torch.float64)
+        geom = crystal_nb.compute_cell_tensors()
+        a_star_nb = geom["a_star"].detach().cpu().numpy().reshape(3)
+        b_star_nb = geom["b_star"].detach().cpu().numpy().reshape(3)
+        c_star_nb = geom["c_star"].detach().cpu().numpy().reshape(3)
+        B_ideal_reciprocal = np.column_stack([a_star_nb, b_star_nb, c_star_nb]).astype(np.float64)
+
+    except ImportError as exc:  # pragma: no cover
+        raise ImportError(
+            "derive_u_matrix_from_mosflm_a_star requires nanobrag_torch and torch"
+        ) from exc
+
+    # Compute U = A* @ inv(B_ideal_reciprocal)
+    # Do NOT call proper_rotation() or any SO(3) projection
+    try:
+        B_inv = np.linalg.inv(B_ideal_reciprocal)
+    except np.linalg.LinAlgError as exc:
+        raise ValueError(
+            f"B_ideal_reciprocal is singular or ill-conditioned: {exc}"
+        ) from exc
+
+    U = a_star @ B_inv
+
+    return U
+
+
+def matrix_to_quaternion(U: Union[np.ndarray, 'torch.Tensor']) -> 'torch.Tensor':
+    """
+    Convert rotation matrix to quaternion using scipy convention ([x, y, z, w]).
+
+    This helper enables quaternion-based U-matrix parameterization for Stage A
+    (TORCH-GEOMETRY-PARITY-002 Phase B2). Uses scipy.spatial.transform.Rotation
+    for robust conversion, then converts to torch.Tensor for autodiff.
+
+    Args:
+        U: 3×3 rotation matrix (numpy array or torch.Tensor).
+
+    Returns:
+        torch.Tensor of shape (4,) with quaternion in scipy convention [x, y, z, w].
+        Dtype is float64 to match TORCH-GEOMETRY-PARITY-002 precision requirements.
+
+    Raises:
+        ImportError: If scipy is unavailable.
+        ValueError: If U is not a valid 3×3 matrix.
+
+    References:
+        - plans/active/TORCH-GEOMETRY-PARITY-002/implementation.md:148 (Phase B2)
+        - input.md:45-46 (scipy convention and roundtrip validation)
+    """
+    try:
+        from scipy.spatial.transform import Rotation
+        import torch
+    except ImportError as exc:
+        raise ImportError(
+            "matrix_to_quaternion requires scipy and torch"
+        ) from exc
+
+    # Convert to numpy if needed
+    if hasattr(U, 'detach'):  # torch.Tensor
+        U_np = U.detach().cpu().numpy()
+    else:
+        U_np = np.asarray(U, dtype=np.float64)
+
+    if U_np.shape != (3, 3):
+        raise ValueError(
+            f"U must be a 3×3 matrix, got shape {U_np.shape}"
+        )
+
+    # Convert using scipy (returns [x, y, z, w])
+    R = Rotation.from_matrix(U_np)
+    q_np = R.as_quat()  # scipy convention: [x, y, z, w]
+
+    # Convert to torch.Tensor with float64
+    q_torch = torch.tensor(q_np, dtype=torch.float64)
+
+    return q_torch
+
+
+def quaternion_to_matrix(q: 'torch.Tensor') -> 'torch.Tensor':
+    """
+    Convert quaternion to rotation matrix using scipy convention ([x, y, z, w]).
+
+    This helper enables quaternion-based U-matrix parameterization for Stage A
+    (TORCH-GEOMETRY-PARITY-002 Phase B2). Uses scipy.spatial.transform.Rotation
+    for robust conversion.
+
+    Args:
+        q: torch.Tensor of shape (4,) with quaternion in scipy convention [x, y, z, w].
+
+    Returns:
+        torch.Tensor of shape (3, 3) representing the rotation matrix.
+        Dtype is float64 to match TORCH-GEOMETRY-PARITY-002 precision requirements.
+
+    Raises:
+        ImportError: If scipy is unavailable.
+        ValueError: If q is not shape (4,).
+
+    References:
+        - plans/active/TORCH-GEOMETRY-PARITY-002/implementation.md:148 (Phase B2)
+        - input.md:45-46 (scipy convention and roundtrip validation)
+    """
+    try:
+        from scipy.spatial.transform import Rotation
+        import torch
+    except ImportError as exc:
+        raise ImportError(
+            "quaternion_to_matrix requires scipy and torch"
+        ) from exc
+
+    # Validate shape
+    if q.shape != (4,):
+        raise ValueError(
+            f"q must be a 4-element quaternion, got shape {q.shape}"
+        )
+
+    # Convert to numpy (scipy convention: [x, y, z, w])
+    q_np = q.detach().cpu().numpy()
+
+    # Convert using scipy
+    R = Rotation.from_quat(q_np)  # scipy convention: [x, y, z, w]
+    U_np = R.as_matrix()
+
+    # Convert to torch.Tensor with float64
+    U_torch = torch.tensor(U_np, dtype=torch.float64)
+
+    return U_torch
+
+
 def derive_robust_misset(
     crystal_dxtbx,
     crystal_nanobrag_default: Optional[Any] = None,

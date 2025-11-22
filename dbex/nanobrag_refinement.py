@@ -259,6 +259,13 @@ class RefinementConfig:
     # Defaults to False (nearest-neighbor) to protect datasets without halo support
     enable_hkl_interpolation: bool = False
 
+    # U-matrix parameterization (TORCH-GEOMETRY-PARITY-002 Phase B)
+    # Enable direct U-matrix quaternion parameterization for Stage A orientation.
+    # When False (default), uses existing cell+misset decomposition path (GEOMETRY-003).
+    # When True, parameterizes orientation as quaternion → U-matrix, preserving
+    # mapping MOSFLM A* strain and eliminating the 1.37e-3 symmetric strain artifact.
+    use_u_matrix_parameterization: bool = False
+
     # Warm cache (PERF-WARM-SIM-001)
     # Enable Stage A warm cache (prebuild detector models/masks/HKL once).
     # Default True for production (2-5× speedup). Disable for benchmarking cold baseline.
@@ -334,6 +341,8 @@ class StageAContext:
         n_panels: int, number of panels
         roi_count: int, number of cached ROI entries
         enable_hkl_interpolation: bool, tricubic interpolation flag
+        q_params: Optional quaternion parameters for U-matrix path (TORCH-GEOMETRY-PARITY-002 Phase B4)
+        B_ideal_reciprocal: Optional B_ideal matrix for U-matrix path (TORCH-GEOMETRY-PARITY-002 Phase B4)
     """
     detector_configs: List
     detector_models: List
@@ -349,6 +358,8 @@ class StageAContext:
     n_panels: int
     roi_count: int
     enable_hkl_interpolation: bool
+    q_params: Optional[torch.Tensor] = None
+    B_ideal_reciprocal: Optional[torch.Tensor] = None
 
 
 @dataclass
@@ -748,12 +759,61 @@ def run_nanobrag_refinement(
     # Initialize to small values near identity rotation
     orientation_vec = torch.zeros(3, device=device, dtype=dtype, requires_grad=True)
 
+    # TORCH-GEOMETRY-PARITY-002 Phase B4: U-matrix quaternion parameterization (opt-in)
+    q_params = None
+    B_ideal_reciprocal_torch = None
+    if config.use_u_matrix_parameterization:
+        from dbex.nanobrag_bridge import (
+            derive_u_matrix_from_mosflm_a_star,
+            matrix_to_quaternion,
+        )
+        # Extract MOSFLM A* from the crystal (mapping zero point)
+        A_star_np = np.array(crystal.get_A()).reshape(3, 3)
+        cell_params = crystal.get_unit_cell().parameters()
+
+        # Derive U-matrix from mapping MOSFLM A* (no SO(3) projection)
+        U_0 = derive_u_matrix_from_mosflm_a_star(A_star_np, cell_params)
+
+        # Convert to quaternion
+        q_0 = matrix_to_quaternion(torch.tensor(U_0, dtype=torch.float64))
+
+        # Initialize trainable quaternion params (float64 for precision)
+        q_params = q_0.clone().to(device=device, dtype=dtype).requires_grad_(True)
+
+        # Compute B_ideal_reciprocal once for U-matrix path (A* = U @ B_ideal)
+        # Use the same cell as the mapping zero point
+        from nanobrag_torch.config import CrystalConfig as TorchCrystalConfig
+        from nanobrag_torch.models.crystal import Crystal as TorchCrystal
+        a, b, c, alpha, beta, gamma = cell_params
+        cfg_b_ideal = TorchCrystalConfig(
+            cell_a=a,
+            cell_b=b,
+            cell_c=c,
+            cell_alpha=alpha,
+            cell_beta=beta,
+            cell_gamma=gamma,
+            misset_deg=(0.0, 0.0, 0.0),
+            mosflm_a_star=None,
+            mosflm_b_star=None,
+            mosflm_c_star=None,
+        )
+        crystal_nb_b_ideal = TorchCrystal(cfg_b_ideal, device=device, dtype=dtype)
+        geom = crystal_nb_b_ideal.compute_cell_tensors()
+        a_star_nb = geom["a_star"].reshape(3)
+        b_star_nb = geom["b_star"].reshape(3)
+        c_star_nb = geom["c_star"].reshape(3)
+        B_ideal_reciprocal_torch = torch.stack([a_star_nb, b_star_nb, c_star_nb], dim=1)  # 3x3 matrix
+
     params = [
         log_scale,
         log_cell_a_delta, log_cell_b_delta, log_cell_c_delta,
         angle_alpha_raw, angle_beta_raw, angle_gamma_raw,
         orientation_vec
     ]
+
+    # Add q_params to optimizer if U-matrix mode is enabled
+    if config.use_u_matrix_parameterization:
+        params.append(q_params)
 
     # Setup LBFGS optimizer
     optimizer = torch.optim.LBFGS(
@@ -904,25 +964,55 @@ def run_nanobrag_refinement(
         perturbed_gamma = cell_params[5] + torch.tanh(angle_gamma_raw) * max_angle_delta
 
         # 3. Orientation perturbation via quaternion→XYZ misset (TORCH-REFINE-002)
-        max_orientation_deg = 3.0  # degrees (per input.md pitfalls)
-        bounded_orientation_vec = torch.tanh(orientation_vec) * max_orientation_deg * (np.pi / 180.0)
-        quat = vec_to_unit_quaternion(bounded_orientation_vec)
-        misset_xyz_deg = quaternion_to_xyz_euler(quat)
+        # TORCH-GEOMETRY-PARITY-002 Phase B5: Branch on U-matrix vs cell+misset path
+        if config.use_u_matrix_parameterization:
+            # U-matrix path: Normalize quaternion, convert to U, compute A*
+            from dbex.nanobrag_bridge import quaternion_to_matrix
+            q_norm = q_params / torch.norm(q_params)  # Enforce ||q|| = 1
+            U = quaternion_to_matrix(q_norm)  # 3x3 rotation matrix
+            A_star_new = U @ B_ideal_reciprocal_torch  # Compute updated A*
 
-        if baseline_misset_deg_tensor is not None:
-            misset_xyz_deg = misset_xyz_deg + baseline_misset_deg_tensor
+            # Convert A* to numpy for crystal_overrides
+            A_star_np = A_star_new.detach().cpu().numpy()
+            mosflm_a_star_tuple = tuple(A_star_np[:, 0].tolist())
+            mosflm_b_star_tuple = tuple(A_star_np[:, 1].tolist())
+            mosflm_c_star_tuple = tuple(A_star_np[:, 2].tolist())
 
-        crystal_overrides = {
-            'cell_a': perturbed_cell_a,
-            'cell_b': perturbed_cell_b,
-            'cell_c': perturbed_cell_c,
-            'cell_alpha': perturbed_alpha,
-            'cell_beta': perturbed_beta,
-            'cell_gamma': perturbed_gamma
-        }
+            crystal_overrides = {
+                'cell_a': perturbed_cell_a,
+                'cell_b': perturbed_cell_b,
+                'cell_c': perturbed_cell_c,
+                'cell_alpha': perturbed_alpha,
+                'cell_beta': perturbed_beta,
+                'cell_gamma': perturbed_gamma,
+                'mosflm_a_star': mosflm_a_star_tuple,
+                'mosflm_b_star': mosflm_b_star_tuple,
+                'mosflm_c_star': mosflm_c_star_tuple,
+            }
+        else:
+            # Existing cell+misset path (GEOMETRY-003)
+            max_orientation_deg = 3.0  # degrees (per input.md pitfalls)
+            bounded_orientation_vec = torch.tanh(orientation_vec) * max_orientation_deg * (np.pi / 180.0)
+            quat = vec_to_unit_quaternion(bounded_orientation_vec)
+            misset_xyz_deg = quaternion_to_xyz_euler(quat)
+
+            if baseline_misset_deg_tensor is not None:
+                misset_xyz_deg = misset_xyz_deg + baseline_misset_deg_tensor
+
+            crystal_overrides = {
+                'cell_a': perturbed_cell_a,
+                'cell_b': perturbed_cell_b,
+                'cell_c': perturbed_cell_c,
+                'cell_alpha': perturbed_alpha,
+                'cell_beta': perturbed_beta,
+                'cell_gamma': perturbed_gamma
+            }
 
         log_scale_clamped = torch.clamp(log_scale, min=-10.0, max=10.0)
         beam_config_for_run = stage_a_ctx.beam_config if stage_a_ctx is not None else create_beam_config(beam)
+
+        # U-matrix path: misset_deg should be zero since MOSFLM A* is provided directly
+        misset_deg_for_crystal = None if config.use_u_matrix_parameterization else misset_xyz_deg
 
         warm_crystal_model: Optional[Crystal] = None
         if stage_a_ctx is not None:
@@ -930,7 +1020,7 @@ def run_nanobrag_refinement(
                 crystal,
                 None,
                 crystal_overrides=crystal_overrides,
-                misset_deg_override=misset_xyz_deg
+                misset_deg_override=misset_deg_for_crystal
             )
             warm_crystal_model = Crystal(
                 warm_crystal_config,
@@ -981,7 +1071,7 @@ def run_nanobrag_refinement(
                         crystal,
                         None,
                         crystal_overrides=crystal_overrides,
-                        misset_deg_override=misset_xyz_deg
+                        misset_deg_override=misset_deg_for_crystal
                     )
                     crystal_model = Crystal(
                         crystal_config,
@@ -1045,7 +1135,7 @@ def run_nanobrag_refinement(
                         crystal,
                         None,
                         crystal_overrides=crystal_overrides,
-                        misset_deg_override=misset_xyz_deg
+                        misset_deg_override=misset_deg_for_crystal
                     )
                     crystal_model = Crystal(
                         crystal_config,
@@ -1310,27 +1400,57 @@ def run_nanobrag_refinement(
             perturbed_gamma = cell_params[5] + torch.tanh(angle_gamma_raw) * max_angle_delta
 
             # 3. Orientation perturbation via quaternion→XYZ misset (TORCH-REFINE-002)
-            max_orientation_deg = 3.0  # degrees
-            bounded_orientation_vec = torch.tanh(orientation_vec) * max_orientation_deg * (np.pi / 180.0)
-            quat = vec_to_unit_quaternion(bounded_orientation_vec)
-            misset_xyz_deg = quaternion_to_xyz_euler(quat)
+            # TORCH-GEOMETRY-PARITY-002 Phase B5: Branch on U-matrix vs cell+misset path
+            if config.use_u_matrix_parameterization:
+                # U-matrix path: Normalize quaternion, convert to U, compute A*
+                from dbex.nanobrag_bridge import quaternion_to_matrix
+                q_norm = q_params / torch.norm(q_params)  # Enforce ||q|| = 1
+                U = quaternion_to_matrix(q_norm)  # 3x3 rotation matrix
+                A_star_new = U @ B_ideal_reciprocal_torch  # Compute updated A*
 
-            # Add baseline misset from perturbed geometry if provided (TORCH-REFINE-002D)
-            if baseline_misset_deg_tensor is not None:
-                misset_xyz_deg = misset_xyz_deg + baseline_misset_deg_tensor
+                # Convert A* to numpy for crystal_overrides
+                A_star_np = A_star_new.detach().cpu().numpy()
+                mosflm_a_star_tuple = tuple(A_star_np[:, 0].tolist())
+                mosflm_b_star_tuple = tuple(A_star_np[:, 1].tolist())
+                mosflm_c_star_tuple = tuple(A_star_np[:, 2].tolist())
 
-            crystal_overrides = {
-                'cell_a': perturbed_cell_a,
-                'cell_b': perturbed_cell_b,
-                'cell_c': perturbed_cell_c,
-                'cell_alpha': perturbed_alpha,
-                'cell_beta': perturbed_beta,
-                'cell_gamma': perturbed_gamma
-            }
+                crystal_overrides = {
+                    'cell_a': perturbed_cell_a,
+                    'cell_b': perturbed_cell_b,
+                    'cell_c': perturbed_cell_c,
+                    'cell_alpha': perturbed_alpha,
+                    'cell_beta': perturbed_beta,
+                    'cell_gamma': perturbed_gamma,
+                    'mosflm_a_star': mosflm_a_star_tuple,
+                    'mosflm_b_star': mosflm_b_star_tuple,
+                    'mosflm_c_star': mosflm_c_star_tuple,
+                }
+                misset_deg_for_crystal = None
+            else:
+                # Existing cell+misset path (GEOMETRY-003)
+                max_orientation_deg = 3.0  # degrees
+                bounded_orientation_vec = torch.tanh(orientation_vec) * max_orientation_deg * (np.pi / 180.0)
+                quat = vec_to_unit_quaternion(bounded_orientation_vec)
+                misset_xyz_deg = quaternion_to_xyz_euler(quat)
+
+                # Add baseline misset from perturbed geometry if provided (TORCH-REFINE-002D)
+                if baseline_misset_deg_tensor is not None:
+                    misset_xyz_deg = misset_xyz_deg + baseline_misset_deg_tensor
+
+                crystal_overrides = {
+                    'cell_a': perturbed_cell_a,
+                    'cell_b': perturbed_cell_b,
+                    'cell_c': perturbed_cell_c,
+                    'cell_alpha': perturbed_alpha,
+                    'cell_beta': perturbed_beta,
+                    'cell_gamma': perturbed_gamma
+                }
+                misset_deg_for_crystal = misset_xyz_deg
+
             crystal_config, _ = create_crystal_config(
                 crystal, None,
                 crystal_overrides=crystal_overrides,
-                misset_deg_override=misset_xyz_deg
+                misset_deg_override=misset_deg_for_crystal
             )
 
             detector_model = Detector(detector_config, device=device, dtype=dtype)
@@ -2230,7 +2350,7 @@ def run_nanobrag_refinement(
                 crystal,
                 None,
                 crystal_overrides=crystal_overrides,
-                misset_deg_override=misset_xyz_deg
+                misset_deg_override=misset_deg_for_crystal
             )
 
             crystal_model = Crystal(crystal_config, device=device, dtype=dtype)
@@ -2479,7 +2599,7 @@ def run_nanobrag_refinement(
                 crystal,
                 None,
                 crystal_overrides=crystal_overrides,
-                misset_deg_override=misset_xyz_deg
+                misset_deg_override=misset_deg_for_crystal
             )
             crystal_model = Crystal(crystal_config, device=device, dtype=dtype)
             crystal_model.interpolate = config.enable_hkl_interpolation

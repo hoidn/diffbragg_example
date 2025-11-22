@@ -949,14 +949,21 @@ def _run_blockwise_dof_experiments(
     n_steps: int,
     lr: float,
     out_dir: Path,
+    dof_variants: list[str] | None = None,
 ) -> Dict[str, object]:
     """Phase 5 — Block-wise DoF isolation experiments."""
-    variants = {
+    all_variants = {
         "A_scale_only": dict(train_scale=True, train_cell=False, train_orientation=False),
         "B_scale_plus_cell": dict(train_scale=True, train_cell=True, train_orientation=False),
         "C_scale_plus_orientation": dict(train_scale=True, train_cell=False, train_orientation=True),
         "D_full": dict(train_scale=True, train_cell=True, train_orientation=True),
     }
+
+    # Filter variants if requested
+    if dof_variants is not None:
+        variants = {k: v for k, v in all_variants.items() if k in dof_variants}
+    else:
+        variants = all_variants
 
     results: Dict[str, object] = {}
     for name, cfg in variants.items():
@@ -1256,6 +1263,16 @@ def _parse_args() -> argparse.Namespace:
             "gradient_probe mode."
         ),
     )
+    parser.add_argument(
+        "--dof-variants",
+        type=str,
+        default=None,
+        help=(
+            "Comma-separated list of DoF variants to run in Phase 5 "
+            "(subset of A_scale_only,B_scale_plus_cell,C_scale_plus_orientation,D_full). "
+            "If not provided, all variants are run."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -1338,6 +1355,9 @@ def main(argv: List[str] | None = None) -> None:
             )
 
         if "5" in phases:
+            dof_variants_list = None
+            if args.dof_variants is not None:
+                dof_variants_list = [v.strip() for v in args.dof_variants.split(",") if v.strip()]
             _run_blockwise_dof_experiments(
                 dataload,
                 context,
@@ -1345,6 +1365,7 @@ def main(argv: List[str] | None = None) -> None:
                 n_steps=max(args.adam_steps, 0),
                 lr=args.adam_lr,
                 out_dir=out_root,
+                dof_variants=dof_variants_list,
             )
 
         # This script is debug-only; no exceptions here are converted to non-zero

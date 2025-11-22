@@ -1,7 +1,7 @@
-# Supervisor Handoff — TORCH-GEOMETRY-CONVERGENCE-001 Phase B Hypothesis Testing (LBFGS Alternative)
+# Supervisor Handoff — TORCH-GEOMETRY-CONVERGENCE-001 Phase B1 Diagnostic Rerun
 
 ## Summary
-Test LBFGS optimizer as alternative to catastrophically-failing Adam for quaternion U-matrix convergence.
+Diagnose and fix LBFGS Test B1 premature termination; rerun with corrected telemetry paths and foreground execution.
 
 ## Mode
 none
@@ -13,539 +13,466 @@ TORCH-GEOMETRY-CONVERGENCE-001 — Diagnose & Fix Quaternion U-Matrix Catastroph
 integration
 
 ## Mapped Tests
-tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion — regression guard (U-matrix path must not break cell+misset default)
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion — regression guard (already passed in commit 8440df8)
 
 ## Artifacts
-plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T165000Z/
+plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T172000Z/
 
 ## Do Now
 
-**Checklist Items:** Phase B0-B1 (Test Protocol Design + LBFGS Hypothesis Test)
+**Checklist Items:** Phase B1 Diagnostic + Rerun (addressing premature termination and telemetry path duplication)
 
-**Context:** Ralph's Phase A bugfix (2025-11-22T152500Z) successfully resolved initialization pathology:
-- Pre-bugfix: Step 0 chi² = 1.425B (1000× worse than expected)
-- Post-bugfix: Step 0 chi² = 1.13M (matches zero-point check ~990k-1.13M)
-- Regression guard PASSED
-- Zero-point parity perfect (corr ≈ 1.0, max_abs_diff ~85 photons)
+**Context:** Ralph's Phase B1 implementation (commit 8440df8) successfully added LBFGS optimizer infrastructure and regression guard PASSED. However, the LBFGS test terminated prematurely with incomplete artifacts:
+- Zero-point check PASSED (chi²=989k, rel_diff=-0.017%, correlation=0.9999999843) — B_ideal bugfix IS working
+- Telemetry step_000 shows catastrophic chi²=1.425B (pre-bugfix signature) and massive log_scale gradient (294k)
+- Log has only 69 lines (HKL grid warmup), no block_dof_results.json, test stopped during first LBFGS line search
+- Telemetry path duplicated: `plans/.../2025-11-22T165000Z/plans/.../2025-11-22T165000Z/telemetry/` (double-prepending bug)
 
-**However, Adam optimization STILL fails catastrophically:**
-- Steps 1-9: chi² explodes 1.13M → 1.425B (1257× worse)
-- Final median CC: -0.045 (negative correlation)
-- Verdict: Initialization bug FIXED, but convergence pathology is a SEPARATE issue
+**Diagnosis (see `phase_b1_diagnostic_analysis.md`):** Four hypotheses:
+- **H1:** B_ideal mismatch persists in LBFGS closure despite bugfix (different code path than zero-point check)
+- **H2:** Telemetry captures wrong timestep (exploratory line-search evaluation, not accepted step)
+- **H3:** Telemetry path duplication caused data corruption or misdirection
+- **H4:** LBFGS line search hit bad parameter region during backtracking
 
-**Root Cause Hypothesis Update (from phase_a_bugfix_decision.md):**
-- H1 (Adam hyperparameters): PLAUSIBLE — Adam LR=1e-4 may be incompatible with quaternion gradient manifold (S³ unit sphere)
-- H2 (Variance-weighted loss instability): PLAUSIBLE — Variance denominator may destabilize during optimization
-- H3 (Gradient pathology): PLAUSIBLE — Quaternion normalization or matrix ops may produce NaN/inf/exploding gradients
-- H4 (Quaternion constraint): PLAUSIBLE — Unit-norm constraint vs momentum accumulation
+**Decision:** Quick diagnostic rerun (Option B from analysis) with:
+1. Fixed telemetry paths (remove `--telemetry-dir` flag, use auto-construction from `--out-dir`)
+2. Foreground execution (blocking, wait for completion, no background bash)
+3. Explicit timeout monitoring (1200s, log progress every 60s if possible)
+4. Capture complete artifacts: telemetry_step_{0..9}.json, block_dof_results.json, stage_a_lbfgs_test.log
 
-**Phase B Strategy:** Test **H1 first** (optimizer alternative) as most direct fix. LBFGS has no momentum (eliminating H1+H4 concerns), uses line search (mitigating H2/H3), and is already proven for scale-only refinement per REFINE-001.
+If rerun STILL shows chi²=1.425B at step 0, escalate to deep diagnostic (instrument closure with B_ideal checksums).
 
-### Step 1: Phase B Test Protocol Design
+### Step 1: Review Prior Attempt Artifacts
 
-Write `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T165000Z/phase_b_test_protocol.md`:
+Read and summarize:
+- `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T165000Z/zero_point_check.json` (zero-point validation)
+- `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T165000Z/plans/.../telemetry/telemetry_step_000.json` (problematic telemetry)
+- `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T165000Z/stage_a_lbfgs_test.log` (truncated log)
+- `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T165000Z/phase_b1_diagnostic_analysis.md` (Galph's diagnosis)
 
-```markdown
-# Phase B Test Protocol
+Emit `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T172000Z/phase_b1_review.md` with:
+- Zero-point chi² values (mapping vs stage_a)
+- Telemetry step 000 chi² and gradient magnitudes
+- Hypothesis selection (which of H1-H4 is most likely)
+- Recommended fix for rerun
 
-## Hypotheses Prioritization
+### Step 2: Verify LBFGS Script Invocation
 
-Based on Phase A evidence (initialization correct, Adam convergence catastrophic), testing order:
+Check `plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py` for:
+1. **Telemetry path construction:** How does script handle `--telemetry-dir` and `--out-dir` interaction?
+2. **Telemetry emission timing:** Is telemetry written INSIDE closure (bad — captures line-search probes) or AFTER optimizer.step() (good — captures accepted steps)?
+3. **B_ideal usage in LBFGS closure:** Confirm `components.B_ideal_reciprocal` is used for A* reconstruction at line ~436
 
-1. **Test B1: LBFGS Optimizer** (H1 — optimizer incompatibility)
-   - Rationale: LBFGS eliminates momentum accumulation (H4), uses line search to avoid exploding steps (H3), proven for scale-only per REFINE-001
-   - Expected outcome: If quaternion gradient manifold is the issue, LBFGS should converge (CC ≥ 0.99, chi² stable)
-   - If successful: Skip B2/B3, proceed to Phase C fix implementation (add optimizer switch for U-matrix path)
-   - If failed: Proceed to Test B2 (gradient validation + loss stability analysis)
+Document findings in `phase_b1_review.md`.
 
-2. **Test B2: Adam LR=1e-6 + Gradient Validation** (H1 + H3 — hyperparameter tuning + gradient pathology)
-   - Rationale: Lower LR (100× smaller) may stabilize quaternion updates; gradient logging will diagnose NaN/inf/exploding
-   - Expected outcome: If LR is the issue, convergence should improve; gradient telemetry will diagnose pathologies
-   - If successful: Proceed to Phase C with LR tuning fix
-   - If failed: Proceed to Test B3 (loss clamping + variance analysis)
+### Step 3: Fix Telemetry Path Construction (If Needed)
 
-3. **Test B3: Loss Clamping + Variance Analysis** (H2 — variance-weighted loss numerical instability)
-   - Rationale: If variance denominator (I_model + sigma²) becomes pathological during optimization, clamp loss or increase sigma_floor
-   - Expected outcome: Variance telemetry will show if V_denom→0 or residuals→inf causing loss explosion
-   - If successful: Proceed to Phase C with sigma_floor tuning or loss clipping
-   - If failed: Escalate to hybrid parameterization (PARITY-003 Option 1: cell+quaternion+isotropic scale)
+**Option A: Remove --telemetry-dir flag entirely**
+If script auto-constructs telemetry path from `--out-dir`, do:
+```python
+# In stage_a_mapping_adam_debug.py, find telemetry path construction (~line 150-180 or wherever RefinementConfig is built)
+# Change from:
+telemetry_output_dir=args.telemetry_dir if args.telemetry_dir else None
+# To:
+telemetry_output_dir=os.path.join(args.out_dir, "telemetry") if args.out_dir else None
+```
 
-## Test B1 Implementation Plan
+**Option B: Fix path duplication if script double-prepends**
+If script does `os.path.join(args.out_dir, args.telemetry_dir)` when `--telemetry-dir` is already an absolute or out-dir-relative path, fix the logic:
+```python
+# Change from:
+telemetry_output_dir = os.path.join(args.out_dir, args.telemetry_dir)
+# To:
+if args.telemetry_dir.startswith(args.out_dir):
+    telemetry_output_dir = args.telemetry_dir  # Already absolute or relative to out_dir
+else:
+    telemetry_output_dir = os.path.join(args.out_dir, args.telemetry_dir)
+```
 
-### Changes Required
-Edit `dbex/nanobrag_refinement.py` in `run_nanobrag_refinement` function:
-- Add config flag: `use_lbfgs_for_u_matrix: bool = False` to `RefinementConfig`
-- In U-matrix optimizer selection block (~line 810-835):
-  ```python
-  if config.use_u_matrix_parameterization and config.use_lbfgs_for_u_matrix:
-      # Test B1: LBFGS for quaternion U-matrix refinement
-      optimizer = torch.optim.LBFGS(
-          [q_params, log_scale],
-          lr=1.0,  # LBFGS uses line search; LR=1.0 is standard
-          max_iter=20,
-          tolerance_grad=1e-7,
-          tolerance_change=1e-9,
-          history_size=10,
-          line_search_fn='strong_wolfe'
-      )
-      logger.info("Stage A: Using LBFGS optimizer for U-matrix path (Test B1)")
-  elif config.use_u_matrix_parameterization:
-      # Default: Adam (known to fail catastrophically)
-      optimizer = torch.optim.Adam([q_params, log_scale], lr=1e-4)
-      logger.info("Stage A: Using Adam optimizer for U-matrix path")
-  else:
-      # Cell+misset default path (unchanged)
-      optimizer = torch.optim.Adam(params, lr=1e-4)
-  ```
+**Your task:** Inspect script, identify which option applies, implement fix if needed. Document in `phase_b1_review.md`.
 
-### Test Execution
-Run `stage_a_mapping_adam_debug.py` with LBFGS override:
+### Step 4: Rerun LBFGS Test B1 in Foreground
+
+Execute the test with corrected paths and FOREGROUND execution (blocking, no background):
 
 ```bash
 KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 timeout 1200 python \
   plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py \
   --use-u-matrix --use-lbfgs --phases 5 --dof-variants A_scale_only \
   --optimizer-steps 10 --device cpu \
-  --telemetry-dir plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T165000Z/telemetry/ \
-  --out-dir plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T165000Z/ \
-  2>&1 | tee plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T165000Z/stage_a_lbfgs_test.log
+  --out-dir plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T172000Z/ \
+  2>&1 | tee plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T172000Z/stage_a_lbfgs_rerun.log
 ```
 
-**Note:** Script must be extended to accept `--use-lbfgs` flag and pass it to `RefinementConfig(use_lbfgs_for_u_matrix=True)`.
+**Note:** Removed `--telemetry-dir` flag; let script auto-construct from `--out-dir` (per Step 3 fix).
 
-### Success Criteria
-- **Convergence SUCCESS:** `block_dof_results_lbfgs.json` shows:
-  - `A_scale_only.cc_summary.median_after ≥ 0.99` (retain high correlation)
-  - `A_scale_only.chi_squared.after / .before ≤ 1.005` (chi² stable or improving, ≤0.5% drift)
-  - No NaN/inf in telemetry
-- **Convergence FAILURE:** Same catastrophic signature (CC collapse, chi² explosion) → Proceed to Test B2
+**Expected duration:** 10-20 minutes on CPU (LBFGS line search is slow). Monitor log for progress indicators:
+- HKL grid builds (expected: many, due to line search)
+- "Stage A: Using LBFGS optimizer for U-matrix path" message
+- Telemetry step emissions (if script logs them)
+- Final "Phase 5 complete" or similar message
 
-### Artifacts
-- `phase_b_test_protocol.md` (this document)
-- `phase_b_test1_lbfgs_results.json` (convergence metrics: chi² before/after, CC before/after, optimizer config)
-- `stage_a_lbfgs_test.log` (full run log with LBFGS line search iterations)
-- `telemetry/telemetry_step_{0..9}.json` (per-step parameter/gradient/loss telemetry)
-- `block_dof_results_lbfgs.json` (final DoF results for A_scale_only variant)
-```
+**Blocking behavior:** Wait for command to complete (exit code 0 = success, 124 = timeout, other = error). Do NOT use `run_in_background`.
 
-**Your task:** Create this protocol document exactly as specified above.
+### Step 5: Extract LBFGS Convergence Metrics
 
-### Step 2: Extend stage_a_mapping_adam_debug.py with LBFGS Flag
-
-Edit `plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py`:
-
-**Find argparse block (~line 50-80):**
-```python
-ap.add_argument("--use-u-matrix", action="store_true",
-                help="Use quaternion U-matrix parameterization instead of cell+misset")
-ap.add_argument("--adam-steps", type=int, default=10,
-                help="Number of Adam optimization steps")
-```
-
-**Add after `--use-u-matrix`:**
-```python
-ap.add_argument("--use-lbfgs", action="store_true",
-                help="Use LBFGS optimizer instead of Adam for U-matrix path (Test B1)")
-ap.add_argument("--optimizer-steps", type=int, default=10,
-                help="Number of optimizer steps (Adam or LBFGS)")
-```
-
-**Find RefinementConfig construction (~line 150-180):**
-```python
-config = RefinementConfig(
-    use_u_matrix_parameterization=args.use_u_matrix,
-    ...
-)
-```
-
-**Add field:**
-```python
-config = RefinementConfig(
-    use_u_matrix_parameterization=args.use_u_matrix,
-    use_lbfgs_for_u_matrix=args.use_lbfgs,  # Test B1 flag
-    ...
-)
-```
-
-**Update step count references:**
-Replace all `args.adam_steps` with `args.optimizer_steps` (backward compatible since default=10 matches).
-
-### Step 3: Add LBFGS Support to RefinementConfig
-
-Edit `dbex/nanobrag_refinement.py`:
-
-**Find RefinementConfig dataclass (~line 80-120):**
-```python
-@dataclass
-class RefinementConfig:
-    use_u_matrix_parameterization: bool = False
-    ...
-```
-
-**Add field after `use_u_matrix_parameterization`:**
-```python
-@dataclass
-class RefinementConfig:
-    use_u_matrix_parameterization: bool = False
-    use_lbfgs_for_u_matrix: bool = False  # Test B1: LBFGS optimizer for U-matrix path
-    ...
-```
-
-### Step 4: Implement LBFGS Optimizer Branch
-
-Edit `dbex/nanobrag_refinement.py` in `run_nanobrag_refinement` function:
-
-**Find optimizer selection block for U-matrix path (~line 810-835):**
-```python
-if config.use_u_matrix_parameterization:
-    # Quaternion U-matrix path
-    optimizer = torch.optim.Adam([q_params, log_scale], lr=1e-4)
-else:
-    # Cell+misset default path
-    optimizer = torch.optim.Adam(params, lr=1e-4)
-```
-
-**Replace with:**
-```python
-if config.use_u_matrix_parameterization and config.use_lbfgs_for_u_matrix:
-    # Test B1: LBFGS for quaternion U-matrix refinement
-    # LBFGS eliminates momentum (H4), uses line search (H3/H2), proven for scale per REFINE-001
-    optimizer = torch.optim.LBFGS(
-        [q_params, log_scale],
-        lr=1.0,  # LBFGS uses line search; LR=1.0 is standard
-        max_iter=20,  # LBFGS iterations per optimizer.step() call
-        tolerance_grad=1e-7,
-        tolerance_change=1e-9,
-        history_size=10,
-        line_search_fn='strong_wolfe'
-    )
-    logger.info("Stage A: Using LBFGS optimizer for U-matrix path (CONVERGENCE-001 Test B1)")
-elif config.use_u_matrix_parameterization:
-    # Default Adam (known to fail catastrophically; kept for comparison)
-    optimizer = torch.optim.Adam([q_params, log_scale], lr=1e-4)
-    logger.info("Stage A: Using Adam optimizer for U-matrix path (default)")
-else:
-    # Cell+misset default path (unchanged)
-    optimizer = torch.optim.Adam(params, lr=1e-4)
-    logger.info("Stage A: Using Adam optimizer for cell+misset path (default)")
-```
-
-**Important:** LBFGS optimizer API requires closure to be called multiple times per step. Ensure the closure (build_stage_a_lbfgs_closure or equivalent) supports this pattern.
-
-### Step 5: Verify LBFGS Closure Compatibility
-
-Check `dbex/nanobrag_refinement.py` closure construction (~line 850-900):
-
-**Required pattern for LBFGS:**
-```python
-def closure():
-    optimizer.zero_grad()
-    loss = compute_loss(...)
-    loss.backward()
-    return loss
-
-# LBFGS requires closure as argument to step()
-optimizer.step(closure)
-```
-
-**If current code uses Adam pattern (no closure argument):**
-```python
-optimizer.zero_grad()
-loss = compute_loss(...)
-loss.backward()
-optimizer.step()  # Adam doesn't take closure
-```
-
-**Refactor to support both:**
-```python
-if config.use_lbfgs_for_u_matrix:
-    # LBFGS requires closure
-    def closure():
-        optimizer.zero_grad()
-        loss = compute_loss_stage_a(...)
-        loss.backward()
-        return loss
-    optimizer.step(closure)
-else:
-    # Adam pattern
-    optimizer.zero_grad()
-    loss = compute_loss_stage_a(...)
-    loss.backward()
-    optimizer.step()
-```
-
-**Note:** If `build_stage_a_lbfgs_closure` already exists (from REFINE-001), reuse it. If it's Adam-only, adapt per above.
-
-### Step 6: Run LBFGS Test
-
-Execute the test command from Step 1:
+After Step 4 completes, check artifacts:
 
 ```bash
-KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 timeout 1200 python \
-  plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py \
-  --use-u-matrix --use-lbfgs --phases 5 --dof-variants A_scale_only \
-  --optimizer-steps 10 --device cpu \
-  --telemetry-dir plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T165000Z/telemetry/ \
-  --out-dir plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T165000Z/ \
-  2>&1 | tee plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T165000Z/stage_a_lbfgs_test.log
+# 1. Verify telemetry path is clean (no duplication)
+ls -la plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T172000Z/telemetry/ || echo "Telemetry dir missing"
+
+# 2. Count telemetry steps (expect 10 files: step_000 through step_009)
+ls -1 plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T172000Z/telemetry/telemetry_step_*.json | wc -l
+
+# 3. Extract chi² from step 000 (first accepted step)
+jq '.chi_squared' plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T172000Z/telemetry/telemetry_step_000.json
+
+# 4. Extract chi² from step 009 (final step)
+jq '.chi_squared' plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T172000Z/telemetry/telemetry_step_009.json
+
+# 5. Check block_dof_results.json (final convergence metrics)
+jq '.A_scale_only | {median_cc_after: .cc_summary.median_after, chi2_before: .chi_squared.before, chi2_after: .chi_squared.after, chi2_ratio: (.chi_squared.after / .chi_squared.before)}' \
+  plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T172000Z/block_dof_results.json \
+  > plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T172000Z/phase_b1_lbfgs_metrics.json
 ```
 
-**Expected outcomes:**
-- If LBFGS converges (CC ≥ 0.99, chi² stable): Test B1 SUCCESS → Skip B2/B3, proceed to Phase C fix implementation
-- If LBFGS fails like Adam: Test B1 FAILURE → Extract telemetry, document failure mode, proceed to Test B2 (gradient validation + LR tuning)
+### Step 6: Synthesize Test B1 Decision
 
-### Step 7: Extract LBFGS Test Metrics
-
-After Step 6 completes, extract metrics:
-
-```bash
-# Extract final DoF results
-jq '.' plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T165000Z/block_dof_results_lbfgs.json \
-  > plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T165000Z/phase_b_test1_lbfgs_results.json
-
-# Check convergence metrics
-jq -r '.A_scale_only | {median_cc_after: .cc_summary.median_after, chi2_ratio: (.chi_squared.after / .chi_squared.before)}' \
-  plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T165000Z/phase_b_test1_lbfgs_results.json
-```
-
-### Step 8: Synthesize Test B1 Decision
-
-Write `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T165000Z/phase_b_test1_decision.md`:
+Write `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T172000Z/phase_b1_decision.md`:
 
 ```markdown
-# Phase B Test 1 Decision: LBFGS Optimizer
+# Phase B1 LBFGS Test Decision
 
 ## Test Configuration
 - Optimizer: torch.optim.LBFGS(lr=1.0, max_iter=20, line_search_fn='strong_wolfe')
-- Parameters: q_params (quaternion), log_scale
+- Parameters: q_params (quaternion, train_orientation=False for A_scale_only), log_scale
 - Variant: A_scale_only (scale-only refinement, orientation fixed)
-- Steps: 10 optimizer.step() calls (each may invoke closure multiple times due to line search)
+- Steps: 10 optimizer.step() calls
+- Execution: Foreground, timeout=1200s
 
-## Results
+## Zero-Point Validation (Pre-Optimization)
+- Chi² mapping path: [paste from zero_point_check.json .chi2.mapping]
+- Chi² stage_a (U-matrix): [paste from .chi2.stage_a]
+- Relative difference: [paste from .chi2.rel_diff]
+- Verdict: [PASSED if abs(rel_diff) < 0.001, else FAILED]
 
-**Convergence Metrics:**
-- Chi² Before: [paste from phase_b_test1_lbfgs_results.json]
-- Chi² After: [paste]
-- Chi² Ratio: [paste]
-- Median CC Before: [paste]
-- Median CC After: [paste]
+## Telemetry Step 000 (First LBFGS Step)
+- Chi²: [paste from telemetry_step_000.json .chi_squared]
+- log_scale gradient: [paste from .grad_log_scale]
+- Verdict: [OK if chi² ~1M, CATASTROPHIC if chi² ~1.4B]
 
-**Decision Tree:**
+## Convergence Metrics (A_scale_only after 10 steps)
+- Chi² before: [paste from phase_b1_lbfgs_metrics.json .chi2_before]
+- Chi² after: [paste from .chi2_after]
+- Chi² ratio: [paste from .chi2_ratio]
+- Median CC after: [paste from .median_cc_after]
 
-### Path A: LBFGS Convergence SUCCESS (CC ≥ 0.99, chi² ratio ≤ 1.005)
-- **Verdict:** H1 CONFIRMED — Adam optimizer is incompatible with quaternion U-matrix gradients; LBFGS resolves convergence pathology
-- **Root Cause:** Adam momentum accumulation violates quaternion unit-norm constraint (H4) or amplifies gradient errors (H3); LBFGS line search stabilizes optimization
-- **Recommended Fix:** Add optimizer switch for U-matrix path (config.use_lbfgs_for_u_matrix default to True when use_u_matrix_parameterization=True)
-- **Next Actions:**
-  1. Mark Phase B complete (B0-B1 done, B2-B3 skipped)
-  2. Proceed to Phase C fix implementation (C1: permanent LBFGS switch + documentation)
-  3. Run Phase C validation (C2 A_scale_only, C3 D_full, C4 regression guard, C5 findings update CONVERGENCE-002)
+## Decision Path
 
-### Path B: LBFGS Convergence FAILURE (CC < 0.95 OR chi² ratio > 1.5)
-- **Verdict:** H1 REJECTED — Optimizer choice is NOT the root cause; convergence pathology persists with LBFGS
-- **Hypothesis Update:**
-  - If LBFGS chi² exploded like Adam (ratio > 100): H3 (gradient pathology) or H2 (variance instability) likely
-  - If LBFGS stalled (chi² flat, CC unchanged): H4 (quaternion constraint) or optimization landscape issue
-- **Recommended Next Test:** Test B2 (gradient validation + Adam LR=1e-6 to diagnose H3)
-- **Next Actions:**
-  1. Document LBFGS failure mode in this decision.md
-  2. Extract gradient telemetry (check for NaN/inf, exploding magnitudes)
-  3. Implement Test B2 per phase_b_test_protocol.md
-  4. If B2 also fails, proceed to Test B3 (variance analysis + loss clamping)
+### Path A: LBFGS Convergence SUCCESS
+**Criteria:** Chi² step 000 ~1M (not 1.4B) AND median_cc_after ≥ 0.99 AND chi2_ratio ≤ 1.005
 
-### Path C: LBFGS Inconclusive (partial improvement, CC=0.95-0.99 OR chi² ratio=1.0-1.5)
-- **Verdict:** LBFGS partially resolves issue but doesn't fully achieve exit criteria
-- **Recommended Actions:**
-  1. Try LBFGS with tighter tolerances (tolerance_grad=1e-9, tolerance_change=1e-11)
-  2. Increase LBFGS max_iter from 20 to 50 (more line search iterations per step)
-  3. Check telemetry for early termination signals (tolerance_grad met prematurely)
-  4. If second LBFGS run with tighter tolerances succeeds → Select Path A
-  5. If second run still inconclusive → Proceed to Test B2 (gradient validation)
+**Verdict:** H1 CONFIRMED — Adam optimizer is incompatible with quaternion U-matrix; LBFGS resolves convergence pathology.
+
+**Recommended Actions:**
+1. Mark Phase B checklist B0-B1 complete (skip B2-B3)
+2. Proceed to Phase C fix implementation (C1: make LBFGS default for U-matrix path)
+3. Validate Phase C: run A_scale_only + D_full convergence tests, regression guard, findings update
+
+### Path B: LBFGS Convergence FAILURE (Chi² Step 000 Catastrophic)
+**Criteria:** Chi² step 000 ~1.4B (matches pre-bugfix signature)
+
+**Verdict:** B_ideal mismatch persists in LBFGS closure despite bugfix 826f4c9. H1 INCONCLUSIVE.
+
+**Recommended Actions:**
+1. Implement deep diagnostic (Priority 1 from phase_b1_diagnostic_analysis.md):
+   - Add B_ideal checksum logging to LBFGS closure (hash tensor, print first/last elements)
+   - Add A* reconstruction logging (compare U @ B_ideal vs expected MOSFLM A*)
+   - Add per-closure-call chi² logging to identify EXACT divergence point
+2. Rerun diagnostic variant, analyze where chi² diverges
+3. Fix root cause (likely tensor aliasing, device mismatch, or incorrect pass-by-reference)
+4. Rerun Test B1 after fix
+
+### Path C: LBFGS Convergence PARTIAL
+**Criteria:** Chi² step 000 OK (~1M) BUT median_cc_after < 0.99 OR chi2_ratio > 1.005
+
+**Verdict:** LBFGS improves upon Adam but doesn't fully resolve convergence pathology.
+
+**Recommended Actions:**
+1. Analyze telemetry trajectories (chi² and gradients across steps 0-9)
+2. Check for early termination (tolerance_grad met prematurely)
+3. Try LBFGS with tighter tolerances (tolerance_grad=1e-9, max_iter=50)
+4. If second run still partial: proceed to Test B2 (Adam LR=1e-6 + gradient validation)
+
+## Selected Path
+[Path A / Path B / Path C]
+
+## Confidence Level
+[High / Medium / Low]
+
+## Rationale
+[2-3 sentences explaining why this path was selected based on metrics]
 ```
 
-**Your task:** Fill in the metrics placeholders with actual values from Step 7, select the appropriate decision path (A/B/C), and document the verdict with confidence level (high/medium/low).
+**Your task:** Fill in all bracketed placeholders with actual values from artifacts, select Path A/B/C, document confidence and rationale.
 
-### Step 9: Regression Guard
+### Step 7: Conditional Deep Diagnostic (If Path B)
 
-Run regression guard to ensure cell+misset default path unaffected:
+**Only execute if Step 6 selected Path B (chi² step 000 catastrophic).**
 
+Edit `plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py` to add B_ideal checksum logging:
+
+Find the LBFGS closure construction (~line 800-900, inside `_stage_a_adam_core`), add logging:
+
+```python
+def closure():
+    optimizer.zero_grad()
+
+    # CONVERGENCE-001 Deep Diagnostic: Log B_ideal consistency
+    if step_index == 0:  # Only log first closure call
+        B_ideal_hash = hash(components.B_ideal_reciprocal.data_ptr())
+        B_ideal_first = components.B_ideal_reciprocal[0, 0].item()
+        B_ideal_last = components.B_ideal_reciprocal[2, 2].item()
+        logger.info(f"[DIAGNOSTIC] B_ideal hash={B_ideal_hash}, first={B_ideal_first:.6e}, last={B_ideal_last:.6e}")
+
+        # Reconstruct A* and compare to MOSFLM reference
+        q_norm = q_params / torch.norm(q_params)
+        U_matrix = quaternion_to_matrix(q_norm)
+        A_star_reconstructed = U_matrix @ components.B_ideal_reciprocal
+        # Assuming MOSFLM A* is available as a reference tensor somewhere...
+        # logger.info(f"[DIAGNOSTIC] A* reconstruction vs MOSFLM: max_diff={...}")
+
+    loss = compute_loss_stage_a(...)
+    loss.backward()
+
+    # Log chi² per closure call
+    if step_index == 0:
+        logger.info(f"[DIAGNOSTIC] Closure call, chi²={loss.item():.3e}")
+
+    return loss
+```
+
+**Note:** This requires access to MOSFLM A* reference. If not readily available in closure scope, skip A* comparison and just log B_ideal hash/values.
+
+Rerun test with diagnostic logging:
 ```bash
-AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-DBEX_SMOKE_SIGMA_SOURCE=cli_override \
-DBEX_SMOKE_DETECTOR_SIZE=small \
-KMP_DUPLICATE_LIB_OK=TRUE \
-NANOBRAGG_DISABLE_COMPILE=1 \
-pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion \
-  2>&1 | tee plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T165000Z/pytest_stage_a_regression.log
+KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 timeout 1200 python \
+  plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py \
+  --use-u-matrix --use-lbfgs --phases 5 --dof-variants A_scale_only \
+  --optimizer-steps 2 --device cpu \
+  --out-dir plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T172000Z/diagnostic/ \
+  2>&1 | tee plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T172000Z/diagnostic/stage_a_diagnostic.log
 ```
 
-**Expected:** PASSED (LBFGS flag is off by default; cell+misset path unchanged)
+**Reduced to 2 steps** to save time; we only need first closure calls to diagnose B_ideal.
 
-### Step 10: Update Implementation Plan Checklist
+Grep diagnostic log for B_ideal hash and chi² values:
+```bash
+grep "\[DIAGNOSTIC\]" plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T172000Z/diagnostic/stage_a_diagnostic.log \
+  > plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T172000Z/diagnostic/b_ideal_diagnostic.txt
+```
+
+Document findings in `phase_b1_decision.md` under "Deep Diagnostic Results" section.
+
+### Step 8: Update Implementation Plan Checklist
 
 Edit `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/implementation.md`:
 
-**Mark Phase B items:**
+**Mark Phase B items based on Step 6 decision:**
 - [x] B0: **Test Protocol Design** — Prioritized H1 (LBFGS) → H1+H3 (LR+gradients) → H2 (variance). DONE (2025-11-22T165000Z).
-- [x] B1: **Execute Test 1 (LBFGS)** — Implemented LBFGS optimizer branch, ran A_scale_only test, extracted convergence metrics. DONE (2025-11-22T165000Z).
-- [ ] B2: **Execute Test 2** — PENDING (conditional on Test B1 decision path)
-- [ ] B3: **Execute Test 3** — PENDING
-- [ ] B4: **Test Result Synthesis** — PENDING
+- [x] B1: **Execute Test 1 (LBFGS)** — [If Path A: SUCCESS, chi²_ratio=[value], CC=[value]. If Path B: BLOCKED, B_ideal mismatch persists, deep diagnostic required. If Path C: PARTIAL, chi²_ratio=[value], CC=[value]]. DONE (2025-11-22T172000Z).
+- [ ] B2: **Execute Test 2 (Adam LR tuning)** — [SKIPPED if Path A, PENDING if Path B or Path C]
+- [ ] B3: **Execute Test 3 (Variance analysis)** — [SKIPPED if Path A, PENDING otherwise]
+- [ ] B4: **Test Result Synthesis** — [DONE if Path A, PENDING otherwise]
 
-**Add Test B1 note to B1:**
+**Add checklist note to B1:**
 ```markdown
-**Test B1 Results (2025-11-22T165000Z):** LBFGS optimizer with quaternion U-matrix parameterization [SUCCESS/FAILURE]. Chi² ratio=[value], median CC after=[value]. [If SUCCESS: H1 confirmed, proceed to Phase C fix. If FAILURE: H1 rejected, proceed to Test B2 gradient validation.]
+**Test B1 Rerun (2025-11-22T172000Z):** LBFGS test executed in foreground with corrected telemetry paths. [Decision: Path A/B/C]. Chi² step 000=[value], chi²_ratio=[value], median CC after=[value]. [If Path A: Proceed to Phase C fix. If Path B: Escalate to deep diagnostic. If Path C: Rerun with tighter tolerances or proceed to Test B2.]
+```
+
+### Step 9: Summary Emission
+
+Write `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T172000Z/summary.md`:
+
+```markdown
+# Phase B1 LBFGS Test Rerun Summary
+
+## What Was Done
+- Diagnosed Phase B1 premature termination (2025-11-22T165000Z): zero-point check PASSED (chi²=989k) but telemetry step 000 showed catastrophic chi²=1.425B
+- Fixed telemetry path duplication [describe fix: removed --telemetry-dir / fixed double-prepending]
+- Reran LBFGS test B1 in foreground (blocking, timeout=1200s)
+- Extracted convergence metrics: chi² step 000=[value], chi²_ratio=[value], median CC=[value]
+- [If Path B: Implemented deep diagnostic with B_ideal checksum logging and reran 2-step diagnostic variant]
+
+## Results
+- **Zero-Point Validation:** chi²_mapping=[value], chi²_stage_a=[value], rel_diff=[value]% → [PASSED/FAILED]
+- **LBFGS Convergence:** chi² before=[value], chi² after=[value], ratio=[value], median CC after=[value]
+- **Decision:** [Path A SUCCESS / Path B BLOCKED / Path C PARTIAL]
+
+## Next Steps
+- [If Path A: Proceed to Phase C fix implementation (C1-C6: make LBFGS default, validate A_scale_only + D_full, findings update)]
+- [If Path B: Fix B_ideal mismatch root cause identified in deep diagnostic, rerun Test B1]
+- [If Path C: Rerun LBFGS with tighter tolerances OR proceed to Test B2 (Adam LR=1e-6)]
+
+## Artifacts
+- `phase_b1_review.md` — Prior attempt review and hypothesis selection
+- `phase_b1_decision.md` — Test B1 decision with full metrics and path selection
+- `phase_b1_lbfgs_metrics.json` — Extracted convergence metrics (chi², CC)
+- `stage_a_lbfgs_rerun.log` — Full test log (foreground execution)
+- `telemetry/telemetry_step_{000..009}.json` — Per-step parameter/gradient/loss telemetry
+- `block_dof_results.json` — Final DoF results for A_scale_only variant (if test completed)
+- [If Path B: `diagnostic/b_ideal_diagnostic.txt` — B_ideal checksum and chi² per closure call]
 ```
 
 ## How-To Map
 
-**Protocol Design (Step 1):**
+**Review Prior Artifacts (Step 1):**
 ```bash
-# Write phase_b_test_protocol.md per template above
-# No commands; documentation task
+# No commands; read JSON/markdown files from 2025-11-22T165000Z/ and synthesize in phase_b1_review.md
 ```
 
-**Script Extension (Step 2):**
+**Verify Script Invocation (Step 2):**
+```bash
+# Inspect stage_a_mapping_adam_debug.py for telemetry path construction
+# Use Read tool or grep for "telemetry_dir", "out_dir", "RefinementConfig", "os.path.join"
+```
+
+**Fix Telemetry Paths (Step 3):**
 ```bash
 # Edit plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py
-# Add --use-lbfgs and --optimizer-steps flags to argparse
-# Pass use_lbfgs_for_u_matrix=args.use_lbfgs to RefinementConfig
+# Implement Option A or B per instructions above
 ```
 
-**Config Extension (Step 3):**
-```bash
-# Edit dbex/nanobrag_refinement.py RefinementConfig dataclass
-# Add: use_lbfgs_for_u_matrix: bool = False
-```
-
-**LBFGS Implementation (Step 4-5):**
-```bash
-# Edit dbex/nanobrag_refinement.py run_nanobrag_refinement optimizer selection
-# Add LBFGS branch with closure pattern per template above
-# Ensure closure supports LBFGS API (returns loss, called multiple times per step)
-```
-
-**Test Execution (Step 6):**
+**Rerun LBFGS Test (Step 4):**
 ```bash
 KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 timeout 1200 python \
   plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py \
   --use-u-matrix --use-lbfgs --phases 5 --dof-variants A_scale_only \
   --optimizer-steps 10 --device cpu \
-  --telemetry-dir plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T165000Z/telemetry/ \
-  --out-dir plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T165000Z/ \
-  2>&1 | tee plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T165000Z/stage_a_lbfgs_test.log
+  --out-dir plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T172000Z/ \
+  2>&1 | tee plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T172000Z/stage_a_lbfgs_rerun.log
 ```
 
-**Metrics Extraction (Step 7):**
+**Extract Metrics (Step 5):**
 ```bash
-jq '.' plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T165000Z/block_dof_results_lbfgs.json \
-  > plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T165000Z/phase_b_test1_lbfgs_results.json
-
-jq -r '.A_scale_only | {median_cc_after: .cc_summary.median_after, chi2_ratio: (.chi_squared.after / .chi_squared.before)}' \
-  plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T165000Z/phase_b_test1_lbfgs_results.json
+ls -la plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T172000Z/telemetry/
+ls -1 plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T172000Z/telemetry/telemetry_step_*.json | wc -l
+jq '.chi_squared' plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T172000Z/telemetry/telemetry_step_000.json
+jq '.chi_squared' plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T172000Z/telemetry/telemetry_step_009.json
+jq '.A_scale_only | {median_cc_after: .cc_summary.median_after, chi2_before: .chi_squared.before, chi2_after: .chi_squared.after, chi2_ratio: (.chi_squared.after / .chi_squared.before)}' \
+  plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T172000Z/block_dof_results.json \
+  > plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T172000Z/phase_b1_lbfgs_metrics.json
 ```
 
-**Regression Guard (Step 9):**
+**Deep Diagnostic (Step 7, conditional on Path B):**
 ```bash
-AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-DBEX_SMOKE_SIGMA_SOURCE=cli_override \
-DBEX_SMOKE_DETECTOR_SIZE=small \
-KMP_DUPLICATE_LIB_OK=TRUE \
-NANOBRAGG_DISABLE_COMPILE=1 \
-pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion \
-  2>&1 | tee plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T165000Z/pytest_stage_a_regression.log
+# Edit stage_a_mapping_adam_debug.py to add B_ideal checksum logging per template above
+KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 timeout 1200 python \
+  plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py \
+  --use-u-matrix --use-lbfgs --phases 5 --dof-variants A_scale_only \
+  --optimizer-steps 2 --device cpu \
+  --out-dir plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T172000Z/diagnostic/ \
+  2>&1 | tee plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T172000Z/diagnostic/stage_a_diagnostic.log
+grep "\[DIAGNOSTIC\]" plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T172000Z/diagnostic/stage_a_diagnostic.log \
+  > plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T172000Z/diagnostic/b_ideal_diagnostic.txt
 ```
 
 ## Pitfalls To Avoid
 
-1. **LBFGS closure API:** LBFGS requires `optimizer.step(closure)` with closure returning loss. Adam uses `optimizer.step()` with no arguments. Do NOT mix these patterns; use conditional branching per Step 5.
+1. **Background execution:** Do NOT use `run_in_background` or bash `&` operator. Test must run in foreground (blocking) so you can verify completion and exit code.
 
-2. **LBFGS max_iter vs optimizer steps:** LBFGS `max_iter=20` is the **per-step** line search iteration limit. Total optimization steps = `args.optimizer_steps` (e.g., 10). Do NOT confuse these two numbers.
+2. **Telemetry path duplication:** Do NOT pass both `--telemetry-dir` and `--out-dir` if script auto-constructs paths. Remove `--telemetry-dir` flag entirely or fix double-prepending logic.
 
-3. **Closure side effects:** LBFGS calls closure multiple times per step (line search). Ensure telemetry emission (if inside closure) doesn't create duplicate files. Consider emitting telemetry OUTSIDE closure, after each optimizer.step() call.
+3. **Timeout interpretation:** Exit code 124 means timeout (1200s exceeded). If this occurs, LBFGS is too slow for 10 steps on CPU. Document in decision.md and consider: (a) reduce to 5 steps, (b) increase timeout to 2400s, (c) switch to Test B2 (Adam LR tuning).
 
-4. **LBFGS memory:** LBFGS history_size=10 stores last 10 gradient/parameter vectors. For quaternion (4 params) + scale (1 param) = 5 DOF, memory is negligible. Do NOT increase history_size unnecessarily.
+4. **Incomplete artifacts:** After Step 4, verify ALL expected files exist (telemetry steps 0-9, block_dof_results.json, zero_point_check.json). If missing, test did NOT complete successfully; check log for errors/tracebacks.
 
-5. **Config flag default:** `use_lbfgs_for_u_matrix` defaults to False so existing tests (cell+misset path, Adam U-matrix experiments) are unaffected. Only enable via explicit `--use-lbfgs` flag.
+5. **Chi² catastrophic vs bad:** Chi²=1.425B (1.4 billion) is CATASTROPHIC (pre-bugfix signature, Path B). Chi²=1.13M→3M (millions) is BAD but not catastrophic (Path C, partial improvement). Chi²=990k→1.005M is GOOD (Path A, stable/improving).
 
-6. **Telemetry file naming:** Use `block_dof_results_lbfgs.json` (not `block_dof_results.json`) to avoid overwriting Adam test artifacts from Phase A.
+6. **Path C ambiguity:** If chi²_ratio=1.001 (barely within tolerance) but median_cc=0.985 (below 0.99), prioritize CC metric — this is Path C (partial), not Path A (success).
 
-7. **Timeout:** LBFGS line search may be slower than Adam fixed-step. Keep timeout=1200s; if insufficient, extend to 2400s in rerun.
+7. **Deep diagnostic scope:** Step 7 is ONLY for Path B (catastrophic chi² at step 0). Do NOT execute if Path A or Path C; it wastes time and adds complexity.
 
-8. **Regression guard:** Run AFTER implementing LBFGS branch to ensure default path unaffected. Do NOT skip this step.
+8. **Protected Assets:** Do not modify `dbex/nanobrag_refinement.py` (LBFGS infrastructure already implemented in 8440df8). Changes scoped to `stage_a_mapping_adam_debug.py` (telemetry path fix, optional diagnostic logging).
 
-9. **Gradient validation:** If Test B1 fails, DO NOT proceed to Phase C. Extract gradient telemetry and diagnose failure mode before declaring convergence unachievable.
+9. **Regression guard:** Already passed in commit 8440df8 (pytest_stage_a_regression.log, 13.16s). Do NOT rerun unless you modify production code (dbex/*.py).
 
-10. **Protected Assets:** Do not modify `dbex/data_load.py`, `dbex/run_diffbragg.py`, or `dbex/refine_one.py`. Changes scoped to `dbex/nanobrag_refinement.py` (optimizer branch) and `stage_a_mapping_adam_debug.py` (CLI flag) only.
+10. **Decision document completeness:** Step 6 phase_b1_decision.md MUST include ALL metrics (chi² step 0, chi²_ratio, median CC, path selection, confidence, rationale). Do NOT leave placeholders unfilled or TBD.
 
 ## If Blocked
 
-**If LBFGS convergence fails (Step 8 Path B):**
-- Extract telemetry from `telemetry/telemetry_step_*.json`
-- Check for NaN/inf in gradients: `jq -r '.gradients' telemetry_step_000.json`
-- Check for exploding gradient norms: `jq -r '.gradients.q_params_norm' telemetry_step_*.json | sort -n`
-- Document failure signature in `phase_b_test1_decision.md` (e.g., "LBFGS chi² exploded to 1.4B like Adam" vs "LBFGS stalled at 1.13M without improvement")
-- Do NOT proceed to Phase C; transition to Test B2 (gradient validation + Adam LR=1e-6)
+**If test times out (exit code 124, Step 4):**
+- Check log: Is progress being made (HKL grid builds, telemetry emissions)?
+- If yes: Extend timeout to 2400s and rerun
+- If no (stuck/stalled): Kill test, mark Path B (escalate to deep diagnostic to find why LBFGS stalls)
 
-**If LBFGS test times out (Step 6):**
-- Check `stage_a_lbfgs_test.log` for progress indicators (e.g., "LBFGS iteration 5/10")
-- If timeout during line search (stuck in closure loop) → LBFGS may be unsuitable (landscape too rough); document and proceed to Test B2
-- If timeout during HKL grid build → Extend timeout to 2400s and rerun
+**If telemetry path still duplicated after Step 3 fix:**
+- Inspect script more carefully: Search for ALL `os.path.join` calls involving telemetry_dir
+- Add debug print before path construction: `print(f"DEBUG: out_dir={args.out_dir}, telemetry_dir={args.telemetry_dir if hasattr(args, 'telemetry_dir') else 'NONE'}")`
+- Rerun with debug print, capture output, identify where duplication originates
 
-**If regression guard fails (Step 9):**
-- Check if failure is in cell+misset default path (config.use_u_matrix_parameterization=False)
-- If default path broken → REVERT all LBFGS changes immediately (config flag should isolate U-matrix code but verify)
-- If U-matrix path broken → Investigate but do NOT revert (U-matrix is experimental)
+**If block_dof_results.json missing after Step 4 completion (exit code 0):**
+- Check log for "Phase 5 complete" or equivalent message
+- If message present but JSON missing: Script output path logic is buggy, check `--out-dir` handling
+- If message absent: Test terminated early (silent failure), check for exceptions/warnings in log
 
-**If closure pattern incompatible (Step 5):**
-- Check existing `build_stage_a_lbfgs_closure` function signature
-- If it already supports LBFGS pattern → Reuse it (rename from "lbfgs" to generic "closure" if needed)
-- If it's Adam-only → Refactor per Step 5 template to support both optimizers
+**If Path B deep diagnostic (Step 7) shows B_ideal hash CHANGES between closure calls:**
+- **Root cause:** components.B_ideal_reciprocal tensor is being mutated or reallocated during optimization
+- **Fix:** In `_stage_a_adam_core` or wherever components are built, ensure B_ideal_reciprocal is cloned/copied and frozen: `components.B_ideal_reciprocal = B_ideal_reciprocal.clone().detach()`
+
+**If Path B deep diagnostic shows B_ideal hash STABLE but chi² still catastrophic:**
+- **Root cause:** The B_ideal tensor is correct but A* reconstruction `U @ B_ideal` produces wrong result due to device mismatch, dtype mismatch, or incorrect matrix multiplication
+- **Fix:** Add device/dtype logging: `logger.info(f"U device={U_matrix.device}, B device={components.B_ideal_reciprocal.device}, U dtype={U_matrix.dtype}, B dtype={components.B_ideal_reciprocal.dtype}")`. Ensure both are on same device and dtype before matmul.
 
 ## Findings Applied (Mandatory)
 
-- **REFINE-001** (LBFGS scale warm-start, NaN/Inf guards): Directly applicable — LBFGS proven for scale-only refinement; reusing same optimizer for quaternion U-matrix test. Ensure NaN/inf guards active in closure.
-- **PHYSICS-LOSS-002** (variance-weighted chi-squared sigma-floor guard): Relevant — variance denominator instability (H2) may manifest with LBFGS if line search explores extreme parameter regions. Monitor telemetry for V_denom pathologies.
-- **GRADIENT-001** (autograd graph preservation): Applicable — closure must not use `.item()` or `.numpy()` on differentiable tensors; ensure loss.backward() graph is preserved across LBFGS line search iterations.
+- **REFINE-001** (LBFGS scale warm-start): Directly applicable — LBFGS proven for scale-only; reusing for quaternion U-matrix test. NaN/Inf guards assumed active.
+- **PHYSICS-LOSS-002** (variance-weighted chi-squared sigma-floor guard): Relevant if chi² explodes due to variance denominator issues. Monitor telemetry for clamp_fraction spikes.
+- **GRADIENT-001** (autograd graph preservation): Critical for LBFGS closure — closure must NOT use `.item()` or `.numpy()` on differentiable tensors before `.backward()`.
 - **GEOMETRY-003** (baseline misset derivation): Not applicable to U-matrix path (no misset in quaternion parameterization).
-- **GEOMETRY-004** (U-matrix parameterization conventions): Directly applicable — Test B1 validates whether LBFGS resolves quaternion convergence pathology identified in PARITY-002/003.
+- **GEOMETRY-004** (U-matrix parameterization conventions): Directly applicable — Test B1 validates whether LBFGS resolves quaternion convergence pathology.
+- **CONVERGENCE-001 Phase A Bugfix (826f4c9)**: `derive_u_matrix_from_mosflm_a_star` now returns `(U_matrix, B_ideal_reciprocal)` tuple; both call sites updated. Zero-point validation confirms bugfix works. If chi² step 000 still catastrophic, bugfix is incomplete (different code path).
 
 ## Pointers
 
-- **Phase A Bugfix:** plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T152500Z/phase_a_bugfix_decision.md (initialization fixed, convergence fails)
-- **Phase A Telemetry:** plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T152500Z/block_dof_results_u_matrix.json (Adam catastrophic failure baseline)
-- **Implementation Plan:** plans/active/TORCH-GEOMETRY-CONVERGENCE-001/implementation.md (Phase B checklist B0-B4)
-- **REFINE-001:** docs/findings.md line 28 (LBFGS for scale-only, proven pattern)
-- **Spec:** docs/spec-db-workflow.md §Stage A (optimizer convergence requirements), docs/spec-db-runtime.md §Gradient Stability
-- **Optimizer Code:** dbex/nanobrag_refinement.py:810-835 (current Adam selection block to refactor)
-- **Script:** plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py:50-180 (argparse + RefinementConfig construction to extend)
+- **Prior Attempt:** plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T165000Z/ (premature termination, telemetry path duplication)
+- **Diagnostic Analysis:** plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T165000Z/phase_b1_diagnostic_analysis.md (4 hypotheses, decision tree)
+- **Phase B Protocol:** plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T165000Z/phase_b_test_protocol.md (LBFGS rationale, success criteria)
+- **Implementation Plan:** plans/active/TORCH-GEOMETRY-CONVERGENCE-001/implementation.md (Phase B checklist B0-B4, Phase C checklist C1-C6)
+- **Spec:** docs/spec-db-workflow.md §Stage A (optimizer convergence requirements)
+- **Optimizer Code:** dbex/nanobrag_refinement.py:810-835 (LBFGS branch already implemented in 8440df8)
+- **Script:** plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py (telemetry path construction to fix, LBFGS closure to instrument)
 
 ## Next Up (Optional)
 
-If you finish Step 10 early AND Step 8 selected Path A (LBFGS convergence SUCCESS):
-- Prepare for Phase C transition by reading Phase C checklist (C1-C6 in implementation.md)
-- Note that Phase C Do Now will include:
-  - C1: Make LBFGS switch permanent (default to True when use_u_matrix_parameterization=True, document rationale)
-  - C2: Phase 5 A_scale_only full validation (10 steps, verify CC ≥ 0.99, chi² stable)
+If you finish Step 8 early AND Step 6 selected Path A (LBFGS success):
+- Read Phase C checklist (C1-C6 in implementation.md)
+- Note Phase C deliverables:
+  - C1: Make LBFGS switch permanent (default to True when use_u_matrix=True, document rationale)
+  - C2: Phase 5 A_scale_only validation (full 10 steps, verify CC ≥ 0.99, chi² stable)
   - C3: Phase 5 D_full validation (multi-DoF, verify monotonic chi² improvement)
-  - C4: Regression guard
-  - C5: Findings update CONVERGENCE-002 (root cause: Adam momentum incompatible with quaternion manifold; fix: LBFGS eliminates momentum)
-- Do NOT implement Phase C this loop; just prep context for next Galph handoff
+  - C4: Regression guard (already passed, just verify)
+  - C5: Findings update CONVERGENCE-002 (root cause, fix, usage conventions)
+  - C6: Fix-plan close (mark CONVERGENCE-001 done, unblock PARITY-003)
+- Do NOT implement Phase C this loop; just prep context for next handoff
 
-If Step 8 selected Path B (LBFGS convergence FAILURE):
-- Read Test B2 protocol in `phase_b_test_protocol.md`
-- Prepare for gradient validation (finite-difference check, NaN/inf diagnosis)
-- Note that Test B2 will require D_full or C_scale_plus_orientation variant (A_scale_only has no orientation gradients to validate)
-- Do NOT implement Test B2 this loop; document LBFGS failure thoroughly first
+If Step 6 selected Path B (LBFGS blocked):
+- Focus Step 7 deep diagnostic on identifying B_ideal mismatch root cause
+- Document findings thoroughly in phase_b1_decision.md
+- Recommend specific fix (tensor cloning, device/dtype alignment, or alternate B_ideal derivation)
+
+If Step 6 selected Path C (LBFGS partial):
+- Analyze telemetry trajectories (plot chi² and gradients vs step if time permits)
+- Identify whether LBFGS converged prematurely (tolerance_grad met) or hit plateau (no further improvement possible)
+- Recommend either tighter tolerances rerun OR switch to Test B2 (Adam LR tuning)
 
 ## Doc Sync Plan
 
-Not applicable (no tests added/renamed this loop; Test B1 is implementation + validation only).
+Not applicable (no tests added/renamed this loop). Test B1 is validation only; regression guard already passed in commit 8440df8.
 
-If Test B1 succeeds and reaches Phase C5 findings update, that loop will include:
-- Create CONVERGENCE-002 finding in docs/findings.md documenting:
-  - Root cause: Adam momentum accumulation violates quaternion unit-norm constraint (H4) or amplifies gradient errors (H3)
-  - Fix: LBFGS optimizer with line search for U-matrix path (eliminates momentum, stabilizes optimization)
-  - Validation: A_scale_only CC ≥ 0.99, chi² stable/improving; D_full monotonic convergence
-  - Usage: Set `RefinementConfig(use_u_matrix_parameterization=True, use_lbfgs_for_u_matrix=True)` for quaternion refinement
-- Cross-reference GEOMETRY-004 (U-matrix parameterization) and REFINE-001 (LBFGS proven for scale-only)
+If Phase C is reached (after successful Test B1), C5 findings update will include:
+- Create/extend CONVERGENCE-002 in docs/findings.md
+- Document root cause (Adam momentum vs LBFGS line search)
+- Document fix (LBFGS optimizer for U-matrix path)
+- Document usage conventions (`use_lbfgs_for_u_matrix=True` recommended when `use_u_matrix_parameterization=True`)

@@ -1,0 +1,21 @@
+# Phase C1 Execution Commands
+
+## C1: Parity Probe Extension
+
+```bash
+python plans/active/TORCH-REFINE-002E/bin/probe_crystal_matrix_parity.py \
+  --use-u-matrix \
+  --device cpu \
+  --out-dir plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T113409Z/ \
+  > plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T113409Z/probe_u_matrix_v4.log 2>&1
+```
+
+## Results
+
+- `crystal_matrix_parity.json`: U-matrix variant shows perfect parity (3.5e-18) with raw U, but det(U)=1.000557 (not SO(3))
+- Quaternion roundtrip would project onto SO(3) and break parity
+- **Status**: C1 BLOCKED — quaternion parameterization incompatible with mapping geometry
+
+## Not Executed (blocked by C1 failure)
+
+C2, C3, C4 deferred pending TORCH-GEOMETRY-PARITY-003 escalation.

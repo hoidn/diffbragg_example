@@ -1,0 +1,13 @@
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+[probe_crystal_matrix_parity] Legacy summary (PathB_unitcell):
+  max_abs_diff=4.022e-05, fro_norm=5.526e-05, det(U_error)=1.000557, u_error_is_rotation=False
+
+[probe_crystal_matrix_parity] Phase A2/C1 Comparison:
+  PathB_unitcell:       log_u_symmetric_norm=1.369e-03, max_abs_diff=4.022e-05
+  PathB_recovered:      log_u_symmetric_norm=1.369e-03, max_abs_diff=4.022e-05
+  PathB_mapping_aligned: log_u_symmetric_norm=1.369e-03, max_abs_diff=4.022e-05
+  PathB_u_matrix:       log_u_symmetric_norm=3.543e-16, max_abs_diff=3.469e-18
+    U-matrix diagnostics: quaternion_delta_norm=1.469e-16, det(U)=1.000557
+
+[probe_crystal_matrix_parity] wrote report to: plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T113409Z/crystal_matrix_parity.json

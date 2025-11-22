@@ -326,6 +326,7 @@ class StageAContext:
         roi_entries: Optional list of StageAROIEntry objects (length roi_count when ROI cache enabled)
         beam_config: Single BeamConfig shared across all panels/ROIs
         trusted_masks_t: torch.Tensor stacked trusted masks [panel, slow, fast] (dtype=bool)
+        baseline_distance_mm: List of baseline detector distances per panel (length n_panels)
         hkl_grid: torch.Tensor structure factor grid on target device
         hkl_metadata: dict with grid dimensions and halo status
         device: torch device for all tensors
@@ -340,6 +341,7 @@ class StageAContext:
     roi_entries: Optional[List[StageAROIEntry]]
     beam_config: object
     trusted_masks_t: Optional[torch.Tensor]
+    baseline_distance_mm: List[float]
     hkl_grid: torch.Tensor
     hkl_metadata: Dict
     device: torch.device
@@ -502,6 +504,7 @@ def _build_stage_a_context(
     simulators = []
     trusted_masks_t_list: List[torch.Tensor] = []
     roi_entries: List[StageAROIEntry] = []
+    baseline_distance_mm: List[float] = []
 
     beam_config = create_beam_config(beam)
     hkl_grid_device = hkl_grid.to(device=device, dtype=dtype)
@@ -513,6 +516,9 @@ def _build_stage_a_context(
 
     for pid in range(n_panels):
         panel = detector[pid]
+
+        # Capture baseline distance for Stage C retargeting (PERF-WARM-SIM-001)
+        baseline_distance_mm.append(panel.get_directed_distance())
 
         # Create detector config
         detector_config = create_detector_config(
@@ -598,6 +604,7 @@ def _build_stage_a_context(
         roi_entries=roi_entries if roi_entries else None,
         beam_config=beam_config,
         trusted_masks_t=trusted_masks_t,
+        baseline_distance_mm=baseline_distance_mm,
         hkl_grid=hkl_grid_device,
         hkl_metadata=hkl_metadata,
         device=device,

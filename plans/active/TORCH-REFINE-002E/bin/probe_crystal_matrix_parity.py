@@ -319,6 +319,7 @@ def run_probe(device: str = "cpu") -> Dict[str, object]:
         compute_baseline_misset_deg,
         derive_robust_misset,
         recover_cell_from_a_star,
+        derive_b_ideal_from_mosflm_a_star,
     )
     from nanobrag_torch.models.crystal import Crystal as TorchCrystal
     import torch
@@ -430,6 +431,52 @@ def run_probe(device: str = "cpu") -> Dict[str, object]:
         baseline_misset_recovered_np,
     )
 
+    # Path B (mapping_aligned): Use use_mapping_b_ideal=True per Phase C1 Branch G
+    baseline_misset_mapping = derive_robust_misset(
+        crystal,
+        crystal_nanobrag_default=None,
+        device=torch.device(device),
+        dtype=torch.float64,
+        use_mapping_b_ideal=True,
+    )
+    if isinstance(baseline_misset_mapping, torch.Tensor):
+        baseline_misset_mapping_np = baseline_misset_mapping.detach().cpu().numpy()
+    else:
+        baseline_misset_mapping_np = np.asarray(baseline_misset_mapping, dtype=np.float64)
+
+    # CRITICAL: Use the RECOVERED cell params for the explicit cell overrides
+    # when using mapping-aligned baseline misset. The mapping A* encodes an effective
+    # cell that differs slightly from the dxtbx unit cell. Using the recovered cell
+    # ensures the explicit cell+misset path matches the mapping path.
+    recovered_cell_params_for_mapping = recover_cell_from_a_star(a_star_A)
+    crystal_overrides_mapping = {
+        "cell_a": torch.tensor(recovered_cell_params_for_mapping[0], dtype=torch.float64),
+        "cell_b": torch.tensor(recovered_cell_params_for_mapping[1], dtype=torch.float64),
+        "cell_c": torch.tensor(recovered_cell_params_for_mapping[2], dtype=torch.float64),
+        "cell_alpha": torch.tensor(recovered_cell_params_for_mapping[3], dtype=torch.float64),
+        "cell_beta": torch.tensor(recovered_cell_params_for_mapping[4], dtype=torch.float64),
+        "cell_gamma": torch.tensor(recovered_cell_params_for_mapping[5], dtype=torch.float64),
+    }
+    crystal_cfg_B_mapping, _ = create_crystal_config(
+        crystal,
+        experiment,
+        N_cells=None,
+        apply_n_cells=False,
+        crystal_overrides=crystal_overrides_mapping,
+        misset_deg_override=baseline_misset_mapping,
+    )
+    crystal_nb_B_mapping = TorchCrystal(
+        crystal_cfg_B_mapping, beam_config=None, device=torch.device(device)
+    )
+    a_star_B_mapping = _compute_a_star_matrix(crystal_nb_B_mapping)
+
+    variant_mapping = _compute_path_b_variant_metrics(
+        "PathB_mapping_aligned",
+        a_star_A,
+        a_star_B_mapping,
+        baseline_misset_mapping_np,
+    )
+
     # Also compute the full extended diagnostics for the unitcell variant (legacy output)
     diff = a_star_A - a_star_B_unitcell
     max_abs_diff = float(np.max(np.abs(diff)))
@@ -474,6 +521,8 @@ def run_probe(device: str = "cpu") -> Dict[str, object]:
         # Phase A2 additions:
         "path_B_unitcell": asdict(variant_unitcell),
         "path_B_recovered": asdict(variant_recovered),
+        # Phase C1 Branch G addition:
+        "path_B_mapping_aligned": asdict(variant_mapping),
         "recovered_cell_params": {
             "a": recovered_cell_params[0],
             "b": recovered_cell_params[1],
@@ -543,6 +592,7 @@ def main(argv: list[str] | None = None) -> int:
     summary = payload.get("summary", {})
     path_b_unitcell = payload.get("path_B_unitcell", {})
     path_b_recovered = payload.get("path_B_recovered", {})
+    path_b_mapping = payload.get("path_B_mapping_aligned", {})
 
     print("[probe_crystal_matrix_parity] Legacy summary (PathB_unitcell):")
     print(
@@ -550,14 +600,18 @@ def main(argv: list[str] | None = None) -> int:
         "fro_norm={frobenius_norm_diff:.3e}, det(U_error)={det_u_error:.6f}, "
         "u_error_is_rotation={u_error_is_rotation}".format(**summary)
     )
-    print("\n[probe_crystal_matrix_parity] Phase A2 Comparison:")
+    print("\n[probe_crystal_matrix_parity] Phase A2/C1 Comparison:")
     print(
-        f"  PathB_unitcell:   log_u_symmetric_norm={path_b_unitcell.get('log_u_symmetric_norm', 0):.3e}, "
+        f"  PathB_unitcell:       log_u_symmetric_norm={path_b_unitcell.get('log_u_symmetric_norm', 0):.3e}, "
         f"max_abs_diff={path_b_unitcell.get('max_abs_diff', 0):.3e}"
     )
     print(
-        f"  PathB_recovered:  log_u_symmetric_norm={path_b_recovered.get('log_u_symmetric_norm', 0):.3e}, "
+        f"  PathB_recovered:      log_u_symmetric_norm={path_b_recovered.get('log_u_symmetric_norm', 0):.3e}, "
         f"max_abs_diff={path_b_recovered.get('max_abs_diff', 0):.3e}"
+    )
+    print(
+        f"  PathB_mapping_aligned: log_u_symmetric_norm={path_b_mapping.get('log_u_symmetric_norm', 0):.3e}, "
+        f"max_abs_diff={path_b_mapping.get('max_abs_diff', 0):.3e}"
     )
     print(f"\n[probe_crystal_matrix_parity] wrote report to: {out_path}")
     return 0

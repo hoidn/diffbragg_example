@@ -701,6 +701,96 @@ def recover_cell_from_a_star(a_star_matrix: np.ndarray) -> Tuple[float, float, f
         ) from exc
 
 
+def derive_b_ideal_from_mosflm_a_star(a_star: np.ndarray, device: str = "cpu") -> np.ndarray:
+    """
+    Derive the effective reciprocal basis B_ideal from mapping MOSFLM A* matrix.
+
+    This helper enables mapping-aligned Stage-A geometry by extracting the effective
+    reciprocal cell encoded in the MOSFLM A* injection path. When Stage-A uses
+    explicit cell+misset parameterization (crystal_overrides), the baseline misset
+    must be computed against this mapping-derived B_ideal to ensure zero deltas
+    reproduce the mapping zero-point geometry without strain artifacts.
+
+    Per TORCH-REFINE-002E Phase C1 Branch G decision:
+    - The mapping path injects MOSFLM A* directly into nanobrag_torch
+    - The explicit Stage-A path derives U = A* @ B_ideal^{-1}
+    - If B_ideal comes from dxtbx unit cell (old GEOMETRY-003), a symmetric strain
+      of ~1.4e-3 appears because dxtbx cell ≠ effective MOSFLM cell
+    - To close the gap, recover the effective cell from A* and build B_ideal from it
+
+    Algorithm:
+        1. Recover the effective unit cell (a, b, c, α, β, γ) from the A* matrix
+           using cctbx (via recover_cell_from_a_star)
+        2. Build a nanobrag_torch Crystal from that recovered cell (no MOSFLM injection)
+        3. Extract B_ideal from nanobrag_torch's compute_cell_tensors()
+        4. This B_ideal encodes the same effective cell as the mapping A*, ensuring
+           that U = A*_mapping @ B_ideal^{-1} is a pure rotation (no strain)
+
+    Args:
+        a_star: 3×3 MOSFLM A* matrix from dxtbx crystal.get_A() (reshaped).
+                Columns are reciprocal basis vectors (a*, b*, c*) in 1/Å.
+        device: Torch device string for intermediate calculations (default: cpu).
+
+    Returns:
+        3×3 reciprocal basis B_ideal with columns (a*, b*, c*) in 1/Å.
+        This is the **mapping-aligned B_ideal** that Stage-A must use to reproduce
+        the mapping zero-point without strain.
+
+    Raises:
+        ValueError: If A* is singular, ill-conditioned, or cell recovery fails.
+
+    References:
+        - docs/spec-db-workflow.md:39 (Stage A mapping zero-point invariant)
+        - plans/active/TORCH-REFINE-002E/implementation.md (Phase C1 Branch G)
+        - docs/findings.md (GEOMETRY-003 extended per Phase C1)
+    """
+    # Validate input shape
+    a_star = np.asarray(a_star, dtype=np.float64)
+    if a_star.shape != (3, 3):
+        raise ValueError(
+            f"a_star must be a 3×3 array, got shape {a_star.shape}"
+        )
+
+    # Recover the effective unit cell from A*
+    try:
+        recovered_cell_params = recover_cell_from_a_star(a_star)
+    except Exception as exc:
+        raise ValueError(
+            f"Failed to recover unit cell from A* matrix: {exc}"
+        ) from exc
+
+    # Build B_ideal from the recovered cell using nanobrag_torch
+    try:
+        from nanobrag_torch.config import CrystalConfig as TorchCrystalConfig
+        from nanobrag_torch.models.crystal import Crystal as TorchCrystal
+        import torch
+
+        a, b, c, alpha, beta, gamma = recovered_cell_params
+        cfg = TorchCrystalConfig(
+            cell_a=a,
+            cell_b=b,
+            cell_c=c,
+            cell_alpha=alpha,
+            cell_beta=beta,
+            cell_gamma=gamma,
+            misset_deg=(0.0, 0.0, 0.0),
+            mosflm_a_star=None,  # No MOSFLM injection for B_ideal
+            mosflm_b_star=None,
+            mosflm_c_star=None,
+        )
+        crystal_nb = TorchCrystal(cfg, device=torch.device(device), dtype=torch.float64)
+        geom = crystal_nb.compute_cell_tensors()
+        a_star_nb = geom["a_star"].detach().cpu().numpy().reshape(3)
+        b_star_nb = geom["b_star"].detach().cpu().numpy().reshape(3)
+        c_star_nb = geom["c_star"].detach().cpu().numpy().reshape(3)
+        b_ideal = np.column_stack([a_star_nb, b_star_nb, c_star_nb]).astype(np.float64)
+        return b_ideal
+    except ImportError as exc:  # pragma: no cover
+        raise ImportError(
+            "derive_b_ideal_from_mosflm_a_star requires nanobrag_torch and torch"
+        ) from exc
+
+
 def derive_robust_misset(
     crystal_dxtbx,
     crystal_nanobrag_default: Optional[Any] = None,
@@ -708,6 +798,7 @@ def derive_robust_misset(
     device=None,
     dtype=None,
     b_ideal_override: Optional[np.ndarray] = None,
+    use_mapping_b_ideal: bool = False,
 ):
     """
     Derive robust misset angles (XYZ extrinsic Euler, degrees) mapping nanobrag's
@@ -740,6 +831,11 @@ def derive_robust_misset(
             deriving it from crystal_nanobrag_default. Enables Phase A2 testing
             of alternative B_ideal candidates (e.g., from recovered MOSFLM A* cell).
             When provided, crystal_nanobrag_default is ignored.
+        use_mapping_b_ideal: If True, derive B_ideal from the MOSFLM A* matrix itself
+            via derive_b_ideal_from_mosflm_a_star(), ensuring Stage-A explicit
+            parameterization uses the same effective cell as the mapping path.
+            This closes the 1.4e-3 symmetric strain gap (TORCH-REFINE-002E Phase C1).
+            When True, both crystal_nanobrag_default and b_ideal_override are ignored.
 
     Returns:
         Baseline misset angles as either:
@@ -773,7 +869,13 @@ def derive_robust_misset(
         dtype_t = dtype
 
     # Determine B_ideal matrix
-    if b_ideal_override is not None:
+    if use_mapping_b_ideal:
+        # Phase C1 Branch G: Derive B_ideal from the MOSFLM A* matrix itself
+        # This ensures Stage-A explicit parameterization aligns with the mapping effective cell
+        A_tuple = crystal_dxtbx.get_A()
+        A_np = np.array(A_tuple, dtype=np.float64).reshape(3, 3)
+        B_np = derive_b_ideal_from_mosflm_a_star(A_np, device=str(device_t))
+    elif b_ideal_override is not None:
         # Phase A2: Use the override B_ideal directly (e.g., from recovered MOSFLM A* cell)
         B_np = np.asarray(b_ideal_override, dtype=np.float64)
         if B_np.shape != (3, 3):

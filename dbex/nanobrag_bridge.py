@@ -945,7 +945,7 @@ def quaternion_to_matrix(q: 'torch.Tensor') -> 'torch.Tensor':
 
     Returns:
         torch.Tensor of shape (3, 3) representing the rotation matrix.
-        Dtype is float64 to match TORCH-GEOMETRY-PARITY-002 precision requirements.
+        Dtype and device are preserved from input quaternion q.
 
     Raises:
         ImportError: If scipy is unavailable.
@@ -976,8 +976,8 @@ def quaternion_to_matrix(q: 'torch.Tensor') -> 'torch.Tensor':
     R = Rotation.from_quat(q_np)  # scipy convention: [x, y, z, w]
     U_np = R.as_matrix()
 
-    # Convert to torch.Tensor with float64
-    U_torch = torch.tensor(U_np, dtype=torch.float64)
+    # Convert to torch.Tensor preserving dtype and device from input quaternion
+    U_torch = torch.tensor(U_np, dtype=q.dtype, device=q.device)
 
     return U_torch
 

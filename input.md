@@ -1,267 +1,245 @@
-# Ralph Input — 2025-11-22T120000Z
+# Input for Ralph — TORCH-GEOMETRY-PARITY-002 Phase B1-B7 Implementation
 
 ## Summary
-Complete Phase 5 with reduced scope (A_scale_only + D_full only, 5 steps) to determine convergence viability.
+Implement quaternion-based U-matrix direct parameterization for Stage A to eliminate the 1.37e-3 symmetric strain blocking refinement convergence. Phase B delivers the core implementation (helpers, quaternion ops, config flag, closure branching, parity probe extension, gradcheck) so Phase C can validate <1e-6 parity and stable convergence.
 
 ## Mode
-none (final validation → decision synthesis)
+none
 
 ## Focus
-TORCH-REFINE-002E — Fix Stage A Zero-Point Geometry Discontinuity (Phase C1 decisive validation)
+TORCH-GEOMETRY-PARITY-002 — Direct U-Matrix Parameterization for Stage A Geometry Refinement
 
 ## Branch
 integration
 
-## Mapped tests
-- `plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py --phases 5 --adam-steps 5 --dof-variants A_scale_only,D_full` (tooling, exit-criterion #2-3)
-- `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` (Active, regression guard - skip if Phase 5 completes)
+## Mapped Tests
+- `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` (regression guard, existing — must pass with default cell+misset path)
+- New: `tests/dbex/test_u_matrix_gradcheck.py::test_quaternion_roundtrip` (Phase B7, gradcheck for quaternion ops)
+- New: `tests/dbex/test_u_matrix_gradcheck.py::test_u_matrix_closure_gradcheck` (Phase B7, gradcheck for U-matrix LBFGS closure)
 
 ## Artifacts
-`plans/active/TORCH-REFINE-002E/reports/2025-11-22T120000Z/`
-- `block_dof_results_reduced.json` (Phase 5 A_scale_only/D_full only, 5 Adam steps)
-- `stage_a_debug.log`
-- `decision.json` (synthesis of all phases → final recommendation)
-- `commands.txt`
+`plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T105837Z/`
+- `phase_a0_evidence_synthesis.md` (completed by Galph)
+- `so3_parameterization_survey.md` (completed by Galph)
+- `api_design_and_risks.md` (completed by Galph)
+- `gradcheck_quaternion_ops.log` (Phase B2, new)
+- `gradcheck_u_matrix_closure.log` (Phase B7, new)
+- `pytest_stage_a_regression.log` (Phase C4 preview, regression guard)
 
 ## Do Now
 
-**Context:** Phase C1 validation (2025-11-22T110000Z) was incomplete—Phase 5 ran >12 minutes building HKL grids without producing `block_dof_results.json`. However, **Phase 1-4 artifacts provide decisive evidence**:
+Implement Phase B checklist items B1-B7 from `plans/active/TORCH-GEOMETRY-PARITY-002/implementation.md`. Deliver the quaternion-based U-matrix parameterization infrastructure without yet validating parity or convergence (Phase C scope).
 
-- ✅ Exit criterion #1 **alternative path satisfied**: Symmetric strain 1.369e-3 identified, impact quantified (24.5% χ² gap, orientation_vec gradient magnitude ≈2.88e8)
-- ❌ Exit criteria #2-3 **unmet**: Phase 4 shows **convergence degradation** (χ²: 1.13M → 2.80M after 1 Adam step, all DoFs walk away from zero)
-- ❓ **Missing decisive data**: Phase 5 block-DoF trajectories (would show if `A_scale_only` subset maintains stability despite geometry gap)
+### Phase B1: U-matrix helper (`derive_u_matrix_from_mosflm_a_star`)
+**Target:** `dbex/nanobrag_bridge.py::derive_u_matrix_from_mosflm_a_star`
 
-**Escalation Trigger:** Per **repeat-failure escalation** rule, this is the **final validation attempt** for TORCH-REFINE-002E before escalation. If Phase 5 reduced-scope run shows degradation for *both* A_scale_only and D_full, mark initiative as `blocked` and escalate to new implementation initiative (TORCH-GEOMETRY-PARITY-002 or alternative parameterization).
+- Signature: `def derive_u_matrix_from_mosflm_a_star(a_star: np.ndarray, cell: CellParams) -> np.ndarray:`
+- Extract B_ideal_reciprocal from cell using existing helper (e.g., `_build_b_ideal_from_cell_params` or equivalent)
+- Compute `U = a_star @ np.linalg.inv(B_ideal_reciprocal)` — **do NOT call `proper_rotation()` or any SO(3) projection**
+- Return U (3×3 numpy array, may have det(U) ≈ 1 ± ε if strain present)
+- Add docstring: "Extract U-matrix from mapping MOSFLM A* without SO(3) projection (GEOMETRY-004, TORCH-GEOMETRY-PARITY-002)."
 
-**Validation Plan (Reduced Scope):**
+### Phase B2: Quaternion ops (roundtrip conversion + validation)
+**Target:** `dbex/nanobrag_bridge.py::matrix_to_quaternion`, `::quaternion_to_matrix`
 
-Run Phase 5 with **minimal scope** to avoid HKL grid rebuilding timeout:
-1. **Skip Phases 1-4** (already have artifacts from 2025-11-22T110000Z)
-2. **Run Phase 5 ONLY** with:
-   - DoF variants: `A_scale_only` and `D_full` (skip B/C)
-   - Adam steps: **5** (reduced from default 10)
-   - This should cut HKL grid builds from ~28+ to ~12-14 (2 variants × 5 steps + validation)
-3. **Timeout**: 20 minutes (double the previous run's observed duration)
-4. **Capture**: `block_dof_results_reduced.json` with A_scale_only/D_full trajectories
+- Implement `matrix_to_quaternion(U: Union[np.ndarray, torch.Tensor]) -> torch.Tensor` using `scipy.spatial.transform.Rotation.from_matrix(U).as_quat()` (scipy convention: [x, y, z, w]), convert to torch.Tensor
+- Implement `quaternion_to_matrix(q: torch.Tensor) -> torch.Tensor` using `scipy.spatial.transform.Rotation.from_quat(q.detach().cpu().numpy()).as_matrix()`, convert to torch.Tensor
+- Add roundtrip validation test in `tests/dbex/test_u_matrix_gradcheck.py::test_quaternion_roundtrip`:
+  - Generate random rotation matrix U_0 (use `scipy.spatial.transform.Rotation.random().as_matrix()`)
+  - Convert U_0 → q → U_1
+  - Assert `torch.allclose(U_1, torch.tensor(U_0), atol=1e-6)`
+- Run test, capture log in `plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T105837Z/gradcheck_quaternion_ops.log`
 
-**Decision Synthesis (Required):**
+### Phase B3: Config flag (`use_u_matrix_parameterization`)
+**Target:** `dbex/nanobrag_refinement.py` (or `dbex/config.py` if central config exists)
 
-After Phase 5 completes (or times out), create `decision.json` per this logic:
+- Add `use_u_matrix_parameterization: bool = False` field to wherever Stage A config lives (likely inline in `build_mapping_stage_a_context` or a `RefinementConfig` dataclass if one exists)
+- If no central config exists, add it as a parameter to `build_mapping_stage_a_context`
+- CLI plumbing (deferred to Phase C unless trivial): if there's already a `--` flag pattern for Stage A, add `--use-u-matrix` parsing and pass through
 
-```json
-{
-  "decision": "<accept_residual|escalate_to_new_initiative>",
-  "rationale": "<1-2 sentence explanation>",
-  "exit_criterion_1_status": "alternative_path_satisfied",
-  "exit_criterion_2_status": "<pass|fail>",
-  "exit_criterion_3_status": "<pass|fail>",
-  "phase_5_completion": "<completed|timeout>",
-  "residual_strain_magnitude": 1.369e-3,
-  "max_abs_diff_a_star": 4.022e-05,
-  "chi_squared_gap_percent": 24.5,
-  "phase_4_single_step": {
-    "chi_squared_before": 1133420.75,
-    "chi_squared_after": 2799388.5,
-    "degradation_factor": 2.47
-  },
-  "phase_5_a_scale_only": {
-    "median_cc_final": "<value or null>",
-    "chi_squared_final": "<value or null>",
-    "stable_convergence": "<true|false|null>"
-  },
-  "phase_5_d_full": {
-    "median_cc_final": "<value or null>",
-    "chi_squared_final": "<value or null>",
-    "monotonic_improvement": "<true|false|null>"
-  },
-  "recommended_next_action": "<specific action>"
-}
-```
+### Phase B4: U-matrix initialization in `build_mapping_stage_a_context`
+**Target:** `dbex/nanobrag_refinement.py::build_mapping_stage_a_context`
 
-**Decision Tree:**
+- Add branching logic near the existing baseline misset derivation:
+  ```python
+  if use_u_matrix_parameterization:
+      U_0 = derive_u_matrix_from_mosflm_a_star(mapping_a_star_np, cell_params)
+      q_0 = matrix_to_quaternion(torch.tensor(U_0, dtype=torch.float64))
+      q_params = q_0.clone().requires_grad_(True)
+      # Store in StageAContext (extend dataclass with q_params: Optional[torch.Tensor] = None)
+  else:
+      # Existing cell+misset path (orientation_vec, cell_logs, angle_raws)
+      ...
+  ```
+- Extend `StageAContext` dataclass with new field: `q_params: Optional[torch.Tensor] = None`
 
-1. **If Phase 5 completes and A_scale_only maintains CC ≥ 0.99 + stable χ² (≤0.5% drift):**
-   - `decision = "accept_residual"`
-   - `exit_criterion_2_status = "pass"`
-   - Update `docs/findings.md` GEOMETRY-003 with residual strain documentation
-   - Mark TORCH-REFINE-002E as `done`
+### Phase B5: Closure branching in `build_stage_a_lbfgs_closure`
+**Target:** `dbex/nanobrag_refinement.py::build_stage_a_lbfgs_closure`
 
-2. **If Phase 5 completes but A_scale_only degrades (CC < 0.99 or large χ² drift):**
-   - `decision = "escalate_to_new_initiative"`
-   - `exit_criterion_2_status = "fail"`
-   - Do NOT update GEOMETRY-003
-   - Mark TORCH-REFINE-002E as `blocked`
-   - Recommend opening TORCH-GEOMETRY-PARITY-002 (U-matrix direct override) or alternative
+- Add U-matrix path inside the closure:
+  ```python
+  def closure():
+      if config.use_u_matrix_parameterization:
+          # U-matrix path
+          q_norm = stage_a_ctx.q_params / torch.norm(stage_a_ctx.q_params)  # Enforce ‖q‖=1
+          U = quaternion_to_matrix(q_norm)  # 3x3 rotation matrix
+          A_star_new = U @ B_ideal_reciprocal_torch  # Compute updated A*
+          # Update crystal_overrides['A_star'] with A_star_new (convert to numpy if needed)
+          crystal_config_updated = ...  # existing pattern for updating crystal_overrides
+      else:
+          # Existing cell+misset path (orientation_vec, cell_logs, angle_raws)
+          ...
 
-3. **If Phase 5 times out again (>20 min):**
-   - `decision = "escalate_to_new_initiative"`
-   - `exit_criterion_2_status = "inconclusive"`
-   - Recommend either (a) opening PERF-PHASE5-HKL-001 to fix Phase 5 performance, or (b) accepting Phase 4 evidence as sufficient to escalate geometry parity initiative
+      # Forward pass, loss, backward (unchanged from existing code)
+      ...
+      return loss
+  ```
+- Ensure `B_ideal_reciprocal_torch` is computed once before the closure (from cell params) and captured in the closure scope
 
-**Checklist:**
+### Phase B6: Parity probe extension
+**Target:** `plans/active/TORCH-REFINE-002E/bin/probe_crystal_matrix_parity.py`
 
-1. **Run Phase 5 reduced scope:**
-   ```bash
-   timeout 1200 \
-   KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
-   python plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py \
-     --phases 5 \
-     --device cpu \
-     --adam-steps 5 \
-     --dof-variants A_scale_only,D_full \
-     --out-dir plans/active/TORCH-REFINE-002E/reports/2025-11-22T120000Z/
-   ```
-   - Expected outputs: `block_dof_results_reduced.json`, `stage_a_debug.log`
-   - If timeout: capture partial log and proceed to decision synthesis
+- Add `--use-u-matrix` CLI flag
+- When `--use-u-matrix` is True:
+  - Initialize U-matrix from MOSFLM A* using `derive_u_matrix_from_mosflm_a_star` (no SO(3) projection)
+  - Convert to quaternion q₀
+  - Run forward pass (convert quaternion → U → A* via `quaternion_to_matrix`)
+  - Compare reconstructed A* against mapping MOSFLM A* (compute `max_abs_diff`)
+  - Emit JSON with additional fields: `{"u_matrix_mode": true, "quaternion_initial": [...], "max_abs_diff": ..., "quaternion_norm": ...}`
+- Keep existing cell+misset path as default (when `--use-u-matrix` is False)
 
-2. **Synthesize decision:**
-   - Review Phase 5 results (or timeout signature)
-   - Create `decision.json` per template above
-   - **Critical**: If Phase 5 shows degradation for *both* variants, this is a **blocker** requiring escalation
+### Phase B7: Gradcheck for U-matrix closure
+**Target:** `tests/dbex/test_u_matrix_gradcheck.py::test_u_matrix_closure_gradcheck`
 
-3. **Update findings (conditional):**
-   - **Only if** `decision = "accept_residual"` and exit criteria #2 pass:
-     - Update `docs/findings.md` GEOMETRY-003 row with residual strain documentation
-     - Reference: `plans/active/TORCH-REFINE-002E/reports/2025-11-22T120000Z/decision.json`
-   - **Otherwise**: Do NOT update GEOMETRY-003
+- Create minimal synthetic test case:
+  - Initialize quaternion q (random or from identity)
+  - Compute A* = quaternion_to_matrix(q / ‖q‖) @ B_ideal_reciprocal
+  - Run a tiny forward pass (single pixel, single HKL, synthetic target)
+  - Compute variance-weighted loss
+  - Use `torch.autograd.gradcheck` to verify gradients w.r.t. q are correct
+- Run with `NANOBRAGG_DISABLE_COMPILE=1` (per RUNTIME-001)
+- Capture log in `plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T105837Z/gradcheck_u_matrix_closure.log`
 
-4. **Update fix_plan (required):**
-   - Append Attempts History entry with Phase C1 validation outcome and decision
-   - If `decision = "accept_residual"`: mark TORCH-REFINE-002E as `done`
-   - If `decision = "escalate_to_new_initiative"`: mark as `blocked` with rationale and recommended next initiative
+### Regression Guard (Phase C Preview)
+**Target:** `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion`
+
+- After implementing B1-B7, run the existing Stage A expansion smoke with **default config** (use_u_matrix_parameterization=False) to ensure no regressions in the cell+misset path
+- Command: `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion`
+- Capture log in `plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T105837Z/pytest_stage_a_regression.log`
+- **Must pass** (no degradation in existing cell+misset behavior)
 
 ## How-To Map
 
-**Environment:**
+### B1: U-matrix helper
 ```bash
-export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
-export KMP_DUPLICATE_LIB_OK=TRUE
-export NANOBRAGG_DISABLE_COMPILE=1
+# Locate existing B_ideal helpers in nanobrag_bridge.py
+rg "b_ideal|B_ideal" dbex/nanobrag_bridge.py
+# Implement derive_u_matrix_from_mosflm_a_star per spec above
 ```
 
-**Phase 5 Reduced-Scope Command:**
+### B2: Quaternion ops + roundtrip test
 ```bash
-timeout 1200 \
-KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
-python plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py \
-  --phases 5 \
-  --device cpu \
-  --adam-steps 5 \
-  --dof-variants A_scale_only,D_full \
-  --out-dir plans/active/TORCH-REFINE-002E/reports/2025-11-22T120000Z/
+# Implement matrix_to_quaternion and quaternion_to_matrix in nanobrag_bridge.py
+# Create tests/dbex/test_u_matrix_gradcheck.py
+# Run roundtrip test
+NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_u_matrix_gradcheck.py::test_quaternion_roundtrip > plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T105837Z/gradcheck_quaternion_ops.log 2>&1
 ```
 
-**Expected Outputs:**
-- `plans/active/TORCH-REFINE-002E/reports/2025-11-22T120000Z/block_dof_results_reduced.json`
-- `plans/active/TORCH-REFINE-002E/reports/2025-11-22T120000Z/stage_a_debug.log`
-- `plans/active/TORCH-REFINE-002E/reports/2025-11-22T120000Z/commands.txt`
+### B3-B5: Config flag + initialization + closure
+```bash
+# Edit dbex/nanobrag_refinement.py
+# Add use_u_matrix_parameterization parameter to build_mapping_stage_a_context
+# Extend StageAContext dataclass with q_params field
+# Branch closure logic per B5 spec
+```
 
-**Decision Synthesis (manual):**
-After Phase 5 completes or times out, create `decision.json` per template in Do Now step 2.
+### B6: Parity probe extension
+```bash
+# Edit plans/active/TORCH-REFINE-002E/bin/probe_crystal_matrix_parity.py
+# Add --use-u-matrix flag
+# Branch initialization and comparison logic
+```
+
+### B7: U-matrix closure gradcheck
+```bash
+# Add test_u_matrix_closure_gradcheck to tests/dbex/test_u_matrix_gradcheck.py
+NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_u_matrix_gradcheck.py::test_u_matrix_closure_gradcheck > plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T105837Z/gradcheck_u_matrix_closure.log 2>&1
+```
+
+### Regression guard
+```bash
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion > plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T105837Z/pytest_stage_a_regression.log 2>&1
+```
 
 ## Pitfalls To Avoid
 
-1. **Do not revert Phase C1 implementation:** The mapping-aligned B_ideal derivation is correct even though it didn't close the gap.
-2. **Do not relax exit criteria without Phase 5 evidence:** Only accept residual if Phase 5 shows A_scale_only stability.
-3. **Timeout handling:** If Phase 5 times out again, treat it as evidence for escalation (Phase 4 shows degradation, Phase 5 can't complete).
-4. **Device/dtype neutrality:** Phase 5 runs on CPU (`--device cpu`); no GPU-specific code needed.
-5. **Protected Assets:** Do NOT modify `tests/fixtures/golden_data/` or Phase C1 implementation.
-6. **No normative math paraphrasing:** Reference `implementation.md:30-35` for exit criterion interpretation.
-7. **Exit criteria precision:** Focus on **convergence behavior** (CC stability, χ² monotonicity), not literal A* parity.
-8. **Escalation discipline:** If both A_scale_only and D_full fail, this is a **hard blocker** requiring new initiative.
-9. **Commit hygiene:** Commit the decision.json and any findings/fix_plan updates **only after synthesis is complete**.
-10. **No environment changes:** Do not install packages or upgrade dependencies.
+1. **Device/dtype neutrality:** Use `torch.float64` for quaternion initialization and conversion to match float64 precision floor (<1e-8 roundtrip error). Do NOT hardcode GPU/CPU; inherit device from existing Stage A tensors.
+2. **Protected Assets:** Do NOT edit tests/dbex/test_torch_refine_smoke.py beyond running the regression guard. U-matrix mode will be tested separately in Phase C.
+3. **SO(3) Projection:** Do NOT call `proper_rotation()` or any SVD-based projection in `derive_u_matrix_from_mosflm_a_star`. The whole point is to preserve the mapping MOSFLM A* strain.
+4. **Quaternion convention:** scipy uses [x, y, z, w] convention. Ensure `matrix_to_quaternion` and `quaternion_to_matrix` follow the same convention (no [w, x, y, z] vs [x, y, z, w] mixups).
+5. **Normalization:** Normalize quaternion **every closure call** (`q_norm = q / ‖q‖`) before converting to matrix. Do NOT assume LBFGS will keep it on the unit sphere.
+6. **Backward compatibility:** Ensure default path (`use_u_matrix_parameterization=False`) is unchanged. Existing cell+misset users must see zero behavior change.
+7. **Gradcheck environment:** Always run gradchecks with `NANOBRAGG_DISABLE_COMPILE=1` per RUNTIME-001 (torch.compile interferes with autograd.gradcheck).
+8. **No ad-hoc scripts:** Use the existing parity probe script (`probe_crystal_matrix_parity.py`) extended with `--use-u-matrix` flag. Do NOT create new one-off probes.
+9. **B_ideal consistency:** Use the same `B_ideal_reciprocal` derivation in U-matrix path as the existing cell+misset path. Do NOT introduce divergent cell→B_ideal helpers.
+10. **Spec math:** Do NOT paraphrase quaternion normalization or matrix conversion math. Reference the Phase A survey (plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T105837Z/so3_parameterization_survey.md) and scipy docs for normative equations.
 
 ## If Blocked
 
-1. **If Phase 5 times out again (>20 min):**
-   - Capture the timeout signature in `plans/active/TORCH-REFINE-002E/reports/2025-11-22T120000Z/timeout.log`
-   - Set `decision = "escalate_to_new_initiative"` with `phase_5_completion = "timeout"`
-   - Document that Phase 4 evidence (2.47× degradation) is sufficient to escalate
-   - Recommend either PERF-PHASE5-HKL-001 (Phase 5 performance fix) or accept Phase 4 as decisive
-
-2. **If Phase 5 completes but both A_scale_only AND D_full degrade:**
-   - Set `decision = "escalate_to_new_initiative"`
-   - `exit_criterion_2_status = "fail"`, `exit_criterion_3_status = "fail"`
-   - Document that the 4e-5 geometry gap **blocks all refinement DoF convergence**
-   - Recommend opening TORCH-GEOMETRY-PARITY-002 to implement U-matrix direct override (bypass cell+misset parameterization)
-
-3. **If Phase 5 shows A_scale_only stable but D_full degrades:**
-   - Set `decision = "accept_residual"` with `exit_criterion_3_status = "conditional"`
-   - Document that full-DoF geometry refinement is blocked but scale-only convergence works
-   - Update GEOMETRY-003 with this constraint
-   - Mark TORCH-REFINE-002E as `done` with caveat
-
-4. **Log all blockers** in `plans/active/TORCH-REFINE-002E/reports/2025-11-22T120000Z/blocker.md` with:
-   - Specific failure mode (Phase 5 timeout or degradation signature)
-   - Which exit criterion is unmet (#2 or #3)
-   - Recommended next action from the decision tree above
+If any step fails or is unclear:
+1. Capture the exact error message and file/line where it occurred.
+2. Document the blocker in `plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T105837Z/blocker.md` with:
+   - What you tried (commands, code changes)
+   - Exact error text
+   - Hypothesis for why it failed
+3. Log the block in `docs/fix_plan.md` Attempts History with artifact pointer.
+4. Return control to Galph for triage.
 
 ## Findings Applied (Mandatory)
 
 **Relevant Finding IDs from `docs/findings.md`:**
+- GEOMETRY-001: Detector mapping precision requirements (not directly applicable, but context for geometry guardrails)
+- GEOMETRY-002: Euler inversion pattern (analogous to quaternion roundtrip validation)
+- GEOMETRY-003: Current baseline misset path (will be superseded by GEOMETRY-004 if U-matrix succeeds)
+- REFINE-001: LBFGS scale warm-start pattern (replicate for quaternion initialization from mapping zero)
+- RUNTIME-001: Gradcheck requires `NANOBRAGG_DISABLE_COMPILE=1` (applied in B2, B7)
+- CONFORMANCE-001: `KMP_DUPLICATE_LIB_OK=TRUE` environment flag for pytest (applied in regression guard)
 
-- **GEOMETRY-001** (detector mapping): Not directly relevant, maintained for hygiene.
-- **GEOMETRY-002** (Euler inversion): Applies—baseline misset uses analytic XYZ Euler inversion.
-- **GEOMETRY-003** (baseline misset): **CRITICAL**—Phase C1 extended this to use mapping-derived B_ideal; will update after decision synthesis if `accept_residual`.
-- **GRADIENT-001** (tensor overrides): Applies—no .detach() or .cpu() in forward pass.
-- **REFINE-004** (HKL interpolation): Not changed by Phase C1.
-- **REFINE-005** (HKL halo): Tricubic interpolation enabled.
-- **RUNTIME-001** (torch.compile + gradcheck): Applies—`NANOBRAGG_DISABLE_COMPILE=1` for all tests.
-- **CONFORMANCE-001** (DB-AT selectors): Exit criteria reference DB-AT-024 mapping parity.
-- **PHYSICS-LOSS-002** (sigma_floor): Variance-weighted loss active.
-- **PHYSICS-LOSS-003** (chi-squared units): Unified chi-squared definition across stages.
-
-**Adherence:**
-- GEOMETRY-003: Phase C1 implementation preserved (mapping-aligned B_ideal derivation)
-- GEOMETRY-002: XYZ Euler inversion for misset (unchanged)
-- GRADIENT-001: No detach/cpu in forward pass (unchanged)
-- RUNTIME-001: NANOBRAGG_DISABLE_COMPILE=1 for Phase 5 run
+**Adherence notes:**
+- REFINE-001 pattern followed: Initialize U-matrix from mapping MOSFLM A* (zero deltas = mapping geometry), analogous to scale warm-start.
+- RUNTIME-001 enforced: All gradchecks use `NANOBRAGG_DISABLE_COMPILE=1`.
+- GEOMETRY-002 analogy: Quaternion roundtrip test mirrors Euler inversion validation (ensure numerical precision <1e-6).
 
 ## Pointers
 
-**Specs:**
-- `docs/spec-db-workflow.md:39` — Stage A mapping zero-point invariant (normative)
-- `docs/spec-db-core.md` — Geometry Mapping section
-- `docs/spec-db-conformance.md` — DB-AT-024 mapping parity spec
+- **Normative Spec:** `docs/spec-db-workflow.md` §Stage A (orientation parameterization clause), `docs/spec-db-core.md` §Geometry Mapping
+- **Escalation Source:** `plans/active/TORCH-REFINE-002E/reports/2025-11-22T120000Z/decision.json` (Phase C1 final validation, escalation rationale)
+- **Phase A Evidence:** `plans/active/TORCH-GEOMETRY-PARITY-002/reports/2025-11-22T105837Z/{phase_a0_evidence_synthesis.md,so3_parameterization_survey.md,api_design_and_risks.md}`
+- **Implementation Plan:** `plans/active/TORCH-GEOMETRY-PARITY-002/implementation.md:58-86` (Phase B checklist B1-B7)
+- **Testing Guide:** `docs/TESTING_GUIDE.md` §1 (Stage A selectors)
+- **Code Anchors:**
+  - `dbex/nanobrag_bridge.py:623` (existing `recover_cell_from_a_star` helper, pattern to replicate)
+  - `dbex/nanobrag_bridge.py:710` (existing `derive_robust_misset`, shows baseline misset initialization)
+  - `dbex/nanobrag_refinement.py:760-940` (Stage A context + closure, cell+misset path to branch from)
 
-**Implementation Plan:**
-- `plans/active/TORCH-REFINE-002E/implementation.md:30-35` — Exit Criteria with OR clause
-- `plans/active/TORCH-REFINE-002E/implementation.md:124-156` — Phase C decision branches
+## Next Up (Optional, if you finish B1-B7 early)
 
-**Prior Phase Artifacts:**
-- `plans/active/TORCH-REFINE-002E/reports/2025-11-22T110000Z/blocker.md` — Phase 5 incomplete
-- `plans/active/TORCH-REFINE-002E/reports/2025-11-22T110000Z/single_step_adam.json` — Phase 4 shows 2.47× degradation
-- `plans/active/TORCH-REFINE-002E/reports/2025-11-22T100330Z/forward_model_comparison.json` — 24.5% χ² gap
-- `plans/active/TORCH-REFINE-002E/reports/2025-11-22T094500Z/gradient_probe.json` — Large non-zero gradients at zero
-- `plans/active/TORCH-REFINE-002E/reports/2025-11-22T091200Z/crystal_matrix_parity.json` — All three B_ideal variants identical
+Do NOT proceed to Phase C validation (parity probe, Phase 5 convergence) without explicit Galph approval. Phase B scope is implementation only.
 
-**Fix Plan:**
-- `docs/fix_plan.md` — TORCH-REFINE-002E entry (will update after decision synthesis)
+If B1-B7 complete ahead of schedule:
+1. Run `pytest --collect-only` for the new U-matrix gradcheck tests, archive log under artifacts.
+2. Update `implementation.md` checklist (mark B1-B7 as done).
+3. Return control to Galph for Phase C planning.
 
-**Findings:**
-- `docs/findings.md:7` — GEOMETRY-003 row (will update after decision synthesis if applicable)
+## Doc Sync Plan (Conditional)
 
-## Next Up (optional)
+**Not applicable for Phase B** — no new selectors marked "Active" yet. Phase C will add U-matrix parity and convergence tests; doc sync deferred until then.
 
-**If decision is "accept_residual" (A_scale_only stable):**
-1. Mark TORCH-REFINE-002E as `done` in `docs/fix_plan.md`
-2. Update GEOMETRY-003 in `docs/findings.md` with residual strain documentation + convergence constraint
-3. Proceed to next Tier 1 item per Roadmap
-4. Return control to supervisor for focus selection
+## Mapped Tests Guardrail
 
-**If decision is "escalate_to_new_initiative" (both variants degrade or timeout):**
-1. Mark TORCH-REFINE-002E as `blocked` in `docs/fix_plan.md`
-2. Supervisor will open TORCH-GEOMETRY-PARITY-002 (U-matrix direct override) or alternative
-3. Return control to supervisor with blocker documentation and recommended initiative spec
+- **Existing selector:** `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` must collect >0 and pass (regression guard)
+- **New selectors:** `tests/dbex/test_u_matrix_gradcheck.py::{test_quaternion_roundtrip,test_u_matrix_closure_gradcheck}` will be created in B2/B7; collect-only validation deferred to Phase C doc sync.
 
-## Doc Sync Plan
+## Hard Gate
 
-**Not required** — No new tests added; only validation run and decision synthesis. Supervisor will handle doc updates after decision is finalized.
-
-## Normative Math/Physics
-
-See `implementation.md:30-35` for exit criterion interpretation:
-> Exit Criterion #1: either achieve `max_abs_diff < 1e-6` **OR** "a clearly identified non-rotational strain component with quantified magnitude and documented impact on gradients."
-
-Phase C1 achieved the **alternative path** (strain identified: 1.369e-3, impact quantified: 24.5% χ² gap, orientation_vec gradient magnitude ≈2.88e8). Phase 5 determines whether this residual blocks convergence (exit criteria #2-3).
+If `test_stage_a_expansion` fails after B1-B7 implementation (with default use_u_matrix_parameterization=False), do NOT mark Phase B as done. Revert changes causing the regression, document the conflict in blocker.md, and return to Galph.

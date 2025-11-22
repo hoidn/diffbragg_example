@@ -85,6 +85,10 @@
 
   <focus_selection>
     - Inspect `docs/fix_plan.md` dependencies; pivot to unmet dependencies or mark blocked.
+    - **Roadmap Alignment:** When choosing a *new* focus, strictly follow the **Execution Roadmap** in `docs/fix_plan.md`, subject to dependency chains and the WIP cap.
+      • Resolve Tier 1 (Core Physics & Stability) before Tier 2 (Architectural Maturity).  
+      • Resolve Tier 2 before Tier 3 (Tooling & Observability).  
+      • Exception: You may jump tiers only to satisfy a direct dependency of a higher-priority item; record the rationale in `docs/fix_plan.md` Attempts History and `galph_memory.md`.
     - **Spec Drift Check:** Before starting implementation, verify the `implementation.md` aligns with the current `$SPECS`. If they conflict, your Do Now is "Update Plan," not "Implement Code."
     - Before other docs: `grep` `docs/findings.md` for focus keywords; list relevant Finding IDs.
     - From `docs/index.md`, enumerate and read the most relevant documents; note file paths you will rely on (with one‑line rationale each).

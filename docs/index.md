@@ -53,7 +53,8 @@ Use this when: Planning a loop or checking prior art before touching simulator/b
 ### [Fix Plan Ledger](fix_plan.md)
 Description: Master task list for the torch backend rollout, including dependencies, exit criteria, and Attempts History.  
 Keywords: fix-plan, ledger, attempts-history  
-Use this when: Selecting the next loop focus and recording artifacts.
+Use this when: Selecting the next loop focus and recording artifacts.  
+Template: `plans/templates/fix_plan_ledger.md`
 
 ## Specifications (Spec DB)
 

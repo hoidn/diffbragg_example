@@ -37,3 +37,112 @@
 - This initiative is expected to consume the verdict and requirements produced by TORCH-GEOMETRY-CONVERGENCE-001; it SHOULD NOT proceed to implementation until CONVERGENCE-001 has produced an evidence-backed decision about the viability of the current quaternion U-matrix path.
 - Quaternion-based increments (ΔR on top of U₀) remain a candidate representation, but only if they can be made to pass the UB/A* round-trip test and the new Stage-A invariants.
 
+---
+
+## Phase A — Design & Spec Alignment
+
+**Status:** COMPLETE (2025-11-22T170806Z)
+
+### Checklist
+
+- [x] **A1:** Normative requirements synthesis from spec-db-core.md, spec-db-workflow.md, spec-db-runtime.md
+- [x] **A2:** Orientation representation choice (quaternion vs Euler vs axis-angle) with analysis and rationale
+- [x] **A3:** Cell parameterization design (logs for lengths + angle deltas, Busing-Levy B-matrix derivation)
+- [x] **A4:** DB-AT-026 test specification (5 tests: U zero-point, B zero-point, A* parity, gradient flow, Bragg parity)
+- [x] **A5:** Design document authored with all sections (normative requirements, CONVERGENCE-001 lessons, chosen parameterization formulas, zero-point conditions, spec alignment, risks, Phase B preview)
+
+### Outcomes
+
+**Chosen Parameterization:**
+- **Orientation:** Quaternion-based ΔR, `U(params) = ΔR(q_delta) @ U₀`, convert quaternion to Euler XYZ for nanobrag_torch `misset_deg` injection
+- **Cell:** Log-perturbations for lengths (`a = a₀ * exp(δlog_a)`), unbounded deltas for angles (`α = α₀ + Δα`), Busing-Levy B-matrix derivation
+- **Zero-Point Invariant:** `q_delta = [1,0,0,0]` (identity), all deltas = 0 → `U(0) = U₀`, `B(0) = B₀`, `A*(0) = U₀ @ B₀`
+
+**Spec Alignment:**
+- All normative clauses satisfied (spec-db-core.md:48-68, spec-db-workflow.md:36-45, spec-db-runtime.md:18-28)
+- DB-AT-026 test spec authored with 5 tests and acceptance criteria
+
+**Artifacts:**
+- `plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-22T170806Z/phase_a_design_document.md`
+- `plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-22T170806Z/orientation_representation_analysis.md`
+- `plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-22T170806Z/cell_parameterization_design.md`
+- `plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-22T170806Z/db_at_026_test_spec.md`
+- `plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-22T170806Z/phase_a_summary.md`
+
+---
+
+## Phase B — Implementation & Wiring
+
+**Status:** pending (ready for implementation)
+
+### Checklist
+
+- [ ] **B1:** Implement `derive_orientation_from_quaternion_delta(q_delta, U_baseline) -> U` in `dbex/nanobrag_bridge.py`
+  - Quaternion normalization
+  - Quaternion-to-matrix conversion
+  - Quaternion-to-Euler XYZ conversion (for nanobrag_torch API)
+  - Unit test: identity quaternion → `U = U₀`
+- [ ] **B2:** Implement `derive_B_from_cell_deltas(δlog_a, ..., cell_baseline) -> B` in `dbex/nanobrag_bridge.py`
+  - Implement `busing_levy_B_torch(a, b, c, α, β, γ) -> B` (differentiable PyTorch)
+  - Log-exp for lengths, delta-add for angles
+  - Unit test: zero deltas → `B = B₀`
+- [ ] **B3:** Wire incremental parameterization into Stage A closure (`dbex/nanobrag_refinement.py`)
+  - Add `use_incremental_ub` mode flag to `build_stage_a_lbfgs_closure`
+  - Initialize `q_delta`, `δlog_a/b/c`, `Δα/β/γ` as trainable tensors
+  - Call B1/B2 helpers to derive `U(params)`, `B(params)` → construct `A* = U @ B`
+  - Inject via MOSFLM a/b/c_star OR baseline_misset + delta_misset (per crystal_overrides mode)
+  - **Critical:** Preserve existing cell+misset default path (no regression to `test_stage_a_expansion`)
+- [ ] **B4:** Implement DB-AT-026 test (`tests/dbex/test_ub_parameterization_roundtrip.py`)
+  - Test 1: Orientation zero-point (`||U(0) - U₀|| < 1e-12`)
+  - Test 2: Cell zero-point (`||B(0) - B₀|| < 1e-12`)
+  - Test 3: Mapping parity (`||A*(0) - A*_mapping|| < 1e-6`)
+  - Test 4: Gradient flow validation (all params differentiable)
+  - Test 5: Cross-reference with DB-AT-024 (optional, may defer to Phase C)
+- [ ] **B5:** Regression guard
+  - Run `pytest tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion`
+  - Ensure cell+misset default path still passes (no impact from new UB path)
+
+### Expected File Changes
+
+- `dbex/nanobrag_bridge.py`: ~200 lines added (B1, B2 helpers)
+- `dbex/nanobrag_refinement.py`: ~100 lines modified (B3 wiring)
+- `tests/dbex/test_ub_parameterization_roundtrip.py`: ~300 lines new (B4 test)
+- `docs/TESTING_GUIDE.md`: add DB-AT-026 entry (§2 Active Acceptance Tests)
+- `docs/development/TEST_SUITE_INDEX.md`: add DB-AT-026 status
+
+### Exit Criteria (Phase B)
+
+- Tests 1-4 of DB-AT-026 must PASS
+- Regression guard (`test_stage_a_expansion`) must PASS
+- No new linter/formatter warnings
+
+---
+
+## Phase C — Validation & Rollout
+
+**Status:** pending (blocked by Phase B)
+
+### Checklist
+
+- [ ] **C1:** Run DB-AT-026 (zero-point round-trip validation)
+  - All 5 tests must PASS (including Test 5: Bragg parity with DB-AT-024)
+- [ ] **C2:** Run DB-AT-024 (mapping parity with new parameterization)
+  - Verify `||Bragg_UB - Bragg_mapping|| < threshold` with incremental UB path
+- [ ] **C3:** Stage A smoke test with incremental UB params
+  - Enable `use_incremental_ub=True` in smoke test fixture
+  - Verify convergence behavior matches cell+misset path
+- [ ] **C4:** Findings update
+  - Add GEOMETRY-004 (or extend GEOMETRY-003) to `docs/findings.md`
+  - Document: incremental UB parameterization conventions, zero-point invariants, quaternion-to-Euler conversion, Busing-Levy B-matrix derivation, DB-AT-026 acceptance test
+- [ ] **C5:** Documentation sync
+  - Update `docs/TESTING_GUIDE.md` §2 with DB-AT-026 entry
+  - Update `docs/development/TEST_SUITE_INDEX.md` with DB-AT-026 status
+  - Run `pytest --collect-only` for DB-AT-026, archive selector log
+
+### Exit Criteria (Phase C)
+
+- All acceptance tests pass (DB-AT-024, DB-AT-026)
+- Stage A smoke tests pass with incremental UB path
+- Findings and test registry updated
+- No regressions in existing test suite
+

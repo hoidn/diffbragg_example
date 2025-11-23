@@ -1,0 +1,28 @@
+{
+  "small_detector": {
+    "detector_offset_reduction_min": 0.9999999403953552,
+    "detector_offset_final_abs_max": 1.4901161193847656e-08,
+    "gate_threshold_reduction": 0.80,
+    "gate_threshold_final_abs_max": 0.05,
+    "passed_reduction": true,
+    "passed_final_abs_max": true,
+    "passed": true,
+    "note": "Both gates passed: 99.999994% reduction (>>80%) and final offset 1.49e-08 mm (<<0.05mm)"
+  },
+  "full_detector": {
+    "detector_offset_reduction_min": 0.9999999403953552,
+    "detector_offset_final_abs_max": 1.4901161193847656e-08,
+    "chi_squared_initial": 290869088.0,
+    "chi_squared_final": 290694208.0,
+    "chi_squared_delta": -174880.0,
+    "chi_squared_regression": -0.0006012326755052087,
+    "gate_threshold_reduction": 0.80,
+    "gate_threshold_final_abs_max": 0.05,
+    "gate_threshold_chi_squared_regression": 0.0005,
+    "passed_reduction": true,
+    "passed_final_abs_max": true,
+    "passed_chi_squared_regression": true,
+    "passed": true,
+    "note": "All gates passed: 99.999994% reduction, final offset 1.49e-08 mm, chi² improved by 0.06% (negative regression = better than threshold)"
+  }
+}

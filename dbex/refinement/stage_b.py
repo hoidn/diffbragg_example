@@ -114,7 +114,9 @@ class StageB:
         stage_a_ctx = inputs.get('stage_a_ctx', None)
 
         # Extract device/dtype from config
-        device = self._config.device
+        # NOTE: Keep device as CUDA here so that _build_stage_b_params can detect
+        # the need for CPU fallback via config.stage_b_full_eval_on_cpu
+        device = torch.device(self._config.device)
         dtype = self._config.dtype
 
         # Guard: Stage B requires halo-padded HKL grid and interpolation enabled (REFINE-005)

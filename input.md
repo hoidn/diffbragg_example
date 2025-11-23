@@ -1,331 +1,345 @@
-# ARCH-REFINE-FLOW-001 Phase B1a — Extract Stage A Helper Functions (IMPLEMENTATION REQUIRED)
+# ARCH-REFINE-FLOW-001 Phase B1a-loop1 — Extract `_build_stage_a_params` Helper ONLY
 
 ## Summary
-Extract ~1000 lines of inline LBFGS closure logic from `run_nanobrag_refinement` into three helper functions and refactor the main function to call them. **CRITICAL: This is a PRODUCTION CODE loop — you MUST modify dbex/nanobrag_refinement.py and run the regression guard test.**
+Extract ONLY the first helper function (`_build_stage_a_params`) from inline LBFGS closure in `run_nanobrag_refinement`. This is loop 1 of 3 for Phase B1a extraction (approved multi-loop strategy per blocker escalation 2025-11-23T040000Z).
 
 ## Mode
-none (production refactoring with regression guard)
+none (incremental production refactoring, partial progress commit)
 
 ## Focus
-ARCH-REFINE-FLOW-001 — Refactor to Protocol-based Refinement Engine (Phase B1a: Helper extraction)
+ARCH-REFINE-FLOW-001 — Refactor to Protocol-based Refinement Engine (Phase B1a-loop1: Extract first helper)
 
 ## Branch
 integration
 
 ## Mapped Tests
-- **test_stage_a_expansion** (regression guard): `pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion`
-  - **Acceptance:** MUST PASS with identical telemetry to baseline (small detector, 18.3% improvement)
-  - **Environment:** `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1`
+- **NONE** — This loop extracts a helper but does NOT wire it into the runtime (no regression guard needed)
+- **Compilation verification only:** Ensure imports/syntax are valid after extraction
 
 ## Artifacts
-`plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T034500Z/`
-- `pytest_stage_a_regression.log` (MANDATORY — regression guard output)
-- `telemetry_comparison.json` (MANDATORY — baseline vs extracted comparison)
+`plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T040000Z/`
+- `helper1_extraction_summary.md` (MANDATORY — extraction notes, line ranges, parameter list)
+- `compilation_check.log` (MANDATORY — python -m py_compile dbex/nanobrag_refinement.py output)
 - `summary.md` (MANDATORY — Turn Summary block)
 
-## HARD REQUIREMENTS (Dwell Enforcement)
-**This is the THIRD loop for Phase B1a focus. The last TWO loops were docs-only (planning + extraction documentation).**
+## Do Now (Simplified — Extract Helper 1 ONLY)
 
-Per Implementation Floor (hard) rule: "For a given focus, you may run at most one docs-only loop in a row. The next turn must hand off a Do Now with at least one production code task."
+### Context
+Ralph's i=191 blocker report identified that extracting all 3 helpers + refactoring in one loop exceeded single-loop capacity (token budget + accidental state loss from `git checkout` reversion). Supervisor APPROVED multi-loop extraction strategy (3 sub-loops). This is **loop 1 of 3**.
 
-**You MUST complete ALL of Steps 1-10 in this loop, including:**
-1. ✓ DONE (i=190): Phase B1a extraction documentation created
-2. **NOW REQUIRED:** Extract `_build_stage_a_params` helper (Step 3)
-3. **NOW REQUIRED:** Extract `_build_stage_a_lbfgs_closure` helper (Step 4)
-4. **NOW REQUIRED:** Extract `_run_stage_a_lbfgs` helper (Step 5)
-5. **NOW REQUIRED:** Refactor `run_nanobrag_refinement` to call helpers (Step 6)
-6. **NOW REQUIRED:** Update final Bragg generation to use dicts (Step 7)
-7. **NOW REQUIRED:** Run regression guard `test_stage_a_expansion` (Step 8)
-8. **NOW REQUIRED:** Compare telemetry with baseline (Step 9)
-9. **NOW REQUIRED:** Update implementation.md B1a checklist (Step 10)
-10. **NOW REQUIRED:** Commit with production code changes and push
+**Scope Reduction from i=191:**
+- i=191 attempted: Extract all 3 helpers + refactor main function (~1000 lines total)
+- **This loop (i=192):** Extract `_build_stage_a_params` ONLY (~335 lines including beam fix)
+- **Next loop (i=193):** Extract `_build_stage_a_lbfgs_closure` (~575 lines with nested functions)
+- **Loop after (i=194):** Extract `_run_stage_a_lbfgs` + refactor main function + regression guard
 
-**BLOCKER ESCALATION:** If you encounter a blocker during Steps 3-7, document it in `phase_b1a_blocker.md` with:
-- Exact error message
-- Which step failed
-- What you attempted
-- Recommended escalation path
-Then STOP and commit the blocker report. Do NOT deliver another docs-only artifact.
+### Step 1: Review Prior Extraction Documentation
+Read your own extraction analysis from i=190:
+- `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T032647Z/phase_b1a_extraction.md`
+  - Section 1 boundaries: lines ~761-876 (parameter initialization)
+  - Nonlocal variables: ~30 documented
+  - Helper signature: `_build_stage_a_params(crystal, detector, inputs, config, device, dtype, hkl_grid, hkl_metadata, sigma_floor_sq_cache, baseline_crystal, baseline_detector)`
 
-## Do Now (Steps 3-10 — PRODUCTION CODE REQUIRED)
+**DO NOT re-document.** Proceed directly to extraction.
 
-### PRE-CHECK: Review Previous Work
-You already completed Step 2 (inventory) in loop i=190:
-- ✓ Documentation: `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T032647Z/phase_b1a_extraction.md` (350 lines)
-- ✓ Boundaries identified: Section 1 (lines 761-935), Section 2 (lines 998-1573), Section 3 (lines 1575-1685)
-- ✓ Nonlocal variables documented: ~30 variables (params, telemetry, stage_a_context)
-- ✓ Helper signatures defined: _build_stage_a_params, _build_stage_a_lbfgs_closure, _run_stage_a_lbfgs
+### Step 2: Extract `_build_stage_a_params` Helper
 
-**DO NOT re-document or re-inventory. Proceed directly to Step 3 (extraction).**
+**Location:** Add BEFORE `run_nanobrag_refinement` in `dbex/nanobrag_refinement.py` (around line 650-680)
 
-### Step 3: Extract `_build_stage_a_params` helper
-**Location:** Add before `run_nanobrag_refinement` in `dbex/nanobrag_refinement.py` (around line 650)
+**Action:** Copy lines ~761-876 from `run_nanobrag_refinement` (Stage A LBFGS parameter initialization section) into this new helper function.
 
-**Action:** Copy lines 761-935 from `run_nanobrag_refinement` into this helper with the exact signature from your extraction.md.
-
-**Returns:** Dict with keys `params`, `param_values`, `telemetry_state`, `stage_a_context`, `optimizer`
-
-**Critical:**
-- Preserve ALL 3 parameterization modes (cell+misset, U-matrix, incremental UB)
-- Keep optimizer initialization (LBFGS with history_size, line_search_fn="strong_wolfe")
-- Keep all telemetry accumulator initialization (list comprehensions, mutable [0] counters)
-- Keep ROI/panel sampling logic
-- Keep warm-cache context building
-
-### Step 4: Extract `_build_stage_a_lbfgs_closure` helper
-**Location:** Add after `_build_stage_a_params` (around line 900)
-
-**Action:** Copy lines 998-1573 from `run_nanobrag_refinement` into this helper.
-
-**Structure:**
+**Exact Signature (from your phase_b1a_extraction.md):**
 ```python
-def _build_stage_a_lbfgs_closure(...):
-    # Define nested compute_loss function (lines 998-1406)
-    def compute_loss(work_item_ids, is_full):
-        # ... exact copy of original compute_loss ...
-        return chi_squared_loss, masked_mse_loss
+def _build_stage_a_params(
+    crystal,
+    detector,
+    inputs,
+    config: RefinementConfig,
+    device,
+    dtype,
+    hkl_grid,
+    hkl_metadata,
+    sigma_floor_sq_cache,
+    baseline_crystal,
+    baseline_detector,
+    beam  # IMPORTANT: Add this parameter (identified in i=191 Attempt 1)
+):
+    """
+    Build trainable parameters for Stage A LBFGS refinement.
 
-    # Define nested closure function (lines 1408-1573)
-    def closure():
-        # ... exact copy of original closure ...
-        return chi_squared_loss
+    Supports 3 parameterization modes:
+    - cell + misset (default)
+    - U-matrix (config.use_u_matrix_parameterization=True)
+    - incremental UB (config.use_incremental_ub=True)
 
-    # Return both functions as tuple
-    return (closure, compute_loss)
+    Returns:
+        Dict with keys: params, param_values, telemetry_state, stage_a_context, optimizer
+    """
+    # ... extract lines ~761-876 here ...
+
+    return {
+        'params': params,
+        'param_values': param_values,
+        'telemetry_state': telemetry_state,
+        'stage_a_context': stage_a_context,
+        'optimizer': optimizer
+    }
 ```
 
-**Critical:**
-- Nested functions MUST capture variables from helper parameters via lexical scope (not function parameters)
-- Keep lazy imports (nanobrag_bridge imports INSIDE compute_loss, not at module level)
-- Preserve lifecycle telemetry (U-matrix mode)
-- Keep gradient validation (NaN/Inf check)
-- Keep periodic full validation logic
+**Critical Implementation Notes:**
 
-### Step 5: Extract `_run_stage_a_lbfgs` helper
-**Location:** Add after `_build_stage_a_lbfgs_closure` (around line 1400)
+1. **Include beam parameter:** In i=191 Attempt 1, you discovered that `beam` is needed for MOSFLM A* calculation. Add it to the signature.
 
-**Action:** Copy lines 1575-1685 from `run_nanobrag_refinement` into this helper.
+2. **Preserve ALL 3 parameterization modes:**
+   - Lines ~817-876: `if config.use_incremental_ub:` branch
+   - Lines ~937-996: `if config.use_u_matrix_parameterization:` branch
+   - Lines ~761-816: Default cell+misset branch
 
-**Returns:** Tuple `(status, message, final_chi_squared_value, final_masked_mse_value)`
+3. **Keep optimizer initialization exactly as-is:**
+   ```python
+   optimizer = torch.optim.LBFGS(
+       params,
+       history_size=config.lbfgs_history_size,
+       line_search_fn="strong_wolfe"
+   )
+   ```
 
-**Critical:**
-- Exception handling wrapper (try/except around optimizer.step)
-- Final validation with compute_loss_fn
-- Convergence check (≥0.2% improvement gate per REFINE-006)
-- Best params rollback on error
-- Fallback telemetry population
+4. **Preserve telemetry accumulator initialization:**
+   - All list comprehensions: `chi_squared_trace_sampled = [[0, 0.0]]`
+   - Mutable counters: `iteration_count = [0]`
+   - Dict builders: `param_deltas = {'initial': {}, 'final': {}}`
 
-### Step 6: Refactor `run_nanobrag_refinement` to call helpers
-**Action:** Replace lines ~761-1685 with ~20 lines calling the three helpers:
+5. **Keep warm-cache context building:**
+   - `stage_a_context = _build_stage_a_context(...)` call
+   - ROI/panel sampling logic
+   - Perf counter initialization
 
-```python
-# ARCH-REFINE-FLOW-001 Phase B1a: Extract Stage A helper functions
-param_data = _build_stage_a_params(
-    crystal=crystal,
-    detector=detector,
-    inputs=inputs,
-    config=config,
-    device=device,
-    dtype=dtype,
-    hkl_grid=hkl_grid,
-    hkl_metadata=hkl_metadata,
-    sigma_floor_sq_cache=sigma_floor_sq_cache,
-    baseline_crystal=baseline_crystal,
-    baseline_detector=baseline_detector
-)
+6. **Return Dict structure:**
+   ```python
+   return {
+       'params': params,              # List of torch.nn.Parameter objects
+       'param_values': param_values,  # Dict mapping param names to tensors
+       'telemetry_state': {           # Mutable telemetry accumulators
+           'chi_squared_trace_full': chi_squared_trace_full,
+           'chi_squared_trace_sampled': chi_squared_trace_sampled,
+           'iteration_count': iteration_count,
+           'param_deltas': param_deltas,
+           # ... all other telemetry fields ...
+       },
+       'stage_a_context': stage_a_context,  # StageAContext object
+       'optimizer': optimizer         # torch.optim.LBFGS instance
+   }
+   ```
 
-params = param_data['params']
-param_values = param_data['param_values']
-telemetry_state = param_data['telemetry_state']
-stage_a_context = param_data['stage_a_context']
-optimizer = param_data['optimizer']
+7. **DO NOT change logic:** This is a pure extraction. Copy lines exactly, no refactoring.
 
-closure, compute_loss_fn = _build_stage_a_lbfgs_closure(
-    param_values=param_values,
-    telemetry_state=telemetry_state,
-    stage_a_context=stage_a_context,
-    inputs=inputs,
-    detector=detector,
-    beam=beam,
-    crystal=crystal,
-    hkl_grid=hkl_grid,
-    hkl_metadata=hkl_metadata,
-    config=config,
-    device=device,
-    dtype=dtype,
-    optimizer=optimizer,
-    sigma_floor_sq_cache=sigma_floor_sq_cache,
-    baseline_crystal=baseline_crystal,
-    baseline_detector=baseline_detector
-)
+8. **DO NOT wire into main function yet:** Leave `run_nanobrag_refinement` unchanged. The helper exists but is not called.
 
-status, message, final_chi_squared_value, final_masked_mse_value = _run_stage_a_lbfgs(
-    optimizer=optimizer,
-    closure=closure,
-    compute_loss_fn=compute_loss_fn,
-    param_values=param_values,
-    telemetry_state=telemetry_state,
-    stage_a_context=stage_a_context,
-    config=config,
-    device=device,
-    dtype=dtype
-)
-```
+### Step 3: Verify Compilation
 
-### Step 7: Update final Bragg generation + telemetry packaging
-**Action:** Update lines ~1686-1900 to access variables via dicts instead of direct references.
-
-**Examples:**
-- `log_scale.item()` → `param_values['log_scale'].item()`
-- `chi_squared_trace_full` → `telemetry_state['chi_squared_trace_full']`
-- `canonical_roi_count` → `stage_a_context['canonical_roi_count']`
-- `iteration_count[0]` → `telemetry_state['iteration_count'][0]`
-
-### Step 8: Run regression guard (MANDATORY)
 ```bash
-mkdir -p plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T034500Z
+python -m py_compile dbex/nanobrag_refinement.py \
+  > plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T040000Z/compilation_check.log 2>&1
 
-AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-DBEX_SMOKE_SIGMA_SOURCE=cli_override \
-DBEX_SMOKE_DETECTOR_SIZE=small \
-KMP_DUPLICATE_LIB_OK=TRUE \
-NANOBRAGG_DISABLE_COMPILE=1 \
-pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion \
-  > plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T034500Z/pytest_stage_a_regression.log 2>&1
+echo $?  # Should be 0 (success)
 ```
 
-**Acceptance:** Test MUST PASS. If it fails:
-1. Check the log for errors
-2. Compare parameter initialization between helpers and original
-3. Verify nonlocal variable captures in closure
-4. Document blocker in `phase_b1a_blocker.md` if you can't resolve in this loop
+**If compilation fails:**
+- Check for missing imports
+- Verify helper is defined BEFORE `run_nanobrag_refinement`
+- Check indentation (must be module-level function, not nested)
+- Document error in blocker report if unresolvable
 
-### Step 9: Compare telemetry with baseline (MANDATORY)
-```python
-import json
+### Step 4: Document Extraction
 
-baseline = json.load(open("plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T030000Z/baseline/telemetry_small.json"))
-# Extract telemetry from the test run (look for test_stage_a_expansion output files)
+Create `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T040000Z/helper1_extraction_summary.md`:
 
-comparison = {
-    "chi_squared_initial": {
-        "baseline": baseline.get("chi_squared_trace_full", [[None, None]])[0][1] if baseline.get("chi_squared_trace_full") else None,
-        "extracted": "...",  # From current run
-        "match": "..."
-    },
-    "chi_squared_final": {...},
-    "iteration_count": {...},
-    "improvement_percent": {...}
-}
+```markdown
+# Helper 1 Extraction Summary
 
-with open("plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T034500Z/telemetry_comparison.json", "w") as f:
-    json.dump(comparison, f, indent=2)
+**Date:** 2025-11-23T040000Z
+**Loop:** i=192 (ralph)
+**Initiative:** ARCH-REFINE-FLOW-001 Phase B1a-loop1
+
+## Extracted Helper
+
+**Function:** `_build_stage_a_params`
+**Location:** dbex/nanobrag_refinement.py (added before run_nanobrag_refinement)
+**Line Range (Source):** ~761-876 (original inline location)
+**Line Count:** ~335 lines (including docstring + return statement)
+
+## Parameters (11 total)
+
+1. crystal
+2. detector
+3. inputs
+4. config: RefinementConfig
+5. device
+6. dtype
+7. hkl_grid
+8. hkl_metadata
+9. sigma_floor_sq_cache
+10. baseline_crystal
+11. baseline_detector
+12. beam (added per i=191 Attempt 1 fix)
+
+## Return Value
+
+Dict with 5 keys:
+- `params`: List[torch.nn.Parameter]
+- `param_values`: Dict[str, torch.Tensor]
+- `telemetry_state`: Dict[str, Any]
+- `stage_a_context`: StageAContext
+- `optimizer`: torch.optim.LBFGS
+
+## Parameterization Modes Preserved
+
+- [x] Default: cell + misset (lines ~761-816 source)
+- [x] U-matrix: config.use_u_matrix_parameterization (lines ~937-996 source)
+- [x] Incremental UB: config.use_incremental_ub (lines ~817-876 source)
+
+## Telemetry Fields Initialized
+
+- chi_squared_trace_full
+- chi_squared_trace_sampled
+- masked_mse_trace_full
+- iteration_count
+- param_deltas
+- lifecycle_log (U-matrix mode only)
+- quaternion_norm_trace (U-matrix mode only)
+
+## Compilation Check
+
+Status: PASSED / FAILED
+Error (if any): ...
+
+## Next Steps (Loop i=193)
+
+Extract `_build_stage_a_lbfgs_closure` helper (~575 lines with nested functions).
 ```
 
-### Step 10: Update implementation checklist and commit (MANDATORY)
-**Action:**
-1. Open `plans/active/ARCH-REFINE-FLOW-001/implementation.md`
-2. Mark B1a as complete:
-   ```markdown
-   - [x] B1a: **Extract helper functions from inline LBFGS closure** (Loop 1): ✓ COMPLETE (2025-11-23T034500Z)
-   ```
-3. Write `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T034500Z/summary.md` with Turn Summary block
-4. Commit with message:
-   ```
-   ARCH-REFINE-FLOW-001 Phase B1a: Extract Stage A helper functions
+### Step 5: Update Implementation Checklist
 
-   Refactored ~1000 lines of inline LBFGS closure logic into three helpers:
-   - _build_stage_a_params: Parameter initialization + telemetry state
-   - _build_stage_a_lbfgs_closure: Nested compute_loss + closure functions
-   - _run_stage_a_lbfgs: Optimizer execution + final validation
+Edit `plans/active/ARCH-REFINE-FLOW-001/implementation.md` line ~86:
 
-   Regression guard PASSED: test_stage_a_expansion (small detector).
-   Telemetry parity verified: chi² traces identical to baseline.
+Change:
+```markdown
+- [ ] B1a-loop1: **Extract `_build_stage_a_params` helper ONLY** (Loop i=192):
+```
 
-   Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T034500Z/
+To:
+```markdown
+- [x] B1a-loop1: **Extract `_build_stage_a_params` helper ONLY** (Loop i=192): ✓ COMPLETE (2025-11-23T040000Z)
+```
 
-   tests: not run
-   ```
-5. Push
+### Step 6: Write Turn Summary
+
+Create `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T040000Z/summary.md`:
+
+```markdown
+### Turn Summary
+Extracted first Stage A helper function (`_build_stage_a_params`, ~335 lines) from inline LBFGS closure per approved multi-loop strategy.
+Helper not yet wired into runtime (no behavior change, no regression guard needed).
+Compilation check PASSED, all 3 parameterization modes preserved (cell+misset, U-matrix, incremental UB).
+Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T040000Z/ (helper1_extraction_summary.md, compilation_check.log)
+```
+
+### Step 7: Commit and Push
+
+```bash
+git add dbex/nanobrag_refinement.py \
+  plans/active/ARCH-REFINE-FLOW-001/implementation.md \
+  plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T040000Z/
+
+git commit -m "ARCH-REFINE-FLOW-001 Phase B1a-loop1: Extract _build_stage_a_params helper
+
+Extracted first of three Stage A helper functions (~335 lines) from inline
+LBFGS closure per approved multi-loop extraction strategy (i=191 blocker).
+
+Helper signature includes 12 parameters (added beam per i=191 Attempt 1).
+Supports 3 parameterization modes: cell+misset, U-matrix, incremental UB.
+Returns dict with params, param_values, telemetry_state, stage_a_context, optimizer.
+
+Helper not yet wired (no runtime changes, no regression guard needed).
+Compilation check PASSED.
+
+Next loop (i=193): Extract _build_stage_a_lbfgs_closure (~575 lines).
+
+Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T040000Z/
+
+tests: not run"
+
+git push
+```
 
 ---
 
 ## How-To Map
 
-### Environment
+### Extraction Location
+Add `_build_stage_a_params` at line ~650-680 in `dbex/nanobrag_refinement.py`, BEFORE the `run_nanobrag_refinement` function definition.
+
+### Source Lines
+Copy from `run_nanobrag_refinement` lines ~761-876 (Stage A parameter initialization section).
+
+### Beam Parameter Fix
+In i=191 Attempt 1, you discovered that `beam` is needed. Add it to the helper signature (12th parameter).
+
+### Compilation Check
 ```bash
-export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
-export DBEX_SMOKE_SIGMA_SOURCE=cli_override
-export DBEX_SMOKE_DETECTOR_SIZE=small
-export KMP_DUPLICATE_LIB_OK=TRUE
-export NANOBRAGG_DISABLE_COMPILE=1
+python -m py_compile dbex/nanobrag_refinement.py
 ```
-
-### Extract helpers (Steps 3-5)
-1. Add `_build_stage_a_params` at line ~650 in dbex/nanobrag_refinement.py
-2. Add `_build_stage_a_lbfgs_closure` at line ~900 (after _build_stage_a_params)
-3. Add `_run_stage_a_lbfgs` at line ~1400 (after _build_stage_a_lbfgs_closure)
-4. Refactor `run_nanobrag_refinement` lines ~761-1685 → ~50 lines of helper calls (Step 6)
-5. Update final Bragg generation lines ~1686-1900 to use dicts (Step 7)
-
-### Regression guard (Step 8)
-```bash
-pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion \
-  > plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T034500Z/pytest_stage_a_regression.log 2>&1
-```
-
-### Telemetry comparison (Step 9)
-Create `telemetry_comparison.json` comparing baseline (from B0) with extracted helpers run.
 
 ---
 
 ## Pitfalls To Avoid
 
-1. **DO NOT deliver another docs-only artifact** — You MUST modify dbex/nanobrag_refinement.py and run tests
-2. **DO NOT change parameter initialization logic** — Extract as-is, preserve all 3 modes
-3. **DO NOT break lexical scope captures** — Nested functions must capture via closure, not parameters
-4. **DO NOT forget to return `compute_loss`** — `_run_stage_a_lbfgs` needs it for final validation
-5. **DO NOT introduce new imports** — All imports stay as they were (lazy imports for nanobrag_bridge)
+1. **DO NOT extract helpers 2 or 3** — This loop is ONLY helper 1
+2. **DO NOT refactor main function** — Leave `run_nanobrag_refinement` unchanged
+3. **DO NOT run regression guard** — Helper is not wired yet (no behavior change)
+4. **DO NOT change parameter initialization logic** — Extract as-is
+5. **DO NOT forget beam parameter** — You identified this need in i=191 Attempt 1
 6. **DO NOT modify telemetry field names** — Preserve backward compatibility
-7. **DO NOT remove comments** — Preserve TORCH-REFINE-* / PHYSICS-LOSS-* annotations
-8. **DO NOT change optimizer behavior** — LBFGS config must stay identical
-9. **DO NOT commit if regression guard fails** — Debug first; extraction must be behavior-preserving
-10. **DO NOT skip telemetry comparison** — Even if test passes, verify chi² traces match baseline
+7. **DO NOT remove comments** — Keep TORCH-REFINE-* / PHYSICS-LOSS-* annotations
+8. **DO NOT introduce new imports** — All imports stay as they were
+9. **DO NOT nest helper inside run_nanobrag_refinement** — Must be module-level function
+10. **DO NOT commit if compilation fails** — Debug first, helper must be syntactically valid
 
 ---
 
 ## If Blocked
 
-### Scenario A: Regression guard fails with different chi² values
+### Scenario A: Compilation fails with import errors
 **Action:**
-1. Compare `telemetry_comparison.json` to identify which parameter diverged
-2. Check that all helper parameters are passed correctly
-3. Verify `param_values` dict construction
-4. Document blocker in `phase_b1a_blocker.md` with exact divergence point
-5. Commit blocker report (do NOT deliver docs-only artifact)
+1. Check that helper is defined BEFORE `run_nanobrag_refinement`
+2. Verify no new imports were added
+3. Ensure helper is module-level (not nested inside another function)
+4. Document error in blocker report: `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T040000Z/blocker.md`
+5. Commit blocker report (do NOT leave workspace dirty)
 
-### Scenario B: Regression guard fails with import/syntax errors
+### Scenario B: Cannot locate exact line ranges
 **Action:**
-1. Verify helpers are defined BEFORE `run_nanobrag_refinement`
-2. Check lazy imports (nanobrag_bridge INSIDE nested functions)
-3. Ensure nanobrag_torch imports stay lazy
-4. Document blocker in `phase_b1a_blocker.md`
-5. Commit blocker report
+1. Use your i=190 extraction documentation: `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T032647Z/phase_b1a_extraction.md`
+2. Search for "Stage A: LBFGS parameter initialization" comment in code
+3. Look for `params = []` initialization (start of section)
+4. Look for `optimizer = torch.optim.LBFGS(` (end of section)
+5. Document ambiguity in blocker report if boundaries are unclear
 
-### Scenario C: Cannot complete extraction in reasonable time
+### Scenario C: Accidental state loss (git revert/checkout)
 **Action:**
-1. Document progress (which helpers extracted, which tests pass)
-2. Create `phase_b1a_partial_progress.md` with status
-3. Commit partial work if at least ONE helper is extracted and wired
-4. DO NOT commit if zero production code changes
+1. **STOP IMMEDIATELY** — Do not attempt recovery via subagents
+2. Document what was lost in blocker report
+3. Commit blocker report
+4. Supervisor will review and provide guidance
 
 ---
 
 ## Findings Applied
-- **CONVERGENCE-001**: Preserve U-matrix lifecycle telemetry in closure
+
+- **CONVERGENCE-001**: Preserve U-matrix lifecycle telemetry in param initialization
 - **GEOMETRY-003**: Preserve MOSFLM baseline misset derivation
 - **GEOMETRY-004**: Preserve incremental UB initialization
-- **REFINE-006**: Preserve ≥0.2% improvement gate
+- **REFINE-006**: Preserve ≥0.2% improvement gate (telemetry tracking)
 - **PHYSICS-LOSS-001**: Preserve dual metric tracking (chi_squared + masked_mse)
 - **PERF-WARM-SIM-001**: Preserve stage_a_ctx, perf counters, sampled indices
 - **GRADIENT-001**: Preserve MOSFLM a/b/c_star path (no cell overrides)
@@ -335,28 +349,29 @@ Create `telemetry_comparison.json` comparing baseline (from B0) with extracted h
 ## Pointers
 
 ### Extraction Documentation (From i=190)
-- `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T032647Z/phase_b1a_extraction.md` — Your 350-line boundary analysis
+- `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T032647Z/phase_b1a_extraction.md:15-80` — Helper 1 boundaries and signature
 
-### Baseline Artifacts (From B0)
-- `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T030000Z/baseline/telemetry_small.json` — Baseline for comparison
-- `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T030000Z/baseline/pytest_small.log` — Expected test output
+### Blocker Report (From i=191)
+- `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T034500Z/phase_b1a_blocker.md` — Why multi-loop extraction is needed
 
 ### Implementation Plan
-- `plans/active/ARCH-REFINE-FLOW-001/implementation.md:86-90` — Phase B1a checklist
+- `plans/active/ARCH-REFINE-FLOW-001/implementation.md:86-92` — Phase B1a-loop1 checklist
 
 ### Code Target
-- `dbex/nanobrag_refinement.py:680-3048` — Target file for extraction
-- `dbex/nanobrag_refinement.py:761-876` → `_build_stage_a_params`
-- `dbex/nanobrag_refinement.py:998-1573` → `_build_stage_a_lbfgs_closure`
-- `dbex/nanobrag_refinement.py:1575-1685` → `_run_stage_a_lbfgs`
+- `dbex/nanobrag_refinement.py:~761-876` — Source lines for helper 1 extraction
 
 ---
 
 ## Next Up
-If B1a completes successfully (all tests PASS):
-- **B1b (next loop):** Wrap helpers in StageA.run() class method
-- **B2 (loop after):** Update run_nanobrag_refinement for engine delegation
 
-If blocked:
-- Document blocker in `phase_b1a_blocker.md`
-- Supervisor reviews and decides path forward
+**Loop i=193 (after this loop completes):**
+- Extract `_build_stage_a_lbfgs_closure` helper (~575 lines with TWO nested functions)
+- More complex than helper 1 (requires lexical scope preservation for ~30 nonlocal variables)
+- Still NO regression guard (helpers not wired until loop i=194)
+
+**Loop i=194 (final extraction loop):**
+- Extract `_run_stage_a_lbfgs` helper (~110 lines)
+- Refactor `run_nanobrag_refinement` to call all three helpers
+- Update final Bragg generation to use dicts
+- MANDATORY regression guard: test_stage_a_expansion MUST PASS
+- MANDATORY telemetry comparison: chi² traces must match baseline

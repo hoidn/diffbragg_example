@@ -78,22 +78,41 @@
 - Stage A’s current implementation is the most heavily debugged; when defining the Stage interface, ensure it is generic, and rely on shared helpers (loss/telemetry/caching) that are proven in Stage A so later Stage implementations naturally follow the same patterns without hard-coding Stage-specific behavior into the engine.
 
 ## Phase B — Stage A Extraction
-**Status:** in_progress (B0 complete 2025-11-23T030000Z, B1a next)
-**Strategy:** Multi-loop extraction (approved 2025-11-23T030000Z per blocker report)
-**Estimated:** 3-4 loops total
+**Status:** in_progress (B0 complete 2025-11-23T030000Z, B1a-loop1 next)
+**Strategy:** Multi-loop extraction (approved 2025-11-23T040000Z per blocker escalation)
+**Estimated:** 5-6 loops total (3 for B1a extraction, 2-3 for B1b/B2)
 
 - [x] B0: Record baseline artifacts for Stage A smoke (`test_stage_a_expansion`, collect-only + pytest logs) under `plans/active/ARCH-REFINE-FLOW-001/reports/<timestamp>/baseline/`. ✓ COMPLETE (2025-11-23T030000Z)
-- [ ] B1a: **Extract helper functions from inline LBFGS closure** (Loop 1):
-  - `_build_stage_a_params()`: Initialize trainable parameters (lines ~761-876)
-  - `_build_stage_a_lbfgs_closure()`: Create LBFGS closure with compute_loss nested function (lines ~998-1574)
-  - `_run_stage_a_lbfgs()`: Execute optimizer.step(closure) and collect telemetry (lines ~1575-1700)
-  - Verify: test_stage_a_expansion regression guard PASSES with extracted helpers
-- [ ] B1b: **Wrap helpers in StageA.run()** (Loop 2):
+- [ ] B1a-loop1: **Extract `_build_stage_a_params` helper ONLY** (Loop i=192):
+  - Extract lines ~761-876 (parameter initialization + telemetry state + optimizer setup)
+  - Add helper before `run_nanobrag_refinement` in dbex/nanobrag_refinement.py
+  - Include beam parameter fix identified in i=191 Attempt 1
+  - Verify compilation (import checks, syntax)
+  - NO regression guard required (helper not yet wired)
+  - Commit partial progress with message "ARCH-REFINE-FLOW-001 Phase B1a-loop1: Extract _build_stage_a_params helper"
+- [ ] B1a-loop2: **Extract `_build_stage_a_lbfgs_closure` helper ONLY** (Loop i=193):
+  - Extract lines ~998-1573 (nested compute_loss + closure functions)
+  - Add helper after `_build_stage_a_params`
+  - Preserve TWO nested functions with lexical scope captures (~30 nonlocal variables)
+  - Maintain 3 parameterization modes (cell+misset, U-matrix, incremental UB)
+  - Keep lazy imports (nanobrag_bridge INSIDE nested functions)
+  - Verify compilation
+  - NO regression guard required (helpers not yet wired)
+  - Commit partial progress
+- [ ] B1a-loop3: **Extract `_run_stage_a_lbfgs` + Refactor main function** (Loop i=194):
+  - Extract lines ~1575-1685 (optimizer execution + final validation)
+  - Add helper after `_build_stage_a_lbfgs_closure`
+  - Refactor `run_nanobrag_refinement` to call all three helpers (~925 lines → ~50 lines)
+  - Update final Bragg generation to use dicts (param_values, telemetry_state, stage_a_context)
+  - MANDATORY: Run regression guard test_stage_a_expansion (MUST PASS)
+  - MANDATORY: Compare telemetry with baseline (chi² traces must match)
+  - Commit with full B1a completion message
+- [ ] B1b: **Wrap helpers in StageA.run()** (Loop i=195):
   - Implement StageA class calling extracted helpers in sequence
   - Package telemetry with stage_type/mode fields per Phase A schema
   - Return dict per RefinementStage protocol
   - Verify: StageA.run() produces identical telemetry to inline implementation
-- [ ] B2: **Update run_nanobrag_refinement for engine delegation** (Loop 3):
+- [ ] B2: **Update run_nanobrag_refinement for engine delegation** (Loop i=196):
   - Detect Stage A-only mode (not enable_stage_c)
   - Instantiate RefinementEngine([StageA()])
   - Delegate to engine.run()

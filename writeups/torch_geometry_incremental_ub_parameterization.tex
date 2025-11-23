@@ -1,0 +1,377 @@
+
+\documentclass[11pt]{article}
+\usepackage{amsmath,amssymb}
+\usepackage{bm}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+
+\begin{document}
+
+\title{Incremental UB Parameterization for Stage A}
+\author{}
+\date{}
+\maketitle
+
+\section{Conventions}
+
+We fix a simple, consistent convention and use it throughout:
+
+\begin{itemize}
+  \item Miller indices: column vector $h = (h,k,l)^\top$.
+  \item Reciprocal-space scattering vector in the lab frame:
+        column vector $r^\ast \in \mathbb{R}^3$.
+  \item Orientation / setting matrix $A^\ast \in \mathbb{R}^{3\times 3}$ defined by
+        \begin{equation}
+          r^\ast = A^\ast h.
+        \end{equation}
+  \item Unit cell parameters
+        \begin{equation}
+          \mathbf{c} = (a, b, c, \alpha, \beta, \gamma).
+        \end{equation}
+  \item A Busing--Levy type matrix $B(\mathbf{c})$ that depends \emph{only} on the cell
+        and maps Miller indices into reciprocal-space vectors in a crystal-fixed frame.
+  \item A rotation $U \in SO(3)$ that maps the crystal-fixed frame into the lab frame.
+\end{itemize}
+
+With these conventions, the setting matrix is
+\begin{equation}
+  A^\ast = U\,B(\mathbf{c}).
+\end{equation}
+
+\section{Baseline from DIALS/MOSFLM}
+
+From dxtbx/DIALS/MOSFLM we already have:
+
+\begin{itemize}
+  \item A trusted initial orientation matrix $A^\ast_0$
+        (e.g.\ from \verb|crystal.get_A()|).
+  \item A trusted initial cell
+        \begin{equation}
+          \mathbf{c}_0 = (a_0, b_0, c_0, \alpha_0, \beta_0, \gamma_0).
+        \end{equation}
+\end{itemize}
+
+We also know a specific formula for $B(\mathbf{c})$.
+One common Busing--Levy style choice uses
+\begin{align}
+  \cos\alpha &= \cos(\alpha), &
+  \cos\beta  &= \cos(\beta),  &
+  \cos\gamma &= \cos(\gamma),
+\end{align}
+and cell volume
+\begin{equation}
+  V = a b c\,
+      \sqrt{
+        1 + 2\cos\alpha\cos\beta\cos\gamma
+        - \cos^2\alpha - \cos^2\beta - \cos^2\gamma
+      }.
+\end{equation}
+From these we derive reciprocal basis lengths and angles and assemble
+$B(\mathbf{c})$ as a lower-triangular $3\times 3$ matrix (the standard
+Busing--Levy recipe).
+
+From the baseline cell we compute
+\begin{equation}
+  B_0 := B(\mathbf{c}_0),
+\end{equation}
+and define the baseline orientation matrix
+\begin{equation}
+  U_0 := A^\ast_0 B_0^{-1}.
+\end{equation}
+If our conventions match those of cctbx, $U_0$ should be numerically orthogonal:
+\begin{equation}
+  U_0^\top U_0 \approx I, \qquad \det U_0 \approx 1.
+\end{equation}
+Thus we have the ground-truth decomposition
+\begin{equation}
+  A^\ast_0 = U_0 B_0.
+\end{equation}
+
+\noindent
+\emph{Important:} this decomposition is done once, at initialization.
+
+\section{UB / Quaternion Round-Trip Test}
+
+We want the UB/quaternion implementation to be internally consistent.
+A strict round-trip test looks like this:
+
+\begin{enumerate}
+  \item Pick a cell $\mathbf{c}$ and build $B(\mathbf{c})$
+        using the same function that will be used in production.
+  \item Pick a rotation matrix $U \in SO(3)$.
+        For testing, generate a random unit quaternion $q$ and convert it to
+        $U(q)$.
+  \item Form
+        \begin{equation}
+          A^\ast := U B(\mathbf{c}).
+        \end{equation}
+  \item Run this through the UB/quaternion machinery:
+        \begin{itemize}
+          \item Recompute $B' := B(\mathbf{c})$.
+          \item Compute $U' := A^\ast {B'}^{-1}$.
+          \item Convert $U' \to q' \to U''$ using
+                \verb|matrix_to_quaternion| and \verb|quaternion_to_matrix|.
+        \end{itemize}
+  \item Check the errors
+        \begin{equation}
+          \|B' - B(\mathbf{c})\|,\quad
+          \|U' - U\|,\quad
+          \|U'' - U\|.
+        \end{equation}
+\end{enumerate}
+
+We want relative errors at machine precision (e.g.\ $< 10^{-12}$ in double).
+If these checks fail, there is a convention bug (transpose, using $B^{-1}$ where
+$B$ was intended, wrong handedness, etc.).
+
+This is what it means for the UB/A$^\ast$ implementation to ``pass the
+round-trip test''.
+
+\section{Incremental Parameterization in $U$ and Cell}
+
+Instead of making the quaternion represent the \emph{absolute} orientation $U$,
+we let it represent a \emph{misset} rotation $\Delta U$ on top of the baseline
+$U_0$. Likewise, cell parameters are treated as increments around
+$\mathbf{c}_0$.
+
+\subsection{Orientation Increments with Quaternions}
+
+Let the optimization variable be a unit quaternion
+\begin{equation}
+  q = (w, x, y, z)^\top \in \mathbb{R}^4, \qquad \|q\| = 1.
+\end{equation}
+We define the corresponding rotation matrix $R(q) \in SO(3)$ with the standard
+formula
+\begin{equation}
+  R(q) =
+  \begin{pmatrix}
+    1 - 2(y^2 + z^2) & 2(xy - wz)     & 2(xz + wy) \\
+    2(xy + wz)       & 1 - 2(x^2+z^2) & 2(yz - wx) \\
+    2(xz - wy)       & 2(yz + wx)     & 1 - 2(x^2+y^2)
+  \end{pmatrix}.
+\end{equation}
+The current orientation is then
+\begin{equation}
+  U(q) := R(q)\,U_0.
+\end{equation}
+
+Key points:
+\begin{itemize}
+  \item The identity orientation (no misset) is given by
+        \begin{equation}
+          q_{\text{id}} = (1,0,0,0)^\top,
+          \qquad R(q_{\text{id}}) = I.
+        \end{equation}
+  \item At $q = q_{\text{id}}$ we have
+        \begin{equation}
+          U(q_{\text{id}}) = I U_0 = U_0.
+        \end{equation}
+\end{itemize}
+Thus orientation increments are encoded as deviations of $q$ from
+$(1,0,0,0)$; we never try to re-encode $U_0$ itself as a quaternion.
+In code, $U_0$ is a fixed $3\times 3$ tensor and only $q$ is trainable.
+
+\subsection{Cell Increments}
+
+We already have a baseline cell $\mathbf{c}_0$.
+Introduce a 6-vector of cell parameter increments
+\begin{equation}
+  \delta\mathbf{c} =
+  (\delta a, \delta b, \delta c, \delta\alpha, \delta\beta, \delta\gamma)
+\end{equation}
+as trainable parameters (or log-scale versions for the lengths).
+For an additive model, define the current cell
+\begin{equation}
+  \mathbf{c}(\delta\mathbf{c}) =
+  (a_0 + \delta a,\;
+   b_0 + \delta b,\;
+   c_0 + \delta c,\;
+   \alpha_0 + \delta\alpha,\;
+   \beta_0 + \delta\beta,\;
+   \gamma_0 + \delta\gamma).
+\end{equation}
+Alternatively, we can use multiplicative deltas for the lengths, e.g.
+\begin{equation}
+  a(\delta a) = a_0 e^{\delta a}, \quad \text{etc.}
+\end{equation}
+The current metric matrix is then defined as a pure function of the cell:
+\begin{equation}
+  B(\delta\mathbf{c}) := B\big(\mathbf{c}(\delta\mathbf{c})\big).
+\end{equation}
+We never derive $B$ from $A^\ast$; $B$ is always computed directly from
+the cell.
+
+\section{Forward Mapping: Parameters $\to$ UB $\to$ $A^\ast$ $\to$ Simulator}
+
+Given refinement parameters $(q, \delta\mathbf{c})$ we build $A^\ast$ as follows:
+
+\begin{enumerate}
+  \item Normalize the quaternion:
+        \begin{equation}
+          \hat{q} = \frac{q}{\|q\|}.
+        \end{equation}
+  \item Compute the misset rotation and full orientation:
+        \begin{equation}
+          U = R(\hat{q})\,U_0.
+        \end{equation}
+  \item Compute the current cell and $B$ matrix:
+        \begin{equation}
+          \mathbf{c} = \mathbf{c}(\delta\mathbf{c}), \qquad
+          B = B(\mathbf{c}).
+        \end{equation}
+  \item Build the setting matrix:
+        \begin{equation}
+          A^\ast(q,\delta\mathbf{c}) := U B
+          = R(\hat{q})\,U_0\,B\big(\mathbf{c}(\delta\mathbf{c})\big).
+        \end{equation}
+\end{enumerate}
+
+This $A^\ast(q,\delta\mathbf{c})$ is what we convert into
+$(\texttt{mosflm\_a\_star}, \texttt{mosflm\_b\_star}, \texttt{mosflm\_c\_star})$
+tuples and pass to nanoBragg / the simulator.
+
+\subsection{Zero-Point Behaviour}
+
+At the zero point of the parameters,
+\begin{equation}
+  q = q_{\text{id}} = (1,0,0,0), \qquad \delta\mathbf{c} = 0,
+\end{equation}
+we have
+\begin{align}
+  R(q_{\text{id}}) &= I, \\
+  U(q_{\text{id}}) &= U_0, \\
+  \mathbf{c}(0)    &= \mathbf{c}_0, \\
+  B(0)             &= B(\mathbf{c}_0) = B_0,
+\end{align}
+and therefore
+\begin{equation}
+  A^\ast(q_{\text{id}}, 0) = U_0 B_0 = A^\ast_0.
+\end{equation}
+This equality holds by construction, not by an approximate quaternion
+round-trip.
+
+Along this forward path we never factor $A^\ast$ back into $(U,B)$.
+We always go
+\begin{equation}
+  (q, \delta\mathbf{c})
+  \;\longrightarrow\;
+  (U,B)
+  \;\longrightarrow\;
+  A^\ast
+  \;\longrightarrow\;
+  \text{simulator}.
+\end{equation}
+All potentially lossy or convention-sensitive operations such as
+$A^\ast_0 \to (U_0,B_0)$ and \verb|matrix_to_quaternion| are restricted to
+\begin{itemize}
+  \item a one-time decomposition $A^\ast_0 = U_0 B_0$ at initialization, and
+  \item a pure forward map $q \to R(q)$ during refinement.
+\end{itemize}
+
+\section{Before vs After: Original vs Improved Formulation}
+
+This section contrasts the original Stage-A quaternion/U-matrix formulation
+with the improved incremental UB parameterization.
+
+\subsection{Original Formulation (``Before'')}
+
+Conceptual pipeline:
+
+\begin{enumerate}
+  \item Start from mapping $A^\ast_0$ (from DIALS/MOSFLM).
+  \item Decompose into $(U_0, B_{\text{ideal}})$ such that
+        $A^\ast_0 \approx U_0 B_{\text{ideal}}$ via some helper
+        (e.g.\ \verb|derive_u_matrix_from_mosflm_a_star|).
+  \item Encode the \emph{absolute} orientation as a quaternion:
+        $q_0 = \texttt{matrix\_to\_quaternion}(U_0)$.
+        The trainable parameter $q$ represents the full orientation, not a misset.
+  \item Forward pass:
+        \begin{itemize}
+          \item Normalize $q$ to $\hat{q}$.
+          \item Compute $U(q) = \texttt{quaternion\_to\_matrix}(\hat{q})$.
+          \item Rebuild $A^\ast_{\text{recon}} = U(q) B_{\text{ideal}}$.
+          \item Convert columns of $A^\ast_{\text{recon}}$ to
+                $(\texttt{mosflm\_a\_star},\texttt{mosflm\_b\_star},\texttt{mosflm\_c\_star})$
+                and pass to the simulator.
+        \end{itemize}
+  \item At the nominal ``zero'' point, the code implicitly expects
+        $A^\ast_{\text{recon}}(q=q_0) \approx A^\ast_0$.
+\end{enumerate}
+
+In practice, this round trip often fails due to
+\begin{itemize}
+  \item inconsistent $B$ conventions (e.g.\ recomputing $B$ with a different formula),
+  \item $A$ vs.\ $A^\ast$ or transpose mismatches,
+  \item quaternion convention mismatches,
+  \item float32/float64 and Python tuple conversions.
+\end{itemize}
+As a result, the orientation and hence $A^\ast$ are wrong even at
+``zero'' parameters, causing large discrepancies in predicted peak positions
+and catastrophic $\chi^2$ at initialization.
+
+\subsection{Improved Formulation (``After'')}
+
+The improved design treats the DIALS/dxtbx crystal state as authoritative and
+uses \emph{incremental} parameters around this baseline.
+
+Conceptual pipeline:
+
+\begin{enumerate}
+  \item Baseline decomposition (once):
+        \begin{itemize}
+          \item Get $A^\ast_0$ and $\mathbf{c}_0$ from dxtbx/DIALS.
+          \item Compute $B_0 = B(\mathbf{c}_0)$ via a Busing--Levy-compatible
+                formula.
+          \item Define $U_0 = A^\ast_0 B_0^{-1}$ so that $A^\ast_0 = U_0 B_0$.
+        \end{itemize}
+  \item Define trainable increments:
+        \begin{itemize}
+          \item Orientation increment: unit quaternion $q$ with
+                $q = q_{\text{id}}$ at initialization.
+          \item Cell increments: $\delta\mathbf{c}$ with $\delta\mathbf{c}=0$
+                at initialization.
+        \end{itemize}
+  \item Forward pass:
+        \begin{itemize}
+          \item Normalize $q$ to $\hat{q}$.
+          \item Compute $U(q) = R(\hat{q}) U_0$.
+          \item Compute $\mathbf{c} = \mathbf{c}(\delta\mathbf{c})$ and
+                $B = B(\mathbf{c})$.
+          \item Build $A^\ast(q,\delta\mathbf{c}) = U(q)\,B(\mathbf{c})$ and
+                pass its columns as
+                $(\texttt{mosflm\_a\_star},\texttt{mosflm\_b\_star},\texttt{mosflm\_c\_star})$
+                to the simulator.
+        \end{itemize}
+\end{enumerate}
+
+At zero parameters $(q=q_{\text{id}}, \delta\mathbf{c}=0)$ we have
+$A^\ast(0) = A^\ast_0$ by construction, so the mapping and refinement zero
+points are identical.
+
+\paragraph{Advantages.}
+\begin{itemize}
+  \item The baseline crystal state $(U_0,B_0,A^\ast_0)$ comes directly from
+        dxtbx/DIALS and is never re-encoded through a quaternion round trip.
+  \item Orientation and cell are parameterized as incremental perturbations
+        $(\Delta R, \Delta\text{cell})$ around the baseline, matching how
+        DIALS and other frameworks conceptualize refinement.
+  \item The simulator always consumes $A^\ast$ built as $U(\text{params}) B(\text{params})$
+        in a single direction; no production code decomposes $A^\ast$ back into
+        $(U,B)$, eliminating round-trip ambiguity inside the optimization loop.
+\end{itemize}
+
+\section{Summary}
+
+The robust path can be summarized as
+\begin{equation}
+  A^\ast(q, \delta\mathbf{c})
+  =
+  R\!\left(\frac{q}{\|q\|}\right)
+  U_0
+  B(\mathbf{c}_0 + \delta\mathbf{c}),
+\end{equation}
+with $U_0$ and $\mathbf{c}_0$ extracted once from DIALS/MOSFLM.
+All refinement happens in the incremental parameters $(q, \delta\mathbf{c})$;
+we never re-factor $A^\ast$ back into $U$ and $B$ inside the optimization loop.
+
+\end{document}

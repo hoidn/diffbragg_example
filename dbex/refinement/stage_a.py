@@ -15,6 +15,7 @@ Stage A optimizes:
 Supports multiple parameterization modes (config.use_incremental_ub, config.use_u_matrix_parameterization).
 """
 
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Dict, Optional
 import numpy as np
@@ -117,23 +118,17 @@ class StageA:
         dtype = self._config.dtype
 
         # Build sigma_floor_sq_cache (Stage A warmup)
-        # CRITICAL: This tensor MUST match the construction in run_nanobrag_refinement
-        # (dbex/nanobrag_refinement.py ~lines 1938-1956)
-        sigma_floor_sq_val = self._config.variance_floor_sigma ** 2
-        sigma_floor_sq_cache = torch.full(
-            (1,),
-            sigma_floor_sq_val,
-            device=device,
-            dtype=dtype
-        )
+        # CRITICAL: This dict MUST match the construction in run_nanobrag_refinement
+        # (dbex/nanobrag_refinement.py line 2195: empty dict, populated by _get_sigma_floor_sq_tensor)
+        sigma_floor_sq_cache = {}
 
         # Compute baseline_misset_deg_tensor if baseline_crystal provided
         # (Matches run_nanobrag_refinement logic lines ~1958-1968)
         baseline_misset_deg_tensor = None
         if baseline_crystal is not None:
-            from dbex.nanobrag_bridge import derive_baseline_misset_from_perturbed_crystal
-            baseline_misset_deg_tensor = derive_baseline_misset_from_perturbed_crystal(
-                baseline_crystal, crystal, device, dtype
+            from dbex.nanobrag_bridge import compute_baseline_misset_deg
+            baseline_misset_deg_tensor = compute_baseline_misset_deg(
+                crystal, baseline_crystal, device=device, dtype=dtype
             )
 
         # STEP 1: Build Stage A parameters
@@ -265,6 +260,12 @@ class StageA:
                 'initial': 0.0,
                 'final': float(angle_gamma_raw.item()),
                 'delta': float(angle_gamma_raw.item())
+            },
+            'orientation_vec': {
+                'initial': [0.0, 0.0, 0.0],
+                'final': orientation_vec.detach().cpu().tolist(),
+                'delta': orientation_vec.detach().cpu().tolist(),
+                'norm': float(orientation_vec.norm().item())
             }
         }
 
@@ -336,7 +337,7 @@ class StageA:
             sigma_readout_provenance=self._config.sigma_readout_provenance,
             sigma_readout_reference_value=self._config.sigma_readout_reference_value,
             # PHYSICS-LOSS-002: Variance floor telemetry
-            variance_floor_value=self._config.variance_floor_sigma**2,
+            variance_floor_value=self._config.sigma_floor_value**2,
             variance_floor_clamp_fraction=(
                 float(variance_floor_clamped_pixels[0]) / float(variance_floor_masked_pixels[0])
                 if variance_floor_masked_pixels[0] > 0 else 0.0
@@ -351,7 +352,7 @@ class StageA:
         )
 
         # Convert to dict for engine aggregation
-        telemetry_output = telemetry_a.to_dict()
+        telemetry_output = asdict(telemetry_a)
 
         # Add Phase A4 stage identification fields
         telemetry_output["stage_type"] = "stage_a"

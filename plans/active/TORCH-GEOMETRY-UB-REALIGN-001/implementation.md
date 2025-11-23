@@ -73,7 +73,7 @@
 
 ## Phase B — Implementation & Wiring
 
-**Status:** pending (ready for implementation)
+**Status:** COMPLETE (2025-11-23T015000Z)
 
 ### Checklist
 
@@ -86,12 +86,13 @@
   - Implement `busing_levy_B_torch(a, b, c, α, β, γ) -> B` (differentiable PyTorch)
   - Log-exp for lengths, delta-add for angles
   - Unit test: zero deltas → `B = B₀`
-- [ ] **B3:** Wire incremental parameterization into Stage A closure (`dbex/nanobrag_refinement.py`)
+- [x] **B3:** Wire incremental parameterization into Stage A closure (`dbex/nanobrag_refinement.py`)
   - Add `use_incremental_ub` mode flag to `build_stage_a_lbfgs_closure`
   - Initialize `q_delta`, `δlog_a/b/c`, `Δα/β/γ` as trainable tensors
   - Call B1/B2 helpers to derive `U(params)`, `B(params)` → construct `A* = U @ B`
   - Inject via MOSFLM a/b/c_star OR baseline_misset + delta_misset (per crystal_overrides mode)
   - **Critical:** Preserve existing cell+misset default path (no regression to `test_stage_a_expansion`)
+  - **Completed:** Commit 1a0de3a (2025-11-23T015000Z), regression guard PASSED
 - [x] **B4:** Implement DB-AT-026 test (`tests/dbex/test_ub_parameterization_roundtrip.py`)
   - Test 1: Orientation zero-point (`||U(0) - U₀|| < 1e-12`)
   - Test 2: Cell zero-point (`||B(0) - B₀|| < 1e-12`)
@@ -120,7 +121,7 @@
 
 ## Phase C — Validation & Rollout
 
-**Status:** pending (blocked by Phase B)
+**Status:** pending (ready for implementation)
 
 ### Checklist
 

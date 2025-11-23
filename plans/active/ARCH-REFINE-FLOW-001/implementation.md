@@ -112,12 +112,14 @@
   - Returns dict per RefinementStage protocol
   - Compilation PASSED, regression guard test_stage_a_expansion PASSED
   - Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T045012Z/
-- [ ] B2: **Update run_nanobrag_refinement for engine delegation** (Loop i=196):
-  - Detect Stage A-only mode (not enable_stage_c)
-  - Instantiate RefinementEngine([StageA()])
-  - Delegate to engine.run()
-  - Keep Stage B/C inline temporarily
-  - Verify: Engine delegation path passes test_stage_a_expansion
+- [ ] B2: **Update run_nanobrag_refinement for engine delegation** (Loop i=196) — IN_PROGRESS (Galph planning 2025-11-23T050432Z):
+  - Detect Stage-A-only mode (enable_stage_c=False AND enable_stage_b=False)
+  - Extract _build_final_bragg_from_stage_a_telemetry helper (~240 lines)
+  - Implement engine delegation branch with RefinementEngine([StageA()])
+  - Wrap existing inline logic in else branch (Stage B/C combinations preserved)
+  - Validate: Engine delegation path passes test_stage_a_expansion with identical results
+  - Planning: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T050432Z/phase_b2_planning_summary.md
+  - Handoff: input.md (10-task Do Now for Ralph)
 - [ ] B3: Rerun Stage A smoke (small + full detector) and capture logs + telemetry JSON verifying no regression (telemetry states, perf counters, chi-squared traces).
 - [ ] B4: Run the relevant DB-AT selector(s) impacted by Stage A (DB-AT-010 Gradcheck plus DB-AT-024 mapping) in collect-only and pytest modes; archive logs/telemetry alongside smoke artifacts to satisfy Exit Criterion #3 for this phase.
 - [ ] B5: Update docs/tests to reference the new Stage A class where appropriate (e.g., developer docs showing class layout).

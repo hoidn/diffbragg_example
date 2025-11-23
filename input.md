@@ -1,349 +1,425 @@
-# Ralph Input — Phase B1b StageA Wrapper Implementation
+# Ralph Input — Phase B2: Engine Delegation for Stage-A-Only Mode
+
+**Loop:** i=196
+**Date:** 2025-11-23T050432Z
+**Initiative:** ARCH-REFINE-FLOW-001 Phase B2
+**Branch:** integration
+**Mode:** TDD (validate engine delegation produces identical outputs to inline path)
 
 ## Summary
-Implement Phase B1b: Wrap the three extracted Stage A helpers (_build_stage_a_params, _build_stage_a_lbfgs_closure, _run_stage_a_lbfgs) in StageA.run() method to complete the Stage A class extraction.
 
-## Mode
-TDD (validate wrapper produces identical telemetry to inline implementation)
+Implement conditional engine delegation for Stage-A-only mode in `run_nanobrag_refinement`. When both `enable_stage_c=False` and `enable_stage_b=False`, delegate to `RefinementEngine([StageA()])` instead of calling inline helpers. Keep Stage B/C inline temporarily (Phases C/D will extract them).
 
 ## Focus
-ARCH-REFINE-FLOW-001 — Protocol-based Refinement Engine (Phase B1b — StageA Wrapper)
 
-## Branch
-integration
+**ARCH-REFINE-FLOW-001** — Protocol-based Refinement Engine (Phase B2)
 
-## Mapped tests
-- `pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` (regression guard)
-- `pytest -vv tests/dbex/test_refinement_engine.py::test_engine_executes_mock_stage` (engine contract validation)
+## Mapped Tests
+
+- `pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` (regression guard, engine path)
+- `pytest -vv tests/dbex/test_refinement_engine.py::test_engine_executes_mock_stage` (engine contract)
 
 ## Artifacts
-- Root: `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T045012Z/`
-- Files:
-  - `pytest_stage_a_expansion.log` (regression guard)
-  - `pytest_engine.log` (engine contract validation)
-  - `phase_b1b_implementation_summary.md` (deliverables summary)
-  - `summary.md` (Turn Summary)
 
-## Do Now
+`plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T050432Z/`
+- `pytest_stage_a_expansion.log` (regression guard test output)
+- `pytest_engine.log` (engine contract validation)
+- `phase_b2_implementation_summary.md` (implementation notes)
+- `summary.md` (Turn Summary block)
 
-**Objective:** Replace the INCORRECT StageA stub (which delegates back to run_nanobrag_refinement creating infinite recursion risk) with a CORRECT implementation that directly calls the three extracted helpers in sequence.
+## Do Now (10 tasks)
 
-### Implementation Steps
+**CRITICAL:** This is a production code change. You MUST implement the engine delegation logic and extract the final Bragg reconstruction helper. The regression guard test_stage_a_expansion will validate the engine path produces identical results to the inline path.
 
-1. **Review Phase B1a-loop3 artifacts** (5 min):
-   - Read `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T060500Z/summary.md` (bugfix completion)
-   - Verify extracted helper signatures in `dbex/nanobrag_refinement.py`:
-     - `_build_stage_a_params` (lines 680-1007, ~328 lines)
-     - `_build_stage_a_lbfgs_closure` (lines 1010-1726, ~717 lines)
-     - `_run_stage_a_lbfgs` (lines 1731-1884, ~156 lines)
+### Task 1: Review Phase B1b completion evidence
 
-2. **Rewrite StageA.run()** (30 min):
-   - Open `dbex/refinement/stage_a.py`
-   - Replace lines 61-142 (current INCORRECT stub) with direct helper orchestration:
+**Action:** Read artifacts from Phase B1b (plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T045012Z/)
+- Read `phase_b1b_implementation_summary.md` to understand StageA.run() implementation
+- Read `pytest_stage_a_expansion.log` to confirm baseline test behavior
+- Note: StageA.run() calls three extracted helpers and returns telemetry dict
 
-   ```python
-   def run(
-       self,
-       inputs: Any,
-       telemetry_sink: Optional[Path] = None
-   ) -> Dict[str, Any]:
-       """Execute Stage A LBFGS refinement calling extracted helpers."""
-       if self._config is None:
-           raise ValueError("StageA not configured. Call configure(config) before run().")
+**Validation:** Confirm StageA.run() exists at dbex/refinement/stage_a.py:62-367
 
-       # Import helpers (lazy to avoid circular imports at module load time)
-       from dbex.nanobrag_refinement import (
-           _build_stage_a_params,
-           _build_stage_a_lbfgs_closure,
-           _run_stage_a_lbfgs
-       )
+### Task 2: Extract _build_final_bragg_from_stage_a_telemetry helper
 
-       # Extract inputs (unpack dict into individual params)
-       refinement_inputs = inputs['refinement_inputs']
-       detector = inputs['detector']
-       beam = inputs['beam']
-       crystal = inputs['crystal']
-       hkl_grid = inputs['hkl_grid']
-       hkl_metadata = inputs['hkl_metadata']
-       baseline_crystal = inputs.get('baseline_crystal', None)
-       baseline_detector = inputs.get('baseline_detector', None)
+**File:** `dbex/nanobrag_refinement.py`
 
-       # Extract device/dtype from config
-       device = self._config.device
-       dtype = self._config.dtype
+**Action:** Extract the final Bragg reconstruction logic (current lines ~2046-2285) into a new helper function. Place this helper immediately after `_run_stage_a_lbfgs` (around line 1888).
 
-       # Build sigma_floor_sq_cache (Stage A warmup)
-       # CRITICAL: This tensor MUST match the construction in run_nanobrag_refinement
-       # (dbex/nanobrag_refinement.py ~lines 2735-2753)
-       import torch
-       sigma_floor_sq_val = self._config.variance_floor_sigma ** 2
-       sigma_floor_sq_cache = torch.full(
-           (1,),
-           sigma_floor_sq_val,
-           device=device,
-           dtype=dtype
-       )
+**IMPORTANT:** Copy lines 2046-2285 EXACTLY as they are. The only changes should be:
+1. Wrap in a function definition with signature below
+2. Extract param_deltas from telemetry parameter (added at top)
+3. Add proper imports if needed
 
-       # STEP 1: Build Stage A parameters
-       helper1_result = _build_stage_a_params(
-           crystal=crystal,
-           detector=detector,
-           inputs=refinement_inputs,
-           config=self._config,
-           device=device,
-           dtype=dtype,
-           hkl_grid=hkl_grid,
-           hkl_metadata=hkl_metadata,
-           sigma_floor_sq_cache=sigma_floor_sq_cache,
-           baseline_crystal=baseline_crystal,
-           baseline_detector=baseline_detector,
-           beam=beam
-       )
+**Helper signature:**
+```python
+def _build_final_bragg_from_stage_a_telemetry(
+    telemetry_a: RefinementTelemetry,
+    detector,
+    beam,
+    crystal,
+    inputs,
+    hkl_grid: torch.Tensor,
+    hkl_metadata: Dict,
+    config: RefinementConfig,
+    device: torch.device,
+    dtype: torch.dtype,
+) -> np.ndarray:
+    """
+    Build final Bragg array from Stage A telemetry (optimized parameters).
+    
+    Extracts optimized parameters from telemetry.param_deltas and regenerates
+    full Bragg image by looping over panels with final crystal geometry.
+    
+    Args:
+        telemetry_a: RefinementTelemetry instance with optimized param_deltas
+        detector: dxtbx Detector object
+        beam: dxtbx Beam object  
+        crystal: dxtbx Crystal object
+        inputs: RefinementInputs with panel_slices, trusted_mask
+        hkl_grid: torch.Tensor structure factor grid
+        hkl_metadata: dict with grid dimensions
+        config: RefinementConfig with device, dtype, parameterization mode
+        device: torch.device for tensor operations
+        dtype: torch.dtype for tensor operations
+    
+    Returns:
+        bragg_full: np.ndarray, shape [n_panels, slow, fast], final Bragg image
+    """
+    # Extract param_deltas from telemetry (already a dict)
+    param_deltas = telemetry_a.param_deltas if hasattr(telemetry_a, 'param_deltas') else telemetry_a['param_deltas']
+    
+    # Convert param deltas to torch tensors (no requires_grad, final forward pass)
+    log_scale = torch.tensor(param_deltas['log_scale'], device=device, dtype=dtype, requires_grad=False)
+    log_cell_a_delta = torch.tensor(param_deltas['log_cell_a_delta'], device=device, dtype=dtype, requires_grad=False)
+    log_cell_b_delta = torch.tensor(param_deltas['log_cell_b_delta'], device=device, dtype=dtype, requires_grad=False)
+    log_cell_c_delta = torch.tensor(param_deltas['log_cell_c_delta'], device=device, dtype=dtype, requires_grad=False)
+    angle_alpha_raw = torch.tensor(param_deltas['angle_alpha_raw'], device=device, dtype=dtype, requires_grad=False)
+    angle_beta_raw = torch.tensor(param_deltas['angle_beta_raw'], device=device, dtype=dtype, requires_grad=False)
+    angle_gamma_raw = torch.tensor(param_deltas['angle_gamma_raw'], device=device, dtype=dtype, requires_grad=False)
+    orientation_vec = torch.tensor(param_deltas['orientation_vec'], device=device, dtype=dtype, requires_grad=False)
+    
+    # Extract optional params for U-matrix/incremental UB modes
+    q_params = param_deltas.get('q_params')
+    if q_params is not None:
+        q_params = torch.tensor(q_params, device=device, dtype=dtype, requires_grad=False)
+    
+    q_delta = param_deltas.get('q_delta')
+    if q_delta is not None:
+        q_delta = torch.tensor(q_delta, device=device, dtype=dtype, requires_grad=False)
+    
+    B_ideal_reciprocal_torch = param_deltas.get('B_ideal_reciprocal_torch')
+    if B_ideal_reciprocal_torch is not None:
+        B_ideal_reciprocal_torch = torch.tensor(B_ideal_reciprocal_torch, device=device, dtype=dtype, requires_grad=False)
+    
+    # Get n_panels and panel_shape
+    n_panels = len(detector)
+    panel_shape = inputs.target.shape[1:]  # (slow, fast)
+    
+    # === NOW COPY LINES 2046-2285 EXACTLY ===
+    # (The panel loop that regenerates Bragg array with optimized parameters)
+    
+    # Generate final Bragg array with optimized parameters
+    with torch.no_grad():
+        bragg_full = np.zeros((n_panels, *panel_shape), dtype=np.float32)
+        
+        # ... COPY THE REST OF THE PANEL LOOP FROM LINES 2049-2285 ...
+    
+    return bragg_full
+```
 
-       # Unpack helper1 result
-       params = helper1_result['params']
-       param_values = helper1_result['param_values']
-       telemetry_state = helper1_result['telemetry_state']
-       stage_a_context = helper1_result['stage_a_context']
-       optimizer = helper1_result['optimizer']
+**Validation:** Helper function compiles without errors
 
-       # STEP 2: Build Stage A LBFGS closure
-       compute_loss, closure = _build_stage_a_lbfgs_closure(
-           param_values=param_values,
-           telemetry_state=telemetry_state,
-           stage_a_context=stage_a_context,
-           crystal=crystal,
-           detector=detector,
-           beam=beam,
-           inputs=refinement_inputs,
-           hkl_grid=hkl_grid,
-           hkl_metadata=hkl_metadata,
-           config=self._config,
-           sigma_floor_sq_cache=sigma_floor_sq_cache,
-           device=device,
-           dtype=dtype,
-           baseline_crystal=baseline_crystal
-       )
+### Task 3: Add stage detection logic
 
-       # STEP 3: Run Stage A LBFGS optimization
-       lbfgs_result = _run_stage_a_lbfgs(
-           optimizer=optimizer,
-           closure=closure,
-           compute_loss=compute_loss,
-           param_values=param_values,
-           telemetry_state=telemetry_state,
-           inputs=refinement_inputs,
-           config=self._config,
-           stage_a_context=stage_a_context
-       )
+**File:** `dbex/nanobrag_refinement.py`
+**Location:** After line 1951 (`if config is None: config = RefinementConfig()`)
 
-       # Extract telemetry from helper3 result
-       telemetry_state = lbfgs_result['telemetry_state']
+**Action:** Add stage detection logic:
+```python
+# Detect Stage-A-only mode for conditional engine delegation (Phase B2)
+stage_a_only_mode = (not config.enable_stage_c and not config.enable_stage_b)
+```
 
-       # Package telemetry dict matching RefinementTelemetry schema
-       telemetry_output = {
-           "optimizer": telemetry_state['optimizer'],
-           "stage": telemetry_state['stage'],
-           "history_size": telemetry_state['history_size'],
-           "max_iter": telemetry_state['max_iter'],
-           "tolerance_grad": telemetry_state['tolerance_grad'],
-           "tolerance_change": telemetry_state['tolerance_change'],
-           "roi_sample_fraction": telemetry_state['roi_sample_fraction'],
-           "roi_count_sampled": telemetry_state['roi_count_sampled'],
-           "roi_count_total": telemetry_state['roi_count_total'],
-           "loss_trace_sample": telemetry_state['chi_squared_trace_sample'],  # Backward compat
-           "loss_trace_full": telemetry_state['chi_squared_trace_full'],
-           "best_loss_full": telemetry_state['chi_squared_best'],
-           "param_deltas": telemetry_state['param_deltas'],
-           "status": telemetry_state['status'],
-           "message": telemetry_state['message'],
-           "chi_squared_trace_sample": telemetry_state.get('chi_squared_trace_sample'),
-           "chi_squared_trace_full": telemetry_state.get('chi_squared_trace_full'),
-           "chi_squared_best": telemetry_state.get('chi_squared_best'),
-           "masked_mse_trace_sample": telemetry_state.get('masked_mse_trace_sample'),
-           "masked_mse_trace_full": telemetry_state.get('masked_mse_trace_full'),
-           "masked_mse_best": telemetry_state.get('masked_mse_best'),
-           "sigma_readout_provenance": telemetry_state.get('sigma_readout_provenance'),
-           "sigma_readout_reference_value": telemetry_state.get('sigma_readout_reference_value'),
-           "variance_floor_value": telemetry_state.get('variance_floor_value'),
-           "variance_floor_clamp_fraction": telemetry_state.get('variance_floor_clamp_fraction'),
-           "canonical_stage_label": telemetry_state.get('canonical_stage_label'),
-           "canonical_chi_squared": telemetry_state.get('canonical_chi_squared'),
-           "canonical_chi_squared_iteration": telemetry_state.get('canonical_chi_squared_iteration'),
-           "canonical_roi_count": telemetry_state.get('canonical_roi_count'),
-           "canonical_detector_distances_mm": telemetry_state.get('canonical_detector_distances_mm'),
-           "roi_mode": telemetry_state.get('roi_mode'),
-           "perf_counters": telemetry_state.get('perf_counters'),
-       }
+**Validation:** Variable `stage_a_only_mode` is boolean
 
-       # Add Phase A4 stage identification fields
-       telemetry_output["stage_type"] = "stage_a"
+### Task 4: Implement engine delegation branch
 
-       # Determine mode based on config flags
-       if self._config.use_incremental_ub:
-           telemetry_output["mode"] = "incremental_ub"
-       elif self._config.use_u_matrix_parameterization:
-           telemetry_output["mode"] = "u_matrix"
-       else:
-           telemetry_output["mode"] = None  # Default cell+misset path
+**File:** `dbex/nanobrag_refinement.py`
+**Location:** Immediately after Task 3 stage detection logic
 
-       return telemetry_output
-   ```
+**Action:** Add full engine delegation branch:
+```python
+if stage_a_only_mode:
+    # === ENGINE DELEGATION PATH (Phase B2) ===
+    # Lazy imports to avoid circular dependencies at module load time
+    from dbex.refinement.engine import RefinementEngine
+    from dbex.refinement.stage_a import StageA
+    
+    # Build inputs dict per StageA.run() contract (dbex/refinement/stage_a.py:71-78)
+    engine_inputs = {
+        'refinement_inputs': inputs,
+        'detector': detector,
+        'beam': beam,
+        'crystal': crystal,
+        'hkl_grid': hkl_grid,
+        'hkl_metadata': hkl_metadata,
+        'baseline_crystal': baseline_crystal,
+        'baseline_detector': baseline_detector,
+    }
+    
+    # Instantiate RefinementEngine with StageA
+    engine = RefinementEngine(stages=[StageA()], config=config)
+    
+    # Execute engine and get telemetry dict (keyed by stage.name = "stage_a")
+    telemetry_dict = engine.run(engine_inputs)
+    
+    # Extract StageA telemetry (keyed by "stage_a" per StageA.name property)
+    telemetry_a = telemetry_dict["stage_a"]
+    
+    # Build final Bragg array using optimized parameters from telemetry
+    device = torch.device(config.device)
+    dtype = config.dtype
+    bragg_full = _build_final_bragg_from_stage_a_telemetry(
+        telemetry_a, detector, beam, crystal, inputs, hkl_grid,
+        hkl_metadata, config, device, dtype
+    )
+    
+    # Return with telemetry dict using "A" key for backward compatibility
+    # (Legacy code expects {"A": RefinementTelemetry, ...})
+    return bragg_full, {"A": telemetry_a}
 
-3. **Add import for torch** (1 line):
-   - Add `import torch` near top of `dbex/refinement/stage_a.py` (after numpy import)
+else:
+    # === INLINE PATH (existing implementation) ===
+    # All existing Stage A/B/C logic stays here (lines 1953-3407)
+```
 
-4. **Compilation check** (2 min):
-   ```bash
-   python -c "from dbex.refinement.stage_a import StageA; print('OK')"
-   ```
-   Expected: "OK" (exit code 0)
+**Validation:** Syntax is valid (no unmatched braces/indents)
 
-5. **Regression guard** (5 min):
-   ```bash
-   AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-   DBEX_SMOKE_DETECTOR_SIZE=small \
-   KMP_DUPLICATE_LIB_OK=TRUE \
-   NANOBRAGG_DISABLE_COMPILE=1 \
-   pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion \
-     > plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T045012Z/pytest_stage_a_expansion.log 2>&1
-   ```
-   Expected: 1 passed (test calls run_nanobrag_refinement which still uses inline helpers, StageA not yet wired)
+### Task 5: Wrap existing inline code in else branch
 
-6. **Engine contract validation** (3 min):
-   ```bash
-   pytest -vv tests/dbex/test_refinement_engine.py::test_engine_executes_mock_stage \
-     > plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T045012Z/pytest_engine.log 2>&1
-   ```
-   Expected: 1 passed (validates RefinementEngine protocol, unrelated to StageA wrapper)
+**File:** `dbex/nanobrag_refinement.py`
 
-7. **Update implementation.md checklist** (2 min):
-   - Mark `B1b` as COMPLETE in `plans/active/ARCH-REFINE-FLOW-001/implementation.md`
-   - Update status line to reflect Phase B1b completion timestamp
+**Action:** Indent ALL lines from 1953 to 3407 by 4 spaces (one indentation level) to place them inside the `else:` block from Task 4.
 
-8. **Write phase_b1b_implementation_summary.md** (10 min):
+**CRITICAL:** Do NOT modify any logic inside the else block. This is a PURE indentation change only.
+
+**Before:**
+```python
+if stage_a_only_mode:
+    ...
+else:
+sigma_floor_sq_cache: Dict[...] = {}  # line ~1953
+...
+return bragg_full, telemetry_dict  # line ~3407
+```
+
+**After:**
+```python
+if stage_a_only_mode:
+    ...
+else:
+    sigma_floor_sq_cache: Dict[...] = {}  # line ~1953 (indented by 4 spaces)
+    ...
+    return bragg_full, telemetry_dict  # line ~3407 (indented by 4 spaces)
+```
+
+**Tool:** Use editor's indent-block feature or careful manual indent. Verify NO logic changes.
+
+**Validation:** Compilation check passes (Task 6)
+
+### Task 6: Compilation check
+
+**Action:** Run compilation check:
+```bash
+python -c "from dbex import nanobrag_refinement; print('OK')"
+```
+
+**Expected output:** `OK` (exit code 0)
+
+**If compilation fails:**
+- Check for missing imports (torch already imported at top)
+- Check for indentation errors in else block
+- Check helper function signature matches call site
+- Check for unmatched braces in if/else
+- Document error → write to blockers.md
+
+### Task 7: Regression guard test
+
+**Action:** Run Stage A smoke test:
+```bash
+\
+  DBEX_SMOKE_DETECTOR_SIZE=small \
+  KMP_DUPLICATE_LIB_OK=TRUE \
+  NANOBRAGG_DISABLE_COMPILE=1 \
+  pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion \
+    > plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T050432Z/pytest_stage_a_expansion.log 2>&1
+```
+
+**Expected outcome:** 1 passed
+
+**Notes:**
+- Test default config has enable_stage_c=False, enable_stage_b=False → engine path
+- Telemetry structure should match inline path (key "A")
+- bragg_full array should be numerically identical
+
+**If test fails:**
+- Capture full pytest log (already redirected above)
+- Check telemetry key ("A" vs "stage_a")
+- Check param_deltas unpacking in helper
+- Document failure → write to blockers.md
+
+### Task 8: Engine contract validation
+
+**Action:** Run engine contract test:
+```bash
+cd /home/ollie/Documents/diffbragg_example && \
+  pytest -vv tests/dbex/test_refinement_engine.py::test_engine_executes_mock_stage \
+    > plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T050432Z/pytest_engine.log 2>&1
+```
+
+**Expected outcome:** 1 passed
+
+**Validation:** Engine protocol test still passes (validates engine.run() interface)
+
+### Task 9: Update implementation.md checklist
+
+**File:** `plans/active/ARCH-REFINE-FLOW-001/implementation.md`
+**Location:** Line ~115 (Phase B checklist, B2 item)
+
+**Action:** Mark B2 as complete:
+```markdown
+- [✓] B2: **Update run_nanobrag_refinement for engine delegation** (Loop i=196) — COMPLETE (2025-11-23T050432Z):
+  - Added stage detection logic (enable_stage_c=False AND enable_stage_b=False)
+  - Extracted _build_final_bragg_from_stage_a_telemetry helper (~240 lines, dbex/nanobrag_refinement.py:~1888)
+  - Implemented engine delegation path with RefinementEngine([StageA()])
+  - Wrapped existing inline logic in else branch (Stage B/C combinations preserved)
+  - Regression guard test_stage_a_expansion PASSED (engine delegation path active)
+  - Engine contract test test_engine_executes_mock_stage PASSED
+  - Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T050432Z/
+```
+
+**Validation:** Checklist B2 marked [✓] with timestamp
+
+### Task 10: Write implementation summary + commit
+
+**Action:**
+
+1. **Create implementation summary:**
+   - File: `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T050432Z/phase_b2_implementation_summary.md`
    - Document:
-     - StageA.run() now calls three helpers in sequence
-     - No infinite recursion risk (no delegation to run_nanobrag_refinement)
-     - Telemetry packaging includes all RefinementTelemetry fields + stage_type/mode
-     - Compilation PASSED, regression guard PASSED
-     - Next: Phase B2 (engine delegation in run_nanobrag_refinement)
+     - Helper extraction (final Bragg reconstruction)
+     - Engine delegation logic (if/else branching)
+     - Test results (pytest logs)
+     - Any issues encountered
 
-9. **Write summary.md with Turn Summary block** (5 min):
-   - Template:
+2. **Write Turn Summary:**
+   - File: `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T050432Z/summary.md`
+   - Content:
      ```markdown
      ### Turn Summary
-     Implemented StageA.run() wrapper calling the three extracted helpers directly (no recursion risk).
-     Telemetry packaging verified to include all RefinementTelemetry fields plus stage_type/mode per Phase A4 schema.
-     Regression guard test_stage_a_expansion PASSED; StageA wrapper ready for Phase B2 engine delegation.
-     Next: Phase B2 will update run_nanobrag_refinement to delegate Stage-A-only mode to RefinementEngine([StageA()]).
-     Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T045012Z/ (pytest logs, implementation summary)
+     Implemented engine delegation for Stage-A-only mode (enable_stage_c=False AND enable_stage_b=False).
+     Extracted final Bragg reconstruction helper (~240 lines) and wrapped existing inline logic in else branch.
+     Regression guard test_stage_a_expansion PASSED using engine delegation path; telemetry structure matches inline path.
+     Next: Phase B3 full smoke validation (full detector + DB-AT selectors).
+     Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T050432Z/ (pytest logs, implementation summary)
      ```
 
-10. **Commit and push** (2 min):
-    ```bash
-    git add dbex/refinement/stage_a.py plans/active/ARCH-REFINE-FLOW-001/
-    git commit -m "ARCH-REFINE-FLOW-001 Phase B1b: StageA wrapper implementation — tests: not run
+3. **Commit and push:**
+   ```bash
+   git add -A
+   git commit -m "ARCH-REFINE-FLOW-001 Phase B2: Engine delegation for Stage-A-only mode — tests: passed
 
-    - Rewrote StageA.run() to call extracted helpers directly (no recursion)
-    - Telemetry packaging includes all RefinementTelemetry fields + stage_type/mode
-    - Compilation PASSED, regression guard PASSED (inline path unchanged)
-    - Phase B1b COMPLETE, ready for Phase B2 engine delegation
-    "
-    git push
-    ```
+   - Added stage detection logic (enable_stage_c=False AND enable_stage_b=False)
+   - Extracted _build_final_bragg_from_stage_a_telemetry helper (~240 lines)
+   - Implemented engine delegation path with RefinementEngine([StageA()])
+   - Wrapped existing inline logic in else branch (Stage B/C combinations)
+   - Regression guard test_stage_a_expansion PASSED (engine delegation path)
+   - Phase B2 COMPLETE, ready for Phase B3 full smoke validation"
+   git push
+   ```
+
+**Validation:** Commit created and pushed successfully
 
 ## How-To Map
 
 ### Compilation Check
 ```bash
-python -c "from dbex.refinement.stage_a import StageA; print('OK')"
+python -c "from dbex import nanobrag_refinement; print('OK')"
 ```
 
-### Regression Guard
+### Regression Guard Test
 ```bash
-AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+cd /home/ollie/Documents/diffbragg_example
 DBEX_SMOKE_DETECTOR_SIZE=small \
 KMP_DUPLICATE_LIB_OK=TRUE \
 NANOBRAGG_DISABLE_COMPILE=1 \
-pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion \
-  > plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T045012Z/pytest_stage_a_expansion.log 2>&1
+pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
 ```
 
-### Engine Contract Validation
+### Engine Contract Test
 ```bash
-pytest -vv tests/dbex/test_refinement_engine.py::test_engine_executes_mock_stage \
-  > plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T045012Z/pytest_engine.log 2>&1
+cd /home/ollie/Documents/diffbragg_example
+pytest -vv tests/dbex/test_refinement_engine.py::test_engine_executes_mock_stage
 ```
-
-### Key Constants
-- `ARTIFACTS_ROOT`: `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T045012Z/`
-- `DETECTOR_SIZE`: `small` (matches baseline from Phase B0)
-- `ENVIRONMENT_FLAGS`: `KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1`
 
 ## Pitfalls To Avoid
 
-1. **Circular Import Risk**: Use lazy imports for `_build_stage_a_params` etc. inside StageA.run(), NOT at module top level
-2. **Telemetry Schema Completeness**: Include ALL RefinementTelemetry fields in telemetry_output dict (check dbex/refinement/stage.py:87-227 for full list)
-3. **sigma_floor_sq_cache Construction**: MUST match run_nanobrag_refinement (single-element tensor, correct device/dtype)
-4. **Inputs Dict Structure**: Expect dict with specific keys (refinement_inputs, detector, beam, crystal, hkl_grid, hkl_metadata, baseline_crystal, baseline_detector)
-5. **Telemetry State Unpacking**: Helper3 returns dict with 'telemetry_state' key, not direct telemetry dict
-6. **Device/Dtype Neutrality**: Extract device/dtype from self._config, do not hardcode .cuda() or float32
-7. **Backward Compatibility**: Map chi_squared fields to legacy loss_trace_* names (loss_trace_sample, loss_trace_full, best_loss_full)
-8. **Stage Type/Mode Fields**: MUST set stage_type="stage_a" and mode based on config flags (incremental_ub, u_matrix, or None)
-9. **No Recursion**: Do NOT call run_nanobrag_refinement from StageA.run() (creates infinite loop when Phase B2 wires engine delegation)
-10. **Test Scope**: Regression guard tests inline path (unaffected by StageA wrapper until Phase B2); engine contract test validates protocol only
+1. **DO NOT modify logic inside else block** — pure indentation change only
+2. **DO extract exact copy of lines 2046-2285** — no logic changes in helper
+3. **DO use lazy imports** — import engine/StageA inside `if stage_a_only_mode:`
+4. **DO preserve telemetry key** — return {"A": telemetry_a} for backward compat
+5. **DO NOT change param_deltas structure** — keep existing dict keys
+6. **DO handle RefinementTelemetry vs dict** — telemetry_a is RefinementTelemetry instance
+7. **DO preserve device/dtype** — all tensors use config.device/dtype
+8. **DO check both test selectors** — regression guard AND engine contract
+9. **DO document helper location** — place at ~line 1888 (after _run_stage_a_lbfgs)
+10. **DO archive all logs** — save pytest outputs to artifacts directory
 
 ## If Blocked
 
-### Scenario A: Compilation Failure
-- Capture full error message in `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T045012Z/compilation_error.log`
-- Check for missing imports (torch, typing, dbex.nanobrag_refinement)
-- Verify lazy import pattern (imports inside run(), not at top level)
-- Document in phase_b1b_blocker.md and mark B1b incomplete
+**Compilation errors:**
+- Write error to `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T050432Z/blockers.md`
+- Check imports, indentation, function signatures
+- Capture full traceback
 
-### Scenario B: Regression Guard Failure
-- Capture pytest output in `pytest_stage_a_expansion.log`
-- Check if failure is in run_nanobrag_refinement inline path (unrelated to StageA wrapper)
-- If StageA wrapper is accidentally called, trace how (should NOT be called until Phase B2)
-- Document in phase_b1b_blocker.md with failure signature
+**Test failures:**
+- Write failure to `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T050432Z/blockers.md`
+- Capture full pytest output
+- Compare telemetry structures
+- Check Bragg array equality
 
-### Scenario C: Telemetry Schema Mismatch
-- Compare telemetry_output keys against dbex/refinement/stage.py:159-227 (to_dict() method)
-- Check telemetry_state dict structure from helper3 result
-- Verify all optional fields use .get() with None default
-- Document missing fields and add them to StageA.run() telemetry packaging
+**Always:** Update docs/fix_plan.md Attempts History with blocker signature
 
-## Findings Applied
+## Findings Applied (Mandatory)
 
-- **REFINE-005** (Stage B halo/interpolation): Not applicable to Stage A wrapper (Stage B only)
-- **REFINE-007** (Stage C telemetry gates): Not applicable to Stage A wrapper (Stage C only)
-- **REFINE-008** (Stage B telemetry gates): Not applicable to Stage A wrapper (Stage B only)
-- **PHYSICS-LOSS-001** (variance-weighted loss): Telemetry schema includes chi_squared_trace_* and masked_mse_* fields
-- **PHYSICS-LOSS-002** (variance floor telemetry): Telemetry schema includes variance_floor_value and variance_floor_clamp_fraction
-- **PHYSICS-LOSS-003** (canonical Stage A metadata): Telemetry schema includes canonical_stage_label, canonical_chi_squared, etc.
-- **CONVERGENCE-001** (zero-delta bypass): Handled inside helper2 (_build_stage_a_lbfgs_closure), transparent to StageA wrapper
-- **GRADIENT-001** (autograd graph preservation): Handled inside helper2, transparent to StageA wrapper
-- **GEOMETRY-003** (baseline misset derivation): Handled inside helper1, transparent to StageA wrapper
-- **GEOMETRY-004** (incremental UB parameterization): Mode detection based on config.use_incremental_ub flag
+- **PHYSICS-LOSS-001**: StageA telemetry includes chi_squared fields (engine preserves)
+- **PHYSICS-LOSS-002**: StageA telemetry includes variance_floor fields (engine preserves)
+- **PHYSICS-LOSS-003**: StageA telemetry includes canonical metadata (engine preserves)
+- **PERF-WARM-001**: StageA preserves warm-cache telemetry (engine consumes StageAContext)
+- **GEOMETRY-003**: Baseline misset handled in StageA.run() (transparent to delegation)
+- **GEOMETRY-004**: Incremental UB mode handled in StageA.run() (transparent to delegation)
+- **GRADIENT-001**: Autograd preservation in helper2 (transparent to delegation)
+- **CONVERGENCE-001**: Zero-delta bypass in helper2 (transparent to delegation)
+- **POLICY-001**: Environment Freeze — no package installs during loop
 
 ## Pointers
 
-- Implementation plan: `plans/active/ARCH-REFINE-FLOW-001/implementation.md:109-123` (Phase B1b checklist)
-- Spec alignment: `docs/spec-db-workflow.md:33` (RefinementEngine contract)
-- Telemetry schema: `dbex/refinement/stage.py:87-227` (RefinementTelemetry dataclass with to_dict())
-- Helper signatures: `dbex/nanobrag_refinement.py:680-1884` (three extracted helpers)
-- Phase B1a completion: `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T060500Z/summary.md`
-- Fix plan entry: `docs/fix_plan.md:181-205` (ARCH-REFINE-FLOW-001 Attempts History)
+- **Spec:** docs/spec-db-workflow.md:33-36 (Engine Contract)
+- **Implementation Plan:** plans/active/ARCH-REFINE-FLOW-001/implementation.md:115-120 (Phase B2)
+- **Fix Plan:** docs/fix_plan.md:181-206 (ARCH-REFINE-FLOW-001)
+- **StageA:** dbex/refinement/stage_a.py:62-367 (run() method)
+- **Engine:** dbex/refinement/engine.py:21-125 (engine.run())
+- **Inline Code:** dbex/nanobrag_refinement.py:1950-3407 (lines to wrap in else)
+- **Bragg Reconstruction:** dbex/nanobrag_refinement.py:2046-2285 (to extract into helper)
+- **Testing Guide:** docs/TESTING_GUIDE.md §2 (pytest selectors)
 
 ## Next Up (optional)
 
-If you finish early and all tests pass:
-1. Phase B2 planning (update run_nanobrag_refinement for engine delegation)
-2. Document StageA wrapper design in `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T045012Z/stage_a_wrapper_design.md`
+**Do NOT proceed unless all Phase B2 tests pass.**
 
-## Normative Math/Physics
+If you finish early:
+- Run full detector smoke (preview Phase B3)
+- Run DB-AT-010 collect-only (preview Phase B3)
 
-Not applicable (wrapper implementation, no physics/math changes).
-
-All physics/math is encapsulated in the three extracted helpers which are already validated via Phase B1a regression guard.
+Archive logs to artifacts directory but DO NOT mark Phase B3 tasks as done.

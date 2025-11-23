@@ -122,3 +122,13 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-23T045012Z focus=ARCH-REFINE-FLOW-001 state=ready_for_implementation dwell=0 artifacts=plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T045012Z/ next_action=stage_a_wrapper_implementation
+
+## 2025-11-23T050432Z — ARCH-REFINE-FLOW-001 Phase B2 Engine Delegation Planning
+- Focus: ARCH-REFINE-FLOW-001 — Protocol-based Refinement Engine (Phase B2)
+- Action Type: planning
+- Key Observations: Reviewed Phase B1b completion evidence (commit 6d1d925, 2025-11-23T045012Z): StageA.run() now calls three extracted helpers directly with no recursion risk, telemetry packaging includes all RefinementTelemetry fields + stage_type/mode per Phase A4 schema, compilation + regression guard + engine contract tests all PASSED. Phase B2 objective: implement conditional engine delegation for Stage-A-only mode in run_nanobrag_refinement. When both enable_stage_c=False AND enable_stage_b=False, delegate to RefinementEngine([StageA()]) instead of calling inline helpers. Keep Stage B/C inline temporarily (Phases C/D will extract). Authored comprehensive Phase B2 planning summary and 10-task Do Now for Ralph covering: (1) extract _build_final_bragg_from_stage_a_telemetry helper from lines 2046-2285, (2) add stage detection logic, (3) implement engine delegation branch with lazy imports, (4) wrap existing inline logic in else block (pure indentation change), (5) validate via compilation + regression guard + engine contract tests. Implementation floor satisfied: production code tasks (helper extraction + engine delegation) + validating pytest selectors. Dwell=0 (last loop ready_for_implementation for B1b, now ready_for_implementation for B2 with engine delegation task).
+- Artifact Path: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T050432Z/
+- Next Actions: Ralph executes Phase B2 implementation (10 tasks: extract helper, add stage detection, implement engine delegation, wrap inline code in else, compilation check, regression guard test, engine contract test, update implementation.md, write summary, commit). If PASS → Galph plans Phase B3 next loop (full smoke validation + DB-AT selectors). If blocked → Ralph documents blocker → Galph reviews and decides.
+- <Action State>: [ready_for_implementation]
+
+2025-11-23T050432Z focus=ARCH-REFINE-FLOW-001 state=ready_for_implementation dwell=0 artifacts=plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T050432Z/ next_action=engine_delegation_implementation

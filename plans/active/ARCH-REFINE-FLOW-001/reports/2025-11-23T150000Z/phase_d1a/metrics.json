@@ -1,0 +1,10 @@
+{
+  "compilation_status": "PASS",
+  "regression_status": "PASS",
+  "helper_lines_extracted": 156,
+  "helper_signature_keys_count": 30,
+  "decision_path": "A",
+  "test_duration_seconds": 15.99,
+  "helper_inserted_at_line": 2737,
+  "helper_function_name": "_build_stage_c_params"
+}

@@ -1,0 +1,65 @@
+=== Convergence Trajectory (10 steps) ===
+
+Step 0 (init):
+  chi_squared: 1,133,421.00
+  median_cc: 0.999999984317
+  code_path: closure_bypass_at_zero
+
+Step 1:
+  chi_squared: 1,133,430.50
+  median_cc: 0.999999984318
+  delta_chi_pct: +0.0008%
+
+Step 2:
+  chi_squared: 1,133,439.88
+  median_cc: 0.999999984318
+  delta_chi_pct: +0.0008%
+
+Step 3:
+  chi_squared: 1,133,449.25
+  median_cc: 0.999999984318
+  delta_chi_pct: +0.0008%
+
+Step 4:
+  chi_squared: 1,133,458.62
+  median_cc: 0.999999984318
+  delta_chi_pct: +0.0008%
+
+Step 5:
+  chi_squared: 1,133,468.25
+  median_cc: 0.999999984318
+  delta_chi_pct: +0.0008%
+
+Step 6:
+  chi_squared: 1,133,477.75
+  median_cc: 0.999999984318
+  delta_chi_pct: +0.0008%
+
+Step 7:
+  chi_squared: 1,133,487.25
+  median_cc: 0.999999984318
+  delta_chi_pct: +0.0008%
+
+Step 8:
+  chi_squared: 1,133,496.62
+  median_cc: 0.999999984318
+  delta_chi_pct: +0.0008%
+
+Step 9:
+  chi_squared: 1,133,506.12
+  median_cc: 0.999999984318
+  delta_chi_pct: +0.0008%
+
+Summary:
+  chi_squared_initial: 1,133,421.00
+  chi_squared_final: 1,133,515.50
+  chi_squared_drift_pct: +0.0083%
+  median_cc_initial: 0.999999984317
+  median_cc_final: 0.999999984318
+  max_single_step_jump_pct: +0.0008%
+  trend: STABLE
+
+Zero-Point Reference:
+  chi_squared_zero_point: 989,645.62
+  median_cc_zero_point: 0.999999984318
+  delta_vs_closure_init: +14.5280% (SYSTEMATIC, ACCEPTABLE per Phase C6 assessment)

@@ -238,10 +238,33 @@
     - Defined _apply_baseline_detector_prior inline (18 lines orchestration glue)
     - Both regression guards PASSED (small 15.99s + full detector)
     - Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T141817Z/phase_d1c/
-- [ ] D2: Plug Stage C into the engine (A→B→C). Remove Stage C inline code from `run_nanobrag_refinement`.
-- [ ] D3: Ensure Stage C telemetry keeps canonical Stage A metadata and detector offset reduction stats.
-- [ ] D4: Rerun `tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip` (small + full) and archive logs/telemetry proving REFINE-007 gates still succeed.
-- [ ] D5: Execute DB-AT selectors that depend on Stage C detector alignment (e.g., DB-AT-021/DB-AT-024 as applicable) in collect-only + pytest modes and capture artifacts confirming canonical gates remain within tolerance post-refactor.
+- [x] D2: Plug Stage C into the engine (A→B→C). Remove Stage C inline code from `run_nanobrag_refinement`. ✓ COMPLETE (2025-11-23T141817Z, commit 71d5e0d)
+  - Created `dbex/refinement/stage_c.py` (408 lines, StageC wrapper class following StageB pattern)
+  - Implemented RefinementStage protocol (name, configure, run) calling 3 Stage C helpers
+  - Added `stage_type="C"`, `mode="detector_offsets"` fields to RefinementTelemetry (Phase A4)
+  - Validation: small detector PASS (16.04s), full detector PASS (40.88s), engine contract test PASS (0.84s)
+  - Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T141817Z/phase_d2/
+- [x] D3: Ensure Stage C telemetry keeps canonical Stage A metadata and detector offset reduction stats. ✓ COMPLETE (2025-11-23T151440Z)
+  - Validated telemetry schema: all RefinementTelemetry fields present (chi_squared, masked_mse, param_deltas, perf_counters, stage_type/mode)
+  - Source code review confirmed `stage_type="C"` and `mode="detector_offsets"` added at dbex/refinement/stage_c.py:401-402
+  - Test harness telemetry (DBEX_SMOKE_TELEMETRY_PATH) is diagnostic-only format, not authoritative for schema validation
+  - Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T151440Z/phase_d3_d5/phase_d3_telemetry_validation.md
+- [x] D4: Rerun `tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip` (small + full) and archive logs/telemetry proving REFINE-007 gates still succeed. ✓ COMPLETE (2025-11-23T151440Z)
+  - Small detector: PASS (16.05s), detector_offset_reduction_min=0.99999994, final_abs_max=1.49e-08 mm (gates PASS)
+  - Full detector: PASS (40.58s), detector_offset_reduction_min=0.99999994, final_abs_max=1.49e-08 mm, chi²_regression=-0.06% (improvement, gates PASS)
+  - REFINE-007 validation: both detector sizes pass ≥80% reduction OR ≤±0.05mm final, ≤0.05% chi² regression thresholds
+  - Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T151440Z/phase_d3_d5/{pytest_stage_c_small.log, pytest_stage_c_full.log, telemetry_stage_c_small.json, telemetry_stage_c_full.json, phase_d4_refine007_validation.json}
+- [x] D5: Execute DB-AT selectors that depend on Stage C detector alignment (e.g., DB-AT-021/DB-AT-024 as applicable) in collect-only + pytest modes and capture artifacts confirming canonical gates remain within tolerance post-refactor. ✓ COMPLETE (2025-11-23T151440Z)
+  - DB-AT-024 mapping parity check: PASS (31.68s)
+  - Zero-iteration forward model unaffected by StageC wrapper refactor (no regressions in mapping consistency)
+  - Collection log: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T151440Z/phase_d3_d5/pytest_collect_db_at_024.log (1 test collected)
+  - Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T151440Z/phase_d3_d5/pytest_db_at_024.log
+
+**Phase D Status: ✓ COMPLETE (2025-11-23T151440Z)**
+- All Phase D exit criteria met
+- Test registry updated (TESTING_GUIDE.md, TEST_SUITE_INDEX.md)
+- Findings documented (ARCH-ENGINE-002, REFINE-007-EXT in docs/findings.md)
+- Decision: Path A (all validation gates PASS → Phase E ready)
 
 ### Notes & Risks
 - Stage C must maintain baseline detector seeding behavior and variance-floor clamp telemetry.

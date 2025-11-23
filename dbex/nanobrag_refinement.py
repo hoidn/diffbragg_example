@@ -677,6 +677,336 @@ def _retarget_stage_a_simulators(stage_a_ctx: StageAContext, crystal_model) -> N
             entry.simulator.beam_config = stage_a_ctx.beam_config
 
 
+def _build_stage_a_params(
+    crystal,
+    detector,
+    inputs,
+    config: RefinementConfig,
+    device,
+    dtype,
+    hkl_grid,
+    hkl_metadata,
+    sigma_floor_sq_cache,
+    baseline_crystal,
+    baseline_detector,
+    beam
+):
+    """
+    Build trainable parameters for Stage A LBFGS refinement.
+
+    Supports 3 parameterization modes:
+    - cell + misset (default)
+    - U-matrix (config.use_u_matrix_parameterization=True)
+    - incremental UB (config.use_incremental_ub=True)
+
+    Returns:
+        Dict with keys: params, param_values, telemetry_state, stage_a_context, optimizer
+    """
+    # Initialize refinement parameters
+    # Stage A expansion: global scale + full crystal (a/b/c logs, alpha/beta/gamma bounded, orientation)
+
+    # 1. log_scale: global intensity scale
+    # Warm-start from global_scale_hint when available (per spec-db-workflow.md:20-40, REFINE-001)
+    if inputs.global_scale_hint is not None and inputs.global_scale_hint > 0:
+        initial_log_scale = float(torch.log(torch.tensor(inputs.global_scale_hint, dtype=dtype)))
+    else:
+        initial_log_scale = 0.0  # fallback: scale=1.0
+    log_scale = torch.tensor(initial_log_scale, device=device, dtype=dtype, requires_grad=True)
+
+    # 2. Unit cell length deltas (log parameterization for positivity)
+    log_cell_a_delta = torch.tensor(0.0, device=device, dtype=dtype, requires_grad=True)
+    log_cell_b_delta = torch.tensor(0.0, device=device, dtype=dtype, requires_grad=True)
+    log_cell_c_delta = torch.tensor(0.0, device=device, dtype=dtype, requires_grad=True)
+
+    # 3. Unit cell angle deltas (unbounded, will be mapped via tanh to bounded range)
+    # angles in degrees: alpha, beta, gamma typically near 90° for orthorhombic/cubic
+    # Use tanh(x) * max_delta to bound perturbations (e.g., ±10°)
+    angle_alpha_raw = torch.tensor(0.0, device=device, dtype=dtype, requires_grad=True)
+    angle_beta_raw = torch.tensor(0.0, device=device, dtype=dtype, requires_grad=True)
+    angle_gamma_raw = torch.tensor(0.0, device=device, dtype=dtype, requires_grad=True)
+
+    # 4. Orientation perturbation (3-vector that will be converted to unit quaternion)
+    # Initialize to small values near identity rotation
+    orientation_vec = torch.zeros(3, device=device, dtype=dtype, requires_grad=True)
+
+    # TORCH-GEOMETRY-PARITY-002 Phase B4: U-matrix quaternion parameterization (opt-in)
+    q_params = None
+    B_ideal_reciprocal_torch = None
+    if config.use_u_matrix_parameterization:
+        from dbex.nanobrag_bridge import (
+            derive_u_matrix_from_mosflm_a_star,
+            matrix_to_quaternion,
+        )
+        # Extract MOSFLM A* from the crystal (mapping zero point)
+        A_star_np = np.array(crystal.get_A()).reshape(3, 3)
+        cell_params = crystal.get_unit_cell().parameters()
+
+        # Derive U-matrix from mapping MOSFLM A* (no SO(3) projection)
+        # Get BOTH U and B_ideal from same TorchCrystal computation (CONVERGENCE-001 bugfix)
+        # CRITICAL FIX (Phase B Deep Diagnostic): Use the MOSFLM-derived B_ideal, do NOT recompute from cctbx
+        U_0, B_ideal_reciprocal_np = derive_u_matrix_from_mosflm_a_star(A_star_np, cell_params)
+
+        # Convert to quaternion
+        q_0 = matrix_to_quaternion(torch.tensor(U_0, dtype=torch.float64))
+
+        # Initialize trainable quaternion params (float64 for precision)
+        q_params = q_0.clone().to(device=device, dtype=dtype).requires_grad_(True)
+
+        # Use the MOSFLM-derived B_ideal (ensures U @ B_ideal == A*_MOSFLM at initialization)
+        # Prior bug: recomputed B_ideal from cctbx cell, causing catastrophic chi²=1.425B divergence
+        # Root cause: cctbx cell.parameters() → TorchCrystal → compute_cell_tensors() produces
+        # DIFFERENT B_ideal than MOSFLM A* decomposition, breaking U @ B_ideal = A*_MOSFLM invariant
+        B_ideal_reciprocal_torch = torch.tensor(B_ideal_reciprocal_np, device=device, dtype=dtype)
+
+    # TORCH-GEOMETRY-UB-REALIGN-001 Phase B3: Incremental UB parameterization (opt-in)
+    # Trainable parameters for incremental UB path:
+    #   - q_delta: quaternion delta [w,x,y,z] (4 params), identity = [1,0,0,0]
+    #   - delta_log_a/b/c: log-perturbations for cell lengths (3 params), zero = no change
+    #   - delta_alpha/beta/gamma: angle deltas in degrees (3 params), zero = no change
+    #   - log_scale: global intensity scale (1 param, shared with default path)
+    # Total: 10 DOF (4 orientation + 3 lengths + 3 angles)
+    q_delta = None
+    delta_log_a = None
+    delta_log_b = None
+    delta_log_c = None
+    delta_alpha = None
+    delta_beta = None
+    delta_gamma = None
+    U_baseline = None
+    cell_baseline = None
+    if config.use_incremental_ub:
+        # Extract baseline crystal state from dxtbx
+        U_baseline = torch.tensor(
+            np.array(crystal.get_U()).reshape(3, 3),
+            dtype=dtype,
+            device=device
+        )
+        unit_cell = crystal.get_unit_cell()
+        cell_baseline = torch.tensor(
+            [unit_cell.parameters()[i] for i in range(6)],  # [a, b, c, α, β, γ]
+            dtype=dtype,
+            device=device
+        )
+
+        # Initialize quaternion delta to identity [w=1, x=0, y=0, z=0]
+        q_delta = torch.tensor([1.0, 0.0, 0.0, 0.0], dtype=dtype, device=device, requires_grad=True)
+
+        # Initialize cell perturbations to zero (no change at params=0)
+        delta_log_a = torch.tensor(0.0, dtype=dtype, device=device, requires_grad=True)
+        delta_log_b = torch.tensor(0.0, dtype=dtype, device=device, requires_grad=True)
+        delta_log_c = torch.tensor(0.0, dtype=dtype, device=device, requires_grad=True)
+        delta_alpha = torch.tensor(0.0, dtype=dtype, device=device, requires_grad=True)
+        delta_beta = torch.tensor(0.0, dtype=dtype, device=device, requires_grad=True)
+        delta_gamma = torch.tensor(0.0, dtype=dtype, device=device, requires_grad=True)
+
+    params = [
+        log_scale,
+        log_cell_a_delta, log_cell_b_delta, log_cell_c_delta,
+        angle_alpha_raw, angle_beta_raw, angle_gamma_raw,
+        orientation_vec
+    ]
+
+    # Add q_params to optimizer if U-matrix mode is enabled
+    if config.use_u_matrix_parameterization:
+        params.append(q_params)
+
+    # Add incremental UB params to optimizer if incremental UB mode is enabled
+    if config.use_incremental_ub:
+        params = [
+            log_scale,
+            q_delta,
+            delta_log_a, delta_log_b, delta_log_c,
+            delta_alpha, delta_beta, delta_gamma
+        ]
+
+    # Setup LBFGS optimizer
+    optimizer = torch.optim.LBFGS(
+        params,
+        history_size=config.history_size,
+        max_iter=config.max_iter,
+        tolerance_grad=config.tolerance_grad,
+        tolerance_change=config.tolerance_change,
+        line_search_fn="strong_wolfe"  # Enable strong Wolfe line search for stability
+    )
+
+    # Telemetry accumulators
+    loss_trace_sample = []  # Deprecated: chi_squared only (PHYSICS-LOSS-001)
+    loss_trace_full = []  # Deprecated: chi_squared only (PHYSICS-LOSS-001)
+    best_loss_full = (float('inf'), -1)  # Deprecated: chi_squared only (PHYSICS-LOSS-001)
+    best_params_snapshot = None
+    iteration_count = [0]  # Mutable counter for closure
+
+    # PHYSICS-LOSS-001: Dual metric tracking (chi_squared + masked_mse)
+    chi_squared_trace_sample = []
+    chi_squared_trace_full = []
+    chi_squared_best = (float('inf'), -1)
+    masked_mse_trace_sample = []
+    masked_mse_trace_full = []
+    masked_mse_best = (float('inf'), -1)
+
+    # Perf counters (PERF-WARM-SIM-001)
+    perf_closure_evals = [0]  # Total closure calls
+    perf_validation_runs = [0]  # Full validation runs
+    perf_forward_times_ms = []  # Per-closure forward pass timings
+
+    # PHYSICS-LOSS-002: Variance floor clamp statistics
+    variance_floor_clamped_pixels = [0]  # Total pixels where floor engaged
+    variance_floor_masked_pixels = [0]  # Total masked pixels evaluated
+    sigma_floor_sq_tensor = _get_sigma_floor_sq_tensor(
+        sigma_floor_sq_cache, device, dtype, config.sigma_floor_value
+    )
+
+    # Deterministic ROI/Panel sampling seeds
+    np.random.seed(42)  # Fixed seed for deterministic behavior
+    n_panels = len(detector)
+    baseline_detector_distances = None
+    if baseline_detector is not None:
+        if len(baseline_detector) != n_panels:
+            raise ValueError(
+                "baseline_detector must have the same number of panels as detector"
+            )
+        baseline_detector_distances = [
+            baseline_detector[pid].get_directed_distance() for pid in range(n_panels)
+        ]
+    panel_shape = inputs.target.shape[1:]  # (slow, fast)
+    panel_slices = inputs.panel_slices
+    canonical_roi_count = len(panel_slices)
+    if baseline_detector_distances is not None:
+        canonical_detector_distances = list(baseline_detector_distances)
+    else:
+        canonical_detector_distances = [
+            detector[pid].get_directed_distance() for pid in range(n_panels)
+        ]
+    canonical_baseline = {
+        "stage_label": "A",
+        "chi_squared": None,
+        "iteration": None,
+        "roi_count": canonical_roi_count,
+        "detector_distances_mm": canonical_detector_distances,
+    }
+
+    # Sample panels (~15%) for Stage B reuse + fallback
+    sampled_panel_ids = sorted(
+        np.random.choice(
+            n_panels,
+            size=max(1, int(n_panels * config.roi_sample_fraction)),
+            replace=False,
+        ).tolist()
+    )
+
+    # Stage A ROI sampling (panel_slices-defined) with fallback to panel sampling
+    use_stage_a_roi_mode = bool(
+        config.enable_stage_a_roi_mode
+        and canonical_roi_count > 0
+        and (config.enable_stage_a_warm_cache or config.allow_cold_stage_a_roi_mode)
+    )
+    stage_a_roi_label = "roi" if use_stage_a_roi_mode else "panel"
+    stage_a_total_work_items = canonical_roi_count if use_stage_a_roi_mode else n_panels
+    if use_stage_a_roi_mode:
+        roi_sample_size = max(1, int(stage_a_total_work_items * config.roi_sample_fraction))
+        roi_sample_size = min(stage_a_total_work_items, roi_sample_size)
+        sampled_stage_a_indices = sorted(
+            np.random.choice(stage_a_total_work_items, size=roi_sample_size, replace=False).tolist()
+        )
+    else:
+        sampled_stage_a_indices = list(sampled_panel_ids)
+    full_stage_a_indices = list(range(stage_a_total_work_items))
+
+    # Build Stage A context conditionally (PERF-WARM-SIM-001)
+    # When warm cache is enabled (default), prebuild detector models and tensorize masks once
+    # for 2-5× speedup. When disabled (benchmarking), rebuild inside compute_loss for cold baseline.
+    stage_a_ctx = None
+    if config.enable_stage_a_warm_cache:
+        stage_a_ctx = _build_stage_a_context(
+            detector=detector,
+            beam=beam,
+            crystal=crystal,
+            trusted_mask=inputs.trusted_mask,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            enable_hkl_interpolation=config.enable_hkl_interpolation,
+            device=device,
+            dtype=dtype,
+            panel_slices=panel_slices,
+            enable_roi_mode=use_stage_a_roi_mode,
+        )
+
+    # Telemetry step counter (TORCH-GEOMETRY-CONVERGENCE-001 Phase A1)
+    # Mutable list for closure capture; increments after each closure call
+    telemetry_step_counter = [0]
+
+    # Lifecycle tracking for U-matrix and A* reconstruction (TORCH-GEOMETRY-CONVERGENCE-001 Phase B4)
+    u_matrix_lifecycle_log = []  # Track U checksum per closure call
+    a_star_lifecycle_log = []    # Track A* reconstruction per closure call
+
+    # Build param_values dict for return
+    param_values = {
+        'log_scale': log_scale,
+        'log_cell_a_delta': log_cell_a_delta,
+        'log_cell_b_delta': log_cell_b_delta,
+        'log_cell_c_delta': log_cell_c_delta,
+        'angle_alpha_raw': angle_alpha_raw,
+        'angle_beta_raw': angle_beta_raw,
+        'angle_gamma_raw': angle_gamma_raw,
+        'orientation_vec': orientation_vec,
+        'q_params': q_params,
+        'B_ideal_reciprocal_torch': B_ideal_reciprocal_torch,
+        'q_delta': q_delta,
+        'delta_log_a': delta_log_a,
+        'delta_log_b': delta_log_b,
+        'delta_log_c': delta_log_c,
+        'delta_alpha': delta_alpha,
+        'delta_beta': delta_beta,
+        'delta_gamma': delta_gamma,
+        'U_baseline': U_baseline,
+        'cell_baseline': cell_baseline,
+    }
+
+    # Build telemetry_state dict
+    telemetry_state = {
+        'loss_trace_sample': loss_trace_sample,
+        'loss_trace_full': loss_trace_full,
+        'best_loss_full': best_loss_full,
+        'best_params_snapshot': best_params_snapshot,
+        'iteration_count': iteration_count,
+        'chi_squared_trace_sample': chi_squared_trace_sample,
+        'chi_squared_trace_full': chi_squared_trace_full,
+        'chi_squared_best': chi_squared_best,
+        'masked_mse_trace_sample': masked_mse_trace_sample,
+        'masked_mse_trace_full': masked_mse_trace_full,
+        'masked_mse_best': masked_mse_best,
+        'perf_closure_evals': perf_closure_evals,
+        'perf_validation_runs': perf_validation_runs,
+        'perf_forward_times_ms': perf_forward_times_ms,
+        'variance_floor_clamped_pixels': variance_floor_clamped_pixels,
+        'variance_floor_masked_pixels': variance_floor_masked_pixels,
+        'sigma_floor_sq_tensor': sigma_floor_sq_tensor,
+        'telemetry_step_counter': telemetry_step_counter,
+        'u_matrix_lifecycle_log': u_matrix_lifecycle_log,
+        'a_star_lifecycle_log': a_star_lifecycle_log,
+    }
+
+    # Build stage_a_context dict
+    stage_a_context = {
+        'stage_a_ctx': stage_a_ctx,
+        'sampled_panel_ids': sampled_panel_ids,
+        'canonical_baseline': canonical_baseline,
+        'use_stage_a_roi_mode': use_stage_a_roi_mode,
+        'stage_a_roi_label': stage_a_roi_label,
+        'stage_a_total_work_items': stage_a_total_work_items,
+        'sampled_stage_a_indices': sampled_stage_a_indices,
+        'full_stage_a_indices': full_stage_a_indices,
+    }
+
+    return {
+        'params': params,
+        'param_values': param_values,
+        'telemetry_state': telemetry_state,
+        'stage_a_context': stage_a_context,
+        'optimizer': optimizer
+    }
+
+
 def run_nanobrag_refinement(
     inputs,
     detector,

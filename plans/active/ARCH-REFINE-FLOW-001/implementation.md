@@ -83,13 +83,13 @@
 **Estimated:** 5-6 loops total (3 for B1a extraction, 2-3 for B1b/B2)
 
 - [x] B0: Record baseline artifacts for Stage A smoke (`test_stage_a_expansion`, collect-only + pytest logs) under `plans/active/ARCH-REFINE-FLOW-001/reports/<timestamp>/baseline/`. ✓ COMPLETE (2025-11-23T030000Z)
-- [ ] B1a-loop1: **Extract `_build_stage_a_params` helper ONLY** (Loop i=192):
-  - Extract lines ~761-876 (parameter initialization + telemetry state + optimizer setup)
-  - Add helper before `run_nanobrag_refinement` in dbex/nanobrag_refinement.py
-  - Include beam parameter fix identified in i=191 Attempt 1
-  - Verify compilation (import checks, syntax)
-  - NO regression guard required (helper not yet wired)
-  - Commit partial progress with message "ARCH-REFINE-FLOW-001 Phase B1a-loop1: Extract _build_stage_a_params helper"
+- [x] B1a-loop1: **Extract `_build_stage_a_params` helper ONLY** (Loop i=192): ✓ COMPLETE (2025-11-23T040000Z)
+  - Extracted lines 761-996 (parameter initialization + telemetry state + optimizer setup)
+  - Added helper at dbex/nanobrag_refinement.py:680-1007
+  - Included beam parameter (12th parameter per i=191 Attempt 1)
+  - Compilation PASSED (exit code 0)
+  - Helper not yet wired (no behavior change)
+  - Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T040000Z/
 - [ ] B1a-loop2: **Extract `_build_stage_a_lbfgs_closure` helper ONLY** (Loop i=193):
   - Extract lines ~998-1573 (nested compute_loss + closure functions)
   - Add helper after `_build_stage_a_params`

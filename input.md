@@ -1,240 +1,219 @@
-# Phase D1a: Extract _build_stage_c_params Helper (Loop i=227)
+# Phase D1b: Extract _build_stage_c_lbfgs_closure Helper (Loop i=228)
 
 ## Summary
-Extract the Stage C parameter initialization helper function from the inline Stage C code (lines 3828-3897 in `dbex/nanobrag_refinement.py`). This is the first of three helper extraction loops following the proven Phase B/C multi-loop pattern.
+Extract the Stage C LBFGS closure helper function containing TWO nested functions (`compute_loss_stage_c` + `closure_stage_c`) from inline Stage C code. This is the second of three helper extraction loops following the proven Phase B/C multi-loop pattern.
 
 ## Mode
 none
 
 ## Focus
-ARCH-REFINE-FLOW-001 — Protocol-based Refinement Engine (Phase D1a: Stage C helper extraction)
+ARCH-REFINE-FLOW-001 — Protocol-based Refinement Engine (Phase D1b: Stage C closure extraction)
 
 ## Branch
 integration
 
 ## Mapped Tests
 - **Primary Validation**: Compilation check via `python -c "import dbex.nanobrag_refinement"`
-- **Regression Guard**: `pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small` (should PASS unchanged, helper not yet wired)
+- **Regression Guard**: NOT REQUIRED (helper not wired, compilation-only verification)
 
 ## Artifacts
-`plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T150000Z/phase_d1a/`
+`plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T141817Z/phase_d1b/`
 
 ## Do Now
 
 ### Context Review
-1. **Phase D0 Completion**: Both Stage C smoke tests PASSED (small 16.0s, full 40.83s) with baseline artifacts captured. Two blocking bugs fixed (UnboundLocalError, NameError for `baseline_detector_distances`). Decision: Path A → Phase D1 ready.
+1. **Phase D1a Completion**: `_build_stage_c_params` helper extracted successfully (commit 331ee75)
+   - 156 lines extracted, inserted at line 2737
+   - 30 return keys matching specification
+   - Compilation PASSED, regression guard PASSED (15.99s)
+   - Decision: Path A → proceed to Phase D1b
 
-2. **Inline Stage C Location**: Lines 3824-4328 in `dbex/nanobrag_refinement.py` (~504 lines total)
-   - Lines 3828-3897: Parameter initialization + optimizer setup (target for D1a extraction)
-   - Lines 3899-4295: LBFGS closure (nested compute_loss_stage_c + closure_stage_c)
-   - Lines 4296-4328: LBFGS execution + telemetry aggregation
+2. **Inline Stage C Closure Location**: Lines 4078-4293 in `dbex/nanobrag_refinement.py` (~216 lines total)
+   - Lines 4078-4247: `compute_loss_stage_c` nested function (~170 lines)
+   - Lines 4249-4293: `closure_stage_c` nested function (~45 lines)
 
-3. **Multi-Loop Extraction Pattern** (proven in Phase B/C):
-   - **D1a** (this loop): Extract `_build_stage_c_params` helper (~200 lines)
-   - **D1b** (next loop): Extract `_build_stage_c_lbfgs_closure` helper (~400 lines)
-   - **D1c** (final loop): Extract `_run_stage_c_lbfgs` + wire all helpers + regression guard
+3. **Proven Pattern** (from Phase B1a-loop2 and C1a-loop2):
+   - Extract BOTH nested functions together in single helper
+   - Helper returns tuple `(compute_loss, closure)` with captured lexical scope
+   - Lazy imports stay INSIDE nested functions (device-specific, conditional)
+   - Helper signature: ~15 parameters (param_values dict, telemetry_state dict, stage_c_context dict, plus closure context params)
 
-### Implement: dbex/nanobrag_refinement.py::_build_stage_c_params
+### Implement: dbex/nanobrag_refinement.py::_build_stage_c_lbfgs_closure
 
-Extract lines 3828-3919 as a new helper function `_build_stage_c_params` to be inserted **before** `run_nanobrag_refinement` (around line 2700, after Stage B helpers).
+Extract lines 4078-4293 as a new helper function `_build_stage_c_lbfgs_closure` to be inserted **after** `_build_stage_c_params` (around line 2893, before `run_nanobrag_refinement`).
 
 **Helper Signature**:
 ```python
-def _build_stage_c_params(
+def _build_stage_c_lbfgs_closure(
+    param_values: Dict[str, Any],
+    telemetry_state: Dict[str, Any],
+    stage_c_context: Dict[str, Any],
+    detector: Any,  # dxtbx.model.Detector
+    beam: Any,  # dxtbx.model.Beam
+    inputs: Any,  # RefinementInputs
     config: RefinementConfig,
+    sigma_floor_sq_cache: Dict[str, torch.Tensor],
     device: torch.device,
     dtype: torch.dtype,
-    n_panels: int,
-    baseline_detector: Optional[Any],  # dxtbx.model.Detector
-    detector: Any,  # dxtbx.model.Detector
-    sampled_panel_ids: List[int],
-    panel_slices: List[Tuple[int, int, int, int, int]],
+    crystal: Any,  # dxtbx.model.Crystal (Stage A final params)
+    hkl_grid: torch.Tensor,
+    hkl_metadata: Dict[str, Any],
     stage_a_ctx: Optional[StageAContext],
-    sigma_floor_sq_cache: Dict[str, torch.Tensor],
-    params: List[torch.Tensor]  # Stage A params to freeze
-) -> Dict[str, Any]:
+    sampled_panel_ids: List[int]
+) -> Tuple[Callable[[List[int], bool], Tuple[torch.Tensor, torch.Tensor]], Callable[[], torch.Tensor]]:
     """
-    Initialize Stage C detector distance offset parameters and optimizer.
+    Build Stage C LBFGS closure for detector distance refinement.
 
-    Stage C refines per-panel translations along detector normal (distance offset)
-    with crystal orientation/cell frozen from Stage A.
+    Returns tuple of (compute_loss_stage_c, closure_stage_c) with captured lexical scope
+    for ~25 nonlocal variables extracted from input dicts.
 
-    Returns dict with keys:
-        - 'distance_offset_raw': torch.Tensor (n_panels,) trainable parameter
-        - 'stage_c_params': List[torch.Tensor] (optimizer params)
-        - 'stage_c_optimizer': torch.optim.LBFGS
-        - 'baseline_detector_distances': Optional[List[float]] (mm per panel)
-        - 'stage_c_use_warm_cache': bool
-        - 'stage_c_cache_mode': str ('warm' or 'cold')
-        - 'stage_c_roi_mode_active': bool
-        - 'stage_c_roi_mode_label': str ('roi' or 'panel')
-        - 'stage_c_roi_count_total': int
-        - 'stage_c_roi_count_sampled': int
-        - 'roi_slices_by_pid': Dict[int, List[Tuple[int, int, int, int]]]
-        - 'perf_closure_evals_c': List[int] (mutable counter)
-        - 'perf_validation_runs_c': List[int] (mutable counter)
-        - 'perf_forward_times_ms_c': List[float] (mutable accumulator)
-        - 'loss_trace_sample_c': List[float]
-        - 'loss_trace_full_c': List[float]
-        - 'best_loss_full_c': Tuple[float, int] (value, iteration)
-        - 'best_params_snapshot_c': Optional[List[torch.Tensor]]
-        - 'iteration_count_c': List[int] (mutable counter)
-        - 'chi_squared_trace_sample_c': List[float]
-        - 'chi_squared_trace_full_c': List[float]
-        - 'chi_squared_best_c': Tuple[float, int]
-        - 'masked_mse_trace_sample_c': List[float]
-        - 'masked_mse_trace_full_c': List[float]
-        - 'masked_mse_best_c': Tuple[float, int]
-        - 'variance_floor_clamped_pixels_c': List[int]
-        - 'variance_floor_masked_pixels_c': List[int]
-        - 'sigma_floor_sq_tensor_stage_c': torch.Tensor
+    Both nested functions implement variance-weighted chi-squared loss with Stage C
+    detector distance adjustments, freezing Stage A crystal parameters.
+
+    Returns:
+        Tuple of:
+        - compute_loss_stage_c: Callable[[panel_ids, is_full], (chi_squared, mse)]
+        - closure_stage_c: Callable[[], chi_squared_loss] (LBFGS closure contract)
     """
 ```
 
 **Extraction Steps**:
 
-1. **Create helper function** at line ~2700 (after `_run_stage_b_lbfgs`, before `run_nanobrag_refinement`)
+1. **Create helper function** at line ~2893 (after `_build_stage_c_params`, before `run_nanobrag_refinement`)
 
-2. **Extract baseline_detector_distances computation** (lines 3828-3834):
-   - Move into helper body (this was the NameError fix from D0)
-   - Return as dict key `'baseline_detector_distances'`
+2. **Unpack parameter dicts** at function start (to capture in nested function lexical scope):
+   ```python
+   # Extract from param_values dict
+   distance_offset_raw = param_values['distance_offset_raw']
+   stage_c_params = param_values['stage_c_params']
+   stage_c_optimizer = param_values['stage_c_optimizer']
 
-3. **Extract Stage A parameter freezing** (lines 3836-3838):
-   - Move loop that sets `p.requires_grad = False` for all Stage A params
-   - Keep in helper body (Stage C freezes Stage A gradients)
+   # Extract from telemetry_state dict
+   perf_closure_evals_c = telemetry_state['perf_closure_evals_c']
+   perf_validation_runs_c = telemetry_state['perf_validation_runs_c']
+   perf_forward_times_ms_c = telemetry_state['perf_forward_times_ms_c']
+   loss_trace_sample_c = telemetry_state['loss_trace_sample_c']
+   loss_trace_full_c = telemetry_state['loss_trace_full_c']
+   best_loss_full_c = telemetry_state['best_loss_full_c']
+   best_params_snapshot_c = telemetry_state['best_params_snapshot_c']
+   iteration_count_c = telemetry_state['iteration_count_c']
+   chi_squared_trace_sample_c = telemetry_state['chi_squared_trace_sample_c']
+   chi_squared_trace_full_c = telemetry_state['chi_squared_trace_full_c']
+   chi_squared_best_c = telemetry_state['chi_squared_best_c']
+   masked_mse_trace_sample_c = telemetry_state['masked_mse_trace_sample_c']
+   masked_mse_trace_full_c = telemetry_state['masked_mse_trace_full_c']
+   masked_mse_best_c = telemetry_state['masked_mse_best_c']
+   variance_floor_clamped_pixels_c = telemetry_state['variance_floor_clamped_pixels_c']
+   variance_floor_masked_pixels_c = telemetry_state['variance_floor_masked_pixels_c']
+   sigma_floor_sq_tensor_stage_c = telemetry_state['sigma_floor_sq_tensor_stage_c']
 
-4. **Extract distance_offset_raw initialization** (lines 3840-3844):
-   - Move `torch.zeros(n_panels, device, dtype, requires_grad=True)`
-   - Wrap in `stage_c_params = [distance_offset_raw]`
-   - Return as dict keys `'distance_offset_raw'` and `'stage_c_params'`
+   # Extract from stage_c_context dict
+   stage_c_use_warm_cache = stage_c_context['stage_c_use_warm_cache']
+   stage_c_cache_mode = stage_c_context['stage_c_cache_mode']
+   stage_c_roi_mode_active = stage_c_context['stage_c_roi_mode_active']
+   stage_c_roi_mode_label = stage_c_context['stage_c_roi_mode_label']
+   roi_slices_by_pid = stage_c_context['roi_slices_by_pid']
+   n_panels = len(detector)
+   ```
 
-5. **Extract warm cache logic** (lines 3845-3851):
-   - Move `stage_c_use_warm_cache` conditional
-   - Move `stage_c_cache_mode` assignment
-   - Return as dict keys
+3. **Extract first nested function** `compute_loss_stage_c` (lines 4078-4247):
+   - Preserve docstring
+   - Preserve variance-weighted loss computation with sigma_floor guard
+   - Preserve warm-cache branching (use stage_a_ctx if available)
+   - Preserve ROI sampling logic
+   - Preserve perf counter updates
+   - Preserve all PHYSICS-LOSS-001/002 patterns (dual metrics, variance floor clamp stats)
+   - Keep lazy imports INSIDE function (nanobrag_torch.models: Detector, Crystal; nanobrag_torch.simulator: Simulator)
+   - Signature: `def compute_loss_stage_c(panel_ids: List[int], is_full: bool = False) -> Tuple[torch.Tensor, torch.Tensor]:`
 
-6. **Extract performance counters initialization** (lines 3852-3854):
-   - Move `perf_closure_evals_c`, `perf_validation_runs_c`, `perf_forward_times_ms_c`
-   - Initialize as mutable lists (same pattern as Stage A/B)
-   - Return as dict keys
+4. **Extract second nested function** `closure_stage_c` (lines 4249-4293):
+   - Preserve docstring
+   - Preserve LBFGS closure contract (zero_grad, compute loss, backward, return loss)
+   - Preserve gradient NaN/Inf checks
+   - Preserve periodic full validation logic
+   - Preserve best snapshot updates with `nonlocal` declarations
+   - Preserve iteration counter increment
+   - Signature: `def closure_stage_c() -> torch.Tensor:`
 
-7. **Extract ROI mode logic** (lines 3855-3870):
-   - Move `roi_slices_by_pid` dict construction from `panel_slices`
-   - Move `stage_c_roi_mode_active` conditional (warm cache + ROI enabled + slices present)
-   - Move `stage_c_roi_mode_label` assignment
-   - Move `sampled_pid_set` construction
-   - Move `stage_c_roi_count_total` and `stage_c_roi_count_sampled` computation
-   - Return all as dict keys
-
-8. **SKIP baseline detector prior helper** (lines 3872-3887):
-   - **DO NOT extract `_apply_baseline_detector_prior`** — this nested function stays inline for now
-   - It will be handled in D1c wiring when the call site logic is addressed
-
-9. **Extract LBFGS optimizer initialization** (lines 3889-3897):
-   - Move `stage_c_optimizer` construction with config params
-   - Return as dict key `'stage_c_optimizer'`
-
-10. **Extract telemetry accumulators** (lines 3899-3919):
-    - Move all telemetry list/tuple initializations:
-      - `loss_trace_sample_c`, `loss_trace_full_c`, `best_loss_full_c`, `best_params_snapshot_c`, `iteration_count_c`
-      - `chi_squared_trace_sample_c`, `chi_squared_trace_full_c`, `chi_squared_best_c`
-      - `masked_mse_trace_sample_c`, `masked_mse_trace_full_c`, `masked_mse_best_c`
-      - `variance_floor_clamped_pixels_c`, `variance_floor_masked_pixels_c`
-      - `sigma_floor_sq_tensor_stage_c` (call to `_get_sigma_floor_sq_tensor`)
-    - Return all as dict keys
-
-11. **Return dict** with all keys listed in signature docstring
+5. **Return tuple** of both callables:
+   ```python
+   return compute_loss_stage_c, closure_stage_c
+   ```
 
 **DO NOT**:
 - Wire the helper into `run_nanobrag_refinement` (no call site changes)
-- Extract the `compute_loss_stage_c` closure (that's D1b)
-- Extract the LBFGS execution loop (that's D1c)
-- Extract the `_apply_baseline_detector_prior` nested function (stays inline)
+- Extract the `_run_stage_c_lbfgs` execution logic (that's D1c)
 - Modify any Stage C inline logic beyond the extracted lines
-- Change test behavior (helper not called, tests should pass unchanged)
+- Change test behavior (helper not called, no regression test needed)
+- Add new imports at module level (lazy imports only)
 
 **Compilation Check**:
 ```bash
 python -c "import dbex.nanobrag_refinement; print('Compilation PASSED')"
 ```
 
-**Regression Guard**:
-```bash
-export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
-export DBEX_SMOKE_DETECTOR_SIZE=small
-export DBEX_SMOKE_SIGMA_SOURCE=cli_override
-export KMP_DUPLICATE_LIB_OK=TRUE
-export NANOBRAGG_DISABLE_COMPILE=1
-
-pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --tb=short
-```
-
-Expected: PASS (helper not wired, no behavior change)
+Expected: PASS (no syntax errors, helper exists but not called)
 
 ### Validation Protocol
 
 1. **Compilation**: Import `dbex.nanobrag_refinement` successfully
-2. **Regression Guard**: Stage C smoke test PASSES on small detector
-3. **Helper Signature**: Verify function signature matches specification exactly
-4. **Return Keys**: Verify all 30 dict keys present in return value
-5. **Lines Extracted**: Verify approximately 90-120 lines extracted from inline code
+2. **Helper Signature**: Verify function signature matches specification exactly
+3. **Return Type**: Verify returns tuple of two callables `(compute_loss_stage_c, closure_stage_c)`
+4. **Lines Extracted**: Verify approximately 216 lines extracted from inline code
+5. **Nested Functions**: Verify TWO nested functions preserved with correct signatures
 
-### Decision Synthesis (4-Path Template)
+### Decision Synthesis (3-Path Template)
 
-**Path A (Compilation PASS + Regression PASS)**:
+**Path A (Compilation PASS)**:
 - Helper extraction SUCCESSFUL
-- Proceed to Phase D1b next loop (extract `_build_stage_c_lbfgs_closure`)
-- Update implementation.md checklist D1a complete
-- Commit helper extraction with message: "ARCH-REFINE-FLOW-001 Phase D1a: Extract _build_stage_c_params helper — tests: 1 passed"
+- Proceed to Phase D1c next loop (extract `_run_stage_c_lbfgs` + wire all 3 helpers + regression guard)
+- Update implementation.md checklist D1b complete
+- Commit helper extraction with message: "ARCH-REFINE-FLOW-001 Phase D1b: Extract _build_stage_c_lbfgs_closure helper — tests: not run"
 
 **Path B (Compilation FAIL)**:
 - Syntax error or import error in helper
-- Debug syntax, fix imports, retest compilation
-- Do NOT proceed to D1b until compilation clean
+- Debug syntax, fix imports, check indentation, verify nonlocal declarations
+- Retest compilation until clean
+- Do NOT proceed to D1c until compilation PASS
 
-**Path C (Regression FAIL)**:
-- Stage C smoke test fails (should not happen, helper not wired)
-- Investigate test infrastructure issue
-- Revert helper extraction if test regression confirmed
-- Escalate to Galph with blocker report
-
-**Path D (Helper signature mismatch)**:
-- Missing return keys or incorrect types
-- Fix return dict to match specification
-- Retest compilation + regression
-- Do NOT proceed to D1b until signature correct
+**Path C (Helper signature mismatch)**:
+- Return type incorrect (not tuple of callables)
+- Nested function signatures don't match specification
+- Fix helper to return `(compute_loss_stage_c, closure_stage_c)` tuple
+- Verify both callables have correct signatures
+- Retest compilation
+- Do NOT proceed to D1c until signature correct
 
 ### Artifacts Capture
 
-Save to `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T150000Z/phase_d1a/`:
+Save to `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T141817Z/phase_d1b/`:
 
 1. **compilation_check.log**: Output of `python -c "import dbex.nanobrag_refinement"`
-2. **pytest_stage_c_regression.log**: Regression guard test output
-3. **helper_diff.patch**: Git diff showing extracted helper (for reproducibility)
-4. **decision.md**: 4-path synthesis with chosen path and rationale
-5. **metrics.json**: Extract via T0 probe:
+2. **helper_diff.patch**: Git diff showing extracted helper (for reproducibility)
+3. **decision.md**: 3-path synthesis with chosen path and rationale
+4. **metrics.json**: Extract via T0 probe:
    ```python
    import json
    metrics = {
        "compilation_status": "PASS" or "FAIL",
-       "regression_status": "PASS" or "FAIL",
-       "helper_lines_extracted": 120,  # approximate count
-       "helper_signature_keys_count": 30,
-       "decision_path": "A"  # or "B", "C", "D"
+       "helper_lines_extracted": 216,  # approximate count
+       "helper_nested_functions_count": 2,
+       "helper_signature_correct": True or False,
+       "decision_path": "A"  # or "B", "C"
    }
-   with open("plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T150000Z/phase_d1a/metrics.json", "w") as f:
+   with open("plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T141817Z/phase_d1b/metrics.json", "w") as f:
        json.dump(metrics, f, indent=2)
    ```
-6. **summary.md**: Turn Summary block (prepend to existing summary.md)
+5. **summary.md**: Turn Summary block (prepend to existing summary.md)
 
 ### Update Checklist
 
 Mark complete in `plans/active/ARCH-REFINE-FLOW-001/implementation.md`:
-- Add under Phase D section (around line 228):
+- Update Phase D section (around line 229):
   ```markdown
   - [ ] D1: Implement `StageC` class managing detector offset parameters, baseline detector seeding, and telemetry.
-    - [x] D1a: Extract `_build_stage_c_params` helper (~120 lines) ✓ COMPLETE (2025-11-23T150000Z)
-    - [ ] D1b: Extract `_build_stage_c_lbfgs_closure` helper (~400 lines)
+    - [x] D1a: Extract `_build_stage_c_params` helper (~156 lines) ✓ COMPLETE (2025-11-23T150000Z)
+    - [x] D1b: Extract `_build_stage_c_lbfgs_closure` helper (~216 lines) ✓ COMPLETE (2025-11-23T141817Z)
     - [ ] D1c: Extract `_run_stage_c_lbfgs` + wire all helpers + regression guard
   ```
 
@@ -242,7 +221,7 @@ Mark complete in `plans/active/ARCH-REFINE-FLOW-001/implementation.md`:
 
 ```bash
 git add -A
-git commit -m "ARCH-REFINE-FLOW-001 Phase D1a: Extract _build_stage_c_params helper — tests: 1 passed"
+git commit -m "ARCH-REFINE-FLOW-001 Phase D1b: Extract _build_stage_c_lbfgs_closure helper — tests: not run"
 git push
 ```
 
@@ -250,82 +229,85 @@ git push
 
 ### Compilation Check Command
 ```bash
-python -c "import dbex.nanobrag_refinement; print('Compilation PASSED')" 2>&1 | tee plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T150000Z/phase_d1a/compilation_check.log
+python -c "import dbex.nanobrag_refinement; print('Compilation PASSED')" 2>&1 | tee plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T141817Z/phase_d1b/compilation_check.log
 ```
 
-### Regression Guard Command
+### Git Diff Capture
 ```bash
-export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
-export DBEX_SMOKE_DETECTOR_SIZE=small
-export DBEX_SMOKE_SIGMA_SOURCE=cli_override
-export KMP_DUPLICATE_LIB_OK=TRUE
-export NANOBRAGG_DISABLE_COMPILE=1
-
-pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --tb=short 2>&1 | tee plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T150000Z/phase_d1a/pytest_stage_c_regression.log
+git diff > plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T141817Z/phase_d1b/helper_diff.patch
 ```
 
 ### Metrics Extraction (T0 Probe)
-Inline Python after tests complete — save to `metrics.json` in artifacts directory.
+Inline Python after compilation check — save to `metrics.json` in artifacts directory.
 
 ## Pitfalls To Avoid
 
 1. **DO NOT wire helper**: No call site changes in `run_nanobrag_refinement`. Helper extraction only.
-2. **DO NOT extract closure**: `compute_loss_stage_c` stays inline (that's Phase D1b).
-3. **DO NOT modify tests**: Regression guard should PASS unchanged.
-4. **SKIP nested function**: `_apply_baseline_detector_prior` stays inline (handled in D1c).
-5. **Mutable accumulators**: Use `List[int]` for counters (not `int`) to allow mutation in closures.
-6. **Dict keys**: Return ALL 30 keys listed in signature docstring (missing keys will break D1c wiring).
-7. **Device/dtype consistency**: Use `device` and `dtype` params passed to helper (no hardcoded `'cuda:0'`).
-8. **Lazy imports**: No new imports at module level (helper may use existing imports only).
-9. **Baseline detector None-safety**: Check `baseline_detector is not None` before accessing.
+2. **DO NOT extract LBFGS execution**: `stage_c_optimizer.step(closure_stage_c)` stays inline (that's Phase D1c).
+3. **DO NOT run regression test**: Compilation check only (helper not wired, no behavior change).
+4. **Preserve nonlocal declarations**: `closure_stage_c` uses `nonlocal best_loss_full_c, best_params_snapshot_c, chi_squared_best_c, masked_mse_best_c` (line 4281).
+5. **Lazy imports**: Conditional imports (nanobrag_torch.models, nanobrag_torch.simulator) stay INSIDE `compute_loss_stage_c` warm/cold branching.
+6. **Return tuple**: Helper MUST return `(compute_loss_stage_c, closure_stage_c)` NOT single callable.
+7. **Lexical scope**: All ~25 variables unpacked from dicts at function start to allow nested functions to capture them.
+8. **Device/dtype consistency**: Use `device` and `dtype` params passed to helper (no hardcoded `'cuda:0'`).
+9. **Indentation**: TWO nested functions at same indentation level (4 spaces from function body start).
 10. **Environment Freeze**: No package installs, no environment changes. Code-only extraction.
 
 ## If Blocked
 
-If compilation fails or regression fails unexpectedly:
+If compilation fails:
 
 1. **Capture error output** to `blocker.md` in artifacts directory
-2. **Revert extraction** if test regression confirmed: `git checkout dbex/nanobrag_refinement.py`
-3. **Update Attempts History** in `docs/fix_plan.md` with blocker signature
-4. **Mark Phase D1a blocked** in `galph_memory.md`
-5. **Escalate to Galph** with blocker report including:
-   - Exact error message
+2. **Check common issues**:
+   - Missing `nonlocal` declarations in `closure_stage_c`
+   - Indentation errors in nested functions
+   - Incomplete dict unpacking (missing variables from param_values/telemetry_state/stage_c_context)
+   - Lazy imports moved to wrong location (must stay inside nested functions)
+   - Return statement incorrect (must be tuple, not single callable)
+3. **Debug systematically**:
+   - Verify helper signature matches specification
+   - Verify dict unpacking includes all required variables
+   - Verify both nested functions extracted completely
+   - Verify return statement returns tuple
+4. **Update Attempts History** in `docs/fix_plan.md` with blocker signature
+5. **Mark Phase D1b blocked** in `galph_memory.md`
+6. **Escalate to Galph** with blocker report including:
+   - Exact error message and traceback
    - Line numbers where helper was inserted
-   - Compilation traceback or pytest failure output
-   - Hypothesis about root cause (import cycle, missing dependency, etc.)
+   - Hypothesis about root cause (syntax, scope, imports, etc.)
 
 ## Findings Applied (Mandatory)
 
-- **REFINE-007** (docs/findings.md:43): Stage C gate is "stable detector offset" (not chi² improvement) — helper preserves telemetry accumulators for offset tracking
-- **PHYSICS-LOSS-001/002** (docs/findings.md:20,21): Variance-weighted loss + sigma_floor preserved — helper extracts `sigma_floor_sq_tensor_stage_c` initialization
+- **REFINE-007** (docs/findings.md:43): Stage C gate is "stable detector offset" — closure preserves telemetry accumulators for offset tracking
+- **PHYSICS-LOSS-001/002** (docs/findings.md:20,21): Variance-weighted loss + sigma_floor preserved in `compute_loss_stage_c`
 - **POLICY-001** (docs/findings.md:66): Environment Freeze — helper extraction only, no env changes
+- **PERF-WARM-011/012** (docs/findings.md:46,47): Warm cache + ROI sampling patterns preserved in `compute_loss_stage_c`
+- **RUNTIME-001** (docs/findings.md:29): Lazy imports for nanobrag_torch stay INSIDE nested functions (compile conflicts)
 - **TESTING-003** (docs/findings.md:56): Test registry updates deferred until D1c wiring complete (no selector changes this loop)
-- **CONFORMANCE-001** (docs/findings.md:28): Test environment flags applied to regression guard
-- **RUNTIME-001** (docs/findings.md:29): `NANOBRAGG_DISABLE_COMPILE=1` set for Stage C smoke (torch.compile conflicts with gradcheck)
 
-No relevant findings in knowledge base for helper extraction methodology (standard refactoring).
+No relevant findings in knowledge base for closure extraction methodology (standard refactoring pattern from Stage A/B).
 
 ## Pointers
 
 - **Spec**: docs/spec-db-workflow.md §7 (Refinement Protocol Architecture)
 - **Architecture**: docs/architecture/pytorch_design.md (RefinementEngine contract)
-- **Testing**: docs/TESTING_GUIDE.md §1.1 (environment flags for Stage C smoke)
 - **Fix Plan**: docs/fix_plan.md `[ARCH-REFINE-FLOW-001]` line 28
 - **Implementation Plan**: plans/active/ARCH-REFINE-FLOW-001/implementation.md Phase D (line 220)
-- **Baseline Evidence**: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T143000Z/baseline/summary.md (Stage C PASSED both detectors)
-- **Phase B Extraction Pattern**: plans/active/ARCH-REFINE-FLOW-001/implementation.md Phase B (lines 80-178) — proven multi-loop extraction methodology
-- **Stage C Inline Code**: dbex/nanobrag_refinement.py lines 3824-4328
+- **Phase D1a Evidence**: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T150000Z/phase_d1a/summary.md (helper 1 extracted successfully)
+- **Stage A Closure Pattern**: plans/active/ARCH-REFINE-FLOW-001/implementation.md Phase B1a-loop2 (lines 93-100) — proven closure extraction methodology
+- **Stage B Closure Pattern**: plans/active/ARCH-REFINE-FLOW-001/implementation.md Phase C1a-loop2 (lines 190-196) — similar TWO nested functions
+- **Stage C Inline Code**: dbex/nanobrag_refinement.py lines 4078-4293
+- **Commit Reference**: 331ee75 (Phase D1a completion)
 
 ## Next Up (Optional)
 
-If Phase D1a completes successfully (Path A):
-- **Phase D1b**: Extract `_build_stage_c_lbfgs_closure` helper (nested `compute_loss_stage_c` + `closure_stage_c`, ~400 lines)
-- **Phase D1c**: Extract `_run_stage_c_lbfgs` + wire all three helpers + validate Stage C smoke (small + full detectors)
+If Phase D1b completes successfully (Path A):
+- **Phase D1c**: Extract `_run_stage_c_lbfgs` helper + wire all three helpers + validate Stage C smoke (small + full detectors) + full validation suite
 
-If Phase D1a blocked (Path B/C/D):
-- Debug compilation or regression issue
+If Phase D1b blocked (Path B/C):
+- Debug compilation or signature issue
 - Escalate to Galph with blocker report
-- Do NOT proceed to D1b until D1a compilation clean and regression guard PASSES
+- Do NOT proceed to D1c until D1b compilation clean and helper signature correct
 
 ## Doc Sync Plan (Conditional)
 
@@ -335,12 +317,12 @@ Not applicable this loop (no new tests authored, no selector changes). Test regi
 
 **Compilation check** (python import) always collects (N/A for pytest collection).
 
-**Regression guard** `test_stage_c_detector_microslip` collects 1 test (confirmed in Phase D0 baseline: `pytest_collect_stage_c.log`).
+**Regression guard** NOT REQUIRED this loop (helper not wired, compilation-only verification per proven Phase B1a-loop2 pattern).
 
-If collection fails (0 tests), mark Phase D1a BLOCKED and escalate to Galph with collection log.
+Phase D1c will require full regression guard (`test_stage_c_detector_microslip` small + full detectors) after helper wiring.
 
 ## Normative Math/Physics
 
-Not applicable this loop (no physics equations extracted, parameter initialization only). Variance-weighted loss computation stays inline until Phase D1b.
+Variance-weighted loss computation stays in `compute_loss_stage_c` nested function (extracted, not modified).
 
-Reference docs/spec-db-core.md §Variance Definition for normative variance-floor clamping specification (applied in `compute_loss_stage_c`, extracted in D1b).
+Reference docs/spec-db-core.md §Variance Definition for normative variance-floor clamping specification (implemented in `compute_loss_stage_c` lines 4132-4160, preserved in extraction).

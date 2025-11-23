@@ -14,6 +14,7 @@
 | Sigma map ingestion | `tests/dbex/test_data_load_sigma_map.py` | active | `docs/spec-db-core.md:32-68`, `docs/spec-db-workflow.md:26-31` | `load_sigma_readout_map` and `_load_external_lookup_sigma_map` behavior; enforces `[panel, slow, fast]` alignment, strict positivity, and provenance metadata. |
 | Sigma metadata manifest | `tests/sp_proc/test_sigma_metadata_fixture.py` | active | `docs/spec-db-core.md:32-68`, `docs/spec-db-workflow.md:26-31` | Validates `sp.proc` sigma metadata fixtures and external_lookup embedding for Stage smokes. |
 | DB-AT-026: UB Parameterization Round-Trip | `tests/dbex/test_ub_parameterization_roundtrip.py` | active | `docs/spec-db-core.md:48-68`, `docs/spec-db-workflow.md:36-50`, `docs/spec-db-runtime.md:18-28` | Validates incremental UB parameterization zero-point invariant (U(0)=U₀, B(0)=B₀, A*(0)=A*_mapping). 4 tests: orientation/cell zero-point, mapping parity, gradient flow (xfail). First added 2025-11-23. |
+| ARCH-ENGINE-001: RefinementEngine TDD Nucleus | `tests/dbex/test_refinement_engine.py::test_engine_executes_mock_stage` | active | `docs/spec-db-workflow.md:32-33`, `plans/active/ARCH-REFINE-FLOW-001/implementation.md` | TDD nucleus test for Protocol-based Refinement Engine. Validates engine executes mock stage, aggregates telemetry Dict[str, RefinementTelemetry], and includes stage_type/mode fields (Phase A4 extension). 1 test collected, 1 passed. First added 2025-11-23. |
 
 ### Plan-local Visualization Drivers
 

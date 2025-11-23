@@ -43,15 +43,15 @@
 - plans/active/PERF-WARM-SIM-001/implementation.md (Stage A warm-cache, ROI sampling, and perf-telemetry contract)
 - findings REFINE-005, REFINE-007, REFINE-008 (gates), SCALE-001/002 (scale handling)
 
-## Phase A — Stage Interface & Engine Skeleton
-- [ ] A0: **TDD nucleus** — author a minimal unit test (`tests/dbex/test_refinement_engine.py::test_engine_executes_mock_stage`) validating that a dummy Stage object runs and emits telemetry via the engine.
-- [ ] A1: Implement `RefinementStage` protocol/dataclass capturing required hooks: `name`, `configure(config)`, `run(inputs, telemetry_sink)`, `telemetry_schema`.
-- [ ] A2: Implement `RefinementEngine` with deterministic execution order, stage registration, and shared telemetry aggregation (`Dict[str, RefinementTelemetry]`).
-- [ ] A3: Extract shared helpers for simulator instantiation (`create_panel_simulator(detector_config, crystal_config, hkl_grid, config)`) and Bragg regeneration (`emit_bragg_frame(stage_params, inputs, config)`), and ensure stages call into these utilities rather than duplicating panel loops.
-- [ ] A4: Update `RefinementTelemetry` (if necessary) to include a `stage_type`/`mode` field so future variants can be distinguished without branching.
-- [ ] A5: Register the new engine unit test in `docs/TESTING_GUIDE.md` §2 and `docs/development/TEST_SUITE_INDEX.md`, archive `pytest --collect-only tests/dbex/test_refinement_engine.py` logs under the phase report, and note the selector in the ledger per Exit Criterion #4.
-- [ ] A6: Produce compliance evidence: confirm doc/spec alignment (docs/spec-db-workflow.md §7) in the report, and update `docs/fix_plan.md` `[ARCH-REFINE-FLOW-001]` entry with the new plan scope plus referenced findings (REFINE-005/007/008) before moving to Phase B.
-- [ ] A7: Document the interface + shared helpers in `docs/architecture/pytorch_design.md` and `plans/active/ARCH-REFINE-FLOW-001/reports/<timestamp>/summary.md`.
+## Phase A — Stage Interface & Engine Skeleton (COMPLETE 2025-11-23T024449Z)
+- [x] A0: **TDD nucleus** — author a minimal unit test (`tests/dbex/test_refinement_engine.py::test_engine_executes_mock_stage`) validating that a dummy Stage object runs and emits telemetry via the engine.
+- [x] A1: Implement `RefinementStage` protocol/dataclass capturing required hooks: `name`, `configure(config)`, `run(inputs, telemetry_sink)`, `telemetry_schema`.
+- [x] A2: Implement `RefinementEngine` with deterministic execution order, stage registration, and shared telemetry aggregation (`Dict[str, RefinementTelemetry]`).
+- [x] A3: Extract shared helpers for simulator instantiation (`create_panel_simulator(detector_config, crystal_config, hkl_grid, config)`) and Bragg regeneration (`emit_bragg_frame(stage_params, inputs, config)`), and ensure stages call into these utilities rather than duplicating panel loops.
+- [x] A4: Update `RefinementTelemetry` (if necessary) to include a `stage_type`/`mode` field so future variants can be distinguished without branching.
+- [x] A5: Register the new engine unit test in `docs/TESTING_GUIDE.md` §2 and `docs/development/TEST_SUITE_INDEX.md`, archive `pytest --collect-only tests/dbex/test_refinement_engine.py` logs under the phase report, and note the selector in the ledger per Exit Criterion #4.
+- [x] A6: Produce compliance evidence: confirm doc/spec alignment (docs/spec-db-workflow.md §7) in the report, and update `docs/fix_plan.md` `[ARCH-REFINE-FLOW-001]` entry with the new plan scope plus referenced findings (REFINE-005/007/008) before moving to Phase B.
+- [x] A7: Document the interface + shared helpers in `docs/architecture/pytorch_design.md` and `plans/active/ARCH-REFINE-FLOW-001/reports/<timestamp>/summary.md`.
 
 ### Dependency Analysis (Required for Refactors)
 - **Touched Modules:** dbex/nanobrag_refinement.py, dbex/refine_one.py (imports), dbex/refinement (new package)

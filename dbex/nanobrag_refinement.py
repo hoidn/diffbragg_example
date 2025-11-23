@@ -360,6 +360,7 @@ class StageAContext:
         beam_config: Single BeamConfig shared across all panels/ROIs
         trusted_masks_t: torch.Tensor stacked trusted masks [panel, slow, fast] (dtype=bool)
         baseline_distance_mm: List of baseline detector distances per panel (length n_panels)
+        roi_panel_map: Dict mapping ROI index to panel_id (PERF-WARM-013 Stage C retargeting)
         hkl_grid: torch.Tensor structure factor grid on target device
         hkl_metadata: dict with grid dimensions and halo status
         device: torch device for all tensors
@@ -377,6 +378,7 @@ class StageAContext:
     beam_config: object
     trusted_masks_t: Optional[torch.Tensor]
     baseline_distance_mm: List[float]
+    roi_panel_map: Dict[int, int]
     hkl_grid: torch.Tensor
     hkl_metadata: Dict
     device: torch.device
@@ -641,6 +643,9 @@ def _build_stage_a_context(
 
     trusted_masks_t = torch.stack(trusted_masks_t_list, dim=0) if trusted_masks_t_list else None
 
+    # Build roi_panel_map for Stage C retargeting (PERF-WARM-013)
+    roi_panel_map = {entry.roi_index: entry.panel_id for entry in roi_entries} if roi_entries else {}
+
     return StageAContext(
         detector_configs=detector_configs,
         detector_models=detector_models,
@@ -649,6 +654,7 @@ def _build_stage_a_context(
         beam_config=beam_config,
         trusted_masks_t=trusted_masks_t,
         baseline_distance_mm=baseline_distance_mm,
+        roi_panel_map=roi_panel_map,
         hkl_grid=hkl_grid_device,
         hkl_metadata=hkl_metadata,
         device=device,
@@ -682,6 +688,85 @@ def _retarget_stage_a_simulators(stage_a_ctx: StageAContext, crystal_model) -> N
         for entry in stage_a_ctx.roi_entries:
             entry.simulator.crystal = crystal_model
             entry.simulator.beam_config = stage_a_ctx.beam_config
+
+
+def _retarget_stage_a_detectors(
+    stage_a_ctx: StageAContext,
+    distance_deltas_mm: Dict[int, float],
+    device: torch.device,
+    dtype: torch.dtype
+) -> None:
+    """
+    Mutate cached Stage A detector configs/simulators with bounded distance offsets.
+
+    Args:
+        stage_a_ctx: StageAContext dict with detector_configs, simulators, baseline_distance_mm
+        distance_deltas_mm: Per-panel distance deltas in mm (keys: panel_id, values: delta_distance_mm)
+        device: torch.device for distance tensor updates
+        dtype: torch.dtype for distance tensor updates
+
+    Updates stage_a_ctx.detector_configs and stage_a_ctx.simulators IN PLACE.
+
+    Spec refs:
+        - docs/spec-db-runtime.md §2.1 (cache reuse pattern)
+        - docs/spec-db-workflow.md §Stage C (detector distance refinement)
+        - PERF-WARM-013 finding (eliminate cold instantiation)
+    """
+    # Lazy imports to avoid circular dependencies (ARCH-ENGINE-002 pattern)
+    from nanobrag_torch.models.detector import Detector
+    from nanobrag_torch.simulator import Simulator
+
+    # Extract baseline distances from stage_a_ctx
+    baseline_distances = stage_a_ctx.baseline_distance_mm
+
+    for panel_id, delta_distance_mm in distance_deltas_mm.items():
+        # Skip panels not in baseline (warn but continue)
+        if panel_id >= len(baseline_distances):
+            import warnings
+            warnings.warn(
+                f"Panel ID {panel_id} in distance_deltas_mm but not in baseline_distances (n_panels={len(baseline_distances)}); skipping",
+                RuntimeWarning
+            )
+            continue
+
+        # Compute new distance with bounds check
+        new_distance_mm = baseline_distances[panel_id] + delta_distance_mm
+
+        # Guard: safe bounds per REFINE-007 (Stage C typically ±0.25mm deltas)
+        if new_distance_mm < 10.0 or new_distance_mm > 10000.0:
+            raise ValueError(
+                f"Retarget distance out of safe bounds for panel {panel_id}: "
+                f"new_distance={new_distance_mm:.3f}mm (baseline={baseline_distances[panel_id]:.3f}mm, "
+                f"delta={delta_distance_mm:.3f}mm). Safe range: [10mm, 10000mm]"
+            )
+
+        # Update detector config distance_mm
+        detector_config = stage_a_ctx.detector_configs[panel_id]
+        detector_config.distance_mm = new_distance_mm
+
+        # Check if Simulator has update_detector_distance method
+        simulator = stage_a_ctx.simulators[panel_id]
+        if hasattr(simulator, 'update_detector_distance'):
+            # Hot path: update in place
+            simulator.update_detector_distance(new_distance_mm)
+        else:
+            # Fallback: reconstruct Detector with updated config, then re-instantiate Simulator
+            # (Still faster than full cold path because HKL/mask tensors stay cached)
+            new_detector = Detector(detector_config, device=device, dtype=dtype)
+            stage_a_ctx.detector_models[panel_id] = new_detector
+
+            # Reconstruct Simulator with new detector but reuse cached crystal/beam
+            crystal_model = simulator.crystal if hasattr(simulator, 'crystal') else None
+            beam_config = stage_a_ctx.beam_config
+
+            new_simulator = Simulator(
+                detector=new_detector,
+                crystal=crystal_model,
+                beam_config=beam_config,
+                device=device,
+                dtype=dtype,
+            )
+            stage_a_ctx.simulators[panel_id] = new_simulator
 
 
 def _build_stage_a_params(
@@ -3033,25 +3118,38 @@ def _build_stage_c_lbfgs_closure(
         crystal_model.hkl_data = hkl_grid.to(device=device, dtype=dtype)
         crystal_model.hkl_metadata = hkl_metadata
 
+        # PERF-WARM-013: Build distance deltas dict once before panel loop for retargeting
+        if stage_c_use_warm_cache:
+            distance_deltas_mm = {}
+            for pid in panel_ids:
+                bounded_offset = torch.tanh(distance_offset_raw[pid]) * config.stage_c_max_distance_delta_mm
+                # Extract scalar from tensor for dict storage
+                distance_deltas_mm[pid] = bounded_offset.item() if isinstance(bounded_offset, torch.Tensor) else bounded_offset
+
+            # Retarget cached detectors with distance offsets (mutates stage_a_ctx in place)
+            _retarget_stage_a_detectors(
+                stage_a_ctx=stage_a_ctx,
+                distance_deltas_mm=distance_deltas_mm,
+                device=device,
+                dtype=dtype
+            )
+
         for pid in panel_ids:
             panel = detector[pid]
 
-            bounded_offset = torch.tanh(distance_offset_raw[pid]) * config.stage_c_max_distance_delta_mm
-            baseline_distance_mm = panel.get_directed_distance()
-            distance_mm_override = baseline_distance_mm + bounded_offset
-
             if stage_c_use_warm_cache:
-                detector_config = copy.copy(stage_a_ctx.detector_configs[pid])
-                detector_config.distance_mm = distance_mm_override
-                detector_model = Detector(detector_config, device=device, dtype=dtype)
-                simulator = Simulator(
-                    detector=detector_model,
-                    crystal=crystal_model,
-                    beam_config=stage_a_ctx.beam_config,
-                    device=device,
-                    dtype=dtype,
-                )
+                # Warm path: reuse retargeted detector/simulator from stage_a_ctx
+                detector_model = stage_a_ctx.detector_models[pid]
+                simulator = stage_a_ctx.simulators[pid]
+                # Attach current crystal model (frozen Stage A params)
+                simulator.crystal = crystal_model
+                simulator.beam_config = stage_a_ctx.beam_config
             else:
+                # Cold path: instantiate fresh (existing code, keep AS-IS)
+                bounded_offset = torch.tanh(distance_offset_raw[pid]) * config.stage_c_max_distance_delta_mm
+                baseline_distance_mm = panel.get_directed_distance()
+                distance_mm_override = baseline_distance_mm + bounded_offset
+
                 detector_config = create_detector_config(
                     panel=panel,
                     beam=beam,
@@ -3370,26 +3468,37 @@ def _run_stage_c_lbfgs(
         crystal_model.hkl_data = hkl_grid.to(device=device, dtype=dtype)
         crystal_model.hkl_metadata = hkl_metadata
 
+        # PERF-WARM-013: Retarget cached detectors before final reconstruction loop
+        if stage_c_use_warm_cache:
+            distance_deltas_mm_final = {}
+            for pid in range(n_panels):
+                bounded_offset = torch.tanh(distance_offset_raw[pid]) * config.stage_c_max_distance_delta_mm
+                distance_deltas_mm_final[pid] = bounded_offset.item() if isinstance(bounded_offset, torch.Tensor) else bounded_offset
+
+            _retarget_stage_a_detectors(
+                stage_a_ctx=stage_a_ctx,
+                distance_deltas_mm=distance_deltas_mm_final,
+                device=device,
+                dtype=dtype
+            )
+
         for pid in range(n_panels):
             panel = detector[pid]
 
-            # Apply final bounded distance offset
-            bounded_offset = torch.tanh(distance_offset_raw[pid]) * config.stage_c_max_distance_delta_mm
-            baseline_distance_mm = panel.get_directed_distance()
-            distance_mm_override = baseline_distance_mm + bounded_offset
-
             if stage_c_use_warm_cache:
-                detector_config = copy.copy(stage_a_ctx.detector_configs[pid])
-                detector_config.distance_mm = distance_mm_override
-                detector_model = Detector(detector_config, device=device, dtype=dtype)
-                simulator = Simulator(
-                    detector=detector_model,
-                    crystal=crystal_model,
-                    beam_config=stage_a_ctx.beam_config,
-                    device=device,
-                    dtype=dtype,
-                )
+                # Warm path: reuse retargeted detector/simulator from stage_a_ctx
+                detector_model = stage_a_ctx.detector_models[pid]
+                simulator = stage_a_ctx.simulators[pid]
+                # Attach final crystal model
+                simulator.crystal = crystal_model
+                simulator.beam_config = stage_a_ctx.beam_config
             else:
+                # Cold path: instantiate fresh (existing code, keep AS-IS)
+                # Apply final bounded distance offset
+                bounded_offset = torch.tanh(distance_offset_raw[pid]) * config.stage_c_max_distance_delta_mm
+                baseline_distance_mm = panel.get_directed_distance()
+                distance_mm_override = baseline_distance_mm + bounded_offset
+
                 detector_config = create_detector_config(
                     panel=panel,
                     beam=beam,

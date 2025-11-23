@@ -73,3 +73,15 @@ Estimated 1–2 engineering days across A (Stage A), then C, then B. Prioritize 
 - **D2 — Retarget helpers**: Add a helper (e.g., `_retarget_stage_a_detectors`) that applies bounded distance deltas to every cached simulator/ROI entry, mirroring `_retarget_stage_a_simulators` but operating on detector geometry. Guard CPU fallbacks and dtype/device parity.
 - **D3 — Stage C warm path**: Refactor `compute_loss_stage_c` plus the final Stage C reconstruction block (`dbex/nanobrag_refinement.py:2238-2545`) to call the new helper whenever `stage_c_use_warm_cache` is true so we stop instantiating fresh `Detector`/`Simulator` objects per ROI/panel. Cold mode stays untouched.
 - **D4 — Telemetry + docs**: Rerun Stage C smokes (small + full detectors) with `DBEX_SMOKE_TELEMETRY_PATH` rooted at the new report directory, capture `telemetry_stage_c_{small,full}.json`, regenerate `stage_c_roi_summary.json`, and update `docs/TESTING_GUIDE.md` / `docs/development/TEST_SUITE_INDEX.md` only if the workflow changes (per Test Registry Sync rules).
+
+## Phase D Status Update (2025-11-23T180000Z)
+
+**D1-D3: ✓ COMPLETE**
+- D1: Extended StageAContext with roi_panel_map field (dbex/nanobrag_refinement.py:381, 647)
+- D2: Implemented _retarget_stage_a_detectors helper (lines 693-770) with lazy imports, bounds checks, fallback path
+- D3: Refactored Stage C warm branches (compute_loss_stage_c lines 3121-3165, final reconstruction lines 3471-3515)
+
+**D4: ✗ BLOCKED**
+Test harness bug (ARCH-REFINE-FLOW-001 StageA wrapper inputs dict mismatch). Phase D code compiles cleanly. See phase_d_decision.md for details.
+
+**Overall:** Implementation complete, runtime validation deferred to harness fix.

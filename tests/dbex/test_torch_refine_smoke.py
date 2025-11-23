@@ -1168,6 +1168,7 @@ def test_stage_b_shell_modifiers(
         hkl_grid=hkl_grid,
         hkl_metadata=hkl_metadata,
         config=config,
+        baseline_crystal=DL.crystal,  # Required for Stage B cell delta reconstruction
         baseline_detector=DL.detector
     )
 
@@ -1274,8 +1275,10 @@ def test_stage_b_shell_modifiers(
             assert "modifier" in param_name, f"Missing 'modifier' in param name: {param_name}"
             assert "d=" in param_name, f"Missing d-spacing range in param name: {param_name}"
             # Shell modifiers should be positive and within clamp bounds
-            assert 0 < param_value <= config.stage_b_max_modifier * 1.01, (  # +1% tolerance for floating point
-                f"Shell modifier {param_name}={param_value:.3f} outside (0, {config.stage_b_max_modifier}] clamp"
+            # Engine delegation path returns dict with 'initial', 'final', 'delta' keys
+            final_value = param_value['final'] if isinstance(param_value, dict) else param_value
+            assert 0 < final_value <= config.stage_b_max_modifier * 1.01, (  # +1% tolerance for floating point
+                f"Shell modifier {param_name}={final_value:.3f} outside (0, {config.stage_b_max_modifier}] clamp"
             )
 
         # Acceptance 3: Canonical detector should not regress (tolerance ±1e-6 relative loss)
@@ -1298,7 +1301,9 @@ def test_stage_b_shell_modifiers(
                 f"telemetry shell modifiers={telemetry_b.param_deltas}"
             )
             for param_name, modifier in telemetry_b.param_deltas.items():
-                delta_from_identity = abs(modifier - 1.0)
+                # Engine delegation path returns dict with 'initial', 'final', 'delta' keys
+                final_modifier = modifier['final'] if isinstance(modifier, dict) else modifier
+                delta_from_identity = abs(final_modifier - 1.0)
                 assert delta_from_identity <= 0.01, (
                     f"Shell modifier {param_name} drifted by {delta_from_identity:.4f} (>±1%). "
                     "REFINE-008 keeps canonical refGeom modifiers near identity; "

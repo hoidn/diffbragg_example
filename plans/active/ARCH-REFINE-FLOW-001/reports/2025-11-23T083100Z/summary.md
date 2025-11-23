@@ -1,4 +1,12 @@
-### Turn Summary
+### Turn Summary (Ralph, Loop i=210)
+Fixed Stage B cell parameter reconstruction to use baseline_crystal instead of current crystal, resolving 9.3% chi² offset between Stage A final and Stage B initial.
+Test passed with 23.7% Stage B improvement confirming cell deltas now correctly applied relative to baseline per spec-db-core.md:61-62.
+Also updated test to handle engine delegation telemetry structure (param_deltas dict format) and provide missing baseline_crystal parameter.
+Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T083100Z/ (pytest_stage_b_c2.log, summary.md)
+
+---
+
+### Turn Summary (Galph, Loop i=209)
 Identified root cause of 9.3% chi² offset: StageB.run() line 163 uses perturbed crystal params instead of baseline as base for delta reconstruction.
 Planned targeted one-line fix (replace `crystal.get_unit_cell().parameters()` with `baseline_crystal.get_unit_cell().parameters()`) with regression guard validation.
 Next: Ralph implements fix, runs test_stage_b_shell_modifiers, and verifies chi² offset drops to ≤0.1%.

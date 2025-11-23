@@ -160,7 +160,14 @@ class StageB:
         angle_gamma_raw = torch.tensor(angle_gamma_raw_final, device=device, dtype=dtype)
 
         # Compute Stage A final crystal parameters as tensors (for Stage B)
-        cell_params = crystal.get_unit_cell().parameters()
+        # Use baseline crystal params as the base for delta reconstruction
+        # (log_cell_*_delta are relative to BASELINE, not current crystal)
+        if baseline_crystal is None:
+            raise ValueError(
+                "Stage B requires baseline_crystal to reconstruct cell parameters. "
+                "The cell deltas in Stage A telemetry are relative to the baseline crystal."
+            )
+        cell_params = baseline_crystal.get_unit_cell().parameters()
 
         # Apply Stage A final perturbations to get frozen crystal tensors
         cell_a_tensor = cell_params[0] * torch.exp(log_cell_a_delta)

@@ -264,7 +264,7 @@
     Implementation plans (e.g., `implementation.md`, initiative-specific Implementation sections) are
     not part of `$SPECS`; they describe intended changes, not normative behavior.
 
-    When a plan disagrees with current code or architecture:
+    When a plan appears inconsistent with current specs/ADRs or architectural conventions:
 
     - Re-read the relevant specs/ADRs and architecture docs to identify what is actually normative.
     - If those docs are silent or unclear, inspect the current implementation and its internal APIs,

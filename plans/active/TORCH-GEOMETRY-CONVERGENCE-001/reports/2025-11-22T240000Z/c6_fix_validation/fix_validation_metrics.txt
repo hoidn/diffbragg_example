@@ -1,0 +1,21 @@
+=== Fix Validation Metrics (Phase C6) ===
+
+Zero-Point Path:
+  chi_squared: 989,645.50
+  correlation: 0.999999984332
+
+First Closure Path (with bypass fix):
+  chi_squared: 1,133,420.75
+  a_star_checksum: -0.052222780062225194
+  code_path: closure_bypass_at_zero
+
+Divergence Metrics:
+  delta_chi_squared: 143,775.25
+  delta_chi_squared_pct: 14.528%
+
+Fix Validation Verdict:
+  [ ] SUCCESS — delta_chi² < 1% (paths now equivalent)
+  [ ] PARTIAL — delta_chi² 1-10% (improved but not equivalent)
+  [X] FAIL — delta_chi² > 10% (fix didn't work)
+
+Overall: FAIL

@@ -78,9 +78,27 @@
 - Stage A’s current implementation is the most heavily debugged; when defining the Stage interface, ensure it is generic, and rely on shared helpers (loss/telemetry/caching) that are proven in Stage A so later Stage implementations naturally follow the same patterns without hard-coding Stage-specific behavior into the engine.
 
 ## Phase B — Stage A Extraction
-- [ ] B0: Record baseline artifacts for Stage A smoke (`test_stage_a_expansion`, collect-only + pytest logs) under `plans/active/ARCH-REFINE-FLOW-001/reports/<timestamp>/baseline/`.
-- [ ] B1: Implement `StageA` class wrapping current Stage A parameter initialization, LBFGS closure, and telemetry emission; ensure it implements `RefinementStage`.
-- [ ] B2: Update `run_nanobrag_refinement` to instantiate `RefinementEngine([StageA(...)])` when only Stage A is enabled; keep Stage B/C inline temporarily.
+**Status:** in_progress (B0 complete 2025-11-23T030000Z, B1a next)
+**Strategy:** Multi-loop extraction (approved 2025-11-23T030000Z per blocker report)
+**Estimated:** 3-4 loops total
+
+- [x] B0: Record baseline artifacts for Stage A smoke (`test_stage_a_expansion`, collect-only + pytest logs) under `plans/active/ARCH-REFINE-FLOW-001/reports/<timestamp>/baseline/`. ✓ COMPLETE (2025-11-23T030000Z)
+- [ ] B1a: **Extract helper functions from inline LBFGS closure** (Loop 1):
+  - `_build_stage_a_params()`: Initialize trainable parameters (lines ~761-876)
+  - `_build_stage_a_lbfgs_closure()`: Create LBFGS closure with compute_loss nested function (lines ~998-1574)
+  - `_run_stage_a_lbfgs()`: Execute optimizer.step(closure) and collect telemetry (lines ~1575-1700)
+  - Verify: test_stage_a_expansion regression guard PASSES with extracted helpers
+- [ ] B1b: **Wrap helpers in StageA.run()** (Loop 2):
+  - Implement StageA class calling extracted helpers in sequence
+  - Package telemetry with stage_type/mode fields per Phase A schema
+  - Return dict per RefinementStage protocol
+  - Verify: StageA.run() produces identical telemetry to inline implementation
+- [ ] B2: **Update run_nanobrag_refinement for engine delegation** (Loop 3):
+  - Detect Stage A-only mode (not enable_stage_c)
+  - Instantiate RefinementEngine([StageA()])
+  - Delegate to engine.run()
+  - Keep Stage B/C inline temporarily
+  - Verify: Engine delegation path passes test_stage_a_expansion
 - [ ] B3: Rerun Stage A smoke (small + full detector) and capture logs + telemetry JSON verifying no regression (telemetry states, perf counters, chi-squared traces).
 - [ ] B4: Run the relevant DB-AT selector(s) impacted by Stage A (DB-AT-010 Gradcheck plus DB-AT-024 mapping) in collect-only and pytest modes; archive logs/telemetry alongside smoke artifacts to satisfy Exit Criterion #3 for this phase.
 - [ ] B5: Update docs/tests to reference the new Stage A class where appropriate (e.g., developer docs showing class layout).

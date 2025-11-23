@@ -5,25 +5,29 @@ rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
 configfile: pyproject.toml
 collecting ... collected 1 item
 
-tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry PASSED [100%]
+tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke PASSED [100%]
 
 =============================== warnings summary ===============================
-tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry
+<frozen importlib._bootstrap>:228
   <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
 
-tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry
+<frozen importlib._bootstrap>:228
   <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
 
-tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry
+<frozen importlib._bootstrap>:228
   <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
 
-tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3
   /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
     import pkg_resources
 
-tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry
-  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dxtbx/format/FormatCBFFull.py:198: DeprecationWarning: The binary mode of fromstring is deprecated, as it behaves surprisingly on unicode inputs. Use frombuffer instead
-    self._raw_data = flex.int(np.fromstring(array_string, np.int32))
+tests/dbex/test_mapping_consistency.py:185
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_mapping_consistency.py:185: PytestUnknownMarkWarning: Unknown pytest.mark.db_at_024 - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.db_at_024
+
+tests/dbex/test_mapping_consistency.py:186
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_mapping_consistency.py:186: PytestUnknownMarkWarning: Unknown pytest.mark.mapping - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.mapping
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-======================== 1 passed, 5 warnings in 12.48s ========================
+======================== 1 passed, 6 warnings in 31.63s ========================

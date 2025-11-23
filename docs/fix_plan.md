@@ -44,7 +44,7 @@
 
 ### [TORCH-GEOMETRY-CONVERGENCE-001] Diagnose & Fix Quaternion U-Matrix Catastrophic Convergence Failure
 - Depends on: docs/spec-db-workflow.md, docs/spec-db-runtime.md, docs/spec-db-core.md, TORCH-GEOMETRY-PARITY-003 (escalation source)
-- Status: done (2025-11-22T252000Z — Phase C6b full convergence validation SUCCESS; zero-check bypass fix deployed, CONVERGENCE-001 finding documented)
+- Status: done (2025-11-22T244500Z — Phase C6b validation SUCCESS: chi² drift +0.0083%, CC≈1.0, bypass fix achieves stable convergence; CONVERGENCE-001 finding documented)
 - Priority: Critical (Tier 1 — Core Physics & Stability)
 - Owner/Date: Ralph (2025-11-22T134421Z)
 - Exit Criteria:

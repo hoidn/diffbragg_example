@@ -341,6 +341,19 @@ HKL grid `.to(device='cpu')` transfer corrupts Miller index semantics:
 - [x] C2.5a: Mark full detector test as skip with reason (GRADIENT-003) ✓ COMPLETE (tests/dbex/test_torch_refine_smoke.py:1132-1133)
 - [x] C2.5b: Verify collection shows 1 test (small detector only) ✓ COMPLETE (pytest_collect_stage_b.log)
 - [x] C2.5c: Update Phase C2 status with deferral outcome ✓ COMPLETE (this section)
+- [x] C2.5d: Test registry update (TESTING_GUIDE.md + TEST_SUITE_INDEX.md) ✓ COMPLETE (loop i=224, 2025-11-23T132017Z)
+- [x] C2.5e: DB-AT-024 regression check ✓ COMPLETE (PASSED, no regression from CPU deferral)
+- [x] C2.5f: Findings GRADIENT-003 verification ✓ COMPLETE (status Deferred confirmed)
+
+### Validation (Loop i=224, 2025-11-23T132017Z)
+- Test registry updated with CPU fallback limitation note
+- DB-AT-024 mapping consistency: PASSED (31.74s, exit code 0)
+- No regression detected (CUDA path unchanged by CPU fallback deferral)
+- Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T132017Z/
+  - phase_c2_5_decision.md (validation synthesis)
+  - db_at_024_validation.json (test result summary)
+  - pytest_collect_stage_b.log, pytest_collect_db_at_024.log
+  - pytest_db_at_024.log (PASSED)
 
 ### Future Enhancement (Path A)
 If CPU fallback support needed later:

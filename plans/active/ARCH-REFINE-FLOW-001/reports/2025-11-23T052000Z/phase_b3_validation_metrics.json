@@ -1,0 +1,8 @@
+{
+  "stage_a_small": "PASSED",
+  "stage_a_full": "PASSED",
+  "db_at_010": "PASSED",
+  "db_at_024": "PASSED",
+  "overall_verdict": "PASS",
+  "test_summary": "4 passed"
+}

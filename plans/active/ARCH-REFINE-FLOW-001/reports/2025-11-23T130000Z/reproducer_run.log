@@ -1,0 +1,28 @@
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+[LOAD] Loaded refGeom.expt
+[CRYSTAL] cell=(27.3758389202232, 32.06579930050022, 34.46635719191433, 88.76861581157905, 71.6300065859712, 68.18891879154103)
+[DETECTOR] 1 panels
+[BEAM] wavelength=0.9768000000000001
+[MTZ] Loaded scaled.mtz, 69614 structure factors
+[HKL] Built HKL grid with halo, shape=torch.Size([51, 59, 65])
+[HKL] Metadata: {'h_min': -25, 'h_max': 25, 'k_min': -29, 'k_max': 29, 'l_min': -32, 'l_max': 32, 'h_range': 51, 'k_range': 59, 'l_range': 65, 'n_reflections': 69614, 'n_in_range': 69614, 'in_range_fraction': 1.0, 'grid_nonzero': 69614, 'grid_min': 0.0, 'grid_max': 518.3336791992188, 'grid_mean': 16.896526336669922, 'has_halo': True, 'n_unique_asu': 34807}
+[CRYSTAL_CPU_POST] cell_a=27.3758389202232, cell_b=32.06579930050022, cell_c=34.46635719191433
+[CRYSTAL_CPU_POST] cell_alpha=88.76861581157905, cell_beta=71.6300065859712, cell_gamma=68.18891879154103
+[CRYSTAL_CPU_POST] mosflm_a_star=[-0.02757067 -0.02869191 -0.01245197]
+[CRYSTAL_CPU_POST] mosflm_b_star=[-0.00416187  0.02966329 -0.01563749]
+[CRYSTAL_CPU_POST] mosflm_c_star=[ 0.02523375 -0.00187283 -0.01747896]
+[CRYSTAL_CPU_POST] misset_deg=[0. 0. 0.]
+[CRYSTAL_CPU_POST] device=cpu
+[CONTEXT] Built CPU StageAContext
+[CONTEXT] Detectors cached: 1
+[PANEL] Extracted panel 0
+[SIMULATOR] Created on device=cpu, dtype=torch.float32
+[SIMULATION] Running single panel on CPU...
+auto-selected 1-fold oversampling
+[SIMULATION] Complete
+[BRAGG] shape=torch.Size([2527, 2463])
+[BRAGG] min=0.0, max=0.08605371415615082, mean=0.0027019064873456955
+[BRAGG] nonzero_count=6161997/6224001 (99.00%)
+[RESULT] PASS (A)
+[OUTPUT] plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T130000Z/reproducer_result.json

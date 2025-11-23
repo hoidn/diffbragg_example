@@ -1,0 +1,27 @@
+{
+  "result": "PASS",
+  "next_path": "A",
+  "message": "Bragg output is non-zero on CPU reproducer. Bug is in dbex warm cache or context cloning.",
+  "bragg_stats": {
+    "shape": [
+      2527,
+      2463
+    ],
+    "min": 0.0,
+    "max": 0.08605371415615082,
+    "mean": 0.0027019064873456955,
+    "nonzero_count": 6161997,
+    "total_pixels": 6224001,
+    "nonzero_fraction": 0.9900379193383806
+  },
+  "crystal_params": {
+    "cell_a": 27.3758389202232,
+    "cell_b": 32.06579930050022,
+    "cell_c": 34.46635719191433,
+    "cell_alpha": 88.76861581157905,
+    "cell_beta": 71.6300065859712,
+    "cell_gamma": 68.18891879154103
+  },
+  "device": "cpu",
+  "dtype": "torch.float32"
+}

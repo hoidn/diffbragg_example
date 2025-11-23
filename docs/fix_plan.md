@@ -30,12 +30,12 @@
 
 ### Tier 3: Architectural Maturity (Refactoring)
 **Goal:** Refactor monolithic loops into maintainable engines with clear boundaries and testable seams.
-- [ARCH-REFACTOR-001] (Refinement Engine Modularization & Physics Separation) — *pending (BLOCKED)*
+- [ARCH-REFACTOR-001] (Refinement Engine Modularization & Physics Separation) — *Pending* (UNBLOCKED 2025-11-23: TORCH-GEOMETRY-CONVERGENCE-001 complete)
 
 ### Tier 3: Tooling & Observability
 **Goal:** Standardize visuals, documentation, and runtime guardrails.
 - [TOOLING-VIS-001] (Standardized Triptychs) — *In Progress*
-- [DOC-RUNTIME-004] (Restore Runtime Checklist) — *In Progress*
+- [DOC-RUNTIME-004] (Restore Runtime Checklist) — **Done** (2025-11-23T024449Z: all exit criteria met, runtime checklist restored with spec citations, references verified, validation artifacts complete)
 - [TORCH-RUNTIME-002] (Runtime Harness Seed) — *Pending*
 
 ---
@@ -84,7 +84,7 @@
 
 ### [ARCH-REFACTOR-001] Refinement Engine Modularization & Physics Separation
 - Depends on: [TORCH-GEOMETRY-CONVERGENCE-001] (Tier 1 Blocker: Fix Chi² convergence first), docs/spec-db-workflow.md
-- Status: pending (Blocked by TORCH-GEOMETRY-CONVERGENCE-001)
+- Status: pending (UNBLOCKED 2025-11-23T024449Z: TORCH-GEOMETRY-CONVERGENCE-001 done)
 - Priority: High
 - Tier: 3 (Architectural Maturity — Refactoring)
 - Owner/Date: Unassigned

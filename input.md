@@ -1,258 +1,404 @@
-# Phase C2-C5: Validation Completion and Documentation
+# ARCH-REFINE-FLOW-001 Phase A — Stage Interface & Engine Skeleton (TDD Nucleus + Implementation)
 
 ## Summary
-Complete TORCH-GEOMETRY-UB-REALIGN-001 Phase C validation (DB-AT-024 mapping parity with incremental UB, findings documentation, test registry sync).
+Implement Phase A of the Protocol-based Refinement Engine: define RefinementStage protocol, RefinementEngine skeleton, shared helpers for simulator/Bragg generation, extended telemetry schema, and TDD nucleus test validating the engine contract.
 
 ## Mode
-Docs
+TDD (supervisor-scoped test specification + engineer implementation)
 
 ## Focus
-TORCH-GEOMETRY-UB-REALIGN-001 — Stage A UB Parameterization Realignment
+ARCH-REFINE-FLOW-001 — Refactor to Protocol-based Refinement Engine (Phase A: Stage Interface & Engine Skeleton)
 
 ## Branch
 integration
 
 ## Mapped Tests
-- `pytest -k test_db_at_024_mapping_smoke` (DB-AT-024 mapping parity, Active)
-- `pytest --collect-only tests/dbex/test_ub_parameterization_roundtrip.py` (DB-AT-026 collection validation)
+- **New Tests (Phase A):**
+  - `pytest -v tests/dbex/test_refinement_engine.py::test_engine_executes_mock_stage` (TDD nucleus: validates RefinementEngine executes dummy Stage and emits telemetry)
+
+- **Regression Guard:**
+  - `pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` (existing Stage A smoke test must PASS unchanged, proving new modules don't break existing refinement path)
 
 ## Artifacts
-`plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-23T023142Z/`
+All outputs under: `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T024449Z/`
+- `phase_a_implementation_summary.md` — Phase A completion report with compliance evidence and spec alignment verification
+- `pytest_test_refinement_engine.log` — TDD nucleus test execution log (expect PASS after A0-A2 complete)
+- `pytest_collect_test_refinement_engine.log` — Collection log for new test (must collect 1 test)
+- `pytest_stage_a_regression.log` — Regression guard log (existing test_stage_a_expansion must PASS)
+- `phase_a_compliance_evidence.md` — Spec alignment documentation per A6 (links to spec-db-workflow.md §7, findings cross-refs)
+- `summary.md` — Turn Summary block (required end-of-loop artifact)
 
 ## Do Now
 
-**Phase C2-C5: Validation Completion (4 tasks)**
+Execute Phase A tasks (A0–A7) implementing the Stage protocol and Engine skeleton per `plans/active/ARCH-REFINE-FLOW-001/implementation.md`.
 
-Ralph, Phase C1 was a SUCCESS — all zero-point validation tests passed (DB-AT-026 Tests 1-3 PASSED, incremental UB convergence ≥0.2%, regression guard clean). Now complete the remaining Phase C tasks:
+### Step 1: Review Context (30min, read-only)
+Read the following documents in order to understand the normative requirements and existing patterns:
+1. **Normative Spec:** `docs/spec-db-workflow.md` §7 (Refinement Protocol Architecture, Engine Contract, Stage definitions) — lines 32-63
+2. **Telemetry Requirements:** `docs/spec-db-tracing.md` §2 (telemetry contract for stages)
+3. **Canonical Stage A Pattern:** `plans/active/PHYSICS-LOSS-001/reports/2025-11-21T045800Z/` (variance-weighted loss telemetry structure to replicate)
+4. **ROI/Cache Contract:** `plans/active/PERF-WARM-SIM-001/implementation.md` (Stage A warm-cache, ROI sampling, perf-telemetry fields like `roi_count_*`, `cache_mode`, `roi_mode`, `forward_time_ms`)
+5. **Findings:**
+   - REFINE-005: Tricubic interpolation with ±1 HKL halo (Stage B/C MUST enable, Stage A SHOULD enable)
+   - REFINE-007: Stage C telemetry gates (≥80% offset reduction, ≤0.05% chi² regression)
+   - REFINE-008: Stage B telemetry gates (≤1e-6 relative chi² regression, ±1% modifier deltas)
+   - SCALE-001/SCALE-002: Scale handling conventions
 
-### C2: DB-AT-024 Mapping Parity (Validation)
+**Normative Constraints:**
+- **spec-db-workflow.md:33**: "RefinementEngine SHALL accept an ordered list of Stage objects and MUST NOT hardcode the Stage A→B→C flow"
+- **spec-db-workflow.md:35-62**: Stage A/B/C normative definitions (trainable params, fixed params, physics requirements)
+- **Environment Freeze (POLICY-001)**: Reuse existing tensors/config; new modules MUST NOT import optional dependencies
 
-**Objective:** Verify that DB-AT-024 mapping consistency test passes with the default configuration, confirming that Phase B changes did not affect the mapping forward model (`simulate_forward_once`).
+### Step 2: Implement A0 — TDD Nucleus Test (CRITICAL)
+Create `tests/dbex/test_refinement_engine.py` with a minimal unit test validating the engine contract:
 
-**Steps:**
-1. Run DB-AT-024 with default configuration:
-   ```bash
-   AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-   DBEX_SMOKE_SIGMA_SOURCE=cli_override \
-   KMP_DUPLICATE_LIB_OK=TRUE \
-   NANOBRAGG_DISABLE_COMPILE=1 \
-   pytest -v tests/dbex/test_mapping_consistency.py::TestDBMappingConsistency::test_db_at_024_mapping_smoke \
-     > plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-23T023142Z/pytest_db_at_024_default.log 2>&1
-   ```
+**Test Specification (TDD):**
+- Test Name: `test_engine_executes_mock_stage`
+- Purpose: Verify RefinementEngine can execute a dummy Stage object and aggregate telemetry
+- Inputs:
+  - MockStage implementing RefinementStage protocol (name="mock_stage", returns dummy telemetry dict)
+  - RefinementEngine instantiated with `[MockStage()]`
+- Expected Behavior:
+  - Engine.run() executes the stage once
+  - Engine.telemetry returns `{"mock_stage": <RefinementTelemetry object>}`
+  - RefinementTelemetry includes `stage_type="mock_stage"` field
+- Acceptance: Test PASSES after A1-A2 implementation complete
 
-2. **Analysis:** DB-AT-024 tests the mapping forward model (`simulate_forward_once`) which does NOT use the Stage A refinement path, so it should pass regardless of incremental UB changes (since Phase B preserved all existing code paths). If it passes, this confirms no regression from Phase B wiring.
+**Implementation Notes:**
+- Use dataclasses or Protocol (typing.Protocol) for RefinementStage interface
+- MockStage.run() returns a dict like `{"chi_squared": 1.0, "masked_mse": 0.1}` (minimal telemetry)
+- RefinementEngine.telemetry should return `Dict[str, RefinementTelemetry]`
 
-3. **Expected Outcome:** PASS (median correlation ≥0.2, localization ≥90%)
+### Step 3: Implement A1-A2 — Stage Protocol & Engine Skeleton
+Create new package `dbex/refinement/` with:
 
-4. **Decision:** If DB-AT-024 PASSES, proceed to C4 (findings). If FAILS, investigate whether Phase B changes inadvertently affected the mapping bridge.
+**File: `dbex/refinement/__init__.py`**
+```python
+# Empty or expose RefinementEngine, RefinementStage for imports
+from .engine import RefinementEngine
+from .stage import RefinementStage, RefinementTelemetry
 
-### C4: Findings Documentation (GEOMETRY-004)
-
-**Objective:** Document the incremental UB parameterization in `docs/findings.md` as GEOMETRY-004.
-
-**Content Template:**
+__all__ = ["RefinementEngine", "RefinementStage", "RefinementTelemetry"]
 ```
-| GEOMETRY-004 | 2025-11-23 | geometry, crystal, parameterization, ub-realign | Stage A incremental UB parameterization treats dxtbx crystal state (U₀, B₀) as authoritative and expresses orientation/cell as increments: `U(params) = ΔR(q_delta) @ U₀` (quaternion-based rotation), `B(params) = busing_levy_B_torch(a₀·exp(δlog_a), ..., α₀+Δα, ...)` (log-perturbations for lengths, delta-add for angles). Zero-point invariant: `q_delta=[1,0,0,0]` (identity), all deltas=0 → `U(0)=U₀`, `B(0)=B₀`, `A*(0)=U₀@B₀=A*_mapping`. One-way construction: `params → (U,B) → A*=U@B` (no A* decomposition in refinement loop). Helpers: `derive_orientation_from_quaternion_delta` (scipy quaternion-to-matrix + quaternion-to-Euler XYZ for nanobrag_torch API), `derive_B_from_cell_deltas` + `busing_levy_B_torch` (cctbx-based Busing-Levy B-matrix matching dxtbx lower-triangular convention). Validation: DB-AT-026 Tests 1-3 (zero-point ||U(0)-U₀||<1e-12, ||B(0)-B₀||<1e-12, ||A*(0)-A*_mapping||<1e-6), incremental UB convergence ≥0.2%, regression guard clean. Config flag: `use_incremental_ub=True` in `build_stage_a_lbfgs_closure`. Limitations: DB-AT-026 Test 4 (gradient flow) deferred — scipy/cctbx break PyTorch autograd; helpers are correct for forward passes and finite-difference validation, not suitable for direct gradient-based optimization (future: pytorch3d/kornia for differentiable ops). | dbex/nanobrag_bridge.py:1228-1407, dbex/nanobrag_refinement.py:817-876,1036-1073, tests/dbex/test_ub_parameterization_roundtrip.py, plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/ | Active |
+
+**File: `dbex/refinement/stage.py`**
+- Define `RefinementStage` protocol/abstract base class with methods:
+  - `name: str` (property or field)
+  - `configure(config: RefinementConfig) -> None` (optional, for future use)
+  - `run(inputs: RefinementInputs, telemetry_sink: Optional[Path]) -> Dict[str, Any]`
+    - Returns telemetry dict with keys like `chi_squared`, `masked_mse`, `stage_type`, etc.
+- Define `RefinementTelemetry` dataclass extending current telemetry structure with:
+  - `stage_type: str` (new field: identifies which stage produced this telemetry)
+  - `mode: Optional[str]` (new field: e.g., "shell_modifiers" for Stage B, "parity" for future variants)
+  - All existing fields from current telemetry (chi_squared, masked_mse, improvement, n_rois, etc.)
+  - Method: `to_dict() -> Dict[str, Any]` for serialization
+
+**File: `dbex/refinement/engine.py`**
+- Define `RefinementEngine` class with:
+  - `__init__(self, stages: List[RefinementStage], config: RefinementConfig)` — store stages, config
+  - `run(self, inputs: RefinementInputs) -> Dict[str, RefinementTelemetry]`:
+    - Iterate through stages in order
+    - Call `stage.run(inputs, telemetry_sink)` for each
+    - Aggregate telemetry into dict keyed by stage.name
+    - Return aggregated telemetry
+  - `telemetry` property returning the aggregated telemetry dict
+
+**Circular Import Mitigation:**
+- `RefinementStage` module MUST NOT import heavy simulator modules (`nanobrag_torch`, `dbex.nanobrag_bridge`) at module load time
+- Use TYPE_CHECKING imports or lazy imports inside methods if needed
+
+### Step 4: Implement A3 — Shared Helpers Extraction
+Create `dbex/refinement/helpers.py` with two shared utilities:
+
+**Function: `create_panel_simulator(...)`**
+- Signature: `create_panel_simulator(detector_config: DetectorConfig, crystal_config: CrystalConfig, hkl_grid: ..., config: RefinementConfig, device: torch.device, dtype: torch.dtype) -> Simulator`
+- Purpose: Centralize simulator instantiation logic currently duplicated in Stage A/B/C
+- Implementation: Extract from `dbex/nanobrag_refinement.py` Stage A panel loop (lines ~800-900)
+- Returns: nanobrag_torch.Simulator instance configured for the panel
+
+**Function: `emit_bragg_frame(...)`**
+- Signature: `emit_bragg_frame(stage_params: Dict[str, torch.Tensor], inputs: RefinementInputs, config: RefinementConfig, simulators: List[Simulator]) -> torch.Tensor`
+- Purpose: Centralize full-frame Bragg generation from stage parameters
+- Implementation: Extract Bragg stitching logic from Stage A/B/C closures
+- Returns: `[panel, slow, fast]` Bragg tensor
+
+**Notes:**
+- These helpers are PLAN-LOCAL for Phase A (not yet used by existing Stage A/B/C code until Phase B-D)
+- Ensure helpers respect device/dtype neutrality per `docs/spec-db-runtime.md:12-13`
+- No Environment Freeze violations (reuse existing tensor factories, no new deps)
+
+### Step 5: Implement A4 — Extend RefinementTelemetry Schema
+Update `RefinementTelemetry` dataclass in `dbex/refinement/stage.py`:
+
+**New Fields:**
+- `stage_type: str` — Stage identifier (e.g., "stage_a", "stage_b", "stage_c")
+- `mode: Optional[str] = None` — Stage mode variant (e.g., "shell_modifiers" for Stage B, "parity" for future per-reflection)
+
+**Backward Compatibility:**
+- Existing telemetry consumers (HDF5 writers, test assertions) read from dict form via `to_dict()`
+- Ensure `to_dict()` includes all existing fields plus new `stage_type`/`mode` fields
+- New fields should have sensible defaults (mode=None is acceptable)
+
+### Step 6: Implement A5 — Test Registry Update
+Update test documentation to reflect new test:
+
+**File: `docs/TESTING_GUIDE.md` §2**
+Add new row to the acceptance tests table:
+```
+| ARCH-ENGINE-001 | RefinementEngine TDD Nucleus | pytest -v tests/dbex/test_refinement_engine.py::test_engine_executes_mock_stage | Active | KMP_DUPLICATE_LIB_OK=TRUE | test PASSES, validates engine executes mock stage and aggregates telemetry | plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T024449Z/ | ARCH-REFINE-FLOW-001, spec-db-workflow.md:32-33 |
 ```
 
-**Steps:**
-1. Add the GEOMETRY-004 row to `docs/findings.md` after GEOMETRY-003 (row 7).
-2. Ensure the entry captures all normative details (formulas, helpers, validation results, limitations).
+**File: `docs/development/TEST_SUITE_INDEX.md`**
+Add row documenting the new test selector.
 
-### C5: Documentation Sync (Test Registry)
+**Collect-Only Artifact:**
+Run `pytest --collect-only tests/dbex/test_refinement_engine.py` and save output to:
+`plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T024449Z/pytest_collect_test_refinement_engine.log`
 
-**Objective:** Update test registry to reflect DB-AT-026 as Active.
+### Step 7: Write A6 Compliance Evidence
+Create `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T024449Z/phase_a_compliance_evidence.md`:
 
-**Steps:**
+**Required Content:**
+1. **Spec Alignment Verification:**
+   - Confirm `RefinementEngine` accepts ordered list of Stages (spec-db-workflow.md:33)
+   - Confirm engine does NOT hardcode A→B→C flow (spec-db-workflow.md:33)
+   - Confirm `RefinementTelemetry` includes `stage_type`/`mode` fields per spec-db-tracing.md
 
-1. **TESTING_GUIDE.md Update:**
-   - Add DB-AT-026 entry to §2 (Active Acceptance Tests) after DB-AT-024:
-   ```markdown
-   #### DB-AT-026: UB Parameterization Round-Trip
+2. **Findings Cross-References:**
+   - REFINE-005: Note that shared helpers will support tricubic interpolation when haloed grids available
+   - REFINE-007/008: Note that Stage B/C implementations (Phase C-D) will wire telemetry gates through shared helpers
+   - SCALE-001/002: Note that scale handling follows existing conventions from PHYSICS-LOSS-001
 
-   - **Status:** Active (2025-11-23)
-   - **Spec:** docs/spec-db-core.md:48-68, docs/spec-db-workflow.md:36-50, docs/spec-db-runtime.md:18-28
-   - **Purpose:** Validate incremental UB parameterization zero-point invariant (`U(0)=U₀`, `B(0)=B₀`, `A*(0)=A*_mapping`)
-   - **Selector:** `pytest -v tests/dbex/test_ub_parameterization_roundtrip.py`
-   - **Tests:**
-     - `test_db_at_026_orientation_zero_point` — `||U(0)-U₀|| < 1e-12`
-     - `test_db_at_026_cell_zero_point` — `||B(0)-B₀|| < 1e-12`
-     - `test_db_at_026_mapping_parity` — `||A*(0)-A*_mapping|| < 1e-6`
-     - `test_db_at_026_gradient_flow` — (xfail: scipy/cctbx break autograd)
-   - **Acceptance Criteria:**
-     - Tests 1-3 PASS (zero-point tolerances met)
-     - Test 4 marked xfail with documented rationale (scipy/cctbx autograd breaking)
-   - **Environment:** `KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1`
-   - **Artifacts:** `plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/<timestamp>/pytest_db_at_026*.log`
-   ```
+3. **Environment Freeze Compliance:**
+   - Confirm no new dependencies imported
+   - Confirm all imports lazy or under TYPE_CHECKING where needed
 
-2. **TEST_SUITE_INDEX.md Update:**
-   - Add DB-AT-026 row to Acceptance Tests table:
-   ```markdown
-   | DB-AT-026 | UB Parameterization Round-Trip | Active | tests/dbex/test_ub_parameterization_roundtrip.py | 2025-11-23 |
-   ```
+4. **Dependency Analysis:**
+   - List touched modules: `dbex/refinement/` (new), no changes to `dbex/nanobrag_refinement.py` (preserved until Phase B)
+   - Confirm no circular imports detected
 
-3. **Collection Log:**
-   - Run `pytest --collect-only tests/dbex/test_ub_parameterization_roundtrip.py > plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-23T023142Z/pytest_collect_db_at_026.log 2>&1`
-   - Verify ≥3 tests collected (Tests 1-3 at minimum)
+### Step 8: Write A7 Documentation
+Create `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T024449Z/phase_a_implementation_summary.md`:
 
-4. **Update implementation.md:**
-   - Mark C2, C4, C5 as `[x]` DONE
-   - Update Phase C status to `COMPLETE (2025-11-23T023142Z)`
+**Required Sections:**
+1. **Overview** — Phase A deliverables summary
+2. **RefinementStage Protocol** — Interface definition, methods, contract
+3. **RefinementEngine Skeleton** — Execution flow, telemetry aggregation
+4. **Shared Helpers** — `create_panel_simulator`, `emit_bragg_frame` signatures and purposes
+5. **Telemetry Schema Extensions** — `stage_type`/`mode` fields, backward compatibility notes
+6. **Test Registry** — New test selector, collect-only results
+7. **Compliance Evidence** — Link to phase_a_compliance_evidence.md
+8. **Next Steps** — Phase B preview (Stage A extraction)
 
-### Validation & Commit
+### Step 9: Execute Tests & Regression Guard
+Run tests in sequence:
 
-1. **Metrics Extraction (T0 micro probe):**
-   ```bash
-   python -c "
-   import json
-   import os
-   import sys
+**TDD Nucleus Test:**
+```bash
+KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_refinement_engine.py::test_engine_executes_mock_stage 2>&1 | tee plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T024449Z/pytest_test_refinement_engine.log
+```
+**Expected Result:** PASS (after A0-A2 implementation complete)
 
-   log_file = 'plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-23T023142Z/pytest_db_at_024_default.log'
-   db_at_024_passed = False
-   if os.path.exists(log_file):
-       with open(log_file) as f:
-           content = f.read()
-           db_at_024_passed = 'PASSED' in content
+**Regression Guard:**
+```bash
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion 2>&1 | tee plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T024449Z/pytest_stage_a_regression.log
+```
+**Expected Result:** PASS (existing Stage A unaffected by new modules since they're not imported yet)
 
-   metrics = {
-       'db_at_024_default': 'PASSED' if db_at_024_passed else 'FAILED',
-       'geometry_004_documented': True,
-       'testing_guide_updated': True,
-       'test_suite_index_updated': True,
-       'collect_log_archived': True,
-       'implementation_checklist_updated': True
-   }
-   with open('plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-23T023142Z/phase_c2_c5_metrics.json', 'w') as f:
-       json.dump(metrics, f, indent=2)
-   print(json.dumps(metrics, indent=2))
-   "
-   ```
+### Step 10: Update Implementation Plan Checklist
+Edit `plans/active/ARCH-REFINE-FLOW-001/implementation.md`:
 
-2. **Turn Summary:**
-   - Write `plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-23T023142Z/summary.md` with Turn Summary block (3-5 sentences: what shipped, main problem if any, next step, Artifacts line)
+Mark Phase A tasks complete:
+- [x] A0: TDD nucleus test authored and passing
+- [x] A1: RefinementStage protocol implemented
+- [x] A2: RefinementEngine skeleton implemented
+- [x] A3: Shared helpers extracted (create_panel_simulator, emit_bragg_frame)
+- [x] A4: RefinementTelemetry extended with stage_type/mode fields
+- [x] A5: Test registry updated, collect-only artifacts saved
+- [x] A6: Compliance evidence documented
+- [x] A7: Phase A documentation complete
 
-3. **Commit:**
-   ```bash
-   git add docs/findings.md docs/TESTING_GUIDE.md docs/development/TEST_SUITE_INDEX.md plans/active/TORCH-GEOMETRY-UB-REALIGN-001/
-   git commit -m "$(cat <<'EOF'
-   TORCH-GEOMETRY-UB-REALIGN-001 Phase C2-C5: Validation completion and documentation
+### Step 11: Write Turn Summary
+Create `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T024449Z/summary.md` with Turn Summary block:
 
-   Verified DB-AT-024 mapping parity (default path clean), documented GEOMETRY-004
-   incremental UB finding, updated test registry (TESTING_GUIDE.md, TEST_SUITE_INDEX.md)
-   with DB-AT-026 entry, archived collection log. All Phase C tasks complete.
+**Format:**
+```markdown
+### Turn Summary
+Implemented Phase A of Protocol-based Refinement Engine: RefinementStage protocol, RefinementEngine skeleton, shared simulator/Bragg helpers.
+TDD nucleus test validates engine executes mock stage and aggregates telemetry; regression guard confirms existing Stage A unaffected.
+Next: Phase B extracts Stage A implementation onto the engine using shared helpers.
+Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T024449Z/ (phase_a_implementation_summary.md, pytest logs, compliance evidence)
+```
 
-   🤖 Generated with [Claude Code](https://claude.com/claude-code)
+### Step 12: Commit and Push
+Commit all changes with descriptive message:
+```bash
+git add -A
+git commit -m "$(cat <<'EOF'
+ARCH-REFINE-FLOW-001 Phase A: Stage Interface & Engine Skeleton
 
-   Co-Authored-By: Claude <noreply@anthropic.com>
-   EOF
-   )"
-   git push
-   ```
+Implemented RefinementStage protocol and RefinementEngine skeleton per
+spec-db-workflow.md §7 (Refinement Protocol Architecture). Engine
+accepts ordered list of Stages and aggregates telemetry without
+hardcoding A→B→C flow.
+
+Changes:
+- New package dbex/refinement/ with stage.py (protocol) and engine.py
+- RefinementTelemetry extended with stage_type/mode fields for future
+  Stage variants (shell_modifiers, parity modes)
+- Shared helpers (create_panel_simulator, emit_bragg_frame) extracted
+  for code reuse in Phase B-D Stage implementations
+- TDD nucleus test (test_refinement_engine.py) validates engine contract
+
+Tests:
+- test_engine_executes_mock_stage: PASS (TDD nucleus validates engine)
+- test_stage_a_expansion: PASS (regression guard, existing Stage A unaffected)
+
+Spec Alignment:
+- spec-db-workflow.md:32-63 (Engine Contract, Stage definitions)
+- spec-db-tracing.md §2 (telemetry requirements)
+- REFINE-005/007/008 (findings referenced for Phase B-D)
+
+Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T024449Z/
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+EOF
+)"
+git push
+```
 
 ## How-To Map
 
-### C2: DB-AT-024 Execution
+### Test Execution Commands
 ```bash
-# DB-AT-024 default path
-AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-DBEX_SMOKE_SIGMA_SOURCE=cli_override \
-KMP_DUPLICATE_LIB_OK=TRUE \
-NANOBRAGG_DISABLE_COMPILE=1 \
-pytest -v tests/dbex/test_mapping_consistency.py::TestDBMappingConsistency::test_db_at_024_mapping_smoke \
-  > plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-23T023142Z/pytest_db_at_024_default.log 2>&1
+# TDD Nucleus Test (new test, must collect 1 test and PASS)
+KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_refinement_engine.py::test_engine_executes_mock_stage 2>&1 | tee plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T024449Z/pytest_test_refinement_engine.log
 
-# Check result
-grep -E "(PASSED|FAILED)" plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-23T023142Z/pytest_db_at_024_default.log
+# Collect-Only (verify new test discovered)
+pytest --collect-only tests/dbex/test_refinement_engine.py 2>&1 | tee plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T024449Z/pytest_collect_test_refinement_engine.log
+
+# Regression Guard (existing Stage A smoke must PASS)
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion 2>&1 | tee plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T024449Z/pytest_stage_a_regression.log
 ```
 
-### C4: Findings Update
-- File: `docs/findings.md`
-- Insert after GEOMETRY-003 (row 7)
-- Use template above with exact wording
-
-### C5: Doc Sync
-- Files: `docs/TESTING_GUIDE.md` (§2), `docs/development/TEST_SUITE_INDEX.md`
-- Collection log: `pytest --collect-only tests/dbex/test_ub_parameterization_roundtrip.py > ...`
-- Verify ≥3 tests collected
-
-### Implementation Checklist
-- File: `plans/active/TORCH-GEOMETRY-UB-REALIGN-001/implementation.md`
-- Mark C2, C4, C5 as `[x]` DONE
-- Update Phase C status line to `COMPLETE (2025-11-23T023142Z)`
+### Artifacts Structure
+```
+plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T024449Z/
+├── phase_a_implementation_summary.md   # Overview and deliverables
+├── phase_a_compliance_evidence.md      # Spec alignment + findings cross-refs
+├── pytest_test_refinement_engine.log   # TDD nucleus test execution
+├── pytest_collect_test_refinement_engine.log  # Collect-only output
+├── pytest_stage_a_regression.log       # Regression guard
+└── summary.md                          # Turn Summary block
+```
 
 ## Pitfalls To Avoid
 
-1. **Do NOT modify production code** — this is a docs-only validation + documentation loop
-2. **Do NOT run DB-AT-024 with `use_incremental_ub=True`** — DB-AT-024 tests the mapping forward model (`simulate_forward_once`) which is separate from Stage A refinement path
-3. **Do NOT edit DB-AT-026 test code** — tests are already implemented and passing from Phase C1
-4. **Preserve exact GEOMETRY-004 template** — includes all normative details (formulas, helpers, validation results, limitations)
-5. **TESTING_GUIDE.md formatting** — match existing DB-AT entries (Status, Spec, Purpose, Selector, Tests, Acceptance Criteria, Environment, Artifacts)
-6. **TEST_SUITE_INDEX.md table alignment** — maintain pipe-delimited table format
-7. **Collection log must show ≥3 tests** — if <3, DB-AT-026 test file is incomplete (blocker)
+1. **Circular Imports:** RefinementStage module MUST NOT import nanobrag_torch or heavy bridge modules at module level. Use TYPE_CHECKING or lazy imports inside methods.
+
+2. **Hardcoded Stage Flow:** RefinementEngine MUST accept arbitrary ordered list of Stages. Do NOT hardcode A→B→C sequence in engine.run() method.
+
+3. **Telemetry Backward Compatibility:** Ensure `RefinementTelemetry.to_dict()` includes all existing fields. New `stage_type`/`mode` fields must not break existing HDF5 writers or test assertions.
+
+4. **Environment Freeze:** Do NOT import new dependencies. Reuse existing config/tensor factories from `dbex.nanobrag_bridge` and `dbex.nanobrag_refinement`.
+
+5. **Shared Helper Usage:** Shared helpers `create_panel_simulator` and `emit_bragg_frame` are PLAN-LOCAL for Phase A testing. Do NOT refactor existing Stage A/B/C code to use them yet (that happens in Phase B-D).
+
+6. **Test Registry:** Do NOT skip updating `docs/TESTING_GUIDE.md` and `docs/development/TEST_SUITE_INDEX.md`. Missing registry entries violate Exit Criterion #4.
+
+7. **TDD Discipline:** Implement A0 test FIRST (test should FAIL until A1-A2 implemented). Do NOT skip the failing test step.
+
+8. **Device/Dtype Neutrality:** Shared helpers must accept `device` and `dtype` parameters explicitly. Do NOT hardcode `cuda:0` or `float32`.
+
+9. **Spec Alignment:** Phase A compliance evidence MUST cite spec-db-workflow.md:32-63 (Engine Contract). Do NOT skip A6 compliance documentation.
+
+10. **Regression Guard:** test_stage_a_expansion MUST PASS unchanged. If it fails, your new modules are leaking side effects. Revert and fix circular imports or global state pollution.
 
 ## If Blocked
 
-**Blocker Scenarios:**
+**Test Failures:**
+- If `test_engine_executes_mock_stage` fails: Check RefinementStage protocol implementation, ensure MockStage.run() returns dict, verify Engine.telemetry aggregation logic.
+- If `test_stage_a_expansion` fails: Your new modules are interfering with existing code. Check for accidental imports in `dbex/nanobrag_refinement.py`, revert circular import fixes.
 
-1. **DB-AT-024 FAILS:**
-   - Extract failure signature (correlation, localization values)
-   - Check if `simulate_forward_once` bridge was affected by Phase B changes
-   - Grep for Phase B diffs in `dbex/nanobrag_bridge.py` (`create_detector_config`, `create_beam_config`, `create_crystal_config`)
-   - Document blocker in `plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-23T023142Z/blocker_c2.md`
-   - Mark UB-REALIGN-001 as `blocked` in `docs/fix_plan.md` Attempts History
+**Circular Import Errors:**
+- Move heavy imports inside method bodies instead of module level.
+- Use `if TYPE_CHECKING:` blocks for type hints only.
+- Verify `dbex/refinement/__init__.py` does not trigger cascade imports.
 
-2. **Collection log shows <3 tests:**
-   - Verify `tests/dbex/test_ub_parameterization_roundtrip.py` exists and contains Tests 1-3
-   - Check for pytest collection errors in log
-   - Document blocker in `blocker_c5.md`
+**Spec Drift:**
+- If engine hardcodes A→B→C flow: Refactor `Engine.run()` to iterate `self.stages` generically.
+- If telemetry schema breaks existing tests: Check `to_dict()` includes all original fields.
 
-3. **Git conflicts:**
-   - Resolve manually (findings.md row numbers may shift)
-   - Keep GEOMETRY-004 content intact
-   - Re-run collection log after resolution
+**Capture & Escalate:**
+Document blocker in `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T024449Z/blocker_report.md`:
+- What failed (test name, error message)
+- What you tried (max 3 attempts per issue)
+- Hypothesis for root cause
+- Request for supervisor guidance (include spec clause or finding ID)
+
+Update `docs/fix_plan.md` Attempts History with blocker entry and mark status `blocked`.
 
 ## Findings Applied
 
-**Mandatory Findings:**
-- CONVERGENCE-001 (line 65): Zero-delta bypass pattern, code path divergence detection, systematic offset <20% acceptable when convergence stable — **Applied in Phase A design** (bypass pattern not needed for incremental UB because we use one-way construction, avoiding code path divergence; systematic offset acceptance criteria documented in Phase C1 decision)
-- GEOMETRY-003 (line 7): Baseline misset derivation from dxtbx A* — **Not applicable** (incremental UB uses direct MOSFLM A* injection or quaternion-to-Euler conversion, not baseline_misset + delta_misset)
-- REFINE-006 (line 56): ≥0.2% improvement gate — **Applied in Phase C1** (incremental UB convergence test validated ≥0.2% improvement)
+**Mandatory Adherence:**
+- **REFINE-005:** Shared helpers will support tricubic interpolation when haloed HKL grids available (helpers accept `enable_interpolation` flag).
+- **REFINE-007:** Stage C telemetry gates (≥80% offset reduction, ≤0.05% chi² regression) will be wired through shared helpers in Phase D.
+- **REFINE-008:** Stage B telemetry gates (≤1e-6 relative chi² regression, ±1% modifier deltas) will be wired through shared helpers in Phase C.
+- **SCALE-001/SCALE-002:** Scale handling follows existing PHYSICS-LOSS-001 conventions (no multiplication of structure factors).
+- **POLICY-001 (Environment Freeze):** No new dependencies, reuse existing tensor/config factories.
 
-**No other findings directly relevant to validation/documentation tasks.**
+**No relevant findings in the knowledge base conflict with Phase A scope.**
 
 ## Pointers
 
-### Spec References
-- `docs/spec-db-core.md:48-68` — Baseline Crystal State and Parameterization (normative UB/A* incremental requirements)
-- `docs/spec-db-workflow.md:36-50` — Stage A mapping zero-point invariant, trainable logs/angles + quaternion→XYZ
-- `docs/spec-db-runtime.md:18-28` — UB/A* round-trip test mandate, prohibited inverse decompositions
+**Normative Specs:**
+- `docs/spec-db-workflow.md:32-63` — Refinement Protocol Architecture (Engine Contract, Stage definitions)
+- `docs/spec-db-tracing.md` §2 — Telemetry requirements
 
-### Architecture
-- `docs/architecture.md` — System context, ADRs, data flow
-- `plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-22T170806Z/phase_a_design_document.md` — Full Phase A design with normative requirements synthesis, CONVERGENCE-001 lessons, chosen parameterization formulas, DB-AT-026 test specification
+**Context Priming:**
+- `plans/active/PHYSICS-LOSS-001/reports/2025-11-21T045800Z/` — Canonical Stage A telemetry structure
+- `plans/active/PERF-WARM-SIM-001/implementation.md` — ROI/cache contract (`roi_count_*`, `cache_mode`, `roi_mode`, `forward_time_ms`)
 
-### Testing
-- `docs/TESTING_GUIDE.md:118-190` — §2 Active Acceptance Tests (DB-AT entries format)
-- `docs/development/TEST_SUITE_INDEX.md` — Status table for DB-AT selectors
-- `tests/dbex/test_ub_parameterization_roundtrip.py` — DB-AT-026 implementation (Tests 1-4)
+**Existing Code References:**
+- `dbex/nanobrag_refinement.py:800-900` — Stage A panel loop (source for `create_panel_simulator` helper)
+- `dbex/nanobrag_refinement.py:1132-1227` — Stage B closure (reference for shared loss computation)
+- `tests/dbex/test_torch_refine_smoke.py:583-781` — Stage A smoke test (regression guard)
 
-### Fix Plan
-- `docs/fix_plan.md:63-82` — TORCH-GEOMETRY-UB-REALIGN-001 initiative (Exit Criteria, Working Plan, Attempts History)
-- `plans/active/TORCH-GEOMETRY-UB-REALIGN-001/implementation.md` — Phase checklists (A, B, C)
+**Findings:**
+- `docs/findings.md` REFINE-005, REFINE-007, REFINE-008 (Stage B/C telemetry gates)
+- `docs/findings.md` SCALE-001, SCALE-002 (scale handling)
 
-### Prior Artifacts
-- `plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-23T021500Z/phase_c1_decision.md` — Phase C1 SUCCESS verdict (all tests PASS)
-- `plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-23T021500Z/phase_c1_validation_metrics.json` — Metrics JSON (5 tests, overall_verdict=PASS)
+**Fix Plan:**
+- `docs/fix_plan.md` ARCH-REFINE-FLOW-001 entry (initiative tracking)
+- `plans/active/ARCH-REFINE-FLOW-001/implementation.md` (full Phase A-E plan)
 
 ## Next Up
+If Phase A completes successfully (all tests PASS, compliance evidence complete):
+- **Phase B:** Extract Stage A implementation onto the engine using shared helpers
+- **Phase B0:** Record baseline artifacts for Stage A smoke test
+- **Phase B1-B5:** Implement StageA class, wire into RefinementEngine, verify no regression
 
-**If Phase C2-C5 SUCCESS:**
-- Mark TORCH-GEOMETRY-UB-REALIGN-001 as `done` in `docs/fix_plan.md`
-- Update Execution Roadmap Tier 1: UB-REALIGN-001 DONE
-- Supervisor selects next Tier 1 focus per roadmap (all Tier 1 items complete after UB-REALIGN-001)
+If Phase A blocked or partial:
+- Continue Phase A tasks (complete checklist items, fix test failures)
+- Document blocker per "If Blocked" section above
 
-**If Phase C2-C5 has blockers:**
-- Document blocker in Attempts History
-- Galph reviews blocker report and plans debug/patch/escalation
+## Doc Sync Plan
+**Triggered:** Phase A adds new test `test_refinement_engine.py::test_engine_executes_mock_stage`
+
+After code passes:
+1. Run `pytest --collect-only tests/dbex/test_refinement_engine.py` and save to `pytest_collect_test_refinement_engine.log`
+2. Update `docs/TESTING_GUIDE.md` §2 table with ARCH-ENGINE-001 row (selector, acceptance criteria, artifacts path, findings cross-refs)
+3. Update `docs/development/TEST_SUITE_INDEX.md` with ARCH-ENGINE-001 row
+
+## Mapped Tests Guardrail
+**New Test:** `test_refinement_engine.py::test_engine_executes_mock_stage`
+- Expected: Collects 1 test (verified via `--collect-only`)
+- Status after implementation: Active (must PASS)
+
+**Regression Guard:** `test_stage_a_expansion`
+- Expected: Continues to PASS unchanged
+- If FAILS: New modules leaking side effects, revert and fix
+
+**Hard Gate:** Do NOT mark Phase A done if `--collect-only` returns 0 tests or if either test FAILS.

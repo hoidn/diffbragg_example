@@ -186,12 +186,25 @@
     - Helper not yet wired (no behavior change)
     - Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-22T060833Z/
   - [x] C1a-loop2: Extract `_build_stage_b_lbfgs_closure` helper (~317 lines) ✓ COMPLETE (2025-11-22T063000Z)
-    - Helper function signature: `_build_stage_b_lbfgs_closure(config, device, dtype, param_values, stage_a_ctx, stage_b_eval_stage_a_ctx, canonical_baseline, n_panels, sampled_stage_b_indices, full_stage_b_indices, sigma_floor_sq_cache, use_stage_b_cpu_fallback, stage_b_use_warm_cache, use_stage_b_roi_mode, crystal, hkl_metadata, hkl_grid, shell_indices, detector, beam, inputs, target_t, loss_mask_t, sigma_readout_t, baseline_misset_deg_tensor, panel_shape) -> Callable[[], torch.Tensor]`
+    - Helper function signature: `_build_stage_b_lbfgs_closure(...) -> Tuple[Callable[[List[int], bool, bool], Tuple[torch.Tensor, torch.Tensor]], Callable[[], torch.Tensor]]` (FIXED in loop3: now returns tuple)
     - Inserted at line 2272 (after _build_stage_b_params, before run_nanobrag_refinement)
     - Nested functions: compute_loss_stage_b (~203 lines) + closure_stage_b (~44 lines)
     - Compilation PASSED (exit code 0)
     - Helper not yet wired (no behavior change)
     - Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-22T063000Z/
+  - [x] C1a-loop3: Extract `_run_stage_b_lbfgs` + wire all 3 helpers + regression guard ✓ COMPLETE (2025-11-22T070000Z)
+    - Helper function signature: `_run_stage_b_lbfgs(config, device, dtype, param_values, closure_stage_b, compute_loss_stage_b, n_panels) -> Dict[str, Any]`
+    - Inserted at line 2593 (after _build_stage_b_lbfgs_closure, before run_nanobrag_refinement)
+    - Helper extracts: LBFGS execution (~118 lines total including initial validation, optimizer.step, final validation, improvement gate, best snapshot restore)
+    - **Key bugfixes applied:**
+      1. Fixed helper2 signature (returns tuple `(compute_loss_stage_b, closure_stage_b)` not scalar)
+      2. Added missing `panel_slices = inputs.panel_slices` assignment (line 2875)
+      3. Fixed all param_values key mismatches (stage_b_params→params, telemetry nested access via telemetry_state)
+      4. Fixed nanobrag_torch imports (Detector/Crystal from .models, Simulator from .simulator)
+      5. Added missing `stage_b_param_device` to helper1 return dict
+    - **Wired all 3 helpers** into run_nanobrag_refinement Stage B section (~610 lines inline → ~150 lines orchestration, net reduction ~460 lines)
+    - Regression guard: test_stage_b_shell_modifiers PASSED (exit code 0)
+    - Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-22T070000Z/ (patch: 794 lines, pytest log, summary.md)
 - [ ] C2: Wire Stage B into the engine (A→B sequence), dropping the legacy inline code from `run_nanobrag_refinement`.
 - [ ] C3: Ensure Stage B telemetry includes `stage_b_mode`, shell modifier stats, and uses canonical Stage A metadata propagated through the engine context.
 - [ ] C4: Rerun `tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers` (small + full detectors). Capture collect-only logs and telemetry JSON; verify REFINE-008 gates still apply.

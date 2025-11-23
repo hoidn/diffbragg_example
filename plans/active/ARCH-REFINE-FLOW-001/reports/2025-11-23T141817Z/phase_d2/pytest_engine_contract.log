@@ -1,0 +1,114 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 1 item
+
+tests/dbex/test_refinement_engine.py::test_engine_executes_mock_stage FAILED [100%]
+
+=================================== FAILURES ===================================
+_______________________ test_engine_executes_mock_stage ________________________
+
+    def test_engine_executes_mock_stage():
+        """
+        TDD nucleus: validate RefinementEngine executes mock stage and aggregates telemetry.
+    
+        Acceptance (Phase A0):
+        - Test PASSES after A1-A2 implementation (RefinementStage protocol + RefinementEngine skeleton)
+        - MockStage.run() is called exactly once
+        - Engine.telemetry returns Dict with "mock_stage" key
+        - RefinementTelemetry includes stage_type="mock_stage" field
+        """
+        from dbex.refinement import RefinementEngine, RefinementStage, RefinementTelemetry
+        from dbex.nanobrag_refinement import RefinementConfig
+    
+        # Mock inputs (minimal, not real refinement data)
+        class MockRefinementInputs:
+            """Dummy inputs for testing."""
+            pass
+    
+        # Define MockStage implementing RefinementStage protocol
+        class MockStage(RefinementStage):
+            """Dummy stage for testing engine contract."""
+    
+            @property
+            def name(self) -> str:
+                return "mock_stage"
+    
+            def configure(self, config: RefinementConfig) -> None:
+                """Optional configuration (no-op for mock)."""
+                pass
+    
+            def run(
+                self,
+                inputs: Any,
+                telemetry_sink: Optional[Path] = None
+            ) -> Dict[str, Any]:
+                """
+                Return minimal telemetry dict matching RefinementTelemetry structure.
+    
+                Returns only required fields plus stage_type/mode to validate
+                the engine can aggregate telemetry from arbitrary stages.
+                """
+                return {
+                    # Required RefinementTelemetry fields
+                    "optimizer": "mock",
+                    "stage": "mock_stage",
+                    "history_size": 0,
+                    "max_iter": 0,
+                    "tolerance_grad": 0.0,
+                    "tolerance_change": 0.0,
+                    "roi_sample_fraction": 0.0,
+                    "roi_count_sampled": 0,
+                    "roi_count_total": 0,
+                    "loss_trace_sample": [],
+                    "loss_trace_full": [],
+                    "best_loss_full": (1.0, 0),
+                    "param_deltas": {},
+                    "status": "ok",
+                    "message": "MockStage executed",
+                    # Phase A4 extensions (optional fields)
+                    "stage_type": "mock_stage",
+                    "mode": None,
+                }
+    
+        # Instantiate engine with mock config
+        config = RefinementConfig()
+        stages = [MockStage()]
+        engine = RefinementEngine(stages=stages, config=config)
+    
+        # Execute engine
+        mock_inputs = MockRefinementInputs()
+        telemetry = engine.run(inputs=mock_inputs)
+    
+        # Validate telemetry structure
+        assert isinstance(telemetry, dict), "Engine.run() should return Dict[str, RefinementTelemetry]"
+        assert "mock_stage" in telemetry, "Telemetry dict should have 'mock_stage' key"
+    
+        stage_telemetry = telemetry["mock_stage"]
+        assert isinstance(stage_telemetry, RefinementTelemetry), "Telemetry value should be RefinementTelemetry instance"
+    
+        # Validate stage_type field exists (A4 requirement)
+        assert hasattr(stage_telemetry, "stage_type"), "RefinementTelemetry should have stage_type field"
+>       assert stage_telemetry.stage_type == "mock_stage", "stage_type should match MockStage identifier"
+E       AssertionError: stage_type should match MockStage identifier
+E       assert None == 'mock_stage'
+E        +  where None = RefinementTelemetry(optimizer='mock', stage='mock_stage', history_size=0, max_iter=0, tolerance_grad=0.0, tolerance_change=0.0, roi_sample_fraction=0.0, roi_count_sampled=0, roi_count_total=0, loss_trace_sample=[], loss_trace_full=[], best_loss_full=(1.0, 0), param_deltas={}, status='ok', message='MockStage executed', perf_counters=None, chi_squared_trace_sample=None, chi_squared_trace_full=None, chi_squared_best=None, masked_mse_trace_sample=None, masked_mse_trace_full=None, masked_mse_best=None, sigma_readout_provenance=None, sigma_readout_reference_value=None, variance_floor_value=None, variance_floor_clamp_fraction=None, canonical_stage_label=None, canonical_chi_squared=None, canonical_chi_squared_iteration=None, canonical_roi_count=None, canonical_detector_distances_mm=None, roi_mode=None, stage_type=None, mode=None).stage_type
+
+tests/dbex/test_refinement_engine.py:100: AssertionError
+=========================== short test summary info ============================
+FAILED tests/dbex/test_refinement_engine.py::test_engine_executes_mock_stage - AssertionError: stage_type should match MockStage identifier
+assert None == 'mock_stage'
+ +  where None = RefinementTelemetry(optimizer='mock', stage='mock_stage', history_size=0, max_iter=0, tolerance_grad=0.0, tolerance_change=0.0, roi_sample_fraction=0.0, roi_count_sampled=0, roi_count_total=0, loss_trace_sample=[], loss_trace_full=[], best_loss_full=(1.0, 0), param_deltas={}, status='ok', message='MockStage executed', perf_counters=None, chi_squared_trace_sample=None, chi_squared_trace_full=None, chi_squared_best=None, masked_mse_trace_sample=None, masked_mse_trace_full=None, masked_mse_best=None, sigma_readout_provenance=None, sigma_readout_reference_value=None, variance_floor_value=None, variance_floor_clamp_fraction=None, canonical_stage_label=None, canonical_chi_squared=None, canonical_chi_squared_iteration=None, canonical_roi_count=None, canonical_detector_distances_mm=None, roi_mode=None, stage_type=None, mode=None).stage_type
+============================== 1 failed in 0.82s ===============================
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 1 item
+
+tests/dbex/test_refinement_engine.py::test_engine_executes_mock_stage PASSED [100%]
+
+============================== 1 passed in 0.84s ===============================

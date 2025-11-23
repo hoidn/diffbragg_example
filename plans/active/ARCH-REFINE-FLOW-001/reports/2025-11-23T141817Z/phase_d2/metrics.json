@@ -1,0 +1,7 @@
+{
+  "compilation_status": "PASS",
+  "stage_c_small_status": "PASS",
+  "stage_c_full_status": "PASS",
+  "engine_contract_status": "PASS",
+  "decision_path": "A"
+}

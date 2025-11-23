@@ -1,3 +1,11 @@
+### Turn Summary
+Validated Phase C extraction: Stage B small detector smoke PASSED but full detector FAILED with CUDA OOM due to missing CPU fallback logic in engine delegation path.
+Root cause identified at high confidence (95%): lines 3029-3108 skip CPU fallback initialization that inline path computes at lines 2174-2184; fix requires 4-10 line addition before engine instantiation.
+Next: implement CPU fallback in engine delegation path following reference pattern, then rerun full validation suite.
+Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T084458Z/ (pytest_stage_b_small.log, pytest_stage_b_full.log, collect_db_at_024.log, phase_c_decision.md)
+
+---
+
 ### Turn Summary (Galph, Loop i=211)
 Completed Phase C extraction (helpers + wrapper + engine delegation + bugfix) and authored full validation protocol for Stage B smokes (small/full detectors) + DB-AT-024 mapping parity.
 Next: Ralph executes 12-step validation (run tests, extract metrics, decision synthesis); if all PASS → Phase C COMPLETE → plan Phase D (Stage C extraction) next loop.

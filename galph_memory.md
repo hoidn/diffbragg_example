@@ -45,3 +45,14 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-23T122329Z focus=ARCH-REFINE-FLOW-001 state=ready_for_implementation dwell=0 artifacts=plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T122329Z/ next_action=cpu_hkl_grid_device_routing_fix
+
+## 2025-11-23T140000Z — ARCH-REFINE-FLOW-001 Phase C2.5 HKL Grid Transfer Corruption Root Cause
+
+- Focus: ARCH-REFINE-FLOW-001 — Protocol-based Refinement Engine (Phase C2.5: defer CPU fallback, HKL grid transfer corruption)
+- Action Type: planning
+- Key Observations: Loop i=222 HKL grid device routing fix INSUFFICIENT - CPU grid already corrupted by `.to(device='cpu')` transfer at line 547. HKL stats prove corruption: CUDA `k=[-14,14]` vs CPU `k=[-1796,1708]` (nonsensical). Gradient error is downstream symptom: 0% hit rate → all Bragg=0 → no gradients. Minimal reproducer (i=220) succeeded because it built fresh CPU grid natively. **Decision: Path C (defer CPU fallback)** - mark test skip, update GRADIENT-003 finding, validate small detector (CUDA-only). Rationale: HKL source not available at context build time, threading requires invasive API changes, CPU not normative requirement, unblocks Tier 2/3. Dwell=2 (planning), next must be ready_for_implementation or switch focus.
+- Artifact Path: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T140000Z/
+- Next Actions: Delegate Path C Do Now - skip marker, findings update, small detector test validation.
+- <Action State>: [planning]
+
+2025-11-23T140000Z focus=ARCH-REFINE-FLOW-001 state=planning dwell=2 artifacts=plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T140000Z/ next_action=defer_cpu_fallback_path_c

@@ -106,11 +106,12 @@
   - Regression guard test_stage_a_expansion PASSED (12.39s)
   - Phase B1a extraction COMPLETE: 3 helpers extracted, main function reduced by 692 lines
   - Commit: One-line bugfix resolves NoneType zero_grad error
-- [ ] B1b: **Wrap helpers in StageA.run()** (Loop i=195):
-  - Implement StageA class calling extracted helpers in sequence
-  - Package telemetry with stage_type/mode fields per Phase A schema
-  - Return dict per RefinementStage protocol
-  - Verify: StageA.run() produces identical telemetry to inline implementation
+- [✓] B1b: **Wrap helpers in StageA.run()** (Loop i=195) — COMPLETE (2025-11-23T045012Z):
+  - Implemented StageA.run() calling extracted helpers in sequence (no recursion)
+  - Packaged telemetry with all RefinementTelemetry fields + stage_type/mode per Phase A4 schema
+  - Returns dict per RefinementStage protocol
+  - Compilation PASSED, regression guard test_stage_a_expansion PASSED
+  - Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T045012Z/
 - [ ] B2: **Update run_nanobrag_refinement for engine delegation** (Loop i=196):
   - Detect Stage A-only mode (not enable_stage_c)
   - Instantiate RefinementEngine([StageA()])

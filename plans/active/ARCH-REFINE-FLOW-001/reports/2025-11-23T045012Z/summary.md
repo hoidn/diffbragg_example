@@ -1,3 +1,12 @@
+### Turn Summary
+Implemented StageA.run() wrapper calling the three extracted helpers directly with no recursion risk.
+Telemetry packaging verified to include all RefinementTelemetry fields plus stage_type and mode per Phase A4 schema.
+Regression guard test_stage_a_expansion PASSED and engine contract test PASSED; StageA wrapper ready for Phase B2 engine delegation.
+Next: Phase B2 will update run_nanobrag_refinement to delegate Stage-A-only mode to RefinementEngine([StageA()]).
+Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T045012Z/ (pytest logs, implementation summary)
+
+---
+
 # Phase B1b Planning Summary — StageA Wrapper Handoff
 
 **Loop:** i=195 (Galph planning)

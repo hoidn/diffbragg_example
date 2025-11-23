@@ -1,191 +1,190 @@
-# ARCH-REFINE-FLOW-001 Phase C Full Validation — Ralph Do Now (Loop i=211)
+# Input for Ralph (Loop i=212)
 
 ## Summary
-Validate Phase C Stage B extraction completion: run Stage B smokes (small + full detectors), verify telemetry completeness, validate DB-AT-024 mapping parity.
+Fix missing CPU fallback logic in ARCH-REFINE-FLOW-001 Phase C engine delegation path to enable Stage B full detector smoke test.
 
 ## Mode
-none
+None (targeted bugfix)
 
 ## Focus
-ARCH-REFINE-FLOW-001 — Protocol-based Refinement Engine (Phase C validation)
+ARCH-REFINE-FLOW-001 Phase C2.1 — Protocol-based Refinement Engine (CPU fallback fix for Stage B engine delegation)
 
 ## Branch
 integration
 
 ## Mapped Tests
-- `tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers` (small detector, Active)
-- `tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers` (full detector, env override)
-- `tests/dbex/test_mapping_consistency.py::test_db_at_024_nanobrag_torch_mapping_consistency` (DB-AT-024, Active)
+- `tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers` with `DBEX_SMOKE_DETECTOR_SIZE=full` (must PASS after fix)
+- `tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers` with `DBEX_SMOKE_DETECTOR_SIZE=small` (regression guard, already PASSED in loop i=211)
+- `tests/dbex/test_db_at_024_mapping_parity.py::test_mapping_parity` (DB-AT-024 mapping parity, deferred from loop i=211)
 
 ## Artifacts
-`plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T084458Z/`
-  - `collect_stage_b_smoke.log` (collection verification)
-  - `pytest_stage_b_small.log` (Stage B smoke small detector)
-  - `pytest_stage_b_full.log` (Stage B smoke full detector)
-  - `collect_db_at_024.log` (DB-AT-024 collection)
-  - `pytest_db_at_024.log` (DB-AT-024 mapping parity)
-  - `phase_c_validation_metrics.json` (T0 probe output: 3 test statuses + telemetry structure)
-  - `phase_c_decision.md` (decision synthesis per 4-path template)
-  - `summary.md` (Turn Summary block prepended)
+`plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T090000Z/`
+
+---
 
 ## Do Now
 
-**Context:** Phase C extraction is COMPLETE (verified via code review):
-- C0: Baseline artifacts ✓ (2025-11-23T061726Z)
-- C1a: 3 helpers extracted ✓ (loops i=200-202, _build_stage_b_params, _build_stage_b_lbfgs_closure, _run_stage_b_lbfgs)
-- C1b: StageB wrapper class ✓ (2025-11-22T230000Z, commit visible in fix_plan line 205)
-- C2: Engine delegation A→B ✓ (already implemented dbex/nanobrag_refinement.py:2988-3100, stage_a_b_mode detection + RefinementEngine([StageA(), StageB()]))
-- Bugfix: Cell param base fixed ✓ (loop i=210/Ralph, commit a038ac1, test PASSED 23.7% improvement)
+### Context
+Ralph's loop i=211 Phase C validation identified a decisive blocker (HIGH confidence ~95%):
+- **Stage B small detector smoke**: PASSED (13.45s)
+- **Stage B full detector smoke**: FAILED - CUDA OOM (tried to allocate 1.67 GiB, only 49.62 MiB free)
+- **Root cause**: Engine delegation path (`dbex/nanobrag_refinement.py:3029-3108`) is MISSING CPU fallback initialization logic required by PERF-WARM-011
 
-**Objective:** Validate complete Phase C implementation meets all exit criteria (telemetry completeness, smoke tests, DB-AT selectors).
+**Reference implementation** (inline path, lines 2174-2203):
+```python
+# Compute use_stage_a_roi_mode from Stage A context
+use_stage_a_roi_mode = (stage_a_ctx is not None
+                        and hasattr(stage_a_ctx, 'roi_mode')
+                        and stage_a_ctx.roi_mode)
 
-### Tasks
+# PERF-WARM-011: CPU fallback for full-panel Stage B runs
+use_stage_b_cpu_fallback = (
+    config.stage_b_full_eval_on_cpu
+    and str(device).startswith("cuda")
+    and not use_stage_a_roi_mode  # ROI mode is disabled (panel mode)
+)
 
-1. **Review Phase C completion evidence** (5 minutes):
-   - Read `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T083100Z/summary.md` (Ralph's bugfix loop)
-   - Verify engine delegation code exists: `grep -A 30 "stage_a_b_mode =" dbex/nanobrag_refinement.py`
-   - Confirm StageB class exists: `ls -lh dbex/refinement/stage_b.py`
+# PERF-WARM-012: Clone Stage A context to CPU when fallback active
+stage_b_eval_stage_a_ctx = None
+if use_stage_b_cpu_fallback and stage_a_ctx is not None and config.enable_stage_a_warm_cache:
+    cpu_device = torch.device("cpu")
+    stage_b_eval_stage_a_ctx = _build_stage_a_context(
+        detector=detector,
+        beam=beam,
+        crystal=crystal,
+        trusted_mask=inputs.trusted_mask,
+        hkl_grid=hkl_grid,
+        hkl_metadata=hkl_metadata,
+        enable_hkl_interpolation=config.enable_hkl_interpolation,
+        device=cpu_device,
+        dtype=dtype,
+        panel_slices=panel_slices,
+        enable_roi_mode=False,  # CPU fallback is panel-mode only
+    )
+elif not use_stage_b_cpu_fallback:
+    stage_b_eval_stage_a_ctx = stage_a_ctx
+```
 
-2. **Run Stage B smoke small detector** (~15s expected):
+### Tasks (8 steps)
+
+1. **Review Ralph's loop i=211 evidence** (`plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T084458Z/`):
+   - Read `phase_c_decision.md` (root cause analysis, exit criteria status)
+   - Review `pytest_stage_b_small.log` (PASSED, 13.45s)
+   - Review `pytest_stage_b_full.log` (FAILED - CUDA OOM at line 356 in nanobrag_torch/models/crystal.py)
+   - Confirm root cause: engine delegation path missing CPU fallback logic
+
+2. **Implement CPU fallback fix in engine delegation path**:
+   - **Location**: `dbex/nanobrag_refinement.py` lines 3029-3048 (BEFORE `engine = RefinementEngine(...)`)
+   - **Add ~8-12 lines** following reference pattern (lines 2174-2203):
+     ```python
+     # Compute use_stage_a_roi_mode from Stage A context or config
+     use_stage_a_roi_mode = False  # Default: engine path doesn't use ROI mode yet
+     if stage_a_ctx is not None and hasattr(stage_a_ctx, 'roi_mode'):
+         use_stage_a_roi_mode = stage_a_ctx.roi_mode
+
+     # PERF-WARM-011: CPU fallback for full-panel Stage B runs to avoid GPU OOM
+     use_stage_b_cpu_fallback = (
+         config.stage_b_full_eval_on_cpu
+         and str(device).startswith("cuda")
+         and not use_stage_a_roi_mode  # ROI mode is disabled (panel mode)
+     )
+
+     # PERF-WARM-012: Clone Stage A context to CPU when fallback is active
+     # so Stage B can reuse cached detectors/HKL/masks on CPU (cache_mode="warm")
+     if use_stage_b_cpu_fallback and config.enable_stage_a_warm_cache:
+         # Extract Stage A context from engine after StageA execution
+         # NOTE: This requires extracting stage_a_ctx from engine AFTER run(),
+         # OR we need to build CPU context BEFORE engine execution
+         # SIMPLIFIED APPROACH: Build fresh CPU context before engine execution
+         cpu_device = torch.device("cpu")
+         cpu_stage_a_ctx = _build_stage_a_context(
+             detector=detector,
+             beam=beam,
+             crystal=crystal,
+             trusted_mask=inputs.trusted_mask,
+             hkl_grid=hkl_grid,
+             hkl_metadata=hkl_metadata,
+             enable_hkl_interpolation=config.enable_hkl_interpolation,
+             device=cpu_device,
+             dtype=dtype,
+             panel_slices=inputs.panel_slices,
+             enable_roi_mode=False,  # CPU fallback is panel-mode only
+         )
+         # Add CPU context to engine_inputs so StageB can access it
+         engine_inputs['stage_a_ctx_cpu'] = cpu_stage_a_ctx
+         engine_inputs['use_stage_b_cpu_fallback'] = True
+     else:
+         engine_inputs['use_stage_b_cpu_fallback'] = False
+     ```
+   - **IMPORTANT**: The engine path currently extracts `stage_a_ctx` from engine cache AFTER `engine.run()` (line 3062). For CPU fallback, we need to either:
+     - Option A: Build a CPU Stage A context BEFORE engine execution and pass it in `engine_inputs` (RECOMMENDED for now)
+     - Option B: Refactor engine to expose Stage A context during execution so StageB can clone it
+   - **Recommendation**: Use Option A (build CPU context before engine execution) as it's simpler and matches the inline path pattern
+
+3. **Verify StageB.run() consumes CPU fallback correctly**:
+   - Check `dbex/refinement/stage_b.py` line ~249: `use_stage_b_cpu_fallback = param_values.get('use_stage_b_cpu_fallback', False)`
+   - Ensure StageB.run() extracts `stage_a_ctx_cpu` from inputs if `use_stage_b_cpu_fallback=True`
+   - If StageB needs updates, make minimal changes to consume the CPU context
+
+4. **Rerun Stage B full detector smoke test**:
    ```bash
    AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+   DBEX_SMOKE_SIGMA_SOURCE=cli_override \
+   DBEX_SMOKE_DETECTOR_SIZE=full \
+   KMP_DUPLICATE_LIB_OK=TRUE \
+   NANOBRAGG_DISABLE_COMPILE=1 \
+   pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers \
+   > plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T090000Z/pytest_stage_b_full_after_fix.log 2>&1
+   echo "Exit code: $?" >> plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T090000Z/pytest_stage_b_full_after_fix.log
+   ```
+   - **MUST PASS** - this is the decisive validation
+   - Runtime expectation: ~20-30s (CPU execution slower than GPU)
+
+5. **Verify telemetry contains CPU fallback evidence**:
+   - Extract telemetry from test artifacts or HDF5 output
+   - Verify Stage B telemetry includes:
+     - `stage_b_full_eval_on_cpu=True` (or similar field indicating CPU execution)
+     - `cache_mode="warm"` (confirms Stage A warm cache reused on CPU per PERF-WARM-012)
+   - Save verification as inline Python snippet in `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T090000Z/verify_telemetry_cpu_fallback.txt`
+
+6. **Rerun regression guard (Stage B small detector)**:
+   ```bash
+   AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+   DBEX_SMOKE_SIGMA_SOURCE=cli_override \
    DBEX_SMOKE_DETECTOR_SIZE=small \
-   DBEX_SMOKE_SIGMA_SOURCE=cli_override \
    KMP_DUPLICATE_LIB_OK=TRUE \
    NANOBRAGG_DISABLE_COMPILE=1 \
    pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers \
-   > plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T084458Z/pytest_stage_b_small.log 2>&1
+   > plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T090000Z/pytest_stage_b_small_regression.log 2>&1
+   echo "Exit code: $?" >> plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T090000Z/pytest_stage_b_small_regression.log
    ```
-   - Expected: PASSED, Stage B improvement ≥3% (REFINE-008 gate lowered from ≥5% during calibration), chi² stable
-   - Capture exit code: `echo $?` (must be 0)
+   - **MUST PASS** - confirms fix doesn't regress small detector path
 
-3. **Run Stage B smoke full detector** (~20s expected, CPU fallback per PERF-WARM-011):
+7. **Run DB-AT-024 mapping parity test** (deferred from loop i=211):
    ```bash
    AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-   DBEX_SMOKE_DETECTOR_SIZE=full \
    DBEX_SMOKE_SIGMA_SOURCE=cli_override \
+   DBEX_SMOKE_DETECTOR_SIZE=full \
    KMP_DUPLICATE_LIB_OK=TRUE \
    NANOBRAGG_DISABLE_COMPILE=1 \
-   pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers \
-   > plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T084458Z/pytest_stage_b_full.log 2>&1
+   pytest -vv tests/dbex/test_db_at_024_mapping_parity.py::test_mapping_parity \
+   > plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T090000Z/pytest_db_at_024.log 2>&1
+   echo "Exit code: $?" >> plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T090000Z/pytest_db_at_024.log
    ```
-   - Expected: PASSED, Stage B improvement ≥3%, CPU fallback active (stage_b_full_eval_on_cpu=True), cache_mode="warm"
-   - Capture exit code: `echo $?` (must be 0)
+   - **Expected**: PASS (median correlation ≥0.2, localization ≥90%)
+   - Confirms Stage B extraction + CPU fallback fix didn't regress mapping forward model
 
-4. **Extract smoke metrics via T0 micro probe** (inline, paste command + output in summary.md):
-   ```python
-   python3 -c "
-   import re, json
-   from pathlib import Path
+8. **Update docs/fix_plan.md Attempts History**:
+   - Add new entry under ARCH-REFINE-FLOW-001 Attempts History
+   - Document: loop i=212, CPU fallback fix implementation, test results (all 3 tests PASS), root cause resolution
+   - If all tests PASS: mark Phase C COMPLETE (exit criteria C3/C4/C5 met)
+   - Commit message: `ARCH-REFINE-FLOW-001 Phase C2.1: CPU fallback fix — tests: full/small PASSED, DB-AT-024 PASSED`
 
-   artifacts = Path('plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T084458Z')
-
-   # Parse small detector log
-   small_log = (artifacts / 'pytest_stage_b_small.log').read_text()
-   small_passed = 'PASSED' in small_log and '1 passed' in small_log
-
-   # Parse full detector log
-   full_log = (artifacts / 'pytest_stage_b_full.log').read_text()
-   full_passed = 'PASSED' in full_log and '1 passed' in full_log
-
-   # Check for Stage B telemetry structure (stage_type, mode, shell_modifier stats)
-   telemetry_complete = (
-       'stage_type' in small_log and
-       'shell_modifiers' in small_log and
-       'initial' in small_log and 'final' in small_log
-   )
-
-   metrics = {
-       'stage_b_small': 'PASSED' if small_passed else 'FAILED',
-       'stage_b_full': 'PASSED' if full_passed else 'FAILED',
-       'telemetry_structure_complete': telemetry_complete,
-       'overall_verdict': 'PASS' if (small_passed and full_passed and telemetry_complete) else 'FAIL'
-   }
-
-   (artifacts / 'phase_c_smoke_metrics.json').write_text(json.dumps(metrics, indent=2))
-   print(json.dumps(metrics, indent=2))
-   "
-   ```
-
-5. **Verify telemetry completeness** (review test output or telemetry JSON if captured):
-   - Stage B telemetry MUST include:
-     - `stage_type: "B"`
-     - `mode: "shell_modifiers"`
-     - `param_deltas` with `shell_modifier_<n>` entries showing `initial`/`final`/`delta` (3 shells expected)
-     - Stage A frozen parameters: `log_scale`, `cell_a/b/c`, `cell_alpha/beta/gamma`, `misset_xyz_deg` from `stage_a_telemetry`
-   - If telemetry incomplete: record which fields missing in `phase_c_decision.md`
-
-6. **Run DB-AT-024 collection** (verify selector active):
-   ```bash
-   pytest --collect-only -v tests/dbex/test_mapping_consistency.py::test_db_at_024_nanobrag_torch_mapping_consistency \
-   > plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T084458Z/collect_db_at_024.log 2>&1
-   ```
-   - Expected: 1 test collected
-   - If 0 collected: STOP, escalate to Galph
-
-7. **Run DB-AT-024 mapping parity** (~30s expected):
-   ```bash
-   AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-   DBEX_SMOKE_DETECTOR_SIZE=full \
-   DBEX_SMOKE_SIGMA_SOURCE=cli_override \
-   KMP_DUPLICATE_LIB_OK=TRUE \
-   pytest -vv tests/dbex/test_mapping_consistency.py::test_db_at_024_nanobrag_torch_mapping_consistency \
-   > plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T084458Z/pytest_db_at_024.log 2>&1
-   ```
-   - Expected: PASSED, median correlation ≥0.2, localization ≥90%
-   - Capture exit code: `echo $?` (must be 0)
-
-8. **Extract DB-AT-024 metrics via T0 micro probe** (inline):
-   ```python
-   python3 -c "
-   import re, json
-   from pathlib import Path
-
-   artifacts = Path('plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T084458Z')
-   log = (artifacts / 'pytest_db_at_024.log').read_text()
-
-   passed = 'PASSED' in log and '1 passed' in log
-
-   metrics = {
-       'db_at_024': 'PASSED' if passed else 'FAILED'
-   }
-
-   (artifacts / 'phase_c_db_at_024_metrics.json').write_text(json.dumps(metrics, indent=2))
-   print(json.dumps(metrics, indent=2))
-   "
-   ```
-
-9. **Decision synthesis** per 4-path template (write to `phase_c_decision.md`):
-   - **Path A (all tests PASS + telemetry complete)**: Phase C COMPLETE — mark implementation.md C3/C4/C5 complete, proceed to Phase D planning next loop
-   - **Path B (Stage B smoke FAIL)**: Debug Stage B execution — check logs for errors, verify engine delegation wiring, check helper signatures
-   - **Path C (telemetry incomplete)**: Fix telemetry structure — identify missing fields, update StageB.run() or telemetry packaging code
-   - **Path D (DB-AT-024 FAIL)**: Mapping regression — verify bridge helpers unaffected, check for HKL grid changes, compare baseline vs current
-   - Write decision rationale, confidence assessment (HIGH/MEDIUM/LOW), and next-step recommendations
-
-10. **Update implementation.md** Phase C status:
-    - If Path A: Mark `[ ] C3`, `[ ] C4`, `[ ] C5` as `[x]` with completion timestamp `2025-11-23T084458Z`
-    - Add Phase C Completion Summary section documenting: validation results, test timings, telemetry verification, confidence assessment
-    - If Path B/C/D: Document blocker in Attempts History with timestamp + path letter + next actions
-
-11. **Write summary.md** with Turn Summary block (prepend to existing summary.md):
-    ```markdown
-    ### Turn Summary (Ralph, Loop i=211)
-    <One-line what shipped/advanced>
-    <Main problem and how handled OR note it's still open>
-    <Single next step>
-    Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T084458Z/ (pytest_stage_b_small.log, pytest_stage_b_full.log, pytest_db_at_024.log, phase_c_decision.md)
-    ```
-
-12. **Commit and push**:
-    ```bash
-    git add plans/active/ARCH-REFINE-FLOW-001/
-    git commit -m "ARCH-REFINE-FLOW-001 Phase C validation: Stage B smokes + DB-AT-024 — tests: <result>"
-    git push
-    ```
+---
 
 ## How-To Map
 
-### Environment Setup
+### Environment
 ```bash
 export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
 export DBEX_SMOKE_SIGMA_SOURCE=cli_override
@@ -193,96 +192,148 @@ export KMP_DUPLICATE_LIB_OK=TRUE
 export NANOBRAGG_DISABLE_COMPILE=1
 ```
 
-### Test Execution Order
-1. Stage B smoke small (DBEX_SMOKE_DETECTOR_SIZE=small)
-2. Stage B smoke full (DBEX_SMOKE_DETECTOR_SIZE=full)
-3. DB-AT-024 collection check
-4. DB-AT-024 mapping parity (DBEX_SMOKE_DETECTOR_SIZE=full)
+### Code Fix Location
+- **File**: `dbex/nanobrag_refinement.py`
+- **Line range**: 3029-3048 (insert CPU fallback logic BEFORE `engine = RefinementEngine(...)`)
+- **Reference pattern**: Lines 2174-2203 (inline path CPU fallback + context cloning)
 
-### Metrics Extraction
-- Use T0 inline Python probes (paste command + output in summary.md "Micro probes" section)
-- Save JSON metrics to artifacts directory
-- Decision synthesis must reference JSON files and log evidence
+### Test Commands
+```bash
+# Stage B full detector (primary validation - MUST PASS)
+DBEX_SMOKE_DETECTOR_SIZE=full pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers \
+  > plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T090000Z/pytest_stage_b_full_after_fix.log 2>&1
+
+# Stage B small detector (regression guard - MUST PASS)
+DBEX_SMOKE_DETECTOR_SIZE=small pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers \
+  > plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T090000Z/pytest_stage_b_small_regression.log 2>&1
+
+# DB-AT-024 mapping parity (MUST PASS)
+DBEX_SMOKE_DETECTOR_SIZE=full pytest -vv tests/dbex/test_db_at_024_mapping_parity.py::test_mapping_parity \
+  > plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T090000Z/pytest_db_at_024.log 2>&1
+```
+
+### Telemetry Verification (T0 inline snippet)
+```python
+# Save as: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T090000Z/verify_telemetry_cpu_fallback.txt
+# Run after Stage B full detector test completes
+
+import h5py
+# Locate the HDF5 output from test_stage_b_shell_modifiers (check test artifacts or /tmp/)
+# Example path: /tmp/test_stage_b_shell_modifiers_full.h5
+with h5py.File('/path/to/output.h5', 'r') as f:
+    # Check if Stage B telemetry group exists
+    if '/refinement/stage_b' in f:
+        stage_b_grp = f['/refinement/stage_b']
+        # Look for CPU fallback evidence
+        cpu_fallback = stage_b_grp.attrs.get('stage_b_full_eval_on_cpu', None)
+        cache_mode = stage_b_grp.attrs.get('cache_mode', None)
+        print(f"CPU fallback: {cpu_fallback}, Cache mode: {cache_mode}")
+        # Expected: cpu_fallback=True or 1, cache_mode="warm"
+```
 
 ### Decision Tree
 ```
-┌─ All 3 tests PASS + telemetry complete?
-│  ├─ YES → Path A: Phase C COMPLETE
+┌─ All 3 tests PASS (full detector, small detector regression, DB-AT-024)?
+│  ├─ YES → Path A: CPU fallback fix SUCCESS → Phase C COMPLETE → Update docs/fix_plan.md, commit
 │  └─ NO  → Check which failed:
-│     ├─ Stage B smoke → Path B: Debug execution
-│     ├─ Telemetry incomplete → Path C: Fix telemetry
-│     └─ DB-AT-024 → Path D: Mapping regression
+│     ├─ Full detector still FAILS → Path B: Debug CPU context build logic (check device placement, context cloning)
+│     ├─ Small detector FAILS → Path C: Regression introduced by CPU fallback logic (review conditional branching)
+│     └─ DB-AT-024 FAILS → Path D: Mapping regression (verify Stage B extraction didn't change bridge helpers)
 ```
+
+---
 
 ## Pitfalls To Avoid
 
-1. **Environment flags**: Must set ALL 4 env vars (AUTHORITATIVE_CMDS_DOC, DBEX_SMOKE_SIGMA_SOURCE, KMP_DUPLICATE_LIB_OK, NANOBRAGG_DISABLE_COMPILE) for every test invocation
-2. **Full detector size**: DB-AT-024 requires `DBEX_SMOKE_DETECTOR_SIZE=full` (not small)
-3. **CPU fallback**: Stage B full detector runs on CPU per PERF-WARM-011 (GPU OOM), expect `stage_b_full_eval_on_cpu=True` in telemetry
-4. **Collection verification**: ALWAYS run `pytest --collect-only` for DB-AT-024 BEFORE running the test to verify selector is active (0 collected = STOP)
-5. **Telemetry structure**: Verify Stage B telemetry has NESTED param_deltas structure (`{'initial': X, 'final': Y, 'delta': Z}` per param), NOT flat scalars
-6. **REFINE-008 gate**: Stage B improvement gate is ≥3% (NOT ≥5%, calibrated lower during earlier phases)
-7. **Baseline crystal**: Stage B now requires `baseline_crystal` parameter (bugfix just applied), verify test passes it correctly
-8. **T0 inline probes**: Paste BOTH command AND output in summary.md "Micro probes" section (not separate files for T0)
-9. **Decision synthesis**: Must explicitly state Path letter (A/B/C/D), confidence (HIGH/MEDIUM/LOW), and next actions
-10. **Phase C scope**: This validates C3/C4/C5 COMBINED (telemetry + smokes + DB-AT), NOT individual sub-tasks
+1. **Device/dtype neutrality**: When building CPU Stage A context, ensure `device=torch.device("cpu")` is explicitly passed to `_build_stage_a_context()`
+2. **Protected Assets**: Do NOT modify existing inline path CPU fallback logic (lines 2174-2203) - it's the reference implementation
+3. **No ad-hoc scripts**: CPU fallback logic goes directly into production code (`dbex/nanobrag_refinement.py`), not a separate helper
+4. **Context timing**: Build CPU Stage A context BEFORE `engine.run()` so StageB can access it during execution
+5. **Vectorization**: Ensure `panel_slices` is correctly passed to CPU context builder (no ROI mode in CPU fallback)
+6. **Environment Freeze**: Do NOT install/upgrade packages. Treat missing imports as blockers.
+7. **Regression guard**: ALWAYS rerun Stage B small detector test after code changes to catch regressions
+8. **Telemetry validation**: Verify CPU fallback actually happened (check telemetry fields, not just test PASS)
+
+---
 
 ## If Blocked
 
-1. **Stage B smoke fails**:
-   - Check pytest log for errors (NoneType, signature mismatches, CUDA OOM, etc.)
-   - Verify engine delegation code exists: `grep "stage_a_b_mode" dbex/nanobrag_refinement.py`
-   - Verify StageB.run() signature matches engine contract
-   - Verify baseline_crystal parameter passed in test
-   - Document error signature + traceback in `phase_c_decision.md` Path B section
-   - Mark focus=ARCH-REFINE-FLOW-001 as blocked in Attempts History with return conditions
+If any test FAILS after CPU fallback fix:
 
-2. **Telemetry incomplete**:
-   - List missing fields (stage_type, mode, shell_modifier stats, Stage A metadata)
-   - Check StageB.run() telemetry packaging code (dbex/refinement/stage_b.py ~lines 200-400)
-   - Check if StageA telemetry propagated correctly to StageB.run() inputs
-   - Document in `phase_c_decision.md` Path C section
-   - Create targeted bugfix initiative if >3 fields missing
+1. **Capture exact error**: Save full pytest log with traceback
+2. **Document in decision.md**:
+   - Which test failed
+   - Error signature (CUDA OOM still? Different error?)
+   - Line numbers where failure occurs
+3. **Update docs/fix_plan.md**: Mark Phase C2.1 `blocked`, document specific blocker
+4. **Commit evidence**: `git add plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T090000Z/ && git commit -m "ARCH-REFINE-FLOW-001 Phase C2.1: CPU fallback BLOCKED - <error signature>"`
+5. **Return control to Galph**: Push commit, let Galph review blocker and decide next steps
 
-3. **DB-AT-024 fails**:
-   - Extract correlation + localization metrics from pytest log
-   - Compare current vs baseline mapping artifacts
-   - Check if bridge helpers changed during Phase C extraction
-   - Verify HKL grid unchanged
-   - Document in `phase_c_decision.md` Path D section
-   - Escalate if correlation <0.1 or localization <50%
-
-4. **Collection returns 0**:
-   - STOP immediately (selector broken or moved)
-   - Verify test file exists: `ls tests/dbex/test_mapping_consistency.py`
-   - Check test name spelling: `grep "def test_db_at_024" tests/dbex/test_mapping_consistency.py`
-   - Escalate to Galph with collection log
+---
 
 ## Findings Applied
 
-- **REFINE-008** (Stage B ±1% gate calibrated to ≥3% improvement during earlier phases)
-- **PHYSICS-LOSS-001** (variance-weighted loss telemetry stack, chi² vs masked-MSE)
-- **PHYSICS-LOSS-002** (sigma_floor guard enforced, telemetry records floor value + clamp fraction)
-- **PERF-WARM-011** (canonical Stage B runs on CPU to avoid GPU OOM, stage_b_full_eval_on_cpu=True)
-- **PERF-WARM-012** (CPU fallback reuses Stage A warm cache, cache_mode="warm")
-- **TESTING-003** (collection verification before pytest execution, >0 tests required)
-- **CONFORMANCE-001** (KMP_DUPLICATE_LIB_OK=TRUE environment flag for all tests)
-- **RUNTIME-001** (NANOBRAGG_DISABLE_COMPILE=1 for all gradient/refinement tests)
+**Mandatory cross-references** (from `docs/findings.md`):
+
+- **PERF-WARM-011**: Stage B full-panel runs on canonical detector MUST fall back to CPU to avoid GPU OOM when `config.stage_b_full_eval_on_cpu=True` (default). Inline path implements this at lines 2174-2182; engine delegation path MUST replicate.
+- **PERF-WARM-012**: When CPU fallback is active, clone Stage A warm cache to CPU device so Stage B panel-mode closures/validations reuse cached detectors/HKL/masks (maintaining `cache_mode="warm"`). Inline path implements this at lines 2184-2202; engine delegation path MUST replicate.
+- **REFINE-008**: Stage B shell modifier refinement improvement gate calibrated to ≥3% masked-MSE improvement (relaxed from ±1% shell modifier delta tolerance). Full detector test MUST meet this gate after CPU fallback fix.
+- **PHYSICS-LOSS-001**: Variance-weighted loss function with sigma_floor guard. Stage B telemetry MUST include chi-squared and variance stats.
+- **PHYSICS-LOSS-002**: Sigma floor guard prevents division by zero in variance-weighted loss. Ensure telemetry shows `sigma_floor` applied.
+
+**No relevant findings in the knowledge base for**: CPU context cloning API, engine-specific CPU fallback patterns (this is a first implementation).
+
+---
 
 ## Pointers
 
-- Implementation plan: `plans/active/ARCH-REFINE-FLOW-001/implementation.md:179-211` (Phase C tasks C3-C5)
-- Engine delegation code: `dbex/nanobrag_refinement.py:2988-3100` (stage_a_b_mode + RefinementEngine([StageA(), StageB()]))
-- StageB class: `dbex/refinement/stage_b.py` (wrapper calling 3 extracted helpers)
-- Stage B helpers: `dbex/nanobrag_refinement.py:~2087-2700` (_build_stage_b_params, _build_stage_b_lbfgs_closure, _run_stage_b_lbfgs)
-- TESTING_GUIDE.md: `docs/TESTING_GUIDE.md:§2` (Stage B smoke selectors)
-- REFINE-008 finding: `docs/findings.md` (Stage B shell modifier ±1% gate calibrated)
-- Phase C bugfix artifacts: `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T083100Z/` (cell param base fix)
+### Spec/Arch
+- `docs/spec-db-workflow.md:7` — Refinement Protocol Architecture (Stage A/B/C contracts, engine orchestration)
+- `docs/spec-db-runtime.md:18-28` — PyTorch device/dtype neutrality, warm cache reuse
 
-## Next Up
+### Fix Plan
+- `docs/fix_plan.md:185-196` — ARCH-REFINE-FLOW-001 initiative definition, exit criteria, Phase C checklist
 
-If Phase C validation PASSES (Path A):
-- Galph plans Phase D (Stage C extraction) next loop following proven multi-loop strategy from Phases B/C
+### Implementation Plan
+- `plans/active/ARCH-REFINE-FLOW-001/implementation.md:208-211` — Phase C tasks (C3 telemetry, C4 validation, C5 DB-AT selectors)
 
-If Phase C validation FAILS (Path B/C/D):
-- Galph reviews blocker decision.md and chooses: debug/patch/escalate/simplify scope
+### Testing Guide
+- `docs/TESTING_GUIDE.md:135-145` — Stage B smoke test selectors, environment flags, acceptance criteria
+
+### Ralph's Evidence
+- `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T084458Z/phase_c_decision.md` — Root cause analysis, exit criteria status, fix requirements
+
+### Reference Implementation
+- `dbex/nanobrag_refinement.py:2174-2203` — Inline path CPU fallback + context cloning (AUTHORITATIVE reference)
+- `dbex/nanobrag_refinement.py:3029-3108` — Engine delegation path (MISSING CPU fallback, needs fix)
+
+---
+
+## Next Up (Optional)
+
+If you finish early AND all 3 tests PASS:
+
+1. **Update implementation.md Phase C status**:
+   - Mark C3/C4/C5 checklist items as complete
+   - Update Phase C completion timestamp (2025-11-23T090000Z)
+
+2. **Write Turn Summary block** in `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T090000Z/summary.md`:
+   ```markdown
+   ### Turn Summary
+   Implemented CPU fallback fix for Stage B engine delegation path, resolving CUDA OOM on full detector.
+   All validation tests PASSED: Stage B full/small detector smokes + DB-AT-024 mapping parity.
+   Phase C extraction COMPLETE: helpers extracted, wrapper implemented, engine delegation verified, CPU fallback functional.
+   Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T090000Z/ (pytest logs, telemetry verification, decision.md)
+   ```
+
+---
+
+## Doc Sync Plan
+**NOT APPLICABLE** - No new tests added this loop, only bugfix validation of existing tests.
+
+---
+
+## Normative Math/Physics
+**NOT APPLICABLE** - This is a device placement / warm cache reuse fix, not a physics/math change.
+
+See `docs/spec-db-core.md` §Variance Model for normative variance-weighted loss equations (already implemented in PHYSICS-LOSS-001/002).

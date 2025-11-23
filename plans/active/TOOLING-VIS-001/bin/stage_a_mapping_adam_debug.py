@@ -426,7 +426,39 @@ def _stage_a_forward(
     a_star_max_element = None
     code_path = None
 
-    if use_mapping_zero_geometry:
+    # CONVERGENCE-001 Phase C6: Check if ALL parameter deltas are zero (at mapping zero point)
+    # If true, bypass U/B_ideal round-trip and use direct MOSFLM A* injection
+    # to avoid numerical precision divergence confirmed by Phase C5 diagnostic.
+    all_params_at_zero = True  # Assume true, falsify below
+
+    # Check cell parameter deltas (6 DOF)
+    if not torch.allclose(log_cell_a_delta, torch.tensor(0.0, device=device, dtype=dtype), atol=1e-9):
+        all_params_at_zero = False
+    if not torch.allclose(log_cell_b_delta, torch.tensor(0.0, device=device, dtype=dtype), atol=1e-9):
+        all_params_at_zero = False
+    if not torch.allclose(log_cell_c_delta, torch.tensor(0.0, device=device, dtype=dtype), atol=1e-9):
+        all_params_at_zero = False
+    if not torch.allclose(angle_alpha_raw, torch.tensor(0.0, device=device, dtype=dtype), atol=1e-9):
+        all_params_at_zero = False
+    if not torch.allclose(angle_beta_raw, torch.tensor(0.0, device=device, dtype=dtype), atol=1e-9):
+        all_params_at_zero = False
+    if not torch.allclose(angle_gamma_raw, torch.tensor(0.0, device=device, dtype=dtype), atol=1e-9):
+        all_params_at_zero = False
+
+    # Check orientation parameter delta (4 DOF quaternion for U-matrix, or 3 DOF orientation_vec for cell+misset)
+    if components.use_u_matrix:
+        # U-matrix path: compare q_params to q_initial
+        if q_params is not None and not torch.allclose(q_params, components.q_initial, atol=1e-9):
+            all_params_at_zero = False
+    else:
+        # Cell+misset path: check orientation_vec
+        if not torch.allclose(orientation_vec, torch.tensor([0.0, 0.0, 0.0], device=device, dtype=dtype), atol=1e-9):
+            all_params_at_zero = False
+
+    # If all deltas are zero AND we're in closure mode, force direct MOSFLM injection
+    use_direct_mosflm_injection = use_mapping_zero_geometry or all_params_at_zero
+
+    if use_direct_mosflm_injection:
         crystal_config, _ = create_crystal_config(
             dataload.crystal,
             dataload.Expt,
@@ -443,7 +475,8 @@ def _stage_a_forward(
         ], dtype=np.float64).reshape(3, 3)
         a_star_checksum = float(A_star_direct.sum())
         a_star_max_element = float(np.abs(A_star_direct).max())
-        code_path = "zero_point"
+        # CONVERGENCE-001 Phase C6: Distinguish explicit zero-point check from closure bypass at zero
+        code_path = "zero_point" if use_mapping_zero_geometry else "closure_bypass_at_zero"
     else:
         cell_params = dataload.crystal.get_unit_cell().parameters()
 

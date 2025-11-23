@@ -45,6 +45,28 @@ Geometry Mapping (Normative)
   - Pixel pitch SHALL be square: `px_fast_mm == px_slow_mm`. If not, the bridge MUST raise.
   - `spixels = slow_px`, `fpixels = fast_px` from `panel.get_image_size()`.
 
+### Baseline Crystal State and Parameterization (Normative)
+
+- Baseline state:
+  - For any mapping-aligned refinement, the crystal state provided by dxtbx/DIALS SHALL be treated as authoritative:
+    - `U₀ = crystal.get_U()` (orientation matrix),
+    - `B₀ = crystal.get_B()` (reciprocal metric tensor),
+    - `A*_mapping = U₀ @ B₀` (reciprocal lattice matrix).
+  - Implementations SHALL NOT introduce alternative, incompatible decompositions of `A*_mapping` into `U,B` in production refinement code.
+
+- Incremental parameterization:
+  - Stage‑A refinement parameterizations SHALL be defined as *increments* around the baseline state, not as free absolute `A*`:
+    - Orientation parameters represent a small rotation `ΔR(params)` such that `U(params) = ΔR(params) @ U₀`.
+    - Cell parameters represent small perturbations of the baseline cell, producing `B(params)` via a well‑defined metric tensor map (e.g., Busing–Levy) consistent with dxtbx conventions.
+  - At the Stage‑A zero point (all refinement deltas = 0), implementations MUST satisfy:
+    - `U(0) = U₀`, `B(0) = B₀`, and `A*(0) = U₀ @ B₀ = A*_mapping`.
+
+- One‑way construction of A*:
+  - In production refinement code, `A*` SHALL be constructed only in the forward direction
+    `params → (U(params), B(params)) → A*(params) = U(params) @ B(params)`.
+  - Implementations SHALL NOT refactor `A*` back into `U,B` (e.g., via ad‑hoc decompositions) inside the refinement loop.
+  - Any diagnostic code that performs such decompositions MUST NOT be used to drive the simulator in mapping‑aligned runs and MUST be covered by explicit tests.
+
 Physics Toggles (Normative)
 - Polarization: default parity SHALL be `polarization_factor=0.0`, `nopolar=False`, with polarization axis/fraction from DIALS when available; fallback `[0,0,1]`, `0.999`.
 - Solid angle and absorption: default SHALL be off to match common DiffBragg PHIL (no thickness); enabling SHALL be explicit.

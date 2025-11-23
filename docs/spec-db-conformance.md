@@ -19,6 +19,7 @@ Conformance Profiles (Normative)
   - DB‑AT‑023 ADU vs photons policy (flag honored; scale init for ADU mode).
   - DB‑AT‑024 Mapping consistency (zero‑iteration forward vs data‑minus‑background overlay).
   - DB‑AT‑025 HKL interpolation conformance (tricubic halo): when `crystal.interpolate=True`, the dense |F| grid MUST include a ±1 halo; any default_F fallback is a failure. Stage A SHALL disable interpolation.
+  - DB‑AT‑026 Stage‑A UB parameterization round-trip (zero-point UB/A* consistency).
 
 Acceptance Tests (Normative)
 - DB‑AT‑001 Forward equivalence smoke
@@ -45,6 +46,19 @@ Acceptance Tests (Normative)
   - Setup: build per‑panel configs from a real Experiment; run a forward pass with initial parameters; evaluate K ROIs (e.g., 32) for correlation and localization.
   - Expectation: median ROI correlation ≥ 0.2 and ≥90% ROIs contain a local intensity maximum within the central half‑box.
   - Command: `pytest -v tests -k DB_AT_024`
+
+- DB‑AT‑026 Stage‑A UB parameterization round-trip
+  - Setup:
+    - Use a canonical `RefinementInputs`+crystal (e.g., refGeom.expt) and extract the baseline crystal state:
+      `U₀ = crystal.get_U()`, `B₀ = crystal.get_B()`, `A*_mapping = U₀ @ B₀`.
+  - Procedure:
+    1. Initialize the Stage‑A parameterization at `params=0` (all deltas zero; baseline scale).
+    2. Construct `U(0), B(0), A*(0)` according to the implementation's parameterization.
+    3. Compare `U(0)` vs `U₀`, `B(0)` vs `B₀`, and `A*(0)` vs `A*_mapping` using a specified tolerance (e.g., max_abs_diff and Frobenius norms).
+  - Expectation:
+    - All three comparisons MUST fall within the documented tolerance; any systematic deviation is a conformance failure.
+  - Command (informative example):
+    - `KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests -k DB_AT_026` (or equivalent), which runs a small UB round‑trip probe using the Stage‑A parameterization.
 
 ## Canonical DIALS→Torch Mapping (DB‑AT‑024)
 

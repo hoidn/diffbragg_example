@@ -15,6 +15,17 @@ Runtime Guardrails (Normative)
 - Eager fallback: `NANOBRAGG_DISABLE_COMPILE=1` SHALL disable compilation for debugging.
 - Seeds: Conformance SHALL specify deterministic seeds; random sources (if any) SHALL be controlled by explicit seeding.
 
+### Parameterization Correctness & Round-Trip (Normative)
+
+- UB / A* round-trip:
+  - Any new Stage‑A parameterization (including quaternion‑based ones) SHALL pass a round‑trip correctness check against dxtbx and Busing–Levy conventions at the zero point:
+    - Given baseline `U₀,B₀` from `crystal.get_U()/get_B()`, the parameterization with `params=0` MUST reproduce `U(0)=U₀`, `B(0)=B₀`, and `A*(0)=U₀ @ B₀` within a documented numerical tolerance.
+  - Implementations SHALL provide a small, executable test (see `docs/spec-db-conformance.md`) that exercises this round trip and fails fast if the parameterization drifts from the dxtbx baseline.
+
+- Prohibited patterns in production refinement:
+  - Production refinement code SHALL NOT use inverse decompositions `A* → (U,B)` to derive the baseline state or to update simulator geometry.
+  - Such decompositions MAY be used in diagnostic tooling only, and MUST be clearly separated from the runtime path used for DB‑AT‑024 mapping‑aligned runs.
+
 Environment (Normative)
 - `KMP_DUPLICATE_LIB_OK=TRUE` SHALL be set in all entry points importing torch.
 - `CUDA_VISIBLE_DEVICES` MAY be used to pin GPUs; device index SHALL be configurable.

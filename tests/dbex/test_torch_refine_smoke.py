@@ -786,6 +786,109 @@ def test_stage_a_expansion_incremental_ub(
     )
 
 
+def test_stage_a_engine_delegation_telemetry(
+    refgeom_dataload,
+    refinement_inputs,
+    hkl_data,
+    smoke_detector_size,
+    smoke_sigma_source,
+):
+    """
+    Validate Phase E engine delegation telemetry fields.
+
+    ARCH-REFINE-FLOW-001 Phase E: When use_engine_delegation=True,
+    telemetry dict MUST include:
+    - engine_protocol: str (e.g., "stage_a" for Stage-A-only mode)
+    - stage_modes: Dict[str, str] (empty dict {} when no B/C enabled)
+
+    Test uses Stage-A-only mode (enable_stage_b=False, enable_stage_c=False).
+
+    Environment:
+    - Requires: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1
+    - Selector: pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry
+    """
+    from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig
+
+    print(f"\n[test_stage_a_engine_delegation_telemetry] detector={smoke_detector_size}")
+
+    hkl_grid, hkl_metadata = hkl_data
+
+    # Stage-A-only config (default: enable_stage_b=False, enable_stage_c=False)
+    config = RefinementConfig(
+        device='cuda:0',
+        dtype=torch.float32,
+        history_size=10,
+        max_iter=30,
+        roi_sample_fraction=0.15,
+        full_validation_interval=5,
+        min_loss_improvement=0.0,  # No strict gate for telemetry validation
+        enable_hkl_interpolation=True,
+        sigma_readout_provenance=(
+            "external_lookup" if smoke_sigma_source == "metadata" else "cli_override"
+        ),
+    )
+
+    # Verify Stage-A-only mode
+    assert not config.enable_stage_b, "Test requires enable_stage_b=False"
+    assert not config.enable_stage_c, "Test requires enable_stage_c=False"
+
+    # Create perturbed geometry
+    baseline_crystal = refgeom_dataload.Expt.crystal
+    baseline_detector = refgeom_dataload.Expt.detector
+    baseline_beam = refgeom_dataload.Expt.beam
+
+    perturbed_crystal, perturbed_detector, perturbed_beam = create_perturbed_geometry(
+        baseline_crystal, baseline_detector, baseline_beam
+    )
+
+    # Run with engine delegation
+    bragg_refined, telemetry_dict = run_nanobrag_refinement(
+        inputs=refinement_inputs,
+        detector=perturbed_detector,
+        beam=perturbed_beam,
+        crystal=perturbed_crystal,
+        hkl_grid=hkl_grid,
+        hkl_metadata=hkl_metadata,
+        config=config,
+        baseline_crystal=baseline_crystal,
+        use_engine_delegation=True  # ← Engine path
+    )
+
+    # Validate telemetry structure
+    assert "A" in telemetry_dict, "Engine delegation must return 'A' telemetry key"
+    telem_a = telemetry_dict["A"]
+
+    # Phase E telemetry extensions (commit 42975bf)
+    assert hasattr(telem_a, "engine_protocol"), "Phase E: engine_protocol field missing"
+    assert hasattr(telem_a, "stage_modes"), "Phase E: stage_modes field missing"
+
+    # Stage-A-only mode values
+    assert telem_a.engine_protocol == "stage_a", \
+        f"Expected engine_protocol='stage_a', got {telem_a.engine_protocol!r}"
+    assert telem_a.stage_modes == {}, \
+        f"Expected stage_modes={{}}, got {telem_a.stage_modes!r}"
+
+    # Phase A4 telemetry extensions (still present)
+    # Note: Engine delegation uses stage_type="stage_a" (lowercase), not "A"
+    assert telem_a.stage_type == "stage_a", f"Stage type should be 'stage_a', got {telem_a.stage_type!r}"
+    # Stage A mode may be None for basic refinement
+    assert telem_a.mode is None or isinstance(telem_a.mode, str), "Stage A mode should be None or str"
+
+    # Core telemetry fields (regression check)
+    assert telem_a.canonical_chi_squared is not None, "canonical_chi_squared field missing"
+    assert telem_a.masked_mse_trace_full is not None and len(telem_a.masked_mse_trace_full) > 0, "masked_mse_trace_full missing"
+    assert "log_scale" in telem_a.param_deltas, "log_scale parameter missing"
+
+    # Phase E limitation: final_bragg deferred to Phase F
+    # (final_bragg=None is acceptable for Phase E telemetry validation)
+
+    print(f"[test_stage_a_engine_delegation_telemetry] SUCCESS")
+    print(f"  engine_protocol: {telem_a.engine_protocol}")
+    print(f"  stage_modes: {telem_a.stage_modes}")
+    print(f"  stage_type: {telem_a.stage_type}")
+    print(f"  mode: {telem_a.mode}")
+
+
 @pytest.mark.allow_metadata_sigma
 def test_stage_c_detector_microslip(
     refgeom_dataload,

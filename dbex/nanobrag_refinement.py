@@ -3806,17 +3806,24 @@ def run_nanobrag_refinement(
         # Extract StageA telemetry (keyed by "stage_a" per StageA.name property)
         telemetry_a = telemetry_dict["stage_a"]
 
+        # Phase E: Enrich telemetry with engine protocol and stage modes
+        from dataclasses import asdict
+        telemetry_a_dict = asdict(telemetry_a)
+        telemetry_a_dict["engine_protocol"] = "stage_a"  # Stage-A-only mode
+        telemetry_a_dict["stage_modes"] = {}  # No Stage B/C enabled
+        telemetry_a_enriched = RefinementTelemetry(**telemetry_a_dict)
+
         # Build final Bragg array using optimized parameters from telemetry
         device = torch.device(config.device)
         dtype = config.dtype
         bragg_full = _build_final_bragg_from_stage_a_telemetry(
-            telemetry_a, detector, beam, crystal, inputs, hkl_grid,
+            telemetry_a_enriched, detector, beam, crystal, inputs, hkl_grid,
             hkl_metadata, config, device, dtype
         )
 
         # Return with telemetry dict using "A" key for backward compatibility
         # (Legacy code expects {"A": RefinementTelemetry, ...})
-        return bragg_full, {"A": telemetry_a}
+        return bragg_full, {"A": telemetry_a_enriched}
 
     elif stage_a_b_mode:
         # === ENGINE DELEGATION PATH (Phase C2: A→B) ===

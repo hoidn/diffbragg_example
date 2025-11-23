@@ -1,5 +1,5 @@
 ### Turn Summary
-Analyzed Ralph's blocker from loop i=216 and identified new root cause: warm cache simulator reuse with post-creation HKL data updates breaks gradient flow.
-Device fix (parameters on CPU) was correct but insufficient—the gradient chain breaks when nanobrag_torch simulators cache HKL data internally and don't see later updates.
-Next: Ralph applies one-line fix (disable warm cache for CPU fallback), runs full+small detector tests, validates cold path preserves gradients without regressing CUDA warm path.
-Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T104525Z/ (root_cause_hypothesis.md, input.md)
+Applied Galph's warm cache hypothesis fix (disable warm cache for CPU fallback), confirmed it forces cold path via diagnostic, but test still fails with identical gradient error.
+Cold path (fresh simulators) exhibits same "element 0 of tensors does not require grad" bug as warm path, disproving the simulator reuse hypothesis; root cause is likely in-place HKL grid construction (lines 2441-2447).
+Next: Test Hypothesis A (rebuild HKL grid with out-of-place operations to preserve gradient graph) or escalate to nanobrag_torch inspection if that fails.
+Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T104525Z/ (blocker_hypothesis_disproven.md, pytest logs with [CACHE_MODE_DECISION] diagnostics)

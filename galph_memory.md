@@ -132,3 +132,13 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-23T050432Z focus=ARCH-REFINE-FLOW-001 state=ready_for_implementation dwell=0 artifacts=plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T050432Z/ next_action=engine_delegation_implementation
+
+## 2025-11-23T052000Z — ARCH-REFINE-FLOW-001 Phase B3 Handoff
+- Focus: ARCH-REFINE-FLOW-001 — Protocol-based Refinement Engine (Phase B3)
+- Action Type: ready_for_implementation
+- Key Observations: Phase B2 completed engine delegation for Stage-A-only mode (commit 2872f26, tests PASSED). Engine delegation branch detects `enable_stage_c=False AND enable_stage_b=False`, delegates to RefinementEngine([StageA()]), and returns telemetry with backward-compatible "A" key. Phase B2 only validated small detector; Phase B3 now runs full smoke suite (small + full detector) plus DB-AT selectors (DB-AT-010 Gradcheck, DB-AT-024 Mapping) to verify engine path maintains numeric parity with baseline across all Stage A exercise paths.
+- Artifact Path: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T052000Z/
+- Next Actions: Ralph executes 12-task validation protocol (run Stage A smokes both sizes, run DB-AT-010/024 with collect-only + pytest, extract metrics via T0 probe, decision synthesis per 4-path template, update implementation.md B3, commit). If all 4 tests PASS → B3 COMPLETE, Galph plans B4/B5 next loop. If any test FAILS → Ralph documents blocker, Galph reviews and decides (debug/patch/escalate).
+- <Action State>: [ready_for_implementation]
+
+2025-11-23T052000Z focus=ARCH-REFINE-FLOW-001 state=ready_for_implementation dwell=0 artifacts=plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T052000Z/ next_action=phase_b3_full_smoke_validation

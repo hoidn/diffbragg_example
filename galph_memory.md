@@ -873,3 +873,46 @@
 - <Action State>: [review_or_housekeeping]
 
 2025-11-22T252000Z focus=TORCH-GEOMETRY-CONVERGENCE-001 state=review_or_housekeeping dwell=0 artifacts=plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T252000Z/ next_action=select_next_tier1_focus
+
+## 2025-11-22T170806Z — TORCH-GEOMETRY-UB-REALIGN-001 Phase A Planning & Spec Synthesis
+
+- Focus: TORCH-GEOMETRY-UB-REALIGN-001 — Stage A UB Parameterization Realignment
+- Action Type: planning
+- Key Observations: Completed TORCH-GEOMETRY-PARITY-003 closure review and archival after TORCH-GEOMETRY-CONVERGENCE-001 proved that convergence failure was NOT due to det(U)≠1 hypothesis but rather code path divergence in diagnostic scripts. CONVERGENCE-001 verdict (2025-11-22T252000Z) confirmed zero-check bypass fix enables stable convergence (chi² drift +0.0083%, CC≈1.0), and det(U)=1.000565 offset is a nanobrag_torch/dxtbx computation path artifact, not a physics blocker. Archived PARITY-003 as superseded by UB-REALIGN-001 which implements the forward path: incremental UB/A* parameterization per updated specs (spec-db-core.md §Baseline Crystal State and Parameterization, spec-db-workflow.md §Stage A mapping zero-point invariant). Updated Execution Roadmap: PARITY-003 archived, UB-REALIGN-001 unblocked and promoted to `in_progress`. WIP count: 3 initiatives (UB-REALIGN-001, PERF-WARM-SIM-001, TOOLING-VIS-001) at the ≤2 cap limit, but UB-REALIGN-001 is Tier 1 Critical so takes precedence.
+
+**Focus Selection Rationale:**
+  1. UB-REALIGN-001 is the highest priority unblocked Tier 1 item
+  2. Explicitly depends on CONVERGENCE-001 verdict which is now available
+  3. Implements normative spec requirements for incremental UB parameterization
+  4. PARITY-003's hybrid factorization approach no longer needed given CONVERGENCE-001 resolution
+
+**Spec Synthesis (Phase A Planning):**
+  - Normative Requirements from spec-db-core.md:48-68:
+    • Baseline state: `U₀ = crystal.get_U()`, `B₀ = crystal.get_B()`, `A*_mapping = U₀ @ B₀`
+    • Incremental parameterization: Orientation as small rotation `ΔR(params)` → `U(params) = ΔR(params) @ U₀`
+    • Cell as small perturbations → `B(params)` via Busing-Levy metric tensor
+    • Zero-point invariant: at params=0, `U(0)=U₀`, `B(0)=B₀`, `A*(0)=A*_mapping`
+    • One-way construction: `params → (U, B) → A* = U @ B` (no A* decomposition in refinement loop)
+  - Normative Requirements from spec-db-workflow.md:36-40:
+    • Stage A trainable: unit cell logs/angles, orientation (quaternion → XYZ), global scale
+    • Mapping zero-point invariant: zero deltas + baseline scale MUST reproduce DB-AT-024 mapping Bragg tensor
+    • Implementations SHOULD align with ExperimentModel(param_init="stage_a") interface
+
+**Phase A Scope (Design & Spec Alignment):**
+  - Task A1: Synthesize normative requirements into concrete parameterization design
+  - Task A2: Choose orientation representation (Euler angles, axis-angle, or quaternion for ΔR)
+  - Task A3: Design cell perturbation parameterization (logs for lengths, bounded angles)
+  - Task A4: Define UB/A* round-trip test (DB-AT-026) acceptance criteria
+  - Task A5: Document design decisions and spec alignment in implementation.md
+
+**Mode:** Planning (docs-only, no production code changes this loop)
+**Expected Outcome:** Comprehensive design document for incremental UB parameterization with explicit spec alignment, ready for Phase B implementation in next loop
+**Artifacts Path:** plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-22T170806Z/
+**Constraints:** WIP cap at limit (3 initiatives), but UB-REALIGN-001 is Tier 1 Critical; PARITY-003 archived to reflect accurate roadmap state
+**Documentation Updates:** Resolved fix_plan.md merge conflict, archived PARITY-003 with closure rationale, updated Execution Roadmap and UB-REALIGN-001 status to `in_progress`
+
+- Artifact Path: plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-22T170806Z/
+- Next Actions: Author Do Now for Ralph directing Phase A planning work (spec synthesis, parameterization design choices, DB-AT-026 test design, implementation.md documentation); no production code changes this loop (Mode: Docs per implementation floor dwell=0 allowance)
+- <Action State>: [planning]
+
+2025-11-22T170806Z focus=TORCH-GEOMETRY-UB-REALIGN-001 state=planning dwell=0 artifacts=plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-22T170806Z/ next_action=phase_a_design_and_spec_alignment

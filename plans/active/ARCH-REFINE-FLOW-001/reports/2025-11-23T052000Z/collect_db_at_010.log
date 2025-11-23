@@ -15,4 +15,4 @@ collected 5 items
           <Function test_db_at_010_gradcheck_beam_wavelength>
           <Function test_db_at_010_gradcheck>
 
-========================== 5 tests collected in 0.84s ==========================
+========================== 5 tests collected in 0.81s ==========================

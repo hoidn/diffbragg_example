@@ -1,0 +1,7 @@
+{
+  "compilation_status": "PASS",
+  "helper_lines_extracted": 298,
+  "helper_nested_functions_count": 2,
+  "helper_signature_correct": true,
+  "decision_path": "A"
+}

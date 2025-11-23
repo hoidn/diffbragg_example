@@ -278,3 +278,43 @@
 - Do NOT revert device routing fix (OOM resolution is correct and necessary)
 - Keep instrumentation (diagnostic prints) until gradient bug resolved
 - Phase C2.2 marked BLOCKED pending gradient bug investigation
+
+## Phase C2.3 — Minimal CPU Bragg Reproducer (Isolate dbex vs nanobrag_torch)
+**Status:** COMPLETE (loop i=220, 2025-11-23T130000Z) — Path A confirmed: bug is in dbex, NOT nanobrag_torch
+**Artifacts:** plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T130000Z/
+
+- [x] C2.3a: Review Phase C2.2 evidence (100% parameter parity, zero Bragg on CPU) ✓ COMPLETE
+- [x] C2.3b: Create reproducer script (`minimal_cpu_bragg_reproducer.py`) with argparse + header ✓ COMPLETE
+- [x] C2.3c: Load canonical refGeom.expt + scaled.mtz via simtbx utils ✓ COMPLETE
+- [x] C2.3d: Build CPU StageAContext via `_build_stage_a_context` ✓ COMPLETE
+- [x] C2.3e: Extract panel 0 simulator and run single-panel simulation ✓ COMPLETE
+- [x] C2.3f: Check Bragg output stats (nonzero count, max, mean) ✓ COMPLETE
+- [x] C2.3g: Write JSON decision file (reproducer_result.json) ✓ COMPLETE
+- [x] C2.3h: Run reproducer and capture output ✓ COMPLETE
+- [x] C2.3i: Synthesize decision per 4-path tree (phase_c2_3_decision.md) ✓ COMPLETE
+- [x] C2.3j: Commit reproducer script + artifacts ✓ COMPLETE
+
+**Key Results:**
+- **Reproducer PASSED:** Bragg output is **non-zero** on CPU (max=0.086, mean=0.0027, 99% coverage)
+- **Decision: Path A** — Bug is in **dbex Stage B warm-cache context cloning or HKL grid handling**, NOT in nanobrag_torch simulator
+- nanobrag_torch CPU simulator works correctly when given proper inputs (100% parameter parity confirmed)
+- Root cause isolated to Stage B CPU fallback path (lines 2234-2246 context builder, 2448-2452 HKL modification, 2556-2558 simulator call)
+
+**Confidence:**
+- Reproducer result correct: VERY HIGH (98%)
+- Root cause in dbex (not nanobrag_torch): HIGH (85%)
+- Next investigation will find fix quickly: MEDIUM (60%)
+
+**Artifacts:**
+- `reproducer_result.json`: Decision output (PASS, Path A)
+- `reproducer_run.log`: Clean execution, 99% Bragg coverage
+- `phase_c2_3_decision.md`: 4-path synthesis with Path A selected
+- `minimal_cpu_bragg_reproducer.py`: T2 tier reusable reproducer (committed)
+- `summary.md`: Turn Summary block
+
+**Next Actions:**
+- **Phase C2.4:** Investigate dbex Stage B CPU warm-cache HKL grid handling
+  - Add diagnostics to Stage B CPU warm path (HKL grid device/dtype before/after shell modification)
+  - Compare warm vs cold Stage B paths on CPU (`enable_stage_a_warm_cache=False` toggle)
+  - Identify exact point where HKL grid or crystal state breaks on CPU
+  - Apply targeted fix (likely HKL grid device transfer or simulator cache invalidation)

@@ -179,18 +179,20 @@
   (Full Attempts History preserved in `docs/fix_plan_archive.md` and `plans/active/.../reports/`.)
 
 ### [ARCH-REFINE-FLOW-001] Refactor to Protocol-based Refinement Engine
-- Depends on: PHYSICS-LOSS-001
-- Status: pending
-- Priority: High (Architectural Maturity)
-- Owner/Date: Unassigned
+- Depends on: PHYSICS-LOSS-001 (variance-weighted loss telemetry stack)
+- Status: in_progress (2025-11-23 — Phase A complete, Phase B next)
+- Priority: High (Tier 2 — Architectural Maturity)
+- Owner/Date: Ralph (2025-11-23T024449Z)
 - Exit Criteria:
-  1. `RefinementEngine` class exists and accepts a list of `RefinementStage` objects.
-  2. `run_nanobrag_refinement` is refactored to construct a default protocol (A→B→C) and execute it via the Engine.
-  3. Stages are defined as data (dataclasses), not procedural code blocks.
-  4. Existing smoke tests pass without modification to external behavior.
+  1. `RefinementEngine` class exists and accepts a list of `RefinementStage` objects. ✓ COMPLETE (Phase A: dbex/refinement/engine.py)
+  2. `run_nanobrag_refinement` is refactored to construct a default protocol (A→B→C) and execute it via the Engine. [Pending: Phase B-E]
+  3. Stages are defined as data (dataclasses), not procedural code blocks. [Pending: Phase B-D]
+  4. Existing smoke tests pass without modification to external behavior. ✓ PARTIAL (Phase A regression guard PASSED, full suite pending Phase B-E)
 - Working Plan: plans/active/ARCH-REFINE-FLOW-001/implementation.md
 - Attempts History:
-  * 2025-11-20T231627Z (planning) — Manual override (same as PHYSICS-LOSS entry) seeded this initiative; waiting on PHYSICS-LOSS-001 completion before implementation.
+  * 2025-11-20T231627Z (planning) — Manual override seeded this initiative; marked pending until PHYSICS-LOSS-001 completes.
+  * 2025-11-23T024449Z (planning) — **Phase A Planning — TDD Nucleus & Stage Interface.** Selected ARCH-REFINE-FLOW-001 as next focus per Execution Roadmap Tier 2 after verifying PHYSICS-LOSS-001 DONE (variance-weighted loss + telemetry stack complete). Reviewed implementation.md confirming 5-phase plan (A: Stage Interface & Engine Skeleton, B-D: Stage A/B/C extraction, E: Orchestration hooks). Identified Phase A0 TDD nucleus as entry point (author minimal unit test validating dummy Stage execution before production interfaces). Verified spec alignment with docs/spec-db-workflow.md §7 (Engine Contract, Stage A/B/C definitions). Context priming docs specified: spec-db-workflow.md §6-§7, spec-db-tracing.md §2, PHYSICS-LOSS-001 artifacts (canonical Stage A telemetry), PERF-WARM-SIM-001 (warm-cache/ROI contract), findings REFINE-005/007/008. **Phase A Scope:** 8 tasks (A0 TDD nucleus, A1-A2 Stage protocol+Engine, A3 shared helpers, A4 telemetry schema, A5-A7 test registry/compliance/docs). Authored comprehensive Do Now for Ralph (12-step protocol including TDD nucleus test, RefinementStage protocol, RefinementEngine, shared helpers stubs, telemetry extension, test registry, compliance evidence, regression guard). **Mode:** TDD (supervisor-scoped), **Mapped tests:** test_engine_executes_mock_stage (new), test_stage_a_expansion (regression guard). Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T024449Z/. **Decision tree:** Path A (all tasks complete, tests PASS) → Phase B (Stage A extraction), Path B (partial, tests PASS) → continue Phase A, Path C (test FAIL) → debug, Path D (circular import/spec drift) → escalate.
+  * 2025-11-23T024449Z (Ralph, implementation) — **Phase A Complete — Stage Interface & Engine Skeleton SUCCESS.** Executed Phase A Do Now (12 tasks, commit f320bda). **Deliverables:** (1) RefinementStage protocol (dbex/refinement/stage.py:21-76) defining name property, configure(config) hook, run(inputs, telemetry_sink) method, (2) RefinementEngine skeleton (dbex/refinement/engine.py) accepting ordered stage list and aggregating telemetry Dict[str, RefinementTelemetry], (3) Shared helper stubs (dbex/refinement/helpers.py: create_panel_simulator, emit_bragg_frame with lazy nanobrag_torch imports), (4) RefinementTelemetry schema extended (stage_type, mode fields added, backward compatible), (5) TDD nucleus test (tests/dbex/test_refinement_engine.py::test_engine_executes_mock_stage) PASSED validating MockStage execution + telemetry aggregation, (6) Regression guard (test_stage_a_expansion) PASSED confirming existing Stage A unaffected by new modules, (7) Test registry updated (TESTING_GUIDE.md §2 line 136, TEST_SUITE_INDEX.md line 17, ARCH-ENGINE-001 entry, collection log archived), (8) Compliance evidence (phase_a_compliance_evidence.md) verifying spec-db-workflow.md §7 alignment, REFINE-005/007/008 findings cross-refs, circular import mitigation, test coverage. **Key Results:** RefinementEngine accepts arbitrary stage sequences (no hardcoded A→B→C per spec), telemetry contract backward compatible (all existing PHYSICS-LOSS-001 fields preserved), lazy imports prevent circular dependencies, TDD nucleus validates engine contract. **Metrics:** 1 test collected (test_engine_executes_mock_stage), 1 passed (0.84s runtime), regression guard passed (12.75s). **Artifacts:** plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T024449Z/{phase_a_implementation_summary.md, phase_a_compliance_evidence.md, pytest_test_refinement_engine.log, pytest_stage_a_regression.log, pytest_collect_test_refinement_engine.log, summary.md}. **Next Actions:** Phase B (Stage A extraction: baseline artifacts, StageA class, engine delegation, smoke validation, DB-AT selectors, doc updates).
   (Full Attempts History preserved in `docs/fix_plan_archive.md` and `plans/active/.../reports/`.)
 
 ### [TOOLING-VIS-001] Standardize visual diagnostics library

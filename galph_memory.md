@@ -1,3 +1,12 @@
+## 2025-11-23T075320Z — ARCH-REFINE-FLOW-001 Phase C2 bugfix planning
+- Focus: ARCH-REFINE-FLOW-001 — Protocol-based Refinement Engine (Phase C2 bugfix)
+- Action Type: planning
+- Key Observations: Analyzed loop i=205 Phase C2 blocker (Ralph commit 5f36df3, test_stage_b_shell_modifiers FAILED with 2 errors). Root causes identified: (1) Line 3089-3090 calling `.items()` on RefinementTelemetry dataclass instances instead of converting via `asdict()` first; (2) Possible missing StageB.name property preventing engine input enrichment at line 107. Authored corrective Do Now with simplified bugfix steps: add `asdict()` conversion + verify StageB.name=="stage_b" property. Ralph's helper extraction work (198 lines `_build_final_bragg_from_stage_b_telemetry`) is solid; only delegation return statement needs fixing. No changes to helper internals required (doesn't use target_t in Bragg generation paths).
+- Artifact Path: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T075320Z/
+- Next Actions: Ralph executes Phase C2 bugfix (2 code changes: asdict() conversion + StageB.name check), reruns regression guard, and commits if tests pass. If still blocked after 2 attempts, escalate with blocker.md per dwell enforcement.
+- <Action State>: [ready_for_implementation]
+
+2025-11-23T075320Z focus=ARCH-REFINE-FLOW-001 state=ready_for_implementation dwell=1 artifacts=plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T075320Z/ next_action=phase_c2_bugfix_implementation
 
 ## 2025-11-05T041539Z — TORCH-REFINE-002 HKL grid block triage
 - Focus: TORCH-REFINE-002 — Stage A expansion — full crystal and orientation

@@ -1,374 +1,563 @@
-# Phase D3-D5: StageC Wrapper Validation & Documentation Sync
+# Phase E: Orchestration Hooks & Mode Wiring (ARCH-REFINE-FLOW-001)
 
 ## Summary
-Validate Phase D2 StageC wrapper preserves canonical telemetry schema, REFINE-007 gates, and mapping parity; update test registry and mark Phase D COMPLETE.
+Implement engine delegation hooks in run_nanobrag_refinement + CLI flags for stage control, validate engine-based protocol as default path, complete Phase E with all exit criteria met.
 
 ## Mode
-Docs
+**none** (production code + validation)
 
 ## Focus
-ARCH-REFINE-FLOW-001 — Protocol-based Refinement Engine (Phase D3-D5: StageC wrapper validation)
+**ARCH-REFINE-FLOW-001** — Protocol-based Refinement Engine (Phase E: Orchestration Hooks & Mode Wiring)
 
 ## Branch
-integration
+`integration`
 
-## Mapped tests
-- `tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip` (small + full detector)
-- `tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke` (collect-only + pytest)
+## Mapped Tests
+**Active selectors (validation):**
+- `pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` (Stage A engine path)
+- `pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers` (Stage B engine path, small detector)
+- `pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip` (Stage C engine path, small detector)
+- `pytest -v tests/dbex/test_mapping_consistency.py::test_db_at_024_mapping_fidelity` (DB-AT-024 mapping parity, zero-iteration path unaffected by engine delegation)
+
+**Note:** All 4 selectors must PASS with engine delegation enabled. Small detector tests validate engine path correctness; DB-AT-024 confirms zero-iteration forward model unchanged.
 
 ## Artifacts
-`plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T151440Z/phase_d3_d5/`
+`plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T160000Z/`
+- `phase_e_decision.md` (4-path decision synthesis: A=all PASS → Phase E COMPLETE, B/C/D=smoke/CLI/DB-AT-024 failures)
+- `phase_e_metrics.json` (4 test statuses, engine_protocol strings, stage_modes dicts per run)
+- `pytest_stage_a_engine.log`, `pytest_stage_b_engine.log`, `pytest_stage_c_engine.log`, `pytest_db_at_024_engine.log`
+- `summary.md` (Turn Summary block per end-of-loop hygiene)
 
 ## Do Now
 
-**Objective**: Validate StageC wrapper (Phase D2, commit 71d5e0d) against canonical telemetry schema and acceptance gates, execute DB-AT-024 mapping parity check, update test registry, mark Phase D COMPLETE.
+**Objective:** Complete Phase E (Orchestration Hooks & Mode Wiring) in a single loop by implementing engine delegation logic, CLI flags, telemetry tagging, and validating all smoke tests + DB-AT-024 pass with the engine-based protocol.
 
-**Tasks (9 steps)**:
+**Context:** Phase D COMPLETE (commit 3c856ef, all Stage A/B/C wrappers production-ready, telemetry schema validated, regression guards clean). Phase E integrates the engine delegation layer so future stage variants (per-reflection Stage B, alternative sequences) can be configured via CLI/config flags without editing inline code.
 
-### 1. Review Phase D2 Evidence
-- Read `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T141817Z/phase_d2/decision.md` (Ralph's Phase D2 completion)
-- Read `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T141817Z/phase_d2/metrics.json` (4 tests PASSED)
-- Review commit 71d5e0d diff (StageC wrapper class + RefinementTelemetry dataclass extensions)
+### Step-by-Step Protocol (12 steps)
 
-### 2. Validate Telemetry Schema (Phase D3)
-**Goal**: Confirm StageC wrapper preserves canonical Stage A metadata + detector offset reduction stats per implementation.md:242.
+#### **E1: Add engine telemetry fields to RefinementTelemetry**
 
-**Evidence required**:
-- Read one of Ralph's Phase D2 pytest logs (small or full detector) and extract telemetry JSON emitted by StageC.run()
-- Verify telemetry contains **ALL** canonical RefinementTelemetry fields from spec-db-core.md telemetry schema:
-  - Stage A baseline fields: `chi_squared_initial`, `chi_squared_final`, `masked_mse_initial`, `masked_mse_final`, `param_deltas` (log_scale, cell a/b/c, angles, misset)
-  - Stage C-specific fields: `detector_offset_reduction_min`, `detector_offset_final_abs_max`, `param_deltas_c` (distance_offset_raw per panel)
-  - Unified fields (Phase A4): `stage_type="C"`, `mode="detector_offsets"`
-  - Perf counters: `cache_mode`, `roi_mode`, `forward_time_ms`, etc.
-- Write `phase_d3_telemetry_validation.md` documenting field presence (checklist format)
-- **Acceptance criterion**: All canonical fields present in telemetry, no missing Stage A metadata
+1. Open `dbex/nanobrag_refinement.py` and locate the RefinementTelemetry dataclass (line ~392)
+2. Add two new Optional fields AFTER existing fields (maintain backward compatibility):
+   ```python
+   engine_protocol: Optional[str] = None  # e.g., "A→B→C", "A-only", "A→B"
+   stage_modes: Optional[Dict[str, str]] = None  # e.g., {"B": "shell", "C": "detector_offsets"}
+   ```
+3. Save file
 
-### 3. Rerun Stage C Smoke Tests (Phase D4)
-**Goal**: Archive fresh pytest logs + telemetry proving REFINE-007 gates succeed post-refactor.
+#### **E2: Update run_nanobrag_refinement signature with use_engine_delegation flag**
 
-**Commands**:
-```bash
-# Small detector (CUDA-only, ROI mode)
-KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
-DBEX_SMOKE_DETECTOR_SIZE=small \
-DBEX_SMOKE_TELEMETRY_PATH=plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T151440Z/phase_d3_d5/telemetry_stage_c_small.json \
-pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip \
-  --smoke-detector-size=small \
-  | tee plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T151440Z/phase_d3_d5/pytest_stage_c_small.log
+4. Locate `run_nanobrag_refinement` function definition (line ~3706)
+5. Add new parameter to signature BEFORE the closing `)`:
+   ```python
+   use_engine_delegation: bool = False
+   ```
+6. Update docstring to document the new parameter:
+   ```
+   use_engine_delegation: bool, default False
+       When True, delegates to RefinementEngine with Stage wrapper classes.
+       When False (default), uses inline helper paths for backward compatibility.
+   ```
+7. Save file
 
-# Full detector (CUDA-only, panel mode per GRADIENT-003 CPU deferral)
-KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
-DBEX_SMOKE_DETECTOR_SIZE=full \
-DBEX_SMOKE_TELEMETRY_PATH=plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T151440Z/phase_d3_d5/telemetry_stage_c_full.json \
-pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip \
-  --smoke-detector-size=full \
-  | tee plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T151440Z/phase_d3_d5/pytest_stage_c_full.log
-```
+#### **E3: Implement engine delegation branch in run_nanobrag_refinement**
 
-**REFINE-007 gate validation** (extract from telemetry JSON):
-- **Small detector**: `detector_offset_reduction_min >= 0.80` OR `detector_offset_final_abs_max <= 0.05` (mm)
-- **Full detector**: Same threshold + `chi_squared_regression <= 0.0005` (≤0.05% relative to Stage A)
-- Write `phase_d4_refine007_validation.json` with extracted metrics:
-  ```json
-  {
-    "small_detector": {
-      "detector_offset_reduction_min": <value>,
-      "detector_offset_final_abs_max": <value>,
-      "passed": true/false
+8. Locate the end of Stage A execution (after line ~4200, before Stage B inline check)
+9. Insert engine delegation branch BEFORE the existing `if config.enable_stage_b:` check:
+   ```python
+   # === ENGINE DELEGATION PATH (Phase E) ===
+   if use_engine_delegation:
+       # Lazy imports to avoid circular dependencies
+       from dbex.refinement.engine import RefinementEngine
+       from dbex.refinement.stage_a import StageA
+       from dbex.refinement.stage_b import StageB
+       from dbex.refinement.stage_c import StageC
+
+       # Construct stage list based on config flags
+       stages = []
+       stages.append(StageA())  # Stage A always runs
+
+       if config.enable_stage_b:
+           # Guard: Stage B requires baseline_detector
+           if baseline_detector is None:
+               raise ValueError(
+                   "Stage B via engine requires baseline_detector parameter. "
+                   "Pass the baseline dxtbx Detector object to run_nanobrag_refinement()."
+               )
+           stages.append(StageB())
+
+       if config.enable_stage_c:
+           # Guard: Stage C requires baseline_detector
+           if baseline_detector is None:
+               raise ValueError(
+                   "Stage C via engine requires baseline_detector parameter. "
+                   "Pass the baseline dxtbx Detector object to run_nanobrag_refinement()."
+               )
+           stages.append(StageC())
+
+       # Build engine protocol string for telemetry
+       stage_names = [s.name for s in stages]
+       engine_protocol = "→".join(stage_names)  # e.g., "A→B→C", "A", "A→B"
+
+       # Build stage_modes dict for telemetry
+       stage_modes = {}
+       if config.enable_stage_b:
+           stage_modes["B"] = "shell"  # Currently only shell mode; per-reflection deferred to TORCH-REFINE-004
+       if config.enable_stage_c:
+           stage_modes["C"] = "detector_offsets"
+
+       # Prepare RefinementInputs for engine
+       engine_inputs = {
+           "target": inputs.target,
+           "loss_mask": inputs.loss_mask,
+           "panel_slices": inputs.panel_slices,
+           "trusted_mask": inputs.trusted_mask,
+           "detector": detector,
+           "beam": beam,
+           "crystal": crystal,
+           "hkl_grid": hkl_grid,
+           "hkl_metadata": hkl_metadata,
+           "baseline_crystal": baseline_crystal,
+           "baseline_detector": baseline_detector,
+       }
+
+       # Execute engine
+       engine = RefinementEngine(stages=stages, config=config)
+       engine_telemetry = engine.run(inputs=engine_inputs, telemetry_sink=None)
+
+       # Extract final Bragg from last stage telemetry
+       last_stage_name = stage_names[-1]
+       final_telemetry_dict = engine_telemetry[last_stage_name]
+       final_bragg = final_telemetry_dict["final_bragg"]
+
+       # Enrich telemetry with engine protocol + stage modes
+       telemetry_out = {}
+       for stage_name, telem_dict in engine_telemetry.items():
+           # Add engine fields to each stage's telemetry
+           telem_dict["engine_protocol"] = engine_protocol
+           telem_dict["stage_modes"] = stage_modes
+           telemetry_out[stage_name] = RefinementTelemetry(**telem_dict)
+
+       return final_bragg, telemetry_out
+
+   # === INLINE HELPER PATH (backward compatibility) ===
+   # (existing Stage B/C inline code continues below)
+   ```
+10. Ensure proper indentation (4 spaces per level, no tabs)
+11. Save file
+
+#### **E4: Add CLI flags to refine_one.py**
+
+12. Open `dbex/refine_one.py`
+13. Locate the argument parser setup (search for `argparse.ArgumentParser`)
+14. Add three new optional arguments AFTER existing refinement args:
+    ```python
+    parser.add_argument(
+        "--use-engine-delegation",
+        action="store_true",
+        default=False,
+        help="Use RefinementEngine with Stage wrapper classes instead of inline helpers"
+    )
+    parser.add_argument(
+        "--enable-stage-b",
+        action="store_true",
+        default=False,
+        help="Enable Stage B Fhkl shell modifiers (requires --use-engine-delegation)"
+    )
+    parser.add_argument(
+        "--enable-stage-c",
+        action="store_true",
+        default=False,
+        help="Enable Stage C detector distance refinement (requires --use-engine-delegation)"
+    )
+    ```
+15. Locate RefinementConfig instantiation (search for `RefinementConfig(`)
+16. Update config construction to pass CLI flags:
+    ```python
+    config = RefinementConfig(
+        # ... existing parameters ...
+        enable_stage_b=args.enable_stage_b,
+        enable_stage_c=args.enable_stage_c,
+    )
+    ```
+17. Locate `run_nanobrag_refinement` call site
+18. Add `use_engine_delegation` parameter to the call:
+    ```python
+    final_bragg, telemetry = run_nanobrag_refinement(
+        # ... existing parameters ...
+        use_engine_delegation=args.use_engine_delegation
+    )
+    ```
+19. Save file
+
+#### **E5: Run Stage A smoke with engine delegation**
+
+20. Execute Stage A smoke test:
+    ```bash
+    pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion > plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T160000Z/pytest_stage_a_engine.log 2>&1
+    echo "Stage A exit code: $?" >> plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T160000Z/pytest_stage_a_engine.log
+    ```
+21. Check exit code: `grep "exit code" plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T160000Z/pytest_stage_a_engine.log`
+22. If exit code ≠ 0, STOP and log blocker in decision.md (Path B: engine delegation smoke failure)
+
+#### **E6: Run Stage B smoke (small detector) with engine delegation**
+
+23. Update test_stage_b_shell_modifiers to enable engine delegation:
+    - Locate the test in `tests/dbex/test_torch_refine_smoke.py` (line ~876)
+    - Find the `run_nanobrag_refinement` call
+    - Add `use_engine_delegation=True` parameter
+24. Execute Stage B smoke test:
+    ```bash
+    pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers > plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T160000Z/pytest_stage_b_engine.log 2>&1
+    echo "Stage B exit code: $?" >> plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T160000Z/pytest_stage_b_engine.log
+    ```
+25. Check exit code
+26. If exit code ≠ 0, STOP and log blocker (Path B)
+
+#### **E7: Run Stage C smoke (small detector) with engine delegation**
+
+27. Update test_stage_c_detector_microslip to enable engine delegation:
+    - Locate the test (line ~780)
+    - Add `use_engine_delegation=True` parameter to run_nanobrag_refinement call
+28. Execute Stage C smoke test:
+    ```bash
+    pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip > plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T160000Z/pytest_stage_c_engine.log 2>&1
+    echo "Stage C exit code: $?" >> plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T160000Z/pytest_stage_c_engine.log
+    ```
+29. Check exit code
+30. If exit code ≠ 0, STOP and log blocker (Path B)
+
+#### **E8: Run DB-AT-024 mapping parity check**
+
+31. Execute DB-AT-024 test (zero-iteration forward model, does NOT use engine):
+    ```bash
+    pytest -v tests/dbex/test_mapping_consistency.py::test_db_at_024_mapping_fidelity > plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T160000Z/pytest_db_at_024_engine.log 2>&1
+    echo "DB-AT-024 exit code: $?" >> plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T160000Z/pytest_db_at_024_engine.log
+    ```
+32. Check exit code
+33. If exit code ≠ 0, STOP and log blocker (Path D: DB-AT-024 regression)
+
+#### **E9: Generate phase_e_metrics.json**
+
+34. Create metrics JSON using Python one-liner:
+    ```bash
+    python3 -c "
+import json
+from pathlib import Path
+
+artifacts = Path('plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T160000Z')
+
+def get_exit_code(log_path):
+    content = Path(log_path).read_text()
+    for line in content.split('\\n'):
+        if 'exit code:' in line.lower():
+            return int(line.split(':')[-1].strip())
+    return -1
+
+metrics = {
+    'stage_a_engine_exit_code': get_exit_code(artifacts / 'pytest_stage_a_engine.log'),
+    'stage_b_engine_exit_code': get_exit_code(artifacts / 'pytest_stage_b_engine.log'),
+    'stage_c_engine_exit_code': get_exit_code(artifacts / 'pytest_stage_c_engine.log'),
+    'db_at_024_exit_code': get_exit_code(artifacts / 'pytest_db_at_024_engine.log'),
+    'all_tests_passed': all([
+        get_exit_code(artifacts / 'pytest_stage_a_engine.log') == 0,
+        get_exit_code(artifacts / 'pytest_stage_b_engine.log') == 0,
+        get_exit_code(artifacts / 'pytest_stage_c_engine.log') == 0,
+        get_exit_code(artifacts / 'pytest_db_at_024_engine.log') == 0,
+    ]),
+    'engine_protocol_examples': {
+        'stage_a_only': 'A',
+        'stage_a_b': 'A→B',
+        'stage_a_b_c': 'A→B→C'
     },
-    "full_detector": {
-      "detector_offset_reduction_min": <value>,
-      "detector_offset_final_abs_max": <value>,
-      "chi_squared_regression": <value>,
-      "passed": true/false
+    'stage_modes': {
+        'B': 'shell',
+        'C': 'detector_offsets'
     }
-  }
-  ```
+}
 
-**Acceptance criterion**: Both tests PASS, both gates satisfied per REFINE-007
+with open(artifacts / 'phase_e_metrics.json', 'w') as f:
+    json.dump(metrics, f, indent=2)
 
-### 4. Execute DB-AT-024 Mapping Parity Check (Phase D5)
-**Goal**: Confirm StageC refactor did not regress zero-iteration mapping forward model.
+print('Metrics written to phase_e_metrics.json')
+" 2>&1 | tee plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T160000Z/metrics_generation.log
+    ```
 
-**Commands**:
-```bash
-# Collect-only
-pytest --collect-only -q tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke \
-  > plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T151440Z/phase_d3_d5/pytest_collect_db_at_024.log 2>&1
+#### **E10: Synthesize decision.md with 4-path template**
 
-# Full test execution
-KMP_DUPLICATE_LIB_OK=TRUE \
-DBEX_SMOKE_DETECTOR_SIZE=full \
-pytest -vv tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke \
-  | tee plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T151440Z/phase_d3_d5/pytest_db_at_024.log
-```
+35. Write decision synthesis to `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T160000Z/phase_e_decision.md`:
+    - Load phase_e_metrics.json
+    - If `all_tests_passed == true`: **Path A** (all PASS → Phase E COMPLETE, ARCH-REFINE-FLOW-001 ready for Tier 2 closure)
+    - If Stage A/B/C smoke failure: **Path B** (debug engine delegation, compare inline vs engine telemetry, check StageA/B/C.run() wiring)
+    - If CLI flag parsing failure: **Path C** (verify argparse integration, RefinementConfig hydration, use_engine_delegation propagation)
+    - If DB-AT-024 regression: **Path D** (rollback engine delegation changes, escalate to Galph with blocker report)
+    - Include confidence level (HIGH ~95% if Path A, MEDIUM ~60% if Path B/C/D)
+    - Document next actions per path
 
-**Acceptance criterion**: DB-AT-024 PASSED (median corr ≥0.2, localization ≥90%)
+#### **E11: Update implementation.md Phase E checklist**
 
-### 5. Update Test Registry (TESTING_GUIDE.md + TEST_SUITE_INDEX.md)
-**Goal**: Document StageC wrapper in test registry per TESTING-003.
+36. Open `plans/active/ARCH-REFINE-FLOW-001/implementation.md`
+37. Locate Phase E section (line ~274)
+38. Mark all E1-E5 tasks as complete:
+    ```markdown
+    - [x] E1: Expose stage registry/config knobs ✓ COMPLETE (2025-11-23T160000Z)
+    - [x] E2: Update CLI/config surfaces ✓ COMPLETE
+    - [x] E3: Add telemetry fields (engine_protocol, stage_modes) ✓ COMPLETE
+    - [x] E4: Update architecture docs ✓ DEFERRED (docs-only cleanup for next loop if Path A)
+    - [x] E5: Run combined smoke suite + DB-AT selectors ✓ COMPLETE
+    ```
+39. Add Phase E completion timestamp and status:
+    ```markdown
+    **Phase E Status: ✓ COMPLETE (2025-11-23T160000Z)** [if Path A]
+    ```
+40. Save file
 
-**Edits required**:
-1. **docs/TESTING_GUIDE.md §2** (Test Selector Table):
-   - Find the `test_torch_refine_smoke.py` row (currently mentions Stage A/B/C smokes with GRADIENT-003 CPU limitation note)
-   - Update to reflect Phase D completion: "Stage C wrapper (dbex/refinement/stage_c.py) implemented 2025-11-23, validates RefinementStage protocol compliance and telemetry schema preservation"
-   - Ensure GRADIENT-003 CPU limitation note remains (full detector CUDA-only)
+#### **E12: Write summary.md with Turn Summary block**
 
-2. **docs/development/TEST_SUITE_INDEX.md**:
-   - Add row for StageC wrapper test if not already present:
-     ```markdown
-     | ARCH-REFINE-FLOW-001: StageC Wrapper | `tests/dbex/test_refinement_engine.py::test_engine_executes_mock_stage` (engine contract), `tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip` (smoke) | active | `docs/spec-db-workflow.md:33`, `plans/active/ARCH-REFINE-FLOW-001/implementation.md` | StageC class validates RefinementStage protocol, telemetry schema (stage_type/mode), REFINE-007 gates. First added 2025-11-23. |
-     ```
+41. Create `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T160000Z/summary.md` with:
+    - **Turn Summary** (3-5 sentences):
+      - What shipped (engine delegation logic, CLI flags, telemetry tagging)
+      - Main problem and resolution (engine path validation, backward compatibility preserved)
+      - Next step (Phase E complete if Path A, debug/escalate if Path B/C/D)
+    - **Artifacts:** (point to this directory + key files)
 
-**Acceptance criterion**: Both docs updated, registry entries cite correct selectors + artifacts path
+#### **E13: Commit and push**
 
-### 6. Update docs/findings.md
-**Goal**: Document StageC wrapper lessons per Phase D2 decision.md recommendations.
-
-**New findings to add** (if not already present from Ralph's Phase D2 commit):
-1. **ARCH-ENGINE-002** (extension of ARCH-ENGINE-001): StageC wrapper pattern mirrors StageB (lazy imports, Stage A param reconstruction from telemetry, helper calls with exact dict structures, baseline_detector requirement, telemetry packaging via asdict → enrich → reconstruct)
-2. **REFINE-007 (extension)**: Stage C wrapper requires `baseline_detector` input (NOT optional), raises ValueError if missing, per spec-db-workflow.md:75
-
-**Acceptance criterion**: findings.md updated with 1-2 new rows documenting Phase D lessons
-
-### 7. Mark Phase D COMPLETE in implementation.md
-**Goal**: Update checklist status.
-
-**Edits**:
-- `plans/active/ARCH-REFINE-FLOW-001/implementation.md` lines 241-244:
-  - `- [x] D2: Plug Stage C into the engine` ✓ COMPLETE (2025-11-23T141817Z, commit 71d5e0d)
-  - `- [x] D3: Ensure Stage C telemetry keeps canonical Stage A metadata` ✓ COMPLETE (2025-11-23T151440Z, phase_d3_telemetry_validation.md)
-  - `- [x] D4: Rerun Stage C smoke tests` ✓ COMPLETE (2025-11-23T151440Z, small+full PASS, REFINE-007 gates satisfied)
-  - `- [x] D5: Execute DB-AT selectors` ✓ COMPLETE (2025-11-23T151440Z, DB-AT-024 PASSED)
-
-**Acceptance criterion**: All Phase D checklist rows marked complete with timestamps
-
-### 8. Write Decision Synthesis
-**Goal**: Document validation outcomes with 4-path decision tree.
-
-**Create `phase_d3_d5_decision.md`**:
-```markdown
-# Phase D3-D5 Validation Decision
-
-## Validation Results
-- **D3 (telemetry schema)**: PASS/FAIL
-- **D4 (Stage C smokes + REFINE-007)**: PASS/FAIL (small + full)
-- **D5 (DB-AT-024 parity)**: PASS/FAIL
-- **Registry sync**: PASS/FAIL (TESTING_GUIDE.md + TEST_SUITE_INDEX.md updated)
-
-## Decision Path
-- **Path A (all PASS)**: Phase D COMPLETE → Next: Phase E orchestration hooks (Galph planning)
-- **Path B (telemetry FAIL)**: StageC wrapper missing canonical fields → debug telemetry packaging logic
-- **Path C (REFINE-007 FAIL)**: Detector offset gates violated → debug StageC helper wiring
-- **Path D (DB-AT-024 FAIL)**: Mapping parity regression → debug zero-iteration forward model
-
-## Confidence
-HIGH/MEDIUM/LOW (~X%)
-
-## Next Actions
-<per chosen path>
-```
-
-### 9. Write summary.md + Commit
-**Goal**: Archive loop artifacts and commit docs updates.
-
-**Create `summary.md`**:
-```markdown
-### Turn Summary
-Validated StageC wrapper (Phase D2) preserves canonical telemetry schema, REFINE-007 gates satisfied (small+full detector), DB-AT-024 mapping parity PASSED; no regressions detected.
-Updated test registry (TESTING_GUIDE.md, TEST_SUITE_INDEX.md) with StageC wrapper documentation and findings.md with Phase D lessons; marked Phase D COMPLETE.
-Next: Galph plans Phase E orchestration hooks (expose stage enablement flags in RefinementEngine/CLI, add engine_protocol telemetry, update architecture docs).
-Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T151440Z/phase_d3_d5/ (pytest logs, telemetry JSONs, validation reports, decision.md)
-```
-
-**Commit message**:
-```
-ARCH-REFINE-FLOW-001 Phase D3-D5: Validate StageC wrapper + mark Phase D COMPLETE — tests: small+full+DB-AT-024 PASS
-```
-
-**Acceptance criterion**: All artifacts archived, git committed + pushed, clean working tree
+42. Stage all changes:
+    ```bash
+    git add -A
+    ```
+43. Commit with message:
+    ```bash
+    git commit -m "ARCH-REFINE-FLOW-001 Phase E: Orchestration Hooks + Engine Delegation — tests: Stage A/B/C+DB-AT-024 [PASS/FAIL per decision.md]"
+    ```
+44. Push to remote:
+    ```bash
+    git push
+    ```
 
 ## How-To Map
 
-### Stage C Smoke Test Execution
-```bash
-# Small detector
-KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
-DBEX_SMOKE_DETECTOR_SIZE=small \
-DBEX_SMOKE_TELEMETRY_PATH=<artifacts_path>/telemetry_stage_c_small.json \
-pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip \
-  --smoke-detector-size=small | tee <artifacts_path>/pytest_stage_c_small.log
-
-# Full detector
-KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
-DBEX_SMOKE_DETECTOR_SIZE=full \
-DBEX_SMOKE_TELEMETRY_PATH=<artifacts_path>/telemetry_stage_c_full.json \
-pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip \
-  --smoke-detector-size=full | tee <artifacts_path>/pytest_stage_c_full.log
-```
-
-### DB-AT-024 Execution
-```bash
-# Collect-only
-pytest --collect-only -q tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke \
-  > <artifacts_path>/pytest_collect_db_at_024.log 2>&1
-
-# Full execution
-KMP_DUPLICATE_LIB_OK=TRUE DBEX_SMOKE_DETECTOR_SIZE=full \
-pytest -vv tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke \
-  | tee <artifacts_path>/pytest_db_at_024.log
-```
-
-### Telemetry Schema Validation (D3)
-1. Extract telemetry JSON from one Phase D2 pytest log OR run fresh Stage C smoke
-2. Parse JSON and verify presence of ALL canonical fields:
-   - RefinementTelemetry base: `chi_squared_initial`, `chi_squared_final`, `masked_mse_initial`, `masked_mse_final`, `improvement`, `status`, `param_deltas`
-   - Stage C-specific: `detector_offset_reduction_min`, `detector_offset_final_abs_max`, `param_deltas_c`
-   - Phase A4 extensions: `stage_type`, `mode`
-   - Perf counters: `cache_mode`, `roi_mode`, `forward_time_ms.*`, `closure_evals`, `validation_runs`
-3. Write checklist to `phase_d3_telemetry_validation.md`
-
-### REFINE-007 Gate Validation (D4)
-Extract from telemetry JSON (after Step 3 runs):
+### Engine Delegation Logic Wiring
 ```python
-import json
-with open('telemetry_stage_c_small.json') as f:
-    tel = json.load(f)
-print(f"detector_offset_reduction_min: {tel.get('detector_offset_reduction_min')}")
-print(f"detector_offset_final_abs_max: {tel.get('detector_offset_final_abs_max')}")
-# Gate: reduction >= 0.80 OR final_abs_max <= 0.05
+# Insert at dbex/nanobrag_refinement.py line ~4200 BEFORE existing Stage B check
+if use_engine_delegation:
+    from dbex.refinement.engine import RefinementEngine
+    from dbex.refinement.stage_a import StageA
+    from dbex.refinement.stage_b import StageB
+    from dbex.refinement.stage_c import StageC
+
+    stages = [StageA()]
+    if config.enable_stage_b:
+        if baseline_detector is None:
+            raise ValueError("Stage B requires baseline_detector")
+        stages.append(StageB())
+    if config.enable_stage_c:
+        if baseline_detector is None:
+            raise ValueError("Stage C requires baseline_detector")
+        stages.append(StageC())
+
+    engine_protocol = "→".join([s.name for s in stages])
+    stage_modes = {}
+    if config.enable_stage_b: stage_modes["B"] = "shell"
+    if config.enable_stage_c: stage_modes["C"] = "detector_offsets"
+
+    engine_inputs = {
+        "target": inputs.target, "loss_mask": inputs.loss_mask,
+        "panel_slices": inputs.panel_slices, "trusted_mask": inputs.trusted_mask,
+        "detector": detector, "beam": beam, "crystal": crystal,
+        "hkl_grid": hkl_grid, "hkl_metadata": hkl_metadata,
+        "baseline_crystal": baseline_crystal, "baseline_detector": baseline_detector
+    }
+
+    engine = RefinementEngine(stages=stages, config=config)
+    engine_telemetry = engine.run(inputs=engine_inputs, telemetry_sink=None)
+
+    last_stage_name = [s.name for s in stages][-1]
+    final_bragg = engine_telemetry[last_stage_name]["final_bragg"]
+
+    telemetry_out = {}
+    for stage_name, telem_dict in engine_telemetry.items():
+        telem_dict["engine_protocol"] = engine_protocol
+        telem_dict["stage_modes"] = stage_modes
+        telemetry_out[stage_name] = RefinementTelemetry(**telem_dict)
+
+    return final_bragg, telemetry_out
 ```
-Write gate pass/fail to `phase_d4_refine007_validation.json`
+
+### CLI Integration (refine_one.py)
+```python
+# Add to argparse setup:
+parser.add_argument("--use-engine-delegation", action="store_true", default=False,
+                    help="Use RefinementEngine with Stage wrappers")
+parser.add_argument("--enable-stage-b", action="store_true", default=False,
+                    help="Enable Stage B shell modifiers")
+parser.add_argument("--enable-stage-c", action="store_true", default=False,
+                    help="Enable Stage C detector refinement")
+
+# Update RefinementConfig:
+config = RefinementConfig(
+    # ... existing ...
+    enable_stage_b=args.enable_stage_b,
+    enable_stage_c=args.enable_stage_c
+)
+
+# Update run_nanobrag_refinement call:
+final_bragg, telemetry = run_nanobrag_refinement(
+    # ... existing ...
+    use_engine_delegation=args.use_engine_delegation
+)
+```
+
+### Test Updates (inline only, no new test files)
+```python
+# In tests/dbex/test_torch_refine_smoke.py
+# Locate each test's run_nanobrag_refinement call and add:
+final_bragg, telemetry = run_nanobrag_refinement(
+    # ... existing parameters ...
+    use_engine_delegation=True  # ADD THIS LINE
+)
+```
+
+### Validation Commands
+```bash
+# Stage A smoke
+pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion > pytest_stage_a_engine.log 2>&1
+
+# Stage B smoke (small detector)
+pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers > pytest_stage_b_engine.log 2>&1
+
+# Stage C smoke (small detector)
+pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip > pytest_stage_c_engine.log 2>&1
+
+# DB-AT-024 mapping parity (zero-iteration, engine-independent)
+pytest -v tests/dbex/test_mapping_consistency.py::test_db_at_024_mapping_fidelity > pytest_db_at_024_engine.log 2>&1
+```
 
 ## Pitfalls To Avoid
 
-1. **Do NOT run tests without environment flags**: All Stage C smokes require `KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1`
-2. **Do NOT skip telemetry capture**: Set `DBEX_SMOKE_TELEMETRY_PATH` for both small+full runs to archive telemetry artifacts
-3. **Do NOT modify production code**: This is a docs-only validation loop (Mode: Docs), only update docs/findings/implementation.md
-4. **Do NOT forget full detector env flag**: DB-AT-024 requires `DBEX_SMOKE_DETECTOR_SIZE=full` per TESTING_GUIDE.md §1.1
-5. **Do NOT skip collect-only for DB-AT-024**: Archive collection log to prove selector exists and collects 1 test
-6. **CPU fallback NOT supported**: Full detector runs CUDA-only per GRADIENT-003 (HKL grid CPU transfer corruption deferred)
-7. **Telemetry schema must be complete**: If ANY canonical field is missing from StageC telemetry, mark D3 FAIL and debug packaging logic
-8. **REFINE-007 gates are strict**: Both detector offset reduction AND chi² regression must pass (≥80% reduction OR ≤±0.05mm final, AND ≤0.05% χ² regression)
-9. **Registry sync is mandatory**: TESTING-003 requires TESTING_GUIDE.md + TEST_SUITE_INDEX.md updates after new tests are validated
-10. **Archive ALL artifacts**: pytest logs, telemetry JSONs, validation reports, decision.md all go to `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T151440Z/phase_d3_d5/`
+1. **Lazy Imports:** Stage wrapper classes (StageA/StageB/StageC) MUST be imported inside the `if use_engine_delegation:` branch to avoid circular dependencies. Do NOT import at module level.
+
+2. **Backward Compatibility:** `use_engine_delegation=False` is the default. Existing tests and CLI workflows must continue working without changes (inline helper paths preserved).
+
+3. **Telemetry Structure:** Engine telemetry dicts MUST contain exact same keys as inline path (chi_squared, masked_mse, param_deltas, final_bragg). Wrapper classes already implement this per Phase D validation.
+
+4. **Baseline Detector Guards:** StageB and StageC wrappers require `baseline_detector` input (NOT optional). Raise clear ValueError if None when stage enabled.
+
+5. **DB-AT-024 Independence:** Zero-iteration mapping test (`test_db_at_024_mapping_fidelity`) does NOT use refinement engine. It validates forward model only. Do NOT add engine delegation to this test.
+
+6. **Engine Protocol String:** Format must be `"A→B→C"` (arrow character U+2192, not "->"). Use `"→".join(stage_names)` for correct formatting.
+
+7. **Stage Modes Dict:** Keys are uppercase stage letters ("A", "B", "C"). Values are lowercase mode strings ("shell", "detector_offsets", "per_reflection" future).
+
+8. **Test Updates In-Place:** Do NOT create new test files. Update existing smoke tests (`test_stage_a_expansion`, `test_stage_b_shell_modifiers`, `test_stage_c_detector_microslip`) by adding `use_engine_delegation=True` parameter to their `run_nanobrag_refinement` calls.
+
+9. **RefinementConfig Defaults:** `enable_stage_b` and `enable_stage_c` remain `False` by default (lines 301/310 in nanobrag_refinement.py). Only change when user passes CLI flags.
+
+10. **Indentation:** Python code uses 4 spaces per indent level (NO tabs). Verify indentation with `python3 -m py_compile` before running tests.
 
 ## If Blocked
 
-**Telemetry schema validation FAIL** (D3):
-- Identify missing fields from checklist
-- Review `dbex/refinement/stage_c.py` telemetry packaging logic (lines ~350-408 in Phase D2 commit 71d5e0d)
-- Check if RefinementTelemetry dataclass is missing fields (should have been extended in Phase A4)
-- Log blocker in `phase_d3_d5_decision.md` Path B, escalate to Galph next loop
+**Scenario 1: Engine delegation smoke test fails (Path B)**
+- Capture full error traceback in `phase_e_decision.md`
+- Compare inline vs engine telemetry side-by-side (extract from pytest logs)
+- Check StageA/B/C.run() return structure matches RefinementTelemetry schema
+- Verify lazy imports resolve correctly
+- Log blocker with hypothesis (telemetry packaging, stage wiring, imports)
+- Set decision path to B and commit blocker artifacts
 
-**REFINE-007 gate FAIL** (D4):
-- Extract actual telemetry values (detector_offset_reduction_min, detector_offset_final_abs_max, chi_squared_regression)
-- Compare to thresholds (≥0.80 reduction OR ≤0.05mm final, ≤0.05% chi² regression)
-- Review StageC helper wiring (did Phase D2 correctly call _build_stage_c_params / _build_stage_c_lbfgs_closure / _run_stage_c_lbfgs?)
-- Log blocker in `phase_d3_d5_decision.md` Path C, escalate to Galph
+**Scenario 2: CLI flag parsing fails (Path C)**
+- Verify argparse.ArgumentParser setup in refine_one.py
+- Check args.use_engine_delegation propagates to run_nanobrag_refinement call
+- Confirm RefinementConfig accepts enable_stage_b/enable_stage_c parameters
+- Test CLI manually: `python -m dbex.refine_one --help` (should show new flags)
+- Log blocker with error message + stack trace
+- Set decision path to C
 
-**DB-AT-024 FAIL** (D5):
-- Check pytest log for specific failure (correlation/localization thresholds)
-- Verify Phase D2 changes did not modify `simulate_forward_once` or zero-iteration mapping path
-- DB-AT-024 tests zero-iteration forward model, NOT refinement, so StageC wrapper should not affect it
-- Log blocker in `phase_d3_d5_decision.md` Path D, escalate to Galph
+**Scenario 3: DB-AT-024 regression (Path D)**
+- Confirm DB-AT-024 test does NOT call engine (zero-iteration mapping only)
+- If test passes without engine changes, proceed with Path A
+- If test fails, check if any shared code (nanobrag_bridge, data_load) was modified
+- Rollback engine delegation changes if necessary
+- Escalate to Galph with blocker report (include pytest log, error signature)
+- Set decision path to D
 
-**Test collection FAIL**:
-- Verify selector path is correct: `tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke`
-- Run `pytest --collect-only -q tests/dbex/test_mapping_consistency.py` to check if test exists
-- Log import errors or missing test to decision.md, escalate
-
-**Git commit conflicts**:
-- Run `git status` to inspect conflicts
-- Resolve (keep upstream for code, merge docs/findings/implementation.md updates)
-- `git add` resolved files, `git rebase --continue` (with timeout 30)
-- Log resolution decisions in summary.md
+**Scenario 4: Compilation error (unlisted)**
+- Run `python3 -m py_compile dbex/nanobrag_refinement.py`
+- Fix syntax errors (indentation, missing colons, unclosed brackets)
+- Re-run py_compile until clean
+- Restart from Step E5
 
 ## Findings Applied
 
-**Mandatory findings adherence**:
+**Mandatory (cite these in decision.md):**
 
-1. **REFINE-007** (Stage C gate: ≥80% offset reduction OR ≤±0.05mm final, ≤0.05% χ² regression) — Validate Phase D4 against this gate, extract telemetry metrics, write validation JSON
-2. **TESTING-003** (Test registry sync: update TESTING_GUIDE.md + TEST_SUITE_INDEX.md after validation, archive collect-only logs) — Step 5 implements this
-3. **GRADIENT-003** (CPU fallback deferred: HKL grid CPU transfer corruption, full detector CUDA-only) — Do NOT attempt CPU runs, skip CPU tests per Phase C2.5 deferral decision
-4. **POLICY-001** (Environment Freeze: no package installs, code-only or docs-only changes) — This is a docs-only validation loop, no production code edits
-5. **PHYSICS-LOSS-001/002** (Variance-weighted loss dual metrics + sigma_floor telemetry) — Verify telemetry schema includes chi_squared and masked_mse fields (Step 2)
-6. **PERF-WARM-006** (Stage C warm cache: reuse Stage A detector configs/masks) — Not directly validated this loop, but telemetry schema includes cache_mode/roi_mode
-7. **CONFORMANCE-001** (DB-AT environment flags: KMP_DUPLICATE_LIB_OK=TRUE, DBEX_SMOKE_DETECTOR_SIZE=full) — Step 4 uses correct env flags
-8. **RUNTIME-001** (NANOBRAGG_DISABLE_COMPILE=1 for gradient tests) — Stage C smokes are LBFGS refinement tests, flag required
+- **ARCH-ENGINE-002** (Stage wrapper pattern): Adhering to lazy imports inside run() method, telemetry packaging via asdict→enrich→reconstruct pattern, protocol interface compliance.
 
-**No relevant findings from knowledge base** that contradict this validation plan.
+- **REFINE-007/REFINE-007-EXT** (Stage C detector gates): Engine path preserves ≥80% offset reduction OR ≤±0.05mm final, ≤0.05% χ² regression gates validated in Phase D.
+
+- **REFINE-008** (Stage B shell gates): Engine path preserves ≤1e-6 χ² regression, ±1% modifier deltas gates validated in Phase D.
+
+- **POLICY-001** (Environment Freeze): Code-only integration, no package installs, no env modifications. Engine delegation is pure Python refactoring.
+
+- **TESTING-003** (Registry sync): Test registry updates (TESTING_GUIDE.md, TEST_SUITE_INDEX.md) deferred to docs-only loop after Phase E validation (per implementation.md:278 "E4: Update docs... annotations").
+
+- **GRADIENT-003** (CPU fallback deferred): Stage B full detector uses CUDA-only path (CPU fallback HKL grid transfer bug documented, Phase C2.5 decision Path C). Engine delegation does not change device routing logic.
+
+**Optional (relevant context):**
+
+- **PERF-WARM-001/006/011/012** (Warm cache patterns): Engine path reuses StageAContext warm cache per Phase B/C/D wrapper implementations.
+
+- **PHYSICS-LOSS-001/002** (Variance-weighted loss): Engine path preserves dual metrics (chi_squared + masked_mse) per Stage A/B/C wrapper telemetry packaging.
+
+- **CONFORMANCE-001** (DB-AT environment flags): DB-AT-024 requires `KMP_DUPLICATE_LIB_OK=TRUE` env flag (already set in test harness).
 
 ## Pointers
 
-- **Spec References**:
-  - `docs/spec-db-workflow.md:73-89` (Stage C detector offset refinement, REFINE-007 gate definition)
-  - `docs/spec-db-core.md:57-68` (Variance-weighted chi-squared telemetry schema, sigma_floor guard)
-  - `docs/spec-db-runtime.md:26` (Environment flags for pytest)
-  - `docs/spec-db-conformance.md:28` (DB-AT selector environment requirements)
+**Spec/Arch Docs:**
+- `docs/spec-db-workflow.md:33` (Engine Contract: ordered stages, no hardcoded A→B→C)
+- `docs/spec-db-tracing.md` §2 (Telemetry aggregation requirements)
+- `docs/architecture/pytorch_design.md` (Phase E section deferred to E4 docs-only update)
+- `plans/active/ARCH-REFINE-FLOW-001/implementation.md:274-283` (Phase E tasks E1-E5)
 
-- **Architecture**:
-  - `plans/active/ARCH-REFINE-FLOW-001/implementation.md:241-244` (Phase D checklist, exit criteria)
-  - `docs/architecture/pytorch_design.md` (RefinementStage protocol, telemetry aggregation)
+**Fix Plan:**
+- `docs/fix_plan.md` [ARCH-REFINE-FLOW-001] row (line ~185)
+- Tier 2 roadmap (line ~26-29): "Break monolithic run_nanobrag_refinement into maintainable Protocol Engine"
 
-- **Testing**:
-  - `docs/TESTING_GUIDE.md:12-60` (Stage smoke dataset policy, environment flags, telemetry capture)
-  - `docs/development/TEST_SUITE_INDEX.md:12` (Stage A/B/C smoke registry row)
-  - `docs/development/testing_strategy.md:169-174` (Test registry sync requirements per TESTING-003)
+**Findings:**
+- `docs/findings.md` row 70 (ARCH-ENGINE-002: Stage wrapper pattern)
+- `docs/findings.md` row 71 (REFINE-007-EXT: Stage C validation methodology)
 
-- **Findings**:
-  - `docs/findings.md` row 58 (REFINE-007: Stage C gate definition)
-  - `docs/findings.md` row 69 (GRADIENT-003: CPU fallback deferred)
-  - `docs/findings.md` row 42 (TESTING-003: Registry sync protocol)
+**Test Registry:**
+- `docs/TESTING_GUIDE.md` §2.1 (Active selectors, will be updated in E4 docs-only loop)
+- `docs/development/TEST_SUITE_INDEX.md` (Stage smoke + DB-AT-024 entries)
 
-- **Phase D Evidence**:
-  - `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T141817Z/phase_d2/decision.md` (Ralph's Phase D2 completion, all 4 tests PASSED)
-  - `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T141817Z/phase_d2/summary.md` (Turn Summary block with artifacts path)
+**Phase D Evidence:**
+- `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T151440Z/phase_d3_d5/phase_d3_d5_decision.md` (All Phase D validation gates PASSED)
+- `dbex/refinement/stage_a.py`, `dbex/refinement/stage_b.py`, `dbex/refinement/stage_c.py` (Wrapper implementations)
+- `dbex/refinement/engine.py` (Engine skeleton, Phase A nucleus TDD)
 
-- **Fix Plan**:
-  - `docs/fix_plan.md` ARCH-REFINE-FLOW-001 row (Status: in_progress, Phase D1b complete per galph_memory.md, Phase D2-D5 pending)
+## Next Up (Optional)
 
-## Next Up (optional)
+**If Path A (all tests PASS):**
+1. **Phase E docs-only cleanup** (E4): Update `docs/architecture/pytorch_design.md` with engine delegation section, `docs/TESTING_GUIDE.md` Phase E completion note, `docs/spec-db-workflow.md` annotations.
+2. **ARCH-REFINE-FLOW-001 closure**: Mark initiative as `done` in `docs/fix_plan.md`, archive all Phase A-E artifacts, update Execution Roadmap Tier 2 status.
+3. **Tier 3 readiness**: Unblock TORCH-REFINE-004 (Stage B per-reflection mode) per `docs/fix_plan.md:33` guardrail ("Deferred until ARCH-REFINE-FLOW-001 Phase E complete").
 
-If all Phase D3-D5 validation gates PASS and you finish early, you may **read-only preview** Phase E requirements (DO NOT implement):
+**If Path B/C/D (failures):**
+- Debug engine delegation logic, compare inline vs engine telemetry, fix wiring/imports.
+- Escalate to Galph with comprehensive blocker report (error signatures, hypotheses, attempted fixes).
+- Do NOT proceed to docs updates until all 4 tests pass.
 
-1. Read `plans/active/ARCH-REFINE-FLOW-001/implementation.md` Phase E section (lines 251-260)
-2. Note Phase E objectives: Expose stage registry/config knobs in RefinementEngine, update CLI to accept enablement flags, add engine_protocol telemetry
-3. Identify which files will need production code changes in Phase E: `dbex/refinement/engine.py`, `dbex/nanobrag_refinement.py`, `dbex/refine_one.py`, config dataclasses
-4. Write 1-2 sentence note in `phase_d3_d5_decision.md` about Phase E preview (e.g., "Phase E will require production code changes to RefinementEngine for stage enablement flags; estimated 2-3 loops for E1-E5")
+## Doc Sync Plan
+**Deferred to next loop (E4 docs-only cleanup) per FSM implementation floor rule.**
 
-**DO NOT**:
-- Author Phase E implementation code
-- Modify engine.py or refine_one.py
-- Create Phase E Do Now (Galph will do this next loop)
-- Extend this loop beyond Phase D3-D5 validation scope
+After Path A confirmation (all 4 tests PASS), next Galph loop will delegate docs-only tasks:
+- Update `docs/architecture/pytorch_design.md` (Engine Delegation section with phase summary + usage examples)
+- Update `docs/TESTING_GUIDE.md` §2.1 (Phase E completion note: "Engine delegation validated 2025-11-23T160000Z")
+- Update `docs/spec-db-workflow.md` (Annotations linking to Phase E artifacts)
+- Archive `pytest --collect-only` logs for updated selectors (if any test signatures changed)
+- Update `docs/development/TEST_SUITE_INDEX.md` (no new tests, but document engine delegation parameter availability)
 
-## Doc Sync Plan (Conditional)
-
-**NOT APPLICABLE** — No new tests added this loop (validation-only). Test registry updates (Step 5) document existing StageC wrapper selector, but no pytest --collect-only artifacts required since selectors already exist and were validated in Phase D2.
-
-If you DO run `pytest --collect-only` for DB-AT-024 in Step 4, archive the log to artifacts/ but do NOT update registry again (it's already documented).
-
-## Mapped Tests Guardrail
-
-**All selectors collect >0 tests** (verified Phase D2):
-- `test_stage_c_detector_microslip`: 1 test (small detector), 1 test (full detector) — 2 total
-- `TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke`: 1 test
-
-No new tests authored this loop, so guardrail satisfied by Phase D2 evidence.
-
-## Normative Math/Physics
-
-**REFINE-007 Gate Definition** (do NOT paraphrase):
-- See `docs/spec-db-workflow.md:73-89` (Stage C detector offset refinement)
-- Acceptance criteria:
-  1. `detector_offset_reduction >= 0.80` (≥80% reduction from initial injected offset)
-     OR `detector_offset_final_abs_max <= 0.05` (mm) (final offset within ±0.05mm tolerance)
-  2. `chi_squared_regression <= 0.0005` (≤0.05% relative to Stage A final chi²)
-
-**Variance-Weighted Chi-Squared** (telemetry schema):
-- See `docs/spec-db-core.md:57-68` (Loss Function Definition)
-- Normative formula: `χ² = Σ_pixels ((I_model - I_obs)² / V)` where `V = max(I_model + σ_readout², σ_floor²)`
-- Telemetry MUST report BOTH `chi_squared` (variance-weighted) AND `masked_mse` (legacy compatibility)
-
-Do NOT create pseudo-code implementations; Ralph should read the spec directly if unclear.
+**Rationale:** Docs updates are non-blocking hygiene; code validation must complete first. Splitting into separate loop maintains implementation floor discipline (max 1 docs-only loop per focus) and enables clean Path A verification before final documentation.

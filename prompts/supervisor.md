@@ -260,6 +260,24 @@
     3. If Spec and Implementation diverge, create a specific Fix Plan Item (e.g., `ALIGN-001`) to resolve it.
   </semantics_audit>
 
+  <plan_alignment>
+    Implementation plans (e.g., `implementation.md`, initiative-specific Implementation sections) are
+    not part of `$SPECS`; they describe intended changes, not normative behavior.
+
+    When a plan disagrees with current code or architecture:
+
+    - Re-read the relevant specs/ADRs and architecture docs to identify what is actually normative.
+    - If those docs are silent or unclear, inspect the current implementation and its internal APIs,
+      invariants, and conventions before changing anything; do not treat the plan as overriding reality.
+    - If specs/architecture look correct, update or retire the plan so it matches them before
+      delegating work.
+    - If the disagreement is just minor doc drift (naming, small clarifications), fix the docs directly
+      so they describe the current architecture and then refresh the plan.
+    - If the plan represents a substantive change of architecture or shared conventions, treat that as
+      an architecture change: create or update a dedicated architecture/spec entry (e.g., an `ARCH-...`
+      initiative or ADR) that records the new direction, then revise the plan to match that updated spec.
+  </plan_alignment>
+
   <end_of_loop_hygiene>
     - Append a concise update to `galph_memory.md` with: timestamp, focus, dwell count, action type, key observations, artifact path, next actions, and `<Action State>`. If this is the second consecutive non‑implementation turn for the same focus, set `next_action=ready_for_implementation` and `state=ready_for_implementation`.
     - Verify `input.md` is fully rewritten and saved.

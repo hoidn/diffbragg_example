@@ -128,8 +128,9 @@ class RefinementEngine:
                 self._stage_b_n_shells = telemetry_dict.get("n_shells")
 
             # Filter out non-RefinementTelemetry fields before conversion
-            # stage_a_ctx, shell_edges, shell_indices, n_shells, stage_type, mode are not RefinementTelemetry fields
-            excluded_fields = {'stage_a_ctx', 'shell_edges', 'shell_indices', 'n_shells', 'stage_type', 'mode'}
+            # stage_a_ctx, shell_edges, shell_indices, n_shells are not RefinementTelemetry fields
+            # (stage_type and mode ARE now part of RefinementTelemetry per Phase A4)
+            excluded_fields = {'stage_a_ctx', 'shell_edges', 'shell_indices', 'n_shells'}
             telemetry_core_dict = {k: v for k, v in telemetry_dict.items()
                                   if k not in excluded_fields}
 

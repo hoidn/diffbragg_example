@@ -434,6 +434,9 @@ class RefinementTelemetry:
     canonical_roi_count: Optional[int] = None
     canonical_detector_distances_mm: Optional[List[float]] = None
     roi_mode: Optional[str] = None
+    # Phase A4: Stage identification for engine aggregation
+    stage_type: Optional[str] = None  # Stage identifier (A, B, C, or custom)
+    mode: Optional[str] = None  # Stage mode (e.g., "shell_modifiers", "detector_offsets")
 
 
 def _compute_variance_weighted_loss(

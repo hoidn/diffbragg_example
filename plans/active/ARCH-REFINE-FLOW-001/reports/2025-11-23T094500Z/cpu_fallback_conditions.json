@@ -1,0 +1,4 @@
+[
+  {"location": "_build_stage_b_params", "config_stage_b_full_eval_on_cpu": true, "device_str": "cuda:0", "device_type": "device", "device_is_cuda": true, "use_stage_a_roi_mode": false, "use_stage_a_roi_mode_type": "bool", "stage_a_ctx_is_not_none": true, "use_stage_b_cpu_fallback": true},
+  {"location": "_build_stage_b_lbfgs_closure", "use_stage_b_cpu_fallback": true, "device_param": "cuda:0", "eval_device": "cpu", "eval_device_type": "cpu"}
+]

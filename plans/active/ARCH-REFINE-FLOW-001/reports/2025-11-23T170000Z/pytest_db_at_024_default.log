@@ -30,4 +30,4 @@ tests/dbex/test_mapping_consistency.py:186
     @pytest.mark.mapping
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-======================== 1 passed, 6 warnings in 31.63s ========================
+======================== 1 passed, 6 warnings in 31.79s ========================

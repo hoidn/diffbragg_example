@@ -26,4 +26,4 @@ tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
     self._raw_data = flex.int(np.fromstring(array_string, np.int32))
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-======================== 1 passed, 5 warnings in 12.47s ========================
+======================== 1 passed, 5 warnings in 12.55s ========================

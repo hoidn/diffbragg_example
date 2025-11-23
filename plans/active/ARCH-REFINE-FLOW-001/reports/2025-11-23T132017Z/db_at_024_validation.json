@@ -1,0 +1,7 @@
+{
+  "test_id": "DB_AT_024",
+  "status": "PASS",
+  "exit_code": 0,
+  "regression_detected": false,
+  "notes": "CPU fallback deferral affects only full detector (skipped); CUDA path (DB-AT-024 uses small/canonical) unchanged"
+}

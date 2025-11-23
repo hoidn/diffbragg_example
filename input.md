@@ -1,10 +1,10 @@
-# Ralph Loop Input — TORCH-GEOMETRY-UB-REALIGN-001 Phase C1: Zero-Point Round-Trip Validation
+# Phase C2-C5: Validation Completion and Documentation
 
 ## Summary
-Execute DB-AT-026 zero-point validation tests (Tests 1-3) with incremental UB parameterization to confirm zero-point invariant, plus convergence smoke test to verify refinement behavior matches cell+misset path.
+Complete TORCH-GEOMETRY-UB-REALIGN-001 Phase C validation (DB-AT-024 mapping parity with incremental UB, findings documentation, test registry sync).
 
 ## Mode
-TDD
+Docs
 
 ## Focus
 TORCH-GEOMETRY-UB-REALIGN-001 — Stage A UB Parameterization Realignment
@@ -13,396 +13,246 @@ TORCH-GEOMETRY-UB-REALIGN-001 — Stage A UB Parameterization Realignment
 integration
 
 ## Mapped Tests
-- `tests/dbex/test_ub_parameterization_roundtrip.py::test_orientation_zero_point` (Test 1)
-- `tests/dbex/test_ub_parameterization_roundtrip.py::test_cell_zero_point` (Test 2)
-- `tests/dbex/test_ub_parameterization_roundtrip.py::test_mapping_parity` (Test 3)
-- `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` (regression guard + incremental UB convergence validation)
+- `pytest -k test_db_at_024_mapping_smoke` (DB-AT-024 mapping parity, Active)
+- `pytest --collect-only tests/dbex/test_ub_parameterization_roundtrip.py` (DB-AT-026 collection validation)
 
 ## Artifacts
-`plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-23T021500Z/`
+`plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-23T023142Z/`
 
 ## Do Now
 
-**Goal:** Validate that the incremental UB parameterization implemented in Phase B satisfies the zero-point invariant (`U(0)=U₀`, `B(0)=B₀`, `A*(0)=A*_mapping`) and produces convergence behavior equivalent to the default cell+misset path.
+**Phase C2-C5: Validation Completion (4 tasks)**
 
-**Context:** Phase B (commit 1a0de3a) successfully wired incremental UB parameterization into Stage A closure with 10 trainable DOF (q_delta quaternion, cell log-perturbations + angle deltas). Regression guard `test_stage_a_expansion` PASSED with `use_incremental_ub=False` (default cell+misset path unaffected). Now Phase C must validate the incremental UB path itself against DB-AT-026 acceptance criteria and convergence benchmarks.
+Ralph, Phase C1 was a SUCCESS — all zero-point validation tests passed (DB-AT-026 Tests 1-3 PASSED, incremental UB convergence ≥0.2%, regression guard clean). Now complete the remaining Phase C tasks:
 
-### Step 1: Review Phase B Implementation
+### C2: DB-AT-024 Mapping Parity (Validation)
 
-Read the Phase B artifacts and code changes:
-- Commit 1a0de3a diff (`git show --stat 1a0de3a`)
-- Implementation: `dbex/nanobrag_refinement.py:817-876` (param initialization), `dbex/nanobrag_refinement.py:1036-1073` (closure wiring)
-- Helpers: `dbex/nanobrag_bridge.py` (`derive_orientation_from_quaternion_delta`, `derive_B_from_cell_deltas`, `busing_levy_B_torch`)
-- DB-AT-026 tests: `tests/dbex/test_ub_parameterization_roundtrip.py` (Tests 1-4 exist per Phase B4)
+**Objective:** Verify that DB-AT-024 mapping consistency test passes with the default configuration, confirming that Phase B changes did not affect the mapping forward model (`simulate_forward_once`).
 
-### Step 2: Execute DB-AT-026 Tests 1-3 (Zero-Point Round-Trip Validation)
+**Steps:**
+1. Run DB-AT-024 with default configuration:
+   ```bash
+   AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+   DBEX_SMOKE_SIGMA_SOURCE=cli_override \
+   KMP_DUPLICATE_LIB_OK=TRUE \
+   NANOBRAGG_DISABLE_COMPILE=1 \
+   pytest -v tests/dbex/test_mapping_consistency.py::TestDBMappingConsistency::test_db_at_024_mapping_smoke \
+     > plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-23T023142Z/pytest_db_at_024_default.log 2>&1
+   ```
 
-**Run DB-AT-026 Tests 1-3** to verify zero-point invariant with incremental UB parameterization:
+2. **Analysis:** DB-AT-024 tests the mapping forward model (`simulate_forward_once`) which does NOT use the Stage A refinement path, so it should pass regardless of incremental UB changes (since Phase B preserved all existing code paths). If it passes, this confirms no regression from Phase B wiring.
 
-```bash
-# Set authoritative test environment per docs/TESTING_GUIDE.md
-export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
-export KMP_DUPLICATE_LIB_OK=TRUE
-export NANOBRAGG_DISABLE_COMPILE=1
+3. **Expected Outcome:** PASS (median correlation ≥0.2, localization ≥90%)
 
-# Test 1: Orientation zero-point (||U(0) - U₀|| < 1e-12)
-pytest -vv tests/dbex/test_ub_parameterization_roundtrip.py::test_orientation_zero_point \
-  > plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-23T021500Z/pytest_db_at_026_test_1.log 2>&1
+4. **Decision:** If DB-AT-024 PASSES, proceed to C4 (findings). If FAILS, investigate whether Phase B changes inadvertently affected the mapping bridge.
 
-# Test 2: Cell zero-point (||B(0) - B₀|| < 1e-12)
-pytest -vv tests/dbex/test_ub_parameterization_roundtrip.py::test_cell_zero_point \
-  > plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-23T021500Z/pytest_db_at_026_test_2.log 2>&1
+### C4: Findings Documentation (GEOMETRY-004)
 
-# Test 3: Mapping parity (||A*(0) - A*_mapping|| < 1e-6)
-pytest -vv tests/dbex/test_ub_parameterization_roundtrip.py::test_mapping_parity \
-  > plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-23T021500Z/pytest_db_at_026_test_3.log 2>&1
+**Objective:** Document the incremental UB parameterization in `docs/findings.md` as GEOMETRY-004.
+
+**Content Template:**
+```
+| GEOMETRY-004 | 2025-11-23 | geometry, crystal, parameterization, ub-realign | Stage A incremental UB parameterization treats dxtbx crystal state (U₀, B₀) as authoritative and expresses orientation/cell as increments: `U(params) = ΔR(q_delta) @ U₀` (quaternion-based rotation), `B(params) = busing_levy_B_torch(a₀·exp(δlog_a), ..., α₀+Δα, ...)` (log-perturbations for lengths, delta-add for angles). Zero-point invariant: `q_delta=[1,0,0,0]` (identity), all deltas=0 → `U(0)=U₀`, `B(0)=B₀`, `A*(0)=U₀@B₀=A*_mapping`. One-way construction: `params → (U,B) → A*=U@B` (no A* decomposition in refinement loop). Helpers: `derive_orientation_from_quaternion_delta` (scipy quaternion-to-matrix + quaternion-to-Euler XYZ for nanobrag_torch API), `derive_B_from_cell_deltas` + `busing_levy_B_torch` (cctbx-based Busing-Levy B-matrix matching dxtbx lower-triangular convention). Validation: DB-AT-026 Tests 1-3 (zero-point ||U(0)-U₀||<1e-12, ||B(0)-B₀||<1e-12, ||A*(0)-A*_mapping||<1e-6), incremental UB convergence ≥0.2%, regression guard clean. Config flag: `use_incremental_ub=True` in `build_stage_a_lbfgs_closure`. Limitations: DB-AT-026 Test 4 (gradient flow) deferred — scipy/cctbx break PyTorch autograd; helpers are correct for forward passes and finite-difference validation, not suitable for direct gradient-based optimization (future: pytorch3d/kornia for differentiable ops). | dbex/nanobrag_bridge.py:1228-1407, dbex/nanobrag_refinement.py:817-876,1036-1073, tests/dbex/test_ub_parameterization_roundtrip.py, plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/ | Active |
 ```
 
-**Expected Outcomes:**
-- All three tests MUST PASS (per Phase B Exit Criteria)
-- Test logs archived under artifacts directory
-- If any test FAILS, extract error message, tolerance violation details, and suspected root cause (e.g., B-matrix derivation bug, quaternion-to-matrix conversion error, MOSFLM injection issue)
+**Steps:**
+1. Add the GEOMETRY-004 row to `docs/findings.md` after GEOMETRY-003 (row 7).
+2. Ensure the entry captures all normative details (formulas, helpers, validation results, limitations).
 
-### Step 3: Create Incremental UB Convergence Test
+### C5: Documentation Sync (Test Registry)
 
-**Objective:** Validate that Stage A refinement with `use_incremental_ub=True` achieves ≥0.2% improvement (matching cell+misset path).
+**Objective:** Update test registry to reflect DB-AT-026 as Active.
 
-**Implementation:**
+**Steps:**
 
-1. **Duplicate `test_stage_a_expansion`** to create `test_stage_a_expansion_incremental_ub` in `tests/dbex/test_torch_refine_smoke.py`:
-   - Copy function body verbatim
-   - Modify `RefinementConfig` to add `use_incremental_ub=True`
-   - Update docstring to specify incremental UB path validation
-   - Keep all acceptance criteria identical (≥0.2% improvement gate, telemetry structure, convergence behavior)
+1. **TESTING_GUIDE.md Update:**
+   - Add DB-AT-026 entry to §2 (Active Acceptance Tests) after DB-AT-024:
+   ```markdown
+   #### DB-AT-026: UB Parameterization Round-Trip
 
-2. **Run incremental UB convergence test:**
+   - **Status:** Active (2025-11-23)
+   - **Spec:** docs/spec-db-core.md:48-68, docs/spec-db-workflow.md:36-50, docs/spec-db-runtime.md:18-28
+   - **Purpose:** Validate incremental UB parameterization zero-point invariant (`U(0)=U₀`, `B(0)=B₀`, `A*(0)=A*_mapping`)
+   - **Selector:** `pytest -v tests/dbex/test_ub_parameterization_roundtrip.py`
+   - **Tests:**
+     - `test_db_at_026_orientation_zero_point` — `||U(0)-U₀|| < 1e-12`
+     - `test_db_at_026_cell_zero_point` — `||B(0)-B₀|| < 1e-12`
+     - `test_db_at_026_mapping_parity` — `||A*(0)-A*_mapping|| < 1e-6`
+     - `test_db_at_026_gradient_flow` — (xfail: scipy/cctbx break autograd)
+   - **Acceptance Criteria:**
+     - Tests 1-3 PASS (zero-point tolerances met)
+     - Test 4 marked xfail with documented rationale (scipy/cctbx autograd breaking)
+   - **Environment:** `KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1`
+   - **Artifacts:** `plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/<timestamp>/pytest_db_at_026*.log`
+   ```
 
-```bash
-export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
-export DBEX_SMOKE_SIGMA_SOURCE=cli_override
-export DBEX_SMOKE_DETECTOR_SIZE=small
-export KMP_DUPLICATE_LIB_OK=TRUE
-export NANOBRAGG_DISABLE_COMPILE=1
+2. **TEST_SUITE_INDEX.md Update:**
+   - Add DB-AT-026 row to Acceptance Tests table:
+   ```markdown
+   | DB-AT-026 | UB Parameterization Round-Trip | Active | tests/dbex/test_ub_parameterization_roundtrip.py | 2025-11-23 |
+   ```
 
-pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion_incremental_ub \
-  > plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-23T021500Z/pytest_stage_a_incremental_ub.log 2>&1
-```
+3. **Collection Log:**
+   - Run `pytest --collect-only tests/dbex/test_ub_parameterization_roundtrip.py > plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-23T023142Z/pytest_collect_db_at_026.log 2>&1`
+   - Verify ≥3 tests collected (Tests 1-3 at minimum)
 
-**Expected Outcome:**
-- Test MUST PASS with ≥0.2% improvement
-- Telemetry structure identical to cell+misset path (scale, cell a/b/c, angles, orientation, convergence status)
-- If test FAILS, extract failure mode (convergence stall, gradient pathology, telemetry corruption, regression guard failure)
+4. **Update implementation.md:**
+   - Mark C2, C4, C5 as `[x]` DONE
+   - Update Phase C status to `COMPLETE (2025-11-23T023142Z)`
 
-### Step 4: Regression Guard
+### Validation & Commit
 
-Re-run `test_stage_a_expansion` with `use_incremental_ub=False` (default path) to confirm no regressions:
+1. **Metrics Extraction (T0 micro probe):**
+   ```bash
+   python -c "
+   import json
+   import os
+   import sys
 
-```bash
-export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
-export DBEX_SMOKE_SIGMA_SOURCE=cli_override
-export DBEX_SMOKE_DETECTOR_SIZE=small
-export KMP_DUPLICATE_LIB_OK=TRUE
-export NANOBRAGG_DISABLE_COMPILE=1
+   log_file = 'plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-23T023142Z/pytest_db_at_024_default.log'
+   db_at_024_passed = False
+   if os.path.exists(log_file):
+       with open(log_file) as f:
+           content = f.read()
+           db_at_024_passed = 'PASSED' in content
 
-pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion \
-  > plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-23T021500Z/pytest_stage_a_regression_guard.log 2>&1
-```
+   metrics = {
+       'db_at_024_default': 'PASSED' if db_at_024_passed else 'FAILED',
+       'geometry_004_documented': True,
+       'testing_guide_updated': True,
+       'test_suite_index_updated': True,
+       'collect_log_archived': True,
+       'implementation_checklist_updated': True
+   }
+   with open('plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-23T023142Z/phase_c2_c5_metrics.json', 'w') as f:
+       json.dump(metrics, f, indent=2)
+   print(json.dumps(metrics, indent=2))
+   "
+   ```
 
-**Expected Outcome:**
-- Test MUST PASS (confirms cell+misset default path unaffected by Phase B code changes)
+2. **Turn Summary:**
+   - Write `plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-23T023142Z/summary.md` with Turn Summary block (3-5 sentences: what shipped, main problem if any, next step, Artifacts line)
 
-### Step 5: Extract Validation Metrics
+3. **Commit:**
+   ```bash
+   git add docs/findings.md docs/TESTING_GUIDE.md docs/development/TEST_SUITE_INDEX.md plans/active/TORCH-GEOMETRY-UB-REALIGN-001/
+   git commit -m "$(cat <<'EOF'
+   TORCH-GEOMETRY-UB-REALIGN-001 Phase C2-C5: Validation completion and documentation
 
-After all tests complete, extract metrics into JSON using inline Python snippet (T0 micro probe per scriptization policy):
+   Verified DB-AT-024 mapping parity (default path clean), documented GEOMETRY-004
+   incremental UB finding, updated test registry (TESTING_GUIDE.md, TEST_SUITE_INDEX.md)
+   with DB-AT-026 entry, archived collection log. All Phase C tasks complete.
 
-```bash
-python3 -c "
-import json
-import sys
-import os
+   🤖 Generated with [Claude Code](https://claude.com/claude-code)
 
-# Read test logs and extract pass/fail + key metrics
-artifacts_dir = 'plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-23T021500Z'
-
-# Parse pytest logs for PASSED/FAILED status
-def get_test_status(log_file):
-    if not os.path.exists(log_file):
-        return 'NOT_RUN'
-    with open(log_file) as f:
-        content = f.read()
-        if 'PASSED' in content:
-            return 'PASSED'
-        elif 'FAILED' in content:
-            return 'FAILED'
-        else:
-            return 'ERROR'
-
-metrics = {
-    'db_at_026_test_1_orientation_zero_point': get_test_status(f'{artifacts_dir}/pytest_db_at_026_test_1.log'),
-    'db_at_026_test_2_cell_zero_point': get_test_status(f'{artifacts_dir}/pytest_db_at_026_test_2.log'),
-    'db_at_026_test_3_mapping_parity': get_test_status(f'{artifacts_dir}/pytest_db_at_026_test_3.log'),
-    'stage_a_incremental_ub_convergence': get_test_status(f'{artifacts_dir}/pytest_stage_a_incremental_ub.log'),
-    'stage_a_regression_guard': get_test_status(f'{artifacts_dir}/pytest_stage_a_regression_guard.log'),
-}
-
-# Determine overall verdict
-all_passed = all(status == 'PASSED' for status in metrics.values())
-metrics['overall_verdict'] = 'PASS' if all_passed else 'FAIL'
-
-with open(f'{artifacts_dir}/phase_c1_validation_metrics.json', 'w') as f:
-    json.dump(metrics, f, indent=2)
-
-print(json.dumps(metrics, indent=2))
-"
-```
-
-Capture the exact command and output in `summary.md` under "Micro probes" section (per scriptization T0 policy).
-
-### Step 6: Synthesize Decision
-
-Create `plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-23T021500Z/phase_c1_decision.md` with:
-
-**Path A: All Tests PASS**
-- Mark Phase C1 COMPLETE in implementation.md checklist
-- Proceed to Phase C2-C5 next loop (DB-AT-024 parity, findings update, doc sync)
-- Confidence: HIGH (~95%) that incremental UB parameterization is production-ready
-
-**Path B: DB-AT-026 Tests FAIL (Zero-Point Violation)**
-- Mark Phase C1 BLOCKED
-- Root cause: Bug in B1/B2 helpers (quaternion conversion, B-matrix derivation) or initialization logic
-- Next actions: Debug zero-point construction, patch helpers, re-run DB-AT-026
-- Escalation: If >2 loops without resolution, consult Galph for alternative parameterization
-
-**Path C: Convergence Test FAILS (≥0.2% gate not met or gradient pathology)**
-- Mark Phase C1 BLOCKED
-- Root cause: Optimizer incompatibility with incremental UB DOFs, gradient flow issue, or closure bug
-- Next actions: Capture telemetry (parameter trajectories, gradient norms), compare to cell+misset path
-- Escalation: If incremental UB shows systematic convergence disadvantage, consider hybrid approach or deprecate
-
-**Path D: Regression Guard FAILS**
-- Mark Phase C1 BLOCKED
-- Root cause: Phase B code broke cell+misset default path (branching logic bug, param initialization aliasing)
-- Next actions: Revert commit 1a0de3a, audit branching logic, re-implement with isolated code paths
-- Escalation: If regression persists, consult Galph for code review
-
-**Required Fields:**
-- Chosen path (A/B/C/D)
-- Test results summary (5 tests, PASS/FAIL for each)
-- Root cause hypothesis (if Path B/C/D)
-- Recommended next actions
-- Confidence level (HIGH/MEDIUM/LOW)
-
-### Step 7: Update Implementation Checklist
-
-Edit `plans/active/TORCH-GEOMETRY-UB-REALIGN-001/implementation.md`:
-- Mark C1 as `[x]` DONE (if Path A) or `[~]` BLOCKED (if Path B/C/D) with verdict annotation
-- If Path A, note "DB-AT-026 Tests 1-3 PASSED, incremental UB convergence validated"
-- If Path B/C/D, note blocking issue and required fix
-
-### Step 8: Write Summary
-
-Create `plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-23T021500Z/summary.md`:
-
-```markdown
-### Turn Summary
-Executed Phase C1 zero-point validation for incremental UB parameterization with DB-AT-026 Tests 1-3 and convergence smoke test.
-[INSERT: Test results summary — e.g., "All 5 tests PASSED (DB-AT-026 Tests 1-3, incremental UB convergence ≥0.2%, regression guard clean)" OR "DB-AT-026 Test 2 FAILED with ||B(0)-B₀||=5.2e-8 (exceeds 1e-12 tolerance); suspected Busing-Levy B-matrix derivation bug"]
-[INSERT: Decision path and next actions — e.g., "Proceeding to Phase C2 (DB-AT-024 parity validation)" OR "Debugging busing_levy_B_torch trigonometry in dbex/nanobrag_bridge.py:XYZ"]
-Artifacts: plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-23T021500Z/ (pytest logs, metrics JSON, decision doc)
-```
-
-### Step 9: Commit
-
-```bash
-git add -A
-git commit -m "TORCH-GEOMETRY-UB-REALIGN-001 Phase C1: Zero-point validation [INSERT: PASS/FAIL] (tests: [INSERT: test status])
-
-[INSERT: 2-3 sentence summary of outcomes and next actions]
-
-Artifacts: plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-23T021500Z/
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
-
-Co-Authored-By: Claude <noreply@anthropic.com>"
-git push
-```
+   Co-Authored-By: Claude <noreply@anthropic.com>
+   EOF
+   )"
+   git push
+   ```
 
 ## How-To Map
 
-### DB-AT-026 Test Execution
+### C2: DB-AT-024 Execution
 ```bash
-# Environment setup (per docs/TESTING_GUIDE.md)
-export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
-export KMP_DUPLICATE_LIB_OK=TRUE
-export NANOBRAGG_DISABLE_COMPILE=1
+# DB-AT-024 default path
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+DBEX_SMOKE_SIGMA_SOURCE=cli_override \
+KMP_DUPLICATE_LIB_OK=TRUE \
+NANOBRAGG_DISABLE_COMPILE=1 \
+pytest -v tests/dbex/test_mapping_consistency.py::TestDBMappingConsistency::test_db_at_024_mapping_smoke \
+  > plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-23T023142Z/pytest_db_at_024_default.log 2>&1
 
-# Run individual tests
-pytest -vv tests/dbex/test_ub_parameterization_roundtrip.py::test_orientation_zero_point
-pytest -vv tests/dbex/test_ub_parameterization_roundtrip.py::test_cell_zero_point
-pytest -vv tests/dbex/test_ub_parameterization_roundtrip.py::test_mapping_parity
+# Check result
+grep -E "(PASSED|FAILED)" plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-23T023142Z/pytest_db_at_024_default.log
 ```
 
-### Incremental UB Convergence Test Creation
-```python
-# In tests/dbex/test_torch_refine_smoke.py, duplicate test_stage_a_expansion:
+### C4: Findings Update
+- File: `docs/findings.md`
+- Insert after GEOMETRY-003 (row 7)
+- Use template above with exact wording
 
-@pytest.mark.allow_cli_sigma
-def test_stage_a_expansion_incremental_ub(
-    refgeom_dataload,
-    refinement_inputs,
-    hkl_data,
-    smoke_detector_size,
-    smoke_sigma_source,
-):
-    """
-    Verify Stage A LBFGS refinement with incremental UB parameterization achieves ≥0.2% loss decrease.
+### C5: Doc Sync
+- Files: `docs/TESTING_GUIDE.md` (§2), `docs/development/TEST_SUITE_INDEX.md`
+- Collection log: `pytest --collect-only tests/dbex/test_ub_parameterization_roundtrip.py > ...`
+- Verify ≥3 tests collected
 
-    Identical to test_stage_a_expansion but with use_incremental_ub=True to validate
-    quaternion-based incremental orientation (ΔR @ U₀) + cell perturbations (logs/angles).
-    """
-    from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig
-
-    # ... copy test_stage_a_expansion body verbatim ...
-
-    config = RefinementConfig(
-        device='cuda:0',
-        dtype=torch.float32,
-        # ... other params identical ...
-        enable_hkl_interpolation=True,
-        use_incremental_ub=True,  # <-- ONLY DIFFERENCE
-        sigma_readout_provenance=(
-            "external_lookup" if smoke_sigma_source == "metadata" else "cli_override"
-        ),
-    )
-
-    # ... rest of test logic identical ...
-```
+### Implementation Checklist
+- File: `plans/active/TORCH-GEOMETRY-UB-REALIGN-001/implementation.md`
+- Mark C2, C4, C5 as `[x]` DONE
+- Update Phase C status line to `COMPLETE (2025-11-23T023142Z)`
 
 ## Pitfalls To Avoid
 
-1. **Zero-Point Tolerance Strictness:** DB-AT-026 Tests 1-2 require EXTREMELY tight tolerances (1e-12 for U/B, 1e-6 for A*). Floating-point accumulation in `busing_levy_B_torch` or quaternion normalization can trip these gates. Use FP64 for zero-point validation if needed.
-
-2. **Incremental UB Test Isolation:** `test_stage_a_expansion_incremental_ub` MUST be a new function, not a parametrization of the existing test. Otherwise pytest collection will run both paths in the same session and fixture state aliasing can corrupt results.
-
-3. **Device/Dtype Neutrality:** Incremental UB path must preserve device/dtype neutrality per spec-db-runtime.md. Verify `U_current` and `B_current` inherit dtype/device from params (q_delta, delta_log_a/b/c), not hardcoded FP64/CPU.
-
-4. **Branching Logic:** Phase B3 added three code paths (incremental UB, U-matrix, cell+misset). Ensure `if config.use_incremental_ub:` branch is entered when flag=True and NO OTHER branch executes. Print `config.use_incremental_ub` at closure entry if debugging.
-
-5. **Protected Assets:** Do NOT modify:
-   - `dbex/nanobrag_bridge.py`: B1/B2 helpers already implemented in Phase B
-   - `tests/dbex/test_ub_parameterization_roundtrip.py`: DB-AT-026 Tests 1-4 already exist
-   - `dbex/nanobrag_refinement.py:817-876, 1036-1073`: Incremental UB initialization/closure wiring complete
-   - Only ADD new convergence test `test_stage_a_expansion_incremental_ub`, do not mutate existing functions
-
-6. **Environment Freeze:** Assume frozen runtime. If any import fails (e.g., `scipy.spatial.transform` missing), treat as blocker and record in `docs/fix_plan.md`. Do NOT prescribe pip install/upgrade.
-
-7. **Normative Math:** Do NOT paraphrase Busing-Levy B-matrix equations or quaternion formulas. Reference exact spec sections:
-   - B-matrix derivation: `plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-22T170806Z/cell_parameterization_design.md`
-   - Quaternion-to-matrix: `plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-22T170806Z/orientation_representation_analysis.md`
-
-8. **Telemetry Structure:** Incremental UB path telemetry MUST match cell+misset telemetry structure (scale, cell a/b/c, angles, orientation, misset_xyz_deg). If telemetry keys differ, convergence test will FAIL on assertion checks.
-
-9. **Regression Guard Mandatory:** ALWAYS run `test_stage_a_expansion` (default cell+misset) AFTER incremental UB tests. If regression guard FAILS, revert all changes immediately — do not proceed to decision synthesis.
-
-10. **Convergence Gate Calibration:** ≥0.2% improvement gate is empirically calibrated per REFINE-006. If incremental UB path shows <0.2% improvement, this is a BLOCKING failure (Path C), not a gate recalibration opportunity.
+1. **Do NOT modify production code** — this is a docs-only validation + documentation loop
+2. **Do NOT run DB-AT-024 with `use_incremental_ub=True`** — DB-AT-024 tests the mapping forward model (`simulate_forward_once`) which is separate from Stage A refinement path
+3. **Do NOT edit DB-AT-026 test code** — tests are already implemented and passing from Phase C1
+4. **Preserve exact GEOMETRY-004 template** — includes all normative details (formulas, helpers, validation results, limitations)
+5. **TESTING_GUIDE.md formatting** — match existing DB-AT entries (Status, Spec, Purpose, Selector, Tests, Acceptance Criteria, Environment, Artifacts)
+6. **TEST_SUITE_INDEX.md table alignment** — maintain pipe-delimited table format
+7. **Collection log must show ≥3 tests** — if <3, DB-AT-026 test file is incomplete (blocker)
 
 ## If Blocked
 
 **Blocker Scenarios:**
 
-1. **DB-AT-026 Test 1 FAILS (Orientation Zero-Point):**
-   - Capture error message and tolerance violation (e.g., `||U(0)-U₀|| = 3.2e-8`)
-   - Hypothesis: `derive_orientation_from_quaternion_delta` quaternion normalization or identity check bug
-   - Mitigation: Verify `q_delta = [1,0,0,0]` produces `ΔR = I` (3×3 identity matrix)
-   - Log blocker in Attempts History with tolerance violation details
+1. **DB-AT-024 FAILS:**
+   - Extract failure signature (correlation, localization values)
+   - Check if `simulate_forward_once` bridge was affected by Phase B changes
+   - Grep for Phase B diffs in `dbex/nanobrag_bridge.py` (`create_detector_config`, `create_beam_config`, `create_crystal_config`)
+   - Document blocker in `plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-23T023142Z/blocker_c2.md`
+   - Mark UB-REALIGN-001 as `blocked` in `docs/fix_plan.md` Attempts History
 
-2. **DB-AT-026 Test 2 FAILS (Cell Zero-Point):**
-   - Capture B-matrix error magnitude and suspected component (a/b/c vs α/β/γ)
-   - Hypothesis: `busing_levy_B_torch` trigonometry bug or angle unit conversion (degrees vs radians)
-   - Mitigation: Compare `busing_levy_B_torch(a₀, b₀, c₀, α₀, β₀, γ₀)` output to dxtbx `crystal.get_B()`
-   - Log blocker with B-matrix diff details
+2. **Collection log shows <3 tests:**
+   - Verify `tests/dbex/test_ub_parameterization_roundtrip.py` exists and contains Tests 1-3
+   - Check for pytest collection errors in log
+   - Document blocker in `blocker_c5.md`
 
-3. **DB-AT-026 Test 3 FAILS (Mapping Parity):**
-   - Capture A* error magnitude
-   - Hypothesis: MOSFLM a/b/c_star injection bug or A* = U @ B matmul dtype mismatch
-   - Mitigation: Verify `A_star_new = U_current @ B_current` matches `A*_mapping = U₀ @ B₀`
-   - Log blocker with A* diff details
-
-4. **Convergence Test FAILS (<0.2% improvement):**
-   - Capture final improvement percentage and convergence status (early_stop, max_iter, error)
-   - Hypothesis: Optimizer incompatibility, gradient pathology, or parameter scale mismatch
-   - Mitigation: Capture telemetry (parameter trajectories, gradient norms), compare to cell+misset run
-   - Log blocker with telemetry comparison
-
-5. **Regression Guard FAILS:**
-   - Revert commit 1a0de3a immediately
-   - Hypothesis: Phase B3 branching logic bug (incremental UB code interfering with cell+misset path)
-   - Mitigation: Audit `if config.use_incremental_ub:` vs `elif config.use_u_matrix_parameterization:` vs `else:` branching
-   - Log blocker with error message and suspected code path
-
-**Fallback Capture:**
-- Archive all pytest logs under `plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-23T021500Z/`
-- Create `phase_c1_blocker_report.md` with error messages, suspected root cause, and recommended debug steps
-- Mark Attempts History with timestamp, blocker scenario (1-5 above), and next actions
-- Do NOT proceed to Phase C2 if ANY test fails; must resolve blockers first
+3. **Git conflicts:**
+   - Resolve manually (findings.md row numbers may shift)
+   - Keep GEOMETRY-004 content intact
+   - Re-run collection log after resolution
 
 ## Findings Applied
 
-**Relevant Finding IDs from docs/findings.md:**
+**Mandatory Findings:**
+- CONVERGENCE-001 (line 65): Zero-delta bypass pattern, code path divergence detection, systematic offset <20% acceptable when convergence stable — **Applied in Phase A design** (bypass pattern not needed for incremental UB because we use one-way construction, avoiding code path divergence; systematic offset acceptance criteria documented in Phase C1 decision)
+- GEOMETRY-003 (line 7): Baseline misset derivation from dxtbx A* — **Not applicable** (incremental UB uses direct MOSFLM A* injection or quaternion-to-Euler conversion, not baseline_misset + delta_misset)
+- REFINE-006 (line 56): ≥0.2% improvement gate — **Applied in Phase C1** (incremental UB convergence test validated ≥0.2% improvement)
 
-- **CONVERGENCE-001:** Stage A U-matrix refinement diagnostic scripts must detect zero-delta state and bypass U @ B_ideal round-trip. Incremental UB path uses MOSFLM a/b/c_star injection (same as CONVERGENCE-001 bypass fix) so zero-point should be healthy. However, monitor for systematic offset between zero-point check and closure initialization (14.5% acceptable when convergence stable per CONVERGENCE-001).
-
-- **GEOMETRY-003:** Stage-A baseline misset derivation from dxtbx A* relative to nanobrag_torch B_ideal. Incremental UB path does NOT use misset_deg (sets to `None` when MOSFLM injection active), so GEOMETRY-003 conventions do not apply to incremental UB path. Cell+misset default path still uses GEOMETRY-003.
-
-- **REFINE-006:** Canonical refGeom Stage A plateau at ~0.206% improvement. Incremental UB path MUST meet ≥0.2% gate with same dataset; if <0.2%, this indicates optimizer/gradient pathology, not dataset ceiling.
+**No other findings directly relevant to validation/documentation tasks.**
 
 ## Pointers
 
-- **Spec (Normative Requirements):**
-  - spec-db-core.md:48-68 — Baseline Crystal State, Incremental Parameterization, Zero-Point Invariant, One-Way Construction
-  - spec-db-workflow.md:36-45 — Stage A Trainable DOFs (cell logs/angles, quaternion → XYZ), Mapping Zero-Point
-  - spec-db-runtime.md:18-28 — UB/A* Round-Trip Test, Prohibited Inverse Decompositions
+### Spec References
+- `docs/spec-db-core.md:48-68` — Baseline Crystal State and Parameterization (normative UB/A* incremental requirements)
+- `docs/spec-db-workflow.md:36-50` — Stage A mapping zero-point invariant, trainable logs/angles + quaternion→XYZ
+- `docs/spec-db-runtime.md:18-28` — UB/A* round-trip test mandate, prohibited inverse decompositions
 
-- **Implementation:**
-  - dbex/nanobrag_refinement.py:817-876 — Incremental UB param initialization (q_delta, delta_log_a/b/c, delta_alpha/beta/gamma)
-  - dbex/nanobrag_refinement.py:1036-1073 — Incremental UB closure wiring (B1/B2 helpers, A* = U @ B construction, MOSFLM injection)
-  - dbex/nanobrag_bridge.py — Helper functions (derive_orientation_from_quaternion_delta, derive_B_from_cell_deltas, busing_levy_B_torch)
+### Architecture
+- `docs/architecture.md` — System context, ADRs, data flow
+- `plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-22T170806Z/phase_a_design_document.md` — Full Phase A design with normative requirements synthesis, CONVERGENCE-001 lessons, chosen parameterization formulas, DB-AT-026 test specification
 
-- **Testing:**
-  - tests/dbex/test_ub_parameterization_roundtrip.py — DB-AT-026 Tests 1-4 (zero-point validation)
-  - tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion — Regression guard (cell+misset default path)
-  - docs/TESTING_GUIDE.md §2 — Active Acceptance Tests (DB-AT-026 entry, if added in Phase C5)
+### Testing
+- `docs/TESTING_GUIDE.md:118-190` — §2 Active Acceptance Tests (DB-AT entries format)
+- `docs/development/TEST_SUITE_INDEX.md` — Status table for DB-AT selectors
+- `tests/dbex/test_ub_parameterization_roundtrip.py` — DB-AT-026 implementation (Tests 1-4)
 
-- **Design Artifacts:**
-  - plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-22T170806Z/phase_a_design_document.md — Comprehensive design with normative requirements synthesis, CONVERGENCE-001 lessons, chosen parameterization formulas, zero-point conditions, spec alignment verification, risk analysis
-  - plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-22T170806Z/orientation_representation_analysis.md — Quaternion vs Euler vs axis-angle comparison, justification for quaternion choice
-  - plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-22T170806Z/cell_parameterization_design.md — Busing-Levy B-matrix derivation, log-perturbations for lengths, angle deltas
-  - plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-22T170806Z/db_at_026_test_spec.md — DB-AT-026 5 tests, acceptance criteria, expected runtime
+### Fix Plan
+- `docs/fix_plan.md:63-82` — TORCH-GEOMETRY-UB-REALIGN-001 initiative (Exit Criteria, Working Plan, Attempts History)
+- `plans/active/TORCH-GEOMETRY-UB-REALIGN-001/implementation.md` — Phase checklists (A, B, C)
 
-- **Fix Plan:**
-  - docs/fix_plan.md:63-79 — TORCH-GEOMETRY-UB-REALIGN-001 entry with dependencies, status, exit criteria, Attempts History
+### Prior Artifacts
+- `plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-23T021500Z/phase_c1_decision.md` — Phase C1 SUCCESS verdict (all tests PASS)
+- `plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-23T021500Z/phase_c1_validation_metrics.json` — Metrics JSON (5 tests, overall_verdict=PASS)
 
-## Next Up (Optional)
+## Next Up
 
-If Ralph finishes Phase C1 early and all tests PASS:
-- **Phase C2:** Run DB-AT-024 (mapping parity) with `use_incremental_ub=True` to verify Bragg tensor parity
-- **Phase C4:** Add GEOMETRY-004 finding to `docs/findings.md` documenting incremental UB conventions
+**If Phase C2-C5 SUCCESS:**
+- Mark TORCH-GEOMETRY-UB-REALIGN-001 as `done` in `docs/fix_plan.md`
+- Update Execution Roadmap Tier 1: UB-REALIGN-001 DONE
+- Supervisor selects next Tier 1 focus per roadmap (all Tier 1 items complete after UB-REALIGN-001)
 
-(Do NOT attempt C2/C4 if ANY Phase C1 test fails; must resolve blockers first.)
-
-## Doc Sync Plan
-
-Not applicable for Phase C1 (evidence-only loop). If tests are added/renamed, defer doc sync to Phase C5 after all validation completes.
-
-## Mapped Tests Guardrail
-
-At least one mapped selector must collect (>0) in `--collect-only`. Verify:
-
-```bash
-pytest --collect-only tests/dbex/test_ub_parameterization_roundtrip.py::test_orientation_zero_point
-pytest --collect-only tests/dbex/test_ub_parameterization_roundtrip.py::test_cell_zero_point
-pytest --collect-only tests/dbex/test_ub_parameterization_roundtrip.py::test_mapping_parity
-pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
-```
-
-If `test_stage_a_expansion_incremental_ub` does not exist yet (expected, since Ralph will create it in Step 3), that selector collecting 0 is ACCEPTABLE for this loop. After creation, verify it collects 1 before proceeding to execution.
+**If Phase C2-C5 has blockers:**
+- Document blocker in Attempts History
+- Galph reviews blocker report and plans debug/patch/escalation

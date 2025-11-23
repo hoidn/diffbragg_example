@@ -4356,7 +4356,7 @@ def run_nanobrag_refinement(
 
             # Quick fix: re-run final bragg generation for last stage
             if last_stage_name == "stage_a":
-                from dbex.nanobrag_refinement import _build_final_bragg_from_stage_a_telemetry
+                # Note: _build_final_bragg_from_stage_a_telemetry is available at module level
                 last_telem = engine_telemetry[last_stage_name]
                 # Need to reconstruct param_values from telemetry
                 # This is complex, so for Phase E let's use a simpler approach

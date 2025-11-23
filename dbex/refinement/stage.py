@@ -156,6 +156,10 @@ class RefinementTelemetry:
     stage_type: Optional[str] = None  # e.g., "stage_a", "stage_b", "stage_c", "mock_stage"
     mode: Optional[str] = None  # e.g., "shell_modifiers", "parity", "incremental_ub"
 
+    # ARCH-REFINE-FLOW-001 Phase E: Engine delegation telemetry
+    engine_protocol: Optional[str] = None  # e.g., "A→B→C", "A-only", "A→B"
+    stage_modes: Optional[Dict[str, str]] = None  # e.g., {"B": "shell", "C": "detector_offsets"}
+
     def to_dict(self) -> Dict[str, Any]:
         """
         Serialize telemetry to dict for HDF5 export and test assertions.
@@ -223,5 +227,11 @@ class RefinementTelemetry:
             result["stage_type"] = self.stage_type
         if self.mode is not None:
             result["mode"] = self.mode
+
+        # Phase E extensions
+        if self.engine_protocol is not None:
+            result["engine_protocol"] = self.engine_protocol
+        if self.stage_modes is not None:
+            result["stage_modes"] = self.stage_modes
 
         return result

@@ -2850,7 +2850,7 @@ def _build_final_bragg_from_stage_b_telemetry(
             final_misset = misset_xyz_deg
 
         # Check if warm cache is enabled AND stage_a_ctx is available
-        stage_b_use_warm_cache = config.enable_warm_cache and stage_a_ctx is not None
+        stage_b_use_warm_cache = config.enable_stage_a_warm_cache and stage_a_ctx is not None
 
         if stage_b_use_warm_cache:
             # Warm cache path: retarget Stage A simulators with modified crystal
@@ -3085,9 +3085,16 @@ def run_nanobrag_refinement(
 
         # Repackage telemetry with backward-compatible keys ("A", "B")
         # Filter out stage_type/mode fields to maintain RefinementTelemetry structure
+        from dataclasses import asdict
         from dbex.nanobrag_refinement import RefinementTelemetry
-        telemetry_b = RefinementTelemetry(**{k: v for k, v in telemetry_b_raw.items() if k not in ['stage_type', 'mode', 'shell_edges', 'shell_indices', 'n_shells']})
-        telemetry_a = RefinementTelemetry(**{k: v for k, v in telemetry_a_raw.items() if k not in ['stage_type', 'mode', 'stage_a_ctx']})
+
+        # Convert RefinementTelemetry dataclass instances to dicts before filtering
+        telemetry_a_dict = asdict(telemetry_a_raw)
+        telemetry_b_dict = asdict(telemetry_b_raw)
+
+        # Filter out extra fields not in RefinementTelemetry schema
+        telemetry_b = RefinementTelemetry(**{k: v for k, v in telemetry_b_dict.items() if k not in ['stage_type', 'mode', 'shell_edges', 'shell_indices', 'n_shells']})
+        telemetry_a = RefinementTelemetry(**{k: v for k, v in telemetry_a_dict.items() if k not in ['stage_type', 'mode', 'stage_a_ctx']})
 
         return bragg_full, {"A": telemetry_a, "B": telemetry_b}
 

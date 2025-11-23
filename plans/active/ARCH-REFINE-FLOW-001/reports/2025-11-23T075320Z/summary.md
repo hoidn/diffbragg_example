@@ -1,140 +1,117 @@
-### Turn Summary
-Analyzed Phase C2 blocker (loop i=205 test failures) and identified two critical bugs in engine delegation path: RefinementTelemetry dict conversion error (line 3089-3090) and missing StageB.name property check.
-Root causes: (1) calling `.items()` on dataclass instances instead of converting via `asdict()` first, (2) engine input enrichment requires StageB.name=="stage_b" property to propagate stage_a_telemetry.
-Next: Ralph fixes both bugs per revised Do Now (asdict() conversion + StageB.name property verification), reruns regression guard.
-Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T075320Z/ (blocker analysis, corrected input.md)
+# Phase C2 Bugfix Summary (Loop i=206)
 
-## Blocker Analysis (Loop i=205 → i=206 Transition)
+## Problem Statement
 
-### Ralph's Phase C2 Implementation (Loop i=205)
-**Commit**: 5f36df3 "RALPH: ARCH-REFINE-FLOW-001 Phase C2 (BLOCKED) — Stage B engine delegation implementation"
-**Artifacts**: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T073209Z/
+**SPEC Lines Implemented:**
+- spec-db-workflow.md:31-34 (Refinement Protocol Architecture, Stage delegation)
+- spec-db-core.md (RefinementTelemetry dataclass structure)
 
-**Attempted Changes:**
-1. ✓ Extracted `_build_final_bragg_from_stage_b_telemetry` helper (~198 lines)
-2. ✓ Added shell metadata to StageB telemetry output (shell_edges, shell_indices, n_shells)
-3. ✓ Implemented Stage A→B engine delegation branch (lines 3021-3092)
-4. ✓ Enhanced RefinementEngine for telemetry propagation
-5. ✓ Fixed StageB tensor conversion for numpy inputs
-6. ✓ Added stage_a_ctx to StageA telemetry output
+## Changes
 
-**Test Results:**
-- Compilation check: PASSED
-- test_stage_b_shell_modifiers: FAILED (2 distinct errors)
-- Status: BLOCKED
+### Bug 1: RefinementTelemetry dict conversion (dbex/nanobrag_refinement.py:3089-3097)
 
-### Error Signatures
+**Root Cause:** Code attempted to call `.items()` on `RefinementTelemetry` dataclass instances (`telemetry_a_raw`, `telemetry_b_raw`) without first converting them to dicts.
 
-#### Error 1: KeyError: 'stage_a_telemetry'
-**Location**: `dbex/refinement/stage_b.py:113`
-**Traceback**:
-```python
-stage_a_telemetry = inputs['stage_a_telemetry']
-KeyError: 'stage_a_telemetry'
-```
-
-**Context**: StageB.run() expects `inputs['stage_a_telemetry']` but RefinementEngine is not passing it.
-
-**Root Cause Hypothesis**:
-1. RefinementEngine.run() has input enrichment logic at lines 105-115
-2. Line 107 condition: `stage.name == "stage_b" and "stage_a" in self._telemetry`
-3. If StageB.name property is missing or returns wrong value, enrichment logic won't run
-4. Result: inputs dict missing 'stage_a_telemetry' key when StageB.run() is called
-
-**Verification Needed**:
-- Check if `dbex/refinement/stage_b.py` has `@property def name(self)` returning `"stage_b"`
-- Compare with StageA pattern at `dbex/refinement/stage_a.py:60-62`
-
-#### Error 2: AttributeError: 'RefinementTelemetry' object is not subscriptable
-**Location**: `dbex/nanobrag_refinement.py:3089-3090` (engine delegation return statement)
-**Code**:
-```python
-telemetry_b = RefinementTelemetry(**{k: v for k, v in telemetry_b_raw.items() if k not in [...]})
-telemetry_a = RefinementTelemetry(**{k: v for k, v in telemetry_a_raw.items() if k not in [...]})
-```
-
-**Context**:
-- `telemetry_a_raw` and `telemetry_b_raw` are RefinementTelemetry dataclass instances (from engine.run() at line 3043-3047)
-- Calling `.items()` on a dataclass raises AttributeError (dataclasses are not subscriptable)
-- Need to convert to dict first using `dataclasses.asdict()` before filtering
-
-**Root Cause**: Missing `asdict()` conversion before dict comprehension
-
-### Corrective Actions (Loop i=206)
-
-#### Fix 1: Add asdict() conversion (Bug 1)
-**File**: `dbex/nanobrag_refinement.py`
-**Lines**: 3088-3091
-**Change**:
+**Fix Applied:**
 ```python
 # Before (BROKEN):
-from dbex.nanobrag_refinement import RefinementTelemetry
 telemetry_b = RefinementTelemetry(**{k: v for k, v in telemetry_b_raw.items() if k not in [...]})
-telemetry_a = RefinementTelemetry(**{k: v for k, v in telemetry_a_raw.items() if k not in [...]})
 
 # After (FIXED):
 from dataclasses import asdict
-from dbex.nanobrag_refinement import RefinementTelemetry
-
 telemetry_a_dict = asdict(telemetry_a_raw)
 telemetry_b_dict = asdict(telemetry_b_raw)
-
 telemetry_b = RefinementTelemetry(**{k: v for k, v in telemetry_b_dict.items() if k not in [...]})
-telemetry_a = RefinementTelemetry(**{k: v for k, v in telemetry_a_dict.items() if k not in [...]})
 ```
 
-#### Fix 2: Verify/Add StageB.name property
-**File**: `dbex/refinement/stage_b.py`
-**Check**: Verify `@property def name(self)` exists and returns `"stage_b"`
-**If missing**, add after `__init__` method:
+### Bug 2: StageB.name property verification
+
+**Status:** ALREADY CORRECT. The `StageB.name` property correctly returns `"stage_b"` (dbex/refinement/stage_b.py:39-42).
+
+### Bug 3: enable_warm_cache typo (dbex/nanobrag_refinement.py:2853)
+
+**Root Cause:** Code referenced `config.enable_warm_cache`, but the correct attribute is `config.enable_stage_a_warm_cache` per RefinementConfig definition (line 294).
+
+**Fix Applied:**
 ```python
-@property
-def name(self) -> str:
-    """Return stage identifier for telemetry keying."""
-    return "stage_b"
+# Before (BROKEN):
+stage_b_use_warm_cache = config.enable_warm_cache and stage_a_ctx is not None
+
+# After (FIXED):
+stage_b_use_warm_cache = config.enable_stage_a_warm_cache and stage_a_ctx is not None
 ```
 
-### Expected Outcome (Loop i=206)
+## Test Results
 
-**If both fixes applied correctly:**
-1. StageB.name property returns `"stage_b"` → engine input enrichment condition passes
-2. Engine adds `stage_a_telemetry` to inputs dict → KeyError resolved
-3. asdict() converts RefinementTelemetry to dict → AttributeError resolved
-4. test_stage_b_shell_modifiers PASSES
-5. Phase C2 marked COMPLETE
+**Targeted test:** `tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers`
 
-**Validation Commands:**
-```bash
-# Compilation check
-python -c "from dbex.nanobrag_refinement import run_nanobrag_refinement; print('OK')"
+**Progress:**
+1. ✅ Compilation check passed
+2. ✅ Original Bug 1 (line 3089-3090) fixed - no AttributeError on `.items()`
+3. ✅ Bug 2 verified - StageB.name returns "stage_b"
+4. ✅ Bug 3 (line 2853) fixed - no AttributeError on `enable_warm_cache`
+5. ✅ Engine delegation path executes successfully (StageA → StageB)
+6. ❌ **NEW ISSUE DISCOVERED:** Chi-squared discrepancy between Stage A final (7.053e+08) and Stage B initial (7.709e+08) — **9.3% systematic offset**
 
-# Regression guard (MUST PASS)
-KMP_DUPLICATE_LIB_OK=TRUE pytest tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers -xvs
+## Findings
 
-# Engine contract test
-pytest tests/dbex/test_refinement_engine.py::test_engine_executes_mock_stage -xvs
+### REFINE-FLOW-001: Engine Delegation Chi-Squared Offset
+
+**Symptom:** When using RefinementEngine([StageA(), StageB()]) delegation path, Stage B initial chi² differs from Stage A final chi² by ~9.3% (tolerance: 0.1%).
+
+**First Observed:** 2025-11-23T075320Z (ARCH-REFINE-FLOW-001 Phase C2 bugfix loop i=206)
+
+**Signature:**
+```
+Stage A final chi²: 7.053e+08
+Stage B initial chi²: 7.709e+08
+Relative difference: 9.3% (tolerance: 0.1%)
 ```
 
-### Escalation Criteria
+**Context:**
+- Detector: small (ROI mode enabled)
+- Device: CUDA
+- Config: enable_stage_b=True, enable_stage_c=False, enable_stage_a_roi_mode=True
 
-**If loop i=206 still FAILS after both fixes:**
-- Document debug output (stage.name value, self._telemetry keys, telemetry types)
-- Create detailed blocker.md with error signatures + attempted fixes
-- Mark ARCH-REFINE-FLOW-001 Phase C2 blocked in galph_memory.md
-- Switch focus per dwell enforcement (2 consecutive non-implementation loops)
+**Hypothesis:** The `_build_final_bragg_from_stage_b_telemetry` helper (dbex/nanobrag_refinement.py:2747-2916) may reconstruct Stage A parameters differently than the inline path, similar to the CONVERGENCE-001 "code path divergence" pattern.
 
-### Notes
+**Recommended Next Steps:**
+1. Add telemetry logging to compare parameter reconstruction between inline and engine delegation paths
+2. Check if Stage A final parameters (log_scale, cell deltas, misset) are correctly extracted from telemetry at StageB.run() line 144-156
+3. Verify crystal_overrides dictionary construction matches inline path (dbex/nanobrag_refinement.py:3102-3104 vs helper line 2839-2846)
+4. If systematic offset is <20% and convergence is stable (per CONVERGENCE-001 acceptance criteria), document and adjust tolerance
+5. Otherwise, fix parameter reconstruction bug in helper
 
-- Ralph correctly identified shell metadata propagation issue in his summary.md
-- The actual blocker is simpler: missing dataclass→dict conversion + possible missing name property
-- Helper extraction work (198 lines) is solid; only the delegation return statement needs fixing
-- No changes to `_build_final_bragg_from_stage_b_telemetry` helper required (it doesn't use target_t)
-- AttributeError at line 2514 is likely a secondary failure after KeyError triggers fallback path
+**Related Findings:**
+- CONVERGENCE-001 (zero-delta bypass, systematic offset <20% acceptable when convergence stable)
+- GEOMETRY-003 (crystal_overrides vs detector_config.misset_deg propagation)
 
-### References
+## Artifacts
 
-- **Loop i=205 artifacts**: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T073209Z/
-- **Ralph's blocker report**: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T073209Z/summary.md
-- **Test log**: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T073209Z/pytest_stage_b_shell_modifiers.log
-- **Engine code**: dbex/refinement/engine.py:105-115 (input enrichment logic)
-- **StageA pattern**: dbex/refinement/stage_a.py:60-62 (name property)
+- `compilation_check.log` - ✅ PASSED
+- `pytest_stage_b_after_bugfix.log` - PyTorch CUDA graph assertion failure (torch.compile issue, resolved by NANOBRAGG_DISABLE_COMPILE=1)
+- `pytest_stage_b_with_disable_compile.log` - AttributeError on enable_warm_cache (Bug 3 discovered)
+- `pytest_stage_b_final.log` - Chi-squared discrepancy AssertionError (new systematic offset issue)
+
+## Next Actions
+
+1. **Mark ARCH-REFINE-FLOW-001 Phase C2 as "blocked — suspected implementation defect (chi² offset)"** per repeat-failure guard
+2. Commit the 3 bugfixes (asdict conversion + enable_warm_cache typo + verification)
+3. Create NEW fix-plan item: **ARCH-REFINE-FLOW-002: Diagnose Engine Delegation Chi² Offset** or add Phase C3 to ARCH-REFINE-FLOW-001 for systematic offset investigation
+4. Capture failure evidence path: `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T075320Z/pytest_stage_b_final.log`
+5. Notify supervisor via output
+
+## Files Changed
+
+- `dbex/nanobrag_refinement.py:3088-3097` (Bug 1 fix: asdict conversion)
+- `dbex/nanobrag_refinement.py:2853` (Bug 3 fix: enable_warm_cache → enable_stage_a_warm_cache)
+- `dbex/refinement/stage_b.py` (Bug 2: VERIFIED, no changes needed)
+
+## Static Analysis
+
+Not run (bugs were runtime AttributeErrors, not lint/type issues).
+
+## Collection Verification
+
+Not applicable (no new tests added, only fixing existing engine delegation path).
+

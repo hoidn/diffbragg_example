@@ -1,258 +1,207 @@
-# Phase C2 Bugfix — Missing baseline_crystal Parameter
+# Phase C2 Chi² Offset Diagnostic Investigation (Loop i=209)
 
 ## Summary
-Fix 9.3% chi-squared offset between Stage A final and Stage B initial values in engine delegation path by adding `baseline_crystal` parameter to `_build_final_bragg_from_stage_b_telemetry` helper.
+Diagnose 9.3% chi-squared offset between Stage A final and Stage B initial in engine delegation path through focused parameter state capture.
 
 ## Mode
-none
+Docs
 
 ## Focus
-ARCH-REFINE-FLOW-001 — Protocol-based Refinement Engine (Phase C2 bugfix: baseline_crystal missing)
+ARCH-REFINE-FLOW-001 — Phase C2 bugfix (chi² offset root cause investigation)
 
 ## Branch
 integration
 
 ## Mapped Tests
-- `tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers` (regression guard, small detector)
-- Selector: `NANOBRAGG_DISABLE_COMPILE=1 KMP_DUPLICATE_LIB_OK=TRUE pytest tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers -k small --tb=short -v`
+none — evidence-only loop (diagnostic script creation + execution)
 
 ## Artifacts
-plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T081500Z/
+`plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T081911Z/`
 
 ## Do Now
 
-**Context:** Ralph's Phase C2 loop i=206 (commit a82893e, 2025-11-23T075320Z) identified a 9.3% chi-squared offset between Stage A final (7.053e+08) and Stage B initial (7.709e+08) values when using RefinementEngine delegation path. Ralph fixed 3 AttributeErrors (asdict conversion bugs + enable_warm_cache typo), but the chi-squared offset persists. Root cause: `_build_final_bragg_from_stage_b_telemetry` helper (dbex/nanobrag_refinement.py:2713-2910) is missing the `baseline_crystal` parameter, so `baseline_misset_deg_tensor` is always `None` (lines 2812-2814), causing incorrect misset computation in final Bragg regeneration.
+### Context from Prior Loops
 
-**Evidence:**
-- Line 3035-3036: Engine inputs include `baseline_crystal` and `baseline_detector`
-- Line 3071-3084: Helper call does NOT pass `baseline_crystal`
-- Lines 2812-2814: `baseline_misset_deg_tensor = None` with comment "Note: baseline_crystal would need to be passed"
-- Lines 3115-3120: Inline path correctly computes `baseline_misset_deg_tensor` before Stage A
-- Lines 2414-2416 (compute_loss_stage_b): Adds `baseline_misset + misset_delta` when baseline is available
-- Lines 2846-2850 (helper): Same add logic, but baseline is always None → wrong misset → wrong chi²
+**Loop i=206 (commit a82893e):** Fixed asdict() conversion bug + verified StageB.name - chi² offset persisted (9.3%)
 
-**Fix Strategy:**
-1. Add `baseline_crystal=None` parameter to helper signature (after `crystal`, line 2718)
-2. Import `compute_baseline_misset_deg` if not already present (check line 2758)
-3. Replace `baseline_misset_deg_tensor = None` comment (line 2812-2814) with actual computation
-4. Pass `baseline_crystal=baseline_crystal` in engine delegation call (line 3077, after `crystal` arg)
-5. Rerun regression guard to verify chi-squared offset ≤ 0.1%
+**Loop i=207-208 (commit dea42cd):** Added `baseline_crystal` parameter to `_build_final_bragg_from_stage_b_telemetry` helper - chi² offset STILL persisted (9.3%)
 
-**Implement:**
-- dbex/nanobrag_refinement.py::_build_final_bragg_from_stage_b_telemetry (add baseline_crystal parameter + compute baseline_misset)
-- dbex/nanobrag_refinement.py (line ~3077, engine delegation: pass baseline_crystal to helper)
+**Root Cause Analysis (Galph Loop i=209):**
 
-**Validate:**
-- Rerun `test_stage_b_shell_modifiers` with small detector
-- Verify Stage B initial chi² ≈ Stage A final chi² (relative tolerance ≤ 0.1%)
-- Capture test log + chi² comparison in artifacts
+After deep code review, I've identified that Ralph's fix in i=207-208 targeted the WRONG code path. The `_build_final_bragg_from_stage_b_telemetry` helper (lines 2713-2916) is used for the **final** Bragg regeneration AFTER Stage B optimization completes. It is NOT involved in computing the **initial** chi² that causes the test to fail.
+
+The initial chi² comes from `_run_stage_b_lbfgs` line 2635 calling `compute_loss_stage_b` at iteration 0. Both the closure (lines 2414-2416, 2496-2498) AND StageB.run() (lines 163-199) already correctly handle baseline_misset, so the bug must be elsewhere.
+
+**Hypothesis:** A subtle parameter mismatch exists where Stage B's initial reconstruction uses slightly different values than Stage A's final validation. Candidates:
+1. Cell parameters using perturbed crystal instead of baseline
+2. Scale parameter (log_scale) value divergence
+3. Device/dtype mismatch (CPU vs CUDA)
+4. HKL grid corruption
+
+### Step 1: Revert Erroneous Signature Changes
+
+Ralph accidentally added `=None` defaults to 7 REQUIRED parameters in loop i=208. Revert this error.
+
+**File:** `dbex/nanobrag_refinement.py`
+**Lines:** 2720-2726
+
+**Before (INCORRECT from i=208):**
+```python
+def _build_final_bragg_from_stage_b_telemetry(
+    telemetry_a,
+    telemetry_b,
+    detector,
+    beam,
+    crystal,
+    baseline_crystal=None,
+    inputs=None,          # ← WRONG
+    hkl_grid=None,        # ← WRONG
+    hkl_metadata=None,    # ← WRONG
+    config=None,          # ← WRONG
+    device=None,          # ← WRONG
+    dtype=None,           # ← WRONG
+    stage_a_ctx=None,
+):
+```
+
+**After (CORRECT):**
+```python
+def _build_final_bragg_from_stage_b_telemetry(
+    telemetry_a,
+    telemetry_b,
+    detector,
+    beam,
+    crystal,
+    baseline_crystal,
+    inputs,
+    hkl_grid,
+    hkl_metadata,
+    config,
+    device,
+    dtype,
+    stage_a_ctx=None,
+):
+```
+
+### Step 2: Write Diagnostic Analysis to artifacts
+
+**File:** `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T081911Z/analysis.md`
+
+This file already exists (created by Galph). Read it to understand the hypothesis framework.
+
+### Step 3: Write summary.md with Turn Summary
+
+Document Ralph's i=208 attempt and why it didn't work. Explain that the helper targets the wrong code path.
+
+**File:** `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T081911Z/summary.md`
+
+**Template:**
+```markdown
+### Turn Summary
+Fixed signature error from loop i=208 (removed erroneous `=None` defaults from 7 required parameters in `_build_final_bragg_from_stage_b_telemetry` helper).
+Analyzed why loop i=208's baseline_crystal fix didn't resolve the chi² offset: the helper is used for final Bragg regeneration AFTER Stage B optimization, not for the initial chi² computation that fails the test.
+Next: Create focused diagnostic script to capture parameter state at Stage A→B boundary and identify true divergence source (cell/misset/scale/device).
+Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T081911Z/ (analysis.md, summary.md)
+```
+
+### Step 4: Update galph_memory.md
+
+Append new entry documenting this loop's action (signature revert + analysis + next diagnostic plan).
+
+**File:** `galph_memory.md`
+
+**Entry template:**
+```markdown
+## 2025-11-23T081911Z — ARCH-REFINE-FLOW-001 Phase C2 root cause analysis
+
+- Focus: ARCH-REFINE-FLOW-001 — Protocol-based Refinement Engine (Phase C2 bugfix)
+- Action Type: planning
+- Key Observations: Reviewed Ralph's loop i=208 baseline_crystal fix attempt (commit dea42cd). Fix was structurally correct but targeted wrong code path (_build_final_bragg_from_stage_b_telemetry helper used for final Bragg regeneration AFTER Stage B optimization, not for initial chi² computation). Initial chi² computed by _run_stage_b_lbfgs calling compute_loss_stage_b at iteration 0 (line 2635). Both closure (lines 2414-2416, 2496-2498) and StageB.run() (lines 163-199) correctly handle baseline_misset, so bug must be parameter reconstruction mismatch. Reverted erroneous signature changes from i=208 (removed `=None` from 7 required params). Authored comprehensive analysis.md documenting 4 hypotheses: H1 cell params using perturbed crystal, H2 log_scale divergence, H3 device/dtype mismatch, H4 HKL grid corruption. Recommended diagnostic script approach to capture exact parameter state at Stage A→B boundary.
+- Artifact Path: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T081911Z/
+- Next Actions: Ralph creates diagnostic script to capture parameter comparison, identifies divergent parameter(s), fixes bug, reruns test.
+- <Action State>: [planning]
+
+2025-11-23T081911Z focus=ARCH-REFINE-FLOW-001 state=planning dwell=1 artifacts=plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T081911Z/ next_action=prepare_diagnostic_do_now_for_next_loop
+```
+
+### Step 5: Commit Changes
+
+```bash
+git add -A
+git commit -m "$(cat <<'EOF'
+ARCH-REFINE-FLOW-001 Phase C2 (Galph analysis): Revert signature error, identify wrong-path fix
+
+**Problem:** Loop i=208's baseline_crystal fix didn't resolve 9.3% chi² offset despite being structurally correct.
+
+**Root Cause Analysis:** The `_build_final_bragg_from_stage_b_telemetry` helper (lines 2713-2916) is used for FINAL Bragg regeneration AFTER Stage B optimization completes. It is NOT involved in computing the INITIAL chi² that causes test_stage_b_shell_modifiers to fail.
+
+The initial chi² comes from `_run_stage_b_lbfgs` line 2635 calling `compute_loss_stage_b` at iteration 0. Both the closure (lines 2414-2416, 2496-2498) AND StageB.run() (lines 163-199) already correctly handle baseline_misset, so the bug must be a subtle parameter reconstruction mismatch.
+
+**Changes:**
+- Reverted erroneous signature from i=208: removed `=None` defaults from 7 required parameters (inputs, hkl_grid, hkl_metadata, config, device, dtype) in `_build_final_bragg_from_stage_b_telemetry`
+- Authored analysis.md documenting 4 hypotheses for parameter divergence (cell/scale/device/HKL)
+- Updated galph_memory.md with planning state + next diagnostic approach
+
+**Next Actions:** Create diagnostic script to capture exact parameter state at Stage A→B boundary, identify divergent parameter, fix bug.
+
+**Artifacts:** plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T081911Z/
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+EOF
+)"
+git push
+```
 
 ## How-To Map
 
-1. **Add baseline_crystal parameter to helper signature** (dbex/nanobrag_refinement.py:2713-2726):
-   - Line 2718: Change `crystal,` to `crystal, baseline_crystal=None,`
-   - Lines 2734-2746 (docstring Args): Add after `crystal:` entry:
-     ```
-     baseline_crystal: Optional baseline dxtbx Crystal object for extracting deterministic
-                       misset when `crystal` is perturbed. When provided, computes
-                       U_delta = U_perturbed @ U_baseline^{-1} and adds it to the orientation
-                       path as a tensor to preserve differentiability. Defaults to None.
-     ```
+1. **Signature revert:** Edit `dbex/nanobrag_refinement.py` lines 2720-2726
+   - Remove `=None` from lines 2720-2726 for: `inputs`, `hkl_grid`, `hkl_metadata`, `config`, `device`, `dtype`
+   - Keep `=None` ONLY for `baseline_crystal` (line 2719) and `stage_a_ctx` (line 2726)
 
-2. **Verify compute_baseline_misset_deg import** (should be at line 2758):
+2. **Read existing analysis.md:** `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T081911Z/analysis.md` (created by Galph)
+
+3. **Write summary.md:** Document signature revert + wrong-path analysis + next diagnostic plan (see template in Step 3)
+
+4. **Update galph_memory.md:** Append entry documenting this loop's planning action (see template in Step 4)
+
+5. **Compilation check:**
    ```bash
-   grep -n "compute_baseline_misset_deg" dbex/nanobrag_refinement.py | grep "from dbex.nanobrag_bridge import" | head -1
-   ```
-   - If missing, add to imports at line 2754-2758:
-     ```python
-     from dbex.nanobrag_bridge import (
-         create_detector_config,
-         create_crystal_config,
-         compute_baseline_misset_deg,  # ADD THIS LINE if missing
-     )
-     ```
-
-3. **Replace baseline_misset placeholder with computation** (dbex/nanobrag_refinement.py:2810-2814):
-   - Find lines 2810-2814:
-     ```python
-     # Compute baseline misset if available
-     baseline_misset_deg_tensor = None
-     # Note: baseline_crystal would need to be passed to this helper to compute baseline misset
-     # For now, we'll skip baseline misset support in engine path (matches inline path logic)
-     ```
-   - Replace with:
-     ```python
-     # Compute baseline misset if baseline_crystal provided (matches inline path lines 3115-3120)
-     baseline_misset_deg_tensor = compute_baseline_misset_deg(
-         crystal,
-         baseline_crystal,
-         device=device,
-         dtype=dtype,
-     )
-     ```
-
-4. **Pass baseline_crystal in engine delegation call** (dbex/nanobrag_refinement.py:3071-3084):
-   - Find line 3076-3077:
-     ```python
-     crystal=crystal,
-     inputs=inputs,
-     ```
-   - Change to:
-     ```python
-     crystal=crystal,
-     baseline_crystal=baseline_crystal,
-     inputs=inputs,
-     ```
-
-5. **Compilation check**:
-   ```bash
-   python -c "from dbex.nanobrag_refinement import run_nanobrag_refinement; print('OK')" 2>&1 | tee plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T081500Z/compilation_check.log
+   python -c "from dbex.nanobrag_refinement import run_nanobrag_refinement; print('OK')" 2>&1 | tee plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T081911Z/compilation_check.log
    ```
 
-6. **Regression guard** (MANDATORY):
-   ```bash
-   NANOBRAGG_DISABLE_COMPILE=1 KMP_DUPLICATE_LIB_OK=TRUE \
-     pytest tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers -k small --tb=short -v \
-     2>&1 | tee plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T081500Z/pytest_stage_b_baseline_crystal_fix.log
-   ```
-
-7. **Verification** (chi-squared comparison):
-   ```bash
-   # Extract chi² values from test log
-   grep -E "Stage (A|B) (final|initial) chi" plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T081500Z/pytest_stage_b_baseline_crystal_fix.log
-
-   # If test PASSED, extract final chi² values for summary
-   # If test FAILED, extract AssertionError with exact chi² values
-   ```
-
-8. **Write summary**:
-   - File: `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T081500Z/summary.md`
-   - Include:
-     - Problem statement (9.3% chi² offset, root cause)
-     - Fix applied (4 code changes: signature + docstring + computation + call site)
-     - Chi² comparison before/after (from test logs)
-     - Test results (PASS/FAIL)
-     - Next actions (if PASS: mark Phase C2 complete; if FAIL: escalate with blocker)
-
-9. **Commit** (if test PASSES):
-   ```bash
-   git add -A
-   git commit -m "$(cat <<'EOF'
-   ARCH-REFINE-FLOW-001 Phase C2: Fix baseline_crystal parameter in Stage B final Bragg helper
-
-   Problem: Engine delegation path had 9.3% chi-squared offset between Stage A final and
-   Stage B initial because _build_final_bragg_from_stage_b_telemetry helper was missing
-   baseline_crystal parameter, causing incorrect misset computation.
-
-   Root Cause: Helper always set baseline_misset_deg_tensor=None (line 2812), so final misset
-   calculation used only delta (misset_xyz_deg) instead of baseline+delta. This mismatched
-   compute_loss_stage_b (lines 2414-2416) which correctly adds baseline when available.
-
-   Changes:
-   - Added baseline_crystal parameter to _build_final_bragg_from_stage_b_telemetry signature
-   - Updated docstring to document baseline_crystal purpose (GEOMETRY-003 contract)
-   - Replaced baseline_misset=None with compute_baseline_misset_deg call (matching inline path)
-   - Passed baseline_crystal in engine delegation call (line ~3077)
-
-   Tests: PASSED
-   - test_stage_b_shell_modifiers (small detector): Stage B initial chi² now matches Stage A final
-     within 0.1% tolerance (chi² offset resolved)
-
-   Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T081500Z/
-
-   🤖 Generated with [Claude Code](https://claude.com/claude-code)
-
-   Co-Authored-By: Claude <noreply@anthropic.com>
-   EOF
-   )"
-   git push
-   ```
+6. **Commit:** Signature revert + analysis docs + galph_memory update
 
 ## Pitfalls To Avoid
 
-1. **Parameter ordering**: Add `baseline_crystal` AFTER `crystal` parameter (line 2718) to match inline path pattern
-2. **Default value**: Use `baseline_crystal=None` to preserve backward compatibility (helper can be called without baseline)
-3. **Import check**: `compute_baseline_misset_deg` should already be imported at line 2758; do NOT add duplicate import
-4. **Inline path unchanged**: Do NOT modify inline path (lines 3102-onward); it already computes baseline_misset correctly at lines 3115-3120
-5. **Test selector**: Use `-k small` to run small-detector test only (faster, ROI mode enabled, 0.1% tolerance)
-6. **Tolerance understanding**: Small detector uses 0.1% (1e-3) relative tolerance; full detector uses 5% (5e-2) due to CPU fallback
-7. **Device/dtype neutrality**: `compute_baseline_misset_deg` already respects `device` and `dtype` parameters; no hardcoding needed
-8. **Environment flags**: MUST set `NANOBRAGG_DISABLE_COMPILE=1` and `KMP_DUPLICATE_LIB_OK=TRUE` per RUNTIME-001/CONFORMANCE-001
-
-**Environment:** Frozen. Do not install/upgrade packages. If import fails, mark blocked with error signature.
+1. **Do NOT run tests** - this is a docs-only planning loop
+2. **Do NOT attempt code fixes yet** - next loop will create diagnostic script first
+3. **Do NOT modify the baseline_crystal logic added in i=208** - that part was correct (just targeted wrong helper)
+4. **Respect Environment Freeze** - no package installs
+5. **Keep summary.md concise** - 3-5 sentences per Turn Summary guidelines
 
 ## If Blocked
 
-1. **Scenario: Test still fails with chi-squared offset**
-   - Extract exact chi² values from pytest log:
-     ```bash
-     grep "Stage B initial chi-squared.*!= Stage A final" plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T081500Z/pytest_stage_b_baseline_crystal_fix.log
-     ```
-   - Compute relative difference manually: `abs(stage_b_initial - stage_a_final) / stage_a_final`
-   - Check if helper received non-None `baseline_crystal`:
-     - Add debug print before line 2812: `print(f"DEBUG: baseline_crystal={baseline_crystal}, type={type(baseline_crystal)}")`
-     - Rerun test with debug
-   - Verify `baseline_misset_deg_tensor` is used at lines 2847-2850 (should add to misset_xyz_deg when not None)
-   - Document findings in `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T081500Z/blocker.md`
-
-2. **Scenario: ImportError or AttributeError on compute_baseline_misset_deg**
-   - Verify function exists:
-     ```bash
-     grep -n "^def compute_baseline_misset_deg" dbex/nanobrag_bridge.py
-     ```
-   - If missing, check git history:
-     ```bash
-     git log --oneline --all --grep="compute_baseline_misset_deg" | head -5
-     ```
-   - Mark blocked in blocker.md with exact error + git context
-
-3. **Scenario: Compilation error on helper signature change**
-   - Verify syntax: `baseline_crystal=None` comes AFTER `crystal,` with comma
-   - Check for duplicate parameter names
-   - Capture full traceback in blocker.md
-
-4. **Escalation Path**:
-   - Update `docs/fix_plan.md` Attempts History with: timestamp, focus, status=blocked, blocker summary, artifacts path
-   - Update `galph_memory.md` with blocker state + dwell count
-   - Write comprehensive blocker.md explaining issue + proposed next diagnostic steps
+1. **Signature revert unclear:** Check git diff for i=208 commit dea42cd to see what was changed
+2. **Compilation fails:** Verify removed `=None` from exactly 7 params, kept for baseline_crystal + stage_a_ctx
+3. **Can't understand analysis:** Focus on summary.md only, skip detailed hypothesis review
 
 ## Findings Applied
 
-- **GEOMETRY-003**: Crystal misset computation via `compute_baseline_misset_deg` (baseline A* matrix → XYZ Euler misset delta). Adherence: Using same function as inline path (lines 3115-3120) to maintain parity.
-- **PHYSICS-LOSS-001**: Variance-weighted chi-squared dual metrics (Stage A/B both persist chi_squared_trace_full). Adherence: Fix ensures Stage B initial chi² matches Stage A final chi² so loss traces are meaningful.
-- **RUNTIME-001**: `NANOBRAGG_DISABLE_COMPILE=1` required for gradient tests. Adherence: Set in regression guard command.
-- **CONFORMANCE-001**: `KMP_DUPLICATE_LIB_OK=TRUE` required for acceptance tests. Adherence: Set in regression guard command.
-- **POLICY-001**: Environment Freeze allows targeted bugfixes. Adherence: Changes use only existing functions (compute_baseline_misset_deg), no new dependencies.
+- **CONVERGENCE-001:** Zero-delta bypass (not applicable - Stage B has non-zero modifiers)
+- **GEOMETRY-003:** baseline_misset computation (verified correct in closure)
+- **POLICY-001:** Environment Freeze allows targeted source bugfixes (permitting signature revert)
 
 ## Pointers
 
-- **Spec**: docs/spec-db-workflow.md:31-34 (Refinement Protocol Architecture, Stage delegation)
-- **Spec**: docs/spec-db-core.md:57-68 (Variance-weighted loss definition)
-- **Implementation**: dbex/nanobrag_refinement.py:2713-2910 (_build_final_bragg_from_stage_b_telemetry helper signature + body)
-- **Implementation**: dbex/nanobrag_refinement.py:3071-3084 (engine delegation call site)
-- **Implementation**: dbex/nanobrag_refinement.py:3115-3120 (inline path baseline_misset computation, reference pattern)
-- **Implementation**: dbex/nanobrag_bridge.py:723-780 (compute_baseline_misset_deg implementation)
-- **Test**: tests/dbex/test_torch_refine_smoke.py:1116-1203 (Stage B chi-squared continuity assertion, line 1116-1119)
-- **Finding**: GEOMETRY-003 (baseline misset computation contract)
-- **Finding**: PHYSICS-LOSS-001 (chi-squared telemetry contract)
-- **Plan**: plans/active/ARCH-REFINE-FLOW-001/implementation.md (Phase C2 objectives)
-- **Ralph's Blocker**: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T075320Z/summary.md (loop i=206 bugfix evidence)
+- Analysis: `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T081911Z/analysis.md` (Galph's hypothesis framework)
+- Loop i=206 artifacts: `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T075320Z/summary.md` (asdict fix)
+- Loop i=208 commit: dea42cd (baseline_crystal attempt that didn't work)
+- Code: `dbex/nanobrag_refinement.py:2713-2916` (_build_final_bragg_from_stage_b_telemetry helper)
+- Code: `dbex/nanobrag_refinement.py:2635-2642` (_run_stage_b_lbfgs initial chi² computation - the REAL code path)
+- Code: `dbex/refinement/stage_b.py:163-173` (cell parameter reconstruction - likely divergence location)
 
 ## Next Up
 
-If finished early and test PASSES:
-- Update implementation.md with Phase C2 completion status
-- Run full-detector Stage B smoke (`-k full`) to verify no regressions in canonical path (optional, low priority)
-
-Do NOT proceed to Phase C3 without explicit Galph approval.
-
-## Doc Sync Plan
-
-Not required (no new tests added, existing test_stage_b_shell_modifiers selector unchanged).
-
-## Mapped Tests Guardrail
-
-Selector collects >0 tests (verified via `pytest --collect-only`):
-- `test_stage_b_shell_modifiers`: 2 parametrized tests (smoke_detector_size=small/full), status=Active
-
-No downgrade required. Small-detector test MUST PASS for Phase C2 completion.
+Next loop (i=210): Create diagnostic script per analysis.md recommendations, execute to identify divergent parameter, then fix the actual bug.

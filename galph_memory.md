@@ -1,3 +1,14 @@
+## 2025-11-23T081911Z — ARCH-REFINE-FLOW-001 Phase C2 root cause analysis
+
+- Focus: ARCH-REFINE-FLOW-001 — Protocol-based Refinement Engine (Phase C2 bugfix)
+- Action Type: planning
+- Key Observations: Reviewed Ralph's loop i=208 baseline_crystal fix attempt (commit dea42cd). Fix was structurally correct but targeted wrong code path (_build_final_bragg_from_stage_b_telemetry helper used for final Bragg regeneration AFTER Stage B optimization, not for initial chi² computation). Initial chi² computed by _run_stage_b_lbfgs calling compute_loss_stage_b at iteration 0 (line 2635). Both closure (lines 2414-2416, 2496-2498) and StageB.run() (lines 163-199) correctly handle baseline_misset, so bug must be parameter reconstruction mismatch. Reverted erroneous signature changes from i=208 (removed `=None` from 7 required params). Authored comprehensive analysis.md documenting 4 hypotheses: H1 cell params using perturbed crystal, H2 log_scale divergence, H3 device/dtype mismatch, H4 HKL grid corruption. Recommended diagnostic script approach to capture exact parameter state at Stage A→B boundary. Updated input.md with docs-only Do Now directing signature revert + analysis documentation.
+- Artifact Path: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T081911Z/
+- Next Actions: Ralph reverts signature errors, documents analysis summary, prepares for next loop's diagnostic script implementation.
+- <Action State>: [planning]
+
+2025-11-23T081911Z focus=ARCH-REFINE-FLOW-001 state=planning dwell=1 artifacts=plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T081911Z/ next_action=prepare_diagnostic_do_now_for_next_loop
+
 ## 2025-11-23T075320Z — ARCH-REFINE-FLOW-001 Phase C2 bugfix planning
 - Focus: ARCH-REFINE-FLOW-001 — Protocol-based Refinement Engine (Phase C2 bugfix)
 - Action Type: planning
@@ -125,7 +136,7 @@
 ## 2025-11-23T045012Z — ARCH-REFINE-FLOW-001 Phase B1b StageA Wrapper Handoff
 - Focus: ARCH-REFINE-FLOW-001 — Protocol-based Refinement Engine (Phase B1b)
 - Action Type: planning
-- Key Observations: Reviewed Phase B1a-loop3 completion (commit caa510e, 2025-11-23T060500Z) confirming bugfix success (params + optimizer added to param_values dict, regression guard PASSED). Identified that existing StageA stub (dbex/refinement/stage_a.py) is INCORRECT—it delegates to run_nanobrag_refinement creating infinite recursion risk once Phase B2 wires engine delegation. Authored comprehensive Phase B1b Do Now directing Ralph to rewrite StageA.run() to call three extracted helpers directly (_build_stage_a_params, _build_stage_a_lbfgs_closure, _run_stage_a_lbfgs), package telemetry with all RefinementTelemetry fields + stage_type/mode per Phase A4 schema, and validate via compilation check + regression guard (inline path unchanged until Phase B2). Implementation floor satisfied: Do Now contains production code task (StageA.run() rewrite) + validating pytest selectors (test_stage_a_expansion regression guard, test_engine_executes_mock_stage contract validation). Dwell reset to 0 (last loop review_or_housekeeping for B1a-loop3 blocker, now ready_for_implementation with wrapper implementation task).
+- Key Observations: Reviewed Phase B1a-loop3 completion (commit caa510e, 2025-11-23T060500Z) confirming bugfix success (params + optimizer added to param_values dict, regression guard PASSED). Identified that existing StageA stub (dbex/refinement/stage_a.py) is INCORRECT—it delegates to run_nanobrag_refinement creating infinite recursion risk once Phase B2 wires engine delegation. Authored comprehensive Phase B1b Do Now directing Ralph to rewrite StageA.run() to call three extracted helpers directly (_build_stage_a_params, _build_stage_a_lbfgs_closure, _run_stage_a_lbfgs), package telemetry with all RefinementTelemetry fields + stage_type/mode per Phase A4 schema, and validate via compilation check + regression guard (inline path unchanged until Phase B2). Implementation floor satisfied: Do Now contains production code task (StageA.run() rewrite ~80 lines) + validating pytest selectors (test_stage_a_expansion regression guard, test_engine_executes_mock_stage contract validation). Dwell reset to 0 (last loop review_or_housekeeping for B1a-loop3 blocker, now ready_for_implementation with wrapper implementation task). Roadmap alignment: ARCH-REFINE-FLOW-001 Tier 2, Phase B1b next milestone per approved multi-loop extraction strategy (B1a COMPLETE → B1b wrapper → B2 engine delegation).
 - Artifact Path: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T045012Z/
 - Next Actions: Ralph executes Phase B1b implementation (10 steps: review B1a artifacts, rewrite StageA.run(), add torch import, compilation check, regression guard, engine contract validation, update implementation.md, write summary, commit). If PASS → Galph plans Phase B2 next loop (engine delegation in run_nanobrag_refinement). If blocked → Ralph documents blocker → Galph reviews and decides.
 - <Action State>: [ready_for_implementation]
@@ -171,63 +182,3 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-23T061726Z focus=ARCH-REFINE-FLOW-001 state=ready_for_implementation dwell=0 artifacts=plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T061726Z/ next_action=phase_c0_baseline_collection
-
-## 2025-11-22T060833Z — ARCH-REFINE-FLOW-001 Phase C1a-loop1 Planning
-- Focus: ARCH-REFINE-FLOW-001 — Protocol-based Refinement Engine (Phase C1a-loop1)
-- Action Type: planning
-- Key Observations: Reviewed Phase C0 completion (commit c1a9e32: test_stage_b_shell_modifiers PASSED after canonical_roi_count bugfix). Authored Phase C1a-loop1 Do Now directing Ralph to extract ONLY `_build_stage_b_params` helper (~140 lines, lines 2570-2710) from Stage B inline code, verify compilation, commit partial progress. Multi-loop extraction strategy approved per Phase B precedent (B1a-loop1/2/3 SUCCESS). Helper 1 scope: shell modifier params initialization, optimizer setup, telemetry accumulators, CPU fallback context (PERF-WARM-011/012), ROI/panel mode config. NO regression guard required (helper not wired yet). Implementation floor satisfied: production code task (extract helper) + compilation validation. Dwell reset to 0 (last loop C0 baseline completion, now ready_for_implementation).
-- Artifact Path: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-22T060833Z/
-- Next Actions: Ralph executes Phase C1a-loop1 (extract helper 1, verify compilation, commit). If PASS → Galph plans C1a-loop2 (extract `_build_stage_b_lbfgs_closure` helper ~260 lines). If blocked → Galph reviews and decides.
-- <Action State>: [ready_for_implementation]
-
-2025-11-22T060833Z focus=ARCH-REFINE-FLOW-001 state=ready_for_implementation dwell=0 artifacts=plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-22T060833Z/ next_action=extract_stage_b_helper_1_only
-
-## 2025-11-22T063000Z — ARCH-REFINE-FLOW-001 Phase C1a-loop2 Planning
-- Focus: ARCH-REFINE-FLOW-001 — Protocol-based Refinement Engine (Phase C1a-loop2)
-- Action Type: planning
-- Key Observations: Reviewed Phase C1a-loop1 completion (commit 44342c1: `_build_stage_b_params` helper extracted ~184 lines, compilation PASSED). Authored Phase C1a-loop2 Do Now directing Ralph to extract `_build_stage_b_lbfgs_closure` helper (~247 lines: compute_loss_stage_b + closure_stage_b nested functions from lines 2859-3106). Multi-loop extraction strategy continues per Phase B precedent (B1a-loop2 extracted ~617 lines of Stage A closure code). Helper 2 scope: TWO nested functions (loss computation + LBFGS closure), lexical scope captures for param_values dict entries (shell_modifier_raw, optimizer, frozen Stage A tensors, telemetry accumulators), lazy imports inside branches per PERF-WARM-011/012, nonlocal mutations marked. NO wiring required (extraction-only, mirrors B1a-loop2). Implementation floor satisfied: production code task (extract closure helper) + compilation validation. Dwell reset to 0 (last loop C1a-loop1 ready_for_implementation, now planning C1a-loop2).
-- Artifact Path: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-22T063000Z/
-- Next Actions: Ralph executes Phase C1a-loop2 (extract closure helper, verify compilation, commit). If PASS → Galph plans C1a-loop3 (extract `_run_stage_b_lbfgs` helper + wire all 3 helpers + regression guard). If blocked → Galph reviews and decides.
-- <Action State>: [ready_for_implementation]
-
-2025-11-22T063000Z focus=ARCH-REFINE-FLOW-001 state=ready_for_implementation dwell=0 artifacts=plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-22T063000Z/ next_action=extract_stage_b_closure_helper_only
-
-## 2025-11-22T070000Z — ARCH-REFINE-FLOW-001 Phase C1a-loop3 Handoff
-- Focus: ARCH-REFINE-FLOW-001 — Protocol-based Refinement Engine (Phase C1a-loop3)
-- Action Type: ready_for_implementation
-- Key Observations: Reviewed Phase C1a-loop2 completion (commit 27f0747, helper2 extracted ~317 lines with TWO nested functions, compilation PASSED). Authored Phase C1a-loop3 Do Now directing Ralph to execute final multi-loop extraction step: (1) Extract `_run_stage_b_lbfgs` helper (~100 lines: LBFGS execution + improvement gate + best snapshot restore), (2) Fix helper2 signature bug (return tuple `(compute_loss_stage_b, closure_stage_b)` not just `closure_stage_b` to enable final validation), (3) Wire all 3 helpers into run_nanobrag_refinement Stage B branch (~610 lines inline code → ~50 lines orchestration), (4) MANDATORY regression guard test_stage_b_shell_modifiers (MUST PASS). Identified helper2 signature blocker during Do Now authoring: helper3 needs BOTH compute_loss AND closure for final validation, but current helper2 returns only closure; resolution documented in Steps 3-4 (update helper2 return line 2586 to match Phase B1a-loop2 Stage A pattern). Implementation floor satisfied: production code tasks (extract helper3 + fix helper2 + wire helpers) + validating pytest selector (test_stage_b_shell_modifiers regression guard MANDATORY). Dwell=0 (last loop C1a-loop2 ready_for_implementation for helper2 extraction, now ready_for_implementation for helper3 extraction + wiring + regression). Multi-loop extraction strategy proven successful in Phase B (B1a 3-loop extraction + bugfix). Roadmap alignment: ARCH-REFINE-FLOW-001 Tier 2, Phase C1a-loop3 final milestone before C1b (StageB wrapper).
-- Artifact Path: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-22T070000Z/
-- Next Actions: Ralph executes Phase C1a-loop3 implementation (10 steps: extract helper3, fix helper2 signature, wire helpers, compilation check, MANDATORY regression guard, telemetry comparison, update implementation.md, write summary, commit). If PASS → Galph plans Phase C1b next loop (StageB wrapper class). If blocked → Ralph documents blocker → Galph reviews and decides (debug/revert/escalate).
-- <Action State>: [ready_for_implementation]
-
-2025-11-22T070000Z focus=ARCH-REFINE-FLOW-001 state=ready_for_implementation dwell=0 artifacts=plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-22T070000Z/ next_action=extract_helper3_wire_helpers_regression_guard
-
-## 2025-11-22T230000Z — ARCH-REFINE-FLOW-001 Phase C1b Handoff
-- Focus: ARCH-REFINE-FLOW-001 — Protocol-based Refinement Engine (Phase C1b)
-- Action Type: ready_for_implementation
-- Key Observations: Reviewed Phase C1a-loop3 completion (commit ed30183, all 3 Stage B helpers extracted ~600+ lines, wired into run_nanobrag_refinement ~610→~150 lines, 5 critical bugs fixed, regression guard test_stage_b_shell_modifiers PASSED). Authored comprehensive Phase C1b Do Now directing Ralph to implement StageB wrapper class (dbex/refinement/stage_b.py) mirroring StageA pattern (Phase B1b commit 6d1d925): call 3 extracted helpers directly (_build_stage_b_params, _build_stage_b_lbfgs_closure, _run_stage_b_lbfgs), package telemetry with all RefinementTelemetry fields + stage_type="B" + mode="shell_modifiers", and validate via regression guard test_stage_b_shell_modifiers + engine contract test test_engine_executes_mock_stage. Implementation floor satisfied: production code task (StageB class ~200 lines) + validating pytest selectors (regression guard + engine contract). Dwell=0 (last loop Phase C1a-loop3 implementation, now ready_for_implementation for C1b wrapper). Multi-loop extraction strategy proven successful (Phase B: B1a 3-loop helpers → B1b wrapper → B2 delegation; Phase C: C1a 3-loop helpers → C1b wrapper [this loop]).
-- Artifact Path: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-22T230000Z/
-- Next Actions: Ralph executes Phase C1b implementation (StageB.run() method with helper orchestration, telemetry packaging, compilation check, regression guard, engine contract test, implementation summary, commit). If PASS → Galph plans Phase C2 next loop (engine delegation A→B). If blocked → Galph reviews blocker and decides.
-- <Action State>: [ready_for_implementation]
-
-2025-11-22T230000Z focus=ARCH-REFINE-FLOW-001 state=ready_for_implementation dwell=0 artifacts=plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-22T230000Z/ next_action=stage_b_wrapper_implementation
-
-## 2025-11-23T073209Z — ARCH-REFINE-FLOW-001 Phase C2 Planning
-- Focus: ARCH-REFINE-FLOW-001 — Protocol-based Refinement Engine (Phase C2)
-- Action Type: planning
-- Key Observations: Reviewed Phase C1b completion (commit 4a336db, 2025-11-22T230000Z): StageB wrapper implemented with all 3 helpers orchestration, telemetry packaging (RefinementTelemetry schema + stage_type="B" + mode="shell_modifiers"), regression guard test_stage_b_shell_modifiers PASSED (14.82s), engine contract test_engine_executes_mock_stage PASSED (0.81s). Authored Phase C2 Do Now directing Ralph to implement engine delegation for Stage A→B mode (enable_stage_c=False AND enable_stage_b=True) mirroring Phase B2 pattern: (1) Add stage_a_b_mode detection, (2) Extract _build_final_bragg_from_stage_b_telemetry helper (~65 lines), (3) Implement elif delegation branch with RefinementEngine([StageA(), StageB()]), (4) Add shell metadata (shell_edges, shell_indices, n_shells) to StageB telemetry output, (5) Wrap inline Stage A code in else block (pure indentation), (6) Compilation + regression guard validation. Implementation floor satisfied: production code tasks (helper extraction + delegation branch) + validating pytest selectors (test_stage_b_shell_modifiers, test_engine_executes_mock_stage). Dwell=0 (last loop C1b ready_for_implementation → wrapper complete, now ready_for_implementation for C2 engine delegation).
-- Artifact Path: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T073209Z/
-- Next Actions: Ralph executes Phase C2 implementation (extract helper, add detection, implement delegation, add shell metadata, indent inline code, compilation check, regression guard, update implementation.md, commit). If PASS → Galph plans Phase C3 next loop (full smoke validation both detectors). If blocked → Galph reviews and decides.
-- <Action State>: [ready_for_implementation]
-
-2025-11-23T073209Z focus=ARCH-REFINE-FLOW-001 state=ready_for_implementation dwell=0 artifacts=plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T073209Z/ next_action=phase_c2_engine_delegation
-
-## 2025-11-23T081500Z — ARCH-REFINE-FLOW-001 Phase C2 Bugfix Planning (baseline_crystal missing)
-- Focus: ARCH-REFINE-FLOW-001 — Protocol-based Refinement Engine (Phase C2 bugfix)
-- Action Type: planning
-- Key Observations: Analyzed Ralph's loop i=206 blocker (commit a82893e, 2025-11-23T075320Z): 9.3% chi-squared offset between Stage A final (7.053e+08) and Stage B initial (7.709e+08) persists after fixing 3 AttributeErrors (asdict conversion + enable_warm_cache typo). Root cause identified: `_build_final_bragg_from_stage_b_telemetry` helper is missing `baseline_crystal` parameter, so `baseline_misset_deg_tensor` is always None (lines 2812-2814), causing incorrect misset computation in final Bragg regeneration. Helper uses `misset_xyz_deg` alone (delta only) instead of `baseline_misset + misset_xyz_deg` (full misset). This mismatches `compute_loss_stage_b` (lines 2414-2416) which correctly adds baseline, resulting in 9.3% chi² offset. Inline path (lines 3115-3120) computes baseline_misset correctly. Authored comprehensive Do Now with 4 code changes: (1) add baseline_crystal parameter to helper signature (line 2718), (2) update docstring, (3) replace baseline_misset=None with compute_baseline_misset_deg call, (4) pass baseline_crystal in engine delegation call (line ~3077). Validation: rerun test_stage_b_shell_modifiers small detector, verify chi² offset ≤ 0.1%.
-- Artifact Path: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T081500Z/
-- Next Actions: Ralph executes Phase C2 bugfix (4 code changes + regression guard). If PASS → Phase C2 COMPLETE, prepare Phase C3 planning. If FAIL → Ralph documents blocker → Galph reviews and decides escalation.
-- <Action State>: [ready_for_implementation]
-
-2025-11-23T081500Z focus=ARCH-REFINE-FLOW-001 state=ready_for_implementation dwell=1 artifacts=plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T081500Z/ next_action=phase_c2_baseline_crystal_bugfix

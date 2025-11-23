@@ -1,0 +1,197 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 1 item
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers FAILED [100%]
+
+=================================== FAILURES ===================================
+_________________________ test_stage_b_shell_modifiers _________________________
+
+refgeom_dataload = <dbex.data_load.DataLoad object at 0x7a0d4ff18d60>
+refinement_inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0.,...0.]]], dtype=float32), target_representation='adu', global_scale_hint=62.65738056380318, sigma_readout_provenance=None)
+hkl_data = (tensor([[[0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0.,...uda:0'), {'grid_max': 518.3336791992188, 'grid_mean': 16.896526336669922, 'grid_min': 0.0, 'grid_nonzero': 69614, ...})
+smoke_detector_size = 'full', smoke_sigma_source = 'cli_override'
+
+    @pytest.mark.allow_metadata_sigma
+    def test_stage_b_shell_modifiers(
+        refgeom_dataload,
+        refinement_inputs,
+        hkl_data,
+        smoke_detector_size,
+        smoke_sigma_source,
+    ):
+        """
+        Smoke test for Stage B shell-modifier LBFGS refinement (TORCH-REFINE-004).
+    
+        Tests exercise run_nanobrag_refinement with Stage B enabled (enable_stage_b=True)
+        after Stage A, validating:
+        - Canonical detector runs do not regress chi-squared by more than 1e-6 relative loss
+        - Telemetry presence for shell modifiers (param_deltas with d-spacing ranges)
+        - Shell modifiers stay within ±1% of identity (REFINE-008) when strict gates are active
+        - Non-increasing full-loss trace across last 3 validations
+        - Halo-padded HKL grid and interpolation are required (guards enforced)
+    
+        Per input.md:
+        - docs/spec-db-workflow.md:31-34 mandates Stage B optional shell modifiers with tricubic interpolation
+        - plans/nanobrag_integration_plan.md:226-244 specifies Stage B shell mode contract
+        - docs/architecture/pytorch_design.md:35-40 requires ±1 halo for interpolation
+        - docs/findings.md REFINE-005 confirms halo requirement for Stage B
+    
+        Findings applied:
+        - RUNTIME-001: Run with NANOBRAGG_DISABLE_COMPILE=1 to avoid torch.compile interference
+        - CONFORMANCE-001: Requires KMP_DUPLICATE_LIB_OK=TRUE
+        - REFINE-005: Halo-padded HKL grid mandatory for Stage B; guard enforced in run_nanobrag_refinement
+        - REFINE-008: Canonical detector improvements hover near zero, so strict gates verify
+          non-regression (≥-1e-6 loss delta) plus ±1% shell-modifier sanity via telemetry. Telemetry
+          is archived via `DBEX_SMOKE_TELEMETRY_PATH` for PHYSICS-LOSS-001 reviews.
+        - SCALE-001/002: Structure factors unscaled; shell modifiers applied multiplicatively
+        """
+        from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig
+    
+        print(f"\n[test_stage_b_shell_modifiers] detector={smoke_detector_size}")
+    
+        DL = refgeom_dataload
+        hkl_grid, hkl_metadata = hkl_data
+        strict_gates = smoke_detector_size == "full"
+    
+        # Guard: Stage B requires halo-padded HKL grid (REFINE-005)
+        assert hkl_metadata["has_halo"], (
+            "Stage B smoke test requires halo-padded HKL grid. "
+            "hkl_data fixture must be configured with halo=True per TORCH-REFINE-004."
+        )
+    
+        # Refinement config: enable Stage B with 5 resolution shells
+        # Keep Stage A and Stage C disabled to isolate Stage B behavior
+        sigma_provenance = "external_lookup" if smoke_sigma_source == "metadata" else "cli_override"
+    
+        # PERF-WARM-010: Canonical runs disable ROI mode to preserve ±1% shell modifier gates
+        # until REFINE-008 can be recalibrated for ROI sampling. Small-detector runs keep ROI enabled.
+        enable_roi = smoke_detector_size != "full"
+    
+        config = RefinementConfig(
+            max_iter=30,
+            min_loss_improvement=0.0,  # Strict-gate behavior asserted via telemetry (REFINE-008)
+            enable_hkl_interpolation=True,  # Required for Stage B (REFINE-005)
+            enable_stage_b=True,  # Enable shell modifiers
+            stage_b_n_shells=5,
+            stage_b_min_loss_improvement=0.0,
+            stage_b_max_modifier=2.0,
+            enable_stage_c=False,  # Disable Stage C for this test
+            enable_stage_a_roi_mode=enable_roi,  # Panel mode for canonical; ROI for small
+            device="cuda:0",
+            dtype=torch.float32,
+            sigma_readout_provenance=sigma_provenance,
+        )
+    
+        # Run refinement (Stage A + Stage B)
+        bragg_refined, telemetry_dict = run_nanobrag_refinement(
+            inputs=refinement_inputs,
+            detector=DL.detector,
+            beam=DL.beam,
+            crystal=DL.crystal,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            config=config,
+            baseline_crystal=DL.crystal,  # Required for Stage B cell delta reconstruction
+            baseline_detector=DL.detector
+        )
+    
+        # Extract telemetry
+        assert "A" in telemetry_dict, "Stage A telemetry missing"
+        assert "B" in telemetry_dict, "Stage B telemetry missing (enable_stage_b=True)"
+    
+        telemetry_a = telemetry_dict["A"]
+        telemetry_b = telemetry_dict["B"]
+        assert telemetry_a.sigma_readout_provenance == sigma_provenance
+        assert telemetry_b.sigma_readout_provenance == sigma_provenance
+    
+        # PERF-WARM-SIM-001: Wrap acceptance gates in try/finally so telemetry is always emitted,
+        # even when strict REFINE-008 gates fail for canonical detector runs.
+        try:
+            # Acceptance 1: Stage B telemetry structure
+            assert telemetry_b.optimizer == "LBFGS"
+            assert telemetry_b.stage == "B"
+>           assert len(telemetry_b.loss_trace_sample) > 0, "Stage B loss trace empty"
+E           AssertionError: Stage B loss trace empty
+E           assert 0 > 0
+E            +  where 0 = len([])
+E            +    where [] = RefinementTelemetry(optimizer='LBFGS', stage='B', history_size=10, max_iter=30, tolerance_grad=1e-07, tolerance_change=1e-09, roi_sample_fraction=0.15, roi_count_sampled=92, roi_count_total=92, loss_trace_sample=[], loss_trace_full=[(0, 1427176576.0), (0, 1427176576.0)], best_loss_full=(1427176576.0, 0), param_deltas={'shell_0_modifier (d=80000.12-100000.00\xc5)': {'initial': 1.0, 'final': 1.0, 'delta': 0.0}, 'shell_1_modifier (d=60000.25-80000.12\xc5)': {'initial': 1.0, 'final': 1.0, 'delta': 0.0}, 'shell_2_modifier (d=40000.38-60000.25\xc5)': {'initial': 1.0, 'final': 1.0, 'delta': 0.0}, 'shell_3_modifier (d=20000.50-40000.38\xc5)': {'initial': 1.0, 'final': 1.0, 'delta': 0.0}, 'shell_4_modifier (d=0.63-20000.50\xc5)': {'initial': 1.0, 'final': 1.0, 'delta': 0.0}}, status='error', message='Stage B error: element 0 of tensors does not require grad and does not have a grad_fn', perf_counters={'cache_mode': 'warm', 'roi_mode': 'panel', 'roi_count_total': 92, 'roi_count_sampled': 92, 'closure_evals': 1, 'validation_runs': 2, 'forward_time_ms': {'mean': 35136.73424363757, 'min': 35039.70523690805, 'max': 35212.05906290561, 'total': 105410.20273091272}}, chi_squared_trace_sample=[], chi_squared_trace_full=[(0, 1427176576.0), (0, 1427176576.0)], chi_squared_best=(1427176576.0, 0), masked_mse_trace_sample=[], masked_mse_trace_full=[(0, 976180.75), (0, 976180.75)], masked_mse_best=(976180.75, 0), sigma_readout_provenance='cli_override', sigma_readout_reference_value=None, variance_floor_value=1.0, variance_floor_clamp_fraction=0.0, canonical_stage_label='A', canonical_chi_squared=1305884544.0, canonical_chi_squared_iteration=5, canonical_roi_count=92, canonical_detector_distances_mm=[231.27645547762577], roi_mode='panel').loss_trace_sample
+
+tests/dbex/test_torch_refine_smoke.py:1190: AssertionError
+----------------------------- Captured stdout call -----------------------------
+
+[test_stage_b_shell_modifiers] detector=full
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=6054419/6224001 (97.28%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=6054419/6224001 (97.28%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=6054415/6224001 (97.28%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=6054415/6224001 (97.28%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=6054415/6224001 (97.28%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=6054415/6224001 (97.28%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=6054415/6224001 (97.28%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-22,23] l=[0,14] hit_rate=6054415/6224001 (97.28%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-13,18] k=[-14,14] l=[0,12] hit_rate=6219531/6224001 (99.93%)
+auto-selected 6-fold oversampling
+CPU_FALLBACK_DIAGNOSTICS_PARAMS: {"location": "_build_stage_b_params", "config_stage_b_full_eval_on_cpu": true, "device_global": "cuda:0", "device_type": "device", "device_is_cuda": true, "use_stage_a_roi_mode": false, "use_stage_a_roi_mode_type": "bool", "stage_a_ctx_is_not_none": true, "use_stage_b_cpu_fallback": true, "stage_b_param_device": "cpu", "shell_modifier_raw_device": "cpu", "shell_modifier_raw_requires_grad": true}
+CPU_FALLBACK_DIAGNOSTICS_CLOSURE: {"location": "_build_stage_b_lbfgs_closure", "use_stage_b_cpu_fallback": true, "is_full": true, "grad_enabled": false, "device_global": "cuda:0", "shell_modifier_raw_device": "cpu", "shell_modifiers_device": "cpu", "eval_device": "cpu", "eval_device_type": "cpu", "shell_modifier_raw_requires_grad": true, "shell_modifiers_requires_grad": false, "shell_modifiers_grad_fn": "None"}
+[CACHE_MODE_DECISION] stage_b_use_warm_cache=True, use_stage_b_cpu_fallback=True, use_warm_eval=False
+auto-selected 6-fold oversampling
+WARNING: out of range for three point interpolation
+WARNING: further warnings will not be printed!
+[HKL stats] h=[0,0] k=[-1755,1669] l=[0,1] hit_rate=0/224064036 (0.00%)
+CPU_FALLBACK_DIAGNOSTICS_CLOSURE: {"location": "_build_stage_b_lbfgs_closure", "use_stage_b_cpu_fallback": true, "is_full": false, "grad_enabled": true, "device_global": "cuda:0", "shell_modifier_raw_device": "cpu", "shell_modifiers_device": "cpu", "eval_device": "cpu", "eval_device_type": "cpu", "shell_modifier_raw_requires_grad": true, "shell_modifiers_requires_grad": true, "shell_modifiers_grad_fn": "<ClampBackward1 object at 0x7a0c8c7e3880>"}
+[CACHE_MODE_DECISION] stage_b_use_warm_cache=True, use_stage_b_cpu_fallback=True, use_warm_eval=False
+auto-selected 6-fold oversampling
+WARNING: out of range for three point interpolation
+WARNING: further warnings will not be printed!
+[HKL stats] h=[0,0] k=[-1755,1669] l=[0,1] hit_rate=0/224064036 (0.00%)
+CPU_FALLBACK_DIAGNOSTICS_CLOSURE: {"location": "_build_stage_b_lbfgs_closure", "use_stage_b_cpu_fallback": true, "is_full": true, "grad_enabled": false, "device_global": "cuda:0", "shell_modifier_raw_device": "cpu", "shell_modifiers_device": "cpu", "eval_device": "cpu", "eval_device_type": "cpu", "shell_modifier_raw_requires_grad": true, "shell_modifiers_requires_grad": false, "shell_modifiers_grad_fn": "None"}
+[CACHE_MODE_DECISION] stage_b_use_warm_cache=True, use_stage_b_cpu_fallback=True, use_warm_eval=False
+auto-selected 6-fold oversampling
+WARNING: out of range for three point interpolation
+WARNING: further warnings will not be printed!
+[HKL stats] h=[0,0] k=[-1755,1669] l=[0,1] hit_rate=0/224064036 (0.00%)
+auto-selected 6-fold oversampling
+WARNING: out of range for three point interpolation
+WARNING: further warnings will not be printed!
+[HKL stats] h=[0,0] k=[-1796,1708] l=[0,1] hit_rate=0/224064036 (0.00%)
+  Stage B status: error
+  Total improvement (A+B): -3.7%
+  Shell modifiers: {'shell_0_modifier (d=80000.12-100000.00Å)': {'initial': 1.0, 'final': 1.0, 'delta': 0.0}, 'shell_1_modifier (d=60000.25-80000.12Å)': {'initial': 1.0, 'final': 1.0, 'delta': 0.0}, 'shell_2_modifier (d=40000.38-60000.25Å)': {'initial': 1.0, 'final': 1.0, 'delta': 0.0}, 'shell_3_modifier (d=20000.50-40000.38Å)': {'initial': 1.0, 'final': 1.0, 'delta': 0.0}, 'shell_4_modifier (d=0.63-20000.50Å)': {'initial': 1.0, 'final': 1.0, 'delta': 0.0}}
+=============================== warnings summary ===============================
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers - AssertionError: Stage B loss trace empty
+assert 0 > 0
+ +  where 0 = len([])
+ +    where [] = RefinementTelemetry(optimizer='LBFGS', stage='B', history_size=10, max_iter=30, tolerance_grad=1e-07, tolerance_change=1e-09, roi_sample_fraction=0.15, roi_count_sampled=92, roi_count_total=92, loss_trace_sample=[], loss_trace_full=[(0, 1427176576.0), (0, 1427176576.0)], best_loss_full=(1427176576.0, 0), param_deltas={'shell_0_modifier (d=80000.12-100000.00\xc5)': {'initial': 1.0, 'final': 1.0, 'delta': 0.0}, 'shell_1_modifier (d=60000.25-80000.12\xc5)': {'initial': 1.0, 'final': 1.0, 'delta': 0.0}, 'shell_2_modifier (d=40000.38-60000.25\xc5)': {'initial': 1.0, 'final': 1.0, 'delta': 0.0}, 'shell_3_modifier (d=20000.50-40000.38\xc5)': {'initial': 1.0, 'final': 1.0, 'delta': 0.0}, 'shell_4_modifier (d=0.63-20000.50\xc5)': {'initial': 1.0, 'final': 1.0, 'delta': 0.0}}, status='error', message='Stage B error: element 0 of tensors does not require grad and does not have a grad_fn', perf_counters={'cache_mode': 'warm', 'roi_mode': 'panel', 'roi_count_total': 92, 'roi_count_sampled': 92, 'closure_evals': 1, 'validation_runs': 2, 'forward_time_ms': {'mean': 35136.73424363757, 'min': 35039.70523690805, 'max': 35212.05906290561, 'total': 105410.20273091272}}, chi_squared_trace_sample=[], chi_squared_trace_full=[(0, 1427176576.0), (0, 1427176576.0)], chi_squared_best=(1427176576.0, 0), masked_mse_trace_sample=[], masked_mse_trace_full=[(0, 976180.75), (0, 976180.75)], masked_mse_best=(976180.75, 0), sigma_readout_provenance='cli_override', sigma_readout_reference_value=None, variance_floor_value=1.0, variance_floor_clamp_fraction=0.0, canonical_stage_label='A', canonical_chi_squared=1305884544.0, canonical_chi_squared_iteration=5, canonical_roi_count=92, canonical_detector_distances_mm=[231.27645547762577], roi_mode='panel').loss_trace_sample
+================== 1 failed, 4 warnings in 150.29s (0:02:30) ===================
+Exit code: 1

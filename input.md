@@ -1,545 +1,313 @@
-# Ralph Input — Loop i=220
+# Input for Ralph — Phase C2.4 CPU HKL Grid Device Routing Fix
 
 ## Summary
-Build minimal CPU Bragg reproducer to isolate nanobrag_torch simulator bug vs dbex context setup issue.
+Fix HKL grid device routing bug in Stage B CPU fallback path: use `stage_b_eval_stage_a_ctx.hkl_grid` (CPU-native) instead of transferring CUDA `hkl_grid` every closure iteration.
 
 ## Mode
-none (reproducer script authorship + decision analysis, no production dbex code changes)
+none (targeted bugfix + validation)
 
 ## Focus
-ARCH-REFINE-FLOW-001 — Protocol-based Refinement Engine (Phase C2.3: minimal CPU Bragg reproducer)
+ARCH-REFINE-FLOW-001 — Protocol-based Refinement Engine (Phase C2.4: dbex Stage B CPU warm-cache HKL grid device routing fix)
 
 ## Branch
-`integration` (current working branch)
+integration
 
 ## Mapped Tests
-none — evidence-only loop (reproducer construction + decision analysis)
+- `tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers` (full detector, CPU fallback path)
+- `tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers` (small detector, regression guard)
 
 ## Artifacts
-`plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T130000Z/`
-
-Store all outputs under this timestamp directory:
-- `minimal_cpu_bragg_reproducer.py` — reproducer script (to be committed to `plans/active/ARCH-REFINE-FLOW-001/bin/`)
-- `reproducer_result.json` — decision output with Bragg stats and next path
-- `reproducer_run.log` — stdout/stderr from script execution
-- `phase_c2_3_decision.md` — decision synthesis with 4-path tree analysis
+`plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T122329Z/`
+- `decision.md` — Root cause analysis + fix rationale
+- `pytest_stage_b_full_fixed.log` — Full detector test with fix (expected PASS)
+- `pytest_stage_b_small_regression.log` — Small detector regression guard (expected PASS)
+- `validation_metrics.json` — Test results + telemetry comparison
 - `summary.md` — Turn Summary block
 
 ## Do Now
 
-Build a minimal standalone reproducer script to isolate whether the zero Bragg output on CPU (loop i=219 finding) is caused by a nanobrag_torch simulator bug or a dbex context setup issue.
+### Root Cause (HIGH confidence ~95%)
 
-**Context:** Loop i=219 diagnostic evidence proved 100% crystal parameter parity between CUDA and CPU paths (cell, MOSFLM A* vectors, misset, A/U/B matrices ALL identical), yet CPU simulator produces zero Bragg intensities across all 6.2M pixels per panel. This suggests a bug inside nanobrag_torch Simulator.run() or interpolation logic on CPU, NOT a dbex configuration mismatch.
+**Bug:** HKL grid device mismatch in Stage B CPU fallback path.
 
-**Objective:** Create a standalone script that builds a CPU StageAContext using the SAME parameters that work on CUDA, runs a single panel simulation, and checks whether Bragg output is non-zero. If the reproducer fails (zero Bragg), the bug is in nanobrag_torch. If it succeeds (non-zero Bragg), the bug is in dbex warm cache or context cloning.
+**Evidence:**
+1. Loop i=220 minimal reproducer PASSED (99% Bragg coverage on CPU) → nanobrag_torch works correctly ✓
+2. Loop i=219 full test FAILED (0% Bragg coverage on CPU despite 100% parameter parity) → dbex bug ✓
+3. Line 2464 in `_build_stage_b_lbfgs_closure`: `hkl_grid_local = hkl_grid if eval_device == device else hkl_grid.to(device=eval_device, dtype=dtype)`
+   - `hkl_grid` is the CUDA tensor from parent scope (line 3631)
+   - When CPU fallback active: `eval_device='cpu'`, `device='cuda:0'` → transfers CUDA→CPU every closure call
+   - **But**: CPU context already has a CPU-native `hkl_grid` stored in `stage_b_eval_stage_a_ctx.hkl_grid` (built at line 2234-2246, stored at `_build_stage_a_context` line 657)
+   - **Expected**: Use `stage_b_eval_stage_a_ctx.hkl_grid` (CPU-native) when CPU fallback active
+   - **Actual**: Transfers CUDA `hkl_grid` → CPU every time, creating device mismatch or data corruption
 
-### Task Breakdown (10 steps)
+**Why reproducer worked:** Reproducer builds fresh CPU context with CPU `hkl_grid` from scratch, no CUDA→CPU transfer.
 
-#### 1. Review Phase C2.2 Evidence
-Read the following artifacts from loop i=219:
-- `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T120000Z/decision.md`
-- `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T120000Z/summary.md`
-- `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T120000Z/crystal_config_comparison.txt`
+**Why full test failed:** CPU closure uses wrong `hkl_grid` source (CUDA parent scope instead of CPU context).
 
-Understand:
-- 100% parameter parity (13 parameters match exactly)
-- Zero Bragg output on CPU despite correct params
-- "Out of range for three point interpolation" warnings
-- Hypothesis 5: nanobrag_torch CPU simulator bug (90% confidence)
+### Fix Strategy
 
-#### 2. Create Reproducer Script Stub
+**Targeted 5-line fix** at `dbex/nanobrag_refinement.py:2464`:
 
-Create file: `plans/active/ARCH-REFINE-FLOW-001/bin/minimal_cpu_bragg_reproducer.py`
-
-Use this header template (T2 scriptization policy):
+Replace:
 ```python
-#!/usr/bin/env python3
-"""
-Minimal CPU Bragg Reproducer — Isolate dbex vs nanobrag_torch bug
-Initiative: ARCH-REFINE-FLOW-001, Owner: galph, Loop: i=220
-
-Purpose:
-  Build CPU StageAContext with canonical refGeom.expt parameters,
-  run single-panel simulation, check if Bragg output is non-zero.
-
-Inputs:
-  --expt-path (optional): Path to refGeom.expt (default: tests/fixtures/refGeom.expt)
-  --out-dir (optional): Output directory for JSON decision (default: current dir)
-
-Outputs:
-  reproducer_result.json: {"result": "PASS"|"FAIL", "bragg_stats": {...}, "next_path": "A"|"B"|"C"|"D"}
-
-Repro:
-  python plans/active/ARCH-REFINE-FLOW-001/bin/minimal_cpu_bragg_reproducer.py \\
-    --expt-path tests/fixtures/refGeom.expt \\
-    --out-dir plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T130000Z/
-
-Decision Criteria:
-  - IF bragg.max() > 0 → PASS (dbex bug, Path A: investigate cache/context)
-  - ELSE → FAIL (nanobrag_torch bug, Path B: source inspection + patch OR defer)
-"""
-import argparse
-import json
-import sys
-from pathlib import Path
-
-def main():
-    ap = argparse.ArgumentParser(description="Minimal CPU Bragg reproducer")
-    ap.add_argument("--expt-path", type=str, default="tests/fixtures/refGeom.expt",
-                    help="Path to refGeom.expt")
-    ap.add_argument("--out-dir", type=str, default=".",
-                    help="Output directory for JSON decision")
-    args = ap.parse_args()
-
-    # (Implementation below)
-    pass
-
-if __name__ == "__main__":
-    main()
+hkl_grid_local = hkl_grid if eval_device == device else hkl_grid.to(device=eval_device, dtype=dtype)
 ```
 
-#### 3. Load Canonical Crystal/Detector/Beam
-
-Inside `main()`, add:
+With:
 ```python
-# Lazy imports to avoid circular dependencies
-import torch
-from dxtbx.model.experiment_list import ExperimentListFactory
-
-# Load refGeom.expt
-expt_path = Path(args.expt_path)
-if not expt_path.exists():
-    print(f"ERROR: {expt_path} not found", file=sys.stderr)
-    sys.exit(1)
-
-expt_list = ExperimentListFactory.from_json_file(str(expt_path), check_format=False)
-expt = expt_list[0]
-detector = expt.detector
-beam = expt.beam
-crystal = expt.crystal
-
-print(f"[LOAD] Loaded {expt_path}")
-print(f"[CRYSTAL] cell={crystal.get_unit_cell().parameters()}")
-print(f"[DETECTOR] {len(detector)} panels")
-print(f"[BEAM] wavelength={beam.get_wavelength()}")
-```
-
-#### 4. Build CPU StageAContext
-
-Add:
-```python
-# Import dbex helper (lazy to avoid circular deps)
-from dbex.nanobrag_refinement import _build_stage_a_context
-from dbex.nanobrag_bridge import load_structure_factors_from_mtz
-
-# Device
-device = torch.device("cpu")
-dtype = torch.float32
-
-# Load MTZ (use canonical path from test fixtures)
-mtz_path = Path("tests/fixtures/1vpj.mtz")
-if not mtz_path.exists():
-    print(f"ERROR: {mtz_path} not found", file=sys.stderr)
-    sys.exit(1)
-
-hkl_data = load_structure_factors_from_mtz(str(mtz_path))
-print(f"[MTZ] Loaded {mtz_path}, {len(hkl_data)} structure factors")
-
-# Build CPU context (same parameters as CUDA path)
-# Reference: dbex/nanobrag_refinement.py:2206-2221 (CPU context builder in inline path)
-stage_a_ctx = _build_stage_a_context(
-    detector=detector,
-    beam=beam,
-    crystal=crystal,
-    hkl_data=hkl_data,
-    enable_hkl_interpolation=True,  # tricubic per REFINE-005
-    device=device,
-    dtype=dtype,
-    enable_hkl_padding=True,        # halo per REFINE-005
-    baseline_crystal=None,          # no incremental UB for reproducer
-)
-
-print(f"[CONTEXT] Built CPU StageAContext")
-print(f"[CONTEXT] HKL grid shape: {stage_a_ctx['hkl_grid'].shape}")
-print(f"[CONTEXT] Detectors cached: {len(stage_a_ctx['detectors'])}")
-```
-
-#### 5. Extract Panel 0 Config + Simulator
-
-Add:
-```python
-# Extract panel 0 (first panel)
-panel_id = 0
-detector_config = stage_a_ctx["detectors"][panel_id]
-hkl_grid = stage_a_ctx["hkl_grid"]
-crystal_config = stage_a_ctx["crystal"]
-
-print(f"[PANEL] Extracted panel {panel_id}")
-print(f"[PANEL] detector pixels: {detector_config.npixels_slow} x {detector_config.npixels_fast}")
-
-# Create Simulator
-# Lazy import nanobrag_torch
-from nanobrag_torch import Simulator
-
-simulator = Simulator(
-    detector=detector_config,
-    beam=stage_a_ctx["beam"],
-    crystal=crystal_config,
-    device=device,
-    dtype=dtype,
-)
-
-print(f"[SIMULATOR] Created on device={device}, dtype={dtype}")
-```
-
-#### 6. Run Single Panel Simulation
-
-Add:
-```python
-# Run simulator.run() with HKL grid
-print(f"[SIMULATION] Running single panel on CPU...")
-
-with torch.no_grad():  # No gradients needed for reproducer
-    bragg_panel = simulator.run(hkl_grid)
-
-print(f"[SIMULATION] Complete")
-```
-
-#### 7. Check Bragg Output Stats
-
-Add:
-```python
-# Compute Bragg stats
-bragg_min = float(bragg_panel.min().item())
-bragg_max = float(bragg_panel.max().item())
-bragg_mean = float(bragg_panel.mean().item())
-nonzero_count = int((bragg_panel > 0).sum().item())
-total_pixels = bragg_panel.numel()
-
-print(f"[BRAGG] shape={bragg_panel.shape}")
-print(f"[BRAGG] min={bragg_min}, max={bragg_max}, mean={bragg_mean}")
-print(f"[BRAGG] nonzero_count={nonzero_count}/{total_pixels} ({100*nonzero_count/total_pixels:.2f}%)")
-
-bragg_stats = {
-    "shape": list(bragg_panel.shape),
-    "min": bragg_min,
-    "max": bragg_max,
-    "mean": bragg_mean,
-    "nonzero_count": nonzero_count,
-    "total_pixels": total_pixels,
-    "nonzero_fraction": nonzero_count / total_pixels,
-}
-```
-
-#### 8. Write JSON Decision File
-
-Add:
-```python
-# Decision criteria: bragg_max > 0 → PASS, else FAIL
-if bragg_max > 0:
-    result = "PASS"
-    next_path = "A"  # dbex bug (cache/context issue)
-    message = "Bragg output is non-zero on CPU reproducer. Bug is in dbex warm cache or context cloning."
+if use_stage_b_cpu_fallback and stage_b_eval_stage_a_ctx is not None:
+    # CPU fallback: use CPU-native HKL grid from cloned Stage A context (PERF-WARM-012)
+    hkl_grid_local = stage_b_eval_stage_a_ctx.hkl_grid
 else:
-    result = "FAIL"
-    next_path = "B"  # nanobrag_torch bug (simulator issue)
-    message = "Bragg output is zero on CPU reproducer. Bug is in nanobrag_torch Simulator.run() CPU path."
-
-decision = {
-    "result": result,
-    "next_path": next_path,
-    "message": message,
-    "bragg_stats": bragg_stats,
-    "crystal_params": {
-        "cell_a": float(crystal.get_unit_cell().parameters()[0]),
-        "cell_b": float(crystal.get_unit_cell().parameters()[1]),
-        "cell_c": float(crystal.get_unit_cell().parameters()[2]),
-        "cell_alpha": float(crystal.get_unit_cell().parameters()[3]),
-        "cell_beta": float(crystal.get_unit_cell().parameters()[4]),
-        "cell_gamma": float(crystal.get_unit_cell().parameters()[5]),
-    },
-    "device": str(device),
-    "dtype": str(dtype),
-}
-
-# Write JSON
-out_dir = Path(args.out_dir)
-out_dir.mkdir(parents=True, exist_ok=True)
-json_path = out_dir / "reproducer_result.json"
-with open(json_path, "w") as f:
-    json.dump(decision, f, indent=2)
-
-print(f"[RESULT] {result} ({next_path})")
-print(f"[OUTPUT] {json_path}")
-
-# Exit code: 0 if PASS, 1 if FAIL
-sys.exit(0 if result == "PASS" else 1)
+    # Normal path: transfer to eval device if needed
+    hkl_grid_local = hkl_grid if eval_device == device else hkl_grid.to(device=eval_device, dtype=dtype)
 ```
 
-#### 9. Run Reproducer and Capture Output
+**Rationale:**
+- When CPU fallback is active, `stage_b_eval_stage_a_ctx` is a CPU-native context built at line 2234-2246 via `_build_stage_a_context(..., device='cpu', ...)`.
+- That context's `hkl_grid` (stored at line 657 in `_build_stage_a_context`) is already on CPU device and has correct dtype.
+- Using it directly avoids repeated CUDA→CPU transfers and ensures device consistency throughout the closure.
+- When CPU fallback is NOT active (`use_stage_b_cpu_fallback=False`), use the existing logic (transfer if devices differ).
 
-Execute:
-```bash
-KMP_DUPLICATE_LIB_OK=TRUE python plans/active/ARCH-REFINE-FLOW-001/bin/minimal_cpu_bragg_reproducer.py \
-  --expt-path tests/fixtures/refGeom.expt \
-  --out-dir plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T130000Z/ \
-  2>&1 | tee plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T130000Z/reproducer_run.log
-```
+### Steps (11 tasks)
 
-Expected runtime: ~30 seconds (single panel CPU simulation)
+1. **Review Phase C2.3 evidence** (5 min)
+   - Read `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T130000Z/phase_c2_3_decision.md` (Path A: dbex cache/context bug confirmed)
+   - Read reproducer result (`reproducer_result.json`: PASS, 99% Bragg, max=0.086, mean=0.0027)
+   - Confirm root cause hypothesis: HKL grid device routing bug in closure
 
-Capture:
-- Exit code (0 = PASS, 1 = FAIL)
-- stdout/stderr in `reproducer_run.log`
-- `reproducer_result.json` with decision
+2. **Apply targeted fix** (10 min)
+   - Open `dbex/nanobrag_refinement.py`
+   - Locate line 2464: `hkl_grid_local = hkl_grid if eval_device == device else hkl_grid.to(device=eval_device, dtype=dtype)`
+   - Replace with CPU fallback branch logic (5-line conditional per Fix Strategy above)
+   - Verify line numbers after edit (shell_indices_local should be next line)
 
-#### 10. Decision Synthesis
+3. **Add inline comment explaining fix** (2 min)
+   - Above the fix, add comment referencing ARCH-REFINE-FLOW-001 Phase C2.4 and reproducer evidence:
+     ```python
+     # ARCH-REFINE-FLOW-001 Phase C2.4: When CPU fallback active, use CPU-native HKL grid from
+     # stage_b_eval_stage_a_ctx (built at line 2234-2246) instead of transferring CUDA hkl_grid.
+     # Minimal reproducer (loop i=220) proved CPU simulator works with native CPU HKL grid;
+     # CUDA→CPU transfer in closure causes device mismatch or data corruption (0% Bragg output).
+     ```
 
-Read `reproducer_result.json` and synthesize decision per 4-path tree:
+4. **Remove temporary diagnostics** (5 min)
+   - Delete diagnostic blocks added in loop i=219:
+     - Lines 2228-2232 (`[CRYSTAL_CPU_PRE]` print statements)
+     - Lines 550-558 in `_build_stage_a_context` (`[CRYSTAL_CPU_POST]` / `[CRYSTAL_CUDA_POST]` prints)
+     - Lines 930-934 (`[CRYSTAL_CUDA_PRE]` if they exist)
+     - Lines 2556-2558 (`[BRAGG_CPU_WARM]` diagnostic)
+     - Lines 2589-2591 (`[BRAGG_CPU_COLD]` diagnostic)
+     - Lines 2204-2219 (`CPU_FALLBACK_DIAGNOSTICS_PARAMS` JSON dump)
+   - Keep HKL_GRAD_CHECK diagnostic at line 2479-2481 (useful for future gradient debugging)
 
-**Path A (reproducer PASS, bragg_max > 0):**
-- **Verdict:** Bug is in dbex warm cache or context cloning, NOT nanobrag_torch
-- **Evidence:** Standalone CPU context produces non-zero Bragg, but full test fails
-- **Next Actions (future loop):**
-  - Investigate dbex warm cache HKL grid device transfer (lines 2460-2470)
-  - Check if `stage_a_ctx` cloning (lines 2206-2221) drops gradient or device info
-  - Compare warm vs cold path HKL grids on CPU
-- **Confidence:** HIGH (~85%) that fix is in dbex context management
-- **Status:** Phase C2.3 COMPLETE → Phase C2.4 dbex cache investigation
+5. **Compilation check** (1 min)
+   - Run: `python -c "import dbex.nanobrag_refinement; print('OK')"`
+   - Expected: `OK` (exit code 0)
+   - If import error: fix syntax, rerun
 
-**Path B (reproducer FAIL, bragg_max == 0):**
-- **Verdict:** Bug is in nanobrag_torch Simulator.run() CPU-specific code
-- **Evidence:** Standalone CPU reproducer with correct params produces zero Bragg
-- **Next Actions (future loop):**
-  - Inspect `nanobrag_torch/simulator.py::run()` CPU paths (lines ~877-885: reciprocal lattice rotation)
-  - Inspect `nanobrag_torch/models/crystal.py::get_structure_factor()` (interpolation logic)
-  - Add diagnostics to log Miller indices, reciprocal lattice vectors, interpolation bounds
-  - Draft targeted patch per POLICY-001 OR defer CPU fallback if complex
-- **Confidence:** VERY HIGH (~95%) that bug is in nanobrag_torch simulator
-- **Status:** Phase C2.3 COMPLETE → Phase C2.4 nanobrag_torch source inspection + patch OR deferral
+6. **Run full detector test with fix** (3 min)
+   - Execute:
+     ```bash
+     DBEX_SMOKE_DETECTOR_SIZE=full \
+     DBEX_SMOKE_SIGMA_SOURCE=cli_override \
+     KMP_DUPLICATE_LIB_OK=TRUE \
+     NANOBRAGG_DISABLE_COMPILE=1 \
+     pytest -xvs tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers \
+       > plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T122329Z/pytest_stage_b_full_fixed.log 2>&1
+     echo "Exit code: $?" >> plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T122329Z/pytest_stage_b_full_fixed.log
+     ```
+   - Expected: **PASSED** (exit code 0, non-zero Bragg output on CPU, telemetry status='ok')
+   - Runtime: ~120-150s (CPU fallback path)
+   - Capture: Full pytest log with telemetry
 
-**Path C (reproducer runtime error):**
-- **Verdict:** Import/dependency issue or API mismatch
-- **Evidence:** Script crashes with ImportError, AttributeError, or TypeError
-- **Next Actions (same loop if quick, else next loop):**
-  - Diagnose error signature
-  - Fix imports (lazy imports, handle missing modules)
-  - Adjust API calls if nanobrag_torch/dbex signatures changed
-  - Retry reproducer
-- **Confidence:** LOW (~30%) — reproducer construction should be straightforward
-- **Status:** Phase C2.3 BLOCKED → debug + retry
+7. **Run small detector regression guard** (1 min)
+   - Execute:
+     ```bash
+     DBEX_SMOKE_DETECTOR_SIZE=small \
+     DBEX_SMOKE_SIGMA_SOURCE=cli_override \
+     KMP_DUPLICATE_LIB_OK=TRUE \
+     NANOBRAGG_DISABLE_COMPILE=1 \
+     pytest -xvs tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers \
+       > plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T122329Z/pytest_stage_b_small_regression.log 2>&1
+     echo "Exit code: $?" >> plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T122329Z/pytest_stage_b_small_regression.log
+     ```
+   - Expected: PASSED (exit code 0, ROI mode unchanged)
+   - Runtime: ~15s
 
-**Path D (script construction blocked):**
-- **Verdict:** Reproducer approach infeasible (complex dependency chain)
-- **Evidence:** Cannot extract StageAContext parameters cleanly
-- **Next Actions (fallback to direct inspection):**
-  - Skip reproducer, go directly to nanobrag_torch source inspection
-  - Add diagnostic prints to Simulator.run() and Crystal.get_structure_factor()
-  - Run full test with diagnostics, log Miller indices and reciprocal lattice
-  - Analyze diagnostics to identify CPU-specific bug
-- **Confidence:** LOW (~20%) — reproducer should be feasible
-- **Status:** Phase C2.3 BLOCKED → fallback to source inspection
+8. **Extract validation metrics** (5 min)
+   - Parse both logs for test status (PASSED/FAILED), telemetry status, Bragg stats, chi² improvement
+   - Create `validation_metrics.json`:
+     ```json
+     {
+       "full_detector_test": "PASSED"|"FAILED",
+       "small_detector_test": "PASSED"|"FAILED",
+       "full_detector_telemetry_status": "ok"|"error",
+       "small_detector_telemetry_status": "ok"|"error",
+       "full_detector_bragg_nonzero": true|false,
+       "full_detector_improvement_pct": <float>,
+       "small_detector_improvement_pct": <float>,
+       "overall_verdict": "PASS"|"FAIL"
+     }
+     ```
+   - Set `overall_verdict='PASS'` if both tests PASSED and full detector has non-zero Bragg
 
-Write decision synthesis to `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T130000Z/phase_c2_3_decision.md` with:
-- Reproducer result (PASS/FAIL/ERROR/BLOCKED)
-- Bragg stats from JSON
-- Selected path (A/B/C/D) with evidence
-- Confidence assessment
-- Next loop actions
+9. **Decision synthesis** (10 min)
+   - Write `decision.md` with 4-path template:
+     - **Path A (both tests PASS, full Bragg nonzero):** Fix successful → remove remaining diagnostics → Phase C validation (C3-C5)
+     - **Path B (full test FAIL, small test PASS):** Fix incomplete → deeper investigation (HKL grid modification, simulator cache invalidation)
+     - **Path C (both tests FAIL):** Fix regression → revert and escalate
+     - **Path D (full test PASS but zero Bragg):** Partial success → additional diagnostics needed
+   - Include confidence assessment (HIGH ~95% for Path A expected)
+   - Reference reproducer evidence (loop i=220 PASS), parameter parity (loop i=219 100% match), and fix rationale (CPU-native HKL grid)
 
-Update `plans/active/ARCH-REFINE-FLOW-001/implementation.md` with Phase C2.3 status and artifacts path.
+10. **Update implementation.md checklist** (3 min)
+    - Mark `C2.4` (CPU HKL grid device routing fix) as COMPLETE with timestamp and commit hash
+    - Add next actions: Phase C validation (C3-C5) if Path A, or debug/escalate if Path B/C/D
 
-Write Turn Summary to `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T130000Z/summary.md` (use lightweight format, 3-5 sentences, no focus IDs or selectors).
+11. **Write summary.md with Turn Summary** (5 min)
+    - Include Turn Summary block (3-5 sentences: fix applied, test results, next step)
+    - Prepend to existing `summary.md` content (if file exists) or create new
+    - Format per galph_memory.md:122-131 template
 
-Commit script to `plans/active/ARCH-REFINE-FLOW-001/bin/minimal_cpu_bragg_reproducer.py` with message:
-```
-SUPERVISOR: Phase C2.3 minimal CPU Bragg reproducer - tests: not run
-```
+12. **Commit and push** (2 min)
+    - `git add -A`
+    - Commit message:
+      ```
+      ARCH-REFINE-FLOW-001 Phase C2.4: Fix CPU HKL grid device routing
 
-Push to remote.
+      - Use stage_b_eval_stage_a_ctx.hkl_grid (CPU-native) when CPU fallback active
+      - Avoids CUDA→CPU transfer of parent scope hkl_grid in closure
+      - Full detector test PASS (expected), small detector regression guard PASS
+      - Remove loop i=219 crystal config diagnostics (retained HKL_GRAD_CHECK)
+      - Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T122329Z/
+
+      Refs: Phase C2.3 reproducer (99% Bragg on CPU), Phase C2.2 (100% param parity)
+      Tests: test_stage_b_shell_modifiers (full+small) — validation_metrics.json
+      ```
+    - `git push`
 
 ## How-To Map
 
-### Environment Flags
+**Compilation check:**
 ```bash
-KMP_DUPLICATE_LIB_OK=TRUE  # Required for CPU torch operations (per CONFORMANCE-001)
+python -c "import dbex.nanobrag_refinement; print('OK')"
 ```
 
-### Reproducer Execution
+**Full detector test:**
 ```bash
-cd /home/ollie/Documents/diffbragg_example
-KMP_DUPLICATE_LIB_OK=TRUE python plans/active/ARCH-REFINE-FLOW-001/bin/minimal_cpu_bragg_reproducer.py \
-  --expt-path tests/fixtures/refGeom.expt \
-  --out-dir plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T130000Z/
+DBEX_SMOKE_DETECTOR_SIZE=full \
+DBEX_SMOKE_SIGMA_SOURCE=cli_override \
+KMP_DUPLICATE_LIB_OK=TRUE \
+NANOBRAGG_DISABLE_COMPILE=1 \
+pytest -xvs tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
 ```
 
-Expected exit codes:
-- 0 → PASS (Bragg non-zero, dbex bug)
-- 1 → FAIL (Bragg zero, nanobrag_torch bug)
-- >1 → ERROR (runtime exception)
-
-### JSON Output Schema
-```json
-{
-  "result": "PASS" | "FAIL",
-  "next_path": "A" | "B" | "C" | "D",
-  "message": "Human-readable verdict",
-  "bragg_stats": {
-    "shape": [2527, 2463],
-    "min": 0.0,
-    "max": 123.45,
-    "mean": 0.67,
-    "nonzero_count": 12345,
-    "total_pixels": 6226401,
-    "nonzero_fraction": 0.00198
-  },
-  "crystal_params": {
-    "cell_a": 27.376,
-    "cell_b": 32.066,
-    "cell_c": 34.466,
-    "cell_alpha": 88.769,
-    "cell_beta": 71.630,
-    "cell_gamma": 68.189
-  },
-  "device": "cpu",
-  "dtype": "torch.float32"
-}
+**Small detector regression guard:**
+```bash
+DBEX_SMOKE_DETECTOR_SIZE=small \
+DBEX_SMOKE_SIGMA_SOURCE=cli_override \
+KMP_DUPLICATE_LIB_OK=TRUE \
+NANOBRAGG_DISABLE_COMPILE=1 \
+pytest -xvs tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
 ```
 
-### Bragg Decision Threshold
-- `bragg_max > 0` → PASS (Path A)
-- `bragg_max == 0` → FAIL (Path B)
-
-### Artifacts Locations
-All artifacts under: `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T130000Z/`
-- `reproducer_result.json` — decision output
-- `reproducer_run.log` — stdout/stderr capture
-- `phase_c2_3_decision.md` — 4-path synthesis
-- `summary.md` — Turn Summary block
-
-Script committed to: `plans/active/ARCH-REFINE-FLOW-001/bin/minimal_cpu_bragg_reproducer.py`
+**Expected outcomes:**
+- Full detector: PASSED, telemetry status='ok', Bragg nonzero (mean ~0.001-0.01, max >0.01)
+- Small detector: PASSED, telemetry status='ok' (regression guard, ROI mode unchanged)
 
 ## Pitfalls To Avoid
 
-1. **Circular imports:** Use lazy imports for `dbex.nanobrag_refinement`, `dbex.nanobrag_bridge`, and `nanobrag_torch` inside `main()`, not at module level
-2. **Device/dtype consistency:** All tensors must be on `device=cpu` with `dtype=torch.float32` (match production paths)
-3. **torch.compile on CPU:** Do NOT use `torch.compile` on CPU (per RUNTIME-001), though reproducer doesn't use gradients so this is less critical
-4. **Missing fixtures:** If `refGeom.expt` or `1vpj.mtz` not found, print clear error and exit with code 1
-5. **ImportError handling:** Wrap imports in try/except if needed, but expect all dependencies available (dxtbx, nanobrag_torch, dbex modules)
-6. **No production dbex edits:** This loop is reproducer-only; do NOT modify `dbex/nanobrag_refinement.py` or any production code
-7. **Argparse required:** Use argparse per T2 scriptization policy (no hardcoded paths except defaults)
-8. **Header template:** Include all required fields (Purpose, Inputs, Outputs, Repro, Decision Criteria)
-9. **JSON serialization:** All numeric values must be Python native types (float/int), not torch tensors (use `.item()`)
-10. **Exit code:** Return 0 if PASS, 1 if FAIL (enables shell-level decision logic)
+1. **Do NOT transfer HKL grid in closure when CPU fallback active**: Use `stage_b_eval_stage_a_ctx.hkl_grid` directly (already on CPU device from line 2234-2246 context builder).
+2. **Do NOT remove HKL_GRAD_CHECK diagnostic** (lines 2479-2481): Useful for future gradient debugging; only remove crystal config diagnostics.
+3. **Do NOT modify Stage A code**: This fix is Stage B-specific; Stage A unaffected.
+4. **Verify `use_stage_b_cpu_fallback` is available in closure scope**: Should be accessible (passed via closure parameters at line 2329).
+5. **Check `stage_b_eval_stage_a_ctx` is not None**: Guard the CPU fallback branch with `stage_b_eval_stage_a_ctx is not None` to avoid AttributeError.
+6. **Ensure shell_indices_local uses same logic**: Line 2465 should also use CPU-native `stage_b_eval_stage_a_ctx.shell_indices` if it exists (but shell_indices is likely device-agnostic; verify).
+7. **Do NOT modify `hkl_grid_modified` construction**: The `torch.where` out-of-place fix (lines 2473-2477) is correct; only fix the HKL grid SOURCE.
+8. **Test both detectors**: Small detector (ROI mode, CUDA) and full detector (panel mode, CPU fallback) have different code paths; both must PASS.
+9. **Capture telemetry**: Verify `telemetry['stage_b']['status']='ok'` and Bragg output is non-zero (check `bragg_full.min()`, `bragg_full.max()`, `bragg_full.mean()`).
+10. **Environment stability**: Assume frozen per POLICY-001; no new installs, only code fix.
 
 ## If Blocked
 
-**Scenario 1: ImportError (nanobrag_torch not found)**
-- Check if nanobrag_torch is installed: `python -c "import nanobrag_torch; print(nanobrag_torch.__file__)"`
-- If missing, DO NOT install (Environment Freeze) — document blocker, mark script BLOCKED, escalate to Galph
+**Scenario A: Full detector test still FAILS with zero Bragg**
+- Action: Add diagnostic to print `stage_b_eval_stage_a_ctx.hkl_grid.device`, `hkl_grid_local.device`, `hkl_grid_modified.device` before line 2503
+- Verify all are `device('cpu')` and have matching shapes
+- Check if `shell_modifiers` are applied correctly (log modifier values)
+- Log decision in `blocker.md` with diagnostic output → Galph reviews next loop
 
-**Scenario 2: AttributeError (API mismatch)**
-- Check nanobrag_torch API: `python -c "from nanobrag_torch import Simulator; help(Simulator.__init__)"`
-- Adjust reproducer to match current API
-- Document API changes in blocker report
+**Scenario B: Compilation error or AttributeError**
+- Action: Verify `stage_b_eval_stage_a_ctx` is accessible in closure scope (check if it's in closure parameters—it should be at line 2323)
+- Check `StageAContext` dataclass has `hkl_grid` attribute (it should, defined at line 657 in `_build_stage_a_context`)
+- Fix imports or attribute access, rerun compilation check
 
-**Scenario 3: RuntimeError during simulation**
-- Capture full stack trace in `reproducer_run.log`
-- Extract error signature (e.g., "CUDA out of memory" should NOT happen on CPU)
-- Write blocker report with stack trace + next steps
-- Mark Path C (runtime error) in decision synthesis
+**Scenario C: Small detector regression (FAIL)**
+- Action: Check if small detector uses CPU fallback path (it shouldn't—small detector should use ROI mode on CUDA)
+- Verify `use_stage_b_cpu_fallback` condition excludes ROI mode: `not use_stage_a_roi_mode` (line 2151)
+- If regression is real: revert fix, log blocker → Galph reviews
 
-**Scenario 4: Reproducer approach infeasible**
-- If `_build_stage_a_context` cannot be called standalone (dependency chains too complex)
-- Abandon reproducer, mark Path D (blocked)
-- Escalate to Galph with blocker report
-- Fallback: direct nanobrag_torch source inspection in next loop
-
-In all blocker scenarios:
-1. Write detailed blocker report in `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T130000Z/blocker.md`
-2. Include error signatures, stack traces, attempted fixes
-3. Mark Phase C2.3 status as BLOCKED in `implementation.md`
-4. Commit blocker artifacts + summary
-5. Do NOT proceed to decision synthesis if reproducer did not run
+**Scenario D: Tests PASS but Bragg output looks suspicious** (e.g., mean=0.0001, max=0.001)
+- Action: Compare with reproducer Bragg stats (mean=0.0027, max=0.086)
+- Check if shell modifiers are being applied (softplus transform at line 2455)
+- Verify HKL hit rate is >90% (not 0% like loop i=218)
+- Log metrics → Galph assesses if acceptable
 
 ## Findings Applied
 
-### Mandatory Application
-- **GRADIENT-003** (CPU Fallback Path Zero Bragg Output): This reproducer directly tests the hypothesis that nanobrag_torch CPU simulator has a bug. If reproducer FAILS (zero Bragg), finding is confirmed. If reproducer PASSES, root cause is in dbex cache/context, requiring GRADIENT-003 update.
-- **POLICY-001** (Environment Freeze): Reproducer is analysis tool only; no package installs, no environment modifications. If nanobrag_torch bug confirmed next loop, patch may be applied per POLICY-001 exception (local source bugfix).
-- **GRADIENT-002** (Out-of-Place HKL Grid Fix): Reproducer uses `torch.no_grad()` context (no gradients needed for zero-check), so HKL grid construction is simpler. If reproducer PASSES but full test FAILS, gradient preservation may be the differentiator.
-- **PERF-WARM-011/012** (CPU Fallback Context): Reproducer uses same `_build_stage_a_context` call as production code (line 2206-2221). If reproducer FAILS, context builder is correct and bug is downstream in simulator.
-
-### Cross-References
-- **RUNTIME-001** (NANOBRAGG_DISABLE_COMPILE=1): Not needed for reproducer (no torch.compile on CPU), but document for completeness
-- **CONFORMANCE-001** (KMP_DUPLICATE_LIB_OK=TRUE): Required for CPU torch operations (set in How-To Map)
-- **REFINE-005** (Tricubic Interpolation + Halo): Reproducer enables `enable_hkl_interpolation=True` and `enable_hkl_padding=True` to match production paths
+- **GRADIENT-003** (CPU Fallback Path Zero Bragg Output): Root cause identified (HKL grid device routing bug), fix targets line 2464, reproducer evidence confirms nanobrag_torch works correctly on CPU.
+- **POLICY-001** (Environment Freeze): No package installs, only dbex source code fix.
+- **GRADIENT-002** (In-Place HKL Fix): Out-of-place `torch.where` (lines 2473-2477) is correct; do not modify.
+- **PERF-WARM-011/012** (CPU Fallback Context): CPU `stage_b_eval_stage_a_ctx` built at lines 2234-2246 has CPU-native HKL grid; use it directly.
+- **CONFORMANCE-001** (Environment Flags): Use `KMP_DUPLICATE_LIB_OK=TRUE` for Intel MKL compatibility.
+- **RUNTIME-001** (Test Environment): Use `NANOBRAGG_DISABLE_COMPILE=1` to avoid torch.compile on CPU.
+- **TESTING-003** (Collection Verification): Run pytest with `-xvs` for verbose output and immediate failure reporting.
 
 ## Pointers
 
-### Spec/Arch Documents
-- `docs/spec-db-runtime.md:34-39` — CPU/CUDA parity requirement (device neutrality mandate)
-- `docs/pytorch_runtime_checklist.md` — Device/dtype neutrality checklist (float32, cpu/cuda agnostic code)
-- `docs/spec-db-core.md:48-68` — Crystal parameter contracts (cell, A*, U, B definitions)
+- **Spec/Arch:** `docs/spec-db-runtime.md:34-39` (CPU/CUDA parity requirement), `docs/pytorch_runtime_checklist.md` (device neutrality)
+- **Implementation plan:** `plans/active/ARCH-REFINE-FLOW-001/implementation.md:310-320` (Phase C2.4 scope)
+- **Reproducer evidence:** `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T130000Z/phase_c2_3_decision.md` (Path A: dbex bug confirmed)
+- **Parameter parity evidence:** `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T120000Z/crystal_config_comparison.txt` (100% match CUDA vs CPU)
+- **Root cause analysis:** `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T130000Z/phase_c2_3_decision.md:39-59` (HKL grid device mismatch hypotheses)
+- **Test registry:** `docs/TESTING_GUIDE.md:§2` (test_stage_b_shell_modifiers selector), `docs/development/TEST_SUITE_INDEX.md`
+- **Code locations:**
+  - `dbex/nanobrag_refinement.py:2464` — HKL grid device routing bug (TARGET for fix)
+  - `dbex/nanobrag_refinement.py:2234-2246` — CPU context builder (CPU-native HKL grid source)
+  - `dbex/nanobrag_refinement.py:2473-2477` — Out-of-place HKL grid shell modifier (correct, do not modify)
+  - `dbex/nanobrag_refinement.py:490-664` — `_build_stage_a_context` (line 547: HKL grid device transfer, line 657: context storage)
 
-### Code References
-- `dbex/nanobrag_refinement.py:2206-2221` — CPU StageAContext builder (inline path, to be replicated in reproducer)
-- `dbex/nanobrag_refinement.py:542-558` — `_build_stage_a_context` helper implementation (called by reproducer)
-- `dbex/nanobrag_bridge.py:450-506` — MOSFLM A* injection logic (per GRADIENT-001)
-- `nanobrag_torch/simulator.py:877-885` — Reciprocal lattice rotation (suspected CPU bug location)
-- `nanobrag_torch/models/crystal.py::get_structure_factor` — Tricubic interpolation (suspected out-of-bounds logic)
+## Next Up (if Path A)
 
-### Findings Documents
-- `docs/findings.md:69` — GRADIENT-003 (CPU zero Bragg, 100% param parity, reproducer mandate)
-- `docs/findings.md:66` — CONVERGENCE-001 (code path divergence detection pattern, may apply if reproducer PASSES)
-- `docs/findings.md:35` — GRADIENT-002 (out-of-place HKL grid fix, proven on CUDA, gradient context differs from reproducer)
+**Phase C validation (C3-C5) — next loop:**
+- C3: Telemetry completeness validation (stage_type="B", mode="shell_modifiers", frozen Stage A params)
+- C4: Smoke tests (small+full detectors) with telemetry structure checks
+- C5: DB-AT selectors (DB-AT-024 mapping parity)
 
-### Testing Guide
-- `docs/TESTING_GUIDE.md:2` — Canonical environment flags table (KMP_DUPLICATE_LIB_OK required)
-- `docs/development/TEST_SUITE_INDEX.md` — Test registry (no relevant selectors for reproducer loop)
-
-### Fix Plan
-- `docs/fix_plan.md:185-219` — ARCH-REFINE-FLOW-001 main ledger entry (Phase C2 attempts history)
-- `plans/active/ARCH-REFINE-FLOW-001/implementation.md:246-281` — Phase C2.2 completion status + Phase C2.3 (this loop)
-- `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T120000Z/decision.md` — Loop i=219 decision (Hypothesis 1 DISPROVEN, Path E escalation)
-
-### Scriptization Policy
-- `prompts/main.md` (Ralph's prompt) — T2 scriptization tier (decision-carrying, reusable, checked-in, argparse + header)
-- `galph_memory.md:27-36` — Phase C2.3 planning entry (reproducer scope, decision tree, T2 tier rationale)
-
-## Next Up (Optional)
-
-If reproducer completes quickly and decision is clear:
-
-**Path A (PASS) next loop candidate:**
-- ARCH-REFINE-FLOW-001 Phase C2.4: dbex warm cache HKL grid investigation (add diagnostics, compare warm vs cold HKL grids on CPU)
-
-**Path B (FAIL) next loop candidate:**
-- ARCH-REFINE-FLOW-001 Phase C2.4: nanobrag_torch source inspection (read Simulator.run() CPU paths, add diagnostics, identify CPU-specific bug)
-
-**Path C/D (ERROR/BLOCKED):**
-- No next candidate; Galph will review blocker and decide escalation path
+**Estimated:** 1 loop for full Phase C validation suite (all 3 tasks bundled per galph planning pattern)
 
 ## Doc Sync Plan
 
-Not applicable (no new tests authored this loop; reproducer is analysis tool, not a pytest test).
+**Conditional:** Only if tests are added/renamed this loop (not expected—fix-only loop).
 
-If future loops create nanobrag_torch patch or defer CPU fallback:
-- Update `docs/TESTING_GUIDE.md` with CPU fallback status (supported/unsupported)
-- Update `docs/findings.md` GRADIENT-003 with patch details OR limitation documentation
-- Update `docs/pytorch_runtime_checklist.md` with CPU parity notes
+If new tests added:
+1. Run `pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers`
+2. Archive collection log to artifacts directory
+3. Update `docs/TESTING_GUIDE.md:§2` with any new selectors
+4. Update `docs/development/TEST_SUITE_INDEX.md` with test metadata
+
+**Expected:** No doc sync needed (fix-only loop, no new tests).
 
 ## Mapped Tests Guardrail
 
-Not applicable (Mode: none — evidence-only loop, no pytest selectors).
+**Active selectors:**
+- `tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers` (full detector, CPU fallback path)
+- `tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers` (small detector, regression guard)
 
-Reproducer script execution is NOT a pytest test; it's a standalone diagnostic tool with exit code decision logic.
+**Verification:**
+```bash
+pytest --collect-only -q tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+```
+Expected: 1 test collected (parameterized by detector size via env var, not pytest param)
 
-## Normative Math/Physics
-
-Not applicable (reproducer uses existing simulator APIs; no new physics implementations).
-
-If nanobrag_torch source inspection is needed next loop, reference:
-- `docs/spec-db-core.md §Reciprocal Lattice Vectors` — A*, B*, C* definitions
-- `docs/spec-db-core.md §Miller Indices` — h,k,l computation from scattering vectors
-- `docs/architecture/pytorch_design.md §Tricubic Interpolation` — HKL grid bounds and interpolation logic
+**Hard Gate:** If test collects 0, DO NOT proceed. Check test name spelling or file path.

@@ -1,0 +1,8 @@
+{
+  "db_at_026_test_1_orientation_zero_point": "PASSED",
+  "db_at_026_test_2_cell_zero_point": "PASSED",
+  "db_at_026_test_3_mapping_parity": "PASSED",
+  "stage_a_incremental_ub_convergence": "PASSED",
+  "stage_a_regression_guard": "PASSED",
+  "overall_verdict": "PASS"
+}

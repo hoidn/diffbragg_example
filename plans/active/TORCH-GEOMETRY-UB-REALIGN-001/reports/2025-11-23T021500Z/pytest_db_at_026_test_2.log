@@ -1,0 +1,37 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 1 item
+
+tests/dbex/test_ub_parameterization_roundtrip.py::test_db_at_026_cell_zero_point PASSED [100%]
+
+=============================== warnings summary ===============================
+tests/dbex/test_ub_parameterization_roundtrip.py:51
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_ub_parameterization_roundtrip.py:51: PytestUnknownMarkWarning: Unknown pytest.mark.acceptance - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.acceptance
+
+tests/dbex/test_ub_parameterization_roundtrip.py:104
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_ub_parameterization_roundtrip.py:104: PytestUnknownMarkWarning: Unknown pytest.mark.acceptance - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.acceptance
+
+tests/dbex/test_ub_parameterization_roundtrip.py:150
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_ub_parameterization_roundtrip.py:150: PytestUnknownMarkWarning: Unknown pytest.mark.acceptance - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.acceptance
+
+tests/dbex/test_ub_parameterization_roundtrip.py:213
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_ub_parameterization_roundtrip.py:213: PytestUnknownMarkWarning: Unknown pytest.mark.acceptance - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.acceptance
+
+tests/dbex/test_ub_parameterization_roundtrip.py::test_db_at_026_cell_zero_point
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_ub_parameterization_roundtrip.py::test_db_at_026_cell_zero_point
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_ub_parameterization_roundtrip.py::test_db_at_026_cell_zero_point
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 1 passed, 7 warnings in 1.34s =========================

@@ -2716,12 +2716,13 @@ def _build_final_bragg_from_stage_b_telemetry(
     detector,
     beam,
     crystal,
-    inputs,
-    hkl_grid: torch.Tensor,
-    hkl_metadata: Dict,
-    config,
-    device: torch.device,
-    dtype: torch.dtype,
+    baseline_crystal=None,
+    inputs=None,
+    hkl_grid=None,
+    hkl_metadata=None,
+    config=None,
+    device=None,
+    dtype=None,
     stage_a_ctx=None,
 ):
     """
@@ -2736,6 +2737,10 @@ def _build_final_bragg_from_stage_b_telemetry(
         detector: dxtbx Detector object
         beam: dxtbx Beam object
         crystal: dxtbx Crystal object
+        baseline_crystal: Optional baseline dxtbx Crystal object for extracting deterministic
+                          misset when `crystal` is perturbed. When provided, computes
+                          U_delta = U_perturbed @ U_baseline^{-1} and adds it to the orientation
+                          path as a tensor to preserve differentiability. Defaults to None.
         inputs: RefinementInputs with panel_slices, trusted_mask
         hkl_grid: torch.Tensor structure factor grid (unmodified baseline)
         hkl_metadata: dict with grid dimensions
@@ -2808,10 +2813,13 @@ def _build_final_bragg_from_stage_b_telemetry(
     n_panels = len(detector)
     panel_shape = inputs.target.shape[1:]  # (slow, fast)
 
-    # Compute baseline misset if available
-    baseline_misset_deg_tensor = None
-    # Note: baseline_crystal would need to be passed to this helper to compute baseline misset
-    # For now, we'll skip baseline misset support in engine path (matches inline path logic)
+    # Compute baseline misset if baseline_crystal provided (matches inline path lines 3115-3120)
+    baseline_misset_deg_tensor = compute_baseline_misset_deg(
+        crystal,
+        baseline_crystal,
+        device=device,
+        dtype=dtype,
+    )
 
     # Apply Stage A cell perturbations
     cell_params = crystal.get_unit_cell().parameters()
@@ -3074,6 +3082,7 @@ def run_nanobrag_refinement(
             detector=detector,
             beam=beam,
             crystal=crystal,
+            baseline_crystal=baseline_crystal,
             inputs=inputs,
             hkl_grid=hkl_grid,
             hkl_metadata=hkl_metadata,

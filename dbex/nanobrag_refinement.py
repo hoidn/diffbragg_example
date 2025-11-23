@@ -950,6 +950,8 @@ def _build_stage_a_params(
         'angle_beta_raw': angle_beta_raw,
         'angle_gamma_raw': angle_gamma_raw,
         'orientation_vec': orientation_vec,
+        'params': params,  # List of Parameter objects for optimizer
+        'optimizer': optimizer,  # LBFGS optimizer for closure
         'q_params': q_params,
         'B_ideal_reciprocal_torch': B_ideal_reciprocal_torch,
         'q_delta': q_delta,

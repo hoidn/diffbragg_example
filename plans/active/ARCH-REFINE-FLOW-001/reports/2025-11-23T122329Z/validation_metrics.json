@@ -1,0 +1,27 @@
+{
+  "full_detector_test": "FAILED",
+  "small_detector_test": "NOT_RUN",
+  "full_detector_telemetry_status": "error",
+  "full_detector_error_message": "Stage B error: element 0 of tensors does not require grad and does not have a grad_fn",
+  "full_detector_closure_evals": 1,
+  "full_detector_bragg_output": "unknown",
+  "full_detector_improvement_pct": 0.0,
+  "small_detector_improvement_pct": null,
+  "overall_verdict": "BLOCKED_GRADIENT_TRACKING",
+  "gradient_diagnostics": {
+    "hkl_grid_modified_has_grad_fn": true,
+    "grad_fn_type": "WhereBackward0",
+    "shell_modifiers_requires_grad": true,
+    "lbfgs_error": "element 0 of tensors does not require grad and does not have a grad_fn"
+  },
+  "fix_status": {
+    "hkl_grid_device_routing": "FIXED",
+    "gradient_tracking": "BLOCKED"
+  },
+  "next_actions": [
+    "Add diagnostic to check shell_modifier_raw.grad after backward()",
+    "Trace gradient flow from loss to parameters",
+    "Investigate LBFGS internal gradient checks",
+    "Consider alternative HKL grid construction for CPU path"
+  ]
+}

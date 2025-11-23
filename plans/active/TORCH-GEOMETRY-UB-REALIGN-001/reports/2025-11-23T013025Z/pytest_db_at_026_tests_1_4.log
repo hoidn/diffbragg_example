@@ -1,0 +1,195 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 4 items
+
+tests/dbex/test_ub_parameterization_roundtrip.py::test_db_at_026_orientation_zero_point ✓ DB-AT-026.1 PASS: ||U(0)-U₀||=0.000e+00, ortho_error=8.980e-16, det(U)=1.000000000000001
+PASSED
+tests/dbex/test_ub_parameterization_roundtrip.py::test_db_at_026_cell_zero_point FAILED
+
+=================================== FAILURES ===================================
+________________________ test_db_at_026_cell_zero_point ________________________
+
+canonical_crystal_baseline = {'A_star_mapping': array([[-0.02757067, -0.00416187,  0.02523375],
+       [-0.02869191,  0.02966329, -0.00187283],
+   ...ine': (27.3758389202232, 32.06579930050022, 34.46635719191433, 88.76861581157905, 71.6300065859712, 68.18891879154103)}
+
+    @pytest.mark.acceptance
+    def test_db_at_026_cell_zero_point(canonical_crystal_baseline):
+        """
+        DB-AT-026.2: Validate B(0) = B₀ for zero cell deltas.
+    
+        Requirement: spec-db-core.md:61
+        At the Stage-A zero point (all refinement deltas = 0), implementations
+        MUST satisfy: B(0) = B₀.
+    
+        Acceptance Criterion:
+        ||B(0) - B₀|| < 1e-12 for zero cell deltas
+        """
+        from dbex.nanobrag_bridge import derive_B_from_cell_deltas
+    
+        B_baseline = canonical_crystal_baseline["B_baseline"]
+        cell_baseline = canonical_crystal_baseline["cell_baseline"]
+    
+        # Zero-point cell: zero log-length and angle deltas
+        delta_log_a = torch.tensor(0.0, dtype=torch.float64)
+        delta_log_b = torch.tensor(0.0, dtype=torch.float64)
+        delta_log_c = torch.tensor(0.0, dtype=torch.float64)
+        delta_alpha_deg = torch.tensor(0.0, dtype=torch.float64)
+        delta_beta_deg = torch.tensor(0.0, dtype=torch.float64)
+        delta_gamma_deg = torch.tensor(0.0, dtype=torch.float64)
+    
+        # Derive B(params) at zero point
+        B_params = derive_B_from_cell_deltas(
+            delta_log_a, delta_log_b, delta_log_c,
+            delta_alpha_deg, delta_beta_deg, delta_gamma_deg,
+            cell_baseline=cell_baseline,
+            dtype=torch.float64
+        )
+    
+        # Convert to numpy for comparison
+        B_params_np = B_params.detach().cpu().numpy()
+    
+        # Assert: ||B(0) - B₀|| < 1e-12
+        error = np.linalg.norm(B_params_np - B_baseline)
+>       assert error < 1e-12, (
+            f"DB-AT-026.2 FAIL: B(0) must equal B₀ (zero cell deltas). "
+            f"Error: {error:.3e} (threshold: 1e-12)"
+        )
+E       AssertionError: DB-AT-026.2 FAIL: B(0) must equal B₀ (zero cell deltas). Error: 3.971e-02 (threshold: 1e-12)
+E       assert 0.03971056786007732 < 1e-12
+
+tests/dbex/test_ub_parameterization_roundtrip.py:142: AssertionError
+=============================== warnings summary ===============================
+tests/dbex/test_ub_parameterization_roundtrip.py:51
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_ub_parameterization_roundtrip.py:51: PytestUnknownMarkWarning: Unknown pytest.mark.acceptance - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.acceptance
+
+tests/dbex/test_ub_parameterization_roundtrip.py:104
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_ub_parameterization_roundtrip.py:104: PytestUnknownMarkWarning: Unknown pytest.mark.acceptance - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.acceptance
+
+tests/dbex/test_ub_parameterization_roundtrip.py:150
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_ub_parameterization_roundtrip.py:150: PytestUnknownMarkWarning: Unknown pytest.mark.acceptance - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.acceptance
+
+tests/dbex/test_ub_parameterization_roundtrip.py:213
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_ub_parameterization_roundtrip.py:213: PytestUnknownMarkWarning: Unknown pytest.mark.acceptance - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.acceptance
+
+tests/dbex/test_ub_parameterization_roundtrip.py::test_db_at_026_orientation_zero_point
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_ub_parameterization_roundtrip.py::test_db_at_026_orientation_zero_point
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_ub_parameterization_roundtrip.py::test_db_at_026_orientation_zero_point
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_ub_parameterization_roundtrip.py::test_db_at_026_cell_zero_point
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+=================== 1 failed, 1 passed, 7 warnings in 1.36s ====================
+        All parameterizations SHALL preserve PyTorch autograd graph flow.
+    
+        Acceptance Criterion:
+        - All parameters have non-None gradients after backward pass
+        - Gradient magnitudes are finite (not NaN/inf)
+        """
+        from dbex.nanobrag_bridge import (
+            derive_orientation_from_quaternion_delta,
+            derive_B_from_cell_deltas,
+        )
+    
+        U_baseline = canonical_crystal_baseline["U_baseline"]
+        cell_baseline = canonical_crystal_baseline["cell_baseline"]
+    
+        # Trainable parameters (small non-zero for gradient test)
+        q_delta = torch.tensor([1.0, 0.001, 0.002, 0.003], dtype=torch.float64, requires_grad=True)
+        delta_log_a = torch.tensor(0.001, dtype=torch.float64, requires_grad=True)
+        delta_log_b = torch.tensor(0.002, dtype=torch.float64, requires_grad=True)
+        delta_log_c = torch.tensor(0.003, dtype=torch.float64, requires_grad=True)
+        delta_alpha_deg = torch.tensor(0.1, dtype=torch.float64, requires_grad=True)  # degrees
+        delta_beta_deg = torch.tensor(0.2, dtype=torch.float64, requires_grad=True)
+        delta_gamma_deg = torch.tensor(0.3, dtype=torch.float64, requires_grad=True)
+    
+        # Derive U and B
+        U_params = derive_orientation_from_quaternion_delta(
+            q_delta,
+            U_baseline=torch.tensor(U_baseline, dtype=torch.float64)
+        )
+    
+        B_params = derive_B_from_cell_deltas(
+            delta_log_a, delta_log_b, delta_log_c,
+            delta_alpha_deg, delta_beta_deg, delta_gamma_deg,
+            cell_baseline=cell_baseline,
+            dtype=torch.float64
+        )
+    
+        # Construct A*
+        A_star = U_params @ B_params
+    
+        # Dummy loss (sum of all elements)
+        loss = A_star.sum()
+    
+        # Backpropagate
+>       loss.backward()
+
+tests/dbex/test_ub_parameterization_roundtrip.py:262: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/_tensor.py:521: in backward
+    torch.autograd.backward(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/autograd/__init__.py:289: in backward
+    _engine_run_backward(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+t_outputs = (tensor(-0.0530, dtype=torch.float64),)
+args = ((None,), False, False, ())
+kwargs = {'accumulate_grad': True, 'allow_unreachable': True}
+attach_logging_hooks = False
+
+    def _engine_run_backward(t_outputs, *args, **kwargs):
+        attach_logging_hooks = log.getEffectiveLevel() <= logging.DEBUG
+        if attach_logging_hooks:
+            unregister_hooks = _register_logging_hooks_on_whole_graph(t_outputs)
+        try:
+>           return Variable._execution_engine.run_backward(  # Calls into the C++ engine to run the backward pass
+                t_outputs, *args, **kwargs
+            )  # Calls into the C++ engine to run the backward pass
+E           RuntimeError: element 0 of tensors does not require grad and does not have a grad_fn
+
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/torch/autograd/graph.py:769: RuntimeError
+=============================== warnings summary ===============================
+tests/dbex/test_ub_parameterization_roundtrip.py:51
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_ub_parameterization_roundtrip.py:51: PytestUnknownMarkWarning: Unknown pytest.mark.acceptance - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.acceptance
+
+tests/dbex/test_ub_parameterization_roundtrip.py:104
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_ub_parameterization_roundtrip.py:104: PytestUnknownMarkWarning: Unknown pytest.mark.acceptance - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.acceptance
+
+tests/dbex/test_ub_parameterization_roundtrip.py:150
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_ub_parameterization_roundtrip.py:150: PytestUnknownMarkWarning: Unknown pytest.mark.acceptance - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.acceptance
+
+tests/dbex/test_ub_parameterization_roundtrip.py:213
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_ub_parameterization_roundtrip.py:213: PytestUnknownMarkWarning: Unknown pytest.mark.acceptance - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.acceptance
+
+tests/dbex/test_ub_parameterization_roundtrip.py::test_db_at_026_orientation_zero_point
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_ub_parameterization_roundtrip.py::test_db_at_026_orientation_zero_point
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_ub_parameterization_roundtrip.py::test_db_at_026_orientation_zero_point
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_ub_parameterization_roundtrip.py::test_db_at_026_gradient_flow
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+=================== 1 failed, 3 passed, 7 warnings in 1.42s ====================

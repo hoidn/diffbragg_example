@@ -8,10 +8,10 @@
 - Status: pending
 
 ## Goals
-- Diagnose why quaternion U-matrix parameterization (PARITY-002) achieves perfect parity (<1e-17) but catastrophically fails during Adam optimization (χ²→1.43B, CC→-0.045).
-- Identify root cause among: optimizer hyperparameters, variance-weighted loss numerical stability, gradient pathologies (NaN/inf/exploding), quaternion normalization constraint interaction.
-- Implement fix enabling Stage A convergence with U-matrix parameterization (CC ≥ 0.99, stable/improving χ²).
-- Document findings and restore quaternion path viability OR recommend alternative parameterization.
+- Diagnose why the current quaternion U-matrix parameterization (PARITY-002) achieves near-perfect parity at the mapping zero point but catastrophically fails during optimization (χ²→1.43B, CC→-0.045), and determine whether this parameterization is conceptually compatible with the now‑normative UB/A* rules in `spec-db-core.md` and `spec-db-workflow.md`.
+- Identify the dominant pathology among: parameter update propagation bugs, variance‑weighted loss numerical instability, gradient correctness/scale issues, or structural misalignment of the parameterization with the dxtbx/DIALS UB conventions.
+- Produce a bounded set of diagnostics (lifecycle, finite‑difference gradient, variance) that either (a) uncover a concrete implementation bug that can be fixed within the current parameterization, or (b) support a high‑confidence verdict that the current quaternion U-matrix parameterization is non‑viable and should be replaced by an incremental UB design around `U₀,B₀`.
+- Document findings and either (a) recommend a concrete, spec‑aligned replacement parameterization (ΔR and Δcell around `U₀,B₀`) for a follow‑on implementation initiative, or (b) record the non‑viability of the current quaternion path and its constraints.
 
 ## Phases Overview
 - Phase A — Evidence Collection & Gradient Diagnosis: Instrument quaternion U-matrix closure with telemetry (parameter trajectories, gradient norms, loss components per step); diagnose first divergence point.
@@ -19,17 +19,22 @@
 - Phase C — Fix Implementation & Validation: Implement chosen fix, validate Phase 5 convergence (A_scale_only + D_full), regression guard, findings update.
 
 ## Exit Criteria
-1. Root cause of quaternion U-matrix convergence failure is identified with evidence (gradient telemetry, loss component analysis, parameter trajectories).
-2. Chosen fix (optimizer tuning, loss modification, or constraint handling) enables `stage_a_mapping_adam_debug.py` Phase 5 with `--use-u-matrix` to pass:
-   - A_scale_only: median ROI CC ≥ 0.99, χ² stable (≤0.5% drift) after 10 Adam steps
-   - D_full (or equivalent U-matrix+scale variant): monotonic χ² improvement without large CC collapses
-3. `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` regression guard passes.
-4. Findings ledger updated with CONVERGENCE-002 (or extension to existing REFINE-001/GRADIENT-001) documenting root cause, fix, and quaternion U-matrix usage conventions.
+1. Root cause of the quaternion U-matrix convergence failure is identified with evidence (lifecycle telemetry, gradient and variance analysis, parameter trajectories) and classified as either:
+   - a concrete implementation bug (e.g., parameter propagation, variance computation, or closure wiring), or
+   - a structural parameterization misalignment with the normative UB/A* conventions (incremental `ΔR`/`Δcell` around `U₀,B₀`).
+2. Phase D diagnostics (parameter lifecycle, short‑run A_scale_only experiment at LR=1e‑5, finite‑difference gradient checks on a train_orientation variant, variance/loss surface analysis) are executed and archived under the initiative reports tree, with clear conclusions about:
+   - whether optimizer steps actually change the parameters consumed by the Stage‑A U-matrix forward model, and
+   - whether autograd gradients and the variance‑weighted loss behave as expected near the mapping zero point.
+3. A written verdict is recorded (e.g., `phase_d_root_cause_update.md`) stating whether the current quaternion U-matrix parameterization is considered viable under the updated specs:
+   - If viable: describe the minimal implementation changes needed (if any) to achieve stable convergence while honoring the incremental UB/A* rules.
+   - If non‑viable: explicitly recommend deprecating this parameterization for production refinement and lay out requirements for a new Stage‑A parameterization that is incremental in `U,B` and passes the UB/A* round‑trip test (DB‑AT‑026).
+4. `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` regression guard continues to pass throughout, confirming that diagnostics and any targeted fixes do not regress the cell+misset default path.
+5. Findings ledger updated with CONVERGENCE-002 (or an extension to existing REFINE‑001/GRADIENT‑001) documenting: (a) the evidence‑backed root cause verdict, (b) the compatibility (or incompatibility) of the current quaternion U-matrix parameterization with the UB/A* specs, and (c) the handoff to any follow‑on implementation initiative responsible for parameterization realignment.
 
 ## Compliance Matrix (Mandatory)
-- [ ] **Spec Constraint:** `docs/spec-db-workflow.md §Stage A — Optimizer convergence`
-- [ ] **Spec Constraint:** `docs/spec-db-runtime.md §Gradient stability`
-- [ ] **Spec Constraint:** `docs/spec-db-core.md §Variance Model`
+- [ ] **Spec Constraint:** `docs/spec-db-workflow.md §Stage A — Geometry & Scale, mapping zero-point invariant, parameterization constraints`
+- [ ] **Spec Constraint:** `docs/spec-db-runtime.md §Gradient stability; §Parameterization Correctness & Round-Trip`
+- [ ] **Spec Constraint:** `docs/spec-db-core.md §Geometry Mapping; Baseline Crystal State and Parameterization; Variance Model`
 - [ ] **Fix-Plan Link:** `docs/fix_plan.md — Row [TORCH-GEOMETRY-CONVERGENCE-001]`
 - [ ] **Finding/Policy ID:** `REFINE-001` (LBFGS scale warm-start, NaN/Inf guards)
 - [ ] **Finding/Policy ID:** `PHYSICS-LOSS-002` (variance-weighted chi-squared sigma-floor guard)

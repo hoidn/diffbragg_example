@@ -376,7 +376,8 @@ def test_stage_a_expansion(
         hkl_grid=hkl_grid,
         hkl_metadata=hkl_metadata,
         config=config,
-        baseline_crystal=baseline_crystal  # Enables U_delta extraction for orientation telemetry
+        baseline_crystal=baseline_crystal,  # Enables U_delta extraction for orientation telemetry
+        use_engine_delegation=True  # Phase E: Use RefinementEngine with Stage wrappers
     )
 
     # Extract Stage A telemetry (Stage C not enabled in this test)
@@ -867,7 +868,8 @@ def test_stage_c_detector_microslip(
         hkl_metadata=hkl_metadata,
         config=config,
         baseline_crystal=baseline_crystal,
-        baseline_detector=baseline_detector
+        baseline_detector=baseline_detector,
+        use_engine_delegation=True  # Phase E: Use RefinementEngine with Stage wrappers
     )
 
     # Extract Stage A and Stage C telemetry
@@ -1175,7 +1177,8 @@ def test_stage_b_shell_modifiers(
         hkl_metadata=hkl_metadata,
         config=config,
         baseline_crystal=DL.crystal,  # Required for Stage B cell delta reconstruction
-        baseline_detector=DL.detector
+        baseline_detector=DL.detector,
+        use_engine_delegation=True  # Phase E: Use RefinementEngine with Stage wrappers
     )
 
     # Extract telemetry

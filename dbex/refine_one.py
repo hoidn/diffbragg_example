@@ -97,6 +97,24 @@ def create_parser():
              "When --adu-per-photon is set, both sigma_rdout and sigma_floor are divided by gain. "
              "Telemetry reports the clamp fraction (pixels where floor engaged)."
     )
+    ap.add_argument(
+        "--use-engine-delegation",
+        action="store_true",
+        default=False,
+        help="Use RefinementEngine with Stage wrapper classes instead of inline helpers"
+    )
+    ap.add_argument(
+        "--enable-stage-b",
+        action="store_true",
+        default=False,
+        help="Enable Stage B Fhkl shell modifiers (requires --use-engine-delegation)"
+    )
+    ap.add_argument(
+        "--enable-stage-c",
+        action="store_true",
+        default=False,
+        help="Enable Stage C detector distance refinement (requires --use-engine-delegation)"
+    )
 
     return ap
 
@@ -481,6 +499,8 @@ def run_nanobrag_backend(args, DL, devid=0):
         sigma_floor_value=sigma_floor_value,
         sigma_readout_provenance=sigma_provenance,
         sigma_readout_reference_value=sigma_reference_target_units,
+        enable_stage_b=args.enable_stage_b,
+        enable_stage_c=args.enable_stage_c,
     )
 
     try:
@@ -491,7 +511,8 @@ def run_nanobrag_backend(args, DL, devid=0):
             crystal=DL.crystal,
             hkl_grid=hkl_grid,
             hkl_metadata=hkl_metadata,
-            config=refine_config
+            config=refine_config,
+            use_engine_delegation=args.use_engine_delegation
         )
 
         # Extract Stage A telemetry (always present); Stage B and Stage C are optional

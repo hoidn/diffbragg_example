@@ -1,13 +1,13 @@
-## 2025-11-23T081911Z — ARCH-REFINE-FLOW-001 Phase C2 root cause analysis
+## 2025-11-23T081911Z — ARCH-REFINE-FLOW-001 Phase C2 signature revert + analysis (Ralph loop i=209)
 
 - Focus: ARCH-REFINE-FLOW-001 — Protocol-based Refinement Engine (Phase C2 bugfix)
-- Action Type: planning
-- Key Observations: Reviewed Ralph's loop i=208 baseline_crystal fix attempt (commit dea42cd). Fix was structurally correct but targeted wrong code path (_build_final_bragg_from_stage_b_telemetry helper used for final Bragg regeneration AFTER Stage B optimization, not for initial chi² computation). Initial chi² computed by _run_stage_b_lbfgs calling compute_loss_stage_b at iteration 0 (line 2635). Both closure (lines 2414-2416, 2496-2498) and StageB.run() (lines 163-199) correctly handle baseline_misset, so bug must be parameter reconstruction mismatch. Reverted erroneous signature changes from i=208 (removed `=None` from 7 required params). Authored comprehensive analysis.md documenting 4 hypotheses: H1 cell params using perturbed crystal, H2 log_scale divergence, H3 device/dtype mismatch, H4 HKL grid corruption. Recommended diagnostic script approach to capture exact parameter state at Stage A→B boundary. Updated input.md with docs-only Do Now directing signature revert + analysis documentation.
+- Action Type: docs
+- Key Observations: Executed Galph's loop i=209 planning Do Now (Mode: Docs). Reverted erroneous signature from loop i=208 (removed `=None` defaults from 7 required parameters: inputs, hkl_grid, hkl_metadata, config, device, dtype in `_build_final_bragg_from_stage_b_telemetry` at dbex/nanobrag_refinement.py:2713-2727). Kept `=None` ONLY for baseline_crystal and stage_a_ctx (correct optional params). Compilation check PASSED. Reviewed Galph's comprehensive analysis.md (4 hypotheses for chi² offset root cause: H1 cell params using perturbed crystal instead of baseline, H2 log_scale divergence, H3 device/dtype mismatch, H4 HKL grid corruption). Documented why loop i=208's baseline_crystal fix didn't work: the `_build_final_bragg_from_stage_b_telemetry` helper is called AFTER Stage B optimization completes for final Bragg regeneration, NOT for computing the initial chi² that fails test_stage_b_shell_modifiers (initial chi² comes from `_run_stage_b_lbfgs` line 2635 calling `compute_loss_stage_b` at iteration 0). Both closure (lines 2414-2416, 2496-2498) and StageB.run() (lines 163-199) correctly handle baseline_misset, so true bug must be parameter reconstruction mismatch at Stage A→B boundary. Authored summary.md with Turn Summary block and comprehensive loop i=209 retrospective documenting signature fix + analysis + 4 hypotheses + recommended diagnostic script next action (HIGH confidence ~85% that H1 is root cause: StageB should use `baseline_crystal.get_unit_cell().parameters()` instead of `crystal.get_unit_cell().parameters()` at lines 163-173).
 - Artifact Path: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T081911Z/
-- Next Actions: Ralph reverts signature errors, documents analysis summary, prepares for next loop's diagnostic script implementation.
-- <Action State>: [planning]
+- Next Actions: Next loop creates diagnostic script to capture exact parameter state at Stage A→B boundary (cell, misset, log_scale, device, HKL grid hash), identifies divergent parameter(s), and applies targeted fix.
+- <Action State>: [docs]
 
-2025-11-23T081911Z focus=ARCH-REFINE-FLOW-001 state=planning dwell=1 artifacts=plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T081911Z/ next_action=prepare_diagnostic_do_now_for_next_loop
+2025-11-23T081911Z focus=ARCH-REFINE-FLOW-001 state=docs dwell=1 artifacts=plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T081911Z/ next_action=create_diagnostic_script_for_chi2_offset
 
 ## 2025-11-23T075320Z — ARCH-REFINE-FLOW-001 Phase C2 bugfix planning
 - Focus: ARCH-REFINE-FLOW-001 — Protocol-based Refinement Engine (Phase C2 bugfix)

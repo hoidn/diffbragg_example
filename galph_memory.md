@@ -112,3 +112,13 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-23T060500Z focus=ARCH-REFINE-FLOW-001 state=ready_for_implementation dwell=0 artifacts=plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T060500Z/ next_action=fix_params_dict_bug
+
+## 2025-11-23T045012Z — ARCH-REFINE-FLOW-001 Phase B1b StageA Wrapper Handoff
+- Focus: ARCH-REFINE-FLOW-001 — Protocol-based Refinement Engine (Phase B1b)
+- Action Type: planning
+- Key Observations: Reviewed Phase B1a-loop3 completion (commit caa510e, 2025-11-23T060500Z) confirming bugfix success (params + optimizer added to param_values dict, regression guard PASSED). Identified that existing StageA stub (dbex/refinement/stage_a.py) is INCORRECT—it delegates to run_nanobrag_refinement creating infinite recursion risk once Phase B2 wires engine delegation. Authored comprehensive Phase B1b Do Now directing Ralph to rewrite StageA.run() to call three extracted helpers directly (_build_stage_a_params, _build_stage_a_lbfgs_closure, _run_stage_a_lbfgs), package telemetry with all RefinementTelemetry fields + stage_type/mode per Phase A4 schema, and validate via compilation check + regression guard (inline path unchanged until Phase B2). Implementation floor satisfied: Do Now contains production code task (StageA.run() rewrite) + validating pytest selectors (test_stage_a_expansion regression guard, test_engine_executes_mock_stage contract validation). Dwell reset to 0 (last loop review_or_housekeeping for B1a-loop3 blocker, now ready_for_implementation with wrapper implementation task).
+- Artifact Path: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T045012Z/
+- Next Actions: Ralph executes Phase B1b implementation (10 steps: review B1a artifacts, rewrite StageA.run(), add torch import, compilation check, regression guard, engine contract validation, update implementation.md, write summary, commit). If PASS → Galph plans Phase B2 next loop (engine delegation in run_nanobrag_refinement). If blocked → Ralph documents blocker → Galph reviews and decides.
+- <Action State>: [ready_for_implementation]
+
+2025-11-23T045012Z focus=ARCH-REFINE-FLOW-001 state=ready_for_implementation dwell=0 artifacts=plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T045012Z/ next_action=stage_a_wrapper_implementation

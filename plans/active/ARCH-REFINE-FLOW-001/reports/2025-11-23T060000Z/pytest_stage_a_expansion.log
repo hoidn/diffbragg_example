@@ -1,0 +1,135 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 1 item
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion FAILED     [100%]
+
+=================================== FAILURES ===================================
+____________________________ test_stage_a_expansion ____________________________
+
+refgeom_dataload = <dbex.data_load.DataLoad object at 0x7678da6d6d30>
+refinement_inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0.,...0.]]], dtype=float32), target_representation='adu', global_scale_hint=86.34794146217338, sigma_readout_provenance=None)
+hkl_data = (tensor([[[0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0.,...uda:0'), {'grid_max': 518.3336791992188, 'grid_mean': 16.896526336669922, 'grid_min': 0.0, 'grid_nonzero': 69614, ...})
+smoke_detector_size = 'small', smoke_sigma_source = 'cli_override'
+
+    @pytest.mark.allow_metadata_sigma
+    def test_stage_a_expansion(
+        refgeom_dataload,
+        refinement_inputs,
+        hkl_data,
+        smoke_detector_size,
+        smoke_sigma_source,
+    ):
+        """
+        Verify Stage A LBFGS refinement with full crystal DoFs achieves ≥0.2% loss decrease.
+    
+        Acceptance criteria (TORCH-REFINE-002D):
+        1. Refinement runs without errors (status != "error")
+        2. Telemetry contains all required keys (scale, cell a/b/c, angles, orientation, misset_xyz_deg)
+        3. Orientation telemetry reports deterministic misset angles from perturbed geometry
+        4. Improvement gate (≥0.2%) calibrated to achievable ceiling per empirical probe
+        5. Full-loss trace is non-increasing over last 3 validations
+    
+        Per TORCH-REFINE-002D: Stage A now runs with tricubic HKL interpolation (interpolate=True)
+        against a haloed grid (±1 padding) to prevent default_F fallback near grid boundaries.
+        Deterministic geometry perturbation (+2/+1/+1% cell stretch, +1.5° Z-misset) plumbed
+        through baseline_crystal parameter exercises orientation recovery while fractional HKL
+        coordinates from the perturbed basis stay within haloed grid bounds.
+    
+        Environment:
+        - Requires: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1
+        - Selector: pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+        """
+        from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig
+    
+        print(f"\n[test_stage_a_expansion] detector={smoke_detector_size}")
+    
+        hkl_grid, hkl_metadata = hkl_data
+        n_rois = len(refgeom_dataload.bbox)
+        strict_gates = smoke_detector_size == "full"
+    
+        # Configure refinement (Stage A expansion per TORCH-REFINE-002D)
+        config = RefinementConfig(
+            device='cuda:0',
+            dtype=torch.float32,
+            history_size=10,
+            max_iter=30,  # ≤30 steps for Stage A expansion
+            roi_sample_fraction=0.15,
+            full_validation_interval=5,
+            min_loss_improvement=0.002 if strict_gates else 0.0,
+            enable_hkl_interpolation=True,  # TORCH-REFINE-002D: Enable tricubic with haloed grid
+            sigma_readout_provenance=(
+                "external_lookup" if smoke_sigma_source == "metadata" else "cli_override"
+            ),
+        )
+    
+        # Create perturbed geometry (TORCH-REFINE-002D)
+        # Applies deterministic cell stretch and orientation misset to exercise Stage A recovery
+        # with tricubic HKL interpolation enabled (haloed grid prevents default_F fallback)
+        baseline_crystal = refgeom_dataload.Expt.crystal
+        baseline_detector = refgeom_dataload.Expt.detector
+        baseline_beam = refgeom_dataload.Expt.beam
+    
+        perturbed_crystal, perturbed_detector, perturbed_beam = create_perturbed_geometry(
+            baseline_crystal, baseline_detector, baseline_beam
+        )
+    
+        # Run refinement with perturbed geometry and baseline crystal for misset extraction
+        bragg_refined, telemetry_dict = run_nanobrag_refinement(
+            inputs=refinement_inputs,
+            detector=perturbed_detector,
+            beam=perturbed_beam,
+            crystal=perturbed_crystal,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            config=config,
+            baseline_crystal=baseline_crystal  # Enables U_delta extraction for orientation telemetry
+        )
+    
+        # Extract Stage A telemetry (Stage C not enabled in this test)
+        assert "A" in telemetry_dict, "Stage A telemetry missing"
+        telemetry = telemetry_dict["A"]
+    
+        # Acceptance 1: Refinement completed without errors
+>       assert telemetry.status != "error", f"Refinement failed: {telemetry.message}"
+E       AssertionError: Refinement failed: 'NoneType' object has no attribute 'zero_grad'
+E       assert 'error' != 'error'
+E        +  where 'error' = RefinementTelemetry(optimizer='LBFGS', stage='A', history_size=10, max_iter=30, tolerance_grad=1e-07, tolerance_change=1e-09, roi_sample_fraction=0.15, roi_count_sampled=4, roi_count_total=29, loss_trace_sample=[], loss_trace_full=[], best_loss_full=(inf, -1), param_deltas={'log_scale': {'initial': 4.458384990692139, 'final': 4.458384990692139, 'delta': 0.0}, 'log_cell_a_delta': {'initial': 0.0, 'final': 0.0, 'delta': 0.0}, 'log_cell_b_delta': {'initial': 0.0, 'final': 0.0, 'delta': 0.0}, 'log_cell_c_delta': {'initial': 0.0, 'final': 0.0, 'delta': 0.0}, 'angle_alpha_raw': {'initial': 0.0, 'final': 0.0, 'delta': 0.0}, 'angle_beta_raw': {'initial': 0.0, 'final': 0.0, 'delta': 0.0}, 'angle_gamma_raw': {'initial': 0.0, 'final': 0.0, 'delta': 0.0}, 'orientation_vec': {'initial': [0.0, 0.0, 0.0], 'final': [0.0, 0.0, 0.0], 'delta': [0.0, 0.0, 0.0], 'norm': 0.0}, 'misset_xyz_deg': {'initial': [-0.006988525390625, 0.15351295471191406, 1.4765625], 'final': [-0.006988525390625, 0.15351295471191406, 1.4765625], 'delta': [0.0, 0.0, 0.0], 'quaternion_norm': 1.0}}, status='error', message="'NoneType' object has no attribute 'zero_grad'", perf_counters={'cache_mode': 'warm', 'roi_mode': 'roi', 'roi_count_total': 29, 'roi_count_sampled': 4, 'closure_evals': 0, 'validation_runs': 0, 'forward_time_ms': {'mean': 0.0, 'min': 0.0, 'max': 0.0, 'total': 0.0}}, chi_squared_trace_sample=[], chi_squared_trace_full=[], chi_squared_best=(inf, -1), masked_mse_trace_sample=[], masked_mse_trace_full=[], masked_mse_best=(inf, -1), sigma_readout_provenance='cli_override', sigma_readout_reference_value=None, variance_floor_value=1.0, variance_floor_clamp_fraction=0.0, canonical_stage_label='A', canonical_chi_squared=None, canonical_chi_squared_iteration=None, canonical_roi_count=29, canonical_detector_distances_mm=[231.27645547762575], roi_mode='roi').status
+
+tests/dbex/test_torch_refine_smoke.py:387: AssertionError
+----------------------------- Captured stdout call -----------------------------
+
+[test_stage_a_expansion] detector=small
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046293/1048576 (99.78%)
+=============================== warnings summary ===============================
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dxtbx/format/FormatCBFFull.py:198: DeprecationWarning: The binary mode of fromstring is deprecated, as it behaves surprisingly on unicode inputs. Use frombuffer instead
+    self._raw_data = flex.int(np.fromstring(array_string, np.int32))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion - AssertionError: Refinement failed: 'NoneType' object has no attribute 'zero_grad'
+assert 'error' != 'error'
+ +  where 'error' = RefinementTelemetry(optimizer='LBFGS', stage='A', history_size=10, max_iter=30, tolerance_grad=1e-07, tolerance_change=1e-09, roi_sample_fraction=0.15, roi_count_sampled=4, roi_count_total=29, loss_trace_sample=[], loss_trace_full=[], best_loss_full=(inf, -1), param_deltas={'log_scale': {'initial': 4.458384990692139, 'final': 4.458384990692139, 'delta': 0.0}, 'log_cell_a_delta': {'initial': 0.0, 'final': 0.0, 'delta': 0.0}, 'log_cell_b_delta': {'initial': 0.0, 'final': 0.0, 'delta': 0.0}, 'log_cell_c_delta': {'initial': 0.0, 'final': 0.0, 'delta': 0.0}, 'angle_alpha_raw': {'initial': 0.0, 'final': 0.0, 'delta': 0.0}, 'angle_beta_raw': {'initial': 0.0, 'final': 0.0, 'delta': 0.0}, 'angle_gamma_raw': {'initial': 0.0, 'final': 0.0, 'delta': 0.0}, 'orientation_vec': {'initial': [0.0, 0.0, 0.0], 'final': [0.0, 0.0, 0.0], 'delta': [0.0, 0.0, 0.0], 'norm': 0.0}, 'misset_xyz_deg': {'initial': [-0.006988525390625, 0.15351295471191406, 1.4765625], 'final': [-0.006988525390625, 0.15351295471191406, 1.4765625], 'delta': [0.0, 0.0, 0.0], 'quaternion_norm': 1.0}}, status='error', message="'NoneType' object has no attribute 'zero_grad'", perf_counters={'cache_mode': 'warm', 'roi_mode': 'roi', 'roi_count_total': 29, 'roi_count_sampled': 4, 'closure_evals': 0, 'validation_runs': 0, 'forward_time_ms': {'mean': 0.0, 'min': 0.0, 'max': 0.0, 'total': 0.0}}, chi_squared_trace_sample=[], chi_squared_trace_full=[], chi_squared_best=(inf, -1), masked_mse_trace_sample=[], masked_mse_trace_full=[], masked_mse_best=(inf, -1), sigma_readout_provenance='cli_override', sigma_readout_reference_value=None, variance_floor_value=1.0, variance_floor_clamp_fraction=0.0, canonical_stage_label='A', canonical_chi_squared=None, canonical_chi_squared_iteration=None, canonical_roi_count=29, canonical_detector_distances_mm=[231.27645547762575], roi_mode='roi').status
+======================== 1 failed, 5 warnings in 5.68s =========================

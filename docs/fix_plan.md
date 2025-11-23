@@ -1,6 +1,6 @@
 # DBEX Fix Plan Ledger
 
-**Last Updated:** 2025-11-21 (Active initiatives only — legacy history moved to `docs/fix_plan_archive.md`)
+**Last Updated:** 2025-11-23 (Active/pending initiatives only — older history snapshots live in `docs/fix_plan_archive.md`)
 
 ## Working Agreements
 - Continue logging every loop in this ledger with status + artifact pointer; detailed Attempts History older than the sections below lives in `docs/fix_plan_archive.md`.

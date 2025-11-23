@@ -90,15 +90,15 @@
   - Compilation PASSED (exit code 0)
   - Helper not yet wired (no behavior change)
   - Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T040000Z/
-- [ ] B1a-loop2: **Extract `_build_stage_a_lbfgs_closure` helper ONLY** (Loop i=193):
-  - Extract lines ~998-1573 (nested compute_loss + closure functions)
-  - Add helper after `_build_stage_a_params`
-  - Preserve TWO nested functions with lexical scope captures (~30 nonlocal variables)
-  - Maintain 3 parameterization modes (cell+misset, U-matrix, incremental UB)
-  - Keep lazy imports (nanobrag_bridge INSIDE nested functions)
-  - Verify compilation
-  - NO regression guard required (helpers not yet wired)
-  - Commit partial progress
+- [x] B1a-loop2: **Extract `_build_stage_a_lbfgs_closure` helper ONLY** (Loop i=193): ✓ COMPLETE (2025-11-23T050000Z)
+  - Extracted lines 1320-1903 from run_nanobrag_refinement (source lines)
+  - Added helper at dbex/nanobrag_refinement.py:1010-1726 (after `_build_stage_a_params`)
+  - Preserved TWO nested functions with lexical scope captures (~35 nonlocal variables)
+  - Maintained 3 parameterization modes (cell+misset, U-matrix, incremental UB)
+  - Kept lazy imports (nanobrag_bridge, nanobrag_torch INSIDE nested functions and branches)
+  - Compilation PASSED (exit code 0)
+  - Helper not yet wired (no behavior change)
+  - Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T050000Z/
 - [ ] B1a-loop3: **Extract `_run_stage_a_lbfgs` + Refactor main function** (Loop i=194):
   - Extract lines ~1575-1685 (optimizer execution + final validation)
   - Add helper after `_build_stage_a_lbfgs_closure`

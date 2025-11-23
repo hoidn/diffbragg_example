@@ -365,4 +365,8 @@ class StageA:
         else:
             telemetry_output["mode"] = None  # Default cell+misset path
 
+        # Add stage_a_ctx for Stage B warm cache support (Phase C2)
+        # This is a non-RefinementTelemetry field but required for engine propagation
+        telemetry_output["stage_a_ctx"] = stage_a_context.get('stage_a_ctx', None)
+
         return telemetry_output

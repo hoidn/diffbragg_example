@@ -2710,6 +2710,206 @@ def _run_stage_b_lbfgs(
     }
 
 
+def _build_final_bragg_from_stage_b_telemetry(
+    telemetry_a,
+    telemetry_b,
+    detector,
+    beam,
+    crystal,
+    inputs,
+    hkl_grid: torch.Tensor,
+    hkl_metadata: Dict,
+    config,
+    device: torch.device,
+    dtype: torch.dtype,
+    stage_a_ctx=None,
+):
+    """
+    Build final Bragg array from Stage B telemetry (shell modifiers + Stage A frozen params).
+
+    Extracts Stage A frozen parameters and Stage B shell modifiers from telemetry,
+    applies modifiers to HKL grid, and regenerates full Bragg image.
+
+    Args:
+        telemetry_a: RefinementTelemetry instance or dict with Stage A optimized param_deltas
+        telemetry_b: RefinementTelemetry instance or dict with Stage B shell modifiers
+        detector: dxtbx Detector object
+        beam: dxtbx Beam object
+        crystal: dxtbx Crystal object
+        inputs: RefinementInputs with panel_slices, trusted_mask
+        hkl_grid: torch.Tensor structure factor grid (unmodified baseline)
+        hkl_metadata: dict with grid dimensions
+        config: RefinementConfig with device, dtype, Stage B settings
+        device: torch.device for tensor operations
+        dtype: torch.dtype for tensor operations
+        stage_a_ctx: Optional Stage A context (detectors/simulators for warm cache)
+
+    Returns:
+        bragg_full: np.ndarray, shape [n_panels, slow, fast], final Bragg image with shell modifiers
+    """
+    # Lazy imports to avoid circular dependencies
+    from nanobrag_torch.simulator import Simulator
+    from nanobrag_torch.models.detector import Detector
+    from nanobrag_torch.models.crystal import Crystal
+    from dbex.nanobrag_bridge import (
+        create_detector_config,
+        create_crystal_config,
+        compute_baseline_misset_deg,
+    )
+
+    # Extract param_deltas from telemetry (handle both RefinementTelemetry and dict)
+    if hasattr(telemetry_a, 'param_deltas'):
+        param_deltas_a = telemetry_a.param_deltas
+    else:
+        param_deltas_a = telemetry_a['param_deltas']
+
+    if hasattr(telemetry_b, 'param_deltas'):
+        param_deltas_b = telemetry_b.param_deltas
+    else:
+        param_deltas_b = telemetry_b['param_deltas']
+
+    # Extract Stage A frozen parameters (final values)
+    log_scale = torch.tensor(param_deltas_a['log_scale']['final'], device=device, dtype=dtype, requires_grad=False)
+    log_cell_a_delta = torch.tensor(param_deltas_a['log_cell_a_delta']['final'], device=device, dtype=dtype, requires_grad=False)
+    log_cell_b_delta = torch.tensor(param_deltas_a['log_cell_b_delta']['final'], device=device, dtype=dtype, requires_grad=False)
+    log_cell_c_delta = torch.tensor(param_deltas_a['log_cell_c_delta']['final'], device=device, dtype=dtype, requires_grad=False)
+    angle_alpha_raw = torch.tensor(param_deltas_a['angle_alpha_raw']['final'], device=device, dtype=dtype, requires_grad=False)
+    angle_beta_raw = torch.tensor(param_deltas_a['angle_beta_raw']['final'], device=device, dtype=dtype, requires_grad=False)
+    angle_gamma_raw = torch.tensor(param_deltas_a['angle_gamma_raw']['final'], device=device, dtype=dtype, requires_grad=False)
+
+    # Extract misset from Stage A (this is the delta, not frozen in Stage B inline code but added to baseline)
+    misset_xyz_deg_delta = param_deltas_a['misset_xyz_deg']['delta']
+    misset_xyz_deg = torch.tensor(misset_xyz_deg_delta, device=device, dtype=dtype, requires_grad=False)
+
+    # Extract shell metadata from Stage B telemetry
+    if hasattr(telemetry_b, 'shell_edges'):
+        shell_edges = torch.tensor(telemetry_b.shell_edges, device=device, dtype=dtype)
+        shell_indices = torch.tensor(telemetry_b.shell_indices, device=device, dtype=torch.long)
+        n_shells = telemetry_b.n_shells
+    else:
+        shell_edges = torch.tensor(telemetry_b['shell_edges'], device=device, dtype=dtype)
+        shell_indices = torch.tensor(telemetry_b['shell_indices'], device=device, dtype=torch.long)
+        n_shells = telemetry_b['n_shells']
+
+    # Extract shell modifiers from Stage B param_deltas
+    shell_modifiers_final = torch.zeros(n_shells, device=device, dtype=dtype)
+    for shell_idx in range(n_shells):
+        # Find the shell modifier key in param_deltas_b
+        shell_key = None
+        for key in param_deltas_b.keys():
+            if key.startswith(f'shell_{shell_idx}_modifier'):
+                shell_key = key
+                break
+        if shell_key is None:
+            raise RuntimeError(f"Missing shell_{shell_idx}_modifier in Stage B telemetry param_deltas")
+        shell_modifiers_final[shell_idx] = param_deltas_b[shell_key]['final']
+
+    # Get n_panels and panel_shape
+    n_panels = len(detector)
+    panel_shape = inputs.target.shape[1:]  # (slow, fast)
+
+    # Compute baseline misset if available
+    baseline_misset_deg_tensor = None
+    # Note: baseline_crystal would need to be passed to this helper to compute baseline misset
+    # For now, we'll skip baseline misset support in engine path (matches inline path logic)
+
+    # Apply Stage A cell perturbations
+    cell_params = crystal.get_unit_cell().parameters()
+    cell_a_tensor = cell_params[0] * torch.exp(log_cell_a_delta)
+    cell_b_tensor = cell_params[1] * torch.exp(log_cell_b_delta)
+    cell_c_tensor = cell_params[2] * torch.exp(log_cell_c_delta)
+
+    max_angle_delta = 10.0  # degrees
+    cell_alpha_tensor = cell_params[3] + torch.tanh(angle_alpha_raw) * max_angle_delta
+    cell_beta_tensor = cell_params[4] + torch.tanh(angle_beta_raw) * max_angle_delta
+    cell_gamma_tensor = cell_params[5] + torch.tanh(angle_gamma_raw) * max_angle_delta
+
+    # Apply shell modifiers to HKL grid (mirroring inline code lines 3314-3317)
+    with torch.no_grad():
+        hkl_grid_modified = hkl_grid.clone()
+        for shell_idx in range(n_shells):
+            mask = (shell_indices == shell_idx)
+            hkl_grid_modified[mask] = hkl_grid[mask] * shell_modifiers_final[shell_idx]
+
+        bragg_full = np.zeros((n_panels, *panel_shape), dtype=np.float32)
+
+        # Build crystal overrides
+        crystal_overrides = {
+            'cell_a': cell_a_tensor,
+            'cell_b': cell_b_tensor,
+            'cell_c': cell_c_tensor,
+            'cell_alpha': cell_alpha_tensor,
+            'cell_beta': cell_beta_tensor,
+            'cell_gamma': cell_gamma_tensor
+        }
+
+        # Compute final misset (baseline + delta if baseline provided)
+        if baseline_misset_deg_tensor is not None:
+            final_misset = baseline_misset_deg_tensor + misset_xyz_deg
+        else:
+            final_misset = misset_xyz_deg
+
+        # Check if warm cache is enabled AND stage_a_ctx is available
+        stage_b_use_warm_cache = config.enable_warm_cache and stage_a_ctx is not None
+
+        if stage_b_use_warm_cache:
+            # Warm cache path: retarget Stage A simulators with modified crystal
+            warm_crystal_config, _ = create_crystal_config(
+                crystal,
+                None,
+                crystal_overrides=crystal_overrides,
+                misset_deg_override=final_misset,
+                apply_n_cells=False,
+            )
+            warm_crystal_model = Crystal(
+                warm_crystal_config,
+                beam_config=stage_a_ctx.beam_config,
+                device=device,
+                dtype=dtype,
+            )
+            warm_crystal_model.interpolate = True
+            warm_crystal_model.hkl_data = hkl_grid_modified.to(device=device, dtype=dtype)
+            warm_crystal_model.hkl_metadata = hkl_metadata
+            _retarget_stage_a_simulators(stage_a_ctx, warm_crystal_model)
+
+            for pid in range(n_panels):
+                simulator = stage_a_ctx.simulators[pid]
+                bragg_panel = simulator.run()
+                log_scale_clamped = torch.clamp(log_scale, min=-10.0, max=10.0)
+                bragg_scaled = bragg_panel * torch.exp(log_scale_clamped)
+                bragg_full[pid] = bragg_scaled.cpu().numpy().astype(np.float32)
+        else:
+            # Cold path: instantiate fresh simulators per panel
+            for pid in range(n_panels):
+                detector_config = create_detector_config(
+                    panel=detector[pid],
+                    beam=beam,
+                    trusted_mask=inputs.trusted_mask[pid]
+                )
+                if detector_config.mask_array is not None and not isinstance(detector_config.mask_array, torch.Tensor):
+                    detector_config.mask_array = torch.tensor(
+                        detector_config.mask_array, dtype=torch.float32, device=device
+                    )
+                crystal_config, _ = create_crystal_config(
+                    crystal, None,
+                    crystal_overrides=crystal_overrides,
+                    misset_deg_override=final_misset,
+                    apply_n_cells=False
+                )
+                detector_model = Detector(detector_config, device=device, dtype=dtype)
+                crystal_model = Crystal(crystal_config, device=device, dtype=dtype)
+                crystal_model.interpolate = True
+                crystal_model.hkl_data = hkl_grid_modified.to(device=device, dtype=dtype)
+                crystal_model.hkl_metadata = hkl_metadata
+                simulator = Simulator(detector=detector_model, crystal=crystal_model, device=device, dtype=dtype)
+                bragg_panel = simulator.run()
+                log_scale_clamped = torch.clamp(log_scale, min=-10.0, max=10.0)
+                bragg_scaled = bragg_panel * torch.exp(log_scale_clamped)
+                bragg_full[pid] = bragg_scaled.cpu().numpy().astype(np.float32)
+
+    return bragg_full
+
+
 def run_nanobrag_refinement(
     inputs,
     detector,
@@ -2776,6 +2976,9 @@ def run_nanobrag_refinement(
     # Detect Stage-A-only mode for conditional engine delegation (Phase B2)
     stage_a_only_mode = (not config.enable_stage_c and not config.enable_stage_b)
 
+    # Detect Stage A→B mode for conditional engine delegation (Phase C2)
+    stage_a_b_mode = (not config.enable_stage_c and config.enable_stage_b)
+
     if stage_a_only_mode:
         # === ENGINE DELEGATION PATH (Phase B2) ===
         # Lazy imports to avoid circular dependencies at module load time
@@ -2814,6 +3017,79 @@ def run_nanobrag_refinement(
         # Return with telemetry dict using "A" key for backward compatibility
         # (Legacy code expects {"A": RefinementTelemetry, ...})
         return bragg_full, {"A": telemetry_a}
+
+    elif stage_a_b_mode:
+        # === ENGINE DELEGATION PATH (Phase C2: A→B) ===
+        from dbex.refinement.engine import RefinementEngine
+        from dbex.refinement.stage_a import StageA
+        from dbex.refinement.stage_b import StageB
+
+        # Build inputs dict per StageA/StageB.run() contract
+        engine_inputs = {
+            'refinement_inputs': inputs,
+            'detector': detector,
+            'beam': beam,
+            'crystal': crystal,
+            'hkl_grid': hkl_grid,
+            'hkl_metadata': hkl_metadata,
+            'baseline_crystal': baseline_crystal,
+            'baseline_detector': baseline_detector,
+        }
+
+        # Instantiate RefinementEngine with StageA → StageB sequence
+        engine = RefinementEngine(stages=[StageA(), StageB()], config=config)
+
+        # Execute engine and get telemetry dict (keyed by stage.name = "stage_a", "stage_b")
+        telemetry_dict = engine.run(engine_inputs)
+
+        # Extract Stage A and Stage B telemetry (keyed by "stage_a", "stage_b" per stage.name property)
+        telemetry_a_raw = telemetry_dict["stage_a"]
+        telemetry_b_raw = telemetry_dict["stage_b"]
+
+        # Build final Bragg array using Stage B optimized shell modifiers
+        device = torch.device(config.device)
+        dtype = config.dtype
+
+        # Extract stage_a_ctx from engine cache (cached separately from telemetry)
+        stage_a_ctx = getattr(engine, '_stage_a_ctx_cache', None)
+
+        # Extract shell metadata from engine cache (cached separately from telemetry)
+        shell_edges = getattr(engine, '_stage_b_shell_edges', None)
+        shell_indices = getattr(engine, '_stage_b_shell_indices', None)
+        n_shells = getattr(engine, '_stage_b_n_shells', None)
+
+        # Create a dict version of telemetry_b with shell metadata for the helper
+        from dataclasses import asdict
+        telemetry_b_dict = asdict(telemetry_b_raw)
+        if shell_edges is not None:
+            telemetry_b_dict['shell_edges'] = shell_edges
+        if shell_indices is not None:
+            telemetry_b_dict['shell_indices'] = shell_indices
+        if n_shells is not None:
+            telemetry_b_dict['n_shells'] = n_shells
+
+        bragg_full = _build_final_bragg_from_stage_b_telemetry(
+            telemetry_a=telemetry_a_raw,
+            telemetry_b=telemetry_b_dict,
+            detector=detector,
+            beam=beam,
+            crystal=crystal,
+            inputs=inputs,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            config=config,
+            device=device,
+            dtype=dtype,
+            stage_a_ctx=stage_a_ctx,
+        )
+
+        # Repackage telemetry with backward-compatible keys ("A", "B")
+        # Filter out stage_type/mode fields to maintain RefinementTelemetry structure
+        from dbex.nanobrag_refinement import RefinementTelemetry
+        telemetry_b = RefinementTelemetry(**{k: v for k, v in telemetry_b_raw.items() if k not in ['stage_type', 'mode', 'shell_edges', 'shell_indices', 'n_shells']})
+        telemetry_a = RefinementTelemetry(**{k: v for k, v in telemetry_a_raw.items() if k not in ['stage_type', 'mode', 'stage_a_ctx']})
+
+        return bragg_full, {"A": telemetry_a, "B": telemetry_b}
 
     else:
         # === INLINE PATH (existing implementation) ===

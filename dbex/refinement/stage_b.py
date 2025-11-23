@@ -198,7 +198,8 @@ class StageB:
         use_stage_a_roi_mode = (stage_a_telemetry['roi_mode'] == "roi")
 
         # Extract Stage A final loss for improvement calculation
-        best_loss_full = (stage_a_telemetry['best_loss_full'], 0)
+        # best_loss_full is already a list [loss_value, iteration] from Stage A
+        best_loss_full = stage_a_telemetry['best_loss_full']
 
         # STEP 1: Build Stage B parameters
         param_values = _build_stage_b_params(
@@ -248,9 +249,15 @@ class StageB:
         stage_b_param_device = param_values['stage_b_param_device']
 
         # Extract tensors from refinement_inputs for helper2
-        target_t = refinement_inputs.target
-        loss_mask_t = refinement_inputs.loss_mask
-        sigma_readout_t = refinement_inputs.sigma_readout
+        # Convert numpy arrays to torch tensors if needed
+        if isinstance(refinement_inputs.target, np.ndarray):
+            target_t = torch.from_numpy(refinement_inputs.target).to(device=device, dtype=dtype)
+            loss_mask_t = torch.from_numpy(refinement_inputs.loss_mask).to(device=device, dtype=torch.bool)
+            sigma_readout_t = torch.from_numpy(refinement_inputs.sigma_readout).to(device=device, dtype=dtype)
+        else:
+            target_t = refinement_inputs.target.to(device=device, dtype=dtype)
+            loss_mask_t = refinement_inputs.loss_mask.to(device=device, dtype=torch.bool)
+            sigma_readout_t = refinement_inputs.sigma_readout.to(device=device, dtype=dtype)
 
         # STEP 2: Build Stage B LBFGS closure (returns tuple)
         compute_loss_stage_b, closure_stage_b = _build_stage_b_lbfgs_closure(
@@ -400,5 +407,10 @@ class StageB:
         # Add Phase A4 stage identification fields (backward compatible with engine contract)
         telemetry_output["stage_type"] = "B"
         telemetry_output["mode"] = "shell_modifiers"
+
+        # Add shell metadata for engine path to rebuild modified HKL grid (Phase C2)
+        telemetry_output["shell_edges"] = shell_edges.cpu().tolist()
+        telemetry_output["shell_indices"] = shell_indices.cpu().tolist()
+        telemetry_output["n_shells"] = self._config.stage_b_n_shells
 
         return telemetry_output

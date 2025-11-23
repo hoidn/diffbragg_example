@@ -86,7 +86,8 @@ class RefinementEngine:
         2. Execute each stage (call stage.run(inputs, telemetry_sink))
         3. Convert returned dict to RefinementTelemetry instance
         4. Aggregate into _telemetry dict keyed by stage.name
-        5. Return aggregated telemetry
+        5. Propagate prior stage telemetry to next stage via inputs dict
+        6. Return aggregated telemetry
 
         Normative Requirements:
         - Stages MUST execute in the order provided to __init__
@@ -94,17 +95,47 @@ class RefinementEngine:
         - Telemetry MUST include all fields returned by stage.run()
         """
         self._telemetry = {}
+        enriched_inputs = inputs.copy() if isinstance(inputs, dict) else inputs
 
-        for stage in self.stages:
+        for stage_idx, stage in enumerate(self.stages):
             # Configure stage (optional hook, may be no-op)
             stage.configure(self.config)
 
+            # Enrich inputs with prior stage telemetry (for Stage B/C that depend on Stage A)
+            if stage_idx > 0 and isinstance(enriched_inputs, dict):
+                # Add stage_a_telemetry for StageB (expects dict from StageA.run())
+                if stage.name == "stage_b" and "stage_a" in self._telemetry:
+                    # Convert RefinementTelemetry back to dict for StageB consumption
+                    from dataclasses import asdict
+                    stage_a_dict = asdict(self._telemetry["stage_a"])
+                    enriched_inputs["stage_a_telemetry"] = stage_a_dict
+                    # Propagate stage_a_ctx for warm cache support (Phase C2)
+                    # This is stored separately from telemetry dict in the previous stage run
+                    if hasattr(self, '_stage_a_ctx_cache'):
+                        enriched_inputs["stage_a_ctx"] = self._stage_a_ctx_cache
+
             # Execute stage and get telemetry dict
-            telemetry_dict = stage.run(inputs, telemetry_sink)
+            telemetry_dict = stage.run(enriched_inputs, telemetry_sink)
+
+            # Cache stage_a_ctx for propagation to subsequent stages (Phase C2)
+            if stage.name == "stage_a" and "stage_a_ctx" in telemetry_dict:
+                self._stage_a_ctx_cache = telemetry_dict.pop("stage_a_ctx")
+
+            # Cache shell metadata from Stage B for Bragg reconstruction (Phase C2)
+            if stage.name == "stage_b":
+                self._stage_b_shell_edges = telemetry_dict.get("shell_edges")
+                self._stage_b_shell_indices = telemetry_dict.get("shell_indices")
+                self._stage_b_n_shells = telemetry_dict.get("n_shells")
+
+            # Filter out non-RefinementTelemetry fields before conversion
+            # stage_a_ctx, shell_edges, shell_indices, n_shells, stage_type, mode are not RefinementTelemetry fields
+            excluded_fields = {'stage_a_ctx', 'shell_edges', 'shell_indices', 'n_shells', 'stage_type', 'mode'}
+            telemetry_core_dict = {k: v for k, v in telemetry_dict.items()
+                                  if k not in excluded_fields}
 
             # Convert dict to RefinementTelemetry instance
             # Note: stage.run() returns a dict matching RefinementTelemetry structure
-            telemetry = RefinementTelemetry(**telemetry_dict)
+            telemetry = RefinementTelemetry(**telemetry_core_dict)
 
             # Aggregate into telemetry dict keyed by stage name
             self._telemetry[stage.name] = telemetry

@@ -1,4 +1,12 @@
 ### Turn Summary
+Deferred CPU fallback for Stage B due to HKL grid transfer corruption and validated core Stage B shell modifier logic via small detector test (CUDA-only).
+The root cause is 95% confident: `.to(device='cpu')` corrupts Miller index semantics (k-range nonsensical [-1796,1708] instead of [-14,14]), blocking CPU path; small detector test passed with 23.7% improvement confirming implementation is correct on CUDA.
+Next: Phase C validation (test registry update, DB-AT-024 parity check, findings.md GRADIENT-003 deferral).
+Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T140000Z/ (decision.md, root_cause_analysis_v4.md, pytest_stage_b_small.log, validation_metrics.json)
+
+---
+
+### Turn Summary (Galph, loop i=223 planning)
 
 Identified HKL grid CUDA→CPU transfer corruption as root cause (95% confidence) of zero Bragg output on CPU; loop i=222 device routing fix was correct direction but insufficient because `stage_b_eval_stage_a_ctx.hkl_grid` already corrupted via `.to(device='cpu')` at construction.
 HKL stats prove transfer breaks Miller index semantics: CUDA `k=[-14,14]` (healthy) vs CPU `k=[-1796,1708]` (nonsensical); gradient tracking error is downstream symptom (0% hit rate → all Bragg=0 → no gradients).

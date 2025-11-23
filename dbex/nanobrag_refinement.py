@@ -2418,12 +2418,8 @@ def _build_stage_b_lbfgs_closure(
             # Normal path: transfer to eval device if needed
             hkl_grid_local = hkl_grid if eval_device == device else hkl_grid.to(device=eval_device, dtype=dtype)
         shell_indices_local = shell_indices if eval_device == device else shell_indices.to(device=eval_device)
-        # Initialize hkl_grid_modified: use identity scalar multiplication to preserve gradient tracking
-        # even when hkl_grid_local is gradient-free (CPU fallback path)
-        identity_modifier = torch.ones(1, device=eval_device, dtype=dtype)
-        if torch.is_grad_enabled():
-            identity_modifier.requires_grad_(True)
-        hkl_grid_modified = hkl_grid_local * identity_modifier
+        # Initialize hkl_grid_modified as clone of local grid
+        hkl_grid_modified = hkl_grid_local.clone()
         for shell_idx in range(config.stage_b_n_shells):
             mask = (shell_indices_local == shell_idx)
             modifier_value = shell_modifiers[shell_idx]
@@ -2435,13 +2431,6 @@ def _build_stage_b_lbfgs_closure(
                 hkl_grid_local * modifier_value,  # Gradient-enabled operation
                 hkl_grid_modified  # Keep existing values for non-matching shells
             )
-
-        # DIAGNOSTIC: Verify HKL grid has gradients after out-of-place construction
-        print(f"[HKL_GRAD_CHECK] hkl_grid_modified.requires_grad={hkl_grid_modified.requires_grad}, "
-              f"grad_fn={hkl_grid_modified.grad_fn}, device={hkl_grid_modified.device}")
-        print(f"[HKL_GRAD_CHECK] hkl_grid_local.requires_grad={hkl_grid_local.requires_grad}, "
-              f"shell_modifiers[0].requires_grad={shell_modifiers[0].requires_grad}, "
-              f"is_full={is_full}, grad_enabled={torch.is_grad_enabled()}")
 
         # PERF-WARM-012: Use the eval-device-specific Stage A context (CPU or CUDA)
         use_warm_eval = stage_b_use_warm_cache

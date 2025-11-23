@@ -28,6 +28,10 @@
 - [ARCH-REFINE-FLOW-001] (Protocol Engine) — *Pending*
 - [PERF-WARM-SIM-001] (Warm Simulator) — *Deferred (Wait for Engine Refactor)*
 
+### Tier 3: Feature Completeness
+**Goal:** Implement normative spec features currently using fallback modes.
+- [TORCH-REFINE-004] (Stage B Per-Reflection Mode) — *Pending* (Deferred until ARCH-REFINE-FLOW-001 Phase C complete; shell mode implemented, per-reflection mode planned per spec-db-workflow.md §7)
+
 ### Tier 3: Architectural Maturity (Refactoring)
 **Goal:** Refactor monolithic loops into maintainable engines with clear boundaries and testable seams.
 - [ARCH-REFACTOR-001] (Refinement Engine Modularization & Physics Separation) — *Pending* (UNBLOCKED 2025-11-23: TORCH-GEOMETRY-CONVERGENCE-001 complete)
@@ -244,6 +248,19 @@
 - Exit Criteria: (see archived ledger for full list)
 - Working Plan: plans/active/PERF-SMOKE-DETSIZE/implementation.md
 - Attempts History: see `docs/fix_plan_archive.md` (2025-11-23 snapshot) and the initiative reports directory for full history and metrics.
+
+### [TORCH-REFINE-004] Stage B Per-Reflection Mode Migration
+- Depends on: ARCH-REFINE-FLOW-001 Phase C (Stage B extraction complete), docs/spec-db-workflow.md §7 (normative requirement for per-reflection as default)
+- Status: pending (shell mode implemented and working; per-reflection mode deferred until engine refactor complete)
+- Priority: Tier 3 — Feature Completeness
+- Exit Criteria:
+  1. Per-reflection Fhkl modifiers mapped to unique ASU indices are implemented and tested as the default Stage B mode per spec-db-workflow.md §7.
+  2. Shell mode remains available as a fallback optimization strategy via `stage_b_mode="shell"` config parameter.
+  3. Smoke tests validate per-reflection mode convergence and telemetry structure.
+  4. Documentation updated to reflect per-reflection as the normative default.
+- Working Plan: plans/active/TORCH-REFINE-004/implementation.md
+- Attempts History:
+  * 2025-11-05 — Phase 1-5 complete: shell mode implemented, config scaffolding includes `stage_b_mode` parameter supporting both "shell" and "per_reflection" values, per-reflection implementation deferred pending engine architecture maturity.
 
 ### [REFINE-SMOKE-CANONICAL] Restore canonical Stage B/C smoke convergence
 - Depends on: docs/spec-db-workflow.md §§Stage B/C + Stage Smoke Dataset Policy; docs/spec-db-core.md (variance-weighted loss telemetry)

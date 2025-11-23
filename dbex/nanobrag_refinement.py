@@ -547,17 +547,6 @@ def _build_stage_a_context(
     hkl_grid_device = hkl_grid.to(device=device, dtype=dtype)
     crystal_config, _ = create_crystal_config(crystal, None)
 
-    # DIAGNOSTIC: Crystal config post-bridge (temp)
-    device_str = str(device)
-    device_label = "CUDA" if "cuda" in device_str else "CPU"
-    print(f"[CRYSTAL_{device_label}_POST] cell_a={crystal_config.cell_a}, cell_b={crystal_config.cell_b}, cell_c={crystal_config.cell_c}")
-    print(f"[CRYSTAL_{device_label}_POST] cell_alpha={crystal_config.cell_alpha}, cell_beta={crystal_config.cell_beta}, cell_gamma={crystal_config.cell_gamma}")
-    print(f"[CRYSTAL_{device_label}_POST] mosflm_a_star={getattr(crystal_config, 'mosflm_a_star', None)}")
-    print(f"[CRYSTAL_{device_label}_POST] mosflm_b_star={getattr(crystal_config, 'mosflm_b_star', None)}")
-    print(f"[CRYSTAL_{device_label}_POST] mosflm_c_star={getattr(crystal_config, 'mosflm_c_star', None)}")
-    print(f"[CRYSTAL_{device_label}_POST] misset_deg={getattr(crystal_config, 'misset_deg', None)}")
-    print(f"[CRYSTAL_{device_label}_POST] device={device}")
-
     base_crystal_model = Crystal(crystal_config, beam_config=beam_config, device=device, dtype=dtype)
     base_crystal_model.interpolate = enable_hkl_interpolation
     base_crystal_model.hkl_data = hkl_grid_device
@@ -2199,37 +2188,12 @@ def _build_stage_b_params(
     variance_floor_clamped_pixels_b = [0]  # Total pixels where floor engaged
     variance_floor_masked_pixels_b = [0]  # Total masked pixels evaluated
 
-    # PERF-WARM-012: CPU fallback already computed above for device-aware parameter init
-    # DIAGNOSTIC INSTRUMENTATION (TEMPORARY — remove after CPU fallback bug fixed)
-    import json
-    fallback_diagnostics = {
-        "location": "_build_stage_b_params",
-        "config_stage_b_full_eval_on_cpu": config.stage_b_full_eval_on_cpu,
-        "device_global": str(device),
-        "device_type": type(device).__name__,
-        "device_is_cuda": str(device).startswith("cuda"),
-        "use_stage_a_roi_mode": use_stage_a_roi_mode,
-        "use_stage_a_roi_mode_type": type(use_stage_a_roi_mode).__name__,
-        "stage_a_ctx_is_not_none": stage_a_ctx is not None,
-        "use_stage_b_cpu_fallback": use_stage_b_cpu_fallback,
-        "stage_b_param_device": str(stage_b_param_device),
-        "shell_modifier_raw_device": str(shell_modifier_raw.device),
-        "shell_modifier_raw_requires_grad": shell_modifier_raw.requires_grad,
-    }
-    print(f"CPU_FALLBACK_DIAGNOSTICS_PARAMS: {json.dumps(fallback_diagnostics)}", flush=True)
-
     # PERF-WARM-012: Clone StageAContext to CPU when fallback is active so Stage B can reuse
     # cached detectors/HKL/masks even on CPU, maintaining cache_mode="warm"
     stage_b_eval_stage_a_ctx = None
     if use_stage_b_cpu_fallback and stage_a_ctx is not None and config.enable_stage_a_warm_cache:
         # Build a fresh Stage A context on CPU device
         cpu_device = torch.device("cpu")
-
-        # DIAGNOSTIC: CPU crystal config comparison (temp)
-        print(f"[CRYSTAL_CPU_PRE] cell={crystal.get_unit_cell().parameters()}")
-        print(f"[CRYSTAL_CPU_PRE] A_matrix={np.array(crystal.get_A()).reshape(3,3).tolist()}")
-        print(f"[CRYSTAL_CPU_PRE] U_matrix={np.array(crystal.get_U()).reshape(3,3).tolist()}")
-        print(f"[CRYSTAL_CPU_PRE] B_matrix={np.array(crystal.get_B()).reshape(3,3).tolist()}")
 
         stage_b_eval_stage_a_ctx = _build_stage_a_context(
             detector=detector,
@@ -2411,24 +2375,6 @@ def _build_stage_b_lbfgs_closure(
         # PERF-WARM-011: Route to CPU when fallback is active (panel mode + CUDA + config flag)
         eval_device = torch.device("cpu") if use_stage_b_cpu_fallback else device
 
-        # DIAGNOSTIC INSTRUMENTATION (TEMPORARY — remove after CPU fallback bug fixed)
-        import json
-        eval_device_diagnostics = {
-            "location": "_build_stage_b_lbfgs_closure",
-            "use_stage_b_cpu_fallback": use_stage_b_cpu_fallback,
-            "is_full": is_full,
-            "grad_enabled": torch.is_grad_enabled(),
-            "device_global": str(device),
-            "shell_modifier_raw_device": str(shell_modifier_raw.device),
-            "shell_modifiers_device": str(shell_modifiers.device),
-            "eval_device": str(eval_device),
-            "eval_device_type": eval_device.type,
-            "shell_modifier_raw_requires_grad": shell_modifier_raw.requires_grad,
-            "shell_modifiers_requires_grad": shell_modifiers.requires_grad,
-            "shell_modifiers_grad_fn": str(shell_modifiers.grad_fn) if shell_modifiers.grad_fn else "None",
-        }
-        print(f"CPU_FALLBACK_DIAGNOSTICS_CLOSURE: {json.dumps(eval_device_diagnostics)}", flush=True)
-
         chi_squared_accum = torch.tensor(0.0, device=eval_device, dtype=dtype)
         mse_numerator_accum = torch.tensor(0.0, device=eval_device, dtype=dtype)
         n_pixels_accum = 0
@@ -2461,9 +2407,23 @@ def _build_stage_b_lbfgs_closure(
             'cell_gamma': cell_gamma_eval,
         }
 
-        hkl_grid_local = hkl_grid if eval_device == device else hkl_grid.to(device=eval_device, dtype=dtype)
+        # ARCH-REFINE-FLOW-001 Phase C2.4: When CPU fallback active, use CPU-native HKL grid from
+        # stage_b_eval_stage_a_ctx (built at line 2234-2246) instead of transferring CUDA hkl_grid.
+        # Minimal reproducer (loop i=220) proved CPU simulator works with native CPU HKL grid;
+        # CUDA→CPU transfer in closure causes device mismatch or data corruption (0% Bragg output).
+        if use_stage_b_cpu_fallback and stage_b_eval_stage_a_ctx is not None:
+            # CPU fallback: use CPU-native HKL grid from cloned Stage A context (PERF-WARM-012)
+            hkl_grid_local = stage_b_eval_stage_a_ctx.hkl_grid
+        else:
+            # Normal path: transfer to eval device if needed
+            hkl_grid_local = hkl_grid if eval_device == device else hkl_grid.to(device=eval_device, dtype=dtype)
         shell_indices_local = shell_indices if eval_device == device else shell_indices.to(device=eval_device)
-        hkl_grid_modified = hkl_grid_local.clone()
+        # Initialize hkl_grid_modified: use identity scalar multiplication to preserve gradient tracking
+        # even when hkl_grid_local is gradient-free (CPU fallback path)
+        identity_modifier = torch.ones(1, device=eval_device, dtype=dtype)
+        if torch.is_grad_enabled():
+            identity_modifier.requires_grad_(True)
+        hkl_grid_modified = hkl_grid_local * identity_modifier
         for shell_idx in range(config.stage_b_n_shells):
             mask = (shell_indices_local == shell_idx)
             modifier_value = shell_modifiers[shell_idx]
@@ -2479,6 +2439,9 @@ def _build_stage_b_lbfgs_closure(
         # DIAGNOSTIC: Verify HKL grid has gradients after out-of-place construction
         print(f"[HKL_GRAD_CHECK] hkl_grid_modified.requires_grad={hkl_grid_modified.requires_grad}, "
               f"grad_fn={hkl_grid_modified.grad_fn}, device={hkl_grid_modified.device}")
+        print(f"[HKL_GRAD_CHECK] hkl_grid_local.requires_grad={hkl_grid_local.requires_grad}, "
+              f"shell_modifiers[0].requires_grad={shell_modifiers[0].requires_grad}, "
+              f"is_full={is_full}, grad_enabled={torch.is_grad_enabled()}")
 
         # PERF-WARM-012: Use the eval-device-specific Stage A context (CPU or CUDA)
         use_warm_eval = stage_b_use_warm_cache
@@ -2553,10 +2516,6 @@ def _build_stage_b_lbfgs_closure(
                 if use_warm_eval:
                     simulator = stage_b_eval_stage_a_ctx.simulators[pid]
                     bragg_panel = simulator.run()
-
-                    # DIAGNOSTIC: Extract Bragg tensor stats after run (temp)
-                    if eval_device.type == "cpu":
-                        print(f"[BRAGG_CPU_WARM] bragg_panel.shape={bragg_panel.shape}, bragg_panel.min={bragg_panel.min().item()}, bragg_panel.max={bragg_panel.max().item()}, bragg_panel.mean={bragg_panel.mean().item()}")
                 else:
                     detector_config = create_detector_config(
                         panel=detector[pid],
@@ -2586,10 +2545,6 @@ def _build_stage_b_lbfgs_closure(
                     crystal_model.hkl_metadata = hkl_metadata
                     simulator = Simulator(detector=detector_model, crystal=crystal_model, device=eval_device, dtype=dtype)
                     bragg_panel = simulator.run()
-
-                    # DIAGNOSTIC: Extract Bragg tensor stats after run (temp)
-                    if eval_device.type == "cpu":
-                        print(f"[BRAGG_CPU_COLD] bragg_panel.shape={bragg_panel.shape}, bragg_panel.min={bragg_panel.min().item()}, bragg_panel.max={bragg_panel.max().item()}, bragg_panel.mean={bragg_panel.mean().item()}")
 
                 target_panel = target_t[pid].to(device=eval_device, dtype=dtype)
                 loss_mask_panel = loss_mask_t[pid].to(device=eval_device)

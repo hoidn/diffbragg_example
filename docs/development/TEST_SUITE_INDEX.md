@@ -13,6 +13,7 @@
 | CLI backend flag | `tests/dbex/test_refine_one_cli.py` | active | `docs/spec-db-interfaces.md:11`, `plans/active/TORCH-CLI-003/implementation.md`, `plans/active/PHYSICS-LOSS-001/implementation.md` | CLI parser validation, backend dispatch (diffbragg/nanobrag), torch path diagnostics, calibration/sigma guardrails, and HDF5 metadata checks. |
 | Sigma map ingestion | `tests/dbex/test_data_load_sigma_map.py` | active | `docs/spec-db-core.md:32-68`, `docs/spec-db-workflow.md:26-31` | `load_sigma_readout_map` and `_load_external_lookup_sigma_map` behavior; enforces `[panel, slow, fast]` alignment, strict positivity, and provenance metadata. |
 | Sigma metadata manifest | `tests/sp_proc/test_sigma_metadata_fixture.py` | active | `docs/spec-db-core.md:32-68`, `docs/spec-db-workflow.md:26-31` | Validates `sp.proc` sigma metadata fixtures and external_lookup embedding for Stage smokes. |
+| DB-AT-026: UB Parameterization Round-Trip | `tests/dbex/test_ub_parameterization_roundtrip.py` | active | `docs/spec-db-core.md:48-68`, `docs/spec-db-workflow.md:36-50`, `docs/spec-db-runtime.md:18-28` | Validates incremental UB parameterization zero-point invariant (U(0)=U₀, B(0)=B₀, A*(0)=A*_mapping). 4 tests: orientation/cell zero-point, mapping parity, gradient flow (xfail). First added 2025-11-23. |
 
 ### Plan-local Visualization Drivers
 

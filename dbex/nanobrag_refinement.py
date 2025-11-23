@@ -279,6 +279,15 @@ class RefinementConfig:
     # Only applies when use_u_matrix_parameterization=True and use_lbfgs_for_u_matrix=False.
     u_matrix_learning_rate: float = 1e-5
 
+    # Incremental UB parameterization (TORCH-GEOMETRY-UB-REALIGN-001 Phase B3)
+    # Enable incremental UB parameterization around baseline dxtbx crystal state.
+    # When False (default), uses existing cell+misset default path.
+    # When True, parameterizes geometry as U(params) = ΔR(q_delta) @ U₀ and
+    # B(params) via log-perturbations for lengths + angle deltas, constructing
+    # A*(params) = U(params) @ B(params) in a single direction per spec-db-core.md:64-67.
+    # Supersedes use_u_matrix_parameterization when both are enabled.
+    use_incremental_ub: bool = False
+
     # Warm cache (PERF-WARM-SIM-001)
     # Enable Stage A warm cache (prebuild detector models/masks/HKL once).
     # Default True for production (2-5× speedup). Disable for benchmarking cold baseline.
@@ -805,6 +814,47 @@ def run_nanobrag_refinement(
         # DIFFERENT B_ideal than MOSFLM A* decomposition, breaking U @ B_ideal = A*_MOSFLM invariant
         B_ideal_reciprocal_torch = torch.tensor(B_ideal_reciprocal_np, device=device, dtype=dtype)
 
+    # TORCH-GEOMETRY-UB-REALIGN-001 Phase B3: Incremental UB parameterization (opt-in)
+    # Trainable parameters for incremental UB path:
+    #   - q_delta: quaternion delta [w,x,y,z] (4 params), identity = [1,0,0,0]
+    #   - delta_log_a/b/c: log-perturbations for cell lengths (3 params), zero = no change
+    #   - delta_alpha/beta/gamma: angle deltas in degrees (3 params), zero = no change
+    #   - log_scale: global intensity scale (1 param, shared with default path)
+    # Total: 10 DOF (4 orientation + 3 lengths + 3 angles)
+    q_delta = None
+    delta_log_a = None
+    delta_log_b = None
+    delta_log_c = None
+    delta_alpha = None
+    delta_beta = None
+    delta_gamma = None
+    U_baseline = None
+    cell_baseline = None
+    if config.use_incremental_ub:
+        # Extract baseline crystal state from dxtbx
+        U_baseline = torch.tensor(
+            np.array(crystal.get_U()).reshape(3, 3),
+            dtype=dtype,
+            device=device
+        )
+        unit_cell = crystal.get_unit_cell()
+        cell_baseline = torch.tensor(
+            [unit_cell.parameters()[i] for i in range(6)],  # [a, b, c, α, β, γ]
+            dtype=dtype,
+            device=device
+        )
+
+        # Initialize quaternion delta to identity [w=1, x=0, y=0, z=0]
+        q_delta = torch.tensor([1.0, 0.0, 0.0, 0.0], dtype=dtype, device=device, requires_grad=True)
+
+        # Initialize cell perturbations to zero (no change at params=0)
+        delta_log_a = torch.tensor(0.0, dtype=dtype, device=device, requires_grad=True)
+        delta_log_b = torch.tensor(0.0, dtype=dtype, device=device, requires_grad=True)
+        delta_log_c = torch.tensor(0.0, dtype=dtype, device=device, requires_grad=True)
+        delta_alpha = torch.tensor(0.0, dtype=dtype, device=device, requires_grad=True)
+        delta_beta = torch.tensor(0.0, dtype=dtype, device=device, requires_grad=True)
+        delta_gamma = torch.tensor(0.0, dtype=dtype, device=device, requires_grad=True)
+
     params = [
         log_scale,
         log_cell_a_delta, log_cell_b_delta, log_cell_c_delta,
@@ -815,6 +865,15 @@ def run_nanobrag_refinement(
     # Add q_params to optimizer if U-matrix mode is enabled
     if config.use_u_matrix_parameterization:
         params.append(q_params)
+
+    # Add incremental UB params to optimizer if incremental UB mode is enabled
+    if config.use_incremental_ub:
+        params = [
+            log_scale,
+            q_delta,
+            delta_log_a, delta_log_b, delta_log_c,
+            delta_alpha, delta_beta, delta_gamma
+        ]
 
     # Setup LBFGS optimizer
     optimizer = torch.optim.LBFGS(
@@ -973,8 +1032,47 @@ def run_nanobrag_refinement(
         perturbed_gamma = cell_params[5] + torch.tanh(angle_gamma_raw) * max_angle_delta
 
         # 3. Orientation perturbation via quaternion→XYZ misset (TORCH-REFINE-002)
-        # TORCH-GEOMETRY-PARITY-002 Phase B5: Branch on U-matrix vs cell+misset path
-        if config.use_u_matrix_parameterization:
+        # TORCH-GEOMETRY-UB-REALIGN-001 Phase B3: Branch on incremental UB vs U-matrix vs cell+misset path
+        if config.use_incremental_ub:
+            # Incremental UB path: Derive A* = U(q_delta) @ B(cell_deltas)
+            from dbex.nanobrag_bridge import (
+                derive_orientation_from_quaternion_delta,
+                derive_B_from_cell_deltas,
+            )
+
+            # Derive U(params) = ΔR(q_delta) @ U_baseline
+            U_current = derive_orientation_from_quaternion_delta(
+                q_delta, U_baseline, dtype=dtype, device=device
+            )
+
+            # Derive B(params) from cell perturbations
+            B_current = derive_B_from_cell_deltas(
+                delta_log_a, delta_log_b, delta_log_c,
+                delta_alpha, delta_beta, delta_gamma,
+                cell_baseline=tuple(cell_baseline.detach().cpu().numpy().tolist()),
+                dtype=dtype,
+                device=device
+            )
+
+            # Construct A* = U @ B (one-way construction per spec-db-core.md:64-67)
+            A_star_new = U_current @ B_current  # Shape: [3, 3]
+
+            # Extract MOSFLM a/b/c_star for crystal_config injection
+            # A* columns are reciprocal lattice vectors a*, b*, c*
+            a_star = A_star_new[:, 0].detach().cpu().numpy()  # Shape: [3]
+            b_star = A_star_new[:, 1].detach().cpu().numpy()
+            c_star = A_star_new[:, 2].detach().cpu().numpy()
+
+            # Inject via MOSFLM a/b/c_star (per GRADIENT-001: no cell overrides with MOSFLM injection)
+            crystal_overrides = {
+                'mosflm_a_star': tuple(a_star.tolist()),
+                'mosflm_b_star': tuple(b_star.tolist()),
+                'mosflm_c_star': tuple(c_star.tolist()),
+            }
+            # CRITICAL: Do NOT inject cell parameters when using MOSFLM a/b/c_star (GRADIENT-001)
+            misset_deg_for_crystal = None  # MOSFLM A* is provided directly
+
+        elif config.use_u_matrix_parameterization:
             # U-matrix path: Normalize quaternion, convert to U, compute A*
             from dbex.nanobrag_bridge import quaternion_to_matrix
             q_norm = q_params / torch.norm(q_params)  # Enforce ||q|| = 1

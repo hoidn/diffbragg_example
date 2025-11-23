@@ -1,275 +1,302 @@
-# Phase C2.2 CPU Fallback Gradient Bugfix — Ralph Do Now
+# Input for Ralph — ARCH-REFINE-FLOW-001 Phase C2.2 CPU Fallback Gradient Fix (Warm Cache Hypothesis)
 
 ## Summary
-Fix Stage B CPU fallback gradient bug by creating shell_modifier_raw parameters on CPU device when CPU fallback is active, preventing gradient chain break from CUDA→CPU `.to()` operation.
+Apply one-line fix to disable warm cache simulator reuse for CPU fallback, forcing fresh simulator creation with gradient-enabled HKL data.
 
 ## Mode
-none
+none (targeted bugfix with validation)
 
 ## Focus
-ARCH-REFINE-FLOW-001 — Protocol-based Refinement Engine (Phase C2.2 gradient bugfix)
+ARCH-REFINE-FLOW-001 — Protocol-based Refinement Engine (Phase C2.2 CPU fallback gradient fix — warm cache hypothesis)
 
 ## Branch
 integration
 
 ## Mapped Tests
-- `pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers` (full detector, CPU fallback path validation)
-- `pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers` (small detector, regression guard)
+- `pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers` (full detector, CPU fallback validation)
+- `pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers_small_detector` (small detector, CUDA warm cache regression guard)
 
 ## Artifacts
-`plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T102034Z/`
-- root_cause_analysis.md (comprehensive RCA with 95% confidence)
-- pytest_stage_b_full.log
-- pytest_stage_b_small.log
-- validation_metrics.json (test statuses + telemetry structure)
-- decision.md (Path A/B template)
-- summary.md (Turn Summary block)
+`plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T104525Z/`
+
+## Context & Root Cause Analysis
+
+### What Ralph Discovered (Loop i=216)
+Excellent diagnostic work! You proved:
+1. ✅ **Device fix is working**: Parameters ARE on CPU (`shell_modifier_raw_device="cpu"`)
+2. ✅ **Gradient is present**: `shell_modifiers.requires_grad=true`, `grad_fn` exists
+3. ❌ **But backward() still fails**: "element 0 of tensors does not require grad and does not have a grad_fn"
+
+**Key Insight from Your Blocker:** The gradient chain is intact up to `shell_modifiers`, but breaks somewhere between there and `chi_squared_loss`. This suggests the issue is NOT in parameter creation (your fix works!) but in how the **modified HKL data propagates through the simulator**.
+
+### New Root Cause Hypothesis (85% confidence)
+**The problem is WARM CACHE simulator reuse with post-creation HKL data updates.**
+
+**Evidence:**
+1. **Warm cache is active** (telemetry shows `cache_mode='warm'`)
+2. **Warm path reuses Stage A simulators** (line 2450: `use_warm_eval = stage_b_use_warm_cache`)
+3. **HKL data updated AFTER simulator creation** (line 2469: `warm_crystal_model.hkl_data = hkl_grid_modified`)
+4. **nanobrag_torch may cache HKL data internally** (black box, but likely given the failure pattern)
+
+**Why this breaks gradients:**
+- Simulators created in Stage A with original `hkl_grid` (no gradients, different device)
+- Stage B updates `crystal.hkl_data` to `hkl_grid_modified` (CPU, gradient-enabled)
+- Simulator's internal cache doesn't see the update → gradient chain broken → backward() fails
+
+**Why cold path would work:**
+- Creates NEW simulators with `hkl_grid_modified` from the start (line 2547)
+- Simulator initialized with gradient-enabled HKL data → gradients flow through → backward() succeeds
+
+**Full analysis:** `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T104525Z/root_cause_hypothesis.md`
 
 ## Do Now
 
-### Context
-Loop i=215 (Ralph) successfully implemented the 7-line device routing fix, resolving CUDA OOM in `_build_final_bragg_from_stage_b_telemetry`. However, this exposed a pre-existing gradient bug in the CPU fallback path: shell modifier parameters are created on CUDA (line 2134: `device=stage_b_param_device` where `stage_b_param_device = torch.device(config.device)` = CUDA), but when CPU fallback is active, the closure uses `eval_device="cpu"` (line 2383). The shell modifiers are computed from the CUDA parameter (line 2379), then moved to CPU via `.to(device=eval_device)` in lines 2434-2435. **This `.to()` operation breaks the autograd gradient chain**, causing LBFGS to fail with "element 0 of tensors does not require grad and does not have a grad_fn".
+### Step 1: Review Root Cause Hypothesis
+Read `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T104525Z/root_cause_hypothesis.md` (Galph's RCA based on your diagnostic work).
 
-**Root cause identified with HIGH confidence (~95%)**: Device mismatch between parameter creation (CUDA) and closure execution (CPU) causes gradient chain break. See `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T102034Z/root_cause_analysis.md` for full analysis.
+### Step 2: Apply One-Line Fix
+**File:** `dbex/nanobrag_refinement.py`
+**Line:** 2450
+**Change:** Disable warm cache when CPU fallback is active
 
-**The Fix (ONE line)**: Create `shell_modifier_raw` on CPU when `use_stage_b_cpu_fallback=True`, matching `eval_device` in the closure.
+```python
+# BEFORE:
+use_warm_eval = stage_b_use_warm_cache
 
-### Tasks
+# AFTER:
+use_warm_eval = stage_b_use_warm_cache and not use_stage_b_cpu_fallback
+```
 
-1. **Review Evidence**
-   - Read `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T102034Z/root_cause_analysis.md` (comprehensive RCA)
-   - Read loop i=215 blocker.md and telemetry_stage_b_full.json (gradient error signature)
-   - Locate the bug: dbex/nanobrag_refinement.py:2134-2138 (`stage_b_param_device` initialization)
+**Rationale:** Forces COLD PATH (fresh simulator creation) when CPU fallback active, preserving gradient flow through HKL data.
 
-2. **Apply Gradient Bugfix (ONE line)**
-   - **File:** `dbex/nanobrag_refinement.py`
-   - **Line:** 2134
-   - **OLD:**
-     ```python
-     stage_b_param_device = torch.device(config.device)
-     ```
-   - **NEW:**
-     ```python
-     stage_b_param_device = torch.device("cpu") if use_stage_b_cpu_fallback else torch.device(config.device)
-     ```
-   - **Explanation:** When CPU fallback is active, parameters must be created on CPU to match `eval_device="cpu"` in the closure (line 2383), preventing gradient chain break from `.to()` operation at lines 2434-2435.
+### Step 3: Run Full Detector Test (CPU Fallback Validation)
+```bash
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+DBEX_SMOKE_DETECTOR_SIZE=full \
+DBEX_SMOKE_SIGMA_SOURCE=cli_override \
+KMP_DUPLICATE_LIB_OK=TRUE \
+NANOBRAGG_DISABLE_COMPILE=1 \
+pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers \
+  > plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T104525Z/pytest_stage_b_full_fixed.log 2>&1
+echo "Exit code: $?" >> plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T104525Z/pytest_stage_b_full_fixed.log
+```
 
-3. **Run Full Detector Test (CPU Fallback Validation)**
-   ```bash
-   AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-   DBEX_SMOKE_DETECTOR_SIZE=full \
-   DBEX_SMOKE_SIGMA_SOURCE=cli_override \
-   KMP_DUPLICATE_LIB_OK=TRUE \
-   NANOBRAGG_DISABLE_COMPILE=1 \
-   pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers \
-   > plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T102034Z/pytest_stage_b_full.log 2>&1
-   echo "Exit code: $?" >> plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T102034Z/pytest_stage_b_full.log
-   ```
-   - **Expected:** PASSED (CPU fallback active, gradient bug fixed, ~15s runtime)
-   - **Telemetry:** `status='ok'`, `closure_evals > 1`, `loss_trace_sample` not empty, shell modifiers show >0.2% delta
+**Expected:** PASS, telemetry shows `cache_mode='cold'`, `status='ok'`, `closure_evals > 1`
 
-4. **Run Small Detector Test (Regression Guard)**
-   ```bash
-   AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-   DBEX_SMOKE_DETECTOR_SIZE=small \
-   DBEX_SMOKE_SIGMA_SOURCE=cli_override \
-   KMP_DUPLICATE_LIB_OK=TRUE \
-   NANOBRAGG_DISABLE_COMPILE=1 \
-   pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers \
-   > plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T102034Z/pytest_stage_b_small.log 2>&1
-   echo "Exit code: $?" >> plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T102034Z/pytest_stage_b_small.log
-   ```
-   - **Expected:** PASSED (ROI mode, no CPU fallback, unaffected by fix, ~15s runtime)
+### Step 4: Run Small Detector Test (Regression Guard)
+```bash
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+DBEX_SMOKE_DETECTOR_SIZE=small \
+DBEX_SMOKE_SIGMA_SOURCE=cli_override \
+KMP_DUPLICATE_LIB_OK=TRUE \
+NANOBRAGG_DISABLE_COMPILE=1 \
+pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers_small_detector \
+  > plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T104525Z/pytest_stage_b_small_regression.log 2>&1
+echo "Exit code: $?" >> plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T104525Z/pytest_stage_b_small_regression.log
+```
 
-5. **Extract Validation Metrics (T0 Inline Probe)**
-   ```bash
-   cd plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T102034Z/ && python3 -c '
-import re
-import json
+**Expected:** PASS, telemetry shows `cache_mode='warm'` (small detector uses CUDA, no CPU fallback, warm cache preserved)
 
-full_log = open("pytest_stage_b_full.log").read()
-small_log = open("pytest_stage_b_small.log").read()
+### Step 5: Extract Validation Metrics (T0 Micro Probe)
+```bash
+python3 -c "
+import re, json
 
-full_status = "PASSED" if re.search(r"1 passed", full_log) else "FAILED"
-small_status = "PASSED" if re.search(r"1 passed", small_log) else "FAILED"
+# Parse full detector test
+with open('plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T104525Z/pytest_stage_b_full_fixed.log') as f:
+    full_log = f.read()
+full_exit_code = int(re.search(r'Exit code: (\d+)', full_log).group(1))
+full_cache_mode = re.search(r\"'cache_mode': '(\w+)'\", full_log)
+full_status = re.search(r\"'status': '(\w+)'\", full_log)
+full_closure_evals = re.search(r\"'closure_evals': (\d+)\", full_log)
+
+# Parse small detector test
+with open('plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T104525Z/pytest_stage_b_small_regression.log') as f:
+    small_log = f.read()
+small_exit_code = int(re.search(r'Exit code: (\d+)', small_log).group(1))
+small_cache_mode = re.search(r\"'cache_mode': '(\w+)'\", small_log)
 
 metrics = {
-    "full_detector": full_status,
-    "small_detector": small_status,
-    "overall_verdict": "PASS" if (full_status == "PASSED" and small_status == "PASSED") else "FAIL"
+    'full_detector': {
+        'exit_code': full_exit_code,
+        'cache_mode': full_cache_mode.group(1) if full_cache_mode else 'UNKNOWN',
+        'status': full_status.group(1) if full_status else 'UNKNOWN',
+        'closure_evals': int(full_closure_evals.group(1)) if full_closure_evals else 0,
+        'verdict': 'PASS' if full_exit_code == 0 else 'FAIL'
+    },
+    'small_detector': {
+        'exit_code': small_exit_code,
+        'cache_mode': small_cache_mode.group(1) if small_cache_mode else 'UNKNOWN',
+        'verdict': 'PASS' if small_exit_code == 0 else 'FAIL'
+    },
+    'overall_verdict': 'PASS' if full_exit_code == 0 and small_exit_code == 0 else 'FAIL'
 }
 
-with open("validation_metrics.json", "w") as f:
+with open('plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T104525Z/validation_metrics.json', 'w') as f:
     json.dump(metrics, f, indent=2)
 
 print(json.dumps(metrics, indent=2))
-'
-   ```
-   - **Save as:** `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T102034Z/validation_metrics.json`
+" > plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T104525Z/metrics_summary.txt 2>&1
+cat plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T104525Z/validation_metrics.json
+```
 
-6. **Decision Synthesis**
-   - Create `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T102034Z/decision.md`
-   - **Path A (both tests PASS):** Gradient bugfix successful → remove instrumentation (lines 2185-2198, 2386-2395) → mark Phase C2.2 COMPLETE → next loop: Phase C validation (C3-C5: telemetry completeness + full validation + DB-AT-024)
-   - **Path B (full detector FAIL):** Gradient bug not fully resolved → document specific error signature → escalate to Galph for deeper architectural review
-   - **Path C (small detector FAIL):** Regression introduced by fix → revert bugfix → investigate alternative approach
-   - Include:
-     - Decision path chosen
-     - Test outcomes (exit codes, key metrics)
-     - Telemetry structure validation (status, closure_evals, loss_trace_sample)
-     - Confidence assessment for chosen path
-     - Next actions
+### Step 6: Decision Synthesis (4-Path Template)
+Based on validation metrics, follow decision tree:
 
-7. **Remove Instrumentation (Conditional on Path A)**
-   - **ONLY if both tests PASS:** Remove diagnostic prints added in loop i=214
-   - **Lines to remove:**
-     - `dbex/nanobrag_refinement.py:2185-2198` (CPU fallback diagnostics in `_build_stage_b_params`)
-     - `dbex/nanobrag_refinement.py:2386-2395` (CPU fallback diagnostics in `_build_stage_b_lbfgs_closure`)
-   - **If Path B/C:** KEEP instrumentation for further debugging
+**Path A: Both Tests PASS**
+- Verdict: CPU fallback gradient bug FIXED ✅
+- Next: Remove instrumentation (Step 7), update docs (Step 8), commit (Step 9)
+- Expected cache modes: full=cold, small=warm (confirms fix working correctly)
 
-8. **Update Implementation Plan**
-   - **File:** `plans/active/ARCH-REFINE-FLOW-001/implementation.md`
-   - **If Path A:** Mark Phase C2.2 COMPLETE (gradient bugfix + device routing fix both landed)
-   - **If Path B/C:** Update Phase C2.2 status with blocker details
+**Path B: Full FAIL, Small PASS**
+- Verdict: Warm cache hypothesis INCOMPLETE (cold path also broken)
+- Action: Write `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T104525Z/blocker_path_b.md`
+- Content: Document full detector failure signature, compare with loop i=216 error, note that cold path doesn't fix it
+- Escalation: Likely nanobrag_torch internal issue (`.no_grad()` or `.detach()` in `run()`)
+- DO NOT remove instrumentation, DO NOT update implementation.md
 
-9. **Write Summary**
-   - Create `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T102034Z/summary.md`
-   - **Format:** Level-3 heading `### Turn Summary`, 3-5 single-line sentences, `Artifacts:` line
-   - **Content:** (a) What shipped (gradient bugfix + instrumentation removal if applicable), (b) main problem and resolution (device mismatch causing gradient chain break, fixed via CPU parameter creation), (c) single next step (Phase C validation if Path A, escalation if Path B/C)
-   - **Example (Path A):**
-     ```markdown
-     ### Turn Summary
-     Fixed Stage B CPU fallback gradient bug by creating shell_modifier_raw parameters on CPU when fallback active, preventing gradient chain break.
-     Root cause was device mismatch: parameters created on CUDA, closure on CPU, .to() operation broke autograd graph.
-     Both tests PASSED (full detector CPU fallback + small detector regression guard), instrumentation removed, Phase C2.2 COMPLETE.
-     Next: Phase C validation suite (telemetry completeness + DB-AT-024 mapping parity).
-     Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T102034Z/ (root_cause_analysis.md, pytest_*.log, validation_metrics.json)
-     ```
+**Path C: Full PASS, Small FAIL**
+- Verdict: Regression introduced (warm cache broken for CUDA)
+- Action: REVERT the one-line fix immediately
+- Write `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T104525Z/blocker_path_c.md`
+- Escalation: Hypothesis was wrong, or fix has unintended side effect
 
-10. **Commit and Push**
-    ```bash
-    git add -A
-    git commit -m "ARCH-REFINE-FLOW-001 Phase C2.2: fix Stage B CPU fallback gradient bug
+**Path D: Both FAIL**
+- Verdict: Fix did not address root cause
+- Action: REVERT the one-line fix
+- Write `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T104525Z/blocker_path_d.md`
+- Escalation: Back to drawing board, may need nanobrag_torch inspection or different architecture
 
-ROOT CAUSE: shell_modifier_raw created on CUDA (config.device), but when
-CPU fallback active (use_stage_b_cpu_fallback=True), closure uses eval_device='cpu'.
-Shell modifiers moved to CPU via .to() at lines 2434-2435, breaking autograd chain.
+### Step 7: Remove Instrumentation (ONLY IF PATH A)
+**Condition:** Execute ONLY if `overall_verdict='PASS'` from Step 5.
 
-FIX: Create shell_modifier_raw on CPU when use_stage_b_cpu_fallback=True,
-matching eval_device in closure (line 2134 one-line change). Prevents gradient
-chain break; LBFGS can now trace back to parameters.
+**File:** `dbex/nanobrag_refinement.py`
+**Remove:**
+1. Lines 2185-2198 (CPU fallback diagnostic print in `_build_stage_b_params`)
+2. Lines 2389-2405 (CPU fallback diagnostic print in closure)
 
-VALIDATION: Full detector test PASSED (CPU fallback active, gradient bug fixed),
-small detector test PASSED (regression guard). Removed diagnostic instrumentation
-from loop i=214 (lines 2185-2198, 2386-2395).
+**Verification:** `git diff dbex/nanobrag_refinement.py` shows ONLY:
+- One-line fix at line 2450 (warm cache disable)
+- Two instrumentation block removals
+- No other changes
 
-FINDINGS: Device-aware parameter initialization critical for CPU fallback paths.
-PyTorch .to(device=...) breaks autograd chain when moving trainable parameters.
+### Step 8: Update Implementation Plan (ONLY IF PATH A)
+**Condition:** Execute ONLY if `overall_verdict='PASS'`.
 
-tests: Stage B full+small detector smokes PASSED"
-    git push
-    ```
+**File:** `plans/active/ARCH-REFINE-FLOW-001/implementation.md`
+**Update:** Mark Phase C2.2 as COMPLETE with completion timestamp and artifacts path.
+
+```markdown
+### Phase C2.2: CPU Fallback Gradient Fix ✅ COMPLETE (2025-11-23T104525Z)
+**Goal:** Fix Stage B CPU fallback gradient computation bug causing "element 0 of tensors does not require grad" error.
+
+**Root Cause:** Warm cache simulator reuse with post-creation HKL data updates broke gradient flow. nanobrag_torch simulators cache HKL data internally when created; updating `crystal.hkl_data` later doesn't propagate gradient-enabled tensor.
+
+**Fix Applied:** Disabled warm cache for CPU fallback (`use_warm_eval = stage_b_use_warm_cache and not use_stage_b_cpu_fallback` at line 2450), forcing fresh simulator creation with gradient-enabled HKL data.
+
+**Validation:** Full detector test PASS (`cache_mode='cold'`, gradient flow preserved), small detector test PASS (`cache_mode='warm'`, no regression).
+
+**Performance Impact:** Full detector Stage B closures slower (~2-3x) due to cold path, acceptable for correctness. Future optimization: Investigate nanobrag_torch HKL update API.
+
+**Artifacts:** `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T104525Z/`
+```
+
+### Step 9: Write Summary & Decision Document
+**File:** `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T104525Z/decision.md`
+
+Include:
+- Decision path taken (A/B/C/D)
+- Test outcomes (exit codes, cache modes, status, closure_evals)
+- Metrics summary (from Step 5 JSON)
+- Confidence assessment (if Path A: HIGH ~90%, root cause validated)
+- Next actions (if Path A: Phase C validation suite; if B/C/D: escalation details)
+
+**AND** include Turn Summary block:
+```markdown
+### Turn Summary
+Fixed CPU fallback gradient bug by disabling warm cache simulator reuse, forcing fresh creation with gradient-enabled HKL data.
+Full detector test PASSES with cold cache (correctness achieved), small detector PASSES with warm cache (no regression).
+Next: Run Phase C validation suite (Stage B small+full smoke, DB-AT-024 parity, telemetry completeness check).
+Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T104525Z/ (pytest logs, metrics, RCA)
+```
+
+(Adjust summary if not Path A.)
+
+### Step 10: Commit & Push
+```bash
+git add -A
+git commit -m "ARCH-REFINE-FLOW-001 Phase C2.2: fix CPU fallback gradient bug — disable warm cache for fresh simulators
+
+- Root cause: Warm cache reuses Stage A simulators; updating crystal.hkl_data
+  post-creation doesn't propagate gradient-enabled tensor through nanobrag_torch
+  simulator's internal HKL cache
+- Fix: Disable warm cache when use_stage_b_cpu_fallback=True (line 2450)
+  forces cold path (fresh simulator creation with hkl_grid_modified)
+- Validation: Full detector PASS (cache_mode=cold, gradient preserved),
+  small detector PASS (cache_mode=warm, no regression)
+- Performance: Full detector Stage B slower (~2-3x), acceptable for correctness
+- Removed diagnostic instrumentation (lines 2185-2198, 2389-2405)
+- Phase C2.2 COMPLETE
+
+Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T104525Z/
+Tests: test_stage_b_shell_modifiers (full+small detector)"
+
+git push
+```
+
+**Note:** If not Path A, commit message should describe the blocker and next steps instead.
 
 ## How-To Map
 
-### 1. Apply Gradient Bugfix
-- **File:** `dbex/nanobrag_refinement.py`
-- **Line:** 2134
-- **Change:** `stage_b_param_device = torch.device("cpu") if use_stage_b_cpu_fallback else torch.device(config.device)`
-- **Rationale:** When CPU fallback active, parameters must match closure eval_device (CPU) to prevent gradient chain break
-
-### 2. Run Tests
-- **Full detector:** CPU fallback path validation (DBEX_SMOKE_DETECTOR_SIZE=full, panel mode, use_stage_b_cpu_fallback=true)
-- **Small detector:** Regression guard (DBEX_SMOKE_DETECTOR_SIZE=small, ROI mode, no CPU fallback)
-- **Environment:** KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 per CONFORMANCE-001 + RUNTIME-001
-
-### 3. Extract Metrics
-- **Method:** T0 inline Python probe (grep test logs for "1 passed", parse telemetry JSON if available)
-- **Metrics:** full_detector status, small_detector status, telemetry_status_ok, closure_evals, loss_trace_length
-- **Output:** validation_metrics.json
-
-### 4. Decision Synthesis
-- **Template:** 4-path (A: both PASS, B: full FAIL, C: small FAIL regression, D: N/A)
-- **Artifact:** decision.md with test outcomes, telemetry validation, confidence, next actions
-
-### 5. Conditional Instrumentation Removal
-- **Trigger:** Both tests PASS (Path A)
-- **Lines:** 2185-2198 (_build_stage_b_params diagnostics), 2386-2395 (_build_stage_b_lbfgs_closure diagnostics)
-- **Rationale:** Diagnostic prints no longer needed; CPU fallback activation confirmed correct in loop i=214
+All commands above are copy-paste ready. Sequence:
+1. Read RCA → 2. Edit line 2450 → 3-4. Run tests → 5. Extract metrics → 6. Decision tree → 7-10. Path A actions (or blocker docs for B/C/D)
 
 ## Pitfalls To Avoid
 
-1. **DO NOT** revert loop i=215 device routing fix (OOM resolution is correct and necessary)
-2. **DO NOT** remove instrumentation if any test FAILS (keep diagnostics for debugging)
-3. **DO NOT** create shell_modifier_raw on CPU unconditionally (breaks ROI mode which uses CUDA)
-4. **DO NOT** move the entire optimizer to CPU (more complex, breaks LBFGS state)
-5. **DO** verify telemetry shows `status='ok'` and `closure_evals > 1` (not just pytest PASS)
-6. **DO** check `loss_trace_sample` is not empty (confirms optimizer actually ran)
-7. **DO** verify small detector regression guard PASSES (ROI mode unaffected by fix)
-8. **DO** preserve loop i=215 changes (_build_final_bragg_from_stage_b_telemetry device routing + CPU context cloning)
-9. **DO** commit with comprehensive message citing root cause, fix, validation, findings
-10. **DO** use T0 inline probe for metrics extraction (no separate script needed for simple log parsing)
-
-**Environment (CRITICAL):**
-- Assume environment is FROZEN per POLICY-001
-- DO NOT install/upgrade packages
-- DO NOT modify CUDA/torch versions
-- If import fails, record error signature in decision.md and mark blocked
-
-**Normative Math/Physics:**
-- Gradient computation is governed by PyTorch autograd semantics, not DBEX specs
-- Reference PyTorch documentation for `.to()` behavior: https://pytorch.org/docs/stable/generated/torch.Tensor.to.html
-- Device-aware parameter initialization is standard PyTorch practice for multi-device training
+1. **DO NOT remove instrumentation if tests FAIL** — Keep diagnostics for further investigation
+2. **DO NOT modify other warm cache logic** — Only change line 2450, affects ONLY CPU fallback path
+3. **DO NOT disable warm cache unconditionally** — Condition on `use_stage_b_cpu_fallback`, preserves performance for CUDA
+4. **VERIFY cache modes in telemetry** — Full should be 'cold', small should be 'warm' (confirms fix working correctly)
+5. **DO NOT skip small detector test** — Regression guard is critical to prove no side effects
+6. **Environment Freeze** — Do not install packages; if imports fail, document in blocker
+7. **Protected Assets** — Preserve loop i=215 device routing fix (lines 2753-2943, 3115-3143), preserve loop i=216 device-aware parameter init (line 2144)
 
 ## If Blocked
 
-1. **Full detector test still FAILS with gradient error:**
-   - Document exact error message and line number
-   - Check if `.to()` operation still present on any shell_modifier path
-   - Verify `stage_b_param_device` value in closure diagnostics
-   - Escalate to Galph with detailed gradient trace
-
-2. **Small detector test FAILS (regression):**
-   - Verify ROI mode test still uses CUDA (no CPU fallback)
-   - Check if conditional `if use_stage_b_cpu_fallback else` logic is correct
-   - Revert fix if regression confirmed; document in decision.md
-
-3. **Full detector test PASSES but telemetry shows status='error':**
-   - Check telemetry JSON for error message (different from gradient bug?)
-   - Verify closure_evals and loss_trace_sample fields
-   - May indicate different bug unmasked by this fix
+If any test FAILS:
+1. DO NOT proceed past Step 6
+2. Follow decision tree Path B/C/D
+3. Write blocker document in artifacts directory
+4. Include: exact error message, telemetry excerpt, cache_mode observed, comparison with loop i=216 failure
+5. REVERT code changes if Path C or D
+6. Commit blocker artifacts and updated summary.md
+7. Do NOT update implementation.md or remove instrumentation
 
 ## Findings Applied
 
-- **PERF-WARM-011:** Stage B CPU fallback requirement (use_stage_b_cpu_fallback when config.stage_b_full_eval_on_cpu=True + CUDA device + panel mode)
-- **PERF-WARM-012:** CPU Stage A context cloning (already implemented in loop i=215 lines 3115-3136)
-- **REFINE-008:** Stage B ±1% shell modifier delta tolerance (will be validated in Phase C validation suite)
-- **PHYSICS-LOSS-001/002:** Variance-weighted loss + sigma_floor guard (preserved in closure)
-- **POLICY-001:** Environment Freeze — no package installs/upgrades
-- **RUNTIME-001:** NANOBRAGG_DISABLE_COMPILE=1 for test runs
-- **CONFORMANCE-001:** KMP_DUPLICATE_LIB_OK=TRUE for OpenMP conflicts
-- **GRADIENT-001:** Autograd graph preservation (VIOLATED by .to() operation, FIXED by this patch)
+- **PERF-WARM-011** (CPU fallback requirement): Fix preserves this by keeping `use_stage_b_cpu_fallback` logic intact
+- **PERF-WARM-012** (CPU context cloning): Fix doesn't affect context cloning, only warm cache decision
+- **GRADIENT-001** (autograd graph preservation): Fix addresses this by ensuring HKL data with gradients flows through simulator
+- **POLICY-001** (Environment Freeze): No package installs, frozen runtime
+- **RUNTIME-001/CONFORMANCE-001** (test env flags): Use authoritative test command format from TESTING_GUIDE.md
+
+**New Finding (if Path A succeeds):**
+**PERF-WARM-013**: "Warm cache simulators with post-creation HKL data updates break PyTorch autograd gradient flow. When refining shell modifiers (Stage B), disable warm cache if HKL grid is modified after simulator creation. Forces fresh simulator creation with gradient-enabled HKL data. Affects CPU fallback; CUDA path may work (device-specific nanobrag behavior, unverified black box)."
 
 ## Pointers
 
-- **Root Cause Analysis:** plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T102034Z/root_cause_analysis.md (comprehensive RCA with evidence chain, fix rationale, confidence assessment)
-- **Loop i=215 Artifacts:** plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T100037Z/ (blocker.md, telemetry_stage_b_full.json, pytest_stage_b_full.log)
-- **Loop i=214 Diagnostics:** plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T094500Z/ (instrumentation_summary.md, cpu_fallback_conditions.json — confirmed CPU fallback logic is CORRECT)
-- **Implementation Plan:** plans/active/ARCH-REFINE-FLOW-001/implementation.md (Phase C2.2 checklist)
-- **Spec References:**
-  - docs/spec-db-runtime.md:21-23 (PyTorch autograd requirements)
-  - docs/findings.md row 39 (PERF-WARM-011), row 40 (PERF-WARM-012)
-  - docs/findings.md row 16 (GRADIENT-001 — autograd preservation)
-- **Testing Guide:** docs/TESTING_GUIDE.md §2 (Stage B smoke selectors, environment flags)
+- Root Cause Hypothesis: `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T104525Z/root_cause_hypothesis.md`
+- Loop i=216 Blocker: `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T102034Z/blocker.md`
+- Loop i=215 Device Fix: `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T100037Z/`
+- Implementation Plan: `plans/active/ARCH-REFINE-FLOW-001/implementation.md`
+- Spec References: `docs/spec-db-workflow.md` §7 (Stage B shell modifiers), `docs/spec-db-runtime.md` §2 (gradient flow preservation)
 
-## Next Up (Optional)
+## Next Up (If Path A Succeeds)
 
-If both tests PASS (Path A), next loop will be:
-- **Phase C Validation Suite:** Combine C3-C5 tasks (telemetry completeness + Stage B full/small smokes + DB-AT-024 mapping parity) in single validation loop
-- **Expected:** All tests PASS → Phase C COMPLETE → Galph plans Phase D (Stage C extraction)
+Phase C Validation Suite (likely next Galph loop):
+1. **C3:** DB-AT-024 mapping parity with CPU fallback (verify forward model unchanged)
+2. **C4:** Stage B smoke suite (small+full detector, both warm+cold cache combinations)
+3. **C5:** Telemetry completeness check (all metrics populated, no missing keys)
+4. **C6:** Update TESTING_GUIDE.md and TEST_SUITE_INDEX.md with Stage B CPU fallback selectors
 
-If either test FAILS (Path B/C), next loop will be:
-- **Escalation/Debug:** Galph reviews blocker and decides on alternative approach or deeper architectural investigation
-
-## Doc Sync Plan
-
-**Not applicable** (no new tests authored this loop; existing Stage B smoke selectors unchanged)
+After Phase C validation → Mark ARCH-REFINE-FLOW-001 Phase C COMPLETE → Plan Phase D (Stage C detector refinement) or pivot to next Tier 2 initiative per roadmap.

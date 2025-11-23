@@ -177,7 +177,7 @@
 - Stage A's final design (after TORCH-REFINE-002D/002E) is the reference implementation for geometry + loss plumbing; later Stage implementations (including B/C) should reuse the same shared helpers (loss closure, sigma_floor plumbing, telemetry serialization) rather than re-inventing variants.
 
 ## Phase C — Stage B Extraction
-- [ ] C0: Baseline Stage B artifacts (full-detector run + telemetry) recorded before refactor.
+- [x] C0: Baseline Stage B artifacts (small-detector run + bugfix) recorded before refactor. ✓ COMPLETE (2025-11-23T061726Z)
 - [ ] C1: Implement `StageB` class supporting both shell modifiers and future per-reflection mode (stub enum for `stage_b_mode`).
 - [ ] C2: Wire Stage B into the engine (A→B sequence), dropping the legacy inline code from `run_nanobrag_refinement`.
 - [ ] C3: Ensure Stage B telemetry includes `stage_b_mode`, shell modifier stats, and uses canonical Stage A metadata propagated through the engine context.

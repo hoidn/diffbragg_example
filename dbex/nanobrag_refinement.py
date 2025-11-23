@@ -2654,7 +2654,7 @@ def run_nanobrag_refinement(
             # PERF-WARM-SIM-001: Stage B ROI mode mirrors Stage A's ROI knob
             use_stage_b_roi_mode = use_stage_a_roi_mode and stage_b_use_warm_cache
             stage_b_roi_label = "roi" if use_stage_b_roi_mode else "panel"
-            stage_b_total_work_items = canonical_roi_count if use_stage_b_roi_mode else n_panels
+            stage_b_total_work_items = canonical_baseline["roi_count"] if use_stage_b_roi_mode else n_panels
     
             # Sample ROIs or panels for Stage B (~15% by default)
             if use_stage_b_roi_mode:
@@ -3075,8 +3075,8 @@ def run_nanobrag_refinement(
             # PERF-WARM-SIM-001: ROI counts always reflect the canonical ROI count for consistency
             # When in panel mode, we're evaluating all ROIs via panel rendering
             # When in ROI mode, we sample a subset. The roi_mode field distinguishes the execution path.
-            stage_b_roi_count_total = canonical_roi_count
-            stage_b_roi_count_sampled = canonical_roi_count if not use_stage_b_roi_mode else len(sampled_stage_b_indices)
+            stage_b_roi_count_total = canonical_baseline["roi_count"]
+            stage_b_roi_count_sampled = canonical_baseline["roi_count"] if not use_stage_b_roi_mode else len(sampled_stage_b_indices)
     
             forward_stats_b = {
                 'mean': float(np.mean(perf_forward_times_ms_b)) if perf_forward_times_ms_b else 0.0,

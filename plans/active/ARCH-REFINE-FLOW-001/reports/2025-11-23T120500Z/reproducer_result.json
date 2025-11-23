@@ -1,0 +1,16 @@
+{
+  "reproducer_passed": true,
+  "bragg_stats": {
+    "min": 0.0,
+    "max": 0.08605372160673141,
+    "mean": 0.010763854719698429,
+    "nonzero_fraction": 0.9020872116088867,
+    "shape": [
+      1024,
+      1024
+    ]
+  },
+  "device": "cpu",
+  "panel_id": 0,
+  "error": null
+}

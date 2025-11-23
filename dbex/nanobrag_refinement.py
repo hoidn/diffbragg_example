@@ -546,6 +546,18 @@ def _build_stage_a_context(
     beam_config = create_beam_config(beam)
     hkl_grid_device = hkl_grid.to(device=device, dtype=dtype)
     crystal_config, _ = create_crystal_config(crystal, None)
+
+    # DIAGNOSTIC: Crystal config post-bridge (temp)
+    device_str = str(device)
+    device_label = "CUDA" if "cuda" in device_str else "CPU"
+    print(f"[CRYSTAL_{device_label}_POST] cell_a={crystal_config.cell_a}, cell_b={crystal_config.cell_b}, cell_c={crystal_config.cell_c}")
+    print(f"[CRYSTAL_{device_label}_POST] cell_alpha={crystal_config.cell_alpha}, cell_beta={crystal_config.cell_beta}, cell_gamma={crystal_config.cell_gamma}")
+    print(f"[CRYSTAL_{device_label}_POST] mosflm_a_star={getattr(crystal_config, 'mosflm_a_star', None)}")
+    print(f"[CRYSTAL_{device_label}_POST] mosflm_b_star={getattr(crystal_config, 'mosflm_b_star', None)}")
+    print(f"[CRYSTAL_{device_label}_POST] mosflm_c_star={getattr(crystal_config, 'mosflm_c_star', None)}")
+    print(f"[CRYSTAL_{device_label}_POST] misset_deg={getattr(crystal_config, 'misset_deg', None)}")
+    print(f"[CRYSTAL_{device_label}_POST] device={device}")
+
     base_crystal_model = Crystal(crystal_config, beam_config=beam_config, device=device, dtype=dtype)
     base_crystal_model.interpolate = enable_hkl_interpolation
     base_crystal_model.hkl_data = hkl_grid_device
@@ -917,6 +929,12 @@ def _build_stage_a_params(
     # for 2-5× speedup. When disabled (benchmarking), rebuild inside compute_loss for cold baseline.
     stage_a_ctx = None
     if config.enable_stage_a_warm_cache:
+        # DIAGNOSTIC: CUDA crystal config comparison (temp)
+        print(f"[CRYSTAL_CUDA_PRE] cell={crystal.get_unit_cell().parameters()}")
+        print(f"[CRYSTAL_CUDA_PRE] A_matrix={np.array(crystal.get_A()).reshape(3,3).tolist()}")
+        print(f"[CRYSTAL_CUDA_PRE] U_matrix={np.array(crystal.get_U()).reshape(3,3).tolist()}")
+        print(f"[CRYSTAL_CUDA_PRE] B_matrix={np.array(crystal.get_B()).reshape(3,3).tolist()}")
+
         stage_a_ctx = _build_stage_a_context(
             detector=detector,
             beam=beam,
@@ -2206,6 +2224,13 @@ def _build_stage_b_params(
     if use_stage_b_cpu_fallback and stage_a_ctx is not None and config.enable_stage_a_warm_cache:
         # Build a fresh Stage A context on CPU device
         cpu_device = torch.device("cpu")
+
+        # DIAGNOSTIC: CPU crystal config comparison (temp)
+        print(f"[CRYSTAL_CPU_PRE] cell={crystal.get_unit_cell().parameters()}")
+        print(f"[CRYSTAL_CPU_PRE] A_matrix={np.array(crystal.get_A()).reshape(3,3).tolist()}")
+        print(f"[CRYSTAL_CPU_PRE] U_matrix={np.array(crystal.get_U()).reshape(3,3).tolist()}")
+        print(f"[CRYSTAL_CPU_PRE] B_matrix={np.array(crystal.get_B()).reshape(3,3).tolist()}")
+
         stage_b_eval_stage_a_ctx = _build_stage_a_context(
             detector=detector,
             beam=beam,
@@ -2528,6 +2553,10 @@ def _build_stage_b_lbfgs_closure(
                 if use_warm_eval:
                     simulator = stage_b_eval_stage_a_ctx.simulators[pid]
                     bragg_panel = simulator.run()
+
+                    # DIAGNOSTIC: Extract Bragg tensor stats after run (temp)
+                    if eval_device.type == "cpu":
+                        print(f"[BRAGG_CPU_WARM] bragg_panel.shape={bragg_panel.shape}, bragg_panel.min={bragg_panel.min().item()}, bragg_panel.max={bragg_panel.max().item()}, bragg_panel.mean={bragg_panel.mean().item()}")
                 else:
                     detector_config = create_detector_config(
                         panel=detector[pid],
@@ -2557,6 +2586,10 @@ def _build_stage_b_lbfgs_closure(
                     crystal_model.hkl_metadata = hkl_metadata
                     simulator = Simulator(detector=detector_model, crystal=crystal_model, device=eval_device, dtype=dtype)
                     bragg_panel = simulator.run()
+
+                    # DIAGNOSTIC: Extract Bragg tensor stats after run (temp)
+                    if eval_device.type == "cpu":
+                        print(f"[BRAGG_CPU_COLD] bragg_panel.shape={bragg_panel.shape}, bragg_panel.min={bragg_panel.min().item()}, bragg_panel.max={bragg_panel.max().item()}, bragg_panel.mean={bragg_panel.mean().item()}")
 
                 target_panel = target_t[pid].to(device=eval_device, dtype=dtype)
                 loss_mask_panel = loss_mask_t[pid].to(device=eval_device)

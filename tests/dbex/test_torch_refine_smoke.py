@@ -580,6 +580,208 @@ def test_stage_a_expansion(
 
 
 @pytest.mark.allow_metadata_sigma
+def test_stage_a_expansion_incremental_ub(
+    refgeom_dataload,
+    refinement_inputs,
+    hkl_data,
+    smoke_detector_size,
+    smoke_sigma_source,
+):
+    """
+    Verify Stage A LBFGS refinement with incremental UB parameterization achieves ≥0.2% loss decrease.
+
+    Identical to test_stage_a_expansion but with use_incremental_ub=True to validate
+    quaternion-based incremental orientation (ΔR @ U₀) + cell perturbations (logs/angles).
+
+    Acceptance criteria (TORCH-GEOMETRY-UB-REALIGN-001 Phase C1):
+    1. Refinement runs without errors (status != "error")
+    2. Telemetry contains all required keys (scale, cell a/b/c, angles, orientation)
+    3. Improvement gate (≥0.2%) matching cell+misset path
+    4. Full-loss trace is non-increasing over last 3 validations
+    5. Convergence behavior matches cell+misset default path
+
+    Environment:
+    - Requires: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1
+    - Selector: pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion_incremental_ub
+    """
+    from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig
+
+    print(f"\n[test_stage_a_expansion_incremental_ub] detector={smoke_detector_size}")
+
+    hkl_grid, hkl_metadata = hkl_data
+    n_rois = len(refgeom_dataload.bbox)
+    strict_gates = smoke_detector_size == "full"
+
+    # Configure refinement (Stage A expansion with incremental UB)
+    config = RefinementConfig(
+        device='cuda:0',
+        dtype=torch.float32,
+        history_size=10,
+        max_iter=30,  # ≤30 steps for Stage A expansion
+        roi_sample_fraction=0.15,
+        full_validation_interval=5,
+        min_loss_improvement=0.002 if strict_gates else 0.0,
+        enable_hkl_interpolation=True,
+        use_incremental_ub=True,  # <-- ONLY DIFFERENCE: Enable incremental UB parameterization
+        sigma_readout_provenance=(
+            "external_lookup" if smoke_sigma_source == "metadata" else "cli_override"
+        ),
+    )
+
+    # Create perturbed geometry
+    baseline_crystal = refgeom_dataload.Expt.crystal
+    baseline_detector = refgeom_dataload.Expt.detector
+    baseline_beam = refgeom_dataload.Expt.beam
+
+    perturbed_crystal, perturbed_detector, perturbed_beam = create_perturbed_geometry(
+        baseline_crystal, baseline_detector, baseline_beam
+    )
+
+    # Run refinement with perturbed geometry and baseline crystal for misset extraction
+    bragg_refined, telemetry_dict = run_nanobrag_refinement(
+        inputs=refinement_inputs,
+        detector=perturbed_detector,
+        beam=perturbed_beam,
+        crystal=perturbed_crystal,
+        hkl_grid=hkl_grid,
+        hkl_metadata=hkl_metadata,
+        config=config,
+        baseline_crystal=baseline_crystal
+    )
+
+    # Extract Stage A telemetry
+    assert "A" in telemetry_dict, "Stage A telemetry missing"
+    telemetry = telemetry_dict["A"]
+
+    # Acceptance 1: Refinement completed without errors
+    assert telemetry.status != "error", f"Refinement failed: {telemetry.message}"
+
+    # Acceptance 2: Telemetry completeness
+    assert telemetry.optimizer == "LBFGS"
+    assert telemetry.stage == "A"
+    assert telemetry.history_size == config.history_size
+    assert telemetry.max_iter == config.max_iter
+    assert len(telemetry.loss_trace_sample) > 0, "Sample loss trace empty"
+    assert len(telemetry.loss_trace_full) > 0, "Full loss trace empty"
+    assert telemetry.chi_squared_trace_full is not None, "Stage A chi-squared trace missing"
+    assert len(telemetry.chi_squared_trace_full) > 0, "Stage A chi-squared trace empty"
+    assert telemetry.best_loss_full[0] > 0, "Best loss invalid"
+    stage_a_initial_chi2 = telemetry.chi_squared_trace_full[0][1]
+    stage_a_final_chi2 = telemetry.chi_squared_trace_full[-1][1]
+    stage_a_final_iter = telemetry.chi_squared_trace_full[-1][0]
+
+    # Verify all DoF deltas are present (incremental UB path)
+    required_params = ['log_scale', 'log_cell_a_delta', 'log_cell_b_delta', 'log_cell_c_delta',
+                      'angle_alpha_raw', 'angle_beta_raw', 'angle_gamma_raw']
+    for param in required_params:
+        assert param in telemetry.param_deltas, f"{param} delta missing"
+
+    # Variance floor telemetry
+    assert telemetry.variance_floor_value == pytest.approx(config.sigma_floor_value**2)
+    assert telemetry.variance_floor_clamp_fraction is not None
+    assert 0.0 <= telemetry.variance_floor_clamp_fraction <= 1.0
+    canonical_roi_count = len(refinement_inputs.panel_slices)
+    assert telemetry.canonical_stage_label == "A"
+    assert telemetry.canonical_chi_squared is not None
+    assert telemetry.canonical_chi_squared_iteration is not None
+    assert telemetry.canonical_roi_count == canonical_roi_count
+    if smoke_sigma_source == "metadata":
+        assert telemetry.sigma_readout_provenance == "external_lookup"
+        assert telemetry.canonical_chi_squared == pytest.approx(stage_a_final_chi2, rel=5e-4)
+        assert telemetry.canonical_chi_squared_iteration == stage_a_final_iter
+    else:
+        assert telemetry.sigma_readout_provenance in {None, "cli_override"}
+        if strict_gates:
+            assert telemetry.canonical_chi_squared == pytest.approx(stage_a_final_chi2, rel=5e-4)
+            assert telemetry.canonical_chi_squared_iteration == stage_a_final_iter
+
+    # Acceptance 3: Non-increasing full-loss trace over last 3 validations
+    if strict_gates and len(telemetry.loss_trace_full) >= 3:
+        last_three_losses = [loss for _, loss in telemetry.loss_trace_full[-3:]]
+        for i in range(1, len(last_three_losses)):
+            assert last_three_losses[i] <= last_three_losses[i-1] * 1.02, (
+                f"Full-loss increased by >2% at validation {i}: "
+                f"{last_three_losses[i-1]:.2e} → {last_three_losses[i]:.2e}"
+            )
+
+    # Acceptance 4: Param deltas non-zero
+    scale_delta = telemetry.param_deltas['log_scale']['delta']
+    assert abs(scale_delta) > 1e-6, f"log_scale delta too small: {scale_delta:.3e}"
+
+    # Acceptance 5: ≥0.2% improvement gate
+    assert len(telemetry.loss_trace_full) >= 2, "Insufficient full-loss validations"
+    initial_loss = telemetry.loss_trace_full[0][1]
+    final_loss = telemetry.loss_trace_full[-1][1]
+    improvement = (initial_loss - final_loss) / initial_loss
+
+    if strict_gates:
+        assert improvement >= 0.002, (
+            f"Loss improvement {improvement:.2%} < 0.2% threshold. "
+            f"TORCH-GEOMETRY-UB-REALIGN-001 Phase C1: Incremental UB path must match cell+misset convergence. "
+            f"(initial={initial_loss:.2e}, final={final_loss:.2e}, iterations={len(telemetry.loss_trace_sample)})"
+        )
+
+    # Acceptance 6: Perf counters presence
+    assert telemetry.perf_counters is not None, "perf_counters missing from Stage A telemetry"
+    assert isinstance(telemetry.perf_counters, dict), f"perf_counters should be dict, got {type(telemetry.perf_counters)}"
+    assert 'cache_mode' in telemetry.perf_counters, "cache_mode missing from perf_counters"
+    cache_mode = telemetry.perf_counters['cache_mode']
+    assert cache_mode == "warm", f"cache_mode should be 'warm', got '{cache_mode}'"
+
+    # Log achieved improvement
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(
+        f"Stage A expansion (incremental UB) achieved {improvement:.2%} improvement "
+        f"({initial_loss:.2e} → {final_loss:.2e}) in {len(telemetry.loss_trace_sample)} iterations"
+    )
+
+    # Output shape correctness
+    assert bragg_refined.shape == refinement_inputs.target.shape
+    assert bragg_refined.dtype == np.float32
+
+    # Diagnostic printout
+    cell_deltas = [
+        abs(telemetry.param_deltas['log_cell_a_delta']['delta']),
+        abs(telemetry.param_deltas['log_cell_b_delta']['delta']),
+        abs(telemetry.param_deltas['log_cell_c_delta']['delta'])
+    ]
+    angle_deltas = [
+        abs(telemetry.param_deltas['angle_alpha_raw']['delta']),
+        abs(telemetry.param_deltas['angle_beta_raw']['delta']),
+        abs(telemetry.param_deltas['angle_gamma_raw']['delta'])
+    ]
+
+    print(f"\n[test_stage_a_expansion_incremental_ub] SUCCESS")
+    print(f"  Initial loss: {initial_loss:.2e}")
+    print(f"  Final loss: {final_loss:.2e}")
+    print(f"  Improvement: {improvement:.1%}")
+    print(f"  Iterations: {len(telemetry.loss_trace_sample)}")
+    print(f"  Status: {telemetry.status}")
+    print(f"  log_scale delta: {scale_delta:.3e}")
+    print(f"  Cell deltas (a/b/c): {cell_deltas}")
+    print(f"  Angle deltas (α/β/γ): {angle_deltas}")
+
+    _record_stage_telemetry(
+        "stage_a_expansion_incremental_ub",
+        telemetry,
+        smoke_detector_size,
+        {
+            "loss_improvement": float(improvement),
+            "n_rois": n_rois,
+            "detector_shape": list(refinement_inputs.target.shape),
+            "closure_evals": telemetry.perf_counters.get("closure_evals"),
+            "validation_runs": telemetry.perf_counters.get("validation_runs"),
+            "forward_time_ms": telemetry.perf_counters.get("forward_time_ms"),
+            "chi_squared_initial": float(stage_a_initial_chi2),
+            "chi_squared_final": float(stage_a_final_chi2),
+            "variance_floor_clamp_fraction": float(telemetry.variance_floor_clamp_fraction),
+            "sigma_readout_provenance": telemetry.sigma_readout_provenance,
+        },
+    )
+
+
+@pytest.mark.allow_metadata_sigma
 def test_stage_c_detector_microslip(
     refgeom_dataload,
     refinement_inputs,

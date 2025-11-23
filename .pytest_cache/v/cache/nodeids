@@ -1,5 +1,6 @@
 [
   "tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion",
+  "tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion_incremental_ub",
   "tests/dbex/test_ub_parameterization_roundtrip.py::test_db_at_026_cell_zero_point",
   "tests/dbex/test_ub_parameterization_roundtrip.py::test_db_at_026_gradient_flow",
   "tests/dbex/test_ub_parameterization_roundtrip.py::test_db_at_026_mapping_parity",

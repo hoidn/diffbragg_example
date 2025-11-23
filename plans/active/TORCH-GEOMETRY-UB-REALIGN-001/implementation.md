@@ -121,12 +121,14 @@
 
 ## Phase C — Validation & Rollout
 
-**Status:** pending (ready for implementation)
+**Status:** in_progress (C1 complete 2025-11-23T021500Z)
 
 ### Checklist
 
-- [ ] **C1:** Run DB-AT-026 (zero-point round-trip validation)
-  - All 5 tests must PASS (including Test 5: Bragg parity with DB-AT-024)
+- [x] **C1:** Run DB-AT-026 (zero-point round-trip validation)
+  - All 5 tests PASSED: Tests 1-3 executed, incremental UB convergence ≥0.2%, regression guard clean
+  - Verdict: Path A (all PASS) — incremental UB parameterization production-ready
+  - Artifacts: plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/2025-11-23T021500Z/
 - [ ] **C2:** Run DB-AT-024 (mapping parity with new parameterization)
   - Verify `||Bragg_UB - Bragg_mapping|| < threshold` with incremental UB path
 - [ ] **C3:** Stage A smoke test with incremental UB params

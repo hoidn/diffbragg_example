@@ -77,12 +77,12 @@
 
 ### Checklist
 
-- [ ] **B1:** Implement `derive_orientation_from_quaternion_delta(q_delta, U_baseline) -> U` in `dbex/nanobrag_bridge.py`
+- [x] **B1:** Implement `derive_orientation_from_quaternion_delta(q_delta, U_baseline) -> U` in `dbex/nanobrag_bridge.py`
   - Quaternion normalization
   - Quaternion-to-matrix conversion
   - Quaternion-to-Euler XYZ conversion (for nanobrag_torch API)
   - Unit test: identity quaternion → `U = U₀`
-- [ ] **B2:** Implement `derive_B_from_cell_deltas(δlog_a, ..., cell_baseline) -> B` in `dbex/nanobrag_bridge.py`
+- [x] **B2:** Implement `derive_B_from_cell_deltas(δlog_a, ..., cell_baseline) -> B` in `dbex/nanobrag_bridge.py`
   - Implement `busing_levy_B_torch(a, b, c, α, β, γ) -> B` (differentiable PyTorch)
   - Log-exp for lengths, delta-add for angles
   - Unit test: zero deltas → `B = B₀`
@@ -92,13 +92,13 @@
   - Call B1/B2 helpers to derive `U(params)`, `B(params)` → construct `A* = U @ B`
   - Inject via MOSFLM a/b/c_star OR baseline_misset + delta_misset (per crystal_overrides mode)
   - **Critical:** Preserve existing cell+misset default path (no regression to `test_stage_a_expansion`)
-- [ ] **B4:** Implement DB-AT-026 test (`tests/dbex/test_ub_parameterization_roundtrip.py`)
+- [x] **B4:** Implement DB-AT-026 test (`tests/dbex/test_ub_parameterization_roundtrip.py`)
   - Test 1: Orientation zero-point (`||U(0) - U₀|| < 1e-12`)
   - Test 2: Cell zero-point (`||B(0) - B₀|| < 1e-12`)
   - Test 3: Mapping parity (`||A*(0) - A*_mapping|| < 1e-6`)
   - Test 4: Gradient flow validation (all params differentiable)
   - Test 5: Cross-reference with DB-AT-024 (optional, may defer to Phase C)
-- [ ] **B5:** Regression guard
+- [x] **B5:** Regression guard
   - Run `pytest tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion`
   - Ensure cell+misset default path still passes (no impact from new UB path)
 

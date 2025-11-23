@@ -162,3 +162,13 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-23T061726Z focus=ARCH-REFINE-FLOW-001 state=ready_for_implementation dwell=0 artifacts=plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T061726Z/ next_action=phase_c0_baseline_collection
+
+## 2025-11-22T060833Z — ARCH-REFINE-FLOW-001 Phase C1a-loop1 Planning
+- Focus: ARCH-REFINE-FLOW-001 — Protocol-based Refinement Engine (Phase C1a-loop1)
+- Action Type: planning
+- Key Observations: Reviewed Phase C0 completion (commit c1a9e32: test_stage_b_shell_modifiers PASSED after canonical_roi_count bugfix). Authored Phase C1a-loop1 Do Now directing Ralph to extract ONLY `_build_stage_b_params` helper (~140 lines, lines 2570-2710) from Stage B inline code, verify compilation, commit partial progress. Multi-loop extraction strategy approved per Phase B precedent (B1a-loop1/2/3 SUCCESS). Helper 1 scope: shell modifier params initialization, optimizer setup, telemetry accumulators, CPU fallback context (PERF-WARM-011/012), ROI/panel mode config. NO regression guard required (helper not wired yet). Implementation floor satisfied: production code task (extract helper) + compilation validation. Dwell reset to 0 (last loop C0 baseline completion, now ready_for_implementation).
+- Artifact Path: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-22T060833Z/
+- Next Actions: Ralph executes Phase C1a-loop1 (extract helper 1, verify compilation, commit). If PASS → Galph plans C1a-loop2 (extract `_build_stage_b_lbfgs_closure` helper ~260 lines). If blocked → Galph reviews and decides.
+- <Action State>: [ready_for_implementation]
+
+2025-11-22T060833Z focus=ARCH-REFINE-FLOW-001 state=ready_for_implementation dwell=0 artifacts=plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-22T060833Z/ next_action=extract_stage_b_helper_1_only

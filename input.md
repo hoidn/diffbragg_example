@@ -1,216 +1,242 @@
-# Phase C0 — Baseline Stage B Artifacts Collection
+# Phase C1a-loop1: Extract `_build_stage_b_params` Helper ONLY
 
 ## Summary
-Collect baseline Stage B artifacts (test_stage_b_shell_modifiers smoke test with small detector) before Phase C extraction begins.
+Extract the first Stage B helper function (`_build_stage_b_params`, ~140 lines) from inline code in `run_nanobrag_refinement`, verify compilation, commit partial progress. NO regression guard required (helper not yet wired).
 
 ## Mode
-none (evidence collection)
+none
 
 ## Focus
-ARCH-REFINE-FLOW-001 — Protocol-based Refinement Engine (Phase C0 baseline)
+ARCH-REFINE-FLOW-001 — Protocol-based Refinement Engine (Phase C1a-loop1)
 
 ## Branch
 integration
 
-## Mapped Tests
-- `tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers` (smoke, small detector)
-- Collection verification: `pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers`
+## Mapped tests
+none — evidence-only (compilation check only, helper not yet wired)
 
 ## Artifacts
-`plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T061726Z/baseline/`
+`plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-22T060833Z/`
+- `phase_c1a_loop1_extraction_diff.patch` — Diff of extracted helper
+- `compilation_check.log` — Python compilation output (exit code 0 required)
+- `summary.md` — Turn Summary block
 
 ## Do Now
 
-Execute Phase C0 baseline artifact collection (mirror Phase B0 pattern from loop i=192):
+You are implementing **Phase C1a-loop1** of the ARCH-REFINE-FLOW-001 multi-loop Stage B extraction strategy, approved by Galph after Phase B's successful 7-loop completion.
 
-1. **Create artifacts directory:**
-   ```bash
-   mkdir -p plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T061726Z/baseline
-   cd plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T061726Z/baseline
-   ```
+**CRITICAL SCOPE LIMIT:** This loop extracts **ONLY** the `_build_stage_b_params` helper (~140 lines). Do NOT extract the other two helpers (`_build_stage_b_lbfgs_closure`, `_run_stage_b_lbfgs`) or refactor the main function. Those will be handled in subsequent loops (C1a-loop2, C1a-loop3).
 
-2. **Collection verification:**
-   ```bash
-   pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers \
-     > pytest_collect_stage_b.log 2>&1
-   ```
-   - Verify `1 test collected` in log
-   - Archive log in baseline/
+### Context
+- **Phase B Precedent:** Phase B successfully extracted Stage A in 3 sub-loops (B1a-loop1: helper1, B1a-loop2: helper2, B1a-loop3: helper3 + refactor)
+- **Phase C0 Baseline:** test_stage_b_shell_modifiers PASSED after `canonical_roi_count` bugfix (commit c1a9e32)
+- **Stage B Inline Code:** Lines ~2527-3137 in `dbex/nanobrag_refinement.py` (~610 lines total)
+- **Helper 1 Target:** Lines ~2570-2710 (parameter initialization + telemetry state + optimizer setup)
 
-3. **Run Stage B smoke test (small detector):**
-   ```bash
-   KMP_DUPLICATE_LIB_OK=TRUE \
-   NANOBRAGG_DISABLE_COMPILE=1 \
-   pytest tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers \
-     -v --tb=short --smoke-detector-size=small \
-     > pytest_stage_b_small.log 2>&1
-   ```
-   - Capture exit code
-   - Archive full log in baseline/
+### Step-by-Step Tasks
 
-4. **Extract telemetry (if test PASSED):**
-   ```bash
-   python3 -c "
-   import json
-   import h5py
-   import sys
+#### 1. Review Phase C0 Baseline Artifacts
+Read the following to understand the current Stage B code structure:
+- `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T061726Z/baseline/summary.md`
+- `dbex/nanobrag_refinement.py` lines 2527-2750 (Stage B initialization section)
 
-   try:
-       with h5py.File('output/torch_refine_smoke_small.h5', 'r') as f:
-           if 'torch_diagnostics' in f:
-               telem = dict(f['torch_diagnostics'].attrs)
-               # Extract Stage B telemetry if present
-               if 'refinement_telemetry' in f:
-                   ref_telem = json.loads(f['refinement_telemetry'].attrs.get('json', '{}'))
-                   if 'B' in ref_telem:
-                       stage_b_telem = ref_telem['B']
-                       print(json.dumps(stage_b_telem, indent=2))
-                       with open('plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T061726Z/baseline/telemetry_stage_b_small.json', 'w') as out:
-                           json.dump(stage_b_telem, out, indent=2)
-                       sys.exit(0)
-           print('No Stage B telemetry found', file=sys.stderr)
-           sys.exit(1)
-   except Exception as e:
-       print(f'Error extracting telemetry: {e}', file=sys.stderr)
-       sys.exit(1)
-   "
-   ```
-   - Archive telemetry JSON in baseline/
+#### 2. Identify Helper 1 Extraction Boundaries
+Locate the Stage B initialization code block that sets up:
+- Shell modifier raw parameters (`shell_modifier_raw`)
+- Optimizer (Adam for shell modifiers)
+- Telemetry accumulators (chi_squared_trace, masked_mse_trace, variance floor stats, perf counters)
+- CPU fallback context (`use_stage_b_cpu_fallback`, `stage_b_eval_stage_a_ctx`)
+- ROI/panel mode configuration (`use_stage_b_roi_mode`, `sampled_stage_b_indices`)
 
-5. **Write baseline summary:**
-   Create `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T061726Z/baseline/summary.md` with:
-   - Test result (PASS/FAIL)
-   - Exit code
-   - Key Stage B telemetry metrics (if available):
-     - status ("ok"/"early_stop"/"error")
-     - improvement (Stage B final vs Stage A final)
-     - shell modifier deltas
-     - perf_counters (cache_mode, roi_mode, ROI counts)
-   - File sizes and paths
+**Expected boundaries:** Lines ~2570-2710 (approximately 140 lines)
 
-6. **Update implementation.md:**
-   Mark Phase C0 baseline COMPLETE in `plans/active/ARCH-REFINE-FLOW-001/implementation.md` line ~179:
-   ```markdown
-   - [x] C0: Baseline Stage B artifacts (small-detector run + telemetry) recorded before refactor. ✓ COMPLETE (2025-11-23T061726Z)
-   ```
+**Signature to implement:**
+```python
+def _build_stage_b_params(
+    config: RefinementConfig,
+    device: torch.device,
+    dtype: torch.dtype,
+    stage_a_ctx: Optional[Dict[str, Any]],
+    canonical_baseline: Dict[str, Any],
+    n_panels: int,
+    sampled_panel_ids: List[int],
+    sigma_floor_sq_cache: Dict[torch.device, torch.Tensor],
+    use_stage_a_roi_mode: bool,
+) -> Dict[str, Any]:
+    """
+    Build Stage B shell modifier parameters, optimizer, and telemetry state.
 
-7. **Write Turn Summary:**
-   Append to `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T061726Z/summary.md`:
-   ```markdown
-   ### Turn Summary
-   Collected baseline Stage B artifacts for Phase C extraction (test_stage_b_shell_modifiers smoke small detector).
-   Test result: [PASS/FAIL]. Stage B telemetry: [status, improvement, shell modifiers].
-   Next: Galph plans Phase C1a-loop1 (extract `_build_stage_b_params` helper ~140 lines).
-   Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T061726Z/baseline/ (pytest_collect_stage_b.log, pytest_stage_b_small.log, telemetry_stage_b_small.json, summary.md)
-   ```
+    Returns:
+        param_values: Dict containing:
+            - params: List[torch.Tensor] — Trainable shell_modifier_raw
+            - optimizer: torch.optim.Adam — Optimizer for shell modifiers
+            - telemetry_state: Dict — Accumulators for chi_squared/masked_mse traces, perf counters
+            - stage_b_eval_stage_a_ctx: Optional[Dict] — CPU-cloned or original Stage A context
+            - use_stage_b_cpu_fallback: bool
+            - stage_b_use_warm_cache: bool
+            - stage_b_cache_mode: str — "warm" or "cold"
+            - use_stage_b_roi_mode: bool
+            - stage_b_roi_label: str — "roi" or "panel"
+            - stage_b_total_work_items: int
+            - sampled_stage_b_indices: List[int]
+            - full_stage_b_indices: List[int]
+            - default_f_fallback_count: int
+    """
+```
 
-8. **Commit:**
-   ```bash
-   git add plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T061726Z/baseline/
-   git add plans/active/ARCH-REFINE-FLOW-001/implementation.md
-   git commit -m "ARCH-REFINE-FLOW-001 Phase C0: Stage B baseline artifacts — tests: [result]"
-   git push
-   ```
+#### 3. Extract Helper Function Code
+**Copy** lines ~2570-2710 from `run_nanobrag_refinement` into a new function `_build_stage_b_params` placed **immediately before** the `run_nanobrag_refinement` function definition (around line 2087).
+
+**Preserve:**
+- All variable initializations (shell_modifier_raw, optimizer, telemetry lists)
+- All comments (especially PHYSICS-LOSS-002, PERF-WARM-011/012 references)
+- Exact indentation and logic flow
+
+**Convert local variables to function parameters or return dict entries:**
+- Input parameters: config, device, dtype, stage_a_ctx, canonical_baseline, n_panels, sampled_panel_ids, sigma_floor_sq_cache, use_stage_a_roi_mode
+- Return dict `param_values` with ALL initialized variables that Stage B LBFGS closure will need
+
+#### 4. Verify Compilation (NO Runtime Calls)
+**Run Python syntax check:**
+```bash
+cd /home/ollie/Documents/diffbragg_example
+python -c "import dbex.nanobrag_refinement" 2>&1 | tee plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-22T060833Z/compilation_check.log
+echo "Exit code: $?" >> plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-22T060833Z/compilation_check.log
+```
+
+**Expected:** Exit code 0 (no SyntaxError, ImportError)
+
+**If compilation FAILS:** Fix the error, document the fix, retry. Do NOT proceed to commit if compilation fails.
+
+#### 5. Generate Diff Patch
+Save the extraction diff for review:
+```bash
+git diff dbex/nanobrag_refinement.py > plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-22T060833Z/phase_c1a_loop1_extraction_diff.patch
+```
+
+#### 6. Update Implementation Plan Checklist
+Mark Phase C1a-loop1 as COMPLETE in `plans/active/ARCH-REFINE-FLOW-001/implementation.md` (add a sub-bullet under Phase C checklist noting extraction date and helper signature).
+
+#### 7. Write Turn Summary
+Create `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-22T060833Z/summary.md` with the Turn Summary block (3-5 sentences: what was extracted, compilation status, next step).
+
+#### 8. Commit Partial Progress
+**Commit message:**
+```
+ARCH-REFINE-FLOW-001 Phase C1a-loop1: Extract _build_stage_b_params helper (~140 lines) — tests: not run
+```
+
+**Commands:**
+```bash
+git add -A
+git commit -m "ARCH-REFINE-FLOW-001 Phase C1a-loop1: Extract _build_stage_b_params helper (~140 lines) — tests: not run"
+git push
+```
 
 ## How-To Map
 
+### 1. Locate Stage B Initialization Block
 ```bash
-# Step 1: Create artifacts directory
-mkdir -p plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T061726Z/baseline
-cd plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T061726Z/baseline
-
-# Step 2: Collection verification
-pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers > pytest_collect_stage_b.log 2>&1
-grep -E "1 test collected|test_stage_b_shell_modifiers" pytest_collect_stage_b.log
-
-# Step 3: Run Stage B smoke (small detector)
 cd /home/ollie/Documents/diffbragg_example
-KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
-pytest tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers \
-  -v --tb=short --smoke-detector-size=small \
-  > plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T061726Z/baseline/pytest_stage_b_small.log 2>&1
-echo "Exit code: $?"
+# Find shell_modifier_raw initialization (start of helper 1 scope)
+grep -n "shell_modifier_raw = " dbex/nanobrag_refinement.py | head -1
 
-# Step 4: Extract telemetry (run Python snippet from project root)
-# (See Do Now step 4 for Python code)
+# Find sampled_stage_b_indices initialization (end of helper 1 scope)
+grep -n "sampled_stage_b_indices = " dbex/nanobrag_refinement.py | grep -A 5 "full_stage_b_indices"
+```
 
-# Step 5: Write baseline/summary.md
-# (Manual - summarize test results + telemetry metrics)
+### 2. Extract Helper Function
+**File:** `dbex/nanobrag_refinement.py`
 
-# Step 6: Update implementation.md
-# (Mark C0 COMPLETE)
+**Insertion point:** Line ~2086 (immediately before `def run_nanobrag_refinement`)
 
-# Step 7: Write Turn Summary to summary.md
-# (Prepend to plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T061726Z/summary.md)
+**Extraction pattern (from Phase B):**
+1. Copy target lines into new function definition
+2. Replace hardcoded values with function parameters
+3. Collect all initialized variables into return dict
+4. Add comprehensive docstring with Returns section
 
-# Step 8: Commit and push
-git add plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T061726Z/
-git add plans/active/ARCH-REFINE-FLOW-001/implementation.md
-git commit -m "ARCH-REFINE-FLOW-001 Phase C0: Stage B baseline artifacts — tests: [result from step 3]"
-git push
+### 3. Compilation Check
+```bash
+python -c "import dbex.nanobrag_refinement" 2>&1 | tee plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-22T060833Z/compilation_check.log
+echo "Exit code: $?" >> plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-22T060833Z/compilation_check.log
+```
+
+### 4. Artifact Generation
+```bash
+# Generate diff patch
+git diff dbex/nanobrag_refinement.py > plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-22T060833Z/phase_c1a_loop1_extraction_diff.patch
+
+# Line count verification
+wc -l dbex/nanobrag_refinement.py
 ```
 
 ## Pitfalls To Avoid
 
-1. **Environment:** Freeze enforced. Do not install/upgrade packages. If missing dependencies block, record error signature in fix_plan.md and mark blocked.
-2. **Test collection:** MUST verify `1 test collected` before running pytest. If 0 collected, selector is broken—document and escalate to Galph.
-3. **Telemetry extraction:** HDF5 path may differ. Check actual output path from pytest log (look for "Writing HDF5" or similar).
-4. **Device/dtype neutrality:** Stage B uses CPU fallback for canonical runs (PERF-WARM-011/012). Small detector may run on CUDA—both modes are valid.
-5. **Shell modifier gate:** Stage B improvement is effectively zero (~6.4e-8% per REFINE-008). Status "early_stop" with <1e-6 improvement is EXPECTED and CORRECT.
-6. **Baseline detector:** Stage B test may not use baseline_detector arg—check test harness. Baseline artifact collection is for CODE snapshot, not geometry verification.
-7. **Turn Summary persistence:** Write Turn Summary block to both your response AND `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T061726Z/summary.md` (prepend, not append).
+1. **DO NOT extract helpers 2 or 3** — This loop is ONLY for `_build_stage_b_params` (~140 lines). Helpers 2 and 3 come in C1a-loop2 and C1a-loop3.
+
+2. **DO NOT refactor `run_nanobrag_refinement` to call the helper** — The helper is not wired yet. It's just a function definition added to the file.
+
+3. **DO NOT run tests** — No regression guard required for partial extraction (per Phase B precedent).
+
+4. **Preserve all imports** — If helper code uses `torch`, `time.perf_counter`, or `_build_stage_a_context`, ensure those imports remain accessible.
+
+5. **Preserve all comments** — PHYSICS-LOSS-002, PERF-WARM-011/012 comments are critical documentation.
+
+6. **Use correct dict access** — `canonical_baseline["roi_count"]` not `canonical_roi_count` (per REFINE-009 bugfix)
+
+7. **Return ALL initialized variables** — The closure (helper 2) will need shell_modifier_raw, optimizer, telemetry lists, CPU fallback context, ROI indices, etc.
+
+8. **No device/dtype changes** — Preserve exact device/dtype handling (CPU fallback logic is critical)
+
+9. **No optimizer changes** — Keep Adam with LR=config.stage_b_lr unchanged
+
+10. **Environment Freeze** — Do not install packages. This is a pure refactor.
 
 ## If Blocked
 
-**Scenario A: Test FAILS**
-- Archive full pytest log + traceback
-- Extract error signature (last 50 lines)
-- Create `baseline/blocker.md` with:
-  - Failure mode (exception type, line number)
-  - Suspected root cause
-  - Minimal repro steps
-- Mark Phase C0 BLOCKED in implementation.md
-- Commit artifacts and blocker doc
-- Summarize in Turn Summary
+**Scenario A: Compilation Error**
+- Read error message carefully
+- Fix syntax/import error
+- Re-run compilation check
+- Document fix in summary.md
 
-**Scenario B: Collection returns 0 tests**
-- Verify selector syntax: `test_stage_b_shell_modifiers` (no typo)
-- Check if test was renamed/moved
-- Document in blocker.md
-- Escalate to Galph
+**Scenario B: Unclear Helper Boundaries**
+- Use `grep -n "shell_modifier_raw"` to find start
+- Use `grep -n "full_stage_b_indices"` to find end
+- Cross-reference with Phase B helper 1 extraction pattern (lines 761-996 in Phase B1a-loop1)
+- If still unclear, document ambiguity and commit what you have
 
-**Scenario C: HDF5 telemetry missing**
-- Stage B may not emit HDF5 in current code
-- Archive pytest log showing test completion
-- Note in summary.md: "Telemetry extraction deferred—HDF5 path TBD"
-- Proceed with C0 COMPLETE (pytest log is sufficient baseline)
+**Scenario C: Git Conflicts**
+- Run `git status` to identify conflicted files
+- Resolve conflicts manually (keep intended content)
+- Run `git add` on resolved files
+- Continue with commit
 
 ## Findings Applied
 
-- **REFINE-005**: Stage B requires halo-padded HKL grid (hkl_metadata['has_halo']=True) — baseline should enforce or document if missing
-- **REFINE-008**: Stage B shell modifier ±1% gate, ~6.4e-8% improvement ceiling — early_stop is EXPECTED
-- **PHYSICS-LOSS-001/002**: Variance-weighted loss + sigma_floor guard — telemetry should show variance_floor_clamp_fraction
-- **PERF-WARM-011/012**: CPU fallback for canonical (full detector), CUDA for small — cache_mode/roi_mode in perf_counters
-- **CONFORMANCE-001**: KMP_DUPLICATE_LIB_OK=TRUE environment flag required
-- **RUNTIME-001**: NANOBRAGG_DISABLE_COMPILE=1 for gradient/test stability
-- **TESTING-003**: Collection verification mandatory before pytest run
+- **REFINE-009** (canonical_roi_count scope fix) — Use `canonical_baseline["roi_count"]` not `canonical_roi_count`
+- **PERF-WARM-011** (Stage B GPU OOM) — CPU fallback logic must be preserved exactly
+- **PERF-WARM-012** (Stage B warm cache on CPU) — StageAContext cloning for CPU eval must be preserved
+- **PHYSICS-LOSS-002** (variance floor) — Variance floor telemetry accumulators must be in return dict
+- **REFINE-008** (Stage B acceptance gates) — Telemetry structure preserved for future validation
 
 ## Pointers
 
-- **Implementation plan:** plans/active/ARCH-REFINE-FLOW-001/implementation.md:179 (Phase C0 checklist)
-- **Phase B baseline reference:** plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T030000Z/baseline/ (pattern to mirror)
-- **Stage B contract:** docs/spec-db-workflow.md:31-34 (shell modifiers)
-- **Test harness:** tests/dbex/test_torch_refine_smoke.py:660-900 (test_stage_b_shell_modifiers)
-- **Stage B inline code:** dbex/nanobrag_refinement.py:2527-3137 (extraction target for Phase C1a)
-- **Findings ledger:** docs/findings.md (REFINE-005/008, PERF-WARM-011/012, PHYSICS-LOSS-001/002)
-- **Test registry:** docs/TESTING_GUIDE.md §2, docs/development/TEST_SUITE_INDEX.md
+- **Spec:** docs/spec-db-workflow.md §7 (Refinement Protocol Architecture)
+- **Implementation Plan:** plans/active/ARCH-REFINE-FLOW-001/implementation.md (Phase C checklist lines 179-186)
+- **Fix Plan:** docs/fix_plan.md:181-200 (ARCH-REFINE-FLOW-001 entry, Phase C status)
+- **Phase B Precedent:** plans/active/ARCH-REFINE-FLOW-001/implementation.md:86-109 (B1a-loop1/2/3 successful pattern)
+- **Phase C0 Baseline:** plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T061726Z/baseline/summary.md
+- **Findings:** docs/findings.md rows 67 (REFINE-009), 26 (PERF-WARM-011), 27 (PERF-WARM-012), 35 (PHYSICS-LOSS-002), 61 (REFINE-008)
 
-## Next Up
+## Next Up (if finished early)
 
-If C0 baseline collection succeeds:
-- Galph will plan C1a-loop1 (extract `_build_stage_b_params` helper ~140 lines)
-- Similar to Phase B1a-loop1 pattern (extract one helper, verify compilation, no regression guard until all helpers wired)
+**DO NOT start next helper.** This loop is scoped to helper 1 only. If you finish early:
+1. Double-check compilation passed (exit code 0)
+2. Verify diff patch generated
+3. Review Turn Summary for clarity
+4. Commit and push
+5. End loop gracefully
 
-If C0 blocked:
-- Document blocker in baseline/blocker.md
-- Galph reviews and decides escalation path (debug/simplify/defer)
+Galph will plan C1a-loop2 (extract `_build_stage_b_lbfgs_closure` helper) in the next supervisor iteration.

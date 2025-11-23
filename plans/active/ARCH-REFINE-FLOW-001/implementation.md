@@ -228,7 +228,16 @@
 - [ ] D1: Implement `StageC` class managing detector offset parameters, baseline detector seeding, and telemetry.
   - [x] D1a: Extract `_build_stage_c_params` helper (~156 lines) ✓ COMPLETE (2025-11-23T150000Z)
   - [x] D1b: Extract `_build_stage_c_lbfgs_closure` helper (~298 lines) ✓ COMPLETE (2025-11-23T141817Z)
-  - [ ] D1c: Extract `_run_stage_c_lbfgs` + wire all helpers + regression guard
+  - [x] D1c: Extract `_run_stage_c_lbfgs` + wire all helpers + regression guard ✓ COMPLETE (2025-11-23T141817Z, commit 7a92a87)
+    - Helper function signature: `_run_stage_c_lbfgs(...) -> Dict[str, Any]`
+    - Inserted at line 3194 (after _build_stage_c_lbfgs_closure)
+    - Extracted 296 lines (LBFGS execution + final validation + improvement gate + telemetry packaging)
+    - Removed inline Stage C code (420 lines, net reduction: 124 lines)
+    - Fixed dict key mismatches (target_t, loss_mask_t, sigma_readout_t, misset_deg_for_crystal)
+    - Added missing lazy imports to helper2 (create_detector_config, create_crystal_config)
+    - Defined _apply_baseline_detector_prior inline (18 lines orchestration glue)
+    - Both regression guards PASSED (small 15.99s + full detector)
+    - Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T141817Z/phase_d1c/
 - [ ] D2: Plug Stage C into the engine (A→B→C). Remove Stage C inline code from `run_nanobrag_refinement`.
 - [ ] D3: Ensure Stage C telemetry keeps canonical Stage A metadata and detector offset reduction stats.
 - [ ] D4: Rerun `tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip` (small + full) and archive logs/telemetry proving REFINE-007 gates still succeed.

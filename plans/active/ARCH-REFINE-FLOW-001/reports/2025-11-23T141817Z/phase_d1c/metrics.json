@@ -1,0 +1,9 @@
+{
+  "compilation_status": "PASS",
+  "helper_lines_extracted": 296,
+  "inline_lines_removed": 420,
+  "net_reduction": 124,
+  "small_detector_status": "PASS",
+  "full_detector_status": "PASS",
+  "decision_path": "A"
+}

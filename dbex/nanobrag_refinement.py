@@ -2750,6 +2750,7 @@ def _build_final_bragg_from_stage_b_telemetry(
     config,
     device,
     dtype,
+    use_stage_b_cpu_fallback=False,
     stage_a_ctx=None,
 ):
     """
@@ -2779,6 +2780,9 @@ def _build_final_bragg_from_stage_b_telemetry(
     Returns:
         bragg_full: np.ndarray, shape [n_panels, slow, fast], final Bragg image with shell modifiers
     """
+    # Route device to CPU when CPU fallback is active
+    final_device = torch.device("cpu") if use_stage_b_cpu_fallback else device
+
     # Lazy imports to avoid circular dependencies
     from nanobrag_torch.simulator import Simulator
     from nanobrag_torch.models.detector import Detector
@@ -2899,11 +2903,11 @@ def _build_final_bragg_from_stage_b_telemetry(
             warm_crystal_model = Crystal(
                 warm_crystal_config,
                 beam_config=stage_a_ctx.beam_config,
-                device=device,
+                device=final_device,
                 dtype=dtype,
             )
             warm_crystal_model.interpolate = True
-            warm_crystal_model.hkl_data = hkl_grid_modified.to(device=device, dtype=dtype)
+            warm_crystal_model.hkl_data = hkl_grid_modified.to(device=final_device, dtype=dtype)
             warm_crystal_model.hkl_metadata = hkl_metadata
             _retarget_stage_a_simulators(stage_a_ctx, warm_crystal_model)
 
@@ -2923,7 +2927,7 @@ def _build_final_bragg_from_stage_b_telemetry(
                 )
                 if detector_config.mask_array is not None and not isinstance(detector_config.mask_array, torch.Tensor):
                     detector_config.mask_array = torch.tensor(
-                        detector_config.mask_array, dtype=torch.float32, device=device
+                        detector_config.mask_array, dtype=torch.float32, device=final_device
                     )
                 crystal_config, _ = create_crystal_config(
                     crystal, None,
@@ -2931,12 +2935,12 @@ def _build_final_bragg_from_stage_b_telemetry(
                     misset_deg_override=final_misset,
                     apply_n_cells=False
                 )
-                detector_model = Detector(detector_config, device=device, dtype=dtype)
-                crystal_model = Crystal(crystal_config, device=device, dtype=dtype)
+                detector_model = Detector(detector_config, device=final_device, dtype=dtype)
+                crystal_model = Crystal(crystal_config, device=final_device, dtype=dtype)
                 crystal_model.interpolate = True
-                crystal_model.hkl_data = hkl_grid_modified.to(device=device, dtype=dtype)
+                crystal_model.hkl_data = hkl_grid_modified.to(device=final_device, dtype=dtype)
                 crystal_model.hkl_metadata = hkl_metadata
-                simulator = Simulator(detector=detector_model, crystal=crystal_model, device=device, dtype=dtype)
+                simulator = Simulator(detector=detector_model, crystal=crystal_model, device=final_device, dtype=dtype)
                 bragg_panel = simulator.run()
                 log_scale_clamped = torch.clamp(log_scale, min=-10.0, max=10.0)
                 bragg_scaled = bragg_panel * torch.exp(log_scale_clamped)
@@ -3108,6 +3112,29 @@ def run_nanobrag_refinement(
         # If CPU fallback is active, use CPU device for final Bragg reconstruction
         final_device = torch.device("cpu") if use_stage_b_cpu_fallback else device
 
+        # PERF-WARM-012: Clone Stage A context to CPU when CPU fallback is active
+        # (Mirrors logic in _build_stage_b_params lines 2199-2220)
+        stage_b_eval_stage_a_ctx = None
+        if use_stage_b_cpu_fallback and stage_a_ctx is not None and config.enable_stage_a_warm_cache:
+            # Build a fresh Stage A context on CPU device
+            cpu_device = torch.device("cpu")
+            stage_b_eval_stage_a_ctx = _build_stage_a_context(
+                detector=detector,
+                beam=beam,
+                crystal=crystal,
+                trusted_mask=inputs.trusted_mask,
+                hkl_grid=hkl_grid,
+                hkl_metadata=hkl_metadata,
+                enable_hkl_interpolation=config.enable_hkl_interpolation,
+                device=cpu_device,
+                dtype=dtype,
+                panel_slices=panel_slices,
+                enable_roi_mode=False,  # CPU fallback is panel-mode only
+            )
+        elif not use_stage_b_cpu_fallback:
+            # No CPU fallback: reuse the original CUDA Stage A context
+            stage_b_eval_stage_a_ctx = stage_a_ctx
+
         # Extract shell metadata from engine cache (cached separately from telemetry)
         shell_edges = getattr(engine, '_stage_b_shell_edges', None)
         shell_indices = getattr(engine, '_stage_b_shell_indices', None)
@@ -3136,7 +3163,8 @@ def run_nanobrag_refinement(
             config=config,
             device=final_device,  # Use CPU device if CPU fallback is active
             dtype=dtype,
-            stage_a_ctx=stage_a_ctx,
+            use_stage_b_cpu_fallback=use_stage_b_cpu_fallback,
+            stage_a_ctx=stage_b_eval_stage_a_ctx,  # Use CPU-cloned context when fallback active
         )
 
         # Repackage telemetry with backward-compatible keys ("A", "B")

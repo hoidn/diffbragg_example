@@ -1,5 +1,5 @@
 ### Turn Summary
-Ralph's loop i=214 instrumentation identified root cause with high confidence: CPU fallback condition logic is perfect (all flags evaluate correctly), but _build_final_bragg_from_stage_b_telemetry ignores the device routing.
-Drafted targeted 7-line fix adding use_stage_b_cpu_fallback parameter, computing final_device conditionally, and replacing 7 hardcoded device references.
-Next: Ralph implements device routing fix, validates on small+full detector tests, removes instrumentation if both pass, then Phase C2.2 complete.
-Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T100037Z/ (input.md, galph_memory entry)
+Implemented CPU fallback device routing fix: added `use_stage_b_cpu_fallback` parameter to final Bragg helper, routed device to CPU in 7 locations, and cloned Stage A context to CPU in engine delegation path.
+OOM error during final Bragg reconstruction is RESOLVED (test progresses past line 2912), but exposed pre-existing gradient computation bug in Stage B LBFGS closure (`element 0 of tensors does not require grad`).
+Next: Escalate gradient bug to Galph for architectural review - device routing fix is correct and complete, but CPU fallback implementation has deeper issues with gradient propagation.
+Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T100037Z/ (blocker.md, pytest_stage_b_full.log)

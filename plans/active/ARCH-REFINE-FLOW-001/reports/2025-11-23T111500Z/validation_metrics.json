@@ -1,0 +1,19 @@
+{
+  "full_detector": {
+    "test_passed": false,
+    "hkl_grad_diagnostics": [
+      "hkl_grid_modified.requires_grad=False, grad_fn=None, device=cpu",
+      "hkl_grid_modified.requires_grad=True, grad_fn=<WhereBackward0 object at 0x7068bdc67cd0>, device=cpu",
+      "hkl_grid_modified.requires_grad=False, grad_fn=None, device=cpu"
+    ],
+    "telemetry_status": "error",
+    "error_message": "element 0 of tensors does not require grad and does not have a grad_fn"
+  },
+  "small_detector": {
+    "test_passed": true,
+    "hkl_grad_diagnostics": [],
+    "telemetry_status": "converged",
+    "error_message": null
+  },
+  "decision_path": "B"
+}

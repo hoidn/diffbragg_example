@@ -185,6 +185,13 @@
     - Compilation PASSED (exit code 0)
     - Helper not yet wired (no behavior change)
     - Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-22T060833Z/
+  - [x] C1a-loop2: Extract `_build_stage_b_lbfgs_closure` helper (~317 lines) ✓ COMPLETE (2025-11-22T063000Z)
+    - Helper function signature: `_build_stage_b_lbfgs_closure(config, device, dtype, param_values, stage_a_ctx, stage_b_eval_stage_a_ctx, canonical_baseline, n_panels, sampled_stage_b_indices, full_stage_b_indices, sigma_floor_sq_cache, use_stage_b_cpu_fallback, stage_b_use_warm_cache, use_stage_b_roi_mode, crystal, hkl_metadata, hkl_grid, shell_indices, detector, beam, inputs, target_t, loss_mask_t, sigma_readout_t, baseline_misset_deg_tensor, panel_shape) -> Callable[[], torch.Tensor]`
+    - Inserted at line 2272 (after _build_stage_b_params, before run_nanobrag_refinement)
+    - Nested functions: compute_loss_stage_b (~203 lines) + closure_stage_b (~44 lines)
+    - Compilation PASSED (exit code 0)
+    - Helper not yet wired (no behavior change)
+    - Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-22T063000Z/
 - [ ] C2: Wire Stage B into the engine (A→B sequence), dropping the legacy inline code from `run_nanobrag_refinement`.
 - [ ] C3: Ensure Stage B telemetry includes `stage_b_mode`, shell modifier stats, and uses canonical Stage A metadata propagated through the engine context.
 - [ ] C4: Rerun `tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers` (small + full detectors). Capture collect-only logs and telemetry JSON; verify REFINE-008 gates still apply.

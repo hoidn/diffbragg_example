@@ -3167,7 +3167,7 @@ def run_nanobrag_refinement(
         # Repackage telemetry with backward-compatible keys ("A", "B")
         # Filter out stage_type/mode fields to maintain RefinementTelemetry structure
         from dataclasses import asdict
-        from dbex.nanobrag_refinement import RefinementTelemetry
+        # Note: RefinementTelemetry is already defined at module level (line 392), no import needed
 
         # Convert RefinementTelemetry dataclass instances to dicts before filtering
         telemetry_a_dict = asdict(telemetry_a_raw)
@@ -3825,10 +3825,18 @@ def run_nanobrag_refinement(
         # Stage C: Detector microslip (per-panel distance refinement)
         # ============================================================================
         if config.enable_stage_c:
+            # Compute baseline_detector_distances for Stage C telemetry (TORCH-REFINE-003)
+            # This is used to report initial detector offsets relative to nominal geometry
+            baseline_detector_distances = None
+            if baseline_detector is not None:
+                baseline_detector_distances = [
+                    baseline_detector[pid].get_directed_distance() for pid in range(n_panels)
+                ]
+
             # Freeze Stage A parameters (no grad)
             for p in params:
                 p.requires_grad = False
-    
+
             # Initialize per-panel distance offsets (mm along panel normal)
             # Start at zero (identity), bounded by tanh to ±max_distance_delta_mm
             distance_offset_raw = torch.zeros(n_panels, device=device, dtype=dtype, requires_grad=True)

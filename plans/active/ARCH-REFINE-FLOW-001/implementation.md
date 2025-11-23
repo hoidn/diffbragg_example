@@ -218,7 +218,13 @@
 - Concrete Stage B implementations should wire loss, variance, and telemetry through the same helpers used by Stage A (PHYSICS-LOSS-001)—including sigma_floor handling, chi-squared vs masked-MSE reporting, and perf counters—so the engine sees a uniform contract across stages.
 
 ## Phase D — Stage C Extraction
-- [ ] D0: Baseline Stage C artifacts (full-detector run + telemetry) recorded pre-refactor.
+- [x] D0: Baseline Stage C artifacts recorded before extraction. ✓ COMPLETE (2025-11-23T143000Z)
+  - Small detector: PASS (16.0s, exit code 0)
+  - Full detector: PASS (40.83s, exit code 0)
+  - Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T143000Z/baseline/
+  - Decision: Path A (both PASS → Phase D1 ready)
+  - Bugfixes: 2 blocking bugs fixed (UnboundLocalError, NameError for baseline_detector_distances)
+  - Patches: unbound_local_error_fix.patch, stage_c_bugfix.patch
 - [ ] D1: Implement `StageC` class managing detector offset parameters, baseline detector seeding, and telemetry.
 - [ ] D2: Plug Stage C into the engine (A→B→C). Remove Stage C inline code from `run_nanobrag_refinement`.
 - [ ] D3: Ensure Stage C telemetry keeps canonical Stage A metadata and detector offset reduction stats.

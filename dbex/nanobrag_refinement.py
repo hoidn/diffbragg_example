@@ -2444,7 +2444,16 @@ def _build_stage_b_lbfgs_closure(
             modifier_value = shell_modifiers[shell_idx]
             if modifier_value.device != eval_device:
                 modifier_value = modifier_value.to(device=eval_device)
-            hkl_grid_modified[mask] = hkl_grid_local[mask] * modifier_value
+            # Out-of-place: creates NEW tensor with gradient graph
+            hkl_grid_modified = torch.where(
+                mask,  # Boolean mask [panels, slow, fast]
+                hkl_grid_local * modifier_value,  # Gradient-enabled operation
+                hkl_grid_modified  # Keep existing values for non-matching shells
+            )
+
+        # DIAGNOSTIC: Verify HKL grid has gradients after out-of-place construction
+        print(f"[HKL_GRAD_CHECK] hkl_grid_modified.requires_grad={hkl_grid_modified.requires_grad}, "
+              f"grad_fn={hkl_grid_modified.grad_fn}, device={hkl_grid_modified.device}")
 
         # PERF-WARM-012: Use the eval-device-specific Stage A context (CPU or CUDA)
         use_warm_eval = stage_b_use_warm_cache

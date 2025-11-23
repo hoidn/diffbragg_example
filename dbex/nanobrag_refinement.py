@@ -2124,6 +2124,15 @@ def _build_stage_b_params(
             - full_stage_b_indices: List[int]
             - default_f_fallback_count: int
     """
+    # PERF-WARM-011: Compute CPU fallback condition FIRST so we can use it for device-aware parameter init
+    # When config.stage_b_full_eval_on_cpu is True, device is CUDA, and ROI mode is disabled,
+    # route Stage B panel-mode closures/validations to CPU to avoid GPU OOM
+    use_stage_b_cpu_fallback = (
+        config.stage_b_full_eval_on_cpu
+        and str(device).startswith("cuda")
+        and not use_stage_a_roi_mode  # ROI mode is disabled (panel mode)
+    )
+
     # Compute shell lookup for per-shell modifiers
     shell_indices, shell_edges = compute_hkl_shell_lookup(
         crystal, hkl_metadata, n_shells=config.stage_b_n_shells, device=device, dtype=dtype
@@ -2131,7 +2140,8 @@ def _build_stage_b_params(
 
     # Initialize shell modifiers (softplus parameterization to keep multipliers positive)
     # Start near identity: softplus(0) ≈ 0.69, so initialize slightly negative to get ~1.0
-    stage_b_param_device = torch.device(config.device)
+    # GRADIENT-001: Create parameters on CPU when CPU fallback active to prevent gradient chain break
+    stage_b_param_device = torch.device("cpu") if use_stage_b_cpu_fallback else torch.device(config.device)
     shell_modifier_raw = torch.zeros(config.stage_b_n_shells, device=stage_b_param_device, dtype=dtype, requires_grad=True)
     identity_raw = math.log(math.expm1(0.5))  # softplus(identity_raw)*2 == 1.0
     shell_modifier_raw.data.fill_(identity_raw)
@@ -2171,28 +2181,22 @@ def _build_stage_b_params(
     variance_floor_clamped_pixels_b = [0]  # Total pixels where floor engaged
     variance_floor_masked_pixels_b = [0]  # Total masked pixels evaluated
 
-    # PERF-WARM-011 + PERF-WARM-012: CPU fallback for canonical Stage B runs to avoid GPU OOM
-    # When config.stage_b_full_eval_on_cpu is True, device is CUDA, and ROI mode is disabled,
-    # route Stage B panel-mode closures/validations to CPU but KEEP warm cache by cloning
-    # the Stage A context onto CPU so detectors/simulators/masks are reused
-    use_stage_b_cpu_fallback = (
-        config.stage_b_full_eval_on_cpu
-        and str(device).startswith("cuda")
-        and not use_stage_a_roi_mode  # ROI mode is disabled (panel mode)
-    )
-
+    # PERF-WARM-012: CPU fallback already computed above for device-aware parameter init
     # DIAGNOSTIC INSTRUMENTATION (TEMPORARY — remove after CPU fallback bug fixed)
     import json
     fallback_diagnostics = {
         "location": "_build_stage_b_params",
         "config_stage_b_full_eval_on_cpu": config.stage_b_full_eval_on_cpu,
-        "device_str": str(device),
+        "device_global": str(device),
         "device_type": type(device).__name__,
         "device_is_cuda": str(device).startswith("cuda"),
         "use_stage_a_roi_mode": use_stage_a_roi_mode,
         "use_stage_a_roi_mode_type": type(use_stage_a_roi_mode).__name__,
         "stage_a_ctx_is_not_none": stage_a_ctx is not None,
         "use_stage_b_cpu_fallback": use_stage_b_cpu_fallback,
+        "stage_b_param_device": str(stage_b_param_device),
+        "shell_modifier_raw_device": str(shell_modifier_raw.device),
+        "shell_modifier_raw_requires_grad": shell_modifier_raw.requires_grad,
     }
     print(f"CPU_FALLBACK_DIAGNOSTICS_PARAMS: {json.dumps(fallback_diagnostics)}", flush=True)
 
@@ -2387,9 +2391,16 @@ def _build_stage_b_lbfgs_closure(
         eval_device_diagnostics = {
             "location": "_build_stage_b_lbfgs_closure",
             "use_stage_b_cpu_fallback": use_stage_b_cpu_fallback,
-            "device_param": str(device),
+            "is_full": is_full,
+            "grad_enabled": torch.is_grad_enabled(),
+            "device_global": str(device),
+            "shell_modifier_raw_device": str(shell_modifier_raw.device),
+            "shell_modifiers_device": str(shell_modifiers.device),
             "eval_device": str(eval_device),
             "eval_device_type": eval_device.type,
+            "shell_modifier_raw_requires_grad": shell_modifier_raw.requires_grad,
+            "shell_modifiers_requires_grad": shell_modifiers.requires_grad,
+            "shell_modifiers_grad_fn": str(shell_modifiers.grad_fn) if shell_modifiers.grad_fn else "None",
         }
         print(f"CPU_FALLBACK_DIAGNOSTICS_CLOSURE: {json.dumps(eval_device_diagnostics)}", flush=True)
 

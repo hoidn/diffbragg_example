@@ -2181,6 +2181,21 @@ def _build_stage_b_params(
         and not use_stage_a_roi_mode  # ROI mode is disabled (panel mode)
     )
 
+    # DIAGNOSTIC INSTRUMENTATION (TEMPORARY — remove after CPU fallback bug fixed)
+    import json
+    fallback_diagnostics = {
+        "location": "_build_stage_b_params",
+        "config_stage_b_full_eval_on_cpu": config.stage_b_full_eval_on_cpu,
+        "device_str": str(device),
+        "device_type": type(device).__name__,
+        "device_is_cuda": str(device).startswith("cuda"),
+        "use_stage_a_roi_mode": use_stage_a_roi_mode,
+        "use_stage_a_roi_mode_type": type(use_stage_a_roi_mode).__name__,
+        "stage_a_ctx_is_not_none": stage_a_ctx is not None,
+        "use_stage_b_cpu_fallback": use_stage_b_cpu_fallback,
+    }
+    print(f"CPU_FALLBACK_DIAGNOSTICS_PARAMS: {json.dumps(fallback_diagnostics)}", flush=True)
+
     # PERF-WARM-012: Clone StageAContext to CPU when fallback is active so Stage B can reuse
     # cached detectors/HKL/masks even on CPU, maintaining cache_mode="warm"
     stage_b_eval_stage_a_ctx = None
@@ -2366,6 +2381,18 @@ def _build_stage_b_lbfgs_closure(
 
         # PERF-WARM-011: Route to CPU when fallback is active (panel mode + CUDA + config flag)
         eval_device = torch.device("cpu") if use_stage_b_cpu_fallback else device
+
+        # DIAGNOSTIC INSTRUMENTATION (TEMPORARY — remove after CPU fallback bug fixed)
+        import json
+        eval_device_diagnostics = {
+            "location": "_build_stage_b_lbfgs_closure",
+            "use_stage_b_cpu_fallback": use_stage_b_cpu_fallback,
+            "device_param": str(device),
+            "eval_device": str(eval_device),
+            "eval_device_type": eval_device.type,
+        }
+        print(f"CPU_FALLBACK_DIAGNOSTICS_CLOSURE: {json.dumps(eval_device_diagnostics)}", flush=True)
+
         chi_squared_accum = torch.tensor(0.0, device=eval_device, dtype=dtype)
         mse_numerator_accum = torch.tensor(0.0, device=eval_device, dtype=dtype)
         n_pixels_accum = 0

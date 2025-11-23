@@ -36,11 +36,15 @@ def _record_stage_telemetry(stage_label: str, telemetry, dataset_size: str, meta
     if hasattr(telemetry, 'param_deltas') and telemetry.param_deltas:
         for key, value in telemetry.param_deltas.items():
             if isinstance(value, dict):
-                # Nested dict (e.g., Stage A initial/final pairs)
-                param_deltas_serialized[key] = {
-                    k: float(v) if hasattr(v, 'item') else float(v)
-                    for k, v in value.items()
-                }
+                # Nested dict (e.g., Stage A initial/final pairs or misset_xyz_deg)
+                param_deltas_serialized[key] = {}
+                for k, v in value.items():
+                    if isinstance(v, (list, tuple)):
+                        # Nested list within dict (e.g., misset_xyz_deg initial/final)
+                        param_deltas_serialized[key][k] = [float(x) if hasattr(x, 'item') else float(x) for x in v]
+                    else:
+                        # Scalar within dict
+                        param_deltas_serialized[key][k] = float(v) if hasattr(v, 'item') else float(v)
             elif isinstance(value, (list, tuple)):
                 # List/array values
                 param_deltas_serialized[key] = [float(x) if hasattr(x, 'item') else float(x) for x in value]

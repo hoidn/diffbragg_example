@@ -29,5 +29,6 @@ Usage:
 
 from .engine import RefinementEngine
 from .stage import RefinementStage, RefinementTelemetry
+from .stage_a import StageA
 
-__all__ = ["RefinementEngine", "RefinementStage", "RefinementTelemetry"]
+__all__ = ["RefinementEngine", "RefinementStage", "RefinementTelemetry", "StageA"]

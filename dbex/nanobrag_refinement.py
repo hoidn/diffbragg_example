@@ -3045,6 +3045,8 @@ def run_nanobrag_refinement(
         }
 
         # Instantiate RefinementEngine with StageA → StageB sequence
+        # Note: CPU fallback for Stage B (PERF-WARM-011/012) is handled internally by
+        # _build_stage_b_params which receives stage_a_ctx from StageA via engine propagation
         engine = RefinementEngine(stages=[StageA(), StageB()], config=config)
 
         # Execute engine and get telemetry dict (keyed by stage.name = "stage_a", "stage_b")
@@ -3060,6 +3062,24 @@ def run_nanobrag_refinement(
 
         # Extract stage_a_ctx from engine cache (cached separately from telemetry)
         stage_a_ctx = getattr(engine, '_stage_a_ctx_cache', None)
+
+        # PERF-WARM-011: Recompute CPU fallback decision for final Bragg reconstruction
+        # Same logic as in _build_stage_b_params (lines 2178-2182)
+        panel_slices = inputs.panel_slices
+        canonical_roi_count = len(panel_slices)
+        use_stage_a_roi_mode = bool(
+            config.enable_stage_a_roi_mode
+            and canonical_roi_count > 0
+            and (config.enable_stage_a_warm_cache or config.allow_cold_stage_a_roi_mode)
+        )
+        use_stage_b_cpu_fallback = (
+            config.stage_b_full_eval_on_cpu
+            and str(device).startswith("cuda")
+            and not use_stage_a_roi_mode  # ROI mode is disabled (panel mode)
+        )
+
+        # If CPU fallback is active, use CPU device for final Bragg reconstruction
+        final_device = torch.device("cpu") if use_stage_b_cpu_fallback else device
 
         # Extract shell metadata from engine cache (cached separately from telemetry)
         shell_edges = getattr(engine, '_stage_b_shell_edges', None)
@@ -3087,7 +3107,7 @@ def run_nanobrag_refinement(
             hkl_grid=hkl_grid,
             hkl_metadata=hkl_metadata,
             config=config,
-            device=device,
+            device=final_device,  # Use CPU device if CPU fallback is active
             dtype=dtype,
             stage_a_ctx=stage_a_ctx,
         )

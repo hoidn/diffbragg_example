@@ -1,0 +1,1363 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 1 item
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip FAILED [100%]
+
+=================================== FAILURES ===================================
+_______________________ test_stage_c_detector_microslip ________________________
+
+refgeom_dataload = <dbex.data_load.DataLoad object at 0x70dc8244bd60>
+refinement_inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0.,...0.]]], dtype=float32), target_representation='adu', global_scale_hint=86.34794146217338, sigma_readout_provenance=None)
+hkl_data = (tensor([[[0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0.,...uda:0'), {'grid_max': 518.3336791992188, 'grid_mean': 16.896526336669922, 'grid_min': 0.0, 'grid_nonzero': 69614, ...})
+smoke_detector_size = 'small', smoke_sigma_source = 'cli_override'
+
+    @pytest.mark.allow_metadata_sigma
+    def test_stage_c_detector_microslip(
+        refgeom_dataload,
+        refinement_inputs,
+        hkl_data,
+        smoke_detector_size,
+        smoke_sigma_source,
+    ):
+        """
+        Verify Stage C detector distance refinement pulls injected ±0.25 mm offsets back toward zero.
+    
+        Acceptance criteria (TORCH-REFINE-003 + REFINE-007 telemetry recalibration):
+        1. Stage A + Stage C run without errors (status != "error")
+        2. Stage C telemetry contains per-panel distance_offset parameters
+        3. On the canonical detector (`--smoke-detector-size=full`), each panel offset shrinks by ≥80%
+           or lands within ±0.05 mm of the nominal geometry, and Stage C does not increase chi-squared
+           relative to Stage A by more than 0.05%.
+        4. Full-loss trace (Stage C) is non-increasing over last 3 validations
+        5. Stage A telemetry is preserved and not regressed by Stage C
+    
+        Environment:
+        - Requires: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1
+        - Selector: pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip
+    
+        Per docs/spec-db-workflow.md:35, Stage C refines per-panel translations along detector
+        normal (distance offset) with rotations fixed. The test applies deterministic detector
+        perturbation via create_perturbed_geometry(enable_detector_perturbation=True), then runs
+        Stage A followed by Stage C. Canonical `--smoke-detector-size=full` strict gates now rely on
+        the recorded detector-offset telemetry (REFINE-007 / docs/findings.md#L43) rather than a
+        chi-squared percentage floor: we require ≥80% reduction toward zero (or ≤0.05 mm absolute
+        distance) and a non-regressing chi-squared trace (≤+0.05% vs Stage A). Telemetry emitted via
+        `DBEX_SMOKE_TELEMETRY_PATH` is archived under PERF-SMOKE-DETSIZE for PHYSICS-LOSS-001 parity
+        evidence.
+        """
+        from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig
+    
+        print(f"\n[test_stage_c_detector_microslip] detector={smoke_detector_size}")
+        strict_gates = smoke_detector_size == "full"
+    
+        hkl_grid, hkl_metadata = hkl_data
+    
+        # Configure refinement (Stage A + Stage C per TORCH-REFINE-003)
+        sigma_provenance = "external_lookup" if smoke_sigma_source == "metadata" else "cli_override"
+    
+        config = RefinementConfig(
+            device='cuda:0',
+            dtype=torch.float32,
+            history_size=10,
+            max_iter=30,  # ≤30 steps per stage
+            roi_sample_fraction=0.15,
+            full_validation_interval=5,
+            min_loss_improvement=0.0,  # Strict gates enforced via telemetry asserts (REFINE-007)
+            enable_hkl_interpolation=True,  # Tricubic with haloed grid
+            enable_stage_c=True,  # Enable Stage C detector distance refinement
+            stage_c_min_loss_improvement=0.0,
+            stage_c_max_distance_delta_mm=0.5,  # ±0.5mm max offset per panel
+            sigma_readout_provenance=sigma_provenance,
+        )
+    
+        # Create perturbed geometry with detector offsets (TORCH-REFINE-003)
+        # Applies alternating ±0.25mm distance offsets to detector panels
+        baseline_crystal = refgeom_dataload.Expt.crystal
+        baseline_detector = refgeom_dataload.Expt.detector
+        baseline_beam = refgeom_dataload.Expt.beam
+    
+        detector_offset_mm = 0.25
+        perturbed_crystal, perturbed_detector, perturbed_beam = create_perturbed_geometry(
+            baseline_crystal, baseline_detector, baseline_beam,
+            enable_detector_perturbation=True,  # Enable detector distance offsets
+            detector_distance_offset_mm=detector_offset_mm  # ±0.25mm alternating pattern
+        )
+    
+        # Run refinement with Stage A + Stage C
+>       bragg_refined, telemetry_dict = run_nanobrag_refinement(
+            inputs=refinement_inputs,
+            detector=perturbed_detector,
+            beam=perturbed_beam,
+            crystal=perturbed_crystal,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            config=config,
+            baseline_crystal=baseline_crystal,
+            baseline_detector=baseline_detector
+        )
+
+tests/dbex/test_torch_refine_smoke.py:861: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0.,...0.]]], dtype=float32), target_representation='adu', global_scale_hint=86.34794146217338, sigma_readout_provenance=None)
+detector = <dxtbx_model_ext.Detector object at 0x70dc8e63d740>
+beam = <dxtbx_model_ext.Beam object at 0x70dc8ec3b7b0>
+crystal = <dxtbx_model_ext.Crystal object at 0x70dc8e6fe950>
+hkl_grid = tensor([[[0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., ... ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., 0.]]], device='cuda:0')
+hkl_metadata = {'grid_max': 518.3336791992188, 'grid_mean': 16.896526336669922, 'grid_min': 0.0, 'grid_nonzero': 69614, ...}
+config = RefinementConfig(history_size=10, max_iter=30, tolerance_grad=1e-07, tolerance_change=1e-09, roi_sample_fraction=0.15,...ce='cli_override', sigma_readout_reference_value=None, telemetry_output_dir=None, device='cuda:0', dtype=torch.float32)
+baseline_crystal = <dxtbx_model_ext.MosaicCrystalSauter2014 object at 0x70dc8ec55090>
+baseline_detector = <dxtbx_model_ext.Detector object at 0x70dc8ec3b820>
+
+    def run_nanobrag_refinement(
+        inputs,
+        detector,
+        beam,
+        crystal,
+        hkl_grid: torch.Tensor,
+        hkl_metadata: Dict,
+        config: Optional[RefinementConfig] = None,
+        baseline_crystal=None,
+        baseline_detector=None
+    ) -> Tuple[np.ndarray, Dict[str, RefinementTelemetry]]:
+        """
+        Run Stage A (+ optional Stage C) LBFGS refinement on nanobrag_torch simulator.
+    
+        Stage A optimizes:
+        - log_scale: global intensity scale (ADU mode)
+        - log_cell_*_delta: unit cell length perturbations (a/b/c)
+        - angle_*_raw: unit cell angle perturbations (alpha/beta/gamma)
+        - orientation_vec: crystal misorientation (3-vector → quaternion → XYZ Euler)
+    
+        Stage C (when config.enable_stage_c=True) optimizes:
+        - per-panel detector distance offsets along panel normal (odet_vec)
+    
+        Args:
+            inputs: RefinementInputs with target, loss_mask, panel_slices, trusted_mask
+            detector: dxtbx Detector object (multi-panel, possibly perturbed for Stage C smoke)
+            beam: dxtbx Beam object
+            crystal: dxtbx Crystal object (possibly perturbed from baseline)
+            hkl_grid: torch.Tensor structure factor grid (P1 dense)
+            hkl_metadata: dict with grid dimensions and metadata
+            config: Optional RefinementConfig; uses defaults if None
+            baseline_crystal: Optional baseline dxtbx Crystal object for extracting deterministic
+                            misset when `crystal` is perturbed (TORCH-REFINE-002D). When provided,
+                            computes U_delta = U_perturbed @ U_baseline^{-1} and adds it to the
+                            orientation refinement path as a tensor to preserve differentiability.
+            baseline_detector: Optional dxtbx Detector capturing the unperturbed geometry. When
+                            provided, Stage C telemetry records initial/final offsets relative to this
+                            baseline; otherwise offsets are reported relative to the perturbed detector.
+    
+        Returns:
+            Tuple of:
+            - Bragg: np.ndarray [panel, slow, fast] final simulated intensities after all stages (CPU, float32)
+            - telemetry_dict: Dict[str, RefinementTelemetry] keyed by stage label ("A", "C")
+                             Always contains "A"; contains "C" only when config.enable_stage_c=True
+    
+        Raises:
+            RuntimeError: If simulator fails or gradients are NaN/Inf
+        """
+        if os.environ.get("NANOBRAGG_DISABLE_COMPILE") == "1":
+            os.environ.setdefault("TORCHDYNAMO_DISABLE", "1")
+        from nanobrag_torch.simulator import Simulator
+        from nanobrag_torch.models.detector import Detector
+        from nanobrag_torch.models.crystal import Crystal
+        from dbex.nanobrag_bridge import (
+            create_detector_config,
+            create_beam_config,
+            create_crystal_config,
+            compute_baseline_misset_deg,
+        )
+    
+        if config is None:
+            config = RefinementConfig()
+    
+        # Detect Stage-A-only mode for conditional engine delegation (Phase B2)
+        stage_a_only_mode = (not config.enable_stage_c and not config.enable_stage_b)
+    
+        # Detect Stage A→B mode for conditional engine delegation (Phase C2)
+        stage_a_b_mode = (not config.enable_stage_c and config.enable_stage_b)
+    
+        if stage_a_only_mode:
+            # === ENGINE DELEGATION PATH (Phase B2) ===
+            # Lazy imports to avoid circular dependencies at module load time
+            from dbex.refinement.engine import RefinementEngine
+            from dbex.refinement.stage_a import StageA
+    
+            # Build inputs dict per StageA.run() contract (dbex/refinement/stage_a.py:71-78)
+            engine_inputs = {
+                'refinement_inputs': inputs,
+                'detector': detector,
+                'beam': beam,
+                'crystal': crystal,
+                'hkl_grid': hkl_grid,
+                'hkl_metadata': hkl_metadata,
+                'baseline_crystal': baseline_crystal,
+                'baseline_detector': baseline_detector,
+            }
+    
+            # Instantiate RefinementEngine with StageA
+            engine = RefinementEngine(stages=[StageA()], config=config)
+    
+            # Execute engine and get telemetry dict (keyed by stage.name = "stage_a")
+            telemetry_dict = engine.run(engine_inputs)
+    
+            # Extract StageA telemetry (keyed by "stage_a" per StageA.name property)
+            telemetry_a = telemetry_dict["stage_a"]
+    
+            # Build final Bragg array using optimized parameters from telemetry
+            device = torch.device(config.device)
+            dtype = config.dtype
+            bragg_full = _build_final_bragg_from_stage_a_telemetry(
+                telemetry_a, detector, beam, crystal, inputs, hkl_grid,
+                hkl_metadata, config, device, dtype
+            )
+    
+            # Return with telemetry dict using "A" key for backward compatibility
+            # (Legacy code expects {"A": RefinementTelemetry, ...})
+            return bragg_full, {"A": telemetry_a}
+    
+        elif stage_a_b_mode:
+            # === ENGINE DELEGATION PATH (Phase C2: A→B) ===
+            from dbex.refinement.engine import RefinementEngine
+            from dbex.refinement.stage_a import StageA
+            from dbex.refinement.stage_b import StageB
+    
+            # Build inputs dict per StageA/StageB.run() contract
+            engine_inputs = {
+                'refinement_inputs': inputs,
+                'detector': detector,
+                'beam': beam,
+                'crystal': crystal,
+                'hkl_grid': hkl_grid,
+                'hkl_metadata': hkl_metadata,
+                'baseline_crystal': baseline_crystal,
+                'baseline_detector': baseline_detector,
+            }
+    
+            # Instantiate RefinementEngine with StageA → StageB sequence
+            # Note: CPU fallback for Stage B (PERF-WARM-011/012) is handled internally by
+            # _build_stage_b_params which receives stage_a_ctx from StageA via engine propagation
+            engine = RefinementEngine(stages=[StageA(), StageB()], config=config)
+    
+            # Execute engine and get telemetry dict (keyed by stage.name = "stage_a", "stage_b")
+            telemetry_dict = engine.run(engine_inputs)
+    
+            # Extract Stage A and Stage B telemetry (keyed by "stage_a", "stage_b" per stage.name property)
+            telemetry_a_raw = telemetry_dict["stage_a"]
+            telemetry_b_raw = telemetry_dict["stage_b"]
+    
+            # Build final Bragg array using Stage B optimized shell modifiers
+            device = torch.device(config.device)
+            dtype = config.dtype
+    
+            # Extract stage_a_ctx from engine cache (cached separately from telemetry)
+            stage_a_ctx = getattr(engine, '_stage_a_ctx_cache', None)
+    
+            # PERF-WARM-011: Recompute CPU fallback decision for final Bragg reconstruction
+            # Same logic as in _build_stage_b_params (lines 2178-2182)
+            panel_slices = inputs.panel_slices
+            canonical_roi_count = len(panel_slices)
+            use_stage_a_roi_mode = bool(
+                config.enable_stage_a_roi_mode
+                and canonical_roi_count > 0
+                and (config.enable_stage_a_warm_cache or config.allow_cold_stage_a_roi_mode)
+            )
+            use_stage_b_cpu_fallback = (
+                config.stage_b_full_eval_on_cpu
+                and str(device).startswith("cuda")
+                and not use_stage_a_roi_mode  # ROI mode is disabled (panel mode)
+            )
+    
+            # If CPU fallback is active, use CPU device for final Bragg reconstruction
+            final_device = torch.device("cpu") if use_stage_b_cpu_fallback else device
+    
+            # PERF-WARM-012: Clone Stage A context to CPU when CPU fallback is active
+            # (Mirrors logic in _build_stage_b_params lines 2199-2220)
+            stage_b_eval_stage_a_ctx = None
+            if use_stage_b_cpu_fallback and stage_a_ctx is not None and config.enable_stage_a_warm_cache:
+                # Build a fresh Stage A context on CPU device
+                cpu_device = torch.device("cpu")
+                stage_b_eval_stage_a_ctx = _build_stage_a_context(
+                    detector=detector,
+                    beam=beam,
+                    crystal=crystal,
+                    trusted_mask=inputs.trusted_mask,
+                    hkl_grid=hkl_grid,
+                    hkl_metadata=hkl_metadata,
+                    enable_hkl_interpolation=config.enable_hkl_interpolation,
+                    device=cpu_device,
+                    dtype=dtype,
+                    panel_slices=panel_slices,
+                    enable_roi_mode=False,  # CPU fallback is panel-mode only
+                )
+            elif not use_stage_b_cpu_fallback:
+                # No CPU fallback: reuse the original CUDA Stage A context
+                stage_b_eval_stage_a_ctx = stage_a_ctx
+    
+            # Extract shell metadata from engine cache (cached separately from telemetry)
+            shell_edges = getattr(engine, '_stage_b_shell_edges', None)
+            shell_indices = getattr(engine, '_stage_b_shell_indices', None)
+            n_shells = getattr(engine, '_stage_b_n_shells', None)
+    
+            # Create a dict version of telemetry_b with shell metadata for the helper
+            from dataclasses import asdict
+            telemetry_b_dict = asdict(telemetry_b_raw)
+            if shell_edges is not None:
+                telemetry_b_dict['shell_edges'] = shell_edges
+            if shell_indices is not None:
+                telemetry_b_dict['shell_indices'] = shell_indices
+            if n_shells is not None:
+                telemetry_b_dict['n_shells'] = n_shells
+    
+            bragg_full = _build_final_bragg_from_stage_b_telemetry(
+                telemetry_a=telemetry_a_raw,
+                telemetry_b=telemetry_b_dict,
+                detector=detector,
+                beam=beam,
+                crystal=crystal,
+                baseline_crystal=baseline_crystal,
+                inputs=inputs,
+                hkl_grid=hkl_grid,
+                hkl_metadata=hkl_metadata,
+                config=config,
+                device=final_device,  # Use CPU device if CPU fallback is active
+                dtype=dtype,
+                use_stage_b_cpu_fallback=use_stage_b_cpu_fallback,
+                stage_a_ctx=stage_b_eval_stage_a_ctx,  # Use CPU-cloned context when fallback active
+            )
+    
+            # Repackage telemetry with backward-compatible keys ("A", "B")
+            # Filter out stage_type/mode fields to maintain RefinementTelemetry structure
+            from dataclasses import asdict
+            from dbex.nanobrag_refinement import RefinementTelemetry
+    
+            # Convert RefinementTelemetry dataclass instances to dicts before filtering
+            telemetry_a_dict = asdict(telemetry_a_raw)
+            telemetry_b_dict = asdict(telemetry_b_raw)
+    
+            # Filter out extra fields not in RefinementTelemetry schema
+            telemetry_b = RefinementTelemetry(**{k: v for k, v in telemetry_b_dict.items() if k not in ['stage_type', 'mode', 'shell_edges', 'shell_indices', 'n_shells']})
+            telemetry_a = RefinementTelemetry(**{k: v for k, v in telemetry_a_dict.items() if k not in ['stage_type', 'mode', 'stage_a_ctx']})
+    
+            return bragg_full, {"A": telemetry_a, "B": telemetry_b}
+    
+        else:
+            # === INLINE PATH (existing implementation) ===
+            # All existing Stage A/B/C logic stays here
+            sigma_floor_sq_cache: Dict[Tuple[str, torch.dtype], torch.Tensor] = {}
+    
+            # Move inputs to device
+            device = torch.device(config.device)
+            dtype = config.dtype
+            target_t = torch.from_numpy(inputs.target).to(device=device, dtype=dtype)
+            loss_mask_t = torch.from_numpy(inputs.loss_mask).to(device=device, dtype=torch.bool)
+            sigma_readout_t = torch.from_numpy(inputs.sigma_readout).to(device=device, dtype=dtype)
+    
+            # Extract deterministic misset from perturbed geometry (TORCH-REFINE-002D)
+            # Compute U_delta = U_perturbed @ U_baseline^{-1} and convert to XYZ Euler angles
+            baseline_misset_deg_tensor = compute_baseline_misset_deg(
+                crystal,
+                baseline_crystal,
+                device=device,
+                dtype=dtype,
+            )
+    
+            # === Stage A parameter initialization and telemetry setup ===
+            # Call helper 1
+            helper1_result = _build_stage_a_params(
+                crystal, detector, inputs, config, device, dtype, hkl_grid, hkl_metadata,
+                sigma_floor_sq_cache, baseline_crystal, baseline_detector, beam
+            )
+            params = helper1_result['params']
+            param_values = helper1_result['param_values']
+            telemetry_state = helper1_result['telemetry_state']
+            optimizer = helper1_result['optimizer']
+            stage_a_context = helper1_result['stage_a_context']
+    
+            # Unpack needed variables for helper 2/3 calls and final Bragg generation
+            initial_log_scale = param_values['initial_log_scale']  # For telemetry
+            log_scale = param_values['log_scale']
+            log_cell_a_delta = param_values['log_cell_a_delta']
+            log_cell_b_delta = param_values['log_cell_b_delta']
+            log_cell_c_delta = param_values['log_cell_c_delta']
+            angle_alpha_raw = param_values['angle_alpha_raw']
+            angle_beta_raw = param_values['angle_beta_raw']
+            angle_gamma_raw = param_values['angle_gamma_raw']
+            orientation_vec = param_values['orientation_vec']
+            # baseline_misset_deg_tensor is computed OUTSIDE the helper (line 1961), not in any dict
+            q_params = param_values.get('q_params')
+            B_ideal_reciprocal_torch = param_values.get('B_ideal_reciprocal_torch')
+            q_delta = param_values.get('q_delta')
+            U_baseline = param_values.get('U_baseline')
+            cell_baseline = param_values.get('cell_baseline')
+            canonical_baseline = stage_a_context['canonical_baseline']
+            full_stage_a_indices = stage_a_context['full_stage_a_indices']
+            stage_a_roi_label = stage_a_context['stage_a_roi_label']
+            use_stage_a_roi_mode = stage_a_context['use_stage_a_roi_mode']
+            stage_a_total_work_items = stage_a_context['stage_a_total_work_items']
+            stage_a_ctx = stage_a_context['stage_a_ctx']
+            sampled_panel_ids = stage_a_context['sampled_panel_ids']
+            sampled_stage_a_indices = stage_a_context['sampled_stage_a_indices']
+            # n_panels, panel_shape, and panel_slices are NOT in stage_a_context - compute directly
+            n_panels = len(detector)
+            panel_shape = inputs.target.shape[1:]  # (slow, fast)
+            panel_slices = inputs.panel_slices
+            # Unpack telemetry variables for final telemetry assembly
+            perf_closure_evals = telemetry_state['perf_closure_evals']
+            perf_validation_runs = telemetry_state['perf_validation_runs']
+            perf_forward_times_ms = telemetry_state['perf_forward_times_ms']
+            variance_floor_clamped_pixels = telemetry_state['variance_floor_clamped_pixels']
+            variance_floor_masked_pixels = telemetry_state['variance_floor_masked_pixels']
+            chi_squared_trace_full = telemetry_state['chi_squared_trace_full']
+            masked_mse_trace_full = telemetry_state['masked_mse_trace_full']
+            chi_squared_best = telemetry_state['chi_squared_best']
+            masked_mse_best = telemetry_state['masked_mse_best']
+            # Unpack remaining telemetry variables used later in main function
+            loss_trace_sample = telemetry_state['loss_trace_sample']
+            loss_trace_full = telemetry_state['loss_trace_full']
+            best_loss_full = telemetry_state['best_loss_full']
+            chi_squared_trace_sample = telemetry_state['chi_squared_trace_sample']
+            masked_mse_trace_sample = telemetry_state['masked_mse_trace_sample']
+    
+            # === Stage A LBFGS closure construction ===
+            # Call helper 2
+            compute_loss, closure = _build_stage_a_lbfgs_closure(
+                param_values, telemetry_state, stage_a_context,
+                crystal, detector, beam, inputs, hkl_grid, hkl_metadata, config,
+                sigma_floor_sq_cache, device, dtype, baseline_crystal
+            )
+    
+            # === Stage A LBFGS execution and final validation ===
+            # Call helper 3
+            status, message, final_chi_squared_value, final_masked_mse_value, best_params_snapshot = _run_stage_a_lbfgs(
+                compute_loss, closure, optimizer, params, telemetry_state,
+                config, canonical_baseline, full_stage_a_indices,
+                log_scale, log_cell_a_delta, log_cell_b_delta, log_cell_c_delta,
+                angle_alpha_raw, angle_beta_raw, angle_gamma_raw, orientation_vec,
+                device, dtype
+            )
+    
+            # Generate final Bragg array with optimized parameters
+            with torch.no_grad():
+                bragg_full = np.zeros((n_panels, *panel_shape), dtype=np.float32)
+    
+                for pid in range(n_panels):
+                    panel = detector[pid]
+    
+                    detector_config = create_detector_config(
+                        panel=panel,
+                        beam=beam,
+                        trusted_mask=inputs.trusted_mask[pid]
+                    )
+    
+                    # Convert mask_array to torch.Tensor if it's a numpy array
+                    # Per dbex/nanobrag_bridge.py:998-1004, nanobrag_torch Simulator
+                    # expects torch.Tensor for mask_array
+                    if detector_config.mask_array is not None and not isinstance(detector_config.mask_array, torch.Tensor):
+                        detector_config.mask_array = torch.tensor(
+                            detector_config.mask_array, dtype=torch.float32, device=device
+                        )
+    
+                    beam_config = create_beam_config(beam)
+    
+                    # Apply final full crystal perturbations via tensor overrides (GRADIENT-001, TORCH-REFINE-002)
+                    cell_params = crystal.get_unit_cell().parameters()
+    
+                    # 1. Unit cell lengths (log-parameterized)
+                    perturbed_cell_a = cell_params[0] * torch.exp(log_cell_a_delta)
+                    perturbed_cell_b = cell_params[1] * torch.exp(log_cell_b_delta)
+                    perturbed_cell_c = cell_params[2] * torch.exp(log_cell_c_delta)
+    
+                    # 2. Unit cell angles (bounded via tanh)
+                    max_angle_delta = 10.0  # degrees
+                    perturbed_alpha = cell_params[3] + torch.tanh(angle_alpha_raw) * max_angle_delta
+                    perturbed_beta = cell_params[4] + torch.tanh(angle_beta_raw) * max_angle_delta
+                    perturbed_gamma = cell_params[5] + torch.tanh(angle_gamma_raw) * max_angle_delta
+    
+                    # 3. Orientation perturbation via quaternion→XYZ misset (TORCH-REFINE-002)
+                    # TORCH-GEOMETRY-PARITY-002 Phase B5: Branch on U-matrix vs cell+misset path
+                    if config.use_u_matrix_parameterization:
+                        # U-matrix path: Normalize quaternion, convert to U, compute A*
+                        from dbex.nanobrag_bridge import quaternion_to_matrix
+                        q_norm = q_params / torch.norm(q_params)  # Enforce ||q|| = 1
+                        U = quaternion_to_matrix(q_norm)  # 3x3 rotation matrix
+                        A_star_new = U @ B_ideal_reciprocal_torch  # Compute updated A*
+    
+                        # Convert A* to numpy for crystal_overrides
+                        A_star_np = A_star_new.detach().cpu().numpy()
+                        mosflm_a_star_tuple = tuple(A_star_np[:, 0].tolist())
+                        mosflm_b_star_tuple = tuple(A_star_np[:, 1].tolist())
+                        mosflm_c_star_tuple = tuple(A_star_np[:, 2].tolist())
+    
+                        crystal_overrides = {
+                            'cell_a': perturbed_cell_a,
+                            'cell_b': perturbed_cell_b,
+                            'cell_c': perturbed_cell_c,
+                            'cell_alpha': perturbed_alpha,
+                            'cell_beta': perturbed_beta,
+                            'cell_gamma': perturbed_gamma,
+                            'mosflm_a_star': mosflm_a_star_tuple,
+                            'mosflm_b_star': mosflm_b_star_tuple,
+                            'mosflm_c_star': mosflm_c_star_tuple,
+                        }
+                        misset_deg_for_crystal = None
+                    else:
+                        # Existing cell+misset path (GEOMETRY-003)
+                        max_orientation_deg = 3.0  # degrees
+                        bounded_orientation_vec = torch.tanh(orientation_vec) * max_orientation_deg * (np.pi / 180.0)
+                        quat = vec_to_unit_quaternion(bounded_orientation_vec)
+                        misset_xyz_deg = quaternion_to_xyz_euler(quat)
+    
+                        # Add baseline misset from perturbed geometry if provided (TORCH-REFINE-002D)
+                        if baseline_misset_deg_tensor is not None:
+                            misset_xyz_deg = misset_xyz_deg + baseline_misset_deg_tensor
+    
+                        crystal_overrides = {
+                            'cell_a': perturbed_cell_a,
+                            'cell_b': perturbed_cell_b,
+                            'cell_c': perturbed_cell_c,
+                            'cell_alpha': perturbed_alpha,
+                            'cell_beta': perturbed_beta,
+                            'cell_gamma': perturbed_gamma
+                        }
+                        misset_deg_for_crystal = misset_xyz_deg
+    
+                    crystal_config, _ = create_crystal_config(
+                        crystal, None,
+                        crystal_overrides=crystal_overrides,
+                        misset_deg_override=misset_deg_for_crystal
+                    )
+    
+                    detector_model = Detector(detector_config, device=device, dtype=dtype)
+                    crystal_model = Crystal(crystal_config, device=device, dtype=dtype)
+    
+                    # HKL interpolation control (TORCH-REFINE-002D, REFINE-005)
+                    # Defaults to nearest-neighbor (False) unless explicitly enabled via config
+                    # Tricubic interpolation requires halo-padded grid to avoid default_F fallback
+                    crystal_model.interpolate = config.enable_hkl_interpolation
+    
+                    crystal_model.hkl_data = hkl_grid.to(device=device, dtype=dtype)
+                    crystal_model.hkl_metadata = hkl_metadata
+    
+                    simulator = Simulator(detector=detector_model, crystal=crystal_model, device=device, dtype=dtype)
+                    panel_bragg = simulator.run()
+    
+                    # Apply optimized scale (with same clamping as in compute_loss)
+                    log_scale_clamped = torch.clamp(log_scale, min=-10.0, max=10.0)
+                    panel_bragg_scaled = panel_bragg * torch.exp(log_scale_clamped)
+                    bragg_full[pid] = panel_bragg_scaled.cpu().numpy().astype(np.float32)
+    
+            # Assemble telemetry
+            param_deltas = {
+                'log_scale': {
+                    'initial': initial_log_scale,
+                    'final': float(log_scale.item()),
+                    'delta': float(log_scale.item()) - initial_log_scale
+                },
+                'log_cell_a_delta': {
+                    'initial': 0.0,
+                    'final': float(log_cell_a_delta.item()),
+                    'delta': float(log_cell_a_delta.item())
+                },
+                'log_cell_b_delta': {
+                    'initial': 0.0,
+                    'final': float(log_cell_b_delta.item()),
+                    'delta': float(log_cell_b_delta.item())
+                },
+                'log_cell_c_delta': {
+                    'initial': 0.0,
+                    'final': float(log_cell_c_delta.item()),
+                    'delta': float(log_cell_c_delta.item())
+                },
+                'angle_alpha_raw': {
+                    'initial': 0.0,
+                    'final': float(angle_alpha_raw.item()),
+                    'delta': float(angle_alpha_raw.item())
+                },
+                'angle_beta_raw': {
+                    'initial': 0.0,
+                    'final': float(angle_beta_raw.item()),
+                    'delta': float(angle_beta_raw.item())
+                },
+                'angle_gamma_raw': {
+                    'initial': 0.0,
+                    'final': float(angle_gamma_raw.item()),
+                    'delta': float(angle_gamma_raw.item())
+                },
+                'orientation_vec': {
+                    'initial': [0.0, 0.0, 0.0],
+                    'final': orientation_vec.detach().cpu().tolist(),
+                    'delta': orientation_vec.detach().cpu().tolist(),
+                    'norm': float(orientation_vec.norm().item())
+                }
+            }
+    
+            # Compute final misset XYZ degrees for telemetry (TORCH-REFINE-002)
+            # This surfaces the actual rotation applied to the crystal
+            with torch.no_grad():
+                max_orientation_deg = 3.0
+                bounded_orientation_vec_final = torch.tanh(orientation_vec) * max_orientation_deg * (np.pi / 180.0)
+                quat_final = vec_to_unit_quaternion(bounded_orientation_vec_final)
+                misset_xyz_deg_final = quaternion_to_xyz_euler(quat_final)
+    
+                # Add baseline misset from perturbed geometry if provided (TORCH-REFINE-002D)
+                if baseline_misset_deg_tensor is not None:
+                    misset_xyz_deg_final_total = misset_xyz_deg_final + baseline_misset_deg_tensor
+                    initial_misset = baseline_misset_deg_tensor.cpu().tolist()
+                else:
+                    misset_xyz_deg_final_total = misset_xyz_deg_final
+                    initial_misset = [0.0, 0.0, 0.0]
+    
+                # Add misset telemetry
+                param_deltas['misset_xyz_deg'] = {
+                    'initial': initial_misset,
+                    'final': misset_xyz_deg_final_total.cpu().tolist(),
+                    'delta': misset_xyz_deg_final.cpu().tolist(),  # Delta from LBFGS optimization (excluding baseline)
+                    'quaternion_norm': float(quat_final.norm().item())
+                }
+    
+            # Build perf counters payload (PERF-WARM-SIM-001)
+            cache_mode = "warm" if config.enable_stage_a_warm_cache else "cold"
+            perf_counters = {
+                'cache_mode': cache_mode,
+                'roi_mode': stage_a_roi_label,
+                'roi_count_total': stage_a_total_work_items,
+                'roi_count_sampled': len(sampled_stage_a_indices),
+                'closure_evals': perf_closure_evals[0],
+                'validation_runs': perf_validation_runs[0],
+                'forward_time_ms': {
+                    'mean': float(np.mean(perf_forward_times_ms)) if perf_forward_times_ms else 0.0,
+                    'min': float(np.min(perf_forward_times_ms)) if perf_forward_times_ms else 0.0,
+                    'max': float(np.max(perf_forward_times_ms)) if perf_forward_times_ms else 0.0,
+                    'total': float(np.sum(perf_forward_times_ms)) if perf_forward_times_ms else 0.0
+                }
+            }
+    
+>           telemetry_a = RefinementTelemetry(
+                optimizer="LBFGS",
+                stage="A",
+                history_size=config.history_size,
+                max_iter=config.max_iter,
+                tolerance_grad=config.tolerance_grad,
+                tolerance_change=config.tolerance_change,
+                roi_sample_fraction=config.roi_sample_fraction,
+                roi_count_sampled=len(sampled_stage_a_indices),
+                roi_count_total=stage_a_total_work_items,
+                loss_trace_sample=loss_trace_sample,  # Deprecated legacy field (chi_squared only)
+                loss_trace_full=loss_trace_full,  # Deprecated legacy field (chi_squared only)
+                best_loss_full=best_loss_full,  # Deprecated legacy field (chi_squared only)
+                param_deltas=param_deltas,
+                status=status,
+                message=message,
+                perf_counters=perf_counters,
+                # PHYSICS-LOSS-001: Dual loss metrics
+                chi_squared_trace_sample=chi_squared_trace_sample,
+                chi_squared_trace_full=chi_squared_trace_full,
+                chi_squared_best=chi_squared_best,
+                masked_mse_trace_sample=masked_mse_trace_sample,
+                masked_mse_trace_full=masked_mse_trace_full,
+                masked_mse_best=masked_mse_best,
+                sigma_readout_provenance=config.sigma_readout_provenance,
+                sigma_readout_reference_value=config.sigma_readout_reference_value,
+                # PHYSICS-LOSS-002: Variance floor telemetry
+                variance_floor_value=config.sigma_floor_value**2,
+                variance_floor_clamp_fraction=(
+                    float(variance_floor_clamped_pixels[0]) / float(variance_floor_masked_pixels[0])
+                    if variance_floor_masked_pixels[0] > 0 else 0.0
+                ),
+                # Canonical Stage A metadata propagated to downstream stages
+                canonical_stage_label=canonical_baseline["stage_label"],
+                canonical_chi_squared=canonical_baseline["chi_squared"],
+                canonical_chi_squared_iteration=canonical_baseline["iteration"],
+                canonical_roi_count=canonical_baseline["roi_count"],
+                canonical_detector_distances_mm=canonical_baseline["detector_distances_mm"],
+                roi_mode=stage_a_roi_label,
+            )
+E           UnboundLocalError: local variable 'RefinementTelemetry' referenced before assignment
+
+dbex/nanobrag_refinement.py:3474: UnboundLocalError
+----------------------------- Captured stdout call -----------------------------
+
+[test_stage_c_detector_microslip] detector=small
+[CRYSTAL_CUDA_PRE] cell=(27.92335569862767, 32.38645729350522, 34.81102076383346, 88.76861581157907, 71.6300065859712, 68.18891879154103)
+[CRYSTAL_CUDA_PRE] A_matrix=[[-0.026284467964322544, -0.004888060238727539, 0.025023884371509392], [-0.028827244260382686, 0.029251662645631813, -0.0011996522842887757], [-0.012207815427287267, -0.0154826593697566, -0.017305900517881247]]
+[CRYSTAL_CUDA_PRE] U_matrix=[[-0.5182379382466451, -0.23667704454934876, 0.8218353946778225], [-0.46612619834645097, 0.8838405307786363, -0.039399027500987], [-0.7170465860576644, -0.4034970789687628, -0.5683610654212029]]
+[CRYSTAL_CUDA_PRE] B_matrix=[[0.03581231463699566, 0.0, 0.0], [-0.014331938807133918, 0.03325790452011918, 0.0], [-0.013527293731244715, 0.0036300727984199597, 0.030448779078588242]]
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[11,11] k=[11,11] l=[3,4] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[7,7] k=[11,12] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-0,-0] k=[11,11] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[11,12] k=[10,10] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[1,1] k=[10,10] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[5,5] k=[8,9] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[11,11] k=[7,7] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[4,4] k=[6,7] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[6,6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[1,1] k=[6,6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[4,5] k=[5,6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-4] k=[6,6] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-4,-4] k=[4,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[2,2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[7,8] k=[-2,-2] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[3,4] k=[-2,-2] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-7,-7] k=[-2,-2] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-3,-3] k=[-3,-3] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[2,3] k=[-4,-4] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[4,4] k=[-4,-4] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-4,-3] k=[-7,-6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-0,-0] k=[-7,-7] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-7] k=[-7,-7] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-0,-0] k=[-10,-10] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[11,11] k=[11,11] l=[3,4] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[7,7] k=[11,12] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-0,-0] k=[11,11] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[11,12] k=[10,10] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[1,1] k=[10,10] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[5,5] k=[8,9] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[11,11] k=[7,7] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[4,4] k=[6,7] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[6,6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[1,1] k=[6,6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[4,5] k=[5,6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-4] k=[6,6] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-4,-4] k=[4,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[2,2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[7,8] k=[-2,-2] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[3,4] k=[-2,-2] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-7,-7] k=[-2,-2] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-3,-3] k=[-3,-3] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[2,3] k=[-4,-4] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[4,4] k=[-4,-4] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-4,-3] k=[-7,-6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-0,-0] k=[-7,-7] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-7] k=[-7,-7] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-0,-0] k=[-10,-10] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[11,11] k=[11,11] l=[3,4] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[7,7] k=[11,12] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-0,-0] k=[11,11] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[11,12] k=[10,10] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[1,1] k=[10,10] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[5,5] k=[8,9] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[11,11] k=[7,7] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[4,4] k=[6,7] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[6,6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[1,1] k=[6,6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[4,5] k=[5,6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-4] k=[6,6] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-4,-4] k=[4,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[2,2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[7,8] k=[-2,-2] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[3,4] k=[-2,-2] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-7,-7] k=[-2,-2] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-3,-3] k=[-3,-3] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[2,3] k=[-4,-4] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[4,4] k=[-4,-4] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-4,-3] k=[-7,-6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-0,-0] k=[-7,-7] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-7] k=[-7,-7] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-0,-0] k=[-10,-10] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[11,11] k=[11,11] l=[3,4] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[7,7] k=[11,12] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-0,-0] k=[11,11] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[11,12] k=[10,10] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[1,1] k=[10,10] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[5,5] k=[8,9] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[11,11] k=[7,7] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[4,4] k=[6,7] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[6,6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[1,1] k=[6,6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[4,5] k=[5,6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-4] k=[6,6] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-4,-4] k=[4,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[2,2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[7,8] k=[-2,-2] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[3,4] k=[-2,-2] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-7,-7] k=[-2,-2] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-3,-3] k=[-3,-3] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[2,3] k=[-4,-4] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[4,4] k=[-4,-4] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-4,-3] k=[-7,-6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-0,-0] k=[-7,-7] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-7] k=[-7,-7] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-0,-0] k=[-10,-10] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[11,11] k=[11,11] l=[3,4] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[7,7] k=[11,12] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-0,-0] k=[11,11] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[11,12] k=[10,10] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[1,1] k=[10,10] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[5,5] k=[8,9] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[11,11] k=[7,7] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[4,4] k=[6,7] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[6,6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[1,1] k=[6,6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[4,5] k=[5,6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-4] k=[6,6] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-4,-4] k=[4,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[2,2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[7,8] k=[-2,-2] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[3,4] k=[-2,-2] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-7,-7] k=[-2,-2] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-3,-3] k=[-3,-3] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[2,3] k=[-4,-4] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[4,4] k=[-4,-4] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-4,-3] k=[-7,-6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-0,-0] k=[-7,-7] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-7] k=[-7,-7] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-0,-0] k=[-10,-10] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[11,11] k=[11,11] l=[3,4] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[7,7] k=[11,12] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-0,-0] k=[11,11] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[11,12] k=[10,10] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[1,1] k=[10,10] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[5,5] k=[8,9] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[11,11] k=[7,7] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[4,4] k=[6,7] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[6,6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[1,1] k=[6,6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[4,5] k=[5,6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-4] k=[6,6] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-4,-4] k=[4,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[2,2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[7,8] k=[-2,-2] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[3,4] k=[-2,-2] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-7,-7] k=[-2,-2] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-3,-3] k=[-3,-3] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[2,3] k=[-4,-4] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[4,4] k=[-4,-4] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-4,-3] k=[-7,-6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-0,-0] k=[-7,-7] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-7] k=[-7,-7] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-0,-0] k=[-10,-10] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[11,11] k=[11,11] l=[3,4] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[7,7] k=[11,12] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-0,-0] k=[11,11] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[11,12] k=[10,10] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[1,1] k=[10,10] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[5,5] k=[8,9] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[11,11] k=[7,7] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[4,4] k=[6,7] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[6,6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[1,1] k=[6,6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[4,5] k=[5,6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-4] k=[6,6] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-4,-4] k=[4,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[2,2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[7,8] k=[-2,-2] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[3,4] k=[-2,-2] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-7,-7] k=[-2,-2] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-3,-3] k=[-3,-3] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[2,3] k=[-4,-4] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[4,4] k=[-4,-4] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-4,-3] k=[-7,-6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-0,-0] k=[-7,-7] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-7] k=[-7,-7] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-0,-0] k=[-10,-10] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046289/1048576 (99.78%)
+=============================== warnings summary ===============================
+tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dxtbx/format/FormatCBFFull.py:198: DeprecationWarning: The binary mode of fromstring is deprecated, as it behaves surprisingly on unicode inputs. Use frombuffer instead
+    self._raw_data = flex.int(np.fromstring(array_string, np.int32))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip - UnboundLocalError: local variable 'RefinementTelemetry' referenced before assignment
+======================== 1 failed, 5 warnings in 12.44s ========================
+Exit code: 1

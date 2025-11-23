@@ -1,0 +1,7 @@
+{
+  "status": "PASS",
+  "runtime_seconds": 16.0,
+  "exit_code": 0,
+  "test": "stage_c_small",
+  "detector_size": "small"
+}

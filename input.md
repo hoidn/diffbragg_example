@@ -1,296 +1,316 @@
-# Input for Ralph — Phase E Telemetry Validation & Documentation
+# input.md — Loop i=236 (Ralph) — PERF-WARM-SIM-001 Phase D: Stage C Detector Reuse
 
 ## Summary
-Validate Phase E engine delegation telemetry (engine_protocol, stage_modes fields) and document Phase E completion with final_bragg deferred to Phase F.
+Implement Stage C warm-cache detector reuse to eliminate per-panel/ROI Detector/Simulator instantiation overhead per PERF-WARM-013 finding.
 
 ## Mode
-none (validation + documentation)
+none
 
 ## Focus
-ARCH-REFINE-FLOW-001 — Protocol-based Refinement Engine (Phase E: Orchestration Hooks & Mode Wiring) — Telemetry Validation
+PERF-WARM-SIM-001 — Warm Simulator: Eliminate Per-Iteration Re-Instantiation (Phase D: Stage C Detector Reuse)
 
 ## Branch
-integration
+`integration` (current working branch)
 
-## Mapped tests
-- `pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry` (NEW, validates engine_protocol + stage_modes fields)
-- `pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` (regression guard with use_engine_delegation=True, ALREADY PASSED)
-- `pytest -v tests/dbex/test_mapping_parity.py::test_mapping_consistency` (DB-AT-024, engine NOT used, mapping parity regression)
+## Mapped Tests
+- `pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_c_microslip_small` (Stage C smoke small detector)
+- `pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_c_microslip_full` (Stage C smoke full detector)
+
+Environment flags:
+```bash
+export DBEX_SMOKE_DETECTOR_SIZE=small  # or full
+export DBEX_SMOKE_SIGMA_SOURCE=cli_override
+export KMP_DUPLICATE_LIB_OK=TRUE
+export NANOBRAGG_DISABLE_COMPILE=1
+```
 
 ## Artifacts
-`plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T170000Z/`
+All outputs under: `plans/active/PERF-WARM-SIM-001/reports/2025-11-23T180000Z/`
+
+Expected artifacts:
+- `pytest_stage_c_small.log` (Stage C smoke small detector test log)
+- `pytest_stage_c_full.log` (Stage C smoke full detector test log)
+- `telemetry_stage_c_small.json` (Stage C telemetry small detector)
+- `telemetry_stage_c_full.json` (Stage C telemetry full detector)
+- `phase_d_decision.md` (Decision synthesis with path selection)
+- `summary.md` (Turn Summary block)
 
 ## Do Now
 
-**Context:** Phase E schema bugfix (commit 42975bf) COMPLETED successfully. Reviewing Phase E implementation (commit c2ec597 before bugfix) shows substantial work DONE: (E1) engine delegation logic, (E2) CLI flags, (E3) telemetry enrichment (now fixed). However, final_bragg extraction is incomplete (returns None). Decision: Defer final_bragg to Phase F, validate telemetry structure NOW.
+**Objective:** Eliminate Stage C per-panel/ROI Detector/Simulator instantiation by retargeting cached StageAContext detectors with bounded distance offsets.
 
-**Rationale:** Phase E primary objective is orchestration hooks + telemetry tagging (ACHIEVED). Final_bragg is needed for HDF5 export but NOT for refinement logic or telemetry validation. Deferring reduces compound failure risk per CLAUDE.md incremental progress principle.
+**Background:** Per PERF-WARM-013 finding (docs/findings.md row 25), Stage C currently instantiates fresh Detector/Simulator objects for every panel (and every ROI slice) inside `compute_loss_stage_c` (dbex/nanobrag_refinement.py:2238-2545) plus the final reconstruction block, even when `stage_a_ctx` is available. This pays full construction cost on warm runs. Implementation.md Phase D (lines 70-76) defines the fix: extend StageAContext with baseline distances, implement a retarget helper that mutates cached simulators instead of recreating them, and update Stage C warm branches to call the helper.
 
-### Steps (10 steps total)
+### Tasks (D1–D4):
 
-1. **Review Phase E implementation artifacts:**
-   - Read commit 42975bf diff: `git show 42975bf --stat`
-   - Read commit c2ec597 diff: `git show c2ec597 dbex/nanobrag_refinement.py | head -200`
-   - Confirm schema bugfix in dbex/refinement/stage.py:159-161 + to_dict() lines 231-235
-   - Note final_bragg=None at dbex/nanobrag_refinement.py:~3890
+**D1 — Extend StageAContext metadata (extend StageAContext + _build_stage_a_context):**
 
-2. **Create test_stage_a_engine_delegation_telemetry (NEW test):**
-   - File: `tests/dbex/test_torch_refine_smoke.py`
-   - Location: After test_stage_a_expansion (around line 800)
-   - Purpose: Validate engine_protocol="stage_a" and stage_modes={} in telemetry when use_engine_delegation=True
-   - Expected structure (~80 lines):
-     ```python
-     @pytest.mark.skipif(not HAS_NANOBRAG_TORCH, reason="nanobrag_torch not available")
-     def test_stage_a_engine_delegation_telemetry(
-         smoke_inputs_small: SmokeTestInputs,
-         small_detector_config: RefinementConfig
-     ):
-         """
-         Validate Phase E engine delegation telemetry fields.
+1. Read current StageAContext definition (dbex/nanobrag_refinement.py: search for `StageAContext` class or dict construction, likely near lines 600-700).
+2. Add two new fields to StageAContext:
+   - `baseline_distances: Dict[int, float]` — per-panel distance baselines in mm (keys: panel_id 0..N-1, values: baseline detector.distance_mm for each panel)
+   - `roi_panel_map: Dict[int, int]` — ROI index → panel_id mapping (keys: ROI index from roi_entries, values: panel_id)
+3. Update `_build_stage_a_context` helper (likely near lines 700-900) to populate these two fields:
+   - Extract baseline distances from detector_configs list: `{panel_id: cfg.distance_mm for panel_id, cfg in enumerate(detector_configs)}`
+   - Build roi_panel_map from roi_entries: `{roi_idx: entry['panel_id'] for roi_idx, entry in enumerate(roi_entries)}`
+4. Verify compilation: `python -c "from dbex.nanobrag_refinement import run_nanobrag_refinement"`
 
-         ARCH-REFINE-FLOW-001 Phase E: When use_engine_delegation=True,
-         telemetry dict MUST include:
-         - engine_protocol: str (e.g., "stage_a" for Stage-A-only mode)
-         - stage_modes: Dict[str, str] (empty dict {} when no B/C enabled)
+**D2 — Implement retarget helper (_retarget_stage_a_detectors):**
 
-         Test uses Stage-A-only mode (enable_stage_b=False, enable_stage_c=False).
-         """
-         inputs, crystal, detector, beam, hkl_grid, hkl_metadata = smoke_inputs_small
+1. Add new helper function after `_build_stage_a_context` (before Stage A closure helpers, likely near line 900):
+   ```python
+   def _retarget_stage_a_detectors(
+       stage_a_ctx: Dict,
+       distance_deltas_mm: Dict[int, float],
+       device: torch.device,
+       dtype: torch.dtype
+   ) -> None:
+       """
+       Mutate cached Stage A detector configs/simulators with bounded distance offsets.
 
-         # Stage-A-only config (default)
-         config = small_detector_config
-         assert not config.enable_stage_b
-         assert not config.enable_stage_c
+       Args:
+           stage_a_ctx: StageAContext dict with detector_configs, simulators, baseline_distances
+           distance_deltas_mm: Per-panel distance deltas in mm (keys: panel_id, values: delta_distance_mm)
+           device: torch.device for distance tensor updates
+           dtype: torch.dtype for distance tensor updates
 
-         # Run with engine delegation
-         final_bragg, telemetry_dict = run_nanobrag_refinement(
-             inputs=inputs,
-             detector=detector,
-             beam=beam,
-             crystal=crystal,
-             hkl_grid=hkl_grid,
-             hkl_metadata=hkl_metadata,
-             config=config,
-             use_engine_delegation=True  # ← Engine path
-         )
+       Updates stage_a_ctx['detector_configs'] and stage_a_ctx['simulators'] IN PLACE.
 
-         # Validate telemetry structure
-         assert "stage_a" in telemetry_dict, "Engine delegation must return stage_a telemetry key"
-         telem_a = telemetry_dict["stage_a"]
+       Spec refs:
+           - docs/spec-db-runtime.md §2.1 (cache reuse pattern)
+           - docs/spec-db-workflow.md §Stage C (detector distance refinement)
+           - PERF-WARM-013 finding (eliminate cold instantiation)
+       """
+       # Implementation steps:
+       # 1. Extract baseline_distances from stage_a_ctx
+       # 2. For each panel_id in distance_deltas_mm:
+       #    a. Compute new_distance_mm = baseline_distances[panel_id] + distance_deltas_mm[panel_id]
+       #    b. Guard: if new_distance_mm outside safe bounds (e.g., <10mm or >10000mm), raise ValueError
+       #    c. Update detector_configs[panel_id].distance_mm = new_distance_mm
+       #    d. If simulators exist for this panel, check if nanobrag_torch Simulator has update_detector_distance() method
+       #       - If YES: call simulator.update_detector_distance(new_distance_mm)
+       #       - If NO: reconstruct only the Detector model (NOT Simulator) using updated config,
+       #         then replace simulators[panel_id] with new Simulator(detector=new_detector, ...)
+       # 3. Log warning if any panel_id in distance_deltas_mm is not in baseline_distances (skip silently)
+   ```
 
-         # Phase E telemetry extensions (commit 42975bf)
-         assert hasattr(telem_a, "engine_protocol"), "Phase E: engine_protocol field missing"
-         assert hasattr(telem_a, "stage_modes"), "Phase E: stage_modes field missing"
+   **Implementation Notes:**
+   - **Lazy imports:** Import `nanobrag_torch.Simulator` INSIDE the function to avoid circular deps (pattern from ARCH-ENGINE-002).
+   - **Device/dtype neutrality:** Ensure any torch.tensor() calls use `device=device, dtype=dtype`.
+   - **Bounds check:** Stage C distance deltas are typically ±0.25mm (per REFINE-007 microslip tests), so safe bounds: `10mm < new_distance_mm < 10000mm`.
+   - **API check:** Try `hasattr(simulator, 'update_detector_distance')` first; if False, fall back to Detector reconstruction + Simulator re-instantiation (still faster than full cold path because masks/HKL tensors stay cached).
 
-         # Stage-A-only mode values
-         assert telem_a.engine_protocol == "stage_a", \
-             f"Expected engine_protocol='stage_a', got {telem_a.engine_protocol!r}"
-         assert telem_a.stage_modes == {}, \
-             f"Expected stage_modes={{}}, got {telem_a.stage_modes!r}"
+2. Verify compilation after adding helper: `python -c "from dbex.nanobrag_refinement import _retarget_stage_a_detectors"`
 
-         # Phase A4 telemetry extensions (still present)
-         assert telem_a.stage_type == "A", f"Stage type should be 'A', got {telem_a.stage_type!r}"
-         assert telem_a.mode is not None, "Stage A mode should be set"
+**D3 — Refactor Stage C warm branches (compute_loss_stage_c + final reconstruction):**
 
-         # Core telemetry fields (regression check)
-         assert telem_a.chi_squared is not None
-         assert telem_a.masked_mse is not None
-         assert "log_scale" in telem_a.param_deltas
+1. Locate Stage C code sections (dbex/nanobrag_refinement.py:2238-2545):
+   - `compute_loss_stage_c` function (likely lines 2238-2400)
+   - Final Stage C reconstruction loop (likely lines 2450-2545)
 
-         # Phase E limitation: final_bragg deferred to Phase F
-         # (final_bragg=None is acceptable for Phase E telemetry validation)
-     ```
+2. For each section, identify detector instantiation pattern (search for `create_detector_config`, `Detector(`, `Simulator(`).
 
-3. **Run test_stage_a_engine_delegation_telemetry:**
+3. Add warm-cache branching BEFORE instantiation:
+   ```python
+   if stage_c_use_warm_cache and stage_a_ctx is not None:
+       # Warm path: retarget cached detectors with current distance deltas
+       _retarget_stage_a_detectors(
+           stage_a_ctx=stage_a_ctx,
+           distance_deltas_mm=current_distance_deltas_mm_dict,  # Dict[int, float]
+           device=device,
+           dtype=dtype
+       )
+       # Reuse cached detector_configs and simulators from stage_a_ctx
+       detector = stage_a_ctx['detector_configs'][panel_id]  # or appropriate accessor
+       simulator = stage_a_ctx['simulators'][panel_id]
+   else:
+       # Cold path: instantiate fresh (existing code, keep AS-IS)
+       detector_config = create_detector_config(...)
+       detector = Detector(detector_config)
+       simulator = Simulator(detector=detector, ...)
+   ```
+
+4. **Guard:** Build `current_distance_deltas_mm_dict` from Stage C trainable parameters (likely `distance_offset` tensor passed to tanh bounds). Extract per-panel deltas BEFORE calling retarget helper.
+
+5. **Lazy imports:** Move `from nanobrag_torch import Detector, Simulator` INSIDE the cold branch to avoid imports when warm path is active (pattern from ARCH-ENGINE-002).
+
+6. Verify compilation: `python -c "from dbex.nanobrag_refinement import run_nanobrag_refinement"`
+
+**D4 — Validation + telemetry + commit:**
+
+1. Set environment flags:
    ```bash
-   KMP_DUPLICATE_LIB_OK=TRUE \
-   DBEX_SMOKE_DETECTOR_SIZE=small \
-   DBEX_SMOKE_SIGMA_SOURCE=cli_override \
-   NANOBRAGG_DISABLE_COMPILE=1 \
-   pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry \
-     2>&1 | tee plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T170000Z/pytest_engine_telemetry_validation.log
+   export DBEX_SMOKE_DETECTOR_SIZE=small
+   export DBEX_SMOKE_SIGMA_SOURCE=cli_override
+   export KMP_DUPLICATE_LIB_OK=TRUE
+   export NANOBRAGG_DISABLE_COMPILE=1
+   export DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-WARM-SIM-001/reports/2025-11-23T180000Z
    ```
-   - Expected: PASS (engine_protocol="stage_a", stage_modes={})
 
-4. **Re-run regression guard (use_engine_delegation=True):**
+2. Run Stage C smoke tests (small detector first, then full):
    ```bash
-   KMP_DUPLICATE_LIB_OK=TRUE \
-   DBEX_SMOKE_DETECTOR_SIZE=small \
-   DBEX_SMOKE_SIGMA_SOURCE=cli_override \
-   NANOBRAGG_DISABLE_COMPILE=1 \
-   pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion \
-     2>&1 | tee plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T170000Z/pytest_stage_a_expansion_engine.log
-   ```
-   - Expected: PASS (already validated in bugfix loop, reconfirm)
-   - Note: This test uses default use_engine_delegation=False; we're validating no regression
+   pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_c_microslip_small \
+     > plans/active/PERF-WARM-SIM-001/reports/2025-11-23T180000Z/pytest_stage_c_small.log 2>&1
 
-5. **Run DB-AT-024 mapping parity (default config, engine NOT used):**
+   export DBEX_SMOKE_DETECTOR_SIZE=full
+   pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_c_microslip_full \
+     > plans/active/PERF-WARM-SIM-001/reports/2025-11-23T180000Z/pytest_stage_c_full.log 2>&1
+   ```
+
+3. Extract telemetry JSON (if DBEX_SMOKE_TELEMETRY_PATH emission is active):
    ```bash
-   DBEX_SMOKE_DETECTOR_SIZE=full \
-   DBEX_SMOKE_SIGMA_SOURCE=cli_override \
-   pytest -v tests/dbex/test_mapping_parity.py::test_mapping_consistency \
-     2>&1 | tee plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T170000Z/pytest_db_at_024_default.log
-   ```
-   - Expected: PASS (mapping parity independent from engine delegation per Phase E spec)
-   - Purpose: Confirm Phase E changes don't affect zero-iteration forward model
-
-6. **Extract metrics via T0 micro probe:**
-   ```bash
-   python -c "
-   import json
-   results = {
-       'engine_telemetry_validation': 'PASS or FAIL',
-       'stage_a_expansion_regression': 'PASS or FAIL',
-       'db_at_024_mapping_parity': 'PASS or FAIL',
-       'overall_verdict': 'PASS or FAIL'
-   }
-   # Fill from log inspection
-   print(json.dumps(results, indent=2))
-   " > plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T170000Z/phase_e_validation_metrics.json
+   # Look for telemetry_stage_c_{small,full}.json in artifacts directory
+   ls -la plans/active/PERF-WARM-SIM-001/reports/2025-11-23T180000Z/
    ```
 
-7. **Add ARCH-ENGINE-003 finding (engine_protocol + stage_modes telemetry extension):**
-   - File: `docs/findings.md`
-   - Add new row after ARCH-ENGINE-002 (line 70):
-   ```markdown
-   | ARCH-ENGINE-003 | 2025-11-23 | architecture, engine, telemetry, orchestration | Phase E engine delegation telemetry extension: RefinementTelemetry schema extended with two Optional fields: (1) `engine_protocol: Optional[str]` capturing stage execution sequence (e.g., "stage_a" for A-only, "stage_a→stage_b" for A→B, "stage_a→stage_b→stage_c" for full protocol), (2) `stage_modes: Optional[Dict[str, str]]` mapping stage names to their modes (e.g., `{"stage_b": "shell", "stage_c": "detector_offsets"}`). Fields populated when `use_engine_delegation=True` in `run_nanobrag_refinement()` (dbex/nanobrag_refinement.py:3820-3840, commit c2ec597) and enriched into each stage's telemetry dict before returning. Dataclass definition (dbex/refinement/stage.py:159-161) and to_dict() serialization (lines 231-235) added in commit 42975bf (bugfix). Phase E limitation: `final_bragg` extraction from engine deferred to Phase F (currently returns None); telemetry validation independent from Bragg image generation. Validation: test_stage_a_engine_delegation_telemetry (tests/dbex/test_torch_refine_smoke.py) verifies engine_protocol="stage_a" + stage_modes={} for Stage-A-only mode. CLI flags: `--use-engine-delegation`, `--enable-stage-b`, `--enable-stage-c` added to dbex/refine_one.py (lines 100-116). | dbex/refinement/stage.py:159-161,231-235, dbex/nanobrag_refinement.py:3820-3880, plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T{160000Z,163000Z,170000Z}/ | Active |
+4. Synthesize decision per 4-path template (write `phase_d_decision.md`):
+   - **Path A (both smokes PASS):** Phase D COMPLETE. Stage C detector reuse operational. Mark implementation.md Phase D tasks D1-D4 COMPLETE. Next: Galph reviews exit criteria (PERF-WARM-SIM-001 ready for closure assessment).
+   - **Path B (Stage C smoke FAIL with device/dtype error):** Debug retarget helper device/dtype mismatch. Check simulator tensor device placement, verify distance_mm tensors use correct device. Document blocker in phase_d_blocker.md, return control to Galph.
+   - **Path C (retarget helper blocked by immutable Detector API):** Fallback to config cloning. Update _retarget_stage_a_detectors to ALWAYS clone detector configs with updated distances instead of mutating existing configs. Rerun validation. If PASS → Path A, if FAIL → Path B.
+   - **Path D (compilation/import FAIL):** Lazy import issue or circular dependency. Check import order, ensure nanobrag_torch imports INSIDE cold branches. Document blocker in phase_d_blocker.md, return control to Galph.
+
+5. Update `plans/active/PERF-WARM-SIM-001/implementation.md` checklist (mark D1-D4 COMPLETE if Path A).
+
+6. Write `summary.md` with Turn Summary block (3-5 sentences: what shipped, main problem handled, next step, artifacts path).
+
+7. Commit with message:
+   ```
+   PERF-WARM-SIM-001 Phase D: Stage C detector reuse via retargeting (tests: <PASS/FAIL>)
+
+   - Extended StageAContext with baseline_distances + roi_panel_map (D1)
+   - Implemented _retarget_stage_a_detectors helper for bounded distance deltas (D2)
+   - Refactored compute_loss_stage_c + final reconstruction to call retarget helper on warm path (D3)
+   - Validated Stage C smokes small+full, telemetry captured (D4)
+   - Decision: <Path A/B/C/D>
    ```
 
-8. **Update TESTING_GUIDE.md with Phase E telemetry validation note:**
-   - File: `docs/TESTING_GUIDE.md`
-   - Location: §2 Test Status table, add after ARCH-ENGINE-001 entry
-   - Entry:
-   ```markdown
-   | Phase E Engine Telemetry | `pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry` | Active | PASS (engine_protocol="stage_a", stage_modes={}) | 1 test | ARCH-ENGINE-003 | KMP_DUPLICATE_LIB_OK=TRUE DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_SIGMA_SOURCE=cli_override NANOBRAGG_DISABLE_COMPILE=1 | Small detector ~15s | plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T170000Z/pytest_engine_telemetry_validation.log |
-   ```
-
-9. **Update implementation.md Phase E checklist:**
-   - File: `plans/active/ARCH-REFINE-FLOW-001/implementation.md`
-   - Location: §Phase E checklist (lines ~274-283)
-   - Mark complete:
-     - [x] E1: Engine delegation logic COMPLETE (commit c2ec597, dbex/nanobrag_refinement.py:3820-3880)
-     - [x] E2: CLI flags COMPLETE (commit c2ec597, dbex/refine_one.py:100-116)
-     - [x] E3: Telemetry fields COMPLETE (commit c2ec597 + 42975bf schema bugfix)
-     - [x] E4: Documentation PARTIAL (ARCH-ENGINE-003 finding + TESTING_GUIDE.md note; architecture/pytorch_design.md deferred)
-     - [x] E5: Validation PARTIAL (telemetry validation COMPLETE via test_stage_a_engine_delegation_telemetry; full Stage B/C smokes deferred to Phase F)
-   - Add note: "Phase E Status: ✓ COMPLETE (2025-11-23T170000Z) — Core orchestration hooks + telemetry tagging validated. Final_bragg extraction deferred to Phase F."
-
-10. **Write decision.md + summary.md:**
-    - Create `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T170000Z/phase_e_decision.md` documenting Option C (defer final_bragg to Phase F) with rationale
-    - Create `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T170000Z/summary.md` with:
-      - Phase E validation results (3 tests: engine telemetry, regression guard, DB-AT-024)
-      - Metrics JSON summary
-      - Turn Summary block (prepend):
-        ```
-        ### Turn Summary
-        Validated Phase E engine delegation telemetry (engine_protocol, stage_modes fields) via new test_stage_a_engine_delegation_telemetry; all 3 validation tests PASSED.
-        Documented Phase E completion with ARCH-ENGINE-003 finding and TESTING_GUIDE.md entry; deferred final_bragg extraction to Phase F per incremental progress principle.
-        Next: supervisor marks ARCH-REFINE-FLOW-001 Phase E COMPLETE, plans Phase F final_bragg extraction OR closes initiative if Phase F deferred.
-        Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T170000Z/ (pytest_engine_telemetry_validation.log, phase_e_decision.md)
-        ```
-    - Commit: `git add -A && git commit -m "ARCH-REFINE-FLOW-001 Phase E: Telemetry validation complete (engine_protocol + stage_modes)" && git push`
+8. Git push.
 
 ## How-To Map
 
-**Test creation:**
-- Add test_stage_a_engine_delegation_telemetry after test_stage_a_expansion (~line 800 in tests/dbex/test_torch_refine_smoke.py)
-- Use smoke_inputs_small + small_detector_config fixtures (same as test_stage_a_expansion)
-- Assert engine_protocol="stage_a" and stage_modes={} (Stage-A-only mode)
+**Environment setup:**
+```bash
+export DBEX_SMOKE_DETECTOR_SIZE=small  # or full for canonical
+export DBEX_SMOKE_SIGMA_SOURCE=cli_override
+export KMP_DUPLICATE_LIB_OK=TRUE
+export NANOBRAGG_DISABLE_COMPILE=1
+export DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-WARM-SIM-001/reports/2025-11-23T180000Z
+```
+
+**Compilation checks (after each task):**
+```bash
+python -c "from dbex.nanobrag_refinement import run_nanobrag_refinement"
+python -c "from dbex.nanobrag_refinement import _retarget_stage_a_detectors"
+```
 
 **Validation commands:**
 ```bash
-# New telemetry test
-KMP_DUPLICATE_LIB_OK=TRUE DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_SIGMA_SOURCE=cli_override NANOBRAGG_DISABLE_COMPILE=1 \
-pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry
+# Small detector
+pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_c_microslip_small \
+  > plans/active/PERF-WARM-SIM-001/reports/2025-11-23T180000Z/pytest_stage_c_small.log 2>&1
 
-# Regression guard
-KMP_DUPLICATE_LIB_OK=TRUE DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_SIGMA_SOURCE=cli_override NANOBRAGG_DISABLE_COMPILE=1 \
-pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
-
-# DB-AT-024 mapping parity
-DBEX_SMOKE_DETECTOR_SIZE=full DBEX_SMOKE_SIGMA_SOURCE=cli_override \
-pytest -v tests/dbex/test_mapping_parity.py::test_mapping_consistency
+# Full detector (after small PASS)
+export DBEX_SMOKE_DETECTOR_SIZE=full
+pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_c_microslip_full \
+  > plans/active/PERF-WARM-SIM-001/reports/2025-11-23T180000Z/pytest_stage_c_full.log 2>&1
 ```
 
-**Metrics extraction (T0 micro probe):**
+**Decision synthesis (T0 micro probe for test statuses):**
 ```bash
-python -c "import json; print(json.dumps({'engine_telemetry_validation': 'PASS', 'stage_a_expansion_regression': 'PASS', 'db_at_024_mapping_parity': 'PASS', 'overall_verdict': 'PASS'}, indent=2))" \
-  > plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T170000Z/phase_e_validation_metrics.json
+# Extract test exit codes from pytest logs
+grep -E "PASSED|FAILED" plans/active/PERF-WARM-SIM-001/reports/2025-11-23T180000Z/pytest_stage_c_*.log
 ```
 
 ## Pitfalls To Avoid
 
-1. **Test fixture imports:** Import SmokeTestInputs, RefinementConfig from conftest if not already imported
-2. **Engine delegation flag:** Set use_engine_delegation=True in test_stage_a_engine_delegation_telemetry (default is False)
-3. **Stage mode assertions:** Stage-A-only mode has stage_modes={} (empty dict), NOT None
-4. **Engine protocol format:** Use lowercase "stage_a" (not "A" or "StageA"), per StageA.name property
-5. **final_bragg handling:** Do NOT assert final_bragg is not None; it's acceptable to be None in Phase E (deferred to Phase F)
-6. **DB-AT-024 config:** Use default config (use_engine_delegation=False), NOT engine path; mapping parity validates zero-iteration forward model
-7. **Documentation formatting:** Follow exact finding table format (pipe-delimited, Active status, line breaks in description)
-8. **Regression guard:** test_stage_a_expansion uses default use_engine_delegation=False; validate no regression from Phase E changes
-9. **Metrics JSON:** Fill actual PASS/FAIL values from log inspection, not hardcoded
-10. **Commit hygiene:** Archive all logs before committing; ensure summary.md has Turn Summary block at top
+1. **Device/dtype neutrality (CRITICAL):** All tensor operations in `_retarget_stage_a_detectors` MUST use `device=device, dtype=dtype` parameters. Do NOT assume cuda or cpu.
+
+2. **Protected Assets:** Do NOT modify `dbex/refinement/{engine.py, stage.py, stage_a.py, stage_b.py, stage_c.py}` (engine protocol complete per ARCH-REFINE-FLOW-001). Only touch `dbex/nanobrag_refinement.py`.
+
+3. **Lazy imports (ARCH-ENGINE-002 pattern):** Import `nanobrag_torch.{Detector, Simulator}` INSIDE cold branches or INSIDE helper functions to avoid circular dependencies and top-level import overhead.
+
+4. **Bounds checking:** Stage C distance deltas are typically ±0.25mm per REFINE-007. Guard against pathological values: `10mm < new_distance_mm < 10000mm`. Raise ValueError if violated.
+
+5. **Immutable Detector API fallback:** If nanobrag_torch Detector does not support `update_detector_distance()` (check with `hasattr`), fall back to cloning configs with updated distances. Do NOT fail the entire task.
+
+6. **Vectorization (NOT required here):** Stage C operates per-panel sequentially (no batched distance updates). Do NOT attempt to vectorize retarget helper; keep it simple Dict[int, float] iteration.
+
+7. **Environment Freeze:** Do NOT install/upgrade packages. Do NOT modify CUDA/torch versions. Code-only changes per POLICY-001.
+
+8. **Telemetry structure:** Do NOT change existing telemetry fields (chi_squared, masked_mse, param_deltas). Only ADD new perf_counters if needed (e.g., retarget_calls_count).
+
+9. **No ad-hoc scripts:** All analysis must use existing scripts (`scripts/tools/*`) or initiative `bin/` scripts per right-sized scriptization policy. Do NOT create new bin/ scripts for this task (reuse existing Stage C smoke tests).
+
+10. **Test registry sync (NOT required here):** No new tests are being authored. Do NOT update TESTING_GUIDE.md or TEST_SUITE_INDEX.md unless test names change (they won't).
 
 ## If Blocked
 
-**Scenario A (test_stage_a_engine_delegation_telemetry FAIL with missing fields):**
-1. Check that commit 42975bf is in the branch history (schema bugfix applied)
-2. Verify dbex/refinement/stage.py lines 159-161 have engine_protocol + stage_modes fields
-3. Verify dbex/refinement/stage.py lines 231-235 have to_dict() serialization for new fields
-4. Document exact error signature in summary.md
-5. Commit partial progress (test creation only) and return control to Galph
+**Scenario 1: Stage C smoke tests FAIL with device/dtype error**
+- Capture full error message + stack trace in `phase_d_blocker.md`.
+- Check retarget helper device placement: `print(f"device={device}, dtype={dtype}")` at helper entry.
+- Verify all tensor operations use explicit device/dtype (search for `torch.tensor(` without device arg).
+- Document exact line number where error occurs.
+- Commit partial progress (D1-D2 complete, D3 blocked), return control to Galph.
 
-**Scenario B (test_stage_a_engine_delegation_telemetry FAIL with wrong values):**
-1. Check dbex/nanobrag_refinement.py lines ~3820-3840 engine delegation logic
-2. Verify stage_names list construction and "→".join() call
-3. Verify stage_modes dict population (should be {} when no Stage B/C)
-4. Add debug print statements: `print(f"DEBUG: engine_protocol={engine_protocol!r}, stage_modes={stage_modes!r}")`
-5. Document findings in summary.md and return control to Galph
+**Scenario 2: nanobrag_torch Detector API does not support distance mutation**
+- Check Simulator.__init__ signature: does it accept `distance_mm` as separate arg?
+- Fall back to config cloning: `updated_config = detector_config.clone(); updated_config.distance_mm = new_distance_mm`.
+- If clone() not available, reconstruct config dict manually.
+- Document fallback decision in `phase_d_decision.md` under Path C.
+- Rerun validation with fallback implementation.
 
-**Scenario C (DB-AT-024 FAIL with regression):**
-1. Confirm test uses default config (use_engine_delegation=False, NOT True)
-2. Check that inline helper path (lines ~4000-4500) is unchanged from baseline
-3. Compare chi² and correlation metrics to baseline (median_corr ≥ 0.2, localization ≥ 90%)
-4. Document regression signature in summary.md and escalate to Galph
+**Scenario 3: Circular import error when importing nanobrag_torch**
+- Move `from nanobrag_torch import Detector, Simulator` INSIDE cold branch (after `if not stage_c_use_warm_cache:` check).
+- Ensure imports are NOT at module top level in dbex/nanobrag_refinement.py.
+- Verify compilation with `python -c "from dbex.nanobrag_refinement import run_nanobrag_refinement"`.
+- Document lazy import fix in summary.md.
 
-**Scenario D (Import errors or circular dependencies):**
-1. Check that engine delegation imports are INSIDE use_engine_delegation branch (lazy imports)
-2. Verify no top-level imports of RefinementEngine, StageA, StageB, StageC in dbex/nanobrag_refinement.py
-3. Document import traceback in summary.md and return control to Galph
+**Scenario 4: StageAContext missing baseline_distances or roi_panel_map after D1**
+- Check `_build_stage_a_context` call sites: is it being invoked with correct parameters?
+- Verify StageAContext dict keys with `print(stage_a_ctx.keys())` in compute_loss_stage_c.
+- Document missing fields error in `phase_d_blocker.md`, return control to Galph.
 
 ## Findings Applied
 
-- **ARCH-ENGINE-002:** Stage wrapper telemetry packaging pattern (asdict → enrich → reconstruct) applies to engine aggregation as well
-- **POLICY-001:** Environment Freeze — no package installs, code-only validation
-- **TESTING-003:** Test registry sync after validation (TESTING_GUIDE.md entry for new test)
-- **CONVERGENCE-001:** (Not applicable to Phase E telemetry validation)
+- **PERF-WARM-013 (Active):** Stage C instantiation overhead — target of this Do Now.
+- **PERF-WARM-006 (Active):** StageAContext reuse pattern validated in Stage B/C smokes.
+- **ARCH-ENGINE-002 (Active):** Lazy imports pattern to avoid circular dependencies.
+- **REFINE-007 (Active):** Stage C microslip tests inject ±0.25mm panel offsets, recovery gate ≥80%.
+- **POLICY-001 (Active):** Environment Freeze — code-only changes, no package installs.
+- **TESTING-003 (Active):** No test registry sync needed (no new tests authored).
 
 ## Pointers
 
-- Phase E implementation: `dbex/nanobrag_refinement.py:3820-3880` (commit c2ec597)
-- Schema bugfix: `dbex/refinement/stage.py:159-161,231-235` (commit 42975bf)
-- CLI flags: `dbex/refine_one.py:100-116` (commit c2ec597)
-- Test location: `tests/dbex/test_torch_refine_smoke.py` (after test_stage_a_expansion ~line 800)
-- Implementation plan: `plans/active/ARCH-REFINE-FLOW-001/implementation.md:274-283`
-- Phase E blocker analysis: `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T163000Z/phase_e_blocker_analysis.md`
-- Phase E bugfix summary: `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T163000Z/summary.md`
+**Specs:**
+- `docs/spec-db-runtime.md:§2.1` (Cache reuse pattern)
+- `docs/spec-db-workflow.md:§Stage C` (Detector distance refinement)
 
-## Next Up (if you finish early)
+**Implementation Plan:**
+- `plans/active/PERF-WARM-SIM-001/implementation.md:70-76` (Phase D definition)
 
-**Do NOT proceed.** After all 3 validation tests PASS and documentation is updated, commit and return control to Galph for Phase E closure decision (mark initiative Phase E COMPLETE, plan Phase F final_bragg extraction OR close initiative if Phase F deferred to future work).
+**Findings:**
+- `docs/findings.md:25` (PERF-WARM-013: Stage C instantiation overhead)
+- `docs/findings.md:23` (PERF-WARM-006: StageAContext reuse from Stage B/C)
+- `docs/findings.md:row 8 ARCH-ENGINE-002` (Lazy imports + telemetry packaging)
 
-## Doc Sync Plan
+**Fix Plan:**
+- `docs/fix_plan.md:§PERF-WARM-SIM-001` (Status: in_progress, Exit Criteria #1 blocked by PERF-WARM-013)
 
-**Conditional (only if all tests PASS):**
-1. Run `pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry` and archive log
-2. Update docs/development/TEST_SUITE_INDEX.md with new test entry (after DB-AT-024 row)
-3. Verify TESTING_GUIDE.md entry is correct (selector, environment flags, artifacts path)
+**Test Registry:**
+- `docs/TESTING_GUIDE.md:§2` (Stage C smoke selectors)
+- `docs/development/TEST_SUITE_INDEX.md` (Test suite index)
 
-## Mapped Tests Guardrail
+**Code:**
+- `dbex/nanobrag_refinement.py:600-900` (StageAContext definition + _build_stage_a_context helper, estimated)
+- `dbex/nanobrag_refinement.py:2238-2545` (Stage C code: compute_loss_stage_c + final reconstruction)
+- `tests/dbex/test_torch_refine_smoke.py:500-640` (Stage C smoke tests)
 
-All 3 mapped selectors must collect and pass:
-- test_stage_a_engine_delegation_telemetry: NEW (created this loop), expected 1 collected
-- test_stage_a_expansion: EXISTS (regression guard), expected 1 collected
-- test_mapping_consistency (DB-AT-024): EXISTS (mapping parity), expected 1 collected
+## Next Up (Optional)
 
-If any selector collects 0 after changes, STOP and document blocker in summary.md before committing.
+If Ralph finishes early AND all tests PASS:
+- Review implementation.md Phase D exit criteria and document any deviations in summary.md.
+- Check if Exit Criteria #1 (Stage A/B/C reuse StageAContext with cache_mode telemetry) is NOW MET for Stage C.
+- Do NOT attempt Exit Criteria #3 (benchmarking) — deferred per implementation.md scope.
+
+## Doc Sync Plan (Conditional)
+
+NOT REQUIRED for this loop (no new tests authored, no test name changes, no spec updates).

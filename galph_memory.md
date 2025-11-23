@@ -202,3 +202,13 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-22T230000Z focus=ARCH-REFINE-FLOW-001 state=ready_for_implementation dwell=0 artifacts=plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-22T230000Z/ next_action=stage_b_wrapper_implementation
+
+## 2025-11-23T073209Z — ARCH-REFINE-FLOW-001 Phase C2 Planning
+- Focus: ARCH-REFINE-FLOW-001 — Protocol-based Refinement Engine (Phase C2)
+- Action Type: planning
+- Key Observations: Reviewed Phase C1b completion (commit 4a336db, 2025-11-22T230000Z): StageB wrapper implemented with all 3 helpers orchestration, telemetry packaging (RefinementTelemetry schema + stage_type="B" + mode="shell_modifiers"), regression guard test_stage_b_shell_modifiers PASSED (14.82s), engine contract test_engine_executes_mock_stage PASSED (0.81s). Authored Phase C2 Do Now directing Ralph to implement engine delegation for Stage A→B mode (enable_stage_c=False AND enable_stage_b=True) mirroring Phase B2 pattern: (1) Add stage_a_b_mode detection, (2) Extract _build_final_bragg_from_stage_b_telemetry helper (~65 lines), (3) Implement elif delegation branch with RefinementEngine([StageA(), StageB()]), (4) Add shell metadata (shell_edges, shell_indices, n_shells) to StageB telemetry output, (5) Wrap inline Stage A code in else block (pure indentation), (6) Compilation + regression guard validation. Implementation floor satisfied: production code tasks (helper extraction + delegation branch) + validating pytest selectors (test_stage_b_shell_modifiers, test_engine_executes_mock_stage). Dwell=0 (last loop C1b ready_for_implementation → wrapper complete, now ready_for_implementation for C2 engine delegation).
+- Artifact Path: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T073209Z/
+- Next Actions: Ralph executes Phase C2 implementation (extract helper, add detection, implement delegation, add shell metadata, indent inline code, compilation check, regression guard, update implementation.md, commit). If PASS → Galph plans Phase C3 next loop (full smoke validation both detectors). If blocked → Galph reviews and decides.
+- <Action State>: [ready_for_implementation]
+
+2025-11-23T073209Z focus=ARCH-REFINE-FLOW-001 state=ready_for_implementation dwell=0 artifacts=plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T073209Z/ next_action=phase_c2_engine_delegation

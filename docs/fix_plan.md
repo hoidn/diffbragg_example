@@ -180,7 +180,7 @@
 
 ### [ARCH-REFINE-FLOW-001] Refactor to Protocol-based Refinement Engine
 - Depends on: PHYSICS-LOSS-001 (variance-weighted loss telemetry stack)
-- Status: in_progress (2025-11-22T230000Z — Phase C1b StageB wrapper implementation)
+- Status: in_progress (2025-11-23T073209Z — Phase C2 Stage B engine delegation)
 - Priority: High (Tier 2 — Architectural Maturity)
 - Owner/Date: Ralph (2025-11-23T024449Z)
 - Exit Criteria:

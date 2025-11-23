@@ -127,4 +127,3 @@ For every initiative still present in `docs/fix_plan_temp.md`:
 - **Archive is the source of truth for history:** it’s always safe to replace long inline Attempts History with a pointer *after* you’ve appended a snapshot to `docs/fix_plan_archive.md`.
 - **Keep tiers coherent:** every initiative listed in a Tier block should have a matching `### [ID]` section under `## Active / Pending Initiatives`.
 - **Be explicit about where history lives:** for any trimmed Attempts History, add a line pointing to both `docs/fix_plan_archive.md` and the initiative’s `plans/active/<ID>/reports/` directories. This prevents future ambiguity about where to find full context.
-

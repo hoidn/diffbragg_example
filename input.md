@@ -1,202 +1,292 @@
-# Input — Phase C2.5 Validation & Documentation Sync
+# Input — Phase D0: Stage C Baseline Artifacts
 
 ## Summary
-Complete Phase C2.5 validation by updating test registry and verifying no DB-AT-024 regression from CPU fallback deferral.
+Record baseline artifacts for Stage C (detector offset refinement) before Phase D extraction begins.
 
 ## Mode
-Docs
+none (baseline capture + test execution, no production code changes)
 
 ## Focus
-ARCH-REFINE-FLOW-001 — Protocol-based Refinement Engine (Phase C2.5 validation complete, prepare Phase C2 engine wiring)
+ARCH-REFINE-FLOW-001 — Protocol-based Refinement Engine (Phase D0: Stage C baseline)
 
 ## Branch
 `integration`
 
 ## Mapped Tests
-- `tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers[small]` (Active, validates core Stage B logic CUDA-only)
-- `tests/dbex/test_mapping_consistency.py::test_mapping_consistency_nanobrag[DB_AT_024-refGeom-dbex]` (Active, parity check — CUDA path unchanged by CPU deferral)
+- `tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip[small]` (Active, validates Stage C detector offset logic)
+- `tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip[full]` (Active, canonical full detector)
 
 ## Artifacts
-`plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T132017Z/`
+`plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T143000Z/baseline/`
 
 ## Do Now
 
-Ralph, complete Phase C2.5 validation and prepare for Phase C2 (Stage B engine wiring):
+Ralph, record baseline artifacts for Stage C extraction (Phase D0) following the proven Phase B/C pattern:
 
-### 1. Test Registry Update (docs/TESTING_GUIDE.md §2 + docs/development/TEST_SUITE_INDEX.md)
+### 1. Review Phase C Completion
 
-**Context**: Phase C2.5 deferred CPU fallback support; full detector test now skipped. Test registry must reflect this limitation.
-
-**Tasks**:
-1. Run collection check to confirm current state:
-   ```bash
-   pytest tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --collect-only > plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T132017Z/pytest_collect_stage_b.log 2>&1
-   ```
-   Verify: should collect exactly 1 test (small detector variant only)
-
-2. Update `docs/TESTING_GUIDE.md` §2 Stage B entry:
-   - Note: CPU fallback deferred (GRADIENT-003)
-   - Coverage: small detector (CUDA-only)
-   - Rationale: HKL grid CUDA→CPU transfer corruption (see findings)
-
-3. Update `docs/development/TEST_SUITE_INDEX.md` Stage B row:
-   - Status: Active (small detector)
-   - Notes: Full detector skipped (GRADIENT-003 — CPU fallback deferred)
-
-4. Archive collection log in artifacts directory
-
-### 2. DB-AT-024 Regression Check
-
-**Context**: CPU fallback deferral affects only full detector path. CUDA path (used by DB-AT-024) is unchanged. Verify no regression.
+**Context**: Phase C (Stage B Extraction) is COMPLETE per implementation.md:180. Engine delegation working for `stage_a_b_mode`. Next: Phase D (Stage C Extraction).
 
 **Tasks**:
-1. Run DB-AT-024 mapping consistency (collect-only first):
+1. Read `plans/active/ARCH-REFINE-FLOW-001/implementation.md` Phase C summary (lines 179-218)
+2. Verify Phase C exit criteria met:
+   - ✓ StageB class exists (dbex/refinement/stage_b.py)
+   - ✓ Engine delegation wired (lines 3057-3180)
+   - ✓ Stage B smoke PASSED (small detector, 23.7% improvement)
+   - ✓ DB-AT-024 PASSED (no regression)
+3. Note inline Stage C code location in `dbex/nanobrag_refinement.py` (estimate: lines ~3880-4130 based on typical structure)
+
+### 2. Collection Check
+
+**Tasks**:
+1. Verify Stage C smoke tests exist and collect:
    ```bash
-   pytest tests/dbex/test_mapping_consistency.py::test_mapping_consistency_nanobrag -k DB_AT_024 --collect-only > plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T132017Z/pytest_collect_db_at_024.log 2>&1
+   pytest tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --collect-only > plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T143000Z/baseline/pytest_collect_stage_c.log 2>&1
+   echo "Exit code: $?" >> plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T143000Z/baseline/pytest_collect_stage_c.log
    ```
 
-2. If collection succeeds (>0 tests), run full test:
+2. Expected: 2 tests (small + full detector variants)
+3. If collection fails (0 tests): Document blocker in decision.md, escalate to Galph
+
+### 3. Run Stage C Small Detector Baseline
+
+**Context**: Small detector smoke validates core Stage C logic before extraction.
+
+**Tasks**:
+1. Run small detector test:
    ```bash
-   KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest tests/dbex/test_mapping_consistency.py::test_mapping_consistency_nanobrag -k DB_AT_024 -v > plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T132017Z/pytest_db_at_024.log 2>&1
-   echo "Exit code: $?" >> plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T132017Z/pytest_db_at_024.log
+   AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+   DBEX_SMOKE_DETECTOR_SIZE=small \
+   DBEX_SMOKE_SIGMA_SOURCE=cli_override \
+   KMP_DUPLICATE_LIB_OK=TRUE \
+   NANOBRAGG_DISABLE_COMPILE=1 \
+   pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip[small] > plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T143000Z/baseline/pytest_stage_c_small.log 2>&1
+   echo "Exit code: $?" >> plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T143000Z/baseline/pytest_stage_c_small.log
    ```
 
-3. Extract test result:
-   - PASS: No regression, CUDA path validated ✓
-   - FAIL: Investigate failure signature, document in decision.md
-   - SKIP/ERROR: Document blocker in decision.md
+2. Extract telemetry JSON if test PASSED:
+   - Look for telemetry file path in test output (likely in plans/active/ARCH-REFINE-FLOW-001/reports/ or tests/fixtures/)
+   - Copy to `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T143000Z/baseline/telemetry_stage_c_small.json`
+   - If telemetry not written to file, extract key metrics from pytest log (chi² improvement, detector offset deltas, status)
 
-4. Write JSON summary:
-   ```json
-   {
-     "test_id": "DB_AT_024",
-     "status": "PASS|FAIL|SKIP",
-     "exit_code": <int>,
-     "regression_detected": false,
-     "notes": "CPU fallback deferral affects only full detector (skipped); CUDA path (DB-AT-024 uses small/canonical) unchanged"
+3. Extract metrics (T0 micro probe inline):
+   ```python
+   import json
+   metrics = {
+       "test": "stage_c_small",
+       "detector_size": "small",
+       "status": "<PASS|FAIL|SKIP>",
+       "exit_code": <int>,
+       "runtime_seconds": <float>,
+       "chi2_improvement_pct": <float or null>,
+       "detector_offset_delta": <dict or null>,
+       "notes": "<any key observations>"
    }
+   with open('plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T143000Z/baseline/metrics_stage_c_small.json', 'w') as f:
+       json.dump(metrics, f, indent=2)
    ```
-   Save to `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T132017Z/db_at_024_validation.json`
 
-### 3. Phase C2.5 Completion Synthesis
+### 4. Run Stage C Full Detector Baseline
+
+**Context**: Full detector smoke validates canonical behavior before extraction.
 
 **Tasks**:
-1. Review Phase C2.5 checklist in `plans/active/ARCH-REFINE-FLOW-001/implementation.md`:
-   - C2.5a: ✓ COMPLETE (skip marker added)
-   - C2.5b: ✓ COMPLETE (collection verified 1 test)
-   - C2.5c: ✓ COMPLETE (Phase C2 status updated with deferral)
+1. Run full detector test:
+   ```bash
+   AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+   DBEX_SMOKE_DETECTOR_SIZE=full \
+   DBEX_SMOKE_SIGMA_SOURCE=cli_override \
+   KMP_DUPLICATE_LIB_OK=TRUE \
+   NANOBRAGG_DISABLE_COMPILE=1 \
+   pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip[full] > plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T143000Z/baseline/pytest_stage_c_full.log 2>&1
+   echo "Exit code: $?" >> plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T143000Z/baseline/pytest_stage_c_full.log
+   ```
+
+2. Extract telemetry JSON if test PASSED (same pattern as step 3)
+3. Extract metrics (T0 micro probe, save to `metrics_stage_c_full.json`)
+
+### 5. Decision Synthesis
+
+**Tasks**:
+1. Compute overall verdict:
+   - Path A (Both PASS): Stage C baseline captured → Phase D1 ready (helper extraction)
+   - Path B (Small PASS, Full FAIL): Baseline partial → investigate full detector failure, consider small-only extraction
+   - Path C (Both FAIL): Stage C blocked → defer Phase D, escalate to Galph
+   - Path D (Collection FAIL): Test infrastructure issue → escalate
 
 2. Write `decision.md`:
-   - **Verdict**: Phase C2.5 COMPLETE
-   - **Test Registry**: Updated with CPU fallback limitation
-   - **DB-AT-024**: PASS/FAIL/SKIP (from step 2)
-   - **Next**: Phase C2 (Wire Stage B into engine) planning
+   ```markdown
+   # Phase D0 Baseline Decision
 
-3. Update `plans/active/ARCH-REFINE-FLOW-001/implementation.md` Phase C2.5 section:
-   - Mark C2.5 status: COMPLETE
-   - Add validation artifacts reference
+   ## Verdict
+   <Path A|B|C|D>
 
-### 4. Documentation Hygiene
+   ## Test Results
+   - Collection: <2 tests|0 tests> (<exit_code>)
+   - Small detector: <PASS|FAIL|SKIP> (<runtime>s, chi² improvement <X%>)
+   - Full detector: <PASS|FAIL|SKIP> (<runtime>s, chi² improvement <X%>)
+
+   ## Key Observations
+   - Stage C detector offset refinement behavior: <stable|unstable|blocked>
+   - Telemetry captured: <yes|partial|no>
+   - Blocker details (if Path C/D): <description>
+
+   ## Next Actions
+   - Path A: Galph plans Phase D1 (Stage C helper extraction)
+   - Path B: Galph reviews full detector failure, decides small-only vs debug
+   - Path C: Defer Phase D, escalate to Galph with blocker analysis
+   - Path D: Escalate collection failure to Galph
+
+   ## Confidence Assessment
+   - Baseline accuracy: <VERY HIGH|HIGH|MEDIUM|LOW> (<percentage>%)
+   - Stage C extraction readiness: <READY|PARTIAL|BLOCKED>
+   ```
+
+3. Save to `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T143000Z/baseline/decision.md`
+
+### 6. Update Implementation Plan
 
 **Tasks**:
-1. Verify `docs/findings.md` GRADIENT-003 entry matches Ralph's loop i=223 update:
-   - Status: Deferred
-   - Root cause documented
-   - Future enhancement path described
+1. Update `plans/active/ARCH-REFINE-FLOW-001/implementation.md` Phase D section (lines 220-227):
+   - Mark D0 status: COMPLETE or BLOCKED
+   - Add baseline artifacts reference
+   - Note decision path (A/B/C/D)
 
-2. Scan `docs/fix_plan.md` ARCH-REFINE-FLOW-001 Attempts History — ensure loop i=223 is recorded with:
-   - Timestamp: 2025-11-23T140000Z
-   - Action: Defer CPU fallback (Path C)
-   - Outcome: Small detector PASSED (23.7% improvement), Phase C2.5 COMPLETE
-   - Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T140000Z/
+2. Example update:
+   ```markdown
+   - [x] D0: Baseline Stage C artifacts recorded. ✓ COMPLETE (2025-11-23T143000Z)
+     - Small detector: <PASS|FAIL> (<runtime>s, chi² improvement <X%>)
+     - Full detector: <PASS|FAIL> (<runtime>s, chi² improvement <X%>)
+     - Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T143000Z/baseline/
+     - Decision: Path <A|B|C|D>
+   ```
 
-3. If missing, append concise Attempts History entry (1-2 sentences max)
+### 7. Write Summary
 
-### 5. Commit and Push
+**Tasks**:
+1. Create `summary.md` with Turn Summary block (prepend to file):
+   ```markdown
+   ### Turn Summary
+   Recorded Stage C baseline artifacts for Phase D extraction kickoff by running test_stage_c_detector_microslip on small and full detectors.
+   <Small detector result: PASS/FAIL with chi² improvement X%>, <full detector result: PASS/FAIL>.
+   <Key observation about Stage C behavior: stable detector offset logic, or unstable convergence, or blocker>.
+   Next: <Galph plans Phase D1 helper extraction | Galph reviews blocker and decides deferral vs debug>.
+   Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T143000Z/baseline/ (decision.md, pytest logs, telemetry JSONs, metrics)
+   ```
+
+2. Append detailed summary:
+   - Phase D0 objective (baseline capture)
+   - Test results table (collection, small, full)
+   - Decision path selected
+   - Artifacts inventory
+   - Next loop preview
+
+3. Save to `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T143000Z/baseline/summary.md`
+
+### 8. Commit and Push
 
 ```bash
-git add docs/TESTING_GUIDE.md docs/development/TEST_SUITE_INDEX.md docs/fix_plan.md plans/active/ARCH-REFINE-FLOW-001/
-git commit -m "ARCH-REFINE-FLOW-001 Phase C2.5 validation: test registry + DB-AT-024 check — tests: not run"
+git add plans/active/ARCH-REFINE-FLOW-001/
+git commit -m "ARCH-REFINE-FLOW-001 Phase D0: Stage C baseline artifacts — tests: 2 collected"
 git push
 ```
 
 ## How-To Map
 
-### Collection Check Commands
+### Test Collection
 ```bash
-# Stage B smoke (should collect 1 test)
-pytest tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --collect-only
-
-# DB-AT-024 (should collect 3+ tests)
-pytest tests/dbex/test_mapping_consistency.py::test_mapping_consistency_nanobrag -k DB_AT_024 --collect-only
+# Stage C smoke (should collect 2 tests: small + full)
+pytest tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --collect-only
 ```
 
 ### Test Execution
 ```bash
-# DB-AT-024 full run
-KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest tests/dbex/test_mapping_consistency.py::test_mapping_consistency_nanobrag -k DB_AT_024 -v
+# Small detector (fast, ~15-20s expected)
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+DBEX_SMOKE_DETECTOR_SIZE=small \
+DBEX_SMOKE_SIGMA_SOURCE=cli_override \
+KMP_DUPLICATE_LIB_OK=TRUE \
+NANOBRAGG_DISABLE_COMPILE=1 \
+pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip[small]
+
+# Full detector (slower, ~25-35s expected)
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+DBEX_SMOKE_DETECTOR_SIZE=full \
+DBEX_SMOKE_SIGMA_SOURCE=cli_override \
+KMP_DUPLICATE_LIB_OK=TRUE \
+NANOBRAGG_DISABLE_COMPILE=1 \
+pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip[full]
 ```
 
 ### Artifact Paths
-- Collection logs: `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T132017Z/pytest_collect_*.log`
-- Test logs: `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T132017Z/pytest_*.log`
-- Validation JSON: `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T132017Z/db_at_024_validation.json`
-- Decision: `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T132017Z/decision.md`
+- Collection log: `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T143000Z/baseline/pytest_collect_stage_c.log`
+- Test logs: `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T143000Z/baseline/pytest_stage_c_{small,full}.log`
+- Telemetry: `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T143000Z/baseline/telemetry_stage_c_{small,full}.json`
+- Metrics: `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T143000Z/baseline/metrics_stage_c_{small,full}.json`
+- Decision: `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T143000Z/baseline/decision.md`
+- Summary: `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T143000Z/baseline/summary.md`
 
 ## Pitfalls To Avoid
 
-1. **Test Registry Clarity**: Be specific about CPU fallback limitation vs Stage B functionality (core logic validated, CPU path deferred)
-2. **DB-AT-024 Scope**: This test uses CUDA path (refGeom canonical detector), NOT affected by full detector CPU fallback skip
-3. **Collection Before Execution**: Always run `--collect-only` first to verify selector status before expensive test runs
-4. **Findings Hygiene**: Do NOT create GRADIENT-004 for gradient tracking error (it's a downstream symptom per GRADIENT-003)
-5. **Dwell Accounting**: This is a docs/validation loop (no production code changes); next Galph loop MUST plan Phase C2 engine wiring with production code task
-6. **Environment**: KMP_DUPLICATE_LIB_OK=TRUE, NANOBRAGG_DISABLE_COMPILE=1 for all pytest runs
-7. **Test Skip Reason**: Already correct in test_torch_refine_smoke.py:1133 — do NOT modify skip marker
-8. **Commit Message**: Use "tests: not run" (docs-only loop, no test execution in THIS loop for Phase C2.5 artifacts)
+1. **Environment Flags**: MUST use all 5 flags (AUTHORITATIVE_CMDS_DOC, DBEX_SMOKE_DETECTOR_SIZE, DBEX_SMOKE_SIGMA_SOURCE, KMP_DUPLICATE_LIB_OK, NANOBRAGG_DISABLE_COMPILE) for reproducibility
+2. **Exit Codes**: Always append `echo "Exit code: $?"` to capture test result status
+3. **Telemetry Location**: Stage C may write telemetry to different path than Stage A/B — check pytest output for actual file path
+4. **No Code Changes**: This is a baseline-only loop (no production code modifications, no helper extraction yet)
+5. **Decision Synthesis**: Write decision.md even if tests fail (blocker analysis is part of baseline capture)
+6. **Commit Message**: Use "tests: 2 collected" (collection confirms Stage C tests exist, baseline establishes pre-extraction behavior)
+7. **Path B Handling**: If only small detector passes, this is ACCEPTABLE (can extract with small-only validation, mirroring Stage B CPU fallback pattern)
+8. **REFINE-007 Gate**: Stage C acceptance is "stable detector offset" NOT "chi² improvement" — detector offsets should not diverge, but chi² may stay flat
 
 ## If Blocked
 
-**Scenario A: DB-AT-024 collection fails (0 tests)**
-- Check test file exists and selector syntax
-- Document in decision.md: "DB-AT-024 collection blocked: <reason>"
-- Mark Phase C2.5 validation: PARTIAL (registry updated, parity check blocked)
-- Escalate to Galph with blocker details
+**Scenario A: Collection fails (0 tests)**
+- Check test file exists: `tests/dbex/test_torch_refine_smoke.py`
+- Verify function name: `def test_stage_c_detector_microslip`
+- Document in decision.md: "Stage C test not found, collection blocked"
+- Mark D0: BLOCKED
+- Escalate to Galph with collection log
 
-**Scenario B: DB-AT-024 test fails**
-- Extract failure signature from pytest log
-- Check if failure is NEW (CPU fallback related) or PRE-EXISTING
-- If NEW: document regression details, mark Phase C2.5: BLOCKED
-- If PRE-EXISTING: note in decision.md, proceed (CPU deferral did not cause new failure)
-- Escalate to Galph next loop with analysis
+**Scenario B: Both tests FAIL**
+- Extract failure signatures from pytest logs
+- Check if failures are Stage C logic bugs vs test infrastructure issues
+- Document in decision.md: "Stage C baseline FAIL, root cause: <signature>"
+- Mark D0: BLOCKED
+- Escalate to Galph with pytest logs + metrics
 
-**Scenario C: Test registry files missing**
-- Check `docs/TESTING_GUIDE.md` and `docs/development/TEST_SUITE_INDEX.md` exist
-- If missing: create skeleton structure per templates
-- Document in decision.md: "Registry bootstrapped"
+**Scenario C: Test timeout (>120s)**
+- Document in decision.md: "Stage C timeout, likely detector offset divergence"
+- Check pytest log for last known state
+- Escalate to Galph with timeout analysis
+
+**Scenario D: Telemetry not found**
+- Document in decision.md: "Telemetry capture PARTIAL, extracted metrics from pytest log"
+- Use T0 inline probe to extract key metrics from log output
+- Proceed with decision synthesis (telemetry absence is not a blocker for baseline)
 
 ## Findings Applied
 
-- **GRADIENT-003** (CPU Fallback Path Zero Bragg Output): Status Deferred, root cause HKL transfer corruption, small detector validates core Stage B (adhering to deferral decision)
-- **POLICY-001** (Environment Freeze): Docs-only loop, no environment changes
-- **TESTING-003** (Selector Status Transitions): Update registry after collection confirms test count
-- **CONFORMANCE-001** (DB-AT Parity Profile): DB-AT-024 uses canonical environment flags
-- **PERF-WARM-011/012** (Stage B CPU Fallback): Issue resolved by deferral — CPU path no longer attempted on full detector
+- **REFINE-007** (Stage C Gate: Stable Detector Offset): Stage C acceptance is "detector offsets do not diverge" (chi² improvement optional), apply this criterion in decision synthesis
+- **PHYSICS-LOSS-001/002** (Variance-Weighted Loss + Sigma Floor): Stage C should inherit variance-weighted loss behavior from inline implementation
+- **POLICY-001** (Environment Freeze): Baseline-only loop, no environment changes, no package installs
+- **TESTING-003** (Selector Status Transitions): Collection log confirms Stage C tests exist before extraction begins
+- **CONFORMANCE-001** (DB-AT Environment Flags): Use canonical environment flags for Stage C smoke (AUTHORITATIVE_CMDS_DOC, detector size, sigma source, KMP/compile flags)
 
 ## Pointers
 
-- **Test Registry**: `docs/TESTING_GUIDE.md` §2 (Stage smoke selectors), `docs/development/TEST_SUITE_INDEX.md` (status table)
-- **Findings**: `docs/findings.md` GRADIENT-003 (line 69)
-- **Fix Plan**: `docs/fix_plan.md` ARCH-REFINE-FLOW-001 (Attempts History)
-- **Implementation Plan**: `plans/active/ARCH-REFINE-FLOW-001/implementation.md` Phase C2.5 (lines 322-363)
-- **Spec**: `docs/spec-db-runtime.md` §34-39 (CPU/CUDA parity aspiration)
-- **Ralph's Evidence**: `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T140000Z/decision.md` (Phase C2.5 completion)
+- **Implementation Plan**: `plans/active/ARCH-REFINE-FLOW-001/implementation.md` Phase D (lines 220-232)
+- **Phase B/C Pattern**: implementation.md Phase B (lines 80-178), Phase C (lines 179-218) — proven multi-loop extraction strategy
+- **Test Location**: `tests/dbex/test_torch_refine_smoke.py` (line ~1400+ estimated, grep for `def test_stage_c_detector_microslip`)
+- **Inline Stage C Code**: `dbex/nanobrag_refinement.py` lines ~3880-4130 (estimated, verify with grep for "Stage C:" comment)
+- **Findings**: `docs/findings.md` REFINE-007 (Stage C gate), PHYSICS-LOSS-001/002 (variance model)
+- **Spec**: `docs/spec-db-workflow.md` §7 (Stage C definition: detector offset refinement)
+- **TESTING_GUIDE**: `docs/TESTING_GUIDE.md` §2 (Stage smoke selectors, environment flags)
 
 ## Next Up
 
-After Phase C2.5 validation complete, Galph next loop will plan Phase C2 (Wire Stage B into engine):
-- Task: Remove Stage B inline code from `run_nanobrag_refinement`, delegate to `StageB` class via `RefinementEngine([StageA(), StageB()])`
-- Scope: ~200 lines removal, engine wiring at line ~3100
-- Validation: Stage B smoke (small detector) + telemetry schema check
-- Risk: MEDIUM (invasive refactor, must preserve telemetry contract)
+After Phase D0 baseline complete, Galph next loop will plan Phase D1 (Stage C helper extraction):
+- **Path A (both PASS)**: Extract Stage C helpers (~250 lines) following Phase B/C multi-loop pattern (likely 2-3 loops for helper extraction + wrapper)
+- **Path B (small PASS, full FAIL)**: Review full detector failure, decide small-only extraction vs debug (mirroring Stage B CPU fallback decision pattern)
+- **Path C (both FAIL)**: Defer Phase D, proceed to Phase E (orchestration hooks) without Stage C extraction
+- **Risk**: MEDIUM (~30% Stage C failure, detector offset refinement less stable than geometry/shell modifiers)
 
-**FSM Note**: This is a docs/validation loop (dwell=2, planning→ready_for_implementation transition with docs task). Next Galph loop MUST provide production code Do Now per implementation floor rule (max 1 docs-only loop per focus).
+**FSM Note**: This loop is `ready_for_implementation` (baseline capture + test execution + decision synthesis). Dwell resets to 0 after completion. Next Galph loop will be `planning` or `ready_for_implementation` depending on decision path.

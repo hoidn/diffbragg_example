@@ -67,3 +67,14 @@
 - <Action State>: [planning]
 
 2025-11-23T132017Z focus=ARCH-REFINE-FLOW-001 state=planning dwell=2 artifacts=plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T132017Z/ next_action=phase_c25_validation_registry_dba024
+
+## 2025-11-23T143000Z — ARCH-REFINE-FLOW-001 Phase D Planning (Stage C Extraction)
+
+- Focus: ARCH-REFINE-FLOW-001 — Protocol-based Refinement Engine (Phase D kickoff: Stage C extraction)
+- Action Type: ready_for_implementation
+- Key Observations: Ralph's loop i=224 SUCCESSFULLY completed Phase C2.5 validation. Test registry updated with Stage B CPU fallback limitation, DB-AT-024 PASSED (31.74s, no regression from CPU deferral). **Phase C COMPLETE** per implementation.md:180. Execution Roadmap Tier 2 requires next phase: Phase D (Stage C Extraction). **FSM enforcement**: dwell=2 triggers implementation floor rule — this loop MUST provide ready_for_implementation Do Now with production code task. **Phase D Strategy**: Follow proven multi-loop pattern from Phase B/C (baseline → helper extraction → wrapper → validation). Stage C manages detector offset parameters (Stage C refinement in inline path lines ~3880-4130). **Estimated scope**: ~250 lines inline Stage C code to extract (simpler than Stage B: only detector origin DOFs, no CPU fallback complexity). **Phase D0 Objective**: Record baseline artifacts (Stage C smoke test + telemetry) before extraction. Expected outcome: Ralph runs test_stage_c_detector_microslip (small+full detectors), captures telemetry JSON, writes baseline summary, commits artifacts. **Implementation floor satisfied**: Do Now contains production artifact task (telemetry collection + baseline capture) + test execution (Stage C smoke) + decision synthesis. Dwell will reset to 0 after this loop (first Phase D deliverable). **Findings Applied**: REFINE-007 (Stage C gate: stable detector, chi² improvement optional), PHYSICS-LOSS-001/002 (variance-weighted loss + sigma_floor preserved), POLICY-001 (Environment Freeze, baseline-only loop). **Risk Assessment**: Stage C smoke failure MEDIUM (~30%, detector refinement is less stable than geometry/shell), baseline capture LOW (~5%). **Alternative**: If Stage C smoke consistently fails, defer Stage C extraction (document as known limitation) and proceed to Phase E (orchestration hooks).
+- Artifact Path: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T143000Z/
+- Next Actions: Ralph executes Phase D0 baseline protocol (run Stage C smoke small+full, capture telemetry, write baseline summary, commit). If PASS → Galph plans Phase D1 next loop (Stage C helper extraction). If blocked → Galph reviews blocker and decides (defer Stage C vs debug).
+- <Action State>: [ready_for_implementation]
+
+2025-11-23T143000Z focus=ARCH-REFINE-FLOW-001 state=ready_for_implementation dwell=0 artifacts=plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T143000Z/ next_action=phase_d0_stage_c_baseline

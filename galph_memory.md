@@ -182,3 +182,13 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-22T063000Z focus=ARCH-REFINE-FLOW-001 state=ready_for_implementation dwell=0 artifacts=plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-22T063000Z/ next_action=extract_stage_b_closure_helper_only
+
+## 2025-11-22T070000Z — ARCH-REFINE-FLOW-001 Phase C1a-loop3 Handoff
+- Focus: ARCH-REFINE-FLOW-001 — Protocol-based Refinement Engine (Phase C1a-loop3)
+- Action Type: ready_for_implementation
+- Key Observations: Reviewed Phase C1a-loop2 completion (commit 27f0747, helper2 extracted ~317 lines with TWO nested functions, compilation PASSED). Authored Phase C1a-loop3 Do Now directing Ralph to execute final multi-loop extraction step: (1) Extract `_run_stage_b_lbfgs` helper (~100 lines: LBFGS execution + improvement gate + best snapshot restore), (2) Fix helper2 signature bug (return tuple `(compute_loss_stage_b, closure_stage_b)` not just `closure_stage_b` to enable final validation), (3) Wire all 3 helpers into run_nanobrag_refinement Stage B branch (~610 lines inline code → ~50 lines orchestration), (4) MANDATORY regression guard test_stage_b_shell_modifiers (MUST PASS). Identified helper2 signature blocker during Do Now authoring: helper3 needs BOTH compute_loss AND closure for final validation, but current helper2 returns only closure; resolution documented in Steps 3-4 (update helper2 return line 2586 to match Phase B1a-loop2 Stage A pattern). Implementation floor satisfied: production code tasks (extract helper3 + fix helper2 + wire helpers) + validating pytest selector (test_stage_b_shell_modifiers regression guard MANDATORY). Dwell=0 (last loop C1a-loop2 ready_for_implementation for helper2 extraction, now ready_for_implementation for helper3 extraction + wiring + regression). Multi-loop extraction strategy proven successful in Phase B (B1a 3-loop extraction + bugfix). Roadmap alignment: ARCH-REFINE-FLOW-001 Tier 2, Phase C1a-loop3 final milestone before C1b (StageB wrapper).
+- Artifact Path: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-22T070000Z/
+- Next Actions: Ralph executes Phase C1a-loop3 implementation (10 steps: extract helper3, fix helper2 signature, wire helpers, compilation check, MANDATORY regression guard, telemetry comparison, update implementation.md, write summary, commit). If PASS → Galph plans Phase C1b next loop (StageB wrapper class). If blocked → Ralph documents blocker → Galph reviews and decides (debug/revert/escalate).
+- <Action State>: [ready_for_implementation]
+
+2025-11-22T070000Z focus=ARCH-REFINE-FLOW-001 state=ready_for_implementation dwell=0 artifacts=plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-22T070000Z/ next_action=extract_helper3_wire_helpers_regression_guard

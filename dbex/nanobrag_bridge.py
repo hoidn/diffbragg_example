@@ -1155,6 +1155,223 @@ def derive_robust_misset(
     return misset_xyz_deg
 
 
+def derive_orientation_from_quaternion_delta(
+    q_delta: "torch.Tensor",
+    U_baseline: "torch.Tensor",
+    dtype: "torch.dtype" = None,
+    device: "torch.device" = None,
+) -> "torch.Tensor":
+    """
+    Derive U(params) from quaternion-based incremental rotation ΔR.
+
+    Formula:
+        U(params) = ΔR(q_delta) @ U₀
+    where:
+        ΔR = quaternion_to_matrix(q_delta / ||q_delta||)
+
+    Args:
+        q_delta: Quaternion [w, x, y, z] (shape: (4,))
+        U_baseline: Baseline orientation matrix U₀ from dxtbx (shape: (3, 3))
+        dtype: Target dtype (spec-db-runtime.md:12 device/dtype neutrality)
+        device: Target device
+
+    Returns:
+        U(params): Orientation matrix (shape: (3, 3))
+
+    Spec Reference:
+        - spec-db-core.md:58-60 (Incremental parameterization ΔR @ U₀)
+        - DB-AT-026 Test 1: ||U(0) - U₀|| < 1e-12 for identity quaternion [1,0,0,0]
+
+    Note:
+        scipy.spatial.transform.Rotation uses [x,y,z,w] quaternion order.
+        Our convention is [w,x,y,z].
+        Conversion: R.from_quat([q[1], q[2], q[3], q[0]])
+    """
+    import torch
+    from scipy.spatial.transform import Rotation as R
+
+    # Infer dtype/device from input tensors if not provided
+    if dtype is None:
+        dtype = q_delta.dtype if hasattr(q_delta, 'dtype') else torch.float64
+    if device is None:
+        device = q_delta.device if hasattr(q_delta, 'device') else torch.device("cpu")
+
+    # Ensure q_delta is a tensor
+    if not isinstance(q_delta, torch.Tensor):
+        q_delta = torch.tensor(q_delta, dtype=dtype, device=device)
+
+    # 1. Normalize quaternion
+    q_norm = q_delta / torch.linalg.norm(q_delta)
+
+    # 2. Convert quaternion to rotation matrix ΔR (via scipy)
+    #    CRITICAL: scipy uses [x,y,z,w] order; we use [w,x,y,z]
+    q_np = q_norm.detach().cpu().numpy()
+    delta_R_np = R.from_quat([q_np[1], q_np[2], q_np[3], q_np[0]]).as_matrix()
+    delta_R = torch.tensor(delta_R_np, dtype=dtype, device=device)
+
+    # 3. Ensure U_baseline on target dtype/device
+    if not isinstance(U_baseline, torch.Tensor):
+        U_baseline = torch.tensor(U_baseline, dtype=dtype, device=device)
+    else:
+        U_baseline = U_baseline.to(dtype=dtype, device=device)
+
+    # 4. Compute U(params) = ΔR @ U₀
+    U_params = delta_R @ U_baseline
+
+    return U_params
+
+
+def busing_levy_B_torch(
+    a: "torch.Tensor",
+    b: "torch.Tensor",
+    c: "torch.Tensor",
+    alpha_deg: "torch.Tensor",
+    beta_deg: "torch.Tensor",
+    gamma_deg: "torch.Tensor",
+    dtype: "torch.dtype" = None,
+    device: "torch.device" = None,
+) -> "torch.Tensor":
+    """
+    Compute Busing-Levy reciprocal metric tensor B from cell parameters.
+
+    This implementation uses cctbx.uctbx.unit_cell.fractionalization_matrix()
+    and transposes it to match dxtbx crystal.get_B() convention (lower triangular
+    with reciprocal vectors as columns).
+
+    Args:
+        a, b, c: Unit cell lengths (Ångströms)
+        alpha_deg, beta_deg, gamma_deg: Unit cell angles (degrees)
+        dtype: Target dtype
+        device: Target device
+
+    Returns:
+        B: Reciprocal metric tensor (shape: (3, 3)), lower triangular
+
+    Spec Reference:
+        - spec-db-core.md:60 (Busing-Levy compatible metric tensor)
+        - DB-AT-026 Test 2: ||B(0) - B₀|| < 1e-12 for zero deltas
+
+    Note:
+        dxtbx B-matrix convention: B = fractionalization_matrix().T
+        where fractionalization_matrix is upper triangular.
+    """
+    import torch
+    import numpy as np
+    from cctbx import uctbx
+
+    # Infer dtype/device from inputs if not provided
+    if dtype is None:
+        dtype = a.dtype if hasattr(a, 'dtype') else torch.float64
+    if device is None:
+        device = a.device if hasattr(a, 'device') else torch.device("cpu")
+
+    # Extract scalar values (handle both tensors and scalars)
+    a_val = float(a.item() if hasattr(a, 'item') else a)
+    b_val = float(b.item() if hasattr(b, 'item') else b)
+    c_val = float(c.item() if hasattr(c, 'item') else c)
+    alpha_val = float(alpha_deg.item() if hasattr(alpha_deg, 'item') else alpha_deg)
+    beta_val = float(beta_deg.item() if hasattr(beta_deg, 'item') else beta_deg)
+    gamma_val = float(gamma_deg.item() if hasattr(gamma_deg, 'item') else gamma_deg)
+
+    # Create cctbx unit cell
+    uc = uctbx.unit_cell((a_val, b_val, c_val, alpha_val, beta_val, gamma_val))
+
+    # Get fractionalization matrix (upper triangular)
+    frac_mat = np.array(uc.fractionalization_matrix()).reshape(3, 3)
+
+    # Transpose to get dxtbx B-matrix convention (lower triangular)
+    B_np = frac_mat.T
+
+    # Convert to PyTorch tensor with target dtype/device
+    B = torch.tensor(B_np, dtype=dtype, device=device)
+
+    return B
+
+
+def derive_B_from_cell_deltas(
+    delta_log_a: "torch.Tensor",
+    delta_log_b: "torch.Tensor",
+    delta_log_c: "torch.Tensor",
+    delta_alpha_deg: "torch.Tensor",
+    delta_beta_deg: "torch.Tensor",
+    delta_gamma_deg: "torch.Tensor",
+    cell_baseline: tuple,  # (a₀, b₀, c₀, α₀, β₀, γ₀)
+    dtype: "torch.dtype" = None,
+    device: "torch.device" = None,
+) -> "torch.Tensor":
+    """
+    Derive B(params) from cell parameter deltas around baseline.
+
+    Formula:
+        a(params) = a₀ * exp(δlog_a)
+        b(params) = b₀ * exp(δlog_b)
+        c(params) = c₀ * exp(δlog_c)
+
+        α(params) = α₀ + Δα  (degrees)
+        β(params) = β₀ + Δβ
+        γ(params) = γ₀ + Δγ
+
+        B(params) = busing_levy_B_torch(a, b, c, α, β, γ)
+
+    Args:
+        delta_log_a/b/c: Log-perturbations for lengths
+        delta_alpha/beta/gamma_deg: Angle deltas (degrees)
+        cell_baseline: (a₀, b₀, c₀, α₀, β₀, γ₀) from crystal.get_unit_cell().parameters()
+        dtype: Target dtype
+        device: Target device
+
+    Returns:
+        B(params): Reciprocal metric tensor (shape: (3, 3))
+
+    Spec Reference:
+        - spec-db-core.md:58 (Cell perturbations via log-exp)
+        - spec-db-workflow.md:36 (Trainable: logs/angles)
+        - DB-AT-026 Test 2: ||B(0) - B₀|| < 1e-12 for zero deltas
+    """
+    import torch
+
+    # Infer dtype/device from inputs if not provided
+    if dtype is None:
+        dtype = delta_log_a.dtype if hasattr(delta_log_a, 'dtype') else torch.float64
+    if device is None:
+        device = delta_log_a.device if hasattr(delta_log_a, 'device') else torch.device("cpu")
+
+    a0, b0, c0, alpha0, beta0, gamma0 = cell_baseline
+
+    # Baseline scalars → tensors on target dtype/device
+    a0 = torch.tensor(a0, dtype=dtype, device=device)
+    b0 = torch.tensor(b0, dtype=dtype, device=device)
+    c0 = torch.tensor(c0, dtype=dtype, device=device)
+    alpha0 = torch.tensor(alpha0, dtype=dtype, device=device)
+    beta0 = torch.tensor(beta0, dtype=dtype, device=device)
+    gamma0 = torch.tensor(gamma0, dtype=dtype, device=device)
+
+    # Deltas → target dtype/device
+    delta_log_a = torch.as_tensor(delta_log_a, dtype=dtype, device=device)
+    delta_log_b = torch.as_tensor(delta_log_b, dtype=dtype, device=device)
+    delta_log_c = torch.as_tensor(delta_log_c, dtype=dtype, device=device)
+    delta_alpha_deg = torch.as_tensor(delta_alpha_deg, dtype=dtype, device=device)
+    delta_beta_deg = torch.as_tensor(delta_beta_deg, dtype=dtype, device=device)
+    delta_gamma_deg = torch.as_tensor(delta_gamma_deg, dtype=dtype, device=device)
+
+    # Apply log-exp for lengths (ensures a,b,c > 0)
+    a = a0 * torch.exp(delta_log_a)
+    b = b0 * torch.exp(delta_log_b)
+    c = c0 * torch.exp(delta_log_c)
+
+    # Apply delta-add for angles
+    alpha_deg = alpha0 + delta_alpha_deg
+    beta_deg = beta0 + delta_beta_deg
+    gamma_deg = gamma0 + delta_gamma_deg
+
+    # Derive B via Busing-Levy
+    B_params = busing_levy_B_torch(
+        a, b, c, alpha_deg, beta_deg, gamma_deg, dtype=dtype, device=device
+    )
+
+    return B_params
+
+
 def compute_baseline_misset_deg(
     crystal,
     baseline_crystal,

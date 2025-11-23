@@ -1,343 +1,258 @@
-# Phase C2 Bugfix: Engine Delegation Path Errors (ARCH-REFINE-FLOW-001)
+# Phase C2 Bugfix — Missing baseline_crystal Parameter
 
 ## Summary
-Fix two critical bugs blocking Phase C2 engine delegation: (1) RefinementTelemetry dict conversion error at line 3089, (2) missing tensor initialization in `_build_final_bragg_from_stage_b_telemetry` helper.
+Fix 9.3% chi-squared offset between Stage A final and Stage B initial values in engine delegation path by adding `baseline_crystal` parameter to `_build_final_bragg_from_stage_b_telemetry` helper.
 
 ## Mode
 none
 
 ## Focus
-ARCH-REFINE-FLOW-001 — Protocol-based Refinement Engine (Phase C2: Engine Delegation Bugfix)
+ARCH-REFINE-FLOW-001 — Protocol-based Refinement Engine (Phase C2 bugfix: baseline_crystal missing)
 
 ## Branch
 integration
 
-## Mapped tests
-- `tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers` (regression guard, small detector MUST PASS)
-- `tests/dbex/test_refinement_engine.py::test_engine_executes_mock_stage` (engine contract validation)
+## Mapped Tests
+- `tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers` (regression guard, small detector)
+- Selector: `NANOBRAGG_DISABLE_COMPILE=1 KMP_DUPLICATE_LIB_OK=TRUE pytest tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers -k small --tb=short -v`
 
 ## Artifacts
-`plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T075320Z/`
+plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T081500Z/
 
 ## Do Now
 
-**Objective:** Fix two critical bugs blocking Phase C2 engine delegation path (loop i=206 blocker resolution).
+**Context:** Ralph's Phase C2 loop i=206 (commit a82893e, 2025-11-23T075320Z) identified a 9.3% chi-squared offset between Stage A final (7.053e+08) and Stage B initial (7.709e+08) values when using RefinementEngine delegation path. Ralph fixed 3 AttributeErrors (asdict conversion bugs + enable_warm_cache typo), but the chi-squared offset persists. Root cause: `_build_final_bragg_from_stage_b_telemetry` helper (dbex/nanobrag_refinement.py:2713-2910) is missing the `baseline_crystal` parameter, so `baseline_misset_deg_tensor` is always `None` (lines 2812-2814), causing incorrect misset computation in final Bragg regeneration.
 
-**Root Causes Identified:**
-1. **Line 3089-3090** (`dbex/nanobrag_refinement.py`): Trying to call `.items()` on `RefinementTelemetry` dataclass instances (`telemetry_a_raw`, `telemetry_b_raw`) instead of converting them to dicts first.
-2. **Line 2514** (`dbex/nanobrag_refinement.py`, inside `_build_final_bragg_from_stage_b_telemetry`): Trying to call `.to()` on `target_t` which is still a numpy array (never converted to tensor). Helper is missing the tensor initialization code present in inline path at line 3102.
+**Evidence:**
+- Line 3035-3036: Engine inputs include `baseline_crystal` and `baseline_detector`
+- Line 3071-3084: Helper call does NOT pass `baseline_crystal`
+- Lines 2812-2814: `baseline_misset_deg_tensor = None` with comment "Note: baseline_crystal would need to be passed"
+- Lines 3115-3120: Inline path correctly computes `baseline_misset_deg_tensor` before Stage A
+- Lines 2414-2416 (compute_loss_stage_b): Adds `baseline_misset + misset_delta` when baseline is available
+- Lines 2846-2850 (helper): Same add logic, but baseline is always None → wrong misset → wrong chi²
 
-**Implementation Steps:**
+**Fix Strategy:**
+1. Add `baseline_crystal=None` parameter to helper signature (after `crystal`, line 2718)
+2. Import `compute_baseline_misset_deg` if not already present (check line 2758)
+3. Replace `baseline_misset_deg_tensor = None` comment (line 2812-2814) with actual computation
+4. Pass `baseline_crystal=baseline_crystal` in engine delegation call (line 3077, after `crystal` arg)
+5. Rerun regression guard to verify chi-squared offset ≤ 0.1%
 
-### Bug 1: Fix RefinementTelemetry dict conversion (line 3089-3090)
+**Implement:**
+- dbex/nanobrag_refinement.py::_build_final_bragg_from_stage_b_telemetry (add baseline_crystal parameter + compute baseline_misset)
+- dbex/nanobrag_refinement.py (line ~3077, engine delegation: pass baseline_crystal to helper)
 
-1. **Read current code** (dbex/nanobrag_refinement.py:3086-3092):
-   ```python
-   # Repackage telemetry with backward-compatible keys ("A", "B")
-   # Filter out stage_type/mode fields to maintain RefinementTelemetry structure
-   from dbex.nanobrag_refinement import RefinementTelemetry
-   telemetry_b = RefinementTelemetry(**{k: v for k, v in telemetry_b_raw.items() if k not in ['stage_type', 'mode', 'shell_edges', 'shell_indices', 'n_shells']})
-   telemetry_a = RefinementTelemetry(**{k: v for k, v in telemetry_a_raw.items() if k not in ['stage_type', 'mode', 'stage_a_ctx']})
-   ```
-
-2. **Replace with corrected code** (convert dataclass to dict first using `asdict()`):
-   ```python
-   # Repackage telemetry with backward-compatible keys ("A", "B")
-   # Filter out stage_type/mode fields to maintain RefinementTelemetry structure
-   from dataclasses import asdict
-   from dbex.nanobrag_refinement import RefinementTelemetry
-
-   # Convert RefinementTelemetry dataclass instances to dicts
-   telemetry_a_dict = asdict(telemetry_a_raw) if hasattr(telemetry_a_raw, '__dataclass_fields__') else telemetry_a_raw
-   telemetry_b_dict_filtered = asdict(telemetry_b_raw) if hasattr(telemetry_b_raw, '__dataclass_fields__') else telemetry_b_raw
-
-   # Filter out extra fields not in RefinementTelemetry schema
-   telemetry_b = RefinementTelemetry(**{k: v for k, v in telemetry_b_dict_filtered.items() if k not in ['stage_type', 'mode', 'shell_edges', 'shell_indices', 'n_shells']})
-   telemetry_a = RefinementTelemetry(**{k: v for k, v in telemetry_a_dict.items() if k not in ['stage_type', 'mode', 'stage_a_ctx']})
-   ```
-
-### Bug 2: Add tensor initialization to `_build_final_bragg_from_stage_b_telemetry` helper
-
-3. **Read current helper start** (dbex/nanobrag_refinement.py:2750-2792):
-   - Lines 2750-2758: lazy imports
-   - Lines 2760-2769: extract param_deltas from telemetry
-   - Lines 2771-2792: extract Stage A frozen params + shell metadata
-   - **MISSING**: tensor conversion for `inputs.target`, `inputs.loss_mask`, `inputs.sigma_readout`
-
-4. **Insert tensor conversion code** (after line 2759, before param_deltas extraction):
-   ```python
-   # Convert numpy inputs to tensors (mirroring inline path line 3102-3104)
-   # NOTE: These tensors are NOT used in final Bragg generation (cold/warm paths don't compute loss),
-   # but they ARE used if Stage B inline code paths (compute_loss_stage_b) are invoked.
-   # For Phase C2 engine delegation, we skip loss computation in the helper (only generate Bragg).
-   # However, if future refactors move loss computation here, these will be needed.
-   # For now, initialize them for consistency with inline path structure.
-   target_t = torch.from_numpy(inputs.target).to(device=device, dtype=dtype)
-   loss_mask_t = torch.from_numpy(inputs.loss_mask).to(device=device, dtype=torch.bool)
-   sigma_readout_t = torch.from_numpy(inputs.sigma_readout).to(device=device, dtype=dtype)
-   ```
-
-   **WAIT!** Actually, re-reading the error at line 2514, the helper DOES NOT use these tensors anywhere in the cold/warm Bragg generation paths (lines 2875-2908). The error occurs in INLINE code at line 2514, which is INSIDE `_build_stage_b_lbfgs_closure` helper (the compute_loss_stage_b nested function), NOT inside `_build_final_bragg_from_stage_b_telemetry`.
-
-   Let me re-check the error location...
-
-5. **Re-analyze Bug 2**: The error at line 2514 is inside `_build_stage_b_lbfgs_closure` helper (compute_loss_stage_b nested function), not inside `_build_final_bragg_from_stage_b_telemetry`. This suggests the test is NOT hitting the engine delegation path at all, but instead hitting the INLINE path.
-
-   **Hypothesis**: The test is configured to use the inline path (not engine delegation), so the engine delegation code at lines 3021-3092 is never executed. The KeyError at `inputs['stage_a_telemetry']` in StageB.run() confirms the engine IS being invoked, which contradicts the inline path hypothesis.
-
-   **Re-check test configuration**: Let me verify which path the test takes...
-
-6. **Root cause clarification needed**: Need to determine if:
-   - Test is using engine delegation path (enable_stage_c=False AND enable_stage_b=True)?
-   - OR test is using inline path (else branch at line 3094)?
-
-7. **Check test configuration**:
-   ```bash
-   grep -A 20 "def test_stage_b_shell_modifiers" tests/dbex/test_torch_refine_smoke.py
-   ```
-
-8. **Depending on test configuration**:
-   - **IF engine delegation**: Fix is in StageB.run() inputs propagation
-   - **IF inline path**: Fix is in `_build_stage_b_lbfgs_closure` helper initialization
-
-**REVISED APPROACH** (after error analysis):
-
-The test failure shows TWO separate errors in the SAME test run:
-1. **KeyError: 'stage_a_telemetry'** at `dbex/refinement/stage_b.py:113` — engine delegation path IS active
-2. **AttributeError: 'numpy.ndarray' object has no attribute 'to'** at `dbex/nanobrag_refinement.py:2514` — inside `_build_stage_b_lbfgs_closure`
-
-This means:
-- Engine delegation path IS active (RefinementEngine([StageA(), StageB()]))
-- StageB.run() IS being called, but fails at line 113 trying to extract `inputs['stage_a_telemetry']`
-- The AttributeError at 2514 is a SEPARATE attempt after the KeyError (possibly a fallback or retry)
-
-**Corrected Fix Plan:**
-
-### Bug 1: RefinementEngine not passing stage_a_telemetry to StageB
-
-The RefinementEngine code at line 111 tries to pass `stage_a_telemetry`, but the logic is ONLY triggered when `stage.name == "stage_b"`. Let me verify the stage name...
-
-Actually, looking at line 107, the condition is correct. The issue is that `asdict(self._telemetry["stage_a"])` will fail because `self._telemetry["stage_a"]` is a RefinementTelemetry dataclass, but `asdict()` is not imported in the engine module!
-
-**Fix**: Import `asdict` at the top of `dbex/refinement/engine.py` (it's already imported at line 109, so this is fine).
-
-Actually, looking more carefully at line 109, `asdict` IS imported inside the if block. The real issue is that THIS CODE NEVER RUNS because the condition at line 107 checks `"stage_a" in self._telemetry`, but at the point when StageB.configure() is called (before run()), the telemetry dict is still empty!
-
-**Root Cause**: The engine populates `self._telemetry["stage_a"]` AFTER StageA.run() completes (line 141), but the StageB input enrichment happens BEFORE StageB.run() is called (lines 105-115). So the condition `"stage_a" in self._telemetry` is TRUE when StageB runs (second iteration of the loop).
-
-Wait, let me re-read the loop structure... The loop at line 100 iterates over `self.stages`, so for the [StageA(), StageB()] sequence:
-- Iteration 0: stage = StageA(), stage_idx = 0
-  - Line 105: `stage_idx > 0` is FALSE, skip enrichment
-  - Line 118: StageA.run() executes
-  - Line 141: `self._telemetry["stage_a"] = telemetry` (stored)
-- Iteration 1: stage = StageB(), stage_idx = 1
-  - Line 105: `stage_idx > 0` is TRUE
-  - Line 107: `stage.name == "stage_b"` — what is the actual stage.name value?
-
-Let me check the StageB class...
-
-9. **Check StageB.name property**:
-   ```bash
-   grep -n "def name" dbex/refinement/stage_b.py
-   grep -n "@property" dbex/refinement/stage_b.py | grep -A 2 "name"
-   ```
-
-10. **Implement Bug 1 Fix** (once stage.name is confirmed):
-    - If `stage.name` returns `"stage_b"` correctly, the issue is that `asdict()` import or the dict conversion is failing
-    - Otherwise, fix the stage.name property to return `"stage_b"` as expected
-
-### Bug 2: Fix AttributeError in `_build_stage_b_lbfgs_closure`
-
-The error at line 2514 suggests `target_t` is a numpy array. This is inside the `compute_loss_stage_b` nested function, which gets target_t from the closure's lexical scope. The variable `target_t` is supposed to be initialized in `_build_stage_b_params` at line 3102 (inline path), but StageB.run() does NOT call `_build_stage_b_params` directly to get these tensors — it expects them from `param_values` dict.
-
-Looking at StageB.run() (dbex/refinement/stage_b.py), let me check how it calls the helpers...
-
-**Simplified Fix Approach:**
-
-Instead of trying to trace through all the complex data flows, let me:
-1. Check if the test is ACTUALLY using engine delegation
-2. If YES: Fix the engine→StageB input propagation
-3. If NO: Fix the inline path initialization
-
-Let me write a simpler, more direct Do Now that Ralph can execute:
-
-## Simplified Do Now
-
-**Step 1**: Verify which path the test uses
-```bash
-cd /home/ollie/Documents/diffbragg_example
-KMP_DUPLICATE_LIB_OK=TRUE pytest tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers -xvs 2>&1 | grep -E "stage_a_only_mode|stage_a_b_mode|=== INLINE PATH|=== ENGINE DELEGATION PATH" | head -5 | tee plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T075320Z/path_detection.log
-```
-
-**Step 2**: Add debug logging to confirm which branch executes
-```python
-# Add at line 3015 (before stage detection logic)
-print(f"DEBUG: enable_stage_c={config.enable_stage_c}, enable_stage_b={config.enable_stage_b}")
-print(f"DEBUG: stage_a_only_mode = {not config.enable_stage_c and not config.enable_stage_b}")
-print(f"DEBUG: stage_a_b_mode = {not config.enable_stage_c and config.enable_stage_b}")
-```
-
-**Step 3**: Fix Bug 1 (RefinementTelemetry dict conversion)
-- Replace lines 3088-3091 with corrected code using `asdict()` (see above)
-
-**Step 4**: Fix Bug 2 (check StageB.name property)
-- Read `dbex/refinement/stage_b.py` to verify the `name` property returns `"stage_b"`
-- If missing or incorrect, add/fix the property
-
-**Step 5**: Regression guard (after fixes)
-```bash
-KMP_DUPLICATE_LIB_OK=TRUE pytest tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers -xvs 2>&1 | tee plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T075320Z/pytest_stage_b_after_bugfix.log
-```
-
-**Step 6**: Commit if tests pass
-```bash
-git add -A
-git commit -m "$(cat <<'EOF'
-RALPH: ARCH-REFINE-FLOW-001 Phase C2 bugfix — fix engine delegation telemetry conversion
-
-Fixed two critical bugs in Phase C2 engine delegation path:
-1. Line 3089-3090: Convert RefinementTelemetry dataclass to dict using asdict() before filtering
-2. Verified StageB.name property returns "stage_b" for engine input enrichment
-
-Tests:
-- test_stage_b_shell_modifiers: [PASS/FAIL after bugfix]
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
-
-Co-Authored-By: Claude <noreply@anthropic.com>
-EOF
-)"
-git push
-```
+**Validate:**
+- Rerun `test_stage_b_shell_modifiers` with small detector
+- Verify Stage B initial chi² ≈ Stage A final chi² (relative tolerance ≤ 0.1%)
+- Capture test log + chi² comparison in artifacts
 
 ## How-To Map
 
-### Environment
-```bash
-export KMP_DUPLICATE_LIB_OK=TRUE
-cd /home/ollie/Documents/diffbragg_example
-```
+1. **Add baseline_crystal parameter to helper signature** (dbex/nanobrag_refinement.py:2713-2726):
+   - Line 2718: Change `crystal,` to `crystal, baseline_crystal=None,`
+   - Lines 2734-2746 (docstring Args): Add after `crystal:` entry:
+     ```
+     baseline_crystal: Optional baseline dxtbx Crystal object for extracting deterministic
+                       misset when `crystal` is perturbed. When provided, computes
+                       U_delta = U_perturbed @ U_baseline^{-1} and adds it to the orientation
+                       path as a tensor to preserve differentiability. Defaults to None.
+     ```
 
-### Bug 1 Fix Location
-**File**: `dbex/nanobrag_refinement.py`
-**Lines**: 3088-3091
-**Current code** (BROKEN):
-```python
-from dbex.nanobrag_refinement import RefinementTelemetry
-telemetry_b = RefinementTelemetry(**{k: v for k, v in telemetry_b_raw.items() if k not in ['stage_type', 'mode', 'shell_edges', 'shell_indices', 'n_shells']})
-telemetry_a = RefinementTelemetry(**{k: v for k, v in telemetry_a_raw.items() if k not in ['stage_type', 'mode', 'stage_a_ctx']})
-```
+2. **Verify compute_baseline_misset_deg import** (should be at line 2758):
+   ```bash
+   grep -n "compute_baseline_misset_deg" dbex/nanobrag_refinement.py | grep "from dbex.nanobrag_bridge import" | head -1
+   ```
+   - If missing, add to imports at line 2754-2758:
+     ```python
+     from dbex.nanobrag_bridge import (
+         create_detector_config,
+         create_crystal_config,
+         compute_baseline_misset_deg,  # ADD THIS LINE if missing
+     )
+     ```
 
-**Replacement** (FIXED):
-```python
-from dataclasses import asdict
-from dbex.nanobrag_refinement import RefinementTelemetry
+3. **Replace baseline_misset placeholder with computation** (dbex/nanobrag_refinement.py:2810-2814):
+   - Find lines 2810-2814:
+     ```python
+     # Compute baseline misset if available
+     baseline_misset_deg_tensor = None
+     # Note: baseline_crystal would need to be passed to this helper to compute baseline misset
+     # For now, we'll skip baseline misset support in engine path (matches inline path logic)
+     ```
+   - Replace with:
+     ```python
+     # Compute baseline misset if baseline_crystal provided (matches inline path lines 3115-3120)
+     baseline_misset_deg_tensor = compute_baseline_misset_deg(
+         crystal,
+         baseline_crystal,
+         device=device,
+         dtype=dtype,
+     )
+     ```
 
-# Convert RefinementTelemetry dataclass instances to dicts before filtering
-telemetry_a_dict = asdict(telemetry_a_raw)
-telemetry_b_dict = asdict(telemetry_b_raw)
+4. **Pass baseline_crystal in engine delegation call** (dbex/nanobrag_refinement.py:3071-3084):
+   - Find line 3076-3077:
+     ```python
+     crystal=crystal,
+     inputs=inputs,
+     ```
+   - Change to:
+     ```python
+     crystal=crystal,
+     baseline_crystal=baseline_crystal,
+     inputs=inputs,
+     ```
 
-# Filter out extra fields not in RefinementTelemetry schema
-telemetry_b = RefinementTelemetry(**{k: v for k, v in telemetry_b_dict.items() if k not in ['stage_type', 'mode', 'shell_edges', 'shell_indices', 'n_shells']})
-telemetry_a = RefinementTelemetry(**{k: v for k, v in telemetry_a_dict.items() if k not in ['stage_type', 'mode', 'stage_a_ctx']})
-```
+5. **Compilation check**:
+   ```bash
+   python -c "from dbex.nanobrag_refinement import run_nanobrag_refinement; print('OK')" 2>&1 | tee plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T081500Z/compilation_check.log
+   ```
 
-### Bug 2 Check Location
-**File**: `dbex/refinement/stage_b.py`
-**Check**: Verify `@property def name(self)` returns `"stage_b"` (should be around line 60-70 based on StageA pattern)
+6. **Regression guard** (MANDATORY):
+   ```bash
+   NANOBRAGG_DISABLE_COMPILE=1 KMP_DUPLICATE_LIB_OK=TRUE \
+     pytest tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers -k small --tb=short -v \
+     2>&1 | tee plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T081500Z/pytest_stage_b_baseline_crystal_fix.log
+   ```
 
-**If missing**, add after the `__init__` method:
-```python
-@property
-def name(self) -> str:
-    """Return stage identifier for telemetry keying."""
-    return "stage_b"
-```
+7. **Verification** (chi-squared comparison):
+   ```bash
+   # Extract chi² values from test log
+   grep -E "Stage (A|B) (final|initial) chi" plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T081500Z/pytest_stage_b_baseline_crystal_fix.log
 
-### Validation
-```bash
-# Compilation check
-python -c "from dbex.nanobrag_refinement import run_nanobrag_refinement; print('OK')" 2>&1 | tee plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T075320Z/compilation_check.log
+   # If test PASSED, extract final chi² values for summary
+   # If test FAILED, extract AssertionError with exact chi² values
+   ```
 
-# Regression guard (MUST PASS)
-KMP_DUPLICATE_LIB_OK=TRUE pytest tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers -xvs 2>&1 | tee plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T075320Z/pytest_stage_b_after_bugfix.log
+8. **Write summary**:
+   - File: `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T081500Z/summary.md`
+   - Include:
+     - Problem statement (9.3% chi² offset, root cause)
+     - Fix applied (4 code changes: signature + docstring + computation + call site)
+     - Chi² comparison before/after (from test logs)
+     - Test results (PASS/FAIL)
+     - Next actions (if PASS: mark Phase C2 complete; if FAIL: escalate with blocker)
 
-# Engine contract test
-pytest tests/dbex/test_refinement_engine.py::test_engine_executes_mock_stage -xvs 2>&1 | tee plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T075320Z/pytest_engine_contract.log
-```
+9. **Commit** (if test PASSES):
+   ```bash
+   git add -A
+   git commit -m "$(cat <<'EOF'
+   ARCH-REFINE-FLOW-001 Phase C2: Fix baseline_crystal parameter in Stage B final Bragg helper
+
+   Problem: Engine delegation path had 9.3% chi-squared offset between Stage A final and
+   Stage B initial because _build_final_bragg_from_stage_b_telemetry helper was missing
+   baseline_crystal parameter, causing incorrect misset computation.
+
+   Root Cause: Helper always set baseline_misset_deg_tensor=None (line 2812), so final misset
+   calculation used only delta (misset_xyz_deg) instead of baseline+delta. This mismatched
+   compute_loss_stage_b (lines 2414-2416) which correctly adds baseline when available.
+
+   Changes:
+   - Added baseline_crystal parameter to _build_final_bragg_from_stage_b_telemetry signature
+   - Updated docstring to document baseline_crystal purpose (GEOMETRY-003 contract)
+   - Replaced baseline_misset=None with compute_baseline_misset_deg call (matching inline path)
+   - Passed baseline_crystal in engine delegation call (line ~3077)
+
+   Tests: PASSED
+   - test_stage_b_shell_modifiers (small detector): Stage B initial chi² now matches Stage A final
+     within 0.1% tolerance (chi² offset resolved)
+
+   Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T081500Z/
+
+   🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+   Co-Authored-By: Claude <noreply@anthropic.com>
+   EOF
+   )"
+   git push
+   ```
 
 ## Pitfalls To Avoid
 
-1. **asdict() import**: Must be imported from `dataclasses` module, NOT from `dbex.nanobrag_refinement`
-2. **Dataclass detection**: Use `hasattr(obj, '__dataclass_fields__')` to check if object is a dataclass instance before calling `asdict()`
-3. **StageB.name property**: Must return exactly `"stage_b"` (lowercase, underscore separator) to match engine telemetry keying
-4. **Don't add tensor init to _build_final_bragg_from_stage_b_telemetry**: The helper does NOT use target_t/loss_mask_t/sigma_readout_t in its Bragg generation paths (only in loss computation, which is NOT called by the helper)
-5. **Regression guard requirement**: test_stage_b_shell_modifiers MUST PASS before marking Phase C2 complete
+1. **Parameter ordering**: Add `baseline_crystal` AFTER `crystal` parameter (line 2718) to match inline path pattern
+2. **Default value**: Use `baseline_crystal=None` to preserve backward compatibility (helper can be called without baseline)
+3. **Import check**: `compute_baseline_misset_deg` should already be imported at line 2758; do NOT add duplicate import
+4. **Inline path unchanged**: Do NOT modify inline path (lines 3102-onward); it already computes baseline_misset correctly at lines 3115-3120
+5. **Test selector**: Use `-k small` to run small-detector test only (faster, ROI mode enabled, 0.1% tolerance)
+6. **Tolerance understanding**: Small detector uses 0.1% (1e-3) relative tolerance; full detector uses 5% (5e-2) due to CPU fallback
+7. **Device/dtype neutrality**: `compute_baseline_misset_deg` already respects `device` and `dtype` parameters; no hardcoding needed
+8. **Environment flags**: MUST set `NANOBRAGG_DISABLE_COMPILE=1` and `KMP_DUPLICATE_LIB_OK=TRUE` per RUNTIME-001/CONFORMANCE-001
+
+**Environment:** Frozen. Do not install/upgrade packages. If import fails, mark blocked with error signature.
 
 ## If Blocked
 
-**Scenario 1: Bug 1 fix still fails with dict conversion error**
-- Check if `telemetry_a_raw` and `telemetry_b_raw` are actually RefinementTelemetry instances (add `print(type(telemetry_a_raw))` before asdict() call)
-- If they are already dicts, skip asdict() call
-- Log type info + error signature in `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T075320Z/blocker.md`
+1. **Scenario: Test still fails with chi-squared offset**
+   - Extract exact chi² values from pytest log:
+     ```bash
+     grep "Stage B initial chi-squared.*!= Stage A final" plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T081500Z/pytest_stage_b_baseline_crystal_fix.log
+     ```
+   - Compute relative difference manually: `abs(stage_b_initial - stage_a_final) / stage_a_final`
+   - Check if helper received non-None `baseline_crystal`:
+     - Add debug print before line 2812: `print(f"DEBUG: baseline_crystal={baseline_crystal}, type={type(baseline_crystal)}")`
+     - Rerun test with debug
+   - Verify `baseline_misset_deg_tensor` is used at lines 2847-2850 (should add to misset_xyz_deg when not None)
+   - Document findings in `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T081500Z/blocker.md`
 
-**Scenario 2: StageB.name property missing or returns wrong value**
-- Check if StageB inherits from a base class that defines `name` property
-- If using RefinementStage protocol, verify the `name` property is correctly implemented
-- Add property if missing, fix return value if incorrect
-- Log class structure + error signature in blocker.md
+2. **Scenario: ImportError or AttributeError on compute_baseline_misset_deg**
+   - Verify function exists:
+     ```bash
+     grep -n "^def compute_baseline_misset_deg" dbex/nanobrag_bridge.py
+     ```
+   - If missing, check git history:
+     ```bash
+     git log --oneline --all --grep="compute_baseline_misset_deg" | head -5
+     ```
+   - Mark blocked in blocker.md with exact error + git context
 
-**Scenario 3: Test still fails with KeyError: 'stage_a_telemetry'**
-- The engine's input enrichment logic at line 107 is not running
-- Debug by adding `print(f"DEBUG: stage_idx={stage_idx}, stage.name={stage.name}, telemetry_keys={list(self._telemetry.keys())}")` before line 107
-- Verify `stage.name == "stage_b"` condition is TRUE
-- Verify `"stage_a" in self._telemetry` condition is TRUE
-- Log debug output in blocker.md
+3. **Scenario: Compilation error on helper signature change**
+   - Verify syntax: `baseline_crystal=None` comes AFTER `crystal,` with comma
+   - Check for duplicate parameter names
+   - Capture full traceback in blocker.md
 
-**Fallback**: If blocked after 2 attempts, write comprehensive blocker.md with error signatures, debug output, and proposed escalation path. Mark ARCH-REFINE-FLOW-001 Phase C2 blocked in galph_memory.md and docs/fix_plan.md Attempts History.
+4. **Escalation Path**:
+   - Update `docs/fix_plan.md` Attempts History with: timestamp, focus, status=blocked, blocker summary, artifacts path
+   - Update `galph_memory.md` with blocker state + dwell count
+   - Write comprehensive blocker.md explaining issue + proposed next diagnostic steps
 
-## Findings Applied (Mandatory)
+## Findings Applied
 
-**Relevant Finding IDs from docs/findings.md:**
-- **POLICY-001** (Environment Freeze): No package installs/upgrades. Adherence: Bugfix uses only existing dependencies (dataclasses module is stdlib).
-- **CONFIG-001** (Detector metadata contracts): Engine inputs dict propagation. Adherence: No changes to detector/beam/crystal configs.
-
-No other findings directly relevant to Phase C2 bugfix.
+- **GEOMETRY-003**: Crystal misset computation via `compute_baseline_misset_deg` (baseline A* matrix → XYZ Euler misset delta). Adherence: Using same function as inline path (lines 3115-3120) to maintain parity.
+- **PHYSICS-LOSS-001**: Variance-weighted chi-squared dual metrics (Stage A/B both persist chi_squared_trace_full). Adherence: Fix ensures Stage B initial chi² matches Stage A final chi² so loss traces are meaningful.
+- **RUNTIME-001**: `NANOBRAGG_DISABLE_COMPILE=1` required for gradient tests. Adherence: Set in regression guard command.
+- **CONFORMANCE-001**: `KMP_DUPLICATE_LIB_OK=TRUE` required for acceptance tests. Adherence: Set in regression guard command.
+- **POLICY-001**: Environment Freeze allows targeted bugfixes. Adherence: Changes use only existing functions (compute_baseline_misset_deg), no new dependencies.
 
 ## Pointers
 
-### Spec/Arch/Testing Docs
-- **Spec DB Workflow §7** (Refinement Protocol Architecture): `docs/spec-db-workflow.md:31-34`
-- **ARCH-REFINE-FLOW-001 Plan**: `plans/active/ARCH-REFINE-FLOW-001/implementation.md` (Phase C checklist)
-- **Testing Guide §2**: `docs/TESTING_GUIDE.md` (selector registry)
+- **Spec**: docs/spec-db-workflow.md:31-34 (Refinement Protocol Architecture, Stage delegation)
+- **Spec**: docs/spec-db-core.md:57-68 (Variance-weighted loss definition)
+- **Implementation**: dbex/nanobrag_refinement.py:2713-2910 (_build_final_bragg_from_stage_b_telemetry helper signature + body)
+- **Implementation**: dbex/nanobrag_refinement.py:3071-3084 (engine delegation call site)
+- **Implementation**: dbex/nanobrag_refinement.py:3115-3120 (inline path baseline_misset computation, reference pattern)
+- **Implementation**: dbex/nanobrag_bridge.py:723-780 (compute_baseline_misset_deg implementation)
+- **Test**: tests/dbex/test_torch_refine_smoke.py:1116-1203 (Stage B chi-squared continuity assertion, line 1116-1119)
+- **Finding**: GEOMETRY-003 (baseline misset computation contract)
+- **Finding**: PHYSICS-LOSS-001 (chi-squared telemetry contract)
+- **Plan**: plans/active/ARCH-REFINE-FLOW-001/implementation.md (Phase C2 objectives)
+- **Ralph's Blocker**: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T075320Z/summary.md (loop i=206 bugfix evidence)
 
-### Fix Plan Entries
-- **ARCH-REFINE-FLOW-001**: `docs/fix_plan.md` (current status, dependencies)
-- **Phase C2 Original Do Now**: `input.md` (from loop i=205, 2025-11-23T073209Z)
-- **Ralph's Blocker Report**: `plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T073209Z/summary.md`
+## Next Up
 
-### Code Anchors
-- **Bug 1 location**: `dbex/nanobrag_refinement.py:3088-3091`
-- **Bug 2 check location**: `dbex/refinement/stage_b.py` (name property)
-- **Engine input enrichment**: `dbex/refinement/engine.py:105-115`
-- **StageA name property example**: `dbex/refinement/stage_a.py:60-62` (for reference)
+If finished early and test PASSES:
+- Update implementation.md with Phase C2 completion status
+- Run full-detector Stage B smoke (`-k full`) to verify no regressions in canonical path (optional, low priority)
 
-## Next Up (optional)
+Do NOT proceed to Phase C3 without explicit Galph approval.
 
-If bugfix completes early and all tests pass:
-- Mark Phase C2 complete in implementation.md
-- Proceed to Phase C3 planning (full Stage B smoke validation both detectors)
+## Doc Sync Plan
 
-Do NOT proceed to Phase C3 without explicit Galph approval. Mark Phase C2 complete and commit artifacts.
-
-## Doc Sync Plan (Conditional)
-
-NOT REQUIRED for Phase C2 bugfix (no new tests authored, only fixing existing engine delegation path).
+Not required (no new tests added, existing test_stage_b_shell_modifiers selector unchanged).
 
 ## Mapped Tests Guardrail
 
-Both mapped selectors collect >0 tests (verified via `pytest --collect-only`):
-- `test_stage_b_shell_modifiers`: 1 test (Active)
-- `test_engine_executes_mock_stage`: 1 test (Active)
+Selector collects >0 tests (verified via `pytest --collect-only`):
+- `test_stage_b_shell_modifiers`: 2 parametrized tests (smoke_detector_size=small/full), status=Active
 
-No downgrade required. Both selectors MUST PASS for Phase C2 completion.
+No downgrade required. Small-detector test MUST PASS for Phase C2 completion.

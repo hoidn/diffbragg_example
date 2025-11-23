@@ -221,3 +221,13 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-23T073209Z focus=ARCH-REFINE-FLOW-001 state=ready_for_implementation dwell=0 artifacts=plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T073209Z/ next_action=phase_c2_engine_delegation
+
+## 2025-11-23T081500Z — ARCH-REFINE-FLOW-001 Phase C2 Bugfix Planning (baseline_crystal missing)
+- Focus: ARCH-REFINE-FLOW-001 — Protocol-based Refinement Engine (Phase C2 bugfix)
+- Action Type: planning
+- Key Observations: Analyzed Ralph's loop i=206 blocker (commit a82893e, 2025-11-23T075320Z): 9.3% chi-squared offset between Stage A final (7.053e+08) and Stage B initial (7.709e+08) persists after fixing 3 AttributeErrors (asdict conversion + enable_warm_cache typo). Root cause identified: `_build_final_bragg_from_stage_b_telemetry` helper is missing `baseline_crystal` parameter, so `baseline_misset_deg_tensor` is always None (lines 2812-2814), causing incorrect misset computation in final Bragg regeneration. Helper uses `misset_xyz_deg` alone (delta only) instead of `baseline_misset + misset_xyz_deg` (full misset). This mismatches `compute_loss_stage_b` (lines 2414-2416) which correctly adds baseline, resulting in 9.3% chi² offset. Inline path (lines 3115-3120) computes baseline_misset correctly. Authored comprehensive Do Now with 4 code changes: (1) add baseline_crystal parameter to helper signature (line 2718), (2) update docstring, (3) replace baseline_misset=None with compute_baseline_misset_deg call, (4) pass baseline_crystal in engine delegation call (line ~3077). Validation: rerun test_stage_b_shell_modifiers small detector, verify chi² offset ≤ 0.1%.
+- Artifact Path: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T081500Z/
+- Next Actions: Ralph executes Phase C2 bugfix (4 code changes + regression guard). If PASS → Phase C2 COMPLETE, prepare Phase C3 planning. If FAIL → Ralph documents blocker → Galph reviews and decides escalation.
+- <Action State>: [ready_for_implementation]
+
+2025-11-23T081500Z focus=ARCH-REFINE-FLOW-001 state=ready_for_implementation dwell=1 artifacts=plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T081500Z/ next_action=phase_c2_baseline_crystal_bugfix

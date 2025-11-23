@@ -2891,6 +2891,306 @@ def _build_stage_c_params(
     }
 
 
+def _build_stage_c_lbfgs_closure(
+    param_values: Dict[str, Any],
+    telemetry_state: Dict[str, Any],
+    stage_c_context: Dict[str, Any],
+    detector: Any,  # dxtbx.model.Detector
+    beam: Any,  # dxtbx.model.Beam
+    inputs: Any,  # RefinementInputs
+    config: 'RefinementConfig',
+    sigma_floor_sq_cache: Dict[str, torch.Tensor],
+    device: torch.device,
+    dtype: torch.dtype,
+    crystal: Any,  # dxtbx.model.Crystal (Stage A final params)
+    hkl_grid: torch.Tensor,
+    hkl_metadata: Dict[str, Any],
+    stage_a_ctx: Optional['StageAContext'],
+    sampled_panel_ids: List[int]
+) -> Tuple[Callable[[List[int], bool], Tuple[torch.Tensor, torch.Tensor]], Callable[[], torch.Tensor]]:
+    """
+    Build Stage C LBFGS closure for detector distance refinement.
+
+    Returns tuple of (compute_loss_stage_c, closure_stage_c) with captured lexical scope
+    for ~25 nonlocal variables extracted from input dicts.
+
+    Both nested functions implement variance-weighted chi-squared loss with Stage C
+    detector distance adjustments, freezing Stage A crystal parameters.
+
+    Returns:
+        Tuple of:
+        - compute_loss_stage_c: Callable[[panel_ids, is_full], (chi_squared, mse)]
+        - closure_stage_c: Callable[[], chi_squared_loss] (LBFGS closure contract)
+    """
+    # Extract from param_values dict
+    distance_offset_raw = param_values['distance_offset_raw']
+    stage_c_params = param_values['stage_c_params']
+    stage_c_optimizer = param_values['stage_c_optimizer']
+    log_scale = param_values['log_scale']
+    log_cell_a_delta = param_values.get('log_cell_a_delta')
+    log_cell_b_delta = param_values.get('log_cell_b_delta')
+    log_cell_c_delta = param_values.get('log_cell_c_delta')
+    angle_alpha_raw = param_values.get('angle_alpha_raw')
+    angle_beta_raw = param_values.get('angle_beta_raw')
+    angle_gamma_raw = param_values.get('angle_gamma_raw')
+    orientation_vec = param_values.get('orientation_vec')
+    baseline_misset_deg_tensor = param_values.get('baseline_misset_deg_tensor')
+    misset_deg_for_crystal = param_values.get('misset_deg_for_crystal')
+    target_t = param_values['target_t']
+    loss_mask_t = param_values['loss_mask_t']
+    sigma_readout_t = param_values['sigma_readout_t']
+
+    # Extract from telemetry_state dict
+    perf_closure_evals_c = telemetry_state['perf_closure_evals_c']
+    perf_validation_runs_c = telemetry_state['perf_validation_runs_c']
+    perf_forward_times_ms_c = telemetry_state['perf_forward_times_ms_c']
+    loss_trace_sample_c = telemetry_state['loss_trace_sample_c']
+    loss_trace_full_c = telemetry_state['loss_trace_full_c']
+    best_loss_full_c = telemetry_state['best_loss_full_c']
+    best_params_snapshot_c = telemetry_state['best_params_snapshot_c']
+    iteration_count_c = telemetry_state['iteration_count_c']
+    chi_squared_trace_sample_c = telemetry_state['chi_squared_trace_sample_c']
+    chi_squared_trace_full_c = telemetry_state['chi_squared_trace_full_c']
+    chi_squared_best_c = telemetry_state['chi_squared_best_c']
+    masked_mse_trace_sample_c = telemetry_state['masked_mse_trace_sample_c']
+    masked_mse_trace_full_c = telemetry_state['masked_mse_trace_full_c']
+    masked_mse_best_c = telemetry_state['masked_mse_best_c']
+    variance_floor_clamped_pixels_c = telemetry_state['variance_floor_clamped_pixels_c']
+    variance_floor_masked_pixels_c = telemetry_state['variance_floor_masked_pixels_c']
+    sigma_floor_sq_tensor_stage_c = telemetry_state['sigma_floor_sq_tensor_stage_c']
+
+    # Extract from stage_c_context dict
+    stage_c_use_warm_cache = stage_c_context['stage_c_use_warm_cache']
+    stage_c_cache_mode = stage_c_context['stage_c_cache_mode']
+    stage_c_roi_mode_active = stage_c_context['stage_c_roi_mode_active']
+    stage_c_roi_mode_label = stage_c_context['stage_c_roi_mode_label']
+    roi_slices_by_pid = stage_c_context['roi_slices_by_pid']
+    n_panels = len(detector)
+
+    def compute_loss_stage_c(panel_ids: List[int], is_full: bool = False) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Compute variance-weighted chi-squared loss with Stage C detector distance adjustments.
+
+        Uses Stage A's final crystal parameters (frozen) and varies per-panel distances.
+
+        Returns:
+            Tuple of (chi_squared_loss, masked_mse_loss): Both scalar tensors for telemetry
+        """
+        # Lazy imports inside nested function (device-specific, conditional)
+        from nanobrag_torch.models import Detector, Crystal
+        from nanobrag_torch.simulator import Simulator
+
+        t0 = time.perf_counter()
+        if is_full:
+            perf_validation_runs_c[0] += 1
+        bragg_panels = []
+        target_panels = []
+        mask_panels = []
+        sigma_panels = []
+
+        cell_params = crystal.get_unit_cell().parameters()
+        perturbed_cell_a = cell_params[0] * torch.exp(log_cell_a_delta)
+        perturbed_cell_b = cell_params[1] * torch.exp(log_cell_b_delta)
+        perturbed_cell_c = cell_params[2] * torch.exp(log_cell_c_delta)
+
+        max_angle_delta = 10.0
+        perturbed_alpha = cell_params[3] + torch.tanh(angle_alpha_raw) * max_angle_delta
+        perturbed_beta = cell_params[4] + torch.tanh(angle_beta_raw) * max_angle_delta
+        perturbed_gamma = cell_params[5] + torch.tanh(angle_gamma_raw) * max_angle_delta
+
+        max_orientation_deg = 3.0
+        bounded_orientation_vec = torch.tanh(orientation_vec) * max_orientation_deg * (np.pi / 180.0)
+        quat = vec_to_unit_quaternion(bounded_orientation_vec)
+        misset_xyz_deg = quaternion_to_xyz_euler(quat)
+
+        if baseline_misset_deg_tensor is not None:
+            misset_xyz_deg = misset_xyz_deg + baseline_misset_deg_tensor
+
+        crystal_overrides = {
+            'cell_a': perturbed_cell_a,
+            'cell_b': perturbed_cell_b,
+            'cell_c': perturbed_cell_c,
+            'cell_alpha': perturbed_alpha,
+            'cell_beta': perturbed_beta,
+            'cell_gamma': perturbed_gamma
+        }
+        crystal_config, _ = create_crystal_config(
+            crystal,
+            None,
+            crystal_overrides=crystal_overrides,
+            misset_deg_override=misset_deg_for_crystal
+        )
+
+        crystal_model = Crystal(crystal_config, device=device, dtype=dtype)
+        crystal_model.interpolate = config.enable_hkl_interpolation
+        crystal_model.hkl_data = hkl_grid.to(device=device, dtype=dtype)
+        crystal_model.hkl_metadata = hkl_metadata
+
+        for pid in panel_ids:
+            panel = detector[pid]
+
+            bounded_offset = torch.tanh(distance_offset_raw[pid]) * config.stage_c_max_distance_delta_mm
+            baseline_distance_mm = panel.get_directed_distance()
+            distance_mm_override = baseline_distance_mm + bounded_offset
+
+            if stage_c_use_warm_cache:
+                detector_config = copy.copy(stage_a_ctx.detector_configs[pid])
+                detector_config.distance_mm = distance_mm_override
+                detector_model = Detector(detector_config, device=device, dtype=dtype)
+                simulator = Simulator(
+                    detector=detector_model,
+                    crystal=crystal_model,
+                    beam_config=stage_a_ctx.beam_config,
+                    device=device,
+                    dtype=dtype,
+                )
+            else:
+                detector_config = create_detector_config(
+                    panel=panel,
+                    beam=beam,
+                    trusted_mask=inputs.trusted_mask[pid],
+                    distance_mm_override=distance_mm_override
+                )
+                if detector_config.mask_array is not None and not isinstance(detector_config.mask_array, torch.Tensor):
+                    detector_config.mask_array = torch.tensor(
+                        detector_config.mask_array, dtype=torch.float32, device=device
+                    )
+                detector_model = Detector(detector_config, device=device, dtype=dtype)
+                simulator = Simulator(detector=detector_model, crystal=crystal_model, device=device, dtype=dtype)
+
+            panel_bragg = simulator.run()
+
+            bragg_panels.append(panel_bragg)
+            target_panels.append(target_t[pid])
+            mask_panels.append(loss_mask_t[pid])
+            sigma_panels.append(sigma_readout_t[pid])
+
+        log_scale_clamped = torch.clamp(log_scale, min=-10.0, max=10.0)
+        panel_outputs = {pid: panel for pid, panel in zip(panel_ids, bragg_panels)}
+        target_outputs = {pid: panel for pid, panel in zip(panel_ids, target_panels)}
+        mask_outputs = {pid: panel for pid, panel in zip(panel_ids, mask_panels)}
+        sigma_outputs = {pid: panel for pid, panel in zip(panel_ids, sigma_panels)}
+
+        if stage_c_roi_mode_active:
+            chi_squared_accum = torch.zeros((), device=device, dtype=dtype)
+            mse_numerator_accum = torch.zeros((), device=device, dtype=dtype)
+            masked_pixels_total = 0
+            clamped_pixels_total = 0
+            for pid in panel_ids:
+                roi_list = roi_slices_by_pid.get(pid, [])
+                if not roi_list:
+                    continue
+                panel_output = panel_outputs[pid]
+                target_panel = target_outputs[pid]
+                mask_panel = mask_outputs[pid]
+                sigma_panel = sigma_outputs[pid]
+                for bbox in roi_list:
+                    x0, x1, y0, y1 = bbox
+                    slow_slice = slice(y0, y1)
+                    fast_slice = slice(x0, x1)
+                    bragg_roi = panel_output[slow_slice, fast_slice] * torch.exp(log_scale_clamped)
+                    target_roi = target_panel[slow_slice, fast_slice]
+                    mask_roi = mask_panel[slow_slice, fast_slice]
+                    sigma_roi = sigma_panel[slow_slice, fast_slice]
+                    (
+                        chi_roi,
+                        mse_roi,
+                        masked_pixels_roi,
+                        clamped_pixels_roi,
+                    ) = _compute_variance_weighted_loss(
+                        bragg_roi,
+                        target_roi,
+                        mask_roi,
+                        sigma_roi,
+                        sigma_floor_sq_tensor_stage_c,
+                    )
+                    chi_squared_accum = chi_squared_accum + chi_roi
+                    mse_numerator_accum = mse_numerator_accum + mse_roi * masked_pixels_roi
+                    masked_pixels_total += masked_pixels_roi
+                    clamped_pixels_total += clamped_pixels_roi
+
+            if masked_pixels_total > 0:
+                masked_mse_loss = mse_numerator_accum / masked_pixels_total
+            else:
+                masked_mse_loss = mse_numerator_accum
+            chi_squared_loss = chi_squared_accum
+            variance_floor_clamped_pixels_c[0] += clamped_pixels_total
+            variance_floor_masked_pixels_c[0] += masked_pixels_total
+        else:
+            bragg_stacked = torch.stack(
+                [panel_outputs[pid] for pid in panel_ids], dim=0
+            )
+            bragg_scaled = bragg_stacked * torch.exp(log_scale_clamped)
+            target_subset = torch.stack([target_outputs[pid] for pid in panel_ids], dim=0)
+            mask_subset = torch.stack([mask_outputs[pid] for pid in panel_ids], dim=0)
+            sigma_subset = torch.stack([sigma_outputs[pid] for pid in panel_ids], dim=0)
+            (
+                chi_squared_loss,
+                masked_mse_loss,
+                masked_pixels_stage_c,
+                clamped_pixels_stage_c,
+            ) = _compute_variance_weighted_loss(
+                bragg_scaled,
+                target_subset,
+                mask_subset,
+                sigma_subset,
+                sigma_floor_sq_tensor_stage_c,
+            )
+            variance_floor_clamped_pixels_c[0] += clamped_pixels_stage_c
+            variance_floor_masked_pixels_c[0] += masked_pixels_stage_c
+        perf_forward_times_ms_c.append((time.perf_counter() - t0) * 1000.0)
+
+        return chi_squared_loss, masked_mse_loss
+
+    def closure_stage_c():
+        """LBFGS closure for Stage C detector refinement."""
+        stage_c_optimizer.zero_grad()
+        perf_closure_evals_c[0] += 1
+
+        # Compute loss on sampled ROIs
+        chi_squared_loss, mse_loss = compute_loss_stage_c(sampled_panel_ids, is_full=False)
+
+        # Backward pass
+        chi_squared_loss.backward()
+
+        # Check for NaN/Inf gradients
+        for p in stage_c_params:
+            if p.grad is not None and (torch.isnan(p.grad).any() or torch.isinf(p.grad).any()):
+                raise RuntimeError(f"NaN/Inf gradient detected in Stage C parameter {p}")
+
+        # Record loss
+        loss_trace_sample_c.append(float(chi_squared_loss.item()))
+        # PHYSICS-LOSS-001: Record both metrics
+        chi_squared_trace_sample_c.append(float(chi_squared_loss.item()))
+        masked_mse_trace_sample_c.append(float(mse_loss.item()))
+
+        # Periodic full validation
+        if iteration_count_c[0] % config.full_validation_interval == 0:
+            with torch.no_grad():
+                full_chi_squared_c, full_mse_c = compute_loss_stage_c(list(range(n_panels)), is_full=True)
+                loss_trace_full_c.append((iteration_count_c[0], float(full_chi_squared_c.item())))
+                # PHYSICS-LOSS-001: Record both metrics
+                chi_squared_trace_full_c.append((iteration_count_c[0], float(full_chi_squared_c.item())))
+                masked_mse_trace_full_c.append((iteration_count_c[0], float(full_mse_c.item())))
+
+                # Update best snapshot
+                nonlocal best_loss_full_c, best_params_snapshot_c, chi_squared_best_c, masked_mse_best_c
+                # PHYSICS-LOSS-001: Track best for both metrics
+                if full_chi_squared_c.item() < chi_squared_best_c[0]:
+                    chi_squared_best_c = (float(full_chi_squared_c.item()), iteration_count_c[0])
+                    best_loss_full_c = (float(full_chi_squared_c.item()), iteration_count_c[0])  # Deprecated legacy field
+                    best_params_snapshot_c = {
+                        'distance_offset_raw': distance_offset_raw.detach().cpu().tolist()
+                    }
+                if full_mse_c.item() < masked_mse_best_c[0]:
+                    masked_mse_best_c = (float(full_mse_c.item()), iteration_count_c[0])
+
+        iteration_count_c[0] += 1
+        return chi_squared_loss
+
+    return compute_loss_stage_c, closure_stage_c
+
+
 def _build_final_bragg_from_stage_b_telemetry(
     telemetry_a,
     telemetry_b,

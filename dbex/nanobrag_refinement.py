@@ -2734,6 +2734,163 @@ def _run_stage_b_lbfgs(
     }
 
 
+def _build_stage_c_params(
+    config: 'RefinementConfig',
+    device: torch.device,
+    dtype: torch.dtype,
+    n_panels: int,
+    baseline_detector: Optional[Any],  # dxtbx.model.Detector
+    detector: Any,  # dxtbx.model.Detector
+    sampled_panel_ids: List[int],
+    panel_slices: List[Tuple[int, int, int, int, int]],
+    stage_a_ctx: Optional['StageAContext'],
+    sigma_floor_sq_cache: Dict[str, torch.Tensor],
+    params: List[torch.Tensor]  # Stage A params to freeze
+) -> Dict[str, Any]:
+    """
+    Initialize Stage C detector distance offset parameters and optimizer.
+
+    Stage C refines per-panel translations along detector normal (distance offset)
+    with crystal orientation/cell frozen from Stage A.
+
+    Returns dict with keys:
+        - 'distance_offset_raw': torch.Tensor (n_panels,) trainable parameter
+        - 'stage_c_params': List[torch.Tensor] (optimizer params)
+        - 'stage_c_optimizer': torch.optim.LBFGS
+        - 'baseline_detector_distances': Optional[List[float]] (mm per panel)
+        - 'stage_c_use_warm_cache': bool
+        - 'stage_c_cache_mode': str ('warm' or 'cold')
+        - 'stage_c_roi_mode_active': bool
+        - 'stage_c_roi_mode_label': str ('roi' or 'panel')
+        - 'stage_c_roi_count_total': int
+        - 'stage_c_roi_count_sampled': int
+        - 'roi_slices_by_pid': Dict[int, List[Tuple[int, int, int, int]]]
+        - 'perf_closure_evals_c': List[int] (mutable counter)
+        - 'perf_validation_runs_c': List[int] (mutable counter)
+        - 'perf_forward_times_ms_c': List[float] (mutable accumulator)
+        - 'loss_trace_sample_c': List[float]
+        - 'loss_trace_full_c': List[float]
+        - 'best_loss_full_c': Tuple[float, int] (value, iteration)
+        - 'best_params_snapshot_c': Optional[List[torch.Tensor]]
+        - 'iteration_count_c': List[int] (mutable counter)
+        - 'chi_squared_trace_sample_c': List[float]
+        - 'chi_squared_trace_full_c': List[float]
+        - 'chi_squared_best_c': Tuple[float, int]
+        - 'masked_mse_trace_sample_c': List[float]
+        - 'masked_mse_trace_full_c': List[float]
+        - 'masked_mse_best_c': Tuple[float, int]
+        - 'variance_floor_clamped_pixels_c': List[int]
+        - 'variance_floor_masked_pixels_c': List[int]
+        - 'sigma_floor_sq_tensor_stage_c': torch.Tensor
+    """
+    # Compute baseline_detector_distances for Stage C telemetry (TORCH-REFINE-003)
+    # This is used to report initial detector offsets relative to nominal geometry
+    baseline_detector_distances = None
+    if baseline_detector is not None:
+        baseline_detector_distances = [
+            baseline_detector[pid].get_directed_distance() for pid in range(n_panels)
+        ]
+
+    # Freeze Stage A parameters (no grad)
+    for p in params:
+        p.requires_grad = False
+
+    # Initialize per-panel distance offsets (mm along panel normal)
+    # Start at zero (identity), bounded by tanh to ±max_distance_delta_mm
+    distance_offset_raw = torch.zeros(n_panels, device=device, dtype=dtype, requires_grad=True)
+
+    stage_c_params = [distance_offset_raw]
+    stage_c_use_warm_cache = (
+        stage_a_ctx is not None
+        and config.enable_stage_a_warm_cache
+        and stage_a_ctx.device == device
+        and stage_a_ctx.dtype == dtype
+    )
+    stage_c_cache_mode = "warm" if stage_c_use_warm_cache else "cold"
+    perf_closure_evals_c = [0]
+    perf_validation_runs_c = [0]
+    perf_forward_times_ms_c: List[float] = []
+    roi_slices_by_pid: Dict[int, List[Tuple[int, int, int, int]]] = defaultdict(list)
+    for pid, bbox in panel_slices:
+        roi_slices_by_pid[int(pid)].append(tuple(int(v) for v in bbox))
+    stage_c_roi_mode_active = (
+        stage_c_use_warm_cache
+        and config.enable_stage_a_roi_mode
+        and len(roi_slices_by_pid) > 0
+    )
+    stage_c_roi_mode_label = "roi" if stage_c_roi_mode_active else "panel"
+    sampled_pid_set = set(sampled_panel_ids)
+    if stage_c_roi_mode_active:
+        stage_c_roi_count_total = sum(len(bboxes) for bboxes in roi_slices_by_pid.values())
+        stage_c_roi_count_sampled = sum(len(roi_slices_by_pid.get(pid, [])) for pid in sampled_pid_set)
+    else:
+        stage_c_roi_count_total = n_panels
+        stage_c_roi_count_sampled = len(sampled_panel_ids)
+
+    # Setup LBFGS optimizer for Stage C
+    stage_c_optimizer = torch.optim.LBFGS(
+        stage_c_params,
+        history_size=config.history_size,
+        max_iter=config.max_iter,
+        tolerance_grad=config.tolerance_grad,
+        tolerance_change=config.tolerance_change,
+        line_search_fn="strong_wolfe"
+    )
+
+    # Telemetry accumulators for Stage C
+    loss_trace_sample_c = []
+    loss_trace_full_c = []
+    best_loss_full_c = (float('inf'), -1)
+    best_params_snapshot_c = None
+    iteration_count_c = [0]
+
+    # PHYSICS-LOSS-001: Dual metric tracking (chi_squared + masked_mse)
+    chi_squared_trace_sample_c = []
+    chi_squared_trace_full_c = []
+    chi_squared_best_c = (float('inf'), -1)
+    masked_mse_trace_sample_c = []
+    masked_mse_trace_full_c = []
+    masked_mse_best_c = (float('inf'), -1)
+
+    # PHYSICS-LOSS-002: Variance floor clamp statistics for Stage C
+    variance_floor_clamped_pixels_c = [0]  # Total pixels where floor engaged
+    variance_floor_masked_pixels_c = [0]  # Total masked pixels evaluated
+    sigma_floor_sq_tensor_stage_c = _get_sigma_floor_sq_tensor(
+        sigma_floor_sq_cache, device, dtype, config.sigma_floor_value
+    )
+
+    return {
+        'distance_offset_raw': distance_offset_raw,
+        'stage_c_params': stage_c_params,
+        'stage_c_optimizer': stage_c_optimizer,
+        'baseline_detector_distances': baseline_detector_distances,
+        'stage_c_use_warm_cache': stage_c_use_warm_cache,
+        'stage_c_cache_mode': stage_c_cache_mode,
+        'stage_c_roi_mode_active': stage_c_roi_mode_active,
+        'stage_c_roi_mode_label': stage_c_roi_mode_label,
+        'stage_c_roi_count_total': stage_c_roi_count_total,
+        'stage_c_roi_count_sampled': stage_c_roi_count_sampled,
+        'roi_slices_by_pid': roi_slices_by_pid,
+        'perf_closure_evals_c': perf_closure_evals_c,
+        'perf_validation_runs_c': perf_validation_runs_c,
+        'perf_forward_times_ms_c': perf_forward_times_ms_c,
+        'loss_trace_sample_c': loss_trace_sample_c,
+        'loss_trace_full_c': loss_trace_full_c,
+        'best_loss_full_c': best_loss_full_c,
+        'best_params_snapshot_c': best_params_snapshot_c,
+        'iteration_count_c': iteration_count_c,
+        'chi_squared_trace_sample_c': chi_squared_trace_sample_c,
+        'chi_squared_trace_full_c': chi_squared_trace_full_c,
+        'chi_squared_best_c': chi_squared_best_c,
+        'masked_mse_trace_sample_c': masked_mse_trace_sample_c,
+        'masked_mse_trace_full_c': masked_mse_trace_full_c,
+        'masked_mse_best_c': masked_mse_best_c,
+        'variance_floor_clamped_pixels_c': variance_floor_clamped_pixels_c,
+        'variance_floor_masked_pixels_c': variance_floor_masked_pixels_c,
+        'sigma_floor_sq_tensor_stage_c': sigma_floor_sq_tensor_stage_c,
+    }
+
+
 def _build_final_bragg_from_stage_b_telemetry(
     telemetry_a,
     telemetry_b,

@@ -226,6 +226,9 @@
   - Bugfixes: 2 blocking bugs fixed (UnboundLocalError, NameError for baseline_detector_distances)
   - Patches: unbound_local_error_fix.patch, stage_c_bugfix.patch
 - [ ] D1: Implement `StageC` class managing detector offset parameters, baseline detector seeding, and telemetry.
+  - [x] D1a: Extract `_build_stage_c_params` helper (~156 lines) ✓ COMPLETE (2025-11-23T150000Z)
+  - [ ] D1b: Extract `_build_stage_c_lbfgs_closure` helper (~400 lines)
+  - [ ] D1c: Extract `_run_stage_c_lbfgs` + wire all helpers + regression guard
 - [ ] D2: Plug Stage C into the engine (A→B→C). Remove Stage C inline code from `run_nanobrag_refinement`.
 - [ ] D3: Ensure Stage C telemetry keeps canonical Stage A metadata and detector offset reduction stats.
 - [ ] D4: Rerun `tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip` (small + full) and archive logs/telemetry proving REFINE-007 gates still succeed.

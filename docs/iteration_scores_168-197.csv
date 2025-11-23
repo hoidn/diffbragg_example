@@ -1,0 +1,31 @@
+Iteration,Summary_Score,Diff_Score,Semantic_Score,Aggregate_Score,Code_Changes,Key_Files,Notes
+168,60,20,50,44,0,none,Planning/sync phase
+169,70,56,55,59,33,dbex/nanobrag_refinement.py,Initial refinement updates
+170,80,20,50,50,0,none,Sync phase
+171,70,88,67,74,141,dbex/nanobrag_refinement.py,Significant refinement logic
+172,80,20,50,50,0,none,Sync phase
+173,80,60,55,64,41,dbex/nanobrag_refinement.py,Incremental additions
+174,60,43,55,52,7,dbex/nanobrag_bridge.py,Minor bridge updates
+175,60,20,50,44,0,none,Sync phase
+176,80,43,55,58,7,dbex/nanobrag_refinement.py,Minor updates
+177,50,20,50,41,0,none,Sync phase
+178,70,20,50,47,0,none,Sync phase
+179,70,20,50,47,0,none,Sync phase
+180,70,20,50,47,0,none,Sync phase
+181,70,20,50,47,0,none,Sync phase
+182,60,20,50,44,0,none,Sync phase
+183,60,20,50,44,0,none,Sync phase
+184,60,90,85,79,516,"dbex/nanobrag_bridge.py,tests/test_ub_parameterization_roundtrip.py",Bridge + test framework introduction
+185,50,80,67,65,102,dbex/nanobrag_refinement.py,Refinement logic updates
+186,50,85,75,70,tests/test_torch_refine_smoke.py,New smoke test framework
+187,60,20,50,44,0,none,Sync phase
+188,60,92,80,77,"dbex/refinement/__init__.py,engine.py,helpers.py",Refinement engine module creation
+189,60,91,68,72,"dbex/refinement/stage_a.py,tests/test_torch_refine_smoke.py",Stage A + test updates
+190,70,20,50,47,0,none,Sync phase
+191,50,20,50,41,0,none,Sync phase
+192,50,91,71,70,330,dbex/nanobrag_refinement.py,Significant additions
+193,60,94,70,74,719,dbex/nanobrag_refinement.py,Major additions
+194,70,95,75,79,1094,dbex/nanobrag_refinement.py,"Large refactor (net -692, cleanup)"
+195,60,41,55,52,2,dbex/nanobrag_refinement.py,Minor updates
+196,70,88,70,75,261,dbex/refinement/stage_a.py,Stage A enhancements
+197,70,95,85,83,"dbex/nanobrag_refinement.py,dbex/refinement/stage_a.py","Major refactor (2917 changes, consolidation)"

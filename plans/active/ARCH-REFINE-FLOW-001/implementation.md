@@ -179,6 +179,12 @@
 ## Phase C — Stage B Extraction
 - [x] C0: Baseline Stage B artifacts (small-detector run + bugfix) recorded before refactor. ✓ COMPLETE (2025-11-23T061726Z)
 - [ ] C1: Implement `StageB` class supporting both shell modifiers and future per-reflection mode (stub enum for `stage_b_mode`).
+  - [x] C1a-loop1: Extract `_build_stage_b_params` helper ONLY (~184 lines) ✓ COMPLETE (2025-11-22T060833Z)
+    - Helper function signature: `_build_stage_b_params(config, device, dtype, stage_a_ctx, canonical_baseline, n_panels, sampled_panel_ids, sigma_floor_sq_cache, use_stage_a_roi_mode, crystal, hkl_metadata, hkl_grid, detector, beam, inputs, panel_slices) -> Dict[str, Any]`
+    - Inserted at line 2087 (before run_nanobrag_refinement)
+    - Compilation PASSED (exit code 0)
+    - Helper not yet wired (no behavior change)
+    - Artifacts: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-22T060833Z/
 - [ ] C2: Wire Stage B into the engine (A→B sequence), dropping the legacy inline code from `run_nanobrag_refinement`.
 - [ ] C3: Ensure Stage B telemetry includes `stage_b_mode`, shell modifier stats, and uses canonical Stage A metadata propagated through the engine context.
 - [ ] C4: Rerun `tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers` (small + full detectors). Capture collect-only logs and telemetry JSON; verify REFINE-008 gates still apply.

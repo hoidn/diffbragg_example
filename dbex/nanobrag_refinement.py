@@ -2084,6 +2084,191 @@ def _build_final_bragg_from_stage_a_telemetry(
     return bragg_full
 
 
+def _build_stage_b_params(
+    config: RefinementConfig,
+    device: torch.device,
+    dtype: torch.dtype,
+    stage_a_ctx: Optional[Dict[str, Any]],
+    canonical_baseline: Dict[str, Any],
+    n_panels: int,
+    sampled_panel_ids: List[int],
+    sigma_floor_sq_cache: Dict[torch.device, torch.Tensor],
+    use_stage_a_roi_mode: bool,
+    crystal,
+    hkl_metadata: Dict[str, Any],
+    hkl_grid: torch.Tensor,
+    detector,
+    beam,
+    inputs,
+    panel_slices: List[Tuple[slice, slice]],
+) -> Dict[str, Any]:
+    """
+    Build Stage B shell modifier parameters, optimizer, and telemetry state.
+
+    Returns:
+        param_values: Dict containing:
+            - shell_indices: Shell lookup tensor
+            - shell_edges: Shell edge boundaries
+            - shell_modifier_raw: Trainable shell_modifier_raw tensor
+            - params: List[torch.Tensor] — Trainable shell_modifier_raw
+            - optimizer: torch.optim.LBFGS — Optimizer for shell modifiers
+            - telemetry_state: Dict — Accumulators for chi_squared/masked_mse traces, perf counters
+            - stage_b_eval_stage_a_ctx: Optional[Dict] — CPU-cloned or original Stage A context
+            - use_stage_b_cpu_fallback: bool
+            - stage_b_use_warm_cache: bool
+            - stage_b_cache_mode: str — "warm" or "cold"
+            - use_stage_b_roi_mode: bool
+            - stage_b_roi_label: str — "roi" or "panel"
+            - stage_b_total_work_items: int
+            - sampled_stage_b_indices: List[int]
+            - full_stage_b_indices: List[int]
+            - default_f_fallback_count: int
+    """
+    # Compute shell lookup for per-shell modifiers
+    shell_indices, shell_edges = compute_hkl_shell_lookup(
+        crystal, hkl_metadata, n_shells=config.stage_b_n_shells, device=device, dtype=dtype
+    )
+
+    # Initialize shell modifiers (softplus parameterization to keep multipliers positive)
+    # Start near identity: softplus(0) ≈ 0.69, so initialize slightly negative to get ~1.0
+    stage_b_param_device = torch.device(config.device)
+    shell_modifier_raw = torch.zeros(config.stage_b_n_shells, device=stage_b_param_device, dtype=dtype, requires_grad=True)
+    identity_raw = math.log(math.expm1(0.5))  # softplus(identity_raw)*2 == 1.0
+    shell_modifier_raw.data.fill_(identity_raw)
+
+    stage_b_params = [shell_modifier_raw]
+
+    # Setup LBFGS optimizer for Stage B
+    stage_b_optimizer = torch.optim.LBFGS(
+        stage_b_params,
+        history_size=config.history_size,
+        max_iter=config.max_iter,
+        tolerance_grad=config.tolerance_grad,
+        tolerance_change=config.tolerance_change,
+        line_search_fn='strong_wolfe'
+    )
+
+    # Telemetry accumulators for Stage B
+    loss_trace_sample_b = []
+    loss_trace_full_b = []
+    best_loss_full_b = (float('inf'), 0)
+    best_params_snapshot_b = {'shell_modifier_raw': shell_modifier_raw.data.clone()}
+
+    # PHYSICS-LOSS-001: Dual metric tracking (chi_squared + masked_mse)
+    chi_squared_trace_sample_b = []
+    chi_squared_trace_full_b = []
+    chi_squared_best_b = (float('inf'), -1)
+    masked_mse_trace_sample_b = []
+    masked_mse_trace_full_b = []
+    masked_mse_best_b = (float('inf'), -1)
+
+    # Track default_F fallback count (should be zero with halo grid)
+    # Note: nanobrag_torch doesn't expose default_F counter directly; this is a placeholder
+    # for future telemetry when the API exposes it
+    default_f_fallback_count = 0
+
+    # PHYSICS-LOSS-002: Variance floor clamp statistics for Stage B
+    variance_floor_clamped_pixels_b = [0]  # Total pixels where floor engaged
+    variance_floor_masked_pixels_b = [0]  # Total masked pixels evaluated
+
+    # PERF-WARM-011 + PERF-WARM-012: CPU fallback for canonical Stage B runs to avoid GPU OOM
+    # When config.stage_b_full_eval_on_cpu is True, device is CUDA, and ROI mode is disabled,
+    # route Stage B panel-mode closures/validations to CPU but KEEP warm cache by cloning
+    # the Stage A context onto CPU so detectors/simulators/masks are reused
+    use_stage_b_cpu_fallback = (
+        config.stage_b_full_eval_on_cpu
+        and str(device).startswith("cuda")
+        and not use_stage_a_roi_mode  # ROI mode is disabled (panel mode)
+    )
+
+    # PERF-WARM-012: Clone StageAContext to CPU when fallback is active so Stage B can reuse
+    # cached detectors/HKL/masks even on CPU, maintaining cache_mode="warm"
+    stage_b_eval_stage_a_ctx = None
+    if use_stage_b_cpu_fallback and stage_a_ctx is not None and config.enable_stage_a_warm_cache:
+        # Build a fresh Stage A context on CPU device
+        cpu_device = torch.device("cpu")
+        stage_b_eval_stage_a_ctx = _build_stage_a_context(
+            detector=detector,
+            beam=beam,
+            crystal=crystal,
+            trusted_mask=inputs.trusted_mask,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            enable_hkl_interpolation=config.enable_hkl_interpolation,
+            device=cpu_device,
+            dtype=dtype,
+            panel_slices=panel_slices,
+            enable_roi_mode=False,  # CPU fallback is panel-mode only
+        )
+    elif not use_stage_b_cpu_fallback:
+        # No CPU fallback: reuse the original CUDA Stage A context
+        stage_b_eval_stage_a_ctx = stage_a_ctx
+
+    stage_b_use_warm_cache = (
+        stage_b_eval_stage_a_ctx is not None
+        and config.enable_stage_a_warm_cache
+    )
+    stage_b_cache_mode = "warm" if stage_b_use_warm_cache else "cold"
+
+    # PERF-WARM-SIM-001: Stage B ROI mode mirrors Stage A's ROI knob
+    use_stage_b_roi_mode = use_stage_a_roi_mode and stage_b_use_warm_cache
+    stage_b_roi_label = "roi" if use_stage_b_roi_mode else "panel"
+    stage_b_total_work_items = canonical_baseline["roi_count"] if use_stage_b_roi_mode else n_panels
+
+    # Sample ROIs or panels for Stage B (~15% by default)
+    if use_stage_b_roi_mode:
+        roi_sample_size_b = max(1, int(stage_b_total_work_items * config.roi_sample_fraction))
+        roi_sample_size_b = min(stage_b_total_work_items, roi_sample_size_b)
+        sampled_stage_b_indices = sorted(
+            np.random.choice(stage_b_total_work_items, size=roi_sample_size_b, replace=False).tolist()
+        )
+    else:
+        sampled_stage_b_indices = list(sampled_panel_ids)
+    full_stage_b_indices = list(range(stage_b_total_work_items))
+
+    perf_closure_evals_b = [0]
+    perf_validation_runs_b = [0]
+    perf_forward_times_ms_b: List[float] = []
+
+    # Build telemetry state dict
+    telemetry_state = {
+        'loss_trace_sample_b': loss_trace_sample_b,
+        'loss_trace_full_b': loss_trace_full_b,
+        'best_loss_full_b': best_loss_full_b,
+        'best_params_snapshot_b': best_params_snapshot_b,
+        'chi_squared_trace_sample_b': chi_squared_trace_sample_b,
+        'chi_squared_trace_full_b': chi_squared_trace_full_b,
+        'chi_squared_best_b': chi_squared_best_b,
+        'masked_mse_trace_sample_b': masked_mse_trace_sample_b,
+        'masked_mse_trace_full_b': masked_mse_trace_full_b,
+        'masked_mse_best_b': masked_mse_best_b,
+        'variance_floor_clamped_pixels_b': variance_floor_clamped_pixels_b,
+        'variance_floor_masked_pixels_b': variance_floor_masked_pixels_b,
+        'perf_closure_evals_b': perf_closure_evals_b,
+        'perf_validation_runs_b': perf_validation_runs_b,
+        'perf_forward_times_ms_b': perf_forward_times_ms_b,
+    }
+
+    return {
+        'shell_indices': shell_indices,
+        'shell_edges': shell_edges,
+        'shell_modifier_raw': shell_modifier_raw,
+        'params': stage_b_params,
+        'optimizer': stage_b_optimizer,
+        'telemetry_state': telemetry_state,
+        'stage_b_eval_stage_a_ctx': stage_b_eval_stage_a_ctx,
+        'use_stage_b_cpu_fallback': use_stage_b_cpu_fallback,
+        'stage_b_use_warm_cache': stage_b_use_warm_cache,
+        'stage_b_cache_mode': stage_b_cache_mode,
+        'use_stage_b_roi_mode': use_stage_b_roi_mode,
+        'stage_b_roi_label': stage_b_roi_label,
+        'stage_b_total_work_items': stage_b_total_work_items,
+        'sampled_stage_b_indices': sampled_stage_b_indices,
+        'full_stage_b_indices': full_stage_b_indices,
+        'default_f_fallback_count': default_f_fallback_count,
+    }
+
+
 def run_nanobrag_refinement(
     inputs,
     detector,

@@ -1,0 +1,82 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 1 item
+
+<Dir diffbragg_example>
+  <Package tests>
+    <Package dbex>
+      <Module test_mapping_consistency.py>
+        DB-AT-024 Mapping Consistency Guard
+        
+        Acceptance test for zero-iteration forward mapping between DIALS geometry and
+        nanobrag_torch detector/crystal configs.
+        
+        Per docs/spec-db-conformance.md:43-46:
+        - Median ROI correlation >= 0.2 between torch Bragg output and data-background
+        - Localization success rate >= 90% (brightest pixel within central half-box)
+        
+        Test emits diagnostic artifacts (metrics JSON/CSV, optional overlays) under
+        $DBAT024_ARTIFACT_DIR for parity debugging per docs/spec-db-tracing.md.
+        
+        Environment flags:
+        - KMP_DUPLICATE_LIB_OK=TRUE (required for nanobrag_torch on some platforms)
+        - NANOBRAGG_DISABLE_COMPILE=1 (recommended for deterministic CPU execution)
+        - DBAT024_ARTIFACT_DIR (required for artifact emission)
+        
+        Example:
+            DBAT024_ARTIFACT_DIR=plans/active/DB-AT-024/reports/2025-11-04T070000Z     KMP_DUPLICATE_LIB_OK=TRUE     pytest -v tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke
+        <Class TestDB_AT_024_Mapping>
+          DB-AT-024 acceptance test for mapping consistency between DIALS and nanobrag_torch.
+          
+          Validates zero-iteration forward simulation against canonical assets:
+          - refGeom.expt, refGeom.refl, scaled.mtz, 747_mask.pkl
+          
+          Threshold enforcement via xfail with measured metrics documented in reason.
+          <Function test_db_at_024_mapping_smoke>
+            DB-AT-024 smoke test: zero-iteration mapping consistency.
+            
+            Measures correlation and localization between torch Bragg output and
+            background-subtracted data for K ROIs. Emits metrics JSON/CSV under
+            $DBAT024_ARTIFACT_DIR.
+            
+            Thresholds per docs/spec-db-conformance.md:43-46:
+            - Median correlation >= 0.2
+            - Localization success rate >= 90%
+            
+            Latest metrics (2025-11-04T190041Z) with calibration + sample clipping:
+            - corr_median: 0.621 (PASS)
+            - localization_success_rate: 0.935 (PASS)
+            - n_cells_applied: true
+            - calibration: spot_scale_override=3.185e17, N_cells=[36,28,26]
+            
+            The sample clipping guard (SCALE-005) enables N_cells when beam_config
+            (flux/exposure/beamsize) is forwarded to nanobrag_torch.Simulator,
+            preventing intensity blow-up and achieving parity with canonical captures.
+
+=============================== warnings summary ===============================
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+tests/dbex/test_mapping_consistency.py:185
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_mapping_consistency.py:185: PytestUnknownMarkWarning: Unknown pytest.mark.db_at_024 - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.db_at_024
+
+tests/dbex/test_mapping_consistency.py:186
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_mapping_consistency.py:186: PytestUnknownMarkWarning: Unknown pytest.mark.mapping - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.mapping
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+========================== 1 test collected in 2.01s ===========================

@@ -1,0 +1,7 @@
+{
+  "stage_b_small": "PASSED",
+  "stage_b_full": "OOM",
+  "full_detector_oom": true,
+  "telemetry_structure_complete": false,
+  "overall_verdict": "BLOCKED - CPU fallback missing in engine delegation path"
+}

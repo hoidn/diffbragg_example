@@ -272,9 +272,20 @@
 - Concrete Stage C implementations should mirror Stage A’s pattern for parameter deltas, canonical chi-squared fields, and perf counters, so downstream tooling can reason about all stages via the unified schema established by the Stage A-backed helpers, not by Stage-specific engine special cases.
 
 ## Phase E — Orchestration Hooks & Mode Wiring
-- [ ] E1: Expose stage registry/config knobs in `RefinementEngine`/`run_nanobrag_refinement` (e.g., enable/disable Stage B, set Stage B mode = shell|per_reflection).
-- [ ] E2: Update CLI/config surfaces (`RefinementConfig`, `dbex/refine_one.py`) to accept stage enablement flags and pass them into the engine.
-- [ ] E3: Add telemetry fields capturing the active stage list and modes (`engine_protocol`, `stage_modes`).
+- [x] E1: Expose stage registry/config knobs in `RefinementEngine`/`run_nanobrag_refinement` (e.g., enable/disable Stage B, set Stage B mode = shell|per_reflection). ✓ COMPLETE (commit c2ec597, 2025-11-23T160000Z)
+  - Engine delegation logic added to `run_nanobrag_refinement` with `use_engine_delegation` flag (lines ~3820-3880)
+  - Stage list constructed from config flags: StageA always, StageB/StageC conditional with baseline_detector guard
+  - Engine protocol string building ("A→B→C", "A", "A→B") based on enabled stages
+  - RefinementEngine.run() call with engine_inputs dict
+- [x] E2: Update CLI/config surfaces (`RefinementConfig`, `dbex/refine_one.py`) to accept stage enablement flags and pass them into the engine. ✓ COMPLETE (commit c2ec597, 2025-11-23T160000Z)
+  - CLI flags added: --use-engine-delegation, --enable-stage-b, --enable-stage-c (dbex/refine_one.py:100-116)
+  - Flags wired to RefinementConfig (lines 502-503) and run_nanobrag_refinement (line 514)
+- [x] E3: Add telemetry fields capturing the active stage list and modes (`engine_protocol`, `stage_modes`). ✓ COMPLETE (commits 42975bf + 9bbd1e8, 2025-11-23T163000Z + 2025-11-23T170000Z)
+  - RefinementTelemetry schema extended with `engine_protocol` and `stage_modes` fields (dbex/refinement/stage.py:159-161, commit 42975bf)
+  - Telemetry enrichment injected into active Phase B2 engine delegation path (dbex/nanobrag_refinement.py:3809-3814, commit 9bbd1e8)
+  - Validation test added: test_stage_a_engine_delegation_telemetry (tests/dbex/test_torch_refine_smoke.py:789-888, PASSED 12.5s)
+  - Finding: ARCH-ENGINE-003 (enrichment placement pattern)
+  - Test registry updated: TESTING_GUIDE.md + TEST_SUITE_INDEX.md (2025-11-23T161248Z)
 - [ ] E4: Update docs (`docs/architecture/pytorch_design.md`, `docs/spec-db-workflow.md` annotations, `docs/TESTING_GUIDE.md`) describing how to configure alternative stage sequences.
 - [ ] E5: Run a combined Stage A/B/C smoke suite plus DB-AT selectors, demonstrating the engine-based protocol is the default path. Archive artifacts under `plans/active/ARCH-REFINE-FLOW-001/reports/<timestamp>/`.
 

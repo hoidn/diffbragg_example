@@ -1,3 +1,14 @@
+## 2025-11-23T083100Z — ARCH-REFINE-FLOW-001 Phase C2 Bugfix Implementation Plan
+
+- Focus: ARCH-REFINE-FLOW-001 — Protocol-based Refinement Engine (Phase C2 bugfix)
+- Action Type: planning
+- Key Observations: Analyzed loop i=209 evidence (Ralph reverted signature error, Galph authored comprehensive analysis.md with 4 hypotheses). Root cause confirmed: Hypothesis H1 is correct with HIGH confidence (~85%). Bug location: `dbex/refinement/stage_b.py:163` uses `crystal.get_unit_cell().parameters()` to extract cell parameters as base for delta reconstruction, but the deltas (`log_cell_a_delta_final`, etc. from Stage A telemetry lines 145-150) are relative to the BASELINE crystal, not the current/potentially-perturbed crystal. Fix is simple: replace `crystal.get_unit_cell().parameters()` with `baseline_crystal.get_unit_cell().parameters()` and add validation guard (baseline_crystal must not be None). Authored planning_summary.md documenting root cause + fix + validation strategy. Updated input.md with focused 9-step Do Now directing Ralph to apply one-line fix, run regression guard (test_stage_b_shell_modifiers), verify chi² offset ≤0.1%, update implementation.md Phase C2 status, and commit. Dwell reset to 0 (last loop docs with dwell=1, now ready_for_implementation with production code task). Implementation floor satisfied: Do Now contains production code task (dbex/refinement/stage_b.py line 163 fix) + validating pytest selector (test_stage_b_shell_modifiers regression guard).
+- Artifact Path: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T083100Z/
+- Next Actions: Ralph implements bugfix (replace crystal with baseline_crystal at line 163), runs regression guard, verifies chi² offset within tolerance, updates docs, commits. If PASS → Galph plans Phase C3 next loop (StageB wrapper). If blocked → Ralph documents blocker → Galph reviews and decides.
+- <Action State>: [ready_for_implementation]
+
+2025-11-23T083100Z focus=ARCH-REFINE-FLOW-001 state=ready_for_implementation dwell=0 artifacts=plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T083100Z/ next_action=fix_cell_param_base_bug
+
 ## 2025-11-23T081911Z — ARCH-REFINE-FLOW-001 Phase C2 signature revert + analysis (Ralph loop i=209)
 
 - Focus: ARCH-REFINE-FLOW-001 — Protocol-based Refinement Engine (Phase C2 bugfix)

@@ -152,3 +152,13 @@
 - <Action State>: [review_or_housekeeping]
 
 2025-11-22T060833Z focus=ARCH-REFINE-FLOW-001 state=planning dwell=0 artifacts=plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-22T060833Z/ next_action=plan_phase_c_stage_b_extraction
+
+## 2025-11-23T061726Z — ARCH-REFINE-FLOW-001 Phase C Planning
+- Focus: ARCH-REFINE-FLOW-001 — Protocol-based Refinement Engine (Phase C planning)
+- Action Type: planning
+- Key Observations: Reviewed Phase B completion evidence (7 loops, ALL 4 test suites PASSED, engine delegation production-ready). Analyzed Stage B code structure (dbex/nanobrag_refinement.py:2527-3137, ~610 lines) and identified 3-4 helper extraction targets mirroring Phase B pattern: (1) `_build_stage_b_params` (~140 lines: shell modifier init, optimizer setup, telemetry/context accumulators), (2) `_build_stage_b_lbfgs_closure` (~260 lines: compute_loss_stage_b + closure_stage_b nested functions), (3) `_run_stage_b_lbfgs` (~100 lines: LBFGS execution + improvement gate), (4) `_build_final_bragg_from_stage_b` (~77 lines: final Bragg regeneration with shell modifiers). Authored Phase C0 baseline Do Now (collect test_stage_b_shell_modifiers artifacts mirroring Phase B0 pattern, small detector smoke test + telemetry JSON capture). Updated input.md with C0 baseline collection protocol. Phase C multi-loop strategy approved: C0 baseline → C1a (3 loops for 3 helpers) → C1b/C2/C3 (StageB wrapper, engine delegation, validation) → estimated 6-7 loops total.
+- Artifact Path: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T061726Z/
+- Next Actions: Ralph executes Phase C0 baseline collection per input.md. If PASS → Galph plans C1a-loop1 next loop (extract `_build_stage_b_params` ONLY, ~140 lines, compilation check, no regression guard). If blocked → Galph reviews blocker and decides escalation.
+- <Action State>: [ready_for_implementation]
+
+2025-11-23T061726Z focus=ARCH-REFINE-FLOW-001 state=ready_for_implementation dwell=0 artifacts=plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T061726Z/ next_action=phase_c0_baseline_collection

@@ -5,8 +5,27 @@ rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
 configfile: pyproject.toml
 collecting ... collected 1 item
 
-tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke PASSED [100%]
+tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke ERROR [100%]
 
+==================================== ERRORS ====================================
+_____ ERROR at setup of TestDB_AT_024_Mapping.test_db_at_024_mapping_smoke _____
+
+item = <Function test_db_at_024_mapping_smoke>
+
+    def pytest_runtest_setup(item):
+        detector_size = _resolve_smoke_detector_size(item.config)
+        identifiers = " ".join(
+            list(item.keywords.keys()) + [item.name, item.nodeid]
+        ).lower()
+        if "db_at" in identifiers and detector_size != "full":
+>           raise pytest.UsageError(
+                "DB-AT/workflow selectors SHALL assert --smoke-detector-size=full per "
+                "docs/spec-db-workflow.md (Stage Smoke Dataset Policy). "
+                "Re-run with --smoke-detector-size=full or DBEX_SMOKE_DETECTOR_SIZE=full."
+            )
+E           _pytest.config.exceptions.UsageError: DB-AT/workflow selectors SHALL assert --smoke-detector-size=full per docs/spec-db-workflow.md (Stage Smoke Dataset Policy). Re-run with --smoke-detector-size=full or DBEX_SMOKE_DETECTOR_SIZE=full.
+
+tests/conftest.py:128: UsageError
 =============================== warnings summary ===============================
 <frozen importlib._bootstrap>:228
   <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
@@ -30,5 +49,7 @@ tests/dbex/test_mapping_consistency.py:186
     @pytest.mark.mapping
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-======================== 1 passed, 6 warnings in 31.74s ========================
-Exit code: 0
+=========================== short test summary info ============================
+ERROR tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke
+========================= 6 warnings, 1 error in 1.97s =========================
+Exit code: 1

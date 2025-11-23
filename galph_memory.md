@@ -172,3 +172,13 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-22T060833Z focus=ARCH-REFINE-FLOW-001 state=ready_for_implementation dwell=0 artifacts=plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-22T060833Z/ next_action=extract_stage_b_helper_1_only
+
+## 2025-11-22T063000Z — ARCH-REFINE-FLOW-001 Phase C1a-loop2 Planning
+- Focus: ARCH-REFINE-FLOW-001 — Protocol-based Refinement Engine (Phase C1a-loop2)
+- Action Type: planning
+- Key Observations: Reviewed Phase C1a-loop1 completion (commit 44342c1: `_build_stage_b_params` helper extracted ~184 lines, compilation PASSED). Authored Phase C1a-loop2 Do Now directing Ralph to extract `_build_stage_b_lbfgs_closure` helper (~247 lines: compute_loss_stage_b + closure_stage_b nested functions from lines 2859-3106). Multi-loop extraction strategy continues per Phase B precedent (B1a-loop2 extracted ~617 lines of Stage A closure code). Helper 2 scope: TWO nested functions (loss computation + LBFGS closure), lexical scope captures for param_values dict entries (shell_modifier_raw, optimizer, frozen Stage A tensors, telemetry accumulators), lazy imports inside branches per PERF-WARM-011/012, nonlocal mutations marked. NO wiring required (extraction-only, mirrors B1a-loop2). Implementation floor satisfied: production code task (extract closure helper) + compilation validation. Dwell reset to 0 (last loop C1a-loop1 ready_for_implementation, now planning C1a-loop2).
+- Artifact Path: plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-22T063000Z/
+- Next Actions: Ralph executes Phase C1a-loop2 (extract closure helper, verify compilation, commit). If PASS → Galph plans C1a-loop3 (extract `_run_stage_b_lbfgs` helper + wire all 3 helpers + regression guard). If blocked → Galph reviews and decides.
+- <Action State>: [ready_for_implementation]
+
+2025-11-22T063000Z focus=ARCH-REFINE-FLOW-001 state=ready_for_implementation dwell=0 artifacts=plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-22T063000Z/ next_action=extract_stage_b_closure_helper_only

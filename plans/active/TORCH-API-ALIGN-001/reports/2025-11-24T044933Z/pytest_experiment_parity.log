@@ -1,0 +1,348 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 1 item
+
+tests/dbex/test_experiment_parity.py::test_parity_small_fixture FAILED   [100%]
+
+=================================== FAILURES ===================================
+__________________________ test_parity_small_fixture ___________________________
+
+warm_cache_off = {'enable_stage_a_warm_cache': False}
+
+    def test_parity_small_fixture(warm_cache_off):
+        """
+        Validates ExperimentModel parity against unified simulator factory.
+    
+        Tests:
+        - ExperimentModel(param_init="frozen") outputs match factory within 1e-6
+        - Shape/dtype/device consistency
+        - Per-pixel max abs diff ≤ 1e-6
+        """
+        import torch
+        import numpy as np
+        from pathlib import Path
+        from argparse import Namespace
+        from dbex.data_load import DataLoad
+        from dbex.nanobrag_bridge import (
+            create_detector_config,
+            create_beam_config,
+            create_crystal_config,
+            build_structure_factor_grid
+        )
+        from dbex.refinement.helpers import create_unified_simulator, simulate_via_experiment_model
+    
+        # Load tiny dxtbx fixture (same as test_stage_a_expansion for consistency)
+        repo_root = Path(__file__).parent.parent.parent
+    
+        # Use small detector fixture for fast execution
+        expt_path = repo_root / "sp.proc" / "refGeom_small" / "refGeom_small.expt"
+        refl_path = repo_root / "sp.proc" / "refGeom_small" / "refGeom_small.refl"
+        mtz_path = repo_root / "scaled.mtz"
+    
+        # Construct DataLoad (minimal Args object)
+        args = Namespace(
+            exptName=str(expt_path),
+            reflName=str(refl_path),
+            exptIdx=0,
+            maskFile=None,  # No mask for simplicity
+            mtzFile=str(mtz_path),
+            mtzCol="F,SIGF"
+        )
+    
+        DL = DataLoad(args)
+    
+        # Get HKL grid and metadata
+        hkl_indices = DL.F.indices()
+        hkl_amplitudes = DL.F.data()
+    
+        device = torch.device("cpu")
+        dtype = torch.float32
+    
+        hkl_grid, hkl_metadata, _ = build_structure_factor_grid(
+            indices=hkl_indices,
+            amplitudes=hkl_amplitudes,
+            device=device,
+            halo=False  # No halo needed for forward-only parity test
+        )
+    
+        # Single panel test (use panel 0)
+        panel_id = 0
+        panel = DL.detector[panel_id]
+    
+        # Create configs (no calibration metadata for simplicity)
+        detector_config = create_detector_config(
+            panel=panel,
+            beam=DL.beam,
+            trusted_mask=None
+        )
+        beam_config = create_beam_config(DL.beam)
+        crystal_config, _ = create_crystal_config(DL.crystal, DL.Expt)
+    
+        # Run factory path (baseline)
+        simulator_factory, _, sqrt_scale_factory, metadata_factory = create_unified_simulator(
+            detector_config=detector_config,
+            crystal_config=crystal_config,
+            beam_config=beam_config,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            mask_array=None,
+            spot_scale_override=1.0,
+            device=device,
+            dtype=dtype,
+            calibration_metadata=None
+        )
+        image_factory = simulator_factory.run()
+    
+        # Run ExperimentModel adapter path
+        image_adapter, sqrt_scale_adapter, metadata_adapter = simulate_via_experiment_model(
+            detector_config=detector_config,
+            crystal_config=crystal_config,
+            beam_config=beam_config,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            mask_array=None,
+            spot_scale_override=1.0,
+            device=device,
+            dtype=dtype,
+            calibration_metadata=None
+        )
+    
+        # Parity checks
+        # 1. Shape/dtype/device consistency
+        assert image_factory.shape == image_adapter.shape, \
+            f"Shape mismatch: factory {image_factory.shape} != adapter {image_adapter.shape}"
+        assert image_factory.dtype == image_adapter.dtype, \
+            f"Dtype mismatch: factory {image_factory.dtype} != adapter {image_adapter.dtype}"
+        assert image_factory.device == image_adapter.device, \
+            f"Device mismatch: factory {image_factory.device} != adapter {image_adapter.device}"
+    
+        # 2. sqrt_scale consistency
+        assert abs(sqrt_scale_factory - sqrt_scale_adapter) < 1e-9, \
+            f"sqrt_scale mismatch: factory {sqrt_scale_factory} != adapter {sqrt_scale_adapter}"
+    
+        # 3. Per-pixel parity (max abs diff ≤ 1e-6)
+        max_abs_diff = torch.max(torch.abs(image_factory - image_adapter)).item()
+>       assert max_abs_diff <= 1e-6, \
+            f"Parity FAIL: max abs diff {max_abs_diff:.2e} > 1e-6 tolerance"
+E       AssertionError: Parity FAIL: max abs diff 5.03e-03 > 1e-6 tolerance
+E       assert 0.005025771912187338 <= 1e-06
+
+tests/dbex/test_experiment_parity.py:149: AssertionError
+----------------------------- Captured stdout call -----------------------------
+auto-selected 1-fold oversampling
+[HKL stats] h=[-12,7] k=[-14,9] l=[-14,8] hit_rate=1045385/1048576 (99.70%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-12,7] k=[-14,9] l=[-14,8] hit_rate=1045385/1048576 (99.70%)
+=============================== warnings summary ===============================
+tests/dbex/test_experiment_parity.py::test_parity_small_fixture
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_experiment_parity.py::test_parity_small_fixture
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_experiment_parity.py::test_parity_small_fixture
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_experiment_parity.py::test_parity_small_fixture
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+tests/dbex/test_experiment_parity.py::test_parity_small_fixture
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dxtbx/format/FormatCBFFull.py:198: DeprecationWarning: The binary mode of fromstring is deprecated, as it behaves surprisingly on unicode inputs. Use frombuffer instead
+    self._raw_data = flex.int(np.fromstring(array_string, np.int32))
+
+tests/dbex/test_experiment_parity.py::test_parity_small_fixture
+  /home/ollie/Documents/nanoBragg/src/nanobrag_torch/simulator.py:579: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
+    self.fluence = torch.tensor(self.beam_config.fluence, device=self.device, dtype=self.dtype)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_experiment_parity.py::test_parity_small_fixture - AssertionError: Parity FAIL: max abs diff 5.03e-03 > 1e-6 tolerance
+assert 0.005025771912187338 <= 1e-06
+======================== 1 failed, 6 warnings in 4.23s =========================
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 1 item
+
+tests/dbex/test_experiment_parity.py::test_parity_small_fixture auto-selected 1-fold oversampling
+[HKL stats] h=[-12,7] k=[-14,9] l=[-14,8] hit_rate=1045385/1048576 (99.70%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-12,7] k=[-14,9] l=[-14,8] hit_rate=1045385/1048576 (99.70%)
+
+[PARITY CHECK DEBUG]
+  Factory image stats: min=0.00e+00, max=8.61e-02, mean=1.18e-02
+  Adapter image stats: min=0.00e+00, max=8.61e-02, mean=1.18e-02
+  Parity metrics: max_abs_diff=5.03e-03, MSE=2.41e-11, sqrt_scale=1.0
+  Factory metadata: {'device': 'cpu', 'dtype': 'torch.float32', 'hkl_grid_shape': (49, 57, 63), 'has_halo': False, 'mask_provided': False, 'spot_scale_override': 1.0, 'sqrt_scale': 1.0}
+  Adapter metadata: {'device': 'cpu', 'dtype': 'torch.float32', 'hkl_count': 175959, 'has_halo': False, 'mask_provided': False, 'spot_scale_override': 1.0, 'sqrt_scale': 1.0, 'adapter': 'ExperimentModel', 'param_init': 'frozen'}
+FAILED
+
+=================================== FAILURES ===================================
+__________________________ test_parity_small_fixture ___________________________
+
+warm_cache_off = {'enable_stage_a_warm_cache': False}
+
+    def test_parity_small_fixture(warm_cache_off):
+        """
+        Validates ExperimentModel parity against unified simulator factory.
+    
+        Tests:
+        - ExperimentModel(param_init="frozen") outputs match factory within 1e-6
+        - Shape/dtype/device consistency
+        - Per-pixel max abs diff ≤ 1e-6
+        """
+        import torch
+        import numpy as np
+        from pathlib import Path
+        from argparse import Namespace
+        from dbex.data_load import DataLoad
+        from dbex.nanobrag_bridge import (
+            create_detector_config,
+            create_beam_config,
+            create_crystal_config,
+            build_structure_factor_grid
+        )
+        from dbex.refinement.helpers import create_unified_simulator, simulate_via_experiment_model
+    
+        # Load tiny dxtbx fixture (same as test_stage_a_expansion for consistency)
+        repo_root = Path(__file__).parent.parent.parent
+    
+        # Use small detector fixture for fast execution
+        expt_path = repo_root / "sp.proc" / "refGeom_small" / "refGeom_small.expt"
+        refl_path = repo_root / "sp.proc" / "refGeom_small" / "refGeom_small.refl"
+        mtz_path = repo_root / "scaled.mtz"
+    
+        # Construct DataLoad (minimal Args object)
+        args = Namespace(
+            exptName=str(expt_path),
+            reflName=str(refl_path),
+            exptIdx=0,
+            maskFile=None,  # No mask for simplicity
+            mtzFile=str(mtz_path),
+            mtzCol="F,SIGF"
+        )
+    
+        DL = DataLoad(args)
+    
+        # Get HKL grid and metadata
+        hkl_indices = DL.F.indices()
+        hkl_amplitudes = DL.F.data()
+    
+        device = torch.device("cpu")
+        dtype = torch.float32
+    
+        hkl_grid, hkl_metadata, _ = build_structure_factor_grid(
+            indices=hkl_indices,
+            amplitudes=hkl_amplitudes,
+            device=device,
+            halo=False  # No halo needed for forward-only parity test
+        )
+    
+        # Single panel test (use panel 0)
+        panel_id = 0
+        panel = DL.detector[panel_id]
+    
+        # Create configs (no calibration metadata for simplicity)
+        detector_config = create_detector_config(
+            panel=panel,
+            beam=DL.beam,
+            trusted_mask=None
+        )
+        beam_config = create_beam_config(DL.beam)
+        crystal_config, _ = create_crystal_config(DL.crystal, DL.Expt)
+    
+        # Run factory path (baseline)
+        simulator_factory, _, sqrt_scale_factory, metadata_factory = create_unified_simulator(
+            detector_config=detector_config,
+            crystal_config=crystal_config,
+            beam_config=beam_config,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            mask_array=None,
+            spot_scale_override=1.0,
+            device=device,
+            dtype=dtype,
+            calibration_metadata=None
+        )
+        image_factory = simulator_factory.run()
+    
+        # Run ExperimentModel adapter path
+        image_adapter, sqrt_scale_adapter, metadata_adapter = simulate_via_experiment_model(
+            detector_config=detector_config,
+            crystal_config=crystal_config,
+            beam_config=beam_config,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            mask_array=None,
+            spot_scale_override=1.0,
+            device=device,
+            dtype=dtype,
+            calibration_metadata=None
+        )
+    
+        # Parity checks
+        # 1. Shape/dtype/device consistency
+        assert image_factory.shape == image_adapter.shape, \
+            f"Shape mismatch: factory {image_factory.shape} != adapter {image_adapter.shape}"
+        assert image_factory.dtype == image_adapter.dtype, \
+            f"Dtype mismatch: factory {image_factory.dtype} != adapter {image_adapter.dtype}"
+        assert image_factory.device == image_adapter.device, \
+            f"Device mismatch: factory {image_factory.device} != adapter {image_adapter.device}"
+    
+        # 2. sqrt_scale consistency
+        assert abs(sqrt_scale_factory - sqrt_scale_adapter) < 1e-9, \
+            f"sqrt_scale mismatch: factory {sqrt_scale_factory} != adapter {sqrt_scale_adapter}"
+    
+        # 3. Per-pixel parity (max abs diff ≤ 1e-6)
+        max_abs_diff = torch.max(torch.abs(image_factory - image_adapter)).item()
+    
+        # 4. Per-pixel MSE (informational)
+        mse = torch.mean((image_factory - image_adapter) ** 2).item()
+    
+        # Debug: Print statistics
+        print(f"\n[PARITY CHECK DEBUG]")
+        print(f"  Factory image stats: min={image_factory.min().item():.2e}, max={image_factory.max().item():.2e}, mean={image_factory.mean().item():.2e}")
+        print(f"  Adapter image stats: min={image_adapter.min().item():.2e}, max={image_adapter.max().item():.2e}, mean={image_adapter.mean().item():.2e}")
+        print(f"  Parity metrics: max_abs_diff={max_abs_diff:.2e}, MSE={mse:.2e}, sqrt_scale={sqrt_scale_factory}")
+        print(f"  Factory metadata: {metadata_factory}")
+        print(f"  Adapter metadata: {metadata_adapter}")
+    
+>       assert max_abs_diff <= 1e-6, \
+            f"Parity FAIL: max abs diff {max_abs_diff:.2e} > 1e-6 tolerance"
+E       AssertionError: Parity FAIL: max abs diff 5.03e-03 > 1e-6 tolerance
+E       assert 0.005025771912187338 <= 1e-06
+
+tests/dbex/test_experiment_parity.py:161: AssertionError
+=============================== warnings summary ===============================
+tests/dbex/test_experiment_parity.py::test_parity_small_fixture
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_experiment_parity.py::test_parity_small_fixture
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_experiment_parity.py::test_parity_small_fixture
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_experiment_parity.py::test_parity_small_fixture
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+tests/dbex/test_experiment_parity.py::test_parity_small_fixture
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dxtbx/format/FormatCBFFull.py:198: DeprecationWarning: The binary mode of fromstring is deprecated, as it behaves surprisingly on unicode inputs. Use frombuffer instead
+    self._raw_data = flex.int(np.fromstring(array_string, np.int32))
+
+tests/dbex/test_experiment_parity.py::test_parity_small_fixture
+  /home/ollie/Documents/nanoBragg/src/nanobrag_torch/simulator.py:579: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
+    self.fluence = torch.tensor(self.beam_config.fluence, device=self.device, dtype=self.dtype)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_experiment_parity.py::test_parity_small_fixture - AssertionError: Parity FAIL: max abs diff 5.03e-03 > 1e-6 tolerance
+assert 0.005025771912187338 <= 1e-06
+======================== 1 failed, 6 warnings in 4.16s =========================

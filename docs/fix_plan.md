@@ -47,6 +47,22 @@
 
 ## Active / Pending Initiatives
 
+### [TORCH-API-ALIGN-001] Adopt ExperimentModel, Unify Simulator Wiring, and DIALS Mapping
+- Depends on: docs/nanobrag_api.md (Simulator, DetectorConfig, ExperimentModel, DIALS convention), docs/spec-db-workflow.md §5 (per-panel simulation), docs/spec-db-core.md (variance contract), ARCH-REFINE-FLOW-001 (Stage wrapper pattern established)
+- Status: in_progress (2025-11-23T200000Z — Phase A planning complete, test stub authoring next)
+- Priority: High (Tier 2 — Architectural Maturity, ONLY remaining Tier 2 item)
+- Owner/Date: Galph (2025-11-23T200000Z)
+- Exit Criteria:
+  1. Unified simulator factory validates shape/dtype/device and is used by forward helpers (zero-iter + torch-grad paths), refine_one, and panel loops in nanobrag_refinement.
+  2. DIALS mapping parity tests pass on fixtures (panel + stitched), including ROI cropping parity and calibration gates; document that DIALS ignores `custom_beam_vector` in current engine.
+  3. ExperimentModel parity tests pass (param_init="frozen") comparing against legacy Simulator wiring on fixtures.
+  4. Optional CUSTOM-override path is behind flag (default OFF) with parity evidence recorded; acceptance criteria documented.
+  5. Refactor leaves existing smoke/perf selectors green; new tests force warm-cache OFF and use `NANOBRAGG_DISABLE_COMPILE=1` in fixtures.
+  6. Documentation/testing registry reflects new selectors; `pytest --collect-only` logs saved to plan reports.
+- Working Plan: `plans/active/TORCH-API-ALIGN-001/implementation.md`
+- Attempts History:
+  * 2025-11-23T200000Z (planning) — **Phase A Planning Complete — TDD Test Stub Strategy Defined.** Selected TORCH-API-ALIGN-001 as next focus per Execution Roadmap Tier 2 (only remaining item after ARCH-REFINE-FLOW-001 completion, blocks PERF-WARM-SIM-001 + ARCH-REFACTOR-001 Phase C6). Reviewed implementation.md confirming 4-phase plan (A: Tests First xfail/skip-guarded, B: Wiring, C: Optional CUSTOM Override, D: Rollout & Parity). Identified Phase A scope: 4 test stubs (A1 DIALS mapping parity, A2 unified factory, A3 ExperimentModel parity, A4 CUSTOM override exploratory) all xfail-marked until Phase B wiring lands. **Findings Applied:** GEOMETRY-001/002 (DIALS beam-center swap + analytic Euler inversion), CONFIG-001/002 (config hydration beam-center swap, DetectorConvention enum), SCALE-004 (calibration metadata), PERF-WARM-001 (warm-cache OFF pattern), ARCH-ENGINE-002 (lazy imports + telemetry packaging), POLICY-001 (Environment Freeze, dbex-only changes). **Test Strategy:** Write minimal failing tests encoding acceptance criteria before wiring (TDD, supervisor-scoped per galph_prompt); tests force warm-cache OFF (`enable_stage_a_warm_cache=False`) + `NANOBRAGG_DISABLE_COMPILE=1` fixture for determinism; tiny fixtures (<10s execution); xfail/skip markers prevent failures blocking CI. **Validation Approach:** `pytest --collect-only` after test authoring confirms 4+ tests discoverable (A1-A4 selectors in test_bridge_mapping.py, test_sim_factory.py, test_experiment_parity.py, test_bridge_custom_override.py). **Roadmap Impact:** Completion unblocks PERF-WARM-SIM-001 (warm-cache can leverage unified factory) and ARCH-REFACTOR-001 Phase C6 (single simulator seam decision). **Dwell Status:** First loop for this focus, dwell=0, state=planning. **Implementation Floor:** Next loop (i=242) MUST be ready_for_implementation per max-1-docs-only-loop rule (test stub authoring A1-A4 + pytest collection + registry update). **Artifacts:** plans/active/TORCH-API-ALIGN-001/reports/2025-11-23T200000Z/phase_a_planning_summary.md (comprehensive planning analysis, test checklist, risk mitigation, findings applied, estimated effort 6-9 loops).
+
 ### [TORCH-GEOMETRY-CONVERGENCE-001] Diagnose & Fix Quaternion U-Matrix Catastrophic Convergence Failure
 - Depends on: docs/spec-db-workflow.md, docs/spec-db-runtime.md, docs/spec-db-core.md, TORCH-GEOMETRY-PARITY-003 (escalation source)
 - Status: done (2025-11-22T244500Z — Phase C6b validation SUCCESS: chi² drift +0.0083%, CC≈1.0, bypass fix achieves stable convergence; CONVERGENCE-001 finding documented)

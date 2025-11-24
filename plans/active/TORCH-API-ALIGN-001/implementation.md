@@ -2,9 +2,9 @@
 
 ID: TORCH-API-ALIGN-001
 Title: Adopt ExperimentModel, Unify Simulator Wiring, and DIALS Mapping (no engine changes)
-Owner: Unassigned
+Owner: Galph (supervisor), Ralph (engineer)
 Spec Owner: docs/nanobrag_api.md
-Status: pending
+Status: done (2025-11-24T004500Z — Factory-only path complete)
 
 Goals
 - Replace duplicate Simulator wiring with a single adapter path; adopt `ExperimentModel` for parity-first forward.

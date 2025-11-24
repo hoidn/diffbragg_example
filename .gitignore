@@ -48,3 +48,6 @@ sp.proc/**
 !sp.proc/
 !sp.proc/README.md
 !sp.proc/sigma_metadata_manifest.json
+
+# Local supervisor input backups (ignored to avoid doc/meta whitelist failures)
+input.md.backup_*

@@ -1,166 +1,211 @@
-# PERF-WARM-SIM-001 Phase D Validation Unblocking — Engine Delegation Telemetry Key Mapping Fix
+# Ralph Input — PERF-WARM-SIM-001 Phase D Validation Unblocking (Engine Delegation Telemetry Key Fix)
 
 ## Summary
-Fix engine delegation telemetry key mapping to restore Stage C smoke test validation for Phase D detector reuse implementation.
+Fix trivial telemetry key mismatch (5 lines) where engine delegation returns lowercase stage names but tests expect uppercase letters, unblocking PERF-WARM-SIM-001 Phase D validation.
 
 ## Mode
 none
 
 ## Focus
-PERF-WARM-SIM-001 — Warm Simulator; Eliminate Per-Iteration Re-Instantiation (Phase D Validation Unblocking)
+PERF-WARM-SIM-001 — Warm Simulator: Eliminate Per-Iteration Re-Instantiation (Phase D Validation Unblocking)
 
 ## Branch
 integration
 
 ## Mapped Tests
-- `pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip` (BLOCKED → must PASS)
-- `pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` (regression guard, must remain PASSING)
+- `tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip` (PRIMARY blocker, expects telemetry_dict["C"])
+- `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` (regression guard, expects telemetry_dict["A"])
 
 ## Artifacts
 `plans/active/PERF-WARM-SIM-001/reports/2025-11-23T190000Z/`
+- `pytest_stage_c_small.log` (test execution log for primary blocker)
+- `pytest_stage_a_expansion.log` (regression guard log)
+- `summary.md` (Turn Summary with blocker diagnosis and fix validation)
 
 ## Do Now
 
-### Root Cause Analysis Complete
+**Context:** Ralph's Phase D implementation (commit 1bdeca3, loop i=236) is **code-complete and correct** (D1-D3 tasks: StageAContext extension, _retarget_stage_a_detectors helper, Stage C warm branch refactoring). Validation is blocked by ARCH-REFINE-FLOW-001 Phase E regression where commit 9bbd1e8 enabled engine delegation (`use_engine_delegation=True`) for all smoke tests but engine delegation returns telemetry keyed by lowercase stage names (`"stage_a"`, `"stage_b"`, `"stage_c"` per dbex/refinement/stage_{a,b,c}.py `_name` attributes) while tests expect uppercase single-letter keys (`"A"`, `"B"`, `"C"` per legacy convention).
 
-Ralph's Phase D implementation (commit 1bdeca3) is **code-complete** and compiles cleanly. The blocker is an ARCH-REFINE-FLOW-001 Phase E regression: when `use_engine_delegation=True`, `run_nanobrag_refinement` returns telemetry keyed by lowercase stage names (`"stage_a"`, `"stage_b"`, `"stage_c"`) but all smoke tests expect uppercase single-letter keys (`"A"`, `"B"`, `"C"`) per the legacy convention.
+**Blocker Scope:**
+- **Affected tests:** 5 tests using engine delegation (test_stage_a_expansion line 380, test_stage_a_engine_delegation_telemetry line 854, test_stage_c_detector_microslip line 975, test_stage_b_shell_small/full line 1284)
+- **Root cause:** `dbex/nanobrag_refinement.py:4494` constructs `telemetry_out[stage_name]` where `stage_name = s.name` from RefinementStage protocol (lowercase), but tests assert `telemetry_dict["A"]`, `telemetry_dict["C"]`
+- **Fix:** Add mapping dict converting lowercase stage names to uppercase single-letter keys at line 4487-4494
 
-**Evidence:**
-- `dbex/nanobrag_refinement.py:4491-4494` constructs `telemetry_out[stage_name]` where `stage_name = s.name` (returns `"stage_a"` per `dbex/refinement/stage_a.py:45,51`)
-- `tests/dbex/test_torch_refine_smoke.py:979-982` expects `telemetry_dict["A"]` and `telemetry_dict["C"]`
-- **All 5 tests** using `use_engine_delegation=True` are blocked by this mismatch (lines 380, 854, 975, 1284)
+**This loop's task:** Apply 5-line telemetry key mapping fix to unblock Phase D validation. DO NOT touch Phase D detector reuse code (dbex/nanobrag_refinement.py:381,647,693-770,3121-3165,3471-3515) — it is correct and must not be modified.
 
-### Scope
+### Step 1: Apply Telemetry Key Mapping Fix
 
-This is a **trivial 5-line fix** to restore backward compatibility. Phase D detector reuse code is NOT involved.
+**File:** `dbex/nanobrag_refinement.py`
 
-### Implementation Steps
+**Location:** Lines 4487-4494 (engine delegation telemetry enrichment block)
 
-**Step 1: Add telemetry key mapping**
-File: `dbex/nanobrag_refinement.py:4486-4496`
-
-After line 4486 (`telemetry_out = {}`), before the loop at line 4487, add a mapping dict:
+**Current code (lines 4487-4494):**
 ```python
-# Map stage names to legacy single-letter keys for backward compatibility
+# Enrich telemetry with engine protocol + stage modes
+telemetry_out = {}
+for stage_name, telem_obj in engine_telemetry.items():
+    # Convert RefinementTelemetry to dict, add new fields, reconstruct
+    telem_dict = asdict(telem_obj)
+    telem_dict["engine_protocol"] = engine_protocol
+    telem_dict["stage_modes"] = stage_modes
+    telemetry_out[stage_name] = RefinementTelemetry(**telem_dict)
+```
+
+**New code (add 2-line mapping dict + apply at line 4494):**
+```python
+# Enrich telemetry with engine protocol + stage modes
+telemetry_out = {}
+# Map stage names to legacy uppercase keys for backward compatibility
 stage_name_map = {"stage_a": "A", "stage_b": "B", "stage_c": "C"}
+for stage_name, telem_obj in engine_telemetry.items():
+    # Convert RefinementTelemetry to dict, add new fields, reconstruct
+    telem_dict = asdict(telem_obj)
+    telem_dict["engine_protocol"] = engine_protocol
+    telem_dict["stage_modes"] = stage_modes
+    legacy_key = stage_name_map.get(stage_name, stage_name)  # Apply mapping, fallback to original
+    telemetry_out[legacy_key] = RefinementTelemetry(**telem_dict)
 ```
 
-Then at line 4494, change:
-```python
-telemetry_out[stage_name] = RefinementTelemetry(**telem_dict)
+**Changes:**
+- Add `stage_name_map` dict at line 4489 (after `telemetry_out = {}`)
+- Replace line 4494 `telemetry_out[stage_name] = ...` with:
+  ```python
+  legacy_key = stage_name_map.get(stage_name, stage_name)
+  telemetry_out[legacy_key] = RefinementTelemetry(**telem_dict)
+  ```
+
+### Step 2: Validate Fix with Primary Blocker + Regression Guard
+
+Run both tests to confirm telemetry key mapping fix unblocks Phase D validation:
+
+```bash
+# Primary blocker (Stage C detector microslip smoke, expects telemetry_dict["C"])
+pytest tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip -v 2>&1 | tee plans/active/PERF-WARM-SIM-001/reports/2025-11-23T190000Z/pytest_stage_c_small.log
+
+# Regression guard (Stage A expansion, expects telemetry_dict["A"])
+pytest tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion -v 2>&1 | tee plans/active/PERF-WARM-SIM-001/reports/2025-11-23T190000Z/pytest_stage_a_expansion.log
 ```
 
-To:
-```python
-legacy_key = stage_name_map.get(stage_name, stage_name)  # Fallback to stage_name if unknown
-telemetry_out[legacy_key] = RefinementTelemetry(**telem_dict)
+**Expected outcome:**
+- **Path A (SUCCESS):** Both tests PASS → telemetry key mapping fix unblocks Phase D validation → proceed to Step 3
+- **Path B (Stage C smoke FAIL with different error):** Debug new failure signature, compare against phase_d_decision.md blocker analysis (KeyError: 'refinement_inputs' was Ralph's incorrect diagnosis; actual blocker was telemetry key mismatch)
+- **Path C (regression guard FAIL):** Rollback mapping, investigate side effects, check if Stage A-only mode still uses legacy telemetry structure
+- **Path D (compilation FAIL):** Fix syntax error in mapping dict or legacy_key assignment, rerun
+
+### Step 3: Write Turn Summary
+
+After tests PASS (Path A), write summary to artifacts directory:
+
+**File:** `plans/active/PERF-WARM-SIM-001/reports/2025-11-23T190000Z/summary.md`
+
+Include:
+- Turn Summary block (3-5 sentences): What shipped (telemetry key mapping fix), main problem and resolution (engine delegation lowercase vs test uppercase expectations), next step (Ralph proceeds to Phase D full validation suite next loop)
+- Artifacts list (pytest logs, summary.md)
+- Validation results (both tests PASSED, telemetry keys "A" and "C" now present)
+
+### Step 4: Commit and Push
+
+**Commit message:**
+```
+ENGINEER: PERF-WARM-SIM-001 Phase D unblocking — engine delegation telemetry key fix (tests: test_stage_c_detector_microslip, test_stage_a_expansion)
+
+Map lowercase stage names to uppercase keys for backward compatibility.
+Ralph's Phase D detector reuse implementation (commit 1bdeca3) unblocked.
 ```
 
-**Step 2: Validation**
-1. Run `pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip` (must PASS, confirms Phase D validation unblocked)
-2. Run `pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` (regression guard, must remain PASSING)
-3. Archive both logs to artifacts directory
-
-**Step 3: Documentation**
-Update `plans/active/PERF-WARM-SIM-001/reports/2025-11-23T190000Z/summary.md` with Turn Summary documenting:
-- Root cause (engine delegation telemetry key mismatch introduced in ARCH-REFINE-FLOW-001 Phase E commit 9bbd1e8)
-- Fix applied (5-line telemetry key mapping)
-- Validation outcome (Stage C smoke PASS confirms Phase D detector reuse operational)
-- Next action (Ralph completes Phase D validation D4 with full telemetry suite)
-
-**Step 4: Commit**
+**Commands:**
 ```bash
 git add dbex/nanobrag_refinement.py plans/active/PERF-WARM-SIM-001/reports/2025-11-23T190000Z/
-git commit -m "PERF-WARM-SIM-001: Fix engine delegation telemetry keys (stage_a→A) for test compatibility
+git commit -m "ENGINEER: PERF-WARM-SIM-001 Phase D unblocking — engine delegation telemetry key fix (tests: test_stage_c_detector_microslip, test_stage_a_expansion)
 
-Phase D validation was blocked by ARCH-REFINE-FLOW-001 Phase E regression where
-engine delegation returns telemetry keyed by 'stage_a'/'stage_b'/'stage_c' but
-tests expect legacy 'A'/'B'/'C' keys. Added 5-line mapping for backward compat.
-
-Unblocks: test_stage_c_detector_microslip (Phase D validation)
-Fixes: test_stage_a_expansion, test_stage_a_engine_delegation_telemetry,
-       test_stage_b_shell_small, test_stage_b_shell_full (all blocked by same issue)
-
-tests: not run (fix applied, validation in next loop)"
+Map lowercase stage names to uppercase keys for backward compatibility.
+Ralph's Phase D detector reuse implementation (commit 1bdeca3) unblocked."
 git push
 ```
 
 ## How-To Map
 
-### Compilation Check
+### Environment Variables
+None required. Tests run with default config (`use_engine_delegation=True` per commit 9bbd1e8).
+
+### File Locations
+- **Fix:** `dbex/nanobrag_refinement.py:4487-4494` (engine delegation telemetry enrichment block)
+- **Test blockers:** `tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip` (line 975), `test_stage_a_expansion` (line 380)
+- **Stage name sources:** `dbex/refinement/stage_{a,b,c}.py` (`_name = "stage_a"/"stage_b"/"stage_c"`)
+
+### Exact Commands
 ```bash
-python -c "from dbex.nanobrag_refinement import run_nanobrag_refinement; print('✓ Imports clean')"
+# Step 1: Apply fix (use Edit tool on dbex/nanobrag_refinement.py:4487-4494)
+# (see Do Now Step 1 for exact code replacement)
+
+# Step 2: Validate with pytest
+pytest tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip -v 2>&1 | tee plans/active/PERF-WARM-SIM-001/reports/2025-11-23T190000Z/pytest_stage_c_small.log
+pytest tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion -v 2>&1 | tee plans/active/PERF-WARM-SIM-001/reports/2025-11-23T190000Z/pytest_stage_a_expansion.log
+
+# Step 3: Write summary.md (use Write tool)
+# (see Do Now Step 3 for content template)
+
+# Step 4: Commit and push
+git add dbex/nanobrag_refinement.py plans/active/PERF-WARM-SIM-001/reports/2025-11-23T190000Z/
+git commit -m "ENGINEER: PERF-WARM-SIM-001 Phase D unblocking — engine delegation telemetry key fix (tests: test_stage_c_detector_microslip, test_stage_a_expansion)
+
+Map lowercase stage names to uppercase keys for backward compatibility.
+Ralph's Phase D detector reuse implementation (commit 1bdeca3) unblocked."
+git push
 ```
-
-### Test Execution
-```bash
-# Primary validation (Phase D blocker)
-DBEX_SMOKE_DETECTOR_SIZE=small \
-DBEX_SMOKE_SIGMA_SOURCE=cli_override \
-pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip \
-  --tb=short -o log_cli=true -o log_cli_level=INFO \
-  > plans/active/PERF-WARM-SIM-001/reports/2025-11-23T190000Z/pytest_stage_c_microslip_unblocked.log 2>&1
-
-# Regression guard
-pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion \
-  --tb=short \
-  > plans/active/PERF-WARM-SIM-001/reports/2025-11-23T190000Z/pytest_stage_a_regression_guard.log 2>&1
-```
-
-### Decision Synthesis (4-Path Template)
-
-**Path A (both tests PASS):**
-Phase D validation UNBLOCKED. Proceed to Phase D4 full validation suite (Stage C smokes small+full, telemetry capture, summarize_stage_c_roi.py outputs, implementation.md Phase D mark COMPLETE).
-
-**Path B (Stage C smoke still FAILs with different error):**
-Engine delegation has additional bugs beyond telemetry keys. Debug new failure signature, compare against Phase D decision.md blocker analysis (KeyError at stage_a.py:107), document findings.
-
-**Path C (regression guard FAILs):**
-Telemetry key mapping introduced side effects. Rollback mapping, investigate why legacy paths broke, verify mapping logic only affects engine delegation paths.
-
-**Path D (compilation FAILs):**
-Syntax error in mapping code. Fix import/indentation, rerun compilation check.
 
 ## Pitfalls To Avoid
 
-1. **Scope creep:** This is a 5-line fix for telemetry key backward compatibility. Do NOT refactor engine delegation inputs structure, stage wrapper logic, or telemetry schema. Phase D detector reuse code is CORRECT and must not be touched.
-
-2. **Environment Freeze:** No package installs, no runtime changes. Code-only fix.
-
-3. **Test registry sync:** NOT required (no new tests authored, existing selectors unchanged).
-
-4. **Telemetry schema:** The mapping is cosmetic (dict key renaming for backward compatibility). Do NOT modify RefinementTelemetry dataclass fields or to_dict() method.
-
-5. **Engine delegation paths:** Verify the mapping only affects the engine delegation return statement (line 4496). Legacy Stage A/B/C paths (lines 3935, 4060, 4986) already return uppercase keys and must not be touched.
-
-6. **Stage name constants:** Do NOT modify `stage_a.py:45`, `stage_b.py:36`, `stage_c.py:36` `_name` assignments. The mapping allows stages to keep lowercase internal names while presenting uppercase keys externally.
+1. **DO NOT touch Phase D detector reuse code** — Lines 381,647,693-770,3121-3165,3471-3515 are correct and code-complete per phase_d_decision.md. This loop fixes cross-initiative telemetry key regression only.
+2. **Preserve backward compatibility** — Use `.get(stage_name, stage_name)` fallback so unknown stage names pass through unchanged (future-proofs for Stage D/E extensions).
+3. **DO NOT modify Stage wrapper _name attributes** — `dbex/refinement/stage_{a,b,c}.py` `_name` fields are part of RefinementStage protocol contract (lowercase convention is correct per engine design). Tests must accept both uppercase (legacy) and lowercase (engine) keys via mapping.
+4. **Device/dtype neutrality NOT relevant here** — This is a pure Python dict key mapping fix (no tensor ops, no GPU/CPU branches).
+5. **Protected Assets (none for this fix)** — Telemetry schema unchanged (RefinementTelemetry dataclass fields unaffected), only dict key labels mapped.
+6. **DO NOT disable use_engine_delegation in tests** — Phase E validated engine delegation as the primary path; tests must work with `use_engine_delegation=True` per commit 9bbd1e8.
+7. **Environment Freeze** — No package installs. This is code-only fix (5-line mapping dict).
 
 ## If Blocked
 
-If tests still fail after fix:
-1. Capture exact error signature (message, traceback, file:line)
-2. Compare against Phase D decision.md blocker (KeyError at stage_a.py:107)
-3. Document new failure mode in `phase_d_blocker_followup.md`
-4. Return control to Galph with blocker report
+**Blocker Type A: Stage C smoke still fails with telemetry KeyError after mapping fix**
+- **Action:** Read `pytest_stage_c_small.log` for exact error signature
+- **Capture:** Full traceback, line number, failing assertion
+- **Log:** Create `blocker_stage_c.md` in artifacts directory with error details + analysis (compare against phase_d_decision.md blocker hypothesis)
+- **Return:** Commit partial progress (mapping fix only), write blocker summary in `summary.md`, return control to Galph
+
+**Blocker Type B: Regression guard (test_stage_a_expansion) fails after mapping fix**
+- **Action:** Read `pytest_stage_a_expansion.log` for error signature
+- **Capture:** Check if Stage-A-only mode telemetry structure differs from A→B/A→B→C modes
+- **Log:** Create `blocker_stage_a.md` with analysis (check if Stage-A-only mode bypasses engine delegation entirely)
+- **Return:** Rollback mapping change, commit original state, write blocker summary, return to Galph
+
+**Blocker Type C: Compilation/import fails after mapping dict addition**
+- **Action:** Fix syntax (likely missing comma or indentation error)
+- **Retry:** Run compilation check `python -c "from dbex.nanobrag_refinement import run_nanobrag_refinement"`
+- **Escalate:** If import fails with circular dependency or module error, document in `blocker_import.md` and return to Galph
+
+**Blocker Type D: Tests pass but telemetry validation reveals schema corruption**
+- **Action:** Inspect telemetry dicts (print `telemetry_dict["A"].to_dict()` and `telemetry_dict["C"].to_dict()`)
+- **Verify:** All canonical fields present (chi_squared, masked_mse, param_deltas, perf_counters, stage_type, mode, engine_protocol, stage_modes)
+- **Log:** If schema fields missing, create `blocker_schema.md` with diff against expected schema
+- **Return:** Commit partial progress, write blocker summary, return to Galph
 
 ## Findings Applied
 
-- **ARCH-ENGINE-002:** Stage wrapper pattern with lazy imports — NOT relevant to this fix (engine delegation logic is correct, only telemetry key naming wrong)
-- **POLICY-001:** Environment Freeze, code-only changes — COMPLIANT
-- **TESTING-003:** Test registry sync conditional — NOT triggered (no new tests)
+- **ARCH-ENGINE-002:** Telemetry packaging pattern with asdict() → enrich → reconstruct RefinementTelemetry (applied in engine delegation code, NOT relevant to this fix but context for understanding line 4491-4494)
+- **ARCH-ENGINE-003:** Phase E telemetry enrichment pattern (engine_protocol, stage_modes) — mapping fix preserves enrichment while restoring backward-compatible keys
+- **PERF-WARM-013:** Stage C instantiation overhead (addressed by Ralph's Phase D D1-D3 implementation, NOT this loop's scope)
+- **POLICY-001:** Environment Freeze — no package installs, code-only fix
 
 ## Pointers
 
-- **Root Cause:** `dbex/nanobrag_refinement.py:4428,4491-4494` (engine delegation telemetry key construction)
-- **Stage Name Definitions:** `dbex/refinement/stage_a.py:45`, `dbex/refinement/stage_b.py:36`, `dbex/refinement/stage_c.py:36`
-- **Test Expectations:** `tests/dbex/test_torch_refine_smoke.py:979-982,380,854,1284`
-- **Phase D Implementation:** `dbex/nanobrag_refinement.py:381,647,693-770,3121-3165,3471-3515` (detector reuse, CORRECT, not modified in this fix)
-- **Spec References:** `docs/spec-db-workflow.md §Stage C`, `docs/spec-db-runtime.md §2.1` (cache reuse contract)
+- **Engine delegation telemetry construction:** `dbex/nanobrag_refinement.py:4487-4494` (fix location)
+- **Test expectations:** `tests/dbex/test_torch_refine_smoke.py:384,859,979-982,1289-1292` (uppercase key assertions)
+- **Stage name protocol:** `dbex/refinement/stage.py:23-27` (RefinementStage.name property contract)
+- **Phase D detector reuse implementation:** `plans/active/PERF-WARM-SIM-001/reports/2025-11-23T180000Z/phase_d_decision.md` (Ralph's code-complete D1-D3 tasks)
+- **ARCH-REFINE-FLOW-001 Phase E telemetry enrichment:** `docs/findings.md` ARCH-ENGINE-003 (engine_protocol/stage_modes extension pattern)
 
 ## Next Up
 
-After both tests PASS:
-1. Phase D4 full validation suite (Stage C smokes small+full detectors with telemetry capture)
-2. Update `implementation.md` Phase D checklist marking D1-D4 COMPLETE
-3. Write Phase D closure summary documenting detector reuse implementation + telemetry key fix
-4. Commit Phase D COMPLETE, return control to Galph for next Tier 2/3 focus selection
+After this blocker fix PASSES (both tests PASS):
+1. **Phase D full validation suite** (D4 task): Ralph reruns Stage C smokes small+full with `DBEX_SMOKE_TELEMETRY_PATH` rooted at new report directory, captures telemetry JSONs, regenerates stage_c_roi_summary.json, updates TESTING_GUIDE.md/TEST_SUITE_INDEX.md if workflow changed
+2. **Phase D closure:** Ralph updates `plans/active/PERF-WARM-SIM-001/implementation.md` Phase D status (D1-D4 COMPLETE), writes phase_d_complete.md decision summary, commits Phase D completion message, returns control to Galph for PERF-WARM-SIM-001 exit criteria review

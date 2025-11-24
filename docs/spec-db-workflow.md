@@ -43,7 +43,7 @@ Pipeline (Normative)
         - For any Stage‑A configuration that claims DB‑AT‑024 mapping parity (see `docs/spec-db-conformance.md`), zero geometry parameters (all cell/angle/orientation deltas equal to zero) and baseline scale MUST reproduce the DB‑AT‑024 mapping Bragg tensor produced by `simulate_forward_once`.
         - Implementations SHALL satisfy, at the Stage‑A zero point:
           - `U(0) = U₀`, `B(0) = B₀`, and `A*(0) = U₀ @ B₀ = A*_mapping`,
-            where `U₀,B₀` are taken directly from the dxtbx crystal (`get_U()`, `get_B()`).
+            where `A*_0 = crystal.get_A()`, `c₀` is the baseline unit cell from dxtbx, `B₀ = B(c₀)` is the Busing–Levy reciprocal metric tensor, and `U₀ = A*_0 @ B₀⁻¹` as defined in `spec-db-core.md`.
         - When `crystal_overrides` are used instead of MOSFLM A* injection, Stage‑A implementations SHALL encode the mapping orientation via a baseline misset (e.g., `baseline_misset_deg`) and apply only deltas on top of that baseline (e.g., `misset_deg = baseline_misset_deg + delta_misset`), so that the Stage‑A zero point is identical to the mapping forward model.
       - Stage‑A parameterization constraints (normative):
         - Orientation and cell parameterizations SHALL be expressed as increments relative to the mapping baseline:

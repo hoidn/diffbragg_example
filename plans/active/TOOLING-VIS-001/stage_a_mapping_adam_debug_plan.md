@@ -37,6 +37,14 @@ Checklist:
 Objective: Prove that, with zero Stage A perturbations, the mapping helper's
 Stage A simulator produces the same Bragg stack as `simulate_forward_once`.
 
+Normative UB anchor (informative for this plan):
+- The mapping-aligned Stage A parameterization for geometry SHOULD match the incremental UB conventions in `writeups/torch_geometry_incremental_ub_parameterization.tex` and GEOMETRY-004:
+  - Baseline mapping state is defined by `A*_0 = crystal.get_A()`, baseline cell `c₀`, `B₀ = B(c₀)` (Busing–Levy), and `U₀ = A*_0 @ B₀⁻¹`.
+  - Orientation increments are encoded as a unit quaternion misset `q_delta` such that `U(q_delta) = R(q_delta) @ U₀` with identity quaternion `(1,0,0,0)` representing “no misset”.
+  - Cell increments perturb the baseline cell (log-deltas for lengths, additive deltas for angles) and always recompute `B(c)` directly from the cell, never from `A*`.
+  - Forward mapping is strictly `(q_delta, δc) → (U,B) → A* = U @ B`, with zero point `(q_delta_id, δc=0)` recovering `A*_0`.
+  - DB-AT-026 tests (UB/A* round-trip) and DB-AT-027 (Stage-A zero-point mapping equivalence) SHALL be treated as the authoritative checks that this parameterization is wired correctly before enabling any full-DOF mapping experiments in this plan.
+
 Checklist:
 - [ ] P1.1: Add a plan-local probe (or extend `probe_mapping_stage_a_context_metrics.py`)
   to:
@@ -184,4 +192,3 @@ Checklist:
 Artifacts:
 - Updated docs and ledger entries; final debug run telemetry under
   `stage_a_refgeom_adam_debug/<ts>/`.
-

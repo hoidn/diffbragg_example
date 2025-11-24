@@ -1,0 +1,13 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 3 items
+
+tests/dbex/test_vis_triptych.py::test_triptych_layout PASSED             [ 33%]
+tests/dbex/test_vis_triptych.py::test_z_score_calculation PASSED         [ 66%]
+tests/dbex/test_vis_triptych.py::test_z_score_masking PASSED             [100%]
+
+============================== 3 passed in 0.29s ===============================

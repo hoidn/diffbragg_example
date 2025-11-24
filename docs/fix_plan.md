@@ -193,9 +193,9 @@
   * See docs/fix_plan_archive.md (snapshot 2025-11-24) and plans/active/ARCH-REFINE-FLOW-001/reports/ for full Attempts History.
 ### [TOOLING-VIS-001] Standardize visual diagnostics library
 - Depends on: PHYSICS-LOSS-001
-- Status: in_progress
+- Status: in_progress (2025-11-24T111500Z — Phase A in progress: library implementation)
 - Priority: Medium
-- Owner/Date: Unassigned
+- Owner/Date: Ralph (2025-11-24T111500Z)
 - Exit Criteria:
   1. `dbex.vis` module created implementing `spec-db-vis.md` standards (Z-scores, triptychs).
   2. `dbex/look.py` refactored to use `dbex.vis` for rendering.

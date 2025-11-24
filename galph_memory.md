@@ -630,3 +630,14 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-24T231449Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=2 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-24T231449Z/ next_action=apply_spot_scale_override_and_rerun_db_at_027
+
+## 2025-11-24T234121Z — TOOLING-VIS-001 Phase D.C Spot-Scale Do Now Refresh
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics (DB-AT-027 calibration threading)
+- Action Type: planning
+- Key Observations: Dwell guard triggered (third non-implementation loop). Rewrote `input.md` with a ready-for-implementation Do Now and new artifacts path `plans/active/TOOLING-VIS-001/reports/2025-11-24T234121Z/`, directing spot_scale_override + calibration payload through Stage A warm cache/telemetry rebuild, probe helper, and pytest xfail removal. Updated `docs/fix_plan.md` Attempts History accordingly. Git status clean; no new commits since last Do Now. Retrospective check: prior Do Now (231449Z) not executed—reissued with refreshed artifacts and same tolerances/specs.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-24T234121Z/
+- Next Actions: Ralph executes spot-scale calibration threading, reruns engine probe + pytest selector, unxfails DB-AT-027, and syncs testing docs.
+- <Action State>: [ready_for_implementation]
+
+2025-11-24T234121Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=3 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-24T234121Z/ next_action=execute_spot_scale_calibration_threading

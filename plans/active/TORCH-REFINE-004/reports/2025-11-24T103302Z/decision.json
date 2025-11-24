@@ -1,0 +1,18 @@
+{
+  "outcome": "partial",
+  "blocker": "ASU modifiers unchanged (mean=0.9999997), gradient flow appears broken in per-reflection optimization",
+  "hypothesis": "Per-reflection mode may have optimizer/gradient issues; Phase 8 attribute preservation fix is working correctly (all custom attributes present), but per-reflection optimization logic needs investigation",
+  "phase_8_status": "fix_complete_but_blocked_by_upstream",
+  "tests_passed": "3/4",
+  "notes": [
+    "Compilation: PASSED",
+    "Phase 6 unit regression (5 tests): PASSED",
+    "Shell mode regression: PASSED",
+    "Per-reflection smoke: FAILED on gradient flow check (not attribute loss)",
+    "Phase 8 Alternative pattern fix successfully preserved all custom attributes",
+    "Test now detects stage_b_mode='per_reflection', n_asu_unique=97793, optimizer_type='adam', asu_modifier_stats present",
+    "Test failure: ASU modifiers stayed at initial value ~1.0, suggesting optimization didn't update params",
+    "Error changed from 'missing stage_b_mode attribute' (Phase 8 blocker) to 'gradient flow broken' (different issue)"
+  ],
+  "recommendation": "Escalate to Galph for triage: Phase 8 asdict() fix complete, but per-reflection optimization may have gradient/optimizer configuration issue requiring separate debugging"
+}

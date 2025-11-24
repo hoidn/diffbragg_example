@@ -115,6 +115,14 @@ def create_parser():
         default=False,
         help="Enable Stage C detector distance refinement (requires --use-engine-delegation)"
     )
+    ap.add_argument(
+        "--report-dir",
+        type=str,
+        default=None,
+        help="Optional directory to save triptych report (PNG per ROI). "
+             "When specified, automatically generates triptych visualizations "
+             "for all ROIs after refinement completes."
+    )
 
     return ap
 
@@ -265,6 +273,10 @@ def run_diffbragg_backend(args, DL, devid=0):
     print("Average score:", 100*np.mean(scores), "+-", 100*np.std(scores))
     print("Fraction of spots well modeled= %.1f%%" % (100*sum([s >= 0.5 for s in scores])/len(scores), ) )
     print(f"Visualize using `python -m dbex.look {args.outFile}`")
+
+    # Generate triptych report if --report-dir is specified (Phase B.2)
+    if args.report_dir:
+        _generate_triptych_report(args.outFile, args.report_dir)
 
 
 def run_nanobrag_backend(args, DL, devid=0):
@@ -584,6 +596,10 @@ def run_nanobrag_backend(args, DL, devid=0):
 
     print(f"Visualize using `python -m dbex.look {args.outFile}`")
 
+    # Generate triptych report if --report-dir is specified (Phase B.2)
+    if args.report_dir:
+        _generate_triptych_report(args.outFile, args.report_dir)
+
 
 def _write_torch_outputs(
     args,
@@ -870,6 +886,72 @@ def _write_torch_outputs(
     else:
         print("Average score: N/A (no ROIs processed)")
         print("Fraction of spots well modeled= N/A (no ROIs processed)")
+
+
+def _generate_triptych_report(h5_path, report_dir):
+    """Generate triptych PNGs for all ROIs in HDF5 file.
+
+    Automatically exports triptych visualizations (Data | Model | Residuals Z-Score)
+    for all ROIs in the HDF5 file using dbex.vis.plot_triptych.
+
+    Args:
+        h5_path: Path to HDF5 file with ROI datasets (data/roi%d, model/roi%d, variance/roi%d)
+        report_dir: Output directory for PNG files (created if doesn't exist)
+
+    Notes:
+        - Creates report_dir if it doesn't exist (parents=True, exist_ok=True)
+        - Generates one PNG per ROI: roi_0000_triptych.png, roi_0001_triptych.png, etc.
+        - Gracefully degrades if variance datasets are missing (prints warning, skips ROI)
+        - Uses try/except per ROI to prevent one failure from blocking others
+        - Prints final message with report directory location
+    """
+    from pathlib import Path
+    from dbex.vis import plot_triptych
+    import h5py
+
+    report_path = Path(report_dir)
+    report_path.mkdir(parents=True, exist_ok=True)
+
+    with h5py.File(h5_path, 'r') as h5:
+        # Determine number of ROIs by probing data/roi%d datasets
+        n_rois = 0
+        while f"data/roi{n_rois}" in h5:
+            n_rois += 1
+
+        if n_rois == 0:
+            print("Warning: No ROIs found in HDF5 file, skipping triptych report.")
+            return
+
+        print(f"Generating triptych report for {n_rois} ROIs...")
+
+        for roi_idx in range(n_rois):
+            try:
+                # Read datasets for this ROI
+                data = h5[f"data/roi{roi_idx}"][:]
+                model = h5[f"model/roi{roi_idx}"][:]
+
+                # Variance is mandatory per Phase B.1 (spec-db-core.md §86-90)
+                # but gracefully degrade for old HDF5 files
+                variance_key = f"variance/roi{roi_idx}"
+                if variance_key not in h5:
+                    print(f"Warning: Variance missing for ROI {roi_idx}, skipping triptych.")
+                    continue
+
+                variance = h5[variance_key][:]
+
+                # Generate output filename: roi_0000_triptych.png
+                out_png = report_path / f"roi_{roi_idx:04d}_triptych.png"
+
+                # Call dbex.vis.plot_triptych with filename parameter for file output
+                plot_triptych(data, model, variance, filename=str(out_png))
+
+            except Exception as e:
+                # Per input.md pitfalls: wrap each ROI in try/except so one failure
+                # doesn't block the rest
+                print(f"Warning: Failed to generate triptych for ROI {roi_idx}: {e}")
+                continue
+
+    print(f"Triptych report saved to: {report_dir}")
 
 
 def main(argv=None):

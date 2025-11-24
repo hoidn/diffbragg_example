@@ -1513,3 +1513,147 @@ def test_stage_b_shell_modifiers(
         print(f"  Stage B status: {telemetry_b.status}")
         print(f"  Total improvement (A+B): {total_improvement:.1%}")
         print(f"  Shell modifiers: {telemetry_b.param_deltas}")
+@pytest.mark.allow_metadata_sigma
+def test_stage_b_per_reflection_smoke(
+    refgeom_dataload,
+    refinement_inputs,
+    hkl_data,
+    smoke_detector_size,
+    smoke_sigma_source,
+):
+    """
+    Validate Stage B per-reflection mode with ASU-based modifiers (Phase 7).
+
+    Exit Criteria:
+    - Telemetry includes ASU mode-specific fields (n_asu_unique, optimizer_type, asu_modifier_stats)
+    - Optimizer selection validates correctly (P1 fixture ~35K ASU → Adam expected)
+    - Gradient flow verified (modifier stats change from initial ~1.0)
+    - Stage B improves upon Stage A (chi² reduction ≥0.01%)
+    - Stage A/B both converge (status="converged" or "ok" or "early_stop")
+
+    Mode: TDD (test-first), per-reflection default not yet enforced (Phase 8)
+    Fixture: refGeom_small (29 ROIs, P1 space group ~35K unique ASU)
+    Runtime: ~25-35s (Stage A + Stage B with small detector)
+
+    Findings applied:
+    - RUNTIME-001: Run with NANOBRAGG_DISABLE_COMPILE=1
+    - CONFORMANCE-001: Requires KMP_DUPLICATE_LIB_OK=TRUE
+    - REFINE-005: Halo-padded HKL grid mandatory
+    - spec:59/60/61: Per-reflection SHALL be default, shell mode fallback permitted, halo mandatory
+    - spec:107: Adam optimizer permitted for large parameter counts
+    """
+    import os
+    import pytest
+    import torch
+    from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig
+
+    if os.getenv("AUTHORITATIVE_CMDS_DOC") != "./docs/TESTING_GUIDE.md":
+        pytest.skip("Requires AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md")
+
+    print(f"\n[test_stage_b_per_reflection_smoke] detector={smoke_detector_size}")
+
+    # CPU fallback blocked (same as shell mode test)
+    if smoke_detector_size == "full":
+        pytest.skip("CPU fallback blocked by HKL grid transfer corruption (GRADIENT-003)")
+
+    DL = refgeom_dataload
+    hkl_grid, hkl_metadata = hkl_data
+
+    # Guard: Stage B requires halo-padded HKL grid (REFINE-005)
+    assert hkl_metadata["has_halo"], (
+        "Stage B smoke test requires halo-padded HKL grid per TORCH-REFINE-004."
+    )
+
+    # Refinement config: enable Stage B with per-reflection mode
+    sigma_provenance = "external_lookup" if smoke_sigma_source == "metadata" else "cli_override"
+    enable_roi = smoke_detector_size != "full"
+
+    config = RefinementConfig(
+        max_iter=30,
+        min_loss_improvement=0.0,
+        enable_hkl_interpolation=True,  # Required for Stage B (REFINE-005)
+        enable_stage_b=True,
+        stage_b_mode="per_reflection",  # Phase 7 new mode
+        enable_stage_c=False,
+        enable_stage_a_roi_mode=enable_roi,
+        device="cuda:0" if torch.cuda.is_available() else "cpu",
+        dtype=torch.float32,
+        sigma_readout_provenance=sigma_provenance,
+        enable_stage_a_warm_cache=False,  # Cold mode for determinism (PERF-WARM-001)
+    )
+
+    # Run refinement (Stage A + Stage B with per-reflection mode)
+    bragg_refined, telemetry_dict = run_nanobrag_refinement(
+        inputs=refinement_inputs,
+        detector=DL.detector,
+        beam=DL.beam,
+        crystal=DL.crystal,
+        hkl_grid=hkl_grid,
+        hkl_metadata=hkl_metadata,
+        config=config,
+        baseline_crystal=DL.crystal,
+        baseline_detector=DL.detector,
+        use_engine_delegation=True
+    )
+
+    # Extract telemetry
+    assert "A" in telemetry_dict, "Stage A telemetry missing"
+    assert "B" in telemetry_dict, "Stage B telemetry missing (enable_stage_b=True)"
+
+    telemetry_a = telemetry_dict["A"]
+    telemetry_b = telemetry_dict["B"]
+
+    # ASU mode-specific fields (Phase 7.4)
+    assert hasattr(telemetry_b, "n_asu_unique"), "ASU mode should report n_asu_unique"
+    assert hasattr(telemetry_b, "optimizer_type"), "ASU mode should report optimizer_type"
+    assert hasattr(telemetry_b, "asu_modifier_stats"), "ASU mode should report modifier stats"
+    assert hasattr(telemetry_b, "stage_b_mode"), "Should report stage_b_mode"
+
+    # Optimizer selection validation (P1 fixture ~35K ASU → Adam expected per Phase 6 planning)
+    assert telemetry_b.optimizer_type in ["adam", "lbfgs"], f"Invalid optimizer: {telemetry_b.optimizer_type}"
+    n_asu = telemetry_b.n_asu_unique
+    assert n_asu > 0, "ASU mapping failed (0 unique reflections)"
+    # P1 fixture expected ~35K unique ASU (from Phase 6 planning analysis)
+    assert 20000 < n_asu < 60000, f"Unexpected n_asu={n_asu} (expected ~35K for P1 fixture)"
+    assert telemetry_b.stage_b_mode == "per_reflection", f"Mode should be per_reflection, got {telemetry_b.stage_b_mode}"
+
+    # Gradient flow validation (modifier stats should change from initial ~1.0)
+    stats = telemetry_b.asu_modifier_stats
+    assert stats["mean"] > 0.0, "ASU modifiers collapsed to zero"
+    assert abs(stats["mean"] - 1.0) > 0.001, f"ASU modifiers unchanged (mean={stats['mean']:.6f}, gradient flow broken)"
+
+    # Convergence validation (Stage B should improve upon Stage A)
+    assert telemetry_a.chi_squared_trace_full is not None, "Stage A chi_squared_trace_full missing"
+    assert telemetry_b.chi_squared_trace_full is not None, "Stage B chi_squared_trace_full missing"
+
+    stage_a_final_chi2 = telemetry_a.chi_squared_trace_full[-1][1]
+    stage_b_final_chi2 = telemetry_b.chi_squared_trace_full[-1][1]
+
+    improvement_pct = 100 * (stage_a_final_chi2 - stage_b_final_chi2) / stage_a_final_chi2
+
+    # Relaxed improvement gate for smoke (canonical test would use stricter 3% gate)
+    assert improvement_pct >= 0.01, f"Stage B degraded chi² (improvement={improvement_pct:.4f}%)"
+
+    # Regression guards (Stage A should still pass)
+    assert telemetry_a.status in ["ok", "converged", "early_stop"], f"Stage A failed: status={telemetry_a.status}"
+    assert telemetry_b.status in ["ok", "converged", "early_stop"], f"Stage B failed: status={telemetry_b.status}"
+
+    # Output shape correctness
+    assert bragg_refined.shape == refinement_inputs.target.shape
+    assert bragg_refined.dtype == np.float32
+
+    # Diagnostic printout
+    stage_a_initial_chi2 = telemetry_a.chi_squared_trace_full[0][1]
+    total_improvement = 100 * (stage_a_initial_chi2 - stage_b_final_chi2) / stage_a_initial_chi2
+
+    print(f"\n[test_stage_b_per_reflection_smoke] SUCCESS")
+    print(f"  Stage A initial chi²: {stage_a_initial_chi2:.2e}")
+    print(f"  Stage A final chi²: {stage_a_final_chi2:.2e}")
+    print(f"  Stage A status: {telemetry_a.status}")
+    print(f"  Stage B final chi²: {stage_b_final_chi2:.2e}")
+    print(f"  Stage B improvement (vs Stage A): {improvement_pct:.3f}%")
+    print(f"  Stage B status: {telemetry_b.status}")
+    print(f"  Total improvement (A+B): {total_improvement:.2f}%")
+    print(f"  ASU unique reflections: {n_asu}")
+    print(f"  Optimizer: {telemetry_b.optimizer_type}")
+    print(f"  ASU modifier stats: min={stats['min']:.4f}, max={stats['max']:.4f}, mean={stats['mean']:.4f}, std={stats['std']:.4f}")

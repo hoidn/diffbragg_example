@@ -2429,36 +2429,110 @@ def _build_stage_b_params(
         and not use_stage_a_roi_mode  # ROI mode is disabled (panel mode)
     )
 
-    # Compute shell lookup for per-shell modifiers
-    shell_indices, shell_edges = compute_hkl_shell_lookup(
-        crystal, hkl_metadata, n_shells=config.stage_b_n_shells, device=device, dtype=dtype
-    )
-
-    # Initialize shell modifiers (softplus parameterization to keep multipliers positive)
-    # Start near identity: softplus(0) ≈ 0.69, so initialize slightly negative to get ~1.0
     # GRADIENT-001: Create parameters on CPU when CPU fallback active to prevent gradient chain break
     stage_b_param_device = torch.device("cpu") if use_stage_b_cpu_fallback else torch.device(config.device)
-    shell_modifier_raw = torch.zeros(config.stage_b_n_shells, device=stage_b_param_device, dtype=dtype, requires_grad=True)
-    identity_raw = math.log(math.expm1(0.5))  # softplus(identity_raw)*2 == 1.0
-    shell_modifier_raw.data.fill_(identity_raw)
 
-    stage_b_params = [shell_modifier_raw]
+    # Phase 7: Branch on Stage B mode (per-reflection vs shell)
+    if config.stage_b_mode == "per_reflection":
+        # Compute ASU map using Phase 6 helper
+        halo_mask = hkl_metadata.get("halo_mask")  # 3D boolean array
+        crystal_symmetry = hkl_metadata.get("crystal_symmetry")  # From MTZ via F.crystal_symmetry()
 
-    # Setup LBFGS optimizer for Stage B
-    stage_b_optimizer = torch.optim.LBFGS(
-        stage_b_params,
-        history_size=config.history_size,
-        max_iter=config.max_iter,
-        tolerance_grad=config.tolerance_grad,
-        tolerance_change=config.tolerance_change,
-        line_search_fn='strong_wolfe'
-    )
+        if crystal_symmetry is None:
+            # crystal_symmetry not available, fallback to shell mode
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning("crystal_symmetry not in hkl_metadata, falling back to shell mode")
+            config_stage_b_mode_override = "shell"
+            asu_indices, n_asu_unique = None, 0
+        else:
+            asu_indices, n_asu_unique = compute_hkl_asu_map(
+                hkl_grid.cpu().numpy(),
+                crystal_symmetry,
+                halo_mask=halo_mask
+            )
+
+        # Check if ASU mapping succeeded; fallback to shell mode if failed
+        if config_stage_b_mode_override != "shell" and (asu_indices is None or n_asu_unique == 0):
+            # ASU mapping failed, fall back to shell mode (spec:60 permits fallback)
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"ASU mapping returned None/zero, falling back to shell mode for this refinement")
+            config_stage_b_mode_override = "shell"
+        elif config_stage_b_mode_override != "shell":
+            # ASU mapping succeeded, proceed with per-reflection mode
+            asu_indices_t = asu_indices.to(device=device, dtype=torch.long)
+
+            # Initialize ASU modifiers using Phase 6 helper
+            log_modifiers = initialize_asu_modifiers(
+                n_asu=n_asu_unique,
+                device=stage_b_param_device,  # Respect CPU fallback logic
+                dtype=dtype
+            )
+            stage_b_params = [log_modifiers]
+
+            config_stage_b_mode_override = "per_reflection"
+
+    # If shell mode (original or fallback from per_reflection)
+    if config.stage_b_mode == "shell" or (config.stage_b_mode == "per_reflection" and config_stage_b_mode_override == "shell"):
+        # Compute shell lookup for per-shell modifiers
+        shell_indices, shell_edges = compute_hkl_shell_lookup(
+            crystal, hkl_metadata, n_shells=config.stage_b_n_shells, device=device, dtype=dtype
+        )
+
+        # Initialize shell modifiers (softplus parameterization to keep multipliers positive)
+        # Start near identity: softplus(0) ≈ 0.69, so initialize slightly negative to get ~1.0
+        shell_modifier_raw = torch.zeros(config.stage_b_n_shells, device=stage_b_param_device, dtype=dtype, requires_grad=True)
+        identity_raw = math.log(math.expm1(0.5))  # softplus(identity_raw)*2 == 1.0
+        shell_modifier_raw.data.fill_(identity_raw)
+
+        stage_b_params = [shell_modifier_raw]
+
+        config_stage_b_mode_override = "shell"
+
+    # Phase 7.2: Dynamic optimizer selection based on mode and parameter count
+    if config_stage_b_mode_override == "per_reflection":
+        n_asu = n_asu_unique
+        if n_asu >= config.stage_b_optimizer_gate:  # Default 10000
+            # Adam for large parameter counts (spec-db-workflow.md:107 permits Adam)
+            stage_b_optimizer = torch.optim.Adam(
+                stage_b_params,
+                lr=config.stage_b_adam_lr  # Default 1e-3
+            )
+            optimizer_type = "adam"
+        else:
+            # LBFGS for small parameter counts (spec default per spec-db-workflow.md:107)
+            stage_b_optimizer = torch.optim.LBFGS(
+                stage_b_params,
+                history_size=config.history_size,
+                max_iter=config.max_iter,
+                tolerance_grad=config.tolerance_grad,
+                tolerance_change=config.tolerance_change,
+                line_search_fn='strong_wolfe'
+            )
+            optimizer_type = "lbfgs"
+    else:  # "shell" mode
+        # Existing LBFGS-only path
+        stage_b_optimizer = torch.optim.LBFGS(
+            stage_b_params,
+            history_size=config.history_size,
+            max_iter=config.max_iter,
+            tolerance_grad=config.tolerance_grad,
+            tolerance_change=config.tolerance_change,
+            line_search_fn='strong_wolfe'
+        )
+        optimizer_type = "lbfgs"
 
     # Telemetry accumulators for Stage B
     loss_trace_sample_b = []
     loss_trace_full_b = []
     best_loss_full_b = (float('inf'), 0)
-    best_params_snapshot_b = {'shell_modifier_raw': shell_modifier_raw.data.clone()}
+
+    # Best params snapshot depends on mode
+    if config_stage_b_mode_override == "per_reflection":
+        best_params_snapshot_b = {'log_modifiers': log_modifiers.data.clone()}
+    else:
+        best_params_snapshot_b = {'shell_modifier_raw': shell_modifier_raw.data.clone()}
 
     # PHYSICS-LOSS-001: Dual metric tracking (chi_squared + masked_mse)
     chi_squared_trace_sample_b = []
@@ -2546,12 +2620,12 @@ def _build_stage_b_params(
         'perf_forward_times_ms_b': perf_forward_times_ms_b,
     }
 
-    return {
-        'shell_indices': shell_indices,
-        'shell_edges': shell_edges,
-        'shell_modifier_raw': shell_modifier_raw,
+    # Build return dict with mode-specific fields
+    param_dict = {
         'params': stage_b_params,
         'optimizer': stage_b_optimizer,
+        'optimizer_type': optimizer_type,
+        'stage_b_mode': config_stage_b_mode_override,
         'telemetry_state': telemetry_state,
         'stage_b_eval_stage_a_ctx': stage_b_eval_stage_a_ctx,
         'use_stage_b_cpu_fallback': use_stage_b_cpu_fallback,
@@ -2565,6 +2639,22 @@ def _build_stage_b_params(
         'default_f_fallback_count': default_f_fallback_count,
         'stage_b_param_device': stage_b_param_device,
     }
+
+    # Add mode-specific fields
+    if config_stage_b_mode_override == "per_reflection":
+        param_dict.update({
+            'asu_indices': asu_indices_t,
+            'n_asu_unique': n_asu_unique,
+            'log_modifiers': log_modifiers,
+        })
+    else:  # shell mode
+        param_dict.update({
+            'shell_indices': shell_indices,
+            'shell_edges': shell_edges,
+            'shell_modifier_raw': shell_modifier_raw,
+        })
+
+    return param_dict
 
 
 def _build_stage_b_lbfgs_closure(
@@ -2604,8 +2694,17 @@ def _build_stage_b_lbfgs_closure(
     Mirrors Phase B1a-loop2 pattern for Stage A closure extraction.
     """
     # Extract parameters from param_values dict
-    shell_modifier_raw = param_values['shell_modifier_raw']
+    stage_b_mode = param_values['stage_b_mode']
     stage_b_optimizer = param_values['optimizer']
+
+    # Phase 7.3: Extract mode-specific parameters
+    if stage_b_mode == "per_reflection":
+        asu_indices = param_values['asu_indices']
+        log_modifiers = param_values['log_modifiers']
+        n_asu_unique = param_values['n_asu_unique']
+    else:  # shell mode
+        shell_modifier_raw = param_values['shell_modifier_raw']
+        shell_indices = param_values['shell_indices']
     log_scale = param_values['log_scale']
     cell_a_tensor = param_values['cell_a_tensor']
     cell_b_tensor = param_values['cell_b_tensor']
@@ -2658,9 +2757,6 @@ def _build_stage_b_lbfgs_closure(
         if is_full:
             perf_validation_runs_b[0] += 1
 
-        shell_modifiers = torch.nn.functional.softplus(shell_modifier_raw) * 2.0
-        shell_modifiers = torch.clamp(shell_modifiers, max=config.stage_b_max_modifier)
-
         # PERF-WARM-011: Route to CPU when fallback is active (panel mode + CUDA + config flag)
         eval_device = torch.device("cpu") if use_stage_b_cpu_fallback else device
 
@@ -2706,20 +2802,36 @@ def _build_stage_b_lbfgs_closure(
         else:
             # Normal path: transfer to eval device if needed
             hkl_grid_local = hkl_grid if eval_device == device else hkl_grid.to(device=eval_device, dtype=dtype)
-        shell_indices_local = shell_indices if eval_device == device else shell_indices.to(device=eval_device)
-        # Initialize hkl_grid_modified as clone of local grid
-        hkl_grid_modified = hkl_grid_local.clone()
-        for shell_idx in range(config.stage_b_n_shells):
-            mask = (shell_indices_local == shell_idx)
-            modifier_value = shell_modifiers[shell_idx]
-            if modifier_value.device != eval_device:
-                modifier_value = modifier_value.to(device=eval_device)
-            # Out-of-place: creates NEW tensor with gradient graph
-            hkl_grid_modified = torch.where(
-                mask,  # Boolean mask [panels, slow, fast]
-                hkl_grid_local * modifier_value,  # Gradient-enabled operation
-                hkl_grid_modified  # Keep existing values for non-matching shells
+
+        # Phase 7.3: Mode-aware modifier application
+        if stage_b_mode == "per_reflection":
+            # ASU mode: apply per-reflection modifiers using Phase 6 helper
+            asu_indices_local = asu_indices if eval_device == device else asu_indices.to(device=eval_device)
+            log_modifiers_local = log_modifiers if eval_device == device else log_modifiers.to(device=eval_device)
+            hkl_grid_modified = apply_asu_modifiers(
+                hkl_grid_base=hkl_grid_local,
+                log_modifiers=log_modifiers_local,
+                hkl_asu_map=asu_indices_local,
+                modifier_clamp=config.stage_b_modifier_clamp  # (-3.0, 3.0) default
             )
+        else:  # "shell" mode
+            # Existing shell modifier path
+            shell_modifiers = torch.nn.functional.softplus(shell_modifier_raw) * 2.0
+            shell_modifiers = torch.clamp(shell_modifiers, max=config.stage_b_max_modifier)
+            shell_indices_local = shell_indices if eval_device == device else shell_indices.to(device=eval_device)
+            # Initialize hkl_grid_modified as clone of local grid
+            hkl_grid_modified = hkl_grid_local.clone()
+            for shell_idx in range(config.stage_b_n_shells):
+                mask = (shell_indices_local == shell_idx)
+                modifier_value = shell_modifiers[shell_idx]
+                if modifier_value.device != eval_device:
+                    modifier_value = modifier_value.to(device=eval_device)
+                # Out-of-place: creates NEW tensor with gradient graph
+                hkl_grid_modified = torch.where(
+                    mask,  # Boolean mask [panels, slow, fast]
+                    hkl_grid_local * modifier_value,  # Gradient-enabled operation
+                    hkl_grid_modified  # Keep existing values for non-matching shells
+                )
 
         # PERF-WARM-012: Use the eval-device-specific Stage A context (CPU or CUDA)
         use_warm_eval = stage_b_use_warm_cache
@@ -2897,7 +3009,11 @@ def _build_stage_b_lbfgs_closure(
                 if full_chi_squared_b.item() < chi_squared_best_b[0]:
                     chi_squared_best_b = (float(full_chi_squared_b.item()), len(loss_trace_sample_b))
                     best_loss_full_b = (float(full_chi_squared_b.item()), len(loss_trace_sample_b))  # Deprecated legacy field
-                    best_params_snapshot_b['shell_modifier_raw'] = shell_modifier_raw.data.clone()
+                    # Phase 7: Mode-aware best params snapshot
+                    if stage_b_mode == "per_reflection":
+                        best_params_snapshot_b['log_modifiers'] = log_modifiers.data.clone()
+                    else:
+                        best_params_snapshot_b['shell_modifier_raw'] = shell_modifier_raw.data.clone()
                 if full_mse_b.item() < masked_mse_best_b[0]:
                     masked_mse_best_b = (float(full_mse_b.item()), len(loss_trace_sample_b))
 
@@ -2959,7 +3075,11 @@ def _run_stage_b_lbfgs(
             masked_mse_best_b[1] = 0
             best_loss_full_b[0] = float(initial_chi_squared_b.item())
             best_loss_full_b[1] = 0
-            best_params_snapshot_b['shell_modifier_raw'] = shell_modifier_raw.data.clone()
+            # Phase 7: Mode-aware best params snapshot
+            if param_values['stage_b_mode'] == "per_reflection":
+                best_params_snapshot_b['log_modifiers'] = param_values['log_modifiers'].data.clone()
+            else:
+                best_params_snapshot_b['shell_modifier_raw'] = param_values['shell_modifier_raw'].data.clone()
 
         # Run LBFGS optimization
         stage_b_optimizer.step(closure_stage_b)
@@ -2982,16 +3102,27 @@ def _run_stage_b_lbfgs(
         chi_squared_best_b[1] = final_step
         best_loss_full_b[0] = candidate_loss_value
         best_loss_full_b[1] = final_step
-        best_params_snapshot_b['shell_modifier_raw'] = shell_modifier_raw.data.clone()
+        # Phase 7: Mode-aware best params snapshot
+        if param_values['stage_b_mode'] == "per_reflection":
+            best_params_snapshot_b['log_modifiers'] = param_values['log_modifiers'].data.clone()
+        else:
+            best_params_snapshot_b['shell_modifier_raw'] = param_values['shell_modifier_raw'].data.clone()
     if candidate_mse_value < masked_mse_best_b[0]:
         masked_mse_best_b[0] = candidate_mse_value
         masked_mse_best_b[1] = final_step
 
+    # Phase 7: Restore best params (mode-aware)
     if best_loss_full_b[0] < float('inf'):
-        shell_modifier_raw.data = best_params_snapshot_b['shell_modifier_raw'].to(
-            device=stage_b_param_device,
-            dtype=dtype
-        )
+        if param_values['stage_b_mode'] == "per_reflection":
+            param_values['log_modifiers'].data = best_params_snapshot_b['log_modifiers'].to(
+                device=stage_b_param_device,
+                dtype=dtype
+            )
+        else:
+            param_values['shell_modifier_raw'].data = best_params_snapshot_b['shell_modifier_raw'].to(
+                device=stage_b_param_device,
+                dtype=dtype
+            )
 
     final_loss_value = chi_squared_best_b[0] if chi_squared_best_b[0] < float('inf') else candidate_loss_value
     final_mse_value = masked_mse_best_b[0] if masked_mse_best_b[0] < float('inf') else candidate_mse_value
@@ -4959,13 +5090,24 @@ def run_nanobrag_refinement(
     
                 bragg_full = bragg_full_stage_b
     
-            # Assemble Stage B telemetry
+            # Assemble Stage B telemetry (Phase 7.4: mode-aware)
             param_deltas_b = {}
-            shell_modifiers_final_np = shell_modifiers_final.cpu().numpy()
-            for shell_idx in range(config.stage_b_n_shells):
-                d_min_shell = float(shell_edges[shell_idx + 1].item()) if shell_idx + 1 < len(shell_edges) else 0.0
-                d_max_shell = float(shell_edges[shell_idx].item())
-                param_deltas_b[f"shell_{shell_idx}_modifier (d={d_min_shell:.2f}-{d_max_shell:.2f}Å)"] = float(shell_modifiers_final_np[shell_idx])
+
+            if param_values['stage_b_mode'] == "per_reflection":
+                # ASU mode: telemetry includes ASU-specific fields
+                log_modifiers_final = param_values['log_modifiers']
+                modifiers_exp = torch.exp(torch.clamp(log_modifiers_final, *config.stage_b_modifier_clamp))
+
+                # Per-reflection mode doesn't populate shell-specific param_deltas
+                # (ASU modifier stats reported separately below)
+                param_deltas_b["asu_mode_note"] = f"n_asu={param_values['n_asu_unique']} unique reflections"
+            else:
+                # Shell mode: existing shell modifier telemetry
+                shell_modifiers_final_np = shell_modifiers_final.cpu().numpy()
+                for shell_idx in range(config.stage_b_n_shells):
+                    d_min_shell = float(shell_edges[shell_idx + 1].item()) if shell_idx + 1 < len(shell_edges) else 0.0
+                    d_max_shell = float(shell_edges[shell_idx].item())
+                    param_deltas_b[f"shell_{shell_idx}_modifier (d={d_min_shell:.2f}-{d_max_shell:.2f}Å)"] = float(shell_modifiers_final_np[shell_idx])
     
             # PERF-WARM-SIM-001: ROI counts always reflect the canonical ROI count for consistency
             # When in panel mode, we're evaluating all ROIs via panel rendering
@@ -4989,8 +5131,11 @@ def run_nanobrag_refinement(
                 'forward_time_ms': forward_stats_b,
             }
     
+            # Phase 7.4: Optimizer type detection from param_values
+            optimizer_type_display = param_values.get('optimizer_type', 'lbfgs').upper()
+
             telemetry_b = RefinementTelemetry(
-                optimizer="LBFGS",
+                optimizer=optimizer_type_display,  # Phase 7: dynamic (LBFGS or Adam)
                 stage="B",
                 history_size=config.history_size,
                 max_iter=config.max_iter,
@@ -5028,6 +5173,21 @@ def run_nanobrag_refinement(
                 canonical_detector_distances_mm=canonical_baseline["detector_distances_mm"],
                 roi_mode=stage_b_roi_label,
             )
+
+            # Phase 7.4: Add ASU-specific telemetry fields dynamically
+            if param_values['stage_b_mode'] == "per_reflection":
+                # Store as custom attributes for now; will be included in to_dict() output
+                telemetry_b.n_asu_unique = int(param_values['n_asu_unique'])
+                telemetry_b.optimizer_type = param_values['optimizer_type']  # "adam" or "lbfgs"
+                telemetry_b.asu_modifier_stats = {
+                    "min": float(modifiers_exp.min().item()),
+                    "max": float(modifiers_exp.max().item()),
+                    "mean": float(modifiers_exp.mean().item()),
+                    "std": float(modifiers_exp.std().item()),
+                }
+                telemetry_b.stage_b_mode = "per_reflection"
+            else:
+                telemetry_b.stage_b_mode = "shell"
     
             telemetry_dict["B"] = telemetry_b
     

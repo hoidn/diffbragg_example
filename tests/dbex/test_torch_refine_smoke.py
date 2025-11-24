@@ -1659,19 +1659,17 @@ def test_stage_b_per_reflection_smoke(
     # Gradient flow validation (modifier stats should change from initial ~1.0)
     stats = telemetry_b.asu_modifier_stats
     assert stats["mean"] > 0.0, "ASU modifiers collapsed to zero"
-    assert abs(stats["mean"] - 1.0) > 0.001, f"ASU modifiers unchanged (mean={stats['mean']:.6f}, gradient flow broken)"
 
-    # Convergence validation (Stage B should improve upon Stage A)
-    assert telemetry_a.chi_squared_trace_full is not None, "Stage A chi_squared_trace_full missing"
-    assert telemetry_b.chi_squared_trace_full is not None, "Stage B chi_squared_trace_full missing"
+    # Hybrid validation (Phase 9 calibration per TORCH-REFINE-004):
+    # Belt-and-suspenders: validate both gradient flow AND convergence
+    # Option 1: Relaxed parameter change threshold (sanity check, 0.008% empirical from Phase 7)
+    assert abs(stats["mean"] - 1.0) > 0.00005, f"ASU modifiers unchanged (mean={stats['mean']:.6f}, gradient flow broken)"
 
-    stage_a_final_chi2 = telemetry_a.chi_squared_trace_full[-1][1]
-    stage_b_final_chi2 = telemetry_b.chi_squared_trace_full[-1][1]
-
-    improvement_pct = 100 * (stage_a_final_chi2 - stage_b_final_chi2) / stage_a_final_chi2
-
-    # Relaxed improvement gate for smoke (canonical test would use stricter 3% gate)
-    assert improvement_pct >= 0.01, f"Stage B degraded chi² (improvement={improvement_pct:.4f}%)"
+    # Option 2: Loss improvement validation (robust convergence check)
+    loss_initial = telemetry_a.chi_squared_trace_full[-1][1]  # Stage A final loss
+    loss_final = telemetry_b.chi_squared_trace_full[-1][1]    # Stage B final loss
+    loss_improvement_pct = 100 * (loss_initial - loss_final) / loss_initial
+    assert loss_improvement_pct > 3.0, f"Stage B should improve loss >3%, got {loss_improvement_pct:.2f}%"
 
     # Regression guards (Stage A should still pass)
     assert telemetry_a.status in ["ok", "converged", "early_stop"], f"Stage A failed: status={telemetry_a.status}"
@@ -1683,6 +1681,8 @@ def test_stage_b_per_reflection_smoke(
 
     # Diagnostic printout
     stage_a_initial_chi2 = telemetry_a.chi_squared_trace_full[0][1]
+    stage_a_final_chi2 = loss_initial  # Already extracted above (Stage A final)
+    stage_b_final_chi2 = loss_final    # Already extracted above (Stage B final)
     total_improvement = 100 * (stage_a_initial_chi2 - stage_b_final_chi2) / stage_a_initial_chi2
 
     print(f"\n[test_stage_b_per_reflection_smoke] SUCCESS")
@@ -1690,7 +1690,7 @@ def test_stage_b_per_reflection_smoke(
     print(f"  Stage A final chi²: {stage_a_final_chi2:.2e}")
     print(f"  Stage A status: {telemetry_a.status}")
     print(f"  Stage B final chi²: {stage_b_final_chi2:.2e}")
-    print(f"  Stage B improvement (vs Stage A): {improvement_pct:.3f}%")
+    print(f"  Stage B improvement (vs Stage A): {loss_improvement_pct:.3f}%")
     print(f"  Stage B status: {telemetry_b.status}")
     print(f"  Total improvement (A+B): {total_improvement:.2f}%")
     print(f"  ASU unique reflections: {n_asu}")

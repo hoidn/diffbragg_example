@@ -59,6 +59,7 @@ Pipeline (Normative)
       - Trainable: Per-reflection Fhkl multipliers mapped to unique ASU indices SHALL be the default (Parity Mode).
       - Fallback: Aggregated per-shell modifiers (Shell Mode) are PERMITTED as an optimization or regularization strategy but MUST NOT be the default.
       - Physics: Tricubic interpolation (`interpolation=True`) with ±1 HKL halo is MANDATORY.
+      - **Implementation Status (2025-11-24):** Per-reflection mode implemented in TORCH-REFINE-004 (Phases 6-9). ASU mapping via cctbx.miller symmetry operations, dynamic optimizer selection (LBFGS <10K params, Adam ≥10K params per spec:107), gradient flow validated. Shell mode remains available as fallback via `stage_b_mode="shell"` config parameter per spec:60.
      - **Stage C (Detector):**
       - Trainable: Per-panel translation along detector normal (distance offsets).
       - Fixed: Crystal, scale, Fhkl.

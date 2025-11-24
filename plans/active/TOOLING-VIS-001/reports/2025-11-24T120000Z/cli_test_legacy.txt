@@ -1,22 +1,36 @@
-# Manual CLI Test (Legacy Backend) - DEFERRED TO USER TESTING
+# Manual CLI Test: Legacy Backend (--backend diffbragg)
 
-## Command Skeleton
+## Status
+DEFERRED — Requires manual validation with real data (golden_data unavailable)
 
+## Command Template
+```bash
 python -m dbex.refine_one --backend diffbragg \
-  -e <expt.json> -r <refl.refl> -i 0 \
+  -e <expt.json> \
+  -r <refl.refl> \
+  -i 0 \
   -o /tmp/tooling_vis_test_legacy.h5 \
   --report-dir /tmp/tooling_vis_triptychs_legacy \
-  -m <mask.pickle> -z <mtz.mtz>
+  -m <mask.pickle> \
+  -z <mtz.mtz>
+```
 
 ## Expected Behavior
-
-1. HDF5 file created at /tmp/tooling_vis_test_legacy.h5 with variance datasets (Phase B.1)
-2. Directory /tmp/tooling_vis_triptychs_legacy/ created if it doesn't exist
-3. PNG files generated: roi_0000_triptych.png, roi_0001_triptych.png, etc.
+1. Refinement completes successfully
+2. Directory `/tmp/tooling_vis_triptychs_legacy/` is created
+3. PNG files generated: `roi_0000_triptych.png`, `roi_0001_triptych.png`, etc.
 4. CLI prints: "Triptych report saved to: /tmp/tooling_vis_triptychs_legacy"
+5. Each PNG contains 3 panels: Data | Model | Residuals Z-Score
 
-## Validation Status
+## Validation Checklist
+- [ ] Run command with real dataset
+- [ ] Verify report directory created
+- [ ] Verify PNG files present (one per ROI)
+- [ ] Open sample PNG to verify 3-panel triptych layout
+- [ ] Verify colormaps: viridis (Data/Model), seismic (Residuals)
+- [ ] Verify origin='upper' coordinate convention
 
-DEFERRED - Compilation check is PRIMARY validation gate per input.md note.
-Manual validation requires golden_data with full refinement run (>5 minutes).
-User should test with real data to confirm end-to-end behavior.
+## Notes
+- Golden data directory not found at project root
+- Compilation check (primary validation gate) PASSED ✓
+- Manual test can be executed by user with real data

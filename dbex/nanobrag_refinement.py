@@ -236,6 +236,219 @@ def compute_hkl_shell_lookup(crystal, hkl_metadata: Dict, n_shells: int = 5, dev
     return shell_indices, shell_edges
 
 
+def compute_hkl_asu_map(
+    hkl_grid: np.ndarray,
+    crystal_symmetry,
+    halo_mask: Optional[np.ndarray] = None
+) -> Tuple[Optional[torch.Tensor], int]:
+    """
+    Map each HKL grid voxel to its unique ASU (asymmetric unit) index.
+
+    Uses cctbx.miller symmetry operations to fold Miller indices into the asymmetric
+    unit, enabling per-reflection Fhkl modifiers parameterized by unique ASU indices.
+
+    Args:
+        hkl_grid: shape (h_count, k_count, l_count, 3) — Miller indices for each voxel
+                  (includes ±1 halo per spec-db-workflow.md:61)
+        crystal_symmetry: cctbx.crystal.symmetry object with space group + unit cell
+                          (extracted from MTZ via F.crystal_symmetry())
+        halo_mask: Optional boolean mask shape (h_count, k_count, l_count) marking
+                   halo voxels (True=halo, outside MTZ range). If provided, halo
+                   voxels map to ASU index 0 with fixed modifier=1.0.
+
+    Returns:
+        tuple: (hkl_asu_map, n_asu_unique)
+            - hkl_asu_map: torch.Tensor[int64] shape (h_count, k_count, l_count)
+                          Values are ASU indices 0..n_asu_unique-1
+                          Index 0 is reserved for halo voxels (if halo_mask provided)
+                          Returns None on failure (triggers shell mode fallback)
+            - n_asu_unique: Total count of unique ASU reflections (including index 0 for halo)
+                           Returns 0 on failure
+
+    Edge Cases:
+        - Halo voxels: Map to index 0, which will have fixed modifier=1.0 (non-trainable)
+        - Systematic absences: cctbx.miller.set handles these automatically
+        - Friedel pairs: anomalous_flag=False means (h,k,l) and (-h,-k,-l) map to same ASU
+        - Symmetry failures: Wrap cctbx calls in try/except, return (None, 0) on failure
+
+    References:
+        - plans/active/TORCH-REFINE-004/reports/2025-11-24T125000Z/asu_pseudocode.py
+        - docs/spec-db-workflow.md:59-61 (per-reflection SHALL be default, halo mandatory)
+        - POLICY-001 (Environment Freeze, lazy imports)
+        - ARCH-ENGINE-002 (lazy imports for optional dependencies)
+    """
+    try:
+        # Lazy import cctbx (ARCH-ENGINE-002: allows module to load without cctbx)
+        from cctbx import miller
+        from cctbx.array_family import flex
+    except ImportError as e:
+        # cctbx not available, fallback to shell mode per spec:60
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"cctbx.miller import failed: {e}. Falling back to shell mode.")
+        return None, 0
+
+    try:
+        h_count, k_count, l_count, _ = hkl_grid.shape
+
+        # Step 1: Flatten HKL grid to 1D list of Miller indices
+        miller_indices = hkl_grid[..., :3].reshape(-1, 3)  # (n_voxels, 3)
+
+        # Step 2: Convert to cctbx flex array (required by cctbx.miller API)
+        miller_indices_flex = flex.miller_index(
+            [(int(h), int(k), int(l)) for h, k, l in miller_indices]
+        )
+
+        # Step 3: Create cctbx.miller.set from indices + crystal symmetry
+        # anomalous_flag=False means Friedel pairs (+h,k,l) and (-h,-k,-l) map to same ASU
+        miller_set = miller.set(
+            crystal_symmetry=crystal_symmetry,
+            indices=miller_indices_flex,
+            anomalous_flag=False
+        )
+
+        # Step 4: Map to ASU using cctbx symmetry operations
+        # This applies space group symmetry and returns equivalent reflections in ASU
+        asu_miller_set = miller_set.map_to_asu()
+        asu_indices_flex = asu_miller_set.indices()
+
+        # Step 5: Assign unique integer index to each ASU reflection
+        # Convert flex array back to numpy for np.unique
+        asu_indices_np = np.array(
+            [(h, k, l) for h, k, l in asu_indices_flex],
+            dtype=np.int32
+        )
+
+        # Find unique ASU reflections and inverse mapping
+        # unique_asu: (n_unique, 3) array of unique ASU Miller indices
+        # inverse_map: (n_voxels,) array mapping each voxel to its unique ASU index
+        unique_asu, inverse_map = np.unique(
+            asu_indices_np,
+            return_inverse=True,
+            axis=0
+        )
+
+        # Step 6: Handle halo voxels (if mask provided)
+        if halo_mask is not None:
+            halo_flat = halo_mask.reshape(-1)  # (n_voxels,)
+
+            # Shift all ASU indices up by 1 to reserve index 0 for halo
+            inverse_map = inverse_map + 1
+
+            # Set halo voxels to index 0
+            inverse_map[halo_flat] = 0
+
+            n_asu_unique = len(unique_asu) + 1  # +1 for halo index 0
+        else:
+            n_asu_unique = len(unique_asu)
+
+        # Step 7: Reshape inverse_map back to (h_count, k_count, l_count)
+        hkl_asu_map = torch.tensor(inverse_map, dtype=torch.int64).reshape(
+            h_count, k_count, l_count
+        )
+
+        return hkl_asu_map, n_asu_unique
+
+    except Exception as e:
+        # ASU mapping failed, fallback to shell mode per spec:60
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning(f"ASU mapping failed: {e}. Falling back to shell mode.")
+        return None, 0
+
+
+def initialize_asu_modifiers(
+    n_asu_unique: int,
+    device: torch.device,
+    dtype: torch.dtype = torch.float32
+) -> torch.nn.Parameter:
+    """
+    Initialize per-reflection ASU modifiers as trainable parameters.
+
+    Args:
+        n_asu_unique: Total count of unique ASU reflections (from compute_hkl_asu_map)
+        device: torch device (cpu or cuda)
+        dtype: torch dtype for parameters (default float32)
+
+    Returns:
+        log_modifiers: nn.Parameter shape (n_asu_unique,) initialized near 0
+                      (linear-space modifiers ≈ 1.0)
+                      Index 0 (halo) has requires_grad=False if n_asu_unique > 1
+
+    Parameterization:
+        - Use log-space: modifiers = exp(log_modifiers) to enforce positivity
+        - Initialize log_modifiers ≈ 0 so modifiers start near 1.0
+        - Index 0 (halo) is fixed at log(1.0) = 0.0 with requires_grad=False
+        - Clamping applied in apply_asu_modifiers to [-3, 3] → modifiers in [0.05, 20.1]
+
+    References:
+        - plans/active/TORCH-REFINE-004/reports/2025-11-24T125000Z/asu_pseudocode.py
+        - docs/spec-db-workflow.md:61 (halo handling mandatory)
+        - REFINE-005 (HKL halo mandatory, fixed modifier=1.0)
+    """
+    # Initialize log-space parameters near 0 (modifiers ≈ 1.0)
+    log_modifiers = torch.zeros(n_asu_unique, dtype=dtype, device=device)
+
+    # Fix index 0 (halo) at log(1.0) = 0.0 permanently if n_asu > 1
+    if n_asu_unique > 1:
+        # Create parameter with requires_grad=True for indices 1..n_asu_unique-1
+        # Index 0 will be non-trainable
+        param = torch.nn.Parameter(log_modifiers, requires_grad=True)
+        # Register a hook to zero out gradients for index 0
+        def zero_halo_grad(grad):
+            # Clone to avoid in-place modification issues
+            grad_modified = grad.clone()
+            grad_modified[0] = 0.0
+            return grad_modified
+        param.register_hook(zero_halo_grad)
+        return param
+    else:
+        # Edge case: single ASU index (halo only or P1 with 1 reflection)
+        return torch.nn.Parameter(log_modifiers, requires_grad=False)
+
+
+def apply_asu_modifiers(
+    hkl_grid_base: torch.Tensor,
+    log_modifiers: torch.nn.Parameter,
+    hkl_asu_map: torch.Tensor,
+    modifier_clamp: Tuple[float, float] = (-3.0, 3.0)
+) -> torch.Tensor:
+    """
+    Apply per-reflection ASU modifiers to HKL grid structure factors.
+
+    Args:
+        hkl_grid_base: Base structure factor grid shape (h_count, k_count, l_count)
+        log_modifiers: Log-space modifiers nn.Parameter shape (n_asu_unique,)
+        hkl_asu_map: ASU index map shape (h_count, k_count, l_count) [int64]
+        modifier_clamp: (min, max) clamp range for log_modifiers (default [-3, 3])
+
+    Returns:
+        hkl_grid_modified: Modified structure factor grid same shape as hkl_grid_base
+
+    Implementation:
+        hkl_grid_modified[i,j,k] = hkl_grid_base[i,j,k] * exp(clamp(log_modifiers[asu_map[i,j,k]]))
+
+    References:
+        - plans/active/TORCH-REFINE-004/reports/2025-11-24T125000Z/asu_pseudocode.py
+        - docs/spec-db-workflow.md:59 (per-reflection modifiers)
+        - SCALE-001 (modifiers applied post-interpolation to HKL grid)
+    """
+    # Clamp log-modifiers to prevent extreme values
+    log_modifiers_clamped = torch.clamp(log_modifiers, modifier_clamp[0], modifier_clamp[1])
+
+    # Convert to linear space: modifiers = exp(log_modifiers)
+    modifiers = torch.exp(log_modifiers_clamped)
+
+    # Broadcast modifiers to HKL grid via ASU index lookup
+    # modifiers[hkl_asu_map] has shape (h_count, k_count, l_count)
+    modifier_grid = modifiers[hkl_asu_map]
+
+    # Apply element-wise multiplication
+    hkl_grid_modified = hkl_grid_base * modifier_grid
+
+    return hkl_grid_modified
+
+
 @dataclass
 class RefinementConfig:
     """Configuration for Stage A and Stage C LBFGS refinement."""
@@ -305,6 +518,11 @@ class RefinementConfig:
     stage_b_max_modifier: float = 2.0  # Maximum shell modifier (softplus clamp)
     stage_b_regularization: float = 0.0  # L2 regularization strength (reserved for future)
     stage_b_full_eval_on_cpu: bool = True  # Run Stage B evaluations on CPU to avoid GPU OOM when gradients require large buffers
+
+    # Stage B per-reflection ASU mode (TORCH-REFINE-004 Phase 6)
+    stage_b_optimizer_gate: int = 10000  # n_asu threshold for LBFGS vs Adam selection
+    stage_b_adam_lr: float = 1e-3  # Adam learning rate for large parameter counts (≥10K)
+    stage_b_modifier_clamp: Tuple[float, float] = (-3.0, 3.0)  # log-space clamp range (modifiers ∈ [0.05, 20.1])
 
     # Stage C detector microslip (TORCH-REFINE-003)
     enable_stage_c: bool = False  # Enable detector distance refinement

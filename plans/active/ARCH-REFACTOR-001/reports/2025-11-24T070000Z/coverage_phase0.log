@@ -1,0 +1,5 @@
+ERROR: usage: pytest [options] [file_or_dir] [file_or_dir] [...]
+pytest: error: unrecognized arguments: --cov=dbex.nanobrag_bridge --cov=dbex.nanobrag_refinement --cov-report=term --cov-report=html:plans/active/ARCH-REFACTOR-001/reports/2025-11-24T070000Z/coverage_phase0
+  inifile: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/pyproject.toml
+  rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+

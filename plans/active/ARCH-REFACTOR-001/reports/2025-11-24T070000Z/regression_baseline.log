@@ -1,0 +1,59 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 2 items
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion PASSED     [ 50%]
+tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke ERROR [100%]
+
+==================================== ERRORS ====================================
+_____ ERROR at setup of TestDB_AT_024_Mapping.test_db_at_024_mapping_smoke _____
+
+item = <Function test_db_at_024_mapping_smoke>
+
+    def pytest_runtest_setup(item):
+        detector_size = _resolve_smoke_detector_size(item.config)
+        identifiers = " ".join(
+            list(item.keywords.keys()) + [item.name, item.nodeid]
+        ).lower()
+        if "db_at" in identifiers and detector_size != "full":
+>           raise pytest.UsageError(
+                "DB-AT/workflow selectors SHALL assert --smoke-detector-size=full per "
+                "docs/spec-db-workflow.md (Stage Smoke Dataset Policy). "
+                "Re-run with --smoke-detector-size=full or DBEX_SMOKE_DETECTOR_SIZE=full."
+            )
+E           _pytest.config.exceptions.UsageError: DB-AT/workflow selectors SHALL assert --smoke-detector-size=full per docs/spec-db-workflow.md (Stage Smoke Dataset Policy). Re-run with --smoke-detector-size=full or DBEX_SMOKE_DETECTOR_SIZE=full.
+
+tests/conftest.py:128: UsageError
+=============================== warnings summary ===============================
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+tests/dbex/test_mapping_consistency.py:185
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_mapping_consistency.py:185: PytestUnknownMarkWarning: Unknown pytest.mark.db_at_024 - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.db_at_024
+
+tests/dbex/test_mapping_consistency.py:186
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_mapping_consistency.py:186: PytestUnknownMarkWarning: Unknown pytest.mark.mapping - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.mapping
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dxtbx/format/FormatCBFFull.py:198: DeprecationWarning: The binary mode of fromstring is deprecated, as it behaves surprisingly on unicode inputs. Use frombuffer instead
+    self._raw_data = flex.int(np.fromstring(array_string, np.int32))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+ERROR tests/dbex/test_mapping_consistency.py::TestDB_AT_024_Mapping::test_db_at_024_mapping_smoke - _pytest.config.exceptions.UsageError: DB-AT/workflow selectors SHALL assert --smoke-detector-size=full per docs/spec-db-workflow.md (Stage Smoke Dataset Policy). Re-run with --smoke-detector-size=full or DBEX_SMOKE_DETECTOR_SIZE=full.
+=================== 1 passed, 7 warnings, 1 error in 12.61s ====================

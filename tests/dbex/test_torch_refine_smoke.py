@@ -1564,6 +1564,39 @@ def test_stage_b_per_reflection_smoke(
         "Stage B smoke test requires halo-padded HKL grid per TORCH-REFINE-004."
     )
 
+    # Phase 8: Inject crystal_symmetry and build 4D HKL indices grid for per-reflection ASU mapping
+    # Per input.md fixture fix pattern: P1 space group with unit_cell from fixture
+    from cctbx import crystal as cctbx_crystal
+    import numpy as np
+
+    # Extract unit cell from dxtbx crystal (matches fixture: 79,79,38,90,90,90)
+    dxtbx_crystal = DL.crystal
+    unit_cell_params = dxtbx_crystal.get_unit_cell().parameters()
+
+    crystal_symmetry = cctbx_crystal.symmetry(
+        unit_cell=unit_cell_params,
+        space_group_symbol="P1"
+    )
+    hkl_metadata["crystal_symmetry"] = crystal_symmetry
+
+    # Build 4D HKL indices grid (h_range, k_range, l_range, 3)
+    # Extract grid bounds from metadata
+    h_min, h_max = hkl_metadata["h_min"], hkl_metadata["h_max"]
+    k_min, k_max = hkl_metadata["k_min"], hkl_metadata["k_max"]
+    l_min, l_max = hkl_metadata["l_min"], hkl_metadata["l_max"]
+
+    # Create coordinate arrays
+    h_coords = np.arange(h_min, h_max + 1, dtype=np.int32)
+    k_coords = np.arange(k_min, k_max + 1, dtype=np.int32)
+    l_coords = np.arange(l_min, l_max + 1, dtype=np.int32)
+
+    # Build meshgrid and stack into 4D array
+    h_grid, k_grid, l_grid = np.meshgrid(h_coords, k_coords, l_coords, indexing='ij')
+    hkl_indices_grid = np.stack([h_grid, k_grid, l_grid], axis=-1)  # (h_range, k_range, l_range, 3)
+
+    # Store in metadata for compute_hkl_asu_map
+    hkl_metadata["hkl_indices_grid"] = hkl_indices_grid
+
     # Refinement config: enable Stage B with per-reflection mode
     sigma_provenance = "external_lookup" if smoke_sigma_source == "metadata" else "cli_override"
     enable_roi = smoke_detector_size != "full"
@@ -1603,11 +1636,17 @@ def test_stage_b_per_reflection_smoke(
     telemetry_a = telemetry_dict["A"]
     telemetry_b = telemetry_dict["B"]
 
+    # Phase 8: Validate per-reflection path was actually used (not fallback)
+    assert hasattr(telemetry_b, "stage_b_mode"), "Should report stage_b_mode"
+    assert telemetry_b.stage_b_mode == "per_reflection", (
+        f"Expected per_reflection mode, got {telemetry_b.stage_b_mode}. "
+        "This test must validate the per-reflection path, not shell fallback."
+    )
+
     # ASU mode-specific fields (Phase 7.4)
     assert hasattr(telemetry_b, "n_asu_unique"), "ASU mode should report n_asu_unique"
     assert hasattr(telemetry_b, "optimizer_type"), "ASU mode should report optimizer_type"
     assert hasattr(telemetry_b, "asu_modifier_stats"), "ASU mode should report modifier stats"
-    assert hasattr(telemetry_b, "stage_b_mode"), "Should report stage_b_mode"
 
     # Optimizer selection validation (P1 fixture ~35K ASU → Adam expected per Phase 6 planning)
     assert telemetry_b.optimizer_type in ["adam", "lbfgs"], f"Invalid optimizer: {telemetry_b.optimizer_type}"

@@ -512,7 +512,7 @@ class RefinementConfig:
 
     # Stage B structure factor modifiers (TORCH-REFINE-004)
     enable_stage_b: bool = False  # Enable Fhkl shell modifiers
-    stage_b_mode: str = "shell"  # "shell" (production) or "per_reflection" (parity, deferred)
+    stage_b_mode: str = "per_reflection"  # "per_reflection" (default per spec:59) or "shell" (fallback per spec:60)
     stage_b_n_shells: int = 5  # Number of resolution shells for shell mode
     stage_b_min_loss_improvement: float = 1e-8  # 0.000001% minimum improvement for Stage B (calibrated per TORCH-REFINE-004 refGeom probe: measured ceiling ~6.4e-8%, essentially zero)
     stage_b_max_modifier: float = 2.0  # Maximum shell modifier (softplus clamp)
@@ -2446,26 +2446,44 @@ def _build_stage_b_params(
             config_stage_b_mode_override = "shell"
             asu_indices, n_asu_unique = None, 0
         else:
+            # crystal_symmetry available, attempt ASU mapping
+            config_stage_b_mode_override = "per_reflection"  # Initialize to per_reflection, may fallback below
+
+            # Get HKL indices grid from metadata (built by test fixture)
+            hkl_indices_grid = hkl_metadata.get("hkl_indices_grid")
+            if hkl_indices_grid is None:
+                # HKL indices grid not in metadata, build it from grid bounds
+                h_min, h_max = hkl_metadata["h_min"], hkl_metadata["h_max"]
+                k_min, k_max = hkl_metadata["k_min"], hkl_metadata["k_max"]
+                l_min, l_max = hkl_metadata["l_min"], hkl_metadata["l_max"]
+
+                h_coords = np.arange(h_min, h_max + 1, dtype=np.int32)
+                k_coords = np.arange(k_min, k_max + 1, dtype=np.int32)
+                l_coords = np.arange(l_min, l_max + 1, dtype=np.int32)
+
+                h_grid_np, k_grid_np, l_grid_np = np.meshgrid(h_coords, k_coords, l_coords, indexing='ij')
+                hkl_indices_grid = np.stack([h_grid_np, k_grid_np, l_grid_np], axis=-1)
+
             asu_indices, n_asu_unique = compute_hkl_asu_map(
-                hkl_grid.cpu().numpy(),
+                hkl_indices_grid,
                 crystal_symmetry,
                 halo_mask=halo_mask
             )
 
         # Check if ASU mapping succeeded; fallback to shell mode if failed
-        if config_stage_b_mode_override != "shell" and (asu_indices is None or n_asu_unique == 0):
+        if config_stage_b_mode_override == "per_reflection" and (asu_indices is None or n_asu_unique == 0):
             # ASU mapping failed, fall back to shell mode (spec:60 permits fallback)
             import logging
             logger = logging.getLogger(__name__)
             logger.warning(f"ASU mapping returned None/zero, falling back to shell mode for this refinement")
             config_stage_b_mode_override = "shell"
-        elif config_stage_b_mode_override != "shell":
+        elif config_stage_b_mode_override == "per_reflection":
             # ASU mapping succeeded, proceed with per-reflection mode
             asu_indices_t = asu_indices.to(device=device, dtype=torch.long)
 
             # Initialize ASU modifiers using Phase 6 helper
             log_modifiers = initialize_asu_modifiers(
-                n_asu=n_asu_unique,
+                n_asu_unique=n_asu_unique,
                 device=stage_b_param_device,  # Respect CPU fallback logic
                 dtype=dtype
             )

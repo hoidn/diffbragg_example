@@ -26,8 +26,7 @@
 ### Tier 2: Architectural Maturity
 **Goal:** Break the monolithic `run_nanobrag_refinement` into a maintainable Protocol Engine.
 - [ARCH-REFINE-FLOW-001] (Protocol Engine) — **Done** (2025-11-23T172000Z: Phases A-E complete, Stage A/B/C wrappers validated, engine delegation operational)
-- [PERF-WARM-SIM-001] (Warm Simulator) — *Pending (UNBLOCKED by ARCH-REFINE-FLOW-001 completion)*
- - [TORCH-API-ALIGN-001] (Adopt ExperimentModel, Unify Simulator Wiring, DIALS Mapping) — *Pending* (New; dbex-only changes; default path uses DIALS mapping without engine patches; optional CUSTOM override behind a flag; warm-cache changes deferred)
+- [TORCH-API-ALIGN-001] (Adopt ExperimentModel, Unify Simulator Wiring, DIALS Mapping) — *Pending* (New; dbex-only changes; default path uses DIALS mapping without engine patches; optional CUSTOM override behind a flag; warm-cache changes deferred)
 
 ### Tier 3: Feature Completeness
 **Goal:** Implement normative spec features currently using fallback modes.
@@ -36,6 +35,7 @@
 ### Tier 3: Architectural Maturity (Refactoring)
 **Goal:** Refactor monolithic loops into maintainable engines with clear boundaries and testable seams.
 - [ARCH-REFACTOR-001] (Refinement Engine Modularization & Physics Separation) — *Pending* (UNBLOCKED 2025-11-23: TORCH-GEOMETRY-CONVERGENCE-001 complete)
+- [PERF-WARM-SIM-001] (Warm Simulator) — *Blocked (depends on TORCH-API-ALIGN-001 completion)*
 
 ### Tier 3: Tooling & Observability
 **Goal:** Standardize visuals, documentation, and runtime guardrails.
@@ -167,9 +167,9 @@
 - Attempts History: see `docs/fix_plan_archive.md` (2025-11-23 snapshot) and the initiative reports directory for full history and metrics.
 
 ### [PERF-WARM-SIM-001] Warm simulator; eliminate per-iteration re-instantiation
-- Depends on: docs/spec-db-runtime.md (Torch runtime guardrails), docs/TESTING_GUIDE.md §2 (Stage smoke selectors), docs/pytorch_runtime_checklist.md (cache hygiene)
-- Status: in_progress (2025-11-21 — Stage C warm-cache detector reuse + ROI retarget pending)
-- Priority: High (perf focus)
+- Depends on: docs/spec-db-runtime.md (Torch runtime guardrails), docs/TESTING_GUIDE.md §2 (Stage smoke selectors), docs/pytorch_runtime_checklist.md (cache hygiene), TORCH-API-ALIGN-001 (API and simulator wiring alignment)
+- Status: blocked (depends on TORCH-API-ALIGN-001 completion; Stage C warm-cache detector reuse + ROI retarget work paused)
+- Priority: High (Tier 3 — perf focus)
 - Owner/Date: Team / 2025-11-05
 - Exit Criteria:
   1. Stage A/B/C reuse `StageAContext` detectors/HKL tensors (including ROI caches) during warm runs while preserving a cold-mode baseline for benchmarking.

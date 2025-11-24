@@ -1,277 +1,288 @@
-# Ralph Input — Phase 6 Implementation (Per-Reflection ASU Mapping)
+# Ralph Input: TORCH-REFINE-004 Phase 7 Blocker Fix (Engine Telemetry Schema)
 
-## Summary
-Implement per-reflection Fhkl modifier parameterization with ASU (asymmetric unit) index mapping for Stage B using cctbx.miller symmetry operations.
+**Summary:** Fix telemetry_version schema mismatch between dbex/refinement/stage.py and dbex/nanobrag_refinement.py to unblock Phase 7 integration.
 
-## Mode
-TDD
+**Mode:** TDD (fix blocking test failure)
 
-## Focus
-TORCH-REFINE-004 — Stage B Per-Reflection Mode Migration (Phase 6: ASU Mapping Implementation)
+**Focus:** TORCH-REFINE-004 — Stage B Per-Reflection Mode Migration (Phase 7 Blocker Resolution)
 
-## Branch
-integration
+**Branch:** integration
 
-## Mapped Tests
-- `tests/dbex/test_stage_b_asu_mapping.py::test_asu_mapping_p1` — Validate P1 space group (no symmetry, all indices unique)
-- `tests/dbex/test_stage_b_asu_mapping.py::test_asu_mapping_p432` — Validate P432 high-symmetry (48-fold reduction)
-- `tests/dbex/test_stage_b_asu_mapping.py::test_asu_halo_handling` — Validate halo voxels map to ASU index 0 with fixed modifier=1.0
-- `tests/dbex/test_stage_b_asu_mapping.py::test_asu_friedel_pairs` — Validate (h,k,l) and (-h,-k,-l) map to same ASU index
+**Mapped tests:**
+- `tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers` (regression guard, currently FAILS with TypeError)
 
-## Artifacts
-plans/active/TORCH-REFINE-004/reports/2025-11-24T130000Z/{pytest_stage_b_asu.log, summary.md}
+**Artifacts:** `plans/active/TORCH-REFINE-004/reports/2025-11-24T091417Z/`
+- `engine_schema_fix_analysis.md` (comprehensive root cause analysis with 12 sections)
+- `decision.md` (4-path decision synthesis after fix validation)
+- `summary.md` (Turn Summary for this loop)
+
+---
 
 ## Do Now
 
-**Objective:** Implement Phase 6 ASU mapping infrastructure (3 helper functions + dynamic optimizer selection + unit tests) per `plans/active/TORCH-REFINE-004/reports/2025-11-24T125000Z/phase_6_planning_analysis.md §6 Implementation Checklist`.
+**Context:** Phase 6 ASU mapping implementation (commit 19dd43e) completed successfully with all 5 unit tests PASSED. However, regression guard test_stage_b_shell_modifiers FAILED with `TypeError: __init__() got an unexpected keyword argument 'telemetry_version'` at dbex/refinement/engine.py:144.
 
-**Core Tasks:**
+**Root Cause (99.9% confidence):** Schema divergence between two RefinementTelemetry dataclasses:
+- `dbex/nanobrag_refinement.py::RefinementTelemetry` has `telemetry_version: str = "1.0"` (line 665)
+- `dbex/refinement/stage.py::RefinementTelemetry` MISSING `telemetry_version` field
+- Stage B wrapper uses dbex.nanobrag_refinement.RefinementTelemetry, returns dict via asdict() which includes telemetry_version
+- Engine tries to construct dbex/refinement/stage.py::RefinementTelemetry(**dict) which rejects the field
 
-**Implement:** `dbex/nanobrag_refinement.py::compute_hkl_asu_map` helper function
-- Inputs: `hkl_grid: np.ndarray` (h,k,l,3), `crystal_symmetry` (from MTZ F.crystal_symmetry()), `halo_mask: np.ndarray` (optional boolean mask)
-- Algorithm: Flatten HKL grid → convert to flex.miller_index → miller.set(anomalous_flag=False) → map_to_asu() → np.unique(return_inverse=True) → reshape to (h,k,l)
-- Edge cases: Reserve ASU index 0 for halo voxels (if halo_mask provided), wrap cctbx calls in try/except and return None on failure (triggers shell mode fallback)
-- Outputs: `(hkl_asu_map: torch.Tensor[int64], n_asu_unique: int)` or `(None, 0)` on failure
-- Reference: `plans/active/TORCH-REFINE-004/reports/2025-11-24T125000Z/asu_pseudocode.py`
+**NOT a TORCH-REFINE-004 regression** — Phase 6 code didn't touch schemas. This is an ARCH-REFACTOR-001 Phase B incomplete migration gap discovered by first Stage B engine delegation test.
 
-**Implement:** `dbex/nanobrag_refinement.py::initialize_asu_modifiers` helper function
-- Inputs: `n_asu_unique: int`, `device: torch.device`, `dtype: torch.dtype`
-- Initialize log-space modifiers near 0 (linear-space modifiers ≈ 1.0): `torch.zeros((n_asu_unique,), dtype=dtype, device=device, requires_grad=True)`
-- Fix index 0 (halo) at log(1.0) = 0.0 with `requires_grad=False` if n_asu_unique > 1
-- Return: `nn.Parameter` wrapping the tensor
+### Implementation Steps (5-step protocol)
 
-**Implement:** `dbex/nanobrag_refinement.py::apply_asu_modifiers` helper function
-- Inputs: `hkl_grid_base: torch.Tensor`, `log_modifiers: nn.Parameter`, `hkl_asu_map: torch.Tensor`
-- Clamp log_modifiers to [-3.0, 3.0] range (modifier ∈ [0.05, 20.0])
-- Convert to linear space: `modifiers = torch.exp(log_modifiers_clamped)`
-- Broadcast via index lookup: `modifier_grid = modifiers[hkl_asu_map]`
-- Apply element-wise: `hkl_grid_modified = hkl_grid_base * modifier_grid.unsqueeze(-1)`
-- Return: `hkl_grid_modified: torch.Tensor`
+1. **Read Root Cause Analysis**
+   - File: `plans/active/TORCH-REFINE-004/reports/2025-11-24T091417Z/engine_schema_fix_analysis.md`
+   - Focus on "Fix Specification" section (exact code addition, placement, rationale)
 
-**Implement:** Dynamic optimizer selection in Stage B setup (currently uses LBFGS)
-- After ASU mapping computation, check `n_asu_unique` against gate threshold (10,000)
-- If `n_asu_unique < 10000`: use LBFGS (spec default) with `max_iter=20, history_size=10, line_search_fn="strong_wolfe"`
-- Else: use Adam (spec-permitted per spec-db-workflow.md:107) with `lr=1e-3, betas=(0.9, 0.999)`
-- Store optimizer choice in telemetry: `stage_b_optimizer` field
+2. **Add telemetry_version Field**
+   - File: `dbex/refinement/stage.py`
+   - Location: After line 161 (after `stage_modes` field, before `to_dict()` method definition)
+   - Code to add:
+     ```python
+         # ARCH-REFACTOR-001 Phase B: Schema versioning for future compatibility
+         telemetry_version: str = "1.0"
+     ```
+   - **Exact placement:** Between `stage_modes: Optional[Dict[str, str]] = None` and `def to_dict(self) -> Dict[str, Any]:`
+   - **Why no to_dict() changes needed:** Method already uses asdict() fallback which automatically includes all dataclass fields
 
-**Test:** Create `tests/dbex/test_stage_b_asu_mapping.py` with 4 unit tests
-- `test_asu_mapping_p1`: Synthetic P1 space group (no symmetry), assert all indices unique, n_asu == n_voxels
-- `test_asu_mapping_p432`: Synthetic P432 space group (48-fold), assert n_asu ≈ n_voxels / 48, validate symmetry folding
-- `test_asu_halo_handling`: Provide halo_mask with some voxels marked True, assert halo voxels map to ASU index 0, assert modifiers[0].requires_grad == False
-- `test_asu_friedel_pairs`: Synthetic space group with Friedel pairs (h,k,l) and (-h,-k,-l), assert both map to same ASU index
+3. **Validation (3 checks)**
 
-**Validate:** Run test suite with pytest
-- Execute: `NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_b_asu_mapping.py`
-- Expected: All 4 tests PASS with runtime < 10s (unit tests with synthetic space groups)
-- Archive: `plans/active/TORCH-REFINE-004/reports/2025-11-24T130000Z/pytest_stage_b_asu.log`
+   A. **Compilation Check:**
+   ```bash
+   python -c "from dbex.refinement.stage import RefinementTelemetry; print('telemetry_version' in RefinementTelemetry.__dataclass_fields__)"
+   ```
+   Expected output: `True`
 
-**Regression:** Confirm existing Stage B shell mode tests still pass
-- `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers`
+   B. **Regression Guard:**
+   ```bash
+   AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+   ```
+   Expected: PASS (no TypeError, Stage B telemetry includes telemetry_version)
+
+   C. **Schema Parity Verification:**
+   ```bash
+   python -c "
+   from dbex.nanobrag_refinement import RefinementTelemetry as Old
+   from dbex.refinement.stage import RefinementTelemetry as New
+   old_fields = set(Old.__dataclass_fields__.keys())
+   new_fields = set(New.__dataclass_fields__.keys())
+   missing = old_fields - new_fields
+   extra = new_fields - old_fields
+   print(f'Missing from new: {missing}')
+   print(f'Extra in new: {extra}')
+   "
+   ```
+   Expected: `Missing from new: set()` (no missing core fields; extra fields OK - engine delegation extensions)
+
+4. **Decision Synthesis**
+   - Write `plans/active/TORCH-REFINE-004/reports/2025-11-24T091417Z/decision.md`
+   - Document which path occurred (A/B/C/D from analysis.md)
+   - If Path A (PASS): Include telemetry_version value from test output
+   - If not Path A: Document exact error signature and next diagnostic step
+
+5. **Artifacts & Commit**
+   - Write `plans/active/TORCH-REFINE-004/reports/2025-11-24T091417Z/summary.md` with Turn Summary (see template below)
+   - Archive pytest log to artifacts directory
+   - Commit message: `TORCH-REFINE-004: Fix engine telemetry_version schema (unblock Phase 7) — tests: test_stage_b_shell_modifiers`
+   - **Do NOT update fix_plan.md or galph_memory.md** (supervisor will handle housekeeping)
+
+---
 
 ## How-To Map
 
-**Step 1: Implement compute_hkl_asu_map helper**
+### Environment Setup
 ```bash
-# Reference: plans/active/TORCH-REFINE-004/reports/2025-11-24T125000Z/asu_pseudocode.py
-# Location: dbex/nanobrag_refinement.py (add after compute_hkl_shell_lookup, ~line 350)
-# Inputs: hkl_grid (h,k,l,3), crystal_symmetry (from MTZ), halo_mask (optional)
-# Algorithm: Flatten → flex.miller_index → miller.set → map_to_asu() → np.unique → reshape
-# Edge case: Reserve ASU index 0 for halo voxels (shift all indices +1 if halo_mask provided)
-# Failure handling: Wrap cctbx calls in try/except, return (None, 0) on failure
+export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
+export DBEX_SMOKE_SIGMA_SOURCE=cli_override
+export DBEX_SMOKE_DETECTOR_SIZE=small
+export KMP_DUPLICATE_LIB_OK=TRUE
+export NANOBRAGG_DISABLE_COMPILE=1
 ```
 
-**Step 2: Implement initialize_asu_modifiers helper**
+### Code Addition
+- **File:** `dbex/refinement/stage.py`
+- **Line:** After 161 (after `stage_modes: Optional[Dict[str, str]] = None`)
+- **Exact text:**
+  ```python
+      # ARCH-REFACTOR-001 Phase B: Schema versioning for future compatibility
+      telemetry_version: str = "1.0"
+
+  ```
+  (Note: Blank line after field before `def to_dict()` method)
+
+### Validation Commands
 ```bash
-# Location: dbex/nanobrag_refinement.py (add after compute_hkl_asu_map)
-# Initialize: torch.zeros((n_asu_unique,), dtype=dtype, device=device, requires_grad=True)
-# Fix halo: If index 0 is halo, set modifiers[0].requires_grad = False
-# Return: nn.Parameter(modifiers)
+# Compilation check
+python -c "from dbex.refinement.stage import RefinementTelemetry; print('telemetry_version' in RefinementTelemetry.__dataclass_fields__)"
+
+# Regression test (save log to artifacts)
+pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers > plans/active/TORCH-REFINE-004/reports/2025-11-24T091417Z/pytest_schema_fix.log 2>&1
+
+# Schema parity check (if regression PASSES)
+python -c "from dbex.nanobrag_refinement import RefinementTelemetry as Old; from dbex.refinement.stage import RefinementTelemetry as New; old=set(Old.__dataclass_fields__.keys()); new=set(New.__dataclass_fields__.keys()); print('Missing:', old-new); print('Extra:', new-old)" > plans/active/TORCH-REFINE-004/reports/2025-11-24T091417Z/schema_parity.log 2>&1
 ```
 
-**Step 3: Implement apply_asu_modifiers helper**
+### Commit Pattern
 ```bash
-# Location: dbex/nanobrag_refinement.py (add after initialize_asu_modifiers)
-# Clamp: log_modifiers_clamped = torch.clamp(log_modifiers, -3.0, 3.0)
-# Exp: modifiers = torch.exp(log_modifiers_clamped)
-# Broadcast: modifier_grid = modifiers[hkl_asu_map]
-# Apply: hkl_grid_modified = hkl_grid_base * modifier_grid.unsqueeze(-1)
+git add dbex/refinement/stage.py plans/active/TORCH-REFINE-004/reports/2025-11-24T091417Z/
+git commit -m "TORCH-REFINE-004: Fix engine telemetry_version schema (unblock Phase 7) — tests: test_stage_b_shell_modifiers"
+git push
 ```
 
-**Step 4: Add dynamic optimizer selection**
-```bash
-# Location: dbex/nanobrag_refinement.py Stage B setup (after ASU mapping computation)
-# Check: if n_asu_unique < config.stage_b_optimizer_gate (default 10000):
-#   optimizer = LBFGS(params, max_iter=20, history_size=10, line_search_fn="strong_wolfe")
-# else:
-#   optimizer = Adam(params, lr=config.stage_b_adam_lr)  # default 1e-3
-# Telemetry: stage_b_optimizer = "LBFGS" or "Adam"
-```
-
-**Step 5: Extend RefinementConfig**
-```bash
-# Location: dbex/nanobrag_refinement.py RefinementConfig dataclass (~line 50)
-# Add fields:
-#   stage_b_optimizer_gate: int = 10000  # n_asu threshold for LBFGS vs Adam
-#   stage_b_adam_lr: float = 1e-3        # Adam learning rate
-#   stage_b_modifier_clamp: tuple[float, float] = (-3.0, 3.0)  # log-space clamp
-```
-
-**Step 6: Create test file**
-```bash
-# Create: tests/dbex/test_stage_b_asu_mapping.py (~200-250 lines)
-# Import: cctbx.miller, cctbx.sgtbx, cctbx.crystal.symmetry, cctbx.array_family.flex
-# Test 1: P1 space group (all indices unique, n_asu == n_voxels)
-# Test 2: P432 space group (48-fold reduction, n_asu ≈ n_voxels / 48)
-# Test 3: Halo handling (halo_mask provided, index 0 fixed at modifier=1.0)
-# Test 4: Friedel pairs (h,k,l and -h,-k,-l map to same ASU index)
-```
-
-**Step 7: Run test suite**
-```bash
-NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_b_asu_mapping.py 2>&1 | tee plans/active/TORCH-REFINE-004/reports/2025-11-24T130000Z/pytest_stage_b_asu.log
-```
-
-**Step 8: Regression guard**
-```bash
-AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
-```
+---
 
 ## Pitfalls To Avoid
 
-**Environment Freeze (POLICY-001):**
-- ✅ Use existing cctbx.miller (confirmed available 2025-11-24T125000Z)
-- ❌ Do NOT install additional packages or upgrade cctbx
-- If cctbx call fails at runtime, return None and fallback to shell mode (spec-permitted per spec:60)
+1. **Placement:** Add field AFTER `stage_modes` (line 161), NOT before or after other field groups
+2. **Indentation:** Match existing fields (4 spaces, NOT tabs)
+3. **Default Value:** Use `"1.0"` string literal (NOT `1.0` numeric, NOT variable)
+4. **Comment:** Include ARCH-REFACTOR-001 Phase B reference (documents provenance)
+5. **to_dict() Changes:** Do NOT modify to_dict() method (asdict() handles new field automatically)
+6. **Test Execution:** Use exact env vars from How-To Map (NANOBRAGG_DISABLE_COMPILE=1 required for CPU-only validation)
+7. **Schema Parity:** If parity check reveals MORE missing fields, add ALL of them (document in decision.md)
+8. **Commit Scope:** Only commit schema fix + artifacts (NO fix_plan.md, NO galph_memory.md)
+9. **Decision Paths:** If NOT Path A (test failure persists), do NOT commit code changes; instead commit decision.md blocker report and return to Galph
+10. **Environment Freeze:** Do not install packages or modify CUDA/torch; if import fails, record error and return to Galph
 
-**Device/Dtype Neutrality:**
-- All torch tensors must preserve input device and dtype
-- `hkl_asu_map` should be torch.int64 on same device as hkl_grid
-- `modifiers` parameter should match hkl_grid dtype (float32 or float64)
-
-**Lazy Imports (ARCH-ENGINE-002):**
-- Import cctbx.miller inside compute_hkl_asu_map function, not at module top level
-- Allows module to load without cctbx dependency for DiffBragg backend
-
-**HKL Halo Handling (REFINE-005, spec:61):**
-- Halo voxels (±1 beyond MTZ range) have no structure factor
-- MUST map halo voxels to ASU index 0 with fixed modifier=1.0 (requires_grad=False)
-- Failure to fix halo modifier will cause gradient explosions
-
-**Symmetry Failure Handling:**
-- Wrap cctbx.miller.set construction in try/except
-- On exception, log warning with error details and return (None, 0)
-- Fallback to shell mode is spec-permitted (spec-db-workflow.md:60)
-- Add telemetry field: `stage_b_mode_fallback_reason` (e.g., "asu_mapping_failed")
-
-**Test Isolation:**
-- All unit tests must use synthetic space groups (P1, P432) with small HKL grids (<10K voxels)
-- Do NOT use golden_data fixture in Phase 6 unit tests (integration tests are Phase 7)
-- Runtime must be < 10s for all 4 tests combined
-
-**Spec Compliance:**
-- Per-reflection mode is NOT YET the default (Phase 6 only adds infrastructure)
-- Shell mode remains default until Phase 7 optimization loop complete
-- Phase 6 deliverable: helpers + unit tests only, no Stage B runtime integration
+---
 
 ## If Blocked
 
-**Blocker: cctbx.miller import fails**
-- Symptom: `ModuleNotFoundError: No module named 'cctbx'`
-- Action: Document blocker in `docs/fix_plan.md` Attempts History with exact error signature
-- Fallback: Mark TORCH-REFINE-004 blocked, note that Environment Freeze prevents cctbx installation
-- Escalation: Supervisor must decide whether to request environment update (violates POLICY-001)
+1. **Compilation fails:** Check indentation (4 spaces), placement (after line 161), syntax (string default `"1.0"`), commit partial progress (comment only), return to Galph with error signature
+2. **Test fails (different error):** Document new error signature in decision.md, classify as schema vs implementation issue, commit decision.md blocker report, return to Galph
+3. **Schema parity reveals many missing fields:** Add ALL missing fields in single commit, document which fields added, update decision.md with full reconciliation, rerun ALL validation steps before committing
+4. **Git push rejected:** Run `timeout 30 git pull --rebase`, resolve conflicts (keep telemetry_version addition), retry push
 
-**Blocker: Unit tests fail due to cctbx API mismatch**
-- Symptom: cctbx.miller.set API different from planning analysis expectations
-- Action: Archive error logs under `plans/active/TORCH-REFINE-004/reports/2025-11-24T130000Z/`
-- Fallback: Research cctbx.miller API documentation (grep simtbx_project for usage examples)
-- If API fundamentally incompatible: Document and escalate to supervisor for fallback design
+---
 
-**Blocker: Regression tests fail**
-- Symptom: `test_stage_b_shell_modifiers` fails after Phase 6 implementation
-- Action: Verify no changes to Stage B shell mode code paths (Phase 6 should be new code only)
-- Debug: Check if RefinementConfig field additions broke existing instantiation
-- Mitigation: Add default values to new config fields, ensure backward compatibility
+## Findings Applied (Mandatory)
 
-## Findings Applied
+**From docs/findings.md:**
 
-**Mandatory Adherence:**
+- **POLICY-001 (Environment Freeze):** ✓ Code-only change, no package installs, no CUDA modifications
+- **ARCH-REFACTOR-001 Phase B (Schema Versioning):** ✓ telemetry_version field pattern, default value "1.0"
+- **ARCH-REFINE-FLOW-001 Phase A4 (Stage Identification):** ✓ stage_type/mode fields already in schema
+- **ARCH-REFINE-FLOW-001 Phase E (Engine Delegation):** ✓ engine_protocol/stage_modes fields already in schema
 
-**REFINE-001** (LBFGS scale warm-start) — Stage B inherits global scale from Stage A final state; per-reflection modifiers initialized near 1.0 (log-space 0.0)
+**Adherence notes:**
+- No findings violated by 1-line schema field addition
+- Fix completes ARCH-REFACTOR-001 Phase B schema parity gap
+- Validates ARCH-REFINE-FLOW-001 engine delegation contract (Stage B wrapper can return dicts matching engine dataclass)
 
-**REFINE-002** (acceptance gate) — Stage B improvement gate separate from Stage A; per-reflection mode will use same acceptance logic as shell mode
-
-**REFINE-005** (HKL halo mandatory) — Halo voxels MUST map to ASU index 0 with fixed modifier=1.0 (requires_grad=False) to prevent gradient explosions
-
-**SCALE-001** (structure factors unscaled) — ASU modifiers applied post-interpolation to HKL grid, not pre-simulation to structure factors
-
-**SCALE-002** (global post-simulation factor) — ASU modifiers are per-reflection scale factors, orthogonal to global post-simulation scale
-
-**PHYSICS-LOSS-001** (variance-weighted loss consistency) — Stage B uses same V = I_model + sigma² denominator; per-reflection modifiers affect numerator via HKL grid modification
-
-**POLICY-001** (Environment Freeze) — Use existing cctbx.miller (confirmed available); no installations; if cctbx fails, return None and fallback to shell mode
-
-**ARCH-ENGINE-002** (lazy imports) — Import cctbx.miller inside compute_hkl_asu_map function body, not at module top level
-
-**GEOMETRY-003** (B_ideal convention) — Not directly relevant to Stage B (Stage A geometry fixed); per-reflection modifiers do not affect crystal geometry
-
-**spec-db-workflow.md:59** (per-reflection SHALL be default) — Core normative requirement; Phase 6 adds infrastructure, Phase 7 makes it default
-
-**spec-db-workflow.md:60** (shell mode fallback permitted) — Fallback to shell mode on ASU mapping failure is spec-compliant; add `stage_b_mode_fallback_reason` telemetry
-
-**spec-db-workflow.md:61** (tricubic + halo mandatory) — Halo handling designed: ASU index 0 reserved for halo voxels with fixed modifier=1.0
-
-**spec-db-workflow.md:107** (optimizer flexibility) — Dynamic LBFGS/Adam selection based on n_asu_unique threshold (10K gate); LBFGS spec default, Adam permitted
+---
 
 ## Pointers
 
-**Specs:**
-- `docs/spec-db-workflow.md:58-61` — Stage B normative requirements (per-reflection SHALL be default, halo mandatory)
-- `docs/spec-db-workflow.md:102-115` — Optimization strategy (LBFGS default, Adam permitted for large parameter counts)
-- `docs/spec-db-core.md:57-80` — Variance definition (V = I_model + sigma²)
+### Spec & Architecture
+- **docs/spec-db-workflow.md:33** — Engine Contract: telemetry aggregation per stage
+- **docs/architecture.md** — RefinementTelemetry schema evolution (ARCH-REFACTOR-001 Phase B)
 
-**Architecture:**
-- `docs/architecture/pytorch_design.md §1.1.1` — HKL halo requirements (±1 voxels beyond MTZ range)
+### Code References
+- **dbex/nanobrag_refinement.py:665** — Source dataclass with telemetry_version field
+- **dbex/refinement/stage.py:88-162** — Target dataclass MISSING telemetry_version
+- **dbex/refinement/engine.py:144** — Error location (RefinementTelemetry(**dict) construction)
+- **dbex/refinement/stage_b.py:94** — Stage B imports old RefinementTelemetry (includes telemetry_version)
+- **dbex/refinement/stage_b.py:414** — Stage B returns asdict(telemetry_b) with telemetry_version key
 
-**Planning Analysis:**
-- `plans/active/TORCH-REFINE-004/reports/2025-11-24T125000Z/phase_6_planning_analysis.md` — Comprehensive planning (algorithm design, risk mitigation, implementation checklist)
-- `plans/active/TORCH-REFINE-004/reports/2025-11-24T125000Z/asu_pseudocode.py` — Algorithm pseudocode with edge case handling
-- `plans/active/TORCH-REFINE-004/reports/2025-11-24T125000Z/parameter_count_analysis.md` — Space group analysis, n_asu estimates
-- `plans/active/TORCH-REFINE-004/reports/2025-11-24T125000Z/optimizer_decision.md` — LBFGS vs Adam trade-off analysis
+### Testing & Validation
+- **docs/TESTING_GUIDE.md §2.2** — Stage B smoke selector environment requirements
+- **tests/dbex/test_torch_refine_smoke.py:test_stage_b_shell_modifiers** — Regression guard blocking Phase 7
 
-**Implementation Plan:**
-- `plans/active/TORCH-REFINE-004/implementation.md:1-38` — Phases 1-5 complete (shell mode implemented)
+### Fix Plan
+- **docs/fix_plan.md:227-241** — TORCH-REFINE-004 initiative status (currently blocked on this schema issue)
+- **plans/active/TORCH-REFINE-004/implementation.md:Phase 6** — Just completed (ASU infrastructure), Phase 7 blocked by schema
+- **plans/active/TORCH-REFINE-004/reports/2025-11-24T130000Z/summary.md** — Phase 6 completion report (blocker identified)
 
-**Fix Plan:**
-- `docs/fix_plan.md:227-239` — TORCH-REFINE-004 entry (current status: in_progress Phase 6 planning)
+---
 
-**Findings:**
-- `docs/findings.md` — REFINE-001/002/005, SCALE-001/002, PHYSICS-LOSS-001, POLICY-001, ARCH-ENGINE-002
+## Next Up (Optional)
 
-**Testing:**
-- `docs/TESTING_GUIDE.md §2` — Test selector conventions and environment variables
-- `docs/development/TEST_SUITE_INDEX.md` — Test registry (will be updated in Phase 9 after tests added)
+If Phase 7 blocker is resolved (test PASSES) AND you finish early AND Galph hasn't returned yet:
 
-**Existing Code References:**
-- `dbex/nanobrag_refinement.py:~350` — compute_hkl_shell_lookup (pattern to follow for compute_hkl_asu_map)
-- `dbex/nanobrag_refinement.py:~50` — RefinementConfig dataclass (add new fields)
-- `simtbx_project/simtbx/diffBragg/utils.py:1000-1027` — open_mtz function (cctbx.miller usage example)
+**Option 1:** Begin Phase 7 evidence gathering (DO NOT implement yet, just gather):
+- Read `plans/active/TORCH-REFINE-004/implementation.md` Phase 7 scope
+- Locate where apply_asu_modifiers should integrate (Stage B optimization closure)
+- Draft 1-2 paragraph integration strategy sketch (no code changes)
+- Save to `plans/active/TORCH-REFINE-004/reports/2025-11-24T091417Z/phase_7_integration_notes.md`
 
-## Next Up
+**Option 2:** Schema parity audit (if you're curious):
+- Document ALL field differences between old/new RefinementTelemetry dataclasses
+- Save to `plans/active/TORCH-REFINE-004/reports/2025-11-24T091417Z/schema_audit.md`
 
-**Phase 7 (Optimization Loop Integration):** After Phase 6 unit tests pass, integrate per-reflection modifiers into Stage B optimization loop:
-- Replace shell mode modifier application with apply_asu_modifiers call
-- Update LBFGS/Adam closure to use dynamic optimizer selection
-- Add integration smoke test with golden_data fixture (P1 space group, ~35K parameters, Adam optimizer)
-- Validate convergence: Stage B improvement ≥ Stage A final loss (acceptance gate)
+**Do NOT:**
+- Implement Phase 7 code (wait for Galph's planning delegation)
+- Update fix_plan.md or galph_memory.md (supervisor housekeeping)
+- Create new tests (Phase 7 scope)
 
-**Phase 8 (Telemetry & Documentation):** Extend Stage B telemetry with per-reflection mode fields:
-- `stage_b_mode`: "shell" | "per_reflection"
-- `stage_b_optimizer`: "LBFGS" | "Adam"
-- `n_asu_unique`: int (number of unique ASU reflections)
-- `halo_voxel_count`: int (if halo handling active)
-- `modifier_stats`: dict (min, max, mean, std of linear-space modifiers)
+---
+
+## Turn Summary Template
+
+For `plans/active/TORCH-REFINE-004/reports/2025-11-24T091417Z/summary.md`:
+
+```markdown
+# Engine Telemetry Schema Fix (Phase 7 Blocker Resolution)
+
+**Date:** 2025-11-24T091417Z
+**Mode:** TDD (blocking test fix)
+**Outcome:** [PASS/FAIL - fill after validation]
+
+## Summary
+Fixed telemetry_version schema mismatch between dbex/refinement/stage.py (engine dataclass) and dbex/nanobrag_refinement.py (Stage B source dataclass). Added single field to engine RefinementTelemetry dataclass, restoring schema parity and unblocking Phase 7 optimization loop integration.
+
+## Changes
+- `dbex/refinement/stage.py` (+2 lines): Added `telemetry_version: str = "1.0"` field after line 161
+
+## Validation Results
+- Compilation check: [PASS/FAIL]
+- Regression guard (test_stage_b_shell_modifiers): [PASS/FAIL - include runtime]
+- Schema parity check: [document missing/extra fields]
+
+## Root Cause
+Schema divergence from ARCH-REFACTOR-001 Phase B (added telemetry_version to dbex.nanobrag_refinement) and ARCH-REFINE-FLOW-001 Phase A (created dbex.refinement.stage without field parity). Stage B wrapper uses old dataclass, engine uses new dataclass, mismatch discovered on first Stage B engine delegation test.
+
+## Next Steps
+[If PASS]: Phase 7 integration ready (apply_asu_modifiers, dynamic optimizer selection)
+[If FAIL]: Document new error signature, escalate to supervisor
+
+## Artifacts
+- pytest_schema_fix.log — Regression test output
+- schema_parity.log — Field difference audit
+- decision.md — Path outcome (A/B/C/D)
+
+---
+
+Last updated: 2025-11-24T091417Z
+```
+
+---
 
 ## Doc Sync Plan
 
-Not required for Phase 6 (unit tests added, not user-facing). Doc sync required in Phase 9 after integration tests added and per-reflection mode becomes default.
+**Conditional:** NOT required for this loop (no new tests authored, only schema fix)
+
+**Rationale:** test_stage_b_shell_modifiers already exists in TESTING_GUIDE.md and TEST_SUITE_INDEX.md. Schema fix unblocks existing test, doesn't add new selectors.
+
+**Next Loop:** If Phase 7 integration adds new tests (e.g., test_stage_b_asu_integration), THEN run `pytest --collect-only` and update registries.
+
+---
+
+## Mapped Tests Guardrail
+
+**Active Selector:** `tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers`
+
+**Collection Check:**
+```bash
+pytest --collect-only -q tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+```
+Expected: `1 test collected` (selector exists and is active)
+
+**Status:** Test exists but currently FAILS (TypeError). This loop's goal is to make it PASS.
+
+**Hard Gate Compliance:** If test still collects 0 after any refactoring, downgrade to "Planned" in TESTING_GUIDE.md OR add missing test. Current status: test exists, selector valid, no gate violation.
+
+---
+
+**End of Input**

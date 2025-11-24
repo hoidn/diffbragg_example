@@ -1,238 +1,212 @@
-# Ralph Input — TOOLING-VIS-001 Phase B.2 (Auto-Generate Triptych Report)
+# DOCS-ROADMAP-001 Phase B: Plan Thinning
 
 ## Summary
-Add `--report-dir` CLI flag to `dbex/refine_one.py` that automatically generates triptych PNGs for all ROIs after refinement completes, eliminating need for manual `dbex.look --export-triptychs` invocation.
+Rewrite `plans/nanobrag_integration_plan.md` to remove normative requirement duplication (~100-150 lines) and replace with spec references, while preserving phase structure, task lists, and deliverables. Target ~150-200 lines (50% reduction from 305).
 
 ## Mode
-Docs (CLI enhancement with manual validation)
+Docs
 
 ## Focus
-TOOLING-VIS-001 — Standardized Visual Diagnostics (Phase B.2: Auto-Generate Summary Report)
+DOCS-ROADMAP-001 — Thin `nanobrag_integration_plan`
 
 ## Branch
 integration
 
 ## Mapped Tests
-none — manual validation (compilation check + CLI smoke tests)
+none — documentation-only (no test selectors)
 
 ## Artifacts
-```
-plans/active/TOOLING-VIS-001/reports/2025-11-24T120000Z/
-  phase_b2_planning_analysis.md           (comprehensive planning, already written by Galph)
-  validation_compilation.log              (python -c import check)
-  cli_test_legacy.txt                     (manual legacy backend test command + output summary)
-  cli_test_torch.txt                      (manual torch backend test command + output summary)
-  decision.json                           (4-path decision tree outcome)
-  summary.md                              (Turn Summary)
-```
+`plans/active/DOCS-ROADMAP-001/reports/2025-11-24T145000Z/` (create this timestamp directory for Phase B)
+- `plans/nanobrag_integration_plan.md.bak` (backup before editing)
+- `diff_summary.txt` (diff output showing line reduction)
+- `decision.json` (Path A/B/C/D decision + validation results)
+- `summary.md` (Turn Summary)
 
 ## Do Now
 
-**Objective:** Implement Phase B.2 per planning analysis — add optional `--report-dir <path>` flag that auto-generates triptych PNGs using `dbex.vis.plot_triptych`.
+**Phase B: Plan Thinning (Rewrite Integration Plan)**
 
-### Context Priming (READ FIRST)
-1. Read `plans/active/TOOLING-VIS-001/reports/2025-11-24T120000Z/phase_b2_planning_analysis.md` (comprehensive planning with design decisions, code template, validation strategy)
-2. **Phase A API Reference**: `dbex.vis.plot_triptych(data, model, variance, filename=None, hkl=None, correlation=None)` — validated in Phase A tests (tests/dbex/test_vis_triptych.py)
-3. **Phase B.1 HDF5 Structure**: HDF5 files now contain `data/roi%d`, `model/roi%d`, `variance/roi%d`, `sigma_readout`, `sigma_floor` datasets (both Legacy and Torch backends)
-4. **Similar Pattern**: `dbex/look.py` lines 170-189 (export_triptychs method) shows working example of iterating over ROIs and calling `plot_triptych`
+Replace 16 normative sections identified in Phase A with concise spec references. Follow `plans/active/DOCS-ROADMAP-001/reports/2025-11-24T130000Z/normative_content_map.md` refactoring recommendations.
 
-### Implementation Protocol (10 steps)
+### Implementation Checklist
 
-**Step 1: Add CLI Argument**
-- File: `dbex/refine_one.py`
-- Location: argparse section (~line 30-60)
-- Add:
-  ```python
-  parser.add_argument('--report-dir', type=str, default=None,
-                      help='Optional directory to save triptych report (PNG per ROI)')
-  ```
+1. **Read Phase A artifacts** (~10min)
+   - Read `plans/active/DOCS-ROADMAP-001/reports/2025-11-24T130000Z/normative_content_map.md` (mapping table + refactoring recommendations)
+   - Read `plans/active/DOCS-ROADMAP-001/reports/2025-11-24T130000Z/phase_a_summary.md` (findings + example replacements)
 
-**Step 2: Implement Helper Function**
-- File: `dbex/refine_one.py`
-- Location: End of file (~line 250-300, before `if __name__ == "__main__"`)
-- Function name: `_generate_triptych_report(h5_path: str, report_dir: str) -> None`
-- Template in planning analysis (pseudocode section)
-- Key requirements:
-  - Import `dbex.vis.plot_triptych` (lazy import inside function OK)
-  - Create `report_dir` with `Path(report_dir).mkdir(parents=True, exist_ok=True)`
-  - Open HDF5 file read-only: `with h5py.File(h5_path, 'r') as h5:`
-  - Detect number of ROIs: `while f"data/roi{n_rois}" in h5: n_rois += 1`
-  - Loop over ROIs, read `data/roi%d`, `model/roi%d`, `variance/roi%d` datasets
-  - Graceful degradation: if variance missing, print warning and skip ROI
-  - Call `plot_triptych(data, model, variance, filename=str(out_png))`
-  - Try/except around each ROI to prevent one failure from blocking others
-  - Print final message: `print(f"Triptych report saved to: {report_dir}")`
-- Estimated: 40-50 lines
+2. **Create backup** (~1min)
+   - `cp plans/nanobrag_integration_plan.md plans/nanobrag_integration_plan.md.bak`
 
-**Step 3: Integrate Helper Calls**
-- File: `dbex/refine_one.py`
-- Locations:
-  - Legacy backend: After HDF5 write (~line 270), before `print("Done")`
-  - Torch backend: After HDF5 write (~line 690), before `print("Done")`
-- Pattern:
-  ```python
-  if args.report_dir:
-      _generate_triptych_report(args.out, args.report_dir)
-  ```
-- Ensure HDF5 file is closed before calling helper (add explicit close or verify context manager usage)
-- Estimated: 6-10 lines (2 call sites)
+3. **Rewrite plan** (~90min)
+   - Edit `plans/nanobrag_integration_plan.md` per normative_content_map refactoring recommendations (10 major replacements)
+   - **Section 1 (lines 10-21)**: Replace "Incorporated Clarifications" details with: "For detector config mapping, masks, units, and ROI semantics, see docs/nanobrag_api.md, docs/spec-db-core.md, and docs/dials_api.md."
+   - **Section 2 (lines 23-27)**: Replace "Stage Policy" SHALL/SHOULD clauses with: "Stage refinement targets and interpolation requirements are defined in docs/spec-db-workflow.md §Stage A/B/C (lines 34-66)."
+   - **Section 3 (lines 28-35)**: Replace "Mapping-Aligned Baseline" MUST clauses with: "For mapping parity requirements and Stage A zero-point conventions, see docs/spec-db-conformance.md (DB-AT-024) and docs/spec-db-workflow.md §Baseline Convention (lines 29-32)."
+   - **Section 4 (lines 55-61)**: Replace config mapping rules with: "Config construction from DIALS Experiment metadata is documented in docs/config_crosswalk.md and docs/nanobrag_api.md."
+   - **Section 5 (lines 65-85)**: Replace pixel geometry/masks/units details with: "For pixel geometry constraints, mask handling, and unit conventions, see docs/spec-db-core.md."
+   - **Section 6 (lines 87-104)**: Replace multi-panel code snippet with: "Multi-panel simulation and stitching workflow is specified in docs/spec-db-workflow.md §Per-Panel Simulation (lines 13-16)."
+   - **Section 7 (lines 124-139)**: Replace parameter constraints details with: "Parameter constraints and baseline crystal state are defined in docs/spec-db-core.md §Baseline Crystal State and Parameterization (lines 34-57)."
+   - **Section 8 (lines 156-176)**: Replace loss formula/optimizer details with: "Variance-weighted loss definition and optimizer requirements are specified in docs/spec-db-core.md §Variance Model (lines 82-95) and docs/spec-db-runtime.md §Optimizer Requirements (lines 51-73)."
+   - **Section 9 (lines 184-231)**: Replace refinement nucleus contract with: "Refinement lifecycle, convergence gates, and telemetry schema are defined in docs/spec-db-workflow.md §Refinement Lifecycle (lines 82-120) and docs/spec-db-runtime.md."
+   - **Section 10 (lines 232-244)**: Replace Stage B specifics with: "Stage B structure-factor refinement implementation is specified in docs/spec-db-workflow.md §Stage B (lines 58-66)."
+   - **Preserve**: Overview (lines 3-8), Phase 0-5 headers, task lists (e.g., lines 50-61 Phase 1 tasks), estimated timelines, Deliverables Checklist (lines 288-296), Open Questions (lines 300-305)
 
-**Step 4: Compilation Check**
-- Command: `python -c "from dbex.refine_one import main; print('Compilation OK')"`
-- Log output to `validation_compilation.log`
-- Expected: "Compilation OK" with no import errors
+4. **Verify preserved content** (~15min)
+   - Check Phase 0-5 headers intact (grep "## Phase" plans/nanobrag_integration_plan.md)
+   - Check task lists preserved (grep "^- " plans/nanobrag_integration_plan.md | wc -l should show similar count)
+   - Check estimated timelines preserved (grep "days" plans/nanobrag_integration_plan.md)
+   - Check Deliverables Checklist intact (lines 288-296)
 
-**Step 5: Manual CLI Test (Legacy Backend)**
-- If smoke test data available (e.g., golden_data/simple_cubic/), construct command:
-  ```bash
-  python -m dbex.refine_one --backend diffbragg \
-    -e <expt.json> -r <refl.refl> -i 0 \
-    -o /tmp/tooling_vis_test_legacy.h5 \
-    --report-dir /tmp/tooling_vis_triptychs_legacy \
-    -m <mask.pickle> -z <mtz.mtz>
-  ```
-- Document command in `cli_test_legacy.txt`
-- If data not available, document skeleton command and note "requires manual validation with real data"
-- **Do NOT run actual refinement if it takes >5 minutes** — compilation check is sufficient for this loop; full manual validation can be deferred to user testing
-- Verify `/tmp/tooling_vis_triptychs_legacy/` directory created (if run completes)
-- Verify PNG files present (if run completes)
+5. **Run diff and verify line reduction** (~10min)
+   - `diff -u plans/nanobrag_integration_plan.md.bak plans/nanobrag_integration_plan.md > plans/active/DOCS-ROADMAP-001/reports/2025-11-24T145000Z/diff_summary.txt`
+   - `wc -l plans/nanobrag_integration_plan.md` → should be ~150-200 lines (target 50% reduction from 305)
+   - Verify diff shows ~100-150 line removal (all from normative sections, not task lists)
 
-**Step 6: Manual CLI Test (Torch Backend)**
-- Same as Step 5 with `--backend nanobrag`
-- Document in `cli_test_torch.txt`
+6. **Verify readability** (~10min)
+   - Read through thinned plan end-to-end
+   - Verify phase objectives clear (Overview + Phase 0-5 headers)
+   - Verify spec pointers concise (e.g., "see docs/spec-db-workflow.md §Stage A")
+   - Verify no broken markdown formatting
 
-**Step 7: Backward Compatibility Test**
-- Command: `python -m dbex.refine_one --help | grep report-dir`
-- Verify `--report-dir` appears in help text
-- Note: Actual backward compat test (running without flag) deferred to user testing (requires full dataset)
+7. **Write decision.json** (~5min)
+   - Document which decision path (A/B/C/D) based on validation results
+   - Path A (ideal): Line reduction ~50%, phase structure preserved, all spec refs valid
+   - Path B (partial): Line reduction <40%, need additional thinning
+   - Path C (issue): Phase structure damaged, need to restore
+   - Path D (blocker): Cannot complete thinning, escalate to Galph
 
-**Step 8: Decision Synthesis**
-- Write `decision.json` with 4-path decision tree:
-  - **Path A (all_validations_pass)**: Compilation OK, helper logic correct (code inspection), CLI arg present → Phase B.2 ✓ COMPLETE
-  - **Path B (compilation_ok_minor_issues)**: Compilation OK, helper has minor bugs → fix and re-validate
-  - **Path C (hdf5_read_errors)**: HDF5 dataset access fails → debug dataset names/structure
-  - **Path D (plot_triptych_api_mismatch)**: API call fails → check Phase A implementation, align arguments
-- Record outcome in `decision.json` with rationale
+8. **Write summary.md** (~5min)
+   - Create `plans/active/DOCS-ROADMAP-001/reports/2025-11-24T145000Z/summary.md`
+   - Include Turn Summary with: line reduction achieved, sections replaced, validation results, next actions (Phase C cross-refs)
 
-**Step 9: Artifacts and Turn Summary**
-- Write `summary.md` per Turn Summary format (3-5 sentences: what shipped, main problem/solution, next step)
-- Archive all validation logs in reports directory
+9. **Commit** (~5min)
+   - `git add plans/nanobrag_integration_plan.md plans/active/DOCS-ROADMAP-001/`
+   - `git commit -m "DOCS-ROADMAP-001 Phase B: Thin integration plan (normative → spec refs) — tests: not run"`
+   - Do NOT commit `.bak` file (keep as local backup only)
 
-**Step 10: Commit**
-- Message: `TOOLING-VIS-001 Phase B.2: auto-generate triptych report (--report-dir flag) — tests: manual validation`
-- Git add + commit + push
+10. **Return control to Galph** (~1min)
+    - Ensure artifacts directory created with all required files
+    - Ensure decision.json + summary.md written
+    - Ensure commit pushed (not required this loop, Galph will handle)
 
 ## How-To Map
 
-### Compilation Check
+### Environment
 ```bash
-cd /home/ollie/Documents/diffbragg_example
-python -c "from dbex.refine_one import main; print('Compilation OK')" > plans/active/TOOLING-VIS-001/reports/2025-11-24T120000Z/validation_compilation.log 2>&1
+# No special environment setup required (documentation-only)
+pwd  # Should be /home/ollie/Documents/diffbragg_example
 ```
 
-### Manual CLI Tests (Optional — Defer if Data Unavailable)
-If golden_data exists:
+### Commands
+
+1. **Phase A artifact review**:
 ```bash
-# Legacy backend
-python -m dbex.refine_one --backend diffbragg \
-  -e golden_data/simple_cubic/expt_000000.json \
-  -r golden_data/simple_cubic/indexed_000000.refl \
-  -i 0 \
-  -o /tmp/tooling_vis_test_legacy.h5 \
-  --report-dir /tmp/tooling_vis_triptychs_legacy \
-  -m golden_data/simple_cubic/mask.pickle \
-  -z golden_data/simple_cubic/mtz.mtz \
-  2>&1 | tee plans/active/TOOLING-VIS-001/reports/2025-11-24T120000Z/cli_test_legacy.txt
-
-# Torch backend
-python -m dbex.refine_one --backend nanobrag \
-  -e golden_data/simple_cubic/expt_000000.json \
-  -r golden_data/simple_cubic/indexed_000000.refl \
-  -i 0 \
-  -o /tmp/tooling_vis_test_torch.h5 \
-  --report-dir /tmp/tooling_vis_triptychs_torch \
-  -m golden_data/simple_cubic/mask.pickle \
-  -z golden_data/simple_cubic/mtz.mtz \
-  2>&1 | tee plans/active/TOOLING-VIS-001/reports/2025-11-24T120000Z/cli_test_torch.txt
+ls -lh plans/active/DOCS-ROADMAP-001/reports/2025-11-24T130000Z/
+cat plans/active/DOCS-ROADMAP-001/reports/2025-11-24T130000Z/normative_content_map.md
 ```
-**NOTE**: If refinement takes >5 minutes or golden_data unavailable, document command skeleton only and note "deferred to user testing". Compilation check is PRIMARY validation gate for this loop.
 
-### Decision JSON Template
-```json
-{
-  "loop": "i=273",
-  "focus": "TOOLING-VIS-001",
-  "phase": "B.2",
-  "objective": "auto-generate triptych report",
-  "validation_results": {
-    "compilation_check": "PASS|FAIL",
-    "cli_arg_present": "PASS|FAIL",
-    "helper_function_logic": "correct|has_bugs",
-    "manual_tests": "deferred|partial|pass"
-  },
-  "outcome": "Path A: all_validations_pass | Path B: minor_issues | Path C: hdf5_errors | Path D: api_mismatch",
-  "rationale": "<brief explanation>",
-  "next_action": "commit_phase_b2_complete | fix_bugs | debug_hdf5 | fix_api"
-}
+2. **Backup plan**:
+```bash
+cp plans/nanobrag_integration_plan.md plans/nanobrag_integration_plan.md.bak
+```
+
+3. **Edit plan** (manual):
+   - Use your text editor to apply 10 replacements per normative_content_map.md
+   - Replace normative sections (lines 10-21, 23-35, 55-85, 87-104, 124-139, 156-176, 184-244) with concise spec references
+   - Preserve phase structure, task lists, timelines, deliverables, open questions
+
+4. **Diff and line count**:
+```bash
+mkdir -p plans/active/DOCS-ROADMAP-001/reports/2025-11-24T145000Z
+diff -u plans/nanobrag_integration_plan.md.bak plans/nanobrag_integration_plan.md > plans/active/DOCS-ROADMAP-001/reports/2025-11-24T145000Z/diff_summary.txt
+wc -l plans/nanobrag_integration_plan.md  # Target ~150-200 lines
+grep "^-" plans/active/DOCS-ROADMAP-001/reports/2025-11-24T145000Z/diff_summary.txt | wc -l  # Should show ~100-150 lines removed
+```
+
+5. **Verification checks**:
+```bash
+grep "## Phase" plans/nanobrag_integration_plan.md  # Should show Phase 0-5 headers
+grep "^- " plans/nanobrag_integration_plan.md | wc -l  # Task list count (should be similar to original)
+grep "days" plans/nanobrag_integration_plan.md  # Verify timelines preserved
+```
+
+6. **Commit**:
+```bash
+git add plans/nanobrag_integration_plan.md plans/active/DOCS-ROADMAP-001/
+git commit -m "DOCS-ROADMAP-001 Phase B: Thin integration plan (normative → spec refs) — tests: not run"
+# Note: Do NOT add .bak file to git
 ```
 
 ## Pitfalls To Avoid
 
-1. **HDF5 File Still Open**: Ensure HDF5 file written by backend is closed before `_generate_triptych_report` opens it (add explicit `.close()` or verify context manager usage in backend code).
-2. **Missing Variance Graceful Degradation**: Don't crash if `variance/roi%d` dataset missing (old HDF5 files); print warning and skip ROI.
-3. **Large ROI Count Performance**: Don't optimize prematurely; sequential generation acceptable for Phase B.2 (progress bar is Phase B.3 enhancement if needed).
-4. **API Mismatch**: Use same `plot_triptych` call pattern as `dbex/look.py` lines 174-180 (`plot_triptych(data, model, variance, filename=str(out_png))`).
-5. **Absolute vs Relative Paths**: `report_dir` should support both; use `Path(report_dir).mkdir(parents=True, exist_ok=True)` to handle path creation robustly.
-6. **No pytest Selectors**: This is a CLI enhancement, not core refinement logic; manual validation sufficient per galph_prompt §action_types.
-7. **Environment Freeze**: Assume h5py/matplotlib/numpy already available (Phase A tests passed); do NOT propose `pip install`.
-8. **Backward Compatibility**: `--report-dir` is optional (default None); existing CLI invocations without flag should work unchanged.
-9. **Try/Except per ROI**: Wrap each ROI's triptych generation in try/except so one failure doesn't block the rest (e.g., malformed dataset, plot_triptych error).
-10. **Print Report Location**: User needs to know where files were saved; print `f"Triptych report saved to: {report_dir}"` at end of helper.
+1. **Do NOT remove task lists** — Phase 1-5 task bullets (e.g., "Extend DataLoad usage...", "Define NanoBraggRefinementModel...") are NOT normative, they are deliverable checklists. KEEP them.
+2. **Do NOT remove phase headers** — "Phase 0 – Environment & Baseline", "Phase 1 – Data Preparation Bridge", etc. are sequencing structure. KEEP them.
+3. **Do NOT remove estimated timelines** — "1-2 days", "2-3 days" per phase are planning estimates. KEEP them.
+4. **Do NOT remove Deliverables Checklist** — Lines 288-296 list final deliverables ([ ] nanobrag_bridge.py, [ ] torch_model.py, etc.). KEEP them.
+5. **Do NOT remove Open Questions** — Lines 300-305 list future work. KEEP them.
+6. **Do NOT add new normative content** — You are REMOVING normative duplication, not rewriting requirements. Only add spec references.
+7. **Do NOT change spec references** — Use exact spec pointers from normative_content_map.md (e.g., "docs/spec-db-workflow.md §Stage A/B/C (lines 34-66)").
+8. **Do NOT skip backup** — Always create .bak before editing in case you need to revert.
+9. **Do NOT commit .bak file** — Keep it as local backup only, do not add to git.
+10. **Do NOT create new files** — Only edit existing `plans/nanobrag_integration_plan.md` and create artifacts under `plans/active/DOCS-ROADMAP-001/reports/2025-11-24T145000Z/`.
 
 ## If Blocked
 
-- **Blocker Type 1 (Compilation error)**: Debug import/syntax error, fix in same loop.
-- **Blocker Type 2 (HDF5 structure unknown)**: Read Phase B.1 implementation in `dbex/refine_one.py` lines 236-263 (Legacy) and 665-689 (Torch) to confirm dataset names.
-- **Blocker Type 3 (plot_triptych API unclear)**: Read `dbex/vis/triptych.py` and `tests/dbex/test_vis_triptych.py` to confirm API signature.
-- **Blocker Type 4 (Golden data unavailable)**: Document manual test commands as "requires user data" and proceed with compilation check only (sufficient for Phase B.2 code completion).
-- Record blocker in `decision.json` with `outcome="blocked"` and return to Galph.
+If you cannot complete Phase B thinning:
+1. Document the blocker in `decision.json` (Path D)
+2. Preserve any partial progress (commit partial work with clear message)
+3. Write `summary.md` explaining what was attempted and why it failed
+4. Return control to Galph with blocker documented
+
+Example blockers:
+- Cannot parse normative_content_map.md (formatting issue)
+- Cannot determine what to preserve vs remove (ambiguous section)
+- Diff shows phase structure was damaged (need to restore from .bak)
+- Line reduction <30% (insufficient thinning, need Galph guidance)
 
 ## Findings Applied
 
-- **POLICY-001 (Environment Freeze)**: No new dependencies; use existing h5py/matplotlib/numpy validated in Phase A.
-- **PHYSICS-LOSS-001 (Variance Formula)**: Variance datasets validated in Phase B.1 per spec-db-core.md §86-90 (`V = max(I_model + sigma_readout^2, sigma_floor^2)`).
-- **spec-db-vis.md §7-11 (Triptych Layout)**: 3-panel layout [Data|Model|Residuals Z-Score], colormaps viridis/seismic, origin='upper' (implemented in Phase A).
-- **spec-db-vis.md §19 (Z-Score Definition)**: Z=(Data-Model)/sqrt(Variance) with NaN for masked pixels (implemented in Phase A `compute_z_scores`).
-- **CLAUDE.md Incremental Progress**: Small focused enhancement (~70 lines), backward compatible (opt-in flag), delivers immediate user value.
-- **CLAUDE.md Code Quality**: Clear docstring for helper function, try/except per ROI, graceful degradation for missing variance.
+**Mandatory Reading**:
+- POLICY-001: Environment Freeze — Documentation-only work, no code/environment changes
+- TESTING-003: Test registry sync NOT required for documentation-only changes
+- CLAUDE.md: Incremental progress — 3-phase breakdown (analysis → thin → cross-refs)
+
+**Relevant Phase A Results**:
+- 100% normative content duplication confirmed (all 16 sections exist in authoritative specs)
+- Zero spec gaps found (no spec updates required before thinning)
+- 26 cross-references cataloged (will be updated in Phase C)
+- Target line reduction: 305 → ~150-200 lines (50%)
 
 ## Pointers
 
-- Planning Analysis: `plans/active/TOOLING-VIS-001/reports/2025-11-24T120000Z/phase_b2_planning_analysis.md` (comprehensive scope, design decisions, code template)
-- Phase A API: `dbex/vis/triptych.py::plot_triptych` (validated in `tests/dbex/test_vis_triptych.py` lines 10-50)
-- Phase B.1 HDF5: `dbex/refine_one.py` lines 236-263 (Legacy), 665-689 (Torch) — variance dataset structure
-- Similar Pattern: `dbex/look.py` lines 170-189 (`export_triptychs` method) — working example of ROI iteration + `plot_triptych` calls
-- Spec: `docs/spec-db-vis.md` §7-11, §16-24 (triptych layout, colormaps, Z-scores)
-- Implementation Plan: `plans/active/TOOLING-VIS-001/implementation.md` — Phase B checklist
-- Fix Plan: `docs/fix_plan.md` lines 195-210 — TOOLING-VIS-001 status and Attempts History
+**Phase A Artifacts** (mandatory reading):
+- `plans/active/DOCS-ROADMAP-001/reports/2025-11-24T130000Z/normative_content_map.md` — Detailed mapping table + refactoring recommendations
+- `plans/active/DOCS-ROADMAP-001/reports/2025-11-24T130000Z/phase_a_summary.md` — Findings + example replacements
+- `plans/active/DOCS-ROADMAP-001/reports/2025-11-24T130000Z/phase_a_summary.md:48-85` — Example replacement (Stage Policy section)
 
-## Next Up
+**Specs Referenced** (verify these exist before citing):
+- docs/spec-db-workflow.md (Stage A/B/C definitions, refinement lifecycle)
+- docs/spec-db-core.md (units, masks, variance, parameterization)
+- docs/spec-db-runtime.md (optimizer requirements, PyTorch guardrails)
+- docs/nanobrag_api.md (detector config mapping, HKL IO)
+- docs/config_crosswalk.md (DIALS → simulator config mapping)
+- docs/spec-db-conformance.md (DB-AT-024 mapping parity)
 
-If Phase B.2 completes successfully with all validations passing (Path A):
-- **Option 1**: Phase C.1 (Refactor interactive viewer in `dbex/look.py` to use `dbex.vis` for grid layout) — 2-3 loops, MEDIUM risk
-- **Option 2**: Mark TOOLING-VIS-001 as "substantial progress" (Phases A+B complete, 2/3 exit criteria satisfied) and pivot to another Tier 3 initiative
-- **Option 3**: Phase B.3 enhancement (multi-page PDF report, progress bar, etc.) — LOW priority
+**Target File**:
+- `plans/nanobrag_integration_plan.md` — 305 lines currently, target ~150-200 lines after thinning
 
-Galph will assess Phase B.2 outcome and select next focus per Execution Roadmap and WIP cap.
+**Implementation Plan**:
+- `plans/active/DOCS-ROADMAP-001/implementation.md` — Phase A ✅ COMPLETE, Phase B checklist (lines 46-70)
+
+## Next Up (Optional)
+If Phase B completes early (<2 hours) and you have time remaining:
+- Phase C task C2: Verify test references in `tests/dbex/test_torch_refine_smoke.py` (expected: 1 comment line referencing Stage B contract, no assertion changes needed)
+- Document C2 result in `summary.md` (e.g., "Verified test reference: line 123 comment valid, no changes required")
+
+Do NOT attempt Phase C tasks C1/C3/C4/C5/C6 (cross-reference updates, fix_plan updates) — those require Galph review first.
 
 ## Doc Sync Plan
-
-Not applicable (no test selectors added this loop).
-
-## Mapped Tests Guardrail
-
-Not applicable (manual validation only for CLI enhancement).
+Not applicable — Documentation-only changes, no test registry sync required per TESTING-003.
 
 ## Normative Math/Physics
-
-Not applicable (no physics/math changes; uses existing Phase A `plot_triptych` API).
+Not applicable — This is documentation hygiene, no normative math/physics changes.

@@ -215,7 +215,7 @@
   ... (see docs/fix_plan_archive.md and plans/active/TOOLING-VIS-001/reports/ for full history and metrics).
 ### [DOCS-ROADMAP-001] Thin `nanobrag_integration_plan`
 - Depends on: specs/spec-db-workflow.md (current normative content)
-- Status: pending
+- Status: in_progress (2025-11-24T130000Z — Phase A complete: normative content mapping, 0 spec gaps, Phase B next)
 - Priority: Medium
 - Owner/Date: Unassigned
 - Exit Criteria:
@@ -224,7 +224,8 @@
   3. Docs/tests referencing the plan are updated to point to the specs for authoritative definitions.
 - Working Plan: plans/active/DOCS-ROADMAP-001/implementation.md
 - Attempts History:
-  ... (see docs/fix_plan_archive.md and plans/active/DOCS-ROADMAP-001/reports/ for full history and metrics).
+  * 2025-11-24T130000Z (planning, i=275) — **Phase A ✓ COMPLETE** — Normative content mapping analysis SUCCESSFUL. Analyzed all 305 lines of `plans/nanobrag_integration_plan.md` and identified 16 major normative sections containing SHALL/SHOULD/MUST requirements or specific implementation rules. **Result: 100% duplication confirmed** — All normative content already exists in authoritative specs (docs/spec-db-workflow.md, docs/spec-db-core.md, docs/spec-db-runtime.md, docs/nanobrag_api.md, docs/config_crosswalk.md, docs/spec-db-conformance.md). **Zero spec gaps found** — No spec updates required before thinning plan. **Refactoring strategy documented**: Replace 16 normative sections with concise spec references, target ~150-200 lines (50% reduction from 305), preserve phase structure/task lists/deliverables. **Cross-reference audit complete**: 26 references cataloged (primary entry docs/index.md line 131). **Decision: Path A (All Clear)** — Mapping complete, 0 spec gaps, APPROVE Phase B thinning for next loop. **Artifacts**: plans/active/DOCS-ROADMAP-001/reports/2025-11-24T130000Z/{normative_content_map.md (complete mapping table + refactoring recommendations), phase_a_summary.md (findings + decision + example replacements), cross_reference_audit.txt (26 references cataloged), planning_analysis.md (Phase A-C scope + risk assessment), summary.md (Turn Summary)}. **Next Actions**: Ralph executes Phase B thinning (rewrite plan per normative_content_map.md, replace 16 sections with spec refs, target ~150-200 lines, verify diff ~50% reduction).
+  ... (see docs/fix_plan_archive.md for older history).
 ### [PERF-SMOKE-DETSIZE] Introduce small-detector fixture for smoke tests
 - Depends on: docs/spec-db-workflow.md (Stage smoke validations), CONFIG-001
 - Status: done (2025-11-21 — canonical full-detector regression archived under Phase D)

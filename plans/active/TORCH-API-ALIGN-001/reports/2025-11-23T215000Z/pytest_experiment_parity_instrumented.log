@@ -260,4 +260,4 @@ tests/dbex/test_experiment_parity.py::test_parity_small_fixture
 =========================== short test summary info ============================
 FAILED tests/dbex/test_experiment_parity.py::test_parity_small_fixture - AssertionError: Parity FAIL: max abs diff 5.03e-03 > 1.0e-04 tolerance (see tolerance_sweep.json for analysis)
 assert 0.005025771912187338 <= 0.0001
-======================== 1 failed, 6 warnings in 4.21s =========================
+======================== 1 failed, 6 warnings in 4.20s =========================

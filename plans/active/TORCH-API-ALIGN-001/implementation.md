@@ -62,7 +62,7 @@ Checklist
   - Standardize on `from nanobrag_torch.simulator import Simulator`
   - Build `nanobrag_torch.models.Detector/Crystal`, attach HKL tensors, then construct `Simulator(detector=..., crystal=..., beam_config=..., device=..., dtype=...)`.
   - Factory responsibilities: accept `beam_config`, `dtype`, `device`; apply `sqrt_spot_scale` post‑run when provided; normalize/validate `mask_array` on device/dtype; preserve calibration gates (e.g., `N_cells`/sample clipping) identical to current code; support ROI-cropped DetectorConfig with beam-center mm shifts.
-- [ ] B2: Replace duplicate wiring — IN PROGRESS (B2a forward helpers COMPLETE 2025-11-23T220000Z, B2b(i) refine_one CLI COMPLETE 2025-11-23T240000Z, B2b(ii) nanobrag_refinement panel loops pending)
+- [x] B2: Replace duplicate wiring — COMPLETE 2025-11-24T000000Z (B2a forward helpers COMPLETE 2025-11-23T220000Z -56 lines, B2b(i) refine_one CLI COMPLETE 2025-11-23T240000Z -23 lines; B2b(ii) scope clarification: no forward-only panel loops exist in nanobrag_refinement, refinement closures require direct Simulator for autograd)
   - Route `simulate_forward_once`, `simulate_forward_torch`, the refine_one CLI path (dbex/refine_one.py:380+), and panel loops in `dbex/nanobrag_refinement.py` through the factory; prepare incremental diffs with no behavior change.
   - Remove local mask conversions and `sqrt(spot_scale_override)` math from callers after the factory owns them.
 - [ ] B3: ExperimentModel adapter

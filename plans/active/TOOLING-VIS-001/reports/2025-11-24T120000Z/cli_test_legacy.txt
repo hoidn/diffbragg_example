@@ -1,36 +1,23 @@
-# Manual CLI Test: Legacy Backend (--backend diffbragg)
+# Legacy Backend Manual Test Command (Deferred - Golden Data Unavailable)
 
-## Status
-DEFERRED — Requires manual validation with real data (golden_data unavailable)
-
-## Command Template
-```bash
+## Command Skeleton
 python -m dbex.refine_one --backend diffbragg \
-  -e <expt.json> \
-  -r <refl.refl> \
+  -e golden_data/simple_cubic/expt_000000.json \
+  -r golden_data/simple_cubic/indexed_000000.refl \
   -i 0 \
   -o /tmp/tooling_vis_test_legacy.h5 \
   --report-dir /tmp/tooling_vis_triptychs_legacy \
-  -m <mask.pickle> \
-  -z <mtz.mtz>
-```
+  -m golden_data/simple_cubic/mask.pickle \
+  -z golden_data/simple_cubic/mtz.mtz
+
+## Status
+DEFERRED - requires user data. Compilation check is PRIMARY validation gate per input.md.
 
 ## Expected Behavior
 1. Refinement completes successfully
-2. Directory `/tmp/tooling_vis_triptychs_legacy/` is created
-3. PNG files generated: `roi_0000_triptych.png`, `roi_0001_triptych.png`, etc.
-4. CLI prints: "Triptych report saved to: /tmp/tooling_vis_triptychs_legacy"
-5. Each PNG contains 3 panels: Data | Model | Residuals Z-Score
+2. Directory /tmp/tooling_vis_triptychs_legacy/ is created
+3. PNG files roi_0000_triptych.png, roi_0001_triptych.png, etc. are generated
+4. CLI prints "Triptych report saved to: /tmp/tooling_vis_triptychs_legacy"
 
-## Validation Checklist
-- [ ] Run command with real dataset
-- [ ] Verify report directory created
-- [ ] Verify PNG files present (one per ROI)
-- [ ] Open sample PNG to verify 3-panel triptych layout
-- [ ] Verify colormaps: viridis (Data/Model), seismic (Residuals)
-- [ ] Verify origin='upper' coordinate convention
-
-## Notes
-- Golden data directory not found at project root
-- Compilation check (primary validation gate) PASSED ✓
-- Manual test can be executed by user with real data
+## Backward Compatibility Note
+Running without --report-dir flag should work unchanged (feature is opt-in).

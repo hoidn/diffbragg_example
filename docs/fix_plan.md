@@ -36,13 +36,13 @@
 ### Tier 3: Architectural Maturity (Refactoring)
 **Goal:** Refactor monolithic loops into maintainable engines with clear boundaries and testable seams.
 - [ARCH-REFACTOR-001] (Refinement Engine Modularization & Physics Separation) — `partial_complete` (2025-11-24T105000Z: Phases 0/A/B/D1/D2 complete, 6/9 exit criteria satisfied, Phase C deferred pending blocking use case)
-- [PERF-WARM-SIM-001] (Warm Simulator) — *Pending* (UNBLOCKED 2025-11-24T004500Z: TORCH-API-ALIGN-001 complete, can now leverage unified factory)
+- [PERF-WARM-SIM-001] (Warm Simulator) — **Blocked** (ENV-CUDA-001: environmental CUDA caching allocator error; return condition: env resolution OR test retry on different session/hardware)
 
 ### Tier 3: Tooling & Observability
 **Goal:** Standardize visuals, documentation, and runtime guardrails.
-- [TOOLING-VIS-001] (Standardized Triptychs) — *In Progress*
+- [TOOLING-VIS-001] (Standardized Triptychs) — `substantial_progress` (2025-11-24T123051Z: Phases A+B complete, 3.5/5 exit criteria satisfied, Phase C test infrastructure deferred)
 - [DOC-RUNTIME-004] (Restore Runtime Checklist) — **Done** (2025-11-23T024449Z: all exit criteria met, runtime checklist restored with spec citations, references verified, validation artifacts complete)
-- [TORCH-RUNTIME-002] (Runtime Harness Seed) — *Pending*
+- [TORCH-RUNTIME-002] (Runtime Harness Seed) — **Done** (2025-10-28T232744Z: all exit criteria satisfied, TESTING_GUIDE.md updated, selector registry synchronized)
 
 ---
 

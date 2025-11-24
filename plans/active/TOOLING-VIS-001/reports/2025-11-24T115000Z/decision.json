@@ -1,0 +1,12 @@
+{
+  "date": "2025-11-24T115000Z",
+  "phase": "B.1+B.2-lite",
+  "path": "A",
+  "validations": {
+    "compilation": "PASS",
+    "hdf5_variance": "PASS",
+    "triptych_export": "PASS"
+  },
+  "blockers": [],
+  "next_action": "phase_b3_planning"
+}

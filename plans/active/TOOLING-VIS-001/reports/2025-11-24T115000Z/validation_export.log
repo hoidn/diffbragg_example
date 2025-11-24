@@ -1,0 +1,26 @@
+Phase B.2-lite Validation: Static Triptych Export
+Date: 2025-11-24T115000Z
+
+Code Inspection Results:
+✓ _load_data (lines 67-74): variance/sigma_readout/sigma_floor added
+  - variance: [h["variance"]["roi%d" % i][()] for i in range(len(scores))]
+  - sigma_readout: h["sigma_readout"][()]
+  - sigma_floor: h["sigma_floor"][()]
+
+✓ export_triptychs method (lines 170-189): calls plot_triptych with filename parameter
+  - Imports: pathlib.Path, dbex.vis.plot_triptych
+  - Output directory created with mkdir(parents=True, exist_ok=True)
+  - Loops over all ROIs, generates filename: roi_{i:04d}.png
+  - Calls plot_triptych with: data, model, variance, hkl=None, correlation=scores[i], filename
+  - Progress messages printed to stdout
+
+✓ Argparse (lines 199-204): --export-triptychs flag added
+  - Type: str
+  - Default: None
+  - Help text describes functionality
+
+✓ main() (lines 207-211): conditional export vs interactive viewer
+  - if args.export_triptychs: viewer.export_triptychs(args.export_triptychs)
+  - else: viewer.show()
+
+Status: PASS (structure validated via code inspection)

@@ -1,0 +1,20 @@
+Phase B.1 Validation: HDF5 Variance Extension
+Date: 2025-11-24T115000Z
+
+Code Inspection Results:
+✓ Legacy backend (lines 236-263): variance computation added
+  - Formula: V = max(I_model + sigma_readout^2, sigma_floor^2)
+  - Variables extracted: args.sigma_rdout (with fallback 1.0), args.sigma_floor
+  - ADU→photon conversion applied when args.adu_per_photon is set
+  - HDF5 datasets added: variance/roi%d (line 259), sigma_readout (line 262), sigma_floor (line 263)
+
+✓ Torch backend (lines 665-689): variance computation added
+  - Formula: V = max(I_model + sigma_readout^2, sigma_floor^2)
+  - Variables extracted: sigma_reference_value (from _resolve_sigma_readout), sigma_floor_value (pre-adjusted)
+  - HDF5 datasets added: variance/roi%d (line 685), sigma_readout (line 688), sigma_floor (line 689)
+
+✓ Both backends produce identical HDF5 structure
+✓ Formula matches spec-db-core.md §86-90
+✓ np.maximum used for clamp (correct broadcasting behavior)
+
+Status: PASS (structure validated via code inspection)

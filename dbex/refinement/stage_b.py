@@ -407,11 +407,12 @@ class StageB:
         }
 
         # Assemble RefinementTelemetry object (matches run_nanobrag_refinement lines 3418-3456)
-        # Extract optimizer type from param_values (dynamic: lbfgs or adam, need uppercase)
-        optimizer_type = param_values.get('optimizer_type', 'lbfgs').upper()
+        # Extract optimizer type from param_values (dynamic: lbfgs or adam)
+        # Keep lowercase for custom attribute, uppercase for telemetry.optimizer field
+        optimizer_type = param_values.get('optimizer_type', 'lbfgs')
 
         telemetry_b = RefinementTelemetry(
-            optimizer=optimizer_type,
+            optimizer=optimizer_type.upper(),
             stage="B",
             history_size=self._config.history_size,
             max_iter=self._config.max_iter,
@@ -449,6 +450,29 @@ class StageB:
             canonical_detector_distances_mm=canonical_baseline["detector_distances_mm"],
             roi_mode=stage_b_roi_label,
         )
+
+        # Add mode-specific custom attributes to dataclass before serialization
+        # (matches pattern in nanobrag_refinement.py:5226-5238)
+        telemetry_b.stage_b_mode = stage_b_mode
+
+        if stage_b_mode == "per_reflection":
+            # Per-reflection mode: add ASU-specific attributes
+            with torch.no_grad():
+                modifiers_exp = torch.exp(log_modifiers)
+                modifiers_clamped = torch.clamp(
+                    modifiers_exp,
+                    min=1.0 / self._config.stage_b_max_modifier,
+                    max=self._config.stage_b_max_modifier
+                )
+
+            telemetry_b.n_asu_unique = int(n_asu_unique)
+            telemetry_b.optimizer_type = optimizer_type  # Already lowercase from fix #1
+            telemetry_b.asu_modifier_stats = {
+                "min": float(modifiers_clamped.min().item()),
+                "max": float(modifiers_clamped.max().item()),
+                "mean": float(modifiers_clamped.mean().item()),
+                "std": float(modifiers_clamped.std().item()),
+            }
 
         # Convert to dict for engine aggregation
         telemetry_output = asdict(telemetry_b)

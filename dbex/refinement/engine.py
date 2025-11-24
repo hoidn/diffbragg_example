@@ -64,6 +64,11 @@ class RefinementEngine:
         self.stages = stages
         self.config = config
         self._telemetry: Dict[str, RefinementTelemetry] = {}
+        # Initialize cache vars for custom attributes (Phase 8 fix #2)
+        self._stage_b_mode = None
+        self._stage_b_n_asu_unique = None
+        self._stage_b_optimizer_type = None
+        self._stage_b_asu_modifier_stats = None
 
     def run(
         self,
@@ -131,6 +136,11 @@ class RefinementEngine:
                 self._stage_b_shell_edges = telemetry_dict.get("shell_edges")
                 self._stage_b_shell_indices = telemetry_dict.get("shell_indices")
                 self._stage_b_n_shells = telemetry_dict.get("n_shells")
+                # Cache custom attributes for per-reflection mode (Phase 8 fix #2)
+                self._stage_b_mode = telemetry_dict.get("stage_b_mode")
+                self._stage_b_n_asu_unique = telemetry_dict.get("n_asu_unique")
+                self._stage_b_optimizer_type = telemetry_dict.get("optimizer_type")
+                self._stage_b_asu_modifier_stats = telemetry_dict.get("asu_modifier_stats")
 
             # Filter out non-RefinementTelemetry fields before conversion
             # stage_a_ctx, shell_edges, shell_indices, n_shells are not RefinementTelemetry fields
@@ -144,6 +154,18 @@ class RefinementEngine:
             # Convert dict to RefinementTelemetry instance
             # Note: stage.run() returns a dict matching RefinementTelemetry structure
             telemetry = RefinementTelemetry(**telemetry_core_dict)
+
+            # Restore custom attributes to RefinementTelemetry object (Phase 8 fix #2)
+            # These were cached above but excluded from the constructor
+            if stage.name == "stage_b":
+                if self._stage_b_mode is not None:
+                    telemetry.stage_b_mode = self._stage_b_mode
+                if self._stage_b_n_asu_unique is not None:
+                    telemetry.n_asu_unique = self._stage_b_n_asu_unique
+                if self._stage_b_optimizer_type is not None:
+                    telemetry.optimizer_type = self._stage_b_optimizer_type
+                if self._stage_b_asu_modifier_stats is not None:
+                    telemetry.asu_modifier_stats = self._stage_b_asu_modifier_stats
 
             # Aggregate into telemetry dict keyed by stage name
             self._telemetry[stage.name] = telemetry

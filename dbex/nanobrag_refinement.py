@@ -4138,69 +4138,69 @@ def _build_final_bragg_from_stage_b_telemetry(
         'cell_gamma': cell_gamma_tensor
     }
 
-        # Compute final misset (baseline + delta if baseline provided)
-        if baseline_misset_deg_tensor is not None:
-            final_misset = baseline_misset_deg_tensor + misset_xyz_deg
-        else:
-            final_misset = misset_xyz_deg
+    # Compute final misset (baseline + delta if baseline provided)
+    if baseline_misset_deg_tensor is not None:
+        final_misset = baseline_misset_deg_tensor + misset_xyz_deg
+    else:
+        final_misset = misset_xyz_deg
 
-        # Check if warm cache is enabled AND stage_a_ctx is available
-        stage_b_use_warm_cache = config.enable_stage_a_warm_cache and stage_a_ctx is not None
+    # Check if warm cache is enabled AND stage_a_ctx is available
+    stage_b_use_warm_cache = config.enable_stage_a_warm_cache and stage_a_ctx is not None
 
-        if stage_b_use_warm_cache:
-            # Warm cache path: retarget Stage A simulators with modified crystal
-            warm_crystal_config, _ = create_crystal_config(
-                crystal,
-                None,
+    if stage_b_use_warm_cache:
+        # Warm cache path: retarget Stage A simulators with modified crystal
+        warm_crystal_config, _ = create_crystal_config(
+            crystal,
+            None,
+            crystal_overrides=crystal_overrides,
+            misset_deg_override=final_misset,
+            apply_n_cells=False,
+        )
+        warm_crystal_model = Crystal(
+            warm_crystal_config,
+            beam_config=stage_a_ctx.beam_config,
+            device=final_device,
+            dtype=dtype,
+        )
+        warm_crystal_model.interpolate = True
+        warm_crystal_model.hkl_data = hkl_grid_modified.to(device=final_device, dtype=dtype)
+        warm_crystal_model.hkl_metadata = hkl_metadata
+        _retarget_stage_a_simulators(stage_a_ctx, warm_crystal_model)
+
+        for pid in range(n_panels):
+            simulator = stage_a_ctx.simulators[pid]
+            bragg_panel = simulator.run()
+            log_scale_clamped = torch.clamp(log_scale, min=-10.0, max=10.0)
+            bragg_scaled = bragg_panel * torch.exp(log_scale_clamped)
+            bragg_full[pid] = bragg_scaled.cpu().numpy().astype(np.float32)
+    else:
+        # Cold path: instantiate fresh simulators per panel
+        for pid in range(n_panels):
+            detector_config = create_detector_config(
+                panel=detector[pid],
+                beam=beam,
+                trusted_mask=inputs.trusted_mask[pid]
+            )
+            if detector_config.mask_array is not None and not isinstance(detector_config.mask_array, torch.Tensor):
+                detector_config.mask_array = torch.tensor(
+                    detector_config.mask_array, dtype=torch.float32, device=final_device
+                )
+            crystal_config, _ = create_crystal_config(
+                crystal, None,
                 crystal_overrides=crystal_overrides,
                 misset_deg_override=final_misset,
-                apply_n_cells=False,
+                apply_n_cells=False
             )
-            warm_crystal_model = Crystal(
-                warm_crystal_config,
-                beam_config=stage_a_ctx.beam_config,
-                device=final_device,
-                dtype=dtype,
-            )
-            warm_crystal_model.interpolate = True
-            warm_crystal_model.hkl_data = hkl_grid_modified.to(device=final_device, dtype=dtype)
-            warm_crystal_model.hkl_metadata = hkl_metadata
-            _retarget_stage_a_simulators(stage_a_ctx, warm_crystal_model)
-
-            for pid in range(n_panels):
-                simulator = stage_a_ctx.simulators[pid]
-                bragg_panel = simulator.run()
-                log_scale_clamped = torch.clamp(log_scale, min=-10.0, max=10.0)
-                bragg_scaled = bragg_panel * torch.exp(log_scale_clamped)
-                bragg_full[pid] = bragg_scaled.cpu().numpy().astype(np.float32)
-        else:
-            # Cold path: instantiate fresh simulators per panel
-            for pid in range(n_panels):
-                detector_config = create_detector_config(
-                    panel=detector[pid],
-                    beam=beam,
-                    trusted_mask=inputs.trusted_mask[pid]
-                )
-                if detector_config.mask_array is not None and not isinstance(detector_config.mask_array, torch.Tensor):
-                    detector_config.mask_array = torch.tensor(
-                        detector_config.mask_array, dtype=torch.float32, device=final_device
-                    )
-                crystal_config, _ = create_crystal_config(
-                    crystal, None,
-                    crystal_overrides=crystal_overrides,
-                    misset_deg_override=final_misset,
-                    apply_n_cells=False
-                )
-                detector_model = Detector(detector_config, device=final_device, dtype=dtype)
-                crystal_model = Crystal(crystal_config, device=final_device, dtype=dtype)
-                crystal_model.interpolate = True
-                crystal_model.hkl_data = hkl_grid_modified.to(device=final_device, dtype=dtype)
-                crystal_model.hkl_metadata = hkl_metadata
-                simulator = Simulator(detector=detector_model, crystal=crystal_model, device=final_device, dtype=dtype)
-                bragg_panel = simulator.run()
-                log_scale_clamped = torch.clamp(log_scale, min=-10.0, max=10.0)
-                bragg_scaled = bragg_panel * torch.exp(log_scale_clamped)
-                bragg_full[pid] = bragg_scaled.cpu().numpy().astype(np.float32)
+            detector_model = Detector(detector_config, device=final_device, dtype=dtype)
+            crystal_model = Crystal(crystal_config, device=final_device, dtype=dtype)
+            crystal_model.interpolate = True
+            crystal_model.hkl_data = hkl_grid_modified.to(device=final_device, dtype=dtype)
+            crystal_model.hkl_metadata = hkl_metadata
+            simulator = Simulator(detector=detector_model, crystal=crystal_model, device=final_device, dtype=dtype)
+            bragg_panel = simulator.run()
+            log_scale_clamped = torch.clamp(log_scale, min=-10.0, max=10.0)
+            bragg_scaled = bragg_panel * torch.exp(log_scale_clamped)
+            bragg_full[pid] = bragg_scaled.cpu().numpy().astype(np.float32)
 
     return bragg_full
 
@@ -4407,6 +4407,12 @@ def run_nanobrag_refinement(
         shell_indices = getattr(engine, '_stage_b_shell_indices', None)
         n_shells = getattr(engine, '_stage_b_n_shells', None)
 
+        # Extract custom attributes from engine cache (Phase 8 fix #2)
+        stage_b_mode = getattr(engine, '_stage_b_mode', None)
+        n_asu_unique = getattr(engine, '_stage_b_n_asu_unique', None)
+        optimizer_type = getattr(engine, '_stage_b_optimizer_type', None)
+        asu_modifier_stats = getattr(engine, '_stage_b_asu_modifier_stats', None)
+
         # Create a dict version of telemetry_b with shell metadata for the helper
         from dataclasses import asdict
         telemetry_b_dict = asdict(telemetry_b_raw)
@@ -4416,6 +4422,15 @@ def run_nanobrag_refinement(
             telemetry_b_dict['shell_indices'] = shell_indices
         if n_shells is not None:
             telemetry_b_dict['n_shells'] = n_shells
+        # Add custom attributes back to dict (Phase 8 fix #2)
+        if stage_b_mode is not None:
+            telemetry_b_dict['stage_b_mode'] = stage_b_mode
+        if n_asu_unique is not None:
+            telemetry_b_dict['n_asu_unique'] = n_asu_unique
+        if optimizer_type is not None:
+            telemetry_b_dict['optimizer_type'] = optimizer_type
+        if asu_modifier_stats is not None:
+            telemetry_b_dict['asu_modifier_stats'] = asu_modifier_stats
 
         bragg_full = _build_final_bragg_from_stage_b_telemetry(
             telemetry_a=telemetry_a_raw,

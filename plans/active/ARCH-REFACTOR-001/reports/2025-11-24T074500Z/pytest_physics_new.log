@@ -1,0 +1,13 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 4 items
+
+tests/dbex/test_physics_loss_current.py::test_variance_weighted_loss_basic_clamping PASSED [ 25%]
+tests/dbex/test_physics_loss_current.py::test_variance_weighted_loss_zero_mask PASSED [ 50%]
+tests/dbex/test_physics_loss_current.py::test_variance_weighted_loss_zero_variance_floor PASSED [ 75%]
+tests/dbex/test_physics_loss_current.py::test_variance_weighted_loss_negative_model PASSED [100%]
+
+============================== 4 passed in 0.83s ===============================

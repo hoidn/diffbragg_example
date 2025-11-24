@@ -4450,17 +4450,20 @@ def run_nanobrag_refinement(
         )
 
         # Repackage telemetry with backward-compatible keys ("A", "B")
-        # Filter out stage_type/mode fields to maintain RefinementTelemetry structure
-        from dataclasses import asdict
-        # Note: RefinementTelemetry is already defined at module level (line 392), no import needed
+        # Use engine's telemetry objects directly to preserve custom attributes (Phase 8 Alternative pattern)
+        # The engine already restored custom attributes (stage_b_mode, n_asu_unique, etc.) per engine.py:161-168
+        telemetry_a = telemetry_a_raw
+        telemetry_b = telemetry_b_raw
 
-        # Convert RefinementTelemetry dataclass instances to dicts before filtering
-        telemetry_a_dict = asdict(telemetry_a_raw)
-        telemetry_b_dict = asdict(telemetry_b_raw)
-
-        # Filter out extra fields not in RefinementTelemetry schema
-        telemetry_b = RefinementTelemetry(**{k: v for k, v in telemetry_b_dict.items() if k not in ['stage_type', 'mode', 'shell_edges', 'shell_indices', 'n_shells']})
-        telemetry_a = RefinementTelemetry(**{k: v for k, v in telemetry_a_dict.items() if k not in ['stage_type', 'mode', 'stage_a_ctx']})
+        # Add engine protocol and stage modes for Phase E telemetry enrichment
+        engine_protocol_value = "stage_a→stage_b"
+        stage_modes_value = {
+            "B": config.stage_b_mode  # Use actual config value ("per_reflection" or "shell")
+        }
+        telemetry_a.engine_protocol = engine_protocol_value
+        telemetry_a.stage_modes = stage_modes_value
+        telemetry_b.engine_protocol = engine_protocol_value
+        telemetry_b.stage_modes = stage_modes_value
 
         return bragg_full, {"A": telemetry_a, "B": telemetry_b}
 
@@ -4905,13 +4908,14 @@ def run_nanobrag_refinement(
             telemetry_out = {}
             # Map stage names to legacy uppercase keys for backward compatibility
             stage_name_map = {"stage_a": "A", "stage_b": "B", "stage_c": "C"}
+
             for stage_name, telem_obj in engine_telemetry.items():
-                # Convert RefinementTelemetry to dict, add new fields, reconstruct
-                telem_dict = asdict(telem_obj)
-                telem_dict["engine_protocol"] = engine_protocol
-                telem_dict["stage_modes"] = stage_modes
-                legacy_key = stage_name_map.get(stage_name, stage_name)  # Apply mapping, fallback to original
-                telemetry_out[legacy_key] = RefinementTelemetry(**telem_dict)
+                # Add engine protocol fields directly to existing object (preserves custom attrs)
+                telem_obj.engine_protocol = engine_protocol
+                telem_obj.stage_modes = stage_modes
+
+                legacy_key = stage_name_map.get(stage_name, stage_name)
+                telemetry_out[legacy_key] = telem_obj  # Use original object, preserve custom attrs
 
             return final_bragg, telemetry_out
 

@@ -1,5 +1,5 @@
 ### Turn Summary
-Definitively diagnosed Phase 8 blocker: `asdict()` loses custom attributes (stage_b_mode, n_asu_unique, optimizer_type, asu_modifier_stats) in run_nanobrag_refinement engine delegation path when reconstructing telemetry.
-Root cause is documented Python dataclasses behavior—attributes added after construction are not serialized by asdict().
-Next: Ralph applies 7-line Alternative pattern fix (avoid asdict() entirely, add engine_protocol/stage_modes directly to engine's telemetry objects) + 4-test validation protocol.
-Artifacts: plans/active/TORCH-REFINE-004/reports/2025-11-24T103302Z/ (phase_8_final_blocker_analysis.md comprehensive 12-section root cause analysis, input.md ready_for_implementation directive)
+Fixed telemetry attribute loss in engine delegation A→B path by applying Alternative pattern (avoid asdict() reconstruction, preserve engine's custom attribute restoration work).
+Resolved Phase 8 blocker: per-reflection test now detects all custom attributes (stage_b_mode, n_asu_unique, optimizer_type, asu_modifier_stats); test failure changed from missing attributes to gradient flow check (ASU modifiers unchanged ~1.0).
+Next: escalate to Galph — Phase 8 asdict() fix complete, but per-reflection optimization has separate gradient/optimizer issue requiring debugging.
+Artifacts: plans/active/TORCH-REFINE-004/reports/2025-11-24T103302Z/ (pytest logs, decision.json)

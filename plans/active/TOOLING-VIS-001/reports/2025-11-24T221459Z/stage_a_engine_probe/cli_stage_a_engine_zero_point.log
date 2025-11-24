@@ -1,0 +1,10 @@
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+Traceback (most recent call last):
+  File "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/TOOLING-VIS-001/bin/run_stage_a_engine_zero_point_probe.py", line 133, in <module>
+    main()
+  File "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/TOOLING-VIS-001/bin/run_stage_a_engine_zero_point_probe.py", line 76, in main
+    from dbex.tools.stage_a_adam import build_dataload, run_engine_zero_point_probe
+  File "/home/ollie/Documents/diffbragg_example/dbex/tools/stage_a_adam.py", line 42, in <module>
+    from tests.fixtures.parity_loader import (
+ModuleNotFoundError: No module named 'tests'

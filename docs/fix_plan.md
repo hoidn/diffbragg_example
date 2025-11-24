@@ -31,11 +31,11 @@
 
 ### Tier 3: Feature Completeness
 **Goal:** Implement normative spec features currently using fallback modes.
-- [TORCH-REFINE-004] (Stage B Per-Reflection Mode) — *Pending* (Deferred until ARCH-REFINE-FLOW-001 Phase C complete; shell mode implemented, per-reflection mode planned per spec-db-workflow.md §7)
+- [TORCH-REFINE-004] (Stage B Per-Reflection Mode) — **Done** (2025-11-24T140000Z: Phase 9 complete, all 4/4 exit criteria met, per-reflection mode operational with ASU mapping, shell mode fallback preserved)
 
 ### Tier 3: Architectural Maturity (Refactoring)
 **Goal:** Refactor monolithic loops into maintainable engines with clear boundaries and testable seams.
-- [ARCH-REFACTOR-001] (Refinement Engine Modularization & Physics Separation) — *Pending* (UNBLOCKED 2025-11-23: TORCH-GEOMETRY-CONVERGENCE-001 complete)
+- [ARCH-REFACTOR-001] (Refinement Engine Modularization & Physics Separation) — `partial_complete` (2025-11-24T105000Z: Phases 0/A/B/D1/D2 complete, 6/9 exit criteria satisfied, Phase C deferred pending blocking use case)
 - [PERF-WARM-SIM-001] (Warm Simulator) — *Pending* (UNBLOCKED 2025-11-24T004500Z: TORCH-API-ALIGN-001 complete, can now leverage unified factory)
 
 ### Tier 3: Tooling & Observability

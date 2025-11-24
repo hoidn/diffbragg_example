@@ -1,324 +1,301 @@
-# Ralph Input — TORCH-REFINE-004 Phase 9 Test Calibration & Documentation
+# Input for Ralph — Loop i=270
 
-**Summary:** Finalize TORCH-REFINE-004 by recalibrating per-reflection smoke test for Adam gradient flow validation and updating documentation per spec:59.
+## Summary
+Implement Phase A (Library Implementation) for TOOLING-VIS-001: Create `dbex.vis` module with triptych rendering and Z-score residuals per spec-db-vis.md standards.
 
-**Mode:** Docs (test assertion calibration + 4 documentation files)
+## Mode
+none
 
-**Focus:** TORCH-REFINE-004 — Stage B Per-Reflection Mode Migration (Phase 9: Test Calibration & Documentation Finalization)
+## Focus
+TOOLING-VIS-001 — Standardize visual diagnostics library (Phase A: Library Implementation)
 
-**Branch:** integration
+## Branch
+integration
 
-**Mapped Tests:**
-- **PRIMARY:** `tests/dbex/test_torch_refine_smoke.py::test_stage_b_per_reflection_smoke` (Adam gradient flow + convergence validation)
-- **Regression Guards:** `tests/dbex/test_stage_b_asu_mapping.py` (5 unit tests), `tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers` (LBFGS path unchanged)
+## Mapped Tests
+- `tests/dbex/test_vis_triptych.py::test_triptych_layout` — Validates 3-panel triptych structure, colormaps per spec
+- `tests/dbex/test_vis_triptych.py::test_z_score_calculation` — Validates Z-score formula `(data-model)/sqrt(variance)` with known inputs
+- `tests/dbex/test_vis_triptych.py::test_z_score_masking` — Validates masked pixels set to NaN
 
-**Artifacts:** `plans/active/TORCH-REFINE-004/reports/2025-11-24T140000Z/`
+## Artifacts
+`plans/active/TOOLING-VIS-001/reports/2025-11-24T111500Z/`
 
----
+## Do Now
 
-## Context from Phase 7 Completion
+### Focus Item
+**TOOLING-VIS-001 Phase A** — Implement core visualization library primitives per spec-db-vis.md
 
-Ralph's Phase 7 optimizer fix (commit 9324260a, loop i=267) **SUCCESSFULLY RESOLVED** the gradient flow blocker:
-- ✓ Adam optimizer calling pattern implemented (manual loop: closure() → step())
-- ✓ Gradient flow CONFIRMED WORKING:
-  - Loss improvement: 5.7122e+07 → 5.4265e+07 (5.0% reduction over 30 iterations)
-  - Gradient norms: 8.14e5 → 7.72e5 (gradients present and flowing)
-  - Parameter updates: log_modifiers mean 0.0 → -1.0e-5 (linear space: 1.0 → 0.99999)
-- ⚠ Test threshold issue: test expects >0.1% parameter change, actual 0.0085% change
+### Checklist IDs (from implementation.md:76-80)
+- A1: Create `dbex/vis/` package
+- A2: Implement `triptych.py` — Standard layout, shared colormaps
+- A3: Implement `residuals.py` — Z-score calculation (requires variance input)
+- (A4 deferred to Phase B: ROI artifact consumption adapters)
 
-**Root Cause of Test Failure:**
-- Initial point (log_modifiers=0 → modifiers=1.0) is already near-optimal for test fixture
-- Adam from cold start needs momentum buildup (first iterations have tiny updates)
-- 30 iterations + LR=1e-2 achieves only 0.0085% parameter change
-- **Conclusion:** Optimizer IS working correctly; test threshold needs recalibration
+### Implementation Tasks
 
-**Phase 7 Status:** ✓ COMPLETE (gradient flow blocker RESOLVED)
+**Implement:**
+1. `dbex/vis/__init__.py` — Package initialization (~20 lines)
+   - Module docstring: "Visual diagnostics library implementing spec-db-vis.md standards"
+   - Public API exports: `plot_triptych` (from triptych.py), `compute_z_scores` (from residuals.py)
 
----
+2. `dbex/vis/triptych.py::plot_triptych` (~80 lines)
+   - Function signature:
+     ```python
+     def plot_triptych(
+         data: np.ndarray,      # [slow, fast] observed
+         model: np.ndarray,     # [slow, fast] prediction
+         variance: np.ndarray,  # [slow, fast] variance map
+         hkl: tuple = None,     # (h, k, l) Miller indices (optional)
+         correlation: float = None,  # ROI correlation coefficient (optional)
+         filename: str = None   # Save PNG if provided, else return figure
+     ) -> matplotlib.figure.Figure:
+         """
+         Render standard ROI triptych per spec-db-vis.md.
 
-## Do Now — Phase 9 Test Calibration & Documentation (11 Steps)
+         Layout: [Observed Data | Model Prediction | Residual Z-Score]
 
-### Step 1-3: Test Calibration (Hybrid Option 1+2)
+         Colormaps (spec-db-vis.md §20-22):
+         - Data/Model: 'viridis' (perceptually uniform), shared vmin=0, vmax=max(data, model)
+         - Residuals: 'seismic' (diverging), centered at 0, vmin=-5, vmax=5
 
-**Objective:** Replace arbitrary parameter change threshold with robust gradient flow + convergence validation
+         Annotation: Super-title "HKL (h,k,l) | CC = {corr:.3f}" if hkl/correlation provided.
 
-**File:** `tests/dbex/test_torch_refine_smoke.py::test_stage_b_per_reflection_smoke`
+         Coordinate system (spec-db-vis.md §7-11):
+         - (slow, fast) matrix coordinates
+         - Origin (0,0) top-left
+         - Fast axis horizontal, Slow axis vertical
+         - Use origin='upper' in imshow
+         """
+     ```
+   - Implementation:
+     - `fig, axes = plt.subplots(1, 3, figsize=(12, 4))`
+     - Panel 0: `axes[0].imshow(data, cmap='viridis', origin='upper', vmin=0, vmax=vmax_shared)`
+     - Panel 1: `axes[1].imshow(model, cmap='viridis', origin='upper', vmin=0, vmax=vmax_shared)`
+     - Panel 2: Z-scores via `compute_z_scores(data, model, variance)`, then `axes[2].imshow(z_scores, cmap='seismic', origin='upper', vmin=-5, vmax=5)`
+     - Titles: "Data", "Model", "Residual Z-Score"
+     - Super-title with HKL/CC if provided
+     - If filename: `fig.savefig(filename, dpi=150, bbox_inches='tight')`, return None
+     - Else: return fig
 
-**Current Assertion (line ~1662):**
-```python
-assert abs(stats["mean"] - 1.0) > 0.001, f"ASU modifiers unchanged (mean={stats['mean']:.6f}, gradient flow broken)"
+3. `dbex/vis/residuals.py::compute_z_scores` (~40 lines)
+   - Function signature:
+     ```python
+     def compute_z_scores(
+         data: np.ndarray,
+         model: np.ndarray,
+         variance: np.ndarray,
+         mask: np.ndarray = None
+     ) -> np.ndarray:
+         """
+         Compute residual Z-scores per spec-db-vis.md §19.
+
+         Formula: Z = (Data - Model) / sqrt(Variance)
+
+         Masked pixels (mask=False or mask=0) are set to NaN for visualization.
+
+         Numerical stability: Add epsilon=1e-12 to denominator to prevent divide-by-zero.
+
+         Returns:
+             Z-score map with same shape as inputs. NaN where masked.
+         """
+     ```
+   - Implementation:
+     - `residuals = data - model`
+     - `std_dev = np.sqrt(variance + 1e-12)  # Numerical stability`
+     - `z_scores = residuals / std_dev`
+     - If mask provided: `z_scores[~mask.astype(bool)] = np.nan`
+     - Return z_scores
+
+4. `tests/dbex/test_vis_triptych.py` (~120 lines, 3 test functions)
+
+   **Test 1: test_triptych_layout**
+   - Synthetic inputs: `data = np.ones((10,10)) * 5`, `model = np.ones((10,10)) * 3`, `variance = np.ones((10,10))`
+   - Call: `fig = plot_triptych(data, model, variance, hkl=(1,2,3), correlation=0.95)`
+   - Assertions:
+     - `assert len(fig.axes) == 3` (3 panels)
+     - Check colormaps: `assert fig.axes[0].images[0].get_cmap().name == 'viridis'`
+     - Check super-title contains "HKL (1, 2, 3)" and "CC = 0.950"
+     - Check origin: `assert fig.axes[0].images[0].origin == 'upper'`
+   - Cleanup: `plt.close(fig)`
+
+   **Test 2: test_z_score_calculation**
+   - Known inputs: `data = np.array([[5,5],[5,5]])`, `model = np.array([[3,3],[3,3]])`, `variance = np.array([[1,1],[1,1]])`
+   - Call: `z_scores = compute_z_scores(data, model, variance)`
+   - Expected: `z_scores ≈ [[2,2],[2,2]]` (residual=2, std_dev=1, z=2)
+   - Assertion: `np.testing.assert_allclose(z_scores, 2.0, rtol=1e-5)`
+   - Edge case: `variance = np.array([[0,0],[0,0]])` → no divide-by-zero error (epsilon handling)
+
+   **Test 3: test_z_score_masking**
+   - Inputs: `data = np.ones((5,5)) * 10`, `model = np.ones((5,5)) * 8`, `variance = np.ones((5,5)) * 4`
+   - Mask: `mask = np.ones((5,5))`, then `mask[2,2] = 0` (center pixel masked)
+   - Call: `z_scores = compute_z_scores(data, model, variance, mask=mask)`
+   - Assertions:
+     - `assert np.isnan(z_scores[2,2])` (masked pixel is NaN)
+     - `assert not np.isnan(z_scores[0,0])` (unmasked pixel is valid)
+     - `assert np.abs(z_scores[0,0] - 1.0) < 1e-5` (residual=2, std=2, z=1)
+
+### Validating Pytest Node
+```bash
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest -vv tests/dbex/test_vis_triptych.py
 ```
 
-**New Assertions (REPLACE line 1662 with 7 lines):**
-```python
-# Gradient flow validation (parameters ARE updating)
-assert abs(stats["mean"] - 1.0) > 0.0001, f"ASU modifiers unchanged (mean={stats['mean']:.6f}, gradient flow broken)"
+**Expected outcome:** 3/3 tests PASS
 
-# Convergence validation (loss IS improving)
-loss_initial = telemetry_a.chi_squared  # Stage A final loss
-loss_final = telemetry_b.chi_squared    # Stage B final loss
-loss_improvement_pct = 100 * (loss_initial - loss_final) / loss_initial
-assert loss_improvement_pct > 3.0, f"Stage B should improve loss >3%, got {loss_improvement_pct:.2f}%"
-```
-
-**Rationale:**
-- **Option 1 (relaxed threshold 0.0001):** Validates parameters DID update (even if slightly), sanity check
-- **Option 2 (loss improvement >3%):** Validates optimization IS working (convergence outcome), robust to fixture dynamics
-- **Hybrid approach:** Belt-and-suspenders validation of both gradient flow AND convergence per CLAUDE.md "clear intent over clever code"
-
----
-
-### Step 4-7: Documentation Updates (4 Files)
-
-#### File 1: `docs/spec-db-workflow.md` §7 (lines ~58-61)
-
-**Add Implementation Note After Line 61:**
-```markdown
-**Implementation Status (2025-11-24):** Per-reflection mode implemented in TORCH-REFINE-004 (Phases 6-9). ASU mapping via cctbx.miller symmetry operations, dynamic optimizer selection (LBFGS <10K params, Adam ≥10K params per spec:107), gradient flow validated. Shell mode remains available as fallback via `stage_b_mode="shell"` config parameter per spec:60.
-```
-
-#### File 2: `docs/TESTING_GUIDE.md` §2.1 (after line ~160)
-
-**Add Test Selector Documentation:**
-```markdown
-#### `test_stage_b_per_reflection_smoke`
-**Purpose:** Validates Stage B per-reflection mode (ASU mapping, Adam optimizer, gradient flow, convergence)
-**Acceptance Criteria:** ASU modifiers >0.01% change from initial (gradient flow sanity), loss improves >3% vs Stage A (convergence validation), optimizer_type="adam" for P1 fixture (n_asu ~98K > 10K gate), telemetry fields present (stage_b_mode, n_asu_unique, asu_modifier_stats)
-**Runtime:** ~80s (CPU/CUDA, disable compile for determinism)
-**Environment:** `NANOBRAGG_DISABLE_COMPILE=1 DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small`
-```
-
-#### File 3: `docs/development/TEST_SUITE_INDEX.md` (Stage B section)
-
-**Add Test Entry (locate existing Stage B section or create if missing):**
-```markdown
-### Stage B (Fhkl Modifiers)
-- `test_stage_b_shell_modifiers` — Shell mode (LBFGS optimizer, shell-wise scale factors), small detector
-- `test_stage_b_per_reflection_smoke` — Per-reflection mode (ASU mapping, Adam optimizer, P1 fixture ~98K ASU), small detector
-```
-
-#### File 4: `docs/findings.md` (append to end)
-
-**Extend REFINE-002 or Create New Finding:**
-```markdown
-### REFINE-008: Stage B Per-Reflection Mode (ASU Mapping & Adam Optimizer)
-**Initiative:** TORCH-REFINE-004 (Phases 6-9, 2025-11-24)
-**Lesson:** Per-reflection Fhkl modifiers mapped to unique ASU indices via cctbx.miller symmetry operations (Friedel folding + space group equivalence). Dynamic optimizer selection: LBFGS for n_asu < 10K (memory-efficient, Hessian approximation), Adam for n_asu ≥ 10K (scales to large parameter counts). Halo voxels (interpolation boundary) map to ASU index 0 with fixed modifier=1.0 (gradient hook prevents updates). Gradient flow from near-optimal initial conditions (log_modifiers=0 → modifiers=1.0) requires ~30 iterations Adam LR=1e-2 to show 0.01% parameter change; validate via loss improvement (>3% convergence) rather than arbitrary parameter thresholds. P1 test fixture: ~98K unique ASU reflections (revised from planning estimate ~35K due to Friedel mate counting).
-**Impact:** Satisfies spec-db-workflow.md:59 normative requirement (per-reflection SHALL be default). Shell mode remains available as fallback per spec:60 when crystal_symmetry unavailable or for debugging.
-```
-
----
-
-### Step 8-11: Validation & Artifacts
-
-**Validation Protocol (5 Steps):**
-1. **Compilation check:** `python -c "from dbex.nanobrag_refinement import RefinementConfig"` → must succeed
-2. **Phase 6 unit regression:** `NANOBRAGG_DISABLE_COMPILE=1 pytest tests/dbex/test_stage_b_asu_mapping.py -v` → 5/5 PASS
-3. **Shell mode regression:** `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers` → 1/1 PASS
-4. **Per-reflection smoke (PRIMARY):** `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_per_reflection_smoke` → **1/1 PASS (PRIMARY VALIDATION)**
-5. **Collect-only verification:** `pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_b_per_reflection_smoke` → 1 test collected
-
-**Artifacts to Archive:**
-- Pytest logs: `compilation_check.log`, `pytest_phase6_regression.log`, `pytest_shell_regression.log`, `pytest_per_reflection_smoke_final.log`, `pytest_collect.log`
-- Documentation diffs: `docs_spec_workflow_diff.txt`, `docs_testing_guide_diff.txt`, `docs_test_suite_index_diff.txt`, `docs_findings_diff.txt`
-- Decision synthesis: `decision.json` (outcome, metrics, tests_passed, exit_criteria_status)
-- Turn summary: `summary.md` (Turn Summary per galph_prompt format)
-
-**Commit Message (after validation PASS):**
-```
-TORCH-REFINE-004 Phase 9: Test calibration + documentation complete — tests: 4/4 PASS
-
-Finalized Stage B per-reflection mode implementation per spec-db-workflow.md:59 normative requirement.
-
-Test Calibration:
-- Replaced arbitrary 0.1% parameter change threshold with hybrid validation: gradient flow sanity check (0.01% param change) + convergence validation (>3% loss improvement).
-- Addresses Phase 7 Adam optimizer behavior from near-optimal initial conditions (log_modifiers=0 → modifiers=1.0 already optimal, 30 iterations insufficient for >0.1% change but sufficient for 5% loss improvement).
-
-Documentation Updates:
-- spec-db-workflow.md: Added implementation status note (ASU mapping, optimizer selection, gradient flow validated).
-- TESTING_GUIDE.md: Documented test_stage_b_per_reflection_smoke selector (acceptance criteria, runtime, environment).
-- TEST_SUITE_INDEX.md: Added Stage B per-reflection test entry.
-- findings.md: Created REFINE-008 finding (ASU mapping via cctbx, Adam optimizer selection gate 10K params, gradient flow from near-optimal start, P1 fixture 98K ASU).
-
-Validation:
-- Compilation ✓
-- Phase 6 unit regression ✓ 5/5 PASS
-- Shell mode regression ✓ 1/1 PASS (LBFGS unchanged)
-- Per-reflection smoke ✓ 1/1 PASS (Adam gradient flow + convergence)
-
-Exit Criteria Status (all 4 SATISFIED):
-1. ✓ Per-reflection Fhkl modifiers mapped to unique ASU indices (Phases 6-7)
-2. ✓ Shell mode available as fallback (Phase 7 mode branching)
-3. ✓ Smoke tests validate per-reflection convergence (Phase 9 calibration)
-4. ✓ Documentation updated (Phase 9)
-
-Artifacts: plans/active/TORCH-REFINE-004/reports/2025-11-24T140000Z/
-```
-
----
-
-## Decision Tree
-
-### Path A: All Tests PASS (4/4) → Phase 9 ✓ COMPLETE
-- **Outcome:** TORCH-REFINE-004 initiative DONE (all exit criteria satisfied)
-- **Actions:**
-  1. Archive all 5 pytest logs + 4 doc diffs to reports directory
-  2. Write decision.json with `outcome="all_tests_pass"`, `tests_passed="4/4"`, `exit_criteria_status="4/4_satisfied"`
-  3. Write summary.md with Turn Summary (concise 3-5 sentences: Phase 9 complete, test calibrated for Adam behavior, docs updated, 4 files modified, all exit criteria met)
-  4. Commit with message above
-  5. Return control to Galph with artifacts path
-
-### Path B: Per-Reflection Test FAILS (gradient flow or loss improvement)
-- **Classification:** Unexpected (Phase 7 showed 5% loss improvement, threshold 3% has buffer; params achieved 0.0085%, threshold 0.01% is 15% below)
-- **Actions:**
-  1. Capture exact assertion failure (line number, expected vs actual)
-  2. Write decision.json with `outcome="test_failure"`, `blocker="per_reflection_smoke_failed"`, `error_signature="<exact assertion text>"`
-  3. Archive pytest logs (all 5 steps)
-  4. Commit partial progress (docs only, test changes reverted)
-  5. Return control to Galph with blocker report
-
-### Path C: Regression Test FAILS (Phase 6 unit or shell mode)
-- **Classification:** Unexpected (test changes are isolated to per-reflection assertions only)
-- **Actions:**
-  1. Rollback test changes
-  2. Debug regression (identify which test failed, capture error)
-  3. Write decision.json with `outcome="regression"`, `blocker="<test_name>"`
-  4. Return control to Galph with error signature
-
-### Path D: Compilation FAILS
-- **Classification:** Impossible (no production code changes)
-- **Actions:** Return to Galph with exact error
-
----
+### Decision Paths
+- **Path A (All tests PASS):** Phase A COMPLETE, commit artifacts, update implementation.md checklist A1+A2+A3 as done, proceed to Phase B planning next loop
+- **Path B (Variance computation issue):** Document blocker, defer A3 residuals, keep A1+A2 only, investigate variance source next loop
+- **Path C (Test failures due to test logic):** Debug test assertions, iterate on test code, stay in Phase A
+- **Path D (Import error matplotlib/numpy):** Record error in fix_plan.md per Environment Freeze, mark TOOLING-VIS-001 blocked, switch focus
 
 ## How-To Map
 
-### Test Calibration
+### Environment
 ```bash
-# 1. Locate test file
-vi tests/dbex/test_torch_refine_smoke.py
-# Navigate to line ~1662 (search for "ASU modifiers unchanged")
-
-# 2. Replace single assertion with 7-line hybrid validation
-# OLD (line 1662):
-#   assert abs(stats["mean"] - 1.0) > 0.001, f"ASU modifiers unchanged..."
-# NEW (7 lines):
-#   assert abs(stats["mean"] - 1.0) > 0.0001, f"ASU modifiers unchanged (mean={stats['mean']:.6f}, gradient flow broken)"
-#
-#   loss_initial = telemetry_a.chi_squared
-#   loss_final = telemetry_b.chi_squared
-#   loss_improvement_pct = 100 * (loss_initial - loss_final) / loss_initial
-#   assert loss_improvement_pct > 3.0, f"Stage B should improve loss >3%, got {loss_improvement_pct:.2f}%"
+export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
+export PYTHONPATH=.
 ```
 
-### Documentation Updates
+### Implementation Sequence (9 steps)
+
+**Step 1:** Read planning analysis
 ```bash
-# 1. spec-db-workflow.md (add 2-3 lines after line 61)
-vi docs/spec-db-workflow.md
-# Insert implementation status note (see File 1 template above)
-
-# 2. TESTING_GUIDE.md (add 6 lines after line 160)
-vi docs/TESTING_GUIDE.md
-# Insert test_stage_b_per_reflection_smoke documentation (see File 2 template above)
-
-# 3. TEST_SUITE_INDEX.md (add Stage B section or extend existing)
-vi docs/development/TEST_SUITE_INDEX.md
-# Insert Stage B test entries (see File 3 template above)
-
-# 4. findings.md (append to end)
-vi docs/findings.md
-# Insert REFINE-008 finding (see File 4 template above)
+cat plans/active/SUPERVISOR/reports/2025-11-24T111500Z/tooling_vis_001_phase_a_planning.md
 ```
 
-### Validation Execution
+**Step 2:** Create package directory
 ```bash
-# Step 1: Compilation check
-python -c "from dbex.nanobrag_refinement import RefinementConfig" 2>&1 | tee plans/active/TORCH-REFINE-004/reports/2025-11-24T140000Z/compilation_check.log
-
-# Step 2: Phase 6 unit regression
-NANOBRAGG_DISABLE_COMPILE=1 pytest tests/dbex/test_stage_b_asu_mapping.py -v 2>&1 | tee plans/active/TORCH-REFINE-004/reports/2025-11-24T140000Z/pytest_phase6_regression.log
-
-# Step 3: Shell mode regression
-AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers 2>&1 | tee plans/active/TORCH-REFINE-004/reports/2025-11-24T140000Z/pytest_shell_regression.log
-
-# Step 4: Per-reflection smoke (PRIMARY)
-AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_per_reflection_smoke 2>&1 | tee plans/active/TORCH-REFINE-004/reports/2025-11-24T140000Z/pytest_per_reflection_smoke_final.log
-
-# Step 5: Collect-only
-pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_b_per_reflection_smoke 2>&1 | tee plans/active/TORCH-REFINE-004/reports/2025-11-24T140000Z/pytest_collect.log
-
-# Archive doc diffs
-git diff docs/spec-db-workflow.md > plans/active/TORCH-REFINE-004/reports/2025-11-24T140000Z/docs_spec_workflow_diff.txt
-git diff docs/TESTING_GUIDE.md > plans/active/TORCH-REFINE-004/reports/2025-11-24T140000Z/docs_testing_guide_diff.txt
-git diff docs/development/TEST_SUITE_INDEX.md > plans/active/TORCH-REFINE-004/reports/2025-11-24T140000Z/docs_test_suite_index_diff.txt
-git diff docs/findings.md > plans/active/TORCH-REFINE-004/reports/2025-11-24T140000Z/docs_findings_diff.txt
+mkdir -p dbex/vis
+touch dbex/vis/__init__.py
 ```
 
----
+**Step 3:** Implement `dbex/vis/__init__.py` (~20 lines)
+- Module docstring
+- Import and export: `from .triptych import plot_triptych`
+- Import and export: `from .residuals import compute_z_scores`
+
+**Step 4:** Implement `dbex/vis/residuals.py::compute_z_scores` (~40 lines)
+- Copy function signature from Do Now section above
+- Implement formula: `(data - model) / sqrt(variance + eps)`
+- Handle masking: NaN for masked pixels
+- Comprehensive docstring with spec reference
+
+**Step 5:** Implement `dbex/vis/triptych.py::plot_triptych` (~80 lines)
+- Copy function signature from Do Now section above
+- 3-panel subplot layout
+- Colormaps per spec: viridis (data/model), seismic (residuals)
+- Call `compute_z_scores()` for Panel 2
+- HKL/CC annotation in super-title if provided
+- Comprehensive docstring with spec references
+
+**Step 6:** Create test file `tests/dbex/test_vis_triptych.py` (~120 lines)
+- Import: `import numpy as np`, `import pytest`, `import matplotlib.pyplot as plt`, `from dbex.vis import plot_triptych, compute_z_scores`
+- Implement 3 test functions as specified in Do Now section
+
+**Step 7:** Run tests
+```bash
+cd /home/ollie/Documents/diffbragg_example
+pytest -vv tests/dbex/test_vis_triptych.py
+```
+
+**Step 8:** Decision synthesis
+- Create `plans/active/TOOLING-VIS-001/reports/2025-11-24T111500Z/decision.json`
+- Choose outcome: `all_tests_pass` (Path A), `variance_blocker` (Path B), `test_failure` (Path C), `import_error` (Path D)
+- Document metrics: test count, runtime, any blockers
+
+**Step 9:** Update artifacts and commit
+- Update `plans/active/TOOLING-VIS-001/implementation.md` checklist: A1/A2/A3 status
+- Write `plans/active/TOOLING-VIS-001/reports/2025-11-24T111500Z/summary.md` with Turn Summary
+- Stage files: `git add dbex/vis/ tests/dbex/test_vis_triptych.py plans/active/TOOLING-VIS-001/`
+- Commit: `git commit -m "TOOLING-VIS-001 Phase A: dbex.vis library (triptych + residuals) — tests: run"`
+- Push: `git push`
+
+### ROI Coverage (Thresholds)
+- None for Phase A (pure library implementation, no ROI-specific validation yet)
+- Integration with ROI artifacts deferred to Phase B
 
 ## Pitfalls To Avoid
 
-1. **Do NOT change production code** — Phase 9 is test calibration + docs only (POLICY-001 Environment Freeze applies to all loops)
-2. **Do NOT relax loss improvement threshold below 3%** — Phase 7 showed 5% improvement, 3% threshold has 2% safety buffer
-3. **Do NOT increase test runtime >120s** — Hybrid approach adds <5s overhead, total runtime ~100s (acceptable)
-4. **Do NOT modify Phase 6 unit tests** — ASU mapping helpers are validated and frozen (regression guard only)
-5. **Do NOT change shell mode test** — LBFGS path unchanged, no modifications (regression guard only)
-6. **Respect AUTHORITATIVE_CMDS_DOC** — Always use `./docs/TESTING_GUIDE.md` (not relative path) per testing discipline
-7. **Archive ALL validation logs** — 5 pytest logs + 4 doc diffs required for artifacts completeness
-8. **Write Turn Summary per galph_prompt format** — 3-5 single-line sentences (shipped/advanced, problem handling, next step) + Artifacts line with paths
+1. **Coordinate system confusion:** MUST use `origin='upper'` in imshow per spec-db-vis.md (top-left origin, not bottom-left)
+2. **Colormap diverging center:** For residuals, use `vmin=-5, vmax=5` to center seismic colormap at 0 (white=zero residual)
+3. **Shared data/model vmax:** Data and Model panels MUST have identical vmin/vmax for fair comparison (`vmax = max(data.max(), model.max())`)
+4. **Z-score numerical stability:** Add epsilon to variance denominator to prevent divide-by-zero
+5. **Masked pixels:** Set to NaN (not 0) so they render as transparent/white in imshow
+6. **Module imports:** Do NOT create circular imports (residuals.py imports nothing from triptych.py or vice versa; both are leaf modules)
+7. **Test cleanup:** MUST call `plt.close(fig)` after every test to prevent matplotlib memory leaks
+8. **Figure return:** If `filename` provided, save PNG and return None; else return figure handle for interactive use
+9. **Spec citations:** Include spec-db-vis.md section references in docstrings for traceability
+10. **Protected Assets:** Do NOT modify `dbex/look.py` or `dbex/refine_one.py` in Phase A; defer to Phase B integration
 
----
+**Environment:**
+- Assume matplotlib and numpy available per Environment Freeze policy
+- If import fails, record error and mark blocked per Path D
+
+## If Blocked
+- Record specific error message in `plans/active/TOOLING-VIS-001/reports/2025-11-24T111500Z/block_analysis.md`
+- Update `docs/fix_plan.md` TOOLING-VIS-001 status to `blocked` with error signature
+- Append to `galph_memory.md` with focus, dwell, artifacts path, blocker description
+- Do NOT attempt workarounds or environment changes per POLICY-001
 
 ## Findings Applied
 
-- **REFINE-001/002/005:** LBFGS scale warm-start ✓, acceptance gate ✓, halo mandatory ✓
-- **SCALE-001/002:** Structure factors unscaled ✓, global post-simulation factor ✓
-- **PHYSICS-LOSS-001:** Variance-weighted loss ✓
-- **POLICY-001:** Environment Freeze ✓ (test + docs only, no production code changes, no installs)
-- **ARCH-ENGINE-002:** Lazy torch imports ✓ (no changes to imports)
-- **spec:59/60/61/107:** Per-reflection SHALL be default ✓ (Phase 9 docs confirm), shell fallback permitted ✓, halo mandatory ✓, Adam permitted ✓
-- **CLAUDE.md:** Incremental progress ✓ (Phase 9 finalizes Phases 6-7), clear intent over clever code ✓ (hybrid test explicitly validates gradient flow AND convergence)
+**Mandatory — Supervisor verified these are relevant to Phase A:**
 
----
+- **spec-db-vis.md §7-11** (Coordinate Systems): Origin (0,0) top-left, fast=horizontal, slow=vertical, use origin='upper' in imshow
+- **spec-db-vis.md §16-23** (ROI Triptych Layout): 3 panels, Data/Model shared colormap viridis, Residuals diverging seismic, HKL/CC annotation
+- **spec-db-vis.md §19** (Residual Definition): Z = (Data - Model) / sqrt(Variance)
+- **PHYSICS-LOSS-001** (Variance-weighted loss): Variance map convention `σ² = model + σ²_readout` (readout noise σ²_read=25 ADU² per spec-db-core.md §Variance Model)
+- **POLICY-001** (Environment Freeze): Do NOT install packages; if matplotlib/numpy missing, record blocker
+- **CLAUDE.md §Code Quality** (Every commit must compile, pass tests): Run pytest validation before committing
+
+No relevant findings in knowledge base beyond those above.
 
 ## Pointers
 
-- **Normative Spec:** `docs/spec-db-workflow.md:58-61` (per-reflection SHALL be default, shell fallback permitted)
-- **Test Discipline:** `docs/TESTING_GUIDE.md:160` (existing test documentation pattern)
-- **Findings Pattern:** `docs/findings.md` (REFINE-001 through REFINE-007 examples)
-- **Planning Analysis:** `plans/active/TORCH-REFINE-004/reports/2025-11-24T140000Z/phase_9_planning_analysis.md` (this loop's comprehensive planning)
-- **Phase 7 Evidence:** `plans/active/TORCH-REFINE-004/reports/2025-11-24T110000Z/summary.md` (gradient flow validation metrics)
-- **Fix Plan Ledger:** `docs/fix_plan.md:227-255` (TORCH-REFINE-004 Attempts History + Exit Criteria)
+### Specs
+- **spec-db-vis.md:1-49** — Full visual diagnostics specification (coordinate systems, triptych layout, Z-scores, file formats)
+- **spec-db-core.md §Variance Model** — Variance formula `σ² = model + σ²_readout` (σ_read=5 ADU readout noise)
 
----
+### Architecture
+- **implementation.md:75-80** — Phase A checklist (A1: package, A2: triptych, A3: residuals, A4: adapters deferred)
+- **implementation.md:32-72** — Reference prototype code (ROI scaling, triptych plotting logic)
 
-## If Blocked
+### Testing
+- **TESTING_GUIDE.md** — Canonical pytest commands and environment flags
+- **fix_plan.md:199-202** — TOOLING-VIS-001 exit criteria (3 total, Phase A addresses #1 partial: library creation)
 
-**Scenario:** Per-reflection test FAILS despite hybrid validation (loss <3% OR params <0.01%)
+### Fix Plan
+- **fix_plan.md:194-207** — TOOLING-VIS-001 ledger entry (status, dependencies, attempts history)
 
-**Fallback Actions:**
-1. Capture exact assertion failure text + line number
-2. Run test with verbose debug output: add `print(f"DEBUG: loss_initial={loss_initial:.4e}, loss_final={loss_final:.4e}, improvement={loss_improvement_pct:.2f}%")` before assertion
-3. Archive debug log to reports directory
-4. Write decision.json with `outcome="test_failure"`, `blocker="per_reflection_convergence"`, `debug_output="<captured values>"`
-5. Commit partial progress (docs only): `git add docs/; git commit -m "TORCH-REFINE-004 Phase 9: Partial (docs only, test still failing) — tests: not run"`
-6. Return control to Galph with blocker report: "Per-reflection smoke test still failing despite hybrid validation. Loss improvement <3% (actual: X.XX%) OR params <0.01% (actual: X.XXXX%). Debug output captured in decision.json. Possible fixture-specific issue requiring deeper investigation."
+### Planning
+- **plans/active/SUPERVISOR/reports/2025-11-24T111500Z/tooling_vis_001_phase_a_planning.md** — Comprehensive 6.5-hour effort estimate, risk analysis, 4-path decision tree
 
----
+## Next Up
+If Ralph finishes Phase A early (Path A outcome):
+1. **Option 1 (preferred):** Return to supervisor for Phase B planning (dbex/look.py refactor to use dbex.vis)
+2. **Option 2 (if time remains):** Author smoke test that generates one PNG triptych from synthetic data for visual inspection
 
-## Next Up (Optional — If Early Finish)
+## Doc Sync Plan
+Not required for Phase A (internal library implementation, no user-facing tests or selectors yet).
 
-If Phase 9 completes with time remaining:
-- **Option 1:** Run full Stage A/B/C smoke suite on canonical detector to validate end-to-end integration
-- **Option 2:** Create minimal reproducer script demonstrating per-reflection mode usage for future developers
-- **Option 3:** Extend TESTING_GUIDE.md with "How to run Stage B tests" section
+## Mapped Tests Guardrail
+- At least one mapped selector WILL collect: `tests/dbex/test_vis_triptych.py` is NEW, created in Step 6
+- After creation, verify with:
+  ```bash
+  pytest --collect-only tests/dbex/test_vis_triptych.py
+  ```
+  Expected: "collected 3 items"
 
-**Default:** Return to Galph after Phase 9 complete (no early finish work unless explicitly approved)
+## Normative Math/Physics
+**Z-Score Residual Formula (spec-db-vis.md §19):**
+```
+Z = (Data - Model) / sqrt(Variance)
+```
+Where:
+- Data = Observed intensity (ADU)
+- Model = Predicted intensity (Bragg + background, ADU)
+- Variance = σ² = Model + σ²_readout (per spec-db-core.md Variance Model)
+- σ_readout = 5 ADU readout noise → σ²_readout = 25 ADU²
 
----
+See `docs/spec-db-core.md §Variance Model` for full derivation and rationale.
 
-## Doc Sync Plan (Conditional)
-
-**Not Required This Loop** — No test registry changes (test_stage_b_per_reflection_smoke already exists from Phase 7, only assertions modified). Documentation updates in Step 4-7 manually sync TESTING_GUIDE.md and TEST_SUITE_INDEX.md with current test structure.
-
-**Collect-Only Validation (Step 5):** Confirms test still collects (>0) after assertion changes (hard gate per galph_prompt Mapped Tests Guardrail).
+**Implementation Note:** For Phase A, variance is passed as input parameter. Phase B integration will extract variance from RefinementTelemetry or compute from model + readout noise constant.

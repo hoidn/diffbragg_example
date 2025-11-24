@@ -4437,10 +4437,7 @@ def run_nanobrag_refinement(
 
             # Prepare RefinementInputs for engine
             engine_inputs = {
-                "target": inputs.target,
-                "loss_mask": inputs.loss_mask,
-                "panel_slices": inputs.panel_slices,
-                "trusted_mask": inputs.trusted_mask,
+                "refinement_inputs": inputs,  # Pass RefinementInputs namedtuple intact
                 "detector": detector,
                 "beam": beam,
                 "crystal": crystal,
@@ -4486,12 +4483,15 @@ def run_nanobrag_refinement(
 
             # Enrich telemetry with engine protocol + stage modes
             telemetry_out = {}
+            # Map stage names to legacy uppercase keys for backward compatibility
+            stage_name_map = {"stage_a": "A", "stage_b": "B", "stage_c": "C"}
             for stage_name, telem_obj in engine_telemetry.items():
                 # Convert RefinementTelemetry to dict, add new fields, reconstruct
                 telem_dict = asdict(telem_obj)
                 telem_dict["engine_protocol"] = engine_protocol
                 telem_dict["stage_modes"] = stage_modes
-                telemetry_out[stage_name] = RefinementTelemetry(**telem_dict)
+                legacy_key = stage_name_map.get(stage_name, stage_name)  # Apply mapping, fallback to original
+                telemetry_out[legacy_key] = RefinementTelemetry(**telem_dict)
 
             return final_bragg, telemetry_out
 

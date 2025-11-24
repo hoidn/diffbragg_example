@@ -103,9 +103,9 @@ class RefinementEngine:
 
             # Enrich inputs with prior stage telemetry (for Stage B/C that depend on Stage A)
             if stage_idx > 0 and isinstance(enriched_inputs, dict):
-                # Add stage_a_telemetry for StageB (expects dict from StageA.run())
-                if stage.name == "stage_b" and "stage_a" in self._telemetry:
-                    # Convert RefinementTelemetry back to dict for StageB consumption
+                # Add stage_a_telemetry for StageB and StageC (expects dict from StageA.run())
+                if (stage.name == "stage_b" or stage.name == "stage_c") and "stage_a" in self._telemetry:
+                    # Convert RefinementTelemetry back to dict for StageB/StageC consumption
                     from dataclasses import asdict
                     stage_a_dict = asdict(self._telemetry["stage_a"])
                     enriched_inputs["stage_a_telemetry"] = stage_a_dict
@@ -113,6 +113,11 @@ class RefinementEngine:
                     # This is stored separately from telemetry dict in the previous stage run
                     if hasattr(self, '_stage_a_ctx_cache'):
                         enriched_inputs["stage_a_ctx"] = self._stage_a_ctx_cache
+
+                # Add stage_b_telemetry for StageC if Stage B was run (optional - Stage A→C skip supported)
+                if stage.name == "stage_c" and "stage_b" in self._telemetry:
+                    stage_b_dict = asdict(self._telemetry["stage_b"])
+                    enriched_inputs["stage_b_telemetry"] = stage_b_dict
 
             # Execute stage and get telemetry dict
             telemetry_dict = stage.run(enriched_inputs, telemetry_sink)

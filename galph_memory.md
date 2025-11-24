@@ -619,3 +619,14 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-24T225908Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=1 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-24T225908Z/ next_action=phase_DC_calibration_plumbing_implementation
+
+## 2025-11-24T231449Z — TOOLING-VIS-001 Phase D.C Spot-Scale Gap Plan Refresh
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
+- Action Type: planning
+- Key Observations: DB-AT-027 engine probe still diverges strongly (`mean_abs_diff=57.07`, `max_abs_diff=1.34e7`) even though chi² matches mapping (chi2_rel_diff≈0). Root cause traced to missing `spot_scale_override` application in Stage A warm cache and Bragg reconstruction paths: `_build_stage_a_context`/`_build_stage_a_lbfgs_closure`/`_build_final_bragg_from_stage_a_telemetry` build simulators without sqrt(spot_scale), and the inline Stage A Bragg rebuild clamps log_scale without the calibration baseline. Drafted new Do Now in input.md to thread spot-scale baseline through Stage A warm cache + reconstruction, align probe logging, rerun DB-AT-027, and unxfail once tolerances hold. docs/fix_plan.md attempts updated with this loop.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-24T231449Z/
+- Next Actions: Execute the spot-scale threading and rerun engine probe + pytest selector; if parity still fails, capture metrics and mark TOOLING-VIS-001 blocked with signatures.
+- <Action State>: [ready_for_implementation]
+
+2025-11-24T231449Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=2 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-24T231449Z/ next_action=apply_spot_scale_override_and_rerun_db_at_027

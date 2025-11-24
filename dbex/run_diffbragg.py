@@ -2,6 +2,8 @@
 from copy import deepcopy
 import logging
 import os
+from pathlib import Path
+from typing import Optional
 
 import numpy as np
 
@@ -12,35 +14,71 @@ from simtbx.command_line.hopper import phil_scope
 from simtbx.diffBragg import hopper_utils, utils, hopper_io
 from simtbx.modeling.forward_models import diffBragg_forward
 
-# TODO : replace the generated files herein with generic tempfiles
+def detector_refinement(model_df, Expt, Refs, params, scratch_dir: Optional[Path] = None):
+    """
+    Refine detector geometry using DiffBragg backend.
 
-def detector_refinement(model_df, Expt, Refs, params):
+    Args:
+        model_df: Model dataframe for refinement
+        Expt: DIALS Experiment object
+        Refs: DIALS Reflections table
+        params: DiffBragg refinement parameters
+        scratch_dir: Optional temporary directory for scratch files.
+                     If None, uses current working directory (backward compat).
+
+    Returns:
+        Updated Experiment object with refined detector
+
+    Notes:
+        Scratch files written (when scratch_dir is provided):
+        - geom_ref/_geom_ref.expt: Experiment list
+        - geom_ref/_geom_ref.refl: Reflections table
+        - geom_ref/_geom_ref.pkl: Model dataframe pickle
+        - geom_ref/_geom_groups.txt: Panel group assignments
+        - geom_out/diffBragg_detector.expt: Refined detector output
+    """
+    # Setup scratch directory structure
+    if scratch_dir is None:
+        scratch_dir = Path.cwd()  # Backward compatibility
+
+    geom_ref_dir = scratch_dir / "geom_ref"
+    geom_ref_dir.mkdir(parents=True, exist_ok=True)
+
+    geom_out_dir = scratch_dir / "geom_out"
+
+    # Write input files to geom_ref directory
     new_El = ExperimentList()
     new_El.append(Expt)
-    new_El.as_file("_geom_ref.expt")
-    Refs.as_file("_geom_ref.refl")
+    new_El.as_file(str(geom_ref_dir / "_geom_ref.expt"))
+    Refs.as_file(str(geom_ref_dir / "_geom_ref.refl"))
     Refs['id'] = flex.int(len(Refs), 0)
-    model_df["geom_exp"] = "_geom_ref.expt"
-    model_df["geom_ref"] = "_geom_ref.refl"
+    model_df["geom_exp"] = str(geom_ref_dir / "_geom_ref.expt")
+    model_df["geom_ref"] = str(geom_ref_dir / "_geom_ref.refl")
     model_df["geom_exp_idx"] = 0
-    model_df.to_pickle("_geom_ref.pkl")
+    model_df.to_pickle(str(geom_ref_dir / "_geom_ref.pkl"))
     from simtbx.diffBragg.refiners import geometry
-    with open("_geom_groups.txt", "w") as o:
+    with open(str(geom_ref_dir / "_geom_groups.txt"), "w") as o:
         for i_p in range(len(Expt.detector)):
             o.write("%d %d\n" % (i_p, i_p))
+
+    # Configure geometry refinement with scratch directory paths
     params_geom = deepcopy(params)
     params_geom.fix.Fhkl = True
-    params_geom.refiner.panel_group_file = "_geom_groups.txt"
+    params_geom.refiner.panel_group_file = str(geom_ref_dir / "_geom_groups.txt")
     params_geom.geometry.fix.panel_rotations = [0, 0, 0]
     params_geom.geometry.fix.panel_translations = [0, 0, 1]
-    params_geom.geometry.input_pkl = "_geom_ref.pkl"
+    params_geom.geometry.input_pkl = str(geom_ref_dir / "_geom_ref.pkl")
     params_geom.geometry.save_state_freq = 100000
     params_geom.filter_during_refinement.enable = False
-    params_geom.outdir = "_geom.out"
+    params_geom.outdir = str(geom_out_dir)
     params_geom.max_process = 1
     params_geom.geometry.optimize = True
+
+    # Run geometry refinement
     geometry.geom_min(params_geom)
-    new_det = ExperimentList.from_file("_geom.out/diffBragg_detector.expt")[0].detector
+
+    # Read refined detector from output directory
+    new_det = ExperimentList.from_file(str(geom_out_dir / "diffBragg_detector.expt"))[0].detector
     Expt.detector = new_det
     return Expt
 

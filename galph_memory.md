@@ -586,3 +586,14 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-24T215340Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=0 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-24T215340Z/ next_action=phase_DB_zero_point_probe
+
+## 2025-11-24T221459Z — TOOLING-VIS-001 Phase D.B Completion Plan (DB-AT-027 Artifact Sync)
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics (Phase D.B closure)
+- Action Type: planning
+- Key Observations: Implementation nucleus (helper/test/CLI) shipped last loop, but DB-AT-027 still lacks artifact plumbing + registry entries. Authored a fresh `input.md` and How-To map directing Ralph to (1) add `DBAT027_ARTIFACT_DIR` JSON/env emission to `tests/dbex/test_stage_a_mapping_equiv.py::test_db_at_027_zero_point_parity`, (2) run the Stage A engine probe CLI and pytest selector with canonical env (metadata sigma, full detector, torch.compile off) while logging outputs to `plans/active/TOOLING-VIS-001/reports/2025-11-24T221459Z/{stage_a_engine_probe/,db_at_027/}`, and (3) register the selector in `docs/TESTING_GUIDE.md` §2 + `docs/development/TEST_SUITE_INDEX.md` with status `xfail (STAGEA-001)`. Fix plan Attempts History updated; artifacts dir + template summary created.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-24T221459Z/
+- Next Actions: Ralph follows the new Do Now to finish DB-AT-027 instrumentation (artifact logging, CLI/test runs, doc sync) so Phase D.C calibration work can start with an auditable gate.
+- <Action State>: [planning]
+
+2025-11-24T221459Z focus=TOOLING-VIS-001 state=planning dwell=1 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-24T221459Z/ next_action=ready_for_implementation_db_at_027_artifact_sync

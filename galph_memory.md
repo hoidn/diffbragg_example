@@ -608,3 +608,14 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-24T224133Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=0 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-24T224133Z/ next_action=phase_DC_calibration_plumbing
+
+## 2025-11-24T225908Z — TOOLING-VIS-001 Phase D.C Do Now Refresh
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics (Phase D.C calibration plumbing)
+- Action Type: planning
+- Key Observations: DB-AT-027 remains xfail (calibration missing); created new artifacts dir `plans/active/TOOLING-VIS-001/reports/2025-11-24T225908Z/` and refreshed `input.md` with a ready-for-implementation Do Now directing calibration threading (spot_scale_override, flux/exposure, N_cells), log_scale delta clamp, zero-point probe rerun, and doc registry updates once parity passes. Noted prior summary stub in 2025-11-24T224133Z lacks artifacts and will be superseded by new outputs.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-24T225908Z/
+- Next Actions: Ralph executes the refreshed Do Now (calibration plumbing + DB-AT-027 probe/test + doc sync) to clear STAGEA-001 and unxfail the selector.
+- <Action State>: [ready_for_implementation]
+
+2025-11-24T225908Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=1 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-24T225908Z/ next_action=phase_DC_calibration_plumbing_implementation

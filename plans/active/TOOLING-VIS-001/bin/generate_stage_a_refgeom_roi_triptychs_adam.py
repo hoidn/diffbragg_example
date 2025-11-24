@@ -1,32 +1,29 @@
 #!/usr/bin/env python3
 """
-Experimental mapping-based Stage A ROI triptychs using Adam (full Stage A).
+Canonical Stage A ROI triptychs using the tested LBFGS refinement path.
 
-This helper is **visualization-only** and does NOT modify the canonical
-``run_nanobrag_refinement`` path, which remains LBFGS per spec-db-workflow.
+This TOOLING-VIS-001 helper now drives the same Stage A refinement engine
+used by the `test_stage_a_expansion` smoke test:
 
-Pipeline (current implementation):
-- Load refined geometry + canonical mask/sigma via DataLoad.
-- Build a mapping-based Stage A context using ``build_mapping_stage_a_context``
-  (zero-iteration Bragg stack from ``simulate_forward_once`` + sigma_floor).
-- Run an experimental full Stage A Adam refinement helper on top of the
-  mapping context (scale + cell + orientation) using its own forward path.
-- Emit ROI triptychs comparing:
+- Loads refGeom assets via :class:`dbex.data_load.DataLoad`.
+- Builds a mapping-based zero-iteration context via
+  :func:`dbex.vis.mapping.build_mapping_stage_a_context` to obtain
+  ``RefinementInputs`` and the pre-refinement Bragg stack
+  (``bragg_zero_iter``).
+- Runs :func:`dbex.nanobrag_refinement.run_nanobrag_refinement` with a
+  Stage-A-only LBFGS configuration (no Stage B/C) on top of the same HKL
+  grid and inputs.
+- Emits ROI triptychs comparing:
+
     Data | Model_before | Z-before
-    Data | Model_after  | Z-after (Adam full Stage A, experimental)
-
-Important:
-- The full Stage A branch here is **not** required to satisfy the
-  Mapping-Aligned Stage‑A Initialization zero-point invariant used by the
-  `stage_a_mapping_adam_debug.py` driver, and it is explicitly treated as
-  non-mapping-aligned tooling.
-- It MUST NOT be used as the canonical "before" reference for TOOLING-VIS-001
-  visuals or as a DB-AT selector. Use the mapping-only context and
-  scale-only refinement (`refine_on_mapping_model`) for spec-aligned paths.
+    Data | Model_after  | Z-after  (canonical Stage A LBFGS)
 
 Artifacts are written under:
 
     plans/active/TOOLING-VIS-001/reports/stage_a_refgeom_adam/<timestamp>/
+
+The older experimental Adam-based full-Stage-A mapping helper has been
+retired in favor of this canonical, test-backed refinement path.
 """
 
 from __future__ import annotations
@@ -54,12 +51,14 @@ from dbex.nanobrag_bridge import (  # type: ignore  # noqa: E402
     create_detector_config,
 )
 from dbex.nanobrag_refinement import (  # type: ignore  # noqa: E402
-    _compute_variance_weighted_loss,
-    quaternion_to_xyz_euler,
-    vec_to_unit_quaternion,
+    RefinementConfig,
+    _build_final_bragg_from_stage_a_telemetry,
+    run_nanobrag_refinement,
 )
-from dbex.vis import (  # type: ignore  # noqa: E402
+from dbex.vis.mapping import (  # type: ignore  # noqa: E402
     build_mapping_stage_a_context,
+)
+from dbex.vis.stage_a import (  # type: ignore  # noqa: E402
     emit_stage_a_roi_triptychs,
 )
 from dbex.vis.residuals import compute_z_scores  # type: ignore  # noqa: E402
@@ -95,40 +94,32 @@ def _build_dataload(repo_root: Path) -> DataLoad:
     return DataLoad(args)
 
 
-def _run_mapping_full_stage_a(
+def _run_canonical_stage_a(
     dataload: DataLoad,
     *,
-    n_steps: int = 100,
-    lr: float = 1e-3,
+    n_steps: int = 30,
     device_str: str = "cpu",
 ):
-    """Optimize full Stage A parameters (scale + geometry) on the mapping model.
+    """Run canonical Stage A LBFGS refinement and build before/after Bragg stacks.
 
-    This helper reuses the same HKL grid, calibration path, and sqrt(spot_scale)
-    scaling as :func:`simulate_forward_once` so the mapping \"before\" and
-    Stage-A-refined \"after\" truly share a forward model.
-
-    Internally it now uses :class:`nanobrag_torch.models.experiment.ExperimentModel`
-    with the external HKL-grid hook (``hkl_data``/``hkl_metadata``) instead of
-    reaching into ``Crystal.hkl_data`` directly. Stage-A degrees of freedom for
-    cell/angles/orientation remain plan-local and are injected via
-    :func:`create_crystal_config`; ``ExperimentModel`` is used as the canonical
-    way to wire configs + HKL grid into the Simulator.
+    Uses the same Stage A engine as ``test_stage_a_expansion`` and returns:
+    - inputs: RefinementInputs used by Stage A
+    - sigma_floor_value: variance floor from mapping diagnostics
+    - bragg_before: Stage-A zero-iteration Bragg stack (initial params)
+    - bragg_after: Stage-A refined Bragg stack
+    - chi2_trace: full chi-squared trace from telemetry
     """
+    import copy
     import torch
-    from nanobrag_torch.models.experiment import (  # type: ignore  # noqa: E402
-        ExperimentModel,
-    )
-    from dbex.vis.mapping import MappingRefinementResult  # type: ignore  # noqa: E402
 
-    # Build mapping context once (zero-iteration mapping + diagnostics).
+    # Build mapping context once (only to obtain RefinementInputs and sigma_floor).
     context = build_mapping_stage_a_context(dataload, device=device_str)
     inputs = context.inputs
+    sigma_floor_value = context.sigma_floor_value
 
     device = torch.device(device_str)
-    dtype = torch.float32
 
-    # HKL grid: mirror simulate_forward_once (no halo).
+    # HKL grid: reuse mapping indices/amplitudes, add halo for Stage A interpolation.
     if context.hkl_indices is None or context.hkl_amplitudes is None:
         hkl_indices = dataload.F.indices()
         hkl_amplitudes = dataload.F.data()
@@ -140,232 +131,77 @@ def _run_mapping_full_stage_a(
         indices=hkl_indices,
         amplitudes=hkl_amplitudes,
         device=device,
-        halo=False,
+        halo=True,
     )
 
-    # Calibration path: same fields as simulate_forward_once.
-    calibration = context.calibration
-    if calibration is not None:
-        spot_scale_override = calibration.get("spot_scale_override", 1.0)
-        beam_flux = calibration.get("beam_flux")
-        beam_exposure = calibration.get("beam_exposure")
-        beamsize_mm = calibration.get("beamsize_mm")
-        N_cells = calibration.get("N_cells")
-    else:
-        spot_scale_override = 1.0
-        beam_flux = None
-        beam_exposure = None
-        beamsize_mm = None
-        N_cells = None
-
-    sqrt_spot_scale = float(np.sqrt(spot_scale_override))
-
-    beam_config = create_beam_config(
-        dataload.beam,
-        flux=beam_flux,
-        beamsize_mm=beamsize_mm,
-        exposure=beam_exposure,
+    # Stage A-only LBFGS config; mirror test_stage_a_expansion where possible.
+    config = RefinementConfig(
+        device=device_str,
+        dtype=torch.float32,
+        history_size=10,
+        max_iter=int(n_steps),
+        roi_sample_fraction=0.15,
+        full_validation_interval=5,
+        enable_hkl_interpolation=True,
+        enable_stage_b=False,
+        enable_stage_c=False,
+        sigma_readout_provenance=getattr(
+            inputs, "sigma_readout_provenance", "cli_override"
+        ),
     )
 
-    apply_n_cells = N_cells is not None
+    # Use the unperturbed geometry as both current and baseline.
+    baseline_crystal = dataload.crystal
+    baseline_detector = dataload.detector
 
-    # Pre-build Detector configs once (geometry-only, no Stage-A params).
-    n_panels = len(dataload.detector)
-    detector_configs: list[object] = []
-    for pid in range(n_panels):
-        det_cfg = create_detector_config(
-            panel=dataload.detector[pid],
-            beam=dataload.beam,
-            trusted_mask=inputs.trusted_mask[pid],
-        )
-        detector_configs.append(det_cfg)
-
-    target_t = torch.tensor(inputs.target, device=device, dtype=dtype)
-    sigma_t = torch.tensor(inputs.sigma_readout, device=device, dtype=dtype)
-    mask_t = torch.tensor(inputs.loss_mask, device=device, dtype=torch.bool)
-
-    # Initialize Stage A parameters.
-    if inputs.global_scale_hint is not None and inputs.global_scale_hint > 0:
-        initial_log_scale = float(np.log(inputs.global_scale_hint))
-    else:
-        initial_log_scale = 0.0
-    log_scale = torch.tensor(
-        initial_log_scale,
-        device=device,
-        dtype=dtype,
-        requires_grad=True,
+    bragg_after, telemetry_dict = run_nanobrag_refinement(
+        inputs=inputs,
+        detector=dataload.detector,
+        beam=dataload.beam,
+        crystal=dataload.crystal,
+        hkl_grid=hkl_grid,
+        hkl_metadata=hkl_metadata,
+        config=config,
+        baseline_crystal=baseline_crystal,
+        baseline_detector=baseline_detector,
+        use_engine_delegation=True,
     )
 
-    log_cell_a_delta = torch.tensor(0.0, device=device, dtype=dtype, requires_grad=True)
-    log_cell_b_delta = torch.tensor(0.0, device=device, dtype=dtype, requires_grad=True)
-    log_cell_c_delta = torch.tensor(0.0, device=device, dtype=dtype, requires_grad=True)
+    telemetry_a = telemetry_dict["A"]
+    chi2_trace = [float(loss) for _, loss in telemetry_a.chi_squared_trace_full]
 
-    angle_alpha_raw = torch.tensor(0.0, device=device, dtype=dtype, requires_grad=True)
-    angle_beta_raw = torch.tensor(0.0, device=device, dtype=dtype, requires_grad=True)
-    angle_gamma_raw = torch.tensor(0.0, device=device, dtype=dtype, requires_grad=True)
-
-    orientation_vec = torch.zeros(3, device=device, dtype=dtype, requires_grad=True)
-
-    params = [
-        log_scale,
-        log_cell_a_delta,
-        log_cell_b_delta,
-        log_cell_c_delta,
-        angle_alpha_raw,
-        angle_beta_raw,
-        angle_gamma_raw,
-        orientation_vec,
+    # Build Stage-A zero-iteration Bragg by replaying initial parameters.
+    telemetry_initial = copy.deepcopy(telemetry_a)
+    param_keys = [
+        "log_scale",
+        "log_cell_a_delta",
+        "log_cell_b_delta",
+        "log_cell_c_delta",
+        "angle_alpha_raw",
+        "angle_beta_raw",
+        "angle_gamma_raw",
+        "orientation_vec",
     ]
-    optimizer = torch.optim.Adam(params, lr=lr)
+    for key in param_keys:
+        if key in telemetry_initial.param_deltas:
+            entry = telemetry_initial.param_deltas[key]
+            if isinstance(entry, dict) and "initial" in entry and "final" in entry:
+                entry["final"] = entry["initial"]
 
-    sigma_floor_sq_tensor = torch.tensor(
-        context.sigma_floor_value ** 2, device=device, dtype=dtype
+    bragg_before = _build_final_bragg_from_stage_a_telemetry(
+        telemetry_initial,
+        dataload.detector,
+        dataload.beam,
+        dataload.crystal,
+        inputs,
+        hkl_grid,
+        hkl_metadata,
+        config,
+        device,
+        torch.float32,
     )
 
-    trace: list[float] = []
-
-    for _ in range(n_steps):
-        optimizer.zero_grad()
-
-        # Crystal perturbations (cell lengths, angles, orientation).
-        cell_params = dataload.crystal.get_unit_cell().parameters()
-
-        perturbed_cell_a = cell_params[0] * torch.exp(log_cell_a_delta)
-        perturbed_cell_b = cell_params[1] * torch.exp(log_cell_b_delta)
-        perturbed_cell_c = cell_params[2] * torch.exp(log_cell_c_delta)
-
-        max_angle_delta = 10.0
-        perturbed_alpha = cell_params[3] + torch.tanh(angle_alpha_raw) * max_angle_delta
-        perturbed_beta = cell_params[4] + torch.tanh(angle_beta_raw) * max_angle_delta
-        perturbed_gamma = cell_params[5] + torch.tanh(angle_gamma_raw) * max_angle_delta
-
-        # Per docs/nanobrag_api.md Stage-A summary, orientation
-        # deltas are bounded to ±10° via tanh; keep this helper
-        # aligned with that convention.
-        max_orientation_deg = 10.0
-        bounded_orientation_vec = (
-            torch.tanh(orientation_vec) * max_orientation_deg * (np.pi / 180.0)
-        )
-        quat = vec_to_unit_quaternion(bounded_orientation_vec)
-        misset_xyz_deg = quaternion_to_xyz_euler(quat)
-
-        crystal_overrides = {
-            "cell_a": perturbed_cell_a,
-            "cell_b": perturbed_cell_b,
-            "cell_c": perturbed_cell_c,
-            "cell_alpha": perturbed_alpha,
-            "cell_beta": perturbed_beta,
-            "cell_gamma": perturbed_gamma,
-        }
-
-        crystal_config, _ = create_crystal_config(
-            dataload.crystal,
-            dataload.Expt,
-            N_cells=N_cells,
-            apply_n_cells=apply_n_cells,
-            crystal_overrides=crystal_overrides,
-            misset_deg_override=misset_xyz_deg,
-        )
-
-        log_scale_clamped = torch.clamp(log_scale, min=-10.0, max=10.0)
-
-        # Build per-panel ExperimentModels with the external HKL grid hook.
-        bragg_t = torch.zeros_like(target_t, device=device, dtype=dtype)
-        for pid in range(n_panels):
-            exp_model = ExperimentModel(
-                crystal_config=crystal_config,
-                detector_config=detector_configs[pid],
-                beam_config=beam_config,
-                device=device,
-                dtype=dtype,
-                param_init="frozen",
-                hkl_data=hkl_grid,
-                hkl_metadata=hkl_metadata,
-            )
-            panel_output = exp_model()
-            panel_scaled = panel_output * sqrt_spot_scale * torch.exp(log_scale_clamped)
-            bragg_t[pid] = panel_scaled
-
-        chi_squared, _, _, _ = _compute_variance_weighted_loss(
-            bragg_t,
-            target_t,
-            mask_t,
-            sigma_t,
-            sigma_floor_sq_tensor,
-        )
-
-        loss = chi_squared
-        loss.backward()
-        optimizer.step()
-
-        trace.append(float(loss.item()))
-
-    # Rebuild full Bragg array at final parameters.
-    with torch.no_grad():
-        log_scale_clamped = torch.clamp(log_scale, min=-10.0, max=10.0)
-        bragg_after_t = torch.zeros_like(target_t, device=device, dtype=dtype)
-
-        # Rebuild final crystal config with last parameters.
-        cell_params = dataload.crystal.get_unit_cell().parameters()
-        perturbed_cell_a = cell_params[0] * torch.exp(log_cell_a_delta)
-        perturbed_cell_b = cell_params[1] * torch.exp(log_cell_b_delta)
-        perturbed_cell_c = cell_params[2] * torch.exp(log_cell_c_delta)
-        max_angle_delta = 10.0
-        perturbed_alpha = cell_params[3] + torch.tanh(angle_alpha_raw) * max_angle_delta
-        perturbed_beta = cell_params[4] + torch.tanh(angle_beta_raw) * max_angle_delta
-        perturbed_gamma = cell_params[5] + torch.tanh(angle_gamma_raw) * max_angle_delta
-        # Match the ±10° Stage-A orientation bounds from
-        # docs/nanobrag_api.md when rebuilding the final model.
-        max_orientation_deg = 10.0
-        bounded_orientation_vec = (
-            torch.tanh(orientation_vec) * max_orientation_deg * (np.pi / 180.0)
-        )
-        quat = vec_to_unit_quaternion(bounded_orientation_vec)
-        misset_xyz_deg = quaternion_to_xyz_euler(quat)
-
-        crystal_overrides = {
-            "cell_a": perturbed_cell_a,
-            "cell_b": perturbed_cell_b,
-            "cell_c": perturbed_cell_c,
-            "cell_alpha": perturbed_alpha,
-            "cell_beta": perturbed_beta,
-            "cell_gamma": perturbed_gamma,
-        }
-
-        crystal_config, _ = create_crystal_config(
-            dataload.crystal,
-            dataload.Expt,
-            N_cells=N_cells,
-            apply_n_cells=apply_n_cells,
-            crystal_overrides=crystal_overrides,
-            misset_deg_override=misset_xyz_deg,
-        )
-
-        for pid in range(n_panels):
-            exp_model = ExperimentModel(
-                crystal_config=crystal_config,
-                detector_config=detector_configs[pid],
-                beam_config=beam_config,
-                device=device,
-                dtype=dtype,
-                param_init="frozen",
-                hkl_data=hkl_grid,
-                hkl_metadata=hkl_metadata,
-            )
-            panel_output = exp_model()
-            panel_scaled = panel_output * sqrt_spot_scale * torch.exp(log_scale_clamped)
-            bragg_after_t[pid] = panel_scaled
-
-        bragg_after = bragg_after_t.cpu().numpy().astype(np.float32)
-
-    final_scale = float(torch.exp(log_scale_clamped).cpu().item())
-
-    result = MappingRefinementResult(
-        bragg_after=bragg_after,
-        loss_trace=trace,
-        final_scale=final_scale,
-    )
-    return context, result
+    return inputs, sigma_floor_value, bragg_before, bragg_after, chi2_trace
 
 
 def _plot_all_roi_triptychs(
@@ -517,13 +353,58 @@ def _plot_all_roi_triptychs(
     plt.close(fig)
 
 
+def _render_full_frame(
+    data_stack: np.ndarray,
+    title: str,
+    out_path: Path,
+) -> None:
+    """Render a single full-frame image by tiling panels vertically.
+
+    For multi-panel detectors, panels are concatenated along the slow axis so
+    that the output remains a single 2D image.
+    """
+    arr = np.asarray(data_stack, dtype=float)
+    if arr.ndim != 3:
+        raise ValueError(f"Expected [panel, slow, fast] stack, got shape {arr.shape}")
+
+    n_panels, slow, fast = arr.shape
+    tiled = arr.reshape(n_panels * slow, fast)
+
+    finite = tiled[np.isfinite(tiled)]
+    if finite.size == 0:
+        vmax = 1.0
+    else:
+        vmax = np.percentile(finite, 99.0)
+        if vmax <= 0.0 or not np.isfinite(vmax):
+            vmax = 1.0
+
+    vmin = 0.0
+
+    fig, ax = plt.subplots(figsize=(6, 6), constrained_layout=True)
+    im = ax.imshow(
+        tiled,
+        origin="upper",
+        cmap="cividis",
+        vmin=vmin,
+        vmax=vmax,
+    )
+    ax.set_title(title)
+    ax.set_xticks([])
+    ax.set_yticks([])
+    fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+
+
 def main() -> None:
     os.environ.setdefault("NANOBRAGG_DISABLE_COMPILE", "1")
 
     parser = argparse.ArgumentParser(
         description=(
-            "Generate mapping-based Stage A ROI triptychs with experimental "
-            "full-DoF Adam refinement on top of the mapping context."
+            "Generate Stage A ROI triptychs using the canonical LBFGS "
+            "Stage-A refinement engine (before/after from the same model)."
         )
     )
     parser.add_argument(
@@ -549,18 +430,17 @@ def main() -> None:
     repo_root = Path(__file__).resolve().parents[4]
 
     dataload = _build_dataload(repo_root)
-    context, refine_result = _run_mapping_full_stage_a(
+    (
+        inputs,
+        sigma_floor_value,
+        bragg_before,
+        bragg_after,
+        loss_trace,
+    ) = _run_canonical_stage_a(
         dataload,
         n_steps=args.steps,
-        lr=args.lr,
         device_str=args.device,
     )
-
-    inputs = context.inputs
-    bragg_before = context.bragg_zero_iter
-    bragg_after = refine_result.bragg_after
-    sigma_floor_value = context.sigma_floor_value
-    loss_trace = refine_result.loss_trace
 
     timestamp = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
     out_root = (
@@ -583,18 +463,35 @@ def main() -> None:
         sigma_floor_value=sigma_floor_value,
     )
 
+    # Full-frame diagnostics: experimental data, Stage-A before, Stage-A after.
+    _render_full_frame(
+        inputs.target,
+        "Experimental data (full frame)",
+        out_root / "fullframe_experiment.png",
+    )
+    _render_full_frame(
+        bragg_before,
+        "Stage A before refinement (full frame)",
+        out_root / "fullframe_stage_a_before.png",
+    )
+    _render_full_frame(
+        bragg_after,
+        "Stage A after refinement (full frame)",
+        out_root / "fullframe_stage_a_after.png",
+    )
+
     if loss_trace:
         fig, ax = plt.subplots(figsize=(6, 4))
         steps = range(len(loss_trace))
         ax.plot(steps, loss_trace, marker="o", linewidth=1)
-        ax.set_xlabel("Adam step")
+        ax.set_xlabel("LBFGS validation index")
         ax.set_ylabel("Chi-squared loss")
-        ax.set_title("Mapping-based Stage A (Adam full-DoF, experimental) loss curve")
+        ax.set_title("Canonical Stage A LBFGS chi-squared trace")
         ax.grid(True, alpha=0.3)
         fig.tight_layout()
         # Legacy name plus the explicit *_curve variant requested.
-        curve_path = out_root / "adam_loss_curve.png"
-        trace_path = out_root / "adam_loss_trace.png"
+        curve_path = out_root / "stage_a_loss_curve.png"
+        trace_path = out_root / "stage_a_loss_trace.png"
         fig.savefig(curve_path, dpi=150, bbox_inches="tight")
         fig.savefig(trace_path, dpi=150, bbox_inches="tight")
         plt.close(fig)
@@ -609,7 +506,7 @@ def main() -> None:
     )
 
     lines = [
-        "# Stage A ROI Before/After Triptychs (Mapping + Adam Scale-Only)",
+        "# Stage A ROI Before/After Triptychs (Canonical LBFGS)",
         "",
         f"- Timestamp: {timestamp}",
         f"- Output directory: {out_root}",
@@ -617,8 +514,8 @@ def main() -> None:
         "",
         "## Optimizer",
         "",
-        f"- Optimizer: Adam (global log_scale only)",
-        f"- Steps: {len(loss_trace)}",
+        f"- Optimizer: LBFGS (canonical Stage A)",
+        f"- Steps (max_iter): {len(loss_trace)}",
         f"- Initial loss: {loss_trace[0]:.6e}" if loss_trace else "- Initial loss: n/a",
         f"- Final loss: {loss_trace[-1]:.6e}" if loss_trace else "- Final loss: n/a",
         "",

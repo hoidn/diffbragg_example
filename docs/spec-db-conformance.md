@@ -198,6 +198,103 @@ Acceptance Tests (Normative)
   - Expectation: halo present in metadata; default_F fallback count == 0 (no out‑of‑bounds lookups while interpolating). Stage A SHALL disable interpolation; this test applies to Stage B and forward runs where interpolation is enabled.
   - Command: (selector TBD; activate once telemetry and halo flag are exposed)
 
+- DB‑AT‑027 Stage‑A zero‑point mapping equivalence
+  - Goal: Ensure the Stage‑A zero‑parameter forward model is equivalent to the DB‑AT‑024 mapping forward model at the same geometry, HKL grid, and calibration.
+  - Setup:
+    - Dataset: canonical refGeom/simple_cubic golden data used by DB‑AT‑024.
+    - Build `DataLoad` over refined geometry (`refined.expt`/`refined.refl` when present, else legacy `refGeom.{expt,refl}`).
+    - Build `RefinementInputs = prepare_refinement_inputs(...)` with the same sigma policy as DB‑AT‑024 (external sigma tiles or 3.0 ADU default).
+    - Build `MappingStageAContext = build_mapping_stage_a_context(DataLoad, device="cpu")` and reuse its:
+      - `inputs`, `bragg_zero_iter`, `sigma_floor_value`,
+      - refined HKL indices/amplitudes, calibration dict (`spot_scale_override`, `beam_flux`, `beam_exposure`, `beamsize_mm`, `N_cells`).
+  - Procedure:
+    1) Mapping baseline (reuse DB‑AT‑024):
+       - Let `bragg_mapping = bragg_zero_iter` and `diagnostics = context.diagnostics` from `build_mapping_stage_a_context`.
+       - Define `masked_pixels = diagnostics["variance_floor_masked_pixels"]`.
+       - Define `chi2_mapping = diagnostics["chi_squared"]` and `chi2_mapping_per_pixel = chi2_mapping / masked_pixels`.
+    2) Stage‑A zero‑point forward:
+       - Build a dense HKL grid using the same HKL indices/amplitudes as mapping:
+         `hkl_grid, hkl_metadata, _ = build_structure_factor_grid(indices=context.hkl_indices, amplitudes=context.hkl_amplitudes, device="cpu", halo=<matching mapping>)`.
+       - Construct Stage‑A forward components (beam_config, detector models, crystal config) using the same calibration dict as mapping (including `spot_scale_override`/N_cells).
+       - Evaluate the Stage‑A forward at zero parameters (log_scale=0.0, all cell/angle/orientation deltas = 0, no detector/beam offsets) to obtain `bragg_stagea_zero`.
+       - Zero‑point MUST honor the Stage‑A mapping invariant: `U(0)=U₀`, `B(0)=B₀`, `A*(0)=A*_mapping` as defined in `spec-db-workflow.md`.
+    3) Stage‑A χ² at mapping stack:
+       - Using `inputs.target`, `inputs.loss_mask`, `inputs.sigma_readout`, and `sigma_floor_value` from mapping, compute Stage‑A’s variance‑weighted χ² on the mapping stack:
+         `chi2_stagea_at_mapping = _compute_variance_weighted_loss(bragg_mapping, target, loss_mask, sigma_readout, sigma_floor_sq)`.
+  - Expectations (all normative):
+    - Forward‑model equality:
+      - `max_abs_diff(bragg_stagea_zero − bragg_mapping) ≤ 2.0e2` (ADU units), calibrated to existing TOOLING‑VIS zero‑point probes for the simple_cubic fixture. This bound MAY be tightened in future once Stage‑A and mapping share an exact forward implementation.
+      - `mean_abs_diff(bragg_stagea_zero − bragg_mapping) ≤ 1e‑3`.
+    - Variance‑weighted χ² equality:
+      - `|chi2_stagea_at_mapping − chi2_mapping| / chi2_mapping ≤ 1e‑3`, where the χ² is the canonical PHYSICS‑LOSS variance‑weighted objective with detached denominator (`V = I_model + sigma_readout²`, clamped to `sigma_floor²`); the current helper implementing this is `dbex.physics.loss._compute_variance_weighted_loss` (informative).
+    - χ² per pixel sanity:
+      - `chi2_mapping_per_pixel ≤ 1e2` for the canonical simple_cubic mapping fixture (value calibrated to current DB‑AT‑024 metrics; future tightening is permitted once the forward model and calibration are refined).
+  - Command: a dedicated Stage‑A mapping test (e.g. `pytest -v tests -k DB_AT_027`) SHALL enforce this contract for the simple_cubic fixture.
+
+- DB‑AT‑028 Stage‑A loss‑scale and clamp sanity
+  - Goal: Ensure Stage‑A χ² values remain in a physically reasonable regime on the canonical Stage‑A smoke dataset, and that sigma_floor acts as a guardrail rather than the dominant regime.
+  - Setup:
+    - Dataset: Stage‑A smoke dataset from `test_stage_a_expansion` (sp.proc refGeom_small/refGeom_full).
+    - Geometry: deterministic perturbation from `create_perturbed_geometry` (+2/+1/+1% cell stretch, +1.5° Z‑misset).
+    - HKL grid: haloed grid (`halo=True`) with tricubic interpolation enabled (`enable_hkl_interpolation=True`).
+    - Sigma policy: same as Stage‑A smoke (external tiles when available, else 3.0 ADU).
+    - Config: Stage‑A LBFGS `RefinementConfig` as used by the smoke test (ROI sampling, warm cache enabled).
+  - Procedure:
+    1) Run `run_nanobrag_refinement` with Stage‑A enabled and Stage B/C disabled under the canonical Stage‑A expansion configuration.
+    2) From Stage‑A telemetry (`telemetry_A`):
+       - Extract `chi_squared_trace_full = [(iter, chi2)]`.
+       - Extract `variance_floor_masked_pixels` and `variance_floor_clamp_fraction`.
+    3) Define:
+       - `chi2_initial = chi_squared_trace_full[0][1]`, `chi2_final = chi_squared_trace_full[-1][1]`.
+       - `chi2_per_pixel_initial = chi2_initial / variance_floor_masked_pixels`.
+       - `chi2_per_pixel_final = chi2_final / variance_floor_masked_pixels`.
+  - Expectations (normative for the Stage‑A smoke dataset):
+    - Static χ² per masked pixel:
+      - `chi2_per_pixel_initial ≤ 1e2`.
+      - `chi2_per_pixel_final   ≤ 1e2`.
+      - `chi2_per_pixel_final ≤ chi2_per_pixel_initial` (Stage‑A SHALL not make χ² per pixel worse).
+    - Sigma‑floor clamp sanity:
+      - `0.0 ≤ variance_floor_clamp_fraction ≤ 1.0`.
+      - For canonical refGeom smoke, `variance_floor_clamp_fraction < 0.5` at both initial and final points; other datasets MAY adopt different fixture‑specific bands, documented alongside their acceptance tests.
+      - If `variance_floor_clamp_fraction → 1.0` at any point, DB‑AT‑028 SHALL fail regardless of χ² trends (this indicates a model that is effectively “zero everywhere”).
+    - Dynamic improvement linkage:
+      - The existing relative improvement gate from TORCH‑REFINE‑002D (≥0.2% χ² drop) remains normative; DB‑AT‑028 adds absolute χ²‑per‑pixel and clamp‑fraction bounds to forbid pathological low‑signal configurations from passing.
+  - Command: DB‑AT‑028 MAY be enforced by extending `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` or via a dedicated selector `pytest -v tests -k DB_AT_028`.
+
+- DB‑AT‑029 Stage‑A intensity and structure parity vs experiment
+  - Goal: Guarantee that Stage‑A predictions have reasonable intensity scale and ROI structure relative to experimental data, not just a decreasing scalar loss.
+  - Setup:
+    - Dataset and `RefinementInputs` as in DB‑AT‑028 (Stage‑A smoke dataset with perturbed geometry and canonical sigma_readout).
+    - HKL grid and `RefinementConfig` identical to `test_stage_a_expansion` (haloed grid, interpolation enabled, LBFGS Stage‑A only).
+  - Procedure:
+    1) Run Stage‑A refinement once under the smoke configuration to obtain Stage‑A telemetry (`telemetry_A`) and the final Bragg image (`bragg_after`).
+    2) Reconstruct Stage‑A initial and final images using the same canonical reconstruction path the engine uses (currently implemented by `dbex.nanobrag_refinement._build_final_bragg_from_stage_a_telemetry`):
+       - `bragg_before`: call the reconstruction helper with `param_deltas[*]['final']` overridden to their `['initial']` values, so that geometry and scale reflect the Stage‑A initial state.
+       - `bragg_after`: call the reconstruction helper with the actual telemetry (no overrides).
+    3) Per‑ROI metrics:
+       - For each ROI `(pid, (x0, x1, y0, y1))` from `RefinementInputs.panel_slices`, slice:
+         - `data_roi = target[pid, y0:y1, x0:x1]`.
+         - `model_before_roi = bragg_before[pid, y0:y1, x0:x1]`.
+         - `model_after_roi = bragg_after[pid, y0:y1, x0:x1]`.
+         - `mask_roi = loss_mask[pid, y0:y1, x0:x1]`.
+       - Compute ROI correlations `corr_before_i`, `corr_after_i` against data using the canonical parity harness or `_compute_pearson_cc` with masking.
+       - Collect:
+         - `corr_before = {corr_before_i over all valid ROIs}`.
+         - `corr_after = {corr_after_i over all valid ROIs}`.
+    4) Global intensity scale:
+       - Compute `mean_data = mean(target[loss_mask])`.
+       - Compute `mean_model_before = mean(bragg_before[loss_mask])`.
+       - Define `scale_ratio_before = mean_model_before / mean_data`.
+  - Expectations (normative on the Stage‑A smoke dataset):
+    - ROI correlation floor:
+      - `median(corr_before) ≥ 0.2`. Stage‑A models whose initial prediction is effectively uncorrelated with the experimental ROIs SHALL fail DB‑AT‑029.
+    - No catastrophic structural regression:
+      - `median(corr_after) ≥ median(corr_before) − 0.05`. Stage‑A refinement SHALL NOT collapse median ROI correlation by more than 0.05.
+    - Global intensity scale sanity:
+      - `scale_ratio_before ∈ [1e‑2, 1e2]`. Ratios outside this band indicate the kind of multi‑order‑of‑magnitude mismatch observed in broken TOOLING‑VIS configurations and SHALL fail DB‑AT‑029.
+      - For the canonical refGeom smoke fixture, a tighter expectation (O(0.1–10)) MAY be documented informatively, but the [1e‑2, 1e2] band is a hard spec‑level floor.
+  - Command: DB‑AT‑029 SHALL be enforced via a dedicated test (e.g. `pytest -v tests -k DB_AT_029`) exercising Stage‑A reconstruction and ROI parity metrics on the Stage‑A smoke dataset.
+
 Notes (Informative)
 - Provide real commands in the test suite once scaffolding is in place; these are placeholders for the conformance contract.
 

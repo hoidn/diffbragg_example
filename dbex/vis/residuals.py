@@ -15,6 +15,7 @@ def compute_z_scores(
     model: np.ndarray,
     variance: np.ndarray,
     mask: np.ndarray | None = None,
+    sigma_floor: float | None = None,
 ) -> np.ndarray:
     """Compute residual Z-scores per spec-db-vis.md §19.
 
@@ -29,6 +30,9 @@ def compute_z_scores(
         model: Model ROI slice shaped ``(slow, fast)`` matching ``data``.
         variance: Variance array (same shape as data/model). Per spec-db-core.md,
                   variance = model + sigma_readout^2 where sigma_readout=5 ADU.
+        sigma_floor: Optional variance floor (sigma_floor) in data units. Present
+            for convenience/forward-compatibility; callers are expected to apply
+            any clamping to ``variance`` before passing it in.
         mask: Optional boolean mask selecting valid pixels. Pixels where mask=False
               or mask=0 are set to NaN in the output.
 

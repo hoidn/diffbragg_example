@@ -190,19 +190,6 @@ def emit_stage_a_roi_triptychs(
             var_floor_sq,
         )
 
-        z_before = compute_z_scores(
-            data_roi,
-            model_before_roi,
-            variance=variance_before,
-            sigma_floor=sigma_floor_value,
-        )
-        z_after = compute_z_scores(
-            data_roi,
-            model_after_roi,
-            variance=variance_after,
-            sigma_floor=sigma_floor_value,
-        )
-
         # Correlations over valid (loss-mask) pixels
         cc_before = _compute_pearson_cc(data_roi, model_before_roi, mask_roi)
         cc_after = _compute_pearson_cc(data_roi, model_after_roi, mask_roi)
@@ -210,22 +197,19 @@ def emit_stage_a_roi_triptychs(
         before_path = out_root / f"roi_{roi_index:04d}_before.png"
         after_path = out_root / f"roi_{roi_index:04d}_after.png"
 
-        title_before = f"ROI {roi_index} (panel {panel_id}) — before (CC={cc_before:.3f})"
-        title_after = f"ROI {roi_index} (panel {panel_id}) — after (CC={cc_after:.3f})"
-
         plot_triptych(
             data_roi,
             model_before_roi,
-            z_before,
-            out_path=before_path,
-            title=title_before,
+            variance_before,
+            correlation=cc_before,
+            filename=str(before_path),
         )
         plot_triptych(
             data_roi,
             model_after_roi,
-            z_after,
-            out_path=after_path,
-            title=title_after,
+            variance_after,
+            correlation=cc_after,
+            filename=str(after_path),
         )
 
         results.append(
@@ -244,4 +228,3 @@ def emit_stage_a_roi_triptychs(
 
 
 __all__ = ["StageAROITriptych", "emit_stage_a_roi_triptychs"]
-

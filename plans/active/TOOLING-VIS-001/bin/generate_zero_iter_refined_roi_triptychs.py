@@ -145,16 +145,9 @@ def main() -> None:
             model_roi.astype(np.float64) + sigma_roi.astype(np.float64) ** 2,
             var_floor_sq,
         )
-        z_roi = compute_z_scores(
-            data_roi,
-            model_roi,
-            variance=variance,
-            sigma_floor=sigma_floor_value,
-        )
 
         out_path = out_root / f"roi_{idx:04d}_zero_iter.png"
-        title = f"Zero-iter ROI {idx} (panel {panel_id})"
-        plot_triptych(data_roi, model_roi, z_roi, out_path=out_path, title=title)
+        plot_triptych(data_roi, model_roi, variance, filename=str(out_path))
 
         lines.append(
             f"| {idx} | {panel_id} | "

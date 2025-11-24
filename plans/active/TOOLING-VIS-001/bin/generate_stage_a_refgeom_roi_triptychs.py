@@ -75,12 +75,12 @@ def main() -> None:
     if str(repo_root) not in os.sys.path:
         os.sys.path.insert(0, str(repo_root))
 
-    from dbex.vis import (
+    from dbex.vis.mapping import (
         MappingRefinementConfig,
         build_mapping_stage_a_context,
-        emit_stage_a_roi_triptychs,
         refine_on_mapping_model,
     )
+    from dbex.vis.stage_a import emit_stage_a_roi_triptychs
 
     refgeom_dataload = _build_refgeom_dataload(repo_root)
     context = build_mapping_stage_a_context(refgeom_dataload, device="cpu")

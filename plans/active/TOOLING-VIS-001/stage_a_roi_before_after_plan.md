@@ -22,7 +22,7 @@
 1. **Clarify canonical Stage A ROI inputs**
    - Codify the “right” inputs for this visualization as:
      - `inputs` from `prepare_refinement_inputs` (using the same options as the Stage A smoke path).
-     - `bragg_before` from `simulate_forward_once` (HKL grid from `build_structure_factor_grid`, canonical calibration).
+     - `bragg_before` from `simulate_forward_once` (HKL grid from `build_structure_factor_grid`, canonical calibration, and the mapping configuration defined in the DB‑AT‑024/DB‑AT‑027 spec).
      - `bragg_after` from `run_nanobrag_refinement` with Stage A only (CPU, tricubic+halo enabled).
    - Treat this tuple `(inputs, bragg_before, bragg_after)` as the only sanctioned source for “before/after” Stage A ROI plots (no ad-hoc peak maps or standalone scripts).
 
@@ -36,9 +36,9 @@
          - `model_b0`  = `bragg_before[pid, y, x]`.
          - `model_b1`  = `bragg_after[pid, y, x]`.
          - `sigma_roi` = `inputs.sigma_readout[pid, y, x]` (or broadcast from scalar/panel if needed).
-       - Compute variance and Z-score residuals per spec-db-core/spec-db-vis:
-         - `variance = I_model.detach() + sigma_readout**2`.
-         - `z = (I_obs - I_model) / sqrt(variance)`.
+       - Compute variance and Z-score residuals using the same variance model as `dbex.physics.loss._compute_variance_weighted_loss` / `docs/spec-db-core.md`:
+         - Treat `model_b*` as `I_model` (Bragg+background prediction) and `data_roi` as `I_obs` (background-subtracted target).
+         - Use `sigma_readout` and `sigma_floor` exactly as defined in the spec (detached IRLS denominator with physical clamp) and form `z = (I_obs - I_model) / sqrt(variance)`.
        - Derive per-ROI statistics (e.g., CC before/after using background-aware `_roi_scale_and_corr` logic).
      - Use existing `dbex.vis.plot_triptych` / `plot_z_scores` as the only rendering primitives:
        - For each ROI, emit at least two triptychs into `out_dir`:
@@ -76,4 +76,3 @@
    - Longer-term integration (outside this session):
      - `dbex/look.py` and `dbex/refine_one.py` can later be refactored to call the `dbex.vis` helpers, reusing the same ROI triptych contract.
      - Smoke/parity tests may adopt these helpers for standardized refinement visuals once the library is stable.
-

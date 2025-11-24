@@ -28,9 +28,9 @@ Pipeline (Normative)
    - Run Simulator per panel and stitch into a full‑frame `Bragg` tensor matching `[panel, slow, fast]`.
    - ROI‑only compute MAY be used by constructing cropped Detectors per ROI (with beam centre shifted by crop offsets in mm) and stitching outputs.
 6) Loss (Variance-Weighted / Chi-Squared)
-   - Loss SHALL be `Sum( (Bragg - target)^2 / (Bragg.detach() + sigma_rdout^2) )` over trusted pixels.
-   - This approximates an IRLS (Iteratively Reweighted Least Squares) objective compatible with Poisson + Readout noise.
-   - The denominator `V = I_model + sigma_rdout^2` MUST be detached from the computation graph to prevent attraction to infinity, and MUST obey the `sigma_readout` data contract (strictly positive inputs with CLI override required if instrumentation cannot supply them). Implementations SHALL apply a physical lower bound `V = max(I_model + sigma_rdout^2, sigma_floor^2)` using the instrument’s readout noise (≥ 1 photon/ADU) and record both `sigma_floor` and the percentage of clamped pixels in telemetry for parity review.
+   - Loss SHALL be `L = Sum( (I_model - I_obs)^2 / V_detached )` over trusted pixels, where `I_model` is the current Bragg+background prediction and `I_obs` is the background-subtracted target from `prepare_refinement_inputs`.
+   - The variance term SHALL follow `docs/spec-db-core.md`: `V = I_model + sigma_readout^2`, with `sigma_readout` strictly positive and supplied in the same units as `I_obs` (typically via `--sigma-rdout` and/or calibrated sigma maps).
+   - `V_detached` denotes this variance term detached from the computation graph (IRLS) with a physical lower bound `V = max(I_model + sigma_readout^2, sigma_floor^2)`. The clamp exists to prevent infinite weights when `I_model → 0`; telemetry SHALL record `sigma_floor` and the fraction of pixels where the clamp engaged. Implementations MAY reuse the canonical helper `dbex.physics.loss._compute_variance_weighted_loss` to avoid divergence from `docs/spec-db-core.md`.
 
 7) Refinement Protocol Architecture
    - **Engine Contract:** The internal Python API (`RefinementEngine` or equivalent) SHALL accept an ordered list of Stage objects and MUST NOT hardcode the Stage A→B→C flow.

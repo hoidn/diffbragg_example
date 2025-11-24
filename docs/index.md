@@ -88,6 +88,11 @@ Description: Acceptance tests (DB‑AT‑XXX) and conformance profiles; placehol
 Keywords: acceptance‑tests, parity, gradcheck  
 Use this when: Planning validation and parity coverage.
 
+### [Visual Diagnostics](spec-db-vis.md)
+Description: Standard ROI triptychs, residual histograms, radial profiles, and mapping-aligned Stage‑A “before/after” rules.  
+Keywords: visualization, diagnostics, stage-a  
+Use this when: Designing or debugging refinement plots and VIS tooling.
+
 ### [Tracing](spec-db-tracing.md)
 Description: Tracing/instrumentation requirements and parity workflow for first‑divergence debugging.  
 Keywords: tracing, diagnostics, parity  

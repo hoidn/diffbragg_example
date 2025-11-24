@@ -14,6 +14,8 @@ CLI Flags (Normative)
 - `--device <cuda|cpu>:<index>`: selects device. (v1 implementation currently hardcodes CPU for reproducibility.)
 - `--debug-save-artifacts`: persist otherwise temporary artifacts (HKL, etc.).
 - `--optimizer {lbfgs,adam}` (optional): selects optimizer; default SHALL be `lbfgs` for Stage A/C, `adam` MAY be used only for Stage B if chosen.
+- `--sigma-rdout <float>`: scalar detector readout noise in the same units as the target (ADU by default, converted to photons when `--adu-per-photon` is set); required when no calibrated sigma map is available.
+- `--sigma-map <path>`: calibrated `sigma_readout` map (e.g. `.npy/.npz` or pickled per-panel arrays) shaped `[panel, slow, fast]`, superseding `--sigma-rdout` when present.
 
 API Contracts (Normative)
 - Data bridge SHALL expose:
@@ -25,6 +27,7 @@ API Contracts (Normative)
 Precedence Rules (Normative)
 - CLI flag values SHALL override values inferred from Experiment metadata.
 - Environment variables SHALL provide defaults (e.g., device), overridden by CLI.
+- Detector readout noise (`sigma_readout`) SHALL follow the precedence chain `--sigma-rdout` (scalar) > `--sigma-map` (calibrated tensor) > Experiment metadata external_lookup tiles, as detailed in `docs/TESTING_GUIDE.md`.
 
 Error Conditions (Normative)
 - Rectangular pixel panels SHALL error (unless per‑pitch Detectors are constructed explicitly outside the single‑panel mapping).

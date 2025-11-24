@@ -18,8 +18,8 @@ Runtime Guardrails (Normative)
 ### Parameterization Correctness & Round-Trip (Normative)
 
 - UB / A* round-trip:
-  - Any new Stage‑A parameterization (including quaternion‑based ones) SHALL pass a round‑trip correctness check against dxtbx and Busing–Levy conventions at the zero point:
-    - Given baseline `U₀,B₀` from `crystal.get_U()/get_B()`, the parameterization with `params=0` MUST reproduce `U(0)=U₀`, `B(0)=B₀`, and `A*(0)=U₀ @ B₀` within a documented numerical tolerance.
+  - Any new Stage‑A parameterization (including quaternion‑based ones) SHALL pass a round‑trip correctness check against dxtbx and the Busing–Levy conventions defined in `docs/spec-db-core.md` at the zero point:
+    - Starting from the baseline `A*_0 = crystal.get_A()` and baseline cell `c₀` from dxtbx, implementations MUST construct `B₀ = B(c₀)` and `U₀ = A*_0 @ B₀⁻¹` (or an equivalent pair satisfying `U₀ @ B₀ = A*_0`), and with `params=0` MUST reproduce `U(0)=U₀`, `B(0)=B₀`, and `A*(0)=U₀ @ B₀` within a documented numerical tolerance.
   - Implementations SHALL provide a small, executable test (see `docs/spec-db-conformance.md`) that exercises this round trip and fails fast if the parameterization drifts from the dxtbx baseline.
 
 - Prohibited patterns in production refinement:

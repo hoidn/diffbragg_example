@@ -87,7 +87,7 @@ Objective Function & Variance Model (Normative)
   - `I_obs`: Observed targets (photons or ADU after calibration policy).
 - Variance Definition:
   - Variance SHALL be modeled as `V = I_model + sigma_readout^2`, where `I_model` is the current prediction (Bragg + background). Using `I_obs` in the variance term is PROHIBITED.
-  - `sigma_readout` is the detector readout noise in photon units derived from the ingestion layer via the CLI-provided `--sigma-r/--adu-per-photon` pair or calibrated dark-RMS maps divided by the same gain factor. Values MUST be > 0 per the Data Contracts clause above.
+  - `sigma_readout` is the detector readout noise in photon units derived from the ingestion layer via the CLI-provided `--sigma-rdout/--adu-per-photon` pair or calibrated dark-RMS maps divided by the same gain factor. Values MUST be > 0 per the Data Contracts clause above.
   - A physical lower bound SHALL be enforced: `V = max(I_model + sigma_readout^2, sigma_floor^2)` where `sigma_floor` defaults to the instrument’s published readout noise (≥ 1 photon or the ADU-equivalent) and is configurable via CLI. The clamp exists to prevent infinite weights when `I_model → 0` on GPU backends; telemetry SHALL report `sigma_floor` and the fraction of pixels where the clamp engaged.
   - Shot noise contribution MUST originate solely from `I_model` (Poisson statistics). Readout noise MUST be added in quadrature via `sigma_readout^2`; no other variance terms are permitted unless formally added to this shard.
   - All downstream consumers (background fitting, ROI scoring, loss/gradient accumulation) MUST use the same `V` definition. Deviations SHALL be treated as bugs and recorded in `docs/fix_plan.md`.

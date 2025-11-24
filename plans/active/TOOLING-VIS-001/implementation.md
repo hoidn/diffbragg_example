@@ -161,3 +161,73 @@ def plot_roi_grid(rois, data_stack, model_stack, bg_stack, filename):
 
 ## Artifacts Index
 - Reports root: `plans/active/TOOLING-VIS-001/reports/`
+
+## Phase D — Stage A Mapping Alignment & Debugging
+
+### Objectives
+- Align the Stage A engine forward model with the DB-AT-024 mapping model at the zero point (shared geometry, HKL grid, and calibration).
+- Ensure Stage A ROI/full-frame visuals used by TOOLING-VIS-001 are physically meaningful (correct intensity scale, visible Bragg spots).
+- Lock this behavior in with DB-AT-027/028/029 acceptance tests so similar regressions are caught automatically.
+
+### Context Priming (read before edits)
+- `docs/spec-db-conformance.md` — DB-AT-024 (mapping consistency), DB-AT-027/028/029 (Stage A parity, loss-scale, and structure).
+- `docs/spec-db-core.md` — Variance model, sigma_floor semantics, masking.
+- `docs/spec-db-workflow.md` — Stage A staging, mapping zero-point invariant.
+- `tests/dbex/test_mapping_consistency.py` — DB-AT-024 implementation and metrics.
+- `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` — canonical Stage A smoke behavior.
+- `dbex.vis.mapping` / `dbex.tools.stage_a_adam` — mapping-based Stage A context and Adam debug helpers.
+
+### Phase D.A — Reproduce & Quantify Stage A vs Mapping
+
+**Checklist**
+- [ ] D.A0: Run `tests/dbex/test_mapping_consistency.py::test_db_at_024_mapping_consistency` and record mapping χ², clamp_fraction, median ROI CC, and scale ratios from `mapping_metrics.json` under `plans/active/TOOLING-VIS-001/reports/<timestamp>/mapping_metrics_snapshot.json`.
+- [ ] D.A1: Using the canonical Stage A refGeom driver (`plans/active/TOOLING-VIS-001/bin/generate_stage_a_refgeom_roi_triptychs_adam.py`) or a small probe script, capture Stage A telemetry (χ² trace, variance_floor_*), `bragg_before`, and `bragg_after` on the simple_cubic fixture.
+- [ ] D.A2: Compute and record:
+  - `chi2_stagea_per_pixel = chi2_final / variance_floor_masked_pixels`,
+  - ROI CCs vs data for mapping vs Stage A (before/after),
+  - global intensity scale ratios `mean(bragg_before[loss_mask]) / mean(target[loss_mask])`.
+- [ ] D.A3: Summarize findings in `plans/active/TOOLING-VIS-001/reports/<timestamp>/stage_a_mapping_diagnosis.md` and cite this artifact in `docs/fix_plan.md` under `[TOOLING-VIS-001]`.
+
+### Phase D.B — Zero-Point Forward-Model Parity (DB-AT-027)
+
+**Checklist**
+- [ ] D.B0: Extend or mirror `dbex.tools.stage_a_adam.run_zero_point_check` with an engine-delegation probe that uses `run_nanobrag_refinement` (Stage A only, `max_iter=0`) and `_build_final_bragg_from_stage_a_telemetry` on the simple_cubic mapping context.
+- [ ] D.B1: Ensure the probe reuses:
+  - `MappingStageAContext.inputs`, `bragg_zero_iter`, `sigma_floor_value`,
+  - refined HKL indices/amplitudes and calibration dict (spot_scale_override, flux, exposure, beamsize_mm, N_cells).
+- [ ] D.B2: Compute:
+  - `max_abs_diff` and `mean_abs_diff` between `bragg_stagea_zero` (engine) and `bragg_mapping`,
+  - Stage A variance-weighted χ² on the mapping stack using the canonical PHYSICS-LOSS variance model.
+- [ ] D.B3: Add a DB-AT-027 selector (e.g. `tests/dbex/test_stage_a_mapping_equiv.py::test_db_at_027_zero_point_parity`) that asserts the agreed tolerances and references the corresponding section in `docs/spec-db-conformance.md`.
+
+### Phase D.C — Calibration Plumbing into Stage A Engine
+
+**Checklist**
+- [ ] D.C0: Design a minimal calibration payload for Stage A (spot_scale_override, beam_flux, beam_exposure, beamsize_mm, N_cells) and decide how it is threaded (e.g. via mapping context or an explicit CalibrationContext argument to `run_nanobrag_refinement` / StageA).
+- [ ] D.C1: Plumb calibration into Stage A:
+  - Build BeamConfig with flux/exposure/beamsize overrides when calibration is provided (matching `simulate_forward_once`),
+  - Build CrystalConfig with N_cells and `apply_n_cells=True` when provided,
+  - Ensure any use of the unified simulator factory (`create_unified_simulator`) receives `spot_scale_override` so the same `sqrt_spot_scale` as mapping is applied.
+- [ ] D.C2: Treat Stage A log scale as a calibrated delta, not the entire scale:
+  - Use the mapping-calibrated scale as the baseline,
+  - Restrict Stage A’s learnable log-scale to a modest log band (e.g. ±3) around this baseline so it fine-tunes instead of compensating for missing calibration.
+- [ ] D.C3: Re-run the DB-AT-027 probe on the engine path and update `docs/spec-db-conformance.md` / `docs/TESTING_GUIDE.md` once zero-point parity is achieved.
+
+### Phase D.D — Visualization Parity & Loss-Scale Sanity (DB-AT-028/029)
+
+**Checklist**
+- [ ] D.D0: Audit and update `_build_final_bragg_from_stage_a_telemetry` so it:
+  - Reuses the same HKL grid, interpolation mode, calibration, and (when applicable) baseline misset/UB state as the Stage A closure,
+  - Produces `bragg_before`/`bragg_after` frames that match the calibrated engine forward passes up to numerical tolerances.
+- [ ] D.D1: Implement DB-AT-028 in code:
+  - Extend `test_stage_a_expansion` or add a dedicated DB-AT-028 test to assert χ²-per-pixel bounds and `variance_floor_clamp_fraction` sanity based on Stage A telemetry for the refGeom smoke fixtures.
+- [ ] D.D2: Implement DB-AT-029:
+  - Reconstruct Stage A initial/final Bragg frames via `_build_final_bragg_from_stage_a_telemetry`,
+  - Compute per-ROI CCs vs data and global scale ratios using the canonical parity harness,
+  - Assert the ROI correlation floor and scale band from `docs/spec-db-conformance.md` (DB-AT-029).
+- [ ] D.D3: Refresh `docs/TESTING_GUIDE.md` and `docs/development/TEST_SUITE_INDEX.md` with DB-AT-027/028/029 selectors, and record a telemetry snapshot for these tests under `plans/active/TOOLING-VIS-001/reports/<timestamp>/`.
+
+### Phase D Risks & Notes
+- Risk: Tightening DB-AT-027/028/029 too aggressively may initially fail on existing fixtures; mitigated by calibrating thresholds from current mapping/Stage A runs and tightening only after parity is proven.
+- Risk: Calibration plumbing into Stage A may interact with UB parameterization and Stage B; mitigated by keeping changes scoped to Stage A engine-only mode and re-running the existing Stage A/B/C smokes.
+- Note: All work must honor POLICY-001 (Environment Freeze) and reuse existing nanobrag_torch + dbex factories; no new dependencies.

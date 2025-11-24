@@ -1,0 +1,7 @@
+{
+  "sigma_source": "metadata",
+  "detector_size": "full",
+  "git_head": "343947cb24e67a89c12bb14fd9753db0bc1a54ec",
+  "device": "cpu",
+  "test_name": "test_db_at_027_zero_point_parity"
+}

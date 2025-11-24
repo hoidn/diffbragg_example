@@ -223,3 +223,14 @@
 - <Action State>: [review_or_housekeeping]
 
 2025-11-23T~19:00:00Z focus=TORCH-API-ALIGN-001 state=review_or_housekeeping dwell=0 artifacts=plans/active/TORCH-API-ALIGN-001/reports/2025-11-23T215000Z/ next_action=commit_rescope_decision_assess_phase_a1_or_d4
+
+## 2025-11-24T000100Z — TORCH-API-ALIGN-001 Phase A1 Planning Complete → Ready for Implementation
+
+- Focus: TORCH-API-ALIGN-001 — Adopt ExperimentModel, Unify Simulator Wiring, DIALS Mapping (Phase A1: DIALS Mapping Parity Test)
+- Action Type: planning
+- Key Observations: Phase B ✓ COMPLETE (factory -79 lines, Exit #1 satisfied). Phase B3 RESCOPED (ExperimentModel upstream bug ARCH-FACTORY-003). Next: Validate Exit Criterion #2 (DIALS mapping parity) via Phase A1 test implementation. Test stub exists (tests/dbex/test_bridge_mapping.py:36-61 xfail). Implement minimal dxtbx fixture + DIALS mapping assertions (~80-120 lines). Risk LOW (test-only, factory proven, tiny fixture fast). Findings: GEOMETRY-001/002, CONFIG-001/002, PERF-WARM-001, POLICY-001. Decision paths: A (PASS → remove xfail, registry, commit, Exit Criteria check), B (FAIL → blocker), C (error → log).
+- Artifact Path: plans/active/TORCH-API-ALIGN-001/reports/2025-11-24T000100Z/
+- Next Actions: Ralph executes Phase A1 (9-step: read specs, implement test ~80-120 lines, run, if PASS remove xfail + registry sync, decision, summary, commit). Dwell=0 planning, next loop MUST be ready_for_implementation per implementation floor rule.
+- <Action State>: [planning]
+
+2025-11-24T000100Z focus=TORCH-API-ALIGN-001 state=planning dwell=0 artifacts=plans/active/TORCH-API-ALIGN-001/reports/2025-11-24T000100Z/ next_action=phase_a1_test_implementation

@@ -248,17 +248,17 @@ def main() -> int:
 
         def _codex_cmd() -> list[str] | None:
             codex_bin = shutil.which(args.codex_cmd) or args.codex_cmd
-        if not codex_bin:
-            return None
-        return [
-            codex_bin,
-            "exec",
-            "-m",
-            "gpt-5.1-codex-max",
-            "-c",
-            "model_reasoning_effort=high",
-            "--dangerously-bypass-approvals-and-sandbox",
-        ]
+            if not codex_bin:
+                return None
+            return [
+                codex_bin,
+                "exec",
+                "-m",
+                "gpt-5.1-codex-max",
+                "-c",
+                "model_reasoning_effort=high",
+                "--dangerously-bypass-approvals-and-sandbox",
+            ]
 
         def _resolve_cmd() -> list[str]:
             if args.agent == "claude":

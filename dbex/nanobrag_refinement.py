@@ -538,6 +538,16 @@ class RefinementConfig:
     sigma_readout_provenance: Optional[str] = None
     sigma_readout_reference_value: Optional[float] = None
 
+    # Calibration metadata (TOOLING-VIS-001 Phase D.C, DB-AT-027)
+    # When provided, calibration payload from mapping (spot_scale_override,
+    # beam flux/exposure, N_cells) is reused in Stage A context builders.
+    # log_scale is then treated as a bounded delta (±3) around the calibrated baseline.
+    calibration_metadata: Optional[Dict[str, Any]] = None
+    # log_scale baseline when calibration is present (recorded in telemetry)
+    log_scale_baseline: Optional[float] = None
+    # Clamp log_scale deltas to ±3 when calibration_metadata is provided
+    log_scale_max_delta: float = 3.0
+
     # Telemetry output directory (TORCH-GEOMETRY-CONVERGENCE-001 Phase A1)
     # When set, enables per-step telemetry emission for convergence diagnosis
     telemetry_output_dir: Optional[str] = None
@@ -705,6 +715,7 @@ def _build_stage_a_context(
     dtype: torch.dtype,
     panel_slices,
     enable_roi_mode: bool,
+    calibration_metadata: Optional[Dict[str, Any]] = None,
 ) -> StageAContext:
     """
     Prebuild Stage A detector models and tensorize masks/HKL once (PERF-WARM-SIM-001).
@@ -749,9 +760,22 @@ def _build_stage_a_context(
     roi_entries: List[StageAROIEntry] = []
     baseline_distance_mm: List[float] = []
 
-    beam_config = create_beam_config(beam)
+    # Extract calibration payload (TOOLING-VIS-001 Phase D.C, DB-AT-027)
+    # When calibration_metadata is provided, forward beam flux/exposure/beamsize
+    # and N_cells into configs so zero-point Stage A matches mapping baseline
+    beam_flux = None
+    beam_exposure = None
+    beamsize_mm = None
+    N_cells = None
+    if calibration_metadata is not None:
+        beam_flux = calibration_metadata.get("beam_flux")
+        beam_exposure = calibration_metadata.get("beam_exposure")
+        beamsize_mm = calibration_metadata.get("beamsize_mm")
+        N_cells = calibration_metadata.get("N_cells")
+
+    beam_config = create_beam_config(beam, flux=beam_flux, beamsize_mm=beamsize_mm, exposure=beam_exposure)
     hkl_grid_device = hkl_grid.to(device=device, dtype=dtype)
-    crystal_config, _ = create_crystal_config(crystal, None)
+    crystal_config, _ = create_crystal_config(crystal, None, N_cells=N_cells, apply_n_cells=(N_cells is not None))
 
     base_crystal_model = Crystal(crystal_config, beam_config=beam_config, device=device, dtype=dtype)
     base_crystal_model.interpolate = enable_hkl_interpolation
@@ -996,10 +1020,23 @@ def _build_stage_a_params(
     # Stage A expansion: global scale + full crystal (a/b/c logs, alpha/beta/gamma bounded, orientation)
 
     # 1. log_scale: global intensity scale
-    # Warm-start from global_scale_hint when available (per spec-db-workflow.md:20-40, REFINE-001)
-    if inputs.global_scale_hint is not None and inputs.global_scale_hint > 0:
+    # When calibration_metadata is present (TOOLING-VIS-001 Phase D.C, DB-AT-027):
+    #   - log_scale_baseline = log(sqrt(spot_scale_override)), recorded in telemetry
+    #   - log_scale starts at 0.0 (neutral delta), will be clamped to ±log_scale_max_delta
+    #   - Final scale applied = exp(log_scale_baseline + clamped_delta)
+    # Otherwise:
+    #   - Warm-start from global_scale_hint when available (per spec-db-workflow.md:20-40, REFINE-001)
+    #   - log_scale is the direct learnable parameter (no baseline separation)
+    if config.calibration_metadata is not None:
+        spot_scale_override = config.calibration_metadata.get("spot_scale_override", 1.0)
+        sqrt_spot_scale = float(np.sqrt(spot_scale_override))
+        log_scale_baseline = float(np.log(sqrt_spot_scale))
+        initial_log_scale = 0.0  # Start at neutral delta (scale = baseline * exp(0) = baseline)
+    elif inputs.global_scale_hint is not None and inputs.global_scale_hint > 0:
+        log_scale_baseline = None  # No baseline separation in legacy mode
         initial_log_scale = float(torch.log(torch.tensor(inputs.global_scale_hint, dtype=dtype)))
     else:
+        log_scale_baseline = None
         initial_log_scale = 0.0  # fallback: scale=1.0
     log_scale = torch.tensor(initial_log_scale, device=device, dtype=dtype, requires_grad=True)
 
@@ -1225,6 +1262,7 @@ def _build_stage_a_params(
             dtype=dtype,
             panel_slices=panel_slices,
             enable_roi_mode=use_stage_a_roi_mode,
+            calibration_metadata=config.calibration_metadata,
         )
 
     # Telemetry step counter (TORCH-GEOMETRY-CONVERGENCE-001 Phase A1)
@@ -1238,6 +1276,7 @@ def _build_stage_a_params(
     # Build param_values dict for return
     param_values = {
         'initial_log_scale': initial_log_scale,  # Store initial value for telemetry
+        'log_scale_baseline': log_scale_baseline,  # Baseline from calibration (None if uncalibrated)
         'log_scale': log_scale,
         'log_cell_a_delta': log_cell_a_delta,
         'log_cell_b_delta': log_cell_b_delta,
@@ -1593,7 +1632,22 @@ def _build_stage_a_lbfgs_closure(
             # FIX: Define misset_deg_for_crystal here in cell+misset branch
             misset_deg_for_crystal = misset_xyz_deg
 
-        log_scale_clamped = torch.clamp(log_scale, min=-10.0, max=10.0)
+        # Clamp log_scale and apply baseline if calibration is present (TOOLING-VIS-001 Phase D.C, DB-AT-027)
+        # When calibration_metadata is provided:
+        #   - log_scale_baseline = log(sqrt(spot_scale_override)) is the fixed baseline
+        #   - log_scale is a delta parameter, clamped to ±log_scale_max_delta (default ±3)
+        #   - Final scale = exp(log_scale_baseline + clamped_delta)
+        # Otherwise:
+        #   - log_scale is the direct learnable parameter, clamped to ±10 (legacy wide range)
+        #   - Final scale = exp(clamped_log_scale)
+        log_scale_baseline_value = param_values.get('log_scale_baseline')
+        if log_scale_baseline_value is not None:
+            # Calibrated mode: clamp delta to ±log_scale_max_delta, add baseline
+            log_scale_delta_clamped = torch.clamp(log_scale, min=-config.log_scale_max_delta, max=config.log_scale_max_delta)
+            log_scale_clamped = log_scale_baseline_value + log_scale_delta_clamped
+        else:
+            # Legacy mode: direct clamp of log_scale
+            log_scale_clamped = torch.clamp(log_scale, min=-10.0, max=10.0)
         beam_config_for_run = stage_a_ctx.beam_config if stage_a_ctx is not None else create_beam_config(beam)
 
         warm_crystal_model: Optional['Crystal'] = None
@@ -2588,6 +2642,7 @@ def _build_stage_b_params(
             dtype=dtype,
             panel_slices=panel_slices,
             enable_roi_mode=False,  # CPU fallback is panel-mode only
+            calibration_metadata=config.calibration_metadata,
         )
     elif not use_stage_b_cpu_fallback:
         # No CPU fallback: reuse the original CUDA Stage A context
@@ -4416,6 +4471,7 @@ def run_nanobrag_refinement(
                 dtype=dtype,
                 panel_slices=panel_slices,
                 enable_roi_mode=False,  # CPU fallback is panel-mode only
+                calibration_metadata=config.calibration_metadata,
             )
         elif not use_stage_b_cpu_fallback:
             # No CPU fallback: reuse the original CUDA Stage A context

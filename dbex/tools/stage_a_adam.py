@@ -1658,17 +1658,15 @@ def run_engine_zero_point_probe(
         halo=True,  # Match mapping behavior
     )
 
-    # Build RefinementConfig for zero-iteration engine run
-    # Note: run_nanobrag_refinement takes dxtbx detector/beam/crystal directly
-    # and handles config creation internally. Calibration payload is not yet
-    # plumbed into the engine (Phase D.C work), so this probe will fail DB-AT-027
-    # until calibration is threaded through.
+    # Build RefinementConfig for zero-iteration engine run with calibration payload
+    # (TOOLING-VIS-001 Phase D.C, DB-AT-027)
     config = RefinementConfig(
         device=device_str,
         max_iter=0,  # Zero iterations (no LBFGS updates)
         enable_stage_b=False,
         enable_stage_c=False,
         sigma_readout_provenance=sigma_source,
+        calibration_metadata=context.calibration,  # Forward mapping calibration into engine
     )
 
     # Run engine with delegation to capture telemetry

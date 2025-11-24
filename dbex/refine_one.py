@@ -521,6 +521,7 @@ def run_nanobrag_backend(args, DL, devid=0):
         sigma_readout_reference_value=sigma_reference_target_units,
         enable_stage_b=args.enable_stage_b,
         enable_stage_c=args.enable_stage_c,
+        calibration_metadata=calibration_metadata,  # Thread calibration payload (TOOLING-VIS-001 Phase D.C, DB-AT-027)
     )
 
     try:

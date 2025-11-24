@@ -1,0 +1,960 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 1 item
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers FAILED [100%]
+
+=================================== FAILURES ===================================
+_________________________ test_stage_b_shell_modifiers _________________________
+
+refgeom_dataload = <dbex.data_load.DataLoad object at 0x73790e0d7370>
+refinement_inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0.,...0.]]], dtype=float32), target_representation='adu', global_scale_hint=86.34794146217338, sigma_readout_provenance=None)
+hkl_data = (tensor([[[0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0.,...uda:0'), {'grid_max': 518.3336791992188, 'grid_mean': 16.896526336669922, 'grid_min': 0.0, 'grid_nonzero': 69614, ...})
+smoke_detector_size = 'small', smoke_sigma_source = 'cli_override'
+
+    @pytest.mark.allow_metadata_sigma
+    def test_stage_b_shell_modifiers(
+        refgeom_dataload,
+        refinement_inputs,
+        hkl_data,
+        smoke_detector_size,
+        smoke_sigma_source,
+    ):
+        """
+        Smoke test for Stage B shell-modifier LBFGS refinement (TORCH-REFINE-004).
+    
+        Tests exercise run_nanobrag_refinement with Stage B enabled (enable_stage_b=True)
+        after Stage A, validating:
+        - Canonical detector runs do not regress chi-squared by more than 1e-6 relative loss
+        - Telemetry presence for shell modifiers (param_deltas with d-spacing ranges)
+        - Shell modifiers stay within ±1% of identity (REFINE-008) when strict gates are active
+        - Non-increasing full-loss trace across last 3 validations
+        - Halo-padded HKL grid and interpolation are required (guards enforced)
+    
+        Per input.md:
+        - docs/spec-db-workflow.md:31-34 mandates Stage B optional shell modifiers with tricubic interpolation
+        - plans/nanobrag_integration_plan.md:226-244 specifies Stage B shell mode contract
+        - docs/architecture/pytorch_design.md:35-40 requires ±1 halo for interpolation
+        - docs/findings.md REFINE-005 confirms halo requirement for Stage B
+    
+        Findings applied:
+        - RUNTIME-001: Run with NANOBRAGG_DISABLE_COMPILE=1 to avoid torch.compile interference
+        - CONFORMANCE-001: Requires KMP_DUPLICATE_LIB_OK=TRUE
+        - REFINE-005: Halo-padded HKL grid mandatory for Stage B; guard enforced in run_nanobrag_refinement
+        - REFINE-008: Canonical detector improvements hover near zero, so strict gates verify
+          non-regression (≥-1e-6 loss delta) plus ±1% shell-modifier sanity via telemetry. Telemetry
+          is archived via `DBEX_SMOKE_TELEMETRY_PATH` for PHYSICS-LOSS-001 reviews.
+        - SCALE-001/002: Structure factors unscaled; shell modifiers applied multiplicatively
+        """
+        from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig
+    
+        print(f"\n[test_stage_b_shell_modifiers] detector={smoke_detector_size}")
+    
+        # CPU fallback blocked by HKL grid transfer corruption (GRADIENT-003)
+        # Root cause: .to(device='cpu') corrupts Miller index semantics (k-range [-1796,1708] instead of [-14,14])
+        # Deferred to unblock roadmap; small detector validates core Stage B logic (CUDA-only)
+        if smoke_detector_size == "full":
+            pytest.skip("CPU fallback blocked by HKL grid transfer corruption (GRADIENT-003)")
+    
+        DL = refgeom_dataload
+        hkl_grid, hkl_metadata = hkl_data
+        strict_gates = smoke_detector_size == "full"
+    
+        # Guard: Stage B requires halo-padded HKL grid (REFINE-005)
+        assert hkl_metadata["has_halo"], (
+            "Stage B smoke test requires halo-padded HKL grid. "
+            "hkl_data fixture must be configured with halo=True per TORCH-REFINE-004."
+        )
+    
+        # Refinement config: enable Stage B with 5 resolution shells
+        # Keep Stage A and Stage C disabled to isolate Stage B behavior
+        sigma_provenance = "external_lookup" if smoke_sigma_source == "metadata" else "cli_override"
+    
+        # PERF-WARM-010: Canonical runs disable ROI mode to preserve ±1% shell modifier gates
+        # until REFINE-008 can be recalibrated for ROI sampling. Small-detector runs keep ROI enabled.
+        enable_roi = smoke_detector_size != "full"
+    
+        config = RefinementConfig(
+            max_iter=30,
+            min_loss_improvement=0.0,  # Strict-gate behavior asserted via telemetry (REFINE-008)
+            enable_hkl_interpolation=True,  # Required for Stage B (REFINE-005)
+            enable_stage_b=True,  # Enable shell modifiers
+            stage_b_n_shells=5,
+            stage_b_min_loss_improvement=0.0,
+            stage_b_max_modifier=2.0,
+            enable_stage_c=False,  # Disable Stage C for this test
+            enable_stage_a_roi_mode=enable_roi,  # Panel mode for canonical; ROI for small
+            device="cuda:0",
+            dtype=torch.float32,
+            sigma_readout_provenance=sigma_provenance,
+        )
+    
+        # Run refinement (Stage A + Stage B)
+>       bragg_refined, telemetry_dict = run_nanobrag_refinement(
+            inputs=refinement_inputs,
+            detector=DL.detector,
+            beam=DL.beam,
+            crystal=DL.crystal,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            config=config,
+            baseline_crystal=DL.crystal,  # Required for Stage B cell delta reconstruction
+            baseline_detector=DL.detector,
+            use_engine_delegation=True  # Phase E: Use RefinementEngine with Stage wrappers
+        )
+
+tests/dbex/test_torch_refine_smoke.py:1274: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+dbex/nanobrag_refinement.py:4172: in run_nanobrag_refinement
+    telemetry_dict = engine.run(engine_inputs)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <dbex.refinement.engine.RefinementEngine object at 0x737806f5b4c0>
+inputs = {'baseline_crystal': <dxtbx_model_ext.MosaicCrystalSauter2014 object at 0x7378074cf540>, 'baseline_detector': <dxtbx_m...ext.Beam object at 0x73780749cf90>, 'crystal': <dxtbx_model_ext.MosaicCrystalSauter2014 object at 0x7378074cf540>, ...}
+telemetry_sink = None
+
+    def run(
+        self,
+        inputs: Any,
+        telemetry_sink: Optional[Path] = None
+    ) -> Dict[str, RefinementTelemetry]:
+        """
+        Execute all stages in order and aggregate telemetry.
+    
+        Args:
+            inputs: RefinementInputs instance (from dbex.nanobrag_refinement)
+            telemetry_sink: Optional directory for saving stage artifacts
+    
+        Returns:
+            Dict[str, RefinementTelemetry] keyed by stage.name, containing
+            telemetry from each executed stage
+    
+        Execution Flow:
+        1. Configure each stage (call stage.configure(config))
+        2. Execute each stage (call stage.run(inputs, telemetry_sink))
+        3. Convert returned dict to RefinementTelemetry instance
+        4. Aggregate into _telemetry dict keyed by stage.name
+        5. Propagate prior stage telemetry to next stage via inputs dict
+        6. Return aggregated telemetry
+    
+        Normative Requirements:
+        - Stages MUST execute in the order provided to __init__
+        - Engine MUST NOT skip stages or reorder them
+        - Telemetry MUST include all fields returned by stage.run()
+        """
+        self._telemetry = {}
+        enriched_inputs = inputs.copy() if isinstance(inputs, dict) else inputs
+    
+        for stage_idx, stage in enumerate(self.stages):
+            # Configure stage (optional hook, may be no-op)
+            stage.configure(self.config)
+    
+            # Enrich inputs with prior stage telemetry (for Stage B/C that depend on Stage A)
+            if stage_idx > 0 and isinstance(enriched_inputs, dict):
+                # Add stage_a_telemetry for StageB and StageC (expects dict from StageA.run())
+                if (stage.name == "stage_b" or stage.name == "stage_c") and "stage_a" in self._telemetry:
+                    # Convert RefinementTelemetry back to dict for StageB/StageC consumption
+                    from dataclasses import asdict
+                    stage_a_dict = asdict(self._telemetry["stage_a"])
+                    enriched_inputs["stage_a_telemetry"] = stage_a_dict
+                    # Propagate stage_a_ctx for warm cache support (Phase C2)
+                    # This is stored separately from telemetry dict in the previous stage run
+                    if hasattr(self, '_stage_a_ctx_cache'):
+                        enriched_inputs["stage_a_ctx"] = self._stage_a_ctx_cache
+    
+                # Add stage_b_telemetry for StageC if Stage B was run (optional - Stage A→C skip supported)
+                if stage.name == "stage_c" and "stage_b" in self._telemetry:
+                    stage_b_dict = asdict(self._telemetry["stage_b"])
+                    enriched_inputs["stage_b_telemetry"] = stage_b_dict
+    
+            # Execute stage and get telemetry dict
+            telemetry_dict = stage.run(enriched_inputs, telemetry_sink)
+    
+            # Cache stage_a_ctx for propagation to subsequent stages (Phase C2)
+            if stage.name == "stage_a" and "stage_a_ctx" in telemetry_dict:
+                self._stage_a_ctx_cache = telemetry_dict.pop("stage_a_ctx")
+    
+            # Cache shell metadata from Stage B for Bragg reconstruction (Phase C2)
+            if stage.name == "stage_b":
+                self._stage_b_shell_edges = telemetry_dict.get("shell_edges")
+                self._stage_b_shell_indices = telemetry_dict.get("shell_indices")
+                self._stage_b_n_shells = telemetry_dict.get("n_shells")
+    
+            # Filter out non-RefinementTelemetry fields before conversion
+            # stage_a_ctx, shell_edges, shell_indices, n_shells are not RefinementTelemetry fields
+            # (stage_type and mode ARE now part of RefinementTelemetry per Phase A4)
+            excluded_fields = {'stage_a_ctx', 'shell_edges', 'shell_indices', 'n_shells'}
+            telemetry_core_dict = {k: v for k, v in telemetry_dict.items()
+                                  if k not in excluded_fields}
+    
+            # Convert dict to RefinementTelemetry instance
+            # Note: stage.run() returns a dict matching RefinementTelemetry structure
+>           telemetry = RefinementTelemetry(**telemetry_core_dict)
+E           TypeError: __init__() got an unexpected keyword argument 'telemetry_version'
+
+dbex/refinement/engine.py:144: TypeError
+----------------------------- Captured stdout call -----------------------------
+
+[test_stage_b_shell_modifiers] detector=small
+[CRYSTAL_CUDA_PRE] cell=(27.375838920223206, 32.06579930050022, 34.46635719191432, 88.76861581157907, 71.6300065859712, 68.18891879154103)
+[CRYSTAL_CUDA_PRE] A_matrix=[[-0.027570671620812538, -0.004161872621187428, 0.02523374513624235], [-0.028691905099040113, 0.029663289264930826, -0.0018728330222788137], [-0.01245197173583301, -0.015637485963454167, -0.017478959523060056]]
+[CRYSTAL_CUDA_PRE] U_matrix=[[-0.5302621124475502, -0.21345969335072734, 0.8205224259075893], [-0.4524005808193779, 0.8897331434639772, -0.060898669082337036], [-0.7170465860576644, -0.40349707896876297, -0.5683610654212028]]
+[CRYSTAL_CUDA_PRE] B_matrix=[[0.036528560929735575, 0.0, 0.0], [-0.014618577583276596, 0.033590483565320364, 0.0], [-0.013797839605869609, 0.003666373526404159, 0.030753266869374123]]
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[11,11] k=[11,11] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[6,7] k=[11,12] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-0,-0] k=[11,11] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[11,11] k=[10,10] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[0,1] k=[10,10] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[5,5] k=[8,9] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[11,11] k=[7,7] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[4,4] k=[6,7] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[6,6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[1,1] k=[6,6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[4,5] k=[6,6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-4] k=[5,5] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-4,-4] k=[4,4] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[2,2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[7,8] k=[-2,-1] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[3,4] k=[-2,-2] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-7,-7] k=[-2,-2] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-3,-3] k=[-3,-3] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[2,3] k=[-4,-4] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[4,4] k=[-4,-4] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-4,-3] k=[-7,-6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-0,-0] k=[-7,-7] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-7,-7] k=[-7,-7] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[0,0] k=[-10,-10] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[11,11] k=[11,11] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[6,7] k=[11,12] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-0,-0] k=[11,11] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[11,11] k=[10,10] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[0,1] k=[10,10] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[5,5] k=[8,9] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[11,11] k=[7,7] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[4,4] k=[6,7] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[6,6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[1,1] k=[6,6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[4,5] k=[6,6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-4] k=[5,5] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-4,-4] k=[4,4] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[2,2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[7,8] k=[-2,-1] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[3,4] k=[-2,-2] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-7,-7] k=[-2,-2] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-3,-3] k=[-3,-3] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[2,3] k=[-4,-4] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[4,4] k=[-4,-4] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-4,-3] k=[-7,-6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-0,-0] k=[-7,-7] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-7,-7] k=[-7,-7] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[0,0] k=[-10,-10] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[11,11] k=[11,11] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[6,7] k=[11,12] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-0,-0] k=[11,11] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[11,11] k=[10,10] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[0,1] k=[10,10] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[5,5] k=[8,9] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[11,11] k=[7,7] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[4,4] k=[6,7] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[6,6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[1,1] k=[6,6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[4,5] k=[6,6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-4] k=[5,5] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-4,-4] k=[4,4] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[2,2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[7,8] k=[-2,-1] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[3,4] k=[-2,-2] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-7,-7] k=[-2,-2] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-3,-3] k=[-3,-3] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[2,3] k=[-4,-4] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[4,4] k=[-4,-4] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-4,-3] k=[-7,-6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-0,-0] k=[-7,-7] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-7,-7] k=[-7,-7] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[0,0] k=[-10,-10] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[11,11] k=[11,11] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[6,7] k=[11,12] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-0,-0] k=[11,11] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[11,11] k=[10,10] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[0,1] k=[10,10] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[5,5] k=[8,9] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[11,11] k=[7,7] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[4,4] k=[6,7] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[6,6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[1,1] k=[6,6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[4,5] k=[6,6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-4] k=[5,5] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-4,-4] k=[4,4] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[2,2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[7,8] k=[-2,-1] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[3,4] k=[-2,-2] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-7,-7] k=[-2,-2] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-3,-3] k=[-3,-3] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[2,3] k=[-4,-4] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[4,4] k=[-4,-4] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-4,-3] k=[-7,-6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-0,-0] k=[-7,-7] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-7,-7] k=[-7,-7] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[0,0] k=[-10,-10] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[11,11] k=[11,11] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[6,7] k=[11,12] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-0,-0] k=[11,11] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[11,11] k=[10,10] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[0,1] k=[10,10] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[5,5] k=[8,9] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[11,11] k=[7,7] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[4,4] k=[6,7] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[6,6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[1,1] k=[6,6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[4,5] k=[6,6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-4] k=[5,5] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-4,-4] k=[4,4] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[2,2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[7,8] k=[-2,-1] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[3,4] k=[-2,-2] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-7,-7] k=[-2,-2] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-3,-3] k=[-3,-3] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[2,3] k=[-4,-4] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[4,4] k=[-4,-4] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-4,-3] k=[-7,-6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-0,-0] k=[-7,-7] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-7,-7] k=[-7,-7] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[0,0] k=[-10,-10] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[11,11] k=[11,11] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[6,7] k=[11,12] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-0,-0] k=[11,11] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[11,11] k=[10,10] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[0,1] k=[10,10] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[5,5] k=[8,9] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[11,11] k=[7,7] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[4,4] k=[6,7] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[6,6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[1,1] k=[6,6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[4,5] k=[6,6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-4] k=[5,5] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-4,-4] k=[4,4] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[2,2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[7,8] k=[-2,-1] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[3,4] k=[-2,-2] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-7,-7] k=[-2,-2] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-3,-3] k=[-3,-3] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[2,3] k=[-4,-4] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[4,4] k=[-4,-4] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-4,-3] k=[-7,-6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-0,-0] k=[-7,-7] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-7,-7] k=[-7,-7] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[0,0] k=[-10,-10] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[11,11] k=[11,11] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[6,7] k=[11,12] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-0,-0] k=[11,11] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[11,11] k=[10,10] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[0,1] k=[10,10] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[5,5] k=[8,9] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[11,11] k=[7,7] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[4,4] k=[6,7] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[6,6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[1,1] k=[6,6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[4,5] k=[6,6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-4] k=[5,5] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-4,-4] k=[4,4] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[2,2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[7,8] k=[-2,-1] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[3,4] k=[-2,-2] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-7,-7] k=[-2,-2] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-3,-3] k=[-3,-3] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[2,3] k=[-4,-4] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[4,4] k=[-4,-4] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-4,-3] k=[-7,-6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-0,-0] k=[-7,-7] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-7,-7] k=[-7,-7] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[0,0] k=[-10,-10] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[11,11] k=[11,11] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[6,7] k=[11,12] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-0,-0] k=[11,11] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[11,11] k=[10,10] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[0,1] k=[10,10] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[5,5] k=[8,9] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[11,11] k=[7,7] l=[3,3] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[4,4] k=[6,7] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[6,6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[1,1] k=[6,6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[4,5] k=[6,6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-4] k=[5,5] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[5,5] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-4,-4] k=[4,4] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[2,2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[7,8] k=[-2,-1] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-1,-1] k=[-2,-2] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[3,4] k=[-2,-2] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-7,-7] k=[-2,-2] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-3,-3] k=[-3,-3] l=[0,0] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[2,3] k=[-4,-4] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[4,4] k=[-4,-4] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,-8] k=[-4,-4] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-4,-3] k=[-7,-6] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-0,-0] k=[-7,-7] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-7,-7] k=[-7,-7] l=[2,2] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-2,-2] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-5,-5] k=[-8,-8] l=[1,1] hit_rate=144/144 (100.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[0,0] k=[-10,-10] l=[2,2] hit_rate=144/144 (100.00%)
+=============================== warnings summary ===============================
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dxtbx/format/FormatCBFFull.py:198: DeprecationWarning: The binary mode of fromstring is deprecated, as it behaves surprisingly on unicode inputs. Use frombuffer instead
+    self._raw_data = flex.int(np.fromstring(array_string, np.int32))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers - TypeError: __init__() got an unexpected keyword argument 'telemetry_version'
+======================== 1 failed, 5 warnings in 13.32s ========================

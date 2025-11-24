@@ -1,212 +1,245 @@
-# DOCS-ROADMAP-001 Phase B: Plan Thinning
+# Ralph Task Input: DOCS-ROADMAP-001 Phase C (Minimal Scope)
 
 ## Summary
-Rewrite `plans/nanobrag_integration_plan.md` to remove normative requirement duplication (~100-150 lines) and replace with spec references, while preserving phase structure, task lists, and deliverables. Target ~150-200 lines (50% reduction from 305).
+Fix broken test comment reference after integration plan thinning; mark DOCS-ROADMAP-001 complete.
 
 ## Mode
 Docs
 
 ## Focus
-DOCS-ROADMAP-001 — Thin `nanobrag_integration_plan`
+DOCS-ROADMAP-001 — Thin `nanobrag_integration_plan` (Phase C: Minimal cross-reference fix)
 
 ## Branch
 integration
 
 ## Mapped Tests
-none — documentation-only (no test selectors)
+none — documentation-only (test comment fix + docs updates)
 
 ## Artifacts
-`plans/active/DOCS-ROADMAP-001/reports/2025-11-24T145000Z/` (create this timestamp directory for Phase B)
-- `plans/nanobrag_integration_plan.md.bak` (backup before editing)
-- `diff_summary.txt` (diff output showing line reduction)
-- `decision.json` (Path A/B/C/D decision + validation results)
-- `summary.md` (Turn Summary)
+plans/active/DOCS-ROADMAP-001/reports/2025-11-24T150000Z/
 
-## Do Now
+## Context
+Ralph completed Phase B (commit 04618ab2, loop i=276): thinned integration plan 305→146 lines (52% reduction) by replacing normative sections with spec references. **Issue**: Test comment at `tests/dbex/test_torch_refine_smoke.py:1217` references non-existent lines 226-244 in the now-thinned plan. **Minimal Phase C scope**: Fix the ONE broken reference, mark initiative done.
 
-**Phase B: Plan Thinning (Rewrite Integration Plan)**
+**Phase C Assessment**: Galph analysis (plans/active/SUPERVISOR/reports/2025-11-24T150000Z/phase_c_assessment.md) recommends **Minimal Phase C** (30 minutes, fix critical broken reference only, skip optional polish). Full Phase C would take 1-2 hours for minor additional value (docs/index.md clarity note).
 
-Replace 16 normative sections identified in Phase A with concise spec references. Follow `plans/active/DOCS-ROADMAP-001/reports/2025-11-24T130000Z/normative_content_map.md` refactoring recommendations.
+## Do Now (6-Step Protocol)
 
-### Implementation Checklist
+**Objective**: Fix broken test comment reference and close DOCS-ROADMAP-001.
 
-1. **Read Phase A artifacts** (~10min)
-   - Read `plans/active/DOCS-ROADMAP-001/reports/2025-11-24T130000Z/normative_content_map.md` (mapping table + refactoring recommendations)
-   - Read `plans/active/DOCS-ROADMAP-001/reports/2025-11-24T130000Z/phase_a_summary.md` (findings + example replacements)
+### Step 1: Read Test Comment Context
+Read `tests/dbex/test_torch_refine_smoke.py` lines 1210-1220 to understand context around the broken reference at line 1217.
 
-2. **Create backup** (~1min)
-   - `cp plans/nanobrag_integration_plan.md plans/nanobrag_integration_plan.md.bak`
+### Step 2: Fix Broken Test Comment Reference
+**File**: `tests/dbex/test_torch_refine_smoke.py:1217`
 
-3. **Rewrite plan** (~90min)
-   - Edit `plans/nanobrag_integration_plan.md` per normative_content_map refactoring recommendations (10 major replacements)
-   - **Section 1 (lines 10-21)**: Replace "Incorporated Clarifications" details with: "For detector config mapping, masks, units, and ROI semantics, see docs/nanobrag_api.md, docs/spec-db-core.md, and docs/dials_api.md."
-   - **Section 2 (lines 23-27)**: Replace "Stage Policy" SHALL/SHOULD clauses with: "Stage refinement targets and interpolation requirements are defined in docs/spec-db-workflow.md §Stage A/B/C (lines 34-66)."
-   - **Section 3 (lines 28-35)**: Replace "Mapping-Aligned Baseline" MUST clauses with: "For mapping parity requirements and Stage A zero-point conventions, see docs/spec-db-conformance.md (DB-AT-024) and docs/spec-db-workflow.md §Baseline Convention (lines 29-32)."
-   - **Section 4 (lines 55-61)**: Replace config mapping rules with: "Config construction from DIALS Experiment metadata is documented in docs/config_crosswalk.md and docs/nanobrag_api.md."
-   - **Section 5 (lines 65-85)**: Replace pixel geometry/masks/units details with: "For pixel geometry constraints, mask handling, and unit conventions, see docs/spec-db-core.md."
-   - **Section 6 (lines 87-104)**: Replace multi-panel code snippet with: "Multi-panel simulation and stitching workflow is specified in docs/spec-db-workflow.md §Per-Panel Simulation (lines 13-16)."
-   - **Section 7 (lines 124-139)**: Replace parameter constraints details with: "Parameter constraints and baseline crystal state are defined in docs/spec-db-core.md §Baseline Crystal State and Parameterization (lines 34-57)."
-   - **Section 8 (lines 156-176)**: Replace loss formula/optimizer details with: "Variance-weighted loss definition and optimizer requirements are specified in docs/spec-db-core.md §Variance Model (lines 82-95) and docs/spec-db-runtime.md §Optimizer Requirements (lines 51-73)."
-   - **Section 9 (lines 184-231)**: Replace refinement nucleus contract with: "Refinement lifecycle, convergence gates, and telemetry schema are defined in docs/spec-db-workflow.md §Refinement Lifecycle (lines 82-120) and docs/spec-db-runtime.md."
-   - **Section 10 (lines 232-244)**: Replace Stage B specifics with: "Stage B structure-factor refinement implementation is specified in docs/spec-db-workflow.md §Stage B (lines 58-66)."
-   - **Preserve**: Overview (lines 3-8), Phase 0-5 headers, task lists (e.g., lines 50-61 Phase 1 tasks), estimated timelines, Deliverables Checklist (lines 288-296), Open Questions (lines 300-305)
+**Current broken reference**:
+```python
+    - plans/nanobrag_integration_plan.md:226-244 specifies Stage B shell mode contract
+```
 
-4. **Verify preserved content** (~15min)
-   - Check Phase 0-5 headers intact (grep "## Phase" plans/nanobrag_integration_plan.md)
-   - Check task lists preserved (grep "^- " plans/nanobrag_integration_plan.md | wc -l should show similar count)
-   - Check estimated timelines preserved (grep "days" plans/nanobrag_integration_plan.md)
-   - Check Deliverables Checklist intact (lines 288-296)
+**Issue**: Lines 226-244 NO LONGER EXIST after Phase B thinning (plan is now 146 lines).
 
-5. **Run diff and verify line reduction** (~10min)
-   - `diff -u plans/nanobrag_integration_plan.md.bak plans/nanobrag_integration_plan.md > plans/active/DOCS-ROADMAP-001/reports/2025-11-24T145000Z/diff_summary.txt`
-   - `wc -l plans/nanobrag_integration_plan.md` → should be ~150-200 lines (target 50% reduction from 305)
-   - Verify diff shows ~100-150 line removal (all from normative sections, not task lists)
+**Fix**: Replace with spec reference (per Phase B normative mapping):
+```python
+    - docs/spec-db-workflow.md §Stage B (lines 58-66) specifies Stage B shell mode contract
+```
 
-6. **Verify readability** (~10min)
-   - Read through thinned plan end-to-end
-   - Verify phase objectives clear (Overview + Phase 0-5 headers)
-   - Verify spec pointers concise (e.g., "see docs/spec-db-workflow.md §Stage A")
-   - Verify no broken markdown formatting
+**Validation**: Verify line 1217 now points to existing spec location.
 
-7. **Write decision.json** (~5min)
-   - Document which decision path (A/B/C/D) based on validation results
-   - Path A (ideal): Line reduction ~50%, phase structure preserved, all spec refs valid
-   - Path B (partial): Line reduction <40%, need additional thinning
-   - Path C (issue): Phase structure damaged, need to restore
-   - Path D (blocker): Cannot complete thinning, escalate to Galph
+### Step 3: Update Implementation Plan Status
+**File**: `plans/active/DOCS-ROADMAP-001/implementation.md`
 
-8. **Write summary.md** (~5min)
-   - Create `plans/active/DOCS-ROADMAP-001/reports/2025-11-24T145000Z/summary.md`
-   - Include Turn Summary with: line reduction achieved, sections replaced, validation results, next actions (Phase C cross-refs)
+Mark Phase C checklist status (lines 72-95):
+- [x] C2: Verify test references (COMPLETE - fixed line 1217 broken reference)
+- [~] C1: Update docs/index.md (SKIPPED - minimal scope, optional polish deferred)
+- [~] C3-C6: Final validation/commits (MERGED with Step 5-6)
 
-9. **Commit** (~5min)
-   - `git add plans/nanobrag_integration_plan.md plans/active/DOCS-ROADMAP-001/`
-   - `git commit -m "DOCS-ROADMAP-001 Phase B: Thin integration plan (normative → spec refs) — tests: not run"`
-   - Do NOT commit `.bak` file (keep as local backup only)
+Add completion note at end of file:
+```markdown
+## Completion Summary (2025-11-24T150000Z)
+**Status**: ✓ COMPLETE (Minimal Phase C)
+**Outcome**: Fixed broken test comment reference (line 1217), initiative closed
+**Scope Decision**: Minimal Phase C executed per galph_memory.md recommendation (fix critical broken reference, defer optional docs/index.md polish for minimal ROI)
+**Value Delivered**:
+- Phase A: Normative content mapped to specs (0 gaps found)
+- Phase B: Plan thinned 305→146 lines (52% reduction), normative duplication eliminated
+- Phase C: Critical cross-reference fix (test comment invalid line range corrected)
+**Exit Criteria**: 3/3 satisfied (#1 no normative duplication ✓, #2 phase structure intact ✓, #3 critical cross-refs fixed ✓)
+```
 
-10. **Return control to Galph** (~1min)
-    - Ensure artifacts directory created with all required files
-    - Ensure decision.json + summary.md written
-    - Ensure commit pushed (not required this loop, Galph will handle)
+### Step 4: Update Fix Plan Ledger
+**File**: `docs/fix_plan.md`
+
+Update DOCS-ROADMAP-001 entry:
+1. Change status line: `Status: done (2025-11-24T150000Z — Phase C minimal scope: broken test comment fixed, initiative complete)`
+2. Add Attempts History entry (prepend to existing history):
+```markdown
+  * 2025-11-24T150000Z (implementation, i=277) — **Phase C ✓ COMPLETE (Minimal Scope)** — Fixed broken test comment reference at `tests/dbex/test_torch_refine_smoke.py:1217` (OLD: plans/nanobrag_integration_plan.md:226-244 → NEW: docs/spec-db-workflow.md §Stage B lines 58-66). **Scope Decision**: Minimal Phase C per galph_memory.md recommendation (30 minutes, fix critical broken reference only, defer optional docs/index.md polish for minimal ROI). **Value Delivered**: Phase A (normative mapping, 0 gaps), Phase B (plan thinned 305→146 lines 52% reduction), Phase C (critical cross-ref fix). **Exit Criteria**: 3/3 satisfied (#1 no normative duplication ✓ Phase B, #2 phase structure intact ✓ Phase B, #3 critical cross-refs fixed ✓ Phase C minimal). **Confidence**: HIGH (~95%) - broken reference corrected, substantial initiative value delivered, allows faster Tier 3 pivot. **Artifacts**: plans/active/DOCS-ROADMAP-001/reports/2025-11-24T150000Z/{decision.json, summary.md, phase_c_assessment.md}.
+```
+
+### Step 5: Create Completion Artifacts
+**Directory**: `plans/active/DOCS-ROADMAP-001/reports/2025-11-24T150000Z/`
+
+Create `decision.json`:
+```json
+{
+  "loop_id": "i=277",
+  "timestamp": "2025-11-24T150000Z",
+  "owner": "ralph",
+  "phase": "C_minimal",
+  "task": "Fix broken test comment reference after integration plan thinning",
+  "decision_path": "A",
+  "decision_paths": {
+    "A": "Minimal Phase C - Fix critical broken reference only, mark done",
+    "B": "Full Phase C - All planned tasks (docs/index.md + test ref + validation)",
+    "C": "Skip Phase C - Mark done with broken reference (NOT RECOMMENDED)"
+  },
+  "scope_decision": "Minimal Phase C per Galph recommendation (30min, fix test comment line 1217 only, defer optional docs/index.md polish)",
+  "changes_applied": {
+    "test_comment_fix": {
+      "file": "tests/dbex/test_torch_refine_smoke.py",
+      "line": 1217,
+      "old_ref": "plans/nanobrag_integration_plan.md:226-244",
+      "new_ref": "docs/spec-db-workflow.md §Stage B (lines 58-66)",
+      "rationale": "Lines 226-244 no longer exist after Phase B thinning (plan now 146 lines)"
+    }
+  },
+  "deferred_tasks": {
+    "docs_index_update": "DEFERRED - minimal ROI, description remains accurate"
+  },
+  "exit_criteria_status": {
+    "1_no_normative_duplication": "SATISFIED (Phase B)",
+    "2_phase_structure_intact": "SATISFIED (Phase B)",
+    "3_critical_cross_refs_fixed": "SATISFIED (Phase C minimal - test comment line 1217 fixed)"
+  },
+  "value_delivered": {
+    "phase_a": "Normative content mapped to specs (0 gaps found)",
+    "phase_b": "Plan thinned 305→146 lines (52% reduction), normative duplication eliminated",
+    "phase_c": "Critical cross-reference fix (broken test comment corrected)"
+  },
+  "confidence": "HIGH (~95%)",
+  "confidence_rationale": "Broken reference fixed (critical), substantial initiative value delivered (Phase A+B+C minimal), allows faster Tier 3 pivot"
+}
+```
+
+Create `summary.md`:
+```markdown
+### Turn Summary
+Fixed broken test comment reference (test_torch_refine_smoke.py:1217) pointing to non-existent integration plan lines after Phase B thinning.
+Minimal Phase C scope executed per supervisor recommendation: corrected critical broken reference, deferred optional docs polish.
+Initiative complete: Phase A normative mapping + Phase B plan thinning (52% reduction) + Phase C cross-ref fix delivered substantial value.
+Artifacts: plans/active/DOCS-ROADMAP-001/reports/2025-11-24T150000Z/ (decision.json, summary.md, phase_c_assessment.md)
+```
+
+### Step 6: Commit and Push
+```bash
+git add -A && \
+git commit -m "DOCS-ROADMAP-001 Phase C (minimal): Fix broken test comment reference — tests: not run
+
+Fixed broken reference in tests/dbex/test_torch_refine_smoke.py:1217 after Phase B
+integration plan thinning (305→146 lines):
+- OLD: plans/nanobrag_integration_plan.md:226-244 (no longer exists)
+- NEW: docs/spec-db-workflow.md §Stage B (lines 58-66)
+
+Minimal Phase C scope per supervisor recommendation (30min, fix critical broken
+reference only, defer optional docs/index.md polish for minimal ROI).
+
+Initiative complete:
+- Phase A: Normative content mapped to specs (0 gaps found)
+- Phase B: Plan thinned 305→146 lines (52% reduction)
+- Phase C: Critical cross-reference fix
+
+Exit criteria: 3/3 satisfied (#1 no normative duplication ✓, #2 phase structure
+intact ✓, #3 critical cross-refs fixed ✓).
+
+Artifacts: plans/active/DOCS-ROADMAP-001/reports/2025-11-24T150000Z/" && \
+git push
+```
+
+**If push rejected**: `timeout 30 git pull --rebase`, resolve conflicts, then `git push` again.
 
 ## How-To Map
 
-### Environment
+### Fix Test Comment
 ```bash
-# No special environment setup required (documentation-only)
-pwd  # Should be /home/ollie/Documents/diffbragg_example
+# Read context
+cat tests/dbex/test_torch_refine_smoke.py | sed -n '1210,1220p'
+
+# Use Edit tool to replace line 1217:
+# OLD: "    - plans/nanobrag_integration_plan.md:226-244 specifies Stage B shell mode contract"
+# NEW: "    - docs/spec-db-workflow.md §Stage B (lines 58-66) specifies Stage B shell mode contract"
 ```
 
-### Commands
+### Update Implementation Plan
+Use Edit tool on `plans/active/DOCS-ROADMAP-001/implementation.md`:
+1. Update Phase C checklist status (lines 72-95)
+2. Append completion summary section at end
 
-1. **Phase A artifact review**:
-```bash
-ls -lh plans/active/DOCS-ROADMAP-001/reports/2025-11-24T130000Z/
-cat plans/active/DOCS-ROADMAP-001/reports/2025-11-24T130000Z/normative_content_map.md
-```
+### Update Fix Plan
+Use Edit tool on `docs/fix_plan.md`:
+1. Find DOCS-ROADMAP-001 section (~line 1500-1600 estimated)
+2. Update status line
+3. Prepend new Attempts History entry (above existing 2025-11-24T145000Z entry)
 
-2. **Backup plan**:
-```bash
-cp plans/nanobrag_integration_plan.md plans/nanobrag_integration_plan.md.bak
-```
-
-3. **Edit plan** (manual):
-   - Use your text editor to apply 10 replacements per normative_content_map.md
-   - Replace normative sections (lines 10-21, 23-35, 55-85, 87-104, 124-139, 156-176, 184-244) with concise spec references
-   - Preserve phase structure, task lists, timelines, deliverables, open questions
-
-4. **Diff and line count**:
-```bash
-mkdir -p plans/active/DOCS-ROADMAP-001/reports/2025-11-24T145000Z
-diff -u plans/nanobrag_integration_plan.md.bak plans/nanobrag_integration_plan.md > plans/active/DOCS-ROADMAP-001/reports/2025-11-24T145000Z/diff_summary.txt
-wc -l plans/nanobrag_integration_plan.md  # Target ~150-200 lines
-grep "^-" plans/active/DOCS-ROADMAP-001/reports/2025-11-24T145000Z/diff_summary.txt | wc -l  # Should show ~100-150 lines removed
-```
-
-5. **Verification checks**:
-```bash
-grep "## Phase" plans/nanobrag_integration_plan.md  # Should show Phase 0-5 headers
-grep "^- " plans/nanobrag_integration_plan.md | wc -l  # Task list count (should be similar to original)
-grep "days" plans/nanobrag_integration_plan.md  # Verify timelines preserved
-```
-
-6. **Commit**:
-```bash
-git add plans/nanobrag_integration_plan.md plans/active/DOCS-ROADMAP-001/
-git commit -m "DOCS-ROADMAP-001 Phase B: Thin integration plan (normative → spec refs) — tests: not run"
-# Note: Do NOT add .bak file to git
-```
+### Create Artifacts
+Use Write tool for:
+- `plans/active/DOCS-ROADMAP-001/reports/2025-11-24T150000Z/decision.json`
+- `plans/active/DOCS-ROADMAP-001/reports/2025-11-24T150000Z/summary.md`
 
 ## Pitfalls To Avoid
 
-1. **Do NOT remove task lists** — Phase 1-5 task bullets (e.g., "Extend DataLoad usage...", "Define NanoBraggRefinementModel...") are NOT normative, they are deliverable checklists. KEEP them.
-2. **Do NOT remove phase headers** — "Phase 0 – Environment & Baseline", "Phase 1 – Data Preparation Bridge", etc. are sequencing structure. KEEP them.
-3. **Do NOT remove estimated timelines** — "1-2 days", "2-3 days" per phase are planning estimates. KEEP them.
-4. **Do NOT remove Deliverables Checklist** — Lines 288-296 list final deliverables ([ ] nanobrag_bridge.py, [ ] torch_model.py, etc.). KEEP them.
-5. **Do NOT remove Open Questions** — Lines 300-305 list future work. KEEP them.
-6. **Do NOT add new normative content** — You are REMOVING normative duplication, not rewriting requirements. Only add spec references.
-7. **Do NOT change spec references** — Use exact spec pointers from normative_content_map.md (e.g., "docs/spec-db-workflow.md §Stage A/B/C (lines 34-66)").
-8. **Do NOT skip backup** — Always create .bak before editing in case you need to revert.
-9. **Do NOT commit .bak file** — Keep it as local backup only, do not add to git.
-10. **Do NOT create new files** — Only edit existing `plans/nanobrag_integration_plan.md` and create artifacts under `plans/active/DOCS-ROADMAP-001/reports/2025-11-24T145000Z/`.
+1. **Environment Freeze**: Documentation-only work, no code/environment changes ✓
+2. **Exact line matching**: Use Edit tool with EXACT old_string from file (include leading spaces)
+3. **Spec reference format**: Match existing format "docs/spec-db-workflow.md §Stage B (lines 58-66)"
+4. **No over-scope**: Do NOT update docs/index.md (deferred per minimal scope decision)
+5. **Commit message format**: Include "DOCS-ROADMAP-001 Phase C (minimal)" prefix
+6. **Git push timeout**: Use `timeout 30` for pull/push to avoid hangs
+7. **Artifacts path**: Use existing 2025-11-24T150000Z directory (matches timestamp from Phase C assessment)
 
 ## If Blocked
 
-If you cannot complete Phase B thinning:
-1. Document the blocker in `decision.json` (Path D)
-2. Preserve any partial progress (commit partial work with clear message)
-3. Write `summary.md` explaining what was attempted and why it failed
-4. Return control to Galph with blocker documented
-
-Example blockers:
-- Cannot parse normative_content_map.md (formatting issue)
-- Cannot determine what to preserve vs remove (ambiguous section)
-- Diff shows phase structure was damaged (need to restore from .bak)
-- Line reduction <30% (insufficient thinning, need Galph guidance)
+1. **Test comment line number mismatch**: Re-read file to find exact line with broken reference
+2. **Spec reference uncertainty**: Check Phase B decision.json (line 154-158) for Stage B spec location
+3. **Fix plan entry not found**: Grep for "DOCS-ROADMAP-001" to locate section
+4. **Git push fails repeatedly**: Document issue in summary.md, return to Galph
 
 ## Findings Applied
 
-**Mandatory Reading**:
-- POLICY-001: Environment Freeze — Documentation-only work, no code/environment changes
-- TESTING-003: Test registry sync NOT required for documentation-only changes
-- CLAUDE.md: Incremental progress — 3-phase breakdown (analysis → thin → cross-refs)
+**Mandatory from docs/findings.md**:
+- **POLICY-001** (Environment Freeze): Documentation-only work, no installs/upgrades ✓
+- **CLAUDE.md**: Incremental progress (3-phase breakdown), pragmatic (fix critical, defer polish) ✓
 
-**Relevant Phase A Results**:
-- 100% normative content duplication confirmed (all 16 sections exist in authoritative specs)
-- Zero spec gaps found (no spec updates required before thinning)
-- 26 cross-references cataloged (will be updated in Phase C)
-- Target line reduction: 305 → ~150-200 lines (50%)
+**Phase C Assessment Reference**: plans/active/SUPERVISOR/reports/2025-11-24T150000Z/phase_c_assessment.md (Galph recommendation: Minimal Phase C, fix broken test comment only)
 
 ## Pointers
 
-**Phase A Artifacts** (mandatory reading):
-- `plans/active/DOCS-ROADMAP-001/reports/2025-11-24T130000Z/normative_content_map.md` — Detailed mapping table + refactoring recommendations
-- `plans/active/DOCS-ROADMAP-001/reports/2025-11-24T130000Z/phase_a_summary.md` — Findings + example replacements
-- `plans/active/DOCS-ROADMAP-001/reports/2025-11-24T130000Z/phase_a_summary.md:48-85` — Example replacement (Stage Policy section)
+**Key Files**:
+- Test file: `tests/dbex/test_torch_refine_smoke.py:1217` (broken reference)
+- Implementation plan: `plans/active/DOCS-ROADMAP-001/implementation.md:72-95` (Phase C checklist)
+- Fix plan ledger: `docs/fix_plan.md` (DOCS-ROADMAP-001 section, search for "### [DOCS-ROADMAP-001]")
+- Phase B decision: `plans/active/DOCS-ROADMAP-001/reports/2025-11-24T145000Z/decision.json:154-158` (Stage B spec location)
 
-**Specs Referenced** (verify these exist before citing):
-- docs/spec-db-workflow.md (Stage A/B/C definitions, refinement lifecycle)
-- docs/spec-db-core.md (units, masks, variance, parameterization)
-- docs/spec-db-runtime.md (optimizer requirements, PyTorch guardrails)
-- docs/nanobrag_api.md (detector config mapping, HKL IO)
-- docs/config_crosswalk.md (DIALS → simulator config mapping)
-- docs/spec-db-conformance.md (DB-AT-024 mapping parity)
+**Spec References**:
+- Stage B normative location: `docs/spec-db-workflow.md:58-66` (§Stage B)
+- Phase A mapping analysis: `plans/active/DOCS-ROADMAP-001/reports/2025-11-24T130000Z/normative_content_map.md`
 
-**Target File**:
-- `plans/nanobrag_integration_plan.md` — 305 lines currently, target ~150-200 lines after thinning
+## Next Up (Optional, If Finished Early)
 
-**Implementation Plan**:
-- `plans/active/DOCS-ROADMAP-001/implementation.md` — Phase A ✅ COMPLETE, Phase B checklist (lines 46-70)
+NOT APPLICABLE - Single focused task (30 minutes), no early finish expected. If complete early, return to Galph for next focus selection (Tier 3 roadmap pivot).
 
-## Next Up (Optional)
-If Phase B completes early (<2 hours) and you have time remaining:
-- Phase C task C2: Verify test references in `tests/dbex/test_torch_refine_smoke.py` (expected: 1 comment line referencing Stage B contract, no assertion changes needed)
-- Document C2 result in `summary.md` (e.g., "Verified test reference: line 123 comment valid, no changes required")
+## Success Criteria
 
-Do NOT attempt Phase C tasks C1/C3/C4/C5/C6 (cross-reference updates, fix_plan updates) — those require Galph review first.
+**Primary**:
+1. ✅ Test comment line 1217 references valid spec location (docs/spec-db-workflow.md §Stage B)
+2. ✅ Implementation plan marked complete with minimal scope note
+3. ✅ Fix plan ledger status=done with Phase C Attempts History entry
+4. ✅ Artifacts created (decision.json, summary.md in 2025-11-24T150000Z/)
+5. ✅ Changes committed and pushed successfully
 
-## Doc Sync Plan
-Not applicable — Documentation-only changes, no test registry sync required per TESTING-003.
+**Validation**:
+- Grep test file line 1217: should show "docs/spec-db-workflow.md §Stage B (lines 58-66)"
+- Fix plan DOCS-ROADMAP-001 status line: should show "done (2025-11-24T150000Z"
+- Git log HEAD: should show "DOCS-ROADMAP-001 Phase C (minimal)" commit message
 
-## Normative Math/Physics
-Not applicable — This is documentation hygiene, no normative math/physics changes.
+**Time Budget**: 30 minutes (6 steps: read 5min, fix comment 5min, update plans 10min, artifacts 5min, commit 5min)

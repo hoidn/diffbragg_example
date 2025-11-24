@@ -3055,9 +3055,18 @@ def _run_stage_b_lbfgs(
     Returns dict with status, message, final metrics, and best params snapshot.
     Mirrors Phase B1a-loop3 pattern for Stage A LBFGS execution.
     """
-    # Extract param_values dict entries
+    # Extract param_values dict entries (mode-aware)
     stage_b_optimizer = param_values['optimizer']
-    shell_modifier_raw = param_values['shell_modifier_raw']
+    stage_b_mode = param_values['stage_b_mode']
+
+    # Mode-aware parameter extraction
+    if stage_b_mode == "per_reflection":
+        log_modifiers = param_values['log_modifiers']
+        shell_modifier_raw = None  # Not used in per-reflection mode
+    else:  # shell mode
+        shell_modifier_raw = param_values['shell_modifier_raw']
+        log_modifiers = None  # Not used in shell mode
+
     log_scale = param_values['log_scale']
     telemetry = param_values['telemetry_state']
     loss_trace_full_b = telemetry['loss_trace_full_b']
@@ -4043,28 +4052,44 @@ def _build_final_bragg_from_stage_b_telemetry(
     misset_xyz_deg_delta = param_deltas_a['misset_xyz_deg']['delta']
     misset_xyz_deg = torch.tensor(misset_xyz_deg_delta, device=device, dtype=dtype, requires_grad=False)
 
-    # Extract shell metadata from Stage B telemetry
-    if hasattr(telemetry_b, 'shell_edges'):
-        shell_edges = torch.tensor(telemetry_b.shell_edges, device=device, dtype=dtype)
-        shell_indices = torch.tensor(telemetry_b.shell_indices, device=device, dtype=torch.long)
-        n_shells = telemetry_b.n_shells
-    else:
-        shell_edges = torch.tensor(telemetry_b['shell_edges'], device=device, dtype=dtype)
-        shell_indices = torch.tensor(telemetry_b['shell_indices'], device=device, dtype=torch.long)
-        n_shells = telemetry_b['n_shells']
+    # Check Stage B mode (per-reflection or shell)
+    # Per-reflection mode doesn't have shell_edges/shell_indices
+    stage_b_mode = None
+    if hasattr(telemetry_b, 'stage_b_mode'):
+        stage_b_mode = telemetry_b.stage_b_mode
+    elif isinstance(telemetry_b, dict) and 'stage_b_mode' in telemetry_b:
+        stage_b_mode = telemetry_b['stage_b_mode']
 
-    # Extract shell modifiers from Stage B param_deltas
-    shell_modifiers_final = torch.zeros(n_shells, device=device, dtype=dtype)
-    for shell_idx in range(n_shells):
-        # Find the shell modifier key in param_deltas_b
-        shell_key = None
-        for key in param_deltas_b.keys():
-            if key.startswith(f'shell_{shell_idx}_modifier'):
-                shell_key = key
-                break
-        if shell_key is None:
-            raise RuntimeError(f"Missing shell_{shell_idx}_modifier in Stage B telemetry param_deltas")
-        shell_modifiers_final[shell_idx] = param_deltas_b[shell_key]['final']
+    # Extract shell metadata from Stage B telemetry (shell mode only)
+    if stage_b_mode == "per_reflection":
+        # Per-reflection mode: no shell metadata, skip shell modifier application
+        shell_edges = None
+        shell_indices = None
+        n_shells = 0
+        shell_modifiers_final = None
+    else:
+        # Shell mode: extract shell metadata and modifiers
+        if hasattr(telemetry_b, 'shell_edges'):
+            shell_edges = torch.tensor(telemetry_b.shell_edges, device=device, dtype=dtype)
+            shell_indices = torch.tensor(telemetry_b.shell_indices, device=device, dtype=torch.long)
+            n_shells = telemetry_b.n_shells
+        else:
+            shell_edges = torch.tensor(telemetry_b['shell_edges'], device=device, dtype=dtype)
+            shell_indices = torch.tensor(telemetry_b['shell_indices'], device=device, dtype=torch.long)
+            n_shells = telemetry_b['n_shells']
+
+        # Extract shell modifiers from Stage B param_deltas
+        shell_modifiers_final = torch.zeros(n_shells, device=device, dtype=dtype)
+        for shell_idx in range(n_shells):
+            # Find the shell modifier key in param_deltas_b
+            shell_key = None
+            for key in param_deltas_b.keys():
+                if key.startswith(f'shell_{shell_idx}_modifier'):
+                    shell_key = key
+                    break
+            if shell_key is None:
+                raise RuntimeError(f"Missing shell_{shell_idx}_modifier in Stage B telemetry param_deltas")
+            shell_modifiers_final[shell_idx] = param_deltas_b[shell_key]['final']
 
     # Get n_panels and panel_shape
     n_panels = len(detector)
@@ -4089,24 +4114,29 @@ def _build_final_bragg_from_stage_b_telemetry(
     cell_beta_tensor = cell_params[4] + torch.tanh(angle_beta_raw) * max_angle_delta
     cell_gamma_tensor = cell_params[5] + torch.tanh(angle_gamma_raw) * max_angle_delta
 
-    # Apply shell modifiers to HKL grid (mirroring inline code lines 3314-3317)
-    with torch.no_grad():
-        hkl_grid_modified = hkl_grid.clone()
-        for shell_idx in range(n_shells):
-            mask = (shell_indices == shell_idx)
-            hkl_grid_modified[mask] = hkl_grid[mask] * shell_modifiers_final[shell_idx]
+    # Apply shell modifiers to HKL grid (shell mode only; per-reflection uses base grid)
+    if stage_b_mode == "per_reflection":
+        # Per-reflection mode: use unmodified HKL grid (ASU modifiers applied per-reflection during forward pass)
+        hkl_grid_modified = hkl_grid
+    else:
+        # Shell mode: apply shell modifiers to HKL grid (mirroring inline code lines 3314-3317)
+        with torch.no_grad():
+            hkl_grid_modified = hkl_grid.clone()
+            for shell_idx in range(n_shells):
+                mask = (shell_indices == shell_idx)
+                hkl_grid_modified[mask] = hkl_grid[mask] * shell_modifiers_final[shell_idx]
 
-        bragg_full = np.zeros((n_panels, *panel_shape), dtype=np.float32)
+    bragg_full = np.zeros((n_panels, *panel_shape), dtype=np.float32)
 
-        # Build crystal overrides
-        crystal_overrides = {
-            'cell_a': cell_a_tensor,
-            'cell_b': cell_b_tensor,
-            'cell_c': cell_c_tensor,
-            'cell_alpha': cell_alpha_tensor,
-            'cell_beta': cell_beta_tensor,
-            'cell_gamma': cell_gamma_tensor
-        }
+    # Build crystal overrides
+    crystal_overrides = {
+        'cell_a': cell_a_tensor,
+        'cell_b': cell_b_tensor,
+        'cell_c': cell_c_tensor,
+        'cell_alpha': cell_alpha_tensor,
+        'cell_beta': cell_beta_tensor,
+        'cell_gamma': cell_gamma_tensor
+    }
 
         # Compute final misset (baseline + delta if baseline provided)
         if baseline_misset_deg_tensor is not None:

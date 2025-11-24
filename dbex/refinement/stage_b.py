@@ -241,10 +241,26 @@ class StageB:
         param_values['misset_xyz_deg'] = misset_xyz_deg
         param_values['best_loss_full'] = best_loss_full  # Stage A final loss for improvement calc
 
-        # Extract variables needed for helper 2/3 calls and telemetry assembly
-        shell_indices = param_values['shell_indices']
-        shell_edges = param_values['shell_edges']
-        shell_modifier_raw = param_values['shell_modifier_raw']
+        # Extract mode-specific parameters (per-reflection vs shell)
+        stage_b_mode = param_values['stage_b_mode']
+
+        if stage_b_mode == "per_reflection":
+            # Per-reflection mode: extract ASU parameters
+            asu_indices = param_values['asu_indices']
+            log_modifiers = param_values['log_modifiers']
+            n_asu_unique = param_values['n_asu_unique']
+            shell_indices = None  # Not used in per-reflection mode
+            shell_edges = None
+            shell_modifier_raw = None
+        else:  # shell mode
+            # Shell mode: extract shell parameters
+            shell_indices = param_values['shell_indices']
+            shell_edges = param_values['shell_edges']
+            shell_modifier_raw = param_values['shell_modifier_raw']
+            asu_indices = None  # Not used in shell mode
+            n_asu_unique = 0
+            log_modifiers = None
+
         stage_b_params = param_values['params']
         stage_b_optimizer = param_values['optimizer']
         stage_b_eval_stage_a_ctx = param_values['stage_b_eval_stage_a_ctx']
@@ -332,22 +348,43 @@ class StageB:
         variance_floor_clamped_pixels_b = telemetry['variance_floor_clamped_pixels_b']
         variance_floor_masked_pixels_b = telemetry['variance_floor_masked_pixels_b']
 
-        # Build param_deltas dict for telemetry (matches run_nanobrag_refinement lines 3389-3394)
+        # Build param_deltas dict for telemetry (mode-aware)
         param_deltas_b = {}
-        with torch.no_grad():
-            shell_modifiers_final = torch.nn.functional.softplus(shell_modifier_raw) * 2.0
-            shell_modifiers_final = torch.clamp(shell_modifiers_final, max=self._config.stage_b_max_modifier)
-            shell_modifiers_final_np = shell_modifiers_final.cpu().numpy()
 
-        for shell_idx in range(self._config.stage_b_n_shells):
-            d_min_shell = float(shell_edges[shell_idx + 1].item()) if shell_idx + 1 < len(shell_edges) else 0.0
-            d_max_shell = float(shell_edges[shell_idx].item())
-            # Store initial/final/delta structure (mirroring Stage A pattern)
-            param_deltas_b[f"shell_{shell_idx}_modifier (d={d_min_shell:.2f}-{d_max_shell:.2f}Å)"] = {
+        if stage_b_mode == "per_reflection":
+            # Per-reflection mode: compute ASU modifier stats
+            with torch.no_grad():
+                modifiers_exp = torch.exp(log_modifiers)
+                modifiers_clamped = torch.clamp(
+                    modifiers_exp,
+                    min=1.0 / self._config.stage_b_max_modifier,
+                    max=self._config.stage_b_max_modifier
+                )
+                modifiers_np = modifiers_clamped.cpu().numpy()
+
+            # Store summary statistics instead of per-ASU values (too many for param_deltas)
+            param_deltas_b["asu_modifiers_summary"] = {
                 'initial': 1.0,  # Identity at initialization
-                'final': float(shell_modifiers_final_np[shell_idx]),
-                'delta': float(shell_modifiers_final_np[shell_idx]) - 1.0,
+                'final_min': float(modifiers_np.min()),
+                'final_max': float(modifiers_np.max()),
+                'final_mean': float(modifiers_np.mean()),
+                'final_std': float(modifiers_np.std()),
             }
+        else:  # shell mode
+            with torch.no_grad():
+                shell_modifiers_final = torch.nn.functional.softplus(shell_modifier_raw) * 2.0
+                shell_modifiers_final = torch.clamp(shell_modifiers_final, max=self._config.stage_b_max_modifier)
+                shell_modifiers_final_np = shell_modifiers_final.cpu().numpy()
+
+            for shell_idx in range(self._config.stage_b_n_shells):
+                d_min_shell = float(shell_edges[shell_idx + 1].item()) if shell_idx + 1 < len(shell_edges) else 0.0
+                d_max_shell = float(shell_edges[shell_idx].item())
+                # Store initial/final/delta structure (mirroring Stage A pattern)
+                param_deltas_b[f"shell_{shell_idx}_modifier (d={d_min_shell:.2f}-{d_max_shell:.2f}Å)"] = {
+                    'initial': 1.0,  # Identity at initialization
+                    'final': float(shell_modifiers_final_np[shell_idx]),
+                    'delta': float(shell_modifiers_final_np[shell_idx]) - 1.0,
+                }
 
         # Build perf counters payload (PERF-WARM-SIM-001)
         stage_b_roi_count_total = canonical_baseline["roi_count"]
@@ -370,8 +407,11 @@ class StageB:
         }
 
         # Assemble RefinementTelemetry object (matches run_nanobrag_refinement lines 3418-3456)
+        # Extract optimizer type from param_values (dynamic: lbfgs or adam, need uppercase)
+        optimizer_type = param_values.get('optimizer_type', 'lbfgs').upper()
+
         telemetry_b = RefinementTelemetry(
-            optimizer="LBFGS",
+            optimizer=optimizer_type,
             stage="B",
             history_size=self._config.history_size,
             max_iter=self._config.max_iter,
@@ -415,11 +455,36 @@ class StageB:
 
         # Add Phase A4 stage identification fields (backward compatible with engine contract)
         telemetry_output["stage_type"] = "B"
-        telemetry_output["mode"] = "shell_modifiers"
 
-        # Add shell metadata for engine path to rebuild modified HKL grid (Phase C2)
-        telemetry_output["shell_edges"] = shell_edges.cpu().tolist()
-        telemetry_output["shell_indices"] = shell_indices.cpu().tolist()
-        telemetry_output["n_shells"] = self._config.stage_b_n_shells
+        # Add mode-specific telemetry
+        if stage_b_mode == "per_reflection":
+            telemetry_output["mode"] = "per_reflection"
+            telemetry_output["stage_b_mode"] = "per_reflection"
+
+            # Add per-reflection custom attributes (matches nanobrag_refinement.py:5196-5206)
+            with torch.no_grad():
+                modifiers_exp = torch.exp(log_modifiers)
+                modifiers_clamped = torch.clamp(
+                    modifiers_exp,
+                    min=1.0 / self._config.stage_b_max_modifier,
+                    max=self._config.stage_b_max_modifier
+                )
+
+            telemetry_output["n_asu_unique"] = int(n_asu_unique)
+            telemetry_output["optimizer_type"] = optimizer_type
+            telemetry_output["asu_modifier_stats"] = {
+                "min": float(modifiers_clamped.min().item()),
+                "max": float(modifiers_clamped.max().item()),
+                "mean": float(modifiers_clamped.mean().item()),
+                "std": float(modifiers_clamped.std().item()),
+            }
+        else:  # shell mode
+            telemetry_output["mode"] = "shell_modifiers"
+            telemetry_output["stage_b_mode"] = "shell"
+
+            # Add shell metadata for engine path to rebuild modified HKL grid (Phase C2)
+            telemetry_output["shell_edges"] = shell_edges.cpu().tolist()
+            telemetry_output["shell_indices"] = shell_indices.cpu().tolist()
+            telemetry_output["n_shells"] = self._config.stage_b_n_shells
 
         return telemetry_output

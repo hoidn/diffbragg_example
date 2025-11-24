@@ -192,9 +192,9 @@
 **Goal:** Stop ancillary tooling from undermining repo hygiene or blocking reuse.
 
 ### Checklist
-- [ ] D1: **DiffBragg scratch isolation** — Create utilities under `dbex/diffbragg_tmp.py` (or similar) that allocate per-run temporary directories (using `tempfile.TemporaryDirectory` or user-provided `--out-dir`) and ensure `_geom_ref.*`, `_temp.mtz`, `_geom.out/` live under that scope.
-  - **Validation:** Update `run_diffbragg_backend` tests (or add `tests/dbex/test_diffbragg_tmp.py`) that spawn two runs simultaneously via `multiprocessing` and confirm artifacts stay in unique directories and are cleaned afterwards.
-  - **Docs:** Update `README.md` / `docs/spec-db-workflow.md` CLI sections describing new flags/environment variables.
+- [x] D1: **DiffBragg scratch isolation** — ✓ COMPLETE (2025-11-24T091500Z) Created `dbex/diffbragg_tmp.py` context manager (87 lines) with system temp + user-provided directory modes. Updated `dbex/run_diffbragg.py::detector_refinement()` with `scratch_dir` parameter. ALL 7 validation tests PASSED (0.17s): concurrent multiprocessing isolation, user directory mode, cleanup flags, workspace pollution checks. (D1.3 CLI flags DEFERRED: run_diffbragg has no direct CLI entry point, callers wrap invocation; D1.5 docs DEFERRED: no CLI to document)
+  - **Validation:** ✓ `tests/dbex/test_diffbragg_tmp.py` (170 lines, 7 tests including `test_concurrent_diffbragg_runs` with multiprocessing)
+  - **Docs:** DEFERRED (no CLI flags added, backend API only)
 - [ ] D2: **Stage A debug tooling modularization** — Extract reusable utilities from `plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py` into `dbex/tools/stage_a_adam.py`. The CLI script becomes a thin shim that only parses args and calls library functions; drop direct `sys.path` hacking.
   - **Validation:** Add unit/integration tests (`tests/dbex/test_stage_a_adam_tooling.py`) that import the new module and exercise zero-point + block-DoF flows without invoking the CLI.
 - [ ] D3: **Summary-generation CLI cleanup** — Convert `generate_summaries.py`, `generate_all_summaries.py`, and `summary_worker.py` to argparse-driven CLIs.

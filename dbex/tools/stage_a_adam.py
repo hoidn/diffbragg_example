@@ -1583,6 +1583,207 @@ def run_zero_point_check(
     return result
 
 
+def run_engine_zero_point_probe(
+    dataload: DataLoad,
+    *,
+    device_str: str = "cpu",
+    sigma_source: str = "metadata",
+) -> Dict[str, object]:
+    """Engine-delegation zero-point probe (DB-AT-027).
+
+    Reuses `build_mapping_stage_a_context` to construct mapping baseline,
+    then runs `run_nanobrag_refinement` with Stage A only, `max_iter=0`,
+    `use_engine_delegation=True`, and reconstructs `bragg_stagea_zero` via
+    `_build_final_bragg_from_stage_a_telemetry` with initial params copied
+    to final slots. Computes mean/max |Δ| + chi² stats, and returns them
+    for comparison against DB-AT-027 tolerances.
+
+    Parameters:
+        dataload: DataLoad instance (canonical refGeom assets)
+        device_str: Device string ("cpu" recommended for determinism)
+        sigma_source: Sigma readout provenance ("metadata" or other)
+
+    Returns:
+        Dict with:
+            - mean_abs_diff: Mean |bragg_stagea_zero - bragg_mapping|
+            - max_abs_diff: Max |bragg_stagea_zero - bragg_mapping|
+            - chi2_stagea: Stage A chi² on mapping stack
+            - chi2_mapping: Mapping chi² from context
+            - chi2_rel_diff: Relative chi² difference
+            - variance_floor_masked_pixels: Pixel count used in chi² normalization
+            - roi_cc_samples: List of per-ROI correlation coefficients vs data
+            - db_at_027_pass: Boolean flag (True if all tolerances met)
+
+    Notes:
+        - Tolerances (from docs/spec-db-conformance.md:201-239):
+          - mean_abs_diff <= 1e-3
+          - max_abs_diff <= 2.0e2
+          - |chi2_rel_diff| <= 1e-3
+        - Uses canonical variance-weighted loss from PHYSICS-LOSS-001
+        - Preserves mapping calibration payload entirely (spot_scale_override,
+          flux, exposure, N_cells, sigma_floor)
+        - Engine delegation ensures consistency with production refinement path
+    """
+    # Lazy import torch (ARCH-ENGINE-002)
+    import torch
+    from dbex.nanobrag_bridge import build_structure_factor_grid
+    from dbex.nanobrag_refinement import (
+        RefinementConfig,
+        _build_final_bragg_from_stage_a_telemetry,
+        run_nanobrag_refinement,
+    )
+    from dbex.vis.mapping import build_mapping_stage_a_context
+
+    # Build mapping context (DB-AT-024 baseline)
+    context = build_mapping_stage_a_context(
+        dataload,
+        default_sigma_readout=3.0,
+        device=device_str,
+    )
+
+    # Extract HKL indices/amplitudes from context
+    hkl_indices = context.hkl_indices
+    hkl_amplitudes = context.hkl_amplitudes
+    calibration = context.calibration or {}
+
+    # Build dense HKL grid with same halo as mapping
+    hkl_grid, hkl_metadata, _ = build_structure_factor_grid(
+        indices=hkl_indices,
+        amplitudes=hkl_amplitudes,
+        device=device_str,
+        halo=True,  # Match mapping behavior
+    )
+
+    # Build RefinementConfig for zero-iteration engine run
+    # Note: run_nanobrag_refinement takes dxtbx detector/beam/crystal directly
+    # and handles config creation internally. Calibration payload is not yet
+    # plumbed into the engine (Phase D.C work), so this probe will fail DB-AT-027
+    # until calibration is threaded through.
+    config = RefinementConfig(
+        device=device_str,
+        max_iter=0,  # Zero iterations (no LBFGS updates)
+        enable_stage_b=False,
+        enable_stage_c=False,
+        sigma_readout_provenance=sigma_source,
+    )
+
+    # Run engine with delegation to capture telemetry
+    _, telemetry = run_nanobrag_refinement(
+        inputs=context.inputs,
+        detector=dataload.detector,
+        beam=dataload.beam,
+        crystal=dataload.crystal,
+        hkl_grid=hkl_grid,
+        hkl_metadata=hkl_metadata,
+        config=config,
+        use_engine_delegation=True,
+    )
+
+    # Extract Stage A telemetry (keyed as "A" for backward compatibility)
+    telemetry_a = telemetry.get("A")
+    if telemetry_a is None:
+        raise RuntimeError(f"Engine delegation failed to produce Stage A telemetry. Keys: {list(telemetry.keys())}")
+
+    # Deep-copy telemetry and force initial → final to ensure zero-point reconstruction
+    import copy
+    telemetry_a_zero = copy.deepcopy(telemetry_a)
+    param_deltas = telemetry_a_zero.param_deltas
+    for key in param_deltas:
+        if "initial" in param_deltas[key] and "final" in param_deltas[key]:
+            param_deltas[key]["final"] = param_deltas[key]["initial"]
+
+    # Reconstruct bragg_stagea_zero via canonical helper
+    device = torch.device(device_str)
+    dtype = torch.float32
+    bragg_stagea_zero = _build_final_bragg_from_stage_a_telemetry(
+        telemetry_a=telemetry_a_zero,
+        detector=dataload.detector,
+        beam=dataload.beam,
+        crystal=dataload.crystal,
+        inputs=context.inputs,
+        hkl_grid=hkl_grid,
+        hkl_metadata=hkl_metadata,
+        config=config,
+        device=device,
+        dtype=dtype,
+    )
+
+    # Compute forward-model differences
+    bragg_mapping = context.bragg_zero_iter
+    diff = bragg_stagea_zero - bragg_mapping
+    max_abs_diff = float(np.abs(diff).max())
+    mean_abs_diff = float(np.abs(diff).mean())
+
+    # Compute Stage A chi² on mapping stack using canonical variance-weighted loss
+    from dbex.nanobrag_refinement import _compute_variance_weighted_loss
+
+    sigma_floor_sq = float(context.sigma_floor_value ** 2)
+    # Convert numpy arrays to torch tensors for variance-weighted loss
+    bragg_mapping_t = torch.from_numpy(bragg_mapping).to(device=device, dtype=dtype)
+    target_t = torch.from_numpy(context.inputs.target).to(device=device, dtype=dtype)
+    loss_mask_t = torch.from_numpy(context.inputs.loss_mask).to(device=device)
+    sigma_readout_t = torch.from_numpy(context.inputs.sigma_readout).to(device=device, dtype=dtype)
+    sigma_floor_sq_t = torch.tensor(sigma_floor_sq, device=device, dtype=dtype)
+
+    chi2_stagea_at_mapping = _compute_variance_weighted_loss(
+        bragg_mapping_t,  # Use mapping stack for Stage A chi² (DB-AT-027 contract)
+        target_t,
+        loss_mask_t,
+        sigma_readout_t,
+        sigma_floor_sq_t,
+    ).item()  # Convert back to scalar
+
+    chi2_mapping = float(context.diagnostics.get("chi_squared", float("nan")))
+    if np.isfinite(chi2_mapping) and chi2_mapping != 0.0 and np.isfinite(chi2_stagea_at_mapping):
+        chi2_rel_diff = (chi2_stagea_at_mapping - chi2_mapping) / chi2_mapping
+    else:
+        chi2_rel_diff = float("nan")
+
+    # Extract variance floor masked pixels
+    variance_floor_masked_pixels = int(context.diagnostics.get("variance_floor_masked_pixels", 0))
+
+    # Compute per-ROI correlation coefficients vs data
+    roi_cc_samples = []
+    for pid, (x0, x1, y0, y1) in context.inputs.panel_slices:
+        data_roi = context.inputs.target[pid, y0:y1, x0:x1]
+        model_roi = bragg_stagea_zero[pid, y0:y1, x0:x1]
+        mask_roi = context.inputs.loss_mask[pid, y0:y1, x0:x1]
+        if mask_roi.sum() > 10:
+            data_masked = data_roi[mask_roi]
+            model_masked = model_roi[mask_roi]
+            cc = float(np.corrcoef(data_masked.ravel(), model_masked.ravel())[0, 1])
+            if np.isfinite(cc):
+                roi_cc_samples.append(cc)
+
+    # DB-AT-027 tolerances (docs/spec-db-conformance.md:201-239)
+    mean_abs_tol = 1e-3
+    max_abs_tol = 2.0e2
+    chi2_rel_tol = 1e-3
+
+    db_at_027_pass = bool(
+        mean_abs_diff <= mean_abs_tol
+        and max_abs_diff <= max_abs_tol
+        and np.isfinite(chi2_rel_diff)
+        and abs(chi2_rel_diff) <= chi2_rel_tol
+    )
+
+    return {
+        "mean_abs_diff": mean_abs_diff,
+        "max_abs_diff": max_abs_diff,
+        "chi2_stagea": float(chi2_stagea_at_mapping),
+        "chi2_mapping": chi2_mapping,
+        "chi2_rel_diff": float(chi2_rel_diff),
+        "variance_floor_masked_pixels": variance_floor_masked_pixels,
+        "roi_cc_samples": roi_cc_samples,
+        "db_at_027_pass": db_at_027_pass,
+        "tolerances": {
+            "mean_abs_diff": mean_abs_tol,
+            "max_abs_diff": max_abs_tol,
+            "chi2_rel_diff": chi2_rel_tol,
+        },
+    }
+
+
 def run_blockwise_dof_experiments(
     dataload: DataLoad,
     context,

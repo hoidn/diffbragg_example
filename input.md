@@ -1,359 +1,238 @@
-# TOOLING-VIS-001 Phase B.1+B.2-lite: Variance HDF5 + Static Triptych Export
-
-**Date:** 2025-11-24T115000Z
-**Agent:** Ralph
-**Loop:** i=271
-**Mode:** none
-**Focus:** TOOLING-VIS-001 — Standardized Visual Diagnostics Library (Phase B Integration)
-**Branch:** integration
+# Ralph Input — TOOLING-VIS-001 Phase B.2 (Auto-Generate Triptych Report)
 
 ## Summary
+Add `--report-dir` CLI flag to `dbex/refine_one.py` that automatically generates triptych PNGs for all ROIs after refinement completes, eliminating need for manual `dbex.look --export-triptychs` invocation.
 
-Extend `dbex/refine_one.py` to save variance data to HDF5 and add static triptych PNG export capability to `dbex/look.py`. This unblocks usage of the `dbex.vis.plot_triptych` API completed in Phase A.
+## Mode
+Docs (CLI enhancement with manual validation)
+
+## Focus
+TOOLING-VIS-001 — Standardized Visual Diagnostics (Phase B.2: Auto-Generate Summary Report)
+
+## Branch
+integration
 
 ## Mapped Tests
-
-**Primary Validation:** Manual HDF5 inspection + static PNG export verification (no pytest selectors for this phase)
-
-**Validation Protocol:**
-1. Compilation check
-2. HDF5 variance datasets present (`variance/roi%d`, `sigma_readout`, `sigma_floor`)
-3. Static triptych export produces correct PNGs
+none — manual validation (compilation check + CLI smoke tests)
 
 ## Artifacts
-
-Root: `plans/active/TOOLING-VIS-001/reports/2025-11-24T115000Z/`
-- `phase_b_planning_analysis.md` (comprehensive scope, blocker analysis, decision tree)
-- `validation_hdf5.log` (h5py inspection output)
-- `validation_export.log` (PNG export command output)
-- `summary.md` (Turn Summary)
+```
+plans/active/TOOLING-VIS-001/reports/2025-11-24T120000Z/
+  phase_b2_planning_analysis.md           (comprehensive planning, already written by Galph)
+  validation_compilation.log              (python -c import check)
+  cli_test_legacy.txt                     (manual legacy backend test command + output summary)
+  cli_test_torch.txt                      (manual torch backend test command + output summary)
+  decision.json                           (4-path decision tree outcome)
+  summary.md                              (Turn Summary)
+```
 
 ## Do Now
 
-Execute Phase B.1 (Variance HDF5) + Phase B.2-lite (Static Export) implementing the following 10-step protocol:
+**Objective:** Implement Phase B.2 per planning analysis — add optional `--report-dir <path>` flag that auto-generates triptych PNGs using `dbex.vis.plot_triptych`.
 
-### Step 1: Read Planning Analysis
-Read `plans/active/TOOLING-VIS-001/reports/2025-11-24T115000Z/phase_b_planning_analysis.md` to understand:
-- **Blocker:** Variance data missing from HDF5 (required by `dbex.vis.plot_triptych` API)
-- **Variance Formula:** `V = max(I_model + sigma_readout^2, sigma_floor^2)` per spec-db-core.md §86-90
-- **Phase B Scope:** B.1 (add variance to HDF5) + B.2-lite (static triptych export)
+### Context Priming (READ FIRST)
+1. Read `plans/active/TOOLING-VIS-001/reports/2025-11-24T120000Z/phase_b2_planning_analysis.md` (comprehensive planning with design decisions, code template, validation strategy)
+2. **Phase A API Reference**: `dbex.vis.plot_triptych(data, model, variance, filename=None, hkl=None, correlation=None)` — validated in Phase A tests (tests/dbex/test_vis_triptych.py)
+3. **Phase B.1 HDF5 Structure**: HDF5 files now contain `data/roi%d`, `model/roi%d`, `variance/roi%d`, `sigma_readout`, `sigma_floor` datasets (both Legacy and Torch backends)
+4. **Similar Pattern**: `dbex/look.py` lines 170-189 (export_triptychs method) shows working example of iterating over ROIs and calling `plot_triptych`
 
-### Step 2: Implement B.1 — Variance HDF5 Extension
+### Implementation Protocol (10 steps)
 
-**File:** `dbex/refine_one.py`
+**Step 1: Add CLI Argument**
+- File: `dbex/refine_one.py`
+- Location: argparse section (~line 30-60)
+- Add:
+  ```python
+  parser.add_argument('--report-dir', type=str, default=None,
+                      help='Optional directory to save triptych report (PNG per ROI)')
+  ```
 
-**Legacy Backend (lines 200-244):**
-1. After line 240 (inside ROI loop), compute variance:
-   ```python
-   # Compute variance per spec-db-core.md §86-90: V = I_model + sigma_readout^2, clamped by sigma_floor
-   variance_subims = []
-   sigma_readout = args.sigma_r  # Already extracted from CLI
-   sigma_floor = 1.0  # Spec default, or make configurable
-   for i in range(len(scores)):
-       variance_i = model_subims[i] + sigma_readout**2
-       variance_i = np.maximum(variance_i, sigma_floor**2)
-       variance_subims.append(variance_i)
-   ```
+**Step 2: Implement Helper Function**
+- File: `dbex/refine_one.py`
+- Location: End of file (~line 250-300, before `if __name__ == "__main__"`)
+- Function name: `_generate_triptych_report(h5_path: str, report_dir: str) -> None`
+- Template in planning analysis (pseudocode section)
+- Key requirements:
+  - Import `dbex.vis.plot_triptych` (lazy import inside function OK)
+  - Create `report_dir` with `Path(report_dir).mkdir(parents=True, exist_ok=True)`
+  - Open HDF5 file read-only: `with h5py.File(h5_path, 'r') as h5:`
+  - Detect number of ROIs: `while f"data/roi{n_rois}" in h5: n_rois += 1`
+  - Loop over ROIs, read `data/roi%d`, `model/roi%d`, `variance/roi%d` datasets
+  - Graceful degradation: if variance missing, print warning and skip ROI
+  - Call `plot_triptych(data, model, variance, filename=str(out_png))`
+  - Try/except around each ROI to prevent one failure from blocking others
+  - Print final message: `print(f"Triptych report saved to: {report_dir}")`
+- Estimated: 40-50 lines
 
-2. Before line 244 (after `h.create_dataset("bg/roi%d" % i, ...)`), add:
-   ```python
-   h.create_dataset("variance/roi%d" % i, data=variance_subims[i])
-   ```
+**Step 3: Integrate Helper Calls**
+- File: `dbex/refine_one.py`
+- Locations:
+  - Legacy backend: After HDF5 write (~line 270), before `print("Done")`
+  - Torch backend: After HDF5 write (~line 690), before `print("Done")`
+- Pattern:
+  ```python
+  if args.report_dir:
+      _generate_triptych_report(args.out, args.report_dir)
+  ```
+- Ensure HDF5 file is closed before calling helper (add explicit close or verify context manager usage)
+- Estimated: 6-10 lines (2 call sites)
 
-3. After line 244 (after ROI loop), add scalars:
-   ```python
-   h.create_dataset("sigma_readout", data=sigma_readout)
-   h.create_dataset("sigma_floor", data=sigma_floor)
-   ```
+**Step 4: Compilation Check**
+- Command: `python -c "from dbex.refine_one import main; print('Compilation OK')"`
+- Log output to `validation_compilation.log`
+- Expected: "Compilation OK" with no import errors
 
-**Torch Backend (lines 610-654):**
-1. Apply **identical pattern** after line 650 (inside ROI loop):
-   ```python
-   # Compute variance (same formula as Legacy backend)
-   variance_subims = []
-   sigma_readout = args.sigma_r
-   sigma_floor = 1.0
-   for i in range(len(scores)):
-       variance_i = model_subims[i] + sigma_readout**2
-       variance_i = np.maximum(variance_i, sigma_floor**2)
-       variance_subims.append(variance_i)
-   ```
+**Step 5: Manual CLI Test (Legacy Backend)**
+- If smoke test data available (e.g., golden_data/simple_cubic/), construct command:
+  ```bash
+  python -m dbex.refine_one --backend diffbragg \
+    -e <expt.json> -r <refl.refl> -i 0 \
+    -o /tmp/tooling_vis_test_legacy.h5 \
+    --report-dir /tmp/tooling_vis_triptychs_legacy \
+    -m <mask.pickle> -z <mtz.mtz>
+  ```
+- Document command in `cli_test_legacy.txt`
+- If data not available, document skeleton command and note "requires manual validation with real data"
+- **Do NOT run actual refinement if it takes >5 minutes** — compilation check is sufficient for this loop; full manual validation can be deferred to user testing
+- Verify `/tmp/tooling_vis_triptychs_legacy/` directory created (if run completes)
+- Verify PNG files present (if run completes)
 
-2. Before line 654, add `h.create_dataset("variance/roi%d" % i, data=variance_subims[i])`
+**Step 6: Manual CLI Test (Torch Backend)**
+- Same as Step 5 with `--backend nanobrag`
+- Document in `cli_test_torch.txt`
 
-3. After line 654, add scalars:
-   ```python
-   h.create_dataset("sigma_readout", data=sigma_readout)
-   h.create_dataset("sigma_floor", data=sigma_floor)
-   ```
+**Step 7: Backward Compatibility Test**
+- Command: `python -m dbex.refine_one --help | grep report-dir`
+- Verify `--report-dir` appears in help text
+- Note: Actual backward compat test (running without flag) deferred to user testing (requires full dataset)
 
-**Validation (inline):**
-- Ensure `args.sigma_r` exists (already provided via `--sigma-r` CLI flag)
-- Use `np.maximum` for clamp (not `max` which doesn't broadcast)
-- Both backends produce identical HDF5 structure
+**Step 8: Decision Synthesis**
+- Write `decision.json` with 4-path decision tree:
+  - **Path A (all_validations_pass)**: Compilation OK, helper logic correct (code inspection), CLI arg present → Phase B.2 ✓ COMPLETE
+  - **Path B (compilation_ok_minor_issues)**: Compilation OK, helper has minor bugs → fix and re-validate
+  - **Path C (hdf5_read_errors)**: HDF5 dataset access fails → debug dataset names/structure
+  - **Path D (plot_triptych_api_mismatch)**: API call fails → check Phase A implementation, align arguments
+- Record outcome in `decision.json` with rationale
 
-### Step 3: Implement B.2-lite — Static Triptych Export
+**Step 9: Artifacts and Turn Summary**
+- Write `summary.md` per Turn Summary format (3-5 sentences: what shipped, main problem/solution, next step)
+- Archive all validation logs in reports directory
 
-**File:** `dbex/look.py`
-
-**3.1: Update HDF5 Loading (lines 49-77)**
-
-In `_load_data` method, after line 70 (`'scores': scores,`), add:
-```python
-'variance': [h["variance"]["roi%d" % i][()] for i in range(len(scores))],
-'sigma_readout': h["sigma_readout"][()],
-'sigma_floor': h["sigma_floor"][()],
-```
-
-**3.2: Add Export Functionality (new method after line 165)**
-
-Add export method:
-```python
-def export_triptychs(self, output_dir):
-    """Export static triptych PNGs for all ROIs using dbex.vis.plot_triptych."""
-    from pathlib import Path
-    from dbex.vis import plot_triptych
-
-    output_path = Path(output_dir)
-    output_path.mkdir(parents=True, exist_ok=True)
-
-    print(f"Exporting {self.num_rois} triptych PNGs to '{output_dir}'...")
-    for i in range(self.num_rois):
-        filename = str(output_path / f"roi_{i:04d}.png")
-        plot_triptych(
-            data=self.data['data'][i],
-            model=self.data['model'][i],
-            variance=self.data['variance'][i],
-            hkl=None,  # No HKL data in HDF5 currently
-            correlation=self.data['scores'][i],
-            filename=filename
-        )
-    print(f"Export complete: {self.num_rois} PNGs saved to '{output_dir}'")
-```
-
-**3.3: Update main() (lines 168-177)**
-
-After line 172 (`ap.add_argument("hdf5_path", ...)`), add:
-```python
-ap.add_argument(
-    "--export-triptychs",
-    type=str,
-    default=None,
-    help="Export static triptych PNGs to specified directory instead of launching interactive viewer"
-)
-```
-
-After line 176 (`args = ap.parse_args()`), replace `viewer.show()` with:
-```python
-if args.export_triptychs:
-    viewer.export_triptychs(args.export_triptychs)
-else:
-    viewer.show()
-```
-
-### Step 4: Compilation Check
-
-Run:
-```bash
-python -c "from dbex.refine_one import main; from dbex.look import HDF5Viewer; from dbex.vis import plot_triptych; print('Compilation OK')"
-```
-
-**Expected:** "Compilation OK" printed, no import errors
-
-### Step 5: HDF5 Variance Validation
-
-**Validation via Code Inspection:**
-Verify code changes produce correct structure:
-1. Open `dbex/refine_one.py`
-2. Confirm variance loop added after lines ~240 (Legacy) and ~650 (Torch)
-3. Confirm 3 HDF5 datasets added: `variance/roi%d`, `sigma_readout`, `sigma_floor`
-4. Document in validation log
-
-**Validation Artifact:**
-Write to `plans/active/TOOLING-VIS-001/reports/2025-11-24T115000Z/validation_hdf5.log`:
-```
-Phase B.1 Validation: HDF5 Variance Extension
-Date: 2025-11-24T115000Z
-
-Code Inspection Results:
-✓ Legacy backend (lines 240-244): variance computation added
-✓ Torch backend (lines 650-654): variance computation added
-✓ Formula: V = max(I_model + sigma_readout^2, sigma_floor^2)
-✓ HDF5 datasets: variance/roi%d, sigma_readout, sigma_floor
-
-Status: PASS (structure validated via code inspection)
-```
-
-### Step 6: Triptych Export Validation
-
-**Validation via Code Inspection:**
-Verify code changes produce correct CLI interface:
-1. Open `dbex/look.py`
-2. Confirm `_load_data` reads variance datasets
-3. Confirm `export_triptychs` method exists and calls `plot_triptych`
-4. Confirm `--export-triptychs` flag added to argparse
-5. Confirm main() conditionally calls export vs show
-
-**Validation Artifact:**
-Write to `plans/active/TOOLING-VIS-001/reports/2025-11-24T115000Z/validation_export.log`:
-```
-Phase B.2-lite Validation: Static Triptych Export
-Date: 2025-11-24T115000Z
-
-Code Inspection Results:
-✓ _load_data: variance/sigma_readout/sigma_floor added
-✓ export_triptychs method: calls plot_triptych with filename parameter
-✓ Argparse: --export-triptychs flag added
-✓ main(): conditional export vs interactive viewer
-
-Status: PASS (structure validated via code inspection)
-```
-
-### Step 7: Decision Synthesis
-
-Based on validation results, choose path:
-
-**Path A (All Validations PASS):**
-- Phase B.1+B.2-lite COMPLETE
-- Variance HDF5 extension implemented in both backends
-- Static triptych export functional
-- Status: ready for Phase B.3 planning (auto-generate summary report) or Phase C (interactive viewer refactor)
-
-**Path B (Variance HDF5 FAIL):**
-- Debug `sigma_readout` extraction, clamp logic, or HDF5 writing
-- Verify both legacy and torch backends produce correct datasets
-- Re-run validation protocol
-
-**Path C (Triptych Export FAIL):**
-- Debug `plot_triptych` integration, filename handling, or output_dir creation
-- Check for import errors or API mismatches
-- Re-run validation protocol
-
-**Path D (Compilation FAIL):**
-- Fix import errors, circular dependencies, or missing dbex.vis API
-- Verify Phase A deliverables are present and correct
-
-### Step 8: Write Decision Artifact
-
-Create `plans/active/TOOLING-VIS-001/reports/2025-11-24T115000Z/decision.json`:
-```json
-{
-  "date": "2025-11-24T115000Z",
-  "phase": "B.1+B.2-lite",
-  "path": "A|B|C|D",
-  "validations": {
-    "compilation": "PASS|FAIL",
-    "hdf5_variance": "PASS|FAIL",
-    "triptych_export": "PASS|FAIL"
-  },
-  "blockers": [],
-  "next_action": "phase_b3_planning | debug | escalate_to_galph"
-}
-```
-
-### Step 9: Write Turn Summary
-
-Create `plans/active/TOOLING-VIS-001/reports/2025-11-24T115000Z/summary.md` with Turn Summary section:
-```markdown
-### Turn Summary
-Implemented Phase B.1 variance HDF5 extension (both Legacy and Torch backends compute V=max(I_model+sigma_r^2, sigma_floor^2) per spec-db-core.md §86-90) and Phase B.2-lite static triptych PNG export (--export-triptychs flag calls dbex.vis.plot_triptych).
-All validations PASS: compilation OK, HDF5 structure correct (variance/roi%d datasets + sigma_readout/sigma_floor scalars), export logic functional.
-Next: Phase B.3 planning (auto-generate summary report in refine_one.py exit) or Phase C (interactive viewer refactor).
-Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-24T115000Z/ (validation_hdf5.log, validation_export.log, decision.json)
-```
-
-### Step 10: Commit and Push
-
-Commit message:
-```
-TOOLING-VIS-001 Phase B: Variance HDF5 + static triptych export — tests: manual validation
-
-Phase B.1: Extended dbex/refine_one.py to save variance per-ROI
-- Formula: V = max(I_model + sigma_readout^2, sigma_floor^2) per spec-db-core.md §86-90
-- Both Legacy and Torch backends produce variance/roi%d datasets
-- Added sigma_readout and sigma_floor scalar datasets
-
-Phase B.2-lite: Added static triptych export to dbex/look.py
-- New --export-triptychs <dir> flag
-- Calls dbex.vis.plot_triptych for each ROI
-- Produces [Data|Model|Residuals Z-Score] PNG files
-
-Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-24T115000Z/
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
-
-Co-Authored-By: Claude <noreply@anthropic.com>
-```
-
-Run:
-```bash
-git add -A
-git commit -m "<message above>"
-git push
-```
+**Step 10: Commit**
+- Message: `TOOLING-VIS-001 Phase B.2: auto-generate triptych report (--report-dir flag) — tests: manual validation`
+- Git add + commit + push
 
 ## How-To Map
 
-**Variance Formula:**
-- Spec reference: `docs/spec-db-core.md` §86-90 (Variance Definition)
-- Formula: `V = I_model + sigma_readout^2` where `I_model = Bragg + background`
-- Clamp: `V = max(V, sigma_floor^2)` to prevent infinite weights when `I_model → 0`
-- Units: Same as loss target (photons or ADU)
+### Compilation Check
+```bash
+cd /home/ollie/Documents/diffbragg_example
+python -c "from dbex.refine_one import main; print('Compilation OK')" > plans/active/TOOLING-VIS-001/reports/2025-11-24T120000Z/validation_compilation.log 2>&1
+```
 
-**HDF5 Extension:**
-- Location: `dbex/refine_one.py` lines 200-244 (Legacy), 610-654 (Torch)
-- Pattern: Compute variance in loop, add `h.create_dataset("variance/roi%d" % i, data=variance_subims[i])`
-- Scalars: Add `sigma_readout` and `sigma_floor` after ROI loop
+### Manual CLI Tests (Optional — Defer if Data Unavailable)
+If golden_data exists:
+```bash
+# Legacy backend
+python -m dbex.refine_one --backend diffbragg \
+  -e golden_data/simple_cubic/expt_000000.json \
+  -r golden_data/simple_cubic/indexed_000000.refl \
+  -i 0 \
+  -o /tmp/tooling_vis_test_legacy.h5 \
+  --report-dir /tmp/tooling_vis_triptychs_legacy \
+  -m golden_data/simple_cubic/mask.pickle \
+  -z golden_data/simple_cubic/mtz.mtz \
+  2>&1 | tee plans/active/TOOLING-VIS-001/reports/2025-11-24T120000Z/cli_test_legacy.txt
 
-**Static Export:**
-- Location: `dbex/look.py` lines 49-77 (load), 168-177 (main)
-- API: `dbex.vis.plot_triptych(data, model, variance, hkl=None, correlation=score, filename=path)`
-- Flag: `--export-triptychs <output_dir>` produces PNG files `roi_0000.png`, `roi_0001.png`, ...
+# Torch backend
+python -m dbex.refine_one --backend nanobrag \
+  -e golden_data/simple_cubic/expt_000000.json \
+  -r golden_data/simple_cubic/indexed_000000.refl \
+  -i 0 \
+  -o /tmp/tooling_vis_test_torch.h5 \
+  --report-dir /tmp/tooling_vis_triptychs_torch \
+  -m golden_data/simple_cubic/mask.pickle \
+  -z golden_data/simple_cubic/mtz.mtz \
+  2>&1 | tee plans/active/TOOLING-VIS-001/reports/2025-11-24T120000Z/cli_test_torch.txt
+```
+**NOTE**: If refinement takes >5 minutes or golden_data unavailable, document command skeleton only and note "deferred to user testing". Compilation check is PRIMARY validation gate for this loop.
+
+### Decision JSON Template
+```json
+{
+  "loop": "i=273",
+  "focus": "TOOLING-VIS-001",
+  "phase": "B.2",
+  "objective": "auto-generate triptych report",
+  "validation_results": {
+    "compilation_check": "PASS|FAIL",
+    "cli_arg_present": "PASS|FAIL",
+    "helper_function_logic": "correct|has_bugs",
+    "manual_tests": "deferred|partial|pass"
+  },
+  "outcome": "Path A: all_validations_pass | Path B: minor_issues | Path C: hdf5_errors | Path D: api_mismatch",
+  "rationale": "<brief explanation>",
+  "next_action": "commit_phase_b2_complete | fix_bugs | debug_hdf5 | fix_api"
+}
+```
 
 ## Pitfalls To Avoid
 
-1. **DO NOT** use `max()` for clamp (doesn't broadcast); use `np.maximum(variance, sigma_floor**2)`
-2. **DO NOT** forget to apply variance computation to BOTH Legacy and Torch backends
-3. **DO NOT** modify interactive viewer grid layout in Phase B.2-lite (deferred to Phase C)
-4. **DO** ensure `args.sigma_r` exists; if not, document blocker (CLI validation issue)
-5. **DO** create output directory with `mkdir(parents=True, exist_ok=True)`
-6. **DO** handle missing variance datasets gracefully in `_load_data` (backward compat check)
+1. **HDF5 File Still Open**: Ensure HDF5 file written by backend is closed before `_generate_triptych_report` opens it (add explicit `.close()` or verify context manager usage in backend code).
+2. **Missing Variance Graceful Degradation**: Don't crash if `variance/roi%d` dataset missing (old HDF5 files); print warning and skip ROI.
+3. **Large ROI Count Performance**: Don't optimize prematurely; sequential generation acceptable for Phase B.2 (progress bar is Phase B.3 enhancement if needed).
+4. **API Mismatch**: Use same `plot_triptych` call pattern as `dbex/look.py` lines 174-180 (`plot_triptych(data, model, variance, filename=str(out_png))`).
+5. **Absolute vs Relative Paths**: `report_dir` should support both; use `Path(report_dir).mkdir(parents=True, exist_ok=True)` to handle path creation robustly.
+6. **No pytest Selectors**: This is a CLI enhancement, not core refinement logic; manual validation sufficient per galph_prompt §action_types.
+7. **Environment Freeze**: Assume h5py/matplotlib/numpy already available (Phase A tests passed); do NOT propose `pip install`.
+8. **Backward Compatibility**: `--report-dir` is optional (default None); existing CLI invocations without flag should work unchanged.
+9. **Try/Except per ROI**: Wrap each ROI's triptych generation in try/except so one failure doesn't block the rest (e.g., malformed dataset, plot_triptych error).
+10. **Print Report Location**: User needs to know where files were saved; print `f"Triptych report saved to: {report_dir}"` at end of helper.
 
 ## If Blocked
 
-**Missing `sigma_readout` in CLI args:**
-- Check `dbex/refine_one.py` argparse setup (lines ~159)
-- If `--sigma-r` flag missing, document blocker in decision.json
-- Return to Galph with blocker report
-
-**Import errors for `dbex.vis`:**
-- Verify Phase A deliverables: `dbex/vis/__init__.py`, `dbex/vis/triptych.py`, `dbex/vis/residuals.py`
-- Check `from dbex.vis import plot_triptych` works
-- If missing, escalate to Galph (Phase A incomplete)
-
-**HDF5 backward compatibility concerns:**
-- Variance datasets are additive; old readers ignore them
-- No breaking changes to existing datasets
-- Document in summary.md if any concerns arise
+- **Blocker Type 1 (Compilation error)**: Debug import/syntax error, fix in same loop.
+- **Blocker Type 2 (HDF5 structure unknown)**: Read Phase B.1 implementation in `dbex/refine_one.py` lines 236-263 (Legacy) and 665-689 (Torch) to confirm dataset names.
+- **Blocker Type 3 (plot_triptych API unclear)**: Read `dbex/vis/triptych.py` and `tests/dbex/test_vis_triptych.py` to confirm API signature.
+- **Blocker Type 4 (Golden data unavailable)**: Document manual test commands as "requires user data" and proceed with compilation check only (sufficient for Phase B.2 code completion).
+- Record blocker in `decision.json` with `outcome="blocked"` and return to Galph.
 
 ## Findings Applied
 
-- **POLICY-001:** Environment Freeze (code-only changes, no package installs)
-- **PHYSICS-LOSS-001:** Variance formula `V = I_model + sigma_readout^2` per spec-db-core.md
-- **spec-db-vis.md §19:** Z-score definition `(Data - Model) / sqrt(Variance)`
-- **spec-db-core.md §86-90:** Variance clamp `max(V, sigma_floor^2)`
+- **POLICY-001 (Environment Freeze)**: No new dependencies; use existing h5py/matplotlib/numpy validated in Phase A.
+- **PHYSICS-LOSS-001 (Variance Formula)**: Variance datasets validated in Phase B.1 per spec-db-core.md §86-90 (`V = max(I_model + sigma_readout^2, sigma_floor^2)`).
+- **spec-db-vis.md §7-11 (Triptych Layout)**: 3-panel layout [Data|Model|Residuals Z-Score], colormaps viridis/seismic, origin='upper' (implemented in Phase A).
+- **spec-db-vis.md §19 (Z-Score Definition)**: Z=(Data-Model)/sqrt(Variance) with NaN for masked pixels (implemented in Phase A `compute_z_scores`).
+- **CLAUDE.md Incremental Progress**: Small focused enhancement (~70 lines), backward compatible (opt-in flag), delivers immediate user value.
+- **CLAUDE.md Code Quality**: Clear docstring for helper function, try/except per ROI, graceful degradation for missing variance.
 
 ## Pointers
 
-- Planning analysis: `plans/active/TOOLING-VIS-001/reports/2025-11-24T115000Z/phase_b_planning_analysis.md` (comprehensive scope, blocker analysis, decision tree)
-- Spec variance definition: `docs/spec-db-core.md:86-90`
-- Spec triptych layout: `docs/spec-db-vis.md:14-24`
-- Phase A deliverables: `dbex/vis/__init__.py:8-9` (API), `dbex/vis/triptych.py:18-25` (signature)
-- Implementation plan: `plans/active/TOOLING-VIS-001/implementation.md:82-86` (Phase B checklist)
+- Planning Analysis: `plans/active/TOOLING-VIS-001/reports/2025-11-24T120000Z/phase_b2_planning_analysis.md` (comprehensive scope, design decisions, code template)
+- Phase A API: `dbex/vis/triptych.py::plot_triptych` (validated in `tests/dbex/test_vis_triptych.py` lines 10-50)
+- Phase B.1 HDF5: `dbex/refine_one.py` lines 236-263 (Legacy), 665-689 (Torch) — variance dataset structure
+- Similar Pattern: `dbex/look.py` lines 170-189 (`export_triptychs` method) — working example of ROI iteration + `plot_triptych` calls
+- Spec: `docs/spec-db-vis.md` §7-11, §16-24 (triptych layout, colormaps, Z-scores)
+- Implementation Plan: `plans/active/TOOLING-VIS-001/implementation.md` — Phase B checklist
+- Fix Plan: `docs/fix_plan.md` lines 195-210 — TOOLING-VIS-001 status and Attempts History
 
-## Next Up (Optional)
+## Next Up
 
-If you finish early AND all validations PASS:
-- Read implementation.md:87-91 (Phase C checklist)
-- Assess whether interactive viewer refactor is feasible in current loop
-- **DO NOT** start Phase C implementation; return to Galph for planning approval
+If Phase B.2 completes successfully with all validations passing (Path A):
+- **Option 1**: Phase C.1 (Refactor interactive viewer in `dbex/look.py` to use `dbex.vis` for grid layout) — 2-3 loops, MEDIUM risk
+- **Option 2**: Mark TOOLING-VIS-001 as "substantial progress" (Phases A+B complete, 2/3 exit criteria satisfied) and pivot to another Tier 3 initiative
+- **Option 3**: Phase B.3 enhancement (multi-page PDF report, progress bar, etc.) — LOW priority
+
+Galph will assess Phase B.2 outcome and select next focus per Execution Roadmap and WIP cap.
+
+## Doc Sync Plan
+
+Not applicable (no test selectors added this loop).
+
+## Mapped Tests Guardrail
+
+Not applicable (manual validation only for CLI enhancement).
+
+## Normative Math/Physics
+
+Not applicable (no physics/math changes; uses existing Phase A `plot_triptych` API).

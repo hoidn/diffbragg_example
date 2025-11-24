@@ -19,7 +19,7 @@ import pytest
 
 @pytest.mark.xfail(
     strict=True,
-    reason="TOOLING-VIS-001 Stage A zero-point miscalibration (spot_scale_override missing)",
+    reason="STAGEA-001 Stage A zero-point miscalibration (spot_scale_override missing)",
 )
 def test_db_at_027_zero_point_parity():
     """DB-AT-027: Stage A zero-point mapping equivalence.
@@ -36,7 +36,15 @@ def test_db_at_027_zero_point_parity():
     xfail status: Known Stage A zero-point miscalibration (STAGEA-001)
         - spot_scale_override not yet plumbed into Stage A engine
         - Expected to XPASS once Phase D.C calibration plumbing lands
+
+    Environment:
+        DBAT027_ARTIFACT_DIR: Optional artifact directory for metrics/env JSONs
+        DBEX_SMOKE_SIGMA_SOURCE: Sigma readout provenance (default: metadata)
+        DBEX_SMOKE_DETECTOR_SIZE: Detector size (full/small, not used by this test)
     """
+    import json
+    import subprocess
+
     # Lazy imports to avoid overhead when test is not selected
     from dbex.data_load import DataLoad
     from dbex.tools.stage_a_adam import build_dataload, run_engine_zero_point_probe
@@ -47,6 +55,7 @@ def test_db_at_027_zero_point_parity():
 
     # Determine sigma source from environment (default: metadata)
     sigma_source = os.environ.get("DBEX_SMOKE_SIGMA_SOURCE", "metadata")
+    detector_size = os.environ.get("DBEX_SMOKE_DETECTOR_SIZE", "full")
 
     # Run engine-delegation zero-point probe (DB-AT-027)
     result = run_engine_zero_point_probe(
@@ -65,7 +74,40 @@ def test_db_at_027_zero_point_parity():
     roi_cc_samples = result["roi_cc_samples"]
     db_at_027_pass = result["db_at_027_pass"]
 
-    # Log metrics for diagnosis
+    # Emit artifact JSONs BEFORE assertions (so they're written even on xfail)
+    artifact_dir = os.environ.get("DBAT027_ARTIFACT_DIR")
+    if artifact_dir:
+        artifact_path = Path(artifact_dir)
+        artifact_path.mkdir(parents=True, exist_ok=True)
+
+        # db_at_027_metrics.json: Full result dict with all metrics
+        metrics_json_path = artifact_path / "db_at_027_metrics.json"
+        with metrics_json_path.open("w") as f:
+            json.dump(result, f, indent=2)
+
+        # db_at_027_env.json: Environment capture (sigma source, detector size, git head)
+        try:
+            git_head = subprocess.check_output(
+                ["git", "rev-parse", "HEAD"],
+                cwd=repo_root,
+                stderr=subprocess.DEVNULL,
+                text=True,
+            ).strip()
+        except (subprocess.CalledProcessError, FileNotFoundError):
+            git_head = "unknown"
+
+        env_json = {
+            "sigma_source": sigma_source,
+            "detector_size": detector_size,
+            "git_head": git_head,
+            "device": "cpu",
+            "test_name": "test_db_at_027_zero_point_parity",
+        }
+        env_json_path = artifact_path / "db_at_027_env.json"
+        with env_json_path.open("w") as f:
+            json.dump(env_json, f, indent=2)
+
+    # Log metrics for diagnosis (after artifact writing)
     print(f"\n=== DB-AT-027 Zero-Point Parity Metrics ===")
     print(f"mean_abs_diff: {mean_abs_diff:.6e} (tolerance: {result['tolerances']['mean_abs_diff']:.6e})")
     print(f"max_abs_diff: {max_abs_diff:.6e} (tolerance: {result['tolerances']['max_abs_diff']:.6e})")
@@ -77,6 +119,8 @@ def test_db_at_027_zero_point_parity():
         import statistics
         print(f"ROI CC median: {statistics.median(roi_cc_samples):.6f} (n={len(roi_cc_samples)})")
     print(f"db_at_027_pass: {db_at_027_pass}")
+    if artifact_dir:
+        print(f"Wrote artifacts: {artifact_path}")
 
     # Assert DB-AT-027 tolerances (fail fast with informative messages)
     assert mean_abs_diff <= result["tolerances"]["mean_abs_diff"], (

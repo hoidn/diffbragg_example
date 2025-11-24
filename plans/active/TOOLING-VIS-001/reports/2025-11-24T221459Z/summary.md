@@ -1,5 +1,5 @@
 ### Turn Summary
-Scoped the DB-AT-027 closure loop so the zero-point probe/test now has explicit artifact plumbing, env guards, and doc sync tasks.
-Refreshed docs/fix_plan.md and galph_memory.md with the new implementation plan plus created plans/active/TOOLING-VIS-001/reports/2025-11-24T221459Z/ + input.md for Ralph.
-Next: run the engine probe CLI, add DBAT027 artifact emission in the test, and register the selector in docs/TESTING_GUIDE.md and TEST_SUITE_INDEX.md per the new Do Now.
-Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-24T221459Z/ (input.md, summary.md)
+Extended test_db_at_027_zero_point_parity with artifact emission (db_at_027_metrics.json, db_at_027_env.json) when DBAT027_ARTIFACT_DIR is set; fixed bug in run_engine_zero_point_probe (_compute_variance_weighted_loss returns tuple); test xfails as expected (STAGEA-001 spot_scale_override missing, mean_abs_diff=0.21 >> 1e-3 tolerance).
+Main problem: test initially failed to run due to top-level import of tests.fixtures.parity_loader breaking CLI scripts; fixed with lazy imports (ARCH-ENGINE-002); also discovered editable install points to wrong directory (/home/ollie/Documents/diffbragg_example vs diffbragg_example_2) blocking CLI probe script.
+Next: Update TEST_SUITE_INDEX.md with DB-AT-027 row, commit changes with TOOLING-VIS-001 Phase D.B completion message, and update fix_plan Attempts History.
+Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-24T221459Z/ (db_at_027/db_at_027_metrics.json, db_at_027/db_at_027_env.json, pytest_db_at_027.log, pytest_db_at_027_collect.log)

@@ -39,10 +39,8 @@ from dbex.nanobrag_refinement import (
     quaternion_to_xyz_euler,
     vec_to_unit_quaternion,
 )
-from tests.fixtures.parity_loader import (
-    ParityMetrics,
-    compute_parity_metrics,
-)
+# ParityMetrics and compute_parity_metrics imported lazily within functions
+# that use them to avoid breaking CLI scripts (ARCH-ENGINE-002)
 
 
 @dataclass
@@ -822,6 +820,9 @@ def run_forward_model_probe(
         - Computes per-ROI correlation coefficients vs data
         - Writes forward_model_probe.json to out_dir
     """
+    # Lazy import (ARCH-ENGINE-002)
+    from tests.fixtures.parity_loader import ParityMetrics, compute_parity_metrics
+
     bragg_mapping = np.asarray(context.bragg_zero_iter, dtype=np.float32)
     bragg_stage_a_noop = build_stage_a_bragg_noop(
         dataload,
@@ -1011,6 +1012,9 @@ def stage_a_adam_core(
         - Zero-point alignment metrics: max/mean abs diff vs mapping Bragg
         - Per-ROI CC metrics: before/after optimization, vs mapping Bragg reference
     """
+    # Lazy import (ARCH-ENGINE-002)
+    from tests.fixtures.parity_loader import ParityMetrics, compute_parity_metrics
+
     components = build_stage_a_components(
         dataload,
         context,
@@ -1725,13 +1729,14 @@ def run_engine_zero_point_probe(
     sigma_readout_t = torch.from_numpy(context.inputs.sigma_readout).to(device=device, dtype=dtype)
     sigma_floor_sq_t = torch.tensor(sigma_floor_sq, device=device, dtype=dtype)
 
-    chi2_stagea_at_mapping = _compute_variance_weighted_loss(
+    chi2_stagea_at_mapping, _, _, _ = _compute_variance_weighted_loss(
         bragg_mapping_t,  # Use mapping stack for Stage A chi² (DB-AT-027 contract)
         target_t,
         loss_mask_t,
         sigma_readout_t,
         sigma_floor_sq_t,
-    ).item()  # Convert back to scalar
+    )
+    chi2_stagea_at_mapping = chi2_stagea_at_mapping.item()  # Convert to scalar
 
     chi2_mapping = float(context.diagnostics.get("chi_squared", float("nan")))
     if np.isfinite(chi2_mapping) and chi2_mapping != 0.0 and np.isfinite(chi2_stagea_at_mapping):

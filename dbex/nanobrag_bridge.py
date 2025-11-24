@@ -63,6 +63,10 @@ class RefinementInputs:
         sigma_readout: Per-pixel or per-panel readout noise aligned with target units.
         target_representation: "photons" or "adu" indicating target units
         global_scale_hint: Optional scale hint for ADU mode (mean(target)/mean(sim) estimate)
+
+    See also:
+        docs/config_crosswalk.md (Notation ↔ Config Field Mapping and naming glossaries
+        for I_obs, I_model, sigma_readout, and variance tensors).
     """
     target: np.ndarray  # [panel, slow, fast] float, background-subtracted
     loss_mask: np.ndarray  # [panel, slow, fast] bool, (background >= 0) & trusted

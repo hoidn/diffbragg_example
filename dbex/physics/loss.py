@@ -5,7 +5,8 @@ Leaf-node module: imports FROM external dependencies (torch) but NOT from
 dbex.nanobrag_* to avoid circular imports.
 
 Functions in this module implement:
-- Variance-weighted chi-squared loss per spec-db-core.md
+- Variance-weighted chi-squared loss per spec-db-core.md/spec-db-workflow.md
+  (see also docs/config_crosswalk.md “Arrays and loss” mapping).
 - Masked MSE computations
 - Pixel-wise error statistics
 
@@ -23,9 +24,10 @@ def _compute_variance_weighted_loss(
     loss_mask: torch.Tensor,
     sigma_tensor: torch.Tensor,
     sigma_floor_sq_tensor: torch.Tensor,
-) -> Tuple[torch.Tensor, torch.Tensor, int, int]:
+    ) -> Tuple[torch.Tensor, torch.Tensor, int, int]:
     """
-    Sum variance-weighted chi-squared + masked-MSE per spec-db-core.md:57-80.
+    Sum variance-weighted chi-squared + masked-MSE per spec-db-core.md:57-80
+    and the Loss section in docs/spec-db-workflow.md.
 
     Returns:
         chi-squared sum, masked-MSE value, masked pixel count, clamp pixel count.

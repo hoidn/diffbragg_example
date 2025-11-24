@@ -8,7 +8,8 @@ Implements the staged refinement loop per:
 
 Stage A scope:
 - Parameters: global scale (ADU mode) + full crystal (a/b/c log-deltas, alpha/beta/gamma bounded angles, orientation 3-vector→quaternion)
-- Loss: mean(((Bragg - target)[loss_mask]) ** 2)
+- Loss: variance-weighted chi-squared per dbex.physics.loss._compute_variance_weighted_loss
+        (spec-db-core.md/spec-db-workflow.md), with masked MSE tracked for telemetry.
 - ROI policy: deterministic ROI sampling for LBFGS closure; periodic full validation
 - Convergence: ≥0.2% loss drop within ≤30 LBFGS steps; non-increasing full-loss trace (TORCH-REFINE-002D)
 
@@ -1742,6 +1743,11 @@ def _build_stage_a_lbfgs_closure(
                 bragg_patch = simulator.run()
                 bragg_scaled = bragg_patch * torch.exp(log_scale_clamped)
 
+                # NOTE: In the current Stage A implementation, `bragg_scaled` plays the role
+                # of I_model in the variance term while `target_subset` is background-subtracted
+                # I_obs. Spec-DB core defines I_model as Bragg+background on raw data; see
+                # docs/config_crosswalk.md “I_model” mapping and TODO‑PHYSICS for planned
+                # reconciliation.
                 chi_sq_roi, mse_roi, masked_pixels, clamped_pixels = _compute_variance_weighted_loss(
                     bragg_scaled,
                     target_subset,
@@ -1887,6 +1893,9 @@ def _build_stage_a_lbfgs_closure(
                 mask_subset = torch.logical_and(mask_subset, trusted_subset)
             sigma_subset = sigma_readout_t[panel_ids]
 
+            # TODO‑PHYSICS: As above, Stage A uses Bragg on background-subtracted targets as
+            # I_model here. Keep this aligned with the docs/config_crosswalk.md mapping and
+            # update once the Stage A physics decision (Bragg vs Bragg+background) is finalized.
             (
                 chi_squared_loss,
                 masked_mse_loss,
@@ -2446,24 +2455,20 @@ def _build_final_bragg_from_stage_a_telemetry(
             # Apply optimized scale with calibration baseline when available (TOOLING-VIS-001 Phase D.C, DB-AT-027)
             # When calibration_metadata is present:
             #   - log_scale is a delta parameter, clamped to ±log_scale_max_delta (default ±3)
-            #   - log_scale_baseline = log(sqrt(spot_scale_override)) is extracted from telemetry
+            #   - log_scale_baseline = log(sqrt(spot_scale_override)) computed from calibration_metadata
             #   - Final scale = exp(log_scale_baseline + clamped_delta)
             # Otherwise:
             #   - log_scale is the direct learnable parameter (no baseline separation)
             #   - Clamped to ±10.0 for numerical stability
             if hasattr(config, 'calibration_metadata') and config.calibration_metadata is not None:
-                # Extract log_scale_baseline from telemetry if available
-                log_scale_baseline_value = 0.0
-                if hasattr(telemetry_a, 'param_deltas'):
-                    log_scale_baseline_value = telemetry_a.param_deltas.get('log_scale_baseline', {}).get('final', 0.0)
-                else:
-                    log_scale_baseline_value = param_deltas.get('log_scale_baseline', {}).get('final', 0.0)
+                # Compute log_scale_baseline from config.calibration_metadata directly (DB-AT-027 fix)
+                # This ensures zero-iteration runs have correct baseline even when telemetry is minimal
+                spot_scale_override = config.calibration_metadata.get("spot_scale_override", 1.0)
+                sqrt_spot_scale = float(np.sqrt(spot_scale_override))
+                log_scale_baseline_value = float(np.log(sqrt_spot_scale))
 
-                # Convert to tensor if needed
-                if not isinstance(log_scale_baseline_value, torch.Tensor):
-                    log_scale_baseline_t = torch.tensor(log_scale_baseline_value, device=device, dtype=dtype)
-                else:
-                    log_scale_baseline_t = log_scale_baseline_value.to(device=device, dtype=dtype)
+                # Convert to tensor
+                log_scale_baseline_t = torch.tensor(log_scale_baseline_value, device=device, dtype=dtype)
 
                 # Clamp delta to ±log_scale_max_delta (default ±3)
                 log_scale_max_delta = getattr(config, 'log_scale_max_delta', 3.0)

@@ -168,7 +168,11 @@ class HDF5Viewer:
         plt.show(block=True)
 
     def export_triptychs(self, output_dir):
-        """Export static triptych PNGs for all ROIs using dbex.vis.plot_triptych."""
+        """Export static triptych PNGs for all ROIs using dbex.vis.plot_triptych.
+
+        The exported triptychs follow the layout and colormap conventions in
+        docs/spec-db-vis.md (Data | Model | Residual Z-Score).
+        """
         from pathlib import Path
         from dbex.vis import plot_triptych
 

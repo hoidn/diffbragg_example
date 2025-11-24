@@ -188,7 +188,7 @@ def create_unified_simulator(
 
     # Build nanobrag_torch Detector and Crystal models
     detector = Detector(detector_config)
-    crystal = Crystal(crystal_config)
+    crystal = Crystal(crystal_config, beam_config=beam_config, device=device, dtype=dtype)
 
     # Attach HKL tensors to crystal (direct assignment per original code pattern)
     crystal.hkl_data = hkl_grid
@@ -217,6 +217,116 @@ def create_unified_simulator(
         metadata.update(calibration_metadata)
 
     return simulator, normalized_mask, sqrt_scale, metadata
+
+
+def simulate_via_experiment_model(
+    detector_config,
+    crystal_config,
+    beam_config,
+    hkl_grid,
+    hkl_metadata,
+    mask_array=None,
+    spot_scale_override=None,
+    device=None,
+    dtype=torch.float32,
+    calibration_metadata=None
+):
+    """
+    Thin adapter wrapping ExperimentModel(param_init="frozen") for parity testing.
+
+    This adapter provides a parity path using the nanobrag_torch ExperimentModel API
+    (docs/nanobrag_api.md) to validate shape/dtype/device consistency and output
+    correctness against the unified simulator factory (create_unified_simulator).
+
+    Args:
+        detector_config: DetectorConfig instance
+        crystal_config: CrystalConfig instance
+        beam_config: BeamConfig instance (optional, can be None)
+        hkl_grid: torch.Tensor (h_range, k_range, l_range) structure factors
+        hkl_metadata: dict with 'has_halo', 'hkl_ids_asu' keys
+        mask_array: Optional np.ndarray or torch.Tensor mask (normalized inside adapter)
+        spot_scale_override: Optional float for post-run scaling (default 1.0)
+        device: Optional torch.device (default from hkl_grid)
+        dtype: torch.dtype (default torch.float32)
+        calibration_metadata: Optional dict (stored in metadata, not used for construction)
+
+    Returns:
+        Tuple[torch.Tensor, float, dict]:
+            - image: (spixels, fpixels) float tensor on device/dtype
+            - sqrt_scale_value: float (sqrt of spot_scale_override) for CALLER to apply post-run
+            - metadata: dict with {'device', 'dtype', 'hkl_count', 'has_halo', 'mask_provided', 'spot_scale_override', 'sqrt_scale', 'calibration_metadata', 'adapter': 'ExperimentModel'}
+
+    Notes:
+        - This adapter is behind an explicit flag (default OFF) for parity testing only.
+        - param_init="frozen" ensures no trainable parameters (forward-only mode).
+        - Post-run sqrt_scale application is CALLER's responsibility (matching factory pattern per SCALE-004).
+        - Lazy imports nanobrag_torch.models.experiment.ExperimentModel inside function (ARCH-ENGINE-002).
+
+    Findings Applied:
+        - ARCH-ENGINE-002: Lazy imports
+        - SCALE-004: Post-run sqrt_scale pattern
+        - POLICY-001: Environment Freeze (ExperimentModel exists, no patches)
+    """
+    # Lazy import to avoid circular deps
+    from nanobrag_torch.models.experiment import ExperimentModel
+
+    # Device/dtype defaults from hkl_grid
+    if device is None:
+        device = hkl_grid.device
+    if dtype is None:
+        dtype = hkl_grid.dtype
+
+    # Validate HKL grid shape (3D: h_range x k_range x l_range)
+    if hkl_grid.ndim != 3:
+        raise ValueError(f"HKL grid must be 3D (h, k, l), got shape {hkl_grid.shape}")
+    if hkl_grid.device != device or hkl_grid.dtype != dtype:
+        hkl_grid = hkl_grid.to(device=device, dtype=dtype)
+
+    # Compute sqrt(spot_scale_override) for CALLER to apply post-run (SCALE-004)
+    import math
+    spot_scale_val = 1.0 if spot_scale_override is None else spot_scale_override
+    sqrt_scale_value = math.sqrt(spot_scale_val)
+
+    # Instantiate ExperimentModel with param_init="frozen" (no trainable parameters)
+    experiment = ExperimentModel(
+        crystal_config=crystal_config,
+        detector_config=detector_config,
+        beam_config=beam_config,
+        device=device,
+        dtype=dtype,
+        param_init="frozen",
+        hkl_data=hkl_grid,
+        hkl_metadata=hkl_metadata
+    )
+
+    # Run forward pass
+    image = experiment()
+
+    # Validate output shape/dtype
+    expected_shape = (detector_config.spixels, detector_config.fpixels)
+    if image.shape != expected_shape:
+        raise ValueError(f"ExperimentModel output shape {image.shape} != expected {expected_shape}")
+    if image.dtype != dtype:
+        raise ValueError(f"ExperimentModel output dtype {image.dtype} != expected {dtype}")
+    if image.device != device:
+        raise ValueError(f"ExperimentModel output device {image.device} != expected {device}")
+
+    # Assemble metadata
+    metadata = {
+        'device': str(device),
+        'dtype': str(dtype),
+        'hkl_count': hkl_grid.shape[0] * hkl_grid.shape[1] * hkl_grid.shape[2],
+        'has_halo': hkl_metadata.get('has_halo', False),
+        'mask_provided': mask_array is not None,
+        'spot_scale_override': spot_scale_val,
+        'sqrt_scale': sqrt_scale_value,
+        'adapter': 'ExperimentModel',
+        'param_init': 'frozen'
+    }
+    if calibration_metadata is not None:
+        metadata['calibration_metadata'] = calibration_metadata
+
+    return image, sqrt_scale_value, metadata
 
 
 def emit_bragg_frame(

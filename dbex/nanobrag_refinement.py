@@ -2263,7 +2263,7 @@ def _build_final_bragg_from_stage_a_telemetry(
         inputs: RefinementInputs with panel_slices, trusted_mask
         hkl_grid: torch.Tensor structure factor grid
         hkl_metadata: dict with grid dimensions
-        config: RefinementConfig with device, dtype, parameterization mode
+        config: RefinementConfig with device, dtype, parameterization mode, calibration_metadata
         device: torch.device for tensor operations
         dtype: torch.dtype for tensor operations
 
@@ -2321,6 +2321,19 @@ def _build_final_bragg_from_stage_a_telemetry(
     # Note: baseline_crystal is not passed to this helper, so baseline misset is not supported
     # in engine delegation path yet. This is OK for Phase B2 (Stage-A-only validation).
 
+    # Extract calibration payload (TOOLING-VIS-001 Phase D.C, DB-AT-027)
+    # When config.calibration_metadata is provided, forward beam flux/exposure/beamsize
+    # and N_cells into configs so reconstructed Bragg frames match mapping baseline
+    beam_flux = None
+    beam_exposure = None
+    beamsize_mm = None
+    N_cells = None
+    if hasattr(config, 'calibration_metadata') and config.calibration_metadata is not None:
+        beam_flux = config.calibration_metadata.get("beam_flux")
+        beam_exposure = config.calibration_metadata.get("beam_exposure")
+        beamsize_mm = config.calibration_metadata.get("beamsize_mm")
+        N_cells = config.calibration_metadata.get("N_cells")
+
     # Generate final Bragg array with optimized parameters (lines 2046-2153 from inline code)
     with torch.no_grad():
         bragg_full = np.zeros((n_panels, *panel_shape), dtype=np.float32)
@@ -2342,7 +2355,8 @@ def _build_final_bragg_from_stage_a_telemetry(
                     detector_config.mask_array, dtype=torch.float32, device=device
                 )
 
-            beam_config = create_beam_config(beam)
+            # Create beam_config with calibration parameters when available (TOOLING-VIS-001 Phase D.C, DB-AT-027)
+            beam_config = create_beam_config(beam, flux=beam_flux, beamsize_mm=beamsize_mm, exposure=beam_exposure)
 
             # Apply final full crystal perturbations via tensor overrides (GRADIENT-001, TORCH-REFINE-002)
             cell_params = crystal.get_unit_cell().parameters()
@@ -2406,10 +2420,13 @@ def _build_final_bragg_from_stage_a_telemetry(
                 }
                 misset_deg_for_crystal = misset_xyz_deg
 
+            # Create crystal_config with N_cells calibration when available (TOOLING-VIS-001 Phase D.C, DB-AT-027)
             crystal_config, _ = create_crystal_config(
                 crystal, None,
                 crystal_overrides=crystal_overrides,
-                misset_deg_override=misset_deg_for_crystal
+                misset_deg_override=misset_deg_for_crystal,
+                N_cells=N_cells,
+                apply_n_cells=(N_cells is not None)
             )
 
             detector_model = Detector(detector_config, device=device, dtype=dtype)
@@ -2426,9 +2443,37 @@ def _build_final_bragg_from_stage_a_telemetry(
             simulator = Simulator(detector=detector_model, crystal=crystal_model, device=device, dtype=dtype)
             panel_bragg = simulator.run()
 
-            # Apply optimized scale (with same clamping as in compute_loss)
-            log_scale_clamped = torch.clamp(log_scale, min=-10.0, max=10.0)
-            panel_bragg_scaled = panel_bragg * torch.exp(log_scale_clamped)
+            # Apply optimized scale with calibration baseline when available (TOOLING-VIS-001 Phase D.C, DB-AT-027)
+            # When calibration_metadata is present:
+            #   - log_scale is a delta parameter, clamped to ±log_scale_max_delta (default ±3)
+            #   - log_scale_baseline = log(sqrt(spot_scale_override)) is extracted from telemetry
+            #   - Final scale = exp(log_scale_baseline + clamped_delta)
+            # Otherwise:
+            #   - log_scale is the direct learnable parameter (no baseline separation)
+            #   - Clamped to ±10.0 for numerical stability
+            if hasattr(config, 'calibration_metadata') and config.calibration_metadata is not None:
+                # Extract log_scale_baseline from telemetry if available
+                log_scale_baseline_value = 0.0
+                if hasattr(telemetry_a, 'param_deltas'):
+                    log_scale_baseline_value = telemetry_a.param_deltas.get('log_scale_baseline', {}).get('final', 0.0)
+                else:
+                    log_scale_baseline_value = param_deltas.get('log_scale_baseline', {}).get('final', 0.0)
+
+                # Convert to tensor if needed
+                if not isinstance(log_scale_baseline_value, torch.Tensor):
+                    log_scale_baseline_t = torch.tensor(log_scale_baseline_value, device=device, dtype=dtype)
+                else:
+                    log_scale_baseline_t = log_scale_baseline_value.to(device=device, dtype=dtype)
+
+                # Clamp delta to ±log_scale_max_delta (default ±3)
+                log_scale_max_delta = getattr(config, 'log_scale_max_delta', 3.0)
+                log_scale_delta_clamped = torch.clamp(log_scale, min=-log_scale_max_delta, max=log_scale_max_delta)
+                panel_bragg_scaled = panel_bragg * torch.exp(log_scale_baseline_t + log_scale_delta_clamped)
+            else:
+                # Legacy path: log_scale is direct parameter, clamp to ±10.0
+                log_scale_clamped = torch.clamp(log_scale, min=-10.0, max=10.0)
+                panel_bragg_scaled = panel_bragg * torch.exp(log_scale_clamped)
+
             bragg_full[pid] = panel_bragg_scaled.cpu().numpy().astype(np.float32)
 
     return bragg_full
@@ -4577,6 +4622,7 @@ def run_nanobrag_refinement(
     
         # Unpack needed variables for helper 2/3 calls and final Bragg generation
         initial_log_scale = param_values['initial_log_scale']  # For telemetry
+        log_scale_baseline = param_values.get('log_scale_baseline')  # Calibration baseline (None if uncalibrated)
         log_scale = param_values['log_scale']
         log_cell_a_delta = param_values['log_cell_a_delta']
         log_cell_b_delta = param_values['log_cell_b_delta']
@@ -4754,6 +4800,10 @@ def run_nanobrag_refinement(
                 'initial': initial_log_scale,
                 'final': float(log_scale.item()),
                 'delta': float(log_scale.item()) - initial_log_scale
+            },
+            'log_scale_baseline': {
+                'initial': log_scale_baseline if log_scale_baseline is not None else 0.0,
+                'final': log_scale_baseline if log_scale_baseline is not None else 0.0,
             },
             'log_cell_a_delta': {
                 'initial': 0.0,

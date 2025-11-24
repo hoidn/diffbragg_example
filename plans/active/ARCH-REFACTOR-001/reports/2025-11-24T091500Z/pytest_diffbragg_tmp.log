@@ -1,0 +1,17 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 7 items
+
+tests/dbex/test_diffbragg_tmp.py::test_scratch_dir_default PASSED
+tests/dbex/test_diffbragg_tmp.py::test_scratch_dir_subdirectories PASSED
+tests/dbex/test_diffbragg_tmp.py::test_scratch_dir_user_provided PASSED
+tests/dbex/test_diffbragg_tmp.py::test_scratch_dir_keep_scratch PASSED
+tests/dbex/test_diffbragg_tmp.py::test_concurrent_diffbragg_runs PASSED
+tests/dbex/test_diffbragg_tmp.py::test_scratch_cleanup PASSED
+tests/dbex/test_diffbragg_tmp.py::test_scratch_dir_no_geom_out_pollution PASSED
+
+============================== 7 passed in 0.17s ===============================

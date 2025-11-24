@@ -39,7 +39,7 @@ Spec Alignment
 
 Phase A — Tests First (xfail/skip‑guarded)
 Checklist
-- [ ] A1: DIALS mapping behavior test
+- [x] A1: DIALS mapping behavior test — ✓ COMPLETE 2025-11-24T000100Z
   - Construct a minimal dxtbx beam/panel; build DetectorConfig via `create_detector_config` (DIALS). Assert beam-center swap (fast, slow)→(s, f), Euler extraction from panel axes, and end-to-end forward parity on tiny fixtures.
   - Add a documentation/assertion that `custom_beam_vector` is ignored under DIALS in the current engine (expected behavior).
   - Selector: `tests/dbex/test_bridge_mapping.py::test_dials_mapping_parity`

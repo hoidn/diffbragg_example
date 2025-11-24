@@ -597,3 +597,14 @@
 - <Action State>: [planning]
 
 2025-11-24T221459Z focus=TOOLING-VIS-001 state=planning dwell=1 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-24T221459Z/ next_action=ready_for_implementation_db_at_027_artifact_sync
+
+## 2025-11-24T224133Z — TOOLING-VIS-001 Phase D.C Readiness (Calibration Plumbing Plan)
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
+- Action Type: planning
+- Key Observations: Ralph's commit 7548479 completed the Phase D.B artifact runbook (DBAT027 env/metrics JSON, lazy import fix, Testing Guide row). Zero-point metrics remain far off (mean_abs_diff≈2.1e-01, max_abs_diff≈3.84e4 ADU) because Stage A still ignores mapping calibration payload. Updated fix_plan attempts + status to reflect D.B closure and scripted the Phase D.C scope: extend RefinementConfig + Stage A context/builders to accept calibration metadata, treat log_scale as a ±3 delta around the calibrated baseline, plumb calibration through CLI + probes, rerun DB-AT-027 (expected PASS, remove xfail), and update docs/TEST_INDEX/findings once parity is achieved. Artifacts directory `plans/active/TOOLING-VIS-001/reports/2025-11-24T224133Z/` now hosts the new input + summary stubs.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-24T224133Z/
+- Next Actions: Ralph implements Phase D.C calibration plumbing, runs the zero-point CLI + pytest selector, and promotes DB-AT-027 to Active in the registry.
+- <Action State>: [ready_for_implementation]
+
+2025-11-24T224133Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=0 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-24T224133Z/ next_action=phase_DC_calibration_plumbing

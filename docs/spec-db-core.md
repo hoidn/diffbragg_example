@@ -49,15 +49,17 @@ Geometry Mapping (Normative)
 
 - Baseline state:
   - For any mapping-aligned refinement, the crystal state provided by dxtbx/DIALS SHALL be treated as authoritative:
-    - `U₀ = crystal.get_U()` (orientation matrix),
-    - `B₀ = crystal.get_B()` (reciprocal metric tensor),
-    - `A*_mapping = U₀ @ B₀` (reciprocal lattice matrix).
+    - `A*_0 = crystal.get_A()` (reciprocal lattice matrix from dxtbx),
+    - `c₀ = (a₀, b₀, c₀, α₀, β₀, γ₀)` (baseline unit cell),
+    - `B₀ = B(c₀)` (Busing–Levy style reciprocal metric tensor constructed directly from `c₀`),
+    - `U₀ = A*_0 @ B₀⁻¹` (baseline orientation matrix),
+    - and by construction `A*_mapping = U₀ @ B₀ = A*_0`.
   - Implementations SHALL NOT introduce alternative, incompatible decompositions of `A*_mapping` into `U,B` in production refinement code.
 
 - Incremental parameterization:
   - Stage‑A refinement parameterizations SHALL be defined as *increments* around the baseline state, not as free absolute `A*`:
-    - Orientation parameters represent a small rotation `ΔR(params)` such that `U(params) = ΔR(params) @ U₀`.
-    - Cell parameters represent small perturbations of the baseline cell, producing `B(params)` via a well‑defined metric tensor map (e.g., Busing–Levy) consistent with dxtbx conventions.
+    - Orientation parameters represent a small rotation `ΔR(q_delta)` applied to the baseline orientation such that `U(q_delta) = ΔR(q_delta) @ U₀`, where `ΔR` is typically implemented via a unit quaternion increment with the identity quaternion `(1,0,0,0)` encoding “no misset”.
+    - Cell parameters represent small perturbations of the baseline cell, producing `B(params) = B(c(params))` via a well‑defined Busing–Levy metric tensor map consistent with dxtbx conventions. Lengths MAY be parameterized via log‑deltas (e.g. `a(params) = a₀·exp(δlog_a)`), while angles use additive deltas around `(α₀, β₀, γ₀)`.
   - At the Stage‑A zero point (all refinement deltas = 0), implementations MUST satisfy:
     - `U(0) = U₀`, `B(0) = B₀`, and `A*(0) = U₀ @ B₀ = A*_mapping`.
 

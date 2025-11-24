@@ -133,6 +133,26 @@ Description: System context, ADRs, data flow, and proposed module layout for the
 Keywords: ADRs, data‑flow, modules  
 Use this when: Understanding the planned design and integration boundaries.
 
+### [Current Implementation (Torch + DiffBragg)](architecture/live_backend.md)
+Description: Shipped pipelines for torch and legacy DiffBragg, divergence points, outputs, and migration status.  
+Keywords: current-state, torch, diffbragg, delegation, migration  
+Use this when: You need to know how the code runs today and what’s slated for deprecation.
+
+### [Data & Telemetry Flow](architecture/data_telemetry_flow.md)
+Description: End-to-end flow from inputs → prep → Stage A/B/C → ROI scoring → HDF5/telemetry.  
+Keywords: pipeline, telemetry, loss_mask, diagnostics  
+Use this when: Tracing how data and metrics move through the current implementation.
+
+### [Calibration & Scaling](architecture/calibration_scaling.md)
+Description: Current precedence (torch_config > CLI), ADU↔photon policy, sigma/spot_scale/refined MTZ threading, telemetry provenance.  
+Keywords: calibration, scaling, sigma, gain, MTZ  
+Use this when: Resolving calibration conflicts or auditing variance/scale behavior.
+
+### [Module Map](architecture/module_map.md)
+Description: Module → responsibility → entrypoints/tests/spec refs with status (active vs legacy).  
+Keywords: navigation, modules, tests, status  
+Use this when: Locating code and its primary tests quickly.
+
 ### [Integration Plan](../plans/nanobrag_integration_plan.md)
 Description: Phase‑by‑phase plan to replace the optimizer with `nanobrag_torch`, deliverables, and validation.  
 Keywords: plan, milestones, deliverables  
@@ -144,6 +164,11 @@ Use this when: Executing integration work or reviewing scope/timeline.
 Description: Canonical environment flags, smoke/acceptance selectors, and artifact policy for pytest runs.
 Keywords: testing, pytest, selectors
 Use this when: Running or authoring tests for parity, ingestion, or runtime guardrails.
+
+### [Tests Mapping](architecture/tests_mapping.md)
+Description: Selector/probe → modules exercised → artifacts produced; notes on gaps/blocked selectors.  
+Keywords: coverage, selectors, probes, artifacts  
+Use this when: Picking the right tests for a change or auditing coverage against architecture.
 
 ### [Forward Equivalence Smoke](forward_equivalence.md)
 Description: Procedure and artifact expectations for the DiffBragg vs `nanobrag_torch` forward-only comparison, including optional trace capture.

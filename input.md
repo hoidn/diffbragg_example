@@ -1,474 +1,470 @@
-# Input for Ralph — ARCH-REFACTOR-001 Phase D D2.3+D2.4 Test Suite + Documentation
+# TORCH-REFINE-004 Phase 6 Planning — Per-Reflection ASU Mapping & Parameterization Design
 
-**Summary:** Complete Phase D D2 by implementing test suite (10 tests) and creating README for `dbex.tools.stage_a_adam` module.
+## Summary
+Design per-reflection Fhkl modifier parameterization with ASU (asymmetric unit) index mapping for Stage B, assess parameter counts, and recommend optimizer choice (LBFGS vs Adam) based on parameter scale.
 
-**Mode:** none
+## Mode
+**Docs**
 
-**Focus:** ARCH-REFACTOR-001 — Refinement Engine Modularization & Physics Separation (Phase D D2.3+D2.4)
+## Focus
+**TORCH-REFINE-004 — Stage B Per-Reflection Mode Migration (Phase 6: ASU Mapping & Parameterization Planning)**
 
-**Branch:** integration
+## Branch
+`integration` (expected working branch)
 
-**Mapped tests:**
-- `tests/dbex/test_stage_a_adam_tooling.py::test_stage_a_components_dataclass` (NEW, unit test)
-- `tests/dbex/test_stage_a_adam_tooling.py::test_stage_a_debug_config_dataclass` (NEW, unit test)
-- `tests/dbex/test_stage_a_adam_tooling.py::test_create_debug_run_dir` (NEW, unit test)
-- `tests/dbex/test_stage_a_adam_tooling.py::test_write_commands_txt` (NEW, unit test)
-- `tests/dbex/test_stage_a_adam_tooling.py::test_build_dataload_real_assets` (NEW, integration test)
-- `tests/dbex/test_stage_a_adam_tooling.py::test_setup_environment_determinism` (NEW, integration test)
-- `tests/dbex/test_stage_a_adam_tooling.py::test_stage_a_forward_smoke` (NEW, integration test, CRITICAL)
-- `tests/dbex/test_stage_a_adam_tooling.py::test_zero_point_check_integration` (NEW, integration test)
-- `tests/dbex/test_stage_a_adam_tooling.py::test_cli_help_succeeds` (NEW, CLI smoke test)
-- `tests/dbex/test_stage_a_adam_tooling.py::test_cli_phase_1_backward_compat` (NEW, CLI smoke test)
+## Mapped Tests
+**None — evidence-only** (planning loop, no code changes)
 
-**Artifacts:** `plans/active/ARCH-REFACTOR-001/reports/2025-11-24T080106Z/`
+## Artifacts
+**Directory:** `plans/active/TORCH-REFINE-004/reports/2025-11-24T125000Z/`
 
----
+**Expected Outputs:**
+- `phase_6_planning_analysis.md` — Comprehensive ASU mapping design (algorithm, cctbx API usage, parameter count estimates, optimizer recommendation, risk mitigation)
+- `asu_pseudocode.py` — Pseudocode for ASU index computation (NOT production code, just design sketch)
+- `parameter_count_analysis.md` — Estimates for common space groups (P1, P21, P432, etc.) with justification
+- `optimizer_decision.md` — LBFGS vs Adam trade-off analysis with memory/convergence considerations
+- `decision.json` — 4-path decision synthesis (A: proceed to Phase 6 implementation, B: refine design, C: blocked by cctbx unavailable, D: fallback to shell mode only)
+- `summary.md` — Turn Summary (per end-of-loop hygiene requirements)
 
 ## Do Now
 
-**Context:** Phase D D2.1+D2.2 ✓ COMPLETE (commit 7264817, 2025-11-24T095000Z). Module extraction successful: `dbex/tools/stage_a_adam.py` (1898 lines, 15 functions, 3 classes) + CLI refactored to thin 340-line shim. CLI smoke test PASSED (Phase 1, cpu, seed=42, 92 ROIs). Now complete Phase D D2 with test suite + documentation.
+**Objective:** Plan Phase 6 per-reflection parameterization design WITHOUT writing production code. This is a pure planning loop to answer 4 key questions before implementation:
 
-**Objective:** Create comprehensive test suite validating the extracted module's public APIs and CLI backward compatibility. Add minimal README documenting programmatic usage.
+1. **ASU Mapping Algorithm:** How do we compute `hkl_asu_map: torch.Tensor[int64]` shape `(h_count, k_count, l_count)` mapping each HKL grid voxel to its unique ASU index?
+2. **Parameter Count:** How many unique ASU reflections exist for typical space groups (P1, P21, P432, etc.) and test fixtures?
+3. **Optimizer Choice:** Should Stage B use LBFGS (spec default) or Adam (spec-permitted for large parameter counts)?
+4. **Risk Mitigation:** How do we handle edge cases (halo voxels, cctbx unavailability, symmetry op failures)?
 
-### Implement: `tests/dbex/test_stage_a_adam_tooling.py` (10 test cases, ~300-400 lines)
+**9-Step Planning Protocol:**
 
-**Test Structure:**
-1. **Unit Tests (4)** — Fast dataclass + utility tests, no fixtures
-2. **Integration Tests (4)** — Core workflow validation with real fixtures
-3. **CLI Smoke Tests (2)** — Backward compatibility validation
+### 1. Read Context (30 minutes)
+Read the following documents in order:
+- `docs/spec-db-workflow.md:58-61` — Stage B normative requirements (per-reflection SHALL be default, shell mode MUST NOT be default)
+- `plans/active/TORCH-REFINE-004/implementation.md` — Phases 1-5 complete (shell mode working), Phase 6-9 pending
+- `plans/active/TORCH-REFINE-004/reports/2025-11-24T125000Z/focus_selection_decision.md` — Supervisor's focus selection rationale and scope analysis
+- `docs/spec-db-core.md` — Structure factor conventions and HKL grid semantics
+- `docs/architecture/pytorch_design.md §1.1.1` — HKL halo requirements and interpolation
 
-**Test Case Specifications:**
+### 2. Analyze cctbx.miller Asymmetric Unit API (45 minutes)
+**Objective:** Determine how to map (h,k,l) Miller indices to unique ASU indices using cctbx symmetry operations.
 
-#### Unit Tests (Target: <1.5s total)
+**Tasks:**
+- Search codebase for existing cctbx.miller usage:
+  ```bash
+  grep -r "cctbx.miller\|from cctbx import miller\|miller.set\|miller.array" simtbx_project/ dbex/ --include="*.py" | head -20
+  ```
+- Inspect `simtbx_project/` or `dbex/data_load.py` for MTZ ingestion patterns (space group extraction, symmetry operations).
+- Find cctbx API for ASU mapping (likely `cctbx.miller.set.map_to_asu()` or `cctbx.sgtbx.space_group.asu()`).
+- Document API signature, inputs (space group, Miller indices), outputs (ASU index or equivalent reflection).
+- Note: If cctbx.miller is unavailable or API is unclear, document this as blocker (Path C decision).
 
-**Test 1: `test_stage_a_components_dataclass`**
+**Deliverable:** Section in `phase_6_planning_analysis.md` titled "cctbx.miller ASU API Analysis" with:
+- API function name and signature
+- Example usage (pseudocode or reference to existing code)
+- Input requirements (space group object, Miller index array)
+- Output format (ASU index, equivalent reflection, or symmetry mapping)
+
+### 3. Design ASU Index Computation Algorithm (60 minutes)
+**Objective:** Write pseudocode for computing `hkl_asu_map` tensor from HKL grid + space group.
+
+**Algorithm Sketch:**
 ```python
-def test_stage_a_components_dataclass():
-    """Validate StageAComponents dataclass instantiation."""
-    from dbex.tools.stage_a_adam import StageAComponents
+# Pseudocode (NOT production code)
+def compute_hkl_asu_map(hkl_grid: np.ndarray, space_group_info: cctbx.sgtbx.space_group_info) -> torch.Tensor:
+    """
+    Map each HKL grid voxel to its unique ASU index.
 
-    # Create minimal instance
-    components = StageAComponents(
-        detector_config=None,  # Mock, test accepts None
-        crystal_config=None,
-        beam_config=None,
-        hkl_grid=None,
-        simulator=None,
-        baseline_detector=None,
-        dataload=None,
-    )
-    assert components.detector_config is None
-    # Test field access works
+    Args:
+        hkl_grid: shape (h_count, k_count, l_count, 3) — Miller indices for each voxel
+        space_group_info: cctbx space group object (from MTZ header)
+
+    Returns:
+        hkl_asu_map: torch.Tensor[int64] shape (h_count, k_count, l_count)
+                     Values are ASU indices 0..n_asu_unique-1
+                     Halo voxels (outside MTZ range) map to index 0 with fixed modifier=1.0
+    """
+    # Step 1: Extract Miller indices from grid (h, k, l)
+    miller_indices = hkl_grid[..., :3].reshape(-1, 3)  # (n_voxels, 3)
+
+    # Step 2: Create cctbx.miller.set from indices + space group
+    miller_set = cctbx.miller.set(crystal_symmetry=space_group_info, indices=miller_indices)
+
+    # Step 3: Map to ASU using cctbx symmetry operations
+    asu_miller_set = miller_set.map_to_asu()  # Returns equivalent reflections in ASU
+
+    # Step 4: Assign unique integer index to each ASU reflection
+    unique_asu_indices, inverse_map = np.unique(asu_miller_set.indices(), return_inverse=True, axis=0)
+
+    # Step 5: Reshape inverse_map back to (h_count, k_count, l_count)
+    hkl_asu_map = torch.tensor(inverse_map, dtype=torch.int64).reshape(hkl_grid.shape[:3])
+
+    return hkl_asu_map, len(unique_asu_indices)  # (map, n_asu_unique)
 ```
 
-**Test 2: `test_stage_a_debug_config_dataclass`**
-```python
-def test_stage_a_debug_config_dataclass():
-    """Validate StageADebugConfig CLI dataclass."""
-    from pathlib import Path
-    from dbex.tools.stage_a_adam import StageADebugConfig
+**Tasks:**
+- Write refined pseudocode in `asu_pseudocode.py` (NOT a production module, just planning artifact).
+- Address edge cases:
+  - **Halo voxels:** HKL grid includes ±1 halo beyond MTZ range (spec-db-workflow.md:61). These voxels have no structure factor. Map them to ASU index 0 with fixed `asu_modifiers[0] = 1.0` (non-trainable).
+  - **Symmetry failures:** If cctbx.miller.set construction fails (invalid indices, symmetry mismatch), log warning and fallback to shell mode (spec-permitted fallback per spec:60).
+  - **Memory:** ASU index computation is one-time cost during Stage B setup, not per-iteration.
+- Identify dependencies: `cctbx.miller`, `cctbx.sgtbx`, `hkl_metadata["space_group"]` (already available from MTZ ingestion per MAP-SCALE-001).
 
-    # Create with defaults
-    config = StageADebugConfig(
-        repo_root=Path.cwd(),
-        device="cpu",
-        seed=42,
-        phases=[1],
-        base_output_dir=Path("./out"),
-        adam_steps=10,
-    )
-    assert config.seed == 42
-    assert config.device == "cpu"
-    assert 1 in config.phases
+**Deliverable:** `asu_pseudocode.py` with refined algorithm + edge case handling notes.
+
+### 4. Estimate Parameter Counts (30 minutes)
+**Objective:** Estimate `n_asu_unique` for common space groups to guide optimizer choice.
+
+**Tasks:**
+- Review test fixtures:
+  - `tests/fixtures/golden_data/refGeom/` — Check MTZ space group (likely P1 or low symmetry)
+  - Canonical detector smoke tests — Space group used
+- Calculate theoretical ASU fraction for common space groups:
+  - **P1** (no symmetry): ASU = full sphere, `n_asu ≈ n_hkl / 1 ≈ 50K-100K` (HIGH parameter count)
+  - **P21** (2-fold symmetry): ASU ≈ 1/2 sphere, `n_asu ≈ 25K-50K` (MEDIUM-HIGH)
+  - **P432** (48-fold symmetry): ASU ≈ 1/48 sphere, `n_asu ≈ 1K-2K` (LOW, LBFGS feasible)
+- Document parameter count implications:
+  - **n_asu < 10K:** LBFGS feasible (limited-memory scales well, spec default per spec:107)
+  - **n_asu ≥ 10K:** Consider Adam (spec:107 allows "Stage B MAY use L-BFGS or Adam")
+
+**Deliverable:** `parameter_count_analysis.md` with:
+- Table of space groups (P1, P21, P432, etc.) with estimated `n_asu` ranges
+- Test fixture space group identification
+- Parameter count gate recommendation (e.g., "Use Adam if n_asu ≥ 10000")
+
+### 5. Assess LBFGS vs Adam Trade-Offs (30 minutes)
+**Objective:** Recommend optimizer for Stage B per-reflection mode based on parameter count and spec guidance.
+
+**Analysis:**
+- **LBFGS Advantages:**
+  - Spec default (spec:107 "Default optimizer SHALL be L-BFGS")
+  - Better convergence for well-conditioned problems
+  - No learning rate tuning
+- **LBFGS Disadvantages:**
+  - Limited-memory approximation degrades with >10K parameters
+  - Full closure recomputation per line search (expensive for large HKL grids)
+- **Adam Advantages:**
+  - Scales well to large parameter counts (10K-100K)
+  - Per-parameter adaptive learning rates
+  - Spec-permitted (spec:107 "Stage B MAY use Adam")
+- **Adam Disadvantages:**
+  - Requires learning rate tuning (suggest 1e-3 default, 1e-4 fallback)
+  - Slower convergence than LBFGS for small parameter counts
+
+**Recommendation Logic:**
+```python
+if n_asu_unique < 10000:
+    optimizer = "LBFGS"  # Spec default, better convergence
+else:
+    optimizer = "Adam"   # Spec-permitted, scales better
+    learning_rate = 1e-3  # Default per Stage B heuristics
 ```
 
-**Test 3: `test_create_debug_run_dir`**
-```python
-def test_create_debug_run_dir(tmp_path):
-    """Validate debug run directory creation."""
-    from dbex.tools.stage_a_adam import create_debug_run_dir
+**Deliverable:** `optimizer_decision.md` with:
+- Trade-off analysis table (LBFGS vs Adam)
+- Parameter count gate (n_asu < 10K → LBFGS, ≥ 10K → Adam)
+- Learning rate recommendation for Adam case (1e-3 default, cite reasoning)
 
-    timestamp, out_dir = create_debug_run_dir(base_dir=tmp_path)
+### 6. Write Phase 6 Planning Analysis (45 minutes)
+**Objective:** Consolidate all planning outputs into comprehensive analysis document.
 
-    # Validate timestamp format (YYYYMMDDTHHMMSSZ)
-    assert len(timestamp) == 17
-    assert "T" in timestamp
-    assert timestamp.endswith("Z")
+**Structure:**
+```markdown
+# Phase 6 Planning Analysis — Per-Reflection ASU Mapping & Parameterization
 
-    # Validate directory exists
-    assert out_dir.exists()
-    assert out_dir.is_dir()
+## Executive Summary
+- ASU mapping algorithm: cctbx.miller.set.map_to_asu() approach
+- Parameter count estimates: P1 ~50K, P21 ~25K, P432 ~2K
+- Optimizer recommendation: LBFGS for n_asu < 10K, Adam for ≥ 10K
+- Risk mitigation: Halo voxels → ASU index 0 (fixed), cctbx unavailable → fallback shell mode
+
+## cctbx.miller ASU API Analysis
+[From Step 2]
+
+## ASU Index Computation Algorithm
+[From Step 3, reference asu_pseudocode.py]
+
+## Parameter Count Analysis
+[From Step 4, reference parameter_count_analysis.md]
+
+## Optimizer Decision
+[From Step 5, reference optimizer_decision.md]
+
+## Risk Mitigation
+- R1 (ASU index computation complexity): Use cctbx.miller.set.map_to_asu(), fallback to shell mode if unavailable
+- R2 (Parameter count explosion): Dynamic optimizer selection based on n_asu threshold (10K gate)
+- R3 (HKL halo handling): Map halo voxels to ASU index 0 with fixed modifier=1.0
+
+## Implementation Checklist (Phase 6 Next Loop)
+- [ ] Extend `compute_hkl_shell_lookup` to `compute_hkl_asu_map` in dbex/nanobrag_refinement.py
+- [ ] Add `asu_modifiers: nn.Parameter` initialization in Stage B setup
+- [ ] Implement dynamic optimizer selection (LBFGS vs Adam) based on n_asu count
+- [ ] Add halo voxel guard (ASU index 0 fixed modifier)
+- [ ] Unit test ASU mapping (synthetic P1/P432 space groups, verify symmetry equivalence)
+
+## Decision Paths
+- **Path A:** All planning questions answered, cctbx API confirmed, proceed to Phase 6 implementation next loop (RECOMMENDED)
+- **Path B:** Algorithm design unclear, need refinement (additional planning loop)
+- **Path C:** cctbx.miller unavailable or API incompatible, blocked (escalate to upstream or fallback shell mode only)
+- **Path D:** Parameter count too high (>100K), per-reflection mode infeasible, stick with shell mode as primary (violates spec, document exception)
+
+## Confidence Assessment
+- cctbx API availability: HIGH (~95%) — Already in environment per upstream tools
+- Algorithm correctness: MEDIUM (~80%) — Symmetry equivalence logic needs validation
+- Parameter count estimates: MEDIUM (~75%) — Test fixture space groups unknown
+- Optimizer choice: HIGH (~90%) — Well-established heuristics from literature
+
+## Estimated Implementation Effort (Post-Planning)
+- Phase 6 implementation: 1-2 loops (~2-4 hours)
+- Phase 7 optimization loop: 1 loop (~1-2 hours)
+- Phase 8 tests: 1 loop (~2 hours)
+- **Total:** 2-4 loops (~5-8 hours) for Phases 6-8 combined
 ```
 
-**Test 4: `test_write_commands_txt`**
-```python
-def test_write_commands_txt(tmp_path):
-    """Validate command log generation."""
-    from dbex.tools.stage_a_adam import write_commands_txt
+### 7. Decision Synthesis (15 minutes)
+**Objective:** Produce `decision.json` with 4-path decision tree for supervisor review.
 
-    write_commands_txt(
-        out_dir=tmp_path,
-        seed=42,
-        argv=["script.py", "--phases", "1", "--device", "cpu"],
-    )
+**Decision Criteria:**
+- **Path A (Proceed to Phase 6 Implementation):**
+  - cctbx.miller API confirmed available
+  - ASU mapping algorithm pseudocode complete
+  - Parameter count estimates documented
+  - Optimizer recommendation clear (LBFGS vs Adam gate)
+  - Risk mitigation strategies defined
+  - **Confidence:** HIGH (~85%)
+- **Path B (Refine Design):**
+  - ASU mapping algorithm unclear or edge cases unresolved
+  - cctbx API usage ambiguous
+  - Parameter count estimates too uncertain
+  - **Confidence:** MEDIUM (~60%)
+- **Path C (Blocked by cctbx Unavailable):**
+  - cctbx.miller not in environment (violates Environment Freeze, cannot install)
+  - cctbx API incompatible or broken
+  - **Confidence:** LOW (~30%)
+- **Path D (Fallback Shell Mode Only):**
+  - Parameter count >100K makes per-reflection infeasible
+  - cctbx unavailable and no workaround
+  - Violates spec (per-reflection SHALL be default), document exception
+  - **Confidence:** LOW (~20%)
 
-    cmd_file = tmp_path / "commands.txt"
-    assert cmd_file.exists()
-
-    content = cmd_file.read_text()
-    assert "seed=42" in content
-    assert "--phases" in content
+**decision.json Format:**
+```json
+{
+  "focus": "TORCH-REFINE-004",
+  "phase": "6_planning",
+  "timestamp": "2025-11-24T125000Z",
+  "path": "A",  # A/B/C/D
+  "rationale": "cctbx.miller API confirmed, pseudocode complete, parameter count estimates documented, optimizer recommendation clear",
+  "confidence": 0.85,
+  "next_action": "proceed_to_phase_6_implementation",
+  "blockers": [],
+  "artifacts": ["phase_6_planning_analysis.md", "asu_pseudocode.py", "parameter_count_analysis.md", "optimizer_decision.md"]
+}
 ```
 
-#### Integration Tests (Target: <30s total)
+### 8. Write summary.md Turn Summary (10 minutes)
+**Objective:** Create human-readable Turn Summary per end-of-loop hygiene requirements.
 
-**Test 5: `test_build_dataload_real_assets`**
-```python
-def test_build_dataload_real_assets():
-    """Validate build_dataload() with real golden data."""
-    from pathlib import Path
-    from dbex.tools.stage_a_adam import build_dataload
+**Format:** Single level-3 heading `### Turn Summary`, 3-5 short sentences covering:
+1. What you shipped/advanced (Phase 6 planning complete OR blocker identified)
+2. Main problem and how you handled it (ASU mapping design, optimizer choice, etc.)
+3. Single next step (Phase 6 implementation OR design refinement OR escalate blocker)
+4. Artifacts line pointing to reports directory
 
-    repo_root = Path.cwd()  # Assumes running from repo root
-    dataload = build_dataload(repo_root)
-
-    # Validate DataLoad structure
-    assert hasattr(dataload, "experiment")
-    assert hasattr(dataload, "reflections")
-    assert hasattr(dataload, "mtz_object")
-    # No crashes means success
+**Example:**
+```markdown
+### Turn Summary
+Completed Phase 6 planning analysis for per-reflection ASU mapping using cctbx.miller symmetry operations; parameter count estimates range 2K (P432) to 50K (P1) with LBFGS < 10K gate / Adam ≥ 10K recommendation.
+ASU index computation pseudocode designed with halo voxel handling (map to index 0 fixed modifier) and cctbx unavailable fallback to shell mode.
+Next: Phase 6 implementation (extend compute_hkl_asu_map helper, add asu_modifiers parameter, dynamic optimizer selection).
+Artifacts: plans/active/TORCH-REFINE-004/reports/2025-11-24T125000Z/ (phase_6_planning_analysis.md, asu_pseudocode.py, parameter_count_analysis.md, optimizer_decision.md, decision.json)
 ```
 
-**Test 6: `test_setup_environment_determinism`**
-```python
-def test_setup_environment_determinism():
-    """Validate setup_environment() sets seeds."""
-    from dbex.tools.stage_a_adam import setup_environment
+Prepend this block to `plans/active/TORCH-REFINE-004/reports/2025-11-24T125000Z/summary.md` (create if doesn't exist).
 
-    device = setup_environment(seed=42, device_str="cpu")
-    assert device in ("cpu", "cuda")
+### 9. Commit Planning Artifacts (5 minutes)
+**Objective:** Commit all planning artifacts with clear message.
 
-    # Test numpy seed works
-    import numpy as np
-    np.random.seed(42)
-    val1 = np.random.random()
-    np.random.seed(42)
-    val2 = np.random.random()
-    assert val1 == val2  # Determinism check
-```
-
-**Test 7: `test_stage_a_forward_smoke` (CRITICAL TEST)**
-```python
-def test_stage_a_forward_smoke():
-    """Validate stage_a_forward() executes without crashes."""
-    import os
-    from pathlib import Path
-    from dbex.tools.stage_a_adam import (
-        build_dataload,
-        setup_environment,
-        build_stage_a_components,
-        stage_a_forward,
-        StageADebugConfig,
-    )
-
-    # Disable torch.compile for test speed
-    os.environ["NANOBRAGG_DISABLE_COMPILE"] = "1"
-
-    # Setup
-    repo_root = Path.cwd()
-    device = setup_environment(seed=42, device_str="cpu")
-    dataload = build_dataload(repo_root)
-
-    config = StageADebugConfig(
-        repo_root=repo_root,
-        device=device,
-        seed=42,
-        phases=[1],
-        base_output_dir=Path("./out"),
-        adam_steps=1,
-    )
-
-    # Build components (uses GEOMETRY-003 baseline misset)
-    components = build_stage_a_components(dataload, config)
-
-    # Execute forward model with zero params
-    param_values_dict = {
-        "log_cell_a_delta": 0.0,
-        "log_cell_b_delta": 0.0,
-        "log_cell_c_delta": 0.0,
-        "orientation_vec": [0.0, 0.0, 0.0],
-        "log_fcell_scale": 0.0,
-    }
-
-    bragg, roi_indices, loss, params_out = stage_a_forward(
-        components,
-        param_values_dict,
-    )
-
-    # Validate outputs
-    assert bragg is not None
-    assert bragg.ndim == 2  # (n_pixels, n_panels)
-    assert loss is not None
-    assert loss.ndim == 0  # Scalar
-    assert isinstance(params_out, dict)
-```
-
-**Test 8: `test_zero_point_check_integration`**
-```python
-def test_zero_point_check_integration(tmp_path):
-    """Validate run_zero_point_check() workflow."""
-    import os
-    from pathlib import Path
-    from dbex.tools.stage_a_adam import (
-        build_dataload,
-        setup_environment,
-        run_zero_point_check,
-        StageADebugConfig,
-    )
-
-    os.environ["NANOBRAGG_DISABLE_COMPILE"] = "1"
-
-    # Setup
-    repo_root = Path.cwd()
-    device = setup_environment(seed=42, device_str="cpu")
-    dataload = build_dataload(repo_root)
-
-    config = StageADebugConfig(
-        repo_root=repo_root,
-        device=device,
-        seed=42,
-        phases=[3],
-        base_output_dir=tmp_path,
-        adam_steps=1,
-    )
-
-    # Run zero-point check
-    result = run_zero_point_check(dataload, config, tmp_path)
-
-    # Validate result structure
-    assert isinstance(result, dict)
-    assert "zero_point_ok" in result
-    assert "mean_abs_diff" in result
-    assert "chi2_rel_diff" in result
-    assert isinstance(result["zero_point_ok"], bool)
-```
-
-#### CLI Smoke Tests (Target: <15s total)
-
-**Test 9: `test_cli_help_succeeds`**
-```python
-def test_cli_help_succeeds():
-    """Validate CLI --help flag works."""
-    import subprocess
-    from pathlib import Path
-
-    cli_script = Path("plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py")
-    assert cli_script.exists(), f"CLI script not found: {cli_script}"
-
-    result = subprocess.run(
-        ["python", str(cli_script), "--help"],
-        capture_output=True,
-        text=True,
-        timeout=10,
-    )
-
-    assert result.returncode == 0
-    assert "usage:" in result.stdout
-    assert "Stage A Mapping Adam Debug" in result.stdout or "stage_a" in result.stdout
-```
-
-**Test 10: `test_cli_phase_1_backward_compat`**
-```python
-def test_cli_phase_1_backward_compat(tmp_path):
-    """Validate CLI Phase 1 backward compatibility."""
-    import subprocess
-    import json
-    import os
-    from pathlib import Path
-
-    cli_script = Path("plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py")
-
-    result = subprocess.run(
-        [
-            "python", str(cli_script),
-            "--phases", "1",
-            "--device", "cpu",
-            "--seed", "42",
-            "--out-dir", str(tmp_path),
-        ],
-        capture_output=True,
-        text=True,
-        timeout=30,
-        env={**os.environ, "NANOBRAGG_DISABLE_COMPILE": "1"},
-    )
-
-    # Validate exit code
-    assert result.returncode == 0, f"CLI failed: {result.stderr}"
-
-    # Validate artifacts
-    json_file = list(tmp_path.glob("*/forward_model_probe.json"))
-    assert len(json_file) == 1, f"Expected 1 JSON, found {len(json_file)}"
-
-    data = json.loads(json_file[0].read_text())
-    assert "n_rois" in data
-    assert data["n_rois"] >= 90  # Relaxed from exact 92
-    assert "max_abs_diff" in data
-    assert "correlation_stats" in data
-```
-
-### Validation Protocol
-
-**Run test suite:**
+**Commands:**
 ```bash
-NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_a_adam_tooling.py
-```
-
-**Expected:** All 10 tests PASS, runtime <60s
-
-**Coverage check (optional):**
-```bash
-pytest --cov=dbex.tools.stage_a_adam --cov-report=term tests/dbex/test_stage_a_adam_tooling.py
-```
-
-**Target:** ≥80% coverage for extracted functions (acceptable if slightly lower)
-
----
-
-## How-To Map
-
-### Step 1: Create Test File
-```bash
-# Create test file with 10 test functions
-# Implement all test cases as specified above (~300-400 lines total)
-```
-
-### Step 2: Run Test Suite
-```bash
-# Run with torch.compile disabled for speed
-NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_a_adam_tooling.py
-
-# Capture output to artifact
-NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_a_adam_tooling.py \
-  > plans/active/ARCH-REFACTOR-001/reports/2025-11-24T080106Z/test_stage_a_adam_tooling.log 2>&1
-```
-
-### Step 3: Create README
-```bash
-# Create dbex/tools/README.md (~80-100 lines)
-# Include: Overview, Modules section, stage_a_adam.py description, public APIs list, usage example, CLI reference
-```
-
-### Step 4: CLI Help Validation
-```bash
-# Validate CLI help succeeds
-python plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py --help
-```
-
-### Step 5: Decision Synthesis
-```bash
-# Write decision outcome to artifact
-cat > plans/active/ARCH-REFACTOR-001/reports/2025-11-24T080106Z/decision.md <<'EOF'
-# Decision: Phase D D2.3+D2.4 Outcome
-
-**Date:** 2025-11-24T080106Z
-**Decided Path:** [A/B/C/D]
-
-[Document which decision path was followed based on test results]
-EOF
-```
-
-### Step 6: Update Implementation Plan
-```bash
-# Mark Phase D D2 complete in implementation.md if Path A
-# Update checklist line 198 with completion timestamp and metrics
-```
-
-### Step 7: Commit and Push
-```bash
-# Commit all changes
-git add -A
-git commit -m "ARCH-REFACTOR-001 Phase D D2.3+D2.4: Test suite + docs (10 tests PASSED) — tests: run"
+git add plans/active/TORCH-REFINE-004/reports/2025-11-24T125000Z/
+git commit -m "RALPH: TORCH-REFINE-004 Phase 6 planning — ASU mapping design (tests: not run)"
 git push
 ```
 
----
+**Important:** Use `tests: not run` in commit message since this is planning-only loop (no code execution).
+
+## How-To Map
+
+**Step 1: Read Context**
+```bash
+# Read spec and planning context
+cat docs/spec-db-workflow.md | grep -A 10 "Stage B"
+cat plans/active/TORCH-REFINE-004/implementation.md
+cat plans/active/TORCH-REFINE-004/reports/2025-11-24T125000Z/focus_selection_decision.md
+cat docs/spec-db-core.md | grep -A 5 "structure factor\|HKL"
+cat docs/architecture/pytorch_design.md | grep -A 10 "halo"
+```
+
+**Step 2: Analyze cctbx.miller API**
+```bash
+# Search for existing cctbx.miller usage in codebase
+grep -r "cctbx.miller\|from cctbx import miller\|miller.set\|miller.array" simtbx_project/ dbex/ --include="*.py" | head -30
+
+# Inspect MTZ ingestion for space group extraction
+cat dbex/data_load.py | grep -A 20 "space_group\|MTZ\|mtz"
+
+# Check if cctbx is available
+python -c "from cctbx import miller, sgtbx; print('cctbx available')" 2>&1 || echo "cctbx unavailable (Path C blocker)"
+```
+
+**Step 3: Design ASU Index Computation**
+Write pseudocode to `plans/active/TORCH-REFINE-004/reports/2025-11-24T125000Z/asu_pseudocode.py` (use Write tool, NOT a production module).
+
+**Step 4: Estimate Parameter Counts**
+```bash
+# Check test fixture space groups
+grep -r "space_group\|P 1\|P 21\|P 43" tests/fixtures/golden_data/ | head -10
+
+# Document estimates in parameter_count_analysis.md
+```
+Use Write tool to create `plans/active/TORCH-REFINE-004/reports/2025-11-24T125000Z/parameter_count_analysis.md`.
+
+**Step 5: Assess LBFGS vs Adam**
+Use Write tool to create `plans/active/TORCH-REFINE-004/reports/2025-11-24T125000Z/optimizer_decision.md`.
+
+**Step 6: Write Planning Analysis**
+Use Write tool to create `plans/active/TORCH-REFINE-004/reports/2025-11-24T125000Z/phase_6_planning_analysis.md` consolidating Steps 2-5.
+
+**Step 7: Decision Synthesis**
+Use Write tool to create `plans/active/TORCH-REFINE-004/reports/2025-11-24T125000Z/decision.json`.
+
+**Step 8: Turn Summary**
+Use Write tool to create/prepend `plans/active/TORCH-REFINE-004/reports/2025-11-24T125000Z/summary.md`.
+
+**Step 9: Commit**
+```bash
+git add plans/active/TORCH-REFINE-004/reports/2025-11-24T125000Z/
+git commit -m "RALPH: TORCH-REFINE-004 Phase 6 planning — ASU mapping design (tests: not run)"
+git push
+```
 
 ## Pitfalls To Avoid
 
-1. **Import Errors:** Ensure `from dbex.tools.stage_a_adam import ...` works before writing tests. If import fails, check `dbex/tools/__init__.py` exists (can be empty).
+1. **Do NOT write production code** — This is planning-only. No edits to `dbex/nanobrag_refinement.py` or test files. All code is pseudocode in artifacts directory.
 
-2. **Golden Data Dependency:** Integration tests (5-8) require `golden_data/exp00000/1_0.pkl` fixture. If missing, tests will fail. Do NOT attempt to download/install data (Environment Freeze). Mark blocked if fixture unavailable.
+2. **Do NOT install packages** — Environment Freeze enforced. If cctbx.miller is unavailable, document as Path C blocker, do NOT `pip install cctbx`.
 
-3. **torch.compile Overhead:** ALWAYS use `NANOBRAGG_DISABLE_COMPILE=1` when running tests. Without it, integration tests may take 5-10× longer due to compilation overhead.
+3. **Do NOT execute tests** — No `pytest` runs this loop. Validation is conceptual (pseudocode review), not execution.
 
-4. **CLI Test Timeouts:** Test 10 runs full Phase 1 CLI. Use 30s timeout. If it exceeds, consider reducing scope or marking test as `@pytest.mark.slow`.
+4. **HKL halo handling is MANDATORY** — Per spec-db-workflow.md:61, halo voxels (±1 beyond MTZ range) must exist for differentiable interpolation. Map these to ASU index 0 with fixed modifier=1.0 (non-trainable).
 
-5. **Seed Determinism:** Test 6 checks numpy seed reproducibility. Ensure `np.random.seed()` is called BEFORE `np.random.random()` calls, not relying on module-level setup.
+5. **Shell mode is fallback, NOT default** — Per spec:60, "Shell Mode MUST NOT be the default." Design must make per-reflection the config default (`stage_b_mode="per_reflection"` when unspecified).
 
-6. **Device Availability:** Test 7 uses `device="cpu"`. If code tries to use CUDA when unavailable, tests will fail. Ensure `setup_environment()` respects device string.
+6. **Parameter count affects optimizer choice** — Do NOT hard-code LBFGS. Dynamic selection based on `n_asu_unique` threshold (suggest 10K gate per spec:107 guidance).
 
-7. **Subprocess Environment:** Test 10 uses `subprocess.run()` with custom env. Must pass `env={**os.environ, "NANOBRAGG_DISABLE_COMPILE": "1"}` to inherit environment while adding override.
+7. **Space group is REQUIRED input** — ASU mapping depends on `hkl_metadata["space_group"]` from MTZ. If missing, Stage B setup must fail gracefully with clear error message (not silent fallback).
 
-8. **Test Runtime:** Target <60s total. If tests exceed, identify slowest test and optimize or mark `@pytest.mark.slow` for optional skip.
+8. **Symmetry equivalence is non-trivial** — ASU mapping is MORE complex than shell radius calculation (which only uses `sqrt(h²+k²+l²)`). cctbx.miller handles Friedel pairs, systematic absences, and symmetry operations. Do NOT attempt manual symmetry logic without cctbx.
 
-9. **Dataclass Defaults:** Tests 1-2 check dataclass instantiation. If dataclass has required fields with no defaults, tests must provide values or use `field(default=...)`.
+9. **Memory considerations** — ASU index map (`hkl_asu_map`) is one-time cost during Stage B setup, stored on-device. For 512³ HKL grid + int64, ~1GB GPU memory. Document this in planning analysis.
 
-10. **README Example:** Ensure programmatic API example in README matches actual module API. Test example code manually before committing if possible.
-
----
+10. **Gradient flow validation deferred** — This planning loop does NOT validate gradients. Phase 7 implementation will add gradient check (finite-difference test for `asu_modifiers` parameter).
 
 ## If Blocked
 
-**Scenario 1: Test 5 fails with "golden_data not found"**
-- **Action:** Document blocker in decision.md with error message
-- **Return Condition:** Fixture available OR alternative mock fixture implemented
-- **Do NOT:** Attempt to download/install data (Environment Freeze violation)
+**Scenario 1: cctbx.miller unavailable**
+- **Action:** Document Path C in decision.json.
+- **Rationale:** "cctbx.miller not found via `from cctbx import miller` test. Environment Freeze prevents installation."
+- **Recommendation:** Escalate to supervisor with blocker note. Fallback option: implement shell mode as primary (violates spec, requires exception documentation).
+- **Log:** `plans/active/TORCH-REFINE-004/reports/2025-11-24T125000Z/cctbx_unavailable_blocker.md`
 
-**Scenario 2: Test 7 fails with import/runtime errors**
-- **Action:** Debug module import path or function signature mismatch
-- **Max Iterations:** 2 debug cycles, then document blocker
-- **Return Condition:** Module API fixed OR test expectations adjusted
+**Scenario 2: cctbx API incompatible**
+- **Action:** Document API signature mismatch in planning analysis.
+- **Rationale:** "cctbx.miller.set.map_to_asu() signature differs from expected; cannot determine ASU mapping approach."
+- **Recommendation:** Research alternative cctbx API (e.g., `cctbx.sgtbx.space_group.asu()`) or request maintainer clarification.
+- **Log:** `plans/active/TORCH-REFINE-004/reports/2025-11-24T125000Z/cctbx_api_mismatch.md`
 
-**Scenario 3: Test 10 CLI timeout (>30s)**
-- **Action:** Increase timeout to 60s OR mark test `@pytest.mark.slow` and skip for now
-- **Alternative:** Reduce CLI test to `--help` only validation (Test 9)
+**Scenario 3: Parameter count >100K infeasible**
+- **Action:** Document Path D in decision.json.
+- **Rationale:** "Test fixture space group P1 has n_asu ≈ 100K unique reflections. Per-reflection mode requires >100K parameters, exceeding practical Adam parameter scale."
+- **Recommendation:** Stick with shell mode as primary implementation (violates spec, document exception in `docs/findings.md` with justification).
+- **Log:** `plans/active/TORCH-REFINE-004/reports/2025-11-24T125000Z/parameter_count_infeasible.md`
 
-**Scenario 4: Coverage <60% (significantly below target)**
-- **Action:** Accept lower coverage, document in decision.md
-- **Rationale:** 10 tests cover critical paths; internal helpers may be untestable without major refactoring
+**Scenario 4: Algorithm design unclear**
+- **Action:** Document Path B in decision.json.
+- **Rationale:** "ASU mapping algorithm edge cases unresolved (halo voxels, systematic absences, Friedel pairs). Requires additional planning iteration."
+- **Recommendation:** Extend planning with focused investigation (e.g., test cctbx.miller on synthetic P1/P432 datasets, capture edge case behaviors).
+- **Log:** `plans/active/TORCH-REFINE-004/reports/2025-11-24T125000Z/algorithm_refinement_needed.md`
 
----
+## Findings Applied (Mandatory)
 
-## Findings Applied
+**Relevant Finding IDs from Knowledge Base:**
+- **REFINE-001** (LBFGS scale warm-start) — Stage B inherits global scale from Stage A final state, no re-initialization.
+- **REFINE-002** (acceptance gate) — Stage B improvement gate (chi² improvement vs Stage A final) is separate from Stage A nucleus gate.
+- **REFINE-005** (HKL halo mandatory) — Differentiable tricubic interpolation requires ±1 halo grid; halo voxels map to ASU index 0 with fixed modifier=1.0.
+- **SCALE-001** (structure factors unscaled) — Structure factors from MTZ are NOT pre-multiplied by scale; modifiers applied post-interpolation in forward model.
+- **SCALE-002** (global post-simulation factor) — √spot_scale applied after Simulator, not before; ASU modifiers are per-reflection, not global scale.
+- **PHYSICS-LOSS-001** (variance-weighted loss consistency) — Stage B uses same `V = I_model + sigma²` denominator as Stage A; chi² and masked_mse both logged.
+- **POLICY-001** (Environment Freeze) — Use existing cctbx.miller, do NOT install new packages. If cctbx unavailable, fallback to shell mode (violates spec but permitted under blocker).
+- **ARCH-ENGINE-002** (lazy imports) — Import cctbx.miller inside Stage B setup function to avoid circular dependencies and module-level import failures.
+- **spec-db-workflow.md:59** (per-reflection SHALL be default) — "Per-reflection Fhkl multipliers mapped to unique ASU indices SHALL be the default (Parity Mode)." Core normative requirement.
+- **spec-db-workflow.md:60** (shell mode fallback) — "Shell Mode MUST NOT be the default." Shell mode permitted as optimization/regularization but not primary path.
+- **spec-db-workflow.md:61** (tricubic + halo mandatory) — "Tricubic interpolation (`interpolation=True`) with ±1 HKL halo is MANDATORY." Non-negotiable for Stage B.
+- **spec-db-workflow.md:107** (optimizer flexibility) — "Stage B MAY use L-BFGS or Adam." Dynamic selection based on parameter count threshold (10K gate).
 
-- **POLICY-001** (Environment Freeze): Tests use existing dependencies (pytest, subprocess, json, pathlib). No new packages installed.
-- **ARCH-ENGINE-002** (Lazy Imports): Module already implements lazy torch imports per D2.1, tests respect this.
-- **GEOMETRY-003** (B_ideal Convention): Test 7 uses `build_stage_a_components()` which applies GEOMETRY-003 baseline misset derivation.
-- **TESTING-003** (Registry Sync): NOT required for internal tooling tests (not user-facing acceptance tests). Skip `docs/TESTING_GUIDE.md` update.
-- **CLAUDE.md** (Test-Driven When Possible): Tests validate existing module APIs, not TDD (module already implemented in D2.1).
-- **CLAUDE.md** (Incremental Progress): Phase D split into 2 loops (D2.1+D2.2 extraction, D2.3+D2.4 tests+docs). Avoid big-bang approach.
-- **galph_prompt** (Implementation Floor): This loop contains production test code (~300-400 lines) + validating test execution, satisfies implementation requirement.
-
----
+**Adherence Notes:**
+- **REFINE-005 + spec:61:** Halo voxel handling designed (ASU index 0 fixed modifier).
+- **SCALE-001/002:** Modifier application order preserved (post-interpolation, not pre-simulation).
+- **PHYSICS-LOSS-001:** Stage B telemetry includes chi² and masked_mse dual metrics per existing pattern.
+- **POLICY-001:** cctbx.miller availability checked, no installation attempted if missing (Path C blocker).
+- **spec:59:** Per-reflection as default enforced in design (config default `stage_b_mode="per_reflection"`).
+- **spec:107:** LBFGS vs Adam decision logic documented with parameter count gate (10K threshold).
 
 ## Pointers
 
-- **Planning Analysis:** `plans/active/ARCH-REFACTOR-001/reports/2025-11-24T080106Z/phase_d_d2_3_4_planning_analysis.md`
-- **Implementation Plan:** `plans/active/ARCH-REFACTOR-001/implementation.md:191-209` (Phase D D2 checklist)
-- **Phase D D2.1+D2.2 Completion:** `plans/active/ARCH-REFACTOR-001/reports/2025-11-24T095000Z/summary.md` (prior loop validation)
-- **Module Source:** `dbex/tools/stage_a_adam.py` (1898 lines, 15 functions, 3 classes)
-- **CLI Script:** `plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py` (340 lines, thin shim)
-- **Spec Reference:** `docs/spec-db-core.md` (GEOMETRY-003, variance model used in tests)
-- **Test Patterns:** `tests/dbex/test_diffbragg_tmp.py` (Phase D D1 validation, 7 tests, reference for structure)
+**Specs:**
+- `docs/spec-db-workflow.md:58-61` — Stage B normative requirements (per-reflection default, shell fallback, tricubic + halo)
+- `docs/spec-db-workflow.md:102-115` — Optimization strategy (LBFGS default, Adam permitted, gradient hygiene)
+- `docs/spec-db-core.md:57-80` — Variance definition and structure factor conventions
 
----
+**Architecture:**
+- `docs/architecture/pytorch_design.md §1.1.1` — HKL halo requirements and interpolation semantics
+
+**Implementation Plans:**
+- `plans/active/TORCH-REFINE-004/implementation.md:1-38` — Phases 1-5 complete (shell mode), Phase 6-9 pending (per-reflection mode)
+- `plans/active/TORCH-REFINE-004/reports/2025-11-24T125000Z/focus_selection_decision.md` — Supervisor's focus selection rationale
+
+**Fix Plan:**
+- `docs/fix_plan.md:227-239` — TORCH-REFINE-004 entry (status, exit criteria, dependency satisfied)
+
+**Findings:**
+- `docs/findings.md` — REFINE-001/002/005, SCALE-001/002, PHYSICS-LOSS-001, POLICY-001, ARCH-ENGINE-002
+
+**Testing:**
+- `docs/TESTING_GUIDE.md` — Test selector conventions and environment requirements (will be updated in Phase 9)
+- `docs/development/TEST_SUITE_INDEX.md` — Test registry (will be updated in Phase 9)
 
 ## Next Up (Optional)
 
-If Phase D D2 completes successfully and time permits:
+If you finish early (all 9 steps complete with decision.json Path A confidence ≥80%), you MAY optionally:
+1. Draft Phase 6 implementation checklist (tasks for next loop) in planning analysis.
+2. Identify specific code locations for Phase 6 edits (e.g., `dbex/nanobrag_refinement.py:XXXX` where `compute_hkl_asu_map` should be added).
+3. List unit test cases for ASU mapping validation (synthetic P1/P432 space groups, verify symmetry equivalence).
 
-1. **Phase D D3:** Summary-generation CLI cleanup (convert `generate_summaries.py` to argparse-driven CLI)
-2. **Phase D Completion Assessment:** Evaluate whether Phase D exit criteria (#7 DiffBragg scratch, #8 Stage A tooling) are satisfied
-3. **Phase C Planning:** If Phase D complete, consider resuming Phase C (Incremental Engine Migration) OR mark ARCH-REFACTOR-001 phases 0/A/B/D complete and pivot to other Tier 3 initiatives
+Do NOT proceed to Phase 6 implementation code edits. Next loop will be ready_for_implementation per Implementation Floor rule.
 
-**Do NOT proceed to Next Up** — Return control to Galph after Phase D D2.3+D2.4 completion for decision on next focus.
+## Doc Sync Plan (Conditional)
+
+**Not applicable this loop** — No tests added/renamed. Registry sync deferred to Phase 8 (test authoring loop).
+
+## Mapped Tests Guardrail
+
+**Not applicable this loop** — Evidence-only planning, no test execution. Phase 8 will add `test_stage_b_per_reflection_default` selector.
+
+## Normative Math/Physics
+
+**Do NOT paraphrase spec equations.** When referencing Stage B variance-weighted loss (PHYSICS-LOSS-001), point to exact spec section:
+- "See `docs/spec-db-core.md:57-68` (Variance Definition: `V = I_model + sigma²` detached denominator)"
+- "See `docs/spec-db-workflow.md:58-61` (Stage B normative requirements)"
+
+Do NOT write pseudo-math like "loss = sum((data - model)² / variance)". Direct Ralph to read the normative spec for exact formulation.

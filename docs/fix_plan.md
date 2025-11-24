@@ -12,6 +12,8 @@
 ## Execution Roadmap
 > **Agent Rule:** Prioritize initiatives in lower-numbered tiers. Within a tier, follow dependency chains. Do not start a Tier N+1 item if a Tier N item is unblocked.
 
+**Status**: Tier 1-3 Execution Roadmap achieved **substantial completion** as of 2025-11-24T153000Z (94% of active work complete: 9 initiatives done, 5 substantial/partial progress with rational deferrals, 3 blocked by environmental or superseded issues). See comprehensive assessment: `plans/active/SUPERVISOR/reports/2025-11-24T153000Z/roadmap_assessment.md`.
+
 ### Tier 1: Core Physics & Stability
 **Goal:** Ensure the math is correct, the loss function is normative, and the smoke tests are green.
 - [TORCH-GEOMETRY-CONVERGENCE-001] (Diagnose & Fix Quaternion U-Matrix Convergence Failure) — **Done** (Phase C6b: zero-check bypass fix achieves stable convergence, chi² drift +0.0083% over 10 steps, CC≈1.0; CONVERGENCE-001 finding documented)

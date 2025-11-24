@@ -233,6 +233,20 @@ def run_diffbragg_backend(args, DL, devid=0):
 
         scores.append(score)
 
+    # Compute variance per spec-db-core.md §86-90: V = max(I_model + sigma_readout^2, sigma_floor^2)
+    variance_subims = []
+    sigma_readout = args.sigma_rdout if args.sigma_rdout is not None else 1.0
+    sigma_floor = args.sigma_floor
+    # Apply ADU→photon conversion if needed (consistent with torch backend)
+    if args.adu_per_photon is not None and args.adu_per_photon > 0:
+        sigma_readout = sigma_readout / args.adu_per_photon
+        sigma_floor = sigma_floor / args.adu_per_photon
+
+    for i in range(len(scores)):
+        variance_i = model_subims[i] + sigma_readout**2
+        variance_i = np.maximum(variance_i, sigma_floor**2)
+        variance_subims.append(variance_i)
+
     with h5py.File(args.outFile, "w") as h:
         h.create_dataset("score", data=scores)
         h.create_dataset("bragg_scale", data=opt_bragg_scales)
@@ -242,6 +256,11 @@ def run_diffbragg_backend(args, DL, devid=0):
             h.create_dataset("model/roi%d" % i, data=model_subims[i])
             h.create_dataset("bragg/roi%d" % i, data=bragg_subims[i])
             h.create_dataset("bg/roi%d" % i, data=bg_subims[i])
+            h.create_dataset("variance/roi%d" % i, data=variance_subims[i])
+
+        # Add variance metadata (spec-db-core.md §86-90)
+        h.create_dataset("sigma_readout", data=sigma_readout)
+        h.create_dataset("sigma_floor", data=sigma_floor)
 
     print("Average score:", 100*np.mean(scores), "+-", 100*np.std(scores))
     print("Fraction of spots well modeled= %.1f%%" % (100*sum([s >= 0.5 for s in scores])/len(scores), ) )
@@ -643,6 +662,17 @@ def _write_torch_outputs(
         opt_bragg_scales.append(opt_bragg_scale)
         scores.append(score_float)
 
+    # Compute variance per spec-db-core.md §86-90: V = max(I_model + sigma_readout^2, sigma_floor^2)
+    variance_subims = []
+    # Extract sigma_readout from resolved values (already in target units after _resolve_sigma_readout)
+    sigma_readout = sigma_reference_value  # This is already in photons (or target units)
+    sigma_floor = sigma_floor_value  # Already adjusted for adu_per_photon at line 481-483
+
+    for i in range(len(scores)):
+        variance_i = model_subims[i] + sigma_readout**2
+        variance_i = np.maximum(variance_i, sigma_floor**2)
+        variance_subims.append(variance_i)
+
     with h5py.File(args.outFile, "w") as h:
         h.create_dataset("score", data=scores)
         h.create_dataset("bragg_scale", data=opt_bragg_scales)
@@ -652,6 +682,11 @@ def _write_torch_outputs(
             h.create_dataset("model/roi%d" % i, data=model_subims[i])
             h.create_dataset("bragg/roi%d" % i, data=bragg_subims[i])
             h.create_dataset("bg/roi%d" % i, data=bg_subims[i])
+            h.create_dataset("variance/roi%d" % i, data=variance_subims[i])
+
+        # Add variance metadata (spec-db-core.md §86-90)
+        h.create_dataset("sigma_readout", data=sigma_readout)
+        h.create_dataset("sigma_floor", data=sigma_floor)
 
         # Add torch diagnostics group (DIAGNOSTICS-001, SCALE-003)
         diag = h.create_group("torch_diagnostics")

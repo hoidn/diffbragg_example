@@ -68,6 +68,9 @@ class HDF5Viewer:
                     'data': [h["data"]["roi%d" % i][()] for i in range(len(scores))],
                     'model': model_im,
                     'scores': scores,
+                    'variance': [h["variance"]["roi%d" % i][()] for i in range(len(scores))],
+                    'sigma_readout': h["sigma_readout"][()],
+                    'sigma_floor': h["sigma_floor"][()],
                 }
         except FileNotFoundError:
             print(f"Error: File not found at '{self.hdf5_path}'", file=sys.stderr)
@@ -164,6 +167,27 @@ class HDF5Viewer:
         """Blocks execution until the plot window is closed."""
         plt.show(block=True)
 
+    def export_triptychs(self, output_dir):
+        """Export static triptych PNGs for all ROIs using dbex.vis.plot_triptych."""
+        from pathlib import Path
+        from dbex.vis import plot_triptych
+
+        output_path = Path(output_dir)
+        output_path.mkdir(parents=True, exist_ok=True)
+
+        print(f"Exporting {self.num_rois} triptych PNGs to '{output_dir}'...")
+        for i in range(self.num_rois):
+            filename = str(output_path / f"roi_{i:04d}.png")
+            plot_triptych(
+                data=self.data['data'][i],
+                model=self.data['model'][i],
+                variance=self.data['variance'][i],
+                hkl=None,  # No HKL data in HDF5 currently
+                correlation=self.data['scores'][i],
+                filename=filename
+            )
+        print(f"Export complete: {self.num_rois} PNGs saved to '{output_dir}'")
+
 
 if __name__ == "__main__":
     ap = ArgumentParser(description="Interactive Matplotlib viewer for HDF5 diffraction ROI data.")
@@ -172,7 +196,16 @@ if __name__ == "__main__":
         type=str,
         help="Path to the output HDF5 file containing 'data', 'bragg', 'bg', and 'score' datasets."
     )
+    ap.add_argument(
+        "--export-triptychs",
+        type=str,
+        default=None,
+        help="Export static triptych PNGs to specified directory instead of launching interactive viewer"
+    )
     args = ap.parse_args()
 
     viewer = HDF5Viewer(args.hdf5_path)
-    viewer.show()
+    if args.export_triptychs:
+        viewer.export_triptychs(args.export_triptychs)
+    else:
+        viewer.show()

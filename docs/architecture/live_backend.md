@@ -30,4 +30,14 @@ Purpose: Describe the *shipped* pipelines (torch + DiffBragg), where they diverg
 - Delegation intent: make engine delegation the default torch path; remove inline refinement once Phase C (SimulationContext + single simulator seam) is completed.
 - Deprecated/archived: quaternion/U-matrix parameterization (TORCH-GEOMETRY-PARITY-002/003) is superseded by incremental UB (UB-REALIGN-001).
 - Warm-cache: reuse infrastructure partially planned; blocked by ENV-CUDA-001 (PERF-WARM-SIM-001).
-- DiffBragg: retained for compatibility; not the target architecture.*** End Patch
+- DiffBragg: retained for compatibility; not the target architecture.
+
+## Implementation Interfaces (descriptive)
+- `DataLoad(args)`: yields `data`, `background_image`, `bbox`, `pids`, `trusted_mask`, optional `sigma_readout_map`, plus `detector/beam/crystal`, `F` (Bijvoet mates). Mask polarity True=trusted; background sentinel -1 outside ROI.
+- `prepare_refinement_inputs(data, background_image, trusted_mask, bbox, pids, detector, adu_per_photon=None, sigma_readout=None, sigma_readout_provenance=None)` → `RefinementInputs` with `target`, `loss_mask`, `panel_slices`, `trusted_mask`, `sigma_readout`, `target_representation`, `global_scale_hint`, `sigma_readout_provenance`.
+- Config builders: `create_detector_config(panel, beam, trusted_mask[, distance_mm_override, roi_bbox])`, `create_beam_config(beam[, flux, beamsize_mm, exposure])`, `create_crystal_config(crystal, experiment[, N_cells, apply_n_cells, crystal_overrides, misset_deg_override])`.
+- Simulator seam: `create_unified_simulator(detector_config, crystal_config, beam_config, hkl_grid, hkl_metadata, mask_array, spot_scale_override, device, dtype, calibration_metadata=None)` → `(simulator, metadata, sqrt_scale_value, cache_state)`.
+- Refinement core: `run_nanobrag_refinement(inputs, detector, beam, crystal, hkl_grid, hkl_metadata, config, use_engine_delegation=False)` → `(Bragg, telemetry_dict)`; `RefinementConfig` carries device/dtype, sigma_floor_value, sigma_readout provenance/reference, stage flags, calibration payload.
+- Engine path: `RefinementEngine(stages, config).run(inputs_dict)` expects stage wrappers `StageA/B/C.run(inputs_dict, telemetry_sink=None)` returning dicts compatible with `RefinementTelemetry`.
+- Telemetry class: `RefinementTelemetry` key fields include optimizer/stage metadata, loss/chi² traces, param_deltas, clamp fractions, ROI sampling counts, canonical detector distances (Stage C), stage_type/mode, engine_protocol/stage_modes; `to_dict()` used for HDF5 serialization.
+- HDF5 writer: `_write_torch_outputs(args, DL, Bragg, inputs, masked_mse, hkl_telemetry, refine_telemetry, sigma_readout_provenance, sigma_readout_reference_value)` writes per-ROI datasets and `/torch_diagnostics` attrs (masked_mse, loss_mask_coverage, n_rois, target_shape, backend, HKL telemetry, sigma provenance/reference, stage telemetry).

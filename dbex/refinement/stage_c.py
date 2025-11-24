@@ -214,6 +214,21 @@ class StageC:
             'detector_distances_mm': stage_a_telemetry['canonical_detector_distances_mm'],
         }
 
+        # PERF-WARM-SIM-001 Phase D: Compute frozen Stage A final cell parameters for Stage C
+        # Stage C spec (docs/spec-db-workflow.md:62-65): Fixed crystal, scale, Fhkl
+        # Use exact formulas from Stage A closure (dbex/nanobrag_refinement.py:1268-1276)
+        import math
+        cell_params_baseline = crystal.get_unit_cell().parameters()
+        max_angle_delta = 10.0  # degrees (consistent with Stage A/C closures)
+        stage_a_final_cell = {
+            'cell_a': cell_params_baseline[0] * math.exp(log_cell_a_delta_final),
+            'cell_b': cell_params_baseline[1] * math.exp(log_cell_b_delta_final),
+            'cell_c': cell_params_baseline[2] * math.exp(log_cell_c_delta_final),
+            'alpha': cell_params_baseline[3] + math.tanh(angle_alpha_raw_final) * max_angle_delta,
+            'beta': cell_params_baseline[4] + math.tanh(angle_beta_raw_final) * max_angle_delta,
+            'gamma': cell_params_baseline[5] + math.tanh(angle_gamma_raw_final) * max_angle_delta,
+        }
+
         # Determine if Stage A used ROI mode (from telemetry)
         use_stage_a_roi_mode = (stage_a_telemetry['roi_mode'] == "roi")
 
@@ -294,6 +309,7 @@ class StageC:
             'target_t': target_t,
             'loss_mask_t': loss_mask_t,
             'sigma_readout_t': sigma_readout_t,
+            'stage_a_final_cell': stage_a_final_cell,  # PERF-WARM-SIM-001 Phase D: frozen Stage A final cell
         }
 
         # Build telemetry_state dict for helper2/helper3

@@ -2802,7 +2802,7 @@ def _run_stage_b_lbfgs(
     masked_mse_trace_full_b.append((final_step, final_mse_value))
 
     # Improvement gate check (REFINE-008)
-    if status_b != "error" and best_loss_full[0] > 0:
+    if status_b != "error" and best_loss_full[0] is not None and best_loss_full[0] > 0:
         stage_a_final_loss = best_loss_full[0]
         improvement_b = (stage_a_final_loss - final_loss_value) / stage_a_final_loss
         if improvement_b < config.stage_b_min_loss_improvement:
@@ -3080,15 +3080,28 @@ def _build_stage_c_lbfgs_closure(
         mask_panels = []
         sigma_panels = []
 
-        cell_params = crystal.get_unit_cell().parameters()
-        perturbed_cell_a = cell_params[0] * torch.exp(log_cell_a_delta)
-        perturbed_cell_b = cell_params[1] * torch.exp(log_cell_b_delta)
-        perturbed_cell_c = cell_params[2] * torch.exp(log_cell_c_delta)
+        # PERF-WARM-SIM-001 Phase D: Use frozen Stage A final cell parameters
+        # Stage C spec (docs/spec-db-workflow.md:62-65): Fixed crystal, scale, Fhkl
+        stage_a_final_cell = param_values.get('stage_a_final_cell')
+        if stage_a_final_cell is not None:
+            # Frozen values from Stage A (no recomputation)
+            perturbed_cell_a = stage_a_final_cell['cell_a']
+            perturbed_cell_b = stage_a_final_cell['cell_b']
+            perturbed_cell_c = stage_a_final_cell['cell_c']
+            perturbed_alpha = stage_a_final_cell['alpha']
+            perturbed_beta = stage_a_final_cell['beta']
+            perturbed_gamma = stage_a_final_cell['gamma']
+        else:
+            # Fallback: recompute from baseline (backward compatibility)
+            cell_params = crystal.get_unit_cell().parameters()
+            perturbed_cell_a = cell_params[0] * torch.exp(log_cell_a_delta)
+            perturbed_cell_b = cell_params[1] * torch.exp(log_cell_b_delta)
+            perturbed_cell_c = cell_params[2] * torch.exp(log_cell_c_delta)
 
-        max_angle_delta = 10.0
-        perturbed_alpha = cell_params[3] + torch.tanh(angle_alpha_raw) * max_angle_delta
-        perturbed_beta = cell_params[4] + torch.tanh(angle_beta_raw) * max_angle_delta
-        perturbed_gamma = cell_params[5] + torch.tanh(angle_gamma_raw) * max_angle_delta
+            max_angle_delta = 10.0
+            perturbed_alpha = cell_params[3] + torch.tanh(angle_alpha_raw) * max_angle_delta
+            perturbed_beta = cell_params[4] + torch.tanh(angle_beta_raw) * max_angle_delta
+            perturbed_gamma = cell_params[5] + torch.tanh(angle_gamma_raw) * max_angle_delta
 
         max_orientation_deg = 3.0
         bounded_orientation_vec = torch.tanh(orientation_vec) * max_orientation_deg * (np.pi / 180.0)
@@ -3423,7 +3436,7 @@ def _run_stage_c_lbfgs(
     masked_mse_trace_full_c.append((final_step_c, final_mse_value_c))
 
     # Check convergence: did we achieve ≥5% improvement on top of Stage A?
-    if best_loss_full[0] > 0:
+    if best_loss_full[0] is not None and best_loss_full[0] > 0:
         stage_a_final_loss = best_loss_full[0]
         improvement_c = (stage_a_final_loss - final_loss_value_c) / stage_a_final_loss
         if improvement_c < config.stage_c_min_loss_improvement:
@@ -4394,6 +4407,21 @@ def run_nanobrag_refinement(
     
         telemetry_dict = {"A": telemetry_a}
 
+        # PERF-WARM-SIM-001 Phase D: Capture Stage A final cell parameters for Stage C
+        # Stage C spec (docs/spec-db-workflow.md:62-65) requires frozen crystal/scale/Fhkl.
+        # Explicitly freeze Stage A final cell values to eliminate dependency on crystal object state.
+        with torch.no_grad():
+            cell_params_baseline = crystal.get_unit_cell().parameters()
+            max_angle_delta = 10.0  # degrees (consistent with Stage A/C closures)
+            stage_a_final_cell = {
+                'cell_a': (cell_params_baseline[0] * torch.exp(log_cell_a_delta)).item(),
+                'cell_b': (cell_params_baseline[1] * torch.exp(log_cell_b_delta)).item(),
+                'cell_c': (cell_params_baseline[2] * torch.exp(log_cell_c_delta)).item(),
+                'alpha': (cell_params_baseline[3] + torch.tanh(angle_alpha_raw) * max_angle_delta).item(),
+                'beta': (cell_params_baseline[4] + torch.tanh(angle_beta_raw) * max_angle_delta).item(),
+                'gamma': (cell_params_baseline[5] + torch.tanh(angle_gamma_raw) * max_angle_delta).item(),
+            }
+
         # === ENGINE DELEGATION PATH (Phase E) ===
         if use_engine_delegation:
             # Lazy imports to avoid circular dependencies
@@ -4876,6 +4904,7 @@ def run_nanobrag_refinement(
                 'target_t': target_t,
                 'loss_mask_t': loss_mask_t,
                 'sigma_readout_t': sigma_readout_t,
+                'stage_a_final_cell': stage_a_final_cell,  # PERF-WARM-SIM-001 Phase D: frozen Stage A final cell
             }
 
             # Build telemetry_state dict for helper2/helper3

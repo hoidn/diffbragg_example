@@ -1,3 +1,12 @@
+### Turn Summary (Ralph 2025-11-23 Current Loop i=247)
+
+Detected stale input requesting Phase B3 tolerance sweep work already completed in prior Ralph loop (commit 97879da).
+Verified all requested work complete: instrumentation added, tolerance sweep executed (max_abs_diff=5.03e-03, 1 outlier pixel), Path C decision documented, Galph rescope decision finalized (Exit Criterion #3 rescoped to blocker documented).
+No additional work required; Phase B3 evidence gathering already shipped and reviewed by supervisor.
+Artifacts: plans/active/TORCH-API-ALIGN-001/reports/2025-11-23T215000Z/ (ralph_stale_input_verification.md)
+
+---
+
 ### Turn Summary (Galph 2025-11-23T~19:00:00Z - Loop i=247)
 
 Rescoped Phase B3 Exit Criterion #3 based on upstream nanobrag_torch blocker (single-pixel outlier bug, ARCH-FACTORY-003).

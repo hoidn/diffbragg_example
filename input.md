@@ -1,171 +1,310 @@
-# TORCH-REFINE-004 Phase 8: Fix Telemetry Attribute Loss in Engine Delegation
+# TORCH-REFINE-004 Phase 7 Gradient Flow Blocker Fix
 
-## Summary
-Fix `run_nanobrag_refinement` engine delegation path to preserve Stage B custom attributes (stage_b_mode, n_asu_unique, optimizer_type, asu_modifier_stats) through the asdict()→reconstruction flow.
+**Summary:** Fix Adam optimizer execution pattern in Stage B per-reflection mode to enable gradient flow and parameter updates.
 
-## Mode
-none
+**Mode:** none (bugfix)
 
-## Focus
-TORCH-REFINE-004 — Stage B Per-Reflection Mode Migration (Phase 8: Final Wrapper Bug Fix)
+**Focus:** TORCH-REFINE-004  Stage B Per-Reflection Mode Migration (Phase 7 gradient flow blocker resolution)
 
-## Branch
-integration
+**Branch:** integration
 
-## Mapped tests
-- `tests/dbex/test_stage_b_asu_mapping.py` (Phase 6 unit regression)
-- `tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers` (shell regression)
-- `tests/dbex/test_torch_refine_smoke.py::test_stage_b_per_reflection_smoke` (per-reflection E2E, MUST PASS)
+**Mapped tests:**
+- `tests/dbex/test_stage_b_asu_mapping.py` (5 unit tests, Phase 6 regression guard)
+- `tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers` (LBFGS/shell mode regression)
+- `tests/dbex/test_torch_refine_smoke.py::test_stage_b_per_reflection_smoke` (Adam/per-reflection mode primary validation)
 
-## Artifacts
-`plans/active/TORCH-REFINE-004/reports/2025-11-24T103302Z/`
+**Artifacts:** `plans/active/TORCH-REFINE-004/reports/2025-11-24T110000Z/`
+
+---
+
+## Problem Statement
+
+Ralph's Phase 7 implementation (commit 93f3dbe) successfully added dynamic optimizer selection (Adam for n_asu e 10K, LBFGS for n_asu < 10K) in `_build_stage_b_params`, but the optimization execution function `_run_stage_b_lbfgs()` is hardcoded to use the **LBFGS calling pattern** `optimizer.step(closure)`. This pattern does NOT work for Adam  Adam requires a **manual loop** where you call `closure()` to compute loss/gradients, then call `optimizer.step()` without arguments.
+
+**Evidence:**
+- Test failure: ASU modifier mean = 0.9999997 (unchanged from initial 1.0)
+- Optimizer type = "adam" (correctly selected for P1 fixture with 97,793 ASU > 10K threshold)
+- All telemetry attributes present (Phase 8 fix working correctly)
+- Shell mode test PASSES (LBFGS path works correctly)
+
+**Root Cause (99.9% confidence):** `dbex/nanobrag_refinement.py:3112` calls `stage_b_optimizer.step(closure_stage_b)`, which works for LBFGS but is a NO-OP for Adam. Adam's `.step()` method ignores the closure argument and expects gradients to already be computed.
+
+**Full Analysis:** `plans/active/TORCH-REFINE-004/reports/2025-11-24T110000Z/gradient_flow_root_cause_analysis.md` (comprehensive 12-section root cause with PyTorch API documentation, code path analysis, fix specification, estimated effort ~1.5 hours).
+
+---
 
 ## Do Now
 
-**Context:** Ralph's Phase 8 wrapper fixes (commit 6705471) correctly implemented custom attribute serialization in wrapper + engine, but `run_nanobrag_refinement`'s engine delegation path loses attributes when calling `asdict()` → `RefinementTelemetry(**dict)`. Root cause: `asdict()` only serializes dataclass fields, NOT arbitrary attributes added after construction (see `phase_8_final_blocker_analysis.md` lines 40-52).
+**Objective:** Add optimizer-agnostic execution pattern to `_run_stage_b_lbfgs` using Option A branching (manual loop for Adam, existing LBFGS pattern preserved).
 
-**Implement:** Fix `dbex/nanobrag_refinement.py:4904-4916` to preserve custom attributes:
+### Implementation Checklist
 
-1. **Read planning analysis:**
-   - `plans/active/TORCH-REFINE-004/reports/2025-11-24T103302Z/phase_8_final_blocker_analysis.md`
-   - Focus on "Fix Specification" section (lines 54-133) and "Alternative: Simpler Pattern" (lines 109-123)
+**Step 1: Extract optimizer_type parameter**
 
-2. **Apply Alternative pattern fix** (recommended: simpler, less error-prone):
-   - Location: `dbex/nanobrag_refinement.py:4904-4916` (for-loop over `engine_telemetry.items()`)
-   - **REPLACE** lines 4909-4914 with:
-     ```python
-     for stage_name, telem_obj in engine_telemetry.items():
-         # Add engine protocol fields directly to existing object (preserves custom attrs)
-         telem_obj.engine_protocol = engine_protocol
-         telem_obj.stage_modes = stage_modes
+Location: `dbex/nanobrag_refinement.py` function `_run_stage_b_lbfgs` (line ~3059)
 
-         legacy_key = stage_name_map.get(stage_name, stage_name)
-         telemetry_out[legacy_key] = telem_obj  # Use original object, preserve custom attrs
-     ```
-   - **Rationale:** Engine already restored custom attributes (engine.py:161-168); this pattern avoids asdict() entirely and preserves all engine work.
+After line 3060 (`stage_b_mode = param_values['stage_b_mode']`), add:
 
-3. **Validation protocol (4 tests):**
+```python
+optimizer_type = param_values['optimizer_type']  # "adam" or "lbfgs"
+```
+
+**Step 2: Replace optimizer.step() with branching logic**
+
+Location: `dbex/nanobrag_refinement.py` line 3111-3113 (inside try block, before exception handler)
+
+Replace:
+```python
+        # Run LBFGS optimization
+        stage_b_optimizer.step(closure_stage_b)
+```
+
+With:
+```python
+        # Run optimization (optimizer-agnostic pattern per TORCH-REFINE-004 Phase 7 blocker fix)
+        if optimizer_type == "adam":
+            # Adam requires manual loop: call closure() to compute loss/gradients,
+            # then call step() without arguments to update params
+            max_iter_b = config.max_iter  # Default 30 per RefinementConfig
+            for iteration_adam in range(max_iter_b):
+                loss = closure_stage_b()  # Computes loss, backward(), updates traces
+                stage_b_optimizer.step()  # Update params (NO closure arg for Adam)
+
+                # Check improvement after each iteration (reuse LBFGS periodic validation logic)
+                if len(loss_trace_full_b) > 0:
+                    _, latest_full_loss = loss_trace_full_b[-1]
+                    improvement_b = (best_loss_full[0] - latest_full_loss) / best_loss_full[0]
+                    if improvement_b >= config.stage_b_min_loss_improvement:
+                        status_b = "ok"
+                        message_b = f"Stage B converged after {iteration_adam+1} Adam iterations (improvement {improvement_b:.4%})"
+                        break
+        else:  # "lbfgs"
+            # LBFGS uses closure-based pattern (original line 3112)
+            stage_b_optimizer.step(closure_stage_b)
+```
+
+**Step 3: Pass optimizer_type to _run_stage_b_lbfgs**
+
+Location: `dbex/nanobrag_refinement.py` lines 2635-2700 (where `_run_stage_b_lbfgs` is called in inline path)
+
+After line ~2670 (where `param_values_b` dict is constructed), ensure `optimizer_type` is included:
+
+```python
+param_values_b = {
+    'optimizer': stage_b_optimizer,
+    'stage_b_mode': config_stage_b_mode_override,  # Existing field
+    'optimizer_type': optimizer_type,  # NEW field (from line ~2520 or ~2531 or ~2542)
+    # ... all existing fields: log_modifiers, shell_modifier_raw, log_scale, telemetry_state, etc.
+}
+```
+
+**Step 4: Pass optimizer_type in StageB wrapper**
+
+Location: `dbex/refinement/stage_b.py` lines ~240-260 (where `param_values_b` dict is constructed)
+
+Add `'optimizer_type': optimizer_type` to the dict (optimizer_type should be extracted from Stage B params builder return value or stored in a local variable).
+
+**Note:** Check the exact location where `_build_stage_b_params` is called in stage_b.py and capture the `optimizer_type` variable returned/set by that builder, then pass it to `_run_stage_b_lbfgs`.
+
+### Validation Protocol
+
+1. **Compilation check:**
    ```bash
-   # Compilation check
-   python -c "from dbex.refinement.stage_b import StageB; print('OK')"
-
-   # Phase 6 unit regression (no changes expected)
-   AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-   DBEX_SMOKE_SIGMA_SOURCE=cli_override \
-   DBEX_SMOKE_DETECTOR_SIZE=small \
-   KMP_DUPLICATE_LIB_OK=TRUE \
-   NANOBRAGG_DISABLE_COMPILE=1 \
-   pytest -xvs tests/dbex/test_stage_b_asu_mapping.py \
-     > plans/active/TORCH-REFINE-004/reports/2025-11-24T103302Z/pytest_phase6_regression.log 2>&1
-
-   # Shell mode regression (no changes expected)
-   AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-   DBEX_SMOKE_SIGMA_SOURCE=cli_override \
-   DBEX_SMOKE_DETECTOR_SIZE=small \
-   KMP_DUPLICATE_LIB_OK=TRUE \
-   NANOBRAGG_DISABLE_COMPILE=1 \
-   pytest -xvs tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers \
-     > plans/active/TORCH-REFINE-004/reports/2025-11-24T103302Z/pytest_shell_regression.log 2>&1
-
-   # Per-reflection smoke (TARGET: MUST PASS)
-   AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-   DBEX_SMOKE_SIGMA_SOURCE=cli_override \
-   DBEX_SMOKE_DETECTOR_SIZE=small \
-   KMP_DUPLICATE_LIB_OK=TRUE \
-   NANOBRAGG_DISABLE_COMPILE=1 \
-   pytest -xvs tests/dbex/test_torch_refine_smoke.py::test_stage_b_per_reflection_smoke \
-     > plans/active/TORCH-REFINE-004/reports/2025-11-24T103302Z/pytest_per_reflection_smoke.log 2>&1
+   python -c "from dbex.nanobrag_refinement import _run_stage_b_lbfgs; print('OK')"
    ```
+   Expected: "OK" printed, no ImportError or SyntaxError
 
-4. **Decision synthesis:**
-   - **Path A (SUCCESS):** All 4 tests PASS (5/5 Phase 6 unit, shell regression PASS, per-reflection E2E PASS)
-     - Action: Write `decision.json` with `"outcome": "success"`, `"tests_passed": "4/4"`, `"phase_8_status": "complete"`
-     - Mark Phase 8 ✓ COMPLETE
-     - Next: Return to Galph for Phase 9 planning (default enforcement + docs)
-
-   - **Path B (PARTIAL):** Per-reflection test still fails but error changed (progress made)
-     - Action: Write `decision.json` with `"outcome": "partial"`, `"blocker": "<new error text>"`, `"hypothesis": "<root cause guess>"`
-     - Capture full pytest output (last 100 lines) in `decision.json` for Galph triage
-     - Do NOT attempt further fixes; escalate to Galph
-
-   - **Path C (REGRESSION):** Phase 6 unit or shell regression fails (new bug introduced)
-     - Action: Write `decision.json` with `"outcome": "regression"`, `"failed_test": "<test selector>"`, `"error": "<traceback>"`
-     - Revert changes, return to Galph with blocker report
-
-   - **Path D (SYNTAX):** Compilation fails (Python syntax error)
-     - Action: Fix syntax error immediately (typo/indentation), rerun validation
-     - If 2nd attempt fails, revert and escalate to Galph
-
-5. **Write summary.md:**
-   - Use Turn Summary template (3-5 sentences: what shipped/advanced, main problem + handling, next step, Artifacts line)
-   - Prepend to existing `plans/active/TORCH-REFINE-004/reports/2025-11-24T103302Z/summary.md` (or create if missing)
-
-6. **Commit:**
+2. **Phase 6 unit regression (5 tests):**
    ```bash
-   git add -A
-   git commit -m "TORCH-REFINE-004 Phase 8: Fix telemetry attribute loss (asdict preservation) — tests: per-reflection PASS"
-   git push
+   NANOBRAGG_DISABLE_COMPILE=1 pytest -xvs tests/dbex/test_stage_b_asu_mapping.py
    ```
+   Expected: 5/5 PASSED, runtime < 10s
+
+3. **Shell mode regression (LBFGS path):**
+   ```bash
+   AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+   DBEX_SMOKE_SIGMA_SOURCE=cli_override \
+   DBEX_SMOKE_DETECTOR_SIZE=small \
+   KMP_DUPLICATE_LIB_OK=TRUE \
+   NANOBRAGG_DISABLE_COMPILE=1 \
+   pytest -xvs tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+   ```
+   Expected: 1/1 PASSED, runtime ~14s, confirms LBFGS path unchanged
+
+4. **Per-reflection smoke (Adam path, PRIMARY VALIDATION):**
+   ```bash
+   AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+   DBEX_SMOKE_SIGMA_SOURCE=cli_override \
+   DBEX_SMOKE_DETECTOR_SIZE=small \
+   KMP_DUPLICATE_LIB_OK=TRUE \
+   NANOBRAGG_DISABLE_COMPILE=1 \
+   pytest -xvs tests/dbex/test_torch_refine_smoke.py::test_stage_b_per_reflection_smoke
+   ```
+   Expected: 1/1 PASSED, runtime ~25-35s, ASU modifier stats mean deviates from 1.0 by > 0.001 (gradient flow assertion passes)
+
+### Decision Synthesis (4-Path Template)
+
+**Path A (All 4 validations PASS):**
+- Phase 7 gradient flow blocker  RESOLVED
+- ASU modifiers update correctly under Adam optimization
+- Commit message: "TORCH-REFINE-004 Phase 7: Fix Adam optimizer execution (manual loop pattern)  tests: per-reflection smoke PASSED"
+- Write decision.json: `{"outcome": "success", "gradient_flow": "fixed", "tests_passed": "4/4"}`
+- Write summary.md with Turn Summary
+- Commit artifacts + code, push
+- **Return to Galph:** Phase 7 complete, ready for Phase 8/9 planning (default enforcement + docs)
+
+**Path B (Per-reflection test FAILS with different signature):**
+- Root cause was partially correct, additional issue exists
+- Capture new failure signature and logs in artifacts
+- Write decision.json: `{"outcome": "partial", "issue": "<new_failure_description>"}`
+- Debug: Add logging for Adam iteration loop (loss values, gradient norms, param deltas per iteration)
+- Max 2 debug cycles before escalating to Galph
+
+**Path C (Shell regression FAILS):**
+- LBFGS path was inadvertently broken
+- Revert changes to `else` branch, ensure exact copy of original line 3112
+- Retry validation protocol
+- Write decision.json: `{"outcome": "regression", "broken_path": "lbfgs"}`
+
+**Path D (Compilation FAILS):**
+- Syntax error in branching logic
+- Fix syntax (check colons, indentation, variable names)
+- Retry compilation check
+- Write decision.json: `{"outcome": "syntax_error", "error": "<error_message>"}`
+
+---
 
 ## How-To Map
 
+### Environment Setup
 ```bash
-# Step 1: Read analysis
-cat plans/active/TORCH-REFINE-004/reports/2025-11-24T103302Z/phase_8_final_blocker_analysis.md
-
-# Step 2: Apply fix (REPLACE lines 4909-4914 in dbex/nanobrag_refinement.py)
-# Use Edit tool with old_string = lines 4909-4914 (from "for stage_name, telem_obj" to "telemetry_out[legacy_key] = RefinementTelemetry(**telem_dict)")
-# new_string = Alternative pattern (7 lines, see Do Now step 2)
-
-# Step 3: Validation (4 tests, see Do Now step 3)
-
-# Step 4: Decision synthesis (see Do Now step 4)
-
-# Step 5: Write summary.md (see Do Now step 5)
-
-# Step 6: Commit (see Do Now step 6)
+export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
+export DBEX_SMOKE_SIGMA_SOURCE=cli_override
+export DBEX_SMOKE_DETECTOR_SIZE=small
+export KMP_DUPLICATE_LIB_OK=TRUE
+export NANOBRAGG_DISABLE_COMPILE=1
 ```
+
+### Code Locations to Edit
+
+1. **`dbex/nanobrag_refinement.py:3059`**  Extract `optimizer_type` from `param_values` dict
+2. **`dbex/nanobrag_refinement.py:3111-3113`**  Replace `optimizer.step(closure)` with branching logic (~20 lines)
+3. **`dbex/nanobrag_refinement.py:~2670`**  Add `'optimizer_type': optimizer_type` to `param_values_b` dict in inline path
+4. **`dbex/refinement/stage_b.py:~250`**  Add `'optimizer_type': optimizer_type` to `param_values_b` dict in wrapper path
+
+### Testing Commands (Sequential)
+
+```bash
+# 1. Compilation
+python -c "from dbex.nanobrag_refinement import _run_stage_b_lbfgs; print('OK')"
+
+# 2. Phase 6 unit regression
+NANOBRAGG_DISABLE_COMPILE=1 pytest -xvs tests/dbex/test_stage_b_asu_mapping.py \
+  > plans/active/TORCH-REFINE-004/reports/2025-11-24T110000Z/pytest_phase6_regression.log 2>&1
+
+# 3. Shell mode regression (LBFGS)
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+DBEX_SMOKE_SIGMA_SOURCE=cli_override \
+DBEX_SMOKE_DETECTOR_SIZE=small \
+KMP_DUPLICATE_LIB_OK=TRUE \
+NANOBRAGG_DISABLE_COMPILE=1 \
+pytest -xvs tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers \
+  > plans/active/TORCH-REFINE-004/reports/2025-11-24T110000Z/pytest_shell_regression.log 2>&1
+
+# 4. Per-reflection smoke (Adam, PRIMARY)
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+DBEX_SMOKE_SIGMA_SOURCE=cli_override \
+DBEX_SMOKE_DETECTOR_SIZE=small \
+KMP_DUPLICATE_LIB_OK=TRUE \
+NANOBRAGG_DISABLE_COMPILE=1 \
+pytest -xvs tests/dbex/test_torch_refine_smoke.py::test_stage_b_per_reflection_smoke \
+  > plans/active/TORCH-REFINE-004/reports/2025-11-24T110000Z/pytest_per_reflection_smoke_fixed.log 2>&1
+```
+
+### Artifacts to Capture
+
+- `compilation_check.log`  Python import test output
+- `pytest_phase6_regression.log`  5 ASU mapping unit tests
+- `pytest_shell_regression.log`  Shell mode LBFGS regression (confirms LBFGS unchanged)
+- `pytest_per_reflection_smoke_fixed.log`  Per-reflection Adam mode (PRIMARY validation, gradient flow fixed)
+- `decision.json`  4-path decision outcome
+- `summary.md`  Turn Summary with single-line problem/fix/next
+
+---
 
 ## Pitfalls To Avoid
 
-1. **DO NOT** use 3-part fix pattern (Part 1-3 in analysis) — use Alternative pattern (simpler, recommended)
-2. **DO NOT** modify engine.py or stage_b.py — fix is ONLY in nanobrag_refinement.py lines 4909-4914
-3. **DO NOT** call asdict() in the fix — Alternative pattern avoids asdict() entirely
-4. **DO NOT** mutate `stage_modes` dict based on actual modes — keep existing logic (line 4854 hardcodes "shell")
-5. **DO NOT** attempt multiple fix iterations — if Path B/C/D occurs, escalate to Galph immediately
-6. **Environment Freeze:** No installs, code-only fix
+1. **Do NOT modify closure logic**  closure is correct, problem is in optimizer invocation pattern
+2. **Do NOT change LBFGS `else` branch**  preserve exact original code `optimizer.step(closure_stage_b)` to prevent shell mode regression
+3. **Do NOT add `optimizer_type` to RefinementConfig**  it's derived dynamically per run, not a config field
+4. **Do ensure `optimizer_type` is passed in BOTH paths**  inline (_run_stage_b_lbfgs direct call) AND engine delegation (stage_b.py wrapper)
+5. **Do NOT install packages**  Environment Freeze, code-only fix
+6. **Do NOT skip validation steps**  all 4 tests must pass to confirm gradient flow fix + no regressions
+7. **Do capture exact test failure signatures**  if per-reflection test fails with different error, log full output for Galph triage
+8. **Do use `improvement_b` variable name**  avoid shadowing `improvement` from outer scope
+
+---
 
 ## If Blocked
 
-1. Capture full error traceback (last 100 lines of pytest output)
-2. Write `decision.json` with `"outcome": "blocked"`, `"error": "<traceback>"`, `"hypothesis": "<guess>"`
-3. Append to Attempts History with timestamp, blocker description, artifacts path
-4. Return to Galph with blocker report (do NOT attempt workarounds)
+**Scenario 1: Cannot find where optimizer_type is set in _build_stage_b_params**
+
+Search for `optimizer_type = "adam"` and `optimizer_type = "lbfgs"` in dbex/nanobrag_refinement.py (lines 2520, 2531, 2542). It's set inside the `if config_stage_b_mode_override == "per_reflection"` branch and the shell mode branch.
+
+**Scenario 2: stage_b.py doesn't have access to optimizer_type**
+
+Check how `_build_stage_b_params` is called in stage_b.py (likely around lines 180-220). The function should return or set `optimizer_type` as a local variable. If not, you may need to add it as a return value from the builder function.
+
+**Scenario 3: Per-reflection test still fails after fix (different signature)**
+
+- Capture full pytest output with `-vvs` flag
+- Log Adam iteration loop: add `print(f"Adam iter {iteration_adam}: loss={loss.item():.4e}")` inside the loop
+- Check if loss is decreasing across iterations
+- Verify gradients are non-zero: add `for p in stage_b_params: print(f"grad norm: {p.grad.norm().item()}")` after `closure_stage_b()`
+- Write detailed failure signature to decision.json and escalate to Galph
+
+---
 
 ## Findings Applied
 
-- **POLICY-001:** Environment Freeze ✓ (code-only fix)
-- **ARCH-ENGINE-002:** Lazy imports ✓ (no import changes)
-- **ARCH-REFINE-FLOW-001:** Engine delegation pattern ✓ (fix preserves engine contract, custom attributes restored per engine.py:161-168)
-- **REFINE-001/002/005:** Scale warm-start, acceptance gate, halo mandatory ✓ (no changes to refinement logic)
-- **spec:59/60/61/107:** Per-reflection SHALL be default (Phase 9), shell fallback permitted ✓, halo mandatory ✓, Adam for large param counts ✓
+- **POLICY-001:** Environment Freeze (code-only, no package installs)
+- **REFINE-001/002/005:** LBFGS scale warm-start, acceptance gate, halo mandatory (preserved in Adam path)
+- **SCALE-001/002:** Structure factors unscaled (unchanged by optimizer choice)
+- **PHYSICS-LOSS-001:** Variance-weighted loss (closure correct for both optimizers)
+- **ARCH-ENGINE-002:** Lazy torch imports (no new imports required)
+- **spec:59/60/61:** Per-reflection SHALL be default, shell fallback permitted, halo mandatory
+- **spec:107:** Adam optimizer permitted for large parameter counts (implementation adheres to spec)
+- **CLAUDE.md:** Incremental progress (single-loop fix, minimal scope, clear validation path)
+
+---
 
 ## Pointers
 
-- Root cause analysis: `plans/active/TORCH-REFINE-004/reports/2025-11-24T103302Z/phase_8_final_blocker_analysis.md`
-- Fix target: `dbex/nanobrag_refinement.py:4904-4916` (engine delegation telemetry enrichment block)
-- Engine attribute restoration: `dbex/refinement/engine.py:161-168` (reference for what attributes to preserve)
-- Wrapper attribute assignment: `dbex/refinement/stage_b.py:456-475` (reference for what attributes are added)
-- Test specification: `tests/dbex/test_torch_refine_smoke.py:1640-1698` (per-reflection smoke test exit criteria)
-- Planning analysis: `plans/active/TORCH-REFINE-004/reports/2025-11-24T092549Z/phase_7_planning_analysis.md` (Phase 7 integration background)
+- **Root Cause Analysis:** `plans/active/TORCH-REFINE-004/reports/2025-11-24T110000Z/gradient_flow_root_cause_analysis.md` (comprehensive 12-section analysis with evidence chain, PyTorch API docs, code locations, estimated effort)
+- **Phase 7 Planning:** `plans/active/TORCH-REFINE-004/reports/2025-11-24T092549Z/phase_7_planning_analysis.md` (integration points, risk analysis, estimated effort)
+- **Phase 6 Implementation:** `plans/active/TORCH-REFINE-004/reports/2025-11-24T130000Z/` (ASU mapping helpers + unit tests, all PASSED)
+- **Implementation Plan:** `plans/active/TORCH-REFINE-004/implementation.md` (Phases 1-9 checklist)
+- **Fix Plan Entry:** `docs/fix_plan.md:227` (TORCH-REFINE-004 status, dependencies, exit criteria, Attempts History)
+- **PyTorch Optimizer API:** https://pytorch.org/docs/stable/optim.html (Adam vs LBFGS calling patterns)
+- **Testing Guide:** `docs/TESTING_GUIDE.md` �2 (Stage B selectors + environment variables)
+
+---
 
 ## Next Up
 
-**After Phase 8 SUCCESS (Path A):**
-- Galph plans Phase 9: Default enforcement + E2E validation + docs
-- Scope: Change RefinementConfig default `stage_b_mode="per_reflection"` (1-line), update CLI help text, refresh docs/TESTING_GUIDE.md + TEST_SUITE_INDEX.md
-- Estimated effort: 1-2 loops (~2-3 hours)
+**After Phase 7 Fix Complete (Path A):**
 
-**After Phase 8 BLOCKED (Path B/C):**
-- Galph triages new blocker, assesses whether fix attempt #3 is viable or escalation required per repeat-failure enforcement
-- Options: (A) Reclassify root cause + new implementation fix, (B) Weaken test assertion (NOT ALLOWED per spec:59), (C) Mark TORCH-REFINE-004 blocked pending upstream fix
+Galph will plan Phase 8/9:
+- Phase 8: Switch default from shell � per-reflection mode (update RefinementConfig default, update engine wrapper telemetry)
+- Phase 9: Documentation + test registry sync (TESTING_GUIDE.md, TEST_SUITE_INDEX.md, collect-only artifacts)
+
+**Estimated Total Remaining:** ~2-3 hours (Phase 8 default switch ~1h, Phase 9 docs ~1-2h)
+
+---
+
+**Estimated Effort (This Loop):** ~1.5 hours total
+- Code changes: ~30 minutes (4 locations, ~20 lines total)
+- Validation: ~45 minutes (4 sequential tests)
+- Decision synthesis + commit: ~15 minutes
+
+**Confidence:** HIGH (~95%)  Root cause definitively identified, fix is minimal and well-scoped, validation path is deterministic.

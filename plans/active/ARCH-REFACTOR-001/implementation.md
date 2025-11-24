@@ -119,12 +119,12 @@
 **Goal:** Reduce boilerplate and prepare for robust logging.
 
 ### Checklist
-- [ ] B1: **Convert `RefinementTelemetry` to dataclass** — Add `@dataclass` decorator, implement `to_dict()` method handling nested numpy/torch types.
-  - **Schema versioning:** Add `telemetry_version: str = "1.0"` field for future compatibility.
-- [ ] B2: **Refactor `_write_torch_outputs` in `refine_one.py`** — Replace manual field mapping with dynamic iteration over `telemetry.to_dict().items()`.
-  - **HDF5 compatibility:** Handle nested dicts, arrays, scalars per `spec-db-interfaces.md`.
-- [ ] B3: **Verify HDF5 output structure** — Run `test_stage_a_expansion`, inspect output HDF5 files, confirm structure matches spec.
-  - **Backward compatibility:** Ensure existing analysis scripts can read new format.
+- [x] B1: **Convert `RefinementTelemetry` to dataclass** — ✓ COMPLETE (2025-11-24T085000Z) Added `@dataclass` decorator, `to_dict()` method using `asdict()`, converted mutable defaults to `field(default_factory=...)`, added `telemetry_version: str = "1.0"`.
+  - **Schema versioning:** ✓ Added `telemetry_version: str = "1.0"` field for future compatibility.
+- [x] B2: **Refactor `_write_torch_outputs` in `refine_one.py`** — ✓ COMPLETE (2025-11-24T085000Z) Replaced manual field mapping (~60 lines) with dynamic iteration over `telemetry.to_dict().items()`, added `_coerce_scalar()` helper for numpy/torch types, preserved field name mapping for backward compatibility.
+  - **HDF5 compatibility:** ✓ Handles nested dicts (JSON), arrays (datasets), scalars (attrs) with type coercion.
+- [x] B3: **Verify HDF5 output structure** — ✓ COMPLETE (2025-11-24T085000Z) Stage A smoke test PASSED (12.66s), DB-AT-024 mapping parity PASSED (31.75s), HDF5 schema preserved (backward compatible).
+  - **Backward compatibility:** ✓ Existing analysis scripts can read new format (same attr/dataset names).
 
 ### Notes & Risks
 - **HDF5 attribute limits:** String length limits may truncate large JSON blobs. Mitigate by storing large nested structures as datasets (not attributes).

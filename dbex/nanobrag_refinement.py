@@ -33,7 +33,7 @@ import math
 import os
 import time
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -400,6 +400,8 @@ class RefinementTelemetry:
 
     PHYSICS-LOSS-001: Tracks both chi_squared (variance-weighted loss, the optimization objective)
     and masked_mse (legacy metric for comparison). All stages minimize chi_squared per spec-db-core.md:57-68.
+
+    ARCH-REFACTOR-001 Phase B: Dataclass with to_dict() for HDF5 serialization.
     """
     optimizer: str
     stage: str
@@ -410,12 +412,12 @@ class RefinementTelemetry:
     roi_sample_fraction: float
     roi_count_sampled: int
     roi_count_total: int
-    loss_trace_sample: List[float]  # Deprecated: will be chi_squared_trace_sample after PHYSICS-LOSS-001
-    loss_trace_full: List[Tuple[int, float]]  # Deprecated: will be chi_squared_trace_full after PHYSICS-LOSS-001
-    best_loss_full: Tuple[float, int]  # Deprecated: will be chi_squared_best after PHYSICS-LOSS-001
-    param_deltas: Dict[str, float]
-    status: str  # "ok" | "early_stop" | "rollback" | "error"
-    message: str
+    loss_trace_sample: List[float] = field(default_factory=list)  # Deprecated: will be chi_squared_trace_sample after PHYSICS-LOSS-001
+    loss_trace_full: List[Tuple[int, float]] = field(default_factory=list)  # Deprecated: will be chi_squared_trace_full after PHYSICS-LOSS-001
+    best_loss_full: Tuple[float, int] = (0.0, 0)  # Deprecated: will be chi_squared_best after PHYSICS-LOSS-001
+    param_deltas: Dict[str, float] = field(default_factory=dict)
+    status: str = "ok"  # "ok" | "early_stop" | "rollback" | "error"
+    message: str = ""
     perf_counters: Optional[Dict[str, Any]] = None  # PERF-WARM-SIM-001: closure_evals, forward_time_ms, validations
     # PHYSICS-LOSS-001: Dual loss metrics for cross-stage comparison
     chi_squared_trace_sample: Optional[List[float]] = None  # Chi-squared sampled trace (ROI subset)
@@ -442,6 +444,16 @@ class RefinementTelemetry:
     # Phase E: Engine delegation telemetry
     engine_protocol: Optional[str] = None  # e.g., "A→B→C", "A-only", "A→B"
     stage_modes: Optional[Dict[str, str]] = None  # e.g., {"B": "shell", "C": "detector_offsets"}
+    telemetry_version: str = "1.0"  # Schema versioning for future compatibility
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert telemetry to dict for HDF5 serialization.
+
+        Returns:
+            Dict with scalar attrs (int/float/str/bool) and nested structures
+            (lists, dicts, tuples). Caller handles HDF5 attr vs dataset decision.
+        """
+        return asdict(self)
 
 
 # Extracted to dbex.physics.loss (ARCH-REFACTOR-001 Phase A)

@@ -672,8 +672,18 @@ def _write_torch_outputs(
         diag.attrs["hkl_path"] = str(hkl_telemetry["hkl_path"])
 
         # Refinement telemetry (TORCH-REFINE-001, TORCH-REFINE-003: multi-stage support)
+        # ARCH-REFACTOR-001 Phase B: Dynamic HDF5 serialization from dataclass
         if refine_telemetry is not None:
             import json
+
+            def _coerce_scalar(value):
+                """Coerce numpy/torch types to Python scalars for HDF5 attrs."""
+                import torch
+                if isinstance(value, (np.integer, np.floating)):
+                    return value.item()
+                elif isinstance(value, torch.Tensor):
+                    return value.item() if value.numel() == 1 else float(value)
+                return value
 
             # Normalize to dict format (support legacy single RefinementTelemetry)
             if not isinstance(refine_telemetry, dict):
@@ -687,146 +697,136 @@ def _write_torch_outputs(
             for stage_label, stage_telem in telemetry_dict.items():
                 stage_group = diag.create_group(f"stage_{stage_label}")
 
-                stage_group.attrs["refine_optimizer"] = stage_telem.optimizer
-                stage_group.attrs["refine_stage"] = stage_telem.stage
-                stage_group.attrs["refine_history_size"] = stage_telem.history_size
-                stage_group.attrs["refine_max_iter"] = stage_telem.max_iter
-                stage_group.attrs["refine_tolerance_grad"] = stage_telem.tolerance_grad
-                stage_group.attrs["refine_tolerance_change"] = stage_telem.tolerance_change
-                stage_group.attrs["refine_roi_sample_fraction"] = stage_telem.roi_sample_fraction
-                stage_group.attrs["refine_roi_count_sampled"] = stage_telem.roi_count_sampled
-                stage_group.attrs["refine_roi_count_total"] = stage_telem.roi_count_total
-                stage_group.attrs["refine_status"] = stage_telem.status
-                stage_group.attrs["refine_message"] = stage_telem.message
-                if stage_telem.sigma_readout_provenance is not None:
-                    stage_group.attrs["sigma_readout_provenance"] = stage_telem.sigma_readout_provenance
-                if stage_telem.sigma_readout_reference_value is not None:
-                    stage_group.attrs["sigma_readout_reference_value"] = float(
-                        stage_telem.sigma_readout_reference_value
-                    )
+                # Dynamic iteration over telemetry fields via to_dict()
+                telem_dict = stage_telem.to_dict()
 
-                # Store loss traces as datasets (legacy chi_squared-only fields)
-                if len(stage_telem.loss_trace_sample) > 0:
-                    stage_group.create_dataset("refine_loss_trace_sample", data=stage_telem.loss_trace_sample)
+                # Special handling for legacy field names (preserve backward compatibility)
+                # Map dataclass field names to HDF5 attr/dataset names
+                field_name_map = {
+                    "optimizer": "refine_optimizer",
+                    "stage": "refine_stage",
+                    "history_size": "refine_history_size",
+                    "max_iter": "refine_max_iter",
+                    "tolerance_grad": "refine_tolerance_grad",
+                    "tolerance_change": "refine_tolerance_change",
+                    "roi_sample_fraction": "refine_roi_sample_fraction",
+                    "roi_count_sampled": "refine_roi_count_sampled",
+                    "roi_count_total": "refine_roi_count_total",
+                    "status": "refine_status",
+                    "message": "refine_message",
+                    "param_deltas": "refine_param_deltas",
+                }
 
-                if len(stage_telem.loss_trace_full) > 0:
-                    # Store as structured array: [(iteration, loss), ...]
-                    loss_trace_full_arr = np.array(stage_telem.loss_trace_full, dtype=[('iteration', 'i4'), ('loss', 'f8')])
-                    stage_group.create_dataset("refine_loss_trace_full", data=loss_trace_full_arr)
+                # Process each field dynamically
+                for key, value in telem_dict.items():
+                    if value is None:
+                        continue  # Skip None values
 
-                stage_group.attrs["refine_best_loss_full"] = stage_telem.best_loss_full[0]
-                stage_group.attrs["refine_best_loss_iteration"] = stage_telem.best_loss_full[1]
+                    # Apply field name mapping for backward compatibility
+                    hdf5_key = field_name_map.get(key, key)
 
-                # PHYSICS-LOSS-001: Store dual loss metrics (chi_squared + masked_mse)
-                if stage_telem.chi_squared_trace_sample is not None and len(stage_telem.chi_squared_trace_sample) > 0:
-                    stage_group.create_dataset("chi_squared_trace_sample", data=stage_telem.chi_squared_trace_sample)
-                if stage_telem.chi_squared_trace_full is not None and len(stage_telem.chi_squared_trace_full) > 0:
-                    chi2_trace_full_arr = np.array(stage_telem.chi_squared_trace_full, dtype=[('iteration', 'i4'), ('chi_squared', 'f8')])
-                    stage_group.create_dataset("chi_squared_trace_full", data=chi2_trace_full_arr)
-                if stage_telem.chi_squared_best is not None:
-                    stage_group.attrs["chi_squared_best"] = stage_telem.chi_squared_best[0]
-                    stage_group.attrs["chi_squared_best_iteration"] = stage_telem.chi_squared_best[1]
-
-                if stage_telem.masked_mse_trace_sample is not None and len(stage_telem.masked_mse_trace_sample) > 0:
-                    stage_group.create_dataset("masked_mse_trace_sample", data=stage_telem.masked_mse_trace_sample)
-                if stage_telem.masked_mse_trace_full is not None and len(stage_telem.masked_mse_trace_full) > 0:
-                    mse_trace_full_arr = np.array(stage_telem.masked_mse_trace_full, dtype=[('iteration', 'i4'), ('masked_mse', 'f8')])
-                    stage_group.create_dataset("masked_mse_trace_full", data=mse_trace_full_arr)
-                if stage_telem.masked_mse_best is not None:
-                    stage_group.attrs["masked_mse_best"] = stage_telem.masked_mse_best[0]
-                    stage_group.attrs["masked_mse_best_iteration"] = stage_telem.masked_mse_best[1]
-
-                # PHYSICS-LOSS-002: Variance floor telemetry (spec-db-core.md:67)
-                if stage_telem.variance_floor_value is not None:
-                    stage_group.attrs["variance_floor_value"] = float(stage_telem.variance_floor_value)
-                if stage_telem.variance_floor_clamp_fraction is not None:
-                    stage_group.attrs["variance_floor_clamp_fraction"] = float(stage_telem.variance_floor_clamp_fraction)
-                # Canonical Stage A metadata propagated downstream
-                if stage_telem.canonical_stage_label is not None:
-                    stage_group.attrs["canonical_stage_label"] = stage_telem.canonical_stage_label
-                if stage_telem.canonical_chi_squared is not None:
-                    stage_group.attrs["canonical_chi_squared"] = float(stage_telem.canonical_chi_squared)
-                if stage_telem.canonical_chi_squared_iteration is not None:
-                    stage_group.attrs["canonical_chi_squared_iteration"] = int(stage_telem.canonical_chi_squared_iteration)
-                if stage_telem.canonical_roi_count is not None:
-                    stage_group.attrs["canonical_roi_count"] = int(stage_telem.canonical_roi_count)
-                if stage_telem.canonical_detector_distances_mm is not None:
-                    stage_group.create_dataset(
-                        "canonical_detector_distances_mm",
-                        data=np.asarray(stage_telem.canonical_detector_distances_mm, dtype=np.float64),
-                    )
-
-                # Store param_deltas as JSON string
-                stage_group.attrs["refine_param_deltas"] = json.dumps(stage_telem.param_deltas)
+                    # Handle nested structures
+                    if key == "loss_trace_sample" and isinstance(value, list) and len(value) > 0:
+                        stage_group.create_dataset("refine_loss_trace_sample", data=value)
+                    elif key == "loss_trace_full" and isinstance(value, list) and len(value) > 0:
+                        # Store as structured array: [(iteration, loss), ...]
+                        loss_trace_full_arr = np.array(value, dtype=[('iteration', 'i4'), ('loss', 'f8')])
+                        stage_group.create_dataset("refine_loss_trace_full", data=loss_trace_full_arr)
+                    elif key == "best_loss_full" and isinstance(value, tuple):
+                        stage_group.attrs["refine_best_loss_full"] = _coerce_scalar(value[0])
+                        stage_group.attrs["refine_best_loss_iteration"] = _coerce_scalar(value[1])
+                    elif key == "chi_squared_trace_sample" and isinstance(value, list) and len(value) > 0:
+                        stage_group.create_dataset("chi_squared_trace_sample", data=value)
+                    elif key == "chi_squared_trace_full" and isinstance(value, list) and len(value) > 0:
+                        chi2_trace_full_arr = np.array(value, dtype=[('iteration', 'i4'), ('chi_squared', 'f8')])
+                        stage_group.create_dataset("chi_squared_trace_full", data=chi2_trace_full_arr)
+                    elif key == "chi_squared_best" and isinstance(value, tuple):
+                        stage_group.attrs["chi_squared_best"] = _coerce_scalar(value[0])
+                        stage_group.attrs["chi_squared_best_iteration"] = _coerce_scalar(value[1])
+                    elif key == "masked_mse_trace_sample" and isinstance(value, list) and len(value) > 0:
+                        stage_group.create_dataset("masked_mse_trace_sample", data=value)
+                    elif key == "masked_mse_trace_full" and isinstance(value, list) and len(value) > 0:
+                        mse_trace_full_arr = np.array(value, dtype=[('iteration', 'i4'), ('masked_mse', 'f8')])
+                        stage_group.create_dataset("masked_mse_trace_full", data=mse_trace_full_arr)
+                    elif key == "masked_mse_best" and isinstance(value, tuple):
+                        stage_group.attrs["masked_mse_best"] = _coerce_scalar(value[0])
+                        stage_group.attrs["masked_mse_best_iteration"] = _coerce_scalar(value[1])
+                    elif key == "canonical_detector_distances_mm" and isinstance(value, list) and len(value) > 0:
+                        stage_group.create_dataset(
+                            "canonical_detector_distances_mm",
+                            data=np.asarray(value, dtype=np.float64),
+                        )
+                    elif key == "param_deltas" and isinstance(value, dict):
+                        # Store as JSON string for backward compatibility
+                        stage_group.attrs[hdf5_key] = json.dumps(value)
+                    elif key == "stage_modes" and isinstance(value, dict):
+                        # Store as JSON string
+                        stage_group.attrs[hdf5_key] = json.dumps(value)
+                    elif key == "perf_counters" and isinstance(value, dict):
+                        # Store as JSON string
+                        stage_group.attrs[hdf5_key] = json.dumps(value)
+                    elif key in ["telemetry_version", "loss_trace_sample", "loss_trace_full", "best_loss_full"]:
+                        # Skip telemetry_version (internal field), already handled traces/best_loss above
+                        pass
+                    else:
+                        # Scalar values: store as HDF5 attrs
+                        stage_group.attrs[hdf5_key] = _coerce_scalar(value)
 
             # Legacy single-stage compatibility: mirror Stage A to top-level attrs if only Stage A exists
             if "A" in telemetry_dict and len(telemetry_dict) == 1:
                 stage_a_telem = telemetry_dict["A"]
-                diag.attrs["refine_optimizer"] = stage_a_telem.optimizer
-                diag.attrs["refine_stage"] = stage_a_telem.stage
-                diag.attrs["refine_history_size"] = stage_a_telem.history_size
-                diag.attrs["refine_max_iter"] = stage_a_telem.max_iter
-                diag.attrs["refine_tolerance_grad"] = stage_a_telem.tolerance_grad
-                diag.attrs["refine_tolerance_change"] = stage_a_telem.tolerance_change
-                diag.attrs["refine_roi_sample_fraction"] = stage_a_telem.roi_sample_fraction
-                diag.attrs["refine_roi_count_sampled"] = stage_a_telem.roi_count_sampled
-                diag.attrs["refine_roi_count_total"] = stage_a_telem.roi_count_total
-                diag.attrs["refine_status"] = stage_a_telem.status
-                diag.attrs["refine_message"] = stage_a_telem.message
-                diag.attrs["refine_best_loss_full"] = stage_a_telem.best_loss_full[0]
-                diag.attrs["refine_best_loss_iteration"] = stage_a_telem.best_loss_full[1]
-                diag.attrs["refine_param_deltas"] = json.dumps(stage_a_telem.param_deltas)
-                if stage_a_telem.sigma_readout_provenance is not None:
-                    diag.attrs["sigma_readout_provenance"] = stage_a_telem.sigma_readout_provenance
-                if stage_a_telem.sigma_readout_reference_value is not None:
-                    diag.attrs["sigma_readout_reference_value"] = float(
-                        stage_a_telem.sigma_readout_reference_value
-                    )
+                telem_a_dict = stage_a_telem.to_dict()
 
-                # Top-level loss trace datasets (legacy)
-                if len(stage_a_telem.loss_trace_sample) > 0:
-                    diag.create_dataset("refine_loss_trace_sample", data=stage_a_telem.loss_trace_sample)
-                if len(stage_a_telem.loss_trace_full) > 0:
-                    loss_trace_full_arr = np.array(stage_a_telem.loss_trace_full, dtype=[('iteration', 'i4'), ('loss', 'f8')])
-                    diag.create_dataset("refine_loss_trace_full", data=loss_trace_full_arr)
+                # Mirror key fields to top-level for backward compatibility
+                for key, value in telem_a_dict.items():
+                    if value is None:
+                        continue
 
-                # PHYSICS-LOSS-001: Top-level dual loss metrics for Stage A (legacy compatibility)
-                if stage_a_telem.chi_squared_trace_sample is not None and len(stage_a_telem.chi_squared_trace_sample) > 0:
-                    diag.create_dataset("chi_squared_trace_sample", data=stage_a_telem.chi_squared_trace_sample)
-                if stage_a_telem.chi_squared_trace_full is not None and len(stage_a_telem.chi_squared_trace_full) > 0:
-                    chi2_trace_arr = np.array(stage_a_telem.chi_squared_trace_full, dtype=[('iteration', 'i4'), ('chi_squared', 'f8')])
-                    diag.create_dataset("chi_squared_trace_full", data=chi2_trace_arr)
-                if stage_a_telem.chi_squared_best is not None:
-                    diag.attrs["chi_squared_best"] = stage_a_telem.chi_squared_best[0]
-                    diag.attrs["chi_squared_best_iteration"] = stage_a_telem.chi_squared_best[1]
+                    # Apply field name mapping for top-level attrs
+                    hdf5_key = field_name_map.get(key, key)
 
-                if stage_a_telem.masked_mse_trace_sample is not None and len(stage_a_telem.masked_mse_trace_sample) > 0:
-                    diag.create_dataset("masked_mse_trace_sample", data=stage_a_telem.masked_mse_trace_sample)
-                if stage_a_telem.masked_mse_trace_full is not None and len(stage_a_telem.masked_mse_trace_full) > 0:
-                    mse_trace_arr = np.array(stage_a_telem.masked_mse_trace_full, dtype=[('iteration', 'i4'), ('masked_mse', 'f8')])
-                    diag.create_dataset("masked_mse_trace_full", data=mse_trace_arr)
-                if stage_a_telem.masked_mse_best is not None:
-                    diag.attrs["masked_mse_best"] = stage_a_telem.masked_mse_best[0]
-                    diag.attrs["masked_mse_best_iteration"] = stage_a_telem.masked_mse_best[1]
-
-                # PHYSICS-LOSS-002: Top-level variance floor telemetry for Stage A (legacy compatibility)
-                if stage_a_telem.variance_floor_value is not None:
-                    diag.attrs["variance_floor_value"] = float(stage_a_telem.variance_floor_value)
-                if stage_a_telem.variance_floor_clamp_fraction is not None:
-                    diag.attrs["variance_floor_clamp_fraction"] = float(stage_a_telem.variance_floor_clamp_fraction)
-                if stage_a_telem.canonical_stage_label is not None:
-                    diag.attrs["canonical_stage_label"] = stage_a_telem.canonical_stage_label
-                if stage_a_telem.canonical_chi_squared is not None:
-                    diag.attrs["canonical_chi_squared"] = float(stage_a_telem.canonical_chi_squared)
-                if stage_a_telem.canonical_chi_squared_iteration is not None:
-                    diag.attrs["canonical_chi_squared_iteration"] = int(stage_a_telem.canonical_chi_squared_iteration)
-                if stage_a_telem.canonical_roi_count is not None:
-                    diag.attrs["canonical_roi_count"] = int(stage_a_telem.canonical_roi_count)
-                if stage_a_telem.canonical_detector_distances_mm is not None:
-                    diag.create_dataset(
-                        "canonical_detector_distances_mm",
-                        data=np.asarray(stage_a_telem.canonical_detector_distances_mm, dtype=np.float64),
-                    )
+                    # Handle nested structures at top-level
+                    if key == "loss_trace_sample" and isinstance(value, list) and len(value) > 0:
+                        diag.create_dataset("refine_loss_trace_sample", data=value)
+                    elif key == "loss_trace_full" and isinstance(value, list) and len(value) > 0:
+                        loss_trace_full_arr = np.array(value, dtype=[('iteration', 'i4'), ('loss', 'f8')])
+                        diag.create_dataset("refine_loss_trace_full", data=loss_trace_full_arr)
+                    elif key == "best_loss_full" and isinstance(value, tuple):
+                        diag.attrs["refine_best_loss_full"] = _coerce_scalar(value[0])
+                        diag.attrs["refine_best_loss_iteration"] = _coerce_scalar(value[1])
+                    elif key == "chi_squared_trace_sample" and isinstance(value, list) and len(value) > 0:
+                        diag.create_dataset("chi_squared_trace_sample", data=value)
+                    elif key == "chi_squared_trace_full" and isinstance(value, list) and len(value) > 0:
+                        chi2_trace_arr = np.array(value, dtype=[('iteration', 'i4'), ('chi_squared', 'f8')])
+                        diag.create_dataset("chi_squared_trace_full", data=chi2_trace_arr)
+                    elif key == "chi_squared_best" and isinstance(value, tuple):
+                        diag.attrs["chi_squared_best"] = _coerce_scalar(value[0])
+                        diag.attrs["chi_squared_best_iteration"] = _coerce_scalar(value[1])
+                    elif key == "masked_mse_trace_sample" and isinstance(value, list) and len(value) > 0:
+                        diag.create_dataset("masked_mse_trace_sample", data=value)
+                    elif key == "masked_mse_trace_full" and isinstance(value, list) and len(value) > 0:
+                        mse_trace_arr = np.array(value, dtype=[('iteration', 'i4'), ('masked_mse', 'f8')])
+                        diag.create_dataset("masked_mse_trace_full", data=mse_trace_arr)
+                    elif key == "masked_mse_best" and isinstance(value, tuple):
+                        diag.attrs["masked_mse_best"] = _coerce_scalar(value[0])
+                        diag.attrs["masked_mse_best_iteration"] = _coerce_scalar(value[1])
+                    elif key == "canonical_detector_distances_mm" and isinstance(value, list) and len(value) > 0:
+                        diag.create_dataset(
+                            "canonical_detector_distances_mm",
+                            data=np.asarray(value, dtype=np.float64),
+                        )
+                    elif key == "param_deltas" and isinstance(value, dict):
+                        diag.attrs[hdf5_key] = json.dumps(value)
+                    elif key in ["telemetry_version", "loss_trace_sample", "loss_trace_full", "best_loss_full", "stage_modes", "perf_counters"]:
+                        # Skip internal fields or already handled
+                        pass
+                    elif key in ["optimizer", "stage", "history_size", "max_iter", "tolerance_grad", "tolerance_change",
+                                 "roi_sample_fraction", "roi_count_sampled", "roi_count_total", "status", "message",
+                                 "sigma_readout_provenance", "sigma_readout_reference_value", "variance_floor_value",
+                                 "variance_floor_clamp_fraction", "canonical_stage_label", "canonical_chi_squared",
+                                 "canonical_chi_squared_iteration", "canonical_roi_count"]:
+                        # Mirror scalar attrs to top-level
+                        diag.attrs[hdf5_key] = _coerce_scalar(value)
 
     # TORCH-CLI-004: Guard against empty scores collection
     if len(scores) > 0:

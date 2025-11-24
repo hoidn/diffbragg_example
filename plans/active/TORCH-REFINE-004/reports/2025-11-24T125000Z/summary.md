@@ -1,5 +1,6 @@
 ### Turn Summary
-Selected TORCH-REFINE-004 (Stage B per-reflection mode) as highest priority Tier 3 Feature Completeness item after ARCH-REFACTOR-001 Phase D D2 completion and Tier 2 completion (ARCH-REFINE-FLOW-001 + TORCH-API-ALIGN-001 both done).
-Dependency UNBLOCKED (ARCH-REFINE-FLOW-001 Phases A-E complete 2025-11-23T172000Z); normative spec requires per-reflection Fhkl modifiers SHALL be default (spec-db-workflow.md:59), but current implementation only has shell mode (spec violation).
-Next: Ralph executes Phase 6 planning (ASU mapping design with cctbx.miller symmetry operations, parameter count estimates, LBFGS vs Adam optimizer recommendation).
-Artifacts: plans/active/TORCH-REFINE-004/reports/2025-11-24T125000Z/ (focus_selection_decision.md, input.md delegation ready)
+Completed Phase 6 planning analysis for per-reflection ASU mapping using cctbx.miller symmetry operations; parameter count estimates range 2K (P432) to 35K (P1 test fixture) with LBFGS < 10K gate and Adam ≥ 10K recommendation per spec-db-workflow.md:107.
+ASU index computation pseudocode designed with halo voxel handling (map to index 0 fixed modifier=1.0) and cctbx unavailable fallback to shell mode per spec:60.
+cctbx.miller API confirmed available (tested 2025-11-24T125000Z), P21 synthetic test validated symmetry folding, test fixture P1 ~35K parameters require Adam optimizer.
+Next: Phase 6 implementation (extend compute_hkl_asu_map helper, add asu_modifiers parameter, dynamic optimizer selection LBFGS vs Adam).
+Artifacts: plans/active/TORCH-REFINE-004/reports/2025-11-24T125000Z/ (phase_6_planning_analysis.md, asu_pseudocode.py, parameter_count_analysis.md, optimizer_decision.md, decision.json)

@@ -1,0 +1,64 @@
+{
+  "focus": "TORCH-REFINE-004",
+  "phase": "6_planning",
+  "timestamp": "2025-11-24T125000Z",
+  "path": "A",
+  "path_name": "proceed_to_phase_6_implementation",
+  "rationale": "cctbx.miller API confirmed available (tested 2025-11-24T125000Z), ASU mapping algorithm pseudocode complete with edge case handling (halo voxels, symmetry failures), parameter count estimates documented (P1 ~35K requires Adam), optimizer recommendation clear (LBFGS < 10K gate, Adam ≥ 10K), risk mitigation strategies defined (halo → index 0, fallback to shell mode), implementation checklist drafted (6.1-6.7 tasks ready)",
+  "confidence": 0.88,
+  "next_action": "proceed_to_phase_6_implementation",
+  "blockers": [],
+  "artifacts": [
+    "phase_6_planning_analysis.md",
+    "asu_pseudocode.py",
+    "parameter_count_analysis.md",
+    "optimizer_decision.md",
+    "decision.json"
+  ],
+  "decision_criteria": {
+    "cctbx_api_confirmed": true,
+    "algorithm_pseudocode_complete": true,
+    "parameter_count_estimates_documented": true,
+    "optimizer_recommendation_clear": true,
+    "risk_mitigation_defined": true,
+    "implementation_checklist_drafted": true
+  },
+  "alternative_paths": {
+    "B": {
+      "name": "refine_design",
+      "conditions": "ASU mapping algorithm unclear, edge cases unresolved, cctbx API usage ambiguous",
+      "applicable": false,
+      "reason": "All design questions resolved, algorithm validated on P21 synthetic test"
+    },
+    "C": {
+      "name": "blocked_by_cctbx_unavailable",
+      "conditions": "cctbx.miller not in environment, violates Environment Freeze",
+      "applicable": false,
+      "reason": "cctbx confirmed available via Python test, no blocker"
+    },
+    "D": {
+      "name": "fallback_shell_mode_only",
+      "conditions": "Parameter count >100K makes per-reflection infeasible, violates spec (SHALL be default)",
+      "applicable": false,
+      "reason": "P1 fixture ~35K parameters within feasible range for Adam optimizer"
+    }
+  },
+  "test_fixture_analysis": {
+    "mtz_file": "tests/fixtures/golden_data/simple_cubic/refined_structure_factors.mtz",
+    "space_group": "P 1 (No. 1)",
+    "space_group_order": 1,
+    "total_reflections_with_bijvoet": 69614,
+    "estimated_n_asu_unique": 35000,
+    "recommended_optimizer": "Adam",
+    "recommended_learning_rate": 0.001,
+    "optimizer_gate_threshold": 10000,
+    "memory_overhead_gb": 1.07
+  },
+  "implementation_readiness": {
+    "phase_6_estimated_loops": "1-2",
+    "phase_6_estimated_hours": "2-4",
+    "total_phases_6_to_9_loops": "3.5-4.5",
+    "total_phases_6_to_9_hours": "7-9",
+    "ready_for_implementation": true
+  }
+}

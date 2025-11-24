@@ -521,7 +521,7 @@ class RefinementConfig:
 
     # Stage B per-reflection ASU mode (TORCH-REFINE-004 Phase 6)
     stage_b_optimizer_gate: int = 10000  # n_asu threshold for LBFGS vs Adam selection
-    stage_b_adam_lr: float = 1e-3  # Adam learning rate for large parameter counts (≥10K)
+    stage_b_adam_lr: float = 1e-2  # Adam learning rate for large parameter counts (≥10K) - Phase 7 tuned
     stage_b_modifier_clamp: Tuple[float, float] = (-3.0, 3.0)  # log-space clamp range (modifiers ∈ [0.05, 20.1])
 
     # Stage C detector microslip (TORCH-REFINE-003)
@@ -3058,6 +3058,7 @@ def _run_stage_b_lbfgs(
     # Extract param_values dict entries (mode-aware)
     stage_b_optimizer = param_values['optimizer']
     stage_b_mode = param_values['stage_b_mode']
+    optimizer_type = param_values['optimizer_type']  # "adam" or "lbfgs"
 
     # Mode-aware parameter extraction
     if stage_b_mode == "per_reflection":
@@ -3108,8 +3109,26 @@ def _run_stage_b_lbfgs(
             else:
                 best_params_snapshot_b['shell_modifier_raw'] = param_values['shell_modifier_raw'].data.clone()
 
-        # Run LBFGS optimization
-        stage_b_optimizer.step(closure_stage_b)
+        # Run optimization (optimizer-agnostic pattern per TORCH-REFINE-004 Phase 7 blocker fix)
+        if optimizer_type == "adam":
+            # Adam requires manual loop: call closure() to compute loss/gradients,
+            # then call step() without arguments to update params
+            max_iter_b = config.max_iter  # Default 30 per RefinementConfig
+            for iteration_adam in range(max_iter_b):
+                loss = closure_stage_b()  # Computes loss, backward(), updates traces (zero_grad() called internally)
+                stage_b_optimizer.step()  # Update params (NO closure arg for Adam)
+
+                # Check improvement after each iteration (reuse LBFGS periodic validation logic)
+                if len(loss_trace_full_b) > 0:
+                    _, latest_full_loss = loss_trace_full_b[-1]
+                    improvement_b = (best_loss_full[0] - latest_full_loss) / best_loss_full[0]
+                    if improvement_b >= config.stage_b_min_loss_improvement:
+                        status_b = "ok"
+                        message_b = f"Stage B converged after {iteration_adam+1} Adam iterations (improvement {improvement_b:.4%})"
+                        break
+        else:  # "lbfgs"
+            # LBFGS uses closure-based pattern (original line 3112)
+            stage_b_optimizer.step(closure_stage_b)
 
     except Exception as e:
         status_b = "error"

@@ -1,3 +1,11 @@
+### Turn Summary
+Fixed engine telemetry_version schema mismatch by adding single field to dbex/refinement/stage.py RefinementTelemetry dataclass.
+Regression guard test_stage_b_shell_modifiers PASSED (13.68s), schema parity verification confirmed complete field alignment between engine and Stage B wrapper dataclasses.
+Phase 7 blocker resolved; optimization loop integration ready for next planning cycle.
+Artifacts: plans/active/TORCH-REFINE-004/reports/2025-11-24T091417Z/ (pytest_schema_fix.log, schema_parity.log, decision.md)
+
+---
+
 # TORCH-REFINE-004 Phase 7 Blocker Fix Planning
 
 **Date:** 2025-11-24T091417Z

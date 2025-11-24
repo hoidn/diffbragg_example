@@ -160,6 +160,9 @@ class RefinementTelemetry:
     engine_protocol: Optional[str] = None  # e.g., "A→B→C", "A-only", "A→B"
     stage_modes: Optional[Dict[str, str]] = None  # e.g., {"B": "shell", "C": "detector_offsets"}
 
+    # ARCH-REFACTOR-001 Phase B: Schema versioning for future compatibility
+    telemetry_version: str = "1.0"
+
     def to_dict(self) -> Dict[str, Any]:
         """
         Serialize telemetry to dict for HDF5 export and test assertions.

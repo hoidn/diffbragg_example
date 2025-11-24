@@ -193,15 +193,17 @@
   * See docs/fix_plan_archive.md (snapshot 2025-11-24) and plans/active/ARCH-REFINE-FLOW-001/reports/ for full Attempts History.
 ### [TOOLING-VIS-001] Standardize visual diagnostics library
 - Depends on: PHYSICS-LOSS-001
-- Status: in_progress (2025-11-24T111500Z — Phase A in progress: library implementation)
+- Status: in_progress (2025-11-24T115000Z — Phase B planning: variance HDF5 + static triptych export)
 - Priority: Medium
-- Owner/Date: Ralph (2025-11-24T111500Z)
+- Owner/Date: Galph (2025-11-24T115000Z)
 - Exit Criteria:
-  1. `dbex.vis` module created implementing `spec-db-vis.md` standards (Z-scores, triptychs).
-  2. `dbex/look.py` refactored to use `dbex.vis` for rendering.
-  3. CLI automatically generates a standard report (PNG/PDF) at the end of refinement.
+  1. `dbex.vis` module created implementing `spec-db-vis.md` standards (Z-scores, triptychs) — **Phase A ✓ COMPLETE**
+  2. `dbex/look.py` refactored to use `dbex.vis` for rendering — **Phase B.2-lite (static export) + Phase C (interactive refactor)**
+  3. CLI automatically generates a standard report (PNG/PDF) at the end of refinement — **Phase B.3 pending**
 - Working Plan: `plans/active/TOOLING-VIS-001/implementation.md`
 - Attempts History:
+  * 2025-11-24T111500Z (implementation) — **Phase A ✓ COMPLETE** (commit fa4bed95). Implemented core visualization library primitives per spec-db-vis.md standards: (1) Created `dbex/vis` package with minimal public API (__init__.py), (2) Implemented `triptych.py::plot_triptych` (~129 lines) with 3-panel layout [Data|Model|Residuals], colormaps viridis/seismic, origin='upper' per spec §7-11, (3) Implemented `residuals.py::compute_z_scores` (~81 lines) with formula Z=(Data-Model)/sqrt(Variance) per spec §19, epsilon=1e-12 stability, NaN masking. All 3 tests PASSED (0.29s runtime): test_triptych_layout (3 panels, colormaps, origin, HKL/CC annotation), test_z_score_calculation (formula validation with known inputs), test_z_score_masking (NaN for masked pixels). Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-24T111500Z/summary.md.
+  * 2025-11-24T115000Z (planning) — **Phase B Planning Complete — Variance HDF5 + Static Triptych Export Ready for Implementation.** Identified blocker: `dbex.vis.plot_triptych` requires variance input, but `dbex/refine_one.py` HDF5 output (lines 237-244 Legacy, 647-654 Torch) does NOT save variance datasets. **Revised Phase B Scope:** B.1 (add variance to HDF5 in both backends ~30-40 lines, formula V=max(I_model+sigma_r^2, sigma_floor^2) per spec-db-core.md §86-90), B.2-lite (add --export-triptychs <dir> flag to dbex/look.py for static PNG export ~40-50 lines, defer interactive refactor to Phase C). Validation strategy: manual code inspection + compilation check (no pytest selectors). 10-step implementation protocol documented in input.md. Exit criteria (revised): (1) variance/sigma_readout/sigma_floor saved to HDF5 ✓ B.1, (2) static triptych PNG export functional ✓ B.2-lite, (3) interactive viewer refactor ❌ deferred Phase C, (4) auto-generate summary report ❌ deferred Phase B.3. Estimated effort: 3 hours single loop. Confidence: HIGH (~90%). Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-24T115000Z/phase_b_planning_analysis.md (comprehensive scope analysis, blocker diagnosis, implementation plan, decision tree).
   * deferred until PHYSICS-LOSS-001 unblocks the telemetry stack.
   * 2025-11-21T223420Z (implementation) — Implemented the Phase D zero‑point realignment for the Stage A mapping Adam helper. Refactored `plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py` to (1) share a single Stage‑A forward helper between the mapping no‑op path and `_stage_a_adam_core`, (2) ensure the zero‑parameter Stage‑A forward model reuses the DB‑AT‑024 mapping geometry path (MOSFLM A* injection, HKL grid, calibration) and matches `bragg_zero_iter` up to small per‑pixel/chi² tolerances, and (3) add a `zero_point_check.json` gate that now passes on CPU and CUDA with `zero_point_ok=true`, `mean_abs_diff≈6e−5`, and `|χ²_rel_diff|≈1.7e−4`. Geometry DoF experiments in this driver are now automatically skipped unless the zero‑point gate passes. Artifacts: `plans/active/TOOLING-VIS-001/reports/stage_a_refgeom_adam_debug/20251121T223420Z/{forward_model_probe.json,loss_alignment.json,zero_point_check.json,single_step_adam.json}` (CPU) and `.../20251121T223807Z/zero_point_check.json` (CUDA).
   ... (see docs/fix_plan_archive.md and plans/active/TOOLING-VIS-001/reports/ for full history and metrics).

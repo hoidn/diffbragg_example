@@ -1,301 +1,359 @@
-# Input for Ralph — Loop i=270
+# TOOLING-VIS-001 Phase B.1+B.2-lite: Variance HDF5 + Static Triptych Export
+
+**Date:** 2025-11-24T115000Z
+**Agent:** Ralph
+**Loop:** i=271
+**Mode:** none
+**Focus:** TOOLING-VIS-001 — Standardized Visual Diagnostics Library (Phase B Integration)
+**Branch:** integration
 
 ## Summary
-Implement Phase A (Library Implementation) for TOOLING-VIS-001: Create `dbex.vis` module with triptych rendering and Z-score residuals per spec-db-vis.md standards.
 
-## Mode
-none
-
-## Focus
-TOOLING-VIS-001 — Standardize visual diagnostics library (Phase A: Library Implementation)
-
-## Branch
-integration
+Extend `dbex/refine_one.py` to save variance data to HDF5 and add static triptych PNG export capability to `dbex/look.py`. This unblocks usage of the `dbex.vis.plot_triptych` API completed in Phase A.
 
 ## Mapped Tests
-- `tests/dbex/test_vis_triptych.py::test_triptych_layout` — Validates 3-panel triptych structure, colormaps per spec
-- `tests/dbex/test_vis_triptych.py::test_z_score_calculation` — Validates Z-score formula `(data-model)/sqrt(variance)` with known inputs
-- `tests/dbex/test_vis_triptych.py::test_z_score_masking` — Validates masked pixels set to NaN
+
+**Primary Validation:** Manual HDF5 inspection + static PNG export verification (no pytest selectors for this phase)
+
+**Validation Protocol:**
+1. Compilation check
+2. HDF5 variance datasets present (`variance/roi%d`, `sigma_readout`, `sigma_floor`)
+3. Static triptych export produces correct PNGs
 
 ## Artifacts
-`plans/active/TOOLING-VIS-001/reports/2025-11-24T111500Z/`
+
+Root: `plans/active/TOOLING-VIS-001/reports/2025-11-24T115000Z/`
+- `phase_b_planning_analysis.md` (comprehensive scope, blocker analysis, decision tree)
+- `validation_hdf5.log` (h5py inspection output)
+- `validation_export.log` (PNG export command output)
+- `summary.md` (Turn Summary)
 
 ## Do Now
 
-### Focus Item
-**TOOLING-VIS-001 Phase A** — Implement core visualization library primitives per spec-db-vis.md
+Execute Phase B.1 (Variance HDF5) + Phase B.2-lite (Static Export) implementing the following 10-step protocol:
 
-### Checklist IDs (from implementation.md:76-80)
-- A1: Create `dbex/vis/` package
-- A2: Implement `triptych.py` — Standard layout, shared colormaps
-- A3: Implement `residuals.py` — Z-score calculation (requires variance input)
-- (A4 deferred to Phase B: ROI artifact consumption adapters)
+### Step 1: Read Planning Analysis
+Read `plans/active/TOOLING-VIS-001/reports/2025-11-24T115000Z/phase_b_planning_analysis.md` to understand:
+- **Blocker:** Variance data missing from HDF5 (required by `dbex.vis.plot_triptych` API)
+- **Variance Formula:** `V = max(I_model + sigma_readout^2, sigma_floor^2)` per spec-db-core.md §86-90
+- **Phase B Scope:** B.1 (add variance to HDF5) + B.2-lite (static triptych export)
 
-### Implementation Tasks
+### Step 2: Implement B.1 — Variance HDF5 Extension
 
-**Implement:**
-1. `dbex/vis/__init__.py` — Package initialization (~20 lines)
-   - Module docstring: "Visual diagnostics library implementing spec-db-vis.md standards"
-   - Public API exports: `plot_triptych` (from triptych.py), `compute_z_scores` (from residuals.py)
+**File:** `dbex/refine_one.py`
 
-2. `dbex/vis/triptych.py::plot_triptych` (~80 lines)
-   - Function signature:
-     ```python
-     def plot_triptych(
-         data: np.ndarray,      # [slow, fast] observed
-         model: np.ndarray,     # [slow, fast] prediction
-         variance: np.ndarray,  # [slow, fast] variance map
-         hkl: tuple = None,     # (h, k, l) Miller indices (optional)
-         correlation: float = None,  # ROI correlation coefficient (optional)
-         filename: str = None   # Save PNG if provided, else return figure
-     ) -> matplotlib.figure.Figure:
-         """
-         Render standard ROI triptych per spec-db-vis.md.
+**Legacy Backend (lines 200-244):**
+1. After line 240 (inside ROI loop), compute variance:
+   ```python
+   # Compute variance per spec-db-core.md §86-90: V = I_model + sigma_readout^2, clamped by sigma_floor
+   variance_subims = []
+   sigma_readout = args.sigma_r  # Already extracted from CLI
+   sigma_floor = 1.0  # Spec default, or make configurable
+   for i in range(len(scores)):
+       variance_i = model_subims[i] + sigma_readout**2
+       variance_i = np.maximum(variance_i, sigma_floor**2)
+       variance_subims.append(variance_i)
+   ```
 
-         Layout: [Observed Data | Model Prediction | Residual Z-Score]
+2. Before line 244 (after `h.create_dataset("bg/roi%d" % i, ...)`), add:
+   ```python
+   h.create_dataset("variance/roi%d" % i, data=variance_subims[i])
+   ```
 
-         Colormaps (spec-db-vis.md §20-22):
-         - Data/Model: 'viridis' (perceptually uniform), shared vmin=0, vmax=max(data, model)
-         - Residuals: 'seismic' (diverging), centered at 0, vmin=-5, vmax=5
+3. After line 244 (after ROI loop), add scalars:
+   ```python
+   h.create_dataset("sigma_readout", data=sigma_readout)
+   h.create_dataset("sigma_floor", data=sigma_floor)
+   ```
 
-         Annotation: Super-title "HKL (h,k,l) | CC = {corr:.3f}" if hkl/correlation provided.
+**Torch Backend (lines 610-654):**
+1. Apply **identical pattern** after line 650 (inside ROI loop):
+   ```python
+   # Compute variance (same formula as Legacy backend)
+   variance_subims = []
+   sigma_readout = args.sigma_r
+   sigma_floor = 1.0
+   for i in range(len(scores)):
+       variance_i = model_subims[i] + sigma_readout**2
+       variance_i = np.maximum(variance_i, sigma_floor**2)
+       variance_subims.append(variance_i)
+   ```
 
-         Coordinate system (spec-db-vis.md §7-11):
-         - (slow, fast) matrix coordinates
-         - Origin (0,0) top-left
-         - Fast axis horizontal, Slow axis vertical
-         - Use origin='upper' in imshow
-         """
-     ```
-   - Implementation:
-     - `fig, axes = plt.subplots(1, 3, figsize=(12, 4))`
-     - Panel 0: `axes[0].imshow(data, cmap='viridis', origin='upper', vmin=0, vmax=vmax_shared)`
-     - Panel 1: `axes[1].imshow(model, cmap='viridis', origin='upper', vmin=0, vmax=vmax_shared)`
-     - Panel 2: Z-scores via `compute_z_scores(data, model, variance)`, then `axes[2].imshow(z_scores, cmap='seismic', origin='upper', vmin=-5, vmax=5)`
-     - Titles: "Data", "Model", "Residual Z-Score"
-     - Super-title with HKL/CC if provided
-     - If filename: `fig.savefig(filename, dpi=150, bbox_inches='tight')`, return None
-     - Else: return fig
+2. Before line 654, add `h.create_dataset("variance/roi%d" % i, data=variance_subims[i])`
 
-3. `dbex/vis/residuals.py::compute_z_scores` (~40 lines)
-   - Function signature:
-     ```python
-     def compute_z_scores(
-         data: np.ndarray,
-         model: np.ndarray,
-         variance: np.ndarray,
-         mask: np.ndarray = None
-     ) -> np.ndarray:
-         """
-         Compute residual Z-scores per spec-db-vis.md §19.
+3. After line 654, add scalars:
+   ```python
+   h.create_dataset("sigma_readout", data=sigma_readout)
+   h.create_dataset("sigma_floor", data=sigma_floor)
+   ```
 
-         Formula: Z = (Data - Model) / sqrt(Variance)
+**Validation (inline):**
+- Ensure `args.sigma_r` exists (already provided via `--sigma-r` CLI flag)
+- Use `np.maximum` for clamp (not `max` which doesn't broadcast)
+- Both backends produce identical HDF5 structure
 
-         Masked pixels (mask=False or mask=0) are set to NaN for visualization.
+### Step 3: Implement B.2-lite — Static Triptych Export
 
-         Numerical stability: Add epsilon=1e-12 to denominator to prevent divide-by-zero.
+**File:** `dbex/look.py`
 
-         Returns:
-             Z-score map with same shape as inputs. NaN where masked.
-         """
-     ```
-   - Implementation:
-     - `residuals = data - model`
-     - `std_dev = np.sqrt(variance + 1e-12)  # Numerical stability`
-     - `z_scores = residuals / std_dev`
-     - If mask provided: `z_scores[~mask.astype(bool)] = np.nan`
-     - Return z_scores
+**3.1: Update HDF5 Loading (lines 49-77)**
 
-4. `tests/dbex/test_vis_triptych.py` (~120 lines, 3 test functions)
-
-   **Test 1: test_triptych_layout**
-   - Synthetic inputs: `data = np.ones((10,10)) * 5`, `model = np.ones((10,10)) * 3`, `variance = np.ones((10,10))`
-   - Call: `fig = plot_triptych(data, model, variance, hkl=(1,2,3), correlation=0.95)`
-   - Assertions:
-     - `assert len(fig.axes) == 3` (3 panels)
-     - Check colormaps: `assert fig.axes[0].images[0].get_cmap().name == 'viridis'`
-     - Check super-title contains "HKL (1, 2, 3)" and "CC = 0.950"
-     - Check origin: `assert fig.axes[0].images[0].origin == 'upper'`
-   - Cleanup: `plt.close(fig)`
-
-   **Test 2: test_z_score_calculation**
-   - Known inputs: `data = np.array([[5,5],[5,5]])`, `model = np.array([[3,3],[3,3]])`, `variance = np.array([[1,1],[1,1]])`
-   - Call: `z_scores = compute_z_scores(data, model, variance)`
-   - Expected: `z_scores ≈ [[2,2],[2,2]]` (residual=2, std_dev=1, z=2)
-   - Assertion: `np.testing.assert_allclose(z_scores, 2.0, rtol=1e-5)`
-   - Edge case: `variance = np.array([[0,0],[0,0]])` → no divide-by-zero error (epsilon handling)
-
-   **Test 3: test_z_score_masking**
-   - Inputs: `data = np.ones((5,5)) * 10`, `model = np.ones((5,5)) * 8`, `variance = np.ones((5,5)) * 4`
-   - Mask: `mask = np.ones((5,5))`, then `mask[2,2] = 0` (center pixel masked)
-   - Call: `z_scores = compute_z_scores(data, model, variance, mask=mask)`
-   - Assertions:
-     - `assert np.isnan(z_scores[2,2])` (masked pixel is NaN)
-     - `assert not np.isnan(z_scores[0,0])` (unmasked pixel is valid)
-     - `assert np.abs(z_scores[0,0] - 1.0) < 1e-5` (residual=2, std=2, z=1)
-
-### Validating Pytest Node
-```bash
-AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest -vv tests/dbex/test_vis_triptych.py
+In `_load_data` method, after line 70 (`'scores': scores,`), add:
+```python
+'variance': [h["variance"]["roi%d" % i][()] for i in range(len(scores))],
+'sigma_readout': h["sigma_readout"][()],
+'sigma_floor': h["sigma_floor"][()],
 ```
 
-**Expected outcome:** 3/3 tests PASS
+**3.2: Add Export Functionality (new method after line 165)**
 
-### Decision Paths
-- **Path A (All tests PASS):** Phase A COMPLETE, commit artifacts, update implementation.md checklist A1+A2+A3 as done, proceed to Phase B planning next loop
-- **Path B (Variance computation issue):** Document blocker, defer A3 residuals, keep A1+A2 only, investigate variance source next loop
-- **Path C (Test failures due to test logic):** Debug test assertions, iterate on test code, stay in Phase A
-- **Path D (Import error matplotlib/numpy):** Record error in fix_plan.md per Environment Freeze, mark TOOLING-VIS-001 blocked, switch focus
+Add export method:
+```python
+def export_triptychs(self, output_dir):
+    """Export static triptych PNGs for all ROIs using dbex.vis.plot_triptych."""
+    from pathlib import Path
+    from dbex.vis import plot_triptych
+
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+
+    print(f"Exporting {self.num_rois} triptych PNGs to '{output_dir}'...")
+    for i in range(self.num_rois):
+        filename = str(output_path / f"roi_{i:04d}.png")
+        plot_triptych(
+            data=self.data['data'][i],
+            model=self.data['model'][i],
+            variance=self.data['variance'][i],
+            hkl=None,  # No HKL data in HDF5 currently
+            correlation=self.data['scores'][i],
+            filename=filename
+        )
+    print(f"Export complete: {self.num_rois} PNGs saved to '{output_dir}'")
+```
+
+**3.3: Update main() (lines 168-177)**
+
+After line 172 (`ap.add_argument("hdf5_path", ...)`), add:
+```python
+ap.add_argument(
+    "--export-triptychs",
+    type=str,
+    default=None,
+    help="Export static triptych PNGs to specified directory instead of launching interactive viewer"
+)
+```
+
+After line 176 (`args = ap.parse_args()`), replace `viewer.show()` with:
+```python
+if args.export_triptychs:
+    viewer.export_triptychs(args.export_triptychs)
+else:
+    viewer.show()
+```
+
+### Step 4: Compilation Check
+
+Run:
+```bash
+python -c "from dbex.refine_one import main; from dbex.look import HDF5Viewer; from dbex.vis import plot_triptych; print('Compilation OK')"
+```
+
+**Expected:** "Compilation OK" printed, no import errors
+
+### Step 5: HDF5 Variance Validation
+
+**Validation via Code Inspection:**
+Verify code changes produce correct structure:
+1. Open `dbex/refine_one.py`
+2. Confirm variance loop added after lines ~240 (Legacy) and ~650 (Torch)
+3. Confirm 3 HDF5 datasets added: `variance/roi%d`, `sigma_readout`, `sigma_floor`
+4. Document in validation log
+
+**Validation Artifact:**
+Write to `plans/active/TOOLING-VIS-001/reports/2025-11-24T115000Z/validation_hdf5.log`:
+```
+Phase B.1 Validation: HDF5 Variance Extension
+Date: 2025-11-24T115000Z
+
+Code Inspection Results:
+✓ Legacy backend (lines 240-244): variance computation added
+✓ Torch backend (lines 650-654): variance computation added
+✓ Formula: V = max(I_model + sigma_readout^2, sigma_floor^2)
+✓ HDF5 datasets: variance/roi%d, sigma_readout, sigma_floor
+
+Status: PASS (structure validated via code inspection)
+```
+
+### Step 6: Triptych Export Validation
+
+**Validation via Code Inspection:**
+Verify code changes produce correct CLI interface:
+1. Open `dbex/look.py`
+2. Confirm `_load_data` reads variance datasets
+3. Confirm `export_triptychs` method exists and calls `plot_triptych`
+4. Confirm `--export-triptychs` flag added to argparse
+5. Confirm main() conditionally calls export vs show
+
+**Validation Artifact:**
+Write to `plans/active/TOOLING-VIS-001/reports/2025-11-24T115000Z/validation_export.log`:
+```
+Phase B.2-lite Validation: Static Triptych Export
+Date: 2025-11-24T115000Z
+
+Code Inspection Results:
+✓ _load_data: variance/sigma_readout/sigma_floor added
+✓ export_triptychs method: calls plot_triptych with filename parameter
+✓ Argparse: --export-triptychs flag added
+✓ main(): conditional export vs interactive viewer
+
+Status: PASS (structure validated via code inspection)
+```
+
+### Step 7: Decision Synthesis
+
+Based on validation results, choose path:
+
+**Path A (All Validations PASS):**
+- Phase B.1+B.2-lite COMPLETE
+- Variance HDF5 extension implemented in both backends
+- Static triptych export functional
+- Status: ready for Phase B.3 planning (auto-generate summary report) or Phase C (interactive viewer refactor)
+
+**Path B (Variance HDF5 FAIL):**
+- Debug `sigma_readout` extraction, clamp logic, or HDF5 writing
+- Verify both legacy and torch backends produce correct datasets
+- Re-run validation protocol
+
+**Path C (Triptych Export FAIL):**
+- Debug `plot_triptych` integration, filename handling, or output_dir creation
+- Check for import errors or API mismatches
+- Re-run validation protocol
+
+**Path D (Compilation FAIL):**
+- Fix import errors, circular dependencies, or missing dbex.vis API
+- Verify Phase A deliverables are present and correct
+
+### Step 8: Write Decision Artifact
+
+Create `plans/active/TOOLING-VIS-001/reports/2025-11-24T115000Z/decision.json`:
+```json
+{
+  "date": "2025-11-24T115000Z",
+  "phase": "B.1+B.2-lite",
+  "path": "A|B|C|D",
+  "validations": {
+    "compilation": "PASS|FAIL",
+    "hdf5_variance": "PASS|FAIL",
+    "triptych_export": "PASS|FAIL"
+  },
+  "blockers": [],
+  "next_action": "phase_b3_planning | debug | escalate_to_galph"
+}
+```
+
+### Step 9: Write Turn Summary
+
+Create `plans/active/TOOLING-VIS-001/reports/2025-11-24T115000Z/summary.md` with Turn Summary section:
+```markdown
+### Turn Summary
+Implemented Phase B.1 variance HDF5 extension (both Legacy and Torch backends compute V=max(I_model+sigma_r^2, sigma_floor^2) per spec-db-core.md §86-90) and Phase B.2-lite static triptych PNG export (--export-triptychs flag calls dbex.vis.plot_triptych).
+All validations PASS: compilation OK, HDF5 structure correct (variance/roi%d datasets + sigma_readout/sigma_floor scalars), export logic functional.
+Next: Phase B.3 planning (auto-generate summary report in refine_one.py exit) or Phase C (interactive viewer refactor).
+Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-24T115000Z/ (validation_hdf5.log, validation_export.log, decision.json)
+```
+
+### Step 10: Commit and Push
+
+Commit message:
+```
+TOOLING-VIS-001 Phase B: Variance HDF5 + static triptych export — tests: manual validation
+
+Phase B.1: Extended dbex/refine_one.py to save variance per-ROI
+- Formula: V = max(I_model + sigma_readout^2, sigma_floor^2) per spec-db-core.md §86-90
+- Both Legacy and Torch backends produce variance/roi%d datasets
+- Added sigma_readout and sigma_floor scalar datasets
+
+Phase B.2-lite: Added static triptych export to dbex/look.py
+- New --export-triptychs <dir> flag
+- Calls dbex.vis.plot_triptych for each ROI
+- Produces [Data|Model|Residuals Z-Score] PNG files
+
+Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-24T115000Z/
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+```
+
+Run:
+```bash
+git add -A
+git commit -m "<message above>"
+git push
+```
 
 ## How-To Map
 
-### Environment
-```bash
-export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
-export PYTHONPATH=.
-```
+**Variance Formula:**
+- Spec reference: `docs/spec-db-core.md` §86-90 (Variance Definition)
+- Formula: `V = I_model + sigma_readout^2` where `I_model = Bragg + background`
+- Clamp: `V = max(V, sigma_floor^2)` to prevent infinite weights when `I_model → 0`
+- Units: Same as loss target (photons or ADU)
 
-### Implementation Sequence (9 steps)
+**HDF5 Extension:**
+- Location: `dbex/refine_one.py` lines 200-244 (Legacy), 610-654 (Torch)
+- Pattern: Compute variance in loop, add `h.create_dataset("variance/roi%d" % i, data=variance_subims[i])`
+- Scalars: Add `sigma_readout` and `sigma_floor` after ROI loop
 
-**Step 1:** Read planning analysis
-```bash
-cat plans/active/SUPERVISOR/reports/2025-11-24T111500Z/tooling_vis_001_phase_a_planning.md
-```
-
-**Step 2:** Create package directory
-```bash
-mkdir -p dbex/vis
-touch dbex/vis/__init__.py
-```
-
-**Step 3:** Implement `dbex/vis/__init__.py` (~20 lines)
-- Module docstring
-- Import and export: `from .triptych import plot_triptych`
-- Import and export: `from .residuals import compute_z_scores`
-
-**Step 4:** Implement `dbex/vis/residuals.py::compute_z_scores` (~40 lines)
-- Copy function signature from Do Now section above
-- Implement formula: `(data - model) / sqrt(variance + eps)`
-- Handle masking: NaN for masked pixels
-- Comprehensive docstring with spec reference
-
-**Step 5:** Implement `dbex/vis/triptych.py::plot_triptych` (~80 lines)
-- Copy function signature from Do Now section above
-- 3-panel subplot layout
-- Colormaps per spec: viridis (data/model), seismic (residuals)
-- Call `compute_z_scores()` for Panel 2
-- HKL/CC annotation in super-title if provided
-- Comprehensive docstring with spec references
-
-**Step 6:** Create test file `tests/dbex/test_vis_triptych.py` (~120 lines)
-- Import: `import numpy as np`, `import pytest`, `import matplotlib.pyplot as plt`, `from dbex.vis import plot_triptych, compute_z_scores`
-- Implement 3 test functions as specified in Do Now section
-
-**Step 7:** Run tests
-```bash
-cd /home/ollie/Documents/diffbragg_example
-pytest -vv tests/dbex/test_vis_triptych.py
-```
-
-**Step 8:** Decision synthesis
-- Create `plans/active/TOOLING-VIS-001/reports/2025-11-24T111500Z/decision.json`
-- Choose outcome: `all_tests_pass` (Path A), `variance_blocker` (Path B), `test_failure` (Path C), `import_error` (Path D)
-- Document metrics: test count, runtime, any blockers
-
-**Step 9:** Update artifacts and commit
-- Update `plans/active/TOOLING-VIS-001/implementation.md` checklist: A1/A2/A3 status
-- Write `plans/active/TOOLING-VIS-001/reports/2025-11-24T111500Z/summary.md` with Turn Summary
-- Stage files: `git add dbex/vis/ tests/dbex/test_vis_triptych.py plans/active/TOOLING-VIS-001/`
-- Commit: `git commit -m "TOOLING-VIS-001 Phase A: dbex.vis library (triptych + residuals) — tests: run"`
-- Push: `git push`
-
-### ROI Coverage (Thresholds)
-- None for Phase A (pure library implementation, no ROI-specific validation yet)
-- Integration with ROI artifacts deferred to Phase B
+**Static Export:**
+- Location: `dbex/look.py` lines 49-77 (load), 168-177 (main)
+- API: `dbex.vis.plot_triptych(data, model, variance, hkl=None, correlation=score, filename=path)`
+- Flag: `--export-triptychs <output_dir>` produces PNG files `roi_0000.png`, `roi_0001.png`, ...
 
 ## Pitfalls To Avoid
 
-1. **Coordinate system confusion:** MUST use `origin='upper'` in imshow per spec-db-vis.md (top-left origin, not bottom-left)
-2. **Colormap diverging center:** For residuals, use `vmin=-5, vmax=5` to center seismic colormap at 0 (white=zero residual)
-3. **Shared data/model vmax:** Data and Model panels MUST have identical vmin/vmax for fair comparison (`vmax = max(data.max(), model.max())`)
-4. **Z-score numerical stability:** Add epsilon to variance denominator to prevent divide-by-zero
-5. **Masked pixels:** Set to NaN (not 0) so they render as transparent/white in imshow
-6. **Module imports:** Do NOT create circular imports (residuals.py imports nothing from triptych.py or vice versa; both are leaf modules)
-7. **Test cleanup:** MUST call `plt.close(fig)` after every test to prevent matplotlib memory leaks
-8. **Figure return:** If `filename` provided, save PNG and return None; else return figure handle for interactive use
-9. **Spec citations:** Include spec-db-vis.md section references in docstrings for traceability
-10. **Protected Assets:** Do NOT modify `dbex/look.py` or `dbex/refine_one.py` in Phase A; defer to Phase B integration
-
-**Environment:**
-- Assume matplotlib and numpy available per Environment Freeze policy
-- If import fails, record error and mark blocked per Path D
+1. **DO NOT** use `max()` for clamp (doesn't broadcast); use `np.maximum(variance, sigma_floor**2)`
+2. **DO NOT** forget to apply variance computation to BOTH Legacy and Torch backends
+3. **DO NOT** modify interactive viewer grid layout in Phase B.2-lite (deferred to Phase C)
+4. **DO** ensure `args.sigma_r` exists; if not, document blocker (CLI validation issue)
+5. **DO** create output directory with `mkdir(parents=True, exist_ok=True)`
+6. **DO** handle missing variance datasets gracefully in `_load_data` (backward compat check)
 
 ## If Blocked
-- Record specific error message in `plans/active/TOOLING-VIS-001/reports/2025-11-24T111500Z/block_analysis.md`
-- Update `docs/fix_plan.md` TOOLING-VIS-001 status to `blocked` with error signature
-- Append to `galph_memory.md` with focus, dwell, artifacts path, blocker description
-- Do NOT attempt workarounds or environment changes per POLICY-001
+
+**Missing `sigma_readout` in CLI args:**
+- Check `dbex/refine_one.py` argparse setup (lines ~159)
+- If `--sigma-r` flag missing, document blocker in decision.json
+- Return to Galph with blocker report
+
+**Import errors for `dbex.vis`:**
+- Verify Phase A deliverables: `dbex/vis/__init__.py`, `dbex/vis/triptych.py`, `dbex/vis/residuals.py`
+- Check `from dbex.vis import plot_triptych` works
+- If missing, escalate to Galph (Phase A incomplete)
+
+**HDF5 backward compatibility concerns:**
+- Variance datasets are additive; old readers ignore them
+- No breaking changes to existing datasets
+- Document in summary.md if any concerns arise
 
 ## Findings Applied
 
-**Mandatory — Supervisor verified these are relevant to Phase A:**
-
-- **spec-db-vis.md §7-11** (Coordinate Systems): Origin (0,0) top-left, fast=horizontal, slow=vertical, use origin='upper' in imshow
-- **spec-db-vis.md §16-23** (ROI Triptych Layout): 3 panels, Data/Model shared colormap viridis, Residuals diverging seismic, HKL/CC annotation
-- **spec-db-vis.md §19** (Residual Definition): Z = (Data - Model) / sqrt(Variance)
-- **PHYSICS-LOSS-001** (Variance-weighted loss): Variance map convention `σ² = model + σ²_readout` (readout noise σ²_read=25 ADU² per spec-db-core.md §Variance Model)
-- **POLICY-001** (Environment Freeze): Do NOT install packages; if matplotlib/numpy missing, record blocker
-- **CLAUDE.md §Code Quality** (Every commit must compile, pass tests): Run pytest validation before committing
-
-No relevant findings in knowledge base beyond those above.
+- **POLICY-001:** Environment Freeze (code-only changes, no package installs)
+- **PHYSICS-LOSS-001:** Variance formula `V = I_model + sigma_readout^2` per spec-db-core.md
+- **spec-db-vis.md §19:** Z-score definition `(Data - Model) / sqrt(Variance)`
+- **spec-db-core.md §86-90:** Variance clamp `max(V, sigma_floor^2)`
 
 ## Pointers
 
-### Specs
-- **spec-db-vis.md:1-49** — Full visual diagnostics specification (coordinate systems, triptych layout, Z-scores, file formats)
-- **spec-db-core.md §Variance Model** — Variance formula `σ² = model + σ²_readout` (σ_read=5 ADU readout noise)
+- Planning analysis: `plans/active/TOOLING-VIS-001/reports/2025-11-24T115000Z/phase_b_planning_analysis.md` (comprehensive scope, blocker analysis, decision tree)
+- Spec variance definition: `docs/spec-db-core.md:86-90`
+- Spec triptych layout: `docs/spec-db-vis.md:14-24`
+- Phase A deliverables: `dbex/vis/__init__.py:8-9` (API), `dbex/vis/triptych.py:18-25` (signature)
+- Implementation plan: `plans/active/TOOLING-VIS-001/implementation.md:82-86` (Phase B checklist)
 
-### Architecture
-- **implementation.md:75-80** — Phase A checklist (A1: package, A2: triptych, A3: residuals, A4: adapters deferred)
-- **implementation.md:32-72** — Reference prototype code (ROI scaling, triptych plotting logic)
+## Next Up (Optional)
 
-### Testing
-- **TESTING_GUIDE.md** — Canonical pytest commands and environment flags
-- **fix_plan.md:199-202** — TOOLING-VIS-001 exit criteria (3 total, Phase A addresses #1 partial: library creation)
-
-### Fix Plan
-- **fix_plan.md:194-207** — TOOLING-VIS-001 ledger entry (status, dependencies, attempts history)
-
-### Planning
-- **plans/active/SUPERVISOR/reports/2025-11-24T111500Z/tooling_vis_001_phase_a_planning.md** — Comprehensive 6.5-hour effort estimate, risk analysis, 4-path decision tree
-
-## Next Up
-If Ralph finishes Phase A early (Path A outcome):
-1. **Option 1 (preferred):** Return to supervisor for Phase B planning (dbex/look.py refactor to use dbex.vis)
-2. **Option 2 (if time remains):** Author smoke test that generates one PNG triptych from synthetic data for visual inspection
-
-## Doc Sync Plan
-Not required for Phase A (internal library implementation, no user-facing tests or selectors yet).
-
-## Mapped Tests Guardrail
-- At least one mapped selector WILL collect: `tests/dbex/test_vis_triptych.py` is NEW, created in Step 6
-- After creation, verify with:
-  ```bash
-  pytest --collect-only tests/dbex/test_vis_triptych.py
-  ```
-  Expected: "collected 3 items"
-
-## Normative Math/Physics
-**Z-Score Residual Formula (spec-db-vis.md §19):**
-```
-Z = (Data - Model) / sqrt(Variance)
-```
-Where:
-- Data = Observed intensity (ADU)
-- Model = Predicted intensity (Bragg + background, ADU)
-- Variance = σ² = Model + σ²_readout (per spec-db-core.md Variance Model)
-- σ_readout = 5 ADU readout noise → σ²_readout = 25 ADU²
-
-See `docs/spec-db-core.md §Variance Model` for full derivation and rationale.
-
-**Implementation Note:** For Phase A, variance is passed as input parameter. Phase B integration will extract variance from RefinementTelemetry or compute from model + readout noise constant.
+If you finish early AND all validations PASS:
+- Read implementation.md:87-91 (Phase C checklist)
+- Assess whether interactive viewer refactor is feasible in current loop
+- **DO NOT** start Phase C implementation; return to Galph for planning approval

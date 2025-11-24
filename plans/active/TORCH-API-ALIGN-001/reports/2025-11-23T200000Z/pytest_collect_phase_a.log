@@ -1,0 +1,20 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+collected 5 items
+
+<Dir diffbragg_example>
+  <Package tests>
+    <Package dbex>
+      <Module test_bridge_mapping.py>
+        <Function test_dials_mapping_parity>
+      <Module test_sim_factory.py>
+        <Function test_panel_and_stitched_shapes>
+        <Function test_factory_cuda>
+      <Module test_experiment_parity.py>
+        <Function test_parity_small_fixture>
+      <Module test_bridge_custom_override.py>
+        <Function test_custom_override_exploratory>
+
+========================== 5 tests collected in 0.95s ==========================

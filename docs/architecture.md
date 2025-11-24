@@ -2,6 +2,7 @@
 
 Document version: 0.1 (aligned to Spec DB shards)
 Spec precedence: docs/spec-db.md (normative); this doc records ADRs, module layout, and developer guidance.
+Current-state implementation notes live under `docs/architecture/live_backend.md` and friends (`data_telemetry_flow.md`, `calibration_scaling.md`, `module_map.md`, `tests_mapping.md`).
 
 ## 1) System Overview
 

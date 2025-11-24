@@ -1,0 +1,30 @@
+
+==================================== ERRORS ====================================
+______________ ERROR at setup of test_stage_c_detector_microslip _______________
+
+smoke_dataset_paths = SmokeDatasetPaths(label='full', expt_path=PosixPath('/home/ollie/Documents/diffbragg_example/refGeom.expt'), refl_path...ocuments/diffbragg_example/refGeom.refl'), mask_path=PosixPath('/home/ollie/Documents/diffbragg_example/747_mask.pkl'))
+
+    @pytest.fixture
+    def refgeom_dataload(smoke_dataset_paths):
+        """
+        Load refGeom dataset for refinement tests (small or full detector).
+        """
+        from argparse import Namespace
+>       from dbex.data_load import DataLoad
+
+tests/dbex/test_torch_refine_smoke.py:102: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    
+    import pickle
+    from pathlib import Path
+    from typing import Dict, Optional, Sequence, Tuple
+    
+    import numpy as np
+>   from simtbx.diffBragg import utils
+E   ModuleNotFoundError: No module named 'simtbx'
+
+dbex/data_load.py:7: ModuleNotFoundError
+=========================== short test summary info ============================
+ERROR tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip - ModuleNotFoundError: No module named 'simtbx'
+=============================== 1 error in 1.06s ===============================

@@ -1,0 +1,15 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example
+configfile: pyproject.toml
+collecting ... collected 1 item
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip SKIPPEDcuments/diffbragg_example/sp.proc/refGeom_small/refGeom_small.expt'
+, '/home/ollie/Documents/diffbragg_example/sp.proc/refGeom_small/refGeom
+_small.refl', '/home/ollie/Documents/diffbragg_example/sp.proc/refGeom_s
+mall/refGeom_small_mask.pkl']. Run the crop script (plans/active/PERF-
+SMOKE-DETSIZE/bin/crop_refgeom_to_small.py) or regenerate refGeom
+assets.)                                                                 [100%]
+
+============================== 1 skipped in 0.82s ==============================

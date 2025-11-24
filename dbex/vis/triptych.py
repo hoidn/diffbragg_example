@@ -1,108 +1,128 @@
 """Triptych plotting utilities aligned with ``docs/spec-db-vis.md``.
 
-The spec mandates `(slow, fast)` ordering, sequential intensity colormaps for
-data/model, and a diverging residual colormap centred at zero.  The helper
-below enforces those rules and writes a standalone PNG artifact.
+The spec mandates `(slow, fast)` ordering (§7-11), sequential intensity colormaps for
+data/model (§20-22 viridis), and a diverging residual colormap centered at zero
+(§20-22 seismic). The helper below enforces those rules and writes a standalone PNG artifact.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
+import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib import colors as mcolors
-from matplotlib import pyplot as plt
 
-_INTENSITY_CMAP = "cividis"
-_RESIDUAL_CMAP = "coolwarm"
-
-
-def _finite_max(values: np.ndarray) -> float:
-    """Return the maximum finite value in ``values`` or zero if none exist."""
-    arr = np.asarray(values)
-    if arr.size == 0:
-        return 0.0
-    finite = arr[np.isfinite(arr)]
-    return float(finite.max()) if finite.size else 0.0
-
-
-def _validate_roi(name: str, roi: np.ndarray) -> np.ndarray:
-    """Convert the ROI to a 2-D NumPy array and validate shape."""
-    arr = np.asarray(roi)
-    if arr.ndim != 2:
-        raise ValueError(f"{name} must be 2-D (slow, fast); got shape {arr.shape}")
-    return arr
+from .residuals import compute_z_scores
 
 
 def plot_triptych(
-    data_roi: np.ndarray,
-    model_roi: np.ndarray,
-    residual_roi: np.ndarray,
-    out_path: str | Path,
-    *,
-    title: Optional[str] = None,
-) -> Path:
-    """Render a `(Data | Model | Residual)` triptych PNG for a single ROI.
+    data: np.ndarray,
+    model: np.ndarray,
+    variance: np.ndarray,
+    hkl: tuple | None = None,
+    correlation: float | None = None,
+    filename: str | None = None,
+) -> plt.Figure | None:
+    """Render standard ROI triptych per spec-db-vis.md.
+
+    Layout: [Observed Data | Model Prediction | Residual Z-Score]
+
+    Colormaps (spec-db-vis.md §20-22):
+    - Data/Model: 'viridis' (perceptually uniform), shared vmin=0, vmax=max(data, model)
+    - Residuals: 'seismic' (diverging), centered at 0, vmin=-5, vmax=5
+
+    Annotation: Super-title "HKL (h,k,l) | CC = {corr:.3f}" if hkl/correlation provided.
+
+    Coordinate system (spec-db-vis.md §7-11):
+    - (slow, fast) matrix coordinates
+    - Origin (0,0) top-left
+    - Fast axis horizontal, Slow axis vertical
+    - Use origin='upper' in imshow
 
     Args:
-        data_roi: Observed ROI slice shaped `(slow, fast)` in detector order.
-        model_roi: Model ROI slice shaped `(slow, fast)` matching ``data_roi``.
-        residual_roi: Residual (typically Z-score) slice `(slow, fast)`.
-        out_path: Destination path for the PNG artifact.
-        title: Optional super-title (e.g., ``HKL=120, CC=0.97``).
+        data: Observed intensity ROI slice shaped ``(slow, fast)`` [ADU].
+        model: Model prediction ROI slice shaped ``(slow, fast)`` [ADU].
+        variance: Variance map ROI slice shaped ``(slow, fast)`` [ADU²].
+                  Per spec-db-core.md: variance = model + sigma_readout^2.
+        hkl: Optional (h, k, l) Miller indices tuple for annotation.
+        correlation: Optional ROI correlation coefficient [0,1] for annotation.
+        filename: Optional PNG output path. If provided, saves figure and returns None.
+                  If None, returns figure handle for interactive use.
 
     Returns:
-        The resolved ``Path`` to the written PNG.
+        matplotlib.figure.Figure if filename is None, else None.
+
+    Examples:
+        >>> import numpy as np
+        >>> data = np.ones((10, 10)) * 5.0
+        >>> model = np.ones((10, 10)) * 3.0
+        >>> variance = np.ones((10, 10))
+        >>> fig = plot_triptych(data, model, variance, hkl=(1,2,3), correlation=0.95)
+        >>> len(fig.axes)
+        3
+        >>> plt.close(fig)
     """
+    # Validate inputs
+    data_arr = np.asarray(data, dtype=np.float32)
+    model_arr = np.asarray(model, dtype=np.float32)
+    variance_arr = np.asarray(variance, dtype=np.float32)
 
-    data = _validate_roi("data_roi", data_roi)
-    model = _validate_roi("model_roi", model_roi)
-    residual = _validate_roi("residual_roi", residual_roi)
-
-    if data.shape != model.shape or data.shape != residual.shape:
+    if data_arr.ndim != 2:
+        raise ValueError(f"data must be 2-D (slow, fast); got shape {data_arr.shape}")
+    if model_arr.shape != data_arr.shape:
         raise ValueError(
-            "ROI inputs must share the same `(slow, fast)` shape "
-            f"(data={data.shape}, model={model.shape}, residual={residual.shape})"
+            f"model must match data shape; got model={model_arr.shape}, data={data_arr.shape}"
+        )
+    if variance_arr.shape != data_arr.shape:
+        raise ValueError(
+            f"variance must match data shape; got variance={variance_arr.shape}, data={data_arr.shape}"
         )
 
-    out_path = Path(out_path)
-    out_path.parent.mkdir(parents=True, exist_ok=True)
+    # Compute Z-scores for residual panel
+    z_scores = compute_z_scores(data_arr, model_arr, variance_arr)
 
-    # Shared bounds for intensity panels to respect spec-db-vis.
-    max_intensity = max(_finite_max(data), _finite_max(model), 0.0)
-    if not np.isfinite(max_intensity) or max_intensity <= 0.0:
-        max_intensity = 1.0
+    # Shared colormap range for data/model (spec: vmin=0, vmax=max(data, model))
+    vmax_shared = float(max(np.nanmax(data_arr), np.nanmax(model_arr)))
+    if not np.isfinite(vmax_shared) or vmax_shared <= 0.0:
+        vmax_shared = 1.0
 
-    residual_extent = _finite_max(np.abs(residual))
-    if residual_extent <= 0.0:
-        residual_extent = 1.0
+    # Create figure with 3 panels
+    fig, axes = plt.subplots(1, 3, figsize=(12, 4), constrained_layout=True)
 
-    fig, axes = plt.subplots(1, 3, figsize=(10, 3), constrained_layout=True)
-    if title:
-        fig.suptitle(title, fontsize=12)
+    # Panel 0: Data (viridis, origin='upper')
+    axes[0].imshow(data_arr, cmap='viridis', origin='upper', vmin=0, vmax=vmax_shared)
+    axes[0].set_title("Data")
+    axes[0].set_xticks([])
+    axes[0].set_yticks([])
 
-    images = (
-        ("Data", data, dict(vmin=0.0, vmax=max_intensity, cmap=_INTENSITY_CMAP)),
-        ("Model", model, dict(vmin=0.0, vmax=max_intensity, cmap=_INTENSITY_CMAP)),
-        (
-            "Residual Z-Score",
-            residual,
-            dict(
-                cmap=_RESIDUAL_CMAP,
-                norm=mcolors.TwoSlopeNorm(
-                    vmin=-residual_extent, vcenter=0.0, vmax=residual_extent
-                ),
-            ),
-        ),
-    )
+    # Panel 1: Model (viridis, origin='upper', shared vmax with data)
+    axes[1].imshow(model_arr, cmap='viridis', origin='upper', vmin=0, vmax=vmax_shared)
+    axes[1].set_title("Model")
+    axes[1].set_xticks([])
+    axes[1].set_yticks([])
 
-    for axis, (name, image, kwargs) in zip(axes, images):
-        axis.imshow(image, origin="upper", **kwargs)
-        axis.set_title(name)
-        axis.set_xticks([])
-        axis.set_yticks([])
+    # Panel 2: Residual Z-Score (seismic, diverging, centered at 0, vmin=-5 vmax=5)
+    axes[2].imshow(z_scores, cmap='seismic', origin='upper', vmin=-5, vmax=5)
+    axes[2].set_title("Residual Z-Score")
+    axes[2].set_xticks([])
+    axes[2].set_yticks([])
 
-    fig.savefig(out_path, dpi=200, bbox_inches="tight")
-    plt.close(fig)
-    return out_path
+    # Super-title with HKL/CC if provided
+    if hkl is not None or correlation is not None:
+        title_parts = []
+        if hkl is not None:
+            h, k, l = hkl
+            title_parts.append(f"HKL ({h}, {k}, {l})")
+        if correlation is not None:
+            title_parts.append(f"CC = {correlation:.3f}")
+        fig.suptitle(" | ".join(title_parts), fontsize=12)
+
+    # Save or return
+    if filename is not None:
+        out_path = Path(filename)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        fig.savefig(filename, dpi=150, bbox_inches='tight')
+        plt.close(fig)
+        return None
+    else:
+        return fig

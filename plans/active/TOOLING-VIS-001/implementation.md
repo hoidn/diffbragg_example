@@ -74,10 +74,10 @@ def plot_roi_grid(rois, data_stack, model_stack, bg_stack, filename):
 
 ## Phase A — Library Implementation
 ### Checklist
-- [ ] A1: Create `dbex/vis/` package.
-- [ ] A2: Implement `triptych.py`: Standard layout, shared colormaps.
-- [ ] A3: Implement `residuals.py`: Z-score calculation (requires variance input).
- - [ ] A4: Ensure `dbex.vis` can consume existing ROI triptych artifacts and metrics (from `scripts/generate_simple_cubic_golden.py` and PERF-WARM-SIM-001 Stage A telemetry) as first-class inputs, rather than defining a new ROI schema. If those artifacts are missing required fields, extend that pipeline/contract in its home initiative and then adapt `dbex.vis` to the updated schema.
+- [x] A1: Create `dbex/vis/` package. ✓ COMPLETE (2025-11-24T111500Z)
+- [x] A2: Implement `triptych.py`: Standard layout, shared colormaps. ✓ COMPLETE (2025-11-24T111500Z)
+- [x] A3: Implement `residuals.py`: Z-score calculation (requires variance input). ✓ COMPLETE (2025-11-24T111500Z)
+ - [ ] A4: Ensure `dbex.vis` can consume existing ROI triptych artifacts and metrics (from `scripts/generate_simple_cubic_golden.py` and PERF-WARM-SIM-001 Stage A telemetry) as first-class inputs, rather than defining a new ROI schema. If those artifacts are missing required fields, extend that pipeline/contract in its home initiative and then adapt `dbex.vis` to the updated schema. (DEFERRED to Phase B integration)
 
 ## Phase B — Integration
 ### Checklist

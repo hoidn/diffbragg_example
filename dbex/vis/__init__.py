@@ -1,32 +1,18 @@
-"""Visualization helpers aligned with spec-db-vis standards."""
+"""Visual diagnostics library implementing spec-db-vis.md standards.
 
+This module provides standardized visualization primitives for ROI triptychs
+and residual analysis, aligned with the normative requirements in
+``docs/spec-db-vis.md``.
+
+Public API:
+    - plot_triptych: Standard 3-panel layout [Data | Model | Residual Z-Score]
+    - compute_z_scores: Z-score calculation per spec formula (Data-Model)/sqrt(Variance)
+"""
+
+from .residuals import compute_z_scores
 from .triptych import plot_triptych
-from .residuals import compute_z_scores, plot_z_scores
-from .stage_a import StageAROITriptych, emit_stage_a_roi_triptychs
-from .mapping import (
-    MappingRefinementConfig,
-    MappingRefinementResult,
-    MappingStageAContext,
-    build_mapping_stage_a_context,
-    refine_on_mapping_model,
-)
-
-
-def save_triptych(*args, **kwargs):
-    """Compatibility wrapper around :func:`plot_triptych`."""
-    return plot_triptych(*args, **kwargs)
-
 
 __all__ = [
     "plot_triptych",
-    "save_triptych",
     "compute_z_scores",
-    "plot_z_scores",
-    "StageAROITriptych",
-    "emit_stage_a_roi_triptychs",
-    "MappingStageAContext",
-    "MappingRefinementConfig",
-    "MappingRefinementResult",
-    "build_mapping_stage_a_context",
-    "refine_on_mapping_model",
 ]

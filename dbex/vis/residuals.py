@@ -1,46 +1,51 @@
-"""Residual and Z-score helpers for visualization.
+"""Residual and Z-score helpers for visualization per spec-db-vis.md.
 
 These utilities keep residual computation and Z-score scaling aligned with
-``docs/spec-db-vis.md`` and the variance-weighted loss semantics.  They are
+``docs/spec-db-vis.md`` §19 and the variance-weighted loss semantics. They are
 intentionally lightweight and operate on `(slow, fast)` ROI slices.
 """
 
 from __future__ import annotations
 
-from pathlib import Path
-from typing import Optional
-
 import numpy as np
-
-from .triptych import plot_triptych
 
 
 def compute_z_scores(
     data: np.ndarray,
     model: np.ndarray,
-    *,
-    variance: Optional[np.ndarray] = None,
-    mask: Optional[np.ndarray] = None,
-    sigma_floor: float = 1e-6,
+    variance: np.ndarray,
+    mask: np.ndarray | None = None,
 ) -> np.ndarray:
-    """Compute simple Z-score style residuals for a single ROI.
+    """Compute residual Z-scores per spec-db-vis.md §19.
+
+    Formula: Z = (Data - Model) / sqrt(Variance)
+
+    Masked pixels (mask=False or mask=0) are set to NaN for visualization.
+
+    Numerical stability: Add epsilon=1e-12 to denominator to prevent divide-by-zero.
 
     Args:
-        data: Observed ROI slice shaped ``(slow, fast)``.
-        model: Model ROI slice shaped ``(slow, fast)``.
-        variance: Optional variance array (same shape or broadcastable).
-                  When provided, Z = (data - model) / sqrt(max(variance,
-                  sigma_floor**2)).
-        mask: Optional boolean mask selecting valid pixels when estimating
-              a scalar scale from residuals (used when ``variance`` is None).
-        sigma_floor: Minimum standard deviation used to avoid division by
-                     zero and to keep Z-scores well-conditioned.
+        data: Observed ROI slice shaped ``(slow, fast)`` in detector order.
+        model: Model ROI slice shaped ``(slow, fast)`` matching ``data``.
+        variance: Variance array (same shape as data/model). Per spec-db-core.md,
+                  variance = model + sigma_readout^2 where sigma_readout=5 ADU.
+        mask: Optional boolean mask selecting valid pixels. Pixels where mask=False
+              or mask=0 are set to NaN in the output.
 
     Returns:
-        Array of Z-scores with the same shape as ``data``.
+        Z-score map with same shape as inputs. NaN where masked or variance <= 0.
+
+    Examples:
+        >>> data = np.array([[5, 5], [5, 5]], dtype=np.float32)
+        >>> model = np.array([[3, 3], [3, 3]], dtype=np.float32)
+        >>> variance = np.array([[1, 1], [1, 1]], dtype=np.float32)
+        >>> z_scores = compute_z_scores(data, model, variance)
+        >>> np.allclose(z_scores, 2.0, rtol=1e-5)
+        True
     """
-    data_arr = np.asarray(data)
-    model_arr = np.asarray(model)
+    data_arr = np.asarray(data, dtype=np.float64)
+    model_arr = np.asarray(model, dtype=np.float64)
+    variance_arr = np.asarray(variance, dtype=np.float64)
 
     if data_arr.shape != model_arr.shape:
         raise ValueError(
@@ -48,62 +53,28 @@ def compute_z_scores(
             f"got data={data_arr.shape}, model={model_arr.shape}"
         )
 
-    residual = data_arr - model_arr
+    if variance_arr.shape != data_arr.shape:
+        raise ValueError(
+            f"variance must match data/model shape; "
+            f"got variance={variance_arr.shape}, data={data_arr.shape}"
+        )
 
-    if variance is not None:
-        var_arr = np.asarray(variance)
-        # Allow broadcasting but guard against negative values.
-        denom = np.sqrt(np.maximum(var_arr, sigma_floor ** 2))
-    else:
-        if mask is not None:
-            mask_arr = np.asarray(mask, dtype=bool)
-            if mask_arr.shape != residual.shape:
-                raise ValueError(
-                    f"mask must match residual shape; "
-                    f"mask={mask_arr.shape}, residual={residual.shape}"
-                )
-            valid = residual[mask_arr]
-        else:
-            valid = residual.ravel()
+    residuals = data_arr - model_arr
 
-        if valid.size == 0:
-            sigma = sigma_floor
-        else:
-            sigma = float(np.std(valid.astype(np.float64)))
-            if not np.isfinite(sigma) or sigma <= 0.0:
-                sigma = sigma_floor
+    # Numerical stability: add epsilon to prevent divide-by-zero
+    std_dev = np.sqrt(variance_arr + 1e-12)
 
-        denom = sigma
+    z_scores = residuals / std_dev
 
-    z = residual / denom
-    return z.astype(np.float32, copy=False)
+    # Apply masking: set masked pixels to NaN
+    if mask is not None:
+        mask_arr = np.asarray(mask, dtype=bool)
+        if mask_arr.shape != data_arr.shape:
+            raise ValueError(
+                f"mask must match data shape; "
+                f"mask={mask_arr.shape}, data={data_arr.shape}"
+            )
+        z_scores = z_scores.copy()  # Avoid modifying input if broadcast
+        z_scores[~mask_arr] = np.nan
 
-
-def plot_z_scores(
-    data_roi: np.ndarray,
-    model_roi: np.ndarray,
-    out_path: str | Path,
-    *,
-    variance_roi: Optional[np.ndarray] = None,
-    mask_roi: Optional[np.ndarray] = None,
-    title: Optional[str] = None,
-) -> Path:
-    """Compute Z-scores for an ROI and render a triptych PNG.
-
-    This is a convenience wrapper that combines :func:`compute_z_scores`
-    with :func:`plot_triptych`.
-    """
-    z_roi = compute_z_scores(
-        data_roi,
-        model_roi,
-        variance=variance_roi,
-        mask=mask_roi,
-    )
-    return plot_triptych(
-        data_roi,
-        model_roi,
-        z_roi,
-        out_path=out_path,
-        title=title,
-    )
-
+    return z_scores.astype(np.float32)

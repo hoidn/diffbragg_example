@@ -108,7 +108,7 @@ def create_unified_simulator(
     beam_config : nanobrag_torch.config.BeamConfig
         X-ray beam properties (wavelength, polarization, flux).
     hkl_grid : torch.Tensor
-        Miller indices (3, N) on device/dtype.
+        3D structure factor grid (h_range, k_range, l_range) from build_structure_factor_grid.
     hkl_metadata : dict
         Keys: 'has_halo' (bool), 'hkl_ids_asu' (Optional[Tensor]), etc.
     mask_array : Optional[np.ndarray]
@@ -161,20 +161,24 @@ def create_unified_simulator(
         dtype = hkl_grid.dtype
     device = torch.device(device) if isinstance(device, str) else device
 
-    # Validate HKL grid shape
-    if hkl_grid.ndim != 2 or hkl_grid.shape[0] != 3:
-        raise ValueError(f"hkl_grid must be (3, N), got {hkl_grid.shape}")
+    # Validate HKL grid shape (3D grid from build_structure_factor_grid)
+    if hkl_grid.ndim != 3:
+        raise ValueError(f"hkl_grid must be 3D (h_range, k_range, l_range), got {hkl_grid.shape}")
     if hkl_grid.device != device or hkl_grid.dtype != dtype:
         raise ValueError(f"hkl_grid device/dtype mismatch: expected {device}/{dtype}, got {hkl_grid.device}/{hkl_grid.dtype}")
 
     # Normalize mask to device/dtype if provided
     normalized_mask = None
     if mask_array is not None:
-        normalized_mask = torch.tensor(mask_array, device=device, dtype=dtype)
+        # Handle torch.Tensor input (needs clone/detach, not torch.tensor)
+        if isinstance(mask_array, torch.Tensor):
+            normalized_mask = mask_array.to(device=device, dtype=dtype)
+        else:
+            normalized_mask = torch.tensor(mask_array, device=device, dtype=dtype)
         # Validate mask shape matches detector (panel or ROI-cropped)
-        expected_shape = (detector_config.pixels_slow, detector_config.pixels_fast)
+        expected_shape = (detector_config.spixels, detector_config.fpixels)
         if normalized_mask.shape != expected_shape:
-            raise ValueError(f"mask_array shape {mask_array.shape} does not match detector {expected_shape}")
+            raise ValueError(f"mask_array shape {normalized_mask.shape} does not match detector {expected_shape}")
 
     # Compute sqrt_scale for post-run application (per SCALE-004)
     sqrt_scale = None
@@ -186,11 +190,9 @@ def create_unified_simulator(
     detector = Detector(detector_config)
     crystal = Crystal(crystal_config)
 
-    # Attach HKL tensors to crystal
-    crystal.set_hkl_grid(hkl_grid)
-    if hkl_metadata.get('has_halo', False):
-        if 'hkl_ids_asu' in hkl_metadata and hkl_metadata['hkl_ids_asu'] is not None:
-            crystal.set_hkl_ids_asu(hkl_metadata['hkl_ids_asu'])
+    # Attach HKL tensors to crystal (direct assignment per original code pattern)
+    crystal.hkl_data = hkl_grid
+    crystal.hkl_metadata = hkl_metadata
 
     # Construct Simulator
     simulator = Simulator(
@@ -205,7 +207,7 @@ def create_unified_simulator(
     metadata = {
         'device': str(device),
         'dtype': str(dtype),
-        'hkl_count': hkl_grid.shape[1],
+        'hkl_grid_shape': tuple(hkl_grid.shape),
         'has_halo': hkl_metadata.get('has_halo', False),
         'mask_provided': mask_array is not None,
         'spot_scale_override': spot_scale_override,

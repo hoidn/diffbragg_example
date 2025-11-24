@@ -34,7 +34,6 @@ def warm_cache_off():
         del os.environ["NANOBRAGG_DISABLE_COMPILE"]
 
 
-@pytest.mark.xfail(reason="TORCH-API-ALIGN-001 Phase B wiring not yet implemented")
 def test_panel_and_stitched_shapes(warm_cache_off):
     """
     Validates unified simulator factory for one-panel and stitched multi-panel runs.
@@ -66,7 +65,6 @@ def test_panel_and_stitched_shapes(warm_cache_off):
     pass
 
 
-@pytest.mark.xfail(reason="TORCH-API-ALIGN-001 Phase B wiring not yet implemented")
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
 def test_factory_cuda(warm_cache_off):
     """

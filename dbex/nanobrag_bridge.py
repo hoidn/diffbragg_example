@@ -2053,41 +2053,30 @@ def simulate_forward_once(
             trusted_mask=inputs.trusted_mask[panel_id]
         )
 
-        # Convert mask_array to torch.Tensor if it's a numpy array
-        # Per compute_zero_iteration_metrics.py:88-89, nanobrag_torch Simulator
-        # expects torch.Tensor for mask_array
-        if detector_config.mask_array is not None and not isinstance(detector_config.mask_array, torch.Tensor):
-            detector_config.mask_array = torch.tensor(
-                detector_config.mask_array, dtype=torch.float32, device=device
-            )
+        # Use unified factory (Phase B2a: eliminates manual mask/HKL/simulator setup)
+        from dbex.refinement.helpers import create_unified_simulator
 
-        # Instantiate models (input.md Do Now step 4: wire beam_config to TorchCrystal)
-        detector_model = TorchDetector(detector_config, device=device)
-        crystal_model = TorchCrystal(
-            crystal_config,
+        simulator, _, sqrt_scale_value, _ = create_unified_simulator(
+            detector_config=detector_config,
+            crystal_config=crystal_config,
             beam_config=beam_config,
-            device=device
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            mask_array=detector_config.mask_array,
+            spot_scale_override=spot_scale_override,
+            device=device,
+            dtype=torch.float32,  # simulate_forward_once uses float32
+            calibration_metadata=None  # Not needed by factory for forward-only
         )
 
-        # Attach HKL data to crystal model
-        crystal_model.hkl_data = hkl_grid
-        crystal_model.hkl_metadata = hkl_metadata
-
-        # Run simulator (single source, GEOMETRY-002/HKL-ORIENT-001 applied in bridge)
-        # Per input.md Do Now: propagate beam_config for sample clipping when N_cells is enabled
-        simulator = Simulator(
-            detector=detector_model,
-            crystal=crystal_model,
-            beam_config=beam_config,
-            device=device
-        )
         panel_output = simulator.run()  # Returns torch.Tensor on device
 
         # Move to CPU and convert to numpy
         panel_output_np = panel_output.cpu().detach().numpy().astype(np.float32)
 
         # Apply sqrt(spot_scale_override) post-simulation (SCALE-002)
-        panel_output_scaled = panel_output_np * sqrt_spot_scale
+        # Factory returns sqrt_scale_value, use it instead of local sqrt_spot_scale
+        panel_output_scaled = panel_output_np * sqrt_scale_value
 
         # Store in bragg array
         bragg[panel_id] = panel_output_scaled
@@ -2274,10 +2263,7 @@ def simulate_forward_torch(
     # Determine spot scale override (SCALE-002)
     if spot_scale_override is None:
         spot_scale_override = 1.0
-    # Convert to tensor for differentiable scaling
-    sqrt_spot_scale_tensor = torch.tensor(
-        np.sqrt(spot_scale_override), dtype=dtype, device=device
-    )
+    # Note: sqrt_spot_scale_tensor now computed per-panel by factory
 
     # Prepare configs (shared across panels where applicable)
     beam_config = create_beam_config(beam)
@@ -2329,39 +2315,28 @@ def simulate_forward_torch(
             trusted_mask=inputs.trusted_mask[panel_id]
         )
 
-        # Convert mask_array to torch.Tensor with correct dtype
-        if detector_config.mask_array is not None and not isinstance(detector_config.mask_array, torch.Tensor):
-            detector_config.mask_array = torch.tensor(
-                detector_config.mask_array, dtype=dtype, device=device
-            )
-        elif isinstance(detector_config.mask_array, torch.Tensor):
-            # Ensure dtype matches
-            if detector_config.mask_array.dtype != dtype:
-                detector_config.mask_array = detector_config.mask_array.to(dtype=dtype, device=device)
+        # Use unified factory (Phase B2a: eliminates manual mask/HKL/simulator setup)
+        from dbex.refinement.helpers import create_unified_simulator
 
-        # Instantiate models (wire beam_config for consistency with simulate_forward_once)
-        detector_model = TorchDetector(detector_config, device=device)
-        crystal_model = TorchCrystal(
-            crystal_config,
+        simulator, _, sqrt_scale_value, _ = create_unified_simulator(
+            detector_config=detector_config,
+            crystal_config=crystal_config,
             beam_config=beam_config,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            mask_array=detector_config.mask_array,
+            spot_scale_override=spot_scale_override,
             device=device,
-            dtype=dtype
+            dtype=dtype,  # simulate_forward_torch uses caller-provided dtype (float32 or float64)
+            calibration_metadata=None
         )
 
-        # Attach HKL data to crystal model
-        crystal_model.hkl_data = hkl_grid
-        crystal_model.hkl_metadata = hkl_metadata
-
-        # Run simulator (single source, GEOMETRY-002/HKL-ORIENT-001 applied in bridge)
-        simulator = Simulator(detector=detector_model, crystal=crystal_model, device=device)
         panel_output = simulator.run()  # Returns torch.Tensor on device
 
-        # Ensure correct dtype
-        if panel_output.dtype != dtype:
-            panel_output = panel_output.to(dtype=dtype)
-
         # Apply sqrt(spot_scale_override) post-simulation (SCALE-002, differentiable)
-        panel_output_scaled = panel_output * sqrt_spot_scale_tensor
+        # Factory returns scalar, convert to tensor for differentiable scaling
+        sqrt_scale_tensor = torch.tensor(sqrt_scale_value, dtype=dtype, device=device)
+        panel_output_scaled = panel_output * sqrt_scale_tensor
 
         bragg_panels.append(panel_output_scaled)
 

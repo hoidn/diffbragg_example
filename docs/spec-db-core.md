@@ -14,6 +14,7 @@ Units, Frames, and Conventions (Normative)
   - Crystal: Å and degrees; convert to meters only for geometry‑physics dot products.
   - Wavelength: Å.
   - Output: intensity in photons (physical) from the simulator; ADU used as input target unless user converts.
+  - Calibration/units precedence and telemetry requirements are normative per `docs/spec-db-workflow.md` (“Calibration & Unit Conventions” addendum); implementers SHALL follow that ladder and emit the required provenance fields.
 - Frames and vectors:
   - Panel basis (f,s,o) SHALL be orthonormal in lab frame.
   - Beam vector SHALL point sample→source and be normalized.

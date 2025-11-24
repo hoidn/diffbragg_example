@@ -1,0 +1,55 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 10 items / 1 deselected / 9 selected
+
+tests/dbex/test_stage_a_adam_tooling.py::test_stage_a_components_dataclass PASSED [ 11%]
+tests/dbex/test_stage_a_adam_tooling.py::test_stage_a_debug_config_dataclass PASSED [ 22%]
+tests/dbex/test_stage_a_adam_tooling.py::test_create_debug_run_dir PASSED [ 33%]
+tests/dbex/test_stage_a_adam_tooling.py::test_write_commands_txt PASSED  [ 44%]
+tests/dbex/test_stage_a_adam_tooling.py::test_build_dataload_real_assets PASSED [ 55%]
+tests/dbex/test_stage_a_adam_tooling.py::test_setup_environment_determinism PASSED [ 66%]
+tests/dbex/test_stage_a_adam_tooling.py::test_stage_a_forward_smoke FAILED [ 77%]
+tests/dbex/test_stage_a_adam_tooling.py::test_zero_point_check_integration PASSED [ 88%]
+tests/dbex/test_stage_a_adam_tooling.py::test_cli_help_succeeds PASSED   [100%]
+
+=================================== FAILURES ===================================
+__________________________ test_stage_a_forward_smoke __________________________
+tests/dbex/test_stage_a_adam_tooling.py:233: in test_stage_a_forward_smoke
+    assert loss_t.ndim == 0  # Scalar
+E   AttributeError: 'dict' object has no attribute 'ndim'
+----------------------------- Captured stdout call -----------------------------
+auto-selected 3-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-28,10] hit_rate=55296101/56016009 (98.71%)
+auto-selected 3-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-28,10] hit_rate=55296103/56016009 (98.71%)
+=============================== warnings summary ===============================
+tests/dbex/test_stage_a_adam_tooling.py:304
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_stage_a_adam_tooling.py:304: PytestUnknownMarkWarning: Unknown pytest.mark.slow - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.slow
+
+tests/dbex/test_stage_a_adam_tooling.py::test_stage_a_components_dataclass
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_stage_a_adam_tooling.py::test_stage_a_components_dataclass
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_stage_a_adam_tooling.py::test_stage_a_components_dataclass
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_stage_a_adam_tooling.py::test_stage_a_components_dataclass
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+tests/dbex/test_stage_a_adam_tooling.py::test_stage_a_forward_smoke
+tests/dbex/test_stage_a_adam_tooling.py::test_zero_point_check_integration
+  /home/ollie/Documents/nanoBragg/src/nanobrag_torch/simulator.py:579: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
+    self.fluence = torch.tensor(self.beam_config.fluence, device=self.device, dtype=self.dtype)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_stage_a_adam_tooling.py::test_stage_a_forward_smoke - AttributeError: 'dict' object has no attribute 'ndim'
+====== 1 failed, 8 passed, 1 deselected, 7 warnings in 148.71s (0:02:28) =======

@@ -565,3 +565,13 @@
 - <Action State>: [review_or_housekeeping]
 
 2025-11-24T132900Z focus=HOUSEKEEPING state=review_or_housekeeping dwell=0 artifacts=N/A next_action=steady_state_await_priorities
+## 2025-11-24T213251Z — TOOLING-VIS-001 Phase D.A Evidence Plan (DB-AT-027 Prep)
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics (Phase D.A measurements)
+- Action Type: planning
+- Key Observations: Tier 1 roadmap now hinges on quantifying Stage A vs mapping deltas before touching calibration (D.C) or zero-point probes (D.B). Refreshed fix_plan entries, created artifacts dir `plans/active/TOOLING-VIS-001/reports/2025-11-24T213251Z/`, and drafted the evidence plan + input.md so Ralph can (a) rerun DB-AT-024 with metadata sigma, (b) extend `generate_stage_a_refgeom_roi_triptychs_adam.py` with `--out-dir` + JSON metrics, and (c) emit `stage_a_mapping_diagnosis.md` covering chi²_per_pixel, ROI CC vs data for mapping/stage A, and global intensity ratios relative to `docs/spec-db-conformance.md:201-280`. No production edits yet; environment freeze honored.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-24T213251Z/
+- Next Actions: Ralph executes the Phase D.A runbook from input.md (mapping test, driver update, metrics+diagnosis) to unblock D.B.
+- <Action State>: [ready_for_implementation]
+
+2025-11-24T213251Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=0 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-24T213251Z/ next_action=phase_DA_metrics_and_diagnosis

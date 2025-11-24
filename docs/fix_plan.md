@@ -25,6 +25,7 @@
 - [PERF-SMOKE-DETSIZE] (Small-detector fixture) — **Done**
 - [TORCH-GEOMETRY-UB-REALIGN-001] (Stage A UB Parameterization Realignment) — **Done** (Phase C complete 2025-11-23T023142Z: incremental UB parameterization implemented, validated via DB-AT-026, GEOMETRY-004 documented)
 - [TOOLING-VIS-001] (Stage A Mapping Alignment & Visual Diagnostics) — `substantial_progress` (Phase D plan drafted 2025-11-24T160000Z; Stage A vs mapping parity and DB-AT-027/028/029 implementation prioritized as Tier 1 physics work)
+- [ARCH-SPLIT-001] (Split refinement/tooling monoliths) — **Pending** (refine_one / nanobrag_refinement / stage_a_adam are oversized; converge on single seam, reduce drift risk)
 
 ### Tier 2: Architectural Maturity
 **Goal:** Break the monolithic `run_nanobrag_refinement` into a maintainable Protocol Engine.
@@ -198,6 +199,20 @@
 - Status: in_progress (2025-11-24T224133Z — Phase D.B artifact logging complete; Phase D.C calibration plumbing ready for implementation)
 - Priority: Medium
 - Owner/Date: Ralph/Galph (2025-11-24T111500Z → 2025-11-24T123051Z)
+
+### [ARCH-SPLIT-001] Split refinement/tooling monoliths
+- Depends on: docs/spec-db-workflow.md, docs/spec-db-core.md, ARCH-REFACTOR-001 exit #9 (single simulator seam)
+- Status: pending (planned Tier 1 refactor to reduce drift risk; no code moved yet)
+- Priority: Tier 1 (Core stability/risk)
+- Owner/Date: Unassigned
+- Exit Criteria (summary):
+  1. `run_nanobrag_refinement` delegates to modular helpers sharing the unified simulator seam; no duplicate wiring paths.
+  2. `nanobrag_refinement.py` reduced to orchestration glue (stage ops/telemetry extracted) with stable API.
+  3. `refine_one.py` parsing separated from backend/HDF5 logic; ROI scoring/variance logic single-sourced.
+  4. `tools/stage_a_adam.py` split into config/probes/I/O modules with lazy imports preserved.
+  5. Regression guards (DB-AT-024/026, forward-equivalence, CLI smoke, stage_a_adam tests) pass; test registries updated with collect-only logs.
+- Working Plan: `plans/active/ARCH-SPLIT-001/implementation.md`
+- Attempts History: None (new)
 - Exit Criteria:
   1. `dbex.vis` module created implementing `spec-db-vis.md` standards (Z-scores, triptychs) — ✓ COMPLETE (Phase A, 2025-11-24T111500Z: 3/3 tests PASSED)
   2. `dbex/look.py` refactored to use `dbex.vis` for rendering — ✓ PARTIAL (Phase B.2-lite static export complete 2025-11-24T115000Z; interactive viewer refactor deferred Phase C)

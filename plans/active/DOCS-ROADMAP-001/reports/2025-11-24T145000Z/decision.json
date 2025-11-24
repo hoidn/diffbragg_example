@@ -1,0 +1,183 @@
+{
+  "loop_id": "i=276",
+  "timestamp": "2025-11-24T145000Z",
+  "owner": "ralph",
+  "phase": "B",
+  "task": "Thin nanobrag_integration_plan.md by replacing normative duplication with spec references",
+
+  "decision_path": "A",
+  "decision_paths": {
+    "A": "Ideal - Line reduction ~50%, phase structure preserved, all spec refs valid",
+    "B": "Partial - Line reduction <40%, need additional thinning",
+    "C": "Issue - Phase structure damaged, need to restore",
+    "D": "Blocker - Cannot complete thinning, escalate to Galph"
+  },
+
+  "validation_results": {
+    "line_reduction": {
+      "before": 305,
+      "after": 146,
+      "removed": 159,
+      "reduction_pct": 52.1,
+      "target_range": [150, 200],
+      "status": "PASS"
+    },
+    "phase_structure": {
+      "phase_headers_intact": true,
+      "headers": [
+        "Phase 0 – Environment & Baseline (verification only, 1–2 days)",
+        "Phase 1 – Data Preparation Bridge (2–3 days)",
+        "Phase 2 – PyTorch Model & Parameterization (3–4 days)",
+        "Phase 3 – Training Schedule & Loss (3 days)",
+        "Phase 4 – CLI Integration & Output (2 days)",
+        "Phase 5 – Validation & Documentation (3–4 days)"
+      ],
+      "status": "PASS"
+    },
+    "task_lists": {
+      "task_bullets_count": 29,
+      "preserved": true,
+      "status": "PASS"
+    },
+    "deliverables_checklist": {
+      "intact": true,
+      "lines": "~130-138",
+      "items": 8,
+      "status": "PASS"
+    },
+    "open_questions": {
+      "intact": true,
+      "lines": "~140-146",
+      "items": 5,
+      "status": "PASS"
+    },
+    "spec_references": {
+      "replacements_applied": 10,
+      "sections_replaced": [
+        "Incorporated Clarifications (lines 10-21)",
+        "Stage Policy (lines 23-27)",
+        "Mapping-Aligned Baseline (lines 28-35)",
+        "Config Mapping (lines 55-61)",
+        "Pixel Geometry/Masks/Units (lines 65-85)",
+        "Multi-panel (lines 87-104)",
+        "Parameter Constraints (lines 124-139)",
+        "Loss/Optimizer (lines 156-176)",
+        "Refinement Nucleus (lines 184-231)",
+        "Stage B Details (lines 232-244)"
+      ],
+      "status": "PASS"
+    },
+    "diff_summary": {
+      "lines_removed": 173,
+      "lines_added": 14,
+      "net_reduction": 159,
+      "file": "plans/active/DOCS-ROADMAP-001/reports/2025-11-24T145000Z/diff_summary.txt",
+      "status": "PASS"
+    }
+  },
+
+  "normative_sections_replaced": {
+    "1": {
+      "topic": "Incorporated Clarifications",
+      "old_lines": "10-21 (12 lines)",
+      "new_ref": "For detector config mapping, masks, units, and ROI semantics, see docs/nanobrag_api.md, docs/spec-db-core.md, and docs/dials_api.md.",
+      "spec_locations": [
+        "docs/nanobrag_api.md",
+        "docs/spec-db-core.md",
+        "docs/dials_api.md"
+      ]
+    },
+    "2": {
+      "topic": "Stage Policy + Mapping-Aligned Baseline",
+      "old_lines": "23-35 (13 lines)",
+      "new_ref": "Stage refinement targets and interpolation requirements are defined in docs/spec-db-workflow.md §Stage A/B/C (lines 34-66). For mapping parity requirements and Stage A zero-point conventions, see docs/spec-db-conformance.md (DB-AT-024) and docs/spec-db-workflow.md §Baseline Convention (lines 29-32).",
+      "spec_locations": [
+        "docs/spec-db-workflow.md:34-66",
+        "docs/spec-db-conformance.md (DB-AT-024)",
+        "docs/spec-db-workflow.md:29-32"
+      ]
+    },
+    "3": {
+      "topic": "Config Mapping",
+      "old_lines": "55-61 (7 lines)",
+      "new_ref": "Config construction from DIALS Experiment metadata is documented in docs/config_crosswalk.md and docs/nanobrag_api.md.",
+      "spec_locations": [
+        "docs/config_crosswalk.md",
+        "docs/nanobrag_api.md"
+      ]
+    },
+    "4": {
+      "topic": "Pixel Geometry/Masks/Units",
+      "old_lines": "65-85 (21 lines)",
+      "new_ref": "For pixel geometry constraints, mask handling, and unit conventions, see docs/spec-db-core.md.",
+      "spec_locations": [
+        "docs/spec-db-core.md"
+      ]
+    },
+    "5": {
+      "topic": "Multi-panel",
+      "old_lines": "87-104 (18 lines)",
+      "new_ref": "Multi-panel simulation and stitching workflow is specified in docs/spec-db-workflow.md §Per-Panel Simulation (lines 13-16).",
+      "spec_locations": [
+        "docs/spec-db-workflow.md:13-16"
+      ]
+    },
+    "6": {
+      "topic": "Parameter Constraints",
+      "old_lines": "124-139 (16 lines)",
+      "new_ref": "Parameter constraints and baseline crystal state are defined in docs/spec-db-core.md §Baseline Crystal State and Parameterization (lines 34-57).",
+      "spec_locations": [
+        "docs/spec-db-core.md:34-57"
+      ]
+    },
+    "7": {
+      "topic": "Loss/Optimizer",
+      "old_lines": "156-176 (21 lines)",
+      "new_ref": "Variance-weighted loss definition and optimizer requirements are specified in docs/spec-db-core.md §Variance Model (lines 82-95) and docs/spec-db-runtime.md §Optimizer Requirements (lines 51-73).",
+      "spec_locations": [
+        "docs/spec-db-core.md:82-95",
+        "docs/spec-db-runtime.md:51-73"
+      ]
+    },
+    "8": {
+      "topic": "Refinement Nucleus",
+      "old_lines": "184-231 (48 lines)",
+      "new_ref": "Refinement lifecycle, convergence gates, and telemetry schema are defined in docs/spec-db-workflow.md §Refinement Lifecycle (lines 82-120) and docs/spec-db-runtime.md.",
+      "spec_locations": [
+        "docs/spec-db-workflow.md:82-120",
+        "docs/spec-db-runtime.md"
+      ]
+    },
+    "9": {
+      "topic": "Stage B Details",
+      "old_lines": "232-244 (13 lines)",
+      "new_ref": "Stage B structure-factor refinement implementation is specified in docs/spec-db-workflow.md §Stage B (lines 58-66).",
+      "spec_locations": [
+        "docs/spec-db-workflow.md:58-66"
+      ]
+    }
+  },
+
+  "findings_applied": [
+    "POLICY-001 (Environment Freeze - documentation-only work, no code/env changes)",
+    "CLAUDE.md (Incremental progress - 3-phase breakdown allows validation at each step)",
+    "Phase A mapping analysis (100% normative duplication confirmed, 0 spec gaps)"
+  ],
+
+  "exit_criteria_status": {
+    "1_no_normative_duplication": "SATISFIED - All 10 major normative sections replaced with spec references",
+    "2_phase_structure_intact": "SATISFIED - Phase 0-5 headers, task lists, timelines preserved",
+    "3_deliverables_checklist_intact": "SATISFIED - Lines 130-138, 8 items intact",
+    "4_open_questions_intact": "SATISFIED - Lines 140-146, 5 items intact",
+    "5_line_reduction_50pct": "SATISFIED - 52.1% reduction (305 → 146 lines)",
+    "6_spec_references_valid": "SATISFIED - All references point to existing spec files/sections per Phase A mapping"
+  },
+
+  "next_actions": {
+    "phase_c": "Update cross-references (docs/index.md line 131, verify test references)",
+    "supervisor": "Review decision.json and summary.md, assess Phase C scope"
+  },
+
+  "confidence": "HIGH (~95%)",
+  "confidence_rationale": "All validation gates PASSED: 52% line reduction achieved, phase structure intact, normative → spec replacements applied per Phase A recommendations, deliverables/open questions preserved, diff confirms ~173 line removal from normative sections only"
+}

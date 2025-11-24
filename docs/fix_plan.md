@@ -27,6 +27,7 @@
 **Goal:** Break the monolithic `run_nanobrag_refinement` into a maintainable Protocol Engine.
 - [ARCH-REFINE-FLOW-001] (Protocol Engine) — **Done** (2025-11-23T172000Z: Phases A-E complete, Stage A/B/C wrappers validated, engine delegation operational)
 - [PERF-WARM-SIM-001] (Warm Simulator) — *Pending (UNBLOCKED by ARCH-REFINE-FLOW-001 completion)*
+ - [TORCH-API-ALIGN-001] (Adopt ExperimentModel, Unify Simulator Wiring, DIALS Mapping) — *Pending* (New; dbex-only changes; default path uses DIALS mapping without engine patches; optional CUSTOM override behind a flag; warm-cache changes deferred)
 
 ### Tier 3: Feature Completeness
 **Goal:** Implement normative spec features currently using fallback modes.

@@ -25,6 +25,7 @@
 - Phase A — Physics Extraction: Isolate math kernels (`dbex.geometry`, `dbex.physics`) to secure "leaf nodes".
 - Phase B — Telemetry Standardization: Modernize `RefinementTelemetry` and HDF5 I/O.
 - Phase C — Incremental Engine Migration: Introduce `SimulationContext` and `RefinementStage` patterns gradually, keeping existing facade alive.
+  - Prerequisite: TORCH-API-ALIGN-001 Phase B completed (unified simulator factory + ExperimentModel adapter in parity-first mode). Stages should consume the unified factory seam; mid-term we may route the factory via ExperimentModel or vice versa to avoid two public paths.
 - Phase D — Legacy Hygiene & Tooling: Fix DiffBragg scratch semantics and refactor brittle orchestration scripts into importable modules/CLIs.
 
 ## Exit Criteria
@@ -42,6 +43,7 @@
 - [ ] **Spec Constraint:** `docs/spec-db-core.md` — Variance Definition: `V = I_model + sigma^2` (detached) logic must be preserved in `dbex.physics`.
 - [ ] **Spec Constraint:** `docs/spec-db-runtime.md` — Device neutrality: New classes must accept device/dtype configuration.
 - [ ] **Fix-Plan Link:** `docs/fix_plan.md — Row [ARCH-REFACTOR-001]`
+- [ ] **Fix-Plan Link (dependency):** `plans/active/TORCH-API-ALIGN-001` — Simulator wiring unification + ExperimentModel adapter
 - [ ] **Finding/Policy ID:** `PERF-WARM-SIM-001` — Warm cache behavior must be preserved in the new `SimulationContext`.
 - [ ] **Finding/Policy ID:** `REFINE-001` — LBFGS scale warm-start patterns must transfer to new architecture.
 - [ ] **Policy:** Layered-Scope Guard — Do not refactor higher layers while lower layers (physics) are unstable.

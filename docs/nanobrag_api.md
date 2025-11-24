@@ -4,14 +4,17 @@ This document summarizes the public, integration‑ready API surface of `nanobra
 
 Scope: `src/nanobrag_torch/{simulator.py, models/{crystal.py,detector.py}, config.py, io/hkl.py}`
 
-Import name
+Import Name
 
-- Python import module: `nanobrag_torch`
-- Quick example:
+- Python package: `nanobrag_torch`
+- Preferred imports (current API surface):
   ```python
   import nanobrag_torch as nbt
-  from nanobrag_torch import Simulator, DetectorConfig, CrystalConfig, BeamConfig
+  from nanobrag_torch.simulator import Simulator          # submodule import (recommended)
+  from nanobrag_torch.config import DetectorConfig, CrystalConfig, BeamConfig
   ```
+  Note: Some examples may show top‑level imports (e.g., `from nanobrag_torch import Simulator`).
+  The supported and recommended path is the submodule import shown above.
 
 ## Runtime and Environment
 - torch.compile: Simulator compiles physics kernels; reuses compiled graphs when tensor shapes are unchanged. GPU defaults to mode="max-autotune"; CPU may use "reduce-overhead".
@@ -24,7 +27,9 @@ Import name
 - Crystal cell: Angstroms and degrees.
 - Beam wavelength: Angstroms; `BeamConfig.wavelength_A`.
 - Output intensity: physical “photons” with r_e² × fluence scaling.
-- Beam vector direction: pass sample→source as `DetectorConfig.custom_beam_vector` (normalize −s0).
+- Beam vector direction:
+  - Default mapping (dbex): use DIALS convention with beam‑center swap and panel‑axis rotations. In current engines, `custom_beam_vector` is ignored under DIALS; mapping fidelity comes from beam‑center (mm) and rotation angles.
+  - Explicit override (advanced): set `DetectorConfig.custom_beam_vector = normalize(−s0)` under CUSTOM convention and provide `custom_fdet/custom_sdet/custom_odet` from panel axes. Note CUSTOM forces SAMPLE pivot; validate parity on your fixtures.
 - Beam center ordering: DetectorConfig expects `(beam_center_s, beam_center_f)`. dxtbx returns `(fast, slow)`; swap.
 - Variance contract: the downstream loss MUST reuse the spec’d `V = model_Lambda + sigma_r^2` (shot noise from the model plus readout noise supplied in photon units). See `docs/spec-db-core.md`.
 
@@ -75,6 +80,10 @@ Import name
   - `pixel_coords` (S,F,3) on device/dtype of Simulator on first use.
   - `roi_mask` (S,F) from config and mask_array; applied after intensity computation.
 - Square pixels only; for rectangular pixels, use separate Detectors.
+
+Notes on incident beam direction and conventions
+- DIALS mapping (default in dbex): convention defaults are used for beam direction; `custom_beam_vector` has no effect. Geometry is captured via beam‑center (s,f) in mm and panel rotations.
+- CUSTOM override (flagged in dbex): to force an explicit incident direction (−s0), use CUSTOM with a full custom basis and `custom_beam_vector`. This engages SAMPLE pivot; parity must be validated.
 
 ### Crystal
 - Cell tensors computed honoring MOSFLM A*, then applying `misset_deg` (XYZ extrinsic).
@@ -166,7 +175,11 @@ Internally:
 
 - Builds derived configs from the Stage‑A parameter modules.
 - Instantiates `Crystal`, `Detector`, and `Simulator` on the requested `device`/`dtype`.
-- Configures `crystal.hkl_data` / `hkl_metadata` exactly as in the legacy path (caller still sets the HKL grid as described above).
+- Configures structure factors exactly as in the legacy path. When using the high‑level model, callers SHOULD set structure factors explicitly via:
+  ```python
+  experiment.set_structure_factors(F_grid, metadata)  # preferred, mirrors legacy HKL wire‑up
+  ```
+  (or by assigning `crystal.hkl_data/_metadata` directly on the underlying Crystal model, if needed).
 - Calls `Simulator.run()` and returns the float image.
 
 ### Example: Frozen Parity Path

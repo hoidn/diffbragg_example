@@ -56,3 +56,8 @@
 ## Artifacts Index
 - Reports root: `plans/active/NANOBRAG-BACKEND-002/reports/`
 - Latest run: `2025-11-04T021141Z/`
+
+## Wrap-up Notes (2025-11-23)
+- Simulator wiring is being centralized via the unified factory under TORCH-API-ALIGN-001 (Phase B). Backend call sites should migrate to the factory as that work lands; no functional change expected.
+- ExperimentModel parity tests exist (param_init="frozen"). They validate that high-level usage matches legacy wiring on fixtures.
+- Documentation now prefers submodule imports for Simulator (`from nanobrag_torch.simulator import Simulator`); update examples and helpers accordingly (no code change required here).

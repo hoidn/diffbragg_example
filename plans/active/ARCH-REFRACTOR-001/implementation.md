@@ -1,3 +1,3 @@
 # Implementation Plan: ARCH-REFACTOR-001
 
-Status: pending (stub created to satisfy docs/fix_plan.md reference).
+Status: archived (superseded by plans/active/ARCH-REFACTOR-001/implementation.md). All updates should be made in the main plan file.

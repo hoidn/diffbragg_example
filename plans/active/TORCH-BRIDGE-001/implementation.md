@@ -33,13 +33,14 @@ Status: in_progress
 
 ## Phase B — Config Hydration
 ### Checklist
-- [x] B1: Map Detector (CUSTOM, pixel size guard, beam centre swap)
+ - [x] B1: Map Detector (DIALS convention, pixel size guard, beam centre swap)
+ - [ ] B1.1: Optional CUSTOM override (flagged) — Build CUSTOM detectors with `custom_fdet/custom_sdet/custom_odet` from panel axes and `custom_beam_vector=normalize(−s0)`. Record exploratory parity deltas on fixtures; keep this path OFF by default.
 - [x] B2: Map Beam (wavelength, polarization) and Crystal (unit cell + A*)
 
 **Completed:** 2025-10-28T224846Z
 **Artifacts:** plans/active/TORCH-BRIDGE-001/reports/2025-10-28T224846Z/
 **Module:** dbex/nanobrag_bridge.py (added config stubs and 3 helper functions)
-**Tests:** tests/dbex/test_nanobrag_bridge_configs.py (14 new tests, all passing)
+**Tests:** tests/dbex/test_nanobrag_bridge_configs.py (14 tests passing); add-on exploratory test for CUSTOM override (under flag) will record parity deltas on fixtures.
 
 ## Phase C — Smoke Harness
 ### Checklist

@@ -1,5 +1,7 @@
 # PERF-WARM-SIM-001 — Warm Simulator; Eliminate Per‑Iteration Re‑Instantiation
 
+> Deferral Note (2025-11-23): Per TORCH-API-ALIGN-001, all warm/cold cache work is deferred until after the simulator wiring refactor and ExperimentModel adapter land. Do not modify warm-cache logic during that initiative. New parity/adapter tests will force warm-cache OFF and set `NANOBRAGG_DISABLE_COMPILE=1` via fixtures for determinism.
+
 ## Motivation
 Current refinement loops repeatedly re‑instantiate `Detector`, `Crystal`, and `Simulator` for every closure/iteration and for each sampled panel (e.g., Stage A/B/C paths in `dbex/nanobrag_refinement.py`). This guarantees fresh state but imposes a large, avoidable performance tax, especially with CPU‑only, compile‑disabled test settings and LBFGS’s multi‑closure behavior. Migrating to a warm, reusable simulator with parameter‑only updates should yield substantial speedups without changing physics.
 

@@ -21,9 +21,12 @@ Pipeline (Normative)
    - If `--adu-per-photon` is provided, target SHALL be converted to photons by dividing by this factor; else target remains in ADU.
    - A learnable global positive scale SHALL be included when training in ADU; recommended initialization is mean(target)/mean(sim_initial) over a small ROI sample.
 5) Per‑Panel Simulation
-   - Build one Detector per panel (CUSTOM convention), with square‑pixel guard and explicit beam centre.
+   - Build one Detector per panel using the DIALS convention, with:
+     - Square‑pixel guard and explicit beam centre (swap dxtbx order from `(fast, slow)` to `(beam_center_s, beam_center_f)` in mm).
+     - Rotation angles derived from panel axes (fast/slow/normal) via analytic inversion or scitbx helpers (XYZ extrinsic), validated by reconstruction.
+   - Note on incident direction: In current engines, `custom_beam_vector` is ignored under DIALS. Mapping fidelity comes from beam‑centre (mm) and panel rotations. For use‑cases requiring an explicit incident direction (normalized −s0), projects MAY build CUSTOM detectors with full custom basis vectors and `custom_beam_vector` behind a feature flag; CUSTOM forces SAMPLE pivot and MUST be parity‑validated on fixtures.
    - Run Simulator per panel and stitch into a full‑frame `Bragg` tensor matching `[panel, slow, fast]`.
-   - ROI‑only compute MAY be used by constructing cropped Detectors per ROI and stitching outputs.
+   - ROI‑only compute MAY be used by constructing cropped Detectors per ROI (with beam centre shifted by crop offsets in mm) and stitching outputs.
 6) Loss (Variance-Weighted / Chi-Squared)
    - Loss SHALL be `Sum( (Bragg - target)^2 / (Bragg.detach() + sigma_rdout^2) )` over trusted pixels.
    - This approximates an IRLS (Iteratively Reweighted Least Squares) objective compatible with Poisson + Readout noise.

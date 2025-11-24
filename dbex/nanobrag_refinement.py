@@ -2467,6 +2467,15 @@ def _build_final_bragg_from_stage_a_telemetry(
                 sqrt_spot_scale = float(np.sqrt(spot_scale_override))
                 log_scale_baseline_value = float(np.log(sqrt_spot_scale))
 
+                # DEBUG: Print values for first panel only
+                if pid == 0:
+                    print(f"[_build_final_bragg_from_stage_a_telemetry DEBUG pid={pid}]")
+                    print(f"  spot_scale_override={spot_scale_override:.6e}")
+                    print(f"  sqrt_spot_scale={sqrt_spot_scale:.6e}")
+                    print(f"  log_scale_baseline_value={log_scale_baseline_value:.6f}")
+                    print(f"  log_scale['final']={float(log_scale.item()):.6f}")
+                    print(f"  panel_bragg (unscaled) mean={float(panel_bragg.mean()):.6e} max={float(panel_bragg.max()):.6e}")
+
                 # Convert to tensor
                 log_scale_baseline_t = torch.tensor(log_scale_baseline_value, device=device, dtype=dtype)
 

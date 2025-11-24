@@ -1,6 +1,6 @@
 ### Turn Summary
-Documented spot_scale misapplication as the remaining DB-AT-027 blocker: Stage A engine paths skip the mapping spot-scale baseline, yielding mean_abs_diff=57.07 and max_abs_diff=1.34e7 despite chi² parity.
-Refreshed input.md with a calibrated Do Now to thread spot_scale_override through Stage A warm cache/Bragg reconstruction, align probe logging, and target xfail removal.
-Updated docs/fix_plan.md attempts to record the persisted gap and pointed artifacts to the new run directory for the upcoming implementation loop.
-Next: implement the spot-scale threading, rerun the engine probe plus pytest selector, and unxfail DB-AT-027 once tolerances are satisfied.
-Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-24T231449Z/ (input.md, summary.md)
+Investigated DB-AT-027 zero-point parity failure where Stage A engine delegation path was not applying `spot_scale_override` calibration correctly, causing Bragg frame mismatch (mean diff 57 ADU, max diff 13M).
+Traced the flow: `calibration_metadata` with `spot_scale_override=3.18e17` flows correctly to `_build_stage_a_context` and telemetry writes `log_scale_baseline=log(sqrt(spot_scale))≈20.15`, but `_build_final_bragg_from_stage_a_telemetry` was defaulting to 0.0 when extracting from telemetry.
+Implemented fix to compute `log_scale_baseline` from `config.calibration_metadata` directly in final Bragg reconstruction, but this caused regression (error increased to 3.2e10) suggesting double-scaling; root cause requires deeper investigation into whether simulators produce scaled vs unscaled Bragg and how closure applies scale in zero-iteration runs.
+Next: revert debug changes, analyze simulator output characteristics, and determine correct scale application point in zero-iteration engine delegation path.
+Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-24T231449Z/ (pytest_db_at_027_baseline.log, pytest_db_at_027.log, db_at_027/)

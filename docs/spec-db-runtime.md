@@ -39,3 +39,4 @@ Compile Modes (Informative)
 
 References (Informative)
 - docs/nanobrag_api.md (runtime details, including `ExperimentModel` Stage‑A parameterization).
+- docs/config_crosswalk.md (notation ↔ config mapping for A*, U, B, cell, and loss tensors).

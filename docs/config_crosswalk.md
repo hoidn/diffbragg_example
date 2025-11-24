@@ -116,3 +116,31 @@ References
 - docs/simtbx_api.md — Image loading, background, ROI, masks
 - docs/dials_api.md — Reflections, bbox, mask formats, shapes
 - docs/nanobrag_api.md — torch configs, units, runtime, structure‑factor ingestion, ROI‑only compute
+
+Notation ↔ Config Field Mapping (Informative)
+- Crystal state:
+  - `A*_0` (baseline setting matrix) — `crystal.get_A()`; columns are `(a*, b*, c*)` and are injected into `CrystalConfig.mosflm_a_star/b_star/c_star`.
+  - `c₀ = (a₀, b₀, c₀, α₀, β₀, γ₀)` — `crystal.get_unit_cell().parameters()`; stored as `cell_a/b/c` and `cell_alpha/beta/gamma` on `CrystalConfig`.
+  - `B₀ = B(c₀)` — constructed inside `nanobrag_torch` from `cell_*` using the Busing–Levy recipe; not stored as a separate field.
+  - `U₀` — implicitly defined by `A*_0 = U₀ B₀`; not stored directly, but corresponds to the baseline orientation encoded by `mosflm_*` with `misset_deg = [0,0,0]` in mapping‑aligned runs.
+- Stage‑A parameters:
+  - Orientation increment `ΔR(params)` — trainable quaternion (or equivalent) in the Stage‑A model (e.g., `ExperimentModel(param_init="stage_a")`), converted each forward into extrinsic XYZ angles and written into `CrystalConfig.misset_deg`.
+  - Cell increments `δc(params)` — trainable cell deltas (logs/angles) around `c₀`; forwarded each step by updating `CrystalConfig.cell_a/b/c` and `cell_alpha/beta/gamma` before building `B(c)`.
+  - Setting matrix `A*(params)` — built in the simulator as `U(params) @ B(params)` from the updated `cell_*` and `misset_deg` per `docs/spec-db-core.md` and `docs/spec-db-workflow.md`.
+- Arrays and loss:
+  - `I_obs` (Spec‑DB) — the background‑subtracted target; in code this is `RefinementInputs.target` (`inputs.target`), shaped `[panel, slow, fast]` and sliced with `(x0,x1,y0,y1)` as `target[pid, y0:y1, x0:x1]`.
+  - `I_model` — the current model prediction (Bragg + background) on the same grid; in Stage‑A code this is the sum of the simulated Bragg tensor and the background image when computing the variance‑weighted loss.
+  - `sigma_readout` — detector readout noise in target units; represented as `RefinementInputs.sigma_readout` (`inputs.sigma_readout`), populated from the precedence chain `--sigma-rdout` (scalar) > `--sigma-map` (tensor) > Experiment external_lookup tiles.
+  - Variance `V = I_model + sigma_readout^2` — implemented in `dbex.physics.loss._compute_variance_weighted_loss` (detached and clamped to `sigma_floor^2`) and written to HDF5 as `variance/roiN` with companion `sigma_readout` and `sigma_floor` datasets, per `docs/spec-db-core.md` and `docs/spec-db-workflow.md`.
+  - Masks: Spec‑DB `mask_array` / trusted mask correspond to `DetectorConfig.mask_array` (0/1 float, `[slow, fast]`) and `RefinementInputs.trusted_mask`; the loss mask `(background >= 0) ∧ trusted_mask` is `RefinementInputs.loss_mask`.
+
+Naming Glossary — Loss, Targets, and Sigma (Informative)
+- Targets:
+  - `I_obs` (Spec‑DB core/vis) ↔ `target` / `inputs.target` (RefinementInputs) ↔ “Data” panel in triptychs.
+  - “target” in CLI/docs refers to the same tensor after any ADU→photon conversion (`--adu-per-photon`).
+- Model:
+  - `I_model` (Spec‑DB) ↔ “model” / `model` datasets in HDF5 ↔ Bragg+background prediction used in `dbex.physics.loss._compute_variance_weighted_loss`.
+  - `Bragg` alone (`bragg` tensors, `bragg/roiN` datasets) is the pure Bragg component; Stage‑A loss uses `I_model = Bragg + background` per `docs/spec-db-core.md`.
+- Sigma / variance:
+  - `sigma_readout` (Spec‑DB) ↔ `sigma_readout` / `sigma_readout_map` in `DataLoad`/`RefinementInputs`; CLI flags `--sigma-rdout` and `--sigma-map`; nanobrag docs may also refer to this as `sigma_r`.
+  - `V` / “variance” (Spec‑DB) ↔ the detached, clamped denominator in `_compute_variance_weighted_loss` and the `variance/roiN` dataset in HDF5; VIS Z‑score maps use `z = (I_obs - I_model) / sqrt(V)` as described in `docs/spec-db-vis.md`.

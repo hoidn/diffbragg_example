@@ -1,6 +1,22 @@
-### Turn Summary
-Analyzed Ralph's Phase 8 blockers: identified two bugs in Stage B wrapper preventing E2E per-reflection validation.
-Bug #1 (shell regression): wrapper uppercases optimizer_type but tests expect lowercase; fix removes `.upper()` at line 411.
-Bug #2 (per-reflection KeyError): custom attributes added AFTER to_dict() serialization instead of BEFORE, causing Stage C extraction failure; fix adds attributes to dataclass before serialization matching nanobrag_refinement.py pattern.
-Next: Ralph applies two-line fix (optimizer case + attribute timing), validates with 4-step protocol (compilation, Phase 6 regression, shell smoke, per-reflection smoke).
-Artifacts: plans/active/TORCH-REFINE-004/reports/2025-11-24T120000Z/ (phase_8_blocker_analysis.md comprehensive root cause, input.md fix specification)
+# TORCH-REFINE-004 Phase 8: Wrapper Bug Fixes
+
+**Timestamp:** 2025-11-24T120000Z
+**Status:** Partial Success (2/3 tests passing, 1 test failing with new error)
+**Commit:** 6705471
+
+## Summary
+Fixed optimizer type case mismatch (shell mode regression now PASSES); fixed Stage C KeyError by caching/restoring custom attributes through engine serialization; per-reflection test still fails with hasattr issue requiring debug logging.
+
+## Test Results
+- ✓ Compilation: StageB import OK
+- ✓ Phase 6 Unit: 5/5 PASSED (1.05s)
+- ✓ Shell Mode: PASSED (13.44s, optimizer case fixed)
+- ✗ Per-Reflection: FAILED (11.75s, hasattr(telemetry_b, "stage_b_mode") → False)
+
+## Implemented Fixes
+1. Bug #1 (optimizer case): Keep lowercase in variable, uppercase for RefinementTelemetry.optimizer field
+2. Bug #2 (stage_b_mode serialization): 3-part fix across stage_b.py, engine.py, nanobrag_refinement.py
+3. Additional: Fixed indentation errors in nanobrag_refinement.py:4141-4203
+
+## Next Actions
+Add debug logging to verify wrapper dict→engine→restoration flow; determine why `stage_b_mode` attribute not persisting.

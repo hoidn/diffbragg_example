@@ -56,3 +56,12 @@
 1. **Optional:** Fix integration test parameter signatures (requires refactoring test setup)
 2. Mark Phase D D2 complete in implementation.md (checklist line 198)
 3. Supervisor decision: continue Phase D D3 (summary-generation CLI) OR assess Phase D completion
+
+---
+
+### Turn Summary
+Completed Phase D D2 tooling modularization delivering test suite with 8/9 tests passing and comprehensive README documentation.
+Stage A debug utilities extracted into reusable module (-1509 LOC CLI, +1898 LOC structured module with docstrings).
+One test failure documented as signature mismatch requiring MappingStageAContext refactor beyond current scope.
+Next: assess initiative status (Phases 0/A/B/D1/D2 complete) and decide whether to continue Phase D D3 or pivot to other Tier 3 work.
+Artifacts: plans/active/ARCH-REFACTOR-001/reports/2025-11-24T080106Z/ (test_stage_a_adam_tooling.log, summary.md, planning analysis)

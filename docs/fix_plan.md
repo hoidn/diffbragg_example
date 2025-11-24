@@ -195,7 +195,7 @@
   * See docs/fix_plan_archive.md (snapshot 2025-11-24) and plans/active/ARCH-REFINE-FLOW-001/reports/ for full Attempts History.
 ### [TOOLING-VIS-001] Standardize visual diagnostics library
 - Depends on: PHYSICS-LOSS-001
-- Status: in_progress (2025-11-24T213251Z — Phase D.A evidence collection planned; Stage A vs mapping parity work active)
+- Status: in_progress (2025-11-24T213251Z — Phase D.A telemetry captured; Phase D.B engine zero-point probe + DB-AT-027 selector planning in flight)
 - Priority: Medium
 - Owner/Date: Ralph/Galph (2025-11-24T111500Z → 2025-11-24T123051Z)
 - Exit Criteria:

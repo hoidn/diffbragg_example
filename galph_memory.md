@@ -575,3 +575,14 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-24T213251Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=0 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-24T213251Z/ next_action=phase_DA_metrics_and_diagnosis
+
+## 2025-11-24T215340Z — TOOLING-VIS-001 Phase D.B Planning (DB-AT-027 Engine Probe)
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics (Phase D.B zero-point probe)
+- Action Type: planning
+- Key Observations: Phase D.A implementation (loop i=280 Ralph) landed deterministically: DB-AT-024 metadata sigma baseline archived under `.../2025-11-24T213251Z/db_at_024/`, Stage A driver (`generate_stage_a_refgeom_roi_triptychs_adam.py`) now emits JSON metrics + diagnosis doc showing **massive zero-point drift** (`mean_abs_diff=77.43 ADU`, `max_abs_diff=3.84e4`, `chi2_per_pixel_initial=1.09e5`, `scale_ratio_before=7.11e-05`, median ROI CC 0.128). Root cause points to missing calibration payload (`spot_scale_override ≈ 3.18e17`, flux/exposure, N_cells) in `_build_final_bragg_from_stage_a_telemetry`. Phase D.B must (a) add an engine-based zero-point probe around `run_nanobrag_refinement(max_iter=0)` so we can reproduce mapping parity without the Adam helper, and (b) register DB-AT-027 as an xfail selector that asserts the normative tolerances from `docs/spec-db-conformance.md:201-239`. Authored `zero_point_probe_plan.md` summarizing the new helper/script/test requirements plus doc-sync expectations; STAGEA-001 finding recorded the calibration gap.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-24T215340Z/
+- Next Actions: Ralph implements `run_engine_zero_point_probe` + plan-local CLI + `tests/dbex/test_stage_a_mapping_equiv.py::test_db_at_027_zero_point_parity`, runs the helper to capture `stage_a_engine_zero_point.json`, executes pytest + collect-only per Testing Guide, and updates docs/TEST_SUITE_INDEX.md with the new selector (xfail until calibration lands).
+- <Action State>: [ready_for_implementation]
+
+2025-11-24T215340Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=0 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-24T215340Z/ next_action=phase_DB_zero_point_probe

@@ -1,0 +1,33 @@
+{
+  "outcome": "all_tests_pass",
+  "tests_passed": "4/4",
+  "exit_criteria_status": "4/4_satisfied",
+  "metrics": {
+    "compilation": "PASS",
+    "phase6_unit": "5/5 PASS (1.06s)",
+    "shell_regression": "1/1 PASS (13.69s)",
+    "per_reflection_smoke": "1/1 PASS (79.03s)",
+    "collect_only": "1 test collected",
+    "gradient_flow_param_change_pct": 0.00854,
+    "loss_improvement_pct": 36.8,
+    "stage_a_initial_chi2": 8.24e8,
+    "stage_a_final_chi2": 5.54e7,
+    "stage_b_final_chi2": 3.50e7,
+    "total_improvement_pct": 95.75,
+    "n_asu": 97793,
+    "optimizer_type": "adam"
+  },
+  "exit_criteria": {
+    "1_per_reflection_asu_mapping": "SATISFIED (Phases 6-7, compute_hkl_asu_map validated)",
+    "2_shell_mode_fallback": "SATISFIED (Phase 7 mode branching, shell regression PASS)",
+    "3_smoke_tests_convergence": "SATISFIED (Phase 9 calibration, hybrid validation PASS)",
+    "4_documentation_updated": "SATISFIED (Phase 9, 4 files updated)"
+  },
+  "files_modified": [
+    "tests/dbex/test_torch_refine_smoke.py",
+    "docs/spec-db-workflow.md",
+    "docs/TESTING_GUIDE.md",
+    "docs/development/TEST_SUITE_INDEX.md",
+    "docs/findings.md"
+  ]
+}

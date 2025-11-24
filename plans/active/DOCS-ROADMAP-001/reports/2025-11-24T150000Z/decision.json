@@ -1,0 +1,38 @@
+{
+  "loop_id": "i=277",
+  "timestamp": "2025-11-24T150000Z",
+  "owner": "ralph",
+  "phase": "C_minimal",
+  "task": "Fix broken test comment reference after integration plan thinning",
+  "decision_path": "A",
+  "decision_paths": {
+    "A": "Minimal Phase C - Fix critical broken reference only, mark done",
+    "B": "Full Phase C - All planned tasks (docs/index.md + test ref + validation)",
+    "C": "Skip Phase C - Mark done with broken reference (NOT RECOMMENDED)"
+  },
+  "scope_decision": "Minimal Phase C per Galph recommendation (30min, fix test comment line 1217 only, defer optional docs/index.md polish)",
+  "changes_applied": {
+    "test_comment_fix": {
+      "file": "tests/dbex/test_torch_refine_smoke.py",
+      "line": 1217,
+      "old_ref": "plans/nanobrag_integration_plan.md:226-244",
+      "new_ref": "docs/spec-db-workflow.md §Stage B (lines 58-66)",
+      "rationale": "Lines 226-244 no longer exist after Phase B thinning (plan now 146 lines)"
+    }
+  },
+  "deferred_tasks": {
+    "docs_index_update": "DEFERRED - minimal ROI, description remains accurate"
+  },
+  "exit_criteria_status": {
+    "1_no_normative_duplication": "SATISFIED (Phase B)",
+    "2_phase_structure_intact": "SATISFIED (Phase B)",
+    "3_critical_cross_refs_fixed": "SATISFIED (Phase C minimal - test comment line 1217 fixed)"
+  },
+  "value_delivered": {
+    "phase_a": "Normative content mapped to specs (0 gaps found)",
+    "phase_b": "Plan thinned 305→146 lines (52% reduction), normative duplication eliminated",
+    "phase_c": "Critical cross-reference fix (broken test comment corrected)"
+  },
+  "confidence": "HIGH (~95%)",
+  "confidence_rationale": "Broken reference fixed (critical), substantial initiative value delivered (Phase A+B+C minimal), allows faster Tier 3 pivot"
+}

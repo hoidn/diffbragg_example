@@ -1214,7 +1214,7 @@ def test_stage_b_shell_modifiers(
 
     Per input.md:
     - docs/spec-db-workflow.md:31-34 mandates Stage B optional shell modifiers with tricubic interpolation
-    - plans/nanobrag_integration_plan.md:226-244 specifies Stage B shell mode contract
+    - docs/spec-db-workflow.md §Stage B (lines 58-66) specifies Stage B shell mode contract
     - docs/architecture/pytorch_design.md:35-40 requires ±1 halo for interpolation
     - docs/findings.md REFINE-005 confirms halo requirement for Stage B
 

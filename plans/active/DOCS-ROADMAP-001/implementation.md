@@ -1,9 +1,10 @@
 # Implementation Plan: DOCS-ROADMAP-001
 ## Thin `nanobrag_integration_plan` to Reference Specs
 
-**Status**: in_progress (Phase A complete 2025-11-24T130000Z, Phase B next)
+**Status**: ✅ COMPLETE (2025-11-24T150000Z — Phase C minimal scope)
 **Owner**: Galph (planning) / Ralph (implementation)
 **Estimated Effort**: 2-3 loops (~5-6 hours: Phase A analysis 2h, Phase B thin 2h, Phase C cross-refs 1-2h)
+**Actual Effort**: 3 loops (Phase A 2h, Phase B 1.5h, Phase C minimal 30min)
 
 ## Objective
 Remove normative requirement duplication from `plans/nanobrag_integration_plan.md` by replacing SHALL/SHOULD/MUST clauses with references to authoritative specs, while preserving phase structure, task lists, and deliverables.
@@ -43,16 +44,20 @@ Remove normative requirement duplication from `plans/nanobrag_integration_plan.m
 - cross_reference_audit.txt (26 references cataloged)
 - planning_analysis.md (Phase A-C scope + risk assessment)
 
-### Phase B: Plan Thinning (pending — next loop i=276)
+### Phase B: Plan Thinning ✅ COMPLETE (2025-11-24T145000Z)
 **Objective**: Rewrite integration plan to remove normative duplication and replace with spec references.
 
-**Tasks**:
-- [ ] B1: Create backup `plans/nanobrag_integration_plan.md.bak`
-- [ ] B2: Rewrite plan sections per normative_content_map (replace 16 normative sections with spec references)
-- [ ] B3: Preserve phase structure, task lists, estimated timelines, deliverables
-- [ ] B4: Verify plan readability (phase objectives clear, spec pointers concise)
-- [ ] B5: Run diff and verify ~50% line reduction (305 → ~150-200 lines)
-- [ ] B6: Commit thinned plan with descriptive message
+**Status**: ✅ COMPLETE
+- [x] B1: Create backup `plans/nanobrag_integration_plan.md.bak`
+- [x] B2: Rewrite plan sections per normative_content_map (replace 16 normative sections with spec references)
+- [x] B3: Preserve phase structure, task lists, estimated timelines, deliverables
+- [x] B4: Verify plan readability (phase objectives clear, spec pointers concise)
+- [x] B5: Run diff and verify ~50% line reduction (305 → ~150-200 lines)
+- [x] B6: Commit thinned plan with descriptive message
+
+**Outcome**: Plan thinned 305→146 lines (52% reduction), normative duplication eliminated.
+
+**Artifacts**: plans/active/DOCS-ROADMAP-001/reports/2025-11-24T145000Z/
 
 **Validation**:
 - Diff shows ~100-150 line removal (all from normative sections)
@@ -69,16 +74,22 @@ Remove normative requirement duplication from `plans/nanobrag_integration_plan.m
 - Phase structure preserved (Overview, Phase 0-5, Deliverables Checklist, Open Questions)
 - Diff shows no changes to task lists or estimated timelines
 
-### Phase C: Cross-Reference Updates (pending — loop i=277 estimated)
+### Phase C: Cross-Reference Updates ✅ COMPLETE (2025-11-24T150000Z — Minimal Scope)
 **Objective**: Update docs/tests referencing the plan to clarify scope (sequencing/planning) vs normative content (specs).
 
-**Tasks**:
-- [ ] C1: Update docs/index.md line 131 Integration Plan entry with guidance to check specs for normative details
-- [ ] C2: Verify test references (expected: only 1 comment in test_torch_refine_smoke.py, not assertion logic)
-- [ ] C3: Update DOCS-ROADMAP-001 implementation.md with completion notes
-- [ ] C4: Run final validation (all cross-references resolve, specs contain referenced content)
-- [ ] C5: Update docs/fix_plan.md DOCS-ROADMAP-001 status=done + Attempts History entry
-- [ ] C6: Commit Phase C changes
+**Status**: ✅ COMPLETE (Minimal Scope)
+- [~] C1: Update docs/index.md line 131 Integration Plan entry with guidance to check specs for normative details (DEFERRED — minimal ROI, description remains accurate)
+- [x] C2: Verify test references (COMPLETE — fixed broken reference at tests/dbex/test_torch_refine_smoke.py:1217)
+- [x] C3: Update DOCS-ROADMAP-001 implementation.md with completion notes
+- [x] C4: Run final validation (all cross-references resolve, specs contain referenced content)
+- [x] C5: Update docs/fix_plan.md DOCS-ROADMAP-001 status=done + Attempts History entry
+- [x] C6: Commit Phase C changes
+
+**Scope Decision**: Minimal Phase C per Galph recommendation (30min, fix critical broken reference only, defer optional docs/index.md polish for minimal ROI).
+
+**Outcome**: Critical cross-reference fix (broken test comment corrected), initiative marked complete.
+
+**Artifacts**: plans/active/DOCS-ROADMAP-001/reports/2025-11-24T150000Z/
 
 **Validation**:
 - docs/index.md updated (spec-first guidance added)
@@ -103,12 +114,22 @@ Remove normative requirement duplication from `plans/nanobrag_integration_plan.m
 
 ## Progress Tracking
 - **Phase A**: ✅ COMPLETE (2025-11-24T130000Z)
-- **Phase B**: Pending (next loop i=276)
-- **Phase C**: Pending (loop i=277 estimated)
-- **Exit Criteria**: 0/3 satisfied (Phase B/C pending)
+- **Phase B**: ✅ COMPLETE (2025-11-24T145000Z)
+- **Phase C**: ✅ COMPLETE (2025-11-24T150000Z — Minimal Scope)
+- **Exit Criteria**: 3/3 satisfied (#1 no normative duplication ✓, #2 phase structure intact ✓, #3 critical cross-refs fixed ✓)
 
 ## Notes
 - **Environment Freeze**: Documentation-only work, no code/environment changes
 - **Incremental Progress**: 3-phase breakdown allows validation at each step
 - **Implementation Floor**: Phase A analysis, Phase B production docs task (rewrite plan)
 - **Confidence**: HIGH (~95%) based on comprehensive Phase A analysis
+
+## Completion Summary (2025-11-24T150000Z)
+**Status**: ✓ COMPLETE (Minimal Phase C)
+**Outcome**: Fixed broken test comment reference (line 1217), initiative closed
+**Scope Decision**: Minimal Phase C executed per galph_memory.md recommendation (fix critical broken reference, defer optional docs/index.md polish for minimal ROI)
+**Value Delivered**:
+- Phase A: Normative content mapped to specs (0 gaps found)
+- Phase B: Plan thinned 305→146 lines (52% reduction), normative duplication eliminated
+- Phase C: Critical cross-reference fix (test comment invalid line range corrected)
+**Exit Criteria**: 3/3 satisfied (#1 no normative duplication ✓, #2 phase structure intact ✓, #3 critical cross-refs fixed ✓)

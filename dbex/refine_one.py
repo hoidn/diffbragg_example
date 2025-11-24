@@ -435,41 +435,30 @@ def run_nanobrag_backend(args, DL, devid=0):
         else:
             crystal_config, n_cells_applied = create_crystal_config(DL.crystal, DL.Expt)
 
-        # Instantiate models
-        detector_model = Detector(detector_config, device=device, dtype=torch.float32)
-        crystal_model = Crystal(crystal_config, device=device, dtype=torch.float32)
-        # TODO(STAGE-A): Disable HKL interpolation for geometry stage (nearest‑neighbor |F|)
-        # This avoids halo/OOB artifacts during Stage A. Implement by setting:
-        #   crystal_model.interpolate = False
-        # when wiring the Stage A policy toggle.
+        # Use unified factory (TORCH-API-ALIGN-001 Phase B2b(i))
+        from dbex.refinement.helpers import create_unified_simulator
 
-        # Attach HKL data to crystal model
-        crystal_model.hkl_data = hkl_grid
-        crystal_model.hkl_metadata = hkl_metadata
-
-        # Run simulator with optional beam_config (SCALE-005: enables sample clipping when N_cells present)
-        if calibration_metadata is not None:
-            simulator = Simulator(
-                detector=detector_model,
-                crystal=crystal_model,
-                beam_config=beam_config,
-                device=device,
-                dtype=torch.float32
-            )
-        else:
-            simulator = Simulator(
-                detector=detector_model,
-                crystal=crystal_model,
-                device=device,
-                dtype=torch.float32
-            )
+        simulator, _, sqrt_scale_value, _ = create_unified_simulator(
+            detector_config=detector_config,
+            crystal_config=crystal_config,
+            beam_config=beam_config,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            mask_array=detector_config.mask_array if hasattr(detector_config, 'mask_array') else None,
+            spot_scale_override=spot_scale,
+            device=device,
+            dtype=torch.float32,
+            calibration_metadata=calibration_metadata
+        )
         panel_output = simulator.run()  # Returns torch.Tensor on device
 
         # Move to CPU and convert to numpy
         panel_output_np = panel_output.cpu().detach().numpy().astype(np.float32)
 
         # Apply sqrt(spot_scale_override) post-simulation (SCALE-002)
-        panel_output_scaled = panel_output_np * sqrt_spot_scale
+        # Factory returns sqrt_scale_value; use that if available, else fall back to sqrt_spot_scale
+        scale_factor = sqrt_scale_value if sqrt_scale_value is not None else sqrt_spot_scale
+        panel_output_scaled = panel_output_np * scale_factor
 
         # Store in Bragg array
         Bragg[panel_id] = panel_output_scaled

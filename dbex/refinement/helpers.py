@@ -6,6 +6,7 @@ across Stage A/B/C implementations.
 
 Functions:
 - create_panel_simulator(...): Instantiate nanobrag_torch.Simulator for a panel
+- create_unified_simulator(...): Unified factory with validation (TORCH-API-ALIGN-001 Phase B1)
 - emit_bragg_frame(...): Generate full-frame Bragg tensor from stage parameters
 
 Normative Requirements:
@@ -77,6 +78,143 @@ def create_panel_simulator(
     )
 
     return simulator
+
+
+def create_unified_simulator(
+    detector_config,           # nanobrag_torch DetectorConfig (panel or cropped ROI)
+    crystal_config,            # nanobrag_torch CrystalConfig
+    beam_config,               # nanobrag_torch BeamConfig
+    hkl_grid,                  # torch.Tensor (3, N) HKL coordinates
+    hkl_metadata,              # dict with 'has_halo', 'hkl_ids_asu', etc.
+    mask_array=None,           # Optional[np.ndarray] trusted mask (0=bad, 1=good)
+    spot_scale_override=None,  # Optional[float] multiplicative scale (applied post-run as sqrt)
+    device=None,               # torch.device or str
+    dtype=None,                # torch.dtype
+    calibration_metadata=None, # Optional[dict] with 'beam_config', 'N_cells', etc.
+):
+    """
+    Unified simulator factory for nanobrag_torch.
+
+    Centralizes shape/dtype/device validation, mask normalization, and
+    post-run spot_scale application. Eliminates duplication across forward
+    helpers, CLI paths, and refinement loops.
+
+    Parameters
+    ----------
+    detector_config : nanobrag_torch.config.DetectorConfig
+        Panel or ROI-cropped detector configuration (DIALS convention).
+    crystal_config : nanobrag_torch.config.CrystalConfig
+        Crystal lattice and orientation parameters.
+    beam_config : nanobrag_torch.config.BeamConfig
+        X-ray beam properties (wavelength, polarization, flux).
+    hkl_grid : torch.Tensor
+        Miller indices (3, N) on device/dtype.
+    hkl_metadata : dict
+        Keys: 'has_halo' (bool), 'hkl_ids_asu' (Optional[Tensor]), etc.
+    mask_array : Optional[np.ndarray]
+        Trusted pixel mask (0=bad, 1=good). If provided, normalized to
+        detector device/dtype and attached to detector_config.
+    spot_scale_override : Optional[float]
+        Multiplicative scale applied POST-RUN as sqrt(spot_scale_override)
+        per SCALE-004 finding.
+    device : Optional[torch.device or str]
+        Target device (defaults to hkl_grid.device).
+    dtype : Optional[torch.dtype]
+        Target dtype (defaults to hkl_grid.dtype).
+    calibration_metadata : Optional[dict]
+        Preserved for telemetry/logging. Keys: 'beam_config', 'N_cells'.
+
+    Returns
+    -------
+    simulator : nanobrag_torch.Simulator
+        Ready-to-run simulator instance with HKL tensors attached.
+    normalized_mask : Optional[torch.Tensor]
+        Mask tensor on device/dtype (if mask_array provided), else None.
+    sqrt_scale : Optional[float]
+        sqrt(spot_scale_override) to apply post-run, else None.
+    metadata : dict
+        Calibration metadata plus validation results.
+
+    Notes
+    -----
+    - Lazy imports nanobrag_torch inside function to avoid circular deps.
+    - Mask normalization: np.ndarray → torch.Tensor on device/dtype.
+    - sqrt_scale is computed here but applied by CALLER after simulator.run().
+    - ROI-cropped DetectorConfig: beam-center mm shift already applied in config.
+    - DIALS convention: beam-center swap (fast,slow)→(s,f) handled upstream.
+
+    Findings Applied
+    ----------------
+    - SCALE-004: sqrt_spot_scale post-run (not pre-run).
+    - ARCH-ENGINE-002: Lazy imports inside function.
+    - POLICY-001: No engine patches, dbex-only changes.
+    """
+    # Lazy imports
+    from nanobrag_torch.simulator import Simulator
+    from nanobrag_torch.models import Detector, Crystal
+    import torch
+
+    # Device/dtype defaults from hkl_grid
+    if device is None:
+        device = hkl_grid.device
+    if dtype is None:
+        dtype = hkl_grid.dtype
+    device = torch.device(device) if isinstance(device, str) else device
+
+    # Validate HKL grid shape
+    if hkl_grid.ndim != 2 or hkl_grid.shape[0] != 3:
+        raise ValueError(f"hkl_grid must be (3, N), got {hkl_grid.shape}")
+    if hkl_grid.device != device or hkl_grid.dtype != dtype:
+        raise ValueError(f"hkl_grid device/dtype mismatch: expected {device}/{dtype}, got {hkl_grid.device}/{hkl_grid.dtype}")
+
+    # Normalize mask to device/dtype if provided
+    normalized_mask = None
+    if mask_array is not None:
+        normalized_mask = torch.tensor(mask_array, device=device, dtype=dtype)
+        # Validate mask shape matches detector (panel or ROI-cropped)
+        expected_shape = (detector_config.pixels_slow, detector_config.pixels_fast)
+        if normalized_mask.shape != expected_shape:
+            raise ValueError(f"mask_array shape {mask_array.shape} does not match detector {expected_shape}")
+
+    # Compute sqrt_scale for post-run application (per SCALE-004)
+    sqrt_scale = None
+    if spot_scale_override is not None:
+        import math
+        sqrt_scale = math.sqrt(spot_scale_override)
+
+    # Build nanobrag_torch Detector and Crystal models
+    detector = Detector(detector_config)
+    crystal = Crystal(crystal_config)
+
+    # Attach HKL tensors to crystal
+    crystal.set_hkl_grid(hkl_grid)
+    if hkl_metadata.get('has_halo', False):
+        if 'hkl_ids_asu' in hkl_metadata and hkl_metadata['hkl_ids_asu'] is not None:
+            crystal.set_hkl_ids_asu(hkl_metadata['hkl_ids_asu'])
+
+    # Construct Simulator
+    simulator = Simulator(
+        detector=detector,
+        crystal=crystal,
+        beam_config=beam_config,
+        device=device,
+        dtype=dtype
+    )
+
+    # Assemble metadata
+    metadata = {
+        'device': str(device),
+        'dtype': str(dtype),
+        'hkl_count': hkl_grid.shape[1],
+        'has_halo': hkl_metadata.get('has_halo', False),
+        'mask_provided': mask_array is not None,
+        'spot_scale_override': spot_scale_override,
+        'sqrt_scale': sqrt_scale,
+    }
+    if calibration_metadata is not None:
+        metadata.update(calibration_metadata)
+
+    return simulator, normalized_mask, sqrt_scale, metadata
 
 
 def emit_bragg_frame(

@@ -58,7 +58,7 @@ Checklist
 
 Phase B — Wiring (unify duplicate wiring)
 Checklist
-- [ ] B1: Fix simulator helper (dbex/refinement/helpers.py)
+- [x] B1: Fix simulator helper (dbex/refinement/helpers.py) — COMPLETE 2025-11-23T210000Z
   - Standardize on `from nanobrag_torch.simulator import Simulator`
   - Build `nanobrag_torch.models.Detector/Crystal`, attach HKL tensors, then construct `Simulator(detector=..., crystal=..., beam_config=..., device=..., dtype=...)`.
   - Factory responsibilities: accept `beam_config`, `dtype`, `device`; apply `sqrt_spot_scale` post‑run when provided; normalize/validate `mask_array` on device/dtype; preserve calibration gates (e.g., `N_cells`/sample clipping) identical to current code; support ROI-cropped DetectorConfig with beam-center mm shifts.

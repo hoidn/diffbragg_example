@@ -1,5 +1,5 @@
 ### Turn Summary
-Logged Phase D.B artifact logging completion and set Phase D.C calibration plumbing scope so Stage A reuses mapping calibration payload.
-Documented Do Now + How-To in input.md covering RefinementConfig changes, log-scale delta clamping, and DB-AT-027 doc/index updates; fix_plan now references 2025-11-24T224133Z artifacts.
-Next: Ralph wires calibration through Stage A engine, runs the zero-point CLI + pytest, and promotes DB-AT-027 to Active in the registry.
-Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-24T224133Z/ (input.md)
+Implemented Stage A calibration plumbing to align zero-point forward model with DB-AT-024 mapping baseline per DB-AT-027 spec.
+Extended RefinementConfig with calibration_metadata fields, threaded spot_scale_override/beam flux/N_cells through _build_stage_a_context into beam/crystal configs, implemented log_scale baseline separation (±3 delta clamping when calibrated), and updated refine_one.py + stage_a_adam.py to forward calibration payload.
+Next: run pytest selector for DB-AT-027, remove xfail if tolerances pass, update docs/TESTING_GUIDE.md and TEST_SUITE_INDEX.md with Active status.
+Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-24T224133Z/ (summary.md, commit e1d8432)

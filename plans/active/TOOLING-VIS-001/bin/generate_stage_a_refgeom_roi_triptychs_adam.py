@@ -108,6 +108,8 @@ def _run_canonical_stage_a(
     - bragg_before: Stage-A zero-iteration Bragg stack (initial params)
     - bragg_after: Stage-A refined Bragg stack
     - chi2_trace: full chi-squared trace from telemetry
+    - metrics: dict with variance_floor_masked_pixels, chi2_per_pixel, etc.
+    - bragg_mapping: mapping baseline Bragg stack from build_mapping_stage_a_context
     """
     import copy
     import torch
@@ -116,6 +118,8 @@ def _run_canonical_stage_a(
     context = build_mapping_stage_a_context(dataload, device=device_str)
     inputs = context.inputs
     sigma_floor_value = context.sigma_floor_value
+    bragg_mapping = context.bragg_zero_iter
+    mapping_diagnostics = context.diagnostics
 
     device = torch.device(device_str)
 
@@ -201,7 +205,82 @@ def _run_canonical_stage_a(
         torch.float32,
     )
 
-    return inputs, sigma_floor_value, bragg_before, bragg_after, chi2_trace
+    # Compute metrics per DB-AT-027/028/029
+    variance_floor_masked_pixels = float(
+        getattr(telemetry_a, "variance_floor_masked_pixels", 0)
+    )
+    if variance_floor_masked_pixels == 0:
+        # Fallback: count masked pixels
+        variance_floor_masked_pixels = int(np.sum(inputs.loss_mask))
+
+    chi2_initial = chi2_trace[0] if chi2_trace else 0.0
+    chi2_final = chi2_trace[-1] if chi2_trace else 0.0
+    chi2_per_pixel_initial = (
+        chi2_initial / variance_floor_masked_pixels if variance_floor_masked_pixels > 0 else 0.0
+    )
+    chi2_per_pixel_final = (
+        chi2_final / variance_floor_masked_pixels if variance_floor_masked_pixels > 0 else 0.0
+    )
+
+    # Global intensity ratios
+    mask = inputs.loss_mask
+    mean_data = float(np.mean(inputs.target[mask]))
+    mean_model_before = float(np.mean(bragg_before[mask]))
+    mean_model_after = float(np.mean(bragg_after[mask]))
+    scale_ratio_before = mean_model_before / mean_data if mean_data > 1e-12 else 0.0
+    scale_ratio_after = mean_model_after / mean_data if mean_data > 1e-12 else 0.0
+
+    # Zero-point deltas vs mapping
+    diff_mapping_vs_before = bragg_before - bragg_mapping
+    mean_abs_diff_mapping = float(np.mean(np.abs(diff_mapping_vs_before[mask])))
+    max_abs_diff_mapping = float(np.max(np.abs(diff_mapping_vs_before[mask])))
+
+    # Variance floor clamp fraction
+    variance_floor_clamp_fraction = float(
+        getattr(telemetry_a, "variance_floor_clamp_fraction", 0.0)
+    )
+
+    metrics = {
+        "variance_floor_masked_pixels": int(variance_floor_masked_pixels),
+        "chi2_initial": float(chi2_initial),
+        "chi2_final": float(chi2_final),
+        "chi2_per_pixel_initial": float(chi2_per_pixel_initial),
+        "chi2_per_pixel_final": float(chi2_per_pixel_final),
+        "variance_floor_clamp_fraction": float(variance_floor_clamp_fraction),
+        "mean_data": float(mean_data),
+        "mean_model_before": float(mean_model_before),
+        "mean_model_after": float(mean_model_after),
+        "scale_ratio_before": float(scale_ratio_before),
+        "scale_ratio_after": float(scale_ratio_after),
+        "mean_abs_diff_mapping": float(mean_abs_diff_mapping),
+        "max_abs_diff_mapping": float(max_abs_diff_mapping),
+        "chi2_trace": [float(x) for x in chi2_trace],
+    }
+
+    return inputs, sigma_floor_value, bragg_before, bragg_after, chi2_trace, metrics, bragg_mapping
+
+
+def _compute_pearson_cc(data: np.ndarray, model: np.ndarray, mask: np.ndarray) -> float:
+    """Compute Pearson correlation coefficient between data and model over mask."""
+    data_flat = data[mask].astype(np.float64).ravel()
+    model_flat = model[mask].astype(np.float64).ravel()
+
+    if data_flat.size < 2:
+        return 0.0
+
+    data_mean = np.mean(data_flat)
+    model_mean = np.mean(model_flat)
+
+    data_centered = data_flat - data_mean
+    model_centered = model_flat - model_mean
+
+    num = np.sum(data_centered * model_centered)
+    den = np.sqrt(np.sum(data_centered ** 2) * np.sum(model_centered ** 2))
+
+    if den < 1e-12:
+        return 0.0
+
+    return float(num / den)
 
 
 def _plot_all_roi_triptychs(
@@ -425,6 +504,16 @@ def main() -> None:
         default=1e-3,
         help="Learning rate for full Stage A Adam refinement (default: 1e-3).",
     )
+    parser.add_argument(
+        "--out-dir",
+        type=str,
+        default=None,
+        help=(
+            "Output directory for artifacts (optional). "
+            "If not specified, defaults to timestamped path under "
+            "plans/active/TOOLING-VIS-001/reports/stage_a_refgeom_adam/<timestamp>/"
+        ),
+    )
     args = parser.parse_args()
 
     repo_root = Path(__file__).resolve().parents[4]
@@ -436,6 +525,8 @@ def main() -> None:
         bragg_before,
         bragg_after,
         loss_trace,
+        metrics,
+        bragg_mapping,
     ) = _run_canonical_stage_a(
         dataload,
         n_steps=args.steps,
@@ -443,16 +534,20 @@ def main() -> None:
     )
 
     timestamp = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
-    out_root = (
-        repo_root
-        / "plans"
-        / "active"
-        / "TOOLING-VIS-001"
-        / "reports"
-        / "stage_a_refgeom_adam"
-        / timestamp
-    )
-    out_root.mkdir(parents=True, exist_ok=True)
+    if args.out_dir is not None:
+        out_root = Path(args.out_dir).resolve()
+        out_root.mkdir(parents=True, exist_ok=True)
+    else:
+        out_root = (
+            repo_root
+            / "plans"
+            / "active"
+            / "TOOLING-VIS-001"
+            / "reports"
+            / "stage_a_refgeom_adam"
+            / timestamp
+        )
+        out_root.mkdir(parents=True, exist_ok=True)
 
     triptychs = emit_stage_a_roi_triptychs(
         inputs,
@@ -462,6 +557,50 @@ def main() -> None:
         max_rois=16,
         sigma_floor_value=sigma_floor_value,
     )
+
+    # Compute per-ROI correlations for mapping/stage_a_before/stage_a_after
+    roi_correlations = []
+    panel_slices = inputs.panel_slices
+    for roi_idx, (pid, bbox) in enumerate(panel_slices):
+        x0, x1, y0, y1 = map(int, bbox)
+        data_roi = inputs.target[pid, y0:y1, x0:x1]
+        mask_roi = inputs.loss_mask[pid, y0:y1, x0:x1]
+
+        if np.sum(mask_roi) < 2:
+            continue
+
+        mapping_roi = bragg_mapping[pid, y0:y1, x0:x1]
+        before_roi = bragg_before[pid, y0:y1, x0:x1]
+        after_roi = bragg_after[pid, y0:y1, x0:x1]
+
+        cc_mapping = _compute_pearson_cc(data_roi, mapping_roi, mask_roi)
+        cc_before = _compute_pearson_cc(data_roi, before_roi, mask_roi)
+        cc_after = _compute_pearson_cc(data_roi, after_roi, mask_roi)
+
+        roi_correlations.append({
+            "roi_index": int(roi_idx),
+            "panel_id": int(pid),
+            "bbox": [int(x0), int(x1), int(y0), int(y1)],
+            "cc_mapping": float(cc_mapping),
+            "cc_stage_a_before": float(cc_before),
+            "cc_stage_a_after": float(cc_after),
+        })
+
+    # Compute median correlations
+    if roi_correlations:
+        cc_mapping_values = [r["cc_mapping"] for r in roi_correlations]
+        cc_before_values = [r["cc_stage_a_before"] for r in roi_correlations]
+        cc_after_values = [r["cc_stage_a_after"] for r in roi_correlations]
+
+        metrics["roi_correlations"] = roi_correlations
+        metrics["median_cc_mapping"] = float(np.median(cc_mapping_values))
+        metrics["median_cc_stage_a_before"] = float(np.median(cc_before_values))
+        metrics["median_cc_stage_a_after"] = float(np.median(cc_after_values))
+    else:
+        metrics["roi_correlations"] = []
+        metrics["median_cc_mapping"] = 0.0
+        metrics["median_cc_stage_a_before"] = 0.0
+        metrics["median_cc_stage_a_after"] = 0.0
 
     # Full-frame diagnostics: experimental data, Stage-A before, Stage-A after.
     _render_full_frame(
@@ -504,6 +643,13 @@ def main() -> None:
         triptychs,
         out_root,
     )
+
+    # Emit JSON metrics file per DB-AT-027/028/029
+    import json
+    metrics_json_path = out_root / "stage_a_mapping_gap_metrics.json"
+    with open(metrics_json_path, "w") as f:
+        json.dump(metrics, f, indent=2)
+    print(f"Wrote metrics to {metrics_json_path}")
 
     lines = [
         "# Stage A ROI Before/After Triptychs (Canonical LBFGS)",

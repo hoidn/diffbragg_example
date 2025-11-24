@@ -226,7 +226,7 @@
   * See docs/fix_plan_archive.md (snapshot 2025-11-24) and plans/active/PERF-SMOKE-DETSIZE/reports/ for full Attempts History.
 ### [TORCH-REFINE-004] Stage B Per-Reflection Mode Migration
 - Depends on: ARCH-REFINE-FLOW-001 Phase C (Stage B extraction complete), docs/spec-db-workflow.md §7 (normative requirement for per-reflection as default)
-- Status: in_progress (Phase 6 ✓ COMPLETE, engine schema fix ✓ COMPLETE, Phase 7 ready for implementation)
+- Status: in_progress (Phase 7 ✓ COMPLETE — ASU integration delivered, Phase 8/9 ready for implementation)
 - Priority: Tier 3 — Feature Completeness
 - Exit Criteria:
   1. Per-reflection Fhkl modifiers mapped to unique ASU indices are implemented and tested as the default Stage B mode per spec-db-workflow.md §7.

@@ -185,20 +185,35 @@ def main():
                 print(f"Using refined HKL from {refined_mtz_path}")
             except Exception as exc:
                 print(f"Warning: Failed to load refined MTZ: {exc}")
-                hkl_grid = dataload.hkl_grid
-                hkl_metadata = dataload.hkl_metadata
-                hkl_indices = dataload.hkl_indices
-                hkl_amplitudes = dataload.hkl_amplitudes
+                # Extract from dataload.F miller array
+                hkl_indices = np.array(dataload.F.indices().as_vec3_double(), dtype=np.float64)
+                hkl_amplitudes = np.array(dataload.F.data(), dtype=np.float64)
+                hkl_grid, hkl_metadata, _ = build_structure_factor_grid(
+                    indices=hkl_indices,
+                    amplitudes=hkl_amplitudes,
+                    device=device_obj,
+                    halo=True,
+                )
         else:
-            hkl_grid = dataload.hkl_grid
-            hkl_metadata = dataload.hkl_metadata
-            hkl_indices = dataload.hkl_indices
-            hkl_amplitudes = dataload.hkl_amplitudes
+            # Extract from dataload.F miller array
+            hkl_indices = np.array(dataload.F.indices().as_vec3_double(), dtype=np.float64)
+            hkl_amplitudes = np.array(dataload.F.data(), dtype=np.float64)
+            hkl_grid, hkl_metadata, _ = build_structure_factor_grid(
+                indices=hkl_indices,
+                amplitudes=hkl_amplitudes,
+                device=device_obj,
+                halo=True,
+            )
     else:
-        hkl_grid = dataload.hkl_grid
-        hkl_metadata = dataload.hkl_metadata
-        hkl_indices = dataload.hkl_indices
-        hkl_amplitudes = dataload.hkl_amplitudes
+        # Extract from dataload.F miller array
+        hkl_indices = np.array(dataload.F.indices().as_vec3_double(), dtype=np.float64)
+        hkl_amplitudes = np.array(dataload.F.data(), dtype=np.float64)
+        hkl_grid, hkl_metadata, _ = build_structure_factor_grid(
+            indices=hkl_indices,
+            amplitudes=hkl_amplitudes,
+            device=device_obj,
+            halo=True,
+        )
 
     # Build RefinementInputs using Stage A smoke fixture approach
     from tests.dbex.test_torch_refine_smoke import create_perturbed_geometry
@@ -349,7 +364,13 @@ def main():
         if hkl_indices is None or hkl_amplitudes is None:
             raise ValueError("HKL indices and amplitudes not available for mapping forward pass")
 
-        bragg_mapping = simulate_forward_once(
+        # Determine hkl_path for telemetry
+        if hkl_source == "refined_structure_factors.mtz":
+            hkl_path_str = str(golden_dir / "refined_structure_factors.mtz")
+        else:
+            hkl_path_str = str(repo_root / "scaled.mtz")
+
+        bragg_mapping, _ = simulate_forward_once(
             inputs=refinement_inputs,
             detector=baseline_detector,
             beam=baseline_beam,
@@ -360,6 +381,7 @@ def main():
             spot_scale_override=calibration_metadata.get("spot_scale_override") if calibration_metadata else None,
             calibration=calibration_metadata,
             hkl_source=hkl_source,
+            hkl_path=hkl_path_str,
         )
 
         # Compute mapping ROI correlations

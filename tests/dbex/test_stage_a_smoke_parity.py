@@ -120,7 +120,36 @@ def stage_a_smoke_result(
                 hkl_amplitudes = refined_amplitudes
                 hkl_source = "refined_structure_factors.mtz"
             except Exception:
+                # Extract from refgeom_dataload.F miller array when refined MTZ fails
+                hkl_indices = np.array(refgeom_dataload.F.indices().as_vec3_double(), dtype=np.float64)
+                hkl_amplitudes = np.array(refgeom_dataload.F.data(), dtype=np.float64)
+                hkl_grid, hkl_metadata, _ = build_structure_factor_grid(
+                    indices=hkl_indices,
+                    amplitudes=hkl_amplitudes,
+                    device=device_obj,
+                    halo=True,
+                )
                 hkl_source = "scaled.mtz"
+        else:
+            # Extract from refgeom_dataload.F miller array when refined MTZ doesn't exist
+            hkl_indices = np.array(refgeom_dataload.F.indices().as_vec3_double(), dtype=np.float64)
+            hkl_amplitudes = np.array(refgeom_dataload.F.data(), dtype=np.float64)
+            hkl_grid, hkl_metadata, _ = build_structure_factor_grid(
+                indices=hkl_indices,
+                amplitudes=hkl_amplitudes,
+                device=device_obj,
+                halo=True,
+            )
+    else:
+        # Extract from refgeom_dataload.F miller array when no calibration
+        hkl_indices = np.array(refgeom_dataload.F.indices().as_vec3_double(), dtype=np.float64)
+        hkl_amplitudes = np.array(refgeom_dataload.F.data(), dtype=np.float64)
+        hkl_grid, hkl_metadata, _ = build_structure_factor_grid(
+            indices=hkl_indices,
+            amplitudes=hkl_amplitudes,
+            device=device_obj,
+            halo=True,
+        )
     config = RefinementConfig(
         device=device,
         dtype=torch.float32,
@@ -224,7 +253,13 @@ def stage_a_smoke_result(
         if hkl_indices is None or hkl_amplitudes is None:
             raise ValueError("HKL indices and amplitudes not available (mapping forward pass skipped)")
 
-        bragg_mapping = simulate_forward_once(
+        # Determine hkl_path for telemetry
+        if hkl_source == "refined_structure_factors.mtz":
+            hkl_path_str = str(repo_root / "tests" / "fixtures" / "golden_data" / "simple_cubic" / "refined_structure_factors.mtz")
+        else:
+            hkl_path_str = str(repo_root / "scaled.mtz")
+
+        bragg_mapping, _ = simulate_forward_once(
             inputs=refinement_inputs,
             detector=baseline_detector,
             beam=baseline_beam,
@@ -235,6 +270,7 @@ def stage_a_smoke_result(
             spot_scale_override=calibration_metadata.get("spot_scale_override") if calibration_metadata else None,
             calibration=calibration_metadata,
             hkl_source=hkl_source,
+            hkl_path=hkl_path_str,
         )
 
         # Compute mapping ROI correlations

@@ -4,8 +4,7 @@ Overview (Normative)
 - Purpose: Define execution guardrails for PyTorch‑backed simulation and refinement, ensuring determinism, performance, and differentiability.
 
 Status
-- Applies to the planned `nanobrag_torch` backend. The legacy DiffBragg path does not use these PyTorch runtime guardrails.
-- Use `python -m dbex.refine_one` for the current CLI (see `dbex/refine_one.py:5-26`).
+- Applies to the `nanobrag_torch` backend, which is implemented but non‑default. The CLI defaults to the legacy DiffBragg path (`--backend diffbragg`), which does not use these PyTorch guardrails. Use `--backend nanobrag` to enable the torch backend (Stage A by default; Stage B/C behind flags).
 
 Runtime Guardrails (Normative)
 - Vectorization: Callers SHALL avoid Python loops over pixels/ROIs when vectorized simulator capabilities exist (per‑panel run or cropped detectors).
@@ -16,6 +15,8 @@ Runtime Guardrails (Normative)
 - Seeds: Conformance SHALL specify deterministic seeds; random sources (if any) SHALL be controlled by explicit seeding.
 
 ### Parameterization Correctness & Round-Trip (Normative)
+
+- Canonical UB/A* zero-point definitions live in `docs/spec-db-core.md` §Baseline Crystal State and Parameterization; this section references those requirements.
 
 - UB / A* round-trip:
   - Any new Stage‑A parameterization (including quaternion‑based ones) SHALL pass a round‑trip correctness check against dxtbx and the Busing–Levy conventions defined in `docs/spec-db-core.md` at the zero point:

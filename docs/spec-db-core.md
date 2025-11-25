@@ -5,8 +5,7 @@ Overview (Normative)
 - Scope: Stills (phi_steps=1) with a single lattice envelope; square pixels only; P1 reflections (no symmetry/friedel pairing in the simulator). DiffBragg’s Ncells_def is out of scope in v1.
 
 Status
-- This shard applies to the planned `nanobrag_torch` backend. The current CLI and legacy flow use DiffBragg and may differ from the contracts below.
-- Until the torch backend lands, use `python -m dbex.refine_one` (see `dbex/refine_one.py:5-26`).
+- Applies to the `nanobrag_torch` backend, which is implemented but non‑default. The current CLI defaults to the legacy DiffBragg backend (`--backend diffbragg`), while `--backend nanobrag` opts into the torch path (Stage A on by default; Stage B/C behind flags). DiffBragg may diverge from these contracts.
 
 Units, Frames, and Conventions (Normative)
 - Units:
@@ -19,6 +18,9 @@ Units, Frames, and Conventions (Normative)
   - Panel basis (f,s,o) SHALL be orthonormal in lab frame.
   - Beam vector SHALL point sample→source and be normalized.
   - Pixel arrays and masks SHALL use `[panel, slow, fast]` ordering.
+- Unit modes:
+  - Photon mode: targets, `sigma_readout`, and simulator outputs are in photons; variance `V` is computed in the same units.
+  - ADU mode: targets and `sigma_readout` remain in ADU; simulator outputs are converted to ADU before loss (global scale per workflow). Variance `V` is still computed in target units.
 - ROI bbox semantics:
   - Bboxes SHALL be `(x0, x1, y0, y1)` with x1,y1 exclusive; slice as `img[pid, y0:y1, x0:x1]`.
 
@@ -75,6 +77,11 @@ Physics Toggles (Normative)
 - Polarization: default parity SHALL be `polarization_factor=0.0`, `nopolar=False`, with polarization axis/fraction from DIALS when available; fallback `[0,0,1]`, `0.999`.
 - Solid angle and absorption: default SHALL be off to match common DiffBragg PHIL (no thickness); enabling SHALL be explicit.
 - dmin: default 0.0 (no resolution cutoff); enabling SHALL be explicit.
+
+Source Handling and Weighting (Normative)
+- Sources correspond to multiple beam directions/wavelength bins. Unless explicitly weighted via CLI/config, simulators SHALL weight all sources equally.
+- If a per-source weight flag (e.g., `-lambda`/flux) is provided, it SHALL define the weights; embedded weights in source files MAY be recorded in telemetry but SHALL NOT override an explicit CLI weight.
+- Telemetry SHALL record whether equal weighting or explicit weights were used, and the effective weights.
 
 Structure Factors (Normative)
 - Dense P1 |F| grid and min/max metadata SHALL be provided to the simulator. Tricubic interpolation SHALL require a ±1 halo; otherwise the simulator falls back to `default_F` at the edge.

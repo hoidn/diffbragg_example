@@ -11,6 +11,9 @@ Tracing Requirements (Normative)
 - The simulator SHALL support a per‑pixel trace mode (e.g., `debug_config.trace_pixel = [slow, fast]`) that captures the key intermediate values for that pixel.
 - Trace payload SHALL be produced by the same code paths used in production (no re‑derived physics).
 - Enabling trace MAY increase runtime; use sparingly (single pixel).
+- Minimum trace schema (normative):
+  - Required fields per traced pixel: incident `s0`/beam vector, `pixel_pos_lab`, detector normal, solid angle term, absorption term (if enabled), HKL fractional coords used for lookup, structure‑factor sample (with interpolation neighbors if applicable), Bragg contribution before masks, background contribution (if modeled), variance terms (`sigma_readout`, `sigma_floor`, `variance`), final masked model value.
+  - Format: HDF5 group `/trace/<panel>/<slow>_<fast>/` with scalar datasets for each field above; implementations MAY add extra fields but SHALL include at least these with consistent names.
 
 Parity Workflow (Normative)
 1) Generate a torch golden reference trace for the panel/pixel under test (e.g., from a prior validated run).

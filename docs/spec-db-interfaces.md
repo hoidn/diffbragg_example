@@ -4,8 +4,8 @@ Overview (Normative)
 - Purpose: Define the CLI/API surface and precedence rules required to satisfy the workflow spec.
 
 Status
-- The `--backend {diffbragg,nanobrag}` flag is implemented in the current CLI (`dbex/refine_one.py:5-26`). The nanobrag backend is a stub that invokes the bridge and writes diagnostics (`dbex/refine_one.py:80-95`). Tests: `tests/dbex/test_refine_one_cli.py` (6 tests; selector: `KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_refine_one_cli.py`).
-- Other flags (`--device`, `--adu-per-photon`, `--nabc`, `--debug-save-artifacts`) remain planned pending full torch simulator integration.
+- The `--backend {diffbragg,nanobrag}` flag is implemented in the current CLI (`dbex/refine_one.py`). Default is `diffbragg` (legacy). The `nanobrag` backend is implemented (Stage A on by default; Stage B/C behind flags) and writes torch diagnostics. Tests: `tests/dbex/test_refine_one_cli.py` (selector: `KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_refine_one_cli.py`).
+- Other flags (`--device`, `--adu-per-photon`, `--nabc`, `--debug-save-artifacts`) remain planned pending full torch simulator integration and hardening.
 
 CLI Flags (Normative)
 - `--backend {diffbragg,nanobrag}`: selects implementation; default MAY be `nanobrag` once stable.
@@ -16,6 +16,7 @@ CLI Flags (Normative)
 - `--optimizer {lbfgs,adam}` (optional): selects optimizer; default SHALL be `lbfgs` for Stage A/C, `adam` MAY be used only for Stage B if chosen.
 - `--sigma-rdout <float>`: scalar detector readout noise in the same units as the target (ADU by default, converted to photons when `--adu-per-photon` is set); required when no calibrated sigma map is available.
 - `--sigma-map <path>`: calibrated `sigma_readout` map (e.g. `.npy/.npz` or pickled per-panel arrays) shaped `[panel, slow, fast]`; takes precedence over `--sigma-rdout` when provided.
+- Torch stage toggles (torch backend only; experimental): `--use-engine-delegation` (engine wrapper path), `--enable-stage-b`, `--enable-stage-c` (require delegation).
 
 API Contracts (Normative)
 - Data bridge SHALL expose:

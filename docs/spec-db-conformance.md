@@ -10,8 +10,11 @@ Conformance Profiles (Normative)
 - Forward Equivalence Profile:
   - DB‑AT‑001 Forward equivalence smoke (DiffBragg vs `nanobrag_torch` forward pass; run without refinement and compare coarse ROI metrics per `plans/nanobrag_integration_plan.md` Phase 1).
 - Gradient‑Safe Profile:
-  - DB‑AT‑010 Gradcheck on refined parameters (cell logs/angles, quaternion seed → XYZ).
-  - DB‑AT‑011 No graph breaks under runtime mask/loss operations.
+  - DB‑AT‑010 Gradcheck on refined parameters (cell logs/angles, quaternion seed → XYZ; torch.float64 required).
+  - DB‑AT‑011 No graph breaks under runtime mask/loss operations (all trainable params retain non‑None grads).
+  - DB‑AT‑027 Stage‑A zero‑point mapping equivalence.
+  - DB‑AT‑028 Stage‑A loss-scale and clamp sanity.
+  - DB‑AT‑029 Stage‑A intensity and ROI correlation sanity.
 - Workflow Integration Profile:
   - DB‑AT‑020 DIALS reflection ingestion (bbox exclusivity, panel ordering) sanity.
   - DB‑AT‑021 Mask polarity and shape conformance (trusted mask → simulator/loss).
@@ -19,6 +22,10 @@ Conformance Profiles (Normative)
   - DB‑AT‑023 ADU vs photons policy (flag honored; scale init for ADU mode).
   - DB‑AT‑024 Mapping consistency (zero‑iteration forward vs data‑minus‑background overlay).
   - DB‑AT‑025 HKL interpolation conformance (tricubic halo): when `crystal.interpolate=True`, the dense |F| grid MUST include a ±1 halo; any default_F fallback is a failure. Stage A is canonically `interpolate=False`; any Stage‑A run that enables interpolation is non‑canonical and SHALL be flagged in telemetry per `docs/spec-db-workflow.md`.
+  - DB‑AT‑030 Sigma precedence and provenance (map > scalar > external_lookup; error on missing sigma).
+- Stage‑B/C Profile (torch backend):
+  - DB‑AT‑031 Stage‑B ASU mapping and modifier sanity (per‑reflection vs shell; interpolation+halo required).
+  - DB‑AT‑032 Stage‑C detector distance offsets (chi² improvement and telemetry sanity).
   - DB‑AT‑026 Stage‑A UB parameterization round-trip (zero-point UB/A* consistency).
   - DB‑AT‑030 Sigma precedence and provenance (map vs scalar vs external_lookup).
 
@@ -27,6 +34,14 @@ Acceptance Tests (Normative)
   - Setup: Using the same `DataLoad` inputs, generate a single forward `Bragg` tensor with the legacy DiffBragg pipeline and the torch bridge (no parameter updates). Compare coarse metrics (ROI correlation ≥ 0.2, localized intensity per `plans/nanobrag_integration_plan.md` Phase 1) and capture visual overlays/logs. Optional trace capture for representative pixels is described in `docs/forward_equivalence.md`. If thresholds are not met, emit diagnostic artifacts instead of failing the run.
   - Expectation: median ROI correlation ≥ 0.2 and ≥90% of sampled ROIs contain a local intensity maximum within the central half-box; failing runs SHOULD attach diagnostic overlays instead of asserting.
   - Command: `KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests -k DB_AT_001` (selector MAY xfail when only diagnostic evidence is captured).
+- DB‑AT‑010 Gradcheck on refined parameters
+  - Setup: enable torch backend with Stage A enabled (Stage B/C optional). Construct a small deterministic fixture (e.g., canonical refGeom_small) and run `torch.autograd.gradcheck` on the trainable tensors: cell log lengths, angles, quaternion/rotation params, detector distance (if enabled), Stage‑B modifiers (if enabled). Use float64, requires_grad=True.
+  - Expectation: gradcheck passes for all parameters under test with documented tolerances (e.g., eps=1e-6, atol=1e-4); any failure is a conformance failure.
+  - Command: `KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests -k DB_AT_010`.
+- DB‑AT‑011 No graph breaks under runtime mask/loss
+  - Setup: run a forward+backward pass for Stage A (and Stage B/C when enabled) on the canonical smoke fixture with masking and variance weighting active.
+  - Expectation: every trainable parameter present in the active stages has a non‑None `.grad` after backward; no `.detach()/.item()` induced graph breaks on trainable paths. Failing gradients or missing grads are conformance failures.
+  - Command: `KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests -k DB_AT_011`.
 - DB‑AT‑020 Reflection ingestion sanity
   - Setup: load .expt/.refl; extract first ROI; slice data with bbox; verify shape, exclusivity, panel ordering.
   - Expectation: `shoebox.shape == (y1-y0, x1-x0)`; panel indices align.
@@ -78,6 +93,16 @@ Acceptance Tests (Normative)
 **Scope (Normative)**
 - Defines the canonical pipeline for mapping DIALS geometry and ROIs into `nanobrag_torch` for zero‑iteration forward simulation.
 - DB‑AT‑024 SHALL implement this exact pipeline. Implementations claiming conformance to Spec‑DB mapping semantics MUST pass DB‑AT‑024.
+
+**Canonical Mapping Checklist (Normative)**
+- Array shapes `[panel, slow, fast]`; bbox `(x0, x1, y0, y1)` with x1/y1 exclusive.
+- Trusted mask polarity True=trusted; background sentinel −1 outside ROIs; loss mask `(background >= 0) ∧ trusted_mask`.
+- Sigma precedence: map > scalar > external_lookup; strictly positive; in target units (ADU unless gain converts to photons); zero sigma is an error.
+- ADU vs photons: single unit mode per run; gain divides targets/sigma when provided; telemetry records unit_mode and gain.
+- Structure factors: refined MTZ preferred, else raw MTZ; halo flag recorded when haloed grid is built for interpolation.
+- Calibration metadata: `config_torch.json` (spot_scale_override, beam flux/exposure, beamsize, N_cells) preferred; conflicts with CLI are errors.
+- Geometry mapping: beam-centre swap (fast,slow)→(s,f) mm; distance from `panel.get_directed_distance()`; square pixels enforced; A* from dxtbx.
+- Zero-iteration model: `simulate_forward_once` Bragg tensor in target units; variance/loss use `V = max(I_model + sigma_readout^2, sigma_floor^2)` detached.
 
 **Canonical Assets and Precedence (Normative)**
 
@@ -307,6 +332,18 @@ Acceptance Tests (Normative)
       - `scale_ratio_before ∈ [1e‑2, 1e2]`. Ratios outside this band indicate the kind of multi‑order‑of‑magnitude mismatch observed in broken TOOLING‑VIS configurations and SHALL fail DB‑AT‑029.
       - For the canonical refGeom smoke fixture, a tighter expectation (O(0.1–10)) MAY be documented informatively, but the [1e‑2, 1e2] band is a hard spec‑level floor.
   - Command: DB‑AT‑029 SHALL be enforced via a dedicated test (e.g. `pytest -v tests -k DB_AT_029`) exercising Stage‑A reconstruction and ROI parity metrics on the Stage‑A smoke dataset.
+
+- DB‑AT‑031 Stage‑B ASU mapping and modifier sanity
+  - Goal: Validate Stage‑B per‑reflection (or shell) modifier plumbing, ASU mapping, and gradients with interpolation+halo enforced.
+  - Setup: torch backend with Stage B enabled (per‑reflection default). Use canonical smoke fixture (small detector) with haloed HKL grid, interpolation enabled, Stage A frozen at final params. Run a short Stage‑B optimization (LBFGS or Adam per parameter-count rule).
+  - Expectation: correct ASU indexing (no collisions/duplicates), interpolation halo present, default_F fallback count == 0, non‑zero gradients on modifiers, and loss improves vs Stage‑A baseline by a documented threshold (e.g., >0.5% relative). Shell mode, if selected, MUST be explicitly tagged and meets equivalent sanity gates.
+  - Command: `KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests -k DB_AT_031` (or equivalent Stage‑B selector).
+
+- DB‑AT‑032 Stage‑C detector distance offsets
+  - Goal: Ensure detector-distance refinement is wired and yields sane chi² behavior.
+  - Setup: torch backend with Stage C enabled (distance offsets only), Stage A frozen at final params, interpolation+halo enforced. Use canonical smoke fixture; run a short Stage‑C LBFGS.
+  - Expectation: distance offsets remain within bounded prior (e.g., ±1% of distance), gradients non‑zero, chi² per masked pixel does not regress relative to Stage‑A baseline, and telemetry records distance deltas per panel.
+  - Command: `KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests -k DB_AT_032`.
 
 Notes (Informative)
 - Provide real commands in the test suite once scaffolding is in place; these are placeholders for the conformance contract.

@@ -1,4 +1,5 @@
 # nanoBragg PyTorch Architecture Design (Addendum)
+Scope: descriptive of the current/experimental torch implementation. Normative requirements live in `docs/spec-db*.md`; any SHALL/MUST language here reflects intended or current behavior and defers to the Spec‑DB shards for canonical rules.
 
 ## 1.1 Tricubic Interpolation & Detector Absorption Vectorization
 
@@ -32,11 +33,11 @@ The core simulator physics loops have been fully vectorized to eliminate Python-
 
 **CUDA Status:** CPU validation complete. CUDA execution blocked by pre-existing device-placement defect (tracked in `docs/fix_plan.md` Attempt #14; see PERF-PYTORCH-004).
 
-#### Halo Requirement and Stage Policy
+#### Halo Requirement and Stage Policy (descriptive; canonical rules in Spec‑DB)
 
 - Tricubic requires a ±1 neighborhood in each of h/k/l. The dense |F| grid MUST include a ±1 halo; otherwise queries near bounds fall back to `default_F`, degrading gradients and parity.
-- Stage A (geometry) canonically uses nearest‑neighbor |F| (`interpolation=False`) to mirror DiffBragg geometry refinement. A haloed tricubic mode MAY be exercised as a tagged, non‑canonical experiment when haloed |F| data exist. See `docs/spec-db-workflow.md` Stage policy table.
-- Stage B (Fhkl) SHALL enable interpolation with a halo and SHOULD add a guard/telemetry to detect any default_F fallback when interpolation is on.
+- Stage A (geometry): current implementation runs nearest‑neighbor |F| (`interpolation=False`) to mirror DiffBragg geometry refinement; a haloed tricubic mode exists as a tagged experiment when haloed |F| data exist (canonical policy in `docs/spec-db-workflow.md`).
+- Stage B (Fhkl): current implementation enables interpolation with a halo and adds guards/telemetry to detect any default_F fallback when interpolation is on.
 
 ### 1.1.2 Detector Absorption Vectorization
 

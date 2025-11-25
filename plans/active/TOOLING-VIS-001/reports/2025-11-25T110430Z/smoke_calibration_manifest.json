@@ -1,0 +1,42 @@
+{
+  "dataset_name": "smoke_calibration",
+  "generation_timestamp": "2025-11-25T11:14:02.000639Z",
+  "generator_command": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/TOOLING-VIS-001/bin/capture_smoke_calibration.py --expt /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/idx-0000_sigma_metadata.expt --refl /home/ollie/Documents/diffbragg_example_2/diffbragg_example/refGeom.refl --mask /home/ollie/Documents/diffbragg_example_2/diffbragg_example/747_mask.pkl --mtz /home/ollie/Documents/diffbragg_example_2/diffbragg_example/scaled.mtz --out-config /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/config_torch_smoke.json --refined-mtz-out /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/smoke_refined_structure_factors.mtz --manifest plans/active/TOOLING-VIS-001/reports/2025-11-25T110430Z/smoke_calibration_manifest.json",
+  "git_revision": "8c13e17e152df67542d7d0ca359109cada341ad4",
+  "files": {
+    "calibration_config": {
+      "filename": "config_torch_smoke.json",
+      "path": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/config_torch_smoke.json",
+      "sha256": "42165d4b2d7da0381839654113c84b357ed4e2f4e877f7f5f1b2e39315ebda2e",
+      "size_bytes": 761
+    },
+    "refined_structure_factors": {
+      "filename": "smoke_refined_structure_factors.mtz",
+      "path": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/smoke_refined_structure_factors.mtz",
+      "sha256": "ca62c7bffc986c7f70721891ce0b3940c3aec765c75018a57688a59551c02b47",
+      "size_bytes": 977156
+    }
+  },
+  "inputs": {
+    "experiment": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/idx-0000_sigma_metadata.expt",
+    "reflections": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/refGeom.refl",
+    "mtz": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/scaled.mtz",
+    "mask": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/747_mask.pkl"
+  },
+  "calibration": {
+    "crystal": {
+      "scale_override": 3.105058665484234e+17,
+      "N_cells": [
+        36,
+        28,
+        26
+      ]
+    },
+    "beam": {
+      "flux": 1000000000000.0,
+      "exposure": 1.0,
+      "beamsize_mm": 1.0
+    }
+  },
+  "manifest_sha256": "6062bc79fda01992adb4d5b68afc848b366a849021f4dbd3c17d9302771b8ccc"
+}

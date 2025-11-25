@@ -617,6 +617,10 @@ class StageAContext:
     enable_hkl_interpolation: bool
     q_params: Optional[torch.Tensor] = None
     B_ideal_reciprocal: Optional[torch.Tensor] = None
+    calibration_metadata: Optional[Dict[str, Any]] = None
+    log_scale_baseline: Optional[float] = None
+    spot_scale_override: Optional[float] = None
+    sqrt_spot_scale: Optional[float] = None
 
 
 @dataclass
@@ -768,11 +772,21 @@ def _build_stage_a_context(
     beam_exposure = None
     beamsize_mm = None
     N_cells = None
+    spot_scale_override = None
+    sqrt_spot_scale = None
+    log_scale_baseline = None
     if calibration_metadata is not None:
         beam_flux = calibration_metadata.get("beam_flux")
         beam_exposure = calibration_metadata.get("beam_exposure")
         beamsize_mm = calibration_metadata.get("beamsize_mm")
         N_cells = calibration_metadata.get("N_cells")
+        spot_scale_override = calibration_metadata.get("spot_scale_override", 1.0)
+        try:
+            sqrt_spot_scale = float(np.sqrt(spot_scale_override))
+            log_scale_baseline = float(np.log(sqrt_spot_scale))
+        except (TypeError, ValueError):
+            sqrt_spot_scale = None
+            log_scale_baseline = None
 
     beam_config = create_beam_config(beam, flux=beam_flux, beamsize_mm=beamsize_mm, exposure=beam_exposure)
     hkl_grid_device = hkl_grid.to(device=device, dtype=dtype)
@@ -884,7 +898,11 @@ def _build_stage_a_context(
         dtype=dtype,
         n_panels=n_panels,
         roi_count=len(roi_entries),
-        enable_hkl_interpolation=enable_hkl_interpolation
+        enable_hkl_interpolation=enable_hkl_interpolation,
+        calibration_metadata=calibration_metadata,
+        log_scale_baseline=log_scale_baseline,
+        spot_scale_override=spot_scale_override,
+        sqrt_spot_scale=sqrt_spot_scale,
     )
 
 
@@ -1039,6 +1057,7 @@ def _build_stage_a_params(
     else:
         log_scale_baseline = None
         initial_log_scale = 0.0  # fallback: scale=1.0
+    config.log_scale_baseline = log_scale_baseline
     log_scale = torch.tensor(initial_log_scale, device=device, dtype=dtype, requires_grad=True)
 
     # 2. Unit cell length deltas (log parameterization for positivity)
@@ -1465,6 +1484,15 @@ def _build_stage_a_lbfgs_closure(
 
     n_panels = len(detector)
     panel_slices = inputs.panel_slices
+    beam_config_kwargs: Dict[str, Any] = {}
+    n_cells_override = None
+    if getattr(config, "calibration_metadata", None) is not None:
+        beam_config_kwargs = {
+            "flux": config.calibration_metadata.get("beam_flux"),
+            "beamsize_mm": config.calibration_metadata.get("beamsize_mm"),
+            "exposure": config.calibration_metadata.get("beam_exposure"),
+        }
+        n_cells_override = config.calibration_metadata.get("N_cells")
 
     # Telemetry step counter (TORCH-GEOMETRY-CONVERGENCE-001 Phase A1)
     # Mutable list for closure capture; increments after each closure call
@@ -1649,7 +1677,10 @@ def _build_stage_a_lbfgs_closure(
         else:
             # Legacy mode: direct clamp of log_scale
             log_scale_clamped = torch.clamp(log_scale, min=-10.0, max=10.0)
-        beam_config_for_run = stage_a_ctx.beam_config if stage_a_ctx is not None else create_beam_config(beam)
+        beam_config_for_run = stage_a_ctx.beam_config if stage_a_ctx is not None else create_beam_config(
+            beam,
+            **beam_config_kwargs,
+        )
 
         warm_crystal_model: Optional['Crystal'] = None
         if stage_a_ctx is not None:
@@ -1657,7 +1688,9 @@ def _build_stage_a_lbfgs_closure(
                 crystal,
                 None,
                 crystal_overrides=crystal_overrides,
-                misset_deg_override=misset_deg_for_crystal
+                misset_deg_override=misset_deg_for_crystal,
+                N_cells=n_cells_override,
+                apply_n_cells=(n_cells_override is not None),
             )
             from nanobrag_torch.models.crystal import Crystal
             warm_crystal_model = Crystal(
@@ -2324,11 +2357,15 @@ def _build_final_bragg_from_stage_a_telemetry(
     n_panels = len(detector)
     panel_shape = inputs.target.shape[1:]  # (slow, fast)
 
-    # Compute baseline misset if needed (required for TORCH-REFINE-002D compatibility)
-    # This is None when no baseline_crystal provided
-    baseline_misset_deg_tensor = None
-    # Note: baseline_crystal is not passed to this helper, so baseline misset is not supported
-    # in engine delegation path yet. This is OK for Phase B2 (Stage-A-only validation).
+    # Compute baseline misset so zero-point reconstruction matches mapping baseline
+    from dbex.nanobrag_bridge import compute_baseline_misset_deg
+
+    baseline_misset_deg_tensor = compute_baseline_misset_deg(
+        crystal,
+        None,
+        device=device,
+        dtype=dtype,
+    )
 
     # Extract calibration payload (TOOLING-VIS-001 Phase D.C, DB-AT-027)
     # When config.calibration_metadata is provided, forward beam flux/exposure/beamsize
@@ -2337,156 +2374,143 @@ def _build_final_bragg_from_stage_a_telemetry(
     beam_exposure = None
     beamsize_mm = None
     N_cells = None
+    spot_scale_override = None
     if hasattr(config, 'calibration_metadata') and config.calibration_metadata is not None:
         beam_flux = config.calibration_metadata.get("beam_flux")
         beam_exposure = config.calibration_metadata.get("beam_exposure")
         beamsize_mm = config.calibration_metadata.get("beamsize_mm")
         N_cells = config.calibration_metadata.get("N_cells")
+        spot_scale_override = config.calibration_metadata.get("spot_scale_override")
+
+    log_scale_baseline_value = None
+    if 'log_scale_baseline' in param_deltas:
+        base_entry = param_deltas['log_scale_baseline']
+        if isinstance(base_entry, dict):
+            log_scale_baseline_value = base_entry.get('final', base_entry.get('initial'))
+        else:
+            log_scale_baseline_value = base_entry
+    if log_scale_baseline_value is None and hasattr(config, 'log_scale_baseline') and config.log_scale_baseline is not None:
+        log_scale_baseline_value = config.log_scale_baseline
+    if log_scale_baseline_value is None and spot_scale_override is not None:
+        try:
+            log_scale_baseline_value = float(np.log(np.sqrt(spot_scale_override)))
+        except (TypeError, ValueError):
+            log_scale_baseline_value = None
+
+    # Rebuild Stage A warm context so reconstruction matches compute_loss path
+    stage_a_ctx = _build_stage_a_context(
+        detector=detector,
+        beam=beam,
+        crystal=crystal,
+        trusted_mask=inputs.trusted_mask,
+        hkl_grid=hkl_grid,
+        hkl_metadata=hkl_metadata,
+        enable_hkl_interpolation=config.enable_hkl_interpolation,
+        device=device,
+        dtype=dtype,
+        panel_slices=inputs.panel_slices,
+        enable_roi_mode=getattr(config, "enable_stage_a_roi_mode", False),
+        calibration_metadata=getattr(config, "calibration_metadata", None),
+    )
 
     # Generate final Bragg array with optimized parameters (lines 2046-2153 from inline code)
     with torch.no_grad():
         bragg_full = np.zeros((n_panels, *panel_shape), dtype=np.float32)
 
-        for pid in range(n_panels):
-            panel = detector[pid]
+        # Apply final crystal perturbations once (shared across cached simulators)
+        cell_params = crystal.get_unit_cell().parameters()
+        perturbed_cell_a = cell_params[0] * torch.exp(log_cell_a_delta)
+        perturbed_cell_b = cell_params[1] * torch.exp(log_cell_b_delta)
+        perturbed_cell_c = cell_params[2] * torch.exp(log_cell_c_delta)
 
-            detector_config = create_detector_config(
-                panel=panel,
-                beam=beam,
-                trusted_mask=inputs.trusted_mask[pid]
-            )
+        max_angle_delta = 10.0  # degrees
+        perturbed_alpha = cell_params[3] + torch.tanh(angle_alpha_raw) * max_angle_delta
+        perturbed_beta = cell_params[4] + torch.tanh(angle_beta_raw) * max_angle_delta
+        perturbed_gamma = cell_params[5] + torch.tanh(angle_gamma_raw) * max_angle_delta
 
-            # Convert mask_array to torch.Tensor if it's a numpy array
-            # Per dbex/nanobrag_bridge.py:998-1004, nanobrag_torch Simulator
-            # expects torch.Tensor for mask_array
-            if detector_config.mask_array is not None and not isinstance(detector_config.mask_array, torch.Tensor):
-                detector_config.mask_array = torch.tensor(
-                    detector_config.mask_array, dtype=torch.float32, device=device
-                )
+        zero_param_deltas = (
+            torch.allclose(log_cell_a_delta, torch.tensor(0.0, device=device, dtype=dtype))
+            and torch.allclose(log_cell_b_delta, torch.tensor(0.0, device=device, dtype=dtype))
+            and torch.allclose(log_cell_c_delta, torch.tensor(0.0, device=device, dtype=dtype))
+            and torch.allclose(angle_alpha_raw, torch.tensor(0.0, device=device, dtype=dtype))
+            and torch.allclose(angle_beta_raw, torch.tensor(0.0, device=device, dtype=dtype))
+            and torch.allclose(angle_gamma_raw, torch.tensor(0.0, device=device, dtype=dtype))
+            and torch.allclose(orientation_vec, torch.zeros_like(orientation_vec))
+        )
 
-            # Create beam_config with calibration parameters when available (TOOLING-VIS-001 Phase D.C, DB-AT-027)
-            beam_config = create_beam_config(beam, flux=beam_flux, beamsize_mm=beamsize_mm, exposure=beam_exposure)
+        if config.use_u_matrix_parameterization:
+            from dbex.nanobrag_bridge import quaternion_to_matrix
 
-            # Apply final full crystal perturbations via tensor overrides (GRADIENT-001, TORCH-REFINE-002)
-            cell_params = crystal.get_unit_cell().parameters()
+            q_norm = q_params / torch.norm(q_params)  # Enforce ||q|| = 1
+            U = quaternion_to_matrix(q_norm)  # 3x3 rotation matrix
+            A_star_new = U @ B_ideal_reciprocal_torch  # Compute updated A*
 
-            # 1. Unit cell lengths (log-parameterized)
-            perturbed_cell_a = cell_params[0] * torch.exp(log_cell_a_delta)
-            perturbed_cell_b = cell_params[1] * torch.exp(log_cell_b_delta)
-            perturbed_cell_c = cell_params[2] * torch.exp(log_cell_c_delta)
+            A_star_np = A_star_new.detach().cpu().numpy()
+            mosflm_a_star_tuple = tuple(A_star_np[:, 0].tolist())
+            mosflm_b_star_tuple = tuple(A_star_np[:, 1].tolist())
+            mosflm_c_star_tuple = tuple(A_star_np[:, 2].tolist())
 
-            # 2. Unit cell angles (bounded via tanh)
-            max_angle_delta = 10.0  # degrees
-            perturbed_alpha = cell_params[3] + torch.tanh(angle_alpha_raw) * max_angle_delta
-            perturbed_beta = cell_params[4] + torch.tanh(angle_beta_raw) * max_angle_delta
-            perturbed_gamma = cell_params[5] + torch.tanh(angle_gamma_raw) * max_angle_delta
+            crystal_overrides = {
+                'cell_a': perturbed_cell_a,
+                'cell_b': perturbed_cell_b,
+                'cell_c': perturbed_cell_c,
+                'cell_alpha': perturbed_alpha,
+                'cell_beta': perturbed_beta,
+                'cell_gamma': perturbed_gamma,
+                'mosflm_a_star': mosflm_a_star_tuple,
+                'mosflm_b_star': mosflm_b_star_tuple,
+                'mosflm_c_star': mosflm_c_star_tuple,
+            }
+            misset_deg_for_crystal = None
+        else:
+            max_orientation_deg = 3.0  # degrees
+            bounded_orientation_vec = torch.tanh(orientation_vec) * max_orientation_deg * (np.pi / 180.0)
+            quat = vec_to_unit_quaternion(bounded_orientation_vec)
+            misset_xyz_deg = quaternion_to_xyz_euler(quat)
+            if baseline_misset_deg_tensor is not None:
+                misset_xyz_deg = misset_xyz_deg + baseline_misset_deg_tensor
 
-            # 3. Orientation perturbation via quaternion→XYZ misset (TORCH-REFINE-002)
-            # TORCH-GEOMETRY-PARITY-002 Phase B5: Branch on U-matrix vs cell+misset path
-            if config.use_u_matrix_parameterization:
-                # U-matrix path: Normalize quaternion, convert to U, compute A*
-                from dbex.nanobrag_bridge import quaternion_to_matrix
-                q_norm = q_params / torch.norm(q_params)  # Enforce ||q|| = 1
-                U = quaternion_to_matrix(q_norm)  # 3x3 rotation matrix
-                A_star_new = U @ B_ideal_reciprocal_torch  # Compute updated A*
+            crystal_overrides = {
+                'cell_a': perturbed_cell_a,
+                'cell_b': perturbed_cell_b,
+                'cell_c': perturbed_cell_c,
+                'cell_alpha': perturbed_alpha,
+                'cell_beta': perturbed_beta,
+                'cell_gamma': perturbed_gamma
+            }
+            misset_deg_for_crystal = misset_xyz_deg
 
-                # Convert A* to numpy for crystal_overrides
-                A_star_np = A_star_new.detach().cpu().numpy()
-                mosflm_a_star_tuple = tuple(A_star_np[:, 0].tolist())
-                mosflm_b_star_tuple = tuple(A_star_np[:, 1].tolist())
-                mosflm_c_star_tuple = tuple(A_star_np[:, 2].tolist())
-
-                crystal_overrides = {
-                    'cell_a': perturbed_cell_a,
-                    'cell_b': perturbed_cell_b,
-                    'cell_c': perturbed_cell_c,
-                    'cell_alpha': perturbed_alpha,
-                    'cell_beta': perturbed_beta,
-                    'cell_gamma': perturbed_gamma,
-                    'mosflm_a_star': mosflm_a_star_tuple,
-                    'mosflm_b_star': mosflm_b_star_tuple,
-                    'mosflm_c_star': mosflm_c_star_tuple,
-                }
-                misset_deg_for_crystal = None
-            else:
-                # Existing cell+misset path (GEOMETRY-003)
-                max_orientation_deg = 3.0  # degrees
-                bounded_orientation_vec = torch.tanh(orientation_vec) * max_orientation_deg * (np.pi / 180.0)
-                quat = vec_to_unit_quaternion(bounded_orientation_vec)
-                misset_xyz_deg = quaternion_to_xyz_euler(quat)
-
-                # Add baseline misset from perturbed geometry if provided (TORCH-REFINE-002D)
-                if baseline_misset_deg_tensor is not None:
-                    misset_xyz_deg = misset_xyz_deg + baseline_misset_deg_tensor
-
-                crystal_overrides = {
-                    'cell_a': perturbed_cell_a,
-                    'cell_b': perturbed_cell_b,
-                    'cell_c': perturbed_cell_c,
-                    'cell_alpha': perturbed_alpha,
-                    'cell_beta': perturbed_beta,
-                    'cell_gamma': perturbed_gamma
-                }
-                misset_deg_for_crystal = misset_xyz_deg
-
-            # Create crystal_config with N_cells calibration when available (TOOLING-VIS-001 Phase D.C, DB-AT-027)
-            crystal_config, _ = create_crystal_config(
-                crystal, None,
+        if not zero_param_deltas:
+            warm_crystal_config, _ = create_crystal_config(
+                crystal,
+                None,
                 crystal_overrides=crystal_overrides,
                 misset_deg_override=misset_deg_for_crystal,
                 N_cells=N_cells,
                 apply_n_cells=(N_cells is not None)
             )
+            warm_crystal_model = Crystal(
+                warm_crystal_config,
+                beam_config=stage_a_ctx.beam_config,
+                device=device,
+                dtype=dtype,
+            )
+            warm_crystal_model = _sync_stage_a_crystal(stage_a_ctx, warm_crystal_model)
+            _retarget_stage_a_simulators(stage_a_ctx, warm_crystal_model)
 
-            detector_model = Detector(detector_config, device=device, dtype=dtype)
-            crystal_model = Crystal(crystal_config, device=device, dtype=dtype)
-
-            # HKL interpolation control (TORCH-REFINE-002D, REFINE-005)
-            # Defaults to nearest-neighbor (False) unless explicitly enabled via config
-            # Tricubic interpolation requires halo-padded grid to avoid default_F fallback
-            crystal_model.interpolate = config.enable_hkl_interpolation
-
-            crystal_model.hkl_data = hkl_grid.to(device=device, dtype=dtype)
-            crystal_model.hkl_metadata = hkl_metadata
-
-            simulator = Simulator(detector=detector_model, crystal=crystal_model, device=device, dtype=dtype)
+        for pid in range(n_panels):
+            simulator = stage_a_ctx.simulators[pid]
             panel_bragg = simulator.run()
 
-            # Apply optimized scale with calibration baseline when available (TOOLING-VIS-001 Phase D.C, DB-AT-027)
-            # When calibration_metadata is present:
-            #   - log_scale is a delta parameter, clamped to ±log_scale_max_delta (default ±3)
-            #   - log_scale_baseline = log(sqrt(spot_scale_override)) computed from calibration_metadata
-            #   - Final scale = exp(log_scale_baseline + clamped_delta)
-            # Otherwise:
-            #   - log_scale is the direct learnable parameter (no baseline separation)
-            #   - Clamped to ±10.0 for numerical stability
-            if hasattr(config, 'calibration_metadata') and config.calibration_metadata is not None:
-                # Compute log_scale_baseline from config.calibration_metadata directly (DB-AT-027 fix)
-                # This ensures zero-iteration runs have correct baseline even when telemetry is minimal
-                spot_scale_override = config.calibration_metadata.get("spot_scale_override", 1.0)
-                sqrt_spot_scale = float(np.sqrt(spot_scale_override))
-                log_scale_baseline_value = float(np.log(sqrt_spot_scale))
-
-                # DEBUG: Print values for first panel only
-                if pid == 0:
-                    print(f"[_build_final_bragg_from_stage_a_telemetry DEBUG pid={pid}]")
-                    print(f"  spot_scale_override={spot_scale_override:.6e}")
-                    print(f"  sqrt_spot_scale={sqrt_spot_scale:.6e}")
-                    print(f"  log_scale_baseline_value={log_scale_baseline_value:.6f}")
-                    print(f"  log_scale['final']={float(log_scale.item()):.6f}")
-                    print(f"  panel_bragg (unscaled) mean={float(panel_bragg.mean()):.6e} max={float(panel_bragg.max()):.6e}")
-
-                # Convert to tensor
-                log_scale_baseline_t = torch.tensor(log_scale_baseline_value, device=device, dtype=dtype)
-
-                # Clamp delta to ±log_scale_max_delta (default ±3)
-                log_scale_max_delta = getattr(config, 'log_scale_max_delta', 3.0)
+            log_scale_max_delta = getattr(config, 'log_scale_max_delta', 3.0)
+            if log_scale_baseline_value is not None:
+                baseline_tensor = torch.tensor(log_scale_baseline_value, device=device, dtype=dtype)
                 log_scale_delta_clamped = torch.clamp(log_scale, min=-log_scale_max_delta, max=log_scale_max_delta)
-                panel_bragg_scaled = panel_bragg * torch.exp(log_scale_baseline_t + log_scale_delta_clamped)
+                log_scale_effective = baseline_tensor + log_scale_delta_clamped
             else:
-                # Legacy path: log_scale is direct parameter, clamp to ±10.0
-                log_scale_clamped = torch.clamp(log_scale, min=-10.0, max=10.0)
-                panel_bragg_scaled = panel_bragg * torch.exp(log_scale_clamped)
+                log_scale_effective = torch.clamp(log_scale, min=-10.0, max=10.0)
+
+            panel_bragg_scaled = panel_bragg * torch.exp(log_scale_effective)
 
             bragg_full[pid] = panel_bragg_scaled.cpu().numpy().astype(np.float32)
 
@@ -4698,6 +4722,25 @@ def run_nanobrag_refinement(
             device, dtype
         )
     
+        beam_flux = None
+        beam_exposure = None
+        beamsize_mm = None
+        N_cells = None
+        spot_scale_override = None
+        if config.calibration_metadata is not None:
+            beam_flux = config.calibration_metadata.get("beam_flux")
+            beam_exposure = config.calibration_metadata.get("beam_exposure")
+            beamsize_mm = config.calibration_metadata.get("beamsize_mm")
+            N_cells = config.calibration_metadata.get("N_cells")
+            spot_scale_override = config.calibration_metadata.get("spot_scale_override")
+
+        log_scale_baseline_value = log_scale_baseline
+        if log_scale_baseline_value is None and spot_scale_override is not None:
+            try:
+                log_scale_baseline_value = float(np.log(np.sqrt(spot_scale_override)))
+            except (TypeError, ValueError):
+                log_scale_baseline_value = None
+
         # Generate final Bragg array with optimized parameters
         with torch.no_grad():
             bragg_full = np.zeros((n_panels, *panel_shape), dtype=np.float32)
@@ -4719,7 +4762,12 @@ def run_nanobrag_refinement(
                         detector_config.mask_array, dtype=torch.float32, device=device
                     )
     
-                beam_config = create_beam_config(beam)
+                beam_config = create_beam_config(
+                    beam,
+                    flux=beam_flux,
+                    beamsize_mm=beamsize_mm,
+                    exposure=beam_exposure,
+                )
     
                 # Apply final full crystal perturbations via tensor overrides (GRADIENT-001, TORCH-REFINE-002)
                 cell_params = crystal.get_unit_cell().parameters()
@@ -4734,6 +4782,16 @@ def run_nanobrag_refinement(
                 perturbed_alpha = cell_params[3] + torch.tanh(angle_alpha_raw) * max_angle_delta
                 perturbed_beta = cell_params[4] + torch.tanh(angle_beta_raw) * max_angle_delta
                 perturbed_gamma = cell_params[5] + torch.tanh(angle_gamma_raw) * max_angle_delta
+
+                zero_param_deltas = (
+                    torch.allclose(log_cell_a_delta, torch.tensor(0.0, device=device, dtype=dtype))
+                    and torch.allclose(log_cell_b_delta, torch.tensor(0.0, device=device, dtype=dtype))
+                    and torch.allclose(log_cell_c_delta, torch.tensor(0.0, device=device, dtype=dtype))
+                    and torch.allclose(angle_alpha_raw, torch.tensor(0.0, device=device, dtype=dtype))
+                    and torch.allclose(angle_beta_raw, torch.tensor(0.0, device=device, dtype=dtype))
+                    and torch.allclose(angle_gamma_raw, torch.tensor(0.0, device=device, dtype=dtype))
+                    and torch.allclose(orientation_vec, torch.zeros_like(orientation_vec))
+                )
     
                 # 3. Orientation perturbation via quaternion→XYZ misset (TORCH-REFINE-002)
                 # TORCH-GEOMETRY-PARITY-002 Phase B5: Branch on U-matrix vs cell+misset path
@@ -4768,11 +4826,11 @@ def run_nanobrag_refinement(
                     bounded_orientation_vec = torch.tanh(orientation_vec) * max_orientation_deg * (np.pi / 180.0)
                     quat = vec_to_unit_quaternion(bounded_orientation_vec)
                     misset_xyz_deg = quaternion_to_xyz_euler(quat)
-    
+
                     # Add baseline misset from perturbed geometry if provided (TORCH-REFINE-002D)
                     if baseline_misset_deg_tensor is not None:
                         misset_xyz_deg = misset_xyz_deg + baseline_misset_deg_tensor
-    
+
                     crystal_overrides = {
                         'cell_a': perturbed_cell_a,
                         'cell_b': perturbed_cell_b,
@@ -4783,14 +4841,22 @@ def run_nanobrag_refinement(
                     }
                     misset_deg_for_crystal = misset_xyz_deg
     
-                crystal_config, _ = create_crystal_config(
-                    crystal, None,
-                    crystal_overrides=crystal_overrides,
-                    misset_deg_override=misset_deg_for_crystal
-                )
-    
-                detector_model = Detector(detector_config, device=device, dtype=dtype)
-                crystal_model = Crystal(crystal_config, device=device, dtype=dtype)
+                use_cached_crystal = zero_param_deltas and stage_a_ctx is not None
+
+                if not use_cached_crystal:
+                    crystal_config, _ = create_crystal_config(
+                        crystal, None,
+                        crystal_overrides=crystal_overrides,
+                        misset_deg_override=misset_deg_for_crystal,
+                        N_cells=N_cells,
+                        apply_n_cells=(N_cells is not None),
+                    )
+
+                    detector_model = Detector(detector_config, device=device, dtype=dtype)
+                    crystal_model = Crystal(crystal_config, beam_config=beam_config, device=device, dtype=dtype)
+                else:
+                    detector_model = Detector(detector_config, device=device, dtype=dtype)
+                    crystal_model = stage_a_ctx.detector_models[pid].crystal
     
                 # HKL interpolation control (TORCH-REFINE-002D, REFINE-005)
                 # Defaults to nearest-neighbor (False) unless explicitly enabled via config
@@ -4800,12 +4866,23 @@ def run_nanobrag_refinement(
                 crystal_model.hkl_data = hkl_grid.to(device=device, dtype=dtype)
                 crystal_model.hkl_metadata = hkl_metadata
     
-                simulator = Simulator(detector=detector_model, crystal=crystal_model, device=device, dtype=dtype)
+                simulator = Simulator(
+                    detector=detector_model,
+                    crystal=crystal_model,
+                    beam_config=beam_config,
+                    device=device,
+                    dtype=dtype
+                )
                 panel_bragg = simulator.run()
     
-                # Apply optimized scale (with same clamping as in compute_loss)
-                log_scale_clamped = torch.clamp(log_scale, min=-10.0, max=10.0)
-                panel_bragg_scaled = panel_bragg * torch.exp(log_scale_clamped)
+                log_scale_max_delta = config.log_scale_max_delta
+                if log_scale_baseline_value is not None:
+                    baseline_tensor = torch.tensor(log_scale_baseline_value, device=device, dtype=dtype)
+                    log_scale_delta_clamped = torch.clamp(log_scale, min=-log_scale_max_delta, max=log_scale_max_delta)
+                    log_scale_effective = baseline_tensor + log_scale_delta_clamped
+                else:
+                    log_scale_effective = torch.clamp(log_scale, min=-10.0, max=10.0)
+                panel_bragg_scaled = panel_bragg * torch.exp(log_scale_effective)
                 bragg_full[pid] = panel_bragg_scaled.cpu().numpy().astype(np.float32)
     
         # Assemble telemetry

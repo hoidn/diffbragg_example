@@ -160,6 +160,7 @@ class StageA:
         log_cell_a_delta = param_values['log_cell_a_delta']
         log_cell_b_delta = param_values['log_cell_b_delta']
         log_cell_c_delta = param_values['log_cell_c_delta']
+        log_scale_baseline = param_values.get('log_scale_baseline')
         angle_alpha_raw = param_values['angle_alpha_raw']
         angle_beta_raw = param_values['angle_beta_raw']
         angle_gamma_raw = param_values['angle_gamma_raw']
@@ -230,6 +231,10 @@ class StageA:
                 'initial': initial_log_scale,
                 'final': float(log_scale.item()),
                 'delta': float(log_scale.item()) - initial_log_scale
+            },
+            'log_scale_baseline': {
+                'initial': log_scale_baseline if log_scale_baseline is not None else 0.0,
+                'final': log_scale_baseline if log_scale_baseline is not None else 0.0,
             },
             'log_cell_a_delta': {
                 'initial': 0.0,

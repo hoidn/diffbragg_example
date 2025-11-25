@@ -1649,13 +1649,23 @@ def run_engine_zero_point_probe(
     hkl_indices = context.hkl_indices
     hkl_amplitudes = context.hkl_amplitudes
     calibration = context.calibration or {}
+    spot_scale_override = context.spot_scale_override
+    if spot_scale_override is None and calibration is not None:
+        spot_scale_override = calibration.get("spot_scale_override")
+    log_scale_baseline = None
+    if spot_scale_override is not None:
+        try:
+            log_scale_baseline = float(np.log(np.sqrt(spot_scale_override)))
+        except (TypeError, ValueError):
+            log_scale_baseline = None
 
     # Build dense HKL grid with same halo as mapping
+    hkl_has_halo = bool(context.diagnostics.get("hkl_stats", {}).get("has_halo", False))
     hkl_grid, hkl_metadata, _ = build_structure_factor_grid(
         indices=hkl_indices,
         amplitudes=hkl_amplitudes,
         device=device_str,
-        halo=True,  # Match mapping behavior
+        halo=hkl_has_halo,  # Match mapping behavior
     )
 
     # Build RefinementConfig for zero-iteration engine run with calibration payload
@@ -1668,6 +1678,7 @@ def run_engine_zero_point_probe(
         sigma_readout_provenance=sigma_source,
         calibration_metadata=context.calibration,  # Forward mapping calibration into engine
     )
+    config.log_scale_baseline = log_scale_baseline
 
     # Run engine with delegation to capture telemetry
     _, telemetry = run_nanobrag_refinement(
@@ -1779,6 +1790,14 @@ def run_engine_zero_point_probe(
         "variance_floor_masked_pixels": variance_floor_masked_pixels,
         "roi_cc_samples": roi_cc_samples,
         "db_at_027_pass": db_at_027_pass,
+        "calibration": {
+            "spot_scale_override": spot_scale_override,
+            "log_scale_baseline": log_scale_baseline,
+            "beam_flux": calibration.get("beam_flux") if calibration else None,
+            "beam_exposure": calibration.get("beam_exposure") if calibration else None,
+            "beamsize_mm": calibration.get("beamsize_mm") if calibration else None,
+            "N_cells": calibration.get("N_cells") if calibration else None,
+        },
         "tolerances": {
             "mean_abs_diff": mean_abs_tol,
             "max_abs_diff": max_abs_tol,

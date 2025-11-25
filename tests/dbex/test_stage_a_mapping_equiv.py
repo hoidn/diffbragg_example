@@ -17,10 +17,6 @@ from pathlib import Path
 import pytest
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="STAGEA-001 Stage A zero-point miscalibration (spot_scale_override missing)",
-)
 def test_db_at_027_zero_point_parity():
     """DB-AT-027: Stage A zero-point mapping equivalence.
 

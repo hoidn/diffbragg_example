@@ -5007,6 +5007,13 @@ def run_nanobrag_refinement(
             log_scale_baseline_value = config.log_scale_baseline
         max_delta_uncal = getattr(config, "log_scale_max_delta_uncalibrated", 10.0)
 
+        # TOOLING-VIS-001 Phase D.E: Extract masked-mean baseline telemetry from param_values
+        # These values were computed by _build_stage_a_params via zero-iteration forward pass
+        log_scale_baseline_source = param_values.get('log_scale_baseline_source')
+        spot_scale_override_adjustment_factor = param_values.get('spot_scale_override_adjustment_factor')
+        target_mean_masked = param_values.get('target_mean_masked')
+        model_mean_masked = param_values.get('model_mean_masked')
+
         # Generate final Bragg array with optimized parameters
         with torch.no_grad():
             bragg_full = np.zeros((n_panels, *panel_shape), dtype=np.float32)
@@ -5285,6 +5292,9 @@ def run_nanobrag_refinement(
             # SCALE-008 / TOOLING-VIS-001: Mapping-aware log-scale baseline telemetry
             log_scale_baseline_source=log_scale_baseline_source,
             spot_scale_override_adjustment_factor=spot_scale_override_adjustment_factor,
+            # TOOLING-VIS-001 Phase D.E: Masked-mean telemetry for Stage A baseline derivation
+            target_mean_masked=target_mean_masked,
+            model_mean_masked=model_mean_masked,
             # Canonical Stage A metadata propagated to downstream stages
             canonical_stage_label=canonical_baseline["stage_label"],
             canonical_chi_squared=canonical_baseline["chi_squared"],

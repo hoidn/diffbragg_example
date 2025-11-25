@@ -216,6 +216,67 @@ def build_mapping_stage_a_context(
         else None
     )
 
+    # Auto-adjust spot_scale when N_cells suppression causes extreme target/bragg ratio
+    # (TOOLING-VIS-001 Phase D.E — mapping alignment for small-detector metadata fixtures)
+    if not apply_calibration_n_cells and calibration is not None:
+        target_mean = float(inputs.target[inputs.loss_mask].mean())
+        bragg_mean = float(bragg_zero_iter[inputs.loss_mask].mean())
+
+        # Guard: only re-run if the ratio is extreme (>1e3) and both means are finite/positive
+        if (
+            bragg_mean > 0
+            and target_mean > 0
+            and np.isfinite(target_mean)
+            and np.isfinite(bragg_mean)
+            and (target_mean / bragg_mean) > 1e3
+        ):
+            # Clone calibration dict to avoid mutating the on-disk config
+            import copy
+            calibration_adjusted = copy.deepcopy(calibration)
+
+            # Calculate adjustment factor: (target/bragg)^2
+            adjustment_factor = (target_mean / bragg_mean) ** 2
+
+            # Multiply spot_scale_override by the adjustment factor
+            original_spot_scale = calibration_adjusted.get("spot_scale_override", 1.0)
+            calibration_adjusted["spot_scale_override"] = float(original_spot_scale * adjustment_factor)
+
+            # Re-run simulate_forward_once with adjusted calibration
+            # Keep apply_calibration_n_cells=False to avoid reintroducing oversampling
+            bragg_zero_iter, diagnostics_adjusted = simulate_forward_once(
+                inputs=inputs,
+                detector=dataload.detector,
+                beam=dataload.beam,
+                crystal=dataload.crystal,
+                experiment=dataload.Expt,
+                hkl_indices=hkl_indices,
+                hkl_amplitudes=hkl_amplitudes,
+                calibration=calibration_adjusted,
+                hkl_source=hkl_source,
+                hkl_path=hkl_path,
+                device=device,
+                apply_calibration_n_cells=False,
+            )
+
+            # Merge diagnostics, preserving adjustment metadata
+            if diagnostics_adjusted is not None:
+                diagnostics.update(diagnostics_adjusted)
+
+            # Record adjustment telemetry (plain floats/booleans for JSON serialization)
+            diagnostics["spot_scale_override_adjustment_factor"] = float(adjustment_factor)
+            diagnostics["calibration_adjusted_for_n_cells"] = True
+            diagnostics["target_bragg_mean_ratio_before_adjustment"] = float(target_mean / bragg_mean)
+
+            # Update the calibration pointer so downstream MappingStageAContext uses adjusted config
+            calibration = calibration_adjusted
+
+            # Re-record calibration_path since it may have been overwritten by diagnostics_adjusted
+            diagnostics["calibration_path"] = (
+                str(calibration_config_path.resolve())
+                if calibration_config_path is not None and calibration_config_path.exists()
+                else None
+            )
+
     sigma_floor_value = float(diagnostics.get("sigma_floor_value", 1.0))
 
     # Warm-start global_scale_hint from masked means in ADU mode.

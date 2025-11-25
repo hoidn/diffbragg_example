@@ -1076,15 +1076,38 @@ def _build_stage_a_params(
     #   - Warm-start from global_scale_hint when available (per spec-db-workflow.md:20-40, REFINE-001)
     #   - log_scale is the direct learnable parameter (no baseline separation)
     log_scale_baseline = None
+    log_scale_baseline_source = None
+    spot_scale_override_adjustment_factor = None
     initial_log_scale = 0.0  # fallback: scale=1.0 (updated below when warm cache present)
+
+    # Priority 1: Mapping-aware override when calibration was adjusted for N_cells
+    # (SCALE-008 / TOOLING-VIS-001 Phase E — prevent double-application of spot_scale when mapping already corrected it)
+    # This priority MUST run FIRST so the mapping-corrected baseline overrides any cached/prior values
     if config.calibration_metadata is not None:
+        calibration_adjusted = config.calibration_metadata.get("calibration_adjusted_for_n_cells", False)
+        if calibration_adjusted and inputs.global_scale_hint is not None and inputs.global_scale_hint > 0:
+            try:
+                log_scale_baseline = float(np.log(inputs.global_scale_hint))
+                log_scale_baseline_source = "mapping_global_scale_hint"
+                # Record the adjustment factor so telemetry shows the mapping correction was honored
+                adjustment_factor_raw = config.calibration_metadata.get("spot_scale_override_adjustment_factor")
+                if adjustment_factor_raw is not None:
+                    spot_scale_override_adjustment_factor = float(adjustment_factor_raw)
+            except (TypeError, ValueError, OverflowError):
+                # Fallback to standard path if conversion fails
+                pass
+
+    # Priority 2: Standard calibration path (when calibration not adjusted for N_cells)
+    if log_scale_baseline is None and config.calibration_metadata is not None:
         spot_scale_override = config.calibration_metadata.get("spot_scale_override")
         if spot_scale_override is not None:
             try:
                 sqrt_spot_scale = float(np.sqrt(spot_scale_override))
                 log_scale_baseline = float(np.log(sqrt_spot_scale))
+                log_scale_baseline_source = "spot_scale_override_sqrt"
             except (TypeError, ValueError):
                 log_scale_baseline = None
+
     config.log_scale_baseline = log_scale_baseline
     log_scale = torch.tensor(initial_log_scale, device=device, dtype=dtype, requires_grad=True)
 
@@ -1292,12 +1315,6 @@ def _build_stage_a_params(
     # for 2-5× speedup. When disabled (benchmarking), rebuild inside compute_loss for cold baseline.
     stage_a_ctx = None
     if config.enable_stage_a_warm_cache:
-        # DIAGNOSTIC: CUDA crystal config comparison (temp)
-        print(f"[CRYSTAL_CUDA_PRE] cell={crystal.get_unit_cell().parameters()}")
-        print(f"[CRYSTAL_CUDA_PRE] A_matrix={np.array(crystal.get_A()).reshape(3,3).tolist()}")
-        print(f"[CRYSTAL_CUDA_PRE] U_matrix={np.array(crystal.get_U()).reshape(3,3).tolist()}")
-        print(f"[CRYSTAL_CUDA_PRE] B_matrix={np.array(crystal.get_B()).reshape(3,3).tolist()}")
-
         stage_a_ctx = _build_stage_a_context(
             detector=detector,
             beam=beam,
@@ -1348,6 +1365,8 @@ def _build_stage_a_params(
     param_values = {
         'initial_log_scale': initial_log_scale,  # Store initial value for telemetry
         'log_scale_baseline': log_scale_baseline,  # Baseline from calibration (None if uncalibrated)
+        'log_scale_baseline_source': log_scale_baseline_source,  # Source of baseline (TOOLING-VIS-001 Phase E)
+        'spot_scale_override_adjustment_factor': spot_scale_override_adjustment_factor,  # N_cells adjustment factor (TOOLING-VIS-001 Phase E)
         'log_scale': log_scale,
         'log_cell_a_delta': log_cell_a_delta,
         'log_cell_b_delta': log_cell_b_delta,
@@ -2482,58 +2501,43 @@ def _build_final_bragg_from_stage_a_telemetry(
         N_cells = config.calibration_metadata.get("N_cells")
         spot_scale_override = config.calibration_metadata.get("spot_scale_override")
 
+    # TOOLING-VIS-001 Phase E: Extract baseline telemetry from Stage A results
+    # These values were computed by _build_stage_a_params and stored in telemetry
     log_scale_baseline_value = None
     log_scale_baseline_source = None
     spot_scale_override_adjustment_factor = None
 
-    # Priority 1: Mapping-aware override when calibration was adjusted for N_cells
-    # (SCALE-008 / TOOLING-VIS-001 Phase E — prevent double-application of spot_scale when mapping already corrected it)
-    # This priority MUST run FIRST so the mapping-corrected baseline overrides any cached/prior values
-    if hasattr(config, 'calibration_metadata') and config.calibration_metadata is not None:
-        calibration_adjusted = config.calibration_metadata.get("calibration_adjusted_for_n_cells", False)
-        if True:
-            print(f"[TOOLING-VIS-001-P1-CHECK] calibration_adjusted={calibration_adjusted}, global_scale_hint={inputs.global_scale_hint}")
-        if calibration_adjusted and inputs.global_scale_hint is not None and inputs.global_scale_hint > 0:
-            try:
-                log_scale_baseline_value = float(np.log(inputs.global_scale_hint))
-                log_scale_baseline_source = "mapping_global_scale_hint"
-                # Record the adjustment factor so telemetry shows the mapping correction was honored
-                adjustment_factor_raw = config.calibration_metadata.get("spot_scale_override_adjustment_factor")
-                if adjustment_factor_raw is not None:
-                    spot_scale_override_adjustment_factor = float(adjustment_factor_raw)
-                if True:
-                    print(f"[TOOLING-VIS-001-P1-SET] baseline={log_scale_baseline_value}, source={log_scale_baseline_source}, adj_factor={spot_scale_override_adjustment_factor}")
-            except (TypeError, ValueError, OverflowError) as e:
-                if True:
-                    print(f"[TOOLING-VIS-001-P1-ERROR] Exception: {e}")
+    # Priority 1: Use telemetry fields (from _build_stage_a_params)
+    if hasattr(telemetry_a, 'log_scale_baseline_source'):
+        log_scale_baseline_source = telemetry_a.log_scale_baseline_source
+    elif isinstance(telemetry_a, dict):
+        log_scale_baseline_source = telemetry_a.get('log_scale_baseline_source')
 
-    # Priority 2: param_deltas (from prior Stage A iteration)
-    if log_scale_baseline_value is None and 'log_scale_baseline' in param_deltas:
+    if hasattr(telemetry_a, 'spot_scale_override_adjustment_factor'):
+        spot_scale_override_adjustment_factor = telemetry_a.spot_scale_override_adjustment_factor
+    elif isinstance(telemetry_a, dict):
+        spot_scale_override_adjustment_factor = telemetry_a.get('spot_scale_override_adjustment_factor')
+
+    # Priority 2: param_deltas (for log_scale_baseline value)
+    if 'log_scale_baseline' in param_deltas:
         base_entry = param_deltas['log_scale_baseline']
         if isinstance(base_entry, dict):
             log_scale_baseline_value = base_entry.get('final', base_entry.get('initial'))
         else:
             log_scale_baseline_value = base_entry
-        if log_scale_baseline_value is not None:
-            log_scale_baseline_source = "param_deltas"
 
     # Priority 3: stage_a_ctx (from warm cache)
     if log_scale_baseline_value is None and stage_a_ctx is not None:
         log_scale_baseline_value = getattr(stage_a_ctx, "log_scale_baseline", None)
-        if log_scale_baseline_value is not None:
-            log_scale_baseline_source = "stage_a_ctx"
 
     # Priority 4: config.log_scale_baseline (explicit override)
     if log_scale_baseline_value is None and hasattr(config, 'log_scale_baseline') and config.log_scale_baseline is not None:
         log_scale_baseline_value = config.log_scale_baseline
-        log_scale_baseline_source = "config_override"
 
-    # Priority 5: Fallback to sqrt(spot_scale_override) when not mapping-adjusted
-    # Only applies when Priority 1 did not engage (i.e., calibration was not adjusted for N_cells)
+    # Priority 5: Fallback to sqrt(spot_scale_override) when not in telemetry
     if log_scale_baseline_value is None and spot_scale_override is not None:
         try:
             log_scale_baseline_value = float(np.log(np.sqrt(spot_scale_override)))
-            log_scale_baseline_source = "spot_scale_override_sqrt"
         except (TypeError, ValueError):
             log_scale_baseline_value = None
 

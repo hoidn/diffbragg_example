@@ -161,6 +161,8 @@ class StageA:
         log_cell_b_delta = param_values['log_cell_b_delta']
         log_cell_c_delta = param_values['log_cell_c_delta']
         log_scale_baseline = param_values.get('log_scale_baseline')
+        log_scale_baseline_source = param_values.get('log_scale_baseline_source')  # TOOLING-VIS-001 Phase E
+        spot_scale_override_adjustment_factor = param_values.get('spot_scale_override_adjustment_factor')  # TOOLING-VIS-001 Phase E
         angle_alpha_raw = param_values['angle_alpha_raw']
         angle_beta_raw = param_values['angle_beta_raw']
         angle_gamma_raw = param_values['angle_gamma_raw']
@@ -361,6 +363,9 @@ class StageA:
             ),
             variance_floor_masked_pixels=int(masked_pixel_reference),
             variance_floor_clamped_pixels=int(variance_floor_clamped_pixels[0]),
+            # SCALE-008 / TOOLING-VIS-001 Phase E: Mapping-aware log-scale baseline telemetry
+            log_scale_baseline_source=log_scale_baseline_source,
+            spot_scale_override_adjustment_factor=spot_scale_override_adjustment_factor,
             # PHYSICS-LOSS-003: Canonical Stage A metadata
             canonical_stage_label=canonical_baseline["stage_label"],
             canonical_chi_squared=canonical_baseline["chi_squared"],

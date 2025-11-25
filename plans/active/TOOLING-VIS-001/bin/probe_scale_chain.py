@@ -89,6 +89,7 @@ def compute_case_metrics(
     case_name: str,
     hkl_path: Optional[Path],
     calibration_dict: Optional[dict],
+    calibration_path: Optional[str],
     default_sigma_readout: float,
     device: str,
 ) -> Dict:
@@ -100,6 +101,7 @@ def compute_case_metrics(
         case_name: Label for the case (e.g., "scaled_raw", "scaled_calibrated", "refined_calibrated").
         hkl_path: Path to HKL source (scaled.mtz or refined MTZ). None means use dataload default.
         calibration_dict: Calibration metadata dict (or None to disable calibration).
+        calibration_path: Path to calibration config JSON (or None to disable calibration).
         default_sigma_readout: Default sigma readout value (ADU).
         device: Device string ("cpu" or "cuda:0").
 
@@ -118,14 +120,9 @@ def compute_case_metrics(
         else:
             dataload.args.hkl_source_path = None
 
-        if calibration_dict is not None:
-            # For the calibration case, create a temporary calibration config
-            # We can't directly inject the dict, but build_mapping_stage_a_context
-            # will load it if calibration_config_path is set
-            # Actually, let me check how to properly inject the calibration...
-            # Looking at build_mapping_stage_a_context, it loads calibration via calibration_config_path
-            # So for the "disabled" case, we just don't set it
-            dataload.args.calibration_config_path = None  # Will be overridden below
+        # Set calibration_config_path based on whether calibration is enabled
+        if calibration_dict is not None and calibration_path is not None:
+            dataload.args.calibration_config_path = calibration_path
         else:
             dataload.args.calibration_config_path = None
 
@@ -431,19 +428,13 @@ def main():
             continue
 
         try:
-            # Set calibration_config_path on dataload.args for this case
-            if calib is not None:
-                # We need to pass the calibration path, not the dict
-                # So for calibrated cases, use the original calibration_path_str
-                dataload.args.calibration_config_path = calibration_path_str
-            else:
-                dataload.args.calibration_config_path = None
-
+            # Pass calibration_path to compute_case_metrics so it can be plumbed correctly
             metrics = compute_case_metrics(
                 dataload,
                 case_name,
                 hkl_path,
                 calib,
+                calibration_path_str if calib is not None else None,
                 args.default_sigma,
                 args.device,
             )

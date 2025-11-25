@@ -1,5 +1,5 @@
 ### Turn Summary
-Traced the bogus scale-chain telemetry to the plan-local probe zeroing `calibration_config_path`, so calibrated permutations never loaded the smoke config and stayed at spot_scale_override=1.0.
-Recorded the finding in docs/fix_plan.md, updated galph_memory, and issued a ready-for-implementation Do Now for Ralph to patch the probe and rerun DB-AT-028/029 with canonical metadata envs.
-Next: implement the probe fix and capture corrected metrics (raw vs calibrated cases) so we can resume the Stage A physics investigation with trustworthy evidence.
-Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-25T114730Z/ (input.md, summary.md)
+Fixed the scale-chain probe to plumb calibration_config_path correctly for calibrated permutations, enabling trustworthy telemetry capture.
+Resolved the bug where calibrated cases always reported spot_scale_override=1.0 by accepting and passing calibration_path through compute_case_metrics().
+Next: rerun the full geometry/scale analysis now that probe telemetry is reliable, or proceed with DB-AT-028/029 physics investigation.
+Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-25T114730Z/ (scale_chain_probe/scale_chain_metrics.json, db_at_028/db_at_028_metrics.json, db_at_029/db_at_029_metrics.json, pytest logs)

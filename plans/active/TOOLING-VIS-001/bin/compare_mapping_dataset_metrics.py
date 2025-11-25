@@ -132,6 +132,45 @@ def define_cases() -> Dict[str, Dict[str, str]]:
                 sigma_map_path = repo / "sp.proc" / "idx-0000_sigma_metadata.sigma_tiles.pkl"
 
     cases = {
+        # Metadata-sigma cases: use external sigma tiles when DBEX_SMOKE_SIGMA_SOURCE=metadata
+        "metadata_raw": {
+            "expt": str(geom_path),
+            "refl": str(refl_path),
+            "mask": str(mask_path),
+            "hkls": str(repo / "scaled.mtz"),
+            "calibration": None,  # No calibration for raw case
+            "sigma_map": str(sigma_map_path) if sigma_map_path else None,
+            "sigma_source": "metadata",
+        },
+        "metadata_calibrated": {
+            "expt": str(geom_path),
+            "refl": str(refl_path),
+            "mask": str(mask_path),
+            "hkls": str(repo / "scaled.mtz"),
+            "calibration": str(repo / "sp.proc" / "calibration" / "config_torch_smoke.json"),
+            "sigma_map": str(sigma_map_path) if sigma_map_path else None,
+            "sigma_source": "metadata",
+        },
+        # CLI-override cases: explicitly drop sigma_map to use default_sigma CLI override
+        "cli_raw": {
+            "expt": str(geom_path),
+            "refl": str(refl_path),
+            "mask": str(mask_path),
+            "hkls": str(repo / "scaled.mtz"),
+            "calibration": None,  # No calibration for raw case
+            "sigma_map": None,  # Explicitly drop sigma_map for CLI override
+            "sigma_source": "cli_override",
+        },
+        "cli_calibrated": {
+            "expt": str(geom_path),
+            "refl": str(refl_path),
+            "mask": str(mask_path),
+            "hkls": str(repo / "scaled.mtz"),
+            "calibration": str(repo / "sp.proc" / "calibration" / "config_torch_smoke.json"),
+            "sigma_map": None,  # Explicitly drop sigma_map for CLI override
+            "sigma_source": "cli_override",
+        },
+        # Legacy aliases for backward compatibility
         "scaled_raw": {
             "expt": str(geom_path),
             "refl": str(refl_path),
@@ -139,6 +178,7 @@ def define_cases() -> Dict[str, Dict[str, str]]:
             "hkls": str(repo / "scaled.mtz"),
             "calibration": None,  # Calibration explicitly disabled for raw case
             "sigma_map": str(sigma_map_path) if sigma_map_path else None,
+            "sigma_source": sigma_source,
         },
         "scaled_calibrated": {
             "expt": str(geom_path),
@@ -147,6 +187,7 @@ def define_cases() -> Dict[str, Dict[str, str]]:
             "hkls": str(repo / "scaled.mtz"),
             "calibration": str(repo / "sp.proc" / "calibration" / "config_torch_smoke.json"),
             "sigma_map": str(sigma_map_path) if sigma_map_path else None,
+            "sigma_source": sigma_source,
         },
         "refined_calibrated": {
             "expt": str(geom_path),
@@ -155,8 +196,8 @@ def define_cases() -> Dict[str, Dict[str, str]]:
             "hkls": str(repo / "tests" / "fixtures" / "golden_data" / "simple_cubic" / "refined_structure_factors.mtz"),
             "calibration": str(repo / "tests" / "fixtures" / "golden_data" / "simple_cubic" / "config_torch.json"),
             "sigma_map": str(sigma_map_path) if sigma_map_path else None,
+            "sigma_source": sigma_source,
         },
-        # Legacy aliases for backward compatibility
         "metadata_scaled": {
             "expt": str(geom_path),
             "refl": str(refl_path),
@@ -164,6 +205,7 @@ def define_cases() -> Dict[str, Dict[str, str]]:
             "hkls": str(repo / "scaled.mtz"),
             "calibration": str(repo / "sp.proc" / "calibration" / "config_torch_smoke.json"),
             "sigma_map": str(sigma_map_path) if sigma_map_path else None,
+            "sigma_source": sigma_source,
         },
         "metadata_refined": {
             "expt": str(geom_path),
@@ -172,25 +214,27 @@ def define_cases() -> Dict[str, Dict[str, str]]:
             "hkls": str(repo / "tests" / "fixtures" / "golden_data" / "simple_cubic" / "refined_structure_factors.mtz"),
             "calibration": str(repo / "tests" / "fixtures" / "golden_data" / "simple_cubic" / "config_torch.json"),
             "sigma_map": str(sigma_map_path) if sigma_map_path else None,
+            "sigma_source": sigma_source,
         },
     }
     return cases
 
 
-def build_dataload_for_case(case_spec: Dict[str, str], sigma_source: str = "metadata") -> DataLoad:
+def build_dataload_for_case(case_spec: Dict[str, str]) -> DataLoad:
     """Build a DataLoad instance for a specific case configuration.
 
     Args:
-        case_spec: dict with keys {expt, refl, mask, hkls, calibration, sigma_map}
-        sigma_source: "metadata" or "override" (from DBEX_SMOKE_SIGMA_SOURCE)
+        case_spec: dict with keys {expt, refl, mask, hkls, calibration, sigma_map, sigma_source}
 
     Returns:
         DataLoad instance configured for this case
 
     Per tests/conftest.py::refgeom_dataload (lines 224-237):
-    - When sigma_source=="metadata" and case_spec["sigma_map"] is present,
+    - When case_spec["sigma_source"]=="metadata" and case_spec["sigma_map"] is present,
       pass it through args.sigma_map so DataLoad loads external sigma tiles
       instead of relying on experiment metadata alone.
+    - When case_spec["sigma_source"]=="cli_override", sigma_map is None so DataLoad
+      will rely on the default_sigma CLI override passed to compute_case_metrics.
     - Keep HKL and calibration overrides per case (no swapping experiments).
     """
     # Detect MTZ column labels: refined structure factors use Bijvoet pairs
@@ -230,7 +274,6 @@ def build_dataload_for_case(case_spec: Dict[str, str], sigma_source: str = "meta
 def compute_case_metrics(
     case_name: str,
     case_spec: Dict[str, str],
-    sigma_source: str,
     default_sigma: float,
     device: str,
     emit_roi_artifacts: bool = False,
@@ -241,8 +284,7 @@ def compute_case_metrics(
 
     Args:
         case_name: Human-readable case identifier
-        case_spec: Dataset paths dict
-        sigma_source: "metadata" or "override"
+        case_spec: Dataset paths dict (includes sigma_source)
         default_sigma: Fallback sigma value
         device: Device string (e.g., "cpu", "cuda:0")
         emit_roi_artifacts: If True, emit PNG+NPZ for lowest-correlation ROIs
@@ -252,6 +294,9 @@ def compute_case_metrics(
     Returns:
         Dictionary with per-case metrics plus diagnostics
     """
+    # Extract sigma_source from case_spec
+    sigma_source = case_spec.get("sigma_source", "metadata")
+
     print(f"\n=== Building mapping context for case: {case_name} ===")
     print(f"  expt: {case_spec['expt']}")
     print(f"  refl: {case_spec['refl']}")
@@ -259,9 +304,10 @@ def compute_case_metrics(
     print(f"  hkls: {case_spec['hkls']}")
     print(f"  calibration: {case_spec['calibration']}")
     print(f"  sigma_source: {sigma_source}")
+    print(f"  sigma_map: {case_spec.get('sigma_map', 'None')}")
 
     # Build DataLoad for this case
-    dataload = build_dataload_for_case(case_spec, sigma_source=sigma_source)
+    dataload = build_dataload_for_case(case_spec)
 
     # Build mapping context reusing canonical helper (TOOLING-VIS-001 requirement)
     mapping_context = build_mapping_stage_a_context(
@@ -432,6 +478,7 @@ def compute_case_metrics(
         "hkl_path": hkl_path,
         "hkl_count": hkl_count,
         "hkl_telemetry": hkl_telemetry,
+        "sigma_source": sigma_source,
         "sigma_readout_map_source": sigma_readout_map_source,
         "sigma_map_path": sigma_map_path_used,
         "n_rois": len(valid_corrs),
@@ -558,7 +605,6 @@ def main():
         metrics = compute_case_metrics(
             case_name=case_name,
             case_spec=case_spec,
-            sigma_source=sigma_source,
             default_sigma=args.default_sigma,
             device=args.device,
             emit_roi_artifacts=args.emit_roi_artifacts,

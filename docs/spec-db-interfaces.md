@@ -29,7 +29,7 @@ API Contracts (Normative)
 Precedence Rules (Normative)
 - CLI flag values SHALL override values inferred from Experiment metadata.
 - Environment variables SHALL provide defaults (e.g., device), overridden by CLI.
-- Detector readout noise (`sigma_readout`) SHALL follow the precedence chain config sigma map (from `--torch-config` when present and valid) > `--sigma-map` (calibrated tensor) > `--sigma-rdout` (scalar) > Experiment metadata external_lookup tiles, as detailed in `docs/TESTING_GUIDE.md` and `spec-db-core.md`. When none of these are available, the CLI SHALL error (no silent defaults such as legacy ~3 ADU fallbacks).
+- Detector readout noise (`sigma_readout`) SHALL follow the precedence chain config sigma map (from `--torch-config` when present and valid) > `--sigma-map` (calibrated tensor) > `--sigma-rdout` (scalar) > Experiment metadata external_lookup tiles, as detailed in `docs/TESTING_GUIDE.md` and `spec-db-core.md`. When none of these are available, the CLI SHALL error (no silent defaults such as legacy ~3 ADU fallbacks). If two tiers provide conflicting values (e.g., config map vs CLI map/scalar), this is a configuration error; implementations SHALL fail fast rather than silently overriding.
 
 Error Conditions (Normative)
 - Rectangular pixel panels SHALL error (unless per‑pitch Detectors are constructed explicitly outside the single‑panel mapping).

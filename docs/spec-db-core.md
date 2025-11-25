@@ -19,8 +19,8 @@ Units, Frames, and Conventions (Normative)
   - Beam vector SHALL point sample→source and be normalized.
   - Pixel arrays and masks SHALL use `[panel, slow, fast]` ordering.
 - Unit modes:
-  - Photon mode: targets, `sigma_readout`, and simulator outputs are in photons; variance `V` is computed in the same units.
-  - ADU mode: targets and `sigma_readout` remain in ADU; simulator outputs are converted to ADU before loss (global scale per workflow). Variance `V` is still computed in target units.
+  - Photon mode: enabled when `--adu-per-photon > 0`; targets, `sigma_readout`, and simulator outputs are converted to photons at ingest and remain in photons; variance `V` is computed in photons.
+  - ADU mode: used when no gain is provided; targets and `sigma_readout` remain in ADU; simulator outputs are converted to ADU before loss (global scale per workflow). There is no “ADU mode with gain.” Variance `V` is always computed in target units.
 - ROI bbox semantics:
   - Bboxes SHALL be `(x0, x1, y0, y1)` with x1,y1 exclusive; slice as `img[pid, y0:y1, x0:x1]`.
 
@@ -39,9 +39,9 @@ Data Contracts (Normative)
       1) Calibrated per-pixel/per-panel `sigma_readout` map (e.g., CLI `--sigma-map` or config payload).
       2) CLI scalar `--sigma-rdout` broadcast to the detector shape.
       3) External tiles (e.g., dxtbx `external_lookup`, sigma tiles embedded in Experiments/MTZ).
-      If none of these are available, runs SHALL fail with a descriptive error (no defaults).
+      If none of these are available, runs SHALL fail with a descriptive error (no defaults). Conflicting values across tiers SHALL be treated as configuration errors (fail fast), not silently overridden.
     - When detector metadata cannot provide a calibrated dark-RMS (or equivalent) value, the CLI MUST require an explicit override via `--sigma-rdout` (or abort with a descriptive error). Silent fallback to zeros is non-compliant. Legacy pipelines that inject hardcoded sigma defaults (e.g., ~3 ADU) are explicitly non-conformant with Spec‑DB.
-    - The bridge SHALL record the provenance of the supplied noise (e.g., `sigma_map`, `sigma_scalar`, `external_lookup`) in `RefinementInputs` telemetry so downstream tools can audit whether instrument data or overrides were used.
+    - The bridge SHALL record the provenance of the supplied noise (e.g., `sigma_map`, `sigma_scalar`, `external_lookup`) in `RefinementInputs` telemetry so downstream tools can audit whether instrument data or overrides were used. Precedence and conflict policy are defined in `spec-db-interfaces.md`; this section restates the ladder only.
 - Outputs: Bragg prediction and HDF5 (optional)
   - Full‑frame Bragg tensor SHALL be `(n_panels, slow, fast)` and align with DataLoad.data.
   - When HDF5 viewer output is produced, it SHALL follow the schema in `spec-db-interfaces.md` (“HDF5 Output Schema”). The per‑ROI layout described here (`data/roiN`, `model/roiN`, `bragg/roiN`, `bg/roiN`, `score`) is the canonical viewer layout within that schema.
@@ -64,7 +64,7 @@ Geometry Mapping (Normative)
     - `U₀ = A*_0 @ B₀⁻¹` (baseline orientation matrix),
     - and by construction `A*_mapping = U₀ @ B₀ = A*_0`.
   - Implementations SHALL NOT introduce alternative, incompatible decompositions of `A*_mapping` into `U,B` in production refinement code.
-  - Detailed derivations of the incremental UB parameterization live in `writeups/torch_geometry_incremental_ub_parameterization.tex` (normative by reference). Changes to that writeup MUST be mirrored here and in the DB‑AT UB tests.
+  - Detailed derivations of the incremental UB parameterization live in `writeups/torch_geometry_incremental_ub_parameterization.tex` (normative by reference). Changes to that writeup MUST be mirrored here and in the DB‑AT UB tests. Normative tolerances for DB‑AT‑026 (double precision): `max_abs_diff(U(0)−U₀) ≤ 1e-12`, `max_abs_diff(B(0)−B₀) ≤ 1e-12`, `max_abs_diff(A*(0)−A*_mapping) ≤ 1e-12` (scale appropriately for lower precision).
 
 - Incremental parameterization:
   - Stage‑A refinement parameterizations SHALL be defined as *increments* around the baseline state, not as free absolute `A*`:
@@ -117,6 +117,7 @@ Objective Function & Variance Model (Normative)
   - This implements an Iteratively Reweighted Least Squares (IRLS) approach that prevents “attraction to zero,” where the optimizer lowers `I_model` solely to reduce variance.
 - Masking:
   - The loss SHALL be computed only where `(background >= 0) ∧ trusted_mask`, and invalid pixels SHALL NOT contribute to the gradient.
+- Any implementation that uses a “Bragg-only on background-subtracted targets” formulation instead of `I_model = Bragg + background` on raw data is non‑conformant; current torch Stage‑A behavior is documented separately as a TODO but MUST converge to this definition.
 
 Non‑Goals (Informative)
 - Ncells_def (defect envelope) is not modeled in v1.

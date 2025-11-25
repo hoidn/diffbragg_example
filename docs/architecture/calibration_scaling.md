@@ -5,7 +5,7 @@ This note defines the precedence and threading of calibration/scaling parameters
 
 ## Precedence and Conflict Policy
 - Source order: `torch_config` (if present and parseable) → CLI flags → defaults.
-- Overlapping fields (spot_scale_override, adu_per_photon, sigma_rdout, sigma_map, refined_mtz): if both torch_config and CLI provide a value and they differ, fail fast with an explicit error listing both values. No silent overrides.
+- Overlapping fields (spot_scale_override, adu_per_photon, sigma_rdout, sigma_map, refined_mtz): if both torch_config and CLI provide a value and they differ, fail fast with an explicit error listing both values. No silent overrides. Conflicts between tiers for the same sigma field (e.g., config vs CLI map) are also errors.
 - Partial configs: torch_config may be partial; missing fields are filled from CLI/defaults. Record per-field provenance in telemetry.
 - Telemetry: write calibration source per field to `/torch_diagnostics` attrs (`calibration_source_<field>=torch_config|cli|default`), plus sigma provenance/reference and HKL source/path.
 

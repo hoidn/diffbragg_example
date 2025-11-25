@@ -32,6 +32,7 @@ Data Contracts (Normative)
 - Variance inputs:
     - The bridge SHALL supply readout-noise estimates `sigma_readout` in the same units as the loss target (photons or ADU/gain). Granularity MAY be per-pixel or per-panel but MUST align with the simulator tensors and be included in `RefinementInputs` so the variance-weighted loss can be formed.
     - `sigma_readout` values SHALL be strictly positive. Zero-filled placeholders are prohibited because they produce infinite IRLS weights when `I_model → 0`.
+    - Precedence (normative): calibrated per-pixel/per-panel `sigma_readout` maps (e.g., CLI `--sigma-map`) SHALL take priority over scalar overrides; scalar `--sigma-rdout` SHALL take priority over external_lookup metadata tiles. If none are provided, runs SHALL fail (no silent zeros/fallbacks).
     - When detector metadata cannot provide a calibrated dark-RMS (or equivalent) value, the CLI MUST require an explicit override via `--sigma-rdout` (or abort with a descriptive error). Silent fallback to zeros is non-compliant.
     - The bridge SHALL record the provenance of the supplied noise (e.g., `calibrated_dark`, `cli_override`) in `RefinementInputs` telemetry so downstream tools can audit whether instrument data or overrides were used.
 - Outputs: Bragg prediction and HDF5 (optional)

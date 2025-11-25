@@ -15,7 +15,7 @@ This note defines the precedence and threading of calibration/scaling parameters
 - sigma_floor and sigma_readout share units with the target; both are divided by gain when gain is provided.
 
 ## Sigma Handling
-- Sources: CLI scalar (`--sigma-rdout`), CLI map (`--sigma-map`), or dxtbx `external_lookup`. Must be strictly positive, finite, and align with `[panel, slow, fast]`.
+- Sources and precedence (normative for torch path): CLI map (`--sigma-map`) > CLI scalar (`--sigma-rdout`) > dxtbx `external_lookup`. Must be strictly positive, finite, and align with `[panel, slow, fast]`. If none are supplied, abort (no silent zeros).
 - Sigma tensors are zeroed outside the loss mask but kept in target units (ADU or photons).
 - sigma_floor clamp: variance uses `max(I_model + sigma_readout^2, sigma_floor^2)`; clamp fraction is recorded in stage telemetry.
 

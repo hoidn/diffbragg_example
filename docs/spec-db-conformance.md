@@ -20,6 +20,7 @@ Conformance Profiles (Normative)
   - DB‑AT‑024 Mapping consistency (zero‑iteration forward vs data‑minus‑background overlay).
   - DB‑AT‑025 HKL interpolation conformance (tricubic halo): when `crystal.interpolate=True`, the dense |F| grid MUST include a ±1 halo; any default_F fallback is a failure. Stage A is canonically `interpolate=False`; any Stage‑A run that enables interpolation is non‑canonical and SHALL be flagged in telemetry per `docs/spec-db-workflow.md`.
   - DB‑AT‑026 Stage‑A UB parameterization round-trip (zero-point UB/A* consistency).
+  - DB‑AT‑030 Sigma precedence and provenance (map vs scalar vs external_lookup).
 
 Acceptance Tests (Normative)
 - DB‑AT‑001 Forward equivalence smoke
@@ -59,6 +60,18 @@ Acceptance Tests (Normative)
     - All three comparisons MUST fall within the documented tolerance; any systematic deviation is a conformance failure.
   - Command (informative example):
     - `KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests -k DB_AT_026` (or equivalent), which runs a small UB round‑trip probe using the Stage‑A parameterization.
+
+- DB‑AT‑030 Sigma precedence and provenance
+  - Goal: Verify `sigma_readout` precedence and telemetry: map > scalar > external_lookup; missing sigma errors.
+  - Setup:
+    - Case A: external_lookup tiles only (no CLI sigma). Expect `sigma_readout_provenance="external_lookup"`.
+    - Case B: external_lookup + `--sigma-map path`. Expect map to win; provenance `"sigma_map"`.
+    - Case C: external_lookup + `--sigma-map path` + `--sigma-rdout <scalar>`. Expect map to win; provenance `"sigma_map"`. If map absent and only scalar present, provenance `"sigma_scalar"`.
+  - Expectations:
+    - Effective `sigma_readout` matches the highest-precedence source per case.
+    - Provenance field matches the selected source.
+    - If none of map/scalar/external are provided, run SHALL fail with a descriptive error (no silent zeros).
+  - Command: `KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests -k DB_AT_030` (selector to be added once harness is wired).
 
 ## Canonical DIALS→Torch Mapping (DB‑AT‑024)
 

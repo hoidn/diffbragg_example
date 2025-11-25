@@ -1,5 +1,5 @@
 # Calibration and Scaling (Current Implementation)
-Scope: descriptive of current implementation; normative behavior lives in docs/spec-db*.md.
+Scope: descriptive of current implementation; normative behavior lives in docs/spec-db*.md. Sigma handling here summarizes `spec-db-core.md`; if this doc and a Spec‑DB shard diverge, the Spec‑DB shard wins.
 
 This note defines the precedence and threading of calibration/scaling parameters in the shipped torch backend. Scope: refine_one torch path (nanobrag). DiffBragg inherits CLI flags but does not consume torch_config.
 

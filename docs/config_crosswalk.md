@@ -140,13 +140,13 @@ Notation ↔ Config Field Mapping (Informative)
     - ADU mode (no gain provided): targets/sigma remain in ADU; simulator output is converted to ADU before loss and scaled by `spot_scale_override**0.5 * exp(log_scale_delta)` (log_scale_delta = 0 at baseline). There is no “ADU mode with gain.” See `spec-db-workflow.md` (Calibration & Unit Conventions) for the normative ADU/photon policy.
 
 Naming Glossary — Loss, Targets, and Sigma (Informative)
-- Targets:
-  - `I_obs` (Spec‑DB core/vis) ↔ `target` / `inputs.target` (RefinementInputs) ↔ “Data” panel in triptychs.
-  - “target” in CLI/docs refers to the same tensor after any ADU→photon conversion (`--adu-per-photon`).
+- Observed data:
+  - `I_obs` (Spec‑DB core/vis): raw experimental data in the run’s unit mode (ADU or photons). This is what the canonical loss and triptych “Data” panel use.
+  - `target` / `inputs.target` (RefinementInputs): an implementation detail for some paths (e.g., background-subtracted targets). When present, this is `I_obs − I_bg_estimate` restricted to ROIs; it is not the canonical `I_obs` for Spec‑DB.
 - Model:
-  - `I_model` (Spec‑DB) ↔ “model” / `model` datasets in HDF5; for the DiffBragg backend these store Bragg+background on raw data, while the current torch Stage‑A path uses the refined Bragg prediction evaluated on background‑subtracted targets.
+  - `I_model` (Spec‑DB): full model prediction `Bragg + background` on the raw data grid; DiffBragg backend already writes this as model datasets. The current torch Stage‑A path uses a Bragg-only prediction on background-subtracted targets (non‑conformant; see note below).
   - `Bragg` alone (`bragg` tensors, `bragg/roiN` datasets) is the pure Bragg component.
-  - TODO‑PHYSICS (informative): Once Stage‑A physics work converges, either (a) update the torch implementation and VIS helpers to expose a canonical Bragg+background `I_model` consistent with DiffBragg, or (b) narrow Spec‑DB language to explicitly allow the “Bragg on background‑subtracted target” formulation and update this mapping accordingly.
+  - Non‑conformant implementation note (temporary): The current torch Stage‑A implementation computes loss/viewer model using Bragg-only on background-subtracted targets; this is explicitly non‑conformant with `spec-db-core.md` and is slated for removal once the conformant path lands.
 - Sigma / variance:
   - `sigma_readout` (Spec‑DB) ↔ `sigma_readout` / `sigma_readout_map` in `DataLoad`/`RefinementInputs`; CLI flags `--sigma-rdout` and `--sigma-map`; nanobrag docs may also refer to this as `sigma_r`.
   - `V` / “variance” (Spec‑DB) ↔ the detached, clamped denominator in `_compute_variance_weighted_loss` and the `variance/roiN` dataset in HDF5; VIS Z‑score maps use `z = (I_obs - I_model) / sqrt(V)` as described in `docs/spec-db-vis.md`.

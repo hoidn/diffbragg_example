@@ -1,7 +1,7 @@
 # spec-db-core.md — Core Engine (Normative)
 
 Overview (Normative)
-- Purpose: Define the core physics, geometry, units, and data contracts for DBEX + PyTorch refinement that simulates far‑field Bragg diffraction per panel and refines model parameters against masked, background‑subtracted images.
+- Purpose: Define the core physics, geometry, units, and data contracts for DBEX + PyTorch refinement that simulates far‑field Bragg diffraction per panel and refines model parameters against masked raw images with an explicit background model. Implementations MAY use background-subtracted targets internally, but the canonical loss/residuals are defined on raw data (I_obs) and the full model prediction (I_model = Bragg + background).
 - Scope: Stills (phi_steps=1) with a single lattice envelope; square pixels only; P1 reflections (no symmetry/friedel pairing in the simulator). DiffBragg’s Ncells_def is out of scope in v1.
 
 Status
@@ -19,8 +19,8 @@ Units, Frames, and Conventions (Normative)
   - Beam vector SHALL point sample→source and be normalized.
   - Pixel arrays and masks SHALL use `[panel, slow, fast]` ordering.
 - Unit modes:
-  - Photon mode: enabled when `--adu-per-photon > 0`; targets, `sigma_readout`, and simulator outputs are converted to photons at ingest and remain in photons; variance `V` is computed in photons.
-  - ADU mode: used when no gain is provided; targets and `sigma_readout` remain in ADU; simulator outputs are converted to ADU before loss (global scale per workflow). There is no “ADU mode with gain.” Variance `V` is always computed in target units.
+  - Photon mode (gain provided): enabled when `--adu-per-photon > 0`; targets, `sigma_readout`, and simulator outputs are converted to photons at ingest and remain in photons; variance `V` is computed in photons.
+  - ADU mode (no gain provided): used when no gain is provided; targets and `sigma_readout` remain in ADU; simulator outputs are converted to ADU before loss (global scale per workflow). There is no “ADU mode with gain.” Variance `V` is always computed in target units.
 - ROI bbox semantics:
   - Bboxes SHALL be `(x0, x1, y0, y1)` with x1,y1 exclusive; slice as `img[pid, y0:y1, x0:x1]`.
 
@@ -35,13 +35,13 @@ Data Contracts (Normative)
 - Variance inputs:
     - The bridge SHALL supply readout-noise estimates `sigma_readout` in the same units as the loss target (photons or ADU/gain). Granularity MAY be per-pixel or per-panel but MUST align with the simulator tensors and be included in `RefinementInputs` so the variance-weighted loss can be formed.
     - `sigma_readout` values SHALL be strictly positive and finite on all trusted pixels. Zero or NaN sigma is non-compliant because it produces infinite IRLS weights when `I_model → 0`.
-    - Canonical precedence (highest → lowest, normative for conformance):
-      1) Calibrated per-pixel/per-panel `sigma_readout` map (e.g., CLI `--sigma-map` or config payload).
-      2) CLI scalar `--sigma-rdout` broadcast to the detector shape.
-      3) External tiles (e.g., dxtbx `external_lookup`, sigma tiles embedded in Experiments/MTZ).
-      If none of these are available, runs SHALL fail with a descriptive error (no defaults). Conflicting values across tiers SHALL be treated as configuration errors (fail fast), not silently overridden.
+    - Canonical sigma_readout precedence (highest → lowest, normative for conformance):
+      1) Sigma map tier: any calibrated per-pixel/per-panel `sigma_readout` map provided by config or CLI (e.g., torch_config sigma map or `--sigma-map`), in units matching the loss target.
+      2) Scalar tier: any scalar sigma provided by config or CLI (e.g., torch_config sigma scalar or `--sigma-rdout`), broadcast to the detector shape.
+      3) External tiles tier: sigma tiles embedded in Experiments/MTZ (e.g., dxtbx `external_lookup`).
+      If none of these are available, runs SHALL fail with a descriptive error (no defaults). If multiple sources exist at the same tier and differ (e.g., config map vs CLI map; config scalar vs CLI scalar), this SHALL be treated as a configuration error (fail fast, no override). MTZ metadata and hardcoded defaults SHALL NOT be used as sigma sources.
     - When detector metadata cannot provide a calibrated dark-RMS (or equivalent) value, the CLI MUST require an explicit override via `--sigma-rdout` (or abort with a descriptive error). Silent fallback to zeros is non-compliant. Legacy pipelines that inject hardcoded sigma defaults (e.g., ~3 ADU) are explicitly non-conformant with Spec‑DB.
-    - The bridge SHALL record the provenance of the supplied noise (e.g., `sigma_map`, `sigma_scalar`, `external_lookup`) in `RefinementInputs` telemetry so downstream tools can audit whether instrument data or overrides were used. Precedence and conflict policy are defined in `spec-db-interfaces.md`; this section restates the ladder only.
+    - The bridge SHALL record the provenance of the supplied noise (e.g., `sigma_map`, `sigma_scalar`, `external_lookup`) in `RefinementInputs` telemetry so downstream tools can audit whether instrument data or overrides were used. Precedence and conflict policy are implemented per `spec-db-interfaces.md`.
 - Outputs: Bragg prediction and HDF5 (optional)
   - Full‑frame Bragg tensor SHALL be `(n_panels, slow, fast)` and align with DataLoad.data.
   - When HDF5 viewer output is produced, it SHALL follow the schema in `spec-db-interfaces.md` (“HDF5 Output Schema”). The per‑ROI layout described here (`data/roiN`, `model/roiN`, `bragg/roiN`, `bg/roiN`, `score`) is the canonical viewer layout within that schema.
@@ -104,8 +104,8 @@ Objective Function & Variance Model (Normative)
 - Loss Function:
   - The refinement objective SHALL be the variance-weighted mean squared error (Chi-squared).
   - Formula: `L = Sum( (I_model - I_obs)^2 / V_detached )` over trusted pixels.
-  - `I_model`: The current differentiable model prediction (Bragg + background).
-  - `I_obs`: Observed targets (photons or ADU after calibration policy).
+  - `I_model`: The current differentiable model prediction (Bragg + background) on the raw data grid in the run’s unit mode.
+  - `I_obs`: Raw observed data (photons or ADU after calibration policy) on the same grid; background subtraction may be used internally but the canonical residuals are defined on raw data.
 - Variance Definition:
   - Variance SHALL be modeled as `V = I_model + sigma_readout^2`, where `I_model` is the current prediction (Bragg + background). Using `I_obs` in the variance term is PROHIBITED.
   - `sigma_readout` is the detector readout noise in photon units derived from the ingestion layer via the CLI-provided `--sigma-rdout/--adu-per-photon` pair or calibrated dark-RMS maps divided by the same gain factor. Values MUST be > 0 per the Data Contracts clause above.
@@ -117,7 +117,8 @@ Objective Function & Variance Model (Normative)
   - This implements an Iteratively Reweighted Least Squares (IRLS) approach that prevents “attraction to zero,” where the optimizer lowers `I_model` solely to reduce variance.
 - Masking:
   - The loss SHALL be computed only where `(background >= 0) ∧ trusted_mask`, and invalid pixels SHALL NOT contribute to the gradient.
-- Any implementation that uses a “Bragg-only on background-subtracted targets” formulation instead of `I_model = Bragg + background` on raw data is non‑conformant; current torch Stage‑A behavior is documented separately as a TODO but MUST converge to this definition.
+- Any implementation that uses a “Bragg-only on background-subtracted targets” formulation instead of `I_model = Bragg + background` on raw data is non‑conformant; current torch Stage‑A behavior is documented separately as a temporary implementation note but MUST converge to this definition.
+- Runs with missing `sigma_readout` (no map, no scalar, no external tiles) or missing `sigma_floor` SHALL be rejected at runtime; the CLI MUST fail fast and SHALL NOT proceed to refinement or write viewer HDF5 outputs.
 
 Non‑Goals (Informative)
 - Ncells_def (defect envelope) is not modeled in v1.

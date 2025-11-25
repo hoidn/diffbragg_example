@@ -4,7 +4,7 @@ Overview (Normative)
 - Purpose: Define tracing/instrumentation requirements and parity workflows to diagnose and resolve discrepancies.
 
 Status
-- Tracing and parity requirements apply to the planned `nanobrag_torch` backend. The legacy DiffBragg path has different instrumentation.
+- Tracing and parity requirements apply to any backend claiming Spec‑DB conformance. At present they target the planned `nanobrag_torch` backend. The legacy DiffBragg path has different instrumentation and is not Spec‑DB conformant.
 - Use `python -m dbex.refine_one` for the current CLI (see `dbex/refine_one.py:5-26`).
 
 Tracing Requirements (Normative)

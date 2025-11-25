@@ -2,7 +2,7 @@
 
 Overview (Normative)
 - Purpose: Define standard visual artifacts for verifying refinement quality.
-- Scope: Residual maps, ROI triptychs, and scatter plots.
+- Scope: Residual maps, ROI triptychs, and scatter plots. These diagnostics apply to any backend claiming Spec‑DB conformance; the legacy DiffBragg backend is legacy/diagnostic until updated.
 
 Coordinate Systems (Normative)
 - Images SHALL be displayed in `(slow, fast)` matrix coordinates.
@@ -21,6 +21,7 @@ Standard Artifacts (Normative)
      - Intensity: Perceptually uniform sequential (e.g., Viridis, Cividis).
      - Residuals: Diverging (e.g., Blue-White-Red or PiYG) centered at 0.
    - Annotation: Each ROI MUST be labeled with its HKL index and correlation coefficient (CC).
+   - Data panel: SHALL display raw `I_obs` in the run’s unit mode (same domain as the loss). Derived images (e.g., background-subtracted targets) MAY be shown in separate panels but MUST NOT be labeled “Data” in a way that could be confused with the canonical `I_obs`.
 
 2. Residual Histogram
    - Histogram of Z-scores across all trusted pixels.

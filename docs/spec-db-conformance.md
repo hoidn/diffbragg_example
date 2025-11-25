@@ -276,9 +276,7 @@ Acceptance Tests (Normative)
          `chi2_stagea_at_mapping = _compute_variance_weighted_loss(bragg_mapping, target, loss_mask, sigma_readout, sigma_floor_sq)`.
   - Expectations (all normative):
     - Forward‑model equality:
-      - `max_abs_diff(bragg_stagea_zero − bragg_mapping) ≤ 2.0e2` (ADU units), calibrated to existing TOOLING‑VIS zero‑point probes for the simple_cubic fixture. This bound MAY be tightened in future once Stage‑A and mapping share an exact forward implementation.
-      - `mean_abs_diff(bragg_stagea_zero − bragg_mapping) ≤ 1e‑3`.
-      - These paired bounds intentionally enforce near-equality while allowing rare outliers; they MAY be revisited once mapping and Stage‑A share a single forward implementation.
+      - `max_abs_diff(bragg_stagea_zero − bragg_mapping) ≤ ε_max` and `mean_abs_diff(bragg_stagea_zero − bragg_mapping) ≤ ε_mean`, where `ε_max`/`ε_mean` reflect float‑precision numerical noise for the canonical fixture (e.g., O(1) ADU for ε_max, much smaller for ε_mean). These tolerances SHALL be kept at float‑precision scales; large O(1e2) bounds are non‑compliant once a shared forward implementation is available. Fixture-specific thresholds live in the DB‑AT‑027 test harness.
     - Variance‑weighted χ² equality:
       - `|chi2_stagea_at_mapping − chi2_mapping| / chi2_mapping ≤ 1e‑3`, where the χ² is the canonical PHYSICS‑LOSS variance‑weighted objective with detached denominator (`V = I_model + sigma_readout²`, clamped to `sigma_floor²`); the current helper implementing this is `dbex.physics.loss._compute_variance_weighted_loss` (informative).
     - χ² per pixel sanity:

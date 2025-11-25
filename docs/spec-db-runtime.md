@@ -4,7 +4,7 @@ Overview (Normative)
 - Purpose: Define execution guardrails for PyTorch‑backed simulation and refinement, ensuring determinism, performance, and differentiability.
 
 Status
-- Applies to the `nanobrag_torch` backend, which is implemented but non‑default. The CLI defaults to the legacy DiffBragg path (`--backend diffbragg`), which does not use these PyTorch guardrails. Use `--backend nanobrag` to enable the torch backend (Stage A by default; Stage B/C behind flags).
+- These runtime guardrails apply to any backend that claims Spec‑DB conformance. At present, the only backend targeting Spec‑DB conformance is `nanobrag_torch`. The legacy DiffBragg backend (`--backend diffbragg`, current default) is diagnostic-only and does not currently satisfy these requirements.
 
 Runtime Guardrails (Normative)
 - Vectorization: Callers SHALL avoid Python loops over pixels/ROIs when vectorized simulator capabilities exist (per‑panel run or cropped detectors).

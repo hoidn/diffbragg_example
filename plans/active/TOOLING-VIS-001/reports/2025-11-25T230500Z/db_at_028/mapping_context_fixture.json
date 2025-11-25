@@ -1,0 +1,39 @@
+{
+  "timestamp": "2025-11-25T14:25:09.420354+00:00",
+  "stage_name": "fixture_db_at_028",
+  "dataset_paths": {
+    "expt": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/refGeom_small/refGeom_small.expt",
+    "refl": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/refGeom_small/refGeom_small.refl",
+    "mask": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/refGeom_small/refGeom_small_mask.pkl",
+    "mtz": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/smoke_refined_structure_factors_small.mtz"
+  },
+  "sigma_provenance": "cli_map (args.sigma_map)",
+  "hkl_source": "refined",
+  "hkl_path": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/smoke_refined_structure_factors_small.mtz",
+  "calibration_path": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/config_torch_smoke_small.json",
+  "geometry_path": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/refGeom_small/refGeom_small.expt",
+  "rotation_delta_deg": 0.0,
+  "origin_delta_mm": 0.0,
+  "geometry_overridden": false,
+  "device": "cuda:0",
+  "target_stats": {
+    "mean": 87.11842423401832,
+    "std": 1371.4617478237335,
+    "min": -7.975452423095703,
+    "max": 53234.6171875
+  },
+  "target_mean_masked": 87.11842423401832,
+  "target_mean_unmasked": 0.34396197922595584,
+  "bragg_mean_masked": 0.0005741184513793224,
+  "bragg_mean_unmasked": 9.586014610717579e-05,
+  "loss_mask_coverage": 0.003948211669921875,
+  "n_rois": 29,
+  "roi_cc_median": 0.04699710875284219,
+  "scale_ratio_masked": 6.5900922385501375e-06,
+  "scale_ratio_unmasked": 0.000278694018225204,
+  "global_scale_hint": 151742.92806449783,
+  "sigma_floor_value": 1.0,
+  "spot_scale_override": 4.786110784894759e+17,
+  "n_cells_applied": false,
+  "n_cells_suppression_reason": "apply_calibration_n_cells=False (small-detector metadata fixture gate)"
+}

@@ -728,3 +728,14 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-25T053220Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=3 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T053220Z/ next_action=cpu_vs_cuda_mapping_probe
+
+## 2025-11-25T055039Z — TOOLING-VIS-001 Masked Mapping Diagnostics Plan
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
+- Action Type: planning
+- Key Observations: Retrospective check confirms last Do Now executed (CPU↔CUDA probe + DB-AT-028/029 rerun); probe shows device parity but mapping baseline remains uncorrelated (roi_cc≈-0.04 on both CPU/GPU). Noted diagnostic mismatch: `db_at_028_metrics.json` computes `scale_ratio_mapping` without loss_mask, producing 3.8e-03 vs masked 0.259 in mapping_context_fixture. Authored new ready-for-implementation input to add masked vs unmasked mapping metrics in both the probe and pytest fixture, then rerun DB-AT-028/029 with refreshed artifacts.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-25T055039Z/
+- Next Actions: Execute masked metric fixes in `stage_a_smoke_result` and `compare_mapping_forward_cpu_gpu.py`, run the probe + DB-AT-028/029 selectors with metadata sigma, and log masked vs unmasked stats to isolate the mapping baseline mismatch.
+- <Action State>: [ready_for_implementation]
+
+2025-11-25T055039Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=4 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T055039Z/ next_action=masked_mapping_diagnostics_and_db_at_028_029_rerun

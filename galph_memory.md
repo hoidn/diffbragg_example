@@ -984,3 +984,14 @@ This is the **single most important diagnostic** to run before any other TOOLING
 - <Action State>: [implementation]
 
 2025-11-25T140000Z focus=TOOLING-VIS-001 state=implementation dwell=0 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T140000Z/ next_action=sigma_provenance_fix_or_defer
+
+## 2025-11-25T150500Z — TOOLING-VIS-001 sigma-source routing plan (cli_map acceptance)
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
+- Action Type: planning
+- Key Observations: Confirmed the latest fixture (`plans/active/TOOLING-VIS-001/reports/2025-11-25T140000Z/db_at_028/mapping_context_fixture.json`) still reports `sigma_provenance="cli_override (default scalar)"` even with `DBEX_SMOKE_SIGMA_MAP_PATH` threaded through the fixture, because `_select_sigma_readout` (dbex/vis/mapping.py:86-92) only trusts `sigma_source=="external_lookup"`. Updated docs/fix_plan.md and input.md with a ready-for-implementation Do Now: accept `"cli_map"` inside `_select_sigma_readout`, teach `emit_mapping_context_diagnostics` to emit a deterministic cli_map provenance string, and rerun the mapping probe + DB-AT-028/029 under the canonical metadata env so new artifacts prove metadata tiles are being consumed. Reserved `plans/active/TOOLING-VIS-001/reports/2025-11-25T150500Z/` for the upcoming logs/JSON.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-25T150500Z/
+- Next Actions: Ralph implements the helper/telemetry change, then executes `compare_mapping_forward_cpu_gpu.py` plus the `pytest -vv ... -k "DB_AT_028 or DB_AT_029"` run with all metadata env vars and archives the refreshed mapping_context fixtures; halt only if `_select_sigma_readout` still falls back to the scalar and document the error.
+- <Action State>: [ready_for_implementation]
+
+2025-11-25T150500Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=1 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T150500Z/ next_action=fix_sigma_select_and_rerun_mapping_probe_plus_db_at_028_029

@@ -921,3 +921,13 @@ This is the **single most important diagnostic** to run before any other TOOLING
 - <Action State>: [ready_for_implementation]
 
 2025-11-25T093500Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=2 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T093500Z/ next_action=run_mapping_dataset_probe_and_db_at_028_029
+## 2025-11-25T103500Z — TOOLING-VIS-001 Geometry Delta Planning
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
+- Action Type: planning
+- Key Observations: The dataset probe under `plans/active/TOOLING-VIS-001/reports/2025-11-25T093500Z/` shows metadata_scaled and metadata_refined cases share the same ROI CC (≈-0.04) even though `spot_scale_override` matches the golden fixtures (3.1×10^17), so the large scale factor is expected and not the blocker. HKL swaps and calibration choices do not change the failure signature, which points to a geometry zero-point drift between the canonical `refGeom.expt` baseline and the refined experiments (`sp.proc/idx-0000_refined.expt`, `tests/fixtures/golden_data/simple_cubic/refined.expt`). We need quantitative evidence of those geometry deltas before prescribing production fixes.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-25T103500Z/
+- Next Actions: Implement the `compare_geometry_zero_points.py` analysis script, run it against refGeom/idx_refined/golden_refined cases, and rerun DB-AT-028/029 so the geometry deltas and failing telemetry live in the same artifacts directory.
+- <Action State>: [ready_for_implementation]
+
+2025-11-25T103500Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=0 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T103500Z/ next_action=compare_geometry_zero_points_probe

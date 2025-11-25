@@ -1198,3 +1198,13 @@ This is the **single most important diagnostic** to run before any other TOOLING
 
 2025-11-25T160828Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=0 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T160828Z/ next_action=compute_stage_a_zero_iter_mean_and_rerun_db_at_028_029
 
+## 2025-11-26T034500Z — TOOLING-VIS-001 Stage A masked-mean planning
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
+- Action Type: planning
+- Key Observations: Latest DB-AT-028/029 artifacts (`plans/active/TOOLING-VIS-001/reports/2025-11-26T020500Z/db_at_029/db_at_029_metrics.json`) still show `log_scale_baseline=0` and `scale_ratio_before=1.92e-10` even though mapping reports `scale_ratio_mapping_masked≈1`. `_build_stage_a_params` now tries to compute a masked mean from the warmed simulators (`dbex/nanobrag_refinement.py:1324-1365`), but it stacks torch tensors and indexes them with `inputs.loss_mask`, which remains a numpy array per `RefinementInputs`. PyTorch raises on numpy boolean indexing, the blanket `except Exception` swallows it, and the code silently falls back to `log(inputs.global_scale_hint)` with no diagnostic. We need to tensorize the mask/target onto the Stage A device, compute the masked mean via torch, and persist those values to telemetry. Until that happens, Stage A will continue reporting near-zero bragg_before despite mapping parity.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-26T034500Z/
+- Next Actions: Ralph converts the masked-mean branch to use torch tensors, records the zero-iteration masked means in telemetry/param_values, and reruns DB-AT-028/029 under the canonical metadata env so scale_ratio_before matches scale_ratio_mapping_masked.
+- <Action State>: [ready_for_implementation]
+
+2025-11-26T034500Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=1 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-26T034500Z/ next_action=stage_a_masked_mean_tensor_fix_and_db_at_028_029_replay

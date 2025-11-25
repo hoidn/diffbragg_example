@@ -652,3 +652,14 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-25T005459Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=0 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T005459Z/ next_action=db_at_028_029_tests
+
+## 2025-11-25T034523Z — TOOLING-VIS-001 Phase D.D Parity Probe Planning (DB-AT-028/029 still failing)
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
+- Action Type: planning
+- Key Observations: DB-AT-028/029 still fail with the same signature (chi²/pixel ≈1e5, median ROI CC ≈0.04) despite calibration + variance fixes. Plan for next loop: add a T2 probe `plans/active/TOOLING-VIS-001/bin/compare_stage_a_mapping_parity.py` to compute Stage A bragg_before/after vs mapping forward on the smoke fixture (log_scale_effective, ROI CCs, scale ratios, HKL source), and extend `stage_a_smoke_result` to persist scale/bragg diagnostics into DBAT028/029 artifacts before assertions. No production edits this loop.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-25T034523Z/
+- Next Actions: Ralph implements the probe + diagnostics, runs the probe and `pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029"` with canonical env, and archives outputs for analysis.
+- <Action State>: [ready_for_implementation]
+
+2025-11-25T034523Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=1 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T034523Z/ next_action=stage_a_parity_probe_and_diag

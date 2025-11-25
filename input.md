@@ -1,56 +1,54 @@
-Summary: Implement DB-AT-028/029 Stage A loss-scale and structure gates using calibrated Stage A reconstruction.
+Summary: Instrument Stage A smoke parity (DB-AT-028/029) to pinpoint the scaling/HKL mismatch by comparing bragg_before/after to the mapping forward model and logging scale diagnostics.
 Mode: Parity
 Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
 Branch: integration
 Mapped tests: tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity; tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity
-Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-25T005459Z/
+Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-25T034523Z/
 
 Do Now
-- Implement: dbex/nanobrag_refinement.py::_build_final_bragg_from_stage_a_telemetry (and the Stage A reconstruction call in run_nanobrag_refinement) plus tests/dbex/test_stage_a_smoke_parity.py::{test_db_at_028_loss_scale_sanity,test_db_at_029_structure_parity} — align Stage A reconstruction with the calibrated mapping baseline, expose chi²-per-pixel and clamp metrics, reconstruct bragg_before/bragg_after for ROI parity, and emit DB-AT-028/029 metrics to DBAT028_ARTIFACT_DIR/DBAT029_ARTIFACT_DIR.
-- Validate: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=small DBAT028_ARTIFACT_DIR=plans/active/TOOLING-VIS-001/reports/2025-11-25T005459Z/db_at_028 DBAT029_ARTIFACT_DIR=plans/active/TOOLING-VIS-001/reports/2025-11-25T005459Z/db_at_029 KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" | tee plans/active/TOOLING-VIS-001/reports/2025-11-25T005459Z/pytest_db_at_028_029.log; then AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest --collect-only tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" | tee plans/active/TOOLING-VIS-001/reports/2025-11-25T005459Z/pytest_db_at_028_029_collect.log.
-- Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-25T005459Z/{db_at_028/db_at_028_metrics.json,db_at_029/db_at_029_metrics.json,pytest_db_at_028_029.log,pytest_db_at_028_029_collect.log,summary.md}
+- Implement: tests/dbex/test_stage_a_smoke_parity.py::stage_a_smoke_result (emit log_scale_effective init/final, bragg mean/std/max, ROI CC baselines, and optional mapping-forward snapshot into DBAT028/029 metrics before asserts) and plans/active/TOOLING-VIS-001/bin/compare_stage_a_mapping_parity.py (T2 probe that runs Stage A engine on the smoke fixture, reconstructs bragg_before/after via `_build_final_bragg_from_stage_a_telemetry`, and computes parity vs a mapping forward stack with identical HKL/calibration).
+- Validate: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=small DBAT028_ARTIFACT_DIR=plans/active/TOOLING-VIS-001/reports/2025-11-25T034523Z/db_at_028 DBAT029_ARTIFACT_DIR=plans/active/TOOLING-VIS-001/reports/2025-11-25T034523Z/db_at_029 KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python plans/active/TOOLING-VIS-001/bin/compare_stage_a_mapping_parity.py --out-dir plans/active/TOOLING-VIS-001/reports/2025-11-25T034523Z/parity_probe --device cpu --sigma-source metadata; then run `pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029"` | tee plans/active/TOOLING-VIS-001/reports/2025-11-25T034523Z/pytest_db_at_028_029.log; finally run `pytest --collect-only tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029"` | tee plans/active/TOOLING-VIS-001/reports/2025-11-25T034523Z/pytest_db_at_028_029_collect.log.
+- Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-25T034523Z/{parity_probe/,db_at_028/db_at_028_metrics.json,db_at_029/db_at_029_metrics.json,pytest_db_at_028_029.log,pytest_db_at_028_029_collect.log,summary.md}
 
 How-To Map
-1) Export env + dirs: `export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=small DBAT028_ARTIFACT_DIR=plans/active/TOOLING-VIS-001/reports/2025-11-25T005459Z/db_at_028 DBAT029_ARTIFACT_DIR=plans/active/TOOLING-VIS-001/reports/2025-11-25T005459Z/db_at_029 KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1` (dirs already created). Prefer CPU only if CUDA unavailable; otherwise use default device from the smoke fixtures.
-2) Stage A reconstruction: make `_build_final_bragg_from_stage_a_telemetry` reuse the calibrated beam/crystal + HKL grid from Stage A warm cache for both `bragg_before` and `bragg_after`, honoring log_scale_baseline from calibration (no double sqrt scaling). Ensure Stage A telemetry exposes `variance_floor_masked_pixels`, `variance_floor_clamp_fraction`, and `chi_squared_trace_full` with the calibrated baseline.
-3) DB-AT-028 test: add `test_db_at_028_loss_scale_sanity` that runs Stage A-only refinement on the canonical smoke fixture (small detector) with nearest-neighbor HKL sampling per spec (interpolation=False), captures chi2_per_pixel initial/final and clamp fraction, asserts ≤1e2 bounds + non-increasing χ² and clamp_fraction <0.5, and writes metrics JSON to $DBAT028_ARTIFACT_DIR.
-4) DB-AT-029 test: in the same module, reconstruct `bragg_before`/`bragg_after` via the calibrated helper, compute ROI correlations vs data on loss_mask and scale_ratio_before=mean(model_before[mask])/mean(target[mask]), assert median(corr_before)≥0.2, median(corr_after)≥median(corr_before)-0.05, scale_ratio_before in [1e-2,1e2]; emit metrics JSON to $DBAT029_ARTIFACT_DIR.
-5) Use existing smoke fixtures (`refinement_inputs`, `hkl_data`, `smoke_detector_size`, `smoke_sigma_source`) to avoid duplicating setup; keep Stage B/C disabled and reuse the deterministic perturbed geometry helper.
-6) Run pytest per Validate step; after PASS, update docs/TESTING_GUIDE.md §2 and docs/development/TEST_SUITE_INDEX.md with the two selectors (status Active) and archive the new logs under the artifacts path.
+1) Export env: `export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=small DBAT028_ARTIFACT_DIR=plans/active/TOOLING-VIS-001/reports/2025-11-25T034523Z/db_at_028 DBAT029_ARTIFACT_DIR=plans/active/TOOLING-VIS-001/reports/2025-11-25T034523Z/db_at_029 KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1`.
+2) Implement the T2 probe `plans/active/TOOLING-VIS-001/bin/compare_stage_a_mapping_parity.py` with CLI flags `--out-dir`, `--device`, `--sigma-source`; it should load the smoke fixture (same as tests), run Stage A engine with use_engine_delegation=True (nearest-neighbor HKL), reconstruct bragg_before/after plus a mapping forward stack (simulate_forward_once or build_mapping_stage_a_context), and emit JSON metrics (log_scale_effective init/final, scale ratios, ROI CCs, HKL source).
+3) Enhance `stage_a_smoke_result` to compute log_scale_effective using telemetry.param_deltas (baseline + clamped delta), log bragg mean/std/max for before/after/mapping if available, and persist these fields into DBAT028/029 metrics ahead of assertions so artifacts survive failures.
+4) Run the probe: `python plans/active/TOOLING-VIS-001/bin/compare_stage_a_mapping_parity.py --out-dir plans/active/TOOLING-VIS-001/reports/2025-11-25T034523Z/parity_probe --device cpu --sigma-source metadata`.
+5) Run pytest per Validate; if failures persist, leave artifacts in place. Then run collect-only for registry guardrail.
+6) After PASS (or once diagnostics captured), update docs/TESTING_GUIDE.md §2 and docs/development/TEST_SUITE_INDEX.md with DB-AT-028/029 status and artifact pointers; keep STAGEA-001 finding referenced.
 
 Pitfalls To Avoid
-- Do not call `create_unified_simulator` inside refinement closures (ARCH-FACTORY-001); keep direct simulator instantiation for autograd.
-- Avoid double-applying `spot_scale_override` or log_scale deltas; baseline should be log_scale_baseline then bounded deltas.
-- Keep Stage A HKL sampling at nearest-neighbor for DB-AT-028/029 (interpolation=False) even if other smokes use tricubic.
-- Ensure ROI slicing uses loss_mask and trusted mask from the smoke inputs; do not recompute masks.
-- Honor Environment Freeze (POLICY-001); no package installs or CLI flag relaxations.
+- Do not relax DB-AT-028/029 tolerances; goal is diagnosis, not gate weakening.
+- Avoid reintroducing refined_mtz HKL swaps unless explicitly justified; prefer mapping HKL provenance for parity.
+- Keep nearest-neighbor HKL sampling (enable_hkl_interpolation=False) per spec-db-conformance DB-AT-028/029.
+- Do not double-apply spot_scale_override; log_scale_effective should be baseline + bounded delta only.
+- Always persist metrics JSONs even on failing assertions; artifacts are required for analysis.
+- Environment freeze: no package installs or cache clears; use existing deps only.
 
 If Blocked
-- Save partial metrics JSONs + pytest output to the artifacts dir, log measured chi2_per_pixel/clamp fractions/ROI CCs in docs/fix_plan.md Attempts History, and mark TOOLING-VIS-001 blocked until reconstruction parity or sigma semantics are understood.
+- Capture probe output + pytest logs to the artifacts dir, record observed chi²/pixel and ROI CCs in docs/fix_plan.md Attempts History, and mark TOOLING-VIS-001 blocked pending diagnosis of forward-model vs HKL/calibration alignment.
 
 Findings Applied (Mandatory)
-- STAGEA-001 — Calibration must remain threaded through Stage A reconstruction; DB-AT-027 evidence is the baseline.
-- GEOMETRY-003/004 — Maintain mapping zero-point UB/misset invariants when rebuilding Stage A Bragg tensors.
-- PHYSICS-LOSS-001/002/003 — Use the canonical variance-weighted chi² with sigma_floor clamp; keep numerator/denominator semantics consistent across stages.
-- ARCH-FACTORY-001 — Unified simulator factory is forward-only; refinement paths must instantiate simulators directly.
+- STAGEA-001 — Calibration threading and log_scale_baseline must mirror DB-AT-027; retain baseline when reconstructing bragg_before/after.
 
 Pointers
-- docs/spec-db-conformance.md:280-340 — DB-AT-028/029 tolerances and procedures.
-- plans/active/TOOLING-VIS-001/implementation.md:203 — Phase D.D checklist for loss-scale and structure gates.
-- tests/dbex/test_torch_refine_smoke.py:309 — Reference Stage A smoke configuration (geometry perturbation, sigma policy).
-- dbex/nanobrag_refinement.py::_build_final_bragg_from_stage_a_telemetry — Reconstruction path to align with calibrated warm cache.
+- docs/spec-db-conformance.md:280-366 — DB-AT-028/029 definitions and tolerances.
+- plans/active/TOOLING-VIS-001/implementation.md:203-224 — Phase D.D checklist.
+- docs/spec-db-core.md:84-90 — Variance-weighted χ² and sigma_floor semantics.
+- tests/dbex/test_stage_a_smoke_parity.py::stage_a_smoke_result — current DB-AT-028/029 harness.
 
 Next Up (optional)
-- After DB-AT-028/029, reassess Stage A visuals and consider tightening tolerances for full-detector runs if performance allows.
+- If diagnostics isolate HKL vs scale mismatch, follow-up loop implements the concrete fix (HKL provenance swap or scale application change) then reruns DB-AT-028/029.
 
 Doc Sync Plan (Conditional)
-- After adding the new tests, run `pytest --collect-only tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" | tee plans/active/TOOLING-VIS-001/reports/2025-11-25T005459Z/pytest_db_at_028_029_collect.log`, then update docs/TESTING_GUIDE.md §2 and docs/development/TEST_SUITE_INDEX.md with the selectors and artifact pointers.
+- After adding/updating selectors, run `pytest --collect-only tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029"` and archive the log; then update docs/TESTING_GUIDE.md §2 and docs/development/TEST_SUITE_INDEX.md with selector status and artifact pointers once tests PASS or are xfail with rationale.
 
 Mapped Tests Guardrail
-- At least the two mapped selectors must collect (>0); if collection fails, author the missing tests before declaring done.
+- Ensure both selectors collect (>0); if collection fails, fix the tests before closing the loop.
 
 Hard Gate
-- Do not finish until DB-AT-028/029 tolerances pass with artifacts under `plans/active/TOOLING-VIS-001/reports/2025-11-25T005459Z/`.
+- Do not declare done unless DB-AT-028/029 parity metrics are captured and analyzed (PASS or explicit block) under `plans/active/TOOLING-VIS-001/reports/2025-11-25T034523Z/`.
 
 Normative Math/Physics
-- Reference docs/spec-db-conformance.md:280-340 for DB-AT-028/029 definitions and docs/spec-db-core.md:84-90 for the variance-weighted χ² equation; do not paraphrase or relax these formulas.
+- Use docs/spec-db-conformance.md:280-366 for gate definitions and docs/spec-db-core.md:84-90 for χ²; avoid paraphrasing or relaxing formulas.

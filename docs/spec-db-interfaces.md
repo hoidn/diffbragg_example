@@ -42,7 +42,11 @@ Error Conditions (Normative)
 HDF5 Output Schema (Normative)
 - Required groups/datasets for viewer/telemetry outputs:
   - `/data`, `/model`, `/bragg`, `/bg`, `/variance` (or equivalent) and ROI `score` datasets.
-  - `/torch_diagnostics` attributes SHALL include at least: `backend`, `unit_mode`, `adu_per_photon`, `sigma_readout_provenance`, `sigma_floor` and provenance, `spot_scale_override`, `beam_flux`, `beam_exposure`, `beamsize_mm`, `N_cells`, HKL source/path, interpolation/halo flags, `device_profile` (e.g., `cpu_conformance`, `cuda_experimental`), `log_scale_baseline`, `log_scale_delta_clamp`, `final_scale_applied`, and any recorded precedence conflicts/fallbacks. This list is the canonical telemetry keyset; other shards defer to it.
+  - `/torch_diagnostics` attributes SHALL include at least (canonical telemetry keyset for Spec‑DB conformance):
+    - Required calibration/state: `backend`, `unit_mode`, `adu_per_photon`, `spot_scale_override`, `sigma_readout_provenance`, `sigma_floor` and provenance, `beam_flux`, `beam_exposure`, `beamsize_mm`, `N_cells`, HKL source/path, interpolation/halo flags, `log_scale_baseline`, `log_scale_delta_clamp`, `final_scale_applied`, and any recorded precedence conflicts/fallbacks.
+    - Required runtime/device: `device_profile` (e.g., `cpu_conformance`, `cuda_experimental`).
+  - `/trace/<panel>/<slow>_<fast>/` groups SHALL follow `spec-db-tracing.md`.
+- Implementations MAY add extra fields but MUST supply these minima for conformance. Other shards and architecture docs SHALL defer to this keyset when listing required telemetry; any additional keys they mention are descriptive/optional unless they also appear here.
   - `/trace/<panel>/<slow>_<fast>/` groups SHALL follow `spec-db-tracing.md`.
 - Implementations MAY add extra fields but MUST supply these minima for conformance. Telemetry MUST record provenance for any defaulted calibration fields.
 

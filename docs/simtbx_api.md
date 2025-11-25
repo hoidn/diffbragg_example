@@ -12,7 +12,7 @@ This document captures the simtbx helpers dbex relies on for image loading and R
 - `simtbx.diffBragg.utils.get_roi_background_and_selection_flags(refs, imgs, ..., ret_cov=False)`
   - Returns `(bbox_list, panel_ids, tilt_coefs, selection_flags, background_image[, cov])`
     - `background_image`: same shape as `imgs` (`[panel, slow, fast]`), filled with −1 sentinel for invalid pixels; valid ROI pixels carry the plane/robust background estimate.
-    - `bbox_list`: list of ROI tuples `(x1, x2, y1, y2)` in fast/slow order, with exclusive upper bounds; slice as `imgs[pid, y1:y2, x1:x2]`.
+    - `bbox_list`: list of ROI tuples `(x0, x1, y0, y1)` in fast/slow order, with exclusive upper bounds; slice as `imgs[pid, y0:y1, x0:x1]` (same naming convention as Spec‑DB). Older code may label these `(x1, x2, y1, y2)`; semantics are identical.
     - `panel_ids`: integer panel indices aligned to the first axis of `imgs` and the dxtbx `Detector` ordering.
     - `tilt_coefs`: one `(a,b,c)` triple per ROI for the plane model (with `ret_cov=True`, covariance is also returned).
     - `selection_flags` (aka `bg_is_good`): booleans indicating ROI quality; failing ROIs still populate `background_image` but are marked for filtering.

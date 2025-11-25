@@ -14,7 +14,7 @@ Conventions and Units
 - Mask polarity: DIALS trusted mask (True=include); DiffBragg hot/bad mask is inverted; torch mask_array uses trusted polarity (1=include)
 - Target units: ADU by default; can convert to photons with `--adu-per-photon`
 
-Detector (per panel)
+Detector (per panel) — DIALS convention (canonical)
 - dxtbx source
   - `panel.get_origin()` (mm), `panel.get_fast_axis()`, `panel.get_slow_axis()`, `panel.get_normal()`
   - `panel.get_directed_distance()` (mm)
@@ -26,10 +26,16 @@ Detector (per panel)
   - Detector rotations derived from panel axes: form rotation matrix with columns `[fast, slow, normal]`, validate via `scitbx.matrix.is_r3_rotation_matrix()`, convert to XYZ Euler angles in degrees via `r3_rotation_matrix_as_x_y_z_angles()`
   - `detector_rotx_deg`, `detector_roty_deg`, `detector_rotz_deg` set from computed Euler angles
   - `distance_mm = panel.get_directed_distance()`
-  - `beam_center_s = slow_mm`, `beam_center_f = fast_mm`, `beam_center_source = "explicit"` (preserves BEAM pivot per `nanobrag_api.md`)
+  - `beam_center_s = slow_mm`, `beam_center_f = fast_mm`, `beam_center_source = "explicit"` (preserves BEAM pivot per `nanobrag_api.md`); under DetectorConvention.DIALS, `custom_beam_vector` is ignored.
   - `pixel_size_mm = px_fast_mm` (guard: require `abs(px_fast_mm - px_slow_mm) <= 1e-9`)
   - `spixels = slow_px`, `fpixels = fast_px`
   - ROI defaults to full detector when omitted
+
+Detector (CUSTOM) — advanced/optional
+- When DetectorConvention.CUSTOM is selected (non‑default), provide:
+  - `custom_fdet/custom_sdet/custom_odet` from panel axes
+  - `custom_beam_vector = normalize(-s0)`
+  - SAMPLE pivot semantics; requires explicit parity validation against the canonical DIALS mapping.
 - `mask_array = torch.as_tensor(trusted_mask[panel], dtype=torch.float32)` with shape `(spixels, fpixels)` (1=include); CLI-001 requires torch tensors so the simulator can call `.to(device, dtype)`
 - Refined vs Fixed (Stage C)
   - Refine: translation along detector normal (distance offset) per panel

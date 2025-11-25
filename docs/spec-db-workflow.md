@@ -27,7 +27,7 @@ Pipeline (Normative)
    - Run Simulator per panel and stitch into a full‑frame `Bragg` tensor matching `[panel, slow, fast]`.
    - ROI‑only compute MAY be used by constructing cropped Detectors per ROI (with beam centre shifted by crop offsets in mm) and stitching outputs.
 6) Loss (Variance-Weighted / Chi-Squared)
-   - Loss SHALL be `L = Sum( (I_model - I_obs)^2 / V_detached )` over trusted pixels, where `I_model` is the current Bragg+background prediction and `I_obs` is the background-subtracted target from `prepare_refinement_inputs`. The canonical variance model lives in `docs/spec-db-core.md` and SHALL be reused.
+   - The canonical loss defined in `spec-db-core.md` operates on raw observed data `I_obs` and full model prediction `I_model = Bragg + background` on the same grid: `L = Sum( (I_model - I_obs)^2 / V_detached )` over trusted pixels. Implementations MAY use background-subtracted targets internally (e.g., `target = I_obs - I_background_estimate` from `prepare_refinement_inputs`), but Spec‑DB conformance requires residuals/variance to follow `spec-db-core.md`.
    - `V_detached` denotes this variance term detached from the computation graph (IRLS) with a physical lower bound `V = max(I_model + sigma_readout^2, sigma_floor^2)`. The clamp exists to prevent infinite weights when `I_model → 0`; telemetry SHALL record `sigma_floor` and the fraction of pixels where the clamp engaged. Implementations MAY reuse the canonical helper `dbex.physics.loss._compute_variance_weighted_loss` to avoid divergence from `docs/spec-db-core.md`.
 
 Calibration & Unit Conventions (Normative Addendum)

@@ -48,11 +48,15 @@ Data Contracts (Normative)
 
 Geometry Mapping (Normative)
 - dxtbx → Simulator mapping SHALL follow docs/dxtbx_api.md and docs/config_crosswalk.md:
-  - `distance_mm = panel.get_directed_distance()`.
-  - Beam center SHALL be assigned as `(beam_center_s, beam_center_f) = (slow_mm, fast_mm)` with `beam_center_source="explicit"`.
-  - `custom_fdet_vector`, `custom_sdet_vector`, `custom_odet_vector` SHALL be set from panel axes; `custom_beam_vector = -s0/||s0||`.
-  - Pixel pitch SHALL be square: `px_fast_mm == px_slow_mm`. If not, the bridge MUST raise.
-  - `spixels = slow_px`, `fpixels = fast_px` from `panel.get_image_size()`.
+  - **DIALS convention (canonical, v1):**
+    - `distance_mm = panel.get_directed_distance()`.
+    - Beam center SHALL be assigned as `(beam_center_s, beam_center_f) = (slow_mm, fast_mm)` with `beam_center_source="explicit"`.
+    - Rotation derived from panel axes; pixel pitch SHALL be square: `px_fast_mm == px_slow_mm`. If not, the bridge MUST raise.
+    - `spixels = slow_px`, `fpixels = fast_px` from `panel.get_image_size()`.
+    - Note: under DetectorConvention.DIALS, `custom_beam_vector` is ignored; geometry is encoded via beam centre + rotations.
+  - **CUSTOM convention (advanced/optional):**
+    - When DetectorConvention.CUSTOM is selected (non‑default), `custom_fdet_vector`, `custom_sdet_vector`, `custom_odet_vector` SHALL be set from panel axes; `custom_beam_vector = -s0/||s0||`. CUSTOM forces SAMPLE pivot and MUST be parity‑validated before use.
+    - Use CUSTOM only behind a feature flag and with explicit parity validation against canonical mapping.
 
 ### Baseline Crystal State and Parameterization (Normative)
 

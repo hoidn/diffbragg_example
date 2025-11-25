@@ -8,6 +8,7 @@ Overview (Normative)
 Status
 - These acceptance tests target the `nanobrag_torch` backend (`--backend nanobrag`). The legacy DiffBragg backend (`--backend diffbragg`, current default) is not in scope for Spec‑DB conformance and MAY be exercised only by separate diagnostic tests.
 - Until the torch backend is fully wired, use `python -m dbex.refine_one` (see `dbex/refine_one.py:5-26`) and treat skipped/xfail selectors as future work artifacts.
+- Implementation status: some DB‑AT selectors are planned or partially wired. See the table at the end of this file for a status summary.
 Conformance Profiles (Normative)
 - Forward Equivalence Profile:
   - DB‑AT‑001 Forward equivalence smoke (DiffBragg vs `nanobrag_torch` forward pass; run without refinement and compare coarse ROI metrics per `plans/nanobrag_integration_plan.md` Phase 1).
@@ -370,6 +371,10 @@ Acceptance Tests (Normative)
   - Setup: generate ROI triptychs for a small, deterministic fixture (e.g., refGeom_small) using canonical mapping inputs; save PNG/PDF.
   - Expectation: Triptych layout `[Data | Model | Residual Z-Score]`, consistent colormap ranges, residual z-score definition, HKL/CC annotation present. Residual histogram over trusted pixels includes standard normal overlay; radial profiles plot `I_model` vs `I_obs` vs 1/d^2. Outputs stored with required formats.
   - Command: `pytest -v tests -k DB_AT_050` (selector to be added once harness is wired).
+
+Implementation Status (Informative)
+- Implemented/partially wired: DB‑AT‑001, 020, 021, 022, 023, 024.
+- Defined, selectors planned/WIP: DB‑AT‑010, 011, 025, 026, 027, 028, 029, 030, 031, 032, 040, 050.
 Notes (Informative)
 - Provide real commands in the test suite once scaffolding is in place; these are placeholders for the conformance contract.
 

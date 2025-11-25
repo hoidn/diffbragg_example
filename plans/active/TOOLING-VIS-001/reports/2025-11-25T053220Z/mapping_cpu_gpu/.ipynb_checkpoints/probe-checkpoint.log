@@ -1,0 +1,23 @@
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+Configuration:
+  smoke_sigma_source: metadata
+  smoke_detector_size: small
+  default_sigma_readout: 3.0
+  out_dir: plans/active/TOOLING-VIS-001/reports/2025-11-25T053220Z/mapping_cpu_gpu
+
+WARNING: metadata sigma source requested but assets missing, falling back to cli_override
+Loading data from:
+  expt: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/sp.proc/refGeom_small/refGeom_small.expt
+  refl: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/sp.proc/refGeom_small/refGeom_small.refl
+  mask: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/sp.proc/refGeom_small/refGeom_small_mask.pkl
+  mtz: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/scaled.mtz
+
+Traceback (most recent call last):
+  File "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/TOOLING-VIS-001/bin/compare_mapping_forward_cpu_gpu.py", line 345, in <module>
+    sys.exit(main())
+  File "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/TOOLING-VIS-001/bin/compare_mapping_forward_cpu_gpu.py", line 302, in main
+    dataload = DataLoad(dataload_args)
+  File "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/dbex/data_load.py", line 322, in __init__
+    F = utils.open_mtz(args.mtzFile, args.mtzCol)
+AttributeError: 'Args' object has no attribute 'mtzCol'

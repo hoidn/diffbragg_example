@@ -750,3 +750,99 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-25T060403Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=0 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T060403Z/ next_action=sigma_hkl_provenance_probe_and_db_at_028_029_rerun
+
+---
+
+# ⚠️⚠️⚠️ IMPORTANT — CRITICAL DIAGNOSTIC SIGNAL ⚠️⚠️⚠️
+
+## 🚨 SIGMA SOURCE CC DELTA: 0.64-POINT DROP IS THE SMOKING GUN 🚨
+
+**Historical Baseline (cli_override sigma):**
+- ROI CC median: **0.62** ✅
+- Configuration: `DBEX_SMOKE_SIGMA_SOURCE=cli_override` (fixed 3.0 ADU everywhere)
+- Status: "Good" baseline mentioned in fix_plan.md:291
+
+**Current Baseline (metadata sigma):**
+- ROI CC median: **-0.04** ❌ (NEGATIVE CORRELATION)
+- Configuration: `DBEX_SMOKE_SIGMA_SOURCE=metadata` (per-tile external sigma lookup)
+- Status: Pathological — Stage A inherits this broken baseline
+
+**The Gap:** **0.66-point CC degradation** when switching sigma sources
+
+## Why This Should Be The Primary Focus
+
+This is **not** a 5% difference or a tolerance issue — this is a **sign flip from positive to negative correlation**. The mapping forward predictions go from "reasonably correlated with data" to "anti-correlated with data" purely by changing the sigma source.
+
+**Root Cause Hypotheses:**
+
+1. **Metadata sigma tiles are incompatible/corrupt** for this dataset
+   - Wrong variance model → wrong loss weighting → optimizer anti-converges
+   - Masked scale ratio (0.259) vs unmasked (1.805) suggests loss_mask excludes signal
+
+2. **Metadata sigma exposed a latent HKL/calibration bug**
+   - The CC=0.6 baseline was "lucky" due to compensating errors
+   - Different variance scaling changes which pixels dominate the loss
+
+3. **Sigma provenance mismatch with refGeom dataset**
+   - Metadata tiles may be from a different experiment/geometry
+   - External sigma lookup fails silently and returns garbage values
+
+## Immediate Action Required
+
+**Before doing ANY Stage A physics debugging**, run this comparison probe:
+
+```bash
+# Run mapping probe with cli_override sigma (should restore CC≈0.6)
+DBEX_SMOKE_SIGMA_SOURCE=cli_override \
+DBEX_SMOKE_DETECTOR_SIZE=small \
+KMP_DUPLICATE_LIB_OK=TRUE \
+NANOBRAGG_DISABLE_COMPILE=1 \
+plans/active/TOOLING-VIS-001/bin/compare_mapping_forward_cpu_gpu.py \
+  --out-dir plans/active/TOOLING-VIS-001/reports/<timestamp>/mapping_cpu_gpu_cli_override
+
+# Compare to metadata sigma probe (current CC≈-0.04)
+# (already captured in 2025-11-25T055039Z)
+
+# Document the delta in summary.md and fix_plan.md
+```
+
+**If cli_override → CC≈0.6 baseline restored:**
+- Metadata sigma tiles are the problem (corrupt/incompatible/wrong provenance)
+- Mark metadata sigma as **blocked** for this dataset
+- Update DB-AT-028/029 to use cli_override as the canonical smoke configuration
+- Open separate issue to debug/fix metadata sigma lookup
+
+**If cli_override → CC still ≈-0.04:**
+- The problem is deeper (HKL grid, calibration, geometry alignment)
+- Metadata sigma is a red herring
+- Proceed with HKL provenance investigation per current plan
+
+## Why This Wasn't Already Done
+
+The current fix_plan.md mentions it as a "consideration" (line 292: "consider falling back to cli_override sigma source") but does NOT make it a **blocking priority**. This seems like a strategic oversight given:
+
+- The magnitude of the CC degradation (0.66 points, sign flip)
+- The fact that DB-AT-028/029 are testing Stage A, but the mapping **input** to Stage A is already broken
+- All Stage A debugging is wasted effort if the baseline is pathological
+
+## Galph: Make This Loop 1 Priority
+
+**Do NOT proceed with:**
+- Further Stage A parameter tuning
+- HKL grid refinement/interpolation experiments  
+- Calibration payload debugging
+
+**Until you have answered:**
+- Does `DBEX_SMOKE_SIGMA_SOURCE=cli_override` restore the CC≈0.6 baseline?
+- If yes: why are metadata sigma tiles producing anti-correlated predictions?
+- If no: what changed between the "historical" cli_override runs and now?
+
+This is the **single most important diagnostic** to run before any other TOOLING-VIS-001 work.
+
+---
+
+🔴 **STATUS:** Blocking issue for TOOLING-VIS-001 DB-AT-028/029  
+🔴 **OWNER:** Galph (next loop priority)  
+🔴 **ARTIFACTS:** Plans/active/TOOLING-VIS-001/reports/<next_timestamp>/sigma_source_comparison/
+
+---

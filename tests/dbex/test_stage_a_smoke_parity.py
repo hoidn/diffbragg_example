@@ -204,8 +204,10 @@ def stage_a_smoke_result(
     roi_cc_median_after = float(np.median(valid_corrs_after)) if valid_corrs_after else float("nan")
 
     # Use mapping context's bragg_zero_iter for parity comparison (DB-AT-028/029 diagnostics)
+    # Compute MASKED scale ratios per input.md requirement (masked mean for both Bragg and target)
     roi_cc_median_mapping = float("nan")
-    scale_ratio_mapping = float("nan")
+    scale_ratio_mapping_masked = float("nan")
+    scale_ratio_mapping_unmasked = float("nan")
     mapping_forward_success = False
     try:
         bragg_mapping = mapping_context.bragg_zero_iter
@@ -220,10 +222,15 @@ def stage_a_smoke_result(
         valid_mapping = [c for c in corrs_mapping if np.isfinite(c)]
         roi_cc_median_mapping = float(np.median(valid_mapping)) if valid_mapping else float("nan")
 
-        # Compute mapping scale ratio
-        mean_target = float(np.mean(mapping_context.inputs.target[mapping_context.inputs.loss_mask]))
-        bragg_mapping_mean = float(np.mean(bragg_mapping))
-        scale_ratio_mapping = bragg_mapping_mean / mean_target if mean_target > 0 else float("inf")
+        # Compute mapping scale ratio MASKED (using loss_mask for both Bragg and target)
+        mean_target_masked = float(np.mean(mapping_context.inputs.target[mapping_context.inputs.loss_mask]))
+        bragg_mapping_mean_masked = float(np.mean(bragg_mapping[mapping_context.inputs.loss_mask]))
+        scale_ratio_mapping_masked = bragg_mapping_mean_masked / mean_target_masked if mean_target_masked > 1e-12 else float("inf")
+
+        # Compute mapping scale ratio UNMASKED (for diagnostic comparison)
+        mean_target_unmasked = float(np.mean(mapping_context.inputs.target))
+        bragg_mapping_mean_unmasked = float(np.mean(bragg_mapping))
+        scale_ratio_mapping_unmasked = bragg_mapping_mean_unmasked / mean_target_unmasked if mean_target_unmasked > 1e-12 else float("inf")
 
         mapping_forward_success = True
     except Exception:
@@ -252,7 +259,8 @@ def stage_a_smoke_result(
         "roi_cc_median_before": roi_cc_median_before,
         "roi_cc_median_after": roi_cc_median_after,
         "roi_cc_median_mapping": roi_cc_median_mapping,
-        "scale_ratio_mapping": scale_ratio_mapping,
+        "scale_ratio_mapping_masked": scale_ratio_mapping_masked,
+        "scale_ratio_mapping_unmasked": scale_ratio_mapping_unmasked,
         "mapping_forward_success": mapping_forward_success,
         # Context objects for emitting mapping_context diagnostics (TOOLING-VIS-001)
         "mapping_context": mapping_context,
@@ -314,7 +322,8 @@ def test_db_at_028_loss_scale_sanity(stage_a_smoke_result):
         "roi_cc_median_after": stage_a_smoke_result.get("roi_cc_median_after"),
         "hkl_source": stage_a_smoke_result.get("hkl_source"),
         "roi_cc_median_mapping": stage_a_smoke_result.get("roi_cc_median_mapping"),
-        "scale_ratio_mapping": stage_a_smoke_result.get("scale_ratio_mapping"),
+        "scale_ratio_mapping_masked": stage_a_smoke_result.get("scale_ratio_mapping_masked"),
+        "scale_ratio_mapping_unmasked": stage_a_smoke_result.get("scale_ratio_mapping_unmasked"),
         "mapping_forward_success": stage_a_smoke_result.get("mapping_forward_success"),
     }
     (artifact_dir / "db_at_028_metrics.json").write_text(json.dumps(metrics, indent=2))
@@ -386,7 +395,8 @@ def test_db_at_029_structure_parity(stage_a_smoke_result):
         "bragg_after_max": stage_a_smoke_result.get("bragg_after_max"),
         "hkl_source": stage_a_smoke_result.get("hkl_source"),
         "roi_cc_median_mapping": stage_a_smoke_result.get("roi_cc_median_mapping"),
-        "scale_ratio_mapping": stage_a_smoke_result.get("scale_ratio_mapping"),
+        "scale_ratio_mapping_masked": stage_a_smoke_result.get("scale_ratio_mapping_masked"),
+        "scale_ratio_mapping_unmasked": stage_a_smoke_result.get("scale_ratio_mapping_unmasked"),
         "mapping_forward_success": stage_a_smoke_result.get("mapping_forward_success"),
     }
     (artifact_dir / "db_at_029_metrics.json").write_text(json.dumps(metrics, indent=2))

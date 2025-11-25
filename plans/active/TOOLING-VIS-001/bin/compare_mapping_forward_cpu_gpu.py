@@ -107,25 +107,34 @@ def compute_cpu_gpu_mapping_metrics(
         )
         valid_cpu_corrs = [c for c in cpu_corrs if np.isfinite(c)]
 
-        # Compute CPU scale ratio
+        # Compute CPU scale ratios (masked and unmasked)
         cpu_mask = cpu_inputs.loss_mask
-        cpu_mean_target = float(np.mean(cpu_inputs.target[cpu_mask]))
-        cpu_mean_bragg = float(np.mean(cpu_bragg[cpu_mask]))
-        cpu_scale_ratio = cpu_mean_bragg / cpu_mean_target if cpu_mean_target > 1e-12 else float("nan")
+        cpu_mean_target_masked = float(np.mean(cpu_inputs.target[cpu_mask]))
+        cpu_mean_bragg_masked = float(np.mean(cpu_bragg[cpu_mask]))
+        cpu_scale_ratio_masked = cpu_mean_bragg_masked / cpu_mean_target_masked if cpu_mean_target_masked > 1e-12 else float("nan")
+
+        cpu_mean_target_unmasked = float(np.mean(cpu_inputs.target))
+        cpu_mean_bragg_unmasked = float(np.mean(cpu_bragg))
+        cpu_scale_ratio_unmasked = cpu_mean_bragg_unmasked / cpu_mean_target_unmasked if cpu_mean_target_unmasked > 1e-12 else float("nan")
 
         result["cpu_metrics"] = {
             "roi_cc_median": float(np.median(valid_cpu_corrs)) if valid_cpu_corrs else float("nan"),
             "roi_cc_count": len(valid_cpu_corrs),
-            "scale_ratio": cpu_scale_ratio,
+            "scale_ratio_masked": cpu_scale_ratio_masked,
+            "scale_ratio_unmasked": cpu_scale_ratio_unmasked,
             "log_scale_baseline": float(cpu_context.diagnostics.get("log_scale_baseline", 0.0)),
             "global_scale_hint": float(cpu_inputs.global_scale_hint),
             "sigma_floor_value": float(cpu_context.sigma_floor_value),
             "bragg_mean": float(np.mean(cpu_bragg)),
             "bragg_std": float(np.std(cpu_bragg)),
             "bragg_max": float(np.max(cpu_bragg)),
+            "spot_scale_override": float(cpu_context.calibration.get("spot_scale_override", 1.0)) if cpu_context.calibration else 1.0,
+            "hkl_source": cpu_context.diagnostics.get("hkl_source", "unknown"),
+            "hkl_path": cpu_context.diagnostics.get("hkl_path", "unknown"),
         }
         print(f"CPU metrics: ROI CC median={result['cpu_metrics']['roi_cc_median']:.6f}, "
-              f"scale_ratio={result['cpu_metrics']['scale_ratio']:.4e}")
+              f"scale_ratio_masked={result['cpu_metrics']['scale_ratio_masked']:.4e}, "
+              f"scale_ratio_unmasked={result['cpu_metrics']['scale_ratio_unmasked']:.4e}")
 
     except Exception as e:
         result["error"] = f"CPU context build failed: {e}"
@@ -159,25 +168,34 @@ def compute_cpu_gpu_mapping_metrics(
         )
         valid_gpu_corrs = [c for c in gpu_corrs if np.isfinite(c)]
 
-        # Compute GPU scale ratio
+        # Compute GPU scale ratios (masked and unmasked)
         gpu_mask = gpu_inputs.loss_mask
-        gpu_mean_target = float(np.mean(gpu_inputs.target[gpu_mask]))
-        gpu_mean_bragg = float(np.mean(gpu_bragg[gpu_mask]))
-        gpu_scale_ratio = gpu_mean_bragg / gpu_mean_target if gpu_mean_target > 1e-12 else float("nan")
+        gpu_mean_target_masked = float(np.mean(gpu_inputs.target[gpu_mask]))
+        gpu_mean_bragg_masked = float(np.mean(gpu_bragg[gpu_mask]))
+        gpu_scale_ratio_masked = gpu_mean_bragg_masked / gpu_mean_target_masked if gpu_mean_target_masked > 1e-12 else float("nan")
+
+        gpu_mean_target_unmasked = float(np.mean(gpu_inputs.target))
+        gpu_mean_bragg_unmasked = float(np.mean(gpu_bragg))
+        gpu_scale_ratio_unmasked = gpu_mean_bragg_unmasked / gpu_mean_target_unmasked if gpu_mean_target_unmasked > 1e-12 else float("nan")
 
         result["gpu_metrics"] = {
             "roi_cc_median": float(np.median(valid_gpu_corrs)) if valid_gpu_corrs else float("nan"),
             "roi_cc_count": len(valid_gpu_corrs),
-            "scale_ratio": gpu_scale_ratio,
+            "scale_ratio_masked": gpu_scale_ratio_masked,
+            "scale_ratio_unmasked": gpu_scale_ratio_unmasked,
             "log_scale_baseline": float(gpu_context.diagnostics.get("log_scale_baseline", 0.0)),
             "global_scale_hint": float(gpu_inputs.global_scale_hint),
             "sigma_floor_value": float(gpu_context.sigma_floor_value),
             "bragg_mean": float(np.mean(gpu_bragg)),
             "bragg_std": float(np.std(gpu_bragg)),
             "bragg_max": float(np.max(gpu_bragg)),
+            "spot_scale_override": float(gpu_context.calibration.get("spot_scale_override", 1.0)) if gpu_context.calibration else 1.0,
+            "hkl_source": gpu_context.diagnostics.get("hkl_source", "unknown"),
+            "hkl_path": gpu_context.diagnostics.get("hkl_path", "unknown"),
         }
         print(f"GPU metrics: ROI CC median={result['gpu_metrics']['roi_cc_median']:.6f}, "
-              f"scale_ratio={result['gpu_metrics']['scale_ratio']:.4e}")
+              f"scale_ratio_masked={result['gpu_metrics']['scale_ratio_masked']:.4e}, "
+              f"scale_ratio_unmasked={result['gpu_metrics']['scale_ratio_unmasked']:.4e}")
 
     except Exception as e:
         result["error"] = f"GPU context build failed: {e}"
@@ -195,25 +213,34 @@ def compute_cpu_gpu_mapping_metrics(
         # ROI CC comparison
         roi_cc_diff = abs(result["cpu_metrics"]["roi_cc_median"] - result["gpu_metrics"]["roi_cc_median"])
 
-        # Scale ratio comparison
-        scale_ratio_cpu = result["cpu_metrics"]["scale_ratio"]
-        scale_ratio_gpu = result["gpu_metrics"]["scale_ratio"]
-        if np.isfinite(scale_ratio_cpu) and np.isfinite(scale_ratio_gpu) and scale_ratio_cpu > 1e-12:
-            scale_ratio_rel_diff = abs(scale_ratio_cpu - scale_ratio_gpu) / scale_ratio_cpu
+        # Scale ratio comparison (masked)
+        scale_ratio_cpu_masked = result["cpu_metrics"]["scale_ratio_masked"]
+        scale_ratio_gpu_masked = result["gpu_metrics"]["scale_ratio_masked"]
+        if np.isfinite(scale_ratio_cpu_masked) and np.isfinite(scale_ratio_gpu_masked) and scale_ratio_cpu_masked > 1e-12:
+            scale_ratio_masked_rel_diff = abs(scale_ratio_cpu_masked - scale_ratio_gpu_masked) / scale_ratio_cpu_masked
         else:
-            scale_ratio_rel_diff = float("nan")
+            scale_ratio_masked_rel_diff = float("nan")
+
+        # Scale ratio comparison (unmasked)
+        scale_ratio_cpu_unmasked = result["cpu_metrics"]["scale_ratio_unmasked"]
+        scale_ratio_gpu_unmasked = result["gpu_metrics"]["scale_ratio_unmasked"]
+        if np.isfinite(scale_ratio_cpu_unmasked) and np.isfinite(scale_ratio_gpu_unmasked) and scale_ratio_cpu_unmasked > 1e-12:
+            scale_ratio_unmasked_rel_diff = abs(scale_ratio_cpu_unmasked - scale_ratio_gpu_unmasked) / scale_ratio_cpu_unmasked
+        else:
+            scale_ratio_unmasked_rel_diff = float("nan")
 
         result["parity_metrics"] = {
             "bragg_mean_abs_diff": mean_abs_diff,
             "bragg_max_abs_diff": max_abs_diff,
             "roi_cc_median_diff": roi_cc_diff,
-            "scale_ratio_rel_diff": scale_ratio_rel_diff,
+            "scale_ratio_masked_rel_diff": scale_ratio_masked_rel_diff,
+            "scale_ratio_unmasked_rel_diff": scale_ratio_unmasked_rel_diff,
             "log_scale_baseline_match": (
                 result["cpu_metrics"]["log_scale_baseline"] == result["gpu_metrics"]["log_scale_baseline"]
             ),
         }
         print(f"Parity metrics: mean_abs_diff={mean_abs_diff:.4e}, max_abs_diff={max_abs_diff:.4e}, "
-              f"roi_cc_diff={roi_cc_diff:.6f}, scale_ratio_rel_diff={scale_ratio_rel_diff:.4e}")
+              f"roi_cc_diff={roi_cc_diff:.6f}, scale_ratio_masked_rel_diff={scale_ratio_masked_rel_diff:.4e}")
 
     except Exception as e:
         result["error"] = f"Parity computation failed: {e}"
@@ -328,17 +355,24 @@ def main():
 
     if metrics["cpu_metrics"]:
         print(f"  CPU ROI CC median: {metrics['cpu_metrics']['roi_cc_median']:.6f}")
-        print(f"  CPU scale ratio: {metrics['cpu_metrics']['scale_ratio']:.4e}")
+        print(f"  CPU scale ratio (masked): {metrics['cpu_metrics']['scale_ratio_masked']:.4e}")
+        print(f"  CPU scale ratio (unmasked): {metrics['cpu_metrics']['scale_ratio_unmasked']:.4e}")
+        print(f"  CPU spot_scale_override: {metrics['cpu_metrics']['spot_scale_override']:.4e}")
+        print(f"  CPU HKL source: {metrics['cpu_metrics']['hkl_source']}")
 
     if metrics["gpu_metrics"]:
         print(f"  GPU ROI CC median: {metrics['gpu_metrics']['roi_cc_median']:.6f}")
-        print(f"  GPU scale ratio: {metrics['gpu_metrics']['scale_ratio']:.4e}")
+        print(f"  GPU scale ratio (masked): {metrics['gpu_metrics']['scale_ratio_masked']:.4e}")
+        print(f"  GPU scale ratio (unmasked): {metrics['gpu_metrics']['scale_ratio_unmasked']:.4e}")
+        print(f"  GPU spot_scale_override: {metrics['gpu_metrics']['spot_scale_override']:.4e}")
+        print(f"  GPU HKL source: {metrics['gpu_metrics']['hkl_source']}")
 
     if metrics["parity_metrics"]:
         print(f"  Bragg mean_abs_diff: {metrics['parity_metrics']['bragg_mean_abs_diff']:.4e}")
         print(f"  Bragg max_abs_diff: {metrics['parity_metrics']['bragg_max_abs_diff']:.4e}")
         print(f"  ROI CC median diff: {metrics['parity_metrics']['roi_cc_median_diff']:.6f}")
-        print(f"  Scale ratio rel diff: {metrics['parity_metrics']['scale_ratio_rel_diff']:.4e}")
+        print(f"  Scale ratio (masked) rel diff: {metrics['parity_metrics']['scale_ratio_masked_rel_diff']:.4e}")
+        print(f"  Scale ratio (unmasked) rel diff: {metrics['parity_metrics']['scale_ratio_unmasked_rel_diff']:.4e}")
 
     print()
     print("Probe complete.")

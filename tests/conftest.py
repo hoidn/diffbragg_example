@@ -193,13 +193,6 @@ def refgeom_dataload(smoke_dataset_paths, smoke_sigma_source):
 
     repo_root = Path(__file__).resolve().parent.parent
 
-    # Resolve HKL path from env or default
-    hkl_path_override = os.environ.get("DBEX_SMOKE_HKL_PATH")
-    if hkl_path_override:
-        hkl_path = repo_root / hkl_path_override
-    else:
-        hkl_path = repo_root / "scaled.mtz"
-
     # Resolve calibration path: default to smoke calibration asset when present,
     # otherwise honor DBEX_SMOKE_CALIB_PATH env, otherwise None
     default_smoke_calib = repo_root / "sp.proc" / "calibration" / "config_torch_smoke.json"
@@ -211,13 +204,29 @@ def refgeom_dataload(smoke_dataset_paths, smoke_sigma_source):
     else:
         calib_path = None
 
+    # Resolve HKL path from env or default to refined MTZ when calibration exists
+    # Per TOOLING-VIS-001 Phase D.C: refined structure factors must accompany calibration metadata
+    hkl_path_override = os.environ.get("DBEX_SMOKE_HKL_PATH")
+    default_refined_mtz = repo_root / "sp.proc" / "calibration" / "smoke_refined_structure_factors.mtz"
+    if hkl_path_override:
+        hkl_path = repo_root / hkl_path_override
+        # Infer MTZ column type from filename or default to intensities
+        mtz_col = "F(+),SIGF(+),F(-),SIGF(-)" if "refined" in str(hkl_path_override).lower() else "I(+),SIGI(+),I(-),SIGI(-)"
+    elif calib_path and default_refined_mtz.exists():
+        # When calibration metadata is present, default to refined structure factors
+        hkl_path = default_refined_mtz
+        mtz_col = "F(+),SIGF(+),F(-),SIGF(-)"  # Refined MTZ uses F columns
+    else:
+        hkl_path = repo_root / "scaled.mtz"
+        mtz_col = "I(+),SIGI(+),I(-),SIGI(-)"  # Raw MTZ uses I columns
+
     # Build DataLoad args
     args = Namespace(
         exptName=str(smoke_dataset_paths.expt_path),
         reflName=str(smoke_dataset_paths.refl_path),
         maskFile=str(smoke_dataset_paths.mask_path),
         mtzFile=str(hkl_path),
-        mtzCol="I(+),SIGI(+),I(-),SIGI(-)",  # Corrected MTZ column format per scaled.mtz structure
+        mtzCol=mtz_col,
         exptIdx=0,
         sigma_map=str(smoke_dataset_paths.sigma_map_path) if smoke_dataset_paths.sigma_map_path else None,
         config_path=str(calib_path) if calib_path else None,

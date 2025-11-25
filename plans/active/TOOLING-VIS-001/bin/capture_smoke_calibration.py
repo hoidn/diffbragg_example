@@ -72,6 +72,7 @@ def capture_calibration_metadata(
     mask_path: Path,
     out_config_path: Path,
     manifest_path: Path,
+    refined_mtz_out_path: Path = None,
     num_macro: int = 3,
     logger=None
 ):
@@ -85,6 +86,7 @@ def capture_calibration_metadata(
         mask_path: Path to trusted mask (e.g., 747_mask.pkl)
         out_config_path: Output path for config_torch_smoke.json
         manifest_path: Output path for manifest JSON
+        refined_mtz_out_path: Optional output path for DiffBragg-refined structure factors MTZ
         num_macro: Number of refinement macro cycles (default 3)
         logger: Logger instance
 
@@ -291,6 +293,26 @@ def capture_calibration_metadata(
         json.dump(to_native(manifest_data), fh, indent=2)
     logger.info(f"Manifest written to: {manifest_path}")
 
+    # Copy refined MTZ to output path if requested
+    temp_mtz_path = repo_root / "_temp.mtz"
+    if refined_mtz_out_path and temp_mtz_path.exists():
+        logger.info(f"Persisting refined structure factors to: {refined_mtz_out_path}")
+        refined_mtz_out_path.parent.mkdir(parents=True, exist_ok=True)
+        import shutil
+        shutil.copy2(temp_mtz_path, refined_mtz_out_path)
+
+        # Compute SHA256 for refined MTZ
+        refined_mtz_sha256 = compute_sha256(refined_mtz_out_path)
+        logger.info(f"Refined MTZ SHA256: {refined_mtz_sha256[:16]}...")
+
+        # Add refined MTZ entry to manifest
+        manifest_data["files"]["refined_structure_factors"] = {
+            "filename": refined_mtz_out_path.name,
+            "path": str(refined_mtz_out_path),
+            "sha256": refined_mtz_sha256,
+            "size_bytes": int(refined_mtz_out_path.stat().st_size),
+        }
+
     # Compute manifest self-checksum
     manifest_sha256 = compute_sha256(manifest_path)
     manifest_data["manifest_sha256"] = manifest_sha256
@@ -301,9 +323,9 @@ def capture_calibration_metadata(
     logger.info(f"Manifest SHA256: {manifest_sha256[:16]}...")
 
     # Clean up temp files
-    temp_mtz_path = repo_root / "_temp.mtz"
     if temp_mtz_path.exists():
         temp_mtz_path.unlink()
+        logger.info("Cleaned up temporary _temp.mtz")
 
     logger.info("=== Calibration Capture Complete ===")
     return calibration_config
@@ -348,6 +370,12 @@ def main():
         help="Output path for manifest JSON"
     )
     parser.add_argument(
+        "--refined-mtz-out",
+        type=Path,
+        default=None,
+        help="Output path for DiffBragg-refined structure factors MTZ (e.g., sp.proc/calibration/smoke_refined_structure_factors.mtz)"
+    )
+    parser.add_argument(
         "--num-macro",
         type=int,
         default=3,
@@ -379,6 +407,7 @@ def main():
             args.mask,
             args.out_config,
             args.manifest,
+            refined_mtz_out_path=args.refined_mtz_out,
             num_macro=args.num_macro,
             logger=logger
         )

@@ -441,9 +441,10 @@ def emit_mapping_context_diagnostics(
     else:
         sigma_provenance = "cli_override (default scalar)"
 
-    # HKL source/path from diagnostics
-    hkl_source = mapping_context.diagnostics.get("hkl_source", "unknown")
-    hkl_path = mapping_context.diagnostics.get("hkl_path", "unknown")
+    # HKL source/path from diagnostics (nested in hkl_telemetry or top-level)
+    hkl_telemetry = mapping_context.diagnostics.get("hkl_telemetry", {})
+    hkl_source = hkl_telemetry.get("hkl_source") or mapping_context.diagnostics.get("hkl_source", "unknown")
+    hkl_path = hkl_telemetry.get("hkl_path") or mapping_context.diagnostics.get("hkl_path", "unknown")
 
     # Calibration path from diagnostics (TOOLING-VIS-001)
     calibration_path = mapping_context.diagnostics.get("calibration_path", None)

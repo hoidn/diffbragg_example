@@ -1,5 +1,5 @@
 ### Turn Summary
-Scoped a calibration-component isolation plan so Ralph can extend compare_mapping_dataset_metrics.py with spot_scale/N_cells variants and capture ROI CC deltas next to DB-AT-028/029 logs.
-Updated docs/fix_plan.md, input.md, and galph_memory.md with the new Do Now so the calibration sweep plus pytest reruns are clearly staged under the 2025-11-25T133505Z artifacts.
-Next: Ralph implements the probe updates, generates the calibration-variant metrics/ROI artifacts, and reruns DB-AT-028/029 under the canonical metadata env.
-Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-25T133505Z/ (summary.md)
+Implemented calibration-variant probe in compare_mapping_dataset_metrics.py to isolate which DiffBragg calibration fields flip Stage-A ROI correlations negative.
+Evidence captured: N_cells removal restores positive median ROI CC (+0.047) from negative baseline (-0.053); spot_scale=1 alone keeps CC negative but zeroes Bragg intensities.
+Next: analyze why N_cells presence causes negative correlations and plan Stage A calibration bugfix (either sanitize capture output or adjust simulate_forward_once scaling).
+Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-25T133505Z/mapping_dataset_metrics/ (mapping_dataset_metrics.json, 4×16 ROI PNG/NPZ bundles, calibration_variants/*.json), db_at_028/db_at_029/ (mapping_context_fixture.json, roi_correlation_diagnostics.json, pytest logs)

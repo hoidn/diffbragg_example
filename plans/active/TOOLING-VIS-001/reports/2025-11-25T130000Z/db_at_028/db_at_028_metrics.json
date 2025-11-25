@@ -1,0 +1,50 @@
+{
+  "chi2_per_pixel_initial": 11756.2,
+  "chi2_per_pixel_final": 44452.11207729469,
+  "variance_floor_clamp_fraction": 0.0,
+  "variance_floor_masked_pixels": 4140,
+  "variance_floor_masked_pixels_loss_mask": 4140,
+  "chi_squared_trace_full": [
+    [
+      0,
+      48670668.0
+    ],
+    [
+      5,
+      43713036.0
+    ],
+    [
+      10,
+      184031744.0
+    ],
+    [
+      11,
+      184031744.0
+    ]
+  ],
+  "device": "cuda:0",
+  "enable_hkl_interpolation": false,
+  "log_scale_initial": 12.923022373168923,
+  "log_scale_final": 12.923022270202637,
+  "log_scale_baseline": 0.0,
+  "log_scale_effective_init": 12.923022373168923,
+  "log_scale_effective_final": 12.923022270202637,
+  "bragg_before_mean": 0.21033425629138947,
+  "bragg_before_std": 0.2442340850830078,
+  "bragg_before_max": 1.7161970138549805,
+  "bragg_after_mean": 0.05308092013001442,
+  "bragg_after_std": 0.14312982559204102,
+  "bragg_after_max": 2.072352170944214,
+  "roi_cc_median_before": 0.046995656002635285,
+  "roi_cc_median_after": -0.044982634419899116,
+  "hkl_source": "scaled.mtz",
+  "hkl_path": "scaled.mtz",
+  "hkl_count": 64333,
+  "spot_scale_override": 1.0,
+  "calibration_path": null,
+  "sigma_source": "metadata",
+  "roi_cc_median_mapping": 0.04699603144790709,
+  "scale_ratio_mapping_masked": 0.00023311817058743552,
+  "scale_ratio_mapping_unmasked": 0.030945182879550046,
+  "mapping_forward_success": true
+}

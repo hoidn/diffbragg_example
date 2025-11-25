@@ -1,0 +1,62 @@
+{
+  "cases": [
+    {
+      "case_name": "metadata_scaled",
+      "roi_cc_median": -0.0399154906104092,
+      "scale_ratio_masked": 0.8344644708818382,
+      "scale_ratio_unmasked": 2.381030573869926,
+      "bragg_mean": 0.3154650330543518,
+      "bragg_std": 93.6579360961914,
+      "bragg_max": 159377.5625,
+      "global_scale_hint": 1.1983733698610661,
+      "sigma_floor_value": 1.0,
+      "spot_scale_override": 3.105058665484234e+17,
+      "calibration_path": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/config_torch_smoke.json",
+      "hkl_source": "unknown",
+      "hkl_path": "unknown",
+      "hkl_count": 69614,
+      "n_rois": 92,
+      "device": "cuda:0"
+    },
+    {
+      "case_name": "metadata_refined",
+      "roi_cc_median": -0.0399154901178748,
+      "scale_ratio_masked": 0.258735624071979,
+      "scale_ratio_unmasked": 1.8051356390582363,
+      "bragg_mean": 0.23916415870189667,
+      "bragg_std": 51.1255989074707,
+      "bragg_max": 62304.5234375,
+      "global_scale_hint": 3.8649490327694687,
+      "sigma_floor_value": 1.0,
+      "spot_scale_override": 3.184711299019782e+17,
+      "calibration_path": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/fixtures/golden_data/simple_cubic/config_torch.json",
+      "hkl_source": "unknown",
+      "hkl_path": "unknown",
+      "hkl_count": 69614,
+      "n_rois": 92,
+      "device": "cuda:0"
+    }
+  ],
+  "diffs": [
+    {
+      "base_case": "metadata_scaled",
+      "comparison_case": "metadata_refined",
+      "delta_roi_cc_median": 4.925344021522449e-10,
+      "relative_roi_cc_median": -1.2339429996228113e-08,
+      "delta_scale_ratio_masked": -0.5757288468098591,
+      "relative_scale_ratio_masked": -0.6899381182777565,
+      "delta_scale_ratio_unmasked": -0.5758949348116895,
+      "relative_scale_ratio_unmasked": -0.24186792943010327,
+      "delta_bragg_mean": -0.07630087435245514,
+      "relative_bragg_mean": -0.2418679294301032,
+      "delta_bragg_std": -42.5323371887207,
+      "relative_bragg_std": -0.45412422013055953,
+      "delta_bragg_max": -97073.0390625,
+      "relative_bragg_max": -0.6090759423083786,
+      "delta_global_scale_hint": 2.6665756629084028,
+      "relative_global_scale_hint": 2.2251626496152475,
+      "delta_sigma_floor_value": 0.0,
+      "relative_sigma_floor_value": 0.0
+    }
+  ]
+}

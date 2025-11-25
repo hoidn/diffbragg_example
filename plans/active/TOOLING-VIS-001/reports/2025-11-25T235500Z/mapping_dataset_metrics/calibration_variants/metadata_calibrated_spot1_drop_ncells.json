@@ -1,0 +1,20 @@
+{
+  "metadata": {
+    "timestamp": "2025-11-25T13:23:59.430360Z",
+    "experiment_source": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/refGeom_small/refGeom_small.expt",
+    "reflection_source": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/refGeom_small/refGeom_small.refl",
+    "mtz_source": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/scaled.mtz",
+    "mask_source": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/refGeom_small/refGeom_small_mask.pkl",
+    "num_macro_cycles": 3,
+    "n_reflections": 29
+  },
+  "device": "cpu",
+  "beam": {
+    "flux": 1000000000000.0,
+    "exposure": 1.0,
+    "beamsize_mm": 1.0
+  },
+  "crystal": {
+    "scale_override": 1.0
+  }
+}

@@ -878,3 +878,14 @@ This is the **single most important diagnostic** to run before any other TOOLING
 - <Action State>: [ready_for_implementation]
 
 2025-11-25T073500Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=2 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T073500Z/ next_action=run_roi_triptych_probe_and_db_at_028_029
+
+## 2025-11-25T083500Z — TOOLING-VIS-001 Smoke Calibration Capture Plan
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
+- Action Type: planning
+- Key Observations: After removing the golden fixture fallback, `build_mapping_stage_a_context` now honors the smoke dataset’s HKL path but there is no calibration asset, so the mapping probe emits all-zero Bragg stacks (`roi_cc_median=NaN`, `spot_scale_override=1.0`). DB-AT-028/029 remain in their known failure signature because Stage A is still uncalibrated. Next increment must create a metadata-specific `config_torch` + manifest, wire `refgeom_dataload` to default to it, and rerun the mapping probe plus DB-AT-028/029 under `DBEX_SMOKE_CALIB_PATH`.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-25T083500Z/
+- Next Actions: Implement the smoke calibration capture script, persist `sp.proc/calibration/config_torch_smoke.json` + manifest, update `refgeom_dataload`, then rerun the mapping probe and DB-AT-028/029 with the new calibration to record non-zero Bragg metrics.
+- <Action State>: [ready_for_implementation]
+
+2025-11-25T083500Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=3 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T083500Z/ next_action=capture_smoke_calibration_and_rerun_db_at_028_029

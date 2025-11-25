@@ -964,3 +964,12 @@ This is the **single most important diagnostic** to run before any other TOOLING
 - <Action State>: [ready_for_implementation]
 
 2025-11-25T130000Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=0 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T130000Z/ next_action=extend_mapping_diagnostics_and_run_metadata_probe_pytest
+## 2025-11-25T140000Z — TOOLING-VIS-001 Calibration Wiring Plan
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
+- Action Type: planning
+- Key Observations: DB-AT-028/029 artifacts under plans/active/TOOLING-VIS-001/reports/2025-11-25T130000Z/ still show `calibration_path=null` and `spot_scale_override=1.0` even when the env block exported DBEX_SMOKE_CALIB_PATH. Root cause is the shared pytest fixture in tests/conftest.py: it only exposes `args.config_path`, so `build_mapping_stage_a_context` never sees `calibration_config_path` and silently drops the smoke config. Mapping diagnostics also log `sigma_provenance="cli_override (default scalar)"`, confirming that unless the fixture wires the metadata overrides we fall back to uniform sigma_tiles. Authored a T2 helper `plans/active/TOOLING-VIS-001/bin/check_mapping_fixture_calibration.py` to gate future runs on calibration_path/spot_scale telemetry.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-25T140000Z/
+- Next Actions: Patch tests/conftest.py::refgeom_dataload to set `calibration_config_path` (sp.proc default + env override), rerun the metadata smoke selectors, and use the new checker script to assert both mapping_context fixtures record the smoke calibration path + non-unit spot_scale_override before inspecting physics metrics.
+- <Action State>: [planning]
+
+2025-11-25T140000Z focus=TOOLING-VIS-001 state=planning dwell=1 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T140000Z/ next_action=patch_refgeom_calib_and_rerun_db_at_028_029

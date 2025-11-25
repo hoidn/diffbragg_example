@@ -54,6 +54,7 @@
 - Primary docs/specs to re-read: <list explicit files + sections>
 - Required findings/case law: <docs/findings.md IDs + summary>
 - Related telemetry/attempts: <links to relevant artifacts or plan history>
+- Data dependencies to verify: <summarize the external inputs (datasets, configs, HKL/sigma assets, etc.) this initiative relies on; reference `docs/data_dependency_manifest.md` entries and note any additions needed>
 
 ## Phase A — <name>
 ### Checklist

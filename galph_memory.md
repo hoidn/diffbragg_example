@@ -1069,3 +1069,13 @@ This is the **single most important diagnostic** to run before any other TOOLING
 - <Action State>: [ready_for_implementation]
 
 2025-11-25T190500Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=0 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T190500Z/ next_action=emit_raw_vs_calibrated_roi_evidence_and_rerun_db_at_028_029
+## 2025-11-25T200500Z — TOOLING-VIS-001 sigma-source isolation plan drafted
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
+- Action Type: planning
+- Key Observations: Raw vs calibrated ROI probes now show metadata-calibrated runs stay anti-correlated (median corr ≈ -0.044) while the calibration-disabled case is barely positive, but every permutation so far used the metadata sigma-map, so we still do not know whether the sigma tiles themselves are the culprit. To unblock physics work we need hard data comparing metadata vs CLI sigma sources under the same HKL/calibration assets before touching Stage A code.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-25T200500Z/
+- Next Actions: Extend `compare_mapping_dataset_metrics.py` with sigma-source aware cases (metadata_* + cli_*), rerun the probe for metadata_raw/metadata_calibrated/cli_raw/cli_calibrated with ROI artifact emission, then rerun DB-AT-028/029 under the canonical metadata env capturing logs/metrics.
+- <Action State>: [ready_for_implementation]
+
+2025-11-25T200500Z focus=TOOLING-VIS-001 state=planning dwell=1 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T200500Z/ next_action=run_sigma_source_probe_and_db_at_028_029

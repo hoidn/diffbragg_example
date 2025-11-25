@@ -1,51 +1,48 @@
-Summary: Make the Stage A smoke fixture (and mapping probes) default to the refined smoke MTZ whenever the calibration bundle exists and capture telemetry proving the new HKL path is used.
+Summary: Capture and wire a detector-size–specific smoke calibration bundle for the refGeom_small Stage A fixture so probes and DB-AT-028/029 stop mixing small-geometry data with the full-detector calibration.
 Mode: Parity
 Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
 Branch: integration
 Mapped tests: tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity; tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity
-Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-25T203500Z/
+Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-25T213500Z/
 
 Do Now:
-- Implement: tests/dbex/test_torch_refine_smoke.py::refgeom_dataload — when `sp.proc/calibration/config_torch_smoke.json` (or DBEX_SMOKE_CALIB_PATH) resolves and `DBEX_SMOKE_HKL_PATH` is unset, default `hkl_source_path` to `sp.proc/calibration/smoke_refined_structure_factors.mtz`, persist the resolved path/source on the fixture so mapping contexts inherit it, and keep the explicit override/relative-path behavior unchanged.
-- Implement: dbex/vis/mapping.py::build_mapping_stage_a_context — mirror the nested `diagnostics["hkl_telemetry"]` entries onto top-level `hkl_source`/`hkl_path` keys (without mutating the telemetry payload) so Stage A smoke diagnostics and DB-AT selectors read the actual HKL asset even when callers still reference the old keys; update any TOOLING probes that cached their own HKL resolver (e.g., `plans/active/TOOLING-VIS-001/bin/compare_mapping_dataset_metrics.py::build_dataload_for_case`) to reuse the same fallback so CLI runs match the fixture.
-- Validate: `pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029"` with the canonical metadata env so both selectors archive telemetry showing the refined HKL path (assertions expected to fail but logs must capture the new provenance).
+- Implement: tests/conftest.py::refgeom_dataload — make the calibration/HKL resolver detector-size aware so `DBEX_SMOKE_DETECTOR_SIZE=small` drives `config_torch_smoke_small.json` + `smoke_refined_structure_factors_small.mtz` (with override envs still authoritative) while the full-detector fixture keeps using the canonical files.
+- Validate: `pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029"` under the metadata env to archive fresh telemetry showing the new small-calibration bundle; failures expected on chi²/ROI CC but logs must capture the detector-specific paths.
 
 How-To Map:
-1. `export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md REPORT=plans/active/TOOLING-VIS-001/reports/2025-11-25T203500Z DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_SIGMA_MAP_PATH=sp.proc/refGeom_small/idx-0000_sigma_metadata_small.sigma_tiles.pkl DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_CALIB_PATH=sp.proc/calibration/config_torch_smoke.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1` and `mkdir -p "$REPORT"/mapping_dataset_metrics "$REPORT"/db_at_028 "$REPORT"/db_at_029`.
-2. Update `tests/dbex/test_torch_refine_smoke.py::refgeom_dataload` so the default HKL resolver is: (a) honor `DBEX_SMOKE_HKL_PATH` when set, (b) else if `sp.proc/calibration/smoke_refined_structure_factors.mtz` exists and a calibration config resolved, use that refined file, (c) otherwise fall back to `scaled.mtz`. Persist the resolved path on `args.hkl_source_path` and add a `resolved_hkl_source` string to the diagnostics payload if it does not exist yet.
-3. Update `dbex/vis/mapping.py::build_mapping_stage_a_context` (and any helper your change touches) to copy `hkl_source/hkl_path` from `hkl_telemetry` into the top-level `diagnostics` dict before returning the context. Confirm `MappingStageAContext.diagnostics` now surfaces the accurate HKL metadata without relying on test-only logic.
-4. Mirror the new resolver inside tooling scripts that hand-roll DataLoad args (at minimum `plans/active/TOOLING-VIS-001/bin/compare_mapping_dataset_metrics.py::build_dataload_for_case` and `plans/active/TOOLING-VIS-001/bin/compare_mapping_forward_cpu_gpu.py::main`) so probes see the same refined default as the pytest fixture.
-5. With the canonical metadata env (`DBEX_SMOKE_HKL_PATH` intentionally *unset* so the new default takes effect), run `python plans/active/TOOLING-VIS-001/bin/compare_mapping_dataset_metrics.py --cases metadata_raw metadata_calibrated --emit-roi-artifacts --roi-count 16 --default-sigma 3.0 --device cuda:0 --out-dir "$REPORT"/mapping_dataset_metrics | tee "$REPORT"/mapping_dataset_metrics/probe.log` and confirm `mapping_dataset_metrics.json` records `hkl_source="refined"` plus the refined path for both cases.
-6. `export DBAT028_ARTIFACT_DIR="$REPORT"/db_at_028 DBAT029_ARTIFACT_DIR="$REPORT"/db_at_029` then `pytest --collect-only tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" | tee "$REPORT"/pytest_db_at_028_029_collect.log` to prove the selectors still collect.
-7. `pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" | tee "$REPORT"/pytest_db_at_028_029.log`; let the assertions fail but verify the emitted `mapping_context_fixture.json` files now list `hkl_source="refined"` and `hkl_path` pointing at `sp.proc/calibration/smoke_refined_structure_factors.mtz`.
+1. `export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md REPORT=plans/active/TOOLING-VIS-001/reports/2025-11-25T213500Z DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_SIGMA_MAP_PATH=sp.proc/refGeom_small/idx-0000_sigma_metadata_small.sigma_tiles.pkl DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_CALIB_PATH=sp.proc/calibration/config_torch_smoke_small.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1` and `mkdir -p "$REPORT"/{capture_small,mapping_dataset_metrics,db_at_028,db_at_029}`.
+2. Generate the detector-specific bundle: `python plans/active/TOOLING-VIS-001/bin/capture_smoke_calibration.py --expt sp.proc/refGeom_small/refGeom_small.expt --refl sp.proc/refGeom_small/refGeom_small.refl --mask sp.proc/refGeom_small/refGeom_small_mask.pkl --mtz scaled.mtz --out-config sp.proc/calibration/config_torch_smoke_small.json --refined-mtz-out sp.proc/calibration/smoke_refined_structure_factors_small.mtz --manifest "$REPORT"/capture_small/smoke_calibration_small_manifest.json | tee "$REPORT"/capture_small/capture_small.log`.
+3. After editing `.gitignore` + `tests/conftest.py`, update any tooling constants that hardcoded `config_torch_smoke.json` (e.g., `plans/active/TOOLING-VIS-001/bin/compare_mapping_dataset_metrics.py::define_cases`) so metadata cases pick the detector-specific file when `DBEX_SMOKE_DETECTOR_SIZE=small`.
+4. Probe the effect: `python plans/active/TOOLING-VIS-001/bin/compare_mapping_dataset_metrics.py --cases metadata_raw metadata_calibrated cli_raw cli_calibrated --emit-roi-artifacts --roi-count 16 --default-sigma 3.0 --device cuda:0 --out-dir "$REPORT"/mapping_dataset_metrics | tee "$REPORT"/mapping_dataset_metrics/probe.log` (leave `DBEX_SMOKE_HKL_PATH` unset so the resolver chooses the new refined MTZ).
+5. Export artifacts env for DB-AT selectors: `export DBAT028_ARTIFACT_DIR="$REPORT"/db_at_028 DBAT029_ARTIFACT_DIR="$REPORT"/db_at_029`.
+6. `pytest --collect-only tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" | tee "$REPORT"/pytest_db_at_028_029_collect.log`.
+7. `pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" | tee "$REPORT"/pytest_db_at_028_029.log`; expect failures on the existing chi²/ROI CC gates but confirm the emitted `mapping_context_fixture.json` files now reference `config_torch_smoke_small.json` + `smoke_refined_structure_factors_small.mtz`.
 
 Pitfalls To Avoid:
-- Keep `DBEX_SMOKE_HKL_PATH` overrides authoritative; do not ignore it when present.
-- Do not bake absolute paths into the fixture—resolve relative paths via repo root so CI and local runs behave identically.
-- Avoid mutating the contents of `hkl_telemetry`; add mirrored keys instead so downstream consumers that already reference the nested dict keep working.
-- Ensure tooling scripts and pytest fixtures share the same resolver to prevent the “probe uses refined, test uses raw” split we just diagnosed.
-- Preserve lazy imports and torch device neutrality inside the mapping helper; no CUDA-only shortcuts.
-- Capture probe/pytest logs even when tests fail; artifacts are mandatory evidence for this initiative.
-- Leave environment freeze intact—no pip installs or package upgrades to chase missing deps.
-- Refrain from updating unrelated fixtures/tests; limit the change to HKL selection + diagnostics so review stays focused.
-- Keep ROI artifact counts modest (16 worst ROIs) to avoid bloating the report directory.
-- If CUDA is unavailable, note the device switch in summary.md but still run the probe/test suite on CPU.
+- Do not regress the override precedence: `DBEX_SMOKE_HKL_PATH` / `DBEX_SMOKE_CALIB_PATH` must still win over the detector-size defaults.
+- Keep the full-detector fixture wired to the canonical calibration files; the new `_small` bundle is ONLY for `DBEX_SMOKE_DETECTOR_SIZE=small`.
+- Update tooling scripts that hand-roll dataset paths; otherwise probes and pytest will drift again.
+- Capture manifest/log artifacts for the new bundle so reviewers can verify SHA256 and provenance.
+- Preserve lazy imports/device neutrality in fixtures; no CUDA-only assumptions.
+- Leave environment freeze untouched—no package installs to unblock capture.
+- Archive probe/pytest logs even though selectors will keep failing on physics thresholds.
+- Record the new calibration assets in docs/data_dependency_manifest.md so future loops know which files belong to which detector size.
 
 If Blocked:
-- If the refined MTZ path is missing or unreadable, record the error stack in `$REPORT/mapping_dataset_metrics/probe.log`, mention it in summary.md, and update docs/fix_plan Attempts History with the missing-asset blocker before stopping.
-- If pytest cannot collect DB-AT-028/029 after the fixture change, archive the collect log, triage briefly (≤15 min), and if unresolved mark TOOLING-VIS-001 blocked with the exact error signature in fix_plan + summary.
+- If the capture script fails on the refGeom_small inputs, stash the stack trace in `$REPORT/capture_small/capture_small.log`, mention the failing command in summary.md, and log the blocker in docs/fix_plan Attempts History before stopping.
+- If pytest can no longer collect the smoke selectors after the fixture change, keep the collect log, triage for ≤15 minutes, and if unresolved mark TOOLING-VIS-001 blocked with the signature in fix_plan + summary (do not revert the change).
 
 Findings Applied (Mandatory):
-- STAGEA-001 — Mapping/Stage A helpers must share calibration + HKL provenance; switching the default HKL source keeps the Stage A engine aligned with mapping diagnostics.
-- SCALE-004 — Refined structure factors must travel with the calibration metadata; updating the fixture + probes enforces that pairing.
-- SCALE-005 — Sigma/scale provenance must remain auditable; the probe and pytest artifacts still log sigma source + spot_scale even as HKL defaults change.
+- STAGEA-001 — Stage A/mapping tooling must consume the same calibration + HKL provenance; detector-specific bundles keep the zero-point invariant intact.
+- SCALE-004 — Refined structure factors must pair with the calibration metadata; producing a small-detector refined MTZ enforces that requirement.
+- SCALE-005 — Calibration provenance must stay auditable; scripts/tests must emit the new calibration path so telemetry tracks which bundle was used.
 
 Pointers:
-- docs/data_dependency_manifest.md:17-95 — mapping/helper dependency contract (HKL/calibration defaults, overrides, telemetry expectations).
-- docs/fix_plan.md:340-360 — latest TOOLING-VIS-001 attempts noting HKL default drift and sigma-source probe evidence.
-- docs/findings.md:9-42 — STAGEA-001 and SCALE-001–SCALE-006 guardrails on calibration/HKL usage.
-- plans/active/TOOLING-VIS-001/implementation.md:1-160 — initiative goals, Phase D context, and acceptance gates for DB-AT-027/028/029.
-- tests/dbex/test_stage_a_smoke_parity.py:70-190 — Stage A smoke fixture + diagnostics that consume the HKL metadata you’re changing.
+- docs/data_dependency_manifest.md:34-95 — refGeom smoke fixtures + calibration/HKL precedence rules that need to reflect the detector-specific bundle.
+- docs/findings.md:9-55 — STAGEA/SCALE guardrails on calibration/HKL usage.
+- plans/active/TOOLING-VIS-001/implementation.md:1-200 — initiative goals and Phase D acceptance gates for DB-AT-027/028/029.
+- docs/fix_plan.md:330-360 — latest TOOLING-VIS-001 attempts plus the small-calibration plan.
+- tests/dbex/test_stage_a_smoke_parity.py:70-210 — Stage A smoke fixtures whose behavior you’re changing.
 
 Next Up (optional):
-- If refined HKL + calibration still yield negative ROI CC, plan a follow-up loop to compare refined-vs-scaled HKL amplitudes (e.g., extend `probe_scale_chain.py`) before touching Stage A physics.
+- If the detector-specific calibration still leaves ROI CC≈-0.04, follow up with a calibration-component probe (spot scale vs N_cells vs beam flux) before touching Stage A physics.

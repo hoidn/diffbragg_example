@@ -1089,3 +1089,13 @@ This is the **single most important diagnostic** to run before any other TOOLING
 - Next Actions: Ralph executes the resolver/telemetry update and reruns `compare_mapping_dataset_metrics.py` + DB-AT-028/029 under the canonical metadata env; if telemetry still reports `scaled.mtz`, stop and re-diagnose the resolver instead of chasing physics fixes.
 
 2025-11-25T203500Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=0 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T203500Z/ next_action=fix_smoke_hkl_default_and_rerun_mapping_probe_plus_db_at_028_029
+## 2025-11-25T213500Z — TOOLING-VIS-001 detector-specific calibration plan logged
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
+- Action Type: planning
+- Key Observations: Even after wiring refined HKL defaults, the calibrated Stage A fixtures still ingest geometry from `refGeom_small` while the calibration manifest cites `idx-0000_sigma_metadata.expt`, so we’re combining a cropped detector with the full-detector calibration bundle. That mismatch likely explains why metadata-calibrated runs keep anti-correlating (ROI CC≈-0.04) despite sigma/HKL telemetry being correct. Planned next loop: capture a dedicated `config_torch_smoke_small.json` + `smoke_refined_structure_factors_small.mtz` using the refGeom_small assets, un-ignore the new files, update `tests/conftest.py::refgeom_dataload` (and the tooling probes that mirror it) to select the detector-specific bundle whenever `DBEX_SMOKE_DETECTOR_SIZE=small`, and rerun the mapping dataset probe + DB-AT-028/029 so artifacts prove the new calibration path is honored.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-25T213500Z/
+- Next Actions: ready_for_implementation — generate the small-detector calibration bundle, update `.gitignore` + `refgeom_dataload` + tooling resolvers, then re-run `compare_mapping_dataset_metrics.py` and DB-AT-028/029 under the metadata env capturing the new telemetry.
+- <Action State>: [planning]
+
+2025-11-25T213500Z focus=TOOLING-VIS-001 state=planning dwell=1 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T213500Z/ next_action=capture_small_calibration_and_rerun_db_at_028_029

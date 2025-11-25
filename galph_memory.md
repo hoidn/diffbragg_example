@@ -857,3 +857,14 @@ This is the **single most important diagnostic** to run before any other TOOLING
 - <Action State>: [ready_for_implementation]
 
 2025-11-25T061925Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=1 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T061925Z/ next_action=hkl_override_probe_and_db_at_028_029
+
+## 2025-11-25T073500Z — TOOLING-VIS-001 ROI Diagnostics Planning
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
+- Action Type: planning
+- Key Observations: HKL + sigma provenance probes confirm ROI CC≈-0.04 regardless of source (DB-AT-028/029 chi²/pixel≈1.08e5). Next evidence gap is per-ROI insight—need triptychs/metrics to tell whether the mismatch is geometric or structural before touching physics. Authored new Do Now directing Ralph to build a T2 probe (`probe_mapping_roi_triptychs.py`), capture the worst ROIs as PNG/NPZ + histograms, and rerun DB-AT-028/029 under metadata sigma so selectors reference the same artifacts.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-25T073500Z/
+- Next Actions: Implement ROI probe + run DB-AT-028/029 capturing roi_diagnostics/, pytest logs, and summarize signatures.
+- <Action State>: [ready_for_implementation]
+
+2025-11-25T073500Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=2 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T073500Z/ next_action=run_roi_triptych_probe_and_db_at_028_029

@@ -29,18 +29,19 @@ API Contracts (Normative)
 Precedence Rules (Normative)
 - CLI flag values SHALL override values inferred from Experiment metadata.
 - Environment variables SHALL provide defaults (e.g., device), overridden by CLI.
-- Detector readout noise (`sigma_readout`) SHALL follow the precedence chain `--sigma-map` (calibrated tensor) > `--sigma-rdout` (scalar) > Experiment metadata external_lookup tiles, as detailed in `docs/TESTING_GUIDE.md` and `spec-db-core.md`. When none of `--sigma-map`, `--sigma-rdout`, or external tiles are available, the CLI SHALL error (no silent defaults such as legacy ~3 ADU fallbacks).
+- Detector readout noise (`sigma_readout`) SHALL follow the precedence chain config sigma map (from `--torch-config` when present and valid) > `--sigma-map` (calibrated tensor) > `--sigma-rdout` (scalar) > Experiment metadata external_lookup tiles, as detailed in `docs/TESTING_GUIDE.md` and `spec-db-core.md`. When none of these are available, the CLI SHALL error (no silent defaults such as legacy ~3 ADU fallbacks).
 
 Error Conditions (Normative)
 - Rectangular pixel panels SHALL error (unless per‑pitch Detectors are constructed explicitly outside the single‑panel mapping).
 - Mask/array shape mismatches SHALL error.
 - Missing required inputs (Experiment, Reflections, MTZ) SHALL error.
 - When a normative “SHALL error” condition triggers (e.g., missing sigma, non-square pixels), the CLI MUST exit non‑zero and SHALL NOT emit a viewer HDF5 that could be mistaken for valid output; diagnostic artifacts MAY be written to a separate debug path.
+- Error messaging SHOULD name the failed precedence tier (e.g., sigma source, HKL source, calibration conflict) to make remediation clear.
 
 HDF5 Output Schema (Normative)
 - Required groups/datasets for viewer/telemetry outputs:
   - `/data`, `/model`, `/bragg`, `/bg`, `/variance` (or equivalent) and ROI `score` datasets.
-  - `/torch_diagnostics` attributes SHALL include at least: `backend`, `unit_mode`, `adu_per_photon`, `sigma_readout_provenance`, `sigma_floor` and provenance, `spot_scale_override`, `beam_flux`, `beam_exposure`, `beamsize_mm`, `N_cells`, HKL source/path, interpolation/halo flags, and `device_profile` (e.g., `cpu_conformance`, `cuda_experimental`).
+  - `/torch_diagnostics` attributes SHALL include at least: `backend`, `unit_mode`, `adu_per_photon`, `sigma_readout_provenance`, `sigma_floor` and provenance, `spot_scale_override`, `beam_flux`, `beam_exposure`, `beamsize_mm`, `N_cells`, HKL source/path, interpolation/halo flags, `device_profile` (e.g., `cpu_conformance`, `cuda_experimental`), `log_scale_baseline`, `log_scale_delta_clamp`, `final_scale_applied`, and any recorded precedence conflicts/fallbacks. This list is the canonical telemetry keyset; other shards defer to it.
   - `/trace/<panel>/<slow>_<fast>/` groups SHALL follow `spec-db-tracing.md`.
 - Implementations MAY add extra fields but MUST supply these minima for conformance. Telemetry MUST record provenance for any defaulted calibration fields.
 

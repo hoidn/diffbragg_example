@@ -12,7 +12,7 @@ Units, Frames, and Conventions (Normative)
   - Detector distances/pixel sizes: inputs in mm; internal meters.
   - Crystal: Å and degrees; convert to meters only for geometry‑physics dot products.
   - Wavelength: Å.
-  - Output: intensity in photons (physical) from the simulator; ADU used as input target unless user converts.
+  - Simulator produces physical intensity in photons; the loss always operates in the run’s target units (`unit_mode`), converting simulator output to ADU when `unit_mode="ADU"` per `spec-db-workflow.md`.
   - Calibration/units precedence and telemetry requirements are normative per `docs/spec-db-workflow.md` (“Calibration & Unit Conventions” addendum); implementers SHALL follow that ladder and emit the required provenance fields. Required calibration fields and provenance expectations there are binding; runs that omit them are non-conformant even if they execute.
 - Frames and vectors:
   - Panel basis (f,s,o) SHALL be orthonormal in lab frame.
@@ -44,7 +44,7 @@ Data Contracts (Normative)
     - The bridge SHALL record the provenance of the supplied noise (e.g., `sigma_map`, `sigma_scalar`, `external_lookup`) in `RefinementInputs` telemetry so downstream tools can audit whether instrument data or overrides were used.
 - Outputs: Bragg prediction and HDF5 (optional)
   - Full‑frame Bragg tensor SHALL be `(n_panels, slow, fast)` and align with DataLoad.data.
-  - HDF5 viewer output MAY include `data/roiN`, `model/roiN`, `bragg/roiN`, `bg/roiN`, and `score` for each ROI as implemented today.
+  - When HDF5 viewer output is produced, it SHALL follow the schema in `spec-db-interfaces.md` (“HDF5 Output Schema”). The per‑ROI layout described here (`data/roiN`, `model/roiN`, `bragg/roiN`, `bg/roiN`, `score`) is the canonical viewer layout within that schema.
 
 Geometry Mapping (Normative)
 - dxtbx → Simulator mapping SHALL follow docs/dxtbx_api.md and docs/config_crosswalk.md:
@@ -71,7 +71,7 @@ Geometry Mapping (Normative)
     - Orientation parameters represent a small rotation `ΔR(q_delta)` applied to the baseline orientation such that `U(q_delta) = ΔR(q_delta) @ U₀`, where `ΔR` is typically implemented via a unit quaternion increment with the identity quaternion `(1,0,0,0)` encoding “no misset”.
     - Cell parameters represent small perturbations of the baseline cell, producing `B(params) = B(c(params))` via a well‑defined Busing–Levy metric tensor map consistent with dxtbx conventions. Lengths MAY be parameterized via log‑deltas (e.g. `a(params) = a₀·exp(δlog_a)`), while angles use additive deltas around `(α₀, β₀, γ₀)`.
   - At the Stage‑A zero point (all refinement deltas = 0), implementations MUST satisfy:
-    - `U(0) = U₀`, `B(0) = B₀`, and `A*(0) = U₀ @ B₀ = A*_mapping`.
+    - Within the tolerances defined by DB‑AT‑026, `U(0) ≈ U₀`, `B(0) ≈ B₀`, and `A*(0) ≈ U₀ @ B₀ = A*_mapping`.
 
 - One‑way construction of A*:
   - In production refinement code, `A*` SHALL be constructed only in the forward direction

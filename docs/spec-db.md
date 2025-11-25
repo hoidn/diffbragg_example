@@ -14,7 +14,7 @@ Backend summary (informative)
 - diffbragg — Default backend (legacy); not Spec‑DB conformant (diagnostic only).
 - nanobrag — Non‑default; Spec‑DB conformance target (DB‑AT profiles) and SHALL be selected via `--backend nanobrag`.
 
-References (informative)
-- docs/config_crosswalk.md — Mapping between DIALS/dxtbx/simtbx, DiffBragg concepts, and nanobrag_torch configs.
+References (informative unless noted)
+- docs/config_crosswalk.md — Normative by reference for detector/beam/crystal/config mapping when cited from `spec-db-core.md` §Geometry Mapping.
 - docs/nanobrag_api.md, docs/simtbx_api.md, docs/dxtbx_api.md, docs/dials_api.md — API detail.
 - plans/nanobrag_integration_plan.md — Execution plan implementing this spec.

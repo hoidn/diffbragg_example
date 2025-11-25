@@ -145,7 +145,7 @@ Acceptance Tests (Normative)
 
 5. **Sigma / readout noise**
    - Primary: external‑lookup sigma map embedded in `sp.proc/idx-0000_sigma_metadata.expt` / `idx-0000_sigma_metadata.sigma_tiles.pkl` (if present), loaded via `DataLoad` → `sigma_readout_map`.
-   - Fallback: a scalar sigma_r in ADU (e.g., 3.0 ADU) broadcast to `data.shape`.
+   - Fallback: a scalar `sigma_r` in ADU (e.g., 3.0 ADU) explicitly supplied via `--sigma-rdout` or config and broadcast to `data.shape`. Silent hardcoded fallbacks inside the implementation are non‑conformant.
    - In either case, `sigma_readout` SHALL be aligned with the target units (ADU for DB‑AT‑024 baseline) and MUST be strictly positive on trusted pixels per `spec-db-core.md`.
 
 **Canonical Pipeline (Normative)**
@@ -277,6 +277,7 @@ Acceptance Tests (Normative)
     - Forward‑model equality:
       - `max_abs_diff(bragg_stagea_zero − bragg_mapping) ≤ 2.0e2` (ADU units), calibrated to existing TOOLING‑VIS zero‑point probes for the simple_cubic fixture. This bound MAY be tightened in future once Stage‑A and mapping share an exact forward implementation.
       - `mean_abs_diff(bragg_stagea_zero − bragg_mapping) ≤ 1e‑3`.
+      - These paired bounds intentionally enforce near-equality while allowing rare outliers; they MAY be revisited once mapping and Stage‑A share a single forward implementation.
     - Variance‑weighted χ² equality:
       - `|chi2_stagea_at_mapping − chi2_mapping| / chi2_mapping ≤ 1e‑3`, where the χ² is the canonical PHYSICS‑LOSS variance‑weighted objective with detached denominator (`V = I_model + sigma_readout²`, clamped to `sigma_floor²`); the current helper implementing this is `dbex.physics.loss._compute_variance_weighted_loss` (informative).
     - χ² per pixel sanity:

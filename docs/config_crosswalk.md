@@ -1,5 +1,7 @@
 # Config Mapping and Refinement Crosswalk
 
+Status: Normative by reference for detector/beam/crystal/config mapping when cited from `spec-db-core.md` §Geometry Mapping; otherwise informative.
+
 This document is a one‑stop mapping between DIALS/dxtbx/simtbx inputs, DiffBragg concepts, and `nanobrag_torch` configuration/parameters. It also states which parameters we refine in v1, their parameterizations, initial values, and constraints.
 
 Conventions and Units
@@ -129,10 +131,13 @@ Notation ↔ Config Field Mapping (Informative)
   - Setting matrix `A*(params)` — built in the simulator as `U(params) @ B(params)` from the updated `cell_*` and `misset_deg` per `docs/spec-db-core.md` and `docs/spec-db-workflow.md`.
 - Arrays and loss:
   - `I_obs` (Spec‑DB) — the background‑subtracted target; in code this is `RefinementInputs.target` (`inputs.target`), shaped `[panel, slow, fast]` and sliced with `(x0,x1,y0,y1)` as `target[pid, y0:y1, x0:x1]`.
-  - `I_model` — the model intensity on the same grid used in the variance‑weighted loss. For the DiffBragg backend this is the sum of the simulated Bragg tensor and the background image on raw data; for the current torch Stage‑A implementation it is the scaled Bragg tensor evaluated on background‑subtracted targets (see TODO‑PHYSICS (informative) below).
-  - `sigma_readout` — detector readout noise in target units; represented as `RefinementInputs.sigma_readout` (`inputs.sigma_readout`), populated from the precedence chain `--sigma-rdout` (scalar) > `--sigma-map` (tensor) > Experiment external_lookup tiles.
+  - `I_model` — the model intensity on the same grid used in the variance‑weighted loss. For the DiffBragg backend this is the sum of the simulated Bragg tensor and the background image on raw data; for the current torch Stage‑A implementation it is the scaled Bragg tensor evaluated on background‑subtracted targets (see TODO‑PHYSICS (informative) below and the canonical definition in `spec-db-core.md` §Objective Function & Variance Model).
+  - `sigma_readout` — detector readout noise in target units; represented as `RefinementInputs.sigma_readout` (`inputs.sigma_readout`), populated from the precedence chain config sigma map (`torch_config`) → `--sigma-map` (tensor) → `--sigma-rdout` (scalar) → Experiment external_lookup tiles (see `spec-db-core.md` §Variance inputs).
   - Variance `V = I_model + sigma_readout^2` — implemented in `dbex.physics.loss._compute_variance_weighted_loss` (detached and clamped to `sigma_floor^2`) and written to HDF5 as `variance/roiN` with companion `sigma_readout` and `sigma_floor` datasets, per `docs/spec-db-core.md` and `docs/spec-db-workflow.md`.
   - Masks: Spec‑DB `mask_array` / trusted mask correspond to `DetectorConfig.mask_array` (0/1 float, `[slow, fast]`) and `RefinementInputs.trusted_mask`; the loss mask `(background >= 0) ∧ trusted_mask` is `RefinementInputs.loss_mask`.
+  - Scale composition (Stage A):
+    - Photon mode: `I_model_photons` from the simulator is scaled by `spot_scale_override * exp(log_scale_delta)` (log_scale_delta = 0 at baseline).
+    - ADU mode: the same scale applies, but simulator output is converted to ADU via the gain: `I_model_ADU = (spot_scale_override**0.5 * exp(log_scale_delta)) * I_model_photons / adu_per_photon` (square root because spot_scale_override is a photon-mode scale; Stage‑A log scale is a delta around that baseline). See `spec-db-workflow.md` (Calibration & Unit Conventions) for the normative ADU/photon policy.
 
 Naming Glossary — Loss, Targets, and Sigma (Informative)
 - Targets:

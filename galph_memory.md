@@ -1176,3 +1176,13 @@ This is the **single most important diagnostic** to run before any other TOOLING
 - <Action State>: [partial_complete]
 
 2025-11-26T011500Z focus=TOOLING-VIS-001 state=partial_complete dwell=1 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-26T010900Z/ next_action=remove_debug_and_commit_partial_work
+## 2025-11-26T020500Z — TOOLING-VIS-001 Stage A baseline planning
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
+- Action Type: planning
+- Key Observations: DB-AT-028/029 artifacts (plans/active/TOOLING-VIS-001/reports/2025-11-26T010900Z/) show mapping diagnostics carrying `calibration_adjusted_for_n_cells=true` and `spot_scale_override_adjustment_factor=2.3e10`, yet RefinementEngine telemetry still reports `log_scale_baseline_source=None` with `scale_ratio_before≈2.0e4`. `_build_stage_a_params` writes the mapping baseline only in the inline helper, and `dbex/refinement/stage_a.py` never forwards the new metadata, so the engine delegation path keeps exponentiating the already-adjusted spot scale. Authored a ready-for-implementation Do Now that moves the baseline detection into `_build_stage_a_params`, propagates `log_scale_baseline_source`/`spot_scale_override_adjustment_factor` through Stage A telemetry (engine + inline), and reruns DB-AT-028/029 under the canonical metadata env to prove the new fields populate even though chi^2 gates still fail.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-26T020500Z/
+- Next Actions: Implement the shared helper + telemetry wiring, then run the DB-AT-028/029 pytest pair to capture the updated metrics; stop only if telemetry still shows nulls and log the block.
+- <Action State>: [ready_for_implementation]
+
+2025-11-26T020500Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=1 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-26T020500Z/ next_action=implement_stage_a_engine_baseline_fix

@@ -1,60 +1,60 @@
-Summary: Force Stage A to reuse the mapping-adjusted log-scale baseline whenever the small-detector calibration disables N_cells so the reconstructed Bragg stack matches the mapping zero-point.
+Summary: Ensure Stage A engine delegation consumes the mapping-adjusted baseline so DB-AT-029 telemetry matches mapping scale ratios even while the smoke gates keep failing.
 Mode: Parity
-Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
+Focus: TOOLING-VIS-001   Stage A Mapping Alignment & Visual Diagnostics
 Branch: integration
 Mapped tests: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_CALIB_PATH=sp.proc/calibration/config_torch_smoke_small.json pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029"
-Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-26T010900Z/
+Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-26T020500Z/
 
 Do Now (hard validity contract)
-- Implement: dbex/vis/mapping.py::build_mapping_stage_a_context — guarantee the auto-adjuster sets `calibration_adjusted_for_n_cells` and `spot_scale_override_adjustment_factor` on both `diagnostics` and the calibration dict handed to Stage A (clone before mutation, retain fallback behavior when the guard does not trigger) so downstream code can reliably detect mapping-assisted baselines.
-- Implement: dbex/nanobrag_refinement.py::_build_stage_a_params — detect the calibration-adjusted flag and swap the log-scale baseline to `log(inputs.global_scale_hint)` (recording `log_scale_baseline_source="mapping_global_scale_hint"` and threading `spot_scale_override_adjustment_factor` through param_deltas/telemetry) so Stage A LBFGS and `_build_final_bragg_from_stage_a_telemetry` both apply the same masked-mean baseline when N_cells is suppressed.
-- Implement: tests/dbex/test_stage_a_smoke_parity.py::stage_a_smoke_result — clone the calibration metadata before mutating it, persist `calibration_adjusted_for_n_cells` and `spot_scale_override_adjustment_factor` into the metrics JSON, and assert in-code that when the flag is set the new telemetry fields (`log_scale_baseline_source`, `scale_ratio_before`) match the mapping diagnostics; this keeps artifacts self-verifying.
-- Validate: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_CALIB_PATH=sp.proc/calibration/config_torch_smoke_small.json DBAT028_ARTIFACT_DIR=plans/active/TOOLING-VIS-001/reports/2025-11-26T010900Z/db_at_028 DBAT029_ARTIFACT_DIR=plans/active/TOOLING-VIS-001/reports/2025-11-26T010900Z/db_at_029 pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" (collect-only first, then full run; failures on chi²/ROI gates are expected but logs/JSON must show the new baseline telemetry).
+- Implement: dbex/nanobrag_refinement.py::_build_stage_a_params   detect `calibration_adjusted_for_n_cells` and stash both the mapping-derived `log_scale_baseline` (log(inputs.global_scale_hint)) and `spot_scale_override_adjustment_factor` inside `param_values`/warm-cache state so every caller (inline + engine) applies the corrected baseline before building optimizers; remove the ad-hoc debug prints once the shared helper owns the logic.
+- Implement: dbex/refinement/stage_a.py::StageA.run and dbex/nanobrag_refinement.py::run_nanobrag_refinement   plumb the new param metadata into `RefinementTelemetry` (engine + inline paths) and ensure `_build_final_bragg_from_stage_a_telemetry` sees the updated baseline, so DB-AT-029 metrics report `log_scale_baseline_source="mapping_global_scale_hint"` with `scale_ratio_before scale_ratio_mapping_masked` when calibration was adjusted.
+- Validate: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_CALIB_PATH=sp.proc/calibration/config_torch_smoke_small.json DBAT028_ARTIFACT_DIR=plans/active/TOOLING-VIS-001/reports/2025-11-26T020500Z/db_at_028 DBAT029_ARTIFACT_DIR=plans/active/TOOLING-VIS-001/reports/2025-11-26T020500Z/db_at_029 KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" (collect-only first, then full run; chi /ROI failures expected artifacts must show the new telemetry fields filled).
 
 How-To Map
 1. export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
-2. export DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_CALIB_PATH=sp.proc/calibration/config_torch_smoke_small.json DBAT028_ARTIFACT_DIR=plans/active/TOOLING-VIS-001/reports/2025-11-26T010900Z/db_at_028 DBAT029_ARTIFACT_DIR=plans/active/TOOLING-VIS-001/reports/2025-11-26T010900Z/db_at_029 KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1
-3. After coding, run the collect-only gate:
-   pytest --collect-only -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" \
-     | tee plans/active/TOOLING-VIS-001/reports/2025-11-26T010900Z/pytest_db_at_028_029_collect.log
-4. Run the full selector suite with logs tee’d to `.../pytest_db_at_028_029.log` (failures OK, artifacts mandatory).
-5. Verify the metrics contain the new telemetry (example sanity script):
-   python - <<'PY'
+2. export DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_CALIB_PATH=sp.proc/calibration/config_torch_smoke_small.json DBAT028_ARTIFACT_DIR=plans/active/TOOLING-VIS-001/reports/2025-11-26T020500Z/db_at_028 DBAT029_ARTIFACT_DIR=plans/active/TOOLING-VIS-001/reports/2025-11-26T020500Z/db_at_029 KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1
+3. pytest --collect-only -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" \
+     | tee plans/active/TOOLING-VIS-001/reports/2025-11-26T020500Z/pytest_db_at_028_029_collect.log
+4. pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" \
+     | tee plans/active/TOOLING-VIS-001/reports/2025-11-26T020500Z/pytest_db_at_028_029.log
+5. python - <<'PY'
 import json
 from pathlib import Path
-path = Path('plans/active/TOOLING-VIS-001/reports/2025-11-26T010900Z/db_at_029/db_at_029_metrics.json')
+path = Path('plans/active/TOOLING-VIS-001/reports/2025-11-26T020500Z/db_at_029/db_at_029_metrics.json')
 metrics = json.loads(path.read_text())
-assert metrics["log_scale_baseline_source"] == "mapping_global_scale_hint", metrics.get("log_scale_baseline_source")
+assert metrics["log_scale_baseline_source"] == "mapping_global_scale_hint", metrics
 assert abs(metrics["scale_ratio_before"] - metrics["scale_ratio_mapping_masked"]) < 1e-3, metrics
-assert metrics["spot_scale_override_adjustment_factor"] is not None, metrics
-print("Stage A baseline telemetry verified:", metrics["scale_ratio_before"], metrics["log_scale_baseline_source"])
+assert metrics["spot_scale_override_adjustment_factor"] is not None
+print("Stage A baseline telemetry verified", metrics["scale_ratio_before"], metrics["spot_scale_override_adjustment_factor"])
 PY
-6. List the mapping_context fixture to confirm calibration flags for provenance:
-   cat plans/active/TOOLING-VIS-001/reports/2025-11-26T010900Z/db_at_028/mapping_context_fixture.json | rg "calibration" -n
+6. cat plans/active/TOOLING-VIS-001/reports/2025-11-26T020500Z/db_at_028/mapping_context_fixture.json | rg -n "calibration_adjusted"
 
 Pitfalls To Avoid
-- Do not mutate the on-disk calibration JSON; always deepcopy before injecting flags or adjustment factors.
-- Guard the mapping baseline override behind `inputs.global_scale_hint > 0` so unadjusted runs still fall back to the calibrated sqrt(spot_scale) path.
-- Keep telemetry schema backward compatible (optional fields only) so legacy selectors parsing RefinementTelemetry do not fail.
-- Ensure device/dtype neutrality when touching Stage A tensors (no implicit CPU casts when running on CUDA).
-- Maintain warm-cache performance by calculating the new baseline once per Stage A invocation rather than per ROI.
-- When augmenting tests, keep artifacts deterministic (no random ordering) so supervisor diffs remain stable.
+- Do not mutate the on-disk calibration JSON; always deepcopy before attaching adjustment flags so reproducibility stays intact.
+- Keep Stage A engine and inline paths in lockstep any telemetry field added to one must be threaded through the other and through `_build_final_bragg_from_stage_a_telemetry`.
+- Remove the temporary `[TOOLING-VIS-001-P1-*]` print statements once the helper owns the logic; stray stdout noise pollutes pytest logs.
+- Preserve device/dtype neutrality inside `_build_stage_a_params` so CUDA runs do not cast tensors back to CPU.
+- Ensure the new telemetry fields remain optional (default None) so legacy selectors parsing `RefinementTelemetry` dicts don t explode.
+- Do not toggle Stage B/C flags or interpolation in these smoke runs; DB-AT-028/029 must stay nearest-neighbor with Stage A only.
+- Avoid touching `docs/` or test tolerances unless the telemetry proves the fix worked; chi /ROI thresholds still enforce the known failure signature.
+- When cloning calibration metadata, keep `N_cells` gating semantics (SCALE-005) intact for full-detector paths only the small-detector smoke fixture suppresses them.
 
 If Blocked
-- If `mapping_context.calibration` still lacks `calibration_adjusted_for_n_cells` after the builder changes, dump the entire dict to `plans/active/TOOLING-VIS-001/reports/2025-11-26T010900Z/block_calibration.json`, note the missing keys in docs/fix_plan.md Attempts History, and stop before modifying Stage A.
-- If pytest crashes before writing artifacts, capture the traceback to `.../block.log`, leave the workspace as-is, and alert the supervisor in the summary so we can reassess the approach.
+- If `mapping_context.calibration` still lacks the adjustment flags after your edits, dump the dict to `plans/active/TOOLING-VIS-001/reports/2025-11-26T020500Z/block_calibration.json`, log the signature in docs/fix_plan.md Attempts History, and halt before modifying Stage A.
+- If pytest cannot reach the assertions (e.g., crashes before artifacts), capture the traceback to `.../block.log`, keep the workspace dirty, and notify the supervisor in the summary so we can reassess.
 
 Findings Applied (Mandatory)
-- STAGEA-001 — Stage A must reuse the mapping calibration payload; the new baseline logic cannot diverge from the mapping zero-point contract.
-- SCALE-004 — Refined MTZ + calibration pairing remains authoritative; baseline overrides must not bypass refined HKL usage.
-- SCALE-005 — N_cells gating semantics stay intact (full-detector paths still apply SCALE-005, small-detector metadata fixtures gate it off).
-- SCALE-008 — The mapping auto-adjust flag is the trigger for this work; telemetry must prove when the override engages.
+- STAGEA-001   Stage A must reuse the mapping calibration payload; the new baseline logic can t diverge from the mapping zero-point contract.
+- SCALE-004   Refined MTZ assets stay paired with their calibration metadata; baseline overrides must not bypass this precedence.
+- SCALE-005   N_cells gating is still authoritative; the new helper only skips N_cells when the smoke fixture explicitly disables it.
+- SCALE-008   Mapping-aware baseline adjustments must propagate into Stage A telemetry so DB-AT-029 scale ratios reflect the mapping stack.
 
 Pointers
-- docs/spec-db-conformance.md:280 — Acceptance criteria for DB-AT-028/029 chi² and ROI scale telemetry.
-- dbex/vis/mapping.py:221 — Current spot_scale auto-adjust hook; extend it to set calibration flags consumed by Stage A.
-- dbex/nanobrag_refinement.py:1042 & 1730 — Stage A parameter builder and LBFGS closure where log-scale baselines are selected.
-- plans/active/TOOLING-VIS-001/reports/2025-11-25T235500Z/db_at_029/db_at_029_metrics.json — Evidence showing mapping scale=1.0 while Stage A still reports `scale_ratio_before≈2.0×10⁴`.
+- docs/spec-db-conformance.md:280   DB-AT-028/029 chi , ROI, and scale ratio contracts we re still enforcing even on failing runs.
+- docs/data_dependency_manifest.md:30   Canonical provenance for small-detector calibration/HKL assets plus telemetry expectations.
+- plans/active/TOOLING-VIS-001/implementation.md:200   Phase D/E context for Stage A mapping alignment requirements.
+- dbex/nanobrag_refinement.py:2470   Inline Stage A baseline selection that must be shared with engine delegation.
+- dbex/refinement/stage_a.py:300   Engine Stage A telemetry assembly lacking the new baseline fields.
 
 Next Up (optional)
-- Once Stage A zero-iteration intensities match the mapping stack, revisit the DB-AT-028/029 chi² trace to determine whether the remaining failure is due to physics (variance model) or gate tolerances.
+- Once telemetry aligns, plan a follow-up probe comparing Stage A chi  traces before/after the baseline fix to isolate the remaining convergence failure.

@@ -1,0 +1,7 @@
+Cropping sigma-map: sp.proc/idx-0000_sigma_metadata.sigma_tiles.pkl
+  Window: fast=[751, 1775), slow=[719, 1743)
+✓ Cropped sigma-map written: sp.proc/refGeom_small/idx-0000_sigma_metadata_small.sigma_tiles.pkl
+  Shape: 1 panels × (1024, 1024)
+  Size: 4,194,424 bytes
+  SHA256: 865de6a11397c9f8b1d2308fd3d3c4dd7a14cae7a60c2967de05929a552545e0
+✓ Report written: plans/active/TOOLING-VIS-001/reports/2025-11-25T093626Z/crop_sigma_map_report.json

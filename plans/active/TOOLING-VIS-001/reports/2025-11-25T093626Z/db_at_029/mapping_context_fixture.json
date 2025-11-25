@@ -1,0 +1,31 @@
+{
+  "timestamp": "2025-11-25T09:44:46.797688+00:00",
+  "stage_name": "fixture_db_at_029",
+  "dataset_paths": {
+    "expt": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/refGeom_small/refGeom_small.expt",
+    "refl": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/refGeom_small/refGeom_small.refl",
+    "mask": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/refGeom_small/refGeom_small_mask.pkl",
+    "mtz": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/scaled.mtz"
+  },
+  "sigma_provenance": "cli_override (default scalar)",
+  "hkl_source": "unknown",
+  "hkl_path": "unknown",
+  "calibration_path": null,
+  "geometry_path": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/refGeom_small/refGeom_small.expt",
+  "rotation_delta_deg": 0.0,
+  "origin_delta_mm": 0.0,
+  "geometry_overridden": false,
+  "device": "cuda:0",
+  "target_stats": {
+    "mean": 87.11841583251953,
+    "std": 1371.4619140625,
+    "min": -7.975452423095703,
+    "max": 53234.6171875
+  },
+  "loss_mask_coverage": 0.003948211669921875,
+  "n_rois": 29,
+  "roi_cc_median": 0.04699603144790709,
+  "scale_ratio": 0.00023311817058743552,
+  "sigma_floor_value": 1.0,
+  "spot_scale_override": 1.0
+}

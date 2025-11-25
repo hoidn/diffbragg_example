@@ -1,0 +1,23 @@
+{
+  "timestamp": "2025-11-25T09:43:02.758924+00:00",
+  "source_sigma_map": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/idx-0000_sigma_metadata.sigma_tiles.pkl",
+  "output_sigma_map": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/refGeom_small/idx-0000_sigma_metadata_small.sigma_tiles.pkl",
+  "crop_window": {
+    "fast_start": 751,
+    "fast_end": 1775,
+    "slow_start": 719,
+    "slow_end": 1743,
+    "width": 1024,
+    "height": 1024
+  },
+  "output_metadata": {
+    "n_panels": 1,
+    "panel_shape": [
+      1024,
+      1024
+    ],
+    "file_size_bytes": 4194424,
+    "sha256": "865de6a11397c9f8b1d2308fd3d3c4dd7a14cae7a60c2967de05929a552545e0"
+  },
+  "command": "plans/active/TOOLING-VIS-001/bin/crop_sigma_map_to_window.py --sigma-map sp.proc/idx-0000_sigma_metadata.sigma_tiles.pkl --fast-start 751 --slow-start 719 --width 1024 --height 1024 --output sp.proc/refGeom_small/idx-0000_sigma_metadata_small.sigma_tiles.pkl --report plans/active/TOOLING-VIS-001/reports/2025-11-25T093626Z/crop_sigma_map_report.json"
+}

@@ -1,5 +1,5 @@
 ### Turn Summary
-Diagnosed that the new DBEX_SMOKE_GEOM_PATH plumbing now crashes the Stage A smokes because the metadata sigma-map pickle is still full-detector sized (2527×2463) while refGeom_small expects 1024×1024 tiles.
-Planned the follow-up loop to crop the sigma-map to the refGeom_small window, default the smoke fixtures to that asset (with env overrides intact), and refresh the data-dependency manifest before rerunning the mapping probe plus DB-AT-028/029.
-Next: author the crop helper + fixture/docs changes, generate the cropped pickle, and rerun compare_mapping_forward_cpu_gpu.py and the DB-AT selectors under the canonical env so we can see whether ROI CC recovers.
-Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-25T093626Z/
+Implemented sigma-map cropping so CLI diagnostics can consume metadata sigma tiles for the small-detector fixture without shape mismatch errors; DB-AT-028/029 now execute and archive metrics.
+Resolved the blocking ValueError with explicit pickle crop (1024×1024 window); remaining assertion failures (chi²/pixel 11756, ROI CC 0.047) are separate calibration issues requiring spot_scale investigation.
+Next: investigate calibration mismatch (spot_scale_override 3.1e17 vs expected ~1e0) causing negative ROI CC; verify mapping/Stage A use consistent calibration assets.
+Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-25T093626Z/ (crop_sigma_map_report.json, mapping_forward_cpu_gpu.json, db_at_028_metrics.json, pytest_db_at_028_029.log)

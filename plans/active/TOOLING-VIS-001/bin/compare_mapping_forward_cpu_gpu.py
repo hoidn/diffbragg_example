@@ -71,9 +71,15 @@ def _roi_correlations(
 def compute_cpu_gpu_mapping_metrics(
     dataload: DataLoad,
     default_sigma_readout: float = 3.0,
+    sigma_source: str = "cli_override",
 ) -> Dict:
     """
     Build mapping contexts on CPU and CUDA, compare bragg_zero_iter stacks.
+
+    Args:
+        dataload: DataLoad instance with experiment/reflection/MTZ data.
+        default_sigma_readout: Default sigma readout value (ADU).
+        sigma_source: Provenance label for sigma ('metadata' or 'cli_override').
 
     Returns:
         Dictionary with CPU/GPU metrics, ROI CC/scale ratios, and bragg diffs.
@@ -81,6 +87,7 @@ def compute_cpu_gpu_mapping_metrics(
     result = {
         "cuda_available": torch.cuda.is_available(),
         "error": None,
+        "sigma_source": sigma_source,
         "cpu_metrics": {},
         "gpu_metrics": {},
         "parity_metrics": {},
@@ -117,6 +124,9 @@ def compute_cpu_gpu_mapping_metrics(
         cpu_mean_bragg_unmasked = float(np.mean(cpu_bragg))
         cpu_scale_ratio_unmasked = cpu_mean_bragg_unmasked / cpu_mean_target_unmasked if cpu_mean_target_unmasked > 1e-12 else float("nan")
 
+        # Count HKL reflections from mapping context
+        cpu_hkl_count = len(cpu_context.hkl_indices) if hasattr(cpu_context, 'hkl_indices') else 0
+
         result["cpu_metrics"] = {
             "roi_cc_median": float(np.median(valid_cpu_corrs)) if valid_cpu_corrs else float("nan"),
             "roi_cc_count": len(valid_cpu_corrs),
@@ -131,6 +141,7 @@ def compute_cpu_gpu_mapping_metrics(
             "spot_scale_override": float(cpu_context.calibration.get("spot_scale_override", 1.0)) if cpu_context.calibration else 1.0,
             "hkl_source": cpu_context.diagnostics.get("hkl_source", "unknown"),
             "hkl_path": cpu_context.diagnostics.get("hkl_path", "unknown"),
+            "hkl_count": cpu_hkl_count,
         }
         print(f"CPU metrics: ROI CC median={result['cpu_metrics']['roi_cc_median']:.6f}, "
               f"scale_ratio_masked={result['cpu_metrics']['scale_ratio_masked']:.4e}, "
@@ -178,6 +189,9 @@ def compute_cpu_gpu_mapping_metrics(
         gpu_mean_bragg_unmasked = float(np.mean(gpu_bragg))
         gpu_scale_ratio_unmasked = gpu_mean_bragg_unmasked / gpu_mean_target_unmasked if gpu_mean_target_unmasked > 1e-12 else float("nan")
 
+        # Count HKL reflections from mapping context
+        gpu_hkl_count = len(gpu_context.hkl_indices) if hasattr(gpu_context, 'hkl_indices') else 0
+
         result["gpu_metrics"] = {
             "roi_cc_median": float(np.median(valid_gpu_corrs)) if valid_gpu_corrs else float("nan"),
             "roi_cc_count": len(valid_gpu_corrs),
@@ -192,6 +206,7 @@ def compute_cpu_gpu_mapping_metrics(
             "spot_scale_override": float(gpu_context.calibration.get("spot_scale_override", 1.0)) if gpu_context.calibration else 1.0,
             "hkl_source": gpu_context.diagnostics.get("hkl_source", "unknown"),
             "hkl_path": gpu_context.diagnostics.get("hkl_path", "unknown"),
+            "hkl_count": gpu_hkl_count,
         }
         print(f"GPU metrics: ROI CC median={result['gpu_metrics']['roi_cc_median']:.6f}, "
               f"scale_ratio_masked={result['gpu_metrics']['scale_ratio_masked']:.4e}, "
@@ -335,7 +350,11 @@ def main():
 
     # Compute metrics
     print("="*60)
-    metrics = compute_cpu_gpu_mapping_metrics(dataload, default_sigma_readout=args.sigma)
+    metrics = compute_cpu_gpu_mapping_metrics(
+        dataload,
+        default_sigma_readout=args.sigma,
+        sigma_source=smoke_sigma_source,
+    )
     print("="*60)
     print()
 
@@ -348,6 +367,7 @@ def main():
     # Print summary
     print()
     print("Summary:")
+    print(f"  Sigma source: {metrics.get('sigma_source', 'unknown')}")
     print(f"  CUDA available: {metrics['cuda_available']}")
     if metrics["error"]:
         print(f"  Error: {metrics['error']}")
@@ -359,6 +379,8 @@ def main():
         print(f"  CPU scale ratio (unmasked): {metrics['cpu_metrics']['scale_ratio_unmasked']:.4e}")
         print(f"  CPU spot_scale_override: {metrics['cpu_metrics']['spot_scale_override']:.4e}")
         print(f"  CPU HKL source: {metrics['cpu_metrics']['hkl_source']}")
+        print(f"  CPU HKL path: {metrics['cpu_metrics']['hkl_path']}")
+        print(f"  CPU HKL count: {metrics['cpu_metrics']['hkl_count']}")
 
     if metrics["gpu_metrics"]:
         print(f"  GPU ROI CC median: {metrics['gpu_metrics']['roi_cc_median']:.6f}")
@@ -366,6 +388,8 @@ def main():
         print(f"  GPU scale ratio (unmasked): {metrics['gpu_metrics']['scale_ratio_unmasked']:.4e}")
         print(f"  GPU spot_scale_override: {metrics['gpu_metrics']['spot_scale_override']:.4e}")
         print(f"  GPU HKL source: {metrics['gpu_metrics']['hkl_source']}")
+        print(f"  GPU HKL path: {metrics['gpu_metrics']['hkl_path']}")
+        print(f"  GPU HKL count: {metrics['gpu_metrics']['hkl_count']}")
 
     if metrics["parity_metrics"]:
         print(f"  Bragg mean_abs_diff: {metrics['parity_metrics']['bragg_mean_abs_diff']:.4e}")

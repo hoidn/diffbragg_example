@@ -99,6 +99,12 @@ def stage_a_smoke_result(
     # Determine HKL source from mapping context diagnostics
     hkl_source = mapping_context.diagnostics.get("hkl_source", "scaled.mtz")
     hkl_path = mapping_context.diagnostics.get("hkl_path", "scaled.mtz")
+    hkl_count = len(mapping_context.hkl_indices) if hasattr(mapping_context, 'hkl_indices') else 0
+
+    # Extract calibration metadata
+    spot_scale_override_val = 1.0
+    if mapping_context.calibration:
+        spot_scale_override_val = float(mapping_context.calibration.get("spot_scale_override", 1.0))
 
     baseline_crystal = refgeom_dataload.Expt.crystal
     baseline_detector = refgeom_dataload.Expt.detector
@@ -247,6 +253,10 @@ def stage_a_smoke_result(
         "config": config,
         "bragg_final": bragg_final,
         "hkl_source": hkl_source,
+        "hkl_path": hkl_path,
+        "hkl_count": hkl_count,
+        "spot_scale_override": spot_scale_override_val,
+        "sigma_source": smoke_sigma_source,
         # Additional diagnostics per input.md Phase D.D
         "log_scale_effective_init": log_scale_effective_init,
         "log_scale_effective_final": log_scale_effective_final,
@@ -321,6 +331,10 @@ def test_db_at_028_loss_scale_sanity(stage_a_smoke_result):
         "roi_cc_median_before": stage_a_smoke_result.get("roi_cc_median_before"),
         "roi_cc_median_after": stage_a_smoke_result.get("roi_cc_median_after"),
         "hkl_source": stage_a_smoke_result.get("hkl_source"),
+        "hkl_path": stage_a_smoke_result.get("hkl_path"),
+        "hkl_count": stage_a_smoke_result.get("hkl_count"),
+        "spot_scale_override": stage_a_smoke_result.get("spot_scale_override"),
+        "sigma_source": stage_a_smoke_result.get("sigma_source"),
         "roi_cc_median_mapping": stage_a_smoke_result.get("roi_cc_median_mapping"),
         "scale_ratio_mapping_masked": stage_a_smoke_result.get("scale_ratio_mapping_masked"),
         "scale_ratio_mapping_unmasked": stage_a_smoke_result.get("scale_ratio_mapping_unmasked"),
@@ -394,6 +408,10 @@ def test_db_at_029_structure_parity(stage_a_smoke_result):
         "bragg_after_std": stage_a_smoke_result.get("bragg_after_std"),
         "bragg_after_max": stage_a_smoke_result.get("bragg_after_max"),
         "hkl_source": stage_a_smoke_result.get("hkl_source"),
+        "hkl_path": stage_a_smoke_result.get("hkl_path"),
+        "hkl_count": stage_a_smoke_result.get("hkl_count"),
+        "spot_scale_override": stage_a_smoke_result.get("spot_scale_override"),
+        "sigma_source": stage_a_smoke_result.get("sigma_source"),
         "roi_cc_median_mapping": stage_a_smoke_result.get("roi_cc_median_mapping"),
         "scale_ratio_mapping_masked": stage_a_smoke_result.get("scale_ratio_mapping_masked"),
         "scale_ratio_mapping_unmasked": stage_a_smoke_result.get("scale_ratio_mapping_unmasked"),

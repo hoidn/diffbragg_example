@@ -1,0 +1,23 @@
+Manual Stage A diagnostics (2025-11-25T005459Z baseline)
+Environment: KMP_DUPLICATE_LIB_OK=TRUE, NANOBRAGG_DISABLE_COMPILE=1, DBEX_SMOKE_SIGMA_SOURCE=metadata, DBEX_SMOKE_DETECTOR_SIZE=small (metadata expt -> full detector), device=cuda:0.
+
+Mapping forward (simulate_forward_once, scaled.mtz + calibration):
+- masked_pixels (loss mask): 13158
+- bragg mean/std/max on mask: 52.97 / 1819.85 / 161408.84
+- target mean/std/max on mask: 62.66 / 986.03 / 53234.62
+- overall masked corr: ~0.00014
+- chi2/pixel (manual): ~7.872e4
+
+Stage A refinement (run_nanobrag_refinement, Stage A only):
+- telemetry status: early_stop (Improvement -0.60% < 0.20%)
+- telemetry chi2 trace (first/last): [(0, 1.4178848e9), ..., (34, 1.426395648e9)]
+- variance_floor_masked_pixels (telemetry accumulator): 168,912
+- chi2/pixel using telemetry masked_pixels: ~8.394e3
+- chi2/pixel using loss_mask sum (13158): ~1.08412e5
+- bragg_before mean/std/max on mask: 36.46 / 1710.02 / 139167.78
+- bragg_after mean/std/max on mask: 0.0506 / 1.05 / 83.87
+- target mean/std/max on mask: 62.66 / 986.03 / 53234.62
+- overall corr before/after: -0.00125 / -0.00168
+- scale_ratio_before (mean model/mean target): ~0.58
+- log_scale_baseline (telemetry): 20.1511541109, log_scale final: ~8.7e-06
+- geometry deltas tiny (||orientation_vec|| ~0.006; log_cell deltas within ±0.011)

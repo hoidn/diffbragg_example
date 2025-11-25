@@ -170,6 +170,7 @@ class StageA:
         stage_a_roi_label = stage_a_context['stage_a_roi_label']
         stage_a_total_work_items = stage_a_context['stage_a_total_work_items']
         sampled_stage_a_indices = stage_a_context['sampled_stage_a_indices']
+        masked_pixel_reference = int(refinement_inputs.loss_mask.sum())
         perf_closure_evals = telemetry_state['perf_closure_evals']
         perf_validation_runs = telemetry_state['perf_validation_runs']
         perf_forward_times_ms = telemetry_state['perf_forward_times_ms']
@@ -222,7 +223,18 @@ class StageA:
             angle_gamma_raw=angle_gamma_raw,
             orientation_vec=orientation_vec,
             device=device,
-            dtype=dtype
+            dtype=dtype,
+            masked_pixel_reference=int(refinement_inputs.loss_mask.sum()),
+        )
+
+        log_cell_a_delta_clamped = torch.clamp(
+            log_cell_a_delta, min=-self._config.log_cell_max_delta, max=self._config.log_cell_max_delta
+        )
+        log_cell_b_delta_clamped = torch.clamp(
+            log_cell_b_delta, min=-self._config.log_cell_max_delta, max=self._config.log_cell_max_delta
+        )
+        log_cell_c_delta_clamped = torch.clamp(
+            log_cell_c_delta, min=-self._config.log_cell_max_delta, max=self._config.log_cell_max_delta
         )
 
         # Build param_deltas dict for telemetry (matches run_nanobrag_refinement lines 2156-2198)
@@ -238,18 +250,18 @@ class StageA:
             },
             'log_cell_a_delta': {
                 'initial': 0.0,
-                'final': float(log_cell_a_delta.item()),
-                'delta': float(log_cell_a_delta.item())
+                'final': float(log_cell_a_delta_clamped.item()),
+                'delta': float(log_cell_a_delta_clamped.item())
             },
             'log_cell_b_delta': {
                 'initial': 0.0,
-                'final': float(log_cell_b_delta.item()),
-                'delta': float(log_cell_b_delta.item())
+                'final': float(log_cell_b_delta_clamped.item()),
+                'delta': float(log_cell_b_delta_clamped.item())
             },
             'log_cell_c_delta': {
                 'initial': 0.0,
-                'final': float(log_cell_c_delta.item()),
-                'delta': float(log_cell_c_delta.item())
+                'final': float(log_cell_c_delta_clamped.item()),
+                'delta': float(log_cell_c_delta_clamped.item())
             },
             'angle_alpha_raw': {
                 'initial': 0.0,
@@ -344,9 +356,11 @@ class StageA:
             # PHYSICS-LOSS-002: Variance floor telemetry
             variance_floor_value=self._config.sigma_floor_value**2,
             variance_floor_clamp_fraction=(
-                float(variance_floor_clamped_pixels[0]) / float(variance_floor_masked_pixels[0])
-                if variance_floor_masked_pixels[0] > 0 else 0.0
+                float(variance_floor_clamped_pixels[0]) / float(masked_pixel_reference)
+                if masked_pixel_reference > 0 else 0.0
             ),
+            variance_floor_masked_pixels=int(masked_pixel_reference),
+            variance_floor_clamped_pixels=int(variance_floor_clamped_pixels[0]),
             # PHYSICS-LOSS-003: Canonical Stage A metadata
             canonical_stage_label=canonical_baseline["stage_label"],
             canonical_chi_squared=canonical_baseline["chi_squared"],

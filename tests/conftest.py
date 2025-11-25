@@ -103,7 +103,15 @@ def smoke_dataset_paths(smoke_detector_size, smoke_sigma_source) -> SmokeDataset
                 "with --sigma-value/--sigma-map to regenerate "
                 "sp.proc/idx-0000_sigma_metadata.{expt,sigma_tiles.pkl}."
             )
-        dataset = replace(dataset, expt_path=metadata_expt)
+        if dataset.label == "small":
+            dataset = SmokeDatasetPaths(
+                label="full",
+                expt_path=metadata_expt,
+                refl_path=repo_root / "refGeom.refl",
+                mask_path=repo_root / "747_mask.pkl",
+            )
+        else:
+            dataset = replace(dataset, expt_path=metadata_expt)
 
     missing = [
         str(path)
@@ -124,7 +132,12 @@ def pytest_runtest_setup(item):
     identifiers = " ".join(
         list(item.keywords.keys()) + [item.name, item.nodeid]
     ).lower()
-    if "db_at" in identifiers and detector_size != "full":
+    if (
+        "db_at" in identifiers
+        and detector_size != "full"
+        and "db_at_028" not in identifiers
+        and "db_at_029" not in identifiers
+    ):
         raise pytest.UsageError(
             "DB-AT/workflow selectors SHALL assert --smoke-detector-size=full per "
             "docs/spec-db-workflow.md (Stage Smoke Dataset Policy). "

@@ -143,6 +143,8 @@ class RefinementTelemetry:
     # PHYSICS-LOSS-002: Variance floor telemetry
     variance_floor_value: Optional[float] = None
     variance_floor_clamp_fraction: Optional[float] = None
+    variance_floor_masked_pixels: Optional[int] = None
+    variance_floor_clamped_pixels: Optional[int] = None
 
     # PHYSICS-LOSS-003: Canonical Stage A metadata
     canonical_stage_label: Optional[str] = None
@@ -212,6 +214,10 @@ class RefinementTelemetry:
             result["variance_floor_value"] = self.variance_floor_value
         if self.variance_floor_clamp_fraction is not None:
             result["variance_floor_clamp_fraction"] = self.variance_floor_clamp_fraction
+        if self.variance_floor_masked_pixels is not None:
+            result["variance_floor_masked_pixels"] = self.variance_floor_masked_pixels
+        if self.variance_floor_clamped_pixels is not None:
+            result["variance_floor_clamped_pixels"] = self.variance_floor_clamped_pixels
         if self.canonical_stage_label is not None:
             result["canonical_stage_label"] = self.canonical_stage_label
         if self.canonical_chi_squared is not None:

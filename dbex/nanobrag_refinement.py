@@ -548,6 +548,12 @@ class RefinementConfig:
     log_scale_baseline: Optional[float] = None
     # Clamp log_scale deltas to ±3 when calibration_metadata is provided
     log_scale_max_delta: float = 3.0
+    # Absolute clamp for log_scale when no calibration baseline is available
+    # (ADU-mode scale absorbs photon↔ADU mismatch). Allows larger dynamic
+    # range than the calibrated delta clamp above.
+    log_scale_max_delta_uncalibrated: float = 15.0
+    # Clamp log-cell deltas to keep unit-cell lengths positive and bounded
+    log_cell_max_delta: float = 1.0
 
     # Telemetry output directory (TORCH-GEOMETRY-CONVERGENCE-001 Phase A1)
     # When set, enables per-step telemetry emission for convergence diagnosis
@@ -664,6 +670,8 @@ class RefinementTelemetry:
     # PHYSICS-LOSS-002: Variance floor telemetry (spec-db-core.md:67)
     variance_floor_value: Optional[float] = None  # sigma_floor^2 used in variance clamping
     variance_floor_clamp_fraction: Optional[float] = None  # Fraction of masked pixels where floor engaged
+    variance_floor_masked_pixels: Optional[int] = None  # Total masked pixels used in variance stats
+    variance_floor_clamped_pixels: Optional[int] = None  # Pixels where sigma_floor clamp engaged
     # PHYSICS-LOSS-003: Canonical Stage A snapshot propagated to downstream stages
     canonical_stage_label: Optional[str] = None
     canonical_chi_squared: Optional[float] = None
@@ -708,6 +716,20 @@ def _get_sigma_floor_sq_tensor(
     return tensor
 
 
+def _clamp_log_cell_deltas(
+    log_cell_a_delta: torch.Tensor,
+    log_cell_b_delta: torch.Tensor,
+    log_cell_c_delta: torch.Tensor,
+    max_delta: float,
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Clamp log-cell deltas to keep derived unit-cell lengths finite/positive."""
+    return (
+        torch.clamp(log_cell_a_delta, min=-max_delta, max=max_delta),
+        torch.clamp(log_cell_b_delta, min=-max_delta, max=max_delta),
+        torch.clamp(log_cell_c_delta, min=-max_delta, max=max_delta),
+    )
+
+
 def _build_stage_a_context(
     detector,
     beam,
@@ -721,6 +743,7 @@ def _build_stage_a_context(
     panel_slices,
     enable_roi_mode: bool,
     calibration_metadata: Optional[Dict[str, Any]] = None,
+    log_scale_baseline: Optional[float] = None,
 ) -> StageAContext:
     """
     Prebuild Stage A detector models and tensorize masks/HKL once (PERF-WARM-SIM-001).
@@ -774,19 +797,22 @@ def _build_stage_a_context(
     N_cells = None
     spot_scale_override = None
     sqrt_spot_scale = None
-    log_scale_baseline = None
     if calibration_metadata is not None:
         beam_flux = calibration_metadata.get("beam_flux")
         beam_exposure = calibration_metadata.get("beam_exposure")
         beamsize_mm = calibration_metadata.get("beamsize_mm")
         N_cells = calibration_metadata.get("N_cells")
-        spot_scale_override = calibration_metadata.get("spot_scale_override", 1.0)
-        try:
-            sqrt_spot_scale = float(np.sqrt(spot_scale_override))
-            log_scale_baseline = float(np.log(sqrt_spot_scale))
-        except (TypeError, ValueError):
-            sqrt_spot_scale = None
-            log_scale_baseline = None
+        if "spot_scale_override" in calibration_metadata:
+            spot_scale_override = calibration_metadata.get("spot_scale_override")
+            try:
+                sqrt_spot_scale = float(np.sqrt(spot_scale_override))
+                log_scale_baseline = float(np.log(sqrt_spot_scale))
+            except (TypeError, ValueError):
+                sqrt_spot_scale = None
+                log_scale_baseline = None
+    elif log_scale_baseline is None:
+        # Propagate caller-provided baseline even when calibration metadata is absent
+        log_scale_baseline = None
 
     beam_config = create_beam_config(beam, flux=beam_flux, beamsize_mm=beamsize_mm, exposure=beam_exposure)
     hkl_grid_device = hkl_grid.to(device=device, dtype=dtype)
@@ -1046,17 +1072,16 @@ def _build_stage_a_params(
     # Otherwise:
     #   - Warm-start from global_scale_hint when available (per spec-db-workflow.md:20-40, REFINE-001)
     #   - log_scale is the direct learnable parameter (no baseline separation)
+    log_scale_baseline = None
+    initial_log_scale = 0.0  # fallback: scale=1.0 (updated below when warm cache present)
     if config.calibration_metadata is not None:
-        spot_scale_override = config.calibration_metadata.get("spot_scale_override", 1.0)
-        sqrt_spot_scale = float(np.sqrt(spot_scale_override))
-        log_scale_baseline = float(np.log(sqrt_spot_scale))
-        initial_log_scale = 0.0  # Start at neutral delta (scale = baseline * exp(0) = baseline)
-    elif inputs.global_scale_hint is not None and inputs.global_scale_hint > 0:
-        log_scale_baseline = None  # No baseline separation in legacy mode
-        initial_log_scale = float(torch.log(torch.tensor(inputs.global_scale_hint, dtype=dtype)))
-    else:
-        log_scale_baseline = None
-        initial_log_scale = 0.0  # fallback: scale=1.0
+        spot_scale_override = config.calibration_metadata.get("spot_scale_override")
+        if spot_scale_override is not None:
+            try:
+                sqrt_spot_scale = float(np.sqrt(spot_scale_override))
+                log_scale_baseline = float(np.log(sqrt_spot_scale))
+            except (TypeError, ValueError):
+                log_scale_baseline = None
     config.log_scale_baseline = log_scale_baseline
     log_scale = torch.tensor(initial_log_scale, device=device, dtype=dtype, requires_grad=True)
 
@@ -1283,7 +1308,30 @@ def _build_stage_a_params(
             panel_slices=panel_slices,
             enable_roi_mode=use_stage_a_roi_mode,
             calibration_metadata=config.calibration_metadata,
+            log_scale_baseline=log_scale_baseline,
         )
+
+    # Heuristic scale warm-start (ADU mode): estimate model mean at delta=0 and
+    # initialize log_scale to match the observed target mean. Skip when no cache.
+    if log_scale_baseline is None and stage_a_ctx is not None:
+        target_hint = inputs.global_scale_hint
+        if target_hint is None and inputs.target is not None:
+            target_hint = float(inputs.target[inputs.loss_mask].mean())
+        model_mean = None
+        try:
+            with torch.no_grad():
+                bragg_samples = [simulator.run() for simulator in stage_a_ctx.simulators]
+                bragg_stack = torch.stack(bragg_samples, dim=0)
+                model_mean = float(bragg_stack.mean().item())
+        except Exception:
+            model_mean = None
+        if target_hint is not None and target_hint > 0 and model_mean is not None and model_mean > 0:
+            scaled_log_scale = float(np.log(target_hint / model_mean))
+            max_delta_uncal = getattr(config, "log_scale_max_delta_uncalibrated", 10.0)
+            scaled_log_scale = float(np.clip(scaled_log_scale, -max_delta_uncal, max_delta_uncal))
+            initial_log_scale = scaled_log_scale
+            log_scale = torch.tensor(initial_log_scale, device=device, dtype=dtype, requires_grad=True)
+            params[0] = log_scale
 
     # Telemetry step counter (TORCH-GEOMETRY-CONVERGENCE-001 Phase A1)
     # Mutable list for closure capture; increments after each closure call
@@ -1504,6 +1552,7 @@ def _build_stage_a_lbfgs_closure(
     # NOTE: Already unpacked from telemetry_state above
     # u_matrix_lifecycle_log = []  # Track U checksum per closure call
     # a_star_lifecycle_log = []    # Track A* reconstruction per closure call
+    log_cell_max_delta = getattr(config, "log_cell_max_delta", 1.0)
 
     def compute_loss(work_item_ids: List[int], is_full: bool = False) -> Tuple[torch.Tensor, torch.Tensor]:
         """
@@ -1531,9 +1580,15 @@ def _build_stage_a_lbfgs_closure(
         cell_params = crystal.get_unit_cell().parameters()  # (a, b, c, alpha, beta, gamma)
 
         # 1. Unit cell lengths (log-parameterized)
-        perturbed_cell_a = cell_params[0] * torch.exp(log_cell_a_delta)
-        perturbed_cell_b = cell_params[1] * torch.exp(log_cell_b_delta)
-        perturbed_cell_c = cell_params[2] * torch.exp(log_cell_c_delta)
+        log_cell_a_delta_clamped, log_cell_b_delta_clamped, log_cell_c_delta_clamped = _clamp_log_cell_deltas(
+            log_cell_a_delta,
+            log_cell_b_delta,
+            log_cell_c_delta,
+            log_cell_max_delta,
+        )
+        perturbed_cell_a = cell_params[0] * torch.exp(log_cell_a_delta_clamped)
+        perturbed_cell_b = cell_params[1] * torch.exp(log_cell_b_delta_clamped)
+        perturbed_cell_c = cell_params[2] * torch.exp(log_cell_c_delta_clamped)
 
         # 2. Unit cell angles (bounded via tanh, max perturbation ±10°)
         max_angle_delta = 10.0  # degrees
@@ -1670,13 +1725,14 @@ def _build_stage_a_lbfgs_closure(
         #   - log_scale is the direct learnable parameter, clamped to ±10 (legacy wide range)
         #   - Final scale = exp(clamped_log_scale)
         log_scale_baseline_value = param_values.get('log_scale_baseline')
+        max_delta_uncal = getattr(config, "log_scale_max_delta_uncalibrated", 10.0)
+        delta_bound = config.log_scale_max_delta if log_scale_baseline_value is not None else max_delta_uncal
         if log_scale_baseline_value is not None:
-            # Calibrated mode: clamp delta to ±log_scale_max_delta, add baseline
-            log_scale_delta_clamped = torch.clamp(log_scale, min=-config.log_scale_max_delta, max=config.log_scale_max_delta)
+            log_scale_delta_clamped = torch.clamp(log_scale, min=-delta_bound, max=delta_bound)
             log_scale_clamped = log_scale_baseline_value + log_scale_delta_clamped
         else:
-            # Legacy mode: direct clamp of log_scale
-            log_scale_clamped = torch.clamp(log_scale, min=-10.0, max=10.0)
+            # Absolute clamp when no baseline is available
+            log_scale_clamped = torch.clamp(log_scale, min=-delta_bound, max=delta_bound)
         beam_config_for_run = stage_a_ctx.beam_config if stage_a_ctx is not None else create_beam_config(
             beam,
             **beam_config_kwargs,
@@ -1868,8 +1924,9 @@ def _build_stage_a_lbfgs_closure(
                         'weighted_residuals_mean': None,
                     }
 
-            variance_floor_clamped_pixels[0] += clamped_pixels_total
-            variance_floor_masked_pixels[0] += masked_pixels_total
+            # Track the latest variance-floor statistics for telemetry (no accumulation)
+            variance_floor_clamped_pixels[0] = clamped_pixels_total
+            variance_floor_masked_pixels[0] = masked_pixels_total
         else:
             panel_ids = work_item_ids if work_item_ids else list(range(n_panels))
             bragg_panels = []
@@ -1941,8 +1998,9 @@ def _build_stage_a_lbfgs_closure(
                 sigma_subset,
                 sigma_floor_sq_tensor,
             )
-            variance_floor_clamped_pixels[0] += clamped_pixels
-            variance_floor_masked_pixels[0] += masked_pixels
+            # Track the latest variance-floor statistics for telemetry (no accumulation)
+            variance_floor_clamped_pixels[0] = clamped_pixels
+            variance_floor_masked_pixels[0] = masked_pixels
 
         if not is_full:  # Only track closure forward times, not validation
             elapsed_ms = (time.perf_counter() - t0) * 1000.0
@@ -2136,12 +2194,15 @@ def _run_stage_a_lbfgs(
     orientation_vec,  # Parameter from helper 1
     device,
     dtype,
+    masked_pixel_reference: Optional[int] = None,
 ) -> Tuple[str, str, Optional[float], Optional[float], Optional[Dict[str, Any]]]:
     """
     Execute Stage A LBFGS optimization and final validation.
 
     Returns:
         Tuple of (status, message, final_chi_squared_value, final_masked_mse_value, best_params_snapshot)
+        variance_floor_masked_pixels in telemetry uses masked_pixel_reference when provided to
+        keep chi²-per-pixel denominators aligned with the loss mask.
     """
     # Unpack telemetry_state variables
     iteration_count = telemetry_state['iteration_count']
@@ -2160,6 +2221,7 @@ def _run_stage_a_lbfgs(
 
     final_chi_squared_value: Optional[float] = None
     final_masked_mse_value: Optional[float] = None
+    log_cell_max_delta = getattr(config, "log_cell_max_delta", 1.0)
 
     try:
         optimizer.step(closure)
@@ -2189,12 +2251,15 @@ def _run_stage_a_lbfgs(
                 bounded_orientation_vec_final = torch.tanh(orientation_vec) * max_orientation_deg * (np.pi / 180.0)
                 quat_final = vec_to_unit_quaternion(bounded_orientation_vec_final)
                 misset_xyz_deg_final = quaternion_to_xyz_euler(quat_final)
+                log_cell_a_value = float(torch.clamp(log_cell_a_delta, min=-log_cell_max_delta, max=log_cell_max_delta).item())
+                log_cell_b_value = float(torch.clamp(log_cell_b_delta, min=-log_cell_max_delta, max=log_cell_max_delta).item())
+                log_cell_c_value = float(torch.clamp(log_cell_c_delta, min=-log_cell_max_delta, max=log_cell_max_delta).item())
 
                 best_params_snapshot = {
                     'log_scale': float(log_scale.item()),
-                    'log_cell_a_delta': float(log_cell_a_delta.item()),
-                    'log_cell_b_delta': float(log_cell_b_delta.item()),
-                    'log_cell_c_delta': float(log_cell_c_delta.item()),
+                    'log_cell_a_delta': log_cell_a_value,
+                    'log_cell_b_delta': log_cell_b_value,
+                    'log_cell_c_delta': log_cell_c_value,
                     'angle_alpha_raw': float(angle_alpha_raw.item()),
                     'angle_beta_raw': float(angle_beta_raw.item()),
                     'angle_gamma_raw': float(angle_gamma_raw.item()),
@@ -2228,6 +2293,17 @@ def _run_stage_a_lbfgs(
             angle_beta_raw.data = torch.tensor(best_params_snapshot['angle_beta_raw'], device=device, dtype=dtype)
             angle_gamma_raw.data = torch.tensor(best_params_snapshot['angle_gamma_raw'], device=device, dtype=dtype)
             orientation_vec.data = torch.tensor(best_params_snapshot['orientation_vec'], device=device, dtype=dtype)
+        else:
+            # Fall back to neutral parameters to keep telemetry/reconstruction sane
+            log_scale.data = torch.tensor(0.0, device=device, dtype=dtype)
+            zero_cell = torch.tensor(0.0, device=device, dtype=dtype)
+            log_cell_a_delta.data = zero_cell
+            log_cell_b_delta.data = zero_cell
+            log_cell_c_delta.data = zero_cell
+            angle_alpha_raw.data = zero_cell
+            angle_beta_raw.data = zero_cell
+            angle_gamma_raw.data = zero_cell
+            orientation_vec.data = torch.zeros_like(orientation_vec)
 
     if not chi_squared_trace_full:
         fallback_chi2 = final_chi_squared_value
@@ -2290,12 +2366,18 @@ def _build_final_bragg_from_stage_a_telemetry(
     config,
     device: torch.device,
     dtype: torch.dtype,
+    *,
+    param_state: str = "final",
+    stage_a_ctx: Optional[StageAContext] = None,
+    baseline_crystal=None,
 ):
     """
-    Build final Bragg array from Stage A telemetry (optimized parameters).
+    Build Bragg array from Stage A telemetry.
 
-    Extracts optimized parameters from telemetry.param_deltas and regenerates
-    full Bragg image by looping over panels with final crystal geometry.
+    Extracts parameters from telemetry.param_deltas and regenerates a Bragg image
+    using either the initial or final parameter state. When a warmed Stage A
+    context is available it is reused so reconstruction matches the calibrated
+    mapping baseline (beam/crystal/HKL cache and log_scale_baseline semantics).
 
     Args:
         telemetry_a: RefinementTelemetry instance or dict with optimized param_deltas
@@ -2308,6 +2390,11 @@ def _build_final_bragg_from_stage_a_telemetry(
         config: RefinementConfig with device, dtype, parameterization mode, calibration_metadata
         device: torch.device for tensor operations
         dtype: torch.dtype for tensor operations
+        param_state: "final" (default) or "initial" to pick which telemetry
+            values to reconstruct (used for DB-AT-029 bragg_before/bragg_after).
+        stage_a_ctx: Optional warmed StageAContext to reuse cached detectors and
+            calibration metadata; rebuilt when None or device/dtype mismatch.
+        baseline_crystal: Optional baseline crystal used to derive mapping misset.
 
     Returns:
         bragg_full: np.ndarray, shape [n_panels, slow, fast], final Bragg image
@@ -2324,32 +2411,44 @@ def _build_final_bragg_from_stage_a_telemetry(
     )
 
     # Extract param_deltas from telemetry (handle both RefinementTelemetry and dict)
-    if hasattr(telemetry_a, 'param_deltas'):
+    if hasattr(telemetry_a, "param_deltas"):
         param_deltas = telemetry_a.param_deltas
     else:
-        param_deltas = telemetry_a['param_deltas']
+        param_deltas = telemetry_a["param_deltas"]
 
-    # Convert param deltas to torch tensors (no requires_grad, final forward pass)
-    log_scale = torch.tensor(param_deltas['log_scale']['final'], device=device, dtype=dtype, requires_grad=False)
-    log_cell_a_delta = torch.tensor(param_deltas['log_cell_a_delta']['final'], device=device, dtype=dtype, requires_grad=False)
-    log_cell_b_delta = torch.tensor(param_deltas['log_cell_b_delta']['final'], device=device, dtype=dtype, requires_grad=False)
-    log_cell_c_delta = torch.tensor(param_deltas['log_cell_c_delta']['final'], device=device, dtype=dtype, requires_grad=False)
-    angle_alpha_raw = torch.tensor(param_deltas['angle_alpha_raw']['final'], device=device, dtype=dtype, requires_grad=False)
-    angle_beta_raw = torch.tensor(param_deltas['angle_beta_raw']['final'], device=device, dtype=dtype, requires_grad=False)
-    angle_gamma_raw = torch.tensor(param_deltas['angle_gamma_raw']['final'], device=device, dtype=dtype, requires_grad=False)
-    orientation_vec = torch.tensor(param_deltas['orientation_vec']['final'], device=device, dtype=dtype, requires_grad=False)
+    state = (param_state or "final").lower()
+
+    def _select_param(name: str, default=None):
+        entry = param_deltas.get(name, default)
+        if isinstance(entry, dict):
+            if state == "initial" and "initial" in entry:
+                return entry["initial"]
+            if state == "delta" and "delta" in entry:
+                return entry["delta"]
+            return entry.get("final", entry.get("initial", default))
+        return entry if entry is not None else default
+
+    # Convert param deltas to torch tensors (no requires_grad, reconstruction only)
+    log_scale = torch.tensor(_select_param("log_scale", 0.0), device=device, dtype=dtype, requires_grad=False)
+    log_cell_a_delta = torch.tensor(_select_param("log_cell_a_delta", 0.0), device=device, dtype=dtype, requires_grad=False)
+    log_cell_b_delta = torch.tensor(_select_param("log_cell_b_delta", 0.0), device=device, dtype=dtype, requires_grad=False)
+    log_cell_c_delta = torch.tensor(_select_param("log_cell_c_delta", 0.0), device=device, dtype=dtype, requires_grad=False)
+    angle_alpha_raw = torch.tensor(_select_param("angle_alpha_raw", 0.0), device=device, dtype=dtype, requires_grad=False)
+    angle_beta_raw = torch.tensor(_select_param("angle_beta_raw", 0.0), device=device, dtype=dtype, requires_grad=False)
+    angle_gamma_raw = torch.tensor(_select_param("angle_gamma_raw", 0.0), device=device, dtype=dtype, requires_grad=False)
+    orientation_vec = torch.tensor(_select_param("orientation_vec", [0.0, 0.0, 0.0]), device=device, dtype=dtype, requires_grad=False)
 
     # Extract optional params for U-matrix/incremental UB modes
     # (Not currently populated by StageA, but handle gracefully for future support)
-    q_params = param_deltas.get('q_params')
+    q_params = _select_param("q_params")
     if q_params is not None:
         q_params = torch.tensor(q_params, device=device, dtype=dtype, requires_grad=False)
 
-    q_delta = param_deltas.get('q_delta')
+    q_delta = _select_param("q_delta")
     if q_delta is not None:
         q_delta = torch.tensor(q_delta, device=device, dtype=dtype, requires_grad=False)
 
-    B_ideal_reciprocal_torch = param_deltas.get('B_ideal_reciprocal_torch')
+    B_ideal_reciprocal_torch = _select_param("B_ideal_reciprocal_torch")
     if B_ideal_reciprocal_torch is not None:
         B_ideal_reciprocal_torch = torch.tensor(B_ideal_reciprocal_torch, device=device, dtype=dtype, requires_grad=False)
 
@@ -2358,11 +2457,9 @@ def _build_final_bragg_from_stage_a_telemetry(
     panel_shape = inputs.target.shape[1:]  # (slow, fast)
 
     # Compute baseline misset so zero-point reconstruction matches mapping baseline
-    from dbex.nanobrag_bridge import compute_baseline_misset_deg
-
     baseline_misset_deg_tensor = compute_baseline_misset_deg(
         crystal,
-        None,
+        baseline_crystal,
         device=device,
         dtype=dtype,
     )
@@ -2389,6 +2486,8 @@ def _build_final_bragg_from_stage_a_telemetry(
             log_scale_baseline_value = base_entry.get('final', base_entry.get('initial'))
         else:
             log_scale_baseline_value = base_entry
+    if log_scale_baseline_value is None and stage_a_ctx is not None:
+        log_scale_baseline_value = getattr(stage_a_ctx, "log_scale_baseline", None)
     if log_scale_baseline_value is None and hasattr(config, 'log_scale_baseline') and config.log_scale_baseline is not None:
         log_scale_baseline_value = config.log_scale_baseline
     if log_scale_baseline_value is None and spot_scale_override is not None:
@@ -2396,22 +2495,30 @@ def _build_final_bragg_from_stage_a_telemetry(
             log_scale_baseline_value = float(np.log(np.sqrt(spot_scale_override)))
         except (TypeError, ValueError):
             log_scale_baseline_value = None
+    log_cell_max_delta = getattr(config, "log_cell_max_delta", 1.0)
 
-    # Rebuild Stage A warm context so reconstruction matches compute_loss path
-    stage_a_ctx = _build_stage_a_context(
-        detector=detector,
-        beam=beam,
-        crystal=crystal,
-        trusted_mask=inputs.trusted_mask,
-        hkl_grid=hkl_grid,
-        hkl_metadata=hkl_metadata,
-        enable_hkl_interpolation=config.enable_hkl_interpolation,
-        device=device,
-        dtype=dtype,
-        panel_slices=inputs.panel_slices,
-        enable_roi_mode=getattr(config, "enable_stage_a_roi_mode", False),
-        calibration_metadata=getattr(config, "calibration_metadata", None),
-    )
+    # Reuse warmed Stage A context when available and device/dtype match; rebuild otherwise
+    ctx = stage_a_ctx
+    if ctx is not None and (ctx.device != device or ctx.dtype != dtype):
+        ctx = None
+    if ctx is None:
+        ctx = _build_stage_a_context(
+            detector=detector,
+            beam=beam,
+            crystal=crystal,
+            trusted_mask=inputs.trusted_mask,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            enable_hkl_interpolation=config.enable_hkl_interpolation,
+            device=device,
+            dtype=dtype,
+            panel_slices=inputs.panel_slices,
+            enable_roi_mode=getattr(config, "enable_stage_a_roi_mode", False),
+            calibration_metadata=getattr(config, "calibration_metadata", None),
+            log_scale_baseline=log_scale_baseline_value or getattr(config, "log_scale_baseline", None),
+        )
+    # ctx now guaranteed non-None for reconstruction
+    stage_a_ctx = ctx
 
     # Generate final Bragg array with optimized parameters (lines 2046-2153 from inline code)
     with torch.no_grad():
@@ -2419,9 +2526,15 @@ def _build_final_bragg_from_stage_a_telemetry(
 
         # Apply final crystal perturbations once (shared across cached simulators)
         cell_params = crystal.get_unit_cell().parameters()
-        perturbed_cell_a = cell_params[0] * torch.exp(log_cell_a_delta)
-        perturbed_cell_b = cell_params[1] * torch.exp(log_cell_b_delta)
-        perturbed_cell_c = cell_params[2] * torch.exp(log_cell_c_delta)
+        log_cell_a_delta_clamped, log_cell_b_delta_clamped, log_cell_c_delta_clamped = _clamp_log_cell_deltas(
+            log_cell_a_delta,
+            log_cell_b_delta,
+            log_cell_c_delta,
+            log_cell_max_delta,
+        )
+        perturbed_cell_a = cell_params[0] * torch.exp(log_cell_a_delta_clamped)
+        perturbed_cell_b = cell_params[1] * torch.exp(log_cell_b_delta_clamped)
+        perturbed_cell_c = cell_params[2] * torch.exp(log_cell_c_delta_clamped)
 
         max_angle_delta = 10.0  # degrees
         perturbed_alpha = cell_params[3] + torch.tanh(angle_alpha_raw) * max_angle_delta
@@ -2429,16 +2542,16 @@ def _build_final_bragg_from_stage_a_telemetry(
         perturbed_gamma = cell_params[5] + torch.tanh(angle_gamma_raw) * max_angle_delta
 
         zero_param_deltas = (
-            torch.allclose(log_cell_a_delta, torch.tensor(0.0, device=device, dtype=dtype))
-            and torch.allclose(log_cell_b_delta, torch.tensor(0.0, device=device, dtype=dtype))
-            and torch.allclose(log_cell_c_delta, torch.tensor(0.0, device=device, dtype=dtype))
+            torch.allclose(log_cell_a_delta_clamped, torch.tensor(0.0, device=device, dtype=dtype))
+            and torch.allclose(log_cell_b_delta_clamped, torch.tensor(0.0, device=device, dtype=dtype))
+            and torch.allclose(log_cell_c_delta_clamped, torch.tensor(0.0, device=device, dtype=dtype))
             and torch.allclose(angle_alpha_raw, torch.tensor(0.0, device=device, dtype=dtype))
             and torch.allclose(angle_beta_raw, torch.tensor(0.0, device=device, dtype=dtype))
             and torch.allclose(angle_gamma_raw, torch.tensor(0.0, device=device, dtype=dtype))
             and torch.allclose(orientation_vec, torch.zeros_like(orientation_vec))
         )
 
-        if config.use_u_matrix_parameterization:
+        if config.use_u_matrix_parameterization and q_params is not None and B_ideal_reciprocal_torch is not None:
             from dbex.nanobrag_bridge import quaternion_to_matrix
 
             q_norm = q_params / torch.norm(q_params)  # Enforce ||q|| = 1
@@ -2495,23 +2608,36 @@ def _build_final_bragg_from_stage_a_telemetry(
                 device=device,
                 dtype=dtype,
             )
-            warm_crystal_model = _sync_stage_a_crystal(stage_a_ctx, warm_crystal_model)
+            warm_crystal_model.interpolate = stage_a_ctx.enable_hkl_interpolation
+            warm_crystal_model.hkl_data = stage_a_ctx.hkl_grid
+            warm_crystal_model.hkl_metadata = stage_a_ctx.hkl_metadata
             _retarget_stage_a_simulators(stage_a_ctx, warm_crystal_model)
+
+        # Apply scale once using calibrated baseline when available. When a baseline is
+        # present, log_scale encodes a bounded delta; otherwise it acts as the absolute
+        # scale parameter with the wider uncalibrated clamp.
+        has_baseline = log_scale_baseline_value is not None
+        delta_bound = (
+            getattr(config, "log_scale_max_delta", 3.0)
+            if has_baseline
+            else getattr(config, "log_scale_max_delta_uncalibrated", 15.0)
+        )
+        baseline_tensor = (
+            torch.tensor(log_scale_baseline_value, device=device, dtype=dtype)
+            if has_baseline
+            else None
+        )
+
+        log_scale_effective = (
+            baseline_tensor + torch.clamp(log_scale, min=-delta_bound, max=delta_bound)
+            if baseline_tensor is not None
+            else torch.clamp(log_scale, min=-delta_bound, max=delta_bound)
+        )
 
         for pid in range(n_panels):
             simulator = stage_a_ctx.simulators[pid]
             panel_bragg = simulator.run()
-
-            log_scale_max_delta = getattr(config, 'log_scale_max_delta', 3.0)
-            if log_scale_baseline_value is not None:
-                baseline_tensor = torch.tensor(log_scale_baseline_value, device=device, dtype=dtype)
-                log_scale_delta_clamped = torch.clamp(log_scale, min=-log_scale_max_delta, max=log_scale_max_delta)
-                log_scale_effective = baseline_tensor + log_scale_delta_clamped
-            else:
-                log_scale_effective = torch.clamp(log_scale, min=-10.0, max=10.0)
-
             panel_bragg_scaled = panel_bragg * torch.exp(log_scale_effective)
-
             bragg_full[pid] = panel_bragg_scaled.cpu().numpy().astype(np.float32)
 
     return bragg_full
@@ -2726,6 +2852,7 @@ def _build_stage_b_params(
             panel_slices=panel_slices,
             enable_roi_mode=False,  # CPU fallback is panel-mode only
             calibration_metadata=config.calibration_metadata,
+            log_scale_baseline=config.log_scale_baseline,
         )
     elif not use_stage_b_cpu_fallback:
         # No CPU fallback: reuse the original CUDA Stage A context
@@ -3607,9 +3734,15 @@ def _build_stage_c_lbfgs_closure(
         else:
             # Fallback: recompute from baseline (backward compatibility)
             cell_params = crystal.get_unit_cell().parameters()
-            perturbed_cell_a = cell_params[0] * torch.exp(log_cell_a_delta)
-            perturbed_cell_b = cell_params[1] * torch.exp(log_cell_b_delta)
-            perturbed_cell_c = cell_params[2] * torch.exp(log_cell_c_delta)
+            log_cell_a_delta_clamped, log_cell_b_delta_clamped, log_cell_c_delta_clamped = _clamp_log_cell_deltas(
+                log_cell_a_delta,
+                log_cell_b_delta,
+                log_cell_c_delta,
+                getattr(config, "log_cell_max_delta", 1.0),
+            )
+            perturbed_cell_a = cell_params[0] * torch.exp(log_cell_a_delta_clamped)
+            perturbed_cell_b = cell_params[1] * torch.exp(log_cell_b_delta_clamped)
+            perturbed_cell_c = cell_params[2] * torch.exp(log_cell_c_delta_clamped)
 
             max_angle_delta = 10.0
             perturbed_alpha = cell_params[3] + torch.tanh(angle_alpha_raw) * max_angle_delta
@@ -3960,9 +4093,15 @@ def _run_stage_c_lbfgs(
     with torch.no_grad():
         bragg_full_stage_c = np.zeros((n_panels, *panel_shape), dtype=np.float32)
         cell_params = crystal.get_unit_cell().parameters()
-        perturbed_cell_a = cell_params[0] * torch.exp(log_cell_a_delta)
-        perturbed_cell_b = cell_params[1] * torch.exp(log_cell_b_delta)
-        perturbed_cell_c = cell_params[2] * torch.exp(log_cell_c_delta)
+        log_cell_a_delta_clamped, log_cell_b_delta_clamped, log_cell_c_delta_clamped = _clamp_log_cell_deltas(
+            log_cell_a_delta,
+            log_cell_b_delta,
+            log_cell_c_delta,
+            getattr(config, "log_cell_max_delta", 1.0),
+        )
+        perturbed_cell_a = cell_params[0] * torch.exp(log_cell_a_delta_clamped)
+        perturbed_cell_b = cell_params[1] * torch.exp(log_cell_b_delta_clamped)
+        perturbed_cell_c = cell_params[2] * torch.exp(log_cell_c_delta_clamped)
         max_angle_delta = 10.0
         perturbed_alpha = cell_params[3] + torch.tanh(angle_alpha_raw) * max_angle_delta
         perturbed_beta = cell_params[4] + torch.tanh(angle_beta_raw) * max_angle_delta
@@ -4262,9 +4401,15 @@ def _build_final_bragg_from_stage_b_telemetry(
 
     # Apply Stage A cell perturbations
     cell_params = crystal.get_unit_cell().parameters()
-    cell_a_tensor = cell_params[0] * torch.exp(log_cell_a_delta)
-    cell_b_tensor = cell_params[1] * torch.exp(log_cell_b_delta)
-    cell_c_tensor = cell_params[2] * torch.exp(log_cell_c_delta)
+    log_cell_a_delta_clamped, log_cell_b_delta_clamped, log_cell_c_delta_clamped = _clamp_log_cell_deltas(
+        log_cell_a_delta,
+        log_cell_b_delta,
+        log_cell_c_delta,
+        getattr(config, "log_cell_max_delta", 1.0),
+    )
+    cell_a_tensor = cell_params[0] * torch.exp(log_cell_a_delta_clamped)
+    cell_b_tensor = cell_params[1] * torch.exp(log_cell_b_delta_clamped)
+    cell_c_tensor = cell_params[2] * torch.exp(log_cell_c_delta_clamped)
 
     max_angle_delta = 10.0  # degrees
     cell_alpha_tensor = cell_params[3] + torch.tanh(angle_alpha_raw) * max_angle_delta
@@ -4458,6 +4603,7 @@ def run_nanobrag_refinement(
 
         # Execute engine and get telemetry dict (keyed by stage.name = "stage_a")
         telemetry_dict = engine.run(engine_inputs)
+        stage_a_ctx = getattr(engine, "_stage_a_ctx_cache", None)
 
         # Extract StageA telemetry (keyed by "stage_a" per StageA.name property)
         telemetry_a = telemetry_dict["stage_a"]
@@ -4474,7 +4620,9 @@ def run_nanobrag_refinement(
         dtype = config.dtype
         bragg_full = _build_final_bragg_from_stage_a_telemetry(
             telemetry_a_enriched, detector, beam, crystal, inputs, hkl_grid,
-            hkl_metadata, config, device, dtype
+            hkl_metadata, config, device, dtype,
+            stage_a_ctx=stage_a_ctx,
+            baseline_crystal=baseline_crystal,
         )
 
         # Return with telemetry dict using "A" key for backward compatibility
@@ -4555,6 +4703,7 @@ def run_nanobrag_refinement(
                 panel_slices=panel_slices,
                 enable_roi_mode=False,  # CPU fallback is panel-mode only
                 calibration_metadata=config.calibration_metadata,
+                log_scale_baseline=config.log_scale_baseline,
             )
         elif not use_stage_b_cpu_fallback:
             # No CPU fallback: reuse the original CUDA Stage A context
@@ -4645,6 +4794,7 @@ def run_nanobrag_refinement(
             device=device,
             dtype=dtype,
         )
+        masked_pixel_reference = int(inputs.loss_mask.sum())
     
         # === Stage A parameter initialization and telemetry setup ===
         # Call helper 1
@@ -4719,7 +4869,8 @@ def run_nanobrag_refinement(
             config, canonical_baseline, full_stage_a_indices,
             log_scale, log_cell_a_delta, log_cell_b_delta, log_cell_c_delta,
             angle_alpha_raw, angle_beta_raw, angle_gamma_raw, orientation_vec,
-            device, dtype
+            device, dtype,
+            masked_pixel_reference=masked_pixel_reference,
         )
     
         beam_flux = None
@@ -4740,6 +4891,9 @@ def run_nanobrag_refinement(
                 log_scale_baseline_value = float(np.log(np.sqrt(spot_scale_override)))
             except (TypeError, ValueError):
                 log_scale_baseline_value = None
+        if log_scale_baseline_value is None and config.log_scale_baseline is not None:
+            log_scale_baseline_value = config.log_scale_baseline
+        max_delta_uncal = getattr(config, "log_scale_max_delta_uncalibrated", 10.0)
 
         # Generate final Bragg array with optimized parameters
         with torch.no_grad():
@@ -4768,15 +4922,21 @@ def run_nanobrag_refinement(
                     beamsize_mm=beamsize_mm,
                     exposure=beam_exposure,
                 )
-    
+
                 # Apply final full crystal perturbations via tensor overrides (GRADIENT-001, TORCH-REFINE-002)
                 cell_params = crystal.get_unit_cell().parameters()
-    
+
                 # 1. Unit cell lengths (log-parameterized)
-                perturbed_cell_a = cell_params[0] * torch.exp(log_cell_a_delta)
-                perturbed_cell_b = cell_params[1] * torch.exp(log_cell_b_delta)
-                perturbed_cell_c = cell_params[2] * torch.exp(log_cell_c_delta)
-    
+                log_cell_a_delta_clamped, log_cell_b_delta_clamped, log_cell_c_delta_clamped = _clamp_log_cell_deltas(
+                    log_cell_a_delta,
+                    log_cell_b_delta,
+                    log_cell_c_delta,
+                    getattr(config, "log_cell_max_delta", 1.0),
+                )
+                perturbed_cell_a = cell_params[0] * torch.exp(log_cell_a_delta_clamped)
+                perturbed_cell_b = cell_params[1] * torch.exp(log_cell_b_delta_clamped)
+                perturbed_cell_c = cell_params[2] * torch.exp(log_cell_c_delta_clamped)
+
                 # 2. Unit cell angles (bounded via tanh)
                 max_angle_delta = 10.0  # degrees
                 perturbed_alpha = cell_params[3] + torch.tanh(angle_alpha_raw) * max_angle_delta
@@ -4784,9 +4944,9 @@ def run_nanobrag_refinement(
                 perturbed_gamma = cell_params[5] + torch.tanh(angle_gamma_raw) * max_angle_delta
 
                 zero_param_deltas = (
-                    torch.allclose(log_cell_a_delta, torch.tensor(0.0, device=device, dtype=dtype))
-                    and torch.allclose(log_cell_b_delta, torch.tensor(0.0, device=device, dtype=dtype))
-                    and torch.allclose(log_cell_c_delta, torch.tensor(0.0, device=device, dtype=dtype))
+                    torch.allclose(log_cell_a_delta_clamped, torch.tensor(0.0, device=device, dtype=dtype))
+                    and torch.allclose(log_cell_b_delta_clamped, torch.tensor(0.0, device=device, dtype=dtype))
+                    and torch.allclose(log_cell_c_delta_clamped, torch.tensor(0.0, device=device, dtype=dtype))
                     and torch.allclose(angle_alpha_raw, torch.tensor(0.0, device=device, dtype=dtype))
                     and torch.allclose(angle_beta_raw, torch.tensor(0.0, device=device, dtype=dtype))
                     and torch.allclose(angle_gamma_raw, torch.tensor(0.0, device=device, dtype=dtype))
@@ -4874,14 +5034,15 @@ def run_nanobrag_refinement(
                     dtype=dtype
                 )
                 panel_bragg = simulator.run()
-    
+
                 log_scale_max_delta = config.log_scale_max_delta
+                delta_bound = log_scale_max_delta if log_scale_baseline_value is not None else max_delta_uncal
                 if log_scale_baseline_value is not None:
                     baseline_tensor = torch.tensor(log_scale_baseline_value, device=device, dtype=dtype)
-                    log_scale_delta_clamped = torch.clamp(log_scale, min=-log_scale_max_delta, max=log_scale_max_delta)
+                    log_scale_delta_clamped = torch.clamp(log_scale, min=-delta_bound, max=delta_bound)
                     log_scale_effective = baseline_tensor + log_scale_delta_clamped
                 else:
-                    log_scale_effective = torch.clamp(log_scale, min=-10.0, max=10.0)
+                    log_scale_effective = torch.clamp(log_scale, min=-delta_bound, max=delta_bound)
                 panel_bragg_scaled = panel_bragg * torch.exp(log_scale_effective)
                 bragg_full[pid] = panel_bragg_scaled.cpu().numpy().astype(np.float32)
     
@@ -5004,9 +5165,11 @@ def run_nanobrag_refinement(
             # PHYSICS-LOSS-002: Variance floor telemetry
             variance_floor_value=config.sigma_floor_value**2,
             variance_floor_clamp_fraction=(
-                float(variance_floor_clamped_pixels[0]) / float(variance_floor_masked_pixels[0])
-                if variance_floor_masked_pixels[0] > 0 else 0.0
+                float(variance_floor_clamped_pixels[0]) / float(masked_pixel_reference)
+                if masked_pixel_reference > 0 else 0.0
             ),
+            variance_floor_masked_pixels=int(masked_pixel_reference),
+            variance_floor_clamped_pixels=int(variance_floor_clamped_pixels[0]),
             # Canonical Stage A metadata propagated to downstream stages
             canonical_stage_label=canonical_baseline["stage_label"],
             canonical_chi_squared=canonical_baseline["chi_squared"],
@@ -5024,10 +5187,16 @@ def run_nanobrag_refinement(
         with torch.no_grad():
             cell_params_baseline = crystal.get_unit_cell().parameters()
             max_angle_delta = 10.0  # degrees (consistent with Stage A/C closures)
+            log_cell_a_delta_clamped, log_cell_b_delta_clamped, log_cell_c_delta_clamped = _clamp_log_cell_deltas(
+                log_cell_a_delta,
+                log_cell_b_delta,
+                log_cell_c_delta,
+                getattr(config, "log_cell_max_delta", 1.0),
+            )
             stage_a_final_cell = {
-                'cell_a': (cell_params_baseline[0] * torch.exp(log_cell_a_delta)).item(),
-                'cell_b': (cell_params_baseline[1] * torch.exp(log_cell_b_delta)).item(),
-                'cell_c': (cell_params_baseline[2] * torch.exp(log_cell_c_delta)).item(),
+                'cell_a': (cell_params_baseline[0] * torch.exp(log_cell_a_delta_clamped)).item(),
+                'cell_b': (cell_params_baseline[1] * torch.exp(log_cell_b_delta_clamped)).item(),
+                'cell_c': (cell_params_baseline[2] * torch.exp(log_cell_c_delta_clamped)).item(),
                 'alpha': (cell_params_baseline[3] + torch.tanh(angle_alpha_raw) * max_angle_delta).item(),
                 'beta': (cell_params_baseline[4] + torch.tanh(angle_beta_raw) * max_angle_delta).item(),
                 'gamma': (cell_params_baseline[5] + torch.tanh(angle_gamma_raw) * max_angle_delta).item(),
@@ -5165,9 +5334,15 @@ def run_nanobrag_refinement(
             cell_params = crystal.get_unit_cell().parameters()
 
             # Apply Stage A final perturbations to get frozen crystal tensors
-            cell_a_tensor = cell_params[0] * torch.exp(log_cell_a_delta)
-            cell_b_tensor = cell_params[1] * torch.exp(log_cell_b_delta)
-            cell_c_tensor = cell_params[2] * torch.exp(log_cell_c_delta)
+            log_cell_a_delta_clamped, log_cell_b_delta_clamped, log_cell_c_delta_clamped = _clamp_log_cell_deltas(
+                log_cell_a_delta,
+                log_cell_b_delta,
+                log_cell_c_delta,
+                getattr(config, "log_cell_max_delta", 1.0),
+            )
+            cell_a_tensor = cell_params[0] * torch.exp(log_cell_a_delta_clamped)
+            cell_b_tensor = cell_params[1] * torch.exp(log_cell_b_delta_clamped)
+            cell_c_tensor = cell_params[2] * torch.exp(log_cell_c_delta_clamped)
 
             max_angle_delta = 10.0  # degrees
             cell_alpha_tensor = cell_params[3] + torch.tanh(angle_alpha_raw) * max_angle_delta

@@ -1111,3 +1111,13 @@ This is the **single most important diagnostic** to run before any other TOOLING
 - <Action State>: [ready_for_implementation]
 
 2025-11-25T133505Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=2 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T133505Z/ next_action=calibration_variant_probe_plus_db_at_028_029
+## 2025-11-25T220500Z — TOOLING-VIS-001 Stage A N_cells gate planning
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
+- Action Type: planning
+- Key Observations: Calibration variant sweep proved that the metadata small-detector fixtures only regain positive ROI CC when `N_cells` is removed from the captured DiffBragg metadata, implicating the unconditional SCALE-005 application inside `simulate_forward_once`. We still need to prove whether dropping `N_cells` alone (with `spot_scale_override=4.786e+17` intact) is sufficient before changing production code, then add a feature-flag so refGeom_small contexts can run without oversampling while full-detector DB-AT-024 keeps the original behavior.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-25T220500Z/
+- Next Actions: Extend `compare_mapping_dataset_metrics.py` with a `metadata_calibrated_drop_ncells` case, then implement `apply_calibration_n_cells` plumbing (simulate_forward_once, build_mapping_stage_a_context, smoke fixtures, TOOLING probes) and rerun DB-AT-028/029 + the probe under the metadata env to capture telemetry showing the gate is active.
+- <Action State>: [ready_for_implementation]
+
+2025-11-25T220500Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=2 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T220500Z/ next_action=implement_n_cells_gate_and_rerun_db_at_028_029

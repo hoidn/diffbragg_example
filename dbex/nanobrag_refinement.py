@@ -546,6 +546,10 @@ class RefinementConfig:
     calibration_metadata: Optional[Dict[str, Any]] = None
     # log_scale baseline when calibration is present (recorded in telemetry)
     log_scale_baseline: Optional[float] = None
+    # Apply N_cells from calibration metadata (TOOLING-VIS-001 Phase D.C, SCALE-008)
+    # When True (default), N_cells is applied if present in calibration_metadata.
+    # When False, N_cells is suppressed even when present (for small-detector metadata fixtures).
+    apply_calibration_n_cells: bool = True
     # Clamp log_scale deltas to ±3 when calibration_metadata is provided
     log_scale_max_delta: float = 3.0
     # Absolute clamp for log_scale when no calibration baseline is available
@@ -750,6 +754,7 @@ def _build_stage_a_context(
     enable_roi_mode: bool,
     calibration_metadata: Optional[Dict[str, Any]] = None,
     log_scale_baseline: Optional[float] = None,
+    apply_calibration_n_cells: bool = True,
 ) -> StageAContext:
     """
     Prebuild Stage A detector models and tensorize masks/HKL once (PERF-WARM-SIM-001).
@@ -771,6 +776,12 @@ def _build_stage_a_context(
         dtype: torch dtype
         panel_slices: List of (panel_id, bbox) tuples describing ROI bounds
         enable_roi_mode: bool flag for ROI cache construction
+        calibration_metadata: Optional dict with calibration payload (spot_scale_override,
+            beam flux/exposure, N_cells). When provided, calibration is reused.
+        log_scale_baseline: Optional baseline log_scale value
+        apply_calibration_n_cells: Whether to apply N_cells from calibration_metadata when
+            present (default True). Set to False for small-detector metadata fixtures per
+            TOOLING-VIS-001 Phase D.C and SCALE-008.
 
     Returns:
         StageAContext with prebuilt models and tensorized data
@@ -803,11 +814,16 @@ def _build_stage_a_context(
     N_cells = None
     spot_scale_override = None
     sqrt_spot_scale = None
+    calibration_adjusted_for_n_cells = False
     if calibration_metadata is not None:
         beam_flux = calibration_metadata.get("beam_flux")
         beam_exposure = calibration_metadata.get("beam_exposure")
         beamsize_mm = calibration_metadata.get("beamsize_mm")
         N_cells = calibration_metadata.get("N_cells")
+        calibration_adjusted_for_n_cells = calibration_metadata.get("calibration_adjusted_for_n_cells", False)
+        # SCALE-008: Derive baseline from spot_scale_override to apply the mapping adjustment.
+        # When N_cells is suppressed, mapping multiplies spot_scale_override by adjustment_factor
+        # to compensate for the amplitude collapse. Stage A must apply this adjusted scale.
         if "spot_scale_override" in calibration_metadata:
             spot_scale_override = calibration_metadata.get("spot_scale_override")
             try:
@@ -822,7 +838,10 @@ def _build_stage_a_context(
 
     beam_config = create_beam_config(beam, flux=beam_flux, beamsize_mm=beamsize_mm, exposure=beam_exposure)
     hkl_grid_device = hkl_grid.to(device=device, dtype=dtype)
-    crystal_config, _ = create_crystal_config(crystal, None, N_cells=N_cells, apply_n_cells=(N_cells is not None))
+    # Gate N_cells application per TOOLING-VIS-001 Phase D.C and SCALE-008
+    # Apply only when N_cells is present AND apply_calibration_n_cells is True
+    apply_n_cells = (N_cells is not None) and apply_calibration_n_cells
+    crystal_config, _ = create_crystal_config(crystal, None, N_cells=N_cells, apply_n_cells=apply_n_cells)
 
     base_crystal_model = Crystal(crystal_config, beam_config=beam_config, device=device, dtype=dtype)
     base_crystal_model.interpolate = enable_hkl_interpolation
@@ -1085,10 +1104,14 @@ def _build_stage_a_params(
 
     # Priority 1: Mapping-aware override when calibration was adjusted for N_cells
     # (SCALE-008 / TOOLING-VIS-001 Phase E — prevent double-application of spot_scale when mapping already corrected it)
-    # This priority MUST run FIRST so the mapping-corrected baseline overrides any cached/prior values
-    if config.calibration_metadata is not None:
+    # Priority 1 (legacy): When calibration was adjusted for N_cells, use global_scale_hint if available.
+    # SCALE-008: Skip this if log_scale_baseline was already set by warm cache context, which
+    # already derives the correct baseline from spot_scale_override.
+    if log_scale_baseline is None and config.calibration_metadata is not None:
         calibration_adjusted = config.calibration_metadata.get("calibration_adjusted_for_n_cells", False)
-        if calibration_adjusted and inputs.global_scale_hint is not None and inputs.global_scale_hint > 0:
+        if calibration_adjusted and inputs.global_scale_hint is not None and inputs.global_scale_hint > 1.0:
+            # global_scale_hint is a RELATIVE scale (typically 1.0), not an absolute intensity scale.
+            # Only use it if it's significantly different from 1.0 (otherwise defer to Priority 2)
             try:
                 log_scale_baseline = float(np.log(inputs.global_scale_hint))
                 log_scale_baseline_source = "mapping_global_scale_hint"
@@ -1332,6 +1355,7 @@ def _build_stage_a_params(
             enable_roi_mode=use_stage_a_roi_mode,
             calibration_metadata=config.calibration_metadata,
             log_scale_baseline=log_scale_baseline,
+            apply_calibration_n_cells=config.apply_calibration_n_cells,
         )
 
     # Priority 1 (revised): When calibration was adjusted for N_cells, derive Stage A baseline
@@ -1370,12 +1394,19 @@ def _build_stage_a_params(
                 with torch.no_grad():
                     bragg_samples = [simulator.run() for simulator in stage_a_ctx.simulators]
                     bragg_stack = torch.stack(bragg_samples, dim=0)
+                    # Apply spot_scale_override per SCALE-002 (sqrt factor)
+                    # When calibration was adjusted for N_cells, spot_scale_override contains
+                    # the adjustment-factor-corrected value, so applying it here gives the
+                    # mapping-aligned model intensity (TOOLING-VIS-001 Phase D.E, SCALE-008)
+                    spot_scale_override = config.calibration_metadata.get("spot_scale_override", 1.0)
+                    sqrt_spot_scale = float(np.sqrt(spot_scale_override)) if spot_scale_override > 0 else 1.0
+                    bragg_stack_scaled = bragg_stack * sqrt_spot_scale
                     # Compute masked mean to match target_mean computation (use tensorized mask)
                     if loss_mask_t is not None:
-                        model_mean_masked = float(bragg_stack[loss_mask_t].mean().item())
+                        model_mean_masked = float(bragg_stack_scaled[loss_mask_t].mean().item())
                     else:
                         # Fallback to numpy mask if tensorization failed
-                        model_mean_masked = float(bragg_stack[inputs.loss_mask].mean().item())
+                        model_mean_masked = float(bragg_stack_scaled[inputs.loss_mask].mean().item())
             except Exception:
                 # Fall back to previous behavior if simulator forward fails
                 model_mean_masked = None
@@ -2628,6 +2659,7 @@ def _build_final_bragg_from_stage_a_telemetry(
             enable_roi_mode=getattr(config, "enable_stage_a_roi_mode", False),
             calibration_metadata=getattr(config, "calibration_metadata", None),
             log_scale_baseline=log_scale_baseline_value or getattr(config, "log_scale_baseline", None),
+            apply_calibration_n_cells=getattr(config, "apply_calibration_n_cells", True),
         )
     # ctx now guaranteed non-None for reconstruction
     stage_a_ctx = ctx
@@ -2965,6 +2997,7 @@ def _build_stage_b_params(
             enable_roi_mode=False,  # CPU fallback is panel-mode only
             calibration_metadata=config.calibration_metadata,
             log_scale_baseline=config.log_scale_baseline,
+            apply_calibration_n_cells=config.apply_calibration_n_cells,
         )
     elif not use_stage_b_cpu_fallback:
         # No CPU fallback: reuse the original CUDA Stage A context
@@ -4816,6 +4849,7 @@ def run_nanobrag_refinement(
                 enable_roi_mode=False,  # CPU fallback is panel-mode only
                 calibration_metadata=config.calibration_metadata,
                 log_scale_baseline=config.log_scale_baseline,
+                apply_calibration_n_cells=config.apply_calibration_n_cells,
             )
         elif not use_stage_b_cpu_fallback:
             # No CPU fallback: reuse the original CUDA Stage A context

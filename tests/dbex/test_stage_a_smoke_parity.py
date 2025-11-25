@@ -141,6 +141,7 @@ def stage_a_smoke_result(
         sigma_readout_provenance=(
             "external_lookup" if smoke_sigma_source == "metadata" else "cli_override"
         ),
+        apply_calibration_n_cells=apply_n_cells,  # TOOLING-VIS-001 Phase D.C gate
     )
 
     bragg_final, telemetry_dict = run_nanobrag_refinement(

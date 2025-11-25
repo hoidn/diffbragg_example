@@ -9,15 +9,13 @@ import torch
 
 from dbex.nanobrag_bridge import (
     build_structure_factor_grid,
-    load_calibration_metadata,
-    load_refined_mtz,
-    simulate_forward_once,
 )
 from dbex.nanobrag_refinement import (
     RefinementConfig,
     _build_final_bragg_from_stage_a_telemetry,
     run_nanobrag_refinement,
 )
+from dbex.vis.mapping import build_mapping_stage_a_context
 from tests.dbex.test_torch_refine_smoke import create_perturbed_geometry
 
 pytest_plugins = ["tests.dbex.test_torch_refine_smoke"]
@@ -73,10 +71,30 @@ def stage_a_smoke_result(
 ):
     """
     Stage A-only refinement (nearest-neighbor HKL) for DB-AT-028/029 gates.
-    Reuses calibrated mapping metadata when available (config_torch.json).
+    Uses build_mapping_stage_a_context to align HKL/calibration with mapping forward stack.
     """
-    hkl_grid, hkl_metadata = hkl_data
-    hkl_source = "scaled.mtz"
+    # Build mapping context for unified HKL/calibration/inputs
+    device_obj = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    device = str(device_obj)
+
+    mapping_context = build_mapping_stage_a_context(
+        refgeom_dataload,
+        default_sigma_readout=3.0,
+        device=device,
+    )
+
+    # Extract HKL grid from the mapping context's original indices/amplitudes
+    hkl_grid, hkl_metadata, _ = build_structure_factor_grid(
+        indices=mapping_context.hkl_indices,
+        amplitudes=mapping_context.hkl_amplitudes,
+        device=device_obj,
+        halo=True,
+    )
+
+    # Determine HKL source from mapping context diagnostics
+    hkl_source = mapping_context.diagnostics.get("hkl_source", "scaled.mtz")
+    hkl_path = mapping_context.diagnostics.get("hkl_path", "scaled.mtz")
+
     baseline_crystal = refgeom_dataload.Expt.crystal
     baseline_detector = refgeom_dataload.Expt.detector
     baseline_beam = refgeom_dataload.Expt.beam
@@ -85,71 +103,6 @@ def stage_a_smoke_result(
         baseline_crystal, baseline_detector, baseline_beam
     )
 
-    repo_root = Path(__file__).resolve().parents[2]
-    calibration_path = repo_root / "tests" / "fixtures" / "golden_data" / "simple_cubic" / "config_torch.json"
-    # Prefer calibrated mapping payload to align Stage A scale; fallback to None if absent.
-    calibration_metadata: Dict = {}
-    if calibration_path.exists():
-        try:
-            calibration_metadata = load_calibration_metadata(calibration_path)
-        except Exception:
-            calibration_metadata = {}
-    if not calibration_metadata:
-        calibration_metadata = None
-    device_obj = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    device = str(device_obj)
-
-    # Store original HKL indices and amplitudes for mapping forward pass
-    hkl_indices = None
-    hkl_amplitudes = None
-
-    if calibration_metadata:
-        refined_mtz = (
-            repo_root / "tests" / "fixtures" / "golden_data" / "simple_cubic" / "refined_structure_factors.mtz"
-        )
-        if refined_mtz.exists():
-            try:
-                refined_indices, refined_amplitudes = load_refined_mtz(refined_mtz)
-                hkl_grid, hkl_metadata, _ = build_structure_factor_grid(
-                    indices=refined_indices,
-                    amplitudes=refined_amplitudes,
-                    device=device_obj,
-                    halo=True,
-                )
-                hkl_indices = refined_indices
-                hkl_amplitudes = refined_amplitudes
-                hkl_source = "refined_structure_factors.mtz"
-            except Exception:
-                # Extract from refgeom_dataload.F miller array when refined MTZ fails
-                hkl_indices = np.array(refgeom_dataload.F.indices().as_vec3_double(), dtype=np.float64)
-                hkl_amplitudes = np.array(refgeom_dataload.F.data(), dtype=np.float64)
-                hkl_grid, hkl_metadata, _ = build_structure_factor_grid(
-                    indices=hkl_indices,
-                    amplitudes=hkl_amplitudes,
-                    device=device_obj,
-                    halo=True,
-                )
-                hkl_source = "scaled.mtz"
-        else:
-            # Extract from refgeom_dataload.F miller array when refined MTZ doesn't exist
-            hkl_indices = np.array(refgeom_dataload.F.indices().as_vec3_double(), dtype=np.float64)
-            hkl_amplitudes = np.array(refgeom_dataload.F.data(), dtype=np.float64)
-            hkl_grid, hkl_metadata, _ = build_structure_factor_grid(
-                indices=hkl_indices,
-                amplitudes=hkl_amplitudes,
-                device=device_obj,
-                halo=True,
-            )
-    else:
-        # Extract from refgeom_dataload.F miller array when no calibration
-        hkl_indices = np.array(refgeom_dataload.F.indices().as_vec3_double(), dtype=np.float64)
-        hkl_amplitudes = np.array(refgeom_dataload.F.data(), dtype=np.float64)
-        hkl_grid, hkl_metadata, _ = build_structure_factor_grid(
-            indices=hkl_indices,
-            amplitudes=hkl_amplitudes,
-            device=device_obj,
-            halo=True,
-        )
     config = RefinementConfig(
         device=device,
         dtype=torch.float32,
@@ -160,7 +113,7 @@ def stage_a_smoke_result(
         enable_hkl_interpolation=False,  # DB-AT-028/029 require nearest-neighbor HKL sampling
         enable_stage_b=False,
         enable_stage_c=False,
-        calibration_metadata=calibration_metadata or None,
+        calibration_metadata=mapping_context.calibration,
         sigma_readout_provenance=(
             "external_lookup" if smoke_sigma_source == "metadata" else "cli_override"
         ),
@@ -245,36 +198,20 @@ def stage_a_smoke_result(
     roi_cc_median_before = float(np.median(valid_corrs_before)) if valid_corrs_before else float("nan")
     roi_cc_median_after = float(np.median(valid_corrs_after)) if valid_corrs_after else float("nan")
 
-    # Run mapping forward pass for parity comparison (DB-AT-028/029 diagnostics)
+    # Use mapping context's bragg_zero_iter for parity comparison (DB-AT-028/029 diagnostics)
     roi_cc_median_mapping = float("nan")
     scale_ratio_mapping = float("nan")
     mapping_forward_success = False
     try:
-        if hkl_indices is None or hkl_amplitudes is None:
-            raise ValueError("HKL indices and amplitudes not available (mapping forward pass skipped)")
-
-        # Determine hkl_path for telemetry
-        if hkl_source == "refined_structure_factors.mtz":
-            hkl_path_str = str(repo_root / "tests" / "fixtures" / "golden_data" / "simple_cubic" / "refined_structure_factors.mtz")
-        else:
-            hkl_path_str = str(repo_root / "scaled.mtz")
-
-        bragg_mapping, _ = simulate_forward_once(
-            inputs=refinement_inputs,
-            detector=baseline_detector,
-            beam=baseline_beam,
-            crystal=baseline_crystal,
-            experiment=refgeom_dataload.Expt,
-            hkl_indices=hkl_indices,
-            hkl_amplitudes=hkl_amplitudes,
-            spot_scale_override=calibration_metadata.get("spot_scale_override") if calibration_metadata else None,
-            calibration=calibration_metadata,
-            hkl_source=hkl_source,
-            hkl_path=hkl_path_str,
-        )
+        bragg_mapping = mapping_context.bragg_zero_iter
 
         # Compute mapping ROI correlations
-        corrs_mapping = _roi_correlations(refinement_inputs.target, bragg_mapping, refinement_inputs.loss_mask, refinement_inputs.panel_slices)
+        corrs_mapping = _roi_correlations(
+            refinement_inputs.target,
+            bragg_mapping,
+            refinement_inputs.loss_mask,
+            refinement_inputs.panel_slices
+        )
         valid_mapping = [c for c in corrs_mapping if np.isfinite(c)]
         roi_cc_median_mapping = float(np.median(valid_mapping)) if valid_mapping else float("nan")
 

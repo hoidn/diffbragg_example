@@ -126,10 +126,6 @@ def main():
     # Import dependencies (lazy to avoid overhead when --help is used)
     from dbex.nanobrag_bridge import (
         build_structure_factor_grid,
-        load_calibration_metadata,
-        load_refined_mtz,
-        prepare_refinement_inputs,
-        simulate_forward_once,
     )
     from dbex.nanobrag_refinement import (
         RefinementConfig,
@@ -137,127 +133,52 @@ def main():
         run_nanobrag_refinement,
     )
     from dbex.tools.stage_a_adam import build_dataload
+    from dbex.vis.mapping import build_mapping_stage_a_context
 
     # Determine paths (repo_root already set above)
-    golden_dir = repo_root / "tests" / "fixtures" / "golden_data" / "simple_cubic"
-    calibration_path = golden_dir / "config_torch.json"
-
     print(f"Repository root: {repo_root}")
 
     # Build DataLoad for canonical assets
     dataload = build_dataload(repo_root)
+
+    # Resolve device
+    device_obj = torch.device("cuda:0" if torch.cuda.is_available() and args.device != "cpu" else "cpu")
+
+    # Build mapping context for unified HKL/calibration/inputs
+    print("Building mapping context via build_mapping_stage_a_context...")
+    mapping_context = build_mapping_stage_a_context(
+        dataload,
+        default_sigma_readout=3.0,
+        device=str(device_obj),
+    )
+
+    # Extract HKL grid from the mapping context's original indices/amplitudes
+    hkl_grid, hkl_metadata, _ = build_structure_factor_grid(
+        indices=mapping_context.hkl_indices,
+        amplitudes=mapping_context.hkl_amplitudes,
+        device=device_obj,
+        halo=True,
+    )
+
+    # Determine HKL source from mapping context diagnostics
+    hkl_source = mapping_context.diagnostics.get("hkl_source", "scaled.mtz")
+    hkl_path = mapping_context.diagnostics.get("hkl_path", "scaled.mtz")
+
+    print(f"HKL source: {hkl_source}")
+    print(f"HKL path: {hkl_path}")
+
+    # Use the mapping context's RefinementInputs directly
+    refinement_inputs = mapping_context.inputs
+
     baseline_crystal = dataload.Expt.crystal
     baseline_detector = dataload.Expt.detector
     baseline_beam = dataload.Expt.beam
 
-    # Load calibration metadata
-    calibration_metadata = None
-    if calibration_path.exists():
-        try:
-            calibration_metadata = load_calibration_metadata(calibration_path)
-            print(f"Loaded calibration metadata from {calibration_path}")
-        except Exception as exc:
-            print(f"Warning: Failed to load calibration metadata: {exc}")
-            calibration_metadata = None
-
-    # Build HKL grid with refined MTZ if available
-    hkl_source = "scaled.mtz"
-    device_obj = torch.device("cuda:0" if torch.cuda.is_available() and args.device != "cpu" else "cpu")
-
-    # Store original indices and amplitudes for simulate_forward_once
-    hkl_indices = None
-    hkl_amplitudes = None
-
-    if calibration_metadata:
-        refined_mtz_path = golden_dir / "refined_structure_factors.mtz"
-        if refined_mtz_path.exists():
-            try:
-                refined_indices, refined_amplitudes = load_refined_mtz(refined_mtz_path)
-                hkl_grid, hkl_metadata, _ = build_structure_factor_grid(
-                    indices=refined_indices,
-                    amplitudes=refined_amplitudes,
-                    device=device_obj,
-                    halo=True,
-                )
-                hkl_indices = refined_indices
-                hkl_amplitudes = refined_amplitudes
-                hkl_source = "refined_structure_factors.mtz"
-                print(f"Using refined HKL from {refined_mtz_path}")
-            except Exception as exc:
-                print(f"Warning: Failed to load refined MTZ: {exc}")
-                # Extract from dataload.F miller array
-                hkl_indices = np.array(dataload.F.indices().as_vec3_double(), dtype=np.float64)
-                hkl_amplitudes = np.array(dataload.F.data(), dtype=np.float64)
-                hkl_grid, hkl_metadata, _ = build_structure_factor_grid(
-                    indices=hkl_indices,
-                    amplitudes=hkl_amplitudes,
-                    device=device_obj,
-                    halo=True,
-                )
-        else:
-            # Extract from dataload.F miller array
-            hkl_indices = np.array(dataload.F.indices().as_vec3_double(), dtype=np.float64)
-            hkl_amplitudes = np.array(dataload.F.data(), dtype=np.float64)
-            hkl_grid, hkl_metadata, _ = build_structure_factor_grid(
-                indices=hkl_indices,
-                amplitudes=hkl_amplitudes,
-                device=device_obj,
-                halo=True,
-            )
-    else:
-        # Extract from dataload.F miller array
-        hkl_indices = np.array(dataload.F.indices().as_vec3_double(), dtype=np.float64)
-        hkl_amplitudes = np.array(dataload.F.data(), dtype=np.float64)
-        hkl_grid, hkl_metadata, _ = build_structure_factor_grid(
-            indices=hkl_indices,
-            amplitudes=hkl_amplitudes,
-            device=device_obj,
-            halo=True,
-        )
-
-    # Build RefinementInputs using Stage A smoke fixture approach
+    # Build perturbed geometry for Stage A engine
     from tests.dbex.test_torch_refine_smoke import create_perturbed_geometry
 
     perturbed_crystal, perturbed_detector, perturbed_beam = create_perturbed_geometry(
         baseline_crystal, baseline_detector, baseline_beam
-    )
-
-    # Build trusted mask per panel (same pattern as test_torch_refine_smoke.py:238-265)
-    detector = dataload.Expt.detector
-    n_panels = len(detector)
-    trusted_masks = []
-    for i in range(n_panels):
-        panel = detector[i]
-        panel_size = panel.get_image_size()
-        panel_shape = (panel_size[1], panel_size[0])  # (slow, fast)
-        trusted_mask = np.ones(panel_shape, dtype=bool)
-        try:
-            untrusted = panel.get_mask()
-            if untrusted is not None and len(untrusted) > 0:
-                for rect in untrusted:
-                    x0, x1, y0, y1 = rect
-                    trusted_mask[y0:y1, x0:x1] = False
-        except Exception:
-            pass  # No untrusted regions
-        trusted_masks.append(trusted_mask)
-
-    # Resolve sigma_readout
-    if sigma_source == "metadata":
-        try:
-            sigma_readout_array = dataload.Expt.imageset.external_lookup.sigma_readout.data
-        except AttributeError:
-            sigma_readout_array = np.full_like(dataload.data, 3.0, dtype=np.float32)
-    else:
-        sigma_readout_array = np.full_like(dataload.data, 3.0, dtype=np.float32)
-
-    refinement_inputs = prepare_refinement_inputs(
-        data=dataload.data,
-        background_image=dataload.background_image,
-        trusted_mask=trusted_masks,
-        bbox=dataload.bbox,
-        pids=dataload.pids,
-        detector=detector,
-        sigma_readout=sigma_readout_array,
     )
 
     # Run Stage A engine with use_engine_delegation=True (nearest-neighbor HKL)
@@ -271,7 +192,7 @@ def main():
         enable_hkl_interpolation=False,  # DB-AT-028/029 require nearest-neighbor HKL
         enable_stage_b=False,
         enable_stage_c=False,
-        calibration_metadata=calibration_metadata or None,
+        calibration_metadata=mapping_context.calibration,
         sigma_readout_provenance=(
             "external_lookup" if sigma_source == "metadata" else "cli_override"
         ),
@@ -358,31 +279,10 @@ def main():
     roi_cc_median_before = float(median(valid_before)) if valid_before else float("nan")
     roi_cc_median_after = float(median(valid_after)) if valid_after else float("nan")
 
-    # Run mapping forward pass with shared HKL/calibration for parity comparison
-    print("Running mapping forward pass (baseline crystal, nearest-neighbor HKL)...")
+    # Use mapping context's bragg_zero_iter for parity comparison
+    print("Using mapping context bragg_zero_iter for parity comparison...")
     try:
-        if hkl_indices is None or hkl_amplitudes is None:
-            raise ValueError("HKL indices and amplitudes not available for mapping forward pass")
-
-        # Determine hkl_path for telemetry
-        if hkl_source == "refined_structure_factors.mtz":
-            hkl_path_str = str(golden_dir / "refined_structure_factors.mtz")
-        else:
-            hkl_path_str = str(repo_root / "scaled.mtz")
-
-        bragg_mapping, _ = simulate_forward_once(
-            inputs=refinement_inputs,
-            detector=baseline_detector,
-            beam=baseline_beam,
-            crystal=baseline_crystal,
-            experiment=dataload.Expt,
-            hkl_indices=hkl_indices,
-            hkl_amplitudes=hkl_amplitudes,
-            spot_scale_override=calibration_metadata.get("spot_scale_override") if calibration_metadata else None,
-            calibration=calibration_metadata,
-            hkl_source=hkl_source,
-            hkl_path=hkl_path_str,
-        )
+        bragg_mapping = mapping_context.bragg_zero_iter
 
         # Compute mapping ROI correlations
         corrs_mapping = _roi_correlations(target, bragg_mapping, loss_mask, panel_slices)

@@ -275,7 +275,7 @@ Acceptance Tests (Normative)
   - Setup:
     - Dataset: Stage‑A smoke dataset from `test_stage_a_expansion` (sp.proc refGeom_small/refGeom_full).
     - Geometry: deterministic perturbation from `create_perturbed_geometry` (+2/+1/+1% cell stretch, +1.5° Z‑misset).
-    - HKL grid: canonical Stage‑A policy uses nearest‑neighbor (`interpolation=False`). Haloed tricubic (`enable_hkl_interpolation=True`) MAY be exercised as a non‑canonical, explicitly tagged mode; selectors SHALL treat it as such.
+    - HKL grid: canonical Stage‑A policy uses nearest‑neighbor (`enable_hkl_interpolation=False` / `interpolation=False`) to match dbex→DiffBragg. Haloed tricubic MAY be run separately as a tagged, non‑canonical diagnostic; such runs are not part of DB‑AT‑028.
     - Sigma policy: same as Stage‑A smoke (external tiles when available, else 3.0 ADU).
     - Config: Stage‑A LBFGS `RefinementConfig` as used by the smoke test (ROI sampling, warm cache enabled).
   - Procedure:

@@ -1,0 +1,54 @@
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+Configuration:
+  smoke_sigma_source: metadata
+  smoke_detector_size: small
+  default_sigma_readout: 3.0
+  mtz_path: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/scaled.mtz
+  out_dir: plans/active/TOOLING-VIS-001/reports/2025-11-25T061925Z/mapping_scaled
+
+Loading data from:
+  expt: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/idx-0000_sigma_metadata.expt
+  refl: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/refGeom.refl
+  mask: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/747_mask.pkl
+  mtz: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/scaled.mtz
+
+============================================================
+Building CPU mapping context...
+auto-selected 3-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-29,10] hit_rate=55457827/56016009 (99.00%)
+CPU metrics: ROI CC median=-0.039912, scale_ratio_masked=8.4506e-01, scale_ratio_unmasked=2.4114e+00
+Building CUDA mapping context...
+auto-selected 3-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-29,10] hit_rate=55457827/56016009 (99.00%)
+GPU metrics: ROI CC median=-0.039915, scale_ratio_masked=8.4510e-01, scale_ratio_unmasked=2.4114e+00
+Computing CPU vs GPU parity metrics...
+Parity metrics: mean_abs_diff=5.2919e-05, max_abs_diff=7.4361e+01, roi_cc_diff=0.000004, scale_ratio_masked_rel_diff=4.3905e-05
+============================================================
+
+Wrote JSON to plans/active/TOOLING-VIS-001/reports/2025-11-25T061925Z/mapping_scaled/mapping_forward_cpu_gpu.json
+
+Summary:
+  Sigma source: metadata
+  CUDA available: True
+  CPU ROI CC median: -0.039912
+  CPU scale ratio (masked): 8.4506e-01
+  CPU scale ratio (unmasked): 2.4114e+00
+  CPU spot_scale_override: 3.1847e+17
+  CPU HKL source: raw
+  CPU HKL path: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/scaled.mtz
+  CPU HKL count: 69614
+  GPU ROI CC median: -0.039915
+  GPU scale ratio (masked): 8.4510e-01
+  GPU scale ratio (unmasked): 2.4114e+00
+  GPU spot_scale_override: 3.1847e+17
+  GPU HKL source: raw
+  GPU HKL path: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/scaled.mtz
+  GPU HKL count: 69614
+  Bragg mean_abs_diff: 5.2919e-05
+  Bragg max_abs_diff: 7.4361e+01
+  ROI CC median diff: 0.000004
+  Scale ratio (masked) rel diff: 4.3905e-05
+  Scale ratio (unmasked) rel diff: 2.3227e-05
+
+Probe complete.

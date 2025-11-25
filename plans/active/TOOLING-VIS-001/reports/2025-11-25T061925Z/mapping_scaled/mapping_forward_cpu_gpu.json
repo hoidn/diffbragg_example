@@ -1,0 +1,45 @@
+{
+  "cuda_available": true,
+  "error": null,
+  "sigma_source": "metadata",
+  "cpu_metrics": {
+    "roi_cc_median": -0.03991197662074221,
+    "roi_cc_count": 92,
+    "scale_ratio_masked": 0.8450626436140168,
+    "scale_ratio_unmasked": 2.4114332655743502,
+    "log_scale_baseline": 0.0,
+    "global_scale_hint": 1.1833442260840854,
+    "sigma_floor_value": 1.0,
+    "bragg_mean": 0.3194931149482727,
+    "bragg_std": 94.8501968383789,
+    "bragg_max": 161405.578125,
+    "spot_scale_override": 3.184711299019782e+17,
+    "hkl_source": "raw",
+    "hkl_path": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/scaled.mtz",
+    "hkl_count": 69614
+  },
+  "gpu_metrics": {
+    "roi_cc_median": -0.039915491052181326,
+    "roi_cc_count": 92,
+    "scale_ratio_masked": 0.8450997462975396,
+    "scale_ratio_unmasked": 2.4113772558803994,
+    "log_scale_baseline": 0.0,
+    "global_scale_hint": 1.183292273345357,
+    "sigma_floor_value": 1.0,
+    "bragg_mean": 0.31948569416999817,
+    "bragg_std": 94.85161590576172,
+    "bragg_max": 161408.84375,
+    "spot_scale_override": 3.184711299019782e+17,
+    "hkl_source": "raw",
+    "hkl_path": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/scaled.mtz",
+    "hkl_count": 69614
+  },
+  "parity_metrics": {
+    "bragg_mean_abs_diff": 5.2918978326488286e-05,
+    "bragg_max_abs_diff": 74.361328125,
+    "roi_cc_median_diff": 3.514431439116672e-06,
+    "scale_ratio_masked_rel_diff": 4.390524631887073e-05,
+    "scale_ratio_unmasked_rel_diff": 2.3226723604755848e-05,
+    "log_scale_baseline_match": true
+  }
+}

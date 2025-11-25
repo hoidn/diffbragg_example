@@ -356,6 +356,9 @@ def test_db_at_028_loss_scale_sanity(stage_a_smoke_result):
         "scale_ratio_mapping_masked": stage_a_smoke_result.get("scale_ratio_mapping_masked"),
         "scale_ratio_mapping_unmasked": stage_a_smoke_result.get("scale_ratio_mapping_unmasked"),
         "mapping_forward_success": stage_a_smoke_result.get("mapping_forward_success"),
+        # SCALE-008 / TOOLING-VIS-001: Mapping-aware log-scale baseline telemetry
+        "log_scale_baseline_source": telemetry.log_scale_baseline_source,
+        "spot_scale_override_adjustment_factor": telemetry.spot_scale_override_adjustment_factor,
     }
     (artifact_dir / "db_at_028_metrics.json").write_text(json.dumps(metrics, indent=2))
 
@@ -437,6 +440,9 @@ def test_db_at_029_structure_parity(stage_a_smoke_result):
         "scale_ratio_mapping_masked": stage_a_smoke_result.get("scale_ratio_mapping_masked"),
         "scale_ratio_mapping_unmasked": stage_a_smoke_result.get("scale_ratio_mapping_unmasked"),
         "mapping_forward_success": stage_a_smoke_result.get("mapping_forward_success"),
+        # SCALE-008 / TOOLING-VIS-001: Mapping-aware log-scale baseline telemetry
+        "log_scale_baseline_source": telemetry.log_scale_baseline_source,
+        "spot_scale_override_adjustment_factor": telemetry.spot_scale_override_adjustment_factor,
     }
     (artifact_dir / "db_at_029_metrics.json").write_text(json.dumps(metrics, indent=2))
 

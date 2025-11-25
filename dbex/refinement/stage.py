@@ -146,6 +146,10 @@ class RefinementTelemetry:
     variance_floor_masked_pixels: Optional[int] = None
     variance_floor_clamped_pixels: Optional[int] = None
 
+    # SCALE-008 / TOOLING-VIS-001: Mapping-aware log-scale baseline telemetry
+    log_scale_baseline_source: Optional[str] = None
+    spot_scale_override_adjustment_factor: Optional[float] = None
+
     # PHYSICS-LOSS-003: Canonical Stage A metadata
     canonical_stage_label: Optional[str] = None
     canonical_chi_squared: Optional[float] = None
@@ -230,6 +234,10 @@ class RefinementTelemetry:
             result["canonical_detector_distances_mm"] = self.canonical_detector_distances_mm
         if self.roi_mode is not None:
             result["roi_mode"] = self.roi_mode
+        if self.log_scale_baseline_source is not None:
+            result["log_scale_baseline_source"] = self.log_scale_baseline_source
+        if self.spot_scale_override_adjustment_factor is not None:
+            result["spot_scale_override_adjustment_factor"] = self.spot_scale_override_adjustment_factor
 
         # Phase A4 extensions
         if self.stage_type is not None:

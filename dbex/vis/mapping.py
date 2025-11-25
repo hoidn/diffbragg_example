@@ -269,6 +269,9 @@ def build_mapping_stage_a_context(
 
             # Update the calibration pointer so downstream MappingStageAContext uses adjusted config
             calibration = calibration_adjusted
+            # SCALE-008: Propagate adjustment flag into calibration dict for Stage A consumption
+            calibration_adjusted["calibration_adjusted_for_n_cells"] = True
+            calibration_adjusted["spot_scale_override_adjustment_factor"] = float(adjustment_factor)
 
             # Re-record calibration_path since it may have been overwritten by diagnostics_adjusted
             diagnostics["calibration_path"] = (

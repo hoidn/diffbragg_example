@@ -672,6 +672,9 @@ class RefinementTelemetry:
     variance_floor_clamp_fraction: Optional[float] = None  # Fraction of masked pixels where floor engaged
     variance_floor_masked_pixels: Optional[int] = None  # Total masked pixels used in variance stats
     variance_floor_clamped_pixels: Optional[int] = None  # Pixels where sigma_floor clamp engaged
+    # SCALE-008 / TOOLING-VIS-001: Mapping-aware log-scale baseline telemetry
+    log_scale_baseline_source: Optional[str] = None  # Source of log_scale_baseline (mapping_global_scale_hint, spot_scale_override_sqrt, etc.)
+    spot_scale_override_adjustment_factor: Optional[float] = None  # Adjustment factor when calibration was corrected for N_cells
     # PHYSICS-LOSS-003: Canonical Stage A snapshot propagated to downstream stages
     canonical_stage_label: Optional[str] = None
     canonical_chi_squared: Optional[float] = None
@@ -2480,21 +2483,53 @@ def _build_final_bragg_from_stage_a_telemetry(
         spot_scale_override = config.calibration_metadata.get("spot_scale_override")
 
     log_scale_baseline_value = None
+    log_scale_baseline_source = None
+    spot_scale_override_adjustment_factor = None
+
+    # Priority 1: param_deltas (from prior Stage A iteration)
     if 'log_scale_baseline' in param_deltas:
         base_entry = param_deltas['log_scale_baseline']
         if isinstance(base_entry, dict):
             log_scale_baseline_value = base_entry.get('final', base_entry.get('initial'))
         else:
             log_scale_baseline_value = base_entry
+        if log_scale_baseline_value is not None:
+            log_scale_baseline_source = "param_deltas"
+
+    # Priority 2: stage_a_ctx (from warm cache)
     if log_scale_baseline_value is None and stage_a_ctx is not None:
         log_scale_baseline_value = getattr(stage_a_ctx, "log_scale_baseline", None)
+        if log_scale_baseline_value is not None:
+            log_scale_baseline_source = "stage_a_ctx"
+
+    # Priority 3: config.log_scale_baseline (explicit override)
     if log_scale_baseline_value is None and hasattr(config, 'log_scale_baseline') and config.log_scale_baseline is not None:
         log_scale_baseline_value = config.log_scale_baseline
+        log_scale_baseline_source = "config_override"
+
+    # Priority 4: Mapping-aware override when calibration was adjusted for N_cells
+    # (SCALE-008 — prevent double-application of spot_scale when mapping already corrected it)
+    if log_scale_baseline_value is None and hasattr(config, 'calibration_metadata') and config.calibration_metadata is not None:
+        calibration_adjusted = config.calibration_metadata.get("calibration_adjusted_for_n_cells", False)
+        if calibration_adjusted and inputs.global_scale_hint is not None and inputs.global_scale_hint > 0:
+            try:
+                log_scale_baseline_value = float(np.log(inputs.global_scale_hint))
+                log_scale_baseline_source = "mapping_global_scale_hint"
+                # Record the adjustment factor so telemetry shows the mapping correction was honored
+                adjustment_factor_raw = config.calibration_metadata.get("spot_scale_override_adjustment_factor")
+                if adjustment_factor_raw is not None:
+                    spot_scale_override_adjustment_factor = float(adjustment_factor_raw)
+            except (TypeError, ValueError, OverflowError):
+                pass
+
+    # Priority 5: Fallback to sqrt(spot_scale_override) when not mapping-adjusted
     if log_scale_baseline_value is None and spot_scale_override is not None:
         try:
             log_scale_baseline_value = float(np.log(np.sqrt(spot_scale_override)))
+            log_scale_baseline_source = "spot_scale_override_sqrt"
         except (TypeError, ValueError):
             log_scale_baseline_value = None
+
     log_cell_max_delta = getattr(config, "log_cell_max_delta", 1.0)
 
     # Reuse warmed Stage A context when available and device/dtype match; rebuild otherwise
@@ -5170,6 +5205,9 @@ def run_nanobrag_refinement(
             ),
             variance_floor_masked_pixels=int(masked_pixel_reference),
             variance_floor_clamped_pixels=int(variance_floor_clamped_pixels[0]),
+            # SCALE-008 / TOOLING-VIS-001: Mapping-aware log-scale baseline telemetry
+            log_scale_baseline_source=log_scale_baseline_source,
+            spot_scale_override_adjustment_factor=spot_scale_override_adjustment_factor,
             # Canonical Stage A metadata propagated to downstream stages
             canonical_stage_label=canonical_baseline["stage_label"],
             canonical_chi_squared=canonical_baseline["chi_squared"],

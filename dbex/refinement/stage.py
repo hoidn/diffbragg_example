@@ -149,6 +149,9 @@ class RefinementTelemetry:
     # SCALE-008 / TOOLING-VIS-001: Mapping-aware log-scale baseline telemetry
     log_scale_baseline_source: Optional[str] = None
     spot_scale_override_adjustment_factor: Optional[float] = None
+    # TOOLING-VIS-001 Phase D.E: Masked-mean telemetry for Stage A baseline derivation
+    target_mean_masked: Optional[float] = None
+    model_mean_masked: Optional[float] = None
 
     # PHYSICS-LOSS-003: Canonical Stage A metadata
     canonical_stage_label: Optional[str] = None
@@ -238,6 +241,10 @@ class RefinementTelemetry:
             result["log_scale_baseline_source"] = self.log_scale_baseline_source
         if self.spot_scale_override_adjustment_factor is not None:
             result["spot_scale_override_adjustment_factor"] = self.spot_scale_override_adjustment_factor
+        if self.target_mean_masked is not None:
+            result["target_mean_masked"] = self.target_mean_masked
+        if self.model_mean_masked is not None:
+            result["model_mean_masked"] = self.model_mean_masked
 
         # Phase A4 extensions
         if self.stage_type is not None:

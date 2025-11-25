@@ -675,6 +675,9 @@ class RefinementTelemetry:
     # SCALE-008 / TOOLING-VIS-001: Mapping-aware log-scale baseline telemetry
     log_scale_baseline_source: Optional[str] = None  # Source of log_scale_baseline (mapping_global_scale_hint, spot_scale_override_sqrt, etc.)
     spot_scale_override_adjustment_factor: Optional[float] = None  # Adjustment factor when calibration was corrected for N_cells
+    # TOOLING-VIS-001 Phase D.E: Masked-mean telemetry for Stage A baseline derivation
+    target_mean_masked: Optional[float] = None  # Masked mean of target data used for log_scale_baseline
+    model_mean_masked: Optional[float] = None  # Masked mean of Stage A zero-iteration model used for log_scale_baseline
     # PHYSICS-LOSS-003: Canonical Stage A snapshot propagated to downstream stages
     canonical_stage_label: Optional[str] = None
     canonical_chi_squared: Optional[float] = None
@@ -1334,31 +1337,53 @@ def _build_stage_a_params(
     # Priority 1 (revised): When calibration was adjusted for N_cells, derive Stage A baseline
     # from warmed simulator output instead of using global_scale_hint directly (TOOLING-VIS-001 Phase E).
     # This ensures the baseline matches what the Stage A model actually produces at the mapping zero point.
+    target_mean_masked = None
+    model_mean_masked = None
     if stage_a_ctx is not None and config.calibration_metadata is not None:
         calibration_adjusted = config.calibration_metadata.get("calibration_adjusted_for_n_cells", False)
         if calibration_adjusted:
+            # Tensorize inputs.target and inputs.loss_mask onto stage_a_ctx.device for device-neutral computation
+            # (TOOLING-VIS-001 Phase D.E — keep dtype/device agnostic so CUDA runs remain supported)
+            target_t = None
+            loss_mask_t = None
+            if inputs.target is not None and inputs.loss_mask is not None:
+                try:
+                    target_t = torch.as_tensor(inputs.target, device=device, dtype=dtype)
+                    loss_mask_t = torch.as_tensor(inputs.loss_mask, device=device, dtype=torch.bool)
+                except Exception:
+                    # Device mismatch or conversion error; fall back to numpy path
+                    target_t = None
+                    loss_mask_t = None
+
             # Compute target mean from MASKED pixels (use actual target intensity, not global_scale_hint)
             # global_scale_hint is a relative scale factor, not an absolute intensity
-            target_mean = None
-            if inputs.target is not None:
-                target_mean = float(inputs.target[inputs.loss_mask].mean())
+            if target_t is not None and loss_mask_t is not None:
+                try:
+                    target_mean_masked = float(target_t[loss_mask_t].mean().item())
+                except Exception:
+                    # Fallback to numpy if tensor indexing fails
+                    target_mean_masked = float(inputs.target[inputs.loss_mask].mean())
 
             # Compute model mean from Stage A warmed simulators at delta=0
-            model_mean_stage_a = None
+            # Build zero-iteration Bragg stack from warmed simulators
             try:
                 with torch.no_grad():
                     bragg_samples = [simulator.run() for simulator in stage_a_ctx.simulators]
                     bragg_stack = torch.stack(bragg_samples, dim=0)
-                    # Compute masked mean to match target_mean computation
-                    model_mean_stage_a = float(bragg_stack[inputs.loss_mask].mean().item())
+                    # Compute masked mean to match target_mean computation (use tensorized mask)
+                    if loss_mask_t is not None:
+                        model_mean_masked = float(bragg_stack[loss_mask_t].mean().item())
+                    else:
+                        # Fallback to numpy mask if tensorization failed
+                        model_mean_masked = float(bragg_stack[inputs.loss_mask].mean().item())
             except Exception:
                 # Fall back to previous behavior if simulator forward fails
-                model_mean_stage_a = None
+                model_mean_masked = None
 
             # Compute log_scale_baseline from ratio (guard against invalid values)
-            if target_mean is not None and target_mean > 0 and model_mean_stage_a is not None and model_mean_stage_a > 0:
+            if target_mean_masked is not None and target_mean_masked > 0 and model_mean_masked is not None and model_mean_masked > 0:
                 try:
-                    log_scale_baseline = float(np.log(target_mean / model_mean_stage_a))
+                    log_scale_baseline = float(np.log(target_mean_masked / model_mean_masked))
                     log_scale_baseline_source = "mapping_global_scale_hint"
                     # Update stage_a_ctx so engine + inline callers share the same baseline telemetry
                     stage_a_ctx.log_scale_baseline = log_scale_baseline
@@ -1406,6 +1431,8 @@ def _build_stage_a_params(
         'log_scale_baseline': log_scale_baseline,  # Baseline from calibration (None if uncalibrated)
         'log_scale_baseline_source': log_scale_baseline_source,  # Source of baseline (TOOLING-VIS-001 Phase E)
         'spot_scale_override_adjustment_factor': spot_scale_override_adjustment_factor,  # N_cells adjustment factor (TOOLING-VIS-001 Phase E)
+        'target_mean_masked': target_mean_masked,  # Masked mean of target data (TOOLING-VIS-001 Phase D.E)
+        'model_mean_masked': model_mean_masked,  # Masked mean of Stage A zero-iteration model (TOOLING-VIS-001 Phase D.E)
         'log_scale': log_scale,
         'log_cell_a_delta': log_cell_a_delta,
         'log_cell_b_delta': log_cell_b_delta,

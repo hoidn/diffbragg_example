@@ -359,6 +359,9 @@ def test_db_at_028_loss_scale_sanity(stage_a_smoke_result):
         # SCALE-008 / TOOLING-VIS-001: Mapping-aware log-scale baseline telemetry
         "log_scale_baseline_source": telemetry.log_scale_baseline_source,
         "spot_scale_override_adjustment_factor": telemetry.spot_scale_override_adjustment_factor,
+        # TOOLING-VIS-001 Phase D.E: Masked-mean telemetry for Stage A baseline derivation
+        "target_mean_masked": telemetry.target_mean_masked,
+        "model_mean_masked": telemetry.model_mean_masked,
     }
     (artifact_dir / "db_at_028_metrics.json").write_text(json.dumps(metrics, indent=2))
 
@@ -443,6 +446,9 @@ def test_db_at_029_structure_parity(stage_a_smoke_result):
         # SCALE-008 / TOOLING-VIS-001: Mapping-aware log-scale baseline telemetry
         "log_scale_baseline_source": telemetry.log_scale_baseline_source,
         "spot_scale_override_adjustment_factor": telemetry.spot_scale_override_adjustment_factor,
+        # TOOLING-VIS-001 Phase D.E: Masked-mean telemetry for Stage A baseline derivation
+        "target_mean_masked": telemetry.target_mean_masked,
+        "model_mean_masked": telemetry.model_mean_masked,
     }
     (artifact_dir / "db_at_029_metrics.json").write_text(json.dumps(metrics, indent=2))
 

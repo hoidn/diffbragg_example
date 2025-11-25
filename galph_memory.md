@@ -696,3 +696,14 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-25T044016Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=0 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T044016Z/ next_action=unify_mapping_context_for_db_at_028_029
+
+## 2025-11-25T045456Z — TOOLING-VIS-001 Phase D.D Mapping Input Alignment Plan
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
+- Action Type: planning
+- Key Observations: Mapping ROI CC still diverges between the probe (CPU, refined/simple_cubic path ROI CC≈0.62) and the DB-AT-028/029 fixture (CUDA metadata-sigma path ROI CC≈-0.04). Root cause is likely dataset/device drift: probe uses build_dataload(refined.expt/refl) while the fixture uses smoke_dataset_paths metadata sigma assets and separate RefinementInputs. Prepared a ready-for-implementation Do Now to make both `compare_stage_a_mapping_parity.py` and `stage_a_smoke_result` consume the same mapping_context.inputs (metadata-sigma smoke dataset, DBEX_SMOKE_* env, nearest-neighbor HKL), reuse the same loss_mask/panel_slices/HKL/calibration, and persist mapping metrics even on failure. New artifacts dir: `plans/active/TOOLING-VIS-001/reports/2025-11-25T045456Z/`; input.md updated with CUDA probe + DB-AT-028/029 commands.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-25T045456Z/
+- Next Actions: Ralph implements the Do Now (align mapping inputs in probe + fixture), runs the CUDA parity probe and DB-AT-028/029 selectors, and records mapping ROI CC/scale metrics; if divergence remains, log signatures and mark TOOLING-VIS-001 blocked on mapping alignment.
+- <Action State>: [planning]
+
+2025-11-25T045456Z focus=TOOLING-VIS-001 state=planning dwell=1 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T045456Z/ next_action=align_mapping_inputs_probe_and_fixture

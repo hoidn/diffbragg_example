@@ -102,8 +102,11 @@ def refgeom_dataload(smoke_dataset_paths):
         - Geometry/mask assets always come from ``smoke_dataset_paths`` (small
           vs full). This fixture SHALL NOT silently substitute a different
           dataset.
-        - HKL source defaults to ``scaled.mtz`` in the repo root and MAY be
-          overridden via ``DBEX_SMOKE_HKL_PATH`` (absolute or repo-relative).
+        - HKL source precedence (per TOOLING-VIS-001 Phase D):
+          1. ``DBEX_SMOKE_HKL_PATH`` (absolute or repo-relative) when set
+          2. ``sp.proc/calibration/smoke_refined_structure_factors.mtz`` when
+             calibration config exists (calibrated refined MTZ default)
+          3. ``scaled.mtz`` in repo root (fallback when no calibration)
           The resolved path is stored on ``args.hkl_source_path`` so mapping
           helpers use the same HKL payload as the smoke dataset.
         - Calibration metadata: ``DBEX_SMOKE_CALIB_PATH`` (env var) takes
@@ -117,28 +120,37 @@ def refgeom_dataload(smoke_dataset_paths):
 
     repo_root = Path(__file__).parent.parent.parent
 
-    # Honor DBEX_SMOKE_HKL_PATH env var for HKL source selection
-    hkl_source_env = os.environ.get("DBEX_SMOKE_HKL_PATH", "scaled.mtz")
-    if not Path(hkl_source_env).is_absolute():
-        hkl_source_path = repo_root / hkl_source_env
-    else:
-        hkl_source_path = Path(hkl_source_env)
-
     # Honor DBEX_SMOKE_CALIB_PATH env var for calibration config
     # Default to sp.proc/calibration/config_torch_smoke.json when present (TOOLING-VIS-001 Phase D.C)
     calib_source_env = os.environ.get("DBEX_SMOKE_CALIB_PATH")
     calibration_config_path = None
+    smoke_calib_default = repo_root / "sp.proc" / "calibration" / "config_torch_smoke.json"
     if calib_source_env is not None:
         # Explicit env var takes precedence
         if not Path(calib_source_env).is_absolute():
             calibration_config_path = str(repo_root / calib_source_env)
         else:
             calibration_config_path = str(Path(calib_source_env))
-    else:
+    elif smoke_calib_default.exists():
         # Default to smoke calibration config when present
-        smoke_calib_default = repo_root / "sp.proc" / "calibration" / "config_torch_smoke.json"
-        if smoke_calib_default.exists():
-            calibration_config_path = str(smoke_calib_default)
+        calibration_config_path = str(smoke_calib_default)
+
+    # Resolve HKL path: honor DBEX_SMOKE_HKL_PATH, else default to refined MTZ when calibration exists
+    # Per TOOLING-VIS-001 Phase D: refined structure factors must accompany calibration metadata
+    hkl_source_env = os.environ.get("DBEX_SMOKE_HKL_PATH")
+    default_refined_mtz = repo_root / "sp.proc" / "calibration" / "smoke_refined_structure_factors.mtz"
+    if hkl_source_env is not None:
+        # Explicit env var takes precedence
+        if not Path(hkl_source_env).is_absolute():
+            hkl_source_path = repo_root / hkl_source_env
+        else:
+            hkl_source_path = Path(hkl_source_env)
+    elif calibration_config_path and default_refined_mtz.exists():
+        # When calibration metadata is present, default to refined structure factors
+        hkl_source_path = default_refined_mtz
+    else:
+        # Fall back to raw scaled.mtz
+        hkl_source_path = repo_root / "scaled.mtz"
 
     # DataLoad always uses scaled.mtz for experimental data
     args = Namespace(

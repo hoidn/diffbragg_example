@@ -226,6 +226,15 @@ def build_mapping_stage_a_context(
     except (TypeError, ValueError):
         spot_scale_used = None
 
+    # Mirror nested hkl_telemetry to top-level diagnostics for Stage A smoke selectors (TOOLING-VIS-001)
+    # This allows DB-AT-028/029 to read hkl_source/hkl_path directly without nested dict access
+    hkl_telemetry = diagnostics.get("hkl_telemetry", {})
+    if hkl_telemetry:
+        if "hkl_source" not in diagnostics:
+            diagnostics["hkl_source"] = hkl_telemetry.get("hkl_source")
+        if "hkl_path" not in diagnostics:
+            diagnostics["hkl_path"] = hkl_telemetry.get("hkl_path")
+
     return MappingStageAContext(
         inputs=inputs,
         bragg_zero_iter=bragg_zero_iter,

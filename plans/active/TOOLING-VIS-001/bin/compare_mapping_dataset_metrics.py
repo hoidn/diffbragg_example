@@ -88,6 +88,7 @@ def define_cases() -> Dict[str, Dict[str, str]]:
     - When sigma_source=metadata, resolves sigma_map_path from DBEX_SMOKE_SIGMA_MAP_PATH
       or defaults to the appropriate cropped/full sigma tiles.
     - Geometry path stays canonical (not swapped to idx-0000_sigma_metadata.expt).
+    - HKL defaults to refined MTZ when calibration is present (TOOLING-VIS-001 Phase D).
 
     Returns:
         Dictionary mapping case_name -> {expt, refl, mask, hkls, calibration, sigma_map}
@@ -131,13 +132,27 @@ def define_cases() -> Dict[str, Dict[str, str]]:
             else:
                 sigma_map_path = repo / "sp.proc" / "idx-0000_sigma_metadata.sigma_tiles.pkl"
 
+    # Helper: resolve HKL path based on calibration presence (per TOOLING-VIS-001 Phase D)
+    # When calibration is provided, default to refined MTZ; otherwise use scaled.mtz
+    def resolve_hkl_for_calibration(calibration_path: Optional[str]) -> str:
+        hkl_override = os.environ.get("DBEX_SMOKE_HKL_PATH")
+        if hkl_override:
+            return str(repo / hkl_override) if not Path(hkl_override).is_absolute() else hkl_override
+        default_refined_mtz = repo / "sp.proc" / "calibration" / "smoke_refined_structure_factors.mtz"
+        if calibration_path and default_refined_mtz.exists():
+            return str(default_refined_mtz)
+        return str(repo / "scaled.mtz")
+
+    # Define smoke calibration path for helper
+    smoke_calib_path = str(repo / "sp.proc" / "calibration" / "config_torch_smoke.json")
+
     cases = {
         # Metadata-sigma cases: use external sigma tiles when DBEX_SMOKE_SIGMA_SOURCE=metadata
         "metadata_raw": {
             "expt": str(geom_path),
             "refl": str(refl_path),
             "mask": str(mask_path),
-            "hkls": str(repo / "scaled.mtz"),
+            "hkls": resolve_hkl_for_calibration(None),  # No calibration → scaled.mtz
             "calibration": None,  # No calibration for raw case
             "sigma_map": str(sigma_map_path) if sigma_map_path else None,
             "sigma_source": "metadata",
@@ -146,8 +161,8 @@ def define_cases() -> Dict[str, Dict[str, str]]:
             "expt": str(geom_path),
             "refl": str(refl_path),
             "mask": str(mask_path),
-            "hkls": str(repo / "scaled.mtz"),
-            "calibration": str(repo / "sp.proc" / "calibration" / "config_torch_smoke.json"),
+            "hkls": resolve_hkl_for_calibration(smoke_calib_path),  # With calib → refined MTZ (when exists)
+            "calibration": smoke_calib_path,
             "sigma_map": str(sigma_map_path) if sigma_map_path else None,
             "sigma_source": "metadata",
         },
@@ -156,7 +171,7 @@ def define_cases() -> Dict[str, Dict[str, str]]:
             "expt": str(geom_path),
             "refl": str(refl_path),
             "mask": str(mask_path),
-            "hkls": str(repo / "scaled.mtz"),
+            "hkls": resolve_hkl_for_calibration(None),  # No calibration → scaled.mtz
             "calibration": None,  # No calibration for raw case
             "sigma_map": None,  # Explicitly drop sigma_map for CLI override
             "sigma_source": "cli_override",
@@ -165,8 +180,8 @@ def define_cases() -> Dict[str, Dict[str, str]]:
             "expt": str(geom_path),
             "refl": str(refl_path),
             "mask": str(mask_path),
-            "hkls": str(repo / "scaled.mtz"),
-            "calibration": str(repo / "sp.proc" / "calibration" / "config_torch_smoke.json"),
+            "hkls": resolve_hkl_for_calibration(smoke_calib_path),  # With calib → refined MTZ (when exists)
+            "calibration": smoke_calib_path,
             "sigma_map": None,  # Explicitly drop sigma_map for CLI override
             "sigma_source": "cli_override",
         },
@@ -175,7 +190,7 @@ def define_cases() -> Dict[str, Dict[str, str]]:
             "expt": str(geom_path),
             "refl": str(refl_path),
             "mask": str(mask_path),
-            "hkls": str(repo / "scaled.mtz"),
+            "hkls": resolve_hkl_for_calibration(None),  # No calibration → scaled.mtz
             "calibration": None,  # Calibration explicitly disabled for raw case
             "sigma_map": str(sigma_map_path) if sigma_map_path else None,
             "sigma_source": sigma_source,
@@ -184,8 +199,8 @@ def define_cases() -> Dict[str, Dict[str, str]]:
             "expt": str(geom_path),
             "refl": str(refl_path),
             "mask": str(mask_path),
-            "hkls": str(repo / "scaled.mtz"),
-            "calibration": str(repo / "sp.proc" / "calibration" / "config_torch_smoke.json"),
+            "hkls": resolve_hkl_for_calibration(smoke_calib_path),  # With calib → refined MTZ (when exists)
+            "calibration": smoke_calib_path,
             "sigma_map": str(sigma_map_path) if sigma_map_path else None,
             "sigma_source": sigma_source,
         },
@@ -202,8 +217,8 @@ def define_cases() -> Dict[str, Dict[str, str]]:
             "expt": str(geom_path),
             "refl": str(refl_path),
             "mask": str(mask_path),
-            "hkls": str(repo / "scaled.mtz"),
-            "calibration": str(repo / "sp.proc" / "calibration" / "config_torch_smoke.json"),
+            "hkls": str(repo / "scaled.mtz"),  # Explicit override to keep scaled despite calibration
+            "calibration": smoke_calib_path,
             "sigma_map": str(sigma_map_path) if sigma_map_path else None,
             "sigma_source": sigma_source,
         },

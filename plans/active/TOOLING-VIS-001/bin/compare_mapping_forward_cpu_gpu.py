@@ -323,12 +323,19 @@ def main():
         if smoke_calib_default.exists():
             calibration_config_path = str(smoke_calib_default)
 
-    # Resolve HKL path with priority: CLI > DBEX_SMOKE_HKL_PATH > scaled.mtz
-    # This determines which HKL source to use (scaled or refined)
+    # Resolve HKL path with priority: CLI > DBEX_SMOKE_HKL_PATH > refined (when calibration exists) > scaled.mtz
+    # This determines which HKL source to use (per TOOLING-VIS-001 Phase D)
     if args.mtz_path is not None:
         hkl_path_arg = args.mtz_path
+    elif os.environ.get("DBEX_SMOKE_HKL_PATH"):
+        hkl_path_arg = os.environ.get("DBEX_SMOKE_HKL_PATH")
     else:
-        hkl_path_arg = os.environ.get("DBEX_SMOKE_HKL_PATH", "scaled.mtz")
+        # Default to refined MTZ when calibration config exists
+        default_refined_mtz = repo_root / "sp.proc" / "calibration" / "smoke_refined_structure_factors.mtz"
+        if calibration_config_path and default_refined_mtz.exists():
+            hkl_path_arg = str(default_refined_mtz)
+        else:
+            hkl_path_arg = "scaled.mtz"
 
     # Resolve relative to repo root
     if not Path(hkl_path_arg).is_absolute():

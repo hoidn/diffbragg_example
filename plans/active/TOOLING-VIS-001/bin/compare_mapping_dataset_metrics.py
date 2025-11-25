@@ -81,15 +81,16 @@ def _roi_correlations(
 def define_cases() -> Dict[str, Dict[str, str]]:
     """Define preset dataset cases with explicit HKL/calibration paths.
 
-    Mirrors the logic from tests/conftest.py::smoke_dataset_paths:
-    - When sigma_source=metadata with small detector, uses full dataset paths
-      (refGeom.expt/refl at repo root) but the idx-0000_sigma_metadata.expt
-      for sigma tiles.
-    - For other configs, follows detector_size selection.
+    Mirrors the logic from tests/conftest.py::smoke_dataset_paths and refgeom_dataload:
+    - Uses DBEX_SMOKE_GEOM_PATH override or defaults to canonical geometry paths
+      (refGeom_small.expt for small detector, refGeom.expt otherwise).
+    - When sigma_source=metadata, resolves sigma_map_path from DBEX_SMOKE_SIGMA_MAP_PATH
+      or defaults to the appropriate cropped/full sigma tiles.
+    - Geometry path stays canonical (not swapped to idx-0000_sigma_metadata.expt).
 
     Returns:
-        Dictionary mapping case_name -> {expt, refl, mask, hkls, calibration}
-        paths (all absolute or repo-relative).
+        Dictionary mapping case_name -> {expt, refl, mask, hkls, calibration, sigma_map}
+        paths (all absolute or repo-relative). sigma_map is None when not applicable.
     """
     # Use repo root for resolving relative paths
     repo = repo_root
@@ -98,44 +99,53 @@ def define_cases() -> Dict[str, Dict[str, str]]:
     detector_size = os.environ.get("DBEX_SMOKE_DETECTOR_SIZE", "small")
     sigma_source = os.environ.get("DBEX_SMOKE_SIGMA_SOURCE", "override")
 
-    # Per tests/conftest.py::smoke_dataset_paths logic:
-    # metadata + small → full dataset paths
-    if sigma_source == "metadata" and detector_size == "small":
-        expt_name = "idx-0000_sigma_metadata.expt"
-        refl_name = "refGeom.refl"
-        mask_name = "747_mask.pkl"
-        expt_base = repo / "sp.proc"
-        refl_base = repo
-        mask_base = repo
+    # Resolve canonical geometry path from env or defaults (per conftest.py:89-96)
+    geom_path_override = os.environ.get("DBEX_SMOKE_GEOM_PATH")
+    if geom_path_override:
+        geom_path = repo / geom_path_override
     elif detector_size == "small":
-        expt_name = "refGeom_small.expt"
-        refl_name = "refGeom_small.refl"
-        mask_name = "refGeom_small_mask.pkl"
-        expt_base = repo / "sp.proc" / "refGeom_small"
-        refl_base = expt_base
-        mask_base = expt_base
+        geom_path = repo / "sp.proc" / "refGeom_small" / "refGeom_small.expt"
     else:
-        expt_name = "refGeom.expt"
-        refl_name = "refGeom.refl"
-        mask_name = "747_mask.pkl"
-        expt_base = repo
-        refl_base = repo
-        mask_base = repo
+        geom_path = repo / "refGeom.expt"
+
+    # Resolve reflections and mask paths based on detector size (per conftest.py:98-107)
+    if detector_size == "small":
+        base = repo / "sp.proc" / "refGeom_small"
+        refl_path = base / "refGeom_small.refl"
+        mask_path = base / "refGeom_small_mask.pkl"
+    else:
+        refl_path = repo / "refGeom.refl"
+        mask_path = repo / "747_mask.pkl"
+
+    # Resolve sigma-map path when metadata source is requested (per conftest.py:109-130)
+    sigma_map_path = None
+    if sigma_source == "metadata":
+        sigma_map_override = os.environ.get("DBEX_SMOKE_SIGMA_MAP_PATH")
+        if sigma_map_override:
+            sigma_map_path = repo / sigma_map_override
+        else:
+            # Default to cropped sigma-map for small detector, full sigma-map otherwise
+            if detector_size == "small":
+                sigma_map_path = repo / "sp.proc" / "refGeom_small" / "idx-0000_sigma_metadata_small.sigma_tiles.pkl"
+            else:
+                sigma_map_path = repo / "sp.proc" / "idx-0000_sigma_metadata.sigma_tiles.pkl"
 
     cases = {
         "metadata_scaled": {
-            "expt": str(expt_base / expt_name),
-            "refl": str(refl_base / refl_name),
-            "mask": str(mask_base / mask_name),
+            "expt": str(geom_path),
+            "refl": str(refl_path),
+            "mask": str(mask_path),
             "hkls": str(repo / "scaled.mtz"),
             "calibration": str(repo / "sp.proc" / "calibration" / "config_torch_smoke.json"),
+            "sigma_map": str(sigma_map_path) if sigma_map_path else None,
         },
         "metadata_refined": {
-            "expt": str(expt_base / expt_name),
-            "refl": str(refl_base / refl_name),
-            "mask": str(mask_base / mask_name),
+            "expt": str(geom_path),
+            "refl": str(refl_path),
+            "mask": str(mask_path),
             "hkls": str(repo / "tests" / "fixtures" / "golden_data" / "simple_cubic" / "refined_structure_factors.mtz"),
             "calibration": str(repo / "tests" / "fixtures" / "golden_data" / "simple_cubic" / "config_torch.json"),
+            "sigma_map": str(sigma_map_path) if sigma_map_path else None,
         },
     }
     return cases
@@ -145,12 +155,17 @@ def build_dataload_for_case(case_spec: Dict[str, str], sigma_source: str = "meta
     """Build a DataLoad instance for a specific case configuration.
 
     Args:
-        case_spec: dict with keys {expt, refl, mask, hkls, calibration}
+        case_spec: dict with keys {expt, refl, mask, hkls, calibration, sigma_map}
         sigma_source: "metadata" or "override" (from DBEX_SMOKE_SIGMA_SOURCE)
-                      (currently informational only; DataLoad handles sigma automatically)
 
     Returns:
         DataLoad instance configured for this case
+
+    Per tests/conftest.py::refgeom_dataload (lines 224-237):
+    - When sigma_source=="metadata" and case_spec["sigma_map"] is present,
+      pass it through args.sigma_map so DataLoad loads external sigma tiles
+      instead of relying on experiment metadata alone.
+    - Keep HKL and calibration overrides per case (no swapping experiments).
     """
     # Detect MTZ column labels: refined structure factors use Bijvoet pairs
     hkl_path_obj = Path(case_spec["hkls"])
@@ -175,9 +190,12 @@ def build_dataload_for_case(case_spec: Dict[str, str], sigma_source: str = "meta
         # Override HKL and calibration paths per case
         hkl_source_path=case_spec["hkls"],
         calibration_config_path=case_spec["calibration"],
+        # Pass sigma_map through when available (per conftest.py:231)
+        sigma_map=case_spec.get("sigma_map"),
+        config_path=case_spec["calibration"],  # Alias for calibration_config_path
     )
 
-    # Build DataLoad (sigma handling is automatic based on metadata)
+    # Build DataLoad (sigma handling via args.sigma_map when metadata source)
     dataload = DataLoad(args)
 
     return dataload

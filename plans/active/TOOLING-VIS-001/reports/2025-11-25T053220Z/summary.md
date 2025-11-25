@@ -1,5 +1,5 @@
 ### Turn Summary
-Aligned next steps around a CPU vs CUDA mapping-forward probe to pinpoint why DB-AT-028/029 mapping ROI CC is ≈-0.04 on the metadata-sigma smoke dataset.
-Captured the GPU mapping failure signature (roi_cc_median_mapping≈-0.04, scale_ratio≈3e-03, chi2/pixel≈1.08e5) and recorded it in fix_plan + input with the new artifacts root.
-Next: Ralph implements the CPU/GPU parity probe script and reruns DB-AT-028/029 with canonical env, logging CPU↔CUDA deltas.
-Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-25T053220Z/
+Implemented compare_mapping_forward_cpu_gpu.py probe that builds mapping contexts on CPU and CUDA devices, computed ROI correlations and intensity scale ratios, and captured CPU↔GPU parity metrics (mean_abs_diff=4.5e-05 ADU, max_abs_diff=74.4 ADU, roi_cc_diff=3.5e-06).
+The CPU/GPU mapping forward passes show excellent parity (max 74 ADU diff in peak intensities); however, both produce negative median ROI CCs (~-0.04), confirming a systematic mapping configuration issue orthogonal to device differences.
+DB-AT-028/029 selectors collected successfully (2/2 tests) but failed with chi²/pixel=1.084e+05 (spec requires ≤1e2), validating the known Stage A vs mapping divergence requires calibration/HKL realignment before acceptance gates pass.
+Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-25T053220Z/ (mapping_cpu_gpu/mapping_forward_cpu_gpu.json, mapping_cpu_gpu/probe.log, pytest_db_at_028_029.log, pytest_db_at_028_029_collect.log, db_at_028/db_at_028_metrics.json, db_at_029/db_at_029_metrics.json)

@@ -1,59 +1,62 @@
-Summary: Quantify geometry deltas between refGeom and refined experiments so we can explain the Stage A mapping failure before touching production code.
+Summary: Reuse the canonical refGeom geometry (even when metadata sigma tiles are requested) so Stage A mapping and DB-AT-028/029 stop inheriting the ~1° refined-orientation drift that drives ROI anti-correlation.
 Mode: Parity
 Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
 Branch: integration
 Mapped tests: tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029"
-Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-25T103500Z/
+Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-25T113500Z/
 
 Do Now
-- Implement: plans/active/TOOLING-VIS-001/bin/compare_geometry_zero_points.py::main — introduce a T2 analysis script that loads named experiment cases (default: refgeom.expt, sp.proc/idx-0000_refined.expt, tests/fixtures/golden_data/simple_cubic/refined.expt), extracts unit cells, U/B/A* matrices, detector distance/beam center/axes, and beam vectors via dxtbx, then emits both per-case metrics and pairwise deltas vs the base case into <artifacts>/geometry_deltas/geometry_deltas.json so we can see how far the canonical geometry has drifted.
-- Validate: (1) AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_CALIB_PATH=sp.proc/calibration/config_torch_smoke.json DBEX_SMOKE_HKL_PATH=scaled.mtz KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python plans/active/TOOLING-VIS-001/bin/compare_geometry_zero_points.py --cases refgeom idx_refined golden_refined --out-dir plans/active/TOOLING-VIS-001/reports/2025-11-25T103500Z/geometry_deltas | tee plans/active/TOOLING-VIS-001/reports/2025-11-25T103500Z/geometry_deltas/compare_geometry_zero_points.log; (2) same env pytest --collect-only tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" | tee plans/active/TOOLING-VIS-001/reports/2025-11-25T103500Z/pytest_db_at_028_029_collect.log (stop if <2 tests collect); (3) same env plus DBAT028_ARTIFACT_DIR/DBAT029_ARTIFACT_DIR pointing at the new artifacts run pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" | tee plans/active/TOOLING-VIS-001/reports/2025-11-25T103500Z/pytest_db_at_028_029.log and archive refreshed db_at_028/db_at_028_metrics.json + db_at_029/db_at_029_metrics.json even though the selectors still fail.
+- Implement: tests/conftest.py::refgeom_dataload — decouple sigma sourcing from geometry by introducing `DBEX_SMOKE_GEOM_PATH` (defaults to the refGeom/refGeom_small experiments) and `DBEX_SMOKE_SIGMA_MAP_PATH` so metadata sigma tiles feed `DataLoad.args.sigma_map` instead of swapping in `sp.proc/idx-0000_refined.expt`; copy the canonical detector/beam/crystal onto the DataLoad when the loaded experiment’s U-matrix disagrees (>5e-4 rad) and record the resolved geometry path + rotation delta in the mapping/stage_a diagnostics.
+- Validate: (1) AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_SIGMA_MAP_PATH=sp.proc/idx-0000_sigma_metadata.sigma_tiles.pkl DBEX_SMOKE_GEOM_PATH=sp.proc/refGeom_small/refGeom_small.expt DBEX_SMOKE_CALIB_PATH=sp.proc/calibration/config_torch_smoke.json DBEX_SMOKE_HKL_PATH=scaled.mtz KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python plans/active/TOOLING-VIS-001/bin/compare_mapping_forward_cpu_gpu.py --out-dir plans/active/TOOLING-VIS-001/reports/2025-11-25T113500Z/mapping_cpu_gpu_canonical | tee plans/active/TOOLING-VIS-001/reports/2025-11-25T113500Z/mapping_cpu_gpu_canonical/probe.log; (2) same env pytest --collect-only tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" | tee plans/active/TOOLING-VIS-001/reports/2025-11-25T113500Z/pytest_db_at_028_029_collect.log (stop if <2 tests); (3) same env plus DBAT028_ARTIFACT_DIR=plans/active/TOOLING-VIS-001/reports/2025-11-25T113500Z/db_at_028 DBAT029_ARTIFACT_DIR=plans/active/TOOLING-VIS-001/reports/2025-11-25T113500Z/db_at_029 pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" | tee plans/active/TOOLING-VIS-001/reports/2025-11-25T113500Z/pytest_db_at_028_029.log and archive refreshed metrics JSONs showing mapping ROI CC ≥0.2.
 
 How-To Map
-1) Export DBEX_SMOKE_SIGMA_SOURCE=metadata, DBEX_SMOKE_DETECTOR_SIZE=small, DBEX_SMOKE_CALIB_PATH=sp.proc/calibration/config_torch_smoke.json, DBEX_SMOKE_HKL_PATH=scaled.mtz, KMP_DUPLICATE_LIB_OK=TRUE, and NANOBRAGG_DISABLE_COMPILE=1 for every command so the geometry probe and DB-AT selectors share inputs.
-2) Write compare_geometry_zero_points.py with argparse (--cases, --out-dir, optional --base-case) that defines default cases (refgeom, idx_refined, golden_refined) pointing at the canonical refGeom assets, sp.proc/idx-0000_refined.expt, and tests/fixtures/golden_data/simple_cubic/refined.expt respectively; allow overrides via env/CLI so future loops can drop in additional cases.
-3) For each case, load the experiment via dxtbx, extract unit cell (a,b,c,alpha,beta,gamma), orientation matrix U, B matrix, derived A*=U@B (store flattened 3x3 values), beam vector, detector distance, beam center (fast/slow mm), panel normal/fast/slow axes, and crystal setting angles; record everything as doubles to avoid rounding noise.
-4) Compute pairwise deltas vs the base case (default refgeom) for each metric: absolute/relative differences for cell edges/angles, Frobenius norm of U/A* deltas plus implied rotation angle (use scipy/np.linalg.svd or scitbx.matrix to get angle), beam center shifts, detector distance deltas, and panel normal dot-products. Store these in a "deltas" section of geometry_deltas.json alongside a markdown summary for the report directory.
-5) Run the script with AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md and tee stdout to geometry_deltas/compare_geometry_zero_points.log. Ensure the JSON and a short summary.md in the same folder explain which geometry differs most and by how much.
-6) With the same env, run pytest --collect-only for DB-AT-028/029 (fail fast if fewer than 2 tests collect), then run the full pytest command so artifacts capture the current failure signature tied to this geometry analysis.
+1) Export the env block shown above (GEOM path points at refGeom_small when using the small detector; use refGeom.expt if you switch to full) so both the mapping probe and pytest see the same canonical geometry, sigma tiles, HKL file, and calibration bundle.
+2) Update `smoke_dataset_paths` to stop mutating `expt_path` when `smoke_sigma_source=="metadata"`; instead resolve the sigma-map path (env override or default `sp.proc/idx-0000_sigma_metadata.sigma_tiles.pkl`), validate it exists, and stash it on the dataclass so `refgeom_dataload` can pass it through `args.sigma_map`.
+3) In `refgeom_dataload`, load the canonical experiment from `DBEX_SMOKE_GEOM_PATH` after instantiating `DataLoad`, compute the rotation angle between `dataload.Expt.crystal.get_U()` and the canonical U (use the helper from `compare_geometry_zero_points.py`), and when the angle exceeds 5e-4 rad (or any detector origin differs), overwrite `dataload.Expt`, `dataload.detector`, `dataload.beam`, and `dataload.crystal` with deep copies from the canonical experiment; keep the original DataLoad data/background arrays as-is.
+4) Persist the resolved `geometry_path` and measured `rotation_delta_deg` into both the mapping context diagnostics (`emit_mapping_context_diagnostics`) and the DB-AT-028/029 metrics JSONs right next to the existing `dataset_paths` block so regressions are obvious.
+5) Re-run `compare_mapping_forward_cpu_gpu.py --out-dir .../mapping_cpu_gpu_canonical` and confirm ROI CC/scale ratios now match between CPU/GPU and show positive correlation; stash the JSON + log under the new artifacts directory.
+6) Re-run pytest collect + full DB-AT-028/029 under the canonical env so refreshed metrics/telemetry demonstrate whether the geometry fix restored chi²/ROI behavior; stop early if select count <2 and report the gap in summary.md.
 
 Pitfalls To Avoid
-- Do not treat the large spot_scale_override (~3e17) as a bug again; golden configs use the same magnitude.
-- Keep all geometry math in double precision so tiny rotations (<1e-4 rad) are measurable; avoid casting to float32.
-- When computing deltas, compare everything in the same coordinate frame (e.g., use normalized rotation matrices before taking differences).
-- Do not mutate the experiment objects or write back changes; this script MUST remain read-only analysis.
-- Ensure the script gracefully reports missing cases or assets (e.g., idx_refined may be absent) and still emits partial results.
-- Preserve the CONFORMANCE-001 artifact policy: archive logs/JSON even though pytest fails.
+- Do not mutate production `dbex.*` modules outside the smoke fixture plumbing; this fix belongs entirely in the test/helpers layer.
+- Keep geometry comparisons in double precision; casting to float32 will hide the 0.95° drift we’re chasing.
+- Preserve the existing metadata skip behavior: if the sigma-map pickle is missing, skip the selectors with a clear message instead of falling back silently to refined geometry.
+- Thread canonical paths through diagnostics verbatim; do not resolve symlinks or strip prefixes, otherwise Attempts History cannot match future logs.
+- Make sure the mapping probe uses the same `DBEX_SMOKE_GEOM_PATH` and sigma-map overrides as pytest; mixed settings will reintroduce false mismatches.
+- Never delete or overwrite `sp.proc/idx-0000_sigma_metadata.expt`; the manifest documents it for reproducibility even if we no longer consume it directly.
+- Respect Environment Freeze: no pip installs or conda tweaks while editing fixtures.
+- Keep ROI-mask logic untouched; only geometry/sigma sourcing should change this loop.
+- Do not downgrade the DB-AT gates; we need chi² ≤1e2 and ROI CC ≥0.2 once geometry is corrected.
+- Remember to capture the new diagnostics into artifacts even if commands still fail.
 
 If Blocked
-- If any experiment file is missing or ExperimentList fails to load, capture the traceback in compare_geometry_zero_points.log, write a short blocker note in summary.md, and stop before running pytest.
-- If pytest --collect-only drops below 2 tests, attach the collect log, call out the missing selector, and do not run the full tests until the fixture issue is resolved.
+- If the sigma-map pickle is missing, capture the `FileNotFoundError` in summary.md, update docs/fix_plan.md Attempts History with the missing asset note, and stop after pytest --collect-only (selectors should skip cleanly).
+- If the canonical geometry override still reports <5e-4° delta, document the measurements in mapping_cpu_gpu_canonical/mapping_forward_cpu_gpu.json and hold off on code changes until we gather more evidence.
 
 Findings Applied (Mandatory)
-- STAGEA-001 — Geometry probe must reuse the canonical Stage A/mapping assets so telemetry stays comparable.
-- GEOMETRY-003 — Zero-point analysis has to respect the incremental UB baseline defined there.
-- GEOMETRY-004 — Orientation deltas must be expressed in the same incremental UB framework so future fixes map cleanly onto Stage A.
-- CONFORMANCE-001 — Even in failure we archive DB-AT artifacts verbatim; reruns must follow docs/spec-db-conformance.md.
-- POLICY-001 — Read-only analysis only; no environment mutations or new dependencies.
+- STAGEA-001 — Stage A/mapping artifacts must share identical inputs; canonical geometry override enforces this.
+- GEOMETRY-003 — Zero-point alignment uses the incremental UB baseline, so overrides must copy the baseline crystal exactly.
+- GEOMETRY-004 — Orientation deltas have to be measured/recorded so future UB realignment work can reason about them.
+- CONFORMANCE-001 — DB-AT selectors still archive metrics/logs even when they fail during this fix.
 
 Pointers
-- docs/data_dependency_manifest.md:1 — Canonical list of Stage A/mapping assets and overrides.
-- docs/spec-db-conformance.md:280 — DB-AT-028/029 acceptance rules we’re still violating.
-- docs/TESTING_GUIDE.md:94 — Metadata sigma/Calib instructions for Stage smoke selectors.
-- plans/active/TOOLING-VIS-001/implementation.md §Phase D — Context for the mapping alignment objectives and zero-point requirements.
-- plans/active/TOOLING-VIS-001/reports/2025-11-25T093500Z/summary.md — Latest evidence that HKL/calibration swaps do not change the failure signature.
+- docs/data_dependency_manifest.md:1 — Lists the Stage A smoke dataset inputs we’re updating (sigma map vs geometry separation).
+- tests/conftest.py:72 — smoke_dataset_paths/refgeom_dataload helpers that swap experiments today.
+- plans/active/TOOLING-VIS-001/bin/compare_geometry_zero_points.py:1 — Reference rotation-angle math reused for the guard.
+- plans/active/TOOLING-VIS-001/reports/2025-11-25T103500Z/summary.md — Geometry delta evidence motivating this fix.
+- docs/TESTING_GUIDE.md:94 — Canonical env vars for DB-AT-028/029 (sigma/calibration ladder expectations).
 
 Next Up (optional)
-- If geometry deltas identify a dominant drift (e.g., detector translation or U-matrix rotation), sketch the minimal refGeom update required so Stage A zero-point parity can be revalidated.
+- If geometry override succeeds, resurrect `compare_mapping_dataset_metrics.py` to compare refGeom vs refined MTZ combos under the fixed geometry to pinpoint remaining scale issues.
 
 Doc Sync Plan (Conditional)
-- None — we’re not adding or renaming selectors this loop.
+- None — no new selectors; update docs/data_dependency_manifest.md inline with the code changes above.
 
 Mapped Tests Guardrail
-- Run pytest --collect-only for DB-AT-028/029 with the metadata env before the full run; abort implementation if fewer than 2 tests collect.
+- Abort immediately if pytest --collect-only for DB-AT-028/029 returns fewer than 2 tests; fix the fixture/file paths before rerunning the full selectors.
 
 Hard Gate
-- Do not mark the loop complete until geometry_deltas.json + summary.md exist and DB-AT-028/029 artifacts under plans/active/TOOLING-VIS-001/reports/2025-11-25T103500Z/ reflect the latest failure signature.
+- Do not call the loop done unless mapping_cpu_gpu_canonical/mapping_forward_cpu_gpu.json shows ROI CC ≥0.2 and the DB-AT-028/029 metrics JSONs capture the geometry override metadata (paths + rotation delta) alongside the improved chi²/CC measurements.
 
 Normative Math/Physics
-- Reference docs/spec-db-core.md §§82-92 when interpreting any ROI or chi-squared metrics that accompany the geometry analysis; do not restate the math in prose.
+- Reference docs/spec-db-core.md §§82‑92 for the variance-weighted chi² and ROI correlation definitions when interpreting the refreshed diagnostics; do not restate the formulas in prose.

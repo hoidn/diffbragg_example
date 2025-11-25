@@ -931,3 +931,14 @@ This is the **single most important diagnostic** to run before any other TOOLING
 - <Action State>: [ready_for_implementation]
 
 2025-11-25T103500Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=0 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T103500Z/ next_action=compare_geometry_zero_points_probe
+
+## 2025-11-25T113500Z — TOOLING-VIS-001 Canonical Geometry Override Plan
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
+- Action Type: planning
+- Key Observations: Geometry probe (plans/active/TOOLING-VIS-001/reports/2025-11-25T103500Z/geometry_deltas/) quantified ≈0.95° rotation between refGeom and refined experiments, and DB-AT-028/029 artifacts show the smoke fixtures swap in `sp.proc/idx-0000_sigma_metadata.expt` whenever metadata sigma is requested, while reflections/masks remain on the original refGeom bundle. This hybrid sourcing explains the persistent ROI CC≈-0.04 despite HKL/calibration parity. We need to decouple sigma tiles from geometry so DataLoad always reuses the canonical refGeom geometry (or an explicit override) and records the resulting rotation delta in diagnostics.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-25T113500Z/
+- Next Actions: Ralph updates tests/conftest.py fixtures with `DBEX_SMOKE_GEOM_PATH`/`DBEX_SMOKE_SIGMA_MAP_PATH`, forces DataLoad to copy the canonical detector/beam/crystal when drift is detected, logs the geometry override, and reruns the mapping probe plus DB-AT-028/029 under the canonical env.
+- <Action State>: [ready_for_implementation]
+
+2025-11-25T113500Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=1 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T113500Z/ next_action=canonical_geometry_override_and_db_at_028_029

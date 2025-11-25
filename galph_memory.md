@@ -1048,3 +1048,14 @@ This is the **single most important diagnostic** to run before any other TOOLING
 - <Action State>: [planning]
 
 2025-11-25T114730Z focus=TOOLING-VIS-001 state=planning dwell=1 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T114730Z/ next_action=fix_scale_chain_probe_and_rerun_db_at_028_029
+
+## 2025-11-25T180000Z — TOOLING-VIS-001 compare_mapping_dataset_metrics parity planning
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
+- Action Type: planning
+- Key Observations: The mapping dataset comparison probe still swaps to `idx-0000_sigma_metadata.expt` when sigma_source=metadata and never threads the cropped sigma-map or DBEX_SMOKE_GEOM_PATH overrides, so its evidence diverges from the refGeom-based Stage A fixtures. Updated input.md to target `compare_mapping_dataset_metrics.py`, mirroring the new canonical geometry/sigma plumbing and re-running the probe plus DB-AT-028/029 under the metadata env so telemetry reflects the true pipeline before attempting physics fixes.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-25T180500Z/
+- Next Actions: Ready-for-implementation — patch the probe, rerun it under the canonical env, and capture fresh DB-AT-028/029 logs for the same report directory.
+- <Action State>: [planning]
+
+2025-11-25T180000Z focus=TOOLING-VIS-001 state=planning dwell=2 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T180500Z/ next_action=ready_for_implementation_update_probe

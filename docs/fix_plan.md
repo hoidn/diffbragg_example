@@ -16,6 +16,7 @@
 
 ### Tier 1: Core Physics & Stability
 **Goal:** Ensure the math is correct, the loss function is normative, Stage A/mapping parity holds (DB‑AT‑027/028/029), and the smoke tests are green.
+- [SPEC-REALIGN-001] (Spec Conformance: Loss/Sigma/Telemetry & HDF5) — **Pending**
 - [TORCH-GEOMETRY-CONVERGENCE-001] (Diagnose & Fix Quaternion U-Matrix Convergence Failure) — **Done** (Phase C6b: zero-check bypass fix achieves stable convergence, chi² drift +0.0083% over 10 steps, CC≈1.0; CONVERGENCE-001 finding documented)
 - [TORCH-GEOMETRY-PARITY-003] (det(U)≠1 Investigation & Hybrid Parameterization) — **Archived** (CONVERGENCE-001 disproved det(U)≠1 hypothesis; superseded by UB-REALIGN-001)
 - [TORCH-GEOMETRY-PARITY-002] (Direct U-Matrix Parameterization) — **Blocked** (quaternion SO(3) approach failed; escalated to PARITY-003)
@@ -93,6 +94,19 @@
 - Working Plan: plans/active/TORCH-GEOMETRY-UB-REALIGN-001/implementation.md
 - Attempts History:
   * See docs/fix_plan_archive.md (snapshot 2025-11-24) and plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/ for full Attempts History.
+
+### [SPEC-REALIGN-001] Spec Conformance: Loss/Sigma/Telemetry & HDF5
+- Depends on: docs/spec-db-core.md (variance + loss contracts), docs/spec-db-workflow.md (calibration ladder, ADU↔photon policy), docs/spec-db-interfaces.md (HDF5 schema + sigma/sigma_floor error rules), docs/spec-db-conformance.md (DB‑AT‑023/030/027/025 readiness).
+- Status: pending
+- Priority: Critical (Tier 1 — Core Physics & Stability)
+- Owner/Date: Unassigned
+- Exit Criteria:
+  1. Loss model realigned: Stage A forward uses `I_model = Bragg + background` and variance `V = max(I_model + sigma_readout², sigma_floor²)` detached; background-subtracted targets no longer used for canonical loss. `_compute_variance_weighted_loss` updated accordingly and covered by unit test mirroring spec equations.
+  2. Sigma sourcing enforced per ladder (map > scalar > external_lookup; conflicts at same tier fail-fast; missing/zero/NaN sigma errors). `prepare_refinement_inputs` rejects missing sigma; no zeroing outside loss mask; per-pixel sigma preserved to HDF5.
+  3. Calibration precedence enforced: config vs CLI conflicts for spot_scale_override, adu_per_photon, sigma_floor, sigma_readout trigger explicit errors. Gain handling records unit_mode/gain in telemetry.
+  4. HDF5 `/torch_diagnostics` meets Spec-DB schema: required attrs for calibration provenance (sigma_readout_provenance, sigma_floor value+provenance, spot_scale_override, unit_mode/adu_per_photon, beam flux/exposure, beamsize_mm, N_cells, device_profile, interpolation/halo flags, log_scale baselines/clamps, HKL source/path/halo) plus trace group stub compliance; variance datasets use per-pixel sigma + clamp fraction recorded.
+  5. Gates: add/update tests for sigma ladder/error cases (DB‑AT‑030 equivalent), loss model unit test, and CLI/HDF5 telemetry schema probe; smokes adjusted to fail on missing sigma_floor/sigma_readout.
+- Working Plan: Create `plans/active/SPEC-REALIGN-001/implementation.md` from `plans/templates/implementation_plan.md` (Phase A: loss/variance + tests; Phase B: sigma ladder enforcement + CLI errors; Phase C: telemetry/HDF5 schema + DB‑AT gating). Save reports under `plans/active/SPEC-REALIGN-001/reports/`.
 ### [ARCH-REFACTOR-001] Refinement Engine Modularization & Physics Separation
 - Depends on: [TORCH-GEOMETRY-CONVERGENCE-001] (Tier 1 Blocker: Fix Chi² convergence first), docs/spec-db-workflow.md
 - Status: partial_complete (2025-11-24T105000Z — Phases 0/A/B/D1/D2 complete, 6/9 exit criteria satisfied; Phase C Engine Migration deferred pending blocking use case; return conditions documented in initiative_status_assessment.md)

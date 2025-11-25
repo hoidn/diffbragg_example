@@ -45,6 +45,60 @@ from dbex.vis.mapping import build_mapping_stage_a_context
 from dbex.vis.triptych import plot_triptych
 
 
+def materialize_calibration_variant(
+    base_config_path: str,
+    variant_name: str,
+    out_dir: Path,
+    spot_scale_override: Optional[float] = None,
+    drop_n_cells: bool = False,
+) -> str:
+    """Generate a modified calibration config for a specific variant.
+
+    Args:
+        base_config_path: Path to the base config_torch.json file
+        variant_name: Name of the variant (used in output filename)
+        out_dir: Directory where variant config will be written
+        spot_scale_override: If provided, replace crystal.scale_override with this value
+        drop_n_cells: If True, remove crystal.N_cells from the config
+
+    Returns:
+        Path to the materialized variant config file
+
+    Per input.md requirements:
+    - Rewrite config_torch_smoke.json into per-variant copies
+    - Store derived configs under report dir before building DataLoad
+    - spot_scale forced to 1 for spot1 variants
+    - optional N_cells removal for drop_ncells variants
+    """
+    # Read base config
+    with open(base_config_path, "r") as f:
+        config = json.load(f)
+
+    # Apply spot_scale_override modification if requested
+    if spot_scale_override is not None:
+        if "crystal" not in config:
+            config["crystal"] = {}
+        config["crystal"]["scale_override"] = spot_scale_override
+        print(f"  Variant '{variant_name}': forcing spot_scale_override={spot_scale_override}")
+
+    # Apply N_cells removal if requested
+    if drop_n_cells:
+        if "crystal" in config and "N_cells" in config["crystal"]:
+            removed_value = config["crystal"].pop("N_cells")
+            print(f"  Variant '{variant_name}': removed N_cells={removed_value}")
+
+    # Write variant config to calibration_variants subdir
+    variant_dir = out_dir / "calibration_variants"
+    variant_dir.mkdir(parents=True, exist_ok=True)
+    variant_config_path = variant_dir / f"{variant_name}.json"
+
+    with open(variant_config_path, "w") as f:
+        json.dump(config, f, indent=2)
+
+    print(f"  Variant '{variant_name}': materialized to {variant_config_path}")
+    return str(variant_config_path)
+
+
 def _pearson_cc(data_roi: np.ndarray, model_roi: np.ndarray, mask_roi: np.ndarray) -> float:
     """Compute masked Pearson correlation for a single ROI."""
     mask_flat = np.asarray(mask_roi, dtype=bool)
@@ -79,7 +133,7 @@ def _roi_correlations(
     return corrs
 
 
-def define_cases() -> Dict[str, Dict[str, str]]:
+def define_cases(out_dir: Optional[Path] = None) -> Dict[str, Dict[str, str]]:
     """Define preset dataset cases with explicit HKL/calibration paths.
 
     Mirrors the logic from tests/conftest.py::smoke_dataset_paths and refgeom_dataload:
@@ -90,9 +144,14 @@ def define_cases() -> Dict[str, Dict[str, str]]:
     - Geometry path stays canonical (not swapped to idx-0000_sigma_metadata.expt).
     - HKL defaults to refined MTZ when calibration is present (TOOLING-VIS-001 Phase D).
 
+    Args:
+        out_dir: Output directory for materialized calibration variants (optional).
+                 If provided, calibration variant cases will materialize modified configs.
+
     Returns:
-        Dictionary mapping case_name -> {expt, refl, mask, hkls, calibration, sigma_map}
-        paths (all absolute or repo-relative). sigma_map is None when not applicable.
+        Dictionary mapping case_name -> {expt, refl, mask, hkls, calibration, sigma_map,
+        calibration_variant} paths (all absolute or repo-relative). sigma_map is None
+        when not applicable. calibration_variant describes any modifications applied.
     """
     # Use repo root for resolving relative paths
     repo = repo_root
@@ -239,6 +298,50 @@ def define_cases() -> Dict[str, Dict[str, str]]:
             "sigma_source": sigma_source,
         },
     }
+
+    # Calibration variant cases (require out_dir for materialization)
+    # These cases rewrite the base calibration config with spot_scale and/or N_cells modifications
+    if out_dir is not None:
+        # metadata_calibrated_spot1: force spot_scale_override to 1.0
+        base_calibration = smoke_calib_path
+        if Path(base_calibration).exists():
+            variant_calib_spot1 = materialize_calibration_variant(
+                base_config_path=base_calibration,
+                variant_name="metadata_calibrated_spot1",
+                out_dir=out_dir,
+                spot_scale_override=1.0,
+                drop_n_cells=False,
+            )
+            cases["metadata_calibrated_spot1"] = {
+                "expt": str(geom_path),
+                "refl": str(refl_path),
+                "mask": str(mask_path),
+                "hkls": resolve_hkl_for_calibration(base_calibration),  # Keep refined MTZ
+                "calibration": variant_calib_spot1,
+                "sigma_map": str(sigma_map_path) if sigma_map_path else None,
+                "sigma_source": "metadata",
+                "calibration_variant": "spot_scale_override=1.0",
+            }
+
+            # metadata_calibrated_spot1_drop_ncells: force spot_scale to 1.0 AND remove N_cells
+            variant_calib_spot1_no_ncells = materialize_calibration_variant(
+                base_config_path=base_calibration,
+                variant_name="metadata_calibrated_spot1_drop_ncells",
+                out_dir=out_dir,
+                spot_scale_override=1.0,
+                drop_n_cells=True,
+            )
+            cases["metadata_calibrated_spot1_drop_ncells"] = {
+                "expt": str(geom_path),
+                "refl": str(refl_path),
+                "mask": str(mask_path),
+                "hkls": resolve_hkl_for_calibration(base_calibration),  # Keep refined MTZ
+                "calibration": variant_calib_spot1_no_ncells,
+                "sigma_map": str(sigma_map_path) if sigma_map_path else None,
+                "sigma_source": "metadata",
+                "calibration_variant": "spot_scale_override=1.0, N_cells removed",
+            }
+
     return cases
 
 
@@ -383,6 +486,10 @@ def compute_case_metrics(
     # Compute global_scale_hint (used by Stage A engine)
     global_scale_hint = float(inputs.global_scale_hint) if inputs.global_scale_hint is not None else float("nan")
 
+    # Extract calibration variant info (per input.md requirement: propagate derived calibration path/spot_scale)
+    calibration_variant = case_spec.get("calibration_variant", None)
+    derived_calibration_path = case_spec["calibration"]
+
     print(f"  roi_cc_median: {roi_cc_median:.4f}")
     print(f"  scale_ratio_masked: {scale_ratio_masked:.4f}")
     print(f"  scale_ratio_unmasked: {scale_ratio_unmasked:.4f}")
@@ -397,6 +504,9 @@ def compute_case_metrics(
     print(f"  sigma_map_path: {sigma_map_path_used}")
     print(f"  spot_scale_override: {spot_scale_override}")
     print(f"  global_scale_hint: {global_scale_hint}")
+    print(f"  derived_calibration_path: {derived_calibration_path}")
+    if calibration_variant:
+        print(f"  calibration_variant: {calibration_variant}")
 
     # Emit ROI artifacts if requested
     if emit_roi_artifacts and roi_artifacts_dir is not None:
@@ -484,7 +594,8 @@ def compute_case_metrics(
 
         print(f"  ROI artifacts emission complete.")
 
-    return {
+    # Assemble metrics dict with calibration variant propagation (per input.md)
+    metrics = {
         "case_name": case_name,
         "roi_cc_median": roi_cc_median,
         "scale_ratio_masked": scale_ratio_masked,
@@ -496,6 +607,7 @@ def compute_case_metrics(
         "sigma_floor_value": sigma_floor_value,
         "spot_scale_override": spot_scale_override,
         "calibration_path": calibration_path,
+        "derived_calibration_path": derived_calibration_path,
         "hkl_source": hkl_source,
         "hkl_path": hkl_path,
         "hkl_count": hkl_count,
@@ -506,6 +618,12 @@ def compute_case_metrics(
         "n_rois": len(valid_corrs),
         "device": device,
     }
+
+    # Add calibration_variant field if present
+    if calibration_variant:
+        metrics["calibration_variant"] = calibration_variant
+
+    return metrics
 
 
 def compute_diffs(base_metrics: Dict, other_metrics: Dict) -> Dict:
@@ -598,8 +716,8 @@ def main():
     # Get sigma source from env
     sigma_source = os.environ.get("DBEX_SMOKE_SIGMA_SOURCE", "override")
 
-    # Define available cases
-    available_cases = define_cases()
+    # Define available cases (pass out_dir so calibration variants can be materialized)
+    available_cases = define_cases(out_dir=args.out_dir)
 
     # Validate requested cases
     for case_name in args.cases:

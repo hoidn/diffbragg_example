@@ -87,7 +87,7 @@ def _select_sigma_readout(dataload: DataLoad, default_sigma: float = 3.0) -> np.
     """Choose a sigma_readout tensor aligned to DataLoad.data."""
     sigma_map = getattr(dataload, "sigma_readout_map", None)
     sigma_source = getattr(dataload, "sigma_readout_map_source", None)
-    if sigma_map is not None and sigma_source == "external_lookup":
+    if sigma_map is not None and sigma_source in ("external_lookup", "cli_map"):
         return np.asarray(sigma_map, dtype=np.float32)
     return np.full_like(dataload.data, float(default_sigma), dtype=np.float32)
 
@@ -436,6 +436,8 @@ def emit_mapping_context_diagnostics(
     sigma_map_source = getattr(dataload, "sigma_readout_map_source", None)
     if sigma_map_source == "external_lookup":
         sigma_provenance = "external_lookup (metadata tiles)"
+    elif sigma_map_source == "cli_map":
+        sigma_provenance = "cli_map (args.sigma_map)"
     else:
         sigma_provenance = "cli_override (default scalar)"
 

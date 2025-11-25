@@ -89,7 +89,7 @@ Notes on incident beam direction and conventions
 - Cell tensors computed honoring MOSFLM A*, then applying `misset_deg` (XYZ extrinsic).
 - Structure factors:
   - Dense P1 grid expected; see IO section.
-  - Stage A (geometry): set `crystal.interpolate = False` (nearest‑neighbor |F|). Gradients flow via kinematics/lattice factors; avoids halo/OOB artifacts.
+  - Stage A (geometry): canonical runs set `crystal.interpolate = False` (nearest‑neighbor |F|) to mirror DiffBragg geometry refinement. A haloed tricubic mode MAY be used as an explicitly tagged, non‑canonical experiment when halo data are available.
   - Stage B (Fhkl): set `crystal.interpolate = True` and ensure the grid includes a ±1 halo in h/k/l.
   - Without halo, tricubic will fall back to `default_F` and zero gradients near bounds.
 

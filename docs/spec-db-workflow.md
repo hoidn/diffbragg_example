@@ -43,35 +43,39 @@ Calibration & Unit Conventions (Normative Addendum)
 7) Refinement Protocol Architecture
    - **Engine Contract:** The internal Python API (`RefinementEngine` or equivalent) SHALL accept an ordered list of Stage objects and MUST NOT hardcode the Stage A→B→C flow.
    - **Standard Stages (Normative Definitions):**
-    - **Stage A (Geometry & Scale):**
-      - Trainable (normative): Unit cell logs/angles, orientation (quaternion → XYZ), global scale. Implementations SHOULD align their parameterization with the `ExperimentModel(param_init="stage_a")` interface in `nanobrag_torch.models.experiment` (see `docs/nanobrag_api.md`).
-      - Fixed: Structure factors, detector geometry, source spectrum (unless an explicit Stage‑A detector/beam extension is enabled per implementation-specific initiative).
-      - Physics: Tricubic interpolation (`interpolation=True`) is preferred for smooth orientation/cell gradients whenever the |F| grid includes a ±1 halo; nearest-neighbor (`interpolation=False`) remains a permitted fallback when halo support is unavailable.
-      - Mapping zero-point invariant (normative for mapping‑aligned runs):
-        - For any Stage‑A configuration that claims DB‑AT‑024 mapping parity (see `docs/spec-db-conformance.md`), zero geometry parameters (all cell/angle/orientation deltas equal to zero) and baseline scale MUST reproduce the DB‑AT‑024 mapping Bragg tensor produced by `simulate_forward_once`.
-        - Implementations SHALL satisfy, at the Stage‑A zero point:
-          - `U(0) = U₀`, `B(0) = B₀`, and `A*(0) = U₀ @ B₀ = A*_mapping`,
-            where `A*_0 = crystal.get_A()`, `c₀` is the baseline unit cell from dxtbx, `B₀ = B(c₀)` is the Busing–Levy reciprocal metric tensor, and `U₀ = A*_0 @ B₀⁻¹` as defined in `spec-db-core.md`.
-        - When `crystal_overrides` are used instead of MOSFLM A* injection, Stage‑A implementations SHALL encode the mapping orientation via a baseline misset (e.g., `baseline_misset_deg`) and apply only deltas on top of that baseline (e.g., `misset_deg = baseline_misset_deg + delta_misset`), so that the Stage‑A zero point is identical to the mapping forward model.
-      - Stage‑A parameterization constraints (normative):
-        - Orientation and cell parameterizations SHALL be expressed as increments relative to the mapping baseline:
-          - Orientation DOFs (Euler, axis‑angle, quaternion, etc.) MUST represent a small rotation `ΔR(params)` such that `U(params) = ΔR(params) @ U₀`.
-          - Cell DOFs MUST produce `B(params)` via a metric‑tensor computation consistent with Busing–Levy and dxtbx conventions, applied to a perturbed cell around the baseline.
-        - The Stage‑A forward simulator SHALL consume `A*(params)` constructed only as `U(params) @ B(params)` from those increments.
-        - Implementations SHALL NOT:
-          - derive a new `(Ū,B̃)` pair by decomposing `A*` at runtime and then use `(Ū,B̃)` in place of `U₀,B₀`, or
-          - rely on cached `A*` at the zero point while using a different `U,B` reconstruction for non‑zero parameters in the same mapping‑aligned run.
-        - Quaternion‑based schemes are permitted, but only when they encode `ΔR` on top of `U₀` and satisfy the zero‑point and incremental invariants above.
-      - Stage‑A “no‑op” definition (normative for mapping‑aligned tooling): a Stage‑A configuration with all geometry deltas equal to zero and baseline scale that, when passed through the Stage‑A forward simulator, produces a Bragg tensor that matches the DB‑AT‑024 `simulate_forward_once` output for the same `RefinementInputs` and HKL grid (within numerical tolerance). Any plan‑local Stage‑A helper (e.g., debug/vis drivers under TOOLING‑VIS‑001) that claims mapping parity SHALL treat this Stage‑A no‑op as its zero point and SHALL validate zero‑point equality against the mapping Bragg as part of its initialization checks.
-    - **Stage B (Structure Factors — optional):**
-      - Trainable: Per-reflection Fhkl multipliers mapped to unique ASU indices SHALL be the default (Parity Mode).
-      - Fallback: Aggregated per-shell modifiers (Shell Mode) are PERMITTED as an optimization or regularization strategy but MUST NOT be the default.
-      - Physics: Tricubic interpolation (`interpolation=True`) with ±1 HKL halo is MANDATORY.
-      - **Implementation Status (2025-11-24):** Per-reflection mode implemented in TORCH-REFINE-004 (Phases 6-9). ASU mapping via cctbx.miller symmetry operations, dynamic optimizer selection (LBFGS <10K params, Adam ≥10K params per spec:107), gradient flow validated. Shell mode remains available as fallback via `stage_b_mode="shell"` config parameter per spec:60.
+     - **Interpolation policy (normative)** — canonical Stage physics across shards:
+       - Stage A (geometry/scale): `interpolation=False` (nearest‑neighbor |F|) is canonical, matching the legacy DiffBragg geometry loop. Tricubic with a haloed |F| grid MAY be used as an explicitly tagged experimental mode; such runs are non‑canonical and SHALL record the mode in telemetry.
+       - Stage B: `interpolation=True` REQUIRED; halo REQUIRED. Any `default_F` fallback with interpolation enabled is a failure.
+       - Stage C: `interpolation=True` REQUIRED; halo REQUIRED. Any `default_F` fallback with interpolation enabled is a failure.
+     - **Stage A (Geometry & Scale):**
+       - Trainable (normative): Unit cell logs/angles, orientation (quaternion → XYZ), global scale. Implementations SHOULD align their parameterization with the `ExperimentModel(param_init="stage_a")` interface in `nanobrag_torch.models.experiment` (see `docs/nanobrag_api.md`).
+       - Fixed: Structure factors, detector geometry, source spectrum (unless an explicit Stage‑A detector/beam extension is enabled per implementation-specific initiative).
+       - Physics: Canonical Stage A runs SHALL use nearest‑neighbor |F| lookup (`interpolation=False`) to mirror DiffBragg’s geometry refinement. A haloed tricubic mode MAY be enabled for experiments; any such run is non‑canonical and SHALL record the interpolated mode and halo status in telemetry.
+       - Mapping zero-point invariant (normative for mapping‑aligned runs):
+         - For any Stage‑A configuration that claims DB‑AT‑024 mapping parity (see `docs/spec-db-conformance.md`), zero geometry parameters (all cell/angle/orientation deltas equal to zero) and baseline scale MUST reproduce the DB‑AT‑024 mapping Bragg tensor produced by `simulate_forward_once`.
+         - Implementations SHALL satisfy, at the Stage‑A zero point:
+           - `U(0) = U₀`, `B(0) = B₀`, and `A*(0) = U₀ @ B₀ = A*_mapping`,
+             where `A*_0 = crystal.get_A()`, `c₀` is the baseline unit cell from dxtbx, `B₀ = B(c₀)` is the Busing–Levy reciprocal metric tensor, and `U₀ = A*_0 @ B₀⁻¹` as defined in `spec-db-core.md`.
+         - When `crystal_overrides` are used instead of MOSFLM A* injection, Stage‑A implementations SHALL encode the mapping orientation via a baseline misset (e.g., `baseline_misset_deg`) and apply only deltas on top of that baseline (e.g., `misset_deg = baseline_misset_deg + delta_misset`), so that the Stage‑A zero point is identical to the mapping forward model.
+       - Stage‑A parameterization constraints (normative):
+         - Orientation and cell parameterizations SHALL be expressed as increments relative to the mapping baseline:
+           - Orientation DOFs (Euler, axis‑angle, quaternion, etc.) MUST represent a small rotation `ΔR(params)` such that `U(params) = ΔR(params) @ U₀`.
+           - Cell DOFs MUST produce `B(params)` via a metric‑tensor computation consistent with Busing–Levy and dxtbx conventions, applied to a perturbed cell around the baseline.
+         - The Stage‑A forward simulator SHALL consume `A*(params)` constructed only as `U(params) @ B(params)` from those increments.
+         - Implementations SHALL NOT:
+           - derive a new `(Ū,B̃)` pair by decomposing `A*` at runtime and then use `(Ū,B̃)` in place of `U₀,B₀`, or
+           - rely on cached `A*` at the zero point while using a different `U,B` reconstruction for non‑zero parameters in the same mapping‑aligned run.
+         - Quaternion‑based schemes are permitted, but only when they encode `ΔR` on top of `U₀` and satisfy the zero‑point and incremental invariants above.
+       - Stage‑A “no‑op” definition (normative for mapping‑aligned tooling): a Stage‑A configuration with all geometry deltas equal to zero and baseline scale that, when passed through the Stage‑A forward simulator, produces a Bragg tensor that matches the DB‑AT‑024 `simulate_forward_once` output for the same `RefinementInputs` and HKL grid (within numerical tolerance). Any plan‑local Stage‑A helper (e.g., debug/vis drivers under TOOLING‑VIS‑001) that claims mapping parity SHALL treat this Stage‑A no‑op as its zero point and SHALL validate zero‑point equality against the mapping Bragg as part of its initialization checks.
+     - **Stage B (Structure Factors — optional):**
+       - Trainable: Per-reflection Fhkl multipliers mapped to unique ASU indices SHALL be the default (Parity Mode).
+       - Fallback: Aggregated per-shell modifiers (Shell Mode) are PERMITTED as an optimization or regularization strategy but MUST NOT be the default.
+       - Physics: Tricubic interpolation (`interpolation=True`) with ±1 HKL halo is MANDATORY.
+       - **Implementation Status (2025-11-24):** Per-reflection mode implemented in TORCH-REFINE-004 (Phases 6-9). ASU mapping via cctbx.miller symmetry operations, dynamic optimizer selection (LBFGS <10K params, Adam ≥10K params per spec:107), gradient flow validated. Shell mode remains available as fallback via `stage_b_mode="shell"` config parameter per spec:60.
      - **Stage C (Detector):**
-      - Trainable: Per-panel translation along detector normal (distance offsets).
-      - Fixed: Crystal, scale, Fhkl.
-      - Physics: Tricubic interpolation (`interpolation=True`) is MANDATORY so detector motion yields differentiable HKL gradients.
+       - Trainable: Per-panel translation along detector normal (distance offsets).
+       - Fixed: Crystal, scale, Fhkl.
+       - Physics: Tricubic interpolation (`interpolation=True`) is MANDATORY so detector motion yields differentiable HKL gradients.
 
 ### Canonical Initial Configuration (Normative)
 

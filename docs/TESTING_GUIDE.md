@@ -221,5 +221,5 @@ spec-aligned ROI visuals and mapping diagnostics:
 
 ## 4. Stage Policy Acceptance Notes
 
-- Stage A (geometry + scale): Ensure `crystal.interpolate` is disabled (nearest‑neighbor |F|) in refinement paths and assert non‑zero geometry gradients. Any reliance on tricubic in Stage A is a test failure.
+- Stage A (geometry + scale): Canonical runs set `crystal.interpolate=False` (nearest‑neighbor |F|) to mirror DiffBragg geometry refinement. Haloed tricubic may be exercised as a tagged, non‑canonical mode; tests SHALL record when the non‑canonical mode is used.
 - Stage B (Fhkl modifiers): When interpolation is enabled, the dense |F| grid MUST include a ±1 halo. Tests SHOULD assert zero usage of `default_F` (via telemetry once exposed). Any default_F fallback with interpolate=True is a failure condition.

@@ -1143,3 +1143,14 @@ This is the **single most important diagnostic** to run before any other TOOLING
 - <Action State>: [ready_for_implementation]
 
 2025-11-25T234200Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=0 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T235500Z/ next_action=spot_scale_adjustment_for_n_cells_suppression
+
+## 2025-11-26T003000Z — TOOLING-VIS-001 Stage A log-scale override planning
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
+- Action Type: planning
+- Key Observations: Auto-adjusting `spot_scale_override` restored mapping masked scale (metadata_calibrated_drop_ncells now reports `scale_ratio_masked=1.0`), yet Stage A still emits `scale_ratio_before≈2.0e4`, `bragg_before_mean≈2.8e5 ADU`, and `log_scale_baseline=32.28` (`plans/active/TOOLING-VIS-001/reports/2025-11-25T235500Z/db_at_029/db_at_029_metrics.json`). Because `run_nanobrag_refinement` derives the baseline from the adjusted calibration, Stage A re-applies the same factor mapping already consumed. We need a mapping-aware log-scale override keyed off `diagnostics["calibration_adjusted_for_n_cells"]` so Stage A zero-iteration intensities stay aligned once mapping fixes the masked mean.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-26T003000Z/
+- Next Actions: ready_for_implementation — add a RefinementConfig/log-scale override path (plus cloned calibration metadata) when mapping diagnostics mark `calibration_adjusted_for_n_cells`, update the Stage A smoke fixture to set the new flag, and rerun `compare_mapping_dataset_metrics.py` + DB-AT-028/029 so telemetry proves `scale_ratio_before` now matches the mapping stack even if gates still fail.
+- <Action State>: [planning]
+
+2025-11-26T003000Z focus=TOOLING-VIS-001 state=planning dwell=1 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-26T003000Z/ next_action=override_stage_a_log_scale_when_calibration_adjusted

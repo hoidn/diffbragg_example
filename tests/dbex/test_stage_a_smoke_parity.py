@@ -179,6 +179,36 @@ def stage_a_smoke_result(
         baseline_crystal=baseline_crystal,
     )
 
+    # Compute log_scale_effective from telemetry.param_deltas per STAGEA-001
+    log_scale_entry = telemetry.param_deltas.get("log_scale", {})
+    log_scale_baseline_entry = telemetry.param_deltas.get("log_scale_baseline", {})
+
+    log_scale_baseline = log_scale_baseline_entry.get("final") if isinstance(log_scale_baseline_entry, dict) else 0.0
+    log_scale_init = log_scale_entry.get("initial") if isinstance(log_scale_entry, dict) else 0.0
+    log_scale_final = log_scale_entry.get("final") if isinstance(log_scale_entry, dict) else 0.0
+
+    # log_scale_effective = baseline + clamped delta
+    log_scale_effective_init = log_scale_baseline + log_scale_init if log_scale_baseline is not None else log_scale_init
+    log_scale_effective_final = log_scale_baseline + log_scale_final if log_scale_baseline is not None else log_scale_final
+
+    # Compute bragg statistics for before/after
+    bragg_before_mean = float(np.mean(bragg_before))
+    bragg_before_std = float(np.std(bragg_before))
+    bragg_before_max = float(np.max(bragg_before))
+
+    bragg_after_mean = float(np.mean(bragg_after))
+    bragg_after_std = float(np.std(bragg_after))
+    bragg_after_max = float(np.max(bragg_after))
+
+    # Compute ROI correlation baselines
+    corrs_before = _roi_correlations(refinement_inputs.target, bragg_before, refinement_inputs.loss_mask, refinement_inputs.panel_slices)
+    corrs_after = _roi_correlations(refinement_inputs.target, bragg_after, refinement_inputs.loss_mask, refinement_inputs.panel_slices)
+    valid_corrs_before = [c for c in corrs_before if np.isfinite(c)]
+    valid_corrs_after = [c for c in corrs_after if np.isfinite(c)]
+
+    roi_cc_median_before = float(np.median(valid_corrs_before)) if valid_corrs_before else float("nan")
+    roi_cc_median_after = float(np.median(valid_corrs_after)) if valid_corrs_after else float("nan")
+
     return {
         "telemetry": telemetry,
         "chi_trace": chi_trace,
@@ -190,6 +220,17 @@ def stage_a_smoke_result(
         "config": config,
         "bragg_final": bragg_final,
         "hkl_source": hkl_source,
+        # Additional diagnostics per input.md Phase D.D
+        "log_scale_effective_init": log_scale_effective_init,
+        "log_scale_effective_final": log_scale_effective_final,
+        "bragg_before_mean": bragg_before_mean,
+        "bragg_before_std": bragg_before_std,
+        "bragg_before_max": bragg_before_max,
+        "bragg_after_mean": bragg_after_mean,
+        "bragg_after_std": bragg_after_std,
+        "bragg_after_max": bragg_after_max,
+        "roi_cc_median_before": roi_cc_median_before,
+        "roi_cc_median_after": roi_cc_median_after,
     }
 
 
@@ -225,6 +266,16 @@ def test_db_at_028_loss_scale_sanity(stage_a_smoke_result):
         "log_scale_initial": log_scale_entry.get("initial") if isinstance(log_scale_entry, dict) else None,
         "log_scale_final": log_scale_entry.get("final") if isinstance(log_scale_entry, dict) else None,
         "log_scale_baseline": log_scale_baseline_entry.get("final") if isinstance(log_scale_baseline_entry, dict) else None,
+        "log_scale_effective_init": stage_a_smoke_result.get("log_scale_effective_init"),
+        "log_scale_effective_final": stage_a_smoke_result.get("log_scale_effective_final"),
+        "bragg_before_mean": stage_a_smoke_result.get("bragg_before_mean"),
+        "bragg_before_std": stage_a_smoke_result.get("bragg_before_std"),
+        "bragg_before_max": stage_a_smoke_result.get("bragg_before_max"),
+        "bragg_after_mean": stage_a_smoke_result.get("bragg_after_mean"),
+        "bragg_after_std": stage_a_smoke_result.get("bragg_after_std"),
+        "bragg_after_max": stage_a_smoke_result.get("bragg_after_max"),
+        "roi_cc_median_before": stage_a_smoke_result.get("roi_cc_median_before"),
+        "roi_cc_median_after": stage_a_smoke_result.get("roi_cc_median_after"),
         "hkl_source": stage_a_smoke_result.get("hkl_source"),
     }
     (artifact_dir / "db_at_028_metrics.json").write_text(json.dumps(metrics, indent=2))
@@ -276,6 +327,14 @@ def test_db_at_029_structure_parity(stage_a_smoke_result):
         "log_scale_initial": log_scale_entry.get("initial") if isinstance(log_scale_entry, dict) else None,
         "log_scale_final": log_scale_entry.get("final") if isinstance(log_scale_entry, dict) else None,
         "log_scale_baseline": log_scale_baseline_entry.get("final") if isinstance(log_scale_baseline_entry, dict) else None,
+        "log_scale_effective_init": stage_a_smoke_result.get("log_scale_effective_init"),
+        "log_scale_effective_final": stage_a_smoke_result.get("log_scale_effective_final"),
+        "bragg_before_mean": stage_a_smoke_result.get("bragg_before_mean"),
+        "bragg_before_std": stage_a_smoke_result.get("bragg_before_std"),
+        "bragg_before_max": stage_a_smoke_result.get("bragg_before_max"),
+        "bragg_after_mean": stage_a_smoke_result.get("bragg_after_mean"),
+        "bragg_after_std": stage_a_smoke_result.get("bragg_after_std"),
+        "bragg_after_max": stage_a_smoke_result.get("bragg_after_max"),
         "hkl_source": stage_a_smoke_result.get("hkl_source"),
     }
     (artifact_dir / "db_at_029_metrics.json").write_text(json.dumps(metrics, indent=2))

@@ -124,6 +124,9 @@ def main():
     print("")
 
     # Import dependencies (lazy to avoid overhead when --help is used)
+    from argparse import Namespace
+
+    from dbex.data_load import DataLoad
     from dbex.nanobrag_bridge import (
         build_structure_factor_grid,
     )
@@ -132,14 +135,45 @@ def main():
         _build_final_bragg_from_stage_a_telemetry,
         run_nanobrag_refinement,
     )
-    from dbex.tools.stage_a_adam import build_dataload
     from dbex.vis.mapping import build_mapping_stage_a_context
 
     # Determine paths (repo_root already set above)
     print(f"Repository root: {repo_root}")
 
-    # Build DataLoad for canonical assets
-    dataload = build_dataload(repo_root)
+    # Build DataLoad from SMOKE DATASET matching tests/conftest.py::smoke_dataset_paths logic
+    sp_proc = repo_root / "sp.proc"
+
+    # Honor DBEX_SMOKE_SIGMA_SOURCE and DBEX_SMOKE_DETECTOR_SIZE per conftest.py
+    # Note: metadata + small → full detector with metadata expt (per conftest.py:106-112)
+    if sigma_source == "metadata":
+        expt_path = sp_proc / "idx-0000_sigma_metadata.expt"
+        refl_path = repo_root / "refGeom.refl"
+        mask_path = repo_root / "747_mask.pkl"
+    else:
+        if detector_size == "full":
+            expt_path = repo_root / "refGeom.expt"
+            refl_path = repo_root / "refGeom.refl"
+            mask_path = repo_root / "747_mask.pkl"
+        else:
+            sp_proc_small = sp_proc / "refGeom_small"
+            expt_path = sp_proc_small / "refGeom_small.expt"
+            refl_path = sp_proc_small / "refGeom_small.refl"
+            mask_path = sp_proc_small / "refGeom_small_mask.pkl"
+
+    print(f"Smoke dataset expt: {expt_path}")
+    print(f"Smoke dataset refl: {refl_path}")
+    print(f"Smoke dataset mask: {mask_path}")
+    print("")
+
+    args = Namespace(
+        exptName=str(expt_path),
+        reflName=str(refl_path),
+        exptIdx=0,
+        maskFile=str(mask_path),
+        mtzFile=str(repo_root / "scaled.mtz"),
+        mtzCol="F,SIGF",
+    )
+    dataload = DataLoad(args)
 
     # Resolve device
     device_obj = torch.device("cuda:0" if torch.cuda.is_available() and args.device != "cpu" else "cpu")

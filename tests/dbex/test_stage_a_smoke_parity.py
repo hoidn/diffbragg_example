@@ -64,14 +64,13 @@ def _roi_correlations(
 
 @pytest.fixture
 def stage_a_smoke_result(
-    refinement_inputs,
     hkl_data,
     refgeom_dataload,
     smoke_sigma_source,
 ):
     """
     Stage A-only refinement (nearest-neighbor HKL) for DB-AT-028/029 gates.
-    Uses build_mapping_stage_a_context to align HKL/calibration with mapping forward stack.
+    Uses build_mapping_stage_a_context to align HKL/calibration/inputs with mapping forward stack.
     """
     # Build mapping context for unified HKL/calibration/inputs
     device_obj = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -82,6 +81,9 @@ def stage_a_smoke_result(
         default_sigma_readout=3.0,
         device=device,
     )
+
+    # Use mapping_context.inputs directly (TOOLING-VIS-001 alignment requirement)
+    refinement_inputs = mapping_context.inputs
 
     # Extract HKL grid from the mapping context's original indices/amplitudes
     hkl_grid, hkl_metadata, _ = build_structure_factor_grid(
@@ -189,7 +191,7 @@ def stage_a_smoke_result(
     bragg_after_std = float(np.std(bragg_after))
     bragg_after_max = float(np.max(bragg_after))
 
-    # Compute ROI correlation baselines
+    # Compute ROI correlation baselines using mapping_context.inputs
     corrs_before = _roi_correlations(refinement_inputs.target, bragg_before, refinement_inputs.loss_mask, refinement_inputs.panel_slices)
     corrs_after = _roi_correlations(refinement_inputs.target, bragg_after, refinement_inputs.loss_mask, refinement_inputs.panel_slices)
     valid_corrs_before = [c for c in corrs_before if np.isfinite(c)]
@@ -205,18 +207,18 @@ def stage_a_smoke_result(
     try:
         bragg_mapping = mapping_context.bragg_zero_iter
 
-        # Compute mapping ROI correlations
+        # Compute mapping ROI correlations using the SAME mapping_context.inputs
         corrs_mapping = _roi_correlations(
-            refinement_inputs.target,
+            mapping_context.inputs.target,
             bragg_mapping,
-            refinement_inputs.loss_mask,
-            refinement_inputs.panel_slices
+            mapping_context.inputs.loss_mask,
+            mapping_context.inputs.panel_slices
         )
         valid_mapping = [c for c in corrs_mapping if np.isfinite(c)]
         roi_cc_median_mapping = float(np.median(valid_mapping)) if valid_mapping else float("nan")
 
         # Compute mapping scale ratio
-        mean_target = float(np.mean(refinement_inputs.target[refinement_inputs.loss_mask]))
+        mean_target = float(np.mean(mapping_context.inputs.target[mapping_context.inputs.loss_mask]))
         bragg_mapping_mean = float(np.mean(bragg_mapping))
         scale_ratio_mapping = bragg_mapping_mean / mean_target if mean_target > 0 else float("inf")
 

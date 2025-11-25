@@ -1,0 +1,27 @@
+{
+  "timestamp": "2025-11-25T08:38:08.758577+00:00",
+  "stage_name": "fixture_db_at_028",
+  "dataset_paths": {
+    "expt": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/idx-0000_sigma_metadata.expt",
+    "refl": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/refGeom.refl",
+    "mask": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/747_mask.pkl",
+    "mtz": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/scaled.mtz"
+  },
+  "sigma_provenance": "external_lookup (metadata tiles)",
+  "hkl_source": "unknown",
+  "hkl_path": "unknown",
+  "calibration_path": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/config_torch_smoke.json",
+  "device": "cuda:0",
+  "target_stats": {
+    "mean": 63.02534484863281,
+    "std": 988.8021850585938,
+    "min": -7.975452423095703,
+    "max": 53234.6171875
+  },
+  "loss_mask_coverage": 0.0021021847522196737,
+  "n_rois": 92,
+  "roi_cc_median": -0.0399154906104092,
+  "scale_ratio": 0.8344644708818382,
+  "sigma_floor_value": 1.0,
+  "spot_scale_override": 3.105058665484234e+17
+}

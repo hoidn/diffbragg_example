@@ -1,0 +1,70 @@
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+Running mapping dataset metrics comparison
+Cases: ['metadata_scaled', 'metadata_refined']
+Output directory: plans/active/TOOLING-VIS-001/reports/2025-11-25T093500Z/mapping_dataset_metrics
+Device: cuda:0
+Sigma source: metadata
+Default sigma: 3.0 ADU
+
+=== Building mapping context for case: metadata_scaled ===
+  expt: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/idx-0000_sigma_metadata.expt
+  refl: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/refGeom.refl
+  mask: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/747_mask.pkl
+  hkls: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/scaled.mtz
+  calibration: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/config_torch_smoke.json
+  sigma_source: metadata
+auto-selected 3-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-29,10] hit_rate=55457827/56016009 (99.00%)
+  roi_cc_median: -0.0399
+  scale_ratio_masked: 0.8345
+  scale_ratio_unmasked: 2.3810
+  bragg_mean: 0.32
+  bragg_std: 93.66
+  bragg_max: 159377.56
+  hkl_source: unknown
+  hkl_path: unknown
+  hkl_count: 69614
+  sigma_floor_value: 1.0
+  spot_scale_override: 3.105058665484234e+17
+  global_scale_hint: 1.1983733698610661
+
+=== Building mapping context for case: metadata_refined ===
+  expt: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/idx-0000_sigma_metadata.expt
+  refl: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/refGeom.refl
+  mask: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/747_mask.pkl
+  hkls: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/fixtures/golden_data/simple_cubic/refined_structure_factors.mtz
+  calibration: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/fixtures/golden_data/simple_cubic/config_torch.json
+  sigma_source: metadata
+auto-selected 3-fold oversampling
+[HKL stats] h=[-23,8] k=[-28,12] l=[-29,10] hit_rate=55457827/56016009 (99.00%)
+  roi_cc_median: -0.0399
+  scale_ratio_masked: 0.2587
+  scale_ratio_unmasked: 1.8051
+  bragg_mean: 0.24
+  bragg_std: 51.13
+  bragg_max: 62304.52
+  hkl_source: unknown
+  hkl_path: unknown
+  hkl_count: 69614
+  sigma_floor_value: 1.0
+  spot_scale_override: 3.184711299019782e+17
+  global_scale_hint: 3.8649490327694687
+
+=== Metrics written to plans/active/TOOLING-VIS-001/reports/2025-11-25T093500Z/mapping_dataset_metrics/mapping_dataset_metrics.json ===
+Summary:
+  metadata_scaled:
+    roi_cc_median: -0.0399
+    scale_ratio_masked: 0.8345
+    bragg_mean: 0.32
+  metadata_refined:
+    roi_cc_median: -0.0399
+    scale_ratio_masked: 0.2587
+    bragg_mean: 0.24
+
+Deltas vs metadata_scaled:
+  metadata_refined:
+    delta_roi_cc_median: 0.0000
+    delta_scale_ratio_masked: -0.5757
+
+Done.

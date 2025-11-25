@@ -685,3 +685,14 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-25T042456Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=3 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T042456Z/ next_action=fix_mapping_forward_hkl_parity
+
+## 2025-11-25T044016Z — TOOLING-VIS-001 Phase D.D Dataset Alignment Plan
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
+- Action Type: planning
+- Key Observations: Ralph fixed the mapping forward HKL/calibration wiring (KeyError resolved); the CPU parity probe now reports `mapping_forward_success=true` with ROI CC≈0.62 and scale_ratio≈3.95e-03, but DB-AT-028/029 on the metadata-sigma CUDA fixture still fail with the prior signature (chi²/pixel≈1.08e5, median_corr_before≈-0.05, scale_ratio_before≈3.0e-03, clamp_fraction=0). Mapping ROI CC inside the pytest fixture remains ≈-0.04, indicating a dataset/device divergence between the probe (refined/simple_cubic CPU path) and the smoke fixture (metadata sigma, full detector, CUDA). New Do Now aims to unify mapping context (dataset/HKL/calibration/device) across the parity probe and fixture via build_mapping_stage_a_context before reassessing Stage A reconstruction.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-25T044016Z/
+- Next Actions: Ready-for-implementation Do Now to refactor parity probe + stage_a_smoke_result to share mapping context/HKL/calibration, then rerun parity probe and DB-AT-028/029 selectors.
+- <Action State>: [ready_for_implementation]
+
+2025-11-25T044016Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=0 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T044016Z/ next_action=unify_mapping_context_for_db_at_028_029

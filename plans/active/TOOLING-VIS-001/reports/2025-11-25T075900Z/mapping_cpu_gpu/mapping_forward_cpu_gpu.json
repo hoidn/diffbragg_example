@@ -1,0 +1,45 @@
+{
+  "cuda_available": true,
+  "error": null,
+  "sigma_source": "metadata",
+  "cpu_metrics": {
+    "roi_cc_median": NaN,
+    "roi_cc_count": 0,
+    "scale_ratio_masked": 0.0,
+    "scale_ratio_unmasked": 0.0,
+    "log_scale_baseline": 0.0,
+    "global_scale_hint": 62.65738056380318,
+    "sigma_floor_value": 1.0,
+    "bragg_mean": 0.0,
+    "bragg_std": 0.0,
+    "bragg_max": 0.0,
+    "spot_scale_override": 1.0,
+    "hkl_source": "raw",
+    "hkl_path": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/scaled.mtz",
+    "hkl_count": 69614
+  },
+  "gpu_metrics": {
+    "roi_cc_median": NaN,
+    "roi_cc_count": 0,
+    "scale_ratio_masked": 0.0,
+    "scale_ratio_unmasked": 0.0,
+    "log_scale_baseline": 0.0,
+    "global_scale_hint": 62.65738056380318,
+    "sigma_floor_value": 1.0,
+    "bragg_mean": 0.0,
+    "bragg_std": 0.0,
+    "bragg_max": 0.0,
+    "spot_scale_override": 1.0,
+    "hkl_source": "raw",
+    "hkl_path": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/scaled.mtz",
+    "hkl_count": 69614
+  },
+  "parity_metrics": {
+    "bragg_mean_abs_diff": 0.0,
+    "bragg_max_abs_diff": 0.0,
+    "roi_cc_median_diff": NaN,
+    "scale_ratio_masked_rel_diff": NaN,
+    "scale_ratio_unmasked_rel_diff": NaN,
+    "log_scale_baseline_match": true
+  }
+}

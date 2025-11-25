@@ -1,0 +1,57 @@
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+Configuration:
+  smoke_sigma_source: metadata
+  smoke_detector_size: small
+  default_sigma_readout: 3.0
+  hkl_source_path: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/scaled.mtz
+  dataload_mtz_path: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/scaled.mtz
+  out_dir: plans/active/TOOLING-VIS-001/reports/2025-11-25T075900Z/mapping_cpu_gpu
+
+Loading data from:
+  expt: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/idx-0000_sigma_metadata.expt
+  refl: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/refGeom.refl
+  mask: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/747_mask.pkl
+  mtz: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/scaled.mtz
+
+============================================================
+Building CPU mapping context...
+auto-selected 1-fold oversampling
+WARNING: out of range for three point interpolation
+WARNING: further warnings will not be printed!
+CPU metrics: ROI CC median=nan, scale_ratio_masked=0.0000e+00, scale_ratio_unmasked=0.0000e+00
+Building CUDA mapping context...
+auto-selected 1-fold oversampling
+WARNING: out of range for three point interpolation
+WARNING: further warnings will not be printed!
+GPU metrics: ROI CC median=nan, scale_ratio_masked=0.0000e+00, scale_ratio_unmasked=0.0000e+00
+Computing CPU vs GPU parity metrics...
+Parity metrics: mean_abs_diff=0.0000e+00, max_abs_diff=0.0000e+00, roi_cc_diff=nan, scale_ratio_masked_rel_diff=nan
+============================================================
+
+Wrote JSON to plans/active/TOOLING-VIS-001/reports/2025-11-25T075900Z/mapping_cpu_gpu/mapping_forward_cpu_gpu.json
+
+Summary:
+  Sigma source: metadata
+  CUDA available: True
+  CPU ROI CC median: nan
+  CPU scale ratio (masked): 0.0000e+00
+  CPU scale ratio (unmasked): 0.0000e+00
+  CPU spot_scale_override: 1.0000e+00
+  CPU HKL source: raw
+  CPU HKL path: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/scaled.mtz
+  CPU HKL count: 69614
+  GPU ROI CC median: nan
+  GPU scale ratio (masked): 0.0000e+00
+  GPU scale ratio (unmasked): 0.0000e+00
+  GPU spot_scale_override: 1.0000e+00
+  GPU HKL source: raw
+  GPU HKL path: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/scaled.mtz
+  GPU HKL count: 69614
+  Bragg mean_abs_diff: 0.0000e+00
+  Bragg max_abs_diff: 0.0000e+00
+  ROI CC median diff: nan
+  Scale ratio (masked) rel diff: nan
+  Scale ratio (unmasked) rel diff: nan
+
+Probe complete.

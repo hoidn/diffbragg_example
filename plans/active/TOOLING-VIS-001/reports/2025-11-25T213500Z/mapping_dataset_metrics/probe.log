@@ -1,0 +1,220 @@
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+Running mapping dataset metrics comparison
+Cases: ['metadata_raw', 'metadata_calibrated', 'cli_raw', 'cli_calibrated']
+Output directory: plans/active/TOOLING-VIS-001/reports/2025-11-25T213500Z/mapping_dataset_metrics
+Device: cuda:0
+Sigma source: metadata
+Default sigma: 3.0 ADU
+
+=== Building mapping context for case: metadata_raw ===
+  expt: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/refGeom_small/refGeom_small.expt
+  refl: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/refGeom_small/refGeom_small.refl
+  mask: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/refGeom_small/refGeom_small_mask.pkl
+  hkls: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/scaled.mtz
+  calibration: None
+  sigma_source: metadata
+  sigma_map: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/refGeom_small/idx-0000_sigma_metadata_small.sigma_tiles.pkl
+auto-selected 1-fold oversampling
+[HKL stats] h=[-12,7] k=[-14,9] l=[-14,8] hit_rate=1045385/1048576 (99.70%)
+  roi_cc_median: 0.0470
+  scale_ratio_masked: 0.0002
+  scale_ratio_unmasked: 0.0313
+  bragg_mean: 0.01
+  bragg_std: 0.01
+  bragg_max: 0.09
+  hkl_source: raw
+  hkl_path: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/scaled.mtz
+  hkl_count: 69614
+  sigma_floor_value: 1.0
+  sigma_readout_map_source: cli_map
+  sigma_map_path: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/refGeom_small/idx-0000_sigma_metadata_small.sigma_tiles.pkl
+  spot_scale_override: 1.0
+  global_scale_hint: 4291.226090198853
+
+  Emitting ROI artifacts to plans/active/TOOLING-VIS-001/reports/2025-11-25T213500Z/mapping_dataset_metrics/metadata_raw/roi_diagnostics...
+  Emitting 16 lowest-correlation ROIs...
+    [ 1/16] ROI   28: corr= -0.267 -> roi_0028_corr_-0.267.png
+    [ 2/16] ROI   26: corr= -0.251 -> roi_0026_corr_-0.251.png
+    [ 3/16] ROI   23: corr= -0.108 -> roi_0023_corr_-0.108.png
+    [ 4/16] ROI   17: corr= -0.106 -> roi_0017_corr_-0.106.png
+    [ 5/16] ROI   21: corr= -0.070 -> roi_0021_corr_-0.070.png
+    [ 6/16] ROI   20: corr= -0.063 -> roi_0020_corr_-0.063.png
+    [ 7/16] ROI   24: corr= -0.037 -> roi_0024_corr_-0.037.png
+    [ 8/16] ROI   15: corr= -0.026 -> roi_0015_corr_-0.026.png
+    [ 9/16] ROI   16: corr= -0.013 -> roi_0016_corr_-0.013.png
+    [10/16] ROI   19: corr= -0.005 -> roi_0019_corr_-0.005.png
+    [11/16] ROI   25: corr= -0.000 -> roi_0025_corr_-0.000.png
+    [12/16] ROI   27: corr=  0.014 -> roi_0027_corr_0.014.png
+    [13/16] ROI    7: corr=  0.020 -> roi_0007_corr_0.020.png
+    [14/16] ROI    3: corr=  0.033 -> roi_0003_corr_0.033.png
+    [15/16] ROI    2: corr=  0.047 -> roi_0002_corr_0.047.png
+    [16/16] ROI    0: corr=  0.051 -> roi_0000_corr_0.051.png
+  ROI artifacts emission complete.
+
+=== Building mapping context for case: metadata_calibrated ===
+  expt: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/refGeom_small/refGeom_small.expt
+  refl: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/refGeom_small/refGeom_small.refl
+  mask: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/refGeom_small/refGeom_small_mask.pkl
+  hkls: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/smoke_refined_structure_factors_small.mtz
+  calibration: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/config_torch_smoke_small.json
+  sigma_source: metadata
+  sigma_map: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/refGeom_small/idx-0000_sigma_metadata_small.sigma_tiles.pkl
+auto-selected 3-fold oversampling
+[HKL stats] h=[-12,7] k=[-14,9] l=[-14,8] hit_rate=9408494/9437184 (99.70%)
+  roi_cc_median: -0.0373
+  scale_ratio_masked: 0.7389
+  scale_ratio_unmasked: 5.2233
+  bragg_mean: 1.80
+  bragg_std: 221.26
+  bragg_max: 137200.23
+  hkl_source: refined
+  hkl_path: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/smoke_refined_structure_factors_small.mtz
+  hkl_count: 69614
+  sigma_floor_value: 1.0
+  sigma_readout_map_source: cli_map
+  sigma_map_path: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/refGeom_small/idx-0000_sigma_metadata_small.sigma_tiles.pkl
+  spot_scale_override: 4.786110784894759e+17
+  global_scale_hint: 1.353273326301568
+
+  Emitting ROI artifacts to plans/active/TOOLING-VIS-001/reports/2025-11-25T213500Z/mapping_dataset_metrics/metadata_calibrated/roi_diagnostics...
+  Emitting 16 lowest-correlation ROIs...
+    [ 1/16] ROI    0: corr= -0.201 -> roi_0000_corr_-0.201.png
+    [ 2/16] ROI   27: corr= -0.162 -> roi_0027_corr_-0.162.png
+    [ 3/16] ROI   26: corr= -0.137 -> roi_0026_corr_-0.137.png
+    [ 4/16] ROI   28: corr= -0.129 -> roi_0028_corr_-0.129.png
+    [ 5/16] ROI    1: corr= -0.123 -> roi_0001_corr_-0.123.png
+    [ 6/16] ROI    3: corr= -0.118 -> roi_0003_corr_-0.118.png
+    [ 7/16] ROI    8: corr= -0.079 -> roi_0008_corr_-0.079.png
+    [ 8/16] ROI   13: corr= -0.068 -> roi_0013_corr_-0.068.png
+    [ 9/16] ROI   23: corr= -0.066 -> roi_0023_corr_-0.066.png
+    [10/16] ROI   19: corr= -0.064 -> roi_0019_corr_-0.064.png
+    [11/16] ROI    2: corr= -0.052 -> roi_0002_corr_-0.052.png
+    [12/16] ROI    4: corr= -0.049 -> roi_0004_corr_-0.049.png
+    [13/16] ROI    7: corr= -0.044 -> roi_0007_corr_-0.044.png
+    [14/16] ROI   24: corr= -0.037 -> roi_0024_corr_-0.037.png
+    [15/16] ROI   11: corr= -0.037 -> roi_0011_corr_-0.037.png
+    [16/16] ROI   20: corr= -0.032 -> roi_0020_corr_-0.032.png
+  ROI artifacts emission complete.
+
+=== Building mapping context for case: cli_raw ===
+  expt: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/refGeom_small/refGeom_small.expt
+  refl: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/refGeom_small/refGeom_small.refl
+  mask: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/refGeom_small/refGeom_small_mask.pkl
+  hkls: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/scaled.mtz
+  calibration: None
+  sigma_source: cli_override
+  sigma_map: None
+auto-selected 1-fold oversampling
+[HKL stats] h=[-12,7] k=[-14,9] l=[-14,8] hit_rate=1045385/1048576 (99.70%)
+  roi_cc_median: 0.0470
+  scale_ratio_masked: 0.0002
+  scale_ratio_unmasked: 0.0313
+  bragg_mean: 0.01
+  bragg_std: 0.01
+  bragg_max: 0.09
+  hkl_source: raw
+  hkl_path: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/scaled.mtz
+  hkl_count: 69614
+  sigma_floor_value: 1.0
+  sigma_readout_map_source: None
+  sigma_map_path: None
+  spot_scale_override: 1.0
+  global_scale_hint: 4291.226090198853
+
+  Emitting ROI artifacts to plans/active/TOOLING-VIS-001/reports/2025-11-25T213500Z/mapping_dataset_metrics/cli_raw/roi_diagnostics...
+  Emitting 16 lowest-correlation ROIs...
+    [ 1/16] ROI   28: corr= -0.267 -> roi_0028_corr_-0.267.png
+    [ 2/16] ROI   26: corr= -0.251 -> roi_0026_corr_-0.251.png
+    [ 3/16] ROI   23: corr= -0.108 -> roi_0023_corr_-0.108.png
+    [ 4/16] ROI   17: corr= -0.106 -> roi_0017_corr_-0.106.png
+    [ 5/16] ROI   21: corr= -0.070 -> roi_0021_corr_-0.070.png
+    [ 6/16] ROI   20: corr= -0.063 -> roi_0020_corr_-0.063.png
+    [ 7/16] ROI   24: corr= -0.037 -> roi_0024_corr_-0.037.png
+    [ 8/16] ROI   15: corr= -0.026 -> roi_0015_corr_-0.026.png
+    [ 9/16] ROI   16: corr= -0.013 -> roi_0016_corr_-0.013.png
+    [10/16] ROI   19: corr= -0.005 -> roi_0019_corr_-0.005.png
+    [11/16] ROI   25: corr= -0.000 -> roi_0025_corr_-0.000.png
+    [12/16] ROI   27: corr=  0.014 -> roi_0027_corr_0.014.png
+    [13/16] ROI    7: corr=  0.020 -> roi_0007_corr_0.020.png
+    [14/16] ROI    3: corr=  0.033 -> roi_0003_corr_0.033.png
+    [15/16] ROI    2: corr=  0.047 -> roi_0002_corr_0.047.png
+    [16/16] ROI    0: corr=  0.051 -> roi_0000_corr_0.051.png
+  ROI artifacts emission complete.
+
+=== Building mapping context for case: cli_calibrated ===
+  expt: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/refGeom_small/refGeom_small.expt
+  refl: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/refGeom_small/refGeom_small.refl
+  mask: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/refGeom_small/refGeom_small_mask.pkl
+  hkls: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/smoke_refined_structure_factors_small.mtz
+  calibration: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/config_torch_smoke_small.json
+  sigma_source: cli_override
+  sigma_map: None
+auto-selected 3-fold oversampling
+[HKL stats] h=[-12,7] k=[-14,9] l=[-14,8] hit_rate=9408494/9437184 (99.70%)
+  roi_cc_median: -0.0373
+  scale_ratio_masked: 0.7389
+  scale_ratio_unmasked: 5.2233
+  bragg_mean: 1.80
+  bragg_std: 221.26
+  bragg_max: 137200.23
+  hkl_source: refined
+  hkl_path: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/smoke_refined_structure_factors_small.mtz
+  hkl_count: 69614
+  sigma_floor_value: 1.0
+  sigma_readout_map_source: None
+  sigma_map_path: None
+  spot_scale_override: 4.786110784894759e+17
+  global_scale_hint: 1.353273326301568
+
+  Emitting ROI artifacts to plans/active/TOOLING-VIS-001/reports/2025-11-25T213500Z/mapping_dataset_metrics/cli_calibrated/roi_diagnostics...
+  Emitting 16 lowest-correlation ROIs...
+    [ 1/16] ROI    0: corr= -0.201 -> roi_0000_corr_-0.201.png
+    [ 2/16] ROI   27: corr= -0.162 -> roi_0027_corr_-0.162.png
+    [ 3/16] ROI   26: corr= -0.137 -> roi_0026_corr_-0.137.png
+    [ 4/16] ROI   28: corr= -0.129 -> roi_0028_corr_-0.129.png
+    [ 5/16] ROI    1: corr= -0.123 -> roi_0001_corr_-0.123.png
+    [ 6/16] ROI    3: corr= -0.118 -> roi_0003_corr_-0.118.png
+    [ 7/16] ROI    8: corr= -0.079 -> roi_0008_corr_-0.079.png
+    [ 8/16] ROI   13: corr= -0.068 -> roi_0013_corr_-0.068.png
+    [ 9/16] ROI   23: corr= -0.066 -> roi_0023_corr_-0.066.png
+    [10/16] ROI   19: corr= -0.064 -> roi_0019_corr_-0.064.png
+    [11/16] ROI    2: corr= -0.052 -> roi_0002_corr_-0.052.png
+    [12/16] ROI    4: corr= -0.049 -> roi_0004_corr_-0.049.png
+    [13/16] ROI    7: corr= -0.044 -> roi_0007_corr_-0.044.png
+    [14/16] ROI   24: corr= -0.037 -> roi_0024_corr_-0.037.png
+    [15/16] ROI   11: corr= -0.037 -> roi_0011_corr_-0.037.png
+    [16/16] ROI   20: corr= -0.032 -> roi_0020_corr_-0.032.png
+  ROI artifacts emission complete.
+
+=== Metrics written to plans/active/TOOLING-VIS-001/reports/2025-11-25T213500Z/mapping_dataset_metrics/mapping_dataset_metrics.json ===
+Summary:
+  metadata_raw:
+    roi_cc_median: 0.0470
+    scale_ratio_masked: 0.0002
+    bragg_mean: 0.01
+  metadata_calibrated:
+    roi_cc_median: -0.0373
+    scale_ratio_masked: 0.7389
+    bragg_mean: 1.80
+  cli_raw:
+    roi_cc_median: 0.0470
+    scale_ratio_masked: 0.0002
+    bragg_mean: 0.01
+  cli_calibrated:
+    roi_cc_median: -0.0373
+    scale_ratio_masked: 0.7389
+    bragg_mean: 1.80
+
+Deltas vs metadata_raw:
+  metadata_calibrated:
+    delta_roi_cc_median: -0.0843
+    delta_scale_ratio_masked: 0.7387
+  cli_raw:
+    delta_roi_cc_median: 0.0000
+    delta_scale_ratio_masked: 0.0000
+  cli_calibrated:
+    delta_roi_cc_median: -0.0843
+    delta_scale_ratio_masked: 0.7387
+
+Done.

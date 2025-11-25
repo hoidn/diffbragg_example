@@ -1,5 +1,5 @@
 ### Turn Summary
-Queued a detector-size–specific calibration capture plan for refGeom_small after confirming telemetry still combines the small geometry with the full-detector calibration bundle.
-Refreshed docs/fix_plan.md, input.md, and galph_memory.md so Ralph’s next loop includes capturing config_torch_smoke_small.json, updating .gitignore/tests, and rerunning the mapping probe plus DB-AT-028/029 under the new asset.
-Next: execute the capture + fixture updates, then run compare_mapping_dataset_metrics and the two DB-AT selectors to gather telemetry for the small bundle.
-Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-25T213500Z/ (summary.md)
+Implemented detector-size-aware calibration resolver so small-detector Stage A fixtures automatically consume config_torch_smoke_small.json + smoke_refined_structure_factors_small.mtz; no fixture/probe changes required beyond updating conftest.py::refgeom_dataload signature.
+Generated the small-detector calibration bundle (spot_scale=4.786e+17 vs 3.105e+17 full) and validated telemetry via DB-AT-028/029 (both FAILED on chi²/ROI as expected but now emit the detector-specific calibration_path and hkl_path).
+DB-AT-028/029 still report ROI CC≈-0.053 and chi²/pixel≈2.098e+05 despite geometry-aligned calibration, confirming the anti-correlation persists; next step is physics investigation (calibration components or Stage A engine).
+Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-25T213500Z/ (capture_small/smoke_calibration_small_manifest.json, mapping_dataset_metrics/mapping_dataset_metrics.json, db_at_028/mapping_context_fixture.json + db_at_028_metrics.json, db_at_029/mapping_context_fixture.json, pytest_db_at_028_029.log)

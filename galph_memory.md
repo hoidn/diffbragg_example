@@ -1229,3 +1229,18 @@ This is the **single most important diagnostic** to run before any other TOOLING
 - <Action State>: [planning]
 
 2025-11-25T170500Z focus=TOOLING-VIS-001 state=planning dwell=0 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T170322Z/ next_action=propagate_apply_calibration_n_cells_gate
+
+## 2025-11-25T17:03Z — Ralph Loop 330: N_cells Gate + Scale Baseline Issue
+
+**Shipped**: Threaded `apply_calibration_n_cells` gate through RefinementConfig → _build_stage_a_context → Stage A/B/C cold fallback paths. Gate correctly suppresses N_cells when False (small-detector metadata fixtures).
+
+**Discovered Scale Baseline Bug**: When `calibration_adjusted_for_n_cells=True`, mapping multiplies `spot_scale_override` by `(target_mean/bragg_mean)^2` (~5e20) to compensate for N_cells suppression. Stage A Priority 1 override (lines 1107-1124) and warmed simulator baseline derivation (lines 1391-1412) interact incorrectly:
+1. Warmed simulators produce RAW (unscaled) Bragg intensities
+2. Priority 1 override uses `global_scale_hint=1.0`, giving `log_scale_baseline=0` (wrong)
+3. Priority 2 correctly derives `log_scale_baseline=log(sqrt(spot_scale_override))≈32.28`, BUT
+4. The `sqrt_spot_scale` factor isn't applied in the LBFGS forward passes — only in the baseline computation
+
+**Root Cause Hypothesis**: The `spot_scale_override` is a POST-simulation multiplicative factor (applied at nanobrag_bridge.py:2013), NOT a crystal/simulator config parameter. The Stage A LBFGS closure runs simulators directly (no post-scaling), so Bragg intensities remain tiny (1.32e-13 ADU) even though log_scale_baseline is correct (32.28). The exp(32.28) = 3.3e+13 scale factor would fix this, but LBFGS applies exp(log_scale_baseline + log_scale_delta), and log_scale_delta starts at 0 and doesn't get a chance to converge because chi² is already astronomical.
+
+**Suggested Fix**: Modify the LBFGS closure's `compute_loss` function to apply `sqrt(spot_scale_override)` as a multiplicative factor to the Bragg tensor BEFORE computing MSE, similar to how `simulate_forward_once` does it. This ensures the forward model matches the mapping-adjusted intensities.
+

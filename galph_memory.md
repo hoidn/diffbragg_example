@@ -663,3 +663,14 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-25T034523Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=1 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T034523Z/ next_action=stage_a_parity_probe_and_diag
+
+## 2025-11-25T040828Z — TOOLING-VIS-001 Phase D.D Parity Probe Planning Refresh
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics (DB-AT-028/029 parity)
+- Action Type: planning
+- Key Observations: Parity probe runs are still failing before producing metrics (`simulate_forward_once() got an unexpected keyword argument 'hkl_grid'`), and DB-AT-028/029 continue to show the long-standing signature (chi²/pixel ≈1e5, median ROI CC ≈0.04). No production edits were made. Authored a ready-for-implementation Do Now to (a) fix `compare_stage_a_mapping_parity.py` with the correct mapping forward API + mapping/HKL parity metrics, (b) harden `stage_a_smoke_result` to use mapping HKL/calibration (no refined MTZ) and persist mapping-forward ROI CC/scale ratios into DBAT028/029 artifacts, and (c) rerun the probe + selectors capturing artifacts under `plans/active/TOOLING-VIS-001/reports/2025-11-25T040828Z/`. Dwell=2 (second consecutive planning turn); next loop must execute the implementation.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-25T040828Z/
+- Next Actions: Ralph executes the Do Now (fix probe + test harness, run parity probe, rerun DB-AT-028/029 with canonical env, archive metrics); if failures persist, log signatures in summary.md and fix_plan.
+- <Action State>: [ready_for_implementation]
+
+2025-11-25T040828Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=2 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T040828Z/ next_action=fix_parity_probe_and_rerun_db_at_028_029

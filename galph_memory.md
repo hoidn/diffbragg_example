@@ -899,3 +899,14 @@ This is the **single most important diagnostic** to run before any other TOOLING
 - <Action State>: [ready_for_implementation]
 
 2025-11-25T074043Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=0 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T074043Z/ next_action=log_calibration_path_and_rerun_mapping_probe_plus_db_at_028_029
+## 2025-11-25T080332Z — TOOLING-VIS-001 Smoke Calibration Schema Alignment Plan
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
+- Action Type: planning
+- Key Observations: Reviewed the 2025-11-25T074043Z mapping probe output and saw `calibration_path` pointing at the captured config but `diagnostics["spot_scale_override"]` stuck at 1.0 with all-zero Bragg stacks. Tracing `load_calibration_metadata` confirmed it expects the DiffBragg `config_torch.json` schema (`beam.*` / `crystal.*`), whereas `capture_smoke_calibration.py` currently emits a flat JSON so the loader raises KeyError and build_mapping_stage_a_context silently ignores the calibration. Without fixing the schema we cannot propagate the metadata into Stage A or interpret DB-AT-028/029 metrics.
+- Decisions: Keep production code untouched this loop and instead rewrite the plan-local capture script to output the canonical nested schema, then rerun the capture, mapping probe, and DB-AT-028/029 with `DBEX_SMOKE_CALIB_PATH` pointed at the regenerated config so telemetry proves the calibration is actually used. New artifacts will live under `plans/active/TOOLING-VIS-001/reports/2025-11-25T080332Z/` and input.md was refreshed with the ready-for-implementation Do Now + How-To map.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-25T080332Z/
+- Next Actions: Ralph implements the schema fix in `capture_smoke_calibration.py`, regenerates the config/manifests, reruns `compare_mapping_forward_cpu_gpu.py`, and reruns DB-AT-028/029 capturing refreshed metrics; if calibration still fails to load, log the KeyError and stop.
+- <Action State>: [ready_for_implementation]
+
+2025-11-25T080332Z focus=TOOLING-VIS-001 state=planning dwell=1 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T080332Z/ next_action=smoke_calibration_schema_fix

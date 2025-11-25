@@ -641,3 +641,14 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-24T234121Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=3 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-24T234121Z/ next_action=execute_spot_scale_calibration_threading
+
+## 2025-11-25T005459Z — TOOLING-VIS-001 Phase D.D Planning (DB-AT-028/029)
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics (Phase D.D loss-scale/structure gates)
+- Action Type: planning
+- Key Observations: DB-AT-027 is now Active with calibrated Stage A reconstruction; drafted a ready-for-implementation Do Now in `input.md` to implement DB-AT-028 (chi²-per-pixel + clamp sanity) and DB-AT-029 (ROI correlation + scale band) on the Stage A smoke dataset, hardening `_build_final_bragg_from_stage_a_telemetry` reconstruction and adding new pytest selectors with artifact logging. Environment freeze upheld; no code executed.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-25T005459Z/
+- Next Actions: Ralph implements the DB-AT-028/029 tests and reconstruction alignment per input.md, runs pytest with canonical env, and syncs the testing registry after PASS.
+- <Action State>: [ready_for_implementation]
+
+2025-11-25T005459Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=0 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T005459Z/ next_action=db_at_028_029_tests

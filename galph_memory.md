@@ -717,3 +717,14 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-25T051235Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=2 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T051235Z/ next_action=diagnostic_logging_and_db_at_028_029_rerun
+
+## 2025-11-25T053220Z — TOOLING-VIS-001 CPU↔CUDA Mapping Probe Plan
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
+- Action Type: planning
+- Key Observations: Mapping diagnostics now show mapping_forward ROI CC ≈ -0.04 and scale_ratio ≈3e-03 on CUDA even before Stage A, suggesting the metadata-sigma mapping forward path is misaligned on GPU (CPU baseline was ≈0.62 CC). Prepared a ready-for-implementation Do Now to add a CPU vs CUDA mapping forward probe script and rerun DB-AT-028/029 with the same dataset/env. Updated docs/fix_plan.md and input.md with artifacts path `plans/active/TOOLING-VIS-001/reports/2025-11-25T053220Z/`.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-25T053220Z/
+- Next Actions: Ralph implements the CPU/GPU mapping parity probe, runs it plus DB-AT-028/029 selectors with canonical env, and records CPU↔CUDA deltas in summary + fix_plan.
+- <Action State>: [ready_for_implementation]
+
+2025-11-25T053220Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=3 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T053220Z/ next_action=cpu_vs_cuda_mapping_probe

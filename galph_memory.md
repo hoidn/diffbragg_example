@@ -1244,3 +1244,13 @@ This is the **single most important diagnostic** to run before any other TOOLING
 
 **Suggested Fix**: Modify the LBFGS closure's `compute_loss` function to apply `sqrt(spot_scale_override)` as a multiplicative factor to the Bragg tensor BEFORE computing MSE, similar to how `simulate_forward_once` does it. This ensures the forward model matches the mapping-adjusted intensities.
 
+# 2025-11-25T172416Z — TOOLING-VIS-001 gate propagation plan
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
+- Action Type: planning
+- Key Observations: Mapping telemetry for the latest smoke run already records `n_cells_applied=false` and positive ROI structure (`plans/active/TOOLING-VIS-001/reports/2025-11-26T050500Z/db_at_029/mapping_context_fixture.json:25-40`), yet Stage A metrics from the same run remain negative and log `model_mean_masked≈1.7e-08` (`.../db_at_029_metrics.json:2-34`). Code audit shows every retarget path that recreates simulators still hard-codes `apply_n_cells=(N_cells is not None)` — see `_build_stage_a_lbfgs_closure` (`dbex/nanobrag_refinement.py:1862-1878`), `_build_final_bragg_from_stage_a_telemetry` (`:2740-2758`), and the Stage B CPU fallback evaluators (`:3270-3365`, `4604-4705`, `5640-5705`). As soon as LBFGS updates parameters, the warm cache reloads oversampled HKL grids and undoes the mapping gate.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-25T172416Z/
+- Next Actions: ready_for_implementation — thread `apply_calibration_n_cells` through every create_crystal_config retarget (LBFGS warm cache, Stage B evaluations, `_build_final_bragg_from_stage_a_telemetry`), emit `n_cells_applied` telemetry from `_build_final_bragg_from_stage_a_telemetry`, and rerun DB-AT-028/029 to capture the updated metrics even if the chi²/ROI gates still fail.
+- <Action State>: [ready_for_implementation]
+
+2025-11-25T172416Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=0 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T172416Z/ next_action=propagate_apply_calibration_n_cells_gate_across_stage_a_b_retarget_paths

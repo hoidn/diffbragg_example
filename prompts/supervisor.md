@@ -90,6 +90,7 @@
       • Exception: You may jump tiers only to satisfy a direct dependency of a higher-priority item; record the rationale in `docs/fix_plan.md` Attempts History and `galph_memory.md`.
     - **Spec Drift Check:** Before starting implementation, verify the `implementation.md` aligns with the current `$SPECS`. If they conflict, your Do Now is "Update Plan," not "Implement Code."
     - Before other docs: `grep` `docs/findings.md` for focus keywords; list relevant Finding IDs.
+    - Consult `docs/data_dependency_manifest.md` when scoping the focus to ensure the components in scope consume the intended external dependencies. If the manifest is missing an entry or contradicts reality, update it (or block the Do Now) before delegating work.
     - From `docs/index.md`, enumerate and read the most relevant documents; note file paths you will rely on (with one‑line rationale each).
     - If focus relates to an in‑progress item, read artifacts under `plans/active/<initiative-id>/reports/` (and commit messages).
     - Prefer continuing current focus unless hard‑blocked; if pivoting, mark current item `blocked` with return conditions.

@@ -30,6 +30,7 @@
     - docs/spec-db-conformance.md
     - docs/spec-db*.md, docs/config_crosswalk.md, docs/dials_api.md, docs/dxtbx_api.md, docs/simtbx_api.md, docs/nanobrag_api.md
     - CLAUDE.md, AGENTS.md
+    - docs/data_dependency_manifest.md
     - Any plan files referenced by `input.md` or the fix‑plan item
   </required_reading>
 
@@ -37,7 +38,7 @@
     - **One focus per loop.** Execute only the item selected in `input.md`. If prerequisites are missing, stop, document the block in fix-plan Attempts History, and return.
     - **Do-Now must include code.** Unless `Mode: Docs`, make at least one code change that advances exit criteria. If the Do Now lacks an `Implement:` step, apply **stall-autonomy** (see Implementation Flow §0).
     - **Spec precedence.** Prefer SPEC over ARCH on external behavior; file an ARCH update when they disagree.
-    - **Search first.** Before coding, search the repo to avoid duplicating partial implementations.
+    - **Search first.** Before coding, search the repo to avoid duplicating partial implementations, and check `docs/data_dependency_manifest.md` for the components you are touching so you understand their declared external dependencies.
     - **Repeat-failure guard.** If the same acceptance criterion (test selector, CLI run, manual check) failed in the prior loop with essentially the same log/telemetry signature and the current Do Now only adjusts gates/docs, halt immediately: mark the focus `blocked — suspected implementation defect (bug)` in `docs/fix_plan.md`, capture the failure evidence path, and notify the supervisor via your output instead of repeating the gate change.
       • **Inspection requirement:** Even when the Do Now includes “implementation” work (new diagnostics, CLI flags, probe parameters), if you detect that the immediately preceding loop already failed with the same selector + signature, you MUST perform a static inspection this loop before modifying probes again. Acceptable inspections: run `prompts/callchain.md` on the failing surface, or document a direct source review (file/lines) in your artifacts. Reference the inspection in your output. Do not proceed with additional probe/diagnostic edits until this inspection step is complete.
     - **Refactoring discipline (atomic).** If moving/renaming modules/classes/functions:

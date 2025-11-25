@@ -94,9 +94,9 @@ Keywords: visualization, diagnostics, stage-a
 Use this when: Designing or debugging refinement plots and VIS tooling.
 
 ### [Data Dependency Manifest](data_dependency_manifest.md)
-Description: Canonical list of external data dependencies (dataset bundles, HKL sources, calibration payloads, masks, sigma maps) for key helpers, fixtures, and probes—including override env vars and required telemetry.  
-Keywords: provenance, data-deps, HKL, calibration, smoke-fixtures  
-Use this when: Planning a Do Now or reviewing code/tests to ensure helper inputs match the intended data (all dependencies, not just HKL/calibration). Galph should consult it during planning before issuing instructions, and Ralph should re-check it before modifying helper call sites or wiring probes/tests.
+Description: Canonical list of external data dependencies for key helpers, fixtures, and probes—including the override flags/env vars that redirect those inputs and the telemetry fields that must record them.  
+Keywords: provenance, data-deps, inputs  
+Use this when: Planning a Do Now or reviewing code/tests to ensure helper inputs match the intended external data. Galph should consult it during planning before issuing instructions, and Ralph should re-check it before modifying helper call sites or wiring probes/tests.
 
 ### [Tracing](spec-db-tracing.md)
 Description: Tracing/instrumentation requirements and parity workflow for first‑divergence debugging.  

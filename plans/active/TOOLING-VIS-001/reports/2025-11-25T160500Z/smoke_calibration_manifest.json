@@ -1,0 +1,42 @@
+{
+  "dataset_name": "smoke_calibration",
+  "generation_timestamp": "2025-11-25T10:52:11.697483Z",
+  "generator_command": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/TOOLING-VIS-001/bin/capture_smoke_calibration.py --expt /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/idx-0000_sigma_metadata.expt --refl /home/ollie/Documents/diffbragg_example_2/diffbragg_example/refGeom.refl --mask /home/ollie/Documents/diffbragg_example_2/diffbragg_example/747_mask.pkl --mtz /home/ollie/Documents/diffbragg_example_2/diffbragg_example/scaled.mtz --out-config /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/config_torch_smoke.json --refined-mtz-out sp.proc/calibration/smoke_refined_structure_factors.mtz --manifest plans/active/TOOLING-VIS-001/reports/2025-11-25T160500Z/smoke_calibration_manifest.json",
+  "git_revision": "0a7ad419e94fd2553c21da197eab5fe67b6dfa44",
+  "files": {
+    "calibration_config": {
+      "filename": "config_torch_smoke.json",
+      "path": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/config_torch_smoke.json",
+      "sha256": "ff8c55c9ad4e6d13558af805181c46edfe9d44351deac87b1ef10edd3ad69175",
+      "size_bytes": 761
+    },
+    "refined_structure_factors": {
+      "filename": "smoke_refined_structure_factors.mtz",
+      "path": "sp.proc/calibration/smoke_refined_structure_factors.mtz",
+      "sha256": "58cbe8c81c48f1a803c5a382802c37fb01e3a8f74c182990e0e70468456ec68a",
+      "size_bytes": 977156
+    }
+  },
+  "inputs": {
+    "experiment": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/idx-0000_sigma_metadata.expt",
+    "reflections": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/refGeom.refl",
+    "mtz": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/scaled.mtz",
+    "mask": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/747_mask.pkl"
+  },
+  "calibration": {
+    "crystal": {
+      "scale_override": 3.105058665484234e+17,
+      "N_cells": [
+        36,
+        28,
+        26
+      ]
+    },
+    "beam": {
+      "flux": 1000000000000.0,
+      "exposure": 1.0,
+      "beamsize_mm": 1.0
+    }
+  },
+  "manifest_sha256": "a2824c7411386187c479c33cbd42946042653f8f7a9fd5fc519d8938767ca61f"
+}

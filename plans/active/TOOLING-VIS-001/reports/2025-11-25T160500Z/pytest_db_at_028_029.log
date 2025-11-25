@@ -1,0 +1,249 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 2 items
+
+tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity ERROR [ 50%]
+tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity ERROR [100%]
+
+==================================== ERRORS ====================================
+______________ ERROR at setup of test_db_at_028_loss_scale_sanity ______________
+
+smoke_dataset_paths = SmokeDatasetPaths(label='small', expt_path=PosixPath('/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.p.../Documents/diffbragg_example_2/diffbragg_example/sp.proc/refGeom_small/idx-0000_sigma_metadata_small.sigma_tiles.pkl'))
+smoke_sigma_source = 'metadata'
+
+    @pytest.fixture(scope="session")
+    def refgeom_dataload(smoke_dataset_paths, smoke_sigma_source):
+        """Load DataLoad from canonical geometry with optional sigma-map and geometry override.
+    
+        This fixture decouples sigma sourcing from geometry per TOOLING-VIS-001 Phase D requirements.
+        It loads the canonical experiment from DBEX_SMOKE_GEOM_PATH (or defaults), then:
+          1. Computes the rotation angle between the loaded experiment's U-matrix and the canonical U.
+          2. If the angle exceeds 5e-4 rad (~0.03°) OR any detector origin differs, overrides
+             DataLoad.Expt, .detector, .beam, .crystal with deep copies from the canonical geometry.
+          3. Records the resolved geometry_path and rotation_delta_deg in DataLoad.geometry_metadata
+             for diagnostics/telemetry.
+    
+        When smoke_sigma_source=="metadata", the sigma-map path is passed through args.sigma_map
+        instead of swapping the experiment file.
+    
+        Data dependencies (per docs/data_dependency_manifest.md):
+            - dbex.data_load.DataLoad (expt/refl/mask/HKL/sigma-map)
+            - dxtbx.model.ExperimentList (geometry extraction)
+        """
+        from argparse import Namespace
+    
+        from dbex.data_load import DataLoad
+        from dxtbx.model import ExperimentList
+    
+        repo_root = Path(__file__).resolve().parent.parent
+    
+        # Resolve calibration path: default to smoke calibration asset when present,
+        # otherwise honor DBEX_SMOKE_CALIB_PATH env, otherwise None
+        default_smoke_calib = repo_root / "sp.proc" / "calibration" / "config_torch_smoke.json"
+        calib_path_override = os.environ.get("DBEX_SMOKE_CALIB_PATH")
+        if calib_path_override:
+            calib_path = repo_root / calib_path_override
+        elif default_smoke_calib.exists():
+            calib_path = default_smoke_calib
+        else:
+            calib_path = None
+    
+        # Resolve HKL path from env or default to refined MTZ when calibration exists
+        # Per TOOLING-VIS-001 Phase D.C: refined structure factors must accompany calibration metadata
+        hkl_path_override = os.environ.get("DBEX_SMOKE_HKL_PATH")
+        default_refined_mtz = repo_root / "sp.proc" / "calibration" / "smoke_refined_structure_factors.mtz"
+        if hkl_path_override:
+            hkl_path = repo_root / hkl_path_override
+        elif calib_path and default_refined_mtz.exists():
+            # When calibration metadata is present, default to refined structure factors
+            hkl_path = default_refined_mtz
+        else:
+            hkl_path = repo_root / "scaled.mtz"
+    
+        # Build DataLoad args
+        args = Namespace(
+            exptName=str(smoke_dataset_paths.expt_path),
+            reflName=str(smoke_dataset_paths.refl_path),
+            maskFile=str(smoke_dataset_paths.mask_path),
+            mtzFile=str(hkl_path),
+            mtzCol="I(+),SIGI(+),I(-),SIGI(-)",  # Corrected MTZ column format per scaled.mtz structure
+            exptIdx=0,
+            sigma_map=str(smoke_dataset_paths.sigma_map_path) if smoke_dataset_paths.sigma_map_path else None,
+            config_path=str(calib_path) if calib_path else None,
+            calibration_config_path=str(calib_path) if calib_path else None,
+        )
+    
+        # Instantiate DataLoad
+>       dataload = DataLoad(args)
+
+tests/conftest.py:233: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+dbex/data_load.py:322: in __init__
+    F = utils.open_mtz(args.mtzFile, args.mtzCol)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+mtzfname = '/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/smoke_refined_structure_factors.mtz'
+mtzlabel = 'I(+),SIGI(+),I(-),SIGI(-)', verbose = False
+
+    def open_mtz(mtzfname, mtzlabel=None, verbose=False):
+        """
+    
+        :param mtzfname: path to mtz
+        :param mtzlabel: column in mtz
+        :param verbose:
+        :return:
+        """
+        if mtzlabel is None:
+            mtzlabel = "fobs(+)fobs(-)"
+        if verbose:
+            MAIN_LOGGER.info("Opening mtz file %s , label %s" % (mtzfname, mtzlabel))
+        from iotbx.reflection_file_reader import any_reflection_file
+        miller_arrays = any_reflection_file(mtzfname).as_miller_arrays()
+    
+        possible_labels = []
+        foundlabel = False
+        for ma in miller_arrays:
+            label = ma.info().label_string()
+            possible_labels.append(label)
+            if label == mtzlabel:
+                foundlabel = True
+                break
+    
+>       assert foundlabel, "MTZ Label not found... \npossible choices: %s" % (" ".join(possible_labels))
+E       AssertionError: MTZ Label not found... 
+E       possible choices: F(+),SIGF(+),F(-),SIGF(-)
+
+../../easyBragg/simtbx_project/simtbx/diffBragg/utils.py:1024: AssertionError
+______________ ERROR at setup of test_db_at_029_structure_parity _______________
+
+smoke_dataset_paths = SmokeDatasetPaths(label='small', expt_path=PosixPath('/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.p.../Documents/diffbragg_example_2/diffbragg_example/sp.proc/refGeom_small/idx-0000_sigma_metadata_small.sigma_tiles.pkl'))
+smoke_sigma_source = 'metadata'
+
+    @pytest.fixture(scope="session")
+    def refgeom_dataload(smoke_dataset_paths, smoke_sigma_source):
+        """Load DataLoad from canonical geometry with optional sigma-map and geometry override.
+    
+        This fixture decouples sigma sourcing from geometry per TOOLING-VIS-001 Phase D requirements.
+        It loads the canonical experiment from DBEX_SMOKE_GEOM_PATH (or defaults), then:
+          1. Computes the rotation angle between the loaded experiment's U-matrix and the canonical U.
+          2. If the angle exceeds 5e-4 rad (~0.03°) OR any detector origin differs, overrides
+             DataLoad.Expt, .detector, .beam, .crystal with deep copies from the canonical geometry.
+          3. Records the resolved geometry_path and rotation_delta_deg in DataLoad.geometry_metadata
+             for diagnostics/telemetry.
+    
+        When smoke_sigma_source=="metadata", the sigma-map path is passed through args.sigma_map
+        instead of swapping the experiment file.
+    
+        Data dependencies (per docs/data_dependency_manifest.md):
+            - dbex.data_load.DataLoad (expt/refl/mask/HKL/sigma-map)
+            - dxtbx.model.ExperimentList (geometry extraction)
+        """
+        from argparse import Namespace
+    
+        from dbex.data_load import DataLoad
+        from dxtbx.model import ExperimentList
+    
+        repo_root = Path(__file__).resolve().parent.parent
+    
+        # Resolve calibration path: default to smoke calibration asset when present,
+        # otherwise honor DBEX_SMOKE_CALIB_PATH env, otherwise None
+        default_smoke_calib = repo_root / "sp.proc" / "calibration" / "config_torch_smoke.json"
+        calib_path_override = os.environ.get("DBEX_SMOKE_CALIB_PATH")
+        if calib_path_override:
+            calib_path = repo_root / calib_path_override
+        elif default_smoke_calib.exists():
+            calib_path = default_smoke_calib
+        else:
+            calib_path = None
+    
+        # Resolve HKL path from env or default to refined MTZ when calibration exists
+        # Per TOOLING-VIS-001 Phase D.C: refined structure factors must accompany calibration metadata
+        hkl_path_override = os.environ.get("DBEX_SMOKE_HKL_PATH")
+        default_refined_mtz = repo_root / "sp.proc" / "calibration" / "smoke_refined_structure_factors.mtz"
+        if hkl_path_override:
+            hkl_path = repo_root / hkl_path_override
+        elif calib_path and default_refined_mtz.exists():
+            # When calibration metadata is present, default to refined structure factors
+            hkl_path = default_refined_mtz
+        else:
+            hkl_path = repo_root / "scaled.mtz"
+    
+        # Build DataLoad args
+        args = Namespace(
+            exptName=str(smoke_dataset_paths.expt_path),
+            reflName=str(smoke_dataset_paths.refl_path),
+            maskFile=str(smoke_dataset_paths.mask_path),
+            mtzFile=str(hkl_path),
+            mtzCol="I(+),SIGI(+),I(-),SIGI(-)",  # Corrected MTZ column format per scaled.mtz structure
+            exptIdx=0,
+            sigma_map=str(smoke_dataset_paths.sigma_map_path) if smoke_dataset_paths.sigma_map_path else None,
+            config_path=str(calib_path) if calib_path else None,
+            calibration_config_path=str(calib_path) if calib_path else None,
+        )
+    
+        # Instantiate DataLoad
+>       dataload = DataLoad(args)
+
+tests/conftest.py:233: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+dbex/data_load.py:322: in __init__
+    F = utils.open_mtz(args.mtzFile, args.mtzCol)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+mtzfname = '/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/smoke_refined_structure_factors.mtz'
+mtzlabel = 'I(+),SIGI(+),I(-),SIGI(-)', verbose = False
+
+    def open_mtz(mtzfname, mtzlabel=None, verbose=False):
+        """
+    
+        :param mtzfname: path to mtz
+        :param mtzlabel: column in mtz
+        :param verbose:
+        :return:
+        """
+        if mtzlabel is None:
+            mtzlabel = "fobs(+)fobs(-)"
+        if verbose:
+            MAIN_LOGGER.info("Opening mtz file %s , label %s" % (mtzfname, mtzlabel))
+        from iotbx.reflection_file_reader import any_reflection_file
+        miller_arrays = any_reflection_file(mtzfname).as_miller_arrays()
+    
+        possible_labels = []
+        foundlabel = False
+        for ma in miller_arrays:
+            label = ma.info().label_string()
+            possible_labels.append(label)
+            if label == mtzlabel:
+                foundlabel = True
+                break
+    
+>       assert foundlabel, "MTZ Label not found... \npossible choices: %s" % (" ".join(possible_labels))
+E       AssertionError: MTZ Label not found... 
+E       possible choices: F(+),SIGF(+),F(-),SIGF(-)
+
+../../easyBragg/simtbx_project/simtbx/diffBragg/utils.py:1024: AssertionError
+=============================== warnings summary ===============================
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+ERROR tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity - AssertionError: MTZ Label not found... 
+possible choices: F(+),SIGF(+),F(-),SIGF(-)
+ERROR tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity - AssertionError: MTZ Label not found... 
+possible choices: F(+),SIGF(+),F(-),SIGF(-)
+======================== 4 warnings, 2 errors in 2.17s =========================

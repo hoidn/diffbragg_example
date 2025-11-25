@@ -1037,3 +1037,14 @@ This is the **single most important diagnostic** to run before any other TOOLING
 - <Action State>: [planning]
 
 2025-11-25T170500Z focus=TOOLING-VIS-001 state=planning dwell=0 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T170500Z/ next_action=scale_chain_probe_plus_db_at_028_029
+
+## 2025-11-25T114730Z — TOOLING-VIS-001 Scale-Chain Probe Bug Analysis
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
+- Action Type: planning
+- Key Observations: Scale-chain metrics showing `spot_scale_override=1.0` for every permutation traced back to the plan-local probe: `compute_case_metrics()` zeros `dataload.args.calibration_config_path` right before invoking `build_mapping_stage_a_context`, so calibrated runs never load `sp.proc/calibration/config_torch_smoke.json` even though DB-AT fixtures do. Mapping/Stage A production code is healthy; the probe itself must stop clobbering the calibration path so evidence reflects calibrated vs uncalibrated behavior. Logged finding in docs/fix_plan.md and reserved artifacts at `plans/active/TOOLING-VIS-001/reports/2025-11-25T114730Z/` for the corrected probe + pytest rerun.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-25T114730Z/
+- Next Actions: Author ready-for-implementation Do Now for Ralph to patch `probe_scale_chain.py`, rerun the three-case probe, and refresh DB-AT-028/029 telemetry so calibrated cases show non-null calibration/spot-scale.
+- <Action State>: [planning]
+
+2025-11-25T114730Z focus=TOOLING-VIS-001 state=planning dwell=1 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T114730Z/ next_action=fix_scale_chain_probe_and_rerun_db_at_028_029

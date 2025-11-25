@@ -1,0 +1,58 @@
+{
+  "chi2_per_pixel_initial": 209817.02801932368,
+  "chi2_per_pixel_final": 209816.0850241546,
+  "variance_floor_clamp_fraction": 0.0,
+  "variance_floor_masked_pixels": 4140,
+  "variance_floor_masked_pixels_loss_mask": 4140,
+  "chi_squared_trace_full": [
+    [
+      0,
+      868642496.0
+    ],
+    [
+      5,
+      868648192.0
+    ],
+    [
+      10,
+      868630976.0
+    ],
+    [
+      15,
+      868619712.0
+    ],
+    [
+      20,
+      868634048.0
+    ],
+    [
+      25,
+      868638592.0
+    ]
+  ],
+  "device": "cuda:0",
+  "enable_hkl_interpolation": false,
+  "log_scale_initial": 0.0,
+  "log_scale_final": 0.00012421724386513233,
+  "log_scale_baseline": 20.354832358908794,
+  "log_scale_effective_init": 20.354832358908794,
+  "log_scale_effective_final": 20.35495657615266,
+  "bragg_before_mean": 1.8612375259399414,
+  "bragg_before_std": 273.6192321777344,
+  "bragg_before_max": 164689.390625,
+  "bragg_after_mean": 2.7443342208862305,
+  "bragg_after_std": 334.8328857421875,
+  "bragg_after_max": 162060.578125,
+  "roi_cc_median_before": -0.05335175189416849,
+  "roi_cc_median_after": -0.037785207189396354,
+  "hkl_source": "refined",
+  "hkl_path": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/smoke_refined_structure_factors_small.mtz",
+  "hkl_count": 69614,
+  "spot_scale_override": 4.786110784894759e+17,
+  "calibration_path": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/config_torch_smoke_small.json",
+  "sigma_source": "metadata",
+  "roi_cc_median_mapping": 0.04699710875284219,
+  "scale_ratio_mapping_masked": 6.590092947033113e-06,
+  "scale_ratio_mapping_unmasked": 0.00027869403217779457,
+  "mapping_forward_success": true
+}

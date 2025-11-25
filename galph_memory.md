@@ -1186,3 +1186,15 @@ This is the **single most important diagnostic** to run before any other TOOLING
 - <Action State>: [ready_for_implementation]
 
 2025-11-26T020500Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=1 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-26T020500Z/ next_action=implement_stage_a_engine_baseline_fix
+
+## 2025-11-25T160828Z — TOOLING-VIS-001 Stage A baseline planning update
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
+- Action Type: planning
+- Key Observations: Latest DB-AT-029 run now records `log_scale_baseline_source="mapping_global_scale_hint"`, but redirecting the baseline to `log(inputs.global_scale_hint)` zeroed out the Stage A stack (`scale_ratio_before≈1.9e-10` while mapping stays at 1.0). Root cause is that the Stage A simulator still outputs raw intensity (~2.7e-09 ADU) unless we explicitly scale it, so we need to compute the baseline from the warmed Stage A context instead of trusting the mapping hint. Authored a new Do Now directing Ralph to measure the Stage A zero-iteration masked mean, derive `log_scale_baseline=log(target_mean/model_mean_stage_a)`, and rerun DB-AT-028/029 under the canonical metadata env with refreshed artifacts.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-25T160828Z/
+- Next Actions: Ralph implements the Stage A mean-based baseline, reruns the DB-AT-028/029 pair, and reports whether the selectors now record `scale_ratio_before≈scale_ratio_mapping_masked`.
+- <Action State>: [ready_for_implementation]
+
+2025-11-25T160828Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=0 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T160828Z/ next_action=compute_stage_a_zero_iter_mean_and_rerun_db_at_028_029
+

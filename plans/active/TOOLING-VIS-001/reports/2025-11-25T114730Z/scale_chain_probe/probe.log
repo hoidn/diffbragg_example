@@ -1,0 +1,71 @@
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+Running scale-chain probe with cases: ['scaled_raw', 'scaled_calibrated', 'refined_calibrated']
+Output directory: plans/active/TOOLING-VIS-001/reports/2025-11-25T114730Z/scale_chain_probe
+Device: cuda:0
+
+Building DataLoad args from environment...
+  Experiment: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/refGeom_small/refGeom_small.expt
+  Reflections: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/refGeom_small/refGeom_small.refl
+  Mask: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/refGeom_small/refGeom_small_mask.pkl
+  HKL: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/scaled.mtz
+  Calibration: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/config_torch_smoke.json
+  Sigma map: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/refGeom_small/idx-0000_sigma_metadata_small.sigma_tiles.pkl
+
+Loading DataLoad...
+Loaded calibration from /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/config_torch_smoke.json
+
+============================================================
+Running case: scaled_raw
+============================================================
+auto-selected 1-fold oversampling
+[HKL stats] h=[-12,7] k=[-14,9] l=[-14,8] hit_rate=1031012/1048576 (98.32%)
+  ROI CC median: 0.0470
+  Scale ratio (masked): 2.331e-04
+  Bragg mean: 1.064e-02
+  Spot scale override: 1.000e+00
+  HKL source: raw (64333 reflections)
+
+============================================================
+Running case: scaled_calibrated
+============================================================
+auto-selected 3-fold oversampling
+[HKL stats] h=[-12,7] k=[-14,9] l=[-14,8] hit_rate=9279067/9437184 (98.32%)
+  ROI CC median: -0.0436
+  Scale ratio (masked): 1.795e+00
+  Bragg mean: 1.399e+00
+  Spot scale override: 3.105e+17
+  HKL source: raw (64333 reflections)
+
+============================================================
+Running case: refined_calibrated
+============================================================
+auto-selected 3-fold oversampling
+[HKL stats] h=[-12,7] k=[-14,9] l=[-14,8] hit_rate=9408494/9437184 (99.70%)
+  ROI CC median: -0.0436
+  Scale ratio (masked): 4.547e-01
+  Bragg mean: 9.551e-01
+  Spot scale override: 3.105e+17
+  HKL source: refined (69614 reflections)
+
+============================================================
+Computing diff block...
+============================================================
+
+Wrote scale-chain metrics to plans/active/TOOLING-VIS-001/reports/2025-11-25T114730Z/scale_chain_probe/scale_chain_metrics.json
+
+Diff summary (vs scaled_raw):
+
+  scaled_calibrated:
+    ROI CC Δ: -0.0906
+    Scale ratio (masked) Δ: +1.795e+00
+    Bragg mean ratio: 1.314e+02×
+    Spot scale override Δ: +3.105e+17
+
+  refined_calibrated:
+    ROI CC Δ: -0.0906
+    Scale ratio (masked) Δ: +4.545e-01
+    Bragg mean ratio: 8.973e+01×
+    Spot scale override Δ: +3.105e+17
+
+Scale-chain probe complete!

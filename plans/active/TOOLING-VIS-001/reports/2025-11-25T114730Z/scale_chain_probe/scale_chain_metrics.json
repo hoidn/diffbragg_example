@@ -1,0 +1,116 @@
+{
+  "cases": [
+    {
+      "case_name": "scaled_raw",
+      "roi_cc_median": 0.04699603144790709,
+      "roi_cc_count": 29,
+      "scale_ratio_masked": 0.00023311817058743552,
+      "scale_ratio_unmasked": 0.030945182879550046,
+      "mean_target_masked": 87.11841583251953,
+      "mean_target_unmasked": 0.3439619839191437,
+      "mean_bragg_masked": 0.020308885723352432,
+      "mean_bragg_unmasked": 0.010643966495990753,
+      "bragg_mean": 0.010643966495990753,
+      "bragg_std": 0.012292826548218727,
+      "bragg_max": 0.08533352613449097,
+      "spot_scale_override": 1.0,
+      "sqrt_spot_scale": 1.0,
+      "global_scale_hint": 4289.669902093413,
+      "log_scale_baseline": 0.0,
+      "sigma_floor_value": 1.0,
+      "hkl_source": "raw",
+      "hkl_path": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/scaled.mtz",
+      "hkl_count": 64333,
+      "calibration_path": null,
+      "device": "cuda:0"
+    },
+    {
+      "case_name": "scaled_calibrated",
+      "roi_cc_median": -0.04355988373143651,
+      "roi_cc_count": 29,
+      "scale_ratio_masked": 1.795315350976483,
+      "scale_ratio_unmasked": 4.067504175602214,
+      "mean_target_masked": 87.11841583251953,
+      "mean_target_unmasked": 0.3439619839191437,
+      "mean_bragg_masked": 156.405029296875,
+      "mean_bragg_unmasked": 1.3990668058395386,
+      "bragg_mean": 1.3990668058395386,
+      "bragg_std": 222.15602111816406,
+      "bragg_max": 158345.390625,
+      "spot_scale_override": 3.105058665484234e+17,
+      "sqrt_spot_scale": 557230532.6778347,
+      "global_scale_hint": 0.5570052077235867,
+      "log_scale_baseline": 0.0,
+      "sigma_floor_value": 1.0,
+      "hkl_source": "raw",
+      "hkl_path": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/scaled.mtz",
+      "hkl_count": 64333,
+      "calibration_path": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/config_torch_smoke.json",
+      "device": "cuda:0"
+    },
+    {
+      "case_name": "refined_calibrated",
+      "roi_cc_median": -0.04355988478689837,
+      "roi_cc_count": 29,
+      "scale_ratio_masked": 0.4547075717775578,
+      "scale_ratio_unmasked": 2.77679830322865,
+      "mean_target_masked": 87.11841583251953,
+      "mean_target_unmasked": 0.3439619839191437,
+      "mean_bragg_masked": 39.6134033203125,
+      "mean_bragg_unmasked": 0.9551130533218384,
+      "bragg_mean": 0.9551130533218384,
+      "bragg_std": 111.02320098876953,
+      "bragg_max": 61517.93359375,
+      "spot_scale_override": 3.105058665484234e+17,
+      "sqrt_spot_scale": 557230532.6778347,
+      "global_scale_hint": 2.1992156323475487,
+      "log_scale_baseline": 0.0,
+      "sigma_floor_value": 1.0,
+      "hkl_source": "refined",
+      "hkl_path": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/smoke_refined_structure_factors.mtz",
+      "hkl_count": 69614,
+      "calibration_path": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/config_torch_smoke.json",
+      "device": "cuda:0"
+    }
+  ],
+  "diff_block": {
+    "baseline_case": "scaled_raw",
+    "diffs": {
+      "scaled_calibrated": {
+        "roi_cc_median_delta": -0.0905559151793436,
+        "scale_ratio_masked_delta": 1.7950822328058955,
+        "scale_ratio_unmasked_delta": 4.036558992722664,
+        "bragg_mean_delta": 1.3884228393435478,
+        "bragg_mean_ratio": 131.4422406690704,
+        "mean_target_masked_delta": 0.0,
+        "mean_bragg_masked_delta": 156.38472041115165,
+        "mean_bragg_masked_ratio": 7701.31022585009,
+        "spot_scale_override_delta": 3.105058665484234e+17,
+        "sqrt_spot_scale_delta": 557230531.6778347,
+        "hkl_count_delta": 0
+      },
+      "refined_calibrated": {
+        "roi_cc_median_delta": -0.09055591623480547,
+        "scale_ratio_masked_delta": 0.45447445360697036,
+        "scale_ratio_unmasked_delta": 2.7458531203491,
+        "bragg_mean_delta": 0.9444690868258476,
+        "bragg_mean_ratio": 89.73281282702266,
+        "mean_target_masked_delta": 0.0,
+        "mean_bragg_masked_delta": 39.59309443458915,
+        "mean_bragg_masked_ratio": 1950.5453849081696,
+        "spot_scale_override_delta": 3.105058665484234e+17,
+        "sqrt_spot_scale_delta": 557230531.6778347,
+        "hkl_count_delta": 5281
+      }
+    }
+  },
+  "probe_config": {
+    "device": "cuda:0",
+    "default_sigma": 3.0,
+    "cases_requested": [
+      "scaled_raw",
+      "scaled_calibrated",
+      "refined_calibrated"
+    ]
+  }
+}

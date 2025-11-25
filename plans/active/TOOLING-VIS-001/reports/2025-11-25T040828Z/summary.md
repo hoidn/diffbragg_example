@@ -1,5 +1,6 @@
 ### Turn Summary
-Documented parity probe failure (`simulate_forward_once` signature) and DB-AT-028/029 still at chi²/pixel ~1e5 with median ROI CC ~0.04; no code changes made.
-Drafted a ready-for-implementation Do Now to fix the parity probe and stage_a_smoke_result to use mapping HKL/calibration and log mapping-forward metrics.
-Next: Ralph applies the probe/test fixes, runs the parity probe plus DB-AT-028/029 with canonical env, and archives metrics to pinpoint HKL vs scale mismatch.
-Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-25T040828Z/
+Added mapping-forward parity diagnostics to compare_stage_a_mapping_parity.py CLI and stage_a_smoke_result fixture per Phase D.D specification.
+Both tools now store HKL indices/amplitudes, call simulate_forward_once with baseline crystal + shared calibration, and emit ROI CC + scale ratio metrics to JSON artifacts.
+Tests collect properly (2/2) but FAIL as expected with chi²/pixel ~1e5 exceeding normative 1e2 threshold; mapping forward pass failed due to missing hkl_indices/amplitudes in dataload fallback path.
+Next: diagnose and fix HKL/calibration alignment so Stage A chi²/pixel and ROI CCs meet DB-AT-028/029 normative bounds.
+Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-25T040828Z/ (parity_metrics.json, db_at_028_metrics.json, db_at_029_metrics.json, pytest_db_at_028_029.log, pytest_db_at_028_029_collect.log)

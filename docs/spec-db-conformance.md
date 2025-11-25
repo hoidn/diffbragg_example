@@ -85,7 +85,7 @@ Acceptance Tests (Normative)
     2. Construct `U(0), B(0), A*(0)` according to the implementation's parameterization.
     3. Compare `U(0)` vs `U₀`, `B(0)` vs `B₀`, and `A*(0)` vs `A*_mapping` using a specified tolerance (e.g., max_abs_diff and Frobenius norms).
   - Expectation:
-    - All three comparisons MUST fall within the documented tolerance; any systematic deviation is a conformance failure. Normative tolerances are defined in `spec-db-core.md` (§Baseline Crystal State and Parameterization).
+    - All three comparisons MUST fall within the documented tolerance; any systematic deviation is a conformance failure. Normative tolerances are defined in `spec-db-core.md` (§Baseline Crystal State and Parameterization); this section does not restate the decomposition.
   - Command (informative example):
     - `KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests -k DB_AT_026` (or equivalent), which runs a small UB round‑trip probe using the Stage‑A parameterization.
 

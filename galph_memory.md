@@ -1026,3 +1026,14 @@ This is the **single most important diagnostic** to run before any other TOOLING
 - <Action State>: [blocked]
 
 2025-11-25T110430Z focus=TOOLING-VIS-001 state=blocked dwell=1 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T110430Z/ next_action=escalate_refined_hkl_blocker_to_galph
+
+## 2025-11-25T170500Z — TOOLING-VIS-001 Scale-Chain Diagnostics Planning
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
+- Action Type: planning
+- Key Observations: Refined HKL persistence confirmed both scaled and refined MTZ cases keep ROI CC ≈ -0.04, so we need telemetry that shows where the scaling pipeline diverges. Drafted a ready-for-implementation Do Now for Ralph to build `probe_scale_chain.py` (three permutations: scaled_raw, scaled_calibrated, refined_calibrated), diff the resulting ROI CC/scale ratios/spot_scale values, rerun the existing CPU↔GPU mapping probe, then execute DB-AT-028/029 under the canonical metadata env. Fix plan updated with the new attempt (`plans/active/TOOLING-VIS-001/reports/2025-11-25T170500Z/`) so the artifacts directory is reserved for the probe JSON, mapping logs, and pytest outputs.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-25T170500Z/
+- Next Actions: Ralph implements the probe, runs the mapping/mapping parity commands, reruns DB-AT-028/029, and reports whether the scale-chain evidence pinpoints a double-application of spot_scale vs a data mismatch.
+- <Action State>: [planning]
+
+2025-11-25T170500Z focus=TOOLING-VIS-001 state=planning dwell=0 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T170500Z/ next_action=scale_chain_probe_plus_db_at_028_029

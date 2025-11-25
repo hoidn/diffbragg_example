@@ -1331,6 +1331,45 @@ def _build_stage_a_params(
             log_scale_baseline=log_scale_baseline,
         )
 
+    # Priority 1 (revised): When calibration was adjusted for N_cells, derive Stage A baseline
+    # from warmed simulator output instead of using global_scale_hint directly (TOOLING-VIS-001 Phase E).
+    # This ensures the baseline matches what the Stage A model actually produces at the mapping zero point.
+    if stage_a_ctx is not None and config.calibration_metadata is not None:
+        calibration_adjusted = config.calibration_metadata.get("calibration_adjusted_for_n_cells", False)
+        if calibration_adjusted:
+            # Compute target mean from MASKED pixels (use actual target intensity, not global_scale_hint)
+            # global_scale_hint is a relative scale factor, not an absolute intensity
+            target_mean = None
+            if inputs.target is not None:
+                target_mean = float(inputs.target[inputs.loss_mask].mean())
+
+            # Compute model mean from Stage A warmed simulators at delta=0
+            model_mean_stage_a = None
+            try:
+                with torch.no_grad():
+                    bragg_samples = [simulator.run() for simulator in stage_a_ctx.simulators]
+                    bragg_stack = torch.stack(bragg_samples, dim=0)
+                    # Compute masked mean to match target_mean computation
+                    model_mean_stage_a = float(bragg_stack[inputs.loss_mask].mean().item())
+            except Exception:
+                # Fall back to previous behavior if simulator forward fails
+                model_mean_stage_a = None
+
+            # Compute log_scale_baseline from ratio (guard against invalid values)
+            if target_mean is not None and target_mean > 0 and model_mean_stage_a is not None and model_mean_stage_a > 0:
+                try:
+                    log_scale_baseline = float(np.log(target_mean / model_mean_stage_a))
+                    log_scale_baseline_source = "mapping_global_scale_hint"
+                    # Update stage_a_ctx so engine + inline callers share the same baseline telemetry
+                    stage_a_ctx.log_scale_baseline = log_scale_baseline
+                    # Record the adjustment factor so telemetry shows the mapping correction was honored
+                    adjustment_factor_raw = config.calibration_metadata.get("spot_scale_override_adjustment_factor")
+                    if adjustment_factor_raw is not None:
+                        spot_scale_override_adjustment_factor = float(adjustment_factor_raw)
+                except (TypeError, ValueError, OverflowError):
+                    # Fallback: keep the baseline from Priority 2 or None
+                    pass
+
     # Heuristic scale warm-start (ADU mode): estimate model mean at delta=0 and
     # initialize log_scale to match the observed target mean. Skip when no cache.
     if log_scale_baseline is None and stage_a_ctx is not None:

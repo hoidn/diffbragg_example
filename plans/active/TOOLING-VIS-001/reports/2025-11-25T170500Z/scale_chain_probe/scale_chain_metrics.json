@@ -1,0 +1,116 @@
+{
+  "cases": [
+    {
+      "case_name": "scaled_raw",
+      "roi_cc_median": 0.046995373569475425,
+      "roi_cc_count": 29,
+      "scale_ratio_masked": 0.00023311817058743552,
+      "scale_ratio_unmasked": 0.030945182879550046,
+      "mean_target_masked": 87.11841583251953,
+      "mean_target_unmasked": 0.3439619839191437,
+      "mean_bragg_masked": 0.020308885723352432,
+      "mean_bragg_unmasked": 0.010643966495990753,
+      "bragg_mean": 0.010643966495990753,
+      "bragg_std": 0.012292826548218727,
+      "bragg_max": 0.08533352613449097,
+      "spot_scale_override": 1.0,
+      "sqrt_spot_scale": 1.0,
+      "global_scale_hint": 4289.669902093413,
+      "log_scale_baseline": 0.0,
+      "sigma_floor_value": 1.0,
+      "hkl_source": "raw",
+      "hkl_path": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/scaled.mtz",
+      "hkl_count": 64333,
+      "calibration_path": null,
+      "device": "cpu"
+    },
+    {
+      "case_name": "scaled_calibrated",
+      "roi_cc_median": 0.046995373569475425,
+      "roi_cc_count": 29,
+      "scale_ratio_masked": 0.00023311817058743552,
+      "scale_ratio_unmasked": 0.030945182879550046,
+      "mean_target_masked": 87.11841583251953,
+      "mean_target_unmasked": 0.3439619839191437,
+      "mean_bragg_masked": 0.020308885723352432,
+      "mean_bragg_unmasked": 0.010643966495990753,
+      "bragg_mean": 0.010643966495990753,
+      "bragg_std": 0.012292826548218727,
+      "bragg_max": 0.08533352613449097,
+      "spot_scale_override": 1.0,
+      "sqrt_spot_scale": 1.0,
+      "global_scale_hint": 4289.669902093413,
+      "log_scale_baseline": 0.0,
+      "sigma_floor_value": 1.0,
+      "hkl_source": "raw",
+      "hkl_path": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/scaled.mtz",
+      "hkl_count": 64333,
+      "calibration_path": null,
+      "device": "cpu"
+    },
+    {
+      "case_name": "refined_calibrated",
+      "roi_cc_median": 0.04699540788479137,
+      "roi_cc_count": 29,
+      "scale_ratio_masked": 7.117788395291454e-05,
+      "scale_ratio_unmasked": 0.027833615172583617,
+      "mean_target_masked": 87.11841583251953,
+      "mean_target_unmasked": 0.3439619839191437,
+      "mean_bragg_masked": 0.006200904492288828,
+      "mean_bragg_unmasked": 0.009573705494403839,
+      "bragg_mean": 0.009573705494403839,
+      "bragg_std": 0.01158122532069683,
+      "bragg_max": 0.08605372160673141,
+      "spot_scale_override": 1.0,
+      "sqrt_spot_scale": 1.0,
+      "global_scale_hint": 14049.307797089306,
+      "log_scale_baseline": 0.0,
+      "sigma_floor_value": 1.0,
+      "hkl_source": "refined",
+      "hkl_path": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/smoke_refined_structure_factors.mtz",
+      "hkl_count": 69614,
+      "calibration_path": null,
+      "device": "cpu"
+    }
+  ],
+  "diff_block": {
+    "baseline_case": "scaled_raw",
+    "diffs": {
+      "scaled_calibrated": {
+        "roi_cc_median_delta": 0.0,
+        "scale_ratio_masked_delta": 0.0,
+        "scale_ratio_unmasked_delta": 0.0,
+        "bragg_mean_delta": 0.0,
+        "bragg_mean_ratio": 1.0,
+        "mean_target_masked_delta": 0.0,
+        "mean_bragg_masked_delta": 0.0,
+        "mean_bragg_masked_ratio": 1.0,
+        "spot_scale_override_delta": 0.0,
+        "sqrt_spot_scale_delta": 0.0,
+        "hkl_count_delta": 0
+      },
+      "refined_calibrated": {
+        "roi_cc_median_delta": 3.431531594294546e-08,
+        "scale_ratio_masked_delta": -0.00016194028663452098,
+        "scale_ratio_unmasked_delta": -0.003111567706966429,
+        "bragg_mean_delta": -0.001070261001586914,
+        "bragg_mean_ratio": 0.8994490444901299,
+        "mean_target_masked_delta": 0.0,
+        "mean_bragg_masked_delta": -0.014107981231063604,
+        "mean_bragg_masked_ratio": 0.3053296264875152,
+        "spot_scale_override_delta": 0.0,
+        "sqrt_spot_scale_delta": 0.0,
+        "hkl_count_delta": 5281
+      }
+    }
+  },
+  "probe_config": {
+    "device": "cpu",
+    "default_sigma": 3.0,
+    "cases_requested": [
+      "scaled_raw",
+      "scaled_calibrated",
+      "refined_calibrated"
+    ]
+  }
+}

@@ -1,5 +1,5 @@
 ### Turn Summary
-Outlined a scale-chain diagnostics plan so we can compare raw, calibrated, and refined HKL permutations and see exactly where metadata smokes lose correlation.
-Updated docs/fix_plan.md, galph_memory.md, and input.md with the new probe instructions plus mapping/DB-AT rerun requirements so Ralph has a concrete Do Now.
-Next: Ralph implements `probe_scale_chain.py`, runs the mapping probe + DB-AT-028/029 under the canonical metadata env, and reports whether the scale telemetry narrows the failure.
-Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-25T170500Z/ (input.md)
+Implemented scale-chain probe capturing apples-to-apples HKL/calibration permutations (scaled_raw, scaled_calibrated, refined_calibrated) to isolate where metadata smoke mapping collapses.
+Critical finding: calibration config NOT loading (all three cases identical with spot_scale_override=1.0), confirming build_mapping_stage_a_context bug in dataload.args.calibration_config_path plumbing.
+Next: debug dbex/vis/mapping.py calibration loader (lines 179-189) to find why load_calibration_metadata silently fails and rerun probe once fixed.
+Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-25T170500Z/ (scale_chain_probe/scale_chain_metrics.json, db_at_028/, db_at_029/, pytest logs)

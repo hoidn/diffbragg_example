@@ -942,3 +942,14 @@ This is the **single most important diagnostic** to run before any other TOOLING
 - <Action State>: [ready_for_implementation]
 
 2025-11-25T113500Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=1 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T113500Z/ next_action=canonical_geometry_override_and_db_at_028_029
+
+## 2025-11-25T093626Z — TOOLING-VIS-001 Sigma-Map Crop Planning (DB-AT-028/029 unblock)
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
+- Action Type: planning
+- Key Observations: Geometry overrides landed (tests/conftest.py commit 5fbdac1d) but the first DB-AT-028/029 rerun now dies before assertions with `ValueError: Sigma map panel 0 ... has shape (2527, 2463), expected (1024, 1024)` (`plans/active/TOOLING-VIS-001/reports/2025-11-25T113500Z/pytest_db_at_028_029.log`). Metadata sigma tiles were captured for the full detector whereas the `refGeom_small` fixture crops the detector to fast [751,1775), slow [719,1743] (README confirms). Passing the full-size pickle into `DataLoad` trips the strict shape guard in `dbex/data_load.py::load_sigma_readout_map`. Authored a ready-for-implementation Do Now directing Ralph to (1) add a T2 helper that crops `sp.proc/idx-0000_sigma_metadata.sigma_tiles.pkl` into `sp.proc/refGeom_small/idx-0000_sigma_metadata_small.sigma_tiles.pkl`, (2) default the Stage A smoke fixtures to that cropped asset (still honoring DBEX_SMOKE_SIGMA_MAP_PATH overrides), (3) update docs/data_dependency_manifest.md, and (4) rerun the mapping probe + DB-AT-028/029 under the canonical env to confirm the ValueError is gone and mapping ROI CC recovers. Hard gate: mapping probe must show ROI CC ≥0.2 and pytest must complete without the sigma-map exception even if tolerances still fail.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-25T093626Z/
+- Next Actions: Execute the sigma-map crop script, rewire smoke fixtures, update the data-dependency manifest, then rerun `compare_mapping_forward_cpu_gpu.py` plus the DB-AT-028/029 selectors under the cropped sigma-map env.
+- <Action State>: [ready_for_implementation]
+
+2025-11-25T093626Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=2 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T093626Z/ next_action=crop_sigma_map_and_rerun_db_at_028_029

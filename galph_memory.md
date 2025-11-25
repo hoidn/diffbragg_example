@@ -674,3 +674,14 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-25T040828Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=2 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T040828Z/ next_action=fix_parity_probe_and_rerun_db_at_028_029
+
+## 2025-11-25T042456Z — TOOLING-VIS-001 Phase D.D Mapping Forward Fix Do Now
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics (DB-AT-028/029 parity)
+- Action Type: planning
+- Key Observations: Reviewed latest parity probe run under `2025-11-25T040828Z`: mapping forward pass still fails (`KeyError: 'hkl_list'` in simulate_forward_once fallback), leaving mapping ROI CC/scale metrics NaN; DB-AT-028/029 continue to fail with chi²/pixel ≈1.08e5 and ROI CC median_before ≈ -0.05. Updated docs/fix_plan.md Attempts History with this failure and drafted a fresh ready_for_implementation input.md (new artifacts path 2025-11-25T042456Z) directing Ralph to fix HKL/calibration wiring for mapping forward in `compare_stage_a_mapping_parity.py` and `stage_a_smoke_result`, then rerun parity probe + selectors.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-25T042456Z/
+- Next Actions: Implement mapping forward HKL fix, rerun parity probe and DB-AT-028/029 selectors, capture metrics; if failures persist, log signatures in summary + fix_plan.
+- <Action State>: [ready_for_implementation]
+
+2025-11-25T042456Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=3 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T042456Z/ next_action=fix_mapping_forward_hkl_parity

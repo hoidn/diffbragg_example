@@ -1218,3 +1218,14 @@ This is the **single most important diagnostic** to run before any other TOOLING
 - <Action State>: [ready_for_implementation]
 
 2025-11-26T050500Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=2 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-26T050500Z/ next_action=implement_stage_a_masked_mean_tensor_fix_and_rerun_db_at_028_029
+
+## 2025-11-25T170500Z — TOOLING-VIS-001 Stage A apply_calibration_n_cells gate planning
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
+- Action Type: planning
+- Key Observations: Ralph’s masked-mean baseline fix (plans/active/TOOLING-VIS-001/reports/2025-11-26T050500Z/) brought `scale_ratio_before≈1`, but DB-AT-028/029 still fail because the Stage A engine ignores the new `apply_calibration_n_cells` gate: mapping diagnostics show `n_cells_applied=false` while Stage A still enables the 3× oversampled HKL grid, keeping chi²/pixel≈2.1e5 and ROI corr < 0. The gate currently threads only through `simulate_forward_once`/`build_mapping_stage_a_context`; the production Stage A path (RefinementConfig, `_build_stage_a_context`, `_build_final_bragg_from_stage_a_telemetry`, Stage B CPU fallback, and CLI wiring) always injects DiffBragg `N_cells`. We need to propagate the gate and keep telemetry aligned.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-25T170322Z/
+- Next Actions: ready_for_implementation — implement the apply_calibration_n_cells plumbing across RefinementConfig, Stage A context/reconstruction, and CLI/tests, then rerun DB-AT-028/029 to capture telemetry proving `n_cells_applied=false`.
+- <Action State>: [planning]
+
+2025-11-25T170500Z focus=TOOLING-VIS-001 state=planning dwell=0 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T170322Z/ next_action=propagate_apply_calibration_n_cells_gate

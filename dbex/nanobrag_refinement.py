@@ -2486,31 +2486,13 @@ def _build_final_bragg_from_stage_a_telemetry(
     log_scale_baseline_source = None
     spot_scale_override_adjustment_factor = None
 
-    # Priority 1: param_deltas (from prior Stage A iteration)
-    if 'log_scale_baseline' in param_deltas:
-        base_entry = param_deltas['log_scale_baseline']
-        if isinstance(base_entry, dict):
-            log_scale_baseline_value = base_entry.get('final', base_entry.get('initial'))
-        else:
-            log_scale_baseline_value = base_entry
-        if log_scale_baseline_value is not None:
-            log_scale_baseline_source = "param_deltas"
-
-    # Priority 2: stage_a_ctx (from warm cache)
-    if log_scale_baseline_value is None and stage_a_ctx is not None:
-        log_scale_baseline_value = getattr(stage_a_ctx, "log_scale_baseline", None)
-        if log_scale_baseline_value is not None:
-            log_scale_baseline_source = "stage_a_ctx"
-
-    # Priority 3: config.log_scale_baseline (explicit override)
-    if log_scale_baseline_value is None and hasattr(config, 'log_scale_baseline') and config.log_scale_baseline is not None:
-        log_scale_baseline_value = config.log_scale_baseline
-        log_scale_baseline_source = "config_override"
-
-    # Priority 4: Mapping-aware override when calibration was adjusted for N_cells
-    # (SCALE-008 — prevent double-application of spot_scale when mapping already corrected it)
-    if log_scale_baseline_value is None and hasattr(config, 'calibration_metadata') and config.calibration_metadata is not None:
+    # Priority 1: Mapping-aware override when calibration was adjusted for N_cells
+    # (SCALE-008 / TOOLING-VIS-001 Phase E — prevent double-application of spot_scale when mapping already corrected it)
+    # This priority MUST run FIRST so the mapping-corrected baseline overrides any cached/prior values
+    if hasattr(config, 'calibration_metadata') and config.calibration_metadata is not None:
         calibration_adjusted = config.calibration_metadata.get("calibration_adjusted_for_n_cells", False)
+        if True:
+            print(f"[TOOLING-VIS-001-P1-CHECK] calibration_adjusted={calibration_adjusted}, global_scale_hint={inputs.global_scale_hint}")
         if calibration_adjusted and inputs.global_scale_hint is not None and inputs.global_scale_hint > 0:
             try:
                 log_scale_baseline_value = float(np.log(inputs.global_scale_hint))
@@ -2519,10 +2501,35 @@ def _build_final_bragg_from_stage_a_telemetry(
                 adjustment_factor_raw = config.calibration_metadata.get("spot_scale_override_adjustment_factor")
                 if adjustment_factor_raw is not None:
                     spot_scale_override_adjustment_factor = float(adjustment_factor_raw)
-            except (TypeError, ValueError, OverflowError):
-                pass
+                if True:
+                    print(f"[TOOLING-VIS-001-P1-SET] baseline={log_scale_baseline_value}, source={log_scale_baseline_source}, adj_factor={spot_scale_override_adjustment_factor}")
+            except (TypeError, ValueError, OverflowError) as e:
+                if True:
+                    print(f"[TOOLING-VIS-001-P1-ERROR] Exception: {e}")
+
+    # Priority 2: param_deltas (from prior Stage A iteration)
+    if log_scale_baseline_value is None and 'log_scale_baseline' in param_deltas:
+        base_entry = param_deltas['log_scale_baseline']
+        if isinstance(base_entry, dict):
+            log_scale_baseline_value = base_entry.get('final', base_entry.get('initial'))
+        else:
+            log_scale_baseline_value = base_entry
+        if log_scale_baseline_value is not None:
+            log_scale_baseline_source = "param_deltas"
+
+    # Priority 3: stage_a_ctx (from warm cache)
+    if log_scale_baseline_value is None and stage_a_ctx is not None:
+        log_scale_baseline_value = getattr(stage_a_ctx, "log_scale_baseline", None)
+        if log_scale_baseline_value is not None:
+            log_scale_baseline_source = "stage_a_ctx"
+
+    # Priority 4: config.log_scale_baseline (explicit override)
+    if log_scale_baseline_value is None and hasattr(config, 'log_scale_baseline') and config.log_scale_baseline is not None:
+        log_scale_baseline_value = config.log_scale_baseline
+        log_scale_baseline_source = "config_override"
 
     # Priority 5: Fallback to sqrt(spot_scale_override) when not mapping-adjusted
+    # Only applies when Priority 1 did not engage (i.e., calibration was not adjusted for N_cells)
     if log_scale_baseline_value is None and spot_scale_override is not None:
         try:
             log_scale_baseline_value = float(np.log(np.sqrt(spot_scale_override)))
@@ -5170,7 +5177,7 @@ def run_nanobrag_refinement(
                 'total': float(np.sum(perf_forward_times_ms)) if perf_forward_times_ms else 0.0
             }
         }
-    
+
         telemetry_a = RefinementTelemetry(
             optimizer="LBFGS",
             stage="A",

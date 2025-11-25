@@ -446,6 +446,33 @@ def test_db_at_029_structure_parity(stage_a_smoke_result):
     }
     (artifact_dir / "db_at_029_metrics.json").write_text(json.dumps(metrics, indent=2))
 
+    # TOOLING-VIS-001 Phase E: Assert telemetry matches mapping diagnostics when calibration was adjusted
+    mapping_diag = stage_a_smoke_result["mapping_context"].diagnostics
+    calibration_adjusted = mapping_diag.get("calibration_adjusted_for_n_cells", False)
+    if calibration_adjusted:
+        # When mapping auto-adjusted calibration, Stage A must use the mapping global_scale_hint baseline
+        assert telemetry.log_scale_baseline_source == "mapping_global_scale_hint", (
+            f"Expected log_scale_baseline_source='mapping_global_scale_hint' when calibration adjusted, "
+            f"got {telemetry.log_scale_baseline_source!r}"
+        )
+        # Adjustment factor must match between mapping and Stage A telemetry
+        mapping_adj_factor = mapping_diag.get("spot_scale_override_adjustment_factor")
+        assert telemetry.spot_scale_override_adjustment_factor is not None, (
+            "Expected spot_scale_override_adjustment_factor in telemetry when calibration adjusted"
+        )
+        assert abs(telemetry.spot_scale_override_adjustment_factor - mapping_adj_factor) < 1e-6, (
+            f"Adjustment factor mismatch: telemetry={telemetry.spot_scale_override_adjustment_factor}, "
+            f"mapping={mapping_adj_factor}"
+        )
+        # Scale ratio before refinement should match mapping's masked ratio (both use global_scale_hint baseline)
+        scale_ratio_mapping = stage_a_smoke_result.get("scale_ratio_mapping_masked", float("nan"))
+        if np.isfinite(scale_ratio_mapping):
+            # Allow 1% tolerance for numerical differences
+            assert abs(scale_ratio_before - scale_ratio_mapping) / scale_ratio_mapping < 0.01, (
+                f"scale_ratio_before={scale_ratio_before:.6f} diverges from "
+                f"scale_ratio_mapping_masked={scale_ratio_mapping:.6f} by more than 1%"
+            )
+
     assert median_before >= 0.2, f"median ROI correlation before refinement {median_before:.3f} below 0.2 floor"
     assert median_after >= median_before - 0.05, (
         f"median ROI correlation after refinement {median_after:.3f} regressed by more than 0.05"

@@ -494,6 +494,8 @@ def emit_mapping_context_diagnostics(
         - spot_scale_override: spot_scale_override from mapping_context (or null)
         - n_cells_applied: boolean indicating whether N_cells was applied (TOOLING-VIS-001)
         - n_cells_suppression_reason: string explaining why N_cells was suppressed (TOOLING-VIS-001)
+        - calibration_adjusted_for_n_cells: boolean indicating whether calibration was adjusted due to N_cells suppression (TOOLING-VIS-001 Phase E)
+        - spot_scale_override_adjustment_factor: adjustment factor applied to spot_scale_override when calibration was corrected (TOOLING-VIS-001 Phase E, or null)
     """
     import json
     from datetime import datetime, timezone
@@ -631,6 +633,12 @@ def emit_mapping_context_diagnostics(
     n_cells_applied = mapping_context.diagnostics.get("n_cells_applied", None)
     n_cells_suppression_reason = mapping_context.diagnostics.get("n_cells_suppression_reason", None)
 
+    # TOOLING-VIS-001 Phase E: Extract calibration adjustment flags from diagnostics
+    calibration_adjusted_for_n_cells = mapping_context.diagnostics.get("calibration_adjusted_for_n_cells", None)
+    spot_scale_override_adjustment_factor = mapping_context.diagnostics.get("spot_scale_override_adjustment_factor", None)
+    if spot_scale_override_adjustment_factor is not None:
+        spot_scale_override_adjustment_factor = float(spot_scale_override_adjustment_factor)
+
     # Build diagnostics dict
     diagnostics_dict = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -660,6 +668,8 @@ def emit_mapping_context_diagnostics(
         "spot_scale_override": spot_scale_override,
         "n_cells_applied": n_cells_applied,
         "n_cells_suppression_reason": n_cells_suppression_reason,
+        "calibration_adjusted_for_n_cells": calibration_adjusted_for_n_cells,
+        "spot_scale_override_adjustment_factor": spot_scale_override_adjustment_factor,
     }
 
     # Write JSON

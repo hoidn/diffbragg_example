@@ -15,7 +15,10 @@ from dbex.nanobrag_refinement import (
     _build_final_bragg_from_stage_a_telemetry,
     run_nanobrag_refinement,
 )
-from dbex.vis.mapping import build_mapping_stage_a_context
+from dbex.vis.mapping import (
+    build_mapping_stage_a_context,
+    emit_mapping_context_diagnostics,
+)
 from tests.dbex.test_torch_refine_smoke import create_perturbed_geometry
 
 pytest_plugins = ["tests.dbex.test_torch_refine_smoke"]
@@ -251,6 +254,9 @@ def stage_a_smoke_result(
         "roi_cc_median_mapping": roi_cc_median_mapping,
         "scale_ratio_mapping": scale_ratio_mapping,
         "mapping_forward_success": mapping_forward_success,
+        # Context objects for emitting mapping_context diagnostics (TOOLING-VIS-001)
+        "mapping_context": mapping_context,
+        "refgeom_dataload": refgeom_dataload,
     }
 
 
@@ -273,6 +279,16 @@ def test_db_at_028_loss_scale_sanity(stage_a_smoke_result):
     log_scale_baseline_entry = telemetry.param_deltas.get("log_scale_baseline", {})
 
     artifact_dir = _artifact_dir("DBAT028_ARTIFACT_DIR")
+
+    # Emit mapping context diagnostics BEFORE assertions (TOOLING-VIS-001)
+    emit_mapping_context_diagnostics(
+        mapping_context=stage_a_smoke_result["mapping_context"],
+        dataload=stage_a_smoke_result["refgeom_dataload"],
+        output_path=artifact_dir / "mapping_context_fixture.json",
+        bragg_model=stage_a_smoke_result["mapping_context"].bragg_zero_iter,
+        stage_name="fixture_db_at_028",
+    )
+
     # Persist metrics before assertions so artifacts exist even on failure
     metrics = {
         "chi2_per_pixel_initial": chi2_per_pixel_initial,
@@ -338,6 +354,16 @@ def test_db_at_029_structure_parity(stage_a_smoke_result):
     log_scale_baseline_entry = telemetry.param_deltas.get("log_scale_baseline", {})
 
     artifact_dir = _artifact_dir("DBAT029_ARTIFACT_DIR")
+
+    # Emit mapping context diagnostics BEFORE assertions (TOOLING-VIS-001)
+    emit_mapping_context_diagnostics(
+        mapping_context=stage_a_smoke_result["mapping_context"],
+        dataload=stage_a_smoke_result["refgeom_dataload"],
+        output_path=artifact_dir / "mapping_context_fixture.json",
+        bragg_model=stage_a_smoke_result["mapping_context"].bragg_zero_iter,
+        stage_name="fixture_db_at_029",
+    )
+
     metrics = {
         "median_corr_before": median_before,
         "median_corr_after": median_after,

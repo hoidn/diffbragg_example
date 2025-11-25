@@ -106,19 +106,19 @@ def main():
         help="Sigma readout provenance (default: from DBEX_SMOKE_SIGMA_SOURCE env, else 'metadata')",
     )
 
-    args = parser.parse_args()
-    out_dir = args.out_dir
+    cli_args = parser.parse_args()
+    out_dir = cli_args.out_dir
     out_dir.mkdir(parents=True, exist_ok=True)
 
     # Determine sigma source
-    sigma_source = args.sigma_source
+    sigma_source = cli_args.sigma_source
     if sigma_source is None:
         sigma_source = os.environ.get("DBEX_SMOKE_SIGMA_SOURCE", "metadata")
 
     detector_size = os.environ.get("DBEX_SMOKE_DETECTOR_SIZE", "small")
 
     print(f"Output directory: {out_dir.resolve()}")
-    print(f"Device: {args.device}")
+    print(f"Device: {cli_args.device}")
     print(f"Sigma source: {sigma_source}")
     print(f"Detector size: {detector_size}")
     print("")
@@ -135,7 +135,10 @@ def main():
         _build_final_bragg_from_stage_a_telemetry,
         run_nanobrag_refinement,
     )
-    from dbex.vis.mapping import build_mapping_stage_a_context
+    from dbex.vis.mapping import (
+        build_mapping_stage_a_context,
+        emit_mapping_context_diagnostics,
+    )
 
     # Determine paths (repo_root already set above)
     print(f"Repository root: {repo_root}")
@@ -176,7 +179,7 @@ def main():
     dataload = DataLoad(args)
 
     # Resolve device
-    device_obj = torch.device("cuda:0" if torch.cuda.is_available() and args.device != "cpu" else "cpu")
+    device_obj = torch.device("cuda:0" if torch.cuda.is_available() and cli_args.device != "cpu" else "cpu")
 
     # Build mapping context for unified HKL/calibration/inputs
     print("Building mapping context via build_mapping_stage_a_context...")
@@ -185,6 +188,18 @@ def main():
         default_sigma_readout=3.0,
         device=str(device_obj),
     )
+
+    # Emit mapping context diagnostics BEFORE any assertions (TOOLING-VIS-001 requirement)
+    mapping_context_path = out_dir / "mapping_context_probe.json"
+    print(f"Emitting mapping context diagnostics to {mapping_context_path}...")
+    emit_mapping_context_diagnostics(
+        mapping_context=mapping_context,
+        dataload=dataload,
+        output_path=mapping_context_path,
+        bragg_model=mapping_context.bragg_zero_iter,
+        stage_name="probe",
+    )
+    print(f"Wrote: {mapping_context_path.resolve()}")
 
     # Extract HKL grid from the mapping context's original indices/amplitudes
     hkl_grid, hkl_metadata, _ = build_structure_factor_grid(

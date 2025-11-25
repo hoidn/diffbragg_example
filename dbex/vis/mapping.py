@@ -332,10 +332,175 @@ def refine_on_mapping_model(
     )
 
 
+def emit_mapping_context_diagnostics(
+    mapping_context: MappingStageAContext,
+    dataload: DataLoad,
+    output_path: Path,
+    *,
+    bragg_model: Optional[np.ndarray] = None,
+    stage_name: str = "mapping",
+) -> None:
+    """Emit mapping context diagnostics to JSON before assertions.
+
+    This helper captures dataset paths, sigma provenance, HKL source/path,
+    target/loss_mask stats, ROI CC/scale ratios, and device information
+    to a JSON artifact. It is designed to be called BEFORE gating assertions
+    so that diagnostic context is preserved even when tests fail.
+
+    Args:
+        mapping_context: The MappingStageAContext instance to diagnose.
+        dataload: DataLoad instance containing dataset metadata.
+        output_path: Path to the output JSON file.
+        bragg_model: Optional Bragg model stack (same shape as target) for
+            computing ROI correlations and scale ratios. If None, diagnostics
+            will skip correlation and scale metrics.
+        stage_name: Human-readable name for this diagnostic stage (e.g.,
+            "mapping", "probe", "fixture"). Included in the JSON output.
+
+    Returns:
+        None. Writes a JSON file to ``output_path`` with diagnostic fields:
+        - timestamp: ISO8601 UTC timestamp
+        - stage_name: The stage_name argument
+        - dataset_paths: dict with expt, refl, mask, mtz paths
+        - sigma_provenance: string describing sigma_readout source
+        - hkl_source: string (e.g., "refined", "raw")
+        - hkl_path: absolute path to the HKL file
+        - device: device string from mapping_context
+        - target_stats: dict with mean, std, min, max over loss_mask
+        - loss_mask_coverage: fraction of pixels included in loss_mask
+        - n_rois: number of ROIs in panel_slices
+        - roi_cc_median: median Pearson CC over ROIs (if bragg_model provided)
+        - scale_ratio: mean(bragg_model[mask]) / mean(target[mask]) (if bragg_model)
+        - sigma_floor_value: sigma_floor used in mapping context
+        - spot_scale_override: spot_scale_override from mapping_context (or null)
+    """
+    import json
+    from datetime import datetime, timezone
+    from statistics import median
+
+    # Ensure parent directory exists
+    output_path = Path(output_path)
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Extract dataset paths from dataload
+    args_ns = getattr(dataload, "args", None)
+    dataset_paths = {
+        "expt": str(getattr(args_ns, "exptName", None)),
+        "refl": str(getattr(args_ns, "reflName", None)),
+        "mask": str(getattr(args_ns, "maskFile", None)),
+        "mtz": str(getattr(args_ns, "mtzFile", None)),
+    }
+
+    # Determine sigma provenance
+    sigma_map_source = getattr(dataload, "sigma_readout_map_source", None)
+    if sigma_map_source == "external_lookup":
+        sigma_provenance = "external_lookup (metadata tiles)"
+    else:
+        sigma_provenance = "cli_override (default scalar)"
+
+    # HKL source/path from diagnostics
+    hkl_source = mapping_context.diagnostics.get("hkl_source", "unknown")
+    hkl_path = mapping_context.diagnostics.get("hkl_path", "unknown")
+
+    # Device
+    device = mapping_context.device or "unknown"
+
+    # Target and loss_mask stats
+    inputs = mapping_context.inputs
+    target = np.asarray(inputs.target)
+    loss_mask = np.asarray(inputs.loss_mask, dtype=bool)
+    masked_target = target[loss_mask]
+
+    target_stats = {
+        "mean": float(np.mean(masked_target)),
+        "std": float(np.std(masked_target)),
+        "min": float(np.min(masked_target)),
+        "max": float(np.max(masked_target)),
+    }
+
+    total_pixels = int(np.prod(target.shape))
+    masked_pixels = int(np.count_nonzero(loss_mask))
+    loss_mask_coverage = float(masked_pixels / total_pixels) if total_pixels > 0 else 0.0
+
+    n_rois = len(inputs.panel_slices)
+
+    # ROI correlations and scale ratio (optional, requires bragg_model)
+    roi_cc_median = None
+    scale_ratio = None
+    if bragg_model is not None:
+        bragg_model_arr = np.asarray(bragg_model)
+        if bragg_model_arr.shape != target.shape:
+            raise ValueError(
+                f"bragg_model shape {bragg_model_arr.shape} does not match "
+                f"target shape {target.shape}"
+            )
+
+        # Compute per-ROI correlations
+        def _pearson_cc(data_roi, model_roi, mask_roi):
+            mask_flat = np.asarray(mask_roi, dtype=bool)
+            if not np.any(mask_flat):
+                return float("nan")
+            data = np.asarray(data_roi, dtype=np.float64)[mask_flat]
+            model = np.asarray(model_roi, dtype=np.float64)[mask_flat]
+            data_centered = data - data.mean()
+            model_centered = model - model.mean()
+            denom = np.linalg.norm(data_centered) * np.linalg.norm(model_centered)
+            if denom <= 0:
+                return float("nan")
+            return float(np.dot(data_centered, model_centered) / denom)
+
+        corrs = []
+        for pid, bbox in inputs.panel_slices:
+            x0, x1, y0, y1 = bbox
+            roi_mask = loss_mask[int(pid), y0:y1, x0:x1]
+            if not np.any(roi_mask):
+                continue
+            data_roi = target[int(pid), y0:y1, x0:x1]
+            model_roi = bragg_model_arr[int(pid), y0:y1, x0:x1]
+            corrs.append(_pearson_cc(data_roi, model_roi, roi_mask))
+
+        valid_corrs = [c for c in corrs if np.isfinite(c)]
+        roi_cc_median = float(median(valid_corrs)) if valid_corrs else float("nan")
+
+        # Compute scale ratio
+        mean_target = float(np.mean(target[loss_mask]))
+        mean_model = float(np.mean(bragg_model_arr[loss_mask]))
+        scale_ratio = mean_model / mean_target if mean_target > 0 else float("inf")
+
+    # Sigma floor and spot scale
+    sigma_floor_value = float(mapping_context.sigma_floor_value)
+    spot_scale_override = mapping_context.spot_scale_override
+    if spot_scale_override is not None:
+        spot_scale_override = float(spot_scale_override)
+
+    # Build diagnostics dict
+    diagnostics_dict = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "stage_name": stage_name,
+        "dataset_paths": dataset_paths,
+        "sigma_provenance": sigma_provenance,
+        "hkl_source": hkl_source,
+        "hkl_path": hkl_path,
+        "device": device,
+        "target_stats": target_stats,
+        "loss_mask_coverage": loss_mask_coverage,
+        "n_rois": n_rois,
+        "roi_cc_median": roi_cc_median,
+        "scale_ratio": scale_ratio,
+        "sigma_floor_value": sigma_floor_value,
+        "spot_scale_override": spot_scale_override,
+    }
+
+    # Write JSON
+    with output_path.open("w") as f:
+        json.dump(diagnostics_dict, f, indent=2)
+
+
 __all__ = [
     "MappingStageAContext",
     "MappingRefinementConfig",
     "MappingRefinementResult",
     "build_mapping_stage_a_context",
     "refine_on_mapping_model",
+    "emit_mapping_context_diagnostics",
 ]

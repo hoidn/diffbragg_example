@@ -19,6 +19,7 @@ Usage:
 import argparse
 import json
 import sys
+import traceback
 from pathlib import Path
 from typing import Dict, List
 
@@ -139,8 +140,8 @@ def compute_cpu_gpu_mapping_metrics(
             "bragg_std": float(np.std(cpu_bragg)),
             "bragg_max": float(np.max(cpu_bragg)),
             "spot_scale_override": float(cpu_context.calibration.get("spot_scale_override", 1.0)) if cpu_context.calibration else 1.0,
-            "hkl_source": cpu_context.diagnostics.get("hkl_source", "unknown"),
-            "hkl_path": cpu_context.diagnostics.get("hkl_path", "unknown"),
+            "hkl_source": cpu_context.diagnostics.get("hkl_telemetry", {}).get("hkl_source", "unknown"),
+            "hkl_path": cpu_context.diagnostics.get("hkl_telemetry", {}).get("hkl_path", "unknown"),
             "hkl_count": cpu_hkl_count,
         }
         print(f"CPU metrics: ROI CC median={result['cpu_metrics']['roi_cc_median']:.6f}, "
@@ -150,6 +151,7 @@ def compute_cpu_gpu_mapping_metrics(
     except Exception as e:
         result["error"] = f"CPU context build failed: {e}"
         print(f"ERROR: {result['error']}")
+        print(f"Full traceback:\n{traceback.format_exc()}")
         return result
 
     # Check CUDA availability
@@ -204,8 +206,8 @@ def compute_cpu_gpu_mapping_metrics(
             "bragg_std": float(np.std(gpu_bragg)),
             "bragg_max": float(np.max(gpu_bragg)),
             "spot_scale_override": float(gpu_context.calibration.get("spot_scale_override", 1.0)) if gpu_context.calibration else 1.0,
-            "hkl_source": gpu_context.diagnostics.get("hkl_source", "unknown"),
-            "hkl_path": gpu_context.diagnostics.get("hkl_path", "unknown"),
+            "hkl_source": gpu_context.diagnostics.get("hkl_telemetry", {}).get("hkl_source", "unknown"),
+            "hkl_path": gpu_context.diagnostics.get("hkl_telemetry", {}).get("hkl_path", "unknown"),
             "hkl_count": gpu_hkl_count,
         }
         print(f"GPU metrics: ROI CC median={result['gpu_metrics']['roi_cc_median']:.6f}, "
@@ -281,6 +283,12 @@ def main():
         default=3.0,
         help="Default sigma_readout value (ADU)",
     )
+    parser.add_argument(
+        "--mtz-path",
+        type=str,
+        default=None,
+        help="Path to MTZ file (default: scaled.mtz or DBEX_SMOKE_HKL_PATH if set); resolved relative to repo root",
+    )
 
     args = parser.parse_args()
 
@@ -292,10 +300,28 @@ def main():
     smoke_sigma_source = os.environ.get("DBEX_SMOKE_SIGMA_SOURCE", "cli_override")
     smoke_detector_size = os.environ.get("DBEX_SMOKE_DETECTOR_SIZE", "small")
 
+    # Resolve HKL path with priority: CLI > DBEX_SMOKE_HKL_PATH > scaled.mtz
+    # This determines which HKL source to use (scaled or refined)
+    if args.mtz_path is not None:
+        hkl_path_arg = args.mtz_path
+    else:
+        hkl_path_arg = os.environ.get("DBEX_SMOKE_HKL_PATH", "scaled.mtz")
+
+    # Resolve relative to repo root
+    if not Path(hkl_path_arg).is_absolute():
+        hkl_path = repo_root / hkl_path_arg
+    else:
+        hkl_path = Path(hkl_path_arg)
+
+    # DataLoad always uses scaled.mtz for experimental data
+    mtz_path = repo_root / "scaled.mtz"
+
     print(f"Configuration:")
     print(f"  smoke_sigma_source: {smoke_sigma_source}")
     print(f"  smoke_detector_size: {smoke_detector_size}")
     print(f"  default_sigma_readout: {args.sigma}")
+    print(f"  hkl_source_path: {hkl_path}")
+    print(f"  dataload_mtz_path: {mtz_path}")
     print(f"  out_dir: {args.out_dir}")
     print()
 
@@ -322,8 +348,6 @@ def main():
             print(f"WARNING: metadata sigma source requested but assets missing, falling back to cli_override")
             smoke_sigma_source = "cli_override"
 
-    mtz_path = repo_root / "scaled.mtz"
-
     print(f"Loading data from:")
     print(f"  expt: {expt_path}")
     print(f"  refl: {refl_path}")
@@ -341,9 +365,11 @@ def main():
             self.reflName = str(refl_path)
             self.maskFile = str(mask_path)
             self.mtzFile = str(mtz_path)
-            self.mtzCol = "F,SIGF"
+            self.mtzCol = "F,SIGF"  # DataLoad always uses scaled.mtz
             self.imageIdx = 0
             self.spot_scale_override = None
+            # Store HKL source path separately for mapping context
+            self.hkl_source_path = str(hkl_path)
 
     dataload_args = Args()
     dataload = DataLoad(dataload_args)

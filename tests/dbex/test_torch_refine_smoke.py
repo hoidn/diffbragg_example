@@ -97,11 +97,22 @@ def _record_stage_telemetry(stage_label: str, telemetry, dataset_size: str, meta
 def refgeom_dataload(smoke_dataset_paths):
     """
     Load refGeom dataset for refinement tests (small or full detector).
+    Honors DBEX_SMOKE_HKL_PATH env var (default: scaled.mtz) via hkl_source_path attribute.
     """
     from argparse import Namespace
     from dbex.data_load import DataLoad
+    import os
 
     repo_root = Path(__file__).parent.parent.parent
+
+    # Honor DBEX_SMOKE_HKL_PATH env var for HKL source selection
+    hkl_source_env = os.environ.get("DBEX_SMOKE_HKL_PATH", "scaled.mtz")
+    if not Path(hkl_source_env).is_absolute():
+        hkl_source_path = repo_root / hkl_source_env
+    else:
+        hkl_source_path = Path(hkl_source_env)
+
+    # DataLoad always uses scaled.mtz for experimental data
     args = Namespace(
         exptName=str(smoke_dataset_paths.expt_path),
         reflName=str(smoke_dataset_paths.refl_path),
@@ -109,6 +120,7 @@ def refgeom_dataload(smoke_dataset_paths):
         maskFile=str(smoke_dataset_paths.mask_path),
         mtzFile=str(repo_root / "scaled.mtz"),
         mtzCol="F,SIGF",
+        hkl_source_path=str(hkl_source_path),  # Passed to build_mapping_stage_a_context
     )
 
     return DataLoad(args)

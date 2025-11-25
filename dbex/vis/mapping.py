@@ -138,12 +138,32 @@ def build_mapping_stage_a_context(
     repo_root = mtz_path.resolve().parent
     fixtures_root = repo_root / "tests" / "fixtures" / "golden_data" / "simple_cubic"
     config_json = fixtures_root / "config_torch.json"
-    refined_mtz = fixtures_root / "refined_structure_factors.mtz"
 
+    # Check if dataload.args has hkl_source_path attribute (from probe script)
+    # Otherwise fall back to checking for refined MTZ in fixtures
+    hkl_source_path_override = getattr(dataload.args, "hkl_source_path", None)
+    if hkl_source_path_override is not None:
+        hkl_source_path_to_check = Path(hkl_source_path_override)
+    else:
+        hkl_source_path_to_check = fixtures_root / "refined_structure_factors.mtz"
+
+    # Use the MTZ path from DataLoad for raw; determine if we should load refined
     hkl_indices = dataload.F.indices()
     hkl_amplitudes = dataload.F.data()
-    hkl_source = None
-    hkl_path = None
+
+    # Check if the HKL source path is a refined structure factors file
+    if "refined_structure_factors" in hkl_source_path_to_check.name and hkl_source_path_to_check.exists():
+        try:
+            hkl_indices, hkl_amplitudes = load_refined_mtz(hkl_source_path_to_check, column="F")
+            hkl_source = "refined"
+            hkl_path = str(hkl_source_path_to_check.resolve())
+        except Exception:
+            # Fallback to dataload.F if refined loading fails
+            hkl_source = "raw"
+            hkl_path = str(mtz_path.resolve())
+    else:
+        hkl_source = "raw"
+        hkl_path = str(mtz_path.resolve())
 
     calibration = None
     if config_json.exists():
@@ -151,18 +171,6 @@ def build_mapping_stage_a_context(
             calibration = load_calibration_metadata(config_json)
         except Exception:
             calibration = None
-
-    if refined_mtz.exists():
-        try:
-            hkl_indices, hkl_amplitudes = load_refined_mtz(refined_mtz, column="F")
-            hkl_source = "refined"
-            hkl_path = str(refined_mtz.resolve())
-        except Exception:
-            hkl_source = "raw"
-            hkl_path = str(mtz_path.resolve())
-    else:
-        hkl_source = "raw"
-        hkl_path = str(mtz_path.resolve())
 
     bragg_zero_iter, diagnostics = simulate_forward_once(
         inputs=inputs,

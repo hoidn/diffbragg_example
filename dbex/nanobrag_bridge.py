@@ -2069,7 +2069,7 @@ def simulate_forward_once(
         "hkl_telemetry": {
             "hkl_source": hkl_source if hkl_source is not None else None,
             "hkl_n_reflections": len(hkl_indices),
-            "hkl_mean_amplitude": float(hkl_amplitudes.mean()),
+            "hkl_mean_amplitude": float(np.asarray(hkl_amplitudes).mean()),
             "hkl_path": hkl_path if hkl_path is not None else ""
         },
         "chi_squared": chi_squared,

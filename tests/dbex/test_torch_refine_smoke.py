@@ -106,9 +106,10 @@ def refgeom_dataload(smoke_dataset_paths):
           overridden via ``DBEX_SMOKE_HKL_PATH`` (absolute or repo-relative).
           The resolved path is stored on ``args.hkl_source_path`` so mapping
           helpers use the same HKL payload as the smoke dataset.
-        - Calibration metadata MAY be threaded via ``DBEX_SMOKE_CALIB_PATH``.
-          When unset, ``calibration_config_path`` remains ``None`` to avoid
-          implicitly loading golden configs.
+        - Calibration metadata: ``DBEX_SMOKE_CALIB_PATH`` (env var) takes
+          precedence. If unset and ``sp.proc/calibration/config_torch_smoke.json``
+          exists, defaults to that smoke calibration. Otherwise remains ``None``
+          to avoid implicitly loading golden configs (TOOLING-VIS-001 Phase D.C).
     """
     from argparse import Namespace
     from dbex.data_load import DataLoad
@@ -123,14 +124,21 @@ def refgeom_dataload(smoke_dataset_paths):
     else:
         hkl_source_path = Path(hkl_source_env)
 
-    # Honor DBEX_SMOKE_CALIB_PATH env var for calibration config (default: None)
+    # Honor DBEX_SMOKE_CALIB_PATH env var for calibration config
+    # Default to sp.proc/calibration/config_torch_smoke.json when present (TOOLING-VIS-001 Phase D.C)
     calib_source_env = os.environ.get("DBEX_SMOKE_CALIB_PATH")
     calibration_config_path = None
     if calib_source_env is not None:
+        # Explicit env var takes precedence
         if not Path(calib_source_env).is_absolute():
             calibration_config_path = str(repo_root / calib_source_env)
         else:
             calibration_config_path = str(Path(calib_source_env))
+    else:
+        # Default to smoke calibration config when present
+        smoke_calib_default = repo_root / "sp.proc" / "calibration" / "config_torch_smoke.json"
+        if smoke_calib_default.exists():
+            calibration_config_path = str(smoke_calib_default)
 
     # DataLoad always uses scaled.mtz for experimental data
     args = Namespace(

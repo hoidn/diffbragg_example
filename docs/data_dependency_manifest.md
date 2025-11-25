@@ -38,8 +38,13 @@ This manifest records the external data inputs (datasets, calibration payloads, 
   - `DBEX_SMOKE_DETECTOR_SIZE={small,full}` selects dataset bundle.
   - `DBEX_SMOKE_HKL_PATH` overrides HKL file (default `scaled.mtz`).
   - `DBEX_SMOKE_CALIB_PATH` (planned) to forward calibration config to mapping helpers.
-- **Default Provenance:** `scaled.mtz` for HKL; no calibration field is currently exposed (needs addition).
-- **Telemetry/Diagnostics:** Stage A smoke metrics emit `hkl_source`, `hkl_path`, `spot_scale_override`, `sigma_source`.
+  - `DBEX_SMOKE_SIGMA_MAP_PATH` overrides sigma-map pickle path when `DBEX_SMOKE_SIGMA_SOURCE=metadata`.
+- **Default Provenance:**
+  - HKL: `scaled.mtz`; no calibration field is currently exposed (needs addition).
+  - Sigma-map (when metadata source):
+    - Small detector (`DBEX_SMOKE_DETECTOR_SIZE=small`): `sp.proc/refGeom_small/idx-0000_sigma_metadata_small.sigma_tiles.pkl` (cropped to [fast: 751-1775, slow: 719-1743] matching refGeom_small window).
+    - Full detector: `sp.proc/idx-0000_sigma_metadata.sigma_tiles.pkl`.
+- **Telemetry/Diagnostics:** Stage A smoke metrics emit `hkl_source`, `hkl_path`, `spot_scale_override`, `sigma_source`, and `geometry_metadata` (includes `geometry_path` and `rotation_delta_deg`).
 
 ### `plans/active/TOOLING-VIS-001/bin/compare_mapping_forward_cpu_gpu.py`
 
@@ -70,6 +75,14 @@ This manifest records the external data inputs (datasets, calibration payloads, 
 - **Current consumers:** `build_mapping_stage_a_context`, Stage A warm cache helpers.
 - **Required telemetry:** `/torch_diagnostics` entries for each field plus provenance (config vs CLI vs env).
 - **Action:** ensure smoke fixtures pass their own calibration path instead of falling back to the golden config.
+
+### Cropped Sigma-Map Asset (refGeom_small)
+
+- **Asset:** `sp.proc/refGeom_small/idx-0000_sigma_metadata_small.sigma_tiles.pkl`
+- **Generation Command:** `plans/active/TOOLING-VIS-001/bin/crop_sigma_map_to_window.py --sigma-map sp.proc/idx-0000_sigma_metadata.sigma_tiles.pkl --fast-start 751 --slow-start 719 --width 1024 --height 1024 --output sp.proc/refGeom_small/idx-0000_sigma_metadata_small.sigma_tiles.pkl --report <report-path>`
+- **Provenance:** Cropped from full-detector metadata sigma-map (`sp.proc/idx-0000_sigma_metadata.sigma_tiles.pkl`) to match refGeom_small detector window [fast: 751-1775, slow: 719-1743].
+- **Purpose:** Enables metadata sigma-map loading for small-detector smoke fixtures without shape mismatch errors.
+- **Validation:** Crop report JSON includes SHA256, file size, panel count, and crop window parameters for reproducibility checks.
 
 ## Maintainer Notes
 

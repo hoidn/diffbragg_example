@@ -113,14 +113,20 @@ def smoke_dataset_paths(smoke_detector_size, smoke_sigma_source) -> SmokeDataset
         if sigma_map_override:
             sigma_map_path = repo_root / sigma_map_override
         else:
-            sigma_map_path = repo_root / "sp.proc" / "idx-0000_sigma_metadata.sigma_tiles.pkl"
+            # Default to cropped sigma-map for small detector, full sigma-map otherwise
+            if smoke_detector_size == "small":
+                sigma_map_path = repo_root / "sp.proc" / "refGeom_small" / "idx-0000_sigma_metadata_small.sigma_tiles.pkl"
+            else:
+                sigma_map_path = repo_root / "sp.proc" / "idx-0000_sigma_metadata.sigma_tiles.pkl"
 
         # Validate sigma-map exists
         if not sigma_map_path.exists():
             pytest.skip(
                 f"Metadata sigma source requested but sigma-map pickle is missing: {sigma_map_path}. "
-                "Run plans/active/PHYSICS-LOSS-001/bin/embed_sigma_external_lookup.py "
-                "with --sigma-value/--sigma-map to regenerate."
+                "Run plans/active/TOOLING-VIS-001/bin/crop_sigma_map_to_window.py "
+                "to generate the cropped sigma-map for small detector fixtures, "
+                "or run plans/active/PHYSICS-LOSS-001/bin/embed_sigma_external_lookup.py "
+                "with --sigma-value/--sigma-map to regenerate the full-detector sigma-map."
             )
 
     dataset = SmokeDatasetPaths(

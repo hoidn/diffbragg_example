@@ -910,3 +910,14 @@ This is the **single most important diagnostic** to run before any other TOOLING
 - <Action State>: [ready_for_implementation]
 
 2025-11-25T080332Z focus=TOOLING-VIS-001 state=planning dwell=1 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T080332Z/ next_action=smoke_calibration_schema_fix
+
+## 2025-11-25T093500Z — TOOLING-VIS-001 Metadata vs Refined Mapping Comparison Plan
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
+- Action Type: planning
+- Key Observations: Even after the calibration schema fix (plans/active/TOOLING-VIS-001/reports/2025-11-25T080332Z/) the masked CPU/GPU probe at 2025-11-25T055039Z shows metadata+scaled.mtz mapping ROI CC≈-0.04 and scale_ratio_masked≈0.26, while earlier parity runs that forced tests/fixtures/golden_data/simple_cubic refined HKL produced ROI CC≈0.62. We need apples-to-apples evidence quantifying how HKL/calibration choices affect the Stage A baseline before prescribing code changes. Prepared a ready-for-implementation Do Now to author `plans/active/TOOLING-VIS-001/bin/compare_mapping_dataset_metrics.py`, a T2 probe that reuses build_mapping_stage_a_context to compute ROI CC/scale ratios/bragg stats for multiple dataset combos (metadata+scaled smoke calibration vs metadata+refined HKL + golden config), and emit a diff JSON under `plans/active/TOOLING-VIS-001/reports/2025-11-25T093500Z/`. Ralph will run the probe plus DB-AT-028/029 (metadata sigma) so we have current failure signatures and quantitative evidence that refined HKL fixes the correlation. Evidence will drive whether we reintroduce the refined HKL override or capture a new metadata-specific refined MTZ in the next loop.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-25T093500Z/
+- Next Actions: Implement the dataset comparison probe, run it for `metadata_scaled` and `metadata_refined` cases, then rerun DB-AT-028/029 with canonical env to capture refreshed metrics.
+- <Action State>: [ready_for_implementation]
+
+2025-11-25T093500Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=2 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T093500Z/ next_action=run_mapping_dataset_probe_and_db_at_028_029

@@ -739,3 +739,14 @@
 - <Action State>: [ready_for_implementation]
 
 2025-11-25T055039Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=4 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T055039Z/ next_action=masked_mapping_diagnostics_and_db_at_028_029_rerun
+
+## 2025-11-25T060403Z — TOOLING-VIS-001 Sigma/HKL Provenance Probe Plan
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
+- Action Type: planning
+- Key Observations: After masked diagnostics (c872e61), both the probe and DB-AT-028/029 fixtures still show ROI CC≈-0.04 with spot_scale_override≈3.18e17 on metadata-sigma despite CPU/GPU parity, so the mapping baseline is uncorrelated. To isolate whether sigma_source or HKL provenance drives the mismatch, drafted a ready-for-implementation Do Now to log sigma/HKL metadata in both the mapping probe and Stage A smoke fixture, then run the probe for metadata vs cli_override sigma sources before rerunning DB-AT-028/029.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-25T060403Z/
+- Next Actions: Ralph implements the sigma/HKL provenance logging in the probe + fixture, runs metadata and cli_override probe variants, reruns DB-AT-028/029 (metadata), and records whether sigma_source/HKL differences explain the ROI CC gap.
+- <Action State>: [ready_for_implementation]
+
+2025-11-25T060403Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=0 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T060403Z/ next_action=sigma_hkl_provenance_probe_and_db_at_028_029_rerun

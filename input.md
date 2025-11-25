@@ -1,55 +1,65 @@
-Summary: Capture a canonical smoke calibration bundle (spot_scale_override + beam/crystal metadata) and point Stage A parity harnesses at it so mapping/Stage-A diagnostics stop falling back to golden fixtures.
+Summary: Use the captured smoke calibration bundle to rerun the mapping probe and DB-AT-028/029 so we can prove Stage A is finally reading the right calibration path and record it in every artifact.
 Mode: Parity
 Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
 Branch: integration
 Mapped tests: tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029"
-Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-25T083500Z/
+Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-25T074043Z/
 
 Do Now
-- Implement: plans/active/TOOLING-VIS-001/bin/capture_smoke_calibration.py::main — add a T2 CLI that ingests the metadata smoke dataset (idx-0000_sigma_metadata.expt/refGeom.refl/scaled.mtz/747_mask.pkl), reuses the DiffBragg capture pipeline to recover spot_scale_override, beam flux/exposure/beamsize_mm, and N_cells, and emits `sp.proc/calibration/config_torch_smoke.json` plus a manifest (paths + SHA256) recorded under the artifacts directory.
-- Implement: tests/dbex/test_torch_refine_smoke.py::refgeom_dataload — if `DBEX_SMOKE_CALIB_PATH` is unset but `sp.proc/calibration/config_torch_smoke.json` exists, set `args.calibration_config_path` to that file so Stage A parity fixtures and mapping probes default to the new calibration while still letting env vars override. Ensure diagnostics log the actual calibration path.
-- Validate: (1) `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=small python plans/active/TOOLING-VIS-001/bin/capture_smoke_calibration.py --expt sp.proc/idx-0000_sigma_metadata.expt --refl refGeom.refl --mask 747_mask.pkl --mtz scaled.mtz --out-config sp.proc/calibration/config_torch_smoke.json --manifest plans/active/TOOLING-VIS-001/reports/2025-11-25T083500Z/smoke_calibration_manifest.json | tee plans/active/TOOLING-VIS-001/reports/2025-11-25T083500Z/capture_smoke_calibration.log`  
-  (2) `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_CALIB_PATH=sp.proc/calibration/config_torch_smoke.json DBAT028_ARTIFACT_DIR=plans/active/TOOLING-VIS-001/reports/2025-11-25T083500Z/db_at_028 DBAT029_ARTIFACT_DIR=plans/active/TOOLING-VIS-001/reports/2025-11-25T083500Z/db_at_029 KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k \"DB_AT_028 or DB_AT_029\" | tee plans/active/TOOLING-VIS-001/reports/2025-11-25T083500Z/pytest_db_at_028_029.log`  
-  (3) `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_CALIB_PATH=sp.proc/calibration/config_torch_smoke.json python plans/active/TOOLING-VIS-001/bin/compare_mapping_forward_cpu_gpu.py --out-dir plans/active/TOOLING-VIS-001/reports/2025-11-25T083500Z/mapping_cpu_gpu | tee plans/active/TOOLING-VIS-001/reports/2025-11-25T083500Z/mapping_cpu_gpu/probe.log`
+- Implement: tests/dbex/test_stage_a_smoke_parity.py::stage_a_smoke_result — persist the resolved calibration metadata (calibration_path, spot_scale_override) from mapping_context.diagnostics into both the mapping_context_fixture JSON and the db_at_028/db_at_029 metrics before assertions so we can prove the selectors used sp.proc/calibration/config_torch_smoke.json.
+- Implement: plans/active/TOOLING-VIS-001/bin/compare_mapping_forward_cpu_gpu.py::compute_cpu_gpu_mapping_metrics — include calibration_path + spot_scale_override (per device) in the JSON/summary output so the CPU/GPU probe always reports which config_torch file it consumed.
+- Validate: (1) AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python plans/active/TOOLING-VIS-001/bin/capture_smoke_calibration.py --expt sp.proc/idx-0000_sigma_metadata.expt --refl refGeom.refl --mask 747_mask.pkl --mtz scaled.mtz --out-config sp.proc/calibration/config_torch_smoke.json --manifest plans/active/TOOLING-VIS-001/reports/2025-11-25T074043Z/smoke_calibration_manifest.json | tee plans/active/TOOLING-VIS-001/reports/2025-11-25T074043Z/capture_smoke_calibration.log; (2) AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_CALIB_PATH=sp.proc/calibration/config_torch_smoke.json python plans/active/TOOLING-VIS-001/bin/compare_mapping_forward_cpu_gpu.py --out-dir plans/active/TOOLING-VIS-001/reports/2025-11-25T074043Z/mapping_cpu_gpu | tee plans/active/TOOLING-VIS-001/reports/2025-11-25T074043Z/mapping_cpu_gpu/probe.log; (3) AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_CALIB_PATH=sp.proc/calibration/config_torch_smoke.json DBAT028_ARTIFACT_DIR=plans/active/TOOLING-VIS-001/reports/2025-11-25T074043Z/db_at_028 DBAT029_ARTIFACT_DIR=plans/active/TOOLING-VIS-001/reports/2025-11-25T074043Z/db_at_029 KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" | tee plans/active/TOOLING-VIS-001/reports/2025-11-25T074043Z/pytest_db_at_028_029.log (collect-only first if the selectors were touched).
 
 How-To Map
-1) Follow `sp.proc/sigma_metadata_manifest.json` to ensure the metadata sigma assets exist locally; if missing, rerun the documented embed command before attempting calibration capture.  
-2) In `capture_smoke_calibration.py`, borrow the calibration extraction logic from `scripts/generate_simple_cubic_golden.py` / `dbex/run_diffbragg.run_diffbragg` so the script writes config metadata with spot_scale_override, beam flux/exposure, beamsize_mm, N_cells, HKL stats, and panel geometry. Persist SHA256 + provenance to `smoke_calibration_manifest.json`.  
-3) Update `refgeom_dataload` so `args.calibration_config_path` defaults to `sp.proc/calibration/config_torch_smoke.json` when present; keep env overrides and log the resolved path in the existing diagnostics JSONs.  
-4) Re-run the CPU/GPU mapping probe and DB-AT-028/029 under `DBEX_SMOKE_CALIB_PATH` to demonstrate the new calibration produces non-zero Bragg stacks and to capture before/after metrics in the artifacts directory. Summarize ROI CC + chi² signatures in summary.md.
+1) Re-run the capture script from repo root (command above) so the manifest references this checkout; verify the sha256 embedded in the manifest matches `sha256sum sp.proc/calibration/config_torch_smoke.json` and leave both files under sp.proc/calibration/ plus the artifacts directory.
+2) Before running probes/tests, export `DBEX_SMOKE_CALIB_PATH=sp.proc/calibration/config_torch_smoke.json` (repo-relative) so refgeom_dataload and the CPU/GPU probe both pick up the new config. Keep other smoke env vars (sigma source, detector size, CUDA guards) identical to the history runs for apples-to-apples comparison.
+3) Update stage_a_smoke_result to grab `mapping_context.diagnostics["calibration_path"]` and copy it into the fixture JSON + db_at metrics; do not mutate the diagnostics dict after storing the string. While touching the fixture, assert the field is not None so failures surface early.
+4) Extend compute_cpu_gpu_mapping_metrics to include both the calibration path and spot_scale_override for CPU and GPU; keep the schema backward compatible by adding new keys rather than renaming existing ones.
+5) Run `pytest --collect-only tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029"` with the canonical env to confirm both selectors still collect before executing the full tests.
+6) Execute the CPU/GPU probe and pytest commands from Do Now, ensuring `DBAT028_ARTIFACT_DIR` and `DBAT029_ARTIFACT_DIR` point into the new artifact directory so JSON/log files capture the calibration_path fields even if assertions fail.
+7) Record ROI CC, scale ratios, chi²/pixel, and the calibration path used in summary.md; if spot_scale_override remains ~3e17, call it out explicitly so we know the metadata capture reproduces the large scale.
 
 Pitfalls To Avoid
-- Do not resurrect the golden config fallback; the calibration must be derived from the metadata smoke dataset and recorded with a manifest.
-- Capture SHA256 + command provenance for any new calibration assets (`sp.proc/calibration/config_torch_smoke.json`) per MANIFEST-001 rather than leaving ad-hoc files.
-- Ensure `capture_smoke_calibration.py` reuses repo-local dependencies only (DiffBragg + hopper already vendored); no pip installs or CUDA toolchain changes.
-- When wiring the default calibration path, guard on file existence so unit tests that purposely omit calibration still behave as before.
-- Persist DB-AT artifacts (metrics JSON + diagnostics) before assertions even when tests fail; these runs remain FAIL until Stage A physics improves.
+- Do not fall back to the golden config or run probes/tests without `DBEX_SMOKE_CALIB_PATH`; the goal is to validate the new smoke calibration.
+- Keep dataset/HKL/sigma sources identical between the capture script, probe, and pytest run; mismatched inputs invalidate comparisons.
+- Archive mapping diagnostics and db_at metrics before pytest assertions so artifacts exist even on failure.
+- When logging calibration_path, use explicit strings (Path.resolve())—do not log Python objects or None placeholders.
+- Leave the existing ROI metric fields untouched; new calibration metadata must be additive so downstream scripts do not break.
+- Do not “fix” the huge spot_scale_override in code unless you have evidence; just make it observable and document the result for now.
+- Avoid rerunning capture/probe in parallel with pytest; reuse the same env so cached detectors/HKL grids do not diverge mid-loop.
+- Preserve the Environment Freeze: use repo-local hopper/diffBragg modules only and capture any errors instead of pip-installing fixes.
+- Ensure `DBAT028_ARTIFACT_DIR`/`DBAT029_ARTIFACT_DIR` exist before pytest so metrics land under artifacts/2025-11-25T074043Z.
+- Respect the deterministic flags (KMP_DUPLICATE_LIB_OK=TRUE, NANOBRAGG_DISABLE_COMPILE=1) exactly as documented in docs/TESTING_GUIDE.md.
 
 If Blocked
-- If the calibration capture fails (e.g., hopper import error, missing sigma assets), record the exact command, stderr, and dataset state in summary.md + `docs/fix_plan.md`, stash the partial manifest/log under the artifacts directory, and mark TOOLING-VIS-001 blocked on the documented error instead of dropping back to the golden config.
+- If the capture script fails (e.g., hopper import error, missing sigma assets), save the full traceback to capture_smoke_calibration.log, note the failure in summary.md, and update docs/fix_plan.md Attempts History with the error signature + dataset state instead of dropping back to the golden config.
+- If pytest refuses to collect DB-AT-028/029 even after collect-only, stop immediately, record the collect-only output in the artifacts directory, and mark TOOLING-VIS-001 blocked pending selector repair.
 
 Findings Applied (Mandatory)
-- STAGEA-001 — Stage A zero-point/mapping parity requires calibrated spot_scale_override + throughput metadata; the new calibration must satisfy this invariant.
-- GEOMETRY-003 / GEOMETRY-004 — Preserve mapping-stage geometry/HKL provenance; calibration capture must not mutate the zero-point geometry.
-- PHYSICS-LOSS-001 — Mapping probe + DB-AT-028/029 validations rely on variance-weighted chi²/ROI metrics; keep loss_mask semantics intact.
-- CONFORMANCE-001 — Acceptance selectors must keep canonical env/commands/artefacts; archive new logs even when failing.
-- POLICY-001 — Environment Freeze: use only repo-local tooling and document any targeted patches via manifests rather than touching the runtime.
+- STAGEA-001 — Mapping and Stage A must share identical calibration payloads; log calibration_path + spot_scale_override to prove compliance.
+- GEOMETRY-003 / GEOMETRY-004 — Mapping context uses the incremental UB baseline; do not mutate geometry when rerunning probes.
+- PHYSICS-LOSS-001 — Use the canonical variance-weighted chi²/ROI metrics when interpreting probe and pytest results.
+- CONFORMANCE-001 — DB-AT selectors must archive artifacts even when they fail; keep DBAT028/029 logs + JSON in the artifacts path.
+- POLICY-001 — Environment Freeze: rely solely on repo-local DiffBragg/simtbx tooling and document any missing dependency as a blocker.
 
 Pointers
-- docs/spec-db-conformance.md:287-349 — DB-AT-028/029 tolerances and telemetry requirements.
-- docs/TESTING_GUIDE.md:130-190 — Canonical commands/env for DB-AT-028/029 plus artifact expectations.
-- plans/active/TOOLING-VIS-001/implementation.md §Phase D — context for mapping alignment + calibration scope.
-- scripts/generate_simple_cubic_golden.py & dbex/run_diffbragg.py — reference logic for extracting spot_scale_override/beam/N_cells and writing config_torch manifests.
-- sp.proc/sigma_metadata_manifest.json — authoritative source for current metadata sigma assets and regeneration commands.
+- docs/spec-db-conformance.md:280-349 — Acceptance gates for DB-AT-028/029 (chi² per pixel, ROI CC bands, artifact requirements).
+- docs/data_dependency_manifest.md:14-45 — Source-of-truth for DBEX_SMOKE_* env vars and calibration routing; confirms refgeom_dataload defaults.
+- docs/TESTING_GUIDE.md:130-190 — Canonical commands/env vars for Stage A smoke selectors; matches the envs listed above.
+- plans/active/TOOLING-VIS-001/implementation.md §Phase D.D — Context and objectives for mapping/Stage A alignment, including calibration plumbing scope.
+- plans/active/TOOLING-VIS-001/reports/2025-11-25T083500Z/ (manifest + capture log) — Use as a reference when verifying sha256 + metadata in the new artifacts.
 
 Next Up (optional)
-- After calibration capture stabilizes mapping baseline, revisit the ROI triptych probe (`probe_mapping_roi_triptychs.py`) with the new calibration to isolate any remaining geometry/structure issues.
+- If ROI CC remains negative even with the captured calibration, pivot to inspecting capture_smoke_calibration.py output vs DiffBragg telemetry (spot_scale units) before adjusting Stage A physics.
+
+Doc Sync Plan (Conditional)
+- Not needed unless new tests are added; if selectors or probe scripts change names, refresh docs/TESTING_GUIDE.md §2 and docs/development/TEST_SUITE_INDEX.md after the code passes.
 
 Mapped Tests Guardrail
-- Verify `pytest --collect-only tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029"` still reports both selectors before implementation; treat zero collection as a blocker.
+- Confirm `pytest --collect-only tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029"` returns two collected nodes before running the full tests; document the output under the artifacts directory if collection fails.
 
 Hard Gate
-- Do not consider the loop done without (a) the new `config_torch_smoke.json` + manifest in both `sp.proc/calibration/` and the artifacts dir, (b) refreshed mapping probe JSON/logs proving we now have non-zero Bragg stacks and recorded calibration paths, and (c) DB-AT-028/029 artifacts executed under `DBEX_SMOKE_CALIB_PATH=<new file>`.
+- Do not claim the loop complete until the mapping probe JSON and both db_at_028/db_at_029 metrics include the calibration_path field populated with sp.proc/calibration/config_torch_smoke.json and the pytest log reflects execution under `DBEX_SMOKE_CALIB_PATH`.
 
 Normative Math/Physics
-- Reference `docs/spec-db-core.md §§82‑92` for variance-weighted chi² and ROI correlation math in the capture script and diagnostics; do not relax tolerances without spec approval.
+- Reference docs/spec-db-core.md §§82-92 for the variance-weighted chi² and ROI correlation formulas when analyzing the probe + pytest outputs; do not rewrite the math inline.

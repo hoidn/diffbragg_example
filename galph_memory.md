@@ -889,3 +889,13 @@ This is the **single most important diagnostic** to run before any other TOOLING
 - <Action State>: [ready_for_implementation]
 
 2025-11-25T083500Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=3 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T083500Z/ next_action=capture_smoke_calibration_and_rerun_db_at_028_029
+## 2025-11-25T074043Z — TOOLING-VIS-001 calibration capture verified, Do Now refreshed
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
+- Action Type: planning
+- Key Observations: Confirmed Ralph’s capture script produced `sp.proc/calibration/config_torch_smoke.json` (+ manifest/log under 2025-11-25T083500Z) with `spot_scale_override=3.105058665e+17` and `N_cells=[36,28,26]`, but DB-AT-028/029 artifacts still show `spot_scale_override=1.0` because the selectors haven’t been rerun under `DBEX_SMOKE_CALIB_PATH`. Added fix_plan entry documenting the capture and authored a new ready-for-implementation Do Now directing Ralph to log the resolved calibration_path in both the CPU/GPU probe and Stage A smoke fixture, then rerun capture → probe → pytest so we can see whether the metadata-derived calibration yields non-zero Bragg stacks.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-25T074043Z/
+- Next Actions: Ralph implements the calibration_path logging in `stage_a_smoke_result` and `compare_mapping_forward_cpu_gpu.py`, reruns the capture script plus mapping probe + `pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029"` with `DBEX_SMOKE_CALIB_PATH=sp.proc/calibration/config_torch_smoke.json`, and records whether ROI CC / chi² improve with the new config.
+- <Action State>: [ready_for_implementation]
+
+2025-11-25T074043Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=0 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T074043Z/ next_action=log_calibration_path_and_rerun_mapping_probe_plus_db_at_028_029

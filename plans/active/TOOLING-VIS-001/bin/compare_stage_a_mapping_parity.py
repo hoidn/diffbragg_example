@@ -164,6 +164,10 @@ def main():
     hkl_source = "scaled.mtz"
     device_obj = torch.device("cuda:0" if torch.cuda.is_available() and args.device != "cpu" else "cpu")
 
+    # Store original indices and amplitudes for simulate_forward_once
+    hkl_indices = None
+    hkl_amplitudes = None
+
     if calibration_metadata:
         refined_mtz_path = golden_dir / "refined_structure_factors.mtz"
         if refined_mtz_path.exists():
@@ -175,18 +179,26 @@ def main():
                     device=device_obj,
                     halo=True,
                 )
+                hkl_indices = refined_indices
+                hkl_amplitudes = refined_amplitudes
                 hkl_source = "refined_structure_factors.mtz"
                 print(f"Using refined HKL from {refined_mtz_path}")
             except Exception as exc:
                 print(f"Warning: Failed to load refined MTZ: {exc}")
                 hkl_grid = dataload.hkl_grid
                 hkl_metadata = dataload.hkl_metadata
+                hkl_indices = dataload.hkl_indices
+                hkl_amplitudes = dataload.hkl_amplitudes
         else:
             hkl_grid = dataload.hkl_grid
             hkl_metadata = dataload.hkl_metadata
+            hkl_indices = dataload.hkl_indices
+            hkl_amplitudes = dataload.hkl_amplitudes
     else:
         hkl_grid = dataload.hkl_grid
         hkl_metadata = dataload.hkl_metadata
+        hkl_indices = dataload.hkl_indices
+        hkl_amplitudes = dataload.hkl_amplitudes
 
     # Build RefinementInputs using Stage A smoke fixture approach
     from tests.dbex.test_torch_refine_smoke import create_perturbed_geometry
@@ -296,10 +308,7 @@ def main():
         baseline_crystal=baseline_crystal,
     )
 
-    # Note: mapping forward pass comparison is deferred; this probe focuses on
-    # Stage A engine diagnostics per input.md Phase D.D
-
-    # Compute log_scale_effective
+    # Compute log_scale_effective and gather statistics first
     log_scale_entry = telemetry.param_deltas.get("log_scale", {})
     log_scale_baseline_entry = telemetry.param_deltas.get("log_scale_baseline", {})
 
@@ -333,6 +342,43 @@ def main():
 
     roi_cc_median_before = float(median(valid_before)) if valid_before else float("nan")
     roi_cc_median_after = float(median(valid_after)) if valid_after else float("nan")
+
+    # Run mapping forward pass with shared HKL/calibration for parity comparison
+    print("Running mapping forward pass (baseline crystal, nearest-neighbor HKL)...")
+    try:
+        if hkl_indices is None or hkl_amplitudes is None:
+            raise ValueError("HKL indices and amplitudes not available for mapping forward pass")
+
+        bragg_mapping = simulate_forward_once(
+            inputs=refinement_inputs,
+            detector=baseline_detector,
+            beam=baseline_beam,
+            crystal=baseline_crystal,
+            experiment=dataload.Expt,
+            hkl_indices=hkl_indices,
+            hkl_amplitudes=hkl_amplitudes,
+            spot_scale_override=calibration_metadata.get("spot_scale_override") if calibration_metadata else None,
+            calibration=calibration_metadata,
+            hkl_source=hkl_source,
+        )
+
+        # Compute mapping ROI correlations
+        corrs_mapping = _roi_correlations(target, bragg_mapping, loss_mask, panel_slices)
+        valid_mapping = [c for c in corrs_mapping if np.isfinite(c)]
+        roi_cc_median_mapping = float(median(valid_mapping)) if valid_mapping else float("nan")
+
+        # Compute mapping scale ratio
+        bragg_mapping_mean = float(np.mean(bragg_mapping))
+        scale_ratio_mapping = bragg_mapping_mean / mean_target if mean_target > 0 else float("inf")
+
+        mapping_forward_success = True
+        print(f"Mapping forward ROI CC median: {roi_cc_median_mapping:.4f}")
+        print(f"Mapping forward scale ratio: {scale_ratio_mapping:.3e}")
+    except Exception as exc:
+        print(f"Warning: Mapping forward pass failed: {exc}")
+        roi_cc_median_mapping = float("nan")
+        scale_ratio_mapping = float("nan")
+        mapping_forward_success = False
 
     # Chi-squared
     chi_trace = telemetry.chi_squared_trace_full or []
@@ -369,6 +415,9 @@ def main():
         "roi_cc_median_before": roi_cc_median_before,
         "roi_cc_median_after": roi_cc_median_after,
         "n_rois": len(valid_before),
+        "mapping_forward_success": mapping_forward_success,
+        "roi_cc_median_mapping": roi_cc_median_mapping,
+        "scale_ratio_mapping": scale_ratio_mapping,
     }
 
     # Write metrics JSON
@@ -390,6 +439,11 @@ def main():
     print(f"Scale ratio (before): {scale_ratio_before:.3e}")
     print(f"Scale ratio (after): {scale_ratio_after:.3e}")
     print("")
+    if mapping_forward_success:
+        print("=== Mapping Forward Parity ===")
+        print(f"ROI CC median (mapping): {roi_cc_median_mapping:.4f}")
+        print(f"Scale ratio (mapping): {scale_ratio_mapping:.3e}")
+        print("")
 
     sys.exit(0)
 

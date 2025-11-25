@@ -11,6 +11,7 @@ from dbex.nanobrag_bridge import (
     build_structure_factor_grid,
     load_calibration_metadata,
     load_refined_mtz,
+    simulate_forward_once,
 )
 from dbex.nanobrag_refinement import (
     RefinementConfig,
@@ -98,6 +99,10 @@ def stage_a_smoke_result(
     device_obj = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     device = str(device_obj)
 
+    # Store original HKL indices and amplitudes for mapping forward pass
+    hkl_indices = None
+    hkl_amplitudes = None
+
     if calibration_metadata:
         refined_mtz = (
             repo_root / "tests" / "fixtures" / "golden_data" / "simple_cubic" / "refined_structure_factors.mtz"
@@ -111,6 +116,8 @@ def stage_a_smoke_result(
                     device=device_obj,
                     halo=True,
                 )
+                hkl_indices = refined_indices
+                hkl_amplitudes = refined_amplitudes
                 hkl_source = "refined_structure_factors.mtz"
             except Exception:
                 hkl_source = "scaled.mtz"
@@ -209,6 +216,41 @@ def stage_a_smoke_result(
     roi_cc_median_before = float(np.median(valid_corrs_before)) if valid_corrs_before else float("nan")
     roi_cc_median_after = float(np.median(valid_corrs_after)) if valid_corrs_after else float("nan")
 
+    # Run mapping forward pass for parity comparison (DB-AT-028/029 diagnostics)
+    roi_cc_median_mapping = float("nan")
+    scale_ratio_mapping = float("nan")
+    mapping_forward_success = False
+    try:
+        if hkl_indices is None or hkl_amplitudes is None:
+            raise ValueError("HKL indices and amplitudes not available (mapping forward pass skipped)")
+
+        bragg_mapping = simulate_forward_once(
+            inputs=refinement_inputs,
+            detector=baseline_detector,
+            beam=baseline_beam,
+            crystal=baseline_crystal,
+            experiment=refgeom_dataload.Expt,
+            hkl_indices=hkl_indices,
+            hkl_amplitudes=hkl_amplitudes,
+            spot_scale_override=calibration_metadata.get("spot_scale_override") if calibration_metadata else None,
+            calibration=calibration_metadata,
+            hkl_source=hkl_source,
+        )
+
+        # Compute mapping ROI correlations
+        corrs_mapping = _roi_correlations(refinement_inputs.target, bragg_mapping, refinement_inputs.loss_mask, refinement_inputs.panel_slices)
+        valid_mapping = [c for c in corrs_mapping if np.isfinite(c)]
+        roi_cc_median_mapping = float(np.median(valid_mapping)) if valid_mapping else float("nan")
+
+        # Compute mapping scale ratio
+        mean_target = float(np.mean(refinement_inputs.target[refinement_inputs.loss_mask]))
+        bragg_mapping_mean = float(np.mean(bragg_mapping))
+        scale_ratio_mapping = bragg_mapping_mean / mean_target if mean_target > 0 else float("inf")
+
+        mapping_forward_success = True
+    except Exception:
+        pass  # Leave mapping metrics as NaN on failure
+
     return {
         "telemetry": telemetry,
         "chi_trace": chi_trace,
@@ -231,6 +273,9 @@ def stage_a_smoke_result(
         "bragg_after_max": bragg_after_max,
         "roi_cc_median_before": roi_cc_median_before,
         "roi_cc_median_after": roi_cc_median_after,
+        "roi_cc_median_mapping": roi_cc_median_mapping,
+        "scale_ratio_mapping": scale_ratio_mapping,
+        "mapping_forward_success": mapping_forward_success,
     }
 
 
@@ -277,6 +322,9 @@ def test_db_at_028_loss_scale_sanity(stage_a_smoke_result):
         "roi_cc_median_before": stage_a_smoke_result.get("roi_cc_median_before"),
         "roi_cc_median_after": stage_a_smoke_result.get("roi_cc_median_after"),
         "hkl_source": stage_a_smoke_result.get("hkl_source"),
+        "roi_cc_median_mapping": stage_a_smoke_result.get("roi_cc_median_mapping"),
+        "scale_ratio_mapping": stage_a_smoke_result.get("scale_ratio_mapping"),
+        "mapping_forward_success": stage_a_smoke_result.get("mapping_forward_success"),
     }
     (artifact_dir / "db_at_028_metrics.json").write_text(json.dumps(metrics, indent=2))
 
@@ -336,6 +384,9 @@ def test_db_at_029_structure_parity(stage_a_smoke_result):
         "bragg_after_std": stage_a_smoke_result.get("bragg_after_std"),
         "bragg_after_max": stage_a_smoke_result.get("bragg_after_max"),
         "hkl_source": stage_a_smoke_result.get("hkl_source"),
+        "roi_cc_median_mapping": stage_a_smoke_result.get("roi_cc_median_mapping"),
+        "scale_ratio_mapping": stage_a_smoke_result.get("scale_ratio_mapping"),
+        "mapping_forward_success": stage_a_smoke_result.get("mapping_forward_success"),
     }
     (artifact_dir / "db_at_029_metrics.json").write_text(json.dumps(metrics, indent=2))
 

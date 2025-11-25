@@ -953,3 +953,14 @@ This is the **single most important diagnostic** to run before any other TOOLING
 - <Action State>: [ready_for_implementation]
 
 2025-11-25T093626Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=2 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T093626Z/ next_action=crop_sigma_map_and_rerun_db_at_028_029
+
+## 2025-11-25T130000Z — TOOLING-VIS-001 Masked Scale Diagnostics Plan
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
+- Action Type: planning
+- Key Observations: Geometry/sigma plumbing is fixed but we still lack masked/unmasked scale telemetry tying metadata-smoke mapping to Stage A, so we prepared a ready-for-implementation Do Now to extend `emit_mapping_context_diagnostics`, rerun the metadata_scaled vs metadata_refined probe, and capture DB-AT-028/029 under the metadata env with the new fields.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-25T130000Z/
+- Next Actions: Ship the diagnostics helper update plus probe + pytest runs, then decide whether calibration or HKL provenance is the root cause based on the new metrics.
+- <Action State>: [ready_for_implementation]
+
+2025-11-25T130000Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=0 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T130000Z/ next_action=extend_mapping_diagnostics_and_run_metadata_probe_pytest

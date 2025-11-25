@@ -125,7 +125,12 @@
         - Update `docs/fix_plan.md` Attempts History: timestamp, action summary, `Metrics:`, `Artifacts:`, `First Divergence:` (if debugging), `Next Actions`. Set `done` only when exit criteria are met.
         - If `docs/fix_plan.md` grows unwieldy, move fully complete sections to `archive/<YYYY-MM-DD>_fix_plan_archive.md` (summary + cross‑refs).
 
-    11. **Version control hygiene**
+    11. **galph_memory update**
+        - IF this session involved debugging or debugging-related effort: ultrathink about the root cause. Were any clues revealed by the information you considered in this 
+        session? Do you have any hypotheses that you think are plausible AND that have not been mentioned in input.md or any planning documents? IF so you MUST append your findings 
+        to the bottom of galph_memory.md such that the supervisor devotes adequate attention to your insights in the next round.
+
+    12. **Version control hygiene**
         - Stage only intended files.
         - Commit with: `<plan-id> <module>: <concise summary> (tests: <selector>)`
           and include acceptance IDs in the message (e.g., `AT-49`). Include a brief test run summary.

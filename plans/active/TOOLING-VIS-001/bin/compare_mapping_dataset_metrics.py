@@ -133,18 +133,25 @@ def define_cases() -> Dict[str, Dict[str, str]]:
                 sigma_map_path = repo / "sp.proc" / "idx-0000_sigma_metadata.sigma_tiles.pkl"
 
     # Helper: resolve HKL path based on calibration presence (per TOOLING-VIS-001 Phase D)
-    # When calibration is provided, default to refined MTZ; otherwise use scaled.mtz
+    # When calibration is provided, default to detector-size-specific refined MTZ; otherwise use scaled.mtz
     def resolve_hkl_for_calibration(calibration_path: Optional[str]) -> str:
         hkl_override = os.environ.get("DBEX_SMOKE_HKL_PATH")
         if hkl_override:
             return str(repo / hkl_override) if not Path(hkl_override).is_absolute() else hkl_override
-        default_refined_mtz = repo / "sp.proc" / "calibration" / "smoke_refined_structure_factors.mtz"
+        # Select detector-size-specific refined MTZ when calibration is enabled
+        if detector_size == "small":
+            default_refined_mtz = repo / "sp.proc" / "calibration" / "smoke_refined_structure_factors_small.mtz"
+        else:
+            default_refined_mtz = repo / "sp.proc" / "calibration" / "smoke_refined_structure_factors.mtz"
         if calibration_path and default_refined_mtz.exists():
             return str(default_refined_mtz)
         return str(repo / "scaled.mtz")
 
-    # Define smoke calibration path for helper
-    smoke_calib_path = str(repo / "sp.proc" / "calibration" / "config_torch_smoke.json")
+    # Define detector-size-specific smoke calibration path for helper (TOOLING-VIS-001 Phase D.D)
+    if detector_size == "small":
+        smoke_calib_path = str(repo / "sp.proc" / "calibration" / "config_torch_smoke_small.json")
+    else:
+        smoke_calib_path = str(repo / "sp.proc" / "calibration" / "config_torch_smoke.json")
 
     cases = {
         # Metadata-sigma cases: use external sigma tiles when DBEX_SMOKE_SIGMA_SOURCE=metadata

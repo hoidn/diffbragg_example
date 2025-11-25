@@ -51,6 +51,8 @@ sp.proc/**
 !sp.proc/calibration/
 !sp.proc/calibration/config_torch_smoke.json
 !sp.proc/calibration/smoke_refined_structure_factors.mtz
+!sp.proc/calibration/config_torch_smoke_small.json
+!sp.proc/calibration/smoke_refined_structure_factors_small.mtz
 
 # Local supervisor input backups (ignored to avoid doc/meta whitelist failures)
 input.md.backup_*

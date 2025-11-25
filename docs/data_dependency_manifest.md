@@ -39,9 +39,15 @@ This manifest records the external data inputs (datasets, calibration payloads, 
   - `DBEX_SMOKE_HKL_PATH` overrides HKL file (explicit override takes precedence).
   - `DBEX_SMOKE_CALIB_PATH` overrides calibration config path.
   - `DBEX_SMOKE_SIGMA_MAP_PATH` overrides sigma-map pickle path when `DBEX_SMOKE_SIGMA_SOURCE=metadata`.
-- **Default Provenance:**
-  - HKL: **Current behavior:** still defaults to `scaled.mtz` even when `sp.proc/calibration/config_torch_smoke.json` is present (TOOLING-VIS-001 gap). `DBEX_SMOKE_HKL_PATH` override is the only way to force the refined MTZ today. **Planned fix:** once the Stage A fixture is updated, the default will automatically switch to `sp.proc/calibration/smoke_refined_structure_factors.mtz` whenever the smoke calibration bundle exists and no override is set.
-  - Calibration: `sp.proc/calibration/config_torch_smoke.json` when present, otherwise `DBEX_SMOKE_CALIB_PATH` env var.
+- **Default Provenance (Detector-Size Aware, TOOLING-VIS-001 Phase D.D):**
+  - HKL (with override precedence):
+    - Override: `DBEX_SMOKE_HKL_PATH` if set (takes precedence).
+    - Small detector: `sp.proc/calibration/smoke_refined_structure_factors_small.mtz` when calibration exists, else `scaled.mtz`.
+    - Full detector: `sp.proc/calibration/smoke_refined_structure_factors.mtz` when calibration exists, else `scaled.mtz`.
+  - Calibration (with override precedence):
+    - Override: `DBEX_SMOKE_CALIB_PATH` if set (takes precedence).
+    - Small detector: `sp.proc/calibration/config_torch_smoke_small.json` when present, else None.
+    - Full detector: `sp.proc/calibration/config_torch_smoke.json` when present, else None.
   - Sigma-map (when metadata source):
     - Small detector (`DBEX_SMOKE_DETECTOR_SIZE=small`): `sp.proc/refGeom_small/idx-0000_sigma_metadata_small.sigma_tiles.pkl` (cropped to [fast: 751-1775, slow: 719-1743] matching refGeom_small window).
     - Full detector: `sp.proc/idx-0000_sigma_metadata.sigma_tiles.pkl`.
@@ -77,14 +83,23 @@ This manifest records the external data inputs (datasets, calibration payloads, 
 - **Required telemetry:** `/torch_diagnostics` entries for each field plus provenance (config vs CLI vs env).
 - **Action:** ensure smoke fixtures pass their own calibration path instead of falling back to the golden config.
 
-### Refined Structure Factors (`smoke_refined_structure_factors.mtz`)
+### Refined Structure Factors (`smoke_refined_structure_factors*.mtz`)
 
+#### Full-Detector Bundle
 - **Asset:** `sp.proc/calibration/smoke_refined_structure_factors.mtz`
 - **Generation Command:** `plans/active/TOOLING-VIS-001/bin/capture_smoke_calibration.py --expt sp.proc/idx-0000_sigma_metadata.expt --refl refGeom.refl --mask 747_mask.pkl --mtz scaled.mtz --out-config sp.proc/calibration/config_torch_smoke.json --refined-mtz-out sp.proc/calibration/smoke_refined_structure_factors.mtz --manifest <artifacts-path>/smoke_calibration_manifest.json`
 - **Provenance:** DiffBragg-refined structure factors produced during smoke calibration capture; replaces raw `scaled.mtz` amplitudes with variance-weighted refined values.
 - **Purpose:** Ensures Stage A mapping and DB-AT-028/029 parity tests consume the same refined structure factors as the calibration metadata, avoiding ROI CC collapse (per SCALE-004 finding).
 - **Validation:** Manifest JSON includes SHA256, file size, and generation timestamp; `refgeom_dataload` fixture emits `hkl_source="refined"` when this asset is loaded.
 - **Default Behavior:** When `sp.proc/calibration/config_torch_smoke.json` exists, `refgeom_dataload` and mapping helpers default to this refined MTZ unless `DBEX_SMOKE_HKL_PATH` explicitly overrides it.
+
+#### Small-Detector Bundle (TOOLING-VIS-001 Phase D.D)
+- **Asset:** `sp.proc/calibration/smoke_refined_structure_factors_small.mtz`
+- **Generation Command:** `plans/active/TOOLING-VIS-001/bin/capture_smoke_calibration.py --expt sp.proc/refGeom_small/refGeom_small.expt --refl sp.proc/refGeom_small/refGeom_small.refl --mask sp.proc/refGeom_small/refGeom_small_mask.pkl --mtz scaled.mtz --out-config sp.proc/calibration/config_torch_smoke_small.json --refined-mtz-out sp.proc/calibration/smoke_refined_structure_factors_small.mtz --manifest <artifacts-path>/smoke_calibration_small_manifest.json`
+- **Provenance:** DiffBragg-refined structure factors produced from refGeom_small (1024×1024 cropped detector) during smoke calibration capture.
+- **Purpose:** Provides detector-size-specific refined MTZ paired with `config_torch_smoke_small.json` so small-detector smoke fixtures (DB-AT-028/029) consume calibration metadata aligned with the dataset geometry.
+- **Validation:** Manifest JSON includes SHA256 (`3bf935d74fb121f3...`), file size (955K), generation timestamp, and `spot_scale_override=4.786111e+17` (vs 3.105e+17 for full detector).
+- **Default Behavior:** When `DBEX_SMOKE_DETECTOR_SIZE=small` and `sp.proc/calibration/config_torch_smoke_small.json` exists, `refgeom_dataload` and mapping helpers default to this refined MTZ unless `DBEX_SMOKE_HKL_PATH` explicitly overrides it.
 
 ### Cropped Sigma-Map Asset (refGeom_small)
 

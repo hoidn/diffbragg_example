@@ -168,7 +168,7 @@ def _compute_rotation_angle(U1: np.ndarray, U2: np.ndarray) -> float:
 
 
 @pytest.fixture(scope="session")
-def refgeom_dataload(smoke_dataset_paths, smoke_sigma_source):
+def refgeom_dataload(smoke_dataset_paths, smoke_sigma_source, smoke_detector_size):
     """Load DataLoad from canonical geometry with optional sigma-map and geometry override.
 
     This fixture decouples sigma sourcing from geometry per TOOLING-VIS-001 Phase D requirements.
@@ -182,6 +182,13 @@ def refgeom_dataload(smoke_dataset_paths, smoke_sigma_source):
     When smoke_sigma_source=="metadata", the sigma-map path is passed through args.sigma_map
     instead of swapping the experiment file.
 
+    Detector-size awareness (TOOLING-VIS-001 Phase D.D):
+      - When smoke_detector_size=="small" and no explicit DBEX_SMOKE_CALIB_PATH override,
+        defaults to sp.proc/calibration/config_torch_smoke_small.json (if present).
+      - Similarly, defaults to smoke_refined_structure_factors_small.mtz when calibration exists.
+      - Full-detector fixtures continue to use config_torch_smoke.json and smoke_refined_structure_factors.mtz.
+      - Override env vars (DBEX_SMOKE_CALIB_PATH, DBEX_SMOKE_HKL_PATH) remain authoritative.
+
     Data dependencies (per docs/data_dependency_manifest.md):
         - dbex.data_load.DataLoad (expt/refl/mask/HKL/sigma-map)
         - dxtbx.model.ExperimentList (geometry extraction)
@@ -193,29 +200,46 @@ def refgeom_dataload(smoke_dataset_paths, smoke_sigma_source):
 
     repo_root = Path(__file__).resolve().parent.parent
 
-    # Resolve calibration path: default to smoke calibration asset when present,
-    # otherwise honor DBEX_SMOKE_CALIB_PATH env, otherwise None
-    default_smoke_calib = repo_root / "sp.proc" / "calibration" / "config_torch_smoke.json"
+    # Resolve calibration path: detector-size aware defaults, with override taking precedence
     calib_path_override = os.environ.get("DBEX_SMOKE_CALIB_PATH")
     if calib_path_override:
         calib_path = repo_root / calib_path_override
-    elif default_smoke_calib.exists():
-        calib_path = default_smoke_calib
+    elif smoke_detector_size == "small":
+        # Small-detector default
+        default_smoke_calib_small = repo_root / "sp.proc" / "calibration" / "config_torch_smoke_small.json"
+        if default_smoke_calib_small.exists():
+            calib_path = default_smoke_calib_small
+        else:
+            calib_path = None
     else:
-        calib_path = None
+        # Full-detector default
+        default_smoke_calib = repo_root / "sp.proc" / "calibration" / "config_torch_smoke.json"
+        if default_smoke_calib.exists():
+            calib_path = default_smoke_calib
+        else:
+            calib_path = None
 
-    # Resolve HKL path from env or default to refined MTZ when calibration exists
+    # Resolve HKL path from env or default to detector-size-specific refined MTZ when calibration exists
     # Per TOOLING-VIS-001 Phase D.C: refined structure factors must accompany calibration metadata
     hkl_path_override = os.environ.get("DBEX_SMOKE_HKL_PATH")
-    default_refined_mtz = repo_root / "sp.proc" / "calibration" / "smoke_refined_structure_factors.mtz"
     if hkl_path_override:
         hkl_path = repo_root / hkl_path_override
         # Infer MTZ column type from filename or default to intensities
         mtz_col = "F(+),SIGF(+),F(-),SIGF(-)" if "refined" in str(hkl_path_override).lower() else "I(+),SIGI(+),I(-),SIGI(-)"
-    elif calib_path and default_refined_mtz.exists():
-        # When calibration metadata is present, default to refined structure factors
-        hkl_path = default_refined_mtz
-        mtz_col = "F(+),SIGF(+),F(-),SIGF(-)"  # Refined MTZ uses F columns
+    elif calib_path:
+        # When calibration metadata is present, default to detector-size-specific refined MTZ
+        if smoke_detector_size == "small":
+            default_refined_mtz = repo_root / "sp.proc" / "calibration" / "smoke_refined_structure_factors_small.mtz"
+        else:
+            default_refined_mtz = repo_root / "sp.proc" / "calibration" / "smoke_refined_structure_factors.mtz"
+
+        if default_refined_mtz.exists():
+            hkl_path = default_refined_mtz
+            mtz_col = "F(+),SIGF(+),F(-),SIGF(-)"  # Refined MTZ uses F columns
+        else:
+            # Fallback to raw scaled MTZ if refined MTZ is missing
+            hkl_path = repo_root / "scaled.mtz"
+            mtz_col = "I(+),SIGI(+),I(-),SIGI(-)"
     else:
         hkl_path = repo_root / "scaled.mtz"
         mtz_col = "I(+),SIGI(+),I(-),SIGI(-)"  # Raw MTZ uses I columns

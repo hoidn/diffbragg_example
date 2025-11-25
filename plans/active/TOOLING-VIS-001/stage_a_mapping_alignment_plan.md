@@ -74,6 +74,7 @@
 
 ### Notes & Risks
 - Risk: Divergence between DB-AT-024 mapping implementation and the mapping context helper. Mitigation: Keep the helper thin and reuse DB-AT-024 code paths directly where practical.
+- Known gap (2025-11-25): `build_mapping_stage_a_context` still hardcodes the golden `tests/fixtures/golden_data/simple_cubic` calibration + refined HKL assets even when the caller supplies a different `DataLoad`. This is the immediate cause of the ROI CC collapse (0.62 → -0.04) once the probe/fixture began sharing the helper. Phase A work must route calibration/HKL provenance from the actual `DataLoad` (or explicit overrides such as `DBEX_SMOKE_HKL_PATH`) before any further diagnostics make sense.
 
 ## Phase B — Mapping-Based Refinement Layer
 

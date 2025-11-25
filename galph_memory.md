@@ -858,6 +858,16 @@ This is the **single most important diagnostic** to run before any other TOOLING
 
 2025-11-25T061925Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=1 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T061925Z/ next_action=hkl_override_probe_and_db_at_028_029
 
+## 2025-11-25T070500Z — Course Correction: Mapping Helper Uses Golden Assets
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
+- Action Type: note / course correction
+- Key Observation: Source review shows `build_mapping_stage_a_context` always loads calibration + refined HKL data from `tests/fixtures/golden_data/simple_cubic`, even when the `DataLoad` points at the metadata-sigma smoke dataset. This forced both the CLI probe and DB-AT-028/029 to compare refGeom pixels against the wrong MTZ/spot_scale payload, explaining the ROI CC sign flip once the helpers were unified.
+- Directive: Stop chasing sigma-only deltas. Next Do Now must prioritize fixing `dbex/vis/mapping.py` so calibration + HKL provenance are derived from the actual dataset (or explicit overrides like `DBEX_SMOKE_HKL_PATH`) before re-running probes or selectors. Log this gap in fix_plan Attempts History and treat it as the primary blocker for TOOLING-VIS-001.
+- Artifacts: N/A (source inspection)
+- Next Actions: Update input.md to reflect this blocker; schedule implementation to rework `build_mapping_stage_a_context` asset selection.
+- <Action State>: [course_correction]
+
 ## 2025-11-25T073500Z — TOOLING-VIS-001 ROI Diagnostics Planning
 
 - Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics

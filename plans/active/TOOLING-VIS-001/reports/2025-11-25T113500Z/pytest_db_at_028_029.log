@@ -1,0 +1,251 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 2 items
+
+tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity ERROR [ 50%]
+tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity ERROR [100%]
+
+==================================== ERRORS ====================================
+______________ ERROR at setup of test_db_at_028_loss_scale_sanity ______________
+
+smoke_dataset_paths = SmokeDatasetPaths(label='small', expt_path=PosixPath('/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.p...sixPath('/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/idx-0000_sigma_metadata.sigma_tiles.pkl'))
+smoke_sigma_source = 'metadata'
+
+    @pytest.fixture(scope="session")
+    def refgeom_dataload(smoke_dataset_paths, smoke_sigma_source):
+        """Load DataLoad from canonical geometry with optional sigma-map and geometry override.
+    
+        This fixture decouples sigma sourcing from geometry per TOOLING-VIS-001 Phase D requirements.
+        It loads the canonical experiment from DBEX_SMOKE_GEOM_PATH (or defaults), then:
+          1. Computes the rotation angle between the loaded experiment's U-matrix and the canonical U.
+          2. If the angle exceeds 5e-4 rad (~0.03°) OR any detector origin differs, overrides
+             DataLoad.Expt, .detector, .beam, .crystal with deep copies from the canonical geometry.
+          3. Records the resolved geometry_path and rotation_delta_deg in DataLoad.geometry_metadata
+             for diagnostics/telemetry.
+    
+        When smoke_sigma_source=="metadata", the sigma-map path is passed through args.sigma_map
+        instead of swapping the experiment file.
+    
+        Data dependencies (per docs/data_dependency_manifest.md):
+            - dbex.data_load.DataLoad (expt/refl/mask/HKL/sigma-map)
+            - dxtbx.model.ExperimentList (geometry extraction)
+        """
+        from argparse import Namespace
+    
+        from dbex.data_load import DataLoad
+        from dxtbx.model import ExperimentList
+    
+        repo_root = Path(__file__).resolve().parent.parent
+    
+        # Resolve HKL path from env or default
+        hkl_path_override = os.environ.get("DBEX_SMOKE_HKL_PATH")
+        if hkl_path_override:
+            hkl_path = repo_root / hkl_path_override
+        else:
+            hkl_path = repo_root / "scaled.mtz"
+    
+        # Resolve calibration path from env or default
+        calib_path_override = os.environ.get("DBEX_SMOKE_CALIB_PATH")
+        if calib_path_override:
+            calib_path = repo_root / calib_path_override
+        else:
+            calib_path = None
+    
+        # Build DataLoad args
+        args = Namespace(
+            exptName=str(smoke_dataset_paths.expt_path),
+            reflName=str(smoke_dataset_paths.refl_path),
+            maskFile=str(smoke_dataset_paths.mask_path),
+            mtzFile=str(hkl_path),
+            mtzCol="I(+),SIGI(+),I(-),SIGI(-)",  # Corrected MTZ column format per scaled.mtz structure
+            exptIdx=0,
+            sigma_map=str(smoke_dataset_paths.sigma_map_path) if smoke_dataset_paths.sigma_map_path else None,
+            config_path=str(calib_path) if calib_path else None,
+        )
+    
+        # Instantiate DataLoad
+>       dataload = DataLoad(args)
+
+tests/conftest.py:217: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+dbex/data_load.py:432: in __init__
+    self._initialize_sigma_readout_map()
+dbex/data_load.py:467: in _initialize_sigma_readout_map
+    self.sigma_readout_map = load_sigma_readout_map(
+dbex/data_load.py:103: in load_sigma_readout_map
+    panel_arrays = [
+dbex/data_load.py:104: in <listcomp>
+    _coerce_panel_array(panel_payload, (slow, fast), idx, asset_path)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+panel_payload = <scitbx_array_family_flex_ext.double object at 0x7749abc4f950>
+expected_panel_shape = (1024, 1024), panel_index = 0
+source_path = PosixPath('/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/idx-0000_sigma_metadata.sigma_tiles.pkl')
+
+    def _coerce_panel_array(
+        panel_payload,
+        expected_panel_shape: Sequence[int],
+        panel_index: int,
+        source_path: Path
+    ) -> np.ndarray:
+        """
+        Convert a single panel payload (numpy array, flex array, list) into a numpy array
+        with the expected (slow, fast) shape.
+        """
+        slow, fast = expected_panel_shape
+        # Convert flex arrays or numpy-like payloads into numpy arrays
+        if hasattr(panel_payload, "as_numpy_array"):
+            arr = panel_payload.as_numpy_array()
+        else:
+            arr = np.asarray(panel_payload)
+    
+        arr = np.asarray(arr, dtype=np.float32)
+    
+        if arr.shape == (slow, fast):
+            return arr
+    
+        if arr.ndim == 1 and arr.size == slow * fast:
+            return arr.reshape((slow, fast))
+    
+>       raise ValueError(
+            f"Sigma map panel {panel_index} from '{source_path}' has shape {arr.shape}, "
+            f"expected {(slow, fast)} per spec-db-core.md:32-40."
+        )
+E       ValueError: Sigma map panel 0 from '/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/idx-0000_sigma_metadata.sigma_tiles.pkl' has shape (2527, 2463), expected (1024, 1024) per spec-db-core.md:32-40.
+
+dbex/data_load.py:37: ValueError
+______________ ERROR at setup of test_db_at_029_structure_parity _______________
+
+smoke_dataset_paths = SmokeDatasetPaths(label='small', expt_path=PosixPath('/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.p...sixPath('/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/idx-0000_sigma_metadata.sigma_tiles.pkl'))
+smoke_sigma_source = 'metadata'
+
+    @pytest.fixture(scope="session")
+    def refgeom_dataload(smoke_dataset_paths, smoke_sigma_source):
+        """Load DataLoad from canonical geometry with optional sigma-map and geometry override.
+    
+        This fixture decouples sigma sourcing from geometry per TOOLING-VIS-001 Phase D requirements.
+        It loads the canonical experiment from DBEX_SMOKE_GEOM_PATH (or defaults), then:
+          1. Computes the rotation angle between the loaded experiment's U-matrix and the canonical U.
+          2. If the angle exceeds 5e-4 rad (~0.03°) OR any detector origin differs, overrides
+             DataLoad.Expt, .detector, .beam, .crystal with deep copies from the canonical geometry.
+          3. Records the resolved geometry_path and rotation_delta_deg in DataLoad.geometry_metadata
+             for diagnostics/telemetry.
+    
+        When smoke_sigma_source=="metadata", the sigma-map path is passed through args.sigma_map
+        instead of swapping the experiment file.
+    
+        Data dependencies (per docs/data_dependency_manifest.md):
+            - dbex.data_load.DataLoad (expt/refl/mask/HKL/sigma-map)
+            - dxtbx.model.ExperimentList (geometry extraction)
+        """
+        from argparse import Namespace
+    
+        from dbex.data_load import DataLoad
+        from dxtbx.model import ExperimentList
+    
+        repo_root = Path(__file__).resolve().parent.parent
+    
+        # Resolve HKL path from env or default
+        hkl_path_override = os.environ.get("DBEX_SMOKE_HKL_PATH")
+        if hkl_path_override:
+            hkl_path = repo_root / hkl_path_override
+        else:
+            hkl_path = repo_root / "scaled.mtz"
+    
+        # Resolve calibration path from env or default
+        calib_path_override = os.environ.get("DBEX_SMOKE_CALIB_PATH")
+        if calib_path_override:
+            calib_path = repo_root / calib_path_override
+        else:
+            calib_path = None
+    
+        # Build DataLoad args
+        args = Namespace(
+            exptName=str(smoke_dataset_paths.expt_path),
+            reflName=str(smoke_dataset_paths.refl_path),
+            maskFile=str(smoke_dataset_paths.mask_path),
+            mtzFile=str(hkl_path),
+            mtzCol="I(+),SIGI(+),I(-),SIGI(-)",  # Corrected MTZ column format per scaled.mtz structure
+            exptIdx=0,
+            sigma_map=str(smoke_dataset_paths.sigma_map_path) if smoke_dataset_paths.sigma_map_path else None,
+            config_path=str(calib_path) if calib_path else None,
+        )
+    
+        # Instantiate DataLoad
+>       dataload = DataLoad(args)
+
+tests/conftest.py:217: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+dbex/data_load.py:432: in __init__
+    self._initialize_sigma_readout_map()
+dbex/data_load.py:467: in _initialize_sigma_readout_map
+    self.sigma_readout_map = load_sigma_readout_map(
+dbex/data_load.py:103: in load_sigma_readout_map
+    panel_arrays = [
+dbex/data_load.py:104: in <listcomp>
+    _coerce_panel_array(panel_payload, (slow, fast), idx, asset_path)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+panel_payload = <scitbx_array_family_flex_ext.double object at 0x7749abc4f950>
+expected_panel_shape = (1024, 1024), panel_index = 0
+source_path = PosixPath('/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/idx-0000_sigma_metadata.sigma_tiles.pkl')
+
+    def _coerce_panel_array(
+        panel_payload,
+        expected_panel_shape: Sequence[int],
+        panel_index: int,
+        source_path: Path
+    ) -> np.ndarray:
+        """
+        Convert a single panel payload (numpy array, flex array, list) into a numpy array
+        with the expected (slow, fast) shape.
+        """
+        slow, fast = expected_panel_shape
+        # Convert flex arrays or numpy-like payloads into numpy arrays
+        if hasattr(panel_payload, "as_numpy_array"):
+            arr = panel_payload.as_numpy_array()
+        else:
+            arr = np.asarray(panel_payload)
+    
+        arr = np.asarray(arr, dtype=np.float32)
+    
+        if arr.shape == (slow, fast):
+            return arr
+    
+        if arr.ndim == 1 and arr.size == slow * fast:
+            return arr.reshape((slow, fast))
+    
+>       raise ValueError(
+            f"Sigma map panel {panel_index} from '{source_path}' has shape {arr.shape}, "
+            f"expected {(slow, fast)} per spec-db-core.md:32-40."
+        )
+E       ValueError: Sigma map panel 0 from '/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/idx-0000_sigma_metadata.sigma_tiles.pkl' has shape (2527, 2463), expected (1024, 1024) per spec-db-core.md:32-40.
+
+dbex/data_load.py:37: ValueError
+=============================== warnings summary ===============================
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dxtbx/format/FormatCBFFull.py:198: DeprecationWarning: The binary mode of fromstring is deprecated, as it behaves surprisingly on unicode inputs. Use frombuffer instead
+    self._raw_data = flex.int(np.fromstring(array_string, np.int32))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+ERROR tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity - ValueError: Sigma map panel 0 from '/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/idx-0000_sigma_metadata.sigma_tiles.pkl' has shape (2527, 2463), expected (1024, 1024) per spec-db-core.md:32-40.
+ERROR tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity - ValueError: Sigma map panel 0 from '/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/idx-0000_sigma_metadata.sigma_tiles.pkl' has shape (2527, 2463), expected (1024, 1024) per spec-db-core.md:32-40.
+======================== 5 warnings, 2 errors in 2.40s =========================

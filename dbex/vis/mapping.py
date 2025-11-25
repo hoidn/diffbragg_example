@@ -395,6 +395,11 @@ def emit_mapping_context_diagnostics(
         - sigma_provenance: string describing sigma_readout source
         - hkl_source: string (e.g., "refined", "raw")
         - hkl_path: absolute path to the HKL file
+        - calibration_path: path to calibration config file from diagnostics (or null)
+        - geometry_path: resolved canonical geometry path from refgeom_dataload (or null)
+        - rotation_delta_deg: rotation angle between loaded and canonical U-matrix (or null)
+        - origin_delta_mm: detector origin drift in mm (or null)
+        - geometry_overridden: boolean indicating if geometry was overridden (or null)
         - device: device string from mapping_context
         - target_stats: dict with mean, std, min, max over loss_mask
         - loss_mask_coverage: fraction of pixels included in loss_mask
@@ -403,7 +408,6 @@ def emit_mapping_context_diagnostics(
         - scale_ratio: mean(bragg_model[mask]) / mean(target[mask]) (if bragg_model)
         - sigma_floor_value: sigma_floor used in mapping context
         - spot_scale_override: spot_scale_override from mapping_context (or null)
-        - calibration_path: path to calibration config file from diagnostics (or null)
     """
     import json
     from datetime import datetime, timezone
@@ -507,6 +511,19 @@ def emit_mapping_context_diagnostics(
     if spot_scale_override is not None:
         spot_scale_override = float(spot_scale_override)
 
+    # Geometry metadata from dataload fixture (TOOLING-VIS-001)
+    geometry_metadata = getattr(dataload, "geometry_metadata", None)
+    if geometry_metadata:
+        geometry_path = geometry_metadata.get("geometry_path")
+        rotation_delta_deg = geometry_metadata.get("rotation_delta_deg")
+        origin_delta_mm = geometry_metadata.get("origin_delta_mm")
+        geometry_overridden = geometry_metadata.get("geometry_overridden")
+    else:
+        geometry_path = None
+        rotation_delta_deg = None
+        origin_delta_mm = None
+        geometry_overridden = None
+
     # Build diagnostics dict
     diagnostics_dict = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -516,6 +533,10 @@ def emit_mapping_context_diagnostics(
         "hkl_source": hkl_source,
         "hkl_path": hkl_path,
         "calibration_path": calibration_path,
+        "geometry_path": geometry_path,
+        "rotation_delta_deg": rotation_delta_deg,
+        "origin_delta_mm": origin_delta_mm,
+        "geometry_overridden": geometry_overridden,
         "device": device,
         "target_stats": target_stats,
         "loss_mask_coverage": loss_mask_coverage,

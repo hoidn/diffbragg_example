@@ -1154,3 +1154,14 @@ This is the **single most important diagnostic** to run before any other TOOLING
 - <Action State>: [planning]
 
 2025-11-26T003000Z focus=TOOLING-VIS-001 state=planning dwell=1 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-26T003000Z/ next_action=override_stage_a_log_scale_when_calibration_adjusted
+
+## 2025-11-26T010900Z — TOOLING-VIS-001 Stage A log-scale override follow-up planning
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
+- Action Type: planning
+- Key Observations: Ralph's 2025-11-26T003000Z attempt wired new telemetry fields (`log_scale_baseline_source`, `spot_scale_override_adjustment_factor`) but DB-AT-028/029 artifacts still show `scale_ratio_before≈2.0e4` and the telemetry fields remain null (`plans/active/TOOLING-VIS-001/reports/2025-11-26T003000Z/db_at_029/db_at_029_metrics.json`). Mapping diagnostics prove the zero-point is fixed (`scale_ratio_mapping_masked=1.0`, `spot_scale_override=1.102e+28`), so the new signal simply never reaches Stage A: either `build_mapping_stage_a_context` is not tagging the calibration dict, or `_build_stage_a_params` ignores the flag and continues to derive its baseline from `sqrt(spot_scale_override)`. Authored a ready-for-implementation Do Now that (1) verifies/propagates `calibration_adjusted_for_n_cells` + adjustment factors through mapping diagnostics, (2) teaches `_build_stage_a_params`/LBFGS/reconstruction to prefer `log(inputs.global_scale_hint)` when that flag is set, and (3) augments the DB-AT-028/029 fixture to persist the new telemetry so artifacts prove when the override engages. Validation remains the metadata smoke selectors; failures on chi²/ROI gates are acceptable as long as the new telemetry shows Stage A matching the mapping stack.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-26T010900Z/
+- Next Actions: Ralph executes the new Do Now (mapping calibration flags + Stage A baseline override + pytest rerun) and reports whether `log_scale_baseline_source` flips to `"mapping_global_scale_hint"` with `scale_ratio_before≈scale_ratio_mapping_masked`.
+- <Action State>: [ready_for_implementation]
+
+2025-11-26T010900Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=0 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-26T010900Z/ next_action=propagate_calibration_flags_and_stage_a_baseline_override

@@ -235,6 +235,7 @@ Acceptance Tests (Normative)
   - Setup: enable `crystal.interpolate=True` and run a forward pass using a dense |F| grid built with a declared ±1 halo (metadata flag). Capture telemetry for default_F fallback count.
   - Expectation: halo present in metadata; default_F fallback count == 0 (no out‑of‑bounds lookups while interpolating). Applies to every stage that enables interpolation. Canonical Stage A is `interpolate=False`; any Stage‑A run that turns interpolation on is non‑canonical and SHALL record that mode in telemetry.
   - Command: (selector TBD; activate once telemetry and halo flag are exposed)
+  - Stage‑A interpolation policy (Normative): For any run claiming Stage‑A conformance (including DB‑AT‑024/027/028/029), Stage A SHALL use nearest‑neighbor |F| sampling (`interpolation=False`), matching the legacy DiffBragg configuration (`interpolate=0` in the Python wrappers). DB‑AT‑025 halo/default_F requirements apply only to stages with interpolation enabled (Stage B, Stage C, or explicitly non‑canonical Stage‑A experiments); Stage A is exempt from halo requirements when `interpolation=False`.
 
 - DB‑AT‑027 Stage‑A zero‑point mapping equivalence
   - Goal: Ensure the Stage‑A zero‑parameter forward model is equivalent to the DB‑AT‑024 mapping forward model at the same geometry, HKL grid, and calibration.

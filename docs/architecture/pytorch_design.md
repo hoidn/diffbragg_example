@@ -36,7 +36,7 @@ The core simulator physics loops have been fully vectorized to eliminate Python-
 #### Halo Requirement and Stage Policy (descriptive; canonical rules in Spec‑DB)
 
 - Tricubic requires a ±1 neighborhood in each of h/k/l. The dense |F| grid MUST include a ±1 halo; otherwise queries near bounds fall back to `default_F`, degrading gradients and parity.
-- Stage A (geometry): current implementation runs nearest‑neighbor |F| (`interpolation=False`) to mirror DiffBragg geometry refinement; a haloed tricubic mode exists as a tagged experiment when haloed |F| data exist (canonical policy in `docs/spec-db-workflow.md`).
+- Stage A (geometry): current implementation runs nearest‑neighbor |F| (`interpolation=False`) to mirror DiffBragg geometry refinement and satisfy the Spec‑DB Stage‑A requirement (`spec-db-workflow.md`, DB‑AT‑025). A haloed tricubic mode exists as a tagged experiment when haloed |F| data exist; it is non‑canonical until Spec‑DB is updated.
 - Stage B (Fhkl): current implementation enables interpolation with a halo and adds guards/telemetry to detect any default_F fallback when interpolation is on.
 
 ### 1.1.2 Detector Absorption Vectorization

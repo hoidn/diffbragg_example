@@ -1,5 +1,5 @@
 ### Turn Summary
-Prepared a ready-for-implementation plan so Stage A engine delegation consumes the mapping-adjusted baseline and records telemetry in DB-AT-029 artifacts.
-Root cause is that `_build_stage_a_params` and `dbex/refinement/stage_a.py` never propagate `calibration_adjusted_for_n_cells`, so the engine path keeps doubling the spot scale even after mapping fixes it; the new Do Now covers helper/state/telemetry wiring plus the smoke selectors.
-Next: Ralph implements the shared helper updates, runs the DB-AT-028/029 pytest pair, and reports whether `log_scale_baseline_source="mapping_global_scale_hint"` with the expected chi² failures still archived.
-Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-26T020500Z/ (input.md, fix_plan updates)
+Unified calibration_adjusted_for_n_cells detection in _build_stage_a_params; both engine and inline paths now thread log_scale_baseline_source and spot_scale_override_adjustment_factor into RefinementTelemetry.
+DB-AT-029 telemetry verified: log_scale_baseline_source="mapping_global_scale_hint" and spot_scale_override_adjustment_factor match mapping diagnostics (23025916217.587364); test failures (chi² and scale_ratio divergence) expected and deferred.
+Next: Supervisor reviews telemetry evidence; if amplitude quantification or implementation defect suspected, pursue callchain analysis or N_cells suppression refinement.
+Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-26T020500Z/ (pytest_db_at_028_029.log, db_at_029_metrics.json, mapping_context_fixture.json)

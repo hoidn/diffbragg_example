@@ -10,12 +10,13 @@ Status
 CLI Flags (Normative)
 - `--backend {diffbragg,nanobrag}`: selects implementation; default MAY be `nanobrag` once stable.
 - `--adu-per-photon <float>`: converts ADU→photons for target; if omitted, ADU target with learnable global scale.
-- `--torch-config <path>`: Path to DiffBragg `config_torch.json`. Loads calibration metadata (N_cells, flux, exposure) to supersede manual flags.
+- `--torch-config <path>`: Path to DiffBragg `config_torch.json`. Provides authoritative calibration metadata (spot_scale_override, flux/exposure/beamsize, N_cells, gain). If a CLI flag supplies a different value for the same field, the run SHALL fail fast (no silent override).
 - `--device <cuda|cpu>:<index>`: selects device. (v1 implementation currently hardcodes CPU for reproducibility.)
 - `--debug-save-artifacts`: persist otherwise temporary artifacts (HKL, etc.).
 - `--optimizer {lbfgs,adam}` (optional): selects optimizer; default SHALL be `lbfgs` for Stage A/C, `adam` MAY be used only for Stage B if chosen.
 - `--sigma-rdout <float>`: scalar detector readout noise in the same units as the target (ADU by default, converted to photons when `--adu-per-photon` is set); required when no calibrated sigma map is available.
 - `--sigma-map <path>`: calibrated `sigma_readout` map (e.g. `.npy/.npz` or pickled per-panel arrays) shaped `[panel, slow, fast]`; takes precedence over `--sigma-rdout` when provided.
+- `--sigma-floor <float>`: variance floor guard in target units (ADU or photons). Defaults to instrument readout noise when unspecified; clamps `V` to `sigma_floor^2` per spec-db-core.md.
 - Torch stage toggles (torch backend only; experimental): `--use-engine-delegation` (engine wrapper path), `--enable-stage-b`, `--enable-stage-c` (require delegation).
 
 API Contracts (Normative)

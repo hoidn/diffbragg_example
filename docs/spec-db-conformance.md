@@ -26,6 +26,9 @@ Conformance Profiles (Normative)
 - Stage‑B/C Profile (torch backend):
   - DB‑AT‑031 Stage‑B ASU mapping and modifier sanity (per‑reflection vs shell; interpolation+halo required).
   - DB‑AT‑032 Stage‑C detector distance offsets (chi² improvement and telemetry sanity).
+- Tracing & VIS Profile:
+  - DB‑AT‑040 Trace schema conformance (required fields/layout per `spec-db-tracing.md`).
+  - DB‑AT‑050 VIS triptych/layout conformance (ROI triptych and residual plots per `spec-db-vis.md`).
   - DB‑AT‑026 Stage‑A UB parameterization round-trip (zero-point UB/A* consistency).
   - DB‑AT‑030 Sigma precedence and provenance (map vs scalar vs external_lookup).
 
@@ -65,8 +68,12 @@ Acceptance Tests (Normative)
 
 - DB‑AT‑026 Stage‑A UB parameterization round-trip
   - Setup:
-    - Use a canonical `RefinementInputs`+crystal (e.g., refGeom.expt) and extract the baseline crystal state:
-      `U₀ = crystal.get_U()`, `B₀ = crystal.get_B()`, `A*_mapping = U₀ @ B₀`.
+    - Use a canonical `RefinementInputs`+crystal (e.g., refGeom.expt) and extract the baseline crystal state per `spec-db-core.md`:
+      - `A*_0 = crystal.get_A()`
+      - `c₀ = crystal.get_unit_cell().parameters()`
+      - `B₀ = B(c₀)` (Busing–Levy metric tensor as defined in `spec-db-core.md`)
+      - `U₀ = A*_0 @ B₀⁻¹`
+      - `A*_mapping = U₀ @ B₀ = A*_0`
   - Procedure:
     1. Initialize the Stage‑A parameterization at `params=0` (all deltas zero; baseline scale).
     2. Construct `U(0), B(0), A*(0)` according to the implementation's parameterization.
@@ -346,6 +353,17 @@ Acceptance Tests (Normative)
   - Expectation: distance offsets remain within bounded prior (e.g., ±1% of distance), gradients non‑zero, chi² per masked pixel does not regress relative to Stage‑A baseline, and telemetry records distance deltas per panel.
   - Command: `KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests -k DB_AT_032`.
 
+- DB‑AT‑040 Trace schema conformance
+  - Goal: Validate the trace payload layout and required fields per `docs/spec-db-tracing.md`.
+  - Setup: enable trace mode for a single pixel on a canonical fixture (e.g., refGeom or smoke dataset) with torch backend; write trace to HDF5.
+  - Expectation: `/trace/<panel>/<slow>_<fast>/` exists and includes all required datasets (beam vector, pixel_pos_lab, detector normal, solid angle, absorption term if enabled, HKL fractional coords, structure-factor sample/neighbors when interpolating, Bragg/background contributions, sigma_readout/sigma_floor/variance, final masked model). Names and shapes match `spec-db-tracing.md`; extra fields are allowed.
+  - Command: `KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests -k DB_AT_040` (selector to be added once harness is wired).
+
+- DB‑AT‑050 VIS triptych/layout conformance
+  - Goal: Ensure ROI triptych and residual plots follow the visual standards in `spec-db-vis.md`.
+  - Setup: generate ROI triptychs for a small, deterministic fixture (e.g., refGeom_small) using canonical mapping inputs; save PNG/PDF.
+  - Expectation: Triptych layout `[Data | Model | Residual Z-Score]`, consistent colormap ranges, residual z-score definition, HKL/CC annotation present. Residual histogram over trusted pixels includes standard normal overlay; radial profiles plot `I_model` vs `I_obs` vs 1/d^2. Outputs stored with required formats.
+  - Command: `pytest -v tests -k DB_AT_050` (selector to be added once harness is wired).
 Notes (Informative)
 - Provide real commands in the test suite once scaffolding is in place; these are placeholders for the conformance contract.
 

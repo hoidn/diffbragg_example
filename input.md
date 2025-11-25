@@ -1,59 +1,45 @@
-Summary: Persist the DiffBragg-refined HKL asset during smoke calibration capture and rewire the Stage A fixtures to consume it so mapping + DB-AT-028/029 finally share calibrated structure factors (hkl_source="refined").
+Summary: Persist the smoke refined MTZ asset and rerun the mapping probe plus DB-AT-028/029 under the refined HKL path so Stage A telemetry finally references the same HKL/calibration bundle.
 Mode: Parity
 Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
 Branch: integration
-Mapped tests:
-- tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity
-- tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity
-Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-25T160500Z/
-
-Do Now
-- Implement: plans/active/TOOLING-VIS-001/bin/capture_smoke_calibration.py::capture_calibration_metadata and tests/conftest.py::refgeom_dataload — add a `--refined-mtz-out` option that copies the DiffBragg `_temp.mtz` produced during calibration capture into `sp.proc/calibration/smoke_refined_structure_factors.mtz`, record its SHA256 in the manifest, and make the Stage A smoke fixtures plus mapping helpers default their HKL source to this refined file (hkl_source="refined") whenever metadata calibration is requested.
-- Validate: (1) `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_SIGMA_MAP_PATH=sp.proc/refGeom_small/idx-0000_sigma_metadata_small.sigma_tiles.pkl DBEX_SMOKE_GEOM_PATH=sp.proc/refGeom_small/refGeom_small.expt DBEX_SMOKE_CALIB_PATH=sp.proc/calibration/config_torch_smoke.json DBEX_SMOKE_HKL_PATH=sp.proc/calibration/smoke_refined_structure_factors.mtz DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAG_DISABLE_COMPILE=1 python plans/active/TOOLING-VIS-001/bin/compare_mapping_forward_cpu_gpu.py --out-dir plans/active/TOOLING-VIS-001/reports/2025-11-25T160500Z/mapping_cpu_gpu_refined` (expect `hkl_source="refined"`, ROI telemetry captured); (2) `DBAT028_ARTIFACT_DIR=plans/active/TOOLING-VIS-001/reports/2025-11-25T160500Z/db_at_028 DBAT029_ARTIFACT_DIR=plans/active/TOOLING-VIS-001/reports/2025-11-25T160500Z/db_at_029` with the same env block `pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" | tee plans/active/TOOLING-VIS-001/reports/2025-11-25T160500Z/pytest_db_at_028_029.log` (collect-only first, then full run; failures allowed but runs must finish and fixtures must report hkl_source="refined").
-- Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-25T160500Z/
-
-How-To Map
-1) `python plans/active/TOOLING-VIS-001/bin/capture_smoke_calibration.py --expt sp.proc/idx-0000_sigma_metadata.expt --refl refGeom.refl --mask 747_mask.pkl --mtz scaled.mtz --out-config sp.proc/calibration/config_torch_smoke.json --refined-mtz-out sp.proc/calibration/smoke_refined_structure_factors.mtz --manifest plans/active/TOOLING-VIS-001/reports/2025-11-25T160500Z/smoke_calibration_manifest.json | tee plans/active/TOOLING-VIS-001/reports/2025-11-25T160500Z/capture_smoke_calibration.log` (records new SHA256 entries for both config + refined MTZ).
-2) `export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_SIGMA_MAP_PATH=sp.proc/refGeom_small/idx-0000_sigma_metadata_small.sigma_tiles.pkl DBEX_SMOKE_GEOM_PATH=sp.proc/refGeom_small/refGeom_small.expt DBEX_SMOKE_CALIB_PATH=sp.proc/calibration/config_torch_smoke.json DBEX_SMOKE_HKL_PATH=sp.proc/calibration/smoke_refined_structure_factors.mtz DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAG_DISABLE_COMPILE=1` (keep for steps 2-4).
-3) `python plans/active/TOOLING-VIS-001/bin/compare_mapping_forward_cpu_gpu.py --out-dir plans/active/TOOLING-VIS-001/reports/2025-11-25T160500Z/mapping_cpu_gpu_refined | tee plans/active/TOOLING-VIS-001/reports/2025-11-25T160500Z/mapping_cpu_gpu_refined/probe.log` and verify JSON shows `hkl_source="refined"`, `sigma_provenance="cli_map"`, and ROI telemetry populated.
-4) `DBAT028_ARTIFACT_DIR=plans/active/TOOLING-VIS-001/reports/2025-11-25T160500Z/db_at_028 DBAT029_ARTIFACT_DIR=plans/active/TOOLING-VIS-001/reports/2025-11-25T160500Z/db_at_029 pytest -q tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" --collect-only | tee plans/active/TOOLING-VIS-001/reports/2025-11-25T160500Z/pytest_db_at_028_029_collect.log` (guardrail ≥2 tests collect).
-5) Rerun the same env/dirs with `pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" | tee plans/active/TOOLING-VIS-001/reports/2025-11-25T160500Z/pytest_db_at_028_029.log`; inspect `db_at_028/mapping_context_fixture.json` & `db_at_029/mapping_context_fixture.json` to ensure they show the refined HKL path.
-
-Pitfalls To Avoid
-- Do not leave `_temp.mtz` dangling; copy/rename it to the tracked refined MTZ and remove any stale temp once manifest is updated.
-- Keep the calibration config and refined MTZ in sync; if capture fails midway, do not reuse previous files silently.
-- When updating the fixture defaults, preserve overrides (`DBEX_SMOKE_HKL_PATH`) and detector-size branching.
-- Ensure docs/data_dependency_manifest.md reflects the new asset and overrides in the same commit.
-- Mapping probe + DB-AT selectors must run with identical env vars; do not test with mixed HKL/calibration sources.
-- Maintain ASCII JSON (no NaN/Inf) when writing manifest entries.
-- Avoid touching Stage A production code paths beyond the fixture/helper scope; keep edits limited to tooling + data plumbing.
-
-If Blocked
-- If DiffBragg capture cannot produce the refined MTZ (hopper error, missing assets), tee the full stderr/stdout to `plans/active/TOOLING-VIS-001/reports/2025-11-25T160500Z/capture_smoke_calibration_failed.log`, note the error in docs/fix_plan.md Attempts History, and pause before modifying fixtures.
-- If pytest still reports `hkl_source="raw"` after code changes, stop and archive `mapping_forward_cpu_gpu.json` plus fixture JSONs showing the mismatch.
-
-Findings Applied (Mandatory)
-- STAGEA-001 — Stage A diagnostics must consume calibration + HKL assets from the same dataset; documenting the refined MTZ satisfies this invariant.
-- SCALE-004 — DiffBragg-refined structure factors must accompany calibration metadata; raw `scaled.mtz` + calibration mix collapses ROI CC (docs/findings.md:38).
-- CONFORMANCE-001 — DB-AT selectors still need full artifact capture even on assertion failure.
-
-Pointers
-- plans/active/TOOLING-VIS-001/bin/capture_smoke_calibration.py (adds refined MTZ persistence logic).
-- tests/conftest.py:148-230 (refgeom_dataload / smoke_dataset_paths HKL defaults).
-- docs/data_dependency_manifest.md:1-80 (mapping + Stage A asset provenance, needs refined MTZ entry).
-- docs/findings.md:33-42 (SCALE-001/004 rationale for pairing calibration with refined |F|).
-
-Next Up (optional)
-- After refined HKL ingestion succeeds, re-evaluate ROI diagnostics/DB-AT tolerances to decide whether further calibration or HKL provenance work is needed.
-
-Doc Sync Plan (Conditional)
-- Not required (no new selectors, existing pytest nodes reused).
-
-Mapped Tests Guardrail
-- `pytest -q tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" --collect-only` must report ≥2 collected tests before running the full suite.
-
-Hard Gate
-- Do not mark the loop complete until `mapping_cpu_gpu_refined/mapping_forward_cpu_gpu.json` shows `hkl_source="refined"` and both Stage A fixture JSONs under db_at_028/db_at_029 record the refined HKL path plus calibration path, and the pytest command finishes (failures acceptable).
-
-Normative Math/Physics
-- Reference `docs/spec-db-core.md` §§32-92 and `docs/spec-db-workflow.md` Stage A clauses for the variance-weighted chi² and calibration ladder; no alternate math shortcuts.
+Mapped tests: tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity; tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity
+Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-25T110430Z/
+Do Now:
+- Implement: .gitignore::<root> — add explicit `!sp.proc/calibration/config_torch_smoke.json` and `!sp.proc/calibration/smoke_refined_structure_factors.mtz` negations so the calibration bundle (config + refined MTZ) is tracked without `git add -f` hacks.
+- Generate refined HKL asset by re-running `plans/active/TOOLING-VIS-001/bin/capture_smoke_calibration.py` with `--refined-mtz-out sp.proc/calibration/smoke_refined_structure_factors.mtz`, emit the manifest to the new artifacts dir, and copy/log the SHA256 in that manifest.
+- Validate: rerun `plans/active/TOOLING-VIS-001/bin/compare_mapping_forward_cpu_gpu.py --mtz-path sp.proc/calibration/smoke_refined_structure_factors.mtz` plus `pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029"` under the refined HKL environment, archiving mapping + DB-AT artifacts under the timestamped reports directory.
+How-To Map:
+1. `export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md REPORT=plans/active/TOOLING-VIS-001/reports/2025-11-25T110430Z`.
+2. Update `.gitignore` at repo root so it explicitly un-ignores `sp.proc/calibration/config_torch_smoke.json` and `sp.proc/calibration/smoke_refined_structure_factors.mtz`; verify `git status` shows no other unintended changes.
+3. `mkdir -p "$REPORT"` and its subdirs (`mapping_cpu_gpu_refined`, `db_at_028`, `db_at_029`).
+4. `python plans/active/TOOLING-VIS-001/bin/capture_smoke_calibration.py --expt sp.proc/idx-0000_sigma_metadata.expt --refl refGeom.refl --mask 747_mask.pkl --mtz scaled.mtz --out-config sp.proc/calibration/config_torch_smoke.json --refined-mtz-out sp.proc/calibration/smoke_refined_structure_factors.mtz --manifest "$REPORT"/smoke_calibration_manifest.json` (env inherits AUTHORITATIVE_CMDS_DOC). This regenerates both config and MTZ; the manifest in $REPORT should include SHA256 entries for each.
+5. `git add sp.proc/calibration/config_torch_smoke.json sp.proc/calibration/smoke_refined_structure_factors.mtz` (now permitted because of the .gitignore change) so the new MTZ is persisted in history.
+6. Export the Stage A canonical env: `export DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_HKL_PATH=sp.proc/calibration/smoke_refined_structure_factors.mtz DBEX_SMOKE_CALIB_PATH=sp.proc/calibration/config_torch_smoke.json DBAT028_ARTIFACT_DIR=$REPORT/db_at_028 DBAT029_ARTIFACT_DIR=$REPORT/db_at_029 KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1`.
+7. `python plans/active/TOOLING-VIS-001/bin/compare_mapping_forward_cpu_gpu.py --sigma 3.0 --mtz-path sp.proc/calibration/smoke_refined_structure_factors.mtz --out-dir "$REPORT"/mapping_cpu_gpu_refined` (same env as step 6) to capture the refined HKL mapping metrics.
+8. `pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" | tee "$REPORT"/pytest_db_at_028_029.log` to rerun both selectors with refined HKL; keep the `pytest ... --collect-only` log only if collection fails unexpectedly.
+9. Summarize results + metrics deltas in `$REPORT/summary.md` and update docs/fix_plan.md Attempts History if DB-AT selectors still fail (include failure signatures).
+Pitfalls To Avoid:
+- Do not skip the .gitignore change—otherwise `smoke_refined_structure_factors.mtz` will be silently dropped on future clones.
+- Ensure the capture script overwrites both config + MTZ in the repo so HKL/calibration stay in lockstep (per SCALE-004).
+- Keep `DBEX_SMOKE_HKL_PATH` pointing at the refined MTZ when running the probe/tests; defaulting to scaled.mtz will reintroduce the known ROI CC≈-0.04 signature.
+- Mapping probe uses metadata sigma; verify `sp.proc/refGeom_small/idx-0000_sigma_metadata_small.sigma_tiles.pkl` exists before starting.
+- Remember that manifest + pytest artifacts live under `$REPORT`; only the calibration assets belong in git.
+- Avoid parallel pytest invocations—DB-AT-028/029 share env overrides and artifact dirs.
+If Blocked:
+- If `capture_smoke_calibration.py` fails (e.g., missing CUDA/Hopper dependency), capture the full traceback to `$REPORT/capture_smoke_calibration_err.log`, revert touched files, mark `[TOOLING-VIS-001]` blocked in docs/fix_plan.md with the error signature, and ping Galph.
+- If the refined MTZ cannot be written because `_temp.mtz` was not generated, log the console output + manifest stub under `$REPORT/` and stop; do **not** hand-edit MTZ headers.
+- If either DB-AT selector crashes instead of failing its assertions, keep the raw log + metrics JSONs, then halt after updating docs/fix_plan.md Attempts History with the stack trace.
+Findings Applied (Mandatory):
+- STAGEA-001 — Preserve Stage A/mapping calibration provenance by sharing the same config_torch + HKL assets.
+- SCALE-004 — Always pair refined structure factors with calibration metadata to avoid ROI anti-correlation.
+- GEOMETRY-003 — Use the canonical refGeom zero point; do not swap experiments when sourcing sigma tiles.
+- CONFORMANCE-001 — Archive DB-AT artifacts even on failure (ROIs, metrics, pytest logs all under $REPORT).
+- POLICY-001 — Environment is frozen; rely solely on repo-provided DiffBragg/nanobrag tooling.
+Pointers:
+- docs/fix_plan.md:211-345 (TOOLING-VIS-001 Attempts History + current blocker description).
+- docs/data_dependency_manifest.md:80-125 (calibration + refined MTZ asset contract and smoke fixture defaults).
+- docs/spec-db-workflow.md:20-62 (Stage A smoke + mapping zero-point requirements).
+- docs/spec-db-core.md:84-90 (variance-weighted chi² + ROI correlation gates used by DB-AT-028/029).
+- plans/active/TOOLING-VIS-001/implementation.md:200-310 (Phase D objectives + diagnostics context).
+Next Up (optional):
+- If ROI CC recovers with refined HKL, rerun `plans/active/TOOLING-VIS-001/bin/probe_mapping_dataset_metrics.py` comparing scaled vs refined contexts so we can quantify the improvement before touching Stage A.

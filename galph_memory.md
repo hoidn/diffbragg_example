@@ -1006,3 +1006,13 @@ This is the **single most important diagnostic** to run before any other TOOLING
 - <Action State>: [planning]
 
 2025-11-25T153500Z focus=TOOLING-VIS-001 state=planning dwell=0 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T153500Z/ next_action=ready_for_implementation_persist_refined_hkl
+## 2025-11-25T110430Z — TOOLING-VIS-001 refined HKL persistence Do Now
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
+- Action Type: planning
+- Key Observations: Confirmed the refined MTZ asset (`sp.proc/calibration/smoke_refined_structure_factors.mtz`) still does not exist in the repo and is currently ignored by the blanket `sp.proc/**` rule. Authored a ready_for_implementation Do Now (input.md) directing Ralph to un-ignore the calibration bundle in `.gitignore`, rerun `capture_smoke_calibration.py` with `--refined-mtz-out` so both config + MTZ stay synchronized, and execute the mapping probe plus DB-AT-028/029 under `DBEX_SMOKE_HKL_PATH=sp.proc/calibration/smoke_refined_structure_factors.mtz`. Artifacts reserved at `plans/active/TOOLING-VIS-001/reports/2025-11-25T110430Z/` for the manifest, mapping metrics, pytest logs, and summary.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-25T110430Z/
+- Next Actions: Execute the refined MTZ capture + probe/test reruns per the new Do Now; mark tests still failing with refined HKL telemetry if necessary.
+- <Action State>: [planning]
+
+2025-11-25T110430Z focus=TOOLING-VIS-001 state=planning dwell=1 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T110430Z/ next_action=regen_refined_hkl_and_rerun_db_at_028_029

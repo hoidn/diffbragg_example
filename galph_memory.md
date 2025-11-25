@@ -995,3 +995,14 @@ This is the **single most important diagnostic** to run before any other TOOLING
 - <Action State>: [ready_for_implementation]
 
 2025-11-25T150500Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=1 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T150500Z/ next_action=fix_sigma_select_and_rerun_mapping_probe_plus_db_at_028_029
+
+## 2025-11-25T153500Z — TOOLING-VIS-001 refined HKL planning (sigma routing verified)
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
+- Action Type: planning
+- Key Observations: Confirmed the cli_map sigma-map fix via `mapping_forward_cpu_gpu.json` (sigma provenance now records the metadata asset) while ROI CC and chi² remain stuck (plans/active/TOOLING-VIS-001/reports/2025-11-25T150500Z/mapping_cpu_gpu_metadata/mapping_forward_cpu_gpu.json). DB-AT-028/029 artifacts now log both calibration and sigma paths, so the remaining divergence is tied to HKL/calibration payloads, not infrastructure (db_at_028/mapping_context_fixture.json). Attempting to point DBEX_SMOKE_HKL_PATH at `_temp.mtz` failed immediately because this workspace lacks `sp.proc/refGeom_small/refGeom_small.expt`, confirming we need to persist the refined MTZ asset inside the repo before switching defaults (plans/active/TOOLING-VIS-001/reports/2025-11-25T153500Z/mapping_gpu_temp/probe.log). Next step is to extend the capture script to save `sp.proc/calibration/smoke_refined_structure_factors.mtz` and rewire the smoke fixtures to use it.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-25T153500Z/
+- Next Actions: ready_for_implementation — persist refined HKL asset + rerun mapping probe/DB-AT-028/029
+- <Action State>: [planning]
+
+2025-11-25T153500Z focus=TOOLING-VIS-001 state=planning dwell=0 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T153500Z/ next_action=ready_for_implementation_persist_refined_hkl

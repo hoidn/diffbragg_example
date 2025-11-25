@@ -1,0 +1,6 @@
+### Turn Summary
+Confirmed the cli_map sigma-source fix: `mapping_forward_cpu_gpu.json` now records `sigma_provenance="cli_map (args.sigma_map)"` with CPU/GPU parity intact, yet ROI CC stays at -0.0399 and Stage A artifacts still show chi²≈2.1e5 (plans/active/TOOLING-VIS-001/reports/2025-11-25T150500Z/mapping_cpu_gpu_metadata/mapping_forward_cpu_gpu.json).
+DB-AT-028/029 now archive the metadata sigma path alongside calibration, so the remaining failure signature is purely a physics gap (plans/active/TOOLING-VIS-001/reports/2025-11-25T150500Z/db_at_028/mapping_context_fixture.json).
+A quick probe run pointing DBEX_SMOKE_HKL_PATH at `_temp.mtz` failed because this workspace lacks `sp.proc/refGeom_small/refGeom_small.expt`, reinforcing the need to persist the refined MTZ asset inside the repo before switching HKL defaults (plans/active/TOOLING-VIS-001/reports/2025-11-25T153500Z/mapping_gpu_temp/probe.log).
+Next: extend the calibration capture script + smoke fixtures to save and consume `sp.proc/calibration/smoke_refined_structure_factors.mtz`, then rerun the mapping probe and DB-AT selectors under the refined HKL path.
+Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-25T153500Z/ (mapping_gpu_temp/probe.log)

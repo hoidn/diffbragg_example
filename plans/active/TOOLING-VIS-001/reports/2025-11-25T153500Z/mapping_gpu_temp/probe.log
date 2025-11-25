@@ -1,0 +1,15 @@
+Configuration:
+  smoke_sigma_source: metadata
+  smoke_detector_size: small
+  default_sigma_readout: 3.0
+  hkl_source_path: /home/ollie/Documents/diffbragg_example/_temp.mtz
+  dataload_mtz_path: /home/ollie/Documents/diffbragg_example/scaled.mtz
+  out_dir: plans/active/TOOLING-VIS-001/reports/2025-11-25T153500Z/mapping_gpu_temp
+
+WARNING: metadata sigma source requested but assets missing, falling back to cli_override
+Loading data from:
+  expt: /home/ollie/Documents/diffbragg_example/sp.proc/refGeom_small/refGeom_small.expt
+  refl: /home/ollie/Documents/diffbragg_example/sp.proc/refGeom_small/refGeom_small.refl
+  mask: /home/ollie/Documents/diffbragg_example/sp.proc/refGeom_small/refGeom_small_mask.pkl
+  mtz: /home/ollie/Documents/diffbragg_example/scaled.mtz
+

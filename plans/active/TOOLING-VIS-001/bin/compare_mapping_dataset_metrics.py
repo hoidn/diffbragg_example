@@ -302,9 +302,28 @@ def define_cases(out_dir: Optional[Path] = None) -> Dict[str, Dict[str, str]]:
     # Calibration variant cases (require out_dir for materialization)
     # These cases rewrite the base calibration config with spot_scale and/or N_cells modifications
     if out_dir is not None:
-        # metadata_calibrated_spot1: force spot_scale_override to 1.0
+        # metadata_calibrated_drop_ncells: keep original spot_scale, remove N_cells only
         base_calibration = smoke_calib_path
         if Path(base_calibration).exists():
+            variant_calib_drop_ncells = materialize_calibration_variant(
+                base_config_path=base_calibration,
+                variant_name="metadata_calibrated_drop_ncells",
+                out_dir=out_dir,
+                spot_scale_override=None,  # Keep original spot_scale from calibration
+                drop_n_cells=True,
+            )
+            cases["metadata_calibrated_drop_ncells"] = {
+                "expt": str(geom_path),
+                "refl": str(refl_path),
+                "mask": str(mask_path),
+                "hkls": resolve_hkl_for_calibration(base_calibration),  # Keep refined MTZ
+                "calibration": variant_calib_drop_ncells,
+                "sigma_map": str(sigma_map_path) if sigma_map_path else None,
+                "sigma_source": "metadata",
+                "calibration_variant": "N_cells removed (spot_scale retained)",
+            }
+
+            # metadata_calibrated_spot1: force spot_scale_override to 1.0
             variant_calib_spot1 = materialize_calibration_variant(
                 base_config_path=base_calibration,
                 variant_name="metadata_calibrated_spot1",
@@ -508,9 +527,17 @@ def compute_case_metrics(
     calibration_variant = case_spec.get("calibration_variant", None)
     derived_calibration_path = case_spec["calibration"]
 
+    # Extract N_cells telemetry from diagnostics (TOOLING-VIS-001: n_cells_applied/suppression_reason)
+    n_cells_applied = diagnostics.get("n_cells_applied", None)
+    n_cells_suppression_reason = diagnostics.get("n_cells_suppression_reason", None)
+
     print(f"  roi_cc_median: {roi_cc_median:.4f}")
     print(f"  scale_ratio_masked: {scale_ratio_masked:.4f}")
     print(f"  scale_ratio_unmasked: {scale_ratio_unmasked:.4f}")
+    print(f"  mean_target_masked: {mean_target_masked:.2f}")
+    print(f"  mean_model_masked: {mean_model_masked:.2f}")
+    print(f"  mean_target_unmasked: {mean_target_unmasked:.2f}")
+    print(f"  mean_model_unmasked: {mean_model_unmasked:.2f}")
     print(f"  bragg_mean: {bragg_mean:.2f}")
     print(f"  bragg_std: {bragg_std:.2f}")
     print(f"  bragg_max: {bragg_max:.2f}")
@@ -522,6 +549,8 @@ def compute_case_metrics(
     print(f"  sigma_map_path: {sigma_map_path_used}")
     print(f"  spot_scale_override: {spot_scale_override}")
     print(f"  global_scale_hint: {global_scale_hint}")
+    print(f"  n_cells_applied: {n_cells_applied}")
+    print(f"  n_cells_suppression_reason: {n_cells_suppression_reason}")
     print(f"  derived_calibration_path: {derived_calibration_path}")
     if calibration_variant:
         print(f"  calibration_variant: {calibration_variant}")
@@ -618,6 +647,10 @@ def compute_case_metrics(
         "roi_cc_median": roi_cc_median,
         "scale_ratio_masked": scale_ratio_masked,
         "scale_ratio_unmasked": scale_ratio_unmasked,
+        "mean_target_masked": mean_target_masked,
+        "mean_model_masked": mean_model_masked,
+        "mean_target_unmasked": mean_target_unmasked,
+        "mean_model_unmasked": mean_model_unmasked,
         "bragg_mean": bragg_mean,
         "bragg_std": bragg_std,
         "bragg_max": bragg_max,
@@ -633,6 +666,8 @@ def compute_case_metrics(
         "sigma_source": sigma_source,
         "sigma_readout_map_source": sigma_readout_map_source,
         "sigma_map_path": sigma_map_path_used,
+        "n_cells_applied": n_cells_applied,
+        "n_cells_suppression_reason": n_cells_suppression_reason,
         "n_rois": len(valid_corrs),
         "device": device,
     }

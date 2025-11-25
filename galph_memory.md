@@ -1079,3 +1079,13 @@ This is the **single most important diagnostic** to run before any other TOOLING
 - <Action State>: [ready_for_implementation]
 
 2025-11-25T200500Z focus=TOOLING-VIS-001 state=planning dwell=1 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T200500Z/ next_action=run_sigma_source_probe_and_db_at_028_029
+## 2025-11-25T203500Z — TOOLING-VIS-001 HKL Default Drift Logged, Do Now → Refined MTZ Resolver
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
+- Action Type: planning → ready_for_implementation handoff
+- Key Observations: Latest sigma-source probe artifacts (plans/active/TOOLING-VIS-001/reports/2025-11-25T200500Z/mapping_dataset_metrics.json) show both calibrated cases still report `hkl_source="raw"`/`hkl_path="scaled.mtz"` even when `calibration_path` points at the smoke bundle, proving the Stage A fixture/probes never switched to the refined MTZ default promised in docs/data_dependency_manifest.md. Logged this drift in docs/fix_plan.md and annotated the manifest so downstream consumers know the default is still raw until the resolver is fixed.
+- Decisions: Authored a Do Now (input.md) that directs Ralph to (1) update `tests/dbex/test_torch_refine_smoke.py::refgeom_dataload` (and the TOOLING probes that duplicate its resolver) to prefer `sp.proc/calibration/smoke_refined_structure_factors.mtz` whenever calibration is resolved and no HKL override is set, (2) bubble `hkl_source/hkl_path` from `hkl_telemetry` into top-level diagnostics inside `dbex/vis/mapping.py::build_mapping_stage_a_context`, and (3) rerun the mapping dataset probe plus DB-AT-028/029 so artifacts prove the refined HKL path is honored even if the tests keep failing.
+- Risks / Notes: Stage A gates will likely continue to fail on chi²/ROI CC after this change; success criteria for the next loop are telemetry correctness (refined HKL recorded everywhere) rather than green tests. If refined HKL still leaves ROI CC ≈ -0.04, we pivot to comparing refined-vs-scaled amplitudes per SCALE-004 guidance.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-25T203500Z/
+- Next Actions: Ralph executes the resolver/telemetry update and reruns `compare_mapping_dataset_metrics.py` + DB-AT-028/029 under the canonical metadata env; if telemetry still reports `scaled.mtz`, stop and re-diagnose the resolver instead of chasing physics fixes.
+
+2025-11-25T203500Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=0 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T203500Z/ next_action=fix_smoke_hkl_default_and_rerun_mapping_probe_plus_db_at_028_029

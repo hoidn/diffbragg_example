@@ -40,7 +40,7 @@ This manifest records the external data inputs (datasets, calibration payloads, 
   - `DBEX_SMOKE_CALIB_PATH` overrides calibration config path.
   - `DBEX_SMOKE_SIGMA_MAP_PATH` overrides sigma-map pickle path when `DBEX_SMOKE_SIGMA_SOURCE=metadata`.
 - **Default Provenance:**
-  - HKL: When calibration config exists (`sp.proc/calibration/config_torch_smoke.json` or `DBEX_SMOKE_CALIB_PATH`), defaults to DiffBragg-refined structure factors (`sp.proc/calibration/smoke_refined_structure_factors.mtz`); otherwise falls back to `scaled.mtz`.
+  - HKL: **Current behavior:** still defaults to `scaled.mtz` even when `sp.proc/calibration/config_torch_smoke.json` is present (TOOLING-VIS-001 gap). `DBEX_SMOKE_HKL_PATH` override is the only way to force the refined MTZ today. **Planned fix:** once the Stage A fixture is updated, the default will automatically switch to `sp.proc/calibration/smoke_refined_structure_factors.mtz` whenever the smoke calibration bundle exists and no override is set.
   - Calibration: `sp.proc/calibration/config_torch_smoke.json` when present, otherwise `DBEX_SMOKE_CALIB_PATH` env var.
   - Sigma-map (when metadata source):
     - Small detector (`DBEX_SMOKE_DETECTOR_SIZE=small`): `sp.proc/refGeom_small/idx-0000_sigma_metadata_small.sigma_tiles.pkl` (cropped to [fast: 751-1775, slow: 719-1743] matching refGeom_small window).

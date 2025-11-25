@@ -1,0 +1,16 @@
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+Output directory: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/TOOLING-VIS-001/reports/2025-11-25T034523Z/parity_probe
+Device: cpu
+Sigma source: metadata
+Detector size: small
+
+Repository root: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+Loaded calibration metadata from /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/fixtures/golden_data/simple_cubic/config_torch.json
+Using refined HKL from /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/fixtures/golden_data/simple_cubic/refined_structure_factors.mtz
+Traceback (most recent call last):
+  File "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/TOOLING-VIS-001/bin/compare_stage_a_mapping_parity.py", line 419, in <module>
+    main()
+  File "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/TOOLING-VIS-001/bin/compare_stage_a_mapping_parity.py", line 226, in main
+    refinement_inputs = prepare_refinement_inputs(
+TypeError: prepare_refinement_inputs() missing 1 required positional argument: 'detector'

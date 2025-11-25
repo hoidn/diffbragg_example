@@ -1,0 +1,57 @@
+{
+  "chi2_per_pixel_initial": 107758.38273293813,
+  "chi2_per_pixel_final": 108405.20200638394,
+  "variance_floor_clamp_fraction": 0.0,
+  "variance_floor_masked_pixels": 13158,
+  "variance_floor_masked_pixels_loss_mask": 13158,
+  "chi_squared_trace_full": [
+    [
+      0,
+      1417884800.0
+    ],
+    [
+      5,
+      1425910784.0
+    ],
+    [
+      10,
+      1425036288.0
+    ],
+    [
+      15,
+      1425108864.0
+    ],
+    [
+      20,
+      1412217344.0
+    ],
+    [
+      25,
+      1408683008.0
+    ],
+    [
+      30,
+      1426079872.0
+    ],
+    [
+      34,
+      1426395648.0
+    ]
+  ],
+  "device": "cuda:0",
+  "enable_hkl_interpolation": false,
+  "log_scale_initial": 0.0,
+  "log_scale_final": 8.74674879014492e-06,
+  "log_scale_baseline": 20.151154110932328,
+  "log_scale_effective_init": 20.151154110932328,
+  "log_scale_effective_final": 20.15116285768112,
+  "bragg_before_mean": 0.3044535517692566,
+  "bragg_before_std": 80.91983032226562,
+  "bragg_before_max": 116160.6484375,
+  "bragg_after_mean": 0.2902843654155731,
+  "bragg_after_std": 53.52994918823242,
+  "bragg_after_max": 56135.78515625,
+  "roi_cc_median_before": -0.0498744695854063,
+  "roi_cc_median_after": -0.05154028343958168,
+  "hkl_source": "refined_structure_factors.mtz"
+}

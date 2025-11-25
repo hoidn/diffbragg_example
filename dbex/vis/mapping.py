@@ -111,6 +111,21 @@ def build_mapping_stage_a_context(
     - Returns the zero-iteration Bragg stack plus the ``sigma_floor_value``
       used inside the diagnostics block.
 
+    Data dependencies:
+        - HKL provenance defaults to ``dataload.args.mtzFile`` but MAY be
+          overridden via ``dataload.args.hkl_source_path`` (e.g.,
+          ``DBEX_SMOKE_HKL_PATH``). Callers SHALL pass the correct HKL asset for
+          their dataset rather than relying on a global fixture.
+        - Calibration metadata MAY be provided via
+          ``dataload.args.calibration_config_path``; when absent the helper
+          SHALL leave ``calibration=None`` instead of falling back to the golden
+          config.
+        - Sigma maps come from ``dataload.sigma_readout_map`` (map tier) or the
+          ``default_sigma_readout`` fallback. Provenance is recorded inside
+          ``RefinementInputs``.
+        - Diagnostics MUST record the chosen HKL/calibration paths so telemetry
+          consumers can audit the mapping inputs.
+
     Args:
         dataload: Initialized :class:`DataLoad` instance for the target assets.
         default_sigma_readout: Fallback sigma value (in ADU) when no calibrated

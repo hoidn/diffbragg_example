@@ -74,6 +74,15 @@ def stage_a_smoke_result(
     """
     Stage A-only refinement (nearest-neighbor HKL) for DB-AT-028/029 gates.
     Uses build_mapping_stage_a_context to align HKL/calibration/inputs with mapping forward stack.
+
+    Data dependencies:
+        - Reuses the same ``refgeom_dataload`` inputs (geometry, mask, HKL
+          override, calibration path) that DB-AT-028/029 are testing. Any change
+          to the DataLoad fixture propagates here automatically.
+        - Mapping context diagnostics MUST reflect those inputs (HKL source,
+          calibration path, sigma provenance) before computing ROI correlations.
+        - HKL sampling is nearest-neighbor (`enable_hkl_interpolation=False`)
+          per the Stage-A spec; interpolated grids would violate DB-AT-028/029.
     """
     # Build mapping context for unified HKL/calibration/inputs
     device_obj = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")

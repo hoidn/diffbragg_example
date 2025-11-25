@@ -97,8 +97,18 @@ def _record_stage_telemetry(stage_label: str, telemetry, dataset_size: str, meta
 def refgeom_dataload(smoke_dataset_paths):
     """
     Load refGeom dataset for refinement tests (small or full detector).
-    Honors DBEX_SMOKE_HKL_PATH env var (default: scaled.mtz) via hkl_source_path attribute.
-    Honors DBEX_SMOKE_CALIB_PATH env var (default: None) via calibration_config_path attribute.
+
+    Data dependencies:
+        - Geometry/mask assets always come from ``smoke_dataset_paths`` (small
+          vs full). This fixture SHALL NOT silently substitute a different
+          dataset.
+        - HKL source defaults to ``scaled.mtz`` in the repo root and MAY be
+          overridden via ``DBEX_SMOKE_HKL_PATH`` (absolute or repo-relative).
+          The resolved path is stored on ``args.hkl_source_path`` so mapping
+          helpers use the same HKL payload as the smoke dataset.
+        - Calibration metadata MAY be threaded via ``DBEX_SMOKE_CALIB_PATH``.
+          When unset, ``calibration_config_path`` remains ``None`` to avoid
+          implicitly loading golden configs.
     """
     from argparse import Namespace
     from dbex.data_load import DataLoad

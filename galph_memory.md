@@ -707,3 +707,13 @@
 - <Action State>: [planning]
 
 2025-11-25T045456Z focus=TOOLING-VIS-001 state=planning dwell=1 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T045456Z/ next_action=align_mapping_inputs_probe_and_fixture
+
+## 2025-11-25T051235Z — TOOLING-VIS-001 mapping parity diagnostics plan
+
+- Action Type: planning (supervisor)
+- Key Observations: DB-AT-028/029 still fail after mapping input alignment; probe shows mapping ROI CC≈0.62 while pytest fixture logs ≈-0.04 and chi²/pixel ≈1.08e5. Need diagnostics to compare mapping_context between probe and fixture (dataset/HKL/calibration/target stats).
+- Decisions: Created new artifacts path `plans/active/TOOLING-VIS-001/reports/2025-11-25T051235Z/`, updated input.md with ready-for-implementation Do Now to emit mapping_context diagnostics in both probe and fixture before rerunning DB-AT-028/029. fix_plan Attempts History updated with 2025-11-25T045456Z results.
+- Next Actions: Ralph to implement shared mapping_context diagnostic logging, run parity probe + DB-AT-028/029 with canonical env, and record probe vs fixture deltas in summary.
+- <Action State>: [ready_for_implementation]
+
+2025-11-25T051235Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=2 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T051235Z/ next_action=diagnostic_logging_and_db_at_028_029_rerun

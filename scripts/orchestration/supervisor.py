@@ -413,7 +413,7 @@ def main() -> int:
             codex_bin,
             "exec",
             "-m",
-            "gpt-5.1-codex",
+            "gpt-5-codex",
             "-c",
             "model_reasoning_effort=high",
             "--dangerously-bypass-approvals-and-sandbox",

@@ -403,6 +403,7 @@ def emit_mapping_context_diagnostics(
         - scale_ratio: mean(bragg_model[mask]) / mean(target[mask]) (if bragg_model)
         - sigma_floor_value: sigma_floor used in mapping context
         - spot_scale_override: spot_scale_override from mapping_context (or null)
+        - calibration_path: path to calibration config file from diagnostics (or null)
     """
     import json
     from datetime import datetime, timezone
@@ -431,6 +432,9 @@ def emit_mapping_context_diagnostics(
     # HKL source/path from diagnostics
     hkl_source = mapping_context.diagnostics.get("hkl_source", "unknown")
     hkl_path = mapping_context.diagnostics.get("hkl_path", "unknown")
+
+    # Calibration path from diagnostics (TOOLING-VIS-001)
+    calibration_path = mapping_context.diagnostics.get("calibration_path", None)
 
     # Device
     device = mapping_context.device or "unknown"
@@ -511,6 +515,7 @@ def emit_mapping_context_diagnostics(
         "sigma_provenance": sigma_provenance,
         "hkl_source": hkl_source,
         "hkl_path": hkl_path,
+        "calibration_path": calibration_path,
         "device": device,
         "target_stats": target_stats,
         "loss_mask_coverage": loss_mask_coverage,

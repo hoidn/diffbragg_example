@@ -128,6 +128,9 @@ def compute_cpu_gpu_mapping_metrics(
         # Count HKL reflections from mapping context
         cpu_hkl_count = len(cpu_context.hkl_indices) if hasattr(cpu_context, 'hkl_indices') else 0
 
+        # Extract calibration_path from diagnostics (TOOLING-VIS-001)
+        cpu_calibration_path = cpu_context.diagnostics.get("calibration_path", None)
+
         result["cpu_metrics"] = {
             "roi_cc_median": float(np.median(valid_cpu_corrs)) if valid_cpu_corrs else float("nan"),
             "roi_cc_count": len(valid_cpu_corrs),
@@ -140,6 +143,7 @@ def compute_cpu_gpu_mapping_metrics(
             "bragg_std": float(np.std(cpu_bragg)),
             "bragg_max": float(np.max(cpu_bragg)),
             "spot_scale_override": float(cpu_context.calibration.get("spot_scale_override", 1.0)) if cpu_context.calibration else 1.0,
+            "calibration_path": cpu_calibration_path,
             "hkl_source": cpu_context.diagnostics.get("hkl_telemetry", {}).get("hkl_source", "unknown"),
             "hkl_path": cpu_context.diagnostics.get("hkl_telemetry", {}).get("hkl_path", "unknown"),
             "hkl_count": cpu_hkl_count,
@@ -194,6 +198,9 @@ def compute_cpu_gpu_mapping_metrics(
         # Count HKL reflections from mapping context
         gpu_hkl_count = len(gpu_context.hkl_indices) if hasattr(gpu_context, 'hkl_indices') else 0
 
+        # Extract calibration_path from diagnostics (TOOLING-VIS-001)
+        gpu_calibration_path = gpu_context.diagnostics.get("calibration_path", None)
+
         result["gpu_metrics"] = {
             "roi_cc_median": float(np.median(valid_gpu_corrs)) if valid_gpu_corrs else float("nan"),
             "roi_cc_count": len(valid_gpu_corrs),
@@ -206,6 +213,7 @@ def compute_cpu_gpu_mapping_metrics(
             "bragg_std": float(np.std(gpu_bragg)),
             "bragg_max": float(np.max(gpu_bragg)),
             "spot_scale_override": float(gpu_context.calibration.get("spot_scale_override", 1.0)) if gpu_context.calibration else 1.0,
+            "calibration_path": gpu_calibration_path,
             "hkl_source": gpu_context.diagnostics.get("hkl_telemetry", {}).get("hkl_source", "unknown"),
             "hkl_path": gpu_context.diagnostics.get("hkl_telemetry", {}).get("hkl_path", "unknown"),
             "hkl_count": gpu_hkl_count,
@@ -300,6 +308,21 @@ def main():
     smoke_sigma_source = os.environ.get("DBEX_SMOKE_SIGMA_SOURCE", "cli_override")
     smoke_detector_size = os.environ.get("DBEX_SMOKE_DETECTOR_SIZE", "small")
 
+    # Honor DBEX_SMOKE_CALIB_PATH env var for calibration config (TOOLING-VIS-001)
+    calib_source_env = os.environ.get("DBEX_SMOKE_CALIB_PATH")
+    calibration_config_path = None
+    if calib_source_env is not None:
+        # Explicit env var takes precedence
+        if not Path(calib_source_env).is_absolute():
+            calibration_config_path = str(repo_root / calib_source_env)
+        else:
+            calibration_config_path = str(Path(calib_source_env))
+    else:
+        # Default to smoke calibration config when present
+        smoke_calib_default = repo_root / "sp.proc" / "calibration" / "config_torch_smoke.json"
+        if smoke_calib_default.exists():
+            calibration_config_path = str(smoke_calib_default)
+
     # Resolve HKL path with priority: CLI > DBEX_SMOKE_HKL_PATH > scaled.mtz
     # This determines which HKL source to use (scaled or refined)
     if args.mtz_path is not None:
@@ -370,6 +393,8 @@ def main():
             self.spot_scale_override = None
             # Store HKL source path separately for mapping context
             self.hkl_source_path = str(hkl_path)
+            # Store calibration config path for mapping context (TOOLING-VIS-001)
+            self.calibration_config_path = calibration_config_path
 
     dataload_args = Args()
     dataload = DataLoad(dataload_args)
@@ -404,6 +429,7 @@ def main():
         print(f"  CPU scale ratio (masked): {metrics['cpu_metrics']['scale_ratio_masked']:.4e}")
         print(f"  CPU scale ratio (unmasked): {metrics['cpu_metrics']['scale_ratio_unmasked']:.4e}")
         print(f"  CPU spot_scale_override: {metrics['cpu_metrics']['spot_scale_override']:.4e}")
+        print(f"  CPU calibration_path: {metrics['cpu_metrics']['calibration_path']}")
         print(f"  CPU HKL source: {metrics['cpu_metrics']['hkl_source']}")
         print(f"  CPU HKL path: {metrics['cpu_metrics']['hkl_path']}")
         print(f"  CPU HKL count: {metrics['cpu_metrics']['hkl_count']}")
@@ -413,6 +439,7 @@ def main():
         print(f"  GPU scale ratio (masked): {metrics['gpu_metrics']['scale_ratio_masked']:.4e}")
         print(f"  GPU scale ratio (unmasked): {metrics['gpu_metrics']['scale_ratio_unmasked']:.4e}")
         print(f"  GPU spot_scale_override: {metrics['gpu_metrics']['spot_scale_override']:.4e}")
+        print(f"  GPU calibration_path: {metrics['gpu_metrics']['calibration_path']}")
         print(f"  GPU HKL source: {metrics['gpu_metrics']['hkl_source']}")
         print(f"  GPU HKL path: {metrics['gpu_metrics']['hkl_path']}")
         print(f"  GPU HKL count: {metrics['gpu_metrics']['hkl_count']}")

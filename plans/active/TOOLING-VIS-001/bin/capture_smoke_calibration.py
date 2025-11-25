@@ -197,14 +197,13 @@ def capture_calibration_metadata(
     logger.info(f"  beamsize_mm: {beamsize_mm}")
     logger.info(f"  N_cells: {N_cells}")
 
-    # Build calibration config
+    # Build calibration config with DiffBragg-style nested schema
+    # Per nanobrag_bridge.py:1602-1675, load_calibration_metadata expects:
+    # - crystal.scale_override (required)
+    # - beam.flux, beam.exposure (required)
+    # - beam.beamsize_mm (optional)
+    # - crystal.N_cells (optional)
     calibration_config = {
-        "spot_scale_override": spot_scale_override,
-        "sigma_floor": 3.0,  # Default sigma floor per spec
-        "beam_flux": beam_flux,
-        "beam_exposure": beam_exposure,
-        "beamsize_mm": beamsize_mm,
-        "N_cells": N_cells,
         "metadata": {
             "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
             "experiment_source": str(expt_path),
@@ -213,7 +212,17 @@ def capture_calibration_metadata(
             "mask_source": str(mask_path),
             "num_macro_cycles": num_macro,
             "n_reflections": len(dl.Refs),
-        }
+        },
+        "device": "cpu",  # Device placeholder; actual device determined at runtime
+        "beam": {
+            "flux": beam_flux,
+            "exposure": beam_exposure,
+            "beamsize_mm": beamsize_mm,
+        },
+        "crystal": {
+            "scale_override": spot_scale_override,
+            "N_cells": N_cells,
+        },
     }
 
     # Ensure output directory exists
@@ -262,11 +271,15 @@ def capture_calibration_metadata(
             "mask": str(mask_path),
         },
         "calibration": {
-            "spot_scale_override": spot_scale_override,
-            "beam_flux": beam_flux,
-            "beam_exposure": beam_exposure,
-            "beamsize_mm": beamsize_mm,
-            "N_cells": N_cells,
+            "crystal": {
+                "scale_override": spot_scale_override,
+                "N_cells": N_cells,
+            },
+            "beam": {
+                "flux": beam_flux,
+                "exposure": beam_exposure,
+                "beamsize_mm": beamsize_mm,
+            },
         }
     }
 

@@ -402,10 +402,16 @@ def emit_mapping_context_diagnostics(
         - geometry_overridden: boolean indicating if geometry was overridden (or null)
         - device: device string from mapping_context
         - target_stats: dict with mean, std, min, max over loss_mask
+        - target_mean_masked: mean of target over loss_mask
+        - target_mean_unmasked: mean of target over all pixels
+        - bragg_mean_masked: mean of bragg_model over loss_mask (if bragg_model provided)
+        - bragg_mean_unmasked: mean of bragg_model over all pixels (if bragg_model provided)
         - loss_mask_coverage: fraction of pixels included in loss_mask
         - n_rois: number of ROIs in panel_slices
         - roi_cc_median: median Pearson CC over ROIs (if bragg_model provided)
-        - scale_ratio: mean(bragg_model[mask]) / mean(target[mask]) (if bragg_model)
+        - scale_ratio_masked: mean(bragg_model[mask]) / mean(target[mask]) (if bragg_model)
+        - scale_ratio_unmasked: mean(bragg_model) / mean(target) (if bragg_model)
+        - global_scale_hint: global_scale_hint from mapping_context.inputs (or null)
         - sigma_floor_value: sigma_floor used in mapping context
         - spot_scale_override: spot_scale_override from mapping_context (or null)
     """
@@ -445,7 +451,7 @@ def emit_mapping_context_diagnostics(
 
     # Target and loss_mask stats
     inputs = mapping_context.inputs
-    target = np.asarray(inputs.target)
+    target = np.asarray(inputs.target, dtype=np.float64)
     loss_mask = np.asarray(inputs.loss_mask, dtype=bool)
     masked_target = target[loss_mask]
 
@@ -456,6 +462,10 @@ def emit_mapping_context_diagnostics(
         "max": float(np.max(masked_target)),
     }
 
+    # Compute masked and unmasked target means
+    target_mean_masked = float(np.mean(masked_target))
+    target_mean_unmasked = float(np.mean(target))
+
     total_pixels = int(np.prod(target.shape))
     masked_pixels = int(np.count_nonzero(loss_mask))
     loss_mask_coverage = float(masked_pixels / total_pixels) if total_pixels > 0 else 0.0
@@ -464,9 +474,12 @@ def emit_mapping_context_diagnostics(
 
     # ROI correlations and scale ratio (optional, requires bragg_model)
     roi_cc_median = None
-    scale_ratio = None
+    scale_ratio_masked = None
+    scale_ratio_unmasked = None
+    bragg_mean_masked = None
+    bragg_mean_unmasked = None
     if bragg_model is not None:
-        bragg_model_arr = np.asarray(bragg_model)
+        bragg_model_arr = np.asarray(bragg_model, dtype=np.float64)
         if bragg_model_arr.shape != target.shape:
             raise ValueError(
                 f"bragg_model shape {bragg_model_arr.shape} does not match "
@@ -500,10 +513,12 @@ def emit_mapping_context_diagnostics(
         valid_corrs = [c for c in corrs if np.isfinite(c)]
         roi_cc_median = float(median(valid_corrs)) if valid_corrs else float("nan")
 
-        # Compute scale ratio
-        mean_target = float(np.mean(target[loss_mask]))
-        mean_model = float(np.mean(bragg_model_arr[loss_mask]))
-        scale_ratio = mean_model / mean_target if mean_target > 0 else float("inf")
+        # Compute masked and unmasked Bragg means and scale ratios
+        bragg_mean_masked = float(np.mean(bragg_model_arr[loss_mask]))
+        bragg_mean_unmasked = float(np.mean(bragg_model_arr))
+
+        scale_ratio_masked = bragg_mean_masked / target_mean_masked if target_mean_masked > 0 else float("inf")
+        scale_ratio_unmasked = bragg_mean_unmasked / target_mean_unmasked if target_mean_unmasked > 0 else float("inf")
 
     # Sigma floor and spot scale
     sigma_floor_value = float(mapping_context.sigma_floor_value)
@@ -524,6 +539,11 @@ def emit_mapping_context_diagnostics(
         origin_delta_mm = None
         geometry_overridden = None
 
+    # Extract global_scale_hint from mapping context inputs
+    global_scale_hint = inputs.global_scale_hint
+    if global_scale_hint is not None:
+        global_scale_hint = float(global_scale_hint)
+
     # Build diagnostics dict
     diagnostics_dict = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -539,10 +559,16 @@ def emit_mapping_context_diagnostics(
         "geometry_overridden": geometry_overridden,
         "device": device,
         "target_stats": target_stats,
+        "target_mean_masked": target_mean_masked,
+        "target_mean_unmasked": target_mean_unmasked,
+        "bragg_mean_masked": bragg_mean_masked,
+        "bragg_mean_unmasked": bragg_mean_unmasked,
         "loss_mask_coverage": loss_mask_coverage,
         "n_rois": n_rois,
         "roi_cc_median": roi_cc_median,
-        "scale_ratio": scale_ratio,
+        "scale_ratio_masked": scale_ratio_masked,
+        "scale_ratio_unmasked": scale_ratio_unmasked,
+        "global_scale_hint": global_scale_hint,
         "sigma_floor_value": sigma_floor_value,
         "spot_scale_override": spot_scale_override,
     }

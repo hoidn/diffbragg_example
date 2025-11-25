@@ -135,17 +135,13 @@ def build_mapping_stage_a_context(
     )
 
     mtz_path = Path(getattr(dataload.args, "mtzFile"))
-    repo_root = mtz_path.resolve().parent
-    fixtures_root = repo_root / "tests" / "fixtures" / "golden_data" / "simple_cubic"
-    config_json = fixtures_root / "config_torch.json"
 
-    # Check if dataload.args has hkl_source_path attribute (from probe script)
-    # Otherwise fall back to checking for refined MTZ in fixtures
+    # Respect hkl_source_path when provided; otherwise use mtzFile
     hkl_source_path_override = getattr(dataload.args, "hkl_source_path", None)
     if hkl_source_path_override is not None:
         hkl_source_path_to_check = Path(hkl_source_path_override)
     else:
-        hkl_source_path_to_check = fixtures_root / "refined_structure_factors.mtz"
+        hkl_source_path_to_check = mtz_path
 
     # Use the MTZ path from DataLoad for raw; determine if we should load refined
     hkl_indices = dataload.F.indices()
@@ -163,14 +159,18 @@ def build_mapping_stage_a_context(
             hkl_path = str(mtz_path.resolve())
     else:
         hkl_source = "raw"
-        hkl_path = str(mtz_path.resolve())
+        hkl_path = str(hkl_source_path_to_check.resolve())
 
+    # Only load calibration when explicitly provided via calibration_config_path
     calibration = None
-    if config_json.exists():
-        try:
-            calibration = load_calibration_metadata(config_json)
-        except Exception:
-            calibration = None
+    calibration_config_path = getattr(dataload.args, "calibration_config_path", None)
+    if calibration_config_path is not None:
+        calibration_config_path = Path(calibration_config_path)
+        if calibration_config_path.exists():
+            try:
+                calibration = load_calibration_metadata(calibration_config_path)
+            except Exception:
+                calibration = None
 
     bragg_zero_iter, diagnostics = simulate_forward_once(
         inputs=inputs,
@@ -188,6 +188,13 @@ def build_mapping_stage_a_context(
 
     if diagnostics is None:
         diagnostics = {}
+
+    # Record the calibration path actually used in diagnostics
+    diagnostics["calibration_path"] = (
+        str(calibration_config_path.resolve())
+        if calibration_config_path is not None and calibration_config_path.exists()
+        else None
+    )
 
     sigma_floor_value = float(diagnostics.get("sigma_floor_value", 1.0))
 

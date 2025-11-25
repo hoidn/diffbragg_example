@@ -98,6 +98,7 @@ def refgeom_dataload(smoke_dataset_paths):
     """
     Load refGeom dataset for refinement tests (small or full detector).
     Honors DBEX_SMOKE_HKL_PATH env var (default: scaled.mtz) via hkl_source_path attribute.
+    Honors DBEX_SMOKE_CALIB_PATH env var (default: None) via calibration_config_path attribute.
     """
     from argparse import Namespace
     from dbex.data_load import DataLoad
@@ -112,6 +113,15 @@ def refgeom_dataload(smoke_dataset_paths):
     else:
         hkl_source_path = Path(hkl_source_env)
 
+    # Honor DBEX_SMOKE_CALIB_PATH env var for calibration config (default: None)
+    calib_source_env = os.environ.get("DBEX_SMOKE_CALIB_PATH")
+    calibration_config_path = None
+    if calib_source_env is not None:
+        if not Path(calib_source_env).is_absolute():
+            calibration_config_path = str(repo_root / calib_source_env)
+        else:
+            calibration_config_path = str(Path(calib_source_env))
+
     # DataLoad always uses scaled.mtz for experimental data
     args = Namespace(
         exptName=str(smoke_dataset_paths.expt_path),
@@ -121,6 +131,7 @@ def refgeom_dataload(smoke_dataset_paths):
         mtzFile=str(repo_root / "scaled.mtz"),
         mtzCol="F,SIGF",
         hkl_source_path=str(hkl_source_path),  # Passed to build_mapping_stage_a_context
+        calibration_config_path=calibration_config_path,  # Passed to build_mapping_stage_a_context
     )
 
     return DataLoad(args)

@@ -1132,3 +1132,14 @@ This is the **single most important diagnostic** to run before any other TOOLING
 - <Action State>: [ready_for_implementation]
 
 2025-11-25T230500Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=0 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T230500Z/ next_action=run_drop_ncells_probe_and_db_at_028_029
+
+## 2025-11-25T234200Z — TOOLING-VIS-001 Stage A scale adjustment planning
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
+- Action Type: planning
+- Key Observations: The drop-N_cells probe confirmed `target_bragg_mean_ratio≈1.52e5` and `global_scale_hint≈1.5e5` when `n_cells_applied=false`, so Stage A now starts five orders of magnitude away from the masked data scale even though ROI structure has the correct sign. To unblock refinement we need the mapping zero-iteration stack to land near the masked target before Stage A runs. Plan: teach `build_mapping_stage_a_context` to detect `apply_calibration_n_cells=False`, clone the calibration dict, multiply `spot_scale_override` by `(target/bragg)^2`, re-run `simulate_forward_once`, and record adjustment telemetry so downstream probes/tests can see the correction. Validation remains the DB-AT-028/029 smoke selectors plus the dataset probe to show masked bragg means recovered (~87 ADU) while ROI CC stays positive.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-25T235500Z/
+- Next Actions: ready_for_implementation — add the spot_scale re-simulation hook + telemetry and rerun dataset probe plus DB-AT-028/029.
+- <Action State>: [ready_for_implementation]
+
+2025-11-25T234200Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=0 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T235500Z/ next_action=spot_scale_adjustment_for_n_cells_suppression

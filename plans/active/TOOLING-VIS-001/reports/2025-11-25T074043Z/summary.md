@@ -1,5 +1,5 @@
 ### Turn Summary
-Verified the metadata smoke calibration bundle (config_torch_smoke.json + manifest) already exists and still reports spot_scale_override≈3.10e17, so DB-AT-028/029 must run under DBEX_SMOKE_CALIB_PATH before we can judge Stage A.
-Documented the capture in docs/fix_plan.md and refreshed input.md with a ready-for-implementation Do Now to log calibration_path in the CPU/GPU probe and Stage A smoke fixture.
-Next: Ralph reruns capture → mapping probe → DB-AT-028/029 with the new logging so we can see whether the calibration produces non-zero Bragg stacks and record the path in artifacts.
-Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-25T074043Z/ (input.md, summary.md)
+Implemented calibration_path persistence across mapping and Stage A diagnostic surfaces to enable audit trails for calibration configs.
+Resolved missing calibration metadata tracking by extending emit_mapping_context_diagnostics, DB-AT-028/029 test metrics, and CPU/GPU probe scripts with calibration_path field extraction and persistence.
+Next: implement Phase D.D zero-point probe to isolate calibration payload construction bugs causing chi²/pixel and ROI correlation failures.
+Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-25T074043Z/ (smoke_calibration_manifest.json, mapping_cpu_gpu/mapping_forward_cpu_gpu.json, db_at_028/db_at_028_metrics.json, db_at_029/db_at_029_metrics.json)

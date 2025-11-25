@@ -1,0 +1,46 @@
+{
+  "chi2_per_pixel_initial": 21521.51880158973,
+  "chi2_per_pixel_final": 21521.51880158973,
+  "variance_floor_clamp_fraction": 0.0,
+  "variance_floor_masked_pixels": 13084,
+  "variance_floor_masked_pixels_loss_mask": 13084,
+  "chi_squared_trace_full": [
+    [
+      0,
+      281587552.0
+    ],
+    [
+      5,
+      281587552.0
+    ],
+    [
+      7,
+      281587552.0
+    ]
+  ],
+  "device": "cuda:0",
+  "enable_hkl_interpolation": false,
+  "log_scale_initial": 10.16633766089704,
+  "log_scale_final": 10.166337966918945,
+  "log_scale_baseline": 0.0,
+  "log_scale_effective_init": 10.16633766089704,
+  "log_scale_effective_final": 10.166337966918945,
+  "bragg_before_mean": 0.04838063195347786,
+  "bragg_before_std": 0.12965822219848633,
+  "bragg_before_max": 1.7306809425354004,
+  "bragg_after_mean": 0.04838063195347786,
+  "bragg_after_std": 0.12965822219848633,
+  "bragg_after_max": 1.7306809425354004,
+  "roi_cc_median_before": 0.03745774209941502,
+  "roi_cc_median_after": 0.03745774209941502,
+  "hkl_source": "scaled.mtz",
+  "hkl_path": "scaled.mtz",
+  "hkl_count": 69614,
+  "spot_scale_override": 1.0,
+  "calibration_path": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/config_torch_smoke.json",
+  "sigma_source": "metadata",
+  "roi_cc_median_mapping": NaN,
+  "scale_ratio_mapping_masked": 0.0,
+  "scale_ratio_mapping_unmasked": 0.0,
+  "mapping_forward_success": true
+}

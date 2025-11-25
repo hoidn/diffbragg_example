@@ -1059,3 +1059,13 @@ This is the **single most important diagnostic** to run before any other TOOLING
 - <Action State>: [planning]
 
 2025-11-25T180000Z focus=TOOLING-VIS-001 state=planning dwell=2 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T180500Z/ next_action=ready_for_implementation_update_probe
+## 2025-11-25T190500Z — TOOLING-VIS-001 dataset probe parity logged
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
+- Action Type: planning
+- Key Observations: The dataset-comparison probe now mirrors the Stage A fixture (refGeom_small + cropped sigma map + smoke calibration), yet both scaled and refined cases still report ROI CC≈-0.044 and DB-AT-028/029 keep failing with chi²/pixel≈2.1e5, confirming the calibration/structure issue persists after the plumbing fix. Prepared a ready-for-implementation Do Now to extend the probe with a raw (calibration-free) case plus ROI artifact emission so we can inspect how calibration distorts individual ROIs before changing production code.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-25T190500Z/
+- Next Actions: Ship the probe enhancements (new cases + ROI dumps) and rerun the metadata smoke selectors to capture raw vs calibrated evidence.
+- <Action State>: [ready_for_implementation]
+
+2025-11-25T190500Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=0 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T190500Z/ next_action=emit_raw_vs_calibrated_roi_evidence_and_rerun_db_at_028_029

@@ -1208,3 +1208,13 @@ This is the **single most important diagnostic** to run before any other TOOLING
 - <Action State>: [ready_for_implementation]
 
 2025-11-26T034500Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=1 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-26T034500Z/ next_action=stage_a_masked_mean_tensor_fix_and_db_at_028_029_replay
+## 2025-11-26T050500Z — TOOLING-VIS-001 masked-mean tensorization Do Now issued
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
+- Action Type: planning
+- Key Observations: Re-reviewed `plans/active/TOOLING-VIS-001/reports/2025-11-26T034500Z/db_at_029/db_at_029_metrics.json` (log_scale_baseline=0, scale_ratio_before=1.92e-10 despite `calibration_adjusted_for_n_cells=true`) and confirmed the masked-mean branch still silently falls back to `log(inputs.global_scale_hint)`. Updated docs/fix_plan.md Attempts History and rewrote input.md so Ralph receives a ready-for-implementation Do Now that tensorizes `inputs.target`/`inputs.loss_mask`, computes the zero-iteration masked means from the warmed Stage A simulators, persists those values to telemetry, and reruns DB-AT-028/029 under the canonical metadata env with artifacts rooted at `plans/active/TOOLING-VIS-001/reports/2025-11-26T050500Z/`.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-26T050500Z/
+- Next Actions: Implement the tensorized masked-mean baseline/telemetry updates and capture fresh DB-AT-028/029 evidence per the new How-To Map.
+- <Action State>: [ready_for_implementation]
+
+2025-11-26T050500Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=2 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-26T050500Z/ next_action=implement_stage_a_masked_mean_tensor_fix_and_rerun_db_at_028_029

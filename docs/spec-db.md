@@ -10,6 +10,10 @@ This index lists the normative specification shards for the DiffBragg/DBEX + PyT
 - spec-db-tracing.md — Tracing/instrumentation and parity workflows.
 - spec-db-vis.md — Visual diagnostics standards and plot definitions.
 
+Backend summary (informative)
+- diffbragg — Default backend (legacy); not Spec‑DB conformant (diagnostic only).
+- nanobrag — Non‑default; Spec‑DB conformance target (DB‑AT profiles) and SHALL be selected via `--backend nanobrag`.
+
 References (informative)
 - docs/config_crosswalk.md — Mapping between DIALS/dxtbx/simtbx, DiffBragg concepts, and nanobrag_torch configs.
 - docs/nanobrag_api.md, docs/simtbx_api.md, docs/dxtbx_api.md, docs/dials_api.md — API detail.

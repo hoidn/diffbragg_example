@@ -34,9 +34,16 @@ Pipeline (Normative)
 Calibration & Unit Conventions (Normative Addendum)
 - Precedence ladder (highest → lowest): torch_config (if provided) → CLI overrides → external_lookup payloads → refined MTZ metadata → raw MTZ defaults → hardcoded defaults. When torch_config and CLI both define the same field (gain/adu_per_photon, sigma_readout, sigma_floor, spot_scale_override, beam flux/exposure, beamsize_mm, N_cells) and disagree, the run SHALL fail with a clear error (no silent overrides). Otherwise, pick the highest available tier and emit provenance; refined MTZ, when requested, SHALL be consumed or the run SHALL fail fast (no silent fallback to raw).
 - ADU↔photon policy: A run SHALL choose a single unit mode. If `adu_per_photon > 0`, targets, sigma_readout, and sigma_floor SHALL be converted at ingest; the chosen unit_mode (ADU|photon) and gain MUST be recorded in telemetry. Spot-scale application in ADU mode SHALL use `sqrt(spot_scale_override)` post-sim with log_scale as a delta around that baseline; in photon mode, spot_scale_override applies directly (no sqrt).
-- Sigma sourcing: sigma_readout precedence is CLI sigma-map > CLI sigma-rdout scalar > external_lookup map/tiles > MTZ metadata > default; shapes must match target or the run fails. sigma_floor precedence is CLI > external_lookup > default (≥1 photon or ADU-equivalent). Partial or malformed maps SHALL fail unless superseded by a higher-priority complete scalar/map. Telemetry MUST include sigma provenance and effective values.
+- Sigma sourcing (Spec‑DB conformance): sigma_readout MUST come from (in order) sigma map, sigma scalar, or external tiles. If none are present, the CLI SHALL fail. Shapes must match the target or the run fails. Legacy hardcoded defaults (e.g., ~3 ADU) are non‑conformant. See `spec-db-core.md` §Variance inputs for the canonical precedence.
+- sigma_floor precedence is CLI > external_lookup > instrument default (≥1 photon or ADU-equivalent) and MUST be recorded with provenance; a missing sigma_floor is non‑conformant even if the run executes.
 - Geometry/mask/ROI invariants (shared across backends): arrays are `[panel, slow, fast]`, beam-centre swap per config_crosswalk, mask polarity True=trusted; ROI bboxes `(x0, x1, y0, y1)` with x1/y1 exclusive. Background sentinels (e.g., -1) MUST be masked consistently in loss/variance computations.
-- Telemetry/provenance (required fields): calibration source (CLI|external_lookup|MTZ|default), spot_scale_override, beam flux/exposure, beamsize_mm, N_cells, adu_per_photon, unit_mode; sigma_readout source/value, sigma_floor; HKL source (refined|raw), halo/interpolation mode; log_scale_baseline, log_scale_delta_clamp, final scale applied; any precedence conflicts or fallbacks MUST be emitted.
+- Required calibration fields for Spec‑DB conformance:
+  - `spot_scale_override`: MUST be provided (typically via `torch_config`).
+  - `sigma_floor`: MUST be provided via CLI or config; instrument defaults are allowed only when explicitly surfaced in telemetry.
+  - `sigma_readout`: MUST follow the precedence in `spec-db-core.md`.
+  - `beam_flux` and `beam_exposure`: SHOULD be provided via calibration config; if absent, implementations MAY use documented fallbacks but MUST record provenance (e.g., `calibration_source_flux`).
+  - `beamsize_mm` and `N_cells`: MAY default to `None` and `1`, respectively, but the effective values and provenance MUST be recorded.
+- Telemetry/provenance (required fields): calibration source (CLI|external_lookup|MTZ|default), spot_scale_override, beam flux/exposure (with provenance), beamsize_mm, N_cells, adu_per_photon, unit_mode; sigma_readout source/value, sigma_floor and provenance; HKL source (refined|raw), halo/interpolation mode; log_scale_baseline, log_scale_delta_clamp, final scale applied; any precedence conflicts or fallbacks MUST be emitted.
 - Normative conversion sequence: (1) ingest metadata, decide unit_mode/gain; (2) apply gain if needed to target/sigma*; (3) resolve calibration payload via precedence; (4) build HKL grid (refined preferred, else raw; fail if refined requested but missing); (5) construct configs/context with calibration (log_scale_baseline = log(sqrt(spot_scale_override)) in ADU mode, 0 in photon mode); (6) apply variance model `V = max(I_model + sigma_readout^2, sigma_floor^2)`; (7) emit full telemetry.
 
 7) Refinement Protocol Architecture
@@ -77,6 +84,8 @@ Calibration & Unit Conventions (Normative Addendum)
        - Physics: Tricubic interpolation (`interpolation=True`) is MANDATORY so detector motion yields differentiable HKL gradients.
 
 ### Canonical Initial Configuration (Normative)
+
+Mapping-aligned configuration (normative): Any run claiming mapping parity SHALL reuse the DB‑AT‑024 DIALS→Torch mapping pipeline (geometry, masks, sigma, HKL grid, calibration) and satisfy the Stage‑A zero-point invariant enforced by DB‑AT‑027 (zero deltas + baseline scale reproduce the mapping Bragg tensor within tolerance). The bullets below define the canonical assets for that configuration.
 
 For workflows whose goal is to validate physics and mapping fidelity (DB‑AT‑024, DB‑AT‑02x selectors, and Stage‑A visualization under TOOLING‑VIS‑001), the initial configuration for Stage‑A–style refinement and diagnostics SHALL be the “mapping configuration” defined in `docs/spec-db-conformance.md` (§DB‑AT‑024 DIALS→Torch Mapping), i.e.:
 

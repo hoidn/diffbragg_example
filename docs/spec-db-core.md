@@ -13,7 +13,7 @@ Units, Frames, and Conventions (Normative)
   - Crystal: Å and degrees; convert to meters only for geometry‑physics dot products.
   - Wavelength: Å.
   - Output: intensity in photons (physical) from the simulator; ADU used as input target unless user converts.
-  - Calibration/units precedence and telemetry requirements are normative per `docs/spec-db-workflow.md` (“Calibration & Unit Conventions” addendum); implementers SHALL follow that ladder and emit the required provenance fields.
+  - Calibration/units precedence and telemetry requirements are normative per `docs/spec-db-workflow.md` (“Calibration & Unit Conventions” addendum); implementers SHALL follow that ladder and emit the required provenance fields. Required calibration fields and provenance expectations there are binding; runs that omit them are non-conformant even if they execute.
 - Frames and vectors:
   - Panel basis (f,s,o) SHALL be orthonormal in lab frame.
   - Beam vector SHALL point sample→source and be normalized.
@@ -28,15 +28,20 @@ Data Contracts (Normative)
 - Inputs: Experiment + Reflections
   - Reflection table minimal schema:
     - `id (flex.int)`, `panel (flex.size_t)`, `bbox (flex.int6)`; `xyzobs.px.value` or `xyzcal.px` MAY be present.
+    - `bbox` is `(x0, x1, y0, y1, z0, z1)`; Spec‑DB v1 is stills‑only (`phi_steps=1`), so simulators SHALL honor the XY projection `(x0, x1, y0, y1)` and carry the Z extents through unchanged without interpretation.
   - Masks:
     - DIALS trusted mask SHALL be a tuple of `flex.bool` per panel (True=trusted) shaped `(slow, fast)`.
     - DiffBragg hot/bad masks are inverted; if used upstream, inversion SHALL be explicit.
 - Variance inputs:
     - The bridge SHALL supply readout-noise estimates `sigma_readout` in the same units as the loss target (photons or ADU/gain). Granularity MAY be per-pixel or per-panel but MUST align with the simulator tensors and be included in `RefinementInputs` so the variance-weighted loss can be formed.
-    - `sigma_readout` values SHALL be strictly positive. Zero-filled placeholders are prohibited because they produce infinite IRLS weights when `I_model → 0`.
-    - Precedence (normative): calibrated per-pixel/per-panel `sigma_readout` maps (e.g., CLI `--sigma-map`) SHALL take priority over scalar overrides; scalar `--sigma-rdout` SHALL take priority over external_lookup metadata tiles. If none are provided, runs SHALL fail (no silent zeros/fallbacks).
-    - When detector metadata cannot provide a calibrated dark-RMS (or equivalent) value, the CLI MUST require an explicit override via `--sigma-rdout` (or abort with a descriptive error). Silent fallback to zeros is non-compliant.
-    - The bridge SHALL record the provenance of the supplied noise (e.g., `calibrated_dark`, `cli_override`) in `RefinementInputs` telemetry so downstream tools can audit whether instrument data or overrides were used.
+    - `sigma_readout` values SHALL be strictly positive and finite on all trusted pixels. Zero or NaN sigma is non-compliant because it produces infinite IRLS weights when `I_model → 0`.
+    - Canonical precedence (highest → lowest, normative for conformance):
+      1) Calibrated per-pixel/per-panel `sigma_readout` map (e.g., CLI `--sigma-map` or config payload).
+      2) CLI scalar `--sigma-rdout` broadcast to the detector shape.
+      3) External tiles (e.g., dxtbx `external_lookup`, sigma tiles embedded in Experiments/MTZ).
+      If none of these are available, runs SHALL fail with a descriptive error (no defaults).
+    - When detector metadata cannot provide a calibrated dark-RMS (or equivalent) value, the CLI MUST require an explicit override via `--sigma-rdout` (or abort with a descriptive error). Silent fallback to zeros is non-compliant. Legacy pipelines that inject hardcoded sigma defaults (e.g., ~3 ADU) are explicitly non-conformant with Spec‑DB.
+    - The bridge SHALL record the provenance of the supplied noise (e.g., `sigma_map`, `sigma_scalar`, `external_lookup`) in `RefinementInputs` telemetry so downstream tools can audit whether instrument data or overrides were used.
 - Outputs: Bragg prediction and HDF5 (optional)
   - Full‑frame Bragg tensor SHALL be `(n_panels, slow, fast)` and align with DataLoad.data.
   - HDF5 viewer output MAY include `data/roiN`, `model/roiN`, `bragg/roiN`, `bg/roiN`, and `score` for each ROI as implemented today.
@@ -59,6 +64,7 @@ Geometry Mapping (Normative)
     - `U₀ = A*_0 @ B₀⁻¹` (baseline orientation matrix),
     - and by construction `A*_mapping = U₀ @ B₀ = A*_0`.
   - Implementations SHALL NOT introduce alternative, incompatible decompositions of `A*_mapping` into `U,B` in production refinement code.
+  - Detailed derivations of the incremental UB parameterization live in `writeups/torch_geometry_incremental_ub_parameterization.tex` (normative by reference). Changes to that writeup MUST be mirrored here and in the DB‑AT UB tests.
 
 - Incremental parameterization:
   - Stage‑A refinement parameterizations SHALL be defined as *increments* around the baseline state, not as free absolute `A*`:
@@ -79,9 +85,15 @@ Physics Toggles (Normative)
 - dmin: default 0.0 (no resolution cutoff); enabling SHALL be explicit.
 
 Source Handling and Weighting (Normative)
-- Sources correspond to multiple beam directions/wavelength bins. Unless explicitly weighted via CLI/config, simulators SHALL weight all sources equally.
-- If a per-source weight flag (e.g., `-lambda`/flux) is provided, it SHALL define the weights; embedded weights in source files MAY be recorded in telemetry but SHALL NOT override an explicit CLI weight.
-- Telemetry SHALL record whether equal weighting or explicit weights were used, and the effective weights.
+- Sources correspond to multiple beam directions/wavelength bins. By default, simulators SHALL weight all sources equally.
+- When explicit per-source weights are provided (e.g., via `-lambda` or equivalent config), they SHALL be interpreted as a per-source weight vector (one coefficient per source) and applied multiplicatively to each source’s contribution. A single global flux/exposure knob MAY be used for overall normalization but MUST NOT be conflated with per-source weights.
+- Embedded weights in source files MAY be recorded in telemetry but SHALL NOT override an explicit CLI/config weight vector.
+- Telemetry SHALL record whether equal weighting or explicit weights were used and the effective weights.
+
+Interpolation Policy (Normative)
+- Stage A (geometry/scale) canonical mode SHALL use nearest‑neighbor sampling of the dense |F| grid (`interpolation=False`). Any Stage‑A run that enables tricubic interpolation is non‑canonical and SHALL be tagged in telemetry (e.g., `stage_a_interpolation_mode="tricubic_experimental"`).
+- Stage B and Stage C SHALL use tricubic interpolation (`interpolation=True`) with a ±1 halo; any `default_F` fallback while interpolating is a conformance failure.
+- Haloed |F| grids SHALL be declared in metadata when interpolation is enabled so tests can assert halo presence.
 
 Structure Factors (Normative)
 - Dense P1 |F| grid and min/max metadata SHALL be provided to the simulator. Tricubic interpolation SHALL require a ±1 halo; otherwise the simulator falls back to `default_F` at the edge.

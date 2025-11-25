@@ -89,23 +89,22 @@ Extensions must preserve these shapes; adding a new sampling dimension requires 
 
 ### 1.1.5 Source Weighting & Integration
 
-**Objective:** Ensure equal weighting across all sources per normative spec.
+**Objective:** Support equal weighting by default while honoring explicit per-source weights when provided.
 
-**Implementation:** `src/nanobrag_torch/simulator.py` lines 399-423 (guard) and steps normalization at line 1892.
+**Implementation:** `src/nanobrag_torch/simulator.py` lines 399-423 (guard) and steps normalization at line 1892. Default path divides by the number of sources (equal weighting). When a `-lambda`/per-source weight vector is provided, the simulator multiplies each source contribution by the corresponding weight before accumulation.
 
-**Normative Reference:** See `docs/pytorch_runtime_checklist.md` (Source Handling & Equal Weighting) for canonical source weighting rules; CLI `-lambda` is authoritative and equal weighting applies via division by source count.
+**Normative Reference:** See `docs/spec-db-core.md` (Source Handling and Weighting) for the canonical rules: equal weighting by default; per-source weights allowed and interpreted as one coefficient per source; a global flux/exposure knob is separate from per-source weights.
 
 **Validation:**
-- Equal-weight handling verified with repeated runs of `tests/test_cli_scaling.py::TestSourceWeightsDivergence` (7 tests passing)
-- Observed correlation ≥0.999 and |sum_ratio−1| ≤5e-3 across the validation runs
+- Equal-weight handling verified with repeated runs of `tests/test_cli_scaling.py::TestSourceWeightsDivergence` (7 tests passing) with observed correlation ≥0.999 and |sum_ratio−1| ≤5e-3.
+- Add/extend tests to cover explicit per-source weights once CLI/config plumbing is finalized (planned AT‑SRC to mirror DB‑AT coverage).
 
 **Data Flow:**
-1. Source weights are parsed from sourcefile but never multiplied into intensity contributions
-2. All sources contribute equally to pixel accumulation
-3. Final normalization: `I_scaled = r_e^2 * fluence * I / steps` where `steps = source_count * ...`
-4. Weight column serves documentary purpose only (may encode flux metadata for external tools)
+1. Parse source weights (CLI/config). If none, synthesize an equal-weight vector of length `n_sources`.
+2. Multiply each source’s contribution by its weight; accumulate across sources.
+3. Normalize: `I_scaled = r_e^2 * fluence * I / steps` where `steps = source_count * ...`; flux/exposure remain global scalars.
 
-**Acceptance:** AT-SRC-001 (sourcefile and weighting) validates equal contribution via correlation checks.
+**Acceptance:** Equal-weight path remains validated; per-source weighted path SHALL be validated by the forthcoming AT‑SRC/DB‑AT source-weighting selector once wired.
 
 ## 1.2 Differentiability vs Performance
 

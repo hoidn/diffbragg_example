@@ -30,6 +30,9 @@ Runtime Guardrails (Normative)
 Environment (Normative)
 - `KMP_DUPLICATE_LIB_OK=TRUE` SHALL be set in all entry points importing torch.
 - `CUDA_VISIBLE_DEVICES` MAY be used to pin GPUs; device index SHALL be configurable.
+- Device profiles:
+  - CPU Conformance Profile (v1): all DB‑AT selectors SHALL pass on CPU; telemetry SHALL record `device_profile="cpu_conformance"` (or equivalent) in `/torch_diagnostics`.
+  - CUDA runs MAY be supported (e.g., `--device=cuda:0`) but are considered experimental until a CUDA Conformance Profile is published; telemetry SHOULD record `device_profile="cuda_experimental"` (or similar) for such runs.
 
 Shape‑Change Policy (Normative)
 - Reuse a warmed Simulator when `spixels/fpixels` and oversample are constant.

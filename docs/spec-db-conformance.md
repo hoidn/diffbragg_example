@@ -2,10 +2,11 @@
 
 Overview (Normative)
 - Purpose: Define executable acceptance tests (DB‑AT‑XXX) that collectively certify a build as conformant with Spec DB.
+- Scope: Spec‑DB conformance tests SHALL use the DB‑AT‑NNN naming scheme. Other internal tests (e.g., AT‑STR/AT‑SRC) MAY exist but are diagnostic only and are not counted toward conformance.
 
 Status
-- These acceptance tests target the forthcoming `nanobrag_torch` backend and are currently placeholders. They are not wired to the existing DiffBragg CLI.
-- Until the torch backend is available, use `python -m dbex.refine_one` (see `dbex/refine_one.py:5-26`) and treat these tests as future work.
+- These acceptance tests target the `nanobrag_torch` backend (`--backend nanobrag`). The legacy DiffBragg backend (`--backend diffbragg`, current default) is not in scope for Spec‑DB conformance and MAY be exercised only by separate diagnostic tests.
+- Until the torch backend is fully wired, use `python -m dbex.refine_one` (see `dbex/refine_one.py:5-26`) and treat skipped/xfail selectors as future work artifacts.
 Conformance Profiles (Normative)
 - Forward Equivalence Profile:
   - DB‑AT‑001 Forward equivalence smoke (DiffBragg vs `nanobrag_torch` forward pass; run without refinement and compare coarse ROI metrics per `plans/nanobrag_integration_plan.md` Phase 1).
@@ -26,6 +27,9 @@ Conformance Profiles (Normative)
 - Stage‑B/C Profile (torch backend):
   - DB‑AT‑031 Stage‑B ASU mapping and modifier sanity (per‑reflection vs shell; interpolation+halo required).
   - DB‑AT‑032 Stage‑C detector distance offsets (chi² improvement and telemetry sanity).
+- Device Profiles:
+  - CPU Conformance Profile (v1): all DB‑AT selectors SHALL pass on CPU.
+  - CUDA Conformance Profile (planned): to be defined once GPU determinism/perf gates are set; until then, CUDA runs are experimental and MAY be reported separately.
 - Tracing & VIS Profile:
   - DB‑AT‑040 Trace schema conformance (required fields/layout per `spec-db-tracing.md`).
   - DB‑AT‑050 VIS triptych/layout conformance (ROI triptych and residual plots per `spec-db-vis.md`).
@@ -47,7 +51,7 @@ Acceptance Tests (Normative)
   - Command: `KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests -k DB_AT_011`.
 - DB‑AT‑020 Reflection ingestion sanity
   - Setup: load .expt/.refl; extract first ROI; slice data with bbox; verify shape, exclusivity, panel ordering.
-  - Expectation: `shoebox.shape == (y1-y0, x1-x0)`; panel indices align.
+  - Expectation: `shoebox.shape == (y1-y0, x1-x0)`; panel indices align. Z extents from the DIALS bbox (z0,z1) are carried through unchanged but are not interpreted for stills; Spec‑DB v1 asserts the XY projection only.
   - Command: `pytest -v tests -k DB_AT_020`
 - DB‑AT‑021 Mask polarity and shape
   - Setup: load DIALS trusted mask; convert to simulator mask; verify mask/loss application on sample ROIs.
@@ -59,7 +63,7 @@ Acceptance Tests (Normative)
   - Command: `pytest -v tests -k DB_AT_022`
 - DB‑AT‑023 Calibration policy
   - Setup: run with and without `--adu-per-photon`; compare scale behavior and loss.
-  - Expectation: photon mode yields scale near 1; ADU mode learns positive scale with stable initialization.
+  - Expectation: photon mode yields scale near 1; ADU mode learns positive scale with stable initialization. HDF5 `/torch_diagnostics` MUST record `spot_scale_override`, `sigma_floor` (value + provenance), `sigma_readout_provenance`, `beam_flux`/`beam_exposure` provenance, `beamsize_mm`, and `N_cells`; missing fields are non‑conformant.
   - Command: `pytest -v tests -k DB_AT_023`
 - DB‑AT‑024 Mapping consistency
   - Setup: build per‑panel configs from a real Experiment; run a forward pass with initial parameters; evaluate K ROIs (e.g., 32) for correlation and localization.
@@ -89,10 +93,12 @@ Acceptance Tests (Normative)
     - Case A: external_lookup tiles only (no CLI sigma). Expect `sigma_readout_provenance="external_lookup"`.
     - Case B: external_lookup + `--sigma-map path`. Expect map to win; provenance `"sigma_map"`.
     - Case C: external_lookup + `--sigma-map path` + `--sigma-rdout <scalar>`. Expect map to win; provenance `"sigma_map"`. If map absent and only scalar present, provenance `"sigma_scalar"`.
+    - Case D: no map, no scalar, no tiles. CLI MUST refuse to run with a descriptive error mentioning missing sigma.
+    - Case E (optional): map/scalar present but contains zeros/NaNs. Run MUST fail as non‑conformant.
   - Expectations:
     - Effective `sigma_readout` matches the highest-precedence source per case.
     - Provenance field matches the selected source.
-    - If none of map/scalar/external are provided, run SHALL fail with a descriptive error (no silent zeros).
+    - If none of map/scalar/external are provided, run SHALL fail with a descriptive error (no silent zeros). Zeros/NaNs SHALL also fail.
   - Command: `KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests -k DB_AT_030` (selector to be added once harness is wired).
 
 ## Canonical DIALS→Torch Mapping (DB‑AT‑024)
@@ -275,7 +281,7 @@ Acceptance Tests (Normative)
       - `|chi2_stagea_at_mapping − chi2_mapping| / chi2_mapping ≤ 1e‑3`, where the χ² is the canonical PHYSICS‑LOSS variance‑weighted objective with detached denominator (`V = I_model + sigma_readout²`, clamped to `sigma_floor²`); the current helper implementing this is `dbex.physics.loss._compute_variance_weighted_loss` (informative).
     - χ² per pixel sanity:
       - `chi2_mapping_per_pixel ≤ 1e2` for the canonical simple_cubic mapping fixture (value calibrated to current DB‑AT‑024 metrics; future tightening is permitted once the forward model and calibration are refined).
-  - Command: a dedicated Stage‑A mapping test (e.g. `pytest -v tests -k DB_AT_027`) SHALL enforce this contract for the simple_cubic fixture.
+  - Command: a dedicated Stage‑A mapping test (e.g. `pytest -v tests -k DB_AT_027`) SHALL enforce this contract for the simple_cubic fixture and is the enforcement point for “mapping‑aligned” Stage‑A zero‑point behavior.
 
 - DB‑AT‑028 Stage‑A loss‑scale and clamp sanity
   - Goal: Ensure Stage‑A χ² values remain in a physically reasonable regime on the canonical Stage‑A smoke dataset, and that sigma_floor acts as a guardrail rather than the dominant regime.
@@ -356,7 +362,7 @@ Acceptance Tests (Normative)
 - DB‑AT‑040 Trace schema conformance
   - Goal: Validate the trace payload layout and required fields per `docs/spec-db-tracing.md`.
   - Setup: enable trace mode for a single pixel on a canonical fixture (e.g., refGeom or smoke dataset) with torch backend; write trace to HDF5.
-  - Expectation: `/trace/<panel>/<slow>_<fast>/` exists and includes all required datasets (beam vector, pixel_pos_lab, detector normal, solid angle, absorption term if enabled, HKL fractional coords, structure-factor sample/neighbors when interpolating, Bragg/background contributions, sigma_readout/sigma_floor/variance, final masked model). Names and shapes match `spec-db-tracing.md`; extra fields are allowed.
+  - Expectation: `/trace/<panel>/<slow>_<fast>/` exists and includes all required datasets (beam vector, pixel_pos_lab, detector normal, solid angle, absorption term if enabled, HKL fractional coords, structure-factor sample/neighbors when interpolating, Bragg/background contributions, sigma_readout/sigma_floor/variance, final masked model). Names and shapes match `spec-db-tracing.md`; extra fields are allowed. HDF5 outputs SHALL also satisfy the schema in `spec-db-interfaces.md` (HDF5 Output Schema), including `/torch_diagnostics` attrs.
   - Command: `KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests -k DB_AT_040` (selector to be added once harness is wired).
 
 - DB‑AT‑050 VIS triptych/layout conformance

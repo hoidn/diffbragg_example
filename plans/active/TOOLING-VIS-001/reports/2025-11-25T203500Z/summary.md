@@ -1,5 +1,5 @@
 ### Turn Summary
-Documented that Stage A smoke diagnostics still resolve HKL to scaled.mtz even when calibration assets exist, so the failure signature stems from resolver drift not sigma routing.
-Updated docs/fix_plan.md and docs/data_dependency_manifest.md to capture the drift and authored a ready-for-implementation Do Now that forces the refined MTZ default plus exposes accurate HKL telemetry.
-Next: Ralph updates the fixtures/probes per the Do Now and reruns the mapping dataset probe plus DB-AT-028/029 to record refined-path telemetry even if the gates still fail.
-Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-25T203500Z/ (input.md)
+Implemented refined HKL default logic across Stage A fixtures and mapping helpers so calibration presence automatically selects refined structure factors.
+Both DB-AT-028/029 selectors now archive telemetry showing `hkl_source="refined"` and `hkl_path` pointing to `sp.proc/calibration/smoke_refined_structure_factors.mtz`; tests failed on chi²/pixel thresholds (expected) but telemetry capture succeeded.
+Next: supervisor can proceed with physics investigation knowing HKL/calibration defaults are aligned across fixtures and probes.
+Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-25T203500Z/ (pytest_db_at_028_029.log, mapping_context_fixture.json for both selectors)

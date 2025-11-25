@@ -8,6 +8,7 @@ Status
 - Applies to the `nanobrag_torch` backend, which is implemented but non‑default. The current CLI defaults to the legacy DiffBragg backend (`--backend diffbragg`), while `--backend nanobrag` opts into the torch path (Stage A on by default; Stage B/C behind flags). DiffBragg may diverge from these contracts.
 
 Units, Frames, and Conventions (Normative)
+- This shard is the canonical source for unit_mode (ADU vs photons), sigma_readout/sigma_floor semantics and precedence, and the variance/loss model. Other shards SHALL reference this section and MUST NOT redefine these rules.
 - Units:
   - Detector distances/pixel sizes: inputs in mm; internal meters.
   - Crystal: Å and degrees; convert to meters only for geometry‑physics dot products.

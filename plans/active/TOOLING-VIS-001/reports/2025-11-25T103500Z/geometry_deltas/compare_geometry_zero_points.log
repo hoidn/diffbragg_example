@@ -1,0 +1,30 @@
+Extracting geometry from 3 cases...
+  Loading refgeom from refGeom.expt...
+    Unit cell: a=27.3758 Å
+  Loading idx_refined from sp.proc/idx-0000_refined.expt...
+    Unit cell: a=27.4055 Å
+  Loading golden_refined from tests/fixtures/golden_data/simple_cubic/refined.expt...
+    Unit cell: a=27.3642 Å
+
+Computing deltas vs base case 'refgeom'...
+  idx_refined vs refgeom...
+  golden_refined vs refgeom...
+
+Wrote geometry deltas to plans/active/TOOLING-VIS-001/reports/2025-11-25T103500Z/geometry_deltas/geometry_deltas.json
+Wrote summary to plans/active/TOOLING-VIS-001/reports/2025-11-25T103500Z/geometry_deltas/summary.md
+
+============================================================
+SUMMARY
+============================================================
+
+idx_refined vs refgeom:
+  U rotation:          0.9469°
+  A* Frobenius:      7.775055e-04
+  Detector shift:       0.000 mm
+  Beam center shift:    0.000 mm
+
+golden_refined vs refgeom:
+  U rotation:          0.9724°
+  A* Frobenius:      8.188339e-04
+  Detector shift:       0.012 mm
+  Beam center shift:    0.055 mm

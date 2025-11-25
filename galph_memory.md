@@ -973,3 +973,14 @@ This is the **single most important diagnostic** to run before any other TOOLING
 - <Action State>: [planning]
 
 2025-11-25T140000Z focus=TOOLING-VIS-001 state=planning dwell=1 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T140000Z/ next_action=patch_refgeom_calib_and_rerun_db_at_028_029
+
+## 2025-11-25T140000Z — TOOLING-VIS-001 Sigma Provenance Bug Identified (Mapping Helper Ignores cli_map Source)
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics (calibration_config_path wiring)
+- Action Type: implementation
+- Key Observations: While threading calibration_config_path through refgeom_dataload fixture (commit TBD, artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-25T140000Z/), discovered **pre-existing sigma provenance bug** in `dbex/vis/mapping.py::_select_sigma_readout` (lines 86-92). Root cause: When DataLoad loads sigma tiles from `args.sigma_map` (DBEX_SMOKE_SIGMA_MAP_PATH env), it sets `dataload.sigma_readout_map_source = "cli_map"` (data_load.py:471). However, `_select_sigma_readout` ONLY accepts `sigma_source == "external_lookup"` (mapping.py:90), causing it to ignore metadata sigma tiles and fall back to default scalar (3.0 ADU). This explains why DB-AT-028/029 fixtures report `sigma_provenance: "cli_override (default scalar)"` despite DBEX_SMOKE_SIGMA_SOURCE=metadata being set and sigma tiles being loaded. **Impact**: All mapping-based Stage A contexts currently ignore cli_map sigma tiles, meaning metadata sigma env is non-functional for fixtures. **Recommended Fix**: Update `_select_sigma_readout` line 90 to accept both "cli_map" and "external_lookup" sources: `if sigma_map is not None and sigma_source in ("external_lookup", "cli_map"):`. This is a one-line fix with high confidence (~98%). **Calibration Wiring Status**: The primary focus (calibration_config_path plumbing) SUCCEEDED per Hard Gate: both mapping_context_fixture.json files show `calibration_path: sp.proc/calibration/config_torch_smoke.json` (non-null) and `spot_scale_override: 3.1e+17` (non-unit). DB-AT-028/029 executed with canonical metadata env, archived metrics, tests failed on chi²/pixel as expected (signatures unchanged). Sigma provenance bug is orthogonal to calibration wiring and existed before this loop.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-25T140000Z/
+- Next Actions: (Option 1) Fix _select_sigma_readout to accept "cli_map" source in a follow-up loop, rerun DB-AT-028/029 with metadata sigma actually flowing through mapping forward pass, verify chi²/pixel improves. (Option 2) Defer sigma fix until supervisor prioritizes it (calibration wiring is complete and orthogonal). Recommended: Option 1 as a quick win (one-line change, high confidence).
+- <Action State>: [implementation]
+
+2025-11-25T140000Z focus=TOOLING-VIS-001 state=implementation dwell=0 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T140000Z/ next_action=sigma_provenance_fix_or_defer

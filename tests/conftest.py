@@ -200,10 +200,14 @@ def refgeom_dataload(smoke_dataset_paths, smoke_sigma_source):
     else:
         hkl_path = repo_root / "scaled.mtz"
 
-    # Resolve calibration path from env or default
+    # Resolve calibration path: default to smoke calibration asset when present,
+    # otherwise honor DBEX_SMOKE_CALIB_PATH env, otherwise None
+    default_smoke_calib = repo_root / "sp.proc" / "calibration" / "config_torch_smoke.json"
     calib_path_override = os.environ.get("DBEX_SMOKE_CALIB_PATH")
     if calib_path_override:
         calib_path = repo_root / calib_path_override
+    elif default_smoke_calib.exists():
+        calib_path = default_smoke_calib
     else:
         calib_path = None
 
@@ -217,6 +221,7 @@ def refgeom_dataload(smoke_dataset_paths, smoke_sigma_source):
         exptIdx=0,
         sigma_map=str(smoke_dataset_paths.sigma_map_path) if smoke_dataset_paths.sigma_map_path else None,
         config_path=str(calib_path) if calib_path else None,
+        calibration_config_path=str(calib_path) if calib_path else None,
     )
 
     # Instantiate DataLoad

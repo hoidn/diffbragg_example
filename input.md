@@ -1,63 +1,63 @@
-Summary: Capture HKL/sigma-source provenance and compare metadata-sigma vs cli_override mapping forwards so we can explain the -0.04 ROI CC baseline before rerunning DB-AT-028/029.
+Summary: Compare scaled.mtz vs refined HKL mapping forwards to pinpoint the Stage A anti-correlation, aligning probe + DB-AT-028/029 fixtures on the same HKL override.
 Mode: Parity
 Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
 Branch: integration
 Mapped tests: tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity; tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity
-Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-25T060403Z/
+Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-25T061925Z/
 
 Do Now
-- Implement: plans/active/TOOLING-VIS-001/bin/compare_mapping_forward_cpu_gpu.py::main — add sigma/HKL provenance fields (sigma_source, HKL path, HKL count, spot_scale_override, masked/unmasked scale ratios) and support writing separate JSONs/logs for metadata-sigma and cli_override contexts under `mapping_variants/<sigma_source>/` so we can diff ROI CC/scale without rerunning code.
-- Implement: tests/dbex/test_stage_a_smoke_parity.py::stage_a_smoke_result — persist sigma_source, HKL path/count, spot_scale_override, and masked/unmasked scale ratios into DB-AT-028/029 metrics before assertions (no tolerance changes) to match the probe’s provenance fields.
-- Validate: Run the probe twice (metadata-sigma then cli_override) with canonical env, then rerun DB-AT-028/029 with metadata-sigma:  
-  `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 DBEX_SMOKE_SIGMA_SOURCE=metadata plans/active/TOOLING-VIS-001/bin/compare_mapping_forward_cpu_gpu.py --out-dir plans/active/TOOLING-VIS-001/reports/2025-11-25T060403Z/mapping_variants/metadata | tee plans/active/TOOLING-VIS-001/reports/2025-11-25T060403Z/mapping_variants/metadata/probe.log`;  
-  `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 DBEX_SMOKE_SIGMA_SOURCE=cli_override plans/active/TOOLING-VIS-001/bin/compare_mapping_forward_cpu_gpu.py --out-dir plans/active/TOOLING-VIS-001/reports/2025-11-25T060403Z/mapping_variants/cli_override | tee plans/active/TOOLING-VIS-001/reports/2025-11-25T060403Z/mapping_variants/cli_override/probe.log`;  
-  `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=small DBAT028_ARTIFACT_DIR=plans/active/TOOLING-VIS-001/reports/2025-11-25T060403Z/db_at_028 DBAT029_ARTIFACT_DIR=plans/active/TOOLING-VIS-001/reports/2025-11-25T060403Z/db_at_029 KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" | tee plans/active/TOOLING-VIS-001/reports/2025-11-25T060403Z/pytest_db_at_028_029.log`;  
-  `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest --collect-only tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" | tee plans/active/TOOLING-VIS-001/reports/2025-11-25T060403Z/pytest_db_at_028_029_collect.log`.
-- Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-25T060403Z/{mapping_variants/metadata/,mapping_variants/cli_override/,db_at_028/,db_at_029/,pytest_db_at_028_029.log,pytest_db_at_028_029_collect.log,summary.md}
+- Implement: plans/active/TOOLING-VIS-001/bin/compare_mapping_forward_cpu_gpu.py::main — add `--mtz-path` (defaulting to scaled.mtz or DBEX_SMOKE_HKL_PATH if set) so the probe can run both scaled and refined HKL inputs, propagate the chosen path/source into DataLoad + diagnostics, and keep sigma/HKL provenance fields in the JSON/log.
+- Implement: tests/dbex/test_torch_refine_smoke.py::refgeom_dataload — honor `DBEX_SMOKE_HKL_PATH` (default scaled.mtz) when constructing the DataLoad so the Stage A smoke fixture and mapping probe share the same HKL source without changing defaults for other tests; ensure the HKL path/count already emitted in db_at_028/db_at_029 metrics reflects the override.
+- Validate: Run the probe twice (scaled then refined HKL) and rerun DB-AT-028/029 with metadata sigma using the refined HKL override:  
+  `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_HKL_PATH=scaled.mtz KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 plans/active/TOOLING-VIS-001/bin/compare_mapping_forward_cpu_gpu.py --out-dir plans/active/TOOLING-VIS-001/reports/2025-11-25T061925Z/mapping_scaled | tee plans/active/TOOLING-VIS-001/reports/2025-11-25T061925Z/mapping_scaled/probe.log`;  
+  `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_HKL_PATH=tests/fixtures/golden_data/simple_cubic/refined_structure_factors.mtz KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 plans/active/TOOLING-VIS-001/bin/compare_mapping_forward_cpu_gpu.py --out-dir plans/active/TOOLING-VIS-001/reports/2025-11-25T061925Z/mapping_refined | tee plans/active/TOOLING-VIS-001/reports/2025-11-25T061925Z/mapping_refined/probe.log`;  
+  `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_HKL_PATH=tests/fixtures/golden_data/simple_cubic/refined_structure_factors.mtz DBAT028_ARTIFACT_DIR=plans/active/TOOLING-VIS-001/reports/2025-11-25T061925Z/db_at_028 DBAT029_ARTIFACT_DIR=plans/active/TOOLING-VIS-001/reports/2025-11-25T061925Z/db_at_029 KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" | tee plans/active/TOOLING-VIS-001/reports/2025-11-25T061925Z/pytest_db_at_028_029.log`;  
+  `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_HKL_PATH=tests/fixtures/golden_data/simple_cubic/refined_structure_factors.mtz KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest --collect-only tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" | tee plans/active/TOOLING-VIS-001/reports/2025-11-25T061925Z/pytest_db_at_028_029_collect.log`.
+- Artifacts: plans/active/TOOLING-VIS-001/reports/2025-11-25T061925Z/{mapping_scaled/,mapping_refined/,db_at_028/,db_at_029/,pytest_db_at_028_029.log,pytest_db_at_028_029_collect.log,summary.md}
 
 How-To Map
-1) Export canonical env vars per command snippets; keep `DBEX_SMOKE_DETECTOR_SIZE=small`, `KMP_DUPLICATE_LIB_OK=TRUE`, `NANOBRAGG_DISABLE_COMPILE=1`, and swap only `DBEX_SMOKE_SIGMA_SOURCE` between metadata and cli_override for the probe runs.
-2) Extend `compare_mapping_forward_cpu_gpu.py` to emit sigma_source, HKL path/count, spot_scale_override, masked/unmasked scale ratios, and parity deltas into the JSON it already writes; add CLI args or directory naming so metadata vs cli_override runs write to `mapping_variants/<sigma_source>/`.
-3) Update `stage_a_smoke_result` to include sigma/HKL provenance (path, count) and spot_scale_override in the db_at_028/db_at_029 metrics; keep existing ROI CC/scale/clamp assertions unchanged.
-4) Run the two probe commands (metadata then cli_override) capturing JSON + logs under the artifacts path; verify JSONs include ROI CC, scale ratios (masked/unmasked), sigma_source, HKL path/count, spot_scale_override.
-5) Run pytest execution and collect-only for DB-AT-028/029 with metadata-sigma; ensure metrics JSONs persist even on failure.
-6) Summarize probe deltas (metadata vs cli_override) and DB-AT-028/029 signatures in summary.md, noting whether sigma source/HKL differences explain the -0.04 ROI CC baseline.
+1) Add `--mtz-path` to the probe CLI; default to `Path(repo_root/"scaled.mtz")` when neither CLI arg nor DBEX_SMOKE_HKL_PATH is set, and resolve relative paths against repo root to avoid cwd surprises; propagate the selected path/source into DataLoad and the JSON summary.
+2) Update `refgeom_dataload` to read DBEX_SMOKE_HKL_PATH (if set) and pass it to DataLoad; keep scaled.mtz as the default so other tests stay unchanged. Ensure the HKL path/count in the DB-AT metrics reflect this override (metrics already recorded in stage_a_smoke_result).
+3) Run the mapping probe twice with the commands above, verifying each JSON/log captures ROI CC, scale ratios, sigma_source, hkl_path/count, spot_scale_override, and parity metrics.
+4) Rerun DB-AT-028/029 with metadata sigma and the refined HKL override; capture execution + collect-only logs plus db_at_028/db_at_029 metrics JSONs (should persist even on failure).
+5) Summarize scaled vs refined ROI CC/scale deltas and DB-AT-028/029 signatures in summary.md, noting whether refined HKL improves correlation.
 
 Pitfalls To Avoid
 - Do not change DB-AT-028/029 tolerances or masking; diagnostics only.
-- Keep dataset/provenance fixed across runs except for sigma_source; do not swap HKL files beyond controlled logging.
-- Persist metrics before assertions; avoid early exits that drop JSON/logs.
-- No environment/package changes (Environment Freeze); keep torch.compile disabled.
-- Avoid mixing masked and unmasked ratios in the same field; name them explicitly.
+- Keep defaults intact when DBEX_SMOKE_HKL_PATH is unset to avoid disrupting other fixtures/selectors.
+- Resolve HKL paths relative to repo root to avoid missing-file errors in CI.
+- Ensure probe and pytest runs use the same sigma source (metadata) and detector size (small); no ad-hoc dataset swaps.
+- Persist metrics before assertions so artifacts exist even on failure; keep torch.compile disabled.
+- No environment or dependency changes (Environment Freeze).
 
 If Blocked
-- Capture both probe JSON/logs and pytest logs to the artifacts path, record observed ROI CC/scale ratios for metadata vs cli_override in summary.md and docs/fix_plan.md Attempts History, and mark TOOLING-VIS-001 blocked if CUDA unavailable or sigma_source swap fails to collect data.
+- Save both probe JSONs/logs and pytest logs to the artifacts path, record ROI CC/scale ratios for scaled vs refined HKL in summary.md and docs/fix_plan.md Attempts History, and mark TOOLING-VIS-001 blocked if HKL override cannot be honored or selectors fail to collect.
 
 Findings Applied (Mandatory)
-- STAGEA-001 — Reuse calibrated mapping baselines and log diagnostics before gating.
-- GEOMETRY-003 / GEOMETRY-004 — Preserve HKL provenance and mapping zero-point invariants when comparing contexts.
+- STAGEA-001 — Preserve calibrated mapping baselines and log diagnostics before gating.
+- GEOMETRY-003 / GEOMETRY-004 — Maintain mapping zero-point invariants and HKL provenance.
 - PHYSICS-LOSS-001 — Keep variance-weighted chi² semantics and loss_mask pixel counts.
-- POLICY-001 — Environment Freeze; no new dependencies or toolchain changes.
-- CONFORMANCE-001 — Archive pytest logs and collect-only output for DB-AT selectors.
+- POLICY-001 — Environment Freeze; no new deps or toolchain changes.
+- CONFORMANCE-001 — Archive pytest execution + collect-only logs for DB-AT selectors.
 
 Pointers
 - docs/spec-db-conformance.md:280-366 (DB-AT-028/029 tolerances)
 - docs/TESTING_GUIDE.md:150-190 (DB-AT env/commands, artifact expectations)
-- tests/dbex/test_stage_a_smoke_parity.py:1-240 (Stage A smoke fixture + metrics/diagnostics)
-- plans/active/TOOLING-VIS-001/bin/compare_mapping_forward_cpu_gpu.py (probe to extend with sigma/HKL provenance)
-- docs/findings.md#L9 (STAGEA-001 calibration baseline handling)
+- tests/dbex/test_torch_refine_smoke.py:97-133 (refgeom_dataload DataLoad construction)
+- plans/active/TOOLING-VIS-001/bin/compare_mapping_forward_cpu_gpu.py (probe to extend with HKL override)
+- tests/dbex/test_stage_a_smoke_parity.py:70-240 (Stage A parity fixture + metrics)
 
 Next Up (optional)
-- If sigma_source swap isolates the ROI CC gap, plan a follow-up loop to align mapping/Stage A config to the passing source before re-running DB-AT-028/029.
+- If refined HKL improves ROI CC, plan follow-up to choose the canonical HKL source and update DB-AT-028/029 gate status and docs accordingly.
 
 Doc Sync Plan (Conditional)
-- None this loop unless DB-AT-028/029 status changes; if status flips, update docs/TESTING_GUIDE.md §2 and docs/development/TEST_SUITE_INDEX.md after tests pass and archive collect-only logs.
+- None unless DB-AT-028/029 status changes; if they flip, archive collect-only logs and update docs/TESTING_GUIDE.md §2 + docs/development/TEST_SUITE_INDEX.md after tests pass.
 
 Mapped Tests Guardrail
-- Ensure `pytest --collect-only tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029"` collects both selectors (>0); keep the collect-only log in artifacts.
+- Ensure `pytest --collect-only tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029"` collects both selectors (>0); treat zero collection as a blocker.
 
 Hard Gate
-- Do not close the loop without metadata vs cli_override probe JSONs (with sigma/HKL provenance) and db_at_028/db_at_029 metrics plus summary.md notes on ROI CC/scale ratios; treat zero-collected selectors as a blocker.
+- Do not finish without both probe JSONs (scaled + refined HKL) and db_at_028/db_at_029 metrics plus summary.md notes comparing ROI CC/scale ratios; if selectors still fail, log signatures and keep focus open.
 
 Normative Math/Physics
-- Use docs/spec-db-conformance.md §280-366 and docs/spec-db-core.md §84-90 directly for χ²/variance/ROI CC definitions; no tolerance relaxation or paraphrased equations.
+- Use docs/spec-db-conformance.md §280-366 for DB-AT-028/029 gates and docs/spec-db-core.md §84-90 for variance/ROI CC definitions; no tolerance relaxation or paraphrased equations.

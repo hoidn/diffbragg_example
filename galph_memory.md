@@ -846,3 +846,14 @@ This is the **single most important diagnostic** to run before any other TOOLING
 🔴 **ARTIFACTS:** Plans/active/TOOLING-VIS-001/reports/<next_timestamp>/sigma_source_comparison/
 
 ---
+
+## 2025-11-25T061925Z — TOOLING-VIS-001 HKL Override Planning (mapping anti-correlation persists)
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
+- Action Type: planning
+- Key Observations: Sigma-source provenance probe completed (plans/active/TOOLING-VIS-001/reports/2025-11-25T060403Z/); both metadata and cli_override runs show ROI CC≈-0.04 with HKL_count=69614 and spot_scale_override≈3.18e17. DB-AT-028/029 still fail with chi²/pixel≈1.08e5, median_corr_before≈-0.05. Conclusion: sigma source is not the cause; mapping forward configuration (HKL/geometry) remains the suspected root cause.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-25T061925Z/
+- Next Actions: Add HKL/MTZ override support (scaled.mtz vs tests/fixtures/golden_data/simple_cubic/refined_structure_factors.mtz) to the mapping probe and refgeom_dataload fixture, then run probes + DB-AT-028/029 under metadata sigma to see if refined HKL improves ROI CC.
+- <Action State>: [ready_for_implementation]
+
+2025-11-25T061925Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=1 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T061925Z/ next_action=hkl_override_probe_and_db_at_028_029

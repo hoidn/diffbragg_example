@@ -1121,3 +1121,14 @@ This is the **single most important diagnostic** to run before any other TOOLING
 - <Action State>: [ready_for_implementation]
 
 2025-11-25T220500Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=2 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T220500Z/ next_action=implement_n_cells_gate_and_rerun_db_at_028_029
+
+## 2025-11-25T230500Z — TOOLING-VIS-001 N_cells gate telemetry review
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
+- Action Type: planning
+- Key Observations: Mapping_context fixtures confirm the new apply_calibration_n_cells gate flips ROI CC from -0.0373 to +0.0470 (plans/active/TOOLING-VIS-001/reports/2025-11-25T213500Z/ vs 2025-11-25T220500Z/), but masked Bragg intensity collapses by ~1e5× (64.38 → 5.74e-04) and `global_scale_hint` blows up (1.35 → 1.52e5). We need structured probe output that records n_cells_applied/suppression_reason plus masked target/model means so we can quantify how spot_scale_override interacts with N_cells across calibration variants.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-25T230500Z/
+- Next Actions: Add `metadata_calibrated_drop_ncells` and telemetry fields to compare_mapping_dataset_metrics.py, rerun the probe for metadata_raw/metadata_calibrated/metadata_calibrated_drop_ncells/metadata_calibrated_spot1/metadata_calibrated_spot1_drop_ncells, then rerun DB-AT-028/029 under the canonical metadata env archiving logs in the same report directory.
+- <Action State>: [ready_for_implementation]
+
+2025-11-25T230500Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=0 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T230500Z/ next_action=run_drop_ncells_probe_and_db_at_028_029

@@ -1,0 +1,32 @@
+{
+  "dataset_name": "smoke_calibration",
+  "generation_timestamp": "2025-11-25T07:34:21.263418Z",
+  "generator_command": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/TOOLING-VIS-001/bin/capture_smoke_calibration.py --expt /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/idx-0000_sigma_metadata.expt --refl /home/ollie/Documents/diffbragg_example_2/diffbragg_example/refGeom.refl --mask /home/ollie/Documents/diffbragg_example_2/diffbragg_example/747_mask.pkl --mtz /home/ollie/Documents/diffbragg_example_2/diffbragg_example/scaled.mtz --out-config sp.proc/calibration/config_torch_smoke.json --manifest plans/active/TOOLING-VIS-001/reports/2025-11-25T083500Z/smoke_calibration_manifest.json",
+  "git_revision": "6b0838b7088988d75b55cf082216f2a551fbb799",
+  "files": {
+    "calibration_config": {
+      "filename": "config_torch_smoke.json",
+      "path": "sp.proc/calibration/config_torch_smoke.json",
+      "sha256": "157865438017a35f4b05a107a54283599b3e8e85f42d41b81df18fc8ebde12db",
+      "size_bytes": 726
+    }
+  },
+  "inputs": {
+    "experiment": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/idx-0000_sigma_metadata.expt",
+    "reflections": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/refGeom.refl",
+    "mtz": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/scaled.mtz",
+    "mask": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/747_mask.pkl"
+  },
+  "calibration": {
+    "spot_scale_override": 3.105058665484234e+17,
+    "beam_flux": 1000000000000.0,
+    "beam_exposure": 1.0,
+    "beamsize_mm": 1.0,
+    "N_cells": [
+      36,
+      28,
+      26
+    ]
+  },
+  "manifest_sha256": "00b82a8af736f556f8ae21622e37d9263e3536c84d6cef9f99c72640e1a042d1"
+}

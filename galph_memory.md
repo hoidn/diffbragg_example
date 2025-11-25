@@ -1099,3 +1099,15 @@ This is the **single most important diagnostic** to run before any other TOOLING
 - <Action State>: [planning]
 
 2025-11-25T213500Z focus=TOOLING-VIS-001 state=planning dwell=1 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T213500Z/ next_action=capture_small_calibration_and_rerun_db_at_028_029
+
+## 2025-11-25T133505Z — TOOLING-VIS-001 Calibration Component Isolation Plan
+
+- Focus: TOOLING-VIS-001 — Stage A Mapping Alignment & Visual Diagnostics
+- Action Type: planning
+- Key Observations: Even with detector-specific calibration assets wired everywhere, the latest `mapping_dataset_metrics.json` shows calibrated cases stuck at ROI CC≈-0.037 while raw cases remain positive, and the metadata-vs-CLI sigma sweep proved sigma tiles are not the culprit. The remaining variables are the DiffBragg calibration fields (spot_scale_override≈4.8e+17 and N_cells deltas), so we need evidence that toggles those fields before touching Stage A physics.
+- Decisions: Authored a ready-for-implementation Do Now directing Ralph to extend `compare_mapping_dataset_metrics.py` with calibration-variant materialization (spot_scale forced to 1, optional N_cells removal), rerun the probe for `{metadata_raw, metadata_calibrated, metadata_calibrated_spot1, metadata_calibrated_spot1_drop_ncells}`, and rerun DB-AT-028/029 so the new report directory captures both the calibration sweep and refreshed failure signatures.
+- Artifact Path: plans/active/TOOLING-VIS-001/reports/2025-11-25T133505Z/
+- Next Actions: Extend the probe, produce the calibration-variant metrics/ROI artifacts, and re-execute the metadata smoke selectors with the canonical env.
+- <Action State>: [ready_for_implementation]
+
+2025-11-25T133505Z focus=TOOLING-VIS-001 state=ready_for_implementation dwell=2 artifacts=plans/active/TOOLING-VIS-001/reports/2025-11-25T133505Z/ next_action=calibration_variant_probe_plus_db_at_028_029

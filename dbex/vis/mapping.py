@@ -97,6 +97,7 @@ def build_mapping_stage_a_context(
     *,
     default_sigma_readout: float = 3.0,
     device: str = "cpu",
+    apply_calibration_n_cells: bool = True,
 ) -> MappingStageAContext:
     """Build a mapping-based Stage A context for visualization.
 
@@ -131,6 +132,9 @@ def build_mapping_stage_a_context(
         default_sigma_readout: Fallback sigma value (in ADU) when no calibrated
             sigma map is available.
         device: Torch device string forwarded to :func:`simulate_forward_once`.
+        apply_calibration_n_cells: Whether to apply N_cells from calibration metadata
+            (default True). Set False for small-detector metadata fixtures to suppress
+            Stage-A anti-correlation (TOOLING-VIS-001).
 
     Returns:
         MappingStageAContext with prepared inputs, zero-iteration Bragg stack,
@@ -199,6 +203,7 @@ def build_mapping_stage_a_context(
         hkl_source=hkl_source,
         hkl_path=hkl_path,
         device=device,
+        apply_calibration_n_cells=apply_calibration_n_cells,
     )
 
     if diagnostics is None:
@@ -423,6 +428,8 @@ def emit_mapping_context_diagnostics(
         - global_scale_hint: global_scale_hint from mapping_context.inputs (or null)
         - sigma_floor_value: sigma_floor used in mapping context
         - spot_scale_override: spot_scale_override from mapping_context (or null)
+        - n_cells_applied: boolean indicating whether N_cells was applied (TOOLING-VIS-001)
+        - n_cells_suppression_reason: string explaining why N_cells was suppressed (TOOLING-VIS-001)
     """
     import json
     from datetime import datetime, timezone
@@ -556,6 +563,10 @@ def emit_mapping_context_diagnostics(
     if global_scale_hint is not None:
         global_scale_hint = float(global_scale_hint)
 
+    # TOOLING-VIS-001: Extract N_cells telemetry from diagnostics
+    n_cells_applied = mapping_context.diagnostics.get("n_cells_applied", None)
+    n_cells_suppression_reason = mapping_context.diagnostics.get("n_cells_suppression_reason", None)
+
     # Build diagnostics dict
     diagnostics_dict = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -583,6 +594,8 @@ def emit_mapping_context_diagnostics(
         "global_scale_hint": global_scale_hint,
         "sigma_floor_value": sigma_floor_value,
         "spot_scale_override": spot_scale_override,
+        "n_cells_applied": n_cells_applied,
+        "n_cells_suppression_reason": n_cells_suppression_reason,
     }
 
     # Write JSON

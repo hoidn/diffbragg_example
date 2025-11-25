@@ -97,10 +97,14 @@ def compute_cpu_gpu_mapping_metrics(
     # Build CPU context
     print("Building CPU mapping context...")
     try:
+        # TOOLING-VIS-001: Pass through apply_calibration_n_cells from dataload
+        apply_n_cells = getattr(dataload, 'apply_calibration_n_cells', True)
+
         cpu_context = build_mapping_stage_a_context(
             dataload,
             default_sigma_readout=default_sigma_readout,
             device="cpu",
+            apply_calibration_n_cells=apply_n_cells,
         )
 
         cpu_bragg = cpu_context.bragg_zero_iter
@@ -167,10 +171,12 @@ def compute_cpu_gpu_mapping_metrics(
     # Build CUDA context
     print("Building CUDA mapping context...")
     try:
+        # TOOLING-VIS-001: Use same apply_calibration_n_cells as CPU context
         gpu_context = build_mapping_stage_a_context(
             dataload,
             default_sigma_readout=default_sigma_readout,
             device="cuda:0",
+            apply_calibration_n_cells=apply_n_cells,
         )
 
         gpu_bragg = gpu_context.bragg_zero_iter

@@ -345,11 +345,12 @@ def define_cases(out_dir: Optional[Path] = None) -> Dict[str, Dict[str, str]]:
     return cases
 
 
-def build_dataload_for_case(case_spec: Dict[str, str]) -> DataLoad:
+def build_dataload_for_case(case_spec: Dict[str, str], case_name: str = "") -> DataLoad:
     """Build a DataLoad instance for a specific case configuration.
 
     Args:
         case_spec: dict with keys {expt, refl, mask, hkls, calibration, sigma_map, sigma_source}
+        case_name: Name of the case (used to determine apply_calibration_n_cells)
 
     Returns:
         DataLoad instance configured for this case
@@ -361,6 +362,11 @@ def build_dataload_for_case(case_spec: Dict[str, str]) -> DataLoad:
     - When case_spec["sigma_source"]=="cli_override", sigma_map is None so DataLoad
       will rely on the default_sigma CLI override passed to compute_case_metrics.
     - Keep HKL and calibration overrides per case (no swapping experiments).
+
+    TOOLING-VIS-001: Determines apply_calibration_n_cells from calibration_variant or case name:
+    - Cases with calibration_variant containing "N_cells removed" suppress N_cells
+    - Cases with "_drop_ncells" in the name suppress N_cells
+    - Otherwise, N_cells is applied when present in calibration metadata
     """
     # Detect MTZ column labels: refined structure factors use Bijvoet pairs
     hkl_path_obj = Path(case_spec["hkls"])
@@ -392,6 +398,14 @@ def build_dataload_for_case(case_spec: Dict[str, str]) -> DataLoad:
 
     # Build DataLoad (sigma handling via args.sigma_map when metadata source)
     dataload = DataLoad(args)
+
+    # TOOLING-VIS-001: Determine apply_calibration_n_cells from case spec or name
+    # Check if calibration variant explicitly removed N_cells
+    calibration_variant = case_spec.get("calibration_variant", "")
+    if "N_cells removed" in calibration_variant or "drop_ncells" in case_name.lower():
+        dataload.apply_calibration_n_cells = False
+    else:
+        dataload.apply_calibration_n_cells = True
 
     return dataload
 
@@ -431,14 +445,18 @@ def compute_case_metrics(
     print(f"  sigma_source: {sigma_source}")
     print(f"  sigma_map: {case_spec.get('sigma_map', 'None')}")
 
-    # Build DataLoad for this case
-    dataload = build_dataload_for_case(case_spec)
+    # Build DataLoad for this case (pass case_name to determine apply_calibration_n_cells)
+    dataload = build_dataload_for_case(case_spec, case_name=case_name)
+
+    # Extract apply_calibration_n_cells from dataload (TOOLING-VIS-001)
+    apply_n_cells = getattr(dataload, 'apply_calibration_n_cells', True)
 
     # Build mapping context reusing canonical helper (TOOLING-VIS-001 requirement)
     mapping_context = build_mapping_stage_a_context(
         dataload,
         default_sigma_readout=default_sigma,
         device=device,
+        apply_calibration_n_cells=apply_n_cells,
     )
 
     # Extract inputs and Bragg stack

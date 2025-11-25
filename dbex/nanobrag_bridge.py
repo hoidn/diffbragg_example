@@ -1819,6 +1819,7 @@ def simulate_forward_once(
     hkl_path: Optional[str] = None,
     device=None,
     sigma_floor_value: float = 1.0,
+    apply_calibration_n_cells: bool = True,
 ) -> Tuple[np.ndarray, dict]:
     """
     Run zero-iteration forward simulation without HDF5 emission.
@@ -1850,6 +1851,9 @@ def simulate_forward_once(
         hkl_path: Optional path to MTZ file for diagnostics
         device: torch.device for simulation (default cpu)
         sigma_floor_value: Variance floor (sigma_floor) in target units (photons or ADU).
+        apply_calibration_n_cells: Whether to apply N_cells from calibration dict when
+                                   present (default True). Set to False to suppress N_cells
+                                   for small-detector metadata fixtures (TOOLING-VIS-001).
 
     Returns:
         bragg: Per-panel Bragg tensors [panel, slow, fast] as float32 numpy array
@@ -1863,6 +1867,7 @@ def simulate_forward_once(
             - spot_scale_override: Scale override used
             - sqrt_spot_scale: Sqrt(spot_scale_override) applied
             - n_cells_applied: Bool indicating whether N_cells was passed to CrystalConfig
+            - n_cells_suppression_reason: String explaining why N_cells was not applied (if suppressed)
             - bragg_stats: Dict with min/max/mean of bragg output
             - hkl_stats: HKL grid metadata from build_structure_factor_grid
             - hkl_telemetry: Dict with structure-factor metadata:
@@ -1942,7 +1947,17 @@ def simulate_forward_once(
     # Build crystal_config with N_cells gating per SCALE-005
     # Enable apply_n_cells when calibration provides N_cells (sample clipping via beam_config)
     # Per 2025-11-04T185107Z analysis: N_cells + beam sample clipping recovers parity
-    apply_n_cells = N_cells is not None
+    # TOOLING-VIS-001: apply_calibration_n_cells flag gates N_cells for small-detector metadata fixtures
+    n_cells_suppression_reason = None
+    if N_cells is not None and not apply_calibration_n_cells:
+        apply_n_cells = False
+        n_cells_suppression_reason = "apply_calibration_n_cells=False (small-detector metadata fixture gate)"
+    elif N_cells is None:
+        apply_n_cells = False
+        n_cells_suppression_reason = "N_cells not present in calibration metadata"
+    else:
+        apply_n_cells = True
+
     crystal_config, n_cells_applied = create_crystal_config(
         crystal,
         experiment,
@@ -2049,6 +2064,7 @@ def simulate_forward_once(
         "spot_scale_override": float(spot_scale_override),
         "sqrt_spot_scale": float(sqrt_spot_scale),
         "n_cells_applied": n_cells_applied,  # input.md Do Now step 4: track whether N_cells was used
+        "n_cells_suppression_reason": n_cells_suppression_reason,  # TOOLING-VIS-001: audit why N_cells was suppressed
         "bragg_stats": {
             "min": float(bragg.min()),
             "max": float(bragg.max()),

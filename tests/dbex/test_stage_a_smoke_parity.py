@@ -88,10 +88,14 @@ def stage_a_smoke_result(
     device_obj = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     device = str(device_obj)
 
+    # TOOLING-VIS-001: Pass through apply_calibration_n_cells from fixture
+    apply_n_cells = getattr(refgeom_dataload, 'apply_calibration_n_cells', True)
+
     mapping_context = build_mapping_stage_a_context(
         refgeom_dataload,
         default_sigma_readout=3.0,
         device=device,
+        apply_calibration_n_cells=apply_n_cells,
     )
 
     # Use mapping_context.inputs directly (TOOLING-VIS-001 alignment requirement)

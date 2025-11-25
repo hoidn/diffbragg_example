@@ -300,6 +300,14 @@ def refgeom_dataload(smoke_dataset_paths, smoke_sigma_source, smoke_detector_siz
         "canonical_source": "DBEX_SMOKE_GEOM_PATH" if os.environ.get("DBEX_SMOKE_GEOM_PATH") else "default",
     }
 
+    # TOOLING-VIS-001: Gate N_cells for small-detector metadata fixtures to suppress Stage-A anti-correlation
+    # Apply N_cells only when NOT (small detector AND metadata sigma source)
+    # Default to True for full-detector runs and raw-sigma runs
+    if smoke_detector_size == "small" and smoke_sigma_source == "metadata":
+        dataload.apply_calibration_n_cells = False
+    else:
+        dataload.apply_calibration_n_cells = True
+
     return dataload
 
 

@@ -29,7 +29,7 @@ import os
 import sys
 from argparse import Namespace
 from pathlib import Path
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import numpy as np
 import torch
@@ -42,6 +42,7 @@ sys.path.insert(0, str(repo_root))
 
 from dbex.data_load import DataLoad
 from dbex.vis.mapping import build_mapping_stage_a_context
+from dbex.vis.triptych import plot_triptych
 
 
 def _pearson_cc(data_roi: np.ndarray, model_roi: np.ndarray, mask_roi: np.ndarray) -> float:
@@ -131,6 +132,31 @@ def define_cases() -> Dict[str, Dict[str, str]]:
                 sigma_map_path = repo / "sp.proc" / "idx-0000_sigma_metadata.sigma_tiles.pkl"
 
     cases = {
+        "scaled_raw": {
+            "expt": str(geom_path),
+            "refl": str(refl_path),
+            "mask": str(mask_path),
+            "hkls": str(repo / "scaled.mtz"),
+            "calibration": None,  # Calibration explicitly disabled for raw case
+            "sigma_map": str(sigma_map_path) if sigma_map_path else None,
+        },
+        "scaled_calibrated": {
+            "expt": str(geom_path),
+            "refl": str(refl_path),
+            "mask": str(mask_path),
+            "hkls": str(repo / "scaled.mtz"),
+            "calibration": str(repo / "sp.proc" / "calibration" / "config_torch_smoke.json"),
+            "sigma_map": str(sigma_map_path) if sigma_map_path else None,
+        },
+        "refined_calibrated": {
+            "expt": str(geom_path),
+            "refl": str(refl_path),
+            "mask": str(mask_path),
+            "hkls": str(repo / "tests" / "fixtures" / "golden_data" / "simple_cubic" / "refined_structure_factors.mtz"),
+            "calibration": str(repo / "tests" / "fixtures" / "golden_data" / "simple_cubic" / "config_torch.json"),
+            "sigma_map": str(sigma_map_path) if sigma_map_path else None,
+        },
+        # Legacy aliases for backward compatibility
         "metadata_scaled": {
             "expt": str(geom_path),
             "refl": str(refl_path),
@@ -207,6 +233,9 @@ def compute_case_metrics(
     sigma_source: str,
     default_sigma: float,
     device: str,
+    emit_roi_artifacts: bool = False,
+    roi_count: int = 16,
+    roi_artifacts_dir: Optional[Path] = None,
 ) -> Dict:
     """Build mapping context for a case and compute metrics.
 
@@ -216,6 +245,9 @@ def compute_case_metrics(
         sigma_source: "metadata" or "override"
         default_sigma: Fallback sigma value
         device: Device string (e.g., "cpu", "cuda:0")
+        emit_roi_artifacts: If True, emit PNG+NPZ for lowest-correlation ROIs
+        roi_count: Number of ROIs to emit (default 16)
+        roi_artifacts_dir: Directory for ROI artifacts (required if emit_roi_artifacts=True)
 
     Returns:
         Dictionary with per-case metrics plus diagnostics
@@ -273,6 +305,13 @@ def compute_case_metrics(
     sigma_floor_value = float(mapping_context.sigma_floor_value)
     spot_scale_override = float(mapping_context.spot_scale_override) if mapping_context.spot_scale_override is not None else None
 
+    # Extract HKL telemetry (structure factor metadata) from diagnostics
+    hkl_telemetry = diagnostics.get("hkl_telemetry", {})
+
+    # Extract sigma provenance from dataload
+    sigma_readout_map_source = getattr(dataload, "sigma_readout_map_source", "unknown")
+    sigma_map_path_used = case_spec.get("sigma_map")
+
     # Compute global_scale_hint (used by Stage A engine)
     global_scale_hint = float(inputs.global_scale_hint) if inputs.global_scale_hint is not None else float("nan")
 
@@ -286,8 +325,96 @@ def compute_case_metrics(
     print(f"  hkl_path: {hkl_path}")
     print(f"  hkl_count: {hkl_count}")
     print(f"  sigma_floor_value: {sigma_floor_value}")
+    print(f"  sigma_readout_map_source: {sigma_readout_map_source}")
+    print(f"  sigma_map_path: {sigma_map_path_used}")
     print(f"  spot_scale_override: {spot_scale_override}")
     print(f"  global_scale_hint: {global_scale_hint}")
+
+    # Emit ROI artifacts if requested
+    if emit_roi_artifacts and roi_artifacts_dir is not None:
+        roi_artifacts_dir.mkdir(parents=True, exist_ok=True)
+        print(f"\n  Emitting ROI artifacts to {roi_artifacts_dir}...")
+
+        # Compute per-ROI metrics for artifact selection
+        roi_metrics_list = []
+        for roi_idx, (pid, bbox) in enumerate(inputs.panel_slices):
+            x0, x1, y0, y1 = bbox
+            data_roi = target[int(pid), y0:y1, x0:x1]
+            model_roi = bragg_mapping[int(pid), y0:y1, x0:x1]
+            roi_mask = loss_mask[int(pid), y0:y1, x0:x1]
+
+            if not np.any(roi_mask):
+                corr = float("nan")
+            else:
+                corr = _pearson_cc(data_roi, model_roi, roi_mask)
+
+            roi_metrics_list.append({
+                "roi_idx": roi_idx,
+                "panel_id": int(pid),
+                "bbox": [int(x0), int(x1), int(y0), int(y1)],
+                "correlation": corr,
+            })
+
+        # Sort by correlation (lowest first, NaN at end)
+        def sort_key(x):
+            c = x["correlation"]
+            return (np.isnan(c), c if not np.isnan(c) else float("inf"))
+
+        roi_metrics_list.sort(key=sort_key)
+
+        # Emit artifacts for N lowest-correlation ROIs
+        n_emit = min(roi_count, len(roi_metrics_list))
+        print(f"  Emitting {n_emit} lowest-correlation ROIs...")
+
+        for i, roi_info in enumerate(roi_metrics_list[:n_emit]):
+            roi_idx = roi_info["roi_idx"]
+            pid = roi_info["panel_id"]
+            x0, x1, y0, y1 = roi_info["bbox"]
+            corr = roi_info["correlation"]
+
+            data_roi = target[pid, y0:y1, x0:x1]
+            model_roi = bragg_mapping[pid, y0:y1, x0:x1]
+            roi_mask = loss_mask[pid, y0:y1, x0:x1]
+
+            # Compute variance (per spec-db-core.md: V = I_model + sigma_readout^2, clamped to sigma_floor^2)
+            variance_roi = np.maximum(
+                model_roi + default_sigma ** 2,
+                sigma_floor_value ** 2
+            )
+
+            # Compute residual Z-score
+            residual_roi = data_roi - model_roi
+
+            # Save NPZ
+            npz_path = roi_artifacts_dir / f"roi_{roi_idx:04d}_corr_{corr:.3f}.npz"
+            np.savez(
+                npz_path,
+                data=data_roi,
+                model=model_roi,
+                residual=residual_roi,
+                variance=variance_roi,
+                mask=roi_mask,
+                correlation=corr,
+                panel_id=pid,
+                bbox=[x0, x1, y0, y1],
+            )
+
+            # Generate PNG triptych
+            png_path = roi_artifacts_dir / f"roi_{roi_idx:04d}_corr_{corr:.3f}.png"
+            try:
+                plot_triptych(
+                    data=data_roi,
+                    model=model_roi,
+                    variance=variance_roi,
+                    hkl=None,  # HKL index not available in this context
+                    correlation=corr,
+                    filename=str(png_path),
+                )
+                print(f"    [{i+1:2d}/{n_emit}] ROI {roi_idx:4d}: corr={corr:7.3f} -> {png_path.name}")
+            except Exception as e:
+                print(f"    WARNING: Failed to generate triptych for ROI {roi_idx}: {e}")
+
+        print(f"  ROI artifacts emission complete.")
 
     return {
         "case_name": case_name,
@@ -304,6 +431,9 @@ def compute_case_metrics(
         "hkl_source": hkl_source,
         "hkl_path": hkl_path,
         "hkl_count": hkl_count,
+        "hkl_telemetry": hkl_telemetry,
+        "sigma_readout_map_source": sigma_readout_map_source,
+        "sigma_map_path": sigma_map_path_used,
         "n_rois": len(valid_corrs),
         "device": device,
     }
@@ -379,6 +509,17 @@ def main():
         default=3.0,
         help="Default sigma_readout value when external tiles unavailable (default: 3.0 ADU)",
     )
+    parser.add_argument(
+        "--emit-roi-artifacts",
+        action="store_true",
+        help="Emit per-case ROI stacks (data/model/residual PNG+NPZ) for inspection",
+    )
+    parser.add_argument(
+        "--roi-count",
+        type=int,
+        default=16,
+        help="Number of lowest-correlation ROIs to emit as PNG/NPZ artifacts (default: 16)",
+    )
 
     args = parser.parse_args()
 
@@ -408,12 +549,21 @@ def main():
     case_metrics = []
     for case_name in args.cases:
         case_spec = available_cases[case_name]
+
+        # Prepare ROI artifacts directory if emission is requested
+        roi_artifacts_dir = None
+        if args.emit_roi_artifacts:
+            roi_artifacts_dir = args.out_dir / case_name / "roi_diagnostics"
+
         metrics = compute_case_metrics(
             case_name=case_name,
             case_spec=case_spec,
             sigma_source=sigma_source,
             default_sigma=args.default_sigma,
             device=args.device,
+            emit_roi_artifacts=args.emit_roi_artifacts,
+            roi_count=args.roi_count,
+            roi_artifacts_dir=roi_artifacts_dir,
         )
         case_metrics.append(metrics)
 

@@ -1,0 +1,45 @@
+{
+  "cuda_available": true,
+  "error": null,
+  "sigma_source": "cli_override",
+  "cpu_metrics": {
+    "roi_cc_median": -0.04355694741692325,
+    "roi_cc_count": 29,
+    "scale_ratio_masked": 0.5740397949519148,
+    "scale_ratio_unmasked": 2.926273815358886,
+    "log_scale_baseline": 0.0,
+    "global_scale_hint": 1.7420395045673904,
+    "sigma_floor_value": 1.0,
+    "bragg_mean": 1.0065269470214844,
+    "bragg_std": 119.01531219482422,
+    "bragg_max": 62306.22265625,
+    "spot_scale_override": 3.184711299019782e+17,
+    "hkl_source": "unknown",
+    "hkl_path": "unknown",
+    "hkl_count": 69614
+  },
+  "gpu_metrics": {
+    "roi_cc_median": -0.043559884463359934,
+    "roi_cc_count": 29,
+    "scale_ratio_masked": 0.5740728107237328,
+    "scale_ratio_unmasked": 2.9264620066336557,
+    "log_scale_baseline": 0.0,
+    "global_scale_hint": 1.7419393173129054,
+    "sigma_floor_value": 1.0,
+    "bragg_mean": 1.0065916776657104,
+    "bragg_std": 119.02136993408203,
+    "bragg_max": 62301.984375,
+    "spot_scale_override": 3.184711299019782e+17,
+    "hkl_source": "unknown",
+    "hkl_path": "unknown",
+    "hkl_count": 69614
+  },
+  "parity_metrics": {
+    "bragg_mean_abs_diff": 0.0001470194401917979,
+    "bragg_max_abs_diff": 52.0166015625,
+    "roi_cc_median_diff": 2.9370464366823557e-06,
+    "scale_ratio_masked_rel_diff": 5.7514778780779684e-05,
+    "scale_ratio_unmasked_rel_diff": 6.431089045124011e-05,
+    "log_scale_baseline_match": true
+  }
+}

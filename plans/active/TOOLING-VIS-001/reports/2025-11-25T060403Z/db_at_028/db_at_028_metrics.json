@@ -1,0 +1,65 @@
+{
+  "chi2_per_pixel_initial": 108367.83858147355,
+  "chi2_per_pixel_final": 109018.31611128095,
+  "variance_floor_clamp_fraction": 0.0,
+  "variance_floor_masked_pixels": 13084,
+  "variance_floor_masked_pixels_loss_mask": 13084,
+  "chi_squared_trace_full": [
+    [
+      0,
+      1417884800.0
+    ],
+    [
+      5,
+      1425910656.0
+    ],
+    [
+      10,
+      1425036288.0
+    ],
+    [
+      15,
+      1425108864.0
+    ],
+    [
+      20,
+      1412217088.0
+    ],
+    [
+      25,
+      1408683008.0
+    ],
+    [
+      30,
+      1426079744.0
+    ],
+    [
+      34,
+      1426395648.0
+    ]
+  ],
+  "device": "cuda:0",
+  "enable_hkl_interpolation": false,
+  "log_scale_initial": 0.0,
+  "log_scale_final": 8.74674879014492e-06,
+  "log_scale_baseline": 20.151154110932328,
+  "log_scale_effective_init": 20.151154110932328,
+  "log_scale_effective_final": 20.15116285768112,
+  "bragg_before_mean": 0.2585398554801941,
+  "bragg_before_std": 79.79458618164062,
+  "bragg_before_max": 116160.6484375,
+  "bragg_after_mean": 0.27809104323387146,
+  "bragg_after_std": 52.958534240722656,
+  "bragg_after_max": 56135.78515625,
+  "roi_cc_median_before": -0.0498744695854063,
+  "roi_cc_median_after": -0.05074446695334525,
+  "hkl_source": "scaled.mtz",
+  "hkl_path": "scaled.mtz",
+  "hkl_count": 69614,
+  "spot_scale_override": 3.184711299019782e+17,
+  "sigma_source": "metadata",
+  "roi_cc_median_mapping": -0.0399154901178748,
+  "scale_ratio_mapping_masked": 0.258735624071979,
+  "scale_ratio_mapping_unmasked": 1.8051356390582363,
+  "mapping_forward_success": true
+}

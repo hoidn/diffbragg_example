@@ -154,13 +154,18 @@ Keywords: calibration, scaling, sigma, gain, MTZ
 Use this when: Resolving calibration conflicts or auditing variance/scale behavior.
 
 ### [Module Map](architecture/module_map.md)
-Description: Module → responsibility → entrypoints/tests/spec refs with status (active vs legacy).  
-Keywords: navigation, modules, tests, status  
+Description: Module → responsibility → entrypoints/tests/spec refs with status (active vs legacy).
+Keywords: navigation, modules, tests, status
 Use this when: Locating code and its primary tests quickly.
 
+### [DBEX IDL Contracts](architecture/dbex/refinement/context.idl.md)
+Description: Normative IDL files for active `dbex` modules (`refinement/context`, `io/writer`, `physics/forward`, `physics/loss`), outlining signatures, dependencies, and spec/finding references; browse the `architecture/dbex/` directory to reach each module’s contract.
+Keywords: idl, contracts, api
+Use this when: You need authoritative API/telemetry contracts for refinement contexts, writers, or physics helpers before editing code or tests.
+
 ### [Integration Plan](../plans/nanobrag_integration_plan.md)
-Description: Phase‑by‑phase plan to replace the optimizer with `nanobrag_torch`, deliverables, and validation.  
-Keywords: plan, milestones, deliverables  
+Description: Phase‑by‑phase plan to replace the optimizer with `nanobrag_torch`, deliverables, and validation.
+Keywords: plan, milestones, deliverables
 Use this when: Executing integration work or reviewing scope/timeline.
 
 ## Testing & Validation

@@ -168,3 +168,8 @@ Action State: partial_success (implementation complete, gate decision required)
 - Captured the inspection notes in plans/active/PERF-WARM-SIM-001/reports/2025-12-01T172241Z/stage_c_panel_inspection.md and refreshed docs/fix_plan.md/input.md with the next Do Now (move `_record_stage_telemetry` ahead of the gate, rerun both detector sizes, archive telemetry + summarizer output under 2025-12-01T173200Z) so Ralph can implement immediately.
 - This satisfies the instrumentation-saturation guard; the upcoming loop must be production implementation that records telemetry before another gate decision.
 Action State: planning
+2025-12-01T173344Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=1 action=planning artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-12-01T173344Z/ next_action=Restore Stage C ROI closures + rerun both smoketests
+- Ran `summarize_stage_c_warm_cache.py` on the 2025-12-01T173200Z telemetry to capture that both small/full detectors now run panel-mode closures yet still regress chi² by ~0.063–0.067% despite 99.99999% offset reduction (see stage_c_warm_cache_report.json).
+- Logged the finding in docs/fix_plan.md and drafted the new plan: re-enable ROI closures whenever Stage A telemetry reports ROI mode, thread an explicit validation_scope perf-counter entry, and update the Stage C smoketest to assert both fields before rerunning small/full smokes under plans/active/PERF-WARM-SIM-001/reports/2025-12-01T174500Z/.
+- Rewrote input.md with the new Do Now, mapped commands, pitfalls, and telemetry capture steps so Ralph can implement immediately without another supervisor-side loop.
+Action State: ready_for_implementation

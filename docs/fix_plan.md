@@ -985,3 +985,38 @@ pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation
 **Next Actions**:
 1. Run `plans/active/PERF-WARM-SIM-001/bin/summarize_stage_c_warm_cache.py` on both telemetry files to generate the warm-cache report JSON + markdown.
 2. Supervisor decision: Accept +0.067% chi² regression as inherent to correct Stage C panel-mode closures for full detector and relax REFINE-007 gate to ≤0.10%, OR investigate Stage C LBFGS hyperparameters.
+
+### 2025-12-01T173344Z - PERF-WARM-SIM-001 Phase D.4: ROI closure restoration plan (PLANNING)
+**Action**: Ran the Stage C warm-cache summarizer against the 2025-12-01T173200Z telemetry (`plans/active/PERF-WARM-SIM-001/reports/2025-12-01T173344Z/stage_c_warm_cache_report.json`). Both detector sizes now run entirely in panel mode (`roi_mode="panel"`), yet chi-squared regresses by ~0.063% (small) and ~0.067% (full) even though detector offsets shrink by 99.99999%. This confirms REFINE-012’s “force panel closures” change removed the ROI minibatching that previously allowed Stage C to descend, leaving warm-cache telemetry compliant but chi-squared worse than the Stage A baseline. Spec `docs/spec-db-workflow.md` (§Optimization Strategy) explicitly permits ROI minibatching inside LBFGS closures as long as periodic full validations use the canonical population, and REFINE-011 already wired `force_panel_validation` so Stage C validations measure the full detector. The regression therefore stems from disabling ROI closures entirely, not from the validation scope alignment we were chasing.
+- **Diagnosis**: Stage C closures now evaluate all 92 panels every iteration, so LBFGS exits after 9–11 closure evals with no improvement; best snapshot reverts to the “panel-mode” attempt that drove chi² upward. We need to re-enable ROI closures (using Stage A’s telemetry-driven ROI-mode signal) while keeping `force_panel_validation` on full validations so REFINE-007 still inspects panel-wide metrics. Telemetry must also distinguish between closure ROI mode vs validation scope so tooling/tests can assert both fields independently.
+
+**Next Actions**:
+1. **dbex/refinement/stage_c_impl.py::_build_stage_c_params** — Remove the `and not force_panel_validation` guard so ROI closures stay enabled whenever Stage A telemetry reports `roi_mode="roi"` and the warm cache is active; compute a new `validation_scope` string (`"panel"` when `force_panel_validation` else the closure mode) and plumb it through `stage_c_context`/perf counters so telemetry surfaces both values. Update `_run_stage_c_lbfgs` perf counters to emit the new validation scope while keeping ROI-mode provenance tags for closures.
+2. **tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip** — Assert the new `validation_scope` perf-counter field equals `"panel"` whenever Stage B or Stage C is enabled (or ROI count ≤ threshold) even if `roi_mode=="roi"` for closures, proving REFINE-011/012 alignment. Keep the existing ROI-mode expectation helper for closure mode.
+3. **Validation** — Re-run Stage C detector microslip smokes for both detector sizes and capture collect-only logs, pytest logs, and telemetry under `plans/active/PERF-WARM-SIM-001/reports/2025-12-01T174500Z/`:
+   ```
+   AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+   pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small \
+     > plans/active/PERF-WARM-SIM-001/reports/2025-12-01T174500Z/collect_stage_c_small.log
+
+   AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+   DBEX_SMOKE_SIGMA_SOURCE=cli_override \
+   DBEX_SMOKE_DETECTOR_SIZE=small \
+   DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-WARM-SIM-001/reports/2025-12-01T174500Z/telemetry_stage_c_small.json \
+   KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
+   pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small \
+     | tee plans/active/PERF-WARM-SIM-001/reports/2025-12-01T174500Z/pytest_stage_c_small.log
+
+   AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+   pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=full \
+     > plans/active/PERF-WARM-SIM-001/reports/2025-12-01T174500Z/collect_stage_c_full.log
+
+   AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+   DBEX_SMOKE_SIGMA_SOURCE=cli_override \
+   DBEX_SMOKE_DETECTOR_SIZE=full \
+   DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-WARM-SIM-001/reports/2025-12-01T174500Z/telemetry_stage_c_full.json \
+   KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
+   pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=full \
+     | tee plans/active/PERF-WARM-SIM-001/reports/2025-12-01T174500Z/pytest_stage_c_full.log
+   ```
+- **Artifacts:** `plans/active/PERF-WARM-SIM-001/reports/2025-12-01T173344Z/` (stage_c_warm_cache_report.json, summarize_stage_c_warm_cache.log, summary.md) for this planning turn; next implementation artifacts reserved under `plans/active/PERF-WARM-SIM-001/reports/2025-12-01T174500Z/`.

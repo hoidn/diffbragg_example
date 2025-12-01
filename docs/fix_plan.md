@@ -698,32 +698,20 @@ pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation
 - **Artifacts:** `plans/active/ARCH-REFINE-001/reports/2025-12-01T144500Z/` (`collect_db_at_027.log`, `pytest_db_at_027.log`, `collect_stage_a_engine_telemetry.log`, `pytest_stage_a_engine_telemetry.log`, `docs_diff.md`, `summary.md`)
 - **Next Actions:** Phase D.2 is complete. Proceed to Phase D.5 to capture a consolidated architecture-doc update report so downstream initiatives can reference a single summary of the D1-D4 edits.
 
-### 2025-12-01T150955Z - ARCH-REFINE-001 Phase D.5: Architecture doc update ledger (READY FOR IMPLEMENTATION)
-- **Scope:** Close out Phase D by authoring a durable summary of the documentation changes landed across D1-D4 and linking it from this ledger. Deliverables:
-  1. Create `plans/active/ARCH-REFINE-001/reports/2025-12-01T150955Z/architecture_doc_update.md` summarizing the live backend, data/telemetry flow, module map, testing guide, and Test Suite Index edits with direct section references and spec/finding citations (DIAGNOSTICS-001, ARCH-ENGINE-003, REFINE-010).
-  2. Update `docs/fix_plan.md` Phase D Attempts History to reference the new report so future readers can trace the doc sync outcome without diff spelunking.
-  3. Capture a short `docs_diff.md` (same directory) showing any follow-up doc nits fixed while compiling the summary.
-- **Validation:** Rerun the Stage A zero-point probe and Stage A telemetry selector to keep their logs current and prove the doc-only loop didn't drift the tests:
-  ```
-  AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-  DBAT027_ARTIFACT_DIR=plans/active/ARCH-REFINE-001/reports/2025-12-01T150955Z/db_at_027 \
-  pytest --collect-only tests/dbex/test_stage_a_mapping_equiv.py::test_db_at_027_zero_point_parity \
-    > plans/active/ARCH-REFINE-001/reports/2025-12-01T150955Z/collect_db_at_027.log
-
-  AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-  DBAT027_ARTIFACT_DIR=plans/active/ARCH-REFINE-001/reports/2025-12-01T150955Z/db_at_027 \
-  pytest -vv tests/dbex/test_stage_a_mapping_equiv.py::test_db_at_027_zero_point_parity \
-    | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T150955Z/pytest_db_at_027.log
-
-  AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-  KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
-  pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry \
-    > plans/active/ARCH-REFINE-001/reports/2025-12-01T150955Z/collect_stage_a_engine_telemetry.log
-
-  AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-  KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
-  pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry \
-    | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T150955Z/pytest_stage_a_engine_telemetry.log
-  ```
-- **Artifacts:** `plans/active/ARCH-REFINE-001/reports/2025-12-01T150955Z/` (architecture_doc_update.md, docs_diff.md, collect/pytest logs, db_at_027 artifacts)
-- **Dependencies:** D1-D4 complete; no outstanding code blockers. Maintain Environment Freeze (POLICY-001) and log any doc gaps discovered during the summary.
+### 2025-12-01T150955Z - ARCH-REFINE-001 Phase D.5: Architecture doc update ledger (COMPLETE)
+**Action**: Published consolidated architecture documentation update ledger summarizing Phase D.1-D.2 changes (ARCH-REFINE-001 Phase D.5).
+- **Created `architecture_doc_update.md`** (245 lines): Comprehensive summary of Phase D documentation consolidation:
+  - **Phase D.1 IDL Contracts** (lines 13-98): Documented 3 new IDL files (writer.idl.md, forward.idl.md, loss.idl.md) with full API contracts, spec/finding citations (DIAGNOSTICS-001, PHYSICS-LOSS-001/003, RUNTIME-001, SCALE-001/002, GRADIENT-001, TORCH-CLI-004, REFINE-010, ARCH-FACTORY-001), module docstring updates (dbex/io/writer.py, dbex/physics/forward.py, dbex/physics/loss.py), and module_map.md updates linking to IDLs.
+  - **Phase D.2 Engine-Only Sync** (lines 100-165): Documented removal of deprecated `use_engine_delegation` flag from tooling (dbex/tools/stage_a_adam.py, TOOLING-VIS-001 drivers) and architecture/testing doc updates (live_backend.md, data_telemetry_flow.md, TESTING_GUIDE.md, TEST_SUITE_INDEX.md) reflecting RefinementEngine as sole execution path.
+  - **Finding Citations** (lines 167-178): DIAGNOSTICS-001, PHYSICS-LOSS-001/003, ARCH-ENGINE-003, REFINE-010.
+  - **Spec Alignment** (lines 180-197): spec-db-workflow.md §§30-41/45-52/38-44/70-75, spec-db-core.md §§57-68/86-90, spec-db-runtime.md §§10-17, spec-db-conformance.md DB-AT-010.
+  - **Summary** (lines 206-216): 3 IDL contracts, 5 architecture/testing docs updated, 8 module docstrings updated, 4 tooling scripts migrated, 2 validation selectors green.
+- **Created `docs_diff.md`** (28 lines): Captured empty diff with explanation that Phase D.1/D.2 changes were already committed in prior loops; this loop (D.5) synthesizes without modifying doc source files.
+- **Updated `docs/fix_plan.md`**: This entry documents Phase D.5 completion and references the architecture_doc_update.md artifact for future readers.
+**Metrics**:
+- Collection: 2/2 tests collected (DB-AT-027 zero-point parity, Stage A engine telemetry)
+- Test results: **2 passed** (DB-AT-027: 20.62s with --smoke-detector-size=full, Stage A telemetry: 7.38s)
+- No regressions introduced by doc-only loop
+**Artifacts**: `plans/active/ARCH-REFINE-001/reports/2025-12-01T150955Z/` (architecture_doc_update.md, docs_diff.md, collect_db_at_027.log, collect_stage_a_engine_telemetry.log, pytest_db_at_027.log, pytest_stage_a_engine_telemetry.log, db_at_027/ artifacts directory)
+**First Divergence**: N/A (documentation consolidation successful; no production code changes)
+**Next Actions**: Phase D complete. All ARCH-REFINE-001 Phases A-D milestones achieved (helper extraction, RefinementContext/JobContext scaffolding, writer/physics extraction, IDL contracts, engine-only tooling sync). Ready to advance to remaining initiatives or pivot to supervisor-prioritized focus.

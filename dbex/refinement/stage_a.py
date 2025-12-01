@@ -103,15 +103,31 @@ class StageA:
         )
         from dbex.nanobrag_refinement import RefinementTelemetry
 
-        # Extract inputs (unpack dict into individual params)
-        refinement_inputs = inputs['refinement_inputs']
-        detector = inputs['detector']
-        beam = inputs['beam']
-        crystal = inputs['crystal']
-        hkl_grid = inputs['hkl_grid']
-        hkl_metadata = inputs['hkl_metadata']
-        baseline_crystal = inputs.get('baseline_crystal', None)
-        baseline_detector = inputs.get('baseline_detector', None)
+        # ARCH-REFINE-001 Phase B.1: Extract context from inputs
+        # If inputs has 'context' key, use it; otherwise fall back to dict unpacking
+        ctx = inputs['context'] if isinstance(inputs, dict) and 'context' in inputs else inputs
+
+        # Extract inputs (prefer context fields, fall back to dict keys for backward compatibility)
+        if hasattr(ctx, 'refinement_inputs'):
+            # Using RefinementContext
+            refinement_inputs = ctx.refinement_inputs
+            detector = ctx.detector
+            beam = ctx.beam
+            crystal = ctx.crystal
+            hkl_grid = ctx.hkl_grid
+            hkl_metadata = ctx.hkl_metadata
+            baseline_crystal = ctx.baseline_crystal
+            baseline_detector = ctx.baseline_detector
+        else:
+            # Legacy dict unpacking (fallback for backward compatibility)
+            refinement_inputs = inputs['refinement_inputs']
+            detector = inputs['detector']
+            beam = inputs['beam']
+            crystal = inputs['crystal']
+            hkl_grid = inputs['hkl_grid']
+            hkl_metadata = inputs['hkl_metadata']
+            baseline_crystal = inputs.get('baseline_crystal', None)
+            baseline_detector = inputs.get('baseline_detector', None)
 
         # Extract device/dtype from config
         device = self._config.device

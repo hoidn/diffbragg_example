@@ -267,6 +267,123 @@ class RefinementTelemetry:
         return asdict(self)
 
 
+def _build_final_bragg_from_stage_a_telemetry(
+    telemetry_a,
+    detector,
+    beam,
+    crystal,
+    inputs,
+    hkl_grid,
+    hkl_metadata,
+    config,
+    device,
+    dtype,
+    stage_a_ctx=None,
+    baseline_crystal=None,
+):
+    """
+    Build final Bragg array from Stage A telemetry (optimized crystal/scale params).
+
+    Extracts Stage A final parameters from telemetry and regenerates full Bragg image.
+
+    Args:
+        telemetry_a: RefinementTelemetry instance with Stage A optimized param_deltas
+        detector: dxtbx Detector object
+        beam: dxtbx Beam object
+        crystal: dxtbx Crystal object
+        inputs: RefinementInputs with panel_slices, trusted_mask
+        hkl_grid: torch.Tensor structure factor grid
+        hkl_metadata: dict with grid dimensions
+        config: RefinementConfig with device, dtype
+        device: torch.device for tensor operations
+        dtype: torch.dtype for tensor operations
+        stage_a_ctx: Optional Stage A context (detectors/simulators for warm cache)
+        baseline_crystal: Optional baseline dxtbx Crystal for misset extraction
+
+    Returns:
+        bragg_full: np.ndarray, shape [n_panels, slow, fast], final Bragg image
+    """
+    # Lazy imports
+    from nanobrag_torch.simulator import Simulator
+    from nanobrag_torch.models.detector import Detector
+    from nanobrag_torch.models.crystal import Crystal
+    from dbex.nanobrag_bridge import (
+        create_detector_config,
+        create_crystal_config,
+        compute_baseline_misset_deg,
+    )
+
+    # Extract param_deltas from telemetry
+    param_deltas_a = telemetry_a.param_deltas if hasattr(telemetry_a, 'param_deltas') else telemetry_a['param_deltas']
+
+    # Extract Stage A final parameters
+    log_scale = torch.tensor(param_deltas_a['log_scale']['final'], device=device, dtype=dtype, requires_grad=False)
+    log_cell_a_delta = torch.tensor(param_deltas_a['log_cell_a_delta']['final'], device=device, dtype=dtype, requires_grad=False)
+    log_cell_b_delta = torch.tensor(param_deltas_a['log_cell_b_delta']['final'], device=device, dtype=dtype, requires_grad=False)
+    log_cell_c_delta = torch.tensor(param_deltas_a['log_cell_c_delta']['final'], device=device, dtype=dtype, requires_grad=False)
+    angle_alpha_raw = torch.tensor(param_deltas_a['angle_alpha_raw']['final'], device=device, dtype=dtype, requires_grad=False)
+    angle_beta_raw = torch.tensor(param_deltas_a['angle_beta_raw']['final'], device=device, dtype=dtype, requires_grad=False)
+    angle_gamma_raw = torch.tensor(param_deltas_a['angle_gamma_raw']['final'], device=device, dtype=dtype, requires_grad=False)
+    misset_xyz_deg_delta = param_deltas_a['misset_xyz_deg']['delta']
+    misset_xyz_deg = torch.tensor(misset_xyz_deg_delta, device=device, dtype=dtype, requires_grad=False)
+
+    # Build crystal config with refined parameters
+    crystal_config = create_crystal_config(
+        crystal=crystal,
+        log_cell_a_delta=log_cell_a_delta,
+        log_cell_b_delta=log_cell_b_delta,
+        log_cell_c_delta=log_cell_c_delta,
+        angle_alpha_raw=angle_alpha_raw,
+        angle_beta_raw=angle_beta_raw,
+        angle_gamma_raw=angle_gamma_raw,
+        misset_xyz_deg=misset_xyz_deg,
+        baseline_crystal=baseline_crystal,
+        baseline_misset_deg=None,  # Not used when misset_xyz_deg is provided
+        baseline_misset_deg_tensor=None,
+    )
+
+    # Extract panel counts and full panel shape
+    n_panels = len(detector)
+    panel_shape = (
+        detector[0].get_image_size()[1],  # slow
+        detector[0].get_image_size()[0]   # fast
+    )
+    sampled_panel_ids = list(range(n_panels))
+
+    # Build full Bragg array (panel mode)
+    # Reuse warm cache simulators if available
+    if stage_a_ctx is not None and 'simulators' in stage_a_ctx:
+        # Warm cache path: retarget existing simulators with refined crystal
+        from dbex.refinement.stage_a_impl import _retarget_stage_a_simulators
+        simulators = _retarget_stage_a_simulators(
+            stage_a_context=stage_a_ctx,
+            refined_crystal_config=crystal_config
+        )
+    else:
+        # Cold path: build simulators from scratch
+        from dbex.nanobrag_bridge import create_beam_config
+        beam_config = create_beam_config(beam)
+        simulators = []
+        for pid in sampled_panel_ids:
+            detector_config = create_detector_config(detector[pid], beam=beam, use_dials_convention=True)
+            sim = Simulator(
+                detector=Detector.from_config(detector_config).to(device=device, dtype=dtype),
+                beam=beam_config.to(device=device, dtype=dtype),
+                crystal=Crystal.from_config(crystal_config).to(device=device, dtype=dtype),
+                structure_factors=hkl_grid.to(device=device, dtype=dtype),
+                interpolate=config.enable_hkl_interpolation,
+            )
+            simulators.append(sim)
+
+    # Run forward model with refined parameters
+    bragg_full = torch.zeros((n_panels, *panel_shape), device=device, dtype=dtype)
+    scale_factor = torch.exp(log_scale)
+    for pid, sim in zip(sampled_panel_ids, simulators):
+        bragg_full[pid] = sim.forward() * scale_factor
+
+    return bragg_full.cpu().numpy().astype(np.float32)
+
+
 def _build_final_bragg_from_stage_b_telemetry(
     telemetry_a,
     telemetry_b,
@@ -578,11 +695,26 @@ def run_nanobrag_refinement(
     if stage_a_only_mode:
         # === ENGINE DELEGATION PATH (Phase B2) ===
         # Lazy imports to avoid circular dependencies at module load time
+        from dbex.refinement.context import build_refinement_context
         from dbex.refinement.engine import RefinementEngine
         from dbex.refinement.stage_a import StageA
 
+        # Build RefinementContext per ARCH-REFINE-001 Phase B.1
+        context = build_refinement_context(
+            refinement_inputs=inputs,
+            detector=detector,
+            beam=beam,
+            crystal=crystal,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            baseline_crystal=baseline_crystal,
+            baseline_detector=baseline_detector,
+        )
+
         # Build inputs dict per StageA.run() contract (dbex/refinement/stage_a.py:71-78)
+        # Pass context via 'context' key per ARCH-REFINE-001 Phase B.1
         engine_inputs = {
+            'context': context,
             'refinement_inputs': inputs,
             'detector': detector,
             'beam': beam,
@@ -626,12 +758,27 @@ def run_nanobrag_refinement(
 
     elif stage_a_b_mode:
         # === ENGINE DELEGATION PATH (Phase C2: A→B) ===
+        from dbex.refinement.context import build_refinement_context
         from dbex.refinement.engine import RefinementEngine
         from dbex.refinement.stage_a import StageA
         from dbex.refinement.stage_b import StageB
 
+        # Build RefinementContext per ARCH-REFINE-001 Phase B.1
+        context = build_refinement_context(
+            refinement_inputs=inputs,
+            detector=detector,
+            beam=beam,
+            crystal=crystal,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            baseline_crystal=baseline_crystal,
+            baseline_detector=baseline_detector,
+        )
+
         # Build inputs dict per StageA/StageB.run() contract
+        # Pass context via 'context' key per ARCH-REFINE-001 Phase B.1
         engine_inputs = {
+            'context': context,
             'refinement_inputs': inputs,
             'detector': detector,
             'beam': beam,
@@ -810,8 +957,23 @@ def run_nanobrag_refinement(
         if config.enable_stage_c:
             stage_modes["C"] = "detector_offsets"
 
+        # Build RefinementContext per ARCH-REFINE-001 Phase B.1
+        from dbex.refinement.context import build_refinement_context
+        context = build_refinement_context(
+            refinement_inputs=inputs,
+            detector=detector,
+            beam=beam,
+            crystal=crystal,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            baseline_crystal=baseline_crystal,
+            baseline_detector=baseline_detector,
+        )
+
         # Prepare RefinementInputs for engine
+        # Pass context via 'context' key per ARCH-REFINE-001 Phase B.1
         engine_inputs = {
+            "context": context,
             "refinement_inputs": inputs,
             "detector": detector,
             "beam": beam,

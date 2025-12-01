@@ -80,7 +80,7 @@ class RefinementEngine:
         Execute all stages in order and aggregate telemetry.
 
         Args:
-            inputs: RefinementInputs instance (from dbex.nanobrag_refinement)
+            inputs: Dict with required 'context' key (RefinementContext) plus legacy keys
             telemetry_sink: Optional directory for saving stage artifacts
 
         Returns:
@@ -88,18 +88,38 @@ class RefinementEngine:
             telemetry from each executed stage
 
         Execution Flow:
-        1. Configure each stage (call stage.configure(config))
-        2. Execute each stage (call stage.run(inputs, telemetry_sink))
-        3. Convert returned dict to RefinementTelemetry instance
-        4. Aggregate into _telemetry dict keyed by stage.name
-        5. Propagate prior stage telemetry to next stage via inputs dict
-        6. Return aggregated telemetry
+        1. Validate 'context' key is present in inputs (ARCH-REFINE-001 Phase B.1)
+        2. Configure each stage (call stage.configure(config))
+        3. Execute each stage (call stage.run(inputs, telemetry_sink))
+        4. Convert returned dict to RefinementTelemetry instance
+        5. Aggregate into _telemetry dict keyed by stage.name
+        6. Propagate 'context' and prior stage telemetry to next stage via inputs dict
+        7. Return aggregated telemetry
 
         Normative Requirements:
         - Stages MUST execute in the order provided to __init__
         - Engine MUST NOT skip stages or reorder them
         - Telemetry MUST include all fields returned by stage.run()
+        - 'context' key MUST be present in inputs (ARCH-REFINE-001 Phase B.1)
+
+        Raises:
+            ValueError: If 'context' key is missing from inputs dict
         """
+        # ARCH-REFINE-001 Phase B.1: Require 'context' in inputs
+        if isinstance(inputs, dict):
+            if 'context' not in inputs:
+                raise ValueError(
+                    "RefinementContext missing from inputs. Per ARCH-REFINE-001 Phase B.1, "
+                    "all engine invocations must include a 'context' key with a RefinementContext instance. "
+                    "Use dbex.refinement.build_refinement_context to create the context object."
+                )
+        else:
+            # If inputs is not a dict, it's a legacy code path (should not happen post-Phase B.1)
+            raise ValueError(
+                "Engine.run() requires inputs to be a dict with 'context' key. "
+                "Per ARCH-REFINE-001 Phase B.1, legacy non-dict inputs are no longer supported."
+            )
+
         self._telemetry = {}
         enriched_inputs = inputs.copy() if isinstance(inputs, dict) else inputs
 
@@ -108,6 +128,7 @@ class RefinementEngine:
             stage.configure(self.config)
 
             # Enrich inputs with prior stage telemetry (for Stage B/C that depend on Stage A)
+            # ARCH-REFINE-001 Phase B.1: 'context' is already present and propagated unchanged
             if stage_idx > 0 and isinstance(enriched_inputs, dict):
                 # Add stage_a_telemetry for StageB and StageC (expects dict from StageA.run())
                 if (stage.name == "stage_b" or stage.name == "stage_c") and "stage_a" in self._telemetry:

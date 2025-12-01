@@ -27,8 +27,16 @@ Usage:
     telemetry = engine.run(inputs)  # Dict[str, RefinementTelemetry]
 """
 
+from .context import RefinementContext, build_refinement_context
 from .engine import RefinementEngine
 from .stage import RefinementStage, RefinementTelemetry
 from .stage_a import StageA
 
-__all__ = ["RefinementEngine", "RefinementStage", "RefinementTelemetry", "StageA"]
+__all__ = [
+    "RefinementContext",
+    "build_refinement_context",
+    "RefinementEngine",
+    "RefinementStage",
+    "RefinementTelemetry",
+    "StageA",
+]

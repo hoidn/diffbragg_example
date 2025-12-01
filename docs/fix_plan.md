@@ -298,7 +298,7 @@ Capture the `--collect-only` output for the same selector before running the tes
 **First Divergence**: N/A (implementation successful on first run after fixes)
 **Next Actions**: Phase A.4 complete - all Stage A/B/C helpers extracted, engine-only routing operational, warm-cache gradient tracking fixed. Ready to proceed with Phase B (RefinementContext/JobContext dataclasses) or tackle RefinementConfig attribute drift from Phase A.3.
 
-### 2025-12-01T115900Z - ARCH-REFINE-001 Phase B.1: RefinementContext scaffolding (READY FOR IMPLEMENTATION)
+### 2025-12-01T115900Z - ARCH-REFINE-001 Phase B.1: RefinementContext scaffolding (BLOCKED - API mismatch)
 - **Scope:** Kick off Phase B by introducing a typed `RefinementContext` instead of loose dicts so every stage shares the same dataset geometry/mask/HKL objects per docs/spec-db-workflow.md §7 and ARCH-REFINE-001 plan §B1.
 - **Implementation Checklist:**
   1. Create `dbex/refinement/context.py` with `RefinementContext` dataclass (fields: RefinementInputs, detector, beam, crystal, hkl_grid, hkl_metadata, baseline_crystal, baseline_detector, optional extras dict) and a helper `build_refinement_context(...)` that validates trusted shapes + dtype neutrality. Document it with spec citations and IDL pointer.

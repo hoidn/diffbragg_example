@@ -252,3 +252,8 @@ Action State: ready_for_implementation
 - Logged the helper attempt results (still +0.067% drift) in docs/fix_plan.md and pivoted to collecting evidence: design env-gated diagnostics inside `_compute_panel_loss`, thread them through Stage A/C closures, and emit JSON + comparison scripts in the new artifacts directory so we can see which panels diverge.
 - Replaced input.md with the diagnostics Do Now, enumerating the detector-specific env vars, pytest/summarizer commands, and the new comparison tool so Ralph can implement instrumentation next loop.
 Action State: ready_for_implementation
+2025-12-01T230000Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=1 action=planning artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-12-01T230800Z/ next_action=Rebuild warm-cache simulators + rerun Stage C smokes
+- Diagnosed the uniform +0.067% panel deltas: detector offsets collapse in telemetry but χ² never moves, implying `_retarget_stage_a_detectors` swaps detector objects without rebuilding the cached nanobrag `Simulator` instances, so warm-cache runs ignore the new geometry.
+- Updated docs/fix_plan.md and the implementation plan with a Phase D.4 follow-up: rebuild simulators (and ROI-entry simulators) whenever detector distances change, then rerun the Stage C small/full smoketests with the existing diagnostics tooling to prove χ² parity returns.
+- Rewrote input.md so Ralph patches the retarget helper, preserves GRADIENT-004 tensor semantics, and captures the smoketest/summarizer/panel-compare artifacts under `plans/active/PERF-WARM-SIM-001/reports/2025-12-01T230800Z/`.
+Action State: ready_for_implementation

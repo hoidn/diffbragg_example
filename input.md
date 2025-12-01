@@ -1,33 +1,38 @@
-Summary: Repair the Stage C warm-cache retargeter so detector distance tensors stay connected to autograd and the small-detector smoke can finish.
+Summary: Stand up the typed RefinementContext builder and wire Stage A/B/C + RefinementEngine to consume it so the engine no longer relies on ad-hoc dicts.
 Mode: none
 Focus: ARCH-REFINE-001 — Refinement Engine Modularization & Torch IO
 Branch: integration
-Mapped tests: tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small; tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small
-Artifacts: plans/active/ARCH-REFINE-001/reports/2025-12-01T112335Z/
+Mapped tests: tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion --smoke-detector-size=small; tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small; tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small
+Artifacts: plans/active/ARCH-REFINE-001/reports/2025-12-01T115900Z/
 Do Now:
-- Implement: dbex/refinement/stage_c_impl.py::{_retarget_stage_a_detectors,_run_stage_c_lbfgs} — keep the warm-cache detector retargeting differentiable by propagating `distance_offset_raw` tensors (no `.item()` conversions) through both the closure path and the final reconstruction so Stage C warm-mode gradients mirror the cold path.
-- Validate: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_TELEMETRY_PATH=plans/active/ARCH-REFINE-001/reports/2025-12-01T112335Z/telemetry_stage_bc_small.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py -k "test_stage_b_shell_modifiers or test_stage_c_detector_microslip" --smoke-detector-size=small | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T112335Z/pytest_stage_bc_small.log
+- Implement: dbex/refinement/context.py::build_refinement_context — add the new RefinementContext dataclass/builder and update RefinementEngine.run plus StageA.run/StageB.run/StageC.run to pull geometry/HKL/baseline state from this object instead of loose dicts, wiring run_nanobrag_refinement to pass `{"context": ctx, ...}` for the Stage A-only, Stage A→B, and Stage A→B→C branches.
+- Validate: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_TELEMETRY_PATH=plans/active/ARCH-REFINE-001/reports/2025-12-01T115900Z/telemetry_stage_smokes.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py -k "test_stage_a_expansion or test_stage_b_shell_modifiers or test_stage_c_detector_microslip" --smoke-detector-size=small | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T115900Z/pytest_stage_smokes.log
 How-To Map:
-1. Confirm the failure signature: `rg -n "distance_deltas_mm" dbex/refinement/stage_c_impl.py` shows `_retarget_stage_a_detectors` converting tensors to floats, and `plans/active/ARCH-REFINE-001/reports/2025-12-01T105916Z/pytest_stage_bc_small_v3.log` captures the `element 0 of tensors does not require grad` error for reference.
-2. Update `_retarget_stage_a_detectors` so each offset stays on the Stage C device/dtype (wrap `stage_a_ctx.baseline_distance_mm[pid]` with `torch.tensor(..., device=device, dtype=dtype)` and add the tensor delta). Ensure both the cache mutation loop and the warm-cache panel loop inside `_run_stage_c_lbfgs` reuse that tensor helper so the final Bragg rebuild mirrors the closure path.
-3. After editing, run `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_TELEMETRY_PATH=plans/active/ARCH-REFINE-001/reports/2025-12-01T112335Z/telemetry_stage_bc_small.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py -k "test_stage_b_shell_modifiers or test_stage_c_detector_microslip" --smoke-detector-size=small | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T112335Z/pytest_stage_bc_small.log` and verify Stage C now reports `status != "error"` with a ≥0.002% chi² drop; Stage B should continue to pass.
-4. If gradients still fail, archive the new telemetry JSON + pytest log under this loop’s artifacts and log the signature in docs/fix_plan.md before marking the item blocked.
+1. Create `dbex/refinement/context.py` defining `RefinementContext` (RefinementInputs, detector, beam, crystal, hkl_grid, hkl_metadata, optional baseline_crystal/baseline_detector, `extras: Dict[str, Any] = field(default_factory=dict)`) plus `build_refinement_context(...)` that validates tensor/device expectations and records provenance in docstring citing specs; export helper from `dbex/refinement/__init__.py`.
+2. Update `run_nanobrag_refinement` Stage-A-only, Stage-A→B, and Stage-A→(B)→C branches to call `build_refinement_context(...)` once, pass the result via the `'context'` key into `RefinementEngine.run`, and keep existing stage telemetry payloads untouched for downstream stages.
+3. Teach `RefinementEngine.run` to require `'context'` in the per-stage inputs dict, propagate it unchanged when enriching downstream inputs, and raise `ValueError("RefinementContext missing ...")` if someone calls the engine without it.
+4. Modify `StageA.run`, `StageB.run`, and `StageC.run` so each starts with `ctx = inputs['context'] if isinstance(inputs, dict) else inputs` and references `ctx.refinement_inputs`, `ctx.detector`, etc., while continuing to pull `stage_a_telemetry`, `stage_a_ctx`, and `stage_b_telemetry` from the inputs dict for downstream coordination.
+5. Execute the three mapped selectors separately so telemetry artifacts stay distinct:
+   - `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_TELEMETRY_PATH=plans/active/ARCH-REFINE-001/reports/2025-12-01T115900Z/telemetry_stage_a.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion --smoke-detector-size=small | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T115900Z/pytest_stage_a.log`
+   - `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_TELEMETRY_PATH=plans/active/ARCH-REFINE-001/reports/2025-12-01T115900Z/telemetry_stage_b.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T115900Z/pytest_stage_b.log`
+   - `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_TELEMETRY_PATH=plans/active/ARCH-REFINE-001/reports/2025-12-01T115900Z/telemetry_stage_c.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T115900Z/pytest_stage_c.log`
 Pitfalls To Avoid:
-- Do not fall back to the cold path; PERF-WARM-006 requires Stage C to reuse Stage A caches.
-- Avoid `.item()`, `.detach()`, or `torch.no_grad()` in the Stage C closure per GRADIENT-001; the tensor fix must keep the graph intact.
-- Keep tensors on the configured device/dtype (CUDA vs CPU) to avoid device mismatch crashes.
-- Remember to retarget both the closure path and `_run_stage_c_lbfgs` final reconstruction so telemetry/Bragg arrays stay in sync.
-- Preserve telemetry/perf counters (cache_mode, roi_mode, roi_counts) so REFINE-010 and PERF-WARM-006 assertions stay valid.
+- Do not mutate simulator creation sites to use the forward-only factory (ARCH-FACTORY-001 forbids that inside refinement closures).
+- Keep RefinementContext device/dtype neutral; never stash CUDA tensors that would break CPU collectors.
+- Preserve Stage A ctx propagation (`stage_a_ctx` cache) when adding the context key so Stage B/C warm paths still work.
+- Avoid mixing context fields with mutable telemetry dicts—stage-specific payloads (stage_a_telemetry, stage_b_telemetry) still travel outside the dataclass.
+- Ensure the new ValueError in RefinementEngine mentions ARCH-REFINE-001 so callers know the contract changed.
+- Capture telemetry logs for every pytest run; smoke selectors rely on `DBEX_SMOKE_TELEMETRY_PATH` for perf audits.
+- Keep Environment Freeze intact: no new dependencies or package changes while adding the module.
 If Blocked:
-- If Stage C still reports `status="error"`, archive the latest Stage B/C logs + telemetry under this loop’s artifacts and document the new failure signature in docs/fix_plan.md before switching focus.
+- If any selector fails because a stage does not receive `context`, archive the failing log/telemetry under the artifacts path, document the exact error signature plus the missing key in docs/fix_plan.md Attempts History, and mark the fix-plan item blocked until the wiring bug is understood.
 Findings Applied (Mandatory):
-- REFINE-010 — Small-detector runs SHALL use panel closures, so Stage C must honor that while keeping gradients.
-- PERF-WARM-006 — Stage C must reuse Stage A warm caches and continue emitting `cache_mode="warm"` telemetry.
-- GRADIENT-001 — Optimization code must avoid `.item()`/`.detach()` on differentiable tensors.
-- GRADIENT-004 — Newly logged requirement: Stage C detector retargeting must preserve tensor offsets so LBFGS can run in warm mode.
+- ARCH-FACTORY-001 — Refinement closures must keep direct Simulator construction; the new context must not route through the forward-only factory.
+- REFINE-010 — Small-detector smokes force panel mode, so the shared context must expose the canonical ROI count used by auto-panel validators.
+- ARCH-ENGINE-003 — Engine telemetry enrichment stays in place; ensure the refactor preserves stage name→telemetry mappings so `stage_modes`/`engine_protocol` remain intact.
 Pointers:
-- docs/spec-db-workflow.md:81 — Stage C normative scope (per-panel detector offsets with tricubic interpolation and L-BFGS).
-- docs/TESTING_GUIDE.md:48 — Canonical Stage B/C smoke selectors and required env vars.
-- docs/data_dependency_manifest.md:52 — refGeom_small ROI count (29) that forces the auto-panel path exercised here.
-- dbex/refinement/stage_c_impl.py:39 — Warm-cache retargeter currently calling `.item()` on detector offsets.
-Next Up (optional): After Stage C passes on the CLI sigma path, rerun the metadata-sigma variant (`DBEX_SMOKE_SIGMA_SOURCE=metadata`) to ensure the fix is source-agnostic.
+- docs/fix_plan.md:301 — Scope + checklist for Phase B.1 context scaffolding.
+- docs/spec-db-workflow.md:76 — Stage B/C normative requirements that rely on shared context geometry/HKL state.
+- docs/spec-db-workflow.md:116 — Stage smoke dataset policy driving the mapped selectors and telemetry handling.
+- docs/TESTING_GUIDE.md:161 — Required env vars + expectations for Stage A/B/C smokes.
+Next Up (optional): Once RefinementContext is live, Phase B.2 can introduce JobContext (args/DataLoad/calibration) and start moving HKL grid construction into the context builder.

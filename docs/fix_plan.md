@@ -297,3 +297,17 @@ Capture the `--collect-only` output for the same selector before running the tes
 **Artifacts**: plans/active/ARCH-REFINE-001/reports/2025-12-01T112335Z/ (pytest_stage_bc_small.log, pytest_stage_bc_small_v2.log, telemetry_stage_bc_small.json, telemetry_stage_bc_small_v2.json)
 **First Divergence**: N/A (implementation successful on first run after fixes)
 **Next Actions**: Phase A.4 complete - all Stage A/B/C helpers extracted, engine-only routing operational, warm-cache gradient tracking fixed. Ready to proceed with Phase B (RefinementContext/JobContext dataclasses) or tackle RefinementConfig attribute drift from Phase A.3.
+
+### 2025-12-01T115900Z - ARCH-REFINE-001 Phase B.1: RefinementContext scaffolding (READY FOR IMPLEMENTATION)
+- **Scope:** Kick off Phase B by introducing a typed `RefinementContext` instead of loose dicts so every stage shares the same dataset geometry/mask/HKL objects per docs/spec-db-workflow.md §7 and ARCH-REFINE-001 plan §B1.
+- **Implementation Checklist:**
+  1. Create `dbex/refinement/context.py` with `RefinementContext` dataclass (fields: RefinementInputs, detector, beam, crystal, hkl_grid, hkl_metadata, baseline_crystal, baseline_detector, optional extras dict) and a helper `build_refinement_context(...)` that validates trusted shapes + dtype neutrality. Document it with spec citations and IDL pointer.
+  2. In `run_nanobrag_refinement`, replace the ad-hoc dict literals used for Stage-A-only, Stage-A→B, and Stage-A→(B)→C engine branches with calls to `build_refinement_context`; pass the resulting object under the `'context'` key when invoking `RefinementEngine.run(...)`. Preserve existing telemetry/Stage A ctx plumbing by keeping other dict entries (stage_a_telemetry, stage_b_telemetry, etc.) alongside context for downstream stages.
+  3. Update `RefinementEngine.run` to require `'context'` in `inputs`, propagate it when enriching downstream inputs, and tolerate legacy dicts only long enough to raise a clear error (ValueError referencing ARCH-REFINE-001) if the key is missing.
+  4. Update `StageA.run`, `StageB.run`, and `StageC.run` to consume the context object instead of unpacking raw dict fields: pull geometry/HKL/baseline state via `ctx = inputs['context']` (with a compatibility branch for direct context instances) and leave stage-specific payloads (`stage_a_telemetry`, `stage_a_ctx`, `stage_b_telemetry`) untouched. This ensures every stage uses the same dataclass instance while we prepare for JobContext wiring.
+- **Validation:** Re-run the small-detector Stage smokes with telemetry capture to prove the refactor preserved behavior:
+  - `pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion --smoke-detector-size=small`
+  - `pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small`
+  - `pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small`
+  Set `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md`, `KMP_DUPLICATE_LIB_OK=TRUE`, and `NANOBRAGG_DISABLE_COMPILE=1`; capture logs + telemetry JSON under `plans/active/ARCH-REFINE-001/reports/2025-12-01T115900Z/`.
+- **Artifacts:** plans/active/ARCH-REFINE-001/reports/2025-12-01T115900Z/ (collect + pytest logs, telemetry_stage_a_small.json, telemetry_stage_b_small.json, telemetry_stage_c_small.json, summary.md)

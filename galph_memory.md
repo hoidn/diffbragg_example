@@ -36,3 +36,7 @@ Action State: ready_for_implementation
 - Stage C small-detector smoke still fails because `_retarget_stage_a_detectors` (dbex/refinement/stage_c_impl.py:39-86) converts the bounded offsets into floats, so the warm-cache panel path detaches `distance_offset_raw` and PyTorch aborts with `element 0 of tensors does not require grad` (see plans/active/ARCH-REFINE-001/reports/2025-12-01T105916Z/pytest_stage_bc_small_v3.log).
 - Logged GRADIENT-004, refreshed docs/fix_plan.md with the tensor-preserving Stage C plan, and rewrote input.md directing Ralph to patch the warm-cache retargeter and rerun the small-detector Stage B/C smokes under plans/active/ARCH-REFINE-001/reports/2025-12-01T112335Z/.
 Action State: ready_for_implementation
+2025-12-01T115900Z focus=ARCH-REFINE-001 state=ready_for_implementation dwell=0 action=planning artifacts=plans/active/ARCH-REFINE-001/reports/2025-12-01T115900Z/ next_action=Wire RefinementContext builder + stage refactor (Phase B.1)
+- Closed the GRADIENT-004 loop (docs/findings.md now marked Resolved) and advanced the fix plan into Phase B by scoping RefinementContext scaffolding with explicit implementation/test bullets plus env guardrails.
+- Rewrote input.md with the new Do Now (RefinementContext builder, engine/stage wiring, Stage A/B/C smokes) and captured the artifacts path for Ralph; this turn must hand off implementation so the next loop can write code immediately.
+Action State: ready_for_implementation

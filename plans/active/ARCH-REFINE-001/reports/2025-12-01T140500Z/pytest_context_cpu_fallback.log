@@ -1,0 +1,356 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 11 items
+
+tests/dbex/test_refinement_engine.py::test_engine_executes_mock_stage PASSED [  9%]
+tests/dbex/test_refinement_engine.py::test_engine_requires_context PASSED [ 18%]
+tests/dbex/test_refinement_context.py::test_build_refinement_context_copies_job_context_metadata PASSED [ 27%]
+tests/dbex/test_refinement_context.py::test_build_refinement_context_explicit_metadata_overrides_job_context PASSED [ 36%]
+tests/dbex/test_refinement_context.py::test_build_job_context_rejects_invalid_sigma_reference PASSED [ 45%]
+tests/dbex/test_refinement_context.py::test_build_job_context_rejects_empty_sigma_provenance PASSED [ 54%]
+tests/dbex/test_refinement_context.py::test_build_job_context_validates_hkl_metadata_has_halo PASSED [ 63%]
+tests/dbex/test_refinement_context.py::test_build_job_context_accepts_valid_inputs PASSED [ 72%]
+tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_params_cpu_fallback_clones_stage_a_ctx FAILED [ 81%]
+tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_params_no_cpu_fallback_when_roi_mode_enabled FAILED [ 90%]
+tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_params_no_cpu_fallback_when_config_disabled FAILED [100%]
+
+=================================== FAILURES ===================================
+_____________ test_stage_b_params_cpu_fallback_clones_stage_a_ctx ______________
+
+    def test_stage_b_params_cpu_fallback_clones_stage_a_ctx():
+        """
+        Validate _build_stage_b_params flips use_stage_b_cpu_fallback=True and clones Stage A context to CPU.
+    
+        Acceptance (GRADIENT-003, PERF-WARM-011/012):
+        - When config.stage_b_full_eval_on_cpu=True, device='cuda:0', use_stage_a_roi_mode=False:
+          - use_stage_b_cpu_fallback=True
+          - _build_stage_a_context is called with device=torch.device("cpu")
+          - stage_b_eval_stage_a_ctx is the CPU-cloned context
+          - stage_b_cache_mode="warm" when config.enable_stage_a_warm_cache=True
+        - When config.stage_b_full_eval_on_cpu=False or device='cpu' or use_stage_a_roi_mode=True:
+          - use_stage_b_cpu_fallback=False
+          - Stage B reuses original Stage A context (no cloning)
+        """
+        from dbex.refinement.stage_b_impl import _build_stage_b_params
+        from dbex.nanobrag_refinement import RefinementConfig
+    
+        # Mock RefinementInputs
+        class MockRefinementInputs:
+            target = np.zeros((1, 100, 100), dtype=np.float32)
+            loss_mask = np.ones((1, 100, 100), dtype=bool)
+            panel_slices = [(0, (0, 100, 0, 100))]
+            trusted_mask = np.ones((1, 100, 100), dtype=bool)
+            sigma_readout = np.ones((1, 100, 100), dtype=np.float32) * 3.0
+    
+        # Mock detector/beam/crystal
+        class MockDetector:
+            pass
+    
+        class MockBeam:
+            pass
+    
+        class MockCrystal:
+            pass
+    
+        # Mock HKL grid and metadata
+        hkl_grid = torch.zeros((10, 10, 10), dtype=torch.complex64)
+        hkl_metadata = {
+            "has_halo": False,
+            "nabc_grid": (10, 10, 10),
+            "default_F": 0.0,
+            "h_min": 0, "h_max": 9,
+            "k_min": 0, "k_max": 9,
+            "l_min": 0, "l_max": 9,
+        }
+    
+        # Create minimal Stage A context dict
+        stage_a_ctx = {
+            "detector_models": [MagicMock()],
+            "mask_tensors": [torch.ones(100, 100)],
+            "hkl_grid_on_device": hkl_grid.cuda() if torch.cuda.is_available() else hkl_grid,
+            "baseline_log_scale": 0.0,
+        }
+    
+        # Canonical baseline (from Stage A)
+        canonical_baseline = {
+            "roi_count": 1,
+            "log_scale": 0.0,
+            "cell_a": 10.0, "cell_b": 10.0, "cell_c": 10.0,
+            "cell_alpha": 90.0, "cell_beta": 90.0, "cell_gamma": 90.0,
+            "misset_deg": (0.0, 0.0, 0.0),
+            "chi_squared": 1e8,
+            "masked_mse": 1e6,
+        }
+    
+        panel_slices = [(slice(0, 100), slice(0, 100))]
+        sampled_panel_ids = [0]
+    
+        # Create RefinementConfig with CPU fallback enabled
+        config = RefinementConfig(
+            device="cuda:0" if torch.cuda.is_available() else "cpu",
+            stage_b_full_eval_on_cpu=True,
+            enable_stage_a_warm_cache=True,
+            stage_b_mode="shell",  # Shell mode for simplicity
+        )
+    
+        # Mock _build_stage_a_context and compute_hkl_shell_lookup to avoid heavy dependencies
+        with patch("dbex.refinement.stage_b_impl._build_stage_a_context") as mock_build_ctx, \
+             patch("dbex.refinement.stage_b_impl.compute_hkl_shell_lookup") as mock_shell_lookup:
+    
+            # Configure mock Stage A context builder to return minimal CPU context
+            cpu_stage_a_ctx = {
+                "detector_models": [MagicMock()],
+                "mask_tensors": [torch.ones(100, 100, device="cpu")],
+                "hkl_grid_on_device": hkl_grid.cpu(),
+                "baseline_log_scale": 0.0,
+            }
+            mock_build_ctx.return_value = cpu_stage_a_ctx
+    
+            # Configure mock shell lookup to return minimal shell data
+            shell_indices = torch.zeros((10, 10, 10), dtype=torch.int32)
+            shell_edges = np.array([0.0, 1.0, 2.0])
+            mock_shell_lookup.return_value = (shell_indices, shell_edges)
+    
+            # Run _build_stage_b_params with CUDA device and panel mode (ROI mode disabled)
+            device = torch.device(config.device)
+            dtype = torch.float32
+>           param_values = _build_stage_b_params(
+                config=config,
+                device=device,
+                dtype=dtype,
+                hkl_grid=hkl_grid,
+                hkl_metadata=hkl_metadata,
+                crystal=MockCrystal(),
+                canonical_baseline=canonical_baseline,
+                stage_a_ctx=stage_a_ctx,
+                use_stage_a_roi_mode=False,  # Panel mode triggers CPU fallback
+                n_panels=1,
+                detector=MockDetector(),
+                beam=MockBeam(),
+                inputs=MockRefinementInputs(),
+                panel_slices=panel_slices,
+                sampled_panel_ids=sampled_panel_ids,
+            )
+E           TypeError: _build_stage_b_params() missing 1 required positional argument: 'sigma_floor_sq_cache'
+
+tests/dbex/test_stage_b_cpu_fallback.py:119: TypeError
+__________ test_stage_b_params_no_cpu_fallback_when_roi_mode_enabled ___________
+
+    def test_stage_b_params_no_cpu_fallback_when_roi_mode_enabled():
+        """
+        Validate use_stage_b_cpu_fallback=False when ROI mode is enabled.
+    
+        Acceptance (GRADIENT-003):
+        - When use_stage_a_roi_mode=True, CPU fallback is disabled even if config.stage_b_full_eval_on_cpu=True
+        - Stage B reuses original Stage A context (no CPU cloning)
+        """
+        from dbex.refinement.stage_b_impl import _build_stage_b_params
+        from dbex.nanobrag_refinement import RefinementConfig
+    
+        class MockRefinementInputs:
+            target = np.zeros((1, 100, 100), dtype=np.float32)
+            loss_mask = np.ones((1, 100, 100), dtype=bool)
+            panel_slices = [(0, (0, 100, 0, 100))]
+            trusted_mask = np.ones((1, 100, 100), dtype=bool)
+            sigma_readout = np.ones((1, 100, 100), dtype=np.float32) * 3.0
+    
+        class MockDetector:
+            pass
+    
+        class MockBeam:
+            pass
+    
+        class MockCrystal:
+            pass
+    
+        hkl_grid = torch.zeros((10, 10, 10), dtype=torch.complex64)
+        hkl_metadata = {
+            "has_halo": False,
+            "nabc_grid": (10, 10, 10),
+            "default_F": 0.0,
+            "h_min": 0, "h_max": 9,
+            "k_min": 0, "k_max": 9,
+            "l_min": 0, "l_max": 9,
+        }
+    
+        stage_a_ctx = {
+            "detector_models": [MagicMock()],
+            "mask_tensors": [torch.ones(100, 100)],
+            "hkl_grid_on_device": hkl_grid,
+            "baseline_log_scale": 0.0,
+        }
+    
+        canonical_baseline = {
+            "roi_count": 50,  # Multiple ROIs
+            "log_scale": 0.0,
+            "cell_a": 10.0, "cell_b": 10.0, "cell_c": 10.0,
+            "cell_alpha": 90.0, "cell_beta": 90.0, "cell_gamma": 90.0,
+            "misset_deg": (0.0, 0.0, 0.0),
+            "chi_squared": 1e8,
+            "masked_mse": 1e6,
+        }
+    
+        panel_slices = [(slice(0, 100), slice(0, 100))]
+        sampled_panel_ids = [0]
+    
+        config = RefinementConfig(
+            device="cuda:0" if torch.cuda.is_available() else "cpu",
+            stage_b_full_eval_on_cpu=True,
+            enable_stage_a_warm_cache=True,
+            stage_b_mode="shell",
+        )
+    
+        with patch("dbex.refinement.stage_b_impl._build_stage_a_context") as mock_build_ctx, \
+             patch("dbex.refinement.stage_b_impl.compute_hkl_shell_lookup") as mock_shell_lookup:
+    
+            shell_indices = torch.zeros((10, 10, 10), dtype=torch.int32)
+            shell_edges = np.array([0.0, 1.0, 2.0])
+            mock_shell_lookup.return_value = (shell_indices, shell_edges)
+    
+            device = torch.device(config.device)
+            dtype = torch.float32
+>           param_values = _build_stage_b_params(
+                config=config,
+                device=device,
+                dtype=dtype,
+                hkl_grid=hkl_grid,
+                hkl_metadata=hkl_metadata,
+                crystal=MockCrystal(),
+                canonical_baseline=canonical_baseline,
+                stage_a_ctx=stage_a_ctx,
+                use_stage_a_roi_mode=True,  # ROI mode enabled
+                n_panels=1,
+                detector=MockDetector(),
+                beam=MockBeam(),
+                inputs=MockRefinementInputs(),
+                panel_slices=panel_slices,
+                sampled_panel_ids=sampled_panel_ids,
+            )
+E           TypeError: _build_stage_b_params() missing 1 required positional argument: 'sigma_floor_sq_cache'
+
+tests/dbex/test_stage_b_cpu_fallback.py:239: TypeError
+___________ test_stage_b_params_no_cpu_fallback_when_config_disabled ___________
+
+    def test_stage_b_params_no_cpu_fallback_when_config_disabled():
+        """
+        Validate use_stage_b_cpu_fallback=False when config.stage_b_full_eval_on_cpu=False.
+    
+        Acceptance (PERF-WARM-011):
+        - When config.stage_b_full_eval_on_cpu=False, CPU fallback is disabled regardless of device
+        - Stage B reuses original Stage A context
+        """
+        from dbex.refinement.stage_b_impl import _build_stage_b_params
+        from dbex.nanobrag_refinement import RefinementConfig
+    
+        class MockRefinementInputs:
+            target = np.zeros((1, 100, 100), dtype=np.float32)
+            loss_mask = np.ones((1, 100, 100), dtype=bool)
+            panel_slices = [(0, (0, 100, 0, 100))]
+            trusted_mask = np.ones((1, 100, 100), dtype=bool)
+            sigma_readout = np.ones((1, 100, 100), dtype=np.float32) * 3.0
+    
+        class MockDetector:
+            pass
+    
+        class MockBeam:
+            pass
+    
+        class MockCrystal:
+            pass
+    
+        hkl_grid = torch.zeros((10, 10, 10), dtype=torch.complex64)
+        hkl_metadata = {
+            "has_halo": False,
+            "nabc_grid": (10, 10, 10),
+            "default_F": 0.0,
+            "h_min": 0, "h_max": 9,
+            "k_min": 0, "k_max": 9,
+            "l_min": 0, "l_max": 9,
+        }
+    
+        stage_a_ctx = {
+            "detector_models": [MagicMock()],
+            "mask_tensors": [torch.ones(100, 100)],
+            "hkl_grid_on_device": hkl_grid,
+            "baseline_log_scale": 0.0,
+        }
+    
+        canonical_baseline = {
+            "roi_count": 1,
+            "log_scale": 0.0,
+            "cell_a": 10.0, "cell_b": 10.0, "cell_c": 10.0,
+            "cell_alpha": 90.0, "cell_beta": 90.0, "cell_gamma": 90.0,
+            "misset_deg": (0.0, 0.0, 0.0),
+            "chi_squared": 1e8,
+            "masked_mse": 1e6,
+        }
+    
+        panel_slices = [(slice(0, 100), slice(0, 100))]
+        sampled_panel_ids = [0]
+    
+        config = RefinementConfig(
+            device="cuda:0" if torch.cuda.is_available() else "cpu",
+            stage_b_full_eval_on_cpu=False,  # CPU fallback disabled
+            enable_stage_a_warm_cache=True,
+            stage_b_mode="shell",
+        )
+    
+        with patch("dbex.refinement.stage_b_impl._build_stage_a_context") as mock_build_ctx, \
+             patch("dbex.refinement.stage_b_impl.compute_hkl_shell_lookup") as mock_shell_lookup:
+    
+            shell_indices = torch.zeros((10, 10, 10), dtype=torch.int32)
+            shell_edges = np.array([0.0, 1.0, 2.0])
+            mock_shell_lookup.return_value = (shell_indices, shell_edges)
+    
+            device = torch.device(config.device)
+            dtype = torch.float32
+>           param_values = _build_stage_b_params(
+                config=config,
+                device=device,
+                dtype=dtype,
+                hkl_grid=hkl_grid,
+                hkl_metadata=hkl_metadata,
+                crystal=MockCrystal(),
+                canonical_baseline=canonical_baseline,
+                stage_a_ctx=stage_a_ctx,
+                use_stage_a_roi_mode=False,  # Panel mode
+                n_panels=1,
+                detector=MockDetector(),
+                beam=MockBeam(),
+                inputs=MockRefinementInputs(),
+                panel_slices=panel_slices,
+                sampled_panel_ids=sampled_panel_ids,
+            )
+E           TypeError: _build_stage_b_params() missing 1 required positional argument: 'sigma_floor_sq_cache'
+
+tests/dbex/test_stage_b_cpu_fallback.py:342: TypeError
+=========================== short test summary info ============================
+FAILED tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_params_cpu_fallback_clones_stage_a_ctx - TypeError: _build_stage_b_params() missing 1 required positional argument: 'sigma_floor_sq_cache'
+FAILED tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_params_no_cpu_fallback_when_roi_mode_enabled - TypeError: _build_stage_b_params() missing 1 required positional argument: 'sigma_floor_sq_cache'
+FAILED tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_params_no_cpu_fallback_when_config_disabled - TypeError: _build_stage_b_params() missing 1 required positional argument: 'sigma_floor_sq_cache'
+========================= 3 failed, 8 passed in 1.04s ==========================
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 11 items
+
+tests/dbex/test_refinement_engine.py::test_engine_executes_mock_stage PASSED [  9%]
+tests/dbex/test_refinement_engine.py::test_engine_requires_context PASSED [ 18%]
+tests/dbex/test_refinement_context.py::test_build_refinement_context_copies_job_context_metadata PASSED [ 27%]
+tests/dbex/test_refinement_context.py::test_build_refinement_context_explicit_metadata_overrides_job_context PASSED [ 36%]
+tests/dbex/test_refinement_context.py::test_build_job_context_rejects_invalid_sigma_reference PASSED [ 45%]
+tests/dbex/test_refinement_context.py::test_build_job_context_rejects_empty_sigma_provenance PASSED [ 54%]
+tests/dbex/test_refinement_context.py::test_build_job_context_validates_hkl_metadata_has_halo PASSED [ 63%]
+tests/dbex/test_refinement_context.py::test_build_job_context_accepts_valid_inputs PASSED [ 72%]
+tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_params_cpu_fallback_clones_stage_a_ctx PASSED [ 81%]
+tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_params_no_cpu_fallback_when_roi_mode_enabled PASSED [ 90%]
+tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_params_no_cpu_fallback_when_config_disabled PASSED [100%]
+
+============================== 11 passed in 1.42s ==============================

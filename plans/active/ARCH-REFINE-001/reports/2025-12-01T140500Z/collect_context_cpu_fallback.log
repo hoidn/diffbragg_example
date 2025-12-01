@@ -1,0 +1,26 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collected 11 items
+
+<Dir diffbragg_example>
+  <Package tests>
+    <Package dbex>
+      <Module test_refinement_engine.py>
+        <Function test_engine_executes_mock_stage>
+        <Function test_engine_requires_context>
+      <Module test_refinement_context.py>
+        <Function test_build_refinement_context_copies_job_context_metadata>
+        <Function test_build_refinement_context_explicit_metadata_overrides_job_context>
+        <Function test_build_job_context_rejects_invalid_sigma_reference>
+        <Function test_build_job_context_rejects_empty_sigma_provenance>
+        <Function test_build_job_context_validates_hkl_metadata_has_halo>
+        <Function test_build_job_context_accepts_valid_inputs>
+      <Module test_stage_b_cpu_fallback.py>
+        <Function test_stage_b_params_cpu_fallback_clones_stage_a_ctx>
+        <Function test_stage_b_params_no_cpu_fallback_when_roi_mode_enabled>
+        <Function test_stage_b_params_no_cpu_fallback_when_config_disabled>
+
+========================= 11 tests collected in 0.77s ==========================

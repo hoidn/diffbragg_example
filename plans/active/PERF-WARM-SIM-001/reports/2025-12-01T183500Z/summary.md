@@ -1,5 +1,5 @@
 ### Turn Summary
-Reconfirmed Stage C best-snapshot tuples only live in telemetry_state before `_run_stage_c_lbfgs` runs and scoped the exact rehydration change needed after the LBFGS step.
-Documented the implement/test plan in input.md, covering the env-guarded Stage C smoketests plus the summarizer run under 2025-12-01T183500Z so Ralph can execute without more planning loops.
-Next: Ralph patches `_run_stage_c_lbfgs` to refresh the persisted best tuples, reruns the small/full detector Stage C smokes, and publishes the updated telemetry.
-Artifacts: plans/active/PERF-WARM-SIM-001/reports/2025-12-01T183500Z/ (input.md)
+Implemented best-snapshot rehydration in stage_c_impl.py::_run_stage_c_lbfgs (lines 742-754) to refresh chi_squared_best_c, masked_mse_best_c, best_loss_full_c, and best_params_snapshot_c from telemetry_state immediately after LBFGS optimization step.
+Small detector test PASSED (7.54s); full detector test FAILED with only 1 panel param_delta entry instead of 60, suggesting separate pre-existing telemetry recording issue unrelated to rehydration logic.
+Next: investigate why param_deltas_c loop at line 912 only records panel_0 for full detector (n_panels should be 60 but telemetry shows only 1 entry).
+Artifacts: plans/active/PERF-WARM-SIM-001/reports/2025-12-01T183500Z/ (collect logs, pytest logs, telemetry JSONs)

@@ -739,6 +739,20 @@ def _run_stage_c_lbfgs(
         stage_c_optimizer.step(closure_stage_c)
         _apply_baseline_detector_prior()
 
+        # REFINE-013: Rehydrate best tuples from telemetry_state after LBFGS
+        # The closure updates these during optimization, but the local variables read them before the step
+        chi_squared_best_c = telemetry_state['chi_squared_best_c']
+        masked_mse_best_c = telemetry_state['masked_mse_best_c']
+        best_loss_full_c = telemetry_state['best_loss_full_c']
+        best_params_snapshot_c = telemetry_state.get('best_params_snapshot_c')
+
+        # Assert that at least one full validation populated the best snapshot
+        if chi_squared_best_c[0] >= float('inf'):
+            raise RuntimeError(
+                "Stage C best snapshot never recorded: chi_squared_best_c remains infinite after LBFGS. "
+                "Check that full_validation_interval allows at least one periodic validation."
+            )
+
     except Exception as e:
         status_c = "error"
         message_c = str(e)

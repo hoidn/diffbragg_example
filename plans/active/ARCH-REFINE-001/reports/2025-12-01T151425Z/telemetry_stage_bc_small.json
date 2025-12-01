@@ -1,0 +1,290 @@
+[
+  {
+    "stage": "stage_c_detector_microslip",
+    "dataset": "small",
+    "status": "early_stop",
+    "message": "Stage C improvement -0.0631% < 0.0000% (\u22650.002% gate calibrated per REFINE-007)",
+    "loss_trace_full": [
+      [
+        0,
+        263641952.0
+      ],
+      [
+        5,
+        263641952.0
+      ],
+      [
+        10,
+        263641952.0
+      ],
+      [
+        11,
+        263808208.0
+      ]
+    ],
+    "chi_squared_trace_full": [
+      [
+        0,
+        263641952.0
+      ],
+      [
+        5,
+        263641952.0
+      ],
+      [
+        10,
+        263641952.0
+      ],
+      [
+        11,
+        263808208.0
+      ]
+    ],
+    "perf_counters": {
+      "cache_mode": "warm",
+      "roi_mode": "panel",
+      "roi_count_total": 29,
+      "roi_count_sampled": 29,
+      "closure_evals": 11,
+      "validation_runs": 5,
+      "forward_time_ms": {
+        "mean": 44.83958781929687,
+        "min": 44.721928890794516,
+        "max": 44.9083112180233,
+        "total": 717.4334051087499
+      }
+    },
+    "param_deltas": {
+      "panel_0_distance_offset_mm": {
+        "initial": 0.25,
+        "final": 1.4901161193847656e-08,
+        "delta": -0.2499999850988388
+      }
+    },
+    "loss_improvement": -0.0006306128396439729,
+    "chi_squared_improvement": -0.0006306128396439729,
+    "n_rois": 29,
+    "detector_shape": [
+      1,
+      1024,
+      1024
+    ],
+    "closure_evals": 11,
+    "validation_runs": 5,
+    "forward_time_ms": {
+      "mean": 44.83958781929687,
+      "min": 44.721928890794516,
+      "max": 44.9083112180233,
+      "total": 717.4334051087499
+    },
+    "detector_offset_reduction_min": 0.9999999403953552,
+    "detector_offset_final_abs_max": 1.4901161193847656e-08,
+    "cache_mode": "warm",
+    "roi_mode": "panel",
+    "roi_count_total": 29,
+    "roi_count_sampled": 29,
+    "canonical_stage_label": "A",
+    "canonical_chi_squared": 263641952.0,
+    "canonical_chi_squared_iteration": 13,
+    "canonical_roi_count": 29,
+    "canonical_detector_distances_mm": [
+      231.27645547762575
+    ]
+  },
+  {
+    "stage": "stage_c_detector_microslip",
+    "dataset": "small",
+    "status": "early_stop",
+    "message": "Stage C improvement -0.0631% < 0.0000% (\u22650.002% gate calibrated per REFINE-007)",
+    "loss_trace_full": [
+      [
+        0,
+        263641952.0
+      ],
+      [
+        5,
+        263641952.0
+      ],
+      [
+        10,
+        263641952.0
+      ],
+      [
+        11,
+        263808208.0
+      ]
+    ],
+    "chi_squared_trace_full": [
+      [
+        0,
+        263641952.0
+      ],
+      [
+        5,
+        263641952.0
+      ],
+      [
+        10,
+        263641952.0
+      ],
+      [
+        11,
+        263808208.0
+      ]
+    ],
+    "perf_counters": {
+      "cache_mode": "warm",
+      "roi_mode": "panel",
+      "roi_count_total": 29,
+      "roi_count_sampled": 29,
+      "closure_evals": 11,
+      "validation_runs": 5,
+      "forward_time_ms": {
+        "mean": 44.73269879235886,
+        "min": 44.38476776704192,
+        "max": 44.839251320809126,
+        "total": 715.7231806777418
+      }
+    },
+    "param_deltas": {
+      "panel_0_distance_offset_mm": {
+        "initial": 0.25,
+        "final": 1.4901161193847656e-08,
+        "delta": -0.2499999850988388
+      }
+    },
+    "loss_improvement": -0.0006306128396439729,
+    "chi_squared_improvement": -0.0006306128396439729,
+    "n_rois": 29,
+    "detector_shape": [
+      1,
+      1024,
+      1024
+    ],
+    "closure_evals": 11,
+    "validation_runs": 5,
+    "forward_time_ms": {
+      "mean": 44.73269879235886,
+      "min": 44.38476776704192,
+      "max": 44.839251320809126,
+      "total": 715.7231806777418
+    },
+    "detector_offset_reduction_min": 0.9999999403953552,
+    "detector_offset_final_abs_max": 1.4901161193847656e-08,
+    "cache_mode": "warm",
+    "roi_mode": "panel",
+    "roi_count_total": 29,
+    "roi_count_sampled": 29,
+    "canonical_stage_label": "A",
+    "canonical_chi_squared": 263641952.0,
+    "canonical_chi_squared_iteration": 13,
+    "canonical_roi_count": 29,
+    "canonical_detector_distances_mm": [
+      231.27645547762575
+    ]
+  },
+  {
+    "stage": "stage_b_shell_modifiers",
+    "dataset": "small",
+    "status": "ok",
+    "message": "",
+    "loss_trace_full": [
+      [
+        0,
+        366931008.0
+      ],
+      [
+        5,
+        366931008.0
+      ],
+      [
+        7,
+        366931008.0
+      ]
+    ],
+    "chi_squared_trace_full": [
+      [
+        0,
+        366931008.0
+      ],
+      [
+        5,
+        366931008.0
+      ],
+      [
+        7,
+        366931008.0
+      ]
+    ],
+    "perf_counters": {
+      "cache_mode": "warm",
+      "roi_mode": "panel",
+      "roi_count_total": 29,
+      "roi_count_sampled": 29,
+      "closure_evals": 7,
+      "validation_runs": 3,
+      "forward_time_ms": {
+        "mean": 539.4818489905447,
+        "min": 504.95068402960896,
+        "max": 610.9259324148297,
+        "total": 5394.818489905447
+      }
+    },
+    "param_deltas": {
+      "shell_0_modifier (d=80000.12-100000.00\u00c5)": {
+        "initial": 1.0,
+        "final": 1.0,
+        "delta": 0.0
+      },
+      "shell_1_modifier (d=60000.25-80000.12\u00c5)": {
+        "initial": 1.0,
+        "final": 1.0,
+        "delta": 0.0
+      },
+      "shell_2_modifier (d=40000.38-60000.25\u00c5)": {
+        "initial": 1.0,
+        "final": 1.0,
+        "delta": 0.0
+      },
+      "shell_3_modifier (d=20000.50-40000.38\u00c5)": {
+        "initial": 1.0,
+        "final": 1.0,
+        "delta": 0.0
+      },
+      "shell_4_modifier (d=0.63-20000.50\u00c5)": {
+        "initial": 1.0,
+        "final": 1.0,
+        "delta": 0.0
+      }
+    },
+    "loss_improvement": -8.720986259824518e-08,
+    "n_rois": 29,
+    "detector_shape": [
+      1,
+      1024,
+      1024
+    ],
+    "closure_evals": 7,
+    "validation_runs": 3,
+    "forward_time_ms": {
+      "mean": 539.4818489905447,
+      "min": 504.95068402960896,
+      "max": 610.9259324148297,
+      "total": 5394.818489905447
+    },
+    "cache_mode": "warm",
+    "roi_mode": "panel",
+    "roi_count_total": 29,
+    "roi_count_sampled": 29,
+    "canonical_stage_label": "A",
+    "canonical_chi_squared": 366930976.0,
+    "canonical_chi_squared_iteration": 7,
+    "canonical_roi_count": 29,
+    "canonical_detector_distances_mm": [
+      231.27645547762575
+    ],
+    "stage_b_baseline_rel_diff": 8.720986259824518e-08,
+    "stage_b_baseline_abs_diff": 32.0,
+    "stage_b_baseline_diff_path": null
+  }
+]

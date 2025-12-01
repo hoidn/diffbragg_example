@@ -15,7 +15,8 @@ References:
 - docs/spec-db-conformance.md:12-14 (DB-AT-010 acceptance)
 - docs/development/testing_strategy.md:338-372 (gradcheck requirements)
 - docs/pytorch_runtime_checklist.md:27-30 (NANOBRAGG_DISABLE_COMPILE=1)
-- dbex/nanobrag_bridge.py:760 (simulate_forward_torch, compute_masked_mse_loss)
+- dbex/physics/forward.py (simulate_forward_torch)
+- dbex/physics/loss.py (compute_masked_mse_loss)
 """
 
 import os
@@ -177,11 +178,9 @@ class TestDB_AT_010_Gradcheck:
         Tests that torch.autograd.gradcheck passes for the cell_a parameter
         with eps=1e-6, atol=1e-5, rtol≈0.05 per testing_strategy.md:364.
         """
-        from dbex.nanobrag_bridge import (
-            simulate_forward_torch,
-            compute_masked_mse_loss,
-            create_crystal_config
-        )
+        from dbex.physics.forward import simulate_forward_torch
+        from dbex.physics.loss import compute_masked_mse_loss
+        from dbex.nanobrag_bridge import create_crystal_config
 
         device = torch.device('cpu')
         dtype = torch.float64
@@ -267,10 +266,8 @@ class TestDB_AT_010_Gradcheck:
 
         Tests that torch.autograd.gradcheck passes for the cell_gamma parameter.
         """
-        from dbex.nanobrag_bridge import (
-            simulate_forward_torch,
-            compute_masked_mse_loss
-        )
+        from dbex.physics.forward import simulate_forward_torch
+        from dbex.physics.loss import compute_masked_mse_loss
 
         device = torch.device('cpu')
         dtype = torch.float64
@@ -356,10 +353,8 @@ class TestDB_AT_010_Gradcheck:
 
         Tests that torch.autograd.gradcheck passes for detector distance changes.
         """
-        from dbex.nanobrag_bridge import (
-            simulate_forward_torch,
-            compute_masked_mse_loss
-        )
+        from dbex.physics.forward import simulate_forward_torch
+        from dbex.physics.loss import compute_masked_mse_loss
 
         device = torch.device('cpu')
         dtype = torch.float64
@@ -474,10 +469,8 @@ class TestDB_AT_010_Gradcheck:
 
         Tests that torch.autograd.gradcheck passes for wavelength changes.
         """
-        from dbex.nanobrag_bridge import (
-            simulate_forward_torch,
-            compute_masked_mse_loss
-        )
+        from dbex.physics.forward import simulate_forward_torch
+        from dbex.physics.loss import compute_masked_mse_loss
 
         device = torch.device('cpu')
         dtype = torch.float64

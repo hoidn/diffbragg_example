@@ -560,3 +560,20 @@ pytest -vv tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck \
   Required assets (per docs/data_dependency_manifest.md §§tests/dbex/test_gradients.py, Sigma/Calibration Sources): `refGeom.expt`, `refGeom.refl`, `scaled.mtz`, `747_mask.pkl`, and sigma metadata. If any asset is missing, log the failure signature in `docs/fix_plan.md` + galph_memory, then pause.
 - **Artifacts**: `plans/active/ARCH-REFINE-001/reports/2025-12-01T134542Z/` (collect_db_at_010.log, pytest_db_at_010.log, gradcheck_metrics.json, summary.md)
 - **Next Actions**: After DB-AT-010 passes with the helpers in `dbex/physics`, Phase C.3 is complete and we can proceed to Phase C.4 (docs/test registry sync) or pivot to the telemetry doc refresh called out in Exit Criterion #3.
+
+### 2025-12-01T134542Z - ARCH-REFINE-001 Phase C.3: Physics helper extraction (COMPLETE)
+**Action**: Relocated DB-AT-010 forward/loss helpers to `dbex/physics` so gradcheck tests no longer import the bridge monolith (ARCH-REFINE-001 Phase C.3).
+- **Created dbex/physics/forward.py** (235 lines): Contains `simulate_forward_torch` with full docstring, lazy imports, tensor-valued overrides, and ROI stacking. References RUNTIME-001, SCALE-001/002, GRADIENT-001, PHYSICS-LOSS-001, ARCH-FACTORY-001 findings. Includes TEST-ONLY note warning against production LBFGS closure usage.
+- **Extended dbex/physics/loss.py** (148 lines): Added `compute_masked_mse_loss` (90 lines) implementing spec-db-core.md sections 57-68 variance model with IRLS detached denominator. Reuses shared validation/clamp logic mindset. Added Optional import.
+- **Updated dbex/physics/__init__.py** (24 lines): Exports `simulate_forward_torch` and `compute_masked_mse_loss` with module-level docstring referencing spec sections 57-68 and 30-45, PHYSICS-LOSS-001.
+- **Updated dbex/nanobrag_bridge.py** (lines 2103-2117): Replaced 255-line function definitions with 14-line re-export block importing from `dbex.physics.forward` and `dbex.physics.loss`. Added ARCH-REFINE-001 Phase C.3 comment and finding references.
+- **Updated tests/dbex/test_gradients.py**: Replaced 4 occurrences of `from dbex.nanobrag_bridge import (simulate_forward_torch, compute_masked_mse_loss)` with separate imports from `dbex.physics.forward` and `dbex.physics.loss`. Updated module docstring to reference new module paths instead of bridge:760/905.
+- **Updated docs/TESTING_GUIDE.md**: Updated DB-AT-010 selector row (line 132) to reference `dbex/physics/forward.py` and `dbex/physics/loss.py` instead of bridge. Added PHYSICS-LOSS-001 to findings list. Updated Gradcheck scope note (lines 145-147) to reference `dbex/physics/forward.py` and `_compute_variance_weighted_loss` from `dbex/physics/loss.py`.
+**Metrics**:
+- DB-AT-010 collection: 5 tests collected (5 gradcheck tests as expected)
+- DB-AT-010 full test: **5 passed** in 95.37s (faster than canonical 191s, likely due to CPU/compiler optimizations)
+- All gradcheck parameters passed: crystal_cell_a, crystal_cell_gamma, detector_distance_mm, beam_wavelength_A
+- Net change: -241 lines (bridge), +235 lines (forward.py), +90 lines (loss.py), +24 lines (__init__.py), net: +108 lines
+**Artifacts**: plans/active/ARCH-REFINE-001/reports/2025-12-01T134542Z/ (collect_db_at_010.log, pytest_db_at_010.log, db_at_010/ subdirectory with 5 gradcheck JSON metrics)
+**First Divergence**: Initial __init__.py had non-UTF-8 section symbols causing SyntaxError; replaced with "sections" text.
+**Next Actions**: Phase C.3 complete. Physics helpers now decoupled from bridge. Ready to proceed to Phase C.4 (docs/test registry sync) or address Exit Criterion #3 telemetry doc refresh as needed.

@@ -89,6 +89,7 @@
       Always treat these as canonical, in roughly this priority order:
 
       - <code>user_input.md</code>  <!-- HIGHEST PRIORITY: If present, read immediately, treat as absolute command, then DELETE. -->
+      - <code>problems.md</code>  <!-- AFTER handling user_input: read this optional backlog to capture user-supplied issues; update/remove entries as you schedule or resolve them, linking to fix-plan items. -->
       - <code>docs/index.md</code> <!-- HIGHEST PRIORITY: always read in full. -->
       - <code>docs/fix_plan.md</code>
       - <code>docs/findings.md</code>
@@ -247,18 +248,22 @@
     <startup_steps>
       0. <strong>Manual Override Check:</strong> Check if <code>user_input.md</code> exists.
          - <strong>If found:</strong> Read it. This file overrides all history and state. Execute its instructions immediately. <strong>You MUST emit <code>rm user_input.md</code></strong> in your shell commands to prevent loops. Reset internal state to <code>dwell=0</code>.
-         - <strong>If not found:</strong> Proceed to Dwell tracking.
-      1. <strong>Dwell tracking:</strong> (If no override) If <code>galph_memory.md</code> is missing, create it with <code>dwell=0</code>. Read the last entry for this focus to compute the new dwell. If <code>dwell==2</code> and prior two loops were non‑implementation, pre‑set <code>state=ready_for_implementation</code>.
-      2. <code>timeout 30 git pull --rebase</code>. If it times out: <code>git rebase --abort</code> then <code>git pull --no-rebase</code>.
+         - <strong>Then:</strong> Proceed to the Problems ledger review step (even if no override file was present).
+      1. <strong>Problems ledger review:</strong> After handling overrides, check for <code>./problems.md</code>.
+         - If the file exists, read it in full before continuing. Treat each entry as a high-signal user-supplied issue feed that can seed or adjust initiatives.
+         - When you schedule, supersede, or resolve an entry, update the corresponding bullet in <code>problems.md</code> with links to the relevant fix-plan item or remove it entirely so the ledger stays current. Summarize any edits in <code>galph_memory.md</code>.
+         - If the file does not exist, continue to Dwell tracking.
+      2. <strong>Dwell tracking:</strong> Ensure <code>galph_memory.md</code> exists (create with <code>dwell=0</code> if needed). Use the last entry for this focus to compute the new dwell unless a manual override just reset it. If <code>dwell==2</code> and prior two loops were non‑implementation, pre‑set <code>state=ready_for_implementation</code>.
+      3. <code>timeout 30 git pull --rebase</code>. If it times out: <code>git rebase --abort</code> then <code>git pull --no-rebase</code>.
          If conflicts:
            - <code>git status --short</code> to list conflicted files.
            - Resolve each (remove markers, keep intended content), <code>git add</code>.
            - Resume with <code>timeout 30 git rebase --continue --no-edit</code> (never run without timeout).
          Capture key decisions (especially for <code>docs/fix_plan.md</code>) in <code>galph_memory.md</code>.
-      3. Read the latest <code>galph_memory.md</code> entry and any linked plan files for the active focus.
-      4. Review artifacts in <code>plans/active/&lt;initiative-id&gt;/reports/</code> from the previous loop.
-      5. <strong>Focus validation (reality check):</strong> If the chosen item says “create/update X”, first check reality. If X exists or exit criteria already pass, rescope to “verify + update”. Record in <code>galph_memory.md</code> and reflect in <code>input.md</code>.
-      6. Set <code>AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md</code>.
+      4. Read the latest <code>galph_memory.md</code> entry and any linked plan files for the active focus.
+      5. Review artifacts in <code>plans/active/&lt;initiative-id&gt;/reports/</code> from the previous loop.
+      6. <strong>Focus validation (reality check):</strong> If the chosen item says “create/update X”, first check reality. If X exists or exit criteria already pass, rescope to “verify + update”. Record in <code>galph_memory.md</code> and reflect in <code>input.md</code>.
+      7. Set <code>AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md</code>.
     </startup_steps>
 
     <retrospective_cadence>

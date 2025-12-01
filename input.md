@@ -1,42 +1,42 @@
-Summary: Backfill Phase B.5 guardrail tests so RefinementContext/JobContext usage and Stage B CPU fallback device switching stay reproducible before we resume production code changes.
+Summary: Consolidate RefinementTelemetry into the canonical refinement.stage module so the engine path, stage wrappers, and CLI writer all share one schema before Phase C IO cleanup.
 Mode: none
 Focus: ARCH-REFINE-001 — Refinement Engine Modularization & Torch IO
 Branch: integration
-Mapped tests: pytest -vv tests/dbex/test_refinement_engine.py; pytest -vv tests/dbex/test_refinement_context.py; pytest -vv tests/dbex/test_stage_b_cpu_fallback.py
-Artifacts: plans/active/ARCH-REFINE-001/reports/2025-12-01T140500Z/
+Mapped tests: pytest -vv tests/dbex/test_torch_refine_smoke.py -k "test_stage_b_shell_modifiers or test_stage_c_detector_microslip" --smoke-detector-size=small; pytest -vv tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata; pytest -vv tests/dbex/test_refinement_engine.py
+Artifacts: plans/active/ARCH-REFINE-001/reports/2025-12-01T131510Z/
 Do Now:
-- Implement: tests/dbex/test_refinement_engine.py::test_engine_executes_mock_stage — update the nucleus to supply a minimal `RefinementContext` via `inputs['context']` and add a new `test_engine_requires_context` that asserts the ValueError emitted when the key is missing (ARCH-ENGINE-003, spec-db-workflow.md §33).
-- Implement: tests/dbex/test_refinement_context.py::test_build_refinement_context_copies_job_context_metadata (new file) — author builder tests that prove JobContext extras (`asu_map`, `hkl_indices_grid`, `halo_mask`) copy into RefinementContext and that `build_job_context` rejects a non-positive `sigma_reference_value` per PHYSICS-LOSS-001.
-- Implement: tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_params_cpu_fallback_clones_stage_a_ctx — patch `_build_stage_a_context`/`compute_hkl_shell_lookup` to lightweight stubs and assert `_build_stage_b_params` flips `use_stage_b_cpu_fallback=True`, clones the Stage A context to CPU, and keeps `stage_b_cache_mode="warm"` when `config.stage_b_full_eval_on_cpu` and `device='cuda:0'` (GRADIENT-003, PERF-WARM-011/012).
-- Validate: `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest -vv tests/dbex/test_refinement_engine.py tests/dbex/test_refinement_context.py tests/dbex/test_stage_b_cpu_fallback.py | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T140500Z/pytest_context_cpu_fallback.log`
+- Implement: dbex/nanobrag_refinement.py::RefinementTelemetry — delete the duplicate dataclass, import the canonical definition from `dbex.refinement.stage`, and keep the module returning `Dict[str, RefinementTelemetry]` for all code paths.
+- Implement: dbex/refinement/stage_a.py::StageA.run — swap the lazy `dbex.nanobrag_refinement` import for `dbex.refinement.RefinementTelemetry`, update StageB.run, StageC.run, and `stage_c_impl._run_stage_c_lbfgs` to consume the canonical class, and ensure no wrapper imports the monolith solely for type construction.
+- Implement: tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata — adjust the telemetry mocks (and any helper scripts) to reference `dbex.refinement.RefinementTelemetry` so `_write_torch_outputs` is exercised against the shared schema; touch `dbex/refine_one.py::_write_torch_outputs` only if it still instantiates the old class.
+- Validate: `pytest --collect-only tests/dbex/test_torch_refine_smoke.py -k "test_stage_b_shell_modifiers or test_stage_c_detector_microslip" --smoke-detector-size=small > plans/active/ARCH-REFINE-001/reports/2025-12-01T131510Z/collect_stage_bc_small.log`.
+- Validate: `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_TELEMETRY_PATH=plans/active/ARCH-REFINE-001/reports/2025-12-01T131510Z/telemetry_stage_bc_small.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py -k "test_stage_b_shell_modifiers or test_stage_c_detector_microslip" --smoke-detector-size=small | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T131510Z/pytest_stage_bc_small.log`.
+- Validate: `pytest --collect-only tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata > plans/active/ARCH-REFINE-001/reports/2025-12-01T131510Z/collect_cli_torch_diag.log` followed by `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T131510Z/pytest_cli_torch_diag.log`.
+- Validate: `pytest --collect-only tests/dbex/test_refinement_engine.py > plans/active/ARCH-REFINE-001/reports/2025-12-01T131510Z/collect_engine_contract.log` followed by `pytest -vv tests/dbex/test_refinement_engine.py | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T131510Z/pytest_engine_contract.log`.
 How-To Map:
-1. `export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md`.
-2. For `tests/dbex/test_refinement_engine.py`, import `RefinementInputs` and build a tiny numpy/torch payload plus mock detector/beam/crystal to instantiate `RefinementContext`; update the existing test to pass `{'context': ctx}` and add the missing-context ValueError test.
-3. Create `tests/dbex/test_refinement_context.py` with helpers that fabricate `JobContext`/`RefinementContext` inputs (use numpy arrays for HKL metadata and `RefinementConfig()` defaults); assert the builder copies metadata and enforces sigma provenance rules.
-4. Add `tests/dbex/test_stage_b_cpu_fallback.py` that patches `_build_stage_a_context` and `compute_hkl_shell_lookup` via `unittest.mock`, calls `_build_stage_b_params` twice (CUDA/ROI-off vs CPU/ROI-on), and asserts the CPU fallback telemetry fields toggle as expected.
-5. `pytest --collect-only tests/dbex/test_refinement_engine.py tests/dbex/test_refinement_context.py tests/dbex/test_stage_b_cpu_fallback.py > plans/active/ARCH-REFINE-001/reports/2025-12-01T140500Z/collect_context_cpu_fallback.log` to log selector health before running the suite.
-6. Run the combined `pytest -vv ...` command above, keep the tee’d log, and stash any additional artifacts (e.g., failing traces) under the same timestamped directory if reruns are required.
+1. `export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md` and `mkdir -p plans/active/ARCH-REFINE-001/reports/2025-12-01T131510Z` to pin artifact locations.
+2. Update `dbex/nanobrag_refinement.py`: remove the local `RefinementTelemetry` dataclass, add `from dbex.refinement import RefinementTelemetry`, and ensure helper code paths that previously instantiated the local class now call the shared version without changing field defaults.
+3. Touch Stage wrappers (`dbex/refinement/stage_a.py`, `dbex/refinement/stage_b.py`, `dbex/refinement/stage_c.py`) plus `dbex/refinement/stage_c_impl.py` so they import `RefinementTelemetry` from `dbex.refinement` at module scope instead of lazily importing the monolith.
+4. Search for `from dbex.nanobrag_refinement import RefinementTelemetry` (tests/scripts) and update each site to the canonical import; keep mocks constructing real dataclass instances so `_write_torch_outputs` and engine tests exercise the single schema.
+5. Log selector health with the collect-only commands above before executing each pytest run; stash all logs/telemetry JSON in the timestamped report directory.
+6. After all tests pass, capture any additional telemetry (e.g., `telemetry_stage_bc_small.json`) required by docs/fix_plan.md references.
 Pitfalls To Avoid:
-- This is a tests-only loop: do not modify production modules or Stage wrappers—limit edits to the test tree.
-- Keep tests hermetic: no reliance on `sp.proc/refGeom_small` or other assets listed in docs/data_dependency_manifest.md.
-- When faking CUDA devices in CPU fallback tests, patch helpers so no real CUDA allocation occurs (only inspect flags).
-- Preserve deterministic assertions (e.g., ROI sampling) by seeding or sorting any random outputs; avoid brittle dependence on numpy RNG defaults.
-- Import builders lazily inside tests to avoid import cycles while Stage modules still evolve.
-- Keep new tests ASCII-only, small, and self-documenting; avoid instantiating `nanobrag_torch.Simulator`.
-- Record every new artifact/log under the provided timestamp so docs/fix_plan.md references stay valid.
-- Respect Environment Freeze—no package installs or GPU diagnostics; missing imports must be logged as blockers instead.
+- Do not edit ROI/sample logic or other refinement behavior—only update telemetry class imports.
+- Preserve field defaults and ordering inside the canonical dataclass; avoid dropping optional fields used by `/torch_diagnostics` consumers.
+- Stage wrappers must continue to avoid eager simulator imports; keep new imports lightweight and module-local when necessary.
+- When cleaning up imports, do not break `RefinementEngine` circularity (avoid referencing stage modules from inside dataclass definitions).
+- Maintain Environment Freeze: no package installs or dependency upgrades.
+- Keep CLI tests hermetic; do not touch dataset assets listed in docs/data_dependency_manifest.md.
+- Ensure smoke tests run with the provided env vars so telemetry paths are written under the correct artifacts directory.
 If Blocked:
-- Capture the failing test log under `plans/active/ARCH-REFINE-001/reports/2025-12-01T140500Z/blocked.log`, summarize the failure signature plus findings link in docs/fix_plan.md Attempts History and galph_memory.md, then stop so we can replan or retarget the item.
+- Save the failing log (collect + pytest) under `plans/active/ARCH-REFINE-001/reports/2025-12-01T131510Z/blocked.log`, note the failure signature (e.g., missing field or import loop) in docs/fix_plan.md Attempts History and galph_memory.md, then stop for supervisor guidance.
 Findings Applied (Mandatory):
-- ARCH-ENGINE-003 — Engine telemetry contract now requires `inputs['context']`; tests must enforce this guard.
-- REFINE-005 — HKL halos/asu_map metadata must propagate through contexts; tests need to cover that builder behavior.
-- REFINE-010 — Stage A ROI auto-panel threshold is the precondition for Stage B CPU fallback; capture it in the CPU fallback test setup.
-- GRADIENT-003 & PERF-WARM-011/012 — Document the device-switch logic so fallback regressions are caught.
+- DIAGNOSTICS-001 — `/torch_diagnostics` schema must remain stable; validate via CLI telemetry test.
+- PHYSICS-LOSS-001 — Canonical chi-squared and sigma provenance fields live on RefinementTelemetry; consolidating the class keeps these metrics intact.
+- ARCH-ENGINE-003 — Engine telemetry enrichment depends on a single dataclass, so stage wrappers must stop importing stale definitions.
 Pointers:
-- docs/fix_plan.md:400 — Phase B.5 scope + validation bullets for this loop.
-- docs/architecture/dbex/refinement/context.idl.md:1 — Field contracts for RefinementContext/JobContext builders.
-- docs/TESTING_GUIDE.md:150 — Selector registry + artifact expectations for new pytest modules.
-- docs/findings.md:65-76 — REFINE-010 and GRADIENT-003 context behind the CPU fallback behavior we’re testing.
-Next Up (optional): Once these guardrail tests land, resume ARCH-REFINE-001 Phase C telemetry/IO cleanup or advance to SPEC-REALIGN-001 prep.
-Doc Sync Plan: After the new tests pass, keep the collect-only log above in the artifacts directory and update `docs/TESTING_GUIDE.md` §2 / `docs/development/TEST_SUITE_INDEX.md` only if new selectors are promoted beyond module-level invocations (none expected here).
-Mapped Tests Guardrail: Ensure the Step 5 collect-only run above reports ≥1 collected test for each mapped selector before executing the full pytest command; abort and investigate if collection returns zero.
+- docs/spec-db-workflow.md:33 — Engine contract + telemetry invariants guiding the consolidation.
+- docs/architecture/data_telemetry_flow.md:24 — `/torch_diagnostics` schema that the shared dataclass must represent.
+- plans/active/ARCH-REFINE-001/implementation.md:200 — Phase C checklist for telemetry + IO cleanup.
+Next Up (optional): Begin Phase C.2 by extracting the shared torch writer once the canonical telemetry definition is stable.
+Doc Sync Plan (Conditional): none — no new selectors are added.
+Mapped Tests Guardrail: The collect-only steps above must show ≥1 collected test per selector before running full pytest; if any selector collects 0, treat it as a block and capture evidence before proceeding.

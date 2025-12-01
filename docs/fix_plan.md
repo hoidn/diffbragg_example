@@ -437,3 +437,24 @@ Capture the `--collect-only` output for the same selector before running the tes
 **Artifacts**: plans/active/ARCH-REFINE-001/reports/2025-12-01T140500Z/ (collect_context_cpu_fallback.log, pytest_context_cpu_fallback.log)
 **First Divergence**: Initial implementation required one fix: added missing sigma_floor_sq_cache parameter to _build_stage_b_params calls after TypeError
 **Next Actions**: Phase B.5 complete — all guardrail tests pass. Ready to resume production code changes (Phase C or next ARCH-REFINE-001 phase per plan).
+
+### 2025-12-01T131510Z - ARCH-REFINE-001 Phase C.1: Telemetry dataclass consolidation (READY FOR IMPLEMENTATION)
+**Gap:** `RefinementTelemetry` still exists in two places (`dbex/refinement/stage.py` and `dbex/nanobrag_refinement.py`). The duplicate definitions drifted apart (stage version carries engine_protocol/variance-floor/canonical Stage A fields while the nanobrag version lags), so stage wrappers keep importing the monolith just to grab the dataclass. This violates the engine modularization goal (Phase C exit criterion #3) and risks `/torch_diagnostics` schema skew, per DIAGNOSTICS-001 + PHYSICS-LOSS-001.
+**Plan:**
+1. Remove the class definition from `dbex/nanobrag_refinement.py` and import the canonical dataclass from `dbex.refinement.stage`. Ensure `RefinementTelemetry` remains re-exported via `dbex/refinement/__init__.py` for consumers (RefinementEngine, CLI writer, tests).
+2. Update stage wrappers (`dbex/refinement/stage_{a,b,c}.py`, `dbex/refinement/stage_c_impl.py`) and any tests/tools (`tests/dbex/test_refine_one_cli.py`, probes under `plans/*`) so they import `RefinementTelemetry` from `dbex.refinement` rather than the monolith. This breaks the lingering circular dependency and lets wrappers operate without touching `nanobrag_refinement`.
+3. Audit `_write_torch_outputs` and CLI/test helpers that still construct telemetry dictionaries to make sure they instantiate the canonical dataclass (no bare dicts) before serialization. Confirm `RefinementEngine.telemetry()` still returns `Dict[str, RefinementTelemetry]` with the single definition.
+- **Spec alignment:** docs/spec-db-workflow.md §§33-45 (engine/telemetry contract) and docs/architecture/data_telemetry_flow.md (torch diagnostics schema). Findings: DIAGNOSTICS-001, PHYSICS-LOSS-001/003.
+- **Validation:** Re-run the small-detector Stage B + Stage C smoke bundle plus CLI telemetry test to prove `/torch_diagnostics` stays stable:
+```
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+DBEX_SMOKE_SIGMA_SOURCE=cli_override \
+DBEX_SMOKE_DETECTOR_SIZE=small \
+DBEX_SMOKE_TELEMETRY_PATH=plans/active/ARCH-REFINE-001/reports/2025-12-01T131510Z/telemetry_stage_bc_small.json \
+KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
+pytest -vv tests/dbex/test_torch_refine_smoke.py -k "test_stage_b_shell_modifiers or test_stage_c_detector_microslip" --smoke-detector-size=small \
+| tee plans/active/ARCH-REFINE-001/reports/2025-12-01T131510Z/pytest_stage_bc_small.log
+```
+Then run `pytest -vv tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata` plus `pytest -vv tests/dbex/test_refinement_engine.py` (collect-only logs captured before execution) with logs archived under the same timestamped directory to keep selector health on record (docs/TESTING_GUIDE.md §2, docs/data_dependency_manifest.md — no new assets required).
+**Artifacts**: `plans/active/ARCH-REFINE-001/reports/2025-12-01T131510Z/`
+**Next Actions**: Once the code and selectors prove the single telemetry definition works, advance to Phase C.2 (shared writer extraction) using the same canonical dataclass to serialize `/torch_diagnostics`.

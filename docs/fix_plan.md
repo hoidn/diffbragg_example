@@ -150,3 +150,13 @@ Capture the `--collect-only` output for the same selector before running the tes
 - Investigate Stage C parameter reconstruction: why does Stage A show 0% improvement with small detector + enable_stage_c=True?
 - Debug Stage A→C chi-squared offset (~2.6%) - parameter extraction from Stage A telemetry may not match inline path
 - Once Stage C blocker resolved, complete Phase A.4 exit criteria and advance to Phase B (RefinementContext/JobContext builders)
+
+### 2025-12-01T095317Z - ARCH-REFINE-001 Phase A.4: Stage C smoke prep (READY FOR IMPLEMENTATION)
+**Action**: Replayed the Stage C detector microslip smoke logs and attempted to re-run the helper script to capture Stage A/Stage C telemetry under engine-only routing. The reproduction script failed early because `sp.proc/refGeom_small/refGeom_small.expt` is not present in this workspace, so no fresh telemetry was collected. The archived pytest log still shows two independent regressions:
+- `test_stage_b_shell_modifiers` hit `IndexError` in its `finally` block because `telemetry_a.loss_trace_full` was empty, which aligns with Phase A extraction removing the initial full-loss checkpoint.
+- `test_stage_c_detector_microslip` now asserts Stage A improvement is 0.00% and Stage C’s initial chi-squared starts ~2.6 % away from Stage A final, meaning downstream stages have no reliable “initial vs final” reference.
+
+**Plan**:
+- Patch `dbex/refinement/stage_a_impl.py::_run_stage_a_lbfgs` (and the closure helper) so the initial full-loss/chi-squared pair is recorded before LBFGS runs, guaranteeing `loss_trace_full` (and the PHYSICS-LOSS-001 chi-squared mirrors) always include the Stage A baseline. This restores the historical Δχ² evidence that Stage B/C smokes assert.
+- Audit `StageC.run` and the `RefinementEngine` telemetry hand-off to ensure the engine caches Stage A’s final chi-squared and ROI metadata before Stage C runs, then enforce equality when Stage C seeds its canonical snapshot. Any fallback (e.g., when Stage A emitted zero entries) should raise a targeted `RuntimeError` instead of letting tests read bogus zeros.
+- Validation: rerun the small-detector Stage C smoke (`pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small`) plus the Stage B shell smoke to prove both selectors see strictly monotonic Stage A traces again. Capture new telemetry under `plans/active/ARCH-REFINE-001/reports/<timestamp>/`.

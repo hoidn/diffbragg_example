@@ -16,3 +16,7 @@ Action State: ready_for_implementation
 - Planned the StageC.run + RefinementEngine updates needed to propagate `_run_stage_c_lbfgs`' bragg buffer, and documented the CLI/test churn (drop `--use-engine-delegation`, always run through the engine) plus the combined Stage B/C smoke selector.
 - Retrospective (loops 2025-12-01T080903Z..T090517Z): prior Do Nows were followed (Stage A/B/C helper moves merged), only outstanding issue is the legacy inline branch; no hygiene/telemetry drift observed.
 Action State: ready_for_implementation
+2025-12-01T095317Z focus=ARCH-REFINE-001 state=ready_for_implementation dwell=2 action=planning artifacts=plans/active/ARCH-REFINE-001/reports/2025-12-01T095317Z/ next_action=Repair Stage A telemetry baselines + rerun Stage C smoke
+- Stage B/C pytest log shows Stage A `loss_trace_full` often empty (IndexError in Stage B smoke) and Stage C gate sees 0.00% improvement + 2.6% chi² offset; attempted to rerun a reproduction script but missing `sp.proc/refGeom_small/refGeom_small.expt` blocked fresh evidence in this workspace.
+- New Do Now directs Ralph to patch `dbex/refinement/stage_a_impl.py::_run_stage_a_lbfgs` so Stage A baseline/final chi² samples are always recorded before Stage C runs, add guards in `StageC.run`/engine telemetry to enforce equality with Stage A final, and re-run the small-detector Stage B/C smoke selector capturing logs under the new report directory.
+Action State: ready_for_implementation

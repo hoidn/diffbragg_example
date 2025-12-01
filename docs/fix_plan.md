@@ -843,3 +843,39 @@ pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation
   ```
 - **Artifacts:** `plans/active/PERF-WARM-SIM-001/reports/2025-12-01T171800Z/` (collect logs, pytest logs, telemetry_stage_c_small.json, telemetry_stage_c_full.json, stage_c_warm_cache_report.json, summary.md).
 - **Exit Criteria:** Script exists + recorded in artifacts, both detectors’ runs show `cache_mode="warm"`, ROI/perf counters match expectations (Stage A auto-panel when ROI ≤ threshold), detector offset reduction ≥80% (or ≤±0.05 mm) and Stage C chi² regression ≤0.05% per REFINE-007, closing out Phase D.4 so the warm-cache initiative can proceed to benchmarking tasks once Stage B/C reuse is validated.
+
+### 2025-12-01T163900Z - PERF-WARM-SIM-001 Phase D.4: Stage C panel-validation alignment (PLANNING)
+- Evidence review: the failed full-detector Stage C smoke (2025-12-01T171800Z) shows chi² regression +0.0664% while telemetry proves each panel’s distance offset collapsed to ≤1.5e-8 mm and the small-detector telemetry from the earlier green run already reported identical regression (+0.0631%). The only material change between the November PASS (2025-11-21T174147Z) and this failure is ARCH-REFINE-001 Phase E.2, which forces Stage A canonical baselines to run in panel mode whenever Stage B or Stage C is enabled. Stage C, however, still reports `chi_squared_trace_full` from the ROI subset whenever Stage A telemetry says `roi_mode="roi"`—even for “full” validations—so the strict REFINE-007 gate now compares Stage A panel-wide χ² against Stage C ROI-only χ² and trips despite detector offsets shrinking 99.99999%. Logged REFINE-011 in docs/findings.md to capture this mismatch.
+- Decision: propagate Stage A’s `force_panel_validation` flag (and a `validation_scope` marker) through telemetry into Stage C and bypass the ROI branch for any full validation when panel scope is requested. This keeps chi²/telemetry measurements aligned without disabling ROI-mode closures that keep Stage C tractable on canonical runs.
+- **Do Now (Ralph):**
+  1. **dbex/refinement/stage_a.py::StageA.run** — persist the validation scope in the telemetry (e.g., `validation_scope="panel"` when `force_panel_validation` is true) so downstream stages know when canonical metrics switched domains.
+  2. **dbex/refinement/stage_c_impl.py** — carry a `force_panel_validation` flag inside `stage_c_context`, extend `_build_stage_c_lbfgs_closure` so `compute_loss_stage_c` accepts `force_panel_eval` and skips the ROI branch for any `is_full` evaluation when the flag is set, and teach `_run_stage_c_lbfgs` to pass the flag for baseline/final evals plus telemetry traces.
+  3. **dbex/refinement/stage_c.py::StageC.run** — plumb the new telemetry/context fields (including when warm cache is disabled) and keep the Stage C initial chi² guard aligned with the new semantics.
+  4. **Validation** — rerun the Stage C detector microslip smoke for both detector sizes capturing logs + telemetry under `plans/active/PERF-WARM-SIM-001/reports/2025-12-01T163900Z/`:
+     ```
+     AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+     pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small \
+       > plans/active/PERF-WARM-SIM-001/reports/2025-12-01T163900Z/collect_stage_c_small.log
+
+     AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+     DBEX_SMOKE_SIGMA_SOURCE=cli_override \
+     DBEX_SMOKE_DETECTOR_SIZE=small \
+     DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-WARM-SIM-001/reports/2025-12-01T163900Z/telemetry_stage_c_small.json \
+     KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
+     pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small \
+       | tee plans/active/PERF-WARM-SIM-001/reports/2025-12-01T163900Z/pytest_stage_c_small.log
+
+     AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+     pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=full \
+       > plans/active/PERF-WARM-SIM-001/reports/2025-12-01T163900Z/collect_stage_c_full.log
+
+     AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+     DBEX_SMOKE_SIGMA_SOURCE=cli_override \
+     DBEX_SMOKE_DETECTOR_SIZE=full \
+     DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-WARM-SIM-001/reports/2025-12-01T163900Z/telemetry_stage_c_full.json \
+     KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
+     pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=full \
+       | tee plans/active/PERF-WARM-SIM-001/reports/2025-12-01T163900Z/pytest_stage_c_full.log
+     ```
+- **Artifacts:** `plans/active/PERF-WARM-SIM-001/reports/2025-12-01T163900Z/` (collect logs, pytest logs, telemetry_stage_c_small.json, telemetry_stage_c_full.json, summary.md).
+- **Success criteria:** Telemetry now records `validation_scope="panel"` when Stage A forces panel mode, Stage C full-detector run reports χ² regression ≤0.05% while keeping ≥80% offset reduction, and small-detector telemetry documents the unchanged early-stop behavior without tripping the gate.

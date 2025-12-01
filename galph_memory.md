@@ -124,3 +124,8 @@ Action State: ready_for_implementation
 (c) Auto-panel threshold (currently ≤32 ROIs) should be raised or disabled for Stage C flows
 **Artifacts**: plans/active/PERF-WARM-SIM-001/reports/2025-12-01T171800Z/ (summary.md, small detector telemetry captured, full detector pytest log shows regression failure signature)
 Action State: blocked
+2025-12-01T163900Z focus=PERF-WARM-SIM-001 state=planning dwell=1 action=planning artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-12-01T163900Z/ next_action=ready_for_implementation
+- Root-caused the Stage C smoke regression as a telemetry domain mismatch once Stage A started forcing panel baselines; Stage C still reports ROI-only chi² so the REFINE-007 gate compares different populations.
+- Logged REFINE-011 in docs/findings.md and refreshed docs/fix_plan.md/input.md with the plan to plumb Stage A’s `force_panel_validation` flag into Stage C and rerun the smokes (small + full).
+- No code changes yet—implementation plus smoketest reruns are queued for Ralph under the new artifact path.
+Action State: ready_for_implementation

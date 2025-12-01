@@ -31,6 +31,8 @@ from dbex.refinement.stage_a_impl import (
     StageAContext,
     _clamp_log_cell_deltas,
     _get_sigma_floor_sq_tensor,
+    _retarget_stage_a_simulators,
+    _compute_panel_loss,
 )
 
 from dbex.physics.loss import _compute_variance_weighted_loss
@@ -466,65 +468,73 @@ def _build_stage_c_lbfgs_closure(
                 dtype=dtype
             )
 
-        for pid in panel_ids:
-            panel = detector[pid]
-
-            if stage_c_use_warm_cache:
-                # Warm path: reuse retargeted detector/simulator from stage_a_ctx
-                detector_model = stage_a_ctx.detector_models[pid]
-                simulator = stage_a_ctx.simulators[pid]
-                # Attach current crystal model (frozen Stage A params)
-                simulator.crystal = crystal_model
-                simulator.beam_config = stage_a_ctx.beam_config
-            else:
-                # Cold path: instantiate fresh (existing code, keep AS-IS)
-                bounded_offset = torch.tanh(distance_offset_raw[pid]) * config.stage_c_max_distance_delta_mm
-                baseline_distance_mm = panel.get_directed_distance()
-                distance_mm_override = baseline_distance_mm + bounded_offset
-
-                detector_config = create_detector_config(
-                    panel=panel,
-                    beam=beam,
-                    trusted_mask=inputs.trusted_mask[pid],
-                    distance_mm_override=distance_mm_override
-                )
-                if detector_config.mask_array is not None and not isinstance(detector_config.mask_array, torch.Tensor):
-                    detector_config.mask_array = torch.tensor(
-                        detector_config.mask_array, dtype=torch.float32, device=device
-                    )
-                detector_model = Detector(detector_config, device=device, dtype=dtype)
-                simulator = Simulator(detector=detector_model, crystal=crystal_model, device=device, dtype=dtype)
-
-            panel_bragg = simulator.run()
-
-            bragg_panels.append(panel_bragg)
-            target_panels.append(target_t[pid])
-            mask_panels.append(loss_mask_t[pid])
-            sigma_panels.append(sigma_readout_t[pid])
-
-        # REFINE-015: Apply Stage A's log-scale clamp logic in Stage C
-        # When calibration metadata supplied the baseline:
-        #   log_scale_clamped = log_scale_baseline + clamp(delta, ±config.log_scale_max_delta)
-        # Otherwise (uncalibrated):
-        #   log_scale_clamped = clamp(delta, ±config.log_scale_max_delta_uncalibrated)
-        max_delta_uncal = getattr(config, "log_scale_max_delta_uncalibrated", 10.0)
-        delta_bound = config.log_scale_max_delta if log_scale_baseline is not None else max_delta_uncal
-        if log_scale_baseline is not None:
-            log_scale_delta_clamped = torch.clamp(log_scale, min=-delta_bound, max=delta_bound)
-            log_scale_clamped = log_scale_baseline + log_scale_delta_clamped
-        else:
-            # Absolute clamp when no baseline is available
-            log_scale_clamped = torch.clamp(log_scale, min=-delta_bound, max=delta_bound)
-        panel_outputs = {pid: panel for pid, panel in zip(panel_ids, bragg_panels)}
-        target_outputs = {pid: panel for pid, panel in zip(panel_ids, target_panels)}
-        mask_outputs = {pid: panel for pid, panel in zip(panel_ids, mask_panels)}
-        sigma_outputs = {pid: panel for pid, panel in zip(panel_ids, sigma_panels)}
+            # PERF-WARM-SIM-001: Attach frozen crystal_model to all simulators (Stage A/C parity)
+            # This ensures Stage C uses the canonical Stage A final crystal parameters
+            _retarget_stage_a_simulators(stage_a_ctx, crystal_model)
 
         # REFINE-011: Bypass ROI mode for full validations when Stage A used panel-mode validations
         # This ensures Stage C chi² measurements are comparable to Stage A baseline (REFINE-007)
         use_roi_mode_this_eval = stage_c_roi_mode_active and not (is_full and force_panel_eval)
 
         if use_roi_mode_this_eval:
+            # ROI mode: Build outputs for each panel, then slice ROIs
+            bragg_panels = []
+            target_panels = []
+            mask_panels = []
+            sigma_panels = []
+            for pid in panel_ids:
+                panel = detector[pid]
+
+                if stage_c_use_warm_cache:
+                    # Warm path: reuse retargeted detector/simulator from stage_a_ctx
+                    # PERF-WARM-SIM-001: crystal already attached via _retarget_stage_a_simulators above
+                    simulator = stage_a_ctx.simulators[pid]
+                else:
+                    # Cold path: instantiate fresh
+                    bounded_offset = torch.tanh(distance_offset_raw[pid]) * config.stage_c_max_distance_delta_mm
+                    baseline_distance_mm = panel.get_directed_distance()
+                    distance_mm_override = baseline_distance_mm + bounded_offset
+
+                    detector_config = create_detector_config(
+                        panel=panel,
+                        beam=beam,
+                        trusted_mask=inputs.trusted_mask[pid],
+                        distance_mm_override=distance_mm_override
+                    )
+                    if detector_config.mask_array is not None and not isinstance(detector_config.mask_array, torch.Tensor):
+                        detector_config.mask_array = torch.tensor(
+                            detector_config.mask_array, dtype=torch.float32, device=device
+                        )
+                    detector_model = Detector(detector_config, device=device, dtype=dtype)
+                    simulator = Simulator(detector=detector_model, crystal=crystal_model, device=device, dtype=dtype)
+
+                panel_bragg = simulator.run()
+
+                bragg_panels.append(panel_bragg)
+                target_panels.append(target_t[pid])
+                mask_panels.append(loss_mask_t[pid])
+                sigma_panels.append(sigma_readout_t[pid])
+
+            # REFINE-015: Apply Stage A's log-scale clamp logic in Stage C
+            # When calibration metadata supplied the baseline:
+            #   log_scale_clamped = log_scale_baseline + clamp(delta, ±config.log_scale_max_delta)
+            # Otherwise (uncalibrated):
+            #   log_scale_clamped = clamp(delta, ±config.log_scale_max_delta_uncalibrated)
+            max_delta_uncal = getattr(config, "log_scale_max_delta_uncalibrated", 10.0)
+            delta_bound = config.log_scale_max_delta if log_scale_baseline is not None else max_delta_uncal
+            if log_scale_baseline is not None:
+                log_scale_delta_clamped = torch.clamp(log_scale, min=-delta_bound, max=delta_bound)
+                log_scale_clamped = log_scale_baseline + log_scale_delta_clamped
+            else:
+                # Absolute clamp when no baseline is available
+                log_scale_clamped = torch.clamp(log_scale, min=-delta_bound, max=delta_bound)
+
+            panel_outputs = {pid: panel for pid, panel in zip(panel_ids, bragg_panels)}
+            target_outputs = {pid: panel for pid, panel in zip(panel_ids, target_panels)}
+            mask_outputs = {pid: panel for pid, panel in zip(panel_ids, mask_panels)}
+            sigma_outputs = {pid: panel for pid, panel in zip(panel_ids, sigma_panels)}
+
+            # ROI mode loss computation:
             chi_squared_accum = torch.zeros((), device=device, dtype=dtype)
             mse_numerator_accum = torch.zeros((), device=device, dtype=dtype)
             masked_pixels_total = 0
@@ -580,42 +590,44 @@ def _build_stage_c_lbfgs_closure(
             variance_floor_clamped_pixels_c[0] += clamped_pixels_total
             variance_floor_masked_pixels_c[0] += masked_pixels_total
         else:
-            bragg_stacked = torch.stack(
-                [panel_outputs[pid] for pid in panel_ids], dim=0
-            )
-            bragg_scaled = bragg_stacked * torch.exp(log_scale_clamped)
-            target_subset = torch.stack([target_outputs[pid] for pid in panel_ids], dim=0)
-            mask_subset = torch.stack([mask_outputs[pid] for pid in panel_ids], dim=0)
-            # REFINE-016: Apply trusted mask parity with Stage A (dbex/refinement/stage_a_impl.py:1550-1552)
-            # Warm path uses precomputed trusted_masks_t; cold path tensorizes inputs.trusted_mask on demand
-            if stage_a_ctx is not None and stage_a_ctx.trusted_masks_t is not None:
-                trusted_subset = stage_a_ctx.trusted_masks_t[panel_ids]
-                mask_subset = torch.logical_and(mask_subset, trusted_subset)
-            elif not stage_c_use_warm_cache and inputs.trusted_mask is not None:
-                trusted_masks_list = []
-                for idx, pid in enumerate(panel_ids):
-                    if inputs.trusted_mask[pid] is not None:
-                        trusted_mask_np = inputs.trusted_mask[pid]
-                        trusted_mask_t = torch.tensor(trusted_mask_np, dtype=torch.bool, device=device)
-                        trusted_masks_list.append(trusted_mask_t)
-                    else:
-                        # If no trusted mask for this panel, create all-True mask matching panel shape
-                        panel_shape = mask_subset[idx].shape
-                        trusted_masks_list.append(torch.ones(panel_shape, dtype=torch.bool, device=device))
-                trusted_subset = torch.stack(trusted_masks_list, dim=0)
-                mask_subset = torch.logical_and(mask_subset, trusted_subset)
-            sigma_subset = torch.stack([sigma_outputs[pid] for pid in panel_ids], dim=0)
+            # Panel mode: Use shared Stage A/C helper for chi² parity (PERF-WARM-SIM-001)
+            # REFINE-015: Apply Stage A's log-scale clamp logic in Stage C
+            max_delta_uncal = getattr(config, "log_scale_max_delta_uncalibrated", 10.0)
+            delta_bound = config.log_scale_max_delta if log_scale_baseline is not None else max_delta_uncal
+            if log_scale_baseline is not None:
+                log_scale_delta_clamped = torch.clamp(log_scale, min=-delta_bound, max=delta_bound)
+                log_scale_clamped = log_scale_baseline + log_scale_delta_clamped
+            else:
+                log_scale_clamped = torch.clamp(log_scale, min=-delta_bound, max=delta_bound)
+
+            # Call shared helper (simulators already retargeted with distance offsets and crystal attached)
+            # misset_xyz_deg computed above at line 430; crystal_overrides built at line 435
+            # For warm mode, use stage_a_ctx.beam_config; for cold mode, helper will need to build it
             (
                 chi_squared_loss,
                 masked_mse_loss,
                 masked_pixels_stage_c,
                 clamped_pixels_stage_c,
-            ) = _compute_variance_weighted_loss(
-                bragg_scaled,
-                target_subset,
-                mask_subset,
-                sigma_subset,
-                sigma_floor_sq_tensor_stage_c,
+            ) = _compute_panel_loss(
+                panel_ids=panel_ids,
+                stage_a_ctx=stage_a_ctx,
+                detector=detector,
+                beam=beam,
+                crystal=crystal,
+                crystal_overrides=crystal_overrides,
+                misset_deg_for_crystal=misset_xyz_deg,
+                beam_config_for_run=stage_a_ctx.beam_config if stage_a_ctx is not None else None,
+                hkl_grid=hkl_grid,
+                hkl_metadata=hkl_metadata,
+                config=config,
+                log_scale_clamped=log_scale_clamped,
+                target_t=target_t,
+                loss_mask_t=loss_mask_t,
+                sigma_readout_t=sigma_readout_t,
+                sigma_floor_sq_tensor=sigma_floor_sq_tensor_stage_c,
+                device=device,
+                dtype=dtype,
+                trusted_mask_array=inputs.trusted_mask if not stage_c_use_warm_cache else None,
             )
             variance_floor_clamped_pixels_c[0] += clamped_pixels_stage_c
             variance_floor_masked_pixels_c[0] += masked_pixels_stage_c

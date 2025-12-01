@@ -1,0 +1,51 @@
+/bin/bash: line 1: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md: No such file or directory
+[HKL stats] h=[-14,19] k=[-26,26] l=[0,14] hit_rate=5722600/6224001 (91.94%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-26,26] l=[0,14] hit_rate=5722599/6224001 (91.94%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-26,26] l=[0,14] hit_rate=5722599/6224001 (91.94%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-26,26] l=[0,14] hit_rate=5722599/6224001 (91.94%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-26,26] l=[0,14] hit_rate=5722599/6224001 (91.94%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-26,26] l=[0,14] hit_rate=5722599/6224001 (91.94%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-26,26] l=[0,14] hit_rate=5722599/6224001 (91.94%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-26,26] l=[0,14] hit_rate=5722599/6224001 (91.94%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-26,26] l=[0,14] hit_rate=5722599/6224001 (91.94%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-26,26] l=[0,14] hit_rate=5722599/6224001 (91.94%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-26,26] l=[0,14] hit_rate=5722599/6224001 (91.94%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-26,26] l=[0,14] hit_rate=5722599/6224001 (91.94%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-26,26] l=[0,14] hit_rate=5722599/6224001 (91.94%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-26,26] l=[0,14] hit_rate=5722599/6224001 (91.94%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-26,26] l=[0,14] hit_rate=5722599/6224001 (91.94%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-14,19] k=[-26,26] l=[0,14] hit_rate=5722600/6224001 (91.94%)
+=============================== warnings summary ===============================
+tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip - AssertionError: Stage C chi-squared regressed (>0.05% increase). Stage A final=2.1071e+08, Stage C final=2.1085e+08
+assert 210848512.0 <= (210706464.0 * 1.0005)
+======================== 1 failed, 4 warnings in 18.78s ========================

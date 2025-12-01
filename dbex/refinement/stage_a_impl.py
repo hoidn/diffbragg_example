@@ -1779,6 +1779,35 @@ def _run_stage_a_lbfgs(
     final_masked_mse_value: Optional[float] = None
     log_cell_max_delta = getattr(config, "log_cell_max_delta", 1.0)
 
+    # ARCH-REFINE-001: Capture baseline evaluation BEFORE LBFGS runs
+    # This ensures loss_trace_full, chi_squared_trace_full, and masked_mse_trace_full
+    # always contain the Stage A baseline, which downstream stages (B/C) need to
+    # validate improvements and seed their canonical snapshots.
+    perf_validation_runs[0] += 1  # PERF-WARM-SIM-001
+    with torch.no_grad():
+        baseline_chi_squared, baseline_mse = compute_loss(full_stage_a_indices, is_full=True)
+        baseline_chi_squared_value = float(baseline_chi_squared.item())
+        baseline_mse_value = float(baseline_mse.item())
+
+        # Append baseline to traces (iteration 0)
+        loss_trace_full.append((0, baseline_chi_squared_value))  # Deprecated legacy field
+        chi_squared_trace_full.append((0, baseline_chi_squared_value))
+        masked_mse_trace_full.append((0, baseline_mse_value))
+
+        # Initialize best tracking with baseline
+        best_loss_full = (baseline_chi_squared_value, 0)  # Deprecated legacy field
+        chi_squared_best = (baseline_chi_squared_value, 0)
+        masked_mse_best = (baseline_mse_value, 0)
+
+        # Update telemetry state with baseline tracking
+        telemetry_state['best_loss_full'] = best_loss_full
+        telemetry_state['chi_squared_best'] = chi_squared_best
+        telemetry_state['masked_mse_best'] = masked_mse_best
+
+        # Update canonical baseline with initial chi-squared
+        canonical_baseline["chi_squared"] = baseline_chi_squared_value
+        canonical_baseline["iteration"] = 0
+
     try:
         optimizer.step(closure)
 
@@ -1860,6 +1889,21 @@ def _run_stage_a_lbfgs(
             angle_beta_raw.data = zero_cell
             angle_gamma_raw.data = zero_cell
             orientation_vec.data = torch.zeros_like(orientation_vec)
+
+        # ARCH-REFINE-001: Ensure final evaluation is appended even on exception
+        # This guarantees downstream stages always see at least baseline + final entries
+        perf_validation_runs[0] += 1  # PERF-WARM-SIM-001
+        with torch.no_grad():
+            error_chi_squared, error_mse = compute_loss(full_stage_a_indices, is_full=True)
+            final_chi_squared_value = float(error_chi_squared.item())
+            final_masked_mse_value = float(error_mse.item())
+            loss_trace_full.append((iteration_count[0], final_chi_squared_value))  # Deprecated legacy field
+            chi_squared_trace_full.append((iteration_count[0], final_chi_squared_value))
+            masked_mse_trace_full.append((iteration_count[0], final_masked_mse_value))
+
+            # Update canonical baseline
+            canonical_baseline["chi_squared"] = final_chi_squared_value
+            canonical_baseline["iteration"] = iteration_count[0]
 
     if not chi_squared_trace_full:
         fallback_chi2 = final_chi_squared_value

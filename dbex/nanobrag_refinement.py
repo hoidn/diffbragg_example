@@ -327,19 +327,53 @@ def _build_final_bragg_from_stage_a_telemetry(
     misset_xyz_deg_delta = param_deltas_a['misset_xyz_deg']['delta']
     misset_xyz_deg = torch.tensor(misset_xyz_deg_delta, device=device, dtype=dtype, requires_grad=False)
 
-    # Build crystal config with refined parameters
-    crystal_config = create_crystal_config(
+    # Apply Stage A cell perturbations (mirroring Stage B reconstruction pattern)
+    cell_params = crystal.get_unit_cell().parameters()
+    log_cell_a_delta_clamped, log_cell_b_delta_clamped, log_cell_c_delta_clamped = _clamp_log_cell_deltas(
+        log_cell_a_delta,
+        log_cell_b_delta,
+        log_cell_c_delta,
+        getattr(config, "log_cell_max_delta", 1.0),
+    )
+    cell_a_tensor = cell_params[0] * torch.exp(log_cell_a_delta_clamped)
+    cell_b_tensor = cell_params[1] * torch.exp(log_cell_b_delta_clamped)
+    cell_c_tensor = cell_params[2] * torch.exp(log_cell_c_delta_clamped)
+
+    max_angle_delta = 10.0  # degrees
+    cell_alpha_tensor = cell_params[3] + torch.tanh(angle_alpha_raw) * max_angle_delta
+    cell_beta_tensor = cell_params[4] + torch.tanh(angle_beta_raw) * max_angle_delta
+    cell_gamma_tensor = cell_params[5] + torch.tanh(angle_gamma_raw) * max_angle_delta
+
+    # Build crystal overrides
+    crystal_overrides = {
+        'cell_a': cell_a_tensor,
+        'cell_b': cell_b_tensor,
+        'cell_c': cell_c_tensor,
+        'cell_alpha': cell_alpha_tensor,
+        'cell_beta': cell_beta_tensor,
+        'cell_gamma': cell_gamma_tensor
+    }
+
+    # Compute baseline misset if baseline_crystal provided (GEOMETRY-003)
+    baseline_misset_deg_tensor = compute_baseline_misset_deg(
+        crystal,
+        baseline_crystal,
+        device=device,
+        dtype=dtype,
+    )
+
+    # Compute final misset (baseline + delta if baseline provided)
+    if baseline_misset_deg_tensor is not None:
+        final_misset = baseline_misset_deg_tensor + misset_xyz_deg
+    else:
+        final_misset = misset_xyz_deg
+
+    # Build crystal config with refined parameters using override API
+    crystal_config, _ = create_crystal_config(
         crystal=crystal,
-        log_cell_a_delta=log_cell_a_delta,
-        log_cell_b_delta=log_cell_b_delta,
-        log_cell_c_delta=log_cell_c_delta,
-        angle_alpha_raw=angle_alpha_raw,
-        angle_beta_raw=angle_beta_raw,
-        angle_gamma_raw=angle_gamma_raw,
-        misset_xyz_deg=misset_xyz_deg,
-        baseline_crystal=baseline_crystal,
-        baseline_misset_deg=None,  # Not used when misset_xyz_deg is provided
-        baseline_misset_deg_tensor=None,
+        experiment=None,
+        crystal_overrides=crystal_overrides,
+        misset_deg_override=final_misset,
     )
 
     # Extract panel counts and full panel shape
@@ -350,15 +384,26 @@ def _build_final_bragg_from_stage_a_telemetry(
     )
     sampled_panel_ids = list(range(n_panels))
 
+    # Build Crystal model from config (GRADIENT-004: keep tensors attached for warm cache)
+    crystal_model = Crystal(
+        crystal_config,
+        beam_config=None,  # Will use beam_config from context if warm cache, else provided below
+        device=device,
+        dtype=dtype,
+    )
+    crystal_model.interpolate = config.enable_hkl_interpolation
+    crystal_model.hkl_data = hkl_grid.to(device=device, dtype=dtype)
+    crystal_model.hkl_metadata = hkl_metadata
+
     # Build full Bragg array (panel mode)
     # Reuse warm cache simulators if available
-    if stage_a_ctx is not None and 'simulators' in stage_a_ctx:
+    if stage_a_ctx is not None and hasattr(stage_a_ctx, 'simulators'):
         # Warm cache path: retarget existing simulators with refined crystal
         from dbex.refinement.stage_a_impl import _retarget_stage_a_simulators
-        simulators = _retarget_stage_a_simulators(
-            stage_a_context=stage_a_ctx,
-            refined_crystal_config=crystal_config
-        )
+        # Update crystal_model beam_config from context
+        crystal_model.beam_config = stage_a_ctx.beam_config
+        _retarget_stage_a_simulators(stage_a_ctx, crystal_model)
+        simulators = stage_a_ctx.simulators
     else:
         # Cold path: build simulators from scratch
         from dbex.nanobrag_bridge import create_beam_config
@@ -366,22 +411,26 @@ def _build_final_bragg_from_stage_a_telemetry(
         simulators = []
         for pid in sampled_panel_ids:
             detector_config = create_detector_config(detector[pid], beam=beam, use_dials_convention=True)
+            detector_model = Detector(detector_config, device=device, dtype=dtype)
             sim = Simulator(
-                detector=Detector.from_config(detector_config).to(device=device, dtype=dtype),
-                beam=beam_config.to(device=device, dtype=dtype),
-                crystal=Crystal.from_config(crystal_config).to(device=device, dtype=dtype),
-                structure_factors=hkl_grid.to(device=device, dtype=dtype),
-                interpolate=config.enable_hkl_interpolation,
+                detector=detector_model,
+                crystal=crystal_model,
+                hkl_data=hkl_grid.to(device=device, dtype=dtype),
+                beam_config=beam_config,
             )
+            sim.interpolate = config.enable_hkl_interpolation
             simulators.append(sim)
 
     # Run forward model with refined parameters
-    bragg_full = torch.zeros((n_panels, *panel_shape), device=device, dtype=dtype)
-    scale_factor = torch.exp(log_scale)
+    bragg_full = np.zeros((n_panels, *panel_shape), dtype=np.float32)
+    log_scale_clamped = torch.clamp(log_scale, min=-10.0, max=10.0)
+    scale_factor = torch.exp(log_scale_clamped)
     for pid, sim in zip(sampled_panel_ids, simulators):
-        bragg_full[pid] = sim.forward() * scale_factor
+        bragg_panel = sim.run()
+        bragg_scaled = bragg_panel * scale_factor
+        bragg_full[pid] = bragg_scaled.cpu().numpy().astype(np.float32)
 
-    return bragg_full.cpu().numpy().astype(np.float32)
+    return bragg_full
 
 
 def _build_final_bragg_from_stage_b_telemetry(

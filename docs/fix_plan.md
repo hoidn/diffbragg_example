@@ -1126,3 +1126,19 @@ pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation
   - `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=full DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-WARM-SIM-001/reports/2025-12-01T190945Z/telemetry_stage_c_full.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=full | tee plans/active/PERF-WARM-SIM-001/reports/2025-12-01T190945Z/pytest_stage_c_full.log`
   - `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md python plans/active/PERF-WARM-SIM-001/bin/summarize_stage_c_warm_cache.py --telemetry-small plans/active/PERF-WARM-SIM-001/reports/2025-12-01T190945Z/telemetry_stage_c_small.json --telemetry-full plans/active/PERF-WARM-SIM-001/reports/2025-12-01T190945Z/telemetry_stage_c_full.json --out-json plans/active/PERF-WARM-SIM-001/reports/2025-12-01T190945Z/stage_c_warm_cache_report.json`
 - Artifacts: `plans/active/PERF-WARM-SIM-001/reports/2025-12-01T190945Z/`
+
+### 2025-12-01T190945Z - PERF-WARM-SIM-001 Phase D.4: Baseline prior ordering implementation (BLOCKED)
+**Action**: Moved `_apply_baseline_detector_prior()` call to execute BEFORE `stage_c_optimizer.step(closure_stage_c)` in `dbex/refinement/stage_c_impl.py:739-743` per input.md Do Now. Added comment explaining REFINE-013 requirement that best snapshot must include prior-corrected offsets.
+**Metrics**:
+- Code change: 4 lines modified (moved prior call + added explanatory comment)
+- Small detector test: **PASSED** (7.16s), detector offset reduction 0.25mm→1.49e-08mm (99.99999%)
+- Full detector test: **FAILED** at test line 1156, chi-squared regression +0.067% (Stage A final=2.1071e+08, Stage C initial/final=2.1085e+08)
+**Artifacts**: plans/active/PERF-WARM-SIM-001/reports/2025-12-01T190945Z/ (collect logs, pytest logs, telemetry JSON files, summary.md)
+**First Divergence**: Full detector chi-squared regression (+0.067%) exceeds 0.05% strict gate. Telemetry shows detector offsets successfully corrected (99.99999% reduction), but LBFGS stalls at initial chi² value across all iterations (no improvement). Root cause hypothesis: Stage A refines crystal parameters while accommodating perturbed detector (+0.25mm), so when Stage C applies baseline prior upfront to correct detector back to baseline, it creates mismatch with frozen Stage A crystal parameters, causing chi² to regress. The prior is functioning correctly (offsets corrected), but the test gate assumes Stage C should not regress chi² when correcting detector geometry.
+**Next Actions**:
+- **BLOCKER**: Supervisor must decide path forward:
+  1. Relax REFINE-007 chi² regression gate to ≤0.1% (or document as expected for baseline prior scenarios)
+  2. Investigate whether baseline detector distances are mis-calibrated
+  3. Modify Stage C to optionally re-refine crystal after applying detector prior
+  4. Document that baseline prior + frozen crystal creates chi² tradeoff in perturbed-detector scenarios
+- See `galph_memory.md` 2025-12-01T190945Z entry and `plans/active/PERF-WARM-SIM-001/reports/2025-12-01T190945Z/summary.md` for detailed analysis

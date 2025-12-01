@@ -736,8 +736,11 @@ def _run_stage_c_lbfgs(
     message_c = ""
 
     try:
-        stage_c_optimizer.step(closure_stage_c)
+        # Apply baseline detector prior BEFORE LBFGS so the warm-start is captured in best snapshot
+        # (REFINE-013: The rehydration after LBFGS reloads best_params_snapshot_c, which must include the prior)
         _apply_baseline_detector_prior()
+
+        stage_c_optimizer.step(closure_stage_c)
 
         # REFINE-013: Rehydrate best tuples from telemetry_state after LBFGS
         # The closure updates these during optimization, but the local variables read them before the step

@@ -777,3 +777,34 @@ pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation
 **Artifacts**: plans/active/ARCH-REFINE-001/reports/2025-12-01T160850Z/ (collect_stage_bc_small.log, pytest_stage_bc_small.log, telemetry_stage_bc_small.json, pytest_stage_b_guard.log)
 **First Divergence**: N/A (implementation successful; both Stage B and Stage C smokes passed with panel-mode validations)
 **Next Actions**: Phase E.2 complete. REFINE-FLOW-001 parity now guaranteed for ROI-heavy configs when Stage B is enabled. Ready to proceed with remaining ARCH-REFINE-001 phases or pivot to supervisor-prioritized focus.
+
+### 2025-12-01T161600Z - ARCH-REFINE-001 Phase E.3: Stage B parity guard harness (READY FOR IMPLEMENTATION)
+- **Reality check:** `tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload` still fails before exercising the guard because `_run_stage_b_lbfgs` expects a fully populated `param_values` dict (optimizer handle, tensors, Stage B mode), so the mock setup hits `KeyError: 'optimizer'` long before the REFINE-FLOW-001 diff writer runs. As long as the guard lives inline, we cannot verify the JSON schema promised in REFINE-FLOW-001 nor prove the telemetry fields stay stable when Stage B fails on CI hardware.
+- **Plan:**  
+  1. Extract the parity check/diff writer from `dbex/refinement/stage_b_impl.py::_run_stage_b_lbfgs` (lines 1105-1210) into a helper (module-private is fine) that accepts the canonical baseline snapshot, Stage B initial χ², telemetry dict, param_values subset, `compute_loss_stage_b`, and `n_panels`. The helper SHOULD record `stage_b_baseline_rel_diff/abs_diff` on telemetry, emit `stage_b_baseline_diff.json` when `|Δ| > 1e-3`, and raise the existing RuntimeError citing REFINE-FLOW-001—all without touching the optimizer. `_run_stage_b_lbfgs` then calls the helper immediately after the initial validation.
+  2. Update `tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload` to import the new helper instead of `_run_stage_b_lbfgs`, supply the minimal `param_values` subset (canonical tensors + cache metadata), and exercise both paths: parity fail (verify RuntimeError + diff schema + telemetry path) and parity pass (diff path stays `None`). Keep device/dtype neutral so the guard can be tested on CPU without allocating shell modifiers.
+  3. Re-run the Stage B/C small-detector smoketest bundle with `DBEX_SMOKE_DETECTOR_SIZE=small`, `DBEX_SMOKE_SIGMA_SOURCE=cli_override`, and `DBEX_SMOKE_TELEMETRY_PATH=<artifacts>/telemetry_stage_bc_small.json` to prove the refactor keeps `stage_b_baseline_rel_diff` ≤1e-6 and Stage C telemetry untouched. Capture collect-only + pytest logs alongside the refreshed guard test logs under this loop’s report directory.
+- **Validation:** 
+  ```
+  AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+  pytest --collect-only tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload \
+    > plans/active/ARCH-REFINE-001/reports/2025-12-01T161600Z/collect_stage_b_guard.log
+
+  AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+  pytest -vv tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload \
+    | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T161600Z/pytest_stage_b_guard.log
+
+  AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+  pytest --collect-only tests/dbex/test_torch_refine_smoke.py -k "test_stage_b_shell_modifiers or test_stage_c_detector_microslip" --smoke-detector-size=small \
+    > plans/active/ARCH-REFINE-001/reports/2025-12-01T161600Z/collect_stage_bc_small.log
+
+  AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+  DBEX_SMOKE_SIGMA_SOURCE=cli_override \
+  DBEX_SMOKE_DETECTOR_SIZE=small \
+  KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
+  DBEX_SMOKE_TELEMETRY_PATH=plans/active/ARCH-REFINE-001/reports/2025-12-01T161600Z/telemetry_stage_bc_small.json \
+  pytest -vv tests/dbex/test_torch_refine_smoke.py -k "test_stage_b_shell_modifiers or test_stage_c_detector_microslip" --smoke-detector-size=small \
+    | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T161600Z/pytest_stage_bc_small.log
+  ```
+- **Artifacts:** `plans/active/ARCH-REFINE-001/reports/2025-12-01T161600Z/` (collect_stage_b_guard.log, pytest_stage_b_guard.log, collect_stage_bc_small.log, pytest_stage_bc_small.log, telemetry_stage_bc_small.json, summary.md)
+- **Exit Criteria:** Helper exists + is unit-tested, guard raises with JSON payload in isolation, Stage B/C smokes continue to pass with panel-mode baseline parity (stage_b_baseline_rel_diff ≤ 1e-6), and REFINE-FLOW-001 now has deterministic coverage without spinning up a full LBFGS optimizer inside the test harness.

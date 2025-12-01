@@ -163,15 +163,21 @@ class RefinementEngine:
                 self._stage_b_n_asu_unique = telemetry_dict.get("n_asu_unique")
                 self._stage_b_optimizer_type = telemetry_dict.get("optimizer_type")
                 self._stage_b_asu_modifier_stats = telemetry_dict.get("asu_modifier_stats")
+                # REFINE-FLOW-001: Cache baseline parity diagnostics
+                self._stage_b_baseline_rel_diff = telemetry_dict.get("stage_b_baseline_rel_diff")
+                self._stage_b_baseline_abs_diff = telemetry_dict.get("stage_b_baseline_abs_diff")
+                self._stage_b_baseline_diff_path = telemetry_dict.get("stage_b_baseline_diff_path")
 
             # Filter out non-RefinementTelemetry fields before conversion
             # stage_a_ctx, shell_edges, shell_indices, n_shells are not RefinementTelemetry fields
             # (stage_type and mode ARE now part of RefinementTelemetry per Phase A4)
             # Phase 7/8: stage_b_mode, n_asu_unique, optimizer_type, asu_modifier_stats are custom attrs
             # Phase A.4: bragg_full is Stage C final output (cached separately, not in RefinementTelemetry)
+            # REFINE-FLOW-001: stage_b_baseline_rel_diff, stage_b_baseline_abs_diff, stage_b_baseline_diff_path are parity diagnostics
             excluded_fields = {'stage_a_ctx', 'shell_edges', 'shell_indices', 'n_shells',
                              'stage_b_mode', 'n_asu_unique', 'optimizer_type', 'asu_modifier_stats',
-                             'bragg_full'}
+                             'bragg_full',
+                             'stage_b_baseline_rel_diff', 'stage_b_baseline_abs_diff', 'stage_b_baseline_diff_path'}
             telemetry_core_dict = {k: v for k, v in telemetry_dict.items()
                                   if k not in excluded_fields}
 
@@ -194,6 +200,13 @@ class RefinementEngine:
                     telemetry.optimizer_type = self._stage_b_optimizer_type
                 if self._stage_b_asu_modifier_stats is not None:
                     telemetry.asu_modifier_stats = self._stage_b_asu_modifier_stats
+                # REFINE-FLOW-001: Restore baseline parity diagnostics
+                if self._stage_b_baseline_rel_diff is not None:
+                    telemetry.stage_b_baseline_rel_diff = self._stage_b_baseline_rel_diff
+                if self._stage_b_baseline_abs_diff is not None:
+                    telemetry.stage_b_baseline_abs_diff = self._stage_b_baseline_abs_diff
+                if self._stage_b_baseline_diff_path is not None:
+                    telemetry.stage_b_baseline_diff_path = self._stage_b_baseline_diff_path
 
             # Aggregate into telemetry dict keyed by stage name
             self._telemetry[stage.name] = telemetry

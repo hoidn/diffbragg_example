@@ -648,6 +648,7 @@ def _build_stage_b_params(
         'full_stage_b_indices': full_stage_b_indices,
         'default_f_fallback_count': default_f_fallback_count,
         'stage_b_param_device': stage_b_param_device,
+        'canonical_baseline': canonical_baseline,  # REFINE-FLOW-001: Thread baseline for parity guard
     }
 
     # Add mode-specific fields
@@ -1100,6 +1101,65 @@ def _run_stage_b_lbfgs(
                 best_params_snapshot_b['log_modifiers'] = param_values['log_modifiers'].data.clone()
             else:
                 best_params_snapshot_b['shell_modifier_raw'] = param_values['shell_modifier_raw'].data.clone()
+
+        # REFINE-FLOW-001: Stage B baseline parity guard
+        # Compare Stage B initial chi² against Stage A canonical chi² to detect parameter reconstruction drift
+        canonical_baseline = param_values.get('canonical_baseline', {})
+        canonical_chi_squared = canonical_baseline.get('chi_squared')
+
+        if canonical_chi_squared is not None:
+            stage_b_initial_chi2 = float(initial_chi_squared_b.item())
+            canonical_chi2 = float(canonical_chi_squared)
+            abs_diff = stage_b_initial_chi2 - canonical_chi2
+            rel_diff = abs_diff / canonical_chi2 if canonical_chi2 != 0 else float('inf')
+
+            # Record parity diagnostics in telemetry (always, for observability)
+            telemetry['stage_b_baseline_rel_diff'] = rel_diff
+            telemetry['stage_b_baseline_abs_diff'] = abs_diff
+
+            # Guard: raise if parity exceeds 0.1% tolerance (1e-3 relative difference)
+            tolerance = 1e-3
+            if abs(rel_diff) > tolerance:
+                # Emit JSON diff file for debugging
+                import json
+                import os
+                from pathlib import Path
+
+                # Determine artifacts directory from environment or default
+                telemetry_path_env = os.environ.get("DBEX_SMOKE_TELEMETRY_PATH")
+                if telemetry_path_env:
+                    artifacts_dir = Path(telemetry_path_env).parent
+                else:
+                    artifacts_dir = Path("plans/active/ARCH-REFINE-001/reports/2025-12-01T151425Z/")
+
+                artifacts_dir.mkdir(parents=True, exist_ok=True)
+                diff_path = artifacts_dir / "stage_b_baseline_diff.json"
+
+                diff_data = {
+                    "canonical_stage_label": canonical_baseline.get('stage_label', 'A'),
+                    "canonical_chi_squared": canonical_chi2,
+                    "canonical_iteration": canonical_baseline.get('iteration', 0),
+                    "stage_b_initial_chi_squared": stage_b_initial_chi2,
+                    "absolute_difference": abs_diff,
+                    "relative_difference": rel_diff,
+                    "tolerance": tolerance,
+                    "per_panel_breakdown": "Not implemented (requires per-panel chi² computation)",
+                }
+
+                with open(diff_path, 'w') as f:
+                    json.dump(diff_data, f, indent=2)
+
+                # Store diff path in telemetry for test assertions
+                telemetry['stage_b_baseline_diff_path'] = str(diff_path)
+
+                raise RuntimeError(
+                    f"REFINE-FLOW-001 baseline drift: Stage B initial chi² ({stage_b_initial_chi2:.3e}) "
+                    f"differs from Stage A final ({canonical_chi2:.3e}) by {rel_diff:.4%} "
+                    f"(tolerance={tolerance:.1%}). See {diff_path} for details."
+                )
+            else:
+                # Parity passed, record diff path as None
+                telemetry['stage_b_baseline_diff_path'] = None
 
         # Run optimization (optimizer-agnostic pattern per TORCH-REFINE-004 Phase 7 blocker fix)
         if optimizer_type == "adam":

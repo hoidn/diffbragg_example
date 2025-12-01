@@ -80,6 +80,17 @@ def _record_stage_telemetry(stage_label: str, telemetry, dataset_size: str, meta
             }
         )
 
+    # REFINE-FLOW-001: Include baseline parity diagnostics if present
+    stage_b_baseline_rel_diff = getattr(telemetry, "stage_b_baseline_rel_diff", None)
+    if stage_b_baseline_rel_diff is not None:
+        payload.update(
+            {
+                "stage_b_baseline_rel_diff": stage_b_baseline_rel_diff,
+                "stage_b_baseline_abs_diff": getattr(telemetry, "stage_b_baseline_abs_diff", None),
+                "stage_b_baseline_diff_path": getattr(telemetry, "stage_b_baseline_diff_path", None),
+            }
+        )
+
     existing: list = []
     if path.exists():
         try:
@@ -1382,6 +1393,34 @@ def test_stage_b_shell_modifiers(
                 assert telemetry_b.canonical_chi_squared == pytest.approx(stage_a_final_chi2, rel=1e-6)
         else:
             assert telemetry_b.canonical_chi_squared == pytest.approx(stage_a_final_chi2, rel=1e-4)
+
+        # REFINE-FLOW-001: Baseline parity telemetry
+        # Read telemetry JSON if DBEX_SMOKE_TELEMETRY_PATH is set to access custom fields
+        telemetry_path_env = os.environ.get("DBEX_SMOKE_TELEMETRY_PATH")
+        if telemetry_path_env:
+            import json
+            from pathlib import Path
+            telemetry_file = Path(telemetry_path_env)
+            if telemetry_file.exists():
+                with open(telemetry_file, 'r') as f:
+                    telemetry_json = json.load(f)
+                # Assert baseline parity diagnostics are present and within tolerance
+                if "stage_b_shell_modifiers" in telemetry_json:
+                    stage_b_telem = telemetry_json["stage_b_shell_modifiers"]
+                    assert "stage_b_baseline_rel_diff" in stage_b_telem, (
+                        "Stage B telemetry missing baseline parity field stage_b_baseline_rel_diff"
+                    )
+                    baseline_rel_diff = stage_b_telem["stage_b_baseline_rel_diff"]
+                    assert abs(baseline_rel_diff) <= 1e-3, (
+                        f"Stage B baseline parity failed: relative difference {baseline_rel_diff:.4%} "
+                        f"exceeds 0.1% tolerance (REFINE-FLOW-001)"
+                    )
+                    # Diff path should be None if parity passed
+                    baseline_diff_path = stage_b_telem.get("stage_b_baseline_diff_path", None)
+                    assert baseline_diff_path is None, (
+                        f"Stage B baseline parity guard raised (diff_path={baseline_diff_path}). "
+                        f"See the diff file for per-panel breakdown."
+                    )
 
         # PERF-WARM-SIM-001: Stage B perf counters must prove warm cache stays active
         # PERF-WARM-012: CPU fallback now clones StageAContext to CPU, so canonical runs report "warm"

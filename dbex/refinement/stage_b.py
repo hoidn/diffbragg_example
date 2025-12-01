@@ -369,6 +369,11 @@ class StageB:
         variance_floor_clamped_pixels_b = telemetry['variance_floor_clamped_pixels_b']
         variance_floor_masked_pixels_b = telemetry['variance_floor_masked_pixels_b']
 
+        # REFINE-FLOW-001: Extract baseline parity diagnostics
+        stage_b_baseline_rel_diff = telemetry.get('stage_b_baseline_rel_diff', None)
+        stage_b_baseline_abs_diff = telemetry.get('stage_b_baseline_abs_diff', None)
+        stage_b_baseline_diff_path = telemetry.get('stage_b_baseline_diff_path', None)
+
         # Build param_deltas dict for telemetry (mode-aware)
         param_deltas_b = {}
 
@@ -500,6 +505,14 @@ class StageB:
 
         # Add Phase A4 stage identification fields (backward compatible with engine contract)
         telemetry_output["stage_type"] = "B"
+
+        # REFINE-FLOW-001: Add baseline parity diagnostics
+        if stage_b_baseline_rel_diff is not None:
+            telemetry_output["stage_b_baseline_rel_diff"] = stage_b_baseline_rel_diff
+        if stage_b_baseline_abs_diff is not None:
+            telemetry_output["stage_b_baseline_abs_diff"] = stage_b_baseline_abs_diff
+        if stage_b_baseline_diff_path is not None:
+            telemetry_output["stage_b_baseline_diff_path"] = stage_b_baseline_diff_path
 
         # Add mode-specific telemetry
         if stage_b_mode == "per_reflection":

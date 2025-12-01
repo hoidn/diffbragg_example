@@ -274,3 +274,26 @@ Capture the `--collect-only` output for the same selector before running the tes
 - **Validation:** rerun the small-detector Stage B + Stage C smokes with telemetry under `plans/active/ARCH-REFINE-001/reports/<next-timestamp>/`, proving Stage C now optimizes (chi² drop ≥0.002%) and Stage B still passes in panel auto-mode.
 
 **Artifacts**: plans/active/ARCH-REFINE-001/reports/2025-12-01T105916Z/ (pytest_stage_bc_small_v3.log, telemetry_stage_bc_small_v3.json, collect_stage_bc_small.log)
+
+### 2025-12-01T112335Z - ARCH-REFINE-001 Stage C warm-cache gradient repair (COMPLETE)
+**Action**: Fixed Stage C warm-cache gradient tracking by keeping detector offset tensors differentiable through the retargeting path (GRADIENT-004).
+- **Updated `_retarget_stage_a_detectors`** (dbex/refinement/stage_c_impl.py:39-91):
+  - Changed signature to accept `Dict[int, torch.Tensor]` instead of `Dict[int, float]`
+  - Convert baseline distance to tensor before addition: `baseline_tensor = torch.tensor(baseline_distance_mm, device=device, dtype=dtype)`
+  - Keep `new_distance_mm = baseline_tensor + delta_mm` as tensor for detector config
+  - Added GRADIENT-004 documentation explaining autograd preservation
+- **Removed `.item()` conversions** in closure path (line 416, was 411) and final reconstruction path (line 775, was 769):
+  - Changed from `distance_deltas_mm[pid] = bounded_offset.item()` to `distance_deltas_mm[pid] = bounded_offset`
+  - Both paths now pass tensors directly to `_retarget_stage_a_detectors`
+- **Fixed telemetry accounting** (line 189-190):
+  - Panel mode now reports canonical ROI count: `stage_c_roi_count_total = len(panel_slices)` (29) instead of `n_panels` (1)
+  - Mirrors Stage A/B telemetry behavior per REFINE-010
+**Metrics**:
+- test_stage_b_shell_modifiers: **PASSED** (warm cache, panel mode, roi_count=29)
+- test_stage_c_detector_microslip: **PASSED** (warm cache, panel mode, roi_count=29)
+- Stage C successfully optimized detector offset: initial=0.25mm → final=1.49e-08mm (99.99999% reduction)
+- Stage C ran with `status=early_stop`, `cache_mode=warm`, `roi_mode=panel`
+- No gradient tracking errors; autograd graph remains intact through warm-cache retargeting
+**Artifacts**: plans/active/ARCH-REFINE-001/reports/2025-12-01T112335Z/ (pytest_stage_bc_small.log, pytest_stage_bc_small_v2.log, telemetry_stage_bc_small.json, telemetry_stage_bc_small_v2.json)
+**First Divergence**: N/A (implementation successful on first run after fixes)
+**Next Actions**: Phase A.4 complete - all Stage A/B/C helpers extracted, engine-only routing operational, warm-cache gradient tracking fixed. Ready to proceed with Phase B (RefinementContext/JobContext dataclasses) or tackle RefinementConfig attribute drift from Phase A.3.

@@ -38,7 +38,7 @@ from dbex.physics.loss import _compute_variance_weighted_loss
 
 def _retarget_stage_a_detectors(
     stage_a_ctx: StageAContext,
-    distance_deltas_mm: Dict[int, float],
+    distance_deltas_mm: Dict[int, torch.Tensor],
     device: torch.device,
     dtype: torch.dtype
 ) -> None:
@@ -53,9 +53,12 @@ def _retarget_stage_a_detectors(
     This enables Stage C warm-cache path to reuse Stage A simulator/HKL caches
     while varying only detector distances (PERF-WARM-013).
 
+    GRADIENT-004: Keeps distance offsets as tensors (no .item() conversion)
+    so autograd graph remains intact for Stage C LBFGS optimization.
+
     Args:
         stage_a_ctx: StageAContext with cached detector_models/simulators
-        distance_deltas_mm: Dict mapping panel_id to distance offset (mm)
+        distance_deltas_mm: Dict mapping panel_id to distance offset tensor (mm)
         device: torch device for Detector model instantiation
         dtype: torch dtype for Detector model instantiation
     """
@@ -66,8 +69,10 @@ def _retarget_stage_a_detectors(
             continue
 
         # Get baseline distance and apply offset
+        # Convert baseline to tensor on correct device/dtype before addition (GRADIENT-004)
         baseline_distance_mm = stage_a_ctx.baseline_distance_mm[pid]
-        new_distance_mm = baseline_distance_mm + delta_mm
+        baseline_tensor = torch.tensor(baseline_distance_mm, device=device, dtype=dtype)
+        new_distance_mm = baseline_tensor + delta_mm
 
         # Clone detector config and update distance
         # (DetectorConfig is a dataclass, shallow copy is sufficient)
@@ -180,8 +185,9 @@ def _build_stage_c_params(
         stage_c_roi_count_total = sum(len(bboxes) for bboxes in roi_slices_by_pid.values())
         stage_c_roi_count_sampled = sum(len(roi_slices_by_pid.get(pid, [])) for pid in sampled_pid_set)
     else:
-        stage_c_roi_count_total = n_panels
-        stage_c_roi_count_sampled = len(sampled_panel_ids)
+        # REFINE-010: Report canonical ROI count even in panel mode (mirrors Stage A/B telemetry)
+        stage_c_roi_count_total = len(panel_slices)
+        stage_c_roi_count_sampled = len(panel_slices)
 
     # Setup LBFGS optimizer for Stage C
     stage_c_optimizer = torch.optim.LBFGS(
@@ -407,8 +413,8 @@ def _build_stage_c_lbfgs_closure(
             distance_deltas_mm = {}
             for pid in panel_ids:
                 bounded_offset = torch.tanh(distance_offset_raw[pid]) * config.stage_c_max_distance_delta_mm
-                # Extract scalar from tensor for dict storage
-                distance_deltas_mm[pid] = bounded_offset.item() if isinstance(bounded_offset, torch.Tensor) else bounded_offset
+                # Keep as tensor to preserve autograd graph (GRADIENT-004)
+                distance_deltas_mm[pid] = bounded_offset
 
             # Retarget cached detectors with distance offsets (mutates stage_a_ctx in place)
             _retarget_stage_a_detectors(
@@ -766,7 +772,8 @@ def _run_stage_c_lbfgs(
             distance_deltas_mm_final = {}
             for pid in range(n_panels):
                 bounded_offset = torch.tanh(distance_offset_raw[pid]) * config.stage_c_max_distance_delta_mm
-                distance_deltas_mm_final[pid] = bounded_offset.item() if isinstance(bounded_offset, torch.Tensor) else bounded_offset
+                # Keep as tensor to preserve autograd graph (GRADIENT-004)
+                distance_deltas_mm_final[pid] = bounded_offset
 
             _retarget_stage_a_detectors(
                 stage_a_ctx=stage_a_ctx,

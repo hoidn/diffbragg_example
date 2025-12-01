@@ -44,3 +44,7 @@ Action State: ready_for_implementation
 - Stage A smoke still crashes because `_build_final_bragg_from_stage_a_telemetry` passes `log_cell_a_delta`/`angle_alpha_raw` kwargs into `create_crystal_config`, which only accepts the override dict + misset tensors (see plans/active/ARCH-REFINE-001/reports/2025-12-01T115900Z/pytest_stage_a.log and dbex/nanobrag_refinement.py:321-339).
 - Updated docs/fix_plan.md + input.md so Ralph clamps the Stage A deltas, builds `crystal_overrides`/`misset_deg_override` before calling `create_crystal_config`, and replays the Stage A/B/C small-detector smokes with telemetry under the new report directory to prove the context refactor stayed loss-neutral.
 Action State: ready_for_implementation
+2025-12-01T121221Z focus=ARCH-REFINE-001 state=ready_for_implementation dwell=2 action=planning artifacts=plans/active/ARCH-REFINE-001/reports/2025-12-01T121221Z/ next_action=Implement JobContext scaffolding + rerun Stage smokes/CLI selector
+- Cleared the Phase B.1 blocker in docs/fix_plan.md and scoped Phase B.2 so JobContext (args/DataLoad/calibration/sigma/HKL metadata) can accompany the existing RefinementContext through the engine inputs.
+- Rewrote input.md with the JobContext Do Now, explicit stage-smoke env wiring, and CLI selector so Ralph can land the dataclass + CLI/engine changes immediately.
+Action State: ready_for_implementation

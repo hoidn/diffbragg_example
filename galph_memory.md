@@ -248,3 +248,7 @@ Action State: ready_for_implementation
 - Codified the residual Stage C chi² drift as panel-loss path divergence and re-scoped PERF-WARM-SIM-001: Stage A now gains a shared panel-mode loss helper that Stage C must call, eliminating the +0.067% bias source. Updated docs/fix_plan.md and input.md with the helper refactor Do Now (artifacts reserved at plans/active/PERF-WARM-SIM-001/reports/2025-12-01T221500Z/).
 Action State: ready_for_implementation
 2025-12-01T221500Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=1 action=planning artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-12-01T221500Z/ next_action=Land shared Stage A/C panel-loss helper + rerun Stage C detector smokes
+2025-12-01T223500Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=2 action=planning artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-12-01T223500Z/ next_action=Instrument panel diagnostics + rerun Stage C smokes
+- Logged the helper attempt results (still +0.067% drift) in docs/fix_plan.md and pivoted to collecting evidence: design env-gated diagnostics inside `_compute_panel_loss`, thread them through Stage A/C closures, and emit JSON + comparison scripts in the new artifacts directory so we can see which panels diverge.
+- Replaced input.md with the diagnostics Do Now, enumerating the detector-specific env vars, pytest/summarizer commands, and the new comparison tool so Ralph can implement instrumentation next loop.
+Action State: ready_for_implementation

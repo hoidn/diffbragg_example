@@ -66,3 +66,18 @@
     - Wiring updates: `dbex/refinement/stage_b.py` and the inline Stage B branch in `dbex/nanobrag_refinement.py` should import from the new module; warm-cache/ROI propagation continues through `StageAContext` (from stage_a_impl) so CPU fallback + telemetry semantics remain intact per PERF-WARM-011 and PHYSICS-LOSS-001.
     - Validation: rerun `pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small` (plus optional per-reflection selector when ready) with `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md`, capturing logs + telemetry under `plans/active/ARCH-REFINE-001/reports/<timestamp>/`.
     - Next Actions: Implement the Stage B helper migration, then tackle Stage C helpers before starting the RefinementContext/JobContext dataclasses.
+
+## Attempts History
+
+### 2025-12-01T084505Z - ARCH-REFINE-001 Phase A.2: Stage B Helper Extraction
+**Action**: Migrated Stage B LBFGS helpers to `dbex/refinement/stage_b_impl.py`
+**Metrics**: 
+- Created stage_b_impl.py (1163 lines)
+- Removed 1542 duplicate lines from nanobrag_refinement.py
+- Net change: +1178 insertions, -1542 deletions
+**Artifacts**: plans/active/ARCH-REFINE-001/reports/2025-12-01T084505Z/summary.md
+**First Divergence**: Import collision - accidentally deleted RefinementConfig and RefinementTelemetry when removing Stage B functions; restored from git history
+**Next Actions**: 
+- Run test_stage_b_shell_modifiers smoke test to validate extraction
+- Run test_stage_b_per_reflection_modifiers smoke test
+- Update docs/TESTING_GUIDE.md if test selectors changed

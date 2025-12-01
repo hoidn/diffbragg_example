@@ -73,3 +73,7 @@ Action State: ready_for_implementation
 - Advanced Phase C.3 planning: docs/fix_plan.md now records the physics-helper extraction plan (new `dbex/physics/forward.py` + loss relocation), and the implementation checklist marks C1/C3 complete with C2 ready for execution.
 - Replaced input.md with a code-ready Do Now covering the new physics modules, bridge re-exports, DB-AT-010 test updates, and the selector commands/artifacts Ralph must run to validate the move.
 Action State: ready_for_implementation
+2025-12-01T140937Z focus=ARCH-REFINE-001 state=ready_for_implementation dwell=2 action=planning artifacts=plans/active/ARCH-REFINE-001/reports/2025-12-01T140725Z/ next_action=Land Phase C.4 writer/doc-sync + CLI telemetry selector
+- Logged the C.4 scope in docs/fix_plan.md (alias removal, CLI test guard, architecture/docs refresh) and marked the implementation plan’s C2 checkbox complete so the ledger matches reality.
+- Rewrote input.md with the writer/doc sync Do Now, mapped env commands, pitfalls, and explicit collect-only/full pytest selectors plus instructions to capture docs_diff.md for architecture edits.
+Action State: ready_for_implementation

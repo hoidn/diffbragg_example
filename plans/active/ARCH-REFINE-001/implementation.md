@@ -87,7 +87,7 @@ objects into the closures rather than re-instantiating them via the factory.
 
 ## Phase C — Telemetry + IO Cleanup
  - [x] C1: Collapse duplicate `RefinementTelemetry` definitions into `refinement/stage.py`; ensure serialization remains backward compatible and stage-specific fields are scoped.
- - [ ] C2: Move `compute_masked_mse_loss`, `simulate_forward_torch`, and related physics helpers out of `nanobrag_bridge` into purpose-built modules under `dbex/physics/` (e.g., `loss.py`, `forward.py`) so RefinementContext/Stage code can consume them without circular imports; adjust docs/tests accordingly.
+ - [x] C2: Move `compute_masked_mse_loss`, `simulate_forward_torch`, and related physics helpers out of `nanobrag_bridge` into purpose-built modules under `dbex/physics/` (e.g., `loss.py`, `forward.py`) so RefinementContext/Stage code can consume them without circular imports; adjust docs/tests accordingly.
  - [x] C3: Extract a torch-specific HDF5 writer into `dbex/io/writer.py` (or similar) and migrate the nanobrag backend (`refine_one`, torch tests) to use it; leave the legacy diffBragg writer untouched (add adapters/tests if needed for comparison tooling).
 - [ ] C4: Update docs/fix_plan.md and docs/findings.md to document the architectural change; rerun CLI end-to-end test, store telemetry/output snapshots under `plans/active/ARCH-REFINE-001/reports/<timestamp>/`.
 - [ ] C5: Regenerate `docs/TESTING_GUIDE.md` selectors or logs if test coverage shifts.

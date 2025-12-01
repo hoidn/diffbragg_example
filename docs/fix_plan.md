@@ -577,3 +577,21 @@ pytest -vv tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck \
 **Artifacts**: plans/active/ARCH-REFINE-001/reports/2025-12-01T134542Z/ (collect_db_at_010.log, pytest_db_at_010.log, db_at_010/ subdirectory with 5 gradcheck JSON metrics)
 **First Divergence**: Initial __init__.py had non-UTF-8 section symbols causing SyntaxError; replaced with "sections" text.
 **Next Actions**: Phase C.3 complete. Physics helpers now decoupled from bridge. Ready to proceed to Phase C.4 (docs/test registry sync) or address Exit Criterion #3 telemetry doc refresh as needed.
+
+### 2025-12-01T140725Z - ARCH-REFINE-001 Phase C.4: Torch writer + docs/test sync (READY FOR IMPLEMENTATION)
+- Even after extracting `write_torch_outputs` (Phase C.2) and the shared physics helpers (Phase C.3), `docs/architecture/live_backend.md`, `docs/architecture/data_telemetry_flow.md`, and the module map still describe `_write_torch_outputs`/`dbex.nanobrag_bridge` as the owners of those routines, and `dbex/refine_one.py` continues exporting `_write_torch_outputs = write_torch_outputs` as a compatibility alias. This makes it unclear to downstream teams where telemetry changes should land and risks new callers reaching back into the monolith.
+- Scope for this loop:
+  1. **Implement: dbex/refine_one.py::_write_torch_outputs** — drop the alias and update any remaining imports/docstrings so production entrypoints route exclusively through `dbex.io.writer.write_torch_outputs` (DIAGNOSTICS-001, PHYSICS-LOSS-001). Guard the change by enhancing `tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata` to assert `hasattr(dbex.refine_one, '_write_torch_outputs')` is False before writing HDF5 outputs.
+  2. **Implement: tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata** — refresh assertions/comments to reference `dbex.io.writer` directly, verify telemetry still records HKL/sigma provenance after the alias removal, and keep the temporary file assertions intact.
+  3. **Docs:** Update `docs/architecture/live_backend.md`, `docs/architecture/data_telemetry_flow.md`, and `docs/architecture/module_map.md` so the Telemetry/Outputs sections cite `dbex/io/writer.py` and `dbex/physics/{forward,loss}.py` as the canonical owners (reference DIAGNOSTICS-001, PHYSICS-LOSS-001, REFINE-010). Note the completed Phase C migration in `docs/findings.md` if additional guardrails surface.
+- **Validation:** Rerun the CLI diagnostics metadata selector with collect-only + full runs to prove the writer alias removal and doc/test updates leave telemetry untouched:
+  ```bash
+  AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \\
+  pytest --collect-only tests/dbex/test_refine_one_cli.py -k torch_diagnostics_metadata \\
+    > plans/active/ARCH-REFINE-001/reports/2025-12-01T140725Z/collect_cli_writer.log
+
+  AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \\
+  pytest -vv tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata \\
+    | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T140725Z/pytest_cli_writer.log
+  ```
+- **Artifacts:** `plans/active/ARCH-REFINE-001/reports/2025-12-01T140725Z/` (collect_cli_writer.log, pytest_cli_writer.log, docs_diff.md, summary.md)

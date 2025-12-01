@@ -1,42 +1,40 @@
-Summary: Relocate the DB-AT-010 forward/loss helpers into `dbex.physics` so gradcheck exercises the shared physics layer instead of the bridge monolith.
+Summary: Retire the `_write_torch_outputs` alias, refresh the CLI telemetry test, and align the architecture docs so everyone points at `dbex/io/writer.py` + `dbex/physics` as the canonical owners.
 Mode: none
 Focus: ARCH-REFINE-001 — Refinement Engine Modularization & Torch IO
 Branch: integration
-Mapped tests: pytest --collect-only tests -k DB_AT_010; pytest -vv tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck
-Artifacts: plans/active/ARCH-REFINE-001/reports/2025-12-01T134542Z/
+Mapped tests: pytest --collect-only tests/dbex/test_refine_one_cli.py -k torch_diagnostics_metadata; pytest -vv tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata
+Artifacts: plans/active/ARCH-REFINE-001/reports/2025-12-01T140725Z/
 Do Now:
-- Implement: dbex/physics/forward.py::simulate_forward_torch — create a physics-forward module that owns the gradcheck helper (lazy imports, tensor-valued overrides, ROI stacking) and replace the bridge definition with a thin re-export so tests no longer import the entire nanobrag bridge.
-- Implement: dbex/physics/loss.py::compute_masked_mse_loss — move the variance-weighted chi-squared helper next to `_compute_variance_weighted_loss`, reuse its validation/clamp logic, and update `__all__`/bridge imports so all stages/tests share the same function.
-- Implement: tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck — point fixtures at `dbex.physics.forward/loss`, keep float64 tensors + override dicts intact, and refresh docstrings so gradcheck users know the helpers moved under `dbex.physics`.
-- Implement: docs/TESTING_GUIDE.md::DB_AT_010 entry — update the selector row to reference `dbex.physics.forward`/`dbex.physics.loss`, reiterate the float64 + NANOBRAGG_DISABLE_COMPILE guard, and keep findings/spec citations intact.
-- Validate: `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 DBAT010_ARTIFACT_DIR=plans/active/ARCH-REFINE-001/reports/2025-12-01T134542Z/db_at_010 pytest --collect-only tests -k DB_AT_010 > plans/active/ARCH-REFINE-001/reports/2025-12-01T134542Z/collect_db_at_010.log`
-- Validate: `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 DBAT010_ARTIFACT_DIR=plans/active/ARCH-REFINE-001/reports/2025-12-01T134542Z/db_at_010 pytest -vv tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T134542Z/pytest_db_at_010.log`
+- Implement: dbex/refine_one.py::_write_torch_outputs — remove the legacy alias so only `dbex.io.writer.write_torch_outputs` is exported, update the module docstring/comments, and ensure `run_nanobrag_backend` imports the shared writer directly (DIAGNOSTICS-001, PHYSICS-LOSS-001).
+- Implement: tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata — assert `hasattr(dbex.refine_one, "_write_torch_outputs") is False`, keep the HDF5 assertions intact, and verify HKL + sigma provenance still flow through the shared writer path once the alias is gone.
+- Document: Refresh docs/architecture/live_backend.md, docs/architecture/data_telemetry_flow.md, and docs/architecture/module_map.md so the Outputs/Telemetry sections cite `dbex/io/writer.py` and `dbex/physics/{forward,loss}.py` (reference DIAGNOSTICS-001, PHYSICS-LOSS-001, REFINE-010) and note Phase C completion.
+- Validate: `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest --collect-only tests/dbex/test_refine_one_cli.py -k torch_diagnostics_metadata > plans/active/ARCH-REFINE-001/reports/2025-12-01T140725Z/collect_cli_writer.log` and `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest -vv tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T140725Z/pytest_cli_writer.log`.
 How-To Map:
-1. `export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md` and `export DBAT010_ARTIFACT_DIR=plans/active/ARCH-REFINE-001/reports/2025-12-01T134542Z/db_at_010`; `mkdir -p "$DBAT010_ARTIFACT_DIR"` plus the parent report directory before editing.
-2. Copy `simulate_forward_torch` from `dbex/nanobrag_bridge.py` into `dbex/physics/forward.py`, wrap it with the existing docstring/spec references, keep lazy imports, and replace the bridge definition with `from dbex.physics.forward import simulate_forward_torch`.
-3. Move `compute_masked_mse_loss` into `dbex/physics/loss.py`, reuse `_compute_variance_weighted_loss`, and update `dbex/physics/__init__.py` plus `dbex/nanobrag_bridge.py` to import the shared helper.
-4. Update `tests/dbex/test_gradients.py` imports + fixtures to consume the new module path; adjust `docs/TESTING_GUIDE.md` so the DB-AT-010 entry cites `dbex.physics.forward/loss`.
-5. Run the collect-only and full DB-AT-010 selectors with `KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1` and capture logs under the report directory.
+1. `export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md` and `mkdir -p plans/active/ARCH-REFINE-001/reports/2025-12-01T140725Z/` before editing; keep `DBEX_SMOKE_*` unset so the CLI test stays on its mock fixtures.
+2. In `dbex/refine_one.py`, delete `_write_torch_outputs = write_torch_outputs`, update any inline comments/docstrings referencing the old helper, and lint the file (no functional changes beyond the alias removal + doc updates).
+3. Extend `tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata` to import `dbex.refine_one` and assert the alias is absent before calling `dbex.io.writer.write_torch_outputs`; keep the existing telemetry/HDF5 checks unchanged otherwise.
+4. Update `docs/architecture/live_backend.md`, `docs/architecture/data_telemetry_flow.md`, and `docs/architecture/module_map.md` so the writer + physics sections mention the new module paths and Phase C completion; capture `git diff -- docs/architecture/live_backend.md docs/architecture/data_telemetry_flow.md docs/architecture/module_map.md > plans/active/ARCH-REFINE-001/reports/2025-12-01T140725Z/docs_diff.md` once edits are staged.
+5. Run the mapped pytest collect-only and full selector commands above, storing logs under the report directory; failures should be copied to the same folder with context if triage is needed before retrying.
 Pitfalls To Avoid:
-- Do not call the new helpers from production LBFGS closures; they remain DB-AT-010 only.
-- Preserve tensor-valued overrides (no `.item()` or numpy conversions) so gradcheck keeps differentiability.
-- Keep lazy imports inside helper bodies to avoid boot-time nanobrag_torch costs.
-- Maintain the existing variance/clamp semantics and error messages; no schema drift.
-- Respect Environment Freeze (POLICY-001); no new dependencies or pip installs.
-- Ensure DB-AT-010 still runs in float64 with `NANOBRAGG_DISABLE_COMPILE=1` set before importing torch.
-- Update docs/tests atomically so selector descriptions match the new module paths.
-- Do not delete bridge re-exports until downstream plans confirm nothing else imports them.
+- Do not reintroduce `_write_torch_outputs` imports anywhere; everything should reference `dbex.io.writer` directly.
+- Keep `/torch_diagnostics` schema identical (no new attrs/datasets) so DIAGNOSTICS-001 consumers stay stable.
+- Tests rely on in-memory mocks—avoid touching real `sp.proc` assets or changing detector-size env vars.
+- Maintain the Stage A ROI auto-panel finding (REFINE-010); no changes to ROI behavior should slip into this doc/test loop.
+- Environment freeze (POLICY-001) applies—no pip installs or package upgrades.
+- Preserve the float64 guardrails in gradcheck helpers; nothing in `dbex/physics` should gain side effects from doc edits.
 If Blocked:
-- If DB-AT-010 cannot collect or fails due to missing data, log the error signature into `plans/active/ARCH-REFINE-001/reports/2025-12-01T134542Z/blocked_db_at_010.log`, append the blocker details to docs/fix_plan.md Attempts History, and ping Galph for guidance before retrying.
+- If the CLI test fails or collect-only can’t find fixtures, save the log under the report directory, add a brief blocker note to docs/fix_plan.md Attempts History, and pause until Galph triages the regression.
 Findings Applied (Mandatory):
-- PHYSICS-LOSS-001 — shared variance-weighted loss must remain the single source used by Stage A/B/C and gradcheck.
-- ARCH-FACTORY-001 — forward helpers may use `create_unified_simulator` but MUST NOT route optimization closures through the factory.
-- RUNTIME-001 — DB-AT-010 stays float64-only with `NANOBRAGG_DISABLE_COMPILE=1` and strict gradcheck tolerances.
+- DIAGNOSTICS-001 — ensure `/torch_diagnostics` metadata remains unchanged while moving writer ownership.
+- PHYSICS-LOSS-001 — shared loss/telemetry contracts stay centralised in `dbex/physics` + writer.
+- REFINE-010 — ROI auto-panel fallback remains documented and untouched during doc updates.
+- POLICY-001 — environment freeze forbids installing dependencies; stick to repo-local edits.
 Pointers:
-- docs/spec-db-core.md §§57-68 — variance-weighted chi-squared definition for `compute_masked_mse_loss`.
-- docs/spec-db-workflow.md §§30-45 — forward helper + telemetry expectations for gradcheck utilities.
-- docs/TESTING_GUIDE.md:132 — DB-AT-010 selector details (env vars, findings, metrics) to mirror in code/docs.
-- docs/data_dependency_manifest.md §Sigma/Calibration Sources — canonical refGeom assets + sigma map requirements for DB-AT-010.
-Next Up (optional): Phase C.4 documentation/test-registry sync once physics helpers migrate into `dbex.physics`.
-Doc Sync Plan (Conditional): none — no new selectors added (only description updates).
-Mapped Tests Guardrail: Ensure `pytest --collect-only tests -k DB_AT_010` reports the 5 gradcheck tests before running the full selector; capture the collect log even on failure.
+- docs/fix_plan.md:542-580 — Phase C.3 summary + new C.4 scope.
+- docs/architecture/live_backend.md §§“Outputs” & “Telemetry” — update narrative to mention `dbex/io/writer.py` + `dbex/physics`.
+- docs/architecture/data_telemetry_flow.md §§3-5 — pipeline diagrams referencing `_write_torch_outputs` need refresh.
+- docs/architecture/module_map.md — add module responsibilities for `dbex/io/writer` and `dbex/physics`.
+- docs/TESTING_GUIDE.md §2 — CLI selector expectations/env vars for `test_torch_diagnostics_metadata`.
+Next Up (optional): Begin Phase D doc sync (live_backend/data_telemetry_flow/module map IDLs) once the writer/docs update lands.
+Doc Sync Plan (Conditional): none — no new selectors are added; existing CLI selector already documented.
+Mapped Tests Guardrail: Ensure `pytest --collect-only tests/dbex/test_refine_one_cli.py -k torch_diagnostics_metadata` reports the single test before running the full selector; capture the collect log even if failures occur.

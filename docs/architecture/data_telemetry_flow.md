@@ -11,7 +11,7 @@ Inputs (Expt/Refl/MTZ, mask, optional refined MTZ, torch_config, sigma map, gain
 → Zero-iteration simulation (per-panel Simulator via unified factory for forward-only paths; spot_scale applied post-sim)
 → `RefinementEngine` stages (Stage A/B/C LBFGS) consuming the contexts; Stage closures keep their direct `Simulator` models for autograd
 → ROI scoring (Nelder–Mead per-ROI optimal scale vs background)
-→ Torch writer (`dbex/io/writer.py`, planned) emits HDF5 + optional triptych PNG export
+→ Torch writer (`dbex/io/writer.py`, ARCH-REFINE-001 Phase C.2/C.4 complete) emits HDF5 + optional triptych PNG export
 
 ## Divergence Points
 - Backend: `--backend nanobrag` (torch target) vs `--backend diffbragg` (legacy baseline).

@@ -24,4 +24,4 @@ Notes:
 - RefinementEngine is the target path; inline helpers remain only as a compatibility shim until ARCH-REFINE-001 completes.
 - Warm-cache reuse is blocked (PERF-WARM-SIM-001) and not reflected above.
 - Quaternion/U-matrix parameterization is deprecated (TORCH-GEOMETRY-PARITY-002/003); incremental UB is current.
-- ARCH-REFINE-001 will add `refinement/context.py`, `JobContext`, and a torch-only `dbex/io/writer.py` entry once those modules land.
+- ARCH-REFINE-001 Phase C complete: `dbex/io/writer.py` (HDF5 telemetry writer), `dbex/physics/{forward,loss}.py` (shared physics helpers) are now active. `refinement/context.py` and `JobContext` remain in progress (Phase B).

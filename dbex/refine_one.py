@@ -617,10 +617,6 @@ def run_nanobrag_backend(args, DL, devid=0):
         _generate_triptych_report(args.outFile, args.report_dir)
 
 
-# Legacy compatibility alias (ARCH-REFINE-001 Phase C.2: extracted to dbex.io.writer)
-_write_torch_outputs = write_torch_outputs
-
-
 def _generate_triptych_report(h5_path, report_dir):
     """Generate triptych PNGs for all ROIs in HDF5 file.
 

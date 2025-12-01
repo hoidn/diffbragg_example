@@ -595,3 +595,18 @@ pytest -vv tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck \
     | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T140725Z/pytest_cli_writer.log
   ```
 - **Artifacts:** `plans/active/ARCH-REFINE-001/reports/2025-12-01T140725Z/` (collect_cli_writer.log, pytest_cli_writer.log, docs_diff.md, summary.md)
+
+### 2025-12-01T140725Z - ARCH-REFINE-001 Phase C.4: Torch writer + docs/test sync (COMPLETE)
+**Action**: Retired the `_write_torch_outputs` compatibility alias from `dbex/refine_one.py`, refreshed the CLI telemetry test to assert the alias is absent, and aligned architecture docs so they cite `dbex/io/writer.py` + `dbex/physics/{forward,loss}.py` as the canonical owners (ARCH-REFINE-001 Phase C.4).
+- **Removed dbex/refine_one.py lines 620-621**: Deleted the legacy `_write_torch_outputs = write_torch_outputs` alias and accompanying comment so production entrypoints exclusively reference `dbex.io.writer.write_torch_outputs` (DIAGNOSTICS-001, PHYSICS-LOSS-001).
+- **Enhanced tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata**: Added assertion `assert not hasattr(dbex.refine_one, '_write_torch_outputs')` at test start (line 785-786) to guard against accidental re-introduction of the alias. Fixed mock_args initialization to include `sigma_floor=1.0` and `adu_per_photon=None` to prevent TypeError when writer accesses these attributes.
+- **Updated docs/architecture/live_backend.md**: Changed line 23 from "is migrating to a dedicated writer... Until that lands" to "uses a dedicated writer (ARCH-REFINE-001 Phase C.2/C.4 complete)... Physics helpers centralized in `dbex/physics/{forward,loss}.py` (PHYSICS-LOSS-001)". Updated line 45 HDF5 writer signature to reference `dbex.io.writer.write_torch_outputs` with canonical location note (DIAGNOSTICS-001, REFINE-010).
+- **Updated docs/architecture/data_telemetry_flow.md**: Changed line 14 from "planned" to "ARCH-REFINE-001 Phase C.2/C.4 complete". Updated line 24 telemetry contract note from "will move into... when Phase C lands" to "is now implemented in `dbex/io/writer.py` (ARCH-REFINE-001 Phase C.2/C.4 complete); physics helpers centralized in `dbex/physics/{forward,loss}.py` (PHYSICS-LOSS-001)".
+- **Updated docs/architecture/module_map.md**: Added table entries for `dbex/physics/forward.py` (forward simulation helpers, DB-AT-010) and `dbex/io/writer.py` (HDF5 telemetry writer, test_torch_diagnostics_metadata) after the physics/loss.py row. Updated notes section line 27 from "will add... once those modules land" to "Phase C complete: `dbex/io/writer.py`... are now active. `refinement/context.py` and `JobContext` remain in progress (Phase B)".
+**Metrics**:
+- Test collection: 2 tests collected (parametrized: cli_override + external_lookup sigma sources)
+- Test results: **2 passed** in 0.91s (both parametrized variants pass; assertion confirms alias absence)
+- Net code change: -3 lines (dbex/refine_one.py alias removal), +4 lines (test assertion + mock_args fixes)
+- Docs updates: 3 architecture files refreshed (live_backend.md, data_telemetry_flow.md, module_map.md)
+**Artifacts**: plans/active/ARCH-REFINE-001/reports/2025-12-01T140725Z/ (collect_cli_writer.log, pytest_cli_writer.log, docs_diff.md)
+**Next Actions**: Phase C.4 complete. All Phase C milestones (writer extraction C.2, physics helpers C.3, docs/test sync C.4) are now done. Ready to advance to Phase D doc sync (architecture IDLs) or pivot to remaining Stage A/B/C refinements as prioritized by supervisor.

@@ -779,6 +779,11 @@ def test_torch_diagnostics_metadata(sigma_source, sigma_reference):
     import numpy as np
     import sys
     from dbex.nanobrag_bridge import RefinementInputs
+    import dbex.refine_one
+
+    # ARCH-REFINE-001 Phase C.4: Assert legacy _write_torch_outputs alias is removed
+    assert not hasattr(dbex.refine_one, '_write_torch_outputs'), \
+        "Legacy _write_torch_outputs alias should be removed; use dbex.io.writer.write_torch_outputs directly"
 
     # Mock score_trainer.roi_check before it gets imported
     mock_roi_check_module = Mock()
@@ -823,6 +828,8 @@ def test_torch_diagnostics_metadata(sigma_source, sigma_reference):
 
             mock_args = Mock()
             mock_args.outFile = outfile
+            mock_args.sigma_floor = 1.0
+            mock_args.adu_per_photon = None
 
             mock_bragg = np.zeros((1, 100, 100), dtype=np.float32)
             masked_mse = 1234.5

@@ -245,3 +245,6 @@ Action State: ready_for_implementation
 - Updated docs/fix_plan.md with the trusted-mask parity Do Now, logged REFINE-016 in docs/findings.md, and rewrote input.md so Ralph wires the trusted mask through both ROI closures and panel validations before rerunning the Stage C smokes + summarizer under plans/active/PERF-WARM-SIM-001/reports/2025-12-01T214200Z/.
 Action State: ready_for_implementation
 2025-12-01T214200Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=0 action=planning artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-12-01T214200Z/ next_action=Apply trusted-mask gate in Stage C loss + rerun Stage C detector smokes
+- Codified the residual Stage C chi² drift as panel-loss path divergence and re-scoped PERF-WARM-SIM-001: Stage A now gains a shared panel-mode loss helper that Stage C must call, eliminating the +0.067% bias source. Updated docs/fix_plan.md and input.md with the helper refactor Do Now (artifacts reserved at plans/active/PERF-WARM-SIM-001/reports/2025-12-01T221500Z/).
+Action State: ready_for_implementation
+2025-12-01T221500Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=1 action=planning artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-12-01T221500Z/ next_action=Land shared Stage A/C panel-loss helper + rerun Stage C detector smokes

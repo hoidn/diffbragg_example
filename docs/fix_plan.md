@@ -81,3 +81,14 @@
 - Run test_stage_b_shell_modifiers smoke test to validate extraction
 - Run test_stage_b_per_reflection_modifiers smoke test
 - Update docs/TESTING_GUIDE.md if test selectors changed
+
+### 2025-12-01T090517Z - ARCH-REFINE-001 Phase A.3: Stage C Helper Extraction (planning)
+**Action**: Scoped the Stage C helper migration so Stage C no longer imports the monolith.
+- Verified `dbex/refinement/stage_c.py` still lazy-imports `_build_stage_c_params/_build_stage_c_lbfgs_closure/_run_stage_c_lbfgs` from `dbex.nanobrag_refinement`, meaning both the inline path and the engine wrapper depend on the monolith for detector-offset LBFGS logic.
+- Confirmed `_retarget_stage_a_detectors` only exists inside the monolith; warm-cache retargeting for Stage C cannot be reused by the engine without extracting it (PERF-WARM-006 / PERF-WARM-013 guardrail).
+- Mapped the code blocks (nanobrag_refinement.py:254-1010) that must move into `dbex/refinement/stage_c_impl.py`, matching the Stage A/B extraction pattern (helper module owns params/closure/run, wrappers + inline branch import from it).
+- Selected validation selector `tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small` per docs/TESTING_GUIDE.md:161 to verify chi² + ≥80% offset reduction (REFINE-007 / REFINE-007-EXT).
+**Artifacts**: plans/active/ARCH-REFINE-001/reports/2025-12-01T090517Z/ (planning notes)
+**Next Actions**:
+- Implement `dbex/refinement/stage_c_impl.py` mirroring Stage B extraction (params/closure/run helpers + `_retarget_stage_a_detectors`), update `dbex/refinement/stage_c.py` and `dbex/nanobrag_refinement.py` imports, and ensure engine vs inline telemetry stay identical (PHYSICS-LOSS-001/002).
+- Rerun `pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small` with canonical env vars and archive telemetry/logs under the new report directory.

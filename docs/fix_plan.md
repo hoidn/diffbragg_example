@@ -970,3 +970,18 @@ pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation
    - `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=<size>`
    - `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=<size> DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-WARM-SIM-001/reports/2025-12-01T173200Z/telemetry_stage_c_<size>.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=<size> | tee plans/active/PERF-WARM-SIM-001/reports/2025-12-01T173200Z/pytest_stage_c_<size>.log`
 3. **Analysis script** — Re-run `plans/active/PERF-WARM-SIM-001/bin/summarize_stage_c_warm_cache.py` on the captured telemetry to record cache/ROI/chi² stats under the same report directory (JSON + markdown). These artifacts will justify whether we relax REFINE-007 or need further Stage C tuning.
+
+### 2025-12-01T173200Z - PERF-WARM-SIM-001 Phase D.4: Telemetry capture before REFINE-007 gates (SUCCESS)
+**Action**: Moved `_record_stage_telemetry(...)` call in `tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip` to execute immediately after computing `improvement_c_chi2` (line 1115) and before the strict REFINE-007 assertions (lines 1142-1159), ensuring telemetry JSON is written even when the full-detector chi² gate fails.
+- Modified `tests/dbex/test_torch_refine_smoke.py` (lines 1117-1140): Added `_record_stage_telemetry(...)` call immediately after computing `improvement_c_chi2`, extended metadata dict with `stage_a_final_chi2` and `stage_c_final_chi2` fields, and computed `loss_improvement` inline from trace endpoints.
+- Removed duplicate `_record_stage_telemetry(...)` call that was originally at line 1218 (after all assertions).
+- Ran small detector smoke: **PASSED** — telemetry captured with `stage_a_final_chi2=263641952.0`, `stage_c_final_chi2=263808208.0`, `chi_squared_improvement=-0.0006306` (-0.063% regression).
+- Ran full detector smoke: **FAILED** (expected) — REFINE-007 chi² gate tripped with +0.067% regression (`stage_a_final_chi2=210706464.0`, `stage_c_final_chi2=210848512.0`), BUT telemetry was successfully captured before the assertion.
+**Metrics**:
+- Small detector: chi² regression -0.063%, telemetry complete
+- Full detector: chi² regression +0.067%, telemetry complete (test failed after telemetry capture as designed)
+**Artifacts**: plans/active/PERF-WARM-SIM-001/reports/2025-12-01T173200Z/ (collect_stage_c_small.log, pytest_stage_c_small.log, telemetry_stage_c_small.json, collect_stage_c_full.log, pytest_stage_c_full.log, telemetry_stage_c_full.json)
+**First Divergence**: N/A — implementation succeeded; full detector test failed at REFINE-007 gate as expected, but telemetry was captured.
+**Next Actions**:
+1. Run `plans/active/PERF-WARM-SIM-001/bin/summarize_stage_c_warm_cache.py` on both telemetry files to generate the warm-cache report JSON + markdown.
+2. Supervisor decision: Accept +0.067% chi² regression as inherent to correct Stage C panel-mode closures for full detector and relax REFINE-007 gate to ≤0.10%, OR investigate Stage C LBFGS hyperparameters.

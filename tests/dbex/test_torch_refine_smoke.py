@@ -1114,6 +1114,31 @@ def test_stage_c_detector_microslip(
     stage_c_final_chi2 = telemetry_c.chi_squared_trace_full[-1][1]
     improvement_c_chi2 = (stage_a_final_chi2 - stage_c_final_chi2) / stage_a_final_chi2
 
+    # Record telemetry BEFORE REFINE-007 assertions so evidence is captured even when gates fail
+    # (PERF-WARM-SIM-001 Phase D.4: capture +0.067% panel-mode regression evidence)
+    _record_stage_telemetry(
+        "stage_c_detector_microslip",
+        telemetry_dict["C"],
+        smoke_detector_size,
+        {
+            "stage_a_final_chi2": float(stage_a_final_chi2),
+            "stage_c_final_chi2": float(stage_c_final_chi2),
+            "loss_improvement": float((telemetry_a.loss_trace_full[0][1] - telemetry_c.loss_trace_full[-1][1]) / telemetry_a.loss_trace_full[0][1]) if len(telemetry_a.loss_trace_full) > 0 and len(telemetry_c.loss_trace_full) > 0 else 0.0,
+            "chi_squared_improvement": float(improvement_c_chi2),
+            "n_rois": len(refgeom_dataload.bbox),
+            "detector_shape": list(refinement_inputs.target.shape),
+            "closure_evals": telemetry_dict["C"].perf_counters.get("closure_evals"),
+            "validation_runs": telemetry_dict["C"].perf_counters.get("validation_runs"),
+            "forward_time_ms": telemetry_dict["C"].perf_counters.get("forward_time_ms"),
+            "detector_offset_reduction_min": min(stats["reduction"] for stats in panel_offset_stats),
+            "detector_offset_final_abs_max": max(stats["final_abs_mm"] for stats in panel_offset_stats),
+            "cache_mode": telemetry_dict["C"].perf_counters.get("cache_mode"),
+            "roi_mode": telemetry_dict["C"].perf_counters.get("roi_mode"),
+            "roi_count_total": telemetry_dict["C"].perf_counters.get("roi_count_total"),
+            "roi_count_sampled": telemetry_dict["C"].perf_counters.get("roi_count_sampled"),
+        },
+    )
+
     if strict_gates:
         # REFINE-007: Canonical detector offsets must shrink by ≥80% or reach ±0.05 mm
         failing_panels = []
@@ -1213,27 +1238,6 @@ def test_stage_c_detector_microslip(
         f"mean={forward_time_c.get('mean', 0.0):.2f}, "
         f"min={forward_time_c.get('min', 0.0):.2f}, "
         f"max={forward_time_c.get('max', 0.0):.2f})"
-    )
-
-    _record_stage_telemetry(
-        "stage_c_detector_microslip",
-        telemetry_dict["C"],
-        smoke_detector_size,
-        {
-            "loss_improvement": float(improvement_c),
-            "chi_squared_improvement": float(improvement_c_chi2),
-            "n_rois": len(refgeom_dataload.bbox),
-            "detector_shape": list(refinement_inputs.target.shape),
-            "closure_evals": telemetry_dict["C"].perf_counters.get("closure_evals"),
-            "validation_runs": telemetry_dict["C"].perf_counters.get("validation_runs"),
-            "forward_time_ms": telemetry_dict["C"].perf_counters.get("forward_time_ms"),
-            "detector_offset_reduction_min": min(stats["reduction"] for stats in panel_offset_stats),
-            "detector_offset_final_abs_max": max(stats["final_abs_mm"] for stats in panel_offset_stats),
-            "cache_mode": telemetry_dict["C"].perf_counters.get("cache_mode"),
-            "roi_mode": telemetry_dict["C"].perf_counters.get("roi_mode"),
-            "roi_count_total": telemetry_dict["C"].perf_counters.get("roi_count_total"),
-            "roi_count_sampled": telemetry_dict["C"].perf_counters.get("roi_count_sampled"),
-        },
     )
 
     print(f"\n[test_stage_c_detector_microslip] SUCCESS")

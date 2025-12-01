@@ -1,0 +1,157 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 1 item
+
+tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload FAILED [100%]
+
+=================================== FAILURES ===================================
+___________________ test_stage_b_baseline_guard_diff_payload ___________________
+
+    def test_stage_b_baseline_guard_diff_payload():
+        """
+        Validate REFINE-FLOW-001 guard emits per-panel chi² breakdown when parity fails.
+    
+        Acceptance (REFINE-FLOW-001):
+        - When canonical_baseline chi² is stubbed to force >0.1% mismatch:
+          - Guard raises RuntimeError citing REFINE-FLOW-001
+          - stage_b_baseline_diff.json is emitted with new schema:
+            - canonical_snapshot (chi², iteration, roi_count, log_scale, cell, misset)
+            - stage_b_reconstructed (log_scale, cell, misset, cache_mode, cpu_fallback)
+            - per_panel_breakdown (list of {panel_id, chi_squared, masked_mse})
+            - absolute_difference, relative_difference, tolerance
+        - When parity passes (<0.1%), stage_b_baseline_diff_path remains None
+        """
+        from dbex.refinement.stage_b_impl import _run_stage_b_lbfgs
+        from dbex.nanobrag_refinement import RefinementConfig
+        import tempfile
+        import json
+    
+        # Create minimal config (CPU-only to stay cheap)
+        config = RefinementConfig(
+            device="cpu",
+            stage_b_full_eval_on_cpu=False,
+            enable_stage_a_warm_cache=False,
+            stage_b_mode="shell",
+            max_iter=1,  # Minimal iterations
+        )
+    
+        device = torch.device(config.device)
+        dtype = torch.float32
+    
+        # Canonical baseline with baseline chi² that we'll manipulate
+        baseline_chi_squared = 1e8
+        canonical_baseline = {
+            "roi_count": 1,
+            "log_scale": 0.0,
+            "cell_a": 10.0, "cell_b": 10.0, "cell_c": 10.0,
+            "cell_alpha": 90.0, "cell_beta": 90.0, "cell_gamma": 90.0,
+            "misset_deg": (0.0, 0.0, 0.0),
+            "chi_squared": baseline_chi_squared * 0.98,  # 2% lower to force guard
+            "masked_mse": 1e6,
+            "stage_label": "A",
+            "iteration": 10,
+        }
+    
+        # Create minimal param_values dict with necessary fields
+        param_values = {
+            "canonical_baseline": canonical_baseline,
+            "log_scale": torch.tensor(0.0, device=device, dtype=dtype),
+            "cell_a_tensor": torch.tensor(10.0, device=device, dtype=dtype),
+            "cell_b_tensor": torch.tensor(10.0, device=device, dtype=dtype),
+            "cell_c_tensor": torch.tensor(10.0, device=device, dtype=dtype),
+            "cell_alpha_tensor": torch.tensor(90.0, device=device, dtype=dtype),
+            "cell_beta_tensor": torch.tensor(90.0, device=device, dtype=dtype),
+            "cell_gamma_tensor": torch.tensor(90.0, device=device, dtype=dtype),
+            "misset_xyz_deg": torch.tensor([0.0, 0.0, 0.0], device=device, dtype=dtype),
+            "stage_b_cache_mode": "cold",
+            "use_stage_b_cpu_fallback": False,
+            "stage_b_mode": "shell",
+            "telemetry_state": {
+                "loss_trace_sample_b": [],
+                "loss_trace_full_b": [],
+                "best_loss_full_b": [float('inf'), 0],
+                "best_params_snapshot_b": {},
+                "chi_squared_trace_sample_b": [],
+                "chi_squared_trace_full_b": [],
+                "chi_squared_best_b": [float('inf'), 0],
+                "masked_mse_trace_sample_b": [],
+                "masked_mse_trace_full_b": [],
+                "masked_mse_best_b": [float('inf'), 0],
+                "variance_floor_clamped_pixels_b": [0],
+                "variance_floor_masked_pixels_b": [0],
+                "perf_closure_evals_b": [0],
+                "perf_validation_runs_b": [0],
+                "perf_forward_times_ms_b": [],
+            },
+        }
+    
+        # Mock compute_loss_stage_b to return predictable values
+        # Initial call returns chi² = baseline_chi_squared (higher than canonical, triggering guard)
+        def mock_compute_loss(panel_ids, is_full=False, force_panel_eval=False):
+            if is_full and force_panel_eval:
+                # Per-panel breakdown: return chi² per panel
+                if len(panel_ids) == 1:
+                    # Single panel query
+                    panel_chi2 = baseline_chi_squared / 2  # Split across 2 panels
+                    panel_mse = 1e6 / 2
+                    return torch.tensor(panel_chi2, device=device, dtype=dtype), torch.tensor(panel_mse, device=device, dtype=dtype)
+            # Initial chi² (aggregate)
+            return torch.tensor(baseline_chi_squared, device=device, dtype=dtype), torch.tensor(1e6, device=device, dtype=dtype)
+    
+        # Mock closure (minimal)
+        def mock_closure():
+            return torch.tensor(baseline_chi_squared, device=device, dtype=dtype)
+    
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Set DBEX_SMOKE_TELEMETRY_PATH to control output location
+            telemetry_path = f"{tmpdir}/telemetry.json"
+            with patch.dict(os.environ, {"DBEX_SMOKE_TELEMETRY_PATH": telemetry_path}):
+                # Run Stage B LBFGS, expecting RuntimeError from guard
+                with pytest.raises(RuntimeError) as exc_info:
+>                   result = _run_stage_b_lbfgs(
+                        config=config,
+                        device=device,
+                        dtype=dtype,
+                        param_values=param_values,
+                        closure_stage_b=mock_closure,
+                        compute_loss_stage_b=mock_compute_loss,
+                        n_panels=2,  # 2 panels for per-panel breakdown
+                    )
+
+tests/dbex/test_stage_b_cpu_fallback.py:481: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+config = RefinementConfig(history_size=10, max_iter=1, tolerance_grad=1e-07, tolerance_change=1e-09, roi_sample_fraction=0.15, ... calibration_metadata=None, log_scale_baseline=None, apply_calibration_n_cells=True, device='cpu', dtype=torch.float32)
+device = device(type='cpu'), dtype = torch.float32
+param_values = {'canonical_baseline': {'cell_a': 10.0, 'cell_alpha': 90.0, 'cell_b': 10.0, 'cell_beta': 90.0, ...}, 'cell_a_tensor': tensor(10.), 'cell_alpha_tensor': tensor(90.), 'cell_b_tensor': tensor(10.), ...}
+closure_stage_b = <function test_stage_b_baseline_guard_diff_payload.<locals>.mock_closure at 0x71c066c6f430>
+compute_loss_stage_b = <function test_stage_b_baseline_guard_diff_payload.<locals>.mock_compute_loss at 0x71c11d696f70>
+n_panels = 2
+
+    def _run_stage_b_lbfgs(
+        config: 'RefinementConfig',
+        device: torch.device,
+        dtype: torch.dtype,
+        param_values: Dict[str, Any],
+        closure_stage_b: Callable[[], torch.Tensor],
+        compute_loss_stage_b: Callable[[List[int], bool, bool], Tuple[torch.Tensor, torch.Tensor]],
+        n_panels: int,
+    ) -> Dict[str, Any]:
+        """
+        Run LBFGS optimization for Stage B shell modifier refinement.
+    
+        Returns dict with status, message, final metrics, and best params snapshot.
+        Mirrors Phase B1a-loop3 pattern for Stage A LBFGS execution.
+        """
+        # Extract param_values dict entries (mode-aware)
+>       stage_b_optimizer = param_values['optimizer']
+E       KeyError: 'optimizer'
+
+dbex/refinement/stage_b_impl.py:1052: KeyError
+=========================== short test summary info ============================
+FAILED tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload - KeyError: 'optimizer'
+============================== 1 failed in 0.81s ===============================

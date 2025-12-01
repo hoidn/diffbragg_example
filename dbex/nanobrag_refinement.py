@@ -681,7 +681,8 @@ def run_nanobrag_refinement(
     hkl_metadata: Dict,
     config: Optional[RefinementConfig] = None,
     baseline_crystal=None,
-    baseline_detector=None
+    baseline_detector=None,
+    job_context: Optional['JobContext'] = None
 ) -> Tuple[np.ndarray, Dict[str, RefinementTelemetry]]:
     """
     Run Stage A (+ optional Stage C) LBFGS refinement on nanobrag_torch simulator.
@@ -710,6 +711,11 @@ def run_nanobrag_refinement(
         baseline_detector: Optional dxtbx Detector capturing the unperturbed geometry. When
                         provided, Stage C telemetry records initial/final offsets relative to this
                         baseline; otherwise offsets are reported relative to the perturbed detector.
+        job_context: Optional JobContext from dbex.refinement.context encapsulating CLI args,
+                    DataLoad, calibration metadata, sigma provenance, HKL metadata/ASU map, and
+                    RefinementConfig so stages can access consistent job metadata without recomputing.
+                    When provided, RefinementEngine inputs include 'job_context' key for future
+                    telemetry/IO work. (ARCH-REFINE-001 Phase B.2)
 
     Returns:
         Tuple of:
@@ -772,6 +778,7 @@ def run_nanobrag_refinement(
             'hkl_metadata': hkl_metadata,
             'baseline_crystal': baseline_crystal,
             'baseline_detector': baseline_detector,
+            'job_context': job_context,  # ARCH-REFINE-001 Phase B.2
         }
 
         # Instantiate RefinementEngine with StageA
@@ -836,6 +843,7 @@ def run_nanobrag_refinement(
             'hkl_metadata': hkl_metadata,
             'baseline_crystal': baseline_crystal,
             'baseline_detector': baseline_detector,
+            'job_context': job_context,  # ARCH-REFINE-001 Phase B.2
         }
 
         # Instantiate RefinementEngine with StageA → StageB sequence
@@ -1031,6 +1039,7 @@ def run_nanobrag_refinement(
             "hkl_metadata": hkl_metadata,
             "baseline_crystal": baseline_crystal,
             "baseline_detector": baseline_detector,
+            "job_context": job_context,  # ARCH-REFINE-001 Phase B.2
         }
 
         # Execute engine

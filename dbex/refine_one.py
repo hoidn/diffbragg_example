@@ -500,6 +500,7 @@ def run_nanobrag_backend(args, DL, devid=0):
     # Run Stage A LBFGS refinement nucleus (TORCH-REFINE-001)
     print(f"[nanobrag backend] Running Stage A LBFGS refinement nucleus...")
     from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig
+    from dbex.refinement.context import build_job_context
 
     # Apply ADU→photon conversion to sigma_floor if adu_per_photon is set (PHYSICS-LOSS-002)
     # Per input.md pitfalls and spec-db-core.md:67, sigma_floor shares units with sigma_rdout (target units)
@@ -518,6 +519,25 @@ def run_nanobrag_backend(args, DL, devid=0):
         calibration_metadata=calibration_metadata,  # Thread calibration payload (TOOLING-VIS-001 Phase D.C, DB-AT-027)
     )
 
+    # Build JobContext (ARCH-REFINE-001 Phase B.2)
+    # Encapsulates CLI args, DataLoad, calibration metadata, sigma provenance, HKL metadata/ASU map,
+    # and RefinementConfig so stages receive consistent job metadata
+    job_context = build_job_context(
+        cli_args=args,
+        dataload=DL,
+        calibration_metadata=calibration_metadata,
+        sigma_provenance=sigma_provenance,
+        sigma_reference_value=sigma_reference_target_units,
+        refinement_config=refine_config,
+        hkl_metadata=hkl_metadata,
+        asu_map=asu_map,
+        spot_scale_override=spot_scale,
+        hkl_source=hkl_source,
+        hkl_path=hkl_path,
+    )
+    print(f"[nanobrag backend] JobContext built: sigma_provenance={job_context.sigma_provenance}, "
+          f"hkl_source={job_context.hkl_source}, spot_scale={job_context.spot_scale_override:.3e}")
+
     try:
         Bragg_refined, refine_telemetry_dict = run_nanobrag_refinement(
             inputs=inputs,
@@ -526,7 +546,8 @@ def run_nanobrag_backend(args, DL, devid=0):
             crystal=DL.crystal,
             hkl_grid=hkl_grid,
             hkl_metadata=hkl_metadata,
-            config=refine_config
+            config=refine_config,
+            job_context=job_context
         )
 
         # Extract Stage A telemetry (always present); Stage B and Stage C are optional

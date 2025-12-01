@@ -263,3 +263,14 @@ Capture the `--collect-only` output for the same selector before running the tes
 - BLOCKER: Investigate Stage C gradient tracking issue in panel mode. Hypothesis: Stage C's distance_offset_raw parameter may not be properly connected to the gradient graph when running in panel mode with warm cache. Check if panel-mode simulator calls require grad flags or if Stage C closure needs to explicitly enable gradients for panel evaluations.
 - Once Stage C blocker is resolved, rerun small-detector Stage C smoke to validate full auto-panel flow.
 - Consider adding Stage C gradient diagnostics to help debug similar issues in future.
+
+### 2025-12-01T112335Z - ARCH-REFINE-001 Stage C warm-cache gradient repair (READY FOR IMPLEMENTATION)
+- Small-detector smoke now forces Stage A/B/C into panel mode, so Stage C always runs with the warm cache and samples a single panel (`roi_count_total=roi_count_sampled=1`). The Stage C closure aborts before the first LBFGS step with `element 0 of tensors does not require grad` (see `plans/active/ARCH-REFINE-001/reports/2025-12-01T105916Z/pytest_stage_bc_small_v3.log`), leaving telemetry status `"error"` and `param_deltas` stuck at the ±0.25 mm seed.
+- Root cause: `_retarget_stage_a_detectors` (dbex/refinement/stage_c_impl.py:39-86) converts each bounded detector offset into a Python float via `.item()` before rebuilding cached detectors. That detaches `distance_offset_raw` from the forward graph, so chi² is computed from constants and PyTorch refuses to backprop. The cold path (panel instantiation inside the closure) keeps the tensors intact, which is why Stage C succeeded before the auto-panel switch.
+- **Plan:** keep the warm-cache path differentiable without regressing PERF-WARM-006/013:
+  1. Thread tensor-valued offsets through `_retarget_stage_a_detectors` so `detector_config.distance_mm` is updated with tensors on the Stage C device/dtype (matching `create_detector_config(distance_mm_override=...)`). StageAContext baseline distances can stay as floats—wrap them in tensors before addition.
+  2. Mirror that fix in the final reconstruction block (`_run_stage_c_lbfgs` panel loop) so the restored best snapshot also retargets with tensors.
+  3. Add a regression guard by asserting `telemetry_c.perf_counters['cache_mode']=="warm"` and `telemetry_c.status!="error"` in the Stage C smoke once gradients flow again; no new selector needed, the existing Stage B/C smoke suffices.
+- **Validation:** rerun the small-detector Stage B + Stage C smokes with telemetry under `plans/active/ARCH-REFINE-001/reports/<next-timestamp>/`, proving Stage C now optimizes (chi² drop ≥0.002%) and Stage B still passes in panel auto-mode.
+
+**Artifacts**: plans/active/ARCH-REFINE-001/reports/2025-12-01T105916Z/ (pytest_stage_bc_small_v3.log, telemetry_stage_bc_small_v3.json, collect_stage_bc_small.log)

@@ -1,33 +1,33 @@
-Summary: Auto-disable Stage A ROI sampling for the 29-ROI refGeom_small smoke so Stage C sees the real chi² drop without weakening REFINE-007.
+Summary: Repair the Stage C warm-cache retargeter so detector distance tensors stay connected to autograd and the small-detector smoke can finish.
 Mode: none
 Focus: ARCH-REFINE-001 — Refinement Engine Modularization & Torch IO
 Branch: integration
 Mapped tests: tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small; tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small
-Artifacts: plans/active/ARCH-REFINE-001/reports/2025-12-01T105916Z/
+Artifacts: plans/active/ARCH-REFINE-001/reports/2025-12-01T112335Z/
 Do Now:
-- Implement: dbex/refinement/stage_a_impl.py::_build_stage_a_params — add a documented `stage_a_min_roi_for_roi_mode` threshold (default 32) that flips Stage A, Stage B, and Stage C into panel mode when `len(panel_slices)` is tiny so telemetry/perf counters and downstream stages agree on `roi_mode`; thread the knob through dbex/nanobrag_refinement.py::RefinementConfig and refresh tests/dbex/test_torch_refine_smoke.py expectations for the small-detector path.
-- Validate: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_TELEMETRY_PATH=plans/active/ARCH-REFINE-001/reports/2025-12-01T105916Z/telemetry_stage_bc_small.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py -k "test_stage_b_shell_modifiers or test_stage_c_detector_microslip" --smoke-detector-size=small | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T105916Z/pytest_stage_bc_small.log
+- Implement: dbex/refinement/stage_c_impl.py::{_retarget_stage_a_detectors,_run_stage_c_lbfgs} — keep the warm-cache detector retargeting differentiable by propagating `distance_offset_raw` tensors (no `.item()` conversions) through both the closure path and the final reconstruction so Stage C warm-mode gradients mirror the cold path.
+- Validate: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_TELEMETRY_PATH=plans/active/ARCH-REFINE-001/reports/2025-12-01T112335Z/telemetry_stage_bc_small.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py -k "test_stage_b_shell_modifiers or test_stage_c_detector_microslip" --smoke-detector-size=small | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T112335Z/pytest_stage_bc_small.log
 How-To Map:
-1. Extend `RefinementConfig` in dbex/nanobrag_refinement.py with `stage_a_min_roi_for_roi_mode` (default 32) and keep the existing `stage_a_force_panel_validation` knobs; expose it everywhere StageA is constructed so callers don’t need to hardcode heuristics.
-2. Inside `_build_stage_a_params` (and the analogous helper in dbex/nanobrag_refinement.py), compute `canonical_roi_count = len(panel_slices)` and set `use_stage_a_roi_mode=False` when `canonical_roi_count <= stage_a_min_roi_for_roi_mode`; include a note in Stage A telemetry/perf counters so logs explain whether panel mode was forced.
-3. Propagate the auto-panel flag through the Stage B/Stage C wrappers and the smoke tests: Stage B/S C perf counters should now look at telemetry (`telemetry_a.roi_mode`) instead of raw config flags, and tests must assert that small-detector runs switch to panel mode while canonical/full runs still respect ROI mode.
-4. Export `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md` and run a `--collect-only` sanity check before the full smokes: `DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest --collect-only tests/dbex/test_torch_refine_smoke.py -k "test_stage_b_shell_modifiers or test_stage_c_detector_microslip" --smoke-detector-size=small | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T105916Z/collect_stage_bc_small.log`, then rerun the full selector command above so telemetry/logs land under this loop’s report directory.
+1. Confirm the failure signature: `rg -n "distance_deltas_mm" dbex/refinement/stage_c_impl.py` shows `_retarget_stage_a_detectors` converting tensors to floats, and `plans/active/ARCH-REFINE-001/reports/2025-12-01T105916Z/pytest_stage_bc_small_v3.log` captures the `element 0 of tensors does not require grad` error for reference.
+2. Update `_retarget_stage_a_detectors` so each offset stays on the Stage C device/dtype (wrap `stage_a_ctx.baseline_distance_mm[pid]` with `torch.tensor(..., device=device, dtype=dtype)` and add the tensor delta). Ensure both the cache mutation loop and the warm-cache panel loop inside `_run_stage_c_lbfgs` reuse that tensor helper so the final Bragg rebuild mirrors the closure path.
+3. After editing, run `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_TELEMETRY_PATH=plans/active/ARCH-REFINE-001/reports/2025-12-01T112335Z/telemetry_stage_bc_small.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py -k "test_stage_b_shell_modifiers or test_stage_c_detector_microslip" --smoke-detector-size=small | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T112335Z/pytest_stage_bc_small.log` and verify Stage C now reports `status != "error"` with a ≥0.002% chi² drop; Stage B should continue to pass.
+4. If gradients still fail, archive the new telemetry JSON + pytest log under this loop’s artifacts and log the signature in docs/fix_plan.md before marking the item blocked.
 Pitfalls To Avoid:
-- Don’t “fix” tests by toggling `config.enable_stage_a_roi_mode`; the auto-switch must be driven by Stage A code so telemetry remains authoritative.
-- Keep Stage A perf counters (`roi_mode`, `roi_count_*`, cache metadata) consistent between telemetry and the per-stage perf dicts; Stage B/C assertions read both.
-- Preserve warm-cache behavior: disabling ROI mode should still reuse StageAContext detectors/masks instead of rebuilding per iteration.
-- When stage count ≤ threshold, make sure sampled ROI counts report the canonical totals (so dashboards don’t show 0 sampled ROIs).
-- Stage C and Stage B wrappers should branch on Stage A telemetry, not their own heuristics—otherwise ROI label drift will resurface.
-- Zero tolerance for ENV churn: if missing sigma-map assets resurface, stop and log the blocker in docs/fix_plan.md instead of regenerating silently.
-- Capture telemetry JSON + pytest logs for both selectors; we need the proof that Stage A now improves ≥0.1%.
+- Do not fall back to the cold path; PERF-WARM-006 requires Stage C to reuse Stage A caches.
+- Avoid `.item()`, `.detach()`, or `torch.no_grad()` in the Stage C closure per GRADIENT-001; the tensor fix must keep the graph intact.
+- Keep tensors on the configured device/dtype (CUDA vs CPU) to avoid device mismatch crashes.
+- Remember to retarget both the closure path and `_run_stage_c_lbfgs` final reconstruction so telemetry/Bragg arrays stay in sync.
+- Preserve telemetry/perf counters (cache_mode, roi_mode, roi_counts) so REFINE-010 and PERF-WARM-006 assertions stay valid.
 If Blocked:
-- If Stage A still reports 0% improvement after the auto-panel switch, rerun `plans/active/ARCH-REFINE-001/bin/capture_stage_c_stage_a_probe.py` with `--stage-a-roi-mode panel` and attach the JSON/logs to docs/fix_plan.md while marking ARCH-REFINE-001 blocked with the new failure signature.
+- If Stage C still reports `status="error"`, archive the latest Stage B/C logs + telemetry under this loop’s artifacts and document the new failure signature in docs/fix_plan.md before switching focus.
 Findings Applied (Mandatory):
-- REFINE-007 — Stage C must compare against Stage A’s real chi²; auto-panel ROI switching restores that invariant without weakening gates.
-- PERF-WARM-008 — Stage B/C perf counters must mirror Stage A’s ROI mode, so the telemetry wiring has to update alongside the config knob.
-- REFINE-010 — Newly documented requirement that refGeom_small (≤32 ROIs) runs need panel-mode closures to converge; this Do Now implements that policy.
+- REFINE-010 — Small-detector runs SHALL use panel closures, so Stage C must honor that while keeping gradients.
+- PERF-WARM-006 — Stage C must reuse Stage A warm caches and continue emitting `cache_mode="warm"` telemetry.
+- GRADIENT-001 — Optimization code must avoid `.item()`/`.detach()` on differentiable tensors.
+- GRADIENT-004 — Newly logged requirement: Stage C detector retargeting must preserve tensor offsets so LBFGS can run in warm mode.
 Pointers:
-- docs/spec-db-workflow.md:116 — Stage smoke policy and ROI-minibatching clause that permits panel fallbacks when full-image descent is required.
-- docs/data_dependency_manifest.md:52 — Notes refGeom_small has exactly 29 ROIs/sigma crops, justifying the ≤32 heuristic.
-- plans/active/ARCH-REFINE-001/reports/2025-12-01T105500Z/stage_c_stage_a_probe_cli.json:1 — Shows Stage A ROI-mode improvement=0.0% despite healthy detector recovery when Stage C runs.
-Next Up (optional): If time remains after the smokes, rerun the metadata-sigma variant of `test_stage_c_detector_microslip` to ensure the new policy still holds when `DBEX_SMOKE_SIGMA_SOURCE=metadata`.
+- docs/spec-db-workflow.md:81 — Stage C normative scope (per-panel detector offsets with tricubic interpolation and L-BFGS).
+- docs/TESTING_GUIDE.md:48 — Canonical Stage B/C smoke selectors and required env vars.
+- docs/data_dependency_manifest.md:52 — refGeom_small ROI count (29) that forces the auto-panel path exercised here.
+- dbex/refinement/stage_c_impl.py:39 — Warm-cache retargeter currently calling `.item()` on detector offsets.
+Next Up (optional): After Stage C passes on the CLI sigma path, rerun the metadata-sigma variant (`DBEX_SMOKE_SIGMA_SOURCE=metadata`) to ensure the fix is source-agnostic.

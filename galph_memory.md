@@ -32,3 +32,7 @@ Action State: ready_for_implementation
 - Logged REFINE-010 (docs/findings.md) after the stage_c_stage_a_probe traces proved ROI-mode LBFGS never improves on refGeom_small even with roi_sample_fraction=1.0, while panel mode drops chi² by 57%.
 - Updated docs/fix_plan.md with the new Stage A ROI auto-panel Do Now plus telemetry evidence, rewrote input.md with the explicit Stage A implementation + Stage B/C validation plan, and captured this loop’s summary stub under the new report directory.
 Action State: ready_for_implementation
+2025-12-01T112335Z focus=ARCH-REFINE-001 state=ready_for_implementation dwell=2 action=planning artifacts=plans/active/ARCH-REFINE-001/reports/2025-12-01T112335Z/ next_action=Fix Stage C warm-cache gradient tensors + rerun Stage B/C smoke
+- Stage C small-detector smoke still fails because `_retarget_stage_a_detectors` (dbex/refinement/stage_c_impl.py:39-86) converts the bounded offsets into floats, so the warm-cache panel path detaches `distance_offset_raw` and PyTorch aborts with `element 0 of tensors does not require grad` (see plans/active/ARCH-REFINE-001/reports/2025-12-01T105916Z/pytest_stage_bc_small_v3.log).
+- Logged GRADIENT-004, refreshed docs/fix_plan.md with the tensor-preserving Stage C plan, and rewrote input.md directing Ralph to patch the warm-cache retargeter and rerun the small-detector Stage B/C smokes under plans/active/ARCH-REFINE-001/reports/2025-12-01T112335Z/.
+Action State: ready_for_implementation

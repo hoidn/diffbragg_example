@@ -107,7 +107,7 @@ def test_main_dispatches_to_nanobrag_backend(mock_nanobrag, mock_dataload):
 @patch('dbex.nanobrag_bridge.create_detector_config')
 @patch('dbex.nanobrag_bridge.create_beam_config')
 @patch('dbex.nanobrag_bridge.create_crystal_config')
-@patch('dbex.refine_one._write_torch_outputs')
+@patch('dbex.io.writer.write_torch_outputs')
 def test_nanobrag_backend_runs_simulator(
     mock_write, mock_crystal_config, mock_beam_config, mock_detector_config,
     mock_build_grid, mock_prepare, mock_Crystal, mock_Detector, mock_Simulator
@@ -261,7 +261,7 @@ def test_nanobrag_backend_runs_simulator(
 @patch('dbex.nanobrag_bridge.create_beam_config')
 @patch('dbex.nanobrag_bridge.create_crystal_config')
 @patch('dbex.nanobrag_bridge.load_calibration_metadata')
-@patch('dbex.refine_one._write_torch_outputs')
+@patch('dbex.io.writer.write_torch_outputs')
 def test_nanobrag_backend_applies_calibration(
     mock_write, mock_load_calib, mock_crystal_config, mock_beam_config,
     mock_detector_config, mock_build_grid, mock_prepare, mock_Crystal,
@@ -439,7 +439,7 @@ def test_nanobrag_backend_requires_sigma_rdout(mock_prepare):
 @patch('dbex.nanobrag_bridge.create_detector_config')
 @patch('dbex.nanobrag_bridge.create_beam_config')
 @patch('dbex.nanobrag_bridge.create_crystal_config')
-@patch('dbex.refine_one._write_torch_outputs')
+@patch('dbex.io.writer.write_torch_outputs')
 def test_nanobrag_backend_accepts_sigma_map(
     mock_write,
     mock_crystal_config,
@@ -531,7 +531,7 @@ def test_nanobrag_backend_accepts_sigma_map(
 @patch('dbex.nanobrag_bridge.create_detector_config')
 @patch('dbex.nanobrag_bridge.create_beam_config')
 @patch('dbex.nanobrag_bridge.create_crystal_config')
-@patch('dbex.refine_one._write_torch_outputs')
+@patch('dbex.io.writer.write_torch_outputs')
 def test_nanobrag_backend_accepts_external_lookup_sigma_map(
     mock_write,
     mock_crystal_config,
@@ -624,7 +624,7 @@ def test_nanobrag_backend_accepts_external_lookup_sigma_map(
 @patch('dbex.nanobrag_bridge.create_beam_config')
 @patch('dbex.nanobrag_bridge.create_crystal_config')
 @patch('dbex.nanobrag_bridge.load_refined_mtz')
-@patch('dbex.refine_one._write_torch_outputs')
+@patch('dbex.io.writer.write_torch_outputs')
 def test_nanobrag_backend_uses_refined_mtz(
     mock_write, mock_load_refined, mock_crystal_config, mock_beam_config,
     mock_detector_config, mock_build_grid, mock_prepare, mock_Crystal,
@@ -875,8 +875,8 @@ def test_torch_diagnostics_metadata(sigma_source, sigma_reference):
             refine_telemetry_dict = {"A": mock_telemetry_a}
 
             # Import the function to test
-            from dbex.refine_one import _write_torch_outputs
-            _write_torch_outputs(
+            from dbex.io.writer import write_torch_outputs
+            write_torch_outputs(
                 mock_args,
                 mock_dl,
                 mock_bragg,

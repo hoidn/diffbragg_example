@@ -1,0 +1,70 @@
+{
+  "initiative": "PERF-WARM-SIM-001",
+  "phase": "D.4",
+  "validation_type": "stage_c_detector_microslip_warm_cache",
+  "detector_sizes": {
+    "small": {
+      "dataset": "small",
+      "status": "early_stop",
+      "cache_mode": "warm",
+      "roi_mode": "panel",
+      "roi_count_total": 29,
+      "roi_count_sampled": 29,
+      "closure_evals": 11,
+      "validation_runs": 5,
+      "forward_time_ms": {
+        "mean": 44.89614302292466,
+        "min": 44.54508237540722,
+        "max": 45.64619995653629,
+        "total": 718.3382883667946
+      },
+      "detector_offset_reduction_min": 0.9999999403953552,
+      "detector_offset_final_abs_max_mm": 1.4901161193847656e-08,
+      "chi_squared_improvement_frac": -0.0006306128396439729
+    },
+    "full": {
+      "dataset": "full",
+      "status": "early_stop",
+      "cache_mode": "warm",
+      "roi_mode": "roi",
+      "roi_count_total": 92,
+      "roi_count_sampled": 92,
+      "closure_evals": 9,
+      "validation_runs": 4,
+      "forward_time_ms": {
+        "mean": 222.08585153118923,
+        "min": 207.9236120916903,
+        "max": 228.99527894333005,
+        "total": 2887.11606990546
+      },
+      "detector_offset_reduction_min": 0.9999999403953552,
+      "detector_offset_final_abs_max_mm": 1.4901161193847656e-08,
+      "chi_squared_improvement_frac": -0.0006741511261847193
+    }
+  },
+  "warm_cache_validation": {
+    "small_cache_mode": "warm",
+    "full_cache_mode": "warm",
+    "small_roi_mode": "panel",
+    "full_roi_mode": "roi",
+    "cache_reuse_confirmed": true
+  },
+  "acceptance_gates": {
+    "small_detector": {
+      "offset_reduction_min": 0.9999999403953552,
+      "offset_final_abs_max_mm": 1.4901161193847656e-08,
+      "chi_squared_improvement": -0.0006306128396439729,
+      "offset_reduction_pass": true,
+      "offset_magnitude_pass": true,
+      "chi_squared_regression_pass": false
+    },
+    "full_detector": {
+      "offset_reduction_min": 0.9999999403953552,
+      "offset_final_abs_max_mm": 1.4901161193847656e-08,
+      "chi_squared_improvement": -0.0006741511261847193,
+      "offset_reduction_pass": true,
+      "offset_magnitude_pass": true,
+      "chi_squared_regression_pass": false
+    }
+  }
+}

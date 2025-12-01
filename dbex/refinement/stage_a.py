@@ -207,12 +207,16 @@ class StageA:
         masked_mse_trace_full = telemetry_state['masked_mse_trace_full']
         masked_mse_best = telemetry_state['masked_mse_best']
 
-        # ARCH-REFINE-001: Compute force_panel_validation flag (REFINE-007)
-        # Switch Stage A baseline/final validations to panel mode whenever Stage C runs or ROI count
-        # is small (≤32) so Stage A telemetry reports panel-level chi² that matches Stage C's initial state
+        # ARCH-REFINE-001 Phase E.2: Compute force_panel_validation flag (REFINE-FLOW-001, REFINE-007)
+        # Switch Stage A baseline/final validations to panel mode whenever Stage B or Stage C runs,
+        # or when ROI count is small (≤32), so Stage A telemetry reports panel-level chi² that
+        # matches Stage B/C initial states. This ensures REFINE-FLOW-001 parity (Stage B initial chi²
+        # must match Stage A final within 0.1%) holds for ROI-heavy configs where ROI sampling would
+        # prevent Stage A from seeing the full-panel convergence that Stage B will use.
         canonical_roi_count = len(refinement_inputs.panel_slices)
         force_panel_validation = (
             self._config.stage_a_force_panel_validation or
+            self._config.enable_stage_b or
             self._config.enable_stage_c or
             canonical_roi_count <= self._config.stage_a_panel_validation_roi_threshold
         )

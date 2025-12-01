@@ -1326,6 +1326,12 @@ def test_stage_b_shell_modifiers(
         stage_b_max_modifier=2.0,
         enable_stage_c=False,  # Disable Stage C for this test
         enable_stage_a_roi_mode=enable_roi,  # Panel mode for canonical; ROI for small
+        # ARCH-REFINE-001 Phase E.2 (REFINE-FLOW-001): Set threshold=0 so small-detector run
+        # emulates ROI-heavy detector behavior. This forces Stage A baseline/final validations
+        # into panel mode via enable_stage_b trigger (not via ROI count threshold), proving
+        # the Stage B-aware toggle ensures REFINE-FLOW-001 parity even when ROI sampling
+        # is active for closures.
+        stage_a_panel_validation_roi_threshold=0,
         device="cuda:0",
         dtype=torch.float32,
         sigma_readout_provenance=sigma_provenance,

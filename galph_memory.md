@@ -223,3 +223,7 @@ Action State: ready_for_implementation
   3. Verify no exception raised/caught between LBFGS step and param_deltas loop
   4. Consider whether RuntimeError at line 750 is being silently caught by line 756 except block
 Action State: partial_success (rehydration implemented and working for small detector, full detector blocked by separate param_deltas issue)
+2025-12-01T190945Z focus=PERF-WARM-SIM-001 state=planning dwell=1 action=planning artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-12-01T190945Z/ next_action=ready_for_implementation
+- Reviewed 2025-12-01T183500Z Stage C telemetry/logs plus dbex/refinement/stage_c_impl.py:738-780 and confirmed the new REFINE-013 rehydration now overwrites `_apply_baseline_detector_prior()` because the prior still runs after LBFGS; detector offsets stay at ±0.25 mm and REFINE-007 keeps failing despite chi² traces showing the best snapshot.
+- Updated docs/fix_plan.md with the baseline-prior ordering plan (commands + artifact path) and rewrote input.md so Ralph moves `_apply_baseline_detector_prior()` ahead of `stage_c_optimizer.step` and reruns the small/full smoketests with the warm-cache summarizer under 2025-12-01T190945Z/.
+Action State: ready_for_implementation

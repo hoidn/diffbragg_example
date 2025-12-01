@@ -16,6 +16,8 @@ Spec references:
 import pytest
 import torch
 import numpy as np
+import os
+from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 
@@ -373,6 +375,174 @@ def test_stage_b_params_no_cpu_fallback_when_config_disabled():
         # Validate Stage B reuses original Stage A context
         assert param_values["stage_b_eval_stage_a_ctx"] is stage_a_ctx, \
             "stage_b_eval_stage_a_ctx should reuse original Stage A context when fallback disabled"
+
+
+def test_stage_b_baseline_guard_diff_payload():
+    """
+    Validate REFINE-FLOW-001 guard emits per-panel chi² breakdown when parity fails.
+
+    Acceptance (REFINE-FLOW-001):
+    - When canonical_baseline chi² is stubbed to force >0.1% mismatch:
+      - Guard raises RuntimeError citing REFINE-FLOW-001
+      - stage_b_baseline_diff.json is emitted with new schema:
+        - canonical_snapshot (chi², iteration, roi_count, log_scale, cell, misset)
+        - stage_b_reconstructed (log_scale, cell, misset, cache_mode, cpu_fallback)
+        - per_panel_breakdown (list of {panel_id, chi_squared, masked_mse})
+        - absolute_difference, relative_difference, tolerance
+    - When parity passes (<0.1%), stage_b_baseline_diff_path remains None
+    """
+    from dbex.refinement.stage_b_impl import _run_stage_b_lbfgs
+    from dbex.nanobrag_refinement import RefinementConfig
+    import tempfile
+    import json
+
+    # Create minimal config (CPU-only to stay cheap)
+    config = RefinementConfig(
+        device="cpu",
+        stage_b_full_eval_on_cpu=False,
+        enable_stage_a_warm_cache=False,
+        stage_b_mode="shell",
+        max_iter=1,  # Minimal iterations
+    )
+
+    device = torch.device(config.device)
+    dtype = torch.float32
+
+    # Canonical baseline with baseline chi² that we'll manipulate
+    baseline_chi_squared = 1e8
+    canonical_baseline = {
+        "roi_count": 1,
+        "log_scale": 0.0,
+        "cell_a": 10.0, "cell_b": 10.0, "cell_c": 10.0,
+        "cell_alpha": 90.0, "cell_beta": 90.0, "cell_gamma": 90.0,
+        "misset_deg": (0.0, 0.0, 0.0),
+        "chi_squared": baseline_chi_squared * 0.98,  # 2% lower to force guard
+        "masked_mse": 1e6,
+        "stage_label": "A",
+        "iteration": 10,
+    }
+
+    # Create minimal param_values dict with necessary fields
+    param_values = {
+        "canonical_baseline": canonical_baseline,
+        "log_scale": torch.tensor(0.0, device=device, dtype=dtype),
+        "cell_a_tensor": torch.tensor(10.0, device=device, dtype=dtype),
+        "cell_b_tensor": torch.tensor(10.0, device=device, dtype=dtype),
+        "cell_c_tensor": torch.tensor(10.0, device=device, dtype=dtype),
+        "cell_alpha_tensor": torch.tensor(90.0, device=device, dtype=dtype),
+        "cell_beta_tensor": torch.tensor(90.0, device=device, dtype=dtype),
+        "cell_gamma_tensor": torch.tensor(90.0, device=device, dtype=dtype),
+        "misset_xyz_deg": torch.tensor([0.0, 0.0, 0.0], device=device, dtype=dtype),
+        "stage_b_cache_mode": "cold",
+        "use_stage_b_cpu_fallback": False,
+        "stage_b_mode": "shell",
+        "telemetry_state": {
+            "loss_trace_sample_b": [],
+            "loss_trace_full_b": [],
+            "best_loss_full_b": [float('inf'), 0],
+            "best_params_snapshot_b": {},
+            "chi_squared_trace_sample_b": [],
+            "chi_squared_trace_full_b": [],
+            "chi_squared_best_b": [float('inf'), 0],
+            "masked_mse_trace_sample_b": [],
+            "masked_mse_trace_full_b": [],
+            "masked_mse_best_b": [float('inf'), 0],
+            "variance_floor_clamped_pixels_b": [0],
+            "variance_floor_masked_pixels_b": [0],
+            "perf_closure_evals_b": [0],
+            "perf_validation_runs_b": [0],
+            "perf_forward_times_ms_b": [],
+        },
+    }
+
+    # Mock compute_loss_stage_b to return predictable values
+    # Initial call returns chi² = baseline_chi_squared (higher than canonical, triggering guard)
+    def mock_compute_loss(panel_ids, is_full=False, force_panel_eval=False):
+        if is_full and force_panel_eval:
+            # Per-panel breakdown: return chi² per panel
+            if len(panel_ids) == 1:
+                # Single panel query
+                panel_chi2 = baseline_chi_squared / 2  # Split across 2 panels
+                panel_mse = 1e6 / 2
+                return torch.tensor(panel_chi2, device=device, dtype=dtype), torch.tensor(panel_mse, device=device, dtype=dtype)
+        # Initial chi² (aggregate)
+        return torch.tensor(baseline_chi_squared, device=device, dtype=dtype), torch.tensor(1e6, device=device, dtype=dtype)
+
+    # Mock closure (minimal)
+    def mock_closure():
+        return torch.tensor(baseline_chi_squared, device=device, dtype=dtype)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Set DBEX_SMOKE_TELEMETRY_PATH to control output location
+        telemetry_path = f"{tmpdir}/telemetry.json"
+        with patch.dict(os.environ, {"DBEX_SMOKE_TELEMETRY_PATH": telemetry_path}):
+            # Run Stage B LBFGS, expecting RuntimeError from guard
+            with pytest.raises(RuntimeError) as exc_info:
+                result = _run_stage_b_lbfgs(
+                    config=config,
+                    device=device,
+                    dtype=dtype,
+                    param_values=param_values,
+                    closure_stage_b=mock_closure,
+                    compute_loss_stage_b=mock_compute_loss,
+                    n_panels=2,  # 2 panels for per-panel breakdown
+                )
+
+            # Validate RuntimeError message cites REFINE-FLOW-001
+            assert "REFINE-FLOW-001" in str(exc_info.value), \
+                f"RuntimeError should cite REFINE-FLOW-001, got: {exc_info.value}"
+
+            # Validate stage_b_baseline_diff.json was emitted
+            diff_path = Path(tmpdir) / "stage_b_baseline_diff.json"
+            assert diff_path.exists(), f"stage_b_baseline_diff.json should be emitted at {diff_path}"
+
+            # Load and validate JSON schema
+            with open(diff_path, 'r') as f:
+                diff_data = json.load(f)
+
+            # Validate top-level keys
+            expected_keys = {
+                "canonical_snapshot", "stage_b_reconstructed", "stage_b_initial_chi_squared",
+                "absolute_difference", "relative_difference", "tolerance", "per_panel_breakdown"
+            }
+            assert set(diff_data.keys()) == expected_keys, \
+                f"Expected keys {expected_keys}, got {set(diff_data.keys())}"
+
+            # Validate canonical_snapshot structure
+            canonical_snap = diff_data["canonical_snapshot"]
+            assert canonical_snap["stage_label"] == "A"
+            assert canonical_snap["chi_squared"] == baseline_chi_squared * 0.98
+            assert canonical_snap["iteration"] == 10
+            assert canonical_snap["roi_count"] == 1
+            assert "log_scale" in canonical_snap
+            assert "cell_a" in canonical_snap
+            assert "misset_deg" in canonical_snap
+
+            # Validate stage_b_reconstructed structure
+            stage_b_recon = diff_data["stage_b_reconstructed"]
+            assert "log_scale" in stage_b_recon
+            assert "cell_a" in stage_b_recon
+            assert "cache_mode" in stage_b_recon
+            assert stage_b_recon["cache_mode"] == "cold"
+            assert "cpu_fallback" in stage_b_recon
+            assert stage_b_recon["cpu_fallback"] is False
+            assert stage_b_recon["stage_b_mode"] == "shell"
+
+            # Validate per_panel_breakdown
+            per_panel = diff_data["per_panel_breakdown"]
+            assert isinstance(per_panel, list)
+            assert len(per_panel) == 2  # 2 panels in this test
+            for panel_entry in per_panel:
+                assert "panel_id" in panel_entry
+                assert "chi_squared" in panel_entry
+                assert "masked_mse" in panel_entry
+                assert isinstance(panel_entry["chi_squared"], (float, int))
+                assert isinstance(panel_entry["masked_mse"], (float, int))
+
+            # Validate parity metrics
+            assert abs(diff_data["relative_difference"]) > 1e-3, \
+                "relative_difference should exceed tolerance for this test"
+            assert diff_data["tolerance"] == 1e-3
 
 
 if __name__ == "__main__":

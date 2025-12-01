@@ -1120,30 +1120,78 @@ def _run_stage_b_lbfgs(
             # Guard: raise if parity exceeds 0.1% tolerance (1e-3 relative difference)
             tolerance = 1e-3
             if abs(rel_diff) > tolerance:
-                # Emit JSON diff file for debugging
+                # Emit JSON diff file for debugging with per-panel chi² breakdown
                 import json
                 import os
                 from pathlib import Path
 
-                # Determine artifacts directory from environment or default
+                # Determine artifacts directory from environment or default to cwd
                 telemetry_path_env = os.environ.get("DBEX_SMOKE_TELEMETRY_PATH")
                 if telemetry_path_env:
                     artifacts_dir = Path(telemetry_path_env).parent
                 else:
-                    artifacts_dir = Path("plans/active/ARCH-REFINE-001/reports/2025-12-01T151425Z/")
+                    # Fallback to current working directory
+                    artifacts_dir = Path.cwd()
+                    import logging
+                    logging.warning(
+                        "DBEX_SMOKE_TELEMETRY_PATH not set, writing stage_b_baseline_diff.json to cwd: %s",
+                        artifacts_dir
+                    )
 
                 artifacts_dir.mkdir(parents=True, exist_ok=True)
                 diff_path = artifacts_dir / "stage_b_baseline_diff.json"
 
+                # Compute per-panel chi² breakdown
+                per_panel_breakdown = []
+                with torch.no_grad():
+                    for pid in range(n_panels):
+                        panel_chi2, panel_mse = compute_loss_stage_b([pid], is_full=True, force_panel_eval=True)
+                        per_panel_breakdown.append({
+                            "panel_id": pid,
+                            "chi_squared": float(panel_chi2.item()),
+                            "masked_mse": float(panel_mse.item()),
+                        })
+
+                # Extract Stage A canonical snapshot
+                canonical_snapshot = {
+                    "stage_label": canonical_baseline.get('stage_label', 'A'),
+                    "chi_squared": canonical_chi2,
+                    "iteration": canonical_baseline.get('iteration', 0),
+                    "roi_count": canonical_baseline.get('roi_count', 0),
+                    "log_scale": canonical_baseline.get('log_scale', 0.0),
+                    "cell_a": canonical_baseline.get('cell_a', 0.0),
+                    "cell_b": canonical_baseline.get('cell_b', 0.0),
+                    "cell_c": canonical_baseline.get('cell_c', 0.0),
+                    "cell_alpha": canonical_baseline.get('cell_alpha', 90.0),
+                    "cell_beta": canonical_baseline.get('cell_beta', 90.0),
+                    "cell_gamma": canonical_baseline.get('cell_gamma', 90.0),
+                    "misset_deg": canonical_baseline.get('misset_deg', (0.0, 0.0, 0.0)),
+                }
+
+                # Extract Stage B reconstructed parameters (what Stage B actually used)
+                stage_b_mode = param_values.get('stage_b_mode', 'shell')
+                stage_b_reconstructed = {
+                    "log_scale": float(param_values['log_scale'].item()) if 'log_scale' in param_values else 0.0,
+                    "cell_a": float(param_values['cell_a_tensor'].item()) if 'cell_a_tensor' in param_values else 0.0,
+                    "cell_b": float(param_values['cell_b_tensor'].item()) if 'cell_b_tensor' in param_values else 0.0,
+                    "cell_c": float(param_values['cell_c_tensor'].item()) if 'cell_c_tensor' in param_values else 0.0,
+                    "cell_alpha": float(param_values['cell_alpha_tensor'].item()) if 'cell_alpha_tensor' in param_values else 90.0,
+                    "cell_beta": float(param_values['cell_beta_tensor'].item()) if 'cell_beta_tensor' in param_values else 90.0,
+                    "cell_gamma": float(param_values['cell_gamma_tensor'].item()) if 'cell_gamma_tensor' in param_values else 90.0,
+                    "misset_deg": tuple(float(x) for x in param_values['misset_xyz_deg'].tolist()) if 'misset_xyz_deg' in param_values else (0.0, 0.0, 0.0),
+                    "cache_mode": param_values.get('stage_b_cache_mode', 'cold'),
+                    "cpu_fallback": param_values.get('use_stage_b_cpu_fallback', False),
+                    "stage_b_mode": stage_b_mode,
+                }
+
                 diff_data = {
-                    "canonical_stage_label": canonical_baseline.get('stage_label', 'A'),
-                    "canonical_chi_squared": canonical_chi2,
-                    "canonical_iteration": canonical_baseline.get('iteration', 0),
+                    "canonical_snapshot": canonical_snapshot,
+                    "stage_b_reconstructed": stage_b_reconstructed,
                     "stage_b_initial_chi_squared": stage_b_initial_chi2,
                     "absolute_difference": abs_diff,
                     "relative_difference": rel_diff,
                     "tolerance": tolerance,
-                    "per_panel_breakdown": "Not implemented (requires per-panel chi² computation)",
+                    "per_panel_breakdown": per_panel_breakdown,
                 }
 
                 with open(diff_path, 'w') as f:

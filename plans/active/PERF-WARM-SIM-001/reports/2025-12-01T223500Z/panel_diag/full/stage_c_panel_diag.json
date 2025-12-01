@@ -1,0 +1,38 @@
+{
+  "stage": "C",
+  "panels": [
+    {
+      "panel_id": 0,
+      "chi_squared": 210706448.0,
+      "masked_pixels": 13158,
+      "mask_true_count": 13158,
+      "target_sum": 824445.875,
+      "sigma_sum": 39474.0
+    },
+    {
+      "panel_id": 0,
+      "chi_squared": 210848512.0,
+      "masked_pixels": 13158,
+      "mask_true_count": 13158,
+      "target_sum": 824445.875,
+      "sigma_sum": 39474.0
+    },
+    {
+      "panel_id": 0,
+      "chi_squared": 210848512.0,
+      "masked_pixels": 13158,
+      "mask_true_count": 13158,
+      "target_sum": 824445.875,
+      "sigma_sum": 39474.0
+    },
+    {
+      "panel_id": 0,
+      "chi_squared": 210848512.0,
+      "masked_pixels": 13158,
+      "mask_true_count": 13158,
+      "target_sum": 824445.875,
+      "sigma_sum": 39474.0
+    }
+  ],
+  "n_panels": 1
+}

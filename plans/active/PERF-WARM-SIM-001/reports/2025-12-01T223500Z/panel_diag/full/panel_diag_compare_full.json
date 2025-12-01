@@ -1,0 +1,24 @@
+{
+  "n_panels": 1,
+  "total_chi2_delta_abs": 142048.0,
+  "mean_chi2_delta_rel_pct": 0.06741511261847193,
+  "max_chi2_delta_rel_pct": 0.06741511261847193,
+  "min_chi2_delta_rel_pct": 0.06741511261847193,
+  "panels_with_delta": [
+    {
+      "panel_id": 0,
+      "stage_a_chi2": 210706464.0,
+      "stage_c_chi2": 210848512.0,
+      "delta_abs": 142048.0,
+      "delta_rel_pct": 0.06741511261847193,
+      "stage_a_masked_pixels": 13158,
+      "stage_c_masked_pixels": 13158,
+      "stage_a_mask_true_count": 13158,
+      "stage_c_mask_true_count": 13158,
+      "stage_a_target_sum": 824445.875,
+      "stage_c_target_sum": 824445.875,
+      "stage_a_sigma_sum": 39474.0,
+      "stage_c_sigma_sum": 39474.0
+    }
+  ]
+}

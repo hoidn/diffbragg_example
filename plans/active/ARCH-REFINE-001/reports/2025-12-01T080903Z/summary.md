@@ -1,5 +1,5 @@
 ### Turn Summary
-Documented ARCH-REFINE-001's status in docs/fix_plan.md, flipped the implementation plan to in_progress, and opened artifacts under plans/active/ARCH-REFINE-001/reports/2025-12-01T080903Z/.
-Scoped the Stage A helper/dataclass tangle still living inside dbex.nanobrag_refinement and rewrote input.md with a concrete helper-relocation Do Now plus Stage A/B validation selectors.
-The engine still depends on the monolith, so the next step is implementing the helper split and rerunning the staged smokes to prove parity.
-Artifacts: plans/active/ARCH-REFINE-001/reports/2025-12-01T080903Z/
+Relocated Stage A helpers from nanobrag_refinement.py to dedicated stage_a_impl.py module with 1944 insertions, -1858 deletions across 5 files.
+Resolved circular import by consolidating shared utilities and fixed type annotation for forward reference; all imports updated consistently.
+Next: Continue with Phase A.2 to create RefinementContext/JobContext dataclasses replacing ad-hoc dict plumbing.
+Artifacts: plans/active/ARCH-REFINE-001/reports/2025-12-01T080903Z/ (pytest_stage_a_engine.log, pytest_stage_b_small.log, pytest_stage_a_helpers_collect.log)

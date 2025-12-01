@@ -1061,6 +1061,7 @@ def _build_stage_a_lbfgs_closure(
     use_stage_a_roi_mode = stage_a_context['use_stage_a_roi_mode']
     sampled_stage_a_indices = stage_a_context['sampled_stage_a_indices']
     full_stage_a_indices = stage_a_context['full_stage_a_indices']
+    force_panel_validation = stage_a_context.get('force_panel_validation', False)  # ARCH-REFINE-001, REFINE-007
 
     # Additional context for incremental UB mode
     U_baseline = param_values.get('U_baseline')
@@ -1109,7 +1110,7 @@ def _build_stage_a_lbfgs_closure(
     # a_star_lifecycle_log = []    # Track A* reconstruction per closure call
     log_cell_max_delta = getattr(config, "log_cell_max_delta", 1.0)
 
-    def compute_loss(work_item_ids: List[int], is_full: bool = False) -> Tuple[torch.Tensor, torch.Tensor]:
+    def compute_loss(work_item_ids: List[int], is_full: bool = False, force_panel_eval: bool = False) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Compute variance-weighted chi-squared loss over specified work items.
 
@@ -1124,6 +1125,9 @@ def _build_stage_a_lbfgs_closure(
         Args:
             work_item_ids: List of ROI indices (when ROI sampling enabled) or panel indices
             is_full: If True, this is a full validation run
+            force_panel_eval: If True, skip ROI mode and use panel mode even when ROI sampling is enabled
+                            (ARCH-REFINE-001, REFINE-007: ensures Stage A telemetry reports panel-level chi²
+                            that matches Stage C's initial state)
 
         Returns:
             Tuple of (chi_squared_loss, masked_mse_loss): Both scalar tensors for telemetry
@@ -1313,7 +1317,10 @@ def _build_stage_a_lbfgs_closure(
             warm_crystal_model = _sync_stage_a_crystal(stage_a_ctx, warm_crystal_model)
             _retarget_stage_a_simulators(stage_a_ctx, warm_crystal_model)
 
-        if use_stage_a_roi_mode:
+        # ARCH-REFINE-001: Force panel mode when requested (REFINE-007)
+        # Skip ROI branch if force_panel_eval is True, ensuring baseline/final validations
+        # report panel-level chi² that matches Stage C's initial state
+        if use_stage_a_roi_mode and not force_panel_eval:
             indices = work_item_ids if work_item_ids else full_stage_a_indices
             chi_squared_accum = torch.zeros((), device=device, dtype=dtype)
             mse_numerator_accum = torch.zeros((), device=device, dtype=dtype)
@@ -1483,7 +1490,12 @@ def _build_stage_a_lbfgs_closure(
             variance_floor_clamped_pixels[0] = clamped_pixels_total
             variance_floor_masked_pixels[0] = masked_pixels_total
         else:
-            panel_ids = work_item_ids if work_item_ids else list(range(n_panels))
+            # ARCH-REFINE-001: When force_panel_eval is True, always use panel IDs (not ROI indices)
+            # work_item_ids may contain ROI indices when forcing panel mode from ROI-enabled runs (REFINE-007)
+            if force_panel_eval:
+                panel_ids = list(range(n_panels))
+            else:
+                panel_ids = work_item_ids if work_item_ids else list(range(n_panels))
             bragg_panels = []
             for pid in panel_ids:
                 if stage_a_ctx is not None:
@@ -1678,7 +1690,8 @@ def _build_stage_a_lbfgs_closure(
         if iteration_count[0] % config.full_validation_interval == 0:
             perf_validation_runs[0] += 1  # PERF-WARM-SIM-001
             with torch.no_grad():
-                full_chi_squared, full_mse = compute_loss(full_stage_a_indices, is_full=True)
+                # ARCH-REFINE-001: Use panel mode for periodic validations when force_panel_validation is True (REFINE-007)
+                full_chi_squared, full_mse = compute_loss(full_stage_a_indices, is_full=True, force_panel_eval=force_panel_validation)
                 loss_trace_full.append((iteration_count[0], float(full_chi_squared.item())))  # Deprecated legacy field
                 # PHYSICS-LOSS-001: Record both metrics
                 chi_squared_trace_full.append((iteration_count[0], float(full_chi_squared.item())))
@@ -1751,9 +1764,14 @@ def _run_stage_a_lbfgs(
     device,
     dtype,
     masked_pixel_reference: Optional[int] = None,
+    force_panel_validation: bool = False,  # ARCH-REFINE-001, REFINE-007
 ) -> Tuple[str, str, Optional[float], Optional[float], Optional[Dict[str, Any]]]:
     """
     Execute Stage A LBFGS optimization and final validation.
+
+    Args:
+        force_panel_validation: If True, baseline/final/exception evaluations use panel mode
+                               instead of ROI sampling (ARCH-REFINE-001, REFINE-007)
 
     Returns:
         Tuple of (status, message, final_chi_squared_value, final_masked_mse_value, best_params_snapshot)
@@ -1783,9 +1801,10 @@ def _run_stage_a_lbfgs(
     # This ensures loss_trace_full, chi_squared_trace_full, and masked_mse_trace_full
     # always contain the Stage A baseline, which downstream stages (B/C) need to
     # validate improvements and seed their canonical snapshots.
+    # REFINE-007: Use panel mode when force_panel_validation is True so Stage C sees consistent chi²
     perf_validation_runs[0] += 1  # PERF-WARM-SIM-001
     with torch.no_grad():
-        baseline_chi_squared, baseline_mse = compute_loss(full_stage_a_indices, is_full=True)
+        baseline_chi_squared, baseline_mse = compute_loss(full_stage_a_indices, is_full=True, force_panel_eval=force_panel_validation)
         baseline_chi_squared_value = float(baseline_chi_squared.item())
         baseline_mse_value = float(baseline_mse.item())
 
@@ -1812,9 +1831,10 @@ def _run_stage_a_lbfgs(
         optimizer.step(closure)
 
         # Final full validation
+        # REFINE-007: Use panel mode when force_panel_validation is True
         perf_validation_runs[0] += 1  # PERF-WARM-SIM-001
         with torch.no_grad():
-            final_chi_squared, final_mse = compute_loss(full_stage_a_indices, is_full=True)
+            final_chi_squared, final_mse = compute_loss(full_stage_a_indices, is_full=True, force_panel_eval=force_panel_validation)
             final_chi_squared_value = float(final_chi_squared.item())
             final_masked_mse_value = float(final_mse.item())
             loss_trace_full.append((iteration_count[0], final_chi_squared_value))  # Deprecated legacy field
@@ -1892,9 +1912,10 @@ def _run_stage_a_lbfgs(
 
         # ARCH-REFINE-001: Ensure final evaluation is appended even on exception
         # This guarantees downstream stages always see at least baseline + final entries
+        # REFINE-007: Use panel mode when force_panel_validation is True
         perf_validation_runs[0] += 1  # PERF-WARM-SIM-001
         with torch.no_grad():
-            error_chi_squared, error_mse = compute_loss(full_stage_a_indices, is_full=True)
+            error_chi_squared, error_mse = compute_loss(full_stage_a_indices, is_full=True, force_panel_eval=force_panel_validation)
             final_chi_squared_value = float(error_chi_squared.item())
             final_masked_mse_value = float(error_mse.item())
             loss_trace_full.append((iteration_count[0], final_chi_squared_value))  # Deprecated legacy field

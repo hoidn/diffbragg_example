@@ -159,6 +159,13 @@ class RefinementConfig:
     stage_c_min_loss_improvement: float = 2e-5  # 0.002% minimum improvement for Stage C (calibrated per REFINE-007)
     stage_c_max_distance_delta_mm: float = 0.5  # Maximum distance adjustment per panel (mm)
 
+    # Stage A panel validation (ARCH-REFINE-001, REFINE-007)
+    # Force baseline/final validations to use panel mode instead of ROI sampling when Stage C is enabled
+    # or when the canonical ROI count is small (≤32), ensuring Stage A telemetry reports panel-level chi²
+    # that matches Stage C's initial state and satisfies REFINE-007 improvement gates.
+    stage_a_force_panel_validation: bool = False  # Manually force panel-mode validations
+    stage_a_panel_validation_roi_threshold: int = 32  # Auto-enable panel validations when ROI count ≤ threshold
+
     # Variance floor guard (PHYSICS-LOSS-002, spec-db-core.md:67)
     # Prevents infinite weights when I_model → 0 on GPU backends
     # Shares units with sigma_readout (target units: photons or ADU)

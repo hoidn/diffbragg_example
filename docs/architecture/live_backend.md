@@ -5,21 +5,22 @@ Purpose: Describe the *shipped* pipelines (torch + DiffBragg), where they diverg
 
 ## Entrypoints and Modes
 - CLI: `dbex/refine_one.py` (`python -m dbex.refine_one ...`).
-- Backends: `--backend diffbragg` (legacy, default) | `--backend nanobrag` (torch, experimental but implemented).
-- Engine delegation: optional flag `--use-engine-delegation`; inline path remains the default. Migration intent: make delegation the default and remove the inline path once Phase C of ARCH-REFACTOR-001 resumes.
-- Stage toggles: `--enable-stage-b`, `--enable-stage-c` (torch only; require delegation).
+- Backends: `--backend diffbragg` (legacy, default) | `--backend nanobrag` (torch, the target architecture).
+- Refinement engine: `RefinementEngine` + `StageA/B/C` is the normative path; the inline helpers in `dbex/nanobrag_refinement.py` remain only for compatibility until ARCH-REFINE-001 finishes removing them.
+- Stage toggles: `--enable-stage-b`, `--enable-stage-c` (torch only; wired into the engine configuration).
 
 ## Ingestion (shared)
 - `dbex/data_load.py`: loads MTZ (Bijvoet mates), Experiment/Reflections, raw image stack, ROI bboxes/pids/background (`simtbx.diffBragg.utils.get_roi_background_and_selection_flags`), trusted mask (pickle, True=trusted), sigma_readout map (CLI `--sigma-map` or dxtbx `external_lookup`), detector/beam/crystal fixtures.
 - Guardrails: square-pixel enforcement, trusted-mask polarity check, background sentinel checks, sigma map shape/positivity/finite checks.
 
-## Torch Backend (nanobrag — implemented, non-default)
+## Torch Backend (nanobrag — target backend)
 - Preparation: `dbex/nanobrag_bridge.py::prepare_refinement_inputs` builds background-subtracted targets, loss mask `(background >= 0) & trusted`, ROI slices, sigma tensors, ADU↔photon conversion, global_scale_hint (ADU).
-- Configs: `create_detector_config`/`create_beam_config`/`create_crystal_config` map dxtbx geometry → nanobrag_torch configs; unified simulator factory in `dbex/refinement/helpers.py`.
-- Zero-iteration sim: loop per panel, runs nanobrag_torch Simulator via factory; applies `sqrt(spot_scale_override)` post-sim.
-- Refinement: `dbex/nanobrag_refinement.py` (inline path) or engine delegation (`dbex/refinement/engine.py` + `stage_a/b/c.py`). Stage A optimizes scale + full crystal (incremental UB param), Stage B optional shell |F| modifiers, Stage C optional detector distance offsets. Engine delegation is implemented but not default.
+- Contexts: the forthcoming `RefinementContext`/`JobContext` objects (ARCH-REFINE-001) will carry DataLoad fixtures, calibration payloads, and warmed simulators so Stage modules consume a single structured API.
+- Configs: `create_detector_config`/`create_beam_config`/`create_crystal_config` map dxtbx geometry → nanobrag_torch configs; forward-only simulator instantiation is funneled through the unified factory in `dbex/refinement/helpers.py` (Stage closures keep direct `Simulator` objects for autograd).
+- Zero-iteration sim: loop per panel, runs nanobrag_torch Simulator via the factory; applies `sqrt(spot_scale_override)` post-sim.
+- Refinement: `RefinementEngine` + `StageA/B/C` is the target. Stage A optimizes scale + full crystal (incremental UB param), Stage B optional shell |F| modifiers, Stage C optional detector distance offsets. Inline execution remains only as a compatibility shim until ARCH-REFINE-001 removes it.
 - Loss: variance-weighted chi² + masked MSE (`dbex/physics/loss.py`), sigma_floor clamping, ROI sampling; warm-cache reuse planned but blocked (ENV-CUDA-001; PERF-WARM-SIM-001).
-- Outputs: HDF5 with per-ROI datasets (data/model/bragg/bg/variance), per-ROI optimal scales/scores, sigma metadata. `/torch_diagnostics` attrs include masked_mse, loss_mask_coverage, HKL source/path, sigma provenance/reference, backend, and per-stage refinement telemetry (optimizer params, loss/chi² traces, param_deltas, detector distances, ROI sampling, calibration source).
+- Outputs: the torch backend is migrating to a dedicated writer (`dbex/io/writer.py`, ARCH-REFINE-001 Phase C) that emits per-ROI datasets (data/model/bragg/bg/variance), per-ROI optimal scales/scores, sigma metadata, and `/torch_diagnostics` attrs (masked_mse, loss_mask_coverage, HKL source/path, sigma provenance/reference, backend, per-stage telemetry). Until that lands, `_write_torch_outputs` remains embedded in `refine_one.py`.
 
 ## DiffBragg Legacy Backend (default)
 - Path: `dbex/run_diffbragg.py` invoked via `run_diffbragg_backend` in `refine_one.py`.
@@ -27,7 +28,8 @@ Purpose: Describe the *shipped* pipelines (torch + DiffBragg), where they diverg
 - Hygiene: scratch artifacts cleanup and telemetry parity pending (ARCH-REFACTOR-001 exit criterion #7).
 
 ## Migration and Status
-- Delegation intent: make engine delegation the default torch path; remove inline refinement once Phase C (SimulationContext + single simulator seam) is completed.
+- Refinement path: `RefinementEngine` + contexts will become the only code path once ARCH-REFINE-001 Phase A/B completes and the inline helpers are removed.
+- IO: a torch-only writer will replace the duplicated HDF5 logic in `refine_one.py`; the diffBragg writer remains frozen for baseline comparisons.
 - Deprecated/archived: quaternion/U-matrix parameterization (TORCH-GEOMETRY-PARITY-002/003) is superseded by incremental UB (UB-REALIGN-001).
 - Warm-cache: reuse infrastructure partially planned; blocked by ENV-CUDA-001 (PERF-WARM-SIM-001).
 - DiffBragg: retained for compatibility; not the target architecture.

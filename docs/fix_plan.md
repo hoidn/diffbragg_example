@@ -16,6 +16,7 @@
 
 ### Tier 1: Core Physics & Stability
 **Goal:** Ensure the math is correct, the loss function is normative, Stage A/mapping parity holds (DB‑AT‑027/028/029), and the smoke tests are green.
+- [ARCH-REFINE-001] (Refine Engine Modularization + Torch IO context) — **in_progress** (Top priority; finalizing contexts/simulator seams and the torch writer so downstream Tier 1 work like SPEC-REALIGN-001 can proceed on a stable foundation)
 - [SPEC-REALIGN-001] (Spec Conformance: Loss/Sigma/Telemetry & HDF5) — **Pending**
 - [TORCH-GEOMETRY-CONVERGENCE-001] (Diagnose & Fix Quaternion U-Matrix Convergence Failure) — **Done** (Phase C6b: zero-check bypass fix achieves stable convergence, chi² drift +0.0083% over 10 steps, CC≈1.0; CONVERGENCE-001 finding documented)
 - [TORCH-GEOMETRY-PARITY-003] (det(U)≠1 Investigation & Hybrid Parameterization) — **Archived** (CONVERGENCE-001 disproved det(U)≠1 hypothesis; superseded by UB-REALIGN-001)
@@ -40,8 +41,7 @@
 
 ### Tier 3: Architectural Maturity (Refactoring)
 **Goal:** Refactor monolithic loops into maintainable engines with clear boundaries and testable seams.
-- [ARCH-REFACTOR-001] (Refinement Engine Modularization & Physics Separation) — `partial_complete` (2025-11-24T105000Z: Phases 0/A/B/D1/D2 complete, 6/9 exit criteria satisfied, Phase C deferred pending blocking use case)
-- [PERF-WARM-SIM-001] (Warm Simulator) — **Blocked** (ENV-CUDA-001: environmental CUDA caching allocator error; return condition: env resolution OR test retry on different session/hardware)
+- [PERF-WARM-SIM-001] (Warm Simulator) — **Blocked** (ENV-CUDA-001: environmental CUDA caching allocator error; return condition: env resolution OR test retry on different session/hardware; warm-cache implementation will resume after ARCH-REFINE-001 finalizes shared contexts/simulator seams)
 
 ### Tier 3: Tooling & Observability
 **Goal:** Standardize visuals, documentation, and runtime guardrails.
@@ -97,7 +97,7 @@
 
 ### [SPEC-REALIGN-001] Spec Conformance: Loss/Sigma/Telemetry & HDF5
 - Depends on: docs/spec-db-core.md (variance + loss contracts), docs/spec-db-workflow.md (calibration ladder, ADU↔photon policy), docs/spec-db-interfaces.md (HDF5 schema + sigma/sigma_floor error rules), docs/spec-db-conformance.md (DB‑AT‑023/030/027/025 readiness).
-- Status: pending
+- Status: pending (implementation deferred until ARCH-REFINE-001 delivers the shared contexts + torch writer seam)
 - Priority: Critical (Tier 1 — Core Physics & Stability)
 - Owner/Date: Unassigned
 - Exit Criteria:
@@ -108,10 +108,10 @@
   5. Gates: add/update tests for sigma ladder/error cases (DB‑AT‑030 equivalent), loss model unit test, and CLI/HDF5 telemetry schema probe; smokes adjusted to fail on missing sigma_floor/sigma_readout.
 - Working Plan: Create `plans/active/SPEC-REALIGN-001/implementation.md` from `plans/templates/implementation_plan.md` (Phase A: loss/variance + tests; Phase B: sigma ladder enforcement + CLI errors; Phase C: telemetry/HDF5 schema + DB‑AT gating). Save reports under `plans/active/SPEC-REALIGN-001/reports/`.
 ### [ARCH-REFACTOR-001] Refinement Engine Modularization & Physics Separation
-- Depends on: [TORCH-GEOMETRY-CONVERGENCE-001] (Tier 1 Blocker: Fix Chi² convergence first), docs/spec-db-workflow.md
-- Status: partial_complete (2025-11-24T105000Z — Phases 0/A/B/D1/D2 complete, 6/9 exit criteria satisfied; Phase C Engine Migration deferred pending blocking use case; return conditions documented in initiative_status_assessment.md)
-- Priority: High (Phase C deferred until blocking use case emerges)
-- Tier: 3 (Architectural Maturity — Refactoring)
+- Depends on: docs/spec-db-workflow.md (engine contract), ARCH-REFINE-FLOW-001 (Stage interface), TORCH-GEOMETRY-CONVERGENCE-001 (blocker cleared)
+- Status: in_progress (2025-11-24T180000Z — Phases 0/A/B/D1/D2 complete; Phase C/E resumed to finish engine-only execution, contexts, and the torch writer seam)
+- Priority: Critical (Tier 1 — gating SPEC-REALIGN-001, PERF-WARM-SIM-001, TOOLING-VIS-001)
+- Tier: 1 (Core Architecture)
 - Owner/Date: Unassigned
 - Exit Criteria:
   1. Core physics functions (`derive_u_matrix`, `compute_variance_weighted_loss`) isolated in `dbex.geometry`/`dbex.physics` and unit-tested independently (≥80% coverage).
@@ -180,8 +180,8 @@
 - Attempts History: see `docs/fix_plan_archive.md` (2025-11-23 snapshot) and the initiative reports directory for full history and metrics.
   * See docs/fix_plan_archive.md (snapshot 2025-11-24) and plans/active/PHYSICS-LOSS-001/reports/ for full Attempts History.
 ### [PERF-WARM-SIM-001] Warm simulator; eliminate per-iteration re-instantiation
-- Depends on: docs/spec-db-runtime.md (Torch runtime guardrails), docs/TESTING_GUIDE.md §2 (Stage smoke selectors), docs/pytorch_runtime_checklist.md (cache hygiene), TORCH-API-ALIGN-001 (API and simulator wiring alignment)
-- Status: blocked (ENV-CUDA-001: Phase D code complete commit 27070a9, validation blocked by environmental CUDA caching allocator error in Stage A; return condition: env resolution OR test retry on different session/hardware)
+- Depends on: docs/spec-db-runtime.md (Torch runtime guardrails), docs/TESTING_GUIDE.md §2 (Stage smoke selectors), docs/pytorch_runtime_checklist.md (cache hygiene), TORCH-API-ALIGN-001 (API and simulator wiring alignment), ARCH-REFINE-001 (shared contexts/seams)
+- Status: blocked (ENV-CUDA-001: Phase D code complete commit 27070a9, validation blocked by environmental CUDA caching allocator error in Stage A; warm cache work resumes after ARCH-REFINE-001 finalizes the shared contexts/simulator seam and environment issue is cleared)
 - Priority: High (Tier 3 — perf focus)
 - Owner/Date: Team / 2025-11-05
 - Exit Criteria:

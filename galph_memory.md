@@ -202,3 +202,8 @@ Action State: blocked (implementation infrastructure added but not functional, d
 - Reviewed `dbex/refinement/stage_c_impl.py` to trace where `_run_stage_c_lbfgs` captures the best tuples before `stage_c_optimizer.step`, which explains why refreshing `telemetry_state` alone failed—those locals must be rehydrated (or converted to mutable wrappers) after LBFGS runs.
 - Updated docs/fix_plan.md + docs/findings.md with the rehydration plan, rewrote input.md with the new Do Now + env commands, and reserved artifacts at 2025-12-01T181100Z so Ralph can immediately patch `_run_stage_c_lbfgs` and rerun both smoketests with telemetry/summarizer evidence.
 Action State: ready_for_implementation
+2025-12-01T183500Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=1 action=planning artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-12-01T183500Z/ next_action=Implement Stage C best-snapshot rehydration + rerun Stage C smokes
+- Re-read the Stage C closure/runner code paths plus docs/fix_plan.md entries to scope the precise rehydration change, confirmed `_run_stage_c_lbfgs` must re-read telemetry_state after LBFGS, and selected 2025-12-01T183500Z for the next artifact set.
+- Rebuilt input.md with an explicit implement/validate plan (refresh best tuples post-step, rerun small/full smoketests, summarize telemetry) and enumerated the env-guarded pytest commands plus summarizer invocation for Ralph.
+- Logged pitfalls (no gate relaxation, keep ROI provenance intact) and ensured all REFINE-007/010/011/012/013 findings map into the new Do Now so the engineer can implement without another planning loop.
+Action State: ready_for_implementation

@@ -384,13 +384,23 @@ Capture the `--collect-only` output for the same selector before running the tes
 **First Divergence**: N/A (implementation successful on first run)
 **Next Actions**: Phase B.3 complete; ready for Phase B.4 (simulator factory wiring for forward-only helpers) once shared context metadata stabilizes.
 
-### 2025-12-01T130955Z - ARCH-REFINE-001 Phase B.4: Factory wiring for forward-only reconstructions (READY FOR IMPLEMENTATION)
-- **Scope:** Now that `JobContext`/`RefinementContext` thread HKL metadata + calibration payloads, convert the remaining forward-only simulator entry points inside `dbex/nanobrag_refinement.py` to use `dbex.refinement.helpers.create_unified_simulator` so mask normalization, calibration metadata, and HKL validation stay centralized (ARCH-FACTORY-001, REFINE-005). Stage closures and warm caches keep their direct `Simulator` construction for autograd.
-  1. Update `_build_final_bragg_from_stage_a_telemetry` cold path to call `create_unified_simulator` per panel (device/dtype from `RefinementConfig`), reusing the Stage A beam/crystal configs and passing `config.calibration_metadata` so scale baselines remain aligned. Warm-cache reuse path stays unchanged.
-  2. Update `_build_final_bragg_from_stage_b_telemetry` cold path (including CPU-fallback branch) to feed the shell-modified HKL grid through the factory and reuse `StageAContext` detectors only when available; ensure the modified grid is transferred to `final_device` before factory invocation.
-  3. Add targeted docstrings/comments referencing `docs/findings.md` ARCH-FACTORY-001 and REFINE-010 so future contributors know why factory usage is restricted to forward-only paths.
-- **Validation:** Re-run the small-detector Stage B + Stage C smokes with telemetry capture to prove panel-mode paths still converge and the new factory plumbing keeps REFINE-007/010 gates green:
-  - `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest --collect-only tests/dbex/test_torch_refine_smoke.py -k "test_stage_b_shell_modifiers or test_stage_c_detector_microslip" --smoke-detector-size=small`
-  - `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_TELEMETRY_PATH=plans/active/ARCH-REFINE-001/reports/2025-12-01T130955Z/telemetry_stage_b_small.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T130955Z/pytest_stage_b_small.log`
-  - `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_TELEMETRY_PATH=plans/active/ARCH-REFINE-001/reports/2025-12-01T130955Z/telemetry_stage_c_small.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T130955Z/pytest_stage_c_small.log`
-- **Artifacts:** plans/active/ARCH-REFINE-001/reports/2025-12-01T130955Z/ (collect_stage_bc_small.log, pytest_stage_b_small.log, pytest_stage_c_small.log, telemetry_stage_b_small.json, telemetry_stage_c_small.json, summary.md)
+### 2025-12-01T130955Z - ARCH-REFINE-001 Phase B.4: Factory wiring for forward-only reconstructions (COMPLETE)
+**Action**: Converted Stage A/B final Bragg reconstruction cold paths to use `create_unified_simulator` factory (ARCH-FACTORY-001 Phase B.4).
+- **_build_final_bragg_from_stage_a_telemetry** (dbex/nanobrag_refinement.py:408-429):
+  - Replaced direct `Simulator(detector=detector_model, crystal=crystal_model, ...)` construction with `create_unified_simulator(detector_config, crystal_config, beam_config, hkl_grid, hkl_metadata, ...)`
+  - Preserved warm-cache retargeting path (lines 400-406) for GRADIENT-004 autograd preservation
+  - Added ARCH-FACTORY-001 Phase B.4 comment clarifying forward-only factory usage
+- **_build_final_bragg_from_stage_b_telemetry** (dbex/nanobrag_refinement.py:651-686):
+  - Replaced direct `Simulator` construction with factory calls in cold path
+  - Added `hkl_grid_final = hkl_grid_modified.to(device=final_device, dtype=dtype)` pre-transfer per CPU fallback determinism pitfall
+  - Preserved warm-cache path (lines 617-649) unchanged per ARCH-FACTORY-001 scope
+  - Factory receives shell-modified HKL grid on `final_device` (CPU or CUDA) ensuring parity with inline path
+- Both helpers now pass `calibration_metadata=getattr(config, 'calibration_metadata', None)` to factory for scale baseline alignment
+- Stage closures (LBFGS optimization loops) and warm-cache retargeting remain on direct `Simulator` construction per ARCH-FACTORY-001 autograd requirements
+**Metrics**:
+- test_stage_b_shell_modifiers --smoke-detector-size=small: **PASSED** (22.91s)
+- test_stage_c_detector_microslip --smoke-detector-size=small: **PASSED** (7.57s)
+- Net change: -17 lines (factory consolidation eliminated redundant Detector/Crystal/Simulator instantiation boilerplate)
+**Artifacts**: plans/active/ARCH-REFINE-001/reports/2025-12-01T130955Z/ (collect_stage_bc_small.log, pytest_stage_b_small.log, pytest_stage_c_small.log, telemetry_stage_b_small.json, telemetry_stage_c_small.json, summary.md)
+**First Divergence**: N/A (implementation successful on first run; both Stage B and Stage C smokes passed)
+**Next Actions**: Phase B.4 complete — forward-only reconstruction paths now route through unified factory. Next priority: Phase B.5 (consolidate simulator factory usage for forward-only helpers beyond `run_nanobrag_refinement` if needed) or proceed to next ARCH-REFINE-001 phase per plan

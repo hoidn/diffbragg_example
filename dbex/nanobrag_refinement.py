@@ -398,28 +398,35 @@ def _build_final_bragg_from_stage_a_telemetry(
     # Build full Bragg array (panel mode)
     # Reuse warm cache simulators if available
     if stage_a_ctx is not None and hasattr(stage_a_ctx, 'simulators'):
-        # Warm cache path: retarget existing simulators with refined crystal
+        # Warm cache path: retarget existing simulators with refined crystal (GRADIENT-004, ARCH-FACTORY-001)
         from dbex.refinement.stage_a_impl import _retarget_stage_a_simulators
         # Update crystal_model beam_config from context
         crystal_model.beam_config = stage_a_ctx.beam_config
         _retarget_stage_a_simulators(stage_a_ctx, crystal_model)
         simulators = stage_a_ctx.simulators
     else:
-        # Cold path: build simulators from scratch
+        # Cold path: build simulators via unified factory (ARCH-FACTORY-001 Phase B.4)
         from dbex.nanobrag_bridge import create_beam_config
+        from dbex.refinement.helpers import create_unified_simulator
         beam_config = create_beam_config(beam)
         simulators = []
         for pid in sampled_panel_ids:
             detector_config = create_detector_config(detector[pid], beam=beam, use_dials_convention=True)
-            detector_model = Detector(detector_config, device=device, dtype=dtype)
-            sim = Simulator(
-                detector=detector_model,
-                crystal=crystal_model,
-                hkl_data=hkl_grid.to(device=device, dtype=dtype),
+            # Use unified factory for forward-only reconstruction (ARCH-FACTORY-001)
+            simulator, normalized_mask, sqrt_scale, metadata = create_unified_simulator(
+                detector_config=detector_config,
+                crystal_config=crystal_config,
                 beam_config=beam_config,
+                hkl_grid=hkl_grid,
+                hkl_metadata=hkl_metadata,
+                mask_array=None,  # mask already in detector_config if needed
+                spot_scale_override=None,  # scale handled via log_scale parameter
+                device=device,
+                dtype=dtype,
+                calibration_metadata=getattr(config, 'calibration_metadata', None),
             )
-            sim.interpolate = config.enable_hkl_interpolation
-            simulators.append(sim)
+            simulator.interpolate = config.enable_hkl_interpolation
+            simulators.append(simulator)
 
     # Run forward model with refined parameters
     bragg_full = np.zeros((n_panels, *panel_shape), dtype=np.float32)
@@ -641,29 +648,38 @@ def _build_final_bragg_from_stage_b_telemetry(
             bragg_scaled = bragg_panel * torch.exp(log_scale_clamped)
             bragg_full[pid] = bragg_scaled.cpu().numpy().astype(np.float32)
     else:
-        # Cold path: instantiate fresh simulators per panel
+        # Cold path: instantiate simulators via unified factory (ARCH-FACTORY-001 Phase B.4)
+        from dbex.nanobrag_bridge import create_beam_config
+        from dbex.refinement.helpers import create_unified_simulator
+        # Transfer shell-modified HKL grid to final_device before factory invocation (CPU fallback determinism)
+        hkl_grid_final = hkl_grid_modified.to(device=final_device, dtype=dtype)
+        beam_config = create_beam_config(beam)
         for pid in range(n_panels):
             detector_config = create_detector_config(
                 panel=detector[pid],
                 beam=beam,
                 trusted_mask=inputs.trusted_mask[pid]
             )
-            if detector_config.mask_array is not None and not isinstance(detector_config.mask_array, torch.Tensor):
-                detector_config.mask_array = torch.tensor(
-                    detector_config.mask_array, dtype=torch.float32, device=final_device
-                )
             crystal_config, _ = create_crystal_config(
                 crystal, None,
                 crystal_overrides=crystal_overrides,
                 misset_deg_override=final_misset,
                 apply_n_cells=False
             )
-            detector_model = Detector(detector_config, device=final_device, dtype=dtype)
-            crystal_model = Crystal(crystal_config, device=final_device, dtype=dtype)
-            crystal_model.interpolate = True
-            crystal_model.hkl_data = hkl_grid_modified.to(device=final_device, dtype=dtype)
-            crystal_model.hkl_metadata = hkl_metadata
-            simulator = Simulator(detector=detector_model, crystal=crystal_model, device=final_device, dtype=dtype)
+            # Use unified factory for forward-only reconstruction (ARCH-FACTORY-001)
+            simulator, normalized_mask, sqrt_scale, metadata = create_unified_simulator(
+                detector_config=detector_config,
+                crystal_config=crystal_config,
+                beam_config=beam_config,
+                hkl_grid=hkl_grid_final,
+                hkl_metadata=hkl_metadata,
+                mask_array=None,  # mask already in detector_config from create_detector_config
+                spot_scale_override=None,  # scale handled via log_scale parameter
+                device=final_device,
+                dtype=dtype,
+                calibration_metadata=getattr(config, 'calibration_metadata', None),
+            )
+            simulator.interpolate = True
             bragg_panel = simulator.run()
             log_scale_clamped = torch.clamp(log_scale, min=-10.0, max=10.0)
             bragg_scaled = bragg_panel * torch.exp(log_scale_clamped)

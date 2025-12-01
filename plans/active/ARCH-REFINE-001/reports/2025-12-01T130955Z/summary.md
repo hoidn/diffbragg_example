@@ -1,5 +1,6 @@
 ### Turn Summary
-Scoped Phase B.4 so Stage A/B final Bragg rebuilders use the unified simulator factory and documented the exact selectors/env expected for validation.
-Rewrote input.md with the factory-specific Do Now, pitfalls, and telemetry capture instructions so Ralph can implement without touching autograd closures.
-Next: implement the Stage A/B helper rewrites and run the small-detector Stage B/C smokes under the new 2025-12-01T130955Z report directory.
-Artifacts: plans/active/ARCH-REFINE-001/reports/2025-12-01T130955Z/ (input.md, docs/fix_plan.md, summary.md)
+Replaced direct Simulator construction with create_unified_simulator factory in Stage A/B final Bragg reconstruction cold paths per ARCH-FACTORY-001 Phase B.4.
+Both Stage B and Stage C small-detector smokes passed (22.9s and 7.6s respectively) confirming factory plumbing preserves behavior.
+Warm-cache retargeting and Stage closures remain on direct Simulator construction for autograd preservation.
+Next: advance to next ARCH-REFINE-001 phase or consolidate remaining forward-only helpers (Phase B.5).
+Artifacts: plans/active/ARCH-REFINE-001/reports/2025-12-01T130955Z/ (pytest logs, telemetry JSONs, collection log)

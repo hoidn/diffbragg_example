@@ -1221,7 +1221,7 @@ def _build_stage_a_lbfgs_closure(
                 })
 
             # Telemetry: Capture parameters (TORCH-GEOMETRY-CONVERGENCE-001 Phase B2)
-            if not is_full and config.telemetry_output_dir:
+            if not is_full and getattr(config, "telemetry_output_dir", None):
                 q_norm_value = torch.norm(q_params).item()
                 telemetry_params = {
                     'step_index': telemetry_step_counter[0],
@@ -1321,7 +1321,7 @@ def _build_stage_a_lbfgs_closure(
             clamped_pixels_total = 0
 
             # Telemetry: Initialize variance component accumulators (TORCH-GEOMETRY-CONVERGENCE-001 Phase B2)
-            if not is_full and config.telemetry_output_dir and config.use_u_matrix_parameterization:
+            if not is_full and getattr(config, "telemetry_output_dir", None) and config.use_u_matrix_parameterization:
                 i_model_min_global = float('inf')
                 i_model_max_global = float('-inf')
                 i_model_values_list = []
@@ -1401,7 +1401,7 @@ def _build_stage_a_lbfgs_closure(
                 )
 
                 # Telemetry: Capture I_model, V_denom, and weighted residuals (TORCH-GEOMETRY-CONVERGENCE-001 Phase B2)
-                if not is_full and config.telemetry_output_dir and config.use_u_matrix_parameterization:
+                if not is_full and getattr(config, "telemetry_output_dir", None) and config.use_u_matrix_parameterization:
                     # I_model stats
                     i_model_values = bragg_scaled[mask_subset]
                     i_model_min_global = min(i_model_min_global, torch.min(bragg_scaled).item())
@@ -1430,7 +1430,7 @@ def _build_stage_a_lbfgs_closure(
             chi_squared_loss = chi_squared_accum
 
             # Telemetry: Capture loss components and variance stats (TORCH-GEOMETRY-CONVERGENCE-001 Phase B2)
-            if not is_full and config.telemetry_output_dir and config.use_u_matrix_parameterization:
+            if not is_full and getattr(config, "telemetry_output_dir", None) and config.use_u_matrix_parameterization:
                 clamp_fraction = clamped_pixels_total / max(masked_pixels_total, 1)
                 mean_per_pixel_chi_squared = chi_squared_loss.item() / max(masked_pixels_total, 1)
 
@@ -1583,7 +1583,7 @@ def _build_stage_a_lbfgs_closure(
                 raise RuntimeError(f"NaN/Inf gradient detected in {p}")
 
         # Telemetry: Capture gradients and emit JSON (TORCH-GEOMETRY-CONVERGENCE-001 Phase B2)
-        if config.telemetry_output_dir and config.use_u_matrix_parameterization:
+        if getattr(config, "telemetry_output_dir", None) and config.use_u_matrix_parameterization:
             # Capture detailed gradient statistics
             if q_params.grad is not None:
                 q_grad_has_nan = bool(torch.isnan(q_params.grad).any().item())
@@ -1657,7 +1657,7 @@ def _build_stage_a_lbfgs_closure(
             import json
             from pathlib import Path
             try:
-                telemetry_path = Path(config.telemetry_output_dir) / f"telemetry_step_{telemetry_step_counter[0]:03d}.json"
+                telemetry_path = Path(getattr(config, "telemetry_output_dir", None)) / f"telemetry_step_{telemetry_step_counter[0]:03d}.json"
                 telemetry_path.parent.mkdir(parents=True, exist_ok=True)
                 with open(telemetry_path, 'w') as f:
                     json.dump(telemetry_step, f, indent=2)
@@ -1714,11 +1714,11 @@ def _build_stage_a_lbfgs_closure(
         iteration_count[0] += 1
 
         # Emit lifecycle JSON (TORCH-GEOMETRY-CONVERGENCE-001 Phase B4)
-        if config.telemetry_output_dir and config.use_u_matrix_parameterization:
+        if getattr(config, "telemetry_output_dir", None) and config.use_u_matrix_parameterization:
             import json
             from pathlib import Path
             try:
-                lifecycle_path = Path(config.telemetry_output_dir) / f"u_matrix_lifecycle_step_{telemetry_step_counter[0]-1:03d}.json"
+                lifecycle_path = Path(getattr(config, "telemetry_output_dir", None)) / f"u_matrix_lifecycle_step_{telemetry_step_counter[0]-1:03d}.json"
                 lifecycle_path.parent.mkdir(parents=True, exist_ok=True)
                 with open(lifecycle_path, 'w') as f:
                     json.dump({

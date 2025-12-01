@@ -411,6 +411,7 @@ class StageC:
         status_c = stage_c_result['status_c']
         message_c = stage_c_result['message_c']
         telemetry_c = stage_c_result['telemetry_c']
+        bragg_full = stage_c_result['bragg_full']  # Phase A.4: Extract final Bragg volume
 
         # Add Phase A4 stage identification fields (reconstruct with stage_type/mode)
         # Convert to dict, add fields, reconstruct RefinementTelemetry with phase A4 fields
@@ -421,5 +422,9 @@ class StageC:
         # Reconstruct RefinementTelemetry with phase A4 fields
         telemetry_output_obj = RefinementTelemetry(**telemetry_dict)
 
+        # Convert back to dict and add bragg_full for engine extraction (Phase A.4)
+        output_dict = asdict(telemetry_output_obj)
+        output_dict["bragg_full"] = bragg_full  # Engine will cache this separately
+
         # Return as dict for engine aggregation
-        return asdict(telemetry_output_obj)
+        return output_dict

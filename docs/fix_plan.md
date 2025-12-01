@@ -131,3 +131,22 @@ pytest -vv tests/dbex/test_torch_refine_smoke.py -k \"test_stage_b_shell_modifie
 Capture the `--collect-only` output for the same selector before running the test to keep selector health logged.
 **Artifacts**: plans/active/ARCH-REFINE-001/reports/2025-12-01T092807Z/ (collect_stage_bc_small.log, pytest_stage_bc_small.log, telemetry_stage_bc_small.json, summary.md)
 **Next Actions**: Once the inline branch is gone and the smokes pass, Phase A is complete and we can advance to Phase B (context builders) plus tackle the RefinementConfig attribute drift noted during Phase A.3.
+
+### 2025-12-01T092807Z - ARCH-REFINE-001 Phase A.4: Engine-Only Routing (PARTIAL)
+**Action**: Removed inline Stage A/B/C branch from `run_nanobrag_refinement` and made RefinementEngine the single execution path.
+- Deleted lines 764-1832 from dbex/nanobrag_refinement.py (inline Stage B/C implementation)
+- Added Stage A→C and A→B→C engine delegation paths with bragg_full caching
+- Updated engine.py to cache Stage C `bragg_full` output (excluded from telemetry, cached separately)
+- Updated stage_c.py to expose `bragg_full` in return dict for engine extraction
+- Removed `use_engine_delegation` parameter from function signature, CLI, and all test files
+- Fixed pre-existing `telemetry_output_dir` attribute errors in stage_a_impl.py with getattr guards
+- Net change: -1071 lines
+**Metrics**:
+- Stage B smoke test: PASSED (test_stage_b_shell_modifiers with --smoke-detector-size=small)
+- Stage C smoke test: BLOCKED - Stage A zero improvement (initial=final=3.31e+08) on small detector, plus ~2.6% chi-squared offset between Stage A→C (REFINE-FLOW-001-EXT)
+**Artifacts**: plans/active/ARCH-REFINE-001/reports/2025-12-01T092807Z/ (pytest_stage_bc_small.log, collect_stage_bc_small.log, telemetry_stage_bc_small.json, summary.md)
+**First Divergence**: Stage C test failure - Stage A produces zero improvement on small detector with Stage C enabled, unlike Stage B path which passes
+**Next Actions**:
+- Investigate Stage C parameter reconstruction: why does Stage A show 0% improvement with small detector + enable_stage_c=True?
+- Debug Stage A→C chi-squared offset (~2.6%) - parameter extraction from Stage A telemetry may not match inline path
+- Once Stage C blocker resolved, complete Phase A.4 exit criteria and advance to Phase B (RefinementContext/JobContext builders)

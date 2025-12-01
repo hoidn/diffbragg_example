@@ -69,6 +69,7 @@ class RefinementEngine:
         self._stage_b_n_asu_unique = None
         self._stage_b_optimizer_type = None
         self._stage_b_asu_modifier_stats = None
+        self._stage_c_bragg_full = None  # Final Bragg array from Stage C (Phase A.4)
 
     def run(
         self,
@@ -146,10 +147,16 @@ class RefinementEngine:
             # stage_a_ctx, shell_edges, shell_indices, n_shells are not RefinementTelemetry fields
             # (stage_type and mode ARE now part of RefinementTelemetry per Phase A4)
             # Phase 7/8: stage_b_mode, n_asu_unique, optimizer_type, asu_modifier_stats are custom attrs
+            # Phase A.4: bragg_full is Stage C final output (cached separately, not in RefinementTelemetry)
             excluded_fields = {'stage_a_ctx', 'shell_edges', 'shell_indices', 'n_shells',
-                             'stage_b_mode', 'n_asu_unique', 'optimizer_type', 'asu_modifier_stats'}
+                             'stage_b_mode', 'n_asu_unique', 'optimizer_type', 'asu_modifier_stats',
+                             'bragg_full'}
             telemetry_core_dict = {k: v for k, v in telemetry_dict.items()
                                   if k not in excluded_fields}
+
+            # Cache Stage C bragg_full for final Bragg reconstruction (Phase A.4)
+            if stage.name == "stage_c" and "bragg_full" in telemetry_dict:
+                self._stage_c_bragg_full = telemetry_dict["bragg_full"]
 
             # Convert dict to RefinementTelemetry instance
             # Note: stage.run() returns a dict matching RefinementTelemetry structure

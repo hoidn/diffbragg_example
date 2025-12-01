@@ -98,22 +98,16 @@ def create_parser():
              "Telemetry reports the clamp fraction (pixels where floor engaged)."
     )
     ap.add_argument(
-        "--use-engine-delegation",
-        action="store_true",
-        default=False,
-        help="Use RefinementEngine with Stage wrapper classes instead of inline helpers"
-    )
-    ap.add_argument(
         "--enable-stage-b",
         action="store_true",
         default=False,
-        help="Enable Stage B Fhkl shell modifiers (requires --use-engine-delegation)"
+        help="Enable Stage B Fhkl shell modifiers"
     )
     ap.add_argument(
         "--enable-stage-c",
         action="store_true",
         default=False,
-        help="Enable Stage C detector distance refinement (requires --use-engine-delegation)"
+        help="Enable Stage C detector distance refinement"
     )
     ap.add_argument(
         "--report-dir",
@@ -532,8 +526,7 @@ def run_nanobrag_backend(args, DL, devid=0):
             crystal=DL.crystal,
             hkl_grid=hkl_grid,
             hkl_metadata=hkl_metadata,
-            config=refine_config,
-            use_engine_delegation=args.use_engine_delegation
+            config=refine_config
         )
 
         # Extract Stage A telemetry (always present); Stage B and Stage C are optional

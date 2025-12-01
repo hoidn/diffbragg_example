@@ -1,5 +1,5 @@
 ### Turn Summary
-Scoped Phase A.4 to remove the run_nanobrag_refinement inline Stage B/C branch and updated docs/fix_plan plus input.md so Ralph can ship the engine-only path next loop.
-Traced StageA/StageB/StageC helper coverage, confirmed stage_c_impl already emits bragg buffers, and documented how StageC.run + RefinementEngine need to cache that output while CLI/tests drop the old --use-engine-delegation gate.
-Next: Ralph implements the run_nanobrag_refinement/StageC/engine rewiring and reruns the merged Stage B+C smokes (`test_stage_b_shell_modifiers` + `test_stage_c_detector_microslip`) on the small detector bundle.
-Artifacts: plans/active/ARCH-REFINE-001/reports/2025-12-01T092807Z/ (summary.md)
+Removed inline Stage A/B/C branch and made RefinementEngine the single execution path for all stage combinations (A, A→B, A→C, A→B→C).
+Stage B smoke test passed with telemetry intact; Stage C test reveals ~2.6% chi-squared offset between stages (REFINE-FLOW-001-EXT) plus zero Stage A improvement on small detector, requiring follow-up investigation.
+Next: commit refactoring (-1071 lines), document Stage C blocker in findings.md, and resume in next loop once Stage C parameter reconstruction is debugged.
+Artifacts: plans/active/ARCH-REFINE-001/reports/2025-12-01T092807Z/ (pytest_stage_bc_small.log, collect_stage_bc_small.log)

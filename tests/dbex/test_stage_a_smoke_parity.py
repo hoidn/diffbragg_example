@@ -154,7 +154,6 @@ def stage_a_smoke_result(
         config=config,
         baseline_crystal=baseline_crystal,
         baseline_detector=baseline_detector,
-        use_engine_delegation=True,
     )
 
     telemetry = telemetry_dict["A"]

@@ -1319,3 +1319,30 @@ python plans/active/PERF-WARM-SIM-001/bin/summarize_stage_c_warm_cache.py \
   --out-json plans/active/PERF-WARM-SIM-001/reports/2025-12-01T210900Z/stage_c_warm_cache_report.json
 ```
 - **Artifacts**: `plans/active/PERF-WARM-SIM-001/reports/2025-12-01T210900Z/` (collect logs, pytest logs, telemetry_stage_c_{small,full}.json, stage_c_warm_cache_report.json, summary.md).
+
+### 2025-12-01T210900Z - PERF-WARM-SIM-001 Phase D.4: Stage C log-scale baseline restoration (BLOCKED — Hypothesis disproven)
+**Action**: Implemented REFINE-015 log-scale baseline restoration by extracting `stage_a_telemetry['param_deltas']['log_scale_baseline']['final']` and building a device/dtype tensor in `stage_c.py`, adding it to `param_values_c`, and replacing the hard-coded `torch.clamp(log_scale, -10, 10)` calls in `stage_c_impl.py::_build_stage_c_lbfgs_closure` (line 504→505-517) and `_run_stage_c_lbfgs` (line 924→924-936) with Stage A's calibrated clamp logic: `log_scale_clamped = log_scale_baseline + clamp(delta, ±config.log_scale_max_delta)` when baseline present, otherwise `clamp(delta, ±config.log_scale_max_delta_uncalibrated)`. This ensures Stage C applies the same log-scale physics as Stage A for both LBFGS closure evaluations and final Bragg reconstruction. Reran both Stage C detector microslip smoketests with telemetry capture plus the summarizer.
+**Metrics**:
+- Small detector (29 ROIs): **PASSED** small-detector offset gates (panel mode) — detector offsets reduced 99.999994%, final max offset 0.00000001 mm; **FAILED** chi² gate: regressed -0.063% (≤0.05% required)
+- Full detector (92 ROIs, 60 panels): **FAILED** chi² gate — detector offsets reduced 99.999994%, final max offset 0.00000001 mm; chi² regressed -0.067% (Stage A final=2.1071e+08, Stage C final=2.1085e+08), identical to 2025-12-01T204500Z result despite log-scale-baseline fix
+- Summarizer report confirms both runs achieve warm cache mode, ≥80% offset reduction, and ≤0.05 mm absolute, but both fail chi² no-regression gate
+**Artifacts**: plans/active/PERF-WARM-SIM-001/reports/2025-12-01T210900Z/ (collect_stage_c_small.log, pytest_stage_c_small.log, telemetry_stage_c_small.json, collect_stage_c_full.log, pytest_stage_c_full.log, telemetry_stage_c_full.json, stage_c_warm_cache_report.json, summarize_stage_c.log)
+**First Divergence**: REFINE-015 hypothesis (log-scale baseline mismatch) was implemented correctly but did not resolve the chi² regression. The +0.067% regression persists with identical magnitude after the baseline fix, and small detector now also shows -0.063% regression, indicating the log-scale clamp was not the root cause. The smoke fixture may not use calibration_metadata, so log_scale_baseline is likely None/0.0 for these tests, making the baseline logic a no-op.
+**Repeat-failure guard triggered**: Same acceptance criterion (full-detector chi² ≤0.05% regression) failed three times (2025-12-01T163900Z, 2025-12-01T170326Z, 2025-12-01T204500Z, 2025-12-01T210900Z) with the same telemetry signature (Stage A final=2.1071e+08, Stage C final=2.1085e+08, +0.067%) despite two separate implementation fixes (REFINE-014 orientation_vec, REFINE-015 log_scale_baseline). Per ground_rules repeat-failure guard, marking PERF-WARM-SIM-001 blocked — suspected implementation defect (bug).
+**Next Actions**:
+- **BLOCKED — Implementation defect suspected**: Do NOT attempt further parameter/gate adjustments or tolerance tweaks without supervisor escalation.
+- **Supervisor escalation required**:
+  1. Root cause investigation priority: Why does Stage C lose ~0.065-0.067% chi² consistently across all loops despite detector offsets reaching zero and all frozen Stage A parameters being correctly preserved (orientation_vec, log_scale_baseline, cell, angles)?
+  2. Candidate root causes to investigate:
+     a) Stage C's chi² computation path may differ from Stage A's final validation (e.g., panel vs ROI accumulation, sigma_floor application, loss_mask handling)
+     b) Warm-cache simulator state may introduce numerical drift or gradient artifacts
+     c) Stage A's "best snapshot" restoration logic (REFINE-013) may not correspond to the final traced chi² value logged in telemetry
+     d) Stage C's initial validation (iteration=0, pre-LBFGS) may not truly reproduce Stage A final despite alignment checks
+     e) The LBFGS closure may be modifying frozen Stage A tensors inadvertently (e.g., in-place operations, grad accumulation)
+  3. Recommended diagnostics:
+     - Capture Stage C's very first chi² evaluation (iteration=0, before optimizer.step()) and compare bit-for-bit with Stage A final chi² to isolate whether the issue is in initialization or optimization
+     - Run callchain analysis on `_build_stage_c_lbfgs_closure` and `compute_loss_stage_c` to trace where Stage C's chi² diverges from Stage A
+     - Add telemetry to dump Stage A final frozen tensors (log_scale, log_scale_baseline, cell deltas, orientation_vec) vs Stage C's extracted versions to confirm exact parameter match
+     - Verify Stage A's best-snapshot logic: does `chi_squared_trace_full[-1]` match `chi_squared_best[0]` or does Stage A roll back to an earlier iteration?
+- See telemetry evidence at `plans/active/PERF-WARM-SIM-001/reports/2025-12-01T210900Z/` for detailed failure signature after REFINE-015 implementation.
+- **Status**: PERF-WARM-SIM-001 remains BLOCKED pending supervisor triage and deeper investigation.

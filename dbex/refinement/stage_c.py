@@ -185,6 +185,17 @@ class StageC:
         # Still extract misset_xyz_deg for telemetry reporting (misset_deg_for_crystal)
         misset_xyz_deg_delta_final = stage_a_telemetry['param_deltas']['misset_xyz_deg']['delta']
 
+        # Extract log_scale_baseline from Stage A telemetry (REFINE-015)
+        # When calibration metadata supplied the baseline, Stage C must mirror Stage A's clamp logic:
+        #   log_scale_clamped = log_scale_baseline + clamp(delta, ±config.log_scale_max_delta)
+        # Otherwise, use the uncalibrated clamp:
+        #   log_scale_clamped = clamp(delta, ±config.log_scale_max_delta_uncalibrated)
+        log_scale_baseline_final = stage_a_telemetry['param_deltas']['log_scale_baseline'].get('final', None)
+        if log_scale_baseline_final is not None and log_scale_baseline_final != 0.0:
+            log_scale_baseline = torch.tensor(log_scale_baseline_final, device=device, dtype=dtype)
+        else:
+            log_scale_baseline = None
+
         # Rebuild Stage A final tensors from scalars
         log_scale = torch.tensor(log_scale_final, device=device, dtype=dtype)
         log_cell_a_delta = torch.tensor(log_cell_a_delta_final, device=device, dtype=dtype)
@@ -347,6 +358,7 @@ class StageC:
             'stage_c_params': stage_c_params,
             'stage_c_optimizer': stage_c_optimizer,
             'log_scale': log_scale,
+            'log_scale_baseline': log_scale_baseline,  # REFINE-015: Stage A baseline for clamp logic
             'log_cell_a_delta': log_cell_a_delta,
             'log_cell_b_delta': log_cell_b_delta,
             'log_cell_c_delta': log_cell_c_delta,

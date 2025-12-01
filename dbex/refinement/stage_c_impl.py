@@ -324,6 +324,7 @@ def _build_stage_c_lbfgs_closure(
     stage_c_params = param_values['stage_c_params']
     stage_c_optimizer = param_values['stage_c_optimizer']
     log_scale = param_values['log_scale']
+    log_scale_baseline = param_values.get('log_scale_baseline')  # REFINE-015: Stage A baseline for clamp logic
     log_cell_a_delta = param_values.get('log_cell_a_delta')
     log_cell_b_delta = param_values.get('log_cell_b_delta')
     log_cell_c_delta = param_values.get('log_cell_c_delta')
@@ -501,7 +502,19 @@ def _build_stage_c_lbfgs_closure(
             mask_panels.append(loss_mask_t[pid])
             sigma_panels.append(sigma_readout_t[pid])
 
-        log_scale_clamped = torch.clamp(log_scale, min=-10.0, max=10.0)
+        # REFINE-015: Apply Stage A's log-scale clamp logic in Stage C
+        # When calibration metadata supplied the baseline:
+        #   log_scale_clamped = log_scale_baseline + clamp(delta, ±config.log_scale_max_delta)
+        # Otherwise (uncalibrated):
+        #   log_scale_clamped = clamp(delta, ±config.log_scale_max_delta_uncalibrated)
+        max_delta_uncal = getattr(config, "log_scale_max_delta_uncalibrated", 10.0)
+        delta_bound = config.log_scale_max_delta if log_scale_baseline is not None else max_delta_uncal
+        if log_scale_baseline is not None:
+            log_scale_delta_clamped = torch.clamp(log_scale, min=-delta_bound, max=delta_bound)
+            log_scale_clamped = log_scale_baseline + log_scale_delta_clamped
+        else:
+            # Absolute clamp when no baseline is available
+            log_scale_clamped = torch.clamp(log_scale, min=-delta_bound, max=delta_bound)
         panel_outputs = {pid: panel for pid, panel in zip(panel_ids, bragg_panels)}
         target_outputs = {pid: panel for pid, panel in zip(panel_ids, target_panels)}
         mask_outputs = {pid: panel for pid, panel in zip(panel_ids, mask_panels)}
@@ -681,6 +694,7 @@ def _run_stage_c_lbfgs(
     stage_c_params = param_values['stage_c_params']
     stage_c_optimizer = param_values['stage_c_optimizer']
     log_scale = param_values['log_scale']
+    log_scale_baseline = param_values.get('log_scale_baseline')  # REFINE-015: Stage A baseline for clamp logic
     log_cell_a_delta = param_values.get('log_cell_a_delta')
     log_cell_b_delta = param_values.get('log_cell_b_delta')
     log_cell_c_delta = param_values.get('log_cell_c_delta')
@@ -907,8 +921,19 @@ def _run_stage_c_lbfgs(
 
             panel_bragg = simulator.run()
 
-            # Apply optimized scale (Stage A final)
-            log_scale_clamped = torch.clamp(log_scale, min=-10.0, max=10.0)
+            # REFINE-015: Apply Stage A's log-scale clamp logic in final Stage C reconstruction
+            # When calibration metadata supplied the baseline:
+            #   log_scale_clamped = log_scale_baseline + clamp(delta, ±config.log_scale_max_delta)
+            # Otherwise (uncalibrated):
+            #   log_scale_clamped = clamp(delta, ±config.log_scale_max_delta_uncalibrated)
+            max_delta_uncal = getattr(config, "log_scale_max_delta_uncalibrated", 10.0)
+            delta_bound = config.log_scale_max_delta if log_scale_baseline is not None else max_delta_uncal
+            if log_scale_baseline is not None:
+                log_scale_delta_clamped = torch.clamp(log_scale, min=-delta_bound, max=delta_bound)
+                log_scale_clamped = log_scale_baseline + log_scale_delta_clamped
+            else:
+                # Absolute clamp when no baseline is available
+                log_scale_clamped = torch.clamp(log_scale, min=-delta_bound, max=delta_bound)
             panel_bragg_scaled = panel_bragg * torch.exp(log_scale_clamped)
             bragg_full_stage_c[pid] = panel_bragg_scaled.cpu().numpy().astype(np.float32)
 

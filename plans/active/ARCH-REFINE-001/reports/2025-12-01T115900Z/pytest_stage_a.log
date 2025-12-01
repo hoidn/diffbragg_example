@@ -1,0 +1,425 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 1 item
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion FAILED     [100%]
+
+=================================== FAILURES ===================================
+____________________________ test_stage_a_expansion ____________________________
+
+refgeom_dataload = <dbex.data_load.DataLoad object at 0x771b0ed1fd60>
+refinement_inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0.,...0.]]], dtype=float32), target_representation='adu', global_scale_hint=86.34794146217338, sigma_readout_provenance=None)
+hkl_data = (tensor([[[0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0.,...uda:0'), {'grid_max': 518.3336791992188, 'grid_mean': 16.896526336669922, 'grid_min': 0.0, 'grid_nonzero': 69614, ...})
+smoke_detector_size = 'small', smoke_sigma_source = 'cli_override'
+
+    @pytest.mark.allow_metadata_sigma
+    def test_stage_a_expansion(
+        refgeom_dataload,
+        refinement_inputs,
+        hkl_data,
+        smoke_detector_size,
+        smoke_sigma_source,
+    ):
+        """
+        Verify Stage A LBFGS refinement with full crystal DoFs achieves ≥0.2% loss decrease.
+    
+        Acceptance criteria (TORCH-REFINE-002D):
+        1. Refinement runs without errors (status != "error")
+        2. Telemetry contains all required keys (scale, cell a/b/c, angles, orientation, misset_xyz_deg)
+        3. Orientation telemetry reports deterministic misset angles from perturbed geometry
+        4. Improvement gate (≥0.2%) calibrated to achievable ceiling per empirical probe
+        5. Full-loss trace is non-increasing over last 3 validations
+    
+        Per TORCH-REFINE-002D: Stage A now runs with tricubic HKL interpolation (interpolate=True)
+        against a haloed grid (±1 padding) to prevent default_F fallback near grid boundaries.
+        Deterministic geometry perturbation (+2/+1/+1% cell stretch, +1.5° Z-misset) plumbed
+        through baseline_crystal parameter exercises orientation recovery while fractional HKL
+        coordinates from the perturbed basis stay within haloed grid bounds.
+    
+        Environment:
+        - Requires: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1
+        - Selector: pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+        """
+        from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig
+    
+        print(f"\n[test_stage_a_expansion] detector={smoke_detector_size}")
+    
+        hkl_grid, hkl_metadata = hkl_data
+        n_rois = len(refgeom_dataload.bbox)
+        strict_gates = smoke_detector_size == "full"
+    
+        # Configure refinement (Stage A expansion per TORCH-REFINE-002D)
+        config = RefinementConfig(
+            device='cuda:0',
+            dtype=torch.float32,
+            history_size=10,
+            max_iter=30,  # ≤30 steps for Stage A expansion
+            roi_sample_fraction=0.15,
+            full_validation_interval=5,
+            min_loss_improvement=0.002 if strict_gates else 0.0,
+            enable_hkl_interpolation=True,  # TORCH-REFINE-002D: Enable tricubic with haloed grid
+            sigma_readout_provenance=(
+                "external_lookup" if smoke_sigma_source == "metadata" else "cli_override"
+            ),
+        )
+    
+        # Create perturbed geometry (TORCH-REFINE-002D)
+        # Applies deterministic cell stretch and orientation misset to exercise Stage A recovery
+        # with tricubic HKL interpolation enabled (haloed grid prevents default_F fallback)
+        baseline_crystal = refgeom_dataload.Expt.crystal
+        baseline_detector = refgeom_dataload.Expt.detector
+        baseline_beam = refgeom_dataload.Expt.beam
+    
+        perturbed_crystal, perturbed_detector, perturbed_beam = create_perturbed_geometry(
+            baseline_crystal, baseline_detector, baseline_beam
+        )
+    
+        # Run refinement with perturbed geometry and baseline crystal for misset extraction
+>       bragg_refined, telemetry_dict = run_nanobrag_refinement(
+            inputs=refinement_inputs,
+            detector=perturbed_detector,
+            beam=perturbed_beam,
+            crystal=perturbed_crystal,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            config=config,
+            baseline_crystal=baseline_crystal,  # Enables U_delta extraction for orientation telemetry
+        )
+
+tests/dbex/test_torch_refine_smoke.py:424: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0.,...0.]]], dtype=float32), target_representation='adu', global_scale_hint=86.34794146217338, sigma_readout_provenance=None)
+detector = <dxtbx_model_ext.Detector object at 0x771b1b6bce40>
+beam = <dxtbx_model_ext.Beam object at 0x771b1b6bcdd0>
+crystal = <dxtbx_model_ext.Crystal object at 0x771b1b140180>
+hkl_grid = tensor([[[0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., ... ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., 0.]]], device='cuda:0')
+hkl_metadata = {'grid_max': 518.3336791992188, 'grid_mean': 16.896526336669922, 'grid_min': 0.0, 'grid_nonzero': 69614, ...}
+config = RefinementConfig(history_size=10, max_iter=30, tolerance_grad=1e-07, tolerance_change=1e-09, roi_sample_fraction=0.15,...libration_metadata=None, log_scale_baseline=None, apply_calibration_n_cells=True, device='cuda:0', dtype=torch.float32)
+baseline_crystal = <dxtbx_model_ext.MosaicCrystalSauter2014 object at 0x771b1b62e0e0>
+baseline_detector = None
+
+    def run_nanobrag_refinement(
+        inputs,
+        detector,
+        beam,
+        crystal,
+        hkl_grid: torch.Tensor,
+        hkl_metadata: Dict,
+        config: Optional[RefinementConfig] = None,
+        baseline_crystal=None,
+        baseline_detector=None
+    ) -> Tuple[np.ndarray, Dict[str, RefinementTelemetry]]:
+        """
+        Run Stage A (+ optional Stage C) LBFGS refinement on nanobrag_torch simulator.
+    
+        Stage A optimizes:
+        - log_scale: global intensity scale (ADU mode)
+        - log_cell_*_delta: unit cell length perturbations (a/b/c)
+        - angle_*_raw: unit cell angle perturbations (alpha/beta/gamma)
+        - orientation_vec: crystal misorientation (3-vector → quaternion → XYZ Euler)
+    
+        Stage C (when config.enable_stage_c=True) optimizes:
+        - per-panel detector distance offsets along panel normal (odet_vec)
+    
+        Args:
+            inputs: RefinementInputs with target, loss_mask, panel_slices, trusted_mask
+            detector: dxtbx Detector object (multi-panel, possibly perturbed for Stage C smoke)
+            beam: dxtbx Beam object
+            crystal: dxtbx Crystal object (possibly perturbed from baseline)
+            hkl_grid: torch.Tensor structure factor grid (P1 dense)
+            hkl_metadata: dict with grid dimensions and metadata
+            config: Optional RefinementConfig; uses defaults if None
+            baseline_crystal: Optional baseline dxtbx Crystal object for extracting deterministic
+                            misset when `crystal` is perturbed (TORCH-REFINE-002D). When provided,
+                            computes U_delta = U_perturbed @ U_baseline^{-1} and adds it to the
+                            orientation refinement path as a tensor to preserve differentiability.
+            baseline_detector: Optional dxtbx Detector capturing the unperturbed geometry. When
+                            provided, Stage C telemetry records initial/final offsets relative to this
+                            baseline; otherwise offsets are reported relative to the perturbed detector.
+    
+        Returns:
+            Tuple of:
+            - Bragg: np.ndarray [panel, slow, fast] final simulated intensities after all stages (CPU, float32)
+            - telemetry_dict: Dict[str, RefinementTelemetry] keyed by stage label ("A", "C")
+                             Always contains "A"; contains "C" only when config.enable_stage_c=True
+    
+        Raises:
+            RuntimeError: If simulator fails or gradients are NaN/Inf
+        """
+        if os.environ.get("NANOBRAGG_DISABLE_COMPILE") == "1":
+            os.environ.setdefault("TORCHDYNAMO_DISABLE", "1")
+        from nanobrag_torch.simulator import Simulator
+        from nanobrag_torch.models.detector import Detector
+        from nanobrag_torch.models.crystal import Crystal
+        from dbex.nanobrag_bridge import (
+            create_detector_config,
+            create_beam_config,
+            create_crystal_config,
+            compute_baseline_misset_deg,
+        )
+    
+        if config is None:
+            config = RefinementConfig()
+    
+        # Detect Stage-A-only mode for conditional engine delegation (Phase B2)
+        stage_a_only_mode = (not config.enable_stage_c and not config.enable_stage_b)
+    
+        # Detect Stage A→B mode for conditional engine delegation (Phase C2)
+        stage_a_b_mode = (not config.enable_stage_c and config.enable_stage_b)
+    
+        if stage_a_only_mode:
+            # === ENGINE DELEGATION PATH (Phase B2) ===
+            # Lazy imports to avoid circular dependencies at module load time
+            from dbex.refinement.context import build_refinement_context
+            from dbex.refinement.engine import RefinementEngine
+            from dbex.refinement.stage_a import StageA
+    
+            # Build RefinementContext per ARCH-REFINE-001 Phase B.1
+            context = build_refinement_context(
+                refinement_inputs=inputs,
+                detector=detector,
+                beam=beam,
+                crystal=crystal,
+                hkl_grid=hkl_grid,
+                hkl_metadata=hkl_metadata,
+                baseline_crystal=baseline_crystal,
+                baseline_detector=baseline_detector,
+            )
+    
+            # Build inputs dict per StageA.run() contract (dbex/refinement/stage_a.py:71-78)
+            # Pass context via 'context' key per ARCH-REFINE-001 Phase B.1
+            engine_inputs = {
+                'context': context,
+                'refinement_inputs': inputs,
+                'detector': detector,
+                'beam': beam,
+                'crystal': crystal,
+                'hkl_grid': hkl_grid,
+                'hkl_metadata': hkl_metadata,
+                'baseline_crystal': baseline_crystal,
+                'baseline_detector': baseline_detector,
+            }
+    
+            # Instantiate RefinementEngine with StageA
+            engine = RefinementEngine(stages=[StageA()], config=config)
+    
+            # Execute engine and get telemetry dict (keyed by stage.name = "stage_a")
+            telemetry_dict = engine.run(engine_inputs)
+            stage_a_ctx = getattr(engine, "_stage_a_ctx_cache", None)
+    
+            # Extract StageA telemetry (keyed by "stage_a" per StageA.name property)
+            telemetry_a = telemetry_dict["stage_a"]
+    
+            # Phase E: Enrich telemetry with engine protocol and stage modes
+            from dataclasses import asdict
+            telemetry_a_dict = asdict(telemetry_a)
+            telemetry_a_dict["engine_protocol"] = "stage_a"  # Stage-A-only mode
+            telemetry_a_dict["stage_modes"] = {}  # No Stage B/C enabled
+            telemetry_a_enriched = RefinementTelemetry(**telemetry_a_dict)
+    
+            # Build final Bragg array using optimized parameters from telemetry
+            device = torch.device(config.device)
+            dtype = config.dtype
+>           bragg_full = _build_final_bragg_from_stage_a_telemetry(
+                telemetry_a_enriched, detector, beam, crystal, inputs, hkl_grid,
+                hkl_metadata, config, device, dtype,
+                stage_a_ctx=stage_a_ctx,
+                baseline_crystal=baseline_crystal,
+            )
+E           NameError: name '_build_final_bragg_from_stage_a_telemetry' is not defined
+
+dbex/nanobrag_refinement.py:631: NameError
+----------------------------- Captured stdout call -----------------------------
+
+[test_stage_a_expansion] detector=small
+auto-selected 1-fold oversampling
+[HKL stats] h=[-12,7] k=[-14,9] l=[-14,8] hit_rate=1045475/1048576 (99.70%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046404/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046404/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046404/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-18,19] l=[0,4] hit_rate=1046793/1048576 (99.83%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046346/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,10] k=[-14,15] l=[0,5] hit_rate=1046367/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046348/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046350/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046325/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+=============================== warnings summary ===============================
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dxtbx/format/FormatCBFFull.py:198: DeprecationWarning: The binary mode of fromstring is deprecated, as it behaves surprisingly on unicode inputs. Use frombuffer instead
+    self._raw_data = flex.int(np.fromstring(array_string, np.int32))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion - NameError: name '_build_final_bragg_from_stage_a_telemetry' is not defined
+======================== 1 failed, 5 warnings in 7.53s =========================
+        angle_gamma_raw = torch.tensor(param_deltas_a['angle_gamma_raw']['final'], device=device, dtype=dtype, requires_grad=False)
+        misset_xyz_deg_delta = param_deltas_a['misset_xyz_deg']['delta']
+        misset_xyz_deg = torch.tensor(misset_xyz_deg_delta, device=device, dtype=dtype, requires_grad=False)
+    
+        # Build crystal config with refined parameters
+>       crystal_config = create_crystal_config(
+            crystal=crystal,
+            log_cell_a_delta=log_cell_a_delta,
+            log_cell_b_delta=log_cell_b_delta,
+            log_cell_c_delta=log_cell_c_delta,
+            angle_alpha_raw=angle_alpha_raw,
+            angle_beta_raw=angle_beta_raw,
+            angle_gamma_raw=angle_gamma_raw,
+            misset_xyz_deg=misset_xyz_deg,
+            baseline_crystal=baseline_crystal,
+            baseline_misset_deg=None,  # Not used when misset_xyz_deg is provided
+            baseline_misset_deg_tensor=None,
+        )
+E       TypeError: create_crystal_config() got an unexpected keyword argument 'log_cell_a_delta'
+
+dbex/nanobrag_refinement.py:331: TypeError
+----------------------------- Captured stdout call -----------------------------
+
+[test_stage_a_expansion] detector=small
+auto-selected 1-fold oversampling
+[HKL stats] h=[-12,7] k=[-14,9] l=[-14,8] hit_rate=1045475/1048576 (99.70%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046404/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046404/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046404/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-18,19] l=[0,4] hit_rate=1046793/1048576 (99.83%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046346/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,10] k=[-14,15] l=[0,5] hit_rate=1046367/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046348/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046350/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046325/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+=============================== warnings summary ===============================
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dxtbx/format/FormatCBFFull.py:198: DeprecationWarning: The binary mode of fromstring is deprecated, as it behaves surprisingly on unicode inputs. Use frombuffer instead
+    self._raw_data = flex.int(np.fromstring(array_string, np.int32))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion - TypeError: create_crystal_config() got an unexpected keyword argument 'log_cell_a_delta'
+======================== 1 failed, 5 warnings in 7.58s =========================

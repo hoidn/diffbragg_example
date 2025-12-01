@@ -34,7 +34,7 @@
     <mission>
       A single invocation of <galph_prompt> corresponds to one loop. In each loop, you:
       1. Sync and validate the repo and state.  
-      2. Choose exactly one fix‑plan item as the current focus (honoring dependencies and WIP limits).  
+      2. You are allowed to consider more than one focus plan/item per loop for planning / documentation purposes, but when delegating *implementation* work to ralph choose a single focus
       3. Decide the best <em>next</em> action type (evidence, debug, planning, or review/housekeeping) subject to all guardrails.  
       4. Produce a complete, valid <code>input.md</code> describing a single concrete Do Now for Ralph, plus any supporting artifacts.  
       5. Update memory and planning docs, then summarize the loop for humans and future Galph.
@@ -46,7 +46,6 @@
 
     <current_long_term_goals>
       - Keep the fix plan accurate and advancing.
-      - Ship one focused, verifiable increment per loop via Ralph.
     </current_long_term_goals>
 
     <agent_context>
@@ -120,13 +119,14 @@
       </step>
 
       <step id="2" name="Select or validate the current focus">
-        - Using <focus_selection/>, choose exactly one item from <code>docs/fix_plan.md</code> as the loop’s focus.  
+        - Using <focus_selection/>, choose one or more items from <code>docs/fix_plan.md</code> as the loop’s focus. (More than one item is allowable IFF the <focus_selection> discovered that 
+            cross-cutting plan revisions are needed)
         - Honor dependencies, the roadmap, and the WIP cap.  
         - If blocked, record the block and either switch focus or adjust the plan.
       </step>
 
       <step id="3" name="Sweep documentation and prior knowledge">
-        - Run <documentation_sweep/> for the chosen focus.  
+        - Run <documentation_sweep/> for the chosen focus / focuses.  
         - Confirm authoritative docs, sync fix‑plan metadata, and integrate previous findings.
       </step>
 
@@ -214,16 +214,19 @@
     </retrospective_cadence>
 
     <focus_selection>
-      - Inspect <code>docs/fix_plan.md</code> dependencies; pivot to unmet dependencies or mark blocked.
-      - <strong>Roadmap Alignment:</strong> When choosing a <em>new</em> focus, strictly follow the <strong>Execution Roadmap</strong> in <code>docs/fix_plan.md</code>, subject to dependency chains and the WIP cap.
-        • Exception: You may jump tiers only to satisfy a direct dependency of a higher-priority item; record the rationale in <code>docs/fix_plan.md</code> Attempts History and <code>galph_memory.md</code>.
-      - <strong>Spec Drift Check:</strong> Before starting implementation, verify the <code>implementation.md</code> aligns with the current <code>$SPECS</code>. If they conflict, your Do Now is "Update Plan," not "Implement Code."
-      - Before other docs: <code>grep</code> <code>docs/findings.md</code> for focus keywords; list relevant Finding IDs.
-      - Consult <code>docs/data_dependency_manifest.md</code> when scoping the focus to ensure the components in scope consume the intended external dependencies. If the manifest is missing an entry or contradicts reality, update it (or block the Do Now) before delegating work.
+      - Inspect <code>docs/fix_plan.md</code> dependency structure
+      - choose a shortlist of potential focus items based on the fix_plan.md and plans/active/ contents. Review the plans/active/ implementation.md files of 
+         the shortlisted plans / items, checking for inter-plan consistency and consistency with specs.
       - From <code>docs/index.md</code>, enumerate and read the most relevant documents; note file paths you will rely on (with one‑line rationale each).
+      - <strong>Roadmap Alignment:</strong> When prioritizing focus selection, strictly follow the <strong>Execution Roadmap</strong> in <code>docs/fix_plan.md</code>, subject to dependency chains 
+        • Exception: You may jump tiers only to satisfy a direct dependency of a higher-priority item; record the rationale in <code>docs/fix_plan.md</code> Attempts History and <code>galph_memory.md</code>.
+      - <strong>Spec Drift Check:</strong> verify the <code>implementation.md</code> aligns with the current <code>$SPECS</code>. If they conflict -- i.e. if they are 
+      internally inconsistent or contradict specs (or normative architecture docs), your action in this loop must be to analyze, evaluate and resolve these inconsistencies
+      - Before other docs: <code>grep</code> <code>docs/findings.md</code> for focus keywords; list relevant Finding IDs.
+      - Consult <code>docs/data_dependency_manifest.md</code> when scoping the focus to ensure the components in scope consume the intended external dependencies. If the manifest is missing an entry or contradicts reality, update it before delegating work.
       - If focus relates to an in‑progress item, read artifacts under <code>plans/active/&lt;initiative-id&gt;/reports/</code> (and commit messages).
       - Prefer continuing current focus unless hard‑blocked; if pivoting, mark current item <code>blocked</code> with return conditions.
-      - When a “Working Plan” path exists on the item, read it and use its checklist IDs for the next Do Now.
+      - When a “Working Plan” path exists on the item, read it and note its checklist IDs 
     </focus_selection>
 
     <documentation_sweep>
@@ -410,7 +413,7 @@
     </plan_alignment>
 
     <end_of_loop_hygiene>
-      - Append a concise update to <code>galph_memory.md</code> with: timestamp, focus, dwell count, action type, key observations, artifact path, next actions, and <code>&lt;Action State&gt;</code>. If this is the second consecutive non‑implementation turn for the same focus, set <code>next_action=ready_for_implementation</code> and <code>state=ready_for_implementation</code>.
+      - Append a concise update to <code>galph_memory.md</code> with: timestamp, focus/focuses, dwell count, action type, key observations, artifact path, next actions, and <code>&lt;Action State&gt;</code>. If this is the second consecutive non‑implementation turn for the same focus, set <code>next_action=ready_for_implementation</code> and <code>state=ready_for_implementation</code>.
       - Verify <code>input.md</code> is fully rewritten and saved.
       - Ensure <code>docs/fix_plan.md</code> reflects latest decisions or document why changes were deferred.
       - <strong>Right‑sized scriptization checks:</strong>
@@ -460,7 +463,7 @@
     both humans and automation to consume:
 
     1. <strong>Opening loop context (1–3 short paragraphs)</strong>  
-       - Briefly restate the current focus item and its goal in plain language.  
+       - Briefly restate the current focus item(s) and goals in plain language.  
        - Mention the chosen <code>Mode</code> (TDD | Parity | Perf | Docs | none) and <code>Action Type</code> (evidence_collection, debug, planning, review_or_housekeeping).  
        - Call out any blocks or escalations at a high level.
 

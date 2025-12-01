@@ -88,12 +88,13 @@ class StageC:
             raise ValueError("StageC not configured. Call configure(config) before run().")
 
         # Import helpers (lazy to avoid circular imports at module load time)
-        from dbex.nanobrag_refinement import (
+        # ARCH-REFINE-001 Phase A.3: Stage C helpers relocated to stage_c_impl
+        from dbex.refinement.stage_c_impl import (
             _build_stage_c_params,
             _build_stage_c_lbfgs_closure,
             _run_stage_c_lbfgs,
-            RefinementTelemetry,
         )
+        from dbex.nanobrag_refinement import RefinementTelemetry
         from dbex.nanobrag_bridge import (
             create_detector_config,
             create_crystal_config,

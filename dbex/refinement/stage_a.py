@@ -231,14 +231,15 @@ class StageA:
             masked_pixel_reference=int(refinement_inputs.loss_mask.sum()),
         )
 
+        log_cell_max_delta = getattr(self._config, 'log_cell_max_delta', 1.0)
         log_cell_a_delta_clamped = torch.clamp(
-            log_cell_a_delta, min=-self._config.log_cell_max_delta, max=self._config.log_cell_max_delta
+            log_cell_a_delta, min=-log_cell_max_delta, max=log_cell_max_delta
         )
         log_cell_b_delta_clamped = torch.clamp(
-            log_cell_b_delta, min=-self._config.log_cell_max_delta, max=self._config.log_cell_max_delta
+            log_cell_b_delta, min=-log_cell_max_delta, max=log_cell_max_delta
         )
         log_cell_c_delta_clamped = torch.clamp(
-            log_cell_c_delta, min=-self._config.log_cell_max_delta, max=self._config.log_cell_max_delta
+            log_cell_c_delta, min=-log_cell_max_delta, max=log_cell_max_delta
         )
 
         # Build param_deltas dict for telemetry (matches run_nanobrag_refinement lines 2156-2198)

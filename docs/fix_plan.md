@@ -245,3 +245,21 @@ Capture the `--collect-only` output for the same selector before running the tes
   4. Validation: rerun the Stage B shell + Stage C microslip selectors on the small detector with telemetry path under `plans/active/ARCH-REFINE-001/reports/2025-12-01T105916Z/` to prove Stage A improvement ≥0.1% and REFINE-007 gates pass without loosening thresholds.
 
 **Artifacts**: plans/active/ARCH-REFINE-001/reports/2025-12-01T105500Z/ (stage_c_stage_a_probe_cli*.json, telemetry_stage_bc_small.json, pytest_stage_bc_small.log)
+
+### 2025-12-01T105916Z - ARCH-REFINE-001 Auto-panel threshold implementation (tests: Stage B pass, Stage C blocked)
+**Action**: Implemented `stage_a_min_roi_for_roi_mode` threshold (default 32) to auto-disable ROI mode when canonical ROI count ≤ threshold, ensuring Stage A/B/C convergence on small detectors per REFINE-010.
+- Added `stage_a_min_roi_for_roi_mode: int = 32` to RefinementConfig with documentation explaining the refGeom_small probe calibration (29 ROIs: 0% improvement with ROI mode, 57.4% with panel mode).
+- Modified `use_stage_a_roi_mode` logic in stage_a_impl.py::_build_stage_a_params to check `canonical_roi_count > config.stage_a_min_roi_for_roi_mode` (REFINE-010).
+- Added `roi_mode_reason` to Stage A perf_counters explaining auto-panel threshold triggers.
+- Fixed Stage C warm cache check to mirror Stage B (removed overly strict device/dtype equality checks).
+- Fixed Stage C ROI mode detection to read Stage A's actual `roi_mode` from telemetry instead of config flag (supports auto-panel threshold).
+- Updated test expectations in test_torch_refine_smoke.py for both Stage B and Stage C selectors to check threshold.
+**Metrics**:
+- test_stage_b_shell_modifiers: **PASSED** (panel mode with warm cache, roi_mode_reason='auto_panel_threshold (roi_count=29 <= 32)')
+- test_stage_c_detector_microslip: **BLOCKED** - Stage C encounters gradient tracking error: "element 0 of tensors does not require grad and does not have a grad_fn". The auto-panel feature itself works correctly (telemetry shows roi_mode='panel', cache_mode='warm', roi_count_total=1), but Stage C hits a gradient error in panel mode on small detectors that prevents optimization.
+**Artifacts**: plans/active/ARCH-REFINE-001/reports/2025-12-01T105916Z/ (pytest_stage_bc_small_v3.log, telemetry_stage_bc_small_v3.json, collect_stage_bc_small.log)
+**First Divergence**: Stage C gradient tracking issue in panel mode on small detectors. Stage C's LBFGS closure encounters "element 0 of tensors does not require grad" when running with 1 panel in panel mode. Stage B passed with same configuration, suggesting issue is specific to Stage C's detector offset parameter handling in panel mode.
+**Next Actions**:
+- BLOCKER: Investigate Stage C gradient tracking issue in panel mode. Hypothesis: Stage C's distance_offset_raw parameter may not be properly connected to the gradient graph when running in panel mode with warm cache. Check if panel-mode simulator calls require grad flags or if Stage C closure needs to explicitly enable gradients for panel evaluations.
+- Once Stage C blocker is resolved, rerun small-detector Stage C smoke to validate full auto-panel flow.
+- Consider adding Stage C gradient diagnostics to help debug similar issues in future.

@@ -1,5 +1,5 @@
 ### Turn Summary
-Documented the Stage A ROI auto-panel fallback (REFINE-010) with the probe telemetry so refGeom_small smokes have a spec-aligned fix.
-Refreshed docs/fix_plan.md, docs/findings.md, and input.md with the new auto-switch Do Now plus artifact path 2025-12-01T105916Z (tests + telemetry expectations included).
-Next: implement the Stage A config/telemetry changes and rerun Stage B + Stage C small smokes to capture ≥0.1% Stage A improvement.
-Artifacts: plans/active/ARCH-REFINE-001/reports/2025-12-01T105916Z/
+Implemented auto-disable ROI mode threshold (default 32) so Stage A/B/C switch to panel mode when ROI count is small, ensuring convergence on refGeom_small (29 ROIs).
+Stage B passes with auto-panel mode + warm cache; Stage C blocked by gradient tracking error ("element 0 of tensors does not require grad") in panel mode.
+Next: investigate Stage C gradient issue - likely detector offset parameter not properly connected to gradient graph in panel mode with warm cache.
+Artifacts: plans/active/ARCH-REFINE-001/reports/2025-12-01T105916Z/ (pytest_stage_bc_small_v3.log, telemetry_stage_bc_small_v3.json)

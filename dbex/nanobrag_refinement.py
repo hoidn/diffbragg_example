@@ -754,7 +754,8 @@ def run_nanobrag_refinement(
         from dbex.refinement.engine import RefinementEngine
         from dbex.refinement.stage_a import StageA
 
-        # Build RefinementContext per ARCH-REFINE-001 Phase B.1
+        # Build RefinementContext per ARCH-REFINE-001 Phase B.1/B.3
+        # Thread CLI-built HKL halo + ASU metadata from job_context (REFINE-005, REFINE-010)
         context = build_refinement_context(
             refinement_inputs=inputs,
             detector=detector,
@@ -764,6 +765,7 @@ def run_nanobrag_refinement(
             hkl_metadata=hkl_metadata,
             baseline_crystal=baseline_crystal,
             baseline_detector=baseline_detector,
+            job_context=job_context,
         )
 
         # Build inputs dict per StageA.run() contract (dbex/refinement/stage_a.py:71-78)
@@ -819,7 +821,8 @@ def run_nanobrag_refinement(
         from dbex.refinement.stage_a import StageA
         from dbex.refinement.stage_b import StageB
 
-        # Build RefinementContext per ARCH-REFINE-001 Phase B.1
+        # Build RefinementContext per ARCH-REFINE-001 Phase B.1/B.3
+        # Thread CLI-built HKL halo + ASU metadata from job_context (REFINE-005, REFINE-010)
         context = build_refinement_context(
             refinement_inputs=inputs,
             detector=detector,
@@ -829,6 +832,7 @@ def run_nanobrag_refinement(
             hkl_metadata=hkl_metadata,
             baseline_crystal=baseline_crystal,
             baseline_detector=baseline_detector,
+            job_context=job_context,
         )
 
         # Build inputs dict per StageA/StageB.run() contract

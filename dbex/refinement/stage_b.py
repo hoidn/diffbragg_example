@@ -229,6 +229,7 @@ class StageB:
         best_loss_full = stage_a_telemetry['best_loss_full']
 
         # STEP 1: Build Stage B parameters
+        # Pass context to enable ASU map reuse (ARCH-REFINE-001 Phase B.3)
         param_values = _build_stage_b_params(
             config=self._config,
             device=device,
@@ -246,6 +247,7 @@ class StageB:
             beam=beam,
             inputs=refinement_inputs,
             panel_slices=refinement_inputs.panel_slices,
+            context=ctx,  # ARCH-REFINE-001 Phase B.3: Thread context for asu_map reuse
         )
 
         # Add frozen Stage A tensors to param_values (required by helper2)

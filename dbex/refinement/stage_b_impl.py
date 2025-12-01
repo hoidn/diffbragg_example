@@ -356,9 +356,15 @@ def _build_stage_b_params(
     beam,
     inputs,
     panel_slices: List[Tuple[slice, slice]],
+    context: Optional[Any] = None,
 ) -> Dict[str, Any]:
     """
     Build Stage B shell modifier parameters, optimizer, and telemetry state.
+
+    Args:
+        context: Optional RefinementContext with pre-computed asu_map, hkl_indices_grid, halo_mask
+                (ARCH-REFINE-001 Phase B.3). If provided and asu_map is available, Stage B reuses
+                it instead of calling compute_hkl_asu_map to avoid cctbx dependency and duplicating work.
 
     Returns:
         param_values: Dict containing:
@@ -393,41 +399,65 @@ def _build_stage_b_params(
 
     # Phase 7: Branch on Stage B mode (per-reflection vs shell)
     if config.stage_b_mode == "per_reflection":
-        # Compute ASU map using Phase 6 helper
-        halo_mask = hkl_metadata.get("halo_mask")  # 3D boolean array
-        crystal_symmetry = hkl_metadata.get("crystal_symmetry")  # From MTZ via F.crystal_symmetry()
-
-        if crystal_symmetry is None:
-            # crystal_symmetry not available, fallback to shell mode
+        # ARCH-REFINE-001 Phase B.3: Check for pre-computed ASU map in context
+        # If CLI already built asu_map via build_structure_factor_grid, reuse it
+        # to avoid calling cctbx compute_hkl_asu_map again (REFINE-005)
+        asu_indices = None
+        n_asu_unique = 0
+        if context is not None and hasattr(context, 'asu_map') and context.asu_map is not None:
+            # Context provides pre-computed ASU map; use it directly
             import logging
             logger = logging.getLogger(__name__)
-            logger.warning("crystal_symmetry not in hkl_metadata, falling back to shell mode")
-            config_stage_b_mode_override = "shell"
-            asu_indices, n_asu_unique = None, 0
+            logger.info("[Stage B] Reusing pre-computed asu_map from context (ARCH-REFINE-001 Phase B.3)")
+            asu_indices = context.asu_map  # torch.Tensor from build_structure_factor_grid
+            # Extract n_asu_unique from hkl_metadata if available (CLI stores it there)
+            n_asu_unique = hkl_metadata.get("n_unique_asu", 0)
+            if n_asu_unique == 0:
+                # Fall back to computing max ASU index + 1 from asu_map tensor
+                n_asu_unique = int(asu_indices.max().item()) + 1
+            config_stage_b_mode_override = "per_reflection"
         else:
-            # crystal_symmetry available, attempt ASU mapping
-            config_stage_b_mode_override = "per_reflection"  # Initialize to per_reflection, may fallback below
+            # No pre-computed ASU map; compute it via cctbx fallback
+            halo_mask = hkl_metadata.get("halo_mask")  # 3D boolean array
+            if context is not None and hasattr(context, 'halo_mask') and context.halo_mask is not None:
+                halo_mask = context.halo_mask  # Prefer context-provided halo_mask
+            crystal_symmetry = hkl_metadata.get("crystal_symmetry")  # From MTZ via F.crystal_symmetry()
 
-            # Get HKL indices grid from metadata (built by test fixture)
-            hkl_indices_grid = hkl_metadata.get("hkl_indices_grid")
-            if hkl_indices_grid is None:
-                # HKL indices grid not in metadata, build it from grid bounds
-                h_min, h_max = hkl_metadata["h_min"], hkl_metadata["h_max"]
-                k_min, k_max = hkl_metadata["k_min"], hkl_metadata["k_max"]
-                l_min, l_max = hkl_metadata["l_min"], hkl_metadata["l_max"]
+            if crystal_symmetry is None:
+                # crystal_symmetry not available, fallback to shell mode
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning("crystal_symmetry not in hkl_metadata, falling back to shell mode")
+                config_stage_b_mode_override = "shell"
+                asu_indices, n_asu_unique = None, 0
+            else:
+                # crystal_symmetry available, attempt ASU mapping
+                config_stage_b_mode_override = "per_reflection"  # Initialize to per_reflection, may fallback below
 
-                h_coords = np.arange(h_min, h_max + 1, dtype=np.int32)
-                k_coords = np.arange(k_min, k_max + 1, dtype=np.int32)
-                l_coords = np.arange(l_min, l_max + 1, dtype=np.int32)
+                # Get HKL indices grid from metadata or context (ARCH-REFINE-001 Phase B.3)
+                hkl_indices_grid = None
+                if context is not None and hasattr(context, 'hkl_indices_grid') and context.hkl_indices_grid is not None:
+                    hkl_indices_grid = context.hkl_indices_grid  # Prefer context-provided grid
+                if hkl_indices_grid is None:
+                    hkl_indices_grid = hkl_metadata.get("hkl_indices_grid")
+                if hkl_indices_grid is None:
+                    # HKL indices grid not in metadata/context, build it from grid bounds
+                    h_min, h_max = hkl_metadata["h_min"], hkl_metadata["h_max"]
+                    k_min, k_max = hkl_metadata["k_min"], hkl_metadata["k_max"]
+                    l_min, l_max = hkl_metadata["l_min"], hkl_metadata["l_max"]
 
-                h_grid_np, k_grid_np, l_grid_np = np.meshgrid(h_coords, k_coords, l_coords, indexing='ij')
-                hkl_indices_grid = np.stack([h_grid_np, k_grid_np, l_grid_np], axis=-1)
+                    h_coords = np.arange(h_min, h_max + 1, dtype=np.int32)
+                    k_coords = np.arange(k_min, k_max + 1, dtype=np.int32)
+                    l_coords = np.arange(l_min, l_max + 1, dtype=np.int32)
 
-            asu_indices, n_asu_unique = compute_hkl_asu_map(
-                hkl_indices_grid,
-                crystal_symmetry,
-                halo_mask=halo_mask
-            )
+                    h_grid_np, k_grid_np, l_grid_np = np.meshgrid(h_coords, k_coords, l_coords, indexing='ij')
+                    hkl_indices_grid = np.stack([h_grid_np, k_grid_np, l_grid_np], axis=-1)
+
+                asu_indices, n_asu_unique = compute_hkl_asu_map(
+                    hkl_indices_grid,
+                    crystal_symmetry,
+                    halo_mask=halo_mask
+                )
 
         # Check if ASU mapping succeeded; fallback to shell mode if failed
         if config_stage_b_mode_override == "per_reflection" and (asu_indices is None or n_asu_unique == 0):

@@ -40,6 +40,15 @@ class RefinementContext:
                          (used when crystal is perturbed; Stage A computes delta misset)
         baseline_detector: Optional baseline dxtbx Detector for Stage C offset reference
                           (required when Stage C is enabled)
+        asu_map: Optional torch.Tensor ASU mapping tensor (same shape as hkl_grid, dtype int32)
+                with ASU indices or -1 for unmapped reflections. When provided by JobContext,
+                Stage B per-reflection mode reuses this tensor instead of calling compute_hkl_asu_map.
+        hkl_indices_grid: Optional np.ndarray Miller indices grid [h_range, k_range, l_range, 3]
+                         containing (h, k, l) tuples. When provided, Stage B skips reconstruction
+                         from hkl_metadata bounds.
+        halo_mask: Optional np.ndarray boolean mask [h_range, k_range, l_range] marking halo padding
+                  cells (True=halo, False=data). Stage B passes this to compute_hkl_asu_map
+                  when calling the cctbx fallback path.
         extras: Dict[str, Any] for future extensions (job metadata, provenance, etc.)
 
     Normative Dependencies (Transitive):
@@ -50,10 +59,18 @@ class RefinementContext:
     - crystal: dxtbx Crystal with unit cell and orientation per config_crosswalk.md:75-80
     - hkl_grid: Structure factors per spec-db-core.md:85-90 (refined MTZ preferred)
     - hkl_metadata['has_halo']: Stage B/C require halo-padded grid per spec-db-workflow.md:53-54
+    - asu_map: Optional ASU mapping from build_structure_factor_grid per REFINE-005
+    - hkl_indices_grid: Optional Miller indices grid for Stage B per-reflection mode
+    - halo_mask: Optional halo padding mask for cctbx ASU mapping fallback
 
     IDL Contract Reference:
     - docs/architecture.md (modular structure)
     - docs/spec-db-workflow.md:48-84 (Refinement Protocol Architecture)
+    - docs/architecture/dbex/refinement/context.idl.md (detailed field contracts)
+
+    Provenance:
+    - ARCH-REFINE-001 Phase B.3: Thread CLI-built HKL halo + ASU metadata into RefinementContext
+      so Stage B/C consume the same tensors without recomputing (REFINE-005, REFINE-010)
     """
     refinement_inputs: Any  # RefinementInputs from dbex.nanobrag_bridge
     detector: Any  # dxtbx Detector object
@@ -63,6 +80,9 @@ class RefinementContext:
     hkl_metadata: Dict[str, Any]  # nabc_grid, default_F, has_halo, etc.
     baseline_crystal: Optional[Any] = None  # baseline dxtbx Crystal (for misset extraction)
     baseline_detector: Optional[Any] = None  # baseline dxtbx Detector (for Stage C offsets)
+    asu_map: Optional[torch.Tensor] = None  # ASU mapping tensor from build_structure_factor_grid
+    hkl_indices_grid: Optional[np.ndarray] = None  # Miller indices grid [h_range, k_range, l_range, 3]
+    halo_mask: Optional[np.ndarray] = None  # Halo padding mask [h_range, k_range, l_range]
     extras: Dict[str, Any] = field(default_factory=dict)  # Future extensions
 
 
@@ -75,7 +95,11 @@ def build_refinement_context(
     hkl_metadata: Dict[str, Any],
     baseline_crystal=None,
     baseline_detector=None,
+    asu_map: Optional[torch.Tensor] = None,
+    hkl_indices_grid: Optional[np.ndarray] = None,
+    halo_mask: Optional[np.ndarray] = None,
     extras: Optional[Dict[str, Any]] = None,
+    job_context: Optional['JobContext'] = None,
 ) -> RefinementContext:
     """
     Build a RefinementContext from raw inputs, validating tensor/device expectations.
@@ -89,23 +113,37 @@ def build_refinement_context(
         hkl_metadata: Dict with grid dimensions (nabc_grid, default_F, has_halo, etc.)
         baseline_crystal: Optional baseline dxtbx Crystal for misset extraction
         baseline_detector: Optional baseline dxtbx Detector for Stage C offsets
+        asu_map: Optional torch.Tensor ASU mapping from build_structure_factor_grid
+                (same shape as hkl_grid, dtype int32). If None and job_context is provided,
+                will be copied from job_context.asu_map.
+        hkl_indices_grid: Optional np.ndarray Miller indices grid [h_range, k_range, l_range, 3].
+                         If None and job_context is provided with extras['hkl_indices_grid'],
+                         will be copied from there.
+        halo_mask: Optional np.ndarray boolean mask [h_range, k_range, l_range] marking halo cells.
+                  If None and job_context is provided with extras['halo_mask'], will be copied.
         extras: Optional dict for future extensions (job metadata, provenance, etc.)
+        job_context: Optional JobContext to pull asu_map/hkl_indices_grid/halo_mask from when
+                    not explicitly provided (ARCH-REFINE-001 Phase B.3)
 
     Returns:
         RefinementContext instance with validated inputs
 
     Raises:
         ValueError: If hkl_grid is not a torch.Tensor or hkl_metadata is missing required keys
-        TypeError: If detector/beam/crystal are not dxtbx objects (future validation)
+        TypeError: If asu_map/hkl_indices_grid/halo_mask have wrong types
 
     Normative Requirements:
     - hkl_grid must be a torch.Tensor per spec-db-core.md:85-90
-    - hkl_metadata must contain 'nabc_grid' and 'has_halo' keys per spec-db-workflow.md:53-54
+    - hkl_metadata must contain 'has_halo' key per spec-db-workflow.md:53-54
+    - asu_map (if provided) must be torch.Tensor with same shape as hkl_grid per REFINE-005
+    - hkl_indices_grid (if provided) must be np.ndarray shape [h_range, k_range, l_range, 3]
+    - halo_mask (if provided) must be np.ndarray shape [h_range, k_range, l_range] with dtype bool
     - Device/dtype neutrality: this builder does NOT enforce specific device/dtype;
       stages are responsible for tensor device/dtype management per pytorch_runtime_checklist.md
 
     Provenance:
     - ARCH-REFINE-001 Phase B.1: Replace ad-hoc dict plumbing with typed context
+    - ARCH-REFINE-001 Phase B.3: Thread CLI-built HKL halo + ASU metadata into RefinementContext
     - docs/spec-db-workflow.md:48-84: Refinement Protocol Architecture
     - docs/architecture.md: IDL-style contracts for all components
     """
@@ -132,6 +170,48 @@ def build_refinement_context(
             "Per spec-db-core.md:20, target/loss_mask/panel_slices are required."
         )
 
+    # Copy asu_map from job_context if not explicitly provided (ARCH-REFINE-001 Phase B.3)
+    if asu_map is None and job_context is not None and job_context.asu_map is not None:
+        # Convert np.ndarray to torch.Tensor if needed (JobContext stores np.ndarray)
+        if isinstance(job_context.asu_map, np.ndarray):
+            asu_map = torch.from_numpy(job_context.asu_map)
+        else:
+            asu_map = job_context.asu_map
+
+    # Copy hkl_indices_grid from job_context.extras if not explicitly provided
+    if hkl_indices_grid is None and job_context is not None:
+        hkl_indices_grid = job_context.extras.get('hkl_indices_grid')
+
+    # Copy halo_mask from job_context.extras if not explicitly provided
+    if halo_mask is None and job_context is not None:
+        halo_mask = job_context.extras.get('halo_mask')
+
+    # Validate asu_map type and shape if provided
+    if asu_map is not None:
+        if not isinstance(asu_map, torch.Tensor):
+            raise TypeError(
+                f"asu_map must be torch.Tensor if provided, got {type(asu_map).__name__}. "
+                "Per REFINE-005, ASU mapping must be a tensor for device neutrality."
+            )
+        # Validate shape matches hkl_grid (allow shape mismatch to fail later with clear error)
+        if asu_map.shape != hkl_grid.shape:
+            raise ValueError(
+                f"asu_map shape {asu_map.shape} must match hkl_grid shape {hkl_grid.shape}. "
+                "Per REFINE-005, ASU mapping must cover the entire HKL grid."
+            )
+
+    # Validate hkl_indices_grid type if provided
+    if hkl_indices_grid is not None and not isinstance(hkl_indices_grid, np.ndarray):
+        raise TypeError(
+            f"hkl_indices_grid must be np.ndarray if provided, got {type(hkl_indices_grid).__name__}."
+        )
+
+    # Validate halo_mask type if provided
+    if halo_mask is not None and not isinstance(halo_mask, np.ndarray):
+        raise TypeError(
+            f"halo_mask must be np.ndarray if provided, got {type(halo_mask).__name__}."
+        )
+
     # Build context with all fields
     return RefinementContext(
         refinement_inputs=refinement_inputs,
@@ -142,6 +222,9 @@ def build_refinement_context(
         hkl_metadata=hkl_metadata,
         baseline_crystal=baseline_crystal,
         baseline_detector=baseline_detector,
+        asu_map=asu_map,
+        hkl_indices_grid=hkl_indices_grid,
+        halo_mask=halo_mask,
         extras=extras if extras is not None else {},
     )
 

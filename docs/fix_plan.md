@@ -30,7 +30,7 @@
 
 ### Tier 3: Architectural Maturity (Refactoring)
 **Goal:** Refactor monolithic loops into maintainable engines with clear boundaries and testable seams.
-- [PERF-WARM-SIM-001] (Warm Simulator) — **blocked — suspected implementation defect (LBFGS ROI-mode convergence)** (2025-12-01T200900Z: Repeat-failure guard triggered — ROI closures re-enabled but still produces identical +0.067% chi² regression (Stage A: 2.1071e+08, Stage C: 2.1085e+08); flat LBFGS trace [210848512.0 constant across iterations 0,5,10] suggests optimizer not making progress. Telemetry confirms roi_mode="roi", validation_scope="panel", roi_mode_reason="" as expected. Supervisor review required.)
+- [PERF-WARM-SIM-001] (Warm Simulator) — **blocked — Stage C ignores Stage A log-scale baseline** (2025-12-01T204500Z: Stage C telemetry shows detector offsets collapsing 99.99999% yet χ² stays 0.067% above the Stage A final because `_build_stage_c_lbfgs_closure` clamps `log_scale` to ±10 with no calibration baseline, while Stage A uses `log_scale_baseline + clamp(delta, ±log_scale_max_delta)` (dbex/refinement/stage_a_impl.py:1280-1296). Until Stage C threads `log_scale_baseline` through the wrapper/closure/reconstruction, canonical smokes will always fail REFINE-007 even before Stage C optimizes.)
 
 ### Tier 3: Tooling & Observability
 **Goal:** Standardize visuals, documentation, and runtime guardrails.
@@ -1273,3 +1273,49 @@ All three produce Stage A final=2.1071e+08, Stage C final=2.1085e+08 (+0.067%), 
   3. Consider running callchain analysis on Stage C loss computation (`_build_stage_c_lbfgs_closure`, `compute_loss_stage_c`) to trace where chi² diverges
   4. Capture Stage C's iteration=0 (pre-LBFGS) chi² and compare bit-for-bit with Stage A final to isolate whether the issue is in initialization or optimization
 - See telemetry evidence at `plans/active/PERF-WARM-SIM-001/reports/2025-12-01T204500Z/` for detailed failure signature after REFINE-014 fix.
+
+### 2025-12-01T210900Z - PERF-WARM-SIM-001 Phase D.4: Stage C log-scale baseline restoration (READY FOR IMPLEMENTATION)
+- Evidence review: Both detector sizes now enter Stage C with detector offsets already collapsing to ≤1.5e-08 mm, yet telemetry (`plans/active/PERF-WARM-SIM-001/reports/2025-12-01T204500Z/telemetry_stage_c_full.json`) shows `stage_a_final_chi2=2.10706464e+08` while every Stage C validation logs `210848512.0`. Inspection of `dbex/refinement/stage_a_impl.py:1280-1296` confirmed Stage A applies calibrated baselines (`log_scale_clamped = log_scale_baseline + clamp(delta, ±log_scale_max_delta)`) whenever mapping metadata supplies `spot_scale_override`, but Stage C’s wrapper/closure/final reconstruction simply runs `torch.clamp(log_scale, -10, 10)` with no baseline. As soon as calibration metadata is present (default smoke path), Stage C starts 0.067% above Stage A’s canonical χ² and fails REFINE-007 before any detector offsets change.
+- **Plan**:
+  1. **StageC.run (dbex/refinement/stage_c.py)** — read `stage_a_telemetry['log_scale_baseline_source']` plus `param_deltas['log_scale_baseline']['final']` whenever the source is non-null, build a tensor on `config.device/dtype`, and store it inside `param_values_c['log_scale_baseline']`. Preserve the existing `log_scale` tensor as the Stage A delta.
+  2. **dbex/refinement/stage_c_impl.py::_build_stage_c_lbfgs_closure** — replace the hardcoded `torch.clamp(log_scale, -10, 10)` with the Stage A logic: use `log_scale_baseline + clamp(delta, ±config.log_scale_max_delta)` when a baseline tensor is present, otherwise clamp to `±config.log_scale_max_delta_uncalibrated` (default 10). Reuse the combined tensor in both ROI and panel branches.
+  3. **dbex/refinement/stage_c_impl.py::_run_stage_c_lbfgs** — apply the same baseline-aware clamp before scaling the final Bragg reconstruction so telemetry and artifacts report the Stage A-consistent scale.
+  4. Keep the frozen Stage A params (`params` list) detached and ensure the new baseline tensor does not require grad.
+  5. Tests: rerun Stage C detector microslip smokes for both detector sizes and the warm-cache summarizer to prove Stage C initial/final χ² now matches Stage A within the existing tolerance while detector offsets stay ≥99.999% reduced.
+- **Commands**:
+```
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip \
+  --smoke-detector-size=small \
+  > plans/active/PERF-WARM-SIM-001/reports/2025-12-01T210900Z/collect_stage_c_small.log
+
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+DBEX_SMOKE_SIGMA_SOURCE=cli_override \
+DBEX_SMOKE_DETECTOR_SIZE=small \
+DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-WARM-SIM-001/reports/2025-12-01T210900Z/telemetry_stage_c_small.json \
+KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
+pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip \
+  --smoke-detector-size=small \
+  | tee plans/active/PERF-WARM-SIM-001/reports/2025-12-01T210900Z/pytest_stage_c_small.log
+
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip \
+  --smoke-detector-size=full \
+  > plans/active/PERF-WARM-SIM-001/reports/2025-12-01T210900Z/collect_stage_c_full.log
+
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+DBEX_SMOKE_SIGMA_SOURCE=cli_override \
+DBEX_SMOKE_DETECTOR_SIZE=full \
+DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-WARM-SIM-001/reports/2025-12-01T210900Z/telemetry_stage_c_full.json \
+KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
+pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip \
+  --smoke-detector-size=full \
+  | tee plans/active/PERF-WARM-SIM-001/reports/2025-12-01T210900Z/pytest_stage_c_full.log
+
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+python plans/active/PERF-WARM-SIM-001/bin/summarize_stage_c_warm_cache.py \
+  --telemetry-small plans/active/PERF-WARM-SIM-001/reports/2025-12-01T210900Z/telemetry_stage_c_small.json \
+  --telemetry-full plans/active/PERF-WARM-SIM-001/reports/2025-12-01T210900Z/telemetry_stage_c_full.json \
+  --out-json plans/active/PERF-WARM-SIM-001/reports/2025-12-01T210900Z/stage_c_warm_cache_report.json
+```
+- **Artifacts**: `plans/active/PERF-WARM-SIM-001/reports/2025-12-01T210900Z/` (collect logs, pytest logs, telemetry_stage_c_{small,full}.json, stage_c_warm_cache_report.json, summary.md).

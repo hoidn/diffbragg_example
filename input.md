@@ -1,32 +1,32 @@
-Summary: Regenerate the missing refGeom_small assets and rerun the Stage B/C telemetry probe so we can capture real Stage A improvement traces before touching Stage A code.
+Summary: Switch Stage A’s baseline/final validations to panel mode whenever Stage C runs (or ROI count is tiny) so the Stage C gate sees the real chi² improvement.
 Mode: Parity
 Focus: ARCH-REFINE-001 — Refinement Engine Modularization & Torch IO
 Branch: integration
-Mapped tests: tests/dbex/test_torch_refine_smoke.py -k "test_stage_b_shell_modifiers or test_stage_c_detector_microslip" --smoke-detector-size=small
-Artifacts: plans/active/ARCH-REFINE-001/reports/2025-12-01T105500Z/
+Mapped tests: tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small
+Artifacts: plans/active/ARCH-REFINE-001/reports/2025-12-01T103325Z/
 Do Now:
-- Implement: plans/active/PERF-SMOKE-DETSIZE/bin/crop_refgeom_to_small.py::main — rerun the crop script with the canonical window (fast 751, slow 719, width/height 1024) so `sp.proc/refGeom_small/{refGeom_small.expt,refGeom_small.refl,refGeom_small_mask.pkl}` exist again; capture the JSON report under the new artifacts directory for reproducibility.
-- Implement: plans/active/ARCH-REFINE-001/bin/capture_stage_c_stage_a_probe.py::main — after the assets land, rerun the telemetry probe (first with `--sigma-source cli_override`, optionally repeat for `metadata`) to dump Stage A/Stage C traces into the new report path; keep stdout/JSON under the artifacts directory.
-- Validate: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_TELEMETRY_PATH=plans/active/ARCH-REFINE-001/reports/2025-12-01T105500Z/telemetry_stage_bc_small.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py -k "test_stage_b_shell_modifiers or test_stage_c_detector_microslip" --smoke-detector-size=small | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T105500Z/pytest_stage_bc_small.log
+- Implement: dbex/refinement/stage_a.py::StageA.run — plumb a `stage_a_force_panel_validation` flag (auto-enable when `config.enable_stage_c` or ROI count ≤32) through `_build_stage_a_lbfgs_closure`/`_run_stage_a_lbfgs` so baseline, periodic, and final validations call the panel path even while closures keep ROI sampling. Update `RefinementConfig` with the new knobs and ensure Stage A telemetry still records ROI counters plus the panel-level chi².
+- Validate: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T103325Z/pytest_stage_c_small_fix.log
 How-To Map:
-1. mkdir -p sp.proc/refGeom_small && python plans/active/PERF-SMOKE-DETSIZE/bin/crop_refgeom_to_small.py --expt refGeom.expt --refl refGeom.refl --cbf lys_nitr_10_6_0001.cbf --mask 747_mask.pkl --fast-start 751 --slow-start 719 --width 1024 --height 1024 --output-root sp.proc/refGeom_small --report plans/active/ARCH-REFINE-001/reports/2025-12-01T105500Z/refGeom_small_crop_report.json --background-pad 3; verify the script emits refGeom_small.{expt,refl,mask} plus README.
-2. python plans/active/ARCH-REFINE-001/bin/capture_stage_c_stage_a_probe.py --detector-size small --sigma-source cli_override --output plans/active/ARCH-REFINE-001/reports/2025-12-01T105500Z/stage_c_stage_a_probe_cli.json > plans/active/ARCH-REFINE-001/reports/2025-12-01T105500Z/stage_c_stage_a_probe_cli.log; rerun with `--sigma-source metadata` only if `sp.proc/refGeom_small/idx-0000_sigma_metadata_small.sigma_tiles.pkl` exists.
-3. AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest --collect-only tests/dbex/test_torch_refine_smoke.py -k "test_stage_b_shell_modifiers or test_stage_c_detector_microslip" --smoke-detector-size=small | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T105500Z/collect_stage_bc_small.log, then run the full selector command listed above, ensuring telemetry JSON/logs land in the same report directory.
+1. Edit `dbex/nanobrag_refinement.py` to add `stage_a_force_panel_validation` / `stage_a_panel_validation_roi_threshold` to `RefinementConfig`, defaulting to False/32. When `config.enable_stage_c` is True, set the flag before wiring the engine; otherwise rely on the ROI-count heuristic inside StageA.
+2. In `dbex/refinement/stage_a.py`, compute `canonical_roi_count = len(refinement_inputs.panel_slices)`, derive `force_panel_validation = config.stage_a_force_panel_validation or config.enable_stage_c or canonical_roi_count <= config.stage_a_panel_validation_roi_threshold`, stash it on `stage_a_context`, and pass the boolean into `_run_stage_a_lbfgs`.
+3. Update `dbex/refinement/stage_a_impl.py` so `_build_stage_a_lbfgs_closure`’s `compute_loss` accepts `force_panel_eval=False`, skipping the ROI branch when True, and so periodic validations set the flag. `_run_stage_a_lbfgs` should pass `force_panel_eval=True` for baseline/final/exception evaluations when the new boolean is set.
+4. AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T103325Z/collect_stage_c_small_fix.log, then run the full selector command above capturing stdout/telemetry.
 Pitfalls To Avoid:
-- Use the canonical crop window (fast 751–1775, slow 719–1743) so ROI metadata remains aligned; do not eyeball new bounds.
-- Keep `DBEX_SMOKE_SIGMA_SOURCE` consistent between the probe and pytest run (start with cli_override) so Stage A traces match the recorded failure mode.
-- Do not relax REFINE-007 gates or PHYSICS-LOSS-001 telemetry requirements—this loop is about restoring data + evidence, not weakening checks.
-- Make sure `DBEX_SMOKE_TELEMETRY_PATH` points at the new timestamped directory so Stage B/C logs aren’t mixed with older attempts.
-- When rerunning the probe, leave `device='cuda:0'` and `roi_sample_fraction=0.15` untouched; mismatched config will not reproduce the bug.
-- Avoid modifying Stage A/B/C source files until we have fresh telemetry; this loop is evidence-only.
+- Do not relax Stage C’s REFINE-007 assertions; the goal is to fix Stage A telemetry, not weaken gates.
+- Keep ROI-mode closures intact for perf—only baseline/full validations should flip to panel mode.
+- Ensure telemetry still reports ROI counters/labels so Stage B tooling and perf dashboards stay consistent.
+- Preserve variance-floor accounting when forcing panel mode; the clamped-pixel stats feed PHYSICS-LOSS-001.
+- Update both StageA (engine path) and any inline Stage A callers so they share the new behavior; avoid duplicating heuristics in multiple places.
+- Re-run pytest with `DBEX_SMOKE_SIGMA_SOURCE=cli_override`; mismatched sigma sources invalidate the repro data.
 If Blocked:
-- If the crop script fails because upstream assets (refGeom.expt, lys_nitr_10_6_0001.cbf, 747_mask.pkl) are missing, capture the stderr in plans/active/ARCH-REFINE-001/reports/2025-12-01T105500Z/crop_blocked.log, note the missing inputs in docs/fix_plan.md and galph_memory.md, and stop before touching Stage A code.
+- If panel-mode validations explode GPU memory, fall back to CPU for the validation pass (mirroring Stage B) and log the OOM signature in docs/fix_plan.md plus galph_memory.md before deferring the fix.
 Findings Applied (Mandatory):
-- REFINE-007 — Stage C detector-offset gates require Stage A telemetry improvements before validation; restoring the dataset ensures the original gate stays meaningful.
-- PHYSICS-LOSS-001 — Stage B/C telemetry must include chi-squared + masked-MSE traces; the probe reuses this schema when dumping Stage A traces.
-- PERF-WARM-006 — Stage B/C smokes rely on Stage A detector contexts and warmed caches from the same dataset, so the regenerated refGeom_small bundle has to match the manifest.
+- REFINE-007 — Stage C telemetry gates require Stage A to provide the same chi² surface; enforcing panel-mode validations honors the detector-offset spec.
+- PHYSICS-LOSS-001 — Dual chi²/masked-MSE traces must remain intact when we switch validation scope.
+- docs/spec-db-workflow.md §Stage Smoke Dataset Policy — Small-detector smokes (29 ROIs) must still demonstrate Stage A improvement; forcing panel validation keeps the smoke harness meaningful.
 Pointers:
-- docs/data_dependency_manifest.md:52 — Canonical paths and crop window for refGeom_small assets.
-- plans/active/PERF-SMOKE-DETSIZE/bin/crop_refgeom_to_small.py:1 — Crop script CLI + workflow for regenerating the small-detector bundle.
-- docs/TESTING_GUIDE.md:161 — Stage B/C smoke selector command/flags (`--smoke-detector-size`, telemetry capture expectations).
-Next Up (optional): Once telemetry is captured, resume the Stage A improvement diagnosis (dbex/refinement/stage_a_impl.py::_run_stage_a_lbfgs) and re-validate Stage B/C smokes with the real traces.
+- dbex/refinement/stage_a_impl.py:1100 — ROI vs panel compute paths and variance-floor tracking.
+- dbex/refinement/stage_a.py:190 — StageA.run() orchestration where we can inject the validation flag.
+- docs/data_dependency_manifest.md §Cropped Sigma-Map Asset — Confirms the small-detector ROI count (29) and why the ≤32 heuristic is justified.
+Next Up (optional): After the panel-validation hook lands, rerun the combined Stage B/C selector to ensure Stage B still reads the Stage A telemetry correctly.

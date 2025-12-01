@@ -176,6 +176,14 @@ Capture the `--collect-only` output for the same selector before running the tes
 - Once Stage A improvement issue is resolved, re-run Stage C smoke to validate full Stage A→C telemetry flow.
 - Consider adding Stage A improvement telemetry to help diagnose similar issues in future.
 
+### 2025-12-01T103325Z - ARCH-REFINE-001 Stage A panel validation probe (READY FOR IMPLEMENTATION)
+- Regenerated `sp.proc/refGeom_small` so the small-detector smoke bundle exists locally and reran the Stage A/C telemetry probe: ROI-mode validations (29 ROIs, 15% sample) still report 0.00% improvement with Stage C initial 3.861e+08 vs Stage A final 3.743e+08 (3.1% mismatch).
+- Increasing `roi_sample_fraction` to 1.0 (all 29 ROIs) leaves Stage A improvement essentially zero (8.5e-08), proving the gate failure is not caused by sampling size but by the ROI-only validation window.
+- Forcing Stage A into panel mode immediately yields a 57.4% improvement (Stage A final 1.593e+08, Stage C initial 1.594e+08, rel diff 0.07%) and Stage C telemetry meets REFINE-007 again; downstream detector offsets converge as expected.
+- Plan: add a config/StageA hook so baseline + full validations run in panel mode whenever Stage C runs or the canonical ROI count ≤32 while keeping ROI-mode closures for perf; Stage A telemetry will then reflect the panel-level chi² that Stage C uses for its gates.
+- Updated `capture_stage_c_stage_a_probe.py` with `--roi-sample-fraction` and `--stage-a-roi-mode` switches to document both behaviors; artifacts capture ROI=0.15, ROI=1.0, and panel mode traces plus the crop report.
+**Artifacts**: plans/active/ARCH-REFINE-001/reports/2025-12-01T103325Z/ (stage_c_stage_a_probe_cli*.{json,log}, stage_c_stage_a_probe_cli_panel.{json,log}, refGeom_small_crop_report.json)
+
 ### 2025-12-01T100847Z - ARCH-REFINE-001 Stage C telemetry probe (BLOCKED)
 **Action**: Authored a reusable probe script (`plans/active/ARCH-REFINE-001/bin/capture_stage_c_stage_a_probe.py`) that mirrors the Stage C smoke configuration and dumps Stage A/Stage C telemetry so we can inspect parameter deltas and improvement fractions outside pytest. Attempted to run it with the small-detector dataset, archiving the log under `plans/active/ARCH-REFINE-001/reports/2025-12-01T100847Z/stage_c_stage_a_probe_cli.log`.
 

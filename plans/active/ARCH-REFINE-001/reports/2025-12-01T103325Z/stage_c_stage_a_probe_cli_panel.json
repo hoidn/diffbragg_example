@@ -1,0 +1,154 @@
+{
+  "detector_size": "small",
+  "sigma_source": "cli_override",
+  "roi_sample_fraction": 0.15,
+  "stage_a_roi_mode": "panel",
+  "stage_a": {
+    "status": "ok",
+    "message": "",
+    "roi_mode": "panel",
+    "roi_count_total": 1,
+    "roi_count_sampled": 1,
+    "initial_loss": 374297760.0,
+    "final_loss": 159341024.0,
+    "improvement_fraction": 0.5742934074732373,
+    "chi_squared_trace": [
+      [
+        0,
+        374297760.0
+      ],
+      [
+        0,
+        374297760.0
+      ],
+      [
+        5,
+        159341024.0
+      ],
+      [
+        10,
+        159341024.0
+      ],
+      [
+        15,
+        159341024.0
+      ],
+      [
+        19,
+        159341024.0
+      ]
+    ],
+    "param_deltas": {
+      "log_scale": {
+        "initial": 8.49282231860197,
+        "final": 8.492822647094727,
+        "delta": 3.284927565516682e-07
+      },
+      "log_scale_baseline": {
+        "initial": 0.0,
+        "final": 0.0
+      },
+      "log_cell_a_delta": {
+        "initial": 0.0,
+        "final": 0.20004558563232422,
+        "delta": 0.20004558563232422
+      },
+      "log_cell_b_delta": {
+        "initial": 0.0,
+        "final": -0.4998633563518524,
+        "delta": -0.4998633563518524
+      },
+      "log_cell_c_delta": {
+        "initial": 0.0,
+        "final": 0.35684794187545776,
+        "delta": 0.35684794187545776
+      },
+      "angle_alpha_raw": {
+        "initial": 0.0,
+        "final": -0.01709887757897377,
+        "delta": -0.01709887757897377
+      },
+      "angle_beta_raw": {
+        "initial": 0.0,
+        "final": 0.029189959168434143,
+        "delta": 0.029189959168434143
+      },
+      "angle_gamma_raw": {
+        "initial": 0.0,
+        "final": 0.08660414814949036,
+        "delta": 0.08660414814949036
+      },
+      "orientation_vec": {
+        "initial": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "final": [
+          0.1732974648475647,
+          -0.30135247111320496,
+          -0.014558897353708744
+        ],
+        "delta": [
+          0.1732974648475647,
+          -0.30135247111320496,
+          -0.014558897353708744
+        ],
+        "norm": 0.3479328751564026
+      },
+      "misset_xyz_deg": {
+        "initial": [
+          -0.006988525390625,
+          0.15351295471191406,
+          1.4765625
+        ],
+        "final": [
+          1.0242253541946411,
+          -1.600998044013977,
+          1.373410940170288
+        ],
+        "delta": [
+          1.0312138795852661,
+          -1.7545109987258911,
+          -0.1031515821814537
+        ],
+        "quaternion_norm": 1.0
+      }
+    }
+  },
+  "stage_c": {
+    "status": "ok",
+    "message": "",
+    "roi_mode": "panel",
+    "roi_count_total": 1,
+    "roi_count_sampled": 1,
+    "initial_loss": 159453728.0,
+    "final_loss": 159149728.0,
+    "improvement_fraction": 0.0019065092037233522,
+    "chi_squared_trace": [
+      [
+        0,
+        159453728.0
+      ],
+      [
+        5,
+        158950336.0
+      ],
+      [
+        10,
+        158947136.0
+      ],
+      [
+        14,
+        159149728.0
+      ]
+    ],
+    "param_deltas": {
+      "panel_0_distance_offset_mm": {
+        "initial": 0.25,
+        "final": 1.4901161193847656e-08,
+        "delta": -0.2499999850988388
+      }
+    }
+  }
+}

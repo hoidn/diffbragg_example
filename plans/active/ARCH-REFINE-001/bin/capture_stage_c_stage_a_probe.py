@@ -5,6 +5,8 @@ Probe Stage A telemetry when Stage C is enabled (initiative: ARCH-REFINE-001, ow
 Inputs:
     --detector-size {small,full}
     --sigma-source {cli_override,metadata}
+    --roi-sample-fraction <float> (Stage A ROI sampling fraction; default 0.15)
+    --stage-a-roi-mode {roi,panel} (Stage A sampling mode; default roi)
     --output <path to JSON summary>
 Data deps: sp.proc/refGeom*/ assets, scaled.mtz, refined MTZ + calibration configs from
            docs/data_dependency_manifest.md (refGeom, smoke calibration bundle).
@@ -174,7 +176,12 @@ def _build_hkl_grid(dataload: DataLoad):
     return hkl_grid, hkl_metadata
 
 
-def _run_probe(detector_size: str, sigma_source: str) -> dict:
+def _run_probe(
+    detector_size: str,
+    sigma_source: str,
+    roi_sample_fraction: float,
+    stage_a_roi_mode: str,
+) -> dict:
     repo_root = _repo_root()
     dataload = _build_dataload(repo_root, detector_size, sigma_source)
     refinement_inputs = _build_refinement_inputs(dataload, sigma_source)
@@ -197,7 +204,8 @@ def _run_probe(detector_size: str, sigma_source: str) -> dict:
         dtype=torch.float32,
         history_size=10,
         max_iter=30,
-        roi_sample_fraction=0.15,
+        roi_sample_fraction=roi_sample_fraction,
+        enable_stage_a_roi_mode=(stage_a_roi_mode == "roi"),
         full_validation_interval=5,
         min_loss_improvement=0.0,
         enable_hkl_interpolation=True,
@@ -248,6 +256,8 @@ def _run_probe(detector_size: str, sigma_source: str) -> dict:
     result = {
         "detector_size": detector_size,
         "sigma_source": sigma_source,
+        "roi_sample_fraction": roi_sample_fraction,
+        "stage_a_roi_mode": stage_a_roi_mode,
         "stage_a": _extract_stage_payload(telemetry_a),
         "stage_c": _extract_stage_payload(telemetry_c),
     }
@@ -273,9 +283,26 @@ def main() -> None:
         required=True,
         help="Path to write JSON summary.",
     )
+    parser.add_argument(
+        "--roi-sample-fraction",
+        type=float,
+        default=0.15,
+        help="Stage A ROI sampling fraction (default: 0.15).",
+    )
+    parser.add_argument(
+        "--stage-a-roi-mode",
+        choices=("roi", "panel"),
+        default="roi",
+        help="Stage A sampling mode (default: roi).",
+    )
     args = parser.parse_args()
 
-    summary = _run_probe(args.detector_size, args.sigma_source)
+    summary = _run_probe(
+        args.detector_size,
+        args.sigma_source,
+        args.roi_sample_fraction,
+        args.stage_a_roi_mode,
+    )
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(summary, indent=2))

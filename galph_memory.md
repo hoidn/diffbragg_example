@@ -69,3 +69,7 @@ Action State: ready_for_implementation
 - Rewrote input.md with the new Do Now, mapped CLI selectors (refined MTZ telemetry + torch diagnostics metadata), env knobs, pitfalls, and artifacts path `plans/active/ARCH-REFINE-001/reports/2025-12-01T132921Z/`.
 - No evidence collection this loop; artifacts directory reserved for the implementation run.
 Action State: ready_for_implementation
+2025-12-01T134542Z focus=ARCH-REFINE-001 state=ready_for_implementation dwell=1 action=planning artifacts=plans/active/ARCH-REFINE-001/reports/2025-12-01T134542Z/ next_action=Move gradcheck helpers into dbex.physics then rerun DB-AT-010
+- Advanced Phase C.3 planning: docs/fix_plan.md now records the physics-helper extraction plan (new `dbex/physics/forward.py` + loss relocation), and the implementation checklist marks C1/C3 complete with C2 ready for execution.
+- Replaced input.md with a code-ready Do Now covering the new physics modules, bridge re-exports, DB-AT-010 test updates, and the selector commands/artifacts Ralph must run to validate the move.
+Action State: ready_for_implementation

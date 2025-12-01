@@ -538,3 +538,25 @@ pytest -vv tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata \
 **Artifacts**: plans/active/ARCH-REFINE-001/reports/2025-12-01T132921Z/ (collect_cli_refined_writer.log, pytest_cli_refined_writer.log, collect_cli_torch_diag.log, pytest_cli_torch_diag.log, summary.md)
 **First Divergence**: Test failures are pre-existing mock setup issues, not writer extraction bugs. The writer module itself is correct; tests need mock improvements (outside Phase C.2 scope).
 **Next Actions**: Phase C.2 complete — shared torch writer extracted and integrated. Pre-existing test mock issues logged for future cleanup (add to fix_plan as separate TODO). Ready to advance to Phase C.3 (physics helper extraction) or next ARCH-REFINE-001 phase per plan.
+
+### 2025-12-01T134542Z - ARCH-REFINE-001 Phase C.3: Physics helper extraction (READY FOR IMPLEMENTATION)
+- `dbex/nanobrag_bridge.py` still defines `simulate_forward_torch` and `compute_masked_mse_loss`, which contradicts the Phase C goal of keeping bridge code focused on config plumbing. Tests (DB-AT-010 gradcheck) import these helpers and, by extension, the entire bridge module even though they only need the physics routines. Moving the helpers under `dbex/physics/` removes the circular-dependency risk when RefinementContext/Stage modules consume them and keeps the gradcheck harness aligned with the same loss math Stage A/B/C use.
+- Findings/spec alignment: `PHYSICS-LOSS-001` insists that variance-weighted chi-squared helpers be shared across stages/tests; `RUNTIME-001` + `docs/development/testing_strategy.md §§4.1` enforce float64 gradcheck semantics for DB-AT-010; `ARCH-FACTORY-001` requires forward-only helpers to keep using `create_unified_simulator` (factory stays out of LBFGS closures). Cite `docs/spec-db-core.md §§57-68` (variance model) and `docs/spec-db-workflow.md §§30-45` inside the new module docstrings.
+- **Do Now (Ralph)**:
+  1. **Implement: dbex/physics/forward.py::simulate_forward_torch** — create a physics-forward module that contains the gradcheck helper (docstring with spec/finding refs, lazy imports, tensor-valued overrides, ROI stacking). Remove the original definition from `dbex/nanobrag_bridge.py`, then import the new function there for backward compatibility (`simulate_forward_torch = forward.simulate_forward_torch`), documenting that the helper is test-only (DB-AT-010).
+  2. **Implement: dbex/physics/loss.py::compute_masked_mse_loss** — relocate the variance-weighted loss helper next to `_compute_variance_weighted_loss`, reuse the shared validation logic, and expose it via `dbex.physics.__all__`. Bridge callers/tests should import from `dbex.physics.loss` after the move.
+  3. **Implement: tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck** — update imports to point at `dbex.physics.forward`/`dbex.physics.loss`, keep float64 tensors + tensor overrides intact, and refresh fixtures/docs accordingly. Update `docs/TESTING_GUIDE.md` (§“Gradient correctness”) so the selector description references the new module path and re-state the required env vars (KMP_DUPLICATE_LIB_OK, NANOBRAGG_DISABLE_COMPILE, DBAT010_ARTIFACT_DIR).
+- **Validation** — Run DB-AT-010 gradcheck after the refactor (per docs/TESTING_GUIDE.md §2, docs/data_dependency_manifest.md §Sigma/Calibration Sources):
+```
+export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
+export KMP_DUPLICATE_LIB_OK=TRUE
+export NANOBRAGG_DISABLE_COMPILE=1
+export DBAT010_ARTIFACT_DIR=plans/active/ARCH-REFINE-001/reports/2025-12-01T134542Z/db_at_010
+pytest --collect-only tests -k DB_AT_010 \
+  > plans/active/ARCH-REFINE-001/reports/2025-12-01T134542Z/collect_db_at_010.log
+pytest -vv tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck \
+  | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T134542Z/pytest_db_at_010.log
+```
+  Required assets (per docs/data_dependency_manifest.md §§tests/dbex/test_gradients.py, Sigma/Calibration Sources): `refGeom.expt`, `refGeom.refl`, `scaled.mtz`, `747_mask.pkl`, and sigma metadata. If any asset is missing, log the failure signature in `docs/fix_plan.md` + galph_memory, then pause.
+- **Artifacts**: `plans/active/ARCH-REFINE-001/reports/2025-12-01T134542Z/` (collect_db_at_010.log, pytest_db_at_010.log, gradcheck_metrics.json, summary.md)
+- **Next Actions**: After DB-AT-010 passes with the helpers in `dbex/physics`, Phase C.3 is complete and we can proceed to Phase C.4 (docs/test registry sync) or pivot to the telemetry doc refresh called out in Exit Criterion #3.

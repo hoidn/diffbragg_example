@@ -75,13 +75,15 @@ objects into the closures rather than re-instantiating them via the factory.
 ## Phase B — Context + Factory
 ### Checklist
 - [ ] B1: Add `refinement/context.py` defining `RefinementContext` and related builders; update stage signatures to accept context instead of loose dicts.
-- [ ] B2: Introduce `JobContext` that encapsulates CLI args, `DataLoad`, calibration metadata, sigma provenance, and `RefinementConfig`; adjust `refine_one` to pass it downstream.
-- [ ] B3: Use `refinement/helpers.create_unified_simulator` for forward-only paths (CLI, bridge helpers, warm-cache builders) while keeping Stage A/B/C closures on direct `Simulator` construction to preserve autograd (ARCH-FACTORY-001).
-- [ ] B4: Update tests/fixtures to construct the new contexts; capture device-switch behavior (Stage B CPU fallback) in unit tests.
+- [ ] B2: Introduce `JobContext` that encapsulates CLI args, `DataLoad`, calibration metadata, sigma provenance, HKL grid metadata (halo flag, ASU map), and `RefinementConfig`; adjust `refine_one` to pass it downstream.
+- [ ] B3: Move HKL grid construction, halo padding, and ASU mapping out of stage helpers into the context builder so Stage A/B/C share the same experiment geometry (no stage-local recomputation). Document the context IDL under `docs/architecture/dbex/refinement/context.idl.md`.
+- [ ] B4: Use `refinement/helpers.create_unified_simulator` for forward-only paths (CLI, bridge helpers, warm-cache builders) while keeping Stage A/B/C closures on direct `Simulator` construction to preserve autograd (ARCH-FACTORY-001).
+- [ ] B5: Update tests/fixtures to construct the new contexts; capture device-switch behavior (Stage B CPU fallback) in unit tests.
 
 ### Notes & Risks
 - Risk: context refactor may require significant fixture rewrites; plan for phased updates to test harnesses.
 - Risk: enforcing a single simulator factory could expose calibration edge cases; add validation logs and fallbacks in factory.
+- Risk: HKL halo/ASU mapping must remain validated against cctbx/canonical fixtures; add parity tests to ensure moving the logic out of Stage B doesn’t change Stage A outputs.
 
 ## Phase C — Telemetry + IO Cleanup
 - [ ] C1: Collapse duplicate `RefinementTelemetry` definitions into `refinement/stage.py`; ensure serialization remains backward compatible and stage-specific fields are scoped.

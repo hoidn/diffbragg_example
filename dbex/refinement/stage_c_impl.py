@@ -544,6 +544,16 @@ def _build_stage_c_lbfgs_closure(
                     bragg_roi = panel_output[slow_slice, fast_slice] * torch.exp(log_scale_clamped)
                     target_roi = target_panel[slow_slice, fast_slice]
                     mask_roi = mask_panel[slow_slice, fast_slice]
+                    # REFINE-016: Apply trusted mask parity with Stage A (dbex/refinement/stage_a_impl.py:1348-1350)
+                    # Warm path uses precomputed trusted_masks_t; cold path tensorizes inputs.trusted_mask on demand
+                    if stage_a_ctx is not None and stage_a_ctx.trusted_masks_t is not None:
+                        trusted_slice = stage_a_ctx.trusted_masks_t[pid, slow_slice, fast_slice]
+                        mask_roi = torch.logical_and(mask_roi, trusted_slice)
+                    elif not stage_c_use_warm_cache and inputs.trusted_mask is not None and inputs.trusted_mask[pid] is not None:
+                        trusted_mask_np = inputs.trusted_mask[pid]
+                        trusted_mask_t = torch.tensor(trusted_mask_np, dtype=torch.bool, device=device)
+                        trusted_slice = trusted_mask_t[slow_slice, fast_slice]
+                        mask_roi = torch.logical_and(mask_roi, trusted_slice)
                     sigma_roi = sigma_panel[slow_slice, fast_slice]
                     (
                         chi_roi,
@@ -576,6 +586,24 @@ def _build_stage_c_lbfgs_closure(
             bragg_scaled = bragg_stacked * torch.exp(log_scale_clamped)
             target_subset = torch.stack([target_outputs[pid] for pid in panel_ids], dim=0)
             mask_subset = torch.stack([mask_outputs[pid] for pid in panel_ids], dim=0)
+            # REFINE-016: Apply trusted mask parity with Stage A (dbex/refinement/stage_a_impl.py:1550-1552)
+            # Warm path uses precomputed trusted_masks_t; cold path tensorizes inputs.trusted_mask on demand
+            if stage_a_ctx is not None and stage_a_ctx.trusted_masks_t is not None:
+                trusted_subset = stage_a_ctx.trusted_masks_t[panel_ids]
+                mask_subset = torch.logical_and(mask_subset, trusted_subset)
+            elif not stage_c_use_warm_cache and inputs.trusted_mask is not None:
+                trusted_masks_list = []
+                for idx, pid in enumerate(panel_ids):
+                    if inputs.trusted_mask[pid] is not None:
+                        trusted_mask_np = inputs.trusted_mask[pid]
+                        trusted_mask_t = torch.tensor(trusted_mask_np, dtype=torch.bool, device=device)
+                        trusted_masks_list.append(trusted_mask_t)
+                    else:
+                        # If no trusted mask for this panel, create all-True mask matching panel shape
+                        panel_shape = mask_subset[idx].shape
+                        trusted_masks_list.append(torch.ones(panel_shape, dtype=torch.bool, device=device))
+                trusted_subset = torch.stack(trusted_masks_list, dim=0)
+                mask_subset = torch.logical_and(mask_subset, trusted_subset)
             sigma_subset = torch.stack([sigma_outputs[pid] for pid in panel_ids], dim=0)
             (
                 chi_squared_loss,

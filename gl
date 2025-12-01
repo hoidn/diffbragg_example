@@ -1,0 +1,1000 @@
+commit 812863b0eb6fb7d47d519b8d8ecbd2a5b588f0ef
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 14:29:17 2025 -0800
+
+    [SYNC i=372] actor=galph status=running
+
+commit 2b67581bc51bd2d19157446a77b7a8e1e2e5b5b2
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 14:29:11 2025 -0800
+
+    [SYNC i=372] actor=ralph → next=galph status=ok ralph_commit=61504a83
+
+commit 61504a83fd7b0a42e2585bf8bc2e0b6073a1f684
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 14:29:11 2025 -0800
+
+    RALPH AUTO: reports evidence — tests: not run
+    
+    Files:
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T210900Z/collect_stage_c_full.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T210900Z/collect_stage_c_small.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T210900Z/pytest_stage_c_full.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T210900Z/pytest_stage_c_small.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T210900Z/stage_c_warm_cache_report.json
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T210900Z/summarize_stage_c.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T210900Z/telemetry_stage_c_full.json
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T210900Z/telemetry_stage_c_small.json
+
+commit b3c649b6f1c7d07066678cfd1ba1fa4859d5d384
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 14:28:03 2025 -0800
+
+    PERF-WARM-SIM-001 refinement: Implement REFINE-015 log-scale baseline restoration (tests: stage_c_detector_microslip)
+    
+    Implemented REFINE-015 to thread Stage A's calibrated log-scale baseline through
+    Stage C's LBFGS closure and final reconstruction, mirroring Stage A's clamp logic:
+      log_scale_clamped = log_scale_baseline + clamp(delta, ±log_scale_max_delta)
+    when calibration metadata is present, otherwise uncalibrated clamp.
+    
+    Changes:
+    - dbex/refinement/stage_c.py:188-197: Extract log_scale_baseline from
+      stage_a_telemetry and build tensor on config.device/dtype
+    - dbex/refinement/stage_c.py:361: Add log_scale_baseline to param_values_c
+    - dbex/refinement/stage_c_impl.py:327,697: Extract log_scale_baseline in both
+      _build_stage_c_lbfgs_closure and _run_stage_c_lbfgs
+    - dbex/refinement/stage_c_impl.py:505-517,924-936: Replace hard-coded
+      torch.clamp(log_scale, -10, 10) with Stage A's baseline-aware logic
+    
+    Test results (both detector sizes):
+    - Small detector: PASSED offset gates (99.999994% reduction); FAILED chi² gate (-0.063%)
+    - Full detector: PASSED offset gates (99.999994% reduction); FAILED chi² gate (-0.067%)
+    
+    Status: BLOCKED
+    Hypothesis disproven: log-scale baseline fix did not resolve persistent +0.067% chi²
+    regression. Smoke fixture likely has no calibration_metadata (baseline=None/no-op).
+    Repeat-failure guard triggered after 4 consecutive failures with identical signature.
+    Marking PERF-WARM-SIM-001 blocked pending supervisor escalation.
+    
+    See docs/fix_plan.md:2025-12-01T210900Z for candidate root-cause hypotheses and
+    recommended next diagnostics (chi² computation path analysis, warm-cache drift,
+    best-snapshot verification).
+    
+    Artifacts: plans/active/PERF-WARM-SIM-001/reports/2025-12-01T210900Z/
+    
+    🤖 Generated with [Claude Code](https://claude.com/claude-code)
+    
+    Co-Authored-By: Claude <noreply@anthropic.com>
+
+commit 5263392ec7964182a2beb586e4fdd06e95643108
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 14:20:13 2025 -0800
+
+    [SYNC i=371] actor=ralph status=running
+
+commit da9548f91e12ba2acda6feaa1d5ba974445f5761
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 14:19:52 2025 -0800
+
+    update supervisor.md
+
+commit 64b388727d590666a0c2ecc8c627f38ecc1014cb
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 14:15:05 2025 -0800
+
+    [SYNC i=371] actor=galph → next=ralph status=ok galph_commit=2bdab4ba
+
+commit 1a8c8319378352efe8cf514b947565e6056dac0a
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 14:15:05 2025 -0800
+
+    SUPERVISOR AUTO: reports evidence — tests: not run
+    
+    Files:
+     - docs/findings.md
+     - docs/fix_plan.md
+     - galph_memory.md
+     - input.md
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T210900Z/summary.md
+
+commit 2bdab4baf1fcc33c5db98ae8a5a2893251a17f4a
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 14:03:32 2025 -0800
+
+    [SYNC i=371] actor=galph status=running
+
+commit 3eae72a618862eaa59d864de72ac5d0ec863a8cd
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 14:03:27 2025 -0800
+
+    [SYNC i=371] actor=ralph → next=galph status=ok ralph_commit=2f6023ba
+
+commit 2f6023baba91dce7955b4df4cbacc324bfacf888
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 14:03:27 2025 -0800
+
+    RALPH AUTO: reports evidence — tests: not run
+    
+    Files:
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T204500Z/collect_stage_c_full.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T204500Z/collect_stage_c_small.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T204500Z/pytest_stage_c_full.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T204500Z/pytest_stage_c_small.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T204500Z/stage_c_warm_cache_report.json
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T204500Z/telemetry_stage_c_full.json
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T204500Z/telemetry_stage_c_small.json
+
+commit 2d143e3711dad27ab58647edd401bfec6d71d373
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 14:01:56 2025 -0800
+
+    [PERF-WARM-SIM-001] refinement: Fix Stage C orientation_vec double-tanh (REFINE-014), mark blocked
+    
+    Implemented REFINE-014 by extracting raw pre-tanh orientation_vec from Stage A
+    telemetry instead of post-tanh misset_xyz_deg Euler angles. This prevents the
+    double-tanh collapse identified in findings REFINE-014.
+    
+    Changes:
+    - dbex/refinement/stage_c.py:182-197: Extract orientation_vec_final from
+      stage_a_telemetry['param_deltas']['orientation_vec']['final'] and rebuild
+      frozen tensor on config device/dtype
+    - dbex/refinement/stage_c.py:237-247: Include orientation_vec in params list
+      instead of misset_xyz_deg
+    - dbex/refinement/stage_c.py:356: Pass orientation_vec through param_values_c
+      to avoid second tanh application in LBFGS closure
+    - Keep misset_deg_for_crystal separate for telemetry reporting only
+    
+    Test results (tests: test_stage_c_detector_microslip small+full):
+    - Small detector: PASSED (7.18s), offsets reduced 99.999994%, chi² -0.063%
+    - Full detector: FAILED, offsets reduced 99.999994%, chi² -0.067% (identical
+      to pre-fix result at 2025-12-01T200900Z)
+    
+    Repeat-failure guard triggered: Same chi² regression (+0.067%) persists despite
+    orientation fix, disproving REFINE-014 hypothesis. Marking PERF-WARM-SIM-001
+    blocked pending supervisor investigation of Stage C loss computation path and
+    frozen parameter handling.
+    
+    🤖 Generated with [Claude Code](https://claude.com/claude-code)
+    
+    Co-Authored-By: Claude <noreply@anthropic.com>
+
+commit e7c0b8585a13dfe008dd09bdd1e903e5ff1fd44e
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 13:55:47 2025 -0800
+
+    [SYNC i=370] actor=ralph status=running
+
+commit d5d036bfeb91f7390b35672b239e04f51ebe7196
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 13:55:45 2025 -0800
+
+    [SYNC i=370] actor=galph → next=ralph status=ok galph_commit=d66a8e42
+
+commit 654a363fa8e12fa18ef53b899debbf6f2fa2a582
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 13:55:45 2025 -0800
+
+    SUPERVISOR AUTO: reports evidence — tests: not run
+    
+    Files:
+     - docs/findings.md
+     - docs/fix_plan.md
+     - galph_memory.md
+     - input.md
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T204500Z/summary.md
+
+commit d66a8e4243ec426a59868da700fd87eef9205ba6
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 13:47:47 2025 -0800
+
+    [SYNC i=370] actor=galph status=running
+
+commit db051958fee2b4a19e7cdbe02a095a7de7113738
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 13:47:38 2025 -0800
+
+    [SYNC i=370] actor=ralph → next=galph status=ok ralph_commit=7fcb2dd3
+
+commit 7fcb2dd38480e1543cc29a6a50770548031306de
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 13:47:38 2025 -0800
+
+    RALPH AUTO: reports evidence — tests: not run
+    
+    Files:
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T200900Z/collect_stage_c_full.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T200900Z/collect_stage_c_small.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T200900Z/pytest_stage_c_full.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T200900Z/pytest_stage_c_small.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T200900Z/telemetry_stage_c_full.json
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T200900Z/telemetry_stage_c_small.json
+
+commit 697ee4c0cdad334c39854d0014aebe3157d9640b
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 13:46:31 2025 -0800
+
+    [SYNC i=370] PERF-WARM-SIM-001: re-enable Stage C ROI closures (tests: blocked—repeat failure)
+    
+    Re-enabled ROI closures for Stage C warm-cache path by removing
+    force_panel_validation guard while keeping panel validations independent
+    (AT-REFINE-007, REFINE-010, REFINE-011, REFINE-012).
+    
+    Changes:
+    - dbex/refinement/stage_c_impl.py:186-193: Removed `and not force_panel_validation`
+      from stage_c_roi_mode_active computation; ROI closures now follow Stage A telemetry
+    - dbex/refinement/stage_c_impl.py:197-207: Updated roi_mode_reason logic to only
+      report when ROI mode is disabled (empty string when active)
+    - tests/dbex/test_torch_refine_smoke.py:1205-1210: Test now reads Stage A roi_mode
+      from telemetry to set expected_roi_mode instead of inferring from threshold
+    
+    Results (BLOCKED — REPEAT FAILURE):
+    - Small detector (29 ROIs): PASSED ✓ — roi_mode="roi", validation_scope="panel",
+      detector offset reduced 99.999994%
+    - Full detector (92 ROIs): FAILED ✗ — chi² regression +0.0674%
+      (Stage A: 2.1071e+08, Stage C: 2.1085e+08), identical to prior two loops
+      (2025-12-01T170326Z, 2025-12-01T193800Z)
+    
+    Telemetry confirms expected behavior (roi_mode="roi", roi_mode_reason="",
+    validation_scope="panel", roi_count_total=92) but LBFGS trace is flat
+    [210848512.0 constant across iterations 0,5,10], indicating optimizer
+    convergence issue rather than ROI-mode gate logic defect.
+    
+    Per repeat-failure guard: marking PERF-WARM-SIM-001 blocked for supervisor
+    review. Evidence at plans/active/PERF-WARM-SIM-001/reports/2025-12-01T200900Z/
+    
+    🤖 Generated with [Claude Code](https://claude.com/claude-code)
+    
+    Co-Authored-By: Claude <noreply@anthropic.com>
+
+commit 4d42b120df21fb0ebd087128fac48992cd8cf858
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 13:39:48 2025 -0800
+
+    [SYNC i=369] actor=ralph status=running
+
+commit 99aa439a4aa0541becfea69691d14573fafb8d6c
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 13:39:47 2025 -0800
+
+    [SYNC i=369] actor=galph → next=ralph status=ok galph_commit=5246e95c
+
+commit 32101d08dc2a59951aaa22824c271146be7eb083
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 13:39:46 2025 -0800
+
+    SUPERVISOR AUTO: reports evidence — tests: not run
+    
+    Files:
+     - docs/fix_plan.md
+     - galph_memory.md
+     - input.md
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T200900Z/summary.md
+
+commit 5246e95c2dc632132c94882a07ecbf5fbb22bbe5
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 13:28:53 2025 -0800
+
+    [SYNC i=369] actor=galph status=running
+
+commit 4e4963517fbac58f266bb3a5cdcbc7f31e638af3
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 13:28:45 2025 -0800
+
+    [SYNC i=369] actor=ralph → next=galph status=ok ralph_commit=5de5a137
+
+commit 5de5a137a2d48324f8ccb59169703e59a98c00e9
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 13:28:45 2025 -0800
+
+    RALPH AUTO: reports evidence — tests: not run
+    
+    Files:
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T193800Z/collect_stage_c_full.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T193800Z/collect_stage_c_small.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T193800Z/pytest_stage_c_full.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T193800Z/pytest_stage_c_small.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T193800Z/summary.md
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T193800Z/telemetry_stage_c_full.json
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T193800Z/telemetry_stage_c_small.json
+
+commit d362df13c3df2a7748018b17792b85b9a31f68b6
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 13:27:09 2025 -0800
+
+    PERF-WARM-SIM-001 Stage C ROI-mode alignment (tests: REPEAT FAILURE — blocked)
+    
+    Re-implemented REFINE-012 ROI-mode gate (stage_c_impl.py:186-194) by adding
+    'and not force_panel_validation' condition and 'validation_scope_panel' reason
+    branch per input.md Do Now. Small detector passed with panel mode confirmed;
+    full detector reproduced identical +0.067% chi² regression as 2025-12-01T170326Z
+    (Stage A final=2.1071e+08, Stage C final=2.1085e+08).
+    
+    Repeat-failure guard triggered per ground_rules: same acceptance criterion
+    (chi² regression gate), same signature (210848512.0 flat across LBFGS iterations),
+    no implementation differences between loops. Marked PERF-WARM-SIM-001 Phase D.4
+    blocked — suspected implementation defect (LBFGS panel-mode convergence).
+    
+    Changes:
+    - dbex/refinement/stage_c_impl.py: Added 'and not force_panel_validation' to
+      stage_c_roi_mode_active computation (line 193); added roi_mode_reason branch
+      for 'validation_scope_panel' case (line 199-200)
+    - docs/fix_plan.md: Updated status to blocked, appended 2025-12-01T193800Z attempt
+      entry with repeat-failure analysis and supervisor escalation
+    
+    Metrics (full detector):
+    - Chi² trace flat: [0: 210848512.0, 5: 210848512.0, 9: 210848512.0] — zero LBFGS progress
+    - Detector offsets: 99.999994% reduction (correct behavior)
+    - Telemetry confirms: roi_mode="panel", roi_mode_reason="validation_scope_panel"
+    
+    Root cause hypothesis: Panel-mode closures (60-panel full tensor per closure) prevent
+    LBFGS convergence due to tolerance settings tuned for ROI minibatching or numerical
+    precision issues with full-panel gradients.
+    
+    Artifacts: plans/active/PERF-WARM-SIM-001/reports/2025-12-01T193800Z/
+    (collect logs, pytest logs, telemetry_stage_c_{small,full}.json, summary.md)
+    
+    Supervisor review required per repeat-failure guard and ground_rules.
+    
+    🤖 Generated with [Claude Code](https://claude.com/claude-code)
+    
+    Co-Authored-By: Claude <noreply@anthropic.com>
+
+commit 478cd1ea082a138d977829a91301ad2fb0f335a1
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 13:20:40 2025 -0800
+
+    [SYNC i=368] actor=ralph status=running
+
+commit 2b56e97365a2d859f6fcab3d6db379030abb3535
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 13:20:33 2025 -0800
+
+    [SYNC i=368] actor=galph → next=ralph status=ok galph_commit=965f78f7
+
+commit 4419dc3eb0d9e910b7bc30f484260fcbae254b1e
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 13:20:33 2025 -0800
+
+    SUPERVISOR AUTO: reports evidence — tests: not run
+    
+    Files:
+     - docs/fix_plan.md
+     - galph_memory.md
+     - input.md
+
+commit 965f78f7d722517c6c344c9e2748fb6b57d94f44
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 13:11:30 2025 -0800
+
+    [SYNC i=368] actor=galph status=running
+
+commit 40526db5050c10c110601ac256a3fc2e719e1aec
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 13:11:23 2025 -0800
+
+    [SYNC i=368] actor=ralph → next=galph status=ok ralph_commit=ec08c445
+
+commit ec08c4455150fa21ce3568fcc8ecc5558013944a
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 13:11:23 2025 -0800
+
+    RALPH AUTO: reports evidence — tests: not run
+    
+    Files:
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T190945Z/collect_stage_c_full.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T190945Z/collect_stage_c_small.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T190945Z/pytest_stage_c_full.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T190945Z/pytest_stage_c_small.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T190945Z/telemetry_stage_c_full.json
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T190945Z/telemetry_stage_c_small.json
+
+commit 8f361e256aadaa6d3f0a0ff0d8ed3635d9d5cc47
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 13:10:48 2025 -0800
+
+    PERF-WARM-SIM-001: Move baseline detector prior before LBFGS (tests: small pass, full blocked)
+    
+    Moved _apply_baseline_detector_prior() call to execute BEFORE stage_c_optimizer.step()
+    in dbex/refinement/stage_c_impl.py:739-743 per REFINE-013 requirement that best snapshot
+    must include prior-corrected detector offsets.
+    
+    Implementation:
+    - Applied baseline prior before LBFGS so warm-start is captured in best params snapshot
+    - Kept REFINE-013 rehydration logic intact to reload best snapshot after optimization
+    - Added explanatory comment linking to REFINE-013 design intent
+    
+    Test results:
+    - Small detector (--smoke-detector-size=small): PASSED (7.16s)
+      * Detector offset reduction: 0.25mm → 1.49e-08mm (99.99999%)
+      * Chi-squared: Stage A final=263641952.0, Stage C final=263808208.0
+    - Full detector (--smoke-detector-size=full): BLOCKED at test line 1156
+      * Detector offset reduction: 0.25mm → 1.49e-08mm (99.99999%)
+      * Chi-squared regression: Stage A final=2.1071e+08, Stage C final=2.1085e+08 (+0.067%)
+      * Failure: Exceeds 0.05% strict gate for canonical detector
+    
+    Root cause hypothesis:
+    Stage A refines crystal parameters while accommodating the perturbed detector geometry
+    (+0.25mm offset). When Stage C applies baseline prior upfront, it immediately corrects
+    detector offsets back to baseline, creating a mismatch with Stage A crystal parameters
+    (which were optimized assuming the perturbed detector). LBFGS stalls because detector
+    is already at baseline and crystal parameters are frozen in Stage C. The +0.067% chi²
+    increase suggests baseline detector is not optimal given Stage A crystal refinement.
+    
+    The code change is correct per REFINE-013 intent, but reveals a parameter coupling issue:
+    the REFINE-007 gate assumption (Stage C must not regress chi² while correcting detector)
+    may be incompatible with baseline prior strategy when Stage A accommodates perturbation
+    via crystal parameter adjustment.
+    
+    See galph_memory.md 2025-12-01T190945Z entry and summary.md for detailed analysis.
+    
+    Artifacts: plans/active/PERF-WARM-SIM-001/reports/2025-12-01T190945Z/
+    
+    🤖 Generated with [Claude Code](https://claude.com/claude-code)
+    
+    Co-Authored-By: Claude <noreply@anthropic.com>
+
+commit 14362eba8e9fa84e0eaa79bb8dd03e48ce0d0116
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 13:06:33 2025 -0800
+
+    update main.md to match supervisor.md update
+
+commit 56375377f6e370c7aa85f902e31a21c1bf0d1f31
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 13:03:51 2025 -0800
+
+    [SYNC i=367] actor=ralph status=running
+
+commit de5caaeadd54d9aca8817fad3eb3d7140d67a611
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 13:03:45 2025 -0800
+
+    [SYNC i=367] actor=galph → next=ralph status=ok galph_commit=07366014
+
+commit 750a31f6d5f18ff98584c37d4aaece8679867610
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 13:03:45 2025 -0800
+
+    SUPERVISOR AUTO: reports evidence — tests: not run
+    
+    Files:
+     - docs/fix_plan.md
+     - galph_memory.md
+     - input.md
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T190945Z/summary.md
+
+commit 07366014627210ed468559c0f24093b095c7788a
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 12:56:54 2025 -0800
+
+    [SYNC i=367] actor=galph status=running
+
+commit edf0490f2ea78b488ec06f86c80702284efe97c8
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 12:56:48 2025 -0800
+
+    [SYNC i=367] actor=ralph → next=galph status=ok ralph_commit=051d5e02
+
+commit 051d5e022aeaedde735feb7b5dadf34cebe62659
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 12:56:48 2025 -0800
+
+    RALPH AUTO: reports evidence — tests: not run
+    
+    Files:
+     - docs/fix_plan.md
+     - galph_memory.md
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T183500Z/collect_stage_c_full.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T183500Z/collect_stage_c_small.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T183500Z/pytest_stage_c_full.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T183500Z/pytest_stage_c_small.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T183500Z/telemetry_stage_c_full.json
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T183500Z/telemetry_stage_c_small.json
+
+commit 9bcb2db16c3d7aa8bdc0345bed42bc00c53a2e9b
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 12:55:21 2025 -0800
+
+    PERF-WARM-SIM-001 Phase D.4: Stage C best-snapshot rehydration (tests: PARTIAL)
+    
+    Implemented REFINE-013 by refreshing persisted best tuples (chi_squared_best_c,
+    masked_mse_best_c, best_loss_full_c, best_params_snapshot_c) from telemetry_state
+    immediately after LBFGS step in stage_c_impl.py::_run_stage_c_lbfgs (lines 742-754).
+    Added RuntimeError guard if best snapshot never populated after optimization.
+    
+    Test Results:
+    - Small detector (--smoke-detector-size=small): **PASSED** ✓ (7.54s)
+    - Full detector (--smoke-detector-size=full): **FAILED** ✗ (param_deltas issue)
+    
+    Full detector failure is NOT related to rehydration logic - telemetry shows only
+    panel_0 param_delta entry instead of 60, suggesting pre-existing telemetry
+    recording bug in param_deltas_c loop (line 912). Chi² stayed constant at
+    210706448.0 across all validations (iterations 0, 5, 9), indicating LBFGS
+    never improved on initial state for full detector configuration.
+    
+    Artifacts: plans/active/PERF-WARM-SIM-001/reports/2025-12-01T183500Z/
+    (collect logs, pytest logs, telemetry JSONs archived locally)
+    
+    🤖 Generated with [Claude Code](https://claude.com/claude-code)
+    
+    Co-Authored-By: Claude <noreply@anthropic.com>
+
+commit d5a3ef4f8b47afe4817247deb813e366ef9ceddd
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 12:46:50 2025 -0800
+
+    [SYNC i=366] actor=ralph status=running
+
+commit 194972f3347c66f8501799395c6bd0892397de05
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 12:46:42 2025 -0800
+
+    [SYNC i=366] actor=galph → next=ralph status=ok galph_commit=80b5c114
+
+commit b95f80a8160c3d4ff6cb874d0bb6ac874ab644dd
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 12:46:42 2025 -0800
+
+    SUPERVISOR AUTO: reports evidence — tests: not run
+    
+    Files:
+     - galph_memory.md
+     - input.md
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T183500Z/summary.md
+
+commit 80b5c1142d15018bd927b8d0a9824df2176e5808
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 12:42:39 2025 -0800
+
+    [SYNC i=366] actor=galph status=running
+
+commit 52721889fc05b6af478bb5a5f2d7de1a599c5fca
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 12:42:30 2025 -0800
+
+    [SYNC i=366] actor=ralph → next=galph status=ok ralph_commit=6085b906
+
+commit 6085b906b1d1bad17ad0563847738c436e21d61d
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 12:41:08 2025 -0800
+
+    update supervisor prompt; better sequential structure
+
+commit 25319de52400ce1136f4cad010c730b837ce5db9
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 12:12:45 2025 -0800
+
+    planning: add engine artifacts initiative
+
+commit 0f363083f615416d586bad74c8951096214793ac
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 11:44:35 2025 -0800
+
+    docs: add IDL link to docs hub
+
+commit 4615d3e118b8b4c779fc892f345d45ab53339c86
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 10:13:55 2025 -0800
+
+    [SYNC i=365] actor=galph → next=ralph status=ok galph_commit=8e773314
+
+commit 6350920d6080e8074391a571f0cdff7afb134cbc
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 10:13:55 2025 -0800
+
+    SUPERVISOR AUTO: reports evidence — tests: not run
+    
+    Files:
+     - docs/findings.md
+     - docs/fix_plan.md
+     - galph_memory.md
+     - input.md
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T181100Z/summary.md
+
+commit 8e7733144cd103edd598566ab99b3fcc2640e086
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 10:08:45 2025 -0800
+
+    [SYNC i=365] actor=galph status=running
+
+commit 0e0aaf12f82a1ed1e691d41d0f56995e8573c2f8
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 10:08:36 2025 -0800
+
+    [SYNC i=365] actor=ralph → next=galph status=ok ralph_commit=f40bbba8
+
+commit f40bbba8e2f41e9c2ef2c96e7a19e2d208ed07df
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 10:08:36 2025 -0800
+
+    RALPH AUTO: reports evidence — tests: not run
+    
+    Files:
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T175316Z/collect_stage_c_full.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T175316Z/collect_stage_c_small.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T175316Z/pytest_stage_c_full.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T175316Z/pytest_stage_c_full_v2.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T175316Z/pytest_stage_c_full_v3.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T175316Z/pytest_stage_c_small.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T175316Z/telemetry_stage_c_full.json
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T175316Z/telemetry_stage_c_full_v2.json
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T175316Z/telemetry_stage_c_full_v3.json
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T175316Z/telemetry_stage_c_small.json
+
+commit 6ada802fe9bba6492c87d72c2b176eea6170ce37
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 10:08:18 2025 -0800
+
+    [SYNC i=364] actor=ralph status=running
+    
+    PERF-WARM-SIM-001: Add Stage C best-snapshot persistence infrastructure (tests: stage_c small PASS, full FAIL +0.067%)
+    
+    Implementation:
+    - Added best-tuple persistence in _build_stage_c_lbfgs closure (lines 626-633)
+    - Persist chi_squared_best_c, best_params_snapshot_c, masked_mse_best_c to telemetry_state when better values found
+    - Mirror persistence in _run_stage_c_lbfgs after final candidate validation (lines 763-770)
+    - Reload best parameters before final Bragg regeneration (lines 777-784)
+    
+    Results:
+    - Small detector: PASSED (no strict gates active)
+    - Full detector: FAILED with +0.067% chi² regression (Stage A final=2.1071e+08, Stage C final=2.1085e+08)
+    - Issue: Persistence infrastructure not working as intended - final trace still shows regressed value
+    
+    Root cause hypothesis:
+    - Variable scoping issue between closure and outer function
+    - Persisted values in telemetry_state may not be visible to _run_stage_c_lbfgs
+    - Needs debugging to confirm dict mutations are propagating correctly
+    
+    Artifacts: plans/active/PERF-WARM-SIM-001/reports/2025-12-01T175316Z/
+    Tests: pytest tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip
+    
+    🤖 Generated with [Claude Code](https://claude.com/claude-code)
+    
+    Co-Authored-By: Claude <noreply@anthropic.com>
+
+commit aa5bd0cb5fb128d71219743deaf7876c2bd4f4f5
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 09:56:27 2025 -0800
+
+    [SYNC i=364] actor=ralph status=running
+
+commit a5831ab972d23783d44ae310a64937e7fae35b00
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 09:56:22 2025 -0800
+
+    [SYNC i=364] actor=galph → next=ralph status=ok galph_commit=3a95fc90
+
+commit de04cdd8c84612b685643b7b9f5f72eff36ff5c7
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 09:56:22 2025 -0800
+
+    SUPERVISOR AUTO: reports evidence — tests: not run
+    
+    Files:
+     - docs/findings.md
+     - docs/fix_plan.md
+     - galph_memory.md
+     - input.md
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T175316Z/stage_c_best_snapshot_bug.md
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T175316Z/summary.md
+
+commit 3a95fc90a079ce876558183934ea30374a4fd573
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 09:49:23 2025 -0800
+
+    [SYNC i=364] actor=galph status=running
+
+commit 1ed8e8813947f35b5dce18042a96bc1d454f5a05
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 09:49:18 2025 -0800
+
+    [SYNC i=364] actor=ralph → next=galph status=ok ralph_commit=d0b45aa3
+
+commit d0b45aa31eec07bab9dab07389c0b0feb3505309
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 09:49:18 2025 -0800
+
+    RALPH AUTO: reports evidence — tests: not run
+    
+    Files:
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T174500Z/collect_stage_c_full.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T174500Z/collect_stage_c_small.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T174500Z/pytest_stage_c_full.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T174500Z/pytest_stage_c_small.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T174500Z/stage_c_warm_cache_report.json
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T174500Z/summarize_output.txt
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T174500Z/summary.md
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T174500Z/telemetry_stage_c_full.json
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T174500Z/telemetry_stage_c_small.json
+
+commit 14661d70feee9ccf120133af188a61b1d5864eb8
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 09:48:38 2025 -0800
+
+    PERF-WARM-SIM-001 refinement: restore Stage C ROI closures, separate validation_scope telemetry (tests: test_stage_c_detector_microslip)
+    
+    Removed force_panel_validation guard from stage_c_roi_mode_active so ROI closures
+    stay active per spec-db-workflow.md:127 (ROI minibatching permitted in closures
+    with periodic panel validations). Added independent validation_scope field that
+    tracks "panel" when Stage A forces panel validations, enabling correct telemetry
+    reporting of closure mode vs validation mode.
+    
+    Implementation (dbex/refinement/stage_c_impl.py):
+    - Lines 186-212: Restored ROI closure logic, computed separate validation_scope
+    - Lines 268,902: Thread validation_scope through perf_counters telemetry
+    - Updated roi_mode_reason logic (no longer conflates validation scope with closure mode)
+    
+    Tests (tests/dbex/test_torch_refine_smoke.py):
+    - Lines 1199-1213: Assert roi_mode and validation_scope independently
+    - roi_mode follows Stage A's ROI decision (not forced by Stage C enablement)
+    - validation_scope MUST be "panel" when Stage B/C enabled (REFINE-011)
+    
+    Test Results:
+    - Small detector (29 ROIs): PASSED ✓ (roi_mode=panel, validation_scope=panel)
+    - Full detector (92 ROIs): FAILED ✗ (chi² regression +0.067% > 0.05% gate)
+      Stage A final=2.1071e+08, Stage C final=2.1085e+08
+      Telemetry proves correct: roi_mode="roi", validation_scope="panel"
+    
+    Blocker: Chi² regression persists across 4 loops despite correct implementation.
+    Root cause: Stage C samples all ROIs (roi_count_sampled==roi_count_total), so
+    "ROI mode" only affects warm-cache slice reuse, not convergence trajectory.
+    Supervisor decision required: relax REFINE-007 gate OR investigate LBFGS params.
+    
+    Artifacts: plans/active/PERF-WARM-SIM-001/reports/2025-12-01T174500Z/
+    (telemetry_stage_c_{small,full}.json, stage_c_warm_cache_report.json, summary.md)
+    
+    🤖 Generated with [Claude Code](https://claude.com/claude-code)
+    
+    Co-Authored-By: Claude <noreply@anthropic.com>
+
+commit 22829676a01fc138ac66517365d71c95bab30be8
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 09:40:47 2025 -0800
+
+    [SYNC i=363] actor=ralph status=running
+
+commit 96e03105dcf41f324ae603f2d401c5297c313a42
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 09:40:40 2025 -0800
+
+    [SYNC i=363] actor=galph → next=ralph status=ok galph_commit=ada9b785
+
+commit 1b43a0d53cc5488fb996290251db50750de85d2e
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 09:40:40 2025 -0800
+
+    SUPERVISOR AUTO: reports evidence — tests: not run
+    
+    Files:
+     - docs/fix_plan.md
+     - galph_memory.md
+     - input.md
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T173344Z/stage_c_warm_cache_report.json
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T173344Z/summarize_stage_c_warm_cache.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T173344Z/summary.md
+
+commit ada9b785bcfcee77d41c726bc491152815072c97
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 09:32:07 2025 -0800
+
+    [SYNC i=363] actor=galph status=running
+
+commit 91f491da76c1d404200485ee8a3c9c51091ece0a
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 09:32:02 2025 -0800
+
+    [SYNC i=363] actor=ralph → next=galph status=ok ralph_commit=deeab482
+
+commit deeab482b099579bcd8d995e27ca1a237bf9de1c
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 09:32:02 2025 -0800
+
+    RALPH AUTO: reports evidence — tests: not run
+    
+    Files:
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T173200Z/collect_stage_c_full.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T173200Z/collect_stage_c_small.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T173200Z/pytest_stage_c_full.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T173200Z/pytest_stage_c_small.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T173200Z/summary.md
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T173200Z/telemetry_stage_c_full.json
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T173200Z/telemetry_stage_c_small.json
+
+commit 43081daa79f78b7791c75f1565f2b8d978825cab
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 09:30:50 2025 -0800
+
+    PERF-WARM-SIM-001 test_torch_refine_smoke: emit Stage C telemetry before REFINE-007 gate (tests: test_stage_c_detector_microslip)
+    
+    Moved _record_stage_telemetry call to execute immediately after computing
+    improvement_c_chi2 and before strict REFINE-007 assertions, ensuring telemetry
+    JSON is written even when full-detector chi² gate fails. Extended metadata with
+    stage_a_final_chi2 and stage_c_final_chi2 fields to track regression numerically.
+    
+    Small detector (29 ROIs): PASSED, chi² -0.063% regression, telemetry complete
+    Full detector (92 ROIs): FAILED at REFINE-007 (expected), chi² +0.067% regression,
+    telemetry captured successfully before gate assertion
+    
+    Artifacts: plans/active/PERF-WARM-SIM-001/reports/2025-12-01T173200Z/
+    (collect logs, pytest logs, telemetry JSONs for both detector sizes)
+    
+    🤖 Generated with [Claude Code](https://claude.com/claude-code)
+    
+    Co-Authored-By: Claude <noreply@anthropic.com>
+
+commit d1612f93f0ff1e07ebdde7fd199484136de1c0e0
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 09:25:31 2025 -0800
+
+    [SYNC i=362] actor=ralph status=running
+
+commit d6a5477211cd2233d3697a932c49c3cde0005800
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 09:25:26 2025 -0800
+
+    [SYNC i=362] actor=galph → next=ralph status=ok galph_commit=c66df7e5
+
+commit 0051107ac57e2527d734ff3b59a94b3ae05e6560
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 09:25:26 2025 -0800
+
+    SUPERVISOR AUTO: reports evidence — tests: not run
+    
+    Files:
+     - docs/fix_plan.md
+     - galph_memory.md
+     - input.md
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T172241Z/stage_c_panel_inspection.md
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T172241Z/summary.md
+
+commit c66df7e561f797071f0a48509f5eabef2b41191f
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 09:18:44 2025 -0800
+
+    [SYNC i=362] actor=galph status=running
+
+commit 98b785c42c4c7d89f636656f878949f677e59abc
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 09:18:36 2025 -0800
+
+    [SYNC i=362] actor=ralph → next=galph status=ok ralph_commit=9a60c1e3
+
+commit 9a60c1e3491a0634531b30916603460fda611d50
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 09:18:36 2025 -0800
+
+    RALPH AUTO: reports evidence — tests: not run
+    
+    Files:
+     - galph_memory.md
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T170326Z/collect_stage_c_full.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T170326Z/collect_stage_c_small.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T170326Z/pytest_stage_c_full.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T170326Z/pytest_stage_c_small.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T170326Z/telemetry_stage_c_small.json
+
+commit b167aee3686cb35b1fc7ef45cc0006c7ec03a76f
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 09:17:02 2025 -0800
+
+    PERF-WARM-SIM-001: Stage C ROI-mode disablement (tests: small=PASS, full=FAIL)
+    
+    Implemented REFINE-012 by gating stage_c_roi_mode_active on force_panel_validation
+    so Stage C disables ROI-mode closures when Stage A forces panel validations,
+    ensuring LBFGS optimizes the same pixel population that REFINE-007 gates inspect.
+    
+    Changes:
+    - dbex/refinement/stage_c_impl.py:186-207,262-263,709-710,894-895 — Added
+      force_panel_validation gate, roi_mode_reason provenance, and telemetry wiring
+    - dbex/refinement/stage_c.py:306-307,410-411 — Thread roi_mode_reason and
+      validation_scope through context chain
+    - tests/dbex/test_torch_refine_smoke.py:1174-1180,1443-1448 — Update ROI-mode
+      expectation helper to follow Stage A panel-validation heuristic
+    
+    Test Results:
+    - Small detector (29 ROIs): PASSED ✓
+      roi_mode="panel", roi_mode_reason="force_panel_validation",
+      detector offsets reduced 99.99999%, chi² improved -0.0631%
+    - Full detector (92 ROIs, 60 panels): FAILED ✗
+      chi² regression +0.067% vs 0.05% gate (2.1071e+08 → 2.1085e+08)
+    
+    Analysis: Implementation is correct (proven by small detector telemetry), but
+    full-detector chi² regression persists. Reproducible across REFINE-011 and
+    REFINE-012 implementations, suggesting +0.067% offset is inherent to panel-mode
+    optimization trajectory for 60-panel configuration. Supervisor decision required:
+    accept regression as SPEC-conformant or investigate LBFGS hyperparameters.
+    
+    Artifacts: plans/active/PERF-WARM-SIM-001/reports/2025-12-01T170326Z/
+    Spec: REFINE-012 (implementation ✓), REFINE-007 (small ✓, full ✗)
+    
+    🤖 Generated with [Claude Code](https://claude.com/claude-code)
+    
+    Co-Authored-By: Claude <noreply@anthropic.com>
+
+commit e8ded7fd4607325b4f38abb39c154dd00e869392
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 09:08:31 2025 -0800
+
+    [SYNC i=361] actor=ralph status=running
+
+commit 05d705f273ae14fa312d6ccea93935b3bc4a79ca
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 09:08:23 2025 -0800
+
+    [SYNC i=361] actor=galph → next=ralph status=ok galph_commit=aaf60f8b
+
+commit cb681640e4af0e40ef293df645773ca166e35806
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 09:08:23 2025 -0800
+
+    SUPERVISOR AUTO: reports evidence — tests: not run
+    
+    Files:
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T170326Z/summary.md
+
+commit aaf60f8be271e0fd8f941cdad313601f7b590ac5
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 09:07:41 2025 -0800
+
+    SUPERVISOR: PERF-WARM-SIM-001 plan - tests: not run
+
+commit 1ee465356d4ba43eee422b966c87ee890362b9ed
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 08:58:15 2025 -0800
+
+    [SYNC i=361] actor=galph status=running
+
+commit c9cc57e55b974926a1ba703442f465498d94d319
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 08:58:08 2025 -0800
+
+    [SYNC i=361] actor=ralph → next=galph status=ok ralph_commit=a7ae6060
+
+commit a7ae60602d50317f483ba0f597cce8d69dbdce08
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 08:58:08 2025 -0800
+
+    RALPH AUTO: reports evidence — tests: not run
+    
+    Files:
+     - docs/fix_plan.md
+     - galph_memory.md
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T163900Z/collect_stage_c_full.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T163900Z/collect_stage_c_small.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T163900Z/pytest_stage_c_full.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T163900Z/pytest_stage_c_small.log
+     - plans/active/PERF-WARM-SIM-001/reports/2025-12-01T163900Z/telemetry_stage_c_small.json
+
+commit 7bee0e094747d454a7436e4b500cb08ae39e9ee5
+Author: ollie <ohoidn>
+Date:   Mon Dec 1 08:55:37 2025 -0800
+
+    PERF-WARM-SIM-001: Align Stage C validation scope with Stage A baseline (REFINE-011)
+    
+    Implemented validation_scope tagging in Stage A telemetry and plumbed it through to Stage C
+    to bypass ROI sampling for full validations when Stage A used panel-mode validations.
+    
+    Changes:
+    - dbex/refinement/stage_a.py:367: Add validation_scope field to perf_counters
+    - dbex/refinement/stage_c_impl.py:189,243,339: Extract and thread force_panel_validation
+    - dbex/refinement/stage_c_impl.py:342-355,486: Add force_panel_eval parameter to compute_loss_stage_c
+    - dbex/refinement/stage_c_impl.py:585-587,719-721: Wire force_panel_eval to full validation calls
+    - dbex/refinement/stage_c_impl.py:689: Extract force_panel_validation in _run_stage_c_lbfgs
+    - dbex/refinement/stage_c.py:305,407,436: Thread force_panel_validation through Stage C entry point
+    
+    Tests: test_stage_c_detector_microslip --smoke-detector-size=small PASSED
+    Tests: test_stage_c_detector_microslip --smoke-detector-size=full FAILED
+      - Small detector: PASSED (validation scope alignment working)
+      - Full detector: chi² regression 0.067% (exceeds 0.05% gate by 0.017%)
+      - Regression: Stage A final=2.1071e+08, Stage C final=2.1085e+08
+    
+    Artifacts: plans/active/PERF-WARM-SIM-001/reports/2025-12-01T163900Z/
+      - collect_stage_c_small.log, pytest_stage_c_small.log
+      - collect_stage_c_full.log, pytest_stage_c_full.log
+    
+    REFINE-011: Stage C full validations now use panel mode when Stage A uses panel mode,
+    ensuring chi² measurements compare identical pixel populations. Small detector smoke passes,
+    but full detector shows 0.067% chi² regression (above 0.05% gate). Requires investigation:
+    possible causes include optimizer trajectory changes due to validation mode switch during
+    periodic full evaluations, or revelation of pre-existing regression previously hidden by
+    scope mismatch.

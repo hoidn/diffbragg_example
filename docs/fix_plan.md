@@ -1358,3 +1358,33 @@ python plans/active/PERF-WARM-SIM-001/bin/summarize_stage_c_warm_cache.py \
      - Repeat both commands for `--smoke-detector-size=full`, saving to `collect_stage_c_full.log`, `pytest_stage_c_full.log`, and `telemetry_stage_c_full.json`.
      - `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md python plans/active/PERF-WARM-SIM-001/bin/summarize_stage_c_warm_cache.py --telemetry-small plans/active/PERF-WARM-SIM-001/reports/2025-12-01T214200Z/telemetry_stage_c_small.json --telemetry-full plans/active/PERF-WARM-SIM-001/reports/2025-12-01T214200Z/telemetry_stage_c_full.json --out-json plans/active/PERF-WARM-SIM-001/reports/2025-12-01T214200Z/stage_c_warm_cache_report.json`
 - **Artifacts:** `plans/active/PERF-WARM-SIM-001/reports/2025-12-01T214200Z/` (collect logs, pytest logs, telemetry_stage_c_small.json, telemetry_stage_c_full.json, stage_c_warm_cache_report.json, trusted_mask_analysis.md, summary.md).
+
+### 2025-12-01T214200Z - PERF-WARM-SIM-001 Phase D.4: Trusted-mask gating parity (BLOCKED — Hypothesis disproven)
+**Action**: Implemented REFINE-016 trusted-mask gating by threading `stage_a_ctx.trusted_masks_t` (warm path) and tensorized `inputs.trusted_mask` (cold path) into Stage C's `_build_stage_c_lbfgs_closure`, applying `torch.logical_and` to intersect loss masks with trusted masks in both ROI-mode (lines 547-556) and panel-mode (lines 589-606) code paths before `_compute_variance_weighted_loss`. The implementation mirrors Stage A's gating logic (`stage_a_impl.py:1348-1350`, `1550-1552`) and guards against in-place mutation by building local mask views. Reran both Stage C detector microslip smoketests with telemetry capture.
+
+**Metrics**:
+- Small detector: **PASSED** all gates (chi² regression -0.000%, detector offsets reduced 99.999994%)
+- Full detector: **FAILED** chi² gate — chi² regressed -0.067% (Stage A final=2.1071e+08, Stage C final=2.1085e+08), identical to all previous loops (2025-12-01T163900Z, 2025-12-01T170326Z, 2025-12-01T204500Z, 2025-12-01T210900Z)
+
+**Artifacts**: plans/active/PERF-WARM-SIM-001/reports/2025-12-01T214200Z/ (collect logs, pytest logs, telemetry JSONs)
+
+**First Divergence / Root Cause Discovery**:  
+The trusted-mask hypothesis was **DISPROVEN** by inspection of the test fixture (`tests/dbex/test_torch_refine_smoke.py:311`): all trusted masks are initialized as `np.ones(..., dtype=bool)` (100% trusted pixels). Applying the trusted-mask gate produces NO chi² change because Stage A and Stage C already agree on pixel inclusion when all pixels are trusted. The repeating +0.067% regression persists despite correct implementation of REFINE-016, proving the root cause lies elsewhere.
+
+**Repeat-failure guard triggered**: Same acceptance criterion (full-detector chi² ≤0.05% regression) failed FIVE times (2025-12-01T163900Z, 2025-12-01T170326Z, 2025-12-01T204500Z, 2025-12-01T210900Z, 2025-12-01T214200Z) with identical telemetry signature (Stage A=2.1071e+08, Stage C=2.1085e+08, +0.067%) despite implementing three separate hypotheses (REFINE-014 orientation_vec, REFINE-015 log_scale_baseline, REFINE-016 trusted_mask). Per ground_rules repeat-failure guard, marking PERF-WARM-SIM-001 **BLOCKED — implementation defect (bug)**.
+
+**Next Actions**:
+- **BLOCKED — Supervisor escalation required**: Do NOT attempt further parameter/gate adjustments.
+- **Revised root-cause candidates** (excluding disproven hypotheses):
+  1. **Pixel accumulation order or panel subset mismatch**: Stage C validations may sample a different panel_ids set or iterate panels in a different order than Stage A's final validation, causing the chi² to integrate slightly different pixel populations even with identical masks.
+  2. **Sigma_readout discrepancy**: Stage C may be using a different sigma tensor (device, dtype, or source) than Stage A's final validation, shifting the variance-weighted denominator.
+  3. **Loss_mask tensor identity**: `loss_mask_t` in Stage C may be a stale copy or may differ from Stage A's final `loss_mask` due to ROI/panel-mode logic or preprocessing.
+  4. **Numerical precision drift**: Stage C warm-cache simulator state or detector retargeting may introduce floating-point differences that compound across 60 panels.
+  5. **Best-snapshot vs final discrepancy (REFINE-013 redux)**: Stage A's logged "final" chi² may not correspond to the actual final forward pass; Stage C iteration=0 may be comparing against an earlier Stage A snapshot.
+- **Recommended diagnostics**:
+  1. Add telemetry to Stage C iteration=0 (pre-LBFGS) to dump: panel_ids list, loss_mask checksum, sigma_readout checksum, target checksum, and exact chi² breakdown per panel. Compare bit-for-bit with Stage A final validation artifacts.
+  2. Run callchain analysis (`prompts/callchain.md`) on `_build_stage_c_lbfgs_closure::compute_loss_stage_c` to trace where the 0.067% divergence originates (panel loop, mask application, loss computation, or accumulation).
+  3. Instrument Stage A final validation to log the exact panel_ids, is_full, force_panel_eval parameters used, then verify Stage C iteration=0 uses identical parameters.
+  4. Check if Stage A's chi² trace records the "best" snapshot or the final forward pass; if it records best, then Stage C should compare against `chi_squared_best` instead of `chi_squared_trace_full[-1]`.
+- **Status**: PERF-WARM-SIM-001 remains **BLOCKED** pending supervisor triage and deeper investigation. The trusted-mask implementation (REFINE-016) should be RETAINED as it enforces correct Stage A parity even though it doesn't resolve the current test fixture's regression (which has all-True masks).
+

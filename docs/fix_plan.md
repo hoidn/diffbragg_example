@@ -184,6 +184,17 @@ Capture the `--collect-only` output for the same selector before running the tes
 - Updated `capture_stage_c_stage_a_probe.py` with `--roi-sample-fraction` and `--stage-a-roi-mode` switches to document both behaviors; artifacts capture ROI=0.15, ROI=1.0, and panel mode traces plus the crop report.
 **Artifacts**: plans/active/ARCH-REFINE-001/reports/2025-12-01T103325Z/ (stage_c_stage_a_probe_cli*.{json,log}, stage_c_stage_a_probe_cli_panel.{json,log}, refGeom_small_crop_report.json)
 
+### 2025-12-01T105245Z - ARCH-REFINE-001 Stage A panel validation implementation (tests: see Metrics)
+**Action**: Implemented panel-mode validations per Do Now:
+- Added `stage_a_force_panel_validation` (bool, default False) and `stage_a_panel_validation_roi_threshold` (int, default 32) to RefinementConfig (dbex/nanobrag_refinement.py:162-167).
+- Updated StageA.run() to compute `force_panel_validation = config.stage_a_force_panel_validation or config.enable_stage_c or canonical_roi_count <= config.stage_a_panel_validation_roi_threshold`, stash on stage_a_context, and pass to _run_stage_a_lbfgs (dbex/refinement/stage_a.py:193-203,244).
+- Modified _build_stage_a_lbfgs_closure so compute_loss accepts `force_panel_eval=False` parameter; when True, skips ROI branch and uses panel mode (dbex/refinement/stage_a_impl.py:1112,1319-1322). Updated periodic validations to pass force_panel_validation (line 1689).
+- Updated _run_stage_a_lbfgs to accept `force_panel_validation` param and pass to baseline/final/exception evals (lines 1762,1802,1832,1913). Fixed panel_ids logic to use `list(range(n_panels))` when force_panel_eval=True (lines 1495-1498).
+**Metrics**: Ran `pytest tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small` (selector: DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small). Test now passes Stage C telemetry gates (Stage C initial chi² matches Stage A final within 5%, per test line 1089), confirming panel-mode validations are working. However, test still fails on Stage A improvement check (improvement_a=0.00% < 0.1% threshold, line 1146) — this is the pre-existing zero-improvement blocker documented at 2025-12-01T095317Z. ROI-mode closures remain active (as designed for perf), so LBFGS can't make progress on small detector with 15% ROI sampling.
+**First Divergence**: N/A (implementation matches spec; zero-improvement is separate blocker).
+**Next Actions**: The panel validation flag is now in place and functional. The zero-improvement issue requires either (a) disabling ROI mode entirely on small detectors (contradicts "keep ROI closures for perf" pitfall), or (b) increasing roi_sample_fraction to 1.0 on small detectors, or (c) accepting that Stage A improvement gates must be relaxed/disabled when ROI count ≤32. Recommend supervisor review before proceeding.
+**Artifacts**: plans/active/ARCH-REFINE-001/reports/2025-12-01T103325Z/pytest_stage_c_small_fix_v2.log, collect_stage_c_small_fix.log
+
 ### 2025-12-01T100847Z - ARCH-REFINE-001 Stage C telemetry probe (BLOCKED)
 **Action**: Authored a reusable probe script (`plans/active/ARCH-REFINE-001/bin/capture_stage_c_stage_a_probe.py`) that mirrors the Stage C smoke configuration and dumps Stage A/Stage C telemetry so we can inspect parameter deltas and improvement fractions outside pytest. Attempted to run it with the small-detector dataset, archiving the log under `plans/active/ARCH-REFINE-001/reports/2025-12-01T100847Z/stage_c_stage_a_probe_cli.log`.
 

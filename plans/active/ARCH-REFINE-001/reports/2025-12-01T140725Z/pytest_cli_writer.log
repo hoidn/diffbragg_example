@@ -1,0 +1,545 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 2 items
+
+tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata[cli_override-3.0] FAILED [ 50%]
+tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata[external_lookup-5.0] FAILED [100%]
+
+=================================== FAILURES ===================================
+______________ test_torch_diagnostics_metadata[cli_override-3.0] _______________
+
+sigma_source = 'cli_override', sigma_reference = 3.0
+
+    @pytest.mark.parametrize(
+        ("sigma_source", "sigma_reference"),
+        [("cli_override", 3.0), ("external_lookup", 5.0)],
+    )
+    def test_torch_diagnostics_metadata(sigma_source, sigma_reference):
+        """B1: Verify torch diagnostics HDF5 metadata."""
+        import h5py
+        import numpy as np
+        import sys
+        from dbex.nanobrag_bridge import RefinementInputs
+        import dbex.refine_one
+    
+        # ARCH-REFINE-001 Phase C.4: Assert legacy _write_torch_outputs alias is removed
+        assert not hasattr(dbex.refine_one, '_write_torch_outputs'), \
+            "Legacy _write_torch_outputs alias should be removed; use dbex.io.writer.write_torch_outputs directly"
+    
+        # Mock score_trainer.roi_check before it gets imported
+        mock_roi_check_module = Mock()
+        mock_checker = Mock()
+        # Return a real float, not a Mock, so >= comparisons work
+        mock_checker.score = Mock(return_value=0.85)
+        mock_roi_check_class = Mock(return_value=mock_checker)
+        mock_roi_check_module.roiCheck = mock_roi_check_class
+        sys.modules['score_trainer.roi_check'] = mock_roi_check_module
+    
+        # Mock scipy.optimize.minimize
+        from unittest.mock import patch
+        with patch('scipy.optimize.minimize') as mock_minimize:
+            # Mock the minimize result - need to support both dict-like access and attributes
+            mock_result = MagicMock()
+            mock_result.success = True
+            mock_result.__getitem__ = Mock(side_effect=lambda key: np.array([1.0]) if key == 'x' else None)
+            mock_minimize.return_value = mock_result
+    
+            with tempfile.TemporaryDirectory() as tmpdir:
+                outfile = os.path.join(tmpdir, 'test_torch_diag.h5')
+    
+                # Create mock inputs
+                mock_inputs = RefinementInputs(
+                    target=np.zeros((1, 100, 100), dtype=np.float32),
+                    loss_mask=np.ones((1, 100, 100), dtype=bool) * 0.25,  # 25% coverage
+                    panel_slices=[(0, (10, 20, 10, 20))],
+                    trusted_mask=np.ones((1, 100, 100), dtype=bool),
+                    sigma_readout=np.zeros((1, 100, 100), dtype=np.float32)
+                )
+    
+                mock_dl = Mock()
+                mock_dl.data = np.zeros((1, 100, 100), dtype=np.float32)
+                mock_dl.background_image = np.ones((1, 100, 100), dtype=np.float32) * -1
+                mock_dl.pids = np.array([0])
+                mock_dl.bbox = np.array([[10, 20, 10, 20]])
+                if sigma_source == "external_lookup":
+                    mock_dl.sigma_readout_map = np.full(
+                        (1, 100, 100), sigma_reference, dtype=np.float32
+                    )
+                    mock_dl.sigma_readout_map_source = "external_lookup"
+    
+                mock_args = Mock()
+                mock_args.outFile = outfile
+    
+                mock_bragg = np.zeros((1, 100, 100), dtype=np.float32)
+                masked_mse = 1234.5
+    
+                # Prepare HKL telemetry (SCALE-003)
+                hkl_telemetry = {
+                    "hkl_source": "raw",
+                    "hkl_n_reflections": 100,
+                    "hkl_mean_amplitude": 50.0,
+                    "hkl_path": "/path/to/test.mtz"
+                }
+    
+                # PHYSICS-LOSS-001: Create mock refinement telemetry with dual loss metrics
+                # ARCH-REFINE-001 Phase C.1: Import from canonical location
+                from dbex.refinement import RefinementTelemetry
+                mock_telemetry_a = RefinementTelemetry(
+                    optimizer="LBFGS",
+                    stage="A",
+                    history_size=10,
+                    max_iter=30,
+                    tolerance_grad=1e-7,
+                    tolerance_change=1e-9,
+                    roi_sample_fraction=0.15,
+                    roi_count_sampled=1,
+                    roi_count_total=1,
+                    loss_trace_sample=[1000.0, 900.0, 800.0],  # Legacy chi_squared trace
+                    loss_trace_full=[(0, 1000.0), (5, 900.0), (10, 800.0)],  # Legacy chi_squared trace
+                    best_loss_full=(800.0, 10),  # Legacy chi_squared best
+                    param_deltas={"log_scale": 0.1},
+                    status="ok",
+                    message="Converged",
+                    perf_counters={"cache_mode": "warm"},
+                    # PHYSICS-LOSS-001: Dual loss metrics
+                    chi_squared_trace_sample=[1000.0, 900.0, 800.0],
+                    chi_squared_trace_full=[(0, 1000.0), (5, 900.0), (10, 800.0)],
+                    chi_squared_best=(800.0, 10),
+                    masked_mse_trace_sample=[500.0, 450.0, 400.0],
+                    masked_mse_trace_full=[(0, 500.0), (5, 450.0), (10, 400.0)],
+                    masked_mse_best=(400.0, 10),
+                    sigma_readout_provenance=sigma_source,
+                    sigma_readout_reference_value=sigma_reference,
+                    variance_floor_value=4.0,
+                    variance_floor_clamp_fraction=0.125,
+                    canonical_stage_label="A",
+                    canonical_chi_squared=800.0,
+                    canonical_chi_squared_iteration=10,
+                    canonical_roi_count=1,
+                    canonical_detector_distances_mm=[100.0],
+                )
+                refine_telemetry_dict = {"A": mock_telemetry_a}
+    
+                # Import the function to test
+                from dbex.io.writer import write_torch_outputs
+>               write_torch_outputs(
+                    mock_args,
+                    mock_dl,
+                    mock_bragg,
+                    mock_inputs,
+                    masked_mse,
+                    hkl_telemetry,
+                    refine_telemetry=refine_telemetry_dict,
+                    sigma_readout_provenance=sigma_source,
+                    sigma_readout_reference_value=sigma_reference,
+                )
+
+tests/dbex/test_refine_one_cli.py:884: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+args = <Mock id='126451548665360'>, data_load = <Mock id='126451548665072'>
+bragg = array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+ ...., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.]]], dtype=float32)
+inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0.,......, 0., 0., 0.]]], dtype=float32), target_representation='adu', global_scale_hint=None, sigma_readout_provenance=None)
+masked_mse = 1234.5
+hkl_telemetry = {'hkl_mean_amplitude': 50.0, 'hkl_n_reflections': 100, 'hkl_path': '/path/to/test.mtz', 'hkl_source': 'raw'}
+refine_telemetry = {'A': RefinementTelemetry(optimizer='LBFGS', stage='A', history_size=10, max_iter=30, tolerance_grad=1e-07, tolerance_...m=[100.0], roi_mode=None, stage_type=None, mode=None, engine_protocol=None, stage_modes=None, telemetry_version='1.0')}
+sigma_readout_provenance = 'cli_override', sigma_readout_reference_value = 3.0
+
+    def write_torch_outputs(
+        args,
+        data_load,
+        bragg,
+        inputs,
+        masked_mse,
+        hkl_telemetry,
+        refine_telemetry=None,
+        sigma_readout_provenance=None,
+        sigma_readout_reference_value=None,
+    ):
+        """Write torch backend outputs to HDF5 with diagnostics.
+    
+        Serializes ROI-scored triptychs (data/model/bragg/bg/variance), per-ROI scores,
+        and multi-stage refinement telemetry under /torch_diagnostics group. Implements
+        the canonical schema per DIAGNOSTICS-001 and PHYSICS-LOSS-001/003.
+    
+        Args:
+            args: Argument namespace from CLI parser with:
+                - outFile: Output HDF5 path
+                - sigma_floor: Variance floor in target units (default 1.0)
+                - adu_per_photon: Optional ADU→photon gain (None or >0)
+            data_load: DataLoad object with:
+                - data: Target intensities array (n_panels, slow, fast)
+                - background_image: Background per panel
+                - detector: DIALS Detector with panel metadata
+                - pids: Panel IDs per ROI
+                - bbox: Bounding boxes per ROI (x1, x2, y1, y2)
+            bragg: Simulated Bragg intensities array (n_panels, slow, fast)
+            inputs: RefinementInputs namedtuple with:
+                - target: Target tensor (same shape as bragg)
+                - loss_mask: Boolean mask (1=trusted, 0=excluded)
+                - panel_slices: ROI panel slice metadata
+                - trusted_mask: Per-panel trusted mask
+            masked_mse: Masked mean squared error between target and Bragg (float)
+            hkl_telemetry: Dictionary with structure-factor metadata:
+                - hkl_source: "refined" or "raw"
+                - hkl_n_reflections: Number of reflections
+                - hkl_mean_amplitude: Mean structure factor amplitude
+                - hkl_path: Path to MTZ file used
+            refine_telemetry: Optional Dict[str, RefinementTelemetry] from run_nanobrag_refinement
+                             (multi-stage: {"A": telemetry_a, "B": telemetry_b, "C": telemetry_c})
+                             or single RefinementTelemetry (legacy, mapped to {"A": telemetry})
+            sigma_readout_provenance: Optional string describing sigma source (CLI, calibrated map, etc.)
+            sigma_readout_reference_value: Optional float (target units) for telemetry/diagnostics
+    
+        Notes:
+            - ROI scoring loop uses score_trainer.roi_check.roiCheck per legacy parity
+            - Variance computation follows spec-db-core.md §86-90: V = max(I_model + sigma_rdout^2, sigma_floor^2)
+            - HDF5 schema matches prior dbex.refine_one._write_torch_outputs (DIAGNOSTICS-001)
+            - Multi-stage telemetry serialization supports RefinementEngine protocol (ARCH-ENGINE-003)
+            - TORCH-CLI-004: Score coercion guards against mocked/non-scalar values
+        """
+        import h5py
+        import numpy as np
+        from scipy.optimize import minimize
+        from score_trainer import roi_check
+    
+        CHECKER = roi_check.roiCheck()
+    
+        def func(x, CHECKER, bragg_im, bg_im, dat_im):
+            bragg_scale = x[0]
+            score = CHECKER.score(dat_im, bragg_scale**2*bragg_im + bg_im)
+            resid = 1-score
+            return resid
+    
+        data_subims = []
+        bg_subims = []
+        bragg_subims = []
+        opt_bragg_scales = []
+        model_subims = []
+        scores = []
+    
+        for i_sb, (pid, (x1, x2, y1, y2)) in enumerate(zip(data_load.pids, data_load.bbox)):
+            bg_im = data_load.background_image[pid, y1:y2, x1:x2]
+            assert not np.any(np.isnan(bg_im))
+            x = slice(x1, x2, 1)
+            y = slice(y1, y2, 1)
+            dat_im = data_load.data[pid, y, x]
+            bragg_im = bragg[pid, y, x]
+    
+            min_out = minimize(func, x0=[1], args=(CHECKER, bragg_im, bg_im, dat_im), method="Nelder-Mead")
+            if min_out.success:
+                opt_bragg_scale = min_out['x'][0]**2
+            else:
+                opt_bragg_scale = 1
+    
+            mod_im = bg_im + opt_bragg_scale*bragg_im
+            score = CHECKER.score(dat_im, mod_im)
+            # TORCH-CLI-004: Coerce score to float to guard against mocks/non-scalars
+            score_float = float(score)
+            print("roi=%d : score= %.1f" % (i_sb, score_float*100))
+    
+            model_subims.append(mod_im)
+            data_subims.append(dat_im)
+            bg_subims.append(bg_im)
+            bragg_subims.append(bragg_im)
+            opt_bragg_scales.append(opt_bragg_scale)
+            scores.append(score_float)
+    
+        # Compute variance per spec-db-core.md §86-90: V = max(I_model + sigma_readout^2, sigma_floor^2)
+        variance_subims = []
+        # Extract sigma_readout from function parameter (already in target units after _resolve_sigma_readout)
+        sigma_readout = sigma_readout_reference_value if sigma_readout_reference_value is not None else 3.0
+        # Use args.sigma_floor directly
+        sigma_floor_for_variance = args.sigma_floor
+>       if args.adu_per_photon is not None and args.adu_per_photon > 0:
+E       TypeError: '>' not supported between instances of 'Mock' and 'int'
+
+dbex/io/writer.py:138: TypeError
+----------------------------- Captured stdout call -----------------------------
+roi=0 : score= 85.0
+_____________ test_torch_diagnostics_metadata[external_lookup-5.0] _____________
+
+sigma_source = 'external_lookup', sigma_reference = 5.0
+
+    @pytest.mark.parametrize(
+        ("sigma_source", "sigma_reference"),
+        [("cli_override", 3.0), ("external_lookup", 5.0)],
+    )
+    def test_torch_diagnostics_metadata(sigma_source, sigma_reference):
+        """B1: Verify torch diagnostics HDF5 metadata."""
+        import h5py
+        import numpy as np
+        import sys
+        from dbex.nanobrag_bridge import RefinementInputs
+        import dbex.refine_one
+    
+        # ARCH-REFINE-001 Phase C.4: Assert legacy _write_torch_outputs alias is removed
+        assert not hasattr(dbex.refine_one, '_write_torch_outputs'), \
+            "Legacy _write_torch_outputs alias should be removed; use dbex.io.writer.write_torch_outputs directly"
+    
+        # Mock score_trainer.roi_check before it gets imported
+        mock_roi_check_module = Mock()
+        mock_checker = Mock()
+        # Return a real float, not a Mock, so >= comparisons work
+        mock_checker.score = Mock(return_value=0.85)
+        mock_roi_check_class = Mock(return_value=mock_checker)
+        mock_roi_check_module.roiCheck = mock_roi_check_class
+        sys.modules['score_trainer.roi_check'] = mock_roi_check_module
+    
+        # Mock scipy.optimize.minimize
+        from unittest.mock import patch
+        with patch('scipy.optimize.minimize') as mock_minimize:
+            # Mock the minimize result - need to support both dict-like access and attributes
+            mock_result = MagicMock()
+            mock_result.success = True
+            mock_result.__getitem__ = Mock(side_effect=lambda key: np.array([1.0]) if key == 'x' else None)
+            mock_minimize.return_value = mock_result
+    
+            with tempfile.TemporaryDirectory() as tmpdir:
+                outfile = os.path.join(tmpdir, 'test_torch_diag.h5')
+    
+                # Create mock inputs
+                mock_inputs = RefinementInputs(
+                    target=np.zeros((1, 100, 100), dtype=np.float32),
+                    loss_mask=np.ones((1, 100, 100), dtype=bool) * 0.25,  # 25% coverage
+                    panel_slices=[(0, (10, 20, 10, 20))],
+                    trusted_mask=np.ones((1, 100, 100), dtype=bool),
+                    sigma_readout=np.zeros((1, 100, 100), dtype=np.float32)
+                )
+    
+                mock_dl = Mock()
+                mock_dl.data = np.zeros((1, 100, 100), dtype=np.float32)
+                mock_dl.background_image = np.ones((1, 100, 100), dtype=np.float32) * -1
+                mock_dl.pids = np.array([0])
+                mock_dl.bbox = np.array([[10, 20, 10, 20]])
+                if sigma_source == "external_lookup":
+                    mock_dl.sigma_readout_map = np.full(
+                        (1, 100, 100), sigma_reference, dtype=np.float32
+                    )
+                    mock_dl.sigma_readout_map_source = "external_lookup"
+    
+                mock_args = Mock()
+                mock_args.outFile = outfile
+    
+                mock_bragg = np.zeros((1, 100, 100), dtype=np.float32)
+                masked_mse = 1234.5
+    
+                # Prepare HKL telemetry (SCALE-003)
+                hkl_telemetry = {
+                    "hkl_source": "raw",
+                    "hkl_n_reflections": 100,
+                    "hkl_mean_amplitude": 50.0,
+                    "hkl_path": "/path/to/test.mtz"
+                }
+    
+                # PHYSICS-LOSS-001: Create mock refinement telemetry with dual loss metrics
+                # ARCH-REFINE-001 Phase C.1: Import from canonical location
+                from dbex.refinement import RefinementTelemetry
+                mock_telemetry_a = RefinementTelemetry(
+                    optimizer="LBFGS",
+                    stage="A",
+                    history_size=10,
+                    max_iter=30,
+                    tolerance_grad=1e-7,
+                    tolerance_change=1e-9,
+                    roi_sample_fraction=0.15,
+                    roi_count_sampled=1,
+                    roi_count_total=1,
+                    loss_trace_sample=[1000.0, 900.0, 800.0],  # Legacy chi_squared trace
+                    loss_trace_full=[(0, 1000.0), (5, 900.0), (10, 800.0)],  # Legacy chi_squared trace
+                    best_loss_full=(800.0, 10),  # Legacy chi_squared best
+                    param_deltas={"log_scale": 0.1},
+                    status="ok",
+                    message="Converged",
+                    perf_counters={"cache_mode": "warm"},
+                    # PHYSICS-LOSS-001: Dual loss metrics
+                    chi_squared_trace_sample=[1000.0, 900.0, 800.0],
+                    chi_squared_trace_full=[(0, 1000.0), (5, 900.0), (10, 800.0)],
+                    chi_squared_best=(800.0, 10),
+                    masked_mse_trace_sample=[500.0, 450.0, 400.0],
+                    masked_mse_trace_full=[(0, 500.0), (5, 450.0), (10, 400.0)],
+                    masked_mse_best=(400.0, 10),
+                    sigma_readout_provenance=sigma_source,
+                    sigma_readout_reference_value=sigma_reference,
+                    variance_floor_value=4.0,
+                    variance_floor_clamp_fraction=0.125,
+                    canonical_stage_label="A",
+                    canonical_chi_squared=800.0,
+                    canonical_chi_squared_iteration=10,
+                    canonical_roi_count=1,
+                    canonical_detector_distances_mm=[100.0],
+                )
+                refine_telemetry_dict = {"A": mock_telemetry_a}
+    
+                # Import the function to test
+                from dbex.io.writer import write_torch_outputs
+>               write_torch_outputs(
+                    mock_args,
+                    mock_dl,
+                    mock_bragg,
+                    mock_inputs,
+                    masked_mse,
+                    hkl_telemetry,
+                    refine_telemetry=refine_telemetry_dict,
+                    sigma_readout_provenance=sigma_source,
+                    sigma_readout_reference_value=sigma_reference,
+                )
+
+tests/dbex/test_refine_one_cli.py:884: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+args = <Mock id='126451548665312'>, data_load = <Mock id='126451548666080'>
+bragg = array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+ ...., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.]]], dtype=float32)
+inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0.,......, 0., 0., 0.]]], dtype=float32), target_representation='adu', global_scale_hint=None, sigma_readout_provenance=None)
+masked_mse = 1234.5
+hkl_telemetry = {'hkl_mean_amplitude': 50.0, 'hkl_n_reflections': 100, 'hkl_path': '/path/to/test.mtz', 'hkl_source': 'raw'}
+refine_telemetry = {'A': RefinementTelemetry(optimizer='LBFGS', stage='A', history_size=10, max_iter=30, tolerance_grad=1e-07, tolerance_...m=[100.0], roi_mode=None, stage_type=None, mode=None, engine_protocol=None, stage_modes=None, telemetry_version='1.0')}
+sigma_readout_provenance = 'external_lookup'
+sigma_readout_reference_value = 5.0
+
+    def write_torch_outputs(
+        args,
+        data_load,
+        bragg,
+        inputs,
+        masked_mse,
+        hkl_telemetry,
+        refine_telemetry=None,
+        sigma_readout_provenance=None,
+        sigma_readout_reference_value=None,
+    ):
+        """Write torch backend outputs to HDF5 with diagnostics.
+    
+        Serializes ROI-scored triptychs (data/model/bragg/bg/variance), per-ROI scores,
+        and multi-stage refinement telemetry under /torch_diagnostics group. Implements
+        the canonical schema per DIAGNOSTICS-001 and PHYSICS-LOSS-001/003.
+    
+        Args:
+            args: Argument namespace from CLI parser with:
+                - outFile: Output HDF5 path
+                - sigma_floor: Variance floor in target units (default 1.0)
+                - adu_per_photon: Optional ADU→photon gain (None or >0)
+            data_load: DataLoad object with:
+                - data: Target intensities array (n_panels, slow, fast)
+                - background_image: Background per panel
+                - detector: DIALS Detector with panel metadata
+                - pids: Panel IDs per ROI
+                - bbox: Bounding boxes per ROI (x1, x2, y1, y2)
+            bragg: Simulated Bragg intensities array (n_panels, slow, fast)
+            inputs: RefinementInputs namedtuple with:
+                - target: Target tensor (same shape as bragg)
+                - loss_mask: Boolean mask (1=trusted, 0=excluded)
+                - panel_slices: ROI panel slice metadata
+                - trusted_mask: Per-panel trusted mask
+            masked_mse: Masked mean squared error between target and Bragg (float)
+            hkl_telemetry: Dictionary with structure-factor metadata:
+                - hkl_source: "refined" or "raw"
+                - hkl_n_reflections: Number of reflections
+                - hkl_mean_amplitude: Mean structure factor amplitude
+                - hkl_path: Path to MTZ file used
+            refine_telemetry: Optional Dict[str, RefinementTelemetry] from run_nanobrag_refinement
+                             (multi-stage: {"A": telemetry_a, "B": telemetry_b, "C": telemetry_c})
+                             or single RefinementTelemetry (legacy, mapped to {"A": telemetry})
+            sigma_readout_provenance: Optional string describing sigma source (CLI, calibrated map, etc.)
+            sigma_readout_reference_value: Optional float (target units) for telemetry/diagnostics
+    
+        Notes:
+            - ROI scoring loop uses score_trainer.roi_check.roiCheck per legacy parity
+            - Variance computation follows spec-db-core.md §86-90: V = max(I_model + sigma_rdout^2, sigma_floor^2)
+            - HDF5 schema matches prior dbex.refine_one._write_torch_outputs (DIAGNOSTICS-001)
+            - Multi-stage telemetry serialization supports RefinementEngine protocol (ARCH-ENGINE-003)
+            - TORCH-CLI-004: Score coercion guards against mocked/non-scalar values
+        """
+        import h5py
+        import numpy as np
+        from scipy.optimize import minimize
+        from score_trainer import roi_check
+    
+        CHECKER = roi_check.roiCheck()
+    
+        def func(x, CHECKER, bragg_im, bg_im, dat_im):
+            bragg_scale = x[0]
+            score = CHECKER.score(dat_im, bragg_scale**2*bragg_im + bg_im)
+            resid = 1-score
+            return resid
+    
+        data_subims = []
+        bg_subims = []
+        bragg_subims = []
+        opt_bragg_scales = []
+        model_subims = []
+        scores = []
+    
+        for i_sb, (pid, (x1, x2, y1, y2)) in enumerate(zip(data_load.pids, data_load.bbox)):
+            bg_im = data_load.background_image[pid, y1:y2, x1:x2]
+            assert not np.any(np.isnan(bg_im))
+            x = slice(x1, x2, 1)
+            y = slice(y1, y2, 1)
+            dat_im = data_load.data[pid, y, x]
+            bragg_im = bragg[pid, y, x]
+    
+            min_out = minimize(func, x0=[1], args=(CHECKER, bragg_im, bg_im, dat_im), method="Nelder-Mead")
+            if min_out.success:
+                opt_bragg_scale = min_out['x'][0]**2
+            else:
+                opt_bragg_scale = 1
+    
+            mod_im = bg_im + opt_bragg_scale*bragg_im
+            score = CHECKER.score(dat_im, mod_im)
+            # TORCH-CLI-004: Coerce score to float to guard against mocks/non-scalars
+            score_float = float(score)
+            print("roi=%d : score= %.1f" % (i_sb, score_float*100))
+    
+            model_subims.append(mod_im)
+            data_subims.append(dat_im)
+            bg_subims.append(bg_im)
+            bragg_subims.append(bragg_im)
+            opt_bragg_scales.append(opt_bragg_scale)
+            scores.append(score_float)
+    
+        # Compute variance per spec-db-core.md §86-90: V = max(I_model + sigma_readout^2, sigma_floor^2)
+        variance_subims = []
+        # Extract sigma_readout from function parameter (already in target units after _resolve_sigma_readout)
+        sigma_readout = sigma_readout_reference_value if sigma_readout_reference_value is not None else 3.0
+        # Use args.sigma_floor directly
+        sigma_floor_for_variance = args.sigma_floor
+>       if args.adu_per_photon is not None and args.adu_per_photon > 0:
+E       TypeError: '>' not supported between instances of 'Mock' and 'int'
+
+dbex/io/writer.py:138: TypeError
+----------------------------- Captured stdout call -----------------------------
+roi=0 : score= 85.0
+=========================== short test summary info ============================
+FAILED tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata[cli_override-3.0] - TypeError: '>' not supported between instances of 'Mock' and 'int'
+FAILED tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata[external_lookup-5.0] - TypeError: '>' not supported between instances of 'Mock' and 'int'
+============================== 2 failed in 0.96s ===============================
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 2 items
+
+tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata[cli_override-3.0] PASSED [ 50%]
+tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata[external_lookup-5.0] PASSED [100%]
+
+============================== 2 passed in 0.91s ===============================

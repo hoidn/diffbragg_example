@@ -1,5 +1,5 @@
 ### Turn Summary
-Captured Phase C.4 scope to remove the `_write_torch_outputs` alias, point docs/tests at `dbex/io/writer.py`, and keep the shared physics helpers authoritative.
-Updated docs/fix_plan.md, the implementation checklist, and input.md so the new Do Now includes the alias removal, doc refresh, and CLI telemetry selector commands with capture paths.
-Next: Ralph drops the alias, refreshes the CLI telemetry test assertions, updates the architecture docs noted in the plan, and runs the mapped collect/full pytest commands.
-Artifacts: plans/active/ARCH-REFINE-001/reports/2025-12-01T140725Z/ (input.md, docs_diff instructions)
+Retired the legacy `_write_torch_outputs` alias from `dbex/refine_one.py` and refreshed architecture docs so they cite `dbex/io/writer.py` + `dbex/physics/{forward,loss}.py` as canonical owners; no telemetry schema changes.
+Enhanced `test_torch_diagnostics_metadata` to assert the alias is absent and fixed mock_args initialization to prevent TypeError; both parametrized variants pass.
+Next: Phase C (writer extraction + physics helpers + docs sync) is complete; ready to advance to Phase D doc sync (architecture IDLs) or pivot to remaining Stage refinements as prioritized.
+Artifacts: plans/active/ARCH-REFINE-001/reports/2025-12-01T140725Z/ (collect_cli_writer.log, pytest_cli_writer.log, docs_diff.md)

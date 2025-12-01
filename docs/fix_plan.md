@@ -234,3 +234,14 @@ Capture the `--collect-only` output for the same selector before running the tes
 - Run diagnostic: repeat probe with `--sigma-source metadata` (if `idx-0000_sigma_metadata_small.sigma_tiles.pkl` exists) to isolate uniform-sigma hypothesis.
 - Run diagnostic: increase `roi_sample_fraction` (0.15→0.5 or 1.0) to test ROI coverage hypothesis.
 - Once root cause identified, fix Stage A implementation (dbex/refinement/stage_a_impl.py::_run_stage_a_lbfgs), then re-run Stage C smoke to validate full Stage A→C flow.
+
+### 2025-12-01T105916Z - ARCH-REFINE-001 Stage A ROI auto-panel fallback (READY FOR IMPLEMENTATION)
+- Telemetry probe artifacts (`plans/active/ARCH-REFINE-001/reports/2025-12-01T105500Z/stage_c_stage_a_probe_cli*.json`) confirm Stage A ROI-mode optimization on refGeom_small (29 ROIs) never clears the 0.1% gate even when sampling all ROIs (`improvement_fraction=8.5e-08`) and LBFGS exits after three identical evaluations, while forcing Stage A into panel mode drives a 57.4% chi² drop with Stage C initial=Stage A final within 0.07%.
+- Stage C smoke (`pytest_stage_bc_small.log`) continues to fail solely because telemetry_a.loss_trace_full shows `initial=final=3.31e+08`; Stage C gates and detector recovery remain healthy once Stage A reports a legitimate baseline/final pair. Prior telemetry fix ensures full-trace data exists, so the blocker is strictly ROI-mode optimization on small detectors.
+- **Plan:** auto-disable Stage A ROI sampling whenever the canonical ROI count is small (≤32) so Stage A, Stage B, and Stage C all run panel-mode closures on refGeom_small, while preserving ROI mode for the canonical 92-ROI dataset.
+  1. Extend `RefinementConfig` with a documented `stage_a_min_roi_for_roi_mode` (default 33) and propagate it through `StageA.run` so `_build_stage_a_params` flips `use_stage_a_roi_mode` to False when `len(panel_slices) <= threshold`, logging the reason in Stage A telemetry/perf counters.
+  2. Ensure `stage_a_context['stage_a_roi_label']`, perf counters (`roi_mode`, `roi_count_total`, `roi_count_sampled`), and Stage B/C consumers derive the new auto-panel setting from Stage A telemetry instead of assuming `config.enable_stage_a_roi_mode`.
+  3. Refresh `tests/dbex/test_torch_refine_smoke.py` assertions so the Stage B + Stage C small-detector smokes expect `roi_mode="panel"` when the auto-switch triggers (while canonical/full runs keep the existing expectations).
+  4. Validation: rerun the Stage B shell + Stage C microslip selectors on the small detector with telemetry path under `plans/active/ARCH-REFINE-001/reports/2025-12-01T105916Z/` to prove Stage A improvement ≥0.1% and REFINE-007 gates pass without loosening thresholds.
+
+**Artifacts**: plans/active/ARCH-REFINE-001/reports/2025-12-01T105500Z/ (stage_c_stage_a_probe_cli*.json, telemetry_stage_bc_small.json, pytest_stage_bc_small.log)

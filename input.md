@@ -1,32 +1,33 @@
-Summary: Switch Stage A’s baseline/final validations to panel mode whenever Stage C runs (or ROI count is tiny) so the Stage C gate sees the real chi² improvement.
-Mode: Parity
+Summary: Auto-disable Stage A ROI sampling for the 29-ROI refGeom_small smoke so Stage C sees the real chi² drop without weakening REFINE-007.
+Mode: none
 Focus: ARCH-REFINE-001 — Refinement Engine Modularization & Torch IO
 Branch: integration
-Mapped tests: tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small
-Artifacts: plans/active/ARCH-REFINE-001/reports/2025-12-01T103325Z/
+Mapped tests: tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small; tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small
+Artifacts: plans/active/ARCH-REFINE-001/reports/2025-12-01T105916Z/
 Do Now:
-- Implement: dbex/refinement/stage_a.py::StageA.run — plumb a `stage_a_force_panel_validation` flag (auto-enable when `config.enable_stage_c` or ROI count ≤32) through `_build_stage_a_lbfgs_closure`/`_run_stage_a_lbfgs` so baseline, periodic, and final validations call the panel path even while closures keep ROI sampling. Update `RefinementConfig` with the new knobs and ensure Stage A telemetry still records ROI counters plus the panel-level chi².
-- Validate: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T103325Z/pytest_stage_c_small_fix.log
+- Implement: dbex/refinement/stage_a_impl.py::_build_stage_a_params — add a documented `stage_a_min_roi_for_roi_mode` threshold (default 32) that flips Stage A, Stage B, and Stage C into panel mode when `len(panel_slices)` is tiny so telemetry/perf counters and downstream stages agree on `roi_mode`; thread the knob through dbex/nanobrag_refinement.py::RefinementConfig and refresh tests/dbex/test_torch_refine_smoke.py expectations for the small-detector path.
+- Validate: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_TELEMETRY_PATH=plans/active/ARCH-REFINE-001/reports/2025-12-01T105916Z/telemetry_stage_bc_small.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py -k "test_stage_b_shell_modifiers or test_stage_c_detector_microslip" --smoke-detector-size=small | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T105916Z/pytest_stage_bc_small.log
 How-To Map:
-1. Edit `dbex/nanobrag_refinement.py` to add `stage_a_force_panel_validation` / `stage_a_panel_validation_roi_threshold` to `RefinementConfig`, defaulting to False/32. When `config.enable_stage_c` is True, set the flag before wiring the engine; otherwise rely on the ROI-count heuristic inside StageA.
-2. In `dbex/refinement/stage_a.py`, compute `canonical_roi_count = len(refinement_inputs.panel_slices)`, derive `force_panel_validation = config.stage_a_force_panel_validation or config.enable_stage_c or canonical_roi_count <= config.stage_a_panel_validation_roi_threshold`, stash it on `stage_a_context`, and pass the boolean into `_run_stage_a_lbfgs`.
-3. Update `dbex/refinement/stage_a_impl.py` so `_build_stage_a_lbfgs_closure`’s `compute_loss` accepts `force_panel_eval=False`, skipping the ROI branch when True, and so periodic validations set the flag. `_run_stage_a_lbfgs` should pass `force_panel_eval=True` for baseline/final/exception evaluations when the new boolean is set.
-4. AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T103325Z/collect_stage_c_small_fix.log, then run the full selector command above capturing stdout/telemetry.
+1. Extend `RefinementConfig` in dbex/nanobrag_refinement.py with `stage_a_min_roi_for_roi_mode` (default 32) and keep the existing `stage_a_force_panel_validation` knobs; expose it everywhere StageA is constructed so callers don’t need to hardcode heuristics.
+2. Inside `_build_stage_a_params` (and the analogous helper in dbex/nanobrag_refinement.py), compute `canonical_roi_count = len(panel_slices)` and set `use_stage_a_roi_mode=False` when `canonical_roi_count <= stage_a_min_roi_for_roi_mode`; include a note in Stage A telemetry/perf counters so logs explain whether panel mode was forced.
+3. Propagate the auto-panel flag through the Stage B/Stage C wrappers and the smoke tests: Stage B/S C perf counters should now look at telemetry (`telemetry_a.roi_mode`) instead of raw config flags, and tests must assert that small-detector runs switch to panel mode while canonical/full runs still respect ROI mode.
+4. Export `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md` and run a `--collect-only` sanity check before the full smokes: `DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest --collect-only tests/dbex/test_torch_refine_smoke.py -k "test_stage_b_shell_modifiers or test_stage_c_detector_microslip" --smoke-detector-size=small | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T105916Z/collect_stage_bc_small.log`, then rerun the full selector command above so telemetry/logs land under this loop’s report directory.
 Pitfalls To Avoid:
-- Do not relax Stage C’s REFINE-007 assertions; the goal is to fix Stage A telemetry, not weaken gates.
-- Keep ROI-mode closures intact for perf—only baseline/full validations should flip to panel mode.
-- Ensure telemetry still reports ROI counters/labels so Stage B tooling and perf dashboards stay consistent.
-- Preserve variance-floor accounting when forcing panel mode; the clamped-pixel stats feed PHYSICS-LOSS-001.
-- Update both StageA (engine path) and any inline Stage A callers so they share the new behavior; avoid duplicating heuristics in multiple places.
-- Re-run pytest with `DBEX_SMOKE_SIGMA_SOURCE=cli_override`; mismatched sigma sources invalidate the repro data.
+- Don’t “fix” tests by toggling `config.enable_stage_a_roi_mode`; the auto-switch must be driven by Stage A code so telemetry remains authoritative.
+- Keep Stage A perf counters (`roi_mode`, `roi_count_*`, cache metadata) consistent between telemetry and the per-stage perf dicts; Stage B/C assertions read both.
+- Preserve warm-cache behavior: disabling ROI mode should still reuse StageAContext detectors/masks instead of rebuilding per iteration.
+- When stage count ≤ threshold, make sure sampled ROI counts report the canonical totals (so dashboards don’t show 0 sampled ROIs).
+- Stage C and Stage B wrappers should branch on Stage A telemetry, not their own heuristics—otherwise ROI label drift will resurface.
+- Zero tolerance for ENV churn: if missing sigma-map assets resurface, stop and log the blocker in docs/fix_plan.md instead of regenerating silently.
+- Capture telemetry JSON + pytest logs for both selectors; we need the proof that Stage A now improves ≥0.1%.
 If Blocked:
-- If panel-mode validations explode GPU memory, fall back to CPU for the validation pass (mirroring Stage B) and log the OOM signature in docs/fix_plan.md plus galph_memory.md before deferring the fix.
+- If Stage A still reports 0% improvement after the auto-panel switch, rerun `plans/active/ARCH-REFINE-001/bin/capture_stage_c_stage_a_probe.py` with `--stage-a-roi-mode panel` and attach the JSON/logs to docs/fix_plan.md while marking ARCH-REFINE-001 blocked with the new failure signature.
 Findings Applied (Mandatory):
-- REFINE-007 — Stage C telemetry gates require Stage A to provide the same chi² surface; enforcing panel-mode validations honors the detector-offset spec.
-- PHYSICS-LOSS-001 — Dual chi²/masked-MSE traces must remain intact when we switch validation scope.
-- docs/spec-db-workflow.md §Stage Smoke Dataset Policy — Small-detector smokes (29 ROIs) must still demonstrate Stage A improvement; forcing panel validation keeps the smoke harness meaningful.
+- REFINE-007 — Stage C must compare against Stage A’s real chi²; auto-panel ROI switching restores that invariant without weakening gates.
+- PERF-WARM-008 — Stage B/C perf counters must mirror Stage A’s ROI mode, so the telemetry wiring has to update alongside the config knob.
+- REFINE-010 — Newly documented requirement that refGeom_small (≤32 ROIs) runs need panel-mode closures to converge; this Do Now implements that policy.
 Pointers:
-- dbex/refinement/stage_a_impl.py:1100 — ROI vs panel compute paths and variance-floor tracking.
-- dbex/refinement/stage_a.py:190 — StageA.run() orchestration where we can inject the validation flag.
-- docs/data_dependency_manifest.md §Cropped Sigma-Map Asset — Confirms the small-detector ROI count (29) and why the ≤32 heuristic is justified.
-Next Up (optional): After the panel-validation hook lands, rerun the combined Stage B/C selector to ensure Stage B still reads the Stage A telemetry correctly.
+- docs/spec-db-workflow.md:116 — Stage smoke policy and ROI-minibatching clause that permits panel fallbacks when full-image descent is required.
+- docs/data_dependency_manifest.md:52 — Notes refGeom_small has exactly 29 ROIs/sigma crops, justifying the ≤32 heuristic.
+- plans/active/ARCH-REFINE-001/reports/2025-12-01T105500Z/stage_c_stage_a_probe_cli.json:1 — Shows Stage A ROI-mode improvement=0.0% despite healthy detector recovery when Stage C runs.
+Next Up (optional): If time remains after the smokes, rerun the metadata-sigma variant of `test_stage_c_detector_microslip` to ensure the new policy still holds when `DBEX_SMOKE_SIGMA_SOURCE=metadata`.

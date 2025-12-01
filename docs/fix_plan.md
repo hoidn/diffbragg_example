@@ -656,3 +656,33 @@ pytest -vv tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck \
 - Net change: +644 insertions (3 IDL files + docstring updates), -2 deletions
 **Artifacts**: plans/active/ARCH-REFINE-001/reports/2025-12-01T142116Z/ (docs_diff.md, collect_cli_torch_diag.log, pytest_cli_torch_diag.log, collect_db_at_010.log, pytest_db_at_010.log, summary.md)
 **Next Actions**: Phase D.1 complete. Ready to advance to next ARCH-REFINE-001 phase (Phase D.2 or beyond per plan) or pivot to supervisor-prioritized focus.
+
+### 2025-12-01T144500Z - ARCH-REFINE-001 Phase D.2: Retire engine-delegation flag references (READY FOR IMPLEMENTATION)
+- **Gap:** `run_nanobrag_refinement` now routes exclusively through RefinementEngine, yet Stage A tooling (`dbex/tools/stage_a_adam.py::run_engine_zero_point_probe`) and TOOLING-VIS-001 debug drivers still instruct users to pass `use_engine_delegation=True`. Those calls now raise `TypeError` because the flag was removed in Phase A.4, and the architecture/test docs still describe the inline branch as the default path. Phase D.2 cleans up the stale flag usage and refreshes the doc/test guidance so future probes automatically exercise the engine path.
+- **Scope:**
+  1. **dbex/tools/stage_a_adam.py::run_engine_zero_point_probe** — drop the deprecated kwarg when calling `run_nanobrag_refinement`, update the docstring/comments to clarify that RefinementEngine is always active, and raise a clear error if Stage A telemetry is missing from the engine return dict.
+  2. **TOOLING-VIS-001 debug CLIs** — update `plans/active/TOOLING-VIS-001/bin/{compare_stage_a_mapping_parity.py, generate_stage_a_refgeom_roi_triptychs_adam.py, run_stage_a_engine_zero_point_probe.py}` so the helper invocations match the new API and their help text stops referencing `--use-engine-delegation`.
+  3. **Docs/tests** — revise `docs/architecture/live_backend.md` + `docs/architecture/data_telemetry_flow.md` so they describe RefinementEngine as the only execution path (no inline fallback), and refresh the `docs/TESTING_GUIDE.md` + `docs/development/TEST_SUITE_INDEX.md` entries for `test_stage_a_engine_delegation_telemetry` so they explain the selector now validates the default engine telemetry rather than toggling a flag.
+- **Validation:** Run the Stage A zero-point probe and the telemetry selector to prove tooling/tests still work without the flag (collect-only + full runs, logs under the new report directory):
+```
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+DBAT027_ARTIFACT_DIR=plans/active/ARCH-REFINE-001/reports/2025-12-01T144500Z/db_at_027 \
+pytest --collect-only tests/dbex/test_stage_a_mapping_equiv.py::test_db_at_027_zero_point_parity \
+  > plans/active/ARCH-REFINE-001/reports/2025-12-01T144500Z/collect_db_at_027_zero_point.log
+
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+DBAT027_ARTIFACT_DIR=plans/active/ARCH-REFINE-001/reports/2025-12-01T144500Z/db_at_027 \
+pytest -vv tests/dbex/test_stage_a_mapping_equiv.py::test_db_at_027_zero_point_parity \
+  | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T144500Z/pytest_db_at_027_zero_point.log
+
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
+pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry \
+  > plans/active/ARCH-REFINE-001/reports/2025-12-01T144500Z/collect_stage_a_engine_telemetry.log
+
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
+pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry \
+  | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T144500Z/pytest_stage_a_engine_telemetry.log
+```
+- **Artifacts:** `plans/active/ARCH-REFINE-001/reports/2025-12-01T144500Z/` (collect_db_at_027_zero_point.log, pytest_db_at_027_zero_point.log, collect_stage_a_engine_telemetry.log, pytest_stage_a_engine_telemetry.log, docs_diff.md)

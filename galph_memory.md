@@ -81,3 +81,7 @@ Action State: ready_for_implementation
 - Logged Phase D.1 in docs/fix_plan.md: new IDL files for dbex/io/writer.py and dbex/physics/{forward,loss}.py, docstring cross-references, module_map links, and the telemetry/gradcheck validation plan with explicit commands/env vars.
 - Rewrote input.md to hand Ralph a docs-mode Do Now covering the new IDLs, docstring updates, module_map edits, and the CLI telemetry + DB-AT-010 selectors with artifact capture instructions.
 Action State: ready_for_implementation
+2025-12-01T144200Z focus=ARCH-REFINE-001 state=planning dwell=1 action=planning artifacts=plans/active/ARCH-REFINE-001/reports/2025-12-01T144500Z/ next_action=Stage A tooling/doc cleanup + run DB-AT-027 + telemetry smokes
+- Logged Phase D.2 in docs/fix_plan.md: remove the obsolete `use_engine_delegation` flag from Stage A tooling/TOOLING-VIS-001 drivers, refresh architecture + testing docs, and revalidate DB-AT-027 + Stage A telemetry selectors under the new timestamp.
+- Updated implementation plan Phase D checklist (D1/D3/D4 now complete, D2 focused on flag cleanup) and rewrote input.md with production Do Now + mapped pytest commands so Ralph can implement immediately.
+Action State: ready_for_implementation

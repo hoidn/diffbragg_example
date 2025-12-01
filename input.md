@@ -1,45 +1,42 @@
-Summary: Publish IDL contracts for the torch writer + physics helpers and update their docstrings/tests so telemetry specs cite the right locations.
-Mode: Docs
+Summary: Scrub Stage A tooling/docs of the removed `use_engine_delegation` flag so probes/tests run on the default RefinementEngine path without TypeErrors.
+Mode: Parity
 Focus: ARCH-REFINE-001 — Refinement Engine Modularization & Torch IO
 Branch: integration
-Mapped tests: pytest --collect-only tests/dbex/test_refine_one_cli.py -k torch_diagnostics_metadata; pytest --collect-only tests/dbex/test_gradients.py -k DB_AT_010; pytest -vv tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata; pytest -vv tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck
-Artifacts: plans/active/ARCH-REFINE-001/reports/2025-12-01T142116Z/
+Mapped tests: pytest --collect-only tests/dbex/test_stage_a_mapping_equiv.py::test_db_at_027_zero_point_parity; pytest -vv tests/dbex/test_stage_a_mapping_equiv.py::test_db_at_027_zero_point_parity; pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry; pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry
+Artifacts: plans/active/ARCH-REFINE-001/reports/2025-12-01T144500Z/
 Do Now:
-- Implement: dbex/io/writer.py::write_torch_outputs — refresh the module/function docstrings so they cite docs/architecture/dbex/io/writer.idl.md (new) and restate DIAGNOSTICS-001/PHYSICS-LOSS-001 telemetry responsibilities without touching runtime logic.
-- Implement: dbex/physics/forward.py::simulate_forward_torch and dbex/physics/loss.py::compute_masked_mse_loss — mirror the writer update by pointing the docstrings to their respective IDLs, noting DB-AT-010 usage, and keeping the helpers explicitly TEST-ONLY.
-- Document: docs/architecture/dbex/io/writer.idl.md; docs/architecture/dbex/physics/forward.idl.md; docs/architecture/dbex/physics/loss.idl.md — add IDL files covering signature, inputs/outputs, dependencies, normative spec citations, and change logs for each helper.
-- Document: docs/architecture/module_map.md — add links to the new IDLs in the Telemetry + Physics rows and mark Phase D.1 completion so future readers know these modules are the canonical owners.
-- Validate: capture the telemetry + gradcheck selectors (`AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md` for all commands, plus `KMP_DUPLICATE_LIB_OK=TRUE`, `NANOBRAGG_DISABLE_COMPILE=1`, and `DBAT010_ARTIFACT_DIR=plans/active/ARCH-REFINE-001/reports/2025-12-01T142116Z/db_at_010` for DB-AT-010) by running the four mapped pytest commands and teeing logs into the report directory listed above.
+- Implement: dbex/tools/stage_a_adam.py::run_engine_zero_point_probe — drop the deprecated `use_engine_delegation` kwarg when calling `run_nanobrag_refinement`, guard against missing Stage A telemetry, and refresh the docstring/comments so zero-point probes explicitly describe the RefinementEngine-only flow.
+- Implement: plans/active/TOOLING-VIS-001/bin/{compare_stage_a_mapping_parity.py::main, generate_stage_a_refgeom_roi_triptychs_adam.py::main, run_stage_a_engine_zero_point_probe.py::main} — update their helper calls/help text to match the new API (no `use_engine_delegation` flag) and ensure they keep forwarding calibration + baseline geometry inputs unchanged.
+- Document: docs/architecture/live_backend.md; docs/architecture/data_telemetry_flow.md; docs/TESTING_GUIDE.md; docs/development/TEST_SUITE_INDEX.md — rewrite the affected sections/rows so they describe RefinementEngine as the sole execution path, remove wording that calls the contexts “planned,” and explain that the Stage A telemetry selector now validates the default engine route.
+- Validate: capture the Stage A zero-point + telemetry selectors (collect-only first, then full run) with `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md`, `DBAT027_ARTIFACT_DIR=plans/active/ARCH-REFINE-001/reports/2025-12-01T144500Z/db_at_027`, and `KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1` set for the smoke test; tee logs into the artifacts directory named in the mapped tests.
 How-To Map:
-1. `export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md` and `mkdir -p plans/active/ARCH-REFINE-001/reports/2025-12-01T142116Z/ db_at_010` to stage artifacts.
-2. Update `dbex/io/writer.py`, `dbex/physics/forward.py`, and `dbex/physics/loss.py` docstrings so each references its new IDL path (e.g., “See docs/architecture/dbex/io/writer.idl.md §API & Contracts”) and reiterates the applicable findings (DIAGNOSTICS-001, PHYSICS-LOSS-001, REFINE-010) without changing logic.
-3. Author the three IDL files under `docs/architecture/dbex/{io,physics}/` with headers (module, status, normative refs), API tables (inputs, outputs, telemetry), dependency notes, and change logs; mirror the structure used in `docs/architecture/dbex/refinement/context.idl.md`.
-4. Extend `docs/architecture/module_map.md` so the Telemetry section links to `docs/architecture/dbex/io/writer.idl.md` and the Physics section links to the two new files; note that ARCH-REFINE-001 Phase D.1 completed the writer/physics documentation migration.
-5. Capture doc diffs with `git diff docs/architecture > plans/active/ARCH-REFINE-001/reports/2025-12-01T142116Z/docs_diff.md` once edits are staged.
-6. Run the mapped selectors (collect-only first, then full runs) with the env vars listed above, saving each log (`collect_cli_torch_diag.log`, `pytest_cli_torch_diag.log`, `collect_db_at_010.log`, `pytest_db_at_010.log`) plus gradcheck outputs under the artifact directory.
+1. `export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md` and `export DBAT027_ARTIFACT_DIR=plans/active/ARCH-REFINE-001/reports/2025-12-01T144500Z/db_at_027`; ensure `plans/active/ARCH-REFINE-001/reports/2025-12-01T144500Z/` exists for logs + doc diffs.
+2. Update `dbex/tools/stage_a_adam.py::run_engine_zero_point_probe` to remove the stale kwarg, keep lazy imports, raise `RuntimeError` if `'A'` telemetry missing, and adjust docstrings/comments to describe engine-only execution.
+3. Edit TOOLING-VIS-001 debug CLIs (`compare_stage_a_mapping_parity.py`, `generate_stage_a_refgeom_roi_triptychs_adam.py`, `run_stage_a_engine_zero_point_probe.py`) so every `run_nanobrag_refinement` call matches the new signature and the CLI usage text references RefinementEngine rather than `--use-engine-delegation`.
+4. Refresh `docs/architecture/live_backend.md` + `docs/architecture/data_telemetry_flow.md` to say RefinementContext/JobContext are in production and the inline monolith is gone; update `docs/TESTING_GUIDE.md` §2 (engine telemetry row) and `docs/development/TEST_SUITE_INDEX.md` accordingly. Capture `git diff docs` output into `plans/active/ARCH-REFINE-001/reports/2025-12-01T144500Z/docs_diff.md`.
+5. Run the mapped selectors in order, saving collect-only logs before each full pytest run. Ensure env vars (`KMP_DUPLICATE_LIB_OK=TRUE`, `NANOBRAGG_DISABLE_COMPILE=1`) are set for the smoke test; keep tee’d logs under the artifacts directory names listed in Do Now.
 Pitfalls To Avoid:
-- Do not change the runtime behavior or signature of write_torch_outputs / simulate_forward_torch / compute_masked_mse_loss; this loop is docs-only.
-- Keep `/torch_diagnostics` schema untouched (DIAGNOSTICS-001) and avoid new datasets/attributes.
-- Maintain the TEST-ONLY warning on the physics helpers; no production callers should start importing them.
-- Follow the IDL template from docs/architecture/dbex/refinement/context.idl.md (Status/Normative refs/API tables/change log) for consistency.
-- Preserve Environment Freeze (POLICY-001): no dependency installs or nanobrag upgrades.
-- When running DB-AT-010, ensure required assets (`refGeom.expt`, `refGeom.refl`, `scaled.mtz`, `747_mask.pkl`, sigma metadata) exist; missing assets must be logged as blockers instead of re-generated.
-- Capture collect-only logs before running each pytest selector to prove selectors still register tests.
-- Ensure docstrings reference the new IDLs by relative path so IDEs surface the link; avoid absolute filesystem paths.
-- Do not delete the existing context IDL or reword its change log—only add the new files.
+- Do not reintroduce optional inline code paths or the removed `use_engine_delegation` kwarg; RefinementEngine must remain the only execution route (ARCH-ENGINE-003).
+- Preserve lazy imports + device/dtype neutrality inside Stage A tooling while editing helper code; no eager torch allocations during module import.
+- Keep canonical refGeom assets untouched; Stage A zero-point test depends on `sp.proc/refGeom*.{expt,refl}`, mask, HKL bundles per docs/data_dependency_manifest.md.
+- When updating docs/tests, reference the new IDLs instead of duplicating API text; avoid paraphrasing spec equations.
+- Maintain Environment Freeze (POLICY-001): no package installs or dataset regeneration—log blockers instead.
+- Collect-only logs must be recorded before each pytest run to satisfy selector health tracking.
+- Watch for cached artifacts under `plans/active/...`; do not overwrite prior evidence outside the new timestamped directory.
 If Blocked:
-- If DB-AT-010 cannot find required assets, stop, copy the pytest log to the artifacts directory, add the failure signature to docs/fix_plan.md Attempts History + galph_memory.md, and wait for supervisor guidance.
-- If the CLI telemetry test fails after docstring edits, preserve the failing log, revert only the offending change, and record the issue as a new finding or blocker before retrying.
+- If Stage A zero-point probe fails due to missing assets or telemetry keys, capture the pytest log, save it under the artifacts directory, and record the failure signature + env vars in docs/fix_plan.md Attempts History and galph_memory.md before stopping.
+- If docs/tests reveal additional references to `use_engine_delegation` you cannot safely remove, note the remaining files + rationale in docs/fix_plan.md and return the loop as blocked for supervisor triage.
 Findings Applied (Mandatory):
-- DIAGNOSTICS-001 — `/torch_diagnostics` schema and telemetry provenance must stay byte-for-byte compatible while adding documentation references.
-- PHYSICS-LOSS-001 — variance-weighted chi-squared + sigma provenance remain normative; IDLs/docstrings must cite these rules.
-- REFINE-010 — Stage A ROI auto-panel telemetry guardrails stay in force; documentation must mention the finding where relevant.
-- POLICY-001 — Environment Freeze forbids pip/conda installs; only repo-local files may change.
+- ARCH-ENGINE-003 — Engine telemetry enrichment must stay on the active code path; removing the flag ensures compliance.
+- REFINE-010 — Stage A ROI/panel guardrails stay in effect when running zero-point probes; do not change ROI thresholds while editing tooling.
+- PHYSICS-LOSS-001 — Variance-weighted loss math in probes/tests must remain untouched.
+- POLICY-001 — Environment Freeze prohibits pip/conda installs or dataset regeneration.
 Pointers:
-- docs/architecture/dbex/refinement/context.idl.md:1 — reference structure for new IDL files (Status/Normative refs/API tables/change log).
-- docs/spec-db-workflow.md:70 — canonical telemetry + staging clauses to cite inside writer.idl.md.
-- docs/spec-db-core.md:57 — variance/loss equations that the physics IDLs must reference.
-- docs/data_dependency_manifest.md:1 — reminder of DB-AT-010 data assets required for the gradcheck selector.
-- docs/TESTING_GUIDE.md:120 — selector definitions and env vars for the CLI telemetry + DB-AT-010 tests.
-Next Up (optional): Create docs/architecture/dbex/refinement/engine.idl.md + JobContext-to-writer call diagrams once the IDLs in this loop land.
-Mapped Tests Guardrail: Confirm both selectors collect (>0 tests) before full runs; keep the collect-only logs under the artifact path even if failures occur.
+- docs/TESTING_GUIDE.md:160 — Selector details + env vars for `test_stage_a_engine_delegation_telemetry`.
+- docs/architecture/live_backend.md:20 — Current Torch backend description to update with engine-only notes.
+- docs/architecture/data_telemetry_flow.md:5 — Pipeline description still mentioning “planned” contexts; align it with Phase B completion.
+- docs/findings.md:75 — ARCH-ENGINE-003 guardrail on telemetry enrichment placement.
+- docs/data_dependency_manifest.md:70 — Required assets for Stage A/DB-AT-027 probes.
+Next Up (optional): After the flag cleanup, finish Phase D by capturing architecture_doc_update.md (D5) if capacity allows.
+Doc Sync Plan (Conditional): Not applicable (no new selectors added).
+Mapped Tests Guardrail: Store the `collect_db_at_027_zero_point.log` and `collect_stage_a_engine_telemetry.log` outputs before running the corresponding full pytest commands; if either selector reports 0 tests collected, stop immediately and diagnose before editing code further.

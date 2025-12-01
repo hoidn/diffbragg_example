@@ -129,3 +129,26 @@ Action State: blocked
 - Logged REFINE-011 in docs/findings.md and refreshed docs/fix_plan.md/input.md with the plan to plumb Stage A’s `force_panel_validation` flag into Stage C and rerun the smokes (small + full).
 - No code changes yet—implementation plus smoketest reruns are queued for Ralph under the new artifact path.
 Action State: ready_for_implementation
+2025-12-01T163900Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=2 action=implementation artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-12-01T163900Z/ next_action=investigate_full_detector_regression
+**PARTIAL SUCCESS**: Implemented REFINE-011 validation scope alignment (Stage A→Stage C). Small detector test PASSED, confirming the validation_scope plumbing works correctly. Full detector test FAILED with 0.067% chi² regression (exceeds 0.05% gate).
+**Implementation Summary**: 
+- Tagged Stage A telemetry with `validation_scope` field in perf_counters (dbex/refinement/stage_a.py:367)
+- Threaded `force_panel_validation` through Stage C context chain (stage_c_impl.py, stage_c.py)
+- Added `force_panel_eval` parameter to `compute_loss_stage_c` with bypass logic at line 486
+- Wired force_panel_eval to all full validation calls (periodic + initial + final)
+**Test Results**:
+- Small detector (29 ROIs): PASSED ✓ — validation scope alignment working as designed
+- Full detector (92 ROIs, 60 panels): FAILED ✗ — Stage A final χ²=2.1071e+08, Stage C final χ²=2.1085e+08 (0.067% regression vs 0.05% gate)
+**Root Cause Hypothesis (60% confidence)**: The full validation mode switch affects optimizer trajectory. Prior runs used ROI-mode for full validations (sampled subset), new runs use panel-mode (entire panel). The periodic full validations (every 5 iterations) guide the "best parameters" snapshot logic via different loss values, possibly selecting a different local minimum. The 0.067% regression may be inherent to the correct (panel-mode) evaluation metric, previously hidden by the ROI-vs-panel scope mismatch.
+**Alternative Hypothesis (30% confidence)**: Small numerical precision issue in panel-mode full validation accumulation or variance floor handling for 60-panel configuration that doesn't manifest in single-panel small detector.
+**Evidence Against Implementation Bug**: 
+1. Small detector passes with same code path
+2. Logic review shows correct bypass: `use_roi_mode_this_eval = stage_c_roi_mode_active and not (is_full and force_panel_eval)` 
+3. All force_panel_eval calls properly wired
+4. Telemetry threading confirmed via code inspection
+**Artifacts**: Small detector telemetry captured, full detector pytest log shows clean execution except final gate failure. No HKL interpolation errors in full detector run beyond one "out of range" warning.
+**Recommended Next Actions**:
+1. **Immediate**: Supervisor review of whether 0.067% regression is acceptable given correct metric alignment (SPEC adherence vs gate relaxation trade-off)
+2. **Short-term**: Capture Stage C chi²  trace from full detector run to see if optimization is converging or diverging
+3. **Long-term**: Investigate whether detector offset optimization parameters (max_distance_delta_mm, tolerance_change) need adjustment for panel-mode validation regime
+Action State: partial_success

@@ -879,3 +879,23 @@ pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation
      ```
 - **Artifacts:** `plans/active/PERF-WARM-SIM-001/reports/2025-12-01T163900Z/` (collect logs, pytest logs, telemetry_stage_c_small.json, telemetry_stage_c_full.json, summary.md).
 - **Success criteria:** Telemetry now records `validation_scope="panel"` when Stage A forces panel mode, Stage C full-detector run reports χ² regression ≤0.05% while keeping ≥80% offset reduction, and small-detector telemetry documents the unchanged early-stop behavior without tripping the gate.
+
+### 2025-12-01T163900Z - PERF-WARM-SIM-001 Phase D.4: Validation scope alignment implementation (PARTIAL SUCCESS)
+**Action**: Implemented REFINE-011 validation scope alignment between Stage A and Stage C.
+- Added `validation_scope` field to Stage A perf_counters telemetry (dbex/refinement/stage_a.py:367)
+- Extracted and threaded `force_panel_validation` through Stage C context chain (stage_c_impl.py lines 189,243,339,689; stage_c.py lines 305,407,436)
+- Added `force_panel_eval` parameter to `compute_loss_stage_c` function signature and wired bypass logic at stage_c_impl.py:486
+- Updated all full validation calls to pass `force_panel_eval=force_panel_validation` (periodic at line 585-587, final at line 719-721, initial at stage_c.py:436)
+**Metrics**:
+- Small detector (29 ROIs): PASSED ✓ — validation scope alignment works correctly
+- Full detector (92 ROIs, 60 panels): FAILED ✗ — chi² regression 0.067% vs 0.05% gate
+  - Stage A final chi²: 2.1071e+08
+  - Stage C final chi²: 2.1085e+08
+  - Regression: 0.067% (exceeds 0.05% threshold by 0.017%)
+**Artifacts**: plans/active/PERF-WARM-SIM-001/reports/2025-12-01T163900Z/ (collect_stage_c_small.log, pytest_stage_c_small.log, collect_stage_c_full.log, pytest_stage_c_full.log)
+**First Divergence**: Full detector chi² regression at final validation. Small detector shows correct behavior (validation scope switches correctly from ROI to panel mode for full evaluations). Full detector optimization trajectory may be affected by validation mode switch during periodic full evaluations (every 5 iterations), causing different "best parameters" selection.
+**Next Actions**: 
+- Supervisor review: Is 0.067% regression acceptable given correct metric alignment (SPEC adherence vs gate tolerance)?
+- Investigate: Capture Stage C chi² trace from full detector to analyze convergence pattern
+- Consider: Whether detector offset optimization parameters (max_distance_delta_mm, tolerance_change) need adjustment for panel-mode validation regime
+- Alternative: Investigate small numerical precision differences in panel-mode accumulation for 60-panel configuration

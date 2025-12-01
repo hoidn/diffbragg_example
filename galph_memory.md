@@ -152,3 +152,7 @@ Action State: ready_for_implementation
 2. **Short-term**: Capture Stage C chi²  trace from full detector run to see if optimization is converging or diverging
 3. **Long-term**: Investigate whether detector offset optimization parameters (max_distance_delta_mm, tolerance_change) need adjustment for panel-mode validation regime
 Action State: partial_success
+2025-12-01T170326Z focus=PERF-WARM-SIM-001 state=planning dwell=1 action=planning artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-12-01T170326Z/ next_action=ready_for_implementation
+- Logged REFINE-012 and updated docs/fix_plan.md with the new Phase D.4 ROI-mode gating plan (disable Stage C ROI closures when Stage A forces panel validations, rerun Stage C smokes, capture telemetry via summarizer) plus refreshed commands/artifact paths.
+- Rewrote input.md with the new Do Now, mapped tests, and How-To map so Ralph can implement the Stage C ROI-mode change and rerun the smokes immediately.
+Action State: ready_for_implementation

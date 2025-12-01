@@ -20,3 +20,7 @@ Action State: ready_for_implementation
 - Stage B/C pytest log shows Stage A `loss_trace_full` often empty (IndexError in Stage B smoke) and Stage C gate sees 0.00% improvement + 2.6% chi² offset; attempted to rerun a reproduction script but missing `sp.proc/refGeom_small/refGeom_small.expt` blocked fresh evidence in this workspace.
 - New Do Now directs Ralph to patch `dbex/refinement/stage_a_impl.py::_run_stage_a_lbfgs` so Stage A baseline/final chi² samples are always recorded before Stage C runs, add guards in `StageC.run`/engine telemetry to enforce equality with Stage A final, and re-run the small-detector Stage B/C smoke selector capturing logs under the new report directory.
 Action State: ready_for_implementation
+2025-12-01T101946Z focus=ARCH-REFINE-001 state=planning dwell=3 action=evidence_collection artifacts=plans/active/ARCH-REFINE-001/reports/2025-12-01T100847Z/ next_action=Restore refGeom_small assets then rerun Stage B/C probe
+- Authored the reusable telemetry probe (plans/active/ARCH-REFINE-001/bin/capture_stage_c_stage_a_probe.py) and attempted to replay the Stage C smoke config, but it immediately failed because `sp.proc/refGeom_small/{refGeom_small.expt,refGeom_small.refl,refGeom_small_mask.pkl}` are missing in this workspace.
+- Logged the dataset gap + probe output in docs/fix_plan.md and the new report directory; Stage A zero-improvement diagnosis remains blocked until the small-detector bundle is regenerated per docs/data_dependency_manifest.md.
+Action State: blocked

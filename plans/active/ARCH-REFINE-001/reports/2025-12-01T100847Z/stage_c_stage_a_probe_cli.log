@@ -1,0 +1,12 @@
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+Traceback (most recent call last):
+  File "/home/ollie/Documents/diffbragg_example/plans/active/ARCH-REFINE-001/bin/capture_stage_c_stage_a_probe.py", line 286, in <module>
+    main()
+  File "/home/ollie/Documents/diffbragg_example/plans/active/ARCH-REFINE-001/bin/capture_stage_c_stage_a_probe.py", line 278, in main
+    summary = _run_probe(args.detector_size, args.sigma_source)
+  File "/home/ollie/Documents/diffbragg_example/plans/active/ARCH-REFINE-001/bin/capture_stage_c_stage_a_probe.py", line 179, in _run_probe
+    dataload = _build_dataload(repo_root, detector_size, sigma_source)
+  File "/home/ollie/Documents/diffbragg_example/plans/active/ARCH-REFINE-001/bin/capture_stage_c_stage_a_probe.py", line 115, in _build_dataload
+    raise FileNotFoundError(
+FileNotFoundError: Missing smoke dataset assets: /home/ollie/Documents/diffbragg_example/sp.proc/refGeom_small/refGeom_small.expt, /home/ollie/Documents/diffbragg_example/sp.proc/refGeom_small/refGeom_small.refl, /home/ollie/Documents/diffbragg_example/sp.proc/refGeom_small/refGeom_small_mask.pkl. See docs/data_dependency_manifest.md for generation steps.

@@ -175,3 +175,15 @@ Capture the `--collect-only` output for the same selector before running the tes
 - **BLOCKER**: Investigate why Stage A shows zero improvement on small detector (`--smoke-detector-size=small`). Hypothesis: LBFGS may be exiting early due to convergence criteria, or the small detector configuration may have insufficient signal for optimization.
 - Once Stage A improvement issue is resolved, re-run Stage C smoke to validate full Stage A→C telemetry flow.
 - Consider adding Stage A improvement telemetry to help diagnose similar issues in future.
+
+### 2025-12-01T100847Z - ARCH-REFINE-001 Stage C telemetry probe (BLOCKED)
+**Action**: Authored a reusable probe script (`plans/active/ARCH-REFINE-001/bin/capture_stage_c_stage_a_probe.py`) that mirrors the Stage C smoke configuration and dumps Stage A/Stage C telemetry so we can inspect parameter deltas and improvement fractions outside pytest. Attempted to run it with the small-detector dataset, archiving the log under `plans/active/ARCH-REFINE-001/reports/2025-12-01T100847Z/stage_c_stage_a_probe_cli.log`.
+
+**Findings**:
+- The probe (and the Stage B/C smokes by extension) immediately fail because the cropped refGeom assets are missing from this workspace: `sp.proc/refGeom_small/{refGeom_small.expt, refGeom_small.refl, refGeom_small_mask.pkl}` no longer exist. This matches the earlier repro-script block noted at 2025-12-01T095317Z.
+- Without those files, neither the new probe nor `tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip` can load the small-detector bundle, so we currently cannot collect fresh Stage A telemetry to diagnose the zero-improvement bug.
+
+**Next Actions**:
+- Regenerate the `sp.proc/refGeom_small` assets (per `docs/data_dependency_manifest.md` and `plans/active/PERF-SMOKE-DETSIZE/bin/crop_refgeom_to_small.py`) so the small-detector smoke fixture has real data again.
+- Once the assets exist, rerun `capture_stage_c_stage_a_probe.py` to capture Stage A/Stage C telemetry before handing Ralph a Stage A fix Do Now.
+- After telemetry is available, resume the Stage A improvement investigation and rerun the Stage B/C smokes with `DBEX_SMOKE_DETECTOR_SIZE=small` capturing logs under `plans/active/ARCH-REFINE-001/reports/<next-timestamp>/`.

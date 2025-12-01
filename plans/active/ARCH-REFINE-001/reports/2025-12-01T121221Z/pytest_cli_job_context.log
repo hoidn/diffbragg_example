@@ -1,0 +1,267 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 1 item
+
+tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_runs_simulator FAILED [100%]
+
+=================================== FAILURES ===================================
+_____________________ test_nanobrag_backend_runs_simulator _____________________
+
+mock_write = <MagicMock name='_write_torch_outputs' id='126907697279280'>
+mock_crystal_config = <MagicMock name='create_crystal_config' id='126907697335120'>
+mock_beam_config = <MagicMock name='create_beam_config' id='126904636595120'>
+mock_detector_config = <MagicMock name='create_detector_config' id='126904636536624'>
+mock_build_grid = <MagicMock name='build_structure_factor_grid' id='126904636557776'>
+mock_prepare = <MagicMock name='prepare_refinement_inputs' id='126904636597584'>
+mock_Crystal = <MagicMock name='Crystal' id='126904636617824'>
+mock_Detector = <MagicMock name='Detector' id='126904636796592'>
+mock_Simulator = <MagicMock name='Simulator' id='126904438635968'>
+
+    @patch('nanobrag_torch.simulator.Simulator')
+    @patch('nanobrag_torch.models.detector.Detector')
+    @patch('nanobrag_torch.models.crystal.Crystal')
+    @patch('dbex.nanobrag_bridge.prepare_refinement_inputs')
+    @patch('dbex.nanobrag_bridge.build_structure_factor_grid')
+    @patch('dbex.nanobrag_bridge.create_detector_config')
+    @patch('dbex.nanobrag_bridge.create_beam_config')
+    @patch('dbex.nanobrag_bridge.create_crystal_config')
+    @patch('dbex.refine_one._write_torch_outputs')
+    def test_nanobrag_backend_runs_simulator(
+        mock_write, mock_crystal_config, mock_beam_config, mock_detector_config,
+        mock_build_grid, mock_prepare, mock_Crystal, mock_Detector, mock_Simulator
+    ):
+        """A2: Verify nanobrag backend uses real simulator with SCALE-001/002 guardrails."""
+        import numpy as np
+        import torch
+        from dbex.nanobrag_bridge import RefinementInputs
+    
+        # Setup mock DataLoad with MTZ data
+        mock_dl = Mock()
+        mock_dl.data = np.zeros((1, 100, 100), dtype=np.float32)
+        mock_dl.background_image = np.ones((1, 100, 100), dtype=np.float32) * -1
+        mock_dl.trusted_mask = np.ones((1, 100, 100), dtype=bool)
+        mock_dl.bbox = np.array([[10, 20, 10, 20]])
+        mock_dl.pids = np.array([0])
+    
+        # Mock detector with single panel
+        mock_panel = Mock()
+        mock_dl.detector = [mock_panel]
+    
+        # Mock beam, crystal, and Expt
+        mock_dl.beam = Mock()
+        mock_dl.crystal = Mock()
+        mock_dl.Expt = Mock()
+    
+        # Mock MTZ Miller array
+        mock_F = Mock()
+        mock_F.indices.return_value = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+        mock_F.data.return_value = np.array([100.0, 200.0, 150.0])
+        mock_dl.F = mock_F
+    
+        # Setup mock bridge output
+        sigma_stub = np.zeros((1, 100, 100), dtype=np.float32)
+        mock_inputs = RefinementInputs(
+            target=np.zeros((1, 100, 100), dtype=np.float32),
+            loss_mask=np.ones((1, 100, 100), dtype=bool),
+            panel_slices=[(0, (10, 20, 10, 20))],
+            trusted_mask=np.ones((1, 100, 100), dtype=bool),
+            sigma_readout=sigma_stub
+        )
+        mock_prepare.return_value = mock_inputs
+    
+        # Mock structure factor grid (SCALE-001: unscaled)
+        mock_hkl_grid = torch.zeros((3, 3, 3), dtype=torch.float32)
+        mock_hkl_metadata = {
+            'h_min': 0, 'h_max': 2, 'k_min': 0, 'k_max': 2, 'l_min': 0, 'l_max': 2,
+            'grid_nonzero': 3
+        }
+        mock_asu_map = torch.zeros_like(mock_hkl_grid, dtype=torch.int32)
+        mock_build_grid.return_value = (mock_hkl_grid, mock_hkl_metadata, mock_asu_map)
+    
+        # Mock config objects
+        # CLI-001: DetectorConfig.mask_array must be torch.Tensor (not numpy)
+        # Create a proper mock with mask_array as float32 tensor with 0/1 values
+        mock_detector_config_obj = Mock()
+        mock_detector_config_obj.mask_array = torch.ones((100, 100), dtype=torch.float32)
+        mock_detector_config.return_value = mock_detector_config_obj
+    
+        mock_beam_config.return_value = Mock()
+        # create_crystal_config returns (config, n_cells_applied) tuple
+        mock_crystal_config.return_value = (Mock(), False)
+    
+        # Mock model instantiation
+        mock_detector_instance = Mock()
+        mock_Detector.return_value = mock_detector_instance
+        mock_crystal_instance = Mock()
+        mock_Crystal.return_value = mock_crystal_instance
+    
+        # Mock simulator run output (base intensity before scaling)
+        mock_panel_output = torch.ones((100, 100), dtype=torch.float32) * 1000.0
+        mock_simulator_instance = Mock()
+        mock_simulator_instance.run.return_value = mock_panel_output
+        mock_Simulator.return_value = mock_simulator_instance
+    
+        # Setup mock args with spot_scale_override (no calibration file)
+        args = Mock()
+        args.outFile = 'test.h5'
+        args.spot_scale_override = 4.0  # sqrt(4.0) = 2.0
+        args.torch_config = None  # No calibration metadata
+        args.refined_mtz = None  # No refined MTZ
+        args.adu_per_photon = None
+        args.sigma_rdout = 3.0
+        args.sigma_floor = 1.0
+        args.device = "cpu"
+    
+>       run_nanobrag_backend(args, mock_dl)
+
+tests/dbex/test_refine_one_cli.py:197: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+dbex/refine_one.py:466: in run_nanobrag_backend
+    simulator, _, sqrt_scale_value, _ = create_unified_simulator(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+detector_config = <Mock name='create_detector_config()' id='126904438706288'>
+crystal_config = <Mock id='126904438706960'>
+beam_config = <Mock name='create_beam_config()' id='126904438706816'>
+hkl_grid = tensor([[[0., 0., 0.],
+         [0., 0., 0.],
+         [0., 0., 0.]],
+
+        [[0., 0., 0.],
+         [0., 0., 0.],
+         [0., 0., 0.]],
+
+        [[0., 0., 0.],
+         [0., 0., 0.],
+         [0., 0., 0.]]])
+hkl_metadata = {'grid_nonzero': 3, 'h_max': 2, 'h_min': 0, 'k_max': 2, ...}
+mask_array = tensor([[1., 1., 1.,  ..., 1., 1., 1.],
+        [1., 1., 1.,  ..., 1., 1., 1.],
+        [1., 1., 1.,  ..., 1., 1., 1.]...       [1., 1., 1.,  ..., 1., 1., 1.],
+        [1., 1., 1.,  ..., 1., 1., 1.],
+        [1., 1., 1.,  ..., 1., 1., 1.]])
+spot_scale_override = 4.0, device = device(type='cpu'), dtype = torch.float32
+calibration_metadata = None
+
+    def create_unified_simulator(
+        detector_config,           # nanobrag_torch DetectorConfig (panel or cropped ROI)
+        crystal_config,            # nanobrag_torch CrystalConfig
+        beam_config,               # nanobrag_torch BeamConfig
+        hkl_grid,                  # torch.Tensor (3, N) HKL coordinates
+        hkl_metadata,              # dict with 'has_halo', 'hkl_ids_asu', etc.
+        mask_array=None,           # Optional[np.ndarray] trusted mask (0=bad, 1=good)
+        spot_scale_override=None,  # Optional[float] multiplicative scale (applied post-run as sqrt)
+        device=None,               # torch.device or str
+        dtype=None,                # torch.dtype
+        calibration_metadata=None, # Optional[dict] with 'beam_config', 'N_cells', etc.
+    ):
+        """
+        Unified simulator factory for nanobrag_torch.
+    
+        Centralizes shape/dtype/device validation, mask normalization, and
+        post-run spot_scale application. Eliminates duplication across forward
+        helpers, CLI paths, and refinement loops.
+    
+        Parameters
+        ----------
+        detector_config : nanobrag_torch.config.DetectorConfig
+            Panel or ROI-cropped detector configuration (DIALS convention).
+        crystal_config : nanobrag_torch.config.CrystalConfig
+            Crystal lattice and orientation parameters.
+        beam_config : nanobrag_torch.config.BeamConfig
+            X-ray beam properties (wavelength, polarization, flux).
+        hkl_grid : torch.Tensor
+            3D structure factor grid (h_range, k_range, l_range) from build_structure_factor_grid.
+        hkl_metadata : dict
+            Keys: 'has_halo' (bool), 'hkl_ids_asu' (Optional[Tensor]), etc.
+        mask_array : Optional[np.ndarray]
+            Trusted pixel mask (0=bad, 1=good). If provided, normalized to
+            detector device/dtype and attached to detector_config.
+        spot_scale_override : Optional[float]
+            Multiplicative scale applied POST-RUN as sqrt(spot_scale_override)
+            per SCALE-004 finding.
+        device : Optional[torch.device or str]
+            Target device (defaults to hkl_grid.device).
+        dtype : Optional[torch.dtype]
+            Target dtype (defaults to hkl_grid.dtype).
+        calibration_metadata : Optional[dict]
+            Preserved for telemetry/logging. Keys: 'beam_config', 'N_cells'.
+    
+        Returns
+        -------
+        simulator : nanobrag_torch.Simulator
+            Ready-to-run simulator instance with HKL tensors attached.
+        normalized_mask : Optional[torch.Tensor]
+            Mask tensor on device/dtype (if mask_array provided), else None.
+        sqrt_scale : Optional[float]
+            sqrt(spot_scale_override) to apply post-run, else None.
+        metadata : dict
+            Calibration metadata plus validation results.
+    
+        Notes
+        -----
+        - Lazy imports nanobrag_torch inside function to avoid circular deps.
+        - Mask normalization: np.ndarray → torch.Tensor on device/dtype.
+        - sqrt_scale is computed here but applied by CALLER after simulator.run().
+        - ROI-cropped DetectorConfig: beam-center mm shift already applied in config.
+        - DIALS convention: beam-center swap (fast,slow)→(s,f) handled upstream.
+    
+        Findings Applied
+        ----------------
+        - SCALE-004: sqrt_spot_scale post-run (not pre-run).
+        - ARCH-ENGINE-002: Lazy imports inside function.
+        - POLICY-001: No engine patches, dbex-only changes.
+        """
+        # Lazy imports
+        from nanobrag_torch.simulator import Simulator
+        from nanobrag_torch.models import Detector, Crystal
+        import torch
+    
+        # Device/dtype defaults from hkl_grid
+        if device is None:
+            device = hkl_grid.device
+        if dtype is None:
+            dtype = hkl_grid.dtype
+        device = torch.device(device) if isinstance(device, str) else device
+    
+        # Validate HKL grid shape (3D grid from build_structure_factor_grid)
+        if hkl_grid.ndim != 3:
+            raise ValueError(f"hkl_grid must be 3D (h_range, k_range, l_range), got {hkl_grid.shape}")
+        if hkl_grid.device != device or hkl_grid.dtype != dtype:
+            raise ValueError(f"hkl_grid device/dtype mismatch: expected {device}/{dtype}, got {hkl_grid.device}/{hkl_grid.dtype}")
+    
+        # Normalize mask to device/dtype if provided
+        normalized_mask = None
+        if mask_array is not None:
+            # Handle torch.Tensor input (needs clone/detach, not torch.tensor)
+            if isinstance(mask_array, torch.Tensor):
+                normalized_mask = mask_array.to(device=device, dtype=dtype)
+            else:
+                normalized_mask = torch.tensor(mask_array, device=device, dtype=dtype)
+            # Validate mask shape matches detector (panel or ROI-cropped)
+            expected_shape = (detector_config.spixels, detector_config.fpixels)
+            if normalized_mask.shape != expected_shape:
+>               raise ValueError(f"mask_array shape {normalized_mask.shape} does not match detector {expected_shape}")
+E               ValueError: mask_array shape torch.Size([100, 100]) does not match detector (<Mock name='create_detector_config().spixels' id='126907971780464'>, <Mock name='create_detector_config().fpixels' id='126907971780320'>)
+
+dbex/refinement/helpers.py:181: ValueError
+----------------------------- Captured stdout call -----------------------------
+[nanobrag backend] Preparing refinement inputs from DataLoad...
+[nanobrag backend] Resolved sigma_readout source=cli_override reference=3
+[nanobrag backend] Target shape: (1, 100, 100)
+[nanobrag backend] Loss mask coverage: 100.0000%
+[nanobrag backend] Number of ROIs: 1
+[nanobrag backend] Building structure factor grid from MTZ...
+[nanobrag backend] Using device=cpu for zero-iteration simulation and refinement.
+[nanobrag backend] Using raw structure factors from <Mock name='mock.mtzFile' id='126907971647232'>
+[nanobrag backend] HKL grid shape: torch.Size([3, 3, 3]), nonzero: 3
+[nanobrag backend] Using CLI spot_scale_override=4.000e+00
+[nanobrag backend] Will apply sqrt(spot_scale)=2.000e+00 post-simulation per SCALE-002
+[nanobrag backend] Running nanobrag_torch Simulator on 1 panels...
+=========================== short test summary info ============================
+FAILED tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_runs_simulator - ValueError: mask_array shape torch.Size([100, 100]) does not match detector (<Mock name='create_detector_config().spixels' id='126907971780464'>, <Mock name='create_detector_config().fpixels' id='126907971780320'>)
+============================== 1 failed in 1.02s ===============================

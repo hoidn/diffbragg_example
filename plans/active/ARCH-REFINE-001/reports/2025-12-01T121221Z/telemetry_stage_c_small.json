@@ -1,0 +1,94 @@
+[
+  {
+    "stage": "stage_c_detector_microslip",
+    "dataset": "small",
+    "status": "early_stop",
+    "message": "Stage C improvement -0.0631% < 0.0000% (\u22650.002% gate calibrated per REFINE-007)",
+    "loss_trace_full": [
+      [
+        0,
+        263641952.0
+      ],
+      [
+        5,
+        263641952.0
+      ],
+      [
+        10,
+        263641952.0
+      ],
+      [
+        11,
+        263808208.0
+      ]
+    ],
+    "chi_squared_trace_full": [
+      [
+        0,
+        263641952.0
+      ],
+      [
+        5,
+        263641952.0
+      ],
+      [
+        10,
+        263641952.0
+      ],
+      [
+        11,
+        263808208.0
+      ]
+    ],
+    "perf_counters": {
+      "cache_mode": "warm",
+      "roi_mode": "panel",
+      "roi_count_total": 29,
+      "roi_count_sampled": 29,
+      "closure_evals": 11,
+      "validation_runs": 5,
+      "forward_time_ms": {
+        "mean": 45.0811771734152,
+        "min": 44.623666908591986,
+        "max": 45.867497101426125,
+        "total": 721.2988347746432
+      }
+    },
+    "param_deltas": {
+      "panel_0_distance_offset_mm": {
+        "initial": 0.25,
+        "final": 1.4901161193847656e-08,
+        "delta": -0.2499999850988388
+      }
+    },
+    "loss_improvement": -0.0006306128396439729,
+    "chi_squared_improvement": -0.0006306128396439729,
+    "n_rois": 29,
+    "detector_shape": [
+      1,
+      1024,
+      1024
+    ],
+    "closure_evals": 11,
+    "validation_runs": 5,
+    "forward_time_ms": {
+      "mean": 45.0811771734152,
+      "min": 44.623666908591986,
+      "max": 45.867497101426125,
+      "total": 721.2988347746432
+    },
+    "detector_offset_reduction_min": 0.9999999403953552,
+    "detector_offset_final_abs_max": 1.4901161193847656e-08,
+    "cache_mode": "warm",
+    "roi_mode": "panel",
+    "roi_count_total": 29,
+    "roi_count_sampled": 29,
+    "canonical_stage_label": "A",
+    "canonical_chi_squared": 263641952.0,
+    "canonical_chi_squared_iteration": 13,
+    "canonical_roi_count": 29,
+    "canonical_detector_distances_mm": [
+      231.27645547762575
+    ]
+  }
+]

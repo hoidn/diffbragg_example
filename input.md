@@ -1,36 +1,35 @@
-Summary: Capture Stage B parity evidence by logging per-panel chi² + parameter snapshots when the REFINE-FLOW-001 guard fires, then prove the guard/test matrix still passes on the small detector.
-Mode: none
+Summary: Force Stage A baseline/final validations into panel mode whenever Stage B runs so REFINE-FLOW-001 parity holds for ROI-heavy configs, then prove the guard + smoke matrix still passes with the tighter threshold.
+Mode: Parity
 Focus: ARCH-REFINE-001 — Refinement Engine Modularization & Torch IO
 Branch: integration
-Mapped tests: pytest --collect-only tests/dbex/test_torch_refine_smoke.py -k "test_stage_b_shell_modifiers or test_stage_c_detector_microslip" --smoke-detector-size=small; AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 DBEX_SMOKE_TELEMETRY_PATH=plans/active/ARCH-REFINE-001/reports/2025-12-01T153327Z/telemetry_stage_bc_small.json pytest -vv tests/dbex/test_torch_refine_smoke.py -k "test_stage_b_shell_modifiers or test_stage_c_detector_microslip" --smoke-detector-size=small; pytest -vv tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload
-Artifacts: plans/active/ARCH-REFINE-001/reports/2025-12-01T153327Z/
+Mapped tests: pytest --collect-only tests/dbex/test_torch_refine_smoke.py -k "test_stage_b_shell_modifiers or test_stage_c_detector_microslip" --smoke-detector-size=small; AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 DBEX_SMOKE_TELEMETRY_PATH=plans/active/ARCH-REFINE-001/reports/2025-12-01T160850Z/telemetry_stage_bc_small.json pytest -vv tests/dbex/test_torch_refine_smoke.py -k "test_stage_b_shell_modifiers or test_stage_c_detector_microslip" --smoke-detector-size=small; pytest -vv tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload
+Artifacts: plans/active/ARCH-REFINE-001/reports/2025-12-01T160850Z/
 Do Now:
-- Implement: dbex/refinement/stage_b_impl.py::_run_stage_b_lbfgs — replace the placeholder JSON payload with a real per-panel chi²/masked-MSE breakdown (loop over panels with `compute_loss_stage_b([pid], is_full=True, force_panel_eval=True)`), record the Stage A canonical snapshot plus the reconstructed tensors Stage B actually used, and write the diff file into the `DBEX_SMOKE_TELEMETRY_PATH` directory (or cwd fallback) before raising the REFINE-FLOW-001 RuntimeError.
-- Implement: tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload — add a deterministic unit test that stubs the canonical baseline chi² to force the guard, asserts the RuntimeError message cites REFINE-FLOW-001, and inspects `stage_b_baseline_diff.json` for the new schema (per-panel list + parameter snapshots).
-- Validate: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 DBEX_SMOKE_TELEMETRY_PATH=plans/active/ARCH-REFINE-001/reports/2025-12-01T153327Z/telemetry_stage_bc_small.json pytest -vv tests/dbex/test_torch_refine_smoke.py -k "test_stage_b_shell_modifiers or test_stage_c_detector_microslip" --smoke-detector-size=small | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T153327Z/pytest_stage_bc_small.log, then pytest -vv tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload > plans/active/ARCH-REFINE-001/reports/2025-12-01T153327Z/pytest_stage_b_guard.log.
+- Implement: dbex/refinement/stage_a.py::StageA.run — Treat `config.enable_stage_b` as a trigger for `force_panel_validation`, make sure the flag is preserved on `stage_a_context` / `_run_stage_a_lbfgs`, and document the REFINE-FLOW-001 rationale so Stage B always inherits a panel-level canonical baseline even when ROI thresholds would have left Stage A in ROI mode.
+- Implement: tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers — Set `stage_a_panel_validation_roi_threshold=0` (and mention why in the docstring) so the small-detector run emulates the ROI-heavy detector; keep existing assertions and the `stage_b_baseline_diff_path is None` guard so the test now fails without the Stage B-aware toggle.
+- Validate: (1) AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest --collect-only tests/dbex/test_torch_refine_smoke.py -k "test_stage_b_shell_modifiers or test_stage_c_detector_microslip" --smoke-detector-size=small > plans/active/ARCH-REFINE-001/reports/2025-12-01T160850Z/collect_stage_bc_small.log; (2) AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 DBEX_SMOKE_TELEMETRY_PATH=plans/active/ARCH-REFINE-001/reports/2025-12-01T160850Z/telemetry_stage_bc_small.json pytest -vv tests/dbex/test_torch_refine_smoke.py -k "test_stage_b_shell_modifiers or test_stage_c_detector_microslip" --smoke-detector-size=small | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T160850Z/pytest_stage_bc_small.log; (3) AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest -vv tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload > plans/active/ARCH-REFINE-001/reports/2025-12-01T160850Z/pytest_stage_b_guard.log
 How-To Map:
-1. AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest --collect-only tests/dbex/test_torch_refine_smoke.py -k "test_stage_b_shell_modifiers or test_stage_c_detector_microslip" --smoke-detector-size=small > plans/active/ARCH-REFINE-001/reports/2025-12-01T153327Z/collect_stage_bc_small.log
-2. AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 DBEX_SMOKE_TELEMETRY_PATH=plans/active/ARCH-REFINE-001/reports/2025-12-01T153327Z/telemetry_stage_bc_small.json pytest -vv tests/dbex/test_torch_refine_smoke.py -k "test_stage_b_shell_modifiers or test_stage_c_detector_microslip" --smoke-detector-size=small | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T153327Z/pytest_stage_bc_small.log
-3. AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest -vv tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload > plans/active/ARCH-REFINE-001/reports/2025-12-01T153327Z/pytest_stage_b_guard.log
+1. AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest --collect-only tests/dbex/test_torch_refine_smoke.py -k "test_stage_b_shell_modifiers or test_stage_c_detector_microslip" --smoke-detector-size=small > plans/active/ARCH-REFINE-001/reports/2025-12-01T160850Z/collect_stage_bc_small.log
+2. AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 DBEX_SMOKE_TELEMETRY_PATH=plans/active/ARCH-REFINE-001/reports/2025-12-01T160850Z/telemetry_stage_bc_small.json pytest -vv tests/dbex/test_torch_refine_smoke.py -k "test_stage_b_shell_modifiers or test_stage_c_detector_microslip" --smoke-detector-size=small | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T160850Z/pytest_stage_bc_small.log
+3. AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest -vv tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload > plans/active/ARCH-REFINE-001/reports/2025-12-01T160850Z/pytest_stage_b_guard.log
 Pitfalls To Avoid:
-- Do not relax the 0.1% REFINE-FLOW-001 tolerance or swallow the RuntimeError; the guard must stay loud when parity fails.
-- Reuse the existing Stage A warm cache/context when looping per panel so we don’t instantiate new simulators or mutate Stage A telemetry.
-- Keep JSON writing stdlib-only and derive the artifacts directory from DBEX_SMOKE_TELEMETRY_PATH; never hard-code timestamped paths.
-- Only emit `stage_b_baseline_diff_path` when the guard raises so the smoketest assertion (expecting None on pass) stays valid.
-- Ensure the unit test forces the guard without allocating CUDA tensors (use CPU tensors and small dummy inputs) so it stays cheap and deterministic.
-- Don’t introduce additional dependencies or scripts; stick to the Environment Freeze and existing fixtures/data listed in docs/data_dependency_manifest.md.
-- Preserve variance-weighted chi² semantics in the per-panel breakdown; no ad-hoc metrics or ROI-only sampling for the guard.
+- Do not relax the REFINE-FLOW-001 tolerance (1e-3 relative) or swallow the guard RuntimeError; we need loud failures with diff JSON on regressions.
+- Keep Stage A ROI closures untouched—only baseline/final validations should flip to panel mode for Stage B; ROI sampling powers Stage A/B performance.
+- Scope the `stage_a_panel_validation_roi_threshold=0` change to the smoketest; production defaults must remain 32 so refGeom_small still auto-switches without Stage B.
+- Preserve Stage C warm-cache behavior and telemetry; the Stage B toggle must not regress detector microslip when Stage C is enabled.
+- Do not assume `DBEX_SMOKE_TELEMETRY_PATH` exists—guard writes must continue to derive directories from the env var and survive cwd fallback.
+- Avoid touching CLI flags or other config entry points; this fix belongs inside Stage A/Stage B plumbing only.
+- Keep Environment Freeze intact (no package installs, no new datasets beyond docs/data_dependency_manifest.md).
 If Blocked:
-- If the per-panel instrumentation can’t be wired because `stage_b_eval_stage_a_ctx` lacks panel simulators, capture the stack trace, the failing telemetry JSON, and the partially written diff file (if any), update docs/fix_plan.md Attempts History with the error signature, and pause further changes until the context bug is resolved.
+- If Stage B smoketest still fails because the guard fires, capture `stage_b_baseline_diff.json`, the pytest log, and telemetry JSON, note the relative diff in docs/fix_plan.md Attempts History, and halt further code churn until the canonical snapshot mismatch is understood.
 Findings Applied (Mandatory):
-- REFINE-FLOW-001 — Guard Stage B baseline parity within 0.1% and provide actionable diagnostics when it fails.
-- ARCH-ENGINE-003 — Ensure the new telemetry fields flow through RefinementTelemetry rather than bypassing the engine contract.
-- PHYSICS-LOSS-001 — All comparisons remain in variance-weighted chi² space; no alternate metrics.
-- POLICY-001 — Environment stays frozen; no new dependencies or rebuild steps.
+- REFINE-FLOW-001 — Stage B initial chi² must match Stage A final within 0.1%; the new Stage A toggle enforces parity before the guard fires.
+- REFINE-010 — Auto panel validations remain required for low-ROI or Stage C runs; extending the condition to Stage B follows the same precedent.
+- PHYSICS-LOSS-001 — Baseline comparisons stay in variance-weighted chi² space; do not change loss definitions while wiring the toggle.
 Pointers:
-- docs/fix_plan.md:719 — Phase E.1 scope and updated instrumentation plan.
+- dbex/refinement/stage_a.py:214 — Current `force_panel_validation` computation tied to Stage C + ROI threshold.
+- tests/dbex/test_torch_refine_smoke.py:1258 — Stage B smoketest config where the tighter threshold should be injected.
+- tests/dbex/test_stage_b_cpu_fallback.py:380 — Guard regression test exercising `stage_b_baseline_diff.json` schema.
+- docs/spec-db-workflow.md:58 — Stage B modifier contract + baseline reuse expectations.
 - docs/findings.md:71 — REFINE-FLOW-001 context and tolerance requirements.
-- dbex/refinement/stage_b_impl.py:1107 — Current guard stub that needs the per-panel JSON payload.
-- tests/dbex/test_torch_refine_smoke.py:1400 — Smoke assertions that consume the Stage B parity telemetry.
-- docs/data_dependency_manifest.md:52 — refGeom_small + sigma assets used by the small-detector smoke selectors.
-Next Up (optional): Phase E.2 — once instrumentation lands, patch Stage B reconstruction helpers so the guard never trips on canonical runs and rerun the same selectors.
+Next Up (optional): Investigate Phase E.3 once Stage B parity is locked—thread the guard outcomes into CLI telemetry and re-enable the full-detector smoketest when CPU fallback is repaired.

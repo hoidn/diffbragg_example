@@ -104,7 +104,7 @@ objects into the closures rather than re-instantiating them via the factory.
 - [x] D5: Capture the documentation diffs in `plans/active/ARCH-REFINE-001/reports/<timestamp>/architecture_doc_update.md` and link the report from `docs/fix_plan.md`.
 
 ## Phase E — Stage B Baseline Parity (REFINE-FLOW-001)
-- [ ] E1: Instrument Stage B baseline evaluation to log Stage A canonical chi-squared, Stage B initial chi-squared, and per-panel deltas so we can reproduce the 9% offset reported in REFINE-FLOW-001. Dump the comparison into the current report directory and thread the canonical value through param_values for subsequent guards.
+- [x] E1: Instrument Stage B baseline evaluation to log Stage A canonical chi-squared, Stage B initial chi-squared, and per-panel deltas so we can reproduce the 9% offset reported in REFINE-FLOW-001. Dump the comparison into the current report directory and thread the canonical value through param_values for subsequent guards.
 - [ ] E2: Fix Stage B baseline reconstruction so `_run_stage_b_lbfgs` reuses the exact Stage A telemetry snapshot (scale, cell, misset, warm-cache sims). Once aligned, add a tolerance check (≤0.1% relative) that raises a targeted RuntimeError when the guard fails, citing REFINE-FLOW-001.
 - [ ] E3: Update `tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers` (and the combined Stage B/C selector) to assert Stage B canonical chi-squared matches Stage A final telemetry, rerun the small-detector smoke with telemetry JSON + diff artifacts under the new timestamp.
 

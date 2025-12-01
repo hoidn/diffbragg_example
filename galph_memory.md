@@ -97,3 +97,6 @@ Action State: ready_for_implementation
 - Stage B guard now reports `stage_b_baseline_rel_diff`, but the JSON payload is still a stub (no per-panel breakdown, hard-coded artifacts path), so REFINE-FLOW-001 diagnostics remain unusable when the guard fires.
 - Updated docs/fix_plan.md with the new Phase E.1 refinement scope, rewrote input.md (Do Now + How-To Map + pitfalls/tests), and reserved the 2025-12-01T153327Z artifacts directory so Ralph can code + validate next loop.
 Action State: ready_for_implementation
+- Scoped Phase E.2 parity fix: Stage A must now treat Stage B enablement the same as Stage C for panel-mode baseline/final validations so REFINE-FLOW-001 stays green even when ROI counts exceed the threshold. Logged the plan in docs/fix_plan.md (2025-12-01T160850Z) with the artifact path and re-marked Phase E.1 as complete in implementation.md; rewrote input.md with a code-ready Do Now covering the Stage A toggle, the smoketest threshold tweak, and the Stage B/C validation commands.
+Action State: ready_for_implementation
+2025-12-01T160850Z focus=ARCH-REFINE-001 state=ready_for_implementation dwell=0 action=planning artifacts=plans/active/ARCH-REFINE-001/reports/2025-12-01T160850Z/ next_action=Implement Stage A panel-toggle for Stage B + rerun Stage B/C smokes with tightened threshold

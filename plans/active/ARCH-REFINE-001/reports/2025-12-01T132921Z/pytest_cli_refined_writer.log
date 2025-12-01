@@ -1,0 +1,297 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 1 item
+
+tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_uses_refined_mtz FAILED [100%]
+
+=================================== FAILURES ===================================
+____________________ test_nanobrag_backend_uses_refined_mtz ____________________
+
+mock_write = <MagicMock name='write_torch_outputs' id='138767030716688'>
+mock_load_refined = <MagicMock name='load_refined_mtz' id='138767030836000'>
+mock_crystal_config = <MagicMock name='create_crystal_config' id='138763969975488'>
+mock_beam_config = <MagicMock name='create_beam_config' id='138763969525648'>
+mock_detector_config = <MagicMock name='create_detector_config' id='138763969497456'>
+mock_build_grid = <MagicMock name='build_structure_factor_grid' id='138763969545648'>
+mock_prepare = <MagicMock name='prepare_refinement_inputs' id='138763969557696'>
+mock_Crystal = <MagicMock name='Crystal' id='138763969573840'>
+mock_Detector = <MagicMock name='Detector' id='138763969252944'>
+mock_Simulator = <MagicMock name='Simulator' id='138763969264992'>
+mock_DataLoad = <MagicMock name='DataLoad' id='138763969314672'>
+
+    @patch('dbex.data_load.DataLoad')
+    @patch('nanobrag_torch.simulator.Simulator')
+    @patch('nanobrag_torch.models.detector.Detector')
+    @patch('nanobrag_torch.models.crystal.Crystal')
+    @patch('dbex.nanobrag_bridge.prepare_refinement_inputs')
+    @patch('dbex.nanobrag_bridge.build_structure_factor_grid')
+    @patch('dbex.nanobrag_bridge.create_detector_config')
+    @patch('dbex.nanobrag_bridge.create_beam_config')
+    @patch('dbex.nanobrag_bridge.create_crystal_config')
+    @patch('dbex.nanobrag_bridge.load_refined_mtz')
+    @patch('dbex.io.writer.write_torch_outputs')
+    def test_nanobrag_backend_uses_refined_mtz(
+        mock_write, mock_load_refined, mock_crystal_config, mock_beam_config,
+        mock_detector_config, mock_build_grid, mock_prepare, mock_Crystal,
+        mock_Detector, mock_Simulator, mock_DataLoad
+    ):
+        """
+        SCALE-003: Verify CLI loads refined MTZ and telemetry reflects refined source.
+    
+        Validates that when --refined-mtz is provided:
+        1. load_refined_mtz is invoked with the correct path
+        2. Refined indices/amplitudes are passed to build_structure_factor_grid
+        3. Telemetry passed to _write_torch_outputs marks hkl_source="refined"
+    
+        This regression test guards SCALE-003/SCALE-004 assumptions that refined
+        structure factors are applied when available.
+        """
+        import tempfile
+        import sys
+        import numpy as np
+        from unittest.mock import MagicMock
+        from dbex.nanobrag_bridge import RefinementInputs
+    
+        # Setup: mock refined MTZ loading
+        refined_indices = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]], dtype=np.int32)
+        refined_amplitudes = np.array([100.0, 200.0, 300.0], dtype=np.float32)
+        mock_load_refined.return_value = (refined_indices, refined_amplitudes)
+    
+        # Setup: mock structure factor grid builder
+        hkl_grid_mock = np.zeros((10, 10, 10), dtype=np.float32)
+        hkl_metadata_mock = {"grid_nonzero": 3}
+        mock_asu_map = np.zeros((10, 10, 10), dtype=np.int32)
+        mock_build_grid.return_value = (hkl_grid_mock, hkl_metadata_mock, mock_asu_map)
+    
+        # Setup: mock config builders
+        mock_detector_config.return_value = MagicMock()
+        mock_beam_config.return_value = MagicMock()
+        mock_crystal_cfg = MagicMock()
+        mock_crystal_config.return_value = (mock_crystal_cfg, False)  # no n_cells
+    
+        # Setup: mock models
+        mock_Detector.return_value = MagicMock()
+        mock_Crystal.return_value = MagicMock()
+    
+        # Setup: mock simulator
+        import torch
+        mock_simulator_instance = MagicMock()
+        mock_simulator_instance.run.return_value = torch.zeros((2527, 2463), dtype=torch.float32)
+        mock_Simulator.return_value = mock_simulator_instance
+    
+        # Setup: mock refinement inputs
+        target_mock = np.zeros((2, 2527, 2463), dtype=np.float32)
+        loss_mask_mock = np.ones((2, 2527, 2463), dtype=bool)
+        mock_prepare.return_value = RefinementInputs(
+            target=target_mock,
+            loss_mask=loss_mask_mock,
+            panel_slices=[],
+            trusted_mask=np.ones((2, 2527, 2463), dtype=np.float32),
+            sigma_readout=np.zeros((2, 2527, 2463), dtype=np.float32)
+        )
+    
+        # Setup: mock DataLoad
+        mock_DL_instance = MagicMock()
+        mock_DL_instance.detector = [MagicMock(), MagicMock()]  # 2 panels
+        mock_DL_instance.beam = MagicMock()
+        mock_DL_instance.crystal = MagicMock()
+        mock_DL_instance.Expt = MagicMock()
+        mock_DL_instance.F = MagicMock()
+        mock_DL_instance.F.indices.return_value = np.array([[0, 0, 1]], dtype=np.int32)
+        mock_DL_instance.F.data.return_value = np.array([50.0], dtype=np.float32)
+        mock_DL_instance.pids = [0, 1]
+        mock_DL_instance.bbox = [(0, 100, 0, 100), (0, 100, 0, 100)]
+        mock_DL_instance.background_image = np.zeros((2, 2527, 2463), dtype=np.float32)
+        mock_DL_instance.data = np.zeros((2, 2527, 2463), dtype=np.float32)
+        mock_DataLoad.return_value = mock_DL_instance
+    
+        # Mock DataLoad and run CLI
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as exp_file:
+            exp_file.write('{"fake": "experiment"}')
+            exp_file.flush()
+            exp_path = exp_file.name
+    
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.refl', delete=False) as refl_file:
+            refl_path = refl_file.name
+    
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.pkl', delete=False) as mask_file:
+            mask_path = mask_file.name
+    
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.mtz', delete=False) as mtz_file:
+            mtz_path = mtz_file.name
+    
+        with tempfile.NamedTemporaryFile(mode='w', suffix='_refined.mtz', delete=False) as refined_mtz_file:
+            refined_mtz_path = refined_mtz_file.name
+    
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.h5', delete=False) as out_file:
+            out_path = out_file.name
+    
+        try:
+            # Inject mocks into sys.modules
+            sys.modules['simtbx.diffBragg.utils'] = MagicMock()
+            sys.modules['simtbx.diffBragg.hopper_utils'] = MagicMock()
+            sys.modules['score_trainer'] = MagicMock()
+            sys.modules['score_trainer.roi_check'] = MagicMock()
+    
+            from dbex.refine_one import main
+    
+            # Run CLI with --refined-mtz
+>           main([
+                '-e', exp_path,
+                '-r', refl_path,
+                '-i', '0',
+                '-o', out_path,
+                '-m', mask_path,
+                '-z', mtz_path,
+                '--sigma-rdout', '3.0',
+                '--refined-mtz', refined_mtz_path,
+                '--backend', 'nanobrag'
+            ])
+
+tests/dbex/test_refine_one_cli.py:734: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+dbex/refine_one.py:706: in main
+    run_nanobrag_backend(args, DL, devid)
+dbex/refine_one.py:467: in run_nanobrag_backend
+    simulator, _, sqrt_scale_value, _ = create_unified_simulator(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+detector_config = <MagicMock name='create_detector_config()' id='138767033813360'>
+crystal_config = <MagicMock id='138767243454544'>
+beam_config = <MagicMock name='create_beam_config()' id='138767243442592'>
+hkl_grid = array([[[0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0...],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
+        [0., 0., 0., 0., 0., 0., 0., 0., 0., 0.]]], dtype=float32)
+hkl_metadata = {'grid_nonzero': 3}
+mask_array = <MagicMock name='create_detector_config().mask_array' id='138767113460176'>
+spot_scale_override = 1.0, device = device(type='cuda', index=0)
+dtype = torch.float32, calibration_metadata = None
+
+    def create_unified_simulator(
+        detector_config,           # nanobrag_torch DetectorConfig (panel or cropped ROI)
+        crystal_config,            # nanobrag_torch CrystalConfig
+        beam_config,               # nanobrag_torch BeamConfig
+        hkl_grid,                  # torch.Tensor (3, N) HKL coordinates
+        hkl_metadata,              # dict with 'has_halo', 'hkl_ids_asu', etc.
+        mask_array=None,           # Optional[np.ndarray] trusted mask (0=bad, 1=good)
+        spot_scale_override=None,  # Optional[float] multiplicative scale (applied post-run as sqrt)
+        device=None,               # torch.device or str
+        dtype=None,                # torch.dtype
+        calibration_metadata=None, # Optional[dict] with 'beam_config', 'N_cells', etc.
+    ):
+        """
+        Unified simulator factory for nanobrag_torch.
+    
+        Centralizes shape/dtype/device validation, mask normalization, and
+        post-run spot_scale application. Eliminates duplication across forward
+        helpers, CLI paths, and refinement loops.
+    
+        Parameters
+        ----------
+        detector_config : nanobrag_torch.config.DetectorConfig
+            Panel or ROI-cropped detector configuration (DIALS convention).
+        crystal_config : nanobrag_torch.config.CrystalConfig
+            Crystal lattice and orientation parameters.
+        beam_config : nanobrag_torch.config.BeamConfig
+            X-ray beam properties (wavelength, polarization, flux).
+        hkl_grid : torch.Tensor
+            3D structure factor grid (h_range, k_range, l_range) from build_structure_factor_grid.
+        hkl_metadata : dict
+            Keys: 'has_halo' (bool), 'hkl_ids_asu' (Optional[Tensor]), etc.
+        mask_array : Optional[np.ndarray]
+            Trusted pixel mask (0=bad, 1=good). If provided, normalized to
+            detector device/dtype and attached to detector_config.
+        spot_scale_override : Optional[float]
+            Multiplicative scale applied POST-RUN as sqrt(spot_scale_override)
+            per SCALE-004 finding.
+        device : Optional[torch.device or str]
+            Target device (defaults to hkl_grid.device).
+        dtype : Optional[torch.dtype]
+            Target dtype (defaults to hkl_grid.dtype).
+        calibration_metadata : Optional[dict]
+            Preserved for telemetry/logging. Keys: 'beam_config', 'N_cells'.
+    
+        Returns
+        -------
+        simulator : nanobrag_torch.Simulator
+            Ready-to-run simulator instance with HKL tensors attached.
+        normalized_mask : Optional[torch.Tensor]
+            Mask tensor on device/dtype (if mask_array provided), else None.
+        sqrt_scale : Optional[float]
+            sqrt(spot_scale_override) to apply post-run, else None.
+        metadata : dict
+            Calibration metadata plus validation results.
+    
+        Notes
+        -----
+        - Lazy imports nanobrag_torch inside function to avoid circular deps.
+        - Mask normalization: np.ndarray → torch.Tensor on device/dtype.
+        - sqrt_scale is computed here but applied by CALLER after simulator.run().
+        - ROI-cropped DetectorConfig: beam-center mm shift already applied in config.
+        - DIALS convention: beam-center swap (fast,slow)→(s,f) handled upstream.
+    
+        Findings Applied
+        ----------------
+        - SCALE-004: sqrt_spot_scale post-run (not pre-run).
+        - ARCH-ENGINE-002: Lazy imports inside function.
+        - POLICY-001: No engine patches, dbex-only changes.
+        """
+        # Lazy imports
+        from nanobrag_torch.simulator import Simulator
+        from nanobrag_torch.models import Detector, Crystal
+        import torch
+    
+        # Device/dtype defaults from hkl_grid
+        if device is None:
+            device = hkl_grid.device
+        if dtype is None:
+            dtype = hkl_grid.dtype
+        device = torch.device(device) if isinstance(device, str) else device
+    
+        # Validate HKL grid shape (3D grid from build_structure_factor_grid)
+        if hkl_grid.ndim != 3:
+            raise ValueError(f"hkl_grid must be 3D (h_range, k_range, l_range), got {hkl_grid.shape}")
+>       if hkl_grid.device != device or hkl_grid.dtype != dtype:
+E       AttributeError: 'numpy.ndarray' object has no attribute 'device'
+
+dbex/refinement/helpers.py:167: AttributeError
+----------------------------- Captured stdout call -----------------------------
+[DBEX] Loading experiment data...
+[DBEX] Using backend: nanobrag
+[nanobrag backend] Preparing refinement inputs from DataLoad...
+[nanobrag backend] Resolved sigma_readout source=cli_override reference=3
+[nanobrag backend] Target shape: (2, 2527, 2463)
+[nanobrag backend] Loss mask coverage: 100.0000%
+[nanobrag backend] Number of ROIs: 0
+[nanobrag backend] Building structure factor grid from MTZ...
+[nanobrag backend] Using device=cuda:0 for zero-iteration simulation and refinement.
+[nanobrag backend] Using refined structure factors from /tmp/tmp3uo96zfn_refined.mtz
+  n_reflections=3, mean_amplitude=2.000e+02
+[nanobrag backend] HKL grid shape: (10, 10, 10), nonzero: 3
+[nanobrag backend] No spot_scale_override provided, using default=1.000e+00
+[nanobrag backend] Will apply sqrt(spot_scale)=1.000e+00 post-simulation per SCALE-002
+[nanobrag backend] Running nanobrag_torch Simulator on 2 panels...
+=============================== warnings summary ===============================
+tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_uses_refined_mtz
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_uses_refined_mtz
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_uses_refined_mtz
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_uses_refined_mtz
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_uses_refined_mtz - AttributeError: 'numpy.ndarray' object has no attribute 'device'
+======================== 1 failed, 4 warnings in 1.97s =========================

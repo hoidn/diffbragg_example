@@ -1,5 +1,5 @@
 ### Turn Summary
-Scoped Phase D.1 to publish IDLs for dbex/io/writer.py and the physics helpers, updating docs/fix_plan.md plus input.md so Ralph has a concrete docstring/IDL Do Now.
-Documented the env + pytest commands for the CLI telemetry and DB-AT-010 selectors and created the 2025-12-01T142116Z artifact bucket for upcoming logs.
-Next: Ralph writes the new IDL files, updates the docstrings/module_map, and reruns the mapped selectors to keep telemetry specs traceable.
-Artifacts: plans/active/ARCH-REFINE-001/reports/2025-12-01T142116Z/
+Published IDL contracts for torch writer and physics helpers; all telemetry and gradcheck selectors pass with updated docstrings.
+Implemented docs-only changes: created three IDL files (writer, forward, loss), updated module docstrings to reference them, and refreshed module_map.
+Next: advance to remaining ARCH-REFINE-001 phases or pivot to supervisor-prioritized focus per galph guidance.
+Artifacts: plans/active/ARCH-REFINE-001/reports/2025-12-01T142116Z/ (docs_diff.md, collect/pytest logs for cli_torch_diag + DB-AT-010)

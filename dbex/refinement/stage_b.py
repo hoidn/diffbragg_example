@@ -87,12 +87,12 @@ class StageB:
             raise ValueError("StageB not configured. Call configure(config) before run().")
 
         # Import helpers (lazy to avoid circular imports at module load time)
-        from dbex.nanobrag_refinement import (
+        from dbex.refinement.stage_b_impl import (
             _build_stage_b_params,
             _build_stage_b_lbfgs_closure,
             _run_stage_b_lbfgs,
-            RefinementTelemetry,
         )
+        from dbex.nanobrag_refinement import RefinementTelemetry
         from dbex.nanobrag_bridge import (
             create_detector_config,
             create_crystal_config,

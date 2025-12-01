@@ -478,3 +478,33 @@ Then run `pytest -vv tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_m
 **Artifacts**: plans/active/ARCH-REFINE-001/reports/2025-12-01T131510Z/
 **First Divergence**: N/A (implementation succeeded on first attempt)
 **Next Actions**: Phase C.2 — Extract shared torch writer
+
+### 2025-12-01T132921Z - ARCH-REFINE-001 Phase C.2: Torch writer extraction (READY FOR IMPLEMENTATION)
+- **Gap:** `_write_torch_outputs` still lives inside `dbex/refine_one.py`, so every CLI/test tool patches a private helper and IO refactors remain trapped inside the monolith. Phase C exit criterion #3 calls for a shared torch writer module under `dbex/io/` so `/torch_diagnostics` telemetry and ROI datasets can evolve independently of the CLI wrapper.
+- **Plan:**
+  1. Create `dbex/io/__init__.py` and `dbex/io/writer.py` exposing `write_torch_outputs(args, data_load, bragg, inputs, masked_mse, hkl_telemetry, refine_telemetry=None, sigma_readout_provenance=None, sigma_readout_reference_value=None)` with the existing `_write_torch_outputs` implementation (score coercion, variance computation, `/torch_diagnostics` emission, RefinementTelemetry serialization). Preserve DIAGNOSTICS-001 schema and PHYSICS-LOSS-001 dual-loss metrics with identical dataset/attr names.
+  2. Update `dbex/refine_one.py::run_nanobrag_backend` to import the new module and remove the inline helper (a thin proxy alias is acceptable for backwards compatibility). Ensure CLI args continue to pass `hkl_telemetry`, sigma provenance, and telemetry dicts verbatim; `_generate_triptych_report`/legacy diffBragg writer paths stay untouched.
+  3. Refresh CLI tests patching `_write_torch_outputs` so they target `dbex.io.writer.write_torch_outputs`, and point `tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata` at the new module when exercising the function directly. Keep telemetry mocks referencing `dbex.refinement.RefinementTelemetry` so the shared dataclass flows into the writer.
+- **Validation:** (docs/TESTING_GUIDE.md §1.4)
+```
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
+pytest --collect-only tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_uses_refined_mtz \
+  > plans/active/ARCH-REFINE-001/reports/2025-12-01T132921Z/collect_cli_refined_writer.log
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
+pytest -vv tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_uses_refined_mtz \
+  | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T132921Z/pytest_cli_refined_writer.log
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
+pytest --collect-only tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata \
+  > plans/active/ARCH-REFINE-001/reports/2025-12-01T132921Z/collect_cli_torch_diag.log
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
+pytest -vv tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata \
+  | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T132921Z/pytest_cli_torch_diag.log
+```
+- **Data deps:** Both selectors are hermetic (all Experiment/ROI data mocked), so docs/data_dependency_manifest.md confirms no additional assets are required beyond the existing refGeom_small bundle already cached for Stage B/C smokes.
+- **Findings to honor:** DIAGNOSTICS-001 (HDF5 schema stability), PHYSICS-LOSS-001/003 (dual chi² + sigma provenance in telemetry), ARCH-ENGINE-003 (RefinementTelemetry enrichment shared across engine + writer), POLICY-001 (Environment Freeze).
+- **Artifacts:** `plans/active/ARCH-REFINE-001/reports/2025-12-01T132921Z/`
+- **Next Actions:** Once the writer module lands and selectors pass, advance to Phase C.3 (physics helper extraction / shared loss helpers) with `/torch_diagnostics` now backed by the canonical IO layer.

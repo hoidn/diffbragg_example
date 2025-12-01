@@ -64,3 +64,8 @@ Action State: ready_for_implementation
 - Advanced Phase C.1 by recording the telemetry dataclass consolidation plan in docs/fix_plan.md: drop the duplicate `RefinementTelemetry` from `dbex/nanobrag_refinement.py`, point all stage wrappers/tests/tools at `dbex.refinement.stage`, and revalidate `/torch_diagnostics` selectors to prove the shared schema stays intact (per DIAGNOSTICS-001 + PHYSICS-LOSS-001).
 - Rewrote input.md with the new production Do Now (nanobrag module cleanup, stage wrapper import updates, CLI telemetry test adjustments) plus the Stage B/C smoke + CLI telemetry + engine contract selectors and artifact paths under `plans/active/ARCH-REFINE-001/reports/2025-12-01T131510Z/`.
 Action State: ready_for_implementation
+2025-12-01T132921Z focus=ARCH-REFINE-001 state=ready_for_implementation dwell=0 action=planning artifacts=plans/active/ARCH-REFINE-001/reports/2025-12-01T132921Z/ next_action=Extract torch writer + rerun CLI telemetry selectors
+- Logged Phase C.2 in docs/fix_plan.md: move `_write_torch_outputs` into `dbex/io/writer.py`, rewire `run_nanobrag_backend`, and update CLI tests to patch the shared module while preserving DIAGNOSTICS-001/PHYSICS-LOSS-001 contracts.
+- Rewrote input.md with the new Do Now, mapped CLI selectors (refined MTZ telemetry + torch diagnostics metadata), env knobs, pitfalls, and artifacts path `plans/active/ARCH-REFINE-001/reports/2025-12-01T132921Z/`.
+- No evidence collection this loop; artifacts directory reserved for the implementation run.
+Action State: ready_for_implementation

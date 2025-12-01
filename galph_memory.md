@@ -52,3 +52,7 @@ Action State: ready_for_implementation
 - Updated docs/fix_plan.md, input.md, and the report plan file with the new Do Now, Stage B/C smoke selectors, artifact path, and spec references (spec-db-workflow §§53-61, REFINE-005/REFINE-010).
 Action State: ready_for_implementation
 2025-12-01T123044Z focus=ARCH-REFINE-001 state=ready_for_implementation dwell=0 action=planning artifacts=plans/active/ARCH-REFINE-001/reports/2025-12-01T123044Z/ next_action=Thread asu_map/halo metadata through Stage B/C and rerun small-detector smokes
+2025-12-01T130955Z focus=ARCH-REFINE-001 state=ready_for_implementation dwell=1 action=planning artifacts=plans/active/ARCH-REFINE-001/reports/2025-12-01T130955Z/ next_action=Implement factory wiring + rerun Stage B/C smokes
+- Scoped Phase B.4 so Stage A/B final Bragg reconstruction helpers call create_unified_simulator on their cold paths, recorded the selector/env plan, and linked the work to ARCH-FACTORY-001 + REFINE-005/010 in docs/fix_plan.md.
+- Replaced input.md with the factory-specific Do Now, collect-only + telemetry capture commands, and pitfalls covering CPU fallback and the “no factory inside closures” rule so Ralph can implement immediately next loop.
+Action State: ready_for_implementation

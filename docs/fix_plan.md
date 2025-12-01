@@ -1242,3 +1242,12 @@ All three produce Stage A final=2.1071e+08, Stage C final=2.1085e+08 (+0.067%), 
   4. Verify detector offset parameterization allows sufficient parameter exploration
   5. Consider whether +0.067% chi² regression is inherent to Stage C's constraints (e.g., detector-only refinement vs full parameter optimization)
 - See telemetry evidence at `plans/active/PERF-WARM-SIM-001/reports/2025-12-01T200900Z/` for detailed failure signature.
+
+### 2025-12-01T204500Z - PERF-WARM-SIM-001 Phase D.4: Stage C orientation-vector restoration (PLANNING)
+- Evidence review: The 2025-12-01T200900Z telemetry shows both detector sizes recover the injected ±0.25 mm offsets (detector_offset_reduction_min=0.99999994) yet chi² regresses by +0.067 %, and the Stage C traces never dip below their first sample even though `stage_a_final_chi2=2.10706464e+08`. Inspection of `dbex/refinement/stage_c.py:174-355` confirms Stage C populates `orientation_vec` with `param_deltas['misset_xyz_deg']['delta']` (already expressed in degrees after Stage A’s tanh clamp) instead of the raw `orientation_vec` tensor recorded in Stage A telemetry. `_build_stage_c_lbfgs_closure` then applies `tanh` a second time, collapsing the misset toward zero so Stage C baseline diverges from Stage A even before detector offsets change.
+- Plan:
+  1. Rebuild the frozen orientation tensor from `stage_a_telemetry['param_deltas']['orientation_vec']['final']` (torch tensor on config.device/dtype) and include it in the `params` list so Stage C keeps the real Stage A misset frozen.
+  2. Continue computing `misset_deg_for_crystal` from `param_deltas['misset_xyz_deg']['delta']` so Euler-angle telemetry stays intact, but stop aliasing that tensor as `orientation_vec` when constructing `param_values`.
+  3. Update `param_values_c['orientation_vec']` to use the raw tensor and drop the misleading comment, ensuring `_build_stage_c_lbfgs_closure` reproduces Stage A’s quaternion exactly and Stage C initial chi² matches the canonical baseline.
+  4. Rerun `pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip` for both detector sizes with telemetry capture + `plans/active/PERF-WARM-SIM-001/bin/summarize_stage_c_warm_cache.py` so REFINE-007 proves ≤0.05 % chi² regression alongside the ≥99.999 % offset reduction.
+- **Artifacts:** `plans/active/PERF-WARM-SIM-001/reports/2025-12-01T204500Z/` (collect logs, pytest logs, telemetry_stage_c_small/full.json, stage_c_warm_cache_report.json, summary.md).

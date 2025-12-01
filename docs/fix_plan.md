@@ -1020,3 +1020,36 @@ pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation
      | tee plans/active/PERF-WARM-SIM-001/reports/2025-12-01T174500Z/pytest_stage_c_full.log
    ```
 - **Artifacts:** `plans/active/PERF-WARM-SIM-001/reports/2025-12-01T173344Z/` (stage_c_warm_cache_report.json, summarize_stage_c_warm_cache.log, summary.md) for this planning turn; next implementation artifacts reserved under `plans/active/PERF-WARM-SIM-001/reports/2025-12-01T174500Z/`.
+
+### 2025-12-01T174500Z - PERF-WARM-SIM-001 Phase D.4: ROI closure restoration implementation (PARTIAL SUCCESS)
+- Restored ROI-mode closures in `_build_stage_c_params` / `_build_stage_c_lbfgs_closure` so Stage C minibatching once again follows Stage A telemetry while `validation_scope` stays `"panel"` when Stage B/C are active (REFINE-010/011/012). Updated smoke assertions to check `roi_mode` vs `validation_scope` separately.
+- Both detector sizes now emit `cache_mode="warm"`, `roi_mode` aligned with Stage A ROI decisions, and `validation_scope="panel"` as required; detector offsets shrink by 99.99999% (per `stage_c_warm_cache_report.json`).
+- REFINE-007 chi² gate still fails on both detector sizes (+0.063% small, +0.067% full). Inspection of `dbex/refinement/stage_c_impl.py` shows `best_loss_full_c`, `chi_squared_best_c`, `masked_mse_best_c`, and `best_params_snapshot_c` are reassigned inside `_build_stage_c_lbfgs_closure` / `_run_stage_c_lbfgs` without writing back to `telemetry_state`. As a result, the final Stage C telemetry always reports the last LBFGS iterate (`chi_squared_trace_full` tail = 2.1085e+08) even though the first panel-mode validation (iteration 0) matched Stage A (2.1071e+08). Stage C therefore regresses simply because the best snapshot is dropped before `_run_stage_c_lbfgs` restores parameters.
+- **Artifacts:** `plans/active/PERF-WARM-SIM-001/reports/2025-12-01T174500Z/` (collect logs, pytest logs, telemetry JSONs, stage_c_warm_cache_report.json, summarize_output.txt, summary.md).
+
+### 2025-12-01T175316Z - PERF-WARM-SIM-001 Phase D.4: Stage C best-snapshot persistence (READY FOR IMPLEMENTATION)
+- Evidence: `dbex/refinement/stage_c_impl.py` never mutates `telemetry_state['chi_squared_best_c']`, `['best_loss_full_c']`, or `['best_params_snapshot_c']` after the closure updates them (see lines 600-770). Consequently `_run_stage_c_lbfgs` sees the original `(inf, -1)` defaults, skips snapshot restore, and appends the degraded chi² to telemetry. Fixing this should make Stage C final chi² equal the best validation (≤ Stage A) and unblock REFINE-007 without gate changes.
+- **Do Now (Ralph):**
+  1. **dbex/refinement/stage_c_impl.py::_build_stage_c_lbfgs** — whenever `best_loss_full_c`, `chi_squared_best_c`, `masked_mse_best_c`, or `best_params_snapshot_c` change inside `closure_stage_c`, immediately assign them back into `telemetry_state[...]`. Mirror that behavior in `_run_stage_c_lbfgs` after the final candidate validation so snapshot + metadata remain in sync.
+  2. **dbex/refinement/stage_c_impl.py::_run_stage_c_lbfgs** — after recomputing `candidate_final_chi2`, re-evaluate best vs candidate, write the winning tuple back to `telemetry_state`, and ensure `distance_offset_raw` reloads the stored `best_params_snapshot_c` before generating `bragg_full`. Assert that `chi_squared_trace_full`’s last entry matches the restored best value so Stage C telemetry cannot regress simply due to tail logging.
+  3. **Validation** — re-run the Stage C detector microslip smoke for both detector sizes with telemetry logging under `plans/active/PERF-WARM-SIM-001/reports/2025-12-01T175316Z/`:
+     ```bash
+     AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+     DBEX_SMOKE_SIGMA_SOURCE=cli_override \
+     DBEX_SMOKE_DETECTOR_SIZE=small \
+     DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-WARM-SIM-001/reports/2025-12-01T175316Z/telemetry_stage_c_small.json \
+     KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
+     pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small \
+       | tee plans/active/PERF-WARM-SIM-001/reports/2025-12-01T175316Z/pytest_stage_c_small.log
+
+     AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+     DBEX_SMOKE_SIGMA_SOURCE=cli_override \
+     DBEX_SMOKE_DETECTOR_SIZE=full \
+     DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-WARM-SIM-001/reports/2025-12-01T175316Z/telemetry_stage_c_full.json \
+     KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
+     pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=full \
+       | tee plans/active/PERF-WARM-SIM-001/reports/2025-12-01T175316Z/pytest_stage_c_full.log
+     ```
+     Capture `--collect-only` logs for both selectors before execution (save as `collect_stage_c_<size>.log`). After both runs succeed, rerun `plans/active/PERF-WARM-SIM-001/bin/summarize_stage_c_warm_cache.py --telemetry-small ... --telemetry-full ... --out-json plans/active/PERF-WARM-SIM-001/reports/2025-12-01T175316Z/stage_c_warm_cache_report.json` so Phase D.4 telemetry stays comparable.
+- **Exit Check:** REFINE-007 thresholds satisfied (≤0.05% chi² regression, ≥80% detector offset reduction) on both detector sizes, telemetry JSONs prove `chi_squared_trace_full[-1]` equals Stage A final, and `summary.md` documents the restored best-snapshot behavior.
+- **Artifacts:** `plans/active/PERF-WARM-SIM-001/reports/2025-12-01T175316Z/` (collect logs, pytest logs, telemetry JSONs, stage_c_warm_cache_report.json, summary.md).

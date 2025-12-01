@@ -182,3 +182,7 @@ Action State: ready_for_implementation
 - **Artifacts**: Both detector telemetry captured, `stage_c_warm_cache_report.json` shows cache_mode=warm + roi_mode alignment + detector offset reductions, summarize script confirms acceptance gates (offset ✓, chi² ✗).
 - **Supervisor Decision Required**: (a) Relax REFINE-007 gate from ≤0.05% to ≤0.10% with architectural rationale (SPEC-conformant panel-validation regime), OR (b) investigate LBFGS hyperparameters for 60-panel configuration, OR (c) accept regression as validation alignment cost and document exception.
 Action State: partial_success (implementation complete, gate decision required)
+2025-12-01T175316Z focus=PERF-WARM-SIM-001 state=planning dwell=1 action=planning artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-12-01T175316Z/ next_action=Persist Stage C best snapshot + rerun smokes
+- Reproduced the REFINE-007 failure trail and root-caused it to `_build_stage_c_lbfgs` never persisting `chi_squared_best_c`/`best_params_snapshot_c` back into `telemetry_state`, so `_run_stage_c_lbfgs` always logs the last iterate (2.1085e+08) instead of the first panel validation (2.1071e+08). Wrote up the evidence under `stage_c_best_snapshot_bug.md`.
+- Updated docs/fix_plan.md + input.md with the new Ready-for-Implementation Do Now: persist the best-snapshot tuples, reload them before final chi² logging, rerun the Stage C smoketests (small + full), and capture telemetry + summarizer artifacts under 2025-12-01T175316Z.
+Action State: ready_for_implementation

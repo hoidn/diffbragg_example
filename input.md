@@ -1,36 +1,38 @@
-Summary: Restore Stage C ROI-mode closures while keeping panel validations explicit so detector-offset runs stop regressing, then prove the fix with both Stage C smoketests.
+Summary: Persist Stage C best-snapshot telemetry so the microslip smoketests stop reporting the last (regressed) LBFGS iterate and REFINE-007 can pass again on both detector sizes.
 Mode: Perf
 Focus: PERF-WARM-SIM-001 — Warm Simulator
 Branch: integration
-Mapped tests: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small > plans/active/PERF-WARM-SIM-001/reports/2025-12-01T174500Z/collect_stage_c_small.log; AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-WARM-SIM-001/reports/2025-12-01T174500Z/telemetry_stage_c_small.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small | tee plans/active/PERF-WARM-SIM-001/reports/2025-12-01T174500Z/pytest_stage_c_small.log; AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=full > plans/active/PERF-WARM-SIM-001/reports/2025-12-01T174500Z/collect_stage_c_full.log; AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=full DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-WARM-SIM-001/reports/2025-12-01T174500Z/telemetry_stage_c_full.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=full | tee plans/active/PERF-WARM-SIM-001/reports/2025-12-01T174500Z/pytest_stage_c_full.log
-Artifacts: plans/active/PERF-WARM-SIM-001/reports/2025-12-01T174500Z/
+Mapped tests: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small > plans/active/PERF-WARM-SIM-001/reports/2025-12-01T175316Z/collect_stage_c_small.log; AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-WARM-SIM-001/reports/2025-12-01T175316Z/telemetry_stage_c_small.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small | tee plans/active/PERF-WARM-SIM-001/reports/2025-12-01T175316Z/pytest_stage_c_small.log; AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=full > plans/active/PERF-WARM-SIM-001/reports/2025-12-01T175316Z/collect_stage_c_full.log; AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=full DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-WARM-SIM-001/reports/2025-12-01T175316Z/telemetry_stage_c_full.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=full | tee plans/active/PERF-WARM-SIM-001/reports/2025-12-01T175316Z/pytest_stage_c_full.log
+Artifacts: plans/active/PERF-WARM-SIM-001/reports/2025-12-01T175316Z/
 Do Now:
-- Implement: dbex/refinement/stage_c_impl.py::_build_stage_c_params (and the `_run_stage_c_lbfgs` telemetry/perf-counter emission) so Stage C ROI closures remain active whenever Stage A telemetry reports `roi_mode="roi"` even if panel validations are forced; plumb a separate `validation_scope` field through `stage_c_context`/perf counters and teach tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip to assert the new telemetry, proving closures vs validations stay aligned with REFINE-011.
-- Validate: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=full DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-WARM-SIM-001/reports/2025-12-01T174500Z/telemetry_stage_c_full.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=full | tee plans/active/PERF-WARM-SIM-001/reports/2025-12-01T174500Z/pytest_stage_c_full.log
+- Implement: dbex/refinement/stage_c_impl.py::_build_stage_c_lbfgs (and `_run_stage_c_lbfgs`) so best-snapshot tuples (`best_loss_full_c`, `chi_squared_best_c`, `masked_mse_best_c`, `best_params_snapshot_c`) are written back to `telemetry_state` whenever they change, and the final telemetry/Bragg regeneration reloads that snapshot before logging chi².
+- Validate: Run `tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip` with both `--smoke-detector-size=small` and `--smoke-detector-size=full` (commands above) so REFINE-007 proves ≤0.05% chi² regression and ≥80% offset reduction once the best-snapshot bug is fixed.
 How-To Map:
-1. Update `dbex/refinement/stage_c_impl.py` to drop the `and not force_panel_validation` guard for ROI closures, compute `validation_scope = "panel"` whenever the Stage A perf counters set `force_panel_validation`, and include that scope in `stage_c_context` and the perf-counter dict emitted by `_run_stage_c_lbfgs`.
-2. Adjust `tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip` so it checks both `roi_mode` (closure mode) and the new `validation_scope` perf-counter field, expecting `"panel"` whenever Stage B/C is enabled or the ROI threshold disables sampling.
-3. Run the mapped collect-only command for the small dataset and ensure it succeeds (guards the selector health before code runs).
-4. Execute the small-detector smoketest with telemetry (env vars above) and capture `pytest_stage_c_small.log` plus `telemetry_stage_c_small.json`.
-5. Repeat the collect-only and telemetry runs for the full detector (commands above) so we have canonical evidence for the ROI-mode fix.
-6. Re-run `plans/active/PERF-WARM-SIM-001/bin/summarize_stage_c_warm_cache.py` pointing at the new telemetry files, writing both the JSON report and CLI output into the same artifact directory.
+1. In `_build_stage_c_lbfgs`, after updating `best_loss_full_c`, `chi_squared_best_c`, `masked_mse_best_c`, or `best_params_snapshot_c`, immediately assign the new values back into `telemetry_state[...]` so `_run_stage_c_lbfgs` can see them later.
+2. In `_run_stage_c_lbfgs`, mirror that persistence when the final candidate validation runs: compare against the stored best tuple, update `telemetry_state` accordingly, and always reload `distance_offset_raw` from `best_params_snapshot_c` before the final `compute_loss_stage_c`/`bragg_full` generation.
+3. Ensure `chi_squared_trace_full` appends the restored best value (not the degraded candidate) and keep `_record_stage_telemetry` ahead of the REFINE-007 asserts so logs exist even on failure.
+4. Re-run the mapped collect-only command for the small detector to confirm the selector still collects.
+5. Execute the small-detector smoketest with telemetry env vars set, capture the pytest log + JSON, and expect χ² regression ≤0.05% with `roi_mode`/`validation_scope` unchanged.
+6. Repeat the collect-only + telemetry run for the full detector; archive logs under the artifact directory.
+7. Run `plans/active/PERF-WARM-SIM-001/bin/summarize_stage_c_warm_cache.py --telemetry-small ... --telemetry-full ... --out-json plans/active/PERF-WARM-SIM-001/reports/2025-12-01T175316Z/stage_c_warm_cache_report.json` so the Phase D.4 telemetry trend stays comparable.
 Pitfalls To Avoid:
-- Do not remove the `force_panel_validation` guard when calling `compute_loss_stage_c` for full validations—panel scope is still required for REFINE-007.
-- Keep ROI closures gated on Stage A telemetry (`roi_mode`) plus warm cache availability; do not invent new knobs or sample fractions.
-- Stage C perf counters must advertise both `roi_mode` and the new `validation_scope`; avoid overwriting one with the other or changing key names (tools read them today).
-- Leave Stage B/C env vars intact (`KMP_DUPLICATE_LIB_OK`, `NANOBRAGG_DISABLE_COMPILE`, `DBEX_SMOKE_SIGMA_SOURCE`) so telemetry stays comparable to earlier loops.
-- When editing the smoketest, keep `_record_stage_telemetry` call order untouched—only extend the assertions.
-- If the pytest selector still fails after the ROI-mode fix, do not rerun blindly; capture telemetry/logs once and stop for supervisor review.
+- Do not relax REFINE-007 tolerances; the goal is to fix Stage C telemetry, not mask the regression.
+- Keep `_record_stage_telemetry` before the asserts so failures still capture JSON evidence.
+- Do not touch Stage C optimizer hyperparameters or ROI sampling knobs in this loop—only fix the telemetry persistence bug.
+- Preserve the existing env vars (`AUTHORITATIVE_CMDS_DOC`, `DBEX_SMOKE_SIGMA_SOURCE`, `KMP_DUPLICATE_LIB_OK`, `NANOBRAGG_DISABLE_COMPILE`) so runs remain comparable to previous artifacts.
+- When persisting best tuples, avoid mutating the tensor objects in place—keep the CPU list snapshot so `distance_offset_raw` can reload cleanly.
+- Ensure collect-only runs succeed before firing the expensive smoketests; if a selector stops collecting, halt and capture the issue.
+- Keep telemetry key names stable (`roi_mode`, `validation_scope`, `chi_squared_trace_full`) to avoid breaking existing analyzers/scripts.
 If Blocked:
-- Archive the failing collect/run logs plus telemetry into `plans/active/PERF-WARM-SIM-001/reports/2025-12-01T174500Z/`, quote the failure signature in docs/fix_plan.md Attempts History, and set galph_memory state=blocked so we can decide between reverting the ROI change or recalibrating REFINE-007.
+- Stop after the first failing selector, archive the log + telemetry JSON in this loop’s artifact dir, and record the failure signature plus stack trace in docs/fix_plan.md Attempts History. Set galph_memory to `state=blocked` so we regroup before considering tolerance adjustments.
 Findings Applied (Mandatory):
-- REFINE-010 (docs/findings.md:65) — Stage A automatically forces panel closures when canonical ROI count ≤32 or Stage B/C run; Stage C must follow the same heuristic for telemetry.
-- REFINE-011 (docs/findings.md:72) — Full validations must use the same population as Stage A panel scope via `force_panel_validation`; our change keeps that guard in place.
-- REFINE-012 (docs/findings.md:73) — ROI-mode provenance must be recorded; we’re refining it so closures stay ROI-aware while validation scope is explicit.
-- REFINE-007 (docs/findings.md:60) — Chi² regression gate (≤0.05%) remains the acceptance metric; evidence from the updated smokes must show the gate passing again before any tolerance discussion.
+- REFINE-007 — Stage C detector microslip tests must show ≤0.05% chi² regression and ≥80% offset reduction; fixing the best-snapshot persistence should restore that guarantee.
+- REFINE-010 — Stage A auto-panel policy dictates when ROI closures are active; Stage C must keep following the telemetry signal we already plumbed.
+- REFINE-011 — Full validations must run in panel scope whenever Stage B/C are enabled; the best-snapshot fix must preserve this guard.
+- REFINE-012 — ROI-mode provenance stays diagnostic (`roi_mode_reason`, `validation_scope`) and cannot regress while touching telemetry.
 Pointers:
-- docs/spec-db-workflow.md:90 — Optimization Strategy clause that permits ROI minibatching when periodic full validations occur.
-- docs/findings.md:65-74 — REFINE-010/011/012 gate rationale that drives this ROI/validation alignment.
-- dbex/refinement/stage_c_impl.py:178-340 — Current Stage C ROI-mode + `force_panel_validation` logic we need to adjust.
-- tests/dbex/test_torch_refine_smoke.py:990-1250 — Stage C smoketest assertions and telemetry recording hook that must add the new perf-counter field.
-Next Up (optional): If Stage C still regresses after ROI closures return, prep a follow-up plan to adjust LBFGS hyperparameters or document a REFINE-007 gate recalibration backed by the new telemetry.
+- docs/spec-db-workflow.md:120-150 — ROI minibatching clause + panel-validation contract driving this fix.
+- docs/findings.md:60-78 — REFINE-007/010/011/012 guardrails cited above.
+- dbex/refinement/stage_c_impl.py:300-780 — Closure + optimizer logic that currently drops the best snapshot.
+- tests/dbex/test_torch_refine_smoke.py:1080-1280 — Smoketest asserts and telemetry recorder that expose the regression.
+Next Up (optional): If χ² still regresses after this fix, prep a follow-up loop to capture per-iteration chi² traces and reconsider LBFGS tolerances before any gate changes.

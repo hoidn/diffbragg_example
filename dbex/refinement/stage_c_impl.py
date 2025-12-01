@@ -123,6 +123,7 @@ def _build_stage_c_params(
         - 'stage_c_roi_count_total': int
         - 'stage_c_roi_count_sampled': int
         - 'roi_slices_by_pid': Dict[int, List[Tuple[int, int, int, int]]]
+        - 'force_panel_validation': bool (REFINE-011: bypass ROI for full validations when True)
         - 'perf_closure_evals_c': List[int] (mutable counter)
         - 'perf_validation_runs_c': List[int] (mutable counter)
         - 'perf_forward_times_ms_c': List[float] (mutable accumulator)
@@ -180,6 +181,13 @@ def _build_stage_c_params(
         and len(roi_slices_by_pid) > 0
     )
     stage_c_roi_mode_label = "roi" if stage_c_roi_mode_active else "panel"
+
+    # REFINE-011: Extract Stage A validation scope to control Stage C full validations
+    # When Stage A used panel-mode validations, Stage C full validations must also use panel mode
+    # to ensure chi² measurements are comparable (REFINE-007 non-regression gate)
+    stage_a_perf_counters = stage_a_telemetry.get('perf_counters', {})
+    stage_a_validation_scope = stage_a_perf_counters.get('validation_scope', 'roi')
+    force_panel_validation = (stage_a_validation_scope == 'panel')
     sampled_pid_set = set(sampled_panel_ids)
     if stage_c_roi_mode_active:
         stage_c_roi_count_total = sum(len(bboxes) for bboxes in roi_slices_by_pid.values())
@@ -233,6 +241,7 @@ def _build_stage_c_params(
         'stage_c_roi_count_total': stage_c_roi_count_total,
         'stage_c_roi_count_sampled': stage_c_roi_count_sampled,
         'roi_slices_by_pid': roi_slices_by_pid,
+        'force_panel_validation': force_panel_validation,  # REFINE-011: For Stage C full validation bypass
         'perf_closure_evals_c': perf_closure_evals_c,
         'perf_validation_runs_c': perf_validation_runs_c,
         'perf_forward_times_ms_c': perf_forward_times_ms_c,
@@ -281,7 +290,7 @@ def _build_stage_c_lbfgs_closure(
 
     Returns:
         Tuple of:
-        - compute_loss_stage_c: Callable[[panel_ids, is_full], (chi_squared, mse)]
+        - compute_loss_stage_c: Callable[[panel_ids, is_full, force_panel_eval], (chi_squared, mse)]
         - closure_stage_c: Callable[[], chi_squared_loss] (LBFGS closure contract)
     """
     # Extract from param_values dict
@@ -327,13 +336,19 @@ def _build_stage_c_lbfgs_closure(
     stage_c_roi_mode_active = stage_c_context['stage_c_roi_mode_active']
     stage_c_roi_mode_label = stage_c_context['stage_c_roi_mode_label']
     roi_slices_by_pid = stage_c_context['roi_slices_by_pid']
+    force_panel_validation = stage_c_context['force_panel_validation']  # REFINE-011
     n_panels = len(detector)
 
-    def compute_loss_stage_c(panel_ids: List[int], is_full: bool = False) -> Tuple[torch.Tensor, torch.Tensor]:
+    def compute_loss_stage_c(panel_ids: List[int], is_full: bool = False, force_panel_eval: bool = False) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Compute variance-weighted chi-squared loss with Stage C detector distance adjustments.
 
         Uses Stage A's final crystal parameters (frozen) and varies per-panel distances.
+
+        Args:
+            panel_ids: List of panel indices to evaluate
+            is_full: If True, this is a validation run (records perf_validation_runs_c)
+            force_panel_eval: If True, bypass ROI mode even if stage_c_roi_mode_active (REFINE-011)
 
         Returns:
             Tuple of (chi_squared_loss, masked_mse_loss): Both scalar tensors for telemetry
@@ -466,7 +481,11 @@ def _build_stage_c_lbfgs_closure(
         mask_outputs = {pid: panel for pid, panel in zip(panel_ids, mask_panels)}
         sigma_outputs = {pid: panel for pid, panel in zip(panel_ids, sigma_panels)}
 
-        if stage_c_roi_mode_active:
+        # REFINE-011: Bypass ROI mode for full validations when Stage A used panel-mode validations
+        # This ensures Stage C chi² measurements are comparable to Stage A baseline (REFINE-007)
+        use_roi_mode_this_eval = stage_c_roi_mode_active and not (is_full and force_panel_eval)
+
+        if use_roi_mode_this_eval:
             chi_squared_accum = torch.zeros((), device=device, dtype=dtype)
             mse_numerator_accum = torch.zeros((), device=device, dtype=dtype)
             masked_pixels_total = 0
@@ -562,7 +581,10 @@ def _build_stage_c_lbfgs_closure(
         # Periodic full validation
         if iteration_count_c[0] % config.full_validation_interval == 0:
             with torch.no_grad():
-                full_chi_squared_c, full_mse_c = compute_loss_stage_c(list(range(n_panels)), is_full=True)
+                # REFINE-011: Use panel mode for full validations when Stage A used panel mode
+                full_chi_squared_c, full_mse_c = compute_loss_stage_c(
+                    list(range(n_panels)), is_full=True, force_panel_eval=force_panel_validation
+                )
                 loss_trace_full_c.append((iteration_count_c[0], float(full_chi_squared_c.item())))
                 # PHYSICS-LOSS-001: Record both metrics
                 chi_squared_trace_full_c.append((iteration_count_c[0], float(full_chi_squared_c.item())))
@@ -664,6 +686,7 @@ def _run_stage_c_lbfgs(
     sampled_panel_ids = stage_c_context['sampled_panel_ids']
     _apply_baseline_detector_prior = stage_c_context['_apply_baseline_detector_prior']
     misset_deg_for_crystal = stage_c_context['misset_deg_for_crystal']
+    force_panel_validation = stage_c_context['force_panel_validation']  # REFINE-011
 
     # Extract from canonical_baseline dict (needed for improvement gate)
     best_loss_full = (canonical_baseline['chi_squared'], canonical_baseline['iteration'])
@@ -693,7 +716,10 @@ def _run_stage_c_lbfgs(
 
     final_step_c = iteration_count_c[0]
     with torch.no_grad():
-        candidate_final_chi2, candidate_final_mse = compute_loss_stage_c(list(range(n_panels)), is_full=True)
+        # REFINE-011: Use panel mode for final validation when Stage A used panel mode
+        candidate_final_chi2, candidate_final_mse = compute_loss_stage_c(
+            list(range(n_panels)), is_full=True, force_panel_eval=force_panel_validation
+        )
     candidate_loss_value_c = float(candidate_final_chi2.item())
     candidate_mse_value_c = float(candidate_final_mse.item())
     if candidate_loss_value_c < chi_squared_best_c[0]:

@@ -302,6 +302,7 @@ class StageC:
         stage_c_roi_count_total = stage_c_params_dict['stage_c_roi_count_total']
         stage_c_roi_count_sampled = stage_c_params_dict['stage_c_roi_count_sampled']
         roi_slices_by_pid = stage_c_params_dict['roi_slices_by_pid']
+        force_panel_validation = stage_c_params_dict['force_panel_validation']  # REFINE-011
         perf_closure_evals_c = stage_c_params_dict['perf_closure_evals_c']
         perf_validation_runs_c = stage_c_params_dict['perf_validation_runs_c']
         perf_forward_times_ms_c = stage_c_params_dict['perf_forward_times_ms_c']
@@ -403,6 +404,7 @@ class StageC:
             'misset_deg_for_crystal': misset_deg_for_crystal,
             'roi_slices_by_pid': roi_slices_by_pid,
             'stage_c_roi_mode_active': stage_c_roi_mode_active,
+            'force_panel_validation': force_panel_validation,  # REFINE-011
         }
 
         # STEP 2: Build Stage C LBFGS closure (returns tuple)
@@ -426,10 +428,12 @@ class StageC:
 
         # ARCH-REFINE-001: Validate Stage C initial chi-squared matches Stage A final (±1e-3)
         # This ensures parameter reconstruction is correct (REFINE-FLOW-001-EXT)
+        # REFINE-011: Use panel mode for validation when Stage A used panel mode
         with torch.no_grad():
             stage_c_initial_chi_squared, stage_c_initial_mse = compute_loss_stage_c(
                 sampled_panel_ids,  # Use actual sampled panel IDs (not panel_slices)
-                is_full=True
+                is_full=True,
+                force_panel_eval=force_panel_validation
             )
             stage_c_initial_chi_squared_value = float(stage_c_initial_chi_squared.item())
 

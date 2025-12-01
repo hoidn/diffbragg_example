@@ -362,7 +362,9 @@ class StageA:
                 'min': float(np.min(perf_forward_times_ms)) if perf_forward_times_ms else 0.0,
                 'max': float(np.max(perf_forward_times_ms)) if perf_forward_times_ms else 0.0,
                 'total': float(np.sum(perf_forward_times_ms)) if perf_forward_times_ms else 0.0
-            }
+            },
+            # REFINE-011: Tag validation scope so Stage C knows whether to use panel mode for full validations
+            'validation_scope': "panel" if force_panel_validation else "roi"
         }
 
         # ARCH-REFINE-001, REFINE-010: Add ROI mode reason to explain auto-panel switching

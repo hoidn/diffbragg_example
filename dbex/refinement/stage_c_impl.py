@@ -183,20 +183,20 @@ def _build_stage_c_params(
     stage_a_validation_scope = stage_a_perf_counters.get('validation_scope', 'roi')
     force_panel_validation = (stage_a_validation_scope == 'panel')
 
-    # REFINE-012: Disable Stage C ROI-mode closures entirely when Stage A forces panel validations
-    # so LBFGS optimizes the same pixel population that REFINE-007 gates inspect
+    # REFINE-012 (revised): Restore Stage C ROI-mode closures for efficiency while keeping
+    # panel-mode validations explicit. ROI closures stay active when Stage A used ROI mode,
+    # but validation_scope tracks whether full validations should use panel or ROI population.
     stage_c_roi_mode_active = (
         stage_c_use_warm_cache
         and stage_a_used_roi_mode
         and len(roi_slices_by_pid) > 0
-        and not force_panel_validation  # Disable ROI-mode when Stage A used panel-mode validations
+        # force_panel_validation guard REMOVED per 2025-12-01T174500Z
+        # Spec permits ROI minibatching in closures (spec-db-workflow.md:127)
     )
 
-    # Compute roi_mode_reason for telemetry provenance (REFINE-012)
+    # Compute roi_mode_reason for telemetry provenance (REFINE-012 extension)
     if not stage_c_use_warm_cache:
         roi_mode_reason = "warm_cache_disabled"
-    elif force_panel_validation:
-        roi_mode_reason = "force_panel_validation"  # Stage A panel validations mandate panel closures
     elif not stage_a_used_roi_mode:
         roi_mode_reason = "stage_a_panel_mode"
     elif len(roi_slices_by_pid) == 0:
@@ -205,6 +205,11 @@ def _build_stage_c_params(
         roi_mode_reason = "roi_mode_active"
 
     stage_c_roi_mode_label = "roi" if stage_c_roi_mode_active else "panel"
+
+    # REFINE-011 extension: validation_scope is independent from closure ROI mode
+    # Full validations MUST use panel mode whenever Stage A forced panel validations,
+    # even when closures use ROI minibatching (spec-db-workflow.md:127)
+    validation_scope = "panel" if force_panel_validation else stage_c_roi_mode_label
     sampled_pid_set = set(sampled_panel_ids)
     if stage_c_roi_mode_active:
         stage_c_roi_count_total = sum(len(bboxes) for bboxes in roi_slices_by_pid.values())
@@ -260,7 +265,7 @@ def _build_stage_c_params(
         'roi_slices_by_pid': roi_slices_by_pid,
         'force_panel_validation': force_panel_validation,  # REFINE-011: For Stage C full validation bypass
         'roi_mode_reason': roi_mode_reason,  # REFINE-012: Provenance tag for ROI-mode decision
-        'validation_scope': stage_c_roi_mode_label,  # REFINE-012: Matches Stage C closure mode
+        'validation_scope': validation_scope,  # REFINE-011/012: Independent from closure mode (panel when forced)
         'perf_closure_evals_c': perf_closure_evals_c,
         'perf_validation_runs_c': perf_validation_runs_c,
         'perf_forward_times_ms_c': perf_forward_times_ms_c,
@@ -894,7 +899,7 @@ def _run_stage_c_lbfgs(
         'cache_mode': stage_c_cache_mode,
         'roi_mode': stage_c_roi_mode_label,
         'roi_mode_reason': roi_mode_reason,  # REFINE-012: Provenance for ROI-mode decision
-        'validation_scope': stage_c_roi_mode_label,  # REFINE-012: Matches Stage C closure mode
+        'validation_scope': validation_scope,  # REFINE-011/012: Independent from closure mode (panel when forced)
         'roi_count_total': stage_c_roi_count_total,
         'roi_count_sampled': stage_c_roi_count_sampled,
         'closure_evals': perf_closure_evals_c[0],

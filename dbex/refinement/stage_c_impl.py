@@ -183,27 +183,28 @@ def _build_stage_c_params(
     stage_a_validation_scope = stage_a_perf_counters.get('validation_scope', 'roi')
     force_panel_validation = (stage_a_validation_scope == 'panel')
 
-    # REFINE-012: Disable Stage C ROI-mode closures whenever Stage A telemetry enforces
-    # panel validations so the LBFGS population matches the REFINE-007 chi² gate.
-    # ROI closures stay active when Stage A used ROI mode AND panel validations not forced.
+    # REFINE-012 (revised 2025-12-01T200900Z): Re-enable ROI closures while keeping
+    # panel validations. ROI closures optimize via ROI minibatching; validation_scope
+    # forces panel mode independently per REFINE-011/012.
     stage_c_roi_mode_active = (
         stage_c_use_warm_cache
         and stage_a_used_roi_mode
         and len(roi_slices_by_pid) > 0
-        and not force_panel_validation
     )
 
     # Compute roi_mode_reason for telemetry provenance (REFINE-012 extension)
-    if not stage_c_use_warm_cache:
-        roi_mode_reason = "warm_cache_disabled"
-    elif force_panel_validation:
-        roi_mode_reason = "validation_scope_panel"
-    elif not stage_a_used_roi_mode:
-        roi_mode_reason = "stage_a_panel_mode"
-    elif len(roi_slices_by_pid) == 0:
-        roi_mode_reason = "no_rois"
+    # Only report reason when ROI mode is disabled; otherwise use empty string
+    if not stage_c_roi_mode_active:
+        if not stage_c_use_warm_cache:
+            roi_mode_reason = "warm_cache_disabled"
+        elif not stage_a_used_roi_mode:
+            roi_mode_reason = "stage_a_panel_mode"
+        elif len(roi_slices_by_pid) == 0:
+            roi_mode_reason = "no_rois"
+        else:
+            roi_mode_reason = "unknown"  # should not happen
     else:
-        roi_mode_reason = "roi_mode_active"
+        roi_mode_reason = ""  # ROI mode active, no reason needed
 
     stage_c_roi_mode_label = "roi" if stage_c_roi_mode_active else "panel"
 

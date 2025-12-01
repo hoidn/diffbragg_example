@@ -30,7 +30,7 @@
 
 ### Tier 3: Architectural Maturity (Refactoring)
 **Goal:** Refactor monolithic loops into maintainable engines with clear boundaries and testable seams.
-- [PERF-WARM-SIM-001] (Warm Simulator) — **blocked — suspected implementation defect (LBFGS panel-mode convergence)** (2025-12-01T193800Z: Repeat-failure guard triggered — ROI-mode disablement produces identical +0.067% chi² regression as 2025-12-01T170326Z; flat LBFGS trace suggests panel-mode closures prevent convergence. Supervisor review required.)
+- [PERF-WARM-SIM-001] (Warm Simulator) — **blocked — suspected implementation defect (LBFGS ROI-mode convergence)** (2025-12-01T200900Z: Repeat-failure guard triggered — ROI closures re-enabled but still produces identical +0.067% chi² regression (Stage A: 2.1071e+08, Stage C: 2.1085e+08); flat LBFGS trace [210848512.0 constant across iterations 0,5,10] suggests optimizer not making progress. Telemetry confirms roi_mode="roi", validation_scope="panel", roi_mode_reason="" as expected. Supervisor review required.)
 
 ### Tier 3: Tooling & Observability
 **Goal:** Standardize visuals, documentation, and runtime guardrails.
@@ -1213,4 +1213,32 @@ python plans/active/PERF-WARM-SIM-001/bin/summarize_stage_c_warm_cache.py \
   --telemetry-full plans/active/PERF-WARM-SIM-001/reports/2025-12-01T200900Z/telemetry_stage_c_full.json \
   --out-json plans/active/PERF-WARM-SIM-001/reports/2025-12-01T200900Z/stage_c_warm_cache_report.json
 ```
-- Exit Criteria: Both detector sizes report `roi_mode` that matches Stage A’s ROI telemetry (small → panel, full → roi) while `validation_scope` stays `"panel"` whenever Stage C is enabled; telemetry proves ≥99.999% detector-offset reduction and Stage C chi² regression ≤0.05% vs Stage A (REFINE-007). Artifacts recorded under `plans/active/PERF-WARM-SIM-001/reports/2025-12-01T200900Z/`.
+- Exit Criteria: Both detector sizes report `roi_mode` that matches Stage A's ROI telemetry (small → panel, full → roi) while `validation_scope` stays `"panel"` whenever Stage C is enabled; telemetry proves ≥99.999% detector-offset reduction and Stage C chi² regression ≤0.05% vs Stage A (REFINE-007). Artifacts recorded under `plans/active/PERF-WARM-SIM-001/reports/2025-12-01T200900Z/`.
+
+### 2025-12-01T200900Z - PERF-WARM-SIM-001 Phase D.4: Re-enable ROI closures implementation (BLOCKED — REPEAT FAILURE)
+**Action**: Re-enabled ROI closures by removing `and not force_panel_validation` guard from `stage_c_roi_mode_active` computation (dbex/refinement/stage_c_impl.py:186-193), updated `roi_mode_reason` logic to only report when ROI mode is disabled (lines 197-207), and updated test expectations to read Stage A telemetry directly (tests/dbex/test_torch_refine_smoke.py:1205-1210).
+**Metrics**:
+- Small detector (29 ROIs, 1 panel): **PASSED ✓** — roi_mode="roi", roi_mode_reason="", validation_scope="panel", detector offset reduced 99.999994%, chi² regression within tolerance
+- Full detector (92 ROIs, 60 panels): **FAILED ✗** — chi² regression +0.0674% (Stage A final=2.1071e+08, Stage C final=2.1085e+08), **identical to 2025-12-01T170326Z and 2025-12-01T193800Z results**
+**Artifacts**: plans/active/PERF-WARM-SIM-001/reports/2025-12-01T200900Z/ (collect_stage_c_small.log, pytest_stage_c_small.log, telemetry_stage_c_small.json, collect_stage_c_full.log, pytest_stage_c_full.log, telemetry_stage_c_full.json)
+**First Divergence**: **REPEAT FAILURE DETECTED** per ground_rules repeat-failure guard — full detector chi² trace is flat across all LBFGS iterations ([0: 210848512.0, 5: 210848512.0, 10: 210848512.0]), indicating LBFGS makes zero progress. Telemetry confirms ROI closures are now active (roi_mode="roi", roi_mode_reason="", roi_count_total=92, roi_count_sampled=92, closure_evals=10, validation_runs=4) while validation_scope="panel" as expected, yet optimizer still does not converge.
+**Root Cause Hypothesis**: The chi² regression is identical across three different implementation attempts:
+1. 2025-12-01T170326Z: ROI closures disabled, panel validations enabled
+2. 2025-12-01T193800Z: ROI closures disabled, panel validations enabled (repeat)
+3. 2025-12-01T200900Z: ROI closures enabled, panel validations enabled
+
+All three produce Stage A final=2.1071e+08, Stage C final=2.1085e+08 (+0.067%), with flat LBFGS traces. The consistent failure across both "ROI closures disabled" and "ROI closures enabled" regimes suggests the issue is NOT the ROI-mode gate logic itself, but rather:
+1. LBFGS optimizer convergence parameters (tolerance_change, tolerance_grad) may be incompatible with the warm-cache or validation-scope regime
+2. Panel validation mode may introduce numerical artifacts that prevent gradient descent
+3. The detector offset parameterization or initialization may prevent LBFGS from exploring parameter space effectively
+4. Or a deeper implementation issue in the warm-cache path (e.g., gradient computation, parameter wiring, simulator reuse)
+
+**Next Actions**:
+- **BLOCKED — Implementation defect suspected**: Mark PERF-WARM-SIM-001 blocked per repeat-failure guard. Do NOT re-run with gate/test adjustments.
+- **Supervisor review required**:
+  1. Investigate LBFGS convergence behavior: why does chi² stay flat across all iterations?
+  2. Consider running callchain analysis on Stage C LBFGS closure to understand gradient flow
+  3. Check whether warm-cache detector reuse breaks gradient computation
+  4. Verify detector offset parameterization allows sufficient parameter exploration
+  5. Consider whether +0.067% chi² regression is inherent to Stage C's constraints (e.g., detector-only refinement vs full parameter optimization)
+- See telemetry evidence at `plans/active/PERF-WARM-SIM-001/reports/2025-12-01T200900Z/` for detailed failure signature.

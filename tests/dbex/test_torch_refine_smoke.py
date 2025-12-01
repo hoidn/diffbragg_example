@@ -1196,15 +1196,18 @@ def test_stage_c_detector_microslip(
     assert perf_c is not None, "Stage C perf_counters missing"
     cache_mode_c = perf_c.get("cache_mode")
     assert cache_mode_c == "warm", f"Stage C cache_mode should be 'warm', got {cache_mode_c}"
-    # ARCH-REFINE-001, REFINE-010, REFINE-011/012 (revised 2025-12-01T174500Z):
-    # - roi_mode tracks LBFGS closure mode (may use ROI minibatching per spec-db-workflow.md:127)
+    # ARCH-REFINE-001, REFINE-010, REFINE-011/012 (revised 2025-12-01T200900Z):
+    # - roi_mode tracks LBFGS closure mode (follows Stage A ROI decision)
     # - validation_scope tracks full validation mode (forced to "panel" when Stage B/C enabled)
     force_panel_from_staging = config.enable_stage_b or config.enable_stage_c or config.stage_a_force_panel_validation
     force_panel_from_roi_threshold = len(refinement_inputs.panel_slices) <= config.stage_a_panel_validation_roi_threshold
-    # ROI mode follows Stage A's ROI decision (not forced to panel just because Stage C runs)
-    expected_roi_mode = "panel" if force_panel_from_roi_threshold else "roi"
+    # Stage C ROI mode follows Stage A's actual ROI mode (from telemetry)
+    perf_a = telemetry_a.perf_counters
+    assert perf_a is not None, "Stage A perf_counters missing"
+    stage_a_roi_mode = perf_a.get("roi_mode", "panel")
+    expected_roi_mode = stage_a_roi_mode  # Stage C mirrors Stage A
     roi_mode_c = perf_c.get("roi_mode")
-    assert roi_mode_c == expected_roi_mode, f"Stage C roi_mode {roi_mode_c} != expected {expected_roi_mode}"
+    assert roi_mode_c == expected_roi_mode, f"Stage C roi_mode {roi_mode_c} != expected {expected_roi_mode} (Stage A: {stage_a_roi_mode})"
     # Validation scope MUST be "panel" when Stage B/C enabled (REFINE-011)
     expected_validation_scope = "panel" if (force_panel_from_staging or force_panel_from_roi_threshold) else "roi"
     validation_scope_c = perf_c.get("validation_scope")

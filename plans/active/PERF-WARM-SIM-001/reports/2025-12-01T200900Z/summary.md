@@ -1,5 +1,5 @@
 ### Turn Summary
-Re-scoped PERF-WARM-SIM-001 to re-enable Stage C ROI closures now that the REFINE-013 snapshot fixes are landing.
-Captured the remaining delta (panel-only closures) and updated docs/fix_plan.md + input.md with the ROI/validation plan plus telemetry commands for both detector sizes.
-Next: Ralph patches stage_c_impl.py/test harness and reruns the Stage C smoketests (small + full) with telemetry + summarizer artifacts under 2025-12-01T200900Z.
-Artifacts: plans/active/PERF-WARM-SIM-001/reports/2025-12-01T200900Z/
+Re-enabled ROI closures for Stage C warm-cache path but encountered identical chi² regression (+0.067%) as previous two loops, triggering repeat-failure guard.
+Telemetry confirms roi_mode="roi", validation_scope="panel", roi_mode_reason="" as expected, yet LBFGS trace is flat [210848512.0 constant], suggesting optimizer convergence issue rather than ROI-mode gate logic.
+Marked PERF-WARM-SIM-001 blocked per repeat-failure guard; supervisor review required to investigate LBFGS convergence behavior, warm-cache gradient flow, or detector offset parameterization.
+Artifacts: plans/active/PERF-WARM-SIM-001/reports/2025-12-01T200900Z/ (telemetry_stage_c_small.json, telemetry_stage_c_full.json, pytest logs)

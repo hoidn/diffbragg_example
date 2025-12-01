@@ -16,6 +16,7 @@
 ### Tier 1: Core Physics & Stability
 **Goal:** Ensure the math is correct, the loss function is normative, Stage A/mapping parity holds (DB‑AT‑027/028/029), and the smoke tests are green.
 - [ARCH-REFINE-001] (Refine Engine Modularization + Torch IO context) — **Done** (2025-12-01T161600Z: Phase A-E code landed; 2025-12-01T170500Z docs/finding wrap complete. Ready to archive once downstream initiatives pick up.)
+- [ARCH-ENGINE-ARTIFACTS-001] (Engine artifact channel & Bragg unification) — *pending*
 
 ### Tier 2: Architectural Maturity
 **Goal:** Break the monolithic `run_nanobrag_refinement` into a maintainable Protocol Engine.
@@ -66,6 +67,20 @@
     - Wiring updates: `dbex/refinement/stage_b.py` and the inline Stage B branch in `dbex/nanobrag_refinement.py` should import from the new module; warm-cache/ROI propagation continues through `StageAContext` (from stage_a_impl) so CPU fallback + telemetry semantics remain intact per PERF-WARM-011 and PHYSICS-LOSS-001.
     - Validation: rerun `pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small` (plus optional per-reflection selector when ready) with `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md`, capturing logs + telemetry under `plans/active/ARCH-REFINE-001/reports/<timestamp>/`.
     - Next Actions: Implement the Stage B helper migration, then tackle Stage C helpers before starting the RefinementContext/JobContext dataclasses.
+
+### [ARCH-ENGINE-ARTIFACTS-001] RefinementEngine Artifact Channel & Final-Bragg Unification
+- Depends on: ARCH-REFINE-001 (engine modularization baseline), ARCH-REFINE-FLOW-001 (stage wrappers, telemetry contract)
+- Status: pending
+- Priority: High
+- Tier: 1
+- Owner/Date: Codex / 2025-12-02
+- Exit Criteria:
+  1. `RefinementEngine` exposes a documented artifact map populated by executed stages without private attribute access (docs/spec-db-workflow.md §33).
+  2. Stage B and Stage C wrappers emit their final Bragg tensors via the artifact channel with ≤1e-6 relative MSE versus current reconstruction helpers (REFINE-FLOW-001).
+  3. `run_nanobrag_refinement` uses a single engine path, reading the last stage’s artifact for final Bragg and no longer calling `_build_final_bragg_from_stage_b_telemetry` or `_stage_c_bragg_full`.
+- Working Plan: `plans/active/ARCH-ENGINE-ARTIFACTS-001/implementation.md`
+- Attempts History:
+  * (pending) — Initiative newly added; initial planning artifacts at `plans/active/ARCH-ENGINE-ARTIFACTS-001/implementation.md`.
 
 ## Attempts History
 

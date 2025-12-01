@@ -990,6 +990,7 @@ def _compute_panel_loss(
     device,
     dtype,
     trusted_mask_array: Optional[np.ndarray] = None,
+    panel_diag: Optional[List[Dict]] = None,
 ) -> Tuple[torch.Tensor, torch.Tensor, int, int]:
     """
     Compute panel-mode loss over specified panel IDs (Stage A / Stage C shared helper).
@@ -1022,6 +1023,10 @@ def _compute_panel_loss(
         device: torch device
         dtype: torch dtype
         trusted_mask_array: Optional numpy array of trusted masks (cold-path Stage A only; [n_panels, slow, fast])
+        panel_diag: Optional list to collect per-panel diagnostics. When provided, appends
+                   dicts with {panel_id, chi_squared, masked_pixels, mask_true_count,
+                   target_sum, sigma_sum} for each panel before aggregating totals.
+                   PERF-WARM-SIM-001 Phase D.4 instrumentation.
 
     Returns:
         Tuple of (chi_squared_loss, masked_mse_loss, masked_pixels, clamped_pixels)
@@ -1029,84 +1034,189 @@ def _compute_panel_loss(
     from dbex.nanobrag_bridge import create_detector_config, create_crystal_config
     from dbex.physics.loss import _compute_variance_weighted_loss
 
-    bragg_panels = []
-    for pid in panel_ids:
-        if stage_a_ctx is not None:
-            simulator = stage_a_ctx.simulators[pid]
-        else:
-            # Cold path: build detector/crystal/simulator on the fly
-            # ARCH-REFINE-001: This path should rarely execute when Stage C reuses Stage A context
-            panel_trusted_mask = trusted_mask_array[pid] if trusted_mask_array is not None else None
-            detector_config = create_detector_config(
-                panel=detector[pid],
-                beam=beam,
-                trusted_mask=panel_trusted_mask
-            )
-            if detector_config.mask_array is not None and not isinstance(detector_config.mask_array, torch.Tensor):
-                detector_config.mask_array = torch.tensor(
-                    detector_config.mask_array, dtype=torch.float32, device=device
+    # PERF-WARM-SIM-001: When diagnostics are requested, compute per-panel metrics serially
+    # so we can capture chi², mask, sigma, and target checksums before aggregating.
+    # Otherwise, use the fast-path stacked evaluation.
+    if panel_diag is not None:
+        # Per-panel evaluation path for diagnostics
+        total_chi_squared = torch.tensor(0.0, device=device, dtype=dtype)
+        total_masked_mse = torch.tensor(0.0, device=device, dtype=dtype)
+        total_masked_pixels = 0
+        total_clamped_pixels = 0
+
+        for pid in panel_ids:
+            # Generate Bragg for this panel
+            if stage_a_ctx is not None:
+                simulator = stage_a_ctx.simulators[pid]
+            else:
+                # Cold path: build detector/crystal/simulator on the fly
+                panel_trusted_mask = trusted_mask_array[pid] if trusted_mask_array is not None else None
+                detector_config = create_detector_config(
+                    panel=detector[pid],
+                    beam=beam,
+                    trusted_mask=panel_trusted_mask
                 )
-            from nanobrag_torch.models.detector import Detector
-            detector_model = Detector(detector_config, device=device, dtype=dtype)
+                if detector_config.mask_array is not None and not isinstance(detector_config.mask_array, torch.Tensor):
+                    detector_config.mask_array = torch.tensor(
+                        detector_config.mask_array, dtype=torch.float32, device=device
+                    )
+                from nanobrag_torch.models.detector import Detector
+                detector_model = Detector(detector_config, device=device, dtype=dtype)
 
-            crystal_config, _ = create_crystal_config(
-                crystal,
-                None,
-                crystal_overrides=crystal_overrides,
-                misset_deg_override=misset_deg_for_crystal
+                crystal_config, _ = create_crystal_config(
+                    crystal,
+                    None,
+                    crystal_overrides=crystal_overrides,
+                    misset_deg_override=misset_deg_for_crystal
+                )
+                from nanobrag_torch.models.crystal import Crystal
+                crystal_model = Crystal(
+                    crystal_config,
+                    beam_config=beam_config_for_run,
+                    device=device,
+                    dtype=dtype
+                )
+                crystal_model.interpolate = config.enable_hkl_interpolation
+                crystal_model.hkl_data = hkl_grid.to(device=device, dtype=dtype)
+                crystal_model.hkl_metadata = hkl_metadata
+
+                if beam_config_for_run is None:
+                    from dbex.nanobrag_bridge import create_beam_config
+                    beam_config_for_run = create_beam_config(beam)
+
+                from nanobrag_torch.simulator import Simulator
+                simulator = Simulator(
+                    detector=detector_model,
+                    crystal=crystal_model,
+                    beam_config=beam_config_for_run,
+                    device=device,
+                    dtype=dtype
+                )
+
+            bragg_panel = simulator.run()
+            bragg_scaled = bragg_panel * torch.exp(log_scale_clamped)
+
+            # Extract panel-specific tensors
+            target_panel = target_t[pid]
+            mask_panel = loss_mask_t[pid]
+            # REFINE-016: Apply trusted-mask gating when warm context is available
+            if stage_a_ctx is not None and stage_a_ctx.trusted_masks_t is not None:
+                trusted_panel = stage_a_ctx.trusted_masks_t[pid]
+                mask_panel = torch.logical_and(mask_panel, trusted_panel)
+            sigma_panel = sigma_readout_t[pid]
+
+            # Compute per-panel loss (unsqueeze to match batch dimension)
+            (
+                panel_chi_squared,
+                panel_masked_mse,
+                panel_masked_pixels,
+                panel_clamped_pixels,
+            ) = _compute_variance_weighted_loss(
+                bragg_scaled.unsqueeze(0),
+                target_panel.unsqueeze(0),
+                mask_panel.unsqueeze(0),
+                sigma_panel.unsqueeze(0),
+                sigma_floor_sq_tensor,
             )
-            from nanobrag_torch.models.crystal import Crystal
-            crystal_model = Crystal(
-                crystal_config,
-                beam_config=beam_config_for_run,
-                device=device,
-                dtype=dtype
-            )
-            crystal_model.interpolate = config.enable_hkl_interpolation
-            crystal_model.hkl_data = hkl_grid.to(device=device, dtype=dtype)
-            crystal_model.hkl_metadata = hkl_metadata
 
-            # Build BeamConfig if not provided (Stage C cold path)
-            if beam_config_for_run is None:
-                from dbex.nanobrag_bridge import create_beam_config
-                beam_config_for_run = create_beam_config(beam)
+            # Collect diagnostics
+            panel_diag.append({
+                'panel_id': int(pid),
+                'chi_squared': float(panel_chi_squared.item()),
+                'masked_pixels': int(panel_masked_pixels),
+                'mask_true_count': int(mask_panel.sum().item()),
+                'target_sum': float(target_panel.sum().item()),
+                'sigma_sum': float(sigma_panel.sum().item()),
+            })
 
-            from nanobrag_torch.simulator import Simulator
-            simulator = Simulator(
-                detector=detector_model,
-                crystal=crystal_model,
-                beam_config=beam_config_for_run,
-                device=device,
-                dtype=dtype
-            )
-        bragg_panels.append(simulator.run())
+            # Accumulate totals
+            total_chi_squared += panel_chi_squared
+            total_masked_mse += panel_masked_mse
+            total_masked_pixels += panel_masked_pixels
+            total_clamped_pixels += panel_clamped_pixels
 
-    bragg_stacked = torch.stack(bragg_panels, dim=0)
-    bragg_scaled = bragg_stacked * torch.exp(log_scale_clamped)
+        return total_chi_squared, total_masked_mse, total_masked_pixels, total_clamped_pixels
 
-    target_subset = target_t[panel_ids]
-    mask_subset = loss_mask_t[panel_ids]
-    # REFINE-016: Apply trusted-mask gating when warm context is available
-    if stage_a_ctx is not None and stage_a_ctx.trusted_masks_t is not None:
-        trusted_subset = stage_a_ctx.trusted_masks_t[panel_ids]
-        mask_subset = torch.logical_and(mask_subset, trusted_subset)
-    sigma_subset = sigma_readout_t[panel_ids]
+    else:
+        # Fast-path: stacked evaluation when diagnostics not requested
+        bragg_panels = []
+        for pid in panel_ids:
+            if stage_a_ctx is not None:
+                simulator = stage_a_ctx.simulators[pid]
+            else:
+                # Cold path: build detector/crystal/simulator on the fly
+                # ARCH-REFINE-001: This path should rarely execute when Stage C reuses Stage A context
+                panel_trusted_mask = trusted_mask_array[pid] if trusted_mask_array is not None else None
+                detector_config = create_detector_config(
+                    panel=detector[pid],
+                    beam=beam,
+                    trusted_mask=panel_trusted_mask
+                )
+                if detector_config.mask_array is not None and not isinstance(detector_config.mask_array, torch.Tensor):
+                    detector_config.mask_array = torch.tensor(
+                        detector_config.mask_array, dtype=torch.float32, device=device
+                    )
+                from nanobrag_torch.models.detector import Detector
+                detector_model = Detector(detector_config, device=device, dtype=dtype)
 
-    # Compute variance-weighted loss (spec-db-core.md §§57-68)
-    (
-        chi_squared_loss,
-        masked_mse_loss,
-        masked_pixels,
-        clamped_pixels,
-    ) = _compute_variance_weighted_loss(
-        bragg_scaled,
-        target_subset,
-        mask_subset,
-        sigma_subset,
-        sigma_floor_sq_tensor,
-    )
+                crystal_config, _ = create_crystal_config(
+                    crystal,
+                    None,
+                    crystal_overrides=crystal_overrides,
+                    misset_deg_override=misset_deg_for_crystal
+                )
+                from nanobrag_torch.models.crystal import Crystal
+                crystal_model = Crystal(
+                    crystal_config,
+                    beam_config=beam_config_for_run,
+                    device=device,
+                    dtype=dtype
+                )
+                crystal_model.interpolate = config.enable_hkl_interpolation
+                crystal_model.hkl_data = hkl_grid.to(device=device, dtype=dtype)
+                crystal_model.hkl_metadata = hkl_metadata
 
-    return chi_squared_loss, masked_mse_loss, masked_pixels, clamped_pixels
+                # Build BeamConfig if not provided (Stage C cold path)
+                if beam_config_for_run is None:
+                    from dbex.nanobrag_bridge import create_beam_config
+                    beam_config_for_run = create_beam_config(beam)
+
+                from nanobrag_torch.simulator import Simulator
+                simulator = Simulator(
+                    detector=detector_model,
+                    crystal=crystal_model,
+                    beam_config=beam_config_for_run,
+                    device=device,
+                    dtype=dtype
+                )
+            bragg_panels.append(simulator.run())
+
+        bragg_stacked = torch.stack(bragg_panels, dim=0)
+        bragg_scaled = bragg_stacked * torch.exp(log_scale_clamped)
+
+        target_subset = target_t[panel_ids]
+        mask_subset = loss_mask_t[panel_ids]
+        # REFINE-016: Apply trusted-mask gating when warm context is available
+        if stage_a_ctx is not None and stage_a_ctx.trusted_masks_t is not None:
+            trusted_subset = stage_a_ctx.trusted_masks_t[panel_ids]
+            mask_subset = torch.logical_and(mask_subset, trusted_subset)
+        sigma_subset = sigma_readout_t[panel_ids]
+
+        # Compute variance-weighted loss (spec-db-core.md §§57-68)
+        (
+            chi_squared_loss,
+            masked_mse_loss,
+            masked_pixels,
+            clamped_pixels,
+        ) = _compute_variance_weighted_loss(
+            bragg_scaled,
+            target_subset,
+            mask_subset,
+            sigma_subset,
+            sigma_floor_sq_tensor,
+        )
+
+        return chi_squared_loss, masked_mse_loss, masked_pixels, clamped_pixels
 
 
 def _build_stage_a_lbfgs_closure(
@@ -1229,6 +1339,15 @@ def _build_stage_a_lbfgs_closure(
 
     n_panels = len(detector)
     panel_slices = inputs.panel_slices
+
+    # PERF-WARM-SIM-001 Phase D.4: Panel-loss diagnostics
+    # Check env var to enable per-panel diagnostics collection
+    import os
+    panel_diag_dir = os.environ.get('DBEX_STAGE_C_PANEL_DIAG_DIR')
+    panel_diag_enabled = panel_diag_dir is not None and force_panel_validation
+    if panel_diag_enabled:
+        telemetry_state['panel_loss_diag'] = []  # Will collect baseline + final
+
     beam_config_kwargs: Dict[str, Any] = {}
     n_cells_override = None
     if getattr(config, "calibration_metadata", None) is not None:
@@ -1639,6 +1758,11 @@ def _build_stage_a_lbfgs_closure(
             else:
                 panel_ids = work_item_ids if work_item_ids else list(range(n_panels))
 
+            # PERF-WARM-SIM-001: Collect per-panel diagnostics when env var is set and forced panel validation is active
+            panel_diag_collector = None
+            if panel_diag_enabled and is_full:
+                panel_diag_collector = []
+
             # Call shared helper for panel-mode loss (Stage A / Stage C parity, PERF-WARM-SIM-001)
             (
                 chi_squared_loss,
@@ -1665,7 +1789,12 @@ def _build_stage_a_lbfgs_closure(
                 device=device,
                 dtype=dtype,
                 trusted_mask_array=inputs.trusted_mask,
+                panel_diag=panel_diag_collector,
             )
+
+            # Store collected diagnostics in telemetry_state
+            if panel_diag_collector is not None:
+                telemetry_state['panel_loss_diag'].extend(panel_diag_collector)
             # Track the latest variance-floor statistics for telemetry (no accumulation)
             variance_floor_clamped_pixels[0] = clamped_pixels
             variance_floor_masked_pixels[0] = masked_pixels
@@ -2073,6 +2202,22 @@ def _run_stage_a_lbfgs(
     telemetry_state['best_params_snapshot'] = best_params_snapshot
 
     # Canonical_baseline mutations are visible via dict reference (no need to return)
+
+    # PERF-WARM-SIM-001 Phase D.4: Write panel-loss diagnostics JSON if collected
+    import os
+    import json
+    from pathlib import Path
+    panel_diag_dir = os.environ.get('DBEX_STAGE_C_PANEL_DIAG_DIR')
+    if panel_diag_dir and 'panel_loss_diag' in telemetry_state:
+        diag_path = Path(panel_diag_dir)
+        diag_path.mkdir(parents=True, exist_ok=True)
+        diag_file = diag_path / 'stage_a_panel_diag.json'
+        with open(diag_file, 'w') as f:
+            json.dump({
+                'stage': 'A',
+                'panels': telemetry_state['panel_loss_diag'],
+                'n_panels': len(set(p['panel_id'] for p in telemetry_state['panel_loss_diag'])) if telemetry_state['panel_loss_diag'] else 0,
+            }, f, indent=2)
 
     return (status, message, final_chi_squared_value, final_masked_mse_value, best_params_snapshot)
 

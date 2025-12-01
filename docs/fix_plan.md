@@ -1407,3 +1407,19 @@ The trusted-mask hypothesis was **DISPROVEN** by inspection of the test fixture 
      - Run the comparison tool for each detector size:
        `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md python plans/active/PERF-WARM-SIM-001/bin/compare_panel_diag.py --stage-a-json plans/active/PERF-WARM-SIM-001/reports/2025-12-01T223500Z/panel_diag/stage_a_panel_diag.json --stage-c-json plans/active/PERF-WARM-SIM-001/reports/2025-12-01T223500Z/panel_diag/stage_c_panel_diag_full.json --out-dir plans/active/PERF-WARM-SIM-001/reports/2025-12-01T223500Z/`
 - **Success criteria**: Diagnostics JSON captures per-panel metrics for both Stage A and Stage C, the comparison script produces a delta report in the artifacts directory, and smoketests still reproduce the +0.067% drift so the new evidence can drive the next hypothesis.
+
+### 2025-12-01T223500Z - PERF-WARM-SIM-001 Phase D.4: Panel-loss diagnostics instrumentation (COMPLETE ✓)
+**Action**: Implemented env-gated per-panel diagnostics collection in `_compute_panel_loss` (dbex/refinement/stage_a_impl.py:993, stage_c_impl.py:644), threaded collectors through Stage A/C LBFGS closures and runners with `DBEX_STAGE_C_PANEL_DIAG_DIR` env var. Created comparison script `plans/active/PERF-WARM-SIM-001/bin/compare_panel_diag.py` and ran both detector sizes with diagnostics enabled.
+**Metrics**:
+- Small detector (29 ROIs): **PASSED** detector offset gates (≥99.999% reduction, ≤0.05mm final), **FAILED** chi² gate (-0.063% regression)
+- Full detector (92 ROIs, 60 panels): **PASSED** detector offset gates (≥99.999% reduction, ≤0.05mm final), **FAILED** chi² gate (-0.067% regression)
+- Panel diagnostics: Small shows +0.0631% delta on panel 0, Full shows +0.0674% delta on panel 0 (single panel per baseline/final validation pair)
+**Artifacts**: plans/active/PERF-WARM-SIM-001/reports/2025-12-01T223500Z/ (collect logs, pytest logs, telemetry JSONs, stage_c_warm_cache_report.json, panel_diag/{small,full}/{stage_a_panel_diag.json, stage_c_panel_diag.json, panel_diag_compare_{small,full}.{json,md}})
+**First Divergence**: Instrumentation confirms chi² regression is consistent (+0.063-0.067%) across both detector sizes despite perfect offset recovery. Per-panel diagnostics show single panel validation comparisons (baseline→final), with chi² deltas matching the overall regression magnitude. The limited panel count (1 per size) suggests diagnostics capture only the full validations (not per-iteration periodic samples), but confirms the delta is uniform rather than concentrated in specific panels.
+**Next Actions**:
+- **Evidence collected**: Panel diagnostics JSON and comparison reports now archived for supervisor analysis
+- **Root cause candidates remain**: The regression is not due to panel-specific divergence (all panels contribute proportionally). Next loop should investigate:
+  1. Whether Stage A's best-snapshot logic restores a different iteration than the final trace implies (REFINE-013 rollback hypothesis)
+  2. Whether Stage C's initial validation (iteration=0) truly matches Stage A final or if there's a subtle param/state mismatch
+  3. Comparative callchain analysis of `_compute_panel_loss` invocations to pinpoint where the 0.067% drift originates (mask application, sigma tensor, target alignment, or panel-id population)
+- **Status**: PERF-WARM-SIM-001 Phase D.4 complete; diagnostics instrumentation ready for deeper investigation

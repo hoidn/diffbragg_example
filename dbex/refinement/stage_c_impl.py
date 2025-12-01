@@ -368,6 +368,14 @@ def _build_stage_c_lbfgs_closure(
     force_panel_validation = stage_c_context['force_panel_validation']  # REFINE-011
     n_panels = len(detector)
 
+    # PERF-WARM-SIM-001 Phase D.4: Panel-loss diagnostics
+    # Check env var to enable per-panel diagnostics collection (mirrors Stage A)
+    import os
+    panel_diag_dir = os.environ.get('DBEX_STAGE_C_PANEL_DIAG_DIR')
+    panel_diag_enabled = panel_diag_dir is not None and force_panel_validation
+    if panel_diag_enabled:
+        telemetry_state['panel_loss_diag_c'] = []  # Will collect initial + periodic + final
+
     def compute_loss_stage_c(panel_ids: List[int], is_full: bool = False, force_panel_eval: bool = False) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Compute variance-weighted chi-squared loss with Stage C detector distance adjustments.
@@ -600,6 +608,11 @@ def _build_stage_c_lbfgs_closure(
             else:
                 log_scale_clamped = torch.clamp(log_scale, min=-delta_bound, max=delta_bound)
 
+            # PERF-WARM-SIM-001: Collect per-panel diagnostics when env var is set and this is a full validation
+            panel_diag_collector = None
+            if panel_diag_enabled and is_full:
+                panel_diag_collector = []
+
             # Call shared helper (simulators already retargeted with distance offsets and crystal attached)
             # misset_xyz_deg computed above at line 430; crystal_overrides built at line 435
             # For warm mode, use stage_a_ctx.beam_config; for cold mode, helper will need to build it
@@ -628,7 +641,13 @@ def _build_stage_c_lbfgs_closure(
                 device=device,
                 dtype=dtype,
                 trusted_mask_array=inputs.trusted_mask if not stage_c_use_warm_cache else None,
+                panel_diag=panel_diag_collector,
             )
+
+            # Store collected diagnostics in telemetry_state
+            if panel_diag_collector is not None:
+                telemetry_state['panel_loss_diag_c'].extend(panel_diag_collector)
+
             variance_floor_clamped_pixels_c[0] += clamped_pixels_stage_c
             variance_floor_masked_pixels_c[0] += masked_pixels_stage_c
         perf_forward_times_ms_c.append((time.perf_counter() - t0) * 1000.0)
@@ -1049,6 +1068,22 @@ def _run_stage_c_lbfgs(
         canonical_detector_distances_mm=canonical_baseline["detector_distances_mm"],
         roi_mode=stage_c_roi_mode_label,
     )
+
+    # PERF-WARM-SIM-001 Phase D.4: Write panel-loss diagnostics JSON if collected
+    import os
+    import json
+    from pathlib import Path
+    panel_diag_dir = os.environ.get('DBEX_STAGE_C_PANEL_DIAG_DIR')
+    if panel_diag_dir and 'panel_loss_diag_c' in telemetry_state:
+        diag_path = Path(panel_diag_dir)
+        diag_path.mkdir(parents=True, exist_ok=True)
+        diag_file = diag_path / 'stage_c_panel_diag.json'
+        with open(diag_file, 'w') as f:
+            json.dump({
+                'stage': 'C',
+                'panels': telemetry_state['panel_loss_diag_c'],
+                'n_panels': len(set(p['panel_id'] for p in telemetry_state['panel_loss_diag_c'])) if telemetry_state['panel_loss_diag_c'] else 0,
+            }, f, indent=2)
 
     return {
         'status_c': status_c,

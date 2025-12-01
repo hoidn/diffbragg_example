@@ -1142,3 +1142,11 @@ pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation
   3. Modify Stage C to optionally re-refine crystal after applying detector prior
   4. Document that baseline prior + frozen crystal creates chi² tradeoff in perturbed-detector scenarios
 - See `galph_memory.md` 2025-12-01T190945Z entry and `plans/active/PERF-WARM-SIM-001/reports/2025-12-01T190945Z/summary.md` for detailed analysis
+
+### 2025-12-01T193800Z - PERF-WARM-SIM-001 Phase D.4: Stage C ROI-mode alignment plan (READY FOR IMPLEMENTATION)
+- Evidence review (2025-12-01T190945Z artifacts): Stage C full-detector smoketest now reports `roi_mode="roi"` and `validation_scope="panel"`, meaning the LBFGS closure still optimizes on the 92-ROI minibatch while the REFINE-007 gate compares panel-wide chi². The +0.067% regression reproduces every run since Stage A started forcing panel validations (REFINE-011), so the optimization population is diverging from the validation population. Spec `docs/spec-db-workflow.md §Optimization Strategy` requires the closure population to match the validation population once Stage A disables ROI mode; REFINE-012 intended to keep ROI minibatching only when Stage A stayed in ROI mode.
+- Plan:
+  1. Update `dbex/refinement/stage_c_impl.py::_build_stage_c_params` so `stage_c_roi_mode_active` is gated by `not force_panel_validation`. When Stage A telemetry advertises `validation_scope="panel"`, Stage C must disable ROI closures entirely (both sampled and full evaluations) and tag `roi_mode_reason="validation_scope_panel"` so telemetry captures the provenance.
+  2. Propagate the new `roi_mode_reason` branch into Stage C perf counters/telemetry to preserve REFINE-012 provenance and keep `perf_counters['roi_mode']` consistent with the new behavior.
+  3. Re-run `tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip` for both `--smoke-detector-size=small` and `--smoke-detector-size=full`, capturing collect-only logs, pytest logs, and telemetry under `plans/active/PERF-WARM-SIM-001/reports/2025-12-01T193800Z/`, then rerun the warm-cache summarizer to confirm `roi_mode="panel"`, detector-offset reduction ≥99.999%, and chi² regression ≤0.05%.
+- Artifacts: `plans/active/PERF-WARM-SIM-001/reports/2025-12-01T193800Z/`

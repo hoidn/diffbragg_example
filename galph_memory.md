@@ -1,6 +1,6 @@
 2025-12-01T08:09:03Z focus=ARCH-REFINE-001 state=planning dwell=1 action=planning artifacts=plans/active/ARCH-REFINE-001/reports/2025-12-01T080903Z/ next_action=ready_for_implementation
-- Stage A helper stack (StageAContext, quaternion utils, `_build_stage_a_*`) still lives inside `dbex.nanobrag_refinement`, forcing StageA/StageB wrappers to import the monolith and blocking full engine delegation. Tonight’s plan splits those helpers into a refinement-owned module, reuses it from the inline path, and keeps telemetry/perf counters intact per PHYSICS-LOSS-001 + PERF-WARM-001.
-- Do Now handed to Ralph: relocate the helpers/dataclasses + quaternion math into `dbex/refinement/` (no new circular imports), update all consumers (StageA, inline LBFGS, tools), then rerun the Stage A expansion + engine telemetry selectors plus the Stage B shell smoke to ensure parameter reconstruction and warm caches survive.
+- Stage A helper stack (StageAContext, quaternion utils, `_build_stage_a_*`) still lives inside `dbex.nanobrag_refinement`, forcing StageA/StageB wrappers to import the monolith and blocking full engine delegation. Tonight's plan splits those helpers into a refinement-owned module, reuses it from the inline path, and keeps telemetry/perf counters intact per PHYSICS-LOSS-001 + PERF-WARM-001.
+- Do Now handed to Ralph: relocate the helpers/dataclasses + quaternion math into `dbex/refinement/` (no new circular imports), update all consumers (StageA, inline LBFGS, tools), then rerun the Stage A expansion + engine telemetry selectors plus the Stage B shell smoke to ensure parameter reconstruction and warm caches survive.
 Action State: ready_for_implementation
 2025-12-01T084505Z focus=ARCH-REFINE-001 state=ready_for_implementation dwell=2 action=planning artifacts=plans/active/ARCH-REFINE-001/reports/2025-12-01T084505Z/ next_action=ready_for_implementation
 - Planned Phase A.2 Stage B helper extraction (new stage_b_impl module, ASU/shell utilities move, StageB+inline imports) and refreshed Do Now/tests accordingly.
@@ -30,7 +30,7 @@ Action State: blocked
 Action State: ready_for_implementation
 2025-12-01T105916Z focus=ARCH-REFINE-001 state=ready_for_implementation dwell=1 action=planning artifacts=plans/active/ARCH-REFINE-001/reports/2025-12-01T105916Z/ next_action=Auto-disable small-detector Stage A ROI mode + rerun Stage B/C smokes
 - Logged REFINE-010 (docs/findings.md) after the stage_c_stage_a_probe traces proved ROI-mode LBFGS never improves on refGeom_small even with roi_sample_fraction=1.0, while panel mode drops chi² by 57%.
-- Updated docs/fix_plan.md with the new Stage A ROI auto-panel Do Now plus telemetry evidence, rewrote input.md with the explicit Stage A implementation + Stage B/C validation plan, and captured this loop’s summary stub under the new report directory.
+- Updated docs/fix_plan.md with the new Stage A ROI auto-panel Do Now plus telemetry evidence, rewrote input.md with the explicit Stage A implementation + Stage B/C validation plan, and captured this loop's summary stub under the new report directory.
 Action State: ready_for_implementation
 2025-12-01T112335Z focus=ARCH-REFINE-001 state=ready_for_implementation dwell=2 action=planning artifacts=plans/active/ARCH-REFINE-001/reports/2025-12-01T112335Z/ next_action=Fix Stage C warm-cache gradient tensors + rerun Stage B/C smoke
 - Stage C small-detector smoke still fails because `_retarget_stage_a_detectors` (dbex/refinement/stage_c_impl.py:39-86) converts the bounded offsets into floats, so the warm-cache panel path detaches `distance_offset_raw` and PyTorch aborts with `element 0 of tensors does not require grad` (see plans/active/ARCH-REFINE-001/reports/2025-12-01T105916Z/pytest_stage_bc_small_v3.log).
@@ -54,27 +54,27 @@ Action State: ready_for_implementation
 2025-12-01T123044Z focus=ARCH-REFINE-001 state=ready_for_implementation dwell=0 action=planning artifacts=plans/active/ARCH-REFINE-001/reports/2025-12-01T123044Z/ next_action=Thread asu_map/halo metadata through Stage B/C and rerun small-detector smokes
 2025-12-01T130955Z focus=ARCH-REFINE-001 state=ready_for_implementation dwell=1 action=planning artifacts=plans/active/ARCH-REFINE-001/reports/2025-12-01T130955Z/ next_action=Implement factory wiring + rerun Stage B/C smokes
 - Scoped Phase B.4 so Stage A/B final Bragg reconstruction helpers call create_unified_simulator on their cold paths, recorded the selector/env plan, and linked the work to ARCH-FACTORY-001 + REFINE-005/010 in docs/fix_plan.md.
-- Replaced input.md with the factory-specific Do Now, collect-only + telemetry capture commands, and pitfalls covering CPU fallback and the “no factory inside closures” rule so Ralph can implement immediately next loop.
+- Replaced input.md with the factory-specific Do Now, collect-only + telemetry capture commands, and pitfalls covering CPU fallback and the "no factory inside closures" rule so Ralph can implement immediately next loop.
 Action State: ready_for_implementation
 2025-12-01T140500Z focus=ARCH-REFINE-001 state=ready_for_implementation dwell=2 action=planning artifacts=plans/active/ARCH-REFINE-001/reports/2025-12-01T140500Z/ next_action=Land B.5 context + CPU fallback tests then rerun targeted pytest module set
 - Logged Phase B.5 in docs/fix_plan.md: unit-test updates for `RefinementEngine` (context enforcement), new `tests/dbex/test_refinement_context.py` covering JobContext/RefinementContext builders, and a mocked `_build_stage_b_params` CPU fallback test to lock in PERF-WARM-011/012 behavior per findings REFINE-010 + GRADIENT-003.
 - Rewrote input.md pointing Ralph at the three test files (engine nucleus, context builders, CPU fallback), detailed collect-only + pytest commands, pitfalls (tests-only loop, no real CUDA allocations), and capture plan for the new artifact directory `plans/active/ARCH-REFINE-001/reports/2025-12-01T140500Z/`.
 Action State: ready_for_implementation
 2025-12-01T131510Z focus=ARCH-REFINE-001 state=ready_for_implementation dwell=2 action=planning artifacts=plans/active/ARCH-REFINE-001/reports/2025-12-01T131510Z/ next_action=Consolidate telemetry dataclass + rerun Stage B/C smokes
-- Advanced Phase C.1 by recording the telemetry dataclass consolidation plan in docs/fix_plan.md: drop the duplicate `RefinementTelemetry` from `dbex/nanobrag_refinement.py`, point all stage wrappers/tests/tools at `dbex.refinement.stage`, and revalidate `/torch_diagnostics` selectors to prove the shared schema stays intact (per DIAGNOSTICS-001 + PHYSICS-LOSS-001).
-- Rewrote input.md with the new production Do Now (nanobrag module cleanup, stage wrapper import updates, CLI telemetry test adjustments) plus the Stage B/C smoke + CLI telemetry + engine contract selectors and artifact paths under `plans/active/ARCH-REFINE-001/reports/2025-12-01T131510Z/`.
+- Advanced Phase C.1 by recording the telemetry dataclass consolidation plan in docs/fix_plan.md: drop the duplicate `RefinementTelemetry` from `dbex/nanobrag_refinement.py`, point all stage wrappers/tests/tools at `dbex.refinement.stage`, and revalidate `/torch_diagnostics` selectors to prove the shared schema stays intact (per DIAGNOSTICS-001 + PHYSICS-LOSS-001).
+- Rewrote input.md with the new production Do Now (nanobrag module cleanup, stage wrapper import updates, CLI telemetry test adjustments) plus the Stage B/C smoke + CLI telemetry + engine contract selectors and artifact paths under `plans/active/ARCH-REFINE-001/reports/2025-12-01T131510Z/`.
 Action State: ready_for_implementation
 2025-12-01T132921Z focus=ARCH-REFINE-001 state=ready_for_implementation dwell=0 action=planning artifacts=plans/active/ARCH-REFINE-001/reports/2025-12-01T132921Z/ next_action=Extract torch writer + rerun CLI telemetry selectors
-- Logged Phase C.2 in docs/fix_plan.md: move `_write_torch_outputs` into `dbex/io/writer.py`, rewire `run_nanobrag_backend`, and update CLI tests to patch the shared module while preserving DIAGNOSTICS-001/PHYSICS-LOSS-001 contracts.
+- Logged Phase C.2 in docs/fix_plan.md: move `_write_torch_outputs` into `dbex/io/writer.py`, rewire `run_nanobrag_backend`, and update CLI tests to patch the shared module while preserving DIAGNOSTICS-001/PHYSICS-LOSS-001 contracts.
 - Rewrote input.md with the new Do Now, mapped CLI selectors (refined MTZ telemetry + torch diagnostics metadata), env knobs, pitfalls, and artifacts path `plans/active/ARCH-REFINE-001/reports/2025-12-01T132921Z/`.
 - No evidence collection this loop; artifacts directory reserved for the implementation run.
 Action State: ready_for_implementation
 2025-12-01T134542Z focus=ARCH-REFINE-001 state=ready_for_implementation dwell=1 action=planning artifacts=plans/active/ARCH-REFINE-001/reports/2025-12-01T134542Z/ next_action=Move gradcheck helpers into dbex.physics then rerun DB-AT-010
-- Advanced Phase C.3 planning: docs/fix_plan.md now records the physics-helper extraction plan (new `dbex/physics/forward.py` + loss relocation), and the implementation checklist marks C1/C3 complete with C2 ready for execution.
+- Advanced Phase C.3 planning: docs/fix_plan.md now records the physics-helper extraction plan (new `dbex/physics/forward.py` + loss relocation), and the implementation checklist marks C1/C3 complete with C2 ready for execution.
 - Replaced input.md with a code-ready Do Now covering the new physics modules, bridge re-exports, DB-AT-010 test updates, and the selector commands/artifacts Ralph must run to validate the move.
 Action State: ready_for_implementation
 2025-12-01T140937Z focus=ARCH-REFINE-001 state=ready_for_implementation dwell=2 action=planning artifacts=plans/active/ARCH-REFINE-001/reports/2025-12-01T140725Z/ next_action=Land Phase C.4 writer/doc-sync + CLI telemetry selector
-- Logged the C.4 scope in docs/fix_plan.md (alias removal, CLI test guard, architecture/docs refresh) and marked the implementation plan’s C2 checkbox complete so the ledger matches reality.
+- Logged the C.4 scope in docs/fix_plan.md (alias removal, CLI test guard, architecture/docs refresh) and marked the implementation plan's C2 checkbox complete so the ledger matches reality.
 - Rewrote input.md with the writer/doc sync Do Now, mapped env commands, pitfalls, and explicit collect-only/full pytest selectors plus instructions to capture docs_diff.md for architecture edits.
 Action State: ready_for_implementation
 2025-12-01T142116Z focus=ARCH-REFINE-001 state=ready_for_implementation dwell=0 action=planning artifacts=plans/active/ARCH-REFINE-001/reports/2025-12-01T142116Z/ next_action=Ship writer/physics IDLs then rerun CLI telemetry + DB-AT-010
@@ -97,7 +97,7 @@ Action State: ready_for_implementation
 - Stage B guard now reports `stage_b_baseline_rel_diff`, but the JSON payload is still a stub (no per-panel breakdown, hard-coded artifacts path), so REFINE-FLOW-001 diagnostics remain unusable when the guard fires.
 - Updated docs/fix_plan.md with the new Phase E.1 refinement scope, rewrote input.md (Do Now + How-To Map + pitfalls/tests), and reserved the 2025-12-01T153327Z artifacts directory so Ralph can code + validate next loop.
 Action State: ready_for_implementation
-- Scoped Phase E.2 parity fix: Stage A must now treat Stage B enablement the same as Stage C for panel-mode baseline/final validations so REFINE-FLOW-001 stays green even when ROI counts exceed the threshold. Logged the plan in docs/fix_plan.md (2025-12-01T160850Z) with the artifact path and re-marked Phase E.1 as complete in implementation.md; rewrote input.md with a code-ready Do Now covering the Stage A toggle, the smoketest threshold tweak, and the Stage B/C validation commands.
+- Scoped Phase E.2 parity fix: Stage A must now treat Stage B enablement the same as Stage C for panel-mode baseline/final validations so REFINE-FLOW-001 stays green even when ROI counts exceed the threshold. Logged the plan in docs/fix_plan.md (2025-12-01T160850Z) with the artifact path and re-marked Phase E.1 as complete in implementation.md; rewrote input.md with a code-ready Do Now covering the Stage A toggle, the smoketest threshold tweak, and the Stage B/C validation commands.
 Action State: ready_for_implementation
 2025-12-01T160850Z focus=ARCH-REFINE-001 state=ready_for_implementation dwell=0 action=planning artifacts=plans/active/ARCH-REFINE-001/reports/2025-12-01T160850Z/ next_action=Implement Stage A panel-toggle for Stage B + rerun Stage B/C smokes with tightened threshold
 2025-12-01T161600Z focus=ARCH-REFINE-001 state=ready_for_implementation dwell=1 action=planning artifacts=plans/active/ARCH-REFINE-001/reports/2025-12-01T161600Z/ next_action=Extract Stage B parity helper + rerun guard/smokes
@@ -108,3 +108,19 @@ Action State: ready_for_implementation
 - Closed Phase E by verifying Stage B guard telemetry + updating docs/fix_plan and marked REFINE-FLOW-001 resolved; initiative exit criteria now satisfied.
 - Added PERF-WARM-SIM-001 D.4 Do Now (Stage C telemetry script + small/full smokes) so Ralph can resume warm-cache validation immediately.
 Action State: ready_for_implementation
+2025-12-01T171800Z focus=PERF-WARM-SIM-001 state=blocked dwell=0 action=implementation artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-12-01T171800Z/ next_action=supervisor_root_cause_analysis
+**CRITICAL FINDING**: Full detector Stage C warm-cache test FAILED with chi-squared regression (0.0664% > 0.05% tolerance) immediately after ARCH-REFINE-001 Phase E.2 changes (2025-12-01T161600Z). Small detector PASSED (early_stop, -0.0631% improvement, 99.99999% detector offset reduction).
+**Root Cause Hypothesis (95% confidence)**: Phase E.2 modified Stage A to force panel-mode baseline/final validations when Stage B OR Stage C is enabled (dbex/refinement/stage_a.py:210-224). Prior successful runs (2025-11-21T174147Z) used ROI mode for full detector (92 ROIs) and showed +59.9% improvement (χ² 250M→100M). Current run uses panel mode for full detector and shows -0.0664% regression (χ² 210.7M→210.8M). The 19% lower initial χ² + regression pattern suggests panel-mode validation may be interfering with Stage C warm-cache retargeting or creating a mismatch in the Stage A→Stage C handoff for high-ROI-count configurations.
+**Evidence Trail**:
+1. Small detector (29 ROIs, below auto-panel threshold): PASSED with panel mode
+2. Full detector (92 ROIs, above threshold): FAILED with panel mode + regression
+3. Historical baseline (2025-11-21T174147Z, pre-Phase E.2): PASSED with ROI mode + massive improvement
+4. No PERF-WARM-SIM-001 code changes between 2025-11-21T174147Z and now
+5. ARCH-REFINE-001 Phase E.2 (2025-12-01T161600Z) = only intervening change
+**Blocker Classification**: Implementation defect (suspected), not gate calibration. Stage C warm-cache path for full detector is broken after Phase E.2 Stage A panel-mode changes.
+**Immediate Action Required**: Supervisor must investigate whether:
+(a) Panel-mode Stage A final validation produces different χ² baseline than ROI-mode (breaking Stage C initial-value continuity)
+(b) Stage C warm-cache retargeting (`dbex/refinement/stage_c_impl.py:39-86`) has panel-mode edge case
+(c) Auto-panel threshold (currently ≤32 ROIs) should be raised or disabled for Stage C flows
+**Artifacts**: plans/active/PERF-WARM-SIM-001/reports/2025-12-01T171800Z/ (summary.md, small detector telemetry captured, full detector pytest log shows regression failure signature)
+Action State: blocked

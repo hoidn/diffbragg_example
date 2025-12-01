@@ -104,3 +104,7 @@ Action State: ready_for_implementation
 - Logged Phase E.3 plan: factor the REFINE-FLOW-001 guard into a helper, rewire the CPU fallback test to exercise the diff payload directly, and rerun the Stage B/C small smokes with telemetry under the new timestamp.
 - Updated docs/fix_plan.md, implementation.md, and input.md with the helper/test scope, env commands, artifacts path, and guard-focused pitfalls so Ralph can implement immediately.
 Action State: ready_for_implementation
+2025-12-01T170500Z focus=ARCH-REFINE-001 state=planning dwell=2 action=planning artifacts=plans/active/ARCH-REFINE-001/reports/2025-12-01T170500Z/ next_action=switch_focus->PERF-WARM-SIM-001 Phase D.4 telemetry validation
+- Closed Phase E by verifying Stage B guard telemetry + updating docs/fix_plan and marked REFINE-FLOW-001 resolved; initiative exit criteria now satisfied.
+- Added PERF-WARM-SIM-001 D.4 Do Now (Stage C telemetry script + small/full smokes) so Ralph can resume warm-cache validation immediately.
+Action State: ready_for_implementation

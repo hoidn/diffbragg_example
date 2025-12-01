@@ -61,3 +61,8 @@
     - Metrics: test_stage_a_engine_delegation_telemetry PASSED, test_stage_b_shell_modifiers PASSED (1 test failure pre-existing, unrelated to refactoring)
     - Artifacts: `plans/active/ARCH-REFINE-001/reports/2025-12-01T080903Z/` (pytest_stage_a_engine.log, pytest_stage_b_small.log, pytest_stage_a_helpers_collect.log)
     - Next Actions: Continue with Phase A.2 (create RefinementContext/JobContext dataclasses)
+  * 2025-12-01T084505Z (planning) — Scoped Phase A.2 Stage B helper extraction so StageB/engine no longer import the monolith:
+    - Target module: `dbex/refinement/stage_b_impl.py` owning `_build_stage_b_params`, `_build_stage_b_lbfgs_closure`, `_run_stage_b_lbfgs`, plus ASU/shell helpers (`compute_hkl_shell_lookup`, `compute_hkl_asu_map`, `initialize_asu_modifiers`, `apply_asu_modifiers`) currently defined in `dbex.nanobrag_refinement`.
+    - Wiring updates: `dbex/refinement/stage_b.py` and the inline Stage B branch in `dbex/nanobrag_refinement.py` should import from the new module; warm-cache/ROI propagation continues through `StageAContext` (from stage_a_impl) so CPU fallback + telemetry semantics remain intact per PERF-WARM-011 and PHYSICS-LOSS-001.
+    - Validation: rerun `pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small` (plus optional per-reflection selector when ready) with `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md`, capturing logs + telemetry under `plans/active/ARCH-REFINE-001/reports/<timestamp>/`.
+    - Next Actions: Implement the Stage B helper migration, then tackle Stage C helpers before starting the RefinementContext/JobContext dataclasses.

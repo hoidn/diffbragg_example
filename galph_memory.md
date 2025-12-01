@@ -56,3 +56,7 @@ Action State: ready_for_implementation
 - Scoped Phase B.4 so Stage A/B final Bragg reconstruction helpers call create_unified_simulator on their cold paths, recorded the selector/env plan, and linked the work to ARCH-FACTORY-001 + REFINE-005/010 in docs/fix_plan.md.
 - Replaced input.md with the factory-specific Do Now, collect-only + telemetry capture commands, and pitfalls covering CPU fallback and the “no factory inside closures” rule so Ralph can implement immediately next loop.
 Action State: ready_for_implementation
+2025-12-01T140500Z focus=ARCH-REFINE-001 state=ready_for_implementation dwell=2 action=planning artifacts=plans/active/ARCH-REFINE-001/reports/2025-12-01T140500Z/ next_action=Land B.5 context + CPU fallback tests then rerun targeted pytest module set
+- Logged Phase B.5 in docs/fix_plan.md: unit-test updates for `RefinementEngine` (context enforcement), new `tests/dbex/test_refinement_context.py` covering JobContext/RefinementContext builders, and a mocked `_build_stage_b_params` CPU fallback test to lock in PERF-WARM-011/012 behavior per findings REFINE-010 + GRADIENT-003.
+- Rewrote input.md pointing Ralph at the three test files (engine nucleus, context builders, CPU fallback), detailed collect-only + pytest commands, pitfalls (tests-only loop, no real CUDA allocations), and capture plan for the new artifact directory `plans/active/ARCH-REFINE-001/reports/2025-12-01T140500Z/`.
+Action State: ready_for_implementation

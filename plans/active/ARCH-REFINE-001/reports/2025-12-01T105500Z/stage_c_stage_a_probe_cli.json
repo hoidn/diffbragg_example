@@ -1,0 +1,140 @@
+{
+  "detector_size": "small",
+  "sigma_source": "cli_override",
+  "stage_a": {
+    "status": "ok",
+    "message": "",
+    "roi_mode": "roi",
+    "roi_count_total": 29,
+    "roi_count_sampled": 4,
+    "initial_loss": 374297856.0,
+    "final_loss": 374297856.0,
+    "improvement_fraction": 0.0,
+    "chi_squared_trace": [
+      [
+        0,
+        374297856.0
+      ],
+      [
+        0,
+        374297856.0
+      ],
+      [
+        5,
+        374297856.0
+      ]
+    ],
+    "param_deltas": {
+      "log_scale": {
+        "initial": 8.49282231860197,
+        "final": 8.492822647094727,
+        "delta": 3.284927565516682e-07
+      },
+      "log_scale_baseline": {
+        "initial": 0.0,
+        "final": 0.0
+      },
+      "log_cell_a_delta": {
+        "initial": 0.0,
+        "final": 0.0,
+        "delta": 0.0
+      },
+      "log_cell_b_delta": {
+        "initial": 0.0,
+        "final": 0.0,
+        "delta": 0.0
+      },
+      "log_cell_c_delta": {
+        "initial": 0.0,
+        "final": 0.0,
+        "delta": 0.0
+      },
+      "angle_alpha_raw": {
+        "initial": 0.0,
+        "final": 0.0,
+        "delta": 0.0
+      },
+      "angle_beta_raw": {
+        "initial": 0.0,
+        "final": 0.0,
+        "delta": 0.0
+      },
+      "angle_gamma_raw": {
+        "initial": 0.0,
+        "final": 0.0,
+        "delta": 0.0
+      },
+      "orientation_vec": {
+        "initial": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "final": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "delta": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "norm": 0.0
+      },
+      "misset_xyz_deg": {
+        "initial": [
+          -0.006988525390625,
+          0.15351295471191406,
+          1.4765625
+        ],
+        "final": [
+          -0.006988525390625,
+          0.15351295471191406,
+          1.4765625
+        ],
+        "delta": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "quaternion_norm": 1.0
+      }
+    }
+  },
+  "stage_c": {
+    "status": "early_stop",
+    "message": "Stage C improvement -3.1128% < 0.0000% (\u22650.002% gate calibrated per REFINE-007)",
+    "roi_mode": "panel",
+    "roi_count_total": 1,
+    "roi_count_sampled": 1,
+    "initial_loss": 386148736.0,
+    "final_loss": 385949024.0,
+    "improvement_fraction": 0.0005171893143267987,
+    "chi_squared_trace": [
+      [
+        0,
+        386148736.0
+      ],
+      [
+        5,
+        386148736.0
+      ],
+      [
+        10,
+        386148736.0
+      ],
+      [
+        11,
+        385949024.0
+      ]
+    ],
+    "param_deltas": {
+      "panel_0_distance_offset_mm": {
+        "initial": 0.25,
+        "final": 1.4901161193847656e-08,
+        "delta": -0.2499999850988388
+      }
+    }
+  }
+}

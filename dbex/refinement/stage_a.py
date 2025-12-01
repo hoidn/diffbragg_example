@@ -101,7 +101,8 @@ class StageA:
             vec_to_unit_quaternion,
             quaternion_to_xyz_euler,
         )
-        from dbex.nanobrag_refinement import RefinementTelemetry
+        # ARCH-REFINE-001 Phase C.1: Import from canonical location
+        from dbex.refinement import RefinementTelemetry
 
         # ARCH-REFINE-001 Phase B.1: Extract context from inputs
         # If inputs has 'context' key, use it; otherwise fall back to dict unpacking

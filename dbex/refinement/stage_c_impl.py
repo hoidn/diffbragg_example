@@ -619,7 +619,8 @@ def _run_stage_c_lbfgs(
         - 'final_mse_value_c': float
     """
     # Import RefinementTelemetry (lazy to avoid circular import at module load)
-    from dbex.nanobrag_refinement import RefinementTelemetry
+    # ARCH-REFINE-001 Phase C.1: Import from canonical location
+    from dbex.refinement import RefinementTelemetry
 
     # Extract from param_values dict
     distance_offset_raw = param_values['distance_offset_raw']

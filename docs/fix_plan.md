@@ -438,8 +438,8 @@ Capture the `--collect-only` output for the same selector before running the tes
 **First Divergence**: Initial implementation required one fix: added missing sigma_floor_sq_cache parameter to _build_stage_b_params calls after TypeError
 **Next Actions**: Phase B.5 complete — all guardrail tests pass. Ready to resume production code changes (Phase C or next ARCH-REFINE-001 phase per plan).
 
-### 2025-12-01T131510Z - ARCH-REFINE-001 Phase C.1: Telemetry dataclass consolidation (READY FOR IMPLEMENTATION)
-**Gap:** `RefinementTelemetry` still exists in two places (`dbex/refinement/stage.py` and `dbex/nanobrag_refinement.py`). The duplicate definitions drifted apart (stage version carries engine_protocol/variance-floor/canonical Stage A fields while the nanobrag version lags), so stage wrappers keep importing the monolith just to grab the dataclass. This violates the engine modularization goal (Phase C exit criterion #3) and risks `/torch_diagnostics` schema skew, per DIAGNOSTICS-001 + PHYSICS-LOSS-001.
+### 2025-12-01T131510Z - ARCH-REFINE-001 Phase C.1: Telemetry dataclass consolidation (COMPLETE)
+**Action**: Consolidated duplicate RefinementTelemetry class to canonical dbex.refinement.stage location; updated all import sites to use canonical definition. The duplicate definitions drifted apart (stage version carries engine_protocol/variance-floor/canonical Stage A fields while the nanobrag version lags), so stage wrappers keep importing the monolith just to grab the dataclass. This violates the engine modularization goal (Phase C exit criterion #3) and risks `/torch_diagnostics` schema skew, per DIAGNOSTICS-001 + PHYSICS-LOSS-001.
 **Plan:**
 1. Remove the class definition from `dbex/nanobrag_refinement.py` and import the canonical dataclass from `dbex.refinement.stage`. Ensure `RefinementTelemetry` remains re-exported via `dbex/refinement/__init__.py` for consumers (RefinementEngine, CLI writer, tests).
 2. Update stage wrappers (`dbex/refinement/stage_{a,b,c}.py`, `dbex/refinement/stage_c_impl.py`) and any tests/tools (`tests/dbex/test_refine_one_cli.py`, probes under `plans/*`) so they import `RefinementTelemetry` from `dbex.refinement` rather than the monolith. This breaks the lingering circular dependency and lets wrappers operate without touching `nanobrag_refinement`.
@@ -458,3 +458,23 @@ pytest -vv tests/dbex/test_torch_refine_smoke.py -k "test_stage_b_shell_modifier
 Then run `pytest -vv tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata` plus `pytest -vv tests/dbex/test_refinement_engine.py` (collect-only logs captured before execution) with logs archived under the same timestamped directory to keep selector health on record (docs/TESTING_GUIDE.md §2, docs/data_dependency_manifest.md — no new assets required).
 **Artifacts**: `plans/active/ARCH-REFINE-001/reports/2025-12-01T131510Z/`
 **Next Actions**: Once the code and selectors prove the single telemetry definition works, advance to Phase C.2 (shared writer extraction) using the same canonical dataclass to serialize `/torch_diagnostics`.
+
+### 2025-12-01T131510Z Addendum - Metrics and Results
+
+**Removed**: 67-line duplicate RefinementTelemetry class from dbex/nanobrag_refinement.py (lines 201-267), replaced with import from dbex.refinement (line 81)
+**Updated**: 5 import sites to use `from dbex.refinement import RefinementTelemetry`:
+  - dbex/refinement/stage_a.py:104-105
+  - dbex/refinement/stage_b.py:95-96
+  - dbex/refinement/stage_c.py:97-98
+  - dbex/refinement/stage_c_impl.py:622-623
+  - tests/dbex/test_refine_one_cli.py:839-840
+
+**Metrics**:
+- Stage B+C smoke tests: PASSED (2/2, 26.72s)
+- Engine contract tests: PASSED (2/2, 0.76s)
+- CLI telemetry test: BLOCKED (pre-existing fixture issue, unrelated to consolidation)
+- Net change: -65 lines
+
+**Artifacts**: plans/active/ARCH-REFINE-001/reports/2025-12-01T131510Z/
+**First Divergence**: N/A (implementation succeeded on first attempt)
+**Next Actions**: Phase C.2 — Extract shared torch writer

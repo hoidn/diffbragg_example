@@ -77,6 +77,8 @@ from dbex.refinement.stage_c_impl import (
 )
 
 from dbex.physics.loss import _compute_variance_weighted_loss
+# ARCH-REFINE-001 Phase C.1: Import canonical RefinementTelemetry from dbex.refinement
+from dbex.refinement import RefinementTelemetry
 
 
 @dataclass
@@ -198,73 +200,8 @@ class RefinementConfig:
     dtype: Any = torch.float32  # Actual dtype at runtime
 
 
-@dataclass
-class RefinementTelemetry:
-    """Telemetry captured during refinement.
-
-    For multi-stage refinement (Stage A + Stage C), this structure represents
-    a single stage. The calling code aggregates multiple telemetry objects into
-    a Dict[str, RefinementTelemetry] keyed by stage label ("A", "C").
-
-    PHYSICS-LOSS-001: Tracks both chi_squared (variance-weighted loss, the optimization objective)
-    and masked_mse (legacy metric for comparison). All stages minimize chi_squared per spec-db-core.md:57-68.
-
-    ARCH-REFACTOR-001 Phase B: Dataclass with to_dict() for HDF5 serialization.
-    """
-    optimizer: str
-    stage: str
-    history_size: int
-    max_iter: int
-    tolerance_grad: float
-    tolerance_change: float
-    roi_sample_fraction: float
-    roi_count_sampled: int
-    roi_count_total: int
-    loss_trace_sample: List[float] = field(default_factory=list)  # Deprecated: will be chi_squared_trace_sample after PHYSICS-LOSS-001
-    loss_trace_full: List[Tuple[int, float]] = field(default_factory=list)  # Deprecated: will be chi_squared_trace_full after PHYSICS-LOSS-001
-    best_loss_full: Tuple[float, int] = (0.0, 0)  # Deprecated: will be chi_squared_best after PHYSICS-LOSS-001
-    param_deltas: Dict[str, float] = field(default_factory=dict)
-    status: str = "ok"  # "ok" | "early_stop" | "rollback" | "error"
-    message: str = ""
-    perf_counters: Optional[Dict[str, Any]] = None  # PERF-WARM-SIM-001: closure_evals, forward_time_ms, validations
-    # PHYSICS-LOSS-001: Dual loss metrics for cross-stage comparison
-    chi_squared_trace_sample: Optional[List[float]] = None  # Chi-squared sampled trace (ROI subset)
-    chi_squared_trace_full: Optional[List[Tuple[int, float]]] = None  # Chi-squared full trace [(iter, chi2), ...]
-    chi_squared_best: Optional[Tuple[float, int]] = None  # Best chi-squared (value, iteration)
-    masked_mse_trace_sample: Optional[List[float]] = None  # Masked-MSE sampled trace (legacy metric)
-    masked_mse_trace_full: Optional[List[Tuple[int, float]]] = None  # Masked-MSE full trace [(iter, mse), ...]
-    masked_mse_best: Optional[Tuple[float, int]] = None  # Best masked-MSE (value, iteration)
-    sigma_readout_provenance: Optional[str] = None  # Source of sigma tensor (cli_override, calibrated_map, etc.)
-    sigma_readout_reference_value: Optional[float] = None  # Reference scalar (target units, e.g., photons)
-    # PHYSICS-LOSS-002: Variance floor telemetry (spec-db-core.md:67)
-    variance_floor_value: Optional[float] = None  # sigma_floor^2 used in variance clamping
-    variance_floor_clamp_fraction: Optional[float] = None  # Fraction of masked pixels where floor engaged
-    variance_floor_masked_pixels: Optional[int] = None  # Total masked pixels used in variance stats
-    variance_floor_clamped_pixels: Optional[int] = None  # Pixels where sigma_floor clamp engaged
-    # SCALE-008 / TOOLING-VIS-001: Mapping-aware log-scale baseline telemetry
-    log_scale_baseline_source: Optional[str] = None  # Source of log_scale_baseline (mapping_global_scale_hint, spot_scale_override_sqrt, etc.)
-    spot_scale_override_adjustment_factor: Optional[float] = None  # Adjustment factor when calibration was corrected for N_cells
-    # TOOLING-VIS-001 Phase D.E: Masked-mean telemetry for Stage A baseline derivation
-    target_mean_masked: Optional[float] = None  # Masked mean of target data used for log_scale_baseline
-    model_mean_masked: Optional[float] = None  # Masked mean of Stage A zero-iteration model used for log_scale_baseline
-    # PHYSICS-LOSS-003: Canonical Stage A snapshot propagated to downstream stages
-    canonical_stage_label: Optional[str] = None
-    canonical_chi_squared: Optional[float] = None
-    canonical_chi_squared_iteration: Optional[int] = None
-    canonical_roi_count: Optional[int] = None
-    canonical_detector_distances_mm: Optional[List[float]] = None
-    roi_mode: Optional[str] = None
-    # Phase A4: Stage identification for engine aggregation
-    stage_type: Optional[str] = None  # Stage identifier (A, B, C, or custom)
-    mode: Optional[str] = None  # Stage mode (e.g., "shell_modifiers", "detector_offsets")
-    # Phase E: Engine delegation telemetry
-    engine_protocol: Optional[str] = None  # e.g., "A→B→C", "A-only", "A→B"
-    stage_modes: Optional[Dict[str, str]] = None  # e.g., {"B": "shell", "C": "detector_offsets"}
-    telemetry_version: str = "1.0"  # Schema versioning for future compatibility
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert telemetry to dict for HDF5 serialization."""
-        return asdict(self)
+# ARCH-REFINE-001 Phase C.1: RefinementTelemetry now imported from dbex.refinement (canonical definition)
+# Duplicate class definition removed; see dbex/refinement/stage.py for the authoritative schema
 
 
 def _build_final_bragg_from_stage_a_telemetry(

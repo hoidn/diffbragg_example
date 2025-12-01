@@ -92,7 +92,8 @@ class StageB:
             _build_stage_b_lbfgs_closure,
             _run_stage_b_lbfgs,
         )
-        from dbex.nanobrag_refinement import RefinementTelemetry
+        # ARCH-REFINE-001 Phase C.1: Import from canonical location
+        from dbex.refinement import RefinementTelemetry
         from dbex.nanobrag_bridge import (
             create_detector_config,
             create_crystal_config,

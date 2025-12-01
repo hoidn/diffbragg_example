@@ -836,7 +836,8 @@ def test_torch_diagnostics_metadata(sigma_source, sigma_reference):
             }
 
             # PHYSICS-LOSS-001: Create mock refinement telemetry with dual loss metrics
-            from dbex.nanobrag_refinement import RefinementTelemetry
+            # ARCH-REFINE-001 Phase C.1: Import from canonical location
+            from dbex.refinement import RefinementTelemetry
             mock_telemetry_a = RefinementTelemetry(
                 optimizer="LBFGS",
                 stage="A",

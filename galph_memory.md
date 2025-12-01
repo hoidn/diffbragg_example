@@ -40,3 +40,7 @@ Action State: ready_for_implementation
 - Closed the GRADIENT-004 loop (docs/findings.md now marked Resolved) and advanced the fix plan into Phase B by scoping RefinementContext scaffolding with explicit implementation/test bullets plus env guardrails.
 - Rewrote input.md with the new Do Now (RefinementContext builder, engine/stage wiring, Stage A/B/C smokes) and captured the artifacts path for Ralph; this turn must hand off implementation so the next loop can write code immediately.
 Action State: ready_for_implementation
+2025-12-01T121200Z focus=ARCH-REFINE-001 state=ready_for_implementation dwell=1 action=planning artifacts=plans/active/ARCH-REFINE-001/reports/2025-12-01T121200Z/ next_action=Patch Stage A telemetry reconstruction + rerun Stage smokes
+- Stage A smoke still crashes because `_build_final_bragg_from_stage_a_telemetry` passes `log_cell_a_delta`/`angle_alpha_raw` kwargs into `create_crystal_config`, which only accepts the override dict + misset tensors (see plans/active/ARCH-REFINE-001/reports/2025-12-01T115900Z/pytest_stage_a.log and dbex/nanobrag_refinement.py:321-339).
+- Updated docs/fix_plan.md + input.md so Ralph clamps the Stage A deltas, builds `crystal_overrides`/`misset_deg_override` before calling `create_crystal_config`, and replays the Stage A/B/C small-detector smokes with telemetry under the new report directory to prove the context refactor stayed loss-neutral.
+Action State: ready_for_implementation

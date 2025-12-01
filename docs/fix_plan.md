@@ -311,3 +311,16 @@ Capture the `--collect-only` output for the same selector before running the tes
   - `pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small`
   Set `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md`, `KMP_DUPLICATE_LIB_OK=TRUE`, and `NANOBRAGG_DISABLE_COMPILE=1`; capture logs + telemetry JSON under `plans/active/ARCH-REFINE-001/reports/2025-12-01T115900Z/`.
 - **Artifacts:** plans/active/ARCH-REFINE-001/reports/2025-12-01T115900Z/ (collect + pytest logs, telemetry_stage_a_small.json, telemetry_stage_b_small.json, telemetry_stage_c_small.json, summary.md)
+
+### 2025-12-01T121200Z - ARCH-REFINE-001 Phase B.1: Stage A final Bragg reconstruction fix (READY FOR IMPLEMENTATION)
+- **Failure evidence:** `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion --smoke-detector-size=small` still aborts inside `run_nanobrag_refinement` because `_build_final_bragg_from_stage_a_telemetry` calls `create_crystal_config` with keyword arguments (`log_cell_a_delta`, `angle_alpha_raw`, etc.) that the helper does not accept. See `plans/active/ARCH-REFINE-001/reports/2025-12-01T115900Z/pytest_stage_a.log` (TypeError at dbex/nanobrag_refinement.py:331).
+- **Scope:** Update `dbex/nanobrag_refinement.py::_build_final_bragg_from_stage_a_telemetry` so it mirrors the Stage B/C reconstruction path:
+  1. Import `_clamp_log_cell_deltas` and reuse the Stage A formulas (log delta exponentiation and bounded `tanh` angles) to compute actual cell lengths/angles before building overrides.
+  2. Use `create_crystal_config(crystal, experiment=None, crystal_overrides=..., misset_deg_override=...)` rather than passing undefined keyword arguments so warm cache retargeting receives a real `CrystalConfig`.
+  3. When `baseline_crystal` is provided, call `compute_baseline_misset_deg` and add the Stage A delta telemetry before sending `misset_deg_override` into `create_crystal_config` so panel/panel χ² traces stay aligned with GEOMETRY-003.
+  4. Keep the existing warm-cache path (`_retarget_stage_a_simulators`) and cold path (`create_detector_config` + `Simulator`) intact, but ensure the new `CrystalConfig` object is threaded through both.
+- **Validation:** Re-run the small-detector Stage smokes with telemetry capture to ensure Stage A returns a Bragg image and Stage B/C still pass with the context refactor:
+  - `pytest -vv tests/dbex/test_torch_refine_smoke.py -k "test_stage_a_expansion or test_stage_b_shell_modifiers or test_stage_c_detector_microslip" --smoke-detector-size=small`
+  - Env: `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_TELEMETRY_PATH=<artifact>/telemetry_stage_a_small.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1`
+  - Capture separate pytest logs + telemetry JSONs for each selector under `plans/active/ARCH-REFINE-001/reports/2025-12-01T121200Z/` so Attempts History can confirm the context refactor stayed loss-neutral.
+- **Artifacts:** plans/active/ARCH-REFINE-001/reports/2025-12-01T121200Z/ (collect_stage_smokes_small.log, pytest_stage_a_small.log, pytest_stage_b_small.log, pytest_stage_c_small.log, telemetry_stage_a_small.json, telemetry_stage_b_small.json, telemetry_stage_c_small.json, summary.md)

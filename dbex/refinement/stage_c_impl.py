@@ -183,20 +183,21 @@ def _build_stage_c_params(
     stage_a_validation_scope = stage_a_perf_counters.get('validation_scope', 'roi')
     force_panel_validation = (stage_a_validation_scope == 'panel')
 
-    # REFINE-012 (revised): Restore Stage C ROI-mode closures for efficiency while keeping
-    # panel-mode validations explicit. ROI closures stay active when Stage A used ROI mode,
-    # but validation_scope tracks whether full validations should use panel or ROI population.
+    # REFINE-012: Disable Stage C ROI-mode closures whenever Stage A telemetry enforces
+    # panel validations so the LBFGS population matches the REFINE-007 chi² gate.
+    # ROI closures stay active when Stage A used ROI mode AND panel validations not forced.
     stage_c_roi_mode_active = (
         stage_c_use_warm_cache
         and stage_a_used_roi_mode
         and len(roi_slices_by_pid) > 0
-        # force_panel_validation guard REMOVED per 2025-12-01T174500Z
-        # Spec permits ROI minibatching in closures (spec-db-workflow.md:127)
+        and not force_panel_validation
     )
 
     # Compute roi_mode_reason for telemetry provenance (REFINE-012 extension)
     if not stage_c_use_warm_cache:
         roi_mode_reason = "warm_cache_disabled"
+    elif force_panel_validation:
+        roi_mode_reason = "validation_scope_panel"
     elif not stage_a_used_roi_mode:
         roi_mode_reason = "stage_a_panel_mode"
     elif len(roi_slices_by_pid) == 0:

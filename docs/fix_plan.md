@@ -30,7 +30,7 @@
 
 ### Tier 3: Architectural Maturity (Refactoring)
 **Goal:** Refactor monolithic loops into maintainable engines with clear boundaries and testable seams.
-- [PERF-WARM-SIM-001] (Warm Simulator) — **in_progress** (ENV-CUDA-001 no longer reproduces after the 2025-12-01 Stage B/C smoke runs; resuming Phase D.4 validation with fresh telemetry capture.)
+- [PERF-WARM-SIM-001] (Warm Simulator) — **blocked — suspected implementation defect (LBFGS panel-mode convergence)** (2025-12-01T193800Z: Repeat-failure guard triggered — ROI-mode disablement produces identical +0.067% chi² regression as 2025-12-01T170326Z; flat LBFGS trace suggests panel-mode closures prevent convergence. Supervisor review required.)
 
 ### Tier 3: Tooling & Observability
 **Goal:** Standardize visuals, documentation, and runtime guardrails.
@@ -1150,3 +1150,24 @@ pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation
   2. Propagate the new `roi_mode_reason` branch into Stage C perf counters/telemetry to preserve REFINE-012 provenance and keep `perf_counters['roi_mode']` consistent with the new behavior.
   3. Re-run `tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip` for both `--smoke-detector-size=small` and `--smoke-detector-size=full`, capturing collect-only logs, pytest logs, and telemetry under `plans/active/PERF-WARM-SIM-001/reports/2025-12-01T193800Z/`, then rerun the warm-cache summarizer to confirm `roi_mode="panel"`, detector-offset reduction ≥99.999%, and chi² regression ≤0.05%.
 - Artifacts: `plans/active/PERF-WARM-SIM-001/reports/2025-12-01T193800Z/`
+
+### 2025-12-01T193800Z - PERF-WARM-SIM-001 Phase D.4: Stage C ROI-mode alignment implementation (BLOCKED — REPEAT FAILURE)
+**Action**: Re-implemented REFINE-012 ROI-mode gate by adding `and not force_panel_validation` to `stage_c_roi_mode_active` computation (dbex/refinement/stage_c_impl.py:186-194) and added `roi_mode_reason="validation_scope_panel"` branch to provenance logic (line 199-200).
+**Metrics**:
+- Small detector (29 ROIs, 1 panel): **PASSED ✓** — roi_mode="panel", roi_mode_reason="validation_scope_panel", detector offset reduced 99.999994% (1.49e-08 mm final), chi² improved -0.0631%
+- Full detector (92 ROIs, 60 panels): **FAILED ✗** — chi² regression +0.0674% (Stage A final=2.1071e+08, Stage C final=2.1085e+08), **identical to 2025-12-01T170326Z result**
+**Artifacts**: plans/active/PERF-WARM-SIM-001/reports/2025-12-01T193800Z/ (collect_stage_c_small.log, pytest_stage_c_small.log, telemetry_stage_c_small.json, collect_stage_c_full.log, pytest_stage_c_full.log, telemetry_stage_c_full.json, summary.md)
+**First Divergence**: **REPEAT FAILURE DETECTED** per ground_rules repeat-failure guard — full detector chi² trace is flat across all LBFGS iterations ([0: 210848512.0, 5: 210848512.0, 9: 210848512.0]), indicating LBFGS makes zero progress when both closures and validations run in panel mode. The 2025-12-01T170326Z loop produced identical chi² values (2.1071e+08 → 2.1085e+08, +0.067%) using the same `and not force_panel_validation` guard.
+**Root Cause Hypothesis**: Disabling ROI-mode closures forces LBFGS to evaluate the full 60-panel tensor on every closure call. The flat chi² trace suggests:
+1. LBFGS convergence tolerances (`tolerance_change`, `tolerance_grad`) tuned for ROI minibatching are too strict for full-panel gradients
+2. Or numerical precision issues with panel-mode gradient accumulation prevent LBFGS from detecting improvements
+3. Or the detector offset parameterization (`torch.tanh` bounded ±0.5mm) prevents LBFGS from exploring sufficient parameter space from perturbed initial state
+
+The small detector (1 panel) exhibits early-stop due to negligible improvement, while the full detector (60 panels) shows zero LBFGS progress.
+**Next Actions**:
+- **BLOCKED — Implementation defect suspected**: Mark PERF-WARM-SIM-001 Phase D.4 blocked per repeat-failure guard. Do NOT re-run with gate adjustments.
+- **Supervisor review required**:
+  1. Is panel-mode closure regime architecturally required per spec-db-workflow.md:127, or can we use ROI closures + panel validations (separation of concerns)?
+  2. Should LBFGS hyperparameters (tolerance_change, max_iter) be tuned separately for panel vs ROI regimes?
+  3. Is +0.067% chi² regression acceptable as inherent to panel-mode closure convergence characteristics?
+- See `plans/active/PERF-WARM-SIM-001/reports/2025-12-01T193800Z/summary.md` for detailed repeat-failure analysis and evidence paths.

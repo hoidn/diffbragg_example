@@ -103,3 +103,31 @@
 **Next Actions**:
 - Phase A.4: Extract remaining inline Stage C code path from run_nanobrag_refinement() (lines ~2500-2700) to complete Stage C modularization
 - Fix pre-existing RefinementConfig missing attributes (telemetry_output_dir, log_cell_max_delta, log_scale_max_delta) in separate loop
+
+### 2025-12-01T092807Z - ARCH-REFINE-001 Phase A.4: Engine-Only Routing Plan (READY FOR IMPLEMENTATION)
+**Action**: Reviewed Stage A/B/C wrapper state and confirmed `run_nanobrag_refinement` still defaults to ~2.4K lines of inline logic when Stage C is enabled or when `use_engine_delegation=False`. Scoped Phase A.4 to retire the inline path entirely and make RefinementEngine the single execution route.
+- Verified latest helper moves (stage_a_impl/stage_b_impl/stage_c_impl) cover the full LBFGS flow; remaining gap is final Bragg reconstruction + telemetry plumbing when Stage B/C run under the engine (stage_c_impl already generates `bragg_full`, but StageC wrapper discards it and the engine has no cache for the final frame).
+- Audited Stage B CPU fallback + telemetry caches from the Stage A→B engine branch (engine caches `_stage_b_shell_edges`, `_stage_b_mode`, ROI metadata) so the inline-only `_build_final_bragg_from_stage_b_telemetry` helper can be reused after engine delegation once stage ordering is uniform.
+- Checked `docs/findings.md` for constraints: REFINE-FLOW-001 (Stage B reconstruction parity), REFINE-007/REFINE-007-EXT (Stage C improvement/telemetry), ARCH-ENGINE-002/003 (engine protocol + telemetry enrichment), GRADIENT-003 (CPU fallback still CUDA-only). No blockers; removing the inline branch is the remaining dependency for plan Exit Criterion #1.
+- Retrospective (per cadence): skimmed the last three ARCH-REFINE-001 reports (2025-12-01T080903Z, T084505Z, T090517Z). Ralph followed each Do Now (Stage A/B/C helper moves merged), with Stage C smoke failing only on pre-existing config gaps. No hygiene or artifact drift detected; inline branch removal is the next critical increment.
+**Do Now (Ralph)**:
+1. **dbex/nanobrag_refinement.py::run_nanobrag_refinement** — delete the inline Stage A/B/C branch (lines ~640-2500) and make RefinementEngine the default: Stage list = `[StageA(), StageB?, StageC?]`, guard baseline_detector for Stage B/C, and remove the `stage_a_only_mode` / `stage_a_b_mode` short-circuits so there is only one execution flow.
+   - Reuse `_build_final_bragg_from_stage_a_telemetry` and `_build_final_bragg_from_stage_b_telemetry` after the engine run by pulling telemetry objects out of the engine cache (stage names `"stage_a"`, `"stage_b"`) just like today’s delegation branches do.
+   - When Stage C is enabled, fetch the final Bragg volume from the StageC wrapper (see step 2) instead of regenerating detectors in-line.
+2. **dbex/refinement/stage_c.py::StageC.run** + **dbex/refinement/engine.py** — propagate Stage C’s `bragg_full` buffer from `_run_stage_c_lbfgs` through the engine so `run_nanobrag_refinement` can grab it after `engine.run(...)`.
+   - Return the numpy buffer alongside telemetry (e.g., `telemetry_output["bragg_full"] = stage_c_result["bragg_full"]`) and teach RefinementEngine to strip this field before constructing `RefinementTelemetry`, caching it as `self._stage_c_bragg_full` when present.
+   - Do the same for any other future stage output keys by expanding `excluded_fields`.
+3. **dbex/refine_one.py / tests** — drop (or hard-deprecate) the `--use-engine-delegation` flag so CLI + tests always flow through the engine. Update the smoke fixtures to stop forcing `use_engine_delegation=True`; the default must now satisfy ARCH-ENGINE-003 telemetry rules without extra flags.
+4. **Validation** — rerun the Stage B + Stage C smokes in one command so both post-engine flows are exercised:
+```
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+DBEX_SMOKE_SIGMA_SOURCE=cli_override \
+DBEX_SMOKE_DETECTOR_SIZE=small \
+DBEX_SMOKE_TELEMETRY_PATH=plans/active/ARCH-REFINE-001/reports/2025-12-01T092807Z/telemetry_stage_bc_small.json \
+KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
+pytest -vv tests/dbex/test_torch_refine_smoke.py -k \"test_stage_b_shell_modifiers or test_stage_c_detector_microslip\" --smoke-detector-size=small \
+| tee plans/active/ARCH-REFINE-001/reports/2025-12-01T092807Z/pytest_stage_bc_small.log
+```
+Capture the `--collect-only` output for the same selector before running the test to keep selector health logged.
+**Artifacts**: plans/active/ARCH-REFINE-001/reports/2025-12-01T092807Z/ (collect_stage_bc_small.log, pytest_stage_bc_small.log, telemetry_stage_bc_small.json, summary.md)
+**Next Actions**: Once the inline branch is gone and the smokes pass, Phase A is complete and we can advance to Phase B (context builders) plus tackle the RefinementConfig attribute drift noted during Phase A.3.

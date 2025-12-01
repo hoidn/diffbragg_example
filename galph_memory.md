@@ -11,3 +11,8 @@ Action State: ready_for_implementation
 - Updated docs/fix_plan.md Attempts History with Phase A.3 notes and rewrote input.md (Do Now, How-To Map, pitfalls) directing Ralph to create stage_c_impl, relocate `_retarget_stage_a_detectors`, and run `test_stage_c_detector_microslip`.
 - No evidence runs this loop; artifacts carry planning/writeups only so next loop must implement code + execute the Stage C smoke selector.
 Action State: ready_for_implementation
+2025-12-01T092807Z focus=ARCH-REFINE-001 state=ready_for_implementation dwell=2 action=planning artifacts=plans/active/ARCH-REFINE-001/reports/2025-12-01T092807Z/ next_action=Implement engine-only Stage B/C path + rerun merged smokes
+- Drove Phase A.4 scoping: confirmed run_nanobrag_refinement still defaults to the inline Stage B/C branch whenever Stage C is enabled, and outlined removal steps (engine-only routing, stage list guards, final Bragg reconstruction per stage).
+- Planned the StageC.run + RefinementEngine updates needed to propagate `_run_stage_c_lbfgs`' bragg buffer, and documented the CLI/test churn (drop `--use-engine-delegation`, always run through the engine) plus the combined Stage B/C smoke selector.
+- Retrospective (loops 2025-12-01T080903Z..T090517Z): prior Do Nows were followed (Stage A/B/C helper moves merged), only outstanding issue is the legacy inline branch; no hygiene/telemetry drift observed.
+Action State: ready_for_implementation

@@ -1,0 +1,574 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 1 item
+
+tests/dbex/test_stage_a_mapping_equiv.py::test_db_at_027_zero_point_parity FAILED [100%]
+
+=================================== FAILURES ===================================
+_______________________ test_db_at_027_zero_point_parity _______________________
+
+    def test_db_at_027_zero_point_parity():
+        """DB-AT-027: Stage A zero-point mapping equivalence.
+    
+        Ensures the Stage A zero-parameter forward model is equivalent to the
+        DB-AT-024 mapping forward model at the same geometry, HKL grid, and
+        calibration.
+    
+        Normative tolerances (docs/spec-db-conformance.md:201-239):
+            - mean_abs_diff(bragg_stagea_zero - bragg_mapping) <= 1e-3
+            - max_abs_diff(bragg_stagea_zero - bragg_mapping) <= 2.0e2
+            - |chi2_rel_diff| <= 1e-3
+    
+        xfail status: Known Stage A zero-point miscalibration (STAGEA-001)
+            - spot_scale_override not yet plumbed into Stage A engine
+            - Expected to XPASS once Phase D.C calibration plumbing lands
+    
+        Environment:
+            DBAT027_ARTIFACT_DIR: Optional artifact directory for metrics/env JSONs
+            DBEX_SMOKE_SIGMA_SOURCE: Sigma readout provenance (default: metadata)
+            DBEX_SMOKE_DETECTOR_SIZE: Detector size (full/small, not used by this test)
+        """
+        import json
+        import subprocess
+    
+        # Lazy imports to avoid overhead when test is not selected
+        from dbex.data_load import DataLoad
+        from dbex.tools.stage_a_adam import build_dataload, run_engine_zero_point_probe
+    
+        # Construct DataLoad for canonical assets (prefers refined geometry)
+        repo_root = Path(__file__).resolve().parents[2]
+        dataload = build_dataload(repo_root)
+    
+        # Determine sigma source from environment (default: metadata)
+        sigma_source = os.environ.get("DBEX_SMOKE_SIGMA_SOURCE", "metadata")
+        detector_size = os.environ.get("DBEX_SMOKE_DETECTOR_SIZE", "full")
+    
+        # Run engine-delegation zero-point probe (DB-AT-027)
+>       result = run_engine_zero_point_probe(
+            dataload,
+            device_str="cpu",
+            sigma_source=sigma_source,
+        )
+
+tests/dbex/test_stage_a_mapping_equiv.py:57: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+dbex/tools/stage_a_adam.py:1710: in run_engine_zero_point_probe
+    bragg_stagea_zero = _build_final_bragg_from_stage_a_telemetry(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+telemetry_a = RefinementTelemetry(optimizer='LBFGS', stage='A', history_size=10, max_iter=0, tolerance_grad=1e-07, tolerance_change=...], roi_mode='roi', stage_type='stage_a', mode=None, engine_protocol='stage_a', stage_modes={}, telemetry_version='1.0')
+detector = <dxtbx_model_ext.Detector object at 0x7bf9660a9890>
+beam = <dxtbx_model_ext.Beam object at 0x7bf9660a9740>
+crystal = <dxtbx_model_ext.MosaicCrystalSauter2014 object at 0x7bf96609fbd0>
+inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0.,...0.]]], dtype=float32), target_representation='adu', global_scale_hint=62.65738056380318, sigma_readout_provenance=None)
+hkl_grid = tensor([[[0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., ...    [0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., 0.]]])
+hkl_metadata = {'grid_max': 518.3336791992188, 'grid_mean': 18.78112030029297, 'grid_min': 0.0, 'grid_nonzero': 69614, ...}
+config = RefinementConfig(history_size=10, max_iter=0, tolerance_grad=1e-07, tolerance_change=1e-09, roi_sample_fraction=0.15, ... calibration_metadata=None, log_scale_baseline=None, apply_calibration_n_cells=True, device='cpu', dtype=torch.float32)
+device = device(type='cpu'), dtype = torch.float32, stage_a_ctx = None
+baseline_crystal = None
+
+    def _build_final_bragg_from_stage_a_telemetry(
+        telemetry_a,
+        detector,
+        beam,
+        crystal,
+        inputs,
+        hkl_grid,
+        hkl_metadata,
+        config,
+        device,
+        dtype,
+        stage_a_ctx=None,
+        baseline_crystal=None,
+    ):
+        """
+        Build final Bragg array from Stage A telemetry (optimized crystal/scale params).
+    
+        Extracts Stage A final parameters from telemetry and regenerates full Bragg image.
+    
+        Args:
+            telemetry_a: RefinementTelemetry instance with Stage A optimized param_deltas
+            detector: dxtbx Detector object
+            beam: dxtbx Beam object
+            crystal: dxtbx Crystal object
+            inputs: RefinementInputs with panel_slices, trusted_mask
+            hkl_grid: torch.Tensor structure factor grid
+            hkl_metadata: dict with grid dimensions
+            config: RefinementConfig with device, dtype
+            device: torch.device for tensor operations
+            dtype: torch.dtype for tensor operations
+            stage_a_ctx: Optional Stage A context (detectors/simulators for warm cache)
+            baseline_crystal: Optional baseline dxtbx Crystal for misset extraction
+    
+        Returns:
+            bragg_full: np.ndarray, shape [n_panels, slow, fast], final Bragg image
+        """
+        # Lazy imports
+        from nanobrag_torch.simulator import Simulator
+        from nanobrag_torch.models.detector import Detector
+        from nanobrag_torch.models.crystal import Crystal
+        from dbex.nanobrag_bridge import (
+            create_detector_config,
+            create_crystal_config,
+            compute_baseline_misset_deg,
+        )
+    
+        # Extract param_deltas from telemetry
+        param_deltas_a = telemetry_a.param_deltas if hasattr(telemetry_a, 'param_deltas') else telemetry_a['param_deltas']
+    
+        # Extract Stage A final parameters
+        log_scale = torch.tensor(param_deltas_a['log_scale']['final'], device=device, dtype=dtype, requires_grad=False)
+        log_cell_a_delta = torch.tensor(param_deltas_a['log_cell_a_delta']['final'], device=device, dtype=dtype, requires_grad=False)
+        log_cell_b_delta = torch.tensor(param_deltas_a['log_cell_b_delta']['final'], device=device, dtype=dtype, requires_grad=False)
+        log_cell_c_delta = torch.tensor(param_deltas_a['log_cell_c_delta']['final'], device=device, dtype=dtype, requires_grad=False)
+        angle_alpha_raw = torch.tensor(param_deltas_a['angle_alpha_raw']['final'], device=device, dtype=dtype, requires_grad=False)
+        angle_beta_raw = torch.tensor(param_deltas_a['angle_beta_raw']['final'], device=device, dtype=dtype, requires_grad=False)
+        angle_gamma_raw = torch.tensor(param_deltas_a['angle_gamma_raw']['final'], device=device, dtype=dtype, requires_grad=False)
+        misset_xyz_deg_delta = param_deltas_a['misset_xyz_deg']['delta']
+        misset_xyz_deg = torch.tensor(misset_xyz_deg_delta, device=device, dtype=dtype, requires_grad=False)
+    
+        # Apply Stage A cell perturbations (mirroring Stage B reconstruction pattern)
+        cell_params = crystal.get_unit_cell().parameters()
+        log_cell_a_delta_clamped, log_cell_b_delta_clamped, log_cell_c_delta_clamped = _clamp_log_cell_deltas(
+            log_cell_a_delta,
+            log_cell_b_delta,
+            log_cell_c_delta,
+            getattr(config, "log_cell_max_delta", 1.0),
+        )
+        cell_a_tensor = cell_params[0] * torch.exp(log_cell_a_delta_clamped)
+        cell_b_tensor = cell_params[1] * torch.exp(log_cell_b_delta_clamped)
+        cell_c_tensor = cell_params[2] * torch.exp(log_cell_c_delta_clamped)
+    
+        max_angle_delta = 10.0  # degrees
+        cell_alpha_tensor = cell_params[3] + torch.tanh(angle_alpha_raw) * max_angle_delta
+        cell_beta_tensor = cell_params[4] + torch.tanh(angle_beta_raw) * max_angle_delta
+        cell_gamma_tensor = cell_params[5] + torch.tanh(angle_gamma_raw) * max_angle_delta
+    
+        # Build crystal overrides
+        crystal_overrides = {
+            'cell_a': cell_a_tensor,
+            'cell_b': cell_b_tensor,
+            'cell_c': cell_c_tensor,
+            'cell_alpha': cell_alpha_tensor,
+            'cell_beta': cell_beta_tensor,
+            'cell_gamma': cell_gamma_tensor
+        }
+    
+        # Compute baseline misset if baseline_crystal provided (GEOMETRY-003)
+        baseline_misset_deg_tensor = compute_baseline_misset_deg(
+            crystal,
+            baseline_crystal,
+            device=device,
+            dtype=dtype,
+        )
+    
+        # Compute final misset (baseline + delta if baseline provided)
+        if baseline_misset_deg_tensor is not None:
+            final_misset = baseline_misset_deg_tensor + misset_xyz_deg
+        else:
+            final_misset = misset_xyz_deg
+    
+        # Build crystal config with refined parameters using override API
+        crystal_config, _ = create_crystal_config(
+            crystal=crystal,
+            experiment=None,
+            crystal_overrides=crystal_overrides,
+            misset_deg_override=final_misset,
+        )
+    
+        # Extract panel counts and full panel shape
+        n_panels = len(detector)
+        panel_shape = (
+            detector[0].get_image_size()[1],  # slow
+            detector[0].get_image_size()[0]   # fast
+        )
+        sampled_panel_ids = list(range(n_panels))
+    
+        # Build Crystal model from config (GRADIENT-004: keep tensors attached for warm cache)
+        crystal_model = Crystal(
+            crystal_config,
+            beam_config=None,  # Will use beam_config from context if warm cache, else provided below
+            device=device,
+            dtype=dtype,
+        )
+        crystal_model.interpolate = config.enable_hkl_interpolation
+        crystal_model.hkl_data = hkl_grid.to(device=device, dtype=dtype)
+        crystal_model.hkl_metadata = hkl_metadata
+    
+        # Build full Bragg array (panel mode)
+        # Reuse warm cache simulators if available
+        if stage_a_ctx is not None and hasattr(stage_a_ctx, 'simulators'):
+            # Warm cache path: retarget existing simulators with refined crystal (GRADIENT-004, ARCH-FACTORY-001)
+            from dbex.refinement.stage_a_impl import _retarget_stage_a_simulators
+            # Update crystal_model beam_config from context
+            crystal_model.beam_config = stage_a_ctx.beam_config
+            _retarget_stage_a_simulators(stage_a_ctx, crystal_model)
+            simulators = stage_a_ctx.simulators
+        else:
+            # Cold path: build simulators via unified factory (ARCH-FACTORY-001 Phase B.4)
+            from dbex.nanobrag_bridge import create_beam_config
+            from dbex.refinement.helpers import create_unified_simulator
+            beam_config = create_beam_config(beam)
+            simulators = []
+            for pid in sampled_panel_ids:
+>               detector_config = create_detector_config(detector[pid], beam=beam, use_dials_convention=True)
+E               TypeError: create_detector_config() got an unexpected keyword argument 'use_dials_convention'
+
+dbex/nanobrag_refinement.py:351: TypeError
+----------------------------- Captured stdout call -----------------------------
+auto-selected 1-fold oversampling
+WARNING: out of range for three point interpolation
+WARNING: further warnings will not be printed!
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+=============================== warnings summary ===============================
+tests/dbex/test_stage_a_mapping_equiv.py::test_db_at_027_zero_point_parity
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_stage_a_mapping_equiv.py::test_db_at_027_zero_point_parity
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_stage_a_mapping_equiv.py::test_db_at_027_zero_point_parity
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_stage_a_mapping_equiv.py::test_db_at_027_zero_point_parity
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_stage_a_mapping_equiv.py::test_db_at_027_zero_point_parity - TypeError: create_detector_config() got an unexpected keyword argument 'use_dials_convention'
+======================== 1 failed, 4 warnings in 22.16s ========================
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 1 item
+
+tests/dbex/test_stage_a_mapping_equiv.py::test_db_at_027_zero_point_parity PASSED [100%]
+
+=============================== warnings summary ===============================
+tests/dbex/test_stage_a_mapping_equiv.py::test_db_at_027_zero_point_parity
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_stage_a_mapping_equiv.py::test_db_at_027_zero_point_parity
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_stage_a_mapping_equiv.py::test_db_at_027_zero_point_parity
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_stage_a_mapping_equiv.py::test_db_at_027_zero_point_parity
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+tests/dbex/test_stage_a_mapping_equiv.py::test_db_at_027_zero_point_parity
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/numpy/lib/function_base.py:2897: RuntimeWarning: invalid value encountered in divide
+    c /= stddev[:, None]
+
+tests/dbex/test_stage_a_mapping_equiv.py::test_db_at_027_zero_point_parity
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/numpy/lib/function_base.py:2898: RuntimeWarning: invalid value encountered in divide
+    c /= stddev[None, :]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 1 passed, 6 warnings in 20.45s ========================

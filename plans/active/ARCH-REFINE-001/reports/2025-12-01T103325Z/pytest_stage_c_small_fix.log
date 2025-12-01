@@ -1,0 +1,538 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 1 item
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip FAILED [100%]
+
+=================================== FAILURES ===================================
+_______________________ test_stage_c_detector_microslip ________________________
+
+refgeom_dataload = <dbex.data_load.DataLoad object at 0x775b41b2eee0>
+refinement_inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0.,...0.]]], dtype=float32), target_representation='adu', global_scale_hint=86.34794146217338, sigma_readout_provenance=None)
+hkl_data = (tensor([[[0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0.,...uda:0'), {'grid_max': 518.3336791992188, 'grid_mean': 16.896526336669922, 'grid_min': 0.0, 'grid_nonzero': 69614, ...})
+smoke_detector_size = 'small', smoke_sigma_source = 'cli_override'
+
+    @pytest.mark.allow_metadata_sigma
+    def test_stage_c_detector_microslip(
+        refgeom_dataload,
+        refinement_inputs,
+        hkl_data,
+        smoke_detector_size,
+        smoke_sigma_source,
+    ):
+        """
+        Verify Stage C detector distance refinement pulls injected ±0.25 mm offsets back toward zero.
+    
+        Acceptance criteria (TORCH-REFINE-003 + REFINE-007 telemetry recalibration):
+        1. Stage A + Stage C run without errors (status != "error")
+        2. Stage C telemetry contains per-panel distance_offset parameters
+        3. On the canonical detector (`--smoke-detector-size=full`), each panel offset shrinks by ≥80%
+           or lands within ±0.05 mm of the nominal geometry, and Stage C does not increase chi-squared
+           relative to Stage A by more than 0.05%.
+        4. Full-loss trace (Stage C) is non-increasing over last 3 validations
+        5. Stage A telemetry is preserved and not regressed by Stage C
+    
+        Environment:
+        - Requires: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1
+        - Selector: pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip
+    
+        Per docs/spec-db-workflow.md:35, Stage C refines per-panel translations along detector
+        normal (distance offset) with rotations fixed. The test applies deterministic detector
+        perturbation via create_perturbed_geometry(enable_detector_perturbation=True), then runs
+        Stage A followed by Stage C. Canonical `--smoke-detector-size=full` strict gates now rely on
+        the recorded detector-offset telemetry (REFINE-007 / docs/findings.md#L43) rather than a
+        chi-squared percentage floor: we require ≥80% reduction toward zero (or ≤0.05 mm absolute
+        distance) and a non-regressing chi-squared trace (≤+0.05% vs Stage A). Telemetry emitted via
+        `DBEX_SMOKE_TELEMETRY_PATH` is archived under PERF-SMOKE-DETSIZE for PHYSICS-LOSS-001 parity
+        evidence.
+        """
+        from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig
+    
+        print(f"\n[test_stage_c_detector_microslip] detector={smoke_detector_size}")
+        strict_gates = smoke_detector_size == "full"
+    
+        hkl_grid, hkl_metadata = hkl_data
+    
+        # Configure refinement (Stage A + Stage C per TORCH-REFINE-003)
+        sigma_provenance = "external_lookup" if smoke_sigma_source == "metadata" else "cli_override"
+    
+        config = RefinementConfig(
+            device='cuda:0',
+            dtype=torch.float32,
+            history_size=10,
+            max_iter=30,  # ≤30 steps per stage
+            roi_sample_fraction=0.15,
+            full_validation_interval=5,
+            min_loss_improvement=0.0,  # Strict gates enforced via telemetry asserts (REFINE-007)
+            enable_hkl_interpolation=True,  # Tricubic with haloed grid
+            enable_stage_c=True,  # Enable Stage C detector distance refinement
+            stage_c_min_loss_improvement=0.0,
+            stage_c_max_distance_delta_mm=0.5,  # ±0.5mm max offset per panel
+            sigma_readout_provenance=sigma_provenance,
+        )
+    
+        # Create perturbed geometry with detector offsets (TORCH-REFINE-003)
+        # Applies alternating ±0.25mm distance offsets to detector panels
+        baseline_crystal = refgeom_dataload.Expt.crystal
+        baseline_detector = refgeom_dataload.Expt.detector
+        baseline_beam = refgeom_dataload.Expt.beam
+    
+        detector_offset_mm = 0.25
+        perturbed_crystal, perturbed_detector, perturbed_beam = create_perturbed_geometry(
+            baseline_crystal, baseline_detector, baseline_beam,
+            enable_detector_perturbation=True,  # Enable detector distance offsets
+            detector_distance_offset_mm=detector_offset_mm  # ±0.25mm alternating pattern
+        )
+    
+        # Run refinement with Stage A + Stage C
+>       bragg_refined, telemetry_dict = run_nanobrag_refinement(
+            inputs=refinement_inputs,
+            detector=perturbed_detector,
+            beam=perturbed_beam,
+            crystal=perturbed_crystal,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            config=config,
+            baseline_crystal=baseline_crystal,
+            baseline_detector=baseline_detector,
+        )
+
+tests/dbex/test_torch_refine_smoke.py:1015: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+dbex/nanobrag_refinement.py:821: in run_nanobrag_refinement
+    engine_telemetry = engine.run(inputs=engine_inputs, telemetry_sink=None)
+dbex/refinement/engine.py:129: in run
+    telemetry_dict = stage.run(enriched_inputs, telemetry_sink)
+dbex/refinement/stage_a.py:224: in run
+    status, message, final_chi_squared_value, final_masked_mse_value, best_params_snapshot = _run_stage_a_lbfgs(
+dbex/refinement/stage_a_impl.py:1802: in _run_stage_a_lbfgs
+    baseline_chi_squared, baseline_mse = compute_loss(full_stage_a_indices, is_full=True, force_panel_eval=force_panel_validation)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+work_item_ids = [0, 1, 2, 3, 4, 5, ...], is_full = True, force_panel_eval = True
+
+    def compute_loss(work_item_ids: List[int], is_full: bool = False, force_panel_eval: bool = False) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Compute variance-weighted chi-squared loss over specified work items.
+    
+        Implements spec-db-core.md:57-68 variance model:
+        - Variance: V = I_model.detach() + sigma_readout^2
+        - Loss: Sum((I_model - I_obs)^2 / V) over trusted pixels
+        - Detached denominator implements IRLS (prevents "attraction to zero")
+    
+        Warm mode (default): Reuses cached detector models and masks (PERF-WARM-SIM-001).
+        Cold mode (benchmarking): Rebuilds detector models/masks inside closure.
+    
+        Args:
+            work_item_ids: List of ROI indices (when ROI sampling enabled) or panel indices
+            is_full: If True, this is a full validation run
+            force_panel_eval: If True, skip ROI mode and use panel mode even when ROI sampling is enabled
+                            (ARCH-REFINE-001, REFINE-007: ensures Stage A telemetry reports panel-level chi²
+                            that matches Stage C's initial state)
+    
+        Returns:
+            Tuple of (chi_squared_loss, masked_mse_loss): Both scalar tensors for telemetry
+        """
+        # Time forward pass (CPU-only, PERF-WARM-SIM-001)
+        t0 = time.perf_counter()
+    
+        # Compute cell/orientation parameters once per loss evaluation (shared across panels/ROIs)
+        cell_params = crystal.get_unit_cell().parameters()  # (a, b, c, alpha, beta, gamma)
+    
+        # 1. Unit cell lengths (log-parameterized)
+        log_cell_a_delta_clamped, log_cell_b_delta_clamped, log_cell_c_delta_clamped = _clamp_log_cell_deltas(
+            log_cell_a_delta,
+            log_cell_b_delta,
+            log_cell_c_delta,
+            log_cell_max_delta,
+        )
+        perturbed_cell_a = cell_params[0] * torch.exp(log_cell_a_delta_clamped)
+        perturbed_cell_b = cell_params[1] * torch.exp(log_cell_b_delta_clamped)
+        perturbed_cell_c = cell_params[2] * torch.exp(log_cell_c_delta_clamped)
+    
+        # 2. Unit cell angles (bounded via tanh, max perturbation ±10°)
+        max_angle_delta = 10.0  # degrees
+        perturbed_alpha = cell_params[3] + torch.tanh(angle_alpha_raw) * max_angle_delta
+        perturbed_beta = cell_params[4] + torch.tanh(angle_beta_raw) * max_angle_delta
+        perturbed_gamma = cell_params[5] + torch.tanh(angle_gamma_raw) * max_angle_delta
+    
+        # 3. Orientation perturbation via quaternion→XYZ misset (TORCH-REFINE-002)
+        # TORCH-GEOMETRY-UB-REALIGN-001 Phase B3: Branch on incremental UB vs U-matrix vs cell+misset path
+        if config.use_incremental_ub:
+            # Incremental UB path: Derive A* = U(q_delta) @ B(cell_deltas)
+            from dbex.nanobrag_bridge import (
+                derive_orientation_from_quaternion_delta,
+                derive_B_from_cell_deltas,
+            )
+    
+            # Derive U(params) = ΔR(q_delta) @ U_baseline
+            U_current = derive_orientation_from_quaternion_delta(
+                q_delta, U_baseline, dtype=dtype, device=device
+            )
+    
+            # Derive B(params) from cell perturbations
+            B_current = derive_B_from_cell_deltas(
+                delta_log_a, delta_log_b, delta_log_c,
+                delta_alpha, delta_beta, delta_gamma,
+                cell_baseline=tuple(cell_baseline.detach().cpu().numpy().tolist()),
+                dtype=dtype,
+                device=device
+            )
+    
+            # Construct A* = U @ B (one-way construction per spec-db-core.md:64-67)
+            A_star_new = U_current @ B_current  # Shape: [3, 3]
+    
+            # Extract MOSFLM a/b/c_star for crystal_config injection
+            # A* columns are reciprocal lattice vectors a*, b*, c*
+            a_star = A_star_new[:, 0].detach().cpu().numpy()  # Shape: [3]
+            b_star = A_star_new[:, 1].detach().cpu().numpy()
+            c_star = A_star_new[:, 2].detach().cpu().numpy()
+    
+            # Inject via MOSFLM a/b/c_star (per GRADIENT-001: no cell overrides with MOSFLM injection)
+            crystal_overrides = {
+                'mosflm_a_star': tuple(a_star.tolist()),
+                'mosflm_b_star': tuple(b_star.tolist()),
+                'mosflm_c_star': tuple(c_star.tolist()),
+            }
+            # CRITICAL: Do NOT inject cell parameters when using MOSFLM a/b/c_star (GRADIENT-001)
+            misset_deg_for_crystal = None  # MOSFLM A* is provided directly
+    
+        elif config.use_u_matrix_parameterization:
+            # U-matrix path: Normalize quaternion, convert to U, compute A*
+            from dbex.nanobrag_bridge import quaternion_to_matrix
+            q_norm = q_params / torch.norm(q_params)  # Enforce ||q|| = 1
+    
+            U = quaternion_to_matrix(q_norm)  # 3x3 rotation matrix
+            A_star_new = U @ B_ideal_reciprocal_torch  # Compute updated A*
+    
+            # Lifecycle logging: U-matrix and A* reconstruction (TORCH-GEOMETRY-CONVERGENCE-001 Phase B4)
+            if not is_full:
+                U_checksum = U.sum().item()
+                A_star_checksum = A_star_new.sum().item()
+                B_ideal_checksum = B_ideal_reciprocal_torch.sum().item()
+    
+                u_matrix_lifecycle_log.append({
+                    "closure_call_index": len(u_matrix_lifecycle_log),
+                    "U_checksum": U_checksum,
+                    "q_params_norm": torch.norm(q_params).item(),
+                    "log_scale_value": log_scale.item()
+                })
+    
+                a_star_lifecycle_log.append({
+                    "closure_call_index": len(a_star_lifecycle_log),
+                    "A_star_checksum": A_star_checksum,
+                    "U_checksum": U_checksum,
+                    "B_ideal_checksum": B_ideal_checksum
+                })
+    
+            # Telemetry: Capture parameters (TORCH-GEOMETRY-CONVERGENCE-001 Phase B2)
+            if not is_full and getattr(config, "telemetry_output_dir", None):
+                q_norm_value = torch.norm(q_params).item()
+                telemetry_params = {
+                    'step_index': telemetry_step_counter[0],
+                    'q_params': q_params.detach().cpu().tolist(),
+                    'q_norm_value': q_norm_value,
+                    'log_scale': log_scale.item(),
+                    'u_matrix_checksum': U.sum().item(),  # Phase B2: U-matrix checksum
+                }
+    
+            # Convert A* to numpy for crystal_overrides
+            A_star_np = A_star_new.detach().cpu().numpy()
+            mosflm_a_star_tuple = tuple(A_star_np[:, 0].tolist())
+            mosflm_b_star_tuple = tuple(A_star_np[:, 1].tolist())
+            mosflm_c_star_tuple = tuple(A_star_np[:, 2].tolist())
+    
+            crystal_overrides = {
+                'cell_a': perturbed_cell_a,
+                'cell_b': perturbed_cell_b,
+                'cell_c': perturbed_cell_c,
+                'cell_alpha': perturbed_alpha,
+                'cell_beta': perturbed_beta,
+                'cell_gamma': perturbed_gamma,
+                'mosflm_a_star': mosflm_a_star_tuple,
+                'mosflm_b_star': mosflm_b_star_tuple,
+                'mosflm_c_star': mosflm_c_star_tuple,
+            }
+            # FIX: Define misset_deg_for_crystal here in U-matrix branch
+            misset_deg_for_crystal = None  # MOSFLM A* is provided directly
+        else:
+            # Existing cell+misset path (GEOMETRY-003)
+            max_orientation_deg = 3.0  # degrees (per input.md pitfalls)
+            bounded_orientation_vec = torch.tanh(orientation_vec) * max_orientation_deg * (np.pi / 180.0)
+            quat = vec_to_unit_quaternion(bounded_orientation_vec)
+            misset_xyz_deg = quaternion_to_xyz_euler(quat)
+    
+            if baseline_misset_deg_tensor is not None:
+                misset_xyz_deg = misset_xyz_deg + baseline_misset_deg_tensor
+    
+            crystal_overrides = {
+                'cell_a': perturbed_cell_a,
+                'cell_b': perturbed_cell_b,
+                'cell_c': perturbed_cell_c,
+                'cell_alpha': perturbed_alpha,
+                'cell_beta': perturbed_beta,
+                'cell_gamma': perturbed_gamma
+            }
+            # FIX: Define misset_deg_for_crystal here in cell+misset branch
+            misset_deg_for_crystal = misset_xyz_deg
+    
+        # Clamp log_scale and apply baseline if calibration is present (TOOLING-VIS-001 Phase D.C, DB-AT-027)
+        # When calibration_metadata is provided:
+        #   - log_scale_baseline = log(sqrt(spot_scale_override)) is the fixed baseline
+        #   - log_scale is a delta parameter, clamped to ±log_scale_max_delta (default ±3)
+        #   - Final scale = exp(log_scale_baseline + clamped_delta)
+        # Otherwise:
+        #   - log_scale is the direct learnable parameter, clamped to ±10 (legacy wide range)
+        #   - Final scale = exp(clamped_log_scale)
+        log_scale_baseline_value = param_values.get('log_scale_baseline')
+        max_delta_uncal = getattr(config, "log_scale_max_delta_uncalibrated", 10.0)
+        delta_bound = config.log_scale_max_delta if log_scale_baseline_value is not None else max_delta_uncal
+        if log_scale_baseline_value is not None:
+            log_scale_delta_clamped = torch.clamp(log_scale, min=-delta_bound, max=delta_bound)
+            log_scale_clamped = log_scale_baseline_value + log_scale_delta_clamped
+        else:
+            # Absolute clamp when no baseline is available
+            log_scale_clamped = torch.clamp(log_scale, min=-delta_bound, max=delta_bound)
+        beam_config_for_run = stage_a_ctx.beam_config if stage_a_ctx is not None else create_beam_config(
+            beam,
+            **beam_config_kwargs,
+        )
+    
+        warm_crystal_model: Optional['Crystal'] = None
+        if stage_a_ctx is not None:
+            warm_crystal_config, _ = create_crystal_config(
+                crystal,
+                None,
+                crystal_overrides=crystal_overrides,
+                misset_deg_override=misset_deg_for_crystal,
+                N_cells=n_cells_override,
+                apply_n_cells=(n_cells_override is not None),
+            )
+            from nanobrag_torch.models.crystal import Crystal
+            warm_crystal_model = Crystal(
+                warm_crystal_config,
+                beam_config=beam_config_for_run,
+                device=device,
+                dtype=dtype
+            )
+            warm_crystal_model = _sync_stage_a_crystal(stage_a_ctx, warm_crystal_model)
+            _retarget_stage_a_simulators(stage_a_ctx, warm_crystal_model)
+    
+        # ARCH-REFINE-001: Force panel mode when requested (REFINE-007)
+        # Skip ROI branch if force_panel_eval is True, ensuring baseline/final validations
+        # report panel-level chi² that matches Stage C's initial state
+        if use_stage_a_roi_mode and not force_panel_eval:
+            indices = work_item_ids if work_item_ids else full_stage_a_indices
+            chi_squared_accum = torch.zeros((), device=device, dtype=dtype)
+            mse_numerator_accum = torch.zeros((), device=device, dtype=dtype)
+            masked_pixels_total = 0
+            clamped_pixels_total = 0
+    
+            # Telemetry: Initialize variance component accumulators (TORCH-GEOMETRY-CONVERGENCE-001 Phase B2)
+            if not is_full and getattr(config, "telemetry_output_dir", None) and config.use_u_matrix_parameterization:
+                i_model_min_global = float('inf')
+                i_model_max_global = float('-inf')
+                i_model_values_list = []
+                v_denom_values_list = []
+                weighted_residuals_list = []
+    
+            for roi_index in indices:
+                pid, bbox = panel_slices[roi_index]
+                x0, x1, y0, y1 = map(int, bbox)
+                slow_slice = slice(y0, y1)
+                fast_slice = slice(x0, x1)
+    
+                target_subset = target_t[pid, slow_slice, fast_slice]
+                mask_subset = loss_mask_t[pid, slow_slice, fast_slice]
+                if stage_a_ctx is not None and stage_a_ctx.trusted_masks_t is not None:
+                    trusted_slice = stage_a_ctx.trusted_masks_t[pid, slow_slice, fast_slice]
+                    mask_subset = torch.logical_and(mask_subset, trusted_slice)
+                sigma_subset = sigma_readout_t[pid, slow_slice, fast_slice]
+    
+                if stage_a_ctx is not None and stage_a_ctx.roi_entries:
+                    simulator = stage_a_ctx.roi_entries[roi_index].simulator
+                else:
+                    detector_config = create_detector_config(
+                        panel=detector[pid],
+                        beam=beam,
+                        trusted_mask=inputs.trusted_mask[pid],
+                        roi_bbox=(x0, x1, y0, y1),
+                    )
+                    mask_array = detector_config.mask_array
+                    if mask_array is not None and not isinstance(mask_array, torch.Tensor):
+                        detector_config.mask_array = torch.tensor(mask_array, dtype=torch.float32, device=device)
+                    elif mask_array is not None and (mask_array.device != device or mask_array.dtype != torch.float32):
+                        detector_config.mask_array = mask_array.to(device=device, dtype=torch.float32)
+                    from nanobrag_torch.models.detector import Detector
+                    detector_model = Detector(detector_config, device=device, dtype=dtype)
+    
+                    crystal_config, _ = create_crystal_config(
+                        crystal,
+                        None,
+                        crystal_overrides=crystal_overrides,
+                        misset_deg_override=misset_deg_for_crystal
+                    )
+                    from nanobrag_torch.models.crystal import Crystal
+                    crystal_model = Crystal(
+                        crystal_config,
+                        beam_config=beam_config_for_run,
+                        device=device,
+                        dtype=dtype
+                    )
+                    crystal_model.interpolate = config.enable_hkl_interpolation
+                    crystal_model.hkl_data = hkl_grid.to(device=device, dtype=dtype)
+                    crystal_model.hkl_metadata = hkl_metadata
+    
+                    from nanobrag_torch.simulator import Simulator
+                    simulator = Simulator(
+                        detector=detector_model,
+                        crystal=crystal_model,
+                        beam_config=beam_config_for_run,
+                        device=device,
+                        dtype=dtype
+                    )
+    
+                bragg_patch = simulator.run()
+                bragg_scaled = bragg_patch * torch.exp(log_scale_clamped)
+    
+                # NOTE: In the current Stage A implementation, `bragg_scaled` plays the role
+                # of I_model in the variance term while `target_subset` is background-subtracted
+                # I_obs. Spec-DB core defines I_model as Bragg+background on raw data; see
+                # docs/config_crosswalk.md “I_model” mapping and TODO‑PHYSICS for planned
+                # reconciliation.
+                chi_sq_roi, mse_roi, masked_pixels, clamped_pixels = _compute_variance_weighted_loss(
+                    bragg_scaled,
+                    target_subset,
+                    mask_subset,
+                    sigma_subset,
+                    sigma_floor_sq_tensor,
+                )
+    
+                # Telemetry: Capture I_model, V_denom, and weighted residuals (TORCH-GEOMETRY-CONVERGENCE-001 Phase B2)
+                if not is_full and getattr(config, "telemetry_output_dir", None) and config.use_u_matrix_parameterization:
+                    # I_model stats
+                    i_model_values = bragg_scaled[mask_subset]
+                    i_model_min_global = min(i_model_min_global, torch.min(bragg_scaled).item())
+                    i_model_max_global = max(i_model_max_global, torch.max(bragg_scaled).item())
+                    i_model_values_list.append(i_model_values.detach().cpu())
+    
+                    # V_denom (variance denominator) stats
+                    variance_raw = bragg_scaled.detach() + sigma_subset ** 2
+                    v_denom = torch.maximum(variance_raw, sigma_floor_sq_tensor)
+                    v_denom_values_list.append(v_denom[mask_subset].detach().cpu())
+    
+                    # Weighted residuals stats
+                    diff = bragg_scaled - target_subset
+                    squared_error = diff ** 2
+                    weighted_error = squared_error / v_denom
+                    weighted_residuals_list.append(weighted_error[mask_subset].detach().cpu())
+                chi_squared_accum = chi_squared_accum + chi_sq_roi
+                mse_numerator_accum = mse_numerator_accum + (mse_roi * masked_pixels)
+                masked_pixels_total += masked_pixels
+                clamped_pixels_total += clamped_pixels
+    
+            if masked_pixels_total > 0:
+                masked_mse_loss = mse_numerator_accum / masked_pixels_total
+            else:
+                masked_mse_loss = mse_numerator_accum
+            chi_squared_loss = chi_squared_accum
+    
+            # Telemetry: Capture loss components and variance stats (TORCH-GEOMETRY-CONVERGENCE-001 Phase B2)
+            if not is_full and getattr(config, "telemetry_output_dir", None) and config.use_u_matrix_parameterization:
+                clamp_fraction = clamped_pixels_total / max(masked_pixels_total, 1)
+                mean_per_pixel_chi_squared = chi_squared_loss.item() / max(masked_pixels_total, 1)
+    
+                telemetry_loss = {
+                    'chi_squared': chi_squared_loss.item(),
+                    'mean_per_pixel_chi_squared': mean_per_pixel_chi_squared,
+                    'masked_mse': masked_mse_loss.item() if masked_pixels_total > 0 else 0.0,
+                    'masked_pixels': masked_pixels_total,
+                    'clamped_pixels': clamped_pixels_total,
+                    'clamp_fraction': clamp_fraction,
+                }
+    
+                # Compute variance component statistics
+                if i_model_values_list:
+                    i_model_all = torch.cat(i_model_values_list)
+                    v_denom_all = torch.cat(v_denom_values_list)
+                    weighted_residuals_all = torch.cat(weighted_residuals_list)
+    
+                    telemetry_variance = {
+                        'i_model_min': i_model_min_global,
+                        'i_model_median': torch.median(i_model_all).item(),
+                        'i_model_max': i_model_max_global,
+                        'i_model_mean': torch.mean(i_model_all).item(),
+                        'i_model_std': torch.std(i_model_all).item() if i_model_all.numel() > 1 else 0.0,
+                        'v_denom_min': torch.min(v_denom_all).item(),
+                        'v_denom_median': torch.median(v_denom_all).item(),
+                        'v_denom_max': torch.max(v_denom_all).item(),
+                        'weighted_residuals_min': torch.min(weighted_residuals_all).item(),
+                        'weighted_residuals_median': torch.median(weighted_residuals_all).item(),
+                        'weighted_residuals_max': torch.max(weighted_residuals_all).item(),
+                        'weighted_residuals_mean': torch.mean(weighted_residuals_all).item(),
+                    }
+                else:
+                    telemetry_variance = {
+                        'i_model_min': None,
+                        'i_model_median': None,
+                        'i_model_max': None,
+                        'i_model_mean': None,
+                        'i_model_std': None,
+                        'v_denom_min': None,
+                        'v_denom_median': None,
+                        'v_denom_max': None,
+                        'weighted_residuals_min': None,
+                        'weighted_residuals_median': None,
+                        'weighted_residuals_max': None,
+                        'weighted_residuals_mean': None,
+                    }
+    
+            # Track the latest variance-floor statistics for telemetry (no accumulation)
+            variance_floor_clamped_pixels[0] = clamped_pixels_total
+            variance_floor_masked_pixels[0] = masked_pixels_total
+        else:
+            panel_ids = work_item_ids if work_item_ids else list(range(n_panels))
+            bragg_panels = []
+            for pid in panel_ids:
+                if stage_a_ctx is not None:
+>                   simulator = stage_a_ctx.simulators[pid]
+E                   IndexError: list index out of range
+
+dbex/refinement/stage_a_impl.py:1497: IndexError
+----------------------------- Captured stdout call -----------------------------
+
+[test_stage_c_detector_microslip] detector=small
+auto-selected 1-fold oversampling
+[HKL stats] h=[-12,7] k=[-14,9] l=[-14,8] hit_rate=1045469/1048576 (99.70%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046397/1048576 (99.79%)
+=============================== warnings summary ===============================
+tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dxtbx/format/FormatCBFFull.py:198: DeprecationWarning: The binary mode of fromstring is deprecated, as it behaves surprisingly on unicode inputs. Use frombuffer instead
+    self._raw_data = flex.int(np.fromstring(array_string, np.int32))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip - IndexError: list index out of range
+======================== 1 failed, 5 warnings in 5.96s =========================

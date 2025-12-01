@@ -1171,3 +1171,46 @@ The small detector (1 panel) exhibits early-stop due to negligible improvement, 
   2. Should LBFGS hyperparameters (tolerance_change, max_iter) be tuned separately for panel vs ROI regimes?
   3. Is +0.067% chi² regression acceptable as inherent to panel-mode closure convergence characteristics?
 - See `plans/active/PERF-WARM-SIM-001/reports/2025-12-01T193800Z/summary.md` for detailed repeat-failure analysis and evidence paths.
+
+### 2025-12-01T200900Z - PERF-WARM-SIM-001 Phase D.4: Re-enable ROI closures post-REFINE-013 (READY FOR IMPLEMENTATION)
+- Evidence review: REFINE-013 rehydration and baseline-prior ordering fixes now guarantee Stage C best snapshots are restored before telemetry (telemetry_state rehydration at stage_c_impl.py:742-784), yet the latest panel-mode runs still flatline (chi² trace `[0,5,9] = 2.1085e+08`). The only remaining divergence from the November PASS artifacts is that ROI-mode closures are disabled whenever Stage A forces panel validations (introduced in the 2025-12-01T170326Z attempt). That guard was meant to align closure population with REFINE-007 gates, but it also removes the deterministic ROI minibatch (92 ROIs) that previously let LBFGS descend; we never re-tried ROI closures after the snapshot/telemetry fixes landed.
+- Plan:
+  1. **dbex/refinement/stage_c_impl.py::_build_stage_c_params** — Drop the `and not force_panel_validation` clause when computing `stage_c_roi_mode_active` so closures honor Stage A’s ROI telemetry again (per REFINE-010). Keep `validation_scope` independent and still force panel-mode full validations when Stage B/C run (REFINE-011). Update the `roi_mode_reason` provenance so it only reports why ROI mode is disabled (warm cache off, Stage A panel mode, no ROIs); when ROI mode stays active despite `validation_scope="panel"`, the perf counters should show `roi_mode="roi"` and `validation_scope="panel"` together.
+  2. **tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip** — No assertion changes required, but double-check that the perf-counter validation block (lines 1199-1230) keeps asserting both `roi_mode` and `validation_scope`. If any helper functions assumed ROI mode would flip to panel whenever `validation_scope` did, adjust them to assert both fields independently.
+  3. **Validation** — Re-run the Stage C detector microslip smoke for both detector sizes with telemetry capture under the new artifact path `plans/active/PERF-WARM-SIM-001/reports/2025-12-01T200900Z/`. Environment block per docs/TESTING_GUIDE.md:
+```
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip \
+  --smoke-detector-size=small \
+  > plans/active/PERF-WARM-SIM-001/reports/2025-12-01T200900Z/collect_stage_c_small.log
+
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+DBEX_SMOKE_SIGMA_SOURCE=cli_override \
+DBEX_SMOKE_DETECTOR_SIZE=small \
+DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-WARM-SIM-001/reports/2025-12-01T200900Z/telemetry_stage_c_small.json \
+KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
+pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip \
+  --smoke-detector-size=small \
+  | tee plans/active/PERF-WARM-SIM-001/reports/2025-12-01T200900Z/pytest_stage_c_small.log
+
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip \
+  --smoke-detector-size=full \
+  > plans/active/PERF-WARM-SIM-001/reports/2025-12-01T200900Z/collect_stage_c_full.log
+
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+DBEX_SMOKE_SIGMA_SOURCE=cli_override \
+DBEX_SMOKE_DETECTOR_SIZE=full \
+DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-WARM-SIM-001/reports/2025-12-01T200900Z/telemetry_stage_c_full.json \
+KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
+pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip \
+  --smoke-detector-size=full \
+  | tee plans/active/PERF-WARM-SIM-001/reports/2025-12-01T200900Z/pytest_stage_c_full.log
+
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+python plans/active/PERF-WARM-SIM-001/bin/summarize_stage_c_warm_cache.py \
+  --telemetry-small plans/active/PERF-WARM-SIM-001/reports/2025-12-01T200900Z/telemetry_stage_c_small.json \
+  --telemetry-full plans/active/PERF-WARM-SIM-001/reports/2025-12-01T200900Z/telemetry_stage_c_full.json \
+  --out-json plans/active/PERF-WARM-SIM-001/reports/2025-12-01T200900Z/stage_c_warm_cache_report.json
+```
+- Exit Criteria: Both detector sizes report `roi_mode` that matches Stage A’s ROI telemetry (small → panel, full → roi) while `validation_scope` stays `"panel"` whenever Stage C is enabled; telemetry proves ≥99.999% detector-offset reduction and Stage C chi² regression ≤0.05% vs Stage A (REFINE-007). Artifacts recorded under `plans/active/PERF-WARM-SIM-001/reports/2025-12-01T200900Z/`.

@@ -350,3 +350,37 @@ Capture the `--collect-only` output for the same selector before running the tes
   3. Thread the context metadata through Stage C warm-cache helpers (the `_retarget_stage_a_detectors` and `_retarget_stage_a_simulators` pathways) so detector retargeting never rebuilds HKL grids; stash the tensors on the `StageAContext` extras for reuse during the final Bragg reconstruction.
   4. Update `docs/architecture/module_map.md` and the new `context.idl.md` stub with the added fields, citing `docs/spec-db-workflow.md` §§53-61 for the halo/ASU contract.
 - **Validation:** Re-run the small-detector Stage B shell selector (`pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small`) and the Stage C microslip selector with the same detector size. Capture logs + telemetry JSON under `plans/active/ARCH-REFINE-001/reports/<timestamp>/` to prove Stage B still optimizes and Stage C retains panel-mode behavior (REFINE-010).
+
+### 2025-12-01T123044Z - ARCH-REFINE-001 Phase B.3: Shared HKL context plumbing (COMPLETE)
+**Action**: Threaded CLI-built HKL halo + ASU metadata into RefinementContext so Stage B/C consume the same tensors without recomputing.
+- **RefinementContext extension** (dbex/refinement/context.py:23-86):
+  - Added `asu_map: Optional[torch.Tensor]` (ASU mapping from build_structure_factor_grid, same shape as hkl_grid, dtype int32)
+  - Added `hkl_indices_grid: Optional[np.ndarray]` (Miller indices grid [h_range, k_range, l_range, 3])
+  - Added `halo_mask: Optional[np.ndarray]` (boolean mask marking halo padding cells)
+  - Updated docstring with normative dependencies, transitive contracts, and ARCH-REFINE-001 Phase B.3 provenance
+- **build_refinement_context auto-copy** (dbex/refinement/context.py:89-229):
+  - Added `asu_map`, `hkl_indices_grid`, `halo_mask`, `job_context` parameters
+  - Auto-copies from `job_context.asu_map` (converting np.ndarray to torch.Tensor if needed), `job_context.extras['hkl_indices_grid']`, and `job_context.extras['halo_mask']` when not explicitly provided
+  - Validates asu_map shape matches hkl_grid; validates types (asu_map must be torch.Tensor, others must be np.ndarray)
+- **run_nanobrag_refinement threading** (dbex/nanobrag_refinement.py:758-832,1019):
+  - Updated all 3 `build_refinement_context` calls (Stage A-only, A→B, A→B→C paths) to pass `job_context=job_context` parameter
+  - Added comment "Thread CLI-built HKL halo + ASU metadata from job_context (REFINE-005, REFINE-010)"
+- **Stage B ASU map reuse** (dbex/refinement/stage_b_impl.py:400-460):
+  - Modified per-reflection mode branch to check `context.asu_map` first (lines 407-418): if present, reuse it and extract n_asu_unique from hkl_metadata or asu_map.max()+1, logging "[Stage B] Reusing pre-computed asu_map from context"
+  - Fallback path (lines 420-460): check `context.hkl_indices_grid`/`context.halo_mask` before metadata, then reconstruct hkl_indices_grid from bounds if still missing, finally call `compute_hkl_asu_map` with cctbx
+  - Added `context: Optional[Any]` parameter to `_build_stage_b_params` signature (line 359) and docstring
+- **Stage B caller update** (dbex/refinement/stage_b.py:232-250):
+  - Pass `context=ctx` to `_build_stage_b_params` call (line 250) with comment "ARCH-REFINE-001 Phase B.3: Thread context for asu_map reuse"
+- **IDL documentation** (docs/architecture/dbex/refinement/context.idl.md):
+  - Created comprehensive IDL contract with field contracts table, validation rules, construction examples, usage patterns, and change log
+  - Documented RefinementContext asu_map/hkl_indices_grid/halo_mask contracts with normative references (REFINE-005, REFINE-010, GRADIENT-004)
+  - Documented JobContext.asu_map and extras['hkl_indices_grid']/['halo_mask'] conventions
+**Metrics**:
+- test_stage_b_shell_modifiers --smoke-detector-size=small: **PASSED** (22.4s)
+- test_stage_c_detector_microslip --smoke-detector-size=small: **PASSED** (7.6s)
+- Stage B logs show "[Stage B] Reusing pre-computed asu_map from context" proving CLI→JobContext→RefinementContext→Stage B flow works
+- No cctbx compute_hkl_asu_map calls when asu_map is pre-computed (REFINE-005)
+**Artifacts**: plans/active/ARCH-REFINE-001/reports/2025-12-01T123044Z/ (pytest_stage_b_small.log, pytest_stage_c_small.log, telemetry_stage_b_small.json, telemetry_stage_c_small.json, summary.md)
+**First Divergence**: N/A (implementation successful on first run)
+**Next Actions**: Phase B.3 complete; ready for Phase B.4 (simulator factory wiring for forward-only helpers) once shared context metadata stabilizes.
+

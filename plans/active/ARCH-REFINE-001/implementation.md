@@ -5,7 +5,7 @@
 - Title: Dismantle `nanobrag_refinement.py` and finish engine modularization
 - Owner: Codex
 - Spec Owner: docs/spec-db-workflow.md
-- Status: pending
+- Status: in_progress
 
 ## Goals
 - Eliminate the inline monolith by moving Stage A/B/C logic into `dbex/refinement/stage_*.py` and running everything through `RefinementEngine`.

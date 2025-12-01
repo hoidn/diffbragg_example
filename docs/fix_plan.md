@@ -40,3 +40,17 @@
 
 ## Active / Pending Initiatives
 
+### [ARCH-REFINE-001] Refinement Engine Modularization & Torch IO
+- Depends on: ARCH-REFINE-FLOW-001 (engine skeleton, telemetry contract)
+- Status: in_progress
+- Priority: High
+- Tier: 1
+- Owner/Date: Galph ↔ Ralph / 2025-12-01
+- Exit Criteria:
+  1. `dbex/refine_one.py` and `dbex/nanobrag_refinement.py` route every torch refinement through `RefinementEngine(StageA, StageB, StageC)` (no inline monolith), satisfying docs/spec-db-workflow.md §§30-41.
+  2. `RefinementContext`/`JobContext` replace ad-hoc dict plumbing and Stage A/B/C helpers live under `dbex/refinement/stage_*.py` without importing `dbex.nanobrag_refinement`, keeping simulator/context seams reusable for SPEC-REALIGN-001.
+  3. Torch HDF5 writer + telemetry schema stay unified with `/torch_diagnostics` (`dbex/io/writer.py` or equivalent) and Stage telemetry proves variance-weighted loss + sigma provenance per docs/spec-db-core.md §§57-68.
+- Working Plan: `plans/active/ARCH-REFINE-001/implementation.md`
+- Attempts History:
+  * 2025-12-01T080903Z (planning) — Rescoped Phase A to start by relocating Stage A helper functions/dataclasses out of `dbex/nanobrag_refinement.py`, documented data-dependency touchpoints, and authored the next Do Now for helper extraction + validation.
+    - Artifacts: `plans/active/ARCH-REFINE-001/reports/2025-12-01T080903Z/`

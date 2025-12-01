@@ -48,3 +48,7 @@ Action State: ready_for_implementation
 - Cleared the Phase B.1 blocker in docs/fix_plan.md and scoped Phase B.2 so JobContext (args/DataLoad/calibration/sigma/HKL metadata) can accompany the existing RefinementContext through the engine inputs.
 - Rewrote input.md with the JobContext Do Now, explicit stage-smoke env wiring, and CLI selector so Ralph can land the dataclass + CLI/engine changes immediately.
 Action State: ready_for_implementation
+- Scoped Phase B.3 shared HKL context wiring: documented how CLI `build_structure_factor_grid` outputs (`asu_map`, halo metadata, HKL index grids) must be promoted into `RefinementContext`, StageB warm-cache code, and StageC retargeters, and captured the test/env plan so the next loop can implement immediately.
+- Updated docs/fix_plan.md, input.md, and the report plan file with the new Do Now, Stage B/C smoke selectors, artifact path, and spec references (spec-db-workflow §§53-61, REFINE-005/REFINE-010).
+Action State: ready_for_implementation
+2025-12-01T123044Z focus=ARCH-REFINE-001 state=ready_for_implementation dwell=0 action=planning artifacts=plans/active/ARCH-REFINE-001/reports/2025-12-01T123044Z/ next_action=Thread asu_map/halo metadata through Stage B/C and rerun small-detector smokes

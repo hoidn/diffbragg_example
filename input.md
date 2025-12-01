@@ -1,38 +1,30 @@
-Summary: Define and thread a JobContext object from the CLI into run_nanobrag_refinement so stages receive consistent job metadata before resuming Stage B/C smokes.
+Summary: Thread the CLI-built HKL halo + ASU metadata into RefinementContext so Stage B/C consume the same tensors without recomputing, then prove Stage B/C smokes still pass on the small-detector bundle.
 Mode: none
 Focus: ARCH-REFINE-001 — Refinement Engine Modularization & Torch IO
 Branch: integration
-Mapped tests: tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion --smoke-detector-size=small; tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small; tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small; tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_runs_simulator
-Artifacts: plans/active/ARCH-REFINE-001/reports/2025-12-01T121221Z/
+Mapped tests: tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small; tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small
+Artifacts: plans/active/ARCH-REFINE-001/reports/2025-12-01T123044Z/
 Do Now:
-- Implement: dbex/refinement/context.py::build_job_context — add the JobContext dataclass/builder, then propagate it through dbex/refine_one.py::run_nanobrag_backend and dbex/nanobrag_refinement.py::run_nanobrag_refinement so RefinementEngine inputs always include both RefinementContext and JobContext; update the CLI tests/mocks accordingly.
-- Validate: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_TELEMETRY_PATH=plans/active/ARCH-REFINE-001/reports/2025-12-01T121221Z/telemetry_stage_a_small.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion --smoke-detector-size=small (repeat for the Stage B/C selectors with per-stage telemetry paths, then rerun pytest -vv tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_runs_simulator | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T121221Z/pytest_cli_job_context.log).
+- Implement: dbex/refinement/context.py::build_refinement_context — copy `asu_map`/`hkl_indices_grid`/halo mask from the CLI JobContext into the RefinementContext, teach StageB.run/_build_stage_b_params (and the Stage C warm-cache retargeters) to consume those tensors before falling back to cctbx, and create docs/architecture/dbex/refinement/context.idl.md describing the new context fields.
+- Validate: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_TELEMETRY_PATH=plans/active/ARCH-REFINE-001/reports/2025-12-01T123044Z/telemetry_stage_b_small.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small (repeat for Stage C with its telemetry path) and store logs under the artifacts directory.
 How-To Map:
-1. AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest --collect-only tests/dbex/test_torch_refine_smoke.py -k "test_stage_a_expansion or test_stage_b_shell_modifiers or test_stage_c_detector_microslip" --smoke-detector-size=small > plans/active/ARCH-REFINE-001/reports/2025-12-01T121221Z/collect_stage_smokes_small.log
-2. AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_TELEMETRY_PATH=plans/active/ARCH-REFINE-001/reports/2025-12-01T121221Z/telemetry_stage_a_small.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion --smoke-detector-size=small | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T121221Z/pytest_stage_a_small.log
-3. AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_TELEMETRY_PATH=plans/active/ARCH-REFINE-001/reports/2025-12-01T121221Z/telemetry_stage_b_small.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T121221Z/pytest_stage_b_small.log
-4. AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_TELEMETRY_PATH=plans/active/ARCH-REFINE-001/reports/2025-12-01T121221Z/telemetry_stage_c_small.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T121221Z/pytest_stage_c_small.log
-5. pytest -vv tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_runs_simulator | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T121221Z/pytest_cli_job_context.log
+1. AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest --collect-only tests/dbex/test_torch_refine_smoke.py -k "test_stage_b_shell_modifiers or test_stage_c_detector_microslip" --smoke-detector-size=small > plans/active/ARCH-REFINE-001/reports/2025-12-01T123044Z/collect_stage_bc_small.log
+2. AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_TELEMETRY_PATH=plans/active/ARCH-REFINE-001/reports/2025-12-01T123044Z/telemetry_stage_b_small.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T123044Z/pytest_stage_b_small.log
+3. AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_TELEMETRY_PATH=plans/active/ARCH-REFINE-001/reports/2025-12-01T123044Z/telemetry_stage_c_small.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T123044Z/pytest_stage_c_small.log
 Pitfalls To Avoid:
-- Do not instantiate JobContext inside the stage modules; construct it once in the CLI path to avoid circular imports and to keep Environment Freeze intact.
-- Keep simulator factory usage confined to forward-only helpers (ARCH-FACTORY-001); Stage A/B/C closures still need direct nanobrag_torch.Simulator construction.
-- Preserve Stage A ROI auto-panel fallback (REFINE-010) when threading JobContext through stage inputs—do not collapse ROI sampling flags or telemetry tags.
-- Avoid `.item()` / `.cpu()` conversions on detector/crystal tensors when wiring new context fields so Stage C gradients stay attached (GRADIENT-004).
-- Respect docs/data_dependency_manifest.md for the `sp.proc/refGeom_small` assets; do not introduce alternate paths or hard-coded absolute directories.
-- Do not touch torch/dials installations or add new dependencies; Environment Freeze remains in effect.
-- When updating CLI tests, keep the existing mock patch order intact so fixtures continue to intercept simulator constructors.
-- Ensure DBEX_SMOKE environment variables are set for every Stage smoke run; tests/conftest.py will hard-fail otherwise.
+- Keep device/dtype neutrality when threading `asu_map`; do not `.to("cuda")` inside builders—Stages manage device placement.
+- Do not import cctbx in module scope; keep lazy imports/Fallbacks per Environment Freeze.
+- Preserve Stage B per-reflection fallback logic: use the context `asu_map` when available but leave compute_hkl_asu_map as a fallback path with clear warnings.
+- Avoid touching simulator factory helpers; Stage closures still instantiate `nanobrag_torch.Simulator` directly (ARCH-FACTORY-001).
+- When updating Stage C warm-cache hooks, never detach detector offsets (GRADIENT-004) or nullify the Stage A ROI auto-panel telemetry (REFINE-010).
 If Blocked:
-- Capture the failing pytest output (and stack traces) under plans/active/ARCH-REFINE-001/reports/2025-12-01T121221Z/blocked.log, note the signature in docs/fix_plan.md Attempts History, and mark ARCH-REFINE-001 blocked in galph_memory with the exact selector/error before attempting retries.
+- Capture the failing selector output under the artifacts directory (e.g., `blocked_stage_b.log`), cite the selector + error in docs/fix_plan.md Attempts History, and log the same signature in galph_memory before requesting rescope instructions.
 Findings Applied (Mandatory):
-- ARCH-FACTORY-001 — JobContext must not leak simulator factory usage into Stage closures; keep `create_unified_simulator` limited to run_nanobrag_backend forward-only code.
-- REFINE-010 — Stage A ROI auto-panel telemetry has to remain in sync with Stage C gates, so JobContext plumbing cannot disable the ROI→panel fallback when Stage C is enabled.
-- GRADIENT-004 — Warm-cache retargeting relies on tensor-connected detector offsets; do not coerce JobContext payloads to Python scalars that would break autograd.
-- PHYSICS-LOSS-001 — Sigma provenance and reference values must travel with the job; JobContext should capture and preserve those fields so Stage smokes keep variance-weighted telemetry consistent.
+- REFINE-005 — Stage B requires haloed HKL grids with tricubic interpolation; ensure the context builder enforces `hkl_metadata['has_halo']` before allowing Stage B/C to run.
+- REFINE-010 — Stage A/C telemetry coupling depends on panel-mode validation; keep the ROI auto-panel fallback intact while threading new metadata.
+- GRADIENT-004 — Warm-cache retargeting must keep detector offsets as tensors; the Stage C updates here must preserve autograd links when reusing context metadata.
 Pointers:
-- docs/fix_plan.md:301 — current ARCH-REFINE-001 Phase B.1/B.2 scope, blockers, and validation expectations.
-- plans/active/ARCH-REFINE-001/implementation.md:75 — Phase B checklist outlining JobContext goals and downstream dependencies.
-- docs/TESTING_GUIDE.md:161 — Stage smoke selector/env var requirements for small-detector runs.
-- docs/data_dependency_manifest.md:52 — refGeom_small dataset + sigma-map provenance needed for the mapped tests.
-Next Up (optional):
-- B3: Share HKL grid/ASU builders between CLI and contexts so Stage B/C stop recomputing halo metadata once JobContext exists.
+- docs/fix_plan.md:330 — Phase B.2 completion notes and new Phase B.3 scope.
+- plans/active/ARCH-REFINE-001/implementation.md:108 — Phase B checklist describing the shared HKL context requirement.
+- docs/data_dependency_manifest.md:52 — refGeom_small assets and overrides used by the mapped smoke selectors.
+Next Up (optional): Phase B.4 — wire the simulator factory for forward-only helpers once the shared context metadata has been stabilized.

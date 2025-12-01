@@ -34,11 +34,11 @@ from dbex.nanobrag_bridge import (
     create_detector_config,
     compute_baseline_misset_deg,
 )
-from dbex.nanobrag_refinement import (
-    _compute_variance_weighted_loss,
+from dbex.refinement.stage_a_impl import (
     quaternion_to_xyz_euler,
     vec_to_unit_quaternion,
 )
+from dbex.physics.loss import _compute_variance_weighted_loss
 # ParityMetrics and compute_parity_metrics imported lazily within functions
 # that use them to avoid breaking CLI scripts (ARCH-ENGINE-002)
 
@@ -1728,7 +1728,7 @@ def run_engine_zero_point_probe(
     mean_abs_diff = float(np.abs(diff).mean())
 
     # Compute Stage A chi² on mapping stack using canonical variance-weighted loss
-    from dbex.nanobrag_refinement import _compute_variance_weighted_loss
+    from dbex.physics.loss import _compute_variance_weighted_loss
 
     sigma_floor_sq = float(context.sigma_floor_value ** 2)
     # Convert numpy arrays to torch tensors for variance-weighted loss

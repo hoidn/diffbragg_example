@@ -93,15 +93,15 @@ class StageA:
         if self._config is None:
             raise ValueError("StageA not configured. Call configure(config) before run().")
 
-        # Import helpers (lazy to avoid circular imports at module load time)
-        from dbex.nanobrag_refinement import (
+        # Import helpers from stage_a_impl module (ARCH-REFINE-001)
+        from dbex.refinement.stage_a_impl import (
             _build_stage_a_params,
             _build_stage_a_lbfgs_closure,
             _run_stage_a_lbfgs,
-            RefinementTelemetry,
             vec_to_unit_quaternion,
-            quaternion_to_xyz_euler
+            quaternion_to_xyz_euler,
         )
+        from dbex.nanobrag_refinement import RefinementTelemetry
 
         # Extract inputs (unpack dict into individual params)
         refinement_inputs = inputs['refinement_inputs']

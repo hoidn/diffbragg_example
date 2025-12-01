@@ -52,5 +52,12 @@
   3. Torch HDF5 writer + telemetry schema stay unified with `/torch_diagnostics` (`dbex/io/writer.py` or equivalent) and Stage telemetry proves variance-weighted loss + sigma provenance per docs/spec-db-core.md §§57-68.
 - Working Plan: `plans/active/ARCH-REFINE-001/implementation.md`
 - Attempts History:
-  * 2025-12-01T080903Z (planning) — Rescoped Phase A to start by relocating Stage A helper functions/dataclasses out of `dbex/nanobrag_refinement.py`, documented data-dependency touchpoints, and authored the next Do Now for helper extraction + validation.
-    - Artifacts: `plans/active/ARCH-REFINE-001/reports/2025-12-01T080903Z/`
+  * 2025-12-01T080903Z (implementation) — Relocated Stage A helpers to `dbex/refinement/stage_a_impl.py`:
+    - Created stage_a_impl.py with all Stage A functions (quaternion helpers, StageAROIEntry/StageAContext dataclasses, _build_stage_a_context, _build_stage_a_params, _build_stage_a_lbfgs_closure, _run_stage_a_lbfgs, sync/retarget helpers, utility functions)
+    - Removed old definitions from nanobrag_refinement.py and added imports from stage_a_impl
+    - Updated dbex/refinement/stage_a.py and dbex/tools/stage_a_adam.py to import from new module
+    - Resolved circular import by moving _clamp_log_cell_deltas and _get_sigma_floor_sq_tensor into stage_a_impl
+    - Fixed type annotation (RefinementConfig → 'RefinementConfig') to avoid NameError
+    - Metrics: test_stage_a_engine_delegation_telemetry PASSED, test_stage_b_shell_modifiers PASSED (1 test failure pre-existing, unrelated to refactoring)
+    - Artifacts: `plans/active/ARCH-REFINE-001/reports/2025-12-01T080903Z/` (pytest_stage_a_engine.log, pytest_stage_b_small.log, pytest_stage_a_helpers_collect.log)
+    - Next Actions: Continue with Phase A.2 (create RefinementContext/JobContext dataclasses)

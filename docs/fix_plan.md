@@ -715,3 +715,27 @@ pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation
 **Artifacts**: `plans/active/ARCH-REFINE-001/reports/2025-12-01T150955Z/` (architecture_doc_update.md, docs_diff.md, collect_db_at_027.log, collect_stage_a_engine_telemetry.log, pytest_db_at_027.log, pytest_stage_a_engine_telemetry.log, db_at_027/ artifacts directory)
 **First Divergence**: N/A (documentation consolidation successful; no production code changes)
 **Next Actions**: Phase D complete. All ARCH-REFINE-001 Phases A-D milestones achieved (helper extraction, RefinementContext/JobContext scaffolding, writer/physics extraction, IDL contracts, engine-only tooling sync). Ready to advance to remaining initiatives or pivot to supervisor-prioritized focus.
+
+### 2025-12-01T151425Z - ARCH-REFINE-001 Phase E.1: Stage B baseline parity instrumentation (READY FOR IMPLEMENTATION)
+- **Gap:** REFINE-FLOW-001 remains open: when RefinementEngine delegates Stage A → Stage B, Stage B’s initial chi² (`loss_trace_full_b[0]`) diverges from Stage A’s canonical final chi² by ~9.3% (tolerance 0.1%) even though both evaluations force panel-mode validation. We need instrumentation plus a parity guard to pinpoint which reconstructed tensors (scale, cell, misset, warm cache) drift between Stage A telemetry and Stage B’s `_run_stage_b_lbfgs` helpers before we can safely tighten tolerances.
+- **Plan:**
+  1. **dbex/refinement/stage_b_impl.py::_run_stage_b_lbfgs** — Thread Stage A canonical metadata (`canonical_baseline`) into the closure, run a dedicated parity check immediately after the initial `compute_loss_stage_b(... force_panel_eval=True)` call, and dump per-panel chi² deltas + Stage A/Stage B param snapshots into the new artifact directory. Add a `stage_b_baseline_rel_diff` telemetry field and raise a targeted `RuntimeError` (citing REFINE-FLOW-001) when the relative delta exceeds 0.1%.
+  2. **dbex/refinement/stage_b.py::StageB.run** — Store the Stage A canonical chi² and telemetry dict inside `param_values` so `_run_stage_b_lbfgs` has the raw numbers, and propagate the new debug payload through `telemetry_b` so tests can assert parity without spelunking logs.
+  3. **Tests/Telemetry:** Extend `tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers` (and the combined Stage B/C smoke) to assert the new parity guard stays green on the small detector (`DBEX_SMOKE_DETECTOR_SIZE=small`, `DBEX_SMOKE_SIGMA_SOURCE=cli_override`). Capture collect-only + pytest logs plus the JSON diff emitted by the new instrumentation under `plans/active/ARCH-REFINE-001/reports/2025-12-01T151425Z/`.
+- **Validation:** 
+  ```
+  AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+  pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers \
+    > plans/active/ARCH-REFINE-001/reports/2025-12-01T151425Z/collect_stage_b_parity.log
+
+  AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+  DBEX_SMOKE_SIGMA_SOURCE=cli_override \
+  DBEX_SMOKE_DETECTOR_SIZE=small \
+  KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
+  DBEX_SMOKE_TELEMETRY_PATH=plans/active/ARCH-REFINE-001/reports/2025-12-01T151425Z/telemetry_stage_b_small.json \
+  pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers \
+    | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T151425Z/pytest_stage_b_parity.log
+  ```
+  Reuse the same env block for the Stage B+C combined selector after the fix so we prove Stage C still inherits the corrected Stage B baseline.
+- **Artifacts:** `plans/active/ARCH-REFINE-001/reports/2025-12-01T151425Z/` (collect_stage_b_parity.log, pytest_stage_b_parity.log, telemetry_stage_b_small.json, stage_b_baseline_diff.json, summary.md)
+- **Next Actions:** Once instrumentation proves the mismatch (or confirms the guard catches it), implement the Stage B reconstruction fix (Phase E.2) so the guard passes without downgrading tolerances, then refresh the Stage B/C smokes and close REFINE-FLOW-001.

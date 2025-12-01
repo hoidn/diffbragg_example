@@ -89,3 +89,7 @@ Action State: ready_for_implementation
 - Planned Phase D.5 by drafting the architecture_doc_update.md deliverable, mapping the new artifacts path, refreshing Stage A selector commands, and rewriting input.md so Ralph can publish the ledger immediately.
 Action State: ready_for_implementation
 2025-12-01T150955Z focus=ARCH-REFINE-001 state=ready_for_implementation dwell=0 action=planning artifacts=plans/active/ARCH-REFINE-001/reports/2025-12-01T150955Z/ next_action=Publish architecture_doc_update.md + docs_diff, update docs/fix_plan.md, rerun Stage A parity + telemetry selectors
+- Scoped Phase E (Stage B baseline parity) in implementation.md, marking earlier phase checklists complete and capturing the new E1–E3 tasks tied to REFINE-FLOW-001.
+- Logged the Phase E.1 plan in docs/fix_plan.md and rewrote input.md with the production Do Now (stage_b_impl/stage_b.py instrumentation + Stage B/C small-detector smoke).
+Action State: ready_for_implementation
+2025-12-01T151425Z focus=ARCH-REFINE-001 state=ready_for_implementation dwell=1 action=planning artifacts=plans/active/ARCH-REFINE-001/reports/2025-12-01T151425Z/ next_action=Land Stage B baseline parity instrumentation/guard and rerun Stage B/C smokes

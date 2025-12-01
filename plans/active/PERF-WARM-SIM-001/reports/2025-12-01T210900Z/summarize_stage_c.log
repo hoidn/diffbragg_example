@@ -1,0 +1,39 @@
+================================================================================
+PERF-WARM-SIM-001 Phase D.4 — Stage C Warm Cache Summary
+================================================================================
+
+Small Detector:
+  Cache Mode:        warm
+  ROI Mode:          panel
+  ROI Count:         29/29
+  Closure Evals:     5
+  Validation Runs:   3
+  Forward Time (ms): 44.83 ± 0.55
+  Offset Reduction:  99.999994%
+  Final Max Offset:  0.00000001 mm
+  χ² Improvement:    -0.063061%
+
+Full Detector:
+  Cache Mode:        warm
+  ROI Mode:          roi
+  ROI Count:         92/92
+  Closure Evals:     10
+  Validation Runs:   4
+  Forward Time (ms): 222.65 ± 21.53
+  Offset Reduction:  99.999994%
+  Final Max Offset:  0.00000001 mm
+  χ² Improvement:    -0.067415%
+
+Warm Cache Validation:
+  Cache Reuse:       ✓ PASS
+
+Acceptance Gates (REFINE-007):
+  Small ≥80% offset reduction:  ✓ PASS
+  Small ≤0.05 mm final offset:  ✓ PASS
+  Small χ² no regression:       ✗ FAIL
+  Full ≥80% offset reduction:   ✓ PASS
+  Full ≤0.05 mm final offset:   ✓ PASS
+  Full χ² no regression:        ✗ FAIL
+
+Report written to: plans/active/PERF-WARM-SIM-001/reports/2025-12-01T210900Z/stage_c_warm_cache_report.json
+================================================================================

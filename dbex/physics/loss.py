@@ -4,13 +4,25 @@ Physics-based loss functions for diffraction refinement.
 Leaf-node module: imports FROM external dependencies (torch) but NOT from
 dbex.nanobrag_* to avoid circular imports.
 
+See docs/architecture/dbex/physics/loss.idl.md for full API & Contracts.
+
 Functions in this module implement:
 - Variance-weighted chi-squared loss per spec-db-core.md/spec-db-workflow.md
-  (see also docs/config_crosswalk.md “Arrays and loss” mapping).
+  (see also docs/config_crosswalk.md "Arrays and loss" mapping).
 - Masked MSE computations
 - Pixel-wise error statistics
 
 All functions preserve autograd graphs and are device-agnostic.
+
+Findings applied:
+- PHYSICS-LOSS-001 (variance-weighted loss is normative)
+- PHYSICS-LOSS-003 (dual chi² + sigma provenance in telemetry)
+- SCALE-002 (target/prediction must have same post-simulation scaling)
+
+References:
+- docs/architecture/dbex/physics/loss.idl.md (canonical API contract)
+- docs/spec-db-core.md §§57-68 (variance model)
+- docs/spec-db-workflow.md §§30-45 (loss semantics)
 """
 
 from __future__ import annotations
@@ -64,6 +76,8 @@ def compute_masked_mse_loss(
     """
     Compute variance-weighted chi-squared loss for gradient-based optimization.
 
+    See docs/architecture/dbex/physics/loss.idl.md §API for full contract.
+
     Implements spec-db-core.md:57-68 variance model when sigma_readout is provided:
     - Variance: V = I_model.detach() + sigma_readout^2 (Poisson + readout noise)
     - Loss: Sum((I_model - I_obs)^2 / V) over masked pixels
@@ -95,6 +109,7 @@ def compute_masked_mse_loss(
         - TEST-ONLY: Do not call from production LBFGS closures (DB-AT-010 gradcheck only)
 
     References:
+        - docs/architecture/dbex/physics/loss.idl.md (canonical API contract)
         - docs/spec-db-core.md §§57-68 (variance model)
         - docs/spec-db-workflow.md §§30-45 (forward helper + telemetry expectations)
         - PHYSICS-LOSS-001 (shared variance-weighted loss)

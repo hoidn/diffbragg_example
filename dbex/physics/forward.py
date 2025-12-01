@@ -4,6 +4,8 @@ Physics-based forward simulation utilities for gradient testing.
 Leaf-node module: imports FROM external dependencies (torch, nanobrag_torch) but NOT from
 dbex.nanobrag_* to avoid circular imports.
 
+See docs/architecture/dbex/physics/forward.idl.md for full API & Contracts.
+
 Functions in this module implement:
 - Forward simulation with gradient preservation for DB-AT-010 gradcheck acceptance testing
 - Tensor-valued parameter override mechanism for autograd testing
@@ -11,11 +13,21 @@ Functions in this module implement:
 
 All functions preserve autograd graphs and are device-agnostic.
 
+**TEST-ONLY**: Do not use in production LBFGS closures (use Stage A/B/C helpers instead).
+
 References:
+- docs/architecture/dbex/physics/forward.idl.md (canonical API contract)
 - docs/spec-db-runtime.md §4.1 (gradient profile, RUNTIME-001)
 - docs/spec-db-conformance.md:12-14 (DB-AT-010 acceptance)
 - docs/development/testing_strategy.md:338-372 (gradcheck requirements)
 - docs/pytorch_runtime_checklist.md:27-30 (NANOBRAGG_DISABLE_COMPILE=1)
+
+Findings applied:
+- RUNTIME-001 (NANOBRAGG_DISABLE_COMPILE=1 for gradcheck)
+- SCALE-001 (structure factors unscaled in grid)
+- SCALE-002 (spot scale applied post-simulation)
+- GRADIENT-001 (tensor-valued overrides preserve autograd)
+- PHYSICS-LOSS-001 (variance-weighted loss)
 """
 
 from __future__ import annotations
@@ -38,6 +50,8 @@ def simulate_forward_torch(
 ) -> "torch.Tensor":
     """
     Run forward simulation returning torch tensor for gradient testing.
+
+    See docs/architecture/dbex/physics/forward.idl.md §API for full contract.
 
     Similar to simulate_forward_once but preserves torch gradients by avoiding
     .detach().numpy() conversions. Designed for DB-AT-010 gradcheck acceptance
@@ -79,6 +93,7 @@ def simulate_forward_torch(
         - TEST-ONLY: Do not use in production LBFGS closures (use Stage A/B/C helpers instead)
 
     References:
+        - docs/architecture/dbex/physics/forward.idl.md (canonical API contract)
         - docs/spec-db-core.md §§57-68 (variance-weighted chi-squared)
         - docs/spec-db-workflow.md §§30-45 (forward helper + telemetry expectations)
         - PHYSICS-LOSS-001 (shared variance-weighted loss)

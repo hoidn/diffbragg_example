@@ -5,6 +5,8 @@ in dbex.refine_one, ensuring a single canonical /torch_diagnostics schema
 per DIAGNOSTICS-001 and consistent RefinementTelemetry serialization per
 ARCH-REFINE-001 Phase C.2.
 
+See docs/architecture/dbex/io/writer.idl.md for full API & Contracts.
+
 Dependencies (transitive):
     - h5py, numpy, scipy.optimize (ROI scoring loop)
     - score_trainer.roi_check (roiCheck scorer per legacy DiffBragg parity)
@@ -18,11 +20,18 @@ Contracts:
       (DIAGNOSTICS-001), preserving dataset names, attribute keys, and JSON serialization.
 
 Architecture references:
+    - docs/architecture/dbex/io/writer.idl.md (canonical API contract)
     - docs/architecture/live_backend.md:23 (torch backend I/O migration)
     - docs/spec-db-workflow.md:33 (RefinementEngine/telemetry contract)
     - docs/spec-db-core.md:86-90 (variance model: V = max(I_model + sigma_rdout^2, sigma_floor^2))
 
+Findings applied:
+    - DIAGNOSTICS-001 (HDF5 schema stability)
+    - PHYSICS-LOSS-001 (variance-weighted chi-squared + sigma provenance)
+    - REFINE-010 (Stage A ROI auto-panel telemetry)
+
 Change Log:
+    - 2025-12-01 (ARCH-REFINE-001 Phase D.1): IDL contract published in docs/architecture/dbex/io/writer.idl.md
     - 2025-12-01 (ARCH-REFINE-001 Phase C.2): Extracted from dbex.refine_one._write_torch_outputs
       to shared module dbex.io.writer; no schema changes, signature identical except
       parameter name (DL→data_load for API clarity).

@@ -1251,3 +1251,25 @@ All three produce Stage A final=2.1071e+08, Stage C final=2.1085e+08 (+0.067%), 
   3. Update `param_values_c['orientation_vec']` to use the raw tensor and drop the misleading comment, ensuring `_build_stage_c_lbfgs_closure` reproduces Stage A’s quaternion exactly and Stage C initial chi² matches the canonical baseline.
   4. Rerun `pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip` for both detector sizes with telemetry capture + `plans/active/PERF-WARM-SIM-001/bin/summarize_stage_c_warm_cache.py` so REFINE-007 proves ≤0.05 % chi² regression alongside the ≥99.999 % offset reduction.
 - **Artifacts:** `plans/active/PERF-WARM-SIM-001/reports/2025-12-01T204500Z/` (collect logs, pytest logs, telemetry_stage_c_small/full.json, stage_c_warm_cache_report.json, summary.md).
+
+### 2025-12-01T204500Z - PERF-WARM-SIM-001 Phase D.4: Stage C orientation-vector restoration (BLOCKED — Hypothesis disproven)
+**Action**: Implemented REFINE-014 orientation-vector restoration by extracting the raw pre-tanh 3-vector from `stage_a_telemetry['param_deltas']['orientation_vec']['final']` and passing it through the frozen params list and `param_values_c['orientation_vec']` instead of the post-tanh `misset_xyz_deg` Euler angles, ensuring `_build_stage_c_lbfgs_closure` applies tanh exactly once. Reran both Stage C detector microslip smoketests with telemetry capture.
+**Metrics**:
+- Small detector (29 ROIs): **PASSED** small-detector gates (panel mode) — detector offsets reduced 99.999994%, final max offset 0.00000001 mm; chi² regressed -0.063% (gate failure, ≤0.05% required)
+- Full detector (92 ROIs, 60 panels): **FAILED** chi² regression gate — detector offsets reduced 99.999994%, final max offset 0.00000001 mm; chi² regressed -0.067% (Stage A final=2.1071e+08, Stage C final=2.1085e+08), identical to 2025-12-01T200900Z result despite orientation fix
+- Summarizer report confirms both runs achieve ≥80% offset reduction and ≤0.05 mm absolute, but both fail chi² no-regression gate
+**Artifacts**: plans/active/PERF-WARM-SIM-001/reports/2025-12-01T204500Z/ (collect_stage_c_small.log, pytest_stage_c_small.log, telemetry_stage_c_small.json, collect_stage_c_full.log, pytest_stage_c_full.log, telemetry_stage_c_full.json, stage_c_warm_cache_report.json)
+**First Divergence**: REFINE-014 hypothesis (double-tanh orientation collapse) was incorrect. The chi² regression persists with identical magnitude (+0.067%) after the orientation fix, indicating a different root cause. Both detector sizes now show chi² regression (small: -0.063%, full: -0.067%), suggesting the issue is in Stage C's core loss computation or parameter freezing, not orientation handling.
+**Repeat-failure guard triggered**: Same acceptance criterion (full-detector chi² ≤0.05% regression) failed twice with the same log/telemetry signature despite an implementation fix. Per ground_rules, marking PERF-WARM-SIM-001 blocked.
+**Next Actions**:
+- **BLOCKED — Implementation defect suspected**: Do not attempt further gate/tolerance adjustments or orientation/parameter tweaks without deeper investigation.
+- **Supervisor escalation required**:
+  1. Investigate why Stage C loses ~0.065% chi² even when detector offsets reach essentially zero and all frozen Stage A parameters (including corrected orientation_vec) are preserved.
+  2. Possible root causes to investigate:
+     a) Stage C may be using a different loss computation path than Stage A final evaluation (e.g., ROI vs panel accumulation differences)
+     b) Numerical precision differences in frozen parameter application or simulator warm-cache state
+     c) Stage A's "best snapshot" may not correspond to the final traced chi² (rollback logic)
+     d) Stage C initial chi² may not truly match Stage A final despite telemetry alignment checks
+  3. Consider running callchain analysis on Stage C loss computation (`_build_stage_c_lbfgs_closure`, `compute_loss_stage_c`) to trace where chi² diverges
+  4. Capture Stage C's iteration=0 (pre-LBFGS) chi² and compare bit-for-bit with Stage A final to isolate whether the issue is in initialization or optimization
+- See telemetry evidence at `plans/active/PERF-WARM-SIM-001/reports/2025-12-01T204500Z/` for detailed failure signature after REFINE-014 fix.

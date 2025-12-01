@@ -179,6 +179,10 @@ class StageC:
         angle_alpha_raw_final = stage_a_telemetry['param_deltas']['angle_alpha_raw']['final']
         angle_beta_raw_final = stage_a_telemetry['param_deltas']['angle_beta_raw']['final']
         angle_gamma_raw_final = stage_a_telemetry['param_deltas']['angle_gamma_raw']['final']
+        # REFINE-014: Extract raw orientation_vec (pre-tanh 3-vector) from Stage A telemetry
+        # to avoid double-tanh collapse in Stage C LBFGS closure
+        orientation_vec_final = stage_a_telemetry['param_deltas']['orientation_vec']['final']
+        # Still extract misset_xyz_deg for telemetry reporting (misset_deg_for_crystal)
         misset_xyz_deg_delta_final = stage_a_telemetry['param_deltas']['misset_xyz_deg']['delta']
 
         # Rebuild Stage A final tensors from scalars
@@ -189,6 +193,8 @@ class StageC:
         angle_alpha_raw = torch.tensor(angle_alpha_raw_final, device=device, dtype=dtype)
         angle_beta_raw = torch.tensor(angle_beta_raw_final, device=device, dtype=dtype)
         angle_gamma_raw = torch.tensor(angle_gamma_raw_final, device=device, dtype=dtype)
+        # REFINE-014: Build frozen orientation tensor from Stage A final raw 3-vector
+        orientation_vec = torch.tensor(orientation_vec_final, device=device, dtype=dtype)
 
         # Compute Stage A final crystal parameters as tensors (for Stage C)
         # Use baseline crystal params as the base for delta reconstruction
@@ -210,7 +216,8 @@ class StageC:
         cell_beta_tensor = cell_params[4] + torch.tanh(angle_beta_raw) * max_angle_delta
         cell_gamma_tensor = cell_params[5] + torch.tanh(angle_gamma_raw) * max_angle_delta
 
-        # Compute Stage A final misset (for Stage C)
+        # Compute Stage A final misset Euler angles (for telemetry only)
+        # REFINE-014: This is now separate from orientation_vec to avoid double-tanh
         misset_xyz_deg = torch.tensor(misset_xyz_deg_delta_final, device=device, dtype=dtype)
 
         # Compute baseline_misset_deg_tensor if baseline_crystal provided
@@ -227,6 +234,7 @@ class StageC:
             misset_deg_for_crystal = misset_xyz_deg
 
         # Build params list (Stage A frozen params)
+        # REFINE-014: Include raw orientation_vec (pre-tanh) for LBFGS closure
         params = [
             log_scale,
             log_cell_a_delta,
@@ -235,7 +243,7 @@ class StageC:
             angle_alpha_raw,
             angle_beta_raw,
             angle_gamma_raw,
-            misset_xyz_deg,
+            orientation_vec,  # REFINE-014: Raw 3-vector, not post-tanh misset_xyz_deg
         ]
 
         # Build sigma_floor_sq_cache (shared across Stage A/C)
@@ -345,7 +353,7 @@ class StageC:
             'angle_alpha_raw': angle_alpha_raw,
             'angle_beta_raw': angle_beta_raw,
             'angle_gamma_raw': angle_gamma_raw,
-            'orientation_vec': misset_xyz_deg,  # Alias for compatibility
+            'orientation_vec': orientation_vec,  # REFINE-014: Use raw pre-tanh 3-vector from Stage A
             'baseline_misset_deg_tensor': baseline_misset_deg_tensor,
             'misset_deg_for_crystal': misset_deg_for_crystal,
             'target_t': target_t,

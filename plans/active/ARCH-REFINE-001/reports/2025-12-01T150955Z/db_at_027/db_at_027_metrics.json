@@ -1,0 +1,23 @@
+{
+  "mean_abs_diff": 0.0,
+  "max_abs_diff": 0.0,
+  "chi2_stagea": 1427176320.0,
+  "chi2_mapping": 1427176349.7320302,
+  "chi2_rel_diff": -2.0832765452466395e-08,
+  "variance_floor_masked_pixels": 13084,
+  "roi_cc_samples": [],
+  "db_at_027_pass": true,
+  "calibration": {
+    "spot_scale_override": 1.0,
+    "log_scale_baseline": 0.0,
+    "beam_flux": null,
+    "beam_exposure": null,
+    "beamsize_mm": null,
+    "N_cells": null
+  },
+  "tolerances": {
+    "mean_abs_diff": 0.001,
+    "max_abs_diff": 200.0,
+    "chi2_rel_diff": 0.001
+  }
+}

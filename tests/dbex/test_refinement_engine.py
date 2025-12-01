@@ -25,14 +25,47 @@ def test_engine_executes_mock_stage():
     - MockStage.run() is called exactly once
     - Engine.telemetry returns Dict with "mock_stage" key
     - RefinementTelemetry includes stage_type="mock_stage" field
+    - ARCH-REFINE-001 Phase B.5: Engine requires inputs['context'] (RefinementContext)
     """
-    from dbex.refinement import RefinementEngine, RefinementStage, RefinementTelemetry
+    from dbex.refinement import RefinementEngine, RefinementStage, RefinementTelemetry, build_refinement_context
     from dbex.nanobrag_refinement import RefinementConfig
+    import torch
+    import numpy as np
 
     # Mock inputs (minimal, not real refinement data)
     class MockRefinementInputs:
         """Dummy inputs for testing."""
+        target = np.zeros((1, 10, 10), dtype=np.float32)
+        loss_mask = np.ones((1, 10, 10), dtype=bool)
+        panel_slices = [(0, (0, 10, 0, 10))]
+        trusted_mask = np.ones((1, 10, 10), dtype=bool)
+        sigma_readout = np.ones((1, 10, 10), dtype=np.float32) * 3.0
+        target_representation = "photons"
+        global_scale_hint = 1.0
+
+    class MockDetector:
+        """Minimal dxtbx Detector mock."""
         pass
+
+    class MockBeam:
+        """Minimal dxtbx Beam mock."""
+        pass
+
+    class MockCrystal:
+        """Minimal dxtbx Crystal mock."""
+        pass
+
+    # Build minimal RefinementContext
+    hkl_grid = torch.zeros((10, 10, 10), dtype=torch.complex64)
+    hkl_metadata = {"has_halo": False, "nabc_grid": (10, 10, 10), "default_F": 0.0}
+    ctx = build_refinement_context(
+        refinement_inputs=MockRefinementInputs(),
+        detector=MockDetector(),
+        beam=MockBeam(),
+        crystal=MockCrystal(),
+        hkl_grid=hkl_grid,
+        hkl_metadata=hkl_metadata,
+    )
 
     # Define MockStage implementing RefinementStage protocol
     class MockStage(RefinementStage):
@@ -84,9 +117,8 @@ def test_engine_executes_mock_stage():
     stages = [MockStage()]
     engine = RefinementEngine(stages=stages, config=config)
 
-    # Execute engine
-    mock_inputs = MockRefinementInputs()
-    telemetry = engine.run(inputs=mock_inputs)
+    # Execute engine with context in inputs dict (ARCH-REFINE-001 Phase B.1)
+    telemetry = engine.run(inputs={'context': ctx})
 
     # Validate telemetry structure
     assert isinstance(telemetry, dict), "Engine.run() should return Dict[str, RefinementTelemetry]"
@@ -102,6 +134,47 @@ def test_engine_executes_mock_stage():
     # Validate basic telemetry fields
     assert stage_telemetry.stage == "mock_stage", "stage field should match stage name"
     assert stage_telemetry.status == "ok", "MockStage should complete successfully"
+
+
+def test_engine_requires_context():
+    """
+    Validate RefinementEngine.run() raises ValueError when 'context' key is missing.
+
+    Acceptance (ARCH-ENGINE-003, spec-db-workflow.md §33):
+    - Engine.run() with inputs dict lacking 'context' key raises ValueError
+    - Error message references ARCH-REFINE-001 Phase B.1 and build_refinement_context
+    """
+    from dbex.refinement import RefinementEngine, RefinementStage
+    from dbex.nanobrag_refinement import RefinementConfig
+
+    # Define minimal MockStage (will never execute due to ValueError)
+    class MockStage(RefinementStage):
+        @property
+        def name(self) -> str:
+            return "mock_stage"
+
+        def configure(self, config: RefinementConfig) -> None:
+            pass
+
+        def run(self, inputs: Any, telemetry_sink: Optional[Path] = None) -> Dict[str, Any]:
+            return {}
+
+    config = RefinementConfig()
+    stages = [MockStage()]
+    engine = RefinementEngine(stages=stages, config=config)
+
+    # Attempt to run engine without 'context' key
+    with pytest.raises(ValueError, match="RefinementContext missing from inputs"):
+        engine.run(inputs={})
+
+    # Validate error message mentions ARCH-REFINE-001 and build_refinement_context
+    try:
+        engine.run(inputs={})
+    except ValueError as e:
+        assert "ARCH-REFINE-001" in str(e), "Error message should reference ARCH-REFINE-001"
+        assert "build_refinement_context" in str(e), "Error message should mention build_refinement_context"
+    else:
+        pytest.fail("Expected ValueError was not raised")
 
 
 if __name__ == "__main__":

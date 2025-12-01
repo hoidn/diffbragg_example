@@ -413,3 +413,27 @@ Capture the `--collect-only` output for the same selector before running the tes
   3. Add a lightweight Stage B CPU fallback unit test (new `tests/dbex/test_stage_b_cpu_fallback.py` or nested under the existing Stage B helper suite) that patches `_build_stage_a_context`/`compute_hkl_shell_lookup` to simple stubs, calls `_build_stage_b_params` with `config.stage_b_full_eval_on_cpu=True`, `device=torch.device("cuda:0")`, and `use_stage_a_roi_mode=False`, and asserts the returned `param_values` flip `use_stage_b_cpu_fallback=True`, clone the Stage A context onto CPU, and keep `stage_b_cache_mode="warm"`. This documents the PERF-WARM-012 behavior so future edits can’t regress CPU cache reuse.
 - **Validation:** `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest -vv tests/dbex/test_refinement_engine.py tests/dbex/test_refinement_context.py tests/dbex/test_stage_b_cpu_fallback.py` (collect-only first, then full run) with artifacts saved under `plans/active/ARCH-REFINE-001/reports/2025-12-01T140500Z/`.
 - **Dependencies:** None beyond existing `RefinementContext`/`JobContext` modules; no dataset fixtures required (confirmed via docs/data_dependency_manifest.md §RefGeom_small — assets already regenerated in 2025-12-01T105500Z artifacts). Findings to honor: ARCH-ENGINE-003 (engine telemetry contract), REFINE-010 (Stage A ROI auto-panel threshold informing CPU fallback preconditions), GRADIENT-003 (CPU fallback fragility), PERF-WARM-011/012 (CPU panel path + warm cache semantics).
+
+### 2025-12-01T140500Z - ARCH-REFINE-001 Phase B.5: Context + CPU fallback test coverage (COMPLETE)
+**Action**: Implemented guardrail tests for RefinementContext/JobContext builders and Stage B CPU fallback behavior (tests-only loop per input.md pitfall).
+- **test_refinement_engine.py updates** (lines 19-177):
+  - Updated `test_engine_executes_mock_stage` to build minimal RefinementContext with mock RefinementInputs/Detector/Beam/Crystal and pass via `{'context': ctx}` per ARCH-REFINE-001 Phase B.1
+  - Added `test_engine_requires_context` that validates RefinementEngine.run() raises ValueError when 'context' key is missing, with error message referencing ARCH-REFINE-001 and build_refinement_context (ARCH-ENGINE-003, spec-db-workflow.md §33)
+- **test_refinement_context.py** (new file, 6 tests):
+  - `test_build_refinement_context_copies_job_context_metadata`: Proves builder auto-copies asu_map/hkl_indices_grid/halo_mask from JobContext.extras, converts np.ndarray asu_map to torch.Tensor, and validates shape matches hkl_grid (REFINE-005, REFINE-010, ARCH-REFINE-001 Phase B.3)
+  - `test_build_refinement_context_explicit_metadata_overrides_job_context`: Validates explicit arguments override job_context when both provided
+  - `test_build_job_context_rejects_invalid_sigma_reference`: Validates build_job_context raises ValueError for sigma_reference_value ≤ 0 per PHYSICS-LOSS-001
+  - `test_build_job_context_rejects_empty_sigma_provenance`: Validates non-empty sigma_provenance requirement
+  - `test_build_job_context_validates_hkl_metadata_has_halo`: Validates 'has_halo' key requirement per spec-db-workflow.md:53-54
+  - `test_build_job_context_accepts_valid_inputs`: Validates successful JobContext construction with all valid inputs
+- **test_stage_b_cpu_fallback.py** (new file, 3 tests):
+  - `test_stage_b_params_cpu_fallback_clones_stage_a_ctx`: Patches _build_stage_a_context/compute_hkl_shell_lookup and validates use_stage_b_cpu_fallback=True when config.stage_b_full_eval_on_cpu=True + device='cuda:0' + panel mode, Stage A context cloned to CPU with device=torch.device("cpu"), stage_b_cache_mode="warm" preserved (GRADIENT-003, PERF-WARM-011/012)
+  - `test_stage_b_params_no_cpu_fallback_when_roi_mode_enabled`: Validates use_stage_b_cpu_fallback=False when ROI mode enabled (use_stage_a_roi_mode=True), no CPU cloning occurs
+  - `test_stage_b_params_no_cpu_fallback_when_config_disabled`: Validates use_stage_b_cpu_fallback=False when config.stage_b_full_eval_on_cpu=False
+**Metrics**:
+- Collection check: 11 tests collected (2 from test_refinement_engine.py, 6 from test_refinement_context.py, 3 from test_stage_b_cpu_fallback.py)
+- Test run: **11 passed** in 1.42s
+- All tests hermetic (no external data dependencies, mocks used for heavy helpers)
+**Artifacts**: plans/active/ARCH-REFINE-001/reports/2025-12-01T140500Z/ (collect_context_cpu_fallback.log, pytest_context_cpu_fallback.log)
+**First Divergence**: Initial implementation required one fix: added missing sigma_floor_sq_cache parameter to _build_stage_b_params calls after TypeError
+**Next Actions**: Phase B.5 complete — all guardrail tests pass. Ready to resume production code changes (Phase C or next ARCH-REFINE-001 phase per plan).

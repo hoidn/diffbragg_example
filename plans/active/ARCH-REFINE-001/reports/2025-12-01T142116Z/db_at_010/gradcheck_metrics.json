@@ -1,0 +1,21 @@
+{
+  "test_suite": "DB-AT-010 Gradient Correctness Guard",
+  "passed_count": 4,
+  "failed_count": 0,
+  "passed_parameters": [
+    "crystal_cell_a",
+    "crystal_cell_gamma",
+    "detector_distance_mm",
+    "beam_wavelength_A"
+  ],
+  "failed_parameters": [],
+  "tolerances": {
+    "eps": 1e-06,
+    "atol": 1e-05,
+    "rtol": 0.05
+  },
+  "runtime_guards": {
+    "NANOBRAGG_DISABLE_COMPILE": "1",
+    "KMP_DUPLICATE_LIB_OK": "TRUE"
+  }
+}

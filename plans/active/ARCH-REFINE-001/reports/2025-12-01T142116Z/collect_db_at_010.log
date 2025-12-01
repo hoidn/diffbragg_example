@@ -1,0 +1,19 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collected 5 items
+
+<Dir diffbragg_example>
+  <Package tests>
+    <Package dbex>
+      <Module test_gradients.py>
+        <Class TestDB_AT_010_Gradcheck>
+          <Function test_db_at_010_gradcheck_crystal_cell_a>
+          <Function test_db_at_010_gradcheck_crystal_cell_gamma>
+          <Function test_db_at_010_gradcheck_detector_distance>
+          <Function test_db_at_010_gradcheck_beam_wavelength>
+          <Function test_db_at_010_gradcheck>
+
+========================== 5 tests collected in 0.76s ==========================

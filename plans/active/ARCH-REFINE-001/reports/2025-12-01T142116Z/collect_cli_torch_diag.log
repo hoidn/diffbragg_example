@@ -1,0 +1,15 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collected 14 items / 12 deselected / 2 selected
+
+<Dir diffbragg_example>
+  <Package tests>
+    <Package dbex>
+      <Module test_refine_one_cli.py>
+        <Function test_torch_diagnostics_metadata[cli_override-3.0]>
+        <Function test_torch_diagnostics_metadata[external_lookup-5.0]>
+
+================ 2/14 tests collected (12 deselected) in 0.04s =================

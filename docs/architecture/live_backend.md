@@ -6,7 +6,7 @@ Purpose: Describe the *shipped* pipelines (torch + DiffBragg), where they diverg
 ## Entrypoints and Modes
 - CLI: `dbex/refine_one.py` (`python -m dbex.refine_one ...`).
 - Backends: `--backend diffbragg` (legacy, default) | `--backend nanobrag` (torch, the target architecture).
-- Refinement engine: `RefinementEngine` + `StageA/B/C` is the normative path; the inline helpers in `dbex/nanobrag_refinement.py` remain only for compatibility until ARCH-REFINE-001 finishes removing them.
+- Refinement engine: `RefinementEngine` + `StageA/B/C` is the sole execution path (ARCH-REFINE-001 Phase A complete).
 - Stage toggles: `--enable-stage-b`, `--enable-stage-c` (torch only; wired into the engine configuration).
 
 ## Ingestion (shared)
@@ -18,7 +18,7 @@ Purpose: Describe the *shipped* pipelines (torch + DiffBragg), where they diverg
 - Contexts: the forthcoming `RefinementContext`/`JobContext` objects (ARCH-REFINE-001) will carry DataLoad fixtures, calibration payloads, and warmed simulators so Stage modules consume a single structured API.
 - Configs: `create_detector_config`/`create_beam_config`/`create_crystal_config` map dxtbx geometry → nanobrag_torch configs; forward-only simulator instantiation is funneled through the unified factory in `dbex/refinement/helpers.py` (Stage closures keep direct `Simulator` objects for autograd).
 - Zero-iteration sim: loop per panel, runs nanobrag_torch Simulator via the factory; applies `sqrt(spot_scale_override)` post-sim.
-- Refinement: `RefinementEngine` + `StageA/B/C` is the target. Stage A optimizes scale + full crystal (incremental UB param), Stage B optional shell |F| modifiers, Stage C optional detector distance offsets. Inline execution remains only as a compatibility shim until ARCH-REFINE-001 removes it.
+- Refinement: `RefinementEngine` + `StageA/B/C` is the sole execution path. Stage A optimizes scale + full crystal (incremental UB param), Stage B optional shell |F| modifiers, Stage C optional detector distance offsets.
 - Loss: variance-weighted chi² + masked MSE (`dbex/physics/loss.py`), sigma_floor clamping, ROI sampling; warm-cache reuse planned but blocked (ENV-CUDA-001; PERF-WARM-SIM-001).
 - Outputs: the torch backend uses a dedicated writer (`dbex/io/writer.py`, ARCH-REFINE-001 Phase C.2/C.4 complete) that emits per-ROI datasets (data/model/bragg/bg/variance), per-ROI optimal scales/scores, sigma metadata, and `/torch_diagnostics` attrs (masked_mse, loss_mask_coverage, HKL source/path, sigma provenance/reference, backend, per-stage telemetry). Physics helpers for forward simulation and loss computation are centralized in `dbex/physics/forward.py` and `dbex/physics/loss.py` (PHYSICS-LOSS-001).
 
@@ -39,7 +39,7 @@ Purpose: Describe the *shipped* pipelines (torch + DiffBragg), where they diverg
 - `prepare_refinement_inputs(data, background_image, trusted_mask, bbox, pids, detector, adu_per_photon=None, sigma_readout=None, sigma_readout_provenance=None)` → `RefinementInputs` with `target`, `loss_mask`, `panel_slices`, `trusted_mask`, `sigma_readout`, `target_representation`, `global_scale_hint`, `sigma_readout_provenance`.
 - Config builders: `create_detector_config(panel, beam, trusted_mask[, distance_mm_override, roi_bbox])`, `create_beam_config(beam[, flux, beamsize_mm, exposure])`, `create_crystal_config(crystal, experiment[, N_cells, apply_n_cells, crystal_overrides, misset_deg_override])`.
 - Simulator seam: `create_unified_simulator(detector_config, crystal_config, beam_config, hkl_grid, hkl_metadata, mask_array, spot_scale_override, device, dtype, calibration_metadata=None)` → `(simulator, metadata, sqrt_scale_value, cache_state)`.
-- Refinement core: `run_nanobrag_refinement(inputs, detector, beam, crystal, hkl_grid, hkl_metadata, config, use_engine_delegation=False)` → `(Bragg, telemetry_dict)`; `RefinementConfig` carries device/dtype, sigma_floor_value, sigma_readout provenance/reference, stage flags, calibration payload.
-- Engine path: `RefinementEngine(stages, config).run(inputs_dict)` expects stage wrappers `StageA/B/C.run(inputs_dict, telemetry_sink=None)` returning dicts compatible with `RefinementTelemetry`.
+- Refinement core: `run_nanobrag_refinement(inputs, detector, beam, crystal, hkl_grid, hkl_metadata, config)` → `(Bragg, telemetry_dict)`; `RefinementConfig` carries device/dtype, sigma_floor_value, sigma_readout provenance/reference, stage flags, calibration payload.
+- Engine path: `RefinementEngine(stages, config).run(inputs_dict)` is the sole execution route; it expects stage wrappers `StageA/B/C.run(inputs_dict, telemetry_sink=None)` returning dicts compatible with `RefinementTelemetry`.
 - Telemetry class: `RefinementTelemetry` key fields include optimizer/stage metadata, loss/chi² traces, param_deltas, clamp fractions, ROI sampling counts, canonical detector distances (Stage C), stage_type/mode, engine_protocol/stage_modes; `to_dict()` used for HDF5 serialization.
 - HDF5 writer: `dbex.io.writer.write_torch_outputs(args, DL, Bragg, inputs, masked_mse, hkl_telemetry, refine_telemetry, sigma_readout_provenance, sigma_readout_reference_value)` writes per-ROI datasets and `/torch_diagnostics` attrs (masked_mse, loss_mask_coverage, n_rois, target_shape, backend, HKL telemetry, sigma provenance/reference, stage telemetry). Canonical location is `dbex/io/writer.py` (DIAGNOSTICS-001, REFINE-010).

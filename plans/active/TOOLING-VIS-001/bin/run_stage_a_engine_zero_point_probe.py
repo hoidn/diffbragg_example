@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Stage A Engine Zero-Point Probe CLI (DB-AT-027).
+"""Stage A RefinementEngine Zero-Point Probe CLI (DB-AT-027).
 
-Runs the engine-delegation zero-point helper and emits metrics JSON plus
+Runs the RefinementEngine zero-point helper and emits metrics JSON plus
 stdout summary for TOOLING-VIS-001 Phase D.B instrumentation.
 
 Usage:
@@ -30,9 +30,9 @@ from statistics import median
 
 
 def main():
-    """Main entry point for Stage A engine zero-point probe CLI."""
+    """Main entry point for Stage A RefinementEngine zero-point probe CLI."""
     parser = argparse.ArgumentParser(
-        description="Stage A Engine Zero-Point Probe (DB-AT-027)",
+        description="Stage A RefinementEngine Zero-Point Probe (DB-AT-027)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
@@ -87,8 +87,8 @@ def main():
 
     dataload = build_dataload(repo_root)
 
-    # Run engine zero-point probe
-    print("Running Stage A engine zero-point probe (DB-AT-027)...")
+    # Run RefinementEngine zero-point probe
+    print("Running Stage A RefinementEngine zero-point probe (DB-AT-027)...")
     result = run_engine_zero_point_probe(
         dataload,
         device_str=args.device,

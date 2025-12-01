@@ -348,7 +348,7 @@ def _build_final_bragg_from_stage_a_telemetry(
         beam_config = create_beam_config(beam)
         simulators = []
         for pid in sampled_panel_ids:
-            detector_config = create_detector_config(detector[pid], beam=beam, use_dials_convention=True)
+            detector_config = create_detector_config(detector[pid], beam=beam)
             # Use unified factory for forward-only reconstruction (ARCH-FACTORY-001)
             simulator, normalized_mask, sqrt_scale, metadata = create_unified_simulator(
                 detector_config=detector_config,

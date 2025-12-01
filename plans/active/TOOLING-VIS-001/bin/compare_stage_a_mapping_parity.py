@@ -230,7 +230,7 @@ def main():
         baseline_crystal, baseline_detector, baseline_beam
     )
 
-    # Run Stage A engine with use_engine_delegation=True (nearest-neighbor HKL)
+    # Run Stage A RefinementEngine (nearest-neighbor HKL)
     config = RefinementConfig(
         device=str(device_obj),
         dtype=torch.float32,
@@ -247,7 +247,7 @@ def main():
         ),
     )
 
-    print("Running Stage A engine (nearest-neighbor HKL)...")
+    print("Running Stage A RefinementEngine (nearest-neighbor HKL)...")
     bragg_final, telemetry_dict = run_nanobrag_refinement(
         inputs=refinement_inputs,
         detector=perturbed_detector,
@@ -258,7 +258,6 @@ def main():
         config=config,
         baseline_crystal=baseline_crystal,
         baseline_detector=baseline_detector,
-        use_engine_delegation=True,
     )
     telemetry = telemetry_dict["A"]
 

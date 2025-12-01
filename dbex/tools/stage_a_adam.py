@@ -1593,11 +1593,11 @@ def run_engine_zero_point_probe(
     device_str: str = "cpu",
     sigma_source: str = "metadata",
 ) -> Dict[str, object]:
-    """Engine-delegation zero-point probe (DB-AT-027).
+    """RefinementEngine zero-point probe (DB-AT-027).
 
     Reuses `build_mapping_stage_a_context` to construct mapping baseline,
     then runs `run_nanobrag_refinement` with Stage A only, `max_iter=0`,
-    `use_engine_delegation=True`, and reconstructs `bragg_stagea_zero` via
+    through the RefinementEngine path, and reconstructs `bragg_stagea_zero` via
     `_build_final_bragg_from_stage_a_telemetry` with initial params copied
     to final slots. Computes mean/max |Δ| + chi² stats, and returns them
     for comparison against DB-AT-027 tolerances.
@@ -1626,7 +1626,7 @@ def run_engine_zero_point_probe(
         - Uses canonical variance-weighted loss from PHYSICS-LOSS-001
         - Preserves mapping calibration payload entirely (spot_scale_override,
           flux, exposure, N_cells, sigma_floor)
-        - Engine delegation ensures consistency with production refinement path
+        - RefinementEngine (the sole execution path) ensures consistency with production refinement
     """
     # Lazy import torch (ARCH-ENGINE-002)
     import torch
@@ -1680,7 +1680,7 @@ def run_engine_zero_point_probe(
     )
     config.log_scale_baseline = log_scale_baseline
 
-    # Run engine with delegation to capture telemetry
+    # Run RefinementEngine to capture telemetry
     _, telemetry = run_nanobrag_refinement(
         inputs=context.inputs,
         detector=dataload.detector,
@@ -1689,13 +1689,12 @@ def run_engine_zero_point_probe(
         hkl_grid=hkl_grid,
         hkl_metadata=hkl_metadata,
         config=config,
-        use_engine_delegation=True,
     )
 
     # Extract Stage A telemetry (keyed as "A" for backward compatibility)
     telemetry_a = telemetry.get("A")
     if telemetry_a is None:
-        raise RuntimeError(f"Engine delegation failed to produce Stage A telemetry. Keys: {list(telemetry.keys())}")
+        raise RuntimeError(f"RefinementEngine failed to produce Stage A telemetry. Keys: {list(telemetry.keys())}")
 
     # Deep-copy telemetry and force initial → final to ensure zero-point reconstruction
     import copy

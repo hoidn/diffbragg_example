@@ -7,7 +7,7 @@ Textual flow for the shipped pipelines (torch default, DiffBragg legacy) showing
 Inputs (Expt/Refl/MTZ, mask, optional refined MTZ, torch_config, sigma map, gain)
 → `DataLoad` (MTZ Bijvoet mates, Experiment selection, reflections filter, raw image stack, ROI bboxes/pids/background, trusted mask, sigma map, detector/beam/crystal fixtures)
 → `prepare_refinement_inputs` (background-subtracted target, loss_mask=(bg>=0)&trusted, sigma tensor, ROI slices, ADU↔photon conversion, global_scale_hint)
-→ `JobContext` / `RefinementContext` (planned under ARCH-REFINE-001) bundle DataLoad fixtures, calibration metadata, warmed simulators
+→ `JobContext` / `RefinementContext` (ARCH-REFINE-001 Phase B complete) bundle DataLoad fixtures, calibration metadata, HKL grids
 → Zero-iteration simulation (per-panel Simulator via unified factory for forward-only paths; spot_scale applied post-sim)
 → `RefinementEngine` stages (Stage A/B/C LBFGS) consuming the contexts; Stage closures keep their direct `Simulator` models for autograd
 → ROI scoring (Nelder–Mead per-ROI optimal scale vs background)
@@ -15,7 +15,7 @@ Inputs (Expt/Refl/MTZ, mask, optional refined MTZ, torch_config, sigma map, gain
 
 ## Divergence Points
 - Backend: `--backend nanobrag` (torch target) vs `--backend diffbragg` (legacy baseline).
-- Refinement path: `RefinementEngine` is the normative path; inline execution remains only as a compatibility shim until ARCH-REFINE-001 removes it.
+- Refinement path: `RefinementEngine` is the sole execution path (ARCH-REFINE-001 Phase A/B/C/D.1 complete).
 - Warm-cache: planned but blocked (ENV-CUDA-001); current runs are cold per panel/ROI.
 - Stage gating: Stage B/C only when their flags are set and contexts supply the required metadata.
 

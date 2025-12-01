@@ -168,7 +168,6 @@ def _run_canonical_stage_a(
         config=config,
         baseline_crystal=baseline_crystal,
         baseline_detector=baseline_detector,
-        use_engine_delegation=True,
     )
 
     telemetry_a = telemetry_dict["A"]

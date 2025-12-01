@@ -93,3 +93,7 @@ Action State: ready_for_implementation
 - Logged the Phase E.1 plan in docs/fix_plan.md and rewrote input.md with the production Do Now (stage_b_impl/stage_b.py instrumentation + Stage B/C small-detector smoke).
 Action State: ready_for_implementation
 2025-12-01T151425Z focus=ARCH-REFINE-001 state=ready_for_implementation dwell=1 action=planning artifacts=plans/active/ARCH-REFINE-001/reports/2025-12-01T151425Z/ next_action=Land Stage B baseline parity instrumentation/guard and rerun Stage B/C smokes
+2025-12-01T153327Z focus=ARCH-REFINE-001 state=ready_for_implementation dwell=2 action=planning artifacts=plans/active/ARCH-REFINE-001/reports/2025-12-01T153327Z/ next_action=Implement per-panel Stage B parity JSON + rerun Stage B/C smokes
+- Stage B guard now reports `stage_b_baseline_rel_diff`, but the JSON payload is still a stub (no per-panel breakdown, hard-coded artifacts path), so REFINE-FLOW-001 diagnostics remain unusable when the guard fires.
+- Updated docs/fix_plan.md with the new Phase E.1 refinement scope, rewrote input.md (Do Now + How-To Map + pitfalls/tests), and reserved the 2025-12-01T153327Z artifacts directory so Ralph can code + validate next loop.
+Action State: ready_for_implementation

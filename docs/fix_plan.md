@@ -104,6 +104,24 @@
 - Phase A.4: Extract remaining inline Stage C code path from run_nanobrag_refinement() (lines ~2500-2700) to complete Stage C modularization
 - Fix pre-existing RefinementConfig missing attributes (telemetry_output_dir, log_cell_max_delta, log_scale_max_delta) in separate loop
 
+### 2025-12-01T161600Z - ARCH-REFINE-001: Stage B Baseline Guard Refactoring (COMPLETE)
+**Action**: Factored REFINE-FLOW-001 baseline parity guard into testable helper function.
+- Extracted guard block (lines 1105-1210 from `_run_stage_b_lbfgs`) into new module-private helper `_check_stage_b_baseline_parity` in `dbex/refinement/stage_b_impl.py`
+- Updated `_run_stage_b_lbfgs` to call the helper (8-line invocation replacing 106 inline lines)
+- Rewrote `test_stage_b_baseline_guard_diff_payload` to drive the helper directly with mocked `compute_loss_stage_b`:
+  - Test Case 1 (failure): 2% chi² drift triggers RuntimeError + JSON diff emission
+  - Test Case 2 (success): 0.01% chi² drift passes with `stage_b_baseline_diff_path=None`
+  - No optimizer construction required (CPU-only, lightweight unit test)
+**Metrics**:
+- Helper function: +143 lines (stage_b_impl.py:34-176)
+- Guard call site: -98 lines net (106 inline → 8 call)
+- Test: Rewritten to call helper directly (176 lines, 2 test cases)
+- Validation: guard test PASSED (0.76s), Stage B/C small smokes PASSED (27.63s, 2/2 tests)
+**Artifacts**: plans/active/ARCH-REFINE-001/reports/2025-12-01T161600Z/ (pytest_stage_b_guard.log, pytest_stage_bc_small.log, telemetry_stage_bc_small.json, summary.md)
+**First Divergence**: None; all tests green on first run
+**Next Actions**:
+- Continue ARCH-REFINE-001 modularization: create RefinementContext/JobContext dataclasses to replace ad-hoc dict plumbing per Exit Criterion 2
+
 ### 2025-12-01T092807Z - ARCH-REFINE-001 Phase A.4: Engine-Only Routing Plan (READY FOR IMPLEMENTATION)
 **Action**: Reviewed Stage A/B/C wrapper state and confirmed `run_nanobrag_refinement` still defaults to ~2.4K lines of inline logic when Stage C is enabled or when `use_engine_delegation=False`. Scoped Phase A.4 to retire the inline path entirely and make RefinementEngine the single execution route.
 - Verified latest helper moves (stage_a_impl/stage_b_impl/stage_c_impl) cover the full LBFGS flow; remaining gap is final Bragg reconstruction + telemetry plumbing when Stage B/C run under the engine (stage_c_impl already generates `bragg_full`, but StageC wrapper discards it and the engine has no cache for the final frame).

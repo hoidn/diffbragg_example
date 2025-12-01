@@ -31,6 +31,150 @@ from dbex.refinement.stage_a_impl import (
 from dbex.physics.loss import _compute_variance_weighted_loss
 
 
+def _check_stage_b_baseline_parity(
+    canonical_baseline: Dict[str, Any],
+    initial_chi_squared_b: torch.Tensor,
+    telemetry: Dict[str, Any],
+    param_values: Dict[str, Any],
+    compute_loss_stage_b: Callable[[List[int], bool, bool], Tuple[torch.Tensor, torch.Tensor]],
+    n_panels: int,
+) -> None:
+    """
+    Stage B baseline parity guard (REFINE-FLOW-001).
+
+    Compares Stage B initial chi² against Stage A canonical chi² to detect
+    parameter reconstruction drift. Emits actionable JSON diff when parity fails.
+
+    Args:
+        canonical_baseline: Stage A final state dict with 'chi_squared', 'log_scale',
+                            cell params, misset, roi_count, iteration
+        initial_chi_squared_b: Stage B initial chi² tensor (before optimization)
+        telemetry: Telemetry dict to record parity diagnostics
+                   (stage_b_baseline_rel_diff, stage_b_baseline_diff_path)
+        param_values: Stage B param dict with cell/misset tensors, cache_mode, etc
+        compute_loss_stage_b: Loss computation callable for per-panel breakdown
+        n_panels: Number of detector panels for per-panel chi² queries
+
+    Raises:
+        RuntimeError: If |rel_diff| > 1e-3 (0.1% tolerance per REFINE-FLOW-001)
+
+    Mutates:
+        telemetry['stage_b_baseline_rel_diff'], telemetry['stage_b_baseline_abs_diff'],
+        telemetry['stage_b_baseline_diff_path']
+
+    References:
+        - docs/findings.md:71 (REFINE-FLOW-001 tolerance and actionable diffs)
+        - docs/spec-db-workflow.md:76-79 (Stage B baseline parity requirement)
+    """
+    import json
+    import os
+    from pathlib import Path
+    import logging
+
+    canonical_chi_squared = canonical_baseline.get('chi_squared')
+
+    if canonical_chi_squared is None:
+        # No baseline to compare against; skip guard
+        return
+
+    stage_b_initial_chi2 = float(initial_chi_squared_b.item())
+    canonical_chi2 = float(canonical_chi_squared)
+    abs_diff = stage_b_initial_chi2 - canonical_chi2
+    rel_diff = abs_diff / canonical_chi2 if canonical_chi2 != 0 else float('inf')
+
+    # Record parity diagnostics in telemetry (always, for observability)
+    telemetry['stage_b_baseline_rel_diff'] = rel_diff
+    telemetry['stage_b_baseline_abs_diff'] = abs_diff
+
+    # Guard: raise if parity exceeds 0.1% tolerance (1e-3 relative difference)
+    tolerance = 1e-3
+    if abs(rel_diff) > tolerance:
+        # Emit JSON diff file for debugging with per-panel chi² breakdown
+
+        # Determine artifacts directory from environment or default to cwd
+        telemetry_path_env = os.environ.get("DBEX_SMOKE_TELEMETRY_PATH")
+        if telemetry_path_env:
+            artifacts_dir = Path(telemetry_path_env).parent
+        else:
+            # Fallback to current working directory
+            artifacts_dir = Path.cwd()
+            logging.warning(
+                "DBEX_SMOKE_TELEMETRY_PATH not set, writing stage_b_baseline_diff.json to cwd: %s",
+                artifacts_dir
+            )
+
+        artifacts_dir.mkdir(parents=True, exist_ok=True)
+        diff_path = artifacts_dir / "stage_b_baseline_diff.json"
+
+        # Compute per-panel chi² breakdown
+        per_panel_breakdown = []
+        with torch.no_grad():
+            for pid in range(n_panels):
+                panel_chi2, panel_mse = compute_loss_stage_b([pid], is_full=True, force_panel_eval=True)
+                per_panel_breakdown.append({
+                    "panel_id": pid,
+                    "chi_squared": float(panel_chi2.item()),
+                    "masked_mse": float(panel_mse.item()),
+                })
+
+        # Extract Stage A canonical snapshot
+        canonical_snapshot = {
+            "stage_label": canonical_baseline.get('stage_label', 'A'),
+            "chi_squared": canonical_chi2,
+            "iteration": canonical_baseline.get('iteration', 0),
+            "roi_count": canonical_baseline.get('roi_count', 0),
+            "log_scale": canonical_baseline.get('log_scale', 0.0),
+            "cell_a": canonical_baseline.get('cell_a', 0.0),
+            "cell_b": canonical_baseline.get('cell_b', 0.0),
+            "cell_c": canonical_baseline.get('cell_c', 0.0),
+            "cell_alpha": canonical_baseline.get('cell_alpha', 90.0),
+            "cell_beta": canonical_baseline.get('cell_beta', 90.0),
+            "cell_gamma": canonical_baseline.get('cell_gamma', 90.0),
+            "misset_deg": canonical_baseline.get('misset_deg', (0.0, 0.0, 0.0)),
+        }
+
+        # Extract Stage B reconstructed parameters (what Stage B actually used)
+        stage_b_mode = param_values.get('stage_b_mode', 'shell')
+        stage_b_reconstructed = {
+            "log_scale": float(param_values['log_scale'].item()) if 'log_scale' in param_values else 0.0,
+            "cell_a": float(param_values['cell_a_tensor'].item()) if 'cell_a_tensor' in param_values else 0.0,
+            "cell_b": float(param_values['cell_b_tensor'].item()) if 'cell_b_tensor' in param_values else 0.0,
+            "cell_c": float(param_values['cell_c_tensor'].item()) if 'cell_c_tensor' in param_values else 0.0,
+            "cell_alpha": float(param_values['cell_alpha_tensor'].item()) if 'cell_alpha_tensor' in param_values else 90.0,
+            "cell_beta": float(param_values['cell_beta_tensor'].item()) if 'cell_beta_tensor' in param_values else 90.0,
+            "cell_gamma": float(param_values['cell_gamma_tensor'].item()) if 'cell_gamma_tensor' in param_values else 90.0,
+            "misset_deg": tuple(float(x) for x in param_values['misset_xyz_deg'].tolist()) if 'misset_xyz_deg' in param_values else (0.0, 0.0, 0.0),
+            "cache_mode": param_values.get('stage_b_cache_mode', 'cold'),
+            "cpu_fallback": param_values.get('use_stage_b_cpu_fallback', False),
+            "stage_b_mode": stage_b_mode,
+        }
+
+        diff_data = {
+            "canonical_snapshot": canonical_snapshot,
+            "stage_b_reconstructed": stage_b_reconstructed,
+            "stage_b_initial_chi_squared": stage_b_initial_chi2,
+            "absolute_difference": abs_diff,
+            "relative_difference": rel_diff,
+            "tolerance": tolerance,
+            "per_panel_breakdown": per_panel_breakdown,
+        }
+
+        with open(diff_path, 'w') as f:
+            json.dump(diff_data, f, indent=2)
+
+        # Store diff path in telemetry for test assertions
+        telemetry['stage_b_baseline_diff_path'] = str(diff_path)
+
+        raise RuntimeError(
+            f"REFINE-FLOW-001 baseline drift: Stage B initial chi² ({stage_b_initial_chi2:.3e}) "
+            f"differs from Stage A final ({canonical_chi2:.3e}) by {rel_diff:.4%} "
+            f"(tolerance={tolerance:.1%}). See {diff_path} for details."
+        )
+    else:
+        # Parity passed, record diff path as None
+        telemetry['stage_b_baseline_diff_path'] = None
+
+
 def compute_hkl_shell_lookup(crystal, hkl_metadata: Dict, n_shells: int = 5, device=None, dtype=torch.float32) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Compute per-voxel shell index for resolution-shell structure-factor modifiers (Stage B).
@@ -1105,109 +1249,14 @@ def _run_stage_b_lbfgs(
         # REFINE-FLOW-001: Stage B baseline parity guard
         # Compare Stage B initial chi² against Stage A canonical chi² to detect parameter reconstruction drift
         canonical_baseline = param_values.get('canonical_baseline', {})
-        canonical_chi_squared = canonical_baseline.get('chi_squared')
-
-        if canonical_chi_squared is not None:
-            stage_b_initial_chi2 = float(initial_chi_squared_b.item())
-            canonical_chi2 = float(canonical_chi_squared)
-            abs_diff = stage_b_initial_chi2 - canonical_chi2
-            rel_diff = abs_diff / canonical_chi2 if canonical_chi2 != 0 else float('inf')
-
-            # Record parity diagnostics in telemetry (always, for observability)
-            telemetry['stage_b_baseline_rel_diff'] = rel_diff
-            telemetry['stage_b_baseline_abs_diff'] = abs_diff
-
-            # Guard: raise if parity exceeds 0.1% tolerance (1e-3 relative difference)
-            tolerance = 1e-3
-            if abs(rel_diff) > tolerance:
-                # Emit JSON diff file for debugging with per-panel chi² breakdown
-                import json
-                import os
-                from pathlib import Path
-
-                # Determine artifacts directory from environment or default to cwd
-                telemetry_path_env = os.environ.get("DBEX_SMOKE_TELEMETRY_PATH")
-                if telemetry_path_env:
-                    artifacts_dir = Path(telemetry_path_env).parent
-                else:
-                    # Fallback to current working directory
-                    artifacts_dir = Path.cwd()
-                    import logging
-                    logging.warning(
-                        "DBEX_SMOKE_TELEMETRY_PATH not set, writing stage_b_baseline_diff.json to cwd: %s",
-                        artifacts_dir
-                    )
-
-                artifacts_dir.mkdir(parents=True, exist_ok=True)
-                diff_path = artifacts_dir / "stage_b_baseline_diff.json"
-
-                # Compute per-panel chi² breakdown
-                per_panel_breakdown = []
-                with torch.no_grad():
-                    for pid in range(n_panels):
-                        panel_chi2, panel_mse = compute_loss_stage_b([pid], is_full=True, force_panel_eval=True)
-                        per_panel_breakdown.append({
-                            "panel_id": pid,
-                            "chi_squared": float(panel_chi2.item()),
-                            "masked_mse": float(panel_mse.item()),
-                        })
-
-                # Extract Stage A canonical snapshot
-                canonical_snapshot = {
-                    "stage_label": canonical_baseline.get('stage_label', 'A'),
-                    "chi_squared": canonical_chi2,
-                    "iteration": canonical_baseline.get('iteration', 0),
-                    "roi_count": canonical_baseline.get('roi_count', 0),
-                    "log_scale": canonical_baseline.get('log_scale', 0.0),
-                    "cell_a": canonical_baseline.get('cell_a', 0.0),
-                    "cell_b": canonical_baseline.get('cell_b', 0.0),
-                    "cell_c": canonical_baseline.get('cell_c', 0.0),
-                    "cell_alpha": canonical_baseline.get('cell_alpha', 90.0),
-                    "cell_beta": canonical_baseline.get('cell_beta', 90.0),
-                    "cell_gamma": canonical_baseline.get('cell_gamma', 90.0),
-                    "misset_deg": canonical_baseline.get('misset_deg', (0.0, 0.0, 0.0)),
-                }
-
-                # Extract Stage B reconstructed parameters (what Stage B actually used)
-                stage_b_mode = param_values.get('stage_b_mode', 'shell')
-                stage_b_reconstructed = {
-                    "log_scale": float(param_values['log_scale'].item()) if 'log_scale' in param_values else 0.0,
-                    "cell_a": float(param_values['cell_a_tensor'].item()) if 'cell_a_tensor' in param_values else 0.0,
-                    "cell_b": float(param_values['cell_b_tensor'].item()) if 'cell_b_tensor' in param_values else 0.0,
-                    "cell_c": float(param_values['cell_c_tensor'].item()) if 'cell_c_tensor' in param_values else 0.0,
-                    "cell_alpha": float(param_values['cell_alpha_tensor'].item()) if 'cell_alpha_tensor' in param_values else 90.0,
-                    "cell_beta": float(param_values['cell_beta_tensor'].item()) if 'cell_beta_tensor' in param_values else 90.0,
-                    "cell_gamma": float(param_values['cell_gamma_tensor'].item()) if 'cell_gamma_tensor' in param_values else 90.0,
-                    "misset_deg": tuple(float(x) for x in param_values['misset_xyz_deg'].tolist()) if 'misset_xyz_deg' in param_values else (0.0, 0.0, 0.0),
-                    "cache_mode": param_values.get('stage_b_cache_mode', 'cold'),
-                    "cpu_fallback": param_values.get('use_stage_b_cpu_fallback', False),
-                    "stage_b_mode": stage_b_mode,
-                }
-
-                diff_data = {
-                    "canonical_snapshot": canonical_snapshot,
-                    "stage_b_reconstructed": stage_b_reconstructed,
-                    "stage_b_initial_chi_squared": stage_b_initial_chi2,
-                    "absolute_difference": abs_diff,
-                    "relative_difference": rel_diff,
-                    "tolerance": tolerance,
-                    "per_panel_breakdown": per_panel_breakdown,
-                }
-
-                with open(diff_path, 'w') as f:
-                    json.dump(diff_data, f, indent=2)
-
-                # Store diff path in telemetry for test assertions
-                telemetry['stage_b_baseline_diff_path'] = str(diff_path)
-
-                raise RuntimeError(
-                    f"REFINE-FLOW-001 baseline drift: Stage B initial chi² ({stage_b_initial_chi2:.3e}) "
-                    f"differs from Stage A final ({canonical_chi2:.3e}) by {rel_diff:.4%} "
-                    f"(tolerance={tolerance:.1%}). See {diff_path} for details."
-                )
-            else:
-                # Parity passed, record diff path as None
-                telemetry['stage_b_baseline_diff_path'] = None
+        _check_stage_b_baseline_parity(
+            canonical_baseline=canonical_baseline,
+            initial_chi_squared_b=initial_chi_squared_b,
+            telemetry=telemetry,
+            param_values=param_values,
+            compute_loss_stage_b=compute_loss_stage_b,
+            n_panels=n_panels,
+        )
 
         # Run optimization (optimizer-agnostic pattern per TORCH-REFINE-004 Phase 7 blocker fix)
         if optimizer_type == "adam":

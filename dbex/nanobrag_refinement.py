@@ -139,6 +139,12 @@ class RefinementConfig:
     enable_stage_a_roi_mode: bool = True
     # Allow ROI sampling even when the warm cache is disabled (default False so cold benchmarks stay panel-scoped)
     allow_cold_stage_a_roi_mode: bool = False
+    # Minimum ROI count threshold for ROI mode (ARCH-REFINE-001, REFINE-010)
+    # When canonical ROI count ≤ this threshold, Stage A/B/C automatically switch to panel mode
+    # (both optimization closures AND validations) to ensure sufficient signal for convergence.
+    # Calibrated per refGeom_small probe: 29 ROIs with 15% sampling (4 ROIs) achieves 0% improvement,
+    # while panel mode achieves 57.4%. Default 32 so refGeom_small (29 ROIs) uses panel mode.
+    stage_a_min_roi_for_roi_mode: int = 32
 
     # Stage B structure factor modifiers (TORCH-REFINE-004)
     enable_stage_b: bool = False  # Enable Fhkl shell modifiers

@@ -268,6 +268,7 @@ class StageC:
             stage_a_ctx=stage_a_ctx,
             sigma_floor_sq_cache=sigma_floor_sq_cache,
             params=params,  # Stage A frozen params list
+            stage_a_telemetry=stage_a_telemetry,  # ARCH-REFINE-001: Pass telemetry for ROI mode check
         )
 
         # Unpack all returned dicts for downstream use

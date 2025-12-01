@@ -344,6 +344,19 @@ class StageA:
             }
         }
 
+        # ARCH-REFINE-001, REFINE-010: Add ROI mode reason to explain auto-panel switching
+        if stage_a_roi_label == "panel":
+            if not self._config.enable_stage_a_roi_mode:
+                perf_counters['roi_mode_reason'] = "config_disabled"
+            elif canonical_roi_count <= self._config.stage_a_min_roi_for_roi_mode:
+                perf_counters['roi_mode_reason'] = f"auto_panel_threshold (roi_count={canonical_roi_count} <= {self._config.stage_a_min_roi_for_roi_mode})"
+            elif not (self._config.enable_stage_a_warm_cache or self._config.allow_cold_stage_a_roi_mode):
+                perf_counters['roi_mode_reason'] = "warm_cache_disabled"
+            else:
+                perf_counters['roi_mode_reason'] = "panel_mode_default"
+        else:
+            perf_counters['roi_mode_reason'] = f"roi_mode_active (roi_count={canonical_roi_count} > {self._config.stage_a_min_roi_for_roi_mode})"
+
         # Assemble RefinementTelemetry object (matches run_nanobrag_refinement lines 2241-2280)
         telemetry_a = RefinementTelemetry(
             optimizer="LBFGS",

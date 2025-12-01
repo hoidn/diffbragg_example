@@ -755,9 +755,11 @@ def _build_stage_a_params(
     )
 
     # Stage A ROI sampling (panel_slices-defined) with fallback to panel sampling
+    # ARCH-REFINE-001, REFINE-010: Auto-disable ROI mode when canonical_roi_count ≤ threshold
+    # to ensure sufficient signal for convergence (refGeom_small: 29 ROIs → 0% improvement with ROI mode, 57.4% with panel mode)
     use_stage_a_roi_mode = bool(
         config.enable_stage_a_roi_mode
-        and canonical_roi_count > 0
+        and canonical_roi_count > config.stage_a_min_roi_for_roi_mode
         and (config.enable_stage_a_warm_cache or config.allow_cold_stage_a_roi_mode)
     )
     stage_a_roi_label = "roi" if use_stage_a_roi_mode else "panel"

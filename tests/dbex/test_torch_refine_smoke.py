@@ -1160,7 +1160,8 @@ def test_stage_c_detector_microslip(
     assert perf_c is not None, "Stage C perf_counters missing"
     cache_mode_c = perf_c.get("cache_mode")
     assert cache_mode_c == "warm", f"Stage C cache_mode should be 'warm', got {cache_mode_c}"
-    expected_roi_mode = "roi" if config.enable_stage_a_roi_mode and len(refinement_inputs.panel_slices) > 0 else "panel"
+    # ARCH-REFINE-001, REFINE-010: Auto-panel when ROI count ≤ threshold
+    expected_roi_mode = "roi" if config.enable_stage_a_roi_mode and len(refinement_inputs.panel_slices) > config.stage_a_min_roi_for_roi_mode else "panel"
     roi_mode_c = perf_c.get("roi_mode")
     assert roi_mode_c == expected_roi_mode, f"Stage C roi_mode {roi_mode_c} != expected {expected_roi_mode}"
     assert telemetry_c.roi_mode == roi_mode_c, (
@@ -1391,8 +1392,8 @@ def test_stage_b_shell_modifiers(
         expected_cache_mode = "warm"
         assert cache_mode_b == expected_cache_mode, f"Stage B cache_mode should be '{expected_cache_mode}', got {cache_mode_b}"
         roi_mode_b = perf_b.get("roi_mode")
-        # ROI mode follows Stage A's ROI knob: "roi" when config enables it and ROI entries exist, "panel" otherwise
-        expected_roi_mode = "roi" if config.enable_stage_a_roi_mode and len(refinement_inputs.panel_slices) > 0 else "panel"
+        # ARCH-REFINE-001, REFINE-010: ROI mode follows Stage A's auto-panel logic
+        expected_roi_mode = "roi" if config.enable_stage_a_roi_mode and len(refinement_inputs.panel_slices) > config.stage_a_min_roi_for_roi_mode else "panel"
         assert roi_mode_b == expected_roi_mode, f"Stage B roi_mode should be '{expected_roi_mode}', got {roi_mode_b}"
         assert perf_b.get("roi_count_total") == canonical_roi_count, (
             f"Stage B roi_count_total {perf_b.get('roi_count_total')} != canonical ROI count {canonical_roi_count}"

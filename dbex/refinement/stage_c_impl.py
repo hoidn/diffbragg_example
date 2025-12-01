@@ -97,7 +97,8 @@ def _build_stage_c_params(
     panel_slices: List[Tuple[int, int, int, int, int]],
     stage_a_ctx: Optional['StageAContext'],
     sigma_floor_sq_cache: Dict[str, torch.Tensor],
-    params: List[torch.Tensor]  # Stage A params to freeze
+    params: List[torch.Tensor],  # Stage A params to freeze
+    stage_a_telemetry: Dict[str, Any]  # Stage A telemetry for ROI mode check (ARCH-REFINE-001)
 ) -> Dict[str, Any]:
     """
     Initialize Stage C detector distance offset parameters and optimizer.
@@ -152,11 +153,11 @@ def _build_stage_c_params(
     distance_offset_raw = torch.zeros(n_panels, device=device, dtype=dtype, requires_grad=True)
 
     stage_c_params = [distance_offset_raw]
+    # PERF-WARM-SIM-001: Stage C warm cache mirrors Stage B logic (ARCH-REFINE-001 auto-panel fix)
+    # Only check stage_a_ctx existence and warm cache config flag (device/dtype always match config)
     stage_c_use_warm_cache = (
         stage_a_ctx is not None
         and config.enable_stage_a_warm_cache
-        and stage_a_ctx.device == device
-        and stage_a_ctx.dtype == dtype
     )
     stage_c_cache_mode = "warm" if stage_c_use_warm_cache else "cold"
     perf_closure_evals_c = [0]
@@ -165,9 +166,12 @@ def _build_stage_c_params(
     roi_slices_by_pid: Dict[int, List[Tuple[int, int, int, int]]] = defaultdict(list)
     for pid, bbox in panel_slices:
         roi_slices_by_pid[int(pid)].append(tuple(int(v) for v in bbox))
+    # ARCH-REFINE-001, REFINE-010: Stage C ROI mode mirrors Stage A's actual ROI mode
+    # (from telemetry), not the config flag, to support auto-panel threshold
+    stage_a_used_roi_mode = (stage_a_telemetry.get("roi_mode") == "roi")
     stage_c_roi_mode_active = (
         stage_c_use_warm_cache
-        and config.enable_stage_a_roi_mode
+        and stage_a_used_roi_mode
         and len(roi_slices_by_pid) > 0
     )
     stage_c_roi_mode_label = "roi" if stage_c_roi_mode_active else "panel"

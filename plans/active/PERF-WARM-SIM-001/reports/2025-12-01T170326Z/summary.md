@@ -23,3 +23,9 @@ Implemented REFINE-012 by gating `stage_c_roi_mode_active` on `force_panel_valid
 ## Next Actions
 
 Supervisor decision required: Accept +0.067% regression as inherent to correct implementation OR investigate hyperparameters.
+
+### Turn Summary
+Implemented REFINE-012 Stage C ROI-mode gating on force_panel_validation, adding roi_mode_reason telemetry and updating test expectations to mirror Stage A panel-validation logic.
+Small detector (29 ROIs) PASSED proving implementation correctness with roi_mode="panel" and roi_mode_reason="force_panel_validation"; full detector (92 ROIs, 60 panels) FAILED at +0.067% chi² regression, identical to REFINE-011 result.
+The regression is reproducible and appears inherent to panel-mode optimization trajectory for 60-panel configurations; supervisor decision required to accept regression as SPEC-conformant or investigate LBFGS hyperparameters.
+Artifacts: plans/active/PERF-WARM-SIM-001/reports/2025-12-01T170326Z/ (collect logs, pytest logs, telemetry_stage_c_small.json)

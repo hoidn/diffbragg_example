@@ -175,12 +175,6 @@ def _build_stage_c_params(
     # ARCH-REFINE-001, REFINE-010: Stage C ROI mode mirrors Stage A's actual ROI mode
     # (from telemetry), not the config flag, to support auto-panel threshold
     stage_a_used_roi_mode = (stage_a_telemetry.get("roi_mode") == "roi")
-    stage_c_roi_mode_active = (
-        stage_c_use_warm_cache
-        and stage_a_used_roi_mode
-        and len(roi_slices_by_pid) > 0
-    )
-    stage_c_roi_mode_label = "roi" if stage_c_roi_mode_active else "panel"
 
     # REFINE-011: Extract Stage A validation scope to control Stage C full validations
     # When Stage A used panel-mode validations, Stage C full validations must also use panel mode
@@ -188,6 +182,29 @@ def _build_stage_c_params(
     stage_a_perf_counters = stage_a_telemetry.get('perf_counters', {})
     stage_a_validation_scope = stage_a_perf_counters.get('validation_scope', 'roi')
     force_panel_validation = (stage_a_validation_scope == 'panel')
+
+    # REFINE-012: Disable Stage C ROI-mode closures entirely when Stage A forces panel validations
+    # so LBFGS optimizes the same pixel population that REFINE-007 gates inspect
+    stage_c_roi_mode_active = (
+        stage_c_use_warm_cache
+        and stage_a_used_roi_mode
+        and len(roi_slices_by_pid) > 0
+        and not force_panel_validation  # Disable ROI-mode when Stage A used panel-mode validations
+    )
+
+    # Compute roi_mode_reason for telemetry provenance (REFINE-012)
+    if not stage_c_use_warm_cache:
+        roi_mode_reason = "warm_cache_disabled"
+    elif force_panel_validation:
+        roi_mode_reason = "force_panel_validation"  # Stage A panel validations mandate panel closures
+    elif not stage_a_used_roi_mode:
+        roi_mode_reason = "stage_a_panel_mode"
+    elif len(roi_slices_by_pid) == 0:
+        roi_mode_reason = "no_rois"
+    else:
+        roi_mode_reason = "roi_mode_active"
+
+    stage_c_roi_mode_label = "roi" if stage_c_roi_mode_active else "panel"
     sampled_pid_set = set(sampled_panel_ids)
     if stage_c_roi_mode_active:
         stage_c_roi_count_total = sum(len(bboxes) for bboxes in roi_slices_by_pid.values())
@@ -242,6 +259,8 @@ def _build_stage_c_params(
         'stage_c_roi_count_sampled': stage_c_roi_count_sampled,
         'roi_slices_by_pid': roi_slices_by_pid,
         'force_panel_validation': force_panel_validation,  # REFINE-011: For Stage C full validation bypass
+        'roi_mode_reason': roi_mode_reason,  # REFINE-012: Provenance tag for ROI-mode decision
+        'validation_scope': stage_c_roi_mode_label,  # REFINE-012: Matches Stage C closure mode
         'perf_closure_evals_c': perf_closure_evals_c,
         'perf_validation_runs_c': perf_validation_runs_c,
         'perf_forward_times_ms_c': perf_forward_times_ms_c,
@@ -687,6 +706,8 @@ def _run_stage_c_lbfgs(
     _apply_baseline_detector_prior = stage_c_context['_apply_baseline_detector_prior']
     misset_deg_for_crystal = stage_c_context['misset_deg_for_crystal']
     force_panel_validation = stage_c_context['force_panel_validation']  # REFINE-011
+    roi_mode_reason = stage_c_context['roi_mode_reason']  # REFINE-012
+    validation_scope = stage_c_context['validation_scope']  # REFINE-012
 
     # Extract from canonical_baseline dict (needed for improvement gate)
     best_loss_full = (canonical_baseline['chi_squared'], canonical_baseline['iteration'])
@@ -872,6 +893,8 @@ def _run_stage_c_lbfgs(
     perf_counters_c = {
         'cache_mode': stage_c_cache_mode,
         'roi_mode': stage_c_roi_mode_label,
+        'roi_mode_reason': roi_mode_reason,  # REFINE-012: Provenance for ROI-mode decision
+        'validation_scope': stage_c_roi_mode_label,  # REFINE-012: Matches Stage C closure mode
         'roi_count_total': stage_c_roi_count_total,
         'roi_count_sampled': stage_c_roi_count_sampled,
         'closure_evals': perf_closure_evals_c[0],

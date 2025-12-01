@@ -1171,8 +1171,11 @@ def test_stage_c_detector_microslip(
     assert perf_c is not None, "Stage C perf_counters missing"
     cache_mode_c = perf_c.get("cache_mode")
     assert cache_mode_c == "warm", f"Stage C cache_mode should be 'warm', got {cache_mode_c}"
-    # ARCH-REFINE-001, REFINE-010: Auto-panel when ROI count ≤ threshold
-    expected_roi_mode = "roi" if config.enable_stage_a_roi_mode and len(refinement_inputs.panel_slices) > config.stage_a_min_roi_for_roi_mode else "panel"
+    # ARCH-REFINE-001, REFINE-010, REFINE-012: Stage C follows Stage A panel-validation heuristic
+    # Panel mode is forced when Stage B or Stage C is enabled, explicit flag, or ROI count ≤ threshold
+    force_panel_from_staging = config.enable_stage_b or config.enable_stage_c or config.stage_a_force_panel_validation
+    force_panel_from_roi_threshold = len(refinement_inputs.panel_slices) <= config.stage_a_panel_validation_roi_threshold
+    expected_roi_mode = "panel" if (force_panel_from_staging or force_panel_from_roi_threshold) else "roi"
     roi_mode_c = perf_c.get("roi_mode")
     assert roi_mode_c == expected_roi_mode, f"Stage C roi_mode {roi_mode_c} != expected {expected_roi_mode}"
     assert telemetry_c.roi_mode == roi_mode_c, (
@@ -1437,8 +1440,11 @@ def test_stage_b_shell_modifiers(
         expected_cache_mode = "warm"
         assert cache_mode_b == expected_cache_mode, f"Stage B cache_mode should be '{expected_cache_mode}', got {cache_mode_b}"
         roi_mode_b = perf_b.get("roi_mode")
-        # ARCH-REFINE-001, REFINE-010: ROI mode follows Stage A's auto-panel logic
-        expected_roi_mode = "roi" if config.enable_stage_a_roi_mode and len(refinement_inputs.panel_slices) > config.stage_a_min_roi_for_roi_mode else "panel"
+        # ARCH-REFINE-001, REFINE-010, REFINE-012: ROI mode follows Stage A's panel-validation heuristic
+        # Panel mode is forced when Stage B or Stage C is enabled, explicit flag, or ROI count ≤ threshold
+        force_panel_from_staging = config.enable_stage_b or config.enable_stage_c or config.stage_a_force_panel_validation
+        force_panel_from_roi_threshold = len(refinement_inputs.panel_slices) <= config.stage_a_panel_validation_roi_threshold
+        expected_roi_mode = "panel" if (force_panel_from_staging or force_panel_from_roi_threshold) else "roi"
         assert roi_mode_b == expected_roi_mode, f"Stage B roi_mode should be '{expected_roi_mode}', got {roi_mode_b}"
         assert perf_b.get("roi_count_total") == canonical_roi_count, (
             f"Stage B roi_count_total {perf_b.get('roi_count_total')} != canonical ROI count {canonical_roi_count}"

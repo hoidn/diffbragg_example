@@ -1,5 +1,25 @@
-### Turn Summary
-Scoped the Stage C ROI-mode disablement plan so canonical runs stop optimizing on ROI subsets when Stage A forces panel baselines.
-Recorded REFINE-012, refreshed docs/fix_plan + findings, and rewrote input.md with the new Do Now and How-To map for the Stage C smokes/telemetry rerun.
-Next: Implement the Stage C ROI-mode gating plus small/full Stage C smoketests to close PERF-WARM-SIM-001 Phase D.4.
-Artifacts: plans/active/PERF-WARM-SIM-001/reports/2025-12-01T170326Z/
+# PERF-WARM-SIM-001 Phase D.4: Stage C ROI-mode Disablement Implementation
+
+## Loop Summary (2025-12-01T170326Z)
+
+**Status**: PARTIAL SUCCESS — Implementation complete and correct, but full-detector chi² gate still fails at +0.067% (exceeds 0.05% threshold).
+
+## Implementation
+
+Implemented REFINE-012 by gating `stage_c_roi_mode_active` on `force_panel_validation` so Stage C disables ROI-mode closures when Stage A forces panel validations.
+
+### Code Changes
+
+1. **dbex/refinement/stage_c_impl.py::_build_stage_c_params** (lines 186-207)
+2. **dbex/refinement/stage_c.py** (lines 306-307, 410-411)
+3. **dbex/refinement/stage_c_impl.py::_run_stage_c_lbfgs** (lines 709-710)
+4. **tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip** (lines 1174-1180, 1443-1448)
+
+## Test Results
+
+- Small detector (29 ROIs): PASSED ✓ (roi_mode="panel", roi_mode_reason="force_panel_validation")
+- Full detector (92 ROIs): FAILED ✗ (chi² regression 0.067% vs 0.05% gate)
+
+## Next Actions
+
+Supervisor decision required: Accept +0.067% regression as inherent to correct implementation OR investigate hyperparameters.

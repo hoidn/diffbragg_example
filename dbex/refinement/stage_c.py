@@ -303,6 +303,8 @@ class StageC:
         stage_c_roi_count_sampled = stage_c_params_dict['stage_c_roi_count_sampled']
         roi_slices_by_pid = stage_c_params_dict['roi_slices_by_pid']
         force_panel_validation = stage_c_params_dict['force_panel_validation']  # REFINE-011
+        roi_mode_reason = stage_c_params_dict['roi_mode_reason']  # REFINE-012
+        validation_scope = stage_c_params_dict['validation_scope']  # REFINE-012
         perf_closure_evals_c = stage_c_params_dict['perf_closure_evals_c']
         perf_validation_runs_c = stage_c_params_dict['perf_validation_runs_c']
         perf_forward_times_ms_c = stage_c_params_dict['perf_forward_times_ms_c']
@@ -405,6 +407,8 @@ class StageC:
             'roi_slices_by_pid': roi_slices_by_pid,
             'stage_c_roi_mode_active': stage_c_roi_mode_active,
             'force_panel_validation': force_panel_validation,  # REFINE-011
+            'roi_mode_reason': roi_mode_reason,  # REFINE-012
+            'validation_scope': validation_scope,  # REFINE-012
         }
 
         # STEP 2: Build Stage C LBFGS closure (returns tuple)

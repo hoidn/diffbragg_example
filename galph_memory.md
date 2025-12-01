@@ -85,3 +85,7 @@ Action State: ready_for_implementation
 - Logged Phase D.2 in docs/fix_plan.md: remove the obsolete `use_engine_delegation` flag from Stage A tooling/TOOLING-VIS-001 drivers, refresh architecture + testing docs, and revalidate DB-AT-027 + Stage A telemetry selectors under the new timestamp.
 - Updated implementation plan Phase D checklist (D1/D3/D4 now complete, D2 focused on flag cleanup) and rewrote input.md with production Do Now + mapped pytest commands so Ralph can implement immediately.
 Action State: ready_for_implementation
+- Recorded Phase D.2 completion in docs/fix_plan.md and the implementation plan so the ledger reflects the Stage A tooling/docs/tests already merged, with pointers to plans/active/ARCH-REFINE-001/reports/2025-12-01T144500Z/.
+- Planned Phase D.5 by drafting the architecture_doc_update.md deliverable, mapping the new artifacts path, refreshing Stage A selector commands, and rewriting input.md so Ralph can publish the ledger immediately.
+Action State: ready_for_implementation
+2025-12-01T150955Z focus=ARCH-REFINE-001 state=ready_for_implementation dwell=0 action=planning artifacts=plans/active/ARCH-REFINE-001/reports/2025-12-01T150955Z/ next_action=Publish architecture_doc_update.md + docs_diff, update docs/fix_plan.md, rerun Stage A parity + telemetry selectors

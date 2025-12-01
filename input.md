@@ -1,42 +1,48 @@
-Summary: Scrub Stage A tooling/docs of the removed `use_engine_delegation` flag so probes/tests run on the default RefinementEngine path without TypeErrors.
-Mode: Parity
+Summary: Publish the Phase D architecture doc update ledger so downstream teams can cite a single summary, and keep the Stage A selector evidence current.
+Mode: Docs
 Focus: ARCH-REFINE-001 — Refinement Engine Modularization & Torch IO
 Branch: integration
 Mapped tests: pytest --collect-only tests/dbex/test_stage_a_mapping_equiv.py::test_db_at_027_zero_point_parity; pytest -vv tests/dbex/test_stage_a_mapping_equiv.py::test_db_at_027_zero_point_parity; pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry; pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry
-Artifacts: plans/active/ARCH-REFINE-001/reports/2025-12-01T144500Z/
+Artifacts: plans/active/ARCH-REFINE-001/reports/2025-12-01T150955Z/
 Do Now:
-- Implement: dbex/tools/stage_a_adam.py::run_engine_zero_point_probe — drop the deprecated `use_engine_delegation` kwarg when calling `run_nanobrag_refinement`, guard against missing Stage A telemetry, and refresh the docstring/comments so zero-point probes explicitly describe the RefinementEngine-only flow.
-- Implement: plans/active/TOOLING-VIS-001/bin/{compare_stage_a_mapping_parity.py::main, generate_stage_a_refgeom_roi_triptychs_adam.py::main, run_stage_a_engine_zero_point_probe.py::main} — update their helper calls/help text to match the new API (no `use_engine_delegation` flag) and ensure they keep forwarding calibration + baseline geometry inputs unchanged.
-- Document: docs/architecture/live_backend.md; docs/architecture/data_telemetry_flow.md; docs/TESTING_GUIDE.md; docs/development/TEST_SUITE_INDEX.md — rewrite the affected sections/rows so they describe RefinementEngine as the sole execution path, remove wording that calls the contexts “planned,” and explain that the Stage A telemetry selector now validates the default engine route.
-- Validate: capture the Stage A zero-point + telemetry selectors (collect-only first, then full run) with `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md`, `DBAT027_ARTIFACT_DIR=plans/active/ARCH-REFINE-001/reports/2025-12-01T144500Z/db_at_027`, and `KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1` set for the smoke test; tee logs into the artifacts directory named in the mapped tests.
+- Implement: plans/active/ARCH-REFINE-001/reports/2025-12-01T150955Z/architecture_doc_update.md — synthesize the completed D1–D4 edits (live_backend, data_telemetry_flow, module_map, testing guide, test suite index, IDLs) into a concise report with section refs + spec/finding citations (DIAGNOSTICS-001, ARCH-ENGINE-003, REFINE-010) so future initiatives can cite one artifact.
+- Implement: docs/fix_plan.md — add the Phase D.5 entry referencing the new architecture_doc_update.md once it exists, and note any doc nits resolved while compiling the summary.
+- Document: plans/active/ARCH-REFINE-001/reports/2025-12-01T150955Z/docs_diff.md — capture `git diff docs` output (or explicit snippets if the diff is empty) alongside a short annotation describing what changed between D2 completion and this ledger.
+- Validate: run the Stage A zero-point parity selector and the Stage A telemetry smoke (collect-only first, then full) with `AUTHORITATIVE_CMDS_DOC`, `DBAT027_ARTIFACT_DIR`, `KMP_DUPLICATE_LIB_OK=TRUE`, and `NANOBRAGG_DISABLE_COMPILE=1` set; tee the logs into the artifacts directory listed above.
 How-To Map:
-1. `export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md` and `export DBAT027_ARTIFACT_DIR=plans/active/ARCH-REFINE-001/reports/2025-12-01T144500Z/db_at_027`; ensure `plans/active/ARCH-REFINE-001/reports/2025-12-01T144500Z/` exists for logs + doc diffs.
-2. Update `dbex/tools/stage_a_adam.py::run_engine_zero_point_probe` to remove the stale kwarg, keep lazy imports, raise `RuntimeError` if `'A'` telemetry missing, and adjust docstrings/comments to describe engine-only execution.
-3. Edit TOOLING-VIS-001 debug CLIs (`compare_stage_a_mapping_parity.py`, `generate_stage_a_refgeom_roi_triptychs_adam.py`, `run_stage_a_engine_zero_point_probe.py`) so every `run_nanobrag_refinement` call matches the new signature and the CLI usage text references RefinementEngine rather than `--use-engine-delegation`.
-4. Refresh `docs/architecture/live_backend.md` + `docs/architecture/data_telemetry_flow.md` to say RefinementContext/JobContext are in production and the inline monolith is gone; update `docs/TESTING_GUIDE.md` §2 (engine telemetry row) and `docs/development/TEST_SUITE_INDEX.md` accordingly. Capture `git diff docs` output into `plans/active/ARCH-REFINE-001/reports/2025-12-01T144500Z/docs_diff.md`.
-5. Run the mapped selectors in order, saving collect-only logs before each full pytest run. Ensure env vars (`KMP_DUPLICATE_LIB_OK=TRUE`, `NANOBRAGG_DISABLE_COMPILE=1`) are set for the smoke test; keep tee’d logs under the artifacts directory names listed in Do Now.
+1. `export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md` and `export DBAT027_ARTIFACT_DIR=plans/active/ARCH-REFINE-001/reports/2025-12-01T150955Z/db_at_027`; create the artifacts directory (`mkdir -p .../2025-12-01T150955Z/db_at_027`).
+2. Draft `architecture_doc_update.md`: enumerate each doc touched in D1–D4, cite the relevant sections (e.g., live_backend.md §§Entrypoints & Implementation Interfaces, data_telemetry_flow.md §Pipeline, module_map table row updates, TESTING_GUIDE §2.1, TEST_SUITE_INDEX §Stage A selectors, the new IDLs) plus the spec/finding they align with. Close with a verification note pointing to the Stage A selectors being refreshed this loop.
+3. Record the doc diff snapshot by running `git diff -- docs` after the summary edits (if empty, state "no changes") and saving it to `docs_diff.md` with a one-line explanation per file.
+4. Update `docs/fix_plan.md` Phase D Attempts History to reference the new report path once both the summary and doc diff files exist; mention that selector evidence lives in the same timestamped directory.
+5. Tests:
+   a. `pytest --collect-only tests/dbex/test_stage_a_mapping_equiv.py::test_db_at_027_zero_point_parity > plans/active/ARCH-REFINE-001/reports/2025-12-01T150955Z/collect_db_at_027.log`
+   b. `pytest -vv tests/dbex/test_stage_a_mapping_equiv.py::test_db_at_027_zero_point_parity | tee .../pytest_db_at_027.log`
+   c. `KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry > .../collect_stage_a_engine_telemetry.log`
+   d. `KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry | tee .../pytest_stage_a_engine_telemetry.log`
 Pitfalls To Avoid:
-- Do not reintroduce optional inline code paths or the removed `use_engine_delegation` kwarg; RefinementEngine must remain the only execution route (ARCH-ENGINE-003).
-- Preserve lazy imports + device/dtype neutrality inside Stage A tooling while editing helper code; no eager torch allocations during module import.
-- Keep canonical refGeom assets untouched; Stage A zero-point test depends on `sp.proc/refGeom*.{expt,refl}`, mask, HKL bundles per docs/data_dependency_manifest.md.
-- When updating docs/tests, reference the new IDLs instead of duplicating API text; avoid paraphrasing spec equations.
-- Maintain Environment Freeze (POLICY-001): no package installs or dataset regeneration—log blockers instead.
-- Collect-only logs must be recorded before each pytest run to satisfy selector health tracking.
-- Watch for cached artifacts under `plans/active/...`; do not overwrite prior evidence outside the new timestamped directory.
+- Do not modify production Stage A/B/C code paths; this loop is documentation-only aside from ledger updates.
+- Keep references to specs/findings exact—quote section numbers instead of paraphrasing math from spec-db-core/workflow.
+- Maintain Environment Freeze (POLICY-001): no package installs or dataset regeneration while collecting selector evidence.
+- Stage A parity selectors depend on `sp.proc/refGeom*` assets; verify `DBAT027_ARTIFACT_DIR` exists before running pytest or the tests will overwrite prior evidence.
+- Capture collect-only logs before each pytest run to preserve selector health per TESTING_GUIDE §1.4.
+- If the doc diff is empty, explicitly say so in docs_diff.md rather than omitting the file.
+- Reuse the same timestamped artifacts directory; don’t scatter logs across prior runs.
+- When editing docs/fix_plan.md, do not remove historical Attempts entries—append the new reference instead.
 If Blocked:
-- If Stage A zero-point probe fails due to missing assets or telemetry keys, capture the pytest log, save it under the artifacts directory, and record the failure signature + env vars in docs/fix_plan.md Attempts History and galph_memory.md before stopping.
-- If docs/tests reveal additional references to `use_engine_delegation` you cannot safely remove, note the remaining files + rationale in docs/fix_plan.md and return the loop as blocked for supervisor triage.
+- If either Stage A selector fails or assets are missing, stop, archive the failing log under the artifacts directory, and log the failure signature (error text, env vars) in docs/fix_plan.md + galph_memory.md before yielding.
+- If you uncover additional stale docs that require content edits beyond the planned summary, note the file and scope in docs/fix_plan.md and pause for supervisor guidance.
 Findings Applied (Mandatory):
-- ARCH-ENGINE-003 — Engine telemetry enrichment must stay on the active code path; removing the flag ensures compliance.
-- REFINE-010 — Stage A ROI/panel guardrails stay in effect when running zero-point probes; do not change ROI thresholds while editing tooling.
-- PHYSICS-LOSS-001 — Variance-weighted loss math in probes/tests must remain untouched.
-- POLICY-001 — Environment Freeze prohibits pip/conda installs or dataset regeneration.
+- ARCH-ENGINE-003 — document that telemetry enrichment sits on the engine-only path; selectors prove the guard remains green.
+- REFINE-010 — remind readers that Stage A auto-panel threshold is in effect when citing detector-size behavior.
+- DIAGNOSTICS-001 — `/torch_diagnostics` writer ownership must stay explicit in the summary.
+- POLICY-001 — reaffirm Environment Freeze while running selectors and editing docs.
 Pointers:
-- docs/TESTING_GUIDE.md:160 — Selector details + env vars for `test_stage_a_engine_delegation_telemetry`.
-- docs/architecture/live_backend.md:20 — Current Torch backend description to update with engine-only notes.
-- docs/architecture/data_telemetry_flow.md:5 — Pipeline description still mentioning “planned” contexts; align it with Phase B completion.
-- docs/findings.md:75 — ARCH-ENGINE-003 guardrail on telemetry enrichment placement.
-- docs/data_dependency_manifest.md:70 — Required assets for Stage A/DB-AT-027 probes.
-Next Up (optional): After the flag cleanup, finish Phase D by capturing architecture_doc_update.md (D5) if capacity allows.
-Doc Sync Plan (Conditional): Not applicable (no new selectors added).
-Mapped Tests Guardrail: Store the `collect_db_at_027_zero_point.log` and `collect_stage_a_engine_telemetry.log` outputs before running the corresponding full pytest commands; if either selector reports 0 tests collected, stop immediately and diagnose before editing code further.
+- docs/architecture/live_backend.md:1 — Entrypoints/Modes + Implementation Interfaces sections that the summary must cite.
+- docs/architecture/data_telemetry_flow.md:1 — Pipeline description needing updated prose reference.
+- docs/TESTING_GUIDE.md:160 — Selector registry row for `test_stage_a_engine_delegation_telemetry`.
+- docs/development/TEST_SUITE_INDEX.md:19 — Stage A selector entry requiring cross-reference.
+- docs/findings.md:75 — ARCH-ENGINE-003 guardrail text to cite.
+Next Up (optional):
+- Kick off the next ARCH-REFINE-001 phase (e.g., RefinementContext/JobContext enforcement in CLI) once the doc ledger is published.
+Mapped Tests Guardrail:
+- Both selectors must report `collected 1 item`; if collection returns 0, fix immediately (or mark blocked) before attempting the test run.

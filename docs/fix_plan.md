@@ -686,3 +686,44 @@ pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation
   | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T144500Z/pytest_stage_a_engine_telemetry.log
 ```
 - **Artifacts:** `plans/active/ARCH-REFINE-001/reports/2025-12-01T144500Z/` (collect_db_at_027_zero_point.log, pytest_db_at_027_zero_point.log, collect_stage_a_engine_telemetry.log, pytest_stage_a_engine_telemetry.log, docs_diff.md)
+
+### 2025-12-01T144500Z - ARCH-REFINE-001 Phase D.2: Engine-only tooling/docs sync (COMPLETE)
+- **Action:** Removed the deprecated `use_engine_delegation` plumbing from every Stage A tooling surface and refreshed the architecture/testing docs so they describe RefinementEngine as the only execution path. Key edits:
+  - `dbex/tools/stage_a_adam.py::run_engine_zero_point_probe` now routes exclusively through `RefinementEngine`, raises a targeted `RuntimeError` if Stage A telemetry is missing, and updates the docstring/comments to describe the engine-only flow.
+  - All TOOLING-VIS-001 drivers that shell `run_nanobrag_refinement` (`compare_stage_a_mapping_parity.py`, `generate_stage_a_refgeom_roi_triptychs*.py`, `run_stage_a_engine_zero_point_probe.py`) now call the engine-only signature without the removed kwarg and preserve calibration inputs verbatim.
+  - Architecture docs (`docs/architecture/live_backend.md`, `docs/architecture/data_telemetry_flow.md`), the testing registry (`docs/TESTING_GUIDE.md`, `docs/development/TEST_SUITE_INDEX.md`), and supporting notes now state that the inline path is gone and that Stage A telemetry selectors validate the default engine route.
+- **Validation:** Re-ran the DB-AT-027 zero-point probe plus the Stage A telemetry smoke with collect-only health checks; both selectors passed:
+  - `pytest -vv tests/dbex/test_stage_a_mapping_equiv.py::test_db_at_027_zero_point_parity` — PASS (20.45 s, warnings only).
+  - `pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry` — PASS (7.30 s, warnings only).
+- **Artifacts:** `plans/active/ARCH-REFINE-001/reports/2025-12-01T144500Z/` (`collect_db_at_027.log`, `pytest_db_at_027.log`, `collect_stage_a_engine_telemetry.log`, `pytest_stage_a_engine_telemetry.log`, `docs_diff.md`, `summary.md`)
+- **Next Actions:** Phase D.2 is complete. Proceed to Phase D.5 to capture a consolidated architecture-doc update report so downstream initiatives can reference a single summary of the D1-D4 edits.
+
+### 2025-12-01T150955Z - ARCH-REFINE-001 Phase D.5: Architecture doc update ledger (READY FOR IMPLEMENTATION)
+- **Scope:** Close out Phase D by authoring a durable summary of the documentation changes landed across D1-D4 and linking it from this ledger. Deliverables:
+  1. Create `plans/active/ARCH-REFINE-001/reports/2025-12-01T150955Z/architecture_doc_update.md` summarizing the live backend, data/telemetry flow, module map, testing guide, and Test Suite Index edits with direct section references and spec/finding citations (DIAGNOSTICS-001, ARCH-ENGINE-003, REFINE-010).
+  2. Update `docs/fix_plan.md` Phase D Attempts History to reference the new report so future readers can trace the doc sync outcome without diff spelunking.
+  3. Capture a short `docs_diff.md` (same directory) showing any follow-up doc nits fixed while compiling the summary.
+- **Validation:** Rerun the Stage A zero-point probe and Stage A telemetry selector to keep their logs current and prove the doc-only loop didn't drift the tests:
+  ```
+  AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+  DBAT027_ARTIFACT_DIR=plans/active/ARCH-REFINE-001/reports/2025-12-01T150955Z/db_at_027 \
+  pytest --collect-only tests/dbex/test_stage_a_mapping_equiv.py::test_db_at_027_zero_point_parity \
+    > plans/active/ARCH-REFINE-001/reports/2025-12-01T150955Z/collect_db_at_027.log
+
+  AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+  DBAT027_ARTIFACT_DIR=plans/active/ARCH-REFINE-001/reports/2025-12-01T150955Z/db_at_027 \
+  pytest -vv tests/dbex/test_stage_a_mapping_equiv.py::test_db_at_027_zero_point_parity \
+    | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T150955Z/pytest_db_at_027.log
+
+  AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+  KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
+  pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry \
+    > plans/active/ARCH-REFINE-001/reports/2025-12-01T150955Z/collect_stage_a_engine_telemetry.log
+
+  AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+  KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
+  pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry \
+    | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T150955Z/pytest_stage_a_engine_telemetry.log
+  ```
+- **Artifacts:** `plans/active/ARCH-REFINE-001/reports/2025-12-01T150955Z/` (architecture_doc_update.md, docs_diff.md, collect/pytest logs, db_at_027 artifacts)
+- **Dependencies:** D1-D4 complete; no outstanding code blockers. Maintain Environment Freeze (POLICY-001) and log any doc gaps discovered during the summary.

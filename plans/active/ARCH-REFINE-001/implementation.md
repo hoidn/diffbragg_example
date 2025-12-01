@@ -98,7 +98,7 @@ objects into the closures rather than re-instantiating them via the factory.
 
 ## Phase D — Architecture Documentation Sync
 - [x] D1: Update `docs/architecture/live_backend.md` (Entrypoints/Modes, Migration and Status, Implementation Interfaces) to describe the engine-only path, `RefinementContext`/`JobContext`, and the torch writer seam. Reference specific sections in the commit summary (e.g., §§6‑33).
-- [ ] D2: Retire stale `use_engine_delegation` references in Stage A tooling/docs so probes and selectors clearly describe RefinementEngine as the only execution path (updates to `docs/architecture/data_telemetry_flow.md`, Stage A Adam tooling, TOOLING-VIS-001 drivers, Testing Guide/Test Suite Index).
+- [x] D2: Retire stale `use_engine_delegation` references in Stage A tooling/docs so probes and selectors clearly describe RefinementEngine as the only execution path (updates to `docs/architecture/data_telemetry_flow.md`, Stage A Adam tooling, TOOLING-VIS-001 drivers, Testing Guide/Test Suite Index).
 - [x] D3: Refresh `docs/architecture/module_map.md` with entries for `refinement/context.py`, `JobContext`, and `dbex/io/writer.py`, marking `dbex/nanobrag_refinement.py` as a legacy shim and `refinement/engine.py` as the active path.
 - [x] D4: Create/update IDL files under `docs/architecture/dbex/...` mirroring the implementation tree (e.g., `docs/architecture/dbex/refinement/context.idl.md`, `docs/architecture/dbex/io/writer.idl.md`), covering signature/dependencies/behavior and cross-referencing them from implementation docstrings.
 - [ ] D5: Capture the documentation diffs in `plans/active/ARCH-REFINE-001/reports/<timestamp>/architecture_doc_update.md` and link the report from `docs/fix_plan.md`.

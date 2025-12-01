@@ -623,8 +623,14 @@ def _build_stage_c_lbfgs_closure(
                     best_params_snapshot_c = {
                         'distance_offset_raw': distance_offset_raw.detach().cpu().tolist()
                     }
+                    # REFINE-013: Persist best tuples to telemetry_state so _run_stage_c_lbfgs can see them
+                    telemetry_state['chi_squared_best_c'] = chi_squared_best_c
+                    telemetry_state['best_loss_full_c'] = best_loss_full_c
+                    telemetry_state['best_params_snapshot_c'] = best_params_snapshot_c
                 if full_mse_c.item() < masked_mse_best_c[0]:
                     masked_mse_best_c = (float(full_mse_c.item()), iteration_count_c[0])
+                    # REFINE-013: Persist masked_mse_best_c to telemetry_state
+                    telemetry_state['masked_mse_best_c'] = masked_mse_best_c
 
         iteration_count_c[0] += 1
         return chi_squared_loss
@@ -754,16 +760,29 @@ def _run_stage_c_lbfgs(
         best_params_snapshot_c = {
             'distance_offset_raw': distance_offset_raw.detach().cpu().tolist()
         }
+        # REFINE-013: Persist best tuples to telemetry_state so final telemetry reflects best snapshot
+        telemetry_state['chi_squared_best_c'] = chi_squared_best_c
+        telemetry_state['best_loss_full_c'] = best_loss_full_c
+        telemetry_state['best_params_snapshot_c'] = best_params_snapshot_c
     if candidate_mse_value_c < masked_mse_best_c[0]:
         masked_mse_best_c = (candidate_mse_value_c, final_step_c)
-    if best_params_snapshot_c is not None:
+        # REFINE-013: Persist masked_mse_best_c to telemetry_state
+        telemetry_state['masked_mse_best_c'] = masked_mse_best_c
+
+    # REFINE-013: Use best chi-squared from periodic validations for final telemetry
+    # The best snapshot was already validated during LBFGS, so use stored values directly
+    final_loss_value_c = chi_squared_best_c[0] if chi_squared_best_c[0] < float('inf') else candidate_loss_value_c
+    final_mse_value_c = masked_mse_best_c[0] if masked_mse_best_c[0] < float('inf') else candidate_mse_value_c
+
+    # REFINE-013: Reload best parameters before final trace entry
+    # This ensures final Bragg regeneration uses optimal parameters, not last iterate
+    if best_params_snapshot_c is not None and chi_squared_best_c[0] < float('inf'):
         distance_offset_raw.data = torch.tensor(
             best_params_snapshot_c['distance_offset_raw'],
             device=device,
             dtype=dtype,
         )
-    final_loss_value_c = chi_squared_best_c[0] if chi_squared_best_c[0] < float('inf') else candidate_loss_value_c
-    final_mse_value_c = masked_mse_best_c[0] if masked_mse_best_c[0] < float('inf') else candidate_mse_value_c
+
     loss_trace_full_c.append((final_step_c, final_loss_value_c))
     chi_squared_trace_full_c.append((final_step_c, final_loss_value_c))
     masked_mse_trace_full_c.append((final_step_c, final_mse_value_c))

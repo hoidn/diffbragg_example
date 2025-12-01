@@ -187,3 +187,31 @@ Capture the `--collect-only` output for the same selector before running the tes
 - Regenerate the `sp.proc/refGeom_small` assets (per `docs/data_dependency_manifest.md` and `plans/active/PERF-SMOKE-DETSIZE/bin/crop_refgeom_to_small.py`) so the small-detector smoke fixture has real data again.
 - Once the assets exist, rerun `capture_stage_c_stage_a_probe.py` to capture Stage A/Stage C telemetry before handing Ralph a Stage A fix Do Now.
 - After telemetry is available, resume the Stage A improvement investigation and rerun the Stage B/C smokes with `DBEX_SMOKE_DETECTOR_SIZE=small` capturing logs under `plans/active/ARCH-REFINE-001/reports/<next-timestamp>/`.
+
+### 2025-12-01T105500Z - ARCH-REFINE-001 Evidence Collection: refGeom_small Regeneration + Stage A/C Telemetry Probe (EVIDENCE CAPTURED)
+**Action**: Evidence-only loop to regenerate the small-detector dataset and capture Stage A/C telemetry showing the zero-improvement blocker before touching Stage A source code. Per input.md, this loop executed three steps: (1) reran crop script to regenerate refGeom_small assets with canonical window (fast 751, slow 719, 1024×1024) and captured provenance report; (2) ran telemetry probe (`capture_stage_c_stage_a_probe.py`) with `--detector-size small --sigma-source cli_override` to dump Stage A/C traces outside pytest; (3) validated with Stage B/C smoke tests using the regenerated assets.
+
+**Findings**:
+- **refGeom_small assets regenerated successfully**: Crop script kept 29/92 ROIs (31.5%), produced 1024×1024 detector, wrote provenance report to `plans/active/ARCH-REFINE-001/reports/2025-12-01T105500Z/refGeom_small_crop_report.json`.
+- **Telemetry probe captured Stage A zero-improvement evidence**: Stage A LBFGS runs only 3 iterations (iters 0, 0, 5) with identical loss (initial=final=374297856.0, improvement=0.0%). All refined parameters remain frozen except a microscopic log_scale delta (3.3e-07). Stage C starts 3.2% higher (386148736 vs 374297856) and shows -3.11% improvement (early_stop), correcting the injected 0.25mm detector offset to ~0.
+- **Stage B smoke PASSED**: `test_stage_b_shell_modifiers` runs clean with Stage A→B engine delegation under small detector + cli_override sigma.
+- **Stage C smoke BLOCKED**: `test_stage_c_detector_microslip` fails at line 1146 with `AssertionError: Stage A regressed: 0.00% < 0.1% threshold (initial=3.31e+08, final=3.31e+08)`. The failure confirms the blocker is Stage A producing zero improvement on small detector, not a telemetry plumbing issue.
+
+**Metrics**:
+- Crop: 29 ROIs kept, 1024×1024 detector, window=[fast:751-1775, slow:719-1743], background pad=3px
+- Telemetry probe: Stage A 0.0% improvement, 3 LBFGS iters, Stage C -3.11% (early_stop), detector offset corrected 0.25mm→1.5e-08mm
+- Pytest: 1 passed (Stage B), 1 failed (Stage C due to Stage A), runtime 15.3s
+
+**Artifacts**: `plans/active/ARCH-REFINE-001/reports/2025-12-01T105500Z/` (refGeom_small_crop_report.json, stage_c_stage_a_probe_cli.{json,log}, pytest_stage_bc_small.log, telemetry_stage_bc_small.json)
+
+**First Divergence**: Stage A LBFGS early termination on small detector with zero parameter updates (except trivial log_scale noise). Hypothesis: convergence criteria or gradient computation may be failing with small detector + cli_override sigma (uniform 3.0), or ROI sampling (4/29 ROIs, 15% fraction) may lack sufficient signal for LBFGS to find a descent direction.
+
+**Next Actions**:
+- **PRIORITY BLOCKER**: Investigate Stage A zero-improvement root cause on small detector. Hypotheses to test:
+  1. LBFGS convergence criteria too strict for small detector (check `min_loss_improvement=0.0` with 4 sampled ROIs)
+  2. Gradient computation issue with cli_override sigma (uniform 3.0 may suppress variance-weighted signal)
+  3. ROI sampling starvation (4/29 ROIs may have insufficient coverage or all fall in low-signal regions)
+  4. Parameter initialization issue (perturbed geometry may already be near-optimal for small subset)
+- Run diagnostic: repeat probe with `--sigma-source metadata` (if `idx-0000_sigma_metadata_small.sigma_tiles.pkl` exists) to isolate uniform-sigma hypothesis.
+- Run diagnostic: increase `roi_sample_fraction` (0.15→0.5 or 1.0) to test ROI coverage hypothesis.
+- Once root cause identified, fix Stage A implementation (dbex/refinement/stage_a_impl.py::_run_stage_a_lbfgs), then re-run Stage C smoke to validate full Stage A→C flow.

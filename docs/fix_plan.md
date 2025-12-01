@@ -610,3 +610,33 @@ pytest -vv tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck \
 - Docs updates: 3 architecture files refreshed (live_backend.md, data_telemetry_flow.md, module_map.md)
 **Artifacts**: plans/active/ARCH-REFINE-001/reports/2025-12-01T140725Z/ (collect_cli_writer.log, pytest_cli_writer.log, docs_diff.md)
 **Next Actions**: Phase C.4 complete. All Phase C milestones (writer extraction C.2, physics helpers C.3, docs/test sync C.4) are now done. Ready to advance to Phase D doc sync (architecture IDLs) or pivot to remaining Stage A/B/C refinements as prioritized by supervisor.
+
+### 2025-12-01T142116Z - ARCH-REFINE-001 Phase D.1: Telemetry IDL sync (READY FOR IMPLEMENTATION)
+- **Gap:** Phase C migrated the diagnostics stack into `dbex/io/writer.py` + `dbex/physics/{forward,loss}.py`, but only `docs/architecture/dbex/refinement/context.idl.md` exists. Without IDLs for the new modules, docstrings/tests still reference stale sections and downstream teams have no normative contract for `/torch_diagnostics` inputs, DIAGNOSTICS-001, or PHYSICS-LOSS-001.
+- **Plan:**
+  1. Create `docs/architecture/dbex/io/writer.idl.md` that documents `write_torch_outputs(...)` (signature, inputs/outputs, telemetry/HDF5 schema, dependencies, change log). Cite `docs/spec-db-workflow.md` §§70-75, `docs/spec-db-core.md` §§57-68, DIAGNOSTICS-001, and PHYSICS-LOSS-001.
+  2. Create `docs/architecture/dbex/physics/forward.idl.md` and `docs/architecture/dbex/physics/loss.idl.md`, each covering its single public helper (`simulate_forward_torch`, `compute_masked_mse_loss`), device/dtype guardrails, ROI batching, variance math, and DB-AT-010 gradcheck usage. Reference `docs/data_dependency_manifest.md` (Sigma/Calibration Sources) so tests know which assets to load.
+  3. Update module/function docstrings in `dbex/io/writer.py::write_torch_outputs`, `dbex/physics/forward.py::simulate_forward_torch`, and `dbex/physics/loss.py::compute_masked_mse_loss` to reference the new IDLs (e.g., “See docs/architecture/dbex/io/writer.idl.md §API”) so code editors can trace the normative spec.
+  4. Refresh `docs/architecture/module_map.md` telemetry + physics rows to link to the new IDLs and annotate that ARCH-REFINE-001 Phase D.1 completed the writer/physics documentation hand-off.
+- **Validation:** Rerun the telemetry + gradcheck nuclei to prove the docstring-only edits leave runtime behavior untouched:
+```
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+pytest --collect-only tests/dbex/test_refine_one_cli.py -k torch_diagnostics_metadata \
+  > plans/active/ARCH-REFINE-001/reports/2025-12-01T142116Z/collect_cli_torch_diag.log
+
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+pytest -vv tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata \
+  | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T142116Z/pytest_cli_torch_diag.log
+
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
+pytest --collect-only tests/dbex/test_gradients.py -k DB_AT_010 \
+  > plans/active/ARCH-REFINE-001/reports/2025-12-01T142116Z/collect_db_at_010.log
+
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
+DBAT010_ARTIFACT_DIR=plans/active/ARCH-REFINE-001/reports/2025-12-01T142116Z/db_at_010 \
+pytest -vv tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck \
+  | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T142116Z/pytest_db_at_010.log
+```
+- Capture doc diffs + IDL files under the same report path; once this lands we can move to the remaining Phase D doc-sync checklist.

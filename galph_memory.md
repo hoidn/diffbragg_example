@@ -77,3 +77,7 @@ Action State: ready_for_implementation
 - Logged the C.4 scope in docs/fix_plan.md (alias removal, CLI test guard, architecture/docs refresh) and marked the implementation plan’s C2 checkbox complete so the ledger matches reality.
 - Rewrote input.md with the writer/doc sync Do Now, mapped env commands, pitfalls, and explicit collect-only/full pytest selectors plus instructions to capture docs_diff.md for architecture edits.
 Action State: ready_for_implementation
+2025-12-01T142116Z focus=ARCH-REFINE-001 state=ready_for_implementation dwell=0 action=planning artifacts=plans/active/ARCH-REFINE-001/reports/2025-12-01T142116Z/ next_action=Ship writer/physics IDLs then rerun CLI telemetry + DB-AT-010
+- Logged Phase D.1 in docs/fix_plan.md: new IDL files for dbex/io/writer.py and dbex/physics/{forward,loss}.py, docstring cross-references, module_map links, and the telemetry/gradcheck validation plan with explicit commands/env vars.
+- Rewrote input.md to hand Ralph a docs-mode Do Now covering the new IDLs, docstring updates, module_map edits, and the CLI telemetry + DB-AT-010 selectors with artifact capture instructions.
+Action State: ready_for_implementation

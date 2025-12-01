@@ -1,40 +1,45 @@
-Summary: Retire the `_write_torch_outputs` alias, refresh the CLI telemetry test, and align the architecture docs so everyone points at `dbex/io/writer.py` + `dbex/physics` as the canonical owners.
-Mode: none
+Summary: Publish IDL contracts for the torch writer + physics helpers and update their docstrings/tests so telemetry specs cite the right locations.
+Mode: Docs
 Focus: ARCH-REFINE-001 — Refinement Engine Modularization & Torch IO
 Branch: integration
-Mapped tests: pytest --collect-only tests/dbex/test_refine_one_cli.py -k torch_diagnostics_metadata; pytest -vv tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata
-Artifacts: plans/active/ARCH-REFINE-001/reports/2025-12-01T140725Z/
+Mapped tests: pytest --collect-only tests/dbex/test_refine_one_cli.py -k torch_diagnostics_metadata; pytest --collect-only tests/dbex/test_gradients.py -k DB_AT_010; pytest -vv tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata; pytest -vv tests/dbex/test_gradients.py::TestDB_AT_010_Gradcheck
+Artifacts: plans/active/ARCH-REFINE-001/reports/2025-12-01T142116Z/
 Do Now:
-- Implement: dbex/refine_one.py::_write_torch_outputs — remove the legacy alias so only `dbex.io.writer.write_torch_outputs` is exported, update the module docstring/comments, and ensure `run_nanobrag_backend` imports the shared writer directly (DIAGNOSTICS-001, PHYSICS-LOSS-001).
-- Implement: tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata — assert `hasattr(dbex.refine_one, "_write_torch_outputs") is False`, keep the HDF5 assertions intact, and verify HKL + sigma provenance still flow through the shared writer path once the alias is gone.
-- Document: Refresh docs/architecture/live_backend.md, docs/architecture/data_telemetry_flow.md, and docs/architecture/module_map.md so the Outputs/Telemetry sections cite `dbex/io/writer.py` and `dbex/physics/{forward,loss}.py` (reference DIAGNOSTICS-001, PHYSICS-LOSS-001, REFINE-010) and note Phase C completion.
-- Validate: `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest --collect-only tests/dbex/test_refine_one_cli.py -k torch_diagnostics_metadata > plans/active/ARCH-REFINE-001/reports/2025-12-01T140725Z/collect_cli_writer.log` and `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest -vv tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T140725Z/pytest_cli_writer.log`.
+- Implement: dbex/io/writer.py::write_torch_outputs — refresh the module/function docstrings so they cite docs/architecture/dbex/io/writer.idl.md (new) and restate DIAGNOSTICS-001/PHYSICS-LOSS-001 telemetry responsibilities without touching runtime logic.
+- Implement: dbex/physics/forward.py::simulate_forward_torch and dbex/physics/loss.py::compute_masked_mse_loss — mirror the writer update by pointing the docstrings to their respective IDLs, noting DB-AT-010 usage, and keeping the helpers explicitly TEST-ONLY.
+- Document: docs/architecture/dbex/io/writer.idl.md; docs/architecture/dbex/physics/forward.idl.md; docs/architecture/dbex/physics/loss.idl.md — add IDL files covering signature, inputs/outputs, dependencies, normative spec citations, and change logs for each helper.
+- Document: docs/architecture/module_map.md — add links to the new IDLs in the Telemetry + Physics rows and mark Phase D.1 completion so future readers know these modules are the canonical owners.
+- Validate: capture the telemetry + gradcheck selectors (`AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md` for all commands, plus `KMP_DUPLICATE_LIB_OK=TRUE`, `NANOBRAGG_DISABLE_COMPILE=1`, and `DBAT010_ARTIFACT_DIR=plans/active/ARCH-REFINE-001/reports/2025-12-01T142116Z/db_at_010` for DB-AT-010) by running the four mapped pytest commands and teeing logs into the report directory listed above.
 How-To Map:
-1. `export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md` and `mkdir -p plans/active/ARCH-REFINE-001/reports/2025-12-01T140725Z/` before editing; keep `DBEX_SMOKE_*` unset so the CLI test stays on its mock fixtures.
-2. In `dbex/refine_one.py`, delete `_write_torch_outputs = write_torch_outputs`, update any inline comments/docstrings referencing the old helper, and lint the file (no functional changes beyond the alias removal + doc updates).
-3. Extend `tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata` to import `dbex.refine_one` and assert the alias is absent before calling `dbex.io.writer.write_torch_outputs`; keep the existing telemetry/HDF5 checks unchanged otherwise.
-4. Update `docs/architecture/live_backend.md`, `docs/architecture/data_telemetry_flow.md`, and `docs/architecture/module_map.md` so the writer + physics sections mention the new module paths and Phase C completion; capture `git diff -- docs/architecture/live_backend.md docs/architecture/data_telemetry_flow.md docs/architecture/module_map.md > plans/active/ARCH-REFINE-001/reports/2025-12-01T140725Z/docs_diff.md` once edits are staged.
-5. Run the mapped pytest collect-only and full selector commands above, storing logs under the report directory; failures should be copied to the same folder with context if triage is needed before retrying.
+1. `export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md` and `mkdir -p plans/active/ARCH-REFINE-001/reports/2025-12-01T142116Z/ db_at_010` to stage artifacts.
+2. Update `dbex/io/writer.py`, `dbex/physics/forward.py`, and `dbex/physics/loss.py` docstrings so each references its new IDL path (e.g., “See docs/architecture/dbex/io/writer.idl.md §API & Contracts”) and reiterates the applicable findings (DIAGNOSTICS-001, PHYSICS-LOSS-001, REFINE-010) without changing logic.
+3. Author the three IDL files under `docs/architecture/dbex/{io,physics}/` with headers (module, status, normative refs), API tables (inputs, outputs, telemetry), dependency notes, and change logs; mirror the structure used in `docs/architecture/dbex/refinement/context.idl.md`.
+4. Extend `docs/architecture/module_map.md` so the Telemetry section links to `docs/architecture/dbex/io/writer.idl.md` and the Physics section links to the two new files; note that ARCH-REFINE-001 Phase D.1 completed the writer/physics documentation migration.
+5. Capture doc diffs with `git diff docs/architecture > plans/active/ARCH-REFINE-001/reports/2025-12-01T142116Z/docs_diff.md` once edits are staged.
+6. Run the mapped selectors (collect-only first, then full runs) with the env vars listed above, saving each log (`collect_cli_torch_diag.log`, `pytest_cli_torch_diag.log`, `collect_db_at_010.log`, `pytest_db_at_010.log`) plus gradcheck outputs under the artifact directory.
 Pitfalls To Avoid:
-- Do not reintroduce `_write_torch_outputs` imports anywhere; everything should reference `dbex.io.writer` directly.
-- Keep `/torch_diagnostics` schema identical (no new attrs/datasets) so DIAGNOSTICS-001 consumers stay stable.
-- Tests rely on in-memory mocks—avoid touching real `sp.proc` assets or changing detector-size env vars.
-- Maintain the Stage A ROI auto-panel finding (REFINE-010); no changes to ROI behavior should slip into this doc/test loop.
-- Environment freeze (POLICY-001) applies—no pip installs or package upgrades.
-- Preserve the float64 guardrails in gradcheck helpers; nothing in `dbex/physics` should gain side effects from doc edits.
+- Do not change the runtime behavior or signature of write_torch_outputs / simulate_forward_torch / compute_masked_mse_loss; this loop is docs-only.
+- Keep `/torch_diagnostics` schema untouched (DIAGNOSTICS-001) and avoid new datasets/attributes.
+- Maintain the TEST-ONLY warning on the physics helpers; no production callers should start importing them.
+- Follow the IDL template from docs/architecture/dbex/refinement/context.idl.md (Status/Normative refs/API tables/change log) for consistency.
+- Preserve Environment Freeze (POLICY-001): no dependency installs or nanobrag upgrades.
+- When running DB-AT-010, ensure required assets (`refGeom.expt`, `refGeom.refl`, `scaled.mtz`, `747_mask.pkl`, sigma metadata) exist; missing assets must be logged as blockers instead of re-generated.
+- Capture collect-only logs before running each pytest selector to prove selectors still register tests.
+- Ensure docstrings reference the new IDLs by relative path so IDEs surface the link; avoid absolute filesystem paths.
+- Do not delete the existing context IDL or reword its change log—only add the new files.
 If Blocked:
-- If the CLI test fails or collect-only can’t find fixtures, save the log under the report directory, add a brief blocker note to docs/fix_plan.md Attempts History, and pause until Galph triages the regression.
+- If DB-AT-010 cannot find required assets, stop, copy the pytest log to the artifacts directory, add the failure signature to docs/fix_plan.md Attempts History + galph_memory.md, and wait for supervisor guidance.
+- If the CLI telemetry test fails after docstring edits, preserve the failing log, revert only the offending change, and record the issue as a new finding or blocker before retrying.
 Findings Applied (Mandatory):
-- DIAGNOSTICS-001 — ensure `/torch_diagnostics` metadata remains unchanged while moving writer ownership.
-- PHYSICS-LOSS-001 — shared loss/telemetry contracts stay centralised in `dbex/physics` + writer.
-- REFINE-010 — ROI auto-panel fallback remains documented and untouched during doc updates.
-- POLICY-001 — environment freeze forbids installing dependencies; stick to repo-local edits.
+- DIAGNOSTICS-001 — `/torch_diagnostics` schema and telemetry provenance must stay byte-for-byte compatible while adding documentation references.
+- PHYSICS-LOSS-001 — variance-weighted chi-squared + sigma provenance remain normative; IDLs/docstrings must cite these rules.
+- REFINE-010 — Stage A ROI auto-panel telemetry guardrails stay in force; documentation must mention the finding where relevant.
+- POLICY-001 — Environment Freeze forbids pip/conda installs; only repo-local files may change.
 Pointers:
-- docs/fix_plan.md:542-580 — Phase C.3 summary + new C.4 scope.
-- docs/architecture/live_backend.md §§“Outputs” & “Telemetry” — update narrative to mention `dbex/io/writer.py` + `dbex/physics`.
-- docs/architecture/data_telemetry_flow.md §§3-5 — pipeline diagrams referencing `_write_torch_outputs` need refresh.
-- docs/architecture/module_map.md — add module responsibilities for `dbex/io/writer` and `dbex/physics`.
-- docs/TESTING_GUIDE.md §2 — CLI selector expectations/env vars for `test_torch_diagnostics_metadata`.
-Next Up (optional): Begin Phase D doc sync (live_backend/data_telemetry_flow/module map IDLs) once the writer/docs update lands.
-Doc Sync Plan (Conditional): none — no new selectors are added; existing CLI selector already documented.
-Mapped Tests Guardrail: Ensure `pytest --collect-only tests/dbex/test_refine_one_cli.py -k torch_diagnostics_metadata` reports the single test before running the full selector; capture the collect log even if failures occur.
+- docs/architecture/dbex/refinement/context.idl.md:1 — reference structure for new IDL files (Status/Normative refs/API tables/change log).
+- docs/spec-db-workflow.md:70 — canonical telemetry + staging clauses to cite inside writer.idl.md.
+- docs/spec-db-core.md:57 — variance/loss equations that the physics IDLs must reference.
+- docs/data_dependency_manifest.md:1 — reminder of DB-AT-010 data assets required for the gradcheck selector.
+- docs/TESTING_GUIDE.md:120 — selector definitions and env vars for the CLI telemetry + DB-AT-010 tests.
+Next Up (optional): Create docs/architecture/dbex/refinement/engine.idl.md + JobContext-to-writer call diagrams once the IDLs in this loop land.
+Mapped Tests Guardrail: Confirm both selectors collect (>0 tests) before full runs; keep the collect-only logs under the artifact path even if failures occur.

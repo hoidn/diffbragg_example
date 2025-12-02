@@ -72,7 +72,7 @@
 - [x] **B1:** Implement ROI scoring helper (`dbex/io/roi_scoring.py` or similar) that ingests ROI crops + variance info, runs Nelder–Mead once per ROI, and emits typed payloads plus JSON/log artifacts. *(Complete — 2025-12-02T223500Z artifacts)*
 - [x] **B2:** Update CLI (`dbex/refine_one.py`) and RefinementEngine call sites to invoke the helper (guarded by flag) before calling `write_torch_outputs`, passing the typed payload instead of raw arrays. *(Complete — 2025-12-02T233500Z artifacts)*
 - [x] **B3:** Remove optimization loop from `write_torch_outputs`, require non-None `roi_payloads`, populate ROI datasets from payload triptychs/model/variance, and refresh CLI tests so their mocks provide real `DetectorConfig` mask/distance fields before re-running `tests/dbex/test_refine_one_cli.py::{test_nanobrag_backend_runs_simulator,test_nanobrag_backend_applies_calibration,test_torch_diagnostics_metadata}` with passing logs and manifest updates. *(Complete — 2025-12-03T003500Z writer patch + 2025-12-02T091255Z CLI fixture repair artifacts)*
-- [ ] **B4:** Capture `pytest --collect-only` + execution logs for affected selectors under `reports/<timestamp>/pytest_writer_cleanup.log` and sync docs/TESTING_GUIDE.md + docs/development/TEST_SUITE_INDEX.md if selectors change.
+- [x] **B4:** Capture `pytest --collect-only` + execution logs for affected selectors under `reports/<timestamp>/pytest_writer_cleanup.log` and sync docs/TESTING_GUIDE.md + docs/development/TEST_SUITE_INDEX.md if selectors change. *(Complete — 2025-12-03T051500Z docs refresh + ROI helper test logs)*
 
 ### Notes & Risks
 - Keep writer backward-compatible (accept `None` or legacy data until all call sites migrate); document removal timeline in fix plan.
@@ -92,6 +92,17 @@
 - Decomposition must not introduce new import chains that break Stage warm-cache contexts (monitor `dbex/refinement/stage_*` for path updates).
 - Need to maintain GEOMETRY-00x guards (square pixels, rotation matrix validation) inside the new factories with unit tests.
 
+## Phase D — Initiative Closure & Type-Hint Cleanup
+### Checklist
+- [ ] **D1:** Update `dbex/refinement/context.py` so `RefinementContext` and `RefinementSharedContext` import `RefinementInputs` from `dbex.refinement.inputs` (replacing the lingering `Any` placeholders referencing `dbex.nanobrag_bridge`) and refresh the associated docstrings/comments.
+- [ ] **D2:** Run `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE pytest -vv tests/dbex/test_refinement_context.py` (plus `--collect-only` log) capturing output under the new report directory to prove the stricter typing does not break the builder helpers.
+- [ ] **D3:** Once D1/D2 land, update `docs/fix_plan.md` (status → done) and mark the `problems.md` “Writer / bridge responsibility split” entry as resolved with a pointer to the final artifacts.
+
+### Notes & Risks
+- Context clean-up keeps ARCH-STAGE-CTX-001/002 enforceable; ensure no circular import is introduced when importing `RefinementInputs`.
+- Final documentation edits must cite DIAGNOSTICS-001 + PHYSICS-LOSS-001/002/003 and keep ledger + fix plan synchronized; failing to update those ledgers will retrigger the backlog guard.
+
 ## Artifacts Index
 - Reports root: `plans/active/ARCH-BRIDGE-RESP-001/reports/`
-- Latest run: `2025-12-03T041200Z/`
+- Latest run: `2025-12-03T051500Z/`
+- Next planned run: `2025-12-03T093500Z/` (Phase D closure tasks)

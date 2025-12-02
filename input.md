@@ -1,60 +1,53 @@
 Summary:
-- Wire Stage B and Stage C through the new telemetry observer path so LBFGS closures and validation hooks emit metrics via `StageBTelemetryCollector`/`StageCTelemetryCollector` without mutating telemetry dicts.
+- Tighten RefinementContext/RefinementSharedContext so they import `RefinementInputs` from `dbex.refinement.inputs`, then rerun the context unit tests to prove typed plumbing still works before we close the writer/bridge initiative.
 
-Mode: Parity
+Mode: none
 
 InitiativeType: architecture
 
-Focus: ARCH-TELEMETRY-001 — Telemetry Observer Refactor
+Focus: ARCH-BRIDGE-RESP-001 — Writer / bridge responsibility split
 
 Branch: integration
 
 Mapped tests:
-- AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small
-- AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small
-- AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE pytest -vv tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload
+- AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE pytest -vv tests/dbex/test_refinement_context.py
 
-Artifacts: plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T070500Z/
+Artifacts: plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-03T093500Z/
 
 Do Now:
-- Implement: `dbex/refinement/stage_b.py::{_build_lbfgs_closure,run}`, `dbex/refinement/stage_b_impl.py::_run_stage_b_lbfgs`, `dbex/refinement/stage_c.py::{_build_lbfgs_closure,run}`, `dbex/refinement/stage_c_impl.py::_run_stage_c_lbfgs`, and `dbex/refinement/telemetry_collectors.py::{StageBTelemetryCollector,StageCTelemetryCollector}` so Stage B/C LBFGS closures and baseline/final validation hooks accept collector instances, call `collector.on_step` / `collector.on_validation`, and stop mutating telemetry dataclass lists directly while preserving the existing StageBArtifacts/StageCArtifacts and telemetry outputs (variance-floor counters, panel diagnostics, baseline parity metrics).
-- Validate: `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small | tee plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T070500Z/pytest_stage_b_shell_small.log`
-- Validate: `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small | tee plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T070500Z/pytest_stage_c_small.log`
-- Validate: `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE pytest -vv tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload | tee plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T070500Z/pytest_stage_b_guard.log`
+- Implement: `dbex/refinement/context.py::{RefinementContext,RefinementSharedContext,build_refinement_context}` so the dataclasses and builder import the real `RefinementInputs` type from `dbex.refinement.inputs`, drop the stale `Any` placeholders that still cite `dbex.nanobrag_bridge`, and refresh the surrounding docstrings/comments to match the new module boundaries.
+- Validate: Run `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE pytest -vv tests/dbex/test_refinement_context.py | tee plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-03T093500Z/pytest_refinement_context.log` to confirm the type-hint tightening leaves the builders working as expected.
 
 How-To Map:
-1. `mkdir -p plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T070500Z`
-2. Update `dbex/refinement/stage_b.py:83` so `_build_lbfgs_closure` takes an optional `StageBTelemetryCollector`, swaps the manual `loss_trace_sample_b` / variance-floor / perf counter mutations for `collector.on_step(...)`, and records periodic validations via `collector.on_validation(...)` with the best snapshot payload. Thread the collector through `StageB.run` and `_run_stage_b_lbfgs` so baseline/final/default validations also use the observer path (fall back to the current list mutation only if no collector is provided for backward compatibility).
-3. Apply the same observer plumbing to Stage C: update `dbex/refinement/stage_c.py:87` and `dbex/refinement/stage_c_impl.py:477` so detector-offset closures call `StageCTelemetryCollector` for every iteration and for baseline/final validations, keeping panel diagnostics (`panel_loss_diag`) and warm-cache counters unchanged.
-4. Extend `dbex/refinement/telemetry_collectors.py:356` and `:423` as needed so the Stage B/C collectors expose the same convenience helpers as Stage A (accepting forward-time + variance-floor deltas in metrics) and continue to return StageResult objects that carry `stage_b_baseline_*` / panel diagnostic fields for writer consumers.
-5. Re-read Stage B baseline guard helper (`dbex/refinement/stage_b_impl.py:55-210`) after the refactor to ensure it still populates `StageBTelemetryState.stage_b_baseline_rel_diff` etc. without relying on dict subscripts.
-6. Run the staged pytest selectors above with `DBEX_SMOKE_TELEMETRY_PATH` pointed at the artifacts directory when you need telemetry JSON (`export DBEX_SMOKE_TELEMETRY_PATH=plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T070500Z/telemetry_stage_bc_small.json` before the smoke bundle) so we capture before/after chi² traces.
-7. Inspect the resulting `/torch_diagnostics` payloads (Stage B/C telemetry JSON and StageBArtifacts) to confirm that `stage_b_baseline_rel_diff`, variance-floor stats, warm-cache counters, and panel diagnostics are unchanged; drop a short note in `plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T070500Z/summary.md` summarizing parity evidence.
+1. `mkdir -p plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-03T093500Z`
+2. In `dbex/refinement/context.py`, import `RefinementInputs` from `dbex.refinement.inputs` (module load is safe because inputs.py has no context dependency), update the `refinement_inputs` and `inputs` annotations on both dataclasses, and set the `build_refinement_context` parameter annotation accordingly; keep other fields typed as today to avoid scope creep.
+3. Replace the inline comments that say "RefinementInputs from dbex.nanobrag_bridge" with "from dbex.refinement.inputs" so the docs and code agree, and double-check no new circular imports creep in (run `python -m compileall dbex/refinement/context.py` if unsure).
+4. Run `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE pytest -vv tests/dbex/test_refinement_context.py | tee plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-03T093500Z/pytest_refinement_context.log` to exercise the builder helpers; stash the log in the artifacts directory.
+5. After tests pass, copy the plan/fix-plan/problem updates queued in Phase D (mark the fix-plan row done and note the resolved problems.md entry) in a follow-up PR if time permits; leave breadcrumbs in the artifacts directory if you defer this to the next loop.
 
 Pitfalls To Avoid:
-- Do not regress the REFINE-FLOW-001 parity guard: keep `stage_b_baseline_rel_diff`, `stage_b_baseline_abs_diff`, and `stage_b_baseline_diff_path` populated and ensure the RuntimeError path still raises with the same message/signature.
-- Preserve variance-floor accounting by feeding per-step clamp/masked-pixel deltas to the collector; skipping those metrics will break PHYSICS-LOSS telemetry downstream.
-- Keep StageC panel diagnostics optional and gated by `DBEX_STAGE_C_PANEL_DIAG_DIR`; the collector needs to append to `panel_loss_diag` only when the shim requests it.
-- Avoid touching StageArtifacts serialization or writer plumbing in this loop—the observer wiring must be transparent to `RefinementEngine` consumers.
-- Maintain `torch.no_grad()` boundaries around validation calls; introducing graph-tracked tensors into collector payloads will break LBFGS backward passes.
+- Do not reintroduce TYPE_CHECKING-only imports—the contexts need concrete types so mypy and downstream editors see the right hints.
+- Avoid importing `RefinementInputs` inside functions; keep it at module scope to match the rest of the context module and to prevent repeated import cost.
+- Leave other `Any` annotations alone for now; this loop only targets the lingering bridge references so scope stays tight.
+- Keep Environment Freeze in mind—no new dependencies or tooling changes are allowed.
+- Ensure the pytest command runs under `KMP_DUPLICATE_LIB_OK=TRUE`; missing the env var often causes MKL duplicate errors.
+- Do not rename dataclass fields; that would ripple through the stages and require a much broader validation pass.
+- Capture logs under the requested artifact directory so the ledger audit trail stays intact.
+- If you tweak docstrings, keep the normative spec citations intact (spec-db-workflow §7, context IDL, etc.).
 
 If Blocked:
-- If LBFGS closures start throwing due to missing metrics (e.g., collector state is None), capture the stack trace in `plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T070500Z/blocker.log`, revert the minimal hunks necessary to restore Stage B/C execution, and note the failing hook in docs/fix_plan.md so we can revisit the collector injection.
-- If smoketests fail with the known Stage B per-reflection gradient-flow issue, confirm the failure signature matches the existing TORCH-REFINE-004 finding, attach the pytest log under this loop’s artifacts, and pause until we open the dedicated initiative; do not loosen the smoketest gates.
-- Should the baseline guard unit test start failing because telemetry fields are missing, record the new telemetry dict in the artifact directory and fall back to the previous dict-based mutation so we have a working state before retrying the observer path.
+- If importing `RefinementInputs` triggers a circular import, wrap the import in a `typing.TYPE_CHECKING` block plus a runtime import inside `if TYPE_CHECKING` and leave a note in `plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-03T093500Z/blocker.md`; do not hack around it by reintroducing `Any`.
+- If the context tests fail because mocks need updating, patch the local mock class inside the test (e.g., add missing fields) and capture the failing log in the artifacts directory before pausing for guidance.
 
 Findings Applied (Mandatory):
-- ARCH-STAGE-CTX-001 — Stage helpers must rely on typed contexts/telemetry objects; observer wiring enforces it.
-- ARCH-STAGE-CTX-002 — Stage B baseline parity guard must work with dataclasses (no dict mutation).
-- PHYSICS-LOSS-001/003 — Maintain variance-weighted chi² / masked-MSE telemetry per spec-db-core.md.
-- REFINE-007 / REFINE-012 — Stage C validations must keep the canonical panel-mode chi² and offset gates intact.
+- DIAGNOSTICS-001 — Writer/telemetry schema remains aligned after bridge split.
+- PHYSICS-LOSS-001/002/003 — Sigma provenance and variance-weighted loss data must keep flowing through contexts.
+- ARCH-STAGE-CTX-001/002 — Stage helpers must rely on typed contexts and the Stage B baseline guard dataclasses.
 
 Pointers:
-- dbex/refinement/stage_b.py:83 — Stage B closure builder (per-iteration telemetry hooks live here).
-- dbex/refinement/stage_b_impl.py:839 — `_run_stage_b_lbfgs` baseline/final validation logic that must call the collector.
-- dbex/refinement/stage_c.py:87 and dbex/refinement/stage_c_impl.py:477 — Stage C closure + LBFGS runner where observer plumbing needs to be added.
-- dbex/refinement/telemetry_collectors.py:356 & 423 — Stage B/C collectors (extend callbacks/helpers so they match Stage A parity).
-- docs/TESTING_GUIDE.md:162 — Reference for the Stage A/B/C smoketest commands/env flags you must reuse when running the mapped selectors.
+- dbex/refinement/context.py:72 — `RefinementContext` dataclass.
+- dbex/refinement/context.py:420 — `RefinementSharedContext` definitions.
+- docs/architecture/dbex/refinement/context.idl.md — authoritative contract for context fields.
 
 Next Up (optional):
-- If the observer path lands cleanly this loop, follow up by simplifying `RefinementEngine` telemetry plumbing so writer/engine consume the typed `StageResult` objects directly (Phase C.2).
+- Once the context types are updated and tested, mark `[ARCH-BRIDGE-RESP-001]` as done in docs/fix_plan.md and resolve the problems.md ledger entry so the backlog guard clears.

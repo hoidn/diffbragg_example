@@ -50,7 +50,8 @@ def _retarget_stage_a_detectors(
     Mutates stage_a_ctx in place by:
     1. Updating detector configs with new distances (baseline + delta)
     2. Rebuilding Detector models with updated configs
-    3. Updating Simulator references to use new detectors
+    3. Rebuilding Simulator instances to reflect new detector geometry
+    4. Refreshing ROI entry simulators when ROI cache exists
 
     This enables Stage C warm-cache path to reuse Stage A simulator/HKL caches
     while varying only detector distances (PERF-WARM-013).
@@ -64,7 +65,9 @@ def _retarget_stage_a_detectors(
         device: torch device for Detector model instantiation
         dtype: torch dtype for Detector model instantiation
     """
+    from dataclasses import replace
     from nanobrag_torch.models import Detector
+    from nanobrag_torch.simulator import Simulator
 
     for pid, delta_mm in distance_deltas_mm.items():
         if pid >= len(stage_a_ctx.detector_models):
@@ -77,20 +80,68 @@ def _retarget_stage_a_detectors(
         new_distance_mm = baseline_tensor + delta_mm
 
         # Clone detector config and update distance
-        # (DetectorConfig is a dataclass, shallow copy is sufficient)
-        detector_config = stage_a_ctx.detector_configs[pid]
-        detector_config.distance_mm = new_distance_mm
+        # Use dataclasses.replace to create new config without mutating the original
+        old_detector_config = stage_a_ctx.detector_configs[pid]
+        detector_config = replace(old_detector_config, distance_mm=new_distance_mm)
 
         # Rebuild detector model with updated config
         detector_model = Detector(detector_config, device=device, dtype=dtype)
 
         # Update stage_a_ctx references (mutate in place)
+        stage_a_ctx.detector_configs[pid] = detector_config
         stage_a_ctx.detector_models[pid] = detector_model
 
-        # Update the detector reference in the simulator
-        # NOTE: Simulators have a .detector attribute that we update
-        if hasattr(stage_a_ctx.simulators[pid], 'detector'):
-            stage_a_ctx.simulators[pid].detector = detector_model
+        # Rebuild simulator with new detector and existing crystal
+        # Reuse the existing crystal pointer so _retarget_stage_a_simulators
+        # can reattach Stage A's final crystal without recreating HKL tensors
+        old_simulator = stage_a_ctx.simulators[pid]
+        crystal_model = old_simulator.crystal
+
+        new_simulator = Simulator(
+            detector=detector_model,
+            crystal=crystal_model,
+            beam_config=stage_a_ctx.beam_config,
+            device=device,
+            dtype=dtype,
+        )
+        stage_a_ctx.simulators[pid] = new_simulator
+
+    # Refresh ROI entry simulators when ROI cache exists
+    if stage_a_ctx.roi_entries is not None:
+        for roi_entry in stage_a_ctx.roi_entries:
+            pid = roi_entry.panel_id
+
+            # Only rebuild ROI simulators for panels that received distance deltas
+            if pid not in distance_deltas_mm:
+                continue
+
+            # Get the updated distance from the panel's detector config
+            # (already updated above in the panel loop)
+            updated_distance_mm = stage_a_ctx.detector_configs[pid].distance_mm
+
+            # Clone ROI detector config and update distance
+            # Use dataclasses.replace to create new config without mutating the original
+            old_roi_detector_config = roi_entry.detector_model.config
+            roi_detector_config = replace(old_roi_detector_config, distance_mm=updated_distance_mm)
+
+            # Rebuild ROI detector model
+            roi_detector_model = Detector(roi_detector_config, device=device, dtype=dtype)
+
+            # Rebuild ROI simulator with existing crystal (preserve HKL grid)
+            old_roi_simulator = roi_entry.simulator
+            roi_crystal_model = old_roi_simulator.crystal
+
+            new_roi_simulator = Simulator(
+                detector=roi_detector_model,
+                crystal=roi_crystal_model,
+                beam_config=stage_a_ctx.beam_config,
+                device=device,
+                dtype=dtype,
+            )
+
+            # Update ROI entry in place
+            roi_entry.detector_model = roi_detector_model
+            roi_entry.simulator = new_roi_simulator
 
 
 def _build_stage_c_params(

@@ -1475,3 +1475,13 @@ The trusted-mask hypothesis was **DISPROVEN** by inspection of the test fixture 
   2. When ROI caches exist, refresh every `StageAROIEntry` with the new distance by reconstructing the ROI Detector/Simulator pair so Stage B/C ROI-mode closures also see the updated geometry.
   3. Rerun `tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip` for both detector sizes with diagnostics enabled (`DBEX_STAGE_C_PANEL_DIAG_DIR=<.../panel_diag/{small,full}>`), capturing collect-only and pytest logs plus telemetry JSON, then rerun `plans/active/PERF-WARM-SIM-001/bin/summarize_stage_c_warm_cache.py` and `bin/compare_panel_diag.py` for each detector size to prove ≤0.05 % χ² regression while detector-offset reduction remains ≥99.999 %.
 - **Artifacts**: `plans/active/PERF-WARM-SIM-001/reports/2025-12-01T235900Z/` (collect_stage_c_small/full.log, pytest_stage_c_small/full.log, telemetry_stage_c_small/full.json, panel_diag/{small,full}/stage_a_panel_diag.json, panel_diag/{small,full}/stage_c_panel_diag.json, stage_c_warm_cache_report.json, panel_diag_compare_{small,full}.{json,md}, summary.md).
+
+### 2025-12-01T235900Z - PERF-WARM-SIM-001 Phase D.4: Warm-cache simulator rebuild (BLOCKED — roi_mode_disparity)
+- **Status**: blocked
+- **Implementation**: Updated `dbex/refinement/stage_c_impl.py::_retarget_stage_a_detectors` (lines 68-141) to rebuild Simulator instances + ROI entries after updating detector configs.
+- **Results**:
+  - Small detector (roi_mode=panel): **PASSED** — offset 0.25mm→1.49e-08mm (99.999% reduction), chi² +0.0055%
+  - Full detector (roi_mode=roi): **FAILED** — offset 0.25mm→0.46532mm (IDENTICAL to prior loop), chi² -2.25%
+- **Blocker**: Repeat-failure guard triggered. IDENTICAL failure signature across 2+ loops despite code changes. Implementation works for panel-mode but completely fails for ROI-mode, suggesting architectural issue with ROI simulator caching/referencing not addressed by current approach.
+- **Artifacts**: plans/active/PERF-WARM-SIM-001/reports/2025-12-01T235900Z/{collect_stage_c_small/full.log,pytest_stage_c_small/full.log,telemetry_stage_c_small/full.json,blocked.md}
+- **Next Actions**: Supervisor must investigate ROI-mode vs panel-mode execution path divergence and ROI entry simulator lifecycle (see blocked.md for hypotheses).

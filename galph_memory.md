@@ -265,3 +265,25 @@ Action State: ready_for_implementation
 - Marked `problems.md` “Architectural Code Smells” entry complete now that ARCH-REFINE-001 Phase F removed `_lazy_import_refinement`, and created the 2025-12-01T235900Z report scaffold for PERF-WARM-SIM-001.
 Action State: ready_for_implementation
 2025-12-01T235900Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=2 action=planning artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-12-01T235900Z/ next_action=Rebuild Stage A warm-cache simulators + rerun Stage C small/full smokes with diagnostics
+
+## 2025-12-01T235900Z — PERF-WARM-SIM-001 ROI-mode simulator rebuild blocker
+
+### Symptom
+Simulator rebuild logic (dbex/refinement/stage_c_impl.py:68-141) PASSES for small detector (panel-mode) but FAILS for full detector (ROI-mode) with byte-identical telemetry across multiple loops.
+
+### Evidence
+- Small (panel-mode): offset 0.25mm → 1.49e-08mm ✓, chi² +0.0055% ✓
+- Full (ROI-mode): offset 0.25mm → 0.46532484889030457mm ✗ (IDENTICAL to prior loop), chi² -2.25% ✗  
+- Code changes had ZERO effect on full-detector outcome despite fixing small-detector
+
+### Root Cause Candidate
+ROI-mode execution paths (dbex/refinement/stage_c_impl.py:538-650) likely bypass the updated simulators or use a shadow cache not covered by `_retarget_stage_a_detectors`. Possible issues:
+1. ROI entries use stale simulator references not rebuilt by current logic
+2. `_retarget_stage_a_simulators` (called after rebuild) inadvertently reverts ROI simulator state  
+3. Multi-panel ROI→panel mapping breaks during retargeting
+
+### Recommendation
+Before next implementation loop:
+1. Run callchain analysis on ROI-mode closure path to trace simulator lifecycle  
+2. Add debug instrumentation to confirm ROI entry simulators are actually being rebuilt and used
+3. Consider whether ROI-mode requires separate retargeting logic vs panel-mode

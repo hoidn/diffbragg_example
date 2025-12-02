@@ -432,8 +432,8 @@ def test_stage_a_expansion(
     )
 
     # Run refinement with perturbed geometry and baseline crystal for misset extraction
-    # ARCH-STAGE-CONTEXT-001 Phase B.4: run_nanobrag_refinement now returns artifacts
-    bragg_refined, telemetry_dict, _ = run_nanobrag_refinement(
+    # ARCH-STAGE-CONTEXT-001 Phase B.4/D: run_nanobrag_refinement now returns artifacts
+    bragg_refined, telemetry_dict, engine_artifacts = run_nanobrag_refinement(
         inputs=refinement_inputs,
         detector=perturbed_detector,
         beam=perturbed_beam,
@@ -443,6 +443,36 @@ def test_stage_a_expansion(
         config=config,
         baseline_crystal=baseline_crystal,  # Enables U_delta extraction for orientation telemetry
     )
+
+    # ARCH-STAGE-CONTEXT-001 Phase D.3.1: Validate Stage A terminal artifact contract
+    # When Stage B/C are disabled, StageAArtifacts.bragg_full must match bragg_refined
+    assert engine_artifacts is not None, "Engine artifacts missing"
+    assert "stage_a" in engine_artifacts, "Stage A artifacts missing from engine artifacts"
+    assert len(engine_artifacts) == 1, (
+        f"Stage-A-only flow should have exactly 1 artifact entry (stage_a), got {list(engine_artifacts.keys())}"
+    )
+
+    stage_a_artifacts = engine_artifacts["stage_a"]
+    assert hasattr(stage_a_artifacts, "bragg_full"), "StageAArtifacts missing bragg_full attribute"
+    assert stage_a_artifacts.bragg_full is not None, (
+        "StageAArtifacts.bragg_full must be populated when Stage B/C are disabled (terminal Stage A)"
+    )
+
+    # Verify bragg_full is CPU numpy array with correct shape/values
+    import numpy as np
+    bragg_full_artifact = stage_a_artifacts.bragg_full
+    assert isinstance(bragg_full_artifact, np.ndarray), (
+        f"StageAArtifacts.bragg_full should be numpy array, got {type(bragg_full_artifact)}"
+    )
+    assert bragg_full_artifact.shape == bragg_refined.shape, (
+        f"StageAArtifacts.bragg_full shape {bragg_full_artifact.shape} != bragg_refined {bragg_refined.shape}"
+    )
+    assert np.allclose(bragg_full_artifact, bragg_refined, rtol=1e-6, atol=1e-9), (
+        f"StageAArtifacts.bragg_full does not match bragg_refined within tolerance "
+        f"(max abs diff: {np.max(np.abs(bragg_full_artifact - bragg_refined)):.3e})"
+    )
+    print(f"[Stage A artifact validation] bragg_full shape={bragg_full_artifact.shape}, "
+          f"dtype={bragg_full_artifact.dtype}, matches bragg_refined: YES")
 
     # Extract Stage A telemetry (Stage C not enabled in this test)
     assert "A" in telemetry_dict, "Stage A telemetry missing"
@@ -1432,6 +1462,51 @@ def test_stage_b_shell_modifiers(
     assert telemetry_a.sigma_readout_provenance == sigma_provenance
     assert telemetry_b.sigma_readout_provenance == sigma_provenance
 
+    # ARCH-STAGE-CONTEXT-001 Phase D.3.1: Validate Stage A/B artifact contract
+    # When Stage C is disabled, Stage A artifacts should have bragg_full=None and
+    # Stage B artifacts should populate bragg_full with the terminal Bragg tensor
+    assert engine_artifacts is not None, "Engine artifacts missing"
+    assert "stage_a" in engine_artifacts, "Stage A artifacts missing from engine artifacts"
+    assert "stage_b" in engine_artifacts, "Stage B artifacts missing from engine artifacts"
+    assert len(engine_artifacts) == 2, (
+        f"Stage A+B flow should have exactly 2 artifact entries (stage_a, stage_b), got {list(engine_artifacts.keys())}"
+    )
+
+    stage_a_artifacts = engine_artifacts["stage_a"]
+    stage_b_artifacts = engine_artifacts["stage_b"]
+
+    # Stage A artifacts: bragg_full must be None when Stage B runs
+    assert hasattr(stage_a_artifacts, "bragg_full"), "StageAArtifacts missing bragg_full attribute"
+    assert stage_a_artifacts.bragg_full is None, (
+        "StageAArtifacts.bragg_full must be None when Stage B runs (not terminal Stage A)"
+    )
+
+    # Stage B artifacts: bragg_full must be populated when Stage C is disabled
+    assert hasattr(stage_b_artifacts, "bragg_full"), "StageBArtifacts missing bragg_full attribute"
+    assert stage_b_artifacts.bragg_full is not None, (
+        "StageBArtifacts.bragg_full must be populated when Stage C is disabled (terminal Stage B)"
+    )
+    assert hasattr(stage_b_artifacts, "stage_b_mode"), "StageBArtifacts missing stage_b_mode attribute"
+    assert stage_b_artifacts.stage_b_mode == "shell", (
+        f"Expected stage_b_mode='shell', got '{stage_b_artifacts.stage_b_mode}'"
+    )
+
+    # Verify bragg_full is CPU numpy array with correct shape/values
+    import numpy as np
+    bragg_full_artifact = stage_b_artifacts.bragg_full
+    assert isinstance(bragg_full_artifact, np.ndarray), (
+        f"StageBArtifacts.bragg_full should be numpy array, got {type(bragg_full_artifact)}"
+    )
+    assert bragg_full_artifact.shape == bragg_refined.shape, (
+        f"StageBArtifacts.bragg_full shape {bragg_full_artifact.shape} != bragg_refined {bragg_refined.shape}"
+    )
+    assert np.allclose(bragg_full_artifact, bragg_refined, rtol=1e-6, atol=1e-9), (
+        f"StageBArtifacts.bragg_full does not match bragg_refined within tolerance "
+        f"(max abs diff: {np.max(np.abs(bragg_full_artifact - bragg_refined)):.3e})"
+    )
+    print(f"[Stage B artifact validation] bragg_full shape={bragg_full_artifact.shape}, "
+          f"dtype={bragg_full_artifact.dtype}, stage_b_mode={stage_b_artifacts.stage_b_mode}, matches bragg_refined: YES")
+
     # PERF-WARM-SIM-001: Wrap acceptance gates in try/finally so telemetry is always emitted,
     # even when strict REFINE-008 gates fail for canonical detector runs.
     try:
@@ -1786,8 +1861,8 @@ def test_stage_b_per_reflection_smoke(
     )
 
     # Run refinement (Stage A + Stage B with per-reflection mode)
-    # ARCH-STAGE-CONTEXT-001 Phase B.4: run_nanobrag_refinement now returns artifacts
-    bragg_refined, telemetry_dict, _ = run_nanobrag_refinement(
+    # ARCH-STAGE-CONTEXT-001 Phase B.4/D: run_nanobrag_refinement now returns artifacts
+    bragg_refined, telemetry_dict, engine_artifacts = run_nanobrag_refinement(
         inputs=refinement_inputs,
         detector=DL.detector,
         beam=DL.beam,
@@ -1805,6 +1880,49 @@ def test_stage_b_per_reflection_smoke(
 
     telemetry_a = telemetry_dict["A"]
     telemetry_b = telemetry_dict["B"]
+
+    # ARCH-STAGE-CONTEXT-001 Phase D.3.1: Validate Stage A/B artifact contract
+    # Same invariants as shell_modifiers test: Stage A bragg_full=None, Stage B bragg_full populated
+    assert engine_artifacts is not None, "Engine artifacts missing"
+    assert "stage_a" in engine_artifacts, "Stage A artifacts missing from engine artifacts"
+    assert "stage_b" in engine_artifacts, "Stage B artifacts missing from engine artifacts"
+    assert len(engine_artifacts) == 2, (
+        f"Stage A+B flow should have exactly 2 artifact entries (stage_a, stage_b), got {list(engine_artifacts.keys())}"
+    )
+
+    stage_a_artifacts = engine_artifacts["stage_a"]
+    stage_b_artifacts = engine_artifacts["stage_b"]
+
+    # Stage A artifacts: bragg_full must be None when Stage B runs
+    assert hasattr(stage_a_artifacts, "bragg_full"), "StageAArtifacts missing bragg_full attribute"
+    assert stage_a_artifacts.bragg_full is None, (
+        "StageAArtifacts.bragg_full must be None when Stage B runs (not terminal Stage A)"
+    )
+
+    # Stage B artifacts: bragg_full must be populated when Stage C is disabled
+    assert hasattr(stage_b_artifacts, "bragg_full"), "StageBArtifacts missing bragg_full attribute"
+    assert stage_b_artifacts.bragg_full is not None, (
+        "StageBArtifacts.bragg_full must be populated when Stage C is disabled (terminal Stage B)"
+    )
+    assert hasattr(stage_b_artifacts, "stage_b_mode"), "StageBArtifacts missing stage_b_mode attribute"
+    assert stage_b_artifacts.stage_b_mode == "per_reflection", (
+        f"Expected stage_b_mode='per_reflection', got '{stage_b_artifacts.stage_b_mode}'"
+    )
+
+    # Verify bragg_full is CPU numpy array with correct shape/values
+    bragg_full_artifact = stage_b_artifacts.bragg_full
+    assert isinstance(bragg_full_artifact, np.ndarray), (
+        f"StageBArtifacts.bragg_full should be numpy array, got {type(bragg_full_artifact)}"
+    )
+    assert bragg_full_artifact.shape == bragg_refined.shape, (
+        f"StageBArtifacts.bragg_full shape {bragg_full_artifact.shape} != bragg_refined {bragg_refined.shape}"
+    )
+    assert np.allclose(bragg_full_artifact, bragg_refined, rtol=1e-6, atol=1e-9), (
+        f"StageBArtifacts.bragg_full does not match bragg_refined within tolerance "
+        f"(max abs diff: {np.max(np.abs(bragg_full_artifact - bragg_refined)):.3e})"
+    )
+    print(f"[Stage B per-reflection artifact validation] bragg_full shape={bragg_full_artifact.shape}, "
+          f"dtype={bragg_full_artifact.dtype}, stage_b_mode={stage_b_artifacts.stage_b_mode}, matches bragg_refined: YES")
 
     # Phase 8: Validate per-reflection path was actually used (not fallback)
     assert hasattr(telemetry_b, "stage_b_mode"), "Should report stage_b_mode"

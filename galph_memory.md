@@ -403,3 +403,8 @@ Action State: planning
 - Updated plans/active/PERF-WARM-SIM-001/implementation.md (Phase F) and docs/fix_plan.md to record the instrumentation outcome and queued a concrete Do Now to disable ROI closures whenever Stage A telemetry reports `validation_scope="panel"`, plus refreshed Stage C smoketest expectations.
 Action State: ready_for_implementation
 2025-12-02T183500Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=0 action=planning artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-12-02T183500Z/ next_action=Implement Stage C ROI gating + rerun Stage C smokes
+- Fresh backlog guard triggered (no recent ledger mention): converted problems.md “Refactor: Decouple Telemetry...” entry into fix-plan row ARCH-TELEMETRY-001, created `plans/active/ARCH-TELEMETRY-001/implementation.md`, updated docs/fix_plan.md Tier 0, and annotated problems.md with the schedule note.
+- Scoped Phase A/B work (observer interface + Stage A collector) and reserved artifacts at 2025-12-02T191500Z/.
+- Rebuilt input.md so Ralph implements the new `RefinementObserver`, wires Stage A to emit telemetry via the collector, and runs the Stage A smoketests with logs landing under the new artifacts path.
+Action State: planning
+2025-12-02T191500Z focus=ARCH-TELEMETRY-001 state=planning dwell=0 action=planning artifacts=plans/active/ARCH-TELEMETRY-001/reports/2025-12-02T191500Z/ next_action=Implement Stage A observer wiring + smoketest refresh

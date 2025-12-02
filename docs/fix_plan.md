@@ -16,6 +16,7 @@
 ### Tier 0: Refinement Architecture Finish
 **Goal:** Finish the Protocol Engine refactor by removing legacy helpers/facades now that contexts and artifacts are in place.
 - [ARCH-REFACTOR-001] (Refinement Engine Modularization & Physics Separation) — *in_progress*
+- [ARCH-TELEMETRY-001] (Telemetry Observer Refactor) — *in_progress*
 
 ### Tier 1: Core Physics & Stability
 **Goal:** Ensure the math is correct, the loss function is normative, Stage A/mapping parity holds (DB‑AT‑027/028/029), and the smoke tests are green.
@@ -75,6 +76,23 @@
   * 2025-12-01T080903Z — Stage A helper relocation completed; Stage A/B smoke selectors passed using the new `stage_a_impl.py` module. Artifacts: `plans/active/ARCH-REFINE-001/reports/2025-12-01T080903Z/`.
   * 2025-12-01T084505Z — Phase A.2 scope locked for Stage B helper extraction; parity tests queued per `docs/TESTING_GUIDE.md`. Artifacts: `plans/active/ARCH-REFINE-001/reports/2025-12-01T084505Z/`.
   * ... (see `docs/fix_plan_archive.md` and `plans/active/ARCH-REFINE-001/reports/` for full history, metrics, and future attempt logs.)
+
+### [ARCH-TELEMETRY-001] Telemetry Observer Refactor
+- Depends on: ARCH-STAGE-CONTEXT-001 (typed contexts), PHYSICS-LOSS-001 (telemetry χ² spec), problems.md observer directive
+- Status: in_progress
+- Priority: High
+- Tier: 0
+- Owner/Date: Galph ↔ Ralph / 2025-12-02
+- Initiative Type: architecture
+- Exit Criteria:
+  1. Stage A/B/C no longer mutate `telemetry_state` or dict shims; closures emit observer callbacks captured in typed telemetry/result dataclasses.
+  2. RefinementEngine + writer read `StageResult` artifacts (StageATelemetry/StageBTelemetry/StageCTelemetry) directly with no Nelder–Mead reruns or dict patching.
+  3. Stage A/B/C smoketests and canonical Stage diagnostics keep REFINE-007/008/012 and PHYSICS-LOSS-001 gates green using the observer channel.
+  4. `/torch_diagnostics` schema stays spec-compliant and test registry entries referencing telemetry selectors are updated.
+- Working Plan: `plans/active/ARCH-TELEMETRY-001/implementation.md`
+- Ledger tie-in: addresses problems.md entry “Refactor: Decouple Telemetry from Refinement Logic using Observer Pattern” (architectural issues 1.3/2.3). Plan captures Observer pattern, Stage-specific telemetry collectors, and writer simplification.
+- Attempts History:
+  * 2025-12-02T190000Z — Plan scaffolded, compliance matrix recorded, and observer prototype tasks defined. Next loop will implement Phase A.1 collector + Stage A wiring.
 
 ### [ARCH-ENGINE-ARTIFACTS-001] RefinementEngine Artifact Channel & Final-Bragg Unification
 - Depends on: ARCH-REFINE-001 (engine modularization baseline), ARCH-REFINE-FLOW-001 (stage wrappers, telemetry contract)

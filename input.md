@@ -1,45 +1,46 @@
-Summary: Re-disable Stage C ROI-mode closures when Stage A forces panel validations so detector refinement uses the same pixel population as the REFINE-007 gate.
-Mode: Parity
-InitiativeType: perf
-Focus: PERF-WARM-SIM-001 — Warm Simulator
+Summary: Launch ARCH-TELEMETRY-001 by introducing a `RefinementObserver` interface and wiring Stage A to emit telemetry through a typed collector instead of mutating dicts.
+Mode: none
+InitiativeType: architecture
+Focus: ARCH-TELEMETRY-001 — Telemetry Observer Refactor
 Branch: integration
 Mapped tests:
-- tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip (DBEX_SMOKE_DETECTOR_SIZE=small)
-- tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip (DBEX_SMOKE_DETECTOR_SIZE=full)
-Artifacts: plans/active/PERF-WARM-SIM-001/reports/2025-12-02T183500Z/
+- KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+- KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_stage_a_engine_delegation_telemetry::test_stage_a_engine_delegation_telemetry
+Artifacts: plans/active/ARCH-TELEMETRY-001/reports/2025-12-02T191500Z/
 
 Do Now:
-- FocusItem: PERF-WARM-SIM-001 Phase F — Enforce REFINE-012 gating before re-running Stage C smokes.
-- Implement: dbex/refinement/stage_c_impl.py::_build_stage_c_params — Gate `stage_c_roi_mode_active` on `not force_panel_validation`, set `roi_mode_reason="validation_scope_panel"` when the gate fires, and ensure telemetry/perf counters report the forced panel mode so closures and validations both call `_compute_panel_loss` when Stage A telemetry advertises `validation_scope="panel"`.
-- Implement: tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip — Update the ROI-mode expectations so Stage C mirrors Stage A’s ROI mode only when panel validation was not forced; otherwise the expected ROI mode should be `"panel"` while the validation scope stays `"panel"` per REFINE-011.
-- Validate: `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-WARM-SIM-001/reports/2025-12-02T183500Z/telemetry_stage_c_small.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small | tee plans/active/PERF-WARM-SIM-001/reports/2025-12-02T183500Z/pytest_stage_c_small.log`
-- Validate: `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=full DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-WARM-SIM-001/reports/2025-12-02T183500Z/telemetry_stage_c_full.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=full | tee plans/active/PERF-WARM-SIM-001/reports/2025-12-02T183500Z/pytest_stage_c_full.log`
+- Implement: dbex/refinement/interfaces.py::RefinementObserver / StageResult — Create (or extend) the refinement interfaces module with a `Protocol` that defines `on_step`, `on_validation`, and `finalize` hooks plus `StagePerfCounters`+`StageResult` dataclasses. Document the spec references (docs/spec-db-workflow.md telemetry clauses, PHYSICS-LOSS-001 chi² invariants) and add helpers to serialize the dataclass payload back into the legacy telemetry dict so downstream consumers stay stable until later phases.
+- Implement: dbex/refinement/stage_a.py::_build_lbfgs_closure / StageA.run — Introduce a `StageATelemetryCollector` (in a new helper such as `dbex/refinement/telemetry_collectors.py`) that implements `RefinementObserver` by updating the existing `StageATelemetryState`. Thread this collector through closure creation instead of passing `telemetry_state` dicts, replace the direct `loss_trace_*` / `chi_squared_trace_*` append calls with `collector.on_step`/`collector.on_validation`, and make StageA return a `StageResult` that still exposes the legacy dict for writer/tests.
+- Implement: dbex/refinement/context.py::StageATelemetryState helpers — Add small utility methods (e.g., `record_step`, `record_validation`, read-only views) so the collector can interact with the dataclass without leaking internal lists. Remove any Stage-A-only dict compatibility layers that the observer supersedes.
+- Implement: tests/dbex/test_stage_a_engine_delegation_telemetry + tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion — Update assertions to expect a `StageResult`/collector-driven telemetry path (no direct dict mutation) and add coverage ensuring `StageResult.telemetry` still contains the REFINE-007/PHYSICS-LOSS metrics.
 
 How-To Map:
-- `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-WARM-SIM-001/reports/2025-12-02T183500Z/telemetry_stage_c_small.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small | tee plans/active/PERF-WARM-SIM-001/reports/2025-12-02T183500Z/pytest_stage_c_small.log`
-- `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=full DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-WARM-SIM-001/reports/2025-12-02T183500Z/telemetry_stage_c_full.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=full | tee plans/active/PERF-WARM-SIM-001/reports/2025-12-02T183500Z/pytest_stage_c_full.log`
+1. Code: Add `dbex/refinement/interfaces.py` containing `RefinementObserver`, `StagePerfCounters`, and `StageResult`, plus any serialization helpers noted above.
+2. Code: Add `dbex/refinement/telemetry_collectors.py` (or similar) with `StageATelemetryCollector` that wraps `StageATelemetryState`; instantiate it inside `StageA.configure`/`StageA.run` and pass it down to `_build_lbfgs_closure` so the LBFGS closure emits observer events instead of touching lists directly.
+3. Tests: `export KMP_DUPLICATE_LIB_OK=TRUE; pytest -v tests/dbex/test_stage_a_engine_delegation_telemetry::test_stage_a_engine_delegation_telemetry | tee plans/active/ARCH-TELEMETRY-001/reports/2025-12-02T191500Z/pytest_stage_a_engine.log`
+4. Tests: `export KMP_DUPLICATE_LIB_OK=TRUE DBEX_SMOKE_DETECTOR_SIZE=small; pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion | tee plans/active/ARCH-TELEMETRY-001/reports/2025-12-02T191500Z/pytest_stage_a_smoke.log`
 
 Pitfalls To Avoid:
-- Do not relax the REFINE-007 chi² gate or skip the full-detector smoketest; the goal is to make it pass with panel-mode closures.
-- Keep ROI-mode disabled only when Stage A telemetry reports `validation_scope="panel"`; do not hard-disable ROI mode for small-detector runs.
-- Preserve trusted-mask gating inside `_compute_variance_weighted_loss`; the fix should not touch Stage A mask semantics.
-- Leave the new `DBEX_STAGE_C_CACHE_DEBUG_PATH` instrumentation opt-in; this change should not emit extra files.
-- Do not mutate Stage A telemetry or ROI sampling thresholds while wiring the gate; only Stage C logic/tests should change.
-- Keep `roi_mode_reason` populated so telemetry consumers can see why ROI mode was disabled.
-- Do not drop the warm-cache semantics in `_retarget_stage_a_detectors`; the retargeted simulators must still flow through Stage A/C parity logic.
+- Preserve `/torch_diagnostics` schema and naming; collector output must serialize to exactly the same dict keys per docs/spec-db-interfaces.md.
+- Do not touch Stage B/C telemetry paths yet; they still rely on the current dataclass/dict shims.
+- Keep observer callbacks allocation-free (no `.item()` on tensors still needed by autograd, no extra tensor copies).
+- Maintain trusted-mask and variance-floor counters; PHYSICS-LOSS-001 requires these stats even while refactoring.
+- Environment freeze applies: do not add new dependencies or regenerate toolchains.
 
-If Blocked: Capture the updated telemetry JSON and failing pytest logs under the artifacts directory, note whether Stage A telemetry ever reports `validation_scope="panel"`, and update docs/fix_plan.md with the evidence before attempting more code changes.
+If Blocked:
+- If Stage A smoketests fail because a telemetry field is missing or renamed, capture the failing pytest log plus the serialized telemetry dict/StageResult in `plans/active/ARCH-TELEMETRY-001/reports/2025-12-02T191500Z/telemetry_failure.md`, update docs/fix_plan.md Attempts History with the evidence, and pause implementation so we can realign the telemetry contract before touching Stage B/C.
 
 Findings Applied (Mandatory):
-- REFINE-011 — Stage C validations must mirror Stage A panel gating; keep `validation_scope="panel"` whenever Stage B/C are active.
-- REFINE-012 — ROI-mode closures are prohibited when Stage A validation scope is panel; gate ROI activation accordingly.
-- REFINE-016 — Trusted-mask parity is mandatory; ensure the panel-mode helper path stays untouched.
-- PERF-WARM-013 — Warm-cache retargeting must remain in place; this fix only toggles closure selection.
+- ARCH-STAGE-CTX-001 — Stage telemetry must be owned by typed contexts/collectors.
+- ARCH-STAGE-CTX-002 — Stage B baseline parity guard exposed dict-mutation hazards; Stage A collector must avoid the same trap.
+- PHYSICS-LOSS-001 — Variance-weighted chi² logging and sigma-floor stats must stay spec-compliant through the refactor.
 
 Pointers:
-- plans/active/PERF-WARM-SIM-001/implementation.md#phase-f — initiative checklist for Phase F.
-- dbex/refinement/stage_c_impl.py:330-420 — Stage C parameter builder with ROI-mode gating and telemetry fields.
-- tests/dbex/test_torch_refine_smoke.py:1280-1345 — Stage C perf counter assertions that must be updated for the new gating rule.
-- docs/findings.md#REFINE-012 — canonical requirement for disabling ROI mode when panel validations are forced.
+- plans/active/ARCH-TELEMETRY-001/implementation.md:1-96 — initiative goals, compliance matrix, and Phase A/B tasks that this Do Now covers.
+- docs/fix_plan.md:16-95 — roadmap placement and exit criteria for ARCH-TELEMETRY-001.
+- problems.md:74-125 — observer-pattern problem statement from the ledger.
+- dbex/refinement/stage_a.py:60-820 — current Stage A closure logic where telemetry mutation lives today.
 
-Next Up (optional): After ROI gating lands and the Stage C full smoketest passes, revisit the cache-debug JSON to confirm panel-mode runs no longer need ROI traces.
+Next Up (optional):
+1. Port Stage B to the observer path and remove `_check_stage_b_baseline_parity` dict hacks (Phase C.1).
+2. Refactor `dbex/io/writer.py` to consume `StageResult` dataclasses once all stages emit them (Phase C.2).

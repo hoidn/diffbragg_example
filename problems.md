@@ -76,6 +76,7 @@ ID: ARCH-TELEMETRY-001
 Type: Technical Debt / Refactor
 Priority: High
 Effort: Large (5-8 days)
+(Scheduled as fix-plan row [ARCH-TELEMETRY-001] on 2025-12-02; see plans/active/ARCH-TELEMETRY-001/implementation.md.)
 1. Context & Problem Statement
 The current telemetry system acts as a "bucket brigade," passing mutable state dictionaries (telemetry_state, param_values) four layers deep into the physics kernels (e.g., _build_stage_a_lbfgs_closure). This has created several critical architectural issues:
 Tight Coupling: The LBFGS optimization loops are physically interwoven with UI/Logging logic (appending to lists inside gradient calculations).

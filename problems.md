@@ -20,6 +20,7 @@ This file is a lightweight, user-editable backlog for any issues that Galph (the
 - [ ] **Lazy imports / process noise** — Outstanding review items 6 and 9: several modules (`dbex/geometry/crystallography.py`, `dbex/physics/forward.py`, Stage helpers) still use pervasive lazy imports that hide dependencies, and code is saturated with historical ticket references. Requires a hygiene push once the architecture work above is stable.
 
 ATTN NEW PROBLEMS:
+---
 The codebase is currently in a "Mid-Refactor" state (Transitioning from monolithic scripts to a Protocol-based Engine), resulting in significant complexity, indirection, and state-management overhead.
 1. Architectural Issues (System Level)
 1.1. The "Incomplete Migration" Pattern (Code Duplication & Indirection)
@@ -69,3 +70,56 @@ Finish the Refactor: Delete dbex/nanobrag_refinement.py and fully move logic int
 Encapsulate the Physics Model: Create a DifferentiableExperiment class (extending nanobrag_torch.ExperimentModel) that owns the parameters (q, log_scale, cell_deltas) and provides a simple .forward() method. The LBFGS closure should look like loss = criterion(model(), target), not 100 lines of tensor math.
 Abstract the Cache: Move the "Warm Cache" logic into a SimulatorPool or ContextManager class that handles retargeting internally, rather than passing raw lists of Simulator objects between stages.
 Observer Pattern for Telemetry: Instead of accumulating stats in a dict inside the loop, use a callback/observer pattern where the loop emits events (on_step, on_validation), and a separate TelemetryCollector handles aggregation.
+---
+Refactor: Decouple Telemetry from Refinement Logic using Observer Pattern
+ID: ARCH-TELEMETRY-001
+Type: Technical Debt / Refactor
+Priority: High
+Effort: Large (5-8 days)
+1. Context & Problem Statement
+The current telemetry system acts as a "bucket brigade," passing mutable state dictionaries (telemetry_state, param_values) four layers deep into the physics kernels (e.g., _build_stage_a_lbfgs_closure). This has created several critical architectural issues:
+Tight Coupling: The LBFGS optimization loops are physically interwoven with UI/Logging logic (appending to lists inside gradient calculations).
+The "Kitchen Sink" Dataclass: RefinementTelemetry attempts to hold every metric for every stage, leading to an explosion of Optional fields and loss of type safety.
+Runtime Monkey-Patching: RefinementEngine currently dynamically attaches attributes (e.g., stage_b_mode) to telemetry objects at runtime (see engine.py "Phase 8 fix"), defeating the purpose of dataclasses.
+Fragile Persistence: dbex/io/writer.py relies on massive if/elif blocks to map field names to HDF5 datasets manually.
+2. Goal
+Decouple the mathematical refinement process from the recording of metrics. The physics code should emit events, and a separate system should handle storage/logging.
+3. Proposed Architecture
+Observer Pattern: Introduce a RefinementObserver protocol. Physics loops call observer.on_step(...) or observer.on_validation(...).
+Polymorphism: Split the monolithic RefinementTelemetry into specific result objects (StageATelemetry, StageBTelemetry, StageCTelemetry).
+Encapsulation: Move list-management and aggregation logic out of *_impl.py and into concrete TelemetryCollector classes.
+4. Implementation Steps
+Phase 1: Interfaces & Types
+
+Define RefinementObserver Protocol in dbex/refinement/interfaces.py.
+Methods: on_step(iter, loss, params), on_validation_start(), on_validation_end(metrics).
+
+Split RefinementTelemetry (in stage.py) into a base class and stage-specific subclasses (StageAResult, StageBResult). Remove the "God Class."
+Phase 2: Refactor Physics Kernels (Start with Stage A)
+
+Modify _build_stage_a_lbfgs_closure in dbex/refinement/stage_a_impl.py.
+Remove: telemetry_state argument.
+Add: observer: Optional[RefinementObserver] argument.
+Action: Replace loss_trace.append(...) calls with observer.on_step(...).
+
+Remove the logic inside stage_a_impl.py that calculates derived telemetry (e.g., u_matrix_lifecycle_log). Move this calculation into a specific StageADiagnosticsObserver.
+Phase 3: Telemetry Collection & Engine Integration
+
+Implement InMemoryTelemetryCollector (implements RefinementObserver) to replace the mutable dictionaries currently created in RefinementEngine.
+
+Update RefinementEngine.run() to instantiate collectors and pass them into the Stages.
+
+Remove the "Phase 8 fix" runtime attribute injection in engine.py.
+Phase 4: Persistence Layer (writer.py)
+
+Refactor dbex/io/writer.py.
+Remove the giant if key == ... dispatch loop.
+Implement method dispatch (e.g., functools.singledispatch or visitor pattern) to handle StageATelemetry vs StageBTelemetry writing logic separately.
+5. Acceptance Criteria
+Zero Coupling: stage_*_impl.py files no longer import or reference RefinementTelemetry or raw list accumulators.
+Type Safety: RefinementEngine returns strictly typed stage-specific objects, not a generic container with dynamic attributes.
+Regression Check: Running test_torch_refine_smoke.py produces bit-for-bit identical HDF5 output compared to the main branch.
+Clean API: Adding a new metric requires changes only in the Observer implementation, not in the LBFGS closure.
+6. Risks
+Performance: Ensure the Observer callbacks are lightweight so they do not degrade the tight loop performance of the LBFGS optimizer.
+HDF5 Schema Drift: The existing HDF5 schema is consumed by look.py and downstream tools. We must ensure the refactored writer produces the exact same node structure in the HDF5 file.

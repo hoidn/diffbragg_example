@@ -676,3 +676,12 @@ Action State: ready_for_implementation
 - Updated docs/fix_plan.md Attempts History (line 97, new planning entry for 2025-12-02T220618Z).
 - Problems ledger "PRIORITIZE ARCH-REFACTOR-001 ASAP" serviced in previous loops (C.7, D.2, D.4); current focus continues Phase D per roadmap Tier 0.
 Action State: ready_for_implementation
+2025-12-02T230000Z focus=ARCH-REFACTOR-001 state=ready_for_implementation dwell=0 action=debug artifacts=plans/active/ARCH-REFACTOR-001/reports/2025-12-02T220618Z_bugfix/ next_action=Fix bragg_before computation via simulate_forward_once
+- Analyzed Ralph's Phase D.3 Batch 2 migration (commit d696dd51): migration pattern correct (facade → Engine), but introduced bug in bragg_before computation.
+- Root cause: Ralph tried to use mapping_context.bragg_zero_iter (lines 174, 301) which doesn't exist. Old facade version called build_final_bragg_from_stage_a_telemetry (now deleted). Correct solution: call simulate_forward_once with initial perturbed geometry.
+- Evidence: mapping_context_fixture.json shows no bragg_zero_iter key; tests fail with chi²/pixel 2.098e+05 and ROI correlation -0.037 because bragg_before is garbage/uninitialized, not because of physics regression.
+- Layered-scope guard: This is small, local bugfix within migration scope (not separate initiative). Can complete in 1 loop.
+- Issued Do Now directing Ralph to: (1) import simulate_forward_once, (2) replace mapping_context.bragg_zero_iter with simulate_forward_once call (lines 172-175), (3) fix both emit_mapping_context_diagnostics calls (lines 301, ~380), (4) rerun 2/2 tests expecting PASSED.
+- Mapped tests: test_db_at_028_loss_scale_sanity, test_db_at_029_structure_parity.
+- Initiative type: bugfix (fixing migration bug). Mode: Parity. Problems ledger last mentioned 2025-12-02T220618Z; no unchecked entries requiring immediate service this loop.
+Action State: ready_for_implementation

@@ -38,6 +38,7 @@ from dbex.refinement.stage_b_impl import (
     apply_asu_modifiers,
 )
 from dbex.refinement.context import RefinementSharedContext
+from dbex.refinement.telemetry_collectors import StageBTelemetryCollector
 from dbex.physics.loss import _compute_variance_weighted_loss
 from dbex.refinement.config_factories import (
     create_detector_config,
@@ -94,6 +95,7 @@ class StageB:
         use_stage_b_roi_mode: bool,
         shell_indices: Optional[torch.Tensor],
         baseline_misset_deg_tensor: Optional[torch.Tensor],
+        collector: Optional[Any] = None,
     ) -> Tuple[Callable[[List[int], bool, bool], Tuple[torch.Tensor, torch.Tensor]], Callable[[], torch.Tensor]]:
         """
         Build LBFGS closure for Stage B shell modifier refinement.
@@ -443,7 +445,6 @@ class StageB:
             """LBFGS closure for Stage B shell modifier refinement."""
             nonlocal chi_squared_best_b, masked_mse_best_b, best_loss_full_b, best_params_snapshot_b
             stage_b_optimizer.zero_grad()
-            perf_closure_evals_b[0] += 1
 
             # Sample ROIs or panels for efficiency (PERF-WARM-SIM-001)
             chi_squared_loss, mse_loss = compute_loss_stage_b(sampled_stage_b_indices, is_full=False)
@@ -455,11 +456,26 @@ class StageB:
                 if p.grad is not None and (torch.isnan(p.grad).any() or torch.isinf(p.grad).any()):
                     raise RuntimeError(f"NaN/Inf gradient detected in Stage B parameter {p}")
 
-            # Record loss
-            loss_trace_sample_b.append(float(chi_squared_loss.item()))
-            # PHYSICS-LOSS-001: Record both metrics
-            chi_squared_trace_sample_b.append(float(chi_squared_loss.item()))
-            masked_mse_trace_sample_b.append(float(mse_loss.item()))
+            # ARCH-TELEMETRY-001 Phase C.1: Record telemetry via collector or fall back to direct mutations
+            if collector is not None:
+                # Observer path: route telemetry through collector.on_step
+                metrics = {
+                    'chi_squared': float(chi_squared_loss.item()),
+                    'masked_mse': float(mse_loss.item()),
+                    # variance_floor stats updated incrementally in compute_loss_stage_b
+                }
+                collector.on_step(
+                    iteration=len(loss_trace_sample_b),
+                    loss=float(chi_squared_loss.item()),
+                    metrics=metrics,
+                )
+            else:
+                # Legacy path: direct list mutation for backward compatibility
+                perf_closure_evals_b[0] += 1
+                loss_trace_sample_b.append(float(chi_squared_loss.item()))
+                # PHYSICS-LOSS-001: Record both metrics
+                chi_squared_trace_sample_b.append(float(chi_squared_loss.item()))
+                masked_mse_trace_sample_b.append(float(mse_loss.item()))
 
             # Periodic full validation
             # PERF-WARM-009: Force panel evaluation for periodic validations to keep modifiers within ±1%
@@ -468,30 +484,52 @@ class StageB:
                     full_chi_squared_b, full_mse_b = compute_loss_stage_b(
                         list(range(n_panels)), is_full=True, force_panel_eval=True
                     )
-                    loss_trace_full_b.append((len(loss_trace_sample_b), float(full_chi_squared_b.item())))
-                    # PHYSICS-LOSS-001: Record both metrics
-                    chi_squared_trace_full_b.append((len(loss_trace_sample_b), float(full_chi_squared_b.item())))
-                    masked_mse_trace_full_b.append((len(loss_trace_sample_b), float(full_mse_b.item())))
 
-                    # Update best snapshot
-                    # PHYSICS-LOSS-001: Track best for both metrics
-                    if full_chi_squared_b.item() < chi_squared_best_b[0]:
-                        chi_squared_best_b = (float(full_chi_squared_b.item()), len(loss_trace_sample_b))
-                        best_loss_full_b = (float(full_chi_squared_b.item()), len(loss_trace_sample_b))  # Deprecated legacy field
-                        # Phase 7: Mode-aware best params snapshot
-                        # ARCH-STAGE-CONTEXT-001 Phase B.3.2: Handle both list and dict snapshot types
+                    # ARCH-TELEMETRY-001 Phase C.1: Route validation telemetry via collector or legacy path
+                    if collector is not None:
+                        # Observer path: build best snapshot for collector
                         snapshot_data = {}
                         if stage_b_mode == "per_reflection":
                             snapshot_data['log_modifiers'] = log_modifiers.data.clone()
                         else:
                             snapshot_data['shell_modifier_raw'] = shell_modifier_raw.data.clone()
-                        if isinstance(best_params_snapshot_b, list):
-                            best_params_snapshot_b.clear()
-                            best_params_snapshot_b.append(snapshot_data)
-                        else:
-                            best_params_snapshot_b.update(snapshot_data)
-                    if full_mse_b.item() < masked_mse_best_b[0]:
-                        masked_mse_best_b = (float(full_mse_b.item()), len(loss_trace_sample_b))
+
+                        payload = {
+                            'loss': float(full_chi_squared_b.item()),
+                            'masked_mse': float(full_mse_b.item()),
+                            'best_snapshot': snapshot_data,
+                        }
+                        collector.on_validation(
+                            scope='panel',
+                            chi2=float(full_chi_squared_b.item()),
+                            payload=payload,
+                        )
+                    else:
+                        # Legacy path: direct mutations
+                        loss_trace_full_b.append((len(loss_trace_sample_b), float(full_chi_squared_b.item())))
+                        # PHYSICS-LOSS-001: Record both metrics
+                        chi_squared_trace_full_b.append((len(loss_trace_sample_b), float(full_chi_squared_b.item())))
+                        masked_mse_trace_full_b.append((len(loss_trace_sample_b), float(full_mse_b.item())))
+
+                        # Update best snapshot
+                        # PHYSICS-LOSS-001: Track best for both metrics
+                        if full_chi_squared_b.item() < chi_squared_best_b[0]:
+                            chi_squared_best_b = (float(full_chi_squared_b.item()), len(loss_trace_sample_b))
+                            best_loss_full_b = (float(full_chi_squared_b.item()), len(loss_trace_sample_b))  # Deprecated legacy field
+                            # Phase 7: Mode-aware best params snapshot
+                            # ARCH-STAGE-CONTEXT-001 Phase B.3.2: Handle both list and dict snapshot types
+                            snapshot_data = {}
+                            if stage_b_mode == "per_reflection":
+                                snapshot_data['log_modifiers'] = log_modifiers.data.clone()
+                            else:
+                                snapshot_data['shell_modifier_raw'] = shell_modifier_raw.data.clone()
+                            if isinstance(best_params_snapshot_b, list):
+                                best_params_snapshot_b.clear()
+                                best_params_snapshot_b.append(snapshot_data)
+                            else:
+                                best_params_snapshot_b.update(snapshot_data)
+                        if full_mse_b.item() < masked_mse_best_b[0]:
+                            masked_mse_best_b = (float(full_mse_b.item()), len(loss_trace_sample_b))
 
             return chi_squared_loss
 
@@ -741,6 +779,11 @@ class StageB:
         full_stage_b_indices = param_values['full_stage_b_indices']
         stage_b_param_device = param_values['stage_b_param_device']
 
+        # ARCH-TELEMETRY-001 Phase C.1: Create observer collector from telemetry state
+        telemetry_state = param_values['telemetry_state']
+        # For now, always use the collector path per ARCH-TELEMETRY-001 Phase C.1
+        collector = StageBTelemetryCollector(telemetry_state)
+
         # STEP 2: Build Stage B LBFGS closure (returns tuple)
         # ARCH-STAGE-CONTEXT-001 Phase B.2: Call class method instead of helper
         compute_loss_stage_b, closure_stage_b = self._build_lbfgs_closure(
@@ -756,6 +799,7 @@ class StageB:
             use_stage_b_roi_mode=use_stage_b_roi_mode,
             shell_indices=shell_indices,
             baseline_misset_deg_tensor=baseline_misset_deg_tensor,
+            collector=collector,
         )
 
         # STEP 3: Run Stage B LBFGS optimization
@@ -767,6 +811,7 @@ class StageB:
             closure_stage_b=closure_stage_b,
             compute_loss_stage_b=compute_loss_stage_b,
             n_panels=n_panels,
+            collector=collector,
         )
 
         # Unpack results from helper3

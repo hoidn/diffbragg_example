@@ -60,7 +60,7 @@ def test_variance_weighted_loss_basic_clamping(synthetic_loss_tensors):
     - docs/spec-db-core.md:57-80 (variance definition, sigma_floor clamping)
     - docs/findings.md PHYSICS-LOSS-001 (variance metadata)
     """
-    from dbex.nanobrag_refinement import _compute_variance_weighted_loss
+    from dbex.physics.loss import _compute_variance_weighted_loss
 
     target, model, mask = synthetic_loss_tensors
 
@@ -122,7 +122,7 @@ def test_variance_weighted_loss_zero_mask():
 
     Edge case: mask=0 everywhere should return 0.0 for chi-squared (or handle safely).
     """
-    from dbex.nanobrag_refinement import _compute_variance_weighted_loss
+    from dbex.physics.loss import _compute_variance_weighted_loss
 
     device = torch.device("cpu")
     dtype = torch.float64
@@ -157,7 +157,7 @@ def test_variance_weighted_loss_zero_variance_floor():
 
     When variance_floor=0, V = model + sigma² (no clamping applied).
     """
-    from dbex.nanobrag_refinement import _compute_variance_weighted_loss
+    from dbex.physics.loss import _compute_variance_weighted_loss
 
     device = torch.device("cpu")
     dtype = torch.float64
@@ -204,7 +204,7 @@ def test_variance_weighted_loss_negative_model():
     Edge case: model can be negative (unphysical but should not break variance computation).
     Variance V = max(model + sigma², variance_floor) should still clamp correctly.
     """
-    from dbex.nanobrag_refinement import _compute_variance_weighted_loss
+    from dbex.physics.loss import _compute_variance_weighted_loss
 
     device = torch.device("cpu")
     dtype = torch.float64

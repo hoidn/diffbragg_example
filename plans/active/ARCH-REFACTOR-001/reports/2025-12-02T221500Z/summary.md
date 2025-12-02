@@ -1,5 +1,28 @@
 ### Turn Summary
-Completed Phase D.3 Batch 1 validation review (4/5 tests passed) and planned Phase D.4 import cleanup as low-risk next step before facade deletion.
-Ralph's validation confirmed all Engine pattern contracts working (telemetry keys, artifacts storage, engine_protocol); single ASU failure is known Stage B issue unrelated to migration.
-Next: Ralph implements D.4 import redirection (4 inline imports from facade to dbex.physics.loss), validates 4/4 tests, then proceeds to D.3 Batch 2 or D.5.
-Artifacts: plans/active/ARCH-REFACTOR-001/reports/2025-12-02T221500Z/ (planning_notes.md, input.md issued)
+Redirected 4 inline imports in test_physics_loss_current.py from facade (dbex.nanobrag_refinement) to canonical module (dbex.physics.loss); all tests passed with no behavioral changes.
+Phase D.4 import cleanup complete; facade re-exports no longer used by physics loss tests.
+Next: Phase D.3 Batch 2 (test_stage_a_smoke_parity.py migration) or Phase D.5 (facade deletion).
+Artifacts: plans/active/ARCH-REFACTOR-001/reports/2025-12-02T221500Z/ (pytest_phase_d4.log, import_verification.txt)
+
+---
+
+## Implementation Notes
+
+**File:** `tests/dbex/test_physics_loss_current.py`
+
+**Changes:**
+- Updated 4 inline imports (lines 63, 125, 160, 207)
+- Old path: `dbex.nanobrag_refinement`
+- New path: `dbex.physics.loss`
+- Function name unchanged: `_compute_variance_weighted_loss`
+
+**Validation:**
+- All 4 tests PASSED (0.90s runtime)
+- Zero remaining facade imports confirmed
+- No behavioral changes (function signature/behavior unchanged since Phase A.3)
+
+**Metrics:**
+- Import paths redirected: 4/4
+- Tests validated: 4/4
+- Files touched: 1
+- Net change: 0 lines (same import statement length)

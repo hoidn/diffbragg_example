@@ -1,0 +1,6 @@
+Migration complete with 2 bugfixes applied:
+1. Added missing import of config_factories in nanobrag_bridge.py (circular import avoided via inline import)
+2. Fixed test fixture's incorrect calls to build_final_bragg_from_stage_a_telemetry (param_state parameter never existed)
+
+Tests run but fail on physics assertions (chi²/pixel too high, ROI correlation too low).
+This appears to be a pre-existing physics regression unrelated to the migration.

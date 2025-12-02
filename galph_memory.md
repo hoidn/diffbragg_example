@@ -343,3 +343,8 @@ Action State: ready_for_implementation
 - Updated plans/active/ARCH-STAGE-CONTEXT-001/implementation.md (B1.1–B1.3 checklist) and docs/fix_plan.md with the new next actions + artifacts path; problems.md ledger entry remains open but explicitly tied to this plan.
 - Rewrote input.md with the new Do Now (StageResult + StageArtifacts scaffolding) and mapped Stage A telemetry + Stage B/C small smokes.
 Action State: ready_for_implementation
+2025-12-02T040500Z focus=ARCH-STAGE-CONTEXT-001 state=ready_for_implementation dwell=0 action=planning artifacts=plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T040500Z/ next_action=Inline Stage A LBFGS closure (Phase B.2.1) and rerun Stage A smoke
+- Phase B.1 is complete; updated implementation plan checklist to mark B1 done and broke Phase B.2 into Stage-specific sub-steps (A/B/C) so we can tackle the closure inlining incrementally. Reserved the 2025-12-02T040500Z artifacts directory for the Stage A work.
+- Authored new input.md handing Ralph a concrete Do Now: move `_build_stage_a_lbfgs_closure` into `dbex/refinement/stage_a.py` as a private helper, remove the export from `stage_a_impl.py`, refresh doc references, and validate via the Stage A small-detector smoke (`tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion`) with canonical env flags.
+- Highlighted pitfalls (trusted-mask parity, warm-cache retarget ops, panel diagnostics env hook) and mapped findings (ARCH-STAGE-CTX-001) so the closure migration stays within scope.
+Action State: ready_for_implementation

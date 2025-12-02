@@ -68,11 +68,14 @@
 
 ## Phase B — Stage Ownership & Telemetry
 ### Checklist
-- [ ] B1: Introduce `StageArtifacts` + `StageResult` scaffolding so stages stop piggybacking non-telemetry dict keys.
-  - [ ] B1.1: Define the dataclasses (StageA warm-context payload, StageB shell/ASU/parity metadata, StageC final Bragg tensor) plus a `StageResult` carrier, then update StageA/StageB/StageC `run()` to emit them instead of raw dicts.
-  - [ ] B1.2: Teach `RefinementEngine` to consume `StageResult`, cache artifacts per stage, and propagate Stage A context + Stage B metadata via artifacts instead of `_stage_a_ctx_cache` / `_stage_b_shell_edges`.
-  - [ ] B1.3: Update `run_nanobrag_refinement` and the final-Bragg builders so they fetch StageA/B/C data from the engine’s artifact map before emitting legacy telemetry dicts (Stage C path replaces `_stage_c_bragg_full`, Stage B path no longer scrapes shell edges).
-- [ ] B2: Move LBFGS closure construction into `StageA.run` (and StageB/StageC equivalents), eliminating `_build_*_lbfgs_closure` exports once tests pass.
+- [x] B1: Introduce `StageArtifacts` + `StageResult` scaffolding so stages stop piggybacking non-telemetry dict keys. *(Done — see reports/2025-12-02T030800Z/)*
+  - [x] B1.1: Define the dataclasses (StageA warm-context payload, StageB shell/ASU/parity metadata, StageC final Bragg tensor) plus a `StageResult` carrier, then update StageA/StageB/StageC `run()` to emit them instead of raw dicts.
+  - [x] B1.2: Teach `RefinementEngine` to consume `StageResult`, cache artifacts per stage, and propagate Stage A context + Stage B metadata via artifacts instead of `_stage_a_ctx_cache` / `_stage_b_shell_edges`.
+  - [x] B1.3: Update `run_nanobrag_refinement` and the final-Bragg builders so they fetch StageA/B/C data from the engine’s artifact map before emitting legacy telemetry dicts (Stage C path replaces `_stage_c_bragg_full`, Stage B path no longer scrapes shell edges).
+- [ ] B2: Move LBFGS closure construction into the stage classes (eliminate `_build_*_lbfgs_closure` exports once tests pass).
+  - [ ] B2.1 (Stage A): Hoist `_build_stage_a_lbfgs_closure` into `dbex/refinement/stage_a.py` (private helper) so Stage A owns the closure + telemetry lifecycle. Remove the helper export from `stage_a_impl.py`, update docs referencing it, and keep `_run_stage_a_lbfgs` as the shared executor. Validation: `pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion --smoke-detector-size=small` with canonical env (KMP/NANOBRAGG flags) captured under `plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T040500Z/`.
+  - [ ] B2.2 (Stage B): Repeat the inlining for `_build_stage_b_lbfgs_closure`, ensuring ASU/shell metadata continue to flow through `StageBArtifacts` and CPU fallback logic retains lazy imports. Validation: Stage B shell + per-reflection smokes.
+  - [ ] B2.3 (Stage C): Inline `_build_stage_c_lbfgs_closure`, reusing the shared `_compute_panel_loss` helper, then rerun Stage C small/full smokes to prove REFINE-007 and perf telemetry stay green.
 - [ ] B3: Replace mutable telemetry dicts with dataclasses that expose typed appenders plus `.to_refinement_telemetry()` adapters, ensuring schema parity.
 - [ ] B4: Update engine + writer to consume `StageArtifacts` and typed telemetry while keeping JSON schema stable.
 

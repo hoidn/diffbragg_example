@@ -93,8 +93,6 @@
       - <code>problems.md</code>  <!-- AFTER handling user_input: read this optional backlog to capture user-supplied issues; update/remove entries as you schedule or resolve them, linking to fix-plan items. -->
       - <code>docs/index.md</code> <!-- HIGHEST PRIORITY: always read in full. -->
 
-      - <code>specs/data_contracts.md</code>
-      - <code>specs/ptychodus_api_spec.md</code>
       - <code>docs/spec-db*.md</code>, <code>docs/config_crosswalk.md</code>, <code>docs/dials_api.md</code>, <code>docs/dxtbx_api.md</code>, <code>docs/simtbx_api.md</code>, <code>docs/nanobrag_api.md</code>
       - <code>docs/spec-db-conformance.md</code>, <code>docs/spec-db-tracing.md</code>
       - <code>docs/fix_plan.md</code>
@@ -255,6 +253,7 @@
       1. <strong>Problems ledger review:</strong> After handling overrides, check for <code>./problems.md</code>.
          - If the file exists, read it in full before continuing. Treat each entry as a high-signal user-supplied issue feed that can seed or adjust initiatives.
          - When you schedule, supersede, or resolve an entry, update the corresponding bullet in <code>problems.md</code> with links to the relevant fix-plan item or remove it entirely so the ledger stays current. Summarize any edits in <code>galph_memory.md</code>.
+         - <strong>Fresh backlog guard:</strong> If <code>problems.md</code> has unchecked entries and neither of the last two <code>galph_memory.md</code> entries mention that ledger, you must dedicate this loop to at least one planning pass that incorporates a concrete item from the ledger (e.g., by creating/updating a fix-plan entry or revising <code>input.md</code>). Record which entry you serviced in both <code>problems.md</code> (with a pointer) and <code>galph_memory.md</code>.
          - If the file does not exist, continue to Dwell tracking.
       2. <strong>Dwell tracking:</strong> Ensure <code>galph_memory.md</code> exists (create with <code>dwell=0</code> if needed). Use the last entry for this focus to compute the new dwell unless a manual override just reset it. If <code>dwell==2</code> and prior two loops were non‑implementation, pre‑set <code>state=ready_for_implementation</code>.
       3. <code>timeout 30 git pull --rebase</code>. If it times out: <code>git rebase --abort</code> then <code>git pull --no-rebase</code>.

@@ -14,7 +14,7 @@ Normative Requirements:
 """
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -886,3 +886,73 @@ class StageCTelemetryState:
 
     # Optional panel diagnostics (PERF-WARM-SIM-001 Phase D.4)
     panel_loss_diag: Optional[List[Any]] = None
+
+
+@dataclass
+class StageCContext:
+    """
+    Typed context for Stage C LBFGS closure and helper functions.
+
+    Replaces the loose `stage_c_context_dict` dictionary passed through Stage C
+    helpers per ARCH-REFACTOR-001 Phase C1 (Stage C Context Breakout).
+
+    This dataclass owns Stage C's stage-specific state, including:
+    - Warm-cache flags and ROI metadata
+    - Baseline detector distances for offset computation
+    - Sampled panel IDs for multi-panel detectors
+    - ROI slices for efficient ROI-mode simulation
+    - Validation scope and force_panel_validation flags (REFINE-011/012)
+    - Performance counter snapshot containers
+    - _apply_baseline_detector_prior callback for warm-start logic
+
+    Device/dtype neutrality: This dataclass does NOT hold torch tensors directly;
+    tensors live in param_values (distance_offset_raw) and telemetry_state.
+    The callback and metadata here coordinate warm-cache behavior without
+    tying Stage C to a specific device.
+
+    Attributes:
+        stage_c_use_warm_cache: Boolean flag enabling Stage A simulator/HKL reuse
+        stage_c_cache_mode: String describing cache strategy ("roi_cache" | "panel_cache" | "disabled")
+        stage_c_roi_mode_label: String ROI mode label ("roi" | "panel" | "mixed")
+        stage_c_roi_count_total: Total ROI count across all panels
+        stage_c_roi_count_sampled: Count of ROIs actually sampled for optimization
+        baseline_detector_distances: List of baseline detector distances (mm) per panel
+        sampled_panel_ids: List of panel IDs included in Stage C optimization
+        roi_slices_by_pid: Dict mapping panel_id to List[slice] for ROI extraction
+        stage_c_roi_mode_active: Boolean flag for ROI-mode closures (vs panel-mode)
+        force_panel_validation: Boolean flag forcing panel-mode validation (REFINE-011)
+        roi_mode_reason: String explaining why ROI/panel mode was selected (REFINE-012)
+        validation_scope: String validation scope ("roi" | "panel") per REFINE-012
+        misset_deg_for_crystal: Tensor of Stage A final misset Euler angles (xyz, degrees)
+        _apply_baseline_detector_prior: Callable warm-start function that initializes
+            distance_offset_raw from baseline detector (Stage C prior logic)
+
+    Normative Dependencies:
+    - Warm-cache logic per PERF-WARM-013 (Stage A→C simulator reuse)
+    - ROI mode selection per docs/spec-db-workflow.md:62-65 (Stage C detector refinement)
+    - Validation scope enforcement per REFINE-011/012 (panel-mode validation gates)
+    - Baseline detector distance offsets per ARCH-STAGE-CONTEXT-001 (typed contexts)
+
+    IDL Contract Reference:
+    - docs/architecture.md (modular structure)
+    - docs/spec-db-workflow.md:62-65 (Stage C detector distance refinement)
+    - ARCH-REFACTOR-001 Phase C1: Typed context breakout to replace data clumps
+
+    Provenance:
+    - ARCH-REFACTOR-001 Phase C1.A: Introduce typed StageCContext alongside
+      RefinementSharedContext and StageCTelemetryState
+    """
+    stage_c_use_warm_cache: bool
+    stage_c_cache_mode: str  # "roi_cache" | "panel_cache" | "disabled"
+    stage_c_roi_mode_label: str  # "roi" | "panel" | "mixed"
+    stage_c_roi_count_total: int
+    stage_c_roi_count_sampled: int
+    baseline_detector_distances: List[float]
+    sampled_panel_ids: List[int]
+    roi_slices_by_pid: Dict[int, List[Any]]  # slice objects
+    stage_c_roi_mode_active: bool
+    force_panel_validation: bool
+    roi_mode_reason: str
+    validation_scope: str  # "roi" | "panel"
+    misset_deg_for_crystal: Any  # torch.Tensor (xyz Euler angles, degrees)
+    _apply_baseline_detector_prior: Callable[[], None]

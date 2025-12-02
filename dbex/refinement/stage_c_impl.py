@@ -550,19 +550,19 @@ def _run_stage_c_lbfgs(
     perf_forward_times_ms_c = telemetry_state.perf_forward_times_ms
     best_loss_full_c = telemetry_state.best_loss_full
 
-    # Extract from stage_c_context dict
-    stage_c_use_warm_cache = stage_c_context['stage_c_use_warm_cache']
-    stage_c_cache_mode = stage_c_context['stage_c_cache_mode']
-    stage_c_roi_mode_label = stage_c_context['stage_c_roi_mode_label']
-    stage_c_roi_count_total = stage_c_context['stage_c_roi_count_total']
-    stage_c_roi_count_sampled = stage_c_context['stage_c_roi_count_sampled']
-    baseline_detector_distances = stage_c_context.get('baseline_detector_distances')
-    sampled_panel_ids = stage_c_context['sampled_panel_ids']
-    _apply_baseline_detector_prior = stage_c_context['_apply_baseline_detector_prior']
-    misset_deg_for_crystal = stage_c_context['misset_deg_for_crystal']
-    force_panel_validation = stage_c_context['force_panel_validation']  # REFINE-011
-    roi_mode_reason = stage_c_context['roi_mode_reason']  # REFINE-012
-    validation_scope = stage_c_context['validation_scope']  # REFINE-012
+    # ARCH-REFACTOR-001 Phase C1.C: Extract from StageCContext dataclass (replaces dict access)
+    stage_c_use_warm_cache = stage_c_context.stage_c_use_warm_cache
+    stage_c_cache_mode = stage_c_context.stage_c_cache_mode
+    stage_c_roi_mode_label = stage_c_context.stage_c_roi_mode_label
+    stage_c_roi_count_total = stage_c_context.stage_c_roi_count_total
+    stage_c_roi_count_sampled = stage_c_context.stage_c_roi_count_sampled
+    baseline_detector_distances = stage_c_context.baseline_detector_distances
+    sampled_panel_ids = stage_c_context.sampled_panel_ids
+    _apply_baseline_detector_prior = stage_c_context._apply_baseline_detector_prior
+    misset_deg_for_crystal = stage_c_context.misset_deg_for_crystal
+    force_panel_validation = stage_c_context.force_panel_validation  # REFINE-011
+    roi_mode_reason = stage_c_context.roi_mode_reason  # REFINE-012
+    validation_scope = stage_c_context.validation_scope  # REFINE-012
 
     # Extract from canonical_baseline dict (needed for improvement gate)
     best_loss_full = (canonical_baseline['chi_squared'], canonical_baseline['iteration'])

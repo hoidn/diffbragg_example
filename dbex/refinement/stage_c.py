@@ -196,13 +196,13 @@ class StageC:
         variance_floor_masked_pixels_c = telemetry_state.variance_floor_masked_pixels
         sigma_floor_sq_tensor_stage_c = telemetry_state.sigma_floor_sq_tensor
 
-        # Extract from stage_c_context dict
-        stage_c_use_warm_cache = stage_c_context['stage_c_use_warm_cache']
-        stage_c_cache_mode = stage_c_context['stage_c_cache_mode']
-        stage_c_roi_mode_active = stage_c_context['stage_c_roi_mode_active']
-        stage_c_roi_mode_label = stage_c_context['stage_c_roi_mode_label']
-        roi_slices_by_pid = stage_c_context['roi_slices_by_pid']
-        force_panel_validation = stage_c_context['force_panel_validation']  # REFINE-011
+        # ARCH-REFACTOR-001 Phase C1.C: Extract from StageCContext dataclass (replaces dict access)
+        stage_c_use_warm_cache = stage_c_context.stage_c_use_warm_cache
+        stage_c_cache_mode = stage_c_context.stage_c_cache_mode
+        stage_c_roi_mode_active = stage_c_context.stage_c_roi_mode_active
+        stage_c_roi_mode_label = stage_c_context.stage_c_roi_mode_label
+        roi_slices_by_pid = stage_c_context.roi_slices_by_pid
+        force_panel_validation = stage_c_context.force_panel_validation  # REFINE-011
         n_panels = len(detector)
 
         # PERF-WARM-SIM-001 Phase D.4: Panel-loss diagnostics
@@ -909,23 +909,24 @@ class StageC:
             with torch.no_grad():
                 distance_offset_raw.data = 0.5 * torch.log((1 + ratio_tensor) / (1 - ratio_tensor))
 
-        # Build stage_c_context dict for helper2/helper3
-        stage_c_context_dict = {
-            'stage_c_use_warm_cache': stage_c_use_warm_cache,
-            'stage_c_cache_mode': stage_c_cache_mode,
-            'stage_c_roi_mode_label': stage_c_roi_mode_label,
-            'stage_c_roi_count_total': stage_c_roi_count_total,
-            'stage_c_roi_count_sampled': stage_c_roi_count_sampled,
-            'baseline_detector_distances': baseline_detector_distances,
-            'sampled_panel_ids': sampled_panel_ids,
-            '_apply_baseline_detector_prior': _apply_baseline_detector_prior,
-            'misset_deg_for_crystal': misset_deg_for_crystal,
-            'roi_slices_by_pid': roi_slices_by_pid,
-            'stage_c_roi_mode_active': stage_c_roi_mode_active,
-            'force_panel_validation': force_panel_validation,  # REFINE-011
-            'roi_mode_reason': roi_mode_reason,  # REFINE-012
-            'validation_scope': validation_scope,  # REFINE-012
-        }
+        # ARCH-REFACTOR-001 Phase C1.A: Build StageCContext dataclass (replaces stage_c_context_dict)
+        from dbex.refinement.context import StageCContext
+        stage_c_context = StageCContext(
+            stage_c_use_warm_cache=stage_c_use_warm_cache,
+            stage_c_cache_mode=stage_c_cache_mode,
+            stage_c_roi_mode_label=stage_c_roi_mode_label,
+            stage_c_roi_count_total=stage_c_roi_count_total,
+            stage_c_roi_count_sampled=stage_c_roi_count_sampled,
+            baseline_detector_distances=baseline_detector_distances,
+            sampled_panel_ids=sampled_panel_ids,
+            roi_slices_by_pid=roi_slices_by_pid,
+            stage_c_roi_mode_active=stage_c_roi_mode_active,
+            force_panel_validation=force_panel_validation,  # REFINE-011
+            roi_mode_reason=roi_mode_reason,  # REFINE-012
+            validation_scope=validation_scope,  # REFINE-012
+            misset_deg_for_crystal=misset_deg_for_crystal,
+            _apply_baseline_detector_prior=_apply_baseline_detector_prior,
+        )
 
         # ARCH-TELEMETRY-001 Phase C.1: Create observer collector from telemetry state
         # For now, always use the collector path per ARCH-TELEMETRY-001 Phase C.1
@@ -933,11 +934,12 @@ class StageC:
 
         # STEP 2: Build Stage C LBFGS closure (returns tuple)
         # ARCH-STAGE-CONTEXT-001 Phase B.2.3: Call StageC's own method instead of external helper
+        # ARCH-REFACTOR-001 Phase C1.B: Pass StageCContext dataclass instead of dict
         compute_loss_stage_c, closure_stage_c = self._build_lbfgs_closure(
             shared_context=shared_context,
             param_values=param_values_c,
             telemetry_state=telemetry_state_c,
-            stage_c_context=stage_c_context_dict,
+            stage_c_context=stage_c_context,
             stage_a_ctx=stage_a_ctx,
             sampled_panel_ids=sampled_panel_ids,
             collector=collector,
@@ -972,13 +974,14 @@ class StageC:
                 )
 
         # STEP 3: Run Stage C LBFGS optimization
+        # ARCH-REFACTOR-001 Phase C1.B: Pass StageCContext dataclass instead of dict
         stage_c_result = _run_stage_c_lbfgs(
             config=self._config,
             device=device,
             dtype=dtype,
             param_values=param_values_c,
             telemetry_state=telemetry_state_c,
-            stage_c_context=stage_c_context_dict,
+            stage_c_context=stage_c_context,
             compute_loss_stage_c=compute_loss_stage_c,
             closure_stage_c=closure_stage_c,
             crystal=crystal,

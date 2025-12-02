@@ -1,0 +1,100 @@
+        )
+    
+        # Extract Stage A and Stage C telemetry
+        assert "A" in telemetry_dict, "Stage A telemetry missing"
+        assert "C" in telemetry_dict, "Stage C telemetry missing (config.enable_stage_c=True)"
+        telemetry_a = telemetry_dict["A"]
+        telemetry_c = telemetry_dict["C"]
+        assert telemetry_a.sigma_readout_provenance == sigma_provenance
+        assert telemetry_c.sigma_readout_provenance == sigma_provenance
+    
+        # Acceptance 1: Both stages completed without errors
+        assert telemetry_a.status != "error", f"Stage A failed: {telemetry_a.message}"
+        assert telemetry_c.status != "error", f"Stage C failed: {telemetry_c.message}"
+    
+        # Acceptance 2: Stage C telemetry completeness
+        assert telemetry_c.optimizer == "LBFGS"
+        assert telemetry_c.stage == "C"
+        assert telemetry_c.history_size == config.history_size
+        assert telemetry_c.max_iter == config.max_iter
+>       assert len(telemetry_c.loss_trace_sample) > 0, "Stage C sample loss trace empty"
+E       AssertionError: Stage C sample loss trace empty
+E       assert 0 > 0
+E        +  where 0 = len([])
+E        +    where [] = RefinementTelemetry(optimizer='LBFGS', stage='C', history_size=10, max_iter=30, tolerance_grad=1e-07, tolerance_change=1e-09, roi_sample_fraction=0.15, roi_count_sampled=29, roi_count_total=29, loss_trace_sample=[], loss_trace_full=[(-1, 263642016.0), (-1, 263642016.0)], best_loss_full=(263642016.0, -1), param_deltas={'panel_0_distance_offset_mm': {'initial': 0.25, 'final': 0.25, 'delta': 0.0}}, status='early_stop', message='Stage C improvement -0.0000% < 0.0000% (\u22650.002% gate calibrated per REFINE-007)', perf_counters={'cache_mode': 'warm', 'roi_mode': 'panel', 'roi_mode_reason': 'stage_a_panel_mode', 'validation_scope': 'panel', 'roi_count_total': 29, 'roi_count_sampled': 29, 'closure_evals': 0, 'validation_runs': 5, 'forward_time_ms': {'mean': 45.88537958140174, 'min': 45.723541639745235, 'max': 45.982493087649345, 'total': 137.65613874420524}}, chi_squared_trace_sample=[], chi_squared_trace_full=[(-1, 263642016.0), (-1, 263642016.0)], chi_squared_best=(263642016.0, -1), masked_mse_trace_sample=[], masked_mse_trace_full=[(-1, 1891333.625), (-1, 1891333.625)], masked_mse_best=(1891333.625, -1), sigma_readout_provenance='cli_override', sigma_readout_reference_value=None, variance_floor_value=1.0, variance_floor_clamp_fraction=0.0, variance_floor_masked_pixels=None, variance_floor_clamped_pixels=None, log_scale_baseline_source=None, spot_scale_override_adjustment_factor=None, target_mean_masked=None, model_mean_masked=None, canonical_stage_label='A', canonical_chi_squared=263641952.0, canonical_chi_squared_iteration=13, canonical_roi_count=29, canonical_detector_distances_mm=[231.27645547762575], roi_mode='panel', stage_type='C', mode='detector_offsets', engine_protocol='stage_a\u2192stage_c', stage_modes={'C': 'detector_offsets'}, telemetry_version='1.0').loss_trace_sample
+
+tests/dbex/test_torch_refine_smoke.py:1132: AssertionError
+----------------------------- Captured stdout call -----------------------------
+
+[test_stage_c_detector_microslip] detector=small
+auto-selected 1-fold oversampling
+[HKL stats] h=[-12,7] k=[-14,9] l=[-14,8] hit_rate=1045469/1048576 (99.70%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046397/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046397/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046397/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-18,22] k=[-15,16] l=[0,4] hit_rate=1047588/1048576 (99.91%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-19,22] k=[-13,14] l=[0,4] hit_rate=1047453/1048576 (99.89%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-18,22] k=[-15,16] l=[0,4] hit_rate=1047574/1048576 (99.90%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-18,22] k=[-15,16] l=[0,4] hit_rate=1047586/1048576 (99.91%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-18,22] k=[-15,16] l=[0,4] hit_rate=1047588/1048576 (99.91%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-18,22] k=[-15,16] l=[0,4] hit_rate=1047588/1048576 (99.91%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-18,22] k=[-15,16] l=[0,4] hit_rate=1047588/1048576 (99.91%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-18,22] k=[-15,16] l=[0,4] hit_rate=1047588/1048576 (99.91%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-18,22] k=[-15,16] l=[0,4] hit_rate=1047588/1048576 (99.91%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-18,22] k=[-15,16] l=[0,4] hit_rate=1047588/1048576 (99.91%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-18,22] k=[-15,16] l=[0,4] hit_rate=1047588/1048576 (99.91%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-18,22] k=[-15,16] l=[0,4] hit_rate=1047588/1048576 (99.91%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-18,22] k=[-15,16] l=[0,4] hit_rate=1047588/1048576 (99.91%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-18,22] k=[-15,16] l=[0,4] hit_rate=1047588/1048576 (99.91%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-18,22] k=[-15,16] l=[0,4] hit_rate=1047588/1048576 (99.91%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-18,22] k=[-15,16] l=[0,4] hit_rate=1047588/1048576 (99.91%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-18,22] k=[-15,16] l=[0,4] hit_rate=1047588/1048576 (99.91%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-18,22] k=[-15,16] l=[0,4] hit_rate=1047588/1048576 (99.91%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-18,22] k=[-15,16] l=[0,4] hit_rate=1047588/1048576 (99.91%)
+=============================== warnings summary ===============================
+tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dxtbx/format/FormatCBFFull.py:198: DeprecationWarning: The binary mode of fromstring is deprecated, as it behaves surprisingly on unicode inputs. Use frombuffer instead
+    self._raw_data = flex.int(np.fromstring(array_string, np.int32))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip - AssertionError: Stage C sample loss trace empty
+assert 0 > 0
+ +  where 0 = len([])
+ +    where [] = RefinementTelemetry(optimizer='LBFGS', stage='C', history_size=10, max_iter=30, tolerance_grad=1e-07, tolerance_change=1e-09, roi_sample_fraction=0.15, roi_count_sampled=29, roi_count_total=29, loss_trace_sample=[], loss_trace_full=[(-1, 263642016.0), (-1, 263642016.0)], best_loss_full=(263642016.0, -1), param_deltas={'panel_0_distance_offset_mm': {'initial': 0.25, 'final': 0.25, 'delta': 0.0}}, status='early_stop', message='Stage C improvement -0.0000% < 0.0000% (\u22650.002% gate calibrated per REFINE-007)', perf_counters={'cache_mode': 'warm', 'roi_mode': 'panel', 'roi_mode_reason': 'stage_a_panel_mode', 'validation_scope': 'panel', 'roi_count_total': 29, 'roi_count_sampled': 29, 'closure_evals': 0, 'validation_runs': 5, 'forward_time_ms': {'mean': 45.88537958140174, 'min': 45.723541639745235, 'max': 45.982493087649345, 'total': 137.65613874420524}}, chi_squared_trace_sample=[], chi_squared_trace_full=[(-1, 263642016.0), (-1, 263642016.0)], chi_squared_best=(263642016.0, -1), masked_mse_trace_sample=[], masked_mse_trace_full=[(-1, 1891333.625), (-1, 1891333.625)], masked_mse_best=(1891333.625, -1), sigma_readout_provenance='cli_override', sigma_readout_reference_value=None, variance_floor_value=1.0, variance_floor_clamp_fraction=0.0, variance_floor_masked_pixels=None, variance_floor_clamped_pixels=None, log_scale_baseline_source=None, spot_scale_override_adjustment_factor=None, target_mean_masked=None, model_mean_masked=None, canonical_stage_label='A', canonical_chi_squared=263641952.0, canonical_chi_squared_iteration=13, canonical_roi_count=29, canonical_detector_distances_mm=[231.27645547762575], roi_mode='panel', stage_type='C', mode='detector_offsets', engine_protocol='stage_a\u2192stage_c', stage_modes={'C': 'detector_offsets'}, telemetry_version='1.0').loss_trace_sample
+======================== 1 failed, 5 warnings in 7.14s =========================

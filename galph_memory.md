@@ -353,3 +353,8 @@ Action State: ready_for_implementation
 - Reserved the 2025-12-02T052800Z artifacts directory, updated docs/fix_plan.md and implementation.md (B2.1 checked off, B2.2 now active), and rewrote input.md with the new Do Now plus shell/per-reflection smoketest commands (noting the expected per-reflection failure tied to `reports/2025-12-02T020900Z/blocked.md`).
 - Findings referenced: ARCH-STAGE-CTX-001 (eliminate helper data clumps) and REFINE-008/PERF-WARM-011 (do not perturb Stage B acceptance gates or CPU fallback). Next loop must implement the relocation and capture the Stage B evidence.
 Action State: planning
+2025-12-02T063500Z focus=ARCH-STAGE-CONTEXT-001 state=ready_for_implementation dwell=0 action=planning artifacts=plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T063500Z/ next_action=Implement Stage C closure inlining + rerun Stage C smokes
+- Confirmed Stage B closure inlining landed (code + tests) and updated docs/fix_plan.md and the Phase B checklist to mark B2.2 complete; reserved the 2025-12-02T063500Z artifact path for Stage C.
+- Planned the Stage C `_build_lbfgs_closure` relocation (StageC private helper, stage_c_impl comment cleanup, imports) and rewrote input.md with concrete implementation steps, env-guarded smoketests (small pass, full expected PERF-WARM-SIM-001 failure), and artifact instructions.
+- Refreshed problems.md ledger entry to record the Phase B progress so the Stage-context design debt stays linked to ARCH-STAGE-CONTEXT-001.
+Action State: ready_for_implementation

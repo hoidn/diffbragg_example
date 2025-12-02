@@ -141,20 +141,27 @@
 **Design Impact**: StageA now owns the loss/telemetry lifecycle; stage_a_impl.py provides only reusable helpers
 **Next Actions**: Phase B.3 — Apply same pattern to StageB and StageC closure construction
 
-### 2025-12-02T052800Z - ARCH-STAGE-CONTEXT-001 Phase B.2: StageB Closure Inlining (READY FOR IMPLEMENTATION)
-- **Scope**: Inline `_build_stage_b_lbfgs_closure` as `StageB._build_lbfgs_closure`, drop the helper export from `dbex/refinement/stage_b_impl.py`, and update documentation references (`stage_b_impl.py` header, `dbex/refinement/context.py`) so RefinementSharedContext remains the authoritative path.
-- **Validation plan**:
-  1. `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small | tee plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T052800Z/pytest_stage_b_shell.log`
-  2. `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_per_reflection_smoke --smoke-detector-size=small | tee plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T052800Z/pytest_stage_b_per_reflection.log` (expected failure with ASU mean==1.0 per `plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T020900Z/blocked.md`; capture the log and reference the finding).
-- **Risks**: Preserve CPU fallback routing (PERF-WARM-011), warm-cache telemetry, shell/ASU metadata in `StageBArtifacts`, and keep softplus clamps + variance-weighted loss identical so REFINE-008 tolerances remain valid.
-- **Artifacts**: Planning + test logs will live under `plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T052800Z/`.
-- **Next Actions**: Ship Do Now directing Ralph to perform the inline move plus import cleanup and helper deletion before advancing to Stage C.
-- Stage C detector microslip smoke (small detector): **PASSED** (7.84s)
-**Artifacts**: plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T030800Z/ (pytest_stage_a_engine.log, pytest_stage_b_small.log, pytest_stage_c_small.log, telemetry_stage_b_small.json, telemetry_stage_c_small.json)
-**First Divergence**: None; all three Stage smoke tests green on first implementation (minor fix required for excluding baseline parity fields from RefinementTelemetry constructor)
-**Next Actions**:
-- Phase B.2: Move LBFGS closure construction into Stage classes (eliminate `_build_*_lbfgs_closure` exports)
-- Phase B.3: Replace mutable telemetry dicts with typed dataclasses + `.to_refinement_telemetry()` adapters
+### 2025-12-02T052800Z - ARCH-STAGE-CONTEXT-001 Phase B.2: StageB Closure Inlining (COMPLETE)
+**Action**: Hoisted `_build_stage_b_lbfgs_closure` into `StageB._build_lbfgs_closure`, deleted the helper export from `dbex/refinement/stage_b_impl.py`, and updated context/plan docs so RefinementSharedContext is the sole entrypoint. StageB.run now owns the closure lifecycle, keeping CPU fallback/warm-cache logic and StageBArtifacts parity telemetry untouched.
+**Tests**:
+- `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small` — PASSED.
+- `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_per_reflection_smoke --smoke-detector-size=small` — expected FAILURE (ASU gradient flow still broken per `reports/2025-12-02T020900Z/blocked.md`); failure signature unchanged.
+**Artifacts**: `plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T052800Z/` (pytest logs + summary).
+**Next Actions**: Proceed to Stage C closure inlining so all stages own their closures before Phase B.3 telemetry work.
+
+### 2025-12-02T063500Z - ARCH-STAGE-CONTEXT-001 Phase B.2: StageC Closure Inlining (READY FOR IMPLEMENTATION)
+- **Scope**: Move `_build_stage_c_lbfgs_closure` into `StageC._build_lbfgs_closure`, remove the helper from `dbex/refinement/stage_c_impl.py`, and keep `_retarget_stage_a_detectors`, `_build_stage_c_params`, `_run_stage_c_lbfgs` untouched. StageC.run should call the new private helper so RefinementSharedContext stays authoritative and panel diagnostics/ROI guards remain inlined.
+- **Implementation steps**:
+  1. Add `StageC._build_lbfgs_closure(...)` mirroring the existing helper (docstring referencing ARCH-STAGE-CONTEXT-001 Phase B.2).
+  2. Delete `_build_stage_c_lbfgs_closure` from `dbex/refinement/stage_c_impl.py`, leaving a short comment pointing to the class method (match Stage B’s pattern).
+  3. Update imports/call sites in `dbex/refinement/stage_c.py` to drop the helper import and invoke `self._build_lbfgs_closure`.
+  4. Preserve all env-guarded behavior (DBEX_STAGE_C_PANEL_DIAG_DIR, trusted-mask parity per REFINE-016, validation-scope guard per REFINE-011/012/015) and avoid `.item()` on tensors that still participate in autograd.
+- **Validation**:
+  1. `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small | tee plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T063500Z/pytest_stage_c_small.log`
+  2. `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=full KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=full | tee plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T063500Z/pytest_stage_c_full.log`
+     *Stage C full run is still expected to fail with the known PERF-WARM-SIM-001 +0.067 % chi² regression; capture telemetry so the signature stays traceable.*
+- **Artifacts**: `plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T063500Z/`.
+- **Risks**: Full-detector failure is pre-existing; do not relax REFINE-007. Ensure panel diagnostics + trusted mask parity stay active so we can compare with prior telemetry.
 
 ### 2025-12-01T084505Z - ARCH-REFINE-001 Phase A.2: Stage B Helper Extraction
 **Action**: Migrated Stage B LBFGS helpers to `dbex/refinement/stage_b_impl.py`

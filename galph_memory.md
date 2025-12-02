@@ -482,3 +482,8 @@ Action State: ready_for_implementation
 - Rebuilt input.md with a concrete Parity-mode Do Now: extend the Stage B/C collectors, delete the legacy `telemetry_state` mutations inside `_build_stage_b_lbfgs_closure`, `_run_stage_b_lbfgs`, `_build_stage_c_lbfgs_closure`, and `_run_stage_c_lbfgs`, finalize `StageResult` payloads from the collectors, and rerun the Stage B guard plus the Stage B/C small-detector smokes with logs saved under `reports/2025-12-03T160900Z/`.
 - Second consecutive planning turn for this focus; next loop must deliver the implementation or we need to switch focus per dwell rules.
 Action State: ready_for_implementation
+2025-12-03T171500Z focus=ARCH-LAZY-IMPORTS-001 state=planning dwell=0 action=planning artifacts=plans/active/ARCH-LAZY-IMPORTS-001/reports/2025-12-03T171500Z/ next_action=ready_for_implementation
+- Problems-ledger guard serviced: re-focused on ARCH-LAZY-IMPORTS-001 (Lazy imports / process noise) and documented the Stage B stack cleanup scope in the implementation plan + fix-plan ledger.
+- Updated plans/active/ARCH-LAZY-IMPORTS-001/implementation.md (Phase B.3 detail + artifact pointer) and docs/fix_plan.md (new attempt entry) to capture the Stage B parity-guard lazy-import removal plan.
+- Authored input.md for Ralph covering module-scope imports + logger refactor plus Stage B guard/smoke selectors; artifacts reserved under 2025-12-03T171500Z.
+Action State: pending implementation by Ralph

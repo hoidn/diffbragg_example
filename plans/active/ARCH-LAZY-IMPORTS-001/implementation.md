@@ -60,14 +60,22 @@
 
 ## Phase B — Leaf Module Import Cleanup
 ### Checklist
-- [ ] B1: Convert `dbex/geometry/crystallography.py` to module-scope imports with explicit optional dependency guards (`try/except ImportError` at top) and update references to GEOMETRY findings.
-- [ ] B2: Update `dbex/physics/forward.py::simulate_forward_torch` to import bridge/helpers at module scope, add dependency docstrings, and ensure tests cover the new import order.
-- [ ] B3: Patch Stage helper modules (stage_a_impl/b_impl/c_impl) to rely on shared module-level imports or documented dependency injection, removing per-call `from ... import ...` statements.
+- [x] B1: Convert `dbex/geometry/crystallography.py` to module-scope imports with explicit optional dependency guards (`try/except ImportError` at top) and update references to GEOMETRY findings. *(2025-12-02T082202Z artifacts captured.)*
+- [x] B2: Update `dbex/physics/forward.py::simulate_forward_torch` to import bridge/helpers at module scope, add dependency docstrings, and ensure tests cover the new import order. *(2025-12-02T082202Z artifacts captured.)*
+- [ ] B3: Patch Stage helper modules (stage_a_impl/b_impl/c_impl) to rely on shared module-level imports or documented dependency injection, removing per-call `from ... import ...` statements. *Current focus: Stage B stack (stage_b_impl + StageB parity guard).*
 - [ ] B4: Run targeted smoke selectors (`tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion`, `tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_runs_simulator`, Gradcheck selectors) capturing collect + execution logs under this initiative.
 
 ### Notes & Risks
 - Ensure import moves do not trigger heavier dependencies during CLI start-up (documented heuristics may require gating behind config detection).
 - Watch for Environment Freeze — no new third-party installs allowed; rely on existing optional deps.
+
+### Phase B.3 — Stage Helper Cleanup (2025-12-03T171500Z focus)
+- Scope: Eliminate the remaining inline `import` usage across the Stage B stack (`dbex/refinement/stage_b_impl.py`, `StageB._build_lbfgs_closure` parity guard) so logging/telemetry dependencies are at module scope with documented guards.
+- Deliverables this loop:
+  - Move `json`, `os`, `logging`, and `Path` imports to module scope; add `logger = logging.getLogger(__name__)` for parity guard messaging.
+  - Import `StageBTelemetryCollector` at module scope (no circular dependency) and update `_check_stage_b_baseline_parity` to rely on the eager import instead of per-call imports.
+  - Replace ad-hoc `import logging` statements inside `_run_stage_b_lbfgs`, `_compute_loss_stage_b`, etc., with the shared module logger.
+  - Capture pytest evidence for Stage B parity guard (`tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload`) and the Stage B shell smoke (`tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small`).
 
 ## Phase C — Process Noise & Guardrails
 ### Checklist
@@ -80,4 +88,4 @@
 
 ## Artifacts Index
 - Reports root: `plans/active/ARCH-LAZY-IMPORTS-001/reports/`
-- Latest run: `2025-12-02T082202Z/`
+- Latest run: `2025-12-03T171500Z/` *(Stage B lazy-import cleanup in progress — reserved for this loop’s artifacts.)*

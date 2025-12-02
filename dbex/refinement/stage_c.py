@@ -39,15 +39,17 @@ import torch
 from dbex.refinement.artifacts import StageCArtifacts
 from dbex.refinement.stage import RefinementTelemetry, StageResult
 from dbex.refinement.telemetry_collectors import StageCTelemetryCollector
-from dbex.refinement.stage_a_impl import (
+# ARCH-REFACTOR-001 Phase C.7: Import shared Stage A helpers from stage_a_utils
+from dbex.refinement.stage_a_utils import (
     vec_to_unit_quaternion,
     quaternion_to_xyz_euler,
     _clamp_log_cell_deltas,
     _retarget_stage_a_simulators,
     _compute_panel_loss,
     _get_sigma_floor_sq_tensor,
-    StageAContext,
 )
+# StageAContext dataclass remains in stage_a_impl (not moved to utils)
+from dbex.refinement.stage_a_impl import StageAContext
 from dbex.physics.loss import _compute_variance_weighted_loss
 from dbex.refinement.config_factories import (
     create_detector_config,

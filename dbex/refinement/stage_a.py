@@ -32,14 +32,18 @@ import torch
 # ARCH-REFINE-001: Eager imports at module scope to eliminate lazy-import pattern
 from dbex.refinement.artifacts import StageAArtifacts
 from dbex.refinement.stage import StageResult
+# Stage A-private helpers (will be inlined in Phase C.8)
 from dbex.refinement.stage_a_impl import (
     _build_stage_a_params,
-    _clamp_log_cell_deltas,
-    _compute_panel_loss,
     _compute_variance_weighted_loss,
-    _retarget_stage_a_simulators,
     _run_stage_a_lbfgs,
     _sync_stage_a_crystal,
+)
+# Shared helpers used by Stage B, C, and reconstruction
+from dbex.refinement.stage_a_utils import (
+    _clamp_log_cell_deltas,
+    _compute_panel_loss,
+    _retarget_stage_a_simulators,
     vec_to_unit_quaternion,
     quaternion_to_xyz_euler,
 )
@@ -1241,7 +1245,7 @@ class StageA:
             from dbex.refinement.reconstruction import build_final_bragg_from_stage_a_telemetry
             # Build final Bragg from Stage A telemetry using the shared helper
             bragg_full_artifact = build_final_bragg_from_stage_a_telemetry(
-                telemetry_a=telemetry_output,
+                telemetry_a=telemetry_a,
                 detector=detector,
                 beam=beam,
                 crystal=crystal,

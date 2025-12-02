@@ -70,7 +70,8 @@ def build_final_bragg_from_stage_a_telemetry(
         create_crystal_config,
     )
     from dbex.nanobrag_bridge import compute_baseline_misset_deg
-    from dbex.refinement.stage_a_impl import _clamp_log_cell_deltas
+    # ARCH-REFACTOR-001 Phase C.7: Import shared Stage A helper from stage_a_utils
+    from dbex.refinement.stage_a_utils import _clamp_log_cell_deltas
 
     # Extract param_deltas from telemetry
     param_deltas_a = telemetry_a.param_deltas if hasattr(telemetry_a, 'param_deltas') else telemetry_a['param_deltas']
@@ -158,7 +159,8 @@ def build_final_bragg_from_stage_a_telemetry(
     # Reuse warm cache simulators if available
     if stage_a_ctx is not None and hasattr(stage_a_ctx, 'simulators'):
         # Warm cache path: retarget existing simulators with refined crystal (GRADIENT-004, ARCH-FACTORY-001)
-        from dbex.refinement.stage_a_impl import _retarget_stage_a_simulators
+        # ARCH-REFACTOR-001 Phase C.7: Import shared Stage A helper from stage_a_utils
+        from dbex.refinement.stage_a_utils import _retarget_stage_a_simulators
         # Update crystal_model beam_config from context
         crystal_model.beam_config = stage_a_ctx.beam_config
         _retarget_stage_a_simulators(stage_a_ctx, crystal_model)
@@ -255,7 +257,8 @@ def build_final_bragg_from_stage_b_telemetry(
         create_crystal_config,
     )
     from dbex.nanobrag_bridge import compute_baseline_misset_deg
-    from dbex.refinement.stage_a_impl import _clamp_log_cell_deltas, _retarget_stage_a_simulators
+    # ARCH-REFACTOR-001 Phase C.7: Import shared Stage A helper from stage_a_utils
+    from dbex.refinement.stage_a_utils import _clamp_log_cell_deltas, _retarget_stage_a_simulators
 
     # Extract param_deltas from telemetry (handle both RefinementTelemetry and dict)
     if hasattr(telemetry_a, 'param_deltas'):

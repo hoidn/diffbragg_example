@@ -619,6 +619,104 @@ class StageATelemetryState:
     # Optional panel diagnostics (PERF-WARM-SIM-001 Phase D.4)
     panel_loss_diag: Optional[List[Any]] = None
 
+    def record_step(self, iteration: int, loss: float, chi2: float, mse: float) -> None:
+        """
+        Record per-step telemetry (convenience helper for collector integration).
+
+        Args:
+            iteration: Current LBFGS iteration index
+            loss: Scalar loss value (variance-weighted chi²)
+            chi2: Chi² value (should match loss)
+            mse: Masked MSE value
+
+        Normative Requirements:
+        - Updates iteration_count, loss/chi²/MSE sample traces
+        - Does NOT increment closure eval counter (caller's responsibility)
+
+        Provenance:
+        - ARCH-TELEMETRY-001 Phase A.3: Helper methods for collector interaction
+        """
+        self.iteration_count[0] = iteration
+        self.loss_trace_sample.append(loss)
+        self.chi_squared_trace_sample.append(chi2)
+        self.masked_mse_trace_sample.append(mse)
+
+    def record_validation(
+        self,
+        chi2: float,
+        loss: float,
+        mse: float,
+        best_snapshot: Optional[Any] = None,
+    ) -> None:
+        """
+        Record full-validation telemetry (convenience helper for collector integration).
+
+        Args:
+            chi2: Full-validation chi² value
+            loss: Full-validation loss value
+            mse: Full-validation masked MSE
+            best_snapshot: Optional parameter snapshot at best loss
+
+        Normative Requirements:
+        - Updates full-validation traces, best loss/chi²/MSE trackers
+        - Does NOT increment validation run counter (caller's responsibility)
+
+        Provenance:
+        - ARCH-TELEMETRY-001 Phase A.3: Helper methods for collector interaction
+        """
+        self.chi_squared_trace_full.append(chi2)
+        self.loss_trace_full.append(loss)
+        self.masked_mse_trace_full.append(mse)
+
+        # Update best loss tracker
+        if not self.best_loss_full or loss < self.best_loss_full[-1]:
+            self.best_loss_full.append(loss)
+        else:
+            self.best_loss_full.append(self.best_loss_full[-1] if self.best_loss_full else loss)
+
+        # Update best chi² and iteration
+        if chi2 < self.chi_squared_best[0]:
+            self.chi_squared_best[0] = chi2
+            self.chi_squared_best[1] = self.iteration_count[0]
+
+        # Update best masked MSE and iteration
+        if mse < self.masked_mse_best[0]:
+            self.masked_mse_best[0] = mse
+            self.masked_mse_best[1] = self.iteration_count[0]
+
+        # Record best parameter snapshot if present
+        if best_snapshot is not None:
+            self.best_params_snapshot = [best_snapshot]
+
+    def get_current_iteration(self) -> int:
+        """
+        Read current iteration count (read-only view).
+
+        Returns:
+            Current LBFGS iteration index
+
+        Provenance:
+        - ARCH-TELEMETRY-001 Phase A.3: Helper methods for collector interaction
+        """
+        return self.iteration_count[0]
+
+    def get_perf_counters(self) -> Dict[str, int]:
+        """
+        Read performance counters (read-only view).
+
+        Returns:
+            Dict with closure_evals, validation_runs, variance_floor stats
+
+        Provenance:
+        - ARCH-TELEMETRY-001 Phase A.3: Helper methods for collector interaction
+        """
+        return {
+            'closure_evals': self.perf_closure_evals[0],
+            'validation_runs': self.perf_validation_runs[0],
+            'variance_floor_clamped_pixels': self.variance_floor_clamped_pixels[0],
+            'variance_floor_masked_pixels': self.variance_floor_masked_pixels[0],
+        }
+
 
 @dataclass
 class StageBTelemetryState:

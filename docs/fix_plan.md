@@ -93,6 +93,7 @@
 - Ledger tie-in: addresses problems.md entry “Refactor: Decouple Telemetry from Refinement Logic using Observer Pattern” (architectural issues 1.3/2.3). Plan captures Observer pattern, Stage-specific telemetry collectors, and writer simplification.
 - Attempts History:
   * 2025-12-02T190000Z — Plan scaffolded, compliance matrix recorded, and observer prototype tasks defined. Next loop will implement Phase A.1 collector + Stage A wiring.
+  * 2025-12-02T191500Z — Phase A.1/A.2 complete: Created `dbex/refinement/interfaces.py` (RefinementObserver protocol, StageResult/telemetry dataclasses), `dbex/refinement/telemetry_collectors.py` (StageATelemetryCollector/B/C with observer callbacks), added helper methods to StageATelemetryState. Modules import successfully and pass static checks. Stage A closure wiring deferred due to scope/complexity (requires extensive closure refactoring in 1600+ line stage_a.py; current loop focused on interface/collector scaffolding per Phase A Do Now). Next: Thread collector through _build_lbfgs_closure and update StageA.run() to return StageResult. Artifacts: `plans/active/ARCH-TELEMETRY-001/reports/2025-12-02T191500Z/`.
 
 ### [ARCH-ENGINE-ARTIFACTS-001] RefinementEngine Artifact Channel & Final-Bragg Unification
 - Depends on: ARCH-REFINE-001 (engine modularization baseline), ARCH-REFINE-FLOW-001 (stage wrappers, telemetry contract)

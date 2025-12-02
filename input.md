@@ -1,44 +1,42 @@
-Summary: Capture the existing writer/bridge seam, add typed ROI analysis dataclasses, and document the new boundary so we can pull Nelder–Mead out of `write_torch_outputs` in the next loop.
+Summary: Kick off Phase B by implementing a reusable ROI scoring helper (Nelder–Mead + `roiCheck`) plus unit tests so we can migrate `write_torch_outputs` to typed payloads next loop without changing writer behavior yet.
 Mode: none
 InitiativeType: architecture
 Focus: ARCH-BRIDGE-RESP-001 — Writer / bridge responsibility split
 Branch: integration
 Mapped tests:
+- pytest -q tests/dbex/test_roi_analysis.py
 - KMP_DUPLICATE_LIB_OK=TRUE pytest -q tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata
-- pytest -q tests/dbex/test_nanobrag_bridge.py::TestPrepareRefinementInputs::test_tensor_contract
-Artifacts: plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-02T213000Z/
+Artifacts: plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-02T223500Z/
 
 Do Now:
-- Implement: dbex/io/roi_analysis.py::ROIAnalysisPayload — Add a new module under `dbex/io/` that defines `ROITriptych` (panel_id, bbox, numpy arrays for data/bg/bragg), `ROIAnalysisPayload` (score, optimal scale, variance metadata), and a helper `build_roi_payloads_from_arrays(target, background, bragg, pids, bbox, scores=None, scales=None)` that packages existing arrays without mutating them. Keep everything numpy-based (no torch), include docstrings citing docs/spec-db-core.md §§20-46, and write minimal unit tests if necessary later.
-- Document: docs/architecture/dbex/io/writer.idl.md & docs/data_dependency_manifest.md — Add a “ROI Analysis Payload” section describing the new typed parameter (fields, shapes, provenance) and extend the manifest with a short entry for the helper (inputs: ROI arrays, outputs: triptych/payload artifacts, telemetry fields).
-- Evidence: plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-02T213000Z/boundary_audit.md — Capture the current callers of `write_torch_outputs` and `prepare_refinement_inputs` (just paths + context) plus a brief paragraph summarizing responsibilities; save the raw `rg` command outputs alongside the markdown.
-- Validate: Re-run the CLI telemetry metadata test and the nanobrag bridge tensor contract test; store both pytest logs in the artifacts directory (e.g., `pytest_torch_writer_metadata.log`, `pytest_nanobrag_bridge_contract.log`).
+- Implement: dbex/io/roi_scoring.py::score_roi_payloads — Add a new helper module that depends on `dbex/io/roi_analysis.py`. Accept full-detector `target`, `background`, `bragg`, ROI `pids/bbox`, and required floats `sigma_readout` + `sigma_floor` (both already in the run’s target units). Optionally accept an injected `roi_checker` instance and `log_fn` callable for per-ROI logging. Reuse `build_roi_payloads_from_arrays` to slice ROIs, run `scipy.optimize.minimize` with the same `roiCheck` objective the writer currently uses (optimize sqrt scale so `optimal_scale = result.x[0]**2`), coerce scores to `float`, and populate the returned `ROIAnalysisPayload` objects with `score`, `optimal_scale`, `model`, and `variance = max(model + sigma_readout**2, sigma_floor**2)` per docs/spec-db-core.md §§86-90. Keep imports local (no torch at module import time) and do not modify `write_torch_outputs` yet.
+- Implement: tests/dbex/test_roi_analysis.py::<new tests> — Add a focused test module that (a) constructs a synthetic ROI where `data = background + k * bragg` and asserts `score_roi_payloads` recovers `optimal_scale ≈ k`, `score ≈ 1.0`, and the correct variance floor, and (b) verifies the optional `roi_checker`/`log_fn` hooks (e.g., pass a fake checker returning deterministic scores so you can assert logs and payload contents without hitting SciPy when desired). Keep fixtures numpy-only so the test runs quickly.
+- Document: docs/architecture/dbex/io/writer.idl.md & docs/data_dependency_manifest.md — Promote the “future helper” notes to a concrete API description (signature, parameters, telemetry fields such as `roi_scoring_method`/`roi_checker`) and add a manifest entry describing the helper’s inputs (target/background/bragg, ROI metadata, sigma) and generated artifacts (payload list, log files). Note that writer still consumes raw arrays for now but the helper artifacts live in `plans/active/ARCH-BRIDGE-RESP-001/reports/.../`.
+- Validate: Run the new ROI analysis test plus the existing CLI telemetry smoke to ensure no regressions, capturing logs in the artifacts directory (`pytest_roi_analysis.log`, `pytest_torch_writer_metadata.log`). Keep existing bridge tests untouched this loop.
 
 How-To Map:
-1. Boundary audit: `rg -n "write_torch_outputs" dbex tests > plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-02T213000Z/writer_callers.txt` and `rg -n "prepare_refinement_inputs" dbex tests > .../bridge_callers.txt`, then summarize the call graph + seam in `boundary_audit.md` (include one paragraph per function citing the new plan checkpoint).
-2. New module: Create `dbex/io/roi_analysis.py` with the dataclasses + helper described above, add module-level `__all__`, and ensure the helper performs only packaging (no optimization). Add import guards/comments so future wiring knows where to hook ROI scoring.
-3. Docs: Update `docs/architecture/dbex/io/writer.idl.md` by adding a section that defines the ROI analysis payload (fields, dataset mapping, provenance) and reference it from the API signature; extend `docs/data_dependency_manifest.md` with bullet(s) describing the helper’s inputs and required telemetry keys.
-4. Tests/Artifacts: Run `KMP_DUPLICATE_LIB_OK=TRUE pytest -q tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata | tee plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-02T213000Z/pytest_torch_writer_metadata.log` and `pytest -q tests/dbex/test_nanobrag_bridge.py::TestPrepareRefinementInputs::test_tensor_contract | tee plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-02T213000Z/pytest_nanobrag_bridge_contract.log`. Ensure both command exits success and logs live under the artifacts path.
+1. Helper: `mkdir -p dbex/io && $EDITOR dbex/io/roi_scoring.py` — create `score_roi_payloads` using `score_trainer.roi_check.roiCheck` + `scipy.optimize.minimize` (guard imports inside the helper), reusing `build_roi_payloads_from_arrays`, and expose it via `__all__`.
+2. Tests: `mkdir -p tests/dbex && $EDITOR tests/dbex/test_roi_analysis.py` — add the two tests described above; inject a dummy checker/log function to avoid brittle assertions when verifying hooks.
+3. Docs: Edit `docs/architecture/dbex/io/writer.idl.md` to add the helper signature/telemetry section and update the ROI entry in `docs/data_dependency_manifest.md` with the new helper inputs/outputs + artifact requirements.
+4. Pytest/Artifacts: `pytest -q tests/dbex/test_roi_analysis.py | tee plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-02T223500Z/pytest_roi_analysis.log` and `KMP_DUPLICATE_LIB_OK=TRUE pytest -q tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata | tee plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-02T223500Z/pytest_torch_writer_metadata.log`.
 
 Pitfalls To Avoid:
-- Do not change `write_torch_outputs` behavior yet; the new helper must be unused until the next loop.
-- Keep dataclasses numpy-only so h5py callers can serialize without touching torch or SciPy.
-- Avoid creating new dependencies or importing torch at module import time.
-- When documenting the new interface, do not rename existing `/torch_diagnostics` keys or dataset paths.
-- Ensure boundary audit artifacts are reproducible and placed under the initiative reports directory.
-- No environment/toolchain changes per Environment Freeze; rely on stdlib/dataclasses only.
+- Do not change `dbex/io/writer.py` signature, CLI wiring, or HDF5 schema yet; the helper must be unused outside tests until the next loop.
+- Keep helper imports local so importing `dbex.io.roi_scoring` stays lightweight (Environment Freeze).
+- Always coerce scores to `float` (TORCH-CLI-004) and enforce `variance = max(model + sigma_readout^2, sigma_floor^2)` to satisfy PHYSICS-LOSS-001/002.
+- Ensure helper returns new payload objects without mutating caller-provided arrays; rely on numpy slicing only.
+- Tests must not rely on GPU/torch tensors; use pure numpy fixtures so they run quickly under pytest -q.
 
 If Blocked:
-- If adding the new module causes circular imports (e.g., `dbex/io/__init__.py` pulls writer, which imports ROI analysis), document the import stack in `boundary_audit.md`, revert the import addition, and note the block in docs/fix_plan.md + galph_memory before requesting a new initiative or plan change.
+- If `score_trainer.roi_check` or SciPy is unavailable in this environment, capture the exact ImportError/exception in `plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-02T223500Z/blocker.log`, note the failure in docs/fix_plan.md + galph_memory, and stop—do not replace the helper with a partial implementation.
 
 Findings Applied (Mandatory):
-- DIAGNOSTICS-001 — Keep `/torch_diagnostics` schema stable; the new payload is additive only.
-- PHYSICS-LOSS-001/002/003 — ROI packaging must preserve variance + mask semantics when we wire it later.
-- GEOMETRY-001 & CONFIG-001 — Bridge documentation and helpers must continue to enforce square-pixel + mask polarity guards.
+- DIAGNOSTICS-001 — New helper must preserve the existing `/torch_diagnostics` schema by feeding the same score/scale semantics once adopted.
+- PHYSICS-LOSS-001 & PHYSICS-LOSS-002 — Variance must follow `V = max(I_model + sigma_readout^2, sigma_floor^2)` with provenance recorded for sigma inputs.
 
 Pointers:
-- plans/active/ARCH-BRIDGE-RESP-001/implementation.md:1 — Phase A checklist + compliance matrix.
-- docs/architecture/dbex/io/writer.idl.md:1 — Current API contract to extend with ROI payload details.
-- docs/data_dependency_manifest.md:1 — Manifest entry that must mention the new helper inputs/outputs.
-- docs/spec-db-core.md:20 — ROI tensor and variance contract that govern the dataclass fields.
-- dbex/io/writer.py:1 — Existing writer implementation; keep behavior unchanged while adding the helper module.
+- plans/active/ARCH-BRIDGE-RESP-001/implementation.md:1 — Phase B checklist + compliance matrix (current focus is B1).
+- dbex/io/roi_analysis.py:1 — Existing dataclasses/helper to reuse when building the scorer.
+- dbex/io/writer.py:1 — Reference implementation of the current inline scoring (match math without touching this file).
+- docs/architecture/dbex/io/writer.idl.md:1 — Update the ROI helper section with the concrete API and telemetry notes.
+- docs/data_dependency_manifest.md:1 — Manifest entry for ROI analysis helpers; extend it with the new scoring helper requirements.

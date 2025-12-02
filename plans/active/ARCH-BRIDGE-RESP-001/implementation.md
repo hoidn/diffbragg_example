@@ -53,10 +53,10 @@
 
 ## Phase A — Contracts & Boundaries
 ### Checklist
-- [ ] **A0:** Capture current ROI scoring + writer call graph (trace `write_torch_outputs` callers, Nelder–Mead usage) and record in `reports/…/boundary_audit.md`.
-- [ ] **A1:** Update `docs/architecture/dbex/io/writer.idl.md` with the new “analysis-first” interface and add/extend an IDL doc for the bridge modules (detector/crystal factories + inputs builder).
-- [ ] **A2:** Introduce typed ROI analysis dataclasses (e.g., `dbex/io/roi_analysis.py`) plus serialization helpers; ensure they carry dataset names + dtype info mandated by DIAGNOSTICS-001.
-- [ ] **A3:** Extend `docs/data_dependency_manifest.md` to describe the new helper inputs/outputs and any additional artifacts (ROI logs).
+- [x] **A0:** Capture current ROI scoring + writer call graph (trace `write_torch_outputs` callers, Nelder–Mead usage) and record in `reports/…/boundary_audit.md`.
+- [x] **A1:** Update `docs/architecture/dbex/io/writer.idl.md` with the new “analysis-first” interface and add/extend an IDL doc for the bridge modules (detector/crystal factories + inputs builder).
+- [x] **A2:** Introduce typed ROI analysis dataclasses (e.g., `dbex/io/roi_analysis.py`) plus serialization helpers; ensure they carry dataset names + dtype info mandated by DIAGNOSTICS-001.
+- [x] **A3:** Extend `docs/data_dependency_manifest.md` to describe the new helper inputs/outputs and any additional artifacts (ROI logs).
 
 ### Dependency Analysis (Required for Refactors)
 - **Touched Modules:** `dbex/io/writer.py`, `dbex/refine_one.py`, `dbex/nanobrag_bridge.py`, future helper modules under `dbex/io` or `dbex/refinement`.
@@ -69,7 +69,7 @@
 
 ## Phase B — Writer Serialization Cleanup
 ### Checklist
-- [ ] **B1:** Implement ROI scoring helper (`dbex/io/roi_scoring.py` or similar) that ingests ROI crops + variance info, runs Nelder–Mead once per ROI, and emits typed payloads plus JSON/log artifacts.
+- [ ] **B1:** Implement ROI scoring helper (`dbex/io/roi_scoring.py` or similar) that ingests ROI crops + variance info, runs Nelder–Mead once per ROI, and emits typed payloads plus JSON/log artifacts. *Current focus.*
 - [ ] **B2:** Update CLI (`dbex/refine_one.py`) and RefinementEngine call sites to invoke the helper (guarded by flag) before calling `write_torch_outputs`, passing the typed payload instead of raw arrays.
 - [ ] **B3:** Remove optimization loop from `write_torch_outputs`, use new payload to populate ROI datasets/attributes, and re-run `tests/dbex/test_refine_one_cli.py::{test_torch_diagnostics_metadata,test_nanobrag_backend_uses_refined_mtz}`.
 - [ ] **B4:** Capture `pytest --collect-only` + execution logs for affected selectors under `reports/<timestamp>/pytest_writer_cleanup.log` and sync docs/TESTING_GUIDE.md + docs/development/TEST_SUITE_INDEX.md if selectors change.

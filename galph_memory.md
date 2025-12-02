@@ -418,3 +418,8 @@ Action State: planning
 - Updated docs/fix_plan.md + problems.md with pointers to the new plan, established compliance matrix (spec-db-core/workflow, DIAGNOSTICS-001, PHYSICS-LOSS findings), and reserved artifacts/report directory for Phase A evidence.
 - Rewrote input.md to hand Ralph a concrete Do Now (boundary audit + ROI dataclasses + doc updates + targeted pytest selectors) so implementation can begin immediately next loop.
 Action State: planning
+2025-12-02T223500Z focus=ARCH-BRIDGE-RESP-001 state=planning dwell=1 action=planning artifacts=plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-02T223500Z/ next_action=ready_for_implementation
+- Phase A checklist closed and plan/fix-plan updated with the Phase B.1 scope (ROI scoring helper, docs, tests); reserved the new artifacts directory for this loop.
+- Authored Do Now instructing Ralph to implement `dbex/io/roi_scoring.py::score_roi_payloads` (Nelder–Mead + `roiCheck`), add `tests/dbex/test_roi_analysis.py`, refresh writer IDL/data manifest entries, and run the ROI analysis test plus the CLI writer metadata smoke with logs under 2025-12-02T223500Z/.
+- Findings enforced: DIAGNOSTICS-001 (schema stability) and PHYSICS-LOSS-001/002 (variance guard) so the helper matches the spec before `write_torch_outputs` adopts it.
+Action State: planning

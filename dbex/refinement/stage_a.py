@@ -13,6 +13,10 @@ Stage A optimizes:
 - orientation_vec: crystal misorientation (3-vector → quaternion → XYZ Euler)
 
 Supports multiple parameterization modes (config.use_incremental_ub, config.use_u_matrix_parameterization).
+
+Dependencies (ARCH-REFINE-001 eager import refactoring):
+- dbex.refinement.stage_a_impl: Stage A LBFGS helpers (_build_stage_a_params, closures, quaternion conversion)
+- dbex.refinement.stage: RefinementTelemetry dataclass for telemetry serialization
 """
 
 from dataclasses import asdict
@@ -21,11 +25,15 @@ from typing import Any, Dict, Optional
 import numpy as np
 import torch
 
-# Lazy imports for heavy modules (prevent circular imports)
-def _lazy_import_refinement():
-    """Lazy import nanobrag_refinement to avoid circular dependencies."""
-    from dbex import nanobrag_refinement
-    return nanobrag_refinement
+# ARCH-REFINE-001: Eager imports at module scope to eliminate lazy-import pattern
+from dbex.refinement.stage_a_impl import (
+    _build_stage_a_params,
+    _build_stage_a_lbfgs_closure,
+    _run_stage_a_lbfgs,
+    vec_to_unit_quaternion,
+    quaternion_to_xyz_euler,
+)
+from dbex.refinement.stage import RefinementTelemetry
 
 
 class StageA:
@@ -92,17 +100,6 @@ class StageA:
         """
         if self._config is None:
             raise ValueError("StageA not configured. Call configure(config) before run().")
-
-        # Import helpers from stage_a_impl module (ARCH-REFINE-001)
-        from dbex.refinement.stage_a_impl import (
-            _build_stage_a_params,
-            _build_stage_a_lbfgs_closure,
-            _run_stage_a_lbfgs,
-            vec_to_unit_quaternion,
-            quaternion_to_xyz_euler,
-        )
-        # ARCH-REFINE-001 Phase C.1: Import from canonical location
-        from dbex.refinement import RefinementTelemetry
 
         # ARCH-REFINE-001 Phase B.1: Extract context from inputs
         # If inputs has 'context' key, use it; otherwise fall back to dict unpacking

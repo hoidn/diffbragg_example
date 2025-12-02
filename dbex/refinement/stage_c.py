@@ -10,6 +10,13 @@ Stage C optimizes:
 - detector offset parameters (distance_offset_raw)
 
 Freezes Stage A parameters (log_scale, cell, misset) from stage_a_telemetry input.
+
+Dependencies (ARCH-REFINE-001 eager import refactoring):
+- dbex.refinement.stage_c_impl: Stage C LBFGS helpers (_build_stage_c_params, closures, retargeting utilities)
+- dbex.refinement.stage: RefinementTelemetry dataclass for telemetry serialization
+- dbex.nanobrag_bridge: Factory functions for detector/crystal config and baseline misset computation
+- nanobrag_torch.models: Detector and Crystal models for simulator construction
+- nanobrag_torch.simulator: Simulator class for forward model evaluation
 """
 
 from dataclasses import asdict
@@ -17,6 +24,21 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 import numpy as np
 import torch
+
+# ARCH-REFINE-001: Eager imports at module scope to eliminate lazy-import pattern
+from dbex.refinement.stage_c_impl import (
+    _build_stage_c_params,
+    _build_stage_c_lbfgs_closure,
+    _run_stage_c_lbfgs,
+)
+from dbex.refinement.stage import RefinementTelemetry
+from dbex.nanobrag_bridge import (
+    create_detector_config,
+    create_crystal_config,
+    compute_baseline_misset_deg,
+)
+from nanobrag_torch.models import Detector, Crystal
+from nanobrag_torch.simulator import Simulator
 
 
 class StageC:
@@ -86,23 +108,6 @@ class StageC:
         """
         if self._config is None:
             raise ValueError("StageC not configured. Call configure(config) before run().")
-
-        # Import helpers (lazy to avoid circular imports at module load time)
-        # ARCH-REFINE-001 Phase A.3: Stage C helpers relocated to stage_c_impl
-        from dbex.refinement.stage_c_impl import (
-            _build_stage_c_params,
-            _build_stage_c_lbfgs_closure,
-            _run_stage_c_lbfgs,
-        )
-        # ARCH-REFINE-001 Phase C.1: Import from canonical location
-        from dbex.refinement import RefinementTelemetry
-        from dbex.nanobrag_bridge import (
-            create_detector_config,
-            create_crystal_config,
-            compute_baseline_misset_deg,
-        )
-        from nanobrag_torch.models import Detector, Crystal
-        from nanobrag_torch.simulator import Simulator
 
         # ARCH-REFINE-001 Phase B.1: Extract context from inputs
         # If inputs has 'context' key, use it; otherwise fall back to dict unpacking

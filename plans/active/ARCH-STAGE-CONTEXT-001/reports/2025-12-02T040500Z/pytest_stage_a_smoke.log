@@ -1,0 +1,149 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 0 items / 1 error
+
+==================================== ERRORS ====================================
+___________ ERROR collecting tests/dbex/test_stage_a_smoke_parity.py ___________
+ImportError while importing test module '/home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_stage_a_smoke_parity.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+../../../miniconda3/envs/simtbx/lib/python3.9/importlib/__init__.py:127: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+tests/dbex/test_stage_a_smoke_parity.py:13: in <module>
+    from dbex.nanobrag_refinement import (
+dbex/nanobrag_refinement.py:44: in <module>
+    from dbex.refinement.stage_a_impl import (
+E   ImportError: cannot import name '_build_stage_a_lbfgs_closure' from 'dbex.refinement.stage_a_impl' (/home/ollie/Documents/diffbragg_example_2/diffbragg_example/dbex/refinement/stage_a_impl.py)
+=========================== short test summary info ============================
+ERROR tests/dbex/test_stage_a_smoke_parity.py
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+=============================== 1 error in 0.85s ===============================
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 2 items
+
+tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity auto-selected 3-fold oversampling
+ERROR
+
+==================================== ERRORS ====================================
+______________ ERROR at setup of test_db_at_028_loss_scale_sanity ______________
+tests/dbex/test_stage_a_smoke_parity.py:147: in stage_a_smoke_result
+    bragg_final, telemetry_dict = run_nanobrag_refinement(
+dbex/nanobrag_refinement.py:742: in run_nanobrag_refinement
+    telemetry_dict = engine.run(engine_inputs)
+dbex/refinement/engine.py:147: in run
+    stage_output = stage.run(enriched_inputs, telemetry_sink)
+dbex/refinement/stage_a.py:1002: in run
+    status, message, final_chi_squared_value, final_masked_mse_value, best_params_snapshot = _run_stage_a_lbfgs(
+dbex/refinement/stage_a_impl.py:1291: in _run_stage_a_lbfgs
+    baseline_chi_squared, baseline_mse = compute_loss(full_stage_a_indices, is_full=True, force_panel_eval=force_panel_validation)
+dbex/refinement/stage_a.py:392: in compute_loss
+    delta_bound = config.log_scale_max_delta if log_scale_baseline_value is not None else max_delta_uncal
+E   AttributeError: 'RefinementConfig' object has no attribute 'log_scale_max_delta'
+=============================== warnings summary ===============================
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dxtbx/format/FormatCBFFull.py:198: DeprecationWarning: The binary mode of fromstring is deprecated, as it behaves surprisingly on unicode inputs. Use frombuffer instead
+    self._raw_data = flex.int(np.fromstring(array_string, np.int32))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+ERROR tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+======================== 5 warnings, 1 error in 14.24s =========================
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 1 item
+
+tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity auto-selected 3-fold oversampling
+auto-selected 3-fold oversampling
+auto-selected 3-fold oversampling
+auto-selected 3-fold oversampling
+auto-selected 4-fold oversampling
+auto-selected 4-fold oversampling
+auto-selected 4-fold oversampling
+auto-selected 4-fold oversampling
+auto-selected 4-fold oversampling
+auto-selected 4-fold oversampling
+auto-selected 4-fold oversampling
+auto-selected 4-fold oversampling
+auto-selected 4-fold oversampling
+auto-selected 4-fold oversampling
+auto-selected 4-fold oversampling
+auto-selected 4-fold oversampling
+auto-selected 4-fold oversampling
+auto-selected 4-fold oversampling
+auto-selected 4-fold oversampling
+auto-selected 4-fold oversampling
+auto-selected 4-fold oversampling
+auto-selected 4-fold oversampling
+auto-selected 4-fold oversampling
+auto-selected 4-fold oversampling
+auto-selected 4-fold oversampling
+auto-selected 4-fold oversampling
+auto-selected 4-fold oversampling
+auto-selected 4-fold oversampling
+auto-selected 4-fold oversampling
+auto-selected 6-fold oversampling
+auto-selected 5-fold oversampling
+auto-selected 4-fold oversampling
+auto-selected 4-fold oversampling
+auto-selected 4-fold oversampling
+auto-selected 4-fold oversampling
+auto-selected 4-fold oversampling
+auto-selected 1-fold oversampling
+ERROR
+
+==================================== ERRORS ====================================
+______________ ERROR at setup of test_db_at_028_loss_scale_sanity ______________
+tests/dbex/test_stage_a_smoke_parity.py:166: in stage_a_smoke_result
+    bragg_before = _build_final_bragg_from_stage_a_telemetry(
+E   TypeError: _build_final_bragg_from_stage_a_telemetry() got an unexpected keyword argument 'param_state'
+=============================== warnings summary ===============================
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dxtbx/format/FormatCBFFull.py:198: DeprecationWarning: The binary mode of fromstring is deprecated, as it behaves surprisingly on unicode inputs. Use frombuffer instead
+    self._raw_data = flex.int(np.fromstring(array_string, np.int32))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+ERROR tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+======================== 5 warnings, 1 error in 51.70s =========================

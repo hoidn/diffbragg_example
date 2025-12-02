@@ -155,7 +155,8 @@ def run_stage_a_benchmark(mode: str, DL, perturbed_crystal, artifacts_dir: Path,
         dict: Benchmark results with timings and telemetry
     """
     from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig
-    from dbex.nanobrag_bridge import build_structure_factor_grid, prepare_refinement_inputs
+    from dbex.nanobrag_bridge import build_structure_factor_grid
+    from dbex.refinement.inputs import prepare_refinement_inputs
 
     # Build HKL grid (shared across modes)
     hkl_indices = DL.F.indices()

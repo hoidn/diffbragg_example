@@ -16,7 +16,8 @@ from statistics import median
 import numpy as np
 
 from dbex.data_load import DataLoad
-from dbex.nanobrag_bridge import prepare_refinement_inputs, simulate_forward_once
+from dbex.refinement.inputs import prepare_refinement_inputs
+from dbex.nanobrag_bridge import simulate_forward_once
 
 
 def apply_scaling(bragg, inputs, mode: str):

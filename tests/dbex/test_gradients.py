@@ -110,7 +110,7 @@ def refinement_inputs(data_load_instance):
     Uses default ADU mode (no calibration) to simplify gradient setup.
     Provides deterministic sigma_readout=3.0 ADU for variance-weighted loss testing (PHYSICS-LOSS-001).
     """
-    from dbex.nanobrag_bridge import prepare_refinement_inputs
+    from dbex.refinement.inputs import prepare_refinement_inputs
     import numpy as np
 
     # Deterministic sigma_readout for variance-weighted loss testing
@@ -180,7 +180,7 @@ class TestDB_AT_010_Gradcheck:
         """
         from dbex.physics.forward import simulate_forward_torch
         from dbex.physics.loss import compute_masked_mse_loss
-        from dbex.nanobrag_bridge import create_crystal_config
+        from dbex.refinement.config_factories import create_crystal_config
 
         device = torch.device('cpu')
         dtype = torch.float64

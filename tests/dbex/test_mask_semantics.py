@@ -148,7 +148,7 @@ class TestMaskSemantics:
         - background_valid_fraction: fraction where background >= 0
         - per_roi_metrics: list of {roi_id, loss_coverage, target_nonzero}
         """
-        from dbex.nanobrag_bridge import prepare_refinement_inputs
+        from dbex.refinement.inputs import prepare_refinement_inputs
 
         DL = data_load_instance
 

@@ -85,7 +85,7 @@ def load_refgeom_assets() -> Tuple:
 
 
 def build_inputs(dataload):
-    from dbex.nanobrag_bridge import prepare_refinement_inputs
+    from dbex.refinement.inputs import prepare_refinement_inputs
 
     detector = dataload.Expt.detector
     trusted_masks = []

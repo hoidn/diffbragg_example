@@ -94,9 +94,9 @@ def simulate_forward_torch(
 
 ### Bridge Imports (lazy)
 - `dbex.nanobrag_bridge.build_structure_factor_grid` (HKL grid construction)
-- `dbex.nanobrag_bridge.create_beam_config` (beam config builder)
-- `dbex.nanobrag_bridge.create_crystal_config` (crystal config builder)
-- `dbex.nanobrag_bridge.create_detector_config` (detector config builder)
+- `dbex.refinement.config_factories.create_beam_config` (beam config builder)
+- `dbex.refinement.config_factories.create_crystal_config` (crystal config builder)
+- `dbex.refinement.config_factories.create_detector_config` (detector config builder)
 - `dbex.refinement.helpers.create_unified_simulator` (factory per ARCH-FACTORY-001)
 
 ### Transitive Dependencies

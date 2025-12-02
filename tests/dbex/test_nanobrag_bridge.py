@@ -12,7 +12,7 @@ import pytest
 import numpy as np
 from unittest.mock import Mock
 
-from dbex.nanobrag_bridge import RefinementInputs, prepare_refinement_inputs
+from dbex.refinement.inputs import RefinementInputs, prepare_refinement_inputs
 
 
 @pytest.fixture

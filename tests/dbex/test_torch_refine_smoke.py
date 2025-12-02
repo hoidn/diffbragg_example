@@ -296,7 +296,7 @@ def create_perturbed_geometry(crystal, detector, beam, seed=42, enable_detector_
 @pytest.fixture
 def refinement_inputs(refgeom_dataload, smoke_sigma_source, request):
     """Prepare RefinementInputs from refGeom DataLoad (no perturbation)."""
-    from dbex.nanobrag_bridge import prepare_refinement_inputs
+    from dbex.refinement.inputs import prepare_refinement_inputs
     import numpy as np
 
     # Build trusted mask per panel

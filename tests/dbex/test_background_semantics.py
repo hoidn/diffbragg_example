@@ -176,7 +176,7 @@ class TestBackgroundSemantics:
         3. Raises ValueError when non-sentinel pixels appear outside ROI
         4. Provides actionable error messages referencing simtbx_api.md
         """
-        from dbex.nanobrag_bridge import prepare_refinement_inputs
+        from dbex.refinement.inputs import prepare_refinement_inputs
 
         DL = data_load_instance
 
@@ -255,7 +255,7 @@ class TestBackgroundSemantics:
         - background_sentinel_pixels: pixels with background ≈ -1
         - per_roi_metrics: [{roi_id, bbox, bg_valid_pixels, bg_mean, bg_std}]
         """
-        from dbex.nanobrag_bridge import prepare_refinement_inputs
+        from dbex.refinement.inputs import prepare_refinement_inputs
 
         DL = data_load_instance
 

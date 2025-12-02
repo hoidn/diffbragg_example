@@ -1,26 +1,18 @@
 """
-Bridge module to prepare DataLoad outputs for nanobrag_torch simulator.
+Bridge module for nanobrag_torch integration helpers.
 
-ARCH-BRIDGE-RESP-001 Phase C: Core refinement input preparation and config factories
-have been split out to dbex/refinement/inputs.py and dbex/refinement/config_factories.py.
-This module now re-exports those names for backward compatibility and provides additional
-bridge-level helpers (structure factor grids, calibration metadata loading, etc.).
+ARCH-BRIDGE-RESP-001 Phase C.6: Core refinement input preparation and config factories
+have been moved to dbex/refinement/inputs.py and dbex/refinement/config_factories.py.
+Import those modules directly instead of using this bridge.
 
-TODO(ARCH-BRIDGE-RESP-001): Remove re-exports once all downstream consumers are updated
-to import directly from dbex.refinement.inputs and dbex.refinement.config_factories.
+This module now provides only bridge-level helpers:
+- Structure factor grid construction (build_structure_factor_grid)
+- HKL/calibration utilities (simulate_forward_once, recover_cell_from_a_star)
+- Geometry helpers (compute_baseline_misset_deg, quaternion transforms)
 
-This module provides helpers to convert DIALS/simtbx data structures into
-torch-compatible tensors aligned with spec-db-core.md contracts:
-- [panel, slow, fast] ordering
-- background-subtracted targets
-- trusted mask polarity (True=include, 1=include in torch)
-- per-panel slicing information
-
-Config hydration functions map dxtbx geometry to nanobrag_torch configs per:
-- docs/config_crosswalk.md
-- docs/dxtbx_api.md
-- docs/nanobrag_api.md
-- docs/spec-db-core.md
+For refinement inputs and config factories, see:
+- dbex.refinement.inputs (RefinementInputs, prepare_refinement_inputs)
+- dbex.refinement.config_factories (create_detector_config, create_beam_config, create_crystal_config)
 """
 
 from __future__ import annotations
@@ -52,32 +44,14 @@ except ImportError as e:
 
 
 # ============================================================================
-# Re-exports from dbex.refinement.inputs (ARCH-BRIDGE-RESP-001 Phase C)
+# Bridge-level helpers (geometry, HKL grids, calibration utilities)
 # ============================================================================
-
-# TODO(ARCH-BRIDGE-RESP-001): Deprecate these re-exports once consumers migrate
-from dbex.refinement.inputs import RefinementInputs, prepare_refinement_inputs
-
-# Preserve original docstring reference for backward compatibility
-# (Actual implementations now live in dbex/refinement/inputs.py)
-
-# Actual implementations moved to dbex/refinement/inputs.py per ARCH-BRIDGE-RESP-001 Phase C
-
-
-# ============================================================================
-# Re-exports from dbex.refinement.config_factories (ARCH-BRIDGE-RESP-001 Phase C)
-# ============================================================================
-
-# TODO(ARCH-BRIDGE-RESP-001): Deprecate these re-exports once consumers migrate
-from dbex.refinement.config_factories import (
-    create_detector_config,
-    create_beam_config,
-    create_crystal_config
-)
-
-# Actual implementations moved to dbex/refinement/config_factories.py per ARCH-BRIDGE-RESP-001 Phase C
-
-# Old implementation removed - see dbex/refinement/config_factories.py
+#
+# NOTE: RefinementInputs and config factories have been moved to:
+#   - dbex.refinement.inputs (RefinementInputs, prepare_refinement_inputs)
+#   - dbex.refinement.config_factories (create_detector_config, create_beam_config, create_crystal_config)
+#
+# Import those modules directly; re-exports have been removed per ARCH-BRIDGE-RESP-001 Phase C.6.
 
 def recover_cell_from_a_star(a_star_matrix: np.ndarray) -> Tuple[float, float, float, float, float, float]:
     """

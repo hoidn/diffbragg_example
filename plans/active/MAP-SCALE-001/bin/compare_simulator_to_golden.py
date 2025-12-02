@@ -19,7 +19,7 @@ from typing import List, Optional
 import numpy as np
 
 from dbex.data_load import DataLoad
-from dbex.nanobrag_bridge import prepare_refinement_inputs
+from dbex.refinement.inputs import prepare_refinement_inputs
 
 
 def summarize(values: List[float]) -> dict:

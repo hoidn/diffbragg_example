@@ -91,7 +91,7 @@ class TestCalibrationPolicy:
         - conversion_ratio: target_adu_mean / target_photon_mean (should ≈ adu_per_photon)
         - target_representation: "photons"
         """
-        from dbex.nanobrag_bridge import prepare_refinement_inputs
+        from dbex.refinement.inputs import prepare_refinement_inputs
 
         DL = data_load_instance
 
@@ -203,7 +203,7 @@ class TestCalibrationPolicy:
         - target_mean: mean intensity in ADU
         - target_median: median intensity in ADU
         """
-        from dbex.nanobrag_bridge import prepare_refinement_inputs
+        from dbex.refinement.inputs import prepare_refinement_inputs
 
         DL = data_load_instance
 
@@ -271,7 +271,7 @@ class TestCalibrationPolicy:
         - adu_per_photon = -1.0 (negative)
         - adu_per_photon = -1e-6 (small negative)
         """
-        from dbex.nanobrag_bridge import prepare_refinement_inputs
+        from dbex.refinement.inputs import prepare_refinement_inputs
 
         DL = data_load_instance
 
@@ -340,7 +340,7 @@ class TestCalibrationPolicy:
         - loss_mask_coverage_photon: fraction of pixels in photon loss_mask
         - panel_slices_match: whether panel_slices are identical
         """
-        from dbex.nanobrag_bridge import prepare_refinement_inputs
+        from dbex.refinement.inputs import prepare_refinement_inputs
 
         DL = data_load_instance
 

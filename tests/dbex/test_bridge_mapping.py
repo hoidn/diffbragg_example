@@ -48,7 +48,7 @@ def test_dials_mapping_parity(warm_cache_off):
     """
     import numpy as np
     from unittest.mock import Mock
-    from dbex.nanobrag_bridge import create_detector_config
+    from dbex.refinement.config_factories import create_detector_config
 
     # Minimal mock beam (1.0 Å wavelength, default direction [0,0,1])
     beam = Mock()

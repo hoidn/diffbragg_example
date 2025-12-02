@@ -79,7 +79,7 @@ class TestDetectorConfigMapping:
 
         This test will fail until create_detector_config is implemented.
         """
-        from dbex.nanobrag_bridge import create_detector_config
+        from dbex.refinement.config_factories import create_detector_config
 
         config = create_detector_config(mock_panel, mock_beam)
 
@@ -112,7 +112,7 @@ class TestDetectorConfigMapping:
         convention with XYZ rotation angles derived from panel basis vectors.
         This preserves BEAM pivot and avoids beam center drift.
         """
-        from dbex.nanobrag_bridge import create_detector_config
+        from dbex.refinement.config_factories import create_detector_config
         from nanobrag_torch.config import DetectorConvention
 
         config = create_detector_config(mock_panel, mock_beam)
@@ -149,7 +149,7 @@ class TestDetectorConfigMapping:
         Validates CLI-001 compliance: bridge emits torch.Tensor masks.
         """
         import torch
-        from dbex.nanobrag_bridge import create_detector_config
+        from dbex.refinement.config_factories import create_detector_config
 
         # Create sample trusted mask
         fast_px, slow_px = mock_panel.get_image_size.return_value
@@ -193,7 +193,7 @@ class TestDetectorConfigMapping:
 
         This test will fail until create_detector_config is implemented.
         """
-        from dbex.nanobrag_bridge import create_detector_config
+        from dbex.refinement.config_factories import create_detector_config
 
         config = create_detector_config(mock_panel, mock_beam)
 
@@ -218,7 +218,7 @@ class TestDetectorConfigMapping:
 
         This test will fail until create_detector_config is implemented.
         """
-        from dbex.nanobrag_bridge import create_detector_config
+        from dbex.refinement.config_factories import create_detector_config
 
         config = create_detector_config(mock_panel, mock_beam)
 
@@ -243,7 +243,7 @@ class TestDetectorConfigMapping:
         pytest.importorskip("nanobrag_torch")
 
         from dxtbx.model import ExperimentList
-        from dbex.nanobrag_bridge import create_detector_config
+        from dbex.refinement.config_factories import create_detector_config
         from nanobrag_torch.models.detector import Detector
         from nanobrag_torch.config import DetectorConfig as TorchDetectorConfig
         import torch
@@ -311,7 +311,7 @@ class TestDetectorConfigMapping:
         Per NANOBRAG-BACKEND-002, the bridge should retire local dataclass stubs
         and emit real nanobrag_torch config objects.
         """
-        from dbex.nanobrag_bridge import create_detector_config
+        from dbex.refinement.config_factories import create_detector_config
         from nanobrag_torch.config import DetectorConfig as TorchDetectorConfig
 
         config = create_detector_config(mock_panel, mock_beam)
@@ -329,7 +329,7 @@ class TestDetectorConfigMapping:
         """
         pytest.importorskip("nanobrag_torch")
 
-        from dbex.nanobrag_bridge import create_detector_config
+        from dbex.refinement.config_factories import create_detector_config
         from nanobrag_torch.models.detector import Detector
         import torch
 
@@ -428,7 +428,7 @@ class TestBeamCrystalConfigMapping:
 
         This test will fail until create_beam_config is implemented.
         """
-        from dbex.nanobrag_bridge import create_beam_config
+        from dbex.refinement.config_factories import create_beam_config
 
         config = create_beam_config(mock_beam)
 
@@ -446,7 +446,7 @@ class TestBeamCrystalConfigMapping:
 
         This test will fail until create_beam_config is implemented.
         """
-        from dbex.nanobrag_bridge import create_beam_config
+        from dbex.refinement.config_factories import create_beam_config
 
         config = create_beam_config(mock_beam)
 
@@ -464,7 +464,7 @@ class TestBeamCrystalConfigMapping:
 
         This test will fail until create_beam_config is implemented.
         """
-        from dbex.nanobrag_bridge import create_beam_config
+        from dbex.refinement.config_factories import create_beam_config
 
         config = create_beam_config(mock_beam)
 
@@ -489,7 +489,7 @@ class TestBeamCrystalConfigMapping:
 
         This test will fail until create_beam_config is implemented.
         """
-        from dbex.nanobrag_bridge import create_beam_config
+        from dbex.refinement.config_factories import create_beam_config
 
         config = create_beam_config(mock_beam_no_polarization)
 
@@ -512,7 +512,7 @@ class TestBeamCrystalConfigMapping:
 
         This test will fail until create_crystal_config is implemented.
         """
-        from dbex.nanobrag_bridge import create_crystal_config
+        from dbex.refinement.config_factories import create_crystal_config
 
         config, _ = create_crystal_config(mock_crystal, mock_experiment_stills)
 
@@ -540,7 +540,7 @@ class TestBeamCrystalConfigMapping:
 
         This test will fail until create_crystal_config is implemented.
         """
-        from dbex.nanobrag_bridge import create_crystal_config
+        from dbex.refinement.config_factories import create_crystal_config
 
         config, _ = create_crystal_config(mock_crystal, mock_experiment_stills)
 
@@ -580,7 +580,7 @@ class TestBeamCrystalConfigMapping:
 
         This test will fail until create_crystal_config is implemented.
         """
-        from dbex.nanobrag_bridge import create_crystal_config
+        from dbex.refinement.config_factories import create_crystal_config
 
         config, _ = create_crystal_config(mock_crystal, mock_experiment_stills)
 
@@ -603,7 +603,7 @@ class TestBeamCrystalConfigMapping:
 
         This test will fail until create_crystal_config is implemented.
         """
-        from dbex.nanobrag_bridge import create_crystal_config
+        from dbex.refinement.config_factories import create_crystal_config
 
         config, _ = create_crystal_config(mock_crystal, mock_experiment_stills)
 
@@ -622,7 +622,7 @@ class TestBeamCrystalConfigMapping:
         Per NANOBRAG-BACKEND-002, the bridge should retire local dataclass stubs
         and emit real nanobrag_torch config objects.
         """
-        from dbex.nanobrag_bridge import create_beam_config
+        from dbex.refinement.config_factories import create_beam_config
         from nanobrag_torch.config import BeamConfig as TorchBeamConfig
 
         config = create_beam_config(mock_beam)
@@ -638,7 +638,7 @@ class TestBeamCrystalConfigMapping:
         Per NANOBRAG-BACKEND-002, the bridge should retire local dataclass stubs
         and emit real nanobrag_torch config objects.
         """
-        from dbex.nanobrag_bridge import create_crystal_config
+        from dbex.refinement.config_factories import create_crystal_config
         from nanobrag_torch.config import CrystalConfig as TorchCrystalConfig
 
         config, _ = create_crystal_config(mock_crystal, mock_experiment_stills)
@@ -656,7 +656,7 @@ class TestBeamCrystalConfigMapping:
         """
         pytest.importorskip("nanobrag_torch")
 
-        from dbex.nanobrag_bridge import create_crystal_config
+        from dbex.refinement.config_factories import create_crystal_config
         from nanobrag_torch.models.crystal import Crystal
         import torch
 

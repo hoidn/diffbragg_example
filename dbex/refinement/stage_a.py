@@ -22,6 +22,9 @@ Dependencies (ARCH-REFINE-001 eager import refactoring):
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
+import json
+import os
+import sys
 import numpy as np
 import time
 import torch
@@ -41,6 +44,12 @@ from dbex.refinement.stage_a_impl import (
     quaternion_to_xyz_euler,
 )
 from dbex.refinement.stage import RefinementTelemetry
+from dbex.refinement.config_factories import (
+    create_detector_config,
+    create_beam_config,
+    create_crystal_config,
+)
+from dbex.nanobrag_bridge import compute_baseline_misset_deg
 
 
 class StageA:
@@ -204,7 +213,6 @@ class StageA:
 
         # PERF-WARM-SIM-001 Phase D.4: Panel-loss diagnostics
         # Check env var to enable per-panel diagnostics collection
-        import os
         panel_diag_dir = os.environ.get('DBEX_STAGE_C_PANEL_DIAG_DIR')
         panel_diag_enabled = panel_diag_dir is not None and force_panel_validation
         if panel_diag_enabled:
@@ -746,15 +754,12 @@ class StageA:
                 }
 
                 # Emit telemetry JSON
-                import json
-                from pathlib import Path
                 try:
                     telemetry_path = Path(getattr(config, "telemetry_output_dir", None)) / f"telemetry_step_{telemetry_step_counter[0]:03d}.json"
                     telemetry_path.parent.mkdir(parents=True, exist_ok=True)
                     with open(telemetry_path, 'w') as f:
                         json.dump(telemetry_step, f, indent=2)
                 except Exception as e:
-                    import sys
                     print(f"Warning: Failed to write telemetry JSON: {e}", file=sys.stderr)
 
                 # Increment step counter
@@ -819,8 +824,6 @@ class StageA:
 
             # Emit lifecycle JSON (TORCH-GEOMETRY-CONVERGENCE-001 Phase B4)
             if getattr(config, "telemetry_output_dir", None) and config.use_u_matrix_parameterization:
-                import json
-                from pathlib import Path
                 try:
                     lifecycle_path = Path(getattr(config, "telemetry_output_dir", None)) / f"u_matrix_lifecycle_step_{telemetry_step_counter[0]-1:03d}.json"
                     lifecycle_path.parent.mkdir(parents=True, exist_ok=True)
@@ -830,7 +833,6 @@ class StageA:
                             "a_star_lifecycle": a_star_lifecycle_log
                         }, f, indent=2)
                 except Exception as e:
-                    import sys
                     print(f"Warning: Failed to write lifecycle JSON: {e}", file=sys.stderr)
 
             return chi_squared_loss

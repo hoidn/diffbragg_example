@@ -23,6 +23,7 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 import math
+import os
 import numpy as np
 import time
 import torch
@@ -206,7 +207,6 @@ class StageC:
 
         # PERF-WARM-SIM-001 Phase D.4: Panel-loss diagnostics
         # Check env var to enable per-panel diagnostics collection (mirrors Stage A)
-        import os
         panel_diag_dir = os.environ.get('DBEX_STAGE_C_PANEL_DIAG_DIR')
         panel_diag_enabled = panel_diag_dir is not None and force_panel_validation
         # ARCH-TELEMETRY-001 Phase C.1: Accumulate panel diagnostics in closure scope for collector
@@ -229,11 +229,7 @@ class StageC:
             Returns:
                 Tuple of (chi_squared_loss, masked_mse_loss): Both scalar tensors for telemetry
             """
-            # Lazy imports inside nested function (device-specific, conditional)
-            from nanobrag_torch.models import Detector, Crystal
-            from nanobrag_torch.simulator import Simulator
-            from dbex.refinement.config_factories import create_detector_config, create_crystal_config
-
+            # Note: imports now at module scope per ARCH-LAZY-IMPORTS-001
             t0 = time.perf_counter()
             if is_full:
                 perf_validation_runs_c[0] += 1
@@ -778,7 +774,6 @@ class StageC:
         # PERF-WARM-SIM-001 Phase D: Compute frozen Stage A final cell parameters for Stage C
         # Stage C spec (docs/spec-db-workflow.md:62-65): Fixed crystal, scale, Fhkl
         # Use exact formulas from Stage A closure (dbex/nanobrag_refinement.py:1268-1276)
-        import math
         cell_params_baseline = crystal.get_unit_cell().parameters()
         max_angle_delta = 10.0  # degrees (consistent with Stage A/C closures)
         stage_a_final_cell = {

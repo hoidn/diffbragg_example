@@ -598,3 +598,9 @@ Action State: ready_for_implementation
 - Updated implementation plan (Phase C.9 marked complete, Phase D checklist to be added by Ralph). Created planning notes under `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T201539Z/planning_notes.md` detailing Phase D scope (RefinementConfig relocation, CLI refactor, test harness migration, import cleanup, facade deletion).
 - Next loop: Ralph executes Phase D planning deliverables (consumer inventory, migration blueprints, deletion checklist) per input.md instructions. Then subsequent loops implement D.1-D.5 in 3-4 increments.
 Action State: ready_for_implementation
+2025-12-02T210000Z focus=ARCH-REFACTOR-001 state=ready_for_implementation dwell=0 action=planning artifacts=plans/active/ARCH-REFACTOR-001/reports/2025-12-02T210000Z/ next_action=Implement Phase D.1 RefinementConfig migration
+- Reviewed Ralph's Phase D planning completion (commit 2c948b40): all 7 artifacts produced (consumer_inventory, consumer_analysis, config_migration_plan, cli_refactor_blueprint, test_migration_plan, deletion_checklist, phase_d_scope) covering 6 production/test consumers + 1 tooling file.
+- Decision: proceed with Phase D.1 (RefinementConfig migration) as first implementation step; low-risk pure data extraction creates backward-compatible foundation for subsequent consumer migrations.
+- Updated implementation plan Phase D checklist already in place (lines 365-386); issued Do Now directing Ralph to: (1) create dbex/refinement/config.py with full RefinementConfig dataclass copied from facade, (2) add facade re-export for backward compat, (3) update 8 import sites across 5 files, (4) validate with 4 mapped tests.
+- Artifacts directory created at plans/active/ARCH-REFACTOR-001/reports/2025-12-02T210000Z/ for pytest logs, import verification, and metrics.
+Action State: ready_for_implementation

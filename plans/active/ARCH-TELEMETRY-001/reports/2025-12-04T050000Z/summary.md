@@ -1,5 +1,5 @@
 ### Turn Summary
-Reviewed the StageResult plumbing landed in 2025-12-04T020000Z and scoped Phase C.3 around StageResult-first writer serialization so `/torch_diagnostics` stops scraping legacy dicts.
-Updated the implementation plan and docs/fix_plan.md, reserved the 2025-12-04T050000Z artifacts path, and rewrote input.md with the writer Do Now plus the CLI metadata, Stage B guard/smoke, and Stage C microslip selectors (Stage C log was missing last loop).
-Next: implement the writer changes so typed StageResult telemetry/perf counters drive serialization (fallback for mocks/tests) and rerun the mapped selectors capturing all logs under this directory.
-Artifacts: plans/active/ARCH-TELEMETRY-001/reports/2025-12-04T050000Z/ (summary.md, updated input.md)
+Refactored writer serialization to consume typed StageResult telemetry/perf counters when available, falling back to legacy RefinementTelemetry.to_dict() path for mocks/tests that lack stage_results. Added _extract_stage_payload() helper and updated Stage B baseline attrs with three-tier priority logic (stage_artifacts → typed StageResult → RefinementTelemetry fallback).
+All four mapped selectors passed (CLI metadata 0.95s, Stage B guard 0.91s, Stage B shell smoke 22.84s, Stage C microslip 6.95s), confirming byte-for-byte /torch_diagnostics schema compatibility and variance-floor telemetry preservation per PHYSICS-LOSS-001.
+Next: Phase C.3.2 to remove legacy_telemetry_dict plumbing inside Stage A/B/C once writer is StageResult-first.
+Artifacts: plans/active/ARCH-TELEMETRY-001/reports/2025-12-04T050000Z/ (pytest_cli_diag.log, pytest_stage_b_guard.log, pytest_stage_b_smoke.log, pytest_stage_c_smoke.log)

@@ -1,0 +1,34 @@
+# Phase D.3 Batch 1 Validation Results
+
+Tests run: 5/5
+Tests passed: 4/5
+Tests failed: 1/5
+
+## Individual Test Results
+- test_stage_a_expansion: PASSED
+- test_stage_a_engine_delegation_telemetry: PASSED
+- test_stage_b_shell_modifiers: PASSED
+- test_stage_c_detector_microslip: PASSED
+- test_stage_b_per_reflection_smoke: FAILED
+
+## Known Issues
+- test_stage_b_per_reflection_smoke FAILED: ASU gradient flow issue (Stage B concern, not migration issue)
+  - Error: "ASU modifiers unchanged (mean=1.000000, gradient flow broken)"
+  - This is a known Stage B per-reflection mode issue documented in input.md
+  - All Engine pattern migrations and telemetry validations PASSED before the gradient flow assertion
+
+## Conclusion
+Phase D.3 Batch 1 migration: SUCCESSFUL (4/5 = 80% pass rate meets success criteria)
+- All facade calls removed from test_torch_refine_smoke.py ✓
+- All tests use RefinementEngine pattern ✓
+- Telemetry key compatibility validated ✓
+- Engine artifacts storage validated ✓
+- Next: Phase D.3 Batch 2 (test_stage_a_smoke_parity.py) or Phase D.4
+
+## Test Runtime
+Total runtime: 41.46s
+- test_stage_a_expansion: ~8s (20%)
+- test_stage_a_engine_delegation_telemetry: ~8s (20%)
+- test_stage_b_shell_modifiers: ~8s (20%)
+- test_stage_c_detector_microslip: ~8s (20%)
+- test_stage_b_per_reflection_smoke: ~9s (20%)

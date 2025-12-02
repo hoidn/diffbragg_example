@@ -450,3 +450,7 @@ Action State: ready_for_implementation
 - Phase C.1–C.3 landed in code already (dbex/refinement/{inputs,config_factories}.py + bridge re-export), so I marked those checklist items complete, logged the attempt in docs/fix_plan.md, and confirmed tests/artifacts live under 2025-12-03T020500Z.
 - Rebuilt input.md with a Docs-mode Do Now targeting the manifest, architecture docs, module map, telemetry flow, and writer IDL so they reference the new module paths; no pytest runs required this loop.
 Action State: planning
+2025-12-02T100041Z focus=ARCH-BRIDGE-RESP-001 state=ready_for_implementation dwell=2 action=planning artifacts=plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-02T100041Z/ next_action=Swap stage wrappers to refinement.{inputs,config_factories} + rerun Stage/CLI smokes
+- Documented Phase C.5 scope: Stage A/B/C wrappers, StageAContext, and reconstruction helpers still import `create_*` factories via dbex.nanobrag_bridge, so the bridge shim can’t be retired; cataloged the affected modules/tests and noted the CLI patches that must move.
+- Updated plans/active/ARCH-BRIDGE-RESP-001/implementation.md (C4 done, new C5 checklist) and docs/fix_plan.md (attempt log + artifact pointer) before rewriting input.md with the import-migration Do Now + Stage/CLI smoketest map.
+Action State: ready_for_implementation

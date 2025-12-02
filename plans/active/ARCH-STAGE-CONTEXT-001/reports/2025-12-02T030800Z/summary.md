@@ -1,5 +1,5 @@
 ### Turn Summary
-Scoped StageResult+StageArtifacts so Stage A/B/C can emit typed artifacts and the engine/writer stop scraping private caches.
-Updated plans/active/ARCH-STAGE-CONTEXT-001/implementation.md, docs/fix_plan.md, and input.md, and reserved plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T030800Z/ for the upcoming implementation/test logs.
-Next: implement the StageResult/artifact plumbing and run Stage A telemetry + Stage B/C small smoketests to verify the new contract.
-Artifacts: plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T030800Z/ (input.md, planning updates)
+Implemented ARCH-STAGE-CONTEXT-001 Phase B.1 artifact scaffolding: created `StageResult` + `StageAArtifacts`/`StageBArtifacts`/`StageCArtifacts` dataclasses, updated Stage A/B/C to return typed artifacts instead of raw dicts, and refactored `RefinementEngine` to use single `_artifacts` map (removing `_stage_a_ctx_cache`, `_stage_b_shell_edges`, `_stage_c_bragg_full` private caches). Updated `run_nanobrag_refinement` to consume artifacts via `engine.artifacts.get()`.
+All three mapped smoke tests (Stage A telemetry, Stage B shell modifiers, Stage C detector microslip) passed on first run; the only adjustment was excluding baseline parity fields from `RefinementTelemetry` constructor (they now live in `StageBArtifacts`).
+Next: Phase B.2 (move LBFGS closures into Stage classes), then Phase B.3 (typed telemetry dataclasses).
+Artifacts: plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T030800Z/ (pytest_stage_a_engine.log, pytest_stage_b_small.log, pytest_stage_c_small.log, telemetry JSONs)

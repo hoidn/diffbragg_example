@@ -1,0 +1,106 @@
+[
+  {
+    "stage": "stage_b_shell_modifiers",
+    "dataset": "small",
+    "status": "ok",
+    "message": "",
+    "loss_trace_full": [
+      [
+        0,
+        366931008.0
+      ],
+      [
+        5,
+        366931008.0
+      ],
+      [
+        7,
+        366931008.0
+      ]
+    ],
+    "chi_squared_trace_full": [
+      [
+        0,
+        366931008.0
+      ],
+      [
+        5,
+        366931008.0
+      ],
+      [
+        7,
+        366931008.0
+      ]
+    ],
+    "perf_counters": {
+      "cache_mode": "warm",
+      "roi_mode": "panel",
+      "roi_count_total": 29,
+      "roi_count_sampled": 29,
+      "closure_evals": 7,
+      "validation_runs": 3,
+      "forward_time_ms": {
+        "mean": 539.920217776671,
+        "min": 501.1444422416389,
+        "max": 622.4302160553634,
+        "total": 5399.2021777667105
+      }
+    },
+    "param_deltas": {
+      "shell_0_modifier (d=80000.12-100000.00\u00c5)": {
+        "initial": 1.0,
+        "final": 1.0,
+        "delta": 0.0
+      },
+      "shell_1_modifier (d=60000.25-80000.12\u00c5)": {
+        "initial": 1.0,
+        "final": 1.0,
+        "delta": 0.0
+      },
+      "shell_2_modifier (d=40000.38-60000.25\u00c5)": {
+        "initial": 1.0,
+        "final": 1.0,
+        "delta": 0.0
+      },
+      "shell_3_modifier (d=20000.50-40000.38\u00c5)": {
+        "initial": 1.0,
+        "final": 1.0,
+        "delta": 0.0
+      },
+      "shell_4_modifier (d=0.63-20000.50\u00c5)": {
+        "initial": 1.0,
+        "final": 1.0,
+        "delta": 0.0
+      }
+    },
+    "loss_improvement": -8.720986259824518e-08,
+    "n_rois": 29,
+    "detector_shape": [
+      1,
+      1024,
+      1024
+    ],
+    "closure_evals": 7,
+    "validation_runs": 3,
+    "forward_time_ms": {
+      "mean": 539.920217776671,
+      "min": 501.1444422416389,
+      "max": 622.4302160553634,
+      "total": 5399.2021777667105
+    },
+    "cache_mode": "warm",
+    "roi_mode": "panel",
+    "roi_count_total": 29,
+    "roi_count_sampled": 29,
+    "canonical_stage_label": "A",
+    "canonical_chi_squared": 366930976.0,
+    "canonical_chi_squared_iteration": 7,
+    "canonical_roi_count": 29,
+    "canonical_detector_distances_mm": [
+      231.27645547762575
+    ],
+    "stage_b_baseline_rel_diff": 8.720986259824518e-08,
+    "stage_b_baseline_abs_diff": 32.0,
+    "stage_b_baseline_diff_path": null
+  }
+]

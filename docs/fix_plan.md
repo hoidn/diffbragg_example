@@ -97,8 +97,8 @@
 - Working Plan: `plans/active/ARCH-STAGE-CONTEXT-001/implementation.md`
 - Ledger tie-in: Addresses the unchecked "bad design patterns/code smells" entry in `problems.md` (2025-12-01), specifically items 1, 2, 4, 7, and 8 (data clumps, anemic Stage classes, mutable telemetry dicts, engine branching).
 - Next Actions:
-  * Phase B.4 ✅ (Writer artifact plumbing complete). Blocked: Stage B shell smoke test reveals pre-existing bug where StageBTelemetryState dataclass does not support dict-style item assignment; requires investigation and fix before advancing.
-  * Phase B.4 follow-up (2025-12-02T120500Z artifacts path reserved): extend StageBTelemetryState with REFINE-FLOW-001 parity fields, update `_check_stage_b_baseline_parity` + StageB.run to set/get those attributes, re-run Stage B shell/per-reflection smokes (per-reflection failure signature must remain linked to TORCH-REFINE-004), and refresh the writer IDL doc with the `stage_artifacts` API change before retrying the CLI telemetry test.
+  * Phase B.4 ✅ complete (2025-12-02T120500Z: dataclass compatibility fixed, writer IDL documented, Stage B shell smoke PASSED, CLI writer PASSED, per-reflection expected failure signature confirmed).
+  * Phase C: eliminate engine private caches, expose unified artifact channel per exit criterion 2 (engine.artifacts map populated without private attribute access).
 
 ## Attempts History
 
@@ -1679,3 +1679,21 @@ The trusted-mask hypothesis was **DISPROVEN** by inspection of the test fixture 
 - Investigate and fix StageBTelemetryState dict-compat issue (likely in `dbex/refinement/stage_b_impl.py` or `stage_b.py` where telemetry_state is mutated)
 - After fix, re-run Stage B shell and per-reflection smoke tests to validate baseline metrics are correctly sourced from artifacts
 - Stage B per-reflection is already expected to fail per TORCH-REFINE-004 (ASU gradient flow defect); ensure failure signature remains consistent
+### 2025-12-02T120500Z - ARCH-STAGE-CONTEXT-001 Phase B.4 follow-up: Stage B telemetry dataclass compatibility + IDL doc sync (COMPLETE)
+**Action**: Resolved StageBTelemetryState dict-assignment TypeError by making `_check_stage_b_baseline_parity` dataclass-aware and documenting the `stage_artifacts` parameter in the writer IDL contract.
+**Implementation**:
+- Extended `StageBTelemetryState` dataclass with optional REFINE-FLOW-001 baseline parity fields: `stage_b_baseline_rel_diff`, `stage_b_baseline_abs_diff`, `stage_b_baseline_diff_path` (dbex/refinement/context.py:699-704)
+- Updated `_check_stage_b_baseline_parity` to detect dataclass vs dict telemetry and use `setattr` for dataclass path, preserving dict path for test_stage_b_cpu_fallback backward compat (dbex/refinement/stage_b_impl.py:88-96, 176-191)
+- Kept baseline diagnostics in StageBArtifacts only (StageB.run already populates them at lines 980-982, 996-998); removed from telemetry_output to maintain RefinementTelemetry dataclass schema stability (dbex/refinement/stage_b.py:952-953)
+- Refreshed writer IDL signature and usage patterns to document `stage_artifacts` parameter (docs/architecture/dbex/io/writer.idl.md:32-44, 60, 110-127, 194); added changelog entry (line 194)
+**Metrics**:
+- `test_stage_b_shell_modifiers` (small detector): PASSED (23.19s runtime, validates dataclass parity guard fix)
+- `test_stage_b_per_reflection_smoke` (small detector): FAILED with expected TORCH-REFINE-004 gradient-flow signature (mean=1.000000, ASU modifiers unchanged); failure reason matches archived TORCH-REFINE-004 logs, confirming no regression
+- `test_torch_diagnostics_metadata`: PASSED (2 parametrized cases, 0.90s runtime, validates writer artifact sourcing)
+**Artifacts**: `plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T120500Z/` (pytest_stage_b_shell.log, pytest_stage_b_per_reflection.log, pytest_cli_writer.log, summary.md)
+**Design Impact**: StageBTelemetryState now owns baseline parity fields per REFINE-FLOW-001; writer sources them from StageBArtifacts to keep RefinementTelemetry schema stable; dict-based callers (legacy tests) preserved via explicit branching in parity guard
+**First Divergence**: N/A (clean implementation)
+**Next Actions**:
+- Phase B.4 ✅ complete; exit criterion 3 satisfied (writer artifact plumbing operational)
+- Phase C: eliminate engine private caches and expose unified artifact channel per exit criterion 2
+

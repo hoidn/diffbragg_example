@@ -106,6 +106,17 @@
 - Writer decoupling touches HDF5 schema; ensure `docs/spec-db-interfaces.md` remains accurate and update if new telemetry fields are added.
 - Stages may need to persist artifact tensors on disk when they exceed practical in-memory reuse; plan for streaming/zero-copy options if necessary.
 
+## Phase E — Telemetry Dataclass Enforcement
+### Checklist
+- [ ] E1: Remove the legacy `dict` compatibility shims from Stage A (`StageA._build_lbfgs_closure`, `_run_stage_a_lbfgs`, and `StageA.run`) so telemetry handling relies exclusively on `StageATelemetryState` (ARCH-STAGE-CTX-001 / PHYSICS-LOSS-001). Update type hints and helper signatures accordingly.
+- [ ] E2: Do the same for Stage B by teaching `_check_stage_b_baseline_parity`, `StageB._build_lbfgs_closure`, and `StageB.run` to operate purely on `StageBTelemetryState`, eliminating the `dict` fallback that still exists for CPU-fallback tests (ARCH-STAGE-CTX-002 / REFINE-FLOW-001).
+- [ ] E3: Convert Stage C helpers (`StageC._build_lbfgs_closure`, `_run_stage_c_lbfgs`, and `StageC.run`) to the `StageCTelemetryState` dataclass-only path, ensuring panel-diagnostics plumbing (`DBEX_STAGE_C_PANEL_DIAG_DIR`) and PERF-WARM-SIM-001 traces survive the refactor.
+
+### Notes & Risks
+- Removing the dict compatibility layer means any lingering callers that still fabricate telemetry dicts (older tests, CLI probes) will now break hard; sweep the tree for `'telemetry_state['` before committing.
+- Ensure the dataclass assignments preserve existing reference semantics (mutable list counters) so LBFGS closures keep capturing the same containers when updating traces.
+- Validation set: Stage A/B/C smokes remain the fastest way to prove telemetry stays wired; Stage C full-detector run still fails due to PERF-WARM-SIM-001 but should retain the existing +0.067% signature.
+
 ## Artifacts Index
 - Reports root: `plans/active/ARCH-STAGE-CONTEXT-001/reports/`
 - Latest run: `<timestamp>/`

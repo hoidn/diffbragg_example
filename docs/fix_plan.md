@@ -100,6 +100,7 @@
   * Phase B.4 ✅ complete (2025-12-02T120500Z: dataclass compatibility fixed, writer IDL documented, Stage B shell smoke PASSED, CLI writer PASSED, per-reflection expected failure signature confirmed).
   * Phase D: promote final Bragg reconstruction into stage artifacts (Stage A/B) so the engine path and writer stop rerunning `_build_final_bragg_from_stage_*_telemetry` inside `run_nanobrag_refinement`. Helpers + Stage B reconstruction now in `dbex/refinement/reconstruction.py`; Stage A gate relaxed (logs under `reports/2025-12-02T141500Z/`).
   * Phase D.3.1 ✅ complete (2025-12-02T150500Z: artifact assertions added to all three Stage smoke tests, Stage A + Stage B shell + CLI writer PASSED; per-reflection smoke updated with artifact assertions ready for when TORCH-REFINE-004 gradient issue is resolved).
+  * Phase E (telemetry dataclass enforcement) scoped 2025-12-02T160500Z: remove the remaining `dict` compatibility shims from Stage A/B/C LBFGS closures so telemetry flows exclusively through `StageATelemetryState` / `StageBTelemetryState` / `StageCTelemetryState` (see `plans/active/ARCH-STAGE-CONTEXT-001/implementation.md` §Phase E). Artifacts reserved under `plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T160500Z/` for the telemetry cleanup run.
 
 ## Attempts History
 

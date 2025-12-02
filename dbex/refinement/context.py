@@ -19,6 +19,8 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import torch
 
+from dbex.refinement.inputs import RefinementInputs
+
 
 @dataclass
 class RefinementContext:
@@ -72,7 +74,7 @@ class RefinementContext:
     - ARCH-REFINE-001 Phase B.3: Thread CLI-built HKL halo + ASU metadata into RefinementContext
       so Stage B/C consume the same tensors without recomputing (REFINE-005, REFINE-010)
     """
-    refinement_inputs: Any  # RefinementInputs from dbex.nanobrag_bridge
+    refinement_inputs: RefinementInputs  # RefinementInputs from dbex.refinement.inputs
     detector: Any  # dxtbx Detector object
     beam: Any  # dxtbx Beam object
     crystal: Any  # dxtbx Crystal object
@@ -87,7 +89,7 @@ class RefinementContext:
 
 
 def build_refinement_context(
-    refinement_inputs,
+    refinement_inputs: RefinementInputs,
     detector,
     beam,
     crystal,
@@ -464,7 +466,7 @@ class RefinementSharedContext:
     crystal: Any  # dxtbx Crystal object
     detector: Any  # dxtbx Detector object
     beam: Any  # dxtbx Beam object
-    inputs: Any  # RefinementInputs from dbex.nanobrag_bridge
+    inputs: RefinementInputs  # RefinementInputs from dbex.refinement.inputs
     hkl_grid: torch.Tensor  # [h, k, l] complex structure factor grid
     hkl_metadata: Dict[str, Any]  # nabc_grid, default_F, has_halo, etc.
     config: Any  # RefinementConfig from dbex.nanobrag_refinement

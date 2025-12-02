@@ -1,39 +1,42 @@
-Summary: Hoist Stage A/C stage-wrapper dependencies to module scope so LBFGS closures stop importing config factories and standard libs on every iteration, then re-run the Stage A smokes plus the known-failing Stage C smoke to confirm no new regressions.
-Mode: none
+Summary: Surface the collector-emitted StageResult telemetry through the refinement pipeline and teach `dbex/io/writer.py` to consume it directly so Stage B/C observer data feeds /torch_diagnostics without legacy dict scraping.
+Mode: Parity
 InitiativeType: architecture
-Focus: ARCH-LAZY-IMPORTS-001 — Lazy imports / process-noise hygiene
+Focus: ARCH-TELEMETRY-001 — Telemetry Observer Refactor
 Branch: integration
 Mapped tests:
-- KMP_DUPLICATE_LIB_OK=TRUE DBEX_SMOKE_DETECTOR_SIZE=small pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
-- KMP_DUPLICATE_LIB_OK=TRUE pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry
-- KMP_DUPLICATE_LIB_OK=TRUE DBEX_SMOKE_DETECTOR_SIZE=small pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip (expected ARCH-TELEMETRY-001 failure; capture log + assertion text)
-Artifacts: plans/active/ARCH-LAZY-IMPORTS-001/reports/2025-12-04T010500Z/
+  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE pytest -vv tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata
+  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE pytest -vv tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload
+  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small
+  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small
+Artifacts: plans/active/ARCH-TELEMETRY-001/reports/2025-12-04T020000Z/
 Do Now:
-- Implement: dbex/refinement/stage_a.py::_build_lbfgs_closure — add module-scope imports for `create_detector_config`, `create_beam_config`, `create_crystal_config`, and `compute_baseline_misset_deg` plus `os/json/sys`; drop the inline import blocks inside the closure and per-panel diagnostics writer so the Stage A loop just references the top-level names.
-- Implement: dbex/refinement/stage_a.py::telemetry JSON writers — reuse the module-level `json`, `Path`, and `sys` imports instead of re-importing per call, keeping the existing exception handling/logging intact.
-- Implement: dbex/refinement/stage_c.py::_build_lbfgs_closure/compute_loss_stage_c — add module-scope `import os` (shared with Stage A), rely on the existing module-scope Detector/Crystal/Simulator/config factory imports, remove the inline `import math`/`from nanobrag_torch...` blocks, and make sure the warm-cache diagnostics still emit under the ARCH-TELEMETRY-001 guard.
-- Validate: run the three mapped selectors (Stage A smokes expected PASS, Stage C smoke expected to fail with the known `loss_trace_sample` assertion) and save each log under the artifacts directory.
+  - Implement: `dbex/refinement/stage.py::RefinementTelemetry` needs an optional field (e.g., `stage_result`) that can carry the collector-emitted StageResult from `dbex.refinement.interfaces`; ensure `to_dict()` skips this field so legacy serialization stays unchanged.
+  - Implement: After `collector.finalize()` runs in each stage wrapper, persist the typed StageResult on the telemetry dataclass before building the `StageResult` container returned to the engine: add a finalize call + assignment in Stage A (`StageATelemetryCollector`, right after `_run_stage_a_lbfgs`), reuse the existing `stage_result` object in Stage B/C (`dbex/refinement/stage_b.py::_run_stage_b_lbfgs`, `dbex/refinement/stage_c_impl.py::_run_stage_c_lbfgs`) instead of dropping it after `to_legacy_dict()`.
+  - Implement: Surface those typed results through the CLI path — after `run_nanobrag_refinement` completes, build `{label: telem.stage_result}` (skip None) and pass it to `dbex/io/writer.write_torch_outputs` via a new `stage_results` kwarg (default `None` for legacy callers). Update the writer signature and adjust call sites (`dbex/refine_one.py`, any tests/mocks) accordingly.
+  - Implement: Refactor `dbex/io/writer.py` so it prefers the typed StageResult payload when provided (use its telemetry/perf counters for `/torch_diagnostics/stage_*` datasets, but keep `RefinementTelemetry` for static metadata such as optimizer/tolerance). Fall back to the existing dict-scraping logic when a stage lacks a typed result (e.g., mocks/tests).
+  - Update tests/mocks that patch `write_torch_outputs` (CLI tests, telemetry metadata test) so they provide/expect `stage_results`. Capture pytest logs for each mapped selector under the artifacts directory listed above.
 How-To Map:
-1. After editing, verify no remaining non-exempt inline imports: `rg -n "^\s+import " dbex/refinement/stage_a.py dbex/refinement/stage_c.py | grep -v derive_orientation | grep -v quaternion_to_matrix` (allowlist the documented geometry helpers only).
-2. `KMP_DUPLICATE_LIB_OK=TRUE DBEX_SMOKE_DETECTOR_SIZE=small pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion | tee plans/active/ARCH-LAZY-IMPORTS-001/reports/2025-12-04T010500Z/pytest_stage_a_expansion.log`
-3. `KMP_DUPLICATE_LIB_OK=TRUE pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry | tee plans/active/ARCH-LAZY-IMPORTS-001/reports/2025-12-04T010500Z/pytest_stage_a_engine_telemetry.log`
-4. `KMP_DUPLICATE_LIB_OK=TRUE DBEX_SMOKE_DETECTOR_SIZE=small pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip | tee plans/active/ARCH-LAZY-IMPORTS-001/reports/2025-12-04T010500Z/pytest_stage_c_smoke.log` (annotate the log noting the expected ARCH-TELEMETRY-001 failure signature: `AssertionError: Stage C sample loss trace empty`).
+  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE pytest -vv tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata | tee plans/active/ARCH-TELEMETRY-001/reports/2025-12-04T020000Z/pytest_cli_diag.log
+  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE pytest -vv tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload | tee plans/active/ARCH-TELEMETRY-001/reports/2025-12-04T020000Z/pytest_stage_b_guard.log
+  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small | tee plans/active/ARCH-TELEMETRY-001/reports/2025-12-04T020000Z/pytest_stage_b_smoke.log
+  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small | tee plans/active/ARCH-TELEMETRY-001/reports/2025-12-04T020000Z/pytest_stage_c_smoke.log
 Pitfalls To Avoid:
-- Do not move the optional geometry helper imports (`derive_orientation_from_quaternion_delta`, `matrix_to_quaternion`, etc.); those stay lazy per ARCH-ENGINE-002 exceptions.
-- Keep telemetry semantics untouched—only change where the imports live. Chi-squared logging and perf counters must match previous behavior.
-- Leave Stage B files alone; this loop targets only Stage A/C wrappers.
-- Stage C smoketest currently fails upstream; treat any new failure signature as a regression and capture it.
-- Maintain Environment Freeze: no new dependencies or build steps—just Python edits/tests.
-- Respect existing typing/comment structure; avoid changing docstrings beyond import cleanup.
+  - Do not break `/torch_diagnostics` schema: new writer code must populate the same datasets/attrs even when using typed StageResult data.
+  - `RefinementTelemetry.to_dict()` is consumed by other code paths; ensure adding `stage_result` (or similar) does not trigger dataclass recursion (skip it explicitly).
+  - Stage A still enforces the canonical ROI/panel guards; keep the new finalize call outside autograd contexts so tensors are detached before StageResult construction.
+  - Avoid widening the `run_nanobrag_refinement` return signature (too many call sites); keep new data flowed internally to `run_nanobrag_backend`/writer.
+  - Environment Freeze: no new third-party deps; reuse existing collector/state helpers instead of importing new telemetry libraries.
 If Blocked:
-- If Stage A selectors fail or Stage C emits a *different* assertion than the known empty `loss_trace_sample`, stop, capture the log in the artifacts directory, and update docs/fix_plan.md + galph_memory.md describing the new signature so we can escalate to ARCH-TELEMETRY-001.
+  - If Stage A finalize exposes a circular import, document the stack trace in `plans/active/ARCH-TELEMETRY-001/reports/2025-12-04T020000Z/blocker.md`, revert the partial change, and fall back to wiring StageResult for Stage B/C only so writer work can proceed (note the missing Stage A payload in docs/fix_plan.md).
+  - If the writer refactor breaks schema validation, capture the failing pytest logs under the artifacts directory and restore the previous dict path, then raise the issue in docs/fix_plan.md with the selector/failure signature so we can triage.
 Findings Applied (Mandatory):
-- ARCH-ENGINE-002 — Stage wrappers must expose dependencies at module scope unless explicitly exempted.
-- GEOMETRY-001 — Detector/beam configs derived via config factories must remain authoritative when hoisting imports.
-- RUNTIME-001 — Keep torch.compile/gradcheck guardrails intact by avoiding new runtime branching in the closures.
+  - PHYSICS-LOSS-001 — Keep variance-weighted χ² / sigma-floor telemetry intact while moving data between collectors and writer.
+  - PHYSICS-LOSS-003 — Stage A canonical snapshot/clamp provenance must still reach `/torch_diagnostics`.
+  - DIAGNOSTICS-001 — `/torch_diagnostics` schema (attrs + ROI telemetry) must remain byte-for-byte compatible; new StageResult plumbing is an implementation detail only.
 Pointers:
-- plans/active/ARCH-LAZY-IMPORTS-001/implementation.md:72 (Phase B.3 checklist + validation expectations for this loop).
-- docs/fix_plan.md:147 (initiative entry, attempts history, and problems-ledger linkage).
-- docs/spec-db-workflow.md:49 (refinement protocol architecture governing Stage A/C responsibilities while editing the wrappers).
-Next Up (optional):
-- Once these eager-import changes land, the next obvious follow-up is tackling Phase C process-noise cleanup (docstrings + hygiene selector) before moving on to the Stage C telemetry collector fix tracked under ARCH-TELEMETRY-001.
+  - dbex/refinement/stage.py — `RefinementTelemetry` dataclass and StageResult container.
+  - dbex/refinement/stage_a.py, dbex/refinement/stage_b.py, dbex/refinement/stage_c_impl.py — hook `collector.finalize()` results into telemetry before returning StageResult.
+  - dbex/refine_one.py — pass the per-stage StageResult map to `write_torch_outputs`.
+  - dbex/io/writer.py — extend signature + serialization logic to handle `stage_results`.
+Next Up:
+  - Phase C.3 (remove legacy telemetry dict shims) once the writer exclusively consumes typed StageResult data.

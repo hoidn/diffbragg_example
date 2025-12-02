@@ -523,3 +523,8 @@ Action State: ready_for_implementation
 - Refreshed plans/active/ARCH-LAZY-IMPORTS-001/implementation.md Phase B.3 to call out the Stage A/C stage-wrapper cleanup, validation selectors, and artifact path.
 - Added a new attempts-history entry in docs/fix_plan.md tying this planning loop + artifacts to the initiative and rewrote input.md with the module-scope import Do Now plus Stage A/A/C smoketest instructions (Stage C failure expected per ARCH-TELEMETRY-001).
 Action State: ready_for_implementation
+2025-12-04T020000Z focus=ARCH-TELEMETRY-001 state=planning dwell=1 action=planning artifacts=plans/active/ARCH-TELEMETRY-001/reports/2025-12-04T020000Z/ next_action=ready_for_implementation
+- Phase C.1 now marked complete (Stage B guard, Stage B shell, Stage C microslip green) and the new loop scoped Phase C.2: expose the collector-emitted StageResult dataclasses through `RefinementTelemetry`/RefinementEngine so the writer can consume typed telemetry instead of scraping dicts.
+- Updated plans/active/ARCH-TELEMETRY-001/implementation.md (C1 checked, C2 subtasks spelled out) and docs/fix_plan.md with the new attempt entry; rewrote input.md directing Ralph to add a `stage_result` attachment, plumb the per-stage payload to `write_torch_outputs(stage_results=...)`, and refactor `dbex/io/writer.py` + tests accordingly.
+- Tests mapped for Ralph: CLI diagnostics metadata, Stage B guard, Stage B shell smoke, Stage C microslip (small detector) with logs captured under the new artifacts directory.
+Action State: planning

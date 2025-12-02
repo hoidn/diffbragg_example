@@ -6,11 +6,11 @@ Textual flow for the shipped pipelines (torch default, DiffBragg legacy) showing
 ## End-to-End Pipeline (Torch Target)
 Inputs (Expt/Refl/MTZ, mask, optional refined MTZ, torch_config, sigma map, gain)
 → `DataLoad` (MTZ Bijvoet mates, Experiment selection, reflections filter, raw image stack, ROI bboxes/pids/background, trusted mask, sigma map, detector/beam/crystal fixtures)
-→ `prepare_refinement_inputs` (background-subtracted target, loss_mask=(bg>=0)&trusted, sigma tensor, ROI slices, ADU↔photon conversion, global_scale_hint)
+→ `dbex.refinement.inputs.prepare_refinement_inputs` (background-subtracted target, loss_mask=(bg>=0)&trusted, sigma tensor, ROI slices, ADU↔photon conversion, global_scale_hint)
 → `JobContext` / `RefinementContext` (ARCH-REFINE-001 Phase B complete) bundle DataLoad fixtures, calibration metadata, HKL grids
 → Zero-iteration simulation (per-panel Simulator via unified factory for forward-only paths; spot_scale applied post-sim)
 → `RefinementEngine` stages (Stage A/B/C LBFGS) consuming the contexts; Stage closures keep their direct `Simulator` models for autograd
-→ ROI scoring (Nelder–Mead per-ROI optimal scale vs background)
+→ ROI scoring (`dbex.io.roi_scoring.score_roi_payloads`: Nelder–Mead per-ROI optimal scale vs background, ARCH-BRIDGE-RESP-001 Phase B)
 → Torch writer (`dbex/io/writer.py`, ARCH-REFINE-001 Phase C.2/C.4 complete) emits HDF5 + optional triptych PNG export
 
 ## Divergence Points

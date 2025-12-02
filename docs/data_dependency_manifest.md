@@ -113,6 +113,7 @@ This manifest records the external data inputs (datasets, calibration payloads, 
 
 ### `dbex.io.roi_analysis.build_roi_payloads_from_arrays`
 
+- **Preparation Responsibilities:** Input prep (`dbex.refinement.inputs.RefinementInputs` dataclass / `prepare_refinement_inputs`) constructs background-subtracted targets and loss masks; config factories (now under `dbex/refinement/config_factories.py`) hydrate detector/beam/crystal configs. The bridge module (`dbex/nanobrag_bridge.py`) retains orchestration and HKL grid helpers.
 - **Req. Inputs:**
   - `target`: Full-detector target intensities (n_panels, slow, fast) in ADU or photons from DataLoad.data.
   - `background`: Full-detector background image (n_panels, slow, fast) from DataLoad.background_image.
@@ -148,6 +149,7 @@ This manifest records the external data inputs (datasets, calibration payloads, 
 
 ### `dbex.io.roi_scoring.score_roi_payloads` (ARCH-BRIDGE-RESP-001 Phase B.1)
 
+- **Preparation Context:** Refinement prep (`dbex.refinement.inputs.prepare_refinement_inputs`) and config builders (`dbex.refinement.config_factories.{create_detector_config, create_beam_config, create_crystal_config}`) now live under `dbex/refinement/`. The bridge module orchestrates HKL grids and calibration metadata loading.
 - **Req. Inputs:**
   - `target`: Full-detector target intensities (n_panels, slow, fast) in ADU or photons from DataLoad.data.
   - `background`: Full-detector background image (n_panels, slow, fast) from DataLoad.background_image.
@@ -199,11 +201,12 @@ This manifest records the external data inputs (datasets, calibration payloads, 
 
 ### `dbex.io.writer.write_torch_outputs`
 
+- **Preparation Context:** RefinementInputs dataclass and `prepare_refinement_inputs` now sourced from `dbex.refinement.inputs`; config factories reside in `dbex/refinement/config_factories.py`. Bridge module retains orchestration/HKL helpers.
 - **Req. Inputs:**
   - `args`: CLI parser namespace with `outFile` (HDF5 path), `sigma_floor` (float, default 1.0), `adu_per_photon` (Optional[float]).
   - `data_load`: DataLoad object with `data`, `background_image`, `detector`, `pids`, `bbox`.
   - `bragg`: Full-detector simulated Bragg intensities (n_panels, slow, fast) from RefinementEngine or Stage C.
-  - `inputs`: RefinementInputs namedtuple with `target`, `loss_mask`, `panel_slices`, `trusted_mask`.
+  - `inputs`: RefinementInputs dataclass from `dbex.refinement.inputs` with `target`, `loss_mask`, `panel_slices`, `trusted_mask`.
   - `masked_mse`: Masked mean squared error (float) between target and Bragg.
   - `hkl_telemetry`: Dict with `hkl_source` ("refined"/"raw"), `hkl_n_reflections`, `hkl_mean_amplitude`, `hkl_path`.
 - **Optional Inputs:**

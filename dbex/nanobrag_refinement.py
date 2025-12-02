@@ -57,11 +57,14 @@ from dbex.refinement.stage_a_impl import (
 )
 
 # Stage B helpers relocated to dbex.refinement.stage_b_impl (ARCH-REFINE-001)
-from dbex.refinement.stage_b_impl import (
+# ARCH-REFACTOR-001 Phase C.5: HKL utilities extracted to hkl_utils.py for cross-stage reuse
+from dbex.refinement.hkl_utils import (
     compute_hkl_shell_lookup,
     compute_hkl_asu_map,
     initialize_asu_modifiers,
     apply_asu_modifiers,
+)
+from dbex.refinement.stage_b_impl import (
     _build_stage_b_params,
     # ARCH-STAGE-CONTEXT-001 Phase B.2: Closure builder moved to StageB._build_lbfgs_closure
     _run_stage_b_lbfgs,

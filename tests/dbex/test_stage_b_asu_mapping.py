@@ -19,7 +19,8 @@ import numpy as np
 import pytest
 import torch
 
-from dbex.nanobrag_refinement import (
+# ARCH-REFACTOR-001 Phase C.5: HKL utilities extracted to hkl_utils.py for cross-stage reuse
+from dbex.refinement.hkl_utils import (
     apply_asu_modifiers,
     compute_hkl_asu_map,
     initialize_asu_modifiers,

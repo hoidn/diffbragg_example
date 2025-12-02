@@ -99,7 +99,7 @@ def test_stage_b_params_cpu_fallback_clones_stage_a_ctx():
 
     # Mock _build_stage_a_context and compute_hkl_shell_lookup to avoid heavy dependencies
     with patch("dbex.refinement.stage_b_impl._build_stage_a_context") as mock_build_ctx, \
-         patch("dbex.refinement.stage_b_impl.compute_hkl_shell_lookup") as mock_shell_lookup:
+         patch("dbex.refinement.hkl_utils.compute_hkl_shell_lookup") as mock_shell_lookup:
 
         # Configure mock Stage A context builder to return minimal CPU context
         cpu_stage_a_ctx = {
@@ -232,7 +232,7 @@ def test_stage_b_params_no_cpu_fallback_when_roi_mode_enabled():
     )
 
     with patch("dbex.refinement.stage_b_impl._build_stage_a_context") as mock_build_ctx, \
-         patch("dbex.refinement.stage_b_impl.compute_hkl_shell_lookup") as mock_shell_lookup:
+         patch("dbex.refinement.hkl_utils.compute_hkl_shell_lookup") as mock_shell_lookup:
 
         shell_indices = torch.zeros((10, 10, 10), dtype=torch.int32)
         shell_edges = np.array([0.0, 1.0, 2.0])
@@ -337,7 +337,7 @@ def test_stage_b_params_no_cpu_fallback_when_config_disabled():
     )
 
     with patch("dbex.refinement.stage_b_impl._build_stage_a_context") as mock_build_ctx, \
-         patch("dbex.refinement.stage_b_impl.compute_hkl_shell_lookup") as mock_shell_lookup:
+         patch("dbex.refinement.hkl_utils.compute_hkl_shell_lookup") as mock_shell_lookup:
 
         shell_indices = torch.zeros((10, 10, 10), dtype=torch.int32)
         shell_edges = np.array([0.0, 1.0, 2.0])
@@ -394,7 +394,9 @@ def test_stage_b_baseline_guard_diff_payload():
         - per_panel_breakdown (list of {panel_id, chi_squared, masked_mse})
     - When parity passes (<0.1%), stage_b_baseline_diff_path remains None
     """
-    from dbex.refinement.stage_b_impl import _check_stage_b_baseline_parity
+    # ARCH-REFACTOR-001 Phase C.5: _check_stage_b_baseline_parity moved to StageB._check_baseline_parity()
+    from dbex.refinement.stage_b import StageB
+    _check_stage_b_baseline_parity = StageB()._check_baseline_parity
     from dbex.refinement.context import StageBTelemetryState
     from dbex.refinement.telemetry_collectors import StageBTelemetryCollector
     import tempfile

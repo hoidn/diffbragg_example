@@ -30,16 +30,17 @@ import torch
 from dbex.refinement.artifacts import StageBArtifacts
 from dbex.refinement.stage import RefinementTelemetry, StageResult
 from dbex.refinement.stage_b_impl import (
-    _run_stage_b_lbfgs,
     # ARCH-STAGE-CONTEXT-001 Phase B.2: Closure builder moved to StageB._build_lbfgs_closure
     _retarget_stage_a_simulators,
     _get_sigma_floor_sq_tensor,
-    apply_asu_modifiers,
-    # ARCH-REFACTOR-001 Phase C.4: Helper functions for parameter builder
+    _build_stage_a_context,
+)
+# ARCH-REFACTOR-001 Phase C.5: HKL utilities extracted to hkl_utils.py for cross-stage reuse
+from dbex.refinement.hkl_utils import (
     compute_hkl_shell_lookup,
     compute_hkl_asu_map,
     initialize_asu_modifiers,
-    _build_stage_a_context,
+    apply_asu_modifiers,
 )
 from dbex.refinement.context import RefinementSharedContext, StageBTelemetryState
 from dbex.refinement.telemetry_collectors import StageBTelemetryCollector
@@ -411,6 +412,371 @@ class StageB:
             })
 
         return param_dict
+
+    def _check_baseline_parity(
+        self,
+        canonical_baseline: Dict[str, Any],
+        initial_chi_squared_b: torch.Tensor,
+        collector: StageBTelemetryCollector,
+        param_values: Dict[str, Any],
+        compute_loss_stage_b: Callable[[List[int], bool, bool], Tuple[torch.Tensor, torch.Tensor]],
+        n_panels: int,
+    ) -> None:
+        """
+        Stage B baseline parity guard (REFINE-FLOW-001).
+
+        Compares Stage B initial chi² against Stage A canonical chi² to detect
+        parameter reconstruction drift. Emits actionable JSON diff when parity fails.
+
+        Args:
+            canonical_baseline: Stage A final state dict with 'chi_squared', 'log_scale',
+                                cell params, misset, roi_count, iteration
+            initial_chi_squared_b: Stage B initial chi² tensor (before optimization)
+            collector: StageBTelemetryCollector for observer-based parity diagnostics
+                       (ARCH-TELEMETRY-001 Phase C.1). Required parameter.
+            param_values: Stage B param dict with cell/misset tensors, cache_mode, etc
+            compute_loss_stage_b: Loss computation callable for per-panel breakdown
+            n_panels: Number of detector panels for per-panel chi² queries
+
+        Raises:
+            RuntimeError: If |rel_diff| > 1e-3 (0.1% tolerance per REFINE-FLOW-001)
+
+        Mutates:
+            collector._state fields via set_baseline_parity_metrics helper
+
+        References:
+            - docs/findings.md:71 (REFINE-FLOW-001 tolerance and actionable diffs)
+            - docs/spec-db-workflow.md:76-79 (Stage B baseline parity requirement)
+            - ARCH-TELEMETRY-001 Phase C.1 (collector-only path, no dict/dataclass fallbacks)
+        """
+        import json
+        import os
+        from pathlib import Path
+
+        canonical_chi_squared = canonical_baseline.get('chi_squared')
+
+        if canonical_chi_squared is None:
+            # No baseline to compare against; skip guard
+            return
+
+        stage_b_initial_chi2 = float(initial_chi_squared_b.item())
+        canonical_chi2 = float(canonical_chi_squared)
+        abs_diff = stage_b_initial_chi2 - canonical_chi2
+        rel_diff = abs_diff / canonical_chi2 if canonical_chi2 != 0 else float('inf')
+
+        # Record parity diagnostics in telemetry (always, for observability)
+        # ARCH-TELEMETRY-001 Phase C.1: Collector-only path, no dict/dataclass fallbacks
+        collector.set_baseline_parity_metrics(rel_diff, abs_diff)
+
+        # Guard: raise if parity exceeds 0.1% tolerance (1e-3 relative difference)
+        tolerance = 1e-3
+        if abs(rel_diff) > tolerance:
+            # Emit JSON diff file for debugging with per-panel chi² breakdown
+
+            # Determine artifacts directory from environment or default to cwd
+            telemetry_path_env = os.environ.get("DBEX_SMOKE_TELEMETRY_PATH")
+            if telemetry_path_env:
+                artifacts_dir = Path(telemetry_path_env).parent
+            else:
+                # Fallback to current working directory
+                artifacts_dir = Path.cwd()
+                logger.warning(
+                    "DBEX_SMOKE_TELEMETRY_PATH not set, writing stage_b_baseline_diff.json to cwd: %s",
+                    artifacts_dir
+                )
+
+            artifacts_dir.mkdir(parents=True, exist_ok=True)
+            diff_path = artifacts_dir / "stage_b_baseline_diff.json"
+
+            # Compute per-panel chi² breakdown
+            per_panel_breakdown = []
+            with torch.no_grad():
+                for pid in range(n_panels):
+                    panel_chi2, panel_mse = compute_loss_stage_b([pid], is_full=True, force_panel_eval=True)
+                    per_panel_breakdown.append({
+                        "panel_id": pid,
+                        "chi_squared": float(panel_chi2.item()),
+                        "masked_mse": float(panel_mse.item()),
+                    })
+
+            # Extract Stage A canonical snapshot
+            canonical_snapshot = {
+                "stage_label": canonical_baseline.get('stage_label', 'A'),
+                "chi_squared": canonical_chi2,
+                "iteration": canonical_baseline.get('iteration', 0),
+                "roi_count": canonical_baseline.get('roi_count', 0),
+                "log_scale": canonical_baseline.get('log_scale', 0.0),
+                "cell_a": canonical_baseline.get('cell_a', 0.0),
+                "cell_b": canonical_baseline.get('cell_b', 0.0),
+                "cell_c": canonical_baseline.get('cell_c', 0.0),
+                "cell_alpha": canonical_baseline.get('cell_alpha', 90.0),
+                "cell_beta": canonical_baseline.get('cell_beta', 90.0),
+                "cell_gamma": canonical_baseline.get('cell_gamma', 90.0),
+                "misset_deg": canonical_baseline.get('misset_deg', (0.0, 0.0, 0.0)),
+            }
+
+            # Extract Stage B reconstructed parameters (what Stage B actually used)
+            stage_b_mode = param_values.get('stage_b_mode', 'shell')
+            stage_b_reconstructed = {
+                "log_scale": float(param_values['log_scale'].item()) if 'log_scale' in param_values else 0.0,
+                "cell_a": float(param_values['cell_a_tensor'].item()) if 'cell_a_tensor' in param_values else 0.0,
+                "cell_b": float(param_values['cell_b_tensor'].item()) if 'cell_b_tensor' in param_values else 0.0,
+                "cell_c": float(param_values['cell_c_tensor'].item()) if 'cell_c_tensor' in param_values else 0.0,
+                "cell_alpha": float(param_values['cell_alpha_tensor'].item()) if 'cell_alpha_tensor' in param_values else 90.0,
+                "cell_beta": float(param_values['cell_beta_tensor'].item()) if 'cell_beta_tensor' in param_values else 90.0,
+                "cell_gamma": float(param_values['cell_gamma_tensor'].item()) if 'cell_gamma_tensor' in param_values else 90.0,
+                "misset_deg": tuple(float(x) for x in param_values['misset_xyz_deg'].tolist()) if 'misset_xyz_deg' in param_values else (0.0, 0.0, 0.0),
+                "cache_mode": param_values.get('stage_b_cache_mode', 'cold'),
+                "cpu_fallback": param_values.get('use_stage_b_cpu_fallback', False),
+                "stage_b_mode": stage_b_mode,
+            }
+
+            diff_data = {
+                "canonical_snapshot": canonical_snapshot,
+                "stage_b_reconstructed": stage_b_reconstructed,
+                "stage_b_initial_chi_squared": stage_b_initial_chi2,
+                "absolute_difference": abs_diff,
+                "relative_difference": rel_diff,
+                "tolerance": tolerance,
+                "per_panel_breakdown": per_panel_breakdown,
+            }
+
+            with open(diff_path, 'w') as f:
+                json.dump(diff_data, f, indent=2)
+
+            # Store diff path in telemetry for test assertions
+            # ARCH-TELEMETRY-001 Phase C.1: Collector-only path, propagate diff_path via helper
+            collector.set_baseline_parity_metrics(rel_diff, abs_diff, str(diff_path))
+
+            raise RuntimeError(
+                f"REFINE-FLOW-001 baseline drift: Stage B initial chi² ({stage_b_initial_chi2:.3e}) "
+                f"differs from Stage A final ({canonical_chi2:.3e}) by {rel_diff:.4%} "
+                f"(tolerance={tolerance:.1%}). See {diff_path} for details."
+            )
+        else:
+            # Parity passed, clear diff path via helper (set to None)
+            # ARCH-TELEMETRY-001 Phase C.1: Collector handles None diff_path propagation
+            collector.set_baseline_parity_metrics(rel_diff, abs_diff, diff_path=None)
+
+    def _run_lbfgs(
+        self,
+        config: 'RefinementConfig',
+        device: torch.device,
+        dtype: torch.dtype,
+        param_values: Dict[str, Any],
+        closure_stage_b: Callable[[], torch.Tensor],
+        compute_loss_stage_b: Callable[[List[int], bool, bool], Tuple[torch.Tensor, torch.Tensor]],
+        n_panels: int,
+        collector: Any,
+    ) -> Dict[str, Any]:
+        """
+        Run LBFGS optimization for Stage B shell modifier refinement.
+
+        ARCH-REFACTOR-001 Phase C.5: Inlined from stage_b_impl._run_stage_b_lbfgs.
+
+        Args:
+            config: RefinementConfig with optimizer parameters
+            device: torch device
+            dtype: torch dtype
+            param_values: Dict with trainable tensors, telemetry, optimizer, etc.
+            closure_stage_b: Closure for LBFGS optimizer
+            compute_loss_stage_b: Loss computation callable
+            n_panels: Number of detector panels
+            collector: StageBTelemetryCollector for observer-based telemetry
+                       (ARCH-TELEMETRY-001 Phase C.1). Required parameter.
+
+        Returns:
+            Dict with status, message, final metrics, and best params snapshot.
+        """
+        # Extract param_values dict entries (mode-aware)
+        stage_b_optimizer = param_values['optimizer']
+        stage_b_mode = param_values['stage_b_mode']
+        optimizer_type = param_values['optimizer_type']  # "adam" or "lbfgs"
+
+        # Mode-aware parameter extraction
+        if stage_b_mode == "per_reflection":
+            log_modifiers = param_values['log_modifiers']
+            shell_modifier_raw = None  # Not used in per-reflection mode
+        else:  # shell mode
+            shell_modifier_raw = param_values['shell_modifier_raw']
+            log_modifiers = None  # Not used in shell mode
+
+        log_scale = param_values['log_scale']
+        # ARCH-TELEMETRY-001 Phase C.1: telemetry_state is always StageBTelemetryState (no dict compat)
+        telemetry = param_values['telemetry_state']
+        loss_trace_full_b = telemetry.loss_trace_full
+        chi_squared_trace_full_b = telemetry.chi_squared_trace_full
+        masked_mse_trace_full_b = telemetry.masked_mse_trace_full
+        loss_trace_sample_b = telemetry.loss_trace_sample
+        best_params_snapshot_b = telemetry.best_params_snapshot
+        stage_b_param_device = param_values['stage_b_param_device']
+        best_loss_full = param_values['best_loss_full']  # Stage A final loss for improvement calc
+
+        # Initialize mutable accumulators (tuples)
+        chi_squared_best_b = [float('inf'), 0]
+        masked_mse_best_b = [float('inf'), 0]
+        best_loss_full_b = [float('inf'), 0]
+
+        status_b = "ok"
+        message_b = ""
+        try:
+            # Initial full-loss validation before optimization (mandatory per TORCH-REFINE-004)
+            # PERF-WARM-009: Force panel evaluation for initial validation to keep modifiers within ±1%
+            with torch.no_grad():
+                initial_chi_squared_b, initial_mse_b = compute_loss_stage_b(
+                    list(range(n_panels)), is_full=True, force_panel_eval=True
+                )
+
+                # Phase 7: Mode-aware best params snapshot
+                # ARCH-STAGE-CONTEXT-001 Phase B.3.2: Handle both list and dict snapshot types
+                snapshot_data = {}
+                if param_values['stage_b_mode'] == "per_reflection":
+                    snapshot_data['log_modifiers'] = param_values['log_modifiers'].data.clone()
+                else:
+                    snapshot_data['shell_modifier_raw'] = param_values['shell_modifier_raw'].data.clone()
+
+                # ARCH-TELEMETRY-001 Phase C.1: Route baseline validation through collector (observer pattern)
+                # Observer path: emit baseline validation via collector
+                payload = {
+                    'loss': float(initial_chi_squared_b.item()),
+                    'masked_mse': float(initial_mse_b.item()),
+                    'best_snapshot': snapshot_data,
+                }
+                collector.on_validation(
+                    scope='baseline',
+                    chi2=float(initial_chi_squared_b.item()),
+                    payload=payload,
+                )
+
+            # REFINE-FLOW-001: Stage B baseline parity guard
+            # Compare Stage B initial chi² against Stage A canonical chi² to detect parameter reconstruction drift
+            # ARCH-TELEMETRY-001 Phase C.1: Pass collector for observer-based parity metrics
+            canonical_baseline = param_values.get('canonical_baseline', {})
+            self._check_baseline_parity(
+                canonical_baseline=canonical_baseline,
+                initial_chi_squared_b=initial_chi_squared_b,
+                collector=collector,
+                param_values=param_values,
+                compute_loss_stage_b=compute_loss_stage_b,
+                n_panels=n_panels,
+            )
+
+            # Run optimization (optimizer-agnostic pattern per TORCH-REFINE-004 Phase 7 blocker fix)
+            if optimizer_type == "adam":
+                # Adam requires manual loop: call closure() to compute loss/gradients,
+                # then call step() without arguments to update params
+                max_iter_b = config.max_iter  # Default 30 per RefinementConfig
+                for iteration_adam in range(max_iter_b):
+                    loss = closure_stage_b()  # Computes loss, backward(), updates traces (zero_grad() called internally)
+                    stage_b_optimizer.step()  # Update params (NO closure arg for Adam)
+
+                    # Check improvement after each iteration (reuse LBFGS periodic validation logic)
+                    if len(loss_trace_full_b) > 0:
+                        _, latest_full_loss = loss_trace_full_b[-1]
+                        improvement_b = (best_loss_full[0] - latest_full_loss) / best_loss_full[0]
+                        if improvement_b >= config.stage_b_min_loss_improvement:
+                            status_b = "ok"
+                            message_b = f"Stage B converged after {iteration_adam+1} Adam iterations (improvement {improvement_b:.4%})"
+                            break
+            else:  # "lbfgs"
+                # LBFGS uses closure-based pattern (original line 3112)
+                stage_b_optimizer.step(closure_stage_b)
+
+        except Exception as e:
+            status_b = "error"
+            message_b = f"Stage B error: {str(e)}"
+
+        # Restore best snapshot (always, even on success, to ensure consistency)
+        # PERF-WARM-009: Force panel evaluation for final validation to keep modifiers within ±1%
+        final_step = len(loss_trace_sample_b)
+        with torch.no_grad():
+            candidate_final_chi2, candidate_final_mse = compute_loss_stage_b(
+                list(range(n_panels)), is_full=True, force_panel_eval=True
+            )
+        candidate_loss_value = float(candidate_final_chi2.item())
+        candidate_mse_value = float(candidate_final_mse.item())
+        if candidate_loss_value < chi_squared_best_b[0]:
+            chi_squared_best_b[0] = candidate_loss_value
+            chi_squared_best_b[1] = final_step
+            best_loss_full_b[0] = candidate_loss_value
+            best_loss_full_b[1] = final_step
+            # Phase 7: Mode-aware best params snapshot
+            # ARCH-STAGE-CONTEXT-001 Phase B.3.2: Handle both list and dict snapshot types
+            snapshot_data = {}
+            if param_values['stage_b_mode'] == "per_reflection":
+                snapshot_data['log_modifiers'] = param_values['log_modifiers'].data.clone()
+            else:
+                snapshot_data['shell_modifier_raw'] = param_values['shell_modifier_raw'].data.clone()
+            if isinstance(best_params_snapshot_b, list):
+                best_params_snapshot_b.clear()
+                best_params_snapshot_b.append(snapshot_data)
+            else:
+                best_params_snapshot_b.update(snapshot_data)
+        if candidate_mse_value < masked_mse_best_b[0]:
+            masked_mse_best_b[0] = candidate_mse_value
+            masked_mse_best_b[1] = final_step
+
+        # Phase 7: Restore best params (mode-aware)
+        # ARCH-STAGE-CONTEXT-001 Phase B.3.2: Extract snapshot from list or dict
+        if best_loss_full_b[0] < float('inf'):
+            # Get snapshot dict: from list[0] if list-type, directly if dict-type
+            snapshot_dict = best_params_snapshot_b[0] if isinstance(best_params_snapshot_b, list) else best_params_snapshot_b
+            if param_values['stage_b_mode'] == "per_reflection":
+                param_values['log_modifiers'].data = snapshot_dict['log_modifiers'].to(
+                    device=stage_b_param_device,
+                    dtype=dtype
+                )
+            else:
+                param_values['shell_modifier_raw'].data = snapshot_dict['shell_modifier_raw'].to(
+                    device=stage_b_param_device,
+                    dtype=dtype
+                )
+
+        final_loss_value = chi_squared_best_b[0] if chi_squared_best_b[0] < float('inf') else candidate_loss_value
+        final_mse_value = masked_mse_best_b[0] if masked_mse_best_b[0] < float('inf') else candidate_mse_value
+
+        # ARCH-TELEMETRY-001 Phase C.1: Route final validation through collector (observer pattern)
+        # Emit final validation to capture end-of-optimization metrics
+        final_snapshot_data = {}
+        if param_values['stage_b_mode'] == "per_reflection":
+            final_snapshot_data['log_modifiers'] = param_values['log_modifiers'].data.clone()
+        else:
+            final_snapshot_data['shell_modifier_raw'] = param_values['shell_modifier_raw'].data.clone()
+        final_payload = {
+            'loss': final_loss_value,
+            'masked_mse': final_mse_value,
+            'best_snapshot': final_snapshot_data,
+        }
+        collector.on_validation(
+            scope='final',
+            chi2=final_loss_value,
+            payload=final_payload,
+        )
+
+        # Improvement gate check (REFINE-008)
+        if status_b != "error" and best_loss_full[0] is not None and best_loss_full[0] > 0:
+            stage_a_final_loss = best_loss_full[0]
+            improvement_b = (stage_a_final_loss - final_loss_value) / stage_a_final_loss
+            if improvement_b < config.stage_b_min_loss_improvement:
+                status_b = "early_stop"
+                message_b = (
+                    f"Stage B improvement {improvement_b:.4%} < "
+                    f"{config.stage_b_min_loss_improvement:.4%} (calibrated gate per TORCH-REFINE-004, "
+                    "artifact: plans/active/ARCH-REFINE-001/reports/2025-12-01T084505Z/)"
+                )
+
+        # Build StageResult and RefinementTelemetry for return (engine protocol)
+        # Note: The actual implementation returns a dict, but the signature says Tuple.
+        # For now, return a dict to match existing behavior.
+        return {
+            'status': status_b,
+            'message': message_b,
+            'best_loss_full_b': tuple(best_loss_full_b),
+            'chi_squared_best_b': tuple(chi_squared_best_b),
+            'masked_mse_best_b': tuple(masked_mse_best_b),
+            'final_loss_value': final_loss_value,
+            'final_mse_value': final_mse_value,
+        }
 
     def _build_lbfgs_closure(
         self,
@@ -1098,7 +1464,7 @@ class StageB:
         )
 
         # STEP 3: Run Stage B LBFGS optimization
-        stage_b_results = _run_stage_b_lbfgs(
+        stage_b_results = self._run_lbfgs(
             config=self._config,
             device=device,
             dtype=dtype,

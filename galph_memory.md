@@ -715,3 +715,21 @@ Action State: ready_for_implementation
   3. Check if the function is being called at all (maybe bragg_full is None?)
   4. May need new `harness` initiative to fix artifact extraction OR new `bugfix` for reconstruction function
 Action State: blocked — suspected_implementation_defect_in_artifacts
+
+2025-12-02T234500Z focus=ARCH-REFACTOR-001 state=ready_for_implementation dwell=0 action=bugfix artifacts=plans/active/ARCH-REFACTOR-001/reports/2025-12-02T234500Z/ next_action=fix_crystal_beam_config_initialization
+- **ROOT CAUSE IDENTIFIED**: Ralph's Phase D.3 Batch 2 corrective fix (commit preceding) correctly fixed `bragg_before` computation but **tests still FAIL with identical signature** because `bragg_after` (from `engine._artifacts["stage_a"].bragg_full`) is near-zero (7.59e-14 mean) instead of refined Bragg (~1.86 mean).
+- **INSTRUMENTATION SATURATION RULE TRIGGERED**: After two consecutive loops with implementation fixes and identical failures, Galph performed supervisor-side code inspection per repeat-failure escalation rule (galph_prompt §loop_discipline).
+- **BUG LOCATION**: `dbex/refinement/reconstruction.py::build_final_bragg_from_stage_a_telemetry` lines 148-167 (warm cache path).
+- **BUG PATTERN**: Crystal constructed with `beam_config=None` (line 150), then `crystal_model.beam_config = stage_a_ctx.beam_config` assigned post-hoc (line 165). This violates `nanobrag_torch.Crystal` initialization contract - beam_config must be passed at construction time to initialize internal matrices.
+- **EVIDENCE**: All other Crystal constructions in codebase pass `beam_config` at construction time:
+  • `reconstruction.py::build_final_bragg_from_stage_b_telemetry` line 400
+  • `stage_a_utils.py` line 497
+  • `stage_a.py` line 1219
+- **INITIATIVE TYPE CONFIRMED**: This is a **bugfix** (implementation defect in reconstruction helper), not harness/architecture. The helper has broken Crystal initialization that violates upstream API contracts.
+- **FIX STRATEGY**: Move Crystal construction inside warm cache block, pass `beam_config=stage_a_ctx.beam_config` to constructor, remove post-hoc assignment. Cold path already correct.
+- **ARTIFACTS**:
+  • Root cause analysis: `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T234500Z/root_cause_analysis.md`
+  • Debug script (T2): `plans/active/ARCH-REFACTOR-001/bin/debug_bragg_reconstruction.py` (not needed for fix but retained for future debugging)
+  • input.md rewritten with targeted bugfix Do Now
+- **LIFECYCLE**: implementation_attempt_count=3 for DB-AT-028/029 acceptance criteria; this is final attempt before spec_change_flow escalation per initiative budget hard rule.
+Action State: ready_for_implementation — crystal_beam_config_init_fix

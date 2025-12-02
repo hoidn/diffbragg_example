@@ -1,0 +1,65 @@
+dbex/physics/forward.py:61:        inputs: RefinementInputs from prepare_refinement_inputs containing
+tests/dbex/test_mapping_consistency.py:36:    prepare_refinement_inputs,
+tests/dbex/test_mapping_consistency.py:237:        inputs = prepare_refinement_inputs(
+tests/dbex/test_mask_semantics.py:14:- dbex/nanobrag_bridge.py (prepare_refinement_inputs)
+tests/dbex/test_mask_semantics.py:137:        DB-AT-021 (2/2): Validate loss mask consistency via prepare_refinement_inputs.
+tests/dbex/test_mask_semantics.py:151:        from dbex.nanobrag_bridge import prepare_refinement_inputs
+tests/dbex/test_mask_semantics.py:156:        inputs = prepare_refinement_inputs(
+tests/dbex/test_mask_semantics.py:230:        These attributes are required by prepare_refinement_inputs and bridge code.
+dbex/refine_one.py:293:        prepare_refinement_inputs,
+dbex/refine_one.py:321:    inputs = prepare_refinement_inputs(
+tests/dbex/test_gradients.py:113:    from dbex.nanobrag_bridge import prepare_refinement_inputs
+tests/dbex/test_gradients.py:121:    inputs = prepare_refinement_inputs(
+dbex/nanobrag_bridge.py:47:# Existing RefinementInputs and prepare_refinement_inputs
+dbex/nanobrag_bridge.py:81:def prepare_refinement_inputs(
+dbex/nanobrag_bridge.py:1832:        inputs: RefinementInputs from prepare_refinement_inputs containing
+dbex/data_load.py:445:        Required by prepare_refinement_inputs for pixel pitch validation.
+dbex/vis/mapping.py:34:    prepare_refinement_inputs,
+dbex/vis/mapping.py:106:    - Builds :class:`RefinementInputs` via :func:`prepare_refinement_inputs`,
+dbex/vis/mapping.py:145:    inputs = prepare_refinement_inputs(
+dbex/vis/mapping.py:336:        inputs: RefinementInputs produced by ``prepare_refinement_inputs``.
+tests/dbex/test_background_semantics.py:8:- prepare_refinement_inputs enforces sentinel integrity
+tests/dbex/test_background_semantics.py:14:- dbex/nanobrag_bridge.py (prepare_refinement_inputs sentinel guard)
+tests/dbex/test_background_semantics.py:171:        DB-AT-022 (2/3): Validate sentinel guard in prepare_refinement_inputs.
+tests/dbex/test_background_semantics.py:173:        Tests that prepare_refinement_inputs:
+tests/dbex/test_background_semantics.py:179:        from dbex.nanobrag_bridge import prepare_refinement_inputs
+tests/dbex/test_background_semantics.py:184:        inputs = prepare_refinement_inputs(
+tests/dbex/test_background_semantics.py:210:            prepare_refinement_inputs(
+tests/dbex/test_background_semantics.py:234:                prepare_refinement_inputs(
+tests/dbex/test_background_semantics.py:258:        from dbex.nanobrag_bridge import prepare_refinement_inputs
+tests/dbex/test_background_semantics.py:263:        inputs = prepare_refinement_inputs(
+tests/dbex/test_nanobrag_smoke.py:31:    prepare_refinement_inputs,
+tests/dbex/test_nanobrag_smoke.py:140:    inputs = prepare_refinement_inputs(
+tests/dbex/test_nanobrag_bridge.py:15:from dbex.nanobrag_bridge import RefinementInputs, prepare_refinement_inputs
+tests/dbex/test_nanobrag_bridge.py:104:    """Test suite for prepare_refinement_inputs function."""
+tests/dbex/test_nanobrag_bridge.py:117:        result = prepare_refinement_inputs(
+tests/dbex/test_nanobrag_bridge.py:188:        result_adu = prepare_refinement_inputs(
+tests/dbex/test_nanobrag_bridge.py:203:        result_photons = prepare_refinement_inputs(
+tests/dbex/test_nanobrag_bridge.py:239:            prepare_refinement_inputs(
+tests/dbex/test_nanobrag_bridge.py:265:            prepare_refinement_inputs(
+tests/dbex/test_nanobrag_bridge.py:283:        result = prepare_refinement_inputs(
+tests/dbex/test_calibration_policy.py:6:- prepare_refinement_inputs converts targets to photons when adu_per_photon > 0
+tests/dbex/test_calibration_policy.py:16:- dbex/nanobrag_bridge.py (prepare_refinement_inputs photon conversion)
+tests/dbex/test_calibration_policy.py:94:        from dbex.nanobrag_bridge import prepare_refinement_inputs
+tests/dbex/test_calibration_policy.py:102:        inputs_adu = prepare_refinement_inputs(
+tests/dbex/test_calibration_policy.py:113:        inputs_photon = prepare_refinement_inputs(
+tests/dbex/test_calibration_policy.py:206:        from dbex.nanobrag_bridge import prepare_refinement_inputs
+tests/dbex/test_calibration_policy.py:211:        inputs = prepare_refinement_inputs(
+tests/dbex/test_calibration_policy.py:274:        from dbex.nanobrag_bridge import prepare_refinement_inputs
+tests/dbex/test_calibration_policy.py:280:            prepare_refinement_inputs(
+tests/dbex/test_calibration_policy.py:292:            prepare_refinement_inputs(
+tests/dbex/test_calibration_policy.py:304:            prepare_refinement_inputs(
+tests/dbex/test_calibration_policy.py:315:        inputs = prepare_refinement_inputs(
+tests/dbex/test_calibration_policy.py:343:        from dbex.nanobrag_bridge import prepare_refinement_inputs
+tests/dbex/test_calibration_policy.py:348:        inputs_adu = prepare_refinement_inputs(
+tests/dbex/test_calibration_policy.py:359:        inputs_photon = prepare_refinement_inputs(
+tests/dbex/test_torch_refine_smoke.py:299:    from dbex.nanobrag_bridge import prepare_refinement_inputs
+tests/dbex/test_torch_refine_smoke.py:337:    inputs = prepare_refinement_inputs(
+tests/dbex/test_refine_one_cli.py:105:@patch('dbex.nanobrag_bridge.prepare_refinement_inputs')
+tests/dbex/test_refine_one_cli.py:258:@patch('dbex.nanobrag_bridge.prepare_refinement_inputs')
+tests/dbex/test_refine_one_cli.py:402:@patch('dbex.nanobrag_bridge.prepare_refinement_inputs')
+tests/dbex/test_refine_one_cli.py:437:@patch('dbex.nanobrag_bridge.prepare_refinement_inputs')
+tests/dbex/test_refine_one_cli.py:493:    # prepare_refinement_inputs return
+tests/dbex/test_refine_one_cli.py:514:    # prepare_refinement_inputs should receive the calibrated sigma map (before photon conversion)
+tests/dbex/test_refine_one_cli.py:529:@patch('dbex.nanobrag_bridge.prepare_refinement_inputs')
+tests/dbex/test_refine_one_cli.py:621:@patch('dbex.nanobrag_bridge.prepare_refinement_inputs')

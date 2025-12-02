@@ -1,0 +1,23 @@
+dbex/refine_one.py:13:from dbex.io.writer import write_torch_outputs
+dbex/refine_one.py:604:    write_torch_outputs(
+tests/dbex/test_refine_one_cli.py:110:@patch('dbex.io.writer.write_torch_outputs')
+tests/dbex/test_refine_one_cli.py:249:    # The Bragg array passed to _write_torch_outputs should be scaled
+tests/dbex/test_refine_one_cli.py:264:@patch('dbex.io.writer.write_torch_outputs')
+tests/dbex/test_refine_one_cli.py:442:@patch('dbex.io.writer.write_torch_outputs')
+tests/dbex/test_refine_one_cli.py:534:@patch('dbex.io.writer.write_torch_outputs')
+tests/dbex/test_refine_one_cli.py:627:@patch('dbex.io.writer.write_torch_outputs')
+tests/dbex/test_refine_one_cli.py:639:    3. Telemetry passed to _write_torch_outputs marks hkl_source="refined"
+tests/dbex/test_refine_one_cli.py:754:        # Verify _write_torch_outputs received telemetry marking refined source
+tests/dbex/test_refine_one_cli.py:784:    # ARCH-REFINE-001 Phase C.4: Assert legacy _write_torch_outputs alias is removed
+tests/dbex/test_refine_one_cli.py:785:    assert not hasattr(dbex.refine_one, '_write_torch_outputs'), \
+tests/dbex/test_refine_one_cli.py:786:        "Legacy _write_torch_outputs alias should be removed; use dbex.io.writer.write_torch_outputs directly"
+tests/dbex/test_refine_one_cli.py:885:            from dbex.io.writer import write_torch_outputs
+tests/dbex/test_refine_one_cli.py:887:            write_torch_outputs(
+dbex/io/__init__.py:8:    write_torch_outputs: Serialize ROI-scored triptychs + /torch_diagnostics to HDF5
+dbex/io/__init__.py:11:from dbex.io.writer import write_torch_outputs
+dbex/io/__init__.py:13:__all__ = ["write_torch_outputs"]
+dbex/io/writer.py:16:    - write_torch_outputs(args, data_load, bragg, inputs, masked_mse, hkl_telemetry, ...)
+dbex/io/writer.py:19:    - HDF5 schema is byte-for-byte compatible with prior dbex.refine_one._write_torch_outputs
+dbex/io/writer.py:35:    - 2025-12-01 (ARCH-REFINE-001 Phase C.2): Extracted from dbex.refine_one._write_torch_outputs
+dbex/io/writer.py:41:def write_torch_outputs(
+dbex/io/writer.py:95:        - HDF5 schema matches prior dbex.refine_one._write_torch_outputs (DIAGNOSTICS-001)

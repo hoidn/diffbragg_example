@@ -503,8 +503,11 @@ def run_nanobrag_backend(args, DL, devid=0):
     # Run Stage A LBFGS refinement nucleus (TORCH-REFINE-001)
     print(f"[nanobrag backend] Running Stage A LBFGS refinement nucleus...")
     from dbex.refinement.config import RefinementConfig
-    from dbex.nanobrag_refinement import run_nanobrag_refinement
-    from dbex.refinement.context import build_job_context
+    from dbex.refinement.context import build_job_context, build_refinement_context
+    from dbex.refinement.engine import RefinementEngine
+    from dbex.refinement.stage_a import StageA
+    from dbex.refinement.stage_b import StageB
+    from dbex.refinement.stage_c import StageC
 
     # Apply ADU→photon conversion to sigma_floor if adu_per_photon is set (PHYSICS-LOSS-002)
     # Per input.md pitfalls and spec-db-core.md:67, sigma_floor shares units with sigma_rdout (target units)
@@ -542,18 +545,49 @@ def run_nanobrag_backend(args, DL, devid=0):
     print(f"[nanobrag backend] JobContext built: sigma_provenance={job_context.sigma_provenance}, "
           f"hkl_source={job_context.hkl_source}, spot_scale={job_context.spot_scale_override:.3e}")
 
+    # Build RefinementContext (ARCH-REFACTOR-001 Phase D.2)
+    # Wraps all refinement inputs in typed context for Engine consumption
+    refinement_context = build_refinement_context(
+        refinement_inputs=inputs,  # RefinementInputs prepared at line ~490
+        detector=DL.detector,
+        beam=DL.beam,
+        crystal=DL.crystal,
+        hkl_grid=hkl_grid,
+        hkl_metadata=hkl_metadata,
+        baseline_crystal=None,  # CLI path has no perturbed geometry (unlike test_stage_a_expansion)
+        baseline_detector=DL.detector if refine_config.enable_stage_c else None,  # Stage C retargeting requires baseline
+        asu_map=asu_map,  # Pre-computed ASU mapping from CLI prep (line ~474)
+        hkl_indices_grid=None,  # Optional; not used in CLI path
+        halo_mask=None,  # Optional; not used in CLI path
+        extras={"job_context": job_context},  # Thread JobContext for stage access to CLI args/calibration
+    )
+
+    # Instantiate RefinementEngine with stage list (ARCH-REFACTOR-001 Phase D.2)
+    stages = [StageA()]  # Always run Stage A
+    if refine_config.enable_stage_b:
+        stages.append(StageB())
+    if refine_config.enable_stage_c:
+        stages.append(StageC())
+
+    engine = RefinementEngine(stages=stages, config=refine_config)
+
     try:
-        # ARCH-STAGE-CONTEXT-001 Phase B.4: run_nanobrag_refinement now returns artifacts
-        Bragg_refined, refine_telemetry_dict, engine_artifacts = run_nanobrag_refinement(
-            inputs=inputs,
-            detector=DL.detector,
-            beam=DL.beam,
-            crystal=DL.crystal,
-            hkl_grid=hkl_grid,
-            hkl_metadata=hkl_metadata,
-            config=refine_config,
-            job_context=job_context
-        )
+        # Run refinement via RefinementEngine (ARCH-REFACTOR-001 Phase D.2)
+        # Engine.run() expects dict with 'context' key per Exit Criterion #4
+        engine_inputs = {"context": refinement_context}
+        refine_telemetry_dict = engine.run(engine_inputs)
+
+        # Extract final Bragg from terminal stage artifact (precedence: C > B > A)
+        # RefinementEngine stores artifacts in engine._artifacts (private, documented pattern)
+        if refine_config.enable_stage_c and "C" in engine._artifacts:
+            Bragg_refined = engine._artifacts["C"].bragg_full
+        elif refine_config.enable_stage_b and "B" in engine._artifacts:
+            Bragg_refined = engine._artifacts["B"].bragg_full
+        else:
+            Bragg_refined = engine._artifacts["A"].bragg_full
+
+        # Extract engine_artifacts for downstream writer/diagnostics (ARCH-STAGE-CONTEXT-001 Phase B.4)
+        engine_artifacts = engine._artifacts
 
         # Extract Stage A telemetry (always present); Stage B and Stage C are optional
         refine_telemetry = refine_telemetry_dict["A"]

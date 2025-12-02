@@ -538,3 +538,8 @@ Action State: ready_for_implementation
 - Input.md now hands Ralph a Parity-mode Do Now to add `StageCContext`, refactor `StageC.run` + `_build_stage_c_params/_run_stage_c_lbfgs` to consume it, and rerun the Stage B guard / Stage C microslip selectors with artifacts under `plans/active/ARCH-REFACTOR-001/reports/2025-12-04T120500Z/`.
 - Maintained doc hygiene (plan + ledger + galph_memory) and created the new report directory so logs/summary land alongside this loop’s planning notes.
 Action State: planning
+2025-12-04T140000Z focus=ARCH-REFACTOR-001 state=ready_for_implementation dwell=0 action=planning artifacts=plans/active/ARCH-REFACTOR-001/reports/2025-12-04T140000Z/ next_action=Inline Stage C helper logic into StageC._build_stage_c_params/_run_lbfgs and rerun Stage B guard + Stage C smoke
+- Marked Phase C1 complete in the implementation plan, added Phase C.2 checklist for inlining `_build_stage_c_params`/`_run_stage_c_lbfgs`, and updated docs/fix_plan.md with the new attempt entry plus reserved artifacts at 2025-12-04T140000Z/.
+- Authored input.md handing Ralph concrete implementation steps: move `_build_stage_c_params` and `_run_stage_c_lbfgs` into `StageC`, delete the helper definitions from `stage_c_impl.py`, and validate via the Stage B guard plus Stage C detector microslip smokes with canonical env flags.
+- Findings enforced: ARCH-STAGE-CTX-001 (typed contexts only), ARCH-ENGINE-002 (Stage wrappers remain canonical seam), ARCH-TELEMETRY-001 (collector-first telemetry packaging). Next loop is implementation-focused to finish Phase C.2.
+Action State: ready_for_implementation

@@ -50,7 +50,7 @@
 **Goal:** Move logic from `_impl.py` files into `Stage` classes and remove "data clump" argument lists.
 
 ### Checklist
-- [ ] C1: **Stage C Strictness:** Refactor `StageC._build_lbfgs_closure` to accept *only* `RefinementSharedContext` and `StageCContext`. Remove the 15+ optional legacy arguments.
+- [x] C1: **Stage C Strictness:** Refactor `StageC._build_lbfgs_closure` to accept *only* `RefinementSharedContext` and `StageCContext`. Remove the 15+ optional legacy arguments.
 - [ ] C2: **Stage C Inlining:** Move logic from `_build_stage_c_params` and `_run_stage_c_lbfgs` (in `stage_c_impl.py`) directly into `dbex/refinement/stage_c.py`.
 - [ ] C3: **Stage C Cleanup:** Delete `dbex/refinement/stage_c_impl.py`. Verify `test_stage_c_detector_microslip` passes.
 - [ ] C4: **Stage B Strictness:** Refactor `StageB` to rely solely on `RefinementSharedContext` and `StageBTelemetryState`. Remove legacy dict/arg support.
@@ -63,12 +63,19 @@
 #### Phase C Reactivation — Stage C Context Breakout (2025-12-04T120500Z)
 Problems ledger `PRIORITIZE ARCH-REFACTOR-001 ASAP` (system-level architectural debt) reopens Phase C work. First increment splits the Stage C helper dictionaries into typed dataclasses so the remaining `_impl` logic can move into `StageC`.
 
-- [ ] C1.A — **Introduce `StageCContext` dataclass:** extend `dbex/refinement/context.py` with a typed container that owns Stage C’s warm-cache/perf counters (`stage_c_use_warm_cache`, `cache_mode`, ROI counts, baseline detector distances, sampled panel ids, ROI slices, validation scope, perf counter payloads, `_apply_baseline_detector_prior` callback). Reference `StageCTelemetryState` for naming conventions and ensure the dataclass is device/dtype neutral.
-- [ ] C1.B — **Thread `StageCContext` through StageC:** update `StageC.run` to instantiate the new dataclass instead of assembling `stage_c_context_dict`, pass it to `_build_stage_c_params`, `_build_lbfgs_closure`, and `_run_stage_c_lbfgs`, and drop the legacy dict plumbing.
-- [ ] C1.C — **Update `_build_stage_c_params` / `_run_stage_c_lbfgs`:** change the helpers in `dbex/refinement/stage_c_impl.py` to accept `StageCContext` and access attributes instead of mutable dict keys. Ensure observer/telemetry paths keep working (no regression to StageCTelemetryState usage) and keep the compatibility shim for `RefinementSharedContext` until the helpers are moved fully into `StageC`.
-- [ ] C1.D — **Validation:** `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small | tee plans/active/ARCH-REFACTOR-001/reports/<timestamp>/pytest_stage_c_smoke.log`
+- [x] C1.A — **Introduce `StageCContext` dataclass:** extend `dbex/refinement/context.py` with a typed container that owns Stage C’s warm-cache/perf counters (`stage_c_use_warm_cache`, `cache_mode`, ROI counts, baseline detector distances, sampled panel ids, ROI slices, validation scope, perf counter payloads, `_apply_baseline_detector_prior` callback). Reference `StageCTelemetryState` for naming conventions and ensure the dataclass is device/dtype neutral.
+- [x] C1.B — **Thread `StageCContext` through StageC:** update `StageC.run` to instantiate the new dataclass instead of assembling `stage_c_context_dict`, pass it to `_build_stage_c_params`, `_build_lbfgs_closure`, and `_run_stage_c_lbfgs`, and drop the legacy dict plumbing.
+- [x] C1.C — **Update `_build_stage_c_params` / `_run_stage_c_lbfgs`:** change the helpers in `dbex/refinement/stage_c_impl.py` to accept `StageCContext` and access attributes instead of mutable dict keys. Ensure observer/telemetry paths keep working (no regression to StageCTelemetryState usage) and keep the compatibility shim for `RefinementSharedContext` until the helpers are moved fully into `StageC`.
+- [x] C1.D — **Validation:** `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small | tee plans/active/ARCH-REFACTOR-001/reports/<timestamp>/pytest_stage_c_smoke.log`
 
 Artifacts for this phase live under `plans/active/ARCH-REFACTOR-001/reports/2025-12-04T120500Z/`.
+
+#### Phase C.2 — Stage C Helper Inlining (2025-12-04TXXXXXXZ)
+Second increment removes the `stage_c_impl.py` dependency by bringing the remaining helper logic into `StageC`.
+
+- [ ] C2.A — **Inline `_build_stage_c_params`:** Add a private helper (or expand `StageC.run`) that builds the Stage C parameter tensors, optimizer, StageCContext, and `StageCTelemetryState` directly from `RefinementSharedContext`/`StageAContext` without returning a dict of ad-hoc containers. This helper should return the dataclasses plus the `param_values` mapping that `_build_lbfgs_closure` consumes so the rest of StageC no longer depends on `stage_c_impl._build_stage_c_params`.
+- [ ] C2.B — **Inline `_run_stage_c_lbfgs`:** Port the LBFGS execution + telemetry packaging logic into a `StageC._run_lbfgs()` method that consumes the collector, context, telemetry dataclass, and parameter dict, and returns `(StageResult, RefinementTelemetry, status, message, bragg_full_stage_c array, param_deltas)` just like the helper did. The only remaining import from `stage_c_impl` after this step should be `_retarget_stage_a_detectors` (to be deleted in C3).
+- [ ] C2.C — **Validation:** `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small | tee plans/active/ARCH-REFACTOR-001/reports/<timestamp>/pytest_stage_c_smoke.log`
 
 ## Phase D — Facade Removal
 **Goal:** Point all consumers to `RefinementEngine` and delete the procedural wrapper.

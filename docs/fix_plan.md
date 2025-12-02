@@ -13,6 +13,10 @@
 > **Agent Rule:** Prioritize initiatives in lower-numbered tiers. Within a tier, follow dependency chains. Do not start a Tier N+1 item if a Tier N item is unblocked.
 
 
+### Tier 0: Refinement Architecture Finish
+**Goal:** Finish the Protocol Engine refactor by removing legacy helpers/facades now that contexts and artifacts are in place.
+- [ARCH-REFACTOR-001] (Refinement Engine Modularization & Physics Separation) — *in_progress*
+
 ### Tier 1: Core Physics & Stability
 **Goal:** Ensure the math is correct, the loss function is normative, Stage A/mapping parity holds (DB‑AT‑027/028/029), and the smoke tests are green.
 - [ARCH-REFINE-001] (Refine Engine Modularization + Torch IO context) — **Done** (2025-12-01T161600Z: Phase A-E code landed; 2025-12-01T170500Z docs/finding wrap complete. Ready to archive once downstream initiatives pick up.)
@@ -41,6 +45,20 @@
 ---
 
 ## Active / Pending Initiatives
+
+### [ARCH-REFACTOR-001] Refinement Engine Modularization & Physics Separation
+- Depends on: ARCH-REFINE-FLOW-001, ARCH-REFINE-001, ARCH-STAGE-CONTEXT-001
+- Status: in_progress
+- Priority: Highest
+- Tier: 0
+- Owner/Date: Galph ↔ Ralph / 2025-12-02
+- Exit Criteria:
+  1. `dbex/refinement/stage_a_impl.py`, `stage_b_impl.py`, `stage_c_impl.py` are deleted and their logic lives in `StageA/B/C` classes.
+  2. All torch refinement entrypoints (CLI, tools, tests) call `RefinementEngine` + `StageA/B/C` directly (no inline helpers).
+  3. `dbex/nanobrag_refinement.py` is deleted after all call sites migrate to the Engine.
+  4. `RefinementEngine.run` accepts only dict inputs containing `RefinementContext` under the `context` key.
+  5. Stage A/B/C smoketests and DB‑AT selectors pass using the Engine path; DiffBragg backend continues to pass its smoketests.
+- Working Plan: `plans/active/ARCH-REFACTOR-001/implementation.md`
 
 ### [ARCH-REFINE-001] Refinement Engine Modularization & Torch IO
 - Depends on: ARCH-REFINE-FLOW-001 (engine skeleton, telemetry contract)

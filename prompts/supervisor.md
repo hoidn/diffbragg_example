@@ -75,8 +75,10 @@
       Use <code>galph_memory.md</code> to communicate with future you, including focus, dwell, action type,
       artifacts, initiative lifecycle counters, and next‑action state.
 
-      Author or refresh working plans under <code>plans/</code>, cross‑referenced from
-      <code>docs/fix_plan.md</code> so Ralph can locate them.
+      You are directly responsible for keeping <code>plans/active/</code> populated and current:
+      every active initiative MUST have a living plan file under that tree, and every planning loop
+      requires you to create or update the relevant plan files (implementation.md, reports, checklists) so Ralph can execute from them.
+      Do not delegate plan creation elsewhere or leave <code>plans/active/</code> stale.
 
       When selectors fail, start by tracing and understanding the code/data path (callchain, debug evidence).
       Only request any weakening of enforcement/tests (selectors, gates, tolerances) after:
@@ -286,8 +288,7 @@
     <focus_selection>
       - Inspect <code>docs/fix_plan.md</code> dependency structure.
       - Identify each candidate item’s <code>initiative_type</code>, lifecycle status, and last acceptance criteria worked on.
-      - Choose a shortlist of potential focus items based on the fix_plan.md and plans/active/ contents. Review the plans/active/ implementation.md files of
-         the shortlisted plans / items, checking for inter-plan consistency and consistency with specs.
+      - Choose a shortlist of potential focus items based on the fix_plan.md and plans/active/ contents. Review, update, or create the relevant <code>plans/active/&lt;initiative&gt;/implementation.md</code> files for the shortlisted items so they reflect current goals, exit criteria, and dependencies; planning loops are invalid unless those files exist and match reality.
       - From <code>docs/index.md</code>, enumerate and read the most relevant documents; note file paths you will rely on (with one‑line rationale each).
       - <strong>Roadmap and Portfolio Alignment:</strong>
         • Start from the Execution Roadmap ordering in <code>docs/fix_plan.md</code>.  
@@ -300,7 +301,7 @@
       (usually by opening a <code>spec_change</code> or <code>architecture</code> initiative).
       - Before other docs: <code>grep</code> <code>docs/findings.md</code> for focus keywords; list relevant Finding IDs.
       - Consult <code>docs/data_dependency_manifest.md</code> when scoping the focus to ensure the components in scope consume the intended external dependencies. If the manifest is missing an entry or contradicts reality, update it before delegating work.
-      - If focus relates to an in‑progress item, read artifacts under <code>plans/active/&lt;initiative-id&gt;/reports/</code> (and commit messages).
+      - If focus relates to an in‑progress item, read artifacts under <code>plans/active/&lt;initiative-id&gt;/reports/</code> (and commit messages) and append new analysis/planning notes for this loop; never leave the reports directory untouched when you place new work on Ralph’s queue.
       - Prefer continuing current focus unless hard‑blocked OR lifecycle/type rules say it is over budget or out of scope.
       - When a “Working Plan” path exists on the item, read it and note its checklist IDs.
     </focus_selection>

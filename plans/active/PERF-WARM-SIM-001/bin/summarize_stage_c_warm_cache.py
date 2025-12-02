@@ -92,7 +92,7 @@ def extract_stage_c_metrics(telemetry_data: List[Dict[str, Any]]) -> Dict[str, A
         raise ValueError(f"Missing forward_time_ms keys: {ft_missing}")
 
     # Build summary
-    return {
+    summary = {
         "dataset": entry["dataset"],
         "status": entry["status"],
         "cache_mode": perf["cache_mode"],
@@ -111,6 +111,20 @@ def extract_stage_c_metrics(telemetry_data: List[Dict[str, Any]]) -> Dict[str, A
         "detector_offset_final_abs_max_mm": entry["detector_offset_final_abs_max"],
         "chi_squared_improvement_frac": entry["chi_squared_improvement"],
     }
+
+    # PERF-WARM-SIM-001: Extract baseline chi² tuple from telemetry if available
+    # Format: {"stage_c_initial_chi2": float, "stage_a_final_chi2": float}
+    # The baseline row (iteration -1) ensures Stage C telemetry always includes the Stage A reference
+    if "stage_c_initial_chi2" in entry:
+        summary["stage_c_initial_chi2"] = entry["stage_c_initial_chi2"]
+    if "stage_a_final_chi2" in entry:
+        summary["stage_a_final_chi2"] = entry["stage_a_final_chi2"]
+        # Compute Δ% vs Stage A baseline
+        if "stage_c_initial_chi2" in entry and entry["stage_a_final_chi2"] > 0:
+            delta_pct = 100.0 * (entry["stage_c_initial_chi2"] - entry["stage_a_final_chi2"]) / entry["stage_a_final_chi2"]
+            summary["stage_c_baseline_delta_pct"] = delta_pct
+
+    return summary
 
 
 def main() -> int:
@@ -237,6 +251,11 @@ def main() -> int:
     print(f"  Offset Reduction:  {small_metrics['detector_offset_reduction_min']*100:.6f}%")
     print(f"  Final Max Offset:  {small_metrics['detector_offset_final_abs_max_mm']:.8f} mm")
     print(f"  χ² Improvement:    {small_metrics['chi_squared_improvement_frac']*100:.6f}%")
+    if "stage_a_final_chi2" in small_metrics and "stage_c_initial_chi2" in small_metrics:
+        print(f"  Stage A final χ²:  {small_metrics['stage_a_final_chi2']:.6e}")
+        print(f"  Stage C initial χ²:{small_metrics['stage_c_initial_chi2']:.6e}")
+        if "stage_c_baseline_delta_pct" in small_metrics:
+            print(f"  Baseline Δ%:       {small_metrics['stage_c_baseline_delta_pct']:+.6f}%")
 
     print(f"\nFull Detector:")
     print(f"  Cache Mode:        {full_metrics['cache_mode']}")
@@ -248,6 +267,11 @@ def main() -> int:
     print(f"  Offset Reduction:  {full_metrics['detector_offset_reduction_min']*100:.6f}%")
     print(f"  Final Max Offset:  {full_metrics['detector_offset_final_abs_max_mm']:.8f} mm")
     print(f"  χ² Improvement:    {full_metrics['chi_squared_improvement_frac']*100:.6f}%")
+    if "stage_a_final_chi2" in full_metrics and "stage_c_initial_chi2" in full_metrics:
+        print(f"  Stage A final χ²:  {full_metrics['stage_a_final_chi2']:.6e}")
+        print(f"  Stage C initial χ²:{full_metrics['stage_c_initial_chi2']:.6e}")
+        if "stage_c_baseline_delta_pct" in full_metrics:
+            print(f"  Baseline Δ%:       {full_metrics['stage_c_baseline_delta_pct']:+.6f}%")
 
     print(f"\nWarm Cache Validation:")
     print(f"  Cache Reuse:       {'✓ PASS' if report['warm_cache_validation']['cache_reuse_confirmed'] else '✗ FAIL'}")

@@ -1089,8 +1089,15 @@ def test_stage_c_detector_microslip(
     assert len(telemetry_c.chi_squared_trace_full) >= 2, "Stage C chi_squared_trace_full insufficient"
     stage_a_final_chi2 = telemetry_a.chi_squared_trace_full[-1][1]
     stage_c_initial_chi2 = telemetry_c.chi_squared_trace_full[0][1]
-    assert stage_c_initial_chi2 == pytest.approx(stage_a_final_chi2, rel=0.05), (
-        f"Stage C initial chi-squared {stage_c_initial_chi2:.3e} != Stage A final {stage_a_final_chi2:.3e}"
+
+    # PERF-WARM-SIM-001: Baseline row (iteration -1) guarantees Stage C telemetry includes Stage A reference
+    # Verify the baseline row is at index 0 and matches Stage A final chi²
+    assert telemetry_c.chi_squared_trace_full[0][0] == -1, (
+        f"Stage C chi_squared_trace_full[0] iteration should be -1 (baseline), got {telemetry_c.chi_squared_trace_full[0][0]}"
+    )
+    assert stage_c_initial_chi2 == pytest.approx(stage_a_final_chi2, rel=1e-6), (
+        f"Stage C baseline (iter=-1) chi-squared {stage_c_initial_chi2:.6e} != Stage A final {stage_a_final_chi2:.6e} "
+        f"(expected ≤1e-6 relative tolerance to verify baseline evaluation captured Stage A state exactly)"
     )
     canonical_roi_count = len(refinement_inputs.panel_slices)
     assert telemetry_c.canonical_stage_label == "A"

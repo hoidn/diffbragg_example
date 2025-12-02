@@ -862,6 +862,38 @@ def _run_stage_c_lbfgs(
     message_c = ""
 
     try:
+        # PERF-WARM-SIM-001: Evaluate baseline loss BEFORE applying baseline detector prior
+        # This captures the Stage A final state (distance_offset_raw still zero) as iteration -1
+        # so telemetry traces always include the canonical reference for REFINE-007 diagnostics
+        with torch.no_grad():
+            baseline_chi2_c, baseline_mse_c = compute_loss_stage_c(
+                list(range(n_panels)), is_full=True, force_panel_eval=force_panel_validation
+            )
+            baseline_chi2_value = float(baseline_chi2_c.item())
+            baseline_mse_value = float(baseline_mse_c.item())
+
+            # Seed telemetry traces with iteration -1 baseline
+            loss_trace_full_c.append((-1, baseline_chi2_value))
+            chi_squared_trace_full_c.append((-1, baseline_chi2_value))
+            masked_mse_trace_full_c.append((-1, baseline_mse_value))
+
+            # Seed best snapshot trackers with the baseline values
+            best_loss_full_c = (baseline_chi2_value, -1)
+            chi_squared_best_c = (baseline_chi2_value, -1)
+            masked_mse_best_c = (baseline_mse_value, -1)
+            best_params_snapshot_c = {
+                'distance_offset_raw': distance_offset_raw.detach().cpu().tolist()
+            }
+
+            # Persist baseline seeding to telemetry_state so closure sees the correct initial best
+            telemetry_state['loss_trace_full_c'] = loss_trace_full_c
+            telemetry_state['chi_squared_trace_full_c'] = chi_squared_trace_full_c
+            telemetry_state['masked_mse_trace_full_c'] = masked_mse_trace_full_c
+            telemetry_state['best_loss_full_c'] = best_loss_full_c
+            telemetry_state['chi_squared_best_c'] = chi_squared_best_c
+            telemetry_state['masked_mse_best_c'] = masked_mse_best_c
+            telemetry_state['best_params_snapshot_c'] = best_params_snapshot_c
+
         # Apply baseline detector prior BEFORE LBFGS so the warm-start is captured in best snapshot
         # (REFINE-013: The rehydration after LBFGS reloads best_params_snapshot_c, which must include the prior)
         _apply_baseline_detector_prior()

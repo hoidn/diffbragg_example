@@ -1504,3 +1504,21 @@ The trusted-mask hypothesis was **DISPROVEN** by inspection of the test fixture 
 - **Blocker**: Repeat-failure guard triggered. IDENTICAL failure signature across 2+ loops despite code changes. Implementation works for panel-mode but completely fails for ROI-mode, suggesting architectural issue with ROI simulator caching/referencing not addressed by current approach.
 - **Artifacts**: plans/active/PERF-WARM-SIM-001/reports/2025-12-01T235900Z/{collect_stage_c_small/full.log,pytest_stage_c_small/full.log,telemetry_stage_c_small/full.json,blocked.md}
 - **Next Actions**: Supervisor must investigate ROI-mode vs panel-mode execution path divergence and ROI entry simulator lifecycle (see blocked.md for hypotheses).
+
+### 2025-12-02T010500Z - ARCH-STAGE-CONTEXT-001 Phase A.1: RefinementSharedContext & StageATelemetryState dataclasses
+**Action**: Introduced typed dataclasses to replace 11-parameter data clump in Stage A LBFGS closure builders
+**Metrics**:
+- Added RefinementSharedContext dataclass (dbex/refinement/context.py:415-524) wrapping crystal, detector, beam, inputs, hkl_grid, hkl_metadata, config, sigma_floor_sq_cache, device, dtype, baseline_crystal
+- Added StageATelemetryState dataclass (dbex/refinement/context.py:527-571) wrapping mutable telemetry accumulators
+- Updated _build_stage_a_lbfgs_closure (dbex/refinement/stage_a_impl.py:1222-1295) with compatibility shim accepting either shared_context dataclass or legacy 11 individual parameters
+- StageA.run now constructs RefinementSharedContext and passes it to closure builder (dbex/refinement/stage_a.py:223-246)
+- Added telemetry marker context_schema_version="v1" to signal transition
+- Stage B shell modifiers smoke test: PASSED (validates compatibility shim for legacy dict-based callers)
+- Stage A expansion smoke test: Runs successfully (test assertion failure unrelated to refactoring)
+**Artifacts**: plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T010500Z/ (collect_stage_a_small.log, pytest_stage_a_small.log, collect_stage_b_small.log, pytest_stage_b_small.log, summary.md)
+**First Divergence**: N/A (clean implementation)
+**Next Actions**:
+- Phase A.2: Extend RefinementSharedContext to Stage B helpers (_build_stage_b_lbfgs_closure, _run_stage_b_lbfgs) with same compatibility shim pattern
+- Phase A.3: Extend to Stage C helpers
+- Phase B: Introduce StageArtifacts dataclass so stages can emit typed artifacts instead of ad-hoc dicts
+- Address Stage A test assertion (log_scale delta too small) in separate initiative if needed

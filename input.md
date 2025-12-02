@@ -1,53 +1,54 @@
-Summary: Rebuild Stage C’s warm-cache simulator path so detector retargeting actually changes the Bragg tensors and the +0.067 % χ² regression disappears under REFINE-007.
-Mode: Parity
-InitiativeType: perf
-Focus: PERF-WARM-SIM-001 — Warm Simulator
+Summary: Make the Stage wrappers import their dependencies explicitly so the refinement pipeline no longer relies on `_lazy_import_refinement` or hidden run-time imports.
+Mode: none
+InitiativeType: architecture
+Focus: ARCH-REFINE-001 — Refinement Engine Modularization & Torch IO
 Branch: integration
 Mapped tests:
+- pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion --smoke-detector-size=small
+- pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion --smoke-detector-size=small
+- pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small
+- pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small
 - pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small
 - pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small
-- pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=full
-- pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=full
-Artifacts: plans/active/PERF-WARM-SIM-001/reports/2025-12-01T230800Z/{panel_diag/,collect_stage_c_small.log,pytest_stage_c_small.log,telemetry_stage_c_small.json,collect_stage_c_full.log,pytest_stage_c_full.log,telemetry_stage_c_full.json,stage_c_warm_cache_report.json,panel_diag_compare_small.{json,md},panel_diag_compare_full.{json,md},summary.md}
+Artifacts: plans/active/ARCH-REFINE-001/reports/2025-12-01T232800Z/{collect_stage_a_small.log,pytest_stage_a_small.log,telemetry_stage_a_small.json,collect_stage_b_small.log,pytest_stage_b_small.log,telemetry_stage_b_small.json,collect_stage_c_small.log,pytest_stage_c_small.log,telemetry_stage_c_small.json,summary.md}
 
 Do Now:
-- Implement: update `dbex/refinement/stage_c_impl.py::_retarget_stage_a_detectors` so each detector delta rebuilds the nanobrag `Simulator` (per panel and any ROI-entry simulators) after the new distance is applied. Reuse Stage A’s cached beam config/HKL tensors, keep distance deltas as tensors (GRADIENT-004), and ensure `_retarget_stage_a_simulators` still reattaches the warmed crystal so closures stay warm-cache friendly.
-- Validate: rerun `tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip` for both detector sizes with diagnostics enabled (same env knobs as last loop) and capture collect-only logs, pytest logs, and telemetry JSONs under the new artifact directory.
-- Analyze: re-run `plans/active/PERF-WARM-SIM-001/bin/summarize_stage_c_warm_cache.py` plus `compare_panel_diag.py` for small and full detectors so the panel-delta summaries prove χ² parity (≤0.05 % regression) while detector-offset telemetry still shows ≥99.999 % reductions.
+- Implement: `dbex/refinement/stage_a.py::StageA.run` — delete `_lazy_import_refinement`, move the `stage_a_impl` helper imports plus `RefinementTelemetry` into module scope (`from dbex.refinement.stage import RefinementTelemetry`), and adjust the body to use the eager imports. Update the module docstring/comments so they explain the explicit dependency graph instead of referencing lazy imports.
+- Implement: `dbex/refinement/stage_b.py::StageB.run` and `dbex/refinement/stage_c.py::StageC.run` — hoist the helper imports (`stage_b_impl`, `stage_c_impl`), `RefinementTelemetry`, the `dbex.nanobrag_bridge` factories, and the `nanobrag_torch` Detector/Crystal/Simulator classes to module scope. Remove the run-scoped import blocks and ensure the modules still expose the same public API. Keep device/dtype handling untouched.
+- Validate: rerun the small-detector Stage smokes (collect-only + execution for Stage A, Stage B, Stage C) with the standard env block from `docs/TESTING_GUIDE.md`, capturing logs/telemetry under the new artifact directory to prove the eager imports do not change behavior.
 
 How-To Map:
-1. Warm-cache simulator rebuild  
-   - In `_retarget_stage_a_detectors`, after computing `new_distance_mm` instantiate a fresh nanobrag `Detector` and pass it to a newly created `Simulator` (mirror the constructor in `_build_stage_a_context` using `stage_a_ctx.beam_config`, the warmed crystal/HKL tensors, `device`, and `dtype`). Replace `stage_a_ctx.simulators[pid]` with the new simulator and update any `roi_entries` simulators whose `panel_id` matches; continue storing the detector model in `stage_a_ctx.detector_models`.  
-   - Keep tensor arithmetic (no `.item()`), respect existing guards (device/dtype, panel bounds), and finish by calling `_retarget_stage_a_simulators` as before so the shared crystal stays in sync.
+1. Module import cleanup  
+   - In `dbex/refinement/stage_a.py`, add module-level imports:  
+     `from dbex.refinement.stage import RefinementTelemetry`  
+     `from dbex.refinement.stage_a_impl import _build_stage_a_params, _build_stage_a_lbfgs_closure, _run_stage_a_lbfgs, vec_to_unit_quaternion, quaternion_to_xyz_euler`.  
+     Remove `_lazy_import_refinement` and the `from dbex.refinement import RefinementTelemetry` block inside `run()`. Ensure the rest of the function references the already-imported helpers.  
+   - Mirror the pattern for Stage B/C: add module-level imports for their helper modules, for `RefinementTelemetry`, and for the `dbex.nanobrag_bridge` + `nanobrag_torch` symbols they use. Delete the `from ... import ...` block inside each `run()` method and keep the rest of the logic identical. Update module-level comments to mention the explicit imports instead of “lazy” semantics.
 2. Smoketest execution (repo root)  
-   - `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_STAGE_C_PANEL_DIAG_DIR=plans/active/PERF-WARM-SIM-001/reports/2025-12-01T230800Z/panel_diag/small pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small > plans/active/PERF-WARM-SIM-001/reports/2025-12-01T230800Z/collect_stage_c_small.log`  
-   - `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_STAGE_C_PANEL_DIAG_DIR=plans/active/PERF-WARM-SIM-001/reports/2025-12-01T230800Z/panel_diag/small DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-WARM-SIM-001/reports/2025-12-01T230800Z/telemetry_stage_c_small.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small | tee plans/active/PERF-WARM-SIM-001/reports/2025-12-01T230800Z/pytest_stage_c_small.log`  
-   - Repeat both commands with `--smoke-detector-size=full` and `DBEX_STAGE_C_PANEL_DIAG_DIR=.../panel_diag/full`, writing `collect_stage_c_full.log` and `pytest_stage_c_full.log`.
-3. Telemetry + diagnostics post-processing  
-   - `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md python plans/active/PERF-WARM-SIM-001/bin/summarize_stage_c_warm_cache.py --telemetry-small plans/active/PERF-WARM-SIM-001/reports/2025-12-01T230800Z/telemetry_stage_c_small.json --telemetry-full plans/active/PERF-WARM-SIM-001/reports/2025-12-01T230800Z/telemetry_stage_c_full.json --out-json plans/active/PERF-WARM-SIM-001/reports/2025-12-01T230800Z/stage_c_warm_cache_report.json`  
-   - `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md python plans/active/PERF-WARM-SIM-001/bin/compare_panel_diag.py --stage-a-json plans/active/PERF-WARM-SIM-001/reports/2025-12-01T230800Z/panel_diag/small/stage_a_panel_diag.json --stage-c-json plans/active/PERF-WARM-SIM-001/reports/2025-12-01T230800Z/panel_diag/small/stage_c_panel_diag.json --label small --out-dir plans/active/PERF-WARM-SIM-001/reports/2025-12-01T230800Z/`  
-   - Repeat compare command with `panel_diag/full/...` to generate the full-detector summary.
+   - `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion --smoke-detector-size=small > plans/active/ARCH-REFINE-001/reports/2025-12-01T232800Z/collect_stage_a_small.log`  
+   - `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion --smoke-detector-size=small | tee plans/active/ARCH-REFINE-001/reports/2025-12-01T232800Z/pytest_stage_a_small.log`  
+   - Repeat the collect + run commands for `test_stage_b_shell_modifiers` and `test_stage_c_detector_microslip`, writing their logs/telemetry into the same directory (Stage B/C runs still need `DBEX_SMOKE_SIGMA_SOURCE=cli_override` and `DBEX_SMOKE_DETECTOR_SIZE=small`; Stage C also needs `DBEX_SMOKE_TELEMETRY_PATH=…/telemetry_stage_c_small.json`).
+3. Telemetry capture  
+   - For Stage B and C, set `DBEX_SMOKE_TELEMETRY_PATH` so pytest saves telemetry JSON (`telemetry_stage_b_small.json`, `telemetry_stage_c_small.json`) into the artifact directory; these files prove the eager imports did not change telemetry content.
 
 Pitfalls To Avoid:
-- Rebuilding simulators must keep tensors on the same device/dtype to avoid reallocations and gradient detaches (GRADIENT-004); never call `.item()` on the delta tensors.
-- Update ROI-entry simulators together with per-panel simulators so ROI closures and panel validations read identical geometry.
-- Do not disable warm cache globally—only adjust the retarget helper; Stage A/Stage C perf counters must still report `cache_mode="warm"`.
-- Preserve REFINE-011/012 behavior: full validations still force panel mode, and ROI mode remains controlled by Stage A telemetry.
-- Leave Stage C best-snapshot and telemetry plumbing untouched; the only functional change is how detectors are patched.
-- Keep REFINE-007 gate thresholds intact; if Stage C still regresses, capture exact telemetry before marking blocked.
+- Do not reintroduce circular imports by pulling `RefinementTelemetry` from `dbex.refinement`—import it from `dbex.refinement.stage` to keep module initialization order safe.
+- Preserve Environment Freeze (POLICY-001): no new dependencies or package installs; only move existing imports.
+- Keep helper modules importable without side effects (no module-level logging/print statements).
+- Make sure Stage B/C still guard against missing halo metadata and baseline detectors; refactor must not bypass those runtime checks.
+- When editing docstrings/comments, avoid deleting references to ARCH-REFINE-001 phases that still describe normative behavior; only adjust the parts that explained lazy imports.
+- Ensure telemetry dictionaries still instantiate `RefinementTelemetry` exactly as before; eager imports should not change serialization order.
 
 If Blocked:
-- Write the failure signature and current detector-distance telemetry to `plans/active/PERF-WARM-SIM-001/reports/2025-12-01T230800Z/summary.md`, update docs/fix_plan.md with the timestamped block reason, and note whether warm-cache still ignored the rebuilt simulators so we can escalate to a spec-change or deeper callchain loop.
+- If a new circular import appears (e.g., StageA importing `dbex.refinement` indirectly), capture the traceback, stash it in `plans/active/ARCH-REFINE-001/reports/2025-12-01T232800Z/blocked.md`, and restore the previous import structure until the dependency chain is understood. Record the block in docs/fix_plan.md and note which module pair caused the cycle.
 
 Findings Applied (Mandatory):
-- REFINE-007 — Stage C must not increase χ² by >0.05 % once detector offsets collapse; validation reruns enforce this gate.
-- REFINE-011 / REFINE-012 — Panel validations stay in sync with Stage A telemetry while ROI mode remains provenance-tracked.
-- REFINE-013 — Best snapshot persistence relies on accurate full validations; simulator rebuilds cannot disrupt the tuple flow.
-- REFINE-016 — Trusted-mask parity in `_compute_panel_loss` must keep working after simulator replacement.
-- GRADIENT-004 — Distance deltas must remain differentiable tensors through the retarget+optimizer path.
+- ARCH-ENGINE-002 — Stage wrappers must continue to satisfy the RefinementStage contract and telemetry schema even after the import cleanup.
+- POLICY-001 — Environment Freeze prohibits adding dependencies; the refactor is limited to reorganizing imports.
 
 Pointers:
-- dbex/refinement/stage_c_impl.py:1-110, 440-520, 612-704 — Detector retarget helper, warm-cache closure, and simulator wiring you’ll modify.
-- dbex/refinement/stage_a_impl.py:300-420 — Stage A context construction (reference for simulator instantiation and stored metadata).
-- docs/spec-db-workflow.md §§62‑75 — Stage B/C sequencing and REFINE-007/011/012 guardrails.
-- plans/active/PERF-WARM-SIM-001/reports/2025-12-01T223500Z/ — Previous diagnostics showing uniform χ² deltas and offset telemetry.
+- dbex/refinement/stage_a.py:1-480 — Stage wrapper needing the `_lazy_import_refinement` removal.
+- dbex/refinement/stage_b.py:1-430 & dbex/refinement/stage_c.py:1-520 — Stage wrappers that currently import helpers lazily.
+- problems.md (Architectural Code Smells entry) — Ledger requirement driving this cleanup.
+
+Next Up (optional): Once the eager-import refactor lands, reassess whether ARCH-REFINE-001 can be archived or if additional ledger bullets (writer consolidation, physics helpers) warrant a follow-on phase.

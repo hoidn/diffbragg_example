@@ -819,6 +819,19 @@ pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation
 **Artifacts**: `plans/active/ARCH-REFINE-001/reports/2025-12-01T170500Z/` (summary.md referencing telemetry from 2025-12-01T161600Z run)
 **Exit Criteria**: All ARCH-REFINE-001 exit criteria satisfied; no further implementation required.
 
+### 2025-12-01T232800Z - ARCH-REFINE-001 Phase F: Stage wrapper import cleanup (PLANNING)
+- **Ledger tie-in:** Addresses the **Architectural Code Smells** entry in `problems.md` (lazy `_lazy_import_refinement`, TYPE_CHECKING hacks, and hidden runtime imports under Stage wrappers). With Stage helpers extracted and RefinementContext/JobContext in place, we can now expose the real dependency graph instead of hiding it behind on-demand imports.
+- **Plan:**  
+  1. Remove `_lazy_import_refinement()` from `dbex/refinement/stage_a.py` and hoist the helper imports to module scope (`from dbex.refinement.stage_a_impl import ...`, `from dbex.refinement.stage import RefinementTelemetry`). Stage B/C follow the same pattern with their helper modules, nanobrag_bridge factories, and `nanobrag_torch` models/simulators imported at module load rather than inside `run()`.  
+  2. Update each Stage module’s comments/docstrings so they describe the explicit dependency flow (RefinementTelemetry now pulled from `dbex.refinement.stage`, helper modules imported eagerly).  
+  3. Ensure `helpers.py` no longer references `_lazy_import_refinement` in docs and keep TYPE_CHECKING limited to actual optional types; if circular references remain, document them explicitly instead of hiding imports.  
+- **Validation:** After refactor, rerun the small-detector Stage smokes under the standard env block to prove Stage wrappers still execute:  
+    - `pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion --smoke-detector-size=small` and `pytest -vv …::test_stage_a_expansion --smoke-detector-size=small`  
+    - Repeat collect/run for `test_stage_b_shell_modifiers` and `test_stage_c_detector_microslip`.  
+    Capture collect-only logs, pytest logs, and telemetry JSONs under `plans/active/ARCH-REFINE-001/reports/2025-12-01T232800Z/`.
+- **Artifacts Reserved:** `plans/active/ARCH-REFINE-001/reports/2025-12-01T232800Z/{collect_stage_a_small.log,pytest_stage_a_small.log,telemetry_stage_a_small.json,collect_stage_b_small.log,pytest_stage_b_small.log,telemetry_stage_b_small.json,collect_stage_c_small.log,pytest_stage_c_small.log,telemetry_stage_c_small.json,summary.md}`.
+- **Next Step:** Once Ralph lands the import cleanup and smoketests, mark the problems ledger item as satisfied (at least for lazy import scope) and evaluate whether `ARCH-REFINE-001` can finally move to archive or if additional ledger bullets (e.g., writer consolidation) require further Phases.
+
 ### 2025-12-01T170500Z - PERF-WARM-SIM-001 Phase D.4: Stage C warm-cache validation (READY FOR IMPLEMENTATION)
 - **Reality check:** Stage C warm-cache patches (2025-11-24T065000Z) landed, but validation stalled on ENV-CUDA-001 before Stage A finished. The latest Stage B/C smokes (2025-12-01T161600Z) ran cleanly on the same workstation, so we can resume D.4 without reprovisioning.
 - **Plan:**  

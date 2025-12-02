@@ -257,3 +257,7 @@ Action State: ready_for_implementation
 - Updated docs/fix_plan.md and the implementation plan with a Phase D.4 follow-up: rebuild simulators (and ROI-entry simulators) whenever detector distances change, then rerun the Stage C small/full smoketests with the existing diagnostics tooling to prove χ² parity returns.
 - Rewrote input.md so Ralph patches the retarget helper, preserves GRADIENT-004 tensor semantics, and captures the smoketest/summarizer/panel-compare artifacts under `plans/active/PERF-WARM-SIM-001/reports/2025-12-01T230800Z/`.
 Action State: ready_for_implementation
+- Logged the Phase F scope for ARCH-REFINE-001 to satisfy the problems ledger: remove `_lazy_import_refinement`, hoist Stage A/B/C helper imports (plus nanobrag_bridge + nanobrag_torch dependencies) to module scope, and update module docstrings so the dependency graph is explicit.
+- Rewrote input.md with the eager-import Do Now (Stage A/B/C modules + Stage smokes) targeting `plans/active/ARCH-REFINE-001/reports/2025-12-01T232800Z/`, and updated docs/fix_plan.md + problems.md to reference the ledger tie-in.
+Action State: ready_for_implementation
+2025-12-01T232800Z focus=ARCH-REFINE-001 state=planning dwell=1 action=planning artifacts=plans/active/ARCH-REFINE-001/reports/2025-12-01T232800Z/ next_action=Implement Stage wrapper import cleanup + rerun Stage A/B/C small-detector smokes

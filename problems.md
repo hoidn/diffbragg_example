@@ -24,5 +24,6 @@ This file is a lightweight, user-editable backlog for any issues that Galph (the
     - Mutable default state hacks (`telemetry_step_counter = [0]`) and broad exception swallowing in `dbex/vis/mapping.py`.
   - *Performance smells:* repeated `.item()` syncs inside loops (`stage_a_impl.py`) and re-instantiating heavy tensors/configs inside Stage C fallback loops.
   - *Recommendations:* consolidate physics/loss paths, enforce `RefinementContext` as the hand-off object, convert stages into classes (stateful telemetry), move Nelder–Mead scoring into refinement/physics modules, and centralize hardcoded constraints in `RefinementConfig`.
+  - 2025-12-01: Scheduled Stage wrapper import cleanup under ARCH-REFINE-001 Phase F to remove `_lazy_import_refinement` and lazy `run()` imports (see docs/fix_plan.md entry at 2025-12-01T232800Z).
 
 - [ ] _(Add new problems here. Galph will remove or rewrite entries as they are scheduled or resolved.)_

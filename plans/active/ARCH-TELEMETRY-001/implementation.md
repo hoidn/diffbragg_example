@@ -58,10 +58,10 @@
 
 ## Phase A — Observer Interfaces & Collector
 ### Checklist
-- [ ] A0: **Telemetry contract spike** — author minimal collector/observer prototype and replay Stage A telemetry log to confirm required fields are captured without touching closures (artifact in reports/…/prototype.md).
-- [ ] A1: Define `RefinementObserver` protocol + `StageATelemetry`, `StageBTelemetry`, `StageCTelemetry`, `StagePerfCounters`, and `StageResult` dataclasses with serialization helpers.
-- [ ] A2: Implement `TelemetryCollector` (per-stage) that records loss traces, validation snapshots, and param deltas from observer callbacks; include JSON dump for smoketest artifacts.
-- [ ] A3: Update `RefinementEngine` scaffolding + typed contexts to accept collectors instead of dicts while keeping legacy shims (StageArtifacts) for the duration of Phase A/B.
+- [x] A0: **Telemetry contract spike** — author minimal collector/observer prototype and replay Stage A telemetry log to confirm required fields are captured without touching closures (captured under `reports/2025-12-02T191500Z/prototype.md`).
+- [x] A1: Define `RefinementObserver` protocol + `StageATelemetry`, `StageBTelemetry`, `StageCTelemetry`, `StagePerfCounters`, and `StageResult` dataclasses with serialization helpers. (Artifacts: `reports/2025-12-02T191500Z/`.)
+- [x] A2: Implement `TelemetryCollector` (per-stage) that records loss traces, validation snapshots, and param deltas from observer callbacks; include JSON dump for smoketest artifacts. (Artifacts: `reports/2025-12-02T191500Z/`.)
+- [x] A3: Update `RefinementEngine` scaffolding + typed contexts to accept collectors instead of dicts while keeping legacy shims (StageArtifacts) for the duration of Phase A/B. (Artifacts: `reports/2025-12-02T191500Z/`.)
 
 ### Dependency Analysis (Required for Refactors)
 - **Touched Modules:** `dbex/refinement/interfaces.py`, `dbex/refinement/context.py`, `dbex/refinement/engine.py`, `dbex/refinement/stage_{a,b,c}.py`, `dbex/io/writer.py`, smoketest fixtures.
@@ -74,16 +74,16 @@
 
 ## Phase B — Stage A Adoption
 ### Checklist
-- [ ] B1: Thread `RefinementObserver` through Stage A LBFGS closure, emitting per-iteration chi² and ROI metrics; remove `telemetry_state` dict mutation.
-- [ ] B2: Update `StageA.run` to construct `StageAResult` from the collector and return it via the engine artifact channel; ensure warm-cache perf counters feed observer.
-- [ ] B3: Refresh `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` + `test_stage_a_engine_delegation_telemetry` to assert observer-driven telemetry (no dict shims) and capture logs under `plans/active/ARCH-TELEMETRY-001/reports/<ts>/`.
+- [x] B1: Thread `RefinementObserver` through Stage A LBFGS closure, emitting per-iteration chi² and ROI metrics; remove `telemetry_state` dict mutation. (Artifacts: `reports/2025-12-02T201500Z/`.)
+- [x] B2: Update `StageA.run` to construct `StageAResult` from the collector and return it via the engine artifact channel; ensure warm-cache perf counters feed observer. (Artifacts: `reports/2025-12-02T201500Z/`.)
+- [x] B3: Refresh `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` + `test_stage_a_engine_delegation_telemetry` to assert observer-driven telemetry (no dict shims) and capture logs under `plans/active/ARCH-TELEMETRY-001/reports/<ts>/`. (Artifacts: `reports/2025-12-02T201500Z/`.)
 
 ### Notes & Risks
 - Stage A currently interleaves telemetry logging with physics (ROI/perf counters). Need to ensure observer callbacks do not incur significant overhead inside LBFGS closures.
 
 ## Phase C — Stage B/C & Writer Integration
 ### Checklist
-- [ ] C1: Port Stage B and Stage C closures to emit observer events (per-ROI, per-panel validations) and delete `telemetry_state` dicts plus `_check_stage_b_baseline_parity` dict mutation paths.
+- [ ] C1: Port Stage B and Stage C closures to emit observer events (per-ROI, per-panel validations) and delete `telemetry_state` dict mutation paths in `_build_stage_b_lbfgs_closure`, `_run_stage_b_lbfgs`, `_build_stage_c_lbfgs_closure`, and `_run_stage_c_lbfgs`. Ensure collectors capture baseline/final validations, variance-floor counters, and Stage C panel diagnostics. (Next artifacts: `reports/2025-12-03T120000Z/`.)
 - [ ] C2: Simplify `dbex/io/writer.py` to consume `StageResult` dataclasses, removing Nelder–Mead reruns and dict introspection; add tests covering Stage A/B/C writer outputs.
 - [ ] C3: Delete legacy telemetry dict compatibility layers (`asdict` round-trips) and update CLI/engine telemetry enrichment to rely solely on typed observers; rerun Stage B/C smoketests and Stage diagnostics CLI tests.
 

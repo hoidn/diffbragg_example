@@ -71,7 +71,7 @@
 ### Checklist
 - [x] **B1:** Implement ROI scoring helper (`dbex/io/roi_scoring.py` or similar) that ingests ROI crops + variance info, runs Nelder–Mead once per ROI, and emits typed payloads plus JSON/log artifacts. *(Complete — 2025-12-02T223500Z artifacts)*
 - [x] **B2:** Update CLI (`dbex/refine_one.py`) and RefinementEngine call sites to invoke the helper (guarded by flag) before calling `write_torch_outputs`, passing the typed payload instead of raw arrays. *(Complete — 2025-12-02T233500Z artifacts)*
-- [ ] **B3:** Remove optimization loop from `write_torch_outputs`, require non-None `roi_payloads`, populate ROI datasets from payload triptychs/model/variance, and refresh CLI tests so their mocks provide real `DetectorConfig` mask/distance fields before re-running `tests/dbex/test_refine_one_cli.py::{test_nanobrag_backend_runs_simulator,test_nanobrag_backend_applies_calibration,test_torch_diagnostics_metadata}` with passing logs and manifest updates.
+- [x] **B3:** Remove optimization loop from `write_torch_outputs`, require non-None `roi_payloads`, populate ROI datasets from payload triptychs/model/variance, and refresh CLI tests so their mocks provide real `DetectorConfig` mask/distance fields before re-running `tests/dbex/test_refine_one_cli.py::{test_nanobrag_backend_runs_simulator,test_nanobrag_backend_applies_calibration,test_torch_diagnostics_metadata}` with passing logs and manifest updates. *(Complete — 2025-12-03T003500Z writer patch + 2025-12-02T091255Z CLI fixture repair artifacts)*
 - [ ] **B4:** Capture `pytest --collect-only` + execution logs for affected selectors under `reports/<timestamp>/pytest_writer_cleanup.log` and sync docs/TESTING_GUIDE.md + docs/development/TEST_SUITE_INDEX.md if selectors change.
 
 ### Notes & Risks
@@ -81,10 +81,10 @@
 
 ## Phase C — Bridge Decomposition & Adoption
 ### Checklist
-- [ ] **C1:** Move `RefinementInputs` dataclass + builder into `dbex/refinement/inputs.py`, keeping guards/tests intact; update imports across CLI/tests/stages.
-- [ ] **C2:** Extract detector/crystal/beam config hydration into `dbex/refinement/config_factories.py`, factoring out repeated square-pixel/beam-center logic with typed return values.
-- [ ] **C3:** Delete deprecated sections from `dbex/nanobrag_bridge.py`, leaving only orchestration glue and docstrings pointing to new modules; re-run smoke selectors that rely on the bridge (`tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion`, CLI tests).
-- [ ] **C4:** Archive before/after LOC + responsibilities in `reports/.../bridge_split_summary.md`.
+- [ ] **C1:** Move `RefinementInputs` dataclass + `prepare_refinement_inputs` builder into `dbex/refinement/inputs.py`, retaining the existing guards (square-pixel check, sentinel enforcement, ADU↔photon policy) and updating all call sites (`dbex/refine_one.py`, `dbex/nanobrag_refinement.py`, tests, tooling). Provide re-export or import shim for `dbex.nanobrag_bridge` until downstream modules are switched.
+- [ ] **C2:** Extract detector/beam/crystal hydration helpers (`create_detector_config`, `create_beam_config`, `create_crystal_config`, plus any ROI-aware variants) into `dbex/refinement/config_factories.py`. Preserve GEOMETRY-001/002/003 guards, trusted-mask tensor creation, calibration plumbing, and documented overrides (distance tensors, misset overrides) so stages/CLI/tests call the new factories instead of the bridge module.
+- [ ] **C3:** Trim `dbex/nanobrag_bridge.py` down to orchestration glue that wires DataLoad → inputs builder → config factories, updating docstrings and unit tests to reference the new modules. Re-run bridge + CLI selectors (`tests/dbex/test_nanobrag_bridge.py`, `tests/dbex/test_nanobrag_bridge_configs.py`, `tests/dbex/test_refine_one_cli.py`) and Stage A smoke to prove the refactor is behaviorally neutral.
+- [ ] **C4:** Archive before/after LOC + module responsibility notes (who owns RefinementInputs, detectors, etc.) in `reports/.../bridge_split_summary.md`, and refresh `docs/data_dependency_manifest.md` + `docs/architecture/dbex/io/writer.idl.md` references so they point at the new modules.
 
 ### Notes & Risks
 - Decomposition must not introduce new import chains that break Stage warm-cache contexts (monitor `dbex/refinement/stage_*` for path updates).

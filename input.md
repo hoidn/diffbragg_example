@@ -1,56 +1,61 @@
 Summary:
-- Repair the two nanobrag CLI tests so they use real `DetectorConfig` snapshots and keep the Phase B.3 writer change green with the expected `/torch_diagnostics` telemetry.
+- Split `RefinementInputs` + config builders out of `dbex/nanobrag_bridge.py` into purpose-built `dbex/refinement/inputs.py` and `dbex/refinement/config_factories.py`, rewire the core modules/docs to those new homes, and keep the bridge module as thin orchestration glue.
 
-Mode: Parity
+Mode: none
 
 InitiativeType: architecture
 
 Focus: ARCH-BRIDGE-RESP-001 — Writer / bridge responsibility split
 
-Branch: main
+Branch: integration
 
 Mapped tests:
+- tests/dbex/test_nanobrag_bridge.py
+- tests/dbex/test_nanobrag_bridge_configs.py
 - tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_runs_simulator
 - tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_applies_calibration
 - tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata
+- tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
 
-Artifacts: plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-02T091255Z/
+Artifacts: plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-03T020500Z/
 
 Do Now:
-- Implement: tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_runs_simulator — stop returning a bare `Mock` from `create_detector_config`; instead build a small helper that returns a real `nanobrag_torch.config.DetectorConfig` populated with deterministic `distance_mm`, `pixel_size_mm`, `beam_center_{s,f}`, `spixels/fpixels=100`, and a float32 torch `mask_array` matching the ROI shape. Keep the existing assertions that verify writer inputs but update them to operate on the typed config object.
-- Implement: tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_applies_calibration — reuse the same helper so the calibration-positive path also feeds a typed `DetectorConfig` with a real mask tensor; ensure any mask slicing or ROI adjustments mirror what the CLI would do and keep the mocks for `score_roi_payloads` returning fully-populated `ROIAnalysisPayload` objects.
-- Refactor: if duplicated detector-fixture logic remains, factor it into a local `_make_detector_config(mask_shape=(slow, fast))` utility inside the test module to keep both selectors consistent and to guarantee the mask tensor shape always matches `spixels/fpixels`.
-- Validate: run the mapped selectors with authoritative env flags and capture logs:
-  1. `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE pytest -vv tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_runs_simulator | tee plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-02T091255Z/pytest_cli_runs_simulator.log`
-  2. `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE pytest -vv tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_applies_calibration | tee plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-02T091255Z/pytest_cli_calibration.log`
-  3. `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE pytest -vv tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata | tee plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-02T091255Z/pytest_writer_metadata.log`
+- Implement: dbex/refinement/inputs.py::{RefinementInputs,prepare_refinement_inputs} — move the dataclass + builder logic out of `dbex/nanobrag_bridge.py` unchanged (sigma broadcast, sentinel guards, ADU↔photon policy), export them from the new module, and update `dbex/physics/forward.py`, `dbex/refine_one.py`, `dbex/data_load.py`, and `dbex/vis/mapping.py` to import from the new path. Keep `dbex.nanobrag_bridge` importing and re-exporting these names (with a `# TODO(ARCH-BRIDGE-RESP-001)` deprecation note) so tests that still import from the bridge keep working this loop.
+- Implement: dbex/refinement/config_factories.py::{create_detector_config,create_beam_config,create_crystal_config} — transplant the detector/beam/crystal hydration helpers verbatim (square-pixel guard, DIALS Euler extraction, trusted-mask torch tensors, ROI cropping, distance override tensors, calibration metadata) and switch every `dbex/*` caller (stage modules, CLI, reconstruction, nanobrag_refinement, forward helper, tools) to import from the new module instead of `dbex.nanobrag_bridge`. Leave a compatibility re-export in `dbex.nanobrag_bridge` so downstream tests/scripts can be updated incrementally, and add a brief module docstring stating the bridge now delegates to refinement-level helpers.
+- Update docs: refresh `docs/data_dependency_manifest.md` (inputs + config sections should point to the new modules), `docs/architecture/live_backend.md` (pipeline bullets referencing `prepare_refinement_inputs`/factory helpers), and `docs/architecture/dbex/io/writer.idl.md` (note that `RefinementInputs` now lives under `dbex/refinement/inputs`). Capture a short `bridge_split_summary.md` in the artifacts directory describing the before/after responsibility map and note the temporary re-export layer.
 
 How-To Map:
-1. Add a fixture/helper inside `tests/dbex/test_refine_one_cli.py` that instantiates `DetectorConfig(distance_mm=100.0, pixel_size_mm=0.1, spixels=100, fpixels=100, beam_center_s=5.0, beam_center_f=5.0, detector_convention=DetectorConvention.DIALS, detector_pivot=DetectorPivot.BEAM, ...)` and sets `mask_array=torch.ones((slow, fast), dtype=torch.float32)` so `create_unified_simulator` can normalize masks without touching numpy→torch conversion edge cases.
-2. Update both CLI tests to set `mock_detector_config.side_effect=lambda *args, **kwargs: make_detector_config()` (or similar) rather than assigning a `Mock`. Preserve the current guard assertions (`mask_array` dtype, values) but adapt them to inspect the concrete dataclass fields you just created.
-3. Keep `score_roi_payloads` patched to return properly-initialized `ROIAnalysisPayload` objects so the writer still receives typed payloads; no changes should be necessary for the metadata test beyond re-running it to ensure the telemetry attrs remain present.
-4. Execute the three pytest commands under the documented env flags, teeing the logs into the artifact directory so the supervisor can confirm the selectors now complete end-to-end with the Phase B.3 writer semantics.
+1. `mkdir -p dbex/refinement && touch dbex/refinement/__init__.py` if the package file does not exist. Create `dbex/refinement/inputs.py` by moving the dataclass/function block from `dbex/nanobrag_bridge.py` wholesale; keep numpy/scipy imports identical so behavior stays byte-for-byte. Update `dbex/nanobrag_bridge.py` to `from dbex.refinement.inputs import RefinementInputs, prepare_refinement_inputs` and set `__all__` accordingly with a deprecation comment.
+2. Create `dbex/refinement/config_factories.py` with the existing detector/beam/crystal helpers plus any supporting constant imports (torch, numpy, scitbx). Import this module everywhere inside `dbex/` that previously reached into the bridge (stage_a/b/c modules, `nanobrag_refinement.py`, `reconstruction.py`, CLI, physics forward helper, stage_a_adam, etc.). Leave re-exports in `dbex.nanobrag_bridge` (`create_detector_config = config_factories.create_detector_config`, etc.) so external scripts/tests continue to resolve the old names.
+3. Adjust tooling/tests that live inside the repo (e.g., `scripts/generate_simple_cubic_golden.py`, plan-local probes) only if they import from `dbex.` modules; third-party consumers can rely on the re-exports. Run `python -m compileall dbex/refinement` or simply `python -m compileall dbex` if you want to sanity-check import errors before pytest.
+4. Update docs: edit `docs/data_dependency_manifest.md` to mention `dbex/refinement/inputs.py` as the owner of RefinementInputs and `dbex/refinement/config_factories.py` as the detector/beam/crystal mapping surface; tweak `docs/architecture/live_backend.md` bullet lists and `docs/architecture/dbex/io/writer.idl.md` tables to cite the new module paths. Add a short `bridge_split_summary.md` (bullet list of what moved + re-export note) under the artifacts directory.
+5. Validate the mapped selectors with authoritative env flags, capturing logs under the artifact path:
+   - `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE pytest -vv tests/dbex/test_nanobrag_bridge.py | tee plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-03T020500Z/pytest_bridge.log`
+   - `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE pytest -vv tests/dbex/test_nanobrag_bridge_configs.py | tee plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-03T020500Z/pytest_bridge_configs.log`
+   - `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE pytest -vv tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_runs_simulator ::test_nanobrag_backend_applies_calibration ::test_torch_diagnostics_metadata | tee plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-03T020500Z/pytest_cli.log`
+   - `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_SIGMA_SOURCE=cli_override KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion | tee plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-03T020500Z/pytest_stage_a_smoke.log`
 
 Pitfalls To Avoid:
-- Do not leave residual `Mock` attributes for `distance_mm` or `mask_array`; the detector config must be a real dataclass so future helpers can introspect it safely.
-- Ensure the mask tensor shape equals `(spixels, fpixels)`; mismatches will throw inside `create_unified_simulator` before the writer telemetry assertions run.
-- Keep ROI bbox semantics (`(x0, x1, y0, y1)` exclusive) intact when slicing masks for the helper so ROI/panel math stays canonical.
-- Leave the writer code untouched this loop; focus strictly on the test fixtures so no additional production semantics change.
-- Keep SciPy imports confined to `dbex/io/roi_scoring.py`; do not introduce new dependencies into the test module beyond `nanobrag_torch.config`.
-- Maintain `KMP_DUPLICATE_LIB_OK=TRUE` on pytest invocations to avoid PyTorch runtime warnings.
+- Do not change the semantics of `prepare_refinement_inputs` (sentinel guard, ROI slicing, sigma broadcasting); aim for a pure move so Stage A/B/C telemetry stays identical.
+- Preserve torch tensor coercion for trusted masks and the ROI cropping logic when moving `create_detector_config`; any regression here would violate GEOMETRY-001/002 and CLI-001.
+- Watch for circular imports when stages pull from the new module. Keep helpers import-only (no torch device instantiation at module scope) and, if needed, move heavy imports inside functions.
+- Maintain the temporary re-export layer in `dbex.nanobrag_bridge` until the test-suite is updated; removing it prematurely will break dozens of selectors.
+- Update `__all__`/module docstrings to prevent lint warnings, but avoid editing unrelated code paths (Stage B/C logic) this loop.
 
 If Blocked:
-- If the typed DetectorConfig still causes `Detector` instantiation failures (missing pivot or convention), capture the exact exception, note which fields were access, and log the traceback plus helper definition into `plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-02T091255Z/blockers.md`, then update docs/fix_plan.md with the blocker summary.
+- If creating `dbex/refinement/config_factories.py` introduces an import cycle (e.g., stage modules importing each other), capture the traceback plus which modules participate, add a `blockers.md` note under the artifact path with the stack trace + proposed mitigation, and update `docs/fix_plan.md` + `galph_memory.md` with the block description. Do not hack around the cycle by inlining logic back into the bridge; escalate instead.
 
 Findings Applied (Mandatory):
-- DIAGNOSTICS-001 — Keep `/torch_diagnostics` schema/telemetry untouched; the tests should verify writer attrs without mutating production code.
-- PHYSICS-LOSS-001 / PHYSICS-LOSS-002 / PHYSICS-LOSS-003 — By feeding real detector configs and mask tensors into the simulation helper, the tests continue to enforce the canonical variance-weighted chi-squared path before asserting writer outputs.
+- GEOMETRY-001 / GEOMETRY-002 / GEOMETRY-003 — detector/beam/crystal mapping must continue to match the DIALS conventions documented in `docs/config_crosswalk.md`; the new factories must enforce the same guards.
+- CONFIG-001 — keep `[panel, slow, fast]` array ordering, mask polarity, and ADU↔photon policies intact when relocating helpers.
+- DIAGNOSTICS-001 & PHYSICS-LOSS-001/002/003 — reader/writer telemetry requires the same variance-weighted loss inputs; moving the builders must not change sigma provenance or loss-mask semantics.
 
 Pointers:
-- plans/active/ARCH-BRIDGE-RESP-001/implementation.md:74 — Phase B.3 checklist now requires typed DetectorConfig fixtures before rerunning the selectors.
-- docs/fix_plan.md:116 — Ledger attempts history describing the current CLI test failures and expected remediation.
-- tests/dbex/test_refine_one_cli.py:180 — Location of the failing simulator smoke test that needs the typed config helper.
-- problems.md:36 — Original ledger entry tying this work to the writer/bridge responsibility split initiative.
+- docs/spec-db-workflow.md:16-45 — canonical mask/prep and calibration policy that `prepare_refinement_inputs` enforces.
+- docs/config_crosswalk.md:17-95 — mapping rules for detector/beam/crystal factories that must carry over to the new module.
+- docs/data_dependency_manifest.md:120-190 — current ROI helper descriptions that need to be updated to mention the new modules.
+- plans/active/ARCH-BRIDGE-RESP-001/implementation.md:80-96 — Phase C checklist describing the new module boundaries and artifacts expectations.
+- docs/fix_plan.md:116-124 — attempts history showing why the bridge split is required and which selectors guard it.
 
 Next Up (optional):
-- If time remains after the selectors pass, start drafting the Phase B.4 doc/test-registry update so the writer change is fully documented.
+- Once the factories live under `dbex/refinement/`, schedule a follow-up to remove the compatibility re-exports and update the remaining tests/scripts to import from the new modules directly.

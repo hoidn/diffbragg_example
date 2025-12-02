@@ -63,7 +63,7 @@ from dbex.refinement.stage_b_impl import (
     initialize_asu_modifiers,
     apply_asu_modifiers,
     _build_stage_b_params,
-    _build_stage_b_lbfgs_closure,
+    # ARCH-STAGE-CONTEXT-001 Phase B.2: Closure builder moved to StageB._build_lbfgs_closure
     _run_stage_b_lbfgs,
 )
 

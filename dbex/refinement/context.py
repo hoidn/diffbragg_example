@@ -417,8 +417,8 @@ class RefinementSharedContext:
     """
     Shared refinement state for Stage A/B/C LBFGS closures.
 
-    Replaces 11-parameter data clump passed to _build_stage_a_lbfgs_closure,
-    _build_stage_b_lbfgs_closure, and _build_stage_c_lbfgs_closure.
+    Replaces 11-parameter data clump passed to Stage closure builders (Phase A.2)
+    and now passed to StageA/B/C._build_lbfgs_closure methods (Phase B.2).
 
     Per ARCH-STAGE-CONTEXT-001, this dataclass wraps:
     - Geometry objects (detector, beam, crystal) from dxtbx

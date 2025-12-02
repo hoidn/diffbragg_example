@@ -1,0 +1,686 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 1 item
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers FAILED [100%]
+
+=================================== FAILURES ===================================
+_________________________ test_stage_b_shell_modifiers _________________________
+
+refgeom_dataload = <dbex.data_load.DataLoad object at 0x7d8045566190>
+refinement_inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0.,...0.]]], dtype=float32), target_representation='adu', global_scale_hint=86.34794146217338, sigma_readout_provenance=None)
+hkl_data = (tensor([[[0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0.,...uda:0'), {'grid_max': 518.3336791992188, 'grid_mean': 16.896526336669922, 'grid_min': 0.0, 'grid_nonzero': 69614, ...})
+smoke_detector_size = 'small', smoke_sigma_source = 'cli_override'
+
+    @pytest.mark.allow_metadata_sigma
+    def test_stage_b_shell_modifiers(
+        refgeom_dataload,
+        refinement_inputs,
+        hkl_data,
+        smoke_detector_size,
+        smoke_sigma_source,
+    ):
+        """
+        Smoke test for Stage B shell-modifier LBFGS refinement (TORCH-REFINE-004).
+    
+        Tests exercise run_nanobrag_refinement with Stage B enabled (enable_stage_b=True)
+        after Stage A, validating:
+        - Canonical detector runs do not regress chi-squared by more than 1e-6 relative loss
+        - Telemetry presence for shell modifiers (param_deltas with d-spacing ranges)
+        - Shell modifiers stay within ±1% of identity (REFINE-008) when strict gates are active
+        - Non-increasing full-loss trace across last 3 validations
+        - Halo-padded HKL grid and interpolation are required (guards enforced)
+    
+        Per input.md:
+        - docs/spec-db-workflow.md:31-34 mandates Stage B optional shell modifiers with tricubic interpolation
+        - docs/spec-db-workflow.md §Stage B (lines 58-66) specifies Stage B shell mode contract
+        - docs/architecture/pytorch_design.md:35-40 requires ±1 halo for interpolation
+        - docs/findings.md REFINE-005 confirms halo requirement for Stage B
+    
+        Findings applied:
+        - RUNTIME-001: Run with NANOBRAGG_DISABLE_COMPILE=1 to avoid torch.compile interference
+        - CONFORMANCE-001: Requires KMP_DUPLICATE_LIB_OK=TRUE
+        - REFINE-005: Halo-padded HKL grid mandatory for Stage B; guard enforced in run_nanobrag_refinement
+        - REFINE-008: Canonical detector improvements hover near zero, so strict gates verify
+          non-regression (≥-1e-6 loss delta) plus ±1% shell-modifier sanity via telemetry. Telemetry
+          is archived via `DBEX_SMOKE_TELEMETRY_PATH` for PHYSICS-LOSS-001 reviews.
+        - SCALE-001/002: Structure factors unscaled; shell modifiers applied multiplicatively
+        """
+        from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig
+    
+        print(f"\n[test_stage_b_shell_modifiers] detector={smoke_detector_size}")
+    
+        # CPU fallback blocked by HKL grid transfer corruption (GRADIENT-003)
+        # Root cause: .to(device='cpu') corrupts Miller index semantics (k-range [-1796,1708] instead of [-14,14])
+        # Deferred to unblock roadmap; small detector validates core Stage B logic (CUDA-only)
+        if smoke_detector_size == "full":
+            pytest.skip("CPU fallback blocked by HKL grid transfer corruption (GRADIENT-003)")
+    
+        DL = refgeom_dataload
+        hkl_grid, hkl_metadata = hkl_data
+        strict_gates = smoke_detector_size == "full"
+    
+        # Guard: Stage B requires halo-padded HKL grid (REFINE-005)
+        assert hkl_metadata["has_halo"], (
+            "Stage B smoke test requires halo-padded HKL grid. "
+            "hkl_data fixture must be configured with halo=True per TORCH-REFINE-004."
+        )
+    
+        # Refinement config: enable Stage B with 5 resolution shells
+        # Keep Stage A and Stage C disabled to isolate Stage B behavior
+        sigma_provenance = "external_lookup" if smoke_sigma_source == "metadata" else "cli_override"
+    
+        # PERF-WARM-010: Canonical runs disable ROI mode to preserve ±1% shell modifier gates
+        # until REFINE-008 can be recalibrated for ROI sampling. Small-detector runs keep ROI enabled.
+        enable_roi = smoke_detector_size != "full"
+    
+        config = RefinementConfig(
+            max_iter=30,
+            min_loss_improvement=0.0,  # Strict-gate behavior asserted via telemetry (REFINE-008)
+            enable_hkl_interpolation=True,  # Required for Stage B (REFINE-005)
+            enable_stage_b=True,  # Enable shell modifiers
+            stage_b_n_shells=5,
+            stage_b_min_loss_improvement=0.0,
+            stage_b_max_modifier=2.0,
+            enable_stage_c=False,  # Disable Stage C for this test
+            enable_stage_a_roi_mode=enable_roi,  # Panel mode for canonical; ROI for small
+            # ARCH-REFINE-001 Phase E.2 (REFINE-FLOW-001): Set threshold=0 so small-detector run
+            # emulates ROI-heavy detector behavior. This forces Stage A baseline/final validations
+            # into panel mode via enable_stage_b trigger (not via ROI count threshold), proving
+            # the Stage B-aware toggle ensures REFINE-FLOW-001 parity even when ROI sampling
+            # is active for closures.
+            stage_a_panel_validation_roi_threshold=0,
+            device="cuda:0",
+            dtype=torch.float32,
+            sigma_readout_provenance=sigma_provenance,
+        )
+    
+        # Run refinement (Stage A + Stage B)
+        # ARCH-STAGE-CONTEXT-001 Phase B.4: run_nanobrag_refinement now returns artifacts
+>       bragg_refined, telemetry_dict, engine_artifacts = run_nanobrag_refinement(
+            inputs=refinement_inputs,
+            detector=DL.detector,
+            beam=DL.beam,
+            crystal=DL.crystal,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            config=config,
+            baseline_crystal=DL.crystal,  # Required for Stage B cell delta reconstruction
+            baseline_detector=DL.detector,
+        )
+
+tests/dbex/test_torch_refine_smoke.py:1444: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+dbex/nanobrag_refinement.py:409: in run_nanobrag_refinement
+    telemetry_dict = engine.run(engine_inputs)
+dbex/refinement/engine.py:147: in run
+    stage_output = stage.run(enriched_inputs, telemetry_sink)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <dbex.refinement.stage_b.StageB object at 0x7d8051e54ac0>
+inputs = {'baseline_crystal': <dxtbx_model_ext.MosaicCrystalSauter2014 object at 0x7d8051e481d0>, 'baseline_detector': <dxtbx_m...tbx_model_ext.Detector object at 0x7d8051ed4cf0>, asu_map=None, hkl_indices_grid=None, halo_mask=None, extras={}), ...}
+telemetry_sink = None
+
+    def run(
+        self,
+        inputs: Any,
+        telemetry_sink: Optional[Path] = None
+    ) -> Dict[str, Any]:
+        """
+        Execute Stage B LBFGS refinement calling extracted helpers directly.
+    
+        Args:
+            inputs: Dict with keys:
+                - 'refinement_inputs': RefinementInputs (target, loss_mask, panel_slices, etc.)
+                - 'detector': dxtbx Detector object
+                - 'beam': dxtbx Beam object
+                - 'crystal': dxtbx Crystal object
+                - 'hkl_grid': torch.Tensor structure factor grid
+                - 'hkl_metadata': dict with grid dimensions
+                - 'baseline_crystal': Optional baseline dxtbx Crystal for misset extraction
+                - 'baseline_detector': Optional baseline dxtbx Detector for Stage C telemetry
+                - 'stage_a_telemetry': Dict containing Stage A final telemetry (param_deltas, etc.)
+                - 'stage_a_ctx': Optional Stage A context (detectors/simulators for warm cache)
+            telemetry_sink: Optional path for telemetry output (unused by this implementation,
+                           telemetry returned via dict instead)
+    
+        Returns:
+            Telemetry dict with all required RefinementTelemetry fields plus:
+            - stage_type: "B"
+            - mode: "shell_modifiers"
+    
+        Raises:
+            RuntimeError: If simulator fails, gradients are NaN/Inf, or halo grid missing
+            ValueError: If config not set via configure()
+        """
+        if self._config is None:
+            raise ValueError("StageB not configured. Call configure(config) before run().")
+    
+        # ARCH-REFINE-001 Phase B.1: Extract context from inputs
+        # If inputs has 'context' key, use it; otherwise fall back to dict unpacking
+        ctx = inputs['context'] if isinstance(inputs, dict) and 'context' in inputs else inputs
+    
+        # Extract inputs (prefer context fields, fall back to dict keys for backward compatibility)
+        if hasattr(ctx, 'refinement_inputs'):
+            # Using RefinementContext
+            refinement_inputs = ctx.refinement_inputs
+            detector = ctx.detector
+            beam = ctx.beam
+            crystal = ctx.crystal
+            hkl_grid = ctx.hkl_grid
+            hkl_metadata = ctx.hkl_metadata
+            baseline_crystal = ctx.baseline_crystal
+            baseline_detector = ctx.baseline_detector
+        else:
+            # Legacy dict unpacking (fallback for backward compatibility)
+            refinement_inputs = inputs['refinement_inputs']
+            detector = inputs['detector']
+            beam = inputs['beam']
+            crystal = inputs['crystal']
+            hkl_grid = inputs['hkl_grid']
+            hkl_metadata = inputs['hkl_metadata']
+            baseline_crystal = inputs.get('baseline_crystal', None)
+            baseline_detector = inputs.get('baseline_detector', None)
+    
+        # Stage-specific inputs (telemetry, warm cache) remain in inputs dict
+        stage_a_telemetry = inputs['stage_a_telemetry']
+        stage_a_ctx = inputs.get('stage_a_ctx', None)
+    
+        # Extract device/dtype from config
+        # NOTE: Keep device as CUDA here so that _build_stage_b_params can detect
+        # the need for CPU fallback via config.stage_b_full_eval_on_cpu
+        device = torch.device(self._config.device)
+        dtype = self._config.dtype
+    
+        # Guard: Stage B requires halo-padded HKL grid and interpolation enabled (REFINE-005)
+        if not hkl_metadata.get("has_halo", False):
+            raise RuntimeError(
+                "Stage B requires halo-padded HKL grid (hkl_metadata['has_halo']=True). "
+                "Rebuild structure factor grid with build_structure_factor_grid(..., halo=True) "
+                "and set config.enable_hkl_interpolation=True before enabling Stage B."
+            )
+    
+        if not self._config.enable_hkl_interpolation:
+            raise RuntimeError(
+                "Stage B requires tricubic HKL interpolation (config.enable_hkl_interpolation=True). "
+                "Set this flag before enabling Stage B to prevent default_F fallback and gradient loss."
+            )
+    
+        # Extract panel counts and sampling
+        n_panels = len(detector)
+        panel_shape = (
+            detector[0].get_image_size()[1],  # slow axis (rows)
+            detector[0].get_image_size()[0]   # fast axis (cols)
+        )
+        sampled_panel_ids = list(range(n_panels))  # Default: all panels
+    
+        # Extract Stage A final parameters from telemetry (frozen for Stage B)
+        # CRITICAL: Use 'final' key from param_deltas (NOT raw tensors)
+        log_scale_final = stage_a_telemetry['param_deltas']['log_scale']['final']
+        log_cell_a_delta_final = stage_a_telemetry['param_deltas']['log_cell_a_delta']['final']
+        log_cell_b_delta_final = stage_a_telemetry['param_deltas']['log_cell_b_delta']['final']
+        log_cell_c_delta_final = stage_a_telemetry['param_deltas']['log_cell_c_delta']['final']
+        angle_alpha_raw_final = stage_a_telemetry['param_deltas']['angle_alpha_raw']['final']
+        angle_beta_raw_final = stage_a_telemetry['param_deltas']['angle_beta_raw']['final']
+        angle_gamma_raw_final = stage_a_telemetry['param_deltas']['angle_gamma_raw']['final']
+        misset_xyz_deg_delta_final = stage_a_telemetry['param_deltas']['misset_xyz_deg']['delta']
+    
+        # Rebuild Stage A final tensors from scalars
+        log_scale = torch.tensor(log_scale_final, device=device, dtype=dtype)
+        log_cell_a_delta = torch.tensor(log_cell_a_delta_final, device=device, dtype=dtype)
+        log_cell_b_delta = torch.tensor(log_cell_b_delta_final, device=device, dtype=dtype)
+        log_cell_c_delta = torch.tensor(log_cell_c_delta_final, device=device, dtype=dtype)
+        angle_alpha_raw = torch.tensor(angle_alpha_raw_final, device=device, dtype=dtype)
+        angle_beta_raw = torch.tensor(angle_beta_raw_final, device=device, dtype=dtype)
+        angle_gamma_raw = torch.tensor(angle_gamma_raw_final, device=device, dtype=dtype)
+    
+        # Compute Stage A final crystal parameters as tensors (for Stage B)
+        # Use baseline crystal params as the base for delta reconstruction
+        # (log_cell_*_delta are relative to BASELINE, not current crystal)
+        if baseline_crystal is None:
+            raise ValueError(
+                "Stage B requires baseline_crystal to reconstruct cell parameters. "
+                "The cell deltas in Stage A telemetry are relative to the baseline crystal."
+            )
+        cell_params = baseline_crystal.get_unit_cell().parameters()
+    
+        # Apply Stage A final perturbations to get frozen crystal tensors
+        cell_a_tensor = cell_params[0] * torch.exp(log_cell_a_delta)
+        cell_b_tensor = cell_params[1] * torch.exp(log_cell_b_delta)
+        cell_c_tensor = cell_params[2] * torch.exp(log_cell_c_delta)
+    
+        max_angle_delta = 10.0  # degrees
+        cell_alpha_tensor = cell_params[3] + torch.tanh(angle_alpha_raw) * max_angle_delta
+        cell_beta_tensor = cell_params[4] + torch.tanh(angle_beta_raw) * max_angle_delta
+        cell_gamma_tensor = cell_params[5] + torch.tanh(angle_gamma_raw) * max_angle_delta
+    
+        # Compute Stage A final misset (for Stage B)
+        misset_xyz_deg = torch.tensor(misset_xyz_deg_delta_final, device=device, dtype=dtype)
+    
+        # Compute baseline_misset_deg_tensor if baseline_crystal provided
+        baseline_misset_deg_tensor = None
+        if baseline_crystal is not None:
+            baseline_misset_deg_tensor = compute_baseline_misset_deg(
+                crystal, baseline_crystal, device=device, dtype=dtype
+            )
+    
+        # Build sigma_floor_sq_cache (shared across Stage A/B)
+        sigma_floor_sq_cache = {}
+    
+        # ARCH-STAGE-CONTEXT-001 Phase A.2: Build RefinementSharedContext
+        # to collapse the 11-parameter data clump passed to _build_stage_b_lbfgs_closure
+        shared_context = RefinementSharedContext.from_inputs(
+            crystal=crystal,
+            detector=detector,
+            beam=beam,
+            inputs=refinement_inputs,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            config=self._config,
+            device=device,
+            dtype=dtype,
+            baseline_crystal=baseline_crystal,
+            baseline_detector=baseline_detector,
+            sigma_floor_sq_cache=sigma_floor_sq_cache,
+        )
+    
+        # Build canonical_baseline (extract from Stage A telemetry)
+        canonical_baseline = {
+            'stage_label': stage_a_telemetry['canonical_stage_label'],
+            'chi_squared': stage_a_telemetry['canonical_chi_squared'],
+            'iteration': stage_a_telemetry['canonical_chi_squared_iteration'],
+            'roi_count': stage_a_telemetry['canonical_roi_count'],
+            'detector_distances_mm': stage_a_telemetry['canonical_detector_distances_mm'],
+        }
+    
+        # Determine if Stage A used ROI mode (from telemetry)
+        use_stage_a_roi_mode = (stage_a_telemetry['roi_mode'] == "roi")
+    
+        # Extract Stage A final loss for improvement calculation
+        # best_loss_full is already a list [loss_value, iteration] from Stage A
+        best_loss_full = stage_a_telemetry['best_loss_full']
+    
+        # STEP 1: Build Stage B parameters
+        # Pass context to enable ASU map reuse (ARCH-REFINE-001 Phase B.3)
+        param_values = _build_stage_b_params(
+            config=self._config,
+            device=device,
+            dtype=dtype,
+            stage_a_ctx=stage_a_ctx,
+            canonical_baseline=canonical_baseline,
+            n_panels=n_panels,
+            sampled_panel_ids=sampled_panel_ids,
+            sigma_floor_sq_cache=sigma_floor_sq_cache,
+            use_stage_a_roi_mode=use_stage_a_roi_mode,
+            crystal=crystal,
+            hkl_metadata=hkl_metadata,
+            hkl_grid=hkl_grid,
+            detector=detector,
+            beam=beam,
+            inputs=refinement_inputs,
+            panel_slices=refinement_inputs.panel_slices,
+            context=ctx,  # ARCH-REFINE-001 Phase B.3: Thread context for asu_map reuse
+        )
+    
+        # Add frozen Stage A tensors to param_values (required by helper2)
+        param_values['log_scale'] = log_scale
+        param_values['cell_a_tensor'] = cell_a_tensor
+        param_values['cell_b_tensor'] = cell_b_tensor
+        param_values['cell_c_tensor'] = cell_c_tensor
+        param_values['cell_alpha_tensor'] = cell_alpha_tensor
+        param_values['cell_beta_tensor'] = cell_beta_tensor
+        param_values['cell_gamma_tensor'] = cell_gamma_tensor
+        param_values['misset_xyz_deg'] = misset_xyz_deg
+        param_values['best_loss_full'] = best_loss_full  # Stage A final loss for improvement calc
+    
+        # Extract mode-specific parameters (per-reflection vs shell)
+        stage_b_mode = param_values['stage_b_mode']
+    
+        if stage_b_mode == "per_reflection":
+            # Per-reflection mode: extract ASU parameters
+            asu_indices = param_values['asu_indices']
+            log_modifiers = param_values['log_modifiers']
+            n_asu_unique = param_values['n_asu_unique']
+            shell_indices = None  # Not used in per-reflection mode
+            shell_edges = None
+            shell_modifier_raw = None
+        else:  # shell mode
+            # Shell mode: extract shell parameters
+            shell_indices = param_values['shell_indices']
+            shell_edges = param_values['shell_edges']
+            shell_modifier_raw = param_values['shell_modifier_raw']
+            asu_indices = None  # Not used in shell mode
+            n_asu_unique = 0
+            log_modifiers = None
+    
+        stage_b_params = param_values['params']
+        stage_b_optimizer = param_values['optimizer']
+        stage_b_eval_stage_a_ctx = param_values['stage_b_eval_stage_a_ctx']
+        use_stage_b_cpu_fallback = param_values['use_stage_b_cpu_fallback']
+        stage_b_use_warm_cache = param_values['stage_b_use_warm_cache']
+        stage_b_cache_mode = param_values['stage_b_cache_mode']
+        use_stage_b_roi_mode = param_values['use_stage_b_roi_mode']
+        stage_b_roi_label = param_values['stage_b_roi_label']
+        sampled_stage_b_indices = param_values['sampled_stage_b_indices']
+        full_stage_b_indices = param_values['full_stage_b_indices']
+        stage_b_param_device = param_values['stage_b_param_device']
+    
+        # ARCH-TELEMETRY-001 Phase C.1: Create observer collector from telemetry state
+        telemetry_state = param_values['telemetry_state']
+        # For now, always use the collector path per ARCH-TELEMETRY-001 Phase C.1
+        collector = StageBTelemetryCollector(telemetry_state)
+    
+        # STEP 2: Build Stage B LBFGS closure (returns tuple)
+        # ARCH-STAGE-CONTEXT-001 Phase B.2: Call class method instead of helper
+        compute_loss_stage_b, closure_stage_b = self._build_lbfgs_closure(
+            shared_context=shared_context,
+            param_values=param_values,
+            stage_a_ctx=stage_a_ctx,
+            stage_b_eval_stage_a_ctx=stage_b_eval_stage_a_ctx,
+            canonical_baseline=canonical_baseline,
+            sampled_stage_b_indices=sampled_stage_b_indices,
+            full_stage_b_indices=full_stage_b_indices,
+            use_stage_b_cpu_fallback=use_stage_b_cpu_fallback,
+            stage_b_use_warm_cache=stage_b_use_warm_cache,
+            use_stage_b_roi_mode=use_stage_b_roi_mode,
+            shell_indices=shell_indices,
+            baseline_misset_deg_tensor=baseline_misset_deg_tensor,
+            collector=collector,
+        )
+    
+        # STEP 3: Run Stage B LBFGS optimization
+        stage_b_results = _run_stage_b_lbfgs(
+            config=self._config,
+            device=device,
+            dtype=dtype,
+            param_values=param_values,
+            closure_stage_b=closure_stage_b,
+            compute_loss_stage_b=compute_loss_stage_b,
+            n_panels=n_panels,
+            collector=collector,
+        )
+    
+        # Unpack results from helper3
+        status_b = stage_b_results['status']
+        message_b = stage_b_results['message']
+        best_loss_full_b = stage_b_results['best_loss_full_b']
+        chi_squared_best_b = stage_b_results['chi_squared_best_b']
+        masked_mse_best_b = stage_b_results['masked_mse_best_b']
+        final_loss_value = stage_b_results['final_loss_value']
+        final_mse_value = stage_b_results['final_mse_value']
+    
+        # ARCH-TELEMETRY-001 Phase C.1: Finalize collector and extract telemetry via StageResult
+        # Finalize must happen AFTER all validations (baseline, periodic, final) are complete
+        stage_result = collector.finalize()
+        legacy_telemetry_dict = stage_result.to_legacy_dict()
+    
+        # Extract fields from legacy dict (collector owns traces and perf counters)
+        loss_trace_sample_b = legacy_telemetry_dict['loss_trace_sample']
+        loss_trace_full_b = legacy_telemetry_dict['loss_trace_full']
+        chi_squared_trace_sample_b = legacy_telemetry_dict['chi_squared_trace_sample']
+        chi_squared_trace_full_b = legacy_telemetry_dict['chi_squared_trace_full']
+        masked_mse_trace_sample_b = legacy_telemetry_dict['masked_mse_trace_sample']
+        masked_mse_trace_full_b = legacy_telemetry_dict['masked_mse_trace_full']
+        perf_closure_evals_b = legacy_telemetry_dict['perf_closure_evals']
+        perf_validation_runs_b = legacy_telemetry_dict['perf_validation_runs']
+        perf_forward_times_ms_b = legacy_telemetry_dict['perf_forward_times_ms']
+        variance_floor_clamped_pixels_b = legacy_telemetry_dict['variance_floor_clamped_pixels']
+        variance_floor_masked_pixels_b = legacy_telemetry_dict['variance_floor_masked_pixels']
+    
+        # REFINE-FLOW-001: Extract baseline parity diagnostics from typed telemetry
+        stage_b_baseline_rel_diff = legacy_telemetry_dict.get('stage_b_baseline_rel_diff', None)
+        stage_b_baseline_abs_diff = legacy_telemetry_dict.get('stage_b_baseline_abs_diff', None)
+        stage_b_baseline_diff_path = legacy_telemetry_dict.get('stage_b_baseline_diff_path', None)
+    
+        # Build param_deltas dict for telemetry (mode-aware)
+        param_deltas_b = {}
+    
+        if stage_b_mode == "per_reflection":
+            # Per-reflection mode: compute ASU modifier stats
+            with torch.no_grad():
+                modifiers_exp = torch.exp(log_modifiers)
+                modifiers_clamped = torch.clamp(
+                    modifiers_exp,
+                    min=1.0 / self._config.stage_b_max_modifier,
+                    max=self._config.stage_b_max_modifier
+                )
+                modifiers_np = modifiers_clamped.cpu().numpy()
+    
+            # Store summary statistics instead of per-ASU values (too many for param_deltas)
+            param_deltas_b["asu_modifiers_summary"] = {
+                'initial': 1.0,  # Identity at initialization
+                'final_min': float(modifiers_np.min()),
+                'final_max': float(modifiers_np.max()),
+                'final_mean': float(modifiers_np.mean()),
+                'final_std': float(modifiers_np.std()),
+            }
+        else:  # shell mode
+            with torch.no_grad():
+                shell_modifiers_final = torch.nn.functional.softplus(shell_modifier_raw) * 2.0
+                shell_modifiers_final = torch.clamp(shell_modifiers_final, max=self._config.stage_b_max_modifier)
+                shell_modifiers_final_np = shell_modifiers_final.cpu().numpy()
+    
+            for shell_idx in range(self._config.stage_b_n_shells):
+                d_min_shell = float(shell_edges[shell_idx + 1].item()) if shell_idx + 1 < len(shell_edges) else 0.0
+                d_max_shell = float(shell_edges[shell_idx].item())
+                # Store initial/final/delta structure (mirroring Stage A pattern)
+                param_deltas_b[f"shell_{shell_idx}_modifier (d={d_min_shell:.2f}-{d_max_shell:.2f}Å)"] = {
+                    'initial': 1.0,  # Identity at initialization
+                    'final': float(shell_modifiers_final_np[shell_idx]),
+                    'delta': float(shell_modifiers_final_np[shell_idx]) - 1.0,
+                }
+    
+        # Build perf counters payload (PERF-WARM-SIM-001)
+        stage_b_roi_count_total = canonical_baseline["roi_count"]
+        stage_b_roi_count_sampled = canonical_baseline["roi_count"] if not use_stage_b_roi_mode else len(sampled_stage_b_indices)
+    
+        forward_stats_b = {
+            'mean': float(np.mean(perf_forward_times_ms_b)) if perf_forward_times_ms_b else 0.0,
+            'min': float(np.min(perf_forward_times_ms_b)) if perf_forward_times_ms_b else 0.0,
+            'max': float(np.max(perf_forward_times_ms_b)) if perf_forward_times_ms_b else 0.0,
+            'total': float(np.sum(perf_forward_times_ms_b)) if perf_forward_times_ms_b else 0.0,
+        }
+        perf_counters_b = {
+            'cache_mode': stage_b_cache_mode,
+            'roi_mode': stage_b_roi_label,
+            'roi_count_total': stage_b_roi_count_total,
+            'roi_count_sampled': stage_b_roi_count_sampled,
+            'closure_evals': perf_closure_evals_b[0],
+            'validation_runs': perf_validation_runs_b[0],
+            'forward_time_ms': forward_stats_b,
+        }
+    
+        # Assemble RefinementTelemetry object (matches run_nanobrag_refinement lines 3418-3456)
+        # Extract optimizer type from param_values (dynamic: lbfgs or adam)
+        # Keep lowercase for custom attribute, uppercase for telemetry.optimizer field
+        optimizer_type = param_values.get('optimizer_type', 'lbfgs')
+    
+        telemetry_b = RefinementTelemetry(
+            optimizer=optimizer_type.upper(),
+            stage="B",
+            history_size=self._config.history_size,
+            max_iter=self._config.max_iter,
+            tolerance_grad=self._config.tolerance_grad,
+            tolerance_change=self._config.tolerance_change,
+            roi_sample_fraction=self._config.roi_sample_fraction,
+            roi_count_sampled=stage_b_roi_count_sampled,
+            roi_count_total=stage_b_roi_count_total,
+            loss_trace_sample=loss_trace_sample_b,
+            loss_trace_full=loss_trace_full_b,
+            best_loss_full=best_loss_full_b,
+            param_deltas=param_deltas_b,
+            status=status_b,
+            message=message_b,
+            perf_counters=perf_counters_b,
+            # PHYSICS-LOSS-001: Dual loss metrics
+            chi_squared_trace_sample=chi_squared_trace_sample_b,
+            chi_squared_trace_full=chi_squared_trace_full_b,
+            chi_squared_best=chi_squared_best_b,
+            masked_mse_trace_sample=masked_mse_trace_sample_b,
+            masked_mse_trace_full=masked_mse_trace_full_b,
+            masked_mse_best=masked_mse_best_b,
+            sigma_readout_provenance=self._config.sigma_readout_provenance,
+            sigma_readout_reference_value=self._config.sigma_readout_reference_value,
+            # PHYSICS-LOSS-002: Variance floor telemetry
+            variance_floor_value=self._config.sigma_floor_value**2,
+            variance_floor_clamp_fraction=(
+                float(variance_floor_clamped_pixels_b[0]) / float(variance_floor_masked_pixels_b[0])
+                if variance_floor_masked_pixels_b[0] > 0 else 0.0
+            ),
+            canonical_stage_label=canonical_baseline["stage_label"],
+            canonical_chi_squared=canonical_baseline["chi_squared"],
+            canonical_chi_squared_iteration=canonical_baseline["iteration"],
+            canonical_roi_count=canonical_baseline["roi_count"],
+            canonical_detector_distances_mm=canonical_baseline["detector_distances_mm"],
+            roi_mode=stage_b_roi_label,
+            # Phase A4 stage identification fields
+            stage_type="B",
+            mode="per_reflection" if stage_b_mode == "per_reflection" else "shell_modifiers",
+            # ARCH-TELEMETRY-001 Phase C.2: Attach typed StageResult from collector
+            stage_result=stage_result,
+        )
+    
+        # Add mode-specific custom attributes to dataclass before serialization
+        # (matches pattern in nanobrag_refinement.py:5226-5238)
+        telemetry_b.stage_b_mode = stage_b_mode
+    
+        if stage_b_mode == "per_reflection":
+            # Per-reflection mode: add ASU-specific attributes
+            with torch.no_grad():
+                modifiers_exp = torch.exp(log_modifiers)
+                modifiers_clamped = torch.clamp(
+                    modifiers_exp,
+                    min=1.0 / self._config.stage_b_max_modifier,
+                    max=self._config.stage_b_max_modifier
+                )
+    
+            telemetry_b.n_asu_unique = int(n_asu_unique)
+            telemetry_b.optimizer_type = optimizer_type  # Already lowercase from fix #1
+            telemetry_b.asu_modifier_stats = {
+                "min": float(modifiers_clamped.min().item()),
+                "max": float(modifiers_clamped.max().item()),
+                "mean": float(modifiers_clamped.mean().item()),
+                "std": float(modifiers_clamped.std().item()),
+            }
+    
+        # ARCH-STAGE-CONTEXT-001 Phase B.4: baseline parity diagnostics moved to artifacts
+        # Writer sources these from StageBArtifacts instead of telemetry to maintain dataclass schema stability
+    
+        # ARCH-STAGE-CONTEXT-001 Phase B.1: Build artifacts based on mode
+        if stage_b_mode == "per_reflection":
+    
+            # Add per-reflection custom attributes (matches nanobrag_refinement.py:5196-5206)
+            with torch.no_grad():
+                modifiers_exp = torch.exp(log_modifiers)
+                modifiers_clamped = torch.clamp(
+                    modifiers_exp,
+                    min=1.0 / self._config.stage_b_max_modifier,
+                    max=self._config.stage_b_max_modifier
+                )
+    
+            asu_modifier_stats = {
+                "min": float(modifiers_clamped.min().item()),
+                "max": float(modifiers_clamped.max().item()),
+                "mean": float(modifiers_clamped.mean().item()),
+                "std": float(modifiers_clamped.std().item()),
+            }
+    
+            # Create StageBArtifacts for per-reflection mode (no shell metadata)
+            artifacts = StageBArtifacts(
+                shell_edges=None,
+                shell_indices=None,
+                n_shells=0,
+                stage_b_baseline_rel_diff=stage_b_baseline_rel_diff,
+                stage_b_baseline_abs_diff=stage_b_baseline_abs_diff,
+                stage_b_baseline_diff_path=stage_b_baseline_diff_path,
+                stage_b_mode="per_reflection",
+                n_asu_unique=int(n_asu_unique),
+                optimizer_type=optimizer_type,
+                asu_modifier_stats=asu_modifier_stats
+            )
+        else:  # shell mode
+>           telemetry_output["mode"] = "shell_modifiers"
+E           NameError: name 'telemetry_output' is not defined
+
+dbex/refinement/stage_b.py:981: NameError
+----------------------------- Captured stdout call -----------------------------
+
+[test_stage_b_shell_modifiers] detector=small
+auto-selected 1-fold oversampling
+[HKL stats] h=[-12,7] k=[-14,9] l=[-14,8] hit_rate=1045385/1048576 (99.70%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+WARNING: out of range for three point interpolation
+WARNING: further warnings will not be printed!
+[HKL stats] h=[-20,24] k=[-11,12] l=[0,4] hit_rate=0/1048576 (0.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,14] k=[-11,12] l=[0,4] hit_rate=1046476/1048576 (99.80%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046347/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046333/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+------------------------------ Captured log call -------------------------------
+WARNING  dbex.refinement.stage_b_impl:stage_b_impl.py:573 crystal_symmetry not in hkl_metadata, falling back to shell mode
+=============================== warnings summary ===============================
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dxtbx/format/FormatCBFFull.py:198: DeprecationWarning: The binary mode of fromstring is deprecated, as it behaves surprisingly on unicode inputs. Use frombuffer instead
+    self._raw_data = flex.int(np.fromstring(array_string, np.int32))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers - NameError: name 'telemetry_output' is not defined
+======================== 1 failed, 5 warnings in 22.64s ========================

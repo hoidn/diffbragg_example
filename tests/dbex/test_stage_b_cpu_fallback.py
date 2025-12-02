@@ -395,6 +395,8 @@ def test_stage_b_baseline_guard_diff_payload():
     - When parity passes (<0.1%), stage_b_baseline_diff_path remains None
     """
     from dbex.refinement.stage_b_impl import _check_stage_b_baseline_parity
+    from dbex.refinement.context import StageBTelemetryState
+    from dbex.refinement.telemetry_collectors import StageBTelemetryCollector
     import tempfile
     import json
 
@@ -441,14 +443,33 @@ def test_stage_b_baseline_guard_diff_payload():
     with tempfile.TemporaryDirectory() as tmpdir:
         telemetry_path = f"{tmpdir}/telemetry.json"
         with patch.dict(os.environ, {"DBEX_SMOKE_TELEMETRY_PATH": telemetry_path}):
-            telemetry_fail = {}
+            # ARCH-TELEMETRY-001 Phase C.1: Create collector for observer-based telemetry
+            telemetry_state_fail = StageBTelemetryState(
+                iteration_count=[0],
+                loss_trace_sample=[],
+                loss_trace_full=[],
+                best_loss_full=[],
+                best_params_snapshot=[],
+                chi_squared_trace_sample=[],
+                chi_squared_trace_full=[],
+                chi_squared_best=[float('inf'), 0],
+                masked_mse_trace_sample=[],
+                masked_mse_trace_full=[],
+                masked_mse_best=[float('inf'), 0],
+                perf_closure_evals=[0],
+                perf_validation_runs=[0],
+                perf_forward_times_ms=[],
+                variance_floor_clamped_pixels=[0],
+                variance_floor_masked_pixels=[0],
+            )
+            collector_fail = StageBTelemetryCollector(telemetry_state_fail)
             initial_chi_squared_b = torch.tensor(baseline_chi_squared, device=device, dtype=dtype)
 
             with pytest.raises(RuntimeError) as exc_info:
                 _check_stage_b_baseline_parity(
                     canonical_baseline=canonical_baseline_fail,
                     initial_chi_squared_b=initial_chi_squared_b,
-                    telemetry=telemetry_fail,
+                    collector=collector_fail,
                     param_values=param_values_fail,
                     compute_loss_stage_b=mock_compute_loss_fail,
                     n_panels=2,
@@ -457,9 +478,10 @@ def test_stage_b_baseline_guard_diff_payload():
             assert "REFINE-FLOW-001" in str(exc_info.value), \
                 f"RuntimeError should cite REFINE-FLOW-001, got: {exc_info.value}"
 
-            assert "stage_b_baseline_rel_diff" in telemetry_fail
-            assert "stage_b_baseline_abs_diff" in telemetry_fail
-            assert abs(telemetry_fail["stage_b_baseline_rel_diff"]) > 1e-3, \
+            # Access metrics from collector state
+            assert collector_fail.state.stage_b_baseline_rel_diff is not None
+            assert collector_fail.state.stage_b_baseline_abs_diff is not None
+            assert abs(collector_fail.state.stage_b_baseline_rel_diff) > 1e-3, \
                 "relative_difference should exceed tolerance for this test"
 
             diff_path = Path(tmpdir) / "stage_b_baseline_diff.json"
@@ -538,23 +560,43 @@ def test_stage_b_baseline_guard_diff_payload():
     def mock_compute_loss_pass(panel_ids, is_full=False, force_panel_eval=False):
         return torch.tensor(baseline_chi_squared, device=device, dtype=dtype), torch.tensor(1e6, device=device, dtype=dtype)
 
-    telemetry_pass = {}
+    # ARCH-TELEMETRY-001 Phase C.1: Create collector for observer-based telemetry
+    telemetry_state_pass = StageBTelemetryState(
+        iteration_count=[0],
+        loss_trace_sample=[],
+        loss_trace_full=[],
+        best_loss_full=[],
+        best_params_snapshot=[],
+        chi_squared_trace_sample=[],
+        chi_squared_trace_full=[],
+        chi_squared_best=[float('inf'), 0],
+        masked_mse_trace_sample=[],
+        masked_mse_trace_full=[],
+        masked_mse_best=[float('inf'), 0],
+        perf_closure_evals=[0],
+        perf_validation_runs=[0],
+        perf_forward_times_ms=[],
+        variance_floor_clamped_pixels=[0],
+        variance_floor_masked_pixels=[0],
+    )
+    collector_pass = StageBTelemetryCollector(telemetry_state_pass)
     initial_chi_squared_b_pass = torch.tensor(baseline_chi_squared, device=device, dtype=dtype)
 
     _check_stage_b_baseline_parity(
         canonical_baseline=canonical_baseline_pass,
         initial_chi_squared_b=initial_chi_squared_b_pass,
-        telemetry=telemetry_pass,
+        collector=collector_pass,
         param_values=param_values_pass,
         compute_loss_stage_b=mock_compute_loss_pass,
         n_panels=2,
     )
 
-    assert "stage_b_baseline_rel_diff" in telemetry_pass
-    assert "stage_b_baseline_abs_diff" in telemetry_pass
-    assert abs(telemetry_pass["stage_b_baseline_rel_diff"]) < 1e-3, \
+    # Access metrics from collector state
+    assert collector_pass.state.stage_b_baseline_rel_diff is not None
+    assert collector_pass.state.stage_b_baseline_abs_diff is not None
+    assert abs(collector_pass.state.stage_b_baseline_rel_diff) < 1e-3, \
         "relative_difference should be within tolerance for passing case"
-    assert telemetry_pass["stage_b_baseline_diff_path"] is None, \
+    assert collector_pass.state.stage_b_baseline_diff_path is None, \
         "stage_b_baseline_diff_path should be None when parity passes"
 
 

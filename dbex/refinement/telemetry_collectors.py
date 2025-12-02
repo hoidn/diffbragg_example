@@ -457,11 +457,13 @@ class StageBTelemetryCollector:
         Args:
             rel_diff: Relative difference (Stage B initial - Stage A canonical) / canonical
             abs_diff: Absolute difference (Stage B initial - Stage A canonical)
-            diff_path: Optional path to JSON diff file emitted when parity fails
+            diff_path: Optional path to JSON diff file emitted when parity fails.
+                       Set to None when parity passes to clear any previous diff_path.
 
         Normative Requirements:
         - Metrics MUST be recorded for every Stage B run with canonical baseline
         - diff_path SHOULD be None when parity passes (<0.1% tolerance)
+        - Helper MUST propagate None to clear diff_path (not skip assignment)
 
         Provenance:
         - ARCH-TELEMETRY-001 Phase C.1: Baseline parity helper for collector
@@ -469,8 +471,8 @@ class StageBTelemetryCollector:
         """
         self._state.stage_b_baseline_rel_diff = rel_diff
         self._state.stage_b_baseline_abs_diff = abs_diff
-        if diff_path is not None:
-            self._state.stage_b_baseline_diff_path = diff_path
+        # Always propagate diff_path, including None to clear it when parity passes
+        self._state.stage_b_baseline_diff_path = diff_path
 
     @property
     def state(self) -> StageBTelemetryState:

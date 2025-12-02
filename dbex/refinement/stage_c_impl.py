@@ -616,16 +616,6 @@ def _run_stage_c_lbfgs(
 
         stage_c_optimizer.step(closure_stage_c)
 
-        # ARCH-TELEMETRY-001 Phase C.1: Finalize collector and extract telemetry via StageResult
-        stage_result = collector.finalize()
-        legacy_telemetry_dict = stage_result.to_legacy_dict()
-
-        # REFINE-013: Extract best tuples from finalized collector
-        chi_squared_best_c = legacy_telemetry_dict['chi_squared_best']
-        masked_mse_best_c = legacy_telemetry_dict['masked_mse_best']
-        best_loss_full_c = legacy_telemetry_dict['best_loss_full']
-        best_params_snapshot_c = legacy_telemetry_dict['best_params_snapshot']
-
         # Assert that at least one full validation populated the best snapshot
         if chi_squared_best_c[0] >= float('inf'):
             raise RuntimeError(
@@ -639,6 +629,17 @@ def _run_stage_c_lbfgs(
         # Use best snapshot if available
         if best_params_snapshot_c is not None:
             distance_offset_raw.data = torch.tensor(best_params_snapshot_c['distance_offset_raw'], device=device, dtype=dtype)
+
+    # ARCH-TELEMETRY-001 Phase C.1: Finalize collector and extract telemetry via StageResult
+    # Must happen outside try block so legacy_telemetry_dict is always available
+    stage_result = collector.finalize()
+    legacy_telemetry_dict = stage_result.to_legacy_dict()
+
+    # REFINE-013: Extract best tuples from finalized collector
+    chi_squared_best_c = legacy_telemetry_dict['chi_squared_best']
+    masked_mse_best_c = legacy_telemetry_dict['masked_mse_best']
+    best_loss_full_c = legacy_telemetry_dict['best_loss_full']
+    best_params_snapshot_c = legacy_telemetry_dict['best_params_snapshot']
 
     # Extract remaining telemetry fields from finalized collector for building RefinementTelemetry
     loss_trace_sample_c = legacy_telemetry_dict['loss_trace_sample']

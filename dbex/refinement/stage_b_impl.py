@@ -44,7 +44,7 @@ logger = logging.getLogger(__name__)
 def _check_stage_b_baseline_parity(
     canonical_baseline: Dict[str, Any],
     initial_chi_squared_b: torch.Tensor,
-    telemetry: Any,  # Dict[str, Any] | StageBTelemetryState | StageBTelemetryCollector
+    collector: StageBTelemetryCollector,
     param_values: Dict[str, Any],
     compute_loss_stage_b: Callable[[List[int], bool, bool], Tuple[torch.Tensor, torch.Tensor]],
     n_panels: int,
@@ -59,8 +59,8 @@ def _check_stage_b_baseline_parity(
         canonical_baseline: Stage A final state dict with 'chi_squared', 'log_scale',
                             cell params, misset, roi_count, iteration
         initial_chi_squared_b: Stage B initial chi² tensor (before optimization)
-        telemetry: Telemetry dict, StageBTelemetryState, or StageBTelemetryCollector
-                   to record parity diagnostics (stage_b_baseline_rel_diff, etc)
+        collector: StageBTelemetryCollector for observer-based parity diagnostics
+                   (ARCH-TELEMETRY-001 Phase C.1). Required parameter.
         param_values: Stage B param dict with cell/misset tensors, cache_mode, etc
         compute_loss_stage_b: Loss computation callable for per-panel breakdown
         n_panels: Number of detector panels for per-panel chi² queries
@@ -69,12 +69,12 @@ def _check_stage_b_baseline_parity(
         RuntimeError: If |rel_diff| > 1e-3 (0.1% tolerance per REFINE-FLOW-001)
 
     Mutates:
-        telemetry fields via dict assignment, dataclass setattr, or collector helper
+        collector._state fields via set_baseline_parity_metrics helper
 
     References:
         - docs/findings.md:71 (REFINE-FLOW-001 tolerance and actionable diffs)
         - docs/spec-db-workflow.md:76-79 (Stage B baseline parity requirement)
-        - ARCH-TELEMETRY-001 Phase C.1 (collector support)
+        - ARCH-TELEMETRY-001 Phase C.1 (collector-only path, no dict/dataclass fallbacks)
     """
     canonical_chi_squared = canonical_baseline.get('chi_squared')
 
@@ -88,18 +88,8 @@ def _check_stage_b_baseline_parity(
     rel_diff = abs_diff / canonical_chi2 if canonical_chi2 != 0 else float('inf')
 
     # Record parity diagnostics in telemetry (always, for observability)
-    # ARCH-TELEMETRY-001 Phase C.1: Support collector, dataclass, or dict telemetry
-    if isinstance(telemetry, StageBTelemetryCollector):
-        # Collector path: use helper method (ARCH-TELEMETRY-001)
-        telemetry.set_baseline_parity_metrics(rel_diff, abs_diff)
-    elif isinstance(telemetry, StageBTelemetryState):
-        # Dataclass path: use setattr for type-safe attribute assignment
-        telemetry.stage_b_baseline_rel_diff = rel_diff
-        telemetry.stage_b_baseline_abs_diff = abs_diff
-    else:
-        # Legacy dict path (for test_stage_b_cpu_fallback backward compat)
-        telemetry['stage_b_baseline_rel_diff'] = rel_diff
-        telemetry['stage_b_baseline_abs_diff'] = abs_diff
+    # ARCH-TELEMETRY-001 Phase C.1: Collector-only path, no dict/dataclass fallbacks
+    collector.set_baseline_parity_metrics(rel_diff, abs_diff)
 
     # Guard: raise if parity exceeds 0.1% tolerance (1e-3 relative difference)
     tolerance = 1e-3
@@ -178,16 +168,8 @@ def _check_stage_b_baseline_parity(
             json.dump(diff_data, f, indent=2)
 
         # Store diff path in telemetry for test assertions
-        # ARCH-TELEMETRY-001 Phase C.1: Support collector, dataclass, or dict telemetry
-        if isinstance(telemetry, StageBTelemetryCollector):
-            # Collector path: use helper method to set diff_path
-            telemetry.set_baseline_parity_metrics(rel_diff, abs_diff, str(diff_path))
-        elif isinstance(telemetry, StageBTelemetryState):
-            # Dataclass path: use setattr
-            telemetry.stage_b_baseline_diff_path = str(diff_path)
-        else:
-            # Legacy dict path
-            telemetry['stage_b_baseline_diff_path'] = str(diff_path)
+        # ARCH-TELEMETRY-001 Phase C.1: Collector-only path, propagate diff_path via helper
+        collector.set_baseline_parity_metrics(rel_diff, abs_diff, str(diff_path))
 
         raise RuntimeError(
             f"REFINE-FLOW-001 baseline drift: Stage B initial chi² ({stage_b_initial_chi2:.3e}) "
@@ -195,12 +177,9 @@ def _check_stage_b_baseline_parity(
             f"(tolerance={tolerance:.1%}). See {diff_path} for details."
         )
     else:
-        # Parity passed, record diff path as None
-        # ARCH-STAGE-CONTEXT-001 Phase B.4: Dataclass vs dict branching
-        if isinstance(telemetry, StageBTelemetryState):
-            telemetry.stage_b_baseline_diff_path = None
-        else:
-            telemetry['stage_b_baseline_diff_path'] = None
+        # Parity passed, clear diff path via helper (set to None)
+        # ARCH-TELEMETRY-001 Phase C.1: Collector handles None diff_path propagation
+        collector.set_baseline_parity_metrics(rel_diff, abs_diff, diff_path=None)
 
 
 def compute_hkl_shell_lookup(crystal, hkl_metadata: Dict, n_shells: int = 5, device=None, dtype=torch.float32) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -871,20 +850,13 @@ def _run_stage_b_lbfgs(
         log_modifiers = None  # Not used in shell mode
 
     log_scale = param_values['log_scale']
-    # ARCH-STAGE-CONTEXT-001 Phase B.3.2: Extract telemetry from dataclass (with dict compat)
+    # ARCH-TELEMETRY-001 Phase C.1: telemetry_state is always StageBTelemetryState (no dict compat)
     telemetry = param_values['telemetry_state']
-    if isinstance(telemetry, dict):
-        loss_trace_full_b = telemetry['loss_trace_full_b']
-        chi_squared_trace_full_b = telemetry['chi_squared_trace_full_b']
-        masked_mse_trace_full_b = telemetry['masked_mse_trace_full_b']
-        loss_trace_sample_b = telemetry['loss_trace_sample_b']
-        best_params_snapshot_b = telemetry['best_params_snapshot_b']
-    else:
-        loss_trace_full_b = telemetry.loss_trace_full
-        chi_squared_trace_full_b = telemetry.chi_squared_trace_full
-        masked_mse_trace_full_b = telemetry.masked_mse_trace_full
-        loss_trace_sample_b = telemetry.loss_trace_sample
-        best_params_snapshot_b = telemetry.best_params_snapshot
+    loss_trace_full_b = telemetry.loss_trace_full
+    chi_squared_trace_full_b = telemetry.chi_squared_trace_full
+    masked_mse_trace_full_b = telemetry.masked_mse_trace_full
+    loss_trace_sample_b = telemetry.loss_trace_sample
+    best_params_snapshot_b = telemetry.best_params_snapshot
     stage_b_param_device = param_values['stage_b_param_device']
     best_loss_full = param_values['best_loss_full']  # Stage A final loss for improvement calc
 
@@ -926,12 +898,12 @@ def _run_stage_b_lbfgs(
 
         # REFINE-FLOW-001: Stage B baseline parity guard
         # Compare Stage B initial chi² against Stage A canonical chi² to detect parameter reconstruction drift
-        # ARCH-TELEMETRY-001 Phase C.1: Pass collector instead of telemetry_state for observer pattern
+        # ARCH-TELEMETRY-001 Phase C.1: Pass collector for observer-based parity metrics
         canonical_baseline = param_values.get('canonical_baseline', {})
         _check_stage_b_baseline_parity(
             canonical_baseline=canonical_baseline,
             initial_chi_squared_b=initial_chi_squared_b,
-            telemetry=collector,
+            collector=collector,
             param_values=param_values,
             compute_loss_stage_b=compute_loss_stage_b,
             n_panels=n_panels,

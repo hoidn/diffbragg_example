@@ -1,0 +1,31 @@
+=== IMPORTS ===
+dbex/refine_one.py:505:    from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig
+dbex/refinement/__init__.py:15:    from dbex.nanobrag_refinement import RefinementConfig
+dbex/tools/stage_a_adam.py:1634:    from dbex.nanobrag_refinement import (
+tests/dbex/test_physics_loss_current.py:63:    from dbex.nanobrag_refinement import _compute_variance_weighted_loss
+tests/dbex/test_physics_loss_current.py:125:    from dbex.nanobrag_refinement import _compute_variance_weighted_loss
+tests/dbex/test_physics_loss_current.py:160:    from dbex.nanobrag_refinement import _compute_variance_weighted_loss
+tests/dbex/test_physics_loss_current.py:207:    from dbex.nanobrag_refinement import _compute_variance_weighted_loss
+tests/dbex/test_refinement_engine.py:31:    from dbex.nanobrag_refinement import RefinementConfig
+tests/dbex/test_refinement_engine.py:148:    from dbex.nanobrag_refinement import RefinementConfig
+tests/dbex/test_stage_a_smoke_parity.py:13:from dbex.nanobrag_refinement import (
+tests/dbex/test_stage_b_cpu_fallback.py:40:    from dbex.nanobrag_refinement import RefinementConfig
+tests/dbex/test_stage_b_cpu_fallback.py:183:    from dbex.nanobrag_refinement import RefinementConfig
+tests/dbex/test_stage_b_cpu_fallback.py:291:    from dbex.nanobrag_refinement import RefinementConfig
+tests/dbex/test_torch_refine_smoke.py:400:    from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig
+tests/dbex/test_torch_refine_smoke.py:749:    from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig
+tests/dbex/test_torch_refine_smoke.py:947:    from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig
+tests/dbex/test_torch_refine_smoke.py:1063:    from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig
+tests/dbex/test_torch_refine_smoke.py:1393:    from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig
+tests/dbex/test_torch_refine_smoke.py:1793:    from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig
+
+=== CALL SITES ===
+dbex/refine_one.py:546:        Bragg_refined, refine_telemetry_dict, engine_artifacts = run_nanobrag_refinement(
+dbex/tools/stage_a_adam.py:1684:    _, telemetry = run_nanobrag_refinement(
+tests/dbex/test_stage_a_smoke_parity.py:148:    bragg_final, telemetry_dict, _ = run_nanobrag_refinement(
+tests/dbex/test_torch_refine_smoke.py:436:    bragg_refined, telemetry_dict, engine_artifacts = run_nanobrag_refinement(
+tests/dbex/test_torch_refine_smoke.py:784:    bragg_refined, telemetry_dict, _ = run_nanobrag_refinement(
+tests/dbex/test_torch_refine_smoke.py:983:    bragg_refined, telemetry_dict, _ = run_nanobrag_refinement(
+tests/dbex/test_torch_refine_smoke.py:1103:    bragg_refined, telemetry_dict, _ = run_nanobrag_refinement(
+tests/dbex/test_torch_refine_smoke.py:1444:    bragg_refined, telemetry_dict, engine_artifacts = run_nanobrag_refinement(
+tests/dbex/test_torch_refine_smoke.py:1865:    bragg_refined, telemetry_dict, engine_artifacts = run_nanobrag_refinement(

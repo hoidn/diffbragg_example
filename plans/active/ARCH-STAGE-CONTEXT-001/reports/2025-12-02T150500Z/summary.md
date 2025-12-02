@@ -1,5 +1,5 @@
 ### Turn Summary
-Scoped Phase D follow-up so Stage A/B smoke tests assert the StageArtifacts contract and added D3.1/D3.2 checkpoints to the implementation plan.
-Updated docs/fix_plan.md and input.md with a Parity-mode Do Now covering the new assertions plus Stage A/B shell and CLI writer reruns; logged the next artifact path at 2025-12-02T150500Z.
-Next: implement the Stage A expansion + Stage B shell/per-reflection test updates and rerun the mapped smoketests/CLI selector while teeing logs into the new report directory.
-Artifacts: plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T150500Z/ (summary.md)
+Implemented final Bragg artifact contract enforcement for Stage A/B terminal flows by adding executable assertions to three smoke tests.
+Resolved all exit gates: Stage A expansion, Stage B shell modifiers, and CLI writer tests now validate that StageAArtifacts/StageBArtifacts correctly populate bragg_full payloads when downstream stages are disabled, closing Phase D.
+Next: Initiative ARCH-STAGE-CONTEXT-001 meets all exit criteria (typed contexts, Stage ownership, artifact channel, writer decoupling). Ready to close and mark done unless Galph identifies additional cleanup.
+Artifacts: plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T150500Z/ (pytest_stage_a_small.log, pytest_stage_b_shell.log, pytest_cli_writer.log)

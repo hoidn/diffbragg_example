@@ -1,0 +1,92 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 1 item
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion 
+[test_stage_a_expansion] detector=small
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+[Stage A artifact validation] bragg_full shape=(1, 1024, 1024), dtype=float32, matches bragg_refined: YES
+
+[test_stage_a_expansion] SUCCESS
+  Initial loss: 3.31e+08
+  Final loss: 9.09e+07
+  Improvement: 72.6%
+  Iterations: 35
+  Status: ok
+  log_scale delta: 9.033e-08
+  Cell deltas (a/b/c): [0.11572075635194778, 0.18190324306488037, 0.03935021907091141]
+  Angle deltas (α/β/γ): [0.015864945948123932, 0.025879312306642532, 0.09533911198377609]
+  Orientation norm: 8.053e-02
+  Misset XYZ (deg): [-0.23022378981113434, -0.25986841320991516, 1.5876502990722656]
+  Quaternion norm: 1.000000
+PASSED
+
+=============================== warnings summary ===============================
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dxtbx/format/FormatCBFFull.py:198: DeprecationWarning: The binary mode of fromstring is deprecated, as it behaves surprisingly on unicode inputs. Use frombuffer instead
+    self._raw_data = flex.int(np.fromstring(array_string, np.int32))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 1 passed, 5 warnings in 48.89s ========================

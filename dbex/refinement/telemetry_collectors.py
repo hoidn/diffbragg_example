@@ -389,23 +389,28 @@ class StageBTelemetryCollector:
             self._state.variance_floor_masked_pixels[0] += int(metrics['variance_floor_masked_pixels'])
 
     def on_validation(self, scope: str, chi2: float, payload: Mapping[str, Any]) -> None:
-        """Record full-validation telemetry (same logic as Stage A, no lifecycle logs)."""
+        """Record full-validation telemetry (tuple format for Stage B parity with Stage A)."""
         self._state.perf_validation_runs[0] += 1
-        self._state.chi_squared_trace_full.append(chi2)
+        current_iter = self._state.iteration_count[0]
+        # Append with iteration tuples for Stage B/C full traces (parity with Stage A)
+        self._state.chi_squared_trace_full.append((current_iter, chi2))
         loss = payload.get('loss', chi2)
-        self._state.loss_trace_full.append(loss)
+        self._state.loss_trace_full.append((current_iter, loss))
         mse = payload.get('masked_mse', 0.0)
-        self._state.masked_mse_trace_full.append(mse)
-        if not self._state.best_loss_full or loss < self._state.best_loss_full[-1]:
-            self._state.best_loss_full.append(loss)
-        else:
-            self._state.best_loss_full.append(self._state.best_loss_full[-1] if self._state.best_loss_full else loss)
+        self._state.masked_mse_trace_full.append((current_iter, mse))
+        # Stage B/C best_loss_full is a list, but we treat it as (best, iter) tuple stored in list[0:2]
+        # Initialize if empty or update if better
+        if len(self._state.best_loss_full) == 0:
+            self._state.best_loss_full.extend([loss, current_iter])
+        elif loss < self._state.best_loss_full[0]:
+            self._state.best_loss_full[0] = loss
+            self._state.best_loss_full[1] = current_iter
         if chi2 < self._state.chi_squared_best[0]:
             self._state.chi_squared_best[0] = chi2
-            self._state.chi_squared_best[1] = self._state.iteration_count[0]
+            self._state.chi_squared_best[1] = current_iter
         if mse < self._state.masked_mse_best[0]:
             self._state.masked_mse_best[0] = mse
-            self._state.masked_mse_best[1] = self._state.iteration_count[0]
+            self._state.masked_mse_best[1] = current_iter
         if 'best_snapshot' in payload:
             self._state.best_params_snapshot = [payload['best_snapshot']]
 
@@ -483,28 +488,33 @@ class StageCTelemetryCollector:
             self._state.variance_floor_masked_pixels[0] += int(metrics['variance_floor_masked_pixels'])
 
     def on_validation(self, scope: str, chi2: float, payload: Mapping[str, Any]) -> None:
-        """Record full-validation telemetry (same logic as Stage A, optional panel diag)."""
+        """Record full-validation telemetry (tuple format for Stage C parity with Stage A/B)."""
         self._state.perf_validation_runs[0] += 1
-        self._state.chi_squared_trace_full.append(chi2)
+        current_iter = self._state.iteration_count[0]
+        # Append with iteration tuples for Stage C full traces (parity with Stage A/B)
+        self._state.chi_squared_trace_full.append((current_iter, chi2))
         loss = payload.get('loss', chi2)
-        self._state.loss_trace_full.append(loss)
+        self._state.loss_trace_full.append((current_iter, loss))
         mse = payload.get('masked_mse', 0.0)
-        self._state.masked_mse_trace_full.append(mse)
-        # best_loss_full is a tuple (best, iter) for Stage C
-        if not self._state.best_loss_full or loss < self._state.best_loss_full[0]:
+        self._state.masked_mse_trace_full.append((current_iter, mse))
+        # Stage C best_loss_full is a list, but we treat it as (best, iter) tuple stored in list[0:2]
+        # Initialize if empty or update if better
+        if len(self._state.best_loss_full) == 0:
+            self._state.best_loss_full.extend([loss, current_iter])
+        elif loss < self._state.best_loss_full[0]:
             self._state.best_loss_full[0] = loss
-            self._state.best_loss_full[1] = self._state.iteration_count[0]
+            self._state.best_loss_full[1] = current_iter
         if chi2 < self._state.chi_squared_best[0]:
             self._state.chi_squared_best[0] = chi2
-            self._state.chi_squared_best[1] = self._state.iteration_count[0]
+            self._state.chi_squared_best[1] = current_iter
         if mse < self._state.masked_mse_best[0]:
             self._state.masked_mse_best[0] = mse
-            self._state.masked_mse_best[1] = self._state.iteration_count[0]
+            self._state.masked_mse_best[1] = current_iter
         if 'best_snapshot' in payload:
             self._state.best_params_snapshot = [payload['best_snapshot']]
         # Record panel diagnostics if present (PERF-WARM-SIM-001)
         if 'panel_diag' in payload and self._state.panel_loss_diag is not None:
-            self._state.panel_loss_diag.append(payload['panel_diag'])
+            self._state.panel_loss_diag.extend(payload['panel_diag'])
 
     def finalize(self) -> StageResult:
         """Construct StageResult for Stage C."""

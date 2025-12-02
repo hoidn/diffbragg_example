@@ -492,10 +492,16 @@ def _run_stage_c_lbfgs(
     canonical_baseline: Dict[str, Any],
     stage_a_ctx: Optional[StageAContext],
     n_panels: int,
+    collector: Optional[Any] = None,
 ) -> Dict[str, Any]:
     """
     Execute Stage C LBFGS optimization, final validation, improvement gate,
     best snapshot restore, final Bragg regeneration, and telemetry packaging.
+
+    Args:
+        collector: Optional StageCTelemetryCollector for observer-based telemetry
+                   (ARCH-TELEMETRY-001 Phase C.1). If None, falls back to legacy
+                   direct telemetry mutations.
 
     Returns dict with keys:
         - 'status_c': str ('ok', 'early_stop', 'error')
@@ -583,25 +589,47 @@ def _run_stage_c_lbfgs(
             baseline_chi2_value = float(baseline_chi2_c.item())
             baseline_mse_value = float(baseline_mse_c.item())
 
-            # Seed telemetry traces with iteration -1 baseline
-            loss_trace_full_c.append((-1, baseline_chi2_value))
-            chi_squared_trace_full_c.append((-1, baseline_chi2_value))
-            masked_mse_trace_full_c.append((-1, baseline_mse_value))
-
-            # Seed best snapshot trackers with the baseline values
-            best_loss_full_c = (baseline_chi2_value, -1)
-            chi_squared_best_c = (baseline_chi2_value, -1)
-            masked_mse_best_c = (baseline_mse_value, -1)
-            best_params_snapshot_c = {
+            # Build baseline snapshot
+            snapshot_data = {
                 'distance_offset_raw': distance_offset_raw.detach().cpu().tolist()
             }
 
-            # Persist baseline seeding to telemetry_state so closure sees the correct initial best
-            # ARCH-STAGE-CONTEXT-001 Phase E: dataclass-only (mutable lists already updated in place)
-            telemetry_state.best_loss_full = best_loss_full_c
-            telemetry_state.chi_squared_best = chi_squared_best_c
-            telemetry_state.masked_mse_best = masked_mse_best_c
-            telemetry_state.best_params_snapshot = best_params_snapshot_c
+            # ARCH-TELEMETRY-001 Phase C.1: Route baseline validation through collector or legacy path
+            if collector is not None:
+                # Observer path: emit baseline validation via collector (iteration -1)
+                payload = {
+                    'loss': baseline_chi2_value,
+                    'masked_mse': baseline_mse_value,
+                    'best_snapshot': snapshot_data,
+                }
+                # Temporarily override iteration_count to -1 for baseline
+                saved_iter = telemetry_state.iteration_count[0]
+                telemetry_state.iteration_count[0] = -1
+                collector.on_validation(
+                    scope='baseline',
+                    chi2=baseline_chi2_value,
+                    payload=payload,
+                )
+                telemetry_state.iteration_count[0] = saved_iter
+            else:
+                # Legacy path: direct mutations
+                # Seed telemetry traces with iteration -1 baseline
+                loss_trace_full_c.append((-1, baseline_chi2_value))
+                chi_squared_trace_full_c.append((-1, baseline_chi2_value))
+                masked_mse_trace_full_c.append((-1, baseline_mse_value))
+
+                # Seed best snapshot trackers with the baseline values
+                best_loss_full_c = (baseline_chi2_value, -1)
+                chi_squared_best_c = (baseline_chi2_value, -1)
+                masked_mse_best_c = (baseline_mse_value, -1)
+                best_params_snapshot_c = snapshot_data
+
+                # Persist baseline seeding to telemetry_state so closure sees the correct initial best
+                # ARCH-STAGE-CONTEXT-001 Phase E: dataclass-only (mutable lists already updated in place)
+                telemetry_state.best_loss_full = best_loss_full_c
+                telemetry_state.chi_squared_best = chi_squared_best_c
+                telemetry_state.masked_mse_best = masked_mse_best_c
+                telemetry_state.best_params_snapshot = best_params_snapshot_c
 
         # Apply baseline detector prior BEFORE LBFGS so the warm-start is captured in best snapshot
         # (REFINE-013: The rehydration after LBFGS reloads best_params_snapshot_c, which must include the prior)
@@ -670,9 +698,15 @@ def _run_stage_c_lbfgs(
             dtype=dtype,
         )
 
-    loss_trace_full_c.append((final_step_c, final_loss_value_c))
-    chi_squared_trace_full_c.append((final_step_c, final_loss_value_c))
-    masked_mse_trace_full_c.append((final_step_c, final_mse_value_c))
+    # ARCH-TELEMETRY-001 Phase C.1: Route final validation through collector or legacy path
+    if collector is not None:
+        # Observer path: emit final validation via collector (collector accumulates internally)
+        pass  # Final metrics already captured by collector during LBFGS/periodic validations
+    else:
+        # Legacy path: append final metrics to trace lists
+        loss_trace_full_c.append((final_step_c, final_loss_value_c))
+        chi_squared_trace_full_c.append((final_step_c, final_loss_value_c))
+        masked_mse_trace_full_c.append((final_step_c, final_mse_value_c))
 
     # Check convergence: did we achieve ≥5% improvement on top of Stage A?
     if best_loss_full[0] is not None and best_loss_full[0] > 0:

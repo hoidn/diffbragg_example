@@ -508,3 +508,8 @@ Action State: ready_for_implementation
 - Updated plans/active/ARCH-LAZY-IMPORTS-001/implementation.md (Phase B.3 follow-up bullets + artifacts index) and docs/fix_plan.md (new attempt entry) with the Stage A/C import-hoist scope and validation plan.
 - Rebuilt input.md with a Do Now instructing Ralph to hoist the Stage A config/nanobrag imports + Stage C diagnostics imports, then rerun `test_stage_a_expansion`, `test_stage_a_engine_delegation_telemetry`, and `test_stage_c_detector_microslip` under the new artifact directory.
 Action State: ready_for_implementation
+2025-12-03T233500Z focus=ARCH-TELEMETRY-001 state=ready_for_implementation dwell=2 action=planning artifacts=plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T233500Z/ next_action=Ready for Stage C telemetry implementation
+- Logged the lingering Stage C telemetry blockers: empty `loss_trace_sample` whenever LBFGS skips the closure and variance-floor counters that never reach `RefinementTelemetry`.
+- Updated docs/fix_plan.md + the implementation plan with the new guard (seed a baseline sample via the collector when closure_evals stay at zero and wire `variance_floor_{masked,clamped}_pixels` into the telemetry payload) and rewrote input.md so Ralph lands those edits then reruns the Stage B guard, Stage B shell, and Stage C smoketests under the new artifacts path.
+- Next loop must implement immediately—three consecutive planning turns for this focus exhaust the gather/planning budget.
+Action State: ready_for_implementation

@@ -90,6 +90,7 @@
     * Guarantee `_build_stage_c_lbfgs_closure` records at least one on_step sample even when LBFGS exits immediately (current smoketest fails because `loss_trace_sample` stays empty).
     * Route every validation scope, including panel diagnostics, through the collector payload instead of mutating dataclasses in place.
     * Validation plan: rerun `tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload`, `tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers`, and `tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip` with artifacts under `reports/2025-12-03T210000Z/`.
+    * (2025-12-03T233500Z guard) Seed a synthetic baseline sample via the Stage C collector whenever LBFGS records zero closure evals, then plumb `variance_floor_{masked,clamped}_pixels` from the finalized collector into the `RefinementTelemetry` payload so PHYSICS-LOSS-001 counters survive observer migration.
 - [ ] C2: Simplify `dbex/io/writer.py` to consume `StageResult` dataclasses, removing Nelder–Mead reruns and dict introspection; add tests covering Stage A/B/C writer outputs.
 - [ ] C3: Delete legacy telemetry dict compatibility layers (`asdict` round-trips) and update CLI/engine telemetry enrichment to rely solely on typed observers; rerun Stage B/C smoketests and Stage diagnostics CLI tests.
 

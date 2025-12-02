@@ -616,6 +616,19 @@ def _run_stage_c_lbfgs(
 
         stage_c_optimizer.step(closure_stage_c)
 
+        # ARCH-TELEMETRY-001 Phase C.1: Fallback when LBFGS exits without running closure
+        # If no closure evals occurred, emit baseline sample so loss_trace_sample is never empty
+        if perf_closure_evals_c[0] == 0:
+            # Record baseline as iteration 0 sample with on_step (mirrors baseline validation logic)
+            collector.on_step(
+                iteration=0,
+                loss=baseline_chi2_value,
+                metrics={
+                    'chi_squared': baseline_chi2_value,
+                    'masked_mse': baseline_mse_value,
+                }
+            )
+
         # Assert that at least one full validation populated the best snapshot
         if chi_squared_best_c[0] >= float('inf'):
             raise RuntimeError(
@@ -630,32 +643,14 @@ def _run_stage_c_lbfgs(
         if best_params_snapshot_c is not None:
             distance_offset_raw.data = torch.tensor(best_params_snapshot_c['distance_offset_raw'], device=device, dtype=dtype)
 
-    # ARCH-TELEMETRY-001 Phase C.1: Finalize collector and extract telemetry via StageResult
-    # Must happen outside try block so legacy_telemetry_dict is always available
-    stage_result = collector.finalize()
-    legacy_telemetry_dict = stage_result.to_legacy_dict()
+    # ARCH-TELEMETRY-001 Phase C.1: Extract current best tuples from telemetry_state before final validation
+    # (Will be finalized after final validation is recorded)
+    chi_squared_best_c = telemetry_state.chi_squared_best
+    masked_mse_best_c = telemetry_state.masked_mse_best
+    best_loss_full_c = telemetry_state.best_loss_full
+    best_params_snapshot_c = telemetry_state.best_params_snapshot
 
-    # REFINE-013: Extract best tuples from finalized collector
-    chi_squared_best_c = legacy_telemetry_dict['chi_squared_best']
-    masked_mse_best_c = legacy_telemetry_dict['masked_mse_best']
-    best_loss_full_c = legacy_telemetry_dict['best_loss_full']
-    best_params_snapshot_c = legacy_telemetry_dict['best_params_snapshot']
-
-    # Extract remaining telemetry fields from finalized collector for building RefinementTelemetry
-    loss_trace_sample_c = legacy_telemetry_dict['loss_trace_sample']
-    loss_trace_full_c = legacy_telemetry_dict['loss_trace_full']
-    chi_squared_trace_sample_c = legacy_telemetry_dict['chi_squared_trace_sample']
-    chi_squared_trace_full_c = legacy_telemetry_dict['chi_squared_trace_full']
-    masked_mse_trace_sample_c = legacy_telemetry_dict['masked_mse_trace_sample']
-    masked_mse_trace_full_c = legacy_telemetry_dict['masked_mse_trace_full']
-    iteration_count_c = legacy_telemetry_dict['iteration_count']
-    perf_closure_evals_c = legacy_telemetry_dict['perf_closure_evals']
-    perf_validation_runs_c = legacy_telemetry_dict['perf_validation_runs']
-    perf_forward_times_ms_c = legacy_telemetry_dict['perf_forward_times_ms']
-    variance_floor_clamped_pixels_c = legacy_telemetry_dict['variance_floor_clamped_pixels']
-    variance_floor_masked_pixels_c = legacy_telemetry_dict['variance_floor_masked_pixels']
-
-    final_step_c = iteration_count_c
+    final_step_c = telemetry_state.iteration_count[0]
     with torch.no_grad():
         # REFINE-011: Use panel mode for final validation when Stage A used panel mode
         candidate_final_chi2, candidate_final_mse = compute_loss_stage_c(
@@ -709,6 +704,26 @@ def _run_stage_c_lbfgs(
         chi2=final_loss_value_c,
         payload=final_payload,
     )
+
+    # ARCH-TELEMETRY-001 Phase C.1: Finalize collector AFTER final validation is recorded
+    # Now extract telemetry via StageResult.to_legacy_dict() for RefinementTelemetry construction
+    stage_result = collector.finalize()
+    legacy_telemetry_dict = stage_result.to_legacy_dict()
+
+    # Refresh telemetry fields from finalized collector (includes final validation)
+    # Note: to_legacy_dict() wraps perf counters in lists for legacy schema compatibility
+    loss_trace_sample_c = legacy_telemetry_dict['loss_trace_sample']
+    loss_trace_full_c = legacy_telemetry_dict['loss_trace_full']
+    chi_squared_trace_sample_c = legacy_telemetry_dict['chi_squared_trace_sample']
+    chi_squared_trace_full_c = legacy_telemetry_dict['chi_squared_trace_full']
+    masked_mse_trace_sample_c = legacy_telemetry_dict['masked_mse_trace_sample']
+    masked_mse_trace_full_c = legacy_telemetry_dict['masked_mse_trace_full']
+    iteration_count_c = legacy_telemetry_dict['iteration_count']
+    perf_closure_evals_c = legacy_telemetry_dict['perf_closure_evals'][0]
+    perf_validation_runs_c = legacy_telemetry_dict['perf_validation_runs'][0]
+    perf_forward_times_ms_c = legacy_telemetry_dict['perf_forward_times_ms']
+    variance_floor_clamped_pixels_c = legacy_telemetry_dict['variance_floor_clamped_pixels'][0]
+    variance_floor_masked_pixels_c = legacy_telemetry_dict['variance_floor_masked_pixels'][0]
 
     # Check convergence: did we achieve ≥5% improvement on top of Stage A?
     if best_loss_full[0] is not None and best_loss_full[0] > 0:
@@ -855,8 +870,8 @@ def _run_stage_c_lbfgs(
         'validation_scope': validation_scope,  # REFINE-011/012: Independent from closure mode (panel when forced)
         'roi_count_total': stage_c_roi_count_total,
         'roi_count_sampled': stage_c_roi_count_sampled,
-        'closure_evals': perf_closure_evals_c[0],
-        'validation_runs': perf_validation_runs_c[0],
+        'closure_evals': perf_closure_evals_c,
+        'validation_runs': perf_validation_runs_c,
         'forward_time_ms': forward_stats_c,
     }
 
@@ -889,8 +904,8 @@ def _run_stage_c_lbfgs(
         # PHYSICS-LOSS-002: Variance floor telemetry
         variance_floor_value=config.sigma_floor_value**2,
         variance_floor_clamp_fraction=(
-            float(variance_floor_clamped_pixels_c[0]) / float(variance_floor_masked_pixels_c[0])
-            if variance_floor_masked_pixels_c[0] > 0 else 0.0
+            float(variance_floor_clamped_pixels_c) / float(variance_floor_masked_pixels_c)
+            if variance_floor_masked_pixels_c > 0 else 0.0
         ),
         canonical_stage_label=canonical_baseline["stage_label"],
         canonical_chi_squared=canonical_baseline["chi_squared"],

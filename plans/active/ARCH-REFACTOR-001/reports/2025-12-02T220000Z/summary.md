@@ -1,5 +1,5 @@
 ### Turn Summary
-Scoped Phase D.2 CLI refactor: migrate refine_one.py from run_nanobrag_refinement facade to direct RefinementEngine instantiation using the 5-step pattern (import updates → build RefinementContext → instantiate stages → run engine → extract artifacts).
-Serviced problems.md ledger directive "PRIORITIZE ARCH-REFACTOR-001 ASAP" with comprehensive planning notes documenting implementation strategy, validation plan (2 CLI selectors), and risks/mitigations per CLI blueprint reference.
-Next: Ralph implements Phase D.2 via explicit line-by-line Do Now (refactor lines 505-595, validate with test_torch_diagnostics_metadata + test_nanobrag_backend_runs_simulator).
-Artifacts: plans/active/ARCH-REFACTOR-001/reports/2025-12-02T220000Z/ (planning_notes.md, summary.md)
+Migrated CLI from run_nanobrag_refinement facade to direct RefinementEngine instantiation; CLI now builds RefinementContext, instantiates conditional stage list, and extracts artifacts from engine._artifacts per 5-step Engine pattern.
+All 2/2 CLI test selectors passed; HDF5 /torch_diagnostics schema unchanged, telemetry structure preserved, no behavioral regression vs facade path.
+Next: Phase D.3 test harness migration (migrate test files from facade to Engine, following CLI blueprint).
+Artifacts: plans/active/ARCH-REFACTOR-001/reports/2025-12-02T220000Z/ (pytest_cli_refactor.log)

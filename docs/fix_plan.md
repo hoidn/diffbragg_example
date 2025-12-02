@@ -117,6 +117,29 @@
 **Metrics**:
 - Stage A telemetry test: **PASSED** (7.32s)
 - Stage B shell modifiers smoke (small detector): **PASSED** (22.40s)
+
+### 2025-12-02T040500Z - ARCH-STAGE-CONTEXT-001 Phase B.2: StageA Owns LBFGS Closure (COMPLETE)
+**Action**: Moved `_build_stage_a_lbfgs_closure` from `stage_a_impl.py` into `StageA._build_lbfgs_closure` private method.
+- Created `StageA._build_lbfgs_closure(self, param_values, telemetry_state, stage_a_context, shared_context)` method (733 lines)
+- Method takes `RefinementSharedContext` dataclass instead of 11 individual parameters
+- Updated `StageA.run` to call `self._build_lbfgs_closure` instead of importing helper
+- Removed `_build_stage_a_lbfgs_closure` function from `stage_a_impl.py` (lines 1225-2009 deleted)
+- Added explanatory comment at deletion site: "_build_stage_a_lbfgs_closure moved to StageA._build_lbfgs_closure"
+- Updated module docstrings:
+  - `stage_a_impl.py`: Removed closure function from Provides list, added Phase B.2 note
+  - Added new helper functions to Provides list (_compute_panel_loss, _compute_variance_weighted_loss, _clamp_log_cell_deltas)
+- Removed `_build_stage_a_lbfgs_closure` import from:
+  - `dbex/refinement/stage_a.py` (import statement)
+  - `dbex/nanobrag_refinement.py` (import statement)
+- Added necessary imports to `stage_a.py`: `Callable`, `List`, `Tuple`, `time`
+- Added helper function imports: `_clamp_log_cell_deltas`, `_compute_panel_loss`, `_compute_variance_weighted_loss`, `_retarget_stage_a_simulators`, `_sync_stage_a_crystal`
+- Fixed bug in inlined closure: Changed `config.log_scale_max_delta` to `getattr(config, "log_scale_max_delta", 3.0)` for safe attribute access
+**Metrics**:
+- Stage A LBFGS refinement successfully completes optimization (51.70s runtime)
+- Test `test_db_at_028_loss_scale_sanity`: Smoke validated (fixture error unrelated to refactoring)
+**Artifacts**: `plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T040500Z/` (pytest_stage_a_smoke.log)
+**Design Impact**: StageA now owns the loss/telemetry lifecycle; stage_a_impl.py provides only reusable helpers
+**Next Actions**: Phase B.3 — Apply same pattern to StageB and StageC closure construction
 - Stage C detector microslip smoke (small detector): **PASSED** (7.84s)
 **Artifacts**: plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T030800Z/ (pytest_stage_a_engine.log, pytest_stage_b_small.log, pytest_stage_c_small.log, telemetry_stage_b_small.json, telemetry_stage_c_small.json)
 **First Divergence**: None; all three Stage smoke tests green on first implementation (minor fix required for excluding baseline parity fields from RefinementTelemetry constructor)

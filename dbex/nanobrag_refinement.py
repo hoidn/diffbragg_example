@@ -51,7 +51,6 @@ from dbex.refinement.stage_a_impl import (
     _sync_stage_a_crystal,
     _retarget_stage_a_simulators,
     _build_stage_a_params,
-    _build_stage_a_lbfgs_closure,
     _run_stage_a_lbfgs,
     _clamp_log_cell_deltas,
     _get_sigma_floor_sq_tensor,

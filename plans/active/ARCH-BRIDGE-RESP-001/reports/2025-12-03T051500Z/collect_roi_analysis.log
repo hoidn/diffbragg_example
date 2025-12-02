@@ -1,0 +1,19 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collected 5 items
+
+<Dir diffbragg_example>
+  <Package tests>
+    <Package dbex>
+      <Module test_roi_analysis.py>
+        <Class TestScoreROIPayloads>
+          <Function test_recovers_known_scale_and_score>
+          <Function test_injected_checker_and_log_fn>
+          <Function test_multiple_rois_with_different_scales>
+          <Function test_variance_floor_enforcement>
+          <Function test_sigma_parameter_validation>
+
+========================== 5 tests collected in 0.02s ==========================

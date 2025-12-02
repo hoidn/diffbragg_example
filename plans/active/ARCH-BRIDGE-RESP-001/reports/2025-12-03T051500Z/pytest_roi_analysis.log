@@ -1,0 +1,15 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 5 items
+
+tests/dbex/test_roi_analysis.py::TestScoreROIPayloads::test_recovers_known_scale_and_score PASSED [ 20%]
+tests/dbex/test_roi_analysis.py::TestScoreROIPayloads::test_injected_checker_and_log_fn PASSED [ 40%]
+tests/dbex/test_roi_analysis.py::TestScoreROIPayloads::test_multiple_rois_with_different_scales PASSED [ 60%]
+tests/dbex/test_roi_analysis.py::TestScoreROIPayloads::test_variance_floor_enforcement PASSED [ 80%]
+tests/dbex/test_roi_analysis.py::TestScoreROIPayloads::test_sigma_parameter_validation PASSED [100%]
+
+============================== 5 passed in 1.65s ===============================

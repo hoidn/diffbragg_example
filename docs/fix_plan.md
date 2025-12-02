@@ -97,7 +97,7 @@
 - Working Plan: `plans/active/ARCH-STAGE-CONTEXT-001/implementation.md`
 - Ledger tie-in: Addresses the unchecked “bad design patterns/code smells” entry in `problems.md` (2025-12-01), specifically items 1, 2, 4, 7, and 8 (data clumps, anemic Stage classes, mutable telemetry dicts, engine branching).
 - Next Actions:
-  * Phase B.1 ✅ (StageResult + artifacts scaffolding landed 2025-12-02T030800Z). Advance to Phase B.2: move LBFGS closure construction into Stage classes.
+  * Phase B.2 ✅ (Stage A/B/C closures now live on their Stage classes; Stage C full-detector failure remains the known PERF-WARM-SIM-001 regression captured under reports/2025-12-02T063500Z/). Advance to Phase B.3 by swapping the Stage A telemetry_state dict for the typed `StageATelemetryState` dataclass, then replicate the pattern for Stage B/C telemetry.
 
 ## Attempts History
 

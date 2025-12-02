@@ -358,3 +358,8 @@ Action State: planning
 - Planned the Stage C `_build_lbfgs_closure` relocation (StageC private helper, stage_c_impl comment cleanup, imports) and rewrote input.md with concrete implementation steps, env-guarded smoketests (small pass, full expected PERF-WARM-SIM-001 failure), and artifact instructions.
 - Refreshed problems.md ledger entry to record the Phase B progress so the Stage-context design debt stays linked to ARCH-STAGE-CONTEXT-001.
 Action State: ready_for_implementation
+2025-12-02T073000Z focus=ARCH-STAGE-CONTEXT-001 state=ready_for_implementation dwell=0 action=planning artifacts=plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T073800Z/ next_action=Refactor Stage A telemetry_state dict to StageATelemetryState + rerun Stage A smokes/engine telemetry
+- Reviewed the 2025-12-02T063500Z implementation artifacts: Stage C small-detector smoketest PASSED, the full-detector failure matches the known PERF-WARM-SIM-001 signature (no regression), and StageC._build_lbfgs_closure now lives on the class so Phase B.2.3 is done.
+- Updated plans/active/ARCH-STAGE-CONTEXT-001/implementation.md and docs/fix_plan.md so Phase B.2.3 is checked off and Phase B.3.1 explicitly targets swapping Stage A’s telemetry_state dict for the typed StageATelemetryState before touching Stage B/C.
+- Rebuilt input.md with the new Do Now: expand StageATelemetryState, refactor `_build_stage_a_lbfgs_closure`/`StageA.run` to mutate the dataclass, and map `test_stage_a_expansion` plus `test_stage_a_engine_delegation_telemetry` under plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T073800Z/.
+Action State: ready_for_implementation

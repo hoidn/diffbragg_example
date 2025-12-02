@@ -375,9 +375,9 @@ Comprehensive planning completed under `plans/active/ARCH-REFACTOR-001/reports/2
   - **Validation:** `pytest -vv tests/dbex/test_torch_refine_smoke.py tests/dbex/test_stage_a_smoke_parity.py tests/dbex/test_stage_a_adam_tooling.py --smoke-detector-size=small` (8+ tests)
   - **Artifacts:** `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T<HHMMSS>Z/` (D.3 implementation timestamp)
 
-- [ ] D.4: **Import Cleanup** — Fix remaining legacy imports. Files: (1) `test_physics_loss_current.py` (4 inline imports, redirect `_compute_variance_weighted_loss` from facade to `dbex.physics.loss`).
-  - **Validation:** `pytest -vv tests/dbex/test_physics_loss_current.py` (4 tests)
-  - **Artifacts:** `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T<HHMMSS>Z/` (D.4 implementation timestamp)
+- [x] D.4: **Import Cleanup** — ✓ COMPLETE (2025-12-02T221500Z, commit fcc53a33) Redirected 4 inline imports in `tests/dbex/test_physics_loss_current.py` from facade (`dbex.nanobrag_refinement`) to canonical module (`dbex.physics.loss`). Updated imports at lines 63, 125, 160, 207 using Edit tool with replace_all=True. Tests: 4/4 PASSED (test_variance_weighted_loss_basic_clamping, test_variance_weighted_loss_zero_mask, test_variance_weighted_loss_zero_floor, test_variance_weighted_loss_negative_model). Runtime 0.90s. Zero remaining facade imports confirmed via grep. No behavioral changes; _compute_variance_weighted_loss function signature/behavior unchanged since Phase A.3 (2025-11-24T074500Z). Metrics: 1 file touched (test_physics_loss_current.py), 4 import lines updated, net 0 lines (same import statement length). Phase D.4 import cleanup complete; facade re-exports no longer used by physics loss tests.
+  - **Validation:** ✓ `pytest -vv tests/dbex/test_physics_loss_current.py` (4/4 tests PASSED, 0.90s)
+  - **Artifacts:** `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T221500Z/` (pytest_phase_d4.log, import_verification.txt)
 
 - [ ] D.5: **Facade Deletion** — Delete `dbex/nanobrag_refinement.py` after comprehensive verification. Pre-deletion checks: (1) zero remaining imports (excluding docs/logs/archive), (2) zero remaining call sites (excluding research probes), (3) static imports succeed, (4) test collection clean. Post-deletion checks: (1) static imports (repeat), (2) CLI smoke test, (3) Stage A/B/C smokes (3 tests), (4) full test suite (20+ tests), (5) test collection (repeat). Rollback plan: `git checkout HEAD -- dbex/nanobrag_refinement.py` if any check fails.
   - **Validation:** 12-step checklist (see `deletion_checklist.md`)

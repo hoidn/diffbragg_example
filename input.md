@@ -1,7 +1,7 @@
-# Input for Ralph — ARCH-REFACTOR-001 Phase D.4 Import Cleanup
+# Input for Ralph — ARCH-REFACTOR-001 Phase D.3 Batch 2 (test_stage_a_smoke_parity.py migration)
 
 ## Summary
-Redirect 4 inline imports in test_physics_loss_current.py from facade (dbex.nanobrag_refinement) to canonical module (dbex.physics.loss).
+Migrate test_stage_a_smoke_parity.py fixture from run_nanobrag_refinement facade to direct RefinementEngine usage.
 
 ## Mode
 Parity
@@ -10,7 +10,7 @@ Parity
 architecture
 
 ## Focus
-ARCH-REFACTOR-001 — Refinement Engine Modularization & Physics Separation (Phase D.4: Legacy Import Redirection)
+ARCH-REFACTOR-001 — Refinement Engine Modularization & Physics Separation (Phase D.3 Batch 2: test_stage_a_smoke_parity.py migration)
 
 ## Branch
 integration
@@ -18,291 +18,290 @@ integration
 ## Mapped tests
 ```bash
 AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-pytest -vv tests/dbex/test_physics_loss_current.py
+pytest -vv tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity \
+              tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity \
+              --smoke-detector-size=small
 ```
-Expected: 4/4 tests PASSED
+Expected: 2/2 tests PASSED
 
 ## Artifacts
-`plans/active/ARCH-REFACTOR-001/reports/2025-12-02T221500Z/`
-- `pytest_phase_d4.log` — Full pytest output for all 4 loss tests
-- `import_verification.txt` — Grep output confirming zero remaining facade imports
+`plans/active/ARCH-REFACTOR-001/reports/2025-12-02T220618Z/`
+- `pytest_parity_batch2.log` — Full pytest output for both tests
+- `import_verification.txt` — Confirm zero facade imports in this file
 - `summary.md` — Turn summary (prepend to existing file if present)
 
 ---
 
 ## Do Now
 
-**Context**: Phase D.3 Batch 1 validation complete (4/5 tests PASSED, commit 390daa14). Proceeding with Phase D.4 import cleanup as preparatory step before facade deletion (D.5).
+**Context**: Phase D.4 import cleanup complete (commit fcc53a33, 4/4 tests PASSED). Proceeding with D.3 Batch 2 test migration to eliminate facade usage in test_stage_a_smoke_parity.py.
 
-**Goal**: Redirect all inline imports of `_compute_variance_weighted_loss` from the facade (`dbex.nanobrag_refinement`) to the canonical module (`dbex.physics.loss`) in test file.
+**Goal**: Migrate `stage_a_smoke_result` fixture (lines 68-269) from `run_nanobrag_refinement` facade to direct `RefinementEngine` usage following the D.2 CLI blueprint 5-step pattern.
 
-**Why**: The function was moved to `dbex.physics.loss` in Phase A.3 (2025-11-24T074500Z), but tests continued working via facade re-export. The facade cannot be deleted (D.5) until all imports redirect to canonical modules.
-
----
-
-### Step 1: Create Artifacts Directory
-
-```bash
-mkdir -p plans/active/ARCH-REFACTOR-001/reports/2025-12-02T221500Z
-```
+**Why**: This file is one of 3 remaining facade consumers. Completing D.3 Batch 2 leaves only 2 files blocking facade deletion (D.5): test_torch_refine_smoke.py (dead import cleanup) and dbex/tools/stage_a_adam.py (Batch 3).
 
 ---
 
-### Step 2: Read Current Test File
+### Step 1: Read Current File
 
-Read `tests/dbex/test_physics_loss_current.py` to confirm current import pattern.
+Read `tests/dbex/test_stage_a_smoke_parity.py` to confirm current structure.
 
-**Expected finding:** 4 inline imports at lines 63, 125, 160, 207:
-```python
-from dbex.nanobrag_refinement import _compute_variance_weighted_loss
-```
+**Expected findings**:
+- Lines 13-16: Facade imports (RefinementConfig, run_nanobrag_refinement)
+- Lines 68-269: Fixture `stage_a_smoke_result`
+- Line 148: Facade call `bragg_final, telemetry_dict, _ = run_nanobrag_refinement(...)`
+- Lines 296, 376: Test functions consuming the fixture
 
 ---
 
-### Step 3: Update Imports (Single Edit Call)
+### Step 2: Update Imports
 
-Use Edit tool with `replace_all=True` to redirect all 4 imports atomically:
+**File**: `tests/dbex/test_stage_a_smoke_parity.py`
 
-**File:** `tests/dbex/test_physics_loss_current.py`
-
-**Old string:**
+**Old string** (lines 13-16):
 ```python
-    from dbex.nanobrag_refinement import _compute_variance_weighted_loss
+from dbex.nanobrag_refinement import (
+    RefinementConfig,
+    run_nanobrag_refinement,
+)
 ```
 
-**New string:**
+**New string**:
 ```python
-    from dbex.physics.loss import _compute_variance_weighted_loss
+from dbex.refinement.config import RefinementConfig
+from dbex.refinement.context import build_refinement_context
+from dbex.refinement.engine import RefinementEngine
+from dbex.refinement.stage_a import StageA
 ```
 
-**Parameters:**
-- `replace_all=True` (all 4 occurrences identical)
-- Preserve indentation (4 spaces before `from`)
+**Rationale**: Replace facade imports with Engine pattern imports per D.2 CLI blueprint.
 
-**Rationale:** Same function, just different module path. No behavioral changes.
+---
+
+### Step 3: Migrate Fixture to Engine Pattern
+
+**File**: `tests/dbex/test_stage_a_smoke_parity.py`
+
+**Old string** (lines 147-160, includes comment + facade call + telemetry extraction):
+```python
+    # ARCH-STAGE-CONTEXT-001 Phase B.4: run_nanobrag_refinement now returns artifacts
+    bragg_final, telemetry_dict, _ = run_nanobrag_refinement(
+        inputs=refinement_inputs,
+        detector=perturbed_detector,
+        beam=perturbed_beam,
+        crystal=perturbed_crystal,
+        hkl_grid=hkl_grid,
+        hkl_metadata=hkl_metadata,
+        config=config,
+        baseline_crystal=baseline_crystal,
+        baseline_detector=baseline_detector,
+    )
+
+    telemetry = telemetry_dict["A"]
+```
+
+**New string**:
+```python
+    # ARCH-REFACTOR-001 Phase D.3 Batch 2: Direct RefinementEngine usage
+    refinement_context = build_refinement_context(
+        refinement_inputs=refinement_inputs,
+        detector=perturbed_detector,
+        beam=perturbed_beam,
+        crystal=perturbed_crystal,
+        hkl_grid=hkl_grid,
+        hkl_metadata=hkl_metadata,
+        baseline_crystal=baseline_crystal,
+        baseline_detector=baseline_detector,  # Stage C disabled (enable_stage_c=False)
+    )
+    stages = [StageA()]
+    engine = RefinementEngine(stages, config=config)
+    telemetry_dict = engine.run({"context": refinement_context})
+
+    # Extract Bragg from Stage A artifacts
+    bragg_final = engine._artifacts["stage_a"].bragg_full
+
+    telemetry = telemetry_dict["A"]
+```
+
+**Rationale**: Follow D.2 CLI blueprint 5-step Engine pattern:
+1. Import updates (Step 2 above)
+2. Build RefinementContext from fixture inputs
+3. Instantiate stages list (Stage A only, config already has enable_stage_b/c=False)
+4. Run engine.run({"context": ...})
+5. Extract artifacts from engine._artifacts["stage_a"].bragg_full
+
+**Preserve**: All downstream logic unchanged. Fixture consumers expect `telemetry_dict["A"]`, `bragg_final`, etc. — all preserved.
 
 ---
 
 ### Step 4: Verify Zero Remaining Facade Imports
 
-Check that all imports redirected successfully:
+Check that all facade imports removed successfully:
 
 ```bash
-grep -n "from dbex.nanobrag_refinement import" tests/dbex/test_physics_loss_current.py | tee plans/active/ARCH-REFACTOR-001/reports/2025-12-02T221500Z/import_verification.txt
+grep -n "from dbex.nanobrag_refinement import" tests/dbex/test_stage_a_smoke_parity.py | tee plans/active/ARCH-REFACTOR-001/reports/2025-12-02T220618Z/import_verification.txt
 ```
 
-**Expected output:** Empty (zero matches)
+**Expected output**: Empty (zero matches)
 
 If any matches remain, the Edit failed to update all instances. Investigate and rerun.
 
 ---
 
-### Step 5: Run All Tests
+### Step 5: Run Mapped Tests
 
-Validate that function still accessible from new path with no behavioral changes:
+Run both test functions (they consume the migrated fixture):
 
 ```bash
 AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-pytest -vv tests/dbex/test_physics_loss_current.py \
-  | tee plans/active/ARCH-REFACTOR-001/reports/2025-12-02T221500Z/pytest_phase_d4.log
+pytest -vv tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity \
+              tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity \
+              --smoke-detector-size=small \
+              2>&1 | tee plans/active/ARCH-REFACTOR-001/reports/2025-12-02T220618Z/pytest_parity_batch2.log
 ```
 
-**Expected outcome:** 4/4 tests PASSED
-- `test_variance_weighted_loss_basic_clamping`
-- `test_variance_weighted_loss_zero_mask`
-- `test_variance_weighted_loss_zero_floor`
-- `test_variance_weighted_loss_negative_model`
+**Expected outcome**: 2/2 tests PASSED
 
-**If any test fails:**
-1. Check import error message (function not found in dbex.physics.loss)
-2. Verify function exported from module (check `dbex/physics/loss.py` exports)
-3. If import error, revert Edit and mark blocked
+**Success criteria**:
+- test_db_at_028_loss_scale_sanity validates loss/scale sanity (chi² reduction, log_scale range, masked pixels)
+- test_db_at_029_structure_parity validates structure parity (ROI correlations, U-matrix norms)
+- No import errors
+- No Engine-specific failures (telemetry/artifacts structure preserved)
+
+**If tests fail**:
+- If Engine-specific errors (missing keys, wrong artifact structure), debug and fix
+- If Stage A physics regression (chi² increased, correlations degraded), mark blocked and open separate bugfix initiative
+- Capture full traceback and failure signature in pytest log
 
 ---
 
-### Step 6: Document Results
+### Step 6: Update Artifacts
 
-Create `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T221500Z/summary.md`:
+Write Turn Summary to `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T220618Z/summary.md`:
 
 ```markdown
 ### Turn Summary
-Redirected 4 inline imports in test_physics_loss_current.py from facade (dbex.nanobrag_refinement) to canonical module (dbex.physics.loss); all tests passed with no behavioral changes.
-Phase D.4 import cleanup complete; facade re-exports no longer used by physics loss tests.
-Next: Phase D.3 Batch 2 (test_stage_a_smoke_parity.py migration) or Phase D.5 (facade deletion).
-Artifacts: plans/active/ARCH-REFACTOR-001/reports/2025-12-02T221500Z/ (pytest_phase_d4.log, import_verification.txt)
+Migrated test_stage_a_smoke_parity.py fixture from run_nanobrag_refinement facade to direct RefinementEngine usage; both DB-AT tests passed with no behavioral changes.
+Phase D.3 Batch 2 complete; facade usage reduced to 2 files (dead import in test_torch_refine_smoke.py, active call in dbex/tools/stage_a_adam.py).
+Next: Clean up dead import in test_torch_refine_smoke.py or proceed to D.3 Batch 3 (stage_a_adam.py migration).
+Artifacts: plans/active/ARCH-REFACTOR-001/reports/2025-12-02T220618Z/ (pytest_parity_batch2.log, import_verification.txt)
+```
+
+If the file already exists, **prepend** this block above existing content.
 
 ---
 
-## Implementation Notes
+## How-To Map
 
-**File:** `tests/dbex/test_physics_loss_current.py`
+All commands listed above. Key steps:
 
-**Changes:**
-- Updated 4 inline imports (lines 63, 125, 160, 207)
-- Old path: `dbex.nanobrag_refinement`
-- New path: `dbex.physics.loss`
-- Function name unchanged: `_compute_variance_weighted_loss`
-
-**Validation:**
-- All 4 tests PASSED
-- Zero remaining facade imports confirmed
-- No behavioral changes (function signature/behavior unchanged since Phase A.3)
-
-**Metrics:**
-- Import paths redirected: 4/4
-- Tests validated: 4/4
-- Files touched: 1
-- Net change: 0 lines (same import statement length)
-```
-
----
-
-### Step 7: Commit
-
-```bash
-git add -A
-git commit -m "$(cat <<'EOF'
-ARCH-REFACTOR-001 Phase D.4 import cleanup (tests: 4/4 pass)
-
-Redirected 4 inline imports in test_physics_loss_current.py from facade
-(dbex.nanobrag_refinement) to canonical module (dbex.physics.loss). No
-behavioral changes; tests validate function still accessible from new path.
-
-Changes:
-- Updated imports at lines 63, 125, 160, 207
-- Old: from dbex.nanobrag_refinement import _compute_variance_weighted_loss
-- New: from dbex.physics.loss import _compute_variance_weighted_loss
-
-Validation:
-- All 4 loss tests PASSED
-- Zero remaining facade imports confirmed
-
-Phase D.4 complete. Next: Phase D.3 Batch 2 (test migration) or D.5 (facade deletion).
-
-Artifacts: plans/active/ARCH-REFACTOR-001/reports/2025-12-02T221500Z/
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
-
-Co-Authored-By: Claude <noreply@anthropic.com>
-EOF
-)"
-git push
-```
+1. **Read file**: `tests/dbex/test_stage_a_smoke_parity.py`
+2. **Update imports** (lines 13-16): Edit tool, replace facade imports with Engine imports
+3. **Migrate fixture** (lines 147-160): Edit tool, replace facade call with 5-step Engine pattern
+4. **Verify imports**: `grep -n "from dbex.nanobrag_refinement import" tests/dbex/test_stage_a_smoke_parity.py`
+5. **Run tests**: pytest command above (2 selectors)
+6. **Write summary**: Create or prepend to summary.md
 
 ---
 
 ## Pitfalls To Avoid
 
-1. **Do not modify test logic**: Only update import paths. Test function bodies, assertions, and fixtures remain unchanged.
+1. **DO NOT** change fixture signature or return values — downstream tests expect exact same structure
+2. **DO NOT** modify mapping_context or calibration threading — TOOLING-VIS-001 requirement (fixture uses mapping_context.inputs, config.calibration_metadata, config.apply_calibration_n_cells)
+3. **DO NOT** change Stage A physics logic — this is pure migration (facade → Engine), not physics bugfix
+4. **DO NOT** modify test functions test_db_at_028 or test_db_at_029 — they consume fixture unchanged
+5. **DO NOT** forget to extract bragg_final from engine._artifacts["stage_a"].bragg_full (not engine.run() return value)
+6. **DO** preserve telemetry_dict["A"] extraction (line 160) — downstream code expects this
+7. **DO** preserve all downstream reconstruction logic (build_final_bragg_from_stage_a_telemetry calls) — unchanged
+8. **DO** use Edit tool (not Write) — this is an existing file, not a new one
+9. **DO** verify zero facade imports after migration — required for D.5 facade deletion
+10. **DO** use --smoke-detector-size=small — fixture expects this parametrization
 
-2. **Preserve indentation**: Imports are indented 4 spaces (inline imports inside test functions). Ensure new import string matches exact indentation.
-
-3. **Use replace_all=True**: All 4 imports are identical. Single Edit call updates all instances atomically.
-
-4. **Verify zero remaining facade imports**: Grep step confirms all imports redirected. If grep finds matches, Edit failed.
-
-5. **Function name unchanged**: `_compute_variance_weighted_loss` is the same in both modules. No rename needed.
-
-6. **No production code changes**: This is test-only update. Do not modify `dbex/physics/loss.py` or any production modules.
-
-7. **Environment Freeze**: Do not install/upgrade packages. If import fails, mark blocked with error signature.
-
-8. **Initiative type: architecture**: This is import path cleanup (preparation for facade removal), not behavior change.
-
-9. **Phase A.3 precedent**: Function was moved to canonical module in Phase A.3 (2025-11-24T074500Z) and validated with 4 tests. Current imports work via facade re-export.
-
-10. **Success criteria**: 4/4 tests PASSED + zero facade imports = Phase D.4 complete. 3/4 or fewer = blocked.
+**Environment Freeze Reminder**: Assume frozen runtime. If import errors occur, record signature in fix_plan.md and mark blocked; do not attempt pip installs or package upgrades.
 
 ---
 
 ## If Blocked
 
-**Scenario 1: Import error (function not found in dbex.physics.loss)**
-- Check `dbex/physics/loss.py` exports (should have `_compute_variance_weighted_loss`)
-- Verify Phase A.3 extraction happened (function should exist in module)
-- Check if function renamed during extraction (unlikely, but verify)
-- Capture error message, mark blocked
+**Scenario 1: Import errors (missing RefinementEngine, StageA, etc.)**
+- **Action**: Record error signature, mark blocked, update Attempts History with block reason
+- **Do NOT**: Attempt environment changes or package installs
 
-**Scenario 2: Edit tool fails to update all instances**
-- Verify `replace_all=True` parameter used
-- Check if indentation mismatch (Edit matching exact string including spaces)
-- Try manual verification: count grep matches before/after Edit
-- If grep still shows 4 matches after Edit, Edit failed - rerun or try individual edits
+**Scenario 2: Tests fail with Engine-specific errors (telemetry keys missing, artifacts structure wrong)**
+- **Action**: Debug and fix within this loop if trivial (e.g., wrong artifact key)
+- **If non-trivial**: Mark blocked, document failure signature, update Attempts History
+- **Do NOT**: Silently swallow failures or skip tests
 
-**Scenario 3: Tests fail with different error (not import)**
-- Check if function signature changed between facade and canonical module (unlikely)
-- Verify Phase A.3 extraction preserved behavior (should be identical)
-- Compare test assertions against function implementation
-- Capture full traceback, mark blocked
+**Scenario 3: Tests fail with Stage A physics regression (chi² increased, correlations degraded)**
+- **Action**: Verify migration logic is correct (Engine pattern matches D.2 blueprint)
+- **If migration correct but physics regressed**: Mark blocked, open separate bugfix initiative per spec_change_flow
+- **Do NOT**: Attempt physics fixes within this migration loop
 
-**Scenario 4: Facade re-export removed already**
-- Check if previous loop removed facade re-export prematurely
-- Verify facade still exports function: `grep "_compute_variance_weighted_loss" dbex/nanobrag_refinement.py`
-- If missing, this import cleanup should have happened earlier - document timing issue
-
-**Fallback:** If any blocker occurs, capture evidence in artifacts, update Attempts History with failure signature, and mark ARCH-REFACTOR-001 Phase D.4 blocked pending investigation. Do not proceed to D.5 until D.4 complete.
+**Scenario 4: Fixture uses mapping_context in unexpected way**
+- **Action**: Read mapping_context construction code, verify build_refinement_context consumes it correctly
+- **If incompatible**: Mark blocked, document incompatibility, update Attempts History
+- **Do NOT**: Change mapping_context or fixture logic beyond facade → Engine migration
 
 ---
 
-## Findings Applied
+## Findings Applied (Mandatory)
 
-**Relevant findings from `docs/findings.md`:**
+**Relevant findings from docs/findings.md**:
 
-- **ARCH-REFACTOR-001 Phase A.3**: Function `_compute_variance_weighted_loss` extracted to `dbex.physics.loss` (2025-11-24T074500Z), validated with 4 passing tests
-- **Phase D.4 scope**: Import cleanup (config-only, no RefinementEngine migration)
-- **Facade re-export pattern**: Facade re-exports moved functions for backward compatibility during migration phases
-- **Environment Freeze**: Runtime is pre-provisioned; do not install/upgrade packages during loops
-- **Initiative type: architecture**: Import path cleanup (preparation for facade removal), not behavior change
+- **ARCH-REFACTOR-001 Phase D.2 CLI Blueprint** (2025-12-02T220000Z): 5-step Engine pattern validated in CLI refactor; use as canonical reference for all test migrations.
+- **TOOLING-VIS-001** (mapping context requirements): Fixture uses mapping_context.inputs (not standard refinement_inputs construction), config.calibration_metadata from mapping_context.calibration, and config.apply_calibration_n_cells flag. All preserved in Engine pattern.
+- **CONFORMANCE-001**: Tests require KMP_DUPLICATE_LIB_OK=TRUE (handled by pytest fixtures, no changes needed).
+- **RUNTIME-001**: Tests require NANOBRAGG_DISABLE_COMPILE=1 (handled by pytest fixtures, no changes needed).
+
+No relevant findings contradict this migration approach.
 
 ---
 
 ## Pointers
 
-**Reference documents:**
-- Implementation plan: `plans/active/ARCH-REFACTOR-001/implementation.md` Phase D.4 checklist (line ~378)
-- Phase D planning: `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T201539Z/` (7 planning artifacts)
-- Phase A.3 extraction: `plans/active/ARCH-REFACTOR-001/implementation.md` lines ~143-153 (function move to dbex.physics.loss)
-- Deletion checklist: `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T201539Z/deletion_checklist.md` (D.5 reference)
-
-**Code pointers:**
-- Test file: `tests/dbex/test_physics_loss_current.py` (4 functions, 4 inline imports at lines 63, 125, 160, 207)
-- Canonical module: `dbex/physics/loss.py` (contains `_compute_variance_weighted_loss`)
-- Facade: `dbex/nanobrag_refinement.py` (re-exports function from physics.loss)
-
-**Previous phases:**
-- Phase D.1: RefinementConfig extraction (commit 43a70eae, similar config-only migration)
-- Phase D.2: CLI refactor (commit 46389946, RefinementEngine adoption reference)
-- Phase D.3 Batch 1: Test migration (commits 7b0a016d, a6f39bac, f3ab680d, validation 390daa14)
+- **Plan**: `plans/active/ARCH-REFACTOR-001/implementation.md` (Phase D checklist, D.3 description)
+- **Planning notes**: `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T220618Z/planning_notes.md` (detailed migration strategy, validation plan, risks)
+- **CLI blueprint reference**: `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T220000Z/cli_refactor_blueprint.md` (canonical 5-step Engine pattern)
+- **D.2 completion summary**: `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T220000Z/summary.md` (CLI migration success, pattern validated)
+- **D.4 completion summary**: `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T221500Z/summary.md` (import cleanup complete, 4/4 tests passed)
+- **Fixture source**: `tests/dbex/test_stage_a_smoke_parity.py:68-269` (stage_a_smoke_result fixture)
+- **Test functions**: `tests/dbex/test_stage_a_smoke_parity.py:296` (test_db_at_028_loss_scale_sanity), `tests/dbex/test_stage_a_smoke_parity.py:376` (test_db_at_029_structure_parity)
 
 ---
 
-## Next Up
+## Next Up (optional)
 
-**After this loop (if 4/4 tests PASSED):**
-1. Mark Phase D.4 complete in implementation.md
-2. Update fix_plan.md Attempts History with D.4 completion
-3. Two options for next loop:
-   - **Option A:** Phase D.3 Batch 2 — Migrate `tests/dbex/test_stage_a_smoke_parity.py` (1 function) to Engine pattern
-   - **Option B:** Phase D.5 — Facade deletion (12-step verification checklist)
+**After 2/2 tests PASSED**:
+1. **Option A (cleanup)**: Remove dead facade import in test_torch_refine_smoke.py (inline import at ~line 1700 within test_stage_b_asu_mapping_smoke that was missed during Batch 1 migration)
+2. **Option B (continue migrations)**: Proceed to D.3 Batch 3 (dbex/tools/stage_a_adam.py migration)
+3. **Option C (if blocked)**: Debug failure, open bugfix initiative if needed
 
-**Recommendation:** Option A (D.3 Batch 2) before D.5. Rationale: Complete all test migrations before facade deletion ensures comprehensive validation coverage.
-
-**Sign-off:** This is a config-only loop (import path updates). No production code changes. No RefinementEngine migration. Just redirecting imports from facade to canonical module.
+**After completion of D.3 Batches 1-3 + cleanup**: Proceed to D.5 (facade deletion) with comprehensive 12-step verification checklist.
 
 ---
 
-## Doc Sync Plan
+## Doc Sync Plan (Conditional)
 
-**Not applicable this loop** (no new tests added/renamed; import cleanup only).
+Not applicable this loop (no new tests added, no test renames). Existing test selectors unchanged.
 
 ---
 
 ## Mapped Tests Guardrail
 
-All 4 mapped test functions exist and should collect:
-- `test_variance_weighted_loss_basic_clamping` ✓
-- `test_variance_weighted_loss_zero_mask` ✓
-- `test_variance_weighted_loss_zero_floor` ✓
-- `test_variance_weighted_loss_negative_model` ✓
+Both mapped selectors collect and pass per fixture contract:
+- `test_db_at_028_loss_scale_sanity` — consumes fixture, validates loss/scale sanity
+- `test_db_at_029_structure_parity` — consumes fixture, validates structure parity via ROI correlations
 
-If any test collects 0, this is an error (test was renamed or deleted by accident).
+No new tests created this loop, so no --collect-only validation required.
+
+---
+
+## Hard Gate
+
+N/A (no selector changes this loop; both tests pre-existing and validated).
+
+---
+
+## Normative Math/Physics
+
+N/A (no physics or math changes this loop; pure facade → Engine migration preserving existing behavior).

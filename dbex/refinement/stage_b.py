@@ -912,6 +912,11 @@ class StageB:
             canonical_roi_count=canonical_baseline["roi_count"],
             canonical_detector_distances_mm=canonical_baseline["detector_distances_mm"],
             roi_mode=stage_b_roi_label,
+            # Phase A4 stage identification fields
+            stage_type="B",
+            mode="per_reflection" if stage_b_mode == "per_reflection" else "shell_modifiers",
+            # ARCH-TELEMETRY-001 Phase C.2: Attach typed StageResult from collector
+            stage_result=stage_result,
         )
 
         # Add mode-specific custom attributes to dataclass before serialization
@@ -937,18 +942,11 @@ class StageB:
                 "std": float(modifiers_clamped.std().item()),
             }
 
-        # Convert to dict for engine aggregation
-        telemetry_output = asdict(telemetry_b)
-
-        # Add Phase A4 stage identification fields (backward compatible with engine contract)
-        telemetry_output["stage_type"] = "B"
-
         # ARCH-STAGE-CONTEXT-001 Phase B.4: baseline parity diagnostics moved to artifacts
         # Writer sources these from StageBArtifacts instead of telemetry to maintain dataclass schema stability
 
         # ARCH-STAGE-CONTEXT-001 Phase B.1: Build artifacts based on mode
         if stage_b_mode == "per_reflection":
-            telemetry_output["mode"] = "per_reflection"
 
             # Add per-reflection custom attributes (matches nanobrag_refinement.py:5196-5206)
             with torch.no_grad():
@@ -980,8 +978,6 @@ class StageB:
                 asu_modifier_stats=asu_modifier_stats
             )
         else:  # shell mode
-            telemetry_output["mode"] = "shell_modifiers"
-
             # Create StageBArtifacts with shell metadata for final Bragg reconstruction
             artifacts = StageBArtifacts(
                 shell_edges=shell_edges.cpu().numpy(),
@@ -1004,7 +1000,7 @@ class StageB:
             # Build reconstruction payload: merge telemetry dict with shell metadata from artifacts
             # This ensures the helper receives shell_edges, shell_indices, n_shells, and stage_b_mode
             # while keeping the payload compact (numpy arrays, no GPU tensors)
-            reconstruction_payload = telemetry_output.copy()
+            reconstruction_payload = telemetry_b.to_dict()
 
             if stage_b_mode == "shell":
                 # Shell mode: add shell metadata from artifacts
@@ -1038,8 +1034,10 @@ class StageB:
             # Update artifacts with the final Bragg tensor (attach numpy volume back onto artifact)
             artifacts.bragg_full = bragg_full_artifact
 
-        # Return StageResult with telemetry dict and artifacts
+        # Return StageResult with telemetry object (not dict) and artifacts
+        # ARCH-TELEMETRY-001 Phase C.2: Pass telemetry_b (RefinementTelemetry) instead of
+        # telemetry_output (dict) so stage_result field is preserved for writer consumption
         return StageResult(
-            telemetry=telemetry_output,
+            telemetry=telemetry_b,
             artifacts=artifacts
         )

@@ -557,6 +557,13 @@ def run_nanobrag_backend(args, DL, devid=0):
         # Extract Stage A telemetry (always present); Stage B and Stage C are optional
         refine_telemetry = refine_telemetry_dict["A"]
 
+        # ARCH-TELEMETRY-001 Phase C.2: Extract typed StageResult from each stage's telemetry
+        # Build {label: stage_result} dict for writer consumption (skip None)
+        stage_results = {}
+        for label, telem in refine_telemetry_dict.items():
+            if hasattr(telem, 'stage_result') and telem.stage_result is not None:
+                stage_results[label] = telem.stage_result
+
         # Compute refined masked MSE
         masked_diff_refined = np.where(inputs.loss_mask, inputs.target - Bragg_refined, 0.0)
         masked_mse_refined = (masked_diff_refined ** 2).sum() / inputs.loss_mask.sum()
@@ -584,6 +591,7 @@ def run_nanobrag_backend(args, DL, devid=0):
         print(f"[nanobrag backend] Falling back to zero-iteration Bragg")
         refine_telemetry = None
         engine_artifacts = None
+        stage_results = None  # ARCH-TELEMETRY-001 Phase C.2: No stage results on failure
 
     # Prepare structure-factor telemetry for diagnostics (SCALE-003)
     # Convert flex arrays to numpy if needed for mean calculation
@@ -638,6 +646,7 @@ def run_nanobrag_backend(args, DL, devid=0):
     # Score ROIs and write HDF5 output (ARCH-REFINE-001 Phase C.2: shared writer module)
     # ARCH-STAGE-CONTEXT-001 Phase B.4: Pass engine artifacts to writer for Stage B baseline metrics
     # ARCH-BRIDGE-RESP-001 Phase B.2: Pass typed ROI payloads to writer (legacy scoring still active)
+    # ARCH-TELEMETRY-001 Phase C.2: Pass typed StageResult map for writer consumption
     write_torch_outputs(
         args,
         DL,
@@ -650,6 +659,7 @@ def run_nanobrag_backend(args, DL, devid=0):
         sigma_readout_reference_value=sigma_reference_target_units,
         stage_artifacts=engine_artifacts,
         roi_payloads=roi_payloads,
+        stage_results=stage_results,
     )
 
     print(f"Visualize using `python -m dbex.look {args.outFile}`")

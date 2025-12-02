@@ -999,16 +999,13 @@ class StageC:
         telemetry_c = stage_c_result['telemetry_c']
         bragg_full = stage_c_result['bragg_full']  # Phase A.4: Extract final Bragg volume
 
-        # Add Phase A4 stage identification fields
-        telemetry_dict = asdict(telemetry_c)
-        telemetry_dict["stage_type"] = "C"
-        telemetry_dict["mode"] = "detector_offsets"
-
         # ARCH-STAGE-CONTEXT-001 Phase B.1: Create StageCArtifacts with final Bragg tensor
         artifacts = StageCArtifacts(bragg_full=bragg_full)
 
-        # Return StageResult with telemetry dict and artifacts
+        # Return StageResult with telemetry object (not dict) and artifacts
+        # ARCH-TELEMETRY-001 Phase C.2: Pass telemetry_c (RefinementTelemetry) instead of
+        # telemetry_dict so stage_result field is preserved for writer consumption
         return StageResult(
-            telemetry=telemetry_dict,
+            telemetry=telemetry_c,
             artifacts=artifacts
         )

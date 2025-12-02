@@ -1050,6 +1050,10 @@ class StageA:
             collector=collector,
         )
 
+        # ARCH-TELEMETRY-001 Phase C.2: Finalize collector to get typed StageResult
+        # This happens after _run_stage_a_lbfgs completes (including all validations)
+        collector_stage_result = collector.finalize()
+
         log_cell_max_delta = getattr(self._config, 'log_cell_max_delta', 1.0)
         log_cell_a_delta_clamped = torch.clamp(
             log_cell_a_delta, min=-log_cell_max_delta, max=log_cell_max_delta
@@ -1213,21 +1217,17 @@ class StageA:
             canonical_roi_count=canonical_baseline["roi_count"],
             canonical_detector_distances_mm=canonical_baseline["detector_distances_mm"],
             roi_mode=stage_a_roi_label,
+            # Phase A4 stage identification fields
+            stage_type="stage_a",
+            # Determine mode based on config flags
+            mode=(
+                "incremental_ub" if self._config.use_incremental_ub
+                else "u_matrix" if self._config.use_u_matrix_parameterization
+                else None  # Default cell+misset path
+            ),
+            # ARCH-TELEMETRY-001 Phase C.2: Attach typed StageResult from collector
+            stage_result=collector_stage_result,
         )
-
-        # Convert to dict for engine aggregation
-        telemetry_output = asdict(telemetry_a)
-
-        # Add Phase A4 stage identification fields
-        telemetry_output["stage_type"] = "stage_a"
-
-        # Determine mode based on config flags
-        if self._config.use_incremental_ub:
-            telemetry_output["mode"] = "incremental_ub"
-        elif self._config.use_u_matrix_parameterization:
-            telemetry_output["mode"] = "u_matrix"
-        else:
-            telemetry_output["mode"] = None  # Default cell+misset path
 
         # ARCH-STAGE-CONTEXT-001 Phase B.1: Extract stage_a_ctx into artifacts
         stage_a_ctx = stage_a_context.get('stage_a_ctx', None)
@@ -1262,9 +1262,10 @@ class StageA:
             bragg_full=bragg_full_artifact
         ) if stage_a_ctx is not None else None
 
-        # Return StageResult with telemetry dict and artifacts
-        # Engine will convert telemetry dict to RefinementTelemetry and cache artifacts
+        # Return StageResult with telemetry object (not dict) and artifacts
+        # ARCH-TELEMETRY-001 Phase C.2: Pass telemetry_a (RefinementTelemetry) instead of
+        # telemetry_output (dict) so stage_result field is preserved for writer consumption
         return StageResult(
-            telemetry=telemetry_output,
+            telemetry=telemetry_a,
             artifacts=artifacts
         )

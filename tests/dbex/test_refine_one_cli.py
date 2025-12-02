@@ -1023,6 +1023,7 @@ def test_torch_diagnostics_metadata(sigma_source, sigma_reference):
         from dbex.io.writer import write_torch_outputs
         # ARCH-STAGE-CONTEXT-001 Phase B.4: stage_artifacts parameter added for Stage B baseline metrics
         # ARCH-BRIDGE-RESP-001 Phase B.3: roi_payloads now required (inline Nelder-Mead removed)
+        # ARCH-TELEMETRY-001 Phase C.2: stage_results parameter added for typed StageResult consumption
         write_torch_outputs(
             mock_args,
             mock_dl,
@@ -1035,6 +1036,7 @@ def test_torch_diagnostics_metadata(sigma_source, sigma_reference):
             sigma_readout_reference_value=sigma_reference,
             stage_artifacts=None,  # Phase B.4: No Stage B artifacts in this Stage-A-only test
             roi_payloads=[roi_payload],  # Phase B.3: Pass pre-scored payload
+            stage_results=None,  # Phase C.2: No typed StageResult in this test (legacy dict path)
         )
 
         # Verify diagnostics group exists and has correct metadata

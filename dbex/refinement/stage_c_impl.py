@@ -923,6 +923,11 @@ def _run_stage_c_lbfgs(
         canonical_roi_count=canonical_baseline["roi_count"],
         canonical_detector_distances_mm=canonical_baseline["detector_distances_mm"],
         roi_mode=stage_c_roi_mode_label,
+        # Phase A4 stage identification fields
+        stage_type="C",
+        mode="detector_offsets",
+        # ARCH-TELEMETRY-001 Phase C.2: Attach typed StageResult from collector
+        stage_result=stage_result,
     )
 
     # PERF-WARM-SIM-001 Phase D.4: Write panel-loss diagnostics JSON if collected

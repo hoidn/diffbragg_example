@@ -17,7 +17,10 @@ RefinementTelemetry Extensions (A4):
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Protocol, Tuple, Union
+from typing import Any, Dict, List, Optional, Protocol, Tuple, Union, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from dbex.refinement.interfaces import StageResult as CollectorStageResult
 
 
 class RefinementStage(Protocol):
@@ -171,6 +174,11 @@ class RefinementTelemetry:
 
     # ARCH-REFACTOR-001 Phase B: Schema versioning for future compatibility
     telemetry_version: str = "1.0"
+
+    # ARCH-TELEMETRY-001 Phase C.2: Optional typed StageResult from collector
+    # This field carries the collector-emitted StageResult (with StageATelemetry/StageBTelemetry/StageCTelemetry)
+    # and is NOT serialized via to_dict() — it's for internal plumbing only so writer can consume typed payloads
+    stage_result: Optional['CollectorStageResult'] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """

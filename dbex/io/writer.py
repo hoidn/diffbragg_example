@@ -50,6 +50,7 @@ def write_torch_outputs(
     sigma_readout_reference_value=None,
     stage_artifacts=None,
     roi_payloads=None,
+    stage_results=None,
 ):
     """Write torch backend outputs to HDF5 with diagnostics.
 
@@ -93,6 +94,11 @@ def write_torch_outputs(
                      (ARCH-BRIDGE-RESP-001 Phase B.3). Required (non-None). Contains pre-scored ROI triptychs
                      with model/variance arrays populated by score_roi_payloads. Inline Nelder-Mead loop removed;
                      passing None raises ValueError.
+        stage_results: Optional Dict[str, StageResult] from dbex.refinement.interfaces.StageResult
+                      (ARCH-TELEMETRY-001 Phase C.2). Maps stage labels ("A", "B", "C") to typed StageResult
+                      dataclasses emitted by collectors. When provided, writer consumes typed telemetry/perf counters
+                      from StageResult instead of scraping RefinementTelemetry dicts. Falls back to legacy dict path
+                      when None (e.g., mocks/tests). Preserves /torch_diagnostics schema regardless of source.
 
     Notes:
         - ARCH-BRIDGE-RESP-001 Phase B.3: Consumes pre-scored ROI payloads from dbex.io.roi_scoring.score_roi_payloads;

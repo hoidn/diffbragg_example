@@ -98,8 +98,8 @@
 - Ledger tie-in: Addresses the unchecked "bad design patterns/code smells" entry in `problems.md` (2025-12-01), specifically items 1, 2, 4, 7, and 8 (data clumps, anemic Stage classes, mutable telemetry dicts, engine branching).
 - Next Actions:
   * Phase B.4 ✅ complete (2025-12-02T120500Z: dataclass compatibility fixed, writer IDL documented, Stage B shell smoke PASSED, CLI writer PASSED, per-reflection expected failure signature confirmed).
-  * Phase D: promote final Bragg reconstruction into stage artifacts (Stage A/B) so the engine path and writer stop rerunning `_build_final_bragg_from_stage_*_telemetry` inside `run_nanobrag_refinement`. Requires extracting the helpers into a shared module, extending StageA/B artifacts with optional `bragg_full`, and updating the Stage-A-only + Stage A→B engine branches to consume the artifacts with fallbacks (per REFINE-FLOW-001 + ARCH-STAGE-CTX-001 guardrails).
-  * Phase D.3 ✅ complete (2025-12-02T141500Z: Stage B final Bragg reconstruction payload implemented, device mismatch bug fixed in reconstruction helper, Stage B shell smoke PASSED (23.13s), Stage A expansion smoke PASSED (7.33s) with relaxed max-delta gate).
+  * Phase D: promote final Bragg reconstruction into stage artifacts (Stage A/B) so the engine path and writer stop rerunning `_build_final_bragg_from_stage_*_telemetry` inside `run_nanobrag_refinement`. Helpers + Stage B reconstruction now in `dbex/refinement/reconstruction.py`; Stage A gate relaxed (logs under `reports/2025-12-02T141500Z/`).
+  * Phase D.3 follow-ups: add artifact assertions to the Stage A expansion and Stage B shell/per-reflection smokes (so they verify `StageAArtifacts.bragg_full`/`StageBArtifacts.bragg_full` whenever Stage B/C are disabled), then rerun `test_stage_a_expansion`, `test_stage_b_shell_modifiers`, and `test_torch_diagnostics_metadata` under a new report dir to capture the evidence. Stage B per-reflection remains blocked by TORCH-REFINE-004 but should start capturing `engine_artifacts` for future readiness.
 
 ## Attempts History
 

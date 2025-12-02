@@ -1,0 +1,16 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 6 items
+
+tests/dbex/test_refinement_context.py::test_build_refinement_context_copies_job_context_metadata PASSED [ 16%]
+tests/dbex/test_refinement_context.py::test_build_refinement_context_explicit_metadata_overrides_job_context PASSED [ 33%]
+tests/dbex/test_refinement_context.py::test_build_job_context_rejects_invalid_sigma_reference PASSED [ 50%]
+tests/dbex/test_refinement_context.py::test_build_job_context_rejects_empty_sigma_provenance PASSED [ 66%]
+tests/dbex/test_refinement_context.py::test_build_job_context_validates_hkl_metadata_has_halo PASSED [ 83%]
+tests/dbex/test_refinement_context.py::test_build_job_context_accepts_valid_inputs PASSED [100%]
+
+============================== 6 passed in 0.93s ===============================

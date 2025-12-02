@@ -140,6 +140,15 @@
 **Artifacts**: `plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T040500Z/` (pytest_stage_a_smoke.log)
 **Design Impact**: StageA now owns the loss/telemetry lifecycle; stage_a_impl.py provides only reusable helpers
 **Next Actions**: Phase B.3 — Apply same pattern to StageB and StageC closure construction
+
+### 2025-12-02T052800Z - ARCH-STAGE-CONTEXT-001 Phase B.2: StageB Closure Inlining (READY FOR IMPLEMENTATION)
+- **Scope**: Inline `_build_stage_b_lbfgs_closure` as `StageB._build_lbfgs_closure`, drop the helper export from `dbex/refinement/stage_b_impl.py`, and update documentation references (`stage_b_impl.py` header, `dbex/refinement/context.py`) so RefinementSharedContext remains the authoritative path.
+- **Validation plan**:
+  1. `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small | tee plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T052800Z/pytest_stage_b_shell.log`
+  2. `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_per_reflection_smoke --smoke-detector-size=small | tee plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T052800Z/pytest_stage_b_per_reflection.log` (expected failure with ASU mean==1.0 per `plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T020900Z/blocked.md`; capture the log and reference the finding).
+- **Risks**: Preserve CPU fallback routing (PERF-WARM-011), warm-cache telemetry, shell/ASU metadata in `StageBArtifacts`, and keep softplus clamps + variance-weighted loss identical so REFINE-008 tolerances remain valid.
+- **Artifacts**: Planning + test logs will live under `plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T052800Z/`.
+- **Next Actions**: Ship Do Now directing Ralph to perform the inline move plus import cleanup and helper deletion before advancing to Stage C.
 - Stage C detector microslip smoke (small detector): **PASSED** (7.84s)
 **Artifacts**: plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T030800Z/ (pytest_stage_a_engine.log, pytest_stage_b_small.log, pytest_stage_c_small.log, telemetry_stage_b_small.json, telemetry_stage_c_small.json)
 **First Divergence**: None; all three Stage smoke tests green on first implementation (minor fix required for excluding baseline parity fields from RefinementTelemetry constructor)

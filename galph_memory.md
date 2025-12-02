@@ -348,3 +348,8 @@ Action State: ready_for_implementation
 - Authored new input.md handing Ralph a concrete Do Now: move `_build_stage_a_lbfgs_closure` into `dbex/refinement/stage_a.py` as a private helper, remove the export from `stage_a_impl.py`, refresh doc references, and validate via the Stage A small-detector smoke (`tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion`) with canonical env flags.
 - Highlighted pitfalls (trusted-mask parity, warm-cache retarget ops, panel diagnostics env hook) and mapped findings (ARCH-STAGE-CTX-001) so the closure migration stays within scope.
 Action State: ready_for_implementation
+2025-12-02T052800Z focus=ARCH-STAGE-CONTEXT-001 state=ready_for_implementation dwell=1 action=planning artifacts=plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T052800Z/ next_action=Inline Stage B LBFGS closure + rerun Stage B smokes
+- Scoped Phase B.2.2: hoist `_build_stage_b_lbfgs_closure` into `StageB._build_lbfgs_closure`, delete the helper from `stage_b_impl.py`, and refresh doc references so RefinementSharedContext remains authoritative.
+- Reserved the 2025-12-02T052800Z artifacts directory, updated docs/fix_plan.md and implementation.md (B2.1 checked off, B2.2 now active), and rewrote input.md with the new Do Now plus shell/per-reflection smoketest commands (noting the expected per-reflection failure tied to `reports/2025-12-02T020900Z/blocked.md`).
+- Findings referenced: ARCH-STAGE-CTX-001 (eliminate helper data clumps) and REFINE-008/PERF-WARM-011 (do not perturb Stage B acceptance gates or CPU fallback). Next loop must implement the relocation and capture the Stage B evidence.
+Action State: planning

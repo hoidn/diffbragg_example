@@ -52,10 +52,10 @@
 ## Phase A — Context Envelope
 ### Checklist
 - [ ] A0: **Callchain inventory:** Produce a short report enumerating every function that currently accepts (crystal, detector, beam, inputs, hkl_grid, hkl_metadata, config, sigma_floor_cache, device, dtype, baseline_crystal). Use `prompts/callchain.md` to capture the dictionary/parameter flow so migrations do not miss latent call sites.
-- [ ] A1: Add `dbex/refinement/context.py` with `RefinementSharedContext`, `StageTelemetryState`, and helper constructors that freeze device/dtype + reference counts.
-- [ ] A2: Update `_build_stage_a_lbfgs_closure`, `_run_stage_a_lbfgs`, and `StageA.run` to consume the new dataclasses while keeping backward compatibility shims (dict inputs for external callers).
-- [ ] A3: Port Stage B context (ASU cache) and Stage C detector retargeting helpers to the same dataclasses, deleting bespoke dict wrappers.
-- [ ] A4: Update Stage A/B/C smoketests + `test_stage_a_engine_delegation_telemetry` expectations to assert that typed contexts propagate through the engine (e.g., telemetry records new `context_schema_version` field).
+- [x] A1: Add `dbex/refinement/context.py` with `RefinementSharedContext`, `StageTelemetryState`, and helper constructors that freeze device/dtype + reference counts. ✅ Completed 2025-12-02T010500Z — shared context builder + Stage A telemetry dataclasses landed; see `plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T010500Z/`.
+- [x] A2: Update `_build_stage_a_lbfgs_closure`, `_run_stage_a_lbfgs`, and `StageA.run` to consume the new dataclasses while keeping backward compatibility shims (dict inputs for external callers). ✅ Stage A expansion + guard tests executed under 2025-12-02T010500Z, telemetry now advertises `context_schema_version="v1"`.
+- [ ] A3: Thread `RefinementSharedContext` through `_build_stage_b_lbfgs_closure` and `StageB.run`, collapsing the 11-parameter clump (config/device/dtype + crystal/detector/beam/inputs/hkl_grid/hkl_metadata/sigma_floor cache/panel geometry) into the dataclass while preserving the optional `context` hook for ASU metadata. Refresh Stage B smoketests (`test_stage_b_shell_modifiers`, `test_stage_b_per_reflection_smoke`) so both shell/per-reflection modes hit the new shim.
+- [ ] A4: Apply the same pattern to Stage C detector retarget helpers, then update Stage A/B/C smoketests + `test_stage_a_engine_delegation_telemetry` expectations to assert that typed contexts propagate through the engine (context marker present in telemetry) before starting the Stage artifact work.
 
 ### Dependency Analysis (Required for Refactors)
 - **Touched Modules:** dbex/refinement/stage_a_impl.py, stage_b_impl.py, stage_c_impl.py, dbex/refinement/stage_a.py/b.py/c.py, dbex/refinement/engine.py, dbex/nanobrag_refinement.py (context construction), dbex/io/writer.py (telemetry expectations).

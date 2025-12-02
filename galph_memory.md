@@ -293,3 +293,8 @@ Action State: planning
 - Fresh backlog guard serviced: converted the 2025-12-01 problems ledger review into a tracked initiative (`ARCH-STAGE-CONTEXT-001`) and documented the new finding ARCH-STAGE-CTX-001 about Stage helper data clumps/mutable telemetry dicts.
 - Authored the implementation plan (phases A–C) plus fix-plan entry tying the work to the problems ledger and spec clauses; updated problems.md so remaining issues (writer/bridge split, lazy imports) stay visible.
 - Rebuilt input.md with an implementation-ready Do Now (Stage A context dataclasses + smoketests) so Ralph can immediately start coding; artifacts reserved under 2025-12-02T010500Z for the next loop.
+2025-12-02T020900Z focus=ARCH-STAGE-CONTEXT-001 state=ready_for_implementation dwell=1 action=planning artifacts=plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T020900Z/ next_action=Stage B shared-context implementation + Stage B smoketests
+- Marked Phase A checklist items A1/A2 complete, refreshed docs/fix_plan.md next actions for Stage B/C, and reserved the 2025-12-02T020900Z artifact directory.
+- Produced input.md directing Ralph to retrofit `_build_stage_b_lbfgs_closure` + `StageB.run` with `RefinementSharedContext` and rerun the Stage B shell/per-reflection smoketests (collect-only + telemetry capture).
+- Cited docs/data_dependency_manifest.md for the smoke env overrides and highlighted findings ARCH-STAGE-CTX-001 / ARCH-ENGINE-002 / REFINE-FLOW-001 so the next loop can focus purely on production code + tests.
+Action State: ready_for_implementation

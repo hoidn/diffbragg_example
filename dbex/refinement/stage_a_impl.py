@@ -700,7 +700,7 @@ def _build_stage_a_params(
     # Telemetry accumulators
     loss_trace_sample = []  # Deprecated: chi_squared only (PHYSICS-LOSS-001)
     loss_trace_full = []  # Deprecated: chi_squared only (PHYSICS-LOSS-001)
-    best_loss_full = (float('inf'), -1)  # Deprecated: chi_squared only (PHYSICS-LOSS-001)
+    best_loss_full = []  # ARCH-TELEMETRY-001: Changed from tuple to list for collector compatibility
     best_params_snapshot = None
     iteration_count = [0]  # Mutable counter for closure
 
@@ -1250,6 +1250,7 @@ def _run_stage_a_lbfgs(
     dtype,
     masked_pixel_reference: Optional[int] = None,
     force_panel_validation: bool = False,  # ARCH-REFINE-001, REFINE-007
+    collector: Optional['StageATelemetryCollector'] = None,  # ARCH-TELEMETRY-001 Phase B.1
 ) -> Tuple[str, str, Optional[float], Optional[float], Optional[Dict[str, Any]]]:
     """
     Execute Stage A LBFGS optimization and final validation.
@@ -1257,6 +1258,9 @@ def _run_stage_a_lbfgs(
     Args:
         force_panel_validation: If True, baseline/final/exception evaluations use panel mode
                                instead of ROI sampling (ARCH-REFINE-001, REFINE-007)
+        collector: ARCH-TELEMETRY-001 Phase B.1: Optional StageATelemetryCollector for observer-based
+                  telemetry recording. If provided, baseline/final/exception validations emit via
+                  collector.record_validation instead of direct telemetry_state mutations.
 
     Returns:
         Tuple of (status, message, final_chi_squared_value, final_masked_mse_value, best_params_snapshot)
@@ -1287,26 +1291,40 @@ def _run_stage_a_lbfgs(
     # always contain the Stage A baseline, which downstream stages (B/C) need to
     # validate improvements and seed their canonical snapshots.
     # REFINE-007: Use panel mode when force_panel_validation is True so Stage C sees consistent chi²
-    perf_validation_runs[0] += 1  # PERF-WARM-SIM-001
     with torch.no_grad():
         baseline_chi_squared, baseline_mse = compute_loss(full_stage_a_indices, is_full=True, force_panel_eval=force_panel_validation)
         baseline_chi_squared_value = float(baseline_chi_squared.item())
         baseline_mse_value = float(baseline_mse.item())
 
-        # Append baseline to traces (iteration 0)
-        loss_trace_full.append((0, baseline_chi_squared_value))  # Deprecated legacy field
-        chi_squared_trace_full.append((0, baseline_chi_squared_value))
-        masked_mse_trace_full.append((0, baseline_mse_value))
+        # ARCH-TELEMETRY-001 Phase B.1: Record baseline via collector if provided
+        if collector is not None:
+            scope = "panel" if force_panel_validation else "full"
+            payload = {
+                'loss': baseline_chi_squared_value,
+                'masked_mse': baseline_mse_value,
+            }
+            collector.on_validation(
+                scope=scope,
+                chi2=baseline_chi_squared_value,
+                payload=payload,
+            )
+        else:
+            # Legacy path: direct telemetry_state mutation (DEPRECATED)
+            perf_validation_runs[0] += 1  # PERF-WARM-SIM-001
+            # Append baseline to traces (iteration 0)
+            loss_trace_full.append((0, baseline_chi_squared_value))  # Deprecated legacy field
+            chi_squared_trace_full.append((0, baseline_chi_squared_value))
+            masked_mse_trace_full.append((0, baseline_mse_value))
 
-        # Initialize best tracking with baseline
-        best_loss_full = (baseline_chi_squared_value, 0)  # Deprecated legacy field
-        chi_squared_best = (baseline_chi_squared_value, 0)
-        masked_mse_best = (baseline_mse_value, 0)
+            # Initialize best tracking with baseline (ARCH-TELEMETRY-001: best_loss_full is list)
+            if not best_loss_full:
+                best_loss_full.append(baseline_chi_squared_value)
+            chi_squared_best = (baseline_chi_squared_value, 0)
+            masked_mse_best = (baseline_mse_value, 0)
 
-        # Update telemetry state with baseline tracking (ARCH-STAGE-CONTEXT-001 Phase E: dataclass-only)
-        telemetry_state.best_loss_full = best_loss_full
-        telemetry_state.chi_squared_best = chi_squared_best
-        telemetry_state.masked_mse_best = masked_mse_best
+            # Update telemetry state with baseline tracking (ARCH-STAGE-CONTEXT-001 Phase E: dataclass-only)
+            telemetry_state.chi_squared_best = chi_squared_best
+            telemetry_state.masked_mse_best = masked_mse_best
 
         # Update canonical baseline with initial chi-squared
         canonical_baseline["chi_squared"] = baseline_chi_squared_value
@@ -1317,25 +1335,14 @@ def _run_stage_a_lbfgs(
 
         # Final full validation
         # REFINE-007: Use panel mode when force_panel_validation is True
-        perf_validation_runs[0] += 1  # PERF-WARM-SIM-001
         with torch.no_grad():
             final_chi_squared, final_mse = compute_loss(full_stage_a_indices, is_full=True, force_panel_eval=force_panel_validation)
             final_chi_squared_value = float(final_chi_squared.item())
             final_masked_mse_value = float(final_mse.item())
-            loss_trace_full.append((iteration_count[0], final_chi_squared_value))  # Deprecated legacy field
-            # PHYSICS-LOSS-001: Record both metrics
-            chi_squared_trace_full.append((iteration_count[0], final_chi_squared_value))
-            masked_mse_trace_full.append((iteration_count[0], final_masked_mse_value))
 
-            if final_chi_squared_value < best_loss_full[0]:
-                best_loss_full = (final_chi_squared_value, iteration_count[0])  # Deprecated legacy field
-            # PHYSICS-LOSS-001: Track best for both metrics
+            # Build best snapshot if improved
+            best_snapshot = None
             if final_chi_squared_value < chi_squared_best[0]:
-                chi_squared_best = (final_chi_squared_value, iteration_count[0])
-            if final_masked_mse_value < masked_mse_best[0]:
-                masked_mse_best = (final_masked_mse_value, iteration_count[0])
-
-            if final_chi_squared_value < best_loss_full[0]:
                 # Compute misset XYZ for final snapshot (TORCH-REFINE-002)
                 max_orientation_deg = 3.0
                 bounded_orientation_vec_final = torch.tanh(orientation_vec) * max_orientation_deg * (np.pi / 180.0)
@@ -1345,7 +1352,7 @@ def _run_stage_a_lbfgs(
                 log_cell_b_value = float(torch.clamp(log_cell_b_delta, min=-log_cell_max_delta, max=log_cell_max_delta).item())
                 log_cell_c_value = float(torch.clamp(log_cell_c_delta, min=-log_cell_max_delta, max=log_cell_max_delta).item())
 
-                best_params_snapshot = {
+                best_snapshot = {
                     'log_scale': float(log_scale.item()),
                     'log_cell_a_delta': log_cell_a_value,
                     'log_cell_b_delta': log_cell_b_value,
@@ -1356,6 +1363,40 @@ def _run_stage_a_lbfgs(
                     'orientation_vec': orientation_vec.detach().cpu().tolist(),
                     'misset_xyz_deg': misset_xyz_deg_final.detach().cpu().tolist()
                 }
+
+            # ARCH-TELEMETRY-001 Phase B.1: Record final validation via collector if provided
+            if collector is not None:
+                scope = "panel" if force_panel_validation else "full"
+                payload = {
+                    'loss': final_chi_squared_value,
+                    'masked_mse': final_masked_mse_value,
+                    'best_snapshot': best_snapshot,
+                }
+                collector.on_validation(
+                    scope=scope,
+                    chi2=final_chi_squared_value,
+                    payload=payload,
+                )
+            else:
+                # Legacy path: direct telemetry_state mutation (DEPRECATED)
+                perf_validation_runs[0] += 1  # PERF-WARM-SIM-001
+                loss_trace_full.append((iteration_count[0], final_chi_squared_value))  # Deprecated legacy field
+                # PHYSICS-LOSS-001: Record both metrics
+                chi_squared_trace_full.append((iteration_count[0], final_chi_squared_value))
+                masked_mse_trace_full.append((iteration_count[0], final_masked_mse_value))
+
+                # ARCH-TELEMETRY-001: best_loss_full is list, update if improved
+                if not best_loss_full or final_chi_squared_value < best_loss_full[-1]:
+                    best_loss_full.append(final_chi_squared_value)
+                # PHYSICS-LOSS-001: Track best for both metrics
+                if final_chi_squared_value < chi_squared_best[0]:
+                    chi_squared_best = (final_chi_squared_value, iteration_count[0])
+                if final_masked_mse_value < masked_mse_best[0]:
+                    masked_mse_best = (final_masked_mse_value, iteration_count[0])
+
+                if best_snapshot is not None:
+                    best_params_snapshot = best_snapshot
+
             if final_chi_squared_value is not None:
                 canonical_baseline["chi_squared"] = final_chi_squared_value
                 canonical_baseline["iteration"] = iteration_count[0]
@@ -1398,14 +1439,29 @@ def _run_stage_a_lbfgs(
         # ARCH-REFINE-001: Ensure final evaluation is appended even on exception
         # This guarantees downstream stages always see at least baseline + final entries
         # REFINE-007: Use panel mode when force_panel_validation is True
-        perf_validation_runs[0] += 1  # PERF-WARM-SIM-001
         with torch.no_grad():
             error_chi_squared, error_mse = compute_loss(full_stage_a_indices, is_full=True, force_panel_eval=force_panel_validation)
             final_chi_squared_value = float(error_chi_squared.item())
             final_masked_mse_value = float(error_mse.item())
-            loss_trace_full.append((iteration_count[0], final_chi_squared_value))  # Deprecated legacy field
-            chi_squared_trace_full.append((iteration_count[0], final_chi_squared_value))
-            masked_mse_trace_full.append((iteration_count[0], final_masked_mse_value))
+
+            # ARCH-TELEMETRY-001 Phase B.1: Record exception validation via collector if provided
+            if collector is not None:
+                scope = "panel" if force_panel_validation else "full"
+                payload = {
+                    'loss': final_chi_squared_value,
+                    'masked_mse': final_masked_mse_value,
+                }
+                collector.on_validation(
+                    scope=scope,
+                    chi2=final_chi_squared_value,
+                    payload=payload,
+                )
+            else:
+                # Legacy path: direct telemetry_state mutation (DEPRECATED)
+                perf_validation_runs[0] += 1  # PERF-WARM-SIM-001
+                loss_trace_full.append((iteration_count[0], final_chi_squared_value))  # Deprecated legacy field
+                chi_squared_trace_full.append((iteration_count[0], final_chi_squared_value))
+                masked_mse_trace_full.append((iteration_count[0], final_masked_mse_value))
 
             # Update canonical baseline
             canonical_baseline["chi_squared"] = final_chi_squared_value
@@ -1417,9 +1473,10 @@ def _run_stage_a_lbfgs(
         if fallback_chi2 is None and chi_squared_best[0] < float('inf'):
             fallback_chi2 = chi_squared_best[0]
             fallback_iter = chi_squared_best[1]
-        if fallback_chi2 is None and best_loss_full[0] < float('inf'):
-            fallback_chi2 = best_loss_full[0]
-            fallback_iter = best_loss_full[1]
+        # ARCH-TELEMETRY-001: best_loss_full is list now
+        if fallback_chi2 is None and best_loss_full and best_loss_full[-1] < float('inf'):
+            fallback_chi2 = best_loss_full[-1]
+            fallback_iter = iteration_count[0]
         if fallback_chi2 is not None:
             chi_squared_trace_full.append((fallback_iter, fallback_chi2))
             if not loss_trace_full:

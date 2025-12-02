@@ -170,14 +170,15 @@ class StageATelemetryCollector:
         # Increment validation run counter
         self._state.perf_validation_runs[0] += 1
 
-        # Append full-validation chi² and loss
-        self._state.chi_squared_trace_full.append(chi2)
+        # Append full-validation chi² and loss (with iteration tuples for legacy compatibility)
+        current_iter = self._state.iteration_count[0]
+        self._state.chi_squared_trace_full.append((current_iter, chi2))
         loss = payload.get('loss', chi2)  # fallback: chi² is loss
-        self._state.loss_trace_full.append(loss)
+        self._state.loss_trace_full.append((current_iter, loss))
 
-        # Record masked MSE if available
+        # Record masked MSE if available (with iteration tuple for legacy compatibility)
         mse = payload.get('masked_mse', 0.0)
-        self._state.masked_mse_trace_full.append(mse)
+        self._state.masked_mse_trace_full.append((current_iter, mse))
 
         # Update best loss tracker
         if not self._state.best_loss_full or loss < self._state.best_loss_full[-1]:
@@ -185,15 +186,13 @@ class StageATelemetryCollector:
         else:
             self._state.best_loss_full.append(self._state.best_loss_full[-1] if self._state.best_loss_full else loss)
 
-        # Record best chi² and iteration
+        # Record best chi² and iteration (tuple reassignment, not mutation)
         if chi2 < self._state.chi_squared_best[0]:
-            self._state.chi_squared_best[0] = chi2
-            self._state.chi_squared_best[1] = self._state.iteration_count[0]
+            self._state.chi_squared_best = (chi2, self._state.iteration_count[0])
 
-        # Record best masked MSE and iteration
+        # Record best masked MSE and iteration (tuple reassignment, not mutation)
         if mse < self._state.masked_mse_best[0]:
-            self._state.masked_mse_best[0] = mse
-            self._state.masked_mse_best[1] = self._state.iteration_count[0]
+            self._state.masked_mse_best = (mse, self._state.iteration_count[0])
 
         # Record best parameter snapshot if present
         if 'best_snapshot' in payload:

@@ -83,6 +83,8 @@ class StageA:
         stage_a_context: Dict[str, Any],
         # ARCH-STAGE-CONTEXT-001 Phase B.2: Use shared_context parameter
         shared_context: 'RefinementSharedContext',
+        # ARCH-TELEMETRY-001 Phase B.1: Accept StageATelemetryCollector for observer-based telemetry
+        collector: 'StageATelemetryCollector',
     ) -> Tuple[Callable, Callable]:
         """
         Build LBFGS closure for Stage A refinement with nested compute_loss and closure functions.
@@ -94,13 +96,17 @@ class StageA:
         the loss/telemetry lifecycle instead of delegating to stage_a_impl.py. Keeps the warm-cache/
         shared-context plumbing intact.
 
+        ARCH-TELEMETRY-001 Phase B.1: Thread StageATelemetryCollector through closure to eliminate
+        direct telemetry_state dict mutations. Closures emit telemetry via collector.record_step and
+        collector.record_validation callbacks.
+
         Args:
             param_values: Dict with trainable tensors (log_scale, log_cell_*_delta, angle_*_raw,
                          orientation_vec, q_params, delta_log_*, delta_alpha/beta/gamma, q_delta)
-            telemetry_state: Dict with mutable telemetry accumulators (loss traces, perf counters,
-                            variance floor stats, lifecycle logs)
+            telemetry_state: Dict with mutable telemetry accumulators (DEPRECATED: Use collector.state)
             stage_a_context: Dict with ROI/panel sampling state, warm cache context
             shared_context: RefinementSharedContext dataclass (new path, ARCH-STAGE-CONTEXT-001)
+            collector: StageATelemetryCollector instance for observer-based telemetry emission
 
         Returns:
             Tuple of (compute_loss, closure) callables with captured lexical scope
@@ -138,7 +144,9 @@ class StageA:
         params = param_values.get('params', [])  # List of Parameter objects
         B_ideal_reciprocal_torch = param_values.get('B_ideal_reciprocal_torch')
 
-        # Unpack telemetry_state (ARCH-STAGE-CONTEXT-001 Phase E: dataclass-only)
+        # ARCH-TELEMETRY-001 Phase B.1: Unpack from collector.state (observer migration)
+        # Access telemetry state through collector instead of direct dict mutations
+        telemetry_state = collector.state
         iteration_count = telemetry_state.iteration_count
         loss_trace_sample = telemetry_state.loss_trace_sample
         loss_trace_full = telemetry_state.loss_trace_full
@@ -655,9 +663,6 @@ class StageA:
             optimizer = param_values.get('optimizer')
             optimizer.zero_grad()
 
-            # Increment closure evaluation counter (PERF-WARM-SIM-001)
-            perf_closure_evals[0] += 1
-
             # Compute loss on sampled ROIs or panels depending on mode
             chi_squared_loss, masked_mse_loss = compute_loss(sampled_stage_a_indices, is_full=False)
 
@@ -755,36 +760,37 @@ class StageA:
                 # Increment step counter
                 telemetry_step_counter[0] += 1
 
-            # Record loss (use chi_squared for optimizer feedback)
-            loss_trace_sample.append(float(chi_squared_loss.item()))  # Deprecated legacy field
-            # PHYSICS-LOSS-001: Record both metrics
-            chi_squared_trace_sample.append(float(chi_squared_loss.item()))
-            masked_mse_trace_sample.append(float(masked_mse_loss.item()))
+            # ARCH-TELEMETRY-001 Phase B.1: Record telemetry via collector instead of direct mutations
+            # Build metrics dict for observer callback
+            metrics = {
+                'chi_squared': float(chi_squared_loss.item()),
+                'masked_mse': float(masked_mse_loss.item()),
+                # Variance floor stats updated incrementally via collector.on_step
+                # (forward_time_ms captured in compute_loss if needed)
+            }
+            collector.on_step(
+                iteration=iteration_count[0],
+                loss=float(chi_squared_loss.item()),
+                metrics=metrics,
+            )
 
             # Periodic full validation
             if iteration_count[0] % config.full_validation_interval == 0:
-                perf_validation_runs[0] += 1  # PERF-WARM-SIM-001
                 with torch.no_grad():
                     # ARCH-REFINE-001: Use panel mode for periodic validations when force_panel_validation is True (REFINE-007)
                     full_chi_squared, full_mse = compute_loss(full_stage_a_indices, is_full=True, force_panel_eval=force_panel_validation)
-                    loss_trace_full.append((iteration_count[0], float(full_chi_squared.item())))  # Deprecated legacy field
-                    # PHYSICS-LOSS-001: Record both metrics
-                    chi_squared_trace_full.append((iteration_count[0], float(full_chi_squared.item())))
-                    masked_mse_trace_full.append((iteration_count[0], float(full_mse.item())))
 
-                    # Update best snapshot
-                    nonlocal best_loss_full, best_params_snapshot, chi_squared_best, masked_mse_best
-                    # PHYSICS-LOSS-001: Track best for both metrics
+                    # ARCH-TELEMETRY-001 Phase B.1: Build best snapshot if improved
+                    nonlocal best_params_snapshot, chi_squared_best
+                    best_snapshot = None
                     if full_chi_squared.item() < chi_squared_best[0]:
-                        chi_squared_best = (float(full_chi_squared.item()), iteration_count[0])
-                        best_loss_full = (float(full_chi_squared.item()), iteration_count[0])  # Deprecated legacy field
                         # Compute misset XYZ for snapshot (TORCH-REFINE-002)
                         max_orientation_deg = 3.0
                         bounded_orientation_vec_snap = torch.tanh(orientation_vec) * max_orientation_deg * (np.pi / 180.0)
                         quat_snap = vec_to_unit_quaternion(bounded_orientation_vec_snap)
                         misset_xyz_deg_snap = quaternion_to_xyz_euler(quat_snap)
 
-                        best_params_snapshot = {
+                        best_snapshot = {
                             'log_scale': float(log_scale.item()),
                             'log_cell_a_delta': float(log_cell_a_delta.item()),
                             'log_cell_b_delta': float(log_cell_b_delta.item()),
@@ -795,9 +801,19 @@ class StageA:
                             'orientation_vec': orientation_vec.detach().cpu().tolist(),
                             'misset_xyz_deg': misset_xyz_deg_snap.detach().cpu().tolist()
                         }
-                    # PHYSICS-LOSS-001: Track masked_mse best separately (informational only, not for rollback)
-                    if full_mse.item() < masked_mse_best[0]:
-                        masked_mse_best = (float(full_mse.item()), iteration_count[0])
+
+                    # ARCH-TELEMETRY-001 Phase B.1: Record validation via collector
+                    scope = "panel" if force_panel_validation else "roi"
+                    payload = {
+                        'loss': float(full_chi_squared.item()),
+                        'masked_mse': float(full_mse.item()),
+                        'best_snapshot': best_snapshot,
+                    }
+                    collector.on_validation(
+                        scope=scope,
+                        chi2=float(full_chi_squared.item()),
+                        payload=payload,
+                    )
 
             iteration_count[0] += 1
 
@@ -993,15 +1009,21 @@ class StageA:
         )
 
         # STEP 2: Build Stage A LBFGS closure
+        # ARCH-TELEMETRY-001 Phase B.1: Instantiate StageATelemetryCollector
+        from .telemetry_collectors import StageATelemetryCollector
+        collector = StageATelemetryCollector(state=telemetry_state)
+
         # ARCH-STAGE-CONTEXT-001 Phase B.2: Call inlined StageA._build_lbfgs_closure
         compute_loss, closure = self._build_lbfgs_closure(
             param_values=param_values,
             telemetry_state=telemetry_state,
             stage_a_context=stage_a_context,
             shared_context=shared_context,
+            collector=collector,
         )
 
         # STEP 3: Run Stage A LBFGS optimization
+        # ARCH-TELEMETRY-001 Phase B.1: Pass collector for baseline/final/exception validations
         status, message, final_chi_squared_value, final_masked_mse_value, best_params_snapshot = _run_stage_a_lbfgs(
             compute_loss=compute_loss,
             closure=closure,
@@ -1023,6 +1045,7 @@ class StageA:
             dtype=dtype,
             masked_pixel_reference=int(refinement_inputs.loss_mask.sum()),
             force_panel_validation=force_panel_validation,
+            collector=collector,
         )
 
         log_cell_max_delta = getattr(self._config, 'log_cell_max_delta', 1.0)

@@ -1358,6 +1358,13 @@ def simulate_forward_once(
     sqrt_spot_scale = np.sqrt(spot_scale_override)
 
     # Prepare configs (shared across panels where applicable)
+    # Import config factories here to avoid circular import (ARCH-REFACTOR-001 Phase D.3 Batch 2 bugfix)
+    from dbex.refinement.config_factories import (
+        create_detector_config,
+        create_beam_config,
+        create_crystal_config,
+    )
+
     # Build beam_config with calibration overrides (input.md Do Now step 4)
     beam_config = create_beam_config(
         beam,

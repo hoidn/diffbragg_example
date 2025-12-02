@@ -10,10 +10,10 @@ import torch
 from dbex.nanobrag_bridge import (
     build_structure_factor_grid,
 )
-from dbex.nanobrag_refinement import (
-    RefinementConfig,
-    run_nanobrag_refinement,
-)
+from dbex.refinement.config import RefinementConfig
+from dbex.refinement.context import build_refinement_context
+from dbex.refinement.engine import RefinementEngine
+from dbex.refinement.stage_a import StageA
 from dbex.refinement.reconstruction import build_final_bragg_from_stage_a_telemetry
 from dbex.vis.mapping import (
     build_mapping_stage_a_context,
@@ -144,18 +144,23 @@ def stage_a_smoke_result(
         apply_calibration_n_cells=apply_n_cells,  # TOOLING-VIS-001 Phase D.C gate
     )
 
-    # ARCH-STAGE-CONTEXT-001 Phase B.4: run_nanobrag_refinement now returns artifacts
-    bragg_final, telemetry_dict, _ = run_nanobrag_refinement(
-        inputs=refinement_inputs,
+    # ARCH-REFACTOR-001 Phase D.3 Batch 2: Direct RefinementEngine usage
+    refinement_context = build_refinement_context(
+        refinement_inputs=refinement_inputs,
         detector=perturbed_detector,
         beam=perturbed_beam,
         crystal=perturbed_crystal,
         hkl_grid=hkl_grid,
         hkl_metadata=hkl_metadata,
-        config=config,
         baseline_crystal=baseline_crystal,
-        baseline_detector=baseline_detector,
+        baseline_detector=baseline_detector,  # Stage C disabled (enable_stage_c=False)
     )
+    stages = [StageA()]
+    engine = RefinementEngine(stages, config=config)
+    telemetry_dict = engine.run({"context": refinement_context})
+
+    # Extract Bragg from Stage A artifacts
+    bragg_final = engine._artifacts["stage_a"].bragg_full
 
     telemetry = telemetry_dict["A"]
     chi_trace = telemetry.chi_squared_trace_full or []
@@ -164,34 +169,10 @@ def stage_a_smoke_result(
         masked_pixels = int(np.count_nonzero(refinement_inputs.loss_mask))
 
     device_obj = torch.device(config.device)
-    bragg_before = build_final_bragg_from_stage_a_telemetry(
-        telemetry,
-        detector=perturbed_detector,
-        beam=perturbed_beam,
-        crystal=perturbed_crystal,
-        inputs=refinement_inputs,
-        hkl_grid=hkl_grid,
-        hkl_metadata=hkl_metadata,
-        config=config,
-        device=device_obj,
-        dtype=config.dtype,
-        param_state="initial",
-        baseline_crystal=baseline_crystal,
-    )
-    bragg_after = build_final_bragg_from_stage_a_telemetry(
-        telemetry,
-        detector=perturbed_detector,
-        beam=perturbed_beam,
-        crystal=perturbed_crystal,
-        inputs=refinement_inputs,
-        hkl_grid=hkl_grid,
-        hkl_metadata=hkl_metadata,
-        config=config,
-        device=device_obj,
-        dtype=config.dtype,
-        param_state="final",
-        baseline_crystal=baseline_crystal,
-    )
+    # ARCH-REFACTOR-001 Phase D.3 Batch 2 bugfix: build_final_bragg_from_stage_a_telemetry
+    # no longer has param_state parameter. Use mapping_context.bragg_zero_iter for "before" state.
+    bragg_before = mapping_context.bragg_zero_iter  # Zero-iteration forward (initial geometry)
+    bragg_after = bragg_final  # Engine-refined final Bragg
 
     # Compute log_scale_effective from telemetry.param_deltas per STAGEA-001
     log_scale_entry = telemetry.param_deltas.get("log_scale", {})

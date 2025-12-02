@@ -17,6 +17,7 @@
 **Goal:** Finish the Protocol Engine refactor by removing legacy helpers/facades now that contexts and artifacts are in place.
 - [ARCH-REFACTOR-001] (Refinement Engine Modularization & Physics Separation) — *in_progress*
 - [ARCH-TELEMETRY-001] (Telemetry Observer Refactor) — *in_progress*
+- [ARCH-BRIDGE-RESP-001] (Writer / bridge responsibility split) — *planned* (2025-12-02T213000Z: initiative scaffolded from problems.md ledger; plan at `plans/active/ARCH-BRIDGE-RESP-001/implementation.md`.)
 
 ### Tier 1: Core Physics & Stability
 **Goal:** Ensure the math is correct, the loss function is normative, Stage A/mapping parity holds (DB‑AT‑027/028/029), and the smoke tests are green.
@@ -95,6 +96,23 @@
   * 2025-12-02T190000Z — Plan scaffolded, compliance matrix recorded, and observer prototype tasks defined. Next loop will implement Phase A.1 collector + Stage A wiring.
   * 2025-12-02T191500Z — Phase A.1/A.2 complete: Created `dbex/refinement/interfaces.py` (RefinementObserver protocol, StageResult/telemetry dataclasses), `dbex/refinement/telemetry_collectors.py` (StageATelemetryCollector/B/C with observer callbacks), added helper methods to StageATelemetryState. Modules import successfully and pass static checks. Stage A closure wiring deferred due to scope/complexity (requires extensive closure refactoring in 1600+ line stage_a.py; current loop focused on interface/collector scaffolding per Phase A Do Now). Next: Thread collector through _build_lbfgs_closure and update StageA.run() to return StageResult. Artifacts: `plans/active/ARCH-TELEMETRY-001/reports/2025-12-02T191500Z/`.
   * 2025-12-02T201500Z — Phase B.1 complete: Threaded StageATelemetryCollector through Stage A LBFGS closure, replacing direct telemetry_state mutations with collector.on_step/on_validation callbacks. Updated _build_lbfgs_closure signature to accept collector parameter, modified closure body to route per-iteration and periodic validation telemetry through collector, and extended _run_stage_a_lbfgs to accept optional collector and route baseline/final/exception validations through observer callbacks. Fixed best_loss_full initialization from tuple to list for collector compatibility and corrected tuple reassignment for chi_squared_best/masked_mse_best in collector. Both mapped test selectors PASSED: test_stage_a_engine_delegation_telemetry and test_stage_a_expansion (DBEX_SMOKE_DETECTOR_SIZE=small). Telemetry diffs: zero (observer path produces identical schema). Next: Stage B/C collector wiring (Phase C.1) and writer integration. Artifacts: `plans/active/ARCH-TELEMETRY-001/reports/2025-12-02T201500Z/` (pytest logs, commit 1eea725c).
+
+### [ARCH-BRIDGE-RESP-001] Writer / bridge responsibility split
+- Depends on: ARCH-REFINE-001 (shared writer path), DIAGNOSTICS-001 & PHYSICS-LOSS-001/002/003 findings, problems.md writer/bridge directive
+- Status: planned
+- Priority: High
+- Tier: 0
+- Owner/Date: Galph ↔ Ralph / 2025-12-02
+- Initiative Type: architecture
+- Exit Criteria:
+  1. `dbex/io/writer.py` consumes typed ROI analysis payloads (scores/scales/triptychs) and no longer runs Nelder–Mead internally; ROI scoring helpers capture artifacts referenced in docs/TESTING_GUIDE.md selectors.
+  2. ROI scoring artifacts plus interface docs (`docs/architecture/dbex/io/writer.idl.md`, `docs/data_dependency_manifest.md`) describe the new responsibilities and telemetry provenance.
+  3. `dbex/nanobrag_bridge.py` is broken into focused modules (RefinementInputs builder, detector/crystal config factories, calibration guards) that preserve GEOMETRY-00x + CONFIG-001 findings while shrinking the orchestration shim.
+  4. CLI + Stage smoke selectors touching the writer/bridge remain green (tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata, Stage A/B/C smoketests); new/updated selectors include collect-only logs under this initiative’s reports and registry updates per docs/TESTING_GUIDE.md §2.
+- Working Plan: `plans/active/ARCH-BRIDGE-RESP-001/implementation.md`
+- Ledger tie-in: Resolves problems.md bullet “Writer / bridge responsibility split” by relocating Nelder–Mead analysis to tooling and reducing the nanobrag bridge god object.
+- Attempts History:
+  * 2025-12-02T213000Z — Initiative registered per problems-ledger guard; plan drafted with Phase A (contracts/dataclasses), Phase B (writer serialization cleanup), and Phase C (bridge decomposition). Artifacts staged at `plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-02T213000Z/`.
 
 ### [ARCH-ENGINE-ARTIFACTS-001] RefinementEngine Artifact Channel & Final-Bragg Unification
 - Depends on: ARCH-REFINE-001 (engine modularization baseline), ARCH-REFINE-FLOW-001 (stage wrappers, telemetry contract)

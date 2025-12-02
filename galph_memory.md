@@ -413,3 +413,8 @@ Action State: planning
 - Rebuilt input.md with a Parity-mode Do Now covering `_build_lbfgs_closure`, `_run_stage_a_lbfgs`, and StageA.run wiring plus the mapped Stage A smoketest + engine telemetry selectors; artifacts reserved under 2025-12-02T201500Z.
 - Findings enforced: ARCH-STAGE-CTX-001/002 (typed telemetry only) and PHYSICS-LOSS-001/003 chi²+variance requirements.
 Action State: planning
+2025-12-02T213000Z focus=ARCH-BRIDGE-RESP-001 state=planning dwell=0 action=planning artifacts=plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-02T213000Z/ next_action=Implement ROI helper dataclasses + docs per Do Now
+- Problems-ledger guard serviced: promoted the unresolved “Writer / bridge responsibility split” entry into new fix-plan row ARCH-BRIDGE-RESP-001 (Tier 0), created `plans/active/ARCH-BRIDGE-RESP-001/implementation.md`, and documented ROI payload + bridge decomposition phases.
+- Updated docs/fix_plan.md + problems.md with pointers to the new plan, established compliance matrix (spec-db-core/workflow, DIAGNOSTICS-001, PHYSICS-LOSS findings), and reserved artifacts/report directory for Phase A evidence.
+- Rewrote input.md to hand Ralph a concrete Do Now (boundary audit + ROI dataclasses + doc updates + targeted pytest selectors) so implementation can begin immediately next loop.
+Action State: planning

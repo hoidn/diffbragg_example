@@ -1,42 +1,44 @@
-Summary: Wire Stage A telemetry through StageATelemetryCollector so observer callbacks own loss traces, perf counters, and sigma-floor stats before we touch Stage B/C.
-Mode: Parity
+Summary: Capture the existing writer/bridge seam, add typed ROI analysis dataclasses, and document the new boundary so we can pull Nelder–Mead out of `write_torch_outputs` in the next loop.
+Mode: none
 InitiativeType: architecture
-Focus: ARCH-TELEMETRY-001 — Telemetry Observer Refactor
+Focus: ARCH-BRIDGE-RESP-001 — Writer / bridge responsibility split
 Branch: integration
 Mapped tests:
-- KMP_DUPLICATE_LIB_OK=TRUE pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry
-- KMP_DUPLICATE_LIB_OK=TRUE DBEX_SMOKE_DETECTOR_SIZE=small pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
-Artifacts: plans/active/ARCH-TELEMETRY-001/reports/2025-12-02T201500Z/
+- KMP_DUPLICATE_LIB_OK=TRUE pytest -q tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata
+- pytest -q tests/dbex/test_nanobrag_bridge.py::TestPrepareRefinementInputs::test_tensor_contract
+Artifacts: plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-02T213000Z/
 
 Do Now:
-- Implement: dbex/refinement/stage_a.py::_build_lbfgs_closure — Add a StageATelemetryCollector parameter, pull the wrapped StageATelemetryState from `collector.state`, and replace the direct list/counter mutation with `collector.record_step` / `collector.on_step` for every closure evaluation plus `collector.record_validation` / `collector.on_validation` inside the periodic validation branch. Feed the metrics dict with chi², masked MSE, variance-floor clamp/mask counts, and forward-time samples so PHYSICS-LOSS telemetry stays intact.
-- Implement: dbex/refinement/stage_a_impl.py::_run_stage_a_lbfgs and StageA.run — Instantiate a StageATelemetryCollector once the helper returns `telemetry_state`, pass it through `_build_lbfgs_closure` and `_run_stage_a_lbfgs`, use the collector to log the baseline, final, and fallback validations (scope="panel" when force_panel_validation else "roi"), and only provide `best_snapshot` payloads when the new chi² beats the current best. After LBFGS completes, call `collector.finalize()` for parity checks and continue building the RefinementTelemetry dict/StageResult exactly as before.
-- Tests: Capture fresh evidence by running (1) the engine delegation telemetry selector and (2) the Stage A small-detector smoketest. Save both pytest logs under the artifacts directory (e.g., `pytest_stage_a_engine.log`, `pytest_stage_a_smoke_small.log`).
+- Implement: dbex/io/roi_analysis.py::ROIAnalysisPayload — Add a new module under `dbex/io/` that defines `ROITriptych` (panel_id, bbox, numpy arrays for data/bg/bragg), `ROIAnalysisPayload` (score, optimal scale, variance metadata), and a helper `build_roi_payloads_from_arrays(target, background, bragg, pids, bbox, scores=None, scales=None)` that packages existing arrays without mutating them. Keep everything numpy-based (no torch), include docstrings citing docs/spec-db-core.md §§20-46, and write minimal unit tests if necessary later.
+- Document: docs/architecture/dbex/io/writer.idl.md & docs/data_dependency_manifest.md — Add a “ROI Analysis Payload” section describing the new typed parameter (fields, shapes, provenance) and extend the manifest with a short entry for the helper (inputs: ROI arrays, outputs: triptych/payload artifacts, telemetry fields).
+- Evidence: plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-02T213000Z/boundary_audit.md — Capture the current callers of `write_torch_outputs` and `prepare_refinement_inputs` (just paths + context) plus a brief paragraph summarizing responsibilities; save the raw `rg` command outputs alongside the markdown.
+- Validate: Re-run the CLI telemetry metadata test and the nanobrag bridge tensor contract test; store both pytest logs in the artifacts directory (e.g., `pytest_torch_writer_metadata.log`, `pytest_nanobrag_bridge_contract.log`).
 
 How-To Map:
-1. Code: In `dbex/refinement/stage_a.py`, import `StageATelemetryCollector`, extend `_build_lbfgs_closure`’s signature to accept a `collector`, and route telemetry updates through it. Remove the direct `loss_trace_*`, `chi_squared_trace_*`, `perf_closure_evals`, `perf_validation_runs`, and `masked_mse_*` mutations inside both the closure and validation branches; instead, build a metrics dict (chi², masked MSE, variance-floor counts, forward_time_ms) and call `collector.record_step(...)`. For full validations, build a payload that carries `loss`, `masked_mse`, lifecycle checksums, panel diagnostics, and an optional `best_snapshot` before invoking `collector.record_validation(scope, chi2, ...)`. Keep StageAContext/panel diagnostics logic intact (panel_diag lists still extend via `collector.state.panel_loss_diag`).
-2. Code: Thread the collector through `StageA.run` and `_run_stage_a_lbfgs` (dbex/refinement/stage_a_impl.py:1236). Update `_run_stage_a_lbfgs` to call `collector.record_validation` for the baseline, final, and exception paths (respecting ROI vs panel scope) and to rely on the collector’s state for traces/best tracking. After LBFGS, call `collector.finalize()` and optionally assert that `stage_result.to_legacy_dict()` matches the existing telemetry dict before returning the StageResult from `dbex.refinement.stage`. Make sure canonical baseline + perf_counters still use the same values currently written to `/torch_diagnostics`.
-3. Tests/Artifacts: Run the two mapped selectors with the prescribed env vars, tee their logs into `plans/active/ARCH-TELEMETRY-001/reports/2025-12-02T201500Z/pytest_stage_a_engine.log` and `.../pytest_stage_a_smoke_small.log`, and double-check that telemetry diffs stay zero.
+1. Boundary audit: `rg -n "write_torch_outputs" dbex tests > plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-02T213000Z/writer_callers.txt` and `rg -n "prepare_refinement_inputs" dbex tests > .../bridge_callers.txt`, then summarize the call graph + seam in `boundary_audit.md` (include one paragraph per function citing the new plan checkpoint).
+2. New module: Create `dbex/io/roi_analysis.py` with the dataclasses + helper described above, add module-level `__all__`, and ensure the helper performs only packaging (no optimization). Add import guards/comments so future wiring knows where to hook ROI scoring.
+3. Docs: Update `docs/architecture/dbex/io/writer.idl.md` by adding a section that defines the ROI analysis payload (fields, dataset mapping, provenance) and reference it from the API signature; extend `docs/data_dependency_manifest.md` with bullet(s) describing the helper’s inputs and required telemetry keys.
+4. Tests/Artifacts: Run `KMP_DUPLICATE_LIB_OK=TRUE pytest -q tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata | tee plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-02T213000Z/pytest_torch_writer_metadata.log` and `pytest -q tests/dbex/test_nanobrag_bridge.py::TestPrepareRefinementInputs::test_tensor_contract | tee plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-02T213000Z/pytest_nanobrag_bridge_contract.log`. Ensure both command exits success and logs live under the artifacts path.
 
 Pitfalls To Avoid:
-- Do not double-increment closure/validation counters; only the collector should mutate those fields.
-- Keep `iteration_count` updates consistent (increment once per closure after calling `collector.record_step`).
-- Preserve every `/torch_diagnostics` key and StageResult field so downstream tests see identical payloads.
-- Maintain ROI vs panel validation behavior (respect `force_panel_validation` for scope strings) and warm-cache panel diagnostics.
-- Environment is frozen—no extra deps, no package installs.
+- Do not change `write_torch_outputs` behavior yet; the new helper must be unused until the next loop.
+- Keep dataclasses numpy-only so h5py callers can serialize without touching torch or SciPy.
+- Avoid creating new dependencies or importing torch at module import time.
+- When documenting the new interface, do not rename existing `/torch_diagnostics` keys or dataset paths.
+- Ensure boundary audit artifacts are reproducible and placed under the initiative reports directory.
+- No environment/toolchain changes per Environment Freeze; rely on stdlib/dataclasses only.
 
 If Blocked:
-- If the collector path changes the serialized telemetry (diff in `/torch_diagnostics`), capture the before/after dicts plus pytest logs in the artifacts dir, update docs/fix_plan.md Attempts History with the diff summary, and pause implementation until we reconcile the schema.
+- If adding the new module causes circular imports (e.g., `dbex/io/__init__.py` pulls writer, which imports ROI analysis), document the import stack in `boundary_audit.md`, revert the import addition, and note the block in docs/fix_plan.md + galph_memory before requesting a new initiative or plan change.
 
 Findings Applied (Mandatory):
-- ARCH-STAGE-CTX-001 — Stage telemetry must flow through typed contexts/collectors.
-- ARCH-STAGE-CTX-002 — Dict-style telemetry mutation already broke Stage B; avoid repeating it in Stage A.
-- PHYSICS-LOSS-001 / PHYSICS-LOSS-003 — Chi² + masked-MSE traces and variance-floor stats must remain spec-compliant.
+- DIAGNOSTICS-001 — Keep `/torch_diagnostics` schema stable; the new payload is additive only.
+- PHYSICS-LOSS-001/002/003 — ROI packaging must preserve variance + mask semantics when we wire it later.
+- GEOMETRY-001 & CONFIG-001 — Bridge documentation and helpers must continue to enforce square-pixel + mask polarity guards.
 
 Pointers:
-- dbex/refinement/stage_a.py:82 — `_build_lbfgs_closure` signature and telemetry mutation sites to refactor.
-- dbex/refinement/stage_a_impl.py:1236 — `_run_stage_a_lbfgs` baseline/final validation logic.
-- dbex/refinement/telemetry_collectors.py:25 — StageATelemetryCollector callbacks/finalize helpers.
-- docs/spec-db-workflow.md:48-90 — Telemetry requirements and staging context for Stage A.
-
-Next Up (optional): Stage B observer wiring (Phase C.1) once the Stage A collector path is green.
+- plans/active/ARCH-BRIDGE-RESP-001/implementation.md:1 — Phase A checklist + compliance matrix.
+- docs/architecture/dbex/io/writer.idl.md:1 — Current API contract to extend with ROI payload details.
+- docs/data_dependency_manifest.md:1 — Manifest entry that must mention the new helper inputs/outputs.
+- docs/spec-db-core.md:20 — ROI tensor and variance contract that govern the dataclass fields.
+- dbex/io/writer.py:1 — Existing writer implementation; keep behavior unchanged while adding the helper module.

@@ -88,11 +88,18 @@
     <primary_references>
       Always treat these as canonical, in roughly this priority order:
 
+      <required>
       - <code>user_input.md</code>  <!-- HIGHEST PRIORITY: If present, read immediately, treat as absolute command, then DELETE. -->
       - <code>problems.md</code>  <!-- AFTER handling user_input: read this optional backlog to capture user-supplied issues; update/remove entries as you schedule or resolve them, linking to fix-plan items. -->
       - <code>docs/index.md</code> <!-- HIGHEST PRIORITY: always read in full. -->
+
+      - <code>specs/data_contracts.md</code>
+      - <code>specs/ptychodus_api_spec.md</code>
+      - <code>docs/spec-db*.md</code>, <code>docs/config_crosswalk.md</code>, <code>docs/dials_api.md</code>, <code>docs/dxtbx_api.md</code>, <code>docs/simtbx_api.md</code>, <code>docs/nanobrag_api.md</code>
+      - <code>docs/spec-db-conformance.md</code>, <code>docs/spec-db-tracing.md</code>
       - <code>docs/fix_plan.md</code>
-      - <code>docs/findings.md</code>
+      </required>
+
       - <code>docs/architecture.md</code>
       - <code>docs/architecture/pytorch_design.md</code>
       - <code>docs/pytorch_runtime_checklist.md</code>
@@ -100,12 +107,8 @@
       - <code>docs/development/testing_strategy.md</code>
       - <code>docs/TESTING_GUIDE.md</code>
       - <code>docs/development/TEST_SUITE_INDEX.md</code>
-      - <code>specs/data_contracts.md</code>
-      - <code>specs/ptychodus_api_spec.md</code>
-      - <code>docs/spec-db*.md</code>, <code>docs/config_crosswalk.md</code>, <code>docs/dials_api.md</code>, <code>docs/dxtbx_api.md</code>, <code>docs/simtbx_api.md</code>, <code>docs/nanobrag_api.md</code>
-      - <code>docs/spec-db-conformance.md</code>, <code>docs/spec-db-tracing.md</code>
       - <code>prompts/callchain.md</code>
-      - <code>CLAUDE.md</code>, <code>AGENTS.md</code>, <code>galph_memory.md</code>
+      - <code>galph_memory.md</code>
       - <code>docs/prompt_sources_map.json</code>
     </primary_references>
 
@@ -260,10 +263,9 @@
            - Resolve each (remove markers, keep intended content), <code>git add</code>.
            - Resume with <code>timeout 30 git rebase --continue --no-edit</code> (never run without timeout).
          Capture key decisions (especially for <code>docs/fix_plan.md</code>) in <code>galph_memory.md</code>.
-      4. Read the latest <code>galph_memory.md</code> entry and any linked plan files for the active focus.
-      5. Review artifacts in <code>plans/active/&lt;initiative-id&gt;/reports/</code> from the previous loop.
-      6. <strong>Focus validation (reality check):</strong> If the chosen item says “create/update X”, first check reality. If X exists or exit criteria already pass, rescope to “verify + update”. Record in <code>galph_memory.md</code> and reflect in <code>input.md</code>.
-      7. Set <code>AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md</code>.
+      4. Under <primary_references>, read the <required> docs
+      5. Review summary artifacts in <code>plans/active/&lt;initiative-id&gt;/reports/</code> from the previous loop.
+      6. Set <code>AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md</code>.
     </startup_steps>
 
     <retrospective_cadence>

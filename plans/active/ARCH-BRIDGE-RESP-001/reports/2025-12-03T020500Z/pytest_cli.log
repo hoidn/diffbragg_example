@@ -1,0 +1,275 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 4 items
+
+tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_runs_simulator [nanobrag backend] Preparing refinement inputs from DataLoad...
+[nanobrag backend] Resolved sigma_readout source=cli_override reference=3
+FAILED
+
+=================================== FAILURES ===================================
+_____________________ test_nanobrag_backend_runs_simulator _____________________
+
+mock_write = <MagicMock name='write_torch_outputs' id='136271701354432'>
+mock_score_roi = <MagicMock name='score_roi_payloads' id='136268637482528'>
+mock_crystal_config = <MagicMock name='create_crystal_config' id='136271697720176'>
+mock_beam_config = <MagicMock name='create_beam_config' id='136268637201024'>
+mock_detector_config = <MagicMock name='create_detector_config' id='136268606717376'>
+mock_build_grid = <MagicMock name='build_structure_factor_grid' id='136268606729424'>
+mock_prepare = <MagicMock name='prepare_refinement_inputs' id='136268606745568'>
+mock_Crystal = <MagicMock name='Crystal' id='136268606761712'>
+mock_Detector = <MagicMock name='Detector' id='136268606781952'>
+mock_Simulator = <MagicMock name='Simulator' id='136268606794000'>
+
+    @patch('nanobrag_torch.simulator.Simulator')
+    @patch('nanobrag_torch.models.detector.Detector')
+    @patch('nanobrag_torch.models.crystal.Crystal')
+    @patch('dbex.nanobrag_bridge.prepare_refinement_inputs')
+    @patch('dbex.nanobrag_bridge.build_structure_factor_grid')
+    @patch('dbex.nanobrag_bridge.create_detector_config')
+    @patch('dbex.nanobrag_bridge.create_beam_config')
+    @patch('dbex.nanobrag_bridge.create_crystal_config')
+    @patch('dbex.io.roi_scoring.score_roi_payloads')
+    @patch('dbex.refine_one.write_torch_outputs')  # Patch where it's imported, not where defined
+    def test_nanobrag_backend_runs_simulator(
+        mock_write, mock_score_roi, mock_crystal_config, mock_beam_config, mock_detector_config,
+        mock_build_grid, mock_prepare, mock_Crystal, mock_Detector, mock_Simulator
+    ):
+        """A2: Verify nanobrag backend uses real simulator with SCALE-001/002 guardrails."""
+        import numpy as np
+        import torch
+        from dbex.nanobrag_bridge import RefinementInputs
+        from dbex.io.roi_analysis import ROIAnalysisPayload, ROITriptych
+    
+        # Setup mock DataLoad with MTZ data
+        mock_dl = Mock()
+        mock_dl.data = np.zeros((1, 100, 100), dtype=np.float32)
+        mock_dl.background_image = np.ones((1, 100, 100), dtype=np.float32) * -1
+        mock_dl.trusted_mask = np.ones((1, 100, 100), dtype=bool)
+        mock_dl.bbox = np.array([[10, 20, 10, 20]])
+        mock_dl.pids = np.array([0])
+    
+        # Mock detector with single panel
+        mock_panel = Mock()
+        mock_dl.detector = [mock_panel]
+    
+        # Mock beam, crystal, and Expt
+        mock_dl.beam = Mock()
+        mock_dl.crystal = Mock()
+        mock_dl.Expt = Mock()
+    
+        # Mock MTZ Miller array
+        mock_F = Mock()
+        mock_F.indices.return_value = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+        mock_F.data.return_value = np.array([100.0, 200.0, 150.0])
+        mock_dl.F = mock_F
+    
+        # Setup mock bridge output
+        sigma_stub = np.zeros((1, 100, 100), dtype=np.float32)
+        mock_inputs = RefinementInputs(
+            target=np.zeros((1, 100, 100), dtype=np.float32),
+            loss_mask=np.ones((1, 100, 100), dtype=bool),
+            panel_slices=[(0, (10, 20, 10, 20))],
+            trusted_mask=np.ones((1, 100, 100), dtype=bool),
+            sigma_readout=sigma_stub
+        )
+        mock_prepare.return_value = mock_inputs
+    
+        # Mock structure factor grid (SCALE-001: unscaled)
+        mock_hkl_grid = torch.zeros((3, 3, 3), dtype=torch.float32)
+        mock_hkl_metadata = {
+            'h_min': 0, 'h_max': 2, 'k_min': 0, 'k_max': 2, 'l_min': 0, 'l_max': 2,
+            'grid_nonzero': 3,
+            'has_halo': False,  # Required by JobContext per spec-db-workflow.md:53-54
+        }
+        mock_asu_map = torch.zeros_like(mock_hkl_grid, dtype=torch.int32)
+        mock_build_grid.return_value = (mock_hkl_grid, mock_hkl_metadata, mock_asu_map)
+    
+        # Mock config objects
+        # CLI-001: DetectorConfig.mask_array must be torch.Tensor (not numpy)
+        # ARCH-BRIDGE-RESP-001 Phase B.3: Use real typed configs instead of Mocks
+        mock_detector_config.return_value = _make_detector_config(spixels=100, fpixels=100)
+        mock_beam_config.return_value = _make_beam_config(beamsize_mm=0.0)  # Disable sample clipping
+        # create_crystal_config returns (config, n_cells_applied) tuple
+        mock_crystal_config.return_value = (_make_crystal_config(n_cells=(1, 1, 1)), False)
+    
+        # Mock model instantiation
+        mock_detector_instance = Mock()
+        mock_Detector.return_value = mock_detector_instance
+        mock_crystal_instance = Mock()
+        mock_Crystal.return_value = mock_crystal_instance
+    
+        # Mock simulator run output (base intensity before scaling)
+        mock_panel_output = torch.ones((100, 100), dtype=torch.float32) * 1000.0
+        mock_simulator_instance = Mock()
+        mock_simulator_instance.run.return_value = mock_panel_output
+        mock_Simulator.return_value = mock_simulator_instance
+    
+        # Setup mock args with spot_scale_override (no calibration file)
+        args = Mock()
+        args.outFile = 'test.h5'
+        args.spot_scale_override = 4.0  # sqrt(4.0) = 2.0
+        args.torch_config = None  # No calibration metadata
+        args.refined_mtz = None  # No refined MTZ
+        args.adu_per_photon = None
+        args.sigma_rdout = 3.0
+        args.sigma_floor = 1.0
+        args.device = "cpu"
+        args.report_dir = None  # Disable triptych report generation for this test
+    
+        # ARCH-BRIDGE-RESP-001 Phase B.2: Mock score_roi_payloads to avoid running SciPy
+        mock_roi_payload = ROIAnalysisPayload(
+            triptych=ROITriptych(
+                panel_id=0,
+                bbox=(10, 20, 10, 20),
+                data=np.zeros((10, 10), dtype=np.float32),
+                background=np.ones((10, 10), dtype=np.float32) * -1,
+                bragg=np.zeros((10, 10), dtype=np.float32),
+            ),
+            score=0.85,
+            optimal_scale=1.0,
+            model=np.ones((10, 10), dtype=np.float32),
+            variance=np.ones((10, 10), dtype=np.float32),
+        )
+        mock_score_roi.return_value = [mock_roi_payload]
+    
+>       run_nanobrag_backend(args, mock_dl)
+
+tests/dbex/test_refine_one_cli.py:301: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+dbex/refine_one.py:323: in run_nanobrag_backend
+    inputs = prepare_refinement_inputs(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+data = array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+ ...., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.]]], dtype=float32)
+background_image = array([[[-1., -1., -1., ..., -1., -1., -1.],
+        [-1., -1., -1., ..., -1., -1., -1.],
+        [-1., -1., -1., ...,..., -1., -1.],
+        [-1., -1., -1., ..., -1., -1., -1.],
+        [-1., -1., -1., ..., -1., -1., -1.]]], dtype=float32)
+trusted_mask = array([[[ True,  True,  True, ...,  True,  True,  True],
+        [ True,  True,  True, ...,  True,  True,  True],
+    ...e],
+        [ True,  True,  True, ...,  True,  True,  True],
+        [ True,  True,  True, ...,  True,  True,  True]]])
+bbox = array([[10, 20, 10, 20]]), pids = array([0])
+detector = [<Mock id='136268606806000'>], adu_per_photon = None
+sigma_readout = array([[[3., 3., 3., ..., 3., 3., 3.],
+        [3., 3., 3., ..., 3., 3., 3.],
+        [3., 3., 3., ..., 3., 3., 3.],
+ ...., 3., ..., 3., 3., 3.],
+        [3., 3., 3., ..., 3., 3., 3.],
+        [3., 3., 3., ..., 3., 3., 3.]]], dtype=float32)
+sigma_readout_provenance = 'cli_override'
+
+    def prepare_refinement_inputs(
+        data: np.ndarray,
+        background_image: np.ndarray,
+        trusted_mask: np.ndarray,
+        bbox: np.ndarray,
+        pids: np.ndarray,
+        detector,
+        adu_per_photon: Optional[float] = None,
+        sigma_readout: Optional[np.ndarray] = None,
+        sigma_readout_provenance: Optional[str] = None,
+    ) -> RefinementInputs:
+        """
+        Prepare background-subtracted targets, loss masks, and panel slices for torch simulator.
+    
+        Implements spec-db-core.md contracts:
+        - Array ordering: [panel, slow, fast] (spec-db-core.md:20)
+        - Loss mask: (background >= 0) ∧ trusted_mask (spec-db-core.md:55)
+        - Zeroing invalid pixels where loss_mask is False
+        - ROI bbox semantics: (x0, x1, y0, y1) with exclusive upper bounds (spec-db-core.md:22)
+        - ADU vs photon calibration policy (spec-db-workflow.md:20, ADR-02)
+    
+        Guards:
+        - Pixel pitch must be square (config_crosswalk.md:30)
+        - Trusted mask polarity must be True=include (spec-db-core.md:29)
+        - adu_per_photon must be strictly positive if provided (spec-db-workflow.md:20)
+    
+        Args:
+            data: Raw pixel data [panel, slow, fast] in ADU
+            background_image: Background estimate [panel, slow, fast], -1 outside ROIs
+            trusted_mask: Per-panel mask tuple or array, True=include
+            bbox: ROI bounding boxes, shape (n_roi, 4) as (x0, x1, y0, y1)
+            pids: Panel IDs for each ROI, shape (n_roi,)
+            detector: dxtbx Detector object for pixel pitch validation
+            adu_per_photon: Optional calibration factor to convert ADU to photons (must be >0)
+            sigma_readout: Optional readout noise estimates aligned with target units (photons if
+                           adu_per_photon provided, else ADU). Accepts scalar, per-panel, or per-pixel
+                           arrays broadcastable to data shape.
+    
+        Returns:
+            RefinementInputs with background-subtracted target (ADU or photons), loss mask,
+            panel slices, representation metadata, and global_scale_hint for ADU mode
+    
+        Raises:
+            ValueError: If pixel pitch is not square, mask polarity is inverted,
+                       or adu_per_photon is invalid (<=0)
+        """
+        # Guard: validate adu_per_photon is strictly positive if provided
+        if adu_per_photon is not None and adu_per_photon <= 0:
+            raise ValueError(
+                f"adu_per_photon must be strictly positive (>0), got {adu_per_photon}. "
+                f"Per spec-db-workflow.md:20, calibration factor must be positive to convert ADU to photons."
+            )
+    
+        # Guard: validate pixel pitch is square for all panels
+        for panel_id, panel in enumerate(detector):
+>           px_fast, px_slow = panel.get_pixel_size()
+E           TypeError: cannot unpack non-iterable Mock object
+
+dbex/refinement/inputs.py:115: TypeError
+=========================== short test summary info ============================
+FAILED tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_runs_simulator
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+============================== 1 failed in 1.00s ===============================
+../../../miniconda3/envs/simtbx/lib/python3.9/contextlib.py:119: in __enter__
+    return next(self.gen)
+../../../miniconda3/envs/simtbx/lib/python3.9/unittest/mock.py:1315: in decoration_helper
+    arg = exit_stack.enter_context(patching)
+../../../miniconda3/envs/simtbx/lib/python3.9/contextlib.py:448: in enter_context
+    result = _cm_type.__enter__(cm)
+../../../miniconda3/envs/simtbx/lib/python3.9/unittest/mock.py:1404: in __enter__
+    original, local = self.get_original()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <unittest.mock._patch object at 0x7613d2d4b6a0>
+
+    def get_original(self):
+        target = self.getter()
+        name = self.attribute
+    
+        original = DEFAULT
+        local = False
+    
+        try:
+            original = target.__dict__[name]
+        except (AttributeError, KeyError):
+            original = getattr(target, name, DEFAULT)
+        else:
+            local = True
+    
+        if name in _builtins and isinstance(target, ModuleType):
+            self.create = True
+    
+        if not self.create and original is DEFAULT:
+>           raise AttributeError(
+                "%s does not have the attribute %r" % (target, name)
+            )
+E           AttributeError: <module 'dbex.refine_one' from '/home/ollie/Documents/diffbragg_example_2/diffbragg_example/dbex/refine_one.py'> does not have the attribute 'create_crystal_config'
+
+../../../miniconda3/envs/simtbx/lib/python3.9/unittest/mock.py:1377: AttributeError
+=========================== short test summary info ============================
+FAILED tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_runs_simulator
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+============================== 1 failed in 0.86s ===============================

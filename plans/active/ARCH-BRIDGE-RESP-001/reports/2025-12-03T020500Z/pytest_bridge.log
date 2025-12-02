@@ -1,0 +1,15 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 5 items
+
+tests/dbex/test_nanobrag_bridge.py::TestPrepareRefinementInputs::test_tensor_contract PASSED
+tests/dbex/test_nanobrag_bridge.py::TestPrepareRefinementInputs::test_sigma_readout_broadcast_and_conversion PASSED
+tests/dbex/test_nanobrag_bridge.py::TestPrepareRefinementInputs::test_mask_polarity PASSED
+tests/dbex/test_nanobrag_bridge.py::TestPrepareRefinementInputs::test_pixel_pitch_guard PASSED
+tests/dbex/test_nanobrag_bridge.py::TestPrepareRefinementInputs::test_tuple_mask_input PASSED
+
+============================== 5 passed in 0.99s ===============================

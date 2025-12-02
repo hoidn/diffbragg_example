@@ -1,0 +1,41 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 20 items
+
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_beam_center_swap PASSED
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_sample_to_source_vector SKIPPED
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_detector_convention_dials PASSED
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_mask_array_float_conversion PASSED
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_pixel_size_and_dimensions PASSED
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_distance_mm PASSED
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_detector_basis_reconstruction_from_real_geom PASSED
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_returns_real_nanobrag_torch_config PASSED
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_detector_model_roundtrip PASSED
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_beam_wavelength PASSED
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_polarization_factor_parity_default PASSED
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_polarization_metadata_extraction PASSED
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_polarization_fallback PASSED
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_crystal_unit_cell_parameters PASSED
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_mosflm_astar_injection PASSED
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_stills_phi_defaults PASSED
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_crystal_misset_zero_default PASSED
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_returns_real_nanobrag_torch_beam_config PASSED
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_returns_real_nanobrag_torch_crystal_config PASSED
+tests/dbex/test_nanobrag_bridge_configs.py::TestBeamCrystalConfigMapping::test_crystal_model_roundtrip PASSED
+
+=============================== warnings summary ===============================
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_detector_basis_reconstruction_from_real_geom
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_detector_basis_reconstruction_from_real_geom
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_detector_basis_reconstruction_from_real_geom
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================== 19 passed, 1 skipped, 3 warnings in 1.77s ===================

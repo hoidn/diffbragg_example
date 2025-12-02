@@ -1,0 +1,425 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 5 items
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion PASSED     [ 20%]
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry FAILED [ 40%]
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers PASSED [ 60%]
+tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip PASSED [ 80%]
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_per_reflection_smoke FAILED [100%]
+
+=================================== FAILURES ===================================
+___________________ test_stage_a_engine_delegation_telemetry ___________________
+
+refgeom_dataload = <dbex.data_load.DataLoad object at 0x7d494c9ecfa0>
+refinement_inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0.,...0.]]], dtype=float32), target_representation='adu', global_scale_hint=86.34794146217338, sigma_readout_provenance=None)
+hkl_data = (tensor([[[0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0.,...uda:0'), {'grid_max': 518.3336791992188, 'grid_mean': 16.896526336669922, 'grid_min': 0.0, 'grid_nonzero': 69614, ...})
+smoke_detector_size = 'small', smoke_sigma_source = 'cli_override'
+
+    def test_stage_a_engine_delegation_telemetry(
+        refgeom_dataload,
+        refinement_inputs,
+        hkl_data,
+        smoke_detector_size,
+        smoke_sigma_source,
+    ):
+        """
+        Validate Phase E engine delegation telemetry fields.
+    
+        telemetry dict MUST include:
+        - engine_protocol: str (e.g., "stage_a" for Stage-A-only mode)
+        - stage_modes: Dict[str, str] (empty dict {} when no B/C enabled)
+    
+        Test uses Stage-A-only mode (enable_stage_b=False, enable_stage_c=False).
+    
+        Environment:
+        - Requires: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1
+        - Selector: pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry
+        """
+        print(f"\n[test_stage_a_engine_delegation_telemetry] detector={smoke_detector_size}")
+    
+        hkl_grid, hkl_metadata = hkl_data
+    
+        # Stage-A-only config (default: enable_stage_b=False, enable_stage_c=False)
+        config = RefinementConfig(
+            device='cuda:0',
+            dtype=torch.float32,
+            history_size=10,
+            max_iter=30,
+            roi_sample_fraction=0.15,
+            full_validation_interval=5,
+            min_loss_improvement=0.0,  # No strict gate for telemetry validation
+            enable_hkl_interpolation=True,
+            sigma_readout_provenance=(
+                "external_lookup" if smoke_sigma_source == "metadata" else "cli_override"
+            ),
+        )
+    
+        # Verify Stage-A-only mode
+        assert not config.enable_stage_b, "Test requires enable_stage_b=False"
+        assert not config.enable_stage_c, "Test requires enable_stage_c=False"
+    
+        # Create perturbed geometry
+        baseline_crystal = refgeom_dataload.Expt.crystal
+        baseline_detector = refgeom_dataload.Expt.detector
+        baseline_beam = refgeom_dataload.Expt.beam
+    
+        perturbed_crystal, perturbed_detector, perturbed_beam = create_perturbed_geometry(
+            baseline_crystal, baseline_detector, baseline_beam
+        )
+    
+        # Run with engine delegation
+        # ARCH-REFACTOR-001 Phase D.3: Direct RefinementEngine usage (no facade)
+        refinement_context = build_refinement_context(
+            refinement_inputs=refinement_inputs,
+            detector=perturbed_detector,
+            beam=perturbed_beam,
+            crystal=perturbed_crystal,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            baseline_crystal=baseline_crystal,
+        )
+        stages = [StageA()]  # Stage A only (no Stage B/C)
+        engine = RefinementEngine(stages, config=config)
+        telemetry_dict = engine.run({"context": refinement_context})
+        # Extract terminal Bragg from Stage A artifacts
+        bragg_refined = engine._artifacts["stage_a"].bragg_full
+    
+        # Validate telemetry structure
+        assert "A" in telemetry_dict, "Engine delegation must return 'A' telemetry key"
+        telem_a = telemetry_dict["A"]
+    
+        # Phase E telemetry extensions (commit 42975bf)
+        assert hasattr(telem_a, "engine_protocol"), "Phase E: engine_protocol field missing"
+        assert hasattr(telem_a, "stage_modes"), "Phase E: stage_modes field missing"
+    
+        # Stage-A-only mode values
+>       assert telem_a.engine_protocol == "stage_a", \
+            f"Expected engine_protocol='stage_a', got {telem_a.engine_protocol!r}"
+E       AssertionError: Expected engine_protocol='stage_a', got None
+E       assert None == 'stage_a'
+E        +  where None = RefinementTelemetry(optimizer='LBFGS', stage='A', history_size=10, max_iter=30, tolerance_grad=1e-07, tolerance_change=1e-09, roi_sample_fraction=0.15, roi_count_sampled=1, roi_count_total=1, loss_trace_sample=[331338592.0, 288776576.0, 138401120.0, 139675024.0, 138400384.0, 138706528.0, 138400320.0, 138400112.0, 138400080.0, 138400112.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138404688.0, 138400080.0, 138400080.0], loss_trace_full=[(0, 331338592.0), (0, 331338592.0), (5, 138706528.0), (10, 138400080.0), (15, 138400080.0), (20, 138400080.0)], best_loss_full=[331338592.0, 331338592.0, 138706528.0, 138400080.0, 138400080.0, 138400080.0], param_deltas={'log_scale': {'initial': 8.91646936482889, 'final': 8.91646957397461, 'delta': 2.0914571940977567e-07}, 'log_scale_baseline': {'initial': 0.0, 'final': 0.0}, 'log_cell_a_delta': {'initial': 0.0, 'final': -0.25745609402656555, 'delta': -0.25745609402656555}, 'log_cell_b_delta': {'initial': 0.0, 'final': 0.23030368983745575, 'delta': 0.23030368983745575}, 'log_cell_c_delta': {'initial': 0.0, 'final': 0.028892086818814278, 'delta': 0.028892086818814278}, 'angle_alpha_raw': {'initial': 0.0, 'final': -0.02777422033250332, 'delta': -0.02777422033250332}, 'angle_beta_raw': {'initial': 0.0, 'final': -0.0003586281673051417, 'delta': -0.0003586281673051417}, 'angle_gamma_raw': {'initial': 0.0, 'final': 0.0325772725045681, 'delta': 0.0325772725045681}, 'orientation_vec': {'initial': [0.0, 0.0, 0.0], 'final': [0.01737087406218052, 0.012700105085968971, -0.08753754943609238], 'delta': [0.01737087406218052, 0.012700105085968971, -0.08753754943609238], 'norm': 0.09014356881380081}, 'misset_xyz_deg': {'initial': [-0.006988525390625, 0.15351295471191406, 1.4765625], 'final': [0.09687688201665878, 0.2301851212978363, 0.9527419805526733], 'delta': [0.10386540740728378, 0.07667215913534164, -0.5238205194473267], 'quaternion_norm': 1.0}}, status='ok', message='', perf_counters={'cache_mode': 'warm', 'roi_mode': 'panel', 'roi_count_total': 1, 'roi_count_sampled': 1, 'closure_evals': 20, 'validation_runs': 6, 'forward_time_ms': {'mean': 44.90130085032433, 'min': 44.58264401182532, 'max': 45.1927431859076, 'total': 898.0260170064867}, 'validation_scope': 'panel', 'roi_mode_reason': 'auto_panel_threshold (roi_count=29 <= 32)'}, chi_squared_trace_sample=[331338592.0, 288776576.0, 138401120.0, 139675024.0, 138400384.0, 138706528.0, 138400320.0, 138400112.0, 138400080.0, 138400112.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138404688.0, 138400080.0, 138400080.0], chi_squared_trace_full=[(0, 331338592.0), (0, 331338592.0), (5, 138706528.0), (10, 138400080.0), (15, 138400080.0), (20, 138400080.0)], chi_squared_best=(inf, -1), masked_mse_trace_sample=[1874413.375, 1874506.875, 1869998.375, 1869509.375, 1870152.0, 1870202.125, 1870154.875, 1870148.625, 1870144.5, 1870146.625, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870311.125, 1870144.5, 1870144.5], masked_mse_trace_full=[(0, 1874413.375), (0, 1874413.375), (5, 1870202.125), (10, 1870144.5), (15, 1870144.5), (20, 1870144.5)], masked_mse_best=(inf, -1), sigma_readout_provenance='cli_override', sigma_readout_reference_value=None, variance_floor_value=1.0, variance_floor_clamp_fraction=0.0, variance_floor_masked_pixels=4176, variance_floor_clamped_pixels=0, log_scale_baseline_source=None, spot_scale_override_adjustment_factor=None, target_mean_masked=None, model_mean_masked=None, canonical_stage_label='A', canonical_chi_squared=138400080.0, canonical_chi_squared_iteration=20, canonical_roi_count=29, canonical_detector_distances_mm=[231.27645547762575], roi_mode='panel', stage_type='stage_a', mode=None, engine_protocol=None, stage_modes=None, telemetry_version='1.0', stage_result={'stage': 'A', 'telemetry': {'iteration_count': 20, 'loss_trace_sample': [331338592.0, 288776576.0, 138401120.0, 139675024.0, 138400384.0, 138706528.0, 138400320.0, 138400112.0, 138400080.0, 138400112.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138404688.0, 138400080.0, 138400080.0], 'loss_trace_full': [(0, 331338592.0), (0, 331338592.0), (5, 138706528.0), (10, 138400080.0), (15, 138400080.0), (20, 138400080.0)], 'best_loss_full': [331338592.0, 331338592.0, 138706528.0, 138400080.0, 138400080.0, 138400080.0], 'chi_squared_trace_sample': [331338592.0, 288776576.0, 138401120.0, 139675024.0, 138400384.0, 138706528.0, 138400320.0, 138400112.0, 138400080.0, 138400112.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138404688.0, 138400080.0, 138400080.0], 'chi_squared_trace_full': [(0, 331338592.0), (0, 331338592.0), (5, 138706528.0), (10, 138400080.0), (15, 138400080.0), (20, 138400080.0)], 'chi_squared_best': (inf, -1), 'masked_mse_trace_sample': [1874413.375, 1874506.875, 1869998.375, 1869509.375, 1870152.0, 1870202.125, 1870154.875, 1870148.625, 1870144.5, 1870146.625, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870311.125, 1870144.5, 1870144.5], 'masked_mse_trace_full': [(0, 1874413.375), (0, 1874413.375), (5, 1870202.125), (10, 1870144.5), (15, 1870144.5), (20, 1870144.5)], 'masked_mse_best': (inf, -1), 'best_params_snapshot': None, 'u_matrix_lifecycle_log': [], 'a_star_lifecycle_log': [], 'panel_loss_diag': None}, 'perf_counters': {'closure_evals': 20, 'validation_runs': 6, 'forward_times_ms': [45.02938315272331, 44.60676293820143, 44.821593444794416, 44.75598409771919, 44.84424274414778, 44.82404328882694, 44.655442237854004, 45.0217230245471, 45.0657419860363, 45.1927431859076, 45.089182909578085, 44.629132840782404, 44.94437389075756, 44.986524153500795, 44.98651437461376, 45.0477940030396, 44.58264401182532, 44.968944042921066, 44.99946255236864, 44.97378412634134], 'variance_floor_clamped_pixels': 0, 'variance_floor_masked_pixels': 4176}}).engine_protocol
+
+tests/dbex/test_torch_refine_smoke.py:1017: AssertionError
+----------------------------- Captured stdout call -----------------------------
+
+[test_stage_a_engine_delegation_telemetry] detector=small
+auto-selected 1-fold oversampling
+[HKL stats] h=[-12,7] k=[-14,9] l=[-14,8] hit_rate=1045475/1048576 (99.70%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046404/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046404/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046404/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-18,19] l=[0,4] hit_rate=1046793/1048576 (99.83%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046346/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,10] k=[-14,15] l=[0,5] hit_rate=1046367/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046348/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046350/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046325/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+______________________ test_stage_b_per_reflection_smoke _______________________
+
+refgeom_dataload = <dbex.data_load.DataLoad object at 0x7d4944163ee0>
+refinement_inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0.,...0.]]], dtype=float32), target_representation='adu', global_scale_hint=86.34794146217338, sigma_readout_provenance=None)
+hkl_data = (tensor([[[0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0.,...   space_group_symbol="P 1"
+  ), 'grid_max': 518.3336791992188, 'grid_mean': 16.896526336669922, 'grid_min': 0.0, ...})
+smoke_detector_size = 'small', smoke_sigma_source = 'cli_override'
+
+    @pytest.mark.allow_metadata_sigma
+    def test_stage_b_per_reflection_smoke(
+        refgeom_dataload,
+        refinement_inputs,
+        hkl_data,
+        smoke_detector_size,
+        smoke_sigma_source,
+    ):
+        """
+        Validate Stage B per-reflection mode with ASU-based modifiers (Phase 7).
+    
+        Exit Criteria:
+        - Telemetry includes ASU mode-specific fields (n_asu_unique, optimizer_type, asu_modifier_stats)
+        - Optimizer selection validates correctly (P1 fixture ~35K ASU → Adam expected)
+        - Gradient flow verified (modifier stats change from initial ~1.0)
+        - Stage B improves upon Stage A (chi² reduction ≥0.01%)
+        - Stage A/B both converge (status="converged" or "ok" or "early_stop")
+    
+        Mode: TDD (test-first), per-reflection default not yet enforced (Phase 8)
+        Fixture: refGeom_small (29 ROIs, P1 space group ~35K unique ASU)
+        Runtime: ~25-35s (Stage A + Stage B with small detector)
+    
+        Findings applied:
+        - RUNTIME-001: Run with NANOBRAGG_DISABLE_COMPILE=1
+        - CONFORMANCE-001: Requires KMP_DUPLICATE_LIB_OK=TRUE
+        - REFINE-005: Halo-padded HKL grid mandatory
+        - spec:59/60/61: Per-reflection SHALL be default, shell mode fallback permitted, halo mandatory
+        - spec:107: Adam optimizer permitted for large parameter counts
+        """
+        import os
+    
+        if os.getenv("AUTHORITATIVE_CMDS_DOC") != "./docs/TESTING_GUIDE.md":
+            pytest.skip("Requires AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md")
+    
+        print(f"\n[test_stage_b_per_reflection_smoke] detector={smoke_detector_size}")
+    
+        # CPU fallback blocked (same as shell mode test)
+        if smoke_detector_size == "full":
+            pytest.skip("CPU fallback blocked by HKL grid transfer corruption (GRADIENT-003)")
+    
+        DL = refgeom_dataload
+        hkl_grid, hkl_metadata = hkl_data
+    
+        # Guard: Stage B requires halo-padded HKL grid (REFINE-005)
+        assert hkl_metadata["has_halo"], (
+            "Stage B smoke test requires halo-padded HKL grid per TORCH-REFINE-004."
+        )
+    
+        # Phase 8: Inject crystal_symmetry and build 4D HKL indices grid for per-reflection ASU mapping
+        # Per input.md fixture fix pattern: P1 space group with unit_cell from fixture
+        from cctbx import crystal as cctbx_crystal
+        import numpy as np
+    
+        # Extract unit cell from dxtbx crystal (matches fixture: 79,79,38,90,90,90)
+        dxtbx_crystal = DL.crystal
+        unit_cell_params = dxtbx_crystal.get_unit_cell().parameters()
+    
+        crystal_symmetry = cctbx_crystal.symmetry(
+            unit_cell=unit_cell_params,
+            space_group_symbol="P1"
+        )
+        hkl_metadata["crystal_symmetry"] = crystal_symmetry
+    
+        # Build 4D HKL indices grid (h_range, k_range, l_range, 3)
+        # Extract grid bounds from metadata
+        h_min, h_max = hkl_metadata["h_min"], hkl_metadata["h_max"]
+        k_min, k_max = hkl_metadata["k_min"], hkl_metadata["k_max"]
+        l_min, l_max = hkl_metadata["l_min"], hkl_metadata["l_max"]
+    
+        # Create coordinate arrays
+        h_coords = np.arange(h_min, h_max + 1, dtype=np.int32)
+        k_coords = np.arange(k_min, k_max + 1, dtype=np.int32)
+        l_coords = np.arange(l_min, l_max + 1, dtype=np.int32)
+    
+        # Build meshgrid and stack into 4D array
+        h_grid, k_grid, l_grid = np.meshgrid(h_coords, k_coords, l_coords, indexing='ij')
+        hkl_indices_grid = np.stack([h_grid, k_grid, l_grid], axis=-1)  # (h_range, k_range, l_range, 3)
+    
+        # Store in metadata for compute_hkl_asu_map
+        hkl_metadata["hkl_indices_grid"] = hkl_indices_grid
+    
+        # Refinement config: enable Stage B with per-reflection mode
+        sigma_provenance = "external_lookup" if smoke_sigma_source == "metadata" else "cli_override"
+        enable_roi = smoke_detector_size != "full"
+    
+        config = RefinementConfig(
+            max_iter=30,
+            min_loss_improvement=0.0,
+            enable_hkl_interpolation=True,  # Required for Stage B (REFINE-005)
+            enable_stage_b=True,
+            stage_b_mode="per_reflection",  # Phase 7 new mode
+            enable_stage_c=False,
+            enable_stage_a_roi_mode=enable_roi,
+            device="cuda:0" if torch.cuda.is_available() else "cpu",
+            dtype=torch.float32,
+            sigma_readout_provenance=sigma_provenance,
+            enable_stage_a_warm_cache=False,  # Cold mode for determinism (PERF-WARM-001)
+        )
+    
+        # Run refinement (Stage A + Stage B with per-reflection mode)
+        # ARCH-REFACTOR-001 Phase D.3: Direct RefinementEngine usage (no facade)
+        refinement_context = build_refinement_context(
+            refinement_inputs=refinement_inputs,
+            detector=DL.detector,
+            beam=DL.beam,
+            crystal=DL.crystal,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            baseline_crystal=DL.crystal,
+            baseline_detector=None,  # Stage C disabled
+        )
+        stages = [StageA()]
+        if config.enable_stage_b:
+            stages.append(StageB())
+        engine = RefinementEngine(stages, config=config)
+        telemetry_dict = engine.run({"context": refinement_context})
+        engine_artifacts = engine._artifacts
+        # Extract terminal Bragg from Stage B artifacts (precedence: B > A)
+        if "stage_b" in engine_artifacts:
+            bragg_refined = engine_artifacts["stage_b"].bragg_full
+        else:
+            bragg_refined = engine_artifacts["stage_a"].bragg_full
+    
+        # Extract telemetry
+        assert "A" in telemetry_dict, "Stage A telemetry missing"
+        assert "B" in telemetry_dict, "Stage B telemetry missing (enable_stage_b=True)"
+    
+        telemetry_a = telemetry_dict["A"]
+        telemetry_b = telemetry_dict["B"]
+    
+        # ARCH-STAGE-CONTEXT-001 Phase D.3.1: Validate Stage A/B artifact contract
+        # Same invariants as shell_modifiers test: Stage A bragg_full=None, Stage B bragg_full populated
+        assert engine_artifacts is not None, "Engine artifacts missing"
+>       assert "stage_a" in engine_artifacts, "Stage A artifacts missing from engine artifacts"
+E       AssertionError: Stage A artifacts missing from engine artifacts
+E       assert 'stage_a' in {'stage_b': StageBArtifacts(shell_edges=None, shell_indices=None, n_shells=0, stage_b_baseline_rel_diff=0.020882509441073657, stage_b_baseline_abs_diff=904216.0, stage_b_baseline_diff_path='/home/ollie/Documents/diffbragg_example_2/diffbragg_example/stage_b_baseline_diff.json', stage_b_mode='per_reflection', n_asu_unique=97793, optimizer_type='adam', asu_modifier_stats={'min': 1.0, 'max': 1.0, 'mean': 1.0, 'std': 0.0}, bragg_full=array([[[55.730846, 55.778187, 55.82551 , ..., 12.085899, 12.075718,\n         12.065538],\n        [55.778717, 55.826122, 55.873505, ..., 12.09631 , 12.086119,\n         12.075926],\n        [55.82656 , 55.87404 , 55.921474, ..., 12.106719, 12.096513,\n         12.086302],\n        ...,\n        [35.848907, 35.879604, 35.91028 , ..., 21.999136, 21.980463,\n         21.961786],\n        [35.818935, 35.84957 , 35.880215, ..., 21.980679, 21.962034,\n         21.94339 ],\n        [35.78892 , 35.819542, 35.85012 , ..., 21.962204, 21.94358 ,\n         21.924953]]], dtype=float32))}
+
+tests/dbex/test_torch_refine_smoke.py:1923: AssertionError
+----------------------------- Captured stdout call -----------------------------
+
+[test_stage_b_per_reflection_smoke] detector=small
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,11] k=[-11,12] l=[0,4] hit_rate=1046047/1048576 (99.76%)
+auto-selected 1-fold oversampling
+WARNING: out of range for three point interpolation
+WARNING: further warnings will not be printed!
+[HKL stats] h=[-7,8] k=[-30,33] l=[-0,8] hit_rate=0/1048576 (0.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,11] k=[-20,21] l=[0,4] hit_rate=1047105/1048576 (99.86%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,11] k=[-12,13] l=[0,4] hit_rate=1046161/1048576 (99.77%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,11] k=[-12,13] l=[0,4] hit_rate=1046161/1048576 (99.77%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,11] k=[-12,12] l=[0,4] hit_rate=1046046/1048576 (99.76%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,11] k=[-12,12] l=[0,4] hit_rate=1046046/1048576 (99.76%)
+auto-selected 1-fold oversampling
+WARNING: out of range for three point interpolation
+WARNING: further warnings will not be printed!
+[HKL stats] h=[-4,5] k=[-30,34] l=[-0,8] hit_rate=0/1048576 (0.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,11] k=[-12,12] l=[0,4] hit_rate=1046046/1048576 (99.76%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,11] k=[-12,12] l=[0,4] hit_rate=1046046/1048576 (99.76%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,11] k=[-12,12] l=[0,4] hit_rate=1046046/1048576 (99.76%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,11] k=[-12,12] l=[0,4] hit_rate=1046046/1048576 (99.76%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,11] k=[-12,12] l=[0,4] hit_rate=1046046/1048576 (99.76%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,11] k=[-12,12] l=[0,4] hit_rate=1046046/1048576 (99.76%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,11] k=[-12,12] l=[0,4] hit_rate=1046046/1048576 (99.76%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,11] k=[-12,12] l=[0,4] hit_rate=1046046/1048576 (99.76%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,11] k=[-12,12] l=[0,4] hit_rate=1046046/1048576 (99.76%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,11] k=[-12,12] l=[0,4] hit_rate=1046046/1048576 (99.76%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,11] k=[-12,12] l=[0,4] hit_rate=1046046/1048576 (99.76%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,11] k=[-11,12] l=[0,4] hit_rate=1045985/1048576 (99.75%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,11] k=[-11,12] l=[0,4] hit_rate=1045985/1048576 (99.75%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,11] k=[-11,12] l=[0,4] hit_rate=1045985/1048576 (99.75%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,11] k=[-12,12] l=[0,4] hit_rate=1046046/1048576 (99.76%)
+------------------------------ Captured log call -------------------------------
+WARNING  dbex.refinement.stage_b:stage_b.py:483 DBEX_SMOKE_TELEMETRY_PATH not set, writing stage_b_baseline_diff.json to cwd: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+=============================== warnings summary ===============================
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_per_reflection_smoke
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dxtbx/format/FormatCBFFull.py:198: DeprecationWarning: The binary mode of fromstring is deprecated, as it behaves surprisingly on unicode inputs. Use frombuffer instead
+    self._raw_data = flex.int(np.fromstring(array_string, np.int32))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry - AssertionError: Expected engine_protocol='stage_a', got None
+assert None == 'stage_a'
+ +  where None = RefinementTelemetry(optimizer='LBFGS', stage='A', history_size=10, max_iter=30, tolerance_grad=1e-07, tolerance_change=1e-09, roi_sample_fraction=0.15, roi_count_sampled=1, roi_count_total=1, loss_trace_sample=[331338592.0, 288776576.0, 138401120.0, 139675024.0, 138400384.0, 138706528.0, 138400320.0, 138400112.0, 138400080.0, 138400112.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138404688.0, 138400080.0, 138400080.0], loss_trace_full=[(0, 331338592.0), (0, 331338592.0), (5, 138706528.0), (10, 138400080.0), (15, 138400080.0), (20, 138400080.0)], best_loss_full=[331338592.0, 331338592.0, 138706528.0, 138400080.0, 138400080.0, 138400080.0], param_deltas={'log_scale': {'initial': 8.91646936482889, 'final': 8.91646957397461, 'delta': 2.0914571940977567e-07}, 'log_scale_baseline': {'initial': 0.0, 'final': 0.0}, 'log_cell_a_delta': {'initial': 0.0, 'final': -0.25745609402656555, 'delta': -0.25745609402656555}, 'log_cell_b_delta': {'initial': 0.0, 'final': 0.23030368983745575, 'delta': 0.23030368983745575}, 'log_cell_c_delta': {'initial': 0.0, 'final': 0.028892086818814278, 'delta': 0.028892086818814278}, 'angle_alpha_raw': {'initial': 0.0, 'final': -0.02777422033250332, 'delta': -0.02777422033250332}, 'angle_beta_raw': {'initial': 0.0, 'final': -0.0003586281673051417, 'delta': -0.0003586281673051417}, 'angle_gamma_raw': {'initial': 0.0, 'final': 0.0325772725045681, 'delta': 0.0325772725045681}, 'orientation_vec': {'initial': [0.0, 0.0, 0.0], 'final': [0.01737087406218052, 0.012700105085968971, -0.08753754943609238], 'delta': [0.01737087406218052, 0.012700105085968971, -0.08753754943609238], 'norm': 0.09014356881380081}, 'misset_xyz_deg': {'initial': [-0.006988525390625, 0.15351295471191406, 1.4765625], 'final': [0.09687688201665878, 0.2301851212978363, 0.9527419805526733], 'delta': [0.10386540740728378, 0.07667215913534164, -0.5238205194473267], 'quaternion_norm': 1.0}}, status='ok', message='', perf_counters={'cache_mode': 'warm', 'roi_mode': 'panel', 'roi_count_total': 1, 'roi_count_sampled': 1, 'closure_evals': 20, 'validation_runs': 6, 'forward_time_ms': {'mean': 44.90130085032433, 'min': 44.58264401182532, 'max': 45.1927431859076, 'total': 898.0260170064867}, 'validation_scope': 'panel', 'roi_mode_reason': 'auto_panel_threshold (roi_count=29 <= 32)'}, chi_squared_trace_sample=[331338592.0, 288776576.0, 138401120.0, 139675024.0, 138400384.0, 138706528.0, 138400320.0, 138400112.0, 138400080.0, 138400112.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138404688.0, 138400080.0, 138400080.0], chi_squared_trace_full=[(0, 331338592.0), (0, 331338592.0), (5, 138706528.0), (10, 138400080.0), (15, 138400080.0), (20, 138400080.0)], chi_squared_best=(inf, -1), masked_mse_trace_sample=[1874413.375, 1874506.875, 1869998.375, 1869509.375, 1870152.0, 1870202.125, 1870154.875, 1870148.625, 1870144.5, 1870146.625, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870311.125, 1870144.5, 1870144.5], masked_mse_trace_full=[(0, 1874413.375), (0, 1874413.375), (5, 1870202.125), (10, 1870144.5), (15, 1870144.5), (20, 1870144.5)], masked_mse_best=(inf, -1), sigma_readout_provenance='cli_override', sigma_readout_reference_value=None, variance_floor_value=1.0, variance_floor_clamp_fraction=0.0, variance_floor_masked_pixels=4176, variance_floor_clamped_pixels=0, log_scale_baseline_source=None, spot_scale_override_adjustment_factor=None, target_mean_masked=None, model_mean_masked=None, canonical_stage_label='A', canonical_chi_squared=138400080.0, canonical_chi_squared_iteration=20, canonical_roi_count=29, canonical_detector_distances_mm=[231.27645547762575], roi_mode='panel', stage_type='stage_a', mode=None, engine_protocol=None, stage_modes=None, telemetry_version='1.0', stage_result={'stage': 'A', 'telemetry': {'iteration_count': 20, 'loss_trace_sample': [331338592.0, 288776576.0, 138401120.0, 139675024.0, 138400384.0, 138706528.0, 138400320.0, 138400112.0, 138400080.0, 138400112.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138404688.0, 138400080.0, 138400080.0], 'loss_trace_full': [(0, 331338592.0), (0, 331338592.0), (5, 138706528.0), (10, 138400080.0), (15, 138400080.0), (20, 138400080.0)], 'best_loss_full': [331338592.0, 331338592.0, 138706528.0, 138400080.0, 138400080.0, 138400080.0], 'chi_squared_trace_sample': [331338592.0, 288776576.0, 138401120.0, 139675024.0, 138400384.0, 138706528.0, 138400320.0, 138400112.0, 138400080.0, 138400112.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138404688.0, 138400080.0, 138400080.0], 'chi_squared_trace_full': [(0, 331338592.0), (0, 331338592.0), (5, 138706528.0), (10, 138400080.0), (15, 138400080.0), (20, 138400080.0)], 'chi_squared_best': (inf, -1), 'masked_mse_trace_sample': [1874413.375, 1874506.875, 1869998.375, 1869509.375, 1870152.0, 1870202.125, 1870154.875, 1870148.625, 1870144.5, 1870146.625, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870311.125, 1870144.5, 1870144.5], 'masked_mse_trace_full': [(0, 1874413.375), (0, 1874413.375), (5, 1870202.125), (10, 1870144.5), (15, 1870144.5), (20, 1870144.5)], 'masked_mse_best': (inf, -1), 'best_params_snapshot': None, 'u_matrix_lifecycle_log': [], 'a_star_lifecycle_log': [], 'panel_loss_diag': None}, 'perf_counters': {'closure_evals': 20, 'validation_runs': 6, 'forward_times_ms': [45.02938315272331, 44.60676293820143, 44.821593444794416, 44.75598409771919, 44.84424274414778, 44.82404328882694, 44.655442237854004, 45.0217230245471, 45.0657419860363, 45.1927431859076, 45.089182909578085, 44.629132840782404, 44.94437389075756, 44.986524153500795, 44.98651437461376, 45.0477940030396, 44.58264401182532, 44.968944042921066, 44.99946255236864, 44.97378412634134], 'variance_floor_clamped_pixels': 0, 'variance_floor_masked_pixels': 4176}}).engine_protocol
+FAILED tests/dbex/test_torch_refine_smoke.py::test_stage_b_per_reflection_smoke - AssertionError: Stage A artifacts missing from engine artifacts
+assert 'stage_a' in {'stage_b': StageBArtifacts(shell_edges=None, shell_indices=None, n_shells=0, stage_b_baseline_rel_diff=0.020882509441073657, stage_b_baseline_abs_diff=904216.0, stage_b_baseline_diff_path='/home/ollie/Documents/diffbragg_example_2/diffbragg_example/stage_b_baseline_diff.json', stage_b_mode='per_reflection', n_asu_unique=97793, optimizer_type='adam', asu_modifier_stats={'min': 1.0, 'max': 1.0, 'mean': 1.0, 'std': 0.0}, bragg_full=array([[[55.730846, 55.778187, 55.82551 , ..., 12.085899, 12.075718,\n         12.065538],\n        [55.778717, 55.826122, 55.873505, ..., 12.09631 , 12.086119,\n         12.075926],\n        [55.82656 , 55.87404 , 55.921474, ..., 12.106719, 12.096513,\n         12.086302],\n        ...,\n        [35.848907, 35.879604, 35.91028 , ..., 21.999136, 21.980463,\n         21.961786],\n        [35.818935, 35.84957 , 35.880215, ..., 21.980679, 21.962034,\n         21.94339 ],\n        [35.78892 , 35.819542, 35.85012 , ..., 21.962204, 21.94358 ,\n         21.924953]]], dtype=float32))}
+=================== 2 failed, 3 passed, 9 warnings in 41.56s ===================

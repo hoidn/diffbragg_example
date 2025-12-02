@@ -1,0 +1,4 @@
+=== New path test ===
+OK: new path
+=== Old path test (facade re-export) ===
+OK: facade re-export

@@ -1,0 +1,22 @@
+=== Phase D.1 Metrics ===
+Files created: 1 (dbex/refinement/config.py)
+135 dbex/refinement/config.py
+
+Import sites updated:
+  Production: 2 (refine_one.py, refinement/__init__.py)
+  Tests: 3 files (test_refinement_engine.py 2×, test_stage_b_cpu_fallback.py 3×, test_torch_refine_smoke.py 6×)
+  Total import updates: 13 sites
+
+Facade changes:
+  Lines added (re-export): 3
+  Lines removed (RefinementConfig dataclass definition): 118
+  Net facade change: -115 lines
+
+Mapped tests passed: 3/3
+  - test_refinement_engine.py::test_engine_executes_mock_stage: PASSED
+  - test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload: PASSED
+  - test_torch_refine_smoke.py::test_stage_a_expansion: PASSED
+
+Import verification: Both paths working
+  - New path (dbex.refinement.config): OK
+  - Old path (dbex.nanobrag_refinement re-export): OK

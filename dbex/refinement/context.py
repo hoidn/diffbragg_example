@@ -618,3 +618,164 @@ class StageATelemetryState:
 
     # Optional panel diagnostics (PERF-WARM-SIM-001 Phase D.4)
     panel_loss_diag: Optional[List[Any]] = None
+
+
+@dataclass
+class StageBTelemetryState:
+    """
+    Mutable telemetry accumulators for Stage B LBFGS refinement.
+
+    Replaces the 'telemetry_state' dict passed through StageB._build_lbfgs_closure.
+    Lists accumulate traces during optimization; counters track perf/validation stats.
+
+    Per ARCH-STAGE-CONTEXT-001 Phase B.3.2, this dataclass owns every accumulator currently
+    in the Stage B telemetry_state dict: iteration counter, dual metric traces (chi²/MSE),
+    perf counters, variance-floor stats, sigma_floor tensor, and best snapshots.
+    Stage B does not track lifecycle logs (U-matrix/A*) since crystal is frozen.
+
+    Attributes:
+        iteration_count: Mutable list wrapping iteration counter for closure capture (e.g., [0])
+        loss_trace_sample: List of floats recording loss on sampled ROI subset per closure eval
+        loss_trace_full: List of floats recording loss on full validation set
+        best_loss_full: List of floats tracking best full-validation loss seen so far
+        best_params_snapshot: List containing parameter snapshots at best loss (mutable container)
+        chi_squared_trace_sample: List of floats recording chi² on sampled subset (PHYSICS-LOSS-001)
+        chi_squared_trace_full: List of floats recording chi² on full validation set
+        chi_squared_best: Tuple of (float, int) tracking best chi² and iteration
+        masked_mse_trace_sample: List of floats recording masked MSE on sampled subset
+        masked_mse_trace_full: List of floats recording masked MSE on full validation set
+        masked_mse_best: Tuple of (float, int) tracking best masked MSE and iteration
+        perf_closure_evals: Mutable list wrapping closure eval counter (e.g., [0])
+        perf_validation_runs: Mutable list wrapping validation run counter (e.g., [0])
+        perf_forward_times_ms: List of floats recording forward pass times in milliseconds
+        variance_floor_clamped_pixels: Mutable list wrapping clamped pixel counter (e.g., [0])
+        variance_floor_masked_pixels: Mutable list wrapping masked pixel counter (e.g., [0])
+        sigma_floor_sq_tensor: Cached sigma_floor^2 tensor (PHYSICS-LOSS-002)
+
+    Normative Dependencies:
+    - Telemetry lists accumulate during LBFGS optimization per spec-db-workflow.md:48-84
+    - Final telemetry dict assembled in stage_b.py::StageB.run and returned to engine
+    - Variance floor stats per spec-db-core.md:57-68 (variance-weighted loss)
+    - Dual metric tracking (chi² + masked MSE) per PHYSICS-LOSS-001/002
+
+    IDL Contract Reference:
+    - docs/spec-db-workflow.md:48-84 (Refinement Protocol Architecture)
+    - ARCH-STAGE-CONTEXT-001: Telemetry dataclass refactoring
+
+    Provenance:
+    - ARCH-STAGE-CONTEXT-001 Phase B.3.2: Created to mirror Stage A telemetry structure
+    """
+    # Mutable counters (lists for closure capture)
+    iteration_count: List[int] = field(default_factory=lambda: [0])
+    perf_closure_evals: List[int] = field(default_factory=lambda: [0])
+    perf_validation_runs: List[int] = field(default_factory=lambda: [0])
+    variance_floor_clamped_pixels: List[int] = field(default_factory=lambda: [0])
+    variance_floor_masked_pixels: List[int] = field(default_factory=lambda: [0])
+
+    # Loss traces (floats)
+    loss_trace_sample: List[float] = field(default_factory=list)
+    loss_trace_full: List[float] = field(default_factory=list)
+    best_loss_full: List[float] = field(default_factory=list)
+
+    # Chi-squared traces (PHYSICS-LOSS-001)
+    chi_squared_trace_sample: List[float] = field(default_factory=list)
+    chi_squared_trace_full: List[float] = field(default_factory=list)
+    chi_squared_best: Tuple[float, int] = field(default_factory=lambda: (float('inf'), -1))
+
+    # Masked MSE traces (PHYSICS-LOSS-001)
+    masked_mse_trace_sample: List[float] = field(default_factory=list)
+    masked_mse_trace_full: List[float] = field(default_factory=list)
+    masked_mse_best: Tuple[float, int] = field(default_factory=lambda: (float('inf'), -1))
+
+    # Performance timing
+    perf_forward_times_ms: List[float] = field(default_factory=list)
+
+    # Best parameter snapshot (mutable container)
+    best_params_snapshot: List[Any] = field(default_factory=list)
+
+    # Variance floor tensor (cached, not a trace)
+    sigma_floor_sq_tensor: Optional[Any] = None
+
+
+@dataclass
+class StageCTelemetryState:
+    """
+    Mutable telemetry accumulators for Stage C LBFGS refinement.
+
+    Replaces the 'telemetry_state' dict passed through StageC._build_lbfgs_closure.
+    Lists accumulate traces during optimization; counters track perf/validation stats.
+
+    Per ARCH-STAGE-CONTEXT-001 Phase B.3.2, this dataclass owns every accumulator currently
+    in the Stage C telemetry_state dict: iteration counter, dual metric traces (chi²/MSE),
+    perf counters, variance-floor stats, sigma_floor tensor, best snapshots, and optional
+    panel diagnostics for PERF-WARM-SIM-001.
+    Stage C does not track lifecycle logs (U-matrix/A*) since crystal is frozen.
+
+    Attributes:
+        iteration_count: Mutable list wrapping iteration counter for closure capture (e.g., [0])
+        loss_trace_sample: List of floats recording loss on sampled ROI subset per closure eval
+        loss_trace_full: List of floats recording loss on full validation set
+        best_loss_full: Tuple of (float, int) tracking best loss and iteration
+        best_params_snapshot: Optional list containing parameter snapshots at best loss
+        chi_squared_trace_sample: List of floats recording chi² on sampled subset (PHYSICS-LOSS-001)
+        chi_squared_trace_full: List of floats recording chi² on full validation set
+        chi_squared_best: Tuple of (float, int) tracking best chi² and iteration
+        masked_mse_trace_sample: List of floats recording masked MSE on sampled subset
+        masked_mse_trace_full: List of floats recording masked MSE on full validation set
+        masked_mse_best: Tuple of (float, int) tracking best masked MSE and iteration
+        perf_closure_evals: Mutable list wrapping closure eval counter (e.g., [0])
+        perf_validation_runs: Mutable list wrapping validation run counter (e.g., [0])
+        perf_forward_times_ms: List of floats recording forward pass times in milliseconds
+        variance_floor_clamped_pixels: Mutable list wrapping clamped pixel counter (e.g., [0])
+        variance_floor_masked_pixels: Mutable list wrapping masked pixel counter (e.g., [0])
+        sigma_floor_sq_tensor: Cached sigma_floor^2 tensor (PHYSICS-LOSS-002)
+        panel_loss_diag: Optional list for per-panel diagnostics (PERF-WARM-SIM-001), None if disabled
+
+    Normative Dependencies:
+    - Telemetry lists accumulate during LBFGS optimization per spec-db-workflow.md:48-84
+    - Final telemetry dict assembled in stage_c.py::StageC.run and returned to engine
+    - Variance floor stats per spec-db-core.md:57-68 (variance-weighted loss)
+    - Dual metric tracking (chi² + masked MSE) per PHYSICS-LOSS-001/002
+    - Panel diagnostics hook per PERF-WARM-SIM-001 (DBEX_STAGE_C_PANEL_DIAG_DIR)
+
+    IDL Contract Reference:
+    - docs/spec-db-workflow.md:48-84 (Refinement Protocol Architecture)
+    - ARCH-STAGE-CONTEXT-001: Telemetry dataclass refactoring
+    - REFINE-013: Best snapshot persistence
+
+    Provenance:
+    - ARCH-STAGE-CONTEXT-001 Phase B.3.2: Created to mirror Stage A telemetry structure
+    """
+    # Mutable counters (lists for closure capture)
+    iteration_count: List[int] = field(default_factory=lambda: [0])
+    perf_closure_evals: List[int] = field(default_factory=lambda: [0])
+    perf_validation_runs: List[int] = field(default_factory=lambda: [0])
+    variance_floor_clamped_pixels: List[int] = field(default_factory=lambda: [0])
+    variance_floor_masked_pixels: List[int] = field(default_factory=lambda: [0])
+
+    # Loss traces (floats)
+    loss_trace_sample: List[float] = field(default_factory=list)
+    loss_trace_full: List[float] = field(default_factory=list)
+    best_loss_full: Tuple[float, int] = field(default_factory=lambda: (float('inf'), -1))
+
+    # Chi-squared traces (PHYSICS-LOSS-001)
+    chi_squared_trace_sample: List[float] = field(default_factory=list)
+    chi_squared_trace_full: List[float] = field(default_factory=list)
+    chi_squared_best: Tuple[float, int] = field(default_factory=lambda: (float('inf'), -1))
+
+    # Masked MSE traces (PHYSICS-LOSS-001)
+    masked_mse_trace_sample: List[float] = field(default_factory=list)
+    masked_mse_trace_full: List[float] = field(default_factory=list)
+    masked_mse_best: Tuple[float, int] = field(default_factory=lambda: (float('inf'), -1))
+
+    # Performance timing
+    perf_forward_times_ms: List[float] = field(default_factory=list)
+
+    # Best parameter snapshot (mutable container)
+    best_params_snapshot: Optional[List[Any]] = None
+
+    # Variance floor tensor (cached, not a trace)
+    sigma_floor_sq_tensor: Optional[Any] = None
+
+    # Optional panel diagnostics (PERF-WARM-SIM-001 Phase D.4)
+    panel_loss_diag: Optional[List[Any]] = None

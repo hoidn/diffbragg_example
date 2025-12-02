@@ -29,7 +29,7 @@ from dbex.refinement.stage_a_impl import (
     _retarget_stage_a_simulators,
     _get_sigma_floor_sq_tensor,
 )
-from dbex.refinement.context import RefinementSharedContext
+from dbex.refinement.context import RefinementSharedContext, StageBTelemetryState
 from dbex.physics.loss import _compute_variance_weighted_loss
 
 
@@ -753,28 +753,27 @@ def _build_stage_b_params(
         sampled_stage_b_indices = list(sampled_panel_ids)
     full_stage_b_indices = list(range(stage_b_total_work_items))
 
-    perf_closure_evals_b = [0]
-    perf_validation_runs_b = [0]
-    perf_forward_times_ms_b: List[float] = []
-
-    # Build telemetry state dict
-    telemetry_state = {
-        'loss_trace_sample_b': loss_trace_sample_b,
-        'loss_trace_full_b': loss_trace_full_b,
-        'best_loss_full_b': best_loss_full_b,
-        'best_params_snapshot_b': best_params_snapshot_b,
-        'chi_squared_trace_sample_b': chi_squared_trace_sample_b,
-        'chi_squared_trace_full_b': chi_squared_trace_full_b,
-        'chi_squared_best_b': chi_squared_best_b,
-        'masked_mse_trace_sample_b': masked_mse_trace_sample_b,
-        'masked_mse_trace_full_b': masked_mse_trace_full_b,
-        'masked_mse_best_b': masked_mse_best_b,
-        'variance_floor_clamped_pixels_b': variance_floor_clamped_pixels_b,
-        'variance_floor_masked_pixels_b': variance_floor_masked_pixels_b,
-        'perf_closure_evals_b': perf_closure_evals_b,
-        'perf_validation_runs_b': perf_validation_runs_b,
-        'perf_forward_times_ms_b': perf_forward_times_ms_b,
-    }
+    # ARCH-STAGE-CONTEXT-001 Phase B.3.2: Build telemetry state dataclass
+    # Instantiate StageBTelemetryState with explicit field values to match existing dict behavior
+    telemetry_state = StageBTelemetryState(
+        iteration_count=[0],
+        loss_trace_sample=loss_trace_sample_b,
+        loss_trace_full=loss_trace_full_b,
+        best_loss_full=best_loss_full_b,
+        best_params_snapshot=best_params_snapshot_b,
+        chi_squared_trace_sample=chi_squared_trace_sample_b,
+        chi_squared_trace_full=chi_squared_trace_full_b,
+        chi_squared_best=chi_squared_best_b,
+        masked_mse_trace_sample=masked_mse_trace_sample_b,
+        masked_mse_trace_full=masked_mse_trace_full_b,
+        masked_mse_best=masked_mse_best_b,
+        perf_closure_evals=[0],
+        perf_validation_runs=[0],
+        perf_forward_times_ms=[],
+        variance_floor_clamped_pixels=variance_floor_clamped_pixels_b,
+        variance_floor_masked_pixels=variance_floor_masked_pixels_b,
+        sigma_floor_sq_tensor=None,  # Will be set during closure execution
+    )
 
     # Build return dict with mode-specific fields
     param_dict = {
@@ -851,12 +850,20 @@ def _run_stage_b_lbfgs(
         log_modifiers = None  # Not used in shell mode
 
     log_scale = param_values['log_scale']
+    # ARCH-STAGE-CONTEXT-001 Phase B.3.2: Extract telemetry from dataclass (with dict compat)
     telemetry = param_values['telemetry_state']
-    loss_trace_full_b = telemetry['loss_trace_full_b']
-    chi_squared_trace_full_b = telemetry['chi_squared_trace_full_b']
-    masked_mse_trace_full_b = telemetry['masked_mse_trace_full_b']
-    loss_trace_sample_b = telemetry['loss_trace_sample_b']
-    best_params_snapshot_b = telemetry['best_params_snapshot_b']
+    if isinstance(telemetry, dict):
+        loss_trace_full_b = telemetry['loss_trace_full_b']
+        chi_squared_trace_full_b = telemetry['chi_squared_trace_full_b']
+        masked_mse_trace_full_b = telemetry['masked_mse_trace_full_b']
+        loss_trace_sample_b = telemetry['loss_trace_sample_b']
+        best_params_snapshot_b = telemetry['best_params_snapshot_b']
+    else:
+        loss_trace_full_b = telemetry.loss_trace_full
+        chi_squared_trace_full_b = telemetry.chi_squared_trace_full
+        masked_mse_trace_full_b = telemetry.masked_mse_trace_full
+        loss_trace_sample_b = telemetry.loss_trace_sample
+        best_params_snapshot_b = telemetry.best_params_snapshot
     stage_b_param_device = param_values['stage_b_param_device']
     best_loss_full = param_values['best_loss_full']  # Stage A final loss for improvement calc
 
@@ -886,10 +893,18 @@ def _run_stage_b_lbfgs(
             best_loss_full_b[0] = float(initial_chi_squared_b.item())
             best_loss_full_b[1] = 0
             # Phase 7: Mode-aware best params snapshot
+            # ARCH-STAGE-CONTEXT-001 Phase B.3.2: Handle both list and dict snapshot types
+            snapshot_data = {}
             if param_values['stage_b_mode'] == "per_reflection":
-                best_params_snapshot_b['log_modifiers'] = param_values['log_modifiers'].data.clone()
+                snapshot_data['log_modifiers'] = param_values['log_modifiers'].data.clone()
             else:
-                best_params_snapshot_b['shell_modifier_raw'] = param_values['shell_modifier_raw'].data.clone()
+                snapshot_data['shell_modifier_raw'] = param_values['shell_modifier_raw'].data.clone()
+            # Update snapshot: for list-type best_params_snapshot_b, clear and append dict; for dict, update directly
+            if isinstance(best_params_snapshot_b, list):
+                best_params_snapshot_b.clear()
+                best_params_snapshot_b.append(snapshot_data)
+            else:
+                best_params_snapshot_b.update(snapshot_data)
 
         # REFINE-FLOW-001: Stage B baseline parity guard
         # Compare Stage B initial chi² against Stage A canonical chi² to detect parameter reconstruction drift
@@ -943,23 +958,33 @@ def _run_stage_b_lbfgs(
         best_loss_full_b[0] = candidate_loss_value
         best_loss_full_b[1] = final_step
         # Phase 7: Mode-aware best params snapshot
+        # ARCH-STAGE-CONTEXT-001 Phase B.3.2: Handle both list and dict snapshot types
+        snapshot_data = {}
         if param_values['stage_b_mode'] == "per_reflection":
-            best_params_snapshot_b['log_modifiers'] = param_values['log_modifiers'].data.clone()
+            snapshot_data['log_modifiers'] = param_values['log_modifiers'].data.clone()
         else:
-            best_params_snapshot_b['shell_modifier_raw'] = param_values['shell_modifier_raw'].data.clone()
+            snapshot_data['shell_modifier_raw'] = param_values['shell_modifier_raw'].data.clone()
+        if isinstance(best_params_snapshot_b, list):
+            best_params_snapshot_b.clear()
+            best_params_snapshot_b.append(snapshot_data)
+        else:
+            best_params_snapshot_b.update(snapshot_data)
     if candidate_mse_value < masked_mse_best_b[0]:
         masked_mse_best_b[0] = candidate_mse_value
         masked_mse_best_b[1] = final_step
 
     # Phase 7: Restore best params (mode-aware)
+    # ARCH-STAGE-CONTEXT-001 Phase B.3.2: Extract snapshot from list or dict
     if best_loss_full_b[0] < float('inf'):
+        # Get snapshot dict: from list[0] if list-type, directly if dict-type
+        snapshot_dict = best_params_snapshot_b[0] if isinstance(best_params_snapshot_b, list) else best_params_snapshot_b
         if param_values['stage_b_mode'] == "per_reflection":
-            param_values['log_modifiers'].data = best_params_snapshot_b['log_modifiers'].to(
+            param_values['log_modifiers'].data = snapshot_dict['log_modifiers'].to(
                 device=stage_b_param_device,
                 dtype=dtype
             )
         else:
-            param_values['shell_modifier_raw'].data = best_params_snapshot_b['shell_modifier_raw'].to(
+            param_values['shell_modifier_raw'].data = snapshot_dict['shell_modifier_raw'].to(
                 device=stage_b_param_device,
                 dtype=dtype
             )

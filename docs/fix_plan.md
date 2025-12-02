@@ -85,7 +85,7 @@
 
 ### [ARCH-STAGE-CONTEXT-001] Stage Context + Engine Artifact Boundary
 - Depends on: ARCH-REFINE-001 (helper extractions), ARCH-ENGINE-002/003 findings (engine protocol + telemetry enrichment)
-- Status: in_progress
+- Status: in_progress (2025-12-02T083500Z: Phase B.3.2 - implementing Stage B/C telemetry dataclasses)
 - Priority: High (unblocks engine artifact work and removes ledger-flagged design debt)
 - Tier: 3 (Architectural Maturity)
 - Owner/Date: Galph ↔ Ralph / 2025-12-02
@@ -95,7 +95,7 @@
   2. Stage classes own their LBFGS closures/telemetry (`StageA.run` no longer unpacks dicts from `_build_stage_a_lbfgs_closure`), emit `StageArtifacts`, and RefinementEngine caches those artifacts without stage-specific branches.
   3. `dbex/io/writer.py::write_torch_outputs` no longer back-computes Nelder–Mead scales; it consumes the engine artifacts/telemetry and focuses on serialization per docs/spec-db-interfaces.md.
 - Working Plan: `plans/active/ARCH-STAGE-CONTEXT-001/implementation.md`
-- Ledger tie-in: Addresses the unchecked “bad design patterns/code smells” entry in `problems.md` (2025-12-01), specifically items 1, 2, 4, 7, and 8 (data clumps, anemic Stage classes, mutable telemetry dicts, engine branching).
+- Ledger tie-in: Addresses the unchecked "bad design patterns/code smells" entry in `problems.md` (2025-12-01), specifically items 1, 2, 4, 7, and 8 (data clumps, anemic Stage classes, mutable telemetry dicts, engine branching).
 - Next Actions:
   * Phase B.2 ✅ (Stage A/B/C closures now live on their Stage classes; Stage C full-detector failure remains the known PERF-WARM-SIM-001 regression captured under reports/2025-12-02T063500Z/). Advance to Phase B.3 by swapping the Stage A telemetry_state dict for the typed `StageATelemetryState` dataclass, then replicate the pattern for Stage B/C telemetry.
 

@@ -174,24 +174,43 @@ class StageC:
         loss_mask_t = param_values['loss_mask_t']
         sigma_readout_t = param_values['sigma_readout_t']
 
-        # Extract from telemetry_state dict
-        perf_closure_evals_c = telemetry_state['perf_closure_evals_c']
-        perf_validation_runs_c = telemetry_state['perf_validation_runs_c']
-        perf_forward_times_ms_c = telemetry_state['perf_forward_times_ms_c']
-        loss_trace_sample_c = telemetry_state['loss_trace_sample_c']
-        loss_trace_full_c = telemetry_state['loss_trace_full_c']
-        best_loss_full_c = telemetry_state['best_loss_full_c']
-        best_params_snapshot_c = telemetry_state['best_params_snapshot_c']
-        iteration_count_c = telemetry_state['iteration_count_c']
-        chi_squared_trace_sample_c = telemetry_state['chi_squared_trace_sample_c']
-        chi_squared_trace_full_c = telemetry_state['chi_squared_trace_full_c']
-        chi_squared_best_c = telemetry_state['chi_squared_best_c']
-        masked_mse_trace_sample_c = telemetry_state['masked_mse_trace_sample_c']
-        masked_mse_trace_full_c = telemetry_state['masked_mse_trace_full_c']
-        masked_mse_best_c = telemetry_state['masked_mse_best_c']
-        variance_floor_clamped_pixels_c = telemetry_state['variance_floor_clamped_pixels_c']
-        variance_floor_masked_pixels_c = telemetry_state['variance_floor_masked_pixels_c']
-        sigma_floor_sq_tensor_stage_c = telemetry_state['sigma_floor_sq_tensor_stage_c']
+        # ARCH-STAGE-CONTEXT-001 Phase B.3.2: Extract from telemetry_state (dataclass or dict compat)
+        if isinstance(telemetry_state, dict):
+            perf_closure_evals_c = telemetry_state['perf_closure_evals_c']
+            perf_validation_runs_c = telemetry_state['perf_validation_runs_c']
+            perf_forward_times_ms_c = telemetry_state['perf_forward_times_ms_c']
+            loss_trace_sample_c = telemetry_state['loss_trace_sample_c']
+            loss_trace_full_c = telemetry_state['loss_trace_full_c']
+            best_loss_full_c = telemetry_state['best_loss_full_c']
+            best_params_snapshot_c = telemetry_state['best_params_snapshot_c']
+            iteration_count_c = telemetry_state['iteration_count_c']
+            chi_squared_trace_sample_c = telemetry_state['chi_squared_trace_sample_c']
+            chi_squared_trace_full_c = telemetry_state['chi_squared_trace_full_c']
+            chi_squared_best_c = telemetry_state['chi_squared_best_c']
+            masked_mse_trace_sample_c = telemetry_state['masked_mse_trace_sample_c']
+            masked_mse_trace_full_c = telemetry_state['masked_mse_trace_full_c']
+            masked_mse_best_c = telemetry_state['masked_mse_best_c']
+            variance_floor_clamped_pixels_c = telemetry_state['variance_floor_clamped_pixels_c']
+            variance_floor_masked_pixels_c = telemetry_state['variance_floor_masked_pixels_c']
+            sigma_floor_sq_tensor_stage_c = telemetry_state['sigma_floor_sq_tensor_stage_c']
+        else:
+            perf_closure_evals_c = telemetry_state.perf_closure_evals
+            perf_validation_runs_c = telemetry_state.perf_validation_runs
+            perf_forward_times_ms_c = telemetry_state.perf_forward_times_ms
+            loss_trace_sample_c = telemetry_state.loss_trace_sample
+            loss_trace_full_c = telemetry_state.loss_trace_full
+            best_loss_full_c = telemetry_state.best_loss_full
+            best_params_snapshot_c = telemetry_state.best_params_snapshot
+            iteration_count_c = telemetry_state.iteration_count
+            chi_squared_trace_sample_c = telemetry_state.chi_squared_trace_sample
+            chi_squared_trace_full_c = telemetry_state.chi_squared_trace_full
+            chi_squared_best_c = telemetry_state.chi_squared_best
+            masked_mse_trace_sample_c = telemetry_state.masked_mse_trace_sample
+            masked_mse_trace_full_c = telemetry_state.masked_mse_trace_full
+            masked_mse_best_c = telemetry_state.masked_mse_best
+            variance_floor_clamped_pixels_c = telemetry_state.variance_floor_clamped_pixels
+            variance_floor_masked_pixels_c = telemetry_state.variance_floor_masked_pixels
+            sigma_floor_sq_tensor_stage_c = telemetry_state.sigma_floor_sq_tensor
 
         # Extract from stage_c_context dict
         stage_c_use_warm_cache = stage_c_context['stage_c_use_warm_cache']
@@ -208,7 +227,10 @@ class StageC:
         panel_diag_dir = os.environ.get('DBEX_STAGE_C_PANEL_DIAG_DIR')
         panel_diag_enabled = panel_diag_dir is not None and force_panel_validation
         if panel_diag_enabled:
-            telemetry_state['panel_loss_diag_c'] = []  # Will collect initial + periodic + final
+            if isinstance(telemetry_state, dict):
+                telemetry_state['panel_loss_diag_c'] = []  # Will collect initial + periodic + final
+            else:
+                telemetry_state.panel_loss_diag = []  # Initialize dataclass field
 
         def compute_loss_stage_c(panel_ids: List[int], is_full: bool = False, force_panel_eval: bool = False) -> Tuple[torch.Tensor, torch.Tensor]:
             """
@@ -480,7 +502,10 @@ class StageC:
 
                 # Store collected diagnostics in telemetry_state
                 if panel_diag_collector is not None:
-                    telemetry_state['panel_loss_diag_c'].extend(panel_diag_collector)
+                    if isinstance(telemetry_state, dict):
+                        telemetry_state['panel_loss_diag_c'].extend(panel_diag_collector)
+                    else:
+                        telemetry_state.panel_loss_diag.extend(panel_diag_collector)
 
                 variance_floor_clamped_pixels_c[0] += clamped_pixels_stage_c
                 variance_floor_masked_pixels_c[0] += masked_pixels_stage_c
@@ -532,13 +557,17 @@ class StageC:
                             'distance_offset_raw': distance_offset_raw.detach().cpu().tolist()
                         }
                         # REFINE-013: Persist best tuples to telemetry_state so _run_stage_c_lbfgs can see them
-                        telemetry_state['chi_squared_best_c'] = chi_squared_best_c
-                        telemetry_state['best_loss_full_c'] = best_loss_full_c
-                        telemetry_state['best_params_snapshot_c'] = best_params_snapshot_c
+                        # ARCH-STAGE-CONTEXT-001 Phase B.3.2: Safe update for dict or dataclass
+                        if isinstance(telemetry_state, dict):
+                            telemetry_state['chi_squared_best_c'] = chi_squared_best_c
+                            telemetry_state['best_loss_full_c'] = best_loss_full_c
+                            telemetry_state['best_params_snapshot_c'] = best_params_snapshot_c
+                        # For dataclass, fields are updated via variable bindings already
                     if full_mse_c.item() < masked_mse_best_c[0]:
                         masked_mse_best_c = (float(full_mse_c.item()), iteration_count_c[0])
                         # REFINE-013: Persist masked_mse_best_c to telemetry_state
-                        telemetry_state['masked_mse_best_c'] = masked_mse_best_c
+                        if isinstance(telemetry_state, dict):
+                            telemetry_state['masked_mse_best_c'] = masked_mse_best_c
 
             iteration_count_c[0] += 1
             return chi_squared_loss

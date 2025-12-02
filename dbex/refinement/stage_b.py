@@ -168,23 +168,43 @@ class StageB:
         misset_xyz_deg = param_values['misset_xyz_deg']
         stage_b_params = param_values['params']
 
-        # Extract telemetry accumulators from nested telemetry_state
+        # ARCH-STAGE-CONTEXT-001 Phase B.3.2: Extract telemetry accumulators from dataclass
+        # Support both dataclass (new) and dict (legacy) via isinstance check for compatibility
         telemetry = param_values['telemetry_state']
-        loss_trace_sample_b = telemetry['loss_trace_sample_b']
-        loss_trace_full_b = telemetry['loss_trace_full_b']
-        chi_squared_trace_sample_b = telemetry['chi_squared_trace_sample_b']
-        chi_squared_trace_full_b = telemetry['chi_squared_trace_full_b']
-        masked_mse_trace_sample_b = telemetry['masked_mse_trace_sample_b']
-        masked_mse_trace_full_b = telemetry['masked_mse_trace_full_b']
-        chi_squared_best_b = telemetry['chi_squared_best_b']
-        masked_mse_best_b = telemetry['masked_mse_best_b']
-        best_loss_full_b = telemetry['best_loss_full_b']
-        best_params_snapshot_b = telemetry['best_params_snapshot_b']
-        variance_floor_clamped_pixels_b = telemetry['variance_floor_clamped_pixels_b']
-        variance_floor_masked_pixels_b = telemetry['variance_floor_masked_pixels_b']
-        perf_closure_evals_b = telemetry['perf_closure_evals_b']
-        perf_validation_runs_b = telemetry['perf_validation_runs_b']
-        perf_forward_times_ms_b = telemetry['perf_forward_times_ms_b']
+        if isinstance(telemetry, dict):
+            # Legacy dict path (backward compatibility during migration)
+            loss_trace_sample_b = telemetry['loss_trace_sample_b']
+            loss_trace_full_b = telemetry['loss_trace_full_b']
+            chi_squared_trace_sample_b = telemetry['chi_squared_trace_sample_b']
+            chi_squared_trace_full_b = telemetry['chi_squared_trace_full_b']
+            masked_mse_trace_sample_b = telemetry['masked_mse_trace_sample_b']
+            masked_mse_trace_full_b = telemetry['masked_mse_trace_full_b']
+            chi_squared_best_b = telemetry['chi_squared_best_b']
+            masked_mse_best_b = telemetry['masked_mse_best_b']
+            best_loss_full_b = telemetry['best_loss_full_b']
+            best_params_snapshot_b = telemetry['best_params_snapshot_b']
+            variance_floor_clamped_pixels_b = telemetry['variance_floor_clamped_pixels_b']
+            variance_floor_masked_pixels_b = telemetry['variance_floor_masked_pixels_b']
+            perf_closure_evals_b = telemetry['perf_closure_evals_b']
+            perf_validation_runs_b = telemetry['perf_validation_runs_b']
+            perf_forward_times_ms_b = telemetry['perf_forward_times_ms_b']
+        else:
+            # New dataclass path (StageBTelemetryState)
+            loss_trace_sample_b = telemetry.loss_trace_sample
+            loss_trace_full_b = telemetry.loss_trace_full
+            chi_squared_trace_sample_b = telemetry.chi_squared_trace_sample
+            chi_squared_trace_full_b = telemetry.chi_squared_trace_full
+            masked_mse_trace_sample_b = telemetry.masked_mse_trace_sample
+            masked_mse_trace_full_b = telemetry.masked_mse_trace_full
+            chi_squared_best_b = telemetry.chi_squared_best
+            masked_mse_best_b = telemetry.masked_mse_best
+            best_loss_full_b = telemetry.best_loss_full
+            best_params_snapshot_b = telemetry.best_params_snapshot
+            variance_floor_clamped_pixels_b = telemetry.variance_floor_clamped_pixels
+            variance_floor_masked_pixels_b = telemetry.variance_floor_masked_pixels
+            perf_closure_evals_b = telemetry.perf_closure_evals
+            perf_validation_runs_b = telemetry.perf_validation_runs
+            perf_forward_times_ms_b = telemetry.perf_forward_times_ms
 
         def compute_loss_stage_b(work_item_ids: List[int], is_full: bool = False, force_panel_eval: bool = False) -> Tuple[torch.Tensor, torch.Tensor]:
             """
@@ -459,10 +479,17 @@ class StageB:
                         chi_squared_best_b = (float(full_chi_squared_b.item()), len(loss_trace_sample_b))
                         best_loss_full_b = (float(full_chi_squared_b.item()), len(loss_trace_sample_b))  # Deprecated legacy field
                         # Phase 7: Mode-aware best params snapshot
+                        # ARCH-STAGE-CONTEXT-001 Phase B.3.2: Handle both list and dict snapshot types
+                        snapshot_data = {}
                         if stage_b_mode == "per_reflection":
-                            best_params_snapshot_b['log_modifiers'] = log_modifiers.data.clone()
+                            snapshot_data['log_modifiers'] = log_modifiers.data.clone()
                         else:
-                            best_params_snapshot_b['shell_modifier_raw'] = shell_modifier_raw.data.clone()
+                            snapshot_data['shell_modifier_raw'] = shell_modifier_raw.data.clone()
+                        if isinstance(best_params_snapshot_b, list):
+                            best_params_snapshot_b.clear()
+                            best_params_snapshot_b.append(snapshot_data)
+                        else:
+                            best_params_snapshot_b.update(snapshot_data)
                     if full_mse_b.item() < masked_mse_best_b[0]:
                         masked_mse_best_b = (float(full_mse_b.item()), len(loss_trace_sample_b))
 
@@ -751,24 +778,44 @@ class StageB:
         final_loss_value = stage_b_results['final_loss_value']
         final_mse_value = stage_b_results['final_mse_value']
 
-        # Extract telemetry accumulators from param_values (updated in-place by closures)
+        # ARCH-STAGE-CONTEXT-001 Phase B.3.2: Extract telemetry from dataclass (with dict compat)
+        # Accumulators updated in-place by closures
         telemetry = param_values['telemetry_state']
-        loss_trace_sample_b = telemetry['loss_trace_sample_b']
-        loss_trace_full_b = telemetry['loss_trace_full_b']
-        chi_squared_trace_sample_b = telemetry['chi_squared_trace_sample_b']
-        chi_squared_trace_full_b = telemetry['chi_squared_trace_full_b']
-        masked_mse_trace_sample_b = telemetry['masked_mse_trace_sample_b']
-        masked_mse_trace_full_b = telemetry['masked_mse_trace_full_b']
-        perf_closure_evals_b = telemetry['perf_closure_evals_b']
-        perf_validation_runs_b = telemetry['perf_validation_runs_b']
-        perf_forward_times_ms_b = telemetry['perf_forward_times_ms_b']
-        variance_floor_clamped_pixels_b = telemetry['variance_floor_clamped_pixels_b']
-        variance_floor_masked_pixels_b = telemetry['variance_floor_masked_pixels_b']
+        if isinstance(telemetry, dict):
+            loss_trace_sample_b = telemetry['loss_trace_sample_b']
+            loss_trace_full_b = telemetry['loss_trace_full_b']
+            chi_squared_trace_sample_b = telemetry['chi_squared_trace_sample_b']
+            chi_squared_trace_full_b = telemetry['chi_squared_trace_full_b']
+            masked_mse_trace_sample_b = telemetry['masked_mse_trace_sample_b']
+            masked_mse_trace_full_b = telemetry['masked_mse_trace_full_b']
+            perf_closure_evals_b = telemetry['perf_closure_evals_b']
+            perf_validation_runs_b = telemetry['perf_validation_runs_b']
+            perf_forward_times_ms_b = telemetry['perf_forward_times_ms_b']
+            variance_floor_clamped_pixels_b = telemetry['variance_floor_clamped_pixels_b']
+            variance_floor_masked_pixels_b = telemetry['variance_floor_masked_pixels_b']
+        else:
+            loss_trace_sample_b = telemetry.loss_trace_sample
+            loss_trace_full_b = telemetry.loss_trace_full
+            chi_squared_trace_sample_b = telemetry.chi_squared_trace_sample
+            chi_squared_trace_full_b = telemetry.chi_squared_trace_full
+            masked_mse_trace_sample_b = telemetry.masked_mse_trace_sample
+            masked_mse_trace_full_b = telemetry.masked_mse_trace_full
+            perf_closure_evals_b = telemetry.perf_closure_evals
+            perf_validation_runs_b = telemetry.perf_validation_runs
+            perf_forward_times_ms_b = telemetry.perf_forward_times_ms
+            variance_floor_clamped_pixels_b = telemetry.variance_floor_clamped_pixels
+            variance_floor_masked_pixels_b = telemetry.variance_floor_masked_pixels
 
         # REFINE-FLOW-001: Extract baseline parity diagnostics
-        stage_b_baseline_rel_diff = telemetry.get('stage_b_baseline_rel_diff', None)
-        stage_b_baseline_abs_diff = telemetry.get('stage_b_baseline_abs_diff', None)
-        stage_b_baseline_diff_path = telemetry.get('stage_b_baseline_diff_path', None)
+        # Support both dict and dataclass (getattr with default for dataclass)
+        if isinstance(telemetry, dict):
+            stage_b_baseline_rel_diff = telemetry.get('stage_b_baseline_rel_diff', None)
+            stage_b_baseline_abs_diff = telemetry.get('stage_b_baseline_abs_diff', None)
+            stage_b_baseline_diff_path = telemetry.get('stage_b_baseline_diff_path', None)
+        else:
+            stage_b_baseline_rel_diff = getattr(telemetry, 'stage_b_baseline_rel_diff', None)
+            stage_b_baseline_abs_diff = getattr(telemetry, 'stage_b_baseline_abs_diff', None)
+            stage_b_baseline_diff_path = getattr(telemetry, 'stage_b_baseline_diff_path', None)
 
         # Build param_deltas dict for telemetry (mode-aware)
         param_deltas_b = {}

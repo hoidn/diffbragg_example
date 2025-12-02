@@ -19,6 +19,7 @@ ARCH-STAGE-CONTEXT-001 Phase B.2.3:
 """
 
 import math
+import os
 import time
 from collections import defaultdict
 from typing import Any, Callable, Dict, List, Optional, Tuple
@@ -38,6 +39,7 @@ from dbex.refinement.stage_a_impl import (
 )
 
 from dbex.physics.loss import _compute_variance_weighted_loss
+from dbex.refinement.context import StageCTelemetryState
 
 
 def _retarget_stage_a_detectors(
@@ -328,26 +330,35 @@ def _build_stage_c_params(
         line_search_fn="strong_wolfe"
     )
 
-    # Telemetry accumulators for Stage C
-    loss_trace_sample_c = []
-    loss_trace_full_c = []
-    best_loss_full_c = (float('inf'), -1)
-    best_params_snapshot_c = None
-    iteration_count_c = [0]
-
-    # PHYSICS-LOSS-001: Dual metric tracking (chi_squared + masked_mse)
-    chi_squared_trace_sample_c = []
-    chi_squared_trace_full_c = []
-    chi_squared_best_c = (float('inf'), -1)
-    masked_mse_trace_sample_c = []
-    masked_mse_trace_full_c = []
-    masked_mse_best_c = (float('inf'), -1)
-
-    # PHYSICS-LOSS-002: Variance floor clamp statistics for Stage C
-    variance_floor_clamped_pixels_c = [0]  # Total pixels where floor engaged
-    variance_floor_masked_pixels_c = [0]  # Total masked pixels evaluated
+    # ARCH-STAGE-CONTEXT-001 Phase B.3.2: Build Stage C telemetry state dataclass
+    # Compute sigma_floor_sq_tensor once for dataclass initialization
     sigma_floor_sq_tensor_stage_c = _get_sigma_floor_sq_tensor(
         sigma_floor_sq_cache, device, dtype, config.sigma_floor_value
+    )
+
+    # Optional panel diagnostics list (PERF-WARM-SIM-001)
+    panel_loss_diag_c = [] if os.environ.get('DBEX_STAGE_C_PANEL_DIAG_DIR') else None
+
+    # Instantiate StageCTelemetryState dataclass
+    telemetry_state = StageCTelemetryState(
+        iteration_count=[0],
+        loss_trace_sample=[],
+        loss_trace_full=[],
+        best_loss_full=(float('inf'), -1),
+        best_params_snapshot=None,
+        chi_squared_trace_sample=[],
+        chi_squared_trace_full=[],
+        chi_squared_best=(float('inf'), -1),
+        masked_mse_trace_sample=[],
+        masked_mse_trace_full=[],
+        masked_mse_best=(float('inf'), -1),
+        perf_closure_evals=[0],
+        perf_validation_runs=[0],
+        perf_forward_times_ms=[],
+        variance_floor_clamped_pixels=[0],
+        variance_floor_masked_pixels=[0],
+        sigma_floor_sq_tensor=sigma_floor_sq_tensor_stage_c,
+        panel_loss_diag=panel_loss_diag_c,
     )
 
     return {
@@ -365,23 +376,26 @@ def _build_stage_c_params(
         'force_panel_validation': force_panel_validation,  # REFINE-011: For Stage C full validation bypass
         'roi_mode_reason': roi_mode_reason,  # REFINE-012: Provenance tag for ROI-mode decision
         'validation_scope': validation_scope,  # REFINE-011/012: Independent from closure mode (panel when forced)
-        'perf_closure_evals_c': perf_closure_evals_c,
-        'perf_validation_runs_c': perf_validation_runs_c,
-        'perf_forward_times_ms_c': perf_forward_times_ms_c,
-        'loss_trace_sample_c': loss_trace_sample_c,
-        'loss_trace_full_c': loss_trace_full_c,
-        'best_loss_full_c': best_loss_full_c,
-        'best_params_snapshot_c': best_params_snapshot_c,
-        'iteration_count_c': iteration_count_c,
-        'chi_squared_trace_sample_c': chi_squared_trace_sample_c,
-        'chi_squared_trace_full_c': chi_squared_trace_full_c,
-        'chi_squared_best_c': chi_squared_best_c,
-        'masked_mse_trace_sample_c': masked_mse_trace_sample_c,
-        'masked_mse_trace_full_c': masked_mse_trace_full_c,
-        'masked_mse_best_c': masked_mse_best_c,
-        'variance_floor_clamped_pixels_c': variance_floor_clamped_pixels_c,
-        'variance_floor_masked_pixels_c': variance_floor_masked_pixels_c,
-        'sigma_floor_sq_tensor_stage_c': sigma_floor_sq_tensor_stage_c,
+        # ARCH-STAGE-CONTEXT-001 Phase B.3.2: Replace individual telemetry fields with dataclass
+        'telemetry_state': telemetry_state,
+        # Legacy fields for backward compatibility (to be removed in Phase C)
+        'perf_closure_evals_c': telemetry_state.perf_closure_evals,
+        'perf_validation_runs_c': telemetry_state.perf_validation_runs,
+        'perf_forward_times_ms_c': telemetry_state.perf_forward_times_ms,
+        'loss_trace_sample_c': telemetry_state.loss_trace_sample,
+        'loss_trace_full_c': telemetry_state.loss_trace_full,
+        'best_loss_full_c': telemetry_state.best_loss_full,
+        'best_params_snapshot_c': telemetry_state.best_params_snapshot,
+        'iteration_count_c': telemetry_state.iteration_count,
+        'chi_squared_trace_sample_c': telemetry_state.chi_squared_trace_sample,
+        'chi_squared_trace_full_c': telemetry_state.chi_squared_trace_full,
+        'chi_squared_best_c': telemetry_state.chi_squared_best,
+        'masked_mse_trace_sample_c': telemetry_state.masked_mse_trace_sample,
+        'masked_mse_trace_full_c': telemetry_state.masked_mse_trace_full,
+        'masked_mse_best_c': telemetry_state.masked_mse_best,
+        'variance_floor_clamped_pixels_c': telemetry_state.variance_floor_clamped_pixels,
+        'variance_floor_masked_pixels_c': telemetry_state.variance_floor_masked_pixels,
+        'sigma_floor_sq_tensor_stage_c': telemetry_state.sigma_floor_sq_tensor,
     }
 
 

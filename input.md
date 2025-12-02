@@ -1,36 +1,39 @@
-Summary: Seed the Stage C telemetry fallback so closure counters and sample traces exist even when LBFGS exits immediately, then rerun the Stage B guard plus Stage B/C smoketests with logs in the new artifacts directory.
-Mode: Parity
+Summary: Hoist Stage A/C stage-wrapper dependencies to module scope so LBFGS closures stop importing config factories and standard libs on every iteration, then re-run the Stage A smokes plus the known-failing Stage C smoke to confirm no new regressions.
+Mode: none
 InitiativeType: architecture
-Focus: ARCH-TELEMETRY-001 — Telemetry Observer Refactor
+Focus: ARCH-LAZY-IMPORTS-001 — Lazy imports / process-noise hygiene
 Branch: integration
 Mapped tests:
-- AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 DBEX_SMOKE_DETECTOR_SIZE=small pytest -vv tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload | tee plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T235900Z/pytest_stage_b_guard.log
-- AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 DBEX_SMOKE_DETECTOR_SIZE=small pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small | tee plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T235900Z/pytest_stage_b_smoke.log
-- AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 DBEX_SMOKE_DETECTOR_SIZE=small pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small | tee plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T235900Z/pytest_stage_c_smoke.log
-Artifacts: plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T235900Z/
+- KMP_DUPLICATE_LIB_OK=TRUE DBEX_SMOKE_DETECTOR_SIZE=small pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+- KMP_DUPLICATE_LIB_OK=TRUE pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry
+- KMP_DUPLICATE_LIB_OK=TRUE DBEX_SMOKE_DETECTOR_SIZE=small pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip (expected ARCH-TELEMETRY-001 failure; capture log + assertion text)
+Artifacts: plans/active/ARCH-LAZY-IMPORTS-001/reports/2025-12-04T010500Z/
 Do Now:
-- Implement: dbex/refinement/telemetry_collectors.py::StageCTelemetryCollector.ensure_sample_trace (add an optional flag that bumps `perf_closure_evals` when the seeded baseline acts as a synthetic closure) and dbex/refinement/stage_c_impl.py::_run_stage_c_lbfgs (call the helper with the new flag at both zero-closure checkpoints) so Stage C telemetry/perf counters remain consistent even when LBFGS never evaluates the closure. Keep Stage A/B collectors untouched.
-- Tests: rerun the mapped Stage B guard, Stage B shell smoke, and Stage C detector microslip selectors above with the canonical env flags and tee the logs into the new artifacts directory; Stage C is expected to pass once closure_evals ≥ 1.
+- Implement: dbex/refinement/stage_a.py::_build_lbfgs_closure — add module-scope imports for `create_detector_config`, `create_beam_config`, `create_crystal_config`, and `compute_baseline_misset_deg` plus `os/json/sys`; drop the inline import blocks inside the closure and per-panel diagnostics writer so the Stage A loop just references the top-level names.
+- Implement: dbex/refinement/stage_a.py::telemetry JSON writers — reuse the module-level `json`, `Path`, and `sys` imports instead of re-importing per call, keeping the existing exception handling/logging intact.
+- Implement: dbex/refinement/stage_c.py::_build_lbfgs_closure/compute_loss_stage_c — add module-scope `import os` (shared with Stage A), rely on the existing module-scope Detector/Crystal/Simulator/config factory imports, remove the inline `import math`/`from nanobrag_torch...` blocks, and make sure the warm-cache diagnostics still emit under the ARCH-TELEMETRY-001 guard.
+- Validate: run the three mapped selectors (Stage A smokes expected PASS, Stage C smoke expected to fail with the known `loss_trace_sample` assertion) and save each log under the artifacts directory.
 How-To Map:
-1. Update `StageCTelemetryCollector.ensure_sample_trace` to accept `increment_counter: bool = False`. When the flag is True and `self._state.perf_closure_evals[0]` is still zero, set it to 1 before returning so the synthetic baseline is counted as a closure. Keep the existing loss/chi²/MSE seeding behavior and document the new option in the docstring.
-2. In `_run_stage_c_lbfgs`, pass `increment_counter=True` when invoking `collector.ensure_sample_trace(...)` after `stage_c_optimizer.step(closure_stage_c)` if `perf_closure_evals_c[0]` remained zero, and again in the late fallback that runs just before the final validation if the sample traces are still empty. This guarantees both the traces and the perf counter are initialized before assembling the final telemetry.
-3. After implementing the helper change, rerun the three mapped pytest selectors with the env block from the commands list, tee each log into `plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T235900Z/`, and verify from the Stage C log that `perf_counters['closure_evals']` is now ≥ 1 alongside the seeded sample traces.
+1. After editing, verify no remaining non-exempt inline imports: `rg -n "^\s+import " dbex/refinement/stage_a.py dbex/refinement/stage_c.py | grep -v derive_orientation | grep -v quaternion_to_matrix` (allowlist the documented geometry helpers only).
+2. `KMP_DUPLICATE_LIB_OK=TRUE DBEX_SMOKE_DETECTOR_SIZE=small pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion | tee plans/active/ARCH-LAZY-IMPORTS-001/reports/2025-12-04T010500Z/pytest_stage_a_expansion.log`
+3. `KMP_DUPLICATE_LIB_OK=TRUE pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry | tee plans/active/ARCH-LAZY-IMPORTS-001/reports/2025-12-04T010500Z/pytest_stage_a_engine_telemetry.log`
+4. `KMP_DUPLICATE_LIB_OK=TRUE DBEX_SMOKE_DETECTOR_SIZE=small pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip | tee plans/active/ARCH-LAZY-IMPORTS-001/reports/2025-12-04T010500Z/pytest_stage_c_smoke.log` (annotate the log noting the expected ARCH-TELEMETRY-001 failure signature: `AssertionError: Stage C sample loss trace empty`).
 Pitfalls To Avoid:
-- Do not relax or edit the Stage C test assertions; the telemetry fix must make the existing gate pass.
-- Keep the Environment Freeze intact—no package installs or dependency upgrades.
-- Do not touch Stage A/B collectors or writer code while adjusting the Stage C helper.
-- Preserve the existing iteration bookkeeping (baseline row stays at iteration -1) when seeding traces.
-- Only increment the closure counter when it is zero; avoid double-counting normal LBFGS iterations.
-- Capture and archive every pytest log even on failure, and stop immediately if a selector fails unexpectedly.
+- Do not move the optional geometry helper imports (`derive_orientation_from_quaternion_delta`, `matrix_to_quaternion`, etc.); those stay lazy per ARCH-ENGINE-002 exceptions.
+- Keep telemetry semantics untouched—only change where the imports live. Chi-squared logging and perf counters must match previous behavior.
+- Leave Stage B files alone; this loop targets only Stage A/C wrappers.
+- Stage C smoketest currently fails upstream; treat any new failure signature as a regression and capture it.
+- Maintain Environment Freeze: no new dependencies or build steps—just Python edits/tests.
+- Respect existing typing/comment structure; avoid changing docstrings beyond import cleanup.
 If Blocked:
-- Stop after the first failing selector, save the log into the artifacts directory listed above, note the failure signature plus env flags in docs/fix_plan.md Attempts History for ARCH-TELEMETRY-001, and ping Galph before changing the tests or acceptance gates.
+- If Stage A selectors fail or Stage C emits a *different* assertion than the known empty `loss_trace_sample`, stop, capture the log in the artifacts directory, and update docs/fix_plan.md + galph_memory.md describing the new signature so we can escalate to ARCH-TELEMETRY-001.
 Findings Applied (Mandatory):
-- PHYSICS-LOSS-001 — Stage C telemetry must continue to emit variance-weighted chi² + variance floor stats per spec.
-- REFINE-007 — Detector microslip gates rely on telemetry comparisons vs Stage A; closure counters need to stay meaningful.
-- ARCH-STAGE-CTX-001/002 — Collectors own telemetry and perf counters; no dict mutation regressions allowed.
+- ARCH-ENGINE-002 — Stage wrappers must expose dependencies at module scope unless explicitly exempted.
+- GEOMETRY-001 — Detector/beam configs derived via config factories must remain authoritative when hoisting imports.
+- RUNTIME-001 — Keep torch.compile/gradcheck guardrails intact by avoiding new runtime branching in the closures.
 Pointers:
-- docs/fix_plan.md:110 — Stage C closure-counter fallback scope and required artifacts.
-- plans/active/ARCH-TELEMETRY-001/implementation.md:94 — Phase C checklist bullet describing the closure-evals guard and validation bundle.
-- docs/spec-db-core.md:106 — Normative variance-weighted loss definition that the telemetry and seeded traces must reflect.
-Next Up: If time remains after the smoketests are green, start scoping C2 (writer consumption of StageResult telemetry) so we can delete the final legacy dict shims once Stage C telemetry stabilizes.
-Doc Sync Plan: none — no new selectors or registry entries this loop.
+- plans/active/ARCH-LAZY-IMPORTS-001/implementation.md:72 (Phase B.3 checklist + validation expectations for this loop).
+- docs/fix_plan.md:147 (initiative entry, attempts history, and problems-ledger linkage).
+- docs/spec-db-workflow.md:49 (refinement protocol architecture governing Stage A/C responsibilities while editing the wrappers).
+Next Up (optional):
+- Once these eager-import changes land, the next obvious follow-up is tackling Phase C process-noise cleanup (docstrings + hygiene selector) before moving on to the Stage C telemetry collector fix tracked under ARCH-TELEMETRY-001.

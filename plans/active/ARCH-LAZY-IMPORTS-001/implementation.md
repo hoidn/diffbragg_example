@@ -77,9 +77,9 @@
   - Replace ad-hoc `import logging` statements inside `_run_stage_b_lbfgs`, `_compute_loss_stage_b`, etc., with the shared module logger.
   - Capture pytest evidence for Stage B parity guard (`tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload`) and the Stage B shell smoke (`tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small`).
 - Upcoming follow-up (current loop):
-  - Stage A helpers (`_build_stage_a_context`, `_compute_panel_loss`, final diagnostics writer) still import `create_detector_config`, `create_crystal_config`, `Detector`, `Crystal`, and `Simulator` inside hot loops. Hoist these dependencies plus `Path/json` to module scope, document the requirement per ARCH-ENGINE-002, and delete the per-call import statements.
-  - Stage C warm-cache helpers still import `warnings` and re-import `os/json` in the panel diagnostics block. Move `warnings` to module scope, rely on the existing module-level `os/json`, and ensure `_retarget_stage_a_detectors` and `_run_stage_c_lbfgs` reuse those imports rather than redeclaring them.
-  - Validation: rerun `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion --smoke-detector-size=small`, `tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry`, and `tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small`. Capture logs under `reports/<ts>/` for parity evidence.
+  - Stage A + Stage C stage wrappers (`dbex/refinement/stage_a.py`, `dbex/refinement/stage_c.py`) still contain nested imports for config factories, Detector/Crystal/Simulator, and `compute_baseline_misset_deg`, plus inlined `os/json/sys` in the telemetry writers. Hoist these dependencies to module scope with ARCH-ENGINE-002 guard comments, delete the per-call import blocks inside `_build_lbfgs_closure`/`compute_loss`/telemetry writers, and document any remaining lazy imports that are truly optional.
+  - Stage A panel-diagnostics hook currently inlines `import os` every closure build; add module-scope `os` import shared between Stage A/C and reuse it instead of re-importing inside the hot loop.
+  - Validation: rerun `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion --smoke-detector-size=small`, `tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry`, and `tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small`. Stage C smoke is still failing due to the ARCH-TELEMETRY-001 collector gap (empty `loss_trace_sample` when LBFGS early-exits); capture the log under `plans/active/ARCH-LAZY-IMPORTS-001/reports/2025-12-04T010500Z/` and confirm the failure signature matches the known issue while verifying no new lazy-import regressions.
 
 ## Phase C — Process Noise & Guardrails
 ### Checklist
@@ -92,4 +92,4 @@
 
 ## Artifacts Index
 - Reports root: `plans/active/ARCH-LAZY-IMPORTS-001/reports/`
-- Latest run: `2025-12-03T223500Z/` *(Stage A/C lazy-import planning — artifacts reserved for this loop.)*
+- Latest run: `2025-12-04T010500Z/` *(Stage A/C stage-wrapper eager-import cleanup planning & telemetry guard alignment reserved here.)*

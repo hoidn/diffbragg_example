@@ -518,3 +518,8 @@ Action State: ready_for_implementation
 - Decision: keep the strict guard and treat the seeded baseline as a synthetic closure—extend `StageCTelemetryCollector.ensure_sample_trace` with an `increment_counter` flag and invoke it from `_run_stage_c_lbfgs` whenever LBFGS reports zero closures so the telemetry/perf counters remain self-consistent.
 - Updated docs/fix_plan.md + implementation.md with the new guard and rebuilt input.md directing Ralph to land the helper change, touch `_run_stage_c_lbfgs`, and rerun the Stage B guard, Stage B shell, and Stage C smoketests with logs under `reports/2025-12-03T235900Z/`.
 Action State: ready_for_implementation
+2025-12-04T010500Z focus=ARCH-LAZY-IMPORTS-001 state=planning dwell=2 action=planning artifacts=plans/active/ARCH-LAZY-IMPORTS-001/reports/2025-12-04T010500Z/ next_action=ready_for_implementation
+- Problems-ledger guard triggered (last two entries lacked ledger mention), so re-focused on ARCH-LAZY-IMPORTS-001 and updated problems.md with the new 2025-12-04T010500Z note.
+- Refreshed plans/active/ARCH-LAZY-IMPORTS-001/implementation.md Phase B.3 to call out the Stage A/C stage-wrapper cleanup, validation selectors, and artifact path.
+- Added a new attempts-history entry in docs/fix_plan.md tying this planning loop + artifacts to the initiative and rewrote input.md with the module-scope import Do Now plus Stage A/A/C smoketest instructions (Stage C failure expected per ARCH-TELEMETRY-001).
+Action State: ready_for_implementation

@@ -109,8 +109,78 @@ This manifest records the external data inputs (datasets, calibration payloads, 
 - **Purpose:** Enables metadata sigma-map loading for small-detector smoke fixtures without shape mismatch errors.
 - **Validation:** Crop report JSON includes SHA256, file size, panel count, and crop window parameters for reproducibility checks.
 
+## ROI Analysis & Writer Helpers (ARCH-BRIDGE-RESP-001)
+
+### `dbex.io.roi_analysis.build_roi_payloads_from_arrays`
+
+- **Req. Inputs:**
+  - `target`: Full-detector target intensities (n_panels, slow, fast) in ADU or photons from DataLoad.data.
+  - `background`: Full-detector background image (n_panels, slow, fast) from DataLoad.background_image.
+  - `bragg`: Full-detector simulated Bragg intensities (n_panels, slow, fast) from RefinementEngine final forward model or Stage C output.
+  - `pids`: Panel IDs per ROI (length n_rois) from DataLoad.pids.
+  - `bbox`: Bounding boxes per ROI (length n_rois), each (x0, x1, y0, y1) with x1/y1 exclusive, from DataLoad.bbox.
+- **Optional Inputs:**
+  - `scores`: Pre-computed per-ROI scores (length n_rois) from upstream ROI scoring helper (Phase B, currently None).
+  - `scales`: Pre-computed optimal Bragg scales (length n_rois) from upstream ROI scoring helper (Phase B, currently None; defaults to 1.0).
+- **Outputs:**
+  - List of `ROIAnalysisPayload` instances (length n_rois), each containing:
+    - `triptych`: `ROITriptych` with cropped data/background/bragg arrays and metadata (panel_id, bbox).
+    - `score`: Optional float (0-1, higher=better) from roiCheck scorer.
+    - `optimal_scale`: Float (>= 0) Bragg intensity scale factor from Nelder-Mead optimization.
+    - `variance`: Optional array V = max(I_model + sigma_readout^2, sigma_floor^2) per spec-db-core.md §§86-90 (Phase B wiring).
+    - `model`: Optional optimized model image (background + optimal_scale * bragg) (Phase B wiring).
+- **Telemetry/Diagnostics:**
+  - Helper does NOT emit telemetry directly; consumers (writer, future scoring helper) will populate `/torch_diagnostics` fields:
+    - `roi_scoring_method`: "inline" (Phase A) or "nelder_mead" (Phase B when scoring helper is wired).
+    - `roi_checker`: "score_trainer.roi_check.roiCheck" (legacy parity).
+    - `n_rois`: Number of payloads (from len(payloads)).
+- **Default Provenance:**
+  - Arrays: Sourced from DataLoad (target/background) and RefinementEngine/Stage C (bragg).
+  - Scores/scales: None (Phase A scaffolding); Phase B will populate via dedicated ROI scoring helper calling Nelder-Mead.
+- **Purpose:**
+  - Packages existing ROI arrays into typed payloads without mutating or optimizing.
+  - Decouples ROI scoring (Nelder-Mead optimization) from HDF5 serialization in `dbex.io.writer` (ARCH-BRIDGE-RESP-001 Phase B future wiring).
+  - Provides a numpy-only interface (no torch tensors) for h5py serialization boundary.
+- **Notes:**
+  - Helper performs only array slicing and dataclass construction; no Nelder-Mead or variance computation (deferred to Phase B).
+  - Background arrays SHALL NOT contain NaN; caller must validate upstream (enforced by dbex/nanobrag_bridge.py per PHYSICS-LOSS-001).
+  - Array ordering: [panel, slow, fast] per docs/spec-db-core.md §21.
+
+### `dbex.io.writer.write_torch_outputs`
+
+- **Req. Inputs:**
+  - `args`: CLI parser namespace with `outFile` (HDF5 path), `sigma_floor` (float, default 1.0), `adu_per_photon` (Optional[float]).
+  - `data_load`: DataLoad object with `data`, `background_image`, `detector`, `pids`, `bbox`.
+  - `bragg`: Full-detector simulated Bragg intensities (n_panels, slow, fast) from RefinementEngine or Stage C.
+  - `inputs`: RefinementInputs namedtuple with `target`, `loss_mask`, `panel_slices`, `trusted_mask`.
+  - `masked_mse`: Masked mean squared error (float) between target and Bragg.
+  - `hkl_telemetry`: Dict with `hkl_source` ("refined"/"raw"), `hkl_n_reflections`, `hkl_mean_amplitude`, `hkl_path`.
+- **Optional Inputs:**
+  - `refine_telemetry`: Dict[str, RefinementTelemetry] (multi-stage) or single RefinementTelemetry (legacy).
+  - `sigma_readout_provenance`: String describing sigma source ("cli_override", "calibrated_map", "external_lookup").
+  - `sigma_readout_reference_value`: Scalar sigma_readout in target units (after ADU→photon conversion if applicable).
+  - `stage_artifacts`: Dict[str, Any] from RefinementEngine.artifacts containing stage-specific metadata (ARCH-STAGE-CONTEXT-001).
+- **Outputs:**
+  - HDF5 file at `args.outFile` with:
+    - `/torch_diagnostics` group (attributes): `masked_mse`, `loss_mask_coverage`, `n_rois`, `target_shape`, `backend`, `sigma_floor`, optional: `adu_per_photon`, `sigma_readout_provenance`, `sigma_readout_reference_value`.
+    - `/torch_diagnostics/hkl_telemetry` (attributes): `hkl_source`, `hkl_n_reflections`, `hkl_mean_amplitude`, `hkl_path`.
+    - `/torch_diagnostics/refine_telemetry` (JSON string): Serialized Dict[str, RefinementTelemetry.to_dict()].
+    - Per-ROI datasets: `/data/roi<i>`, `/model/roi<i>`, `/bragg/roi<i>`, `/bg/roi<i>`, `/variance/roi<i>`, `/score`, `/bragg_scale`.
+- **Telemetry/Diagnostics:**
+  - All `/torch_diagnostics` fields are persisted in HDF5 attributes for downstream replay/audit.
+  - Variance computation follows spec-db-core.md §86-90: `V = max(I_model + sigma_rdout^2, sigma_floor^2)`.
+  - ROI scoring loop (Phase A): Uses `score_trainer.roi_check.roiCheck` with Nelder-Mead optimization per legacy DiffBragg parity.
+  - Phase B wiring: Writer will consume typed `List[ROIAnalysisPayload]` from upstream scoring helper (no inline optimization).
+- **Default Provenance:**
+  - ROI scoring: Inline Nelder-Mead (Phase A); future Phase B will delegate to `build_roi_payloads_from_arrays` + dedicated scoring helper.
+  - Variance: Computed inline per spec-db-core.md §86-90 using `sigma_readout_reference_value` or `args.sigma_floor`.
+- **Purpose:**
+  - Canonical torch backend HDF5 writer consolidating ROI scoring, telemetry serialization, and `/torch_diagnostics` schema emission.
+  - Byte-for-byte compatible with prior `dbex.refine_one._write_torch_outputs` (DIAGNOSTICS-001).
+  - Supports multi-stage telemetry (Dict[str, RefinementTelemetry]) for Stage A/B/C aggregation (ARCH-ENGINE-003).
+
 ## Maintainer Notes
 
 - When adding a new helper or CLI under `plans/` that consumes dataset assets, append an entry here describing its inputs and overrides.
-- When modifying an existing helper’s data sourcing (e.g., swapping HKL defaults), update this manifest and the helper docstring in the same commit.
-- Supervisors should reference this manifest before issuing Do Nows to ensure planned work accounts for the helper’s real dependencies.
+- When modifying an existing helper's data sourcing (e.g., swapping HKL defaults), update this manifest and the helper docstring in the same commit.
+- Supervisors should reference this manifest before issuing Do Nows to ensure planned work accounts for the helper's real dependencies.

@@ -25,6 +25,99 @@
 
 ---
 
+## ROI Analysis Payload (ARCH-BRIDGE-RESP-001 Phase A.2)
+
+### Overview
+
+Starting in Phase B, `write_torch_outputs` will accept typed ROI analysis payloads (`ROIAnalysisPayload` from `dbex.io.roi_analysis`) to separate ROI scoring (Nelder-Mead optimization) from HDF5 serialization. This section documents the new typed interface that will replace the current inline scoring loop.
+
+### Data Types
+
+**`ROITriptych`** (dataclass):
+- **Fields**:
+  - `panel_id: int` — DIALS detector panel ID (0-indexed)
+  - `bbox: Tuple[int, int, int, int]` — Bounding box (x0, x1, y0, y1) with x1/y1 exclusive
+  - `data: np.ndarray` — Observed target intensities (shape: ny, nx) in target units (ADU or photons)
+  - `background: np.ndarray` — Background image (shape: ny, nx) matching target units
+  - `bragg: np.ndarray` — Simulated Bragg intensities (shape: ny, nx) matching target units
+- **Spec References**: docs/spec-db-core.md §§20-48 (array ordering, bbox semantics, unit modes)
+- **Constraints**:
+  - All arrays numpy-only (no torch tensors) for h5py serialization boundary
+  - Background SHALL NOT contain NaN values
+  - Shape consistency: data.shape == background.shape == bragg.shape
+
+**`ROIAnalysisPayload`** (dataclass):
+- **Fields**:
+  - `triptych: ROITriptych` — Cropped data/background/bragg arrays and metadata
+  - `score: Optional[float]` — Per-ROI quality metric from roiCheck (0-1, higher=better)
+  - `optimal_scale: float` — Bragg intensity scale factor from Nelder-Mead (scalar >= 0)
+  - `variance: Optional[np.ndarray]` — Variance array V = max(I_model + sigma_readout^2, sigma_floor^2) per spec-db-core.md §§86-90 (shape: ny, nx)
+  - `model: Optional[np.ndarray]` — Optimized model image (background + optimal_scale * bragg) (shape: ny, nx)
+- **Spec References**: docs/spec-db-core.md §§86-90 (variance computation), docs/spec-db-workflow.md §§70-75 (staging outputs)
+- **Constraints**:
+  - Variance must be strictly positive and finite on trusted pixels (zero/NaN sigma is non-compliant per spec-db-core.md §38)
+  - Score provenance: Computed via `score_trainer.roi_check.roiCheck.score(data, model)`
+  - Optimal scale: Derived from minimizing `1 - CHECKER.score()` over Bragg scale parameter
+
+### Helper: `build_roi_payloads_from_arrays`
+
+```python
+def build_roi_payloads_from_arrays(
+    target: np.ndarray,
+    background: np.ndarray,
+    bragg: np.ndarray,
+    pids: List[int],
+    bbox: List[Tuple[int, int, int, int]],
+    scores: Optional[List[float]] = None,
+    scales: Optional[List[float]] = None,
+) -> List[ROIAnalysisPayload]
+```
+
+**Purpose**: Package existing ROI arrays into typed payloads without mutating or optimizing. This helper performs only array slicing and dataclass construction; it does NOT run Nelder-Mead optimization or compute variance.
+
+**Inputs**:
+- `target`: Full-detector target intensities (n_panels, slow, fast) in ADU or photons
+- `background`: Full-detector background image (n_panels, slow, fast) matching target units
+- `bragg`: Full-detector simulated Bragg intensities (n_panels, slow, fast) matching target units
+- `pids`: Panel IDs per ROI (length n_rois)
+- `bbox`: Bounding boxes per ROI (length n_rois), each (x0, x1, y0, y1) with x1/y1 exclusive
+- `scores`: Optional pre-computed per-ROI scores (length n_rois). If None, all payloads have score=None
+- `scales`: Optional pre-computed optimal Bragg scales (length n_rois). If None, defaults to 1.0
+
+**Outputs**:
+- List of `ROIAnalysisPayload` instances (length n_rois), one per ROI. Variance and model fields are set to None (computed downstream).
+
+**Data Dependencies** (see docs/data_dependency_manifest.md):
+- External: Target/background/bragg arrays from DataLoad + RefinementEngine final forward model
+- Telemetry: ROI panel IDs (`pids`) and bounding boxes (`bbox`) from DataLoad
+- Optional: Pre-computed scores/scales from upstream ROI scoring helper (Phase B)
+
+**Future Wiring** (Phase B):
+1. Dedicated ROI scoring helper will call `build_roi_payloads_from_arrays` after running Nelder-Mead
+2. Scoring helper will populate `score`, `optimal_scale`, `variance`, and `model` fields
+3. `write_torch_outputs` will consume typed `List[ROIAnalysisPayload]` instead of raw arrays
+4. Writer focuses solely on HDF5 serialization (no inline optimization)
+
+### Dataset Mapping
+
+When `write_torch_outputs` accepts `List[ROIAnalysisPayload]` in Phase B, HDF5 datasets will map as follows:
+
+| HDF5 Dataset | Source Field | Shape | dtype |
+|--------------|--------------|-------|-------|
+| `/data/roi<i>` | `payloads[i].triptych.data` | (ny, nx) | float32 or float64 |
+| `/bg/roi<i>` | `payloads[i].triptych.background` | (ny, nx) | float32 or float64 |
+| `/bragg/roi<i>` | `payloads[i].triptych.bragg` | (ny, nx) | float32 or float64 |
+| `/model/roi<i>` | `payloads[i].model` | (ny, nx) | float32 or float64 |
+| `/variance/roi<i>` | `payloads[i].variance` | (ny, nx) | float32 or float64 |
+| `/score` | `[p.score for p in payloads]` | (n_rois,) | float32 |
+| `/bragg_scale` | `[p.optimal_scale for p in payloads]` | (n_rois,) | float32 |
+
+**Provenance Telemetry**: `/torch_diagnostics` group will include:
+- `roi_scoring_method: str` — "nelder_mead" (Phase B) or "inline" (legacy, Phase A)
+- `roi_checker: str` — "score_trainer.roi_check.roiCheck" (legacy parity)
+
+---
+
 ## API: write_torch_outputs
 
 ### Signature

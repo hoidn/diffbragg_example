@@ -99,7 +99,7 @@
 
 ### [ARCH-BRIDGE-RESP-001] Writer / bridge responsibility split
 - Depends on: ARCH-REFINE-001 (shared writer path), DIAGNOSTICS-001 & PHYSICS-LOSS-001/002/003 findings, problems.md writer/bridge directive
-- Status: planned
+- Status: in_progress
 - Priority: High
 - Tier: 0
 - Owner/Date: Galph ↔ Ralph / 2025-12-02
@@ -113,6 +113,7 @@
 - Ledger tie-in: Resolves problems.md bullet “Writer / bridge responsibility split” by relocating Nelder–Mead analysis to tooling and reducing the nanobrag bridge god object.
 - Attempts History:
   * 2025-12-02T213000Z — Initiative registered per problems-ledger guard; plan drafted with Phase A (contracts/dataclasses), Phase B (writer serialization cleanup), and Phase C (bridge decomposition). Artifacts staged at `plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-02T213000Z/`.
+  * 2025-12-02T213000Z (Phase A.0/A.2/A.3) — Boundary audit complete: captured `write_torch_outputs` callers (dbex/refine_one.py:604, tests mocks) and `prepare_refinement_inputs` callers (CLI, vis tools, 14 test suites). Created `dbex/io/roi_analysis.py` with ROITriptych, ROIAnalysisPayload, and build_roi_payloads_from_arrays helper (numpy-only, no optimization logic per Do Now). Extended `docs/architecture/dbex/io/writer.idl.md` with "ROI Analysis Payload" section describing new typed parameter, dataset mapping, and Phase B wiring plan. Updated `docs/data_dependency_manifest.md` with ROI helper entry (inputs: target/background/bragg arrays + pids/bbox; outputs: List[ROIAnalysisPayload]; telemetry: roi_scoring_method, roi_checker, n_rois). Mapped tests PASSED: test_torch_diagnostics_metadata (2/2 passed, 0.90s), test_tensor_contract (1/1 passed, 0.80s). No behavior change this loop; new module is unused scaffolding for Phase B wiring. Artifacts: `plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-02T213000Z/` (boundary_audit.md, writer_callers.txt, bridge_callers.txt, pytest logs). Next: Phase B.1 — implement dedicated ROI scoring helper and wire CLI/engine paths.
 
 ### [ARCH-ENGINE-ARTIFACTS-001] RefinementEngine Artifact Channel & Final-Bragg Unification
 - Depends on: ARCH-REFINE-001 (engine modularization baseline), ARCH-REFINE-FLOW-001 (stage wrappers, telemetry contract)

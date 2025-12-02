@@ -29,8 +29,8 @@ import torch
 # ARCH-REFINE-001: Eager imports at module scope to eliminate lazy-import pattern
 from dbex.refinement.artifacts import StageBArtifacts
 from dbex.refinement.stage import RefinementTelemetry, StageResult
-from dbex.refinement.stage_b_impl import (
-    # ARCH-STAGE-CONTEXT-001 Phase B.2: Closure builder moved to StageB._build_lbfgs_closure
+# ARCH-REFACTOR-001 Phase C.6: Import Stage A helpers from their actual source
+from dbex.refinement.stage_a_impl import (
     _retarget_stage_a_simulators,
     _get_sigma_floor_sq_tensor,
     _build_stage_a_context,

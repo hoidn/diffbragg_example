@@ -64,11 +64,7 @@ from dbex.refinement.hkl_utils import (
     initialize_asu_modifiers,
     apply_asu_modifiers,
 )
-from dbex.refinement.stage_b_impl import (
-    _build_stage_b_params,
-    # ARCH-STAGE-CONTEXT-001 Phase B.2: Closure builder moved to StageB._build_lbfgs_closure
-    _run_stage_b_lbfgs,
-)
+# ARCH-REFACTOR-001 Phase C.6: stage_b_impl imports removed (facade no longer calls these helpers directly)
 
 # Stage C helpers relocated to dbex.refinement.stage_c (ARCH-REFACTOR-001 Phase C.3)
 # All Stage C implementation helpers now live within the StageC class as private methods.

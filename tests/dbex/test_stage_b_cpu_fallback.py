@@ -35,7 +35,8 @@ def test_stage_b_params_cpu_fallback_clones_stage_a_ctx():
       - use_stage_b_cpu_fallback=False
       - Stage B reuses original Stage A context (no cloning)
     """
-    from dbex.refinement.stage_b_impl import _build_stage_b_params
+    # ARCH-REFACTOR-001 Phase C.6: Import from StageB class (helper moved to private method)
+    from dbex.refinement.stage_b import StageB
     from dbex.nanobrag_refinement import RefinementConfig
 
     # Mock RefinementInputs
@@ -98,7 +99,8 @@ def test_stage_b_params_cpu_fallback_clones_stage_a_ctx():
     )
 
     # Mock _build_stage_a_context and compute_hkl_shell_lookup to avoid heavy dependencies
-    with patch("dbex.refinement.stage_b_impl._build_stage_a_context") as mock_build_ctx, \
+    # ARCH-REFACTOR-001 Phase C.6: Patch Stage A helper in its actual source (stage_a_impl)
+    with patch("dbex.refinement.stage_a_impl._build_stage_a_context") as mock_build_ctx, \
          patch("dbex.refinement.hkl_utils.compute_hkl_shell_lookup") as mock_shell_lookup:
 
         # Configure mock Stage A context builder to return minimal CPU context
@@ -119,7 +121,8 @@ def test_stage_b_params_cpu_fallback_clones_stage_a_ctx():
         device = torch.device(config.device)
         dtype = torch.float32
         sigma_floor_sq_cache = {}  # Empty cache dict for test
-        param_values = _build_stage_b_params(
+        # ARCH-REFACTOR-001 Phase C.6: Call StageB private method
+        param_values = StageB._build_stage_b_params(
             config=config,
             device=device,
             dtype=dtype,
@@ -175,7 +178,8 @@ def test_stage_b_params_no_cpu_fallback_when_roi_mode_enabled():
     - When use_stage_a_roi_mode=True, CPU fallback is disabled even if config.stage_b_full_eval_on_cpu=True
     - Stage B reuses original Stage A context (no CPU cloning)
     """
-    from dbex.refinement.stage_b_impl import _build_stage_b_params
+    # ARCH-REFACTOR-001 Phase C.6: Import from StageB class (helper moved to private method)
+    from dbex.refinement.stage_b import StageB
     from dbex.nanobrag_refinement import RefinementConfig
 
     class MockRefinementInputs:
@@ -231,7 +235,8 @@ def test_stage_b_params_no_cpu_fallback_when_roi_mode_enabled():
         stage_b_mode="shell",
     )
 
-    with patch("dbex.refinement.stage_b_impl._build_stage_a_context") as mock_build_ctx, \
+    # ARCH-REFACTOR-001 Phase C.6: Patch Stage A helper in its actual source (stage_a_impl)
+    with patch("dbex.refinement.stage_a_impl._build_stage_a_context") as mock_build_ctx, \
          patch("dbex.refinement.hkl_utils.compute_hkl_shell_lookup") as mock_shell_lookup:
 
         shell_indices = torch.zeros((10, 10, 10), dtype=torch.int32)
@@ -241,7 +246,8 @@ def test_stage_b_params_no_cpu_fallback_when_roi_mode_enabled():
         device = torch.device(config.device)
         dtype = torch.float32
         sigma_floor_sq_cache = {}  # Empty cache dict for test
-        param_values = _build_stage_b_params(
+        # ARCH-REFACTOR-001 Phase C.6: Call StageB private method
+        param_values = StageB._build_stage_b_params(
             config=config,
             device=device,
             dtype=dtype,
@@ -280,7 +286,8 @@ def test_stage_b_params_no_cpu_fallback_when_config_disabled():
     - When config.stage_b_full_eval_on_cpu=False, CPU fallback is disabled regardless of device
     - Stage B reuses original Stage A context
     """
-    from dbex.refinement.stage_b_impl import _build_stage_b_params
+    # ARCH-REFACTOR-001 Phase C.6: Import from StageB class (helper moved to private method)
+    from dbex.refinement.stage_b import StageB
     from dbex.nanobrag_refinement import RefinementConfig
 
     class MockRefinementInputs:
@@ -336,7 +343,8 @@ def test_stage_b_params_no_cpu_fallback_when_config_disabled():
         stage_b_mode="shell",
     )
 
-    with patch("dbex.refinement.stage_b_impl._build_stage_a_context") as mock_build_ctx, \
+    # ARCH-REFACTOR-001 Phase C.6: Patch Stage A helper in its actual source (stage_a_impl)
+    with patch("dbex.refinement.stage_a_impl._build_stage_a_context") as mock_build_ctx, \
          patch("dbex.refinement.hkl_utils.compute_hkl_shell_lookup") as mock_shell_lookup:
 
         shell_indices = torch.zeros((10, 10, 10), dtype=torch.int32)
@@ -346,7 +354,8 @@ def test_stage_b_params_no_cpu_fallback_when_config_disabled():
         device = torch.device(config.device)
         dtype = torch.float32
         sigma_floor_sq_cache = {}  # Empty cache dict for test
-        param_values = _build_stage_b_params(
+        # ARCH-REFACTOR-001 Phase C.6: Call StageB private method
+        param_values = StageB._build_stage_b_params(
             config=config,
             device=device,
             dtype=dtype,

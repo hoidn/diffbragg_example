@@ -169,9 +169,10 @@ def stage_a_smoke_result(
         masked_pixels = int(np.count_nonzero(refinement_inputs.loss_mask))
 
     device_obj = torch.device(config.device)
-    # ARCH-REFACTOR-001 Phase D.3 Batch 2 bugfix: build_final_bragg_from_stage_a_telemetry
-    # no longer has param_state parameter. Use mapping_context.bragg_zero_iter for "before" state.
-    bragg_before = mapping_context.bragg_zero_iter  # Zero-iteration forward (initial geometry)
+    # ARCH-REFACTOR-001 Phase D.3 Batch 2 bugfix: Use pre-computed bragg_zero_iter from mapping_context
+    # instead of non-existent mapping_context attribute access. The mapping context already computed
+    # the zero-iteration forward model via build_mapping_stage_a_context, so reuse it directly.
+    bragg_before = mapping_context.bragg_zero_iter  # Zero-iteration forward (baseline geometry)
     bragg_after = bragg_final  # Engine-refined final Bragg
 
     # Compute log_scale_effective from telemetry.param_deltas per STAGEA-001
@@ -204,14 +205,14 @@ def stage_a_smoke_result(
     roi_cc_median_before = float(np.median(valid_corrs_before)) if valid_corrs_before else float("nan")
     roi_cc_median_after = float(np.median(valid_corrs_after)) if valid_corrs_after else float("nan")
 
-    # Use mapping context's bragg_zero_iter for parity comparison (DB-AT-028/029 diagnostics)
+    # Use computed bragg_before for parity comparison (DB-AT-028/029 diagnostics)
     # Compute MASKED scale ratios per input.md requirement (masked mean for both Bragg and target)
     roi_cc_median_mapping = float("nan")
     scale_ratio_mapping_masked = float("nan")
     scale_ratio_mapping_unmasked = float("nan")
     mapping_forward_success = False
     try:
-        bragg_mapping = mapping_context.bragg_zero_iter
+        bragg_mapping = bragg_before
 
         # Compute mapping ROI correlations using the SAME mapping_context.inputs
         corrs_mapping = _roi_correlations(
@@ -298,7 +299,7 @@ def test_db_at_028_loss_scale_sanity(stage_a_smoke_result):
         mapping_context=stage_a_smoke_result["mapping_context"],
         dataload=stage_a_smoke_result["refgeom_dataload"],
         output_path=artifact_dir / "mapping_context_fixture.json",
-        bragg_model=stage_a_smoke_result["mapping_context"].bragg_zero_iter,
+        bragg_model=stage_a_smoke_result["bragg_before"],  # Use computed bragg_before from fixture
         stage_name="fixture_db_at_028",
     )
 
@@ -388,7 +389,7 @@ def test_db_at_029_structure_parity(stage_a_smoke_result):
         mapping_context=stage_a_smoke_result["mapping_context"],
         dataload=stage_a_smoke_result["refgeom_dataload"],
         output_path=artifact_dir / "mapping_context_fixture.json",
-        bragg_model=stage_a_smoke_result["mapping_context"].bragg_zero_iter,
+        bragg_model=stage_a_smoke_result["bragg_before"],  # Use computed bragg_before from fixture
         stage_name="fixture_db_at_029",
     )
 

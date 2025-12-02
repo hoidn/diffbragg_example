@@ -335,3 +335,61 @@ Final step: relocate remaining dataclasses (`StageAROIEntry`, `StageAContext`) f
 Artifacts for Phase C.9 live under `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T235959Z/`.
 
 **Phase C.9 COMPLETE (2025-12-02T235959Z, commit 9e45812b):** All checkboxes satisfied. Stage A dataclasses relocated to context.py, 5 import sites updated, stage_a_impl.py deleted. Tests: 5/5 PASSED (Stage A expansion 7.45s, Stage A telemetry 7.40s, Stage B guard 0.78s, Stage B shell 23.14s, Stage C smoke 7.04s). Note: test_refgeom_integration does not exist in repo; 5/5 existing mapped tests passed. Net repo change: -1460 lines. ARCH-REFACTOR-001 Exit Criterion #1 fully satisfied: all *_impl.py modules (stage_a_impl, stage_b_impl, stage_c_impl) eliminated.
+
+## Phase D — Facade Removal
+**Goal:** Migrate all consumers from `run_nanobrag_refinement()` facade to direct `RefinementEngine` usage and delete the monolithic `dbex/nanobrag_refinement.py` file.
+**Status:** Planning Complete (2025-12-02T201539Z)
+
+### Planning Artifacts (2025-12-02T201539Z)
+Comprehensive planning completed under `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T201539Z/`:
+- `consumer_inventory.txt` — Raw grep output (imports + call sites)
+- `consumer_analysis.md` — Categorized consumer list (6 production/test + 1 tooling consumers)
+- `config_migration_plan.md` — RefinementConfig relocation strategy (Option A: new module)
+- `cli_refactor_blueprint.md` — Detailed refine_one.py migration pattern (reference implementation)
+- `test_migration_plan.md` — Per-file test migration strategy (7 files, 14 functions)
+- `deletion_checklist.md` — 12-step verification procedure (pre + post deletion checks)
+- `phase_d_scope.md` — High-level Phase D summary
+
+**Consumer scope:**
+- Production: `dbex/refine_one.py` (1 call site)
+- Test: `test_torch_refine_smoke.py` (6 functions), `test_stage_a_smoke_parity.py` (1 function)
+- Config-only: `test_refinement_engine.py` (2 imports), `test_stage_b_cpu_fallback.py` (3 imports)
+- Legacy import fix: `test_physics_loss_current.py` (4 imports, redirect to `dbex.physics.loss`)
+- Tooling: `dbex/tools/stage_a_adam.py` (1 call site)
+- Infrastructure: `dbex/refinement/__init__.py` (config re-export)
+
+**Out-of-scope:** Research probes (`plans/active/*/bin/*.py`), docs/logs/archive (update in next doc cycle)
+
+### Checklist
+
+- [ ] D.1: **RefinementConfig Migration** — Create `dbex/refinement/config.py` with RefinementConfig dataclass relocated from facade. Update 8 import sites (refine_one, __init__, test_refinement_engine 2×, test_stage_b_cpu_fallback 3×, test_torch_refine_smoke 6×). Add temporary re-export in facade for backward compatibility during incremental migration.
+  - **Validation:** `pytest -vv tests/dbex/test_refinement_engine.py tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion --smoke-detector-size=small` (4 tests)
+  - **Artifacts:** `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T<HHMMSS>Z/` (D.1 implementation timestamp)
+
+- [ ] D.2: **CLI Refactor** — Migrate `dbex/refine_one.py::run_nanobrag_backend()` from facade to RefinementEngine. Pattern: (1) import Engine + Stages, (2) build RefinementContext via `build_refinement_context()`, (3) instantiate stages list based on config flags, (4) run `engine.run({"context": refinement_context})`, (5) extract artifacts from `engine._artifacts`, (6) extract final Bragg from terminal stage (C > B > A precedence).
+  - **Validation:** `pytest -vv tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_runs_simulator` (2 tests)
+  - **Artifacts:** `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T<HHMMSS>Z/` (D.2 implementation timestamp)
+  - **Critical:** This provides reference pattern for all test migrations
+
+- [ ] D.3: **Test Harness Migration** — Migrate test files following CLI blueprint (D.2). Files: (1) `test_torch_refine_smoke.py` (6 functions: test_stage_a_expansion, test_stage_a_engine_delegation_telemetry, test_stage_b_shell_modifiers, test_stage_c_detector_microslip, test_stage_b_asu_mapping_smoke, test_stage_c_stage_a_baseline_detector_dist), (2) `test_stage_a_smoke_parity.py` (1 function: test_stage_a_mapping_to_refine_roundtrip), (3) `dbex/tools/stage_a_adam.py` (1 function: run_debug_refinement).
+  - **Validation:** `pytest -vv tests/dbex/test_torch_refine_smoke.py tests/dbex/test_stage_a_smoke_parity.py tests/dbex/test_stage_a_adam_tooling.py --smoke-detector-size=small` (8+ tests)
+  - **Artifacts:** `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T<HHMMSS>Z/` (D.3 implementation timestamp)
+
+- [ ] D.4: **Import Cleanup** — Fix remaining legacy imports. Files: (1) `test_physics_loss_current.py` (4 inline imports, redirect `_compute_variance_weighted_loss` from facade to `dbex.physics.loss`).
+  - **Validation:** `pytest -vv tests/dbex/test_physics_loss_current.py` (4 tests)
+  - **Artifacts:** `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T<HHMMSS>Z/` (D.4 implementation timestamp)
+
+- [ ] D.5: **Facade Deletion** — Delete `dbex/nanobrag_refinement.py` after comprehensive verification. Pre-deletion checks: (1) zero remaining imports (excluding docs/logs/archive), (2) zero remaining call sites (excluding research probes), (3) static imports succeed, (4) test collection clean. Post-deletion checks: (1) static imports (repeat), (2) CLI smoke test, (3) Stage A/B/C smokes (3 tests), (4) full test suite (20+ tests), (5) test collection (repeat). Rollback plan: `git checkout HEAD -- dbex/nanobrag_refinement.py` if any check fails.
+  - **Validation:** 12-step checklist (see `deletion_checklist.md`)
+  - **Artifacts:** `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T<HHMMSS>Z/` (D.5 implementation timestamp)
+  - **Exit Criterion #2:** Facade deleted, RefinementEngine is sole refinement path
+
+**Expected Metrics (Phase D complete):**
+- Files deleted: 1 (`dbex/nanobrag_refinement.py`, ~656 lines)
+- Consumers migrated: 7 files (1 CLI + 5 tests + 1 tooling)
+- Import updates: ~20 inline imports redirected
+- Engine adoption: 10 call sites (1 CLI + 9 tests)
+- Net change: -656 lines (facade removed)
+- Tests validated: 20+ (CLI + Stage smokes + Engine + Tooling + Physics)
+
+**Phase D Completion:** When Exit Criteria #1 (Phase C) + #2 (Phase D) both satisfied, mark ARCH-REFACTOR-001 `done`.

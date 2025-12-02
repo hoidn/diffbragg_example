@@ -1,5 +1,5 @@
 ### Turn Summary
-Confirmed Phase C.9 completion (commit 9e45812b): stage_a_impl.py deleted after relocating dataclasses to context.py; all 5/5 mapped tests passed.
-ARCH-REFACTOR-001 Exit Criterion #1 fully satisfied: all *_impl.py modules eliminated (stage_a_impl, stage_b_impl, stage_c_impl), net -1460 lines repo-wide.
-Next: Phase D (Facade Removal) to migrate CLI + tests from run_nanobrag_refinement to RefinementEngine and delete the monolithic facade.
-Artifacts: plans/active/ARCH-REFACTOR-001/reports/2025-12-02T201539Z/ (planning_notes.md, phase_d_scope.md)
+Completed comprehensive Phase D planning: produced 7 detailed planning artifacts for Facade Removal (consumer inventory, analysis, config migration plan, CLI refactor blueprint, test migration plan, deletion checklist, and scope summary) covering 8 consumer files (1 CLI + 5 tests + 1 tooling + 1 infrastructure).
+Planning deliverables provide implementation-ready guidance for 5-phase migration sequence (D.1 Config → D.2 CLI → D.3 Tests → D.4 Cleanup → D.5 Deletion) with comprehensive verification procedures and rollback plan.
+Next: Implementation loops can begin with Phase D.1 (RefinementConfig migration to new module).
+Artifacts: plans/active/ARCH-REFACTOR-001/reports/2025-12-02T201539Z/ (7 planning documents)

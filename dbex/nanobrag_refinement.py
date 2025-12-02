@@ -68,12 +68,9 @@ from dbex.refinement.stage_b_impl import (
 )
 
 # Stage C helpers relocated to dbex.refinement.stage_c_impl (ARCH-REFINE-001 Phase A.3)
-# ARCH-STAGE-CONTEXT-001 Phase B.2.3: _build_stage_c_lbfgs_closure moved to StageC._build_lbfgs_closure
-from dbex.refinement.stage_c_impl import (
-    _retarget_stage_a_detectors,
-    _build_stage_c_params,
-    _run_stage_c_lbfgs,
-)
+# ARCH-REFACTOR-001 Phase C.2 (2025-12-04): _build_stage_c_params and _run_stage_c_lbfgs
+# moved to StageC class. Only _retarget_stage_a_detectors remains here until Phase C.3.
+from dbex.refinement.stage_c_impl import _retarget_stage_a_detectors
 
 from dbex.physics.loss import _compute_variance_weighted_loss
 # ARCH-REFINE-001 Phase C.1: Import canonical RefinementTelemetry from dbex.refinement

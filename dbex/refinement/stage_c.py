@@ -19,21 +19,22 @@ Dependencies (ARCH-REFINE-001 eager import refactoring):
 - nanobrag_torch.simulator: Simulator class for forward model evaluation
 """
 
-from dataclasses import asdict
+from collections import defaultdict
+from dataclasses import asdict, replace
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
+import json
 import math
 import os
 import numpy as np
 import time
+import warnings
 import torch
 
 # ARCH-REFINE-001: Eager imports at module scope to eliminate lazy-import pattern
 from dbex.refinement.artifacts import StageCArtifacts
 from dbex.refinement.stage import RefinementTelemetry, StageResult
 from dbex.refinement.stage_c_impl import (
-    _build_stage_c_params,
-    _run_stage_c_lbfgs,
     _retarget_stage_a_detectors,
 )
 from dbex.refinement.telemetry_collectors import StageCTelemetryCollector
@@ -43,6 +44,8 @@ from dbex.refinement.stage_a_impl import (
     _clamp_log_cell_deltas,
     _retarget_stage_a_simulators,
     _compute_panel_loss,
+    _get_sigma_floor_sq_tensor,
+    StageAContext,
 )
 from dbex.physics.loss import _compute_variance_weighted_loss
 from dbex.refinement.config_factories import (
@@ -550,6 +553,618 @@ class StageC:
 
         return compute_loss_stage_c, closure_stage_c
 
+    def _build_stage_c_params(
+        self,
+        shared_context: 'RefinementSharedContext',
+        stage_a_ctx: Optional[StageAContext],
+        stage_a_telemetry: Dict[str, Any],
+        sampled_panel_ids: List[int]
+    ) -> Tuple[Any, Any, Dict[str, Any], Any]:
+        """
+        Initialize Stage C detector distance offset parameters and optimizer.
+
+        ARCH-REFACTOR-001 Phase C.2: Inlined from stage_c_impl._build_stage_c_params.
+        Returns tuple of (StageCContext, StageCTelemetryState, param_values dict, optimizer)
+        instead of legacy dict-of-lists.
+
+        Args:
+            shared_context: RefinementSharedContext with config, device, dtype, detector, etc.
+            stage_a_ctx: Optional Stage A context (detectors/simulators for warm cache)
+            stage_a_telemetry: Stage A telemetry dict for ROI mode check
+            sampled_panel_ids: List of panel IDs to refine
+
+        Returns:
+            Tuple of:
+            - StageCContext: Stage C context dataclass
+            - StageCTelemetryState: Telemetry state dataclass
+            - param_values: Dict with distance_offset_raw, stage_c_params, stage_c_optimizer, etc.
+            - stage_c_optimizer: torch.optim.LBFGS optimizer
+        """
+        # Extract from shared_context
+        config = shared_context.config
+        device = shared_context.device
+        dtype = shared_context.dtype
+        detector = shared_context.detector
+        baseline_detector = shared_context.baseline_detector
+        panel_slices = shared_context.inputs.panel_slices
+        sigma_floor_sq_cache = shared_context.sigma_floor_sq_cache
+
+        n_panels = len(detector)
+
+        # Compute baseline_detector_distances for Stage C telemetry (TORCH-REFINE-003)
+        baseline_detector_distances = None
+        if baseline_detector is not None:
+            baseline_detector_distances = [
+                baseline_detector[pid].get_directed_distance() for pid in range(n_panels)
+            ]
+
+        # Initialize per-panel distance offsets (mm along panel normal)
+        # Start at zero (identity), bounded by tanh to ±max_distance_delta_mm
+        distance_offset_raw = torch.zeros(n_panels, device=device, dtype=dtype, requires_grad=True)
+
+        stage_c_params = [distance_offset_raw]
+
+        # PERF-WARM-SIM-001: Stage C warm cache mirrors Stage B logic
+        stage_c_use_warm_cache = (
+            stage_a_ctx is not None
+            and config.enable_stage_a_warm_cache
+        )
+        stage_c_cache_mode = "warm" if stage_c_use_warm_cache else "cold"
+
+        # Build roi_slices_by_pid from panel_slices
+        roi_slices_by_pid: Dict[int, List[Tuple[int, int, int, int]]] = defaultdict(list)
+        for pid, bbox in panel_slices:
+            roi_slices_by_pid[int(pid)].append(tuple(int(v) for v in bbox))
+
+        # ARCH-REFINE-001, REFINE-010: Stage C ROI mode mirrors Stage A's actual ROI mode
+        stage_a_used_roi_mode = (stage_a_telemetry.get("roi_mode") == "roi")
+
+        # REFINE-011: Extract Stage A validation scope to control Stage C full validations
+        stage_a_perf_counters = stage_a_telemetry.get('perf_counters', {})
+        stage_a_validation_scope = stage_a_perf_counters.get('validation_scope', 'roi')
+        force_panel_validation = (stage_a_validation_scope == 'panel')
+
+        # REFINE-012: Re-enable ROI closures while keeping panel validations
+        stage_c_roi_mode_active = (
+            stage_c_use_warm_cache
+            and stage_a_used_roi_mode
+            and len(roi_slices_by_pid) > 0
+        )
+
+        # Compute roi_mode_reason for telemetry provenance (REFINE-012 extension)
+        if not stage_c_roi_mode_active:
+            if not stage_c_use_warm_cache:
+                roi_mode_reason = "warm_cache_disabled"
+            elif not stage_a_used_roi_mode:
+                roi_mode_reason = "stage_a_panel_mode"
+            elif len(roi_slices_by_pid) == 0:
+                roi_mode_reason = "no_rois"
+            else:
+                roi_mode_reason = "unknown"
+        else:
+            roi_mode_reason = ""
+
+        stage_c_roi_mode_label = "roi" if stage_c_roi_mode_active else "panel"
+
+        # REFINE-011 extension: validation_scope is independent from closure ROI mode
+        validation_scope = "panel" if force_panel_validation else stage_c_roi_mode_label
+
+        sampled_pid_set = set(sampled_panel_ids)
+        if stage_c_roi_mode_active:
+            stage_c_roi_count_total = sum(len(bboxes) for bboxes in roi_slices_by_pid.values())
+            stage_c_roi_count_sampled = sum(len(roi_slices_by_pid.get(pid, [])) for pid in sampled_pid_set)
+        else:
+            # REFINE-010: Report canonical ROI count even in panel mode
+            stage_c_roi_count_total = len(panel_slices)
+            stage_c_roi_count_sampled = len(panel_slices)
+
+        # Setup LBFGS optimizer for Stage C
+        stage_c_optimizer = torch.optim.LBFGS(
+            stage_c_params,
+            history_size=config.history_size,
+            max_iter=config.max_iter,
+            tolerance_grad=config.tolerance_grad,
+            tolerance_change=config.tolerance_change,
+            line_search_fn="strong_wolfe"
+        )
+
+        # Build Stage C telemetry state dataclass
+        sigma_floor_sq_tensor_stage_c = _get_sigma_floor_sq_tensor(
+            sigma_floor_sq_cache, device, dtype, config.sigma_floor_value
+        )
+
+        panel_loss_diag_c = [] if os.environ.get('DBEX_STAGE_C_PANEL_DIAG_DIR') else None
+
+        # Import StageCTelemetryState
+        from dbex.refinement.context import StageCTelemetryState
+
+        telemetry_state = StageCTelemetryState(
+            iteration_count=[0],
+            loss_trace_sample=[],
+            loss_trace_full=[],
+            best_loss_full=(float('inf'), -1),
+            best_params_snapshot=None,
+            chi_squared_trace_sample=[],
+            chi_squared_trace_full=[],
+            chi_squared_best=(float('inf'), -1),
+            masked_mse_trace_sample=[],
+            masked_mse_trace_full=[],
+            masked_mse_best=(float('inf'), -1),
+            perf_closure_evals=[0],
+            perf_validation_runs=[0],
+            perf_forward_times_ms=[],
+            variance_floor_clamped_pixels=[0],
+            variance_floor_masked_pixels=[0],
+            sigma_floor_sq_tensor=sigma_floor_sq_tensor_stage_c,
+            panel_loss_diag=panel_loss_diag_c,
+        )
+
+        # Build param_values dict
+        param_values = {
+            'distance_offset_raw': distance_offset_raw,
+            'stage_c_params': stage_c_params,
+            'stage_c_optimizer': stage_c_optimizer,
+        }
+
+        # Import StageCContext
+        from dbex.refinement.context import StageCContext
+
+        # Build StageCContext dataclass (placeholder for now, will be completed in run())
+        stage_c_context = StageCContext(
+            stage_c_use_warm_cache=stage_c_use_warm_cache,
+            stage_c_cache_mode=stage_c_cache_mode,
+            stage_c_roi_mode_label=stage_c_roi_mode_label,
+            stage_c_roi_count_total=stage_c_roi_count_total,
+            stage_c_roi_count_sampled=stage_c_roi_count_sampled,
+            baseline_detector_distances=baseline_detector_distances,
+            sampled_panel_ids=sampled_panel_ids,
+            roi_slices_by_pid=roi_slices_by_pid,
+            stage_c_roi_mode_active=stage_c_roi_mode_active,
+            force_panel_validation=force_panel_validation,
+            roi_mode_reason=roi_mode_reason,
+            validation_scope=validation_scope,
+            misset_deg_for_crystal=None,  # Will be set by caller
+            _apply_baseline_detector_prior=lambda: None,  # Will be set by caller
+        )
+
+        return stage_c_context, telemetry_state, param_values, stage_c_optimizer
+
+    def _run_lbfgs(
+        self,
+        compute_loss_stage_c: Callable,
+        closure_stage_c: Callable,
+        stage_c_context: Any,
+        collector: Any,
+        telemetry_state: Any,
+        param_values: Dict[str, Any],
+        stage_a_ctx: Optional[StageAContext],
+        canonical_baseline: Dict[str, Any],
+        n_panels: int,
+        shared_context: 'RefinementSharedContext',
+    ) -> Tuple[Any, Any, str, str, Any, Dict[str, Any]]:
+        """
+        Execute Stage C LBFGS optimization, final validation, improvement gate,
+        best snapshot restore, final Bragg regeneration, and telemetry packaging.
+
+        ARCH-REFACTOR-001 Phase C.2: Inlined from stage_c_impl._run_stage_c_lbfgs.
+        Returns tuple instead of dict for clearer ownership.
+
+        Args:
+            compute_loss_stage_c: Loss computation function from closure builder
+            closure_stage_c: LBFGS closure function
+            stage_c_context: StageCContext dataclass
+            collector: StageCTelemetryCollector for telemetry aggregation
+            telemetry_state: StageCTelemetryState dataclass
+            param_values: Dict with distance_offset_raw, stage_c_params, stage_c_optimizer, etc.
+            stage_a_ctx: Optional Stage A context for warm cache
+            canonical_baseline: Dict with Stage A final chi² for improvement gate
+            n_panels: Number of detector panels
+            shared_context: RefinementSharedContext with config, device, dtype, detector, etc.
+
+        Returns:
+            Tuple of:
+            - stage_result: StageResult from collector (contains telemetry)
+            - refinement_telemetry: RefinementTelemetry object
+            - status: str ('ok', 'early_stop', 'error')
+            - message: str (status message)
+            - bragg_full_stage_c: np.ndarray (n_panels, slow, fast) final Bragg volume
+            - param_deltas: Dict with per-panel distance offset deltas
+        """
+        # Extract from param_values dict
+        distance_offset_raw = param_values['distance_offset_raw']
+        stage_c_params = param_values['stage_c_params']
+        stage_c_optimizer = param_values['stage_c_optimizer']
+        log_scale = param_values['log_scale']
+        log_scale_baseline = param_values.get('log_scale_baseline')
+        log_cell_a_delta = param_values.get('log_cell_a_delta')
+        log_cell_b_delta = param_values.get('log_cell_b_delta')
+        log_cell_c_delta = param_values.get('log_cell_c_delta')
+        angle_alpha_raw = param_values.get('angle_alpha_raw')
+        angle_beta_raw = param_values.get('angle_beta_raw')
+        angle_gamma_raw = param_values.get('angle_gamma_raw')
+        orientation_vec = param_values.get('orientation_vec')
+        baseline_misset_deg_tensor = param_values.get('baseline_misset_deg_tensor')
+
+        # Extract from stage_c_context
+        stage_c_use_warm_cache = stage_c_context.stage_c_use_warm_cache
+        stage_c_cache_mode = stage_c_context.stage_c_cache_mode
+        stage_c_roi_mode_label = stage_c_context.stage_c_roi_mode_label
+        stage_c_roi_count_total = stage_c_context.stage_c_roi_count_total
+        stage_c_roi_count_sampled = stage_c_context.stage_c_roi_count_sampled
+        baseline_detector_distances = stage_c_context.baseline_detector_distances
+        sampled_panel_ids = stage_c_context.sampled_panel_ids
+        _apply_baseline_detector_prior = stage_c_context._apply_baseline_detector_prior
+        misset_deg_for_crystal = stage_c_context.misset_deg_for_crystal
+        force_panel_validation = stage_c_context.force_panel_validation
+        roi_mode_reason = stage_c_context.roi_mode_reason
+        validation_scope = stage_c_context.validation_scope
+
+        # Extract from shared_context
+        config = shared_context.config
+        device = shared_context.device
+        dtype = shared_context.dtype
+        crystal = shared_context.crystal
+        detector = shared_context.detector
+        beam = shared_context.beam
+        inputs = shared_context.inputs
+        hkl_grid = shared_context.hkl_grid
+        hkl_metadata = shared_context.hkl_metadata
+
+        # Extract from canonical_baseline dict
+        best_loss_full = (canonical_baseline['chi_squared'], canonical_baseline['iteration'])
+
+        # Derived variables
+        panel_shape = inputs.target.shape[1:]
+
+        # Run Stage C LBFGS optimization
+        status_c = "ok"
+        message_c = ""
+
+        try:
+            # Evaluate baseline loss BEFORE applying baseline detector prior
+            with torch.no_grad():
+                baseline_chi2_c, baseline_mse_c = compute_loss_stage_c(
+                    list(range(n_panels)), is_full=True, force_panel_eval=force_panel_validation
+                )
+                baseline_chi2_value = float(baseline_chi2_c.item())
+                baseline_mse_value = float(baseline_mse_c.item())
+
+                # Build baseline snapshot
+                snapshot_data = {
+                    'distance_offset_raw': distance_offset_raw.detach().cpu().tolist()
+                }
+
+                # Route baseline validation through collector
+                payload = {
+                    'loss': baseline_chi2_value,
+                    'masked_mse': baseline_mse_value,
+                    'best_snapshot': snapshot_data,
+                }
+                saved_iter = telemetry_state.iteration_count[0]
+                telemetry_state.iteration_count[0] = -1
+                collector.on_validation(
+                    scope='baseline',
+                    chi2=baseline_chi2_value,
+                    payload=payload,
+                )
+                telemetry_state.iteration_count[0] = saved_iter
+
+            # Apply baseline detector prior BEFORE LBFGS
+            _apply_baseline_detector_prior()
+
+            stage_c_optimizer.step(closure_stage_c)
+
+            # Fallback when LBFGS exits without running closure
+            if telemetry_state.perf_closure_evals[0] == 0:
+                collector.ensure_sample_trace(
+                    loss=baseline_chi2_value,
+                    metrics={
+                        'chi_squared': baseline_chi2_value,
+                        'masked_mse': baseline_mse_value,
+                    },
+                    increment_counter=True
+                )
+
+            # Assert that at least one full validation populated the best snapshot
+            if telemetry_state.chi_squared_best[0] >= float('inf'):
+                raise RuntimeError(
+                    "Stage C best snapshot never recorded: chi_squared_best_c remains infinite after LBFGS. "
+                    "Check that full_validation_interval allows at least one periodic validation."
+                )
+
+        except Exception as e:
+            status_c = "error"
+            message_c = str(e)
+            # Use best snapshot if available
+            if telemetry_state.best_params_snapshot is not None:
+                distance_offset_raw.data = torch.tensor(
+                    telemetry_state.best_params_snapshot['distance_offset_raw'],
+                    device=device,
+                    dtype=dtype
+                )
+
+        # Extract current best tuples from telemetry_state before final validation
+        chi_squared_best_c = telemetry_state.chi_squared_best
+        masked_mse_best_c = telemetry_state.masked_mse_best
+        best_loss_full_c = telemetry_state.best_loss_full
+        best_params_snapshot_c = telemetry_state.best_params_snapshot
+
+        # Ensure sample traces are populated before finalization
+        if len(telemetry_state.loss_trace_sample) == 0:
+            collector.ensure_sample_trace(
+                loss=baseline_chi2_value,
+                metrics={
+                    'chi_squared': baseline_chi2_value,
+                    'masked_mse': baseline_mse_value,
+                },
+                increment_counter=True
+            )
+
+        final_step_c = telemetry_state.iteration_count[0]
+        with torch.no_grad():
+            candidate_final_chi2, candidate_final_mse = compute_loss_stage_c(
+                list(range(n_panels)), is_full=True, force_panel_eval=force_panel_validation
+            )
+        candidate_loss_value_c = float(candidate_final_chi2.item())
+        candidate_mse_value_c = float(candidate_final_mse.item())
+
+        if candidate_loss_value_c < chi_squared_best_c[0]:
+            chi_squared_best_c = (candidate_loss_value_c, final_step_c)
+            best_loss_full_c = (candidate_loss_value_c, final_step_c)
+            best_params_snapshot_c = {
+                'distance_offset_raw': distance_offset_raw.detach().cpu().tolist()
+            }
+            telemetry_state.chi_squared_best = chi_squared_best_c
+            telemetry_state.best_loss_full = best_loss_full_c
+            telemetry_state.best_params_snapshot = best_params_snapshot_c
+
+        if candidate_mse_value_c < masked_mse_best_c[0]:
+            masked_mse_best_c = (candidate_mse_value_c, final_step_c)
+            telemetry_state.masked_mse_best = masked_mse_best_c
+
+        # Use best chi-squared from periodic validations for final telemetry
+        final_loss_value_c = chi_squared_best_c[0] if chi_squared_best_c[0] < float('inf') else candidate_loss_value_c
+        final_mse_value_c = masked_mse_best_c[0] if masked_mse_best_c[0] < float('inf') else candidate_mse_value_c
+
+        # Reload best parameters before final trace entry
+        if best_params_snapshot_c is not None and chi_squared_best_c[0] < float('inf'):
+            distance_offset_raw.data = torch.tensor(
+                best_params_snapshot_c['distance_offset_raw'],
+                device=device,
+                dtype=dtype,
+            )
+
+        # Route final validation through collector
+        final_snapshot_data = {
+            'distance_offset_raw': distance_offset_raw.detach().cpu().tolist()
+        }
+        final_payload = {
+            'loss': final_loss_value_c,
+            'masked_mse': final_mse_value_c,
+            'best_snapshot': final_snapshot_data,
+        }
+        collector.on_validation(
+            scope='final',
+            chi2=final_loss_value_c,
+            payload=final_payload,
+        )
+
+        # Finalize collector AFTER final validation is recorded
+        stage_result = collector.finalize()
+        legacy_telemetry_dict = stage_result.to_legacy_dict()
+
+        # Refresh telemetry fields from finalized collector
+        loss_trace_sample_c = legacy_telemetry_dict['loss_trace_sample']
+        loss_trace_full_c = legacy_telemetry_dict['loss_trace_full']
+        chi_squared_trace_sample_c = legacy_telemetry_dict['chi_squared_trace_sample']
+        chi_squared_trace_full_c = legacy_telemetry_dict['chi_squared_trace_full']
+        masked_mse_trace_sample_c = legacy_telemetry_dict['masked_mse_trace_sample']
+        masked_mse_trace_full_c = legacy_telemetry_dict['masked_mse_trace_full']
+        iteration_count_c = legacy_telemetry_dict['iteration_count']
+        perf_closure_evals_c = legacy_telemetry_dict['perf_closure_evals'][0]
+        perf_validation_runs_c = legacy_telemetry_dict['perf_validation_runs'][0]
+        perf_forward_times_ms_c = legacy_telemetry_dict['perf_forward_times_ms']
+        variance_floor_clamped_pixels_c = legacy_telemetry_dict['variance_floor_clamped_pixels'][0]
+        variance_floor_masked_pixels_c = legacy_telemetry_dict['variance_floor_masked_pixels'][0]
+
+        # Check convergence: did we achieve ≥5% improvement on top of Stage A?
+        if best_loss_full[0] is not None and best_loss_full[0] > 0:
+            stage_a_final_loss = best_loss_full[0]
+            improvement_c = (stage_a_final_loss - final_loss_value_c) / stage_a_final_loss
+            if improvement_c < config.stage_c_min_loss_improvement:
+                status_c = "early_stop"
+                message_c = f"Stage C improvement {improvement_c:.4%} < {config.stage_c_min_loss_improvement:.4%} (≥0.002% gate calibrated per REFINE-007)"
+
+        # Generate final Bragg array with Stage C adjustments
+        with torch.no_grad():
+            bragg_full_stage_c = np.zeros((n_panels, *panel_shape), dtype=np.float32)
+            cell_params = crystal.get_unit_cell().parameters()
+            log_cell_a_delta_clamped, log_cell_b_delta_clamped, log_cell_c_delta_clamped = _clamp_log_cell_deltas(
+                log_cell_a_delta,
+                log_cell_b_delta,
+                log_cell_c_delta,
+                getattr(config, "log_cell_max_delta", 1.0),
+            )
+            perturbed_cell_a = cell_params[0] * torch.exp(log_cell_a_delta_clamped)
+            perturbed_cell_b = cell_params[1] * torch.exp(log_cell_b_delta_clamped)
+            perturbed_cell_c = cell_params[2] * torch.exp(log_cell_c_delta_clamped)
+            max_angle_delta = 10.0
+            perturbed_alpha = cell_params[3] + torch.tanh(angle_alpha_raw) * max_angle_delta
+            perturbed_beta = cell_params[4] + torch.tanh(angle_beta_raw) * max_angle_delta
+            perturbed_gamma = cell_params[5] + torch.tanh(angle_gamma_raw) * max_angle_delta
+            max_orientation_deg = 3.0
+            bounded_orientation_vec = torch.tanh(orientation_vec) * max_orientation_deg * (np.pi / 180.0)
+            quat = vec_to_unit_quaternion(bounded_orientation_vec)
+            misset_xyz_deg = quaternion_to_xyz_euler(quat)
+
+            if baseline_misset_deg_tensor is not None:
+                misset_xyz_deg = misset_xyz_deg + baseline_misset_deg_tensor
+
+            crystal_overrides = {
+                'cell_a': perturbed_cell_a,
+                'cell_b': perturbed_cell_b,
+                'cell_c': perturbed_cell_c,
+                'cell_alpha': perturbed_alpha,
+                'cell_beta': perturbed_beta,
+                'cell_gamma': perturbed_gamma
+            }
+            crystal_config, _ = create_crystal_config(
+                crystal,
+                None,
+                crystal_overrides=crystal_overrides,
+                misset_deg_override=misset_deg_for_crystal
+            )
+            crystal_model = Crystal(crystal_config, device=device, dtype=dtype)
+            crystal_model.interpolate = config.enable_hkl_interpolation
+            crystal_model.hkl_data = hkl_grid.to(device=device, dtype=dtype)
+            crystal_model.hkl_metadata = hkl_metadata
+
+            # Retarget cached detectors before final reconstruction loop
+            if stage_c_use_warm_cache:
+                distance_deltas_mm_final = {}
+                for pid in range(n_panels):
+                    bounded_offset = torch.tanh(distance_offset_raw[pid]) * config.stage_c_max_distance_delta_mm
+                    distance_deltas_mm_final[pid] = bounded_offset
+
+                _retarget_stage_a_detectors(
+                    stage_a_ctx=stage_a_ctx,
+                    distance_deltas_mm=distance_deltas_mm_final,
+                    device=device,
+                    dtype=dtype
+                )
+
+            for pid in range(n_panels):
+                panel = detector[pid]
+
+                if stage_c_use_warm_cache:
+                    # Warm path: reuse retargeted detector/simulator from stage_a_ctx
+                    detector_model = stage_a_ctx.detector_models[pid]
+                    simulator = stage_a_ctx.simulators[pid]
+                    simulator.crystal = crystal_model
+                    simulator.beam_config = stage_a_ctx.beam_config
+                else:
+                    # Cold path: instantiate fresh
+                    bounded_offset = torch.tanh(distance_offset_raw[pid]) * config.stage_c_max_distance_delta_mm
+                    baseline_distance_mm = panel.get_directed_distance()
+                    distance_mm_override = baseline_distance_mm + bounded_offset
+
+                    detector_config = create_detector_config(
+                        panel=panel,
+                        beam=beam,
+                        trusted_mask=inputs.trusted_mask[pid],
+                        distance_mm_override=distance_mm_override
+                    )
+
+                    if detector_config.mask_array is not None and not isinstance(detector_config.mask_array, torch.Tensor):
+                        detector_config.mask_array = torch.tensor(
+                            detector_config.mask_array, dtype=torch.float32, device=device
+                        )
+
+                    detector_model = Detector(detector_config, device=device, dtype=dtype)
+                    simulator = Simulator(detector=detector_model, crystal=crystal_model, device=device, dtype=dtype)
+
+                panel_bragg = simulator.run()
+
+                # Apply Stage A's log-scale clamp logic in final Stage C reconstruction
+                max_delta_uncal = getattr(config, "log_scale_max_delta_uncalibrated", 10.0)
+                delta_bound = config.log_scale_max_delta if log_scale_baseline is not None else max_delta_uncal
+                if log_scale_baseline is not None:
+                    log_scale_delta_clamped = torch.clamp(log_scale, min=-delta_bound, max=delta_bound)
+                    log_scale_clamped = log_scale_baseline + log_scale_delta_clamped
+                else:
+                    log_scale_clamped = torch.clamp(log_scale, min=-delta_bound, max=delta_bound)
+                panel_bragg_scaled = panel_bragg * torch.exp(log_scale_clamped)
+                bragg_full_stage_c[pid] = panel_bragg_scaled.cpu().numpy().astype(np.float32)
+
+        # Assemble Stage C telemetry
+        param_deltas_c = {}
+        for pid in range(n_panels):
+            bounded_offset = torch.tanh(distance_offset_raw[pid]) * config.stage_c_max_distance_delta_mm
+            bounded_offset_value = float(bounded_offset.item())
+            initial_offset_mm = 0.0
+            if baseline_detector_distances is not None:
+                initial_offset_mm = detector[pid].get_directed_distance() - baseline_detector_distances[pid]
+            final_offset_mm = initial_offset_mm + bounded_offset_value
+            param_deltas_c[f'panel_{pid}_distance_offset_mm'] = {
+                'initial': initial_offset_mm,
+                'final': final_offset_mm,
+                'delta': bounded_offset_value
+            }
+
+        forward_stats_c = {
+            'mean': float(np.mean(perf_forward_times_ms_c)) if perf_forward_times_ms_c else 0.0,
+            'min': float(np.min(perf_forward_times_ms_c)) if perf_forward_times_ms_c else 0.0,
+            'max': float(np.max(perf_forward_times_ms_c)) if perf_forward_times_ms_c else 0.0,
+            'total': float(np.sum(perf_forward_times_ms_c)) if perf_forward_times_ms_c else 0.0,
+        }
+        perf_counters_c = {
+            'cache_mode': stage_c_cache_mode,
+            'roi_mode': stage_c_roi_mode_label,
+            'roi_mode_reason': roi_mode_reason,
+            'validation_scope': validation_scope,
+            'roi_count_total': stage_c_roi_count_total,
+            'roi_count_sampled': stage_c_roi_count_sampled,
+            'closure_evals': perf_closure_evals_c,
+            'validation_runs': perf_validation_runs_c,
+            'forward_time_ms': forward_stats_c,
+        }
+
+        telemetry_c = RefinementTelemetry(
+            optimizer="LBFGS",
+            stage="C",
+            history_size=config.history_size,
+            max_iter=config.max_iter,
+            tolerance_grad=config.tolerance_grad,
+            tolerance_change=config.tolerance_change,
+            roi_sample_fraction=config.roi_sample_fraction,
+            roi_count_sampled=stage_c_roi_count_sampled,
+            roi_count_total=stage_c_roi_count_total,
+            loss_trace_sample=loss_trace_sample_c,
+            loss_trace_full=loss_trace_full_c,
+            best_loss_full=best_loss_full_c,
+            param_deltas=param_deltas_c,
+            status=status_c,
+            message=message_c,
+            perf_counters=perf_counters_c,
+            chi_squared_trace_sample=chi_squared_trace_sample_c,
+            chi_squared_trace_full=chi_squared_trace_full_c,
+            chi_squared_best=chi_squared_best_c,
+            masked_mse_trace_sample=masked_mse_trace_sample_c,
+            masked_mse_trace_full=masked_mse_trace_full_c,
+            masked_mse_best=masked_mse_best_c,
+            sigma_readout_provenance=config.sigma_readout_provenance,
+            sigma_readout_reference_value=config.sigma_readout_reference_value,
+            variance_floor_value=config.sigma_floor_value**2,
+            variance_floor_clamp_fraction=(
+                float(variance_floor_clamped_pixels_c) / float(variance_floor_masked_pixels_c)
+                if variance_floor_masked_pixels_c > 0 else 0.0
+            ),
+            canonical_stage_label=canonical_baseline["stage_label"],
+            canonical_chi_squared=canonical_baseline["chi_squared"],
+            canonical_chi_squared_iteration=canonical_baseline["iteration"],
+            canonical_roi_count=canonical_baseline["roi_count"],
+            canonical_detector_distances_mm=canonical_baseline["detector_distances_mm"],
+            roi_mode=stage_c_roi_mode_label,
+            stage_type="C",
+            mode="detector_offsets",
+            stage_result=stage_result,
+        )
+
+        # Write panel-loss diagnostics JSON if collected
+        panel_diag_dir = os.environ.get('DBEX_STAGE_C_PANEL_DIAG_DIR')
+        if panel_diag_dir and telemetry_state.panel_loss_diag is not None:
+            diag_path = Path(panel_diag_dir)
+            diag_path.mkdir(parents=True, exist_ok=True)
+            diag_file = diag_path / 'stage_c_panel_diag.json'
+            with open(diag_file, 'w') as f:
+                json.dump({
+                    'stage': 'C',
+                    'panels': telemetry_state.panel_loss_diag,
+                    'n_panels': len(set(p['panel_id'] for p in telemetry_state.panel_loss_diag)) if telemetry_state.panel_loss_diag else 0,
+                }, f, indent=2)
+
+        return stage_result, telemetry_c, status_c, message_c, bragg_full_stage_c, param_deltas_c
+
     def run(
         self,
         inputs: Any,
@@ -793,48 +1408,30 @@ class StageC:
         best_loss_full = stage_a_telemetry['best_loss_full']
 
         # STEP 1: Build Stage C parameters
-        # ARCH-STAGE-CONTEXT-001 Phase A.4: Pass shared_context to collapse parameter clump
-        stage_c_params_dict = _build_stage_c_params(
+        # ARCH-REFACTOR-001 Phase C.2: Call new private method with tuple return
+        stage_c_context_initial, telemetry_state_c, param_values_initial, stage_c_optimizer = self._build_stage_c_params(
             shared_context=shared_context,
-            n_panels=n_panels,
-            sampled_panel_ids=sampled_panel_ids,
             stage_a_ctx=stage_a_ctx,
-            params=params,  # Stage A frozen params list
-            stage_a_telemetry=stage_a_telemetry,  # ARCH-REFINE-001: Pass telemetry for ROI mode check
+            stage_a_telemetry=stage_a_telemetry,
+            sampled_panel_ids=sampled_panel_ids
         )
 
-        # Unpack all returned dicts for downstream use
-        distance_offset_raw = stage_c_params_dict['distance_offset_raw']
-        stage_c_params = stage_c_params_dict['stage_c_params']
-        stage_c_optimizer = stage_c_params_dict['stage_c_optimizer']
-        baseline_detector_distances = stage_c_params_dict.get('baseline_detector_distances')
-        stage_c_use_warm_cache = stage_c_params_dict['stage_c_use_warm_cache']
-        stage_c_cache_mode = stage_c_params_dict['stage_c_cache_mode']
-        stage_c_roi_mode_active = stage_c_params_dict['stage_c_roi_mode_active']
-        stage_c_roi_mode_label = stage_c_params_dict['stage_c_roi_mode_label']
-        stage_c_roi_count_total = stage_c_params_dict['stage_c_roi_count_total']
-        stage_c_roi_count_sampled = stage_c_params_dict['stage_c_roi_count_sampled']
-        roi_slices_by_pid = stage_c_params_dict['roi_slices_by_pid']
-        force_panel_validation = stage_c_params_dict['force_panel_validation']  # REFINE-011
-        roi_mode_reason = stage_c_params_dict['roi_mode_reason']  # REFINE-012
-        validation_scope = stage_c_params_dict['validation_scope']  # REFINE-012
-        perf_closure_evals_c = stage_c_params_dict['perf_closure_evals_c']
-        perf_validation_runs_c = stage_c_params_dict['perf_validation_runs_c']
-        perf_forward_times_ms_c = stage_c_params_dict['perf_forward_times_ms_c']
-        loss_trace_sample_c = stage_c_params_dict['loss_trace_sample_c']
-        loss_trace_full_c = stage_c_params_dict['loss_trace_full_c']
-        best_loss_full_c = stage_c_params_dict['best_loss_full_c']
-        best_params_snapshot_c = stage_c_params_dict['best_params_snapshot_c']
-        iteration_count_c = stage_c_params_dict['iteration_count_c']
-        chi_squared_trace_sample_c = stage_c_params_dict['chi_squared_trace_sample_c']
-        chi_squared_trace_full_c = stage_c_params_dict['chi_squared_trace_full_c']
-        chi_squared_best_c = stage_c_params_dict['chi_squared_best_c']
-        masked_mse_trace_sample_c = stage_c_params_dict['masked_mse_trace_sample_c']
-        masked_mse_trace_full_c = stage_c_params_dict['masked_mse_trace_full_c']
-        masked_mse_best_c = stage_c_params_dict['masked_mse_best_c']
-        variance_floor_clamped_pixels_c = stage_c_params_dict['variance_floor_clamped_pixels_c']
-        variance_floor_masked_pixels_c = stage_c_params_dict['variance_floor_masked_pixels_c']
-        sigma_floor_sq_tensor_stage_c = stage_c_params_dict['sigma_floor_sq_tensor_stage_c']
+        # Extract from param_values dict
+        distance_offset_raw = param_values_initial['distance_offset_raw']
+        stage_c_params = param_values_initial['stage_c_params']
+
+        # Extract from stage_c_context_initial
+        baseline_detector_distances = stage_c_context_initial.baseline_detector_distances
+        stage_c_use_warm_cache = stage_c_context_initial.stage_c_use_warm_cache
+        stage_c_cache_mode = stage_c_context_initial.stage_c_cache_mode
+        stage_c_roi_mode_active = stage_c_context_initial.stage_c_roi_mode_active
+        stage_c_roi_mode_label = stage_c_context_initial.stage_c_roi_mode_label
+        stage_c_roi_count_total = stage_c_context_initial.stage_c_roi_count_total
+        stage_c_roi_count_sampled = stage_c_context_initial.stage_c_roi_count_sampled
+        roi_slices_by_pid = stage_c_context_initial.roi_slices_by_pid
+        force_panel_validation = stage_c_context_initial.force_panel_validation
+        roi_mode_reason = stage_c_context_initial.roi_mode_reason
+        validation_scope = stage_c_context_initial.validation_scope
 
         # Convert numpy arrays to torch tensors if needed
         if isinstance(refinement_inputs.target, np.ndarray):
@@ -846,7 +1443,34 @@ class StageC:
             loss_mask_t = refinement_inputs.loss_mask.to(device=device, dtype=torch.bool)
             sigma_readout_t = refinement_inputs.sigma_readout.to(device=device, dtype=dtype)
 
-        # Build param_values dict for helper2/helper3
+        # Define _apply_baseline_detector_prior function (inline)
+        def _apply_baseline_detector_prior():
+            """Warm-start Stage C offsets when a baseline detector is available."""
+            if baseline_detector_distances is None:
+                return
+            max_delta = self._config.stage_c_max_distance_delta_mm
+            if max_delta <= 0:
+                return
+            ratios = []
+            for pid in range(n_panels):
+                initial_offset = detector[pid].get_directed_distance() - baseline_detector_distances[pid]
+                target_ratio = (-initial_offset) / max_delta
+                # Clamp to avoid atanh singularities
+                ratios.append(max(min(target_ratio, 0.999999), -0.999999))
+            ratio_tensor = torch.tensor(ratios, device=device, dtype=dtype)
+            with torch.no_grad():
+                distance_offset_raw.data = 0.5 * torch.log((1 + ratio_tensor) / (1 - ratio_tensor))
+
+        # ARCH-REFACTOR-001 Phase C.2: Update stage_c_context with computed fields
+        # (misset_deg_for_crystal and _apply_baseline_detector_prior were placeholders in _build_stage_c_params)
+        from dbex.refinement.context import StageCContext
+        stage_c_context = replace(
+            stage_c_context_initial,
+            misset_deg_for_crystal=misset_deg_for_crystal,
+            _apply_baseline_detector_prior=_apply_baseline_detector_prior,
+        )
+
+        # Build param_values dict for closure and _run_lbfgs
         param_values_c = {
             'distance_offset_raw': distance_offset_raw,
             'stage_c_params': stage_c_params,
@@ -867,66 +1491,6 @@ class StageC:
             'sigma_readout_t': sigma_readout_t,
             'stage_a_final_cell': stage_a_final_cell,  # PERF-WARM-SIM-001 Phase D: frozen Stage A final cell
         }
-
-        # Build telemetry_state dataclass for helper2/helper3 (ARCH-STAGE-CONTEXT-001 Phase E: dataclass-only)
-        from dbex.refinement.context import StageCTelemetryState
-        telemetry_state_c = StageCTelemetryState(
-            iteration_count=iteration_count_c,
-            perf_closure_evals=perf_closure_evals_c,
-            perf_validation_runs=perf_validation_runs_c,
-            variance_floor_clamped_pixels=variance_floor_clamped_pixels_c,
-            variance_floor_masked_pixels=variance_floor_masked_pixels_c,
-            loss_trace_sample=loss_trace_sample_c,
-            loss_trace_full=loss_trace_full_c,
-            best_loss_full=best_loss_full_c,
-            chi_squared_trace_sample=chi_squared_trace_sample_c,
-            chi_squared_trace_full=chi_squared_trace_full_c,
-            chi_squared_best=chi_squared_best_c,
-            masked_mse_trace_sample=masked_mse_trace_sample_c,
-            masked_mse_trace_full=masked_mse_trace_full_c,
-            masked_mse_best=masked_mse_best_c,
-            perf_forward_times_ms=perf_forward_times_ms_c,
-            best_params_snapshot=best_params_snapshot_c,
-            sigma_floor_sq_tensor=sigma_floor_sq_tensor_stage_c,
-            panel_loss_diag=None,  # Will be initialized by closure builder if needed
-        )
-
-        # Define _apply_baseline_detector_prior function (inline)
-        def _apply_baseline_detector_prior():
-            """Warm-start Stage C offsets when a baseline detector is available."""
-            if baseline_detector_distances is None:
-                return
-            max_delta = self._config.stage_c_max_distance_delta_mm
-            if max_delta <= 0:
-                return
-            ratios = []
-            for pid in range(n_panels):
-                initial_offset = detector[pid].get_directed_distance() - baseline_detector_distances[pid]
-                target_ratio = (-initial_offset) / max_delta
-                # Clamp to avoid atanh singularities
-                ratios.append(max(min(target_ratio, 0.999999), -0.999999))
-            ratio_tensor = torch.tensor(ratios, device=device, dtype=dtype)
-            with torch.no_grad():
-                distance_offset_raw.data = 0.5 * torch.log((1 + ratio_tensor) / (1 - ratio_tensor))
-
-        # ARCH-REFACTOR-001 Phase C1.A: Build StageCContext dataclass (replaces stage_c_context_dict)
-        from dbex.refinement.context import StageCContext
-        stage_c_context = StageCContext(
-            stage_c_use_warm_cache=stage_c_use_warm_cache,
-            stage_c_cache_mode=stage_c_cache_mode,
-            stage_c_roi_mode_label=stage_c_roi_mode_label,
-            stage_c_roi_count_total=stage_c_roi_count_total,
-            stage_c_roi_count_sampled=stage_c_roi_count_sampled,
-            baseline_detector_distances=baseline_detector_distances,
-            sampled_panel_ids=sampled_panel_ids,
-            roi_slices_by_pid=roi_slices_by_pid,
-            stage_c_roi_mode_active=stage_c_roi_mode_active,
-            force_panel_validation=force_panel_validation,  # REFINE-011
-            roi_mode_reason=roi_mode_reason,  # REFINE-012
-            validation_scope=validation_scope,  # REFINE-012
-            misset_deg_for_crystal=misset_deg_for_crystal,
-            _apply_baseline_detector_prior=_apply_baseline_detector_prior,
-        )
 
         # ARCH-TELEMETRY-001 Phase C.1: Create observer collector from telemetry state
         # For now, always use the collector path per ARCH-TELEMETRY-001 Phase C.1
@@ -974,33 +1538,19 @@ class StageC:
                 )
 
         # STEP 3: Run Stage C LBFGS optimization
-        # ARCH-REFACTOR-001 Phase C1.B: Pass StageCContext dataclass instead of dict
-        stage_c_result = _run_stage_c_lbfgs(
-            config=self._config,
-            device=device,
-            dtype=dtype,
-            param_values=param_values_c,
-            telemetry_state=telemetry_state_c,
-            stage_c_context=stage_c_context,
+        # ARCH-REFACTOR-001 Phase C.2: Call new private method with tuple return
+        stage_result, telemetry_c, status_c, message_c, bragg_full, param_deltas_c = self._run_lbfgs(
             compute_loss_stage_c=compute_loss_stage_c,
             closure_stage_c=closure_stage_c,
-            crystal=crystal,
-            hkl_grid=hkl_grid,
+            stage_c_context=stage_c_context,
             collector=collector,
-            hkl_metadata=hkl_metadata,
-            detector=detector,
-            beam=beam,
-            inputs=refinement_inputs,
-            canonical_baseline=canonical_baseline,
+            telemetry_state=telemetry_state_c,
+            param_values=param_values_c,
             stage_a_ctx=stage_a_ctx,
+            canonical_baseline=canonical_baseline,
             n_panels=n_panels,
+            shared_context=shared_context,
         )
-
-        # Unpack Stage C results
-        status_c = stage_c_result['status_c']
-        message_c = stage_c_result['message_c']
-        telemetry_c = stage_c_result['telemetry_c']
-        bragg_full = stage_c_result['bragg_full']  # Phase A.4: Extract final Bragg volume
 
         # ARCH-STAGE-CONTEXT-001 Phase B.1: Create StageCArtifacts with final Bragg tensor
         artifacts = StageCArtifacts(bragg_full=bragg_full)

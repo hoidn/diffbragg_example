@@ -733,3 +733,65 @@ Action State: blocked — suspected_implementation_defect_in_artifacts
   • input.md rewritten with targeted bugfix Do Now
 - **LIFECYCLE**: implementation_attempt_count=3 for DB-AT-028/029 acceptance criteria; this is final attempt before spec_change_flow escalation per initiative budget hard rule.
 Action State: ready_for_implementation — crystal_beam_config_init_fix
+
+## ARCH-REFACTOR-001 Phase D.3 Batch 2 - Crystal Initialization Bug Investigation (2025-12-02T234500Z)
+
+**Status**: BLOCKED — suspected incomplete root cause analysis
+
+**Problem**: Tests test_db_at_028 and test_db_at_029 fail with bragg_after near-zero (7.63e-14) despite implementing the exact fix specified in input.md.
+
+**What Ralph Implemented** (matching input.md spec verbatim):
+- Refactored `dbex/refinement/reconstruction.py::build_final_bragg_from_stage_a_telemetry` warm cache path
+- Changed Crystal construction from:
+  ```python
+  crystal_model = Crystal(..., beam_config=None, ...)
+  crystal_model.beam_config = stage_a_ctx.beam_config  # post-hoc
+  ```
+  To:
+  ```python
+  crystal_model = Crystal(..., beam_config=stage_a_ctx.beam_config, ...)  # at construction
+  ```
+
+**Critical Discovery**:
+- Crystal object does NOT have a `beam_config` attribute after construction
+- Attempted `print(crystal_model.beam_config)` raised `AttributeError`
+- This proves the original buggy post-hoc assignment was silently creating a useless attribute with zero effect
+
+**Test Results**: IDENTICAL failure signature to pre-fix
+- bragg_before_mean = 1.86 (correct, computed from perturbed geometry via simulate_forward_once)
+- bragg_after_mean = 7.63e-14 (near-zero, should be ~O(1))
+- chi²/pixel initial = 2.098e+05 (bound: ≤1e2)
+- ROI correlation median_after = 0.051 (passing this gate, but meaningless with near-zero Bragg)
+
+**Why This Is Confusing**:
+1. The fix MATCHES the working pattern in `build_final_bragg_from_stage_b_telemetry` (reconstruction.py:398-407)
+2. Stage B version works correctly with same Crystal(..., beam_config=stage_a_ctx.beam_config, ...) pattern
+3. Ralph verified warm cache path IS being taken (debug print executed before AttributeError)
+4. Simulators ARE being retargeted (_retarget_stage_a_simulators confirmed to run)
+
+**Hypotheses for Galph to Investigate**:
+
+A) **Upstream nanobrag_torch bug**: Crystal.__init__ may ignore beam_config parameter entirely
+   - Action: Run callchain analysis on Crystal constructor
+   - Check: Does Crystal actually USE beam_config during __init__, or is it only needed later?
+
+B) **Additional bug location**: Stage A setup may pass incorrect/None beam_config to stage_a_ctx
+   - Action: Add telemetry to capture stage_a_ctx.beam_config value when warm context is built
+   - Check: Is stage_a_ctx.beam_config actually valid, or is it None/default?
+
+C) **Simulator state caching**: Simulators may cache beam-dependent matrices on first run, ignoring retargeting
+   - Action: Check if Simulator.run() re-initializes from crystal.beam_config or uses stale cache
+   - Relevant code: stage_a_utils.py:149-159 (_retarget_stage_a_simulators)
+
+D) **Test harness issue**: bragg_after may not actually come from our reconstruction helper
+   - Action: Trace test fixture `stage_a_smoke_result` to confirm bragg_after = bragg_final = engine._artifacts["stage_a"].bragg_full
+   - Ralph verified: tests/dbex/test_stage_a_smoke_parity.py:164,189 confirms linkage
+
+**Recommendation**: 
+- DO NOT issue another implementation Do-Now for this focus until root cause is validated
+- Request callchain.md analysis on Crystal.__init__ and Simulator.run() to trace beam_config usage
+- Consider opening a **diagnostics** initiative to instrument stage_a_ctx.beam_config propagation
+- If Crystal truly doesn't use beam_config at construction time, the bug may be in nanobrag_torch (outside our scope)
+
+**Repeat-Failure Guard Triggered**: 2 consecutive loops, same acceptance criterion (test_db_at_028), same failure signature, zero behavioral change despite structural code fix.
+

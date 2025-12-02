@@ -144,25 +144,23 @@ def build_final_bragg_from_stage_a_telemetry(
     )
     sampled_panel_ids = list(range(n_panels))
 
-    # Build Crystal model from config (GRADIENT-004: keep tensors attached for warm cache)
-    crystal_model = Crystal(
-        crystal_config,
-        beam_config=None,  # Will use beam_config from context if warm cache, else provided below
-        device=device,
-        dtype=dtype,
-    )
-    crystal_model.interpolate = config.enable_hkl_interpolation
-    crystal_model.hkl_data = hkl_grid.to(device=device, dtype=dtype)
-    crystal_model.hkl_metadata = hkl_metadata
-
     # Build full Bragg array (panel mode)
     # Reuse warm cache simulators if available
     if stage_a_ctx is not None and hasattr(stage_a_ctx, 'simulators'):
         # Warm cache path: retarget existing simulators with refined crystal (GRADIENT-004, ARCH-FACTORY-001)
+        # Build Crystal model with beam_config from context (BUGFIX: pass at construction time)
+        crystal_model = Crystal(
+            crystal_config,
+            beam_config=stage_a_ctx.beam_config,  # FIXED: pass beam_config at construction time
+            device=device,
+            dtype=dtype,
+        )
+        crystal_model.interpolate = config.enable_hkl_interpolation
+        crystal_model.hkl_data = hkl_grid.to(device=device, dtype=dtype)
+        crystal_model.hkl_metadata = hkl_metadata
+
         # ARCH-REFACTOR-001 Phase C.7: Import shared Stage A helper from stage_a_utils
         from dbex.refinement.stage_a_utils import _retarget_stage_a_simulators
-        # Update crystal_model beam_config from context
-        crystal_model.beam_config = stage_a_ctx.beam_config
         _retarget_stage_a_simulators(stage_a_ctx, crystal_model)
         simulators = stage_a_ctx.simulators
     else:

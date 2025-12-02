@@ -277,3 +277,31 @@ Detailed engineering logs now live in `docs/fix_plan_archive.md` (append-only sn
 - **Next Actions**: Phase C.3 (writer refactoring to consume typed payloads)
   * 2025-12-02T184846Z — Planning (Phase C.5 kickoff): Problems ledger guard serviced ("PRIORITIZE ARCH-REFACTOR-001 ASAP"). Ralph completed Phase C.4 (cd855064), so Stage B now requires strict RefinementContext inputs and owns its parameter builder (322 lines inlined). Phase C.5 scopes the final consolidation: create `dbex/refinement/hkl_utils.py` for ASU/shell utilities, inline `_run_stage_b_lbfgs` and `_check_stage_b_baseline_parity` into `StageB` class methods, update all import sites (StageB, nanobrag_refinement, tests), and rerun Stage B guard + shell smokes. Reserved artifacts under `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T184846Z/` and updated `problems.md` to note this loop's ledger service. Next action: ready_for_implementation.
   * 2025-12-02T221500Z — Planning (Phase D.4 kickoff): Reviewed Ralph's Phase D.3 Batch 1 validation (commit 390daa14, 4/5 tests PASSED, 80% pass rate meets success criteria). Decision: Phase D.4 import cleanup before remaining test migrations (D.3 Batch 2) or facade deletion (D.5). Scoped D.4: redirect 4 inline imports in `tests/dbex/test_physics_loss_current.py` from facade (`dbex.nanobrag_refinement`) to canonical module (`dbex.physics.loss`). Rationale: Function moved to canonical module in Phase A.3 (2025-11-24T074500Z), tests work via facade re-export, facade cannot be deleted until all imports redirect to canonical modules. Strategy: single Edit call with `replace_all=True` to update all 4 identical imports atomically (lines 63, 125, 160, 207), then validate 4/4 tests PASSED with no behavioral changes. Created comprehensive planning notes under `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T221500Z/planning_notes.md` (import pattern analysis, validation approach, success criteria, rollback plan). Issued Do Now for Ralph: redirect imports, verify zero remaining facade imports, run all 4 loss tests. Artifacts reserved at `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T221500Z/`. Next action: ready_for_implementation.
+
+**Attempt 2025-12-02T234500Z (Ralph implementation loop)**
+- **Action**: Refactored `dbex/refinement/reconstruction.py::build_final_bragg_from_stage_a_telemetry` warm cache path (lines 149-165) to construct Crystal with `beam_config=stage_a_ctx.beam_config` passed at construction time, removing post-hoc `crystal_model.beam_config` assignment.
+- **Rationale**: Root cause analysis identified that Crystal needs beam_config during `__init__` to initialize internal matrices; post-hoc attribute assignment has no effect.
+- **Implementation**:
+  * Moved Crystal() construction INSIDE `if stage_a_ctx is not None and hasattr(stage_a_ctx, 'simulators'):` block
+  * Changed `beam_config=None` → `beam_config=stage_a_ctx.beam_config` (line 154)
+  * Removed line `crystal_model.beam_config = stage_a_ctx.beam_config` (was line 165 in buggy version)
+  * Kept hkl_data/hkl_metadata assignments and `_retarget_stage_a_simulators` call unchanged
+- **Test Results**: FAILED with IDENTICAL symptoms
+  * `test_db_at_028`: chi²/pixel initial = 2.098e+05 (bound: ≤1e2), bragg_after_mean = 7.63e-14 (expected ~O(1))
+  * `test_db_at_029`: SKIPPED after 028 failure (pytest -x)
+- **Discovery**: Attempted debug print `crystal_model.beam_config` raised `AttributeError: 'Crystal' object has no attribute 'beam_config'`, confirming Crystal does NOT expose beam_config as an attribute post-construction. This proves the original buggy post-hoc assignment `crystal_model.beam_config = ...` was silently creating a new attribute that had zero effect on Crystal's internal behavior.
+- **Metrics**: bragg_before_mean = 1.86 (correct), bragg_after_mean = 7.63e-14 (near-zero), bragg_after_max = 7.19e-13, roi_cc_median_after = 0.051
+- **First Divergence**: N/A (test failure is in final assertion, not mid-execution divergence)
+- **Artifacts**: `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T234500Z/` (pytest_parity_batch2_fixed.log, db_at_028_metrics.json, summary.md)
+- **Status**: **BLOCKED — suspected_root_cause_incomplete**
+- **Next Actions**: 
+  1. **Escalate to Galph**: Root cause analysis may be incomplete. Despite implementing the exact fix specified (pass beam_config at construction vs post-hoc), tests exhibit zero behavioral change. Possible explanations:
+     a) nanobrag_torch.Crystal constructor ignores beam_config parameter (upstream bug)
+     b) Additional bug location exists (e.g., simulator retargeting doesn't propagate beam_config correctly)
+     c) Warm cache path isn't actually being exercised (though debug evidence shows it IS)
+  2. **Request callchain analysis**: Run `prompts/callchain.md` on Crystal.__init__ and Simulator.run() to trace how beam_config flows through nanobrag_torch
+  3. **Alternate hypothesis**: Check if `stage_a_ctx.beam_config` itself is None/incorrect upstream in Stage A setup
+  4. **Spec review**: Re-examine whether Crystal actually NEEDS beam_config, or if the real bug is in Simulator caching/initialization
+  
+**DO NOT RETRY** this implementation without new evidence. Two consecutive loops with same failure signature + same bragg_after telemetry = repeat-failure guard territory.
+

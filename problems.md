@@ -28,6 +28,7 @@ IMPORTANT
 - Phase C.4 COMPLETE (commit cd855064): Stage B context strictness + parameter builder inlining
 - Phase C.5 PLANNED: Stage B LBFGS inlining + HKL utilities extraction (see `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T184846Z/planning_notes.md`)
 - Problems ledger directive "PRIORITIZE ARCH-REFACTOR-001 ASAP" serviced this loop via C.5 planning
+  - 2025-12-02T200000Z: Problems ledger guard triggered again ("PRIORITIZE ARCH-REFACTOR-001 ASAP"), serviced via Phase C.7 Stage A utilities extraction planning. Stage A impl (1524 lines, 11 functions) is the final *_impl.py module; planned C.7-C.9 extraction/inline/deletion per hkl_utils precedent. Issued Do Now for C.7: extract 7 cross-stage helpers to stage_a_utils.py, update 5 import sites, validate with 4 selectors. Artifacts at plans/active/ARCH-REFACTOR-001/reports/2025-12-02T200000Z/.
 - Remaining work: inline `_run_stage_b_lbfgs`, create `hkl_utils.py`, delete `stage_b_impl.py`, then repeat for Stage A
 IMPORTANT
 The codebase is currently in a "Mid-Refactor" state (Transitioning from monolithic scripts to a Protocol-based Engine), resulting in significant complexity, indirection, and state-management overhead.

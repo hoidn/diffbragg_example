@@ -564,3 +564,12 @@ Action State: ready_for_implementation
 - Mapped tests: Stage B guard (test_stage_b_baseline_guard_diff_payload), Stage B shell (test_stage_b_shell_modifiers).
 - Findings enforced: ARCH-ENGINE-002 (Stage seams), ARCH-REFACTOR-001 (delete impl after inlining), ARCH-STAGE-CTX-001 (typed contexts), ARCH-TELEMETRY-001 (collector-only path), ARCH-LAZY-IMPORTS-001 (module-scope imports).
 Action State: ready_for_implementation
+
+2025-12-02T200000Z focus=ARCH-REFACTOR-001 state=planning dwell=0 action=planning artifacts=plans/active/ARCH-REFACTOR-001/reports/2025-12-02T200000Z/ next_action=ready_for_implementation
+- Problems ledger guard triggered ("PRIORITIZE ARCH-REFACTOR-001 ASAP"), shifted to Phase C.7 Stage A consolidation planning.
+- Reviewed Phase C.6 completion (Stage B impl deleted 2025-12-02T190946Z, commit 482e9198), confirmed Stage A impl (1524 lines, 11 functions) is the final *_impl.py module.
+- Analyzed dependencies: 7 cross-stage helpers (used by Stage B/C/reconstruction), 3 Stage-A-private helpers. Following Phase C.5 hkl_utils precedent, planned two-step extraction.
+- Updated implementation plan with Phase C.7-C.9 checklists (extract shared helpers → inline private helpers → delete impl), created planning notes, reserved artifacts at 2025-12-02T200000Z/.
+- Issued Do Now for Phase C.7: extract 7 helpers to stage_a_utils.py, update imports across 5 files (stage_a/stage_b/stage_c/reconstruction), rerun Stage A expansion + Stage B guard/shell + Stage C microslip (4 selectors).
+- Updated docs/fix_plan.md Attempts History (line 76), problems.md ledger service note, and input.md with Parity-mode Do Now.
+Action State: ready_for_implementation

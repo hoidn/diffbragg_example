@@ -933,29 +933,30 @@ def _build_stage_a_params(
         'cell_baseline': cell_baseline,
     }
 
-    # Build telemetry_state dict
-    telemetry_state = {
-        'loss_trace_sample': loss_trace_sample,
-        'loss_trace_full': loss_trace_full,
-        'best_loss_full': best_loss_full,
-        'best_params_snapshot': best_params_snapshot,
-        'iteration_count': iteration_count,
-        'chi_squared_trace_sample': chi_squared_trace_sample,
-        'chi_squared_trace_full': chi_squared_trace_full,
-        'chi_squared_best': chi_squared_best,
-        'masked_mse_trace_sample': masked_mse_trace_sample,
-        'masked_mse_trace_full': masked_mse_trace_full,
-        'masked_mse_best': masked_mse_best,
-        'perf_closure_evals': perf_closure_evals,
-        'perf_validation_runs': perf_validation_runs,
-        'perf_forward_times_ms': perf_forward_times_ms,
-        'variance_floor_clamped_pixels': variance_floor_clamped_pixels,
-        'variance_floor_masked_pixels': variance_floor_masked_pixels,
-        'sigma_floor_sq_tensor': sigma_floor_sq_tensor,
-        'telemetry_step_counter': telemetry_step_counter,
-        'u_matrix_lifecycle_log': u_matrix_lifecycle_log,
-        'a_star_lifecycle_log': a_star_lifecycle_log,
-    }
+    # Build telemetry_state dataclass (ARCH-STAGE-CONTEXT-001 Phase B.3.1)
+    telemetry_state = StageATelemetryState(
+        iteration_count=iteration_count,
+        loss_trace_sample=loss_trace_sample,
+        loss_trace_full=loss_trace_full,
+        best_loss_full=best_loss_full,
+        best_params_snapshot=best_params_snapshot,
+        chi_squared_trace_sample=chi_squared_trace_sample,
+        chi_squared_trace_full=chi_squared_trace_full,
+        chi_squared_best=chi_squared_best,
+        masked_mse_trace_sample=masked_mse_trace_sample,
+        masked_mse_trace_full=masked_mse_trace_full,
+        masked_mse_best=masked_mse_best,
+        perf_closure_evals=perf_closure_evals,
+        perf_validation_runs=perf_validation_runs,
+        perf_forward_times_ms=perf_forward_times_ms,
+        variance_floor_clamped_pixels=variance_floor_clamped_pixels,
+        variance_floor_masked_pixels=variance_floor_masked_pixels,
+        sigma_floor_sq_tensor=sigma_floor_sq_tensor,
+        telemetry_step_counter=telemetry_step_counter,
+        u_matrix_lifecycle_log=u_matrix_lifecycle_log,
+        a_star_lifecycle_log=a_star_lifecycle_log,
+        panel_loss_diag=None,  # Initialized later if env var is set
+    )
 
     # Build stage_a_context dict
     stage_a_context = {
@@ -1262,16 +1263,27 @@ def _run_stage_a_lbfgs(
         variance_floor_masked_pixels in telemetry uses masked_pixel_reference when provided to
         keep chi²-per-pixel denominators aligned with the loss mask.
     """
-    # Unpack telemetry_state variables
-    iteration_count = telemetry_state['iteration_count']
-    loss_trace_full = telemetry_state['loss_trace_full']
-    chi_squared_trace_full = telemetry_state['chi_squared_trace_full']
-    chi_squared_best = telemetry_state['chi_squared_best']
-    masked_mse_trace_full = telemetry_state['masked_mse_trace_full']
-    masked_mse_best = telemetry_state['masked_mse_best']
-    best_loss_full = telemetry_state['best_loss_full']
-    perf_validation_runs = telemetry_state['perf_validation_runs']
-    best_params_snapshot = telemetry_state.get('best_params_snapshot')
+    # Unpack telemetry_state variables (ARCH-STAGE-CONTEXT-001 Phase B.3.1: dict or dataclass)
+    if isinstance(telemetry_state, dict):
+        iteration_count = telemetry_state['iteration_count']
+        loss_trace_full = telemetry_state['loss_trace_full']
+        chi_squared_trace_full = telemetry_state['chi_squared_trace_full']
+        chi_squared_best = telemetry_state['chi_squared_best']
+        masked_mse_trace_full = telemetry_state['masked_mse_trace_full']
+        masked_mse_best = telemetry_state['masked_mse_best']
+        best_loss_full = telemetry_state['best_loss_full']
+        perf_validation_runs = telemetry_state['perf_validation_runs']
+        best_params_snapshot = telemetry_state.get('best_params_snapshot')
+    else:
+        iteration_count = telemetry_state.iteration_count
+        loss_trace_full = telemetry_state.loss_trace_full
+        chi_squared_trace_full = telemetry_state.chi_squared_trace_full
+        chi_squared_best = telemetry_state.chi_squared_best
+        masked_mse_trace_full = telemetry_state.masked_mse_trace_full
+        masked_mse_best = telemetry_state.masked_mse_best
+        best_loss_full = telemetry_state.best_loss_full
+        perf_validation_runs = telemetry_state.perf_validation_runs
+        best_params_snapshot = telemetry_state.best_params_snapshot
 
     # Run LBFGS optimization
     status = "ok"
@@ -1302,10 +1314,15 @@ def _run_stage_a_lbfgs(
         chi_squared_best = (baseline_chi_squared_value, 0)
         masked_mse_best = (baseline_mse_value, 0)
 
-        # Update telemetry state with baseline tracking
-        telemetry_state['best_loss_full'] = best_loss_full
-        telemetry_state['chi_squared_best'] = chi_squared_best
-        telemetry_state['masked_mse_best'] = masked_mse_best
+        # Update telemetry state with baseline tracking (dict or dataclass)
+        if isinstance(telemetry_state, dict):
+            telemetry_state['best_loss_full'] = best_loss_full
+            telemetry_state['chi_squared_best'] = chi_squared_best
+            telemetry_state['masked_mse_best'] = masked_mse_best
+        else:
+            telemetry_state.best_loss_full = best_loss_full
+            telemetry_state.chi_squared_best = chi_squared_best
+            telemetry_state.masked_mse_best = masked_mse_best
 
         # Update canonical baseline with initial chi-squared
         canonical_baseline["chi_squared"] = baseline_chi_squared_value
@@ -1446,14 +1463,22 @@ def _run_stage_a_lbfgs(
             canonical_baseline["chi_squared"] = chi_squared_best[0]
             canonical_baseline["iteration"] = chi_squared_best[1]
 
-    # Update telemetry_state (mutations visible to caller via dict reference)
-    telemetry_state['loss_trace_full'] = loss_trace_full
-    telemetry_state['chi_squared_trace_full'] = chi_squared_trace_full
-    telemetry_state['chi_squared_best'] = chi_squared_best
-    telemetry_state['masked_mse_trace_full'] = masked_mse_trace_full
-    telemetry_state['masked_mse_best'] = masked_mse_best
-    telemetry_state['best_loss_full'] = best_loss_full
-    telemetry_state['best_params_snapshot'] = best_params_snapshot
+    # Update telemetry_state (mutations visible to caller via dict/dataclass reference)
+    # Note: mutable lists are already updated in place, but tuple fields need reassignment
+    if isinstance(telemetry_state, dict):
+        telemetry_state['loss_trace_full'] = loss_trace_full
+        telemetry_state['chi_squared_trace_full'] = chi_squared_trace_full
+        telemetry_state['chi_squared_best'] = chi_squared_best
+        telemetry_state['masked_mse_trace_full'] = masked_mse_trace_full
+        telemetry_state['masked_mse_best'] = masked_mse_best
+        telemetry_state['best_loss_full'] = best_loss_full
+        telemetry_state['best_params_snapshot'] = best_params_snapshot
+    else:
+        # Dataclass: mutable lists already updated in place; reassign tuple fields
+        telemetry_state.chi_squared_best = chi_squared_best
+        telemetry_state.masked_mse_best = masked_mse_best
+        telemetry_state.best_loss_full = best_loss_full
+        telemetry_state.best_params_snapshot = best_params_snapshot
 
     # Canonical_baseline mutations are visible via dict reference (no need to return)
 
@@ -1462,15 +1487,26 @@ def _run_stage_a_lbfgs(
     import json
     from pathlib import Path
     panel_diag_dir = os.environ.get('DBEX_STAGE_C_PANEL_DIAG_DIR')
-    if panel_diag_dir and 'panel_loss_diag' in telemetry_state:
+    # Check for panel_loss_diag presence (dict or dataclass)
+    has_panel_loss_diag = (
+        ('panel_loss_diag' in telemetry_state)
+        if isinstance(telemetry_state, dict)
+        else (telemetry_state.panel_loss_diag is not None)
+    )
+    if panel_diag_dir and has_panel_loss_diag:
+        panel_loss_diag = (
+            telemetry_state['panel_loss_diag']
+            if isinstance(telemetry_state, dict)
+            else telemetry_state.panel_loss_diag
+        )
         diag_path = Path(panel_diag_dir)
         diag_path.mkdir(parents=True, exist_ok=True)
         diag_file = diag_path / 'stage_a_panel_diag.json'
         with open(diag_file, 'w') as f:
             json.dump({
                 'stage': 'A',
-                'panels': telemetry_state['panel_loss_diag'],
-                'n_panels': len(set(p['panel_id'] for p in telemetry_state['panel_loss_diag'])) if telemetry_state['panel_loss_diag'] else 0,
+                'panels': panel_loss_diag,
+                'n_panels': len(set(p['panel_id'] for p in panel_loss_diag)) if panel_loss_diag else 0,
             }, f, indent=2)
 
     return (status, message, final_chi_squared_value, final_masked_mse_value, best_params_snapshot)

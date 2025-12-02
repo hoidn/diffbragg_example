@@ -1696,3 +1696,17 @@ The trusted-mask hypothesis was **DISPROVEN** by inspection of the test fixture 
 **Next Actions**:
 - Phase B.4 ✅ complete; exit criterion 3 satisfied (writer artifact plumbing operational)
 - Phase C: eliminate engine private caches and expose unified artifact channel per exit criterion 2
+
+### 2025-12-02T130500Z - ARCH-STAGE-CONTEXT-001 Phase D.1–D.3: Final Bragg artifact propagation (BLOCKED)
+**Action**: Started Phase D by extracting the final-Bragg helpers into `dbex/refinement/reconstruction.py`, extending `StageAArtifacts`/`StageBArtifacts` with optional `bragg_full` fields, and wiring `StageA.run`, `StageB.run`, and the Stage A/B branches of `run_nanobrag_refinement` to consume artifacts before falling back to the helpers.
+- New module `dbex/refinement/reconstruction.py` now owns `build_final_bragg_from_stage_a_telemetry` and `build_final_bragg_from_stage_b_telemetry` so both the stage wrappers and the engine path share one implementation.
+- `StageA.run` detects the terminal condition (`enable_stage_b == enable_stage_c == False`), calls the reconstruction helper, and stores the resulting Bragg tensor on `StageAArtifacts.bragg_full`.
+- `StageB.run` mirrors this logic for `not enable_stage_c`, calls the Stage B helper, and stashes the tensor on `StageBArtifacts.bragg_full`; run_nanobrag_refinement reads the artifact first and only re-enters the helper if the artifact is missing (older binaries).
+- Tests updated to consume the third return value from `run_nanobrag_refinement`, and the writer path now simply threads the artifact map through to the authoring layer.
+**Results**:
+- `test_stage_b_shell_modifiers` FAILED with `KeyError: 'shell_edges'` inside the new reconstruction helper because `StageB.run` hands that helper the bare telemetry dict, which intentionally no longer carries shell metadata (the spec work moved those fields into `StageBArtifacts`). The helper needs either (a) a dict augmented with `shell_edges`, `shell_indices`, `n_shells`, and `stage_b_mode`, or (b) a new signature that accepts the artifact payload directly.
+- `test_stage_a_expansion` continues to fail the “param deltas non-zero” acceptance gate with `log_scale delta too small: 2.09e-07` (pre-existing signature from 2025-12-02T073800Z). The deterministic geometry perturbation still exercises Stage A correctly (chi² and orientation telemetry look fine), but demanding `abs(log_scale_delta) > 1e-6` is too strict for well-initialized ADU-mode runs. The gate should consider other Stage A DoFs (cell lengths/angles or misset) or lower the threshold so we stop tripping on near-zero scale adjustments.
+**Artifacts**: `plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T130500Z/` (pytest_stage_a_small.log, pytest_stage_b_shell.log, summary.md).
+**Next Actions**:
+1. Update `dbex/refinement/stage_b.py::StageB.run` so the reconstruction helper receives shell metadata and stage mode (reuse the artifact payload when building the dict) and add a regression in `run_nanobrag_refinement` to assert artifacts carry `bragg_full` when Stage B is terminal.
+2. Triage the Stage A gate by either relaxing the log-scale threshold or checking the max absolute delta across all key Stage A parameters so the detector-smoke still enforces “some parameter moved” without flagging well-initialized scale values as failures.

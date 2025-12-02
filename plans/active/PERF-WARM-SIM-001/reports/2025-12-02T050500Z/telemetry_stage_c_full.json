@@ -1,0 +1,122 @@
+[
+  {
+    "stage": "stage_c_detector_microslip",
+    "dataset": "full",
+    "status": "early_stop",
+    "message": "Stage C improvement -2.2523% < 0.0000% (\u22650.002% gate calibrated per REFINE-007)",
+    "loss_trace_full": [
+      [
+        -1,
+        210706480.0
+      ],
+      [
+        0,
+        218564112.0
+      ],
+      [
+        5,
+        215452256.0
+      ],
+      [
+        10,
+        215683792.0
+      ],
+      [
+        15,
+        215452256.0
+      ],
+      [
+        20,
+        215452256.0
+      ],
+      [
+        23,
+        215452256.0
+      ]
+    ],
+    "chi_squared_trace_full": [
+      [
+        -1,
+        210706480.0
+      ],
+      [
+        0,
+        218564112.0
+      ],
+      [
+        5,
+        215452256.0
+      ],
+      [
+        10,
+        215683792.0
+      ],
+      [
+        15,
+        215452256.0
+      ],
+      [
+        20,
+        215452256.0
+      ],
+      [
+        23,
+        215452256.0
+      ]
+    ],
+    "perf_counters": {
+      "cache_mode": "warm",
+      "roi_mode": "roi",
+      "roi_mode_reason": "",
+      "validation_scope": "panel",
+      "roi_count_total": 92,
+      "roi_count_sampled": 92,
+      "closure_evals": 23,
+      "validation_runs": 8,
+      "forward_time_ms": {
+        "mean": 440.77173153299,
+        "min": 418.7538279220462,
+        "max": 449.8251751065254,
+        "total": 13663.92367752269
+      }
+    },
+    "param_deltas": {
+      "panel_0_distance_offset_mm": {
+        "initial": 0.25,
+        "final": 0.46532484889030457,
+        "delta": 0.21532484889030457
+      }
+    },
+    "stage_a_final_chi2": 210706464.0,
+    "stage_c_final_chi2": 215452256.0,
+    "loss_improvement": 0.30196640920636564,
+    "chi_squared_improvement": -0.022523238774487715,
+    "n_rois": 92,
+    "detector_shape": [
+      1,
+      2527,
+      2463
+    ],
+    "closure_evals": 23,
+    "validation_runs": 8,
+    "forward_time_ms": {
+      "mean": 440.77173153299,
+      "min": 418.7538279220462,
+      "max": 449.8251751065254,
+      "total": 13663.92367752269
+    },
+    "detector_offset_reduction_min": 0.0,
+    "detector_offset_final_abs_max": 0.46532484889030457,
+    "cache_mode": "warm",
+    "roi_mode": "roi",
+    "roi_count_total": 92,
+    "roi_count_sampled": 92,
+    "canonical_stage_label": "A",
+    "canonical_chi_squared": 210706464.0,
+    "canonical_chi_squared_iteration": 17,
+    "canonical_roi_count": 92,
+    "canonical_detector_distances_mm": [
+      231.27645547762577
+    ]
+  }
+]

@@ -26,33 +26,40 @@ class StageAArtifacts:
     """
     Stage A artifacts: warm context payload for downstream stage reuse.
 
-    Per ARCH-STAGE-CONTEXT-001 Phase B.1:
+    Per ARCH-STAGE-CONTEXT-001 Phase B.1 + Phase D:
     - Carries StageAContext (simulator+cache snapshot) for Stage B/C warm starts
     - Includes schema version for future compatibility
     - Replaces engine._stage_a_ctx_cache private attribute
+    - Optional bragg_full tensor when Stage A is terminal (Stage B/C disabled)
 
     Attributes:
         stage_a_ctx: StageAContext instance (warm simulator cache)
         context_schema_version: Schema version marker (e.g., "v1")
+        bragg_full: Optional final Bragg tensor ([panel, slow, fast] numpy array).
+                    Populated only when Stage B and Stage C are disabled so the engine
+                    and writer can skip recomputing the final Bragg from telemetry.
 
     Normative Requirements:
     - Device/dtype must remain consistent with RefinementSharedContext
     - Warm cache tensors must not be modified after creation
+    - bragg_full must be CPU-resident numpy array when present (writer expects CPU floats)
     """
     stage_a_ctx: Any  # StageAContext (avoid circular import)
     context_schema_version: str = "v1"
+    bragg_full: Optional[Any] = None  # numpy array [panel, slow, fast], populated when terminal
 
 
 @dataclass
 class StageBArtifacts:
     """
-    Stage B artifacts: shell metadata, parity diagnostics, ASU stats.
+    Stage B artifacts: shell metadata, parity diagnostics, ASU stats, optional final Bragg.
 
-    Per ARCH-STAGE-CONTEXT-001 Phase B.1 + REFINE-FLOW-001:
+    Per ARCH-STAGE-CONTEXT-001 Phase B.1 + REFINE-FLOW-001 + Phase D:
     - Shell edges/indices/count for final Bragg reconstruction
     - Baseline parity stats (rel/abs diff, diff payload path)
     - Per-reflection ASU statistics when applicable
     - Replaces engine._stage_b_shell_edges, _stage_b_shell_indices, etc.
+    - Optional bragg_full tensor when Stage B is terminal (Stage C disabled)
 
     Attributes:
         shell_edges: Shell boundary array (resolution bins)
@@ -65,10 +72,14 @@ class StageBArtifacts:
         n_asu_unique: ASU count for per-reflection mode (optional)
         optimizer_type: Optimizer used (optional)
         asu_modifier_stats: Per-reflection ASU statistics (optional)
+        bragg_full: Optional final Bragg tensor ([panel, slow, fast] numpy array).
+                    Populated only when Stage C is disabled so the engine and writer
+                    can skip recomputing the final Bragg from telemetry.
 
     Normative Requirements:
     - Shell metadata must be numpy arrays (CPU-resident)
     - Baseline parity fields required when Stage B baseline guard fires
+    - bragg_full must be CPU-resident numpy array when present (CPU fallback contexts)
     """
     shell_edges: Any  # numpy array
     shell_indices: Any  # numpy array
@@ -80,6 +91,7 @@ class StageBArtifacts:
     n_asu_unique: Optional[int] = None
     optimizer_type: Optional[str] = None
     asu_modifier_stats: Optional[Dict[str, Any]] = None
+    bragg_full: Optional[Any] = None  # numpy array [panel, slow, fast], populated when terminal
 
 
 @dataclass

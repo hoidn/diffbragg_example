@@ -1598,7 +1598,7 @@ def run_engine_zero_point_probe(
     Reuses `build_mapping_stage_a_context` to construct mapping baseline,
     then runs `run_nanobrag_refinement` with Stage A only, `max_iter=0`,
     through the RefinementEngine path, and reconstructs `bragg_stagea_zero` via
-    `_build_final_bragg_from_stage_a_telemetry` with initial params copied
+    `build_final_bragg_from_stage_a_telemetry` with initial params copied
     to final slots. Computes mean/max |Δ| + chi² stats, and returns them
     for comparison against DB-AT-027 tolerances.
 
@@ -1633,9 +1633,9 @@ def run_engine_zero_point_probe(
     from dbex.nanobrag_bridge import build_structure_factor_grid
     from dbex.nanobrag_refinement import (
         RefinementConfig,
-        _build_final_bragg_from_stage_a_telemetry,
         run_nanobrag_refinement,
     )
+    from dbex.refinement.reconstruction import build_final_bragg_from_stage_a_telemetry
     from dbex.vis.mapping import build_mapping_stage_a_context
 
     # Build mapping context (DB-AT-024 baseline)
@@ -1707,7 +1707,7 @@ def run_engine_zero_point_probe(
     # Reconstruct bragg_stagea_zero via canonical helper
     device = torch.device(device_str)
     dtype = torch.float32
-    bragg_stagea_zero = _build_final_bragg_from_stage_a_telemetry(
+    bragg_stagea_zero = build_final_bragg_from_stage_a_telemetry(
         telemetry_a=telemetry_a_zero,
         detector=dataload.detector,
         beam=dataload.beam,

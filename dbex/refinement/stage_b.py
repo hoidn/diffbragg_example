@@ -999,6 +999,35 @@ class StageB:
                 stage_b_mode="shell"
             )
 
+        # ARCH-STAGE-CONTEXT-001 Phase D: Compute final Bragg when Stage B is terminal
+        # Stage B is terminal when Stage C is disabled
+        bragg_full_artifact = None
+        is_terminal_stage = not self._config.enable_stage_c
+        if is_terminal_stage:
+            # Import reconstruction helper
+            from dbex.refinement.reconstruction import build_final_bragg_from_stage_b_telemetry
+            # Build final Bragg from Stage B telemetry using the shared helper
+            # Per input.md: use the CPU fallback flag so the helper mirrors the existing CLI path
+            use_stage_b_cpu_fallback = self._config.stage_b_full_eval_on_cpu
+            bragg_full_artifact = build_final_bragg_from_stage_b_telemetry(
+                telemetry_a=stage_a_telemetry,
+                telemetry_b=telemetry_output,
+                detector=detector,
+                beam=beam,
+                crystal=crystal,
+                baseline_crystal=baseline_crystal,
+                inputs=refinement_inputs,
+                hkl_grid=hkl_grid,
+                hkl_metadata=hkl_metadata,
+                config=self._config,
+                device=device,
+                dtype=dtype,
+                use_stage_b_cpu_fallback=use_stage_b_cpu_fallback,
+                stage_a_ctx=stage_a_ctx,
+            )
+            # Update artifacts with the final Bragg tensor
+            artifacts.bragg_full = bragg_full_artifact
+
         # Return StageResult with telemetry dict and artifacts
         return StageResult(
             telemetry=telemetry_output,

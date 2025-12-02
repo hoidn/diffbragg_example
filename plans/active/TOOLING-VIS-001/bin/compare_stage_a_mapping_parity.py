@@ -2,7 +2,7 @@
 """Stage A Mapping Parity Probe CLI (DB-AT-028/029 diagnostics).
 
 Runs Stage A engine on the smoke fixture, reconstructs bragg_before/after via
-_build_final_bragg_from_stage_a_telemetry, and computes parity vs a mapping
+build_final_bragg_from_stage_a_telemetry, and computes parity vs a mapping
 forward stack with identical HKL/calibration. Emits JSON metrics with
 log_scale_effective, scale ratios, ROI CCs, and HKL source provenance.
 
@@ -132,7 +132,7 @@ def main():
     )
     from dbex.nanobrag_refinement import (
         RefinementConfig,
-        _build_final_bragg_from_stage_a_telemetry,
+        build_final_bragg_from_stage_a_telemetry,
         run_nanobrag_refinement,
     )
     from dbex.vis.mapping import (
@@ -263,7 +263,7 @@ def main():
 
     # Reconstruct bragg_before/after
     print("Reconstructing bragg_before/after from Stage A telemetry...")
-    bragg_before = _build_final_bragg_from_stage_a_telemetry(
+    bragg_before = build_final_bragg_from_stage_a_telemetry(
         telemetry,
         detector=perturbed_detector,
         beam=perturbed_beam,
@@ -277,7 +277,7 @@ def main():
         param_state="initial",
         baseline_crystal=baseline_crystal,
     )
-    bragg_after = _build_final_bragg_from_stage_a_telemetry(
+    bragg_after = build_final_bragg_from_stage_a_telemetry(
         telemetry,
         detector=perturbed_detector,
         beam=perturbed_beam,

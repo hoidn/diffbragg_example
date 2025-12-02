@@ -52,7 +52,7 @@ from dbex.nanobrag_bridge import (  # type: ignore  # noqa: E402
 )
 from dbex.nanobrag_refinement import (  # type: ignore  # noqa: E402
     RefinementConfig,
-    _build_final_bragg_from_stage_a_telemetry,
+    build_final_bragg_from_stage_a_telemetry,
     run_nanobrag_refinement,
 )
 from dbex.vis.mapping import (  # type: ignore  # noqa: E402
@@ -191,7 +191,7 @@ def _run_canonical_stage_a(
             if isinstance(entry, dict) and "initial" in entry and "final" in entry:
                 entry["final"] = entry["initial"]
 
-    bragg_before = _build_final_bragg_from_stage_a_telemetry(
+    bragg_before = build_final_bragg_from_stage_a_telemetry(
         telemetry_initial,
         dataload.detector,
         dataload.beam,

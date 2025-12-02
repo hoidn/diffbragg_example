@@ -1254,10 +1254,34 @@ class StageA:
         # ARCH-STAGE-CONTEXT-001 Phase B.1: Extract stage_a_ctx into artifacts
         stage_a_ctx = stage_a_context.get('stage_a_ctx', None)
 
-        # Create StageAArtifacts with warm context payload
+        # ARCH-STAGE-CONTEXT-001 Phase D: Compute final Bragg when Stage A is terminal
+        # Stage A is terminal when both Stage B and Stage C are disabled
+        bragg_full_artifact = None
+        is_terminal_stage = (not self._config.enable_stage_b) and (not self._config.enable_stage_c)
+        if is_terminal_stage:
+            # Import reconstruction helper
+            from dbex.refinement.reconstruction import build_final_bragg_from_stage_a_telemetry
+            # Build final Bragg from Stage A telemetry using the shared helper
+            bragg_full_artifact = build_final_bragg_from_stage_a_telemetry(
+                telemetry_a=telemetry_output,
+                detector=detector,
+                beam=beam,
+                crystal=crystal,
+                inputs=refinement_inputs,
+                hkl_grid=hkl_grid,
+                hkl_metadata=hkl_metadata,
+                config=self._config,
+                device=device,
+                dtype=dtype,
+                stage_a_ctx=stage_a_ctx,
+                baseline_crystal=baseline_crystal,
+            )
+
+        # Create StageAArtifacts with warm context payload + optional final Bragg
         artifacts = StageAArtifacts(
             stage_a_ctx=stage_a_ctx,
-            context_schema_version="v1"
+            context_schema_version="v1",
+            bragg_full=bragg_full_artifact
         ) if stage_a_ctx is not None else None
 
         # Return StageResult with telemetry dict and artifacts

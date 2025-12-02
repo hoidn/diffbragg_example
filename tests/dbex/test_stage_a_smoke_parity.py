@@ -12,9 +12,9 @@ from dbex.nanobrag_bridge import (
 )
 from dbex.nanobrag_refinement import (
     RefinementConfig,
-    _build_final_bragg_from_stage_a_telemetry,
     run_nanobrag_refinement,
 )
+from dbex.refinement.reconstruction import build_final_bragg_from_stage_a_telemetry
 from dbex.vis.mapping import (
     build_mapping_stage_a_context,
     emit_mapping_context_diagnostics,
@@ -164,7 +164,7 @@ def stage_a_smoke_result(
         masked_pixels = int(np.count_nonzero(refinement_inputs.loss_mask))
 
     device_obj = torch.device(config.device)
-    bragg_before = _build_final_bragg_from_stage_a_telemetry(
+    bragg_before = build_final_bragg_from_stage_a_telemetry(
         telemetry,
         detector=perturbed_detector,
         beam=perturbed_beam,
@@ -178,7 +178,7 @@ def stage_a_smoke_result(
         param_state="initial",
         baseline_crystal=baseline_crystal,
     )
-    bragg_after = _build_final_bragg_from_stage_a_telemetry(
+    bragg_after = build_final_bragg_from_stage_a_telemetry(
         telemetry,
         detector=perturbed_detector,
         beam=perturbed_beam,

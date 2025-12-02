@@ -844,15 +844,14 @@ def _run_stage_b_lbfgs(
     closure_stage_b: Callable[[], torch.Tensor],
     compute_loss_stage_b: Callable[[List[int], bool, bool], Tuple[torch.Tensor, torch.Tensor]],
     n_panels: int,
-    collector: Optional[Any] = None,
+    collector: Any,
 ) -> Dict[str, Any]:
     """
     Run LBFGS optimization for Stage B shell modifier refinement.
 
     Args:
-        collector: Optional StageBTelemetryCollector for observer-based telemetry
-                   (ARCH-TELEMETRY-001 Phase C.1). If None, falls back to legacy
-                   direct telemetry mutations.
+        collector: StageBTelemetryCollector for observer-based telemetry
+                   (ARCH-TELEMETRY-001 Phase C.1). Required parameter.
 
     Returns dict with status, message, final metrics, and best params snapshot.
     Mirrors Phase B1a-loop3 pattern for Stage A LBFGS execution.
@@ -911,38 +910,18 @@ def _run_stage_b_lbfgs(
             else:
                 snapshot_data['shell_modifier_raw'] = param_values['shell_modifier_raw'].data.clone()
 
-            # ARCH-TELEMETRY-001 Phase C.1: Route baseline validation through collector or legacy path
-            if collector is not None:
-                # Observer path: emit baseline validation via collector
-                payload = {
-                    'loss': float(initial_chi_squared_b.item()),
-                    'masked_mse': float(initial_mse_b.item()),
-                    'best_snapshot': snapshot_data,
-                }
-                collector.on_validation(
-                    scope='baseline',
-                    chi2=float(initial_chi_squared_b.item()),
-                    payload=payload,
-                )
-            else:
-                # Legacy path: direct mutations
-                # Record initial metrics in traces
-                loss_trace_full_b.append((0, float(initial_chi_squared_b.item())))
-                # PHYSICS-LOSS-001: Record both metrics
-                chi_squared_trace_full_b.append((0, float(initial_chi_squared_b.item())))
-                masked_mse_trace_full_b.append((0, float(initial_mse_b.item())))
-                chi_squared_best_b[0] = float(initial_chi_squared_b.item())
-                chi_squared_best_b[1] = 0
-                masked_mse_best_b[0] = float(initial_mse_b.item())
-                masked_mse_best_b[1] = 0
-                best_loss_full_b[0] = float(initial_chi_squared_b.item())
-                best_loss_full_b[1] = 0
-                # Update snapshot: for list-type best_params_snapshot_b, clear and append dict; for dict, update directly
-                if isinstance(best_params_snapshot_b, list):
-                    best_params_snapshot_b.clear()
-                    best_params_snapshot_b.append(snapshot_data)
-                else:
-                    best_params_snapshot_b.update(snapshot_data)
+            # ARCH-TELEMETRY-001 Phase C.1: Route baseline validation through collector (observer pattern)
+            # Observer path: emit baseline validation via collector
+            payload = {
+                'loss': float(initial_chi_squared_b.item()),
+                'masked_mse': float(initial_mse_b.item()),
+                'best_snapshot': snapshot_data,
+            }
+            collector.on_validation(
+                scope='baseline',
+                chi2=float(initial_chi_squared_b.item()),
+                payload=payload,
+            )
 
         # REFINE-FLOW-001: Stage B baseline parity guard
         # Compare Stage B initial chi² against Stage A canonical chi² to detect parameter reconstruction drift
@@ -1030,15 +1009,23 @@ def _run_stage_b_lbfgs(
     final_loss_value = chi_squared_best_b[0] if chi_squared_best_b[0] < float('inf') else candidate_loss_value
     final_mse_value = masked_mse_best_b[0] if masked_mse_best_b[0] < float('inf') else candidate_mse_value
 
-    # ARCH-TELEMETRY-001 Phase C.1: Route final validation through collector or legacy path
-    if collector is not None:
-        # Observer path: emit final validation via collector (collector accumulates internally)
-        pass  # Final metrics already captured by collector during LBFGS/periodic validations
+    # ARCH-TELEMETRY-001 Phase C.1: Route final validation through collector (observer pattern)
+    # Emit final validation to capture end-of-optimization metrics
+    final_snapshot_data = {}
+    if param_values['stage_b_mode'] == "per_reflection":
+        final_snapshot_data['log_modifiers'] = param_values['log_modifiers'].data.clone()
     else:
-        # Legacy path: append final metrics to trace lists
-        loss_trace_full_b.append((final_step, final_loss_value))
-        chi_squared_trace_full_b.append((final_step, final_loss_value))
-        masked_mse_trace_full_b.append((final_step, final_mse_value))
+        final_snapshot_data['shell_modifier_raw'] = param_values['shell_modifier_raw'].data.clone()
+    final_payload = {
+        'loss': final_loss_value,
+        'masked_mse': final_mse_value,
+        'best_snapshot': final_snapshot_data,
+    }
+    collector.on_validation(
+        scope='final',
+        chi2=final_loss_value,
+        payload=final_payload,
+    )
 
     # Improvement gate check (REFINE-008)
     if status_b != "error" and best_loss_full[0] is not None and best_loss_full[0] > 0:

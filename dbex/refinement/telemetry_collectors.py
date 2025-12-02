@@ -398,19 +398,18 @@ class StageBTelemetryCollector:
         self._state.loss_trace_full.append((current_iter, loss))
         mse = payload.get('masked_mse', 0.0)
         self._state.masked_mse_trace_full.append((current_iter, mse))
-        # Stage B/C best_loss_full is a list, but we treat it as (best, iter) tuple stored in list[0:2]
+        # Stage B/C best_loss_full is a list storing [best_value, best_iteration]
         # Initialize if empty or update if better
+        # Handle both list and tuple sources by replacing the attribute entirely
         if len(self._state.best_loss_full) == 0:
-            self._state.best_loss_full.extend([loss, current_iter])
+            self._state.best_loss_full = [loss, current_iter]
         elif loss < self._state.best_loss_full[0]:
-            self._state.best_loss_full[0] = loss
-            self._state.best_loss_full[1] = current_iter
+            self._state.best_loss_full = [loss, current_iter]
+        # chi_squared_best and masked_mse_best are also lists [value, iteration]
         if chi2 < self._state.chi_squared_best[0]:
-            self._state.chi_squared_best[0] = chi2
-            self._state.chi_squared_best[1] = current_iter
+            self._state.chi_squared_best = [chi2, current_iter]
         if mse < self._state.masked_mse_best[0]:
-            self._state.masked_mse_best[0] = mse
-            self._state.masked_mse_best[1] = current_iter
+            self._state.masked_mse_best = [mse, current_iter]
         if 'best_snapshot' in payload:
             self._state.best_params_snapshot = [payload['best_snapshot']]
 

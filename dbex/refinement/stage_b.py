@@ -95,7 +95,7 @@ class StageB:
         use_stage_b_roi_mode: bool,
         shell_indices: Optional[torch.Tensor],
         baseline_misset_deg_tensor: Optional[torch.Tensor],
-        collector: Optional[Any] = None,
+        collector: Any,
     ) -> Tuple[Callable[[List[int], bool, bool], Tuple[torch.Tensor, torch.Tensor]], Callable[[], torch.Tensor]]:
         """
         Build LBFGS closure for Stage B shell modifier refinement.
@@ -456,26 +456,18 @@ class StageB:
                 if p.grad is not None and (torch.isnan(p.grad).any() or torch.isinf(p.grad).any()):
                     raise RuntimeError(f"NaN/Inf gradient detected in Stage B parameter {p}")
 
-            # ARCH-TELEMETRY-001 Phase C.1: Record telemetry via collector or fall back to direct mutations
-            if collector is not None:
-                # Observer path: route telemetry through collector.on_step
-                metrics = {
-                    'chi_squared': float(chi_squared_loss.item()),
-                    'masked_mse': float(mse_loss.item()),
-                    # variance_floor stats updated incrementally in compute_loss_stage_b
-                }
-                collector.on_step(
-                    iteration=len(loss_trace_sample_b),
-                    loss=float(chi_squared_loss.item()),
-                    metrics=metrics,
-                )
-            else:
-                # Legacy path: direct list mutation for backward compatibility
-                perf_closure_evals_b[0] += 1
-                loss_trace_sample_b.append(float(chi_squared_loss.item()))
-                # PHYSICS-LOSS-001: Record both metrics
-                chi_squared_trace_sample_b.append(float(chi_squared_loss.item()))
-                masked_mse_trace_sample_b.append(float(mse_loss.item()))
+            # ARCH-TELEMETRY-001 Phase C.1: Record telemetry via collector (observer pattern)
+            # Observer path: route telemetry through collector.on_step
+            metrics = {
+                'chi_squared': float(chi_squared_loss.item()),
+                'masked_mse': float(mse_loss.item()),
+                # variance_floor stats updated incrementally in compute_loss_stage_b
+            }
+            collector.on_step(
+                iteration=len(loss_trace_sample_b),
+                loss=float(chi_squared_loss.item()),
+                metrics=metrics,
+            )
 
             # Periodic full validation
             # PERF-WARM-009: Force panel evaluation for periodic validations to keep modifiers within ±1%
@@ -485,51 +477,24 @@ class StageB:
                         list(range(n_panels)), is_full=True, force_panel_eval=True
                     )
 
-                    # ARCH-TELEMETRY-001 Phase C.1: Route validation telemetry via collector or legacy path
-                    if collector is not None:
-                        # Observer path: build best snapshot for collector
-                        snapshot_data = {}
-                        if stage_b_mode == "per_reflection":
-                            snapshot_data['log_modifiers'] = log_modifiers.data.clone()
-                        else:
-                            snapshot_data['shell_modifier_raw'] = shell_modifier_raw.data.clone()
-
-                        payload = {
-                            'loss': float(full_chi_squared_b.item()),
-                            'masked_mse': float(full_mse_b.item()),
-                            'best_snapshot': snapshot_data,
-                        }
-                        collector.on_validation(
-                            scope='panel',
-                            chi2=float(full_chi_squared_b.item()),
-                            payload=payload,
-                        )
+                    # ARCH-TELEMETRY-001 Phase C.1: Route validation telemetry via collector (observer pattern)
+                    # Observer path: build best snapshot for collector
+                    snapshot_data = {}
+                    if stage_b_mode == "per_reflection":
+                        snapshot_data['log_modifiers'] = log_modifiers.data.clone()
                     else:
-                        # Legacy path: direct mutations
-                        loss_trace_full_b.append((len(loss_trace_sample_b), float(full_chi_squared_b.item())))
-                        # PHYSICS-LOSS-001: Record both metrics
-                        chi_squared_trace_full_b.append((len(loss_trace_sample_b), float(full_chi_squared_b.item())))
-                        masked_mse_trace_full_b.append((len(loss_trace_sample_b), float(full_mse_b.item())))
+                        snapshot_data['shell_modifier_raw'] = shell_modifier_raw.data.clone()
 
-                        # Update best snapshot
-                        # PHYSICS-LOSS-001: Track best for both metrics
-                        if full_chi_squared_b.item() < chi_squared_best_b[0]:
-                            chi_squared_best_b = (float(full_chi_squared_b.item()), len(loss_trace_sample_b))
-                            best_loss_full_b = (float(full_chi_squared_b.item()), len(loss_trace_sample_b))  # Deprecated legacy field
-                            # Phase 7: Mode-aware best params snapshot
-                            # ARCH-STAGE-CONTEXT-001 Phase B.3.2: Handle both list and dict snapshot types
-                            snapshot_data = {}
-                            if stage_b_mode == "per_reflection":
-                                snapshot_data['log_modifiers'] = log_modifiers.data.clone()
-                            else:
-                                snapshot_data['shell_modifier_raw'] = shell_modifier_raw.data.clone()
-                            if isinstance(best_params_snapshot_b, list):
-                                best_params_snapshot_b.clear()
-                                best_params_snapshot_b.append(snapshot_data)
-                            else:
-                                best_params_snapshot_b.update(snapshot_data)
-                        if full_mse_b.item() < masked_mse_best_b[0]:
-                            masked_mse_best_b = (float(full_mse_b.item()), len(loss_trace_sample_b))
+                    payload = {
+                        'loss': float(full_chi_squared_b.item()),
+                        'masked_mse': float(full_mse_b.item()),
+                        'best_snapshot': snapshot_data,
+                    }
+                    collector.on_validation(
+                        scope='panel',
+                        chi2=float(full_chi_squared_b.item()),
+                        payload=payload,
+                    )
 
             return chi_squared_loss
 
@@ -823,44 +788,28 @@ class StageB:
         final_loss_value = stage_b_results['final_loss_value']
         final_mse_value = stage_b_results['final_mse_value']
 
-        # ARCH-STAGE-CONTEXT-001 Phase B.3.2: Extract telemetry from dataclass (with dict compat)
-        # Accumulators updated in-place by closures
-        telemetry = param_values['telemetry_state']
-        if isinstance(telemetry, dict):
-            loss_trace_sample_b = telemetry['loss_trace_sample_b']
-            loss_trace_full_b = telemetry['loss_trace_full_b']
-            chi_squared_trace_sample_b = telemetry['chi_squared_trace_sample_b']
-            chi_squared_trace_full_b = telemetry['chi_squared_trace_full_b']
-            masked_mse_trace_sample_b = telemetry['masked_mse_trace_sample_b']
-            masked_mse_trace_full_b = telemetry['masked_mse_trace_full_b']
-            perf_closure_evals_b = telemetry['perf_closure_evals_b']
-            perf_validation_runs_b = telemetry['perf_validation_runs_b']
-            perf_forward_times_ms_b = telemetry['perf_forward_times_ms_b']
-            variance_floor_clamped_pixels_b = telemetry['variance_floor_clamped_pixels_b']
-            variance_floor_masked_pixels_b = telemetry['variance_floor_masked_pixels_b']
-        else:
-            loss_trace_sample_b = telemetry.loss_trace_sample
-            loss_trace_full_b = telemetry.loss_trace_full
-            chi_squared_trace_sample_b = telemetry.chi_squared_trace_sample
-            chi_squared_trace_full_b = telemetry.chi_squared_trace_full
-            masked_mse_trace_sample_b = telemetry.masked_mse_trace_sample
-            masked_mse_trace_full_b = telemetry.masked_mse_trace_full
-            perf_closure_evals_b = telemetry.perf_closure_evals
-            perf_validation_runs_b = telemetry.perf_validation_runs
-            perf_forward_times_ms_b = telemetry.perf_forward_times_ms
-            variance_floor_clamped_pixels_b = telemetry.variance_floor_clamped_pixels
-            variance_floor_masked_pixels_b = telemetry.variance_floor_masked_pixels
+        # ARCH-TELEMETRY-001 Phase C.1: Finalize collector and extract telemetry via StageResult
+        # Finalize must happen AFTER all validations (baseline, periodic, final) are complete
+        stage_result = collector.finalize()
+        legacy_telemetry_dict = stage_result.to_legacy_dict()
 
-        # REFINE-FLOW-001: Extract baseline parity diagnostics
-        # Support both dict and dataclass (getattr with default for dataclass)
-        if isinstance(telemetry, dict):
-            stage_b_baseline_rel_diff = telemetry.get('stage_b_baseline_rel_diff', None)
-            stage_b_baseline_abs_diff = telemetry.get('stage_b_baseline_abs_diff', None)
-            stage_b_baseline_diff_path = telemetry.get('stage_b_baseline_diff_path', None)
-        else:
-            stage_b_baseline_rel_diff = getattr(telemetry, 'stage_b_baseline_rel_diff', None)
-            stage_b_baseline_abs_diff = getattr(telemetry, 'stage_b_baseline_abs_diff', None)
-            stage_b_baseline_diff_path = getattr(telemetry, 'stage_b_baseline_diff_path', None)
+        # Extract fields from legacy dict (collector owns traces and perf counters)
+        loss_trace_sample_b = legacy_telemetry_dict['loss_trace_sample']
+        loss_trace_full_b = legacy_telemetry_dict['loss_trace_full']
+        chi_squared_trace_sample_b = legacy_telemetry_dict['chi_squared_trace_sample']
+        chi_squared_trace_full_b = legacy_telemetry_dict['chi_squared_trace_full']
+        masked_mse_trace_sample_b = legacy_telemetry_dict['masked_mse_trace_sample']
+        masked_mse_trace_full_b = legacy_telemetry_dict['masked_mse_trace_full']
+        perf_closure_evals_b = legacy_telemetry_dict['perf_closure_evals']
+        perf_validation_runs_b = legacy_telemetry_dict['perf_validation_runs']
+        perf_forward_times_ms_b = legacy_telemetry_dict['perf_forward_times_ms']
+        variance_floor_clamped_pixels_b = legacy_telemetry_dict['variance_floor_clamped_pixels']
+        variance_floor_masked_pixels_b = legacy_telemetry_dict['variance_floor_masked_pixels']
+
+        # REFINE-FLOW-001: Extract baseline parity diagnostics from typed telemetry
+        stage_b_baseline_rel_diff = legacy_telemetry_dict.get('stage_b_baseline_rel_diff', None)
+        stage_b_baseline_abs_diff = legacy_telemetry_dict.get('stage_b_baseline_abs_diff', None)
+        stage_b_baseline_diff_path = legacy_telemetry_dict.get('stage_b_baseline_diff_path', None)
 
         # Build param_deltas dict for telemetry (mode-aware)
         param_deltas_b = {}

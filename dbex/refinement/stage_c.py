@@ -103,7 +103,7 @@ class StageC:
         hkl_metadata: Optional[Dict[str, Any]] = None,
         stage_a_ctx: Optional['StageAContext'] = None,
         sampled_panel_ids: Optional[List[int]] = None,
-        collector: Optional[Any] = None
+        collector: Any = None
     ) -> Tuple[Callable[[List[int], bool], Tuple[torch.Tensor, torch.Tensor]], Callable[[], torch.Tensor]]:
         """
         Build Stage C LBFGS closure for detector distance refinement.
@@ -506,26 +506,18 @@ class StageC:
                 if p.grad is not None and (torch.isnan(p.grad).any() or torch.isinf(p.grad).any()):
                     raise RuntimeError(f"NaN/Inf gradient detected in Stage C parameter {p}")
 
-            # ARCH-TELEMETRY-001 Phase C.1: Record telemetry via collector or fall back to direct mutations
-            if collector is not None:
-                # Observer path: route telemetry through collector.on_step
-                metrics = {
-                    'chi_squared': float(chi_squared_loss.item()),
-                    'masked_mse': float(mse_loss.item()),
-                    # variance_floor stats updated incrementally in compute_loss_stage_c
-                }
-                collector.on_step(
-                    iteration=iteration_count_c[0],
-                    loss=float(chi_squared_loss.item()),
-                    metrics=metrics,
-                )
-            else:
-                # Legacy path: direct list mutation for backward compatibility
-                perf_closure_evals_c[0] += 1
-                loss_trace_sample_c.append(float(chi_squared_loss.item()))
-                # PHYSICS-LOSS-001: Record both metrics
-                chi_squared_trace_sample_c.append(float(chi_squared_loss.item()))
-                masked_mse_trace_sample_c.append(float(mse_loss.item()))
+            # ARCH-TELEMETRY-001 Phase C.1: Record telemetry via collector (observer pattern)
+            # Observer path: route telemetry through collector.on_step
+            metrics = {
+                'chi_squared': float(chi_squared_loss.item()),
+                'masked_mse': float(mse_loss.item()),
+                # variance_floor stats updated incrementally in compute_loss_stage_c
+            }
+            collector.on_step(
+                iteration=iteration_count_c[0],
+                loss=float(chi_squared_loss.item()),
+                metrics=metrics,
+            )
 
             # Periodic full validation
             if iteration_count_c[0] % config.full_validation_interval == 0:
@@ -535,48 +527,21 @@ class StageC:
                         list(range(n_panels)), is_full=True, force_panel_eval=force_panel_validation
                     )
 
-                    # ARCH-TELEMETRY-001 Phase C.1: Route validation telemetry via collector or legacy path
-                    if collector is not None:
-                        # Observer path: build best snapshot for collector
-                        snapshot_data = {
-                            'distance_offset_raw': distance_offset_raw.detach().cpu().tolist()
-                        }
-                        payload = {
-                            'loss': float(full_chi_squared_c.item()),
-                            'masked_mse': float(full_mse_c.item()),
-                            'best_snapshot': snapshot_data,
-                        }
-                        collector.on_validation(
-                            scope='panel',
-                            chi2=float(full_chi_squared_c.item()),
-                            payload=payload,
-                        )
-                    else:
-                        # Legacy path: direct mutations
-                        loss_trace_full_c.append((iteration_count_c[0], float(full_chi_squared_c.item())))
-                        # PHYSICS-LOSS-001: Record both metrics
-                        chi_squared_trace_full_c.append((iteration_count_c[0], float(full_chi_squared_c.item())))
-                        masked_mse_trace_full_c.append((iteration_count_c[0], float(full_mse_c.item())))
-
-                        # Update best snapshot
-                        nonlocal best_loss_full_c, best_params_snapshot_c, chi_squared_best_c, masked_mse_best_c
-                        # PHYSICS-LOSS-001: Track best for both metrics
-                        if full_chi_squared_c.item() < chi_squared_best_c[0]:
-                            chi_squared_best_c = (float(full_chi_squared_c.item()), iteration_count_c[0])
-                            best_loss_full_c = (float(full_chi_squared_c.item()), iteration_count_c[0])  # Deprecated legacy field
-                            best_params_snapshot_c = {
-                                'distance_offset_raw': distance_offset_raw.detach().cpu().tolist()
-                            }
-                            # REFINE-013: Persist best tuples to telemetry_state so _run_stage_c_lbfgs can see them
-                            # ARCH-STAGE-CONTEXT-001 Phase E: dataclass-only update
-                            telemetry_state.chi_squared_best = chi_squared_best_c
-                            telemetry_state.best_loss_full = best_loss_full_c
-                            telemetry_state.best_params_snapshot = best_params_snapshot_c
-                        if full_mse_c.item() < masked_mse_best_c[0]:
-                            masked_mse_best_c = (float(full_mse_c.item()), iteration_count_c[0])
-                            # REFINE-013: Persist masked_mse_best_c to telemetry_state
-                            # ARCH-STAGE-CONTEXT-001 Phase E: dataclass-only
-                            telemetry_state.masked_mse_best = masked_mse_best_c
+                    # ARCH-TELEMETRY-001 Phase C.1: Route validation telemetry via collector (observer pattern)
+                    # Observer path: build best snapshot for collector
+                    snapshot_data = {
+                        'distance_offset_raw': distance_offset_raw.detach().cpu().tolist()
+                    }
+                    payload = {
+                        'loss': float(full_chi_squared_c.item()),
+                        'masked_mse': float(full_mse_c.item()),
+                        'best_snapshot': snapshot_data,
+                    }
+                    collector.on_validation(
+                        scope='panel',
+                        chi2=float(full_chi_squared_c.item()),
+                        payload=payload,
+                    )
 
             iteration_count_c[0] += 1
             return chi_squared_loss

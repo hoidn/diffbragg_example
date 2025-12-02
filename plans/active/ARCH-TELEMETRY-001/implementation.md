@@ -84,6 +84,12 @@
 ## Phase C — Stage B/C & Writer Integration
 ### Checklist
 - [ ] C1: Port Stage B and Stage C closures to emit observer events (per-ROI, per-panel validations) and delete `telemetry_state` dict mutation paths in `_build_stage_b_lbfgs_closure`, `_run_stage_b_lbfgs`, `_build_stage_c_lbfgs_closure`, and `_run_stage_c_lbfgs`. Ensure collectors capture scoped baseline/panel/roi/final validations, Stage B baseline parity metrics, variance-floor counters, and Stage C panel diagnostics before handing `StageResult` objects back to the engine. (Next artifacts: `reports/2025-12-03T160900Z/`.)
+  - Stage C follow-ups (2025-12-03T190000Z failure):
+    * Defer `collector.finalize()`/`StageResult.to_legacy_dict()` until after the final `collector.on_validation` so the closing validation is recorded.
+    * Drop the legacy `legacy_telemetry_dict` plumbing in `_run_stage_c_lbfgs` and read telemetry/perf counters directly from the collector/StageResult objects.
+    * Guarantee `_build_stage_c_lbfgs_closure` records at least one on_step sample even when LBFGS exits immediately (current smoketest fails because `loss_trace_sample` stays empty).
+    * Route every validation scope, including panel diagnostics, through the collector payload instead of mutating dataclasses in place.
+    * Validation plan: rerun `tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload`, `tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers`, and `tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip` with artifacts under `reports/2025-12-03T210000Z/`.
 - [ ] C2: Simplify `dbex/io/writer.py` to consume `StageResult` dataclasses, removing Nelder–Mead reruns and dict introspection; add tests covering Stage A/B/C writer outputs.
 - [ ] C3: Delete legacy telemetry dict compatibility layers (`asdict` round-trips) and update CLI/engine telemetry enrichment to rely solely on typed observers; rerun Stage B/C smoketests and Stage diagnostics CLI tests.
 

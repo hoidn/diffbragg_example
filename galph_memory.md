@@ -499,3 +499,7 @@ Action State: blocked
 - Updated docs/fix_plan.md attempts and rewrote input.md with a Parity-mode Do Now focused on fixing the parity guard, deleting the last `telemetry_state` dict branches in `_build_stage_b_lbfgs_closure`/`_run_stage_b_lbfgs`, and rerunning the Stage B guard + Stage B/C small-detector smokes under `plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T190000Z/`.
 - Findings enforced: ARCH-STAGE-CTX-001/002 and PHYSICS-LOSS-001/003 keep collectors as the only telemetry writers; REFINE-012 keeps Stage C smoke scope aligned with Stage A validations.
 Action State: ready_for_implementation
+2025-12-03T210000Z focus=ARCH-TELEMETRY-001 state=ready_for_implementation dwell=1 action=planning artifacts=plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T210000Z/ next_action=Implement Stage C collector fixes + rerun guard/smokes
+- Reviewed the `pytest_stage_c_smoke.log` failure (empty `loss_trace_sample`) and confirmed Stage C still snapshots telemetry before the final observer events; legacy dicts remain authoritative and the smoketest fails before the improvement gate has data.
+- Updated docs/fix_plan.md with the new attempt, added Stage C-specific follow-ups to the implementation plan checklist, and rewrote input.md directing Ralph to make the collector the single telemetry source, defer `collector.finalize()` until after the final validation, and rerun the Stage B guard + Stage B/C smokes with artifacts under `reports/2025-12-03T210000Z/`.
+- Next loop must ship the Stage C telemetry fixes; no more planning-only turns for this focus.

@@ -427,3 +427,8 @@ Action State: planning
 - Updated `plans/active/ARCH-BRIDGE-RESP-001/implementation.md` (B1 checked off) and docs/fix_plan.md (status=in_progress), then scoped Phase B.2: call `score_roi_payloads` inside `run_nanobrag_backend`, add an optional `roi_payloads` kwarg to `dbex.io.writer.write_torch_outputs`, patch the nanobrag CLI tests to assert payload threading, and refresh the writer IDL + data manifest so the new dependency is documented.
 - Authored input.md (artifacts reserved at 2025-12-02T233500Z/) with explicit file targets, env-guarded pytest selectors, and pitfalls (unit-consistent sigma conversion, keep legacy scoring loop intact) so Ralph can immediately land the production change next loop.
 Action State: ready_for_implementation
+2025-12-02T082532Z focus=ARCH-LAZY-IMPORTS-001 state=planning dwell=0 action=planning artifacts=plans/active/ARCH-LAZY-IMPORTS-001/reports/2025-12-02T082202Z/ next_action=Phase A inventory + module-scope import cleanup for geometry/physics helpers
+- Problems-ledger guard addressed: promoted the “Lazy imports / process noise” backlog item into Tier-0 row ARCH-LAZY-IMPORTS-001, created the implementation plan, updated docs/fix_plan.md + problems.md, and reserved artifacts under `plans/active/ARCH-LAZY-IMPORTS-001/reports/2025-12-02T082202Z/`.
+- Authored input.md directing Ralph to (a) record the repo-wide lazy-import audit into `lazy_import_audit.md`, and (b) convert `dbex/geometry/crystallography.py` and `dbex/physics/forward.py` to guarded module-scope imports with updated docstrings plus CLI/Stage-A parity tests.
+- Next action: execute Phase A inventory + first two module cleanups to unblock subsequent Stage helper hygiene.
+Action State: planning

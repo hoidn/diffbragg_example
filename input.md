@@ -1,52 +1,58 @@
-Summary: Phase B.2 — route the CLI/engine path through `score_roi_payloads` so `write_torch_outputs` receives typed ROI payloads while keeping the legacy scoring loop alive for one more loop.
+Summary:
+- Inventory remaining lazy-import hotspots and convert the geometry/physics helpers to explicit module-scope imports so Stage callers no longer hide dependencies.
+
 Mode: none
+
 InitiativeType: architecture
-Focus: ARCH-BRIDGE-RESP-001 — Writer / bridge responsibility split
+
+Focus: ARCH-LAZY-IMPORTS-001 — Lazy imports / process-noise hygiene
+
 Branch: integration
+
 Mapped tests:
-- AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE pytest -q tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_runs_simulator
-- AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE pytest -q tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_applies_calibration
-- AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE pytest -q tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata
-Artifacts: plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-02T233500Z/
+- tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_runs_simulator
+- tests/dbex/test_stage_a_smoke_parity.py::test_db_at_027_zero_point_parity
+
+Artifacts: plans/active/ARCH-LAZY-IMPORTS-001/reports/2025-12-02T082202Z/
 
 Do Now:
-- Implement: dbex/refine_one.py::run_nanobrag_backend — Import `score_roi_payloads`, derive sigma values in target units (`sigma_reference_target_units` fallback or mean of `inputs.sigma_readout`, and `sigma_floor` divided by gain when `--adu-per-photon` is set), convert `DataLoad.pids`/`bbox` to Python lists, call `score_roi_payloads` with the final `Bragg`, and pass the resulting list via a new `roi_payloads` keyword when invoking `write_torch_outputs`.
-- Implement: dbex/io/writer.py::write_torch_outputs — Extend the signature/docstring with an optional `roi_payloads` parameter (default `None`) so callers can start threading typed payloads while the legacy optimization loop remains untouched this loop.
-- Implement/Tests: tests/dbex/test_refine_one_cli.py::{test_nanobrag_backend_runs_simulator,test_nanobrag_backend_applies_calibration,...} — Patch `dbex.io.roi_scoring.score_roi_payloads` in nanobrag CLI tests to avoid running SciPy, assert that `write_torch_outputs` receives the helper output via the new `roi_payloads` kwarg, and update direct-writer tests (e.g., `test_torch_diagnostics_metadata`) to call the function with the new argument (passing `None` until B3 removes inline scoring).
-- Document: docs/architecture/dbex/io/writer.idl.md & docs/data_dependency_manifest.md — Note that `write_torch_outputs` now accepts an optional `roi_payloads` list (Phase B.2) and record that `run_nanobrag_backend` executes `dbex.io.roi_scoring.score_roi_payloads`, including required inputs/artifacts for the helper.
-- Validate: run the mapped pytest selectors, capturing `pytest_nanobrag_backend_runs_simulator.log`, `pytest_nanobrag_backend_applies_calibration.log`, and `pytest_torch_diagnostics_metadata.log` under the artifacts directory.
+- Implement: plans/active/ARCH-LAZY-IMPORTS-001/reports/2025-12-02T082202Z/lazy_import_audit.md — Run the repo-wide lazy-import scan (`rg -n "^[[:space:]]\\+\\(from\\|import\\) " dbex -g'*.py'`) and summarize the top offenders (geometry helpers, physics forward helper, Stage *_impl modules) with short notes referencing ARCH-ENGINE-002 / GEOMETRY findings. Check the audit into this report directory so future loops can diff progress.
+- Implement: dbex/geometry/crystallography.py::derive_u_matrix_from_mosflm_a_star — Move the torch/nanobrag_torch imports to module scope inside a guarded try/except (set sentinel values when the optional deps are missing) and update docstrings to cite GEOMETRY-001/003 instead of historic ticket numbers. Preserve the current ImportError message, keep the module a leaf (no dbex.* imports), and add a small helper to assert the optional deps exist before use.
+- Implement: dbex/physics/forward.py::simulate_forward_torch — Promote torch/nanobrag_torch/bridge/helper imports to module scope with guarded try/except blocks, drop the per-call `from dbex.refinement.helpers import create_unified_simulator`, and refresh the module docstring to cite ARCH-ENGINE-002 / RUNTIME-001. Ensure the optional dependency errors stay descriptive and that the helper remains TEST-ONLY per docs/architecture/dbex/physics/forward.idl.md.
+- Validate: tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_runs_simulator — Proves the CLI still boots with module-scope imports and the writer plumbing stays intact.
+- Validate: tests/dbex/test_stage_a_smoke_parity.py::test_db_at_027_zero_point_parity — Exercises the crystallography helpers via Stage A zero-point parity so any import or docstring drift is caught in the canonical mapping test.
 
 How-To Map:
-1. `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md mkdir -p plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-02T233500Z`
-2. `$EDITOR dbex/refine_one.py` — import the helper and thread ROI payload creation before the writer call as described above (keep logging consistent with the existing score loop).
-3. `$EDITOR dbex/io/writer.py` — add the optional `roi_payloads` parameter (defaulting to `None`) and mention it in the module docstring/IDL pointer without altering the current ROI scoring logic.
-4. `$EDITOR tests/dbex/test_refine_one_cli.py docs/architecture/dbex/io/writer.idl.md docs/data_dependency_manifest.md` — update the nanobrag CLI tests with a `score_roi_payloads` patch + assertions, adjust existing direct writer invocations, and document the new data dependency/API knob.
-5. `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE pytest -q tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_runs_simulator | tee plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-02T233500Z/pytest_nanobrag_backend_runs_simulator.log`
-6. `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE pytest -q tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_applies_calibration | tee plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-02T233500Z/pytest_nanobrag_backend_applies_calibration.log`
-7. `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE pytest -q tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata | tee plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-02T233500Z/pytest_torch_diagnostics_metadata.log`
+1. `rg -n "^[[:space:]]\\+\\(from\\|import\\) " dbex -g'*.py' | tee plans/active/ARCH-LAZY-IMPORTS-001/reports/2025-12-02T082202Z/lazy_import_rg.txt` — capture the raw scan, then condense it into `lazy_import_audit.md` with headings for each module that still has lazy imports.
+2. Edit `dbex/geometry/crystallography.py` so the optional torch/nanobrag_torch imports live behind a module-scope try/except; add a helper (e.g., `_require_torch_crystal()`) that raises the same ImportError. Update docstrings/comments to cite GEOMETRY-001/003 and remove historic ticket IDs.
+3. Edit `dbex/physics/forward.py` to move the torch/nanobrag_torch/bridge/helper imports to module scope, keep the TEST-ONLY warning, and ensure `simulate_forward_torch` no longer does on-demand imports. Reference ARCH-ENGINE-002 / RUNTIME-001 in the docstring instead of old tracker notes.
+4. `KMP_DUPLICATE_LIB_OK=TRUE pytest -vv tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_runs_simulator | tee plans/active/ARCH-LAZY-IMPORTS-001/reports/2025-12-02T082202Z/pytest_cli_lazy_imports.log`
+5. `DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_a_smoke_parity.py::test_db_at_027_zero_point_parity | tee plans/active/ARCH-LAZY-IMPORTS-001/reports/2025-12-02T082202Z/pytest_stage_a_parity.log`
 
 Pitfalls To Avoid:
-- Keep sigma conversions consistent: both `sigma_readout` and `sigma_floor` fed to `score_roi_payloads` must be in the same representation (photons vs ADU) as `Bragg`/`DL.data`.
-- `score_roi_payloads` expects Python ints for ROI metadata; convert numpy scalars (`DL.pids`, `DL.bbox`) before passing them to avoid serialization/type surprises.
-- Do not remove the legacy scoring loop from `write_torch_outputs` yet; Phase B.3 will delete it once payload plumbing is proven.
-- Ensure nanobrag CLI tests patch `score_roi_payloads` so unit tests do not import SciPy/score_trainer or spend time in Nelder–Mead.
-- When passing payloads to writer, keep the argument keyworded (`roi_payloads=...`) so downstream callers remain explicit and future refactors are straightforward.
-- Updating docs must preserve DIAGNOSTICS-001 guarantees; do not promise behavioral changes (payload-only writer) until Phase B.3 lands.
+- Do not import dbex modules from `dbex/geometry/crystallography.py`; it must remain a leaf module to avoid Stage/context cycles.
+- Keep optional dependencies optional: module-scope try/except blocks should set sentinels and raise the same ImportError message when nanobrag_torch/torch is unavailable.
+- Preserve the TEST-ONLY warning in `dbex/physics/forward.py` and keep the function detached from production LBFGS closures.
+- Cite findings/specs (GEOMETRY-001/003, ARCH-ENGINE-002, RUNTIME-001) in docstrings instead of historical ticket IDs; no drive-by commentary.
+- Do not add new lazy imports while moving code; every helper should import dependencies once at module load.
+- Follow Environment Freeze—no new pip installs; rely on existing optional deps.
+- When running the Stage A parity test, export `NANOBRAGG_DISABLE_COMPILE=1` to avoid torch.compile interfering with grad/telemetry.
+- Keep the CLI selector configured for the small smoke dataset; set `DBEX_SMOKE_DETECTOR_SIZE=small` explicitly.
 
 If Blocked:
-- If `score_trainer.roi_check` or SciPy cannot be imported when running `run_nanobrag_backend`, capture the exact ImportError/stack trace in `plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-02T233500Z/blocker.log`, note it in docs/fix_plan.md + galph_memory, and stop rather than swapping in a partial scoring path.
+- If moving imports introduces a circular dependency that you cannot resolve quickly, stop, capture the failure signature in `plans/active/ARCH-LAZY-IMPORTS-001/reports/2025-12-02T082202Z/blockers.md`, and update `docs/fix_plan.md` + problems.md so we can consider a scoped architecture change next loop.
 
 Findings Applied (Mandatory):
-- DIAGNOSTICS-001 — Keep `/torch_diagnostics` schema and ROI score semantics unchanged while threading the new payload.
-- PHYSICS-LOSS-001/PHYSICS-LOSS-002 — Pass sigma inputs in the correct units so the helper’s `variance = max(I_model + sigma_readout^2, sigma_floor^2)` remains spec-compliant.
+- ARCH-ENGINE-002 — Stage helpers and leaf modules must declare dependencies at module scope; ensure new imports follow that pattern.
+- GEOMETRY-001 — Geometry mapping helpers must keep beam/DetectorConfig invariants; moving imports must not perturb those calculations.
+- GEOMETRY-003 — Stage A misset baseline logic depends on these helpers; docstring updates should continue to cite the incremental UB contract.
+- RUNTIME-001 — Tests touching torch grad paths must run with `NANOBRAGG_DISABLE_COMPILE=1`.
+- POLICY-001 — No environment/package changes; stick to source edits + docs.
 
 Pointers:
-- plans/active/ARCH-BRIDGE-RESP-001/implementation.md:70 — Phase B checklist (B1 complete, B2 now active).
-- dbex/refine_one.py:13 — Current writer import + nanobrag backend where the helper must be threaded.
-- dbex/io/writer.py:1 — Legacy ROI scoring loop that will start receiving `roi_payloads` (Phase B.3 will consume them).
-- docs/architecture/dbex/io/writer.idl.md:117 — ROI helper/IDL section to update with the new optional argument.
-- docs/data_dependency_manifest.md:187 — ROI analysis helper entry that now needs to record CLI usage.
-- tests/dbex/test_refine_one_cli.py:110 — Primary nanobrag CLI test that should assert payload threading.
+- docs/spec-db-workflow.md:30 — Stage contract + dependency expectations for helpers.
+- docs/spec-db-runtime.md:10 — Runtime guardrails for torch imports/device handling.
+- docs/architecture/pytorch_design.md:12 — Notes on vectorization/lazy-import policy for simulator helpers.
 
 Next Up:
-- Phase B.3 — remove the inline Nelder–Mead loop from `write_torch_outputs` and populate ROI datasets directly from the typed payloads once this plumbing proves stable.
+- Stage helper import cleanup (dbex/refinement/stage_a_impl.py and siblings) once the leaf modules stop hiding dependencies.

@@ -19,6 +19,7 @@ This file is a lightweight, user-editable backlog for any issues that Galph (the
 - [ ] **Writer / bridge responsibility split** — Outstanding review items 3 and 5: `dbex/io/writer.py::write_torch_outputs` still runs Nelder–Mead to compute `opt_bragg_scale`, and `dbex/nanobrag_bridge.py` remains a “god object” that mixes data prep, calibration loading, simulator execution, and physics helpers. Need follow-up initiative to relocate scaling checks into analysis tooling and split bridge responsibilities across factories/physics modules.
   - Tracked via fix-plan row [ARCH-BRIDGE-RESP-001] (2025-12-02T213000Z) with plan at `plans/active/ARCH-BRIDGE-RESP-001/implementation.md`.
 - [ ] **Lazy imports / process noise** — Outstanding review items 6 and 9: several modules (`dbex/geometry/crystallography.py`, `dbex/physics/forward.py`, Stage helpers) still use pervasive lazy imports that hide dependencies, and code is saturated with historical ticket references. Requires a hygiene push once the architecture work above is stable.
+  - Tracked via fix-plan row [ARCH-LAZY-IMPORTS-001] (2025-12-02T082202Z; plan at `plans/active/ARCH-LAZY-IMPORTS-001/implementation.md`).
 
 ATTN NEW PROBLEMS:
 ---

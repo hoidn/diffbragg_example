@@ -432,3 +432,6 @@ Action State: ready_for_implementation
 - Authored input.md directing Ralph to (a) record the repo-wide lazy-import audit into `lazy_import_audit.md`, and (b) convert `dbex/geometry/crystallography.py` and `dbex/physics/forward.py` to guarded module-scope imports with updated docstrings plus CLI/Stage-A parity tests.
 - Next action: execute Phase A inventory + first two module cleanups to unblock subsequent Stage helper hygiene.
 Action State: planning
+- Scoped ARCH-BRIDGE-RESP-001 Phase B.3: writer must consume typed ROI payloads, drop the inline Nelder–Mead loop, add roi_scoring_method/roi_checker telemetry, update CLI metadata tests, and refresh the IDL + dependency manifest so documentation matches the new contract. Handed Ralph a Do Now with concrete file targets plus the three pytest selectors that guard the CLI + writer path; artifacts reserved under 2025-12-03T003500Z.
+Action State: ready_for_implementation
+2025-12-03T003500Z focus=ARCH-BRIDGE-RESP-001 state=ready_for_implementation dwell=0 action=planning artifacts=plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-03T003500Z/ next_action=Swap write_torch_outputs over to roi_payloads + update docs/tests + run the three targeted CLI selectors

@@ -23,7 +23,42 @@ This file is a lightweight, user-editable backlog for any issues that Galph (the
 
 ATTN NEW PROBLEMS:
 ---
-IMPORTANT
+IMPORTANT NEW:
+diagnosis and specific remediation plan to unblock ARCH-REFACTOR-001 Phase D.3.
+Confirmed Root Cause: Reconstruction Logic Gap
+The function build_final_bragg_from_stage_a_telemetry in dbex/refinement/reconstruction.py (lines 189-191) treats the log_scale parameter from telemetry as an absolute exponent, ignoring the log_scale_baseline that Stage A now uses when calibration is present.
+Current Broken Logic (reconstruction.py):
+code
+Python
+# It simply clamps the delta and exponents it, missing the ~20.0 baseline
+log_scale_clamped = torch.clamp(log_scale, min=-10.0, max=10.0)
+scale_factor = torch.exp(log_scale_clamped) 
+# Result: exp(~0) = 1.0, which is ~10^8.5 too small
+Required Logic (Matching StageA.py lines 1188-1199):
+code
+Python
+# Must apply baseline + clamped_delta
+log_scale_clamped = log_scale_baseline + clamp(delta, min=-3.0, max=3.0)
+scale_factor = torch.exp(log_scale_clamped)
+# Result: exp(20 + 0) = ~1e8.5, matching simulate_forward_once
+Remediation Plan
+Step 1: Patch dbex/refinement/reconstruction.py
+Update build_final_bragg_from_stage_a_telemetry to extract and apply the baseline from the telemetry payload.
+Extract Baseline: Retrieve param_deltas_a['log_scale_baseline']['final'].
+Conditional Logic:
+If baseline is present/non-zero: Clamp the log_scale (delta) to config.log_scale_max_delta (default 3.0), then add the baseline.
+If baseline is absent: Retain the legacy behavior (clamp to ±10.0, use as absolute).
+Step 2: Verify Unblocking
+Rerun the blocked test selector. Since the harness is already correct, this logic fix should immediately resolve the magnitude discrepancy in bragg_after.
+code
+Bash
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+DBEX_SMOKE_SIGMA_SOURCE=metadata \
+DBEX_SMOKE_DETECTOR_SIZE=full \
+KMP_DUPLICATE_LIB_OK=TRUE \
+NANOBRAGG_DISABLE_COMPILE=1 \
+pytest -vv tests/dbex/test_stage_a_smoke_parity.py
+IMPORTANT NEW
 **ARCH-REFACTOR-001 Progress** (2025-12-02T220000Z loop):
 - Phase D.2 PLANNING (this loop): Problems ledger "PRIORITIZE ARCH-REFACTOR-001 ASAP" serviced. CLI refactor scoped: migrate `dbex/refine_one.py` from `run_nanobrag_refinement` facade to direct `RefinementEngine` instantiation (5-step pattern: import updates, build RefinementContext, instantiate stages, run engine.run, extract Bragg/artifacts). Comprehensive planning notes at `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T220000Z/planning_notes.md` detail implementation strategy, validation plan (2 CLI selectors), and risks. Updated implementation.md (D.1 marked complete), updated docs/fix_plan.md with new attempt, ready to hand Do Now to Ralph next loop for Phase D.2 implementation.
 - Phase D.1 COMPLETE (2025-12-02T210000Z, commit 43a70eae): RefinementConfig extracted to `dbex/refinement/config.py` (135 lines), 13 import sites updated, 3/3 tests PASSED, backward-compat re-export in facade ensures zero breakage during D.2-D.4.

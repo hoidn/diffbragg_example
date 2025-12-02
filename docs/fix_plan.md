@@ -98,6 +98,7 @@
 - Ledger tie-in: Addresses the unchecked "bad design patterns/code smells" entry in `problems.md` (2025-12-01), specifically items 1, 2, 4, 7, and 8 (data clumps, anemic Stage classes, mutable telemetry dicts, engine branching).
 - Next Actions:
   * Phase B.4 ✅ (Writer artifact plumbing complete). Blocked: Stage B shell smoke test reveals pre-existing bug where StageBTelemetryState dataclass does not support dict-style item assignment; requires investigation and fix before advancing.
+  * Phase B.4 follow-up (2025-12-02T120500Z artifacts path reserved): extend StageBTelemetryState with REFINE-FLOW-001 parity fields, update `_check_stage_b_baseline_parity` + StageB.run to set/get those attributes, re-run Stage B shell/per-reflection smokes (per-reflection failure signature must remain linked to TORCH-REFINE-004), and refresh the writer IDL doc with the `stage_artifacts` API change before retrying the CLI telemetry test.
 
 ## Attempts History
 

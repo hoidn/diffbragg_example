@@ -368,3 +368,8 @@ Action State: ready_for_implementation
 - Reserved 2025-12-02T083500Z artifacts directory and rewrote input.md with concrete Implement/Validate steps plus env-guarded smoketests (Stage B shell/per-reflection, Stage C small/full with panel diagnostics) so Ralph can convert the remaining stages this loop.
 - Findings applied: ARCH-STAGE-CTX-001, ARCH-ENGINE-002, PHYSICS-LOSS-001/002, REFINE-007/PERF-WARM-SIM-001.
 Action State: ready_for_implementation
+2025-12-02T120000Z focus=ARCH-STAGE-CONTEXT-001 state=planning dwell=0 action=planning artifacts=plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T120500Z/ next_action=Stage B parity guard dataclass fix + rerun shell/per-reflection smokes
+- Reviewed Phase B.4 artifacts: writer now accepts `stage_artifacts`, Stage C small smoke + CLI test passed, but Stage B shell test fails because `_check_stage_b_baseline_parity` still mutates dict telemetry, raising `TypeError` when StageBTelemetryState is used; per-reflection run still hits the known TORCH-REFINE-004 gradient-flow issue.
+- Logged follow-up plan: extend StageBTelemetryState with parity fields, teach `_check_stage_b_baseline_parity` and `StageB.run` to set/get them via attributes, and update the writer IDL doc so the new API is documented before re-running tests; reserved 2025-12-02T120500Z artifacts for the fix.
+- Added finding ARCH-STAGE-CTX-002 capturing the dataclass incompatibility; updated docs/fix_plan.md and implementation plan (B4.2) plus refreshed input.md with the new Do Now and artifacts path.
+Action State: ready_for_implementation

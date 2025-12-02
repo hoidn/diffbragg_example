@@ -1,4 +1,4 @@
-Summary: Route Stage artifacts through the writer so Stage-specific metadata no longer depends on telemetry shims and the HDF5 schema stays canonical.
+Summary: Restore Stage B shell telemetry by making `_check_stage_b_baseline_parity` and StageBTelemetryState dataclass-aware, then document the `stage_artifacts` writer API.
 Mode: none
 InitiativeType: architecture
 Focus: ARCH-STAGE-CONTEXT-001 — Stage Context + Engine Artifact Boundary
@@ -6,52 +6,46 @@ Branch: integration
 Mapped tests:
 - tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small
 - tests/dbex/test_torch_refine_smoke.py::test_stage_b_per_reflection_smoke --smoke-detector-size=small
-- tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small
-- tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=full
 - tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata
-Artifacts: plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T110000Z/
+Artifacts: plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T120500Z/
 
 Do Now:
-- FocusItem: ARCH-STAGE-CONTEXT-001 Phase B.4 — Writer/engine artifact plumbing
-- Implement: `dbex/io/writer.py::write_torch_outputs` — add an optional `stage_artifacts: Optional[Dict[str, Any]]` parameter (documented in the module docstring and `docs/architecture/dbex/io/writer.idl.md`). When serializing `stage_B` diagnostics, pull `stage_b_baseline_rel_diff`, `stage_b_baseline_abs_diff`, and `stage_b_baseline_diff_path` directly from a `StageBArtifacts` payload when present, falling back to telemetry fields only for backward compatibility. Ensure the `/torch_diagnostics` layout and attribute names remain byte-for-byte identical (DIAGNOSTICS-001, REFINE-FLOW-001) and keep ROI score/Nelder-Mead behavior unchanged.
-- Implement: `dbex/refine_one.py::run_nanobrag_backend` (and any helper that calls `write_torch_outputs`) — pass `engine.artifacts` to the writer so Stage-specific metadata is available without telemetry shims. Update the CLI tests that patch `write_torch_outputs` (all `@patch('dbex.io.writer.write_torch_outputs')` occurrences in `tests/dbex/test_refine_one_cli.py`) to expect the new keyword argument and to assert that Stage B baseline metrics remain intact.
-- Implement: `dbex/refinement/engine.py::run` — remove the temporary `excluded_fields` filter and the Stage B attribute rebinding block that copied artifact fields back onto telemetry. After this change, `RefinementTelemetry` instances remain clean and Stage-specific metadata is provided exclusively through artifacts/writer.
-- Validate: run the mapped smoketests (Stage B shell expected PASS, Stage B per-reflection expected failure, Stage C small PASS, Stage C full reproduces PERF-WARM-SIM-001 signature) plus `pytest -vv tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata`. Capture logs, CLI output, and any telemetry JSON under the new artifact directory.
+- FocusItem: ARCH-STAGE-CONTEXT-001 Phase B.4 follow-up — Stage B telemetry dataclass compatibility + IDL doc sync
+- Implement: `dbex/refinement/context.py::StageBTelemetryState` — add optional REFINE-FLOW-001 fields (`stage_b_baseline_rel_diff`, `stage_b_baseline_abs_diff`, `stage_b_baseline_diff_path`) with `None` defaults so parity diagnostics live on the dataclass rather than ad-hoc dict keys.
+- Implement: `dbex/refinement/stage_b_impl.py::_check_stage_b_baseline_parity` — detect dataclass vs dict telemetry. When handed StageBTelemetryState, update the new attributes via `setattr` (including diff-path bookkeeping) instead of subscripting. Preserve the legacy dict branch for `test_stage_b_cpu_fallback`.
+- Implement: `dbex/refinement/stage_b.py::StageB.run` — after calling `_check_stage_b_baseline_parity`, attach the baseline diagnostics to the emitted `RefinementTelemetry` (so JSON telemetry and smoke fixtures still see those fields) while also passing them into `StageBArtifacts`.
+- Implement: `docs/architecture/dbex/io/writer.idl.md` — refresh the API signature/usage notes to describe the `stage_artifacts` parameter that now feeds Stage B baseline metrics into `/torch_diagnostics`, keeping the schema reference in sync with the shipped code.
+- Validate: run the mapped tests below, capturing logs into the new artifact directory.
 
 How-To Map:
-1. `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small | tee plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T110000Z/pytest_stage_b_shell.log`
-2. `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_per_reflection_smoke --smoke-detector-size=small | tee plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T110000Z/pytest_stage_b_per_reflection.log` (failure expected; ensure signature matches TORCH-REFINE-004 notes).
-3. `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBEX_STAGE_C_PANEL_DIAG_DIR=plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T110000Z/panel_diag_small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small | tee plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T110000Z/pytest_stage_c_small.log`
-4. `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=full DBEX_STAGE_C_PANEL_DIAG_DIR=plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T110000Z/panel_diag_full KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=full | tee plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T110000Z/pytest_stage_c_full.log` (PERF-WARM-SIM-001 failure expected; capture telemetry JSON for PERF initiative).
-5. `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata | tee plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T110000Z/pytest_cli_writer.log`
+1. `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small | tee plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T120500Z/pytest_stage_b_shell.log`
+2. `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_per_reflection_smoke --smoke-detector-size=small | tee plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T120500Z/pytest_stage_b_per_reflection.log` (failure signature should continue matching TORCH-REFINE-004; log the result).
+3. `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata | tee plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T120500Z/pytest_cli_writer.log`
 
 Pitfalls To Avoid:
-- Do not change `/torch_diagnostics` dataset/attribute names; only the data source should move from telemetry to artifacts.
-- Maintain REFINE-FLOW-001 semantics: Stage B baseline metrics must still be emitted (even if sourced from StageBArtifacts) and guard tests expect identical tolerances.
-- Keep `RefinementTelemetry` cleanly typed; avoid reintroducing dict mutations when removing the shim.
-- Update `docs/architecture/dbex/io/writer.idl.md` if the public signature changes, and keep doc comments in sync.
-- Ensure writer callers (CLI tests, smoke harnesses) provide the new argument; missing kwargs will break existing patches.
-- Do not delete the Stage B per-reflection smoke even though it fails — capture the failure log for TORCH-REFINE-004 cross-reference.
-- Preserve device/dtype neutrality when touching engine or writer; no new `.cuda()` calls.
-- Avoid modifying the problem-space configuration (Environment Freeze) while rearranging writer plumbing.
-- Keep Stage C ROI diagnostics hook wired to the new telemetry dataclass (panel diag paths must still resolve).
-- Remember that Stage C full-detector run is expected to fail due to PERF-WARM-SIM-001; treat any new failure signature as a regression.
+- Do not mutate StageBTelemetryState via dict-style indexing; use attributes so future dataclass upgrades remain type-safe.
+- Keep `/torch_diagnostics` attribute names byte-for-byte identical; only the source (artifacts vs telemetry) may change.
+- Stage B per-reflection test still fails due to known gradient-flow issues; ensure the failure reason matches the archived TORCH-REFINE-004 logs.
+- Environment Freeze still applies; no new dependencies or package edits.
+- Avoid `.cpu()`/`.cuda()` churn inside the parity guard—device/dtype neutrality must hold.
+- Do not drop Stage B baseline diagnostics from telemetry; smoke harnesses ingest them via `getattr`.
+- Preserve StageBArtifacts schema; writers/tests already expect numpy shell metadata and parity floats.
+- Capture all pytest logs in the artifact directory even when failures are expected.
 
 If Blocked:
-- If the new writer signature breaks third-party tooling or the CLI patch cannot pass artifacts through, stop, capture the traceback plus your current diff in `plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T110000Z/blocked.md`, and flag the Do Now as blocked in docs/fix_plan.md (include the error and missing dependency). Do not ship a partial refactor—telemetry + HDF5 schema must remain coherent.
+- If `_check_stage_b_baseline_parity` still explodes when run via the shell smoketest (or parity metrics disappear from telemetry/artifacts), stop, dump the traceback plus telemetry JSON into `plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T120500Z/blocked.md`, and update docs/fix_plan.md with the blocker instead of attempting additional refactors.
 
 Findings Applied (Mandatory):
-- ARCH-STAGE-CTX-001 — Stage contexts and telemetry must use typed dataclasses instead of dict shims.
-- ARCH-ENGINE-002 — Engine/writer boundaries must rely on Stage artifacts rather than private caches.
-- REFINE-FLOW-001 — Stage B baseline parity metrics must remain traceable.
-- PHYSICS-LOSS-001/002 — Dual loss traces and variance-floor telemetry cannot regress while plumbing changes land.
+- ARCH-STAGE-CTX-001 — Stage helpers/telemetry must use typed dataclasses instead of anonymous dicts.
+- ARCH-STAGE-CTX-002 — Stage B baseline parity guard must support StageBTelemetryState to unblock REFINE-FLOW-001.
+- REFINE-FLOW-001 — Stage B baseline diagnostics remain the authoritative parity gate; schema must continue surfacing those fields.
 
 Pointers:
-- dbex/io/writer.py:41 — current writer signature and serialization logic.
-- dbex/refine_one.py:601 — writer call site receiving telemetry and bragg outputs.
-- dbex/refinement/engine.py:140 — telemetry aggregation + Stage B shim to remove.
-- docs/architecture/dbex/io/writer.idl.md:28 — canonical API contract to update alongside the code.
-- tests/dbex/test_refine_one_cli.py:110-900 — writer patches and CLI regression coverage affected by the signature change.
+- dbex/refinement/context.py:624 — StageBTelemetryState definition.
+- dbex/refinement/stage_b_impl.py:34 — `_check_stage_b_baseline_parity` dict-only mutation path.
+- dbex/refinement/stage_b.py:780 — Stage B telemetry/artifact assembly that needs to propagate parity diagnostics.
+- docs/architecture/dbex/io/writer.idl.md:1 — writer IDL contract awaiting signature update.
+- docs/fix_plan.md:34 — fix-plan entry outlining initiative scope and exit criteria.
 
 Next Up (optional):
-- Once StageArtifacts feed the writer, Phase C can focus on moving the remaining ROI-scale helpers out of the writer.
+- After Stage B telemetry compatibility lands, resume PERF-WARM-SIM-001 once Stage C ROI diagnostics can rely on clean artifacts.

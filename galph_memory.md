@@ -298,3 +298,38 @@ Action State: planning
 - Produced input.md directing Ralph to retrofit `_build_stage_b_lbfgs_closure` + `StageB.run` with `RefinementSharedContext` and rerun the Stage B shell/per-reflection smoketests (collect-only + telemetry capture).
 - Cited docs/data_dependency_manifest.md for the smoke env overrides and highlighted findings ARCH-STAGE-CTX-001 / ARCH-ENGINE-002 / REFINE-FLOW-001 so the next loop can focus purely on production code + tests.
 Action State: ready_for_implementation
+
+## 2025-12-02T020900Z - ARCH-STAGE-CONTEXT-001 Phase A.2: Per-Reflection Gradient Flow Defect
+
+### Context
+While implementing RefinementSharedContext adoption for Stage B, discovered pre-existing gradient flow defect in per-reflection mode.
+
+### Observation
+- `test_stage_b_shell_modifiers` (shell mode): **PASSED** with RefinementSharedContext refactoring
+- `test_stage_b_per_reflection_smoke` (per-reflection mode): **FAILED** with ASU modifiers unchanged (mean=1.000000)
+
+### Root Cause Hypothesis
+Per-reflection mode has zero gradient flow during Stage B LBFGS optimization. ASU modifiers (`log_modifiers`) tensor is not being updated, suggesting:
+1. `log_modifiers` not included in optimizer parameter list (`stage_b_params`)
+2. ASU application logic not connecting modifiers to loss gradient path
+3. `requires_grad=False` on `log_modifiers` tensor
+
+### Evidence
+- Shell mode works correctly (modifiers update, loss improves)
+- Per-reflection mode telemetry reports `asu_modifier_stats = {"mean": 1.0, "std": 0.0, ...}` (identity)
+- Test assertion: `assert abs(stats["mean"] - 1.0) > 0.00005` fails (mean exactly 1.0)
+
+### Impact
+- **Not** a blocker for ARCH-STAGE-CONTEXT-001 Phase A.2 (shell mode validates refactoring)
+- **Is** a blocker for TORCH-REFINE-004 per-reflection mode functionality
+
+### Recommendation
+Open separate harness or spec_change initiative to diagnose per-reflection gradient flow:
+- Review `_build_stage_b_params` to confirm `log_modifiers` in optimizer params
+- Trace forward pass in `compute_loss_stage_b` to verify ASU modifiers apply to HKL grid
+- Check `log_modifiers.requires_grad` and `.grad` after optimizer step
+- Compare shell mode vs per-reflection mode parameter wiring
+
+### Artifacts
+- `plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T020900Z/blocked.md`
+- `plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T020900Z/pytest_stage_b_per_reflection.log`

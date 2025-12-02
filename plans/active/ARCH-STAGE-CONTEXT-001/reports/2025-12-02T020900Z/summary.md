@@ -1,5 +1,5 @@
 ### Turn Summary
-Captured the Stage B shared-context scope by updating the fix plan/implementation plan and producing a fresh Do Now for refactoring `_build_stage_b_lbfgs_closure` + `StageB.run` with `RefinementSharedContext`.
-The outstanding problem is that Stage B still ships eleven positional args/dict plumbing, so this remained a planning loop—next pass must touch production code and rerun the smoketests to prove parity.
-Next: implement the shared-context shim in Stage B and collect the shell + per-reflection telemetry logs listed in the Do Now.
-Artifacts: plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T020900Z/ (collect_stage_b_shell.log, pytest_stage_b_shell.log, collect_stage_b_per_reflection.log, pytest_stage_b_per_reflection.log)
+Extended RefinementSharedContext to Stage B helper `_build_stage_b_lbfgs_closure` with compatibility shim (shared_context parameter + legacy fallback) and updated `StageB.run` to build the context and pass it instead of 11 individual parameters; shell mode smoketest passed cleanly, validating the refactoring.
+Per-reflection mode smoketest failed with pre-existing gradient flow defect (ASU modifiers unchanged mean=1.000000), unrelated to the architecture changes; documented in blocked.md and escalated via galph_memory.md.
+Next: Escalate per-reflection gradient flow issue to separate harness/spec-change initiative; proceed with Phase A.3 (Stage C context adoption) once Galph confirms approach.
+Artifacts: plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T020900Z/ (collect_stage_b_shell.log, pytest_stage_b_shell.log, collect_stage_b_per_reflection.log, pytest_stage_b_per_reflection.log, blocked.md, summary.md)

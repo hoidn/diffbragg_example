@@ -32,6 +32,7 @@ from dbex.refinement.stage_b_impl import (
     _run_stage_b_lbfgs,
 )
 from dbex.refinement.stage import RefinementTelemetry
+from dbex.refinement.context import RefinementSharedContext
 from dbex.nanobrag_bridge import (
     create_detector_config,
     create_crystal_config,
@@ -219,6 +220,22 @@ class StageB:
         # Build sigma_floor_sq_cache (shared across Stage A/B)
         sigma_floor_sq_cache = {}
 
+        # ARCH-STAGE-CONTEXT-001 Phase A.2: Build RefinementSharedContext
+        # to collapse the 11-parameter data clump passed to _build_stage_b_lbfgs_closure
+        shared_context = RefinementSharedContext.from_inputs(
+            crystal=crystal,
+            detector=detector,
+            beam=beam,
+            inputs=refinement_inputs,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            config=self._config,
+            device=device,
+            dtype=dtype,
+            baseline_crystal=baseline_crystal,
+            sigma_floor_sq_cache=sigma_floor_sq_cache,
+        )
+
         # Build canonical_baseline (extract from Stage A telemetry)
         canonical_baseline = {
             'stage_label': stage_a_telemetry['canonical_stage_label'],
@@ -300,45 +317,23 @@ class StageB:
         full_stage_b_indices = param_values['full_stage_b_indices']
         stage_b_param_device = param_values['stage_b_param_device']
 
-        # Extract tensors from refinement_inputs for helper2
-        # Convert numpy arrays to torch tensors if needed
-        if isinstance(refinement_inputs.target, np.ndarray):
-            target_t = torch.from_numpy(refinement_inputs.target).to(device=device, dtype=dtype)
-            loss_mask_t = torch.from_numpy(refinement_inputs.loss_mask).to(device=device, dtype=torch.bool)
-            sigma_readout_t = torch.from_numpy(refinement_inputs.sigma_readout).to(device=device, dtype=dtype)
-        else:
-            target_t = refinement_inputs.target.to(device=device, dtype=dtype)
-            loss_mask_t = refinement_inputs.loss_mask.to(device=device, dtype=torch.bool)
-            sigma_readout_t = refinement_inputs.sigma_readout.to(device=device, dtype=dtype)
-
         # STEP 2: Build Stage B LBFGS closure (returns tuple)
+        # ARCH-STAGE-CONTEXT-001 Phase A.2: Pass shared_context instead of 11 individual parameters
+        # (config, device, dtype, crystal, detector, beam, inputs, hkl_grid, hkl_metadata,
+        #  sigma_floor_sq_cache, plus n_panels/panel_shape which are derived from detector)
         compute_loss_stage_b, closure_stage_b = _build_stage_b_lbfgs_closure(
-            config=self._config,
-            device=device,
-            dtype=dtype,
+            shared_context=shared_context,
             param_values=param_values,
             stage_a_ctx=stage_a_ctx,
             stage_b_eval_stage_a_ctx=stage_b_eval_stage_a_ctx,
             canonical_baseline=canonical_baseline,
-            n_panels=n_panels,
             sampled_stage_b_indices=sampled_stage_b_indices,
             full_stage_b_indices=full_stage_b_indices,
-            sigma_floor_sq_cache=sigma_floor_sq_cache,
             use_stage_b_cpu_fallback=use_stage_b_cpu_fallback,
             stage_b_use_warm_cache=stage_b_use_warm_cache,
             use_stage_b_roi_mode=use_stage_b_roi_mode,
-            crystal=crystal,
-            hkl_metadata=hkl_metadata,
-            hkl_grid=hkl_grid,
             shell_indices=shell_indices,
-            detector=detector,
-            beam=beam,
-            inputs=refinement_inputs,
-            target_t=target_t,
-            loss_mask_t=loss_mask_t,
-            sigma_readout_t=sigma_readout_t,
             baseline_misset_deg_tensor=baseline_misset_deg_tensor,
-            panel_shape=panel_shape,
         )
 
         # STEP 3: Run Stage B LBFGS optimization

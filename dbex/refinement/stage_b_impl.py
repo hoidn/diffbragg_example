@@ -28,6 +28,7 @@ from dbex.refinement.stage_a_impl import (
     _retarget_stage_a_simulators,
     _get_sigma_floor_sq_tensor,
 )
+from dbex.refinement.context import RefinementSharedContext
 from dbex.physics.loss import _compute_variance_weighted_loss
 
 
@@ -813,41 +814,133 @@ def _build_stage_b_params(
 
 
 def _build_stage_b_lbfgs_closure(
-    config: 'RefinementConfig',
-    device: torch.device,
-    dtype: torch.dtype,
-    param_values: Dict[str, Any],
-    stage_a_ctx: Optional[Dict[str, Any]],
-    stage_b_eval_stage_a_ctx: Optional[Dict[str, Any]],
-    canonical_baseline: Dict[str, Any],
-    n_panels: int,
-    sampled_stage_b_indices: List[int],
-    full_stage_b_indices: List[int],
-    sigma_floor_sq_cache: Dict[Tuple[str, str], torch.Tensor],
-    use_stage_b_cpu_fallback: bool,
-    stage_b_use_warm_cache: bool,
-    use_stage_b_roi_mode: bool,
-    crystal: Any,
-    hkl_metadata: Dict[str, Any],
-    hkl_grid: torch.Tensor,
-    shell_indices: torch.Tensor,
-    detector: Any,
-    beam: Any,
-    inputs: Any,
-    target_t: torch.Tensor,
-    loss_mask_t: torch.Tensor,
-    sigma_readout_t: torch.Tensor,
-    baseline_misset_deg_tensor: Optional[torch.Tensor],
-    panel_shape: Tuple[int, int],
+    # ARCH-STAGE-CONTEXT-001 Phase A.2: Typed context path (optional, preferred)
+    shared_context: Optional[RefinementSharedContext] = None,
+    # Legacy parameter path (11 parameters collapsed into shared_context in new path)
+    config: Optional['RefinementConfig'] = None,
+    device: Optional[torch.device] = None,
+    dtype: Optional[torch.dtype] = None,
+    crystal: Optional[Any] = None,
+    detector: Optional[Any] = None,
+    beam: Optional[Any] = None,
+    inputs: Optional[Any] = None,
+    hkl_grid: Optional[torch.Tensor] = None,
+    hkl_metadata: Optional[Dict[str, Any]] = None,
+    sigma_floor_sq_cache: Optional[Dict[Tuple[str, str], torch.Tensor]] = None,
+    # Stage-B-specific parameters (not in shared_context)
+    param_values: Optional[Dict[str, Any]] = None,
+    stage_a_ctx: Optional[Dict[str, Any]] = None,
+    stage_b_eval_stage_a_ctx: Optional[Dict[str, Any]] = None,
+    canonical_baseline: Optional[Dict[str, Any]] = None,
+    n_panels: Optional[int] = None,
+    sampled_stage_b_indices: Optional[List[int]] = None,
+    full_stage_b_indices: Optional[List[int]] = None,
+    use_stage_b_cpu_fallback: Optional[bool] = None,
+    stage_b_use_warm_cache: Optional[bool] = None,
+    use_stage_b_roi_mode: Optional[bool] = None,
+    shell_indices: Optional[torch.Tensor] = None,
+    target_t: Optional[torch.Tensor] = None,
+    loss_mask_t: Optional[torch.Tensor] = None,
+    sigma_readout_t: Optional[torch.Tensor] = None,
+    baseline_misset_deg_tensor: Optional[torch.Tensor] = None,
+    panel_shape: Optional[Tuple[int, int]] = None,
 ) -> Tuple[Callable[[List[int], bool, bool], Tuple[torch.Tensor, torch.Tensor]], Callable[[], torch.Tensor]]:
     """
     Build LBFGS closure for Stage B shell modifier refinement.
 
-    Returns tuple of (compute_loss_stage_b, closure_stage_b).
-    compute_loss_stage_b: Callable for manual loss evaluation (used for final validation).
-    closure_stage_b: Callable for LBFGS optimizer.
-    Mirrors Phase B1a-loop2 pattern for Stage A closure extraction.
+    ARCH-STAGE-CONTEXT-001 Phase A.2: Supports both legacy dict-based calling (11 individual params)
+    and new dataclass-based calling (shared_context parameter). If shared_context is provided,
+    individual params for config/device/dtype/crystal/detector/beam/inputs/hkl_grid/hkl_metadata/
+    sigma_floor_sq_cache are ignored.
+
+    Args:
+        shared_context: Optional RefinementSharedContext dataclass (new path, ARCH-STAGE-CONTEXT-001)
+        config: RefinementConfig (legacy path)
+        device: torch.device (legacy path)
+        dtype: torch.dtype (legacy path)
+        crystal: dxtbx Crystal object (legacy path)
+        detector: dxtbx Detector object (legacy path)
+        beam: dxtbx Beam object (legacy path)
+        inputs: RefinementInputs (legacy path)
+        hkl_grid: Structure factor grid tensor (legacy path)
+        hkl_metadata: HKL metadata dict (legacy path)
+        sigma_floor_sq_cache: Variance floor cache (legacy path)
+        param_values: Dict with trainable tensors and telemetry accumulators (required)
+        stage_a_ctx: Optional Stage A context for warm cache (required for warm path)
+        stage_b_eval_stage_a_ctx: Optional CPU fallback Stage A context (required for CPU fallback)
+        canonical_baseline: Dict with Stage A final state for parity checks (required)
+        n_panels: Number of detector panels (required)
+        sampled_stage_b_indices: List of sampled ROI indices (required)
+        full_stage_b_indices: List of all ROI indices (required)
+        use_stage_b_cpu_fallback: Bool flag for CPU fallback (required)
+        stage_b_use_warm_cache: Bool flag for warm cache (required)
+        use_stage_b_roi_mode: Bool flag for ROI mode (required)
+        shell_indices: Tensor of shell indices for shell mode (required for shell mode)
+        target_t: Target image tensor (legacy path)
+        loss_mask_t: Loss mask tensor (legacy path)
+        sigma_readout_t: Sigma readout tensor (legacy path)
+        baseline_misset_deg_tensor: Optional baseline misset tensor (legacy path)
+        panel_shape: Tuple of (slow, fast) dimensions (legacy path)
+
+    Returns:
+        Tuple of (compute_loss_stage_b, closure_stage_b):
+        - compute_loss_stage_b: Callable for manual loss evaluation (used for final validation).
+        - closure_stage_b: Callable for LBFGS optimizer.
+        Mirrors Phase B1a-loop2 pattern for Stage A closure extraction.
     """
+    # ARCH-STAGE-CONTEXT-001: Compatibility shim - accept either dataclass or individual params
+    if shared_context is not None:
+        # New dataclass path: extract shared parameters from context
+        config = shared_context.config
+        device = shared_context.device
+        dtype = shared_context.dtype
+        crystal = shared_context.crystal
+        detector = shared_context.detector
+        beam = shared_context.beam
+        inputs = shared_context.inputs
+        hkl_grid = shared_context.hkl_grid
+        hkl_metadata = shared_context.hkl_metadata
+        sigma_floor_sq_cache = shared_context.sigma_floor_sq_cache
+
+        # Compute derived tensors from inputs (on-demand conversion)
+        if isinstance(inputs.target, np.ndarray):
+            target_t = torch.from_numpy(inputs.target).to(device=device, dtype=dtype)
+            loss_mask_t = torch.from_numpy(inputs.loss_mask).to(device=device, dtype=torch.bool)
+            sigma_readout_t = torch.from_numpy(inputs.sigma_readout).to(device=device, dtype=dtype)
+        else:
+            target_t = inputs.target.to(device=device, dtype=dtype)
+            loss_mask_t = inputs.loss_mask.to(device=device, dtype=torch.bool)
+            sigma_readout_t = inputs.sigma_readout.to(device=device, dtype=dtype)
+
+        # Derive n_panels and panel_shape from detector
+        n_panels = len(detector)
+        panel_shape = (
+            detector[0].get_image_size()[1],  # slow axis (rows)
+            detector[0].get_image_size()[0]   # fast axis (cols)
+        )
+    else:
+        # Legacy dict path - validate that required params are provided
+        if any(x is None for x in [config, device, dtype, crystal, detector, beam, inputs,
+                                   hkl_grid, hkl_metadata, target_t, loss_mask_t,
+                                   sigma_readout_t, n_panels, panel_shape]):
+            raise ValueError(
+                "When shared_context is not provided, all individual parameters "
+                "(config, device, dtype, crystal, detector, beam, inputs, hkl_grid, hkl_metadata, "
+                "target_t, loss_mask_t, sigma_readout_t, n_panels, panel_shape) "
+                "must be explicitly passed. Per ARCH-STAGE-CONTEXT-001, prefer using shared_context."
+            )
+        if sigma_floor_sq_cache is None:
+            sigma_floor_sq_cache = {}
+
+    # Validate Stage-B-specific parameters (required in both paths)
+    if any(x is None for x in [param_values, canonical_baseline, sampled_stage_b_indices,
+                               full_stage_b_indices, use_stage_b_cpu_fallback,
+                               stage_b_use_warm_cache, use_stage_b_roi_mode]):
+        raise ValueError(
+            "Stage B specific parameters (param_values, canonical_baseline, sampled_stage_b_indices, "
+            "full_stage_b_indices, use_stage_b_cpu_fallback, stage_b_use_warm_cache, use_stage_b_roi_mode) "
+            "must be provided in both legacy and shared_context paths."
+        )
     # Extract parameters from param_values dict
     stage_b_mode = param_values['stage_b_mode']
     stage_b_optimizer = param_values['optimizer']

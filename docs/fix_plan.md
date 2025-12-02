@@ -1522,3 +1522,19 @@ The trusted-mask hypothesis was **DISPROVEN** by inspection of the test fixture 
 - Phase A.3: Extend to Stage C helpers
 - Phase B: Introduce StageArtifacts dataclass so stages can emit typed artifacts instead of ad-hoc dicts
 - Address Stage A test assertion (log_scale delta too small) in separate initiative if needed
+
+### 2025-12-02T020900Z - ARCH-STAGE-CONTEXT-001 Phase A.2: RefinementSharedContext for Stage B
+**Action**: Extended RefinementSharedContext compatibility shim to Stage B LBFGS closure builder
+**Metrics**:
+- Updated _build_stage_b_lbfgs_closure (dbex/refinement/stage_b_impl.py:816-943) signature with optional shared_context parameter (follows Stage A pattern)
+- Added compatibility shim: when shared_context provided, extract config/device/dtype/crystal/detector/beam/inputs/hkl_grid/hkl_metadata/sigma_floor_sq_cache; when absent, validate legacy parameters
+- Derive n_panels and panel_shape from detector; convert inputs tensors (target_t, loss_mask_t, sigma_readout_t) on-demand
+- Updated StageB.run (dbex/refinement/stage_b.py:223-237, 320-337) to build RefinementSharedContext via .from_inputs() and pass shared_context to closure builder, removing 11 individual parameters
+- Stage B shell modifiers smoke test (small detector): **PASSED** (1 test, 22.32s)
+- Stage B per-reflection smoke test (small detector): **FAILED** — Pre-existing gradient flow defect (ASU modifiers unchanged mean=1.000000), not introduced by refactoring
+**Artifacts**: plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T020900Z/ (collect_stage_b_shell.log, pytest_stage_b_shell.log, collect_stage_b_per_reflection.log, pytest_stage_b_per_reflection.log, blocked.md)
+**First Divergence**: Per-reflection mode gradient flow broken (pre-existing); shell mode validates refactoring success
+**Next Actions**:
+- Escalate per-reflection gradient flow issue via galph_memory.md (suspected_spec_issue or harness defect, not architecture blocker)
+- Phase A.3: Extend RefinementSharedContext to Stage C helpers (detector retarget + closure)
+- Phase B: Introduce StageArtifacts dataclass after all stages adopt typed contexts

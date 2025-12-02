@@ -566,7 +566,7 @@ def _run_stage_c_lbfgs(
     # Lazy imports (inside helper to avoid circular deps)
     from nanobrag_torch.models import Detector, Crystal
     from nanobrag_torch.simulator import Simulator
-    from dbex.nanobrag_bridge import create_detector_config, create_crystal_config
+    from dbex.refinement.config_factories import create_detector_config, create_crystal_config
 
     # Run Stage C LBFGS optimization
     status_c = "ok"

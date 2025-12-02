@@ -139,8 +139,8 @@ def simulate_forward_torch(
 
     # Lazy imports of dbex bridge/refinement helpers (MUST remain lazy per leaf-module constraint)
     # This module is a LEAF and cannot import from dbex.* at module scope due to circular dependencies
-    from dbex.nanobrag_bridge import (
-        build_structure_factor_grid,
+    from dbex.nanobrag_bridge import build_structure_factor_grid
+    from dbex.refinement.config_factories import (
         create_beam_config,
         create_crystal_config,
         create_detector_config

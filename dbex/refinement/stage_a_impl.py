@@ -1040,7 +1040,7 @@ def _compute_panel_loss(
     Returns:
         Tuple of (chi_squared_loss, masked_mse_loss, masked_pixels, clamped_pixels)
     """
-    from dbex.nanobrag_bridge import create_detector_config, create_crystal_config
+    from dbex.refinement.config_factories import create_detector_config, create_crystal_config
     from dbex.physics.loss import _compute_variance_weighted_loss
 
     # PERF-WARM-SIM-001: When diagnostics are requested, compute per-panel metrics serially
@@ -1090,7 +1090,7 @@ def _compute_panel_loss(
                 crystal_model.hkl_metadata = hkl_metadata
 
                 if beam_config_for_run is None:
-                    from dbex.nanobrag_bridge import create_beam_config
+                    from dbex.refinement.config_factories import create_beam_config
                     beam_config_for_run = create_beam_config(beam)
 
                 from nanobrag_torch.simulator import Simulator
@@ -1187,7 +1187,7 @@ def _compute_panel_loss(
 
                 # Build BeamConfig if not provided (Stage C cold path)
                 if beam_config_for_run is None:
-                    from dbex.nanobrag_bridge import create_beam_config
+                    from dbex.refinement.config_factories import create_beam_config
                     beam_config_for_run = create_beam_config(beam)
 
                 from nanobrag_torch.simulator import Simulator

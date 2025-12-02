@@ -165,7 +165,7 @@ def build_final_bragg_from_stage_a_telemetry(
         simulators = stage_a_ctx.simulators
     else:
         # Cold path: build simulators via unified factory (ARCH-FACTORY-001 Phase B.4)
-        from dbex.nanobrag_bridge import create_beam_config
+        from dbex.refinement.config_factories import create_beam_config
         from dbex.refinement.helpers import create_unified_simulator
         beam_config = create_beam_config(beam)
         simulators = []
@@ -413,7 +413,7 @@ def build_final_bragg_from_stage_b_telemetry(
             bragg_full[pid] = bragg_scaled.cpu().numpy().astype(np.float32)
     else:
         # Cold path: instantiate simulators via unified factory (ARCH-FACTORY-001 Phase B.4)
-        from dbex.nanobrag_bridge import create_beam_config
+        from dbex.refinement.config_factories import create_beam_config
         from dbex.refinement.helpers import create_unified_simulator
         # Transfer shell-modified HKL grid to final_device before factory invocation (CPU fallback determinism)
         hkl_grid_final = hkl_grid_modified.to(device=final_device, dtype=dtype)

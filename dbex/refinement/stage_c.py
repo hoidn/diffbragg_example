@@ -228,7 +228,7 @@ class StageC:
             # Lazy imports inside nested function (device-specific, conditional)
             from nanobrag_torch.models import Detector, Crystal
             from nanobrag_torch.simulator import Simulator
-            from dbex.nanobrag_bridge import create_detector_config, create_crystal_config
+            from dbex.refinement.config_factories import create_detector_config, create_crystal_config
 
             t0 = time.perf_counter()
             if is_full:

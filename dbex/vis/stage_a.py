@@ -27,7 +27,7 @@ from typing import Iterable, List, Optional, Sequence, Tuple
 
 import numpy as np
 
-from dbex.nanobrag_bridge import RefinementInputs
+from dbex.refinement.inputs import RefinementInputs
 from .residuals import compute_z_scores
 from .triptych import plot_triptych
 

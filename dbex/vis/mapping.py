@@ -27,11 +27,10 @@ from typing import Dict, List, Optional, Sequence
 import numpy as np
 
 from dbex.data_load import DataLoad
+from dbex.refinement.inputs import RefinementInputs, prepare_refinement_inputs
 from dbex.nanobrag_bridge import (
-    RefinementInputs,
     load_calibration_metadata,
     load_refined_mtz,
-    prepare_refinement_inputs,
     simulate_forward_once,
 )
 

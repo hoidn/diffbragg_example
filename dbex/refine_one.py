@@ -289,11 +289,13 @@ def run_nanobrag_backend(args, DL, devid=0):
     import h5py
     import numpy as np
     import torch
-    from dbex.nanobrag_bridge import (
-        prepare_refinement_inputs,
+    from dbex.refinement.inputs import prepare_refinement_inputs
+    from dbex.refinement.config_factories import (
         create_detector_config,
         create_beam_config,
-        create_crystal_config,
+        create_crystal_config
+    )
+    from dbex.nanobrag_bridge import (
         build_structure_factor_grid,
         load_calibration_metadata,
         load_refined_mtz

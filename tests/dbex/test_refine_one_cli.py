@@ -189,11 +189,11 @@ def test_main_dispatches_to_nanobrag_backend(mock_nanobrag, mock_dataload):
 @patch('nanobrag_torch.simulator.Simulator')
 @patch('nanobrag_torch.models.detector.Detector')
 @patch('nanobrag_torch.models.crystal.Crystal')
-@patch('dbex.nanobrag_bridge.prepare_refinement_inputs')
-@patch('dbex.nanobrag_bridge.build_structure_factor_grid')
-@patch('dbex.nanobrag_bridge.create_detector_config')
-@patch('dbex.nanobrag_bridge.create_beam_config')
-@patch('dbex.nanobrag_bridge.create_crystal_config')
+@patch('dbex.refinement.inputs.prepare_refinement_inputs')  # ARCH-BRIDGE-RESP-001: moved to refinement.inputs
+@patch('dbex.nanobrag_bridge.build_structure_factor_grid')  # Still in bridge
+@patch('dbex.refinement.config_factories.create_detector_config')  # ARCH-BRIDGE-RESP-001: moved to refinement.config_factories
+@patch('dbex.refinement.config_factories.create_beam_config')  # ARCH-BRIDGE-RESP-001: moved to refinement.config_factories
+@patch('dbex.refinement.config_factories.create_crystal_config')  # ARCH-BRIDGE-RESP-001: moved to refinement.config_factories
 @patch('dbex.io.roi_scoring.score_roi_payloads')
 @patch('dbex.refine_one.write_torch_outputs')  # Patch where it's imported, not where defined
 def test_nanobrag_backend_runs_simulator(
@@ -203,7 +203,7 @@ def test_nanobrag_backend_runs_simulator(
     """A2: Verify nanobrag backend uses real simulator with SCALE-001/002 guardrails."""
     import numpy as np
     import torch
-    from dbex.nanobrag_bridge import RefinementInputs
+    from dbex.refinement.inputs import RefinementInputs
     from dbex.io.roi_analysis import ROIAnalysisPayload, ROITriptych
 
     # Setup mock DataLoad with MTZ data
@@ -364,12 +364,12 @@ def test_nanobrag_backend_runs_simulator(
 @patch('nanobrag_torch.simulator.Simulator')
 @patch('nanobrag_torch.models.detector.Detector')
 @patch('nanobrag_torch.models.crystal.Crystal')
-@patch('dbex.nanobrag_bridge.prepare_refinement_inputs')
-@patch('dbex.nanobrag_bridge.build_structure_factor_grid')
-@patch('dbex.nanobrag_bridge.create_detector_config')
-@patch('dbex.nanobrag_bridge.create_beam_config')
-@patch('dbex.nanobrag_bridge.create_crystal_config')
-@patch('dbex.nanobrag_bridge.load_calibration_metadata')
+@patch('dbex.refinement.inputs.prepare_refinement_inputs')  # ARCH-BRIDGE-RESP-001: moved to refinement.inputs
+@patch('dbex.nanobrag_bridge.build_structure_factor_grid')  # Still in bridge
+@patch('dbex.refinement.config_factories.create_detector_config')  # ARCH-BRIDGE-RESP-001: moved to refinement.config_factories
+@patch('dbex.refinement.config_factories.create_beam_config')  # ARCH-BRIDGE-RESP-001: moved to refinement.config_factories
+@patch('dbex.refinement.config_factories.create_crystal_config')  # ARCH-BRIDGE-RESP-001: moved to refinement.config_factories
+@patch('dbex.nanobrag_bridge.load_calibration_metadata')  # Still in bridge
 @patch('dbex.io.roi_scoring.score_roi_payloads')
 @patch('dbex.refine_one.write_torch_outputs')  # Patch where it's imported, not where defined
 def test_nanobrag_backend_applies_calibration(
@@ -390,7 +390,7 @@ def test_nanobrag_backend_applies_calibration(
     """
     import numpy as np
     import torch
-    from dbex.nanobrag_bridge import RefinementInputs
+    from dbex.refinement.inputs import RefinementInputs
     from dbex.io.roi_analysis import ROIAnalysisPayload, ROITriptych
 
     # Setup mock DataLoad
@@ -591,7 +591,7 @@ def test_nanobrag_backend_accepts_sigma_map(
     """PHYSICS-LOSS-001: Calibrated sigma maps allow nanobrag backend without --sigma-rdout."""
     import numpy as np
     import torch
-    from dbex.nanobrag_bridge import RefinementInputs
+    from dbex.refinement.inputs import RefinementInputs
 
     sigma_map = np.full((1, 8, 8), 6.0, dtype=np.float32)
 
@@ -683,7 +683,7 @@ def test_nanobrag_backend_accepts_external_lookup_sigma_map(
     """Metadata-derived sigma maps set external_lookup provenance."""
     import numpy as np
     import torch
-    from dbex.nanobrag_bridge import RefinementInputs
+    from dbex.refinement.inputs import RefinementInputs
 
     sigma_map = np.full((1, 6, 6), 4.0, dtype=np.float32)
 
@@ -782,7 +782,7 @@ def test_nanobrag_backend_uses_refined_mtz(
     import sys
     import numpy as np
     from unittest.mock import MagicMock
-    from dbex.nanobrag_bridge import RefinementInputs
+    from dbex.refinement.inputs import RefinementInputs
 
     # Setup: mock refined MTZ loading
     refined_indices = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]], dtype=np.int32)
@@ -915,7 +915,7 @@ def test_torch_diagnostics_metadata(sigma_source, sigma_reference):
     import h5py
     import numpy as np
     import sys
-    from dbex.nanobrag_bridge import RefinementInputs
+    from dbex.refinement.inputs import RefinementInputs
     import dbex.refine_one
 
     # ARCH-REFINE-001 Phase C.4: Assert legacy _write_torch_outputs alias is removed

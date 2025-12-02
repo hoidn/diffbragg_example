@@ -270,12 +270,12 @@ def run_nanobrag_refinement(
     from nanobrag_torch.simulator import Simulator
     from nanobrag_torch.models.detector import Detector
     from nanobrag_torch.models.crystal import Crystal
-    from dbex.nanobrag_bridge import (
+    from dbex.refinement.config_factories import (
         create_detector_config,
         create_beam_config,
         create_crystal_config,
-        compute_baseline_misset_deg,
     )
+    from dbex.nanobrag_bridge import compute_baseline_misset_deg
 
     if config is None:
         config = RefinementConfig()

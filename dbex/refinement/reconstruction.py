@@ -65,11 +65,11 @@ def build_final_bragg_from_stage_a_telemetry(
     from nanobrag_torch.simulator import Simulator
     from nanobrag_torch.models.detector import Detector
     from nanobrag_torch.models.crystal import Crystal
-    from dbex.nanobrag_bridge import (
+    from dbex.refinement.config_factories import (
         create_detector_config,
         create_crystal_config,
-        compute_baseline_misset_deg,
     )
+    from dbex.nanobrag_bridge import compute_baseline_misset_deg
     from dbex.refinement.stage_a_impl import _clamp_log_cell_deltas
 
     # Extract param_deltas from telemetry
@@ -250,11 +250,11 @@ def build_final_bragg_from_stage_b_telemetry(
     from nanobrag_torch.simulator import Simulator
     from nanobrag_torch.models.detector import Detector
     from nanobrag_torch.models.crystal import Crystal
-    from dbex.nanobrag_bridge import (
+    from dbex.refinement.config_factories import (
         create_detector_config,
         create_crystal_config,
-        compute_baseline_misset_deg,
     )
+    from dbex.nanobrag_bridge import compute_baseline_misset_deg
     from dbex.refinement.stage_a_impl import _clamp_log_cell_deltas, _retarget_stage_a_simulators
 
     # Extract param_deltas from telemetry (handle both RefinementTelemetry and dict)

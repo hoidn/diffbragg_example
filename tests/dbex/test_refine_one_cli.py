@@ -536,7 +536,7 @@ def test_nanobrag_backend_applies_calibration(
         "roi_payloads kwarg must be non-None (should contain scored payloads from helper)"
 
 
-@patch('dbex.nanobrag_bridge.prepare_refinement_inputs')
+@patch('dbex.refinement.inputs.prepare_refinement_inputs')
 def test_nanobrag_backend_requires_sigma_rdout(mock_prepare):
     """PHYSICS-LOSS-001: Ensure CLI refuses nanobrag backend without sigma_readout input."""
     import numpy as np
@@ -571,11 +571,11 @@ def test_nanobrag_backend_requires_sigma_rdout(mock_prepare):
 @patch('nanobrag_torch.simulator.Simulator')
 @patch('nanobrag_torch.models.detector.Detector')
 @patch('nanobrag_torch.models.crystal.Crystal')
-@patch('dbex.nanobrag_bridge.prepare_refinement_inputs')
+@patch('dbex.refinement.inputs.prepare_refinement_inputs')
 @patch('dbex.nanobrag_bridge.build_structure_factor_grid')
-@patch('dbex.nanobrag_bridge.create_detector_config')
-@patch('dbex.nanobrag_bridge.create_beam_config')
-@patch('dbex.nanobrag_bridge.create_crystal_config')
+@patch('dbex.refinement.config_factories.create_detector_config')
+@patch('dbex.refinement.config_factories.create_beam_config')
+@patch('dbex.refinement.config_factories.create_crystal_config')
 @patch('dbex.io.writer.write_torch_outputs')
 def test_nanobrag_backend_accepts_sigma_map(
     mock_write,
@@ -663,11 +663,11 @@ def test_nanobrag_backend_accepts_sigma_map(
 @patch('nanobrag_torch.simulator.Simulator')
 @patch('nanobrag_torch.models.detector.Detector')
 @patch('nanobrag_torch.models.crystal.Crystal')
-@patch('dbex.nanobrag_bridge.prepare_refinement_inputs')
+@patch('dbex.refinement.inputs.prepare_refinement_inputs')
 @patch('dbex.nanobrag_bridge.build_structure_factor_grid')
-@patch('dbex.nanobrag_bridge.create_detector_config')
-@patch('dbex.nanobrag_bridge.create_beam_config')
-@patch('dbex.nanobrag_bridge.create_crystal_config')
+@patch('dbex.refinement.config_factories.create_detector_config')
+@patch('dbex.refinement.config_factories.create_beam_config')
+@patch('dbex.refinement.config_factories.create_crystal_config')
 @patch('dbex.io.writer.write_torch_outputs')
 def test_nanobrag_backend_accepts_external_lookup_sigma_map(
     mock_write,
@@ -755,11 +755,11 @@ def test_nanobrag_backend_accepts_external_lookup_sigma_map(
 @patch('nanobrag_torch.simulator.Simulator')
 @patch('nanobrag_torch.models.detector.Detector')
 @patch('nanobrag_torch.models.crystal.Crystal')
-@patch('dbex.nanobrag_bridge.prepare_refinement_inputs')
+@patch('dbex.refinement.inputs.prepare_refinement_inputs')
 @patch('dbex.nanobrag_bridge.build_structure_factor_grid')
-@patch('dbex.nanobrag_bridge.create_detector_config')
-@patch('dbex.nanobrag_bridge.create_beam_config')
-@patch('dbex.nanobrag_bridge.create_crystal_config')
+@patch('dbex.refinement.config_factories.create_detector_config')
+@patch('dbex.refinement.config_factories.create_beam_config')
+@patch('dbex.refinement.config_factories.create_crystal_config')
 @patch('dbex.nanobrag_bridge.load_refined_mtz')
 @patch('dbex.io.writer.write_torch_outputs')
 def test_nanobrag_backend_uses_refined_mtz(

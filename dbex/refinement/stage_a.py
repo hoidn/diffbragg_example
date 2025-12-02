@@ -181,12 +181,12 @@ class StageA:
         cell_baseline = param_values.get('cell_baseline')
 
         # Extract additional context needed for compute_loss
-        from dbex.nanobrag_bridge import (
+        from dbex.refinement.config_factories import (
             create_detector_config,
             create_beam_config,
             create_crystal_config,
-            compute_baseline_misset_deg,
         )
+        from dbex.nanobrag_bridge import compute_baseline_misset_deg
 
         target_t = torch.from_numpy(inputs.target).to(device=device, dtype=dtype)
         loss_mask_t = torch.from_numpy(inputs.loss_mask).to(device=device, dtype=torch.bool)

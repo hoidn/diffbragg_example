@@ -43,11 +43,11 @@ from dbex.refinement.stage_a_impl import (
     _compute_panel_loss,
 )
 from dbex.physics.loss import _compute_variance_weighted_loss
-from dbex.nanobrag_bridge import (
+from dbex.refinement.config_factories import (
     create_detector_config,
     create_crystal_config,
-    compute_baseline_misset_deg,
 )
+from dbex.nanobrag_bridge import compute_baseline_misset_deg
 from nanobrag_torch.models import Detector, Crystal
 from nanobrag_torch.simulator import Simulator
 

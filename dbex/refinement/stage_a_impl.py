@@ -294,11 +294,12 @@ def _build_stage_a_context(
     from nanobrag_torch.models.detector import Detector
     from nanobrag_torch.models.crystal import Crystal
     from nanobrag_torch.simulator import Simulator
-    from dbex.nanobrag_bridge import (
+    from dbex.refinement.config_factories import (
         create_detector_config,
         create_beam_config,
         create_crystal_config,
     )
+    from dbex.nanobrag_bridge import compute_baseline_misset_deg
 
     n_panels = len(detector)
 

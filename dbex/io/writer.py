@@ -48,6 +48,7 @@ def write_torch_outputs(
     refine_telemetry=None,
     sigma_readout_provenance=None,
     sigma_readout_reference_value=None,
+    stage_artifacts=None,
 ):
     """Write torch backend outputs to HDF5 with diagnostics.
 
@@ -83,6 +84,10 @@ def write_torch_outputs(
                          or single RefinementTelemetry (legacy, mapped to {"A": telemetry})
         sigma_readout_provenance: Optional string describing sigma source (CLI, calibrated map, etc.)
         sigma_readout_reference_value: Optional float (target units) for telemetry/diagnostics
+        stage_artifacts: Optional Dict[str, Any] from RefinementEngine.artifacts containing
+                        stage-specific metadata (ARCH-STAGE-CONTEXT-001 Phase B.4). When provided,
+                        Stage B baseline metrics are sourced from StageBArtifacts; otherwise falls
+                        back to telemetry fields for backward compatibility.
 
     Notes:
         - ROI scoring loop uses score_trainer.roi_check.roiCheck per legacy parity
@@ -285,6 +290,28 @@ def write_torch_outputs(
                     else:
                         # Scalar values: store as HDF5 attrs
                         stage_group.attrs[hdf5_key] = _coerce_scalar(value)
+
+                # ARCH-STAGE-CONTEXT-001 Phase B.4: Source Stage B baseline metrics from artifacts
+                # when available, falling back to telemetry for backward compatibility
+                if stage_label == "B" and stage_artifacts is not None:
+                    stage_b_artifacts = stage_artifacts.get("stage_b")
+                    if stage_b_artifacts is not None:
+                        # Pull baseline parity diagnostics from StageBArtifacts
+                        if hasattr(stage_b_artifacts, 'stage_b_baseline_rel_diff') and stage_b_artifacts.stage_b_baseline_rel_diff is not None:
+                            stage_group.attrs["stage_b_baseline_rel_diff"] = _coerce_scalar(stage_b_artifacts.stage_b_baseline_rel_diff)
+                        if hasattr(stage_b_artifacts, 'stage_b_baseline_abs_diff') and stage_b_artifacts.stage_b_baseline_abs_diff is not None:
+                            stage_group.attrs["stage_b_baseline_abs_diff"] = _coerce_scalar(stage_b_artifacts.stage_b_baseline_abs_diff)
+                        if hasattr(stage_b_artifacts, 'stage_b_baseline_diff_path') and stage_b_artifacts.stage_b_baseline_diff_path is not None:
+                            stage_group.attrs["stage_b_baseline_diff_path"] = stage_b_artifacts.stage_b_baseline_diff_path
+                elif stage_label == "B":
+                    # Backward compatibility: fall back to telemetry fields if artifacts not provided
+                    # (Note: engine.py shim adds these to telemetry in pre-Phase-B.4 code)
+                    if hasattr(stage_telem, 'stage_b_baseline_rel_diff') and stage_telem.stage_b_baseline_rel_diff is not None:
+                        stage_group.attrs["stage_b_baseline_rel_diff"] = _coerce_scalar(stage_telem.stage_b_baseline_rel_diff)
+                    if hasattr(stage_telem, 'stage_b_baseline_abs_diff') and stage_telem.stage_b_baseline_abs_diff is not None:
+                        stage_group.attrs["stage_b_baseline_abs_diff"] = _coerce_scalar(stage_telem.stage_b_baseline_abs_diff)
+                    if hasattr(stage_telem, 'stage_b_baseline_diff_path') and stage_telem.stage_b_baseline_diff_path is not None:
+                        stage_group.attrs["stage_b_baseline_diff_path"] = stage_telem.stage_b_baseline_diff_path
 
             # Legacy single-stage compatibility: mirror Stage A to top-level attrs if only Stage A exists
             if "A" in telemetry_dict and len(telemetry_dict) == 1:

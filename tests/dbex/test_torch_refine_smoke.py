@@ -432,7 +432,8 @@ def test_stage_a_expansion(
     )
 
     # Run refinement with perturbed geometry and baseline crystal for misset extraction
-    bragg_refined, telemetry_dict = run_nanobrag_refinement(
+    # ARCH-STAGE-CONTEXT-001 Phase B.4: run_nanobrag_refinement now returns artifacts
+    bragg_refined, telemetry_dict, _ = run_nanobrag_refinement(
         inputs=refinement_inputs,
         detector=perturbed_detector,
         beam=perturbed_beam,
@@ -706,7 +707,8 @@ def test_stage_a_expansion_incremental_ub(
     )
 
     # Run refinement with perturbed geometry and baseline crystal for misset extraction
-    bragg_refined, telemetry_dict = run_nanobrag_refinement(
+    # ARCH-STAGE-CONTEXT-001 Phase B.4: run_nanobrag_refinement now returns artifacts
+    bragg_refined, telemetry_dict, _ = run_nanobrag_refinement(
         inputs=refinement_inputs,
         detector=perturbed_detector,
         beam=perturbed_beam,
@@ -904,7 +906,8 @@ def test_stage_a_engine_delegation_telemetry(
     )
 
     # Run with engine delegation
-    bragg_refined, telemetry_dict = run_nanobrag_refinement(
+    # ARCH-STAGE-CONTEXT-001 Phase B.4: run_nanobrag_refinement now returns artifacts
+    bragg_refined, telemetry_dict, _ = run_nanobrag_refinement(
         inputs=refinement_inputs,
         detector=perturbed_detector,
         beam=perturbed_beam,
@@ -1023,7 +1026,8 @@ def test_stage_c_detector_microslip(
     )
 
     # Run refinement with Stage A + Stage C
-    bragg_refined, telemetry_dict = run_nanobrag_refinement(
+    # ARCH-STAGE-CONTEXT-001 Phase B.4: run_nanobrag_refinement now returns artifacts
+    bragg_refined, telemetry_dict, _ = run_nanobrag_refinement(
         inputs=refinement_inputs,
         detector=perturbed_detector,
         beam=perturbed_beam,
@@ -1363,7 +1367,8 @@ def test_stage_b_shell_modifiers(
     )
 
     # Run refinement (Stage A + Stage B)
-    bragg_refined, telemetry_dict = run_nanobrag_refinement(
+    # ARCH-STAGE-CONTEXT-001 Phase B.4: run_nanobrag_refinement now returns artifacts
+    bragg_refined, telemetry_dict, engine_artifacts = run_nanobrag_refinement(
         inputs=refinement_inputs,
         detector=DL.detector,
         beam=DL.beam,
@@ -1738,7 +1743,8 @@ def test_stage_b_per_reflection_smoke(
     )
 
     # Run refinement (Stage A + Stage B with per-reflection mode)
-    bragg_refined, telemetry_dict = run_nanobrag_refinement(
+    # ARCH-STAGE-CONTEXT-001 Phase B.4: run_nanobrag_refinement now returns artifacts
+    bragg_refined, telemetry_dict, _ = run_nanobrag_refinement(
         inputs=refinement_inputs,
         detector=DL.detector,
         beam=DL.beam,

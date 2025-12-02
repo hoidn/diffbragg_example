@@ -167,19 +167,15 @@ class RefinementEngine:
                 telemetry_dict = stage_output
                 artifacts = None
 
-            # Filter out non-RefinementTelemetry fields that are stored in artifacts instead
-            # These fields are not dataclass fields on RefinementTelemetry
-            excluded_fields = {
-                'stage_b_baseline_rel_diff', 'stage_b_baseline_abs_diff', 'stage_b_baseline_diff_path'
-            }
-            telemetry_core_dict = {k: v for k, v in telemetry_dict.items() if k not in excluded_fields}
-
             # Convert dict to RefinementTelemetry instance
             # Note: stage.run() returns a dict matching RefinementTelemetry structure
-            telemetry = RefinementTelemetry(**telemetry_core_dict)
+            # ARCH-STAGE-CONTEXT-001 Phase B.4: No longer filter out baseline fields;
+            # writer now sources these from artifacts instead of telemetry
+            telemetry = RefinementTelemetry(**telemetry_dict)
 
             # ARCH-STAGE-CONTEXT-001 Phase B.1: Restore Stage B custom attributes from artifacts to telemetry
             # These are not core RefinementTelemetry fields but are expected by tests
+            # Phase B.4: Removed baseline parity diagnostics rebinding; writer now sources these from artifacts
             if stage.name == "stage_b" and artifacts is not None:
                 if hasattr(artifacts, 'stage_b_mode') and artifacts.stage_b_mode is not None:
                     telemetry.stage_b_mode = artifacts.stage_b_mode
@@ -189,13 +185,6 @@ class RefinementEngine:
                     telemetry.optimizer_type = artifacts.optimizer_type
                 if hasattr(artifacts, 'asu_modifier_stats') and artifacts.asu_modifier_stats is not None:
                     telemetry.asu_modifier_stats = artifacts.asu_modifier_stats
-                # REFINE-FLOW-001: Restore baseline parity diagnostics
-                if hasattr(artifacts, 'stage_b_baseline_rel_diff') and artifacts.stage_b_baseline_rel_diff is not None:
-                    telemetry.stage_b_baseline_rel_diff = artifacts.stage_b_baseline_rel_diff
-                if hasattr(artifacts, 'stage_b_baseline_abs_diff') and artifacts.stage_b_baseline_abs_diff is not None:
-                    telemetry.stage_b_baseline_abs_diff = artifacts.stage_b_baseline_abs_diff
-                if hasattr(artifacts, 'stage_b_baseline_diff_path') and artifacts.stage_b_baseline_diff_path is not None:
-                    telemetry.stage_b_baseline_diff_path = artifacts.stage_b_baseline_diff_path
 
             # Aggregate into telemetry dict keyed by stage name
             self._telemetry[stage.name] = telemetry

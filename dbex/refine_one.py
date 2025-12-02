@@ -540,7 +540,8 @@ def run_nanobrag_backend(args, DL, devid=0):
           f"hkl_source={job_context.hkl_source}, spot_scale={job_context.spot_scale_override:.3e}")
 
     try:
-        Bragg_refined, refine_telemetry_dict = run_nanobrag_refinement(
+        # ARCH-STAGE-CONTEXT-001 Phase B.4: run_nanobrag_refinement now returns artifacts
+        Bragg_refined, refine_telemetry_dict, engine_artifacts = run_nanobrag_refinement(
             inputs=inputs,
             detector=DL.detector,
             beam=DL.beam,
@@ -580,6 +581,7 @@ def run_nanobrag_backend(args, DL, devid=0):
         print(f"[nanobrag backend] WARNING: Refinement failed: {e}")
         print(f"[nanobrag backend] Falling back to zero-iteration Bragg")
         refine_telemetry = None
+        engine_artifacts = None
 
     # Prepare structure-factor telemetry for diagnostics (SCALE-003)
     # Convert flex arrays to numpy if needed for mean calculation
@@ -598,6 +600,7 @@ def run_nanobrag_backend(args, DL, devid=0):
     }
 
     # Score ROIs and write HDF5 output (ARCH-REFINE-001 Phase C.2: shared writer module)
+    # ARCH-STAGE-CONTEXT-001 Phase B.4: Pass engine artifacts to writer for Stage B baseline metrics
     write_torch_outputs(
         args,
         DL,
@@ -608,6 +611,7 @@ def run_nanobrag_backend(args, DL, devid=0):
         refine_telemetry,
         sigma_readout_provenance=sigma_provenance,
         sigma_readout_reference_value=sigma_reference_target_units,
+        stage_artifacts=engine_artifacts,
     )
 
     print(f"Visualize using `python -m dbex.look {args.outFile}`")

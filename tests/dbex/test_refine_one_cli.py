@@ -883,6 +883,7 @@ def test_torch_diagnostics_metadata(sigma_source, sigma_reference):
 
             # Import the function to test
             from dbex.io.writer import write_torch_outputs
+            # ARCH-STAGE-CONTEXT-001 Phase B.4: stage_artifacts parameter added for Stage B baseline metrics
             write_torch_outputs(
                 mock_args,
                 mock_dl,
@@ -893,6 +894,7 @@ def test_torch_diagnostics_metadata(sigma_source, sigma_reference):
                 refine_telemetry=refine_telemetry_dict,
                 sigma_readout_provenance=sigma_source,
                 sigma_readout_reference_value=sigma_reference,
+                stage_artifacts=None,  # Phase B.4: No Stage B artifacts in this Stage-A-only test
             )
 
             # Verify diagnostics group exists and has correct metadata

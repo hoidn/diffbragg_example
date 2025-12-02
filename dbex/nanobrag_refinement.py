@@ -635,7 +635,7 @@ def run_nanobrag_refinement(
     baseline_crystal=None,
     baseline_detector=None,
     job_context: Optional['JobContext'] = None
-) -> Tuple[np.ndarray, Dict[str, RefinementTelemetry]]:
+) -> Tuple[np.ndarray, Dict[str, RefinementTelemetry], Dict[str, Any]]:
     """
     Run Stage A (+ optional Stage C) LBFGS refinement on nanobrag_torch simulator.
 
@@ -672,8 +672,11 @@ def run_nanobrag_refinement(
     Returns:
         Tuple of:
         - Bragg: np.ndarray [panel, slow, fast] final simulated intensities after all stages (CPU, float32)
-        - telemetry_dict: Dict[str, RefinementTelemetry] keyed by stage label ("A", "C")
-                         Always contains "A"; contains "C" only when config.enable_stage_c=True
+        - telemetry_dict: Dict[str, RefinementTelemetry] keyed by stage label ("A", "B", "C")
+                         Always contains "A"; contains "B"/"C" when respective stages enabled
+        - artifacts: Dict[str, Any] from RefinementEngine.artifacts containing stage-specific metadata
+                    (ARCH-STAGE-CONTEXT-001 Phase B.4: enables writer to access Stage B baseline metrics
+                    without telemetry shims)
 
     Raises:
         RuntimeError: If simulator fails or gradients are NaN/Inf
@@ -767,7 +770,8 @@ def run_nanobrag_refinement(
 
         # Return with telemetry dict using "A" key for backward compatibility
         # (Legacy code expects {"A": RefinementTelemetry, ...})
-        return bragg_full, {"A": telemetry_a_enriched}
+        # ARCH-STAGE-CONTEXT-001 Phase B.4: Also return engine artifacts for writer plumbing
+        return bragg_full, {"A": telemetry_a_enriched}, engine.artifacts
 
     elif stage_a_b_mode:
         # === ENGINE DELEGATION PATH (Phase C2: A→B) ===
@@ -940,7 +944,8 @@ def run_nanobrag_refinement(
         telemetry_b.engine_protocol = engine_protocol_value
         telemetry_b.stage_modes = stage_modes_value
 
-        return bragg_full, {"A": telemetry_a, "B": telemetry_b}
+        # ARCH-STAGE-CONTEXT-001 Phase B.4: Also return engine artifacts for writer plumbing
+        return bragg_full, {"A": telemetry_a, "B": telemetry_b}, engine.artifacts
 
     else:
         # === ENGINE DELEGATION PATH (Phase A.4: A→C or A→B→C) ===
@@ -1056,5 +1061,6 @@ def run_nanobrag_refinement(
             legacy_key = stage_name_map.get(stage_name, stage_name)
             telemetry_out[legacy_key] = telem_obj
 
-        return bragg_full, telemetry_out
+        # ARCH-STAGE-CONTEXT-001 Phase B.4: Also return engine artifacts for writer plumbing
+        return bragg_full, telemetry_out, engine.artifacts
 

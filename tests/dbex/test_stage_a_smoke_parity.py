@@ -144,7 +144,8 @@ def stage_a_smoke_result(
         apply_calibration_n_cells=apply_n_cells,  # TOOLING-VIS-001 Phase D.C gate
     )
 
-    bragg_final, telemetry_dict = run_nanobrag_refinement(
+    # ARCH-STAGE-CONTEXT-001 Phase B.4: run_nanobrag_refinement now returns artifacts
+    bragg_final, telemetry_dict, _ = run_nanobrag_refinement(
         inputs=refinement_inputs,
         detector=perturbed_detector,
         beam=perturbed_beam,

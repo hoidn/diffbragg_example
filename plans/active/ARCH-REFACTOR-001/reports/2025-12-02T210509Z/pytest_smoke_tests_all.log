@@ -1,0 +1,930 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 5 items
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion FAILED     [ 20%]
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry FAILED [ 40%]
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers FAILED [ 60%]
+tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip FAILED [ 80%]
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_per_reflection_smoke FAILED [100%]
+
+=================================== FAILURES ===================================
+____________________________ test_stage_a_expansion ____________________________
+
+refgeom_dataload = <dbex.data_load.DataLoad object at 0x7033232f9e20>
+refinement_inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0.,...0.]]], dtype=float32), target_representation='adu', global_scale_hint=86.34794146217338, sigma_readout_provenance=None)
+hkl_data = (tensor([[[0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0.,...uda:0'), {'grid_max': 518.3336791992188, 'grid_mean': 16.896526336669922, 'grid_min': 0.0, 'grid_nonzero': 69614, ...})
+smoke_detector_size = 'small', smoke_sigma_source = 'cli_override'
+
+    @pytest.mark.allow_metadata_sigma
+    def test_stage_a_expansion(
+        refgeom_dataload,
+        refinement_inputs,
+        hkl_data,
+        smoke_detector_size,
+        smoke_sigma_source,
+    ):
+        """
+        Verify Stage A LBFGS refinement with full crystal DoFs achieves ≥0.2% loss decrease.
+    
+        Acceptance criteria (TORCH-REFINE-002D):
+        1. Refinement runs without errors (status != "error")
+        2. Telemetry contains all required keys (scale, cell a/b/c, angles, orientation, misset_xyz_deg)
+        3. Orientation telemetry reports deterministic misset angles from perturbed geometry
+        4. Improvement gate (≥0.2%) calibrated to achievable ceiling per empirical probe
+        5. Full-loss trace is non-increasing over last 3 validations
+    
+        Per TORCH-REFINE-002D: Stage A now runs with tricubic HKL interpolation (interpolate=True)
+        against a haloed grid (±1 padding) to prevent default_F fallback near grid boundaries.
+        Deterministic geometry perturbation (+2/+1/+1% cell stretch, +1.5° Z-misset) plumbed
+        through baseline_crystal parameter exercises orientation recovery while fractional HKL
+        coordinates from the perturbed basis stay within haloed grid bounds.
+    
+        Environment:
+        - Requires: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1
+        - Selector: pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+        """
+        print(f"\n[test_stage_a_expansion] detector={smoke_detector_size}")
+    
+        hkl_grid, hkl_metadata = hkl_data
+        n_rois = len(refgeom_dataload.bbox)
+        strict_gates = smoke_detector_size == "full"
+    
+        # Configure refinement (Stage A expansion per TORCH-REFINE-002D)
+        config = RefinementConfig(
+            device='cuda:0',
+            dtype=torch.float32,
+            history_size=10,
+            max_iter=30,  # ≤30 steps for Stage A expansion
+            roi_sample_fraction=0.15,
+            full_validation_interval=5,
+            min_loss_improvement=0.002 if strict_gates else 0.0,
+            enable_hkl_interpolation=True,  # TORCH-REFINE-002D: Enable tricubic with haloed grid
+            sigma_readout_provenance=(
+                "external_lookup" if smoke_sigma_source == "metadata" else "cli_override"
+            ),
+        )
+    
+        # Create perturbed geometry (TORCH-REFINE-002D)
+        # Applies deterministic cell stretch and orientation misset to exercise Stage A recovery
+        # with tricubic HKL interpolation enabled (haloed grid prevents default_F fallback)
+        baseline_crystal = refgeom_dataload.Expt.crystal
+        baseline_detector = refgeom_dataload.Expt.detector
+        baseline_beam = refgeom_dataload.Expt.beam
+    
+        perturbed_crystal, perturbed_detector, perturbed_beam = create_perturbed_geometry(
+            baseline_crystal, baseline_detector, baseline_beam
+        )
+    
+        # Run refinement with perturbed geometry and baseline crystal for misset extraction
+        # ARCH-REFACTOR-001 Phase D.3: Direct RefinementEngine usage (no facade)
+        refinement_context = build_refinement_context(
+            refinement_inputs=refinement_inputs,
+            detector=perturbed_detector,
+            beam=perturbed_beam,
+            crystal=perturbed_crystal,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            baseline_crystal=baseline_crystal,  # Enables U_delta extraction for orientation telemetry
+        )
+        stages = [StageA()]  # Stage A only (no Stage B/C)
+        engine = RefinementEngine(stages, config=config)
+        telemetry_dict = engine.run({"context": refinement_context})
+        engine_artifacts = engine._artifacts
+        # Extract terminal Bragg from Stage A artifacts
+        bragg_refined = engine_artifacts["stage_a"].bragg_full
+    
+        # ARCH-STAGE-CONTEXT-001 Phase D.3.1: Validate Stage A terminal artifact contract
+        # When Stage B/C are disabled, StageAArtifacts.bragg_full must match bragg_refined
+        assert engine_artifacts is not None, "Engine artifacts missing"
+        assert "stage_a" in engine_artifacts, "Stage A artifacts missing from engine artifacts"
+        assert len(engine_artifacts) == 1, (
+            f"Stage-A-only flow should have exactly 1 artifact entry (stage_a), got {list(engine_artifacts.keys())}"
+        )
+    
+        stage_a_artifacts = engine_artifacts["stage_a"]
+        assert hasattr(stage_a_artifacts, "bragg_full"), "StageAArtifacts missing bragg_full attribute"
+        assert stage_a_artifacts.bragg_full is not None, (
+            "StageAArtifacts.bragg_full must be populated when Stage B/C are disabled (terminal Stage A)"
+        )
+    
+        # Verify bragg_full is CPU numpy array with correct shape/values
+        import numpy as np
+        bragg_full_artifact = stage_a_artifacts.bragg_full
+        assert isinstance(bragg_full_artifact, np.ndarray), (
+            f"StageAArtifacts.bragg_full should be numpy array, got {type(bragg_full_artifact)}"
+        )
+        assert bragg_full_artifact.shape == bragg_refined.shape, (
+            f"StageAArtifacts.bragg_full shape {bragg_full_artifact.shape} != bragg_refined {bragg_refined.shape}"
+        )
+        assert np.allclose(bragg_full_artifact, bragg_refined, rtol=1e-6, atol=1e-9), (
+            f"StageAArtifacts.bragg_full does not match bragg_refined within tolerance "
+            f"(max abs diff: {np.max(np.abs(bragg_full_artifact - bragg_refined)):.3e})"
+        )
+        print(f"[Stage A artifact validation] bragg_full shape={bragg_full_artifact.shape}, "
+              f"dtype={bragg_full_artifact.dtype}, matches bragg_refined: YES")
+    
+        # Extract Stage A telemetry (Stage C not enabled in this test)
+>       assert "A" in telemetry_dict, "Stage A telemetry missing"
+E       AssertionError: Stage A telemetry missing
+E       assert 'A' in {'stage_a': RefinementTelemetry(optimizer='LBFGS', stage='A', history_size=10, max_iter=30, tolerance_grad=1e-07, tolerance_change=1e-09, roi_sample_fraction=0.15, roi_count_sampled=1, roi_count_total=1, loss_trace_sample=[331338592.0, 288776576.0, 138401120.0, 139675024.0, 138400384.0, 138706528.0, 138400320.0, 138400112.0, 138400080.0, 138400112.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138404688.0, 138400080.0, 138400080.0], loss_trace_full=[(0, 331338592.0), (0, 331338592.0), (5, 138706528.0), (10, 138400080.0), (15, 138400080.0), (20, 138400080.0)], best_loss_full=[331338592.0, 331338592.0, 138706528.0, 138400080.0, 138400080.0, 138400080.0], param_deltas={'log_scale': {'initial': 8.91646936482889, 'final': 8.91646957397461, 'delta': 2.0914571940977567e-07}, 'log_scale_baseline': {'initial': 0.0, 'final': 0.0}, 'log_cell_a_delta': {'initial': 0.0, 'final': -0.25745609402656555, 'delta': -0.25745609402656555}, 'log_cell_b_delta': {'initial': 0.0, 'final': 0.23030368983745575, 'delta': 0.23030368983745575}, 'log_cell_c_delta': {'initial': 0.0, 'final': 0.028892086818814278, 'delta': 0.028892086818814278}, 'angle_alpha_raw': {'initial': 0.0, 'final': -0.02777422033250332, 'delta': -0.02777422033250332}, 'angle_beta_raw': {'initial': 0.0, 'final': -0.0003586281673051417, 'delta': -0.0003586281673051417}, 'angle_gamma_raw': {'initial': 0.0, 'final': 0.0325772725045681, 'delta': 0.0325772725045681}, 'orientation_vec': {'initial': [0.0, 0.0, 0.0], 'final': [0.01737087406218052, 0.012700105085968971, -0.08753754943609238], 'delta': [0.01737087406218052, 0.012700105085968971, -0.08753754943609238], 'norm': 0.09014356881380081}, 'misset_xyz_deg': {'initial': [-0.006988525390625, 0.15351295471191406, 1.4765625], 'final': [0.09687688201665878, 0.2301851212978363, 0.9527419805526733], 'delta': [0.10386540740728378, 0.07667215913534164, -0.5238205194473267], 'quaternion_norm': 1.0}}, status='ok', message='', perf_counters={'cache_mode': 'warm', 'roi_mode': 'panel', 'roi_count_total': 1, 'roi_count_sampled': 1, 'closure_evals': 20, 'validation_runs': 6, 'forward_time_ms': {'mean': 45.47701112460345, 'min': 44.85293896868825, 'max': 47.47053189203143, 'total': 909.540222492069}, 'validation_scope': 'panel', 'roi_mode_reason': 'auto_panel_threshold (roi_count=29 <= 32)'}, chi_squared_trace_sample=[331338592.0, 288776576.0, 138401120.0, 139675024.0, 138400384.0, 138706528.0, 138400320.0, 138400112.0, 138400080.0, 138400112.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138404688.0, 138400080.0, 138400080.0], chi_squared_trace_full=[(0, 331338592.0), (0, 331338592.0), (5, 138706528.0), (10, 138400080.0), (15, 138400080.0), (20, 138400080.0)], chi_squared_best=(inf, -1), masked_mse_trace_sample=[1874413.375, 1874506.875, 1869998.375, 1869509.375, 1870152.0, 1870202.125, 1870154.875, 1870148.625, 1870144.5, 1870146.625, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870311.125, 1870144.5, 1870144.5], masked_mse_trace_full=[(0, 1874413.375), (0, 1874413.375), (5, 1870202.125), (10, 1870144.5), (15, 1870144.5), (20, 1870144.5)], masked_mse_best=(inf, -1), sigma_readout_provenance='cli_override', sigma_readout_reference_value=None, variance_floor_value=1.0, variance_floor_clamp_fraction=0.0, variance_floor_masked_pixels=4176, variance_floor_clamped_pixels=0, log_scale_baseline_source=None, spot_scale_override_adjustment_factor=None, target_mean_masked=None, model_mean_masked=None, canonical_stage_label='A', canonical_chi_squared=138400080.0, canonical_chi_squared_iteration=20, canonical_roi_count=29, canonical_detector_distances_mm=[231.27645547762575], roi_mode='panel', stage_type='stage_a', mode=None, engine_protocol=None, stage_modes=None, telemetry_version='1.0', stage_result={'stage': 'A', 'telemetry': {'iteration_count': 20, 'loss_trace_sample': [331338592.0, 288776576.0, 138401120.0, 139675024.0, 138400384.0, 138706528.0, 138400320.0, 138400112.0, 138400080.0, 138400112.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138404688.0, 138400080.0, 138400080.0], 'loss_trace_full': [(0, 331338592.0), (0, 331338592.0), (5, 138706528.0), (10, 138400080.0), (15, 138400080.0), (20, 138400080.0)], 'best_loss_full': [331338592.0, 331338592.0, 138706528.0, 138400080.0, 138400080.0, 138400080.0], 'chi_squared_trace_sample': [331338592.0, 288776576.0, 138401120.0, 139675024.0, 138400384.0, 138706528.0, 138400320.0, 138400112.0, 138400080.0, 138400112.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138404688.0, 138400080.0, 138400080.0], 'chi_squared_trace_full': [(0, 331338592.0), (0, 331338592.0), (5, 138706528.0), (10, 138400080.0), (15, 138400080.0), (20, 138400080.0)], 'chi_squared_best': (inf, -1), 'masked_mse_trace_sample': [1874413.375, 1874506.875, 1869998.375, 1869509.375, 1870152.0, 1870202.125, 1870154.875, 1870148.625, 1870144.5, 1870146.625, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870311.125, 1870144.5, 1870144.5], 'masked_mse_trace_full': [(0, 1874413.375), (0, 1874413.375), (5, 1870202.125), (10, 1870144.5), (15, 1870144.5), (20, 1870144.5)], 'masked_mse_best': (inf, -1), 'best_params_snapshot': None, 'u_matrix_lifecycle_log': [], 'a_star_lifecycle_log': [], 'panel_loss_diag': None}, 'perf_counters': {'closure_evals': 20, 'validation_runs': 6, 'forward_times_ms': [47.47053189203143, 45.61383603140712, 45.67495593801141, 45.603976119309664, 45.533535070717335, 45.952719170600176, 45.46589497476816, 45.95291893929243, 45.54945509880781, 45.22435273975134, 46.011049300432205, 45.62697606161237, 45.287623070180416, 45.03937065601349, 44.95914001017809, 44.8991390876472, 44.91744004189968, 44.92606921121478, 44.97830010950565, 44.85293896868825], 'variance_floor_clamped_pixels': 0, 'variance_floor_masked_pixels': 4176}})}
+
+tests/dbex/test_torch_refine_smoke.py:489: AssertionError
+----------------------------- Captured stdout call -----------------------------
+
+[test_stage_a_expansion] detector=small
+auto-selected 1-fold oversampling
+[HKL stats] h=[-12,7] k=[-14,9] l=[-14,8] hit_rate=1045475/1048576 (99.70%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046404/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046404/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046404/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-18,19] l=[0,4] hit_rate=1046793/1048576 (99.83%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046346/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,10] k=[-14,15] l=[0,5] hit_rate=1046367/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046348/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046350/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046325/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+[Stage A artifact validation] bragg_full shape=(1, 1024, 1024), dtype=float32, matches bragg_refined: YES
+___________________ test_stage_a_engine_delegation_telemetry ___________________
+
+refgeom_dataload = <dbex.data_load.DataLoad object at 0x7032201c3af0>
+refinement_inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0.,...0.]]], dtype=float32), target_representation='adu', global_scale_hint=86.34794146217338, sigma_readout_provenance=None)
+hkl_data = (tensor([[[0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0.,...uda:0'), {'grid_max': 518.3336791992188, 'grid_mean': 16.896526336669922, 'grid_min': 0.0, 'grid_nonzero': 69614, ...})
+smoke_detector_size = 'small', smoke_sigma_source = 'cli_override'
+
+    def test_stage_a_engine_delegation_telemetry(
+        refgeom_dataload,
+        refinement_inputs,
+        hkl_data,
+        smoke_detector_size,
+        smoke_sigma_source,
+    ):
+        """
+        Validate Phase E engine delegation telemetry fields.
+    
+        telemetry dict MUST include:
+        - engine_protocol: str (e.g., "stage_a" for Stage-A-only mode)
+        - stage_modes: Dict[str, str] (empty dict {} when no B/C enabled)
+    
+        Test uses Stage-A-only mode (enable_stage_b=False, enable_stage_c=False).
+    
+        Environment:
+        - Requires: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1
+        - Selector: pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry
+        """
+        print(f"\n[test_stage_a_engine_delegation_telemetry] detector={smoke_detector_size}")
+    
+        hkl_grid, hkl_metadata = hkl_data
+    
+        # Stage-A-only config (default: enable_stage_b=False, enable_stage_c=False)
+        config = RefinementConfig(
+            device='cuda:0',
+            dtype=torch.float32,
+            history_size=10,
+            max_iter=30,
+            roi_sample_fraction=0.15,
+            full_validation_interval=5,
+            min_loss_improvement=0.0,  # No strict gate for telemetry validation
+            enable_hkl_interpolation=True,
+            sigma_readout_provenance=(
+                "external_lookup" if smoke_sigma_source == "metadata" else "cli_override"
+            ),
+        )
+    
+        # Verify Stage-A-only mode
+        assert not config.enable_stage_b, "Test requires enable_stage_b=False"
+        assert not config.enable_stage_c, "Test requires enable_stage_c=False"
+    
+        # Create perturbed geometry
+        baseline_crystal = refgeom_dataload.Expt.crystal
+        baseline_detector = refgeom_dataload.Expt.detector
+        baseline_beam = refgeom_dataload.Expt.beam
+    
+        perturbed_crystal, perturbed_detector, perturbed_beam = create_perturbed_geometry(
+            baseline_crystal, baseline_detector, baseline_beam
+        )
+    
+        # Run with engine delegation
+        # ARCH-REFACTOR-001 Phase D.3: Direct RefinementEngine usage (no facade)
+        refinement_context = build_refinement_context(
+            refinement_inputs=refinement_inputs,
+            detector=perturbed_detector,
+            beam=perturbed_beam,
+            crystal=perturbed_crystal,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            baseline_crystal=baseline_crystal,
+        )
+        stages = [StageA()]  # Stage A only (no Stage B/C)
+        engine = RefinementEngine(stages, config=config)
+        telemetry_dict = engine.run({"context": refinement_context})
+        # Extract terminal Bragg from Stage A artifacts
+        bragg_refined = engine._artifacts["stage_a"].bragg_full
+    
+        # Validate telemetry structure
+>       assert "A" in telemetry_dict, "Engine delegation must return 'A' telemetry key"
+E       AssertionError: Engine delegation must return 'A' telemetry key
+E       assert 'A' in {'stage_a': RefinementTelemetry(optimizer='LBFGS', stage='A', history_size=10, max_iter=30, tolerance_grad=1e-07, tolerance_change=1e-09, roi_sample_fraction=0.15, roi_count_sampled=1, roi_count_total=1, loss_trace_sample=[331338592.0, 288776576.0, 138401120.0, 139675024.0, 138400384.0, 138706528.0, 138400320.0, 138400112.0, 138400080.0, 138400112.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138404688.0, 138400080.0, 138400080.0], loss_trace_full=[(0, 331338592.0), (0, 331338592.0), (5, 138706528.0), (10, 138400080.0), (15, 138400080.0), (20, 138400080.0)], best_loss_full=[331338592.0, 331338592.0, 138706528.0, 138400080.0, 138400080.0, 138400080.0], param_deltas={'log_scale': {'initial': 8.91646936482889, 'final': 8.91646957397461, 'delta': 2.0914571940977567e-07}, 'log_scale_baseline': {'initial': 0.0, 'final': 0.0}, 'log_cell_a_delta': {'initial': 0.0, 'final': -0.25745609402656555, 'delta': -0.25745609402656555}, 'log_cell_b_delta': {'initial': 0.0, 'final': 0.23030368983745575, 'delta': 0.23030368983745575}, 'log_cell_c_delta': {'initial': 0.0, 'final': 0.028892086818814278, 'delta': 0.028892086818814278}, 'angle_alpha_raw': {'initial': 0.0, 'final': -0.02777422033250332, 'delta': -0.02777422033250332}, 'angle_beta_raw': {'initial': 0.0, 'final': -0.0003586281673051417, 'delta': -0.0003586281673051417}, 'angle_gamma_raw': {'initial': 0.0, 'final': 0.0325772725045681, 'delta': 0.0325772725045681}, 'orientation_vec': {'initial': [0.0, 0.0, 0.0], 'final': [0.01737087406218052, 0.012700105085968971, -0.08753754943609238], 'delta': [0.01737087406218052, 0.012700105085968971, -0.08753754943609238], 'norm': 0.09014356881380081}, 'misset_xyz_deg': {'initial': [-0.006988525390625, 0.15351295471191406, 1.4765625], 'final': [0.09687688201665878, 0.2301851212978363, 0.9527419805526733], 'delta': [0.10386540740728378, 0.07667215913534164, -0.5238205194473267], 'quaternion_norm': 1.0}}, status='ok', message='', perf_counters={'cache_mode': 'warm', 'roi_mode': 'panel', 'roi_count_total': 1, 'roi_count_sampled': 1, 'closure_evals': 20, 'validation_runs': 6, 'forward_time_ms': {'mean': 44.917914643883705, 'min': 44.65392790734768, 'max': 45.441153924912214, 'total': 898.3582928776741}, 'validation_scope': 'panel', 'roi_mode_reason': 'auto_panel_threshold (roi_count=29 <= 32)'}, chi_squared_trace_sample=[331338592.0, 288776576.0, 138401120.0, 139675024.0, 138400384.0, 138706528.0, 138400320.0, 138400112.0, 138400080.0, 138400112.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138404688.0, 138400080.0, 138400080.0], chi_squared_trace_full=[(0, 331338592.0), (0, 331338592.0), (5, 138706528.0), (10, 138400080.0), (15, 138400080.0), (20, 138400080.0)], chi_squared_best=(inf, -1), masked_mse_trace_sample=[1874413.375, 1874506.875, 1869998.375, 1869509.375, 1870152.0, 1870202.125, 1870154.875, 1870148.625, 1870144.5, 1870146.625, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870311.125, 1870144.5, 1870144.5], masked_mse_trace_full=[(0, 1874413.375), (0, 1874413.375), (5, 1870202.125), (10, 1870144.5), (15, 1870144.5), (20, 1870144.5)], masked_mse_best=(inf, -1), sigma_readout_provenance='cli_override', sigma_readout_reference_value=None, variance_floor_value=1.0, variance_floor_clamp_fraction=0.0, variance_floor_masked_pixels=4176, variance_floor_clamped_pixels=0, log_scale_baseline_source=None, spot_scale_override_adjustment_factor=None, target_mean_masked=None, model_mean_masked=None, canonical_stage_label='A', canonical_chi_squared=138400080.0, canonical_chi_squared_iteration=20, canonical_roi_count=29, canonical_detector_distances_mm=[231.27645547762575], roi_mode='panel', stage_type='stage_a', mode=None, engine_protocol=None, stage_modes=None, telemetry_version='1.0', stage_result={'stage': 'A', 'telemetry': {'iteration_count': 20, 'loss_trace_sample': [331338592.0, 288776576.0, 138401120.0, 139675024.0, 138400384.0, 138706528.0, 138400320.0, 138400112.0, 138400080.0, 138400112.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138404688.0, 138400080.0, 138400080.0], 'loss_trace_full': [(0, 331338592.0), (0, 331338592.0), (5, 138706528.0), (10, 138400080.0), (15, 138400080.0), (20, 138400080.0)], 'best_loss_full': [331338592.0, 331338592.0, 138706528.0, 138400080.0, 138400080.0, 138400080.0], 'chi_squared_trace_sample': [331338592.0, 288776576.0, 138401120.0, 139675024.0, 138400384.0, 138706528.0, 138400320.0, 138400112.0, 138400080.0, 138400112.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138404688.0, 138400080.0, 138400080.0], 'chi_squared_trace_full': [(0, 331338592.0), (0, 331338592.0), (5, 138706528.0), (10, 138400080.0), (15, 138400080.0), (20, 138400080.0)], 'chi_squared_best': (inf, -1), 'masked_mse_trace_sample': [1874413.375, 1874506.875, 1869998.375, 1869509.375, 1870152.0, 1870202.125, 1870154.875, 1870148.625, 1870144.5, 1870146.625, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870311.125, 1870144.5, 1870144.5], 'masked_mse_trace_full': [(0, 1874413.375), (0, 1874413.375), (5, 1870202.125), (10, 1870144.5), (15, 1870144.5), (20, 1870144.5)], 'masked_mse_best': (inf, -1), 'best_params_snapshot': None, 'u_matrix_lifecycle_log': [], 'a_star_lifecycle_log': [], 'panel_loss_diag': None}, 'perf_counters': {'closure_evals': 20, 'validation_runs': 6, 'forward_times_ms': [45.113332103937864, 44.78026833385229, 44.83253927901387, 44.900970067828894, 44.90907024592161, 45.08522106334567, 44.65392790734768, 44.832408893853426, 44.874798972159624, 44.80487760156393, 44.978889636695385, 45.441153924912214, 44.80957891792059, 44.95749995112419, 44.89207919687033, 44.94022997096181, 44.691167306154966, 44.992949813604355, 45.011079870164394, 44.85624982044101], 'variance_floor_clamped_pixels': 0, 'variance_floor_masked_pixels': 4176}})}
+
+tests/dbex/test_torch_refine_smoke.py:1009: AssertionError
+----------------------------- Captured stdout call -----------------------------
+
+[test_stage_a_engine_delegation_telemetry] detector=small
+auto-selected 1-fold oversampling
+[HKL stats] h=[-12,7] k=[-14,9] l=[-14,8] hit_rate=1045475/1048576 (99.70%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046404/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046404/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046404/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-18,19] l=[0,4] hit_rate=1046793/1048576 (99.83%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046346/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,10] k=[-14,15] l=[0,5] hit_rate=1046367/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046348/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046350/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046325/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+_________________________ test_stage_b_shell_modifiers _________________________
+
+refgeom_dataload = <dbex.data_load.DataLoad object at 0x7032182433d0>
+refinement_inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0.,...0.]]], dtype=float32), target_representation='adu', global_scale_hint=86.34794146217338, sigma_readout_provenance=None)
+hkl_data = (tensor([[[0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0.,...uda:0'), {'grid_max': 518.3336791992188, 'grid_mean': 16.896526336669922, 'grid_min': 0.0, 'grid_nonzero': 69614, ...})
+smoke_detector_size = 'small', smoke_sigma_source = 'cli_override'
+
+    @pytest.mark.allow_metadata_sigma
+    def test_stage_b_shell_modifiers(
+        refgeom_dataload,
+        refinement_inputs,
+        hkl_data,
+        smoke_detector_size,
+        smoke_sigma_source,
+    ):
+        """
+        Smoke test for Stage B shell-modifier LBFGS refinement (TORCH-REFINE-004).
+    
+        Tests exercise run_nanobrag_refinement with Stage B enabled (enable_stage_b=True)
+        after Stage A, validating:
+        - Canonical detector runs do not regress chi-squared by more than 1e-6 relative loss
+        - Telemetry presence for shell modifiers (param_deltas with d-spacing ranges)
+        - Shell modifiers stay within ±1% of identity (REFINE-008) when strict gates are active
+        - Non-increasing full-loss trace across last 3 validations
+        - Halo-padded HKL grid and interpolation are required (guards enforced)
+    
+        Per input.md:
+        - docs/spec-db-workflow.md:31-34 mandates Stage B optional shell modifiers with tricubic interpolation
+        - docs/spec-db-workflow.md §Stage B (lines 58-66) specifies Stage B shell mode contract
+        - docs/architecture/pytorch_design.md:35-40 requires ±1 halo for interpolation
+        - docs/findings.md REFINE-005 confirms halo requirement for Stage B
+    
+        Findings applied:
+        - RUNTIME-001: Run with NANOBRAGG_DISABLE_COMPILE=1 to avoid torch.compile interference
+        - CONFORMANCE-001: Requires KMP_DUPLICATE_LIB_OK=TRUE
+        - REFINE-005: Halo-padded HKL grid mandatory for Stage B; guard enforced in run_nanobrag_refinement
+        - REFINE-008: Canonical detector improvements hover near zero, so strict gates verify
+          non-regression (≥-1e-6 loss delta) plus ±1% shell-modifier sanity via telemetry. Telemetry
+          is archived via `DBEX_SMOKE_TELEMETRY_PATH` for PHYSICS-LOSS-001 reviews.
+        - SCALE-001/002: Structure factors unscaled; shell modifiers applied multiplicatively
+        """
+        print(f"\n[test_stage_b_shell_modifiers] detector={smoke_detector_size}")
+    
+        # CPU fallback blocked by HKL grid transfer corruption (GRADIENT-003)
+        # Root cause: .to(device='cpu') corrupts Miller index semantics (k-range [-1796,1708] instead of [-14,14])
+        # Deferred to unblock roadmap; small detector validates core Stage B logic (CUDA-only)
+        if smoke_detector_size == "full":
+            pytest.skip("CPU fallback blocked by HKL grid transfer corruption (GRADIENT-003)")
+    
+        DL = refgeom_dataload
+        hkl_grid, hkl_metadata = hkl_data
+        strict_gates = smoke_detector_size == "full"
+    
+        # Guard: Stage B requires halo-padded HKL grid (REFINE-005)
+        assert hkl_metadata["has_halo"], (
+            "Stage B smoke test requires halo-padded HKL grid. "
+            "hkl_data fixture must be configured with halo=True per TORCH-REFINE-004."
+        )
+    
+        # Refinement config: enable Stage B with 5 resolution shells
+        # Keep Stage A and Stage C disabled to isolate Stage B behavior
+        sigma_provenance = "external_lookup" if smoke_sigma_source == "metadata" else "cli_override"
+    
+        # PERF-WARM-010: Canonical runs disable ROI mode to preserve ±1% shell modifier gates
+        # until REFINE-008 can be recalibrated for ROI sampling. Small-detector runs keep ROI enabled.
+        enable_roi = smoke_detector_size != "full"
+    
+        config = RefinementConfig(
+            max_iter=30,
+            min_loss_improvement=0.0,  # Strict-gate behavior asserted via telemetry (REFINE-008)
+            enable_hkl_interpolation=True,  # Required for Stage B (REFINE-005)
+            enable_stage_b=True,  # Enable shell modifiers
+            stage_b_n_shells=5,
+            stage_b_min_loss_improvement=0.0,
+            stage_b_max_modifier=2.0,
+            enable_stage_c=False,  # Disable Stage C for this test
+            enable_stage_a_roi_mode=enable_roi,  # Panel mode for canonical; ROI for small
+            # ARCH-REFINE-001 Phase E.2 (REFINE-FLOW-001): Set threshold=0 so small-detector run
+            # emulates ROI-heavy detector behavior. This forces Stage A baseline/final validations
+            # into panel mode via enable_stage_b trigger (not via ROI count threshold), proving
+            # the Stage B-aware toggle ensures REFINE-FLOW-001 parity even when ROI sampling
+            # is active for closures.
+            stage_a_panel_validation_roi_threshold=0,
+            device="cuda:0",
+            dtype=torch.float32,
+            sigma_readout_provenance=sigma_provenance,
+        )
+    
+        # Run refinement (Stage A + Stage B)
+        # ARCH-REFACTOR-001 Phase D.3: Direct RefinementEngine usage (no facade)
+        refinement_context = build_refinement_context(
+            refinement_inputs=refinement_inputs,
+            detector=DL.detector,
+            beam=DL.beam,
+            crystal=DL.crystal,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            baseline_crystal=DL.crystal,  # Required for Stage B cell delta reconstruction
+            baseline_detector=None,  # Stage C disabled
+        )
+        stages = [StageA()]
+        if config.enable_stage_b:
+            stages.append(StageB())
+        engine = RefinementEngine(stages, config=config)
+        telemetry_dict = engine.run({"context": refinement_context})
+        engine_artifacts = engine._artifacts
+        # Extract terminal Bragg from Stage B artifacts (precedence: B > A)
+        if "stage_b" in engine_artifacts:
+            bragg_refined = engine_artifacts["stage_b"].bragg_full
+        else:
+            bragg_refined = engine_artifacts["stage_a"].bragg_full
+    
+        # Extract telemetry
+>       assert "A" in telemetry_dict, "Stage A telemetry missing"
+E       AssertionError: Stage A telemetry missing
+E       assert 'A' in {'stage_a': RefinementTelemetry(optimizer='LBFGS', stage='A', history_size=10, max_iter=30, tolerance_grad=1e-07, tolerance_change=1e-09, roi_sample_fraction=0.15, roi_count_sampled=1, roi_count_total=1, loss_trace_sample=[366930976.0, 868708544.0, 385455776.0, 367757472.0, 367748640.0, 366931168.0, 366930976.0], loss_trace_full=[(0, 366930976.0), (0, 366930976.0), (5, 366931168.0), (7, 366930976.0)], best_loss_full=[366930976.0, 366930976.0, 366930976.0, 366930976.0], param_deltas={'log_scale': {'initial': 8.901554295659606, 'final': 8.901554107666016, 'delta': -1.8799359047250164e-07}, 'log_scale_baseline': {'initial': 0.0, 'final': 0.0}, 'log_cell_a_delta': {'initial': 0.0, 'final': 0.0, 'delta': 0.0}, 'log_cell_b_delta': {'initial': 0.0, 'final': 0.0, 'delta': 0.0}, 'log_cell_c_delta': {'initial': 0.0, 'final': 0.0, 'delta': 0.0}, 'angle_alpha_raw': {'initial': 0.0, 'final': 0.0, 'delta': 0.0}, 'angle_beta_raw': {'initial': 0.0, 'final': 0.0, 'delta': 0.0}, 'angle_gamma_raw': {'initial': 0.0, 'final': 0.0, 'delta': 0.0}, 'orientation_vec': {'initial': [0.0, 0.0, 0.0], 'final': [0.0, 0.0, 0.0], 'delta': [0.0, 0.0, 0.0], 'norm': 0.0}, 'misset_xyz_deg': {'initial': [0.0, 0.0, 0.0], 'final': [0.0, 0.0, 0.0], 'delta': [0.0, 0.0, 0.0], 'quaternion_norm': 1.0}}, status='ok', message='', perf_counters={'cache_mode': 'warm', 'roi_mode': 'panel', 'roi_count_total': 1, 'roi_count_sampled': 1, 'closure_evals': 7, 'validation_runs': 4, 'forward_time_ms': {'mean': 40.21621462223785, 'min': 11.893362738192081, 'max': 45.182881876826286, 'total': 281.51350235566497}, 'validation_scope': 'panel', 'roi_mode_reason': 'auto_panel_threshold (roi_count=29 <= 32)'}, chi_squared_trace_sample=[366930976.0, 868708544.0, 385455776.0, 367757472.0, 367748640.0, 366931168.0, 366930976.0], chi_squared_trace_full=[(0, 366930976.0), (0, 366930976.0), (5, 366931168.0), (7, 366930976.0)], chi_squared_best=(inf, -1), masked_mse_trace_sample=[1876270.875, 1872216.75, 1876790.375, 1876536.875, 1876520.875, 1876285.5, 1876270.875], masked_mse_trace_full=[(0, 1876270.875), (0, 1876270.875), (5, 1876285.5), (7, 1876270.875)], masked_mse_best=(inf, -1), sigma_readout_provenance='cli_override', sigma_readout_reference_value=None, variance_floor_value=1.0, variance_floor_clamp_fraction=0.0, variance_floor_masked_pixels=4176, variance_floor_clamped_pixels=0, log_scale_baseline_source=None, spot_scale_override_adjustment_factor=None, target_mean_masked=None, model_mean_masked=None, canonical_stage_label='A', canonical_chi_squared=366930976.0, canonical_chi_squared_iteration=7, canonical_roi_count=29, canonical_detector_distances_mm=[231.27645547762575], roi_mode='panel', stage_type='stage_a', mode=None, engine_protocol=None, stage_modes=None, telemetry_version='1.0', stage_result={'stage': 'A', 'telemetry': {'iteration_count': 7, 'loss_trace_sample': [366930976.0, 868708544.0, 385455776.0, 367757472.0, 367748640.0, 366931168.0, 366930976.0], 'loss_trace_full': [(0, 366930976.0), (0, 366930976.0), (5, 366931168.0), (7, 366930976.0)], 'best_loss_full': [366930976.0, 366930976.0, 366930976.0, 366930976.0], 'chi_squared_trace_sample': [366930976.0, 868708544.0, 385455776.0, 367757472.0, 367748640.0, 366931168.0, 366930976.0], 'chi_squared_trace_full': [(0, 366930976.0), (0, 366930976.0), (5, 366931168.0), (7, 366930976.0)], 'chi_squared_best': (inf, -1), 'masked_mse_trace_sample': [1876270.875, 1872216.75, 1876790.375, 1876536.875, 1876520.875, 1876285.5, 1876270.875], 'masked_mse_trace_full': [(0, 1876270.875), (0, 1876270.875), (5, 1876285.5), (7, 1876270.875)], 'masked_mse_best': (inf, -1), 'best_params_snapshot': None, 'u_matrix_lifecycle_log': [], 'a_star_lifecycle_log': [], 'panel_loss_diag': None}, 'perf_counters': {'closure_evals': 7, 'validation_runs': 4, 'forward_times_ms': [45.182881876826286, 11.893362738192081, 44.95243029668927, 44.871739111840725, 44.940090738236904, 44.93383876979351, 44.73915882408619], 'variance_floor_clamped_pixels': 0, 'variance_floor_masked_pixels': 4176}}), 'stage_b': RefinementTelemetry(optimizer='LBFGS', stage='B', history_size=10, max_iter=30, tolerance_grad=1e-07, tolerance_change=1e-09, roi_sample_fraction=0.15, roi_count_sampled=29, roi_count_total=29, loss_trace_sample=[366931008.0, 589554624.0, 367003232.0, 366938240.0, 366931008.0, 366931008.0, 366931008.0], loss_trace_full=[(0, 366931008.0), (4, 366931008.0), (6, 366931008.0)], best_loss_full=(366931008.0, 7), param_deltas={'shell_0_modifier (d=80000.12-100000.00\xc5)': {'initial': 1.0, 'final': 1.0, 'delta': 0.0}, 'shell_1_modifier (d=60000.25-80000.12\xc5)': {'initial': 1.0, 'final': 1.0, 'delta': 0.0}, 'shell_2_modifier (d=40000.38-60000.25\xc5)': {'initial': 1.0, 'final': 1.0, 'delta': 0.0}, 'shell_3_modifier (d=20000.50-40000.38\xc5)': {'initial': 1.0, 'final': 1.0, 'delta': 0.0}, 'shell_4_modifier (d=0.63-20000.50\xc5)': {'initial': 1.0, 'final': 1.0, 'delta': 0.0}}, status='early_stop', message='Stage B improvement -0.0000% < 0.0000% (calibrated gate per TORCH-REFINE-004, artifact: plans/active/ARCH-REFINE-001/reports/2025-12-01T084505Z/)', perf_counters={'cache_mode': 'warm', 'roi_mode': 'panel', 'roi_count_total': 29, 'roi_count_sampled': 29, 'closure_evals': 7, 'validation_runs': 6, 'forward_time_ms': {'mean': 540.1084184180945, 'min': 513.2899610325694, 'max': 614.7777261212468, 'total': 5401.084184180945}}, chi_squared_trace_sample=[366931008.0, 589554624.0, 367003232.0, 366938240.0, 366931008.0, 366931008.0, 366931008.0], chi_squared_trace_full=[(0, 366931008.0), (4, 366931008.0), (6, 366931008.0)], chi_squared_best=(366931008.0, 7), masked_mse_trace_sample=[1876271.125, 1870304.625, 1876258.625, 1876269.75, 1876271.125, 1876271.125, 1876271.125], masked_mse_trace_full=[(0, 1876271.125), (4, 1876271.125), (6, 1876271.125)], masked_mse_best=(1876271.125, 7), sigma_readout_provenance='cli_override', sigma_readout_reference_value=None, variance_floor_value=1.0, variance_floor_clamp_fraction=0.0, variance_floor_masked_pixels=None, variance_floor_clamped_pixels=None, log_scale_baseline_source=None, spot_scale_override_adjustment_factor=None, target_mean_masked=None, model_mean_masked=None, canonical_stage_label='A', canonical_chi_squared=366930976.0, canonical_chi_squared_iteration=7, canonical_roi_count=29, canonical_detector_distances_mm=[231.27645547762575], roi_mode='panel', stage_type='B', mode='shell_modifiers', engine_protocol=None, stage_modes=None, telemetry_version='1.0', stage_result={'stage': 'B', 'telemetry': {'iteration_count': 6, 'loss_trace_sample': [366931008.0, 589554624.0, 367003232.0, 366938240.0, 366931008.0, 366931008.0, 366931008.0], 'loss_trace_full': [(0, 366931008.0), (4, 366931008.0), (6, 366931008.0)], 'best_loss_full': [366931008.0, 0], 'chi_squared_trace_sample': [366931008.0, 589554624.0, 367003232.0, 366938240.0, 366931008.0, 366931008.0, 366931008.0], 'chi_squared_trace_full': [(0, 366931008.0), (4, 366931008.0), (6, 366931008.0)], 'chi_squared_best': [366931008.0, 0], 'masked_mse_trace_sample': [1876271.125, 1870304.625, 1876258.625, 1876269.75, 1876271.125, 1876271.125, 1876271.125], 'masked_mse_trace_full': [(0, 1876271.125), (4, 1876271.125), (6, 1876271.125)], 'masked_mse_best': [1876271.125, 0], 'best_params_snapshot': [{'shell_modifier_raw': tensor([-0.4328, -0.4328, -0.4328, -0.4328, -0.4328])}], 'stage_b_baseline_rel_diff': 8.720986259824518e-08, 'stage_b_baseline_abs_diff': 32.0, 'stage_b_baseline_diff_path': None}, 'perf_counters': {'closure_evals': 7, 'validation_runs': 6, 'forward_times_ms': [577.8508661314845, 614.7777261212468, 572.2284577786922, 526.271138805896, 524.1582710295916, 520.1259171590209, 513.9037840999663, 520.4271711409092, 518.0508908815682, 513.2899610325694], 'variance_floor_clamped_pixels': 0, 'variance_floor_masked_pixels': 41760}})}
+
+tests/dbex/test_torch_refine_smoke.py:1486: AssertionError
+----------------------------- Captured stdout call -----------------------------
+
+[test_stage_b_shell_modifiers] detector=small
+auto-selected 1-fold oversampling
+[HKL stats] h=[-12,7] k=[-14,9] l=[-14,8] hit_rate=1045385/1048576 (99.70%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+WARNING: out of range for three point interpolation
+WARNING: further warnings will not be printed!
+[HKL stats] h=[-20,24] k=[-11,12] l=[0,4] hit_rate=0/1048576 (0.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,14] k=[-11,12] l=[0,4] hit_rate=1046476/1048576 (99.80%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046347/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046333/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+------------------------------ Captured log call -------------------------------
+WARNING  dbex.refinement.stage_b:stage_b.py:179 crystal_symmetry not in hkl_metadata, falling back to shell mode
+_______________________ test_stage_c_detector_microslip ________________________
+
+refgeom_dataload = <dbex.data_load.DataLoad object at 0x7032580e3280>
+refinement_inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0.,...0.]]], dtype=float32), target_representation='adu', global_scale_hint=86.34794146217338, sigma_readout_provenance=None)
+hkl_data = (tensor([[[0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0.,...uda:0'), {'grid_max': 518.3336791992188, 'grid_mean': 16.896526336669922, 'grid_min': 0.0, 'grid_nonzero': 69614, ...})
+smoke_detector_size = 'small', smoke_sigma_source = 'cli_override'
+
+    @pytest.mark.allow_metadata_sigma
+    def test_stage_c_detector_microslip(
+        refgeom_dataload,
+        refinement_inputs,
+        hkl_data,
+        smoke_detector_size,
+        smoke_sigma_source,
+    ):
+        """
+        Verify Stage C detector distance refinement pulls injected ±0.25 mm offsets back toward zero.
+    
+        Acceptance criteria (TORCH-REFINE-003 + REFINE-007 telemetry recalibration):
+        1. Stage A + Stage C run without errors (status != "error")
+        2. Stage C telemetry contains per-panel distance_offset parameters
+        3. On the canonical detector (`--smoke-detector-size=full`), each panel offset shrinks by ≥80%
+           or lands within ±0.05 mm of the nominal geometry, and Stage C does not increase chi-squared
+           relative to Stage A by more than 0.05%.
+        4. Full-loss trace (Stage C) is non-increasing over last 3 validations
+        5. Stage A telemetry is preserved and not regressed by Stage C
+    
+        Environment:
+        - Requires: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1
+        - Selector: pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip
+    
+        Per docs/spec-db-workflow.md:35, Stage C refines per-panel translations along detector
+        normal (distance offset) with rotations fixed. The test applies deterministic detector
+        perturbation via create_perturbed_geometry(enable_detector_perturbation=True), then runs
+        Stage A followed by Stage C. Canonical `--smoke-detector-size=full` strict gates now rely on
+        the recorded detector-offset telemetry (REFINE-007 / docs/findings.md#L43) rather than a
+        chi-squared percentage floor: we require ≥80% reduction toward zero (or ≤0.05 mm absolute
+        distance) and a non-regressing chi-squared trace (≤+0.05% vs Stage A). Telemetry emitted via
+        `DBEX_SMOKE_TELEMETRY_PATH` is archived under PERF-SMOKE-DETSIZE for PHYSICS-LOSS-001 parity
+        evidence.
+        """
+        print(f"\n[test_stage_c_detector_microslip] detector={smoke_detector_size}")
+        strict_gates = smoke_detector_size == "full"
+    
+        hkl_grid, hkl_metadata = hkl_data
+    
+        # Configure refinement (Stage A + Stage C per TORCH-REFINE-003)
+        sigma_provenance = "external_lookup" if smoke_sigma_source == "metadata" else "cli_override"
+    
+        config = RefinementConfig(
+            device='cuda:0',
+            dtype=torch.float32,
+            history_size=10,
+            max_iter=30,  # ≤30 steps per stage
+            roi_sample_fraction=0.15,
+            full_validation_interval=5,
+            min_loss_improvement=0.0,  # Strict gates enforced via telemetry asserts (REFINE-007)
+            enable_hkl_interpolation=True,  # Tricubic with haloed grid
+            enable_stage_c=True,  # Enable Stage C detector distance refinement
+            stage_c_min_loss_improvement=0.0,
+            stage_c_max_distance_delta_mm=0.5,  # ±0.5mm max offset per panel
+            sigma_readout_provenance=sigma_provenance,
+        )
+    
+        # Create perturbed geometry with detector offsets (TORCH-REFINE-003)
+        # Applies alternating ±0.25mm distance offsets to detector panels
+        baseline_crystal = refgeom_dataload.Expt.crystal
+        baseline_detector = refgeom_dataload.Expt.detector
+        baseline_beam = refgeom_dataload.Expt.beam
+    
+        detector_offset_mm = 0.25
+        perturbed_crystal, perturbed_detector, perturbed_beam = create_perturbed_geometry(
+            baseline_crystal, baseline_detector, baseline_beam,
+            enable_detector_perturbation=True,  # Enable detector distance offsets
+            detector_distance_offset_mm=detector_offset_mm  # ±0.25mm alternating pattern
+        )
+    
+        # Run refinement with Stage A + Stage C
+        # ARCH-REFACTOR-001 Phase D.3: Direct RefinementEngine usage (no facade)
+        refinement_context = build_refinement_context(
+            refinement_inputs=refinement_inputs,
+            detector=perturbed_detector,
+            beam=perturbed_beam,
+            crystal=perturbed_crystal,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            baseline_crystal=baseline_crystal,
+            baseline_detector=baseline_detector,  # Required for Stage C
+        )
+        stages = [StageA()]
+        if config.enable_stage_c:
+            stages.append(StageC())
+        engine = RefinementEngine(stages, config=config)
+        telemetry_dict = engine.run({"context": refinement_context})
+        # Extract terminal Bragg from Stage C artifacts (precedence: C > A)
+        if "stage_c" in engine._artifacts:
+            bragg_refined = engine._artifacts["stage_c"].bragg_full
+        else:
+            bragg_refined = engine._artifacts["stage_a"].bragg_full
+    
+        # Extract Stage A and Stage C telemetry
+>       assert "A" in telemetry_dict, "Stage A telemetry missing"
+E       AssertionError: Stage A telemetry missing
+E       assert 'A' in {'stage_a': RefinementTelemetry(optimizer='LBFGS', stage='A', history_size=10, max_iter=30, tolerance_grad=1e-07, tolerance_change=1e-09, roi_sample_fraction=0.15, roi_count_sampled=1, roi_count_total=1, loss_trace_sample=[331422944.0, 263641952.0, 400437216.0, 281038336.0, 263648928.0, 263650880.0, 263641952.0, 263641952.0, 263641952.0, 263641952.0, 263641952.0, 263641952.0, 263641952.0], loss_trace_full=[(0, 331422944.0), (0, 331422944.0), (5, 263650880.0), (10, 263641952.0), (13, 263641952.0)], best_loss_full=[331422944.0, 331422944.0, 263650880.0, 263641952.0, 263641952.0], param_deltas={'log_scale': {'initial': 8.91728842879657, 'final': 8.917288780212402, 'delta': 3.514158315454097e-07}, 'log_scale_baseline': {'initial': 0.0, 'final': 0.0}, 'log_cell_a_delta': {'initial': 0.0, 'final': 0.5066346526145935, 'delta': 0.5066346526145935}, 'log_cell_b_delta': {'initial': 0.0, 'final': 0.2867756485939026, 'delta': 0.2867756485939026}, 'log_cell_c_delta': {'initial': 0.0, 'final': -0.08756404370069504, 'delta': -0.08756404370069504}, 'angle_alpha_raw': {'initial': 0.0, 'final': 0.011297549121081829, 'delta': 0.011297549121081829}, 'angle_beta_raw': {'initial': 0.0, 'final': 0.026435486972332, 'delta': 0.026435486972332}, 'angle_gamma_raw': {'initial': 0.0, 'final': -0.012218274176120758, 'delta': -0.012218274176120758}, 'orientation_vec': {'initial': [0.0, 0.0, 0.0], 'final': [-0.010437849909067154, -0.02554144710302353, 0.03309498727321625], 'delta': [-0.010437849909067154, -0.02554144710302353, 0.03309498727321625], 'norm': 0.043088193982839584}, 'misset_xyz_deg': {'initial': [-0.006988525390625, 0.15351295471191406, 1.4765625], 'final': [-0.06987883150577545, 0.0004062652587890625, 1.6751443147659302], 'delta': [-0.06289030611515045, -0.153106689453125, 0.19858182966709137], 'quaternion_norm': 1.0}}, status='ok', message='', perf_counters={'cache_mode': 'warm', 'roi_mode': 'panel', 'roi_count_total': 1, 'roi_count_sampled': 1, 'closure_evals': 13, 'validation_runs': 5, 'forward_time_ms': {'mean': 45.34191713453485, 'min': 44.72899902611971, 'max': 46.499273739755154, 'total': 589.4449227489531}, 'validation_scope': 'panel', 'roi_mode_reason': 'auto_panel_threshold (roi_count=29 <= 32)'}, chi_squared_trace_sample=[331422944.0, 263641952.0, 400437216.0, 281038336.0, 263648928.0, 263650880.0, 263641952.0, 263641952.0, 263641952.0, 263641952.0, 263641952.0, 263641952.0, 263641952.0], chi_squared_trace_full=[(0, 331422944.0), (0, 331422944.0), (5, 263650880.0), (10, 263641952.0), (13, 263641952.0)], chi_squared_best=(inf, -1), masked_mse_trace_sample=[1874267.5, 1891333.625, 1878387.125, 1891771.375, 1891345.125, 1891379.0, 1891333.625, 1891333.625, 1891333.625, 1891333.625, 1891333.625, 1891333.625, 1891333.625], masked_mse_trace_full=[(0, 1874267.5), (0, 1874267.5), (5, 1891379.0), (10, 1891333.625), (13, 1891333.625)], masked_mse_best=(inf, -1), sigma_readout_provenance='cli_override', sigma_readout_reference_value=None, variance_floor_value=1.0, variance_floor_clamp_fraction=0.0, variance_floor_masked_pixels=4176, variance_floor_clamped_pixels=0, log_scale_baseline_source=None, spot_scale_override_adjustment_factor=None, target_mean_masked=None, model_mean_masked=None, canonical_stage_label='A', canonical_chi_squared=263641952.0, canonical_chi_squared_iteration=13, canonical_roi_count=29, canonical_detector_distances_mm=[231.27645547762575], roi_mode='panel', stage_type='stage_a', mode=None, engine_protocol=None, stage_modes=None, telemetry_version='1.0', stage_result={'stage': 'A', 'telemetry': {'iteration_count': 13, 'loss_trace_sample': [331422944.0, 263641952.0, 400437216.0, 281038336.0, 263648928.0, 263650880.0, 263641952.0, 263641952.0, 263641952.0, 263641952.0, 263641952.0, 263641952.0, 263641952.0], 'loss_trace_full': [(0, 331422944.0), (0, 331422944.0), (5, 263650880.0), (10, 263641952.0), (13, 263641952.0)], 'best_loss_full': [331422944.0, 331422944.0, 263650880.0, 263641952.0, 263641952.0], 'chi_squared_trace_sample': [331422944.0, 263641952.0, 400437216.0, 281038336.0, 263648928.0, 263650880.0, 263641952.0, 263641952.0, 263641952.0, 263641952.0, 263641952.0, 263641952.0, 263641952.0], 'chi_squared_trace_full': [(0, 331422944.0), (0, 331422944.0), (5, 263650880.0), (10, 263641952.0), (13, 263641952.0)], 'chi_squared_best': (inf, -1), 'masked_mse_trace_sample': [1874267.5, 1891333.625, 1878387.125, 1891771.375, 1891345.125, 1891379.0, 1891333.625, 1891333.625, 1891333.625, 1891333.625, 1891333.625, 1891333.625, 1891333.625], 'masked_mse_trace_full': [(0, 1874267.5), (0, 1874267.5), (5, 1891379.0), (10, 1891333.625), (13, 1891333.625)], 'masked_mse_best': (inf, -1), 'best_params_snapshot': None, 'u_matrix_lifecycle_log': [], 'a_star_lifecycle_log': [], 'panel_loss_diag': None}, 'perf_counters': {'closure_evals': 13, 'validation_runs': 5, 'forward_times_ms': [45.0288113206625, 44.72899902611971, 45.072912238538265, 45.82999786362052, 45.18159292638302, 45.11608183383942, 46.499273739755154, 45.206552837044, 45.20954331383109, 45.242922846227884, 45.14293186366558, 44.84303994104266, 46.342262998223305], 'variance_floor_clamped_pixels': 0, 'variance_floor_masked_pixels': 4176}}), 'stage_c': RefinementTelemetry(optimizer='LBFGS', stage='C', history_size=10, max_iter=30, tolerance_grad=1e-07, tolerance_change=1e-09, roi_sample_fraction=0.15, roi_count_sampled=29, roi_count_total=29, loss_trace_sample=[263642016.0], loss_trace_full=[(-1, 263642016.0), (-1, 263642016.0)], best_loss_full=(263642016.0, -1), param_deltas={'panel_0_distance_offset_mm': {'initial': 0.25, 'final': 0.25, 'delta': 0.0}}, status='early_stop', message='Stage C improvement -0.0000% < 0.0000% (\u22650.002% gate calibrated per REFINE-007)', perf_counters={'cache_mode': 'warm', 'roi_mode': 'panel', 'roi_mode_reason': 'stage_a_panel_mode', 'validation_scope': 'panel', 'roi_count_total': 29, 'roi_count_sampled': 29, 'closure_evals': 1, 'validation_runs': 5, 'forward_time_ms': {'mean': 45.79122783616185, 'min': 45.607456006109715, 'max': 45.97932938486338, 'total': 137.37368350848556}}, chi_squared_trace_sample=[263642016.0], chi_squared_trace_full=[(-1, 263642016.0), (-1, 263642016.0)], chi_squared_best=(263642016.0, -1), masked_mse_trace_sample=[1891333.625], masked_mse_trace_full=[(-1, 1891333.625), (-1, 1891333.625)], masked_mse_best=(1891333.625, -1), sigma_readout_provenance='cli_override', sigma_readout_reference_value=None, variance_floor_value=1.0, variance_floor_clamp_fraction=0.0, variance_floor_masked_pixels=None, variance_floor_clamped_pixels=None, log_scale_baseline_source=None, spot_scale_override_adjustment_factor=None, target_mean_masked=None, model_mean_masked=None, canonical_stage_label='A', canonical_chi_squared=263641952.0, canonical_chi_squared_iteration=13, canonical_roi_count=29, canonical_detector_distances_mm=[231.27645547762575], roi_mode='panel', stage_type='C', mode='detector_offsets', engine_protocol=None, stage_modes=None, telemetry_version='1.0', stage_result={'stage': 'C', 'telemetry': {'iteration_count': -1, 'loss_trace_sample': [263642016.0], 'loss_trace_full': [(-1, 263642016.0), (-1, 263642016.0)], 'best_loss_full': (263642016.0, -1), 'chi_squared_trace_sample': [263642016.0], 'chi_squared_trace_full': [(-1, 263642016.0), (-1, 263642016.0)], 'chi_squared_best': (263642016.0, -1), 'masked_mse_trace_sample': [1891333.625], 'masked_mse_trace_full': [(-1, 1891333.625), (-1, 1891333.625)], 'masked_mse_best': (1891333.625, -1), 'best_params_snapshot': [{'distance_offset_raw': [0.0]}], 'panel_loss_diag': None}, 'perf_counters': {'closure_evals': 1, 'validation_runs': 5, 'forward_times_ms': [45.607456006109715, 45.97932938486338, 45.786898117512465], 'variance_floor_clamped_pixels': 0, 'variance_floor_masked_pixels': 12528}})}
+
+tests/dbex/test_torch_refine_smoke.py:1137: AssertionError
+----------------------------- Captured stdout call -----------------------------
+
+[test_stage_c_detector_microslip] detector=small
+auto-selected 1-fold oversampling
+[HKL stats] h=[-12,7] k=[-14,9] l=[-14,8] hit_rate=1045469/1048576 (99.70%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046397/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046397/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046397/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-18,22] k=[-15,16] l=[0,4] hit_rate=1047588/1048576 (99.91%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-19,22] k=[-13,14] l=[0,4] hit_rate=1047453/1048576 (99.89%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-18,22] k=[-15,16] l=[0,4] hit_rate=1047574/1048576 (99.90%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-18,22] k=[-15,16] l=[0,4] hit_rate=1047586/1048576 (99.91%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-18,22] k=[-15,16] l=[0,4] hit_rate=1047588/1048576 (99.91%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-18,22] k=[-15,16] l=[0,4] hit_rate=1047588/1048576 (99.91%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-18,22] k=[-15,16] l=[0,4] hit_rate=1047588/1048576 (99.91%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-18,22] k=[-15,16] l=[0,4] hit_rate=1047588/1048576 (99.91%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-18,22] k=[-15,16] l=[0,4] hit_rate=1047588/1048576 (99.91%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-18,22] k=[-15,16] l=[0,4] hit_rate=1047588/1048576 (99.91%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-18,22] k=[-15,16] l=[0,4] hit_rate=1047588/1048576 (99.91%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-18,22] k=[-15,16] l=[0,4] hit_rate=1047588/1048576 (99.91%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-18,22] k=[-15,16] l=[0,4] hit_rate=1047588/1048576 (99.91%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-18,22] k=[-15,16] l=[0,4] hit_rate=1047588/1048576 (99.91%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-18,22] k=[-15,16] l=[0,4] hit_rate=1047588/1048576 (99.91%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-18,22] k=[-15,16] l=[0,4] hit_rate=1047588/1048576 (99.91%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-18,22] k=[-15,16] l=[0,4] hit_rate=1047588/1048576 (99.91%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-18,22] k=[-15,16] l=[0,4] hit_rate=1047588/1048576 (99.91%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-18,22] k=[-15,16] l=[0,4] hit_rate=1047588/1048576 (99.91%)
+______________________ test_stage_b_per_reflection_smoke _______________________
+
+refgeom_dataload = <dbex.data_load.DataLoad object at 0x703220a717c0>
+refinement_inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0.,...0.]]], dtype=float32), target_representation='adu', global_scale_hint=86.34794146217338, sigma_readout_provenance=None)
+hkl_data = (tensor([[[0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0.,...   space_group_symbol="P 1"
+  ), 'grid_max': 518.3336791992188, 'grid_mean': 16.896526336669922, 'grid_min': 0.0, ...})
+smoke_detector_size = 'small', smoke_sigma_source = 'cli_override'
+
+    @pytest.mark.allow_metadata_sigma
+    def test_stage_b_per_reflection_smoke(
+        refgeom_dataload,
+        refinement_inputs,
+        hkl_data,
+        smoke_detector_size,
+        smoke_sigma_source,
+    ):
+        """
+        Validate Stage B per-reflection mode with ASU-based modifiers (Phase 7).
+    
+        Exit Criteria:
+        - Telemetry includes ASU mode-specific fields (n_asu_unique, optimizer_type, asu_modifier_stats)
+        - Optimizer selection validates correctly (P1 fixture ~35K ASU → Adam expected)
+        - Gradient flow verified (modifier stats change from initial ~1.0)
+        - Stage B improves upon Stage A (chi² reduction ≥0.01%)
+        - Stage A/B both converge (status="converged" or "ok" or "early_stop")
+    
+        Mode: TDD (test-first), per-reflection default not yet enforced (Phase 8)
+        Fixture: refGeom_small (29 ROIs, P1 space group ~35K unique ASU)
+        Runtime: ~25-35s (Stage A + Stage B with small detector)
+    
+        Findings applied:
+        - RUNTIME-001: Run with NANOBRAGG_DISABLE_COMPILE=1
+        - CONFORMANCE-001: Requires KMP_DUPLICATE_LIB_OK=TRUE
+        - REFINE-005: Halo-padded HKL grid mandatory
+        - spec:59/60/61: Per-reflection SHALL be default, shell mode fallback permitted, halo mandatory
+        - spec:107: Adam optimizer permitted for large parameter counts
+        """
+        import os
+    
+        if os.getenv("AUTHORITATIVE_CMDS_DOC") != "./docs/TESTING_GUIDE.md":
+            pytest.skip("Requires AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md")
+    
+        print(f"\n[test_stage_b_per_reflection_smoke] detector={smoke_detector_size}")
+    
+        # CPU fallback blocked (same as shell mode test)
+        if smoke_detector_size == "full":
+            pytest.skip("CPU fallback blocked by HKL grid transfer corruption (GRADIENT-003)")
+    
+        DL = refgeom_dataload
+        hkl_grid, hkl_metadata = hkl_data
+    
+        # Guard: Stage B requires halo-padded HKL grid (REFINE-005)
+        assert hkl_metadata["has_halo"], (
+            "Stage B smoke test requires halo-padded HKL grid per TORCH-REFINE-004."
+        )
+    
+        # Phase 8: Inject crystal_symmetry and build 4D HKL indices grid for per-reflection ASU mapping
+        # Per input.md fixture fix pattern: P1 space group with unit_cell from fixture
+        from cctbx import crystal as cctbx_crystal
+        import numpy as np
+    
+        # Extract unit cell from dxtbx crystal (matches fixture: 79,79,38,90,90,90)
+        dxtbx_crystal = DL.crystal
+        unit_cell_params = dxtbx_crystal.get_unit_cell().parameters()
+    
+        crystal_symmetry = cctbx_crystal.symmetry(
+            unit_cell=unit_cell_params,
+            space_group_symbol="P1"
+        )
+        hkl_metadata["crystal_symmetry"] = crystal_symmetry
+    
+        # Build 4D HKL indices grid (h_range, k_range, l_range, 3)
+        # Extract grid bounds from metadata
+        h_min, h_max = hkl_metadata["h_min"], hkl_metadata["h_max"]
+        k_min, k_max = hkl_metadata["k_min"], hkl_metadata["k_max"]
+        l_min, l_max = hkl_metadata["l_min"], hkl_metadata["l_max"]
+    
+        # Create coordinate arrays
+        h_coords = np.arange(h_min, h_max + 1, dtype=np.int32)
+        k_coords = np.arange(k_min, k_max + 1, dtype=np.int32)
+        l_coords = np.arange(l_min, l_max + 1, dtype=np.int32)
+    
+        # Build meshgrid and stack into 4D array
+        h_grid, k_grid, l_grid = np.meshgrid(h_coords, k_coords, l_coords, indexing='ij')
+        hkl_indices_grid = np.stack([h_grid, k_grid, l_grid], axis=-1)  # (h_range, k_range, l_range, 3)
+    
+        # Store in metadata for compute_hkl_asu_map
+        hkl_metadata["hkl_indices_grid"] = hkl_indices_grid
+    
+        # Refinement config: enable Stage B with per-reflection mode
+        sigma_provenance = "external_lookup" if smoke_sigma_source == "metadata" else "cli_override"
+        enable_roi = smoke_detector_size != "full"
+    
+        config = RefinementConfig(
+            max_iter=30,
+            min_loss_improvement=0.0,
+            enable_hkl_interpolation=True,  # Required for Stage B (REFINE-005)
+            enable_stage_b=True,
+            stage_b_mode="per_reflection",  # Phase 7 new mode
+            enable_stage_c=False,
+            enable_stage_a_roi_mode=enable_roi,
+            device="cuda:0" if torch.cuda.is_available() else "cpu",
+            dtype=torch.float32,
+            sigma_readout_provenance=sigma_provenance,
+            enable_stage_a_warm_cache=False,  # Cold mode for determinism (PERF-WARM-001)
+        )
+    
+        # Run refinement (Stage A + Stage B with per-reflection mode)
+        # ARCH-REFACTOR-001 Phase D.3: Direct RefinementEngine usage (no facade)
+        refinement_context = build_refinement_context(
+            refinement_inputs=refinement_inputs,
+            detector=DL.detector,
+            beam=DL.beam,
+            crystal=DL.crystal,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            baseline_crystal=DL.crystal,
+            baseline_detector=None,  # Stage C disabled
+        )
+        stages = [StageA()]
+        if config.enable_stage_b:
+            stages.append(StageB())
+        engine = RefinementEngine(stages, config=config)
+        telemetry_dict = engine.run({"context": refinement_context})
+        engine_artifacts = engine._artifacts
+        # Extract terminal Bragg from Stage B artifacts (precedence: B > A)
+        if "stage_b" in engine_artifacts:
+            bragg_refined = engine_artifacts["stage_b"].bragg_full
+        else:
+            bragg_refined = engine_artifacts["stage_a"].bragg_full
+    
+        # Extract telemetry
+>       assert "A" in telemetry_dict, "Stage A telemetry missing"
+E       AssertionError: Stage A telemetry missing
+E       assert 'A' in {'stage_a': RefinementTelemetry(optimizer='LBFGS', stage='A', history_size=10, max_iter=30, tolerance_grad=1e-07, tolerance_change=1e-09, roi_sample_fraction=0.15, roi_count_sampled=1, roi_count_total=1, loss_trace_sample=[868102080.0, 867066560.0, 867050240.0, 867050048.0, 867050048.0, 867050048.0, 867050048.0, 43321868.0, 868708544.0, 184827472.0, 64665056.0, 43300160.0, 43300160.0, 868708544.0, 43300160.0, 43300160.0, 43300160.0, 43300160.0, 43300160.0, 43300160.0, 43300160.0, 43300160.0], loss_trace_full=[(0, 868102080.0), (0, 868102080.0), (5, 867050048.0), (10, 64665056.0), (15, 43300160.0), (20, 43300160.0), (22, 43300160.0)], best_loss_full=[868102080.0, 868102080.0, 867050048.0, 64665056.0, 43300160.0, 43300160.0, 43300160.0], param_deltas={'log_scale': {'initial': 0.0, 'final': 2354.510498046875, 'delta': 2354.510498046875}, 'log_scale_baseline': {'initial': 0.0, 'final': 0.0}, 'log_cell_a_delta': {'initial': 0.0, 'final': -0.12315236777067184, 'delta': -0.12315236777067184}, 'log_cell_b_delta': {'initial': 0.0, 'final': 0.014406881295144558, 'delta': 0.014406881295144558}, 'log_cell_c_delta': {'initial': 0.0, 'final': 0.000664257793687284, 'delta': 0.000664257793687284}, 'angle_alpha_raw': {'initial': 0.0, 'final': -0.008442331105470657, 'delta': -0.008442331105470657}, 'angle_beta_raw': {'initial': 0.0, 'final': -0.0007916793110780418, 'delta': -0.0007916793110780418}, 'angle_gamma_raw': {'initial': 0.0, 'final': 0.024005558341741562, 'delta': 0.024005558341741562}, 'orientation_vec': {'initial': [0.0, 0.0, 0.0], 'final': [0.005490126553922892, 0.0001934789033839479, -0.01264848280698061], 'delta': [0.005490126553922892, 0.0001934789033839479, -0.01264848280698061], 'norm': 0.013789961114525795}, 'misset_xyz_deg': {'initial': [0.0, 0.0, 0.0], 'final': [0.03293965756893158, 0.0011826877016574144, -0.07588652521371841], 'delta': [0.03293965756893158, 0.0011826877016574144, -0.07588652521371841], 'quaternion_norm': 1.0}}, status='ok', message='', perf_counters={'cache_mode': 'cold', 'roi_mode': 'panel', 'roi_count_total': 1, 'roi_count_sampled': 1, 'closure_evals': 22, 'validation_runs': 7, 'forward_time_ms': {'mean': 62.86547792313451, 'min': 32.08860894665122, 'max': 68.92632879316807, 'total': 1383.0405143089592}, 'validation_scope': 'panel', 'roi_mode_reason': 'auto_panel_threshold (roi_count=29 <= 32)'}, chi_squared_trace_sample=[868102080.0, 867066560.0, 867050240.0, 867050048.0, 867050048.0, 867050048.0, 867050048.0, 43321868.0, 868708544.0, 184827472.0, 64665056.0, 43300160.0, 43300160.0, 868708544.0, 43300160.0, 43300160.0, 43300160.0, 43300160.0, 43300160.0, 43300160.0, 43300160.0, 43300160.0], chi_squared_trace_full=[(0, 868102080.0), (0, 868102080.0), (5, 867050048.0), (10, 64665056.0), (15, 43300160.0), (20, 43300160.0), (22, 43300160.0)], chi_squared_best=(inf, -1), masked_mse_trace_sample=[1872215.0, 1872211.75, 1872211.75, 1872211.75, 1872211.75, 1872211.75, 1872211.75, 1962151.5, 1872216.75, 1927638.375, 1948473.125, 1956874.875, 1956874.875, 1872216.75, 1956874.875, 1956874.875, 1956874.875, 1956874.875, 1956874.875, 1956874.875, 1956874.875, 1956874.875], masked_mse_trace_full=[(0, 1872215.0), (0, 1872215.0), (5, 1872211.75), (10, 1948473.125), (15, 1956874.875), (20, 1956874.875), (22, 1956874.875)], masked_mse_best=(inf, -1), sigma_readout_provenance='cli_override', sigma_readout_reference_value=None, variance_floor_value=1.0, variance_floor_clamp_fraction=0.0, variance_floor_masked_pixels=4176, variance_floor_clamped_pixels=0, log_scale_baseline_source=None, spot_scale_override_adjustment_factor=None, target_mean_masked=None, model_mean_masked=None, canonical_stage_label='A', canonical_chi_squared=43300160.0, canonical_chi_squared_iteration=22, canonical_roi_count=29, canonical_detector_distances_mm=[231.27645547762575], roi_mode='panel', stage_type='stage_a', mode=None, engine_protocol=None, stage_modes=None, telemetry_version='1.0', stage_result={'stage': 'A', 'telemetry': {'iteration_count': 22, 'loss_trace_sample': [868102080.0, 867066560.0, 867050240.0, 867050048.0, 867050048.0, 867050048.0, 867050048.0, 43321868.0, 868708544.0, 184827472.0, 64665056.0, 43300160.0, 43300160.0, 868708544.0, 43300160.0, 43300160.0, 43300160.0, 43300160.0, 43300160.0, 43300160.0, 43300160.0, 43300160.0], 'loss_trace_full': [(0, 868102080.0), (0, 868102080.0), (5, 867050048.0), (10, 64665056.0), (15, 43300160.0), (20, 43300160.0), (22, 43300160.0)], 'best_loss_full': [868102080.0, 868102080.0, 867050048.0, 64665056.0, 43300160.0, 43300160.0, 43300160.0], 'chi_squared_trace_sample': [868102080.0, 867066560.0, 867050240.0, 867050048.0, 867050048.0, 867050048.0, 867050048.0, 43321868.0, 868708544.0, 184827472.0, 64665056.0, 43300160.0, 43300160.0, 868708544.0, 43300160.0, 43300160.0, 43300160.0, 43300160.0, 43300160.0, 43300160.0, 43300160.0, 43300160.0], 'chi_squared_trace_full': [(0, 868102080.0), (0, 868102080.0), (5, 867050048.0), (10, 64665056.0), (15, 43300160.0), (20, 43300160.0), (22, 43300160.0)], 'chi_squared_best': (inf, -1), 'masked_mse_trace_sample': [1872215.0, 1872211.75, 1872211.75, 1872211.75, 1872211.75, 1872211.75, 1872211.75, 1962151.5, 1872216.75, 1927638.375, 1948473.125, 1956874.875, 1956874.875, 1872216.75, 1956874.875, 1956874.875, 1956874.875, 1956874.875, 1956874.875, 1956874.875, 1956874.875, 1956874.875], 'masked_mse_trace_full': [(0, 1872215.0), (0, 1872215.0), (5, 1872211.75), (10, 1948473.125), (15, 1956874.875), (20, 1956874.875), (22, 1956874.875)], 'masked_mse_best': (inf, -1), 'best_params_snapshot': None, 'u_matrix_lifecycle_log': [], 'a_star_lifecycle_log': [], 'panel_loss_diag': None}, 'perf_counters': {'closure_evals': 22, 'validation_runs': 7, 'forward_times_ms': [65.47320913523436, 64.81260294094682, 65.04485616460443, 65.20397681742907, 65.12675620615482, 65.00780628994107, 64.92262380197644, 65.43709896504879, 32.25276991724968, 65.45197870582342, 64.76911297068, 65.0436757132411, 64.78384416550398, 32.08860894665122, 65.43008890002966, 64.74653305485845, 68.31730389967561, 68.92632879316807, 67.36215576529503, 66.58542901277542, 68.01013136282563, 68.24362277984619], 'variance_floor_clamped_pixels': 0, 'variance_floor_masked_pixels': 4176}}), 'stage_b': RefinementTelemetry(optimizer='ADAM', stage='B', history_size=10, max_iter=30, tolerance_grad=1e-07, tolerance_change=1e-09, roi_sample_fraction=0.15, roi_count_sampled=29, roi_count_total=29, loss_trace_sample=[], loss_trace_full=[(0, 44204376.0), (0, 44204376.0)], best_loss_full=(44204376.0, 0), param_deltas={'asu_modifiers_summary': {'initial': 1.0, 'final_min': 1.0, 'final_max': 1.0, 'final_mean': 1.0, 'final_std': 0.0}}, status='error', message='Stage B error: REFINE-FLOW-001 baseline drift: Stage B initial chi\xb2 (4.420e+07) differs from Stage A final (4.330e+07) by 2.0883% (tolerance=0.1%). See /home/ollie/Documents/diffbragg_example_2/diffbragg_example/stage_b_baseline_diff.json for details.', perf_counters={'cache_mode': 'cold', 'roi_mode': 'panel', 'roi_count_total': 29, 'roi_count_sampled': 29, 'closure_evals': 0, 'validation_runs': 5, 'forward_time_ms': {'mean': 512.5247950976094, 'min': 503.97848431020975, 'max': 519.6954999119043, 'total': 1537.574385292828}}, chi_squared_trace_sample=[], chi_squared_trace_full=[(0, 44204376.0), (0, 44204376.0)], chi_squared_best=(44204376.0, 0), masked_mse_trace_sample=[], masked_mse_trace_full=[(0, 1964067.0), (0, 1964067.0)], masked_mse_best=(1964067.0, 0), sigma_readout_provenance='cli_override', sigma_readout_reference_value=None, variance_floor_value=1.0, variance_floor_clamp_fraction=0.0, variance_floor_masked_pixels=None, variance_floor_clamped_pixels=None, log_scale_baseline_source=None, spot_scale_override_adjustment_factor=None, target_mean_masked=None, model_mean_masked=None, canonical_stage_label='A', canonical_chi_squared=43300160.0, canonical_chi_squared_iteration=22, canonical_roi_count=29, canonical_detector_distances_mm=[231.27645547762575], roi_mode='panel', stage_type='B', mode='per_reflection', engine_protocol=None, stage_modes=None, telemetry_version='1.0', stage_result={'stage': 'B', 'telemetry': {'iteration_count': 0, 'loss_trace_sample': [], 'loss_trace_full': [(0, 44204376.0), (0, 44204376.0)], 'best_loss_full': [44204376.0, 0], 'chi_squared_trace_sample': [], 'chi_squared_trace_full': [(0, 44204376.0), (0, 44204376.0)], 'chi_squared_best': [44204376.0, 0], 'masked_mse_trace_sample': [], 'masked_mse_trace_full': [(0, 1964067.0), (0, 1964067.0)], 'masked_mse_best': [1964067.0, 0], 'best_params_snapshot': [{'log_modifiers': tensor([0., 0., 0.,  ..., 0., 0., 0.])}], 'stage_b_baseline_rel_diff': 0.020882509441073657, 'stage_b_baseline_abs_diff': 904216.0, 'stage_b_baseline_diff_path': '/home/ollie/Documents/diffbragg_example_2/diffbragg_example/stage_b_baseline_diff.json'}, 'perf_counters': {'closure_evals': 0, 'validation_runs': 5, 'forward_times_ms': [503.97848431020975, 513.900401070714, 519.6954999119043], 'variance_floor_clamped_pixels': 0, 'variance_floor_masked_pixels': 12528}})}
+
+tests/dbex/test_torch_refine_smoke.py:1914: AssertionError
+----------------------------- Captured stdout call -----------------------------
+
+[test_stage_b_per_reflection_smoke] detector=small
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046332/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,11] k=[-11,12] l=[0,4] hit_rate=1046047/1048576 (99.76%)
+auto-selected 1-fold oversampling
+WARNING: out of range for three point interpolation
+WARNING: further warnings will not be printed!
+[HKL stats] h=[-7,8] k=[-30,33] l=[-0,8] hit_rate=0/1048576 (0.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,11] k=[-20,21] l=[0,4] hit_rate=1047105/1048576 (99.86%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,11] k=[-12,13] l=[0,4] hit_rate=1046161/1048576 (99.77%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,11] k=[-12,13] l=[0,4] hit_rate=1046161/1048576 (99.77%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,11] k=[-12,12] l=[0,4] hit_rate=1046046/1048576 (99.76%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,11] k=[-12,12] l=[0,4] hit_rate=1046046/1048576 (99.76%)
+auto-selected 1-fold oversampling
+WARNING: out of range for three point interpolation
+WARNING: further warnings will not be printed!
+[HKL stats] h=[-4,5] k=[-30,34] l=[-0,8] hit_rate=0/1048576 (0.00%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,11] k=[-12,12] l=[0,4] hit_rate=1046046/1048576 (99.76%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,11] k=[-12,12] l=[0,4] hit_rate=1046046/1048576 (99.76%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,11] k=[-12,12] l=[0,4] hit_rate=1046046/1048576 (99.76%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,11] k=[-12,12] l=[0,4] hit_rate=1046046/1048576 (99.76%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,11] k=[-12,12] l=[0,4] hit_rate=1046046/1048576 (99.76%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,11] k=[-12,12] l=[0,4] hit_rate=1046046/1048576 (99.76%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,11] k=[-12,12] l=[0,4] hit_rate=1046046/1048576 (99.76%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,11] k=[-12,12] l=[0,4] hit_rate=1046046/1048576 (99.76%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,11] k=[-12,12] l=[0,4] hit_rate=1046046/1048576 (99.76%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,11] k=[-12,12] l=[0,4] hit_rate=1046046/1048576 (99.76%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,11] k=[-12,12] l=[0,4] hit_rate=1046046/1048576 (99.76%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,11] k=[-11,12] l=[0,4] hit_rate=1045985/1048576 (99.75%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,11] k=[-11,12] l=[0,4] hit_rate=1045985/1048576 (99.75%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,11] k=[-11,12] l=[0,4] hit_rate=1045985/1048576 (99.75%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,11] k=[-12,12] l=[0,4] hit_rate=1046046/1048576 (99.76%)
+------------------------------ Captured log call -------------------------------
+WARNING  dbex.refinement.stage_b:stage_b.py:483 DBEX_SMOKE_TELEMETRY_PATH not set, writing stage_b_baseline_diff.json to cwd: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+=============================== warnings summary ===============================
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_per_reflection_smoke
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dxtbx/format/FormatCBFFull.py:198: DeprecationWarning: The binary mode of fromstring is deprecated, as it behaves surprisingly on unicode inputs. Use frombuffer instead
+    self._raw_data = flex.int(np.fromstring(array_string, np.int32))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion - AssertionError: Stage A telemetry missing
+assert 'A' in {'stage_a': RefinementTelemetry(optimizer='LBFGS', stage='A', history_size=10, max_iter=30, tolerance_grad=1e-07, tolerance_change=1e-09, roi_sample_fraction=0.15, roi_count_sampled=1, roi_count_total=1, loss_trace_sample=[331338592.0, 288776576.0, 138401120.0, 139675024.0, 138400384.0, 138706528.0, 138400320.0, 138400112.0, 138400080.0, 138400112.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138404688.0, 138400080.0, 138400080.0], loss_trace_full=[(0, 331338592.0), (0, 331338592.0), (5, 138706528.0), (10, 138400080.0), (15, 138400080.0), (20, 138400080.0)], best_loss_full=[331338592.0, 331338592.0, 138706528.0, 138400080.0, 138400080.0, 138400080.0], param_deltas={'log_scale': {'initial': 8.91646936482889, 'final': 8.91646957397461, 'delta': 2.0914571940977567e-07}, 'log_scale_baseline': {'initial': 0.0, 'final': 0.0}, 'log_cell_a_delta': {'initial': 0.0, 'final': -0.25745609402656555, 'delta': -0.25745609402656555}, 'log_cell_b_delta': {'initial': 0.0, 'final': 0.23030368983745575, 'delta': 0.23030368983745575}, 'log_cell_c_delta': {'initial': 0.0, 'final': 0.028892086818814278, 'delta': 0.028892086818814278}, 'angle_alpha_raw': {'initial': 0.0, 'final': -0.02777422033250332, 'delta': -0.02777422033250332}, 'angle_beta_raw': {'initial': 0.0, 'final': -0.0003586281673051417, 'delta': -0.0003586281673051417}, 'angle_gamma_raw': {'initial': 0.0, 'final': 0.0325772725045681, 'delta': 0.0325772725045681}, 'orientation_vec': {'initial': [0.0, 0.0, 0.0], 'final': [0.01737087406218052, 0.012700105085968971, -0.08753754943609238], 'delta': [0.01737087406218052, 0.012700105085968971, -0.08753754943609238], 'norm': 0.09014356881380081}, 'misset_xyz_deg': {'initial': [-0.006988525390625, 0.15351295471191406, 1.4765625], 'final': [0.09687688201665878, 0.2301851212978363, 0.9527419805526733], 'delta': [0.10386540740728378, 0.07667215913534164, -0.5238205194473267], 'quaternion_norm': 1.0}}, status='ok', message='', perf_counters={'cache_mode': 'warm', 'roi_mode': 'panel', 'roi_count_total': 1, 'roi_count_sampled': 1, 'closure_evals': 20, 'validation_runs': 6, 'forward_time_ms': {'mean': 45.47701112460345, 'min': 44.85293896868825, 'max': 47.47053189203143, 'total': 909.540222492069}, 'validation_scope': 'panel', 'roi_mode_reason': 'auto_panel_threshold (roi_count=29 <= 32)'}, chi_squared_trace_sample=[331338592.0, 288776576.0, 138401120.0, 139675024.0, 138400384.0, 138706528.0, 138400320.0, 138400112.0, 138400080.0, 138400112.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138404688.0, 138400080.0, 138400080.0], chi_squared_trace_full=[(0, 331338592.0), (0, 331338592.0), (5, 138706528.0), (10, 138400080.0), (15, 138400080.0), (20, 138400080.0)], chi_squared_best=(inf, -1), masked_mse_trace_sample=[1874413.375, 1874506.875, 1869998.375, 1869509.375, 1870152.0, 1870202.125, 1870154.875, 1870148.625, 1870144.5, 1870146.625, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870311.125, 1870144.5, 1870144.5], masked_mse_trace_full=[(0, 1874413.375), (0, 1874413.375), (5, 1870202.125), (10, 1870144.5), (15, 1870144.5), (20, 1870144.5)], masked_mse_best=(inf, -1), sigma_readout_provenance='cli_override', sigma_readout_reference_value=None, variance_floor_value=1.0, variance_floor_clamp_fraction=0.0, variance_floor_masked_pixels=4176, variance_floor_clamped_pixels=0, log_scale_baseline_source=None, spot_scale_override_adjustment_factor=None, target_mean_masked=None, model_mean_masked=None, canonical_stage_label='A', canonical_chi_squared=138400080.0, canonical_chi_squared_iteration=20, canonical_roi_count=29, canonical_detector_distances_mm=[231.27645547762575], roi_mode='panel', stage_type='stage_a', mode=None, engine_protocol=None, stage_modes=None, telemetry_version='1.0', stage_result={'stage': 'A', 'telemetry': {'iteration_count': 20, 'loss_trace_sample': [331338592.0, 288776576.0, 138401120.0, 139675024.0, 138400384.0, 138706528.0, 138400320.0, 138400112.0, 138400080.0, 138400112.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138404688.0, 138400080.0, 138400080.0], 'loss_trace_full': [(0, 331338592.0), (0, 331338592.0), (5, 138706528.0), (10, 138400080.0), (15, 138400080.0), (20, 138400080.0)], 'best_loss_full': [331338592.0, 331338592.0, 138706528.0, 138400080.0, 138400080.0, 138400080.0], 'chi_squared_trace_sample': [331338592.0, 288776576.0, 138401120.0, 139675024.0, 138400384.0, 138706528.0, 138400320.0, 138400112.0, 138400080.0, 138400112.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138404688.0, 138400080.0, 138400080.0], 'chi_squared_trace_full': [(0, 331338592.0), (0, 331338592.0), (5, 138706528.0), (10, 138400080.0), (15, 138400080.0), (20, 138400080.0)], 'chi_squared_best': (inf, -1), 'masked_mse_trace_sample': [1874413.375, 1874506.875, 1869998.375, 1869509.375, 1870152.0, 1870202.125, 1870154.875, 1870148.625, 1870144.5, 1870146.625, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870311.125, 1870144.5, 1870144.5], 'masked_mse_trace_full': [(0, 1874413.375), (0, 1874413.375), (5, 1870202.125), (10, 1870144.5), (15, 1870144.5), (20, 1870144.5)], 'masked_mse_best': (inf, -1), 'best_params_snapshot': None, 'u_matrix_lifecycle_log': [], 'a_star_lifecycle_log': [], 'panel_loss_diag': None}, 'perf_counters': {'closure_evals': 20, 'validation_runs': 6, 'forward_times_ms': [47.47053189203143, 45.61383603140712, 45.67495593801141, 45.603976119309664, 45.533535070717335, 45.952719170600176, 45.46589497476816, 45.95291893929243, 45.54945509880781, 45.22435273975134, 46.011049300432205, 45.62697606161237, 45.287623070180416, 45.03937065601349, 44.95914001017809, 44.8991390876472, 44.91744004189968, 44.92606921121478, 44.97830010950565, 44.85293896868825], 'variance_floor_clamped_pixels': 0, 'variance_floor_masked_pixels': 4176}})}
+FAILED tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry - AssertionError: Engine delegation must return 'A' telemetry key
+assert 'A' in {'stage_a': RefinementTelemetry(optimizer='LBFGS', stage='A', history_size=10, max_iter=30, tolerance_grad=1e-07, tolerance_change=1e-09, roi_sample_fraction=0.15, roi_count_sampled=1, roi_count_total=1, loss_trace_sample=[331338592.0, 288776576.0, 138401120.0, 139675024.0, 138400384.0, 138706528.0, 138400320.0, 138400112.0, 138400080.0, 138400112.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138404688.0, 138400080.0, 138400080.0], loss_trace_full=[(0, 331338592.0), (0, 331338592.0), (5, 138706528.0), (10, 138400080.0), (15, 138400080.0), (20, 138400080.0)], best_loss_full=[331338592.0, 331338592.0, 138706528.0, 138400080.0, 138400080.0, 138400080.0], param_deltas={'log_scale': {'initial': 8.91646936482889, 'final': 8.91646957397461, 'delta': 2.0914571940977567e-07}, 'log_scale_baseline': {'initial': 0.0, 'final': 0.0}, 'log_cell_a_delta': {'initial': 0.0, 'final': -0.25745609402656555, 'delta': -0.25745609402656555}, 'log_cell_b_delta': {'initial': 0.0, 'final': 0.23030368983745575, 'delta': 0.23030368983745575}, 'log_cell_c_delta': {'initial': 0.0, 'final': 0.028892086818814278, 'delta': 0.028892086818814278}, 'angle_alpha_raw': {'initial': 0.0, 'final': -0.02777422033250332, 'delta': -0.02777422033250332}, 'angle_beta_raw': {'initial': 0.0, 'final': -0.0003586281673051417, 'delta': -0.0003586281673051417}, 'angle_gamma_raw': {'initial': 0.0, 'final': 0.0325772725045681, 'delta': 0.0325772725045681}, 'orientation_vec': {'initial': [0.0, 0.0, 0.0], 'final': [0.01737087406218052, 0.012700105085968971, -0.08753754943609238], 'delta': [0.01737087406218052, 0.012700105085968971, -0.08753754943609238], 'norm': 0.09014356881380081}, 'misset_xyz_deg': {'initial': [-0.006988525390625, 0.15351295471191406, 1.4765625], 'final': [0.09687688201665878, 0.2301851212978363, 0.9527419805526733], 'delta': [0.10386540740728378, 0.07667215913534164, -0.5238205194473267], 'quaternion_norm': 1.0}}, status='ok', message='', perf_counters={'cache_mode': 'warm', 'roi_mode': 'panel', 'roi_count_total': 1, 'roi_count_sampled': 1, 'closure_evals': 20, 'validation_runs': 6, 'forward_time_ms': {'mean': 44.917914643883705, 'min': 44.65392790734768, 'max': 45.441153924912214, 'total': 898.3582928776741}, 'validation_scope': 'panel', 'roi_mode_reason': 'auto_panel_threshold (roi_count=29 <= 32)'}, chi_squared_trace_sample=[331338592.0, 288776576.0, 138401120.0, 139675024.0, 138400384.0, 138706528.0, 138400320.0, 138400112.0, 138400080.0, 138400112.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138404688.0, 138400080.0, 138400080.0], chi_squared_trace_full=[(0, 331338592.0), (0, 331338592.0), (5, 138706528.0), (10, 138400080.0), (15, 138400080.0), (20, 138400080.0)], chi_squared_best=(inf, -1), masked_mse_trace_sample=[1874413.375, 1874506.875, 1869998.375, 1869509.375, 1870152.0, 1870202.125, 1870154.875, 1870148.625, 1870144.5, 1870146.625, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870311.125, 1870144.5, 1870144.5], masked_mse_trace_full=[(0, 1874413.375), (0, 1874413.375), (5, 1870202.125), (10, 1870144.5), (15, 1870144.5), (20, 1870144.5)], masked_mse_best=(inf, -1), sigma_readout_provenance='cli_override', sigma_readout_reference_value=None, variance_floor_value=1.0, variance_floor_clamp_fraction=0.0, variance_floor_masked_pixels=4176, variance_floor_clamped_pixels=0, log_scale_baseline_source=None, spot_scale_override_adjustment_factor=None, target_mean_masked=None, model_mean_masked=None, canonical_stage_label='A', canonical_chi_squared=138400080.0, canonical_chi_squared_iteration=20, canonical_roi_count=29, canonical_detector_distances_mm=[231.27645547762575], roi_mode='panel', stage_type='stage_a', mode=None, engine_protocol=None, stage_modes=None, telemetry_version='1.0', stage_result={'stage': 'A', 'telemetry': {'iteration_count': 20, 'loss_trace_sample': [331338592.0, 288776576.0, 138401120.0, 139675024.0, 138400384.0, 138706528.0, 138400320.0, 138400112.0, 138400080.0, 138400112.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138404688.0, 138400080.0, 138400080.0], 'loss_trace_full': [(0, 331338592.0), (0, 331338592.0), (5, 138706528.0), (10, 138400080.0), (15, 138400080.0), (20, 138400080.0)], 'best_loss_full': [331338592.0, 331338592.0, 138706528.0, 138400080.0, 138400080.0, 138400080.0], 'chi_squared_trace_sample': [331338592.0, 288776576.0, 138401120.0, 139675024.0, 138400384.0, 138706528.0, 138400320.0, 138400112.0, 138400080.0, 138400112.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138400080.0, 138404688.0, 138400080.0, 138400080.0], 'chi_squared_trace_full': [(0, 331338592.0), (0, 331338592.0), (5, 138706528.0), (10, 138400080.0), (15, 138400080.0), (20, 138400080.0)], 'chi_squared_best': (inf, -1), 'masked_mse_trace_sample': [1874413.375, 1874506.875, 1869998.375, 1869509.375, 1870152.0, 1870202.125, 1870154.875, 1870148.625, 1870144.5, 1870146.625, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870144.5, 1870311.125, 1870144.5, 1870144.5], 'masked_mse_trace_full': [(0, 1874413.375), (0, 1874413.375), (5, 1870202.125), (10, 1870144.5), (15, 1870144.5), (20, 1870144.5)], 'masked_mse_best': (inf, -1), 'best_params_snapshot': None, 'u_matrix_lifecycle_log': [], 'a_star_lifecycle_log': [], 'panel_loss_diag': None}, 'perf_counters': {'closure_evals': 20, 'validation_runs': 6, 'forward_times_ms': [45.113332103937864, 44.78026833385229, 44.83253927901387, 44.900970067828894, 44.90907024592161, 45.08522106334567, 44.65392790734768, 44.832408893853426, 44.874798972159624, 44.80487760156393, 44.978889636695385, 45.441153924912214, 44.80957891792059, 44.95749995112419, 44.89207919687033, 44.94022997096181, 44.691167306154966, 44.992949813604355, 45.011079870164394, 44.85624982044101], 'variance_floor_clamped_pixels': 0, 'variance_floor_masked_pixels': 4176}})}
+FAILED tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers - AssertionError: Stage A telemetry missing
+assert 'A' in {'stage_a': RefinementTelemetry(optimizer='LBFGS', stage='A', history_size=10, max_iter=30, tolerance_grad=1e-07, tolerance_change=1e-09, roi_sample_fraction=0.15, roi_count_sampled=1, roi_count_total=1, loss_trace_sample=[366930976.0, 868708544.0, 385455776.0, 367757472.0, 367748640.0, 366931168.0, 366930976.0], loss_trace_full=[(0, 366930976.0), (0, 366930976.0), (5, 366931168.0), (7, 366930976.0)], best_loss_full=[366930976.0, 366930976.0, 366930976.0, 366930976.0], param_deltas={'log_scale': {'initial': 8.901554295659606, 'final': 8.901554107666016, 'delta': -1.8799359047250164e-07}, 'log_scale_baseline': {'initial': 0.0, 'final': 0.0}, 'log_cell_a_delta': {'initial': 0.0, 'final': 0.0, 'delta': 0.0}, 'log_cell_b_delta': {'initial': 0.0, 'final': 0.0, 'delta': 0.0}, 'log_cell_c_delta': {'initial': 0.0, 'final': 0.0, 'delta': 0.0}, 'angle_alpha_raw': {'initial': 0.0, 'final': 0.0, 'delta': 0.0}, 'angle_beta_raw': {'initial': 0.0, 'final': 0.0, 'delta': 0.0}, 'angle_gamma_raw': {'initial': 0.0, 'final': 0.0, 'delta': 0.0}, 'orientation_vec': {'initial': [0.0, 0.0, 0.0], 'final': [0.0, 0.0, 0.0], 'delta': [0.0, 0.0, 0.0], 'norm': 0.0}, 'misset_xyz_deg': {'initial': [0.0, 0.0, 0.0], 'final': [0.0, 0.0, 0.0], 'delta': [0.0, 0.0, 0.0], 'quaternion_norm': 1.0}}, status='ok', message='', perf_counters={'cache_mode': 'warm', 'roi_mode': 'panel', 'roi_count_total': 1, 'roi_count_sampled': 1, 'closure_evals': 7, 'validation_runs': 4, 'forward_time_ms': {'mean': 40.21621462223785, 'min': 11.893362738192081, 'max': 45.182881876826286, 'total': 281.51350235566497}, 'validation_scope': 'panel', 'roi_mode_reason': 'auto_panel_threshold (roi_count=29 <= 32)'}, chi_squared_trace_sample=[366930976.0, 868708544.0, 385455776.0, 367757472.0, 367748640.0, 366931168.0, 366930976.0], chi_squared_trace_full=[(0, 366930976.0), (0, 366930976.0), (5, 366931168.0), (7, 366930976.0)], chi_squared_best=(inf, -1), masked_mse_trace_sample=[1876270.875, 1872216.75, 1876790.375, 1876536.875, 1876520.875, 1876285.5, 1876270.875], masked_mse_trace_full=[(0, 1876270.875), (0, 1876270.875), (5, 1876285.5), (7, 1876270.875)], masked_mse_best=(inf, -1), sigma_readout_provenance='cli_override', sigma_readout_reference_value=None, variance_floor_value=1.0, variance_floor_clamp_fraction=0.0, variance_floor_masked_pixels=4176, variance_floor_clamped_pixels=0, log_scale_baseline_source=None, spot_scale_override_adjustment_factor=None, target_mean_masked=None, model_mean_masked=None, canonical_stage_label='A', canonical_chi_squared=366930976.0, canonical_chi_squared_iteration=7, canonical_roi_count=29, canonical_detector_distances_mm=[231.27645547762575], roi_mode='panel', stage_type='stage_a', mode=None, engine_protocol=None, stage_modes=None, telemetry_version='1.0', stage_result={'stage': 'A', 'telemetry': {'iteration_count': 7, 'loss_trace_sample': [366930976.0, 868708544.0, 385455776.0, 367757472.0, 367748640.0, 366931168.0, 366930976.0], 'loss_trace_full': [(0, 366930976.0), (0, 366930976.0), (5, 366931168.0), (7, 366930976.0)], 'best_loss_full': [366930976.0, 366930976.0, 366930976.0, 366930976.0], 'chi_squared_trace_sample': [366930976.0, 868708544.0, 385455776.0, 367757472.0, 367748640.0, 366931168.0, 366930976.0], 'chi_squared_trace_full': [(0, 366930976.0), (0, 366930976.0), (5, 366931168.0), (7, 366930976.0)], 'chi_squared_best': (inf, -1), 'masked_mse_trace_sample': [1876270.875, 1872216.75, 1876790.375, 1876536.875, 1876520.875, 1876285.5, 1876270.875], 'masked_mse_trace_full': [(0, 1876270.875), (0, 1876270.875), (5, 1876285.5), (7, 1876270.875)], 'masked_mse_best': (inf, -1), 'best_params_snapshot': None, 'u_matrix_lifecycle_log': [], 'a_star_lifecycle_log': [], 'panel_loss_diag': None}, 'perf_counters': {'closure_evals': 7, 'validation_runs': 4, 'forward_times_ms': [45.182881876826286, 11.893362738192081, 44.95243029668927, 44.871739111840725, 44.940090738236904, 44.93383876979351, 44.73915882408619], 'variance_floor_clamped_pixels': 0, 'variance_floor_masked_pixels': 4176}}), 'stage_b': RefinementTelemetry(optimizer='LBFGS', stage='B', history_size=10, max_iter=30, tolerance_grad=1e-07, tolerance_change=1e-09, roi_sample_fraction=0.15, roi_count_sampled=29, roi_count_total=29, loss_trace_sample=[366931008.0, 589554624.0, 367003232.0, 366938240.0, 366931008.0, 366931008.0, 366931008.0], loss_trace_full=[(0, 366931008.0), (4, 366931008.0), (6, 366931008.0)], best_loss_full=(366931008.0, 7), param_deltas={'shell_0_modifier (d=80000.12-100000.00\xc5)': {'initial': 1.0, 'final': 1.0, 'delta': 0.0}, 'shell_1_modifier (d=60000.25-80000.12\xc5)': {'initial': 1.0, 'final': 1.0, 'delta': 0.0}, 'shell_2_modifier (d=40000.38-60000.25\xc5)': {'initial': 1.0, 'final': 1.0, 'delta': 0.0}, 'shell_3_modifier (d=20000.50-40000.38\xc5)': {'initial': 1.0, 'final': 1.0, 'delta': 0.0}, 'shell_4_modifier (d=0.63-20000.50\xc5)': {'initial': 1.0, 'final': 1.0, 'delta': 0.0}}, status='early_stop', message='Stage B improvement -0.0000% < 0.0000% (calibrated gate per TORCH-REFINE-004, artifact: plans/active/ARCH-REFINE-001/reports/2025-12-01T084505Z/)', perf_counters={'cache_mode': 'warm', 'roi_mode': 'panel', 'roi_count_total': 29, 'roi_count_sampled': 29, 'closure_evals': 7, 'validation_runs': 6, 'forward_time_ms': {'mean': 540.1084184180945, 'min': 513.2899610325694, 'max': 614.7777261212468, 'total': 5401.084184180945}}, chi_squared_trace_sample=[366931008.0, 589554624.0, 367003232.0, 366938240.0, 366931008.0, 366931008.0, 366931008.0], chi_squared_trace_full=[(0, 366931008.0), (4, 366931008.0), (6, 366931008.0)], chi_squared_best=(366931008.0, 7), masked_mse_trace_sample=[1876271.125, 1870304.625, 1876258.625, 1876269.75, 1876271.125, 1876271.125, 1876271.125], masked_mse_trace_full=[(0, 1876271.125), (4, 1876271.125), (6, 1876271.125)], masked_mse_best=(1876271.125, 7), sigma_readout_provenance='cli_override', sigma_readout_reference_value=None, variance_floor_value=1.0, variance_floor_clamp_fraction=0.0, variance_floor_masked_pixels=None, variance_floor_clamped_pixels=None, log_scale_baseline_source=None, spot_scale_override_adjustment_factor=None, target_mean_masked=None, model_mean_masked=None, canonical_stage_label='A', canonical_chi_squared=366930976.0, canonical_chi_squared_iteration=7, canonical_roi_count=29, canonical_detector_distances_mm=[231.27645547762575], roi_mode='panel', stage_type='B', mode='shell_modifiers', engine_protocol=None, stage_modes=None, telemetry_version='1.0', stage_result={'stage': 'B', 'telemetry': {'iteration_count': 6, 'loss_trace_sample': [366931008.0, 589554624.0, 367003232.0, 366938240.0, 366931008.0, 366931008.0, 366931008.0], 'loss_trace_full': [(0, 366931008.0), (4, 366931008.0), (6, 366931008.0)], 'best_loss_full': [366931008.0, 0], 'chi_squared_trace_sample': [366931008.0, 589554624.0, 367003232.0, 366938240.0, 366931008.0, 366931008.0, 366931008.0], 'chi_squared_trace_full': [(0, 366931008.0), (4, 366931008.0), (6, 366931008.0)], 'chi_squared_best': [366931008.0, 0], 'masked_mse_trace_sample': [1876271.125, 1870304.625, 1876258.625, 1876269.75, 1876271.125, 1876271.125, 1876271.125], 'masked_mse_trace_full': [(0, 1876271.125), (4, 1876271.125), (6, 1876271.125)], 'masked_mse_best': [1876271.125, 0], 'best_params_snapshot': [{'shell_modifier_raw': tensor([-0.4328, -0.4328, -0.4328, -0.4328, -0.4328])}], 'stage_b_baseline_rel_diff': 8.720986259824518e-08, 'stage_b_baseline_abs_diff': 32.0, 'stage_b_baseline_diff_path': None}, 'perf_counters': {'closure_evals': 7, 'validation_runs': 6, 'forward_times_ms': [577.8508661314845, 614.7777261212468, 572.2284577786922, 526.271138805896, 524.1582710295916, 520.1259171590209, 513.9037840999663, 520.4271711409092, 518.0508908815682, 513.2899610325694], 'variance_floor_clamped_pixels': 0, 'variance_floor_masked_pixels': 41760}})}
+FAILED tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip - AssertionError: Stage A telemetry missing
+assert 'A' in {'stage_a': RefinementTelemetry(optimizer='LBFGS', stage='A', history_size=10, max_iter=30, tolerance_grad=1e-07, tolerance_change=1e-09, roi_sample_fraction=0.15, roi_count_sampled=1, roi_count_total=1, loss_trace_sample=[331422944.0, 263641952.0, 400437216.0, 281038336.0, 263648928.0, 263650880.0, 263641952.0, 263641952.0, 263641952.0, 263641952.0, 263641952.0, 263641952.0, 263641952.0], loss_trace_full=[(0, 331422944.0), (0, 331422944.0), (5, 263650880.0), (10, 263641952.0), (13, 263641952.0)], best_loss_full=[331422944.0, 331422944.0, 263650880.0, 263641952.0, 263641952.0], param_deltas={'log_scale': {'initial': 8.91728842879657, 'final': 8.917288780212402, 'delta': 3.514158315454097e-07}, 'log_scale_baseline': {'initial': 0.0, 'final': 0.0}, 'log_cell_a_delta': {'initial': 0.0, 'final': 0.5066346526145935, 'delta': 0.5066346526145935}, 'log_cell_b_delta': {'initial': 0.0, 'final': 0.2867756485939026, 'delta': 0.2867756485939026}, 'log_cell_c_delta': {'initial': 0.0, 'final': -0.08756404370069504, 'delta': -0.08756404370069504}, 'angle_alpha_raw': {'initial': 0.0, 'final': 0.011297549121081829, 'delta': 0.011297549121081829}, 'angle_beta_raw': {'initial': 0.0, 'final': 0.026435486972332, 'delta': 0.026435486972332}, 'angle_gamma_raw': {'initial': 0.0, 'final': -0.012218274176120758, 'delta': -0.012218274176120758}, 'orientation_vec': {'initial': [0.0, 0.0, 0.0], 'final': [-0.010437849909067154, -0.02554144710302353, 0.03309498727321625], 'delta': [-0.010437849909067154, -0.02554144710302353, 0.03309498727321625], 'norm': 0.043088193982839584}, 'misset_xyz_deg': {'initial': [-0.006988525390625, 0.15351295471191406, 1.4765625], 'final': [-0.06987883150577545, 0.0004062652587890625, 1.6751443147659302], 'delta': [-0.06289030611515045, -0.153106689453125, 0.19858182966709137], 'quaternion_norm': 1.0}}, status='ok', message='', perf_counters={'cache_mode': 'warm', 'roi_mode': 'panel', 'roi_count_total': 1, 'roi_count_sampled': 1, 'closure_evals': 13, 'validation_runs': 5, 'forward_time_ms': {'mean': 45.34191713453485, 'min': 44.72899902611971, 'max': 46.499273739755154, 'total': 589.4449227489531}, 'validation_scope': 'panel', 'roi_mode_reason': 'auto_panel_threshold (roi_count=29 <= 32)'}, chi_squared_trace_sample=[331422944.0, 263641952.0, 400437216.0, 281038336.0, 263648928.0, 263650880.0, 263641952.0, 263641952.0, 263641952.0, 263641952.0, 263641952.0, 263641952.0, 263641952.0], chi_squared_trace_full=[(0, 331422944.0), (0, 331422944.0), (5, 263650880.0), (10, 263641952.0), (13, 263641952.0)], chi_squared_best=(inf, -1), masked_mse_trace_sample=[1874267.5, 1891333.625, 1878387.125, 1891771.375, 1891345.125, 1891379.0, 1891333.625, 1891333.625, 1891333.625, 1891333.625, 1891333.625, 1891333.625, 1891333.625], masked_mse_trace_full=[(0, 1874267.5), (0, 1874267.5), (5, 1891379.0), (10, 1891333.625), (13, 1891333.625)], masked_mse_best=(inf, -1), sigma_readout_provenance='cli_override', sigma_readout_reference_value=None, variance_floor_value=1.0, variance_floor_clamp_fraction=0.0, variance_floor_masked_pixels=4176, variance_floor_clamped_pixels=0, log_scale_baseline_source=None, spot_scale_override_adjustment_factor=None, target_mean_masked=None, model_mean_masked=None, canonical_stage_label='A', canonical_chi_squared=263641952.0, canonical_chi_squared_iteration=13, canonical_roi_count=29, canonical_detector_distances_mm=[231.27645547762575], roi_mode='panel', stage_type='stage_a', mode=None, engine_protocol=None, stage_modes=None, telemetry_version='1.0', stage_result={'stage': 'A', 'telemetry': {'iteration_count': 13, 'loss_trace_sample': [331422944.0, 263641952.0, 400437216.0, 281038336.0, 263648928.0, 263650880.0, 263641952.0, 263641952.0, 263641952.0, 263641952.0, 263641952.0, 263641952.0, 263641952.0], 'loss_trace_full': [(0, 331422944.0), (0, 331422944.0), (5, 263650880.0), (10, 263641952.0), (13, 263641952.0)], 'best_loss_full': [331422944.0, 331422944.0, 263650880.0, 263641952.0, 263641952.0], 'chi_squared_trace_sample': [331422944.0, 263641952.0, 400437216.0, 281038336.0, 263648928.0, 263650880.0, 263641952.0, 263641952.0, 263641952.0, 263641952.0, 263641952.0, 263641952.0, 263641952.0], 'chi_squared_trace_full': [(0, 331422944.0), (0, 331422944.0), (5, 263650880.0), (10, 263641952.0), (13, 263641952.0)], 'chi_squared_best': (inf, -1), 'masked_mse_trace_sample': [1874267.5, 1891333.625, 1878387.125, 1891771.375, 1891345.125, 1891379.0, 1891333.625, 1891333.625, 1891333.625, 1891333.625, 1891333.625, 1891333.625, 1891333.625], 'masked_mse_trace_full': [(0, 1874267.5), (0, 1874267.5), (5, 1891379.0), (10, 1891333.625), (13, 1891333.625)], 'masked_mse_best': (inf, -1), 'best_params_snapshot': None, 'u_matrix_lifecycle_log': [], 'a_star_lifecycle_log': [], 'panel_loss_diag': None}, 'perf_counters': {'closure_evals': 13, 'validation_runs': 5, 'forward_times_ms': [45.0288113206625, 44.72899902611971, 45.072912238538265, 45.82999786362052, 45.18159292638302, 45.11608183383942, 46.499273739755154, 45.206552837044, 45.20954331383109, 45.242922846227884, 45.14293186366558, 44.84303994104266, 46.342262998223305], 'variance_floor_clamped_pixels': 0, 'variance_floor_masked_pixels': 4176}}), 'stage_c': RefinementTelemetry(optimizer='LBFGS', stage='C', history_size=10, max_iter=30, tolerance_grad=1e-07, tolerance_change=1e-09, roi_sample_fraction=0.15, roi_count_sampled=29, roi_count_total=29, loss_trace_sample=[263642016.0], loss_trace_full=[(-1, 263642016.0), (-1, 263642016.0)], best_loss_full=(263642016.0, -1), param_deltas={'panel_0_distance_offset_mm': {'initial': 0.25, 'final': 0.25, 'delta': 0.0}}, status='early_stop', message='Stage C improvement -0.0000% < 0.0000% (\u22650.002% gate calibrated per REFINE-007)', perf_counters={'cache_mode': 'warm', 'roi_mode': 'panel', 'roi_mode_reason': 'stage_a_panel_mode', 'validation_scope': 'panel', 'roi_count_total': 29, 'roi_count_sampled': 29, 'closure_evals': 1, 'validation_runs': 5, 'forward_time_ms': {'mean': 45.79122783616185, 'min': 45.607456006109715, 'max': 45.97932938486338, 'total': 137.37368350848556}}, chi_squared_trace_sample=[263642016.0], chi_squared_trace_full=[(-1, 263642016.0), (-1, 263642016.0)], chi_squared_best=(263642016.0, -1), masked_mse_trace_sample=[1891333.625], masked_mse_trace_full=[(-1, 1891333.625), (-1, 1891333.625)], masked_mse_best=(1891333.625, -1), sigma_readout_provenance='cli_override', sigma_readout_reference_value=None, variance_floor_value=1.0, variance_floor_clamp_fraction=0.0, variance_floor_masked_pixels=None, variance_floor_clamped_pixels=None, log_scale_baseline_source=None, spot_scale_override_adjustment_factor=None, target_mean_masked=None, model_mean_masked=None, canonical_stage_label='A', canonical_chi_squared=263641952.0, canonical_chi_squared_iteration=13, canonical_roi_count=29, canonical_detector_distances_mm=[231.27645547762575], roi_mode='panel', stage_type='C', mode='detector_offsets', engine_protocol=None, stage_modes=None, telemetry_version='1.0', stage_result={'stage': 'C', 'telemetry': {'iteration_count': -1, 'loss_trace_sample': [263642016.0], 'loss_trace_full': [(-1, 263642016.0), (-1, 263642016.0)], 'best_loss_full': (263642016.0, -1), 'chi_squared_trace_sample': [263642016.0], 'chi_squared_trace_full': [(-1, 263642016.0), (-1, 263642016.0)], 'chi_squared_best': (263642016.0, -1), 'masked_mse_trace_sample': [1891333.625], 'masked_mse_trace_full': [(-1, 1891333.625), (-1, 1891333.625)], 'masked_mse_best': (1891333.625, -1), 'best_params_snapshot': [{'distance_offset_raw': [0.0]}], 'panel_loss_diag': None}, 'perf_counters': {'closure_evals': 1, 'validation_runs': 5, 'forward_times_ms': [45.607456006109715, 45.97932938486338, 45.786898117512465], 'variance_floor_clamped_pixels': 0, 'variance_floor_masked_pixels': 12528}})}
+FAILED tests/dbex/test_torch_refine_smoke.py::test_stage_b_per_reflection_smoke - AssertionError: Stage A telemetry missing
+assert 'A' in {'stage_a': RefinementTelemetry(optimizer='LBFGS', stage='A', history_size=10, max_iter=30, tolerance_grad=1e-07, tolerance_change=1e-09, roi_sample_fraction=0.15, roi_count_sampled=1, roi_count_total=1, loss_trace_sample=[868102080.0, 867066560.0, 867050240.0, 867050048.0, 867050048.0, 867050048.0, 867050048.0, 43321868.0, 868708544.0, 184827472.0, 64665056.0, 43300160.0, 43300160.0, 868708544.0, 43300160.0, 43300160.0, 43300160.0, 43300160.0, 43300160.0, 43300160.0, 43300160.0, 43300160.0], loss_trace_full=[(0, 868102080.0), (0, 868102080.0), (5, 867050048.0), (10, 64665056.0), (15, 43300160.0), (20, 43300160.0), (22, 43300160.0)], best_loss_full=[868102080.0, 868102080.0, 867050048.0, 64665056.0, 43300160.0, 43300160.0, 43300160.0], param_deltas={'log_scale': {'initial': 0.0, 'final': 2354.510498046875, 'delta': 2354.510498046875}, 'log_scale_baseline': {'initial': 0.0, 'final': 0.0}, 'log_cell_a_delta': {'initial': 0.0, 'final': -0.12315236777067184, 'delta': -0.12315236777067184}, 'log_cell_b_delta': {'initial': 0.0, 'final': 0.014406881295144558, 'delta': 0.014406881295144558}, 'log_cell_c_delta': {'initial': 0.0, 'final': 0.000664257793687284, 'delta': 0.000664257793687284}, 'angle_alpha_raw': {'initial': 0.0, 'final': -0.008442331105470657, 'delta': -0.008442331105470657}, 'angle_beta_raw': {'initial': 0.0, 'final': -0.0007916793110780418, 'delta': -0.0007916793110780418}, 'angle_gamma_raw': {'initial': 0.0, 'final': 0.024005558341741562, 'delta': 0.024005558341741562}, 'orientation_vec': {'initial': [0.0, 0.0, 0.0], 'final': [0.005490126553922892, 0.0001934789033839479, -0.01264848280698061], 'delta': [0.005490126553922892, 0.0001934789033839479, -0.01264848280698061], 'norm': 0.013789961114525795}, 'misset_xyz_deg': {'initial': [0.0, 0.0, 0.0], 'final': [0.03293965756893158, 0.0011826877016574144, -0.07588652521371841], 'delta': [0.03293965756893158, 0.0011826877016574144, -0.07588652521371841], 'quaternion_norm': 1.0}}, status='ok', message='', perf_counters={'cache_mode': 'cold', 'roi_mode': 'panel', 'roi_count_total': 1, 'roi_count_sampled': 1, 'closure_evals': 22, 'validation_runs': 7, 'forward_time_ms': {'mean': 62.86547792313451, 'min': 32.08860894665122, 'max': 68.92632879316807, 'total': 1383.0405143089592}, 'validation_scope': 'panel', 'roi_mode_reason': 'auto_panel_threshold (roi_count=29 <= 32)'}, chi_squared_trace_sample=[868102080.0, 867066560.0, 867050240.0, 867050048.0, 867050048.0, 867050048.0, 867050048.0, 43321868.0, 868708544.0, 184827472.0, 64665056.0, 43300160.0, 43300160.0, 868708544.0, 43300160.0, 43300160.0, 43300160.0, 43300160.0, 43300160.0, 43300160.0, 43300160.0, 43300160.0], chi_squared_trace_full=[(0, 868102080.0), (0, 868102080.0), (5, 867050048.0), (10, 64665056.0), (15, 43300160.0), (20, 43300160.0), (22, 43300160.0)], chi_squared_best=(inf, -1), masked_mse_trace_sample=[1872215.0, 1872211.75, 1872211.75, 1872211.75, 1872211.75, 1872211.75, 1872211.75, 1962151.5, 1872216.75, 1927638.375, 1948473.125, 1956874.875, 1956874.875, 1872216.75, 1956874.875, 1956874.875, 1956874.875, 1956874.875, 1956874.875, 1956874.875, 1956874.875, 1956874.875], masked_mse_trace_full=[(0, 1872215.0), (0, 1872215.0), (5, 1872211.75), (10, 1948473.125), (15, 1956874.875), (20, 1956874.875), (22, 1956874.875)], masked_mse_best=(inf, -1), sigma_readout_provenance='cli_override', sigma_readout_reference_value=None, variance_floor_value=1.0, variance_floor_clamp_fraction=0.0, variance_floor_masked_pixels=4176, variance_floor_clamped_pixels=0, log_scale_baseline_source=None, spot_scale_override_adjustment_factor=None, target_mean_masked=None, model_mean_masked=None, canonical_stage_label='A', canonical_chi_squared=43300160.0, canonical_chi_squared_iteration=22, canonical_roi_count=29, canonical_detector_distances_mm=[231.27645547762575], roi_mode='panel', stage_type='stage_a', mode=None, engine_protocol=None, stage_modes=None, telemetry_version='1.0', stage_result={'stage': 'A', 'telemetry': {'iteration_count': 22, 'loss_trace_sample': [868102080.0, 867066560.0, 867050240.0, 867050048.0, 867050048.0, 867050048.0, 867050048.0, 43321868.0, 868708544.0, 184827472.0, 64665056.0, 43300160.0, 43300160.0, 868708544.0, 43300160.0, 43300160.0, 43300160.0, 43300160.0, 43300160.0, 43300160.0, 43300160.0, 43300160.0], 'loss_trace_full': [(0, 868102080.0), (0, 868102080.0), (5, 867050048.0), (10, 64665056.0), (15, 43300160.0), (20, 43300160.0), (22, 43300160.0)], 'best_loss_full': [868102080.0, 868102080.0, 867050048.0, 64665056.0, 43300160.0, 43300160.0, 43300160.0], 'chi_squared_trace_sample': [868102080.0, 867066560.0, 867050240.0, 867050048.0, 867050048.0, 867050048.0, 867050048.0, 43321868.0, 868708544.0, 184827472.0, 64665056.0, 43300160.0, 43300160.0, 868708544.0, 43300160.0, 43300160.0, 43300160.0, 43300160.0, 43300160.0, 43300160.0, 43300160.0, 43300160.0], 'chi_squared_trace_full': [(0, 868102080.0), (0, 868102080.0), (5, 867050048.0), (10, 64665056.0), (15, 43300160.0), (20, 43300160.0), (22, 43300160.0)], 'chi_squared_best': (inf, -1), 'masked_mse_trace_sample': [1872215.0, 1872211.75, 1872211.75, 1872211.75, 1872211.75, 1872211.75, 1872211.75, 1962151.5, 1872216.75, 1927638.375, 1948473.125, 1956874.875, 1956874.875, 1872216.75, 1956874.875, 1956874.875, 1956874.875, 1956874.875, 1956874.875, 1956874.875, 1956874.875, 1956874.875], 'masked_mse_trace_full': [(0, 1872215.0), (0, 1872215.0), (5, 1872211.75), (10, 1948473.125), (15, 1956874.875), (20, 1956874.875), (22, 1956874.875)], 'masked_mse_best': (inf, -1), 'best_params_snapshot': None, 'u_matrix_lifecycle_log': [], 'a_star_lifecycle_log': [], 'panel_loss_diag': None}, 'perf_counters': {'closure_evals': 22, 'validation_runs': 7, 'forward_times_ms': [65.47320913523436, 64.81260294094682, 65.04485616460443, 65.20397681742907, 65.12675620615482, 65.00780628994107, 64.92262380197644, 65.43709896504879, 32.25276991724968, 65.45197870582342, 64.76911297068, 65.0436757132411, 64.78384416550398, 32.08860894665122, 65.43008890002966, 64.74653305485845, 68.31730389967561, 68.92632879316807, 67.36215576529503, 66.58542901277542, 68.01013136282563, 68.24362277984619], 'variance_floor_clamped_pixels': 0, 'variance_floor_masked_pixels': 4176}}), 'stage_b': RefinementTelemetry(optimizer='ADAM', stage='B', history_size=10, max_iter=30, tolerance_grad=1e-07, tolerance_change=1e-09, roi_sample_fraction=0.15, roi_count_sampled=29, roi_count_total=29, loss_trace_sample=[], loss_trace_full=[(0, 44204376.0), (0, 44204376.0)], best_loss_full=(44204376.0, 0), param_deltas={'asu_modifiers_summary': {'initial': 1.0, 'final_min': 1.0, 'final_max': 1.0, 'final_mean': 1.0, 'final_std': 0.0}}, status='error', message='Stage B error: REFINE-FLOW-001 baseline drift: Stage B initial chi\xb2 (4.420e+07) differs from Stage A final (4.330e+07) by 2.0883% (tolerance=0.1%). See /home/ollie/Documents/diffbragg_example_2/diffbragg_example/stage_b_baseline_diff.json for details.', perf_counters={'cache_mode': 'cold', 'roi_mode': 'panel', 'roi_count_total': 29, 'roi_count_sampled': 29, 'closure_evals': 0, 'validation_runs': 5, 'forward_time_ms': {'mean': 512.5247950976094, 'min': 503.97848431020975, 'max': 519.6954999119043, 'total': 1537.574385292828}}, chi_squared_trace_sample=[], chi_squared_trace_full=[(0, 44204376.0), (0, 44204376.0)], chi_squared_best=(44204376.0, 0), masked_mse_trace_sample=[], masked_mse_trace_full=[(0, 1964067.0), (0, 1964067.0)], masked_mse_best=(1964067.0, 0), sigma_readout_provenance='cli_override', sigma_readout_reference_value=None, variance_floor_value=1.0, variance_floor_clamp_fraction=0.0, variance_floor_masked_pixels=None, variance_floor_clamped_pixels=None, log_scale_baseline_source=None, spot_scale_override_adjustment_factor=None, target_mean_masked=None, model_mean_masked=None, canonical_stage_label='A', canonical_chi_squared=43300160.0, canonical_chi_squared_iteration=22, canonical_roi_count=29, canonical_detector_distances_mm=[231.27645547762575], roi_mode='panel', stage_type='B', mode='per_reflection', engine_protocol=None, stage_modes=None, telemetry_version='1.0', stage_result={'stage': 'B', 'telemetry': {'iteration_count': 0, 'loss_trace_sample': [], 'loss_trace_full': [(0, 44204376.0), (0, 44204376.0)], 'best_loss_full': [44204376.0, 0], 'chi_squared_trace_sample': [], 'chi_squared_trace_full': [(0, 44204376.0), (0, 44204376.0)], 'chi_squared_best': [44204376.0, 0], 'masked_mse_trace_sample': [], 'masked_mse_trace_full': [(0, 1964067.0), (0, 1964067.0)], 'masked_mse_best': [1964067.0, 0], 'best_params_snapshot': [{'log_modifiers': tensor([0., 0., 0.,  ..., 0., 0., 0.])}], 'stage_b_baseline_rel_diff': 0.020882509441073657, 'stage_b_baseline_abs_diff': 904216.0, 'stage_b_baseline_diff_path': '/home/ollie/Documents/diffbragg_example_2/diffbragg_example/stage_b_baseline_diff.json'}, 'perf_counters': {'closure_evals': 0, 'validation_runs': 5, 'forward_times_ms': [503.97848431020975, 513.900401070714, 519.6954999119043], 'variance_floor_clamped_pixels': 0, 'variance_floor_masked_pixels': 12528}})}
+======================== 5 failed, 9 warnings in 41.67s ========================

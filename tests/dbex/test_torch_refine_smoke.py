@@ -18,6 +18,14 @@ import numpy as np
 import pytest
 import torch
 
+# ARCH-REFACTOR-001 Phase D.3: Direct RefinementEngine usage (no facade)
+from dbex.refinement.config import RefinementConfig
+from dbex.refinement.engine import RefinementEngine
+from dbex.refinement.stage_a import StageA
+from dbex.refinement.stage_b import StageB
+from dbex.refinement.stage_c import StageC
+from dbex.refinement.context import build_refinement_context
+
 
 def _telemetry_path() -> Optional[Path]:
     env_value = os.environ.get("DBEX_SMOKE_TELEMETRY_PATH")
@@ -397,9 +405,6 @@ def test_stage_a_expansion(
     - Requires: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1
     - Selector: pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
     """
-    from dbex.refinement.config import RefinementConfig
-    from dbex.nanobrag_refinement import run_nanobrag_refinement
-
     print(f"\n[test_stage_a_expansion] detector={smoke_detector_size}")
 
     hkl_grid, hkl_metadata = hkl_data
@@ -433,17 +438,22 @@ def test_stage_a_expansion(
     )
 
     # Run refinement with perturbed geometry and baseline crystal for misset extraction
-    # ARCH-STAGE-CONTEXT-001 Phase B.4/D: run_nanobrag_refinement now returns artifacts
-    bragg_refined, telemetry_dict, engine_artifacts = run_nanobrag_refinement(
-        inputs=refinement_inputs,
+    # ARCH-REFACTOR-001 Phase D.3: Direct RefinementEngine usage (no facade)
+    refinement_context = build_refinement_context(
+        refinement_inputs=refinement_inputs,
         detector=perturbed_detector,
         beam=perturbed_beam,
         crystal=perturbed_crystal,
         hkl_grid=hkl_grid,
         hkl_metadata=hkl_metadata,
-        config=config,
         baseline_crystal=baseline_crystal,  # Enables U_delta extraction for orientation telemetry
     )
+    stages = [StageA()]  # Stage A only (no Stage B/C)
+    engine = RefinementEngine(stages, config=config)
+    telemetry_dict = engine.run({"context": refinement_context})
+    engine_artifacts = engine._artifacts
+    # Extract terminal Bragg from Stage A artifacts
+    bragg_refined = engine_artifacts["stage_a"].bragg_full
 
     # ARCH-STAGE-CONTEXT-001 Phase D.3.1: Validate Stage A terminal artifact contract
     # When Stage B/C are disabled, StageAArtifacts.bragg_full must match bragg_refined
@@ -946,9 +956,6 @@ def test_stage_a_engine_delegation_telemetry(
     - Requires: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1
     - Selector: pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry
     """
-    from dbex.refinement.config import RefinementConfig
-    from dbex.nanobrag_refinement import run_nanobrag_refinement
-
     print(f"\n[test_stage_a_engine_delegation_telemetry] detector={smoke_detector_size}")
 
     hkl_grid, hkl_metadata = hkl_data
@@ -982,17 +989,21 @@ def test_stage_a_engine_delegation_telemetry(
     )
 
     # Run with engine delegation
-    # ARCH-STAGE-CONTEXT-001 Phase B.4: run_nanobrag_refinement now returns artifacts
-    bragg_refined, telemetry_dict, _ = run_nanobrag_refinement(
-        inputs=refinement_inputs,
+    # ARCH-REFACTOR-001 Phase D.3: Direct RefinementEngine usage (no facade)
+    refinement_context = build_refinement_context(
+        refinement_inputs=refinement_inputs,
         detector=perturbed_detector,
         beam=perturbed_beam,
         crystal=perturbed_crystal,
         hkl_grid=hkl_grid,
         hkl_metadata=hkl_metadata,
-        config=config,
         baseline_crystal=baseline_crystal,
     )
+    stages = [StageA()]  # Stage A only (no Stage B/C)
+    engine = RefinementEngine(stages, config=config)
+    telemetry_dict = engine.run({"context": refinement_context})
+    # Extract terminal Bragg from Stage A artifacts
+    bragg_refined = engine._artifacts["stage_a"].bragg_full
 
     # Validate telemetry structure
     assert "A" in telemetry_dict, "Engine delegation must return 'A' telemetry key"
@@ -1063,9 +1074,6 @@ def test_stage_c_detector_microslip(
     `DBEX_SMOKE_TELEMETRY_PATH` is archived under PERF-SMOKE-DETSIZE for PHYSICS-LOSS-001 parity
     evidence.
     """
-    from dbex.refinement.config import RefinementConfig
-    from dbex.nanobrag_refinement import run_nanobrag_refinement
-
     print(f"\n[test_stage_c_detector_microslip] detector={smoke_detector_size}")
     strict_gates = smoke_detector_size == "full"
 
@@ -1103,18 +1111,27 @@ def test_stage_c_detector_microslip(
     )
 
     # Run refinement with Stage A + Stage C
-    # ARCH-STAGE-CONTEXT-001 Phase B.4: run_nanobrag_refinement now returns artifacts
-    bragg_refined, telemetry_dict, _ = run_nanobrag_refinement(
-        inputs=refinement_inputs,
+    # ARCH-REFACTOR-001 Phase D.3: Direct RefinementEngine usage (no facade)
+    refinement_context = build_refinement_context(
+        refinement_inputs=refinement_inputs,
         detector=perturbed_detector,
         beam=perturbed_beam,
         crystal=perturbed_crystal,
         hkl_grid=hkl_grid,
         hkl_metadata=hkl_metadata,
-        config=config,
         baseline_crystal=baseline_crystal,
-        baseline_detector=baseline_detector,
+        baseline_detector=baseline_detector,  # Required for Stage C
     )
+    stages = [StageA()]
+    if config.enable_stage_c:
+        stages.append(StageC())
+    engine = RefinementEngine(stages, config=config)
+    telemetry_dict = engine.run({"context": refinement_context})
+    # Extract terminal Bragg from Stage C artifacts (precedence: C > A)
+    if "stage_c" in engine._artifacts:
+        bragg_refined = engine._artifacts["stage_c"].bragg_full
+    else:
+        bragg_refined = engine._artifacts["stage_a"].bragg_full
 
     # Extract Stage A and Stage C telemetry
     assert "A" in telemetry_dict, "Stage A telemetry missing"
@@ -1394,9 +1411,6 @@ def test_stage_b_shell_modifiers(
       is archived via `DBEX_SMOKE_TELEMETRY_PATH` for PHYSICS-LOSS-001 reviews.
     - SCALE-001/002: Structure factors unscaled; shell modifiers applied multiplicatively
     """
-    from dbex.refinement.config import RefinementConfig
-    from dbex.nanobrag_refinement import run_nanobrag_refinement
-
     print(f"\n[test_stage_b_shell_modifiers] detector={smoke_detector_size}")
 
     # CPU fallback blocked by HKL grid transfer corruption (GRADIENT-003)
@@ -1445,18 +1459,28 @@ def test_stage_b_shell_modifiers(
     )
 
     # Run refinement (Stage A + Stage B)
-    # ARCH-STAGE-CONTEXT-001 Phase B.4: run_nanobrag_refinement now returns artifacts
-    bragg_refined, telemetry_dict, engine_artifacts = run_nanobrag_refinement(
-        inputs=refinement_inputs,
+    # ARCH-REFACTOR-001 Phase D.3: Direct RefinementEngine usage (no facade)
+    refinement_context = build_refinement_context(
+        refinement_inputs=refinement_inputs,
         detector=DL.detector,
         beam=DL.beam,
         crystal=DL.crystal,
         hkl_grid=hkl_grid,
         hkl_metadata=hkl_metadata,
-        config=config,
         baseline_crystal=DL.crystal,  # Required for Stage B cell delta reconstruction
-        baseline_detector=DL.detector,
+        baseline_detector=None,  # Stage C disabled
     )
+    stages = [StageA()]
+    if config.enable_stage_b:
+        stages.append(StageB())
+    engine = RefinementEngine(stages, config=config)
+    telemetry_dict = engine.run({"context": refinement_context})
+    engine_artifacts = engine._artifacts
+    # Extract terminal Bragg from Stage B artifacts (precedence: B > A)
+    if "stage_b" in engine_artifacts:
+        bragg_refined = engine_artifacts["stage_b"].bragg_full
+    else:
+        bragg_refined = engine_artifacts["stage_a"].bragg_full
 
     # Extract telemetry
     assert "A" in telemetry_dict, "Stage A telemetry missing"
@@ -1793,10 +1817,6 @@ def test_stage_b_per_reflection_smoke(
     - spec:107: Adam optimizer permitted for large parameter counts
     """
     import os
-    import pytest
-    import torch
-    from dbex.refinement.config import RefinementConfig
-    from dbex.nanobrag_refinement import run_nanobrag_refinement
 
     if os.getenv("AUTHORITATIVE_CMDS_DOC") != "./docs/TESTING_GUIDE.md":
         pytest.skip("Requires AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md")
@@ -1867,18 +1887,28 @@ def test_stage_b_per_reflection_smoke(
     )
 
     # Run refinement (Stage A + Stage B with per-reflection mode)
-    # ARCH-STAGE-CONTEXT-001 Phase B.4/D: run_nanobrag_refinement now returns artifacts
-    bragg_refined, telemetry_dict, engine_artifacts = run_nanobrag_refinement(
-        inputs=refinement_inputs,
+    # ARCH-REFACTOR-001 Phase D.3: Direct RefinementEngine usage (no facade)
+    refinement_context = build_refinement_context(
+        refinement_inputs=refinement_inputs,
         detector=DL.detector,
         beam=DL.beam,
         crystal=DL.crystal,
         hkl_grid=hkl_grid,
         hkl_metadata=hkl_metadata,
-        config=config,
         baseline_crystal=DL.crystal,
-        baseline_detector=DL.detector,
+        baseline_detector=None,  # Stage C disabled
     )
+    stages = [StageA()]
+    if config.enable_stage_b:
+        stages.append(StageB())
+    engine = RefinementEngine(stages, config=config)
+    telemetry_dict = engine.run({"context": refinement_context})
+    engine_artifacts = engine._artifacts
+    # Extract terminal Bragg from Stage B artifacts (precedence: B > A)
+    if "stage_b" in engine_artifacts:
+        bragg_refined = engine_artifacts["stage_b"].bragg_full
+    else:
+        bragg_refined = engine_artifacts["stage_a"].bragg_full
 
     # Extract telemetry
     assert "A" in telemetry_dict, "Stage A telemetry missing"

@@ -614,11 +614,10 @@ def _run_stage_c_lbfgs(
         stage_c_optimizer.step(closure_stage_c)
 
         # ARCH-TELEMETRY-001 Phase C.1: Fallback when LBFGS exits without running closure
-        # If no closure evals occurred, emit baseline sample so loss_trace_sample is never empty
+        # If no closure evals occurred, seed baseline sample so loss_trace_sample is never empty
+        # Use ensure_sample_trace instead of on_step to avoid fabricating closure_evals count
         if perf_closure_evals_c[0] == 0:
-            # Record baseline as iteration 0 sample with on_step (mirrors baseline validation logic)
-            collector.on_step(
-                iteration=0,
+            collector.ensure_sample_trace(
                 loss=baseline_chi2_value,
                 metrics={
                     'chi_squared': baseline_chi2_value,
@@ -646,6 +645,17 @@ def _run_stage_c_lbfgs(
     masked_mse_best_c = telemetry_state.masked_mse_best
     best_loss_full_c = telemetry_state.best_loss_full
     best_params_snapshot_c = telemetry_state.best_params_snapshot
+
+    # ARCH-TELEMETRY-001 Phase C.1: Ensure sample traces are populated before finalization
+    # When LBFGS exits without closure evals, seed baseline sample so gates can read meaningful data
+    if len(telemetry_state.loss_trace_sample) == 0:
+        collector.ensure_sample_trace(
+            loss=baseline_chi2_value,
+            metrics={
+                'chi_squared': baseline_chi2_value,
+                'masked_mse': baseline_mse_value,
+            }
+        )
 
     final_step_c = telemetry_state.iteration_count[0]
     with torch.no_grad():

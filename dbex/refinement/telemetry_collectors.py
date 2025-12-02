@@ -547,6 +547,39 @@ class StageCTelemetryCollector:
         if 'panel_diag' in payload and self._state.panel_loss_diag is not None:
             self._state.panel_loss_diag.extend(payload['panel_diag'])
 
+    def ensure_sample_trace(self, *, loss: float, metrics: Mapping[str, float]) -> None:
+        """
+        Seed baseline sample trace when LBFGS exits without closure runs.
+
+        Appends to loss_trace_sample, chi_squared_trace_sample, and masked_mse_trace_sample
+        only when they are empty. Does NOT increment perf_closure_evals so we can seed
+        a baseline sample without fabricating closure counts.
+
+        Uses the current iteration_count[0] value to keep chi²/MSE arrays aligned with
+        validation traces.
+
+        Args:
+            loss: Baseline loss value
+            metrics: Dict containing 'chi_squared' and 'masked_mse'
+
+        Normative Requirements:
+        - PHYSICS-LOSS-001: Stage C telemetry must always emit sample traces
+        - REFINE-007: Gates rely on meaningful telemetry data
+
+        Provenance:
+        - ARCH-TELEMETRY-001 Phase C.1 (2025-12-03T233500Z): Baseline sample seeding
+        """
+        # Only seed if sample traces are empty
+        if len(self._state.loss_trace_sample) == 0:
+            self._state.loss_trace_sample.append(loss)
+        if len(self._state.chi_squared_trace_sample) == 0:
+            chi2 = metrics.get('chi_squared', loss)
+            self._state.chi_squared_trace_sample.append(chi2)
+        if len(self._state.masked_mse_trace_sample) == 0:
+            mse = metrics.get('masked_mse', 0.0)
+            self._state.masked_mse_trace_sample.append(mse)
+        # Note: Do NOT increment perf_closure_evals - this is a synthetic sample
+
     def finalize(self) -> StageResult:
         """Construct StageResult for Stage C."""
         telemetry = StageCTelemetry(

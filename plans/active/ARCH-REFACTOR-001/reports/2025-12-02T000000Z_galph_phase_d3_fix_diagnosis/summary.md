@@ -1,6 +1,5 @@
 ### Turn Summary
-Serviced problems.md ledger entry (user-supplied Phase D.3 diagnosis) identifying reconstruction.py log_scale_baseline bug.
-Confirmed root cause: `build_final_bragg_from_stage_a_telemetry` lines 192-193 apply log_scale as absolute exponent instead of conditional baseline+delta pattern that Stage A/C use, causing bragg_after near-zero (factor ~10^8.5 magnitude error).
-Wrote targeted bugfix Do Now (~20 lines) mirroring stage_a.py:1194-1202 canonical pattern; at implementation budget limit (3rd loop for DB-AT-028/029 criteria).
-Next: Ralph executes fix; if PASS, mark Phase D.3 complete and update ledger; if FAIL with same signature, escalate.
-Artifacts: plans/active/ARCH-REFACTOR-001/reports/2025-12-02T000000Z_galph_phase_d3_fix_diagnosis/ (root_cause_diagnosis.md, summary.md)
+Implemented calibration baseline logic fix in reconstruction.py (lines 195-217) matching stage_a.py:1194-1202 exactly; fix executes correctly (log_scale_baseline=20.14, scale_factor=5.57e8) but tests still FAIL - bragg_after=1.02e-05 instead of expected O(1)≈0.24.
+Debug investigation reveals simulator raw output is 10^4.4× too small (1.8e-14 vs expected 4.3e-10), suggesting deeper bug in simulator construction or warm/cold path handling beyond the diagnosed log_scale issue.
+Next: Escalate to Galph for diagnostic initiative - fix is architecturally correct per spec but uncovered systemic mismatch between training and reconstruction simulator setup.
+Artifacts: plans/active/ARCH-REFACTOR-001/reports/2025-12-02T000000Z_galph_phase_d3_fix_diagnosis/ (ralph_findings.md, pytest logs, metrics JSON with full debug analysis)

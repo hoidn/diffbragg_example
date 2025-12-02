@@ -543,3 +543,8 @@ Action State: planning
 - Authored input.md handing Ralph concrete implementation steps: move `_build_stage_c_params` and `_run_stage_c_lbfgs` into `StageC`, delete the helper definitions from `stage_c_impl.py`, and validate via the Stage B guard plus Stage C detector microslip smokes with canonical env flags.
 - Findings enforced: ARCH-STAGE-CTX-001 (typed contexts only), ARCH-ENGINE-002 (Stage wrappers remain canonical seam), ARCH-TELEMETRY-001 (collector-first telemetry packaging). Next loop is implementation-focused to finish Phase C.2.
 Action State: ready_for_implementation
+2025-12-04T160500Z focus=ARCH-REFACTOR-001 state=ready_for_implementation dwell=1 action=planning artifacts=plans/active/ARCH-REFACTOR-001/reports/2025-12-04T160500Z/ next_action=Implement Stage B context strictness + inline parameter builder, then rerun Stage B guard/shell tests
+- Closed the Stage C consolidation loop (docs/fix_plan.md + implementation plan now have C3 boxes checked) and planned Phase C.4: Stage B must drop the legacy dict fallback, inline `_build_stage_b_params`, and keep CPU fallback/telemetry intact before we tackle `_run_stage_b_lbfgs`.
+- Updated fix_plan (ARCH-REFACTOR-001 Attempts History + Execution Roadmap WIP cap), marked ARCH-BRIDGE-RESP-001 done, and set ARCH-LAZY-IMPORTS-001 to blocked so only REFRACTOR + TELEMETRY remain in-progress per instructions.
+- Authored input.md handing Ralph a Parity-mode Do Now: enforce RefinementContext-only inputs, port `_build_stage_b_params` logic into a StageB helper, and rerun the Stage B guard + shell smoketest with logs under the new artifact path.
+Action State: ready_for_implementation

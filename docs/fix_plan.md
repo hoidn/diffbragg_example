@@ -17,8 +17,8 @@
 **Goal:** Finish the Protocol Engine refactor by removing legacy helpers/facades now that contexts and artifacts are in place.
 - [ARCH-REFACTOR-001] (Refinement Engine Modularization & Physics Separation) — *in_progress*
 - [ARCH-TELEMETRY-001] (Telemetry Observer Refactor) — *in_progress*
-- [ARCH-BRIDGE-RESP-001] (Writer / bridge responsibility split) — *in_progress* (2025-12-02T213000Z: initiative scaffolded from problems.md ledger; plan at `plans/active/ARCH-BRIDGE-RESP-001/implementation.md`. 2025-12-02T094947Z: Phase C.5 docs alignment loop started.)
-- [ARCH-LAZY-IMPORTS-001] (Lazy imports / process-noise hygiene) — *in_progress* (2025-12-02T082202Z: initiative created from problems.md ledger; plan at `plans/active/ARCH-LAZY-IMPORTS-001/implementation.md`.)
+- [ARCH-BRIDGE-RESP-001] (Writer / bridge responsibility split) — **done** (2025-12-03T093500Z: Phase D completion logged, ready for archive.)
+- [ARCH-LAZY-IMPORTS-001] (Lazy imports / process-noise hygiene) — *blocked* (awaiting ARCH-TELEMETRY-001 collector fixes before resuming Phase C process-noise sweep; plan at `plans/active/ARCH-LAZY-IMPORTS-001/implementation.md`.)
 
 ### Tier 1: Core Physics & Stability
 **Goal:** Ensure the math is correct, the loss function is normative, Stage A/mapping parity holds (DB‑AT‑027/028/029), and the smoke tests are green.
@@ -69,6 +69,7 @@
   * 2025-12-04T140000Z (Phase C.2 complete) — Inlined `_build_stage_c_params` and `_run_stage_c_lbfgs` from `stage_c_impl.py` into `StageC` class as private methods `_build_stage_c_params()` and `_run_lbfgs()`. Updated `StageC.run` to call `self._build_stage_c_params()` and `self._run_lbfgs()` with tuple unpacking (replacing dict-of-lists returns with typed dataclass tuples). Deleted both helpers from `stage_c_impl.py` (-746 lines), trimmed unused imports, retained only `_retarget_stage_a_detectors` for Phase C.3. Updated `dbex/nanobrag_refinement.py` imports. Tests: Stage B guard PASSED (0.91s), Stage C detector microslip PASSED (6.95s). No telemetry drift or behavioral regression. Metrics: 3 files touched, net -140 lines (consolidation via refactoring). Stage C now owns its parameter building and LBFGS execution logic per ARCH-REFACTOR-001. Artifacts: `plans/active/ARCH-REFACTOR-001/reports/2025-12-04T140000Z/` (pytest_stage_b_guard.log, pytest_stage_c_smoke.log, summary.md). Commit: 64d49482. Next: Phase C.3 — move `_retarget_stage_a_detectors` into `StageC` and delete `stage_c_impl.py` entirely.
   * 2025-12-04T150500Z — Planning (Phase C.3 kickoff): verified `_retarget_stage_a_detectors` is the only remaining consumer of `dbex/refinement/stage_c_impl.py` (imports limited to StageC + legacy comment in `dbex/nanobrag_refinement.py`), updated the implementation plan (C2 marked done, new C3 subtasks added), and scoped the next Do Now to: (a) move the helper plus PERF-WARM-016 debug hooks into `dbex/refinement/stage_c.py`, (b) drop the `stage_c_impl` import everywhere, and (c) delete `stage_c_impl.py` once tests pass. Reserved `plans/active/ARCH-REFACTOR-001/reports/2025-12-04T150500Z/` for the implementation artifacts and Stage C smoke logs.
   * 2025-12-04T150500Z (Phase C.3 complete) — Moved `_retarget_stage_a_detectors` from `stage_c_impl.py` into `StageC` class as a static method (dbex/refinement/stage_c.py:90-255). Updated both call sites in `_build_lbfgs_closure` (line 475) and `_run_lbfgs` (line 1194) to use `StageC._retarget_stage_a_detectors`. Removed `stage_c_impl` import from `dbex/refinement/stage_c.py` (line 37) and updated module docstring to reflect that all Stage C helpers now live within the StageC class. Removed `stage_c_impl` import from `dbex/nanobrag_refinement.py` (lines 70-73). Deleted `dbex/refinement/stage_c_impl.py` entirely. Verified zero remaining imports via `rg stage_c_impl` (only historical references in docstrings remain). Tests: Stage C detector microslip smoke PASSED (6.91s, 1/1). No behavioral regression; PERF-WARM-016 debug hook semantics preserved (class attribute counter replaces module-level global). Metrics: 1 file deleted (-209 lines), net -44 lines across touched files (consolidation). Stage C is now fully self-contained per ARCH-REFACTOR-001 exit criterion 1. Artifacts: `plans/active/ARCH-REFACTOR-001/reports/2025-12-04T150500Z/` (pytest_stage_c_smoke.log). Next: Phase C.4 (Stage B helper inlining) or mark ARCH-REFACTOR-001 done pending final sign-off.
+  * 2025-12-04T160500Z — Planning (Phase C.4 kickoff): Locked Stage B as the next focus now that Stage C helpers are consolidated. Updated the implementation plan (C3 boxes checked, new C4/C5 checklist added) and outlined the strictness + helper inlining scope: (a) drop the legacy dict fallback in `StageB.run` so it requires `inputs['context']` like Stage C, (b) move `_build_stage_b_params` into a private method that consumes `RefinementSharedContext` + Stage A artifacts directly (no `stage_b_impl` dependency), and (c) queue `_run_stage_b_lbfgs` for the follow-up loop along with relocation of the ASU/shell utilities. Reserved `plans/active/ARCH-REFACTOR-001/reports/2025-12-04T160500Z/` for the upcoming artifacts and rewrote `input.md` with a Parity-mode Do Now covering the Stage B guard unit test, Stage B shell smoketest, and Stage C guard regression to ensure the inline builder keeps REFINE-FLOW-001 running on CPU fallback configs.
 
 ### [ARCH-REFINE-001] Refinement Engine Modularization & Torch IO
 - Depends on: ARCH-REFINE-FLOW-001 (engine skeleton, telemetry contract)
@@ -122,7 +123,7 @@
 
 ### [ARCH-BRIDGE-RESP-001] Writer / bridge responsibility split
 - Depends on: ARCH-REFINE-001 (shared writer path), DIAGNOSTICS-001 & PHYSICS-LOSS-001/002/003 findings, problems.md writer/bridge directive
-- Status: in_progress
+- Status: done
 - Priority: High
 - Tier: 0
 - Owner/Date: Galph ↔ Ralph / 2025-12-02
@@ -156,7 +157,7 @@
 
 ### [ARCH-LAZY-IMPORTS-001] Lazy imports / process-noise hygiene
 - Depends on: ARCH-REFINE-001 (Stage helpers stabilized), ARCH-STAGE-CONTEXT-001 (typed contexts), ARCH-ENGINE-002 finding (lazy-import staging rules)
-- Status: in_progress (2025-12-04T010500Z Ralph loop active)
+- Status: blocked — waiting for ARCH-TELEMETRY-001 to finish the collector migration so Stage C smoketests stay green before resuming the Phase C process-noise sweep.
 - Priority: High
 - Tier: 0
 - Owner/Date: Galph ↔ Ralph / 2025-12-02

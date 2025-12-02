@@ -80,10 +80,29 @@ Second increment removes the `stage_c_impl.py` dependency by bringing the remain
 #### Phase C.3 — Stage C Retarget Helper & Module Deletion (2025-12-04T150500Z)
 Finalize the Stage C consolidation by moving `_retarget_stage_a_detectors` into `StageC`, updating imports, and deleting `dbex/refinement/stage_c_impl.py`.
 
-- [ ] C3.A — **Adopt `_retarget_stage_a_detectors` in StageC:** Relocate the helper (including PERF-WARM-016 debug hooks) into `dbex/refinement/stage_c.py` as a private method/helper so warm-cache retargeting lives with the StageC class. Replace all imports/usages to call the local helper and keep telemetry/env guards intact (ARCH-STAGE-CTX-001, GRADIENT-004).
-- [ ] C3.B — **Clean up dependencies:** Drop the `dbex.refinement.stage_c_impl` import from StageC and `dbex/nanobrag_refinement.py`, update module docstrings/comments to reflect that StageC owns all logic, and ensure no other modules reference `stage_c_impl`.
-- [ ] C3.C — **Delete `stage_c_impl.py`:** Remove the file entirely once the helper is moved. Update `__init__` / fix-plan references if needed and ensure no residual imports fail.
-- [ ] C3.D — **Validation:** `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small | tee plans/active/ARCH-REFACTOR-001/reports/<timestamp>/pytest_stage_c_smoke.log`
+- [x] C3.A — **Adopt `_retarget_stage_a_detectors` in StageC:** Relocate the helper (including PERF-WARM-016 debug hooks) into `dbex/refinement/stage_c.py` as a private method/helper so warm-cache retargeting lives with the StageC class. Replace all imports/usages to call the local helper and keep telemetry/env guards intact (ARCH-STAGE-CTX-001, GRADIENT-004).
+- [x] C3.B — **Clean up dependencies:** Drop the `dbex.refinement.stage_c_impl` import from StageC and `dbex/nanobrag_refinement.py`, update module docstrings/comments to reflect that StageC owns all logic, and ensure no other modules reference `stage_c_impl`.
+- [x] C3.C — **Delete `stage_c_impl.py`:** Remove the file entirely once the helper is moved. Update `__init__` / fix-plan references if needed and ensure no residual imports fail.
+- [x] C3.D — **Validation:** `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small | tee plans/active/ARCH-REFACTOR-001/reports/<timestamp>/pytest_stage_c_smoke.log`
+
+Artifacts for Phase C.3 live under `plans/active/ARCH-REFACTOR-001/reports/2025-12-04T150500Z/`.
+
+#### Phase C.4 — Stage B Strictness & Parameter Builder (2025-12-04T160500Z)
+Next increment shifts Stage B onto the same pattern Stage C now follows: no legacy dict plumbing and no helper exports for parameter construction.
+
+- [ ] C4.A — **Require `RefinementContext` inputs:** Remove the legacy dict fallback in `StageB.run` so the stage strictly consumes `inputs['context']` + propagated telemetry/artifacts. Raise a descriptive `ValueError` if context is missing to align with `RefinementEngine` safeguards.
+- [ ] C4.B — **Inline `_build_stage_b_params`:** Move the helper body into a private `StageB._build_stage_b_params()` method that consumes `RefinementSharedContext`, Stage A context, and canonical baseline telemetry directly. Return the `param_values` dict plus stage-mode metadata without routing through `dbex.refinement.stage_b_impl`.
+- [ ] C4.C — **Validation:** `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small | tee plans/active/ARCH-REFACTOR-001/reports/2025-12-04T160500Z/pytest_stage_b*.log`
+
+#### Phase C.5 — Stage B LBFGS Inline Execution (Planned)
+- [ ] C5.A — **Port `_run_stage_b_lbfgs` into `StageB._run_lbfgs()`,** mirroring Stage C. Ensure the observer-only telemetry collector path (ARCH-TELEMETRY-001) remains intact and baseline parity guard still emits artifacts.
+- [ ] C5.B — **Expose shared utilities:** Relocate `compute_hkl_shell_lookup`, `compute_hkl_asu_map`, `initialize_asu_modifiers`, and `_check_stage_b_baseline_parity` alongside Stage B (or another shared module) so both Stage B and the legacy CLI reuse a single implementation.
+- [ ] C5.C — **Validation:** Stage B guard + shell smoke selectors plus the Stage B terminal-path artifact assertions in `tests/dbex/test_torch_refine_smoke.py`.
+
+#### Phase C.6 — Stage B Module Deletion (Planned)
+- [ ] C6.A — **Delete `dbex/refinement/stage_b_impl.py`** (and `.backup`) once the helpers are owned by Stage B and legacy CLI points at the new seams.
+- [ ] C6.B — **Update `dbex/nanobrag_refinement.py` imports:** point legacy orchestration at the relocated helpers (or call `StageB` directly) so there is no stale dependency.
+- [ ] C6.C — **Validation:** Stage B guard + shell smokes, CLI selectors, and DB‑AT coverage to ensure the removal did not regress any code path still relying on the legacy facade.
 
 ## Phase D — Facade Removal
 **Goal:** Point all consumers to `RefinementEngine` and delete the procedural wrapper.

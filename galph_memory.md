@@ -287,3 +287,9 @@ Before next implementation loop:
 1. Run callchain analysis on ROI-mode closure path to trace simulator lifecycle  
 2. Add debug instrumentation to confirm ROI entry simulators are actually being rebuilt and used
 3. Consider whether ROI-mode requires separate retargeting logic vs panel-mode
+
+Action State: planning
+2025-12-02T010500Z focus=ARCH-STAGE-CONTEXT-001 state=planning dwell=0 action=planning artifacts=plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T010500Z/ next_action=ready_for_implementation
+- Fresh backlog guard serviced: converted the 2025-12-01 problems ledger review into a tracked initiative (`ARCH-STAGE-CONTEXT-001`) and documented the new finding ARCH-STAGE-CTX-001 about Stage helper data clumps/mutable telemetry dicts.
+- Authored the implementation plan (phases A–C) plus fix-plan entry tying the work to the problems ledger and spec clauses; updated problems.md so remaining issues (writer/bridge split, lazy imports) stay visible.
+- Rebuilt input.md with an implementation-ready Do Now (Stage A context dataclasses + smoketests) so Ralph can immediately start coding; artifacts reserved under 2025-12-02T010500Z for the next loop.

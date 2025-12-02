@@ -1,53 +1,49 @@
-Summary: Rebuild the Stage A warm-cache simulators whenever `_retarget_stage_a_detectors` applies distance deltas so Stage C finally evaluates the updated geometry (≤0.05% χ² regression) while retaining the existing autograd + ROI telemetry wiring.
-Mode: Perf
-InitiativeType: perf
-Focus: PERF-WARM-SIM-001 — Warm Simulator
+Summary: Introduce typed refinement context dataclasses so Stage A stops passing giant dicts/parameter lists into the LBFGS helpers while preserving current warm-cache behavior.
+Mode: none
+InitiativeType: architecture
+Focus: ARCH-STAGE-CONTEXT-001 — Stage context + engine artifact boundary
 Branch: integration
 Mapped tests:
-- pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small
-- pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small
-- pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=full
-- pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=full
-Artifacts: plans/active/PERF-WARM-SIM-001/reports/2025-12-01T235900Z/{collect_stage_c_small.log,pytest_stage_c_small.log,telemetry_stage_c_small.json,collect_stage_c_full.log,pytest_stage_c_full.log,telemetry_stage_c_full.json,panel_diag/small/stage_{a,c}_panel_diag.json,panel_diag/full/stage_{a,c}_panel_diag.json,stage_c_warm_cache_report.json,panel_diag_compare_small.{json,md},panel_diag_compare_full.{json,md},summary.md}
+- pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion --smoke-detector-size=small
+- pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small
+Artifacts: plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T010500Z/{collect_stage_a_small.log,pytest_stage_a_small.log,collect_stage_b_small.log,pytest_stage_b_small.log,summary.md}
 
 Do Now:
-- Implement: `dbex/refinement/stage_c_impl.py::_retarget_stage_a_detectors` — when Stage C passes `distance_deltas_mm`, rebuild each affected panel’s Detector *and* cached `Simulator` using `stage_a_ctx.detector_configs[pid]`, `stage_a_ctx.simulators[pid].crystal`, and `stage_a_ctx.beam_config`, then replace `stage_a_ctx.simulators[pid]` so warm-cache closures and `_retarget_stage_a_simulators` operate on fresh instances. Preserve GRADIENT-004 by keeping tensor math (no `.item()` on deltas) and continue updating `stage_a_ctx.detector_models`.
-- Implement: `dbex/refinement/stage_a_impl.py::StageAROIEntry` usage — if `stage_a_ctx.roi_entries` exists, refresh each ROI detector/simulator pair when its panel receives a delta (reuse the entry’s bbox/config, but update `detector_model.config.distance_mm` and instantiate a new ROI `Simulator`). This keeps Stage B/C ROI-mode closures in sync with the panel geometry.
-- Validate: Re-run `tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip` for both detector sizes with diagnostics enabled to prove χ² regression ≤0.05% and detector-offset reduction ≥99.999%. Capture collect-only logs, pytest logs, telemetry JSON, panel diagnostics, the warm-cache summary JSON, and the Stage A vs Stage C panel comparison reports under the artifact path above.
+- Implement: `dbex/refinement/context.py::RefinementSharedContext` & `StageATelemetryState` — create a new module that defines dataclasses wrapping the shared refinement objects (detector, beam, crystal, RefinementInputs, HKL tensors, config, sigma-floor cache, baseline references, device/dtype) plus typed telemetry accumulators (lists for loss/chi² traces, perf counters). Provide `.from_inputs(...)` constructors and helper methods that keep tensors on the configured device/dtype.
+- Implement: `dbex/refinement/stage_a_impl.py::{_build_stage_a_lbfgs_closure,_run_stage_a_lbfgs}` — update these helpers to accept the new dataclasses instead of 11 positional arguments + mutable dicts. Maintain a compatibility shim so existing dict-based callers continue to work (i.e., accept either dataclass instance or mapping), and update internal references to use attribute access rather than `stage_a_context['canonical_baseline']`. Preserve warm-cache invariants (`StageAROIEntry` remains untouched) and make sure telemetry lists are accessed via the dataclass.
+- Implement: `dbex/refinement/stage_a.py::StageA.run` — build a `RefinementSharedContext` from the current inputs/config, thread it through helper calls, and keep the fallback path that accepts legacy dict inputs for downstream callers. Emit the new context metadata in telemetry (e.g., `telemetry['context_schema_version']="v1"`) so engine smoke tests can assert the transition.
+- Validate: Collect `--collect-only` + full runs for Stage A expansion and Stage B shell smokes (small detector) to prove signatures stayed stable. Save collect-only logs, pytest output, and any new helper patches under the artifact path above.
 
 How-To Map:
-1. Stage C code updates — edit `dbex/refinement/stage_c_impl.py` per above (no CLI command; ensure `_retarget_stage_a_detectors` rebuilds simulators and ROI entries while keeping tensor-valued distances).
-2. Collect-only (small) — `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small > plans/active/PERF-WARM-SIM-001/reports/2025-12-01T235900Z/collect_stage_c_small.log`
-3. Stage C small run + diagnostics — `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-WARM-SIM-001/reports/2025-12-01T235900Z/telemetry_stage_c_small.json DBEX_STAGE_C_PANEL_DIAG_DIR=plans/active/PERF-WARM-SIM-001/reports/2025-12-01T235900Z/panel_diag/small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small | tee plans/active/PERF-WARM-SIM-001/reports/2025-12-01T235900Z/pytest_stage_c_small.log`
-4. Collect-only (full) — `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=full > plans/active/PERF-WARM-SIM-001/reports/2025-12-01T235900Z/collect_stage_c_full.log`
-5. Stage C full run + diagnostics — `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=full DBEX_SMOKE_TELEMETRY_PATH=plans/active/PERF-WARM-SIM-001/reports/2025-12-01T235900Z/telemetry_stage_c_full.json DBEX_STAGE_C_PANEL_DIAG_DIR=plans/active/PERF-WARM-SIM-001/reports/2025-12-01T235900Z/panel_diag/full KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=full | tee plans/active/PERF-WARM-SIM-001/reports/2025-12-01T235900Z/pytest_stage_c_full.log`
-6. Warm-cache summary — `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md python plans/active/PERF-WARM-SIM-001/bin/summarize_stage_c_warm_cache.py --telemetry-small plans/active/PERF-WARM-SIM-001/reports/2025-12-01T235900Z/telemetry_stage_c_small.json --telemetry-full plans/active/PERF-WARM-SIM-001/reports/2025-12-01T235900Z/telemetry_stage_c_full.json --out-json plans/active/PERF-WARM-SIM-001/reports/2025-12-01T235900Z/stage_c_warm_cache_report.json`
-7. Panel diagnostics comparison —
-   - `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md python plans/active/PERF-WARM-SIM-001/bin/compare_panel_diag.py --stage-a-json plans/active/PERF-WARM-SIM-001/reports/2025-12-01T235900Z/panel_diag/small/stage_a_panel_diag.json --stage-c-json plans/active/PERF-WARM-SIM-001/reports/2025-12-01T235900Z/panel_diag/small/stage_c_panel_diag.json --label small --out-dir plans/active/PERF-WARM-SIM-001/reports/2025-12-01T235900Z/`
-   - `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md python plans/active/PERF-WARM-SIM-001/bin/compare_panel_diag.py --stage-a-json plans/active/PERF-WARM-SIM-001/reports/2025-12-01T235900Z/panel_diag/full/stage_a_panel_diag.json --stage-c-json plans/active/PERF-WARM-SIM-001/reports/2025-12-01T235900Z/panel_diag/full/stage_c_panel_diag.json --label full --out-dir plans/active/PERF-WARM-SIM-001/reports/2025-12-01T235900Z/`
+1. Add context module — create `dbex/refinement/context.py` with the new dataclasses and helper constructors. Export them via `__all__` so stage modules can import without circular dependencies.
+2. Stage A helper refactor — edit `dbex/refinement/stage_a_impl.py` so `_build_stage_a_lbfgs_closure` and `_run_stage_a_lbfgs` accept a `StageAExecutionContext`/`RefinementSharedContext` plus the typed telemetry state instead of the current `(crystal, detector, beam, inputs, hkl_grid, hkl_metadata, config, sigma_floor_sq_cache, device, dtype, baseline_crystal)` signature.
+3. Stage A wrapper update — change `dbex/refinement/stage_a.py::StageA.run` to construct the new dataclasses, thread them into helper calls, and include the compatibility shim for dict inputs so CLI paths keep working.
+4. Collect-only (Stage A) — `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion --smoke-detector-size=small > plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T010500Z/collect_stage_a_small.log`
+5. Stage A smoke — `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion --smoke-detector-size=small | tee plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T010500Z/pytest_stage_a_small.log`
+6. Collect-only (Stage B) — `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest --collect-only tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small > plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T010500Z/collect_stage_b_small.log`
+7. Stage B smoke — `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small | tee plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T010500Z/pytest_stage_b_small.log`
 
 Pitfalls To Avoid:
-- Do not call `.item()` on the distance tensors (GRADIENT-004) or mutate shared configs in ways that detach Stage C’s autograd graph.
-- Keep ROI-mode provenance (`roi_mode_reason`) and Stage C perf counters intact; retargeting must not reset telemetry state or clobber `stage_a_ctx.trusted_masks_t`.
-- When rebuilding simulators, reuse the existing crystal pointer so `_retarget_stage_a_simulators` can reattach Stage A’s final crystal without recreating HKL tensors.
-- Ensure diagnostics directories contain both Stage A and Stage C JSON files per detector size before running `compare_panel_diag.py`; missing files should be treated as a block, not ignored.
-- Respect Environment Freeze: no package installs or simulator dependency upgrades while editing Stage C helpers.
-- Keep ROI caches optional—guard against `stage_a_ctx.roi_entries is None` so Stage B cold paths don’t crash.
+- Keep Environment Freeze: no pip installs or simulator rebuilds; this is pure Python refactoring.
+- Preserve Stage A warm-cache semantics (`StageAROIEntry` and `StageAContext` members must stay identical and continue to live on the correct device/dtype).
+- Don’t drop the dict-based compatibility shim until Stage B/C and CLI callers migrate; raising on legacy inputs would strand PERFWARM work.
+- Watch for circular imports—`dbex/refinement/context.py` must not import stage modules.
+- Telemetry schema must remain stable; make sure the dataclass exports convert back to the existing dict structure before hitting `RefinementTelemetry`.
+- Any default values for dataclass lists should use `default_factory=list` to avoid shared mutable state.
 
 If Blocked:
-- If rebuilding simulators exposes a latent dependency (e.g., Simulator constructor requires additional metadata) capture the full traceback and current `distance_deltas_mm` payload in `plans/active/PERF-WARM-SIM-001/reports/2025-12-01T235900Z/blocked.md`, leave the code untouched, and update docs/fix_plan.md + galph_memory.md with the new blocker.
-- If either smoketest still reports >0.05% χ² regression after simulator rebuild, archive the new telemetry + panel diagnostics and stop; note the failure signature in the same blocked.md so the supervisor can reclassify the initiative (do not relax REFINE-007 thresholds).
+- If the refactor exposes a missing dependency (e.g., a helper still expects raw dicts), capture the stack trace plus the offending call tree, drop a note in `plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T010500Z/blocked.md`, and halt edits so we can schedule a compatibility shim instead of partial refactors.
+- If either smoketest crashes due to type mismatches (AttributeError, dataclass serialization, etc.), revert any unmerged helper signature changes, archive the failing logs in the artifacts path, and update docs/fix_plan.md + galph_memory.md to flag the blocker before attempting further code changes.
 
 Findings Applied (Mandatory):
-- GRADIENT-004 — warm-cache retargeting must keep tensor-valued distance offsets; rebuilding simulators must not introduce `.item()` conversions.
-- REFINE-011/012 — Stage C panel validations must measure the same population as Stage A; updated detectors/simulators must preserve force-panel validation + ROI-mode provenance.
-- REFINE-016 — Trusted-mask parity stays mandatory; simulator rebuild must not drop `stage_a_ctx.trusted_masks_t` or ROI slicing guards.
-- PERF-WARM-013 — Stage A context owns the canonical simulator cache; retarget helpers are the only place we mutate detector geometry and must keep Stage A/B/C telemetry consistent.
+- ARCH-ENGINE-002 — Stage wrappers must conform to the RefinementStage protocol; the new context dataclasses cannot break telemetry or engine wiring.
+- ARCH-STAGE-CTX-001 — Addresses the documented data clumps / mutable dict telemetry across Stage helpers.
+- REFINE-FLOW-001 — Keep Stage B baseline parity telemetry untouched while reshaping Stage A contexts.
 
 Pointers:
-- dbex/refinement/stage_c_impl.py:41 — `_retarget_stage_a_detectors` scaffolding to extend with simulator rebuild.
-- docs/fix_plan.md:1462 — Phase D.4 warm-cache simulator rebuild plan + validation expectations.
-- plans/active/PERF-WARM-SIM-001/bin/compare_panel_diag.py — required diagnostics alignment CLI for this loop.
+- dbex/refinement/stage_a_impl.py:1222 — current `_build_stage_a_lbfgs_closure` signature that needs to switch to the new dataclasses.
+- dbex/refinement/stage_a.py:36 — StageA wrapper that unpacks dicts; refactor here to construct `RefinementSharedContext`.
+- docs/spec-db-workflow.md:30 — Stage contract requirements you must honor when introducing the shared context/telemetry schema.
 
 Next Up (optional):
-- If χ² parity lands, run `summarize_stage_c_warm_cache.py` with historical logs to document the perf delta and decide whether PERF-WARM-SIM-001 can advance to Stage B retargeting.
+- Phase A.3 will extend the same dataclasses to Stage B and Stage C helpers so the engine can delete the remaining stage-specific caches; log any insights that will make that follow-up easier.

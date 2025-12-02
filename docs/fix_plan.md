@@ -31,6 +31,7 @@
 ### Tier 3: Architectural Maturity (Refactoring)
 **Goal:** Refactor monolithic loops into maintainable engines with clear boundaries and testable seams.
 - [PERF-WARM-SIM-001] (Warm Simulator) — **blocked — Stage C panel-loss path diverges from Stage A, forcing +0.067 % χ² regression** (2025-12-01T214200Z: Full-detector telemetry shows `stage_a_final_chi2=2.10706464e+08` while every Stage C validation records `2.10848512e+08` even with zero detector offsets. Trusted-mask parity, ROI wiring, and best-snapshot persistence are now correct; the remaining drift comes from Stage C’s duplicated panel-mode loss computation. Stage A’s panel branch keeps evolving (trusted-mask intersection, mask ordering, telemetry), but Stage C’s forked copy lagged behind. Until Stage C reuses the exact Stage A helper for panel-mode loss, REFINE-007 can’t pass because Stage C effectively measures a different pixel population before detector offsets change.)
+- [ARCH-STAGE-CONTEXT-001] (Stage context + engine artifact boundary) — **in_progress** — Planning loop 2025-12-02T010500Z created a formal plan to eliminate the Stage helper data clumps / mutable telemetry dicts called out in `problems.md` (2025-12-01 design review). Focus: codify shared refinement contexts, move Stage classes away from anemic wrappers, and give RefinementEngine a typed artifact channel so downstream code stops poking stage-specific dicts.
 
 ### Tier 3: Tooling & Observability
 **Goal:** Standardize visuals, documentation, and runtime guardrails.
@@ -81,6 +82,24 @@
 - Working Plan: `plans/active/ARCH-ENGINE-ARTIFACTS-001/implementation.md`
 - Attempts History:
   * (pending) — Initiative newly added; initial planning artifacts at `plans/active/ARCH-ENGINE-ARTIFACTS-001/implementation.md`.
+
+### [ARCH-STAGE-CONTEXT-001] Stage Context + Engine Artifact Boundary
+- Depends on: ARCH-REFINE-001 (helper extractions), ARCH-ENGINE-002/003 findings (engine protocol + telemetry enrichment)
+- Status: in_progress
+- Priority: High (unblocks engine artifact work and removes ledger-flagged design debt)
+- Tier: 3 (Architectural Maturity)
+- Owner/Date: Galph ↔ Ralph / 2025-12-02
+- Initiative Type: architecture
+- Exit Criteria:
+  1. Stage A/B/C helpers consume typed dataclasses (`RefinementSharedContext`, `StageAExecutionContext`, etc.) instead of raw dicts/parameter clumps; signatures shrink to ≤5 positional args with type hints and mypy coverage.
+  2. Stage classes own their LBFGS closures/telemetry (`StageA.run` no longer unpacks dicts from `_build_stage_a_lbfgs_closure`), emit `StageArtifacts`, and RefinementEngine caches those artifacts without stage-specific branches.
+  3. `dbex/io/writer.py::write_torch_outputs` no longer back-computes Nelder–Mead scales; it consumes the engine artifacts/telemetry and focuses on serialization per docs/spec-db-interfaces.md.
+- Working Plan: `plans/active/ARCH-STAGE-CONTEXT-001/implementation.md`
+- Ledger tie-in: Addresses the unchecked “bad design patterns/code smells” entry in `problems.md` (2025-12-01), specifically items 1, 2, 4, 7, and 8 (data clumps, anemic Stage classes, mutable telemetry dicts, engine branching).
+- Next Actions:
+  * Phase A.0 callchain inventory (document parameter flows across Stage helpers) so migrations don’t miss latent call sites.
+  * Implement `dbex/refinement/context.py` with `RefinementSharedContext` + telemetry dataclasses and thread it through `_build_stage_a_lbfgs_closure` / `StageA.run` while keeping a compatibility shim for dict-based callers.
+  * Update Stage A smoketests (`tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion`, Stage B/C small smokes) plus `test_stage_a_engine_delegation_telemetry` to assert the presence of the new context schema fields before moving on to Stage B/C and writer decoupling.
 
 ## Attempts History
 

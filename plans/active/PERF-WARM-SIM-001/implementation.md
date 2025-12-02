@@ -95,6 +95,7 @@ Purpose: Stage C warm-cache retargeting now fixes panel-mode runs, but ROI-mode 
 ### Checklist
 - [ ] F1: Add an opt-in debug hook to `_retarget_stage_a_detectors` that captures per-call panel/ROI distance summaries (baseline vs updated, ROI indices/bboxes, simulator ids) and writes JSON snapshots to a user-provided directory (`DBEX_STAGE_C_CACHE_DEBUG_PATH`). Keep the instrumentation completely disabled by default so smoke/perf runs stay unchanged.
 - [ ] F2: Re-run Stage C small and full smoketests with `DBEX_STAGE_C_CACHE_DEBUG_PATH` pointing into `plans/active/PERF-WARM-SIM-001/reports/2025-12-02T173000Z/` so we archive both panel-mode (passing) and ROI-mode (failing) traces. Capture pytest logs, telemetry JSON, and the new cache-debug JSON payloads for analysis.
+- [ ] F3: Enforce REFINE-012 by disabling Stage C ROI closures whenever Stage A telemetry reports `validation_scope="panel"` so closures and validations measure the same pixel population. Update `_build_stage_c_params` (roi-mode gating + provenance reason), refresh smoketest assertions, and rerun the Stage C small/full smokes under the new artifact path.
 
 ### Notes
 - The debug hook is evidence-only; do not mutate acceptance gates or fix the ROI bug in this phase.

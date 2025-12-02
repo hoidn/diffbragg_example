@@ -399,3 +399,7 @@ Action State: ready_for_implementation
 - Replaced input.md with the new Do Now directing Ralph to implement the debug hook in `stage_c_impl.py`, run Stage C small/full smokes with cache-debug + telemetry paths, and summarize via `summarize_stage_c_roi.py` (full run expected to fail).
 - Next action: implement the instrumentation and archive the traces so we can decide how to repair ROI-mode simulator reuse without another blind change.
 Action State: planning
+- Reviewed the 2025-12-02T173000Z cache-debug traces + Stage C telemetry to confirm simulators receive the correct distance deltas yet Stage C still runs ROI-mode closures while validations stay panel-mode, leaving REFINE-012 unmet.
+- Updated plans/active/PERF-WARM-SIM-001/implementation.md (Phase F) and docs/fix_plan.md to record the instrumentation outcome and queued a concrete Do Now to disable ROI closures whenever Stage A telemetry reports `validation_scope="panel"`, plus refreshed Stage C smoketest expectations.
+Action State: ready_for_implementation
+2025-12-02T183500Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=0 action=planning artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-12-02T183500Z/ next_action=Implement Stage C ROI gating + rerun Stage C smokes

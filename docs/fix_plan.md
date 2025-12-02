@@ -1625,3 +1625,26 @@ The trusted-mask hypothesis was **DISPROVEN** by inspection of the test fixture 
 - Phase A complete: All stages (A/B/C) now accept RefinementSharedContext; typed context marker (context_schema_version="v1") present in telemetry
 - Pre-existing PERF-WARM-SIM-001 full-detector ROI-mode issue blocks Stage C full-detector gate but is orthogonal to context refactoring
 - Phase B: Introduce StageArtifacts dataclass so stages emit typed artifacts instead of ad-hoc dicts
+
+### 2025-12-02T073800Z - ARCH-STAGE-CONTEXT-001 Phase B.3.1: Stage A Telemetry Dataclass (COMPLETE)
+**Action**: Replaced Stage A's anonymous `telemetry_state` dict with typed `StageATelemetryState` dataclass to eliminate opaque dict mutations in LBFGS closures and align telemetry payloads for RefinementEngine.
+**Implementation**:
+- Expanded `StageATelemetryState` (dbex/refinement/context.py:533-620) to own all 20 telemetry fields: iteration_count, loss/chi²/MSE traces (PHYSICS-LOSS-001), best tracking tuples, perf counters, variance-floor stats (PHYSICS-LOSS-002), sigma_floor tensor, telemetry_step_counter, lifecycle logs (TORCH-GEOMETRY-CONVERGENCE-001 Phase B4), best_params_snapshot, and optional panel_loss_diag (PERF-WARM-SIM-001)
+- Added type hints: List[int], List[float], Tuple[float,int], Optional[Any] with field factories (default_factory=lambda: [0] for mutable counters, default_factory=list for traces, default_factory=lambda: (float('inf'), -1) for best tuples)
+- Updated `_run_stage_a_lbfgs` (stage_a_impl.py:937-959) to construct StageATelemetryState instance instead of raw dict
+- Added compatibility shims for dict/dataclass inputs:
+  • StageA._build_lbfgs_closure (stage_a.py:141-186): isinstance(telemetry_state, dict) branches for unpacking
+  • StageA._build_lbfgs_closure panel_loss_diag initialization (stage_a.py:227-232): dict['panel_loss_diag'] vs dataclass.panel_loss_diag assignment
+  • StageA._build_lbfgs_closure panel_loss_diag extend (stage_a.py:668-673): dict vs dataclass branch
+  • StageA.run telemetry extraction (stage_a.py:977-1007): dict vs dataclass field access before RefinementTelemetry assembly
+  • _run_stage_a_lbfgs unpacking (stage_a_impl.py:1266-1286): dict vs dataclass extraction
+  • _run_stage_a_lbfgs baseline tracking (stage_a_impl.py:1317-1325): dict vs dataclass writes
+  • _run_stage_a_lbfgs final updates (stage_a_impl.py:1468-1481): dict vs dataclass tuple field reassignment
+  • _run_stage_a_lbfgs panel diagnostics write (stage_a_impl.py:1490-1510): dict vs dataclass extraction + None check
+- Preserved panel_loss_diag env-gated logic (DBEX_STAGE_C_PANEL_DIAG_DIR)
+- Added missing typing imports to context.py (List, Tuple)
+**Metrics**:
+- test_stage_a_expansion (small detector): PASSED (7.47s, pre-existing log_scale delta assertion unrelated to refactoring)
+- test_stage_a_engine_delegation_telemetry: PASSED (7.57s, RefinementTelemetry schema stable)
+**Artifacts**: `plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T073800Z/` (pytest_stage_a_small.log, pytest_engine_telemetry.log, summary.md)
+**Next Actions**: Phase B.3.2 — replicate dataclass pattern for Stage B/C telemetry (StageBTelemetryState, StageCTelemetryState) before tackling engine writer changes in Phase C.

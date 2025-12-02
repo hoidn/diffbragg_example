@@ -1,5 +1,5 @@
 ### Turn Summary
-Validated the Stage C closure relocation artifacts: the small-detector smoketest passes and the full-detector failure still matches the known PERF-WARM-SIM-001 signature, so Phase B.2.3 remains green.
-Updated plans/active/ARCH-STAGE-CONTEXT-001/implementation.md and docs/fix_plan.md to mark Stage C closure complete and to queue Phase B.3.1 for the typed Stage A telemetry refactor.
-Replaced input.md with a concrete Do Now for migrating Stage A telemetry_state to StageATelemetryState, mapping the Stage A smoke plus engine-telemetry selectors under the new 2025-12-02T073800Z artifacts directory.
-Artifacts: plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T073800Z/
+Replaced Stage A's anonymous `telemetry_state` dict with the typed `StageATelemetryState` dataclass, eliminating opaque dict mutations in LBFGS closures while preserving telemetry schema compatibility via temporary shims for dict/dataclass inputs.
+Expanded the dataclass to own all 20 telemetry fields (iteration counter, dual metric traces, perf counters, variance-floor stats, lifecycle logs, best snapshots, panel diagnostics) with proper type hints; both mapped tests passed (test_stage_a_expansion, test_stage_a_engine_delegation_telemetry).
+Next: replicate the dataclass pattern for Stage B/C telemetry in Phase B.3.2 before tackling engine writer changes.
+Artifacts: plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T073800Z/ (pytest_stage_a_small.log, pytest_engine_telemetry.log)

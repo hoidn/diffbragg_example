@@ -30,14 +30,18 @@ import torch
 from dbex.refinement.artifacts import StageBArtifacts
 from dbex.refinement.stage import RefinementTelemetry, StageResult
 from dbex.refinement.stage_b_impl import (
-    _build_stage_b_params,
     _run_stage_b_lbfgs,
     # ARCH-STAGE-CONTEXT-001 Phase B.2: Closure builder moved to StageB._build_lbfgs_closure
     _retarget_stage_a_simulators,
     _get_sigma_floor_sq_tensor,
     apply_asu_modifiers,
+    # ARCH-REFACTOR-001 Phase C.4: Helper functions for parameter builder
+    compute_hkl_shell_lookup,
+    compute_hkl_asu_map,
+    initialize_asu_modifiers,
+    _build_stage_a_context,
 )
-from dbex.refinement.context import RefinementSharedContext
+from dbex.refinement.context import RefinementSharedContext, StageBTelemetryState
 from dbex.refinement.telemetry_collectors import StageBTelemetryCollector
 from dbex.physics.loss import _compute_variance_weighted_loss
 from dbex.refinement.config_factories import (
@@ -47,6 +51,10 @@ from dbex.refinement.config_factories import (
 from dbex.nanobrag_bridge import compute_baseline_misset_deg
 from nanobrag_torch.models import Detector, Crystal
 from nanobrag_torch.simulator import Simulator
+import math
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class StageB:
@@ -80,6 +88,329 @@ class StageB:
                    warm-cache flags, ROI sampling, Stage B shell count, max modifier, etc.
         """
         self._config = config
+
+    def _build_stage_b_params(
+        self,
+        device: torch.device,
+        dtype: torch.dtype,
+        stage_a_ctx: Optional[Dict[str, Any]],
+        canonical_baseline: Dict[str, Any],
+        n_panels: int,
+        sampled_panel_ids: List[int],
+        sigma_floor_sq_cache: Dict[torch.device, torch.Tensor],
+        use_stage_a_roi_mode: bool,
+        crystal,
+        hkl_metadata: Dict[str, Any],
+        hkl_grid: torch.Tensor,
+        detector,
+        beam,
+        inputs,
+        panel_slices: List[Tuple[slice, slice]],
+        context: Optional[Any] = None,
+    ) -> Dict[str, Any]:
+        """
+        Build Stage B shell modifier parameters, optimizer, and telemetry state.
+
+        ARCH-REFACTOR-001 Phase C.4: Inlined from stage_b_impl.py so StageB owns parameter building.
+
+        Args:
+            context: Optional RefinementContext with pre-computed asu_map, hkl_indices_grid, halo_mask
+                    (ARCH-REFINE-001 Phase B.3). If provided and asu_map is available, Stage B reuses
+                    it instead of calling compute_hkl_asu_map to avoid cctbx dependency and duplicating work.
+
+        Returns:
+            param_values: Dict containing:
+                - shell_indices: Shell lookup tensor
+                - shell_edges: Shell edge boundaries
+                - shell_modifier_raw: Trainable shell_modifier_raw tensor
+                - params: List[torch.Tensor] — Trainable shell_modifier_raw
+                - optimizer: torch.optim.LBFGS — Optimizer for shell modifiers
+                - telemetry_state: StageBTelemetryState — Accumulators for chi_squared/masked_mse traces, perf counters
+                - stage_b_eval_stage_a_ctx: Optional[Dict] — CPU-cloned or original Stage A context
+                - use_stage_b_cpu_fallback: bool
+                - stage_b_use_warm_cache: bool
+                - stage_b_cache_mode: str — "warm" or "cold"
+                - use_stage_b_roi_mode: bool
+                - stage_b_roi_label: str — "roi" or "panel"
+                - stage_b_total_work_items: int
+                - sampled_stage_b_indices: List[int]
+                - full_stage_b_indices: List[int]
+                - default_f_fallback_count: int
+        """
+        # PERF-WARM-011: Compute CPU fallback condition FIRST so we can use it for device-aware parameter init
+        # When config.stage_b_full_eval_on_cpu is True, device is CUDA, and ROI mode is disabled,
+        # route Stage B panel-mode closures/validations to CPU to avoid GPU OOM
+        use_stage_b_cpu_fallback = (
+            self._config.stage_b_full_eval_on_cpu
+            and str(device).startswith("cuda")
+            and not use_stage_a_roi_mode  # ROI mode is disabled (panel mode)
+        )
+
+        # GRADIENT-001: Create parameters on CPU when CPU fallback active to prevent gradient chain break
+        stage_b_param_device = torch.device("cpu") if use_stage_b_cpu_fallback else torch.device(self._config.device)
+
+        # Phase 7: Branch on Stage B mode (per-reflection vs shell)
+        if self._config.stage_b_mode == "per_reflection":
+            # ARCH-REFINE-001 Phase B.3: Check for pre-computed ASU map in context
+            # If CLI already built asu_map via build_structure_factor_grid, reuse it
+            # to avoid calling cctbx compute_hkl_asu_map again (REFINE-005)
+            asu_indices = None
+            n_asu_unique = 0
+            if context is not None and hasattr(context, 'asu_map') and context.asu_map is not None:
+                # Context provides pre-computed ASU map; use it directly
+                logger.info("[Stage B] Reusing pre-computed asu_map from context (ARCH-REFINE-001 Phase B.3)")
+                asu_indices = context.asu_map  # torch.Tensor from build_structure_factor_grid
+                # Extract n_asu_unique from hkl_metadata if available (CLI stores it there)
+                n_asu_unique = hkl_metadata.get("n_unique_asu", 0)
+                if n_asu_unique == 0:
+                    # Fall back to computing max ASU index + 1 from asu_map tensor
+                    n_asu_unique = int(asu_indices.max().item()) + 1
+                config_stage_b_mode_override = "per_reflection"
+            else:
+                # No pre-computed ASU map; compute it via cctbx fallback
+                halo_mask = hkl_metadata.get("halo_mask")  # 3D boolean array
+                if context is not None and hasattr(context, 'halo_mask') and context.halo_mask is not None:
+                    halo_mask = context.halo_mask  # Prefer context-provided halo_mask
+                crystal_symmetry = hkl_metadata.get("crystal_symmetry")  # From MTZ via F.crystal_symmetry()
+
+                if crystal_symmetry is None:
+                    # crystal_symmetry not available, fallback to shell mode
+                    logger.warning("crystal_symmetry not in hkl_metadata, falling back to shell mode")
+                    config_stage_b_mode_override = "shell"
+                    asu_indices, n_asu_unique = None, 0
+                else:
+                    # crystal_symmetry available, attempt ASU mapping
+                    config_stage_b_mode_override = "per_reflection"  # Initialize to per_reflection, may fallback below
+
+                    # Get HKL indices grid from metadata or context (ARCH-REFINE-001 Phase B.3)
+                    hkl_indices_grid = None
+                    if context is not None and hasattr(context, 'hkl_indices_grid') and context.hkl_indices_grid is not None:
+                        hkl_indices_grid = context.hkl_indices_grid  # Prefer context-provided grid
+                    if hkl_indices_grid is None:
+                        hkl_indices_grid = hkl_metadata.get("hkl_indices_grid")
+                    if hkl_indices_grid is None:
+                        # HKL indices grid not in metadata/context, build it from grid bounds
+                        h_min, h_max = hkl_metadata["h_min"], hkl_metadata["h_max"]
+                        k_min, k_max = hkl_metadata["k_min"], hkl_metadata["k_max"]
+                        l_min, l_max = hkl_metadata["l_min"], hkl_metadata["l_max"]
+
+                        h_coords = np.arange(h_min, h_max + 1, dtype=np.int32)
+                        k_coords = np.arange(k_min, k_max + 1, dtype=np.int32)
+                        l_coords = np.arange(l_min, l_max + 1, dtype=np.int32)
+
+                        h_grid_np, k_grid_np, l_grid_np = np.meshgrid(h_coords, k_coords, l_coords, indexing='ij')
+                        hkl_indices_grid = np.stack([h_grid_np, k_grid_np, l_grid_np], axis=-1)
+
+                    asu_indices, n_asu_unique = compute_hkl_asu_map(
+                        hkl_indices_grid,
+                        crystal_symmetry,
+                        halo_mask=halo_mask
+                    )
+
+            # Check if ASU mapping succeeded; fallback to shell mode if failed
+            if config_stage_b_mode_override == "per_reflection" and (asu_indices is None or n_asu_unique == 0):
+                # ASU mapping failed, fall back to shell mode (spec:60 permits fallback)
+                logger.warning(f"ASU mapping returned None/zero, falling back to shell mode for this refinement")
+                config_stage_b_mode_override = "shell"
+            elif config_stage_b_mode_override == "per_reflection":
+                # ASU mapping succeeded, proceed with per-reflection mode
+                asu_indices_t = asu_indices.to(device=device, dtype=torch.long)
+
+                # Initialize ASU modifiers using Phase 6 helper
+                log_modifiers = initialize_asu_modifiers(
+                    n_asu_unique=n_asu_unique,
+                    device=stage_b_param_device,  # Respect CPU fallback logic
+                    dtype=dtype
+                )
+                stage_b_params = [log_modifiers]
+
+                config_stage_b_mode_override = "per_reflection"
+
+        # If shell mode (original or fallback from per_reflection)
+        if self._config.stage_b_mode == "shell" or (self._config.stage_b_mode == "per_reflection" and config_stage_b_mode_override == "shell"):
+            # Compute shell lookup for per-shell modifiers
+            shell_indices, shell_edges = compute_hkl_shell_lookup(
+                crystal, hkl_metadata, n_shells=self._config.stage_b_n_shells, device=device, dtype=dtype
+            )
+
+            # Initialize shell modifiers (softplus parameterization to keep multipliers positive)
+            # Start near identity: softplus(0) ≈ 0.69, so initialize slightly negative to get ~1.0
+            shell_modifier_raw = torch.zeros(self._config.stage_b_n_shells, device=stage_b_param_device, dtype=dtype, requires_grad=True)
+            identity_raw = math.log(math.expm1(0.5))  # softplus(identity_raw)*2 == 1.0
+            shell_modifier_raw.data.fill_(identity_raw)
+
+            stage_b_params = [shell_modifier_raw]
+
+            config_stage_b_mode_override = "shell"
+
+        # Phase 7.2: Dynamic optimizer selection based on mode and parameter count
+        if config_stage_b_mode_override == "per_reflection":
+            n_asu = n_asu_unique
+            if n_asu >= self._config.stage_b_optimizer_gate:  # Default 10000
+                # Adam for large parameter counts (spec-db-workflow.md:107 permits Adam)
+                stage_b_optimizer = torch.optim.Adam(
+                    stage_b_params,
+                    lr=self._config.stage_b_adam_lr  # Default 1e-3
+                )
+                optimizer_type = "adam"
+            else:
+                # LBFGS for small parameter counts (spec default per spec-db-workflow.md:107)
+                stage_b_optimizer = torch.optim.LBFGS(
+                    stage_b_params,
+                    history_size=self._config.history_size,
+                    max_iter=self._config.max_iter,
+                    tolerance_grad=self._config.tolerance_grad,
+                    tolerance_change=self._config.tolerance_change,
+                    line_search_fn='strong_wolfe'
+                )
+                optimizer_type = "lbfgs"
+        else:  # "shell" mode
+            # Existing LBFGS-only path
+            stage_b_optimizer = torch.optim.LBFGS(
+                stage_b_params,
+                history_size=self._config.history_size,
+                max_iter=self._config.max_iter,
+                tolerance_grad=self._config.tolerance_grad,
+                tolerance_change=self._config.tolerance_change,
+                line_search_fn='strong_wolfe'
+            )
+            optimizer_type = "lbfgs"
+
+        # Telemetry accumulators for Stage B
+        loss_trace_sample_b = []
+        loss_trace_full_b = []
+        best_loss_full_b = (float('inf'), 0)
+
+        # Best params snapshot depends on mode
+        if config_stage_b_mode_override == "per_reflection":
+            best_params_snapshot_b = {'log_modifiers': log_modifiers.data.clone()}
+        else:
+            best_params_snapshot_b = {'shell_modifier_raw': shell_modifier_raw.data.clone()}
+
+        # PHYSICS-LOSS-001: Dual metric tracking (chi_squared + masked_mse)
+        chi_squared_trace_sample_b = []
+        chi_squared_trace_full_b = []
+        chi_squared_best_b = (float('inf'), -1)
+        masked_mse_trace_sample_b = []
+        masked_mse_trace_full_b = []
+        masked_mse_best_b = (float('inf'), -1)
+
+        # Track default_F fallback count (should be zero with halo grid)
+        # Note: nanobrag_torch doesn't expose default_F counter directly; this is a placeholder
+        # for future telemetry when the API exposes it
+        default_f_fallback_count = 0
+
+        # PHYSICS-LOSS-002: Variance floor clamp statistics for Stage B
+        variance_floor_clamped_pixels_b = [0]  # Total pixels where floor engaged
+        variance_floor_masked_pixels_b = [0]  # Total masked pixels evaluated
+
+        # PERF-WARM-012: Clone StageAContext to CPU when fallback is active so Stage B can reuse
+        # cached detectors/HKL/masks even on CPU, maintaining cache_mode="warm"
+        stage_b_eval_stage_a_ctx = None
+        if use_stage_b_cpu_fallback and stage_a_ctx is not None and self._config.enable_stage_a_warm_cache:
+            # Build a fresh Stage A context on CPU device
+            cpu_device = torch.device("cpu")
+
+            stage_b_eval_stage_a_ctx = _build_stage_a_context(
+                detector=detector,
+                beam=beam,
+                crystal=crystal,
+                trusted_mask=inputs.trusted_mask,
+                hkl_grid=hkl_grid,
+                hkl_metadata=hkl_metadata,
+                enable_hkl_interpolation=self._config.enable_hkl_interpolation,
+                device=cpu_device,
+                dtype=dtype,
+                panel_slices=panel_slices,
+                enable_roi_mode=False,  # CPU fallback is panel-mode only
+                calibration_metadata=self._config.calibration_metadata,
+                log_scale_baseline=self._config.log_scale_baseline,
+                apply_calibration_n_cells=self._config.apply_calibration_n_cells,
+            )
+        elif not use_stage_b_cpu_fallback:
+            # No CPU fallback: reuse the original CUDA Stage A context
+            stage_b_eval_stage_a_ctx = stage_a_ctx
+
+        stage_b_use_warm_cache = (
+            stage_b_eval_stage_a_ctx is not None
+            and self._config.enable_stage_a_warm_cache
+        )
+        stage_b_cache_mode = "warm" if stage_b_use_warm_cache else "cold"
+
+        # PERF-WARM-SIM-001: Stage B ROI mode mirrors Stage A's ROI knob
+        use_stage_b_roi_mode = use_stage_a_roi_mode and stage_b_use_warm_cache
+        stage_b_roi_label = "roi" if use_stage_b_roi_mode else "panel"
+        stage_b_total_work_items = canonical_baseline["roi_count"] if use_stage_b_roi_mode else n_panels
+
+        # Sample ROIs or panels for Stage B (~15% by default)
+        if use_stage_b_roi_mode:
+            roi_sample_size_b = max(1, int(stage_b_total_work_items * self._config.roi_sample_fraction))
+            roi_sample_size_b = min(stage_b_total_work_items, roi_sample_size_b)
+            sampled_stage_b_indices = sorted(
+                np.random.choice(stage_b_total_work_items, size=roi_sample_size_b, replace=False).tolist()
+            )
+        else:
+            sampled_stage_b_indices = list(sampled_panel_ids)
+        full_stage_b_indices = list(range(stage_b_total_work_items))
+
+        # ARCH-STAGE-CONTEXT-001 Phase B.3.2: Build telemetry state dataclass
+        # Instantiate StageBTelemetryState with explicit field values to match existing dict behavior
+        telemetry_state = StageBTelemetryState(
+            iteration_count=[0],
+            loss_trace_sample=loss_trace_sample_b,
+            loss_trace_full=loss_trace_full_b,
+            best_loss_full=best_loss_full_b,
+            best_params_snapshot=best_params_snapshot_b,
+            chi_squared_trace_sample=chi_squared_trace_sample_b,
+            chi_squared_trace_full=chi_squared_trace_full_b,
+            chi_squared_best=chi_squared_best_b,
+            masked_mse_trace_sample=masked_mse_trace_sample_b,
+            masked_mse_trace_full=masked_mse_trace_full_b,
+            masked_mse_best=masked_mse_best_b,
+            perf_closure_evals=[0],
+            perf_validation_runs=[0],
+            perf_forward_times_ms=[],
+            variance_floor_clamped_pixels=variance_floor_clamped_pixels_b,
+            variance_floor_masked_pixels=variance_floor_masked_pixels_b,
+            sigma_floor_sq_tensor=None,  # Will be set during closure execution
+        )
+
+        # Build return dict with mode-specific fields
+        param_dict = {
+            'params': stage_b_params,
+            'optimizer': stage_b_optimizer,
+            'optimizer_type': optimizer_type,
+            'stage_b_mode': config_stage_b_mode_override,
+            'telemetry_state': telemetry_state,
+            'stage_b_eval_stage_a_ctx': stage_b_eval_stage_a_ctx,
+            'use_stage_b_cpu_fallback': use_stage_b_cpu_fallback,
+            'stage_b_use_warm_cache': stage_b_use_warm_cache,
+            'stage_b_cache_mode': stage_b_cache_mode,
+            'use_stage_b_roi_mode': use_stage_b_roi_mode,
+            'stage_b_roi_label': stage_b_roi_label,
+            'stage_b_total_work_items': stage_b_total_work_items,
+            'sampled_stage_b_indices': sampled_stage_b_indices,
+            'full_stage_b_indices': full_stage_b_indices,
+            'default_f_fallback_count': default_f_fallback_count,
+            'stage_b_param_device': stage_b_param_device,
+            'canonical_baseline': canonical_baseline,  # REFINE-FLOW-001: Thread baseline for parity guard
+        }
+
+        # Add mode-specific fields
+        if config_stage_b_mode_override == "per_reflection":
+            param_dict.update({
+                'asu_indices': asu_indices_t,
+                'n_asu_unique': n_asu_unique,
+                'log_modifiers': log_modifiers,
+            })
+        else:  # shell mode
+            param_dict.update({
+                'shell_indices': shell_indices,
+                'shell_edges': shell_edges,
+                'shell_modifier_raw': shell_modifier_raw,
+            })
+
+        return param_dict
 
     def _build_lbfgs_closure(
         self,
@@ -535,31 +866,31 @@ class StageB:
         if self._config is None:
             raise ValueError("StageB not configured. Call configure(config) before run().")
 
-        # ARCH-REFINE-001 Phase B.1: Extract context from inputs
-        # If inputs has 'context' key, use it; otherwise fall back to dict unpacking
-        ctx = inputs['context'] if isinstance(inputs, dict) and 'context' in inputs else inputs
+        # ARCH-REFACTOR-001 Phase C.4: Require RefinementContext input (strict typing)
+        # Raise ValueError if context is missing, mirroring RefinementEngine.run behavior
+        if not isinstance(inputs, dict) or 'context' not in inputs:
+            raise ValueError(
+                "StageB.run requires inputs dict with 'context' key containing RefinementContext. "
+                "Got inputs type: {}. Pass inputs={{'context': refinement_context, ...}} from RefinementEngine.".format(type(inputs))
+            )
 
-        # Extract inputs (prefer context fields, fall back to dict keys for backward compatibility)
-        if hasattr(ctx, 'refinement_inputs'):
-            # Using RefinementContext
-            refinement_inputs = ctx.refinement_inputs
-            detector = ctx.detector
-            beam = ctx.beam
-            crystal = ctx.crystal
-            hkl_grid = ctx.hkl_grid
-            hkl_metadata = ctx.hkl_metadata
-            baseline_crystal = ctx.baseline_crystal
-            baseline_detector = ctx.baseline_detector
-        else:
-            # Legacy dict unpacking (fallback for backward compatibility)
-            refinement_inputs = inputs['refinement_inputs']
-            detector = inputs['detector']
-            beam = inputs['beam']
-            crystal = inputs['crystal']
-            hkl_grid = inputs['hkl_grid']
-            hkl_metadata = inputs['hkl_metadata']
-            baseline_crystal = inputs.get('baseline_crystal', None)
-            baseline_detector = inputs.get('baseline_detector', None)
+        ctx = inputs['context']
+
+        # Extract inputs from RefinementContext (no legacy dict fallback)
+        if not hasattr(ctx, 'refinement_inputs'):
+            raise ValueError(
+                "StageB.run requires RefinementContext with 'refinement_inputs' attribute. "
+                "Got context type: {}. Use RefinementEngine to build proper context.".format(type(ctx))
+            )
+
+        refinement_inputs = ctx.refinement_inputs
+        detector = ctx.detector
+        beam = ctx.beam
+        crystal = ctx.crystal
+        hkl_grid = ctx.hkl_grid
+        hkl_metadata = ctx.hkl_metadata
+        baseline_crystal = ctx.baseline_crystal
+        baseline_detector = ctx.baseline_detector
 
         # Stage-specific inputs (telemetry, warm cache) remain in inputs dict
         stage_a_telemetry = inputs['stage_a_telemetry']
@@ -680,9 +1011,8 @@ class StageB:
         best_loss_full = stage_a_telemetry['best_loss_full']
 
         # STEP 1: Build Stage B parameters
-        # Pass context to enable ASU map reuse (ARCH-REFINE-001 Phase B.3)
-        param_values = _build_stage_b_params(
-            config=self._config,
+        # ARCH-REFACTOR-001 Phase C.4: Use inlined method instead of stage_b_impl helper
+        param_values = self._build_stage_b_params(
             device=device,
             dtype=dtype,
             stage_a_ctx=stage_a_ctx,

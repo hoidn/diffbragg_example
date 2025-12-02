@@ -22,12 +22,19 @@ import json
 import math
 import os
 import time
+import warnings
 from collections import defaultdict
+from dataclasses import replace
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
+
+# ARCH-LAZY-IMPORTS-001 / ARCH-ENGINE-002: Module-scope dependencies for Stage C
+from nanobrag_torch.models import Detector, Crystal
+from nanobrag_torch.simulator import Simulator
+from dbex.refinement.config_factories import create_detector_config, create_crystal_config
 
 # Import Stage A helpers for shared utilities
 from dbex.refinement.stage_a_impl import (
@@ -79,10 +86,6 @@ def _retarget_stage_a_detectors(
         device: torch device for Detector model instantiation
         dtype: torch dtype for Detector model instantiation
     """
-    from dataclasses import replace
-    from nanobrag_torch.models import Detector
-    from nanobrag_torch.simulator import Simulator
-
     global _STAGE_C_RETARGET_CALL_COUNTER
 
     # PERF-WARM-016: Debug hook setup (opt-in only)
@@ -215,7 +218,6 @@ def _retarget_stage_a_detectors(
                 json.dump(debug_data, f, indent=2)
         except Exception as e:
             # Do not raise; debug hook failures must not break production runs
-            import warnings
             warnings.warn(f"PERF-WARM-016: Debug snapshot write failed: {e}")
 
 
@@ -568,11 +570,6 @@ def _run_stage_c_lbfgs(
     # Derived variables
     panel_shape = inputs.target.shape[1:]
 
-    # Lazy imports (inside helper to avoid circular deps)
-    from nanobrag_torch.models import Detector, Crystal
-    from nanobrag_torch.simulator import Simulator
-    from dbex.refinement.config_factories import create_detector_config, create_crystal_config
-
     # Run Stage C LBFGS optimization
     status_c = "ok"
     message_c = ""
@@ -916,9 +913,6 @@ def _run_stage_c_lbfgs(
     )
 
     # PERF-WARM-SIM-001 Phase D.4: Write panel-loss diagnostics JSON if collected
-    import os
-    import json
-    from pathlib import Path
     panel_diag_dir = os.environ.get('DBEX_STAGE_C_PANEL_DIAG_DIR')
     # ARCH-STAGE-CONTEXT-001 Phase E: dataclass-only
     if panel_diag_dir and telemetry_state.panel_loss_diag is not None:

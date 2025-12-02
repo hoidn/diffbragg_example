@@ -25,15 +25,30 @@ References:
 """
 
 import copy
+import json
 import math
 import os
 import time
 from collections import defaultdict
 from dataclasses import asdict, dataclass, field
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
+
+# ARCH-LAZY-IMPORTS-001 / ARCH-ENGINE-002: Module-scope dependencies for Stage A
+# These imports expose Stage A dependencies early, preventing hidden import drift.
+from nanobrag_torch.models.detector import Detector
+from nanobrag_torch.models.crystal import Crystal
+from nanobrag_torch.simulator import Simulator
+from dbex.refinement.config_factories import (
+    create_detector_config,
+    create_beam_config,
+    create_crystal_config,
+)
+from dbex.nanobrag_bridge import compute_baseline_misset_deg
+from dbex.physics.loss import _compute_variance_weighted_loss
 
 # ARCH-STAGE-CONTEXT-001: Import new dataclasses for typed context
 from dbex.refinement.context import RefinementSharedContext, StageATelemetryState
@@ -291,16 +306,6 @@ def _build_stage_a_context(
     Returns:
         StageAContext with prebuilt models and tensorized data
     """
-    from nanobrag_torch.models.detector import Detector
-    from nanobrag_torch.models.crystal import Crystal
-    from nanobrag_torch.simulator import Simulator
-    from dbex.refinement.config_factories import (
-        create_detector_config,
-        create_beam_config,
-        create_crystal_config,
-    )
-    from dbex.nanobrag_bridge import compute_baseline_misset_deg
-
     n_panels = len(detector)
 
     # Build detector configs and models per panel
@@ -500,10 +505,6 @@ def _clamp_log_cell_deltas(
 # ============================================================================
 # Stage A Parameter Setup, Closure Building, and LBFGS Execution
 # ============================================================================
-
-
-# Import loss function from physics module
-from dbex.physics.loss import _compute_variance_weighted_loss
 
 
 def _build_stage_a_params(
@@ -1041,9 +1042,6 @@ def _compute_panel_loss(
     Returns:
         Tuple of (chi_squared_loss, masked_mse_loss, masked_pixels, clamped_pixels)
     """
-    from dbex.refinement.config_factories import create_detector_config, create_crystal_config
-    from dbex.physics.loss import _compute_variance_weighted_loss
-
     # PERF-WARM-SIM-001: When diagnostics are requested, compute per-panel metrics serially
     # so we can capture chi², mask, sigma, and target checksums before aggregating.
     # Otherwise, use the fast-path stacked evaluation.
@@ -1070,7 +1068,6 @@ def _compute_panel_loss(
                     detector_config.mask_array = torch.tensor(
                         detector_config.mask_array, dtype=torch.float32, device=device
                     )
-                from nanobrag_torch.models.detector import Detector
                 detector_model = Detector(detector_config, device=device, dtype=dtype)
 
                 crystal_config, _ = create_crystal_config(
@@ -1079,7 +1076,6 @@ def _compute_panel_loss(
                     crystal_overrides=crystal_overrides,
                     misset_deg_override=misset_deg_for_crystal
                 )
-                from nanobrag_torch.models.crystal import Crystal
                 crystal_model = Crystal(
                     crystal_config,
                     beam_config=beam_config_for_run,
@@ -1091,10 +1087,8 @@ def _compute_panel_loss(
                 crystal_model.hkl_metadata = hkl_metadata
 
                 if beam_config_for_run is None:
-                    from dbex.refinement.config_factories import create_beam_config
                     beam_config_for_run = create_beam_config(beam)
 
-                from nanobrag_torch.simulator import Simulator
                 simulator = Simulator(
                     detector=detector_model,
                     crystal=crystal_model,
@@ -1166,7 +1160,6 @@ def _compute_panel_loss(
                     detector_config.mask_array = torch.tensor(
                         detector_config.mask_array, dtype=torch.float32, device=device
                     )
-                from nanobrag_torch.models.detector import Detector
                 detector_model = Detector(detector_config, device=device, dtype=dtype)
 
                 crystal_config, _ = create_crystal_config(
@@ -1175,7 +1168,6 @@ def _compute_panel_loss(
                     crystal_overrides=crystal_overrides,
                     misset_deg_override=misset_deg_for_crystal
                 )
-                from nanobrag_torch.models.crystal import Crystal
                 crystal_model = Crystal(
                     crystal_config,
                     beam_config=beam_config_for_run,
@@ -1188,10 +1180,8 @@ def _compute_panel_loss(
 
                 # Build BeamConfig if not provided (Stage C cold path)
                 if beam_config_for_run is None:
-                    from dbex.refinement.config_factories import create_beam_config
                     beam_config_for_run = create_beam_config(beam)
 
-                from nanobrag_torch.simulator import Simulator
                 simulator = Simulator(
                     detector=detector_model,
                     crystal=crystal_model,
@@ -1515,9 +1505,6 @@ def _run_stage_a_lbfgs(
     # Canonical_baseline mutations are visible via dict reference (no need to return)
 
     # PERF-WARM-SIM-001 Phase D.4: Write panel-loss diagnostics JSON if collected
-    import os
-    import json
-    from pathlib import Path
     panel_diag_dir = os.environ.get('DBEX_STAGE_C_PANEL_DIAG_DIR')
     # Check for panel_loss_diag presence (ARCH-STAGE-CONTEXT-001 Phase E: dataclass-only)
     has_panel_loss_diag = telemetry_state.panel_loss_diag is not None

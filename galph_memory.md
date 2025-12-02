@@ -423,3 +423,7 @@ Action State: planning
 - Authored Do Now instructing Ralph to implement `dbex/io/roi_scoring.py::score_roi_payloads` (Nelder–Mead + `roiCheck`), add `tests/dbex/test_roi_analysis.py`, refresh writer IDL/data manifest entries, and run the ROI analysis test plus the CLI writer metadata smoke with logs under 2025-12-02T223500Z/.
 - Findings enforced: DIAGNOSTICS-001 (schema stability) and PHYSICS-LOSS-001/002 (variance guard) so the helper matches the spec before `write_torch_outputs` adopts it.
 Action State: planning
+2025-12-02T233000Z focus=ARCH-BRIDGE-RESP-001 state=ready_for_implementation dwell=2 action=planning artifacts=plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-02T233500Z/ next_action=Thread score_roi_payloads through run_nanobrag_backend + update writer/tests/docs
+- Updated `plans/active/ARCH-BRIDGE-RESP-001/implementation.md` (B1 checked off) and docs/fix_plan.md (status=in_progress), then scoped Phase B.2: call `score_roi_payloads` inside `run_nanobrag_backend`, add an optional `roi_payloads` kwarg to `dbex.io.writer.write_torch_outputs`, patch the nanobrag CLI tests to assert payload threading, and refresh the writer IDL + data manifest so the new dependency is documented.
+- Authored input.md (artifacts reserved at 2025-12-02T233500Z/) with explicit file targets, env-guarded pytest selectors, and pitfalls (unit-consistent sigma conversion, keep legacy scoring loop intact) so Ralph can immediately land the production change next loop.
+Action State: ready_for_implementation

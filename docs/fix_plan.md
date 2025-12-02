@@ -17,7 +17,7 @@
 **Goal:** Finish the Protocol Engine refactor by removing legacy helpers/facades now that contexts and artifacts are in place.
 - [ARCH-REFACTOR-001] (Refinement Engine Modularization & Physics Separation) — *in_progress*
 - [ARCH-TELEMETRY-001] (Telemetry Observer Refactor) — *in_progress*
-- [ARCH-BRIDGE-RESP-001] (Writer / bridge responsibility split) — *planned* (2025-12-02T213000Z: initiative scaffolded from problems.md ledger; plan at `plans/active/ARCH-BRIDGE-RESP-001/implementation.md`.)
+- [ARCH-BRIDGE-RESP-001] (Writer / bridge responsibility split) — *in_progress* (2025-12-02T213000Z: initiative scaffolded from problems.md ledger; plan at `plans/active/ARCH-BRIDGE-RESP-001/implementation.md`.)
 
 ### Tier 1: Core Physics & Stability
 **Goal:** Ensure the math is correct, the loss function is normative, Stage A/mapping parity holds (DB‑AT‑027/028/029), and the smoke tests are green.

@@ -69,7 +69,7 @@
 
 ## Phase B — Writer Serialization Cleanup
 ### Checklist
-- [ ] **B1:** Implement ROI scoring helper (`dbex/io/roi_scoring.py` or similar) that ingests ROI crops + variance info, runs Nelder–Mead once per ROI, and emits typed payloads plus JSON/log artifacts. *Current focus.*
+- [x] **B1:** Implement ROI scoring helper (`dbex/io/roi_scoring.py` or similar) that ingests ROI crops + variance info, runs Nelder–Mead once per ROI, and emits typed payloads plus JSON/log artifacts. *(Complete — 2025-12-02T223500Z artifacts)*
 - [ ] **B2:** Update CLI (`dbex/refine_one.py`) and RefinementEngine call sites to invoke the helper (guarded by flag) before calling `write_torch_outputs`, passing the typed payload instead of raw arrays.
 - [ ] **B3:** Remove optimization loop from `write_torch_outputs`, use new payload to populate ROI datasets/attributes, and re-run `tests/dbex/test_refine_one_cli.py::{test_torch_diagnostics_metadata,test_nanobrag_backend_uses_refined_mtz}`.
 - [ ] **B4:** Capture `pytest --collect-only` + execution logs for affected selectors under `reports/<timestamp>/pytest_writer_cleanup.log` and sync docs/TESTING_GUIDE.md + docs/development/TEST_SUITE_INDEX.md if selectors change.

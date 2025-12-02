@@ -24,6 +24,10 @@ This file is a lightweight, user-editable backlog for any issues that Galph (the
 ATTN NEW PROBLEMS:
 ---
 IMPORTANT
+**ARCH-REFACTOR-001 Progress** (2025-12-02T220000Z loop):
+- Phase D.2 PLANNING (this loop): Problems ledger "PRIORITIZE ARCH-REFACTOR-001 ASAP" serviced. CLI refactor scoped: migrate `dbex/refine_one.py` from `run_nanobrag_refinement` facade to direct `RefinementEngine` instantiation (5-step pattern: import updates, build RefinementContext, instantiate stages, run engine.run, extract Bragg/artifacts). Comprehensive planning notes at `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T220000Z/planning_notes.md` detail implementation strategy, validation plan (2 CLI selectors), and risks. Updated implementation.md (D.1 marked complete), updated docs/fix_plan.md with new attempt, ready to hand Do Now to Ralph next loop for Phase D.2 implementation.
+- Phase D.1 COMPLETE (2025-12-02T210000Z, commit 43a70eae): RefinementConfig extracted to `dbex/refinement/config.py` (135 lines), 13 import sites updated, 3/3 tests PASSED, backward-compat re-export in facade ensures zero breakage during D.2-D.4.
+IMPORTANT
 **ARCH-REFACTOR-001 Progress** (2025-12-02T184846Z loop):
 - Phase C.4 COMPLETE (commit cd855064): Stage B context strictness + parameter builder inlining
 - Phase C.5 PLANNED: Stage B LBFGS inlining + HKL utilities extraction (see `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T184846Z/planning_notes.md`)

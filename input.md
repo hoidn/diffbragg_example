@@ -1,261 +1,301 @@
-# Ralph Input — Loop i=435
+# Input for Ralph — ARCH-REFACTOR-001 Phase D.2: CLI Refactor
 
-## Summary
-Implement ARCH-REFACTOR-001 Phase D.1: migrate RefinementConfig from facade to new module `dbex/refinement/config.py` and update all import sites.
+**Summary:** Migrate `dbex/refine_one.py::run_nanobrag_backend()` from `run_nanobrag_refinement` facade to direct `RefinementEngine` instantiation using typed contexts.
 
-## Mode
-Parity
+**Mode:** Parity
+**InitiativeType:** architecture
+**Focus:** [ARCH-REFACTOR-001] — Refinement Engine Modularization & Physics Separation (Phase D.2: CLI Refactor)
+**Branch:** integration
+**Mapped tests:**
+- `tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata`
+- `tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_runs_simulator`
 
-## InitiativeType
-architecture
+**Artifacts:** `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T220000Z/`
 
-## Focus
-ARCH-REFACTOR-001 Phase D.1 — RefinementConfig Migration
-
-## Branch
-integration
-
-## Mapped tests
-- `tests/dbex/test_refinement_engine.py::test_refinement_engine_stage_a_minimal`
-- `tests/dbex/test_refinement_engine.py::test_refinement_engine_stage_a_b_c_integration`
-- `tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload`
-- `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion`
-
-## Artifacts
-`plans/active/ARCH-REFACTOR-001/reports/2025-12-02T210000Z/`
+---
 
 ## Do Now
 
-### Context
+**Implement:** `dbex/refine_one.py::run_nanobrag_backend()` (lines 505-595)
 
-**Phase C Complete:** All `*_impl.py` modules eliminated (Exit Criterion #1 satisfied).
-**Phase D Planning Complete:** Comprehensive planning artifacts produced in loop i=434 (commit 2c948b40).
-**Current Goal:** Phase D (Facade Removal) Step 1 — Extract RefinementConfig to enable subsequent consumer migrations.
+**Objective:** Replace the `run_nanobrag_refinement` facade call with direct `RefinementEngine` instantiation, following the 5-step Engine pattern documented in `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T201539Z/cli_refactor_blueprint.md`.
 
-**Strategy:**
-Phase D.1 is low-risk preparation work: relocate a pure data container (no logic) from the facade to a new module so later phases can migrate consumers without breaking backward compatibility during the transition.
+**Tasks:**
 
-### Implementation Steps
+### 1. Import Updates (lines 505-508)
 
-**Step 1: Create `dbex/refinement/config.py`**
+**Remove:**
+```python
+from dbex.nanobrag_refinement import run_nanobrag_refinement
+```
 
-Create new module with comprehensive docstring:
+**Add to existing imports:**
+```python
+from dbex.refinement.config import RefinementConfig  # already migrated (Phase D.1)
+from dbex.refinement.context import build_job_context, build_refinement_context
+from dbex.refinement.engine import RefinementEngine
+from dbex.refinement.stage_a import StageA
+from dbex.refinement.stage_b import StageB
+from dbex.refinement.stage_c import StageC
+```
+
+**Note:** `build_job_context` is already imported at line 507; extend that import to include `build_refinement_context`.
+
+---
+
+### 2. Build RefinementContext (after line 543, before `try:` block at line 545)
+
+Insert the following between the `JobContext` logging (line 543) and the `try:` block:
 
 ```python
-"""
-Refinement job configuration for RefinementEngine.
-
-Defines RefinementConfig dataclass encapsulating hyperparameters, feature flags,
-and job-level metadata for Stage A/B/C LBFGS refinement.
-
-See:
-- docs/spec-db-workflow.md §§30-41 (Staging policy)
-- docs/pytorch_runtime_checklist.md (device/dtype neutrality)
-- ARCH-REFACTOR-001 Phase D.1 (config extraction from facade)
-"""
-
-from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
-
-import torch
+# Build RefinementContext (ARCH-REFACTOR-001 Phase D.2)
+# Wraps all refinement inputs in typed context for Engine consumption
+refinement_context = build_refinement_context(
+    refinement_inputs=inputs,  # RefinementInputs prepared at line ~490
+    detector=DL.detector,
+    beam=DL.beam,
+    crystal=DL.crystal,
+    hkl_grid=hkl_grid,
+    hkl_metadata=hkl_metadata,
+    baseline_crystal=None,  # CLI path has no perturbed geometry (unlike test_stage_a_expansion)
+    baseline_detector=DL.detector if refine_config.enable_stage_c else None,  # Stage C retargeting requires baseline
+    asu_map=asu_map,  # Pre-computed ASU mapping from CLI prep (line ~474)
+    hkl_indices_grid=None,  # Optional; not used in CLI path
+    halo_mask=None,  # Optional; not used in CLI path
+    extras={"job_context": job_context},  # Thread JobContext for stage access to CLI args/calibration
+)
 ```
 
-Then copy the **entire** `RefinementConfig` dataclass from `dbex/nanobrag_refinement.py:74-175` verbatim (all ~30 fields with defaults).
+**Rationale:**
+- `baseline_detector=DL.detector if enable_stage_c else None` matches PERF-WARM-SIM-001 retargeting logic.
+- `extras["job_context"]` preserves existing stage access to calibration metadata and CLI args.
 
-**Step 2: Add Temporary Re-export in Facade**
+---
 
-At the top of `dbex/nanobrag_refinement.py` (after existing imports, around line 72), add:
+### 3. Instantiate RefinementEngine (after `refinement_context` build, before `try:` block)
+
+Insert the following immediately after the `build_refinement_context` call:
 
 ```python
-# Temporary backward compatibility re-export (Phase D.1)
-# Remove after Phase D.5 facade deletion
-from dbex.refinement.config import RefinementConfig  # noqa: F401
+# Instantiate RefinementEngine with stage list (ARCH-REFACTOR-001 Phase D.2)
+stages = [StageA()]  # Always run Stage A
+if refine_config.enable_stage_b:
+    stages.append(StageB())
+if refine_config.enable_stage_c:
+    stages.append(StageC())
+
+engine = RefinementEngine(stages=stages, config=refine_config)
 ```
 
-Then **delete** the original `RefinementConfig` definition (lines 74-175) but **keep the import**.
+**Rationale:**
+- Mirrors CLI flag semantics (`--enable-stage-b`, `--enable-stage-c`).
+- Stage order: A → B → C (normative per `docs/spec-db-workflow.md`).
 
-This ensures old code using `from dbex.nanobrag_refinement import RefinementConfig` continues working during incremental migration.
+---
 
-**Step 3: Update Production Import Sites**
+### 4. Run Engine and Extract Artifacts (replace lines 547-556)
 
-**3a.** `dbex/refine_one.py` (line ~505)
-- **Current:** `from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig`
-- **New:**
-  ```python
-  from dbex.refinement.config import RefinementConfig
-  from dbex.nanobrag_refinement import run_nanobrag_refinement
-  ```
-
-**Step 4: Update Infrastructure Import Sites**
-
-**4a.** `dbex/refinement/__init__.py` (line ~15, conditional import)
-- **Current:** `from dbex.nanobrag_refinement import RefinementConfig`
-- **New:** `from dbex.refinement.config import RefinementConfig`
-
-**Step 5: Update Test Import Sites**
-
-**5a.** `tests/dbex/test_refinement_engine.py` (2 inline imports at lines 31, 148)
-- **Current:** `from dbex.nanobrag_refinement import RefinementConfig`
-- **New:** `from dbex.refinement.config import RefinementConfig`
-
-**5b.** `tests/dbex/test_stage_b_cpu_fallback.py` (3 inline imports at lines 40, 183, 291)
-- **Current:** `from dbex.nanobrag_refinement import RefinementConfig`
-- **New:** `from dbex.refinement.config import RefinementConfig`
-
-**5c.** `tests/dbex/test_torch_refine_smoke.py` (6 inline imports at lines 400, 749, 947, 1063, 1393, 1793)
-- **Current:** `from dbex.nanobrag_refinement import RefinementConfig, run_nanobrag_refinement`
-- **New:**
-  ```python
-  from dbex.refinement.config import RefinementConfig
-  from dbex.nanobrag_refinement import run_nanobrag_refinement
-  ```
-
-**Step 6: Validation**
-
-Run mapped tests with canonical environment flags:
-
-```bash
-# Set environment
-export KMP_DUPLICATE_LIB_OK=TRUE
-export NANOBRAG_TORCH_FALLBACK_DEVICE=cpu
-export SMOKE_DETECTOR_SIZE=small
-
-# Test suite (4 tests)
-pytest -vv \
-  tests/dbex/test_refinement_engine.py::test_refinement_engine_stage_a_minimal \
-  tests/dbex/test_refinement_engine.py::test_refinement_engine_stage_a_b_c_integration \
-  tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload \
-  tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion \
-  > plans/active/ARCH-REFACTOR-001/reports/2025-12-02T210000Z/pytest_phase_d1.log 2>&1
+**Replace:**
+```python
+        # ARCH-STAGE-CONTEXT-001 Phase B.4: run_nanobrag_refinement now returns artifacts
+        Bragg_refined, refine_telemetry_dict, engine_artifacts = run_nanobrag_refinement(
+            inputs=inputs,
+            detector=DL.detector,
+            beam=DL.beam,
+            crystal=DL.crystal,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            config=refine_config,
+            job_context=job_context
+        )
 ```
 
-**Expected:** All 4 tests PASS. No import errors. RefinementConfig accessible from both old path (facade re-export) and new path (dbex.refinement.config).
+**With:**
+```python
+        # Run refinement via RefinementEngine (ARCH-REFACTOR-001 Phase D.2)
+        # Engine.run() expects dict with 'context' key per Exit Criterion #4
+        engine_inputs = {"context": refinement_context}
+        refine_telemetry_dict = engine.run(engine_inputs)
 
-**Step 7: Verification**
+        # Extract final Bragg from terminal stage artifact (precedence: C > B > A)
+        # RefinementEngine stores artifacts in engine._artifacts (private, documented pattern)
+        if refine_config.enable_stage_c and "C" in engine._artifacts:
+            Bragg_refined = engine._artifacts["C"].bragg_full
+        elif refine_config.enable_stage_b and "B" in engine._artifacts:
+            Bragg_refined = engine._artifacts["B"].bragg_full
+        else:
+            Bragg_refined = engine._artifacts["A"].bragg_full
 
-```bash
-# Static import check (new path)
-python -c "from dbex.refinement.config import RefinementConfig; print('OK: new path')"
-
-# Static import check (old path, backward compat)
-python -c "from dbex.nanobrag_refinement import RefinementConfig; print('OK: facade re-export')"
-
-# Record both outputs
-{
-  echo "=== New path test ==="
-  python -c "from dbex.refinement.config import RefinementConfig; print('OK: new path')"
-  echo "=== Old path test (facade re-export) ==="
-  python -c "from dbex.nanobrag_refinement import RefinementConfig; print('OK: facade re-export')"
-} > plans/active/ARCH-REFACTOR-001/reports/2025-12-02T210000Z/import_verification.txt 2>&1
+        # Extract engine_artifacts for downstream writer/diagnostics (ARCH-STAGE-CONTEXT-001 Phase B.4)
+        engine_artifacts = engine._artifacts
 ```
 
-**Expected:** Both imports succeed.
+**Rationale:**
+- Engine returns `refine_telemetry_dict` directly (dict of {label: RefinementTelemetry}).
+- Final Bragg array extracted from terminal stage artifact (C > B > A precedence matches facade semantics).
+- `engine._artifacts` provides stage-specific artifacts (ARCH-STAGE-CONTEXT-001).
 
-**Step 8: Metrics**
+---
 
-Capture metrics in `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T210000Z/metrics.txt`:
+### 5. Preserve Downstream Logic (no changes needed)
 
-```bash
-{
-  echo "=== Phase D.1 Metrics ==="
-  echo "Files created: 1 (dbex/refinement/config.py)"
-  wc -l dbex/refinement/config.py
-  echo "Import sites updated: 8 (refine_one + __init__ + 2 test_refinement_engine + 3 test_stage_b_cpu_fallback + 6 test_torch_refine_smoke split)"
-  echo "Facade lines removed (definition):"
-  # Estimate ~102 lines (RefinementConfig dataclass body)
-  echo "~102 (dataclass definition relocated)"
-  echo "Facade lines added (re-export): ~3"
-  echo "Net facade change: ~-99 lines"
-} > plans/active/ARCH-REFACTOR-001/reports/2025-12-02T210000Z/metrics.txt
-```
+**Lines 558-595** remain unchanged:
+- Stage A telemetry extraction (line 559)
+- `stage_results` extraction from telemetry (lines 563-566, ARCH-TELEMETRY-001 Phase C.2)
+- Refined MSE computation (lines 569-570)
+- Logging (lines 572-584)
+- Exception handling fallback (lines 590-595)
+
+All downstream logic consumes `refine_telemetry_dict` and `engine_artifacts`, which Engine provides in the same format as the facade.
+
+---
 
 ## How-To Map
 
-**Task 1: Create config.py**
-- Location: `dbex/refinement/config.py`
-- Content: Module docstring + imports + full RefinementConfig dataclass copied from `nanobrag_refinement.py:74-175`
+### Validation Commands
 
-**Task 2: Update facade**
-- File: `dbex/nanobrag_refinement.py`
-- Action: Add `from dbex.refinement.config import RefinementConfig  # noqa: F401` after existing imports, then delete lines 74-175 (original definition)
+Run the 2 mapped CLI selectors to validate the refactor:
 
-**Task 3-5: Update imports**
-- Tool: Use `Edit` with `replace_all=False` for single-instance replacements
-- Targets: 8 import sites across 5 files (refine_one.py, __init__.py, test_refinement_engine.py 2×, test_stage_b_cpu_fallback.py 3×, test_torch_refine_smoke.py 6×)
-- Pattern: Split multi-imports so RefinementConfig comes from new module, facade imports stay for run_nanobrag_refinement (where needed)
+```bash
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+DBEX_SMOKE_SIGMA_SOURCE=cli_override \
+KMP_DUPLICATE_LIB_OK=TRUE \
+NANOBRAGG_DISABLE_COMPILE=1 \
+pytest -vv \
+  tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata \
+  tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_runs_simulator \
+  | tee plans/active/ARCH-REFACTOR-001/reports/2025-12-02T220000Z/pytest_cli_refactor.log
+```
 
-**Task 6: Run tests**
-- Command: `pytest -vv <selectors>` (see Step 6 above)
-- Capture: `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T210000Z/pytest_phase_d1.log`
+**Expected outcomes:**
+- Both tests PASS
+- HDF5 `/torch_diagnostics` attributes unchanged (backward compatible)
+- Telemetry structure preserved (stage_results extraction works)
+- No import errors
+- No behavioral regression vs facade path
 
-**Task 7: Verify imports**
-- Command: Static import checks (see Step 7 above)
-- Capture: `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T210000Z/import_verification.txt`
-
-**Task 8: Capture metrics**
-- Command: Line counts + change summary (see Step 8 above)
-- Capture: `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T210000Z/metrics.txt`
+---
 
 ## Pitfalls To Avoid
 
-1. **Do NOT delete facade yet:** This phase only extracts RefinementConfig. Facade (`run_nanobrag_refinement` function) must remain until Phase D.5.
+1. **Import Order:** Do not import `run_nanobrag_refinement` after removing the facade import. Ensure `build_refinement_context` is added to the existing `build_job_context` import line.
 
-2. **Preserve backward compatibility:** Keep the facade re-export (`from dbex.refinement.config import RefinementConfig` in nanobrag_refinement.py) so old import paths work during incremental migration.
+2. **RefinementContext Baseline Detector:** Stage C requires `baseline_detector` for retargeting logic (PERF-WARM-SIM-001). Always set `baseline_detector=DL.detector if enable_stage_c else None`.
 
-3. **Copy verbatim:** RefinementConfig dataclass body must be copied exactly (all fields, defaults, types). Do not refactor or reorder fields.
+3. **JobContext Threading:** Stages expect `job_context` for calibration metadata access. Always thread via `extras={"job_context": job_context}`.
 
-4. **Split multi-imports carefully:** In files that import both `RefinementConfig` and `run_nanobrag_refinement`, split them into two lines (see Step 3a, 5c).
+4. **Engine Artifact Access:** `engine._artifacts` is a private attribute but documented pattern (per CLI blueprint). Do NOT attempt to add a public accessor in this loop; that can be a follow-up refactor.
 
-5. **Module-scope imports only:** Do not modify inline imports inside functions (e.g., test_torch_refine_smoke.py has 6 inline imports; update all 6).
+5. **Terminal Stage Precedence:** Bragg extraction must follow C > B > A precedence to match facade semantics. Check `enable_stage_c` first, then `enable_stage_b`, then default to A.
 
-6. **Environment Freeze:** Do not install packages. Use existing runtime.
+6. **Telemetry Structure:** Do NOT change downstream code (lines 558-595). Engine returns `refine_telemetry_dict` in the same format as facade (dict of {label: RefinementTelemetry}).
 
-7. **Initiative Type:** This is `architecture` (pure refactor, no spec/behavior changes).
+7. **Exception Handling:** The `try/except` block (lines 545-595) must remain unchanged. Only the facade call inside the `try` block is replaced.
 
-8. **Parity Requirement:** Tests must pass with identical behavior. Any test failure is a blocker.
+8. **Device/Dtype Neutrality (GRADIENT-004):** Engine receives `config.device` and `config.dtype` from `refine_config`, which is already built correctly (lines 515-524). Do NOT add device/dtype overrides in Engine instantiation.
+
+9. **Backward Compatibility:** RefinementConfig is still available via `dbex.nanobrag_refinement` re-export (Phase D.1 backward-compat layer). Import from `dbex.refinement.config` for clarity.
+
+10. **No Test Changes:** This loop only touches `dbex/refine_one.py`. Do NOT modify test files or other consumers yet (those are Phase D.3).
+
+---
 
 ## If Blocked
 
-**Blocker: Import circular dependency**
-- Symptom: `ImportError: cannot import name 'RefinementConfig'`
-- Diagnosis: Check if config.py accidentally imports from modules that import it
-- Action: RefinementConfig is a leaf node (only imports torch/typing); if circular dependency appears, record in `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T210000Z/blocker.md` and return to Galph
+If any of the following occur:
 
-**Blocker: Test failures**
-- Symptom: Any of the 4 mapped tests FAIL or ERROR
-- Diagnosis: Check if RefinementConfig fields changed or imports incorrect
-- Action: Capture full pytest log + traceback in artifact directory, record in `blocker.md`, return to Galph
+1. **Import errors:** Verify `dbex/refinement/context.py` exports `build_refinement_context` and `build_job_context`. If missing, check git history for Phase D.1 changes.
 
-**Blocker: Facade re-export not working**
-- Symptom: Old import path `from dbex.nanobrag_refinement import RefinementConfig` fails
-- Diagnosis: Check if facade import line is correct (must be before original definition was deleted)
-- Action: Verify facade still has `from dbex.refinement.config import RefinementConfig` at top, record issue in `blocker.md`
+2. **Engine runtime errors:** Check that `RefinementEngine.run()` accepts dict with 'context' key (ARCH-REFACTOR-001 Exit Criterion #4). If signature mismatch, consult `dbex/refinement/engine.py` and `test_refinement_engine.py`.
 
-## Findings Applied
+3. **Artifact extraction errors:** Verify `engine._artifacts` is populated after `engine.run()`. If empty, check Stage A/B/C `run()` methods store artifacts via `self._artifacts[label] = ...`.
 
-**Mandatory:**
-- ARCH-REFACTOR-001: Exit Criterion #1 satisfied (Phase C complete); Exit Criterion #2 pending (Phase D in progress)
-- ARCH-REFINE-FLOW-001: RefinementEngine proven operational
-- ARCH-STAGE-CONTEXT-001: Context builders canonical
-- ARCH-ENGINE-002: Engine protocol enforced
+4. **Telemetry structure errors:** Verify `engine.run()` returns dict of {label: RefinementTelemetry}. If format mismatch, consult `test_refinement_engine.py::test_engine_returns_telemetry_dict`.
 
-**No other relevant findings in the knowledge base.**
+5. **Test failures:**
+   - Log the failure signature in `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T220000Z/pytest_cli_refactor.log`.
+   - Update `docs/fix_plan.md` Attempts History with the blocker (e.g., "blocked — engine artifact mismatch, needs [new-initiative-id]").
+   - Mark ARCH-REFACTOR-001 Phase D.2 as `blocked` and notify Galph.
+
+---
+
+## Findings Applied (Mandatory)
+
+**From `docs/findings.md`:**
+
+- **ARCH-ENGINE-002:** RefinementEngine is canonical seam; stages consume typed contexts only. (Applied: Engine instantiation + RefinementContext build)
+
+- **ARCH-STAGE-CTX-001:** Stages receive RefinementContext/RefinementSharedContext, not ad-hoc dicts. (Applied: `build_refinement_context` replaces facade's exploded arguments)
+
+- **ARCH-TELEMETRY-001 Phase C.2:** StageResult extraction from telemetry preserved. (Applied: lines 563-566 unchanged, `stage_results` dict builds correctly)
+
+- **GRADIENT-004:** Device/dtype neutrality maintained. (Applied: `refine_config.device`/`dtype` passed to Engine, no overrides)
+
+- **PERF-WARM-SIM-001:** Stage C baseline detector requirement honored. (Applied: `baseline_detector=DL.detector if enable_stage_c else None`)
+
+**No additional findings flagged for this initiative.**
+
+---
 
 ## Pointers
 
-- Planning artifact: `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T201539Z/config_migration_plan.md` (Option A decision + import site analysis)
-- Consumer analysis: `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T201539Z/consumer_analysis.md` (8 import sites cataloged)
-- Implementation plan: `plans/active/ARCH-REFACTOR-001/implementation.md` (Phase D.1 checklist, line 365)
-- Exit criteria: `docs/fix_plan.md` (ARCH-REFACTOR-001 Exit Criterion #2: facade deletion after consumer migration)
-- Facade source: `dbex/nanobrag_refinement.py:74-175` (RefinementConfig dataclass definition)
-- Test registry: `docs/TESTING_GUIDE.md` (canonical env flags for mapped tests)
-- Spec: `docs/spec-db-workflow.md` §§30-41 (refinement staging policy, unchanged by this refactor)
+**Specs:**
+- `docs/spec-db-workflow.md §§30-41` — RefinementEngine protocol architecture
+- `docs/architecture/dbex/refinement/context.idl.md` — RefinementContext contract
 
-## Next Up
+**Architecture:**
+- `plans/active/ARCH-REFACTOR-001/implementation.md` — Phase D checklist (D.1 ✓, D.2 in progress)
+- `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T201539Z/cli_refactor_blueprint.md` — Detailed CLI refactor pattern (reference implementation)
+- `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T220000Z/planning_notes.md` — This loop's planning notes
 
-After Phase D.1 completion (this loop):
-- **Loop i=436:** Phase D.2 implementation (CLI refactor: migrate `dbex/refine_one.py` to RefinementEngine)
-- **Loop i=437:** Phase D.3 implementation (Test harness migration: 6 functions in `test_torch_refine_smoke.py`)
-- **Loop i=438:** Phase D.4 + D.5 implementation (Import cleanup + facade deletion with 12-step verification)
+**Testing:**
+- `docs/TESTING_GUIDE.md §2` — Canonical environment flags and CLI selectors
+- `docs/development/TEST_SUITE_INDEX.md` — Test registry (update if new tests added)
 
-Then mark ARCH-REFACTOR-001 **done** (Exit Criteria #1 and #2 both satisfied).
+**Fix Plan:**
+- `docs/fix_plan.md` — Row [ARCH-REFACTOR-001] (lines 52-86, Attempts History includes Phase D.1 complete + D.2 planning)
+
+**Code:**
+- `dbex/refine_one.py:505-595` — Current facade call site (target for refactor)
+- `dbex/refinement/config.py:1-135` — RefinementConfig dataclass (Phase D.1 extraction)
+- `dbex/refinement/context.py:91-XXX` — `build_refinement_context` helper
+- `dbex/refinement/engine.py` — RefinementEngine class
+- `dbex/refinement/stage_a.py`, `stage_b.py`, `stage_c.py` — Stage implementations
+
+---
+
+## Next Up (optional)
+
+If you finish early and all 2 CLI tests pass:
+
+1. **Commit your work:**
+   ```bash
+   git add dbex/refine_one.py
+   git commit -m "ARCH-REFACTOR-001 Phase D.2: Migrate CLI to RefinementEngine (tests: 2/2 pass)"
+   ```
+
+2. **Update implementation.md:** Mark Phase D.2 complete in the checklist at `plans/active/ARCH-REFACTOR-001/implementation.md` line 369.
+
+3. **Do NOT proceed to Phase D.3:** Test migrations require separate planning and validation. Wait for Galph's next loop to scope D.3.
+
+---
+
+## Doc Sync Plan (Conditional)
+
+**Not applicable for this loop:** No new tests are added. CLI selectors already exist in `docs/TESTING_GUIDE.md` and `docs/development/TEST_SUITE_INDEX.md`.
+
+---
+
+## Mapped Tests Guardrail
+
+Both mapped selectors collect > 0 tests:
+- `test_torch_diagnostics_metadata` — validates HDF5 `/torch_diagnostics` attributes
+- `test_nanobrag_backend_runs_simulator` — CLI smoke test with minimal fixture
+
+If either selector collects 0 tests after your changes, treat this as a blocker and mark Phase D.2 `blocked`.
+
+---
+
+**End of Do Now.**
+
+Ralph, please execute Tasks 1-5 in order, validate with the 2 CLI selectors, and log all outputs to the artifacts directory. If blocked, update `docs/fix_plan.md` and notify Galph. If successful, commit your work and mark Phase D.2 complete in `implementation.md`.

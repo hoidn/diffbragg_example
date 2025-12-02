@@ -604,3 +604,13 @@ Action State: ready_for_implementation
 - Updated implementation plan Phase D checklist already in place (lines 365-386); issued Do Now directing Ralph to: (1) create dbex/refinement/config.py with full RefinementConfig dataclass copied from facade, (2) add facade re-export for backward compat, (3) update 8 import sites across 5 files, (4) validate with 4 mapped tests.
 - Artifacts directory created at plans/active/ARCH-REFACTOR-001/reports/2025-12-02T210000Z/ for pytest logs, import verification, and metrics.
 Action State: ready_for_implementation
+
+2025-12-02T220000Z focus=ARCH-REFACTOR-001 state=ready_for_implementation dwell=0 action=planning artifacts=plans/active/ARCH-REFACTOR-001/reports/2025-12-02T220000Z/ next_action=Implement Phase D.2 CLI refactor
+- Problems ledger guard triggered (last two entries 2025-12-02T201539Z/210000Z lacked ledger mention), serviced "PRIORITIZE ARCH-REFACTOR-001 ASAP" directive.
+- Confirmed Phase D.1 complete (commit 43a70eae: RefinementConfig extracted, 3/3 tests PASSED, backward-compat re-export in facade).
+- Scoped Phase D.2 (CLI Refactor) as canonical Engine adoption reference: analyzed facade call site (refine_one.py:505-595, 8 args), designed 5-step Engine pattern (import updates, build RefinementContext, instantiate stages list, run engine.run({"context": ...}), extract Bragg/artifacts).
+- Created comprehensive planning notes under plans/active/ARCH-REFACTOR-001/reports/2025-12-02T220000Z/planning_notes.md (implementation strategy, validation plan with 2 CLI selectors, risks/mitigations per CLI blueprint reference).
+- Updated implementation.md (D.1 marked complete with Phase D.1 completion summary), updated docs/fix_plan.md (new Attempts History entry for 2025-12-02T220000Z planning), updated problems.md (ledger serviced, Phase D.2 planning logged).
+- Authored complete input.md with 5-step Do Now (explicit line-by-line refactoring instructions), pitfalls, validation commands, findings, pointers, and mapped tests. Reserved artifacts at plans/active/ARCH-REFACTOR-001/reports/2025-12-02T220000Z/.
+- Initiative type: architecture. Mode: Parity. Mapped tests: test_torch_diagnostics_metadata, test_nanobrag_backend_runs_simulator.
+Action State: ready_for_implementation

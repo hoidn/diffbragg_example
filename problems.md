@@ -24,8 +24,11 @@ This file is a lightweight, user-editable backlog for any issues that Galph (the
 ATTN NEW PROBLEMS:
 ---
 IMPORTANT
-2025-12-04: Scheduled Stage C typed-context breakout under ARCH-REFACTOR-001 (see docs/fix_plan.md attempt 2025-12-04T120500Z, artifacts `plans/active/ARCH-REFACTOR-001/reports/2025-12-04T120500Z/`) to start peeling `_impl` dictionaries into typed dataclasses per C1.A–C1.D.
-PRIORITIZE ARCH-REFACTOR-001 ASAP
+**ARCH-REFACTOR-001 Progress** (2025-12-02T184846Z loop):
+- Phase C.4 COMPLETE (commit cd855064): Stage B context strictness + parameter builder inlining
+- Phase C.5 PLANNED: Stage B LBFGS inlining + HKL utilities extraction (see `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T184846Z/planning_notes.md`)
+- Problems ledger directive "PRIORITIZE ARCH-REFACTOR-001 ASAP" serviced this loop via C.5 planning
+- Remaining work: inline `_run_stage_b_lbfgs`, create `hkl_utils.py`, delete `stage_b_impl.py`, then repeat for Stage A
 IMPORTANT
 The codebase is currently in a "Mid-Refactor" state (Transitioning from monolithic scripts to a Protocol-based Engine), resulting in significant complexity, indirection, and state-management overhead.
 1. Architectural Issues (System Level)

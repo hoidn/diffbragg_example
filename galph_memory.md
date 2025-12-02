@@ -548,3 +548,11 @@ Action State: ready_for_implementation
 - Updated fix_plan (ARCH-REFACTOR-001 Attempts History + Execution Roadmap WIP cap), marked ARCH-BRIDGE-RESP-001 done, and set ARCH-LAZY-IMPORTS-001 to blocked so only REFRACTOR + TELEMETRY remain in-progress per instructions.
 - Authored input.md handing Ralph a Parity-mode Do Now: enforce RefinementContext-only inputs, port `_build_stage_b_params` logic into a StageB helper, and rerun the Stage B guard + shell smoketest with logs under the new artifact path.
 Action State: ready_for_implementation
+2025-12-02T184846Z focus=ARCH-REFACTOR-001 state=ready_for_implementation dwell=0 action=planning artifacts=plans/active/ARCH-REFACTOR-001/reports/2025-12-02T184846Z/ next_action=Implement C.5 hkl_utils extraction + LBFGS/parity inlining
+- Problems ledger guard triggered ("PRIORITIZE ARCH-REFACTOR-001 ASAP" directive), serviced this loop by planning Phase C.5.
+- Reviewed Ralph's Phase C.4 completion (commit cd855064): Stage B context strictness + parameter builder inlined (322 lines), both tests PASSED (guard 0.77s, shell 22.84s).
+- Scoped Phase C.5: create `dbex/refinement/hkl_utils.py` (ASU/shell utilities, no StageB deps), inline `_run_stage_b_lbfgs`→`StageB._run_lbfgs()` (~207 lines) and `_check_stage_b_baseline_parity`→`StageB._check_baseline_parity()` (~140 lines), update all import sites (StageB, nanobrag_refinement, tests).
+- Updated `problems.md` to note ARCH-REFACTOR-001 progress and ledger service (line 27-32), created planning notes under `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T184846Z/planning_notes.md`, and issued Do Now with 7 concrete tasks for Ralph.
+- Mapped tests: Stage B guard (test_stage_b_baseline_guard_diff_payload), Stage B shell (test_stage_b_shell_modifiers).
+- Findings enforced: ARCH-TELEMETRY-001 (collector-only), ARCH-STAGE-CTX-001 (typed contexts), ARCH-ENGINE-002 (stage seams), REFINE-005 (cctbx reuse), TORCH-REFINE-004 (ASU/shell modes).
+Action State: ready_for_implementation

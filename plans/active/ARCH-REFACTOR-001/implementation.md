@@ -262,3 +262,9 @@ Next increment shifts Stage B onto the same pattern Stage C now follows: no 
 - Phase B telemetry: `reports/phase_b_telemetry/`
 - Phase C incremental: `reports/phase_c{1,2,3,4,5}/`
 - Phase D hygiene/tooling: `reports/phase_d_legacy_hygiene/`
+
+
+#### Phase C.4 Complete — see commit cd855064
+#### Phase C.5 Scope logged in reports/2025-12-02T184846Z/planning_notes.md
+
+

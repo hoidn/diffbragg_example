@@ -1,0 +1,17 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 1 item
+
+tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload PASSED [100%]
+
+=============================== warnings summary ===============================
+tests/dbex/test_stage_b_cpu_fallback.py:389
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_stage_b_cpu_fallback.py:389: PytestUnknownMarkWarning: Unknown pytest.mark.mini - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.mini
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+========================= 1 passed, 1 warning in 0.92s =========================

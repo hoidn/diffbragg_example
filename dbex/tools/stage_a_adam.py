@@ -34,7 +34,7 @@ from dbex.nanobrag_bridge import (
     create_detector_config,
     compute_baseline_misset_deg,
 )
-from dbex.refinement.stage_a_impl import (
+from dbex.refinement.stage_a_utils import (
     quaternion_to_xyz_euler,
     vec_to_unit_quaternion,
 )

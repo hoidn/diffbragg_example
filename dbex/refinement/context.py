@@ -888,6 +888,72 @@ class StageCTelemetryState:
     panel_loss_diag: Optional[List[Any]] = None
 
 
+# ARCH-REFACTOR-001 Phase C.9: Relocated from stage_a_impl.py (2025-12-02T235959Z)
+@dataclass
+class StageAROIEntry:
+    """Cached ROI detector + simulator pair for Stage A warm cache."""
+    roi_index: int
+    panel_id: int
+    bbox: Tuple[int, int, int, int]
+    slow_slice: slice
+    fast_slice: slice
+    detector_model: Any
+    simulator: Any
+
+
+@dataclass
+class StageAContext:
+    """
+    Cached detector models and tensors for Stage A refinement (PERF-WARM-SIM-001).
+
+    Hoists per-panel Detector model instantiation, mask tensorization, and HKL grid
+    transfers out of the LBFGS closure. The closure then only updates parameter tensors
+    and runs forward passes through cached models, eliminating repeated construction overhead.
+    When ROI sampling is enabled, this context additionally stores cropped Detector/Simulator
+    pairs per ROI so closures can simulate only the requested bounding boxes.
+
+    Fields:
+        detector_configs: List of DetectorConfig objects per panel (length n_panels)
+        detector_models: List of Detector model instances per panel (length n_panels)
+        simulators: List of Simulator instances per panel cached with detector/beam state
+        roi_entries: Optional list of StageAROIEntry objects (length roi_count when ROI cache enabled)
+        beam_config: Single BeamConfig shared across all panels/ROIs
+        trusted_masks_t: torch.Tensor stacked trusted masks [panel, slow, fast] (dtype=bool)
+        baseline_distance_mm: List of baseline detector distances per panel (length n_panels)
+        roi_panel_map: Dict mapping ROI index to panel_id (PERF-WARM-013 Stage C retargeting)
+        hkl_grid: torch.Tensor structure factor grid on target device
+        hkl_metadata: dict with grid dimensions and halo status
+        device: torch device for all tensors
+        dtype: torch dtype for all tensors
+        n_panels: int, number of panels
+        roi_count: int, number of cached ROI entries
+        enable_hkl_interpolation: bool, tricubic interpolation flag
+        q_params: Optional quaternion parameters for U-matrix path (TORCH-GEOMETRY-PARITY-002 Phase B4)
+        B_ideal_reciprocal: Optional B_ideal matrix for U-matrix path (TORCH-GEOMETRY-PARITY-002 Phase B4)
+    """
+    detector_configs: List
+    detector_models: List
+    simulators: List
+    roi_entries: Optional[List[StageAROIEntry]]
+    beam_config: object
+    trusted_masks_t: Optional[torch.Tensor]
+    baseline_distance_mm: List[float]
+    roi_panel_map: Dict[int, int]
+    hkl_grid: torch.Tensor
+    hkl_metadata: Dict
+    device: torch.device
+    dtype: torch.dtype
+    n_panels: int
+    roi_count: int
+    enable_hkl_interpolation: bool
+    q_params: Optional[torch.Tensor] = None
+    B_ideal_reciprocal: Optional[torch.Tensor] = None
+    calibration_metadata: Optional[Dict[str, Any]] = None
+    log_scale_baseline: Optional[float] = None
+    spot_scale_override: Optional[float] = None
+    sqrt_spot_scale: Optional[float] = None
+
+
 @dataclass
 class StageCContext:
     """

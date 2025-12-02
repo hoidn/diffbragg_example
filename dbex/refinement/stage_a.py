@@ -32,10 +32,8 @@ import torch
 # ARCH-REFINE-001: Eager imports at module scope to eliminate lazy-import pattern
 from dbex.refinement.artifacts import StageAArtifacts
 from dbex.refinement.stage import StageResult
-# Stage A-private helpers now inlined (Phase C.8 complete)
-from dbex.refinement.stage_a_impl import (
-    _compute_variance_weighted_loss,
-)
+# Variance-weighted loss imported from canonical physics.loss module (Phase C.9)
+from dbex.physics.loss import _compute_variance_weighted_loss
 # Shared helpers used by Stage B, C, and reconstruction
 from dbex.refinement.stage_a_utils import (
     _clamp_log_cell_deltas,
@@ -122,7 +120,7 @@ class StageA:
         Returns:
             Dict with keys: params, param_values, telemetry_state, stage_a_context, optimizer
         """
-        from dbex.refinement.stage_a_impl import StageAContext
+        from dbex.refinement.context import StageAContext
         from dbex.refinement.context import StageATelemetryState
         from dbex.refinement.stage_a_utils import _get_sigma_floor_sq_tensor, _build_stage_a_context
 

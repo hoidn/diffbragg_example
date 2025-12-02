@@ -221,7 +221,7 @@ def _build_stage_a_context(
         StageAContext with prebuilt models and tensorized data
     """
     # Import here to avoid circular dependency
-    from dbex.refinement.stage_a_impl import StageAContext, StageAROIEntry
+    from dbex.refinement.context import StageAContext, StageAROIEntry
 
     n_panels = len(detector)
 

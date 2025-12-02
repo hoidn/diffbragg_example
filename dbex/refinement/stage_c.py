@@ -48,8 +48,8 @@ from dbex.refinement.stage_a_utils import (
     _compute_panel_loss,
     _get_sigma_floor_sq_tensor,
 )
-# StageAContext dataclass remains in stage_a_impl (not moved to utils)
-from dbex.refinement.stage_a_impl import StageAContext
+# StageAContext dataclass relocated to context.py per ARCH-REFACTOR-001 Phase C.9
+from dbex.refinement.context import StageAContext
 from dbex.physics.loss import _compute_variance_weighted_loss
 from dbex.refinement.config_factories import (
     create_detector_config,

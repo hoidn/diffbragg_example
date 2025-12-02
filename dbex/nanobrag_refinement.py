@@ -40,21 +40,18 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 import numpy as np
 import torch
 
-# Stage A helpers relocated to dbex.refinement.stage_a_impl (ARCH-REFINE-001)
-from dbex.refinement.stage_a_impl import (
+# Stage A quaternion helpers relocated to stage_a_utils (ARCH-REFACTOR-001 Phase C.7)
+from dbex.refinement.stage_a_utils import (
     vec_to_unit_quaternion,
     quaternion_to_rotation_matrix,
     quaternion_to_xyz_euler,
-    StageAROIEntry,
-    StageAContext,
     _build_stage_a_context,
-    _sync_stage_a_crystal,
     _retarget_stage_a_simulators,
-    _build_stage_a_params,
-    _run_stage_a_lbfgs,
     _clamp_log_cell_deltas,
     _get_sigma_floor_sq_tensor,
 )
+# Stage A dataclasses relocated to context.py (ARCH-REFACTOR-001 Phase C.9)
+from dbex.refinement.context import StageAROIEntry, StageAContext
 
 # Stage B helpers relocated to dbex.refinement.stage_b_impl (ARCH-REFINE-001)
 # ARCH-REFACTOR-001 Phase C.5: HKL utilities extracted to hkl_utils.py for cross-stage reuse

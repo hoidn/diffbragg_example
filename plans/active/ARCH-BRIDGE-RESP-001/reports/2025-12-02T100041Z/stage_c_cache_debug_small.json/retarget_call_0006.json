@@ -1,0 +1,14 @@
+{
+  "call_index": 6,
+  "panel_updates": [
+    {
+      "panel_id": 0,
+      "distance_before_mm": 231.52645547762575,
+      "delta_mm": -0.24998736381530762,
+      "distance_after_mm": 231.27647399902344,
+      "simulator_id_before": 128682482779328,
+      "simulator_id_after": 128682518804368
+    }
+  ],
+  "roi_updates": []
+}

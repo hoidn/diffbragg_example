@@ -1,0 +1,179 @@
+[
+  {
+    "stage": "stage_a_expansion",
+    "dataset": "small",
+    "status": "ok",
+    "message": "",
+    "loss_trace_full": [
+      [
+        0,
+        331338592.0
+      ],
+      [
+        0,
+        331338592.0
+      ],
+      [
+        5,
+        138706528.0
+      ],
+      [
+        10,
+        138400080.0
+      ],
+      [
+        15,
+        138400080.0
+      ],
+      [
+        20,
+        138400080.0
+      ]
+    ],
+    "chi_squared_trace_full": [
+      [
+        0,
+        331338592.0
+      ],
+      [
+        0,
+        331338592.0
+      ],
+      [
+        5,
+        138706528.0
+      ],
+      [
+        10,
+        138400080.0
+      ],
+      [
+        15,
+        138400080.0
+      ],
+      [
+        20,
+        138400080.0
+      ]
+    ],
+    "perf_counters": {
+      "cache_mode": "warm",
+      "roi_mode": "panel",
+      "roi_count_total": 1,
+      "roi_count_sampled": 1,
+      "closure_evals": 20,
+      "validation_runs": 6,
+      "forward_time_ms": {
+        "mean": 45.29989908915013,
+        "min": 44.73173106089234,
+        "max": 47.17382602393627,
+        "total": 905.9979817830026
+      },
+      "validation_scope": "panel",
+      "roi_mode_reason": "auto_panel_threshold (roi_count=29 <= 32)"
+    },
+    "param_deltas": {
+      "log_scale": {
+        "initial": 8.91646936482889,
+        "final": 8.91646957397461,
+        "delta": 2.0914571940977567e-07
+      },
+      "log_scale_baseline": {
+        "initial": 0.0,
+        "final": 0.0
+      },
+      "log_cell_a_delta": {
+        "initial": 0.0,
+        "final": -0.25745609402656555,
+        "delta": -0.25745609402656555
+      },
+      "log_cell_b_delta": {
+        "initial": 0.0,
+        "final": 0.23030368983745575,
+        "delta": 0.23030368983745575
+      },
+      "log_cell_c_delta": {
+        "initial": 0.0,
+        "final": 0.028892086818814278,
+        "delta": 0.028892086818814278
+      },
+      "angle_alpha_raw": {
+        "initial": 0.0,
+        "final": -0.02777422033250332,
+        "delta": -0.02777422033250332
+      },
+      "angle_beta_raw": {
+        "initial": 0.0,
+        "final": -0.0003586281673051417,
+        "delta": -0.0003586281673051417
+      },
+      "angle_gamma_raw": {
+        "initial": 0.0,
+        "final": 0.0325772725045681,
+        "delta": 0.0325772725045681
+      },
+      "orientation_vec": {
+        "initial": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "final": [
+          0.01737087406218052,
+          0.012700105085968971,
+          -0.08753754943609238
+        ],
+        "delta": [
+          0.01737087406218052,
+          0.012700105085968971,
+          -0.08753754943609238
+        ],
+        "norm": 0.09014356881380081
+      },
+      "misset_xyz_deg": {
+        "initial": [
+          -0.006988525390625,
+          0.15351295471191406,
+          1.4765625
+        ],
+        "final": [
+          0.09687688201665878,
+          0.2301851212978363,
+          0.9527419805526733
+        ],
+        "delta": [
+          0.10386540740728378,
+          0.07667215913534164,
+          -0.5238205194473267
+        ],
+        "quaternion_norm": 1.0
+      }
+    },
+    "loss_improvement": 0.5823001505360413,
+    "n_rois": 29,
+    "detector_shape": [
+      1,
+      1024,
+      1024
+    ],
+    "closure_evals": 20,
+    "validation_runs": 6,
+    "forward_time_ms": {
+      "mean": 45.29989908915013,
+      "min": 44.73173106089234,
+      "max": 47.17382602393627,
+      "total": 905.9979817830026
+    },
+    "chi_squared_initial": 331338592.0,
+    "chi_squared_final": 138400080.0,
+    "variance_floor_clamp_fraction": 0.0,
+    "sigma_readout_provenance": "cli_override",
+    "canonical_stage_label": "A",
+    "canonical_chi_squared": 138400080.0,
+    "canonical_chi_squared_iteration": 20,
+    "canonical_roi_count": 29,
+    "canonical_detector_distances_mm": [
+      231.27645547762575
+    ]
+  }
+]

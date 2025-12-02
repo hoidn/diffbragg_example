@@ -5,78 +5,79 @@
 - Title: Refinement Engine Modularization & Physics Separation
 - Owner: Unassigned
 - Spec Owner: docs/spec-db-workflow.md
-- Status: pending (Blocked by [TORCH-GEOMETRY-CONVERGENCE-001])
+- Status: in_progress
 
 ## Goals
-1. **Decouple Physics:** Move pure crystallographic math/physics out of orchestration code to enable isolated unit testing.
-2. **Standardize Telemetry:** Replace brittle string-mapping with data-driven schema handling.
-3. **Incremental Architecture:** Evolve `run_nanobrag_refinement` into a class-based Engine without a big-bang rewrite, preserving regression guards at every step.
-4. **Harden Tooling & Legacy Paths:** Remove repo-polluting scratch artifacts (`dbex/run_diffbragg.py`) and de-tangle plan tooling/summary scripts so they can be reused and tested.
+1. **Finish the Migration:** Complete the transition to the Protocol-based Engine by removing legacy compatibility shims (dict-based inputs, exploded argument lists).
+2. **Eliminate Procedural Helpers:** Move logic from `*_impl.py` files directly into their respective `Stage` classes, consolidating state management.
+3. **Retire the Facade:** Migrate all call sites of `run_nanobrag_refinement` to use `RefinementEngine` directly, then delete the monolithic `dbex/nanobrag_refinement.py`.
+4. **Strict Typing:** Enforce usage of `JobContext` and `RefinementSharedContext` across the stack.
 
-## Execution Constraints & Timing
-> **CRITICAL:** This initiative is **blocked** until `TORCH-GEOMETRY-CONVERGENCE-001` (Phase C) is complete and the Chi² convergence bug is resolved.
-> 
-> **Rule:** Do not move broken code. Fix the physics first, then refactor.
-> 
-> **Layered-Scope Discipline:** Per prompts/supervisor.md, "When higher-layer work exposes lower-layer defect, suspend higher layer and stabilize lower layer first." Refactoring is Tier 3 (Architecture). Convergence is Tier 1 (Core Physics). Fix convergence first.
+## Execution Constraints
+- **Do not reinvent the simulator seam.** Use `create_unified_simulator` (factory) and `ExperimentModel`.
+- **Do not create new state containers.** Use `JobContext` (static), `RefinementContext` (immutable), and `RefinementSharedContext` (mutable closure state).
+- **Preserve Legacy.** `diffbragg` backend must remain functional.
 
 ## Phases Overview
-- Phase 0 — Test Discipline Baseline: Prove team can write unit tests in CURRENT architecture before moving code.
-- Phase A — Physics Extraction: Isolate math kernels (`dbex.geometry`, `dbex.physics`) to secure "leaf nodes".
-- Phase B — Telemetry Standardization: Modernize `RefinementTelemetry` and HDF5 I/O.
-- Phase C — Incremental Engine Migration: Introduce `SimulationContext` and `RefinementStage` patterns gradually, keeping existing facade alive.
-  - Prerequisite: TORCH-API-ALIGN-001 Phase B completed (unified simulator factory + ExperimentModel adapter in parity-first mode). Stages should consume the unified factory seam; mid-term we may route the factory via ExperimentModel or vice versa to avoid two public paths.
-- Phase D — Legacy Hygiene & Tooling: Fix DiffBragg scratch semantics and refactor brittle orchestration scripts into importable modules/CLIs.
+- Phase A — Physics Extraction (Complete): Math kernels isolated in `dbex.geometry`/`dbex.physics`.
+- Phase B — Telemetry Standardization (Complete): `RefinementTelemetry` dataclass and `writer.py` updates.
+- Phase C — Stage Consolidation: Inline `_impl` logic into Stage classes; remove legacy argument shims.
+- Phase D — Facade Removal: Migrate `refine_one` and tests to Engine; delete `nanobrag_refinement.py`.
+- Phase E — Legacy Isolation: Ensure `run_diffbragg.py` remains stable alongside the new architecture.
 
 ## Exit Criteria
-1. Core physics functions (`derive_u_matrix`, `compute_variance_weighted_loss`) are isolated in `dbex.geometry`/`dbex.physics` and unit-tested independently.
-2. `RefinementTelemetry` supports `to_dict()` and dynamic HDF5 serialization.
-3. `run_nanobrag_refinement` facade delegates to `RefinementEngine`.
-4. **Regression Guards:** `test_stage_a_expansion` and `DB-AT-024` (Mapping) pass at every commit.
-5. **Parity:** `test_db_at_001_parity.py` confirms no numeric drift > 1e-6 during migration.
-6. Test registry synchronized: `docs/TESTING_GUIDE.md` §2 and `docs/development/TEST_SUITE_INDEX.md` reflect any new selectors; `pytest --collect-only` logs saved under `plans/active/ARCH-REFACTOR-001/reports/<timestamp>/`.
-7. DiffBragg backend writes all intermediate artifacts into per-run temp directories or explicit paths (no `_geom_ref.*`/`_temp.mtz`/`_geom.out` leakage in repo root) and concurrency-safe tests cover the behavior.
-8. Stage-A tooling/summary generation scripts expose CLI arguments instead of hard-coded constants, rely on shared helper modules, and ship basic regression/unit tests.
-9. **Single simulator seam:** All dbex simulator wiring (including `refine_one`, `run_nanobrag_refinement`, and helper paths) routes through the single seam selected in TORCH-API-ALIGN-001 (unified simulator factory and/or ExperimentModel adapter); there are no remaining ad-hoc `Simulator` constructions or duplicate wiring paths in dbex, and DB-AT-024, Stage A/B/C smokes, and ExperimentModel parity tests all pass within their documented tolerances after consolidation.
+1. `dbex/refinement/stage_a_impl.py`, `stage_b_impl.py`, `stage_c_impl.py` are deleted.
+2. `dbex/nanobrag_refinement.py` is deleted.
+3. `StageA`, `StageB`, `StageC` classes fully encapsulate their parameter building and optimization loops.
+4. `RefinementEngine.run` accepts **only** dicts containing `RefinementContext` (strict type checking).
+5. All smoke tests and DB-AT selectors pass using the direct Engine path.
 
-## Compliance Matrix (Mandatory)
-- [ ] **Spec Constraint:** `docs/spec-db-workflow.md §7` — Engine Contract: API must accept an ordered list of Stage objects.
-- [ ] **Spec Constraint:** `docs/spec-db-core.md` — Variance Definition: `V = I_model + sigma^2` (detached) logic must be preserved in `dbex.physics`.
-- [ ] **Spec Constraint:** `docs/spec-db-runtime.md` — Device neutrality: New classes must accept device/dtype configuration.
-- [ ] **Fix-Plan Link:** `docs/fix_plan.md — Row [ARCH-REFACTOR-001]`
-- [ ] **Fix-Plan Link (dependency):** `plans/active/TORCH-API-ALIGN-001` — Simulator wiring unification + ExperimentModel adapter
-- [ ] **Finding/Policy ID:** `PERF-WARM-SIM-001` — Warm cache behavior must be preserved in the new `SimulationContext`.
-- [ ] **Finding/Policy ID:** `REFINE-001` — LBFGS scale warm-start patterns must transfer to new architecture.
-- [ ] **Policy:** Layered-Scope Guard — Do not refactor higher layers while lower layers (physics) are unstable.
+## Compliance Matrix
+- [ ] **Spec Constraint:** `docs/spec-db-workflow.md §7` — Protocol Architecture.
+- [ ] **Spec Constraint:** `docs/architecture/dbex/refinement/context.idl.md` — Context contracts.
+- [ ] **Fix-Plan Link:** `docs/fix_plan.md — Row [ARCH-REFACTOR-001]`.
+- [ ] **Finding/Policy ID:** `ARCH-ENGINE-002` — Engine protocol compliance.
 
-## Spec Alignment
-- **Normative Spec:** docs/spec-db-workflow.md
-- **Key Clauses:** §7 (Refinement Protocol Architecture), §6 (Variance-weighted loss)
+---
 
-## Architecture / Interfaces
-- **New Modules:**
-  - `dbex/geometry/crystallography.py` (Pure functions: U-matrix derivation, cell recovery)
-  - `dbex/geometry/rotations.py` (Pure functions: quaternion, matrix operations)
-  - `dbex/physics/loss.py` (Pure functions: variance-weighted loss, masked MSE)
-  - `dbex/engine/` (State management: RefinementEngine, RefinementStage, SimulationContext)
-- **Key Types:**
-  - `SimulationContext`: Holds `Detector`, `Crystal`, `Simulator`, `Masks` (on-device), ROI caching
-  - `RefinementStage` (ABC): `setup()`, `step()`, `teardown()`
-  - `RefinementEngine`: Orchestrates stages, aggregates telemetry
-- **Boundary Definitions:**
-  - `[CLI/DataLoad]` -> `[RefinementEngine]` -> `[RefinementStage]` -> `[SimulationContext/Simulator]`
-- **Leaf-Node Constraint:**
-  - "Leaf-like" means: `dbex.geometry` may import from `dxtbx`/`cctbx` (external deps) but MUST NOT import from `dbex.nanobrag_bridge` or `dbex.nanobrag_refinement` (internal deps that use geometry). This prevents circular imports.
+## Phase A — Physics Extraction (Completed)
+*Logic successfully moved to `dbex.geometry` and `dbex.physics`.*
 
-## Context Priming
-- Primary docs: `docs/spec-db-workflow.md` §6-§7, `docs/spec-db-core.md`, `docs/spec-db-runtime.md`
-- Related code: `dbex/nanobrag_refinement.py` (current monolithic), `dbex/nanobrag_bridge.py` (math mix-in)
-- Reference implementation: `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/` (telemetry patterns from successful diagnostic campaign)
-- Findings: `REFINE-001` (LBFGS scale), `PHYSICS-LOSS-001` (variance), `PERF-WARM-SIM-001` (cache), `GRADIENT-001` (autograd)
+## Phase B — Telemetry Standardization (Completed)
+*`RefinementTelemetry` dataclass and `io/writer.py` established.*
 
-## Phase 0 — Test Discipline Baseline
-**Goal:** Prove test-writing discipline exists BEFORE refactoring. Tests in current architecture provide safety net.
-**Status:** ✓ MOSTLY COMPLETE (2025-11-24T070000Z — Path B-Modified: tests pass, coverage tool unavailable, manual assessment ~85-90%)
+## Phase C — Stage Consolidation & Impl Deletion
+**Goal:** Move logic from `_impl.py` files into `Stage` classes and remove "data clump" argument lists.
+
+### Checklist
+- [ ] C1: **Stage C Strictness:** Refactor `StageC._build_lbfgs_closure` to accept *only* `RefinementSharedContext` and `StageCContext`. Remove the 15+ optional legacy arguments.
+- [ ] C2: **Stage C Inlining:** Move logic from `_build_stage_c_params` and `_run_stage_c_lbfgs` (in `stage_c_impl.py`) directly into `dbex/refinement/stage_c.py`.
+- [ ] C3: **Stage C Cleanup:** Delete `dbex/refinement/stage_c_impl.py`. Verify `test_stage_c_detector_microslip` passes.
+- [ ] C4: **Stage B Strictness:** Refactor `StageB` to rely solely on `RefinementSharedContext` and `StageBTelemetryState`. Remove legacy dict/arg support.
+- [ ] C5: **Stage B Inlining:** Inline `_build_stage_b_params` and `_run_stage_b_lbfgs` into `StageB` class.
+- [ ] C6: **Stage B Cleanup:** Delete `dbex/refinement/stage_b_impl.py` and `stage_b_impl.py.backup`. Verify `test_stage_b_shell_modifiers`.
+- [ ] C7: **Stage A Strictness:** Refactor `StageA` to rely solely on `RefinementSharedContext`.
+- [ ] C8: **Stage A Inlining:** Inline parameter building and loop logic into `StageA`.
+- [ ] C9: **Stage A Cleanup:** Delete `dbex/refinement/stage_a_impl.py`. Verify `test_stage_a_expansion` and `DB-AT-024`.
+
+## Phase D — Facade Removal
+**Goal:** Point all consumers to `RefinementEngine` and delete the procedural wrapper.
+
+### Checklist
+- [ ] D1: **CLI Refactor:** Update `dbex/refine_one.py` to construct `JobContext` and `RefinementContext`, then instantiate `RefinementEngine` directly.
+- [ ] D2: **Test Harness Update:** Update `tests/dbex/test_torch_refine_smoke.py` fixtures to use `RefinementEngine` instead of `run_nanobrag_refinement`.
+- [ ] D3: **Tooling Update:** Update `dbex/tools/stage_a_adam.py` to use the Engine or direct Stage instantiation.
+- [ ] D4: **Deletion:** Delete `dbex/nanobrag_refinement.py`.
+
+## Phase E — Legacy Isolation
+**Goal:** Ensure the legacy backend survives the refactor.
+
+### Checklist
+- [ ] E1: **Regression Check:** Run `test_diffbragg_tmp.py` and `refine_one.py --backend diffbragg` to ensure no shared dependencies were broken.
+- [ ] E2: **Cleanup:** If `run_diffbragg.py` imports from deleted modules, refactor it to import from `nanobrag_bridge` or `physics` as appropriate.
+
+## Artifacts Index
+- Reports root: `plans/active/ARCH-REFACTOR-001/reports/`
 
 ### Checklist
 - [x] 0.1: **Unit test derive_u_matrix (CURRENT location)** — ✓ COMPLETE (2025-11-24T070000Z) Write `tests/dbex/test_geometry_current.py::test_derive_u_matrix_roundtrip` validating MOSFLM A* → (U, B_ideal) → A* reconstruction within 1e-6. Test CURRENT implementation in `dbex/nanobrag_bridge.py` before moving. (2 tests PASSED: roundtrip + identity edge case, 1.05s runtime)

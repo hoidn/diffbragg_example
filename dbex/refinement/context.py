@@ -596,12 +596,12 @@ class StageATelemetryState:
     # Chi-squared traces (PHYSICS-LOSS-001)
     chi_squared_trace_sample: List[float] = field(default_factory=list)
     chi_squared_trace_full: List[float] = field(default_factory=list)
-    chi_squared_best: Tuple[float, int] = field(default_factory=lambda: (float('inf'), -1))
+    chi_squared_best: List[float] = field(default_factory=lambda: [float('inf'), -1])
 
     # Masked MSE traces (PHYSICS-LOSS-001)
     masked_mse_trace_sample: List[float] = field(default_factory=list)
     masked_mse_trace_full: List[float] = field(default_factory=list)
-    masked_mse_best: Tuple[float, int] = field(default_factory=lambda: (float('inf'), -1))
+    masked_mse_best: List[float] = field(default_factory=lambda: [float('inf'), -1])
 
     # Performance timing
     perf_forward_times_ms: List[float] = field(default_factory=list)
@@ -680,12 +680,12 @@ class StageBTelemetryState:
     # Chi-squared traces (PHYSICS-LOSS-001)
     chi_squared_trace_sample: List[float] = field(default_factory=list)
     chi_squared_trace_full: List[float] = field(default_factory=list)
-    chi_squared_best: Tuple[float, int] = field(default_factory=lambda: (float('inf'), -1))
+    chi_squared_best: List[float] = field(default_factory=lambda: [float('inf'), -1])
 
     # Masked MSE traces (PHYSICS-LOSS-001)
     masked_mse_trace_sample: List[float] = field(default_factory=list)
     masked_mse_trace_full: List[float] = field(default_factory=list)
-    masked_mse_best: Tuple[float, int] = field(default_factory=lambda: (float('inf'), -1))
+    masked_mse_best: List[float] = field(default_factory=lambda: [float('inf'), -1])
 
     # Performance timing
     perf_forward_times_ms: List[float] = field(default_factory=list)
@@ -761,12 +761,12 @@ class StageCTelemetryState:
     # Chi-squared traces (PHYSICS-LOSS-001)
     chi_squared_trace_sample: List[float] = field(default_factory=list)
     chi_squared_trace_full: List[float] = field(default_factory=list)
-    chi_squared_best: Tuple[float, int] = field(default_factory=lambda: (float('inf'), -1))
+    chi_squared_best: List[float] = field(default_factory=lambda: [float('inf'), -1])
 
     # Masked MSE traces (PHYSICS-LOSS-001)
     masked_mse_trace_sample: List[float] = field(default_factory=list)
     masked_mse_trace_full: List[float] = field(default_factory=list)
-    masked_mse_best: Tuple[float, int] = field(default_factory=lambda: (float('inf'), -1))
+    masked_mse_best: List[float] = field(default_factory=lambda: [float('inf'), -1])
 
     # Performance timing
     perf_forward_times_ms: List[float] = field(default_factory=list)

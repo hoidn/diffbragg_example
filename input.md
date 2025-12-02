@@ -1,7 +1,7 @@
-# Input for Ralph — ARCH-REFACTOR-001 Phase C.5
+# Input for Ralph — Loop i=430
 
 ## Summary
-Finalize Stage B consolidation by inlining LBFGS execution logic and extracting HKL utilities to a dedicated module, enabling `stage_b_impl.py` deletion in Phase C.6.
+Delete `dbex/refinement/stage_b_impl.py` after migrating remaining imports to proper source modules.
 
 ## Mode
 Parity
@@ -10,209 +10,137 @@ Parity
 architecture
 
 ## Focus
-[ARCH-REFACTOR-001] — Refinement Engine Modularization & Physics Separation
+ARCH-REFACTOR-001 — Refinement Engine Modularization & Physics Separation
 
 ## Branch
 integration
 
 ## Mapped tests
-- `tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload`
-- `tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers`
+```bash
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+DBEX_SMOKE_SIGMA_SOURCE=cli_override \
+DBEX_SMOKE_DETECTOR_SIZE=small \
+KMP_DUPLICATE_LIB_OK=TRUE \
+NANOBRAGG_DISABLE_COMPILE=1 \
+pytest -vv \
+  tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload \
+  tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers \
+  --smoke-detector-size=small
+```
 
 ## Artifacts
-`plans/active/ARCH-REFACTOR-001/reports/2025-12-02T184846Z/`
+`plans/active/ARCH-REFACTOR-001/reports/2025-12-02T190946Z/`
 
 ## Do Now
 
-**Context**: Ralph completed Phase C.4 (commit cd855064), inlining `_build_stage_b_params` into `StageB` as a 322-line private method. Stage B now requires strict `RefinementContext` inputs and owns its parameter building logic. Both acceptance gates passed (guard 0.77s, shell 22.84s).
+### Context
+Phase C.5 successfully inlined `_build_stage_b_params`, `_run_stage_b_lbfgs`, and `_check_stage_b_baseline_parity` into `StageB` class methods, and extracted HKL utilities to `hkl_utils.py`. The `stage_b_impl.py` file now serves only as a pass-through for Stage A helpers (`_retarget_stage_a_simulators`, `_get_sigma_floor_sq_tensor`, `_build_stage_a_context`) that are actually defined in `stage_a_impl.py`. Phase C.6 completes the Stage B consolidation by updating imports to source from the correct modules and deleting `stage_b_impl.py`.
 
-**This loop (C.5)**: Complete the Stage B consolidation by:
-1. Creating `dbex/refinement/hkl_utils.py` with ASU/shell utilities (no StageB dependencies)
-2. Inlining `_run_stage_b_lbfgs` and `_check_stage_b_baseline_parity` into `StageB` class
-3. Updating all import sites to reference the new locations
-4. Validating via Stage B guard + shell smoke tests
+### Implementation Tasks
 
-**Implement**:
+**C6.A — Update `dbex/refinement/stage_b.py` imports**
+1. Change lines 32-37 to import the three Stage A helpers directly from `stage_a_impl`:
+   ```python
+   # ARCH-REFACTOR-001 Phase C.6: Import Stage A helpers from their actual source
+   from dbex.refinement.stage_a_impl import (
+       _retarget_stage_a_simulators,
+       _get_sigma_floor_sq_tensor,
+       _build_stage_a_context,
+   )
+   ```
+2. Remove the `from dbex.refinement.stage_b_impl import (...)` block entirely
+3. Preserve all other imports unchanged (hkl_utils, context, telemetry_collectors, etc.)
 
-### Task 1: Create `dbex/refinement/hkl_utils.py`
-1. Create new file `dbex/refinement/hkl_utils.py`
-2. Copy these functions from `dbex/refinement/stage_b_impl.py` (lines 185-487):
-   - `compute_hkl_shell_lookup` (lines 185-278)
-   - `compute_hkl_asu_map` (lines 280-395)
-   - `initialize_asu_modifiers` (lines 397-445)
-   - `apply_asu_modifiers` (lines 447-487)
-3. Add module docstring:
-```python
-"""
-HKL utilities for ASU mapping and shell binning (Stage B refinement support).
+**C6.B — Update `dbex/nanobrag_refinement.py` imports**
+1. Remove lines 67-70 (`from dbex.refinement.stage_b_impl import ...`) entirely
+2. The facade no longer calls these helpers directly (uses RefinementEngine), so the imports are dead code
+3. Preserve the comments at lines referencing the logic (lines ~2500-2530 mention `_build_stage_b_params` for documentation, leave those)
 
-Provides general-purpose reciprocal space utilities for multi-reflection refinement modes,
-extracted from Stage B implementation helpers to enable cross-stage reuse.
+**C6.C — Verify no other consumers**
+1. Run `rg "from.*stage_b_impl import" --type py` to confirm only tests remain
+2. Check test files: `tests/dbex/test_stage_b_cpu_fallback.py` may patch `stage_b_impl._build_stage_b_params`
+3. If tests patch `stage_b_impl` helpers, update them to patch `StageB._build_stage_b_params` or the Stage A source
 
-References:
-- TORCH-REFINE-004 (per-reflection mode)
-- docs/spec-db-workflow.md §76-79 (Stage B structure factor modifiers)
-- REFINE-005 (cctbx reuse guard for ASU mapping)
-"""
-```
-4. Ensure all imports are at module scope (no lazy imports)
-5. Remove any StageB/RefinementContext dependencies (these functions should be pure utilities)
+**C6.D — Delete `dbex/refinement/stage_b_impl.py`**
+1. Verify the above changes landed and imports resolve correctly: `python -c "from dbex.refinement import stage_b"`
+2. Delete the file: `rm dbex/refinement/stage_b_impl.py`
+3. Also delete `.backup` if it exists: `rm dbex/refinement/stage_b_impl.py.backup`
 
-### Task 2: Inline `_check_stage_b_baseline_parity` into `StageB._check_baseline_parity()`
-1. In `dbex/refinement/stage_b.py`, add a private method `_check_baseline_parity()` containing the body of `_check_stage_b_baseline_parity` from `stage_b_impl.py` (lines 44-183)
-2. Keep the exact signature:
-```python
-def _check_baseline_parity(
-    self,
-    canonical_baseline: Dict[str, Any],
-    initial_chi_squared_b: torch.Tensor,
-    collector: StageBTelemetryCollector,
-    param_values: Dict[str, Any],
-    compute_loss_stage_b: Callable,
-    n_panels: int,
-) -> None:
-```
-3. Preserve the collector-only telemetry path (ARCH-TELEMETRY-001 Phase C.1)
-4. Keep JSON diff emission logic intact
-5. Update any references to use `self._check_baseline_parity()`
+**C6.E — Validation**
+1. Run the mapped tests (Stage B guard + shell smoke) with canonical env flags
+2. Capture logs under `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T190946Z/`
+   - `pytest_stage_b_guard.log`
+   - `pytest_stage_b_shell.log`
+3. Verify both tests PASS with no import errors or behavioral regressions
 
-### Task 3: Inline `_run_stage_b_lbfgs` into `StageB._run_lbfgs()`
-1. In `dbex/refinement/stage_b.py`, add a private method `_run_lbfgs()` containing the body of `_run_stage_b_lbfgs` from `stage_b_impl.py` (lines 819-1025)
-2. Mirror the Stage C pattern from ARCH-REFACTOR-001 Phase C.2
-3. Signature should match current helper but as an instance method:
-```python
-def _run_lbfgs(
-    self,
-    param_values: Dict[str, Any],
-    compute_loss_stage_b: Callable,
-    initial_chi_squared_b: torch.Tensor,
-    telemetry_state: StageBTelemetryState,
-    collector: StageBTelemetryCollector,
-    canonical_baseline: Dict[str, Any],
-    n_panels: int,
-    job_context: 'JobContext',
-    shared_context: RefinementSharedContext,
-    stage_a_context: 'StageAContext',
-) -> Tuple[StageResult, RefinementTelemetry, str, str, Optional[np.ndarray], Optional[Dict[str, np.ndarray]]]:
-```
-4. Update the call to baseline parity to use `self._check_baseline_parity(...)`
-5. Ensure observer-only telemetry collector path remains intact
-6. Return signature matches existing helper
+### How-To Map
 
-### Task 4: Update `dbex/refinement/stage_b.py` imports
-1. At module scope, add:
-```python
-from dbex.refinement.hkl_utils import (
-    compute_hkl_shell_lookup,
-    compute_hkl_asu_map,
-    initialize_asu_modifiers,
-    apply_asu_modifiers,
-)
-```
-2. Remove the import of `_run_stage_b_lbfgs` and `_check_stage_b_baseline_parity` from `stage_b_impl`
-3. Update `StageB.run()` to call `self._run_lbfgs(...)` instead of the module-level helper
-4. Update any other internal references
-
-### Task 5: Update `dbex/nanobrag_refinement.py` imports
-1. Change:
-```python
-from dbex.refinement.stage_b_impl import (
-    compute_hkl_shell_lookup,
-    compute_hkl_asu_map,
-```
-To:
-```python
-from dbex.refinement.hkl_utils import (
-    compute_hkl_shell_lookup,
-    compute_hkl_asu_map,
-```
-
-### Task 6: Update test imports
-1. In `tests/dbex/test_stage_b_cpu_fallback.py`, check for any direct imports from `stage_b_impl` and update them
-2. In `tests/dbex/test_stage_b_asu_mapping.py`, update ASU utility imports to use `hkl_utils`
-3. If tests patch `stage_b_impl` functions, update patches to target new locations (`StageB._check_baseline_parity`, `hkl_utils.*`)
-
-### Task 7: Validation
-Run both mapped test selectors with canonical environment flags:
-
+**Import verification**
 ```bash
+python -c "from dbex.refinement import stage_b; print('StageB imports OK')"
+```
+
+**Find remaining stage_b_impl consumers**
+```bash
+rg "from.*stage_b_impl import" --type py | tee plans/active/ARCH-REFACTOR-001/reports/2025-12-02T190946Z/remaining_imports.txt
+```
+
+**Run mapped tests**
+```bash
+cd /home/ollie/Documents/diffbragg_example
+
+# Stage B guard test
 AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
 DBEX_SMOKE_SIGMA_SOURCE=cli_override \
-DBEX_SMOKE_DETECTOR_SIZE=small \
 KMP_DUPLICATE_LIB_OK=TRUE \
 NANOBRAGG_DISABLE_COMPILE=1 \
 pytest -vv tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload \
-| tee plans/active/ARCH-REFACTOR-001/reports/2025-12-02T184846Z/pytest_stage_b_guard.log
-```
+  | tee plans/active/ARCH-REFACTOR-001/reports/2025-12-02T190946Z/pytest_stage_b_guard.log
 
-```bash
+# Stage B shell smoke
 AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
 DBEX_SMOKE_SIGMA_SOURCE=cli_override \
 DBEX_SMOKE_DETECTOR_SIZE=small \
 KMP_DUPLICATE_LIB_OK=TRUE \
 NANOBRAGG_DISABLE_COMPILE=1 \
-pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small \
-| tee plans/active/ARCH-REFACTOR-001/reports/2025-12-02T184846Z/pytest_stage_b_shell.log
+pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers \
+  --smoke-detector-size=small \
+  | tee plans/active/ARCH-REFACTOR-001/reports/2025-12-02T190946Z/pytest_stage_b_shell.log
 ```
 
-**Expected**: Both tests PASS with no behavioral regression. Telemetry, baseline parity guard, and observer-only collector path should produce identical results to Phase C.4.
+### Pitfalls To Avoid
 
-## How-To Map
+1. **Do not change Stage A helpers** — `_retarget_stage_a_simulators`, `_get_sigma_floor_sq_tensor`, `_build_stage_a_context` stay in `stage_a_impl.py` (they are Stage A internals reused by Stage B)
+2. **Do not delete HKL utilities** — `hkl_utils.py` is the new shared module for ASU/shell helpers (TORCH-REFINE-004)
+3. **Do not touch StageB class methods** — `_build_stage_b_params()`, `_run_lbfgs()`, `_check_baseline_parity()` are already correct inside StageB
+4. **Preserve comment references** — `nanobrag_refinement.py` has documentation comments mentioning the old helper names for historical context; leave those intact
+5. **Initiative type boundary** — This is pure architecture refactoring (moving code without changing behavior); do not adjust any physics, gates, or acceptance criteria
 
-1. **Create hkl_utils module**: Copy 4 functions from stage_b_impl.py (lines 185-487) into new `dbex/refinement/hkl_utils.py` with module docstring
-2. **Inline baseline parity**: Copy `_check_stage_b_baseline_parity` (lines 44-183) as `StageB._check_baseline_parity()` private method in stage_b.py
-3. **Inline LBFGS runner**: Copy `_run_stage_b_lbfgs` (lines 819-1025) as `StageB._run_lbfgs()` private method in stage_b.py
-4. **Update StageB imports**: Import from hkl_utils, remove stage_b_impl imports for relocated functions, update internal calls to use `self._run_lbfgs()` and `self._check_baseline_parity()`
-5. **Update legacy facade imports**: Change `dbex/nanobrag_refinement.py` to import from `hkl_utils` instead of `stage_b_impl`
-6. **Update test imports**: Change `tests/dbex/test_stage_b_cpu_fallback.py` and `tests/dbex/test_stage_b_asu_mapping.py` to import from new locations
-7. **Run tests**: Execute both validation commands above, save logs to artifacts directory
+### If Blocked
 
-## Pitfalls To Avoid
+If import errors occur after deleting `stage_b_impl.py`, check:
+1. Did you update both `stage_b.py` and `nanobrag_refinement.py` imports?
+2. Do test files still patch `@patch('dbex.refinement.stage_b_impl.*')`? Update to `@patch('dbex.refinement.stage_b.StageB.*')` or `@patch('dbex.refinement.stage_a_impl.*')`
+3. Capture the error traceback under `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T190946Z/import_error.txt`
+4. Note the block in galph_memory and switch focus if the root cause requires upstream changes
 
-1. **Do not change any logic**: This is a pure code motion refactor. Function bodies should be copied verbatim.
-2. **Preserve collector-only path**: Ensure `_check_baseline_parity` and `_run_lbfgs` continue using `StageBTelemetryCollector` (ARCH-TELEMETRY-001)
-3. **Keep JSON diff emission**: Baseline parity guard must still write diff files when parity fails
-4. **No circular imports**: hkl_utils must not import from StageB or RefinementContext
-5. **Test both selectors**: Both guard and shell smoke must pass before considering this complete
-6. **Environment Freeze**: Do not install packages or modify the runtime environment
-7. **Signature preservation**: Inlined methods should keep the same parameters and return types as the original helpers
-8. **Import order**: Put hkl_utils imports at module scope, not nested in functions
+### Findings Applied (Mandatory)
 
-## If Blocked
+- **ARCH-ENGINE-002** — StageA/B/C wrappers are the canonical seam; helpers extracted from `*_impl.py` modules now live inside Stage classes
+- **ARCH-REFACTOR-001** — Phase C consolidation: delete implementation helpers after inlining logic into Stage classes
+- **ARCH-STAGE-CTX-001** — Typed contexts replace ad-hoc dicts; Stage A helpers build `StageAContext` for cross-stage reuse
+- **ARCH-TELEMETRY-001** — Collector-only telemetry path proven stable in Phase C.1; no regressions expected from import moves
+- **ARCH-LAZY-IMPORTS-001** — Module-scope imports preferred; this change aligns with the eager-import refactoring completed in Phase B.3
 
-If imports create circular dependencies:
-1. Check that hkl_utils has no StageB imports
-2. Ensure hkl_utils only imports torch, numpy, and leaf modules (no refinement/context)
-3. Capture the import error in the artifacts directory and note it in summary.md
+### Pointers
 
-If tests fail:
-1. Compare telemetry output between Phase C.4 and C.5 runs
-2. Check that `self._run_lbfgs()` is called with the same arguments as the old helper
-3. Verify baseline parity guard still emits JSON diffs on failure
-4. Save failure logs to artifacts directory and note the specific failure signature
+- **Spec**: `docs/spec-db-workflow.md` §7 (Protocol Architecture)
+- **Plan**: `plans/active/ARCH-REFACTOR-001/implementation.md` Phase C.6
+- **Fix Plan**: `docs/fix_plan.md` ARCH-REFACTOR-001 row (Attempts History + exit criteria)
+- **IDL**: `docs/architecture/dbex/refinement/context.idl.md` (StageAContext/StageBContext contracts)
+- **Testing Guide**: `docs/TESTING_GUIDE.md` §2.1 (Stage B guard + shell smoke selectors)
 
-## Findings Applied
+## Next Up (optional)
 
-- ARCH-TELEMETRY-001 Phase C.1: Collector-only telemetry path must remain intact in baseline parity guard and LBFGS runner
-- ARCH-STAGE-CTX-001: StageB owns its execution logic, no procedural helpers outside the class
-- ARCH-ENGINE-002: Stage wrappers are the canonical seam for multi-stage orchestration
-- REFINE-005: ASU mapping utilities preserve cctbx reuse guard to avoid redundant computation
-- TORCH-REFINE-004: Per-reflection and shell modes rely on ASU/shell utilities in hkl_utils
-
-## Pointers
-
-- Implementation plan: `plans/active/ARCH-REFACTOR-001/implementation.md` (Phase C.5 checklist, lines ~97-141)
-- Planning notes: `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T184846Z/planning_notes.md`
-- Spec: `docs/spec-db-workflow.md` §76-79 (Stage B structure factor modifiers)
-- Finding: `docs/findings.md`:REFINE-FLOW-001 (Stage B baseline parity guard)
-- Phase C.4 completion: commit cd855064, artifacts `plans/active/ARCH-REFACTOR-001/reports/2025-12-04T160500Z/`
-- Current stage_b_impl.py: 1025 lines total
-  - Functions to move to hkl_utils: lines 185-487 (~303 lines)
-  - Functions to inline in StageB: lines 44-183 (~140 lines baseline parity) + lines 819-1025 (~207 lines LBFGS) = ~347 lines total
-
-## Next Up
-
-After Phase C.5 completion:
-- Phase C.6: Delete `dbex/refinement/stage_b_impl.py` and `.backup` once all imports are migrated and tests pass
-- Phase C.7-C.9: Repeat the same pattern for Stage A (strictness, inlining, cleanup)
-- Phase D: Migrate all consumers to RefinementEngine and delete `dbex/nanobrag_refinement.py` facade
+1. **Phase C.7–C.9 (Stage A consolidation)** — Apply the same pattern to Stage A: inline helpers from `stage_a_impl.py` into `StageA` class and delete the impl module
+2. **Phase D (Facade Removal)** — Migrate all `run_nanobrag_refinement` consumers to call `RefinementEngine` directly, then delete the monolithic facade

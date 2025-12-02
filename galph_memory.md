@@ -556,3 +556,11 @@ Action State: ready_for_implementation
 - Mapped tests: Stage B guard (test_stage_b_baseline_guard_diff_payload), Stage B shell (test_stage_b_shell_modifiers).
 - Findings enforced: ARCH-TELEMETRY-001 (collector-only), ARCH-STAGE-CTX-001 (typed contexts), ARCH-ENGINE-002 (stage seams), REFINE-005 (cctbx reuse), TORCH-REFINE-004 (ASU/shell modes).
 Action State: ready_for_implementation
+2025-12-02T190946Z focus=ARCH-REFACTOR-001 state=ready_for_implementation dwell=0 action=planning artifacts=plans/active/ARCH-REFACTOR-001/reports/2025-12-02T190946Z/ next_action=Delete stage_b_impl.py after migrating imports
+- Reviewed Ralph's Phase C.5 completion (commit 29978502): Stage B LBFGS/parity inlined (347 lines) plus HKL utils extracted to hkl_utils.py (361 lines); both tests PASSED (guard 0.78s, shell 22.69s).
+- Analysis: `stage_b_impl.py` now only re-exports 3 Stage A helpers (_retarget_stage_a_simulators, _get_sigma_floor_sq_tensor, _build_stage_a_context) that are actually defined in `stage_a_impl.py`. Consumers should import from the source module directly.
+- Scoped Phase C.6: (a) update `stage_b.py` to import Stage A helpers from `stage_a_impl`, (b) remove unused `stage_b_impl` imports from `nanobrag_refinement.py` (dead code; facade uses RefinementEngine), (c) check test patches, (d) delete `stage_b_impl.py`, (e) validate via Stage B guard + shell smokes.
+- Updated input.md with concrete Do Now (import updates, verification, deletion, validation), created planning notes, and reserved artifacts at `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T190946Z/`.
+- Mapped tests: Stage B guard (test_stage_b_baseline_guard_diff_payload), Stage B shell (test_stage_b_shell_modifiers).
+- Findings enforced: ARCH-ENGINE-002 (Stage seams), ARCH-REFACTOR-001 (delete impl after inlining), ARCH-STAGE-CTX-001 (typed contexts), ARCH-TELEMETRY-001 (collector-only path), ARCH-LAZY-IMPORTS-001 (module-scope imports).
+Action State: ready_for_implementation

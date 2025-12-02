@@ -1,0 +1,229 @@
+dbex/physics/forward.py:103:        import torch
+dbex/physics/forward.py:104:        from nanobrag_torch.simulator import Simulator
+dbex/physics/forward.py:105:        from nanobrag_torch.models.detector import Detector as TorchDetector
+dbex/physics/forward.py:106:        from nanobrag_torch.models.crystal import Crystal as TorchCrystal
+dbex/physics/forward.py:113:    from dbex.nanobrag_bridge import (
+dbex/physics/forward.py:196:        from dbex.refinement.helpers import create_unified_simulator
+dbex/look.py:176:        from pathlib import Path
+dbex/look.py:177:        from dbex.vis import plot_triptych
+dbex/refine_one.py:138:    import numpy as np
+dbex/refine_one.py:179:    import h5py
+dbex/refine_one.py:180:    import numpy as np
+dbex/refine_one.py:181:    from scipy.optimize import minimize
+dbex/refine_one.py:182:    from score_trainer import roi_check
+dbex/refine_one.py:183:    from dbex.run_diffbragg import run_diffbragg
+dbex/refine_one.py:289:    import h5py
+dbex/refine_one.py:290:    import numpy as np
+dbex/refine_one.py:291:    import torch
+dbex/refine_one.py:292:    from dbex.nanobrag_bridge import (
+dbex/refine_one.py:304:        from nanobrag_torch.simulator import Simulator
+dbex/refine_one.py:305:        from nanobrag_torch.models.detector import Detector
+dbex/refine_one.py:306:        from nanobrag_torch.models.crystal import Crystal
+dbex/refine_one.py:465:        from dbex.refinement.helpers import create_unified_simulator
+dbex/refine_one.py:503:    from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig
+dbex/refine_one.py:504:    from dbex.refinement.context import build_job_context
+dbex/refine_one.py:604:    from dbex.io.roi_scoring import score_roi_payloads
+dbex/refine_one.py:677:    from pathlib import Path
+dbex/refine_one.py:678:    from dbex.vis import plot_triptych
+dbex/refine_one.py:679:    import h5py
+dbex/refine_one.py:728:    from dbex.data_load import DataLoad
+dbex/nanobrag_bridge.py:24:    import torch
+dbex/nanobrag_bridge.py:32:    from nanobrag_torch.config import (
+dbex/nanobrag_bridge.py:320:    from scitbx import matrix as scitbx_matrix
+dbex/nanobrag_bridge.py:434:    import torch
+dbex/nanobrag_bridge.py:655:        from cctbx import uctbx  # type: ignore
+dbex/nanobrag_bridge.py:775:        from nanobrag_torch.config import CrystalConfig as TorchCrystalConfig
+dbex/nanobrag_bridge.py:776:        from nanobrag_torch.models.crystal import Crystal as TorchCrystal
+dbex/nanobrag_bridge.py:777:        import torch
+dbex/nanobrag_bridge.py:833:        from scipy.spatial.transform import Rotation
+dbex/nanobrag_bridge.py:834:        import torch
+dbex/nanobrag_bridge.py:885:        from scipy.spatial.transform import Rotation
+dbex/nanobrag_bridge.py:886:        import torch
+dbex/nanobrag_bridge.py:967:        import torch
+dbex/nanobrag_bridge.py:968:        from nanobrag_torch.config import CrystalConfig as TorchCrystalConfig
+dbex/nanobrag_bridge.py:969:        from nanobrag_torch.models.crystal import Crystal as TorchCrystal
+dbex/nanobrag_bridge.py:1102:    import torch
+dbex/nanobrag_bridge.py:1103:    from scipy.spatial.transform import Rotation as R
+dbex/nanobrag_bridge.py:1170:    import torch
+dbex/nanobrag_bridge.py:1171:    import numpy as np
+dbex/nanobrag_bridge.py:1172:    from cctbx import uctbx
+dbex/nanobrag_bridge.py:1243:    import torch
+dbex/nanobrag_bridge.py:1300:      from the baseline crystal's unit cell (no MOSFLM injection, zero misset).
+dbex/nanobrag_bridge.py:1326:        import torch
+dbex/nanobrag_bridge.py:1327:        from nanobrag_torch.config import CrystalConfig as TorchCrystalConfig
+dbex/nanobrag_bridge.py:1328:        from nanobrag_torch.models.crystal import Crystal as TorchCrystal
+dbex/nanobrag_bridge.py:1333:            from scitbx.matrix import sqr  # type: ignore
+dbex/nanobrag_bridge.py:1357:                import torch as _torch  # type: ignore
+dbex/nanobrag_bridge.py:1408:        import numpy as _np
+dbex/nanobrag_bridge.py:1410:            import torch as _torch  # type: ignore
+dbex/nanobrag_bridge.py:1465:    import logging
+dbex/nanobrag_bridge.py:1468:        import torch
+dbex/nanobrag_bridge.py:1606:    from a canonical config_torch.json file produced by DiffBragg refinement. This
+dbex/nanobrag_bridge.py:1630:    import json
+dbex/nanobrag_bridge.py:1631:    from pathlib import Path
+dbex/nanobrag_bridge.py:1729:    from pathlib import Path
+dbex/nanobrag_bridge.py:1739:        from iotbx import mtz as iotbx_mtz
+dbex/nanobrag_bridge.py:1897:        import torch
+dbex/nanobrag_bridge.py:1898:        from nanobrag_torch.simulator import Simulator
+dbex/nanobrag_bridge.py:1899:        from nanobrag_torch.models.detector import Detector as TorchDetector
+dbex/nanobrag_bridge.py:1900:        from nanobrag_torch.models.crystal import Crystal as TorchCrystal
+dbex/nanobrag_bridge.py:1984:        from dbex.refinement.helpers import create_unified_simulator
+dbex/tools/stage_a_adam.py:155:        import torch
+dbex/tools/stage_a_adam.py:182:    from datetime import datetime
+dbex/tools/stage_a_adam.py:241:        import torch
+dbex/tools/stage_a_adam.py:242:        from nanobrag_torch.models.crystal import Crystal as TorchCrystal  # type: ignore
+dbex/tools/stage_a_adam.py:243:        from nanobrag_torch.models.detector import Detector as TorchDetector  # type: ignore
+dbex/tools/stage_a_adam.py:244:        from nanobrag_torch.simulator import Simulator  # type: ignore
+dbex/tools/stage_a_adam.py:413:        from dbex.nanobrag_bridge import (
+dbex/tools/stage_a_adam.py:445:        from dbex.nanobrag_bridge import quaternion_to_matrix
+dbex/tools/stage_a_adam.py:536:    import numpy as np  # CONVERGENCE-001 Phase C5: needed for A* checksum extraction
+dbex/tools/stage_a_adam.py:641:            from dbex.nanobrag_bridge import quaternion_to_matrix
+dbex/tools/stage_a_adam.py:682:    from nanobrag_torch.models.experiment import (  # type: ignore  # noqa: E402
+dbex/tools/stage_a_adam.py:824:    from tests.fixtures.parity_loader import ParityMetrics, compute_parity_metrics
+dbex/tools/stage_a_adam.py:919:    import torch
+dbex/tools/stage_a_adam.py:1016:    from tests.fixtures.parity_loader import ParityMetrics, compute_parity_metrics
+dbex/tools/stage_a_adam.py:1170:                    from pathlib import Path
+dbex/tools/stage_a_adam.py:1232:                        import sys
+dbex/tools/stage_a_adam.py:1251:                    from pathlib import Path
+dbex/tools/stage_a_adam.py:1314:                        import sys
+dbex/tools/stage_a_adam.py:1345:                        import sys
+dbex/tools/stage_a_adam.py:1632:    import torch
+dbex/tools/stage_a_adam.py:1633:    from dbex.nanobrag_bridge import build_structure_factor_grid
+dbex/tools/stage_a_adam.py:1634:    from dbex.nanobrag_refinement import (
+dbex/tools/stage_a_adam.py:1638:    from dbex.refinement.reconstruction import build_final_bragg_from_stage_a_telemetry
+dbex/tools/stage_a_adam.py:1639:    from dbex.vis.mapping import build_mapping_stage_a_context
+dbex/tools/stage_a_adam.py:1700:    import copy
+dbex/tools/stage_a_adam.py:1730:    from dbex.physics.loss import _compute_variance_weighted_loss
+dbex/run_diffbragg.py:59:    from simtbx.diffBragg.refiners import geometry
+dbex/nanobrag_refinement.py:270:    from nanobrag_torch.simulator import Simulator
+dbex/nanobrag_refinement.py:271:    from nanobrag_torch.models.detector import Detector
+dbex/nanobrag_refinement.py:272:    from nanobrag_torch.models.crystal import Crystal
+dbex/nanobrag_refinement.py:273:    from dbex.nanobrag_bridge import (
+dbex/nanobrag_refinement.py:292:        from dbex.refinement.context import build_refinement_context
+dbex/nanobrag_refinement.py:293:        from dbex.refinement.engine import RefinementEngine
+dbex/nanobrag_refinement.py:294:        from dbex.refinement.stage_a import StageA
+dbex/nanobrag_refinement.py:339:        from dataclasses import asdict
+dbex/nanobrag_refinement.py:352:            from dbex.refinement.reconstruction import build_final_bragg_from_stage_a_telemetry
+dbex/nanobrag_refinement.py:369:        from dbex.refinement.context import build_refinement_context
+dbex/nanobrag_refinement.py:370:        from dbex.refinement.engine import RefinementEngine
+dbex/nanobrag_refinement.py:371:        from dbex.refinement.stage_a import StageA
+dbex/nanobrag_refinement.py:372:        from dbex.refinement.stage_b import StageB
+dbex/nanobrag_refinement.py:493:            from dbex.refinement.reconstruction import build_final_bragg_from_stage_b_telemetry
+dbex/nanobrag_refinement.py:495:            from dataclasses import asdict
+dbex/nanobrag_refinement.py:552:        from dbex.refinement.engine import RefinementEngine
+dbex/nanobrag_refinement.py:553:        from dbex.refinement.stage_a import StageA
+dbex/nanobrag_refinement.py:554:        from dbex.refinement.stage_b import StageB
+dbex/nanobrag_refinement.py:555:        from dbex.refinement.stage_c import StageC
+dbex/nanobrag_refinement.py:590:        from dbex.refinement.context import build_refinement_context
+dbex/vis/mapping.py:46:      from :func:`simulate_forward_once` using the DB-AT-024 mapping path
+dbex/vis/mapping.py:234:            import copy
+dbex/vis/mapping.py:344:    import torch
+dbex/vis/mapping.py:500:    import json
+dbex/vis/mapping.py:501:    from datetime import datetime, timezone
+dbex/vis/mapping.py:502:    from statistics import median
+dbex/io/roi_scoring.py:121:    from scipy.optimize import minimize
+dbex/io/roi_scoring.py:125:        from score_trainer import roi_check
+dbex/io/writer.py:106:    import h5py
+dbex/io/writer.py:107:    import numpy as np
+dbex/io/writer.py:108:    from scipy.optimize import minimize
+dbex/io/writer.py:109:    from score_trainer import roi_check
+dbex/io/writer.py:203:            import json
+dbex/io/writer.py:207:                import torch
+dbex/geometry/crystallography.py:73:        from nanobrag_torch.config import CrystalConfig as TorchCrystalConfig
+dbex/geometry/crystallography.py:74:        from nanobrag_torch.models.crystal import Crystal as TorchCrystal
+dbex/geometry/crystallography.py:75:        import torch
+dbex/refinement/engine.py:133:                    from dataclasses import asdict
+dbex/refinement/engine.py:161:                    from dataclasses import asdict
+dbex/refinement/context.py:48:                         from hkl_metadata bounds.
+dbex/refinement/context.py:252:                     from build_structure_factor_grid
+dbex/refinement/stage_c.py:207:        import os
+dbex/refinement/stage_c.py:229:            from nanobrag_torch.models import Detector, Crystal
+dbex/refinement/stage_c.py:230:            from nanobrag_torch.simulator import Simulator
+dbex/refinement/stage_c.py:231:            from dbex.nanobrag_bridge import create_detector_config, create_crystal_config
+dbex/refinement/stage_c.py:745:        from dbex.refinement.context import RefinementSharedContext
+dbex/refinement/stage_c.py:775:        import math
+dbex/refinement/stage_c.py:871:        from dbex.refinement.context import StageCTelemetryState
+dbex/refinement/__init__.py:14:    from dbex.refinement import RefinementEngine, RefinementStage, RefinementTelemetry
+dbex/refinement/__init__.py:15:    from dbex.nanobrag_refinement import RefinementConfig
+dbex/refinement/helpers.py:29:    from dbex.nanobrag_bridge import DetectorConfig, CrystalConfig
+dbex/refinement/helpers.py:69:    import nanobrag_torch
+dbex/refinement/helpers.py:153:    from nanobrag_torch.simulator import Simulator
+dbex/refinement/helpers.py:154:    from nanobrag_torch.models import Detector, Crystal
+dbex/refinement/helpers.py:155:    import torch
+dbex/refinement/helpers.py:186:        import math
+dbex/refinement/helpers.py:271:    from nanobrag_torch.models.experiment import ExperimentModel
+dbex/refinement/helpers.py:286:    import math
+dbex/refinement/stage_c_impl.py:82:    from dataclasses import replace
+dbex/refinement/stage_c_impl.py:83:    from nanobrag_torch.models import Detector
+dbex/refinement/stage_c_impl.py:84:    from nanobrag_torch.simulator import Simulator
+dbex/refinement/stage_c_impl.py:218:            import warnings
+dbex/refinement/stage_c_impl.py:511:    from dbex.refinement import RefinementTelemetry
+dbex/refinement/stage_c_impl.py:567:    from nanobrag_torch.models import Detector, Crystal
+dbex/refinement/stage_c_impl.py:568:    from nanobrag_torch.simulator import Simulator
+dbex/refinement/stage_c_impl.py:569:    from dbex.nanobrag_bridge import create_detector_config, create_crystal_config
+dbex/refinement/stage_c_impl.py:868:    import os
+dbex/refinement/stage_c_impl.py:869:    import json
+dbex/refinement/stage_c_impl.py:870:    from pathlib import Path
+dbex/refinement/stage_b_impl.py:71:    import json
+dbex/refinement/stage_b_impl.py:72:    import os
+dbex/refinement/stage_b_impl.py:73:    from pathlib import Path
+dbex/refinement/stage_b_impl.py:74:    import logging
+dbex/refinement/stage_b_impl.py:333:        from cctbx import miller
+dbex/refinement/stage_b_impl.py:334:        from cctbx.array_family import flex
+dbex/refinement/stage_b_impl.py:337:        import logging
+dbex/refinement/stage_b_impl.py:405:        import logging
+dbex/refinement/stage_b_impl.py:570:            import logging
+dbex/refinement/stage_b_impl.py:589:                import logging
+dbex/refinement/stage_b_impl.py:626:            import logging
+dbex/refinement/reconstruction.py:65:    from nanobrag_torch.simulator import Simulator
+dbex/refinement/reconstruction.py:66:    from nanobrag_torch.models.detector import Detector
+dbex/refinement/reconstruction.py:67:    from nanobrag_torch.models.crystal import Crystal
+dbex/refinement/reconstruction.py:68:    from dbex.nanobrag_bridge import (
+dbex/refinement/reconstruction.py:73:    from dbex.refinement.stage_a_impl import _clamp_log_cell_deltas
+dbex/refinement/reconstruction.py:161:        from dbex.refinement.stage_a_impl import _retarget_stage_a_simulators
+dbex/refinement/reconstruction.py:168:        from dbex.nanobrag_bridge import create_beam_config
+dbex/refinement/reconstruction.py:169:        from dbex.refinement.helpers import create_unified_simulator
+dbex/refinement/reconstruction.py:250:    from nanobrag_torch.simulator import Simulator
+dbex/refinement/reconstruction.py:251:    from nanobrag_torch.models.detector import Detector
+dbex/refinement/reconstruction.py:252:    from nanobrag_torch.models.crystal import Crystal
+dbex/refinement/reconstruction.py:253:    from dbex.nanobrag_bridge import (
+dbex/refinement/reconstruction.py:258:    from dbex.refinement.stage_a_impl import _clamp_log_cell_deltas, _retarget_stage_a_simulators
+dbex/refinement/reconstruction.py:416:        from dbex.nanobrag_bridge import create_beam_config
+dbex/refinement/reconstruction.py:417:        from dbex.refinement.helpers import create_unified_simulator
+dbex/refinement/stage_b.py:1008:            from dbex.refinement.reconstruction import build_final_bragg_from_stage_b_telemetry
+dbex/refinement/stage_a.py:184:        from dbex.nanobrag_bridge import (
+dbex/refinement/stage_a.py:207:        import os
+dbex/refinement/stage_a.py:275:                from dbex.nanobrag_bridge import (
+dbex/refinement/stage_a.py:314:                from dbex.nanobrag_bridge import quaternion_to_matrix
+dbex/refinement/stage_a.py:423:                from nanobrag_torch.models.crystal import Crystal
+dbex/refinement/stage_a.py:478:                        from nanobrag_torch.models.detector import Detector
+dbex/refinement/stage_a.py:487:                        from nanobrag_torch.models.crystal import Crystal
+dbex/refinement/stage_a.py:498:                        from nanobrag_torch.simulator import Simulator
+dbex/refinement/stage_a.py:749:                import json
+dbex/refinement/stage_a.py:750:                from pathlib import Path
+dbex/refinement/stage_a.py:757:                    import sys
+dbex/refinement/stage_a.py:822:                import json
+dbex/refinement/stage_a.py:823:                from pathlib import Path
+dbex/refinement/stage_a.py:833:                    import sys
+dbex/refinement/stage_a.py:912:            from dbex.nanobrag_bridge import compute_baseline_misset_deg
+dbex/refinement/stage_a.py:995:        from dbex.refinement.context import RefinementSharedContext
+dbex/refinement/stage_a.py:1013:        from .telemetry_collectors import StageATelemetryCollector
+dbex/refinement/stage_a.py:1239:            from dbex.refinement.reconstruction import build_final_bragg_from_stage_a_telemetry
+dbex/refinement/stage_a_impl.py:294:    from nanobrag_torch.models.detector import Detector
+dbex/refinement/stage_a_impl.py:295:    from nanobrag_torch.models.crystal import Crystal
+dbex/refinement/stage_a_impl.py:296:    from nanobrag_torch.simulator import Simulator
+dbex/refinement/stage_a_impl.py:297:    from dbex.nanobrag_bridge import (
+dbex/refinement/stage_a_impl.py:604:        from dbex.nanobrag_bridge import (
+dbex/refinement/stage_a_impl.py:1043:    from dbex.nanobrag_bridge import create_detector_config, create_crystal_config
+dbex/refinement/stage_a_impl.py:1044:    from dbex.physics.loss import _compute_variance_weighted_loss
+dbex/refinement/stage_a_impl.py:1072:                from nanobrag_torch.models.detector import Detector
+dbex/refinement/stage_a_impl.py:1081:                from nanobrag_torch.models.crystal import Crystal
+dbex/refinement/stage_a_impl.py:1093:                    from dbex.nanobrag_bridge import create_beam_config
+dbex/refinement/stage_a_impl.py:1096:                from nanobrag_torch.simulator import Simulator
+dbex/refinement/stage_a_impl.py:1168:                from nanobrag_torch.models.detector import Detector
+dbex/refinement/stage_a_impl.py:1177:                from nanobrag_torch.models.crystal import Crystal
+dbex/refinement/stage_a_impl.py:1190:                    from dbex.nanobrag_bridge import create_beam_config
+dbex/refinement/stage_a_impl.py:1193:                from nanobrag_torch.simulator import Simulator
+dbex/refinement/stage_a_impl.py:1517:    import os
+dbex/refinement/stage_a_impl.py:1518:    import json
+dbex/refinement/stage_a_impl.py:1519:    from pathlib import Path

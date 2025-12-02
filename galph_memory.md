@@ -333,3 +333,8 @@ Open separate harness or spec_change initiative to diagnose per-reflection gradi
 ### Artifacts
 - `plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T020900Z/blocked.md`
 - `plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T020900Z/pytest_stage_b_per_reflection.log`
+2025-12-02T022454Z focus=ARCH-STAGE-CONTEXT-001 state=ready_for_implementation dwell=2 action=planning artifacts=plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T022454Z/ next_action=Implement Stage C shared-context shims + rerun Stage C/A smoketests
+- Reviewed docs/fix_plan.md and implementation plan to confirm Phase A.3 completion and scoped Phase A.4: Stage C must join the RefinementSharedContext path so helpers stop threading 11 positional args while retaining warm-cache behavior.
+- Updated the plan/fix-plan entries with the new artifact path (2025-12-02T022454Z) and detailed Do Now: extend the dataclass with `baseline_detector`, build/persist it in `stage_c.py`, add shims to `_build_stage_c_params` / `_build_stage_c_lbfgs_closure`, and rerun Stage C small/full smoketests plus the engine-telemetry selector.
+- Rewrote input.md directing Ralph to land the Stage C typed-context refactor, capture collect-only + test logs for both detector sizes, and verify Stage A telemetry is unaffected.
+Action State: ready_for_implementation

@@ -97,8 +97,7 @@
 - Working Plan: `plans/active/ARCH-STAGE-CONTEXT-001/implementation.md`
 - Ledger tie-in: Addresses the unchecked “bad design patterns/code smells” entry in `problems.md` (2025-12-01), specifically items 1, 2, 4, 7, and 8 (data clumps, anemic Stage classes, mutable telemetry dicts, engine branching).
 - Next Actions:
-  * Phase A.2: Wire `RefinementSharedContext` through `_build_stage_b_lbfgs_closure` and `StageB.run`, then rerun `tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers` and `::test_stage_b_per_reflection_smoke` (small detector) to prove both shell/per-reflection modes exercise the new shim while retaining ASU metadata reuse.
-  * Phase A.3: Extend Stage C helpers/wrappers to the typed context (retarget helpers + closure), and refresh the Stage C detector smokes so telemetry reports the new context schema flag before touching Stage artifacts.
+  * Phase A.3: Extend Stage C helpers/wrappers to the typed context (retarget helpers + closure). Specifically, update `RefinementSharedContext` to carry an optional `baseline_detector`, teach `stage_c.py` to build/persist that dataclass, add compatibility shims to `_build_stage_c_params` / `_build_stage_c_lbfgs_closure`, and rerun `tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip` for both detector sizes (collect-only + telemetry) under `plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T022454Z/`.
   * Broaden the smoketest/key selector expectations (`test_stage_a_engine_delegation_telemetry`, Stage B/C smokes) so CI asserts the typed context path prior to moving on to the RefinementEngine artifact and writer-decoupling work.
 
 ## Attempts History

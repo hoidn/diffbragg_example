@@ -98,7 +98,7 @@
 - Ledger tie-in: Addresses the unchecked "bad design patterns/code smells" entry in `problems.md` (2025-12-01), specifically items 1, 2, 4, 7, and 8 (data clumps, anemic Stage classes, mutable telemetry dicts, engine branching).
 - Next Actions:
   * Phase B.4 ✅ complete (2025-12-02T120500Z: dataclass compatibility fixed, writer IDL documented, Stage B shell smoke PASSED, CLI writer PASSED, per-reflection expected failure signature confirmed).
-  * Phase C: eliminate engine private caches, expose unified artifact channel per exit criterion 2 (engine.artifacts map populated without private attribute access).
+  * Phase D: promote final Bragg reconstruction into stage artifacts (Stage A/B) so the engine path and writer stop rerunning `_build_final_bragg_from_stage_*_telemetry` inside `run_nanobrag_refinement`. Requires extracting the helpers into a shared module, extending StageA/B artifacts with optional `bragg_full`, and updating the Stage-A-only + Stage A→B engine branches to consume the artifacts with fallbacks (per REFINE-FLOW-001 + ARCH-STAGE-CTX-001 guardrails).
 
 ## Attempts History
 
@@ -1696,4 +1696,3 @@ The trusted-mask hypothesis was **DISPROVEN** by inspection of the test fixture 
 **Next Actions**:
 - Phase B.4 ✅ complete; exit criterion 3 satisfied (writer artifact plumbing operational)
 - Phase C: eliminate engine private caches and expose unified artifact channel per exit criterion 2
-

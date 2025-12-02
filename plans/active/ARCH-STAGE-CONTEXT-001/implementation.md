@@ -89,9 +89,15 @@
 
 ## Phase C — Engine Artifact Contract & Writer Decoupling
 ### Checklist
-- [ ] C1: Extend `RefinementEngine` to cache `StageArtifacts` generically, delete stage-specific caches (`_stage_b_shell_edges`, `_stage_c_bragg_full`), and expose a single `artifacts()` API.
-- [ ] C2: Update `dbex/io/writer.py::write_torch_outputs` to consume engine artifacts (no Nelder–Mead); document any new CLI flags or telemetry fields introduced.
-- [ ] C3: Refresh tests/fixtures (Stage B/C smokes, CLI integration tests) so they assert writer no longer triggers optimization and the artifact payloads match expectations.
+- [x] C1: Extend `RefinementEngine` to cache `StageArtifacts` generically, delete stage-specific caches (`_stage_b_shell_edges`, `_stage_c_bragg_full`), and expose a single `artifacts()` API.
+- [x] C2: Update `dbex/io/writer.py::write_torch_outputs` to consume engine artifacts (no Nelder–Mead); document any new CLI flags or telemetry fields introduced.
+- [x] C3: Refresh tests/fixtures (Stage B/C smokes, CLI integration tests) so they assert writer no longer triggers optimization and the artifact payloads match expectations.
+
+## Phase D — Final Bragg Artifact Propagation
+### Checklist
+- [ ] D1: Extract `_build_final_bragg_from_stage_a_telemetry` / `_build_final_bragg_from_stage_b_telemetry` from `dbex/nanobrag_refinement.py` into a shared module (e.g., `dbex/refinement/reconstruction.py`) so both the stage wrappers and the engine path can call the same helpers without re-importing the monolith.
+- [ ] D2: Extend `StageAArtifacts` with an optional `bragg_full` payload, teach `StageA.run` to populate it whenever Stage B/C are disabled, and update the Stage-A-only engine branch to consume the artifact (with a backward-compatible fallback path).
+- [ ] D3: Extend `StageBArtifacts` with optional `bragg_full` (respecting CPU fallback contexts), have `StageB.run` compute final Bragg when Stage C is disabled, and update the Stage A→B engine branch + writer plumbing to use the artifact instead of recomputing from telemetry. Re-run Stage A expansion + Stage B shell/per-reflection smokes (per-reflection failure signature expected) and the CLI writer test to prove telemetry/artifact parity stays intact.
 
 ### Notes & Risks
 - Writer decoupling touches HDF5 schema; ensure `docs/spec-db-interfaces.md` remains accurate and update if new telemetry fields are added.

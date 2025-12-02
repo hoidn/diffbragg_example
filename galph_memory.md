@@ -373,3 +373,8 @@ Action State: ready_for_implementation
 - Logged follow-up plan: extend StageBTelemetryState with parity fields, teach `_check_stage_b_baseline_parity` and `StageB.run` to set/get them via attributes, and update the writer IDL doc so the new API is documented before re-running tests; reserved 2025-12-02T120500Z artifacts for the fix.
 - Added finding ARCH-STAGE-CTX-002 capturing the dataclass incompatibility; updated docs/fix_plan.md and implementation plan (B4.2) plus refreshed input.md with the new Do Now and artifacts path.
 Action State: ready_for_implementation
+2025-12-02T130000Z focus=ARCH-STAGE-CONTEXT-001 state=planning dwell=1 action=planning artifacts=plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T130500Z/ next_action=Stage A/B artifact implementation
+- Documented Phase D in the implementation plan and refreshed docs/fix_plan.md so the problems-ledger item (“Stage contexts / engine artifact boundary”) stays aligned with reality; Phase C is now marked complete.
+- Planned the next code loop: promote the Stage A/B final-Bragg helpers into `dbex/refinement/reconstruction.py`, extend StageA/B artifacts with optional Bragg tensors, retrofit StageA/StageB.run plus `run_nanobrag_refinement` to consume those artifacts, and update every script/test that imported the old private helpers.
+- Reserved artifacts at 2025-12-02T130500Z/ and issued a Do Now with Stage A/B smoketests (Stage B per-reflection failure still expected) plus CLI writer coverage so the new artifact flow is validated.
+Action State: ready_for_implementation

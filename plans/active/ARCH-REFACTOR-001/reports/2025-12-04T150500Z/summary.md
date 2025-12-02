@@ -1,5 +1,5 @@
 ### Turn Summary
-Scoped Phase C.3 to relocate `_retarget_stage_a_detectors` into `StageC` and retire `stage_c_impl.py`.
-Updated the implementation plan and fix plan entry, produced a Do Now with Stage C smoke validation for Ralph.
-Next: implement the helper move, drop the old module/imports, and rerun the Stage C detector microslip smoke.
-Artifacts: plans/active/ARCH-REFACTOR-001/reports/2025-12-04T150500Z/
+Moved `_retarget_stage_a_detectors` helper into StageC class and deleted `stage_c_impl.py` entirely, completing Phase C.3 module consolidation.
+Stage C is now fully self-contained with all implementation helpers as private methods; no external stage_c_impl dependencies remain.
+Next: Phase C.4 (Stage B helper inlining) or mark initiative done pending final sign-off.
+Artifacts: plans/active/ARCH-REFACTOR-001/reports/2025-12-04T150500Z/ (pytest_stage_c_smoke.log)

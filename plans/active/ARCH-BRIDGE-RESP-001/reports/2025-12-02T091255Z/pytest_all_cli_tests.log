@@ -1,0 +1,404 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 4 items
+
+tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_runs_simulator FAILED [ 25%]
+tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_applies_calibration FAILED [ 50%]
+tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata[cli_override-3.0] PASSED [ 75%]
+tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata[external_lookup-5.0] PASSED [100%]
+
+=================================== FAILURES ===================================
+_____________________ test_nanobrag_backend_runs_simulator _____________________
+
+mock_write = <MagicMock name='write_torch_outputs' id='128849510071216'>
+mock_score_roi = <MagicMock name='score_roi_payloads' id='128846446157392'>
+mock_crystal_config = <MagicMock name='create_crystal_config' id='128846445859840'>
+mock_beam_config = <MagicMock name='create_beam_config' id='128846415697232'>
+mock_detector_config = <MagicMock name='create_detector_config' id='128846415713376'>
+mock_build_grid = <MagicMock name='build_structure_factor_grid' id='128846415729520'>
+mock_prepare = <MagicMock name='prepare_refinement_inputs' id='128846415745664'>
+mock_Crystal = <MagicMock name='Crystal' id='128846415761808'>
+mock_Detector = <MagicMock name='Detector' id='128846415777952'>
+mock_Simulator = <MagicMock name='Simulator' id='128846415789936'>
+
+    @patch('nanobrag_torch.simulator.Simulator')
+    @patch('nanobrag_torch.models.detector.Detector')
+    @patch('nanobrag_torch.models.crystal.Crystal')
+    @patch('dbex.nanobrag_bridge.prepare_refinement_inputs')
+    @patch('dbex.nanobrag_bridge.build_structure_factor_grid')
+    @patch('dbex.nanobrag_bridge.create_detector_config')
+    @patch('dbex.nanobrag_bridge.create_beam_config')
+    @patch('dbex.nanobrag_bridge.create_crystal_config')
+    @patch('dbex.io.roi_scoring.score_roi_payloads')
+    @patch('dbex.io.writer.write_torch_outputs')
+    def test_nanobrag_backend_runs_simulator(
+        mock_write, mock_score_roi, mock_crystal_config, mock_beam_config, mock_detector_config,
+        mock_build_grid, mock_prepare, mock_Crystal, mock_Detector, mock_Simulator
+    ):
+        """A2: Verify nanobrag backend uses real simulator with SCALE-001/002 guardrails."""
+        import numpy as np
+        import torch
+        from dbex.nanobrag_bridge import RefinementInputs
+        from dbex.io.roi_analysis import ROIAnalysisPayload, ROITriptych
+    
+        # Setup mock DataLoad with MTZ data
+        mock_dl = Mock()
+        mock_dl.data = np.zeros((1, 100, 100), dtype=np.float32)
+        mock_dl.background_image = np.ones((1, 100, 100), dtype=np.float32) * -1
+        mock_dl.trusted_mask = np.ones((1, 100, 100), dtype=bool)
+        mock_dl.bbox = np.array([[10, 20, 10, 20]])
+        mock_dl.pids = np.array([0])
+    
+        # Mock detector with single panel
+        mock_panel = Mock()
+        mock_dl.detector = [mock_panel]
+    
+        # Mock beam, crystal, and Expt
+        mock_dl.beam = Mock()
+        mock_dl.crystal = Mock()
+        mock_dl.Expt = Mock()
+    
+        # Mock MTZ Miller array
+        mock_F = Mock()
+        mock_F.indices.return_value = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+        mock_F.data.return_value = np.array([100.0, 200.0, 150.0])
+        mock_dl.F = mock_F
+    
+        # Setup mock bridge output
+        sigma_stub = np.zeros((1, 100, 100), dtype=np.float32)
+        mock_inputs = RefinementInputs(
+            target=np.zeros((1, 100, 100), dtype=np.float32),
+            loss_mask=np.ones((1, 100, 100), dtype=bool),
+            panel_slices=[(0, (10, 20, 10, 20))],
+            trusted_mask=np.ones((1, 100, 100), dtype=bool),
+            sigma_readout=sigma_stub
+        )
+        mock_prepare.return_value = mock_inputs
+    
+        # Mock structure factor grid (SCALE-001: unscaled)
+        mock_hkl_grid = torch.zeros((3, 3, 3), dtype=torch.float32)
+        mock_hkl_metadata = {
+            'h_min': 0, 'h_max': 2, 'k_min': 0, 'k_max': 2, 'l_min': 0, 'l_max': 2,
+            'grid_nonzero': 3,
+            'has_halo': False,  # Required by JobContext per spec-db-workflow.md:53-54
+        }
+        mock_asu_map = torch.zeros_like(mock_hkl_grid, dtype=torch.int32)
+        mock_build_grid.return_value = (mock_hkl_grid, mock_hkl_metadata, mock_asu_map)
+    
+        # Mock config objects
+        # CLI-001: DetectorConfig.mask_array must be torch.Tensor (not numpy)
+        # ARCH-BRIDGE-RESP-001 Phase B.3: Use real typed configs instead of Mocks
+        mock_detector_config.return_value = _make_detector_config(spixels=100, fpixels=100)
+        mock_beam_config.return_value = _make_beam_config(beamsize_mm=0.0)  # Disable sample clipping
+        # create_crystal_config returns (config, n_cells_applied) tuple
+        mock_crystal_config.return_value = (_make_crystal_config(n_cells=(1, 1, 1)), False)
+    
+        # Mock model instantiation
+        mock_detector_instance = Mock()
+        mock_Detector.return_value = mock_detector_instance
+        mock_crystal_instance = Mock()
+        mock_Crystal.return_value = mock_crystal_instance
+    
+        # Mock simulator run output (base intensity before scaling)
+        mock_panel_output = torch.ones((100, 100), dtype=torch.float32) * 1000.0
+        mock_simulator_instance = Mock()
+        mock_simulator_instance.run.return_value = mock_panel_output
+        mock_Simulator.return_value = mock_simulator_instance
+    
+        # Setup mock args with spot_scale_override (no calibration file)
+        args = Mock()
+        args.outFile = 'test.h5'
+        args.spot_scale_override = 4.0  # sqrt(4.0) = 2.0
+        args.torch_config = None  # No calibration metadata
+        args.refined_mtz = None  # No refined MTZ
+        args.adu_per_photon = None
+        args.sigma_rdout = 3.0
+        args.sigma_floor = 1.0
+        args.device = "cpu"
+    
+        # ARCH-BRIDGE-RESP-001 Phase B.2: Mock score_roi_payloads to avoid running SciPy
+        mock_roi_payload = ROIAnalysisPayload(
+            triptych=ROITriptych(
+                panel_id=0,
+                bbox=(10, 20, 10, 20),
+                data=np.zeros((10, 10), dtype=np.float32),
+                background=np.ones((10, 10), dtype=np.float32) * -1,
+                bragg=np.zeros((10, 10), dtype=np.float32),
+            ),
+            score=0.85,
+            optimal_scale=1.0,
+            model=np.ones((10, 10), dtype=np.float32),
+            variance=np.ones((10, 10), dtype=np.float32),
+        )
+        mock_score_roi.return_value = [mock_roi_payload]
+    
+>       run_nanobrag_backend(args, mock_dl)
+
+tests/dbex/test_refine_one_cli.py:300: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+dbex/refine_one.py:657: in run_nanobrag_backend
+    _generate_triptych_report(args.outFile, args.report_dir)
+dbex/refine_one.py:681: in _generate_triptych_report
+    report_path = Path(report_dir)
+../../../miniconda3/envs/simtbx/lib/python3.9/pathlib.py:1000: in __new__
+    self = cls._from_parts(args, init=False)
+../../../miniconda3/envs/simtbx/lib/python3.9/pathlib.py:625: in _from_parts
+    drv, root, parts = self._parse_args(args)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cls = <class 'pathlib.PosixPath'>
+args = (<Mock name='mock.report_dir' id='128849779277056'>,)
+
+    @classmethod
+    def _parse_args(cls, args):
+        # This is useful when you don't want to create an instance, just
+        # canonicalize some constructor arguments.
+        parts = []
+        for a in args:
+            if isinstance(a, PurePath):
+                parts += a._parts
+            else:
+>               a = os.fspath(a)
+E               TypeError: expected str, bytes or os.PathLike object, not Mock
+
+../../../miniconda3/envs/simtbx/lib/python3.9/pathlib.py:609: TypeError
+----------------------------- Captured stdout call -----------------------------
+[nanobrag backend] Preparing refinement inputs from DataLoad...
+[nanobrag backend] Resolved sigma_readout source=cli_override reference=3
+[nanobrag backend] Target shape: (1, 100, 100)
+[nanobrag backend] Loss mask coverage: 100.0000%
+[nanobrag backend] Number of ROIs: 1
+[nanobrag backend] Building structure factor grid from MTZ...
+[nanobrag backend] Using device=cpu for zero-iteration simulation and refinement.
+[nanobrag backend] Using raw structure factors from <Mock name='mock.mtzFile' id='128849779904080'>
+[nanobrag backend] HKL grid shape: torch.Size([3, 3, 3]), nonzero: 3
+[nanobrag backend] Using CLI spot_scale_override=4.000e+00
+[nanobrag backend] Will apply sqrt(spot_scale)=2.000e+00 post-simulation per SCALE-002
+[nanobrag backend] Running nanobrag_torch Simulator on 1 panels...
+[nanobrag backend] Simulator complete. Bragg shape: (1, 100, 100)
+[nanobrag backend] Bragg stats: min=2.000e+03, max=2.000e+03, mean=2.000e+03
+[nanobrag backend] Masked MSE (zero-iteration): 4.00e+06
+[nanobrag backend] Running Stage A LBFGS refinement nucleus...
+[nanobrag backend] JobContext built: sigma_provenance=cli_override, hkl_source=raw, spot_scale=4.000e+00
+[nanobrag backend] WARNING: Refinement failed: Stage B requires baseline_detector parameter. Pass the baseline dxtbx Detector object to run_nanobrag_refinement().
+[nanobrag backend] Falling back to zero-iteration Bragg
+[nanobrag backend] Scoring 1 ROIs (sigma_readout=0.000e+00, sigma_floor=1.000e+00)...
+roi=0 : score= 85.0
+Average score: 85.0 +- 0.0
+Fraction of spots well modeled= 100.0%
+Visualize using `python -m dbex.look test.h5`
+__________________ test_nanobrag_backend_applies_calibration ___________________
+
+mock_write = <MagicMock name='write_torch_outputs' id='128849755867888'>
+mock_score_roi = <MagicMock name='score_roi_payloads' id='128849755811312'>
+mock_load_calib = <MagicMock name='load_calibration_metadata' id='128849758278320'>
+mock_crystal_config = <MagicMock name='create_crystal_config' id='128849758286944'>
+mock_beam_config = <MagicMock name='create_beam_config' id='128849758228832'>
+mock_detector_config = <MagicMock name='create_detector_config' id='128849754229968'>
+mock_build_grid = <MagicMock name='build_structure_factor_grid' id='128849758243904'>
+mock_prepare = <MagicMock name='prepare_refinement_inputs' id='128849758291472'>
+mock_Crystal = <MagicMock name='Crystal' id='128849758296672'>
+mock_Detector = <MagicMock name='Detector' id='128849758012368'>
+mock_Simulator = <MagicMock name='Simulator' id='128849757877824'>
+
+    @patch('nanobrag_torch.simulator.Simulator')
+    @patch('nanobrag_torch.models.detector.Detector')
+    @patch('nanobrag_torch.models.crystal.Crystal')
+    @patch('dbex.nanobrag_bridge.prepare_refinement_inputs')
+    @patch('dbex.nanobrag_bridge.build_structure_factor_grid')
+    @patch('dbex.nanobrag_bridge.create_detector_config')
+    @patch('dbex.nanobrag_bridge.create_beam_config')
+    @patch('dbex.nanobrag_bridge.create_crystal_config')
+    @patch('dbex.nanobrag_bridge.load_calibration_metadata')
+    @patch('dbex.io.roi_scoring.score_roi_payloads')
+    @patch('dbex.io.writer.write_torch_outputs')
+    def test_nanobrag_backend_applies_calibration(
+        mock_write, mock_score_roi, mock_load_calib, mock_crystal_config, mock_beam_config,
+        mock_detector_config, mock_build_grid, mock_prepare, mock_Crystal,
+        mock_Detector, mock_Simulator
+    ):
+        """
+        SCALE-006: Verify CLI applies DiffBragg calibration metadata.
+    
+        Tests that when --torch-config is provided:
+        1. load_calibration_metadata is invoked with the path
+        2. create_beam_config receives flux/exposure/beamsize overrides
+        3. create_crystal_config receives N_cells and apply_n_cells=True
+        4. Simulator is constructed with beam_config when calibration present
+    
+        Implements input.md Do Now: calibration-positive CLI test for MAP-SCALE-002.
+        """
+        import numpy as np
+        import torch
+        from dbex.nanobrag_bridge import RefinementInputs
+        from dbex.io.roi_analysis import ROIAnalysisPayload, ROITriptych
+    
+        # Setup mock DataLoad
+        mock_dl = Mock()
+        mock_dl.data = np.zeros((1, 100, 100), dtype=np.float32)
+        mock_dl.background_image = np.ones((1, 100, 100), dtype=np.float32) * -1
+        mock_dl.trusted_mask = np.ones((1, 100, 100), dtype=bool)
+        mock_dl.bbox = np.array([[10, 20, 10, 20]])
+        mock_dl.pids = np.array([0])
+    
+        # Mock detector with single panel
+        mock_panel = Mock()
+        mock_dl.detector = [mock_panel]
+    
+        # Mock beam, crystal, and Expt
+        mock_dl.beam = Mock()
+        mock_dl.crystal = Mock()
+        mock_dl.Expt = Mock()
+    
+        # Mock MTZ Miller array
+        mock_F = Mock()
+        mock_F.indices.return_value = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
+        mock_F.data.return_value = np.array([100.0, 200.0, 150.0])
+        mock_dl.F = mock_F
+    
+        # Setup mock bridge output
+        sigma_stub = np.zeros((1, 100, 100), dtype=np.float32)
+        mock_inputs = RefinementInputs(
+            target=np.zeros((1, 100, 100), dtype=np.float32),
+            loss_mask=np.ones((1, 100, 100), dtype=bool),
+            panel_slices=[(0, (10, 20, 10, 20))],
+            trusted_mask=np.ones((1, 100, 100), dtype=bool),
+            sigma_readout=sigma_stub
+        )
+        mock_prepare.return_value = mock_inputs
+    
+        # Mock structure factor grid
+        mock_hkl_grid = torch.zeros((3, 3, 3), dtype=torch.float32)
+        mock_hkl_metadata = {
+            'h_min': 0, 'h_max': 2, 'k_min': 0, 'k_max': 2, 'l_min': 0, 'l_max': 2,
+            'grid_nonzero': 3,
+            'has_halo': False,  # Required by JobContext per spec-db-workflow.md:53-54
+        }
+        mock_asu_map = torch.zeros_like(mock_hkl_grid, dtype=torch.int32)
+        mock_build_grid.return_value = (mock_hkl_grid, mock_hkl_metadata, mock_asu_map)
+    
+        # Mock calibration metadata load (SCALE-006 guard)
+        calibration_metadata = {
+            'spot_scale_override': 3.185e17,
+            'beam_flux': 1e12,
+            'beam_exposure': 1.0,
+            'beamsize_mm': 1.0,
+            'N_cells': [36, 28, 26]
+        }
+        mock_load_calib.return_value = calibration_metadata
+    
+        # Mock config objects
+        # ARCH-BRIDGE-RESP-001 Phase B.3: Use real typed configs instead of Mocks
+        mock_detector_config.return_value = _make_detector_config(spixels=100, fpixels=100)
+        # Calibration-positive path includes beam flux/exposure/beamsize
+        mock_beam_config.return_value = _make_beam_config(flux=1e12, exposure=1.0, beamsize_mm=1.0)
+        # create_crystal_config returns (config, n_cells_applied) tuple with N_cells from calibration
+        mock_crystal_config.return_value = (_make_crystal_config(n_cells=(36, 28, 26)), True)
+    
+        # Mock model instantiation
+        mock_detector_instance = Mock()
+        mock_Detector.return_value = mock_detector_instance
+        mock_crystal_instance = Mock()
+        mock_Crystal.return_value = mock_crystal_instance
+    
+        # Mock simulator run output
+        mock_panel_output = torch.ones((100, 100), dtype=torch.float32) * 1000.0
+        mock_simulator_instance = Mock()
+        mock_simulator_instance.run.return_value = mock_panel_output
+        mock_Simulator.return_value = mock_simulator_instance
+    
+        # Setup mock args WITH calibration file (calibration-positive path)
+        args = Mock()
+        args.outFile = 'test.h5'
+        args.spot_scale_override = 4.0  # CLI flag (calibration should override)
+        args.torch_config = '/fake/path/config_torch.json'  # Trigger calibration load
+        args.refined_mtz = None
+        args.adu_per_photon = None
+        args.sigma_rdout = 3.0
+        args.sigma_floor = 1.0
+        args.device = "cpu"
+    
+        # ARCH-BRIDGE-RESP-001 Phase B.2: Mock score_roi_payloads to avoid running SciPy
+        mock_roi_payload = ROIAnalysisPayload(
+            triptych=ROITriptych(
+                panel_id=0,
+                bbox=(10, 20, 10, 20),
+                data=np.zeros((10, 10), dtype=np.float32),
+                background=np.ones((10, 10), dtype=np.float32) * -1,
+                bragg=np.zeros((10, 10), dtype=np.float32),
+            ),
+            score=0.85,
+            optimal_scale=1.0,
+            model=np.ones((10, 10), dtype=np.float32),
+            variance=np.ones((10, 10), dtype=np.float32),
+        )
+        mock_score_roi.return_value = [mock_roi_payload]
+    
+>       run_nanobrag_backend(args, mock_dl)
+
+tests/dbex/test_refine_one_cli.py:497: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+dbex/refine_one.py:657: in run_nanobrag_backend
+    _generate_triptych_report(args.outFile, args.report_dir)
+dbex/refine_one.py:681: in _generate_triptych_report
+    report_path = Path(report_dir)
+../../../miniconda3/envs/simtbx/lib/python3.9/pathlib.py:1000: in __new__
+    self = cls._from_parts(args, init=False)
+../../../miniconda3/envs/simtbx/lib/python3.9/pathlib.py:625: in _from_parts
+    drv, root, parts = self._parse_args(args)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cls = <class 'pathlib.PosixPath'>
+args = (<Mock name='mock.report_dir' id='128849757995600'>,)
+
+    @classmethod
+    def _parse_args(cls, args):
+        # This is useful when you don't want to create an instance, just
+        # canonicalize some constructor arguments.
+        parts = []
+        for a in args:
+            if isinstance(a, PurePath):
+                parts += a._parts
+            else:
+>               a = os.fspath(a)
+E               TypeError: expected str, bytes or os.PathLike object, not Mock
+
+../../../miniconda3/envs/simtbx/lib/python3.9/pathlib.py:609: TypeError
+----------------------------- Captured stdout call -----------------------------
+[nanobrag backend] Preparing refinement inputs from DataLoad...
+[nanobrag backend] Resolved sigma_readout source=cli_override reference=3
+[nanobrag backend] Target shape: (1, 100, 100)
+[nanobrag backend] Loss mask coverage: 100.0000%
+[nanobrag backend] Number of ROIs: 1
+[nanobrag backend] Loaded calibration from /fake/path/config_torch.json:
+  spot_scale_override=3.185e+17
+  beam_flux=1.000e+12, exposure=1.000e+00
+  beamsize_mm=1.000e+00
+  N_cells=[36, 28, 26]
+[nanobrag backend] Building structure factor grid from MTZ...
+[nanobrag backend] Using device=cpu for zero-iteration simulation and refinement.
+[nanobrag backend] Using raw structure factors from <Mock name='mock.mtzFile' id='128849757830256'>
+[nanobrag backend] HKL grid shape: torch.Size([3, 3, 3]), nonzero: 3
+[nanobrag backend] Using calibration spot_scale_override=3.185e+17
+[nanobrag backend] Will apply sqrt(spot_scale)=5.644e+08 post-simulation per SCALE-002
+[nanobrag backend] Running nanobrag_torch Simulator on 1 panels...
+[nanobrag backend] Simulator complete. Bragg shape: (1, 100, 100)
+[nanobrag backend] Bragg stats: min=5.644e+11, max=5.644e+11, mean=5.644e+11
+[nanobrag backend] Masked MSE (zero-iteration): 3.19e+23
+[nanobrag backend] Running Stage A LBFGS refinement nucleus...
+[nanobrag backend] JobContext built: sigma_provenance=cli_override, hkl_source=raw, spot_scale=3.185e+17
+[nanobrag backend] WARNING: Refinement failed: Stage B requires baseline_detector parameter. Pass the baseline dxtbx Detector object to run_nanobrag_refinement().
+[nanobrag backend] Falling back to zero-iteration Bragg
+[nanobrag backend] Scoring 1 ROIs (sigma_readout=0.000e+00, sigma_floor=1.000e+00)...
+roi=0 : score= 85.0
+Average score: 85.0 +- 0.0
+Fraction of spots well modeled= 100.0%
+Visualize using `python -m dbex.look test.h5`
+=========================== short test summary info ============================
+FAILED tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_runs_simulator - TypeError: expected str, bytes or os.PathLike object, not Mock
+FAILED tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_applies_calibration - TypeError: expected str, bytes or os.PathLike object, not Mock
+========================= 2 failed, 2 passed in 1.31s ==========================

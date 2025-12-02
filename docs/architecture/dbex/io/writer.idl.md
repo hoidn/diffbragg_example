@@ -191,6 +191,7 @@ def write_torch_outputs(
     sigma_readout_provenance=None,
     sigma_readout_reference_value=None,
     stage_artifacts=None,
+    roi_payloads=None,
 ) -> None
 ```
 
@@ -208,6 +209,7 @@ def write_torch_outputs(
 | `sigma_readout_provenance` | Optional[str] | No | Human-readable description of sigma source ("cli_override", "calibrated_map", "external_lookup", etc.) per PHYSICS-LOSS-001 | `_resolve_sigma_readout()` in CLI |
 | `sigma_readout_reference_value` | Optional[float] | No | Scalar sigma_readout in target units (after ADU→photon conversion if applicable) | `_resolve_sigma_readout()` in CLI |
 | `stage_artifacts` | Optional[Dict[str, Any]] | No | Stage-specific metadata from `RefinementEngine.artifacts` containing stage artifacts (e.g., {"stage_b": StageBArtifacts}). When provided, Stage B baseline parity metrics (`stage_b_baseline_rel_diff`, `stage_b_baseline_abs_diff`, `stage_b_baseline_diff_path`) are sourced from StageBArtifacts; otherwise falls back to telemetry fields (ARCH-STAGE-CONTEXT-001 Phase B.4) | `RefinementEngine.artifacts` |
+| `roi_payloads` | Optional[List[ROIAnalysisPayload]] | No | Pre-scored ROI triptychs with model/variance arrays from `dbex.io.roi_scoring.score_roi_payloads` (ARCH-BRIDGE-RESP-001 Phase B.2). When provided, contains typed payloads suitable for direct HDF5 serialization. Currently unused (Phase B.3 will consume these and remove the inline Nelder-Mead loop). Default None preserves legacy behavior. | `dbex.io.roi_scoring.score_roi_payloads()` called from `dbex.refine_one.run_nanobrag_backend()` |
 
 ### Outputs
 

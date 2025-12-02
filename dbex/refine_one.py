@@ -599,8 +599,43 @@ def run_nanobrag_backend(args, DL, devid=0):
         "hkl_path": hkl_path if hkl_path else ""
     }
 
+    # ARCH-BRIDGE-RESP-001 Phase B.2: Score ROIs before writing (decouples analysis from serialization)
+    # Import scoring helper (local import per Environment Freeze)
+    from dbex.io.roi_scoring import score_roi_payloads
+
+    # Derive sigma values in target units for ROI scoring (spec-db-core.md §§86-90)
+    # sigma_readout: Use mean of sigma_readout array or fallback to reference value
+    if inputs.sigma_readout is not None:
+        sigma_readout_for_scoring = float(np.mean(inputs.sigma_readout))
+    elif sigma_reference_target_units is not None:
+        sigma_readout_for_scoring = sigma_reference_target_units
+    else:
+        sigma_readout_for_scoring = 0.0  # Fallback if no sigma source available
+
+    # sigma_floor: Apply ADU→photon conversion per PHYSICS-LOSS-002 (same logic as refine_config)
+    sigma_floor_for_scoring = args.sigma_floor
+    if args.adu_per_photon is not None and args.adu_per_photon > 0:
+        sigma_floor_for_scoring = args.sigma_floor / args.adu_per_photon
+
+    # Convert pids and bbox to Python lists (score_roi_payloads expects int/tuple, not numpy scalars)
+    pids_list = [int(pid) for pid in DL.pids]
+    bbox_list = [tuple(int(coord) for coord in box) for box in DL.bbox]
+
+    # Score ROIs and produce typed payloads
+    print(f"[nanobrag backend] Scoring {len(pids_list)} ROIs (sigma_readout={sigma_readout_for_scoring:.3e}, sigma_floor={sigma_floor_for_scoring:.3e})...")
+    roi_payloads = score_roi_payloads(
+        target=inputs.target,
+        background=DL.background_image,
+        bragg=Bragg,
+        pids=pids_list,
+        bbox=bbox_list,
+        sigma_readout=sigma_readout_for_scoring,
+        sigma_floor=sigma_floor_for_scoring,
+    )
+
     # Score ROIs and write HDF5 output (ARCH-REFINE-001 Phase C.2: shared writer module)
     # ARCH-STAGE-CONTEXT-001 Phase B.4: Pass engine artifacts to writer for Stage B baseline metrics
+    # ARCH-BRIDGE-RESP-001 Phase B.2: Pass typed ROI payloads to writer (legacy scoring still active)
     write_torch_outputs(
         args,
         DL,
@@ -612,6 +647,7 @@ def run_nanobrag_backend(args, DL, devid=0):
         sigma_readout_provenance=sigma_provenance,
         sigma_readout_reference_value=sigma_reference_target_units,
         stage_artifacts=engine_artifacts,
+        roi_payloads=roi_payloads,
     )
 
     print(f"Visualize using `python -m dbex.look {args.outFile}`")

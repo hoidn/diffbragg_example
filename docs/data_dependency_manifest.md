@@ -191,6 +191,11 @@ This manifest records the external data inputs (datasets, calibration payloads, 
   - Background arrays SHALL NOT contain NaN (enforced by `build_roi_payloads_from_arrays`).
   - Score coercion via float() guards against mocked/non-scalar returns (TORCH-CLI-004).
   - Algorithm: Minimizes `1 - CHECKER.score(data, bragg_scale^2 * bragg + background)` with initial guess x0=[1]; optimal_scale = result.x[0]^2.
+- **CLI Usage (ARCH-BRIDGE-RESP-001 Phase B.2):**
+  - Invoked by `dbex.refine_one.run_nanobrag_backend()` after refinement completes, before calling `write_torch_outputs`.
+  - Receives sigma values in target units (photons when `--adu-per-photon` is set, ADU otherwise) derived from `inputs.sigma_readout` array (mean) or `sigma_reference_target_units` fallback.
+  - Converts `DataLoad.pids` and `DataLoad.bbox` from numpy arrays to Python ints/tuples before passing to helper.
+  - Produces `List[ROIAnalysisPayload]` that is threaded to `write_torch_outputs` via `roi_payloads` kwarg (currently unused until Phase B.3).
 
 ### `dbex.io.writer.write_torch_outputs`
 
@@ -206,6 +211,7 @@ This manifest records the external data inputs (datasets, calibration payloads, 
   - `sigma_readout_provenance`: String describing sigma source ("cli_override", "calibrated_map", "external_lookup").
   - `sigma_readout_reference_value`: Scalar sigma_readout in target units (after ADU→photon conversion if applicable).
   - `stage_artifacts`: Dict[str, Any] from RefinementEngine.artifacts containing stage-specific metadata (ARCH-STAGE-CONTEXT-001).
+  - `roi_payloads`: Optional[List[ROIAnalysisPayload]] from `dbex.io.roi_scoring.score_roi_payloads` (ARCH-BRIDGE-RESP-001 Phase B.2). Pre-scored ROI triptychs with model/variance arrays. Currently unused (Phase B.3 will consume these and remove inline Nelder-Mead loop). Default None preserves legacy behavior.
 - **Outputs:**
   - HDF5 file at `args.outFile` with:
     - `/torch_diagnostics` group (attributes): `masked_mse`, `loss_mask_coverage`, `n_rois`, `target_shape`, `backend`, `sigma_floor`, optional: `adu_per_photon`, `sigma_readout_provenance`, `sigma_readout_reference_value`.

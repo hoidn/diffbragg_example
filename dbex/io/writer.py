@@ -49,6 +49,7 @@ def write_torch_outputs(
     sigma_readout_provenance=None,
     sigma_readout_reference_value=None,
     stage_artifacts=None,
+    roi_payloads=None,
 ):
     """Write torch backend outputs to HDF5 with diagnostics.
 
@@ -88,6 +89,10 @@ def write_torch_outputs(
                         stage-specific metadata (ARCH-STAGE-CONTEXT-001 Phase B.4). When provided,
                         Stage B baseline metrics are sourced from StageBArtifacts; otherwise falls
                         back to telemetry fields for backward compatibility.
+        roi_payloads: Optional List[ROIAnalysisPayload] from dbex.io.roi_scoring.score_roi_payloads
+                     (ARCH-BRIDGE-RESP-001 Phase B.2). When provided, contains pre-scored ROI triptychs
+                     with model/variance arrays. Currently unused (Phase B.3 will consume these and
+                     remove the inline Nelder-Mead loop below). Default None preserves legacy behavior.
 
     Notes:
         - ROI scoring loop uses score_trainer.roi_check.roiCheck per legacy parity
@@ -95,6 +100,8 @@ def write_torch_outputs(
         - HDF5 schema matches prior dbex.refine_one._write_torch_outputs (DIAGNOSTICS-001)
         - Multi-stage telemetry serialization supports RefinementEngine protocol (ARCH-ENGINE-003)
         - TORCH-CLI-004: Score coercion guards against mocked/non-scalar values
+        - ARCH-BRIDGE-RESP-001 Phase B.2: roi_payloads parameter added for typed payload threading;
+          legacy inline scoring remains active until Phase B.3 proves payload plumbing is stable.
     """
     import h5py
     import numpy as np

@@ -107,15 +107,17 @@ def test_main_dispatches_to_nanobrag_backend(mock_nanobrag, mock_dataload):
 @patch('dbex.nanobrag_bridge.create_detector_config')
 @patch('dbex.nanobrag_bridge.create_beam_config')
 @patch('dbex.nanobrag_bridge.create_crystal_config')
+@patch('dbex.io.roi_scoring.score_roi_payloads')
 @patch('dbex.io.writer.write_torch_outputs')
 def test_nanobrag_backend_runs_simulator(
-    mock_write, mock_crystal_config, mock_beam_config, mock_detector_config,
+    mock_write, mock_score_roi, mock_crystal_config, mock_beam_config, mock_detector_config,
     mock_build_grid, mock_prepare, mock_Crystal, mock_Detector, mock_Simulator
 ):
     """A2: Verify nanobrag backend uses real simulator with SCALE-001/002 guardrails."""
     import numpy as np
     import torch
     from dbex.nanobrag_bridge import RefinementInputs
+    from dbex.io.roi_analysis import ROIAnalysisPayload, ROITriptych
 
     # Setup mock DataLoad with MTZ data
     mock_dl = Mock()
@@ -165,6 +167,8 @@ def test_nanobrag_backend_runs_simulator(
     # Create a proper mock with mask_array as float32 tensor with 0/1 values
     mock_detector_config_obj = Mock()
     mock_detector_config_obj.mask_array = torch.ones((100, 100), dtype=torch.float32)
+    mock_detector_config_obj.spixels = 100  # slow pixels
+    mock_detector_config_obj.fpixels = 100  # fast pixels
     mock_detector_config.return_value = mock_detector_config_obj
 
     mock_beam_config.return_value = Mock()
@@ -193,6 +197,22 @@ def test_nanobrag_backend_runs_simulator(
     args.sigma_rdout = 3.0
     args.sigma_floor = 1.0
     args.device = "cpu"
+
+    # ARCH-BRIDGE-RESP-001 Phase B.2: Mock score_roi_payloads to avoid running SciPy
+    mock_roi_payload = ROIAnalysisPayload(
+        triptych=ROITriptych(
+            panel_id=0,
+            bbox=(10, 20, 10, 20),
+            data=np.zeros((10, 10), dtype=np.float32),
+            background=np.ones((10, 10), dtype=np.float32) * -1,
+            bragg=np.zeros((10, 10), dtype=np.float32),
+        ),
+        score=0.85,
+        optimal_scale=1.0,
+        model=np.ones((10, 10), dtype=np.float32),
+        variance=np.ones((10, 10), dtype=np.float32),
+    )
+    mock_score_roi.return_value = [mock_roi_payload]
 
     run_nanobrag_backend(args, mock_dl)
 
@@ -245,6 +265,12 @@ def test_nanobrag_backend_runs_simulator(
     # Verify output writer was called
     mock_write.assert_called_once()
 
+    # ARCH-BRIDGE-RESP-001 Phase B.2: Verify write_torch_outputs received roi_payloads kwarg
+    assert 'roi_payloads' in mock_write.call_args.kwargs, \
+        "write_torch_outputs must receive roi_payloads kwarg (Phase B.2 payload threading)"
+    assert mock_write.call_args.kwargs['roi_payloads'] is not None, \
+        "roi_payloads kwarg must be non-None (should contain scored payloads from helper)"
+
     # Verify SCALE-002: sqrt(spot_scale_override) applied post-simulation
     # The Bragg array passed to _write_torch_outputs should be scaled
     bragg_array = mock_write.call_args[0][2]
@@ -261,9 +287,10 @@ def test_nanobrag_backend_runs_simulator(
 @patch('dbex.nanobrag_bridge.create_beam_config')
 @patch('dbex.nanobrag_bridge.create_crystal_config')
 @patch('dbex.nanobrag_bridge.load_calibration_metadata')
+@patch('dbex.io.roi_scoring.score_roi_payloads')
 @patch('dbex.io.writer.write_torch_outputs')
 def test_nanobrag_backend_applies_calibration(
-    mock_write, mock_load_calib, mock_crystal_config, mock_beam_config,
+    mock_write, mock_score_roi, mock_load_calib, mock_crystal_config, mock_beam_config,
     mock_detector_config, mock_build_grid, mock_prepare, mock_Crystal,
     mock_Detector, mock_Simulator
 ):
@@ -281,6 +308,7 @@ def test_nanobrag_backend_applies_calibration(
     import numpy as np
     import torch
     from dbex.nanobrag_bridge import RefinementInputs
+    from dbex.io.roi_analysis import ROIAnalysisPayload, ROITriptych
 
     # Setup mock DataLoad
     mock_dl = Mock()
@@ -367,6 +395,22 @@ def test_nanobrag_backend_applies_calibration(
     args.sigma_floor = 1.0
     args.device = "cpu"
 
+    # ARCH-BRIDGE-RESP-001 Phase B.2: Mock score_roi_payloads to avoid running SciPy
+    mock_roi_payload = ROIAnalysisPayload(
+        triptych=ROITriptych(
+            panel_id=0,
+            bbox=(10, 20, 10, 20),
+            data=np.zeros((10, 10), dtype=np.float32),
+            background=np.ones((10, 10), dtype=np.float32) * -1,
+            bragg=np.zeros((10, 10), dtype=np.float32),
+        ),
+        score=0.85,
+        optimal_scale=1.0,
+        model=np.ones((10, 10), dtype=np.float32),
+        variance=np.ones((10, 10), dtype=np.float32),
+    )
+    mock_score_roi.return_value = [mock_roi_payload]
+
     run_nanobrag_backend(args, mock_dl)
 
     # Assert 1: load_calibration_metadata called with path
@@ -397,6 +441,12 @@ def test_nanobrag_backend_applies_calibration(
 
     # Verify output writer was called
     mock_write.assert_called_once()
+
+    # ARCH-BRIDGE-RESP-001 Phase B.2: Verify write_torch_outputs received roi_payloads kwarg
+    assert 'roi_payloads' in mock_write.call_args.kwargs, \
+        "write_torch_outputs must receive roi_payloads kwarg (Phase B.2 payload threading)"
+    assert mock_write.call_args.kwargs['roi_payloads'] is not None, \
+        "roi_payloads kwarg must be non-None (should contain scored payloads from helper)"
 
 
 @patch('dbex.nanobrag_bridge.prepare_refinement_inputs')
@@ -884,6 +934,7 @@ def test_torch_diagnostics_metadata(sigma_source, sigma_reference):
             # Import the function to test
             from dbex.io.writer import write_torch_outputs
             # ARCH-STAGE-CONTEXT-001 Phase B.4: stage_artifacts parameter added for Stage B baseline metrics
+            # ARCH-BRIDGE-RESP-001 Phase B.2: roi_payloads parameter added for typed payload threading
             write_torch_outputs(
                 mock_args,
                 mock_dl,
@@ -895,6 +946,7 @@ def test_torch_diagnostics_metadata(sigma_source, sigma_reference):
                 sigma_readout_provenance=sigma_source,
                 sigma_readout_reference_value=sigma_reference,
                 stage_artifacts=None,  # Phase B.4: No Stage B artifacts in this Stage-A-only test
+                roi_payloads=None,  # Phase B.2: No pre-scored payloads (writer runs legacy inline scoring)
             )
 
             # Verify diagnostics group exists and has correct metadata

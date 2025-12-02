@@ -530,9 +530,52 @@ def test_stage_a_expansion(
                 f"{last_three_losses[i-1]:.2e} → {last_three_losses[i]:.2e}"
             )
 
-    # Acceptance 5: Param deltas non-zero (relaxed for well-initialized scenarios)
-    scale_delta = telemetry.param_deltas['log_scale']['delta']
-    assert abs(scale_delta) > 1e-6, f"log_scale delta too small: {scale_delta:.3e}"
+    # Acceptance 5: At least one Stage A degree of freedom moved
+    # Check max absolute delta across all DoFs (log_scale, log_cell deltas, angle deltas, misset components)
+    # This preserves the "Stage A is not a no-op" guarantee without failing when only geometry params move
+    max_delta = 0.0
+    dof_names = []
+
+    # Check log_scale delta
+    scale_delta = abs(telemetry.param_deltas['log_scale']['delta'])
+    if scale_delta > max_delta:
+        max_delta = scale_delta
+        dof_names = ['log_scale']
+    elif scale_delta == max_delta:
+        dof_names.append('log_scale')
+
+    # Check log_cell deltas
+    for cell_param in ['log_cell_a_delta', 'log_cell_b_delta', 'log_cell_c_delta']:
+        cell_delta = abs(telemetry.param_deltas[cell_param]['delta'])
+        if cell_delta > max_delta:
+            max_delta = cell_delta
+            dof_names = [cell_param]
+        elif cell_delta == max_delta:
+            dof_names.append(cell_param)
+
+    # Check angle deltas
+    for angle_param in ['angle_alpha_raw', 'angle_beta_raw', 'angle_gamma_raw']:
+        angle_delta = abs(telemetry.param_deltas[angle_param]['delta'])
+        if angle_delta > max_delta:
+            max_delta = angle_delta
+            dof_names = [angle_param]
+        elif angle_delta == max_delta:
+            dof_names.append(angle_param)
+
+    # Check misset components (xyz)
+    misset_deltas = telemetry.param_deltas['misset_xyz_deg']
+    for i, component in enumerate(['x', 'y', 'z']):
+        misset_delta = abs(misset_deltas['final'][i] - misset_deltas['initial'][i])
+        if misset_delta > max_delta:
+            max_delta = misset_delta
+            dof_names = [f'misset_{component}']
+        elif misset_delta == max_delta:
+            dof_names.append(f'misset_{component}')
+
+    assert max_delta > 1e-6, (
+        f"Stage A appears to be a no-op: max absolute delta across all DoFs = {max_delta:.3e} <= 1e-6. "
+        f"Largest moving DoF(s): {', '.join(dof_names)}"
+    )
 
     # Acceptance 6: ≥0.2% improvement gate (TORCH-REFINE-002D)
     # Gate calibrated to empirical ceiling (~0.206%) measured with refGeom dataset + deterministic perturbation

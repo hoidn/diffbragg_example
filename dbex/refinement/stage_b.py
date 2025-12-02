@@ -1006,12 +1006,28 @@ class StageB:
         if is_terminal_stage:
             # Import reconstruction helper
             from dbex.refinement.reconstruction import build_final_bragg_from_stage_b_telemetry
+
+            # Build reconstruction payload: merge telemetry dict with shell metadata from artifacts
+            # This ensures the helper receives shell_edges, shell_indices, n_shells, and stage_b_mode
+            # while keeping the payload compact (numpy arrays, no GPU tensors)
+            reconstruction_payload = telemetry_output.copy()
+
+            if stage_b_mode == "shell":
+                # Shell mode: add shell metadata from artifacts
+                reconstruction_payload['shell_edges'] = artifacts.shell_edges
+                reconstruction_payload['shell_indices'] = artifacts.shell_indices
+                reconstruction_payload['n_shells'] = artifacts.n_shells
+                reconstruction_payload['stage_b_mode'] = artifacts.stage_b_mode
+            else:
+                # Per-reflection mode: mark mode in payload
+                reconstruction_payload['stage_b_mode'] = artifacts.stage_b_mode
+
             # Build final Bragg from Stage B telemetry using the shared helper
             # Per input.md: use the CPU fallback flag so the helper mirrors the existing CLI path
             use_stage_b_cpu_fallback = self._config.stage_b_full_eval_on_cpu
             bragg_full_artifact = build_final_bragg_from_stage_b_telemetry(
                 telemetry_a=stage_a_telemetry,
-                telemetry_b=telemetry_output,
+                telemetry_b=reconstruction_payload,
                 detector=detector,
                 beam=beam,
                 crystal=crystal,
@@ -1025,7 +1041,7 @@ class StageB:
                 use_stage_b_cpu_fallback=use_stage_b_cpu_fallback,
                 stage_a_ctx=stage_a_ctx,
             )
-            # Update artifacts with the final Bragg tensor
+            # Update artifacts with the final Bragg tensor (attach numpy volume back onto artifact)
             artifacts.bragg_full = bragg_full_artifact
 
         # Return StageResult with telemetry dict and artifacts

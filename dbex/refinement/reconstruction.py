@@ -269,17 +269,18 @@ def build_final_bragg_from_stage_b_telemetry(
         param_deltas_b = telemetry_b['param_deltas']
 
     # Extract Stage A frozen parameters (final values)
-    log_scale = torch.tensor(param_deltas_a['log_scale']['final'], device=device, dtype=dtype, requires_grad=False)
-    log_cell_a_delta = torch.tensor(param_deltas_a['log_cell_a_delta']['final'], device=device, dtype=dtype, requires_grad=False)
-    log_cell_b_delta = torch.tensor(param_deltas_a['log_cell_b_delta']['final'], device=device, dtype=dtype, requires_grad=False)
-    log_cell_c_delta = torch.tensor(param_deltas_a['log_cell_c_delta']['final'], device=device, dtype=dtype, requires_grad=False)
-    angle_alpha_raw = torch.tensor(param_deltas_a['angle_alpha_raw']['final'], device=device, dtype=dtype, requires_grad=False)
-    angle_beta_raw = torch.tensor(param_deltas_a['angle_beta_raw']['final'], device=device, dtype=dtype, requires_grad=False)
-    angle_gamma_raw = torch.tensor(param_deltas_a['angle_gamma_raw']['final'], device=device, dtype=dtype, requires_grad=False)
+    # Use final_device for tensor creation to respect CPU fallback mode
+    log_scale = torch.tensor(param_deltas_a['log_scale']['final'], device=final_device, dtype=dtype, requires_grad=False)
+    log_cell_a_delta = torch.tensor(param_deltas_a['log_cell_a_delta']['final'], device=final_device, dtype=dtype, requires_grad=False)
+    log_cell_b_delta = torch.tensor(param_deltas_a['log_cell_b_delta']['final'], device=final_device, dtype=dtype, requires_grad=False)
+    log_cell_c_delta = torch.tensor(param_deltas_a['log_cell_c_delta']['final'], device=final_device, dtype=dtype, requires_grad=False)
+    angle_alpha_raw = torch.tensor(param_deltas_a['angle_alpha_raw']['final'], device=final_device, dtype=dtype, requires_grad=False)
+    angle_beta_raw = torch.tensor(param_deltas_a['angle_beta_raw']['final'], device=final_device, dtype=dtype, requires_grad=False)
+    angle_gamma_raw = torch.tensor(param_deltas_a['angle_gamma_raw']['final'], device=final_device, dtype=dtype, requires_grad=False)
 
     # Extract misset from Stage A (this is the delta, not frozen in Stage B inline code but added to baseline)
     misset_xyz_deg_delta = param_deltas_a['misset_xyz_deg']['delta']
-    misset_xyz_deg = torch.tensor(misset_xyz_deg_delta, device=device, dtype=dtype, requires_grad=False)
+    misset_xyz_deg = torch.tensor(misset_xyz_deg_delta, device=final_device, dtype=dtype, requires_grad=False)
 
     # Check Stage B mode (per-reflection or shell)
     # Per-reflection mode doesn't have shell_edges/shell_indices
@@ -298,17 +299,18 @@ def build_final_bragg_from_stage_b_telemetry(
         shell_modifiers_final = None
     else:
         # Shell mode: extract shell metadata and modifiers
+        # Use final_device for tensor creation to respect CPU fallback mode
         if hasattr(telemetry_b, 'shell_edges'):
-            shell_edges = torch.tensor(telemetry_b.shell_edges, device=device, dtype=dtype)
-            shell_indices = torch.tensor(telemetry_b.shell_indices, device=device, dtype=torch.long)
+            shell_edges = torch.tensor(telemetry_b.shell_edges, device=final_device, dtype=dtype)
+            shell_indices = torch.tensor(telemetry_b.shell_indices, device=final_device, dtype=torch.long)
             n_shells = telemetry_b.n_shells
         else:
-            shell_edges = torch.tensor(telemetry_b['shell_edges'], device=device, dtype=dtype)
-            shell_indices = torch.tensor(telemetry_b['shell_indices'], device=device, dtype=torch.long)
+            shell_edges = torch.tensor(telemetry_b['shell_edges'], device=final_device, dtype=dtype)
+            shell_indices = torch.tensor(telemetry_b['shell_indices'], device=final_device, dtype=torch.long)
             n_shells = telemetry_b['n_shells']
 
         # Extract shell modifiers from Stage B param_deltas
-        shell_modifiers_final = torch.zeros(n_shells, device=device, dtype=dtype)
+        shell_modifiers_final = torch.zeros(n_shells, device=final_device, dtype=dtype)
         for shell_idx in range(n_shells):
             # Find the shell modifier key in param_deltas_b
             shell_key = None
@@ -325,10 +327,11 @@ def build_final_bragg_from_stage_b_telemetry(
     panel_shape = inputs.target.shape[1:]  # (slow, fast)
 
     # Compute baseline misset if baseline_crystal provided (matches inline path lines 3115-3120)
+    # Use final_device for tensor creation to respect CPU fallback mode
     baseline_misset_deg_tensor = compute_baseline_misset_deg(
         crystal,
         baseline_crystal,
-        device=device,
+        device=final_device,
         dtype=dtype,
     )
 

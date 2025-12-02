@@ -590,3 +590,11 @@ Action State: ready_for_implementation
 - Expected metrics: net -1450 to -1470 lines (file deletion ~1524, context.py +~50, 4 files -5 to -10 each).
 - Authored input.md with complete Do Now, pitfalls, validation commands; updated implementation.md Phase C.9 section with detailed checklist; created planning_notes.md under artifacts directory; updated fix_plan.md Attempts History.
 Action State: ready_for_implementation
+
+2025-12-02T201539Z focus=ARCH-REFACTOR-001 state=planning dwell=0 action=planning artifacts=plans/active/ARCH-REFACTOR-001/reports/2025-12-02T201539Z/ next_action=Phase D planning (facade removal)
+- Reviewed Ralph's Phase C.9 completion (commit 9e45812b): stage_a_impl.py deleted after relocating dataclasses to context.py, 5/5 mapped tests PASSED (Stage A expansion 7.45s, Stage A telemetry 7.40s, Stage B guard 0.78s, Stage B shell 23.14s, Stage C smoke 7.04s). Note: test_refgeom_integration does not exist; 5/5 existing tests passed. Net -1460 lines repo-wide.
+- ARCH-REFACTOR-001 Exit Criterion #1 FULLY SATISFIED: All *_impl.py modules eliminated (stage_a_impl, stage_b_impl, stage_c_impl). Phase C complete.
+- Initiated Phase D (Facade Removal) planning: scoped consumer migration from `run_nanobrag_refinement` to `RefinementEngine`, drafted 7-deliverable planning approach (consumer inventory, config migration, CLI blueprint, test migration, deletion checklist, implementation plan update, phase summary).
+- Updated implementation plan (Phase C.9 marked complete, Phase D checklist to be added by Ralph). Created planning notes under `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T201539Z/planning_notes.md` detailing Phase D scope (RefinementConfig relocation, CLI refactor, test harness migration, import cleanup, facade deletion).
+- Next loop: Ralph executes Phase D planning deliverables (consumer inventory, migration blueprints, deletion checklist) per input.md instructions. Then subsequent loops implement D.1-D.5 in 3-4 increments.
+Action State: ready_for_implementation

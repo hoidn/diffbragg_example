@@ -52,13 +52,13 @@
 ### Checklist
 - [x] C1: **Stage C Strictness:** Refactor `StageC._build_lbfgs_closure` to accept *only* `RefinementSharedContext` and `StageCContext`. Remove the 15+ optional legacy arguments.
 - [x] C2: **Stage C Inlining:** Move logic from `_build_stage_c_params` and `_run_stage_c_lbfgs` (in `stage_c_impl.py`) directly into `dbex/refinement/stage_c.py`.
-- [ ] C3: **Stage C Cleanup:** Delete `dbex/refinement/stage_c_impl.py`. Verify `test_stage_c_detector_microslip` passes.
-- [ ] C4: **Stage B Strictness:** Refactor `StageB` to rely solely on `RefinementSharedContext` and `StageBTelemetryState`. Remove legacy dict/arg support.
-- [ ] C5: **Stage B Inlining:** Inline `_build_stage_b_params` and `_run_stage_b_lbfgs` into `StageB` class.
-- [ ] C6: **Stage B Cleanup:** Delete `dbex/refinement/stage_b_impl.py` and `stage_b_impl.py.backup`. Verify `test_stage_b_shell_modifiers`.
-- [ ] C7: **Stage A Strictness:** Refactor `StageA` to rely solely on `RefinementSharedContext`.
-- [ ] C8: **Stage A Inlining:** Inline parameter building and loop logic into `StageA`.
-- [ ] C9: **Stage A Cleanup:** Delete `dbex/refinement/stage_a_impl.py`. Verify `test_stage_a_expansion` and `DB-AT-024`.
+- [x] C3: **Stage C Cleanup:** Delete `dbex/refinement/stage_c_impl.py`. Verify `test_stage_c_detector_microslip` passes.
+- [x] C4: **Stage B Strictness:** Refactor `StageB` to rely solely on `RefinementSharedContext` and `StageBTelemetryState`. Remove legacy dict/arg support.
+- [x] C5: **Stage B Inlining:** Inline `_build_stage_b_params` and `_run_stage_b_lbfgs` into `StageB` class.
+- [x] C6: **Stage B Cleanup:** Delete `dbex/refinement/stage_b_impl.py` and `stage_b_impl.py.backup`. Verify `test_stage_b_shell_modifiers`.
+- [x] C7: **Stage A Strictness:** Refactor `StageA` to rely solely on `RefinementSharedContext`.
+- [x] C8: **Stage A Inlining:** Inline parameter building and loop logic into `StageA`.
+- [x] C9: **Stage A Cleanup:** Delete `dbex/refinement/stage_a_impl.py`. Verify `test_stage_a_expansion` and `DB-AT-024`.
 
 #### Phase C Reactivation — Stage C Context Breakout (2025-12-04T120500Z)
 Problems ledger `PRIORITIZE ARCH-REFACTOR-001 ASAP` (system-level architectural debt) reopens Phase C work. First increment splits the Stage C helper dictionaries into typed dataclasses so the remaining `_impl` logic can move into `StageC`.
@@ -297,13 +297,13 @@ Final step: relocate remaining dataclasses (`StageAROIEntry`, `StageAContext`) f
 
 **Rationale:** Phase C.7 extracted cross-stage helpers to `stage_a_utils.py` (quaternion utils, warm-cache helpers, loss/context builders). Phase C.8 inlined Stage-A-private logic into `StageA` class. Only dataclass definitions remain in `stage_a_impl.py`. These belong in `context.py` per ARCH-STAGE-CONTEXT-001 precedent (StageCContext lives there).
 
-- [ ] C9.A — **Relocate StageAROIEntry and StageAContext dataclasses:**
+- [x] C9.A — **Relocate StageAROIEntry and StageAContext dataclasses:**
   * Copy `StageAROIEntry` and `StageAContext` (with all fields, defaults, docstrings) from `stage_a_impl.py` to `dbex/refinement/context.py`.
   * Place near other Stage contexts (after StageATelemetryState or before/after StageCContext) for consistency.
   * Ensure required imports are present in `context.py`: `torch`, `typing.Optional/List/Tuple/Callable`, `nanobrag_torch.simulator.Simulator`.
   * Add cross-reference comment: `# ARCH-REFACTOR-001 Phase C.9: Relocated from stage_a_impl.py (2025-12-02T235959Z)`
 
-- [ ] C9.B — **Update all import sites (5 files):**
+- [x] C9.B — **Update all import sites (5 files):**
   * **dbex/refinement/stage_a_utils.py** (line ~28): Change `from dbex.refinement.stage_a_impl import StageAContext, StageAROIEntry` → `from dbex.refinement.context import StageAContext, StageAROIEntry`
   * **dbex/refinement/stage_c.py** (line ~42): Change `from dbex.refinement.stage_a_impl import StageAContext` → `from dbex.refinement.context import StageAContext`
   * **dbex/refinement/stage_a.py** (lines ~39, ~1248):
@@ -312,12 +312,12 @@ Final step: relocate remaining dataclasses (`StageAROIEntry`, `StageAContext`) f
   * **dbex/nanobrag_refinement.py** (lines ~58-62): Change quaternion helper imports from `dbex.refinement.stage_a_impl` → `dbex.refinement.stage_a_utils` (vec_to_unit_quaternion, quaternion_to_rotation_matrix, quaternion_to_xyz_euler)
   * **dbex/tools/stage_a_adam.py** (lines ~22-25): Same quaternion import change (stage_a_impl → stage_a_utils)
 
-- [ ] C9.C — **Delete stage_a_impl.py:**
+- [x] C9.C — **Delete stage_a_impl.py:**
   * Verify zero remaining imports: `rg "from.*stage_a_impl import|import.*stage_a_impl" --type py` must return empty (excluding docs/logs/backups/comments).
   * If verification passes, delete `dbex/refinement/stage_a_impl.py`.
   * Update module docstrings in `stage_a_utils.py` or `context.py` if they reference the old module location.
 
-- [ ] C9.D — **Validation (6 selectors):**
+- [x] C9.D — **Validation (6 selectors):**
   * `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion --smoke-detector-size=small`
   * `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry`
   * `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload`
@@ -333,3 +333,5 @@ Final step: relocate remaining dataclasses (`StageAROIEntry`, `StageAContext`) f
 - Import verification: `rg "stage_a_impl"` returns only docs/logs/backups/comments
 
 Artifacts for Phase C.9 live under `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T235959Z/`.
+
+**Phase C.9 COMPLETE (2025-12-02T235959Z, commit 9e45812b):** All checkboxes satisfied. Stage A dataclasses relocated to context.py, 5 import sites updated, stage_a_impl.py deleted. Tests: 5/5 PASSED (Stage A expansion 7.45s, Stage A telemetry 7.40s, Stage B guard 0.78s, Stage B shell 23.14s, Stage C smoke 7.04s). Note: test_refgeom_integration does not exist in repo; 5/5 existing mapped tests passed. Net repo change: -1460 lines. ARCH-REFACTOR-001 Exit Criterion #1 fully satisfied: all *_impl.py modules (stage_a_impl, stage_b_impl, stage_c_impl) eliminated.

@@ -650,3 +650,9 @@ Action State: ready_for_implementation
 - Mapped tests: 2 failing selectors (test_stage_a_engine_delegation_telemetry, test_stage_b_per_reflection_smoke).
 - Initiative type: bugfix (fixing broken Engine behavior). Mode: Parity. Problems ledger "PRIORITIZE ARCH-REFACTOR-001 ASAP" serviced in previous loops (Phase D.2/C.7); current focus continues Phase D per roadmap Tier 0.
 Action State: ready_for_implementation
+
+2025-12-02T214805Z focus=ARCH-REFACTOR-001 state=ready_for_implementation dwell=0 action=planning artifacts=plans/active/ARCH-REFACTOR-001/reports/2025-12-02T214805Z/ next_action=Validate D.3 Batch 1 migration
+- Engine bugfixes complete (commit f3ab680d), resuming Phase D.3 test migration validation. All 5 test_torch_refine_smoke.py functions already migrated to Engine pattern (commit 7b0a016d), telemetry key fix (commit a6f39bac) and Engine bugs (commit f3ab680d) resolved.
+- This is validation-only loop: rerunning all 5 smoke tests to confirm migration success (test_stage_a_expansion, test_stage_a_engine_delegation_telemetry, test_stage_b_shell_modifiers, test_stage_c_detector_microslip, test_stage_b_per_reflection_smoke). Expected 4/5 or 5/5 PASSED (ASU gradient flow in last test may fail as Stage B issue, not migration issue).
+- Updated docs/fix_plan.md with new planning entry, created artifacts directory, issued validation-only Do Now for Ralph. On 4/5 or 5/5 success, mark D.3 Batch 1 complete and proceed to D.3 Batch 2 (test_stage_a_smoke_parity.py) or D.4.
+Action State: ready_for_implementation

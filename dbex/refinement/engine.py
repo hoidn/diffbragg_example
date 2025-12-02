@@ -189,7 +189,21 @@ class RefinementEngine:
             # Aggregate into telemetry dict keyed by stage name
             self._telemetry[stage.name] = telemetry
 
-        return self._telemetry
+        # ARCH-REFACTOR-001 Phase D.3: Map stage names to legacy labels for backward compatibility
+        # Tests and downstream code expect "A"/"B"/"C" keys (not "stage_a"/"stage_b"/"stage_c")
+        legacy_telemetry_dict = {}
+        for stage_name, telem in self._telemetry.items():
+            if stage_name == "stage_a":
+                legacy_telemetry_dict["A"] = telem
+            elif stage_name == "stage_b":
+                legacy_telemetry_dict["B"] = telem
+            elif stage_name == "stage_c":
+                legacy_telemetry_dict["C"] = telem
+            else:
+                # Unknown stage name - pass through unchanged
+                legacy_telemetry_dict[stage_name] = telem
+
+        return legacy_telemetry_dict
 
     @property
     def telemetry(self) -> Dict[str, RefinementTelemetry]:

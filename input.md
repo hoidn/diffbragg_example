@@ -1,301 +1,416 @@
-# Input for Ralph — ARCH-REFACTOR-001 Phase D.2: CLI Refactor
+# Input for Ralph — ARCH-REFACTOR-001 Phase D.3 (Batch 1)
 
-**Summary:** Migrate `dbex/refine_one.py::run_nanobrag_backend()` from `run_nanobrag_refinement` facade to direct `RefinementEngine` instantiation using typed contexts.
+## Summary
+Migrate `tests/dbex/test_torch_refine_smoke.py` (6 test functions) from `run_nanobrag_refinement()` facade to direct RefinementEngine instantiation following CLI refactor blueprint pattern.
 
-**Mode:** Parity
-**InitiativeType:** architecture
-**Focus:** [ARCH-REFACTOR-001] — Refinement Engine Modularization & Physics Separation (Phase D.2: CLI Refactor)
-**Branch:** integration
-**Mapped tests:**
-- `tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata`
-- `tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_runs_simulator`
+## Mode
+Parity
 
-**Artifacts:** `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T220000Z/`
+## InitiativeType
+architecture
+
+## Focus
+ARCH-REFACTOR-001 — Refinement Engine Modularization & Physics Separation (Phase D.3: Test Harness Migration, Batch 1)
+
+## Branch
+integration
+
+## Mapped tests
+```
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small \
+KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
+pytest -vv \
+  tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion \
+  tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry \
+  tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers \
+  tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip \
+  tests/dbex/test_torch_refine_smoke.py::test_stage_b_asu_mapping_smoke \
+  tests/dbex/test_torch_refine_smoke.py::test_stage_c_stage_a_baseline_detector_dist \
+  --smoke-detector-size=small
+```
+Expected: All 6/6 tests PASSED
+
+## Artifacts
+`plans/active/ARCH-REFACTOR-001/reports/2025-12-02T210509Z/`
+- `pytest_smoke_tests_all.log` — Full pytest output for all 6 smoke tests
+- `summary.md` — Turn summary (prepend to existing file if present)
 
 ---
 
 ## Do Now
 
-**Implement:** `dbex/refine_one.py::run_nanobrag_backend()` (lines 505-595)
+**Objective:** Migrate `tests/dbex/test_torch_refine_smoke.py` (6 test functions) from facade pattern to direct RefinementEngine pattern, following `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T201539Z/cli_refactor_blueprint.md` as the reference implementation.
 
-**Objective:** Replace the `run_nanobrag_refinement` facade call with direct `RefinementEngine` instantiation, following the 5-step Engine pattern documented in `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T201539Z/cli_refactor_blueprint.md`.
+**Critical:** This is the highest-risk migration (core Stage A/B/C acceptance tests). All 6 functions must be migrated atomically in a single commit to avoid partial state. If any test fails, rollback entire file.
 
-**Tasks:**
+### Step 1: Update Module-Scope Imports
 
-### 1. Import Updates (lines 505-508)
+**File:** `tests/dbex/test_torch_refine_smoke.py`
 
-**Remove:**
+**Action:** Add these imports near the top of the file (after existing imports, before first test function):
+
 ```python
-from dbex.nanobrag_refinement import run_nanobrag_refinement
-```
-
-**Add to existing imports:**
-```python
-from dbex.refinement.config import RefinementConfig  # already migrated (Phase D.1)
-from dbex.refinement.context import build_job_context, build_refinement_context
+from dbex.refinement.config import RefinementConfig
 from dbex.refinement.engine import RefinementEngine
 from dbex.refinement.stage_a import StageA
 from dbex.refinement.stage_b import StageB
 from dbex.refinement.stage_c import StageC
+from dbex.refinement.context import build_refinement_context
 ```
 
-**Note:** `build_job_context` is already imported at line 507; extend that import to include `build_refinement_context`.
+**Note:** Remove any inline `from dbex.nanobrag_refinement import ...` statements in each test function as you migrate them (Step 2).
+
+### Step 2: Migrate Each Test Function
+
+For each of the 6 functions below, follow this pattern (based on CLI refactor blueprint):
+
+1. **Remove inline facade import** (e.g., `from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig`)
+2. **Build RefinementContext** (before facade call site):
+   ```python
+   refinement_context = build_refinement_context(
+       inputs=refinement_inputs,
+       detector=dataload.detector,
+       beam=dataload.beam,
+       crystal=dataload.crystal,
+       hkl_grid=hkl_grid,
+       hkl_metadata=hkl_metadata,
+       config=refine_config,
+       job_context=job_context,
+       baseline_detector=baseline_detector  # Only for Stage C tests (functions 4, 6)
+   )
+   ```
+   **Note:** For Stage A/B-only tests (functions 1, 2, 3, 5), omit `baseline_detector` argument or pass `baseline_detector=None`.
+
+3. **Instantiate stages list** (conditional on config flags):
+   ```python
+   stages = [StageA()]
+   if refine_config.enable_stage_b:
+       stages.append(StageB())
+   if refine_config.enable_stage_c:
+       stages.append(StageC())
+   ```
+
+4. **Instantiate and run Engine**:
+   ```python
+   engine = RefinementEngine(stages, config=refine_config)
+   telemetry_dict = engine.run({"context": refinement_context})
+   ```
+
+5. **Extract artifacts**:
+   ```python
+   engine_artifacts = engine._artifacts
+   # Terminal stage Bragg (precedence: C > B > A)
+   if "stage_c" in engine_artifacts:
+       bragg_refined = engine_artifacts["stage_c"].bragg_full
+   elif "stage_b" in engine_artifacts:
+       bragg_refined = engine_artifacts["stage_b"].bragg_full
+   else:
+       bragg_refined = engine_artifacts["stage_a"].bragg_full
+   ```
+
+6. **Preserve all downstream logic unchanged:**
+   - Telemetry assertions (e.g., `telemetry_dict["A"]`, `telemetry_dict["B"]`, `telemetry_dict["C"]`)
+   - Gate checks (loss improvements, convergence thresholds)
+   - Artifact extractions (ROI metadata, perf counters)
+   - Comments and docstrings
 
 ---
 
-### 2. Build RefinementContext (after line 543, before `try:` block at line 545)
+#### Function 1: test_stage_a_expansion (~lines 400-540)
 
-Insert the following between the `JobContext` logging (line 543) and the `try:` block:
+**Current call site:** Line ~436: `Bragg_refined, refine_telemetry_dict, _ = run_nanobrag_refinement(...)`
 
+**Migration:**
+- **Pattern:** Stage A only (no Stage B/C)
+- **baseline_detector:** None (omit or pass None)
+- **Stages list:** `[StageA()]`
+- **Downstream:** Preserve gate at line ~487 (min_loss_improvement assertion)
+
+**Example snippet:**
 ```python
-# Build RefinementContext (ARCH-REFACTOR-001 Phase D.2)
-# Wraps all refinement inputs in typed context for Engine consumption
-refinement_context = build_refinement_context(
-    refinement_inputs=inputs,  # RefinementInputs prepared at line ~490
-    detector=DL.detector,
-    beam=DL.beam,
-    crystal=DL.crystal,
+# Before (line ~436):
+Bragg_refined, refine_telemetry_dict, _ = run_nanobrag_refinement(
+    inputs=refinement_inputs,
+    detector=dataload.detector,
+    beam=dataload.beam,
+    crystal=dataload.crystal,
     hkl_grid=hkl_grid,
     hkl_metadata=hkl_metadata,
-    baseline_crystal=None,  # CLI path has no perturbed geometry (unlike test_stage_a_expansion)
-    baseline_detector=DL.detector if refine_config.enable_stage_c else None,  # Stage C retargeting requires baseline
-    asu_map=asu_map,  # Pre-computed ASU mapping from CLI prep (line ~474)
-    hkl_indices_grid=None,  # Optional; not used in CLI path
-    halo_mask=None,  # Optional; not used in CLI path
-    extras={"job_context": job_context},  # Thread JobContext for stage access to CLI args/calibration
+    config=refine_config,
+    job_context=job_context
 )
-```
 
-**Rationale:**
-- `baseline_detector=DL.detector if enable_stage_c else None` matches PERF-WARM-SIM-001 retargeting logic.
-- `extras["job_context"]` preserves existing stage access to calibration metadata and CLI args.
+# After (replace with):
+refinement_context = build_refinement_context(
+    inputs=refinement_inputs,
+    detector=dataload.detector,
+    beam=dataload.beam,
+    crystal=dataload.crystal,
+    hkl_grid=hkl_grid,
+    hkl_metadata=hkl_metadata,
+    config=refine_config,
+    job_context=job_context
+)
+stages = [StageA()]
+engine = RefinementEngine(stages, config=refine_config)
+telemetry_dict = engine.run({"context": refinement_context})
+refine_telemetry_dict = telemetry_dict  # Alias for downstream compatibility
+engine_artifacts = engine._artifacts
+bragg_refined = engine_artifacts["stage_a"].bragg_full
+Bragg_refined = bragg_refined  # Alias for downstream compatibility
+```
 
 ---
 
-### 3. Instantiate RefinementEngine (after `refinement_context` build, before `try:` block)
+#### Function 2: test_stage_a_engine_delegation_telemetry (~lines 749-850)
 
-Insert the following immediately after the `build_refinement_context` call:
+**Current call site:** Line ~784: `Bragg_refined, refine_telemetry_dict, _ = run_nanobrag_refinement(...)`
 
-```python
-# Instantiate RefinementEngine with stage list (ARCH-REFACTOR-001 Phase D.2)
-stages = [StageA()]  # Always run Stage A
-if refine_config.enable_stage_b:
-    stages.append(StageB())
-if refine_config.enable_stage_c:
-    stages.append(StageC())
-
-engine = RefinementEngine(stages=stages, config=refine_config)
-```
-
-**Rationale:**
-- Mirrors CLI flag semantics (`--enable-stage-b`, `--enable-stage-c`).
-- Stage order: A → B → C (normative per `docs/spec-db-workflow.md`).
+**Migration:**
+- **Pattern:** Stage A only
+- **baseline_detector:** None
+- **Stages list:** `[StageA()]`
+- **Special:** Tests Engine delegation telemetry; keep test as-is for telemetry validation
 
 ---
 
-### 4. Run Engine and Extract Artifacts (replace lines 547-556)
+#### Function 3: test_stage_b_shell_modifiers (~lines 947-1050)
 
-**Replace:**
-```python
-        # ARCH-STAGE-CONTEXT-001 Phase B.4: run_nanobrag_refinement now returns artifacts
-        Bragg_refined, refine_telemetry_dict, engine_artifacts = run_nanobrag_refinement(
-            inputs=inputs,
-            detector=DL.detector,
-            beam=DL.beam,
-            crystal=DL.crystal,
-            hkl_grid=hkl_grid,
-            hkl_metadata=hkl_metadata,
-            config=refine_config,
-            job_context=job_context
-        )
-```
+**Current call site:** Line ~983: `Bragg_refined, refine_telemetry_dict, _ = run_nanobrag_refinement(...)`
 
-**With:**
-```python
-        # Run refinement via RefinementEngine (ARCH-REFACTOR-001 Phase D.2)
-        # Engine.run() expects dict with 'context' key per Exit Criterion #4
-        engine_inputs = {"context": refinement_context}
-        refine_telemetry_dict = engine.run(engine_inputs)
-
-        # Extract final Bragg from terminal stage artifact (precedence: C > B > A)
-        # RefinementEngine stores artifacts in engine._artifacts (private, documented pattern)
-        if refine_config.enable_stage_c and "C" in engine._artifacts:
-            Bragg_refined = engine._artifacts["C"].bragg_full
-        elif refine_config.enable_stage_b and "B" in engine._artifacts:
-            Bragg_refined = engine._artifacts["B"].bragg_full
-        else:
-            Bragg_refined = engine._artifacts["A"].bragg_full
-
-        # Extract engine_artifacts for downstream writer/diagnostics (ARCH-STAGE-CONTEXT-001 Phase B.4)
-        engine_artifacts = engine._artifacts
-```
-
-**Rationale:**
-- Engine returns `refine_telemetry_dict` directly (dict of {label: RefinementTelemetry}).
-- Final Bragg array extracted from terminal stage artifact (C > B > A precedence matches facade semantics).
-- `engine._artifacts` provides stage-specific artifacts (ARCH-STAGE-CONTEXT-001).
+**Migration:**
+- **Pattern:** Stage A + B (enable_stage_b=True)
+- **baseline_detector:** None
+- **Stages list:** `[StageA(), StageB()]` (conditional on `refine_config.enable_stage_b`)
+- **Bragg extraction:** `engine_artifacts["stage_b"].bragg_full` (Stage B terminal)
+- **Downstream:** Preserve gates at lines ~1030-1040 (shell modifier convergence)
 
 ---
 
-### 5. Preserve Downstream Logic (no changes needed)
+#### Function 4: test_stage_c_detector_microslip (~lines 1063-1200)
 
-**Lines 558-595** remain unchanged:
-- Stage A telemetry extraction (line 559)
-- `stage_results` extraction from telemetry (lines 563-566, ARCH-TELEMETRY-001 Phase C.2)
-- Refined MSE computation (lines 569-570)
-- Logging (lines 572-584)
-- Exception handling fallback (lines 590-595)
+**Current call site:** Line ~1103: `Bragg_refined, refine_telemetry_dict, _ = run_nanobrag_refinement(...)`
 
-All downstream logic consumes `refine_telemetry_dict` and `engine_artifacts`, which Engine provides in the same format as the facade.
+**Migration:**
+- **Pattern:** Stage A + C (enable_stage_b=False, enable_stage_c=True)
+- **baseline_detector:** Required for Stage C (pass `dataload.detector` or appropriate baseline)
+- **Stages list:** `[StageA(), StageC()]` (note: Stage B disabled in this test)
+- **Bragg extraction:** `engine_artifacts["stage_c"].bragg_full` (Stage C terminal)
+- **Downstream:** Preserve gates at lines ~1180-1190 (detector offset convergence)
+
+**Important:** Inspect the test to find where `baseline_detector` is defined (likely from `dataload.detector` or a fixture). Pass it to `build_refinement_context()`.
 
 ---
 
-## How-To Map
+#### Function 5: test_stage_b_asu_mapping_smoke (~lines 1393-1600)
 
-### Validation Commands
+**Current call site:** Line ~1444: `Bragg_refined, refine_telemetry_dict, _ = run_nanobrag_refinement(...)`
 
-Run the 2 mapped CLI selectors to validate the refactor:
+**Migration:**
+- **Pattern:** Stage A + B with ASU mode (stage_b_mode="per_reflection", stage_b_enable_asu_mapping=True)
+- **baseline_detector:** None
+- **Stages list:** `[StageA(), StageB()]`
+- **Bragg extraction:** `engine_artifacts["stage_b"].bragg_full`
+- **Downstream:** Preserve gates at lines ~1550-1580 (ASU mapping telemetry assertions)
 
+---
+
+#### Function 6: test_stage_c_stage_a_baseline_detector_dist (~lines 1793-1950)
+
+**Current call site:** Line ~1865: `Bragg_refined, refine_telemetry_dict, _ = run_nanobrag_refinement(...)`
+
+**Migration:**
+- **Pattern:** Stage A + C with baseline detector
+- **baseline_detector:** Required (inspect test for definition, likely `refgeom_dataload.Expt.detector` or similar)
+- **Stages list:** `[StageA(), StageC()]`
+- **Bragg extraction:** `engine_artifacts["stage_c"].bragg_full`
+- **Downstream:** Preserve gates at lines ~1920-1940 (baseline detector distance telemetry)
+
+---
+
+### Step 3: Validation
+
+**Command:**
 ```bash
 AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-DBEX_SMOKE_SIGMA_SOURCE=cli_override \
-KMP_DUPLICATE_LIB_OK=TRUE \
-NANOBRAGG_DISABLE_COMPILE=1 \
+DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small \
+KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
 pytest -vv \
-  tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata \
-  tests/dbex/test_refine_one_cli.py::test_nanobrag_backend_runs_simulator \
-  | tee plans/active/ARCH-REFACTOR-001/reports/2025-12-02T220000Z/pytest_cli_refactor.log
+  tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion \
+  tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry \
+  tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers \
+  tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip \
+  tests/dbex/test_torch_refine_smoke.py::test_stage_b_asu_mapping_smoke \
+  tests/dbex/test_torch_refine_smoke.py::test_stage_c_stage_a_baseline_detector_dist \
+  --smoke-detector-size=small \
+  | tee plans/active/ARCH-REFACTOR-001/reports/2025-12-02T210509Z/pytest_smoke_tests_all.log
 ```
 
-**Expected outcomes:**
-- Both tests PASS
-- HDF5 `/torch_diagnostics` attributes unchanged (backward compatible)
-- Telemetry structure preserved (stage_results extraction works)
-- No import errors
-- No behavioral regression vs facade path
+**Gate:** All 6/6 tests PASSED
+
+**If any test fails:**
+1. Inspect failure signature in pytest log
+2. Verify Engine pattern matches CLI blueprint exactly
+3. Check telemetry dict key access (`telemetry_dict["A"]` etc.)
+4. Check artifact extraction (`engine_artifacts["stage_a"].bragg_full` etc.)
+5. If >2 attempts needed, capture failure evidence in artifacts and mark blocked in fix_plan
+
+**Rollback plan:** `git checkout HEAD -- tests/dbex/test_torch_refine_smoke.py` if migration fails
+
+### Step 4: Commit
+
+**Message template:**
+```
+ARCH-REFACTOR-001 Phase D.3 Batch 1: Migrate test_torch_refine_smoke.py to RefinementEngine (tests: 6/6 pass)
+
+Migrated tests/dbex/test_torch_refine_smoke.py (6 test functions) from run_nanobrag_refinement
+facade to direct RefinementEngine instantiation following CLI refactor blueprint.
+
+Functions migrated:
+- test_stage_a_expansion (Stage A only)
+- test_stage_a_engine_delegation_telemetry (Stage A only)
+- test_stage_b_shell_modifiers (Stage A + B)
+- test_stage_c_detector_microslip (Stage A + C)
+- test_stage_b_asu_mapping_smoke (Stage A + B ASU mode)
+- test_stage_c_stage_a_baseline_detector_dist (Stage A + C baseline detector)
+
+Implementation:
+- Added module-scope imports (RefinementEngine, StageA/B/C, build_refinement_context)
+- Built RefinementContext for each test (baseline_detector conditional on Stage C)
+- Instantiated stages list based on config.enable_stage_b/c flags
+- Ran engine.run({"context": ...}) and extracted artifacts from engine._artifacts
+- Preserved all downstream logic (telemetry assertions, gates, perf counters)
+
+Tests: 6/6 smoke selectors PASSED
+- test_stage_a_expansion
+- test_stage_a_engine_delegation_telemetry
+- test_stage_b_shell_modifiers
+- test_stage_c_detector_microslip
+- test_stage_b_asu_mapping_smoke
+- test_stage_c_stage_a_baseline_detector_dist
+
+Metrics: 1 file touched, 6 call sites replaced (facade → Engine), no behavioral regression
+Phase D.3 Batch 1 complete; remaining test files deferred to next loop(s).
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+```
 
 ---
 
 ## Pitfalls To Avoid
 
-1. **Import Order:** Do not import `run_nanobrag_refinement` after removing the facade import. Ensure `build_refinement_context` is added to the existing `build_job_context` import line.
+1. **Device/dtype neutrality:** Engine pattern already handles this via `RefinementConfig`; do not hardcode device strings or dtype conversions.
 
-2. **RefinementContext Baseline Detector:** Stage C requires `baseline_detector` for retargeting logic (PERF-WARM-SIM-001). Always set `baseline_detector=DL.detector if enable_stage_c else None`.
+2. **Telemetry dict keys:** Engine uses same "A"/"B"/"C" labels as facade; ensure downstream assertions like `telemetry_dict["A"]` remain unchanged.
 
-3. **JobContext Threading:** Stages expect `job_context` for calibration metadata access. Always thread via `extras={"job_context": job_context}`.
+3. **Artifact extraction:** Use `engine._artifacts["stage_a"].bragg_full` (not `bragg_refined` from facade return tuple). Terminal stage precedence: C > B > A.
 
-4. **Engine Artifact Access:** `engine._artifacts` is a private attribute but documented pattern (per CLI blueprint). Do NOT attempt to add a public accessor in this loop; that can be a follow-up refactor.
+4. **baseline_detector handling:** Only pass `baseline_detector` to `build_refinement_context()` for Stage C tests (functions 4, 6). Omit or pass `None` for Stage A/B-only tests.
 
-5. **Terminal Stage Precedence:** Bragg extraction must follow C > B > A precedence to match facade semantics. Check `enable_stage_c` first, then `enable_stage_b`, then default to A.
+5. **Partial migration:** Do NOT migrate functions incrementally across multiple commits; all 6 must be migrated atomically to avoid test suite breakage.
 
-6. **Telemetry Structure:** Do NOT change downstream code (lines 558-595). Engine returns `refine_telemetry_dict` in the same format as facade (dict of {label: RefinementTelemetry}).
+6. **Downstream logic preservation:** Do NOT change any telemetry assertions, gate checks, or artifact extractions beyond the facade → Engine pattern replacement.
 
-7. **Exception Handling:** The `try/except` block (lines 545-595) must remain unchanged. Only the facade call inside the `try` block is replaced.
+7. **Environment Freeze:** Do not install/upgrade packages. If an import fails, mark blocked.
 
-8. **Device/Dtype Neutrality (GRADIENT-004):** Engine receives `config.device` and `config.dtype` from `refine_config`, which is already built correctly (lines 515-524). Do NOT add device/dtype overrides in Engine instantiation.
+8. **Initiative type boundaries:** This is an architecture initiative; do not change test semantics, acceptance criteria, or gates (spec_change requires separate initiative).
 
-9. **Backward Compatibility:** RefinementConfig is still available via `dbex.nanobrag_refinement` re-export (Phase D.1 backward-compat layer). Import from `dbex.refinement.config` for clarity.
+9. **Test collection:** After migration, run `pytest --collect-only tests/dbex/test_torch_refine_smoke.py` to verify all 6 tests are discovered.
 
-10. **No Test Changes:** This loop only touches `dbex/refine_one.py`. Do NOT modify test files or other consumers yet (those are Phase D.3).
+10. **Rollback readiness:** If >1 test fails after migration, rollback entire file and capture failure evidence before re-attempting.
 
 ---
 
 ## If Blocked
 
-If any of the following occur:
+**Scenario 1: Import errors**
+- Verify module-scope imports are spelled correctly
+- Check that `build_refinement_context` is imported from `dbex.refinement.context`
+- Capture import traceback in artifacts, mark blocked in fix_plan
 
-1. **Import errors:** Verify `dbex/refinement/context.py` exports `build_refinement_context` and `build_job_context`. If missing, check git history for Phase D.1 changes.
+**Scenario 2: Telemetry structure mismatch**
+- Verify Engine uses "A"/"B"/"C" labels (inspect `engine.run()` return value)
+- Check CLI refactor blueprint for reference telemetry structure
+- Capture telemetry diff in artifacts, mark blocked
 
-2. **Engine runtime errors:** Check that `RefinementEngine.run()` accepts dict with 'context' key (ARCH-REFACTOR-001 Exit Criterion #4). If signature mismatch, consult `dbex/refinement/engine.py` and `test_refinement_engine.py`.
+**Scenario 3: Artifact extraction failure**
+- Verify `engine._artifacts` contains expected stage keys ("stage_a", "stage_b", "stage_c")
+- Check terminal stage precedence logic (C > B > A)
+- Capture artifact structure in artifacts, mark blocked
 
-3. **Artifact extraction errors:** Verify `engine._artifacts` is populated after `engine.run()`. If empty, check Stage A/B/C `run()` methods store artifacts via `self._artifacts[label] = ...`.
+**Scenario 4: baseline_detector undefined**
+- Inspect test to find where `baseline_detector` is defined (likely from DataLoad fixture or explicit setup)
+- Pass to `build_refinement_context()` only for Stage C tests
+- Capture variable scope in artifacts, mark blocked
 
-4. **Telemetry structure errors:** Verify `engine.run()` returns dict of {label: RefinementTelemetry}. If format mismatch, consult `test_refinement_engine.py::test_engine_returns_telemetry_dict`.
-
-5. **Test failures:**
-   - Log the failure signature in `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T220000Z/pytest_cli_refactor.log`.
-   - Update `docs/fix_plan.md` Attempts History with the blocker (e.g., "blocked — engine artifact mismatch, needs [new-initiative-id]").
-   - Mark ARCH-REFACTOR-001 Phase D.2 as `blocked` and notify Galph.
+**Fallback:** Capture all evidence (pytest logs, tracebacks, variable dumps) in `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T210509Z/`, update Attempts History in `docs/fix_plan.md`, and switch focus per loop_discipline.
 
 ---
 
-## Findings Applied (Mandatory)
+## Findings Applied
 
-**From `docs/findings.md`:**
+**Relevant findings from `docs/findings.md`:**
 
-- **ARCH-ENGINE-002:** RefinementEngine is canonical seam; stages consume typed contexts only. (Applied: Engine instantiation + RefinementContext build)
-
-- **ARCH-STAGE-CTX-001:** Stages receive RefinementContext/RefinementSharedContext, not ad-hoc dicts. (Applied: `build_refinement_context` replaces facade's exploded arguments)
-
-- **ARCH-TELEMETRY-001 Phase C.2:** StageResult extraction from telemetry preserved. (Applied: lines 563-566 unchanged, `stage_results` dict builds correctly)
-
-- **GRADIENT-004:** Device/dtype neutrality maintained. (Applied: `refine_config.device`/`dtype` passed to Engine, no overrides)
-
-- **PERF-WARM-SIM-001:** Stage C baseline detector requirement honored. (Applied: `baseline_detector=DL.detector if enable_stage_c else None`)
-
-**No additional findings flagged for this initiative.**
+- **ARCH-REFACTOR-001 Phase D reference:** CLI refactor blueprint (`plans/active/ARCH-REFACTOR-001/reports/2025-12-02T201539Z/cli_refactor_blueprint.md`) establishes the canonical Engine adoption pattern.
+- **Test migration plan:** Category A, File 1 scope defined in `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T201539Z/test_migration_plan.md` (lines 24-123).
+- **Initiative type: architecture:** Per ARCH-REFACTOR-001, this work does NOT change external behavior, specs, or acceptance gates; purely structural refactor from facade to Engine.
+- **Environment Freeze:** Runtime is pre-provisioned; do not install/upgrade packages during loops.
 
 ---
 
 ## Pointers
 
-**Specs:**
-- `docs/spec-db-workflow.md §§30-41` — RefinementEngine protocol architecture
-- `docs/architecture/dbex/refinement/context.idl.md` — RefinementContext contract
+**Reference documents:**
+- CLI refactor blueprint: `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T201539Z/cli_refactor_blueprint.md`
+- Test migration plan: `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T201539Z/test_migration_plan.md`
+- Implementation plan: `plans/active/ARCH-REFACTOR-001/implementation.md` (lines 365-395)
+- Fix plan ledger: `docs/fix_plan.md` (lines 52-88, ARCH-REFACTOR-001 Attempts History)
 
-**Architecture:**
-- `plans/active/ARCH-REFACTOR-001/implementation.md` — Phase D checklist (D.1 ✓, D.2 in progress)
-- `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T201539Z/cli_refactor_blueprint.md` — Detailed CLI refactor pattern (reference implementation)
-- `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T220000Z/planning_notes.md` — This loop's planning notes
+**Spec/arch references:**
+- Workflow spec: `docs/spec-db-workflow.md` §§30-41 (Engine protocol)
+- Context contracts: `docs/architecture/dbex/refinement/context.idl.md`
+- Testing guide: `docs/TESTING_GUIDE.md` (selectors, env flags)
 
-**Testing:**
-- `docs/TESTING_GUIDE.md §2` — Canonical environment flags and CLI selectors
-- `docs/development/TEST_SUITE_INDEX.md` — Test registry (update if new tests added)
-
-**Fix Plan:**
-- `docs/fix_plan.md` — Row [ARCH-REFACTOR-001] (lines 52-86, Attempts History includes Phase D.1 complete + D.2 planning)
-
-**Code:**
-- `dbex/refine_one.py:505-595` — Current facade call site (target for refactor)
-- `dbex/refinement/config.py:1-135` — RefinementConfig dataclass (Phase D.1 extraction)
-- `dbex/refinement/context.py:91-XXX` — `build_refinement_context` helper
-- `dbex/refinement/engine.py` — RefinementEngine class
-- `dbex/refinement/stage_a.py`, `stage_b.py`, `stage_c.py` — Stage implementations
+**Code pointers:**
+- Target file: `tests/dbex/test_torch_refine_smoke.py`
+- Reference implementation: `dbex/refine_one.py::run_nanobrag_backend()` (lines 505-595, commit 46389946)
+- Engine class: `dbex/refinement/engine.py::RefinementEngine`
+- Context builder: `dbex/refinement/context.py::build_refinement_context()`
+- Stage classes: `dbex/refinement/stage_a.py::StageA`, `stage_b.py::StageB`, `stage_c.py::StageC`
 
 ---
 
-## Next Up (optional)
+## Next Up
 
-If you finish early and all 2 CLI tests pass:
+**After this loop (D.3 Batch 1 complete):**
+1. Phase D.3 Batch 2: Migrate `test_stage_a_smoke_parity.py` (1 function) + `dbex/tools/stage_a_adam.py` (1 function)
+2. Phase D.3 Batch 3: Config-only import updates (3 files: `test_refinement_engine.py`, `test_stage_b_cpu_fallback.py`, `refinement/__init__.py`)
+3. Phase D.4: Legacy helper import fix (`test_physics_loss_current.py`, 4 inline imports → `dbex.physics.loss`)
+4. Phase D.5: Facade deletion after all consumers migrated
 
-1. **Commit your work:**
-   ```bash
-   git add dbex/refine_one.py
-   git commit -m "ARCH-REFACTOR-001 Phase D.2: Migrate CLI to RefinementEngine (tests: 2/2 pass)"
-   ```
-
-2. **Update implementation.md:** Mark Phase D.2 complete in the checklist at `plans/active/ARCH-REFACTOR-001/implementation.md` line 369.
-
-3. **Do NOT proceed to Phase D.3:** Test migrations require separate planning and validation. Wait for Galph's next loop to scope D.3.
+**Sign-off:** Mark implementation.md D.3 **partially complete** (Batch 1 of 3-4), proceed to D.3 Batch 2 next loop.
 
 ---
 
-## Doc Sync Plan (Conditional)
+## Doc Sync Plan
 
-**Not applicable for this loop:** No new tests are added. CLI selectors already exist in `docs/TESTING_GUIDE.md` and `docs/development/TEST_SUITE_INDEX.md`.
+**Not applicable this loop** (no new tests added/renamed; existing tests migrated to Engine pattern).
+
+**Note:** If any test selector changes, update `docs/TESTING_GUIDE.md` §2 and `docs/development/TEST_SUITE_INDEX.md` in a follow-up docs-only loop.
 
 ---
 
 ## Mapped Tests Guardrail
 
-Both mapped selectors collect > 0 tests:
-- `test_torch_diagnostics_metadata` — validates HDF5 `/torch_diagnostics` attributes
-- `test_nanobrag_backend_runs_simulator` — CLI smoke test with minimal fixture
+All 6 mapped selectors already exist and collect >0:
+- `test_stage_a_expansion`
+- `test_stage_a_engine_delegation_telemetry`
+- `test_stage_b_shell_modifiers`
+- `test_stage_c_detector_microslip`
+- `test_stage_b_asu_mapping_smoke`
+- `test_stage_c_stage_a_baseline_detector_dist`
 
-If either selector collects 0 tests after your changes, treat this as a blocker and mark Phase D.2 `blocked`.
-
----
-
-**End of Do Now.**
-
-Ralph, please execute Tasks 1-5 in order, validate with the 2 CLI selectors, and log all outputs to the artifacts directory. If blocked, update `docs/fix_plan.md` and notify Galph. If successful, commit your work and mark Phase D.2 complete in `implementation.md`.
+Verified via pytest collection in CLI refactor loop (Phase D.2). No new tests authored this loop.

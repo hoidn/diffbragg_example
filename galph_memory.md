@@ -614,3 +614,15 @@ Action State: ready_for_implementation
 - Authored complete input.md with 5-step Do Now (explicit line-by-line refactoring instructions), pitfalls, validation commands, findings, pointers, and mapped tests. Reserved artifacts at plans/active/ARCH-REFACTOR-001/reports/2025-12-02T220000Z/.
 - Initiative type: architecture. Mode: Parity. Mapped tests: test_torch_diagnostics_metadata, test_nanobrag_backend_runs_simulator.
 Action State: ready_for_implementation
+
+2025-12-02T210509Z focus=ARCH-REFACTOR-001 state=ready_for_implementation dwell=0 action=planning artifacts=plans/active/ARCH-REFACTOR-001/reports/2025-12-02T210509Z/ next_action=Implement Phase D.3 Batch 1 (test_torch_refine_smoke.py migration)
+- Confirmed Phase D.2 complete (commit 46389946: CLI refactor successful, 2/2 CLI selectors PASSED).
+- Scoped Phase D.3 Batch 1 to migrate only `tests/dbex/test_torch_refine_smoke.py` (6 test functions) following CLI blueprint reference pattern.
+- Rationale: highest-risk migration (core Stage A/B/C acceptance tests), proves CLI pattern works for test context, 6 distinct migration patterns (Stage A-only, A+B, A+C, A+B+C, ASU mode, baseline detector).
+- Deferred remaining Phase D.3 files to next 1-2 loops (test_stage_a_smoke_parity.py, dbex/tools/stage_a_adam.py, config-only imports, legacy helper imports) to maintain WIP cap and bounded focus.
+- Created comprehensive planning notes under plans/active/ARCH-REFACTOR-001/reports/2025-12-02T210509Z/planning_notes.md detailing implementation strategy (import updates, context building, stages list instantiation, artifact extraction) per CLI blueprint.
+- Updated implementation.md (D.2 marked complete with full metrics and test results), updated docs/fix_plan.md Attempts History (line 88, new entry for 2025-12-02T210509Z planning).
+- Authored complete input.md with explicit function-by-function migration instructions, example snippets, validation commands, pitfalls, rollback plan, and mapped tests (6 smoke selectors). Reserved artifacts at plans/active/ARCH-REFACTOR-001/reports/2025-12-02T210509Z/.
+- Initiative type: architecture. Mode: Parity. Mapped tests: 6 smoke selectors (test_stage_a_expansion, test_stage_a_engine_delegation_telemetry, test_stage_b_shell_modifiers, test_stage_c_detector_microslip, test_stage_b_asu_mapping_smoke, test_stage_c_stage_a_baseline_detector_dist).
+- Problems ledger "PRIORITIZE ARCH-REFACTOR-001 ASAP" serviced in previous loop (Phase D.2); current focus continues Phase D per roadmap Tier 0.
+Action State: ready_for_implementation

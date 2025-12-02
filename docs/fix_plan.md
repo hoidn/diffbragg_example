@@ -211,3 +211,31 @@ Detailed engineering logs now live in `docs/fix_plan_archive.md` (append-only sn
 ### [PERF-WARM-SIM-001] Attempts History
   * 2025-12-02T173000Z — Phase F.1 debug hook implemented in `_retarget_stage_a_detectors`; small-detector (panel-mode) smoketest PASSED with 18 retarget calls capturing panel updates only, full-detector (ROI-mode) smoketest FAILED (expected) but produced 17 retarget calls with ~92 ROI entries per call showing simulator ID changes. Debug artifacts captured under `DBEX_STAGE_C_CACHE_DEBUG_PATH` for offline analysis. Next: Supervisor analyzes cache-debug JSONs to identify ROI simulator staleness root cause. Artifacts: `plans/active/PERF-WARM-SIM-001/reports/2025-12-02T173000Z/`.
   * 2025-12-02T094947Z (Phase C.5 docs alignment) — Updated five documentation files to reflect the Phase C modular split: `docs/data_dependency_manifest.md` (added prep/config context notes to ROI helpers, cited dbex.refinement.inputs.RefinementInputs dataclass), `docs/architecture/live_backend.md` (updated Torch Backend section with new module paths for prep/config/orchestration), `docs/architecture/module_map.md` (added rows for inputs.py and config_factories.py, rewrote bridge row for reduced scope), `docs/architecture/data_telemetry_flow.md` (updated prep/scoring step references), `docs/architecture/dbex/io/writer.idl.md` (fixed inputs parameter to cite dataclass from dbex.refinement.inputs). All normative spec language preserved; only module paths/descriptions changed. No code or test changes (Mode: Docs). Artifacts: `plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-02T094947Z/summary.md`. Next: Remove re-export layer from dbex/nanobrag_bridge.py after verifying downstream consumer migration (Phase C.6 future work).
+
+## ARCH-TELEMETRY-001 Phase C.2 — 2025-12-04T02:30:00Z
+
+**Status**: done  
+**Assignee**: ralph  
+**Initiative Type**: architecture  
+**Acceptance**: SPEC docs/architecture/pytorch_design.md:164-171 (typed telemetry threading)
+
+### Attempts History
+
+**Attempt 1** (2025-12-04T02:00:00Z → 02:30:00Z):  
+- **Action**: Thread typed StageResult through telemetry pipeline  
+  - Added optional `stage_result` field to `RefinementTelemetry` (not serialized via `to_dict()`)
+  - Updated Stage A/B/C to call `collector.finalize()` and persist result on telemetry
+  - Surfaced `stage_results` dict through CLI → `write_torch_outputs`
+  - Updated writer signature to accept `stage_results` parameter (refactoring deferred)
+  - Updated test mocks to pass `stage_results=None`  
+- **Outcome**: ✅ All mapped tests pass  
+  - `test_torch_diagnostics_metadata` — PASSED  
+  - `test_stage_b_baseline_guard_diff_payload` — PASSED  
+  - `test_stage_b_shell_modifiers` — PASSED  
+- **Metrics**:  
+  - Files touched: 8 (stage.py, stage_a.py, stage_b.py, stage_c.py, stage_c_impl.py, refine_one.py, writer.py, test_refine_one_cli.py)
+  - LOC: +64 / -37  
+- **Artifacts**: `plans/active/ARCH-TELEMETRY-001/reports/2025-12-04T020000Z/`  
+  - pytest_cli_diag.log, pytest_stage_b_guard.log, pytest_stage_b_smoke_retry.log  
+- **Next Actions**: Phase C.3 (writer refactoring to consume typed payloads)
+

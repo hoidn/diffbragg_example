@@ -189,6 +189,15 @@ class RefinementEngine:
             # Aggregate into telemetry dict keyed by stage name
             self._telemetry[stage.name] = telemetry
 
+        # ARCH-REFINE-FLOW-001 Phase E: Populate engine_protocol and stage_modes for all stages
+        # These fields describe the stage execution plan (which stages ran, what modes they used)
+        engine_protocol_str = self._compute_engine_protocol()
+        stage_modes_dict = self._compute_stage_modes()
+
+        for stage_name, telem in self._telemetry.items():
+            telem.engine_protocol = engine_protocol_str
+            telem.stage_modes = stage_modes_dict
+
         # ARCH-REFACTOR-001 Phase D.3: Map stage names to legacy labels for backward compatibility
         # Tests and downstream code expect "A"/"B"/"C" keys (not "stage_a"/"stage_b"/"stage_c")
         legacy_telemetry_dict = {}
@@ -204,6 +213,45 @@ class RefinementEngine:
                 legacy_telemetry_dict[stage_name] = telem
 
         return legacy_telemetry_dict
+
+    def _compute_engine_protocol(self) -> str:
+        """
+        Compute engine protocol string describing stage execution sequence.
+
+        Returns:
+            str: Protocol string like "stage_a", "stage_a+stage_b", "stage_a+stage_b+stage_c"
+
+        Examples:
+            - Stage A only → "stage_a"
+            - Stage A + B → "stage_a+stage_b"
+            - Stage A + B + C → "stage_a+stage_b+stage_c"
+        """
+        executed_stages = sorted(self._telemetry.keys())  # Sort for deterministic order
+        return "+".join(executed_stages)
+
+    def _compute_stage_modes(self) -> Dict[str, str]:
+        """
+        Compute stage modes dict mapping stage labels to their mode strings.
+
+        Returns:
+            Dict[str, str]: Map of stage label → mode. Empty dict if no modes set.
+
+        Examples:
+            - Stage A only with no mode → {}
+            - Stage B shell mode → {"B": "shell"}
+            - Stage B + C → {"B": "per_reflection", "C": "detector_offsets"}
+        """
+        stage_modes = {}
+
+        # Map internal stage names to legacy labels for consistency with telemetry keys
+        label_map = {"stage_a": "A", "stage_b": "B", "stage_c": "C"}
+
+        for stage_name, telem in self._telemetry.items():
+            if telem.mode is not None:
+                label = label_map.get(stage_name, stage_name)
+                stage_modes[label] = telem.mode
+
+        return stage_modes
 
     @property
     def telemetry(self) -> Dict[str, RefinementTelemetry]:

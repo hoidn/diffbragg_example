@@ -2043,11 +2043,13 @@ class StageA:
             )
 
         # Create StageAArtifacts with warm context payload + optional final Bragg
+        # ARCH-REFACTOR-001 Phase D.3: Always create artifacts (even if stage_a_ctx is None in cold mode)
+        # This ensures Engine can store Stage A artifacts for all runs, not just warm cache mode
         artifacts = StageAArtifacts(
-            stage_a_ctx=stage_a_ctx,
+            stage_a_ctx=stage_a_ctx,  # May be None in cold mode (enable_stage_a_warm_cache=False)
             context_schema_version="v1",
-            bragg_full=bragg_full_artifact
-        ) if stage_a_ctx is not None else None
+            bragg_full=bragg_full_artifact  # May be None when Stage B/C follow
+        )
 
         # Return StageResult with telemetry object (not dict) and artifacts
         # ARCH-TELEMETRY-001 Phase C.2: Pass telemetry_a (RefinementTelemetry) instead of

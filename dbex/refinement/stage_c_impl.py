@@ -145,24 +145,32 @@ def _retarget_stage_a_detectors(
 
 
 def _build_stage_c_params(
-    config: 'RefinementConfig',
-    device: torch.device,
-    dtype: torch.dtype,
-    n_panels: int,
-    baseline_detector: Optional[Any],  # dxtbx.model.Detector
-    detector: Any,  # dxtbx.model.Detector
-    sampled_panel_ids: List[int],
-    panel_slices: List[Tuple[int, int, int, int, int]],
-    stage_a_ctx: Optional['StageAContext'],
-    sigma_floor_sq_cache: Dict[str, torch.Tensor],
-    params: List[torch.Tensor],  # Stage A params to freeze
-    stage_a_telemetry: Dict[str, Any]  # Stage A telemetry for ROI mode check (ARCH-REFINE-001)
+    shared_context: Optional['RefinementSharedContext'] = None,
+    config: Optional['RefinementConfig'] = None,
+    device: Optional[torch.device] = None,
+    dtype: Optional[torch.dtype] = None,
+    n_panels: Optional[int] = None,
+    baseline_detector: Optional[Any] = None,  # dxtbx.model.Detector
+    detector: Optional[Any] = None,  # dxtbx.model.Detector
+    sampled_panel_ids: Optional[List[int]] = None,
+    panel_slices: Optional[List[Tuple[int, int, int, int, int]]] = None,
+    stage_a_ctx: Optional['StageAContext'] = None,
+    sigma_floor_sq_cache: Optional[Dict[str, torch.Tensor]] = None,
+    params: Optional[List[torch.Tensor]] = None,  # Stage A params to freeze
+    stage_a_telemetry: Optional[Dict[str, Any]] = None  # Stage A telemetry for ROI mode check (ARCH-REFINE-001)
 ) -> Dict[str, Any]:
     """
     Initialize Stage C detector distance offset parameters and optimizer.
 
     Stage C refines per-panel translations along detector normal (distance offset)
     with crystal orientation/cell frozen from Stage A.
+
+    ARCH-STAGE-CONTEXT-001 Phase A.4: Compatibility shim accepts either:
+    - shared_context: RefinementSharedContext dataclass (new path)
+    - Legacy individual parameters (backward compatibility)
+
+    When shared_context is provided, derive config/device/dtype/detector/inputs/
+    hkl_grid/hkl_metadata/panel_slices/sigma_floor_sq_cache from it.
 
     Returns dict with keys:
         - 'distance_offset_raw': torch.Tensor (n_panels,) trainable parameter
@@ -195,6 +203,40 @@ def _build_stage_c_params(
         - 'variance_floor_masked_pixels_c': List[int]
         - 'sigma_floor_sq_tensor_stage_c': torch.Tensor
     """
+    # ARCH-STAGE-CONTEXT-001 Phase A.4: Compatibility shim
+    # When shared_context provided, extract legacy parameters from it
+    if shared_context is not None:
+        if config is None:
+            config = shared_context.config
+        if device is None:
+            device = shared_context.device
+        if dtype is None:
+            dtype = shared_context.dtype
+        if detector is None:
+            detector = shared_context.detector
+        if baseline_detector is None:
+            baseline_detector = shared_context.baseline_detector
+        if panel_slices is None:
+            panel_slices = shared_context.inputs.panel_slices
+        if sigma_floor_sq_cache is None:
+            sigma_floor_sq_cache = shared_context.sigma_floor_sq_cache
+        # n_panels derived from detector
+        if n_panels is None:
+            n_panels = len(detector)
+    else:
+        # Legacy path: validate all required parameters provided
+        if config is None or device is None or dtype is None or detector is None:
+            raise ValueError(
+                "_build_stage_c_params requires either shared_context or "
+                "(config, device, dtype, detector, ...) legacy parameters"
+            )
+        if panel_slices is None:
+            raise ValueError("_build_stage_c_params requires panel_slices")
+        if sigma_floor_sq_cache is None:
+            sigma_floor_sq_cache = {}
+        if n_panels is None:
+            n_panels = len(detector)
+
     # Compute baseline_detector_distances for Stage C telemetry (TORCH-REFINE-003)
     # This is used to report initial detector offsets relative to nominal geometry
     baseline_detector_distances = None
@@ -342,24 +384,32 @@ def _build_stage_c_params(
 
 
 def _build_stage_c_lbfgs_closure(
-    param_values: Dict[str, Any],
-    telemetry_state: Dict[str, Any],
-    stage_c_context: Dict[str, Any],
-    detector: Any,  # dxtbx.model.Detector
-    beam: Any,  # dxtbx.model.Beam
-    inputs: Any,  # RefinementInputs
-    config: 'RefinementConfig',
-    sigma_floor_sq_cache: Dict[str, torch.Tensor],
-    device: torch.device,
-    dtype: torch.dtype,
-    crystal: Any,  # dxtbx.model.Crystal (Stage A final params)
-    hkl_grid: torch.Tensor,
-    hkl_metadata: Dict[str, Any],
-    stage_a_ctx: Optional['StageAContext'],
-    sampled_panel_ids: List[int]
+    shared_context: Optional['RefinementSharedContext'] = None,
+    param_values: Optional[Dict[str, Any]] = None,
+    telemetry_state: Optional[Dict[str, Any]] = None,
+    stage_c_context: Optional[Dict[str, Any]] = None,
+    detector: Optional[Any] = None,  # dxtbx.model.Detector
+    beam: Optional[Any] = None,  # dxtbx.model.Beam
+    inputs: Optional[Any] = None,  # RefinementInputs
+    config: Optional['RefinementConfig'] = None,
+    sigma_floor_sq_cache: Optional[Dict[str, torch.Tensor]] = None,
+    device: Optional[torch.device] = None,
+    dtype: Optional[torch.dtype] = None,
+    crystal: Optional[Any] = None,  # dxtbx.model.Crystal (Stage A final params)
+    hkl_grid: Optional[torch.Tensor] = None,
+    hkl_metadata: Optional[Dict[str, Any]] = None,
+    stage_a_ctx: Optional['StageAContext'] = None,
+    sampled_panel_ids: Optional[List[int]] = None
 ) -> Tuple[Callable[[List[int], bool], Tuple[torch.Tensor, torch.Tensor]], Callable[[], torch.Tensor]]:
     """
     Build Stage C LBFGS closure for detector distance refinement.
+
+    ARCH-STAGE-CONTEXT-001 Phase A.4: Compatibility shim accepts either:
+    - shared_context: RefinementSharedContext dataclass (new path)
+    - Legacy individual parameters (backward compatibility)
+
+    When shared_context is provided, derive config/device/dtype/detector/beam/crystal/
+    inputs/hkl_grid/hkl_metadata/sigma_floor_sq_cache from it.
 
     Returns tuple of (compute_loss_stage_c, closure_stage_c) with captured lexical scope
     for ~25 nonlocal variables extracted from input dicts.
@@ -372,6 +422,40 @@ def _build_stage_c_lbfgs_closure(
         - compute_loss_stage_c: Callable[[panel_ids, is_full, force_panel_eval], (chi_squared, mse)]
         - closure_stage_c: Callable[[], chi_squared_loss] (LBFGS closure contract)
     """
+    # ARCH-STAGE-CONTEXT-001 Phase A.4: Compatibility shim
+    # When shared_context provided, extract legacy parameters from it
+    if shared_context is not None:
+        if config is None:
+            config = shared_context.config
+        if device is None:
+            device = shared_context.device
+        if dtype is None:
+            dtype = shared_context.dtype
+        if detector is None:
+            detector = shared_context.detector
+        if beam is None:
+            beam = shared_context.beam
+        if crystal is None:
+            crystal = shared_context.crystal
+        if inputs is None:
+            inputs = shared_context.inputs
+        if hkl_grid is None:
+            hkl_grid = shared_context.hkl_grid
+        if hkl_metadata is None:
+            hkl_metadata = shared_context.hkl_metadata
+        if sigma_floor_sq_cache is None:
+            sigma_floor_sq_cache = shared_context.sigma_floor_sq_cache
+    else:
+        # Legacy path: validate all required parameters provided
+        if (config is None or device is None or dtype is None or detector is None or
+            beam is None or inputs is None or hkl_grid is None or hkl_metadata is None):
+            raise ValueError(
+                "_build_stage_c_lbfgs_closure requires either shared_context or "
+                "(config, device, dtype, detector, beam, inputs, hkl_grid, hkl_metadata, ...) legacy parameters"
+            )
+        if sigma_floor_sq_cache is None:
+            sigma_floor_sq_cache = {}
+
     # Extract from param_values dict
     distance_offset_raw = param_values['distance_offset_raw']
     stage_c_params = param_values['stage_c_params']

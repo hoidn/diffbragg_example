@@ -441,6 +441,7 @@ class RefinementSharedContext:
         device: torch.device for tensor allocation
         dtype: torch.dtype for tensor allocation
         baseline_crystal: Optional baseline dxtbx Crystal for misset extraction
+        baseline_detector: Optional baseline dxtbx Detector for Stage C distance offsets
 
     Normative Dependencies (Transitive):
     - crystal/detector/beam: dxtbx objects per config_crosswalk.md
@@ -471,6 +472,7 @@ class RefinementSharedContext:
     device: Any  # torch.device
     dtype: Any  # torch.dtype
     baseline_crystal: Optional[Any] = None  # baseline dxtbx Crystal
+    baseline_detector: Optional[Any] = None  # baseline dxtbx Detector (Stage C distance offsets)
 
     @classmethod
     def from_inputs(
@@ -485,6 +487,7 @@ class RefinementSharedContext:
         device,
         dtype,
         baseline_crystal=None,
+        baseline_detector=None,
         sigma_floor_sq_cache: Optional[Dict] = None,
     ) -> 'RefinementSharedContext':
         """
@@ -501,6 +504,7 @@ class RefinementSharedContext:
             device: torch.device
             dtype: torch.dtype
             baseline_crystal: Optional baseline dxtbx Crystal
+            baseline_detector: Optional baseline dxtbx Detector (Stage C distance offsets)
             sigma_floor_sq_cache: Optional warm-cache dict (defaults to empty dict)
 
         Returns:
@@ -521,6 +525,7 @@ class RefinementSharedContext:
             device=device,
             dtype=dtype,
             baseline_crystal=baseline_crystal,
+            baseline_detector=baseline_detector,
         )
 
 

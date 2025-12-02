@@ -1537,3 +1537,22 @@ The trusted-mask hypothesis was **DISPROVEN** by inspection of the test fixture 
 - Escalate per-reflection gradient flow issue via galph_memory.md (suspected_spec_issue or harness defect, not architecture blocker)
 - Phase A.3: Extend RefinementSharedContext to Stage C helpers (detector retarget + closure)
 - Phase B: Introduce StageArtifacts dataclass after all stages adopt typed contexts
+
+### 2025-12-02T022454Z - ARCH-STAGE-CONTEXT-001 Phase A.4: RefinementSharedContext for Stage C
+**Action**: Extended RefinementSharedContext compatibility shim to Stage C helpers (_build_stage_c_params, _build_stage_c_lbfgs_closure)
+**Metrics**:
+- Extended RefinementSharedContext dataclass with optional baseline_detector field (dbex/refinement/context.py:475)
+- Updated RefinementSharedContext.from_inputs() to accept baseline_detector parameter
+- Updated StageA.run (dbex/refinement/stage_a.py:236) and StageB.run (dbex/refinement/stage_b.py:236) to pass baseline_detector when constructing shared context
+- Added compatibility shim to _build_stage_c_params (dbex/refinement/stage_c_impl.py:147-238) - when shared_context provided, extracts config/device/dtype/detector/baseline_detector/panel_slices/sigma_floor_sq_cache/n_panels
+- Added compatibility shim to _build_stage_c_lbfgs_closure (dbex/refinement/stage_c_impl.py:386-457) - when shared_context provided, extracts config/device/dtype/detector/beam/crystal/inputs/hkl_grid/hkl_metadata/sigma_floor_sq_cache
+- Updated StageC.run (dbex/refinement/stage_c.py:268-284) to build RefinementSharedContext and pass to helpers, collapsing 11-parameter data clump
+- Stage C small detector test (test_stage_c_detector_microslip --smoke-detector-size=small): **PASSED** (7.93s)
+- Stage C full detector test (test_stage_c_detector_microslip --smoke-detector-size=full): **FAILED** - Pre-existing PERF-WARM-SIM-001 ROI mode disparity (panel 0 final offset 0.465mm, same signature as 2025-12-01T235900Z loop)
+- Stage A engine delegation telemetry test (test_stage_a_engine_delegation_telemetry): **PASSED** (61.89s) - Confirms no regression in Stage A telemetry enrichment or typed context propagation
+**Artifacts**: plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T022454Z/ (collect_stage_c.log, pytest_stage_c_small.log, pytest_stage_c_full.log, pytest_stage_a_engine.log, telemetry_stage_c_small.json, telemetry_stage_c_full.json)
+**First Divergence**: Stage C full detector test fails due to pre-existing PERF-WARM-SIM-001 ROI-mode issue (not introduced by this refactoring); small detector test + Stage A engine test both pass
+**Next Actions**:
+- Phase A complete: All stages (A/B/C) now accept RefinementSharedContext; typed context marker (context_schema_version="v1") present in telemetry
+- Pre-existing PERF-WARM-SIM-001 full-detector ROI-mode issue blocks Stage C full-detector gate but is orthogonal to context refactoring
+- Phase B: Introduce StageArtifacts dataclass so stages emit typed artifacts instead of ad-hoc dicts

@@ -265,6 +265,24 @@ class StageC:
         # Build sigma_floor_sq_cache (shared across Stage A/C)
         sigma_floor_sq_cache = {}
 
+        # ARCH-STAGE-CONTEXT-001 Phase A.4: Build RefinementSharedContext
+        # to collapse the 11-parameter data clump passed to Stage C helpers
+        from dbex.refinement.context import RefinementSharedContext
+        shared_context = RefinementSharedContext.from_inputs(
+            crystal=crystal,
+            detector=detector,
+            beam=beam,
+            inputs=refinement_inputs,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            config=self._config,
+            device=device,
+            dtype=dtype,
+            baseline_crystal=baseline_crystal,
+            baseline_detector=baseline_detector,
+            sigma_floor_sq_cache=sigma_floor_sq_cache,
+        )
+
         # Build canonical_baseline (extract from Stage A telemetry)
         # ARCH-REFINE-001: Use Stage A's final chi-squared (from trace) for Stage C baseline
         # This ensures Stage C's initial chi-squared matches Stage A's final result (REFINE-FLOW-001-EXT)
@@ -299,17 +317,12 @@ class StageC:
         best_loss_full = stage_a_telemetry['best_loss_full']
 
         # STEP 1: Build Stage C parameters
+        # ARCH-STAGE-CONTEXT-001 Phase A.4: Pass shared_context to collapse parameter clump
         stage_c_params_dict = _build_stage_c_params(
-            config=self._config,
-            device=device,
-            dtype=dtype,
+            shared_context=shared_context,
             n_panels=n_panels,
-            baseline_detector=baseline_detector,
-            detector=detector,
             sampled_panel_ids=sampled_panel_ids,
-            panel_slices=refinement_inputs.panel_slices,
             stage_a_ctx=stage_a_ctx,
-            sigma_floor_sq_cache=sigma_floor_sq_cache,
             params=params,  # Stage A frozen params list
             stage_a_telemetry=stage_a_telemetry,  # ARCH-REFINE-001: Pass telemetry for ROI mode check
         )
@@ -437,20 +450,12 @@ class StageC:
         }
 
         # STEP 2: Build Stage C LBFGS closure (returns tuple)
+        # ARCH-STAGE-CONTEXT-001 Phase A.4: Pass shared_context to collapse parameter clump
         compute_loss_stage_c, closure_stage_c = _build_stage_c_lbfgs_closure(
+            shared_context=shared_context,
             param_values=param_values_c,
             telemetry_state=telemetry_state_c,
             stage_c_context=stage_c_context_dict,
-            detector=detector,
-            beam=beam,
-            inputs=refinement_inputs,
-            config=self._config,
-            sigma_floor_sq_cache=sigma_floor_sq_cache,
-            device=device,
-            dtype=dtype,
-            crystal=crystal,
-            hkl_grid=hkl_grid,
-            hkl_metadata=hkl_metadata,
             stage_a_ctx=stage_a_ctx,
             sampled_panel_ids=sampled_panel_ids,
         )

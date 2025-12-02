@@ -233,6 +233,7 @@ class StageB:
             device=device,
             dtype=dtype,
             baseline_crystal=baseline_crystal,
+            baseline_detector=baseline_detector,
             sigma_floor_sq_cache=sigma_floor_sq_cache,
         )
 

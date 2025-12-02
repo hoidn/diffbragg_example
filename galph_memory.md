@@ -636,3 +636,17 @@ Action State: ready_for_implementation
 - Mapped tests: 5 smoke selectors (test_stage_a_expansion, test_stage_a_engine_delegation_telemetry, test_stage_b_shell_modifiers, test_stage_c_detector_microslip, test_stage_b_per_reflection_smoke).
 - Initiative type: architecture. Mode: Parity. Problems ledger "PRIORITIZE ARCH-REFACTOR-001 ASAP" serviced in previous loop (Phase D.2); current focus continues Phase D per roadmap Tier 0.
 Action State: ready_for_implementation
+
+2025-12-04T220000Z focus=ARCH-REFACTOR-001 state=ready_for_implementation dwell=0 action=debug artifacts=plans/active/ARCH-REFACTOR-001/reports/2025-12-04T220000Z/ next_action=Fix 2 Engine bugs blocking Phase D.3
+- Reviewed Ralph's telemetry key fix (commit a6f39bac) + evidence (commit 62fc4d11): primary issue resolved (3/5 tests PASSED with legacy "A"/"B"/"C" keys).
+- Analyzed 2 remaining test failures (secondary bugs unrelated to telemetry keys):
+  1. test_stage_a_engine_delegation_telemetry: engine_protocol=None (Phase E feature not populated by Engine)
+  2. test_stage_b_per_reflection_smoke: Stage A artifacts missing from engine._artifacts dict
+- Root cause #1: Engine.run() never populates engine_protocol/stage_modes fields after aggregating telemetry (Phase E fields exist on RefinementTelemetry but remain None).
+- Root cause #2: stage_a.py:2046-2050 only creates StageAArtifacts when stage_a_ctx != None; in cold mode (enable_stage_a_warm_cache=False) stage_a_ctx=None so artifacts=None so Engine doesn't store it (line 156-157 only stores if artifacts not None).
+- Layered-scope guard check: Both bugs are small, local Engine/Stage A fixes (no shared semantic changes), can complete in 1 loop.
+- Decision: Fix both bugs within ARCH-REFACTOR-001 as "Phase D.3 Engine bugfixes" before resuming test migration (not separate initiatives).
+- Issued Do Now with 2 targeted fixes: (1) Always create StageAArtifacts (remove conditional), (2) Add _compute_engine_protocol() and _compute_stage_modes() helpers in Engine.run() after stage loop.
+- Mapped tests: 2 failing selectors (test_stage_a_engine_delegation_telemetry, test_stage_b_per_reflection_smoke).
+- Initiative type: bugfix (fixing broken Engine behavior). Mode: Parity. Problems ledger "PRIORITIZE ARCH-REFACTOR-001 ASAP" serviced in previous loops (Phase D.2/C.7); current focus continues Phase D per roadmap Tier 0.
+Action State: ready_for_implementation

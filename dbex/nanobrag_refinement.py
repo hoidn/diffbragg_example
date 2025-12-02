@@ -68,10 +68,10 @@ from dbex.refinement.stage_b_impl import (
 )
 
 # Stage C helpers relocated to dbex.refinement.stage_c_impl (ARCH-REFINE-001 Phase A.3)
+# ARCH-STAGE-CONTEXT-001 Phase B.2.3: _build_stage_c_lbfgs_closure moved to StageC._build_lbfgs_closure
 from dbex.refinement.stage_c_impl import (
     _retarget_stage_a_detectors,
     _build_stage_c_params,
-    _build_stage_c_lbfgs_closure,
     _run_stage_c_lbfgs,
 )
 

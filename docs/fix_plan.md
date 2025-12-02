@@ -149,7 +149,7 @@
 **Artifacts**: `plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T052800Z/` (pytest logs + summary).
 **Next Actions**: Proceed to Stage C closure inlining so all stages own their closures before Phase B.3 telemetry work.
 
-### 2025-12-02T063500Z - ARCH-STAGE-CONTEXT-001 Phase B.2: StageC Closure Inlining (READY FOR IMPLEMENTATION)
+### 2025-12-02T063500Z - ARCH-STAGE-CONTEXT-001 Phase B.2.3: StageC Closure Inlining (COMPLETE)
 - **Scope**: Move `_build_stage_c_lbfgs_closure` into `StageC._build_lbfgs_closure`, remove the helper from `dbex/refinement/stage_c_impl.py`, and keep `_retarget_stage_a_detectors`, `_build_stage_c_params`, `_run_stage_c_lbfgs` untouched. StageC.run should call the new private helper so RefinementSharedContext stays authoritative and panel diagnostics/ROI guards remain inlined.
 - **Implementation steps**:
   1. Add `StageC._build_lbfgs_closure(...)` mirroring the existing helper (docstring referencing ARCH-STAGE-CONTEXT-001 Phase B.2).
@@ -162,6 +162,14 @@
      *Stage C full run is still expected to fail with the known PERF-WARM-SIM-001 +0.067 % chi² regression; capture telemetry so the signature stays traceable.*
 - **Artifacts**: `plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T063500Z/`.
 - **Risks**: Full-detector failure is pre-existing; do not relax REFINE-007. Ensure panel diagnostics + trusted mask parity stay active so we can compare with prior telemetry.
+**Action** (2025-12-02T063500Z): Successfully moved closure from module helper to class method.
+- Created `StageC._build_lbfgs_closure(...)` (462 lines, lines 88-547 in stage_c.py)
+- Updated `StageC.run` (line 927) to call `self._build_lbfgs_closure`
+- Removed `_build_stage_c_lbfgs_closure` from stage_c_impl.py (lines 386-847 deleted, 2-line pointer comment added)
+- Updated imports in stage_c.py and nanobrag_refinement.py
+- Added helper imports: `_retarget_stage_a_detectors`, `vec_to_unit_quaternion`, `quaternion_to_xyz_euler`, `_clamp_log_cell_deltas`, `_retarget_stage_a_simulators`, `_compute_panel_loss`, `_compute_variance_weighted_loss`
+**Metrics**: Small-detector PASSED (7.90s); Full-detector FAILED with known PERF-WARM-SIM-001 regression
+**Artifacts**: pytest_stage_c_small.log, pytest_stage_c_full.log in reports/2025-12-02T063500Z/
 
 ### 2025-12-01T084505Z - ARCH-REFINE-001 Phase A.2: Stage B Helper Extraction
 **Action**: Migrated Stage B LBFGS helpers to `dbex/refinement/stage_b_impl.py`

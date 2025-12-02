@@ -98,6 +98,63 @@ def build_roi_payloads_from_arrays(
 3. `write_torch_outputs` will consume typed `List[ROIAnalysisPayload]` instead of raw arrays
 4. Writer focuses solely on HDF5 serialization (no inline optimization)
 
+### Helper: `score_roi_payloads` (ARCH-BRIDGE-RESP-001 Phase B.1)
+
+```python
+def score_roi_payloads(
+    target: np.ndarray,
+    background: np.ndarray,
+    bragg: np.ndarray,
+    pids: List[int],
+    bbox: List[Tuple[int, int, int, int]],
+    sigma_readout: float,
+    sigma_floor: float,
+    roi_checker=None,
+    log_fn: Optional[Callable[[int, float], None]] = None,
+) -> List[ROIAnalysisPayload]
+```
+
+**Purpose**: Score ROIs using Nelder-Mead optimization and populate variance arrays. This helper runs scipy.optimize.minimize with roiCheck objective to find optimal Bragg scale per ROI, then computes model and variance per spec-db-core.md §§86-90. Returns typed ROIAnalysisPayload instances suitable for direct consumption by write_torch_outputs.
+
+**Inputs**:
+- `target`: Full-detector target intensities (n_panels, slow, fast) in ADU or photons
+- `background`: Full-detector background image (n_panels, slow, fast) matching target units
+- `bragg`: Full-detector simulated Bragg intensities (n_panels, slow, fast) matching target units
+- `pids`: Panel IDs per ROI (length n_rois)
+- `bbox`: Bounding boxes per ROI (length n_rois), each (x0, x1, y0, y1) with x1/y1 exclusive
+- `sigma_readout`: Readout noise sigma in target units (ADU or photons). Must be >= 0
+- `sigma_floor`: Variance floor in target units (ADU or photons). Must be > 0
+- `roi_checker`: Optional roiCheck instance for scoring. If None, imports score_trainer.roi_check.roiCheck. Injection enables testing without SciPy
+- `log_fn`: Optional callable(roi_index: int, score_pct: float) for per-ROI logging. If None, prints legacy format
+
+**Outputs**:
+- List of `ROIAnalysisPayload` instances (length n_rois) with populated `score`, `optimal_scale`, `model`, and `variance` fields
+
+**Algorithm**:
+1. Call `build_roi_payloads_from_arrays` to slice ROIs into triptychs
+2. For each ROI, minimize `1 - CHECKER.score(data, bragg_scale^2 * bragg + background)` via scipy.optimize.minimize (method="Nelder-Mead", x0=[1])
+3. Compute optimal_scale = min_out['x'][0]^2 (fallback to 1.0 on failure)
+4. Compute model = background + optimal_scale * bragg
+5. Compute variance = max(model + sigma_readout^2, sigma_floor^2) per spec-db-core.md §§86-90
+6. Coerce score to float (TORCH-CLI-004) and log per-ROI result
+7. Populate payload fields and return
+
+**Telemetry**:
+- Per-ROI logging via print() or custom log_fn: `"roi=%d : score= %.1f" % (i, score_pct)`
+- No file artifacts emitted; caller may log to `plans/active/ARCH-BRIDGE-RESP-001/reports/.../` if needed
+
+**Data Dependencies** (see docs/data_dependency_manifest.md):
+- External: Target/background/bragg arrays from DataLoad + RefinementEngine final forward model
+- ROI metadata: Panel IDs (`pids`) and bounding boxes (`bbox`) from DataLoad
+- Sigma parameters: `sigma_readout` and `sigma_floor` from CLI args or calibration
+- Transitive: score_trainer.roi_check (roiCheck scorer), scipy.optimize (Nelder-Mead minimizer)
+
+**Constraints**:
+- Imports scipy/score_trainer locally (not at module import time) per Environment Freeze
+- Variance must be strictly positive and finite per spec-db-core.md §38
+- Background arrays SHALL NOT contain NaN (enforced by build_roi_payloads_from_arrays)
+- Score coercion via float() guards against mocked/non-scalar returns (TORCH-CLI-004)
+
 ### Dataset Mapping
 
 When `write_torch_outputs` accepts `List[ROIAnalysisPayload]` in Phase B, HDF5 datasets will map as follows:

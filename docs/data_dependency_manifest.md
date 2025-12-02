@@ -146,6 +146,52 @@ This manifest records the external data inputs (datasets, calibration payloads, 
   - Background arrays SHALL NOT contain NaN; caller must validate upstream (enforced by dbex/nanobrag_bridge.py per PHYSICS-LOSS-001).
   - Array ordering: [panel, slow, fast] per docs/spec-db-core.md §21.
 
+### `dbex.io.roi_scoring.score_roi_payloads` (ARCH-BRIDGE-RESP-001 Phase B.1)
+
+- **Req. Inputs:**
+  - `target`: Full-detector target intensities (n_panels, slow, fast) in ADU or photons from DataLoad.data.
+  - `background`: Full-detector background image (n_panels, slow, fast) from DataLoad.background_image.
+  - `bragg`: Full-detector simulated Bragg intensities (n_panels, slow, fast) from RefinementEngine final forward model or Stage C output.
+  - `pids`: Panel IDs per ROI (length n_rois) from DataLoad.pids.
+  - `bbox`: Bounding boxes per ROI (length n_rois), each (x0, x1, y0, y1) with x1/y1 exclusive, from DataLoad.bbox.
+  - `sigma_readout`: Readout noise sigma in target units (ADU or photons). Must be >= 0. Sourced from CLI args or calibration.
+  - `sigma_floor`: Variance floor in target units (ADU or photons). Must be > 0. Sourced from CLI args (default 1.0).
+- **Optional Inputs:**
+  - `roi_checker`: roiCheck instance for scoring. If None, imports score_trainer.roi_check.roiCheck(). Injection enables testing without SciPy.
+  - `log_fn`: Callable(roi_index: int, score_pct: float) for per-ROI logging. If None, prints legacy format `"roi=%d : score= %.1f"`.
+- **Outputs:**
+  - List of `ROIAnalysisPayload` instances (length n_rois) with populated fields:
+    - `triptych`: `ROITriptych` with cropped arrays (data/background/bragg) and metadata.
+    - `score`: Float (0-1, higher=better) from CHECKER.score(data, model).
+    - `optimal_scale`: Float (>= 0) from Nelder-Mead optimization (fallback to 1.0 on failure).
+    - `model`: np.ndarray = background + optimal_scale * bragg (shape: ny, nx).
+    - `variance`: np.ndarray = max(model + sigma_readout^2, sigma_floor^2) per spec-db-core.md §§86-90 (shape: ny, nx).
+- **Artifacts/Telemetry:**
+  - Per-ROI logging via print() or custom log_fn: `"roi=%d : score= %.1f" % (i, score_pct)`.
+  - No file artifacts emitted directly; caller (e.g., CLI, tests) may log outputs to `plans/active/ARCH-BRIDGE-RESP-001/reports/.../` as needed.
+  - Telemetry fields for downstream writer/diagnostics (populated by caller, not this helper):
+    - `roi_scoring_method`: "nelder_mead" (Phase B when this helper is used).
+    - `roi_checker`: "score_trainer.roi_check.roiCheck" (legacy parity).
+    - `n_rois`: len(payloads).
+- **Default Provenance:**
+  - Arrays: Sourced from DataLoad (target/background) and RefinementEngine/Stage C (bragg).
+  - Sigma parameters: `sigma_readout` from CLI `--sigma-rdout` or calibration map; `sigma_floor` from CLI `--sigma-floor` (default 1.0).
+  - Scorer: score_trainer.roi_check.roiCheck() unless injected via `roi_checker` parameter.
+- **Transitive Dependencies:**
+  - `scipy.optimize.minimize`: Nelder-Mead optimizer (imported locally per Environment Freeze).
+  - `score_trainer.roi_check`: roiCheck scorer (imported locally unless injected).
+  - `dbex.io.roi_analysis.build_roi_payloads_from_arrays`: Upstream helper for slicing ROIs.
+- **Purpose:**
+  - Decouples ROI scoring (Nelder-Mead optimization + variance computation) from HDF5 serialization in `dbex.io.writer`.
+  - Runs scipy.optimize.minimize with roiCheck objective to find optimal Bragg scale per ROI.
+  - Populates typed `ROIAnalysisPayload` instances suitable for direct consumption by `write_torch_outputs` (future Phase B.2 wiring).
+- **Notes:**
+  - Imports scipy/score_trainer locally (not at module import time) per Environment Freeze constraint.
+  - Variance must be strictly positive and finite per spec-db-core.md §38.
+  - Background arrays SHALL NOT contain NaN (enforced by `build_roi_payloads_from_arrays`).
+  - Score coercion via float() guards against mocked/non-scalar returns (TORCH-CLI-004).
+  - Algorithm: Minimizes `1 - CHECKER.score(data, bragg_scale^2 * bragg + background)` with initial guess x0=[1]; optimal_scale = result.x[0]^2.
+
 ### `dbex.io.writer.write_torch_outputs`
 
 - **Req. Inputs:**

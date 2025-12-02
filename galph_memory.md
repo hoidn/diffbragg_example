@@ -795,3 +795,20 @@ D) **Test harness issue**: bragg_after may not actually come from our reconstruc
 
 **Repeat-Failure Guard Triggered**: 2 consecutive loops, same acceptance criterion (test_db_at_028), same failure signature, zero behavioral change despite structural code fix.
 
+
+2025-12-02T000000Z_galph focus=ARCH-REFACTOR-001 state=ready_for_implementation dwell=0 action=planning artifacts=plans/active/ARCH-REFACTOR-001/reports/2025-12-02T000000Z_galph_phase_d3_fix_diagnosis/ next_action=bugfix_reconstruction_log_scale_baseline
+- **PROBLEMS LEDGER TRIGGER**: Fresh backlog entry (problems.md lines 26-60) with concrete user-supplied diagnosis of Phase D.3 root cause. Neither of last two galph_memory entries mentioned the ledger, so this loop serviced it per <problems.md trigger> rule.
+- **ROOT CAUSE CONFIRMED**: `dbex/refinement/reconstruction.py::build_final_bragg_from_stage_a_telemetry` (lines 192-193) applies `log_scale` as absolute exponent, ignoring `log_scale_baseline` from calibration metadata. This is a missing conditional baseline logic pattern that Stage A (1194-1202) and Stage C (540-547, 612-618, 1241-1246) correctly implement.
+- **MAGNITUDE ERROR**: When `log_scale_baseline ≈ 20.0` (from calibration) and `log_scale` (delta) ≈ 0.0, current broken code produces `exp(0) = 1.0` instead of correct `exp(20 + 0) ≈ 4.85e8`, resulting in bragg_after near-zero (~7.6e-14) instead of O(1).
+- **INITIATIVE TYPE ALIGNMENT**: Confirmed this is a **bugfix** (implementation defect violating calibration contract from TOOLING-VIS-001 Phase D.C and DB-AT-027). No spec/harness/architecture changes needed; fix is local to reconstruction.py (~20 lines).
+- **LIFECYCLE STATUS**: At implementation budget limit (3 loops for DB-AT-028/029 criteria). This is final permitted attempt before mandatory escalation per <initiative_lifecycle/> hard rule. User diagnosis is concrete and code-specific, so proceeding with targeted fix.
+- **PLANNING ARTIFACTS**: Created comprehensive root cause diagnosis at `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T000000Z_galph_phase_d3_fix_diagnosis/root_cause_diagnosis.md` with bug location, normative pattern references (stage_a.py, stage_c.py), spec alignment (TOOLING-VIS-001, DB-AT-027), evidence from test failures, and exact remediation steps.
+- **INPUT.MD WRITTEN**: Complete Do Now with:
+  • Exact code changes: extract `log_scale_baseline` from telemetry, replace lines 192-193 with conditional clamp+baseline logic matching stage_a.py:1194-1202 pattern
+  • Validation: DB-AT-028/029 with full detector + metadata sigma source
+  • Expected outcome: bragg_after_mean ≈ O(1), chi²/pixel ≤ 1e2
+  • Initiative type: bugfix (local, ~20 lines, no imports/test changes)
+  • Pattern references: 4 canonical implementations (stage_a.py, 3x stage_c.py locations)
+  • Findings applied: TOOLING-VIS-001 Phase D.C, DB-AT-027, REFINE-015
+- **NEXT LOOP**: Ralph executes bugfix per input.md; if tests PASS, mark Phase D.3 complete and update problems.md ledger entry with resolution summary; if FAIL with same signature, escalate per <spec_change_flow/> or mark initiative stuck.
+Action State: ready_for_implementation

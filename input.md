@@ -1,167 +1,294 @@
-# Input for Ralph: ARCH-REFACTOR-001 Phase D.3 Batch 2 Corrective Fix (Crystal Initialization Bug)
+# Input for Ralph — ARCH-REFACTOR-001 Phase D.3 Reconstruction Logic Bugfix
 
-## Summary
-Fix Crystal initialization bug in Stage A reconstruction helper: pass `beam_config` to constructor instead of post-hoc assignment.
+**Summary:** Fix calibration baseline logic in reconstruction helper so bragg_after magnitude matches bragg_before
 
-## Mode
-none (targeted bugfix)
+**Mode:** none (targeted bugfix)
 
-## InitiativeType
-bugfix
+**InitiativeType:** bugfix
 
-## Focus
-[ARCH-REFACTOR-001] — Refinement Engine Modularization & Physics Separation (Phase D.3 Batch 2 corrective fix)
+**Focus:** ARCH-REFACTOR-001 — Refinement Engine Modularization & Physics Separation
 
-## Branch
-integration
+**Branch:** integration
 
-## Mapped tests
-- `tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity`
-- `tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity`
+**Mapped tests:**
+- `tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028`
+- `tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029`
 
-## Artifacts
-`plans/active/ARCH-REFACTOR-001/reports/2025-12-02T234500Z/`
+**Artifacts:** `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T000000Z_galph_phase_d3_fix_diagnosis/`
+
+---
 
 ## Do Now
 
 ### Context
-Tests `test_db_at_028` and `test_db_at_029` FAIL with `bragg_after` near-zero (7.59e-14 mean) when it should contain refined Bragg pattern (~1.86 mean). Root cause analysis (see `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T234500Z/root_cause_analysis.md`) identified a bug in `dbex/refinement/reconstruction.py::build_final_bragg_from_stage_a_telemetry`:
 
-The function constructs `Crystal(..., beam_config=None, ...)` (line 148-153), then assigns `crystal_model.beam_config = stage_a_ctx.beam_config` post-hoc (line 165). This is wrong - Crystal needs `beam_config` at construction time to initialize internal matrices. All other Crystal constructions in the codebase pass `beam_config` directly.
+Problems ledger entry (lines 26-60) provided concrete diagnosis of the Phase D.3 test failures: `build_final_bragg_from_stage_a_telemetry` in `dbex/refinement/reconstruction.py` (lines 192-193) applies `log_scale` as an absolute exponent, ignoring the `log_scale_baseline` that Stage A established when calibration metadata is present.
 
-### Implementation Target
-**File**: `dbex/refinement/reconstruction.py`
-**Function**: `build_final_bragg_from_stage_a_telemetry` (lines 148-167, warm cache path)
+**Root cause:** Missing conditional baseline logic that Stage A (lines 1194-1202) and Stage C (lines 540-547, 612-618, 1241-1246) use.
 
-### Tasks
-1. **Refactor Crystal construction in warm cache path** (lines 148-167):
-   - Move the Crystal construction INSIDE the `if stage_a_ctx is not None and hasattr(stage_a_ctx, 'simulators'):` block (after line 160)
-   - Pass `beam_config=stage_a_ctx.beam_config` to Crystal constructor directly (not `beam_config=None`)
-   - Remove the post-hoc assignment `crystal_model.beam_config = stage_a_ctx.beam_config` (line 165)
-   - Keep `crystal_model.hkl_data` and `crystal_model.hkl_metadata` assignments in place
-   - Keep the `_retarget_stage_a_simulators` call and `simulators = stage_a_ctx.simulators` assignment
+**Impact:** When `log_scale_baseline ≈ 20.0` (from calibration) and `log_scale` (delta) ≈ 0.0:
+- Current broken: `exp(0) = 1.0` → bragg_after ≈ 7.6e-14 (near-zero)
+- Correct: `exp(20 + 0) ≈ 4.85e8` → bragg_after ≈ O(1) matching bragg_before
 
-2. **Handle cold path**: Cold path (lines 168-190) already constructs `beam_config` from dxtbx `beam` and passes it to `create_unified_simulator`. No changes needed.
+**Spec alignment:** Calibration semantics are normative per TOOLING-VIS-001 Phase D.C and DB-AT-027. Reconstruction helper violated this contract.
 
-3. **Validate**:
-   - Run: `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -xvs tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity --smoke-detector-size=small | tee plans/active/ARCH-REFACTOR-001/reports/2025-12-02T234500Z/pytest_parity_batch2_fixed.log`
-   - Expected: 2/2 PASSED, `bragg_after_mean` ≈ O(1), ROI correlation median > -0.1
+**Full diagnosis:** `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T000000Z_galph_phase_d3_fix_diagnosis/root_cause_diagnosis.md`
+
+---
+
+### Implement
+
+**File:** `dbex/refinement/reconstruction.py`
+**Function:** `build_final_bragg_from_stage_a_telemetry`
+**Lines:** 192-193 (replace with conditional baseline logic, ~192-211 after expansion)
+
+**Exact changes:**
+
+1. **Extract baseline from telemetry** (before line 192):
+   ```python
+   # Extract log_scale_baseline from Stage A telemetry (TOOLING-VIS-001 Phase D.C, DB-AT-027)
+   # When calibration metadata supplied the baseline, apply the same conditional clamp logic as Stage A
+   log_scale_baseline_value = param_deltas_a.get('log_scale_baseline', {}).get('final')
+   ```
+
+2. **Replace lines 192-193** with conditional clamp + baseline logic:
+   ```python
+   # Apply Stage A's log-scale clamp logic (matching stage_a.py lines 1194-1202)
+   # When calibration metadata is present:
+   #   log_scale_baseline = log(sqrt(spot_scale_override)) is the fixed baseline
+   #   log_scale is a delta parameter, clamped to ±config.log_scale_max_delta (default ±3)
+   #   Final scale = exp(log_scale_baseline + clamped_delta)
+   # Otherwise (uncalibrated):
+   #   log_scale is the direct learnable parameter, clamped to ±config.log_scale_max_delta_uncalibrated (default ±10)
+   #   Final scale = exp(clamped_log_scale)
+   max_delta_uncal = getattr(config, "log_scale_max_delta_uncalibrated", 10.0)
+   delta_bound = getattr(config, "log_scale_max_delta", 3.0) if log_scale_baseline_value is not None else max_delta_uncal
+
+   if log_scale_baseline_value is not None:
+       # Calibrated path: add baseline to clamped delta
+       log_scale_baseline_tensor = torch.tensor(log_scale_baseline_value, device=device, dtype=dtype)
+       log_scale_delta_clamped = torch.clamp(log_scale, min=-delta_bound, max=delta_bound)
+       log_scale_clamped = log_scale_baseline_tensor + log_scale_delta_clamped
+   else:
+       # Uncalibrated path: clamp absolute log_scale (legacy behavior)
+       log_scale_clamped = torch.clamp(log_scale, min=-delta_bound, max=delta_bound)
+
+   scale_factor = torch.exp(log_scale_clamped)
+   ```
+
+3. **Device/dtype safety:** Ensure `log_scale_baseline_tensor` uses the same `device` and `dtype` as other tensors in the function (already available as function parameters).
+
+**Pattern reference:** Copy the exact conditional structure from:
+- `stage_a.py` lines 1194-1202 (canonical reference)
+- `stage_c.py` lines 540-547 (ROI mode)
+- `stage_c.py` lines 612-618 (panel mode)
+- `stage_c.py` lines 1241-1246 (Stage C final Bragg)
+
+**Scope:** ~20 lines (lines 192-193 replaced with ~192-211 including comments)
+
+**No other changes required:** This is a local bugfix; no imports, no test changes, no other modules touched.
+
+---
+
+### Validation
+
+Run the blocked acceptance criteria with full detector + metadata sigma source:
+
+```bash
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+DBEX_SMOKE_SIGMA_SOURCE=metadata \
+DBEX_SMOKE_DETECTOR_SIZE=full \
+KMP_DUPLICATE_LIB_OK=TRUE \
+NANOBRAGG_DISABLE_COMPILE=1 \
+pytest -vv tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028 \
+              tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029 | \
+  tee plans/active/ARCH-REFACTOR-001/reports/2025-12-02T000000Z_galph_phase_d3_fix_diagnosis/pytest_db_at_028_029.log
+```
+
+**Expected outcome:** Both tests PASS
+- `bragg_after_mean ≈ O(1)` (not near-zero)
+- `chi²/pixel initial ≤ 1e2` (bound satisfied)
+- `median ROI correlation after ≥ 0.1` (passing gate)
+
+**Capture metrics:**
+```bash
+python -c "
+import json
+import h5py
+
+# Extract metrics from test artifacts (adjust path as needed)
+# Example: read bragg_before_mean, bragg_after_mean, chi_sq_pixel from HDF5 diagnostics
+# Save as JSON for comparison
+
+metrics = {
+    'bragg_before_mean': 1.86,  # from test fixture
+    'bragg_after_mean': None,   # extract from passing test run
+    'chi_sq_pixel_initial': None,  # extract from passing test
+    'log_scale_baseline': None,  # extract from telemetry
+    'log_scale_delta': None,     # extract from telemetry
+    'scale_factor_applied': None  # extract from debug output
+}
+
+# TODO: populate from actual test run
+with open('plans/active/ARCH-REFACTOR-001/reports/2025-12-02T000000Z_galph_phase_d3_fix_diagnosis/metrics_comparison.json', 'w') as f:
+    json.dump(metrics, f, indent=2)
+"
+```
+
+---
 
 ## How-To Map
 
-### Crystal Construction Pattern (Reference)
-Other Crystal constructions in the codebase (correct pattern):
-- `reconstruction.py::build_final_bragg_from_stage_b_telemetry` line 400: `Crystal(..., beam_config=stage_a_ctx.beam_config, ...)`
-- `stage_a_utils.py` line 497: `Crystal(..., beam_config=beam_config_for_run, ...)`
-- `stage_a.py` line 1219: `Crystal(..., beam_config=beam_config_for_run, ...)`
-
-### Expected Code Change
-**Before** (lines 148-167):
-```python
-crystal_model = Crystal(
-    crystal_config,
-    beam_config=None,  # WRONG
-    device=device,
-    dtype=dtype,
-)
-crystal_model.interpolate = config.enable_hkl_interpolation
-crystal_model.hkl_data = hkl_grid.to(device=device, dtype=dtype)
-crystal_model.hkl_metadata = hkl_metadata
-
-if stage_a_ctx is not None and hasattr(stage_a_ctx, 'simulators'):
-    from dbex.refinement.stage_a_utils import _retarget_stage_a_simulators
-    crystal_model.beam_config = stage_a_ctx.beam_config  # Too late!
-    _retarget_stage_a_simulators(stage_a_ctx, crystal_model)
-    simulators = stage_a_ctx.simulators
-else:
-    # cold path...
+### Step 1: Read the function context
+```bash
+# Read current broken implementation (lines 140-199)
+# Focus on lines 192-193 (the bug) and surrounding device/dtype/config context
 ```
 
-**After** (warm/cold paths):
-```python
-if stage_a_ctx is not None and hasattr(stage_a_ctx, 'simulators'):
-    # Warm cache path: construct Crystal with beam_config from context
-    crystal_model = Crystal(
-        crystal_config,
-        beam_config=stage_a_ctx.beam_config,  # FIXED
-        device=device,
-        dtype=dtype,
-    )
-    crystal_model.interpolate = config.enable_hkl_interpolation
-    crystal_model.hkl_data = hkl_grid.to(device=device, dtype=dtype)
-    crystal_model.hkl_metadata = hkl_metadata
+### Step 2: Apply the fix
+1. Extract `log_scale_baseline_value` from `param_deltas_a` dict (before line 192)
+2. Replace lines 192-193 with the conditional baseline logic shown above (~192-211)
+3. Preserve all surrounding code (detector loop, panel shape, simulator setup)
 
-    from dbex.refinement.stage_a_utils import _retarget_stage_a_simulators
-    _retarget_stage_a_simulators(stage_a_ctx, crystal_model)
-    simulators = stage_a_ctx.simulators
-else:
-    # Cold path: build simulators via unified factory (beam_config created below)
-    from dbex.refinement.config_factories import create_beam_config
-    from dbex.refinement.helpers import create_unified_simulator
-    beam_config = create_beam_config(beam)
-    simulators = []
-    for pid in sampled_panel_ids:
-        detector_config = create_detector_config(detector[pid], beam=beam)
-        simulator, normalized_mask, sqrt_scale, metadata = create_unified_simulator(
-            detector_config=detector_config,
-            crystal_config=crystal_config,
-            beam_config=beam_config,
-            hkl_grid=hkl_grid,
-            hkl_metadata=hkl_metadata,
-            mask_array=None,
-            spot_scale_override=None,
-            device=device,
-            dtype=dtype,
-            calibration_metadata=getattr(config, 'calibration_metadata', None),
-        )
-        simulator.interpolate = config.enable_hkl_interpolation
-        simulators.append(simulator)
-```
-
-### Test Execution
+### Step 3: Validate locally
+Run the two acceptance tests and verify PASS status:
 ```bash
 AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-DBEX_SMOKE_SIGMA_SOURCE=cli_override \
-DBEX_SMOKE_DETECTOR_SIZE=small \
+DBEX_SMOKE_SIGMA_SOURCE=metadata \
+DBEX_SMOKE_DETECTOR_SIZE=full \
 KMP_DUPLICATE_LIB_OK=TRUE \
 NANOBRAGG_DISABLE_COMPILE=1 \
-pytest -xvs \
-  tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity \
-  tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity \
-  --smoke-detector-size=small \
-  | tee plans/active/ARCH-REFACTOR-001/reports/2025-12-02T234500Z/pytest_parity_batch2_fixed.log
+pytest -vv tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028 \
+              tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029
 ```
 
+### Step 4: Capture artifacts
+- Save pytest output to `pytest_db_at_028_029.log`
+- Create `fix_diff.patch` showing the exact changes
+- Extract metrics (bragg_after magnitude, chi²/pixel) to `metrics_comparison.json`
+- Optional: Add debug print to show `log_scale_baseline_value`, `delta_bound`, `log_scale_clamped` values
+
+---
+
 ## Pitfalls To Avoid
-1. **Do not remove `hkl_data` / `hkl_metadata` assignments** - Crystal needs these attached before retargeting
-2. **Do not modify cold path** - it already constructs `beam_config` and passes to factory correctly
-3. **Respect device/dtype neutrality** - use `device` and `dtype` parameters consistently
-4. **Environment Freeze** - no package installs; if import fails, escalate
-5. **Initiative Type Boundary** - this is a `bugfix` (implementation defect), not `architecture` or `harness`
+
+1. **Do NOT change test expectations** — Tests are correct; code is broken
+2. **Do NOT weaken gates** — This is a bugfix, not a spec_change
+3. **Do NOT modify Stage A/B/C** — Fix is local to reconstruction.py only
+4. **Preserve device/dtype neutrality** — Use `device` and `dtype` parameters when constructing `log_scale_baseline_tensor`
+5. **Match reference pattern exactly** — Copy conditional structure from stage_a.py:1194-1202 verbatim
+6. **Do NOT skip telemetry extraction** — Must read `log_scale_baseline` from `param_deltas_a` dict
+7. **Handle None/missing baseline gracefully** — When `log_scale_baseline_value is None`, use uncalibrated path (legacy ±10 clamp)
+8. **Respect config attributes** — Use `getattr(config, "log_scale_max_delta", 3.0)` and `getattr(config, "log_scale_max_delta_uncalibrated", 10.0)` with defaults
+9. **Do NOT add new imports** — All required modules (torch) already imported
+10. **Environment Freeze** — Do not install packages; if torch missing, mark blocked (should not happen, torch already available)
+
+---
 
 ## If Blocked
-If tests still fail with near-zero `bragg_after`:
-1. Capture `bragg_after_mean`, `bragg_after_std`, `bragg_after_max` from test output
-2. Check if simulators are being retargeted (add debug print in `_retarget_stage_a_simulators`)
-3. Verify `crystal_model.hkl_data` is not None/empty after construction
-4. Update Attempts History in `docs/fix_plan.md` with failure signature
-5. Mark as blocked if Crystal constructor itself is broken (upstream nanobrag_torch bug)
+
+1. **Missing telemetry field:** If `param_deltas_a['log_scale_baseline']` does not exist, check Stage A telemetry structure. Field should be present when `calibration_metadata` is provided to Stage A. If missing, escalate (this would be a different bug in Stage A telemetry serialization).
+
+2. **Tests still fail with same signature:** If bragg_after is still near-zero after applying fix:
+   - Verify `log_scale_baseline_value` is being extracted correctly (add debug print)
+   - Verify conditional branch is taken (add debug print: "Using calibrated path" vs "Using uncalibrated path")
+   - Check that `log_scale_baseline_tensor` has expected value (~20.0)
+   - Escalate to Galph with debug output; may indicate deeper bug in telemetry payload
+
+3. **Tests fail with different signature:** Capture new failure mode in Attempts History and escalate.
+
+4. **Import errors:** Should not occur (torch already imported). If it does, mark blocked and record error signature.
+
+---
 
 ## Findings Applied
-- **GRADIENT-004**: Warm cache retargeting requires Crystal with valid beam_config at construction time
-- **ARCH-STAGE-CONTEXT-001 Phase D**: Terminal stage artifact reconstruction must use properly initialized Crystal
-- **ARCH-FACTORY-001**: Unified factory pattern already handles beam_config correctly (cold path reference)
+
+**Relevant findings from knowledge base:**
+- **TOOLING-VIS-001 Phase D.C** — Log_scale baseline separation for calibrated runs
+- **DB-AT-027** — Stage A mapping parity with calibration metadata
+- **ARCH-FACTORY-001** — Unified simulator factory (cold path context)
+- **GRADIENT-004** — Warm cache path constraints (warm path context)
+- **REFINE-015** — Stage C must mirror Stage A's log-scale clamp logic (establishes normative pattern)
+
+**Adherence notes:**
+- Fix aligns reconstruction.py with the normative pattern established in Stage A/C (REFINE-015)
+- Preserves calibration semantics from TOOLING-VIS-001 Phase D.C and DB-AT-027
+- No changes to factory or warm cache logic (ARCH-FACTORY-001, GRADIENT-004 constraints unaffected)
+
+---
 
 ## Pointers
-- Root cause analysis: `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T234500Z/root_cause_analysis.md`
-- Reconstruction helper: `dbex/refinement/reconstruction.py:28-201` (function `build_final_bragg_from_stage_a_telemetry`)
-- Test file: `tests/dbex/test_stage_a_smoke_parity.py:58-283` (functions `stage_a_smoke_fixture`, `test_db_at_028`, `test_db_at_029`)
-- Previous attempt: `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T230000Z_debug2/summary.md`
-- Fix plan: `docs/fix_plan.md` (search for `[ARCH-REFACTOR-001]`)
-- Crystal reference: `stage_a_utils.py:497-502`, `stage_a.py:1219-1224`, `reconstruction.py:400-405`
 
-## Next Up
-None - this is a targeted bugfix. If tests pass, Phase D.3 Batch 2 is complete and D.3 Batch 3 (test_db_at_029 structure parity validation) can proceed.
+**Spec/Architecture:**
+- `docs/spec-db-core.md` §§20-40 — Geometry/crystal/calibration contracts
+- `docs/architecture/calibration_scaling.md` — ADU↔photon policy, spot_scale threading
+- `plans/active/ARCH-REFACTOR-001/implementation.md` — Phase D checklist (D.3 currently in_progress)
+
+**Code References:**
+- `dbex/refinement/reconstruction.py:192-193` — Bug location (current broken code)
+- `dbex/refinement/stage_a.py:1194-1202` — Canonical reference implementation
+- `dbex/refinement/stage_c.py:540-547` — ROI mode reference
+- `dbex/refinement/stage_c.py:612-618` — Panel mode reference
+- `dbex/refinement/stage_c.py:1241-1246` — Stage C final Bragg reference
+
+**Testing:**
+- `docs/TESTING_GUIDE.md` §2 — Authoritative test selectors
+- `tests/dbex/test_stage_a_smoke_parity.py:test_db_at_028` — Acceptance criterion 1
+- `tests/dbex/test_stage_a_smoke_parity.py:test_db_at_029` — Acceptance criterion 2
+
+**Diagnosis:**
+- `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T000000Z_galph_phase_d3_fix_diagnosis/root_cause_diagnosis.md` — Full root cause analysis, spec alignment, lifecycle context
+
+**Fix-Plan:**
+- `docs/fix_plan.md` — ARCH-REFACTOR-001 entry (Tier 0, in_progress)
+- `problems.md` lines 26-60 — User-supplied diagnosis serviced this loop
+
+---
+
+## Next Up (optional)
+
+If you finish early and both tests pass:
+1. Run broader Stage A parity suite to ensure no regressions:
+   ```bash
+   pytest -vv tests/dbex/test_stage_a_smoke_parity.py --smoke-detector-size=full
+   ```
+
+2. Check if any other reconstruction helpers need the same fix:
+   - `build_final_bragg_from_stage_b_telemetry` (reconstruction.py:~400) — should already be correct (references Stage B telemetry)
+   - `_stage_c_bragg_full` (if still exists) — check if it mirrors Stage C's baseline logic
+
+Do NOT proceed to Phase D.4 or D.5 without explicit approval from Galph.
+
+---
 
 ## Doc Sync Plan
-Not applicable - no test changes this loop.
+
+**Not required this loop** — No tests added/renamed, no selector changes. Fix is internal to reconstruction.py.
+
+If tests pass, Galph will update:
+- `docs/fix_plan.md` — Mark Phase D.3 complete, log attempt with PASS status
+- `problems.md` — Check off ledger entry (lines 26-60) with resolution summary
+- `galph_memory.md` — Record loop outcome, artifact path, next action (Phase D.4)
+
+---
+
+## Mapped Tests Guardrail
+
+Both selectors collect >0 tests:
+```bash
+pytest --collect-only tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028
+pytest --collect-only tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029
+```
+
+Expected: 1 test each (2 total). If 0, report collection failure.
+
+---
+
+## Normative Math/Physics
+
+**Do NOT paraphrase spec equations.** Refer to exact spec sections:
+- Calibration baseline semantics: `docs/spec-db-core.md` §§20-40
+- Log_scale delta clamping: `docs/architecture/calibration_scaling.md` (TOOLING-VIS-001 Phase D.C)
+- Variance-weighted loss (not directly affected by this fix): `docs/spec-db-core.md` §§57-68
+
+Ralph should read these sections directly if math/physics questions arise.

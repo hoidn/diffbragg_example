@@ -454,3 +454,8 @@ Action State: planning
 - Documented Phase C.5 scope: Stage A/B/C wrappers, StageAContext, and reconstruction helpers still import `create_*` factories via dbex.nanobrag_bridge, so the bridge shim can’t be retired; cataloged the affected modules/tests and noted the CLI patches that must move.
 - Updated plans/active/ARCH-BRIDGE-RESP-001/implementation.md (C4 done, new C5 checklist) and docs/fix_plan.md (attempt log + artifact pointer) before rewriting input.md with the import-migration Do Now + Stage/CLI smoketest map.
 Action State: ready_for_implementation
+
+- Marked ARCH-BRIDGE-RESP-001 Phase C.5 complete, added Phase C.6 (re-export removal) to the implementation plan, refreshed docs/fix_plan.md attempts, and rewrote input.md with the new Do Now covering import migrations, shim deletion, and targeted pytest runs.
+- Created `plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-03T041200Z/` for evidence capture and documented that the problems.md “Writer / bridge responsibility split” entry remains the driver for this focus.
+Action State: planning
+2025-12-03T041200Z focus=ARCH-BRIDGE-RESP-001 state=planning dwell=1 action=planning artifacts=plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-03T041200Z/ next_action=ready_for_implementation — remove the bridge re-export shim, update import sites, and run the mapped selectors

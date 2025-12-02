@@ -40,6 +40,7 @@ def write_torch_outputs(
     refine_telemetry=None,
     sigma_readout_provenance=None,
     sigma_readout_reference_value=None,
+    stage_artifacts=None,
 ) -> None
 ```
 
@@ -56,6 +57,7 @@ def write_torch_outputs(
 | `refine_telemetry` | Optional[Dict[str, RefinementTelemetry] or RefinementTelemetry] | No | Multi-stage telemetry ({"A": telemetry_a, "B": telemetry_b, "C": telemetry_c}) or single RefinementTelemetry (legacy, mapped to {"A": telemetry}) | `RefinementEngine.telemetry()` or inline refinement |
 | `sigma_readout_provenance` | Optional[str] | No | Human-readable description of sigma source ("cli_override", "calibrated_map", "external_lookup", etc.) per PHYSICS-LOSS-001 | `_resolve_sigma_readout()` in CLI |
 | `sigma_readout_reference_value` | Optional[float] | No | Scalar sigma_readout in target units (after ADU→photon conversion if applicable) | `_resolve_sigma_readout()` in CLI |
+| `stage_artifacts` | Optional[Dict[str, Any]] | No | Stage-specific metadata from `RefinementEngine.artifacts` containing stage artifacts (e.g., {"stage_b": StageBArtifacts}). When provided, Stage B baseline parity metrics (`stage_b_baseline_rel_diff`, `stage_b_baseline_abs_diff`, `stage_b_baseline_diff_path`) are sourced from StageBArtifacts; otherwise falls back to telemetry fields (ARCH-STAGE-CONTEXT-001 Phase B.4) | `RefinementEngine.artifacts` |
 
 ### Outputs
 
@@ -105,7 +107,7 @@ For each ROI:
 
 ## Usage Patterns
 
-### Pattern 1: CLI torch backend (multi-stage telemetry)
+### Pattern 1: CLI torch backend (multi-stage telemetry with artifacts)
 
 ```python
 from dbex.io.writer import write_torch_outputs
@@ -121,6 +123,7 @@ write_torch_outputs(
     refine_telemetry=engine.telemetry(),  # Dict[str, RefinementTelemetry]
     sigma_readout_provenance=sigma_provenance,
     sigma_readout_reference_value=sigma_reference_value,
+    stage_artifacts=engine.artifacts,  # Dict[str, StageArtifacts] (ARCH-STAGE-CONTEXT-001 Phase B.4)
 )
 ```
 
@@ -188,6 +191,7 @@ write_torch_outputs(
 
 ## Change Log
 
+- **2025-12-02 (ARCH-STAGE-CONTEXT-001 Phase B.4)**: Added `stage_artifacts` parameter to support sourcing Stage B baseline parity metrics from StageBArtifacts. When provided, metrics are pulled from artifacts; otherwise falls back to telemetry fields for backward compatibility. Usage patterns updated to reflect engine.artifacts parameter.
 - **2025-12-01 (Phase D.1)**: IDL contract published; docstrings updated to reference this file
 - **2025-12-01 (Phase C.4)**: Removed compatibility alias `_write_torch_outputs` from dbex.refine_one; canonical module is now the sole entrypoint
 - **2025-12-01 (Phase C.2)**: Extracted from `dbex.refine_one._write_torch_outputs` to shared module `dbex.io.writer`; no schema changes, signature identical except parameter name (DL→data_load for API clarity)

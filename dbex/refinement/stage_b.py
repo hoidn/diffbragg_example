@@ -949,8 +949,8 @@ class StageB:
         # Add Phase A4 stage identification fields (backward compatible with engine contract)
         telemetry_output["stage_type"] = "B"
 
-        # ARCH-STAGE-CONTEXT-001 Phase B.1: baseline parity diagnostics moved to artifacts
-        # (no longer added to telemetry_output; they go directly into StageBArtifacts)
+        # ARCH-STAGE-CONTEXT-001 Phase B.4: baseline parity diagnostics moved to artifacts
+        # Writer sources these from StageBArtifacts instead of telemetry to maintain dataclass schema stability
 
         # ARCH-STAGE-CONTEXT-001 Phase B.1: Build artifacts based on mode
         if stage_b_mode == "per_reflection":

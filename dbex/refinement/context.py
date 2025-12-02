@@ -696,6 +696,13 @@ class StageBTelemetryState:
     # Variance floor tensor (cached, not a trace)
     sigma_floor_sq_tensor: Optional[Any] = None
 
+    # REFINE-FLOW-001: Stage B baseline parity diagnostics (optional fields)
+    # These track the Stage A→B chi² transition and enable parity guard monitoring
+    # without breaking existing test harnesses that construct legacy dicts
+    stage_b_baseline_rel_diff: Optional[float] = None
+    stage_b_baseline_abs_diff: Optional[float] = None
+    stage_b_baseline_diff_path: Optional[str] = None
+
 
 @dataclass
 class StageCTelemetryState:

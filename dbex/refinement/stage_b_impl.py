@@ -85,8 +85,15 @@ def _check_stage_b_baseline_parity(
     rel_diff = abs_diff / canonical_chi2 if canonical_chi2 != 0 else float('inf')
 
     # Record parity diagnostics in telemetry (always, for observability)
-    telemetry['stage_b_baseline_rel_diff'] = rel_diff
-    telemetry['stage_b_baseline_abs_diff'] = abs_diff
+    # ARCH-STAGE-CONTEXT-001 Phase B.4: Detect dataclass vs dict and update appropriately
+    if isinstance(telemetry, StageBTelemetryState):
+        # Dataclass path: use setattr for type-safe attribute assignment
+        telemetry.stage_b_baseline_rel_diff = rel_diff
+        telemetry.stage_b_baseline_abs_diff = abs_diff
+    else:
+        # Legacy dict path (for test_stage_b_cpu_fallback backward compat)
+        telemetry['stage_b_baseline_rel_diff'] = rel_diff
+        telemetry['stage_b_baseline_abs_diff'] = abs_diff
 
     # Guard: raise if parity exceeds 0.1% tolerance (1e-3 relative difference)
     tolerance = 1e-3
@@ -165,7 +172,11 @@ def _check_stage_b_baseline_parity(
             json.dump(diff_data, f, indent=2)
 
         # Store diff path in telemetry for test assertions
-        telemetry['stage_b_baseline_diff_path'] = str(diff_path)
+        # ARCH-STAGE-CONTEXT-001 Phase B.4: Dataclass vs dict branching
+        if isinstance(telemetry, StageBTelemetryState):
+            telemetry.stage_b_baseline_diff_path = str(diff_path)
+        else:
+            telemetry['stage_b_baseline_diff_path'] = str(diff_path)
 
         raise RuntimeError(
             f"REFINE-FLOW-001 baseline drift: Stage B initial chi² ({stage_b_initial_chi2:.3e}) "
@@ -174,7 +185,11 @@ def _check_stage_b_baseline_parity(
         )
     else:
         # Parity passed, record diff path as None
-        telemetry['stage_b_baseline_diff_path'] = None
+        # ARCH-STAGE-CONTEXT-001 Phase B.4: Dataclass vs dict branching
+        if isinstance(telemetry, StageBTelemetryState):
+            telemetry.stage_b_baseline_diff_path = None
+        else:
+            telemetry['stage_b_baseline_diff_path'] = None
 
 
 def compute_hkl_shell_lookup(crystal, hkl_metadata: Dict, n_shells: int = 5, device=None, dtype=torch.float32) -> Tuple[torch.Tensor, torch.Tensor]:

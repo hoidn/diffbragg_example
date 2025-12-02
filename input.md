@@ -1,4 +1,4 @@
-Summary: Surface the collector-emitted StageResult telemetry through the refinement pipeline and teach `dbex/io/writer.py` to consume it directly so Stage B/C observer data feeds /torch_diagnostics without legacy dict scraping.
+Summary: Teach `dbex/io/writer.py` to consume the typed StageResult telemetry/perf-counters that now reach it so `/torch_diagnostics` stays spec-compliant without scraping legacy dicts.
 Mode: Parity
 InitiativeType: architecture
 Focus: ARCH-TELEMETRY-001 — Telemetry Observer Refactor
@@ -8,35 +8,32 @@ Mapped tests:
   - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE pytest -vv tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload
   - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small
   - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small
-Artifacts: plans/active/ARCH-TELEMETRY-001/reports/2025-12-04T020000Z/
+Artifacts: plans/active/ARCH-TELEMETRY-001/reports/2025-12-04T050000Z/
 Do Now:
-  - Implement: `dbex/refinement/stage.py::RefinementTelemetry` needs an optional field (e.g., `stage_result`) that can carry the collector-emitted StageResult from `dbex.refinement.interfaces`; ensure `to_dict()` skips this field so legacy serialization stays unchanged.
-  - Implement: After `collector.finalize()` runs in each stage wrapper, persist the typed StageResult on the telemetry dataclass before building the `StageResult` container returned to the engine: add a finalize call + assignment in Stage A (`StageATelemetryCollector`, right after `_run_stage_a_lbfgs`), reuse the existing `stage_result` object in Stage B/C (`dbex/refinement/stage_b.py::_run_stage_b_lbfgs`, `dbex/refinement/stage_c_impl.py::_run_stage_c_lbfgs`) instead of dropping it after `to_legacy_dict()`.
-  - Implement: Surface those typed results through the CLI path — after `run_nanobrag_refinement` completes, build `{label: telem.stage_result}` (skip None) and pass it to `dbex/io/writer.write_torch_outputs` via a new `stage_results` kwarg (default `None` for legacy callers). Update the writer signature and adjust call sites (`dbex/refine_one.py`, any tests/mocks) accordingly.
-  - Implement: Refactor `dbex/io/writer.py` so it prefers the typed StageResult payload when provided (use its telemetry/perf counters for `/torch_diagnostics/stage_*` datasets, but keep `RefinementTelemetry` for static metadata such as optimizer/tolerance). Fall back to the existing dict-scraping logic when a stage lacks a typed result (e.g., mocks/tests).
-  - Update tests/mocks that patch `write_torch_outputs` (CLI tests, telemetry metadata test) so they provide/expect `stage_results`. Capture pytest logs for each mapped selector under the artifacts directory listed above.
+  - dbex/io/writer.py — Rework the per-stage serialization loop (lines 202‑360) so it prefers `stage_results` when present. Add a helper that ingests a `StageResult` (telemetry + perf counters) and returns the same payloads we currently emit (loss/chi² traces, best tuples, variance counters, perf stats). Use that typed payload for `stage_*` groups and the single-stage top-level mirror, while still reading static metadata (optimizer, ROI counts, param_deltas, status/message) from `RefinementTelemetry`. Fall back to the existing `stage_telem.to_dict()` path when a stage lacks a typed result (mocks/tests) so schema stays byte-for-byte compatible.
+  - Keep Stage B baseline attrs wired: when artifacts exist use them, else pull the legacy values from either the typed payload or the `RefinementTelemetry` fallback. Ensure perf counters recorded in StageResult now drive the JSON blobs we write (no stale copies from the dict shim).
+  - Re-run the Stage B guard, Stage B shell smoke, and Stage C microslip selectors plus the CLI metadata test with logs under the new artifacts directory (Stage C coverage was skipped last loop, so capture `pytest_stage_c_smoke.log` this time).
 How-To Map:
-  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE pytest -vv tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata | tee plans/active/ARCH-TELEMETRY-001/reports/2025-12-04T020000Z/pytest_cli_diag.log
-  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE pytest -vv tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload | tee plans/active/ARCH-TELEMETRY-001/reports/2025-12-04T020000Z/pytest_stage_b_guard.log
-  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small | tee plans/active/ARCH-TELEMETRY-001/reports/2025-12-04T020000Z/pytest_stage_b_smoke.log
-  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small | tee plans/active/ARCH-TELEMETRY-001/reports/2025-12-04T020000Z/pytest_stage_c_smoke.log
+  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE pytest -vv tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata | tee plans/active/ARCH-TELEMETRY-001/reports/2025-12-04T050000Z/pytest_cli_diag.log
+  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE pytest -vv tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload | tee plans/active/ARCH-TELEMETRY-001/reports/2025-12-04T050000Z/pytest_stage_b_guard.log
+  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small | tee plans/active/ARCH-TELEMETRY-001/reports/2025-12-04T050000Z/pytest_stage_b_smoke.log
+  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small | tee plans/active/ARCH-TELEMETRY-001/reports/2025-12-04T050000Z/pytest_stage_c_smoke.log
 Pitfalls To Avoid:
-  - Do not break `/torch_diagnostics` schema: new writer code must populate the same datasets/attrs even when using typed StageResult data.
-  - `RefinementTelemetry.to_dict()` is consumed by other code paths; ensure adding `stage_result` (or similar) does not trigger dataclass recursion (skip it explicitly).
-  - Stage A still enforces the canonical ROI/panel guards; keep the new finalize call outside autograd contexts so tensors are detached before StageResult construction.
-  - Avoid widening the `run_nanobrag_refinement` return signature (too many call sites); keep new data flowed internally to `run_nanobrag_backend`/writer.
-  - Environment Freeze: no new third-party deps; reuse existing collector/state helpers instead of importing new telemetry libraries.
+  - StageResult payloads carry tensors detached by the collectors; never mutate them inside writer. Convert to numpy/scalars before writing datasets to keep HDF5 schema identical.
+  - Maintain the legacy fallback path for tests/mocks that still pass `stage_results=None`; do not drop `RefinementTelemetry.to_dict()` until C3.2 lands.
+  - Preserve Stage B baseline attrs and Stage A top-level mirrors exactly—schema drift fails DIAGNOSTICS-001.
+  - Writer is hot code; avoid importing heavy modules at top level and respect Environment Freeze (stdlib only).
+  - Run Stage C microslip even if known flaky: we need a fresh log to show the StageResult → writer path works for all stages.
 If Blocked:
-  - If Stage A finalize exposes a circular import, document the stack trace in `plans/active/ARCH-TELEMETRY-001/reports/2025-12-04T020000Z/blocker.md`, revert the partial change, and fall back to wiring StageResult for Stage B/C only so writer work can proceed (note the missing Stage A payload in docs/fix_plan.md).
-  - If the writer refactor breaks schema validation, capture the failing pytest logs under the artifacts directory and restore the previous dict path, then raise the issue in docs/fix_plan.md with the selector/failure signature so we can triage.
+  - If StageResult lacks a field you need (e.g., certain diagnostics), document the gap in `plans/active/ARCH-TELEMETRY-001/reports/2025-12-04T050000Z/blocker.md`, leave the legacy dict path intact, and push the missing-field analysis into docs/fix_plan.md so we can size a follow-up.
+  - If `/torch_diagnostics` diffs fail schema assertions, revert the writer change, attach the failing pytest log in the artifacts directory, and note the failure signature plus suspected field in docs/fix_plan.md before stopping.
 Findings Applied (Mandatory):
-  - PHYSICS-LOSS-001 — Keep variance-weighted χ² / sigma-floor telemetry intact while moving data between collectors and writer.
-  - PHYSICS-LOSS-003 — Stage A canonical snapshot/clamp provenance must still reach `/torch_diagnostics`.
-  - DIAGNOSTICS-001 — `/torch_diagnostics` schema (attrs + ROI telemetry) must remain byte-for-byte compatible; new StageResult plumbing is an implementation detail only.
+  - PHYSICS-LOSS-001 — Stage A/B/C loss/chi² traces must remain variance-weighted with sigma-floor provenance when StageResult drives serialization.
+  - PHYSICS-LOSS-003 — Stage A canonical snapshot/clamp telemetry still needs to reach `/torch_diagnostics` even after switching writers.
+  - DIAGNOSTICS-001 — `/torch_diagnostics` schema (attrs/datasets/JSON) is normative; treat StageResult usage as an implementation detail only.
 Pointers:
-  - dbex/refinement/stage.py — `RefinementTelemetry` dataclass and StageResult container.
-  - dbex/refinement/stage_a.py, dbex/refinement/stage_b.py, dbex/refinement/stage_c_impl.py — hook `collector.finalize()` results into telemetry before returning StageResult.
-  - dbex/refine_one.py — pass the per-stage StageResult map to `write_torch_outputs`.
-  - dbex/io/writer.py — extend signature + serialization logic to handle `stage_results`.
+  - dbex/io/writer.py:202 — current per-stage serialization loops that still call `stage_telem.to_dict()`.
+  - dbex/refine_one.py:561 — StageResult map forwarded to `write_torch_outputs`.
+  - plans/active/ARCH-TELEMETRY-001/reports/2025-12-04T020000Z/pytest_stage_b_smoke_retry.log — proof that current StageResult plumbing keeps Stage B smokes green; replicate coverage plus Stage C.
 Next Up:
-  - Phase C.3 (remove legacy telemetry dict shims) once the writer exclusively consumes typed StageResult data.
+  - Phase C.3.2 — remove the `legacy_telemetry_dict` plumbing inside Stage A/B/C once the writer path is StageResult-first.

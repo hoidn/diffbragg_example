@@ -62,6 +62,8 @@
   4. `RefinementEngine.run` accepts only dict inputs containing `RefinementContext` under the `context` key.
   5. Stage A/B/C smoketests and DB‑AT selectors pass using the Engine path; DiffBragg backend continues to pass its smoketests.
 - Working Plan: `plans/active/ARCH-REFACTOR-001/implementation.md`
+- Attempts History:
+  * 2025-12-04T120500Z — Problems ledger directive “PRIORITIZE ARCH-REFACTOR-001 ASAP” reopened Phase C. Logged Stage C Context Breakout (C1.A–C1.D) in the implementation plan: add a typed `StageCContext` dataclass, thread it through `StageC.run`, `_build_stage_c_params`, and `_run_stage_c_lbfgs`, and keep Stage C telemetry/observer wiring intact. Tests to map in the upcoming Do Now: `tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip` plus the Stage B guard/shell smokes for regression. Artifacts reserved at `plans/active/ARCH-REFACTOR-001/reports/2025-12-04T120500Z/`.
 
 ### [ARCH-REFINE-001] Refinement Engine Modularization & Torch IO
 - Depends on: ARCH-REFINE-FLOW-001 (engine skeleton, telemetry contract)

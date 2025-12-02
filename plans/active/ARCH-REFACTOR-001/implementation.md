@@ -60,6 +60,16 @@
 - [ ] C8: **Stage A Inlining:** Inline parameter building and loop logic into `StageA`.
 - [ ] C9: **Stage A Cleanup:** Delete `dbex/refinement/stage_a_impl.py`. Verify `test_stage_a_expansion` and `DB-AT-024`.
 
+#### Phase C Reactivation — Stage C Context Breakout (2025-12-04T120500Z)
+Problems ledger `PRIORITIZE ARCH-REFACTOR-001 ASAP` (system-level architectural debt) reopens Phase C work. First increment splits the Stage C helper dictionaries into typed dataclasses so the remaining `_impl` logic can move into `StageC`.
+
+- [ ] C1.A — **Introduce `StageCContext` dataclass:** extend `dbex/refinement/context.py` with a typed container that owns Stage C’s warm-cache/perf counters (`stage_c_use_warm_cache`, `cache_mode`, ROI counts, baseline detector distances, sampled panel ids, ROI slices, validation scope, perf counter payloads, `_apply_baseline_detector_prior` callback). Reference `StageCTelemetryState` for naming conventions and ensure the dataclass is device/dtype neutral.
+- [ ] C1.B — **Thread `StageCContext` through StageC:** update `StageC.run` to instantiate the new dataclass instead of assembling `stage_c_context_dict`, pass it to `_build_stage_c_params`, `_build_lbfgs_closure`, and `_run_stage_c_lbfgs`, and drop the legacy dict plumbing.
+- [ ] C1.C — **Update `_build_stage_c_params` / `_run_stage_c_lbfgs`:** change the helpers in `dbex/refinement/stage_c_impl.py` to accept `StageCContext` and access attributes instead of mutable dict keys. Ensure observer/telemetry paths keep working (no regression to StageCTelemetryState usage) and keep the compatibility shim for `RefinementSharedContext` until the helpers are moved fully into `StageC`.
+- [ ] C1.D — **Validation:** `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small | tee plans/active/ARCH-REFACTOR-001/reports/<timestamp>/pytest_stage_c_smoke.log`
+
+Artifacts for this phase live under `plans/active/ARCH-REFACTOR-001/reports/2025-12-04T120500Z/`.
+
 ## Phase D — Facade Removal
 **Goal:** Point all consumers to `RefinementEngine` and delete the procedural wrapper.
 

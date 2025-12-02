@@ -24,6 +24,7 @@ This file is a lightweight, user-editable backlog for any issues that Galph (the
 ATTN NEW PROBLEMS:
 ---
 IMPORTANT
+2025-12-04: Scheduled Stage C typed-context breakout under ARCH-REFACTOR-001 (see docs/fix_plan.md attempt 2025-12-04T120500Z, artifacts `plans/active/ARCH-REFACTOR-001/reports/2025-12-04T120500Z/`) to start peeling `_impl` dictionaries into typed dataclasses per C1.A–C1.D.
 PRIORITIZE ARCH-REFACTOR-001 ASAP
 IMPORTANT
 The codebase is currently in a "Mid-Refactor" state (Transitioning from monolithic scripts to a Protocol-based Engine), resulting in significant complexity, indirection, and state-management overhead.

@@ -533,3 +533,8 @@ Action State: planning
 - Updated plans/active/ARCH-TELEMETRY-001/implementation.md Phase C checklist (C2 marked complete; C3 now tracks StageResult-first writer + shim retirement), added the new attempt log to docs/fix_plan.md, and rewrote input.md with a Parity-mode Do Now directing Ralph to teach the writer to consume StageResult telemetry/perf counters (fallback to the legacy dict path) and rerun the CLI metadata + Stage B guard + Stage B shell + Stage C microslip selectors under `reports/2025-12-04T050000Z/`.
 - Next loop must implement the StageResult-first writer serialization (no more planning-only turns for this focus) and capture the missing Stage C smoketest log to prove `/torch_diagnostics` stays spec-compliant.
 Action State: ready_for_implementation
+2025-12-04T120500Z focus=ARCH-REFACTOR-001 state=planning dwell=0 action=planning artifacts=plans/active/ARCH-REFACTOR-001/reports/2025-12-04T120500Z/ next_action=StageCContext typed breakout + rerun Stage B guard/Stage C smoke
+- Problems ledger guard triggered (“PRIORITIZE ARCH-REFACTOR-001 ASAP”), so I re-opened Phase C with a Stage C typed-context plan: documented C1.A–C1.D in the implementation plan, updated `docs/fix_plan.md` with the new attempt, and annotated `problems.md` with the scheduled work.
+- Input.md now hands Ralph a Parity-mode Do Now to add `StageCContext`, refactor `StageC.run` + `_build_stage_c_params/_run_stage_c_lbfgs` to consume it, and rerun the Stage B guard / Stage C microslip selectors with artifacts under `plans/active/ARCH-REFACTOR-001/reports/2025-12-04T120500Z/`.
+- Maintained doc hygiene (plan + ledger + galph_memory) and created the new report directory so logs/summary land alongside this loop’s planning notes.
+Action State: planning

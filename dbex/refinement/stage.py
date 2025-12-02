@@ -17,7 +17,7 @@ RefinementTelemetry Extensions (A4):
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Protocol, Tuple
+from typing import Any, Dict, List, Optional, Protocol, Tuple, Union
 
 
 class RefinementStage(Protocol):
@@ -259,3 +259,49 @@ class RefinementTelemetry:
             result["stage_modes"] = self.stage_modes
 
         return result
+
+
+@dataclass
+class StageResult:
+    """
+    Container for stage outputs: telemetry + optional artifacts.
+
+    Per ARCH-STAGE-CONTEXT-001 Phase B.1:
+    - Stages return StageResult instead of raw dicts
+    - Engine unpacks telemetry (RefinementTelemetry) and artifacts (stage-specific)
+    - Telemetry is converted from dict (backward compat) or used directly if already typed
+    - Artifacts (StageAArtifacts, StageBArtifacts, StageCArtifacts) cached per stage
+
+    Attributes:
+        telemetry: RefinementTelemetry instance or dict (converted to RefinementTelemetry by engine)
+        artifacts: Optional stage-specific artifact object (StageAArtifacts, StageBArtifacts, or StageCArtifacts)
+
+    Usage:
+        # Stage A
+        return StageResult(
+            telemetry=telemetry_dict,  # or RefinementTelemetry instance
+            artifacts=StageAArtifacts(stage_a_ctx=ctx, context_schema_version="v1")
+        )
+
+        # Stage B
+        return StageResult(
+            telemetry=telemetry_dict,
+            artifacts=StageBArtifacts(
+                shell_edges=edges, shell_indices=indices, n_shells=n,
+                stage_b_baseline_rel_diff=rel_diff, ...
+            )
+        )
+
+        # Stage C
+        return StageResult(
+            telemetry=telemetry_dict,
+            artifacts=StageCArtifacts(bragg_full=bragg_array)
+        )
+
+    Normative Requirements:
+    - Telemetry must be either dict or RefinementTelemetry instance
+    - Artifacts type should match stage (A→StageAArtifacts, B→StageBArtifacts, C→StageCArtifacts)
+    - Engine validates telemetry dict contains required fields when converting
+    """
+    telemetry: Union[Dict[str, Any], RefinementTelemetry]
+    artifacts: Optional[Any] = None  # StageAArtifacts | StageBArtifacts | StageCArtifacts (avoid circular import)

@@ -97,10 +97,32 @@
 - Working Plan: `plans/active/ARCH-STAGE-CONTEXT-001/implementation.md`
 - Ledger tie-in: Addresses the unchecked “bad design patterns/code smells” entry in `problems.md` (2025-12-01), specifically items 1, 2, 4, 7, and 8 (data clumps, anemic Stage classes, mutable telemetry dicts, engine branching).
 - Next Actions:
-  * Phase A ✅ (Stage C shared-context shims landed 2025-12-02T022454Z). Shift to Phase B.1: introduce `StageResult` + Stage-specific artifact dataclasses so StageA/StageB/StageC stop attaching custom keys to telemetry dicts.
-  * Implement `StageResult` scaffolding + StageA/StageB/StageC artifacts, update `RefinementEngine` to persist them (replacing `_stage_a_ctx_cache`, `_stage_b_shell_edges`, `_stage_c_bragg_full`), and teach `run_nanobrag_refinement` to pull final Bragg + warm-cache data from the artifact map. Reserve artifacts under `plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T030800Z/` for the implementation/test logs.
+  * Phase B.1 ✅ (StageResult + artifacts scaffolding landed 2025-12-02T030800Z). Advance to Phase B.2: move LBFGS closure construction into Stage classes.
 
 ## Attempts History
+
+### 2025-12-02T030800Z - ARCH-STAGE-CONTEXT-001 Phase B.1: StageResult + Artifacts Scaffolding (COMPLETE)
+**Action**: Introduced `StageResult` dataclass and stage-specific artifact classes to eliminate engine private caches.
+- Created `dbex/refinement/artifacts.py` with `StageAArtifacts`, `StageBArtifacts`, `StageCArtifacts` dataclasses
+- Added `StageResult` dataclass to `dbex/refinement/stage.py` carrying telemetry + artifacts
+- Updated `StageA.run`, `StageB.run`, `StageC.run` to return `StageResult` instead of raw dicts:
+  - Stage A: returns `StageAArtifacts(stage_a_ctx, context_schema_version="v1")`
+  - Stage B: returns `StageBArtifacts(shell_edges, shell_indices, n_shells, baseline_parity_diagnostics, mode, ASU stats)`
+  - Stage C: returns `StageCArtifacts(bragg_full)`
+- Rewired `RefinementEngine` to use single `_artifacts: Dict[str, Any]` instead of stage-specific caches:
+  - Removed `_stage_a_ctx_cache`, `_stage_b_shell_edges`, `_stage_b_shell_indices`, `_stage_b_n_shells`, `_stage_c_bragg_full`, etc.
+  - Added `artifacts` property returning unified artifact map
+  - Engine unpacks `StageResult`, caches artifacts per stage name, and restores custom attributes to telemetry objects for backward compat
+- Updated `run_nanobrag_refinement` to consume artifacts via `engine.artifacts.get("stage_a")`, etc. instead of `getattr(engine, "_stage_*_cache")`
+**Metrics**:
+- Stage A telemetry test: **PASSED** (7.32s)
+- Stage B shell modifiers smoke (small detector): **PASSED** (22.40s)
+- Stage C detector microslip smoke (small detector): **PASSED** (7.84s)
+**Artifacts**: plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T030800Z/ (pytest_stage_a_engine.log, pytest_stage_b_small.log, pytest_stage_c_small.log, telemetry_stage_b_small.json, telemetry_stage_c_small.json)
+**First Divergence**: None; all three Stage smoke tests green on first implementation (minor fix required for excluding baseline parity fields from RefinementTelemetry constructor)
+**Next Actions**:
+- Phase B.2: Move LBFGS closure construction into Stage classes (eliminate `_build_*_lbfgs_closure` exports)
+- Phase B.3: Replace mutable telemetry dicts with typed dataclasses + `.to_refinement_telemetry()` adapters
 
 ### 2025-12-01T084505Z - ARCH-REFINE-001 Phase A.2: Stage B Helper Extraction
 **Action**: Migrated Stage B LBFGS helpers to `dbex/refinement/stage_b_impl.py`

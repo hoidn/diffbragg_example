@@ -26,12 +26,13 @@ import numpy as np
 import torch
 
 # ARCH-REFINE-001: Eager imports at module scope to eliminate lazy-import pattern
+from dbex.refinement.artifacts import StageCArtifacts
+from dbex.refinement.stage import RefinementTelemetry, StageResult
 from dbex.refinement.stage_c_impl import (
     _build_stage_c_params,
     _build_stage_c_lbfgs_closure,
     _run_stage_c_lbfgs,
 )
-from dbex.refinement.stage import RefinementTelemetry
 from dbex.nanobrag_bridge import (
     create_detector_config,
     create_crystal_config,
@@ -515,18 +516,16 @@ class StageC:
         telemetry_c = stage_c_result['telemetry_c']
         bragg_full = stage_c_result['bragg_full']  # Phase A.4: Extract final Bragg volume
 
-        # Add Phase A4 stage identification fields (reconstruct with stage_type/mode)
-        # Convert to dict, add fields, reconstruct RefinementTelemetry with phase A4 fields
+        # Add Phase A4 stage identification fields
         telemetry_dict = asdict(telemetry_c)
         telemetry_dict["stage_type"] = "C"
         telemetry_dict["mode"] = "detector_offsets"
 
-        # Reconstruct RefinementTelemetry with phase A4 fields
-        telemetry_output_obj = RefinementTelemetry(**telemetry_dict)
+        # ARCH-STAGE-CONTEXT-001 Phase B.1: Create StageCArtifacts with final Bragg tensor
+        artifacts = StageCArtifacts(bragg_full=bragg_full)
 
-        # Convert back to dict and add bragg_full for engine extraction (Phase A.4)
-        output_dict = asdict(telemetry_output_obj)
-        output_dict["bragg_full"] = bragg_full  # Engine will cache this separately
-
-        # Return as dict for engine aggregation
-        return output_dict
+        # Return StageResult with telemetry dict and artifacts
+        return StageResult(
+            telemetry=telemetry_dict,
+            artifacts=artifacts
+        )

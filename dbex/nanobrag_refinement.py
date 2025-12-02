@@ -741,7 +741,10 @@ def run_nanobrag_refinement(
 
         # Execute engine and get telemetry dict (keyed by stage.name = "stage_a")
         telemetry_dict = engine.run(engine_inputs)
-        stage_a_ctx = getattr(engine, "_stage_a_ctx_cache", None)
+
+        # ARCH-STAGE-CONTEXT-001 Phase B.1: Extract stage_a_ctx from artifacts instead of private cache
+        stage_a_artifacts = engine.artifacts.get("stage_a")
+        stage_a_ctx = stage_a_artifacts.stage_a_ctx if stage_a_artifacts is not None else None
 
         # Extract StageA telemetry (keyed by "stage_a" per StageA.name property)
         telemetry_a = telemetry_dict["stage_a"]
@@ -819,8 +822,9 @@ def run_nanobrag_refinement(
         device = torch.device(config.device)
         dtype = config.dtype
 
-        # Extract stage_a_ctx from engine cache (cached separately from telemetry)
-        stage_a_ctx = getattr(engine, '_stage_a_ctx_cache', None)
+        # ARCH-STAGE-CONTEXT-001 Phase B.1: Extract stage_a_ctx from artifacts
+        stage_a_artifacts = engine.artifacts.get("stage_a")
+        stage_a_ctx = stage_a_artifacts.stage_a_ctx if stage_a_artifacts is not None else None
 
         # PERF-WARM-011: Recompute CPU fallback decision for final Bragg reconstruction
         # Same logic as in _build_stage_b_params (lines 2178-2182)
@@ -866,16 +870,24 @@ def run_nanobrag_refinement(
             # No CPU fallback: reuse the original CUDA Stage A context
             stage_b_eval_stage_a_ctx = stage_a_ctx
 
-        # Extract shell metadata from engine cache (cached separately from telemetry)
-        shell_edges = getattr(engine, '_stage_b_shell_edges', None)
-        shell_indices = getattr(engine, '_stage_b_shell_indices', None)
-        n_shells = getattr(engine, '_stage_b_n_shells', None)
-
-        # Extract custom attributes from engine cache (Phase 8 fix #2)
-        stage_b_mode = getattr(engine, '_stage_b_mode', None)
-        n_asu_unique = getattr(engine, '_stage_b_n_asu_unique', None)
-        optimizer_type = getattr(engine, '_stage_b_optimizer_type', None)
-        asu_modifier_stats = getattr(engine, '_stage_b_asu_modifier_stats', None)
+        # ARCH-STAGE-CONTEXT-001 Phase B.1: Extract shell metadata and custom attrs from artifacts
+        stage_b_artifacts = engine.artifacts.get("stage_b")
+        if stage_b_artifacts is not None:
+            shell_edges = stage_b_artifacts.shell_edges
+            shell_indices = stage_b_artifacts.shell_indices
+            n_shells = stage_b_artifacts.n_shells
+            stage_b_mode = stage_b_artifacts.stage_b_mode
+            n_asu_unique = stage_b_artifacts.n_asu_unique
+            optimizer_type = stage_b_artifacts.optimizer_type
+            asu_modifier_stats = stage_b_artifacts.asu_modifier_stats
+        else:
+            shell_edges = None
+            shell_indices = None
+            n_shells = None
+            stage_b_mode = None
+            n_asu_unique = None
+            optimizer_type = None
+            asu_modifier_stats = None
 
         # Create a dict version of telemetry_b with shell metadata for the helper
         from dataclasses import asdict
@@ -1010,7 +1022,9 @@ def run_nanobrag_refinement(
 
         if last_stage_name == "stage_c":
             # Stage C produces final Bragg directly
-            bragg_full = getattr(engine, '_stage_c_bragg_full', None)
+            # ARCH-STAGE-CONTEXT-001 Phase B.1: Extract bragg_full from artifacts
+            stage_c_artifacts = engine.artifacts.get("stage_c")
+            bragg_full = stage_c_artifacts.bragg_full if stage_c_artifacts is not None else None
             if bragg_full is None:
                 raise RuntimeError(
                     "Stage C did not produce final Bragg array. "

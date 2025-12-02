@@ -26,6 +26,8 @@ import numpy as np
 import torch
 
 # ARCH-REFINE-001: Eager imports at module scope to eliminate lazy-import pattern
+from dbex.refinement.artifacts import StageAArtifacts
+from dbex.refinement.stage import StageResult
 from dbex.refinement.stage_a_impl import (
     _build_stage_a_params,
     _build_stage_a_lbfgs_closure,
@@ -449,11 +451,18 @@ class StageA:
         else:
             telemetry_output["mode"] = None  # Default cell+misset path
 
-        # ARCH-STAGE-CONTEXT-001: Mark telemetry with context schema version
-        telemetry_output["context_schema_version"] = "v1"
+        # ARCH-STAGE-CONTEXT-001 Phase B.1: Extract stage_a_ctx into artifacts
+        stage_a_ctx = stage_a_context.get('stage_a_ctx', None)
 
-        # Add stage_a_ctx for Stage B warm cache support (Phase C2)
-        # This is a non-RefinementTelemetry field but required for engine propagation
-        telemetry_output["stage_a_ctx"] = stage_a_context.get('stage_a_ctx', None)
+        # Create StageAArtifacts with warm context payload
+        artifacts = StageAArtifacts(
+            stage_a_ctx=stage_a_ctx,
+            context_schema_version="v1"
+        ) if stage_a_ctx is not None else None
 
-        return telemetry_output
+        # Return StageResult with telemetry dict and artifacts
+        # Engine will convert telemetry dict to RefinementTelemetry and cache artifacts
+        return StageResult(
+            telemetry=telemetry_output,
+            artifacts=artifacts
+        )

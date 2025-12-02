@@ -26,12 +26,13 @@ import numpy as np
 import torch
 
 # ARCH-REFINE-001: Eager imports at module scope to eliminate lazy-import pattern
+from dbex.refinement.artifacts import StageBArtifacts
+from dbex.refinement.stage import RefinementTelemetry, StageResult
 from dbex.refinement.stage_b_impl import (
     _build_stage_b_params,
     _build_stage_b_lbfgs_closure,
     _run_stage_b_lbfgs,
 )
-from dbex.refinement.stage import RefinementTelemetry
 from dbex.refinement.context import RefinementSharedContext
 from dbex.nanobrag_bridge import (
     create_detector_config,
@@ -508,18 +509,12 @@ class StageB:
         # Add Phase A4 stage identification fields (backward compatible with engine contract)
         telemetry_output["stage_type"] = "B"
 
-        # REFINE-FLOW-001: Add baseline parity diagnostics
-        if stage_b_baseline_rel_diff is not None:
-            telemetry_output["stage_b_baseline_rel_diff"] = stage_b_baseline_rel_diff
-        if stage_b_baseline_abs_diff is not None:
-            telemetry_output["stage_b_baseline_abs_diff"] = stage_b_baseline_abs_diff
-        if stage_b_baseline_diff_path is not None:
-            telemetry_output["stage_b_baseline_diff_path"] = stage_b_baseline_diff_path
+        # ARCH-STAGE-CONTEXT-001 Phase B.1: baseline parity diagnostics moved to artifacts
+        # (no longer added to telemetry_output; they go directly into StageBArtifacts)
 
-        # Add mode-specific telemetry
+        # ARCH-STAGE-CONTEXT-001 Phase B.1: Build artifacts based on mode
         if stage_b_mode == "per_reflection":
             telemetry_output["mode"] = "per_reflection"
-            telemetry_output["stage_b_mode"] = "per_reflection"
 
             # Add per-reflection custom attributes (matches nanobrag_refinement.py:5196-5206)
             with torch.no_grad():
@@ -530,21 +525,42 @@ class StageB:
                     max=self._config.stage_b_max_modifier
                 )
 
-            telemetry_output["n_asu_unique"] = int(n_asu_unique)
-            telemetry_output["optimizer_type"] = optimizer_type
-            telemetry_output["asu_modifier_stats"] = {
+            asu_modifier_stats = {
                 "min": float(modifiers_clamped.min().item()),
                 "max": float(modifiers_clamped.max().item()),
                 "mean": float(modifiers_clamped.mean().item()),
                 "std": float(modifiers_clamped.std().item()),
             }
+
+            # Create StageBArtifacts for per-reflection mode (no shell metadata)
+            artifacts = StageBArtifacts(
+                shell_edges=None,
+                shell_indices=None,
+                n_shells=0,
+                stage_b_baseline_rel_diff=stage_b_baseline_rel_diff,
+                stage_b_baseline_abs_diff=stage_b_baseline_abs_diff,
+                stage_b_baseline_diff_path=stage_b_baseline_diff_path,
+                stage_b_mode="per_reflection",
+                n_asu_unique=int(n_asu_unique),
+                optimizer_type=optimizer_type,
+                asu_modifier_stats=asu_modifier_stats
+            )
         else:  # shell mode
             telemetry_output["mode"] = "shell_modifiers"
-            telemetry_output["stage_b_mode"] = "shell"
 
-            # Add shell metadata for engine path to rebuild modified HKL grid (Phase C2)
-            telemetry_output["shell_edges"] = shell_edges.cpu().tolist()
-            telemetry_output["shell_indices"] = shell_indices.cpu().tolist()
-            telemetry_output["n_shells"] = self._config.stage_b_n_shells
+            # Create StageBArtifacts with shell metadata for final Bragg reconstruction
+            artifacts = StageBArtifacts(
+                shell_edges=shell_edges.cpu().numpy(),
+                shell_indices=shell_indices.cpu().numpy(),
+                n_shells=self._config.stage_b_n_shells,
+                stage_b_baseline_rel_diff=stage_b_baseline_rel_diff,
+                stage_b_baseline_abs_diff=stage_b_baseline_abs_diff,
+                stage_b_baseline_diff_path=stage_b_baseline_diff_path,
+                stage_b_mode="shell"
+            )
 
-        return telemetry_output
+        # Return StageResult with telemetry dict and artifacts
+        return StageResult(
+            telemetry=telemetry_output,
+            artifacts=artifacts
+        )

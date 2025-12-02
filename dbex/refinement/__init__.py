@@ -12,7 +12,7 @@ Normative Requirements:
 
 Usage:
     from dbex.refinement import RefinementEngine, RefinementStage, RefinementTelemetry
-    from dbex.nanobrag_refinement import RefinementConfig
+    from dbex.refinement.config import RefinementConfig
 
     # Define custom stages implementing RefinementStage protocol
     class MyStage(RefinementStage):

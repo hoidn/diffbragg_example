@@ -397,7 +397,8 @@ def test_stage_a_expansion(
     - Requires: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1
     - Selector: pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
     """
-    from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig
+    from dbex.refinement.config import RefinementConfig
+    from dbex.nanobrag_refinement import run_nanobrag_refinement
 
     print(f"\n[test_stage_a_expansion] detector={smoke_detector_size}")
 
@@ -746,7 +747,8 @@ def test_stage_a_expansion_incremental_ub(
     - Requires: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1
     - Selector: pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion_incremental_ub
     """
-    from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig
+    from dbex.refinement.config import RefinementConfig
+    from dbex.nanobrag_refinement import run_nanobrag_refinement
 
     print(f"\n[test_stage_a_expansion_incremental_ub] detector={smoke_detector_size}")
 
@@ -944,7 +946,8 @@ def test_stage_a_engine_delegation_telemetry(
     - Requires: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1
     - Selector: pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry
     """
-    from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig
+    from dbex.refinement.config import RefinementConfig
+    from dbex.nanobrag_refinement import run_nanobrag_refinement
 
     print(f"\n[test_stage_a_engine_delegation_telemetry] detector={smoke_detector_size}")
 
@@ -1060,7 +1063,8 @@ def test_stage_c_detector_microslip(
     `DBEX_SMOKE_TELEMETRY_PATH` is archived under PERF-SMOKE-DETSIZE for PHYSICS-LOSS-001 parity
     evidence.
     """
-    from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig
+    from dbex.refinement.config import RefinementConfig
+    from dbex.nanobrag_refinement import run_nanobrag_refinement
 
     print(f"\n[test_stage_c_detector_microslip] detector={smoke_detector_size}")
     strict_gates = smoke_detector_size == "full"
@@ -1390,7 +1394,8 @@ def test_stage_b_shell_modifiers(
       is archived via `DBEX_SMOKE_TELEMETRY_PATH` for PHYSICS-LOSS-001 reviews.
     - SCALE-001/002: Structure factors unscaled; shell modifiers applied multiplicatively
     """
-    from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig
+    from dbex.refinement.config import RefinementConfig
+    from dbex.nanobrag_refinement import run_nanobrag_refinement
 
     print(f"\n[test_stage_b_shell_modifiers] detector={smoke_detector_size}")
 
@@ -1790,7 +1795,8 @@ def test_stage_b_per_reflection_smoke(
     import os
     import pytest
     import torch
-    from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig
+    from dbex.refinement.config import RefinementConfig
+    from dbex.nanobrag_refinement import run_nanobrag_refinement
 
     if os.getenv("AUTHORITATIVE_CMDS_DOC") != "./docs/TESTING_GUIDE.md":
         pytest.skip("Requires AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md")

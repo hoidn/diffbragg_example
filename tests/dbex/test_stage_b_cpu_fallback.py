@@ -37,7 +37,7 @@ def test_stage_b_params_cpu_fallback_clones_stage_a_ctx():
     """
     # ARCH-REFACTOR-001 Phase C.6: Import from StageB class (helper moved to private method)
     from dbex.refinement.stage_b import StageB
-    from dbex.nanobrag_refinement import RefinementConfig
+    from dbex.refinement.config import RefinementConfig
 
     # Mock RefinementInputs
     class MockRefinementInputs:
@@ -180,7 +180,7 @@ def test_stage_b_params_no_cpu_fallback_when_roi_mode_enabled():
     """
     # ARCH-REFACTOR-001 Phase C.6: Import from StageB class (helper moved to private method)
     from dbex.refinement.stage_b import StageB
-    from dbex.nanobrag_refinement import RefinementConfig
+    from dbex.refinement.config import RefinementConfig
 
     class MockRefinementInputs:
         target = np.zeros((1, 100, 100), dtype=np.float32)
@@ -288,7 +288,7 @@ def test_stage_b_params_no_cpu_fallback_when_config_disabled():
     """
     # ARCH-REFACTOR-001 Phase C.6: Import from StageB class (helper moved to private method)
     from dbex.refinement.stage_b import StageB
-    from dbex.nanobrag_refinement import RefinementConfig
+    from dbex.refinement.config import RefinementConfig
 
     class MockRefinementInputs:
         target = np.zeros((1, 100, 100), dtype=np.float32)

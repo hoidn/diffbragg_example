@@ -502,7 +502,8 @@ def run_nanobrag_backend(args, DL, devid=0):
 
     # Run Stage A LBFGS refinement nucleus (TORCH-REFINE-001)
     print(f"[nanobrag backend] Running Stage A LBFGS refinement nucleus...")
-    from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig
+    from dbex.refinement.config import RefinementConfig
+    from dbex.nanobrag_refinement import run_nanobrag_refinement
     from dbex.refinement.context import build_job_context
 
     # Apply ADU→photon conversion to sigma_floor if adu_per_photon is set (PHYSICS-LOSS-002)

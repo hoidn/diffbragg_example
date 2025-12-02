@@ -28,7 +28,7 @@ def test_engine_executes_mock_stage():
     - ARCH-REFINE-001 Phase B.5: Engine requires inputs['context'] (RefinementContext)
     """
     from dbex.refinement import RefinementEngine, RefinementStage, RefinementTelemetry, build_refinement_context
-    from dbex.nanobrag_refinement import RefinementConfig
+    from dbex.refinement.config import RefinementConfig
     import torch
     import numpy as np
 
@@ -145,7 +145,7 @@ def test_engine_requires_context():
     - Error message references ARCH-REFINE-001 Phase B.1 and build_refinement_context
     """
     from dbex.refinement import RefinementEngine, RefinementStage
-    from dbex.nanobrag_refinement import RefinementConfig
+    from dbex.refinement.config import RefinementConfig
 
     # Define minimal MockStage (will never execute due to ValueError)
     class MockStage(RefinementStage):

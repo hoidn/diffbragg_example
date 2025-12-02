@@ -10,11 +10,42 @@ Functions in this module provide:
 - Crystallographic coordinate transformations
 
 All functions are device-agnostic and preserve autograd graphs where applicable.
+
+References:
+- docs/architecture.md (leaf module policy)
+- GEOMETRY-001 (beam/DetectorConfig invariants)
+- GEOMETRY-003 (Stage A misset baseline logic)
+- ARCH-ENGINE-002 (module-scope dependency declaration)
 """
 
 from __future__ import annotations
 from typing import Tuple
 import numpy as np
+
+# Optional torch/nanobrag_torch dependencies (ARCH-ENGINE-002)
+# Module-scope imports with guarded try/except ensure diagnostics/tests see drift immediately
+try:
+    import torch
+    from nanobrag_torch.config import CrystalConfig as TorchCrystalConfig
+    from nanobrag_torch.models.crystal import Crystal as TorchCrystal
+    _TORCH_AVAILABLE = True
+except ImportError:
+    _TORCH_AVAILABLE = False
+    torch = None  # type: ignore
+    TorchCrystalConfig = None  # type: ignore
+    TorchCrystal = None  # type: ignore
+
+
+def _require_torch_crystal() -> None:
+    """
+    Raise ImportError if torch/nanobrag_torch are unavailable.
+
+    Preserves the same error message as legacy lazy imports for compatibility.
+    """
+    if not _TORCH_AVAILABLE:
+        raise ImportError(
+            "derive_u_matrix_from_mosflm_a_star requires nanobrag_torch and torch"
+        )
 
 
 def derive_u_matrix_from_mosflm_a_star(a_star: np.ndarray, cell: Tuple[float, float, float, float, float, float]) -> Tuple[np.ndarray, np.ndarray]:
@@ -65,39 +96,33 @@ def derive_u_matrix_from_mosflm_a_star(a_star: np.ndarray, cell: Tuple[float, fl
     # Extract cell parameters
     a, b, c, alpha, beta, gamma = cell
 
+    # Ensure optional dependencies are available (ARCH-ENGINE-002)
+    _require_torch_crystal()
+
     # Build B_ideal_reciprocal using derive_b_ideal_from_mosflm_a_star logic
     # (recover cell from A*, then build nanobrag_torch B_ideal)
     # For U-matrix extraction, we use the provided cell directly instead of
     # recovering from A*, since the caller provides the authoritative cell.
-    try:
-        from nanobrag_torch.config import CrystalConfig as TorchCrystalConfig
-        from nanobrag_torch.models.crystal import Crystal as TorchCrystal
-        import torch
 
-        # Build B_ideal from the provided cell
-        cfg = TorchCrystalConfig(
-            cell_a=a,
-            cell_b=b,
-            cell_c=c,
-            cell_alpha=alpha,
-            cell_beta=beta,
-            cell_gamma=gamma,
-            misset_deg=(0.0, 0.0, 0.0),
-            mosflm_a_star=None,  # No MOSFLM injection for B_ideal
-            mosflm_b_star=None,
-            mosflm_c_star=None,
-        )
-        crystal_nb = TorchCrystal(cfg, device=torch.device("cpu"), dtype=torch.float64)
-        geom = crystal_nb.compute_cell_tensors()
-        a_star_nb = geom["a_star"].detach().cpu().numpy().reshape(3)
-        b_star_nb = geom["b_star"].detach().cpu().numpy().reshape(3)
-        c_star_nb = geom["c_star"].detach().cpu().numpy().reshape(3)
-        B_ideal_reciprocal = np.column_stack([a_star_nb, b_star_nb, c_star_nb]).astype(np.float64)
-
-    except ImportError as exc:  # pragma: no cover
-        raise ImportError(
-            "derive_u_matrix_from_mosflm_a_star requires nanobrag_torch and torch"
-        ) from exc
+    # Build B_ideal from the provided cell
+    cfg = TorchCrystalConfig(
+        cell_a=a,
+        cell_b=b,
+        cell_c=c,
+        cell_alpha=alpha,
+        cell_beta=beta,
+        cell_gamma=gamma,
+        misset_deg=(0.0, 0.0, 0.0),
+        mosflm_a_star=None,  # No MOSFLM injection for B_ideal
+        mosflm_b_star=None,
+        mosflm_c_star=None,
+    )
+    crystal_nb = TorchCrystal(cfg, device=torch.device("cpu"), dtype=torch.float64)
+    geom = crystal_nb.compute_cell_tensors()
+    a_star_nb = geom["a_star"].detach().cpu().numpy().reshape(3)
+    b_star_nb = geom["b_star"].detach().cpu().numpy().reshape(3)
+    c_star_nb = geom["c_star"].detach().cpu().numpy().reshape(3)
+    B_ideal_reciprocal = np.column_stack([a_star_nb, b_star_nb, c_star_nb]).astype(np.float64)
 
     # Compute U = A* @ inv(B_ideal_reciprocal)
     # Do NOT call proper_rotation() or any SO(3) projection

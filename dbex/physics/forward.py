@@ -21,6 +21,7 @@ References:
 - docs/spec-db-conformance.md:12-14 (DB-AT-010 acceptance)
 - docs/development/testing_strategy.md:338-372 (gradcheck requirements)
 - docs/pytorch_runtime_checklist.md:27-30 (NANOBRAGG_DISABLE_COMPILE=1)
+- ARCH-ENGINE-002 (module-scope dependency declaration)
 
 Findings applied:
 - RUNTIME-001 (NANOBRAGG_DISABLE_COMPILE=1 for gradcheck)
@@ -28,11 +29,45 @@ Findings applied:
 - SCALE-002 (spot scale applied post-simulation)
 - GRADIENT-001 (tensor-valued overrides preserve autograd)
 - PHYSICS-LOSS-001 (variance-weighted loss)
+- ARCH-ENGINE-002 (module-scope imports for Stage helpers)
 """
 
 from __future__ import annotations
 from typing import Optional
 import numpy as np
+
+# Optional torch/nanobrag_torch dependencies (ARCH-ENGINE-002)
+# Module-scope imports ensure diagnostics/tests see import drift immediately
+try:
+    import torch
+    from nanobrag_torch.simulator import Simulator
+    from nanobrag_torch.models.detector import Detector as TorchDetector
+    from nanobrag_torch.models.crystal import Crystal as TorchCrystal
+    _TORCH_AVAILABLE = True
+except ImportError:
+    _TORCH_AVAILABLE = False
+    torch = None  # type: ignore
+    Simulator = None  # type: ignore
+    TorchDetector = None  # type: ignore
+    TorchCrystal = None  # type: ignore
+
+# NOTE: dbex bridge helpers and refinement helpers CANNOT be imported at module scope
+# because this is a LEAF MODULE and dbex.nanobrag_bridge imports from dbex.physics.forward,
+# creating a circular dependency. Those imports must remain lazy (inside function body) per
+# architecture constraint that physics/forward does NOT import from dbex.*
+
+
+def _require_torch_forward() -> None:
+    """
+    Raise ImportError if torch/nanobrag_torch are unavailable.
+
+    Preserves the same error message as legacy lazy imports for compatibility.
+    """
+    if not _TORCH_AVAILABLE:
+        raise ImportError(
+            "nanobrag_torch is required for simulate_forward_torch. "
+            "Ensure torch and nanobrag_torch are installed."
+        )
 
 
 def simulate_forward_torch(
@@ -99,23 +134,18 @@ def simulate_forward_torch(
         - PHYSICS-LOSS-001 (shared variance-weighted loss)
         - ARCH-FACTORY-001 (forward helpers may use create_unified_simulator)
     """
-    try:
-        import torch
-        from nanobrag_torch.simulator import Simulator
-        from nanobrag_torch.models.detector import Detector as TorchDetector
-        from nanobrag_torch.models.crystal import Crystal as TorchCrystal
-    except ImportError as e:
-        raise ImportError(
-            f"nanobrag_torch is required for simulate_forward_torch. Import error: {e}"
-        )
+    # Ensure optional dependencies are available (ARCH-ENGINE-002)
+    _require_torch_forward()
 
-    # Lazy imports to avoid boot-time nanobrag_torch costs
+    # Lazy imports of dbex bridge/refinement helpers (MUST remain lazy per leaf-module constraint)
+    # This module is a LEAF and cannot import from dbex.* at module scope due to circular dependencies
     from dbex.nanobrag_bridge import (
         build_structure_factor_grid,
         create_beam_config,
         create_crystal_config,
         create_detector_config
     )
+    from dbex.refinement.helpers import create_unified_simulator
 
     # Default device and dtype per runtime checklist §2
     if device is None:
@@ -193,8 +223,6 @@ def simulate_forward_torch(
         )
 
         # Use unified factory (Phase B2a: eliminates manual mask/HKL/simulator setup)
-        from dbex.refinement.helpers import create_unified_simulator
-
         simulator, _, sqrt_scale_value, _ = create_unified_simulator(
             detector_config=detector_config,
             crystal_config=crystal_config,

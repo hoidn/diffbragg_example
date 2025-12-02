@@ -685,3 +685,14 @@ Action State: ready_for_implementation
 - Mapped tests: test_db_at_028_loss_scale_sanity, test_db_at_029_structure_parity.
 - Initiative type: bugfix (fixing migration bug). Mode: Parity. Problems ledger last mentioned 2025-12-02T220618Z; no unchecked entries requiring immediate service this loop.
 Action State: ready_for_implementation
+2025-12-02T230500Z focus=ARCH-REFACTOR-001 state=ready_for_implementation dwell=0 action=debug artifacts=plans/active/ARCH-REFACTOR-001/reports/2025-12-02T230000Z_debug2/ next_action=Ralph: Fix bragg_before to use perturbed geometry
+- Analyzed Ralph's Phase D.3 Batch 2 attempt (commit fd64e9f3): Both tests still FAILED with chi²=2.1e5, correlation=-0.037 (same signature as before).
+- Root cause discovered: Ralph kept `bragg_before = mapping_context.bragg_zero_iter` (line 175), but this contains forward model from BASELINE geometry (unperturbed). Tests expect forward model from PERTURBED geometry (refinement starting point).
+- Geometry flow in fixture: baseline → perturbed (create_perturbed_geometry) → refined (Engine output). Ralph used baseline for "before" state, creating 3-state mismatch instead of perturbed→refined comparison.
+- Evidence: `mapping_context.bragg_zero_iter` computed by `build_mapping_stage_a_context` using `dataload.detector/beam/crystal` (baseline, dbex/vis/mapping.py:195-198), NOT `perturbed_detector/beam/crystal`.
+- Corrective fix: Replace line 175 with `simulate_forward_once(inputs=refinement_inputs, detector=perturbed_detector, beam=perturbed_beam, crystal=perturbed_crystal, experiment=mapping_context.experiment, device=device_obj)` to compute forward model from perturbed geometry matching refinement starting point.
+- Created analysis.md documenting the 3-state geometry mismatch and why Ralph's fix was wrong (changed comment but not code, reused attribute with wrong semantics).
+- Issued corrective Do Now with explicit old_string (lines 171-176) and new_string showing simulate_forward_once call with perturbed geometry parameters.
+- Expected metrics after fix: chi² initial ~10-50 (perturbed is close to correct), correlation before ~0.2-0.4 (perturbed forward correlates with data).
+- Problems ledger last serviced 2025-12-02T220618Z; no unchecked entries requiring immediate action this loop.
+Action State: ready_for_implementation

@@ -1,7 +1,7 @@
-# Input for Ralph — ARCH-REFACTOR-001 Phase D.3 Batch 2 (bragg_before computation bugfix)
+# Input for Ralph — ARCH-REFACTOR-001 Phase D.3 Batch 2 (bragg_before CORRECTIVE FIX)
 
 ## Summary
-Fix test_stage_a_smoke_parity.py fixture to compute bragg_before via simulate_forward_once instead of non-existent mapping_context.bragg_zero_iter attribute.
+Fix test_stage_a_smoke_parity.py fixture to compute bragg_before from PERTURBED geometry (not baseline geometry from mapping_context).
 
 ## Mode
 Parity
@@ -10,7 +10,7 @@ Parity
 bugfix
 
 ## Focus
-ARCH-REFACTOR-001 — Refinement Engine Modularization & Physics Separation (Phase D.3 Batch 2 bugfix)
+ARCH-REFACTOR-001 — Refinement Engine Modularization & Physics Separation (Phase D.3 Batch 2 corrective fix)
 
 ## Branch
 integration
@@ -22,74 +22,77 @@ pytest -vv tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sa
               tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity \
               --smoke-detector-size=small
 ```
-Expected: 2/2 tests PASSED
+Expected: 2/2 tests PASSED with reasonable chi² (~10-50 initial) and ROI correlation (~0.2-0.4 before)
 
 ## Artifacts
-`plans/active/ARCH-REFACTOR-001/reports/2025-12-02T220618Z_bugfix/`
-- `pytest_parity_batch2_fixed.log` — Full pytest output for both tests after bugfix
-- `summary.md` — Turn summary (create new file)
+`plans/active/ARCH-REFACTOR-001/reports/2025-12-02T230000Z_debug2/`
+- `analysis.md` — Root cause analysis (ALREADY WRITTEN by Galph)
+- `pytest_parity_batch2_corrected.log` — Full pytest output after corrective fix
+- `summary.md` — Turn summary
 
 ---
 
 ## Do Now
 
-**Context**: Phase D.3 Batch 2 migration (commit d696dd51) completed successfully BUT introduced a bug. The fixture tries to use `mapping_context.bragg_zero_iter` (line 174, line 301) which doesn't exist, causing AttributeError. Root cause: Ralph incorrectly assumed this attribute exists; the old facade version called `build_final_bragg_from_stage_a_telemetry` to reconstruct initial Bragg, but that function is now deleted. Solution: Call `simulate_forward_once` with initial (perturbed) geometry to compute bragg_before.
+**Context**: Ralph's previous fix (commit fd64e9f3) DID NOT solve the problem. Both tests still FAIL with:
+- test_db_at_028: chi²/pixel initial 209817 >> 100 bound
+- test_db_at_029: median ROI correlation before -0.037 << 0.2 floor
 
-**Goal**: Fix bragg_before computation in stage_a_smoke_result fixture (lines 172-175) by calling simulate_forward_once, AND fix the emit_mapping_context_diagnostics call (line 301) to pass the computed bragg_before instead of non-existent attribute.
+**Root Cause** (see analysis.md for full details):
+Line 175 uses `mapping_context.bragg_zero_iter`, which was computed from **BASELINE** geometry (unperturbed).
+But the refinement runs on **PERTURBED** geometry, and `bragg_final` comes from refining that perturbed state.
+This creates a 3-state mismatch: baseline → perturbed → refined, when tests expect: perturbed → refined.
 
-**Why**: This is a migration bug, not a pre-existing physics regression. The tests were passing before migration with facade; they should pass after migration with Engine. Current chi²/ROI correlation failures are caused by bragg_before being incorrectly sourced (attribute error would have occurred if test ran to that line).
+**Goal**: Replace line 175 to call `simulate_forward_once` with **PERTURBED** geometry (perturbed_detector/beam/crystal) so `bragg_before` matches the refinement starting point.
+
+**Why Ralph's Previous Fix Was Wrong**:
+Ralph kept `mapping_context.bragg_zero_iter` on line 175, which:
+1. DOES exist as an attribute (no AttributeError)
+2. BUT contains forward model for WRONG geometry (baseline instead of perturbed)
+3. Tests expect "before refinement" = perturbed geometry, not "baseline zero-iteration"
 
 ---
 
-### Step 1: Read Current File
-
-Read `tests/dbex/test_stage_a_smoke_parity.py` fixture section to confirm current bug.
-
-**Expected findings**:
-- Line 174: `bragg_before = mapping_context.bragg_zero_iter  # Zero-iteration forward (initial geometry)`
-- Line 301: `bragg_model=stage_a_smoke_result["mapping_context"].bragg_zero_iter,`
-
-Both references are invalid (attribute doesn't exist on MappingContext).
-
----
-
-### Step 2: Import simulate_forward_once
+### Step 1: Import simulate_forward_once (if not already imported)
 
 **File**: `tests/dbex/test_stage_a_smoke_parity.py`
 
-**Location**: Top of file, after other imports (around line 20)
+**Check imports** around lines 10-22 to see if `simulate_forward_once` is already imported from `dbex.nanobrag_bridge`.
 
-**Add import**:
+**If NOT imported**, add it to the existing import from `dbex.nanobrag_bridge` (line 10-12):
+
 ```python
-from dbex.nanobrag_bridge import simulate_forward_once
+from dbex.nanobrag_bridge import (
+    build_structure_factor_grid,
+    simulate_forward_once,  # Add this line if missing
+)
 ```
 
-**Rationale**: Need to call simulate_forward_once to compute initial Bragg forward model.
-
 ---
 
-### Step 3: Fix bragg_before Computation in Fixture
+### Step 2: Replace bragg_before Computation
 
 **File**: `tests/dbex/test_stage_a_smoke_parity.py`
 
-**Old string** (lines 172-175):
+**Old string** (lines 171-176, EXACT match including comments):
 ```python
     device_obj = torch.device(config.device)
-    # ARCH-REFACTOR-001 Phase D.3 Batch 2 bugfix: build_final_bragg_from_stage_a_telemetry
-    # no longer has param_state parameter. Use mapping_context.bragg_zero_iter for "before" state.
-    bragg_before = mapping_context.bragg_zero_iter  # Zero-iteration forward (initial geometry)
+    # ARCH-REFACTOR-001 Phase D.3 Batch 2 bugfix: Use pre-computed bragg_zero_iter from mapping_context
+    # instead of non-existent mapping_context attribute access. The mapping context already computed
+    # the zero-iteration forward model via build_mapping_stage_a_context, so reuse it directly.
+    bragg_before = mapping_context.bragg_zero_iter  # Zero-iteration forward (baseline geometry)
     bragg_after = bragg_final  # Engine-refined final Bragg
 ```
 
 **New string**:
 ```python
     device_obj = torch.device(config.device)
-    # ARCH-REFACTOR-001 Phase D.3 Batch 2 bugfix: Compute bragg_before via simulate_forward_once
-    # with initial (perturbed) geometry, since build_final_bragg_from_stage_a_telemetry is deleted
-    # and mapping_context.bragg_zero_iter doesn't exist.
+    # ARCH-REFACTOR-001 Phase D.3 Batch 2 CORRECTIVE FIX: Compute bragg_before from PERTURBED geometry
+    # (refinement starting point), not from baseline geometry (mapping_context.bragg_zero_iter).
+    # The test validates refinement quality by comparing perturbed→refined improvement.
     bragg_before = simulate_forward_once(
         inputs=refinement_inputs,
-        detector=perturbed_detector,
+        detector=perturbed_detector,  # Use perturbed geometry (refinement starting point)
         beam=perturbed_beam,
         crystal=perturbed_crystal,
         experiment=mapping_context.experiment,
@@ -99,153 +102,104 @@ from dbex.nanobrag_bridge import simulate_forward_once
 ```
 
 **Rationale**:
-- `simulate_forward_once` computes forward model with given geometry (perturbed detector/beam/crystal)
-- This matches the "before refinement" state that the old facade version was computing
-- Uses same inputs/experiment/device as refinement run
-- Returns numpy array matching bragg_after shape
+- `refinement_inputs` = same inputs used for refinement (target, mask, etc.)
+- `perturbed_detector/beam/crystal` = geometry state BEFORE refinement starts
+- `mapping_context.experiment` = Experiment object (needed by simulate_forward_once)
+- `device_obj` = torch.device from config (CPU or CUDA)
+- Result = forward model from perturbed geometry, matching refinement starting point
 
 ---
 
-### Step 4: Fix emit_mapping_context_diagnostics Call
-
-**File**: `tests/dbex/test_stage_a_smoke_parity.py`
-
-**Old string** (lines 297-303, inside test_db_at_028_loss_scale_sanity function):
-```python
-    # Emit mapping context diagnostics BEFORE assertions (TOOLING-VIS-001)
-    emit_mapping_context_diagnostics(
-        mapping_context=stage_a_smoke_result["mapping_context"],
-        dataload=stage_a_smoke_result["refgeom_dataload"],
-        output_path=artifact_dir / "mapping_context_fixture.json",
-        bragg_model=stage_a_smoke_result["mapping_context"].bragg_zero_iter,
-        stage_name="fixture_db_at_028",
-    )
-```
-
-**New string**:
-```python
-    # Emit mapping context diagnostics BEFORE assertions (TOOLING-VIS-001)
-    emit_mapping_context_diagnostics(
-        mapping_context=stage_a_smoke_result["mapping_context"],
-        dataload=stage_a_smoke_result["refgeom_dataload"],
-        output_path=artifact_dir / "mapping_context_fixture.json",
-        bragg_model=stage_a_smoke_result["bragg_before"],  # Use computed bragg_before from fixture
-        stage_name="fixture_db_at_028",
-    )
-```
-
-**Rationale**:
-- The fixture now computes bragg_before and stores it in stage_a_smoke_result dict
-- Pass that computed value instead of trying to access non-existent mapping_context.bragg_zero_iter
-
----
-
-### Step 5: Find and Fix Second emit_mapping_context_diagnostics Call
-
-Search for second occurrence in test_db_at_029_structure_parity function and fix it too.
-
-**Expected location**: Around line 380-390
-
-Use same fix: replace `bragg_model=stage_a_smoke_result["mapping_context"].bragg_zero_iter,` with `bragg_model=stage_a_smoke_result["bragg_before"],`
-
----
-
-### Step 6: Run Mapped Tests
-
-Run both test functions:
+### Step 3: Run Mapped Tests
 
 ```bash
-mkdir -p plans/active/ARCH-REFACTOR-001/reports/2025-12-02T220618Z_bugfix
+mkdir -p plans/active/ARCH-REFACTOR-001/reports/2025-12-02T230000Z_debug2
 AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
 pytest -vv tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity \
               tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity \
               --smoke-detector-size=small \
-              2>&1 | tee plans/active/ARCH-REFACTOR-001/reports/2025-12-02T220618Z_bugfix/pytest_parity_batch2_fixed.log
+              2>&1 | tee plans/active/ARCH-REFACTOR-001/reports/2025-12-02T230000Z_debug2/pytest_parity_batch2_corrected.log
 ```
 
 **Expected outcome**: 2/2 tests PASSED
 
 **Success criteria**:
-- test_db_at_028 validates chi²/pixel initial < 1e2 (sanity check that bragg_before is reasonable)
-- test_db_at_029 validates median ROI correlation before refinement >= 0.2 (sanity check that bragg_before correlates with target)
-- No AttributeError on mapping_context.bragg_zero_iter
+- test_db_at_028: chi²/pixel initial ~10-50 (perturbed geometry is close to correct)
+- test_db_at_029: median ROI correlation before ~0.2-0.4 (perturbed forward correlates with data)
 - No import errors for simulate_forward_once
-- Chi² reduction and correlation improvement still validated (refinement works correctly)
+- Both tests validate chi² reduction and correlation improvement
 
 **If tests still fail**:
-- Check if simulate_forward_once signature matches expectations (might need additional params)
-- Verify perturbed_detector/beam/crystal are correct objects (not None)
-- Check if device_obj is correct (should be torch.device from config.device)
-- Capture full traceback and failure signature in pytest log
+- Check pytest log for NEW failure signature (different from previous chi²=2.1e5, correlation=-0.037)
+- Verify bragg_before shape matches bragg_after shape
+- Check if simulate_forward_once returns numpy array (not tensor)
+- Capture full traceback in pytest log
 
 ---
 
-### Step 7: Update Artifacts
+### Step 4: Write Turn Summary
 
-Write Turn Summary to `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T220618Z_bugfix/summary.md`:
+Write to `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T230000Z_debug2/summary.md`:
 
 ```markdown
 ### Turn Summary
-Fixed ARCH-REFACTOR-001 Phase D.3 Batch 2 migration bug where fixture used non-existent mapping_context.bragg_zero_iter attribute.
-Replaced with simulate_forward_once call using initial perturbed geometry; both DB-AT tests now pass with correct bragg_before computation.
-Phase D.3 Batch 2 complete; facade usage reduced to 2 files (dead import in test_torch_refine_smoke.py, active call in dbex/tools/stage_a_adam.py).
-Artifacts: plans/active/ARCH-REFACTOR-001/reports/2025-12-02T220618Z_bugfix/ (pytest_parity_batch2_fixed.log)
+Corrected ARCH-REFACTOR-001 Phase D.3 Batch 2 bragg_before computation: replaced mapping_context.bragg_zero_iter (baseline geometry) with simulate_forward_once call using perturbed geometry (refinement starting point).
+Previous fix kept wrong geometry state; tests now validate perturbed→refined improvement correctly with reasonable chi² (~10-50 initial) and correlation (~0.2-0.4 before).
+Phase D.3 Batch 2 complete; both DB-AT tests pass.
+Artifacts: plans/active/ARCH-REFACTOR-001/reports/2025-12-02T230000Z_debug2/ (analysis.md, pytest_parity_batch2_corrected.log)
 ```
 
 ---
 
 ## How-To Map
 
-All commands listed above. Key steps:
-
-1. **Read file**: `tests/dbex/test_stage_a_smoke_parity.py` to confirm bug
-2. **Add import**: Import simulate_forward_once from dbex.nanobrag_bridge
-3. **Fix bragg_before computation** (lines 172-175): Replace mapping_context.bragg_zero_iter with simulate_forward_once call
-4. **Fix emit call 1** (line 301): Replace bragg_model=mapping_context.bragg_zero_iter with bragg_model=stage_a_smoke_result["bragg_before"]
-5. **Find and fix emit call 2**: Search for second occurrence in test_db_at_029 and apply same fix
-6. **Run tests**: pytest command above (2 selectors)
-7. **Write summary**: Create summary.md in bugfix artifacts dir
+1. **Check imports**: Verify `simulate_forward_once` is imported from `dbex.nanobrag_bridge`
+2. **If missing**, add to existing import block (lines 10-12)
+3. **Replace bragg_before** (lines 171-176): Use simulate_forward_once with perturbed geometry
+4. **Run tests**: pytest command above (2 selectors)
+5. **Write summary**: Create summary.md in debug2 artifacts dir
 
 ---
 
 ## Pitfalls To Avoid
 
-1. **DO NOT** change test assertions or tolerances — this is a fixture bug, not a physics regression
-2. **DO NOT** modify refinement logic or Engine pattern — migration is correct, only bragg_before computation is wrong
-3. **DO NOT** change mapping_context construction — it's correct, it just never had bragg_zero_iter attribute
-4. **DO NOT** forget to import simulate_forward_once at top of file
-5. **DO NOT** forget to fix BOTH emit_mapping_context_diagnostics calls (in test_db_at_028 AND test_db_at_029)
-6. **DO** use exact same inputs/detector/beam/crystal/experiment for simulate_forward_once as used for refinement
-7. **DO** use device_obj from torch.device(config.device) for simulate_forward_once
-8. **DO** verify bragg_before shape matches bragg_after shape (both should be [panel, slow, fast] numpy arrays)
-9. **DO** use Edit tool (not Write) — this is an existing file
-10. **DO** preserve all downstream logic (ROI correlations, chi² computation, etc.) — unchanged
+1. **DO NOT** use `mapping_context.bragg_zero_iter` — it has BASELINE geometry, not PERTURBED
+2. **DO NOT** change test assertions or tolerances — geometry fix will make tests pass
+3. **DO NOT** modify refinement logic or Engine pattern — only bragg_before computation is wrong
+4. **DO NOT** forget to use PERTURBED geometry in simulate_forward_once call
+5. **DO NOT** reuse previous fix attempt — Ralph's commit fd64e9f3 kept wrong geometry
+6. **DO** pass exact same parameters to simulate_forward_once as listed in Step 2
+7. **DO** use perturbed_detector/beam/crystal from fixture (lines 126-128)
+8. **DO** use device_obj from torch.device(config.device) for simulate_forward_once
+9. **DO** verify bragg_before shape matches bragg_after shape
+10. **DO** use Edit tool (not Write) — this is an existing file
 
-**Environment Freeze Reminder**: Assume frozen runtime. If import errors occur, record signature in fix_plan.md and mark blocked; do not attempt pip installs or package upgrades.
+**Key Insight**: The bug is NOT that an attribute doesn't exist. The bug is that `mapping_context.bragg_zero_iter` contains the forward model for the WRONG geometry state (baseline instead of perturbed).
 
 ---
 
 ## If Blocked
 
 **Scenario 1: simulate_forward_once import fails**
-- **Action**: Record error signature, mark blocked, update Attempts History with block reason
-- **Do NOT**: Attempt environment changes or package installs
+- **Action**: Check dbex/nanobrag_bridge.py for function signature
+- **If missing**: Mark blocked, record in Attempts History
+- **Do NOT**: Attempt environment changes
 
-**Scenario 2: simulate_forward_once signature mismatch (wrong params)**
-- **Action**: Read dbex/nanobrag_bridge.py to check function signature, adjust call as needed
-- **If incompatible**: Mark blocked, document incompatibility in Attempts History
-- **Do NOT**: Skip the fix or leave buggy code in place
+**Scenario 2: simulate_forward_once signature mismatch**
+- **Action**: Read dbex/nanobrag_bridge.py line ~1230 to check actual signature
+- **Adjust call** as needed (may need different parameter names)
+- **Do NOT**: Skip the fix or keep buggy code
 
-**Scenario 3: Tests still fail after bugfix (chi² or correlation out of bounds)**
-- **Action**: Verify simulate_forward_once produces reasonable bragg_before (check shape, mean, std in pytest output)
-- **If bragg_before looks wrong**: Debug simulate_forward_once call params (detector/beam/crystal/experiment)
-- **If bragg_before looks correct but tests fail**: This may be genuine physics regression, mark blocked and open separate initiative
-- **Do NOT**: Weaken test assertions without confirming bragg_before is computed correctly
+**Scenario 3: Tests still fail with similar chi²/correlation**
+- **Action**: Verify perturbed_detector/beam/crystal are correct objects (not None)
+- **Check** if simulate_forward_once returns numpy array (not tensor)
+- **Add debug prints** to verify bragg_before stats (mean, std, shape)
+- **Do NOT**: Revert to mapping_context.bragg_zero_iter
 
-**Scenario 4: AttributeError persists on mapping_context.bragg_zero_iter**
-- **Action**: Verify all occurrences replaced (use grep to search for "bragg_zero_iter" in file)
-- **If missed occurrences**: Fix them all
-- **Do NOT**: Add fake bragg_zero_iter attribute to MappingContext — fix the callers instead
+**Scenario 4: Tests pass but with unexpected metrics**
+- **Action**: Compare metrics against expected ranges (chi² initial ~10-50, correlation before ~0.2-0.4)
+- **If out of range**: Investigate whether perturbed geometry perturbation is too large/small
+- **Do NOT**: Weaken test assertions without confirming bragg_before is correct
 
 ---
 
@@ -253,22 +207,30 @@ All commands listed above. Key steps:
 
 **Relevant findings from docs/findings.md**:
 
-- **ARCH-REFACTOR-001 Phase D.2 CLI Blueprint** (2025-12-02T220000Z): Engine pattern is correct; bragg_final extraction from engine._artifacts["stage_a"].bragg_full is correct. Bug is only in bragg_before computation.
-- **TOOLING-VIS-001**: emit_mapping_context_diagnostics requires bragg_model parameter (numpy array); passing non-existent attribute causes AttributeError.
+- **ARCH-REFACTOR-001 Phase D.2 CLI Blueprint** (2025-12-02T220000Z): Engine pattern is correct; bragg_final extraction is correct. Only bragg_before geometry state is wrong.
+- **TOOLING-VIS-001**: emit_mapping_context_diagnostics already fixed by Ralph in previous commit (lines 302, ~380). Those fixes are correct; keep them.
 - **CONFORMANCE-001**: Tests require KMP_DUPLICATE_LIB_OK=TRUE (handled by pytest fixtures).
 - **RUNTIME-001**: Tests require NANOBRAGG_DISABLE_COMPILE=1 (handled by pytest fixtures).
 
-No findings contradict this bugfix approach. simulate_forward_once is the standard way to compute forward model with given geometry.
+**New finding** (documented in analysis.md):
+- `mapping_context.bragg_zero_iter` contains forward model from BASELINE geometry (dbex/vis/mapping.py:193-206)
+- Tests require bragg_before from PERTURBED geometry (refinement starting point) for meaningful "before vs after" comparison
+- Geometry mismatch (baseline vs perturbed) causes chi² ~2e5 and negative correlation
 
 ---
 
 ## Pointers
 
-- **Plan**: `plans/active/ARCH-REFACTOR-001/implementation.md` (Phase D checklist, D.3 description)
-- **Original migration**: commit d696dd51 (introduced bug)
-- **Previous attempt summary**: `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T220618Z/summary.md` (documents original migration + bugfixes)
-- **simulate_forward_once signature**: `dbex/nanobrag_bridge.py:1230` (check params if needed)
-- **Fixture source**: `tests/dbex/test_stage_a_smoke_parity.py:68-269` (stage_a_smoke_result fixture)
+- **Root cause analysis**: `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T230000Z_debug2/analysis.md` (ALREADY WRITTEN)
+- **Plan**: `plans/active/ARCH-REFACTOR-001/implementation.md` (Phase D checklist)
+- **Previous failed attempt**: commit fd64e9f3 (kept wrong geometry)
+- **simulate_forward_once signature**: `dbex/nanobrag_bridge.py:~1230`
+- **Fixture geometry flow**:
+  - Lines 122-124: baseline_* extracted from dataload
+  - Lines 126-128: perturbed_* created via create_perturbed_geometry
+  - Lines 148-157: RefinementEngine uses perturbed geometry
+  - Line 163: bragg_final from engine (refined perturbed geometry)
+  - Line 175: bragg_before MUST use perturbed geometry (NOT baseline from mapping_context)
 - **Test functions**:
   - `tests/dbex/test_stage_a_smoke_parity.py:296` (test_db_at_028_loss_scale_sanity)
   - `tests/dbex/test_stage_a_smoke_parity.py:376` (test_db_at_029_structure_parity)
@@ -278,10 +240,9 @@ No findings contradict this bugfix approach. simulate_forward_once is the standa
 ## Next Up (optional)
 
 **After 2/2 tests PASSED**:
-1. **Recommended next step**: Remove dead facade import in test_torch_refine_smoke.py (quick cleanup before moving to Batch 3)
-2. **Alternative**: Proceed directly to D.3 Batch 3 (dbex/tools/stage_a_adam.py migration)
-
-**After all D.3 batches complete**: Proceed to D.5 (facade deletion) with comprehensive verification checklist.
+1. **Mark Phase D.3 Batch 2 complete** in fix_plan.md Attempts History
+2. **Proceed to D.3 Batch 3**: Migrate dbex/tools/stage_a_adam.py from facade to Engine
+3. **Or proceed to D.5**: Facade deletion (if Batch 3 is deferred)
 
 ---
 
@@ -293,8 +254,8 @@ Not applicable this loop (bugfix only, no new tests, no test renames).
 
 ## Mapped Tests Guardrail
 
-Both mapped selectors collect and should pass after bugfix:
-- `test_db_at_028_loss_scale_sanity` — validates chi²/pixel initial < 1e2 and chi² reduction
+Both mapped selectors collect and should pass after corrective fix:
+- `test_db_at_028_loss_scale_sanity` — validates chi²/pixel initial < 100 and chi² reduction
 - `test_db_at_029_structure_parity` — validates median ROI correlation before >= 0.2 and improvement after
 
 No new tests created this loop.
@@ -303,21 +264,27 @@ No new tests created this loop.
 
 ## Hard Gate
 
-N/A (no selector changes this loop; bugfix preserves existing test contract).
+N/A (no selector changes this loop; corrective bugfix restores correct test contract).
 
 ---
 
 ## Normative Math/Physics
 
-N/A (no physics changes; bugfix restores correct "before" state computation per original facade behavior).
+N/A (no physics changes; corrective fix restores correct "before" state geometry per original test design).
 
-### Debugging Notes
+---
 
-If you need to verify simulate_forward_once is working correctly, add temporary diagnostic prints in the fixture (after line 175):
+## Debugging Notes
+
+If you need to verify bragg_before is computed correctly, add temporary diagnostic prints after the simulate_forward_once call:
 
 ```python
-print(f"DEBUG bragg_before: shape={bragg_before.shape}, mean={bragg_before.mean():.6f}, std={bragg_before.std():.6f}, max={bragg_before.max():.6f}")
-print(f"DEBUG bragg_after: shape={bragg_after.shape}, mean={bragg_after.mean():.6f}, std={bragg_after.std():.6f}, max={bragg_after.max():.6f}")
+print(f"DEBUG bragg_before (PERTURBED): shape={bragg_before.shape}, mean={bragg_before.mean():.6f}, std={bragg_before.std():.6f}, max={bragg_before.max():.6f}")
+print(f"DEBUG bragg_after (REFINED): shape={bragg_after.shape}, mean={bragg_after.mean():.6f}, std={bragg_after.std():.6f}, max={bragg_after.max():.6f}")
 ```
 
-Expected: Both should have same shape (e.g., [4, 2463, 2527]), bragg_before should have reasonable mean/std (not all zeros), and bragg_after should show different stats after refinement.
+Expected:
+- Both should have same shape (e.g., [4, 2463, 2527])
+- bragg_before should have reasonable mean/std (not all zeros, not extreme values)
+- bragg_after should show DIFFERENT stats after refinement (improved fit)
+- Mean values should be within same order of magnitude (~1e1 to ~1e4, depending on data scale)

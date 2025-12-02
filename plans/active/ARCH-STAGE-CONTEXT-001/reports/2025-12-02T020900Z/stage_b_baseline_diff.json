@@ -1,0 +1,48 @@
+{
+  "canonical_snapshot": {
+    "stage_label": "A",
+    "chi_squared": 43300160.0,
+    "iteration": 22,
+    "roi_count": 29,
+    "log_scale": 0.0,
+    "cell_a": 0.0,
+    "cell_b": 0.0,
+    "cell_c": 0.0,
+    "cell_alpha": 90.0,
+    "cell_beta": 90.0,
+    "cell_gamma": 90.0,
+    "misset_deg": [
+      0.0,
+      0.0,
+      0.0
+    ]
+  },
+  "stage_b_reconstructed": {
+    "log_scale": 2354.510498046875,
+    "cell_a": 24.203771591186523,
+    "cell_b": 32.53110885620117,
+    "cell_c": 34.489261627197266,
+    "cell_alpha": 88.68419647216797,
+    "cell_beta": 71.62208557128906,
+    "cell_gamma": 68.4289321899414,
+    "misset_deg": [
+      0.03293965756893158,
+      0.0011826877016574144,
+      -0.07588652521371841
+    ],
+    "cache_mode": "cold",
+    "cpu_fallback": true,
+    "stage_b_mode": "per_reflection"
+  },
+  "stage_b_initial_chi_squared": 44204376.0,
+  "absolute_difference": 904216.0,
+  "relative_difference": 0.020882509441073657,
+  "tolerance": 0.001,
+  "per_panel_breakdown": [
+    {
+      "panel_id": 0,
+      "chi_squared": 44204376.0,
+      "masked_mse": 1964067.0
+    }
+  ]
+}

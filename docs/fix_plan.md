@@ -31,7 +31,7 @@
 ### Tier 3: Architectural Maturity (Refactoring)
 **Goal:** Refactor monolithic loops into maintainable engines with clear boundaries and testable seams.
 - [PERF-WARM-SIM-001] (Warm Simulator) — **blocked — Stage C panel-loss path diverges from Stage A, forcing +0.067 % χ² regression** (2025-12-01T214200Z: Full-detector telemetry shows `stage_a_final_chi2=2.10706464e+08` while every Stage C validation records `2.10848512e+08` even with zero detector offsets. Trusted-mask parity, ROI wiring, and best-snapshot persistence are now correct; the remaining drift comes from Stage C’s duplicated panel-mode loss computation. Stage A’s panel branch keeps evolving (trusted-mask intersection, mask ordering, telemetry), but Stage C’s forked copy lagged behind. Until Stage C reuses the exact Stage A helper for panel-mode loss, REFINE-007 can’t pass because Stage C effectively measures a different pixel population before detector offsets change.)
-- [ARCH-STAGE-CONTEXT-001] (Stage context + engine artifact boundary) — **in_progress** — Planning loop 2025-12-02T010500Z created a formal plan to eliminate the Stage helper data clumps / mutable telemetry dicts called out in `problems.md` (2025-12-01 design review). Focus: codify shared refinement contexts, move Stage classes away from anemic wrappers, and give RefinementEngine a typed artifact channel so downstream code stops poking stage-specific dicts.
+- [ARCH-STAGE-CONTEXT-001] (Stage context + engine artifact boundary) — **done** (2025-12-02T160500Z: Phase E telemetry dataclass enforcement landed, Stage A/B/C smokes passed, and artifacts/writer consumers now rely solely on typed contexts; see `plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T160500Z/`). Stage helpers now own their closures/telemetry, RefinementEngine traffics typed artifacts, and the problems-ledger design-debt item is resolved.
 
 ### Tier 3: Tooling & Observability
 **Goal:** Standardize visuals, documentation, and runtime guardrails.
@@ -73,9 +73,9 @@
   * 2025-12-02T000000Z — Initiative logged, specs cross-referenced, and plan scaffolded; no code yet lands until ARCH-REFINE-001 helpers stabilize. Working notes live in `plans/active/ARCH-ENGINE-ARTIFACTS-001/implementation.md`.
   * ... (see `docs/fix_plan_archive.md` and `plans/active/ARCH-ENGINE-ARTIFACTS-001/reports/` for upcoming engineering attempts.)
 
-### [ARCH-STAGE-CONTEXT-001] Stage Context + Engine Artifact Boundary
+-### [ARCH-STAGE-CONTEXT-001] Stage Context + Engine Artifact Boundary
 - Depends on: ARCH-REFINE-001 (helper extractions), ARCH-ENGINE-002/003 findings (engine protocol + telemetry enrichment)
-- Status: in_progress (2025-12-02T110000Z: Phase B.4 - writer/artifact plumbing complete; Stage B shell test blocked by pre-existing StageBTelemetryState item assignment bug)
+- Status: done (2025-12-02T160500Z: Phase E telemetry dataclass enforcement completed; Stage A/B/C smoketests passed under `plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T160500Z/`)
 - Priority: High (unblocks engine artifact work and removes ledger-flagged design debt)
 - Tier: 3 (Architectural Maturity)
 - Owner/Date: Galph ↔ Ralph / 2025-12-02
@@ -87,8 +87,7 @@
 - Working Plan: `plans/active/ARCH-STAGE-CONTEXT-001/implementation.md`
 - Ledger tie-in: Addresses the unchecked "bad design patterns/code smells" entry in `problems.md` (2025-12-01), specifically items 1, 2, 4, 7, and 8 (data clumps, anemic Stage classes, mutable telemetry dicts, engine branching).
 - Next Actions:
-  * Phase D wrap-up: finalize Stage A/B artifact consumers and keep per-reflection parity runs gated until TORCH-REFINE-004 is resolved; see `plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T141500Z/`.
-  * Phase E: remove the remaining dict compatibility shims so telemetry flows through typed dataclasses end-to-end; artifacts staged at `plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T160500Z/` drive this cleanup.
+  * **None — exit criteria satisfied.** Keep PERF-WARM-SIM-001 open for the remaining Stage C chi² drift; Stage B per-reflection failure remains tracked under TORCH-REFINE-004. Stage context initiative can be archived after the next sync cycle.
 - Attempts History:
   * 2025-12-02T030800Z — Phase B.1 established `StageResult` + artifact dataclasses and rewired the engine caches; Stage A telemetry + Stage B shell smokes PASSED (`reports/2025-12-02T030800Z/`).
   * 2025-12-02T063500Z — Phase B.2/B.2.3 completed StageB/StageC closure inlining; Stage C small-detector smoke PASSED while full-detector run reproduced the known PERF-WARM-SIM-001 regression (`reports/2025-12-02T063500Z/`).

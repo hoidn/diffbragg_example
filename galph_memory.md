@@ -392,3 +392,10 @@ Action State: ready_for_implementation
 - Rebuilt input.md with an implementation Do Now covering the shim removal (StageA._build_lbfgs_closure, _check_stage_b_baseline_parity, StageC panel diagnostics) and mapped the Stage A expansion, Stage B shell, and Stage C small smokes under plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T160500Z/.
 - Next action: land the telemetry cleanup and capture the three smoketests so we can finally close ARCH-STAGE-CONTEXT-001.
 Action State: ready_for_implementation
+2025-12-02T163500Z focus=PERF-WARM-SIM-001 state=planning dwell=0 action=planning artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-12-02T173000Z/ next_action=Add ROI cache debug hook + collect Stage C small/full traces
+- Closed ARCH-STAGE-CONTEXT-001: updated plans/active/ARCH-STAGE-CONTEXT-001/implementation.md (status=done, Phase E/Compliance Matrix checked), docs/fix_plan.md (status=done with 2025-12-02T160500Z pointer), and problems.md (ledger entry marked resolved).
+- Re-read PERF-WARM-SIM-001 telemetry through 2025-12-01T235900Z and confirmed ROI-mode failures remain byte-identical despite simulator rebuilds; Stage C panel-mode runs pass after refactors.
+- Added Phase F (ROI-mode simulator trace) to the PERF plan: opt-in cache-debug logging via `DBEX_STAGE_C_CACHE_DEBUG_PATH` plus Stage C small/full smoketests to capture JSON traces; reserved artifacts at plans/active/PERF-WARM-SIM-001/reports/2025-12-02T173000Z/.
+- Replaced input.md with the new Do Now directing Ralph to implement the debug hook in `stage_c_impl.py`, run Stage C small/full smokes with cache-debug + telemetry paths, and summarize via `summarize_stage_c_roi.py` (full run expected to fail).
+- Next action: implement the instrumentation and archive the traces so we can decide how to repair ROI-mode simulator reuse without another blind change.
+Action State: planning

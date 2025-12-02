@@ -5,7 +5,7 @@
 - Title: Stage Context + Engine Artifact Boundary
 - Owner: Galph ↔ Ralph
 - Spec Owner: docs/spec-db-workflow.md
-- Status: in_progress
+- Status: done
 
 ## Goals
 - Introduce typed refinement context objects so Stage A/B/C stop passing 10–15 loosely-typed arguments per helper and so telemetry/mask state no longer mutates anonymous dictionaries.
@@ -24,11 +24,11 @@
 4. Test registry synchronized: `docs/TESTING_GUIDE.md` §2 and `docs/development/TEST_SUITE_INDEX.md` reflect any new/renamed selectors; `pytest --collect-only` logs for documented selectors are saved under `plans/active/ARCH-STAGE-CONTEXT-001/reports/<timestamp>/`. Do not close the initiative if any selector marked "Active" collects 0 tests.
 
 ## Compliance Matrix (Mandatory)
-- [ ] **Spec Constraint:** docs/spec-db-workflow.md §7 — Refinement stages must execute through the engine contract, accepting ordered Stage objects and emitting canonical telemetry/artifacts.
-- [ ] **Spec Constraint:** docs/spec-db-core.md §§57-68 — Variance-weighted loss semantics and telemetry (sigma_floor clamp, chi-squared definition) must remain intact while refactoring.
-- [ ] **Fix-Plan Link:** docs/fix_plan.md — Row [ARCH-STAGE-CONTEXT-001].
-- [ ] **Finding/Policy ID:** ARCH-ENGINE-002 (Stage wrappers must comply with the RefinementStage protocol).
-- [ ] **Finding/Policy ID:** ARCH-STAGE-CTX-001 (Data clumps + mutable dict state around Stage contexts).
+- [x] **Spec Constraint:** docs/spec-db-workflow.md §7 — Refinement stages must execute through the engine contract, accepting ordered Stage objects and emitting canonical telemetry/artifacts.
+- [x] **Spec Constraint:** docs/spec-db-core.md §§57-68 — Variance-weighted loss semantics and telemetry (sigma_floor clamp, chi-squared definition) must remain intact while refactoring.
+- [x] **Fix-Plan Link:** docs/fix_plan.md — Row [ARCH-STAGE-CONTEXT-001].
+- [x] **Finding/Policy ID:** ARCH-ENGINE-002 (Stage wrappers must comply with the RefinementStage protocol).
+- [x] **Finding/Policy ID:** ARCH-STAGE-CTX-001 (Data clumps + mutable dict state around Stage contexts).
 
 ## Spec Alignment
 - **Normative Spec:** docs/spec-db-workflow.md §5–§8.
@@ -72,14 +72,14 @@
   - [x] B1.1: Define the dataclasses (StageA warm-context payload, StageB shell/ASU/parity metadata, StageC final Bragg tensor) plus a `StageResult` carrier, then update StageA/StageB/StageC `run()` to emit them instead of raw dicts.
   - [x] B1.2: Teach `RefinementEngine` to consume `StageResult`, cache artifacts per stage, and propagate Stage A context + Stage B metadata via artifacts instead of `_stage_a_ctx_cache` / `_stage_b_shell_edges`.
   - [x] B1.3: Update `run_nanobrag_refinement` and the final-Bragg builders so they fetch StageA/B/C data from the engine’s artifact map before emitting legacy telemetry dicts (Stage C path replaces `_stage_c_bragg_full`, Stage B path no longer scrapes shell edges).
-- [ ] B2: Move LBFGS closure construction into the stage classes (eliminate `_build_*_lbfgs_closure` exports once tests pass).
+- [x] B2: Move LBFGS closure construction into the stage classes (eliminate `_build_*_lbfgs_closure` exports once tests pass).
   - [x] B2.1 (Stage A): Hoist `_build_stage_a_lbfgs_closure` into `dbex/refinement/stage_a.py` (private helper) so Stage A owns the closure + telemetry lifecycle. Remove the helper export from `stage_a_impl.py`, update docs referencing it, and keep `_run_stage_a_lbfgs` as the shared executor. Validation: `pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion --smoke-detector-size=small` with canonical env (KMP/NANOBRAGG flags) captured under `plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T040500Z/`. ✅ 2025-12-02T040500Z — Stage A smoke PASSED, helper lives at `StageA._build_lbfgs_closure`, and `stage_a_impl.py` now documents the move.
   - [x] B2.2 (Stage B): Repeat the inlining for `_build_stage_b_lbfgs_closure`, ensuring ASU/shell metadata continue to flow through `StageBArtifacts` and CPU fallback logic retains lazy imports. Validation: Stage B shell + per-reflection smokes (per-reflection remains a known gradient-flow failure per `reports/2025-12-02T020900Z/blocked.md`; capture the log and reference the finding until TORCH-REFINE-004 follow-up lands). ✅ 2025-12-02T052800Z — StageB.run now owns `_build_lbfgs_closure`, helper removed from `stage_b_impl.py`, `StageBArtifacts` carry baseline diagnostics, and Stage B shell smoketest PASSED while per-reflection failure signature matches `reports/2025-12-02T020900Z/blocked.md`.
 - [x] B2.3 (Stage C): Inline `_build_stage_c_lbfgs_closure`, reusing the shared `_compute_panel_loss` helper, then rerun Stage C small/full smokes (full expected to keep the known PERF-WARM-SIM-001 chi² regression but must not change signature) to prove REFINE-007 telemetry stays stable. Artifacts checkpoint: `plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T063500Z/`.
-- [ ] B3: Replace mutable telemetry dicts with dataclasses that expose typed appenders plus `.to_refinement_telemetry()` adapters, ensuring schema parity.
+- [x] B3: Replace mutable telemetry dicts with dataclasses that expose typed appenders plus `.to_refinement_telemetry()` adapters, ensuring schema parity.
   - [x] **B3.1 — Stage A telemetry state:** expand `StageATelemetryState` (dbex/refinement/context.py) so it owns every accumulator currently stuffed into the `telemetry_state` dict (iteration counter, loss/chi²/masked-mse traces, perf counters, variance-floor stats, panel diagnostics, best snapshot tuples, sigma_floor cache pointer, lifecycle logs). Update `_build_stage_a_lbfgs_closure` + `_run_stage_a_lbfgs` to construct and mutate the dataclass instead of anonymous dicts, provide a compatibility shim so StageA.run can accept either structure temporarily, and ensure panel diagnostics + PERF-WARM counters still write through. Validation: `pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion --smoke-detector-size=small` plus `pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry` (captures RefinementEngine fields). Capture logs under a new timestamped report dir. ✅ Completed 2025-12-02T073800Z (see reports/2025-12-02T073800Z/).
   - [x] **B3.2 — Stage B/C telemetry wrappers:** `StageBTelemetryState` and `StageCTelemetryState` now live in `dbex/refinement/context.py` (lines 598-741) with PHYSICS-LOSS-001/002 docstrings, and Stage B/C helpers/wrappers consume them with dict-compat shims (`dbex/refinement/stage_b_impl.py` lines 738-1020, `stage_c_impl.py` lines 330-700). Code review plus fresh smoketest captures (Stage B shell + Stage C small/full; see `plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T094500Z/`) confirm telemetry traces, REFINE-FLOW-001 baseline guards, and Stage C panel diagnostics all remain intact while the anonymous dict mutations disappear. Stage B per-reflection still hits the known TORCH-REFINE-004 gradient-flow failure signature; logged in artifacts as expected.
-  - [ ] B4: Update `RefinementEngine`/writer plumbing to consume the new `StageArtifacts` map directly (instead of rehydrating stage-specific fields onto `RefinementTelemetry`) while keeping `/torch_diagnostics` JSON/HDF5 schema stable.
+  - [x] B4: Update `RefinementEngine`/writer plumbing to consume the new `StageArtifacts` map directly (instead of rehydrating stage-specific fields onto `RefinementTelemetry`) while keeping `/torch_diagnostics` JSON/HDF5 schema stable.
     - [x] B4.1: Route engine artifacts through `run_nanobrag_refinement` and `dbex/io/writer.py` (Stage B baseline metrics now sourced from `StageBArtifacts`); CLI telemetry test + Stage C small smoke PASS, Stage B shell temporarily blocked (artifacts under `plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T110000Z/`).
     - [x] B4.2: Fix Stage B baseline parity guard to support `StageBTelemetryState` (no dict mutation), expose parity fields on RefinementTelemetry for smoke telemetry, update `docs/architecture/dbex/io/writer.idl.md` to document the new `stage_artifacts` argument, and rerun Stage B shell/per-reflection smokes + CLI writer test (artifacts reserved at `plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T120500Z/`).
 
@@ -108,9 +108,9 @@
 
 ## Phase E — Telemetry Dataclass Enforcement
 ### Checklist
-- [ ] E1: Remove the legacy `dict` compatibility shims from Stage A (`StageA._build_lbfgs_closure`, `_run_stage_a_lbfgs`, and `StageA.run`) so telemetry handling relies exclusively on `StageATelemetryState` (ARCH-STAGE-CTX-001 / PHYSICS-LOSS-001). Update type hints and helper signatures accordingly.
-- [ ] E2: Do the same for Stage B by teaching `_check_stage_b_baseline_parity`, `StageB._build_lbfgs_closure`, and `StageB.run` to operate purely on `StageBTelemetryState`, eliminating the `dict` fallback that still exists for CPU-fallback tests (ARCH-STAGE-CTX-002 / REFINE-FLOW-001).
-- [ ] E3: Convert Stage C helpers (`StageC._build_lbfgs_closure`, `_run_stage_c_lbfgs`, and `StageC.run`) to the `StageCTelemetryState` dataclass-only path, ensuring panel-diagnostics plumbing (`DBEX_STAGE_C_PANEL_DIAG_DIR`) and PERF-WARM-SIM-001 traces survive the refactor.
+- [x] E1: Remove the legacy `dict` compatibility shims from Stage A (`StageA._build_lbfgs_closure`, `_run_stage_a_lbfgs`, and `StageA.run`) so telemetry handling relies exclusively on `StageATelemetryState` (ARCH-STAGE-CTX-001 / PHYSICS-LOSS-001). ✅ 2025-12-02T160500Z — Stage A smoke (`pytest_stage_a_small.log`) proves dataclass-only path passes and telemetry serialization remains intact.
+- [x] E2: Do the same for Stage B by teaching `_check_stage_b_baseline_parity`, `StageB._build_lbfgs_closure`, and `StageB.run` to operate purely on `StageBTelemetryState`, eliminating the `dict` fallback that still exists for CPU-fallback tests (ARCH-STAGE-CTX-002 / REFINE-FLOW-001). ✅ 2025-12-02T160500Z — Stage B shell smoketest (`pytest_stage_b_shell.log`) confirms parity guard + telemetry packaging succeed without dict shims.
+- [x] E3: Convert Stage C helpers (`StageC._build_lbfgs_closure`, `_run_stage_c_lbfgs`, and `StageC.run`) to the `StageCTelemetryState` dataclass-only path, ensuring panel-diagnostics plumbing (`DBEX_STAGE_C_PANEL_DIAG_DIR`) and PERF-WARM-SIM-001 traces survive the refactor. ✅ 2025-12-02T160500Z — Stage C small-detector smoketest (`pytest_stage_c_small.log`) exercises the dataclass-only path; full-detector run remains blocked by PERF-WARM-SIM-001 but retains the canonical +0.067% signature.
 
 ### Notes & Risks
 - Removing the dict compatibility layer means any lingering callers that still fabricate telemetry dicts (older tests, CLI probes) will now break hard; sweep the tree for `'telemetry_state['` before committing.

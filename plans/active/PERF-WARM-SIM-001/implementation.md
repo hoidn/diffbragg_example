@@ -87,3 +87,15 @@ Estimated 1–2 engineering days across A (Stage A), then C, then B. Prioritize 
 Test harness bug (ARCH-REFINE-FLOW-001 StageA wrapper inputs dict mismatch). Phase D code compiles cleanly. See phase_d_decision.md for details.
 
 **Overall:** Implementation complete, runtime validation deferred to harness fix.
+
+## Phase F — ROI-mode Simulator Trace (PERF-WARM-016)
+
+Purpose: Stage C warm-cache retargeting now fixes panel-mode runs, but ROI-mode (full-detector) executions still ignore new detector distances. We need hard evidence showing how cached ROI simulators mutate (or fail to mutate) when `_retarget_stage_a_detectors` runs so we can repair the ROI path without another blind implementation attempt.
+
+### Checklist
+- [ ] F1: Add an opt-in debug hook to `_retarget_stage_a_detectors` that captures per-call panel/ROI distance summaries (baseline vs updated, ROI indices/bboxes, simulator ids) and writes JSON snapshots to a user-provided directory (`DBEX_STAGE_C_CACHE_DEBUG_PATH`). Keep the instrumentation completely disabled by default so smoke/perf runs stay unchanged.
+- [ ] F2: Re-run Stage C small and full smoketests with `DBEX_STAGE_C_CACHE_DEBUG_PATH` pointing into `plans/active/PERF-WARM-SIM-001/reports/2025-12-02T173000Z/` so we archive both panel-mode (passing) and ROI-mode (failing) traces. Capture pytest logs, telemetry JSON, and the new cache-debug JSON payloads for analysis.
+
+### Notes
+- The debug hook is evidence-only; do not mutate acceptance gates or fix the ROI bug in this phase.
+- Stage C full smoketest still fails due to the known +0.067% chi² drift; run it under `|| true` so artifacts/logs are captured despite the failing assertion.

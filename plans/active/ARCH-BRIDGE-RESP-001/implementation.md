@@ -5,7 +5,7 @@
 - Title: Writer / Bridge Responsibility Split
 - Owner: Galph ↔ Ralph
 - Spec Owner: docs/spec-db-workflow.md
-- Status: planned
+- Status: in_progress
 
 ## Goals
 - Remove ROI scoring / Nelder–Mead optimization from the torch HDF5 writer so `dbex/io/writer.py` becomes a pure serialization boundary that consumes typed ROI analysis artifacts.
@@ -71,12 +71,13 @@
 ### Checklist
 - [x] **B1:** Implement ROI scoring helper (`dbex/io/roi_scoring.py` or similar) that ingests ROI crops + variance info, runs Nelder–Mead once per ROI, and emits typed payloads plus JSON/log artifacts. *(Complete — 2025-12-02T223500Z artifacts)*
 - [x] **B2:** Update CLI (`dbex/refine_one.py`) and RefinementEngine call sites to invoke the helper (guarded by flag) before calling `write_torch_outputs`, passing the typed payload instead of raw arrays. *(Complete — 2025-12-02T233500Z artifacts)*
-- [ ] **B3:** Remove optimization loop from `write_torch_outputs`, require non-None `roi_payloads`, populate ROI datasets from payload triptychs/model/variance, and re-run `tests/dbex/test_refine_one_cli.py::{test_nanobrag_backend_runs_simulator,test_nanobrag_backend_applies_calibration,test_torch_diagnostics_metadata}` plus writer IDL manifest updates.
+- [ ] **B3:** Remove optimization loop from `write_torch_outputs`, require non-None `roi_payloads`, populate ROI datasets from payload triptychs/model/variance, and refresh CLI tests so their mocks provide real `DetectorConfig` mask/distance fields before re-running `tests/dbex/test_refine_one_cli.py::{test_nanobrag_backend_runs_simulator,test_nanobrag_backend_applies_calibration,test_torch_diagnostics_metadata}` with passing logs and manifest updates.
 - [ ] **B4:** Capture `pytest --collect-only` + execution logs for affected selectors under `reports/<timestamp>/pytest_writer_cleanup.log` and sync docs/TESTING_GUIDE.md + docs/development/TEST_SUITE_INDEX.md if selectors change.
 
 ### Notes & Risks
 - Keep writer backward-compatible (accept `None` or legacy data until all call sites migrate); document removal timeline in fix plan.
 - ROI helper must not degrade performance; consider caching ROI crops already held in Stage artifacts.
+- CLI tests patching `create_detector_config` must now supply fully-populated `DetectorConfig` (distance_mm, mask_array tensor, spixels/fpixels) or they will fail before writer assertions execute.
 
 ## Phase C — Bridge Decomposition & Adoption
 ### Checklist

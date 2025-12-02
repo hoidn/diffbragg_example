@@ -435,3 +435,8 @@ Action State: planning
 - Scoped ARCH-BRIDGE-RESP-001 Phase B.3: writer must consume typed ROI payloads, drop the inline Nelder–Mead loop, add roi_scoring_method/roi_checker telemetry, update CLI metadata tests, and refresh the IDL + dependency manifest so documentation matches the new contract. Handed Ralph a Do Now with concrete file targets plus the three pytest selectors that guard the CLI + writer path; artifacts reserved under 2025-12-03T003500Z.
 Action State: ready_for_implementation
 2025-12-03T003500Z focus=ARCH-BRIDGE-RESP-001 state=ready_for_implementation dwell=0 action=planning artifacts=plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-03T003500Z/ next_action=Swap write_torch_outputs over to roi_payloads + update docs/tests + run the three targeted CLI selectors
+
+Action State: planning
+2025-12-02T091255Z focus=ARCH-BRIDGE-RESP-001 state=planning dwell=1 action=planning artifacts=plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-02T091255Z/ next_action=Implement typed DetectorConfig test fixtures + rerun nanobrag CLI selectors
+- Applied problems-ledger guard to ARCH-BRIDGE-RESP-001: reviewed the Phase B.3 writer change fallout, updated the implementation plan (B3 checklist now calls for real DetectorConfig fixtures), added a fix-plan attempts entry, and annotated problems.md with the outstanding CLI-test remediation.
+- Rebuilt input.md to focus Ralph on refactoring `tests/dbex/test_refine_one_cli.py::{test_nanobrag_backend_runs_simulator,test_nanobrag_backend_applies_calibration}` so they instantiate real DetectorConfig objects (distance/mm/mask tensor) before rerunning the three nanobrag CLI selectors; artifacts reserved under the new timestamp.

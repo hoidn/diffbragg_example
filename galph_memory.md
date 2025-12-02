@@ -503,3 +503,8 @@ Action State: ready_for_implementation
 - Reviewed the `pytest_stage_c_smoke.log` failure (empty `loss_trace_sample`) and confirmed Stage C still snapshots telemetry before the final observer events; legacy dicts remain authoritative and the smoketest fails before the improvement gate has data.
 - Updated docs/fix_plan.md with the new attempt, added Stage C-specific follow-ups to the implementation plan checklist, and rewrote input.md directing Ralph to make the collector the single telemetry source, defer `collector.finalize()` until after the final validation, and rerun the Stage B guard + Stage B/C smokes with artifacts under `reports/2025-12-03T210000Z/`.
 - Next loop must ship the Stage C telemetry fixes; no more planning-only turns for this focus.
+2025-12-03T223500Z focus=ARCH-LAZY-IMPORTS-001 state=planning dwell=1 action=planning artifacts=plans/active/ARCH-LAZY-IMPORTS-001/reports/2025-12-03T223500Z/ next_action=ready_for_implementation
+- Problems-ledger guard serviced again via this planning pass: confirmed Stage B telemetry regressions are handled under ARCH-TELEMETRY-001 and mapped the remaining Stage A/C lazy-import hotspots.
+- Updated plans/active/ARCH-LAZY-IMPORTS-001/implementation.md (Phase B.3 follow-up bullets + artifacts index) and docs/fix_plan.md (new attempt entry) with the Stage A/C import-hoist scope and validation plan.
+- Rebuilt input.md with a Do Now instructing Ralph to hoist the Stage A config/nanobrag imports + Stage C diagnostics imports, then rerun `test_stage_a_expansion`, `test_stage_a_engine_delegation_telemetry`, and `test_stage_c_detector_microslip` under the new artifact directory.
+Action State: ready_for_implementation

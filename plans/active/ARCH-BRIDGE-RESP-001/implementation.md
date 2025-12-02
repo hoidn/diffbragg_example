@@ -81,9 +81,9 @@
 
 ## Phase C — Bridge Decomposition & Adoption
 ### Checklist
-- [ ] **C1:** Move `RefinementInputs` dataclass + `prepare_refinement_inputs` builder into `dbex/refinement/inputs.py`, retaining the existing guards (square-pixel check, sentinel enforcement, ADU↔photon policy) and updating all call sites (`dbex/refine_one.py`, `dbex/nanobrag_refinement.py`, tests, tooling). Provide re-export or import shim for `dbex.nanobrag_bridge` until downstream modules are switched.
-- [ ] **C2:** Extract detector/beam/crystal hydration helpers (`create_detector_config`, `create_beam_config`, `create_crystal_config`, plus any ROI-aware variants) into `dbex/refinement/config_factories.py`. Preserve GEOMETRY-001/002/003 guards, trusted-mask tensor creation, calibration plumbing, and documented overrides (distance tensors, misset overrides) so stages/CLI/tests call the new factories instead of the bridge module.
-- [ ] **C3:** Trim `dbex/nanobrag_bridge.py` down to orchestration glue that wires DataLoad → inputs builder → config factories, updating docstrings and unit tests to reference the new modules. Re-run bridge + CLI selectors (`tests/dbex/test_nanobrag_bridge.py`, `tests/dbex/test_nanobrag_bridge_configs.py`, `tests/dbex/test_refine_one_cli.py`) and Stage A smoke to prove the refactor is behaviorally neutral.
+- [x] **C1:** Move `RefinementInputs` dataclass + `prepare_refinement_inputs` builder into `dbex/refinement/inputs.py`, retaining the existing guards (square-pixel check, sentinel enforcement, ADU↔photon policy) and updating all call sites (`dbex/refine_one.py`, `dbex/nanobrag_refinement.py`, tests, tooling). Provide re-export or import shim for `dbex.nanobrag_bridge` until downstream modules are switched.
+- [x] **C2:** Extract detector/beam/crystal hydration helpers (`create_detector_config`, `create_beam_config`, `create_crystal_config`, plus any ROI-aware variants) into `dbex/refinement/config_factories.py`. Preserve GEOMETRY-001/002/003 guards, trusted-mask tensor creation, calibration plumbing, and documented overrides (distance tensors, misset overrides) so stages/CLI/tests call the new factories instead of the bridge module.
+- [x] **C3:** Trim `dbex/nanobrag_bridge.py` down to orchestration glue that wires DataLoad → inputs builder → config factories, updating docstrings and unit tests to reference the new modules. Re-run bridge + CLI selectors (`tests/dbex/test_nanobrag_bridge.py`, `tests/dbex/test_nanobrag_bridge_configs.py`, `tests/dbex/test_refine_one_cli.py`) and Stage A smoke to prove the refactor is behaviorally neutral.
 - [ ] **C4:** Archive before/after LOC + module responsibility notes (who owns RefinementInputs, detectors, etc.) in `reports/.../bridge_split_summary.md`, and refresh `docs/data_dependency_manifest.md` + `docs/architecture/dbex/io/writer.idl.md` references so they point at the new modules.
 
 ### Notes & Risks
@@ -92,4 +92,4 @@
 
 ## Artifacts Index
 - Reports root: `plans/active/ARCH-BRIDGE-RESP-001/reports/`
-- Latest run: `2025-12-02T213000Z/`
+- Latest run: `2025-12-03T020500Z/`

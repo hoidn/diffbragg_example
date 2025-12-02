@@ -446,3 +446,7 @@ Action State: ready_for_implementation
 - Selected ARCH-BRIDGE-RESP-001 (Mode none, action=planning) and performed the documentation sweep to verify GEOMETRY/CONFIG findings + manifest expectations.
 - Updated plans/active/ARCH-BRIDGE-RESP-001/implementation.md (Phase B marked done, Phase C checklist expanded), docs/fix_plan.md attempts (Phase C kickoff logged), created the 2025-12-03T020500Z artifacts directory, and replaced input.md with a ready-for-implementation Do Now covering the new refinement modules, compatibility re-exports, doc updates, and the bridge/CLI/Stage A test battery.
 - Next action: implement `dbex/refinement/inputs.py` + `dbex/refinement/config_factories.py`, rewire imports away from `dbex.nanobrag_bridge`, update docs, and capture the mapped pytest logs under the new artifact path before moving on to Phase C.1/C.2 verification.
+2025-12-02T09:49:47Z focus=ARCH-BRIDGE-RESP-001 state=planning dwell=0 action=planning artifacts=plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-02T094947Z/ next_action=Docs update for module split
+- Phase C.1–C.3 landed in code already (dbex/refinement/{inputs,config_factories}.py + bridge re-export), so I marked those checklist items complete, logged the attempt in docs/fix_plan.md, and confirmed tests/artifacts live under 2025-12-03T020500Z.
+- Rebuilt input.md with a Docs-mode Do Now targeting the manifest, architecture docs, module map, telemetry flow, and writer IDL so they reference the new module paths; no pytest runs required this loop.
+Action State: planning

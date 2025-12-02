@@ -1,58 +1,60 @@
 Summary:
-- Capture fresh ROI scoring helper evidence and update the testing docs/registry so ARCH-BRIDGE-RESP-001 Phase B.4 can close cleanly.
+- Wire Stage B and Stage C through the new telemetry observer path so LBFGS closures and validation hooks emit metrics via `StageBTelemetryCollector`/`StageCTelemetryCollector` without mutating telemetry dicts.
 
-Mode: Docs
+Mode: Parity
 
 InitiativeType: architecture
 
-Focus: ARCH-BRIDGE-RESP-001 — Writer / bridge responsibility split
+Focus: ARCH-TELEMETRY-001 — Telemetry Observer Refactor
 
 Branch: integration
 
 Mapped tests:
-- tests/dbex/test_roi_analysis.py
-- tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata
+- AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small
+- AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small
+- AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE pytest -vv tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload
 
-Artifacts: plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-03T051500Z/
+Artifacts: plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T070500Z/
 
 Do Now:
-- Phase B4 — finalize ROI scoring helper documentation before archiving the bridge initiative; reserve the timestamped artifacts directory above.
-- Implement: docs/TESTING_GUIDE.md (Test Taxonomy §2 + Implementation Coverage §2.1) and docs/development/TEST_SUITE_INDEX.md (Implementation Coverage table) need new entries describing `tests/dbex/test_roi_analysis.py`, its canonical commands/env, artifact paths, and spec/finding ties (DIAGNOSTICS-001, PHYSICS-LOSS-001/002/003). Mention the new `/torch_diagnostics` telemetry fields (`roi_scoring_method`, `roi_checker`) in the CLI selector row so future engineers know the provenance expectations.
-- Implement: While editing the docs, reference the fresh logs you capture this loop (collect-only + pytest runs for both the ROI helper suite and the CLI telemetry selector) so the registry stays reproducible; call out `plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-03T051500Z/{collect,pytest}_roi_analysis.log` and `{collect,pytest}_cli_metadata.log` explicitly in the tables.
-- Validate: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE pytest -vv tests/dbex/test_roi_analysis.py | tee plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-03T051500Z/pytest_roi_analysis.log
-- Validate: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE pytest -vv tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata | tee plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-03T051500Z/pytest_cli_metadata.log
+- Implement: `dbex/refinement/stage_b.py::{_build_lbfgs_closure,run}`, `dbex/refinement/stage_b_impl.py::_run_stage_b_lbfgs`, `dbex/refinement/stage_c.py::{_build_lbfgs_closure,run}`, `dbex/refinement/stage_c_impl.py::_run_stage_c_lbfgs`, and `dbex/refinement/telemetry_collectors.py::{StageBTelemetryCollector,StageCTelemetryCollector}` so Stage B/C LBFGS closures and baseline/final validation hooks accept collector instances, call `collector.on_step` / `collector.on_validation`, and stop mutating telemetry dataclass lists directly while preserving the existing StageBArtifacts/StageCArtifacts and telemetry outputs (variance-floor counters, panel diagnostics, baseline parity metrics).
+- Validate: `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small | tee plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T070500Z/pytest_stage_b_shell_small.log`
+- Validate: `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small | tee plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T070500Z/pytest_stage_c_small.log`
+- Validate: `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE pytest -vv tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload | tee plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T070500Z/pytest_stage_b_guard.log`
 
 How-To Map:
-1. `mkdir -p plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-03T051500Z`
-2. `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only tests/dbex/test_roi_analysis.py > plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-03T051500Z/collect_roi_analysis.log`
-3. `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE pytest -vv tests/dbex/test_roi_analysis.py | tee plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-03T051500Z/pytest_roi_analysis.log`
-4. `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE pytest --collect-only tests/dbex/test_refine_one_cli.py -k torch_diagnostics_metadata > plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-03T051500Z/collect_cli_metadata.log`
-5. `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE pytest -vv tests/dbex/test_refine_one_cli.py::test_torch_diagnostics_metadata | tee plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-03T051500Z/pytest_cli_metadata.log`
-6. Edit `docs/TESTING_GUIDE.md` around the §2 tables (lines ~121-240) to add a row for the ROI scoring helper (describe the selector, canonical command/env, run time, artifact locations) and append a short note under the CLI selector row noting the `roi_payloads` requirement plus new telemetry fields.
-7. Edit `docs/development/TEST_SUITE_INDEX.md` (Implementation Coverage table near the top) to add a row for `tests/dbex/test_roi_analysis.py` with the same spec references, findings, and artifact path so the registry matches the testing guide.
-8. Re-read both docs to ensure the new entries cite DIAGNOSTICS-001 and PHYSICS-LOSS-001/002/003, mention the artifacts you just recorded, and keep formatting (pipes/alignment) consistent before saving.
+1. `mkdir -p plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T070500Z`
+2. Update `dbex/refinement/stage_b.py:83` so `_build_lbfgs_closure` takes an optional `StageBTelemetryCollector`, swaps the manual `loss_trace_sample_b` / variance-floor / perf counter mutations for `collector.on_step(...)`, and records periodic validations via `collector.on_validation(...)` with the best snapshot payload. Thread the collector through `StageB.run` and `_run_stage_b_lbfgs` so baseline/final/default validations also use the observer path (fall back to the current list mutation only if no collector is provided for backward compatibility).
+3. Apply the same observer plumbing to Stage C: update `dbex/refinement/stage_c.py:87` and `dbex/refinement/stage_c_impl.py:477` so detector-offset closures call `StageCTelemetryCollector` for every iteration and for baseline/final validations, keeping panel diagnostics (`panel_loss_diag`) and warm-cache counters unchanged.
+4. Extend `dbex/refinement/telemetry_collectors.py:356` and `:423` as needed so the Stage B/C collectors expose the same convenience helpers as Stage A (accepting forward-time + variance-floor deltas in metrics) and continue to return StageResult objects that carry `stage_b_baseline_*` / panel diagnostic fields for writer consumers.
+5. Re-read Stage B baseline guard helper (`dbex/refinement/stage_b_impl.py:55-210`) after the refactor to ensure it still populates `StageBTelemetryState.stage_b_baseline_rel_diff` etc. without relying on dict subscripts.
+6. Run the staged pytest selectors above with `DBEX_SMOKE_TELEMETRY_PATH` pointed at the artifacts directory when you need telemetry JSON (`export DBEX_SMOKE_TELEMETRY_PATH=plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T070500Z/telemetry_stage_bc_small.json` before the smoke bundle) so we capture before/after chi² traces.
+7. Inspect the resulting `/torch_diagnostics` payloads (Stage B/C telemetry JSON and StageBArtifacts) to confirm that `stage_b_baseline_rel_diff`, variance-floor stats, warm-cache counters, and panel diagnostics are unchanged; drop a short note in `plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T070500Z/summary.md` summarizing parity evidence.
 
 Pitfalls To Avoid:
-- This is a docs-only loop; do not touch `dbex/io/*` or other production modules while editing the registries.
-- Keep the new table entries synchronized: the Testing Guide and Test Suite Index must describe the same selector, artifacts, and environment flags verbatim.
-- Reference the actual artifact filenames you recorded this loop; do not point back to the 2025-12-02 logs.
-- Preserve spec/finding citations (DIAGNOSTICS-001, PHYSICS-LOSS-001/002/003) so readers know why the selector exists.
-- Maintain table formatting (pipes, alignment, markdown links) to avoid rendering regressions.
+- Do not regress the REFINE-FLOW-001 parity guard: keep `stage_b_baseline_rel_diff`, `stage_b_baseline_abs_diff`, and `stage_b_baseline_diff_path` populated and ensure the RuntimeError path still raises with the same message/signature.
+- Preserve variance-floor accounting by feeding per-step clamp/masked-pixel deltas to the collector; skipping those metrics will break PHYSICS-LOSS telemetry downstream.
+- Keep StageC panel diagnostics optional and gated by `DBEX_STAGE_C_PANEL_DIAG_DIR`; the collector needs to append to `panel_loss_diag` only when the shim requests it.
+- Avoid touching StageArtifacts serialization or writer plumbing in this loop—the observer wiring must be transparent to `RefinementEngine` consumers.
+- Maintain `torch.no_grad()` boundaries around validation calls; introducing graph-tracked tensors into collector payloads will break LBFGS backward passes.
 
 If Blocked:
-- If pytest fails (e.g., SciPy unavailable) or collect-only output differs, capture the full log under the artifacts directory, note the failure signature in docs/fix_plan.md (ARCH-BRIDGE-RESP-001 row), and mark the initiative `blocked` until the dependency issue is resolved.
-- If the tables cannot be updated cleanly (e.g., formatting macros break), record the attempted edits in `plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-03T051500Z/notes.md` and pause for supervisor guidance before proceeding.
+- If LBFGS closures start throwing due to missing metrics (e.g., collector state is None), capture the stack trace in `plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T070500Z/blocker.log`, revert the minimal hunks necessary to restore Stage B/C execution, and note the failing hook in docs/fix_plan.md so we can revisit the collector injection.
+- If smoketests fail with the known Stage B per-reflection gradient-flow issue, confirm the failure signature matches the existing TORCH-REFINE-004 finding, attach the pytest log under this loop’s artifacts, and pause until we open the dedicated initiative; do not loosen the smoketest gates.
+- Should the baseline guard unit test start failing because telemetry fields are missing, record the new telemetry dict in the artifact directory and fall back to the previous dict-based mutation so we have a working state before retrying the observer path.
 
 Findings Applied (Mandatory):
-- DIAGNOSTICS-001 — `/torch_diagnostics` metadata (including `roi_scoring_method` and `roi_checker`) must remain documented and validated in the CLI selector entry.
-- PHYSICS-LOSS-001 — Sigma/variance provenance for ROI scoring must be referenced when documenting the helper selector.
-- PHYSICS-LOSS-002/003 — Variance-floor enforcement and ROI telemetry guardrails inform the ROI helper tests; keep those IDs cited in the docs you update.
+- ARCH-STAGE-CTX-001 — Stage helpers must rely on typed contexts/telemetry objects; observer wiring enforces it.
+- ARCH-STAGE-CTX-002 — Stage B baseline parity guard must work with dataclasses (no dict mutation).
+- PHYSICS-LOSS-001/003 — Maintain variance-weighted chi² / masked-MSE telemetry per spec-db-core.md.
+- REFINE-007 / REFINE-012 — Stage C validations must keep the canonical panel-mode chi² and offset gates intact.
 
 Pointers:
-- plans/active/ARCH-BRIDGE-RESP-001/implementation.md:70 — Phase B.4 checklist requiring doc/test registry sync.
-- docs/fix_plan.md:101 — Initiative ledger entry describing current status/attempt history.
-- docs/TESTING_GUIDE.md:121 — Test Taxonomy tables that need the new ROI helper row.
-- docs/development/TEST_SUITE_INDEX.md:7 — Implementation Coverage table that must mirror the testing guide updates.
+- dbex/refinement/stage_b.py:83 — Stage B closure builder (per-iteration telemetry hooks live here).
+- dbex/refinement/stage_b_impl.py:839 — `_run_stage_b_lbfgs` baseline/final validation logic that must call the collector.
+- dbex/refinement/stage_c.py:87 and dbex/refinement/stage_c_impl.py:477 — Stage C closure + LBFGS runner where observer plumbing needs to be added.
+- dbex/refinement/telemetry_collectors.py:356 & 423 — Stage B/C collectors (extend callbacks/helpers so they match Stage A parity).
+- docs/TESTING_GUIDE.md:162 — Reference for the Stage A/B/C smoketest commands/env flags you must reuse when running the mapped selectors.
 
 Next Up (optional):
-- Once B.4 is complete and the docs reference the fresh artifacts, mark ARCH-BRIDGE-RESP-001 as `done` and archive the initiative so work can shift to ARCH-TELEMETRY-001.
+- If the observer path lands cleanly this loop, follow up by simplifying `RefinementEngine` telemetry plumbing so writer/engine consume the typed `StageResult` objects directly (Phase C.2).

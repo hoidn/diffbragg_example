@@ -1,0 +1,9 @@
+metric,value
+correlation,0.9879091377892498
+rmse,179.65848135246773
+mse,32277.169921875
+max_abs_diff,9680.8046875
+sum_ratio,1.1051730259998778
+localization,1.0
+n_pixels,13086
+n_masked,6210915

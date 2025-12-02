@@ -454,23 +454,23 @@ def _run_stage_c_lbfgs(
     orientation_vec = param_values.get('orientation_vec')
     baseline_misset_deg_tensor = param_values.get('baseline_misset_deg_tensor')
 
-    # Extract from telemetry_state dict (ALL as mutable references via list wrappers)
-    chi_squared_best_c = telemetry_state['chi_squared_best_c']
-    masked_mse_best_c = telemetry_state['masked_mse_best_c']
-    best_params_snapshot_c = telemetry_state.get('best_params_snapshot_c')
-    iteration_count_c = telemetry_state['iteration_count_c']
-    loss_trace_sample_c = telemetry_state['loss_trace_sample_c']
-    loss_trace_full_c = telemetry_state['loss_trace_full_c']
-    chi_squared_trace_sample_c = telemetry_state['chi_squared_trace_sample_c']
-    chi_squared_trace_full_c = telemetry_state['chi_squared_trace_full_c']
-    masked_mse_trace_sample_c = telemetry_state['masked_mse_trace_sample_c']
-    masked_mse_trace_full_c = telemetry_state['masked_mse_trace_full_c']
-    variance_floor_clamped_pixels_c = telemetry_state['variance_floor_clamped_pixels_c']
-    variance_floor_masked_pixels_c = telemetry_state['variance_floor_masked_pixels_c']
-    perf_closure_evals_c = telemetry_state['perf_closure_evals_c']
-    perf_validation_runs_c = telemetry_state['perf_validation_runs_c']
-    perf_forward_times_ms_c = telemetry_state['perf_forward_times_ms_c']
-    best_loss_full_c = telemetry_state['best_loss_full_c']
+    # Extract from telemetry_state dataclass (ARCH-STAGE-CONTEXT-001 Phase E: dataclass-only)
+    chi_squared_best_c = telemetry_state.chi_squared_best
+    masked_mse_best_c = telemetry_state.masked_mse_best
+    best_params_snapshot_c = telemetry_state.best_params_snapshot
+    iteration_count_c = telemetry_state.iteration_count
+    loss_trace_sample_c = telemetry_state.loss_trace_sample
+    loss_trace_full_c = telemetry_state.loss_trace_full
+    chi_squared_trace_sample_c = telemetry_state.chi_squared_trace_sample
+    chi_squared_trace_full_c = telemetry_state.chi_squared_trace_full
+    masked_mse_trace_sample_c = telemetry_state.masked_mse_trace_sample
+    masked_mse_trace_full_c = telemetry_state.masked_mse_trace_full
+    variance_floor_clamped_pixels_c = telemetry_state.variance_floor_clamped_pixels
+    variance_floor_masked_pixels_c = telemetry_state.variance_floor_masked_pixels
+    perf_closure_evals_c = telemetry_state.perf_closure_evals
+    perf_validation_runs_c = telemetry_state.perf_validation_runs
+    perf_forward_times_ms_c = telemetry_state.perf_forward_times_ms
+    best_loss_full_c = telemetry_state.best_loss_full
 
     # Extract from stage_c_context dict
     stage_c_use_warm_cache = stage_c_context['stage_c_use_warm_cache']
@@ -526,13 +526,11 @@ def _run_stage_c_lbfgs(
             }
 
             # Persist baseline seeding to telemetry_state so closure sees the correct initial best
-            telemetry_state['loss_trace_full_c'] = loss_trace_full_c
-            telemetry_state['chi_squared_trace_full_c'] = chi_squared_trace_full_c
-            telemetry_state['masked_mse_trace_full_c'] = masked_mse_trace_full_c
-            telemetry_state['best_loss_full_c'] = best_loss_full_c
-            telemetry_state['chi_squared_best_c'] = chi_squared_best_c
-            telemetry_state['masked_mse_best_c'] = masked_mse_best_c
-            telemetry_state['best_params_snapshot_c'] = best_params_snapshot_c
+            # ARCH-STAGE-CONTEXT-001 Phase E: dataclass-only (mutable lists already updated in place)
+            telemetry_state.best_loss_full = best_loss_full_c
+            telemetry_state.chi_squared_best = chi_squared_best_c
+            telemetry_state.masked_mse_best = masked_mse_best_c
+            telemetry_state.best_params_snapshot = best_params_snapshot_c
 
         # Apply baseline detector prior BEFORE LBFGS so the warm-start is captured in best snapshot
         # (REFINE-013: The rehydration after LBFGS reloads best_params_snapshot_c, which must include the prior)
@@ -542,10 +540,11 @@ def _run_stage_c_lbfgs(
 
         # REFINE-013: Rehydrate best tuples from telemetry_state after LBFGS
         # The closure updates these during optimization, but the local variables read them before the step
-        chi_squared_best_c = telemetry_state['chi_squared_best_c']
-        masked_mse_best_c = telemetry_state['masked_mse_best_c']
-        best_loss_full_c = telemetry_state['best_loss_full_c']
-        best_params_snapshot_c = telemetry_state.get('best_params_snapshot_c')
+        # ARCH-STAGE-CONTEXT-001 Phase E: dataclass-only
+        chi_squared_best_c = telemetry_state.chi_squared_best
+        masked_mse_best_c = telemetry_state.masked_mse_best
+        best_loss_full_c = telemetry_state.best_loss_full
+        best_params_snapshot_c = telemetry_state.best_params_snapshot
 
         # Assert that at least one full validation populated the best snapshot
         if chi_squared_best_c[0] >= float('inf'):
@@ -576,13 +575,15 @@ def _run_stage_c_lbfgs(
             'distance_offset_raw': distance_offset_raw.detach().cpu().tolist()
         }
         # REFINE-013: Persist best tuples to telemetry_state so final telemetry reflects best snapshot
-        telemetry_state['chi_squared_best_c'] = chi_squared_best_c
-        telemetry_state['best_loss_full_c'] = best_loss_full_c
-        telemetry_state['best_params_snapshot_c'] = best_params_snapshot_c
+        # ARCH-STAGE-CONTEXT-001 Phase E: dataclass-only
+        telemetry_state.chi_squared_best = chi_squared_best_c
+        telemetry_state.best_loss_full = best_loss_full_c
+        telemetry_state.best_params_snapshot = best_params_snapshot_c
     if candidate_mse_value_c < masked_mse_best_c[0]:
         masked_mse_best_c = (candidate_mse_value_c, final_step_c)
         # REFINE-013: Persist masked_mse_best_c to telemetry_state
-        telemetry_state['masked_mse_best_c'] = masked_mse_best_c
+        # ARCH-STAGE-CONTEXT-001 Phase E: dataclass-only
+        telemetry_state.masked_mse_best = masked_mse_best_c
 
     # REFINE-013: Use best chi-squared from periodic validations for final telemetry
     # The best snapshot was already validated during LBFGS, so use stored values directly
@@ -797,15 +798,16 @@ def _run_stage_c_lbfgs(
     import json
     from pathlib import Path
     panel_diag_dir = os.environ.get('DBEX_STAGE_C_PANEL_DIAG_DIR')
-    if panel_diag_dir and 'panel_loss_diag_c' in telemetry_state:
+    # ARCH-STAGE-CONTEXT-001 Phase E: dataclass-only
+    if panel_diag_dir and telemetry_state.panel_loss_diag is not None:
         diag_path = Path(panel_diag_dir)
         diag_path.mkdir(parents=True, exist_ok=True)
         diag_file = diag_path / 'stage_c_panel_diag.json'
         with open(diag_file, 'w') as f:
             json.dump({
                 'stage': 'C',
-                'panels': telemetry_state['panel_loss_diag_c'],
-                'n_panels': len(set(p['panel_id'] for p in telemetry_state['panel_loss_diag_c'])) if telemetry_state['panel_loss_diag_c'] else 0,
+                'panels': telemetry_state.panel_loss_diag,
+                'n_panels': len(set(p['panel_id'] for p in telemetry_state.panel_loss_diag)) if telemetry_state.panel_loss_diag else 0,
             }, f, indent=2)
 
     return {

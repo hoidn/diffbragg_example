@@ -174,43 +174,24 @@ class StageC:
         loss_mask_t = param_values['loss_mask_t']
         sigma_readout_t = param_values['sigma_readout_t']
 
-        # ARCH-STAGE-CONTEXT-001 Phase B.3.2: Extract from telemetry_state (dataclass or dict compat)
-        if isinstance(telemetry_state, dict):
-            perf_closure_evals_c = telemetry_state['perf_closure_evals_c']
-            perf_validation_runs_c = telemetry_state['perf_validation_runs_c']
-            perf_forward_times_ms_c = telemetry_state['perf_forward_times_ms_c']
-            loss_trace_sample_c = telemetry_state['loss_trace_sample_c']
-            loss_trace_full_c = telemetry_state['loss_trace_full_c']
-            best_loss_full_c = telemetry_state['best_loss_full_c']
-            best_params_snapshot_c = telemetry_state['best_params_snapshot_c']
-            iteration_count_c = telemetry_state['iteration_count_c']
-            chi_squared_trace_sample_c = telemetry_state['chi_squared_trace_sample_c']
-            chi_squared_trace_full_c = telemetry_state['chi_squared_trace_full_c']
-            chi_squared_best_c = telemetry_state['chi_squared_best_c']
-            masked_mse_trace_sample_c = telemetry_state['masked_mse_trace_sample_c']
-            masked_mse_trace_full_c = telemetry_state['masked_mse_trace_full_c']
-            masked_mse_best_c = telemetry_state['masked_mse_best_c']
-            variance_floor_clamped_pixels_c = telemetry_state['variance_floor_clamped_pixels_c']
-            variance_floor_masked_pixels_c = telemetry_state['variance_floor_masked_pixels_c']
-            sigma_floor_sq_tensor_stage_c = telemetry_state['sigma_floor_sq_tensor_stage_c']
-        else:
-            perf_closure_evals_c = telemetry_state.perf_closure_evals
-            perf_validation_runs_c = telemetry_state.perf_validation_runs
-            perf_forward_times_ms_c = telemetry_state.perf_forward_times_ms
-            loss_trace_sample_c = telemetry_state.loss_trace_sample
-            loss_trace_full_c = telemetry_state.loss_trace_full
-            best_loss_full_c = telemetry_state.best_loss_full
-            best_params_snapshot_c = telemetry_state.best_params_snapshot
-            iteration_count_c = telemetry_state.iteration_count
-            chi_squared_trace_sample_c = telemetry_state.chi_squared_trace_sample
-            chi_squared_trace_full_c = telemetry_state.chi_squared_trace_full
-            chi_squared_best_c = telemetry_state.chi_squared_best
-            masked_mse_trace_sample_c = telemetry_state.masked_mse_trace_sample
-            masked_mse_trace_full_c = telemetry_state.masked_mse_trace_full
-            masked_mse_best_c = telemetry_state.masked_mse_best
-            variance_floor_clamped_pixels_c = telemetry_state.variance_floor_clamped_pixels
-            variance_floor_masked_pixels_c = telemetry_state.variance_floor_masked_pixels
-            sigma_floor_sq_tensor_stage_c = telemetry_state.sigma_floor_sq_tensor
+        # ARCH-STAGE-CONTEXT-001 Phase E: Extract from telemetry_state (dataclass-only)
+        perf_closure_evals_c = telemetry_state.perf_closure_evals
+        perf_validation_runs_c = telemetry_state.perf_validation_runs
+        perf_forward_times_ms_c = telemetry_state.perf_forward_times_ms
+        loss_trace_sample_c = telemetry_state.loss_trace_sample
+        loss_trace_full_c = telemetry_state.loss_trace_full
+        best_loss_full_c = telemetry_state.best_loss_full
+        best_params_snapshot_c = telemetry_state.best_params_snapshot
+        iteration_count_c = telemetry_state.iteration_count
+        chi_squared_trace_sample_c = telemetry_state.chi_squared_trace_sample
+        chi_squared_trace_full_c = telemetry_state.chi_squared_trace_full
+        chi_squared_best_c = telemetry_state.chi_squared_best
+        masked_mse_trace_sample_c = telemetry_state.masked_mse_trace_sample
+        masked_mse_trace_full_c = telemetry_state.masked_mse_trace_full
+        masked_mse_best_c = telemetry_state.masked_mse_best
+        variance_floor_clamped_pixels_c = telemetry_state.variance_floor_clamped_pixels
+        variance_floor_masked_pixels_c = telemetry_state.variance_floor_masked_pixels
+        sigma_floor_sq_tensor_stage_c = telemetry_state.sigma_floor_sq_tensor
 
         # Extract from stage_c_context dict
         stage_c_use_warm_cache = stage_c_context['stage_c_use_warm_cache']
@@ -227,10 +208,8 @@ class StageC:
         panel_diag_dir = os.environ.get('DBEX_STAGE_C_PANEL_DIAG_DIR')
         panel_diag_enabled = panel_diag_dir is not None and force_panel_validation
         if panel_diag_enabled:
-            if isinstance(telemetry_state, dict):
-                telemetry_state['panel_loss_diag_c'] = []  # Will collect initial + periodic + final
-            else:
-                telemetry_state.panel_loss_diag = []  # Initialize dataclass field
+            # Initialize dataclass field (ARCH-STAGE-CONTEXT-001 Phase E: dataclass-only)
+            telemetry_state.panel_loss_diag = []
 
         def compute_loss_stage_c(panel_ids: List[int], is_full: bool = False, force_panel_eval: bool = False) -> Tuple[torch.Tensor, torch.Tensor]:
             """
@@ -500,12 +479,9 @@ class StageC:
                     panel_diag=panel_diag_collector,
                 )
 
-                # Store collected diagnostics in telemetry_state
+                # Store collected diagnostics in telemetry_state (ARCH-STAGE-CONTEXT-001 Phase E: dataclass-only)
                 if panel_diag_collector is not None:
-                    if isinstance(telemetry_state, dict):
-                        telemetry_state['panel_loss_diag_c'].extend(panel_diag_collector)
-                    else:
-                        telemetry_state.panel_loss_diag.extend(panel_diag_collector)
+                    telemetry_state.panel_loss_diag.extend(panel_diag_collector)
 
                 variance_floor_clamped_pixels_c[0] += clamped_pixels_stage_c
                 variance_floor_masked_pixels_c[0] += masked_pixels_stage_c
@@ -557,17 +533,15 @@ class StageC:
                             'distance_offset_raw': distance_offset_raw.detach().cpu().tolist()
                         }
                         # REFINE-013: Persist best tuples to telemetry_state so _run_stage_c_lbfgs can see them
-                        # ARCH-STAGE-CONTEXT-001 Phase B.3.2: Safe update for dict or dataclass
-                        if isinstance(telemetry_state, dict):
-                            telemetry_state['chi_squared_best_c'] = chi_squared_best_c
-                            telemetry_state['best_loss_full_c'] = best_loss_full_c
-                            telemetry_state['best_params_snapshot_c'] = best_params_snapshot_c
-                        # For dataclass, fields are updated via variable bindings already
+                        # ARCH-STAGE-CONTEXT-001 Phase E: dataclass-only update
+                        telemetry_state.chi_squared_best = chi_squared_best_c
+                        telemetry_state.best_loss_full = best_loss_full_c
+                        telemetry_state.best_params_snapshot = best_params_snapshot_c
                     if full_mse_c.item() < masked_mse_best_c[0]:
                         masked_mse_best_c = (float(full_mse_c.item()), iteration_count_c[0])
                         # REFINE-013: Persist masked_mse_best_c to telemetry_state
-                        if isinstance(telemetry_state, dict):
-                            telemetry_state['masked_mse_best_c'] = masked_mse_best_c
+                        # ARCH-STAGE-CONTEXT-001 Phase E: dataclass-only
+                        telemetry_state.masked_mse_best = masked_mse_best_c
 
             iteration_count_c[0] += 1
             return chi_squared_loss
@@ -893,26 +867,28 @@ class StageC:
             'stage_a_final_cell': stage_a_final_cell,  # PERF-WARM-SIM-001 Phase D: frozen Stage A final cell
         }
 
-        # Build telemetry_state dict for helper2/helper3
-        telemetry_state_c = {
-            'chi_squared_best_c': chi_squared_best_c,
-            'masked_mse_best_c': masked_mse_best_c,
-            'best_params_snapshot_c': best_params_snapshot_c,
-            'iteration_count_c': iteration_count_c,
-            'loss_trace_sample_c': loss_trace_sample_c,
-            'loss_trace_full_c': loss_trace_full_c,
-            'chi_squared_trace_sample_c': chi_squared_trace_sample_c,
-            'chi_squared_trace_full_c': chi_squared_trace_full_c,
-            'masked_mse_trace_sample_c': masked_mse_trace_sample_c,
-            'masked_mse_trace_full_c': masked_mse_trace_full_c,
-            'variance_floor_clamped_pixels_c': variance_floor_clamped_pixels_c,
-            'variance_floor_masked_pixels_c': variance_floor_masked_pixels_c,
-            'perf_closure_evals_c': perf_closure_evals_c,
-            'perf_validation_runs_c': perf_validation_runs_c,
-            'perf_forward_times_ms_c': perf_forward_times_ms_c,
-            'best_loss_full_c': best_loss_full_c,
-            'sigma_floor_sq_tensor_stage_c': sigma_floor_sq_tensor_stage_c,
-        }
+        # Build telemetry_state dataclass for helper2/helper3 (ARCH-STAGE-CONTEXT-001 Phase E: dataclass-only)
+        from dbex.refinement.context import StageCTelemetryState
+        telemetry_state_c = StageCTelemetryState(
+            iteration_count=iteration_count_c,
+            perf_closure_evals=perf_closure_evals_c,
+            perf_validation_runs=perf_validation_runs_c,
+            variance_floor_clamped_pixels=variance_floor_clamped_pixels_c,
+            variance_floor_masked_pixels=variance_floor_masked_pixels_c,
+            loss_trace_sample=loss_trace_sample_c,
+            loss_trace_full=loss_trace_full_c,
+            best_loss_full=best_loss_full_c,
+            chi_squared_trace_sample=chi_squared_trace_sample_c,
+            chi_squared_trace_full=chi_squared_trace_full_c,
+            chi_squared_best=chi_squared_best_c,
+            masked_mse_trace_sample=masked_mse_trace_sample_c,
+            masked_mse_trace_full=masked_mse_trace_full_c,
+            masked_mse_best=masked_mse_best_c,
+            perf_forward_times_ms=perf_forward_times_ms_c,
+            best_params_snapshot=best_params_snapshot_c,
+            sigma_floor_sq_tensor=sigma_floor_sq_tensor_stage_c,
+            panel_loss_diag=None,  # Will be initialized by closure builder if needed
+        )
 
         # Define _apply_baseline_detector_prior function (inline)
         def _apply_baseline_detector_prior():

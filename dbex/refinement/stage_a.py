@@ -138,52 +138,27 @@ class StageA:
         params = param_values.get('params', [])  # List of Parameter objects
         B_ideal_reciprocal_torch = param_values.get('B_ideal_reciprocal_torch')
 
-        # Unpack telemetry_state (ARCH-STAGE-CONTEXT-001 Phase B.3.1: dataclass or dict compatibility)
-        # Support both StageATelemetryState dataclass (new path) and raw dict (legacy/compatibility)
-        if isinstance(telemetry_state, dict):
-            # Legacy dict path
-            iteration_count = telemetry_state['iteration_count']
-            loss_trace_sample = telemetry_state['loss_trace_sample']
-            loss_trace_full = telemetry_state['loss_trace_full']
-            best_loss_full = telemetry_state['best_loss_full']
-            best_params_snapshot = telemetry_state['best_params_snapshot']
-            chi_squared_trace_sample = telemetry_state['chi_squared_trace_sample']
-            chi_squared_trace_full = telemetry_state['chi_squared_trace_full']
-            chi_squared_best = telemetry_state['chi_squared_best']
-            masked_mse_trace_sample = telemetry_state['masked_mse_trace_sample']
-            masked_mse_trace_full = telemetry_state['masked_mse_trace_full']
-            masked_mse_best = telemetry_state['masked_mse_best']
-            perf_closure_evals = telemetry_state['perf_closure_evals']
-            perf_validation_runs = telemetry_state['perf_validation_runs']
-            perf_forward_times_ms = telemetry_state['perf_forward_times_ms']
-            variance_floor_clamped_pixels = telemetry_state['variance_floor_clamped_pixels']
-            variance_floor_masked_pixels = telemetry_state['variance_floor_masked_pixels']
-            sigma_floor_sq_tensor = telemetry_state['sigma_floor_sq_tensor']
-            telemetry_step_counter = telemetry_state['telemetry_step_counter']
-            u_matrix_lifecycle_log = telemetry_state.get('u_matrix_lifecycle_log', [])
-            a_star_lifecycle_log = telemetry_state.get('a_star_lifecycle_log', [])
-        else:
-            # New dataclass path (dot notation)
-            iteration_count = telemetry_state.iteration_count
-            loss_trace_sample = telemetry_state.loss_trace_sample
-            loss_trace_full = telemetry_state.loss_trace_full
-            best_loss_full = telemetry_state.best_loss_full
-            best_params_snapshot = telemetry_state.best_params_snapshot
-            chi_squared_trace_sample = telemetry_state.chi_squared_trace_sample
-            chi_squared_trace_full = telemetry_state.chi_squared_trace_full
-            chi_squared_best = telemetry_state.chi_squared_best
-            masked_mse_trace_sample = telemetry_state.masked_mse_trace_sample
-            masked_mse_trace_full = telemetry_state.masked_mse_trace_full
-            masked_mse_best = telemetry_state.masked_mse_best
-            perf_closure_evals = telemetry_state.perf_closure_evals
-            perf_validation_runs = telemetry_state.perf_validation_runs
-            perf_forward_times_ms = telemetry_state.perf_forward_times_ms
-            variance_floor_clamped_pixels = telemetry_state.variance_floor_clamped_pixels
-            variance_floor_masked_pixels = telemetry_state.variance_floor_masked_pixels
-            sigma_floor_sq_tensor = telemetry_state.sigma_floor_sq_tensor
-            telemetry_step_counter = telemetry_state.telemetry_step_counter
-            u_matrix_lifecycle_log = telemetry_state.u_matrix_lifecycle_log
-            a_star_lifecycle_log = telemetry_state.a_star_lifecycle_log
+        # Unpack telemetry_state (ARCH-STAGE-CONTEXT-001 Phase E: dataclass-only)
+        iteration_count = telemetry_state.iteration_count
+        loss_trace_sample = telemetry_state.loss_trace_sample
+        loss_trace_full = telemetry_state.loss_trace_full
+        best_loss_full = telemetry_state.best_loss_full
+        best_params_snapshot = telemetry_state.best_params_snapshot
+        chi_squared_trace_sample = telemetry_state.chi_squared_trace_sample
+        chi_squared_trace_full = telemetry_state.chi_squared_trace_full
+        chi_squared_best = telemetry_state.chi_squared_best
+        masked_mse_trace_sample = telemetry_state.masked_mse_trace_sample
+        masked_mse_trace_full = telemetry_state.masked_mse_trace_full
+        masked_mse_best = telemetry_state.masked_mse_best
+        perf_closure_evals = telemetry_state.perf_closure_evals
+        perf_validation_runs = telemetry_state.perf_validation_runs
+        perf_forward_times_ms = telemetry_state.perf_forward_times_ms
+        variance_floor_clamped_pixels = telemetry_state.variance_floor_clamped_pixels
+        variance_floor_masked_pixels = telemetry_state.variance_floor_masked_pixels
+        sigma_floor_sq_tensor = telemetry_state.sigma_floor_sq_tensor
+        telemetry_step_counter = telemetry_state.telemetry_step_counter
+        u_matrix_lifecycle_log = telemetry_state.u_matrix_lifecycle_log
+        a_star_lifecycle_log = telemetry_state.a_star_lifecycle_log
 
         # Unpack stage_a_context
         stage_a_ctx = stage_a_context.get('stage_a_ctx')
@@ -225,11 +200,8 @@ class StageA:
         panel_diag_dir = os.environ.get('DBEX_STAGE_C_PANEL_DIAG_DIR')
         panel_diag_enabled = panel_diag_dir is not None and force_panel_validation
         if panel_diag_enabled:
-            # Initialize panel_loss_diag list (supports both dict and dataclass)
-            if isinstance(telemetry_state, dict):
-                telemetry_state['panel_loss_diag'] = []
-            else:
-                telemetry_state.panel_loss_diag = []
+            # Initialize panel_loss_diag list (ARCH-STAGE-CONTEXT-001 Phase E: dataclass-only)
+            telemetry_state.panel_loss_diag = []
 
         beam_config_kwargs: Dict[str, Any] = {}
         n_cells_override = None
@@ -665,12 +637,9 @@ class StageA:
                     panel_diag=panel_diag_collector,
                 )
 
-                # Store collected diagnostics in telemetry_state (supports both dict and dataclass)
+                # Store collected diagnostics in telemetry_state (ARCH-STAGE-CONTEXT-001 Phase E: dataclass-only)
                 if panel_diag_collector is not None:
-                    if isinstance(telemetry_state, dict):
-                        telemetry_state['panel_loss_diag'].extend(panel_diag_collector)
-                    else:
-                        telemetry_state.panel_loss_diag.extend(panel_diag_collector)
+                    telemetry_state.panel_loss_diag.extend(panel_diag_collector)
                 # Track the latest variance-floor statistics for telemetry (no accumulation)
                 variance_floor_clamped_pixels[0] = clamped_pixels
                 variance_floor_masked_pixels[0] = masked_pixels
@@ -974,37 +943,21 @@ class StageA:
         sampled_stage_a_indices = stage_a_context['sampled_stage_a_indices']
         masked_pixel_reference = int(refinement_inputs.loss_mask.sum())
 
-        # ARCH-STAGE-CONTEXT-001 Phase B.3.1: Extract telemetry fields (dict or dataclass)
-        if isinstance(telemetry_state, dict):
-            perf_closure_evals = telemetry_state['perf_closure_evals']
-            perf_validation_runs = telemetry_state['perf_validation_runs']
-            perf_forward_times_ms = telemetry_state['perf_forward_times_ms']
-            variance_floor_clamped_pixels = telemetry_state['variance_floor_clamped_pixels']
-            variance_floor_masked_pixels = telemetry_state['variance_floor_masked_pixels']
-            loss_trace_sample = telemetry_state['loss_trace_sample']
-            loss_trace_full = telemetry_state['loss_trace_full']
-            best_loss_full = telemetry_state['best_loss_full']
-            chi_squared_trace_sample = telemetry_state['chi_squared_trace_sample']
-            chi_squared_trace_full = telemetry_state['chi_squared_trace_full']
-            chi_squared_best = telemetry_state['chi_squared_best']
-            masked_mse_trace_sample = telemetry_state['masked_mse_trace_sample']
-            masked_mse_trace_full = telemetry_state['masked_mse_trace_full']
-            masked_mse_best = telemetry_state['masked_mse_best']
-        else:
-            perf_closure_evals = telemetry_state.perf_closure_evals
-            perf_validation_runs = telemetry_state.perf_validation_runs
-            perf_forward_times_ms = telemetry_state.perf_forward_times_ms
-            variance_floor_clamped_pixels = telemetry_state.variance_floor_clamped_pixels
-            variance_floor_masked_pixels = telemetry_state.variance_floor_masked_pixels
-            loss_trace_sample = telemetry_state.loss_trace_sample
-            loss_trace_full = telemetry_state.loss_trace_full
-            best_loss_full = telemetry_state.best_loss_full
-            chi_squared_trace_sample = telemetry_state.chi_squared_trace_sample
-            chi_squared_trace_full = telemetry_state.chi_squared_trace_full
-            chi_squared_best = telemetry_state.chi_squared_best
-            masked_mse_trace_sample = telemetry_state.masked_mse_trace_sample
-            masked_mse_trace_full = telemetry_state.masked_mse_trace_full
-            masked_mse_best = telemetry_state.masked_mse_best
+        # ARCH-STAGE-CONTEXT-001 Phase E: Extract telemetry fields (dataclass-only)
+        perf_closure_evals = telemetry_state.perf_closure_evals
+        perf_validation_runs = telemetry_state.perf_validation_runs
+        perf_forward_times_ms = telemetry_state.perf_forward_times_ms
+        variance_floor_clamped_pixels = telemetry_state.variance_floor_clamped_pixels
+        variance_floor_masked_pixels = telemetry_state.variance_floor_masked_pixels
+        loss_trace_sample = telemetry_state.loss_trace_sample
+        loss_trace_full = telemetry_state.loss_trace_full
+        best_loss_full = telemetry_state.best_loss_full
+        chi_squared_trace_sample = telemetry_state.chi_squared_trace_sample
+        chi_squared_trace_full = telemetry_state.chi_squared_trace_full
+        chi_squared_best = telemetry_state.chi_squared_best
+        masked_mse_trace_sample = telemetry_state.masked_mse_trace_sample
+        masked_mse_trace_full = telemetry_state.masked_mse_trace_full
+        masked_mse_best = telemetry_state.masked_mse_best
 
         # ARCH-REFINE-001 Phase E.2: Compute force_panel_validation flag (REFINE-FLOW-001, REFINE-007)
         # Switch Stage A baseline/final validations to panel mode whenever Stage B or Stage C runs,

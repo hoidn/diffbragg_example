@@ -18,3 +18,54 @@ This file is a lightweight, user-editable backlog for any issues that Galph (the
 - [ ] **Stage contexts / engine artifact boundary (from 2025-12-01 design review)** — `ARCH-STAGE-CONTEXT-001` (docs/fix_plan.md) now tracks items 1, 2, 4, 7, and 8 from the review: helper data clumps, anemic Stage classes, mutable telemetry dicts, and engine branches that peek into stage-specific keys. Goal: add typed `RefinementSharedContext`/`StageArtifacts`, move LBFGS state into Stage classes, and let the engine/writer share artifacts without bespoke dict spelunking. Workflows: see `plans/active/ARCH-STAGE-CONTEXT-001/`.
 - [ ] **Writer / bridge responsibility split** — Outstanding review items 3 and 5: `dbex/io/writer.py::write_torch_outputs` still runs Nelder–Mead to compute `opt_bragg_scale`, and `dbex/nanobrag_bridge.py` remains a “god object” that mixes data prep, calibration loading, simulator execution, and physics helpers. Need follow-up initiative to relocate scaling checks into analysis tooling and split bridge responsibilities across factories/physics modules.
 - [ ] **Lazy imports / process noise** — Outstanding review items 6 and 9: several modules (`dbex/geometry/crystallography.py`, `dbex/physics/forward.py`, Stage helpers) still use pervasive lazy imports that hide dependencies, and code is saturated with historical ticket references. Requires a hygiene push once the architecture work above is stable.
+
+ATTN NEW PROBLEMS:
+The codebase is currently in a "Mid-Refactor" state (Transitioning from monolithic scripts to a Protocol-based Engine), resulting in significant complexity, indirection, and state-management overhead.
+1. Architectural Issues (System Level)
+1.1. The "Incomplete Migration" Pattern (Code Duplication & Indirection)
+Issue: The system is halfway between a procedural script approach and an Object-Oriented engine.
+dbex/nanobrag_refinement.py contains monolithic logic.
+dbex/refinement/engine.py and stage_*.py classes were introduced (ARCH-REFINE-FLOW-001), but they largely wrap procedural "implementation helpers" located in dbex/refinement/stage_*_impl.py.
+Consequence: Call stacks are excessively deep. RefinementEngine calls StageA.run, which calls _build_stage_a_params, which calls _build_stage_a_lbfgs_closure. This makes the control flow difficult to trace and creates multiple "sources of truth" for how refinement is orchestrated.
+1.2. Data Clumps and Primitive Obsession in Closures
+Issue: The LBFGS closure builders (e.g., _build_stage_b_lbfgs_closure in stage_b_impl.py) take excessive numbers of arguments (15+).
+Design Smell: Although RefinementSharedContext was introduced (dbex/refinement/context.py) to encapsulate these, the implementation files still support (and often unpack) legacy individual arguments alongside the context object.
+Example: _build_stage_b_lbfgs_closure accepts shared_context OR a list of 11 individual parameters (config, device, crystal, beam, etc.). This defensive coding style creates confusion about which data source is authoritative.
+1.3. Mutable State "God Dictionaries"
+Issue: Telemetry and optimization state are managed via large mutable dictionaries (param_values, telemetry_state) passed by reference through multiple layers of functions.
+Example: In stage_a_impl.py, telemetry_state holds everything from loss_trace to perf_closure_evals and best_params_snapshot. This dictionary is mutated deep inside the closure.
+Consequence: It is nearly impossible to reason about the state of the refinement at any specific line of code without understanding the entire call graph. It defeats type safety and makes refactoring dangerous.
+2. Design Issues (Component Level)
+2.1. Tightly Coupled Physics and Optimization
+Issue: The physics of crystal geometry (Incremental UB, U-Matrix, Cell parameterization) is constructed inside the optimization closure (stage_a_impl.py lines ~800-900).
+Consequence: The optimization loop is tightly coupled to the specific parameterization strategy. Changing the physics model (e.g., from cell+misset to incremental_UB) requires branching logic inside the hot loop of the optimizer.
+Better Design: A differentiable_forward_model(params) -> intensity abstraction should exist that encapsulates parameter application, decoupling the optimizer from crystallography math.
+2.2. "Warm Cache" Complexity (PERF-WARM-SIM-001)
+Issue: The performance optimization for "Warm Caching" (reusing Simulator objects) leaks into the business logic of every stage.
+Evidence: StageAContext stores simulators and roi_entries. Stage C has to explicitly call _retarget_stage_a_detectors to mutate this cache in-place to apply distance offsets.
+Consequence: This makes the Stage implementations fragile. Stage C implicitly depends on the memory layout and object identity of Stage A's internal cache. This violates stage isolation principles.
+2.3. Telemetry/IO Logic Bleeding into Physics
+Issue: The physics closures (_compute_variance_weighted_loss and the loop in _build_stage_a_lbfgs_closure) contain explicit logic for formatting telemetry (e.g., collecting i_model_min, u_matrix_lifecycle_log).
+Consequence: High-performance numerical code is cluttered with logging logic. The RefinementTelemetry object is constructed by manually unpacking these dictionaries at the end of a run, leading to potential key mismatches (as seen in the "Phase 8 fix" comments in engine.py).
+2.4. Hard-Coded Staging Logic
+Issue: While RefinementEngine claims to be protocol-based, run_nanobrag_refinement (the main entry point) still hardcodes the logic: "If A only, do X; if A->B, do Y".
+Evidence: dbex/nanobrag_refinement.py lines ~170-400 contain massive if/elif blocks handling specific combinations of stages to manage cache propagation.
+Consequence: Adding a "Stage D" would require modifying the core orchestration logic, negating the benefit of the RefinementEngine abstraction.
+3. Implementation/Code Smells
+3.1. Mixed Abstraction Levels in nanobrag_bridge.py
+Issue: This module acts as an Anti-Corruption Layer between dxtbx and nanobrag_torch. However, it mixes factory logic (create_detector_config) with pure math (derive_u_matrix_from_mosflm_a_star) and IO logic (load_calibration_metadata).
+Consequence: This file has become a "catch-all" utility drawer, making it hard to find specific functionality.
+3.2. Defensive/Redundant Validation
+Issue: The same validations (e.g., "Pixel pitch must be square", "Sigma must be positive") appear in multiple places: data_load.py, nanobrag_bridge.py, and writer.py.
+Consequence: DRY violation. If a rule changes in the Spec, it must be updated in 3+ places.
+3.3. Conditional Imports and Lazy Loading
+Issue: Extensive use of import ... inside functions (e.g., in stage_b_impl.py).
+Reason: Likely to avoid circular imports caused by the entangled module structure or to improve startup time.
+Consequence: Hides dependencies. Module-level dependencies are not visible at the top of the file. Import errors occur at runtime (during execution) rather than at load time.
+4. Specification vs. Implementation Gap
+Mapping Zero-Point Invariant: The complexity required to maintain A* = U @ B parity between the mapping (DIALS) and the refinement zero-point (Torch) has resulted in complex, fragile logic in geometry/crystallography.py (derive_u_matrix_from_mosflm_a_star). The implementation effectively reverse-engineers a B_ideal to force the math to work, which indicates a fundamental impedance mismatch between the legacy data model and the new differentiable model.
+Recommendations
+Finish the Refactor: Delete dbex/nanobrag_refinement.py and fully move logic into the RefinementEngine and Stage classes. Remove the "dual path" (legacy dicts vs. Context objects) in the _impl files and strictly enforce RefinementContext.
+Encapsulate the Physics Model: Create a DifferentiableExperiment class (extending nanobrag_torch.ExperimentModel) that owns the parameters (q, log_scale, cell_deltas) and provides a simple .forward() method. The LBFGS closure should look like loss = criterion(model(), target), not 100 lines of tensor math.
+Abstract the Cache: Move the "Warm Cache" logic into a SimulatorPool or ContextManager class that handles retargeting internally, rather than passing raw lists of Simulator objects between stages.
+Observer Pattern for Telemetry: Instead of accumulating stats in a dict inside the loop, use a callback/observer pattern where the loop emits events (on_step, on_validation), and a separate TelemetryCollector handles aggregation.

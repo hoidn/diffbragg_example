@@ -487,3 +487,10 @@ Action State: ready_for_implementation
 - Updated plans/active/ARCH-LAZY-IMPORTS-001/implementation.md (Phase B.3 detail + artifact pointer) and docs/fix_plan.md (new attempt entry) to capture the Stage B parity-guard lazy-import removal plan.
 - Authored input.md for Ralph covering module-scope imports + logger refactor plus Stage B guard/smoke selectors; artifacts reserved under 2025-12-03T171500Z.
 Action State: pending implementation by Ralph
+
+2025-12-03T171500Z focus=ARCH-LAZY-IMPORTS-001 state=blocked dwell=0 action=implementation artifacts=plans/active/ARCH-LAZY-IMPORTS-001/reports/2025-12-03T171500Z/ next_action=supervisor_triage_telemetry_collector_bug
+- Successfully moved all inline imports (json, os, logging, Path, StageBTelemetryCollector) from stage_b_impl.py to module scope per Phase B.3 checklist; module-scope logger working correctly (confirmed by warning output 'crystal_symmetry not in hkl_metadata').
+- Parity guard test (test_stage_b_baseline_guard_diff_payload) PASSED validating eager import refactor is correct and telemetry JSON emission preserved.
+- Smoke test (test_stage_b_shell_modifiers) FAILED with pre-existing bug: 'StageBTelemetryCollector' object does not support item assignment. Error not caused by import changes; telemetry collector integration incomplete somewhere in LBFGS closure/validation code paths.
+- Import hygiene work complete for Stage B; blocked on pre-existing harness/telemetry issue requiring supervisor decision: fix collector integration under this initiative or open new harness initiative.
+Action State: blocked

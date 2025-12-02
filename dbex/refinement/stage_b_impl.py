@@ -16,8 +16,12 @@ References:
 - plans/active/TORCH-REFINE-004/implementation.md (per-reflection mode)
 """
 
+import json
+import logging
 import math
+import os
 import time
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -30,7 +34,11 @@ from dbex.refinement.stage_a_impl import (
     _get_sigma_floor_sq_tensor,
 )
 from dbex.refinement.context import RefinementSharedContext, StageBTelemetryState
+from dbex.refinement.telemetry_collectors import StageBTelemetryCollector
 from dbex.physics.loss import _compute_variance_weighted_loss
+
+# Module-scope logger per ARCH-LAZY-IMPORTS-001
+logger = logging.getLogger(__name__)
 
 
 def _check_stage_b_baseline_parity(
@@ -68,11 +76,6 @@ def _check_stage_b_baseline_parity(
         - docs/spec-db-workflow.md:76-79 (Stage B baseline parity requirement)
         - ARCH-TELEMETRY-001 Phase C.1 (collector support)
     """
-    import json
-    import os
-    from pathlib import Path
-    import logging
-
     canonical_chi_squared = canonical_baseline.get('chi_squared')
 
     if canonical_chi_squared is None:
@@ -86,8 +89,6 @@ def _check_stage_b_baseline_parity(
 
     # Record parity diagnostics in telemetry (always, for observability)
     # ARCH-TELEMETRY-001 Phase C.1: Support collector, dataclass, or dict telemetry
-    from dbex.refinement.telemetry_collectors import StageBTelemetryCollector
-
     if isinstance(telemetry, StageBTelemetryCollector):
         # Collector path: use helper method (ARCH-TELEMETRY-001)
         telemetry.set_baseline_parity_metrics(rel_diff, abs_diff)
@@ -112,7 +113,7 @@ def _check_stage_b_baseline_parity(
         else:
             # Fallback to current working directory
             artifacts_dir = Path.cwd()
-            logging.warning(
+            logger.warning(
                 "DBEX_SMOKE_TELEMETRY_PATH not set, writing stage_b_baseline_diff.json to cwd: %s",
                 artifacts_dir
             )
@@ -344,8 +345,6 @@ def compute_hkl_asu_map(
         from cctbx.array_family import flex
     except ImportError as e:
         # cctbx not available, fallback to shell mode per spec:60
-        import logging
-        logger = logging.getLogger(__name__)
         logger.warning(f"cctbx.miller import failed: {e}. Falling back to shell mode.")
         return None, 0
 
@@ -412,8 +411,6 @@ def compute_hkl_asu_map(
 
     except Exception as e:
         # ASU mapping failed, fallback to shell mode per spec:60
-        import logging
-        logger = logging.getLogger(__name__)
         logger.warning(f"ASU mapping failed: {e}. Falling back to shell mode.")
         return None, 0
 
@@ -577,8 +574,6 @@ def _build_stage_b_params(
         n_asu_unique = 0
         if context is not None and hasattr(context, 'asu_map') and context.asu_map is not None:
             # Context provides pre-computed ASU map; use it directly
-            import logging
-            logger = logging.getLogger(__name__)
             logger.info("[Stage B] Reusing pre-computed asu_map from context (ARCH-REFINE-001 Phase B.3)")
             asu_indices = context.asu_map  # torch.Tensor from build_structure_factor_grid
             # Extract n_asu_unique from hkl_metadata if available (CLI stores it there)
@@ -596,8 +591,6 @@ def _build_stage_b_params(
 
             if crystal_symmetry is None:
                 # crystal_symmetry not available, fallback to shell mode
-                import logging
-                logger = logging.getLogger(__name__)
                 logger.warning("crystal_symmetry not in hkl_metadata, falling back to shell mode")
                 config_stage_b_mode_override = "shell"
                 asu_indices, n_asu_unique = None, 0
@@ -633,8 +626,6 @@ def _build_stage_b_params(
         # Check if ASU mapping succeeded; fallback to shell mode if failed
         if config_stage_b_mode_override == "per_reflection" and (asu_indices is None or n_asu_unique == 0):
             # ASU mapping failed, fall back to shell mode (spec:60 permits fallback)
-            import logging
-            logger = logging.getLogger(__name__)
             logger.warning(f"ASU mapping returned None/zero, falling back to shell mode for this refinement")
             config_stage_b_mode_override = "shell"
         elif config_stage_b_mode_override == "per_reflection":

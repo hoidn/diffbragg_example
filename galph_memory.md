@@ -408,3 +408,8 @@ Action State: ready_for_implementation
 - Rebuilt input.md so Ralph implements the new `RefinementObserver`, wires Stage A to emit telemetry via the collector, and runs the Stage A smoketests with logs landing under the new artifacts path.
 Action State: planning
 2025-12-02T191500Z focus=ARCH-TELEMETRY-001 state=planning dwell=0 action=planning artifacts=plans/active/ARCH-TELEMETRY-001/reports/2025-12-02T191500Z/ next_action=Implement Stage A observer wiring + smoketest refresh
+2025-12-02T201500Z focus=ARCH-TELEMETRY-001 state=planning dwell=1 action=planning artifacts=plans/active/ARCH-TELEMETRY-001/reports/2025-12-02T201500Z/ next_action=ready_for_implementation
+- Reviewed Phase A collector scaffolding and staged the next loop to thread StageATelemetryCollector through Stage A LBFGS/validation code before touching Stage B/C.
+- Rebuilt input.md with a Parity-mode Do Now covering `_build_lbfgs_closure`, `_run_stage_a_lbfgs`, and StageA.run wiring plus the mapped Stage A smoketest + engine telemetry selectors; artifacts reserved under 2025-12-02T201500Z.
+- Findings enforced: ARCH-STAGE-CTX-001/002 (typed telemetry only) and PHYSICS-LOSS-001/003 chi²+variance requirements.
+Action State: planning

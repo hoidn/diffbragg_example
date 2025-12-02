@@ -494,3 +494,8 @@ Action State: pending implementation by Ralph
 - Smoke test (test_stage_b_shell_modifiers) FAILED with pre-existing bug: 'StageBTelemetryCollector' object does not support item assignment. Error not caused by import changes; telemetry collector integration incomplete somewhere in LBFGS closure/validation code paths.
 - Import hygiene work complete for Stage B; blocked on pre-existing harness/telemetry issue requiring supervisor decision: fix collector integration under this initiative or open new harness initiative.
 Action State: blocked
+2025-12-03T190000Z focus=ARCH-TELEMETRY-001 state=ready_for_implementation dwell=0 action=planning artifacts=plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T190000Z/ next_action=Implement Stage B/C collector fixes + rerun guard/smokes
+- Logged failure signature from the Stage B shell smoke (collector treated as dict) and traced it back to `_check_stage_b_baseline_parity` still trying to assign into `telemetry_state`.
+- Updated docs/fix_plan.md attempts and rewrote input.md with a Parity-mode Do Now focused on fixing the parity guard, deleting the last `telemetry_state` dict branches in `_build_stage_b_lbfgs_closure`/`_run_stage_b_lbfgs`, and rerunning the Stage B guard + Stage B/C small-detector smokes under `plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T190000Z/`.
+- Findings enforced: ARCH-STAGE-CTX-001/002 and PHYSICS-LOSS-001/003 keep collectors as the only telemetry writers; REFINE-012 keeps Stage C smoke scope aligned with Stage A validations.
+Action State: ready_for_implementation

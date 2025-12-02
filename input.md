@@ -1,43 +1,42 @@
-Summary: Hoist Stage B stack dependencies (json/os/logging/StageBTelemetryCollector) to module scope, clean up the parity guard, and prove the lazy-import removal keeps the Stage B guard + smoke selectors green.
-Mode: none
+Summary: Finish the Stage B/C telemetry collector migration by fixing the Stage B parity guard to talk only to `StageBTelemetryCollector`, deleting the lingering `telemetry_state` dict shims, and proving the Stage B guard plus the Stage B/C small-detector smokes stay green.
+Mode: Parity
 InitiativeType: architecture
-Focus: ARCH-LAZY-IMPORTS-001 — Lazy imports / process-noise hygiene
+Focus: ARCH-TELEMETRY-001 — Telemetry Observer Refactor
 Branch: integration
 Mapped tests:
-- AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload | tee plans/active/ARCH-LAZY-IMPORTS-001/reports/2025-12-03T171500Z/pytest_stage_b_guard.log
-- AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small | tee plans/active/ARCH-LAZY-IMPORTS-001/reports/2025-12-03T171500Z/pytest_stage_b_smoke.log
-Artifacts: plans/active/ARCH-LAZY-IMPORTS-001/reports/2025-12-03T171500Z/
+- AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload | tee plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T190000Z/pytest_stage_b_guard.log
+- AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small | tee plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T190000Z/pytest_stage_b_smoke.log
+- AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small | tee plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T190000Z/pytest_stage_c_smoke.log
+Artifacts: plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T190000Z/
 Do Now:
 - Implement:
-  * `dbex/refinement/stage_b_impl.py::{_check_stage_b_baseline_parity,_run_stage_b_lbfgs,_compute_loss_stage_b}` — move the current inline `import json`, `import os`, `import logging`, and `from pathlib import Path` statements to module scope; add `logger = logging.getLogger(__name__)`; keep a single module-scope import of `StageBTelemetryCollector` and have the guard reference it directly so there are no per-call imports.
-  * `dbex/refinement/stage_b.py::StageB.run` — ensure the parity guard and telemetry plumbing rely on the eager imports (no nested `import logging` or `StageBTelemetryCollector` calls) and that JSON diff writing still happens via the shared `logger` + `Path` helpers.
-- Validate: rerun the mapped selectors with canonical env flags, saving the `tee` logs shown above inside the artifact directory; stop immediately if either selector fails and leave the failing log in place for supervisor review.
+  * `dbex/refinement/stage_b_impl.py::_check_stage_b_baseline_parity` — replace the dict fallbacks with a collector branch so baseline rel/abs diffs and the JSON diff path are always recorded via `StageBTelemetryCollector.set_baseline_parity_metrics`, and clear the diff path through the helper when parity passes instead of trying to subscript the collector.
+  * `dbex/refinement/stage_b_impl.py::{_build_stage_b_lbfgs_closure,_run_stage_b_lbfgs}` — drop the `isinstance(..., dict)` compatibility code, assume `telemetry_state` is a `StageBTelemetryState`, and rely on the collector-owned lists/counters (plus `StageResult.to_legacy_dict()`) for traces and parity metrics so no helper mutates `telemetry_state` directly.
+  * `dbex/refinement/telemetry_collectors.py::StageBTelemetryCollector` — update `set_baseline_parity_metrics` to always propagate the diff path (set it to `None` when clearing) and add any convenience helpers the guard now relies on.
+- Validate: run the mapped selectors above with the canonical env flags, capturing stdout/stderr via `tee` into the artifact directory. Stop immediately on the first failure and leave the log (plus any generated JSON diff) in place for supervisor triage.
 How-To Map:
-1. At the top of `dbex/refinement/stage_b_impl.py`, add `import json`, `import logging`, `import os`, `from pathlib import Path`, and `from dbex.refinement.telemetry_collectors import StageBTelemetryCollector`, then define `logger = logging.getLogger(__name__)`. Remove every nested import in `_check_stage_b_baseline_parity`, `_run_stage_b_lbfgs`, and helper functions; replace `logging.warning(...)` with `logger.warning(...)`.
-2. Update `_check_stage_b_baseline_parity` to use the module-scope `StageBTelemetryCollector` identity check, keep the JSON diff writer logic intact with the new `Path` helper, and route warnings through `logger`. Double-check that environment lookups (`DBEX_SMOKE_TELEMETRY_PATH`) still behave the same way.
-3. Scan `_run_stage_b_lbfgs` and `_compute_loss_stage_b` for inline `import logging` statements (there are multiple `import logging` blocks tied to fallback log messages) and remove them in favor of the shared `logger`. Do the same for any other Stage B helper that was calling `import logging` mid-function.
-4. Run the mapped tests with the commands listed under “Mapped tests”, ensuring `AUTHORITATIVE_CMDS_DOC`, `KMP_DUPLICATE_LIB_OK`, and `NANOBRAGG_DISABLE_COMPILE=1` are exported per docs/TESTING_GUIDE.md §1 and that each command tees its output into the artifact directory.
+1. In `_check_stage_b_baseline_parity`, branch on `StageBTelemetryCollector` and `StageBTelemetryState` only, routing all metric updates through the collector helper and removing the `telemetry[...]` assignments. Preserve the JSON diff schema and warning text so REFINE-FLOW-001 assertions still match.
+2. In `_build_stage_b_lbfgs_closure` and `_run_stage_b_lbfgs`, remove the dict-specific setup (e.g., `telemetry['loss_trace_sample_b']`), keep only the dataclass references, and let the collector maintain loss traces, perf counters, and parity metrics before you call `collector.finalize()`.
+3. After the code edits, execute the Stage B guard, Stage B shell smoke, and Stage C detector microslip smoke with the commands above, ensuring each run tees its log into `plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T190000Z/`.
 Pitfalls To Avoid:
-- Do not introduce new lazy imports elsewhere while cleaning these up; keep scope to Stage B stack.
-- Preserve warning text and JSON payload schema in `_check_stage_b_baseline_parity` so REFINE-FLOW-001 comparisons remain actionable.
-- Keep the module logger local (no global logging.basicConfig calls) to avoid mutating other modules’ logging state.
-- Stage B helper functions run inside LBFGS closures — avoid adding heavy imports or slow logging paths inside tight loops.
-- Respect Environment Freeze: no pip/conda installs; treat missing dependencies as blockers and log them per docs/fix_plan.md guidance.
-- Capture pytest logs even on failure (per docs/TESTING_GUIDE.md), then stop and report; do not rerun tests blindly.
-- Verify `AUTHORITATIVE_CMDS_DOC` remains set to `./docs/TESTING_GUIDE.md` before executing pytest so command provenance stays recorded.
+- Do not reintroduce telemetry dict shims; collectors must be the sole writers per ARCH-STAGE-CTX-001/002.
+- Keep the JSON diff structure and warning wording untouched so existing tests compare byte-for-byte artifacts.
+- Stage C full-detector runs still fail under PERF-WARM-SIM-001; only run the small-detector selector listed unless instructed otherwise.
+- Respect the Environment Freeze (no pip/conda installs); treat missing deps or new failures as blockers and document them.
+- Capture pytest logs even on failure; do not delete artifacts that show the regression.
 If Blocked:
-- If either mapped selector fails due to Stage B behavior changes, archive the full log + any generated JSON diff into the artifact directory, add a note to docs/fix_plan.md Attempts History, and stop for supervisor triage instead of attempting speculative telemetry tweaks.
+- If any mapped selector fails due to telemetry/parity regressions, keep the failing log + JSON diff in the artifact directory, update docs/fix_plan.md Attempts History with the failure context, and stop instead of guessing at fixes.
 Findings Applied:
-- ARCH-ENGINE-002 — Stage wrappers must import dependencies eagerly with documented guards (dbex/refinement/stage_b.py/stage_b_impl.py).
-- GEOMETRY-001 / GEOMETRY-003 — Mapping-dependent helpers cannot hide tensor dependencies; Stage B imports must stay explicit so detector/crystal plumbing remains auditable.
-- RUNTIME-001 — No torch.compile/dtype surprises from lazy imports; device neutrality depends on predictable import order.
+- ARCH-STAGE-CTX-001 — Stage wrappers and telemetry must use typed contexts/collectors (docs/findings.md:83).
+- ARCH-STAGE-CTX-002 — Stage B’s baseline guard has to interoperate with the typed telemetry state (docs/findings.md:84).
+- PHYSICS-LOSS-001 / PHYSICS-LOSS-003 — All stages must report variance-weighted χ²/MSE consistently (docs/findings.md:35,37).
+- REFINE-012 — Stage C validations must honor Stage A’s ROI vs panel scope decisions (docs/findings.md:73).
 Pointers:
-- plans/active/ARCH-LAZY-IMPORTS-001/implementation.md:61 (Phase B checklist + Stage B cleanup scope).
-- docs/fix_plan.md:139 (ARCH-LAZY-IMPORTS-001 ledger entry & attempts history).
-- docs/spec-db-workflow.md:76 (Stage B normative contract and runtime guardrails).
-- docs/TESTING_GUIDE.md:102 (Stage smoke env knobs and telemetry logging expectations).
-Next Up: Once Stage B imports are clean, repeat the pattern for Stage C and Stage A helper modules (Phase B.3 completion) before adding an import-hygiene selector in Phase C.
-Doc Sync Plan: none (no new selectors or renamed tests).
-Mapped Tests Guardrail: selectors already collect >0 tests; no authoring needed.
-Hard Gate: treat any new Stage B parity deltas or smoke regressions as blockers — do not merge import changes without both selectors passing.
-Normative Math/Physics: See docs/spec-db-core.md §Objective Function & Variance Model for the variance-weighted χ² telemetry Stage B must continue to report.
+- docs/spec-db-workflow.md §7 & §Calibration (Stage B/C telemetry contract).
+- dbex/refinement/stage_b_impl.py (parity guard + LBFGS helpers) and dbex/refinement/telemetry_collectors.py (Stage B/C collectors).
+- docs/TESTING_GUIDE.md §2 (env knobs + log retention for the mapped selectors).
+Next Up: Once the Stage B/C collector migration is stable, move on to Phase C.2 to teach `dbex/io/writer.py` to consume the `StageResult` telemetry directly.
+Doc Sync Plan: none — selectors unchanged.
+Mapped Tests Guardrail: Existing selectors already collect >0 tests; no new tests need to be authored before implementation.
+Hard Gate: Treat any new Stage B baseline diff or Stage B/C smoke regression as a blocker; do not land telemetry changes without green runs and archived logs.
+Normative Math/Physics: See docs/spec-db-core.md §Objective Function & Variance Model for the variance-weighted χ² definition the telemetry must continue to report.

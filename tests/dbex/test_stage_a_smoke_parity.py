@@ -9,6 +9,7 @@ import torch
 
 from dbex.nanobrag_bridge import (
     build_structure_factor_grid,
+    simulate_forward_once,
 )
 from dbex.refinement.config import RefinementConfig
 from dbex.refinement.context import build_refinement_context
@@ -169,10 +170,22 @@ def stage_a_smoke_result(
         masked_pixels = int(np.count_nonzero(refinement_inputs.loss_mask))
 
     device_obj = torch.device(config.device)
-    # ARCH-REFACTOR-001 Phase D.3 Batch 2 bugfix: Use pre-computed bragg_zero_iter from mapping_context
-    # instead of non-existent mapping_context attribute access. The mapping context already computed
-    # the zero-iteration forward model via build_mapping_stage_a_context, so reuse it directly.
-    bragg_before = mapping_context.bragg_zero_iter  # Zero-iteration forward (baseline geometry)
+    # ARCH-REFACTOR-001 Phase D.3 Batch 2 CORRECTIVE FIX: Compute bragg_before from PERTURBED geometry
+    # (refinement starting point), not from baseline geometry (mapping_context.bragg_zero_iter).
+    # The test validates refinement quality by comparing perturbed→refined improvement.
+    bragg_before, _ = simulate_forward_once(
+        inputs=refinement_inputs,
+        detector=perturbed_detector,  # Use perturbed geometry (refinement starting point)
+        beam=perturbed_beam,
+        crystal=perturbed_crystal,
+        experiment=refgeom_dataload.Expt,
+        hkl_indices=mapping_context.hkl_indices,
+        hkl_amplitudes=mapping_context.hkl_amplitudes,
+        calibration=mapping_context.calibration,
+        hkl_source=hkl_source,
+        hkl_path=hkl_path,
+        device=device_obj,
+    )
     bragg_after = bragg_final  # Engine-refined final Bragg
 
     # Compute log_scale_effective from telemetry.param_deltas per STAGEA-001

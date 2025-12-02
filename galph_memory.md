@@ -696,3 +696,22 @@ Action State: ready_for_implementation
 - Expected metrics after fix: chi² initial ~10-50 (perturbed is close to correct), correlation before ~0.2-0.4 (perturbed forward correlates with data).
 - Problems ledger last serviced 2025-12-02T220618Z; no unchecked entries requiring immediate action this loop.
 Action State: ready_for_implementation
+
+2025-12-02T230000Z_ralph focus=ARCH-REFACTOR-001 state=blocked dwell=1 action=escalation artifacts=plans/active/ARCH-REFACTOR-001/reports/2025-12-02T230000Z_debug2/ next_action=investigate_bragg_after_artifact
+- **REPEAT-FAILURE DETECTED**: Ralph implemented Phase D.3 Batch 2 corrective fix per Galph's Do Now (replaced mapping_context.bragg_zero_iter with simulate_forward_once call using perturbed geometry). Tests still FAIL with **identical signature** to previous loop:
+  - test_db_at_028: chi²/pixel initial 2.098e+05 (vs 2.098e+05 prior)
+  - test_db_at_029: median ROI correlation before -0.053 (vs -0.037 prior, essentially same)
+- **ROOT CAUSE DEEPER THAN PLANNED**: Metrics JSON shows `bragg_after_mean=7.59e-14` (essentially zero!), while `bragg_before_mean=1.86` (reasonable). This means `bragg_after` (from `engine._artifacts["stage_a"].bragg_full` line 164) is WRONG, not `bragg_before`.
+- **SUSPECTED IMPLEMENTATION BUG**: `engine._artifacts["stage_a"].bragg_full` returns near-zero array when it should contain the refined Bragg pattern. Investigation shows:
+  1. Config has `enable_stage_b=False, enable_stage_c=False` → terminal stage
+  2. StageA code (stage_a.py:2024-2026) only creates `bragg_full_artifact` when terminal
+  3. But artifact is essentially zero instead of refined forward model
+  4. Either `build_final_bragg_from_stage_a_telemetry` is broken OR artifact storage is broken
+- **INITIATIVE TYPE VIOLATION**: This is a `bugfix` initiative, but the Do Now asked Ralph to fix `bragg_before` when the real bug is in `bragg_after` extraction. Fixing `bragg_after` likely requires changes to `build_final_bragg_from_stage_a_telemetry` or StageA artifact logic — outside `bugfix` scope, needs `harness` or new `bugfix` initiative.
+- **RALPH CORRECTLY STOPPED**: Per repeat-failure guard, Ralph must halt after same failure signature + no meaningful implementation change requested. Ralph performed static inspection (checked `bragg_after` metrics, identified it's near-zero) and is escalating instead of hacking more.
+- **NEXT ACTION**: Galph must investigate why `engine._artifacts["stage_a"].bragg_full` is near-zero when it should contain refined Bragg. Likely need to:
+  1. Check if `build_final_bragg_from_stage_a_telemetry` is applying log_scale correctly
+  2. Check if telemetry param_deltas are being extracted correctly
+  3. Check if the function is being called at all (maybe bragg_full is None?)
+  4. May need new `harness` initiative to fix artifact extraction OR new `bugfix` for reconstruction function
+Action State: blocked — suspected_implementation_defect_in_artifacts

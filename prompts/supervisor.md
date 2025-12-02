@@ -255,7 +255,9 @@
       1. <strong>Problems ledger review:</strong> After handling overrides, check for <code>./problems.md</code>.
          - If the file exists, read it in full before continuing. Treat each entry as a high-signal user-supplied issue feed that can seed or adjust initiatives.
          - When you schedule, supersede, or resolve an entry, update the corresponding bullet in <code>problems.md</code> with links to the relevant fix-plan item or remove it entirely so the ledger stays current. Summarize any edits in <code>galph_memory.md</code>.
+         <problems.md trigger>
          - <strong>Fresh backlog guard:</strong> If <code>problems.md</code> has unchecked entries and neither of the last two <code>galph_memory.md</code> entries mention that ledger, you must dedicate this loop to at least one planning pass that incorporates a concrete item from the ledger. This planning pass must review and, if needed, create or update the corresponding plan under <code>plans/active/</code> so the item is on a tracked path (include the ledger entry reference in the plan header or checklist). Record which entry you serviced in both <code>problems.md</code> (with a pointer) and <code>galph_memory.md</code>, and add or update the related <code>docs/fix_plan.md</code> entry if the issue needs to live on the main plan.
+         </problems.md trigger>
          - If the file does not exist, continue to Dwell tracking.
       2. <strong>Dwell tracking:</strong> Ensure <code>galph_memory.md</code> exists (create with <code>dwell=0</code> if needed). Use the last entry for this focus to compute the new dwell unless a manual override just reset it. If <code>dwell==2</code> and prior two loops were non‑implementation, pre‑set <code>state=ready_for_implementation</code>.
       3. <code>timeout 30 git pull --rebase</code>. If it times out: <code>git rebase --abort</code> then <code>git pull --no-rebase</code>.
@@ -286,27 +288,39 @@
     </retrospective_cadence>
 
     <focus_selection>
-      - Inspect <code>docs/fix_plan.md</code> dependency structure.
-      - Identify each candidate item’s <code>initiative_type</code>, lifecycle status, and last acceptance criteria worked on.
-      - Choose a shortlist of potential focus items based on the fix_plan.md and plans/active/ contents. Review, update, or create the relevant <code>plans/active/&lt;initiative&gt;/implementation.md</code> files for the shortlisted items so they reflect current goals, exit criteria, and dependencies; planning loops are invalid unless those files exist and match reality.
+      <selection process>
+      - review <problems.md trigger>. if the condition is met:
+          - set problems.md planning as the focus and action for this loop. follow <general selection guidelines>.
+      - if the above problems.md condition is not met:
+          - Inspect <code>docs/fix_plan.md</code> dependency structure.
+          - Identify each candidate item’s <code>initiative_type</code>, lifecycle status, and last acceptance criteria worked on.
+          - Choose a shortlist of potential focus items based on the fix_plan.md and plans/active/ contents. Review, update, or create the relevant <code>plans/active/&lt;initiative&gt;/implementation.md</code> files for the shortlisted items so they reflect current goals, exit criteria, and dependencies; planning loops are invalid unless those files exist and match reality.
+          - follow <general selection guidelines> and <particular selection guidelines>
+      </selection process>
+
+      <general selection guidelines>
       - From <code>docs/index.md</code>, enumerate and read the most relevant documents; note file paths you will rely on (with one‑line rationale each).
+      - If focus shortlist relates to an in‑progress item, read artifacts under <code>plans/active/&lt;initiative-id&gt;/reports/</code> (and commit messages) and append new analysis/planning notes for this loop; never leave the reports directory untouched when you place new work on Ralph’s queue.
+      </general selection guidelines>
+
+      <particular selection guidelines>
       - <strong>Roadmap and Portfolio Alignment:</strong>
         • Start from the Execution Roadmap ordering in <code>docs/fix_plan.md</code>.  
         • Adjust by initiative type and lifecycle:
           – Do not keep a <code>perf</code> initiative at the front if it is clearly stuck and an <code>architecture</code> or <code>spec_change</code> initiative would unblock multiple items.  
           – Rotate away from initiatives that have consumed their implementation budget for a given acceptance criterion.  
         • Prefer work that unblocks others and reduces design risk, not just the last failure.
-      - <strong>Spec Drift Check:</strong> verify the <code>implementation.md</code> aligns with the current <code>$SPECS</code>. If they conflict -- i.e. if they are
-      internally inconsistent or contradict specs (or normative architecture docs), your action in this loop must be to analyze, evaluate and resolve these inconsistencies
-      (usually by opening a <code>spec_change</code> or <code>architecture</code> initiative).
-      - Before other docs: <code>grep</code> <code>docs/findings.md</code> for focus keywords; list relevant Finding IDs.
-      - Consult <code>docs/data_dependency_manifest.md</code> when scoping the focus to ensure the components in scope consume the intended external dependencies. If the manifest is missing an entry or contradicts reality, update it before delegating work.
-      - If focus relates to an in‑progress item, read artifacts under <code>plans/active/&lt;initiative-id&gt;/reports/</code> (and commit messages) and append new analysis/planning notes for this loop; never leave the reports directory untouched when you place new work on Ralph’s queue.
       - Prefer continuing current focus unless hard‑blocked OR lifecycle/type rules say it is over budget or out of scope.
       - When a “Working Plan” path exists on the item, read it and note its checklist IDs.
+      </particular selection guidelines>
     </focus_selection>
 
     <documentation_sweep>
+      0. <strong>Spec Drift Check:</strong> verify that the focus item's <code>implementation.md</code> aligns with the current <code>$SPECS</code>. If they conflict -- i.e. if they are
+      internally inconsistent or contradict specs (or normative architecture docs), your action in this loop must be to analyze, evaluate and resolve these inconsistencies
+      (usually by opening a <code>spec_change</code> or <code>architecture</code> initiative).
+      0b. <code>grep</code> <code>docs/findings.md</code> for focus keywords; list relevant Finding IDs.
+      0c. Consult <code>docs/data_dependency_manifest.md</code> when scoping the focus to ensure the components in scope consume the intended external dependencies. If the manifest is missing an entry or contradicts reality, update it before delegating work.
       1. Confirm authoritative doc list via <code>docs/index.md</code> and <code>docs/prompt_sources_map.json</code>; update if new sources appear.
       2. <strong>Knowledge Base Review:</strong> Search <code>docs/findings.md</code>; list relevant IDs in <code>input.md</code> and state adherence.
       3. Ensure <code>docs/fix_plan.md</code> metadata matches reality (Dependencies, Status, Artifacts path, Exit Criteria, Initiative Type, Lifecycle counters). Correct as needed.

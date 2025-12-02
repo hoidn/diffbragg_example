@@ -459,3 +459,9 @@ Action State: ready_for_implementation
 - Created `plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-03T041200Z/` for evidence capture and documented that the problems.md “Writer / bridge responsibility split” entry remains the driver for this focus.
 Action State: planning
 2025-12-03T041200Z focus=ARCH-BRIDGE-RESP-001 state=planning dwell=1 action=planning artifacts=plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-03T041200Z/ next_action=ready_for_implementation — remove the bridge re-export shim, update import sites, and run the mapped selectors
+- Logged the final import-migration work for Phase C.6, updated docs/fix_plan.md, and reserved the artifact path for the implementation evidence.
+- Rebuilt input.md with a ready-for-implementation Do Now covering the shim deletion, import rewrites, and bridge/CLI selectors.
+Action State: planning
+2025-12-03T051500Z focus=ARCH-BRIDGE-RESP-001 state=planning dwell=0 action=planning artifacts=plans/active/ARCH-BRIDGE-RESP-001/reports/2025-12-03T051500Z/ next_action=Docs update Phase B4 — capture ROI helper logs + sync testing guide/index
+- Confirmed Phase C.6 landed, marked it complete in the implementation plan, and logged the new Phase B.4 documentation/registry work in docs/fix_plan.md.
+- Issued a Docs-mode Do Now directing Ralph to record fresh collect-only/pytest logs for `tests/dbex/test_roi_analysis.py` + the CLI telemetry selector and update `docs/TESTING_GUIDE.md` §2 / `docs/development/TEST_SUITE_INDEX.md` with the ROI helper details (findings DIAGNOSTICS-001, PHYSICS-LOSS-001/002/003).

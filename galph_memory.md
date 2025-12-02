@@ -363,3 +363,8 @@ Action State: ready_for_implementation
 - Updated plans/active/ARCH-STAGE-CONTEXT-001/implementation.md and docs/fix_plan.md so Phase B.2.3 is checked off and Phase B.3.1 explicitly targets swapping Stage A’s telemetry_state dict for the typed StageATelemetryState before touching Stage B/C.
 - Rebuilt input.md with the new Do Now: expand StageATelemetryState, refactor `_build_stage_a_lbfgs_closure`/`StageA.run` to mutate the dataclass, and map `test_stage_a_expansion` plus `test_stage_a_engine_delegation_telemetry` under plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T073800Z/.
 Action State: ready_for_implementation
+2025-12-02T083500Z focus=ARCH-STAGE-CONTEXT-001 state=ready_for_implementation dwell=1 action=planning artifacts=plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T083500Z/ next_action=Implement Stage B/C telemetry dataclasses + rerun Stage B/C smokes
+- Logged Phase B.3.2 plan: add `StageBTelemetryState`/`StageCTelemetryState` in context.py, update Stage B and Stage C helpers/wrappers to use typed telemetry with dict-compatible shims, and keep panel-diagnostics + baseline parity fields intact (docs/fix_plan.md and implementation.md updated accordingly).
+- Reserved 2025-12-02T083500Z artifacts directory and rewrote input.md with concrete Implement/Validate steps plus env-guarded smoketests (Stage B shell/per-reflection, Stage C small/full with panel diagnostics) so Ralph can convert the remaining stages this loop.
+- Findings applied: ARCH-STAGE-CTX-001, ARCH-ENGINE-002, PHYSICS-LOSS-001/002, REFINE-007/PERF-WARM-SIM-001.
+Action State: ready_for_implementation

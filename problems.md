@@ -23,6 +23,9 @@ This file is a lightweight, user-editable backlog for any issues that Galph (the
 
 ATTN NEW PROBLEMS:
 ---
+IMPORTANT
+PRIORITIZE ARCH-REFACTOR-001 ASAP
+IMPORTANT
 The codebase is currently in a "Mid-Refactor" state (Transitioning from monolithic scripts to a Protocol-based Engine), resulting in significant complexity, indirection, and state-management overhead.
 1. Architectural Issues (System Level)
 1.1. The "Incomplete Migration" Pattern (Code Duplication & Indirection)

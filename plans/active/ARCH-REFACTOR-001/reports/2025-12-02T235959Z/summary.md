@@ -1,5 +1,5 @@
 ### Turn Summary
-Planned ARCH-REFACTOR-001 Phase C.9 (final stage_a_impl.py deletion): relocate two remaining dataclasses (StageAROIEntry, StageAContext) to context.py, update 5 import sites including bugfix for physics.loss import in stage_a.py, verify zero remaining imports, then delete stage_a_impl.py (~1524 lines).
-All prior phases complete: C.7 extracted cross-stage helpers to stage_a_utils.py (2025-12-02T200000Z), C.8 inlined Stage-A-private methods into StageA class (2025-12-04T215000Z with 4/4 tests passing).
-Next: Ralph implements dataclass relocation + import updates, validates with 6 selectors (Stage A expansion/telemetry, Stage B guard/shell, Stage C smoke, reconstruction integration).
-Artifacts: plans/active/ARCH-REFACTOR-001/reports/2025-12-02T235959Z/ (planning_notes.md, input.md ready for Ralph)
+Relocated StageAROIEntry and StageAContext dataclasses to context.py and deleted stage_a_impl.py; all 5 existing mapped tests passed.
+Fixed _compute_variance_weighted_loss import to use canonical physics.loss source instead of stage_a_impl re-export; updated 5 import sites across stage_a_utils/stage_c/stage_a/nanobrag_refinement/tools.
+ARCH-REFACTOR-001 Exit Criterion #1 fully satisfied: all *_impl.py modules (stage_a_impl, stage_b_impl, stage_c_impl) eliminated; net -1460 lines repo-wide.
+Artifacts: plans/active/ARCH-REFACTOR-001/reports/2025-12-02T235959Z/ (pytest_stage_a_expansion.log, pytest_stage_a_telemetry.log, pytest_stage_b_guard.log, pytest_stage_b_shell.log, pytest_stage_c_smoke.log, remaining_imports.txt, missing_test_note.txt)

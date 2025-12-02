@@ -269,25 +269,28 @@ Next increment shifts Stage B onto the same pattern Stage C now follows: no 
 
 
 
-#### Phase C.7 — Stage A Shared Utilities Extraction (Planned 2025-12-02T200000Z)
+#### Phase C.7 — Stage A Shared Utilities Extraction (✓ COMPLETE 2025-12-02T200000Z)
 Extract cross-stage Stage A helpers to stage_a_utils.py before inlining Stage-A-specific logic, following the hkl_utils.py precedent from Phase C.5.
 
-- [ ] C7.A — Create dbex/refinement/stage_a_utils.py: Move 7 cross-stage helpers from stage_a_impl.py: _retarget_stage_a_simulators, _get_sigma_floor_sq_tensor, _build_stage_a_context, _compute_panel_loss, _clamp_log_cell_deltas, vec_to_unit_quaternion, quaternion_to_rotation_matrix, quaternion_to_xyz_euler. Add module docstring cross-referencing ARCH-ENGINE-002, ARCH-STAGE-CTX-001, GRADIENT-004, PERF-WARM-016.
-- [ ] C7.B — Update imports in stage_a.py: Import shared helpers from stage_a_utils instead of stage_a_impl. Keep Stage-A-private helpers (_sync_stage_a_crystal, _build_stage_a_params, _run_stage_a_lbfgs) from stage_a_impl temporarily.
-- [ ] C7.C — Update imports in stage_b.py: Change from stage_a_impl to stage_a_utils for the 3 helpers.
-- [ ] C7.D — Update imports in stage_c.py: Change from stage_a_impl to stage_a_utils for the 5 helpers.
-- [ ] C7.E — Update imports in reconstruction.py: Change inline imports to stage_a_utils.
-- [ ] C7.F — Validation: Run Stage A expansion, Stage B guard + shell, Stage C detector microslip smokes with canonical env flags. All 4 selectors must PASS.
+- [x] C7.A — Create dbex/refinement/stage_a_utils.py: Move 7 cross-stage helpers from stage_a_impl.py: _retarget_stage_a_simulators, _get_sigma_floor_sq_tensor, _build_stage_a_context, _compute_panel_loss, _clamp_log_cell_deltas, vec_to_unit_quaternion, quaternion_to_rotation_matrix, quaternion_to_xyz_euler. Add module docstring cross-referencing ARCH-ENGINE-002, ARCH-STAGE-CTX-001, GRADIENT-004, PERF-WARM-016.
+- [x] C7.B — Update imports in stage_a.py: Import shared helpers from stage_a_utils instead of stage_a_impl. Keep Stage-A-private helpers (_sync_stage_a_crystal, _build_stage_a_params, _run_stage_a_lbfgs) from stage_a_impl temporarily.
+- [x] C7.C — Update imports in stage_b.py: Change from stage_a_impl to stage_a_utils for the 3 helpers.
+- [x] C7.D — Update imports in stage_c.py: Change from stage_a_impl to stage_a_utils for the 5 helpers.
+- [x] C7.E — Update imports in reconstruction.py: Change inline imports to stage_a_utils.
+- [x] C7.F — Validation: Run Stage A expansion, Stage B guard + shell, Stage C detector microslip smokes with canonical env flags. All 4 selectors must PASS.
 
-Artifacts for Phase C.7 live under plans/active/ARCH-REFACTOR-001/reports/2025-12-02T200000Z/.
+Artifacts for Phase C.7 live under plans/active/ARCH-REFACTOR-001/reports/2025-12-02T200000Z/. Commit f6d964f0.
 
-#### Phase C.8 — Stage A Helper Inlining (Planned)
-Move remaining Stage-A-private logic into StageA class, mirroring Phase C.2/C.5.
+#### Phase C.8 — Stage A Helper Inlining (Planned 2025-12-04T215000Z)
+Move remaining Stage-A-private logic into StageA class, mirroring Phase C.2/C.5. Total ~1025 lines to inline: _sync_stage_a_crystal (10 lines, trivial), _build_stage_a_params (717 lines, complex), _run_stage_a_lbfgs (298 lines, medium).
 
-- [ ] C8.A — Inline _sync_stage_a_crystal: Add as StageA._sync_crystal() private method.
-- [ ] C8.B — Inline _build_stage_a_params: Add as StageA._build_stage_a_params() private method. Preserve telemetry collector wiring, sigma floor guards, and panel/ROI mode branching.
-- [ ] C8.C — Inline _run_stage_a_lbfgs: Add as StageA._run_lbfgs() private method. Ensure observer-only telemetry path (ARCH-TELEMETRY-001) remains intact.
-- [ ] C8.D — Validation: Stage A expansion + engine delegation telemetry smokes.
+- [ ] C8.A — Inline _sync_stage_a_crystal: Add as `StageA._sync_crystal()` private method (~10 lines). Update call site at stage_a.py:442. Preserve warm-cache crystal attribute transfers (interpolate, hkl_data, hkl_metadata, beam_config).
+- [ ] C8.B — Inline _build_stage_a_params: Add as `StageA._build_stage_a_params()` private method (~717 lines). Update call site at stage_a.py:924. Preserve telemetry collector wiring, sigma floor guards, panel/ROI mode branching, CPU fallback logic (GRADIENT-003), and all quaternion/cell parameter handling.
+- [ ] C8.C — Inline _run_stage_a_lbfgs: Add as `StageA._run_lbfgs()` private method (~298 lines). Update call site at stage_a.py:1033. Ensure observer-only telemetry path (ARCH-TELEMETRY-001) remains intact, preserve baseline/periodic/final validation routing, and keep LBFGS convergence logic unchanged.
+- [ ] C8.D — Update imports: Remove `_sync_stage_a_crystal`, `_build_stage_a_params`, `_run_stage_a_lbfgs` from stage_a.py imports (stage_a_impl will temporarily retain these until Phase C.9 deletion).
+- [ ] C8.E — Validation: Run 4 mapped tests with canonical env flags: test_stage_a_expansion, test_stage_a_engine_delegation_telemetry, test_stage_b_baseline_guard_diff_payload, test_stage_b_shell_modifiers. All must PASS with identical telemetry.
+
+Artifacts for Phase C.8 live under plans/active/ARCH-REFACTOR-001/reports/2025-12-04T215000Z/.
 
 #### Phase C.9 — Stage A Module Deletion (Planned)
 - [ ] C9.A — Delete dbex/refinement/stage_a_impl.py once all helpers are relocated/inlined.

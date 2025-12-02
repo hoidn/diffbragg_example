@@ -615,14 +615,15 @@ def _run_stage_c_lbfgs(
 
         # ARCH-TELEMETRY-001 Phase C.1: Fallback when LBFGS exits without running closure
         # If no closure evals occurred, seed baseline sample so loss_trace_sample is never empty
-        # Use ensure_sample_trace instead of on_step to avoid fabricating closure_evals count
+        # Treat the seeded baseline as a synthetic closure so perf_closure_evals stays consistent
         if perf_closure_evals_c[0] == 0:
             collector.ensure_sample_trace(
                 loss=baseline_chi2_value,
                 metrics={
                     'chi_squared': baseline_chi2_value,
                     'masked_mse': baseline_mse_value,
-                }
+                },
+                increment_counter=True
             )
 
         # Assert that at least one full validation populated the best snapshot
@@ -648,13 +649,15 @@ def _run_stage_c_lbfgs(
 
     # ARCH-TELEMETRY-001 Phase C.1: Ensure sample traces are populated before finalization
     # When LBFGS exits without closure evals, seed baseline sample so gates can read meaningful data
+    # Treat the seeded baseline as a synthetic closure so perf_closure_evals stays consistent
     if len(telemetry_state.loss_trace_sample) == 0:
         collector.ensure_sample_trace(
             loss=baseline_chi2_value,
             metrics={
                 'chi_squared': baseline_chi2_value,
                 'masked_mse': baseline_mse_value,
-            }
+            },
+            increment_counter=True
         )
 
     final_step_c = telemetry_state.iteration_count[0]

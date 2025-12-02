@@ -835,226 +835,235 @@ def test_torch_diagnostics_metadata(sigma_source, sigma_reference):
     assert not hasattr(dbex.refine_one, '_write_torch_outputs'), \
         "Legacy _write_torch_outputs alias should be removed; use dbex.io.writer.write_torch_outputs directly"
 
-    # Mock score_trainer.roi_check before it gets imported
-    mock_roi_check_module = Mock()
-    mock_checker = Mock()
-    # Return a real float, not a Mock, so >= comparisons work
-    mock_checker.score = Mock(return_value=0.85)
-    mock_roi_check_class = Mock(return_value=mock_checker)
-    mock_roi_check_module.roiCheck = mock_roi_check_class
-    sys.modules['score_trainer.roi_check'] = mock_roi_check_module
+    # ARCH-BRIDGE-RESP-001 Phase B.3: No longer need to mock scipy/score_trainer since writer consumes
+    # pre-scored payloads (mocks removed to keep test focused on writer serialization, not ROI scoring)
 
-    # Mock scipy.optimize.minimize
-    from unittest.mock import patch
-    with patch('scipy.optimize.minimize') as mock_minimize:
-        # Mock the minimize result - need to support both dict-like access and attributes
-        mock_result = MagicMock()
-        mock_result.success = True
-        mock_result.__getitem__ = Mock(side_effect=lambda key: np.array([1.0]) if key == 'x' else None)
-        mock_minimize.return_value = mock_result
+    with tempfile.TemporaryDirectory() as tmpdir:
+        outfile = os.path.join(tmpdir, 'test_torch_diag.h5')
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            outfile = os.path.join(tmpdir, 'test_torch_diag.h5')
+        # Create mock inputs
+        mock_inputs = RefinementInputs(
+            target=np.zeros((1, 100, 100), dtype=np.float32),
+            loss_mask=np.ones((1, 100, 100), dtype=bool) * 0.25,  # 25% coverage
+            panel_slices=[(0, (10, 20, 10, 20))],
+            trusted_mask=np.ones((1, 100, 100), dtype=bool),
+            sigma_readout=np.zeros((1, 100, 100), dtype=np.float32)
+        )
 
-            # Create mock inputs
-            mock_inputs = RefinementInputs(
-                target=np.zeros((1, 100, 100), dtype=np.float32),
-                loss_mask=np.ones((1, 100, 100), dtype=bool) * 0.25,  # 25% coverage
-                panel_slices=[(0, (10, 20, 10, 20))],
-                trusted_mask=np.ones((1, 100, 100), dtype=bool),
-                sigma_readout=np.zeros((1, 100, 100), dtype=np.float32)
+        mock_dl = Mock()
+        mock_dl.data = np.zeros((1, 100, 100), dtype=np.float32)
+        mock_dl.background_image = np.ones((1, 100, 100), dtype=np.float32) * -1
+        mock_dl.pids = np.array([0])
+        mock_dl.bbox = np.array([[10, 20, 10, 20]])
+        if sigma_source == "external_lookup":
+            mock_dl.sigma_readout_map = np.full(
+                (1, 100, 100), sigma_reference, dtype=np.float32
             )
+            mock_dl.sigma_readout_map_source = "external_lookup"
 
-            mock_dl = Mock()
-            mock_dl.data = np.zeros((1, 100, 100), dtype=np.float32)
-            mock_dl.background_image = np.ones((1, 100, 100), dtype=np.float32) * -1
-            mock_dl.pids = np.array([0])
-            mock_dl.bbox = np.array([[10, 20, 10, 20]])
-            if sigma_source == "external_lookup":
-                mock_dl.sigma_readout_map = np.full(
-                    (1, 100, 100), sigma_reference, dtype=np.float32
-                )
-                mock_dl.sigma_readout_map_source = "external_lookup"
+        mock_args = Mock()
+        mock_args.outFile = outfile
+        mock_args.sigma_floor = 1.0
+        mock_args.adu_per_photon = None
 
-            mock_args = Mock()
-            mock_args.outFile = outfile
-            mock_args.sigma_floor = 1.0
-            mock_args.adu_per_photon = None
+        mock_bragg = np.zeros((1, 100, 100), dtype=np.float32)
+        masked_mse = 1234.5
 
-            mock_bragg = np.zeros((1, 100, 100), dtype=np.float32)
-            masked_mse = 1234.5
+        # Prepare HKL telemetry (SCALE-003)
+        hkl_telemetry = {
+            "hkl_source": "raw",
+            "hkl_n_reflections": 100,
+            "hkl_mean_amplitude": 50.0,
+            "hkl_path": "/path/to/test.mtz"
+        }
 
-            # Prepare HKL telemetry (SCALE-003)
-            hkl_telemetry = {
-                "hkl_source": "raw",
-                "hkl_n_reflections": 100,
-                "hkl_mean_amplitude": 50.0,
-                "hkl_path": "/path/to/test.mtz"
-            }
+        # PHYSICS-LOSS-001: Create mock refinement telemetry with dual loss metrics
+        # ARCH-REFINE-001 Phase C.1: Import from canonical location
+        from dbex.refinement import RefinementTelemetry
+        mock_telemetry_a = RefinementTelemetry(
+            optimizer="LBFGS",
+            stage="A",
+            history_size=10,
+            max_iter=30,
+            tolerance_grad=1e-7,
+            tolerance_change=1e-9,
+            roi_sample_fraction=0.15,
+            roi_count_sampled=1,
+            roi_count_total=1,
+            loss_trace_sample=[1000.0, 900.0, 800.0],  # Legacy chi_squared trace
+            loss_trace_full=[(0, 1000.0), (5, 900.0), (10, 800.0)],  # Legacy chi_squared trace
+            best_loss_full=(800.0, 10),  # Legacy chi_squared best
+            param_deltas={"log_scale": 0.1},
+            status="ok",
+            message="Converged",
+            perf_counters={"cache_mode": "warm"},
+            # PHYSICS-LOSS-001: Dual loss metrics
+            chi_squared_trace_sample=[1000.0, 900.0, 800.0],
+            chi_squared_trace_full=[(0, 1000.0), (5, 900.0), (10, 800.0)],
+            chi_squared_best=(800.0, 10),
+            masked_mse_trace_sample=[500.0, 450.0, 400.0],
+            masked_mse_trace_full=[(0, 500.0), (5, 450.0), (10, 400.0)],
+            masked_mse_best=(400.0, 10),
+            sigma_readout_provenance=sigma_source,
+            sigma_readout_reference_value=sigma_reference,
+            variance_floor_value=4.0,
+            variance_floor_clamp_fraction=0.125,
+            canonical_stage_label="A",
+            canonical_chi_squared=800.0,
+            canonical_chi_squared_iteration=10,
+            canonical_roi_count=1,
+            canonical_detector_distances_mm=[100.0],
+        )
+        refine_telemetry_dict = {"A": mock_telemetry_a}
 
-            # PHYSICS-LOSS-001: Create mock refinement telemetry with dual loss metrics
-            # ARCH-REFINE-001 Phase C.1: Import from canonical location
-            from dbex.refinement import RefinementTelemetry
-            mock_telemetry_a = RefinementTelemetry(
-                optimizer="LBFGS",
-                stage="A",
-                history_size=10,
-                max_iter=30,
-                tolerance_grad=1e-7,
-                tolerance_change=1e-9,
-                roi_sample_fraction=0.15,
-                roi_count_sampled=1,
-                roi_count_total=1,
-                loss_trace_sample=[1000.0, 900.0, 800.0],  # Legacy chi_squared trace
-                loss_trace_full=[(0, 1000.0), (5, 900.0), (10, 800.0)],  # Legacy chi_squared trace
-                best_loss_full=(800.0, 10),  # Legacy chi_squared best
-                param_deltas={"log_scale": 0.1},
-                status="ok",
-                message="Converged",
-                perf_counters={"cache_mode": "warm"},
-                # PHYSICS-LOSS-001: Dual loss metrics
-                chi_squared_trace_sample=[1000.0, 900.0, 800.0],
-                chi_squared_trace_full=[(0, 1000.0), (5, 900.0), (10, 800.0)],
-                chi_squared_best=(800.0, 10),
-                masked_mse_trace_sample=[500.0, 450.0, 400.0],
-                masked_mse_trace_full=[(0, 500.0), (5, 450.0), (10, 400.0)],
-                masked_mse_best=(400.0, 10),
-                sigma_readout_provenance=sigma_source,
-                sigma_readout_reference_value=sigma_reference,
-                variance_floor_value=4.0,
-                variance_floor_clamp_fraction=0.125,
-                canonical_stage_label="A",
-                canonical_chi_squared=800.0,
-                canonical_chi_squared_iteration=10,
-                canonical_roi_count=1,
-                canonical_detector_distances_mm=[100.0],
-            )
-            refine_telemetry_dict = {"A": mock_telemetry_a}
+        # ARCH-BRIDGE-RESP-001 Phase B.3: Build minimal ROI payloads to satisfy writer contract
+        from dbex.io.roi_analysis import ROIAnalysisPayload, ROITriptych
+        roi_payload = ROIAnalysisPayload(
+            triptych=ROITriptych(
+                panel_id=0,
+                bbox=(10, 20, 10, 20),
+                data=np.zeros((10, 10), dtype=np.float32),
+                background=np.ones((10, 10), dtype=np.float32) * -1,
+                bragg=np.zeros((10, 10), dtype=np.float32),
+            ),
+            score=0.85,  # Deterministic score for test
+            optimal_scale=1.0,
+            model=np.ones((10, 10), dtype=np.float32),
+            variance=np.ones((10, 10), dtype=np.float32) * 2.0,  # Realistic variance
+        )
 
-            # Import the function to test
-            from dbex.io.writer import write_torch_outputs
-            # ARCH-STAGE-CONTEXT-001 Phase B.4: stage_artifacts parameter added for Stage B baseline metrics
-            # ARCH-BRIDGE-RESP-001 Phase B.2: roi_payloads parameter added for typed payload threading
-            write_torch_outputs(
-                mock_args,
-                mock_dl,
-                mock_bragg,
-                mock_inputs,
-                masked_mse,
-                hkl_telemetry,
-                refine_telemetry=refine_telemetry_dict,
-                sigma_readout_provenance=sigma_source,
-                sigma_readout_reference_value=sigma_reference,
-                stage_artifacts=None,  # Phase B.4: No Stage B artifacts in this Stage-A-only test
-                roi_payloads=None,  # Phase B.2: No pre-scored payloads (writer runs legacy inline scoring)
-            )
+        # Import the function to test
+        from dbex.io.writer import write_torch_outputs
+        # ARCH-STAGE-CONTEXT-001 Phase B.4: stage_artifacts parameter added for Stage B baseline metrics
+        # ARCH-BRIDGE-RESP-001 Phase B.3: roi_payloads now required (inline Nelder-Mead removed)
+        write_torch_outputs(
+            mock_args,
+            mock_dl,
+            mock_bragg,
+            mock_inputs,
+            masked_mse,
+            hkl_telemetry,
+            refine_telemetry=refine_telemetry_dict,
+            sigma_readout_provenance=sigma_source,
+            sigma_readout_reference_value=sigma_reference,
+            stage_artifacts=None,  # Phase B.4: No Stage B artifacts in this Stage-A-only test
+            roi_payloads=[roi_payload],  # Phase B.3: Pass pre-scored payload
+        )
 
-            # Verify diagnostics group exists and has correct metadata
-            with h5py.File(outfile, 'r') as h:
-                assert 'torch_diagnostics' in h, "torch_diagnostics group missing"
-                diag = h['torch_diagnostics']
-                assert 'masked_mse' in diag.attrs
-                assert 'loss_mask_coverage' in diag.attrs
-                assert 'n_rois' in diag.attrs
-                assert 'target_shape' in diag.attrs
-                assert 'backend' in diag.attrs
-                # SCALE-003: verify HKL telemetry fields
-                assert 'hkl_source' in diag.attrs
-                assert 'hkl_n_reflections' in diag.attrs
-                assert 'hkl_mean_amplitude' in diag.attrs
-                assert 'hkl_path' in diag.attrs
-                assert diag.attrs['hkl_source'] == "raw"
-                assert diag.attrs['hkl_n_reflections'] == 100
-                assert diag.attrs['hkl_mean_amplitude'] == 50.0
-                assert diag.attrs['hkl_path'] == "/path/to/test.mtz"
+        # Verify diagnostics group exists and has correct metadata
+        with h5py.File(outfile, 'r') as h:
+            assert 'torch_diagnostics' in h, "torch_diagnostics group missing"
+            diag = h['torch_diagnostics']
+            assert 'masked_mse' in diag.attrs
+            assert 'loss_mask_coverage' in diag.attrs
+            assert 'n_rois' in diag.attrs
+            assert 'target_shape' in diag.attrs
+            assert 'backend' in diag.attrs
+            # SCALE-003: verify HKL telemetry fields
+            assert 'hkl_source' in diag.attrs
+            assert 'hkl_n_reflections' in diag.attrs
+            assert 'hkl_mean_amplitude' in diag.attrs
+            assert 'hkl_path' in diag.attrs
+            assert diag.attrs['hkl_source'] == "raw"
+            assert diag.attrs['hkl_n_reflections'] == 100
+            assert diag.attrs['hkl_mean_amplitude'] == 50.0
+            assert diag.attrs['hkl_path'] == "/path/to/test.mtz"
 
-                assert diag.attrs['masked_mse'] == masked_mse
-                assert diag.attrs['loss_mask_coverage'] == pytest.approx(0.25)
-                assert diag.attrs['n_rois'] == 1
-                assert diag.attrs['backend'] == 'nanobrag'
-                assert diag.attrs['sigma_readout_provenance'] == sigma_source
-                assert diag.attrs['sigma_readout_reference_value'] == pytest.approx(sigma_reference)
+            assert diag.attrs['masked_mse'] == masked_mse
+            assert diag.attrs['loss_mask_coverage'] == pytest.approx(0.25)
+            assert diag.attrs['n_rois'] == 1
+            assert diag.attrs['backend'] == 'nanobrag'
+            assert diag.attrs['sigma_readout_provenance'] == sigma_source
+            assert diag.attrs['sigma_readout_reference_value'] == pytest.approx(sigma_reference)
 
-                # TORCH-CLI-004: Verify score dataset contains numeric values (not Mock objects)
-                assert 'score' in h
-                scores_ds = h['score'][:]
-                assert len(scores_ds) == 1
-                assert isinstance(scores_ds[0], (int, float, np.number))
-                # Score should be numeric and finite (coercion guards against Mock objects)
-                assert np.isfinite(scores_ds[0])
-                assert 0.0 <= scores_ds[0] <= 1.0
+            # ARCH-BRIDGE-RESP-001 Phase B.3: Verify new ROI scoring telemetry attrs
+            assert 'roi_scoring_method' in diag.attrs, "roi_scoring_method attr missing"
+            assert diag.attrs['roi_scoring_method'] == "nelder_mead", \
+            f"Expected roi_scoring_method='nelder_mead', got {diag.attrs['roi_scoring_method']}"
+            assert 'roi_checker' in diag.attrs, "roi_checker attr missing"
+            assert diag.attrs['roi_checker'] == "score_trainer.roi_check.roiCheck", \
+            f"Expected roi_checker='score_trainer.roi_check.roiCheck', got {diag.attrs['roi_checker']}"
 
-                # PHYSICS-LOSS-001: Verify dual loss metrics in Stage A telemetry
-                assert 'stage_A' in diag, "stage_A group missing from torch_diagnostics"
-                stage_a_group = diag['stage_A']
+            # TORCH-CLI-004: Verify score dataset contains numeric values (not Mock objects)
+            assert 'score' in h
+            scores_ds = h['score'][:]
+            assert len(scores_ds) == 1
+            assert isinstance(scores_ds[0], (int, float, np.number))
+            # Score should be numeric and finite (coercion guards against Mock objects)
+            assert np.isfinite(scores_ds[0])
+            assert 0.0 <= scores_ds[0] <= 1.0
 
-                # Chi-squared metrics
-                assert 'chi_squared_trace_sample' in stage_a_group, "chi_squared_trace_sample dataset missing"
-                assert 'chi_squared_trace_full' in stage_a_group, "chi_squared_trace_full dataset missing"
-                assert 'chi_squared_best' in stage_a_group.attrs, "chi_squared_best attr missing"
-                assert 'chi_squared_best_iteration' in stage_a_group.attrs, "chi_squared_best_iteration attr missing"
+            # PHYSICS-LOSS-001: Verify dual loss metrics in Stage A telemetry
+            assert 'stage_A' in diag, "stage_A group missing from torch_diagnostics"
+            stage_a_group = diag['stage_A']
 
-                chi2_sample = stage_a_group['chi_squared_trace_sample'][:]
-                assert len(chi2_sample) == 3, f"Expected 3 chi_squared_trace_sample entries, got {len(chi2_sample)}"
-                assert np.allclose(chi2_sample, [1000.0, 900.0, 800.0])
+            # Chi-squared metrics
+            assert 'chi_squared_trace_sample' in stage_a_group, "chi_squared_trace_sample dataset missing"
+            assert 'chi_squared_trace_full' in stage_a_group, "chi_squared_trace_full dataset missing"
+            assert 'chi_squared_best' in stage_a_group.attrs, "chi_squared_best attr missing"
+            assert 'chi_squared_best_iteration' in stage_a_group.attrs, "chi_squared_best_iteration attr missing"
 
-                chi2_full = stage_a_group['chi_squared_trace_full'][:]
-                assert len(chi2_full) == 3, f"Expected 3 chi_squared_trace_full entries, got {len(chi2_full)}"
-                assert chi2_full['iteration'][0] == 0
-                assert chi2_full['chi_squared'][0] == pytest.approx(1000.0)
-                assert chi2_full['iteration'][2] == 10
-                assert chi2_full['chi_squared'][2] == pytest.approx(800.0)
+            chi2_sample = stage_a_group['chi_squared_trace_sample'][:]
+            assert len(chi2_sample) == 3, f"Expected 3 chi_squared_trace_sample entries, got {len(chi2_sample)}"
+            assert np.allclose(chi2_sample, [1000.0, 900.0, 800.0])
 
-                assert stage_a_group.attrs['chi_squared_best'] == pytest.approx(800.0)
-                assert stage_a_group.attrs['chi_squared_best_iteration'] == 10
+            chi2_full = stage_a_group['chi_squared_trace_full'][:]
+            assert len(chi2_full) == 3, f"Expected 3 chi_squared_trace_full entries, got {len(chi2_full)}"
+            assert chi2_full['iteration'][0] == 0
+            assert chi2_full['chi_squared'][0] == pytest.approx(1000.0)
+            assert chi2_full['iteration'][2] == 10
+            assert chi2_full['chi_squared'][2] == pytest.approx(800.0)
 
-                # Masked-MSE metrics
-                assert 'masked_mse_trace_sample' in stage_a_group, "masked_mse_trace_sample dataset missing"
-                assert 'masked_mse_trace_full' in stage_a_group, "masked_mse_trace_full dataset missing"
-                assert 'masked_mse_best' in stage_a_group.attrs, "masked_mse_best attr missing"
-                assert 'masked_mse_best_iteration' in stage_a_group.attrs, "masked_mse_best_iteration attr missing"
+            assert stage_a_group.attrs['chi_squared_best'] == pytest.approx(800.0)
+            assert stage_a_group.attrs['chi_squared_best_iteration'] == 10
 
-                mse_sample = stage_a_group['masked_mse_trace_sample'][:]
-                assert len(mse_sample) == 3, f"Expected 3 masked_mse_trace_sample entries, got {len(mse_sample)}"
-                assert np.allclose(mse_sample, [500.0, 450.0, 400.0])
+            # Masked-MSE metrics
+            assert 'masked_mse_trace_sample' in stage_a_group, "masked_mse_trace_sample dataset missing"
+            assert 'masked_mse_trace_full' in stage_a_group, "masked_mse_trace_full dataset missing"
+            assert 'masked_mse_best' in stage_a_group.attrs, "masked_mse_best attr missing"
+            assert 'masked_mse_best_iteration' in stage_a_group.attrs, "masked_mse_best_iteration attr missing"
 
-                mse_full = stage_a_group['masked_mse_trace_full'][:]
-                assert len(mse_full) == 3, f"Expected 3 masked_mse_trace_full entries, got {len(mse_full)}"
-                assert mse_full['iteration'][0] == 0
-                assert mse_full['masked_mse'][0] == pytest.approx(500.0)
-                assert mse_full['iteration'][2] == 10
-                assert mse_full['masked_mse'][2] == pytest.approx(400.0)
+            mse_sample = stage_a_group['masked_mse_trace_sample'][:]
+            assert len(mse_sample) == 3, f"Expected 3 masked_mse_trace_sample entries, got {len(mse_sample)}"
+            assert np.allclose(mse_sample, [500.0, 450.0, 400.0])
 
-                assert stage_a_group.attrs['masked_mse_best'] == pytest.approx(400.0)
-                assert stage_a_group.attrs['masked_mse_best_iteration'] == 10
-                assert stage_a_group.attrs['variance_floor_value'] == pytest.approx(4.0)
-                assert stage_a_group.attrs['variance_floor_clamp_fraction'] == pytest.approx(0.125)
-                assert stage_a_group.attrs['canonical_stage_label'] == "A"
-                assert stage_a_group.attrs['canonical_chi_squared'] == pytest.approx(800.0)
-                assert stage_a_group.attrs['canonical_chi_squared_iteration'] == 10
-                assert stage_a_group.attrs['canonical_roi_count'] == 1
-                assert 'canonical_detector_distances_mm' in stage_a_group
-                assert np.allclose(stage_a_group['canonical_detector_distances_mm'][:], [100.0])
-                assert stage_a_group.attrs['sigma_readout_provenance'] == sigma_source
-                assert stage_a_group.attrs['sigma_readout_reference_value'] == pytest.approx(sigma_reference)
+            mse_full = stage_a_group['masked_mse_trace_full'][:]
+            assert len(mse_full) == 3, f"Expected 3 masked_mse_trace_full entries, got {len(mse_full)}"
+            assert mse_full['iteration'][0] == 0
+            assert mse_full['masked_mse'][0] == pytest.approx(500.0)
+            assert mse_full['iteration'][2] == 10
+            assert mse_full['masked_mse'][2] == pytest.approx(400.0)
 
-                # PHYSICS-LOSS-001: Verify legacy top-level compatibility (Stage A only)
-                assert 'chi_squared_trace_sample' in diag, "Top-level chi_squared_trace_sample dataset missing"
-                assert 'chi_squared_trace_full' in diag, "Top-level chi_squared_trace_full dataset missing"
-                assert 'chi_squared_best' in diag.attrs, "Top-level chi_squared_best attr missing"
-                assert 'masked_mse_trace_sample' in diag, "Top-level masked_mse_trace_sample dataset missing"
-                assert 'masked_mse_trace_full' in diag, "Top-level masked_mse_trace_full dataset missing"
-                assert 'masked_mse_best' in diag.attrs, "Top-level masked_mse_best attr missing"
-                assert 'variance_floor_value' in diag.attrs
-                assert 'variance_floor_clamp_fraction' in diag.attrs
-                assert diag.attrs['variance_floor_value'] == pytest.approx(4.0)
-                assert diag.attrs['variance_floor_clamp_fraction'] == pytest.approx(0.125)
-                assert diag.attrs['canonical_stage_label'] == "A"
-                assert diag.attrs['canonical_chi_squared'] == pytest.approx(800.0)
-                assert diag.attrs['canonical_chi_squared_iteration'] == 10
-                assert diag.attrs['canonical_roi_count'] == 1
-                assert 'canonical_detector_distances_mm' in diag
-                assert np.allclose(diag['canonical_detector_distances_mm'][:], [100.0])
+            assert stage_a_group.attrs['masked_mse_best'] == pytest.approx(400.0)
+            assert stage_a_group.attrs['masked_mse_best_iteration'] == 10
+            assert stage_a_group.attrs['variance_floor_value'] == pytest.approx(4.0)
+            assert stage_a_group.attrs['variance_floor_clamp_fraction'] == pytest.approx(0.125)
+            assert stage_a_group.attrs['canonical_stage_label'] == "A"
+            assert stage_a_group.attrs['canonical_chi_squared'] == pytest.approx(800.0)
+            assert stage_a_group.attrs['canonical_chi_squared_iteration'] == 10
+            assert stage_a_group.attrs['canonical_roi_count'] == 1
+            assert 'canonical_detector_distances_mm' in stage_a_group
+            assert np.allclose(stage_a_group['canonical_detector_distances_mm'][:], [100.0])
+            assert stage_a_group.attrs['sigma_readout_provenance'] == sigma_source
+            assert stage_a_group.attrs['sigma_readout_reference_value'] == pytest.approx(sigma_reference)
+
+            # PHYSICS-LOSS-001: Verify legacy top-level compatibility (Stage A only)
+            assert 'chi_squared_trace_sample' in diag, "Top-level chi_squared_trace_sample dataset missing"
+            assert 'chi_squared_trace_full' in diag, "Top-level chi_squared_trace_full dataset missing"
+            assert 'chi_squared_best' in diag.attrs, "Top-level chi_squared_best attr missing"
+            assert 'masked_mse_trace_sample' in diag, "Top-level masked_mse_trace_sample dataset missing"
+            assert 'masked_mse_trace_full' in diag, "Top-level masked_mse_trace_full dataset missing"
+            assert 'masked_mse_best' in diag.attrs, "Top-level masked_mse_best attr missing"
+            assert 'variance_floor_value' in diag.attrs
+            assert 'variance_floor_clamp_fraction' in diag.attrs
+            assert diag.attrs['variance_floor_value'] == pytest.approx(4.0)
+            assert diag.attrs['variance_floor_clamp_fraction'] == pytest.approx(0.125)
+            assert diag.attrs['canonical_stage_label'] == "A"
+            assert diag.attrs['canonical_chi_squared'] == pytest.approx(800.0)
+            assert diag.attrs['canonical_chi_squared_iteration'] == 10
+            assert diag.attrs['canonical_roi_count'] == 1
+            assert 'canonical_detector_distances_mm' in diag
+            assert np.allclose(diag['canonical_detector_distances_mm'][:], [100.0])
 
 
 @patch('dbex.data_load.DataLoad')
@@ -1135,15 +1144,15 @@ def test_nanobrag_backend_refined_mtz_missing_errors(mock_DataLoad):
         # Test 1: FileNotFoundError when refined MTZ does not exist
         with pytest.raises(RuntimeError) as exc_info:
             main([
-                '-e', exp_path,
-                '-r', refl_path,
-                '-i', '0',
-                '-o', out_path,
-                '-m', mask_path,
-                '-z', mtz_path,
-                '--sigma-rdout', '3.0',
-                '--refined-mtz', nonexistent_refined_mtz,
-                '--backend', 'nanobrag'
+            '-e', exp_path,
+            '-r', refl_path,
+            '-i', '0',
+            '-o', out_path,
+            '-m', mask_path,
+            '-z', mtz_path,
+            '--sigma-rdout', '3.0',
+            '--refined-mtz', nonexistent_refined_mtz,
+            '--backend', 'nanobrag'
             ])
 
         # Verify error message is actionable and mentions the flag

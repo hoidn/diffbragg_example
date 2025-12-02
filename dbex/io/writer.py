@@ -89,33 +89,42 @@ def write_torch_outputs(
                         stage-specific metadata (ARCH-STAGE-CONTEXT-001 Phase B.4). When provided,
                         Stage B baseline metrics are sourced from StageBArtifacts; otherwise falls
                         back to telemetry fields for backward compatibility.
-        roi_payloads: Optional List[ROIAnalysisPayload] from dbex.io.roi_scoring.score_roi_payloads
-                     (ARCH-BRIDGE-RESP-001 Phase B.2). When provided, contains pre-scored ROI triptychs
-                     with model/variance arrays. Currently unused (Phase B.3 will consume these and
-                     remove the inline Nelder-Mead loop below). Default None preserves legacy behavior.
+        roi_payloads: List[ROIAnalysisPayload] from dbex.io.roi_scoring.score_roi_payloads
+                     (ARCH-BRIDGE-RESP-001 Phase B.3). Required (non-None). Contains pre-scored ROI triptychs
+                     with model/variance arrays populated by score_roi_payloads. Inline Nelder-Mead loop removed;
+                     passing None raises ValueError.
 
     Notes:
-        - ROI scoring loop uses score_trainer.roi_check.roiCheck per legacy parity
+        - ARCH-BRIDGE-RESP-001 Phase B.3: Consumes pre-scored ROI payloads from dbex.io.roi_scoring.score_roi_payloads;
+          requires roi_payloads to be non-None (inline Nelder-Mead loop removed).
         - Variance computation follows spec-db-core.md §86-90: V = max(I_model + sigma_rdout^2, sigma_floor^2)
         - HDF5 schema matches prior dbex.refine_one._write_torch_outputs (DIAGNOSTICS-001)
         - Multi-stage telemetry serialization supports RefinementEngine protocol (ARCH-ENGINE-003)
         - TORCH-CLI-004: Score coercion guards against mocked/non-scalar values
-        - ARCH-BRIDGE-RESP-001 Phase B.2: roi_payloads parameter added for typed payload threading;
-          legacy inline scoring remains active until Phase B.3 proves payload plumbing is stable.
+        - Telemetry attrs roi_scoring_method and roi_checker record scoring provenance per DIAGNOSTICS-001
     """
     import h5py
     import numpy as np
-    from scipy.optimize import minimize
-    from score_trainer import roi_check
 
-    CHECKER = roi_check.roiCheck()
+    # ARCH-BRIDGE-RESP-001 Phase B.3: Require non-None roi_payloads
+    if roi_payloads is None:
+        raise ValueError(
+            "roi_payloads must be non-None (Phase B.3: inline Nelder-Mead removed). "
+            "Call dbex.io.roi_scoring.score_roi_payloads() to generate typed payloads before invoking writer."
+        )
 
-    def func(x, CHECKER, bragg_im, bg_im, dat_im):
-        bragg_scale = x[0]
-        score = CHECKER.score(dat_im, bragg_scale**2*bragg_im + bg_im)
-        resid = 1-score
-        return resid
+    # Validate that all payloads have required fields populated
+    for i, payload in enumerate(roi_payloads):
+        if payload.model is None:
+            raise ValueError(
+                f"roi_payloads[{i}].model is None; score_roi_payloads must populate model arrays before writer consumption."
+            )
+        if payload.variance is None:
+            raise ValueError(
+                f"roi_payloads[{i}].variance is None; score_roi_payloads must populate variance arrays before writer consumption."
+            )
 
+    # Extract triptych arrays and scoring results from payloads
     data_subims = []
     bg_subims = []
     bragg_subims = []
@@ -123,46 +132,29 @@ def write_torch_outputs(
     model_subims = []
     scores = []
 
-    for i_sb, (pid, (x1, x2, y1, y2)) in enumerate(zip(data_load.pids, data_load.bbox)):
-        bg_im = data_load.background_image[pid, y1:y2, x1:x2]
-        assert not np.any(np.isnan(bg_im))
-        x = slice(x1, x2, 1)
-        y = slice(y1, y2, 1)
-        dat_im = data_load.data[pid, y, x]
-        bragg_im = bragg[pid, y, x]
-
-        min_out = minimize(func, x0=[1], args=(CHECKER, bragg_im, bg_im, dat_im), method="Nelder-Mead")
-        if min_out.success:
-            opt_bragg_scale = min_out['x'][0]**2
-        else:
-            opt_bragg_scale = 1
-
-        mod_im = bg_im + opt_bragg_scale*bragg_im
-        score = CHECKER.score(dat_im, mod_im)
+    for i_sb, payload in enumerate(roi_payloads):
+        triptych = payload.triptych
+        data_subims.append(triptych.data)
+        bg_subims.append(triptych.background)
+        bragg_subims.append(triptych.bragg)
+        model_subims.append(payload.model)
+        opt_bragg_scales.append(payload.optimal_scale)
         # TORCH-CLI-004: Coerce score to float to guard against mocks/non-scalars
-        score_float = float(score)
-        print("roi=%d : score= %.1f" % (i_sb, score_float*100))
-
-        model_subims.append(mod_im)
-        data_subims.append(dat_im)
-        bg_subims.append(bg_im)
-        bragg_subims.append(bragg_im)
-        opt_bragg_scales.append(opt_bragg_scale)
+        score_float = float(payload.score) if payload.score is not None else 0.0
         scores.append(score_float)
+        print("roi=%d : score= %.1f" % (i_sb, score_float * 100))
 
-    # Compute variance per spec-db-core.md §86-90: V = max(I_model + sigma_readout^2, sigma_floor^2)
+    # Use variance arrays from pre-scored payloads (already computed per spec-db-core.md §86-90)
     variance_subims = []
+    for payload in roi_payloads:
+        variance_subims.append(payload.variance)
+
     # Extract sigma_readout from function parameter (already in target units after _resolve_sigma_readout)
+    # Keep these for sigma_readout/sigma_floor dataset serialization (DIAGNOSTICS-001 schema)
     sigma_readout = sigma_readout_reference_value if sigma_readout_reference_value is not None else 3.0
-    # Use args.sigma_floor directly
     sigma_floor_for_variance = args.sigma_floor
     if args.adu_per_photon is not None and args.adu_per_photon > 0:
         sigma_floor_for_variance = args.sigma_floor / args.adu_per_photon
-
-    for i in range(len(scores)):
-        variance_i = model_subims[i] + sigma_readout**2
-        variance_i = np.maximum(variance_i, sigma_floor_for_variance**2)
-        variance_subims.append(variance_i)
 
     with h5py.File(args.outFile, "w") as h:
         h.create_dataset("score", data=scores)
@@ -190,6 +182,10 @@ def write_torch_outputs(
             diag.attrs["sigma_readout_provenance"] = sigma_readout_provenance
         if sigma_readout_reference_value is not None:
             diag.attrs["sigma_readout_reference_value"] = float(sigma_readout_reference_value)
+
+        # ROI scoring telemetry (ARCH-BRIDGE-RESP-001 Phase B.3: record scoring provenance)
+        diag.attrs["roi_scoring_method"] = "nelder_mead"
+        diag.attrs["roi_checker"] = "score_trainer.roi_check.roiCheck"
 
         # Structure-factor telemetry (SCALE-003: track refined vs raw MTZ)
         diag.attrs["hkl_source"] = hkl_telemetry["hkl_source"]

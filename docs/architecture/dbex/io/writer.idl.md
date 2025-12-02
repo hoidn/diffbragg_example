@@ -92,11 +92,11 @@ def build_roi_payloads_from_arrays(
 - Telemetry: ROI panel IDs (`pids`) and bounding boxes (`bbox`) from DataLoad
 - Optional: Pre-computed scores/scales from upstream ROI scoring helper (Phase B)
 
-**Future Wiring** (Phase B):
-1. Dedicated ROI scoring helper will call `build_roi_payloads_from_arrays` after running Nelder-Mead
-2. Scoring helper will populate `score`, `optimal_scale`, `variance`, and `model` fields
-3. `write_torch_outputs` will consume typed `List[ROIAnalysisPayload]` instead of raw arrays
-4. Writer focuses solely on HDF5 serialization (no inline optimization)
+**Phase B.3 Status** (Completed 2025-12-03):
+1. Dedicated ROI scoring helper (`dbex.io.roi_scoring.score_roi_payloads`) runs Nelder-Mead and calls `build_roi_payloads_from_arrays`
+2. Scoring helper populates `score`, `optimal_scale`, `variance`, and `model` fields
+3. `write_torch_outputs` now requires non-None `roi_payloads` parameter (inline Nelder-Mead loop removed)
+4. Writer focuses solely on HDF5 serialization and telemetry recording
 
 ### Helper: `score_roi_payloads` (ARCH-BRIDGE-RESP-001 Phase B.1)
 
@@ -169,8 +169,8 @@ When `write_torch_outputs` accepts `List[ROIAnalysisPayload]` in Phase B, HDF5 d
 | `/score` | `[p.score for p in payloads]` | (n_rois,) | float32 |
 | `/bragg_scale` | `[p.optimal_scale for p in payloads]` | (n_rois,) | float32 |
 
-**Provenance Telemetry**: `/torch_diagnostics` group will include:
-- `roi_scoring_method: str` — "nelder_mead" (Phase B) or "inline" (legacy, Phase A)
+**Provenance Telemetry** (Phase B.3): `/torch_diagnostics` group includes:
+- `roi_scoring_method: str` — "nelder_mead" (always, inline scoring removed)
 - `roi_checker: str` — "score_trainer.roi_check.roiCheck" (legacy parity)
 
 ---
@@ -209,7 +209,7 @@ def write_torch_outputs(
 | `sigma_readout_provenance` | Optional[str] | No | Human-readable description of sigma source ("cli_override", "calibrated_map", "external_lookup", etc.) per PHYSICS-LOSS-001 | `_resolve_sigma_readout()` in CLI |
 | `sigma_readout_reference_value` | Optional[float] | No | Scalar sigma_readout in target units (after ADU→photon conversion if applicable) | `_resolve_sigma_readout()` in CLI |
 | `stage_artifacts` | Optional[Dict[str, Any]] | No | Stage-specific metadata from `RefinementEngine.artifacts` containing stage artifacts (e.g., {"stage_b": StageBArtifacts}). When provided, Stage B baseline parity metrics (`stage_b_baseline_rel_diff`, `stage_b_baseline_abs_diff`, `stage_b_baseline_diff_path`) are sourced from StageBArtifacts; otherwise falls back to telemetry fields (ARCH-STAGE-CONTEXT-001 Phase B.4) | `RefinementEngine.artifacts` |
-| `roi_payloads` | Optional[List[ROIAnalysisPayload]] | No | Pre-scored ROI triptychs with model/variance arrays from `dbex.io.roi_scoring.score_roi_payloads` (ARCH-BRIDGE-RESP-001 Phase B.2). When provided, contains typed payloads suitable for direct HDF5 serialization. Currently unused (Phase B.3 will consume these and remove the inline Nelder-Mead loop). Default None preserves legacy behavior. | `dbex.io.roi_scoring.score_roi_payloads()` called from `dbex.refine_one.run_nanobrag_backend()` |
+| `roi_payloads` | List[ROIAnalysisPayload] | Yes | Pre-scored ROI triptychs with model/variance arrays from `dbex.io.roi_scoring.score_roi_payloads` (ARCH-BRIDGE-RESP-001 Phase B.3). Required (non-None). Contains typed payloads with populated `score`, `optimal_scale`, `model`, and `variance` fields. Inline Nelder-Mead loop removed; passing None raises ValueError. | `dbex.io.roi_scoring.score_roi_payloads()` called from `dbex.refine_one.run_nanobrag_backend()` |
 
 ### Outputs
 
@@ -343,6 +343,7 @@ write_torch_outputs(
 
 ## Change Log
 
+- **2025-12-03 (ARCH-BRIDGE-RESP-001 Phase B.3)**: `roi_payloads` parameter now required (non-None); inline Nelder-Mead optimization removed. Writer consumes pre-scored `ROIAnalysisPayload` instances from `dbex.io.roi_scoring.score_roi_payloads` and extracts triptychs/scores/variance directly. Added `/torch_diagnostics` attrs: `roi_scoring_method="nelder_mead"`, `roi_checker="score_trainer.roi_check.roiCheck"`. Updated test `test_torch_diagnostics_metadata` to build typed payloads and assert new telemetry attrs. Scipy/score_trainer imports moved to scoring helper per Environment Freeze.
 - **2025-12-02 (ARCH-STAGE-CONTEXT-001 Phase B.4)**: Added `stage_artifacts` parameter to support sourcing Stage B baseline parity metrics from StageBArtifacts. When provided, metrics are pulled from artifacts; otherwise falls back to telemetry fields for backward compatibility. Usage patterns updated to reflect engine.artifacts parameter.
 - **2025-12-01 (Phase D.1)**: IDL contract published; docstrings updated to reference this file
 - **2025-12-01 (Phase C.4)**: Removed compatibility alias `_write_torch_outputs` from dbex.refine_one; canonical module is now the sole entrypoint

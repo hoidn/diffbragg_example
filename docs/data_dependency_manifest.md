@@ -195,7 +195,7 @@ This manifest records the external data inputs (datasets, calibration payloads, 
   - Invoked by `dbex.refine_one.run_nanobrag_backend()` after refinement completes, before calling `write_torch_outputs`.
   - Receives sigma values in target units (photons when `--adu-per-photon` is set, ADU otherwise) derived from `inputs.sigma_readout` array (mean) or `sigma_reference_target_units` fallback.
   - Converts `DataLoad.pids` and `DataLoad.bbox` from numpy arrays to Python ints/tuples before passing to helper.
-  - Produces `List[ROIAnalysisPayload]` that is threaded to `write_torch_outputs` via `roi_payloads` kwarg (currently unused until Phase B.3).
+  - Produces `List[ROIAnalysisPayload]` that is threaded to `write_torch_outputs` via required `roi_payloads` kwarg (Phase B.3 complete).
 
 ### `dbex.io.writer.write_torch_outputs`
 
@@ -211,21 +211,20 @@ This manifest records the external data inputs (datasets, calibration payloads, 
   - `sigma_readout_provenance`: String describing sigma source ("cli_override", "calibrated_map", "external_lookup").
   - `sigma_readout_reference_value`: Scalar sigma_readout in target units (after ADU→photon conversion if applicable).
   - `stage_artifacts`: Dict[str, Any] from RefinementEngine.artifacts containing stage-specific metadata (ARCH-STAGE-CONTEXT-001).
-  - `roi_payloads`: Optional[List[ROIAnalysisPayload]] from `dbex.io.roi_scoring.score_roi_payloads` (ARCH-BRIDGE-RESP-001 Phase B.2). Pre-scored ROI triptychs with model/variance arrays. Currently unused (Phase B.3 will consume these and remove inline Nelder-Mead loop). Default None preserves legacy behavior.
+  - `roi_payloads`: List[ROIAnalysisPayload] from `dbex.io.roi_scoring.score_roi_payloads` (ARCH-BRIDGE-RESP-001 Phase B.3). Required (non-None). Pre-scored ROI triptychs with populated `score`, `optimal_scale`, `model`, and `variance` fields. Inline Nelder-Mead loop removed; passing None raises ValueError.
 - **Outputs:**
   - HDF5 file at `args.outFile` with:
-    - `/torch_diagnostics` group (attributes): `masked_mse`, `loss_mask_coverage`, `n_rois`, `target_shape`, `backend`, `sigma_floor`, optional: `adu_per_photon`, `sigma_readout_provenance`, `sigma_readout_reference_value`.
+    - `/torch_diagnostics` group (attributes): `masked_mse`, `loss_mask_coverage`, `n_rois`, `target_shape`, `backend`, `sigma_floor`, optional: `adu_per_photon`, `sigma_readout_provenance`, `sigma_readout_reference_value`, plus Phase B.3 telemetry: `roi_scoring_method="nelder_mead"`, `roi_checker="score_trainer.roi_check.roiCheck"`.
     - `/torch_diagnostics/hkl_telemetry` (attributes): `hkl_source`, `hkl_n_reflections`, `hkl_mean_amplitude`, `hkl_path`.
     - `/torch_diagnostics/refine_telemetry` (JSON string): Serialized Dict[str, RefinementTelemetry.to_dict()].
     - Per-ROI datasets: `/data/roi<i>`, `/model/roi<i>`, `/bragg/roi<i>`, `/bg/roi<i>`, `/variance/roi<i>`, `/score`, `/bragg_scale`.
 - **Telemetry/Diagnostics:**
   - All `/torch_diagnostics` fields are persisted in HDF5 attributes for downstream replay/audit.
-  - Variance computation follows spec-db-core.md §86-90: `V = max(I_model + sigma_rdout^2, sigma_floor^2)`.
-  - ROI scoring loop (Phase A): Uses `score_trainer.roi_check.roiCheck` with Nelder-Mead optimization per legacy DiffBragg parity.
-  - Phase B wiring: Writer will consume typed `List[ROIAnalysisPayload]` from upstream scoring helper (no inline optimization).
+  - Variance computation follows spec-db-core.md §86-90: `V = max(I_model + sigma_rdout^2, sigma_floor^2)` (computed by `score_roi_payloads` helper in Phase B.3).
+  - Phase B.3: Writer consumes typed `List[ROIAnalysisPayload]` from `score_roi_payloads` helper (no inline optimization). ROI telemetry attrs record scoring provenance.
 - **Default Provenance:**
-  - ROI scoring: Inline Nelder-Mead (Phase A); future Phase B will delegate to `build_roi_payloads_from_arrays` + dedicated scoring helper.
-  - Variance: Computed inline per spec-db-core.md §86-90 using `sigma_readout_reference_value` or `args.sigma_floor`.
+  - ROI scoring: Delegated to `dbex.io.roi_scoring.score_roi_payloads` (Phase B.3 complete; inline Nelder-Mead removed).
+  - Variance: Computed by `score_roi_payloads` per spec-db-core.md §86-90 using `sigma_readout`/`sigma_floor` parameters.
 - **Purpose:**
   - Canonical torch backend HDF5 writer consolidating ROI scoring, telemetry serialization, and `/torch_diagnostics` schema emission.
   - Byte-for-byte compatible with prior `dbex.refine_one._write_torch_outputs` (DIAGNOSTICS-001).

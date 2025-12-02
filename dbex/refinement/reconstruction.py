@@ -172,6 +172,8 @@ def build_final_bragg_from_stage_a_telemetry(
         for pid in sampled_panel_ids:
             detector_config = create_detector_config(detector[pid], beam=beam)
             # Use unified factory for forward-only reconstruction (ARCH-FACTORY-001)
+            # Note: spot_scale_override is NOT passed here - it's handled via log_scale baseline
+            # in the scale_factor calculation below (see lines 195-217)
             simulator, normalized_mask, sqrt_scale, metadata = create_unified_simulator(
                 detector_config=detector_config,
                 crystal_config=crystal_config,
@@ -179,7 +181,7 @@ def build_final_bragg_from_stage_a_telemetry(
                 hkl_grid=hkl_grid,
                 hkl_metadata=hkl_metadata,
                 mask_array=None,  # mask already in detector_config if needed
-                spot_scale_override=None,  # scale handled via log_scale parameter
+                spot_scale_override=None,  # Scale handled via log_scale parameter
                 device=device,
                 dtype=dtype,
                 calibration_metadata=getattr(config, 'calibration_metadata', None),
@@ -189,7 +191,31 @@ def build_final_bragg_from_stage_a_telemetry(
 
     # Run forward model with refined parameters
     bragg_full = np.zeros((n_panels, *panel_shape), dtype=np.float32)
-    log_scale_clamped = torch.clamp(log_scale, min=-10.0, max=10.0)
+
+    # Extract log_scale_baseline from Stage A telemetry (TOOLING-VIS-001 Phase D.C, DB-AT-027)
+    # When calibration metadata supplied the baseline, apply the same conditional clamp logic as Stage A
+    log_scale_baseline_value = param_deltas_a.get('log_scale_baseline', {}).get('final')
+
+    # Apply Stage A's log-scale clamp logic (matching stage_a.py lines 1194-1202)
+    # When calibration metadata is present:
+    #   log_scale_baseline = log(sqrt(spot_scale_override)) is the fixed baseline
+    #   log_scale is a delta parameter, clamped to ±config.log_scale_max_delta (default ±3)
+    #   Final scale = exp(log_scale_baseline + clamped_delta)
+    # Otherwise (uncalibrated):
+    #   log_scale is the direct learnable parameter, clamped to ±config.log_scale_max_delta_uncalibrated (default ±10)
+    #   Final scale = exp(clamped_log_scale)
+    max_delta_uncal = getattr(config, "log_scale_max_delta_uncalibrated", 10.0)
+    delta_bound = getattr(config, "log_scale_max_delta", 3.0) if log_scale_baseline_value is not None else max_delta_uncal
+
+    if log_scale_baseline_value is not None:
+        # Calibrated path: add baseline to clamped delta
+        log_scale_baseline_tensor = torch.tensor(log_scale_baseline_value, device=device, dtype=dtype)
+        log_scale_delta_clamped = torch.clamp(log_scale, min=-delta_bound, max=delta_bound)
+        log_scale_clamped = log_scale_baseline_tensor + log_scale_delta_clamped
+    else:
+        # Uncalibrated path: clamp absolute log_scale (legacy behavior)
+        log_scale_clamped = torch.clamp(log_scale, min=-delta_bound, max=delta_bound)
+
     scale_factor = torch.exp(log_scale_clamped)
     for pid, sim in zip(sampled_panel_ids, simulators):
         bragg_panel = sim.run()

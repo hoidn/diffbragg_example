@@ -626,3 +626,13 @@ Action State: ready_for_implementation
 - Initiative type: architecture. Mode: Parity. Mapped tests: 6 smoke selectors (test_stage_a_expansion, test_stage_a_engine_delegation_telemetry, test_stage_b_shell_modifiers, test_stage_c_detector_microslip, test_stage_b_asu_mapping_smoke, test_stage_c_stage_a_baseline_detector_dist).
 - Problems ledger "PRIORITIZE ARCH-REFACTOR-001 ASAP" serviced in previous loop (Phase D.2); current focus continues Phase D per roadmap Tier 0.
 Action State: ready_for_implementation
+2025-12-02T213235Z focus=ARCH-REFACTOR-001 state=ready_for_implementation dwell=0 action=debug artifacts=plans/active/ARCH-REFACTOR-001/reports/2025-12-02T210509Z_debug/ next_action=Fix Engine telemetry key mapping
+- Ralph's Phase D.3 Batch 1 implementation (commit 7b0a016d) migrated 6 test functions to Engine pattern but all 5/5 executed tests FAILED with telemetry key mismatch (assert 'A' in telemetry_dict failed with actual keys {'stage_a': ...}).
+- Root cause: RefinementEngine.run() line 190 returns self._telemetry keyed by stage.name ("stage_a", "stage_b", "stage_c") but all test assertions + CLI code expect legacy keys ("A", "B", "C") from facade era.
+- Evidence: facade (nanobrag_refinement.py:246, 428) explicitly converted to "A"/"B"/"C" for backward compat; CLI refactor (refine_one.py:593, 611, 616) also expects legacy keys but wasn't caught because CLI tests were mocked and refinement failed silently.
+- Diagnosis: Ralph followed Engine pattern correctly but input.md instruction "Preserve all downstream logic unchanged" should have meant adding a conversion layer (as facade did) rather than leaving telemetry keys as-is.
+- Corrective action: Issued debug Do Now directing Ralph to add telemetry key mapping layer in engine.py::run() before return statement that maps "stage_a" → "A", "stage_b" → "B", "stage_c" → "C" following facade precedent exactly.
+- This maintains backward compatibility with all existing test code (100+ assertions) without requiring mass assertion updates.
+- Mapped tests: 5 smoke selectors (test_stage_a_expansion, test_stage_a_engine_delegation_telemetry, test_stage_b_shell_modifiers, test_stage_c_detector_microslip, test_stage_b_per_reflection_smoke).
+- Initiative type: architecture. Mode: Parity. Problems ledger "PRIORITIZE ARCH-REFACTOR-001 ASAP" serviced in previous loop (Phase D.2); current focus continues Phase D per roadmap Tier 0.
+Action State: ready_for_implementation

@@ -1,0 +1,47 @@
+{
+  "summaries": [
+    {
+      "dataset_label": "small",
+      "status": "ok",
+      "cache_mode": "warm",
+      "roi_mode": "panel",
+      "roi_count_total": 29,
+      "roi_count_sampled": 29,
+      "closure_evals": 11,
+      "validation_runs": 6,
+      "forward_time_ms": {
+        "total": 791.1347118206322,
+        "mean": 46.537335989448955,
+        "min": 46.26380279660225,
+        "max": 47.20260202884674
+      },
+      "loss_improvement": 0.20455882499191125,
+      "chi_squared_improvement": 5.4983662084249776e-05,
+      "detector_offset_reduction_min": 0.9999999403953552,
+      "detector_offset_final_abs_max": 1.4901161193847656e-08,
+      "canonical_chi_squared": 263641952.0
+    },
+    {
+      "dataset_label": "full",
+      "status": "early_stop",
+      "cache_mode": "warm",
+      "roi_mode": "roi",
+      "roi_count_total": 92,
+      "roi_count_sampled": 92,
+      "closure_evals": 23,
+      "validation_runs": 8,
+      "forward_time_ms": {
+        "total": 13884.139308240265,
+        "mean": 447.87546155613757,
+        "min": 426.6251139342785,
+        "max": 457.50431111082435
+      },
+      "loss_improvement": 0.30196640920636564,
+      "chi_squared_improvement": -0.022523238774487715,
+      "detector_offset_reduction_min": 0.0,
+      "detector_offset_final_abs_max": 0.46532484889030457,
+      "canonical_chi_squared": 210706464.0
+    }
+  ],
+  "n_datasets": 2
+}

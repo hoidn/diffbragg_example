@@ -1,0 +1,1303 @@
+{
+  "call_index": 7,
+  "panel_updates": [
+    {
+      "panel_id": 0,
+      "distance_before_mm": 231.52645547762577,
+      "delta_mm": 0.2153249830007553,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132400594454656,
+      "simulator_id_after": 132396168030384
+    }
+  ],
+  "roi_updates": [
+    {
+      "roi_index": 0,
+      "panel_id": 0,
+      "bbox": [
+        582,
+        594,
+        0,
+        12
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168030912,
+      "simulator_id_after": 132396168030960
+    },
+    {
+      "roi_index": 1,
+      "panel_id": 0,
+      "bbox": [
+        477,
+        489,
+        43,
+        55
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168754512,
+      "simulator_id_after": 132396168030864
+    },
+    {
+      "roi_index": 2,
+      "panel_id": 0,
+      "bbox": [
+        1150,
+        1162,
+        91,
+        103
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168756288,
+      "simulator_id_after": 132396168031152
+    },
+    {
+      "roi_index": 3,
+      "panel_id": 0,
+      "bbox": [
+        1292,
+        1304,
+        109,
+        121
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132400594532480,
+      "simulator_id_after": 132396168030480
+    },
+    {
+      "roi_index": 4,
+      "panel_id": 0,
+      "bbox": [
+        178,
+        190,
+        312,
+        324
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132400594405504,
+      "simulator_id_after": 132400594532384
+    },
+    {
+      "roi_index": 5,
+      "panel_id": 0,
+      "bbox": [
+        715,
+        727,
+        429,
+        441
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132400594405552,
+      "simulator_id_after": 132400594405840
+    },
+    {
+      "roi_index": 6,
+      "panel_id": 0,
+      "bbox": [
+        1837,
+        1849,
+        440,
+        452
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168108928,
+      "simulator_id_after": 132396168030096
+    },
+    {
+      "roi_index": 7,
+      "panel_id": 0,
+      "bbox": [
+        570,
+        582,
+        448,
+        460
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168645840,
+      "simulator_id_after": 132396168108976
+    },
+    {
+      "roi_index": 8,
+      "panel_id": 0,
+      "bbox": [
+        1155,
+        1167,
+        455,
+        467
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168645456,
+      "simulator_id_after": 132396168645216
+    },
+    {
+      "roi_index": 9,
+      "panel_id": 0,
+      "bbox": [
+        1280,
+        1292,
+        469,
+        481
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168109072,
+      "simulator_id_after": 132396168645744
+    },
+    {
+      "roi_index": 10,
+      "panel_id": 0,
+      "bbox": [
+        1115,
+        1127,
+        509,
+        521
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168106480,
+      "simulator_id_after": 132396168109264
+    },
+    {
+      "roi_index": 11,
+      "panel_id": 0,
+      "bbox": [
+        1438,
+        1450,
+        523,
+        535
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132400594405360,
+      "simulator_id_after": 132396168106576
+    },
+    {
+      "roi_index": 12,
+      "panel_id": 0,
+      "bbox": [
+        908,
+        920,
+        534,
+        546
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132400594404112,
+      "simulator_id_after": 132400594403968
+    },
+    {
+      "roi_index": 13,
+      "panel_id": 0,
+      "bbox": [
+        1076,
+        1088,
+        562,
+        574
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168756000,
+      "simulator_id_after": 132400594403872
+    },
+    {
+      "roi_index": 14,
+      "panel_id": 0,
+      "bbox": [
+        1762,
+        1774,
+        570,
+        582
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168031248,
+      "simulator_id_after": 132396168755088
+    },
+    {
+      "roi_index": 15,
+      "panel_id": 0,
+      "bbox": [
+        1278,
+        1290,
+        635,
+        647
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168755664,
+      "simulator_id_after": 132396168755808
+    },
+    {
+      "roi_index": 16,
+      "panel_id": 0,
+      "bbox": [
+        1850,
+        1862,
+        670,
+        682
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168755328,
+      "simulator_id_after": 132396168755616
+    },
+    {
+      "roi_index": 17,
+      "panel_id": 0,
+      "bbox": [
+        1121,
+        1133,
+        673,
+        685
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168754560,
+      "simulator_id_after": 132396168755280
+    },
+    {
+      "roi_index": 18,
+      "panel_id": 0,
+      "bbox": [
+        1607,
+        1619,
+        689,
+        701
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168756384,
+      "simulator_id_after": 132396168756624
+    },
+    {
+      "roi_index": 19,
+      "panel_id": 0,
+      "bbox": [
+        1520,
+        1532,
+        691,
+        703
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168754704,
+      "simulator_id_after": 132396168755568
+    },
+    {
+      "roi_index": 20,
+      "panel_id": 0,
+      "bbox": [
+        166,
+        178,
+        693,
+        705
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168756240,
+      "simulator_id_after": 132396168755520
+    },
+    {
+      "roi_index": 21,
+      "panel_id": 0,
+      "bbox": [
+        1648,
+        1660,
+        736,
+        748
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168755040,
+      "simulator_id_after": 132396168756720
+    },
+    {
+      "roi_index": 22,
+      "panel_id": 0,
+      "bbox": [
+        1395,
+        1407,
+        740,
+        752
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168771040,
+      "simulator_id_after": 132396168756192
+    },
+    {
+      "roi_index": 23,
+      "panel_id": 0,
+      "bbox": [
+        1008,
+        1020,
+        756,
+        768
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168772432,
+      "simulator_id_after": 132396168772816
+    },
+    {
+      "roi_index": 24,
+      "panel_id": 0,
+      "bbox": [
+        719,
+        731,
+        760,
+        772
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168771520,
+      "simulator_id_after": 132396168772384
+    },
+    {
+      "roi_index": 25,
+      "panel_id": 0,
+      "bbox": [
+        534,
+        546,
+        774,
+        786
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168772000,
+      "simulator_id_after": 132396168771664
+    },
+    {
+      "roi_index": 26,
+      "panel_id": 0,
+      "bbox": [
+        1690,
+        1702,
+        784,
+        796
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168771184,
+      "simulator_id_after": 132396168771808
+    },
+    {
+      "roi_index": 27,
+      "panel_id": 0,
+      "bbox": [
+        1089,
+        1101,
+        811,
+        823
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168770560,
+      "simulator_id_after": 132396168771904
+    },
+    {
+      "roi_index": 28,
+      "panel_id": 0,
+      "bbox": [
+        1356,
+        1368,
+        875,
+        887
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168770800,
+      "simulator_id_after": 132396168770464
+    },
+    {
+      "roi_index": 29,
+      "panel_id": 0,
+      "bbox": [
+        601,
+        613,
+        884,
+        896
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168769600,
+      "simulator_id_after": 132396168770704
+    },
+    {
+      "roi_index": 30,
+      "panel_id": 0,
+      "bbox": [
+        1727,
+        1739,
+        921,
+        933
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168769792,
+      "simulator_id_after": 132396168769648
+    },
+    {
+      "roi_index": 31,
+      "panel_id": 0,
+      "bbox": [
+        1357,
+        1369,
+        961,
+        973
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168771328,
+      "simulator_id_after": 132396168769840
+    },
+    {
+      "roi_index": 32,
+      "panel_id": 0,
+      "bbox": [
+        1098,
+        1110,
+        985,
+        997
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168771232,
+      "simulator_id_after": 132396168771376
+    },
+    {
+      "roi_index": 33,
+      "panel_id": 0,
+      "bbox": [
+        1210,
+        1222,
+        994,
+        1006
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168773536,
+      "simulator_id_after": 132396168771280
+    },
+    {
+      "roi_index": 34,
+      "panel_id": 0,
+      "bbox": [
+        1396,
+        1408,
+        1003,
+        1015
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168773056,
+      "simulator_id_after": 132396168773488
+    },
+    {
+      "roi_index": 35,
+      "panel_id": 0,
+      "bbox": [
+        872,
+        884,
+        1007,
+        1019
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168772864,
+      "simulator_id_after": 132396168773008
+    },
+    {
+      "roi_index": 36,
+      "panel_id": 0,
+      "bbox": [
+        100,
+        112,
+        1009,
+        1021
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168771856,
+      "simulator_id_after": 132396168772768
+    },
+    {
+      "roi_index": 37,
+      "panel_id": 0,
+      "bbox": [
+        1026,
+        1038,
+        1022,
+        1034
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168773248,
+      "simulator_id_after": 132396168772096
+    },
+    {
+      "roi_index": 38,
+      "panel_id": 0,
+      "bbox": [
+        953,
+        965,
+        1057,
+        1069
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168770512,
+      "simulator_id_after": 132396168770896
+    },
+    {
+      "roi_index": 39,
+      "panel_id": 0,
+      "bbox": [
+        717,
+        729,
+        1120,
+        1132
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168770368,
+      "simulator_id_after": 132396168770272
+    },
+    {
+      "roi_index": 40,
+      "panel_id": 0,
+      "bbox": [
+        257,
+        269,
+        1127,
+        1139
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168392768,
+      "simulator_id_after": 132396168770224
+    },
+    {
+      "roi_index": 41,
+      "panel_id": 0,
+      "bbox": [
+        377,
+        389,
+        1136,
+        1148
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168392960,
+      "simulator_id_after": 132396168392816
+    },
+    {
+      "roi_index": 42,
+      "panel_id": 0,
+      "bbox": [
+        435,
+        447,
+        1141,
+        1153
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168393152,
+      "simulator_id_after": 132396168393008
+    },
+    {
+      "roi_index": 43,
+      "panel_id": 0,
+      "bbox": [
+        2042,
+        2054,
+        1142,
+        1154
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168393344,
+      "simulator_id_after": 132396168393200
+    },
+    {
+      "roi_index": 44,
+      "panel_id": 0,
+      "bbox": [
+        1182,
+        1194,
+        1153,
+        1165
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168393536,
+      "simulator_id_after": 132396168393392
+    },
+    {
+      "roi_index": 45,
+      "panel_id": 0,
+      "bbox": [
+        1694,
+        1706,
+        1302,
+        1314
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168393728,
+      "simulator_id_after": 132396168393584
+    },
+    {
+      "roi_index": 46,
+      "panel_id": 0,
+      "bbox": [
+        1228,
+        1240,
+        1314,
+        1326
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168393920,
+      "simulator_id_after": 132396168393776
+    },
+    {
+      "roi_index": 47,
+      "panel_id": 0,
+      "bbox": [
+        1998,
+        2010,
+        1321,
+        1333
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168394112,
+      "simulator_id_after": 132396168393968
+    },
+    {
+      "roi_index": 48,
+      "panel_id": 0,
+      "bbox": [
+        1490,
+        1502,
+        1329,
+        1341
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168394304,
+      "simulator_id_after": 132396168394160
+    },
+    {
+      "roi_index": 49,
+      "panel_id": 0,
+      "bbox": [
+        895,
+        907,
+        1338,
+        1350
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168394496,
+      "simulator_id_after": 132396168394352
+    },
+    {
+      "roi_index": 50,
+      "panel_id": 0,
+      "bbox": [
+        1158,
+        1170,
+        1349,
+        1361
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168394688,
+      "simulator_id_after": 132396168394544
+    },
+    {
+      "roi_index": 51,
+      "panel_id": 0,
+      "bbox": [
+        1946,
+        1958,
+        1362,
+        1374
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168394880,
+      "simulator_id_after": 132396168394736
+    },
+    {
+      "roi_index": 52,
+      "panel_id": 0,
+      "bbox": [
+        1459,
+        1471,
+        1407,
+        1419
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168395072,
+      "simulator_id_after": 132396168394928
+    },
+    {
+      "roi_index": 53,
+      "panel_id": 0,
+      "bbox": [
+        1538,
+        1550,
+        1413,
+        1425
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168395264,
+      "simulator_id_after": 132396168395120
+    },
+    {
+      "roi_index": 54,
+      "panel_id": 0,
+      "bbox": [
+        820,
+        832,
+        1419,
+        1431
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168395456,
+      "simulator_id_after": 132396168395312
+    },
+    {
+      "roi_index": 55,
+      "panel_id": 0,
+      "bbox": [
+        451,
+        463,
+        1418,
+        1430
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168395648,
+      "simulator_id_after": 132396168395504
+    },
+    {
+      "roi_index": 56,
+      "panel_id": 0,
+      "bbox": [
+        144,
+        156,
+        1425,
+        1437
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168395840,
+      "simulator_id_after": 132396168395696
+    },
+    {
+      "roi_index": 57,
+      "panel_id": 0,
+      "bbox": [
+        695,
+        707,
+        1506,
+        1518
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168396032,
+      "simulator_id_after": 132396168395888
+    },
+    {
+      "roi_index": 58,
+      "panel_id": 0,
+      "bbox": [
+        1170,
+        1182,
+        1513,
+        1525
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168396224,
+      "simulator_id_after": 132396168396080
+    },
+    {
+      "roi_index": 59,
+      "panel_id": 0,
+      "bbox": [
+        1357,
+        1369,
+        1524,
+        1536
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168396416,
+      "simulator_id_after": 132396168396272
+    },
+    {
+      "roi_index": 60,
+      "panel_id": 0,
+      "bbox": [
+        945,
+        957,
+        1549,
+        1561
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168396608,
+      "simulator_id_after": 132396168396464
+    },
+    {
+      "roi_index": 61,
+      "panel_id": 0,
+      "bbox": [
+        2046,
+        2058,
+        1557,
+        1569
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168474688,
+      "simulator_id_after": 132396168396656
+    },
+    {
+      "roi_index": 62,
+      "panel_id": 0,
+      "bbox": [
+        1286,
+        1298,
+        1561,
+        1573
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168474880,
+      "simulator_id_after": 132396168474736
+    },
+    {
+      "roi_index": 63,
+      "panel_id": 0,
+      "bbox": [
+        1101,
+        1113,
+        1596,
+        1608
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168475072,
+      "simulator_id_after": 132396168474928
+    },
+    {
+      "roi_index": 64,
+      "panel_id": 0,
+      "bbox": [
+        394,
+        406,
+        1616,
+        1628
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168475264,
+      "simulator_id_after": 132396168475120
+    },
+    {
+      "roi_index": 65,
+      "panel_id": 0,
+      "bbox": [
+        335,
+        347,
+        1621,
+        1633
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168475456,
+      "simulator_id_after": 132396168475312
+    },
+    {
+      "roi_index": 66,
+      "panel_id": 0,
+      "bbox": [
+        272,
+        284,
+        1627,
+        1639
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168475648,
+      "simulator_id_after": 132396168475504
+    },
+    {
+      "roi_index": 67,
+      "panel_id": 0,
+      "bbox": [
+        207,
+        219,
+        1632,
+        1644
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168475840,
+      "simulator_id_after": 132396168475696
+    },
+    {
+      "roi_index": 68,
+      "panel_id": 0,
+      "bbox": [
+        2012,
+        2024,
+        1649,
+        1661
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168476032,
+      "simulator_id_after": 132396168475888
+    },
+    {
+      "roi_index": 69,
+      "panel_id": 0,
+      "bbox": [
+        1412,
+        1424,
+        1659,
+        1671
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168476224,
+      "simulator_id_after": 132396168476080
+    },
+    {
+      "roi_index": 70,
+      "panel_id": 0,
+      "bbox": [
+        601,
+        613,
+        1701,
+        1713
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168476416,
+      "simulator_id_after": 132396168476272
+    },
+    {
+      "roi_index": 71,
+      "panel_id": 0,
+      "bbox": [
+        1813,
+        1825,
+        1713,
+        1725
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168476608,
+      "simulator_id_after": 132396168476464
+    },
+    {
+      "roi_index": 72,
+      "panel_id": 0,
+      "bbox": [
+        647,
+        659,
+        1748,
+        1760
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168476800,
+      "simulator_id_after": 132396168476656
+    },
+    {
+      "roi_index": 73,
+      "panel_id": 0,
+      "bbox": [
+        1271,
+        1283,
+        1789,
+        1801
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168476992,
+      "simulator_id_after": 132396168476848
+    },
+    {
+      "roi_index": 74,
+      "panel_id": 0,
+      "bbox": [
+        1689,
+        1701,
+        1791,
+        1803
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168477184,
+      "simulator_id_after": 132396168477040
+    },
+    {
+      "roi_index": 75,
+      "panel_id": 0,
+      "bbox": [
+        1701,
+        1713,
+        1846,
+        1858
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168477376,
+      "simulator_id_after": 132396168477232
+    },
+    {
+      "roi_index": 76,
+      "panel_id": 0,
+      "bbox": [
+        1717,
+        1729,
+        1904,
+        1916
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168477568,
+      "simulator_id_after": 132396168477424
+    },
+    {
+      "roi_index": 77,
+      "panel_id": 0,
+      "bbox": [
+        1732,
+        1744,
+        1961,
+        1973
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168477760,
+      "simulator_id_after": 132396168477616
+    },
+    {
+      "roi_index": 78,
+      "panel_id": 0,
+      "bbox": [
+        1304,
+        1316,
+        2071,
+        2083
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168477952,
+      "simulator_id_after": 132396168477808
+    },
+    {
+      "roi_index": 79,
+      "panel_id": 0,
+      "bbox": [
+        914,
+        926,
+        2132,
+        2144
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168478144,
+      "simulator_id_after": 132396168478000
+    },
+    {
+      "roi_index": 80,
+      "panel_id": 0,
+      "bbox": [
+        1403,
+        1415,
+        2149,
+        2161
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168478336,
+      "simulator_id_after": 132396168478192
+    },
+    {
+      "roi_index": 81,
+      "panel_id": 0,
+      "bbox": [
+        2365,
+        2377,
+        2155,
+        2167
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168478528,
+      "simulator_id_after": 132396168478384
+    },
+    {
+      "roi_index": 82,
+      "panel_id": 0,
+      "bbox": [
+        1497,
+        1509,
+        2165,
+        2177
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168028224,
+      "simulator_id_after": 132396168478576
+    },
+    {
+      "roi_index": 83,
+      "panel_id": 0,
+      "bbox": [
+        1851,
+        1863,
+        2185,
+        2197
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168028416,
+      "simulator_id_after": 132396168028272
+    },
+    {
+      "roi_index": 84,
+      "panel_id": 0,
+      "bbox": [
+        1186,
+        1198,
+        2198,
+        2210
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168028608,
+      "simulator_id_after": 132396168028464
+    },
+    {
+      "roi_index": 85,
+      "panel_id": 0,
+      "bbox": [
+        863,
+        875,
+        2286,
+        2298
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168028800,
+      "simulator_id_after": 132396168028656
+    },
+    {
+      "roi_index": 86,
+      "panel_id": 0,
+      "bbox": [
+        1947,
+        1959,
+        2296,
+        2308
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168028992,
+      "simulator_id_after": 132396168028848
+    },
+    {
+      "roi_index": 87,
+      "panel_id": 0,
+      "bbox": [
+        2225,
+        2237,
+        2329,
+        2341
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168029184,
+      "simulator_id_after": 132396168029040
+    },
+    {
+      "roi_index": 88,
+      "panel_id": 0,
+      "bbox": [
+        600,
+        612,
+        2332,
+        2344
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168029376,
+      "simulator_id_after": 132396168029232
+    },
+    {
+      "roi_index": 89,
+      "panel_id": 0,
+      "bbox": [
+        2063,
+        2075,
+        2423,
+        2435
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168029568,
+      "simulator_id_after": 132396168029424
+    },
+    {
+      "roi_index": 90,
+      "panel_id": 0,
+      "bbox": [
+        462,
+        474,
+        2463,
+        2475
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168029760,
+      "simulator_id_after": 132396168029616
+    },
+    {
+      "roi_index": 91,
+      "panel_id": 0,
+      "bbox": [
+        1783,
+        1795,
+        2490,
+        2502
+      ],
+      "distance_before_mm": 231.7418212890625,
+      "distance_after_mm": 231.74179077148438,
+      "simulator_id_before": 132396168029952,
+      "simulator_id_after": 132396168029808
+    }
+  ]
+}

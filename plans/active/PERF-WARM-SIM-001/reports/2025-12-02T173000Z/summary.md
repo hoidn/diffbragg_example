@@ -1,5 +1,5 @@
 ### Turn Summary
-Closed ARCH-STAGE-CONTEXT-001 by marking the implementation plan, fix-plan ledger, and problems.md entry resolved so the design-debt item no longer ties up WIP.
-Scoped Phase F for PERF-WARM-SIM-001 by re-reading the 2025-12-01 ROI-mode telemetry and planning the DBEX_STAGE_C_CACHE_DEBUG_PATH instrumentation for `_retarget_stage_a_detectors` plus the Stage C small/full trace collection.
-Next: land the cache-debug hook, run Stage C small/full smoketests with the env var enabled, and archive the telemetry + JSON traces under 2025-12-02T173000Z before attempting another Stage C fix.
-Artifacts: plans/active/PERF-WARM-SIM-001/reports/2025-12-02T173000Z/ (prep only — instrumentation/log dirs will be filled by the next loop)
+Implemented opt-in debug hook in `_retarget_stage_a_detectors` to capture per-call panel/ROI distance deltas and simulator IDs for offline analysis; small detector run passes with clean panel-mode traces (18 calls, zero ROI entries), full detector run fails as expected but produces rich ROI-mode traces (17 calls, ~92 ROI entries per call showing simulator rebuilds).
+Added `DBEX_STAGE_C_CACHE_DEBUG_PATH` environment variable plumbing with module-level call counter and JSON snapshot writer; instrumentation cost is effectively zero when env var unset and debug hook failures do not break production runs.
+Next: Supervisor should inspect cache-debug JSONs to identify why ROI simulators are rebuilt but distances remain stale in full-detector runs, potentially revealing ROI-entry lifecycle issues or missing retarget paths.
+Artifacts: plans/active/PERF-WARM-SIM-001/reports/2025-12-02T173000Z/ (cache_debug_small/, cache_debug_full/, telemetry_stage_c_small.json, telemetry_stage_c_full.json, pytest_stage_c_small.log, pytest_stage_c_full.log, stage_c_roi_summary.json)

@@ -97,3 +97,6 @@
 ## Attempts History
 
 Detailed engineering logs now live in `docs/fix_plan_archive.md` (append-only snapshots; latest recorded 2025-12-02) and in each initiative’s `plans/active/<ID>/reports/` directory. This active ledger keeps high-level milestones only so it remains <70 kB while still pointing to the authoritative artifacts for every attempt.
+
+### [PERF-WARM-SIM-001] Attempts History
+  * 2025-12-02T173000Z — Phase F.1 debug hook implemented in `_retarget_stage_a_detectors`; small-detector (panel-mode) smoketest PASSED with 18 retarget calls capturing panel updates only, full-detector (ROI-mode) smoketest FAILED (expected) but produced 17 retarget calls with ~92 ROI entries per call showing simulator ID changes. Debug artifacts captured under `DBEX_STAGE_C_CACHE_DEBUG_PATH` for offline analysis. Next: Supervisor analyzes cache-debug JSONs to identify ROI simulator staleness root cause. Artifacts: `plans/active/PERF-WARM-SIM-001/reports/2025-12-02T173000Z/`.

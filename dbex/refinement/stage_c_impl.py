@@ -18,10 +18,12 @@ ARCH-STAGE-CONTEXT-001 Phase B.2.3:
 - _build_stage_c_lbfgs_closure moved to StageC._build_lbfgs_closure (dbex/refinement/stage_c.py)
 """
 
+import json
 import math
 import os
 import time
 from collections import defaultdict
+from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 import numpy as np
@@ -40,6 +42,11 @@ from dbex.refinement.stage_a_impl import (
 
 from dbex.physics.loss import _compute_variance_weighted_loss
 from dbex.refinement.context import StageCTelemetryState
+
+# PERF-WARM-016: Debug hook for Stage C cache retargeting trace
+# Opt-in via DBEX_STAGE_C_CACHE_DEBUG_PATH env var; zero overhead when unset
+_STAGE_C_CACHE_DEBUG_PATH = os.environ.get("DBEX_STAGE_C_CACHE_DEBUG_PATH", None)
+_STAGE_C_RETARGET_CALL_COUNTER = 0
 
 
 def _retarget_stage_a_detectors(
@@ -63,6 +70,9 @@ def _retarget_stage_a_detectors(
     GRADIENT-004: Keeps distance offsets as tensors (no .item() conversion)
     so autograd graph remains intact for Stage C LBFGS optimization.
 
+    PERF-WARM-016: When DBEX_STAGE_C_CACHE_DEBUG_PATH is set, emits JSON snapshots
+    documenting panel/ROI distance updates and simulator IDs for offline analysis.
+
     Args:
         stage_a_ctx: StageAContext with cached detector_models/simulators
         distance_deltas_mm: Dict mapping panel_id to distance offset tensor (mm)
@@ -73,6 +83,20 @@ def _retarget_stage_a_detectors(
     from nanobrag_torch.models import Detector
     from nanobrag_torch.simulator import Simulator
 
+    global _STAGE_C_RETARGET_CALL_COUNTER
+
+    # PERF-WARM-016: Debug hook setup (opt-in only)
+    debug_enabled = _STAGE_C_CACHE_DEBUG_PATH is not None
+    debug_data = None
+    if debug_enabled:
+        call_idx = _STAGE_C_RETARGET_CALL_COUNTER
+        _STAGE_C_RETARGET_CALL_COUNTER += 1
+        debug_data = {
+            "call_index": call_idx,
+            "panel_updates": [],
+            "roi_updates": [],
+        }
+
     for pid, delta_mm in distance_deltas_mm.items():
         if pid >= len(stage_a_ctx.detector_models):
             continue
@@ -82,6 +106,17 @@ def _retarget_stage_a_detectors(
         baseline_distance_mm = stage_a_ctx.baseline_distance_mm[pid]
         baseline_tensor = torch.tensor(baseline_distance_mm, device=device, dtype=dtype)
         new_distance_mm = baseline_tensor + delta_mm
+
+        # PERF-WARM-016: Capture before-state for debug trace
+        if debug_enabled:
+            old_simulator = stage_a_ctx.simulators[pid]
+            panel_debug = {
+                "panel_id": pid,
+                "distance_before_mm": float(baseline_distance_mm),
+                "delta_mm": float(delta_mm.detach().cpu().item()),
+                "distance_after_mm": float(new_distance_mm.detach().cpu().item()),
+                "simulator_id_before": id(old_simulator),
+            }
 
         # Clone detector config and update distance
         # Use dataclasses.replace to create new config without mutating the original
@@ -110,9 +145,14 @@ def _retarget_stage_a_detectors(
         )
         stage_a_ctx.simulators[pid] = new_simulator
 
+        # PERF-WARM-016: Capture after-state for debug trace
+        if debug_enabled:
+            panel_debug["simulator_id_after"] = id(new_simulator)
+            debug_data["panel_updates"].append(panel_debug)
+
     # Refresh ROI entry simulators when ROI cache exists
     if stage_a_ctx.roi_entries is not None:
-        for roi_entry in stage_a_ctx.roi_entries:
+        for roi_idx, roi_entry in enumerate(stage_a_ctx.roi_entries):
             pid = roi_entry.panel_id
 
             # Only rebuild ROI simulators for panels that received distance deltas
@@ -122,6 +162,19 @@ def _retarget_stage_a_detectors(
             # Get the updated distance from the panel's detector config
             # (already updated above in the panel loop)
             updated_distance_mm = stage_a_ctx.detector_configs[pid].distance_mm
+
+            # PERF-WARM-016: Capture before-state for ROI debug trace
+            if debug_enabled:
+                old_roi_simulator = roi_entry.simulator
+                old_roi_distance_mm = roi_entry.detector_model.config.distance_mm
+                roi_debug = {
+                    "roi_index": roi_idx,
+                    "panel_id": pid,
+                    "bbox": list(roi_entry.bbox) if hasattr(roi_entry, "bbox") else None,
+                    "distance_before_mm": float(old_roi_distance_mm.detach().cpu().item()) if torch.is_tensor(old_roi_distance_mm) else float(old_roi_distance_mm),
+                    "distance_after_mm": float(updated_distance_mm.detach().cpu().item()) if torch.is_tensor(updated_distance_mm) else float(updated_distance_mm),
+                    "simulator_id_before": id(old_roi_simulator),
+                }
 
             # Clone ROI detector config and update distance
             # Use dataclasses.replace to create new config without mutating the original
@@ -146,6 +199,24 @@ def _retarget_stage_a_detectors(
             # Update ROI entry in place
             roi_entry.detector_model = roi_detector_model
             roi_entry.simulator = new_roi_simulator
+
+            # PERF-WARM-016: Capture after-state for ROI debug trace
+            if debug_enabled:
+                roi_debug["simulator_id_after"] = id(new_roi_simulator)
+                debug_data["roi_updates"].append(roi_debug)
+
+    # PERF-WARM-016: Write debug snapshot to file (opt-in only)
+    if debug_enabled and debug_data is not None:
+        try:
+            debug_dir = Path(_STAGE_C_CACHE_DEBUG_PATH)
+            debug_dir.mkdir(parents=True, exist_ok=True)
+            debug_file = debug_dir / f"retarget_call_{debug_data['call_index']:04d}.json"
+            with open(debug_file, "w") as f:
+                json.dump(debug_data, f, indent=2)
+        except Exception as e:
+            # Do not raise; debug hook failures must not break production runs
+            import warnings
+            warnings.warn(f"PERF-WARM-016: Debug snapshot write failed: {e}")
 
 
 def _build_stage_c_params(

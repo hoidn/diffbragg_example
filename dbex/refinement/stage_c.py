@@ -209,6 +209,8 @@ class StageC:
         import os
         panel_diag_dir = os.environ.get('DBEX_STAGE_C_PANEL_DIAG_DIR')
         panel_diag_enabled = panel_diag_dir is not None and force_panel_validation
+        # ARCH-TELEMETRY-001 Phase C.1: Accumulate panel diagnostics in closure scope for collector
+        panel_diag_accumulated = [] if panel_diag_enabled else None
         if panel_diag_enabled:
             # Initialize dataclass field (ARCH-STAGE-CONTEXT-001 Phase E: dataclass-only)
             telemetry_state.panel_loss_diag = []
@@ -481,9 +483,10 @@ class StageC:
                     panel_diag=panel_diag_collector,
                 )
 
-                # Store collected diagnostics in telemetry_state (ARCH-STAGE-CONTEXT-001 Phase E: dataclass-only)
-                if panel_diag_collector is not None:
-                    telemetry_state.panel_loss_diag.extend(panel_diag_collector)
+                # ARCH-TELEMETRY-001 Phase C.1: Accumulate panel diagnostics for collector validation payload
+                # No direct telemetry_state mutation; diagnostics routed through collector.on_validation
+                if panel_diag_collector is not None and panel_diag_accumulated is not None:
+                    panel_diag_accumulated.extend(panel_diag_collector)
 
                 variance_floor_clamped_pixels_c[0] += clamped_pixels_stage_c
                 variance_floor_masked_pixels_c[0] += masked_pixels_stage_c
@@ -528,7 +531,7 @@ class StageC:
                     )
 
                     # ARCH-TELEMETRY-001 Phase C.1: Route validation telemetry via collector (observer pattern)
-                    # Observer path: build best snapshot for collector
+                    # Observer path: build best snapshot and panel diagnostics for collector
                     snapshot_data = {
                         'distance_offset_raw': distance_offset_raw.detach().cpu().tolist()
                     }
@@ -537,6 +540,9 @@ class StageC:
                         'masked_mse': float(full_mse_c.item()),
                         'best_snapshot': snapshot_data,
                     }
+                    # Include panel diagnostics if accumulated (PERF-WARM-SIM-001)
+                    if panel_diag_accumulated is not None and len(panel_diag_accumulated) > 0:
+                        payload['panel_diag'] = panel_diag_accumulated
                     collector.on_validation(
                         scope='panel',
                         chi2=float(full_chi_squared_c.item()),

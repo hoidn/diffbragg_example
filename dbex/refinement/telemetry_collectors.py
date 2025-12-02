@@ -26,7 +26,7 @@ Provenance:
 - ARCH-TELEMETRY-001 Phase B.1: StageATelemetryCollector wiring through Stage A closures
 """
 
-from typing import Any, Dict, Mapping
+from typing import Any, Dict, Mapping, Optional
 
 from .context import StageATelemetryState, StageBTelemetryState, StageCTelemetryState
 from .interfaces import (
@@ -441,6 +441,36 @@ class StageBTelemetryCollector:
         )
 
         return StageResult(stage="B", telemetry=telemetry, perf_counters=perf_counters)
+
+    def set_baseline_parity_metrics(
+        self,
+        rel_diff: float,
+        abs_diff: float,
+        diff_path: Optional[str] = None,
+    ) -> None:
+        """
+        Record Stage B baseline parity metrics (REFINE-FLOW-001).
+
+        Called by _check_stage_b_baseline_parity to populate parity diagnostics
+        without directly mutating telemetry state.
+
+        Args:
+            rel_diff: Relative difference (Stage B initial - Stage A canonical) / canonical
+            abs_diff: Absolute difference (Stage B initial - Stage A canonical)
+            diff_path: Optional path to JSON diff file emitted when parity fails
+
+        Normative Requirements:
+        - Metrics MUST be recorded for every Stage B run with canonical baseline
+        - diff_path SHOULD be None when parity passes (<0.1% tolerance)
+
+        Provenance:
+        - ARCH-TELEMETRY-001 Phase C.1: Baseline parity helper for collector
+        - REFINE-FLOW-001: Stage B baseline parity guard tolerance
+        """
+        self._state.stage_b_baseline_rel_diff = rel_diff
+        self._state.stage_b_baseline_abs_diff = abs_diff
+        if diff_path is not None:
+            self._state.stage_b_baseline_diff_path = diff_path
 
     @property
     def state(self) -> StageBTelemetryState:

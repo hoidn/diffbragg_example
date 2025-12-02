@@ -410,3 +410,162 @@ def build_job_context(
         hkl_path=hkl_path,
         extras=extras if extras is not None else {},
     )
+
+
+@dataclass
+class RefinementSharedContext:
+    """
+    Shared refinement state for Stage A/B/C LBFGS closures.
+
+    Replaces 11-parameter data clump passed to _build_stage_a_lbfgs_closure,
+    _build_stage_b_lbfgs_closure, and _build_stage_c_lbfgs_closure.
+
+    Per ARCH-STAGE-CONTEXT-001, this dataclass wraps:
+    - Geometry objects (detector, beam, crystal) from dxtbx
+    - RefinementInputs (target, loss_mask, panel_slices, trusted_mask, sigma_readout)
+    - HKL grid and metadata
+    - Configuration (device, dtype, RefinementConfig)
+    - Warm-cache infrastructure (sigma_floor_sq_cache)
+    - Baseline references (baseline_crystal for misset extraction)
+
+    Attributes:
+        crystal: dxtbx Crystal object (unit cell, orientation)
+        detector: dxtbx Detector object (panel geometry)
+        beam: dxtbx Beam object (wavelength, polarization, direction)
+        inputs: RefinementInputs dataclass (target, loss_mask, panel_slices,
+               trusted_mask, sigma_readout, target_representation, global_scale_hint)
+        hkl_grid: torch.Tensor structure factor grid [h, k, l] with complex |F|
+        hkl_metadata: Dict with grid dimensions (nabc_grid, default_F, has_halo, etc.)
+        config: RefinementConfig instance (device, dtype, optimizer params, stage flags)
+        sigma_floor_sq_cache: Dict for cached sigma floor tensors (warmup optimization)
+        device: torch.device for tensor allocation
+        dtype: torch.dtype for tensor allocation
+        baseline_crystal: Optional baseline dxtbx Crystal for misset extraction
+
+    Normative Dependencies (Transitive):
+    - crystal/detector/beam: dxtbx objects per config_crosswalk.md
+    - inputs: RefinementInputs per spec-db-core.md:20-68
+    - hkl_grid: Structure factors per spec-db-core.md:85-90
+    - config: RefinementConfig per spec-db-workflow.md:36-42
+    - sigma_floor_sq_cache: Warm-cache dict populated by _get_sigma_floor_sq_tensor
+      (dbex/refinement/stage_a_impl.py)
+    - device/dtype: PyTorch device/dtype neutrality per pytorch_runtime_checklist.md
+
+    IDL Contract Reference:
+    - docs/architecture.md (modular structure)
+    - docs/spec-db-workflow.md:48-84 (Refinement Protocol Architecture)
+    - ARCH-STAGE-CONTEXT-001: Stage helper dataclass refactoring
+
+    Provenance:
+    - ARCH-STAGE-CONTEXT-001 Phase A.1: Introduce typed context to replace
+      11-parameter data clump in Stage A/B/C LBFGS closure builders
+    """
+    crystal: Any  # dxtbx Crystal object
+    detector: Any  # dxtbx Detector object
+    beam: Any  # dxtbx Beam object
+    inputs: Any  # RefinementInputs from dbex.nanobrag_bridge
+    hkl_grid: torch.Tensor  # [h, k, l] complex structure factor grid
+    hkl_metadata: Dict[str, Any]  # nabc_grid, default_F, has_halo, etc.
+    config: Any  # RefinementConfig from dbex.nanobrag_refinement
+    sigma_floor_sq_cache: Dict[str, torch.Tensor]  # Warm-cache dict
+    device: Any  # torch.device
+    dtype: Any  # torch.dtype
+    baseline_crystal: Optional[Any] = None  # baseline dxtbx Crystal
+
+    @classmethod
+    def from_inputs(
+        cls,
+        crystal,
+        detector,
+        beam,
+        inputs,
+        hkl_grid: torch.Tensor,
+        hkl_metadata: Dict[str, Any],
+        config,
+        device,
+        dtype,
+        baseline_crystal=None,
+        sigma_floor_sq_cache: Optional[Dict] = None,
+    ) -> 'RefinementSharedContext':
+        """
+        Build RefinementSharedContext from raw inputs.
+
+        Args:
+            crystal: dxtbx Crystal object
+            detector: dxtbx Detector object
+            beam: dxtbx Beam object
+            inputs: RefinementInputs dataclass
+            hkl_grid: torch.Tensor structure factor grid
+            hkl_metadata: Dict with grid dimensions
+            config: RefinementConfig instance
+            device: torch.device
+            dtype: torch.dtype
+            baseline_crystal: Optional baseline dxtbx Crystal
+            sigma_floor_sq_cache: Optional warm-cache dict (defaults to empty dict)
+
+        Returns:
+            RefinementSharedContext instance
+        """
+        if sigma_floor_sq_cache is None:
+            sigma_floor_sq_cache = {}
+
+        return cls(
+            crystal=crystal,
+            detector=detector,
+            beam=beam,
+            inputs=inputs,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            config=config,
+            sigma_floor_sq_cache=sigma_floor_sq_cache,
+            device=device,
+            dtype=dtype,
+            baseline_crystal=baseline_crystal,
+        )
+
+
+@dataclass
+class StageATelemetryState:
+    """
+    Mutable telemetry accumulators for Stage A LBFGS refinement.
+
+    Replaces the 'telemetry_state' dict passed through _build_stage_a_lbfgs_closure.
+    Lists accumulate traces during optimization; counters track perf/validation stats.
+
+    Per ARCH-STAGE-CONTEXT-001, this dataclass wraps:
+    - Loss traces (sample ROI subset, full validation)
+    - Performance counters (closure evals, validation runs, forward times)
+    - Variance floor statistics (clamped pixels, masked pixels)
+    - Best loss tracking
+
+    Attributes:
+        loss_trace_sample: List of floats recording loss on sampled ROI subset per closure eval
+        loss_trace_full: List of floats recording loss on full validation set
+        perf_closure_evals: List of ints counting closure evaluations
+        perf_validation_runs: List of ints counting validation runs
+        perf_forward_times_ms: List of floats recording forward pass times in milliseconds
+        variance_floor_clamped_pixels: List of ints counting pixels clamped by sigma floor
+        variance_floor_masked_pixels: List of ints counting pixels included in masked loss
+        best_loss_full: List of floats tracking best full-validation loss seen so far
+
+    Normative Dependencies:
+    - Telemetry lists accumulate during LBFGS optimization per spec-db-workflow.md:48-84
+    - Final telemetry dict assembled in stage_a.py::StageA.run and returned to engine
+    - Variance floor stats per spec-db-core.md:57-68 (variance-weighted loss)
+
+    IDL Contract Reference:
+    - docs/spec-db-workflow.md:48-84 (Refinement Protocol Architecture)
+    - ARCH-STAGE-CONTEXT-001: Telemetry dataclass refactoring
+
+    Provenance:
+    - ARCH-STAGE-CONTEXT-001 Phase A.1: Replace mutable telemetry_state dict
+      with typed dataclass to improve signal-to-noise in Stage A closures
+    """
+    loss_trace_sample: list = field(default_factory=list)
+    loss_trace_full: list = field(default_factory=list)
+    perf_closure_evals: list = field(default_factory=list)
+    perf_validation_runs: list = field(default_factory=list)
+    perf_forward_times_ms: list = field(default_factory=list)
+    variance_floor_clamped_pixels: list = field(default_factory=list)
+    variance_floor_masked_pixels: list = field(default_factory=list)
+    best_loss_full: list = field(default_factory=list)

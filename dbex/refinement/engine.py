@@ -174,10 +174,12 @@ class RefinementEngine:
             # Phase 7/8: stage_b_mode, n_asu_unique, optimizer_type, asu_modifier_stats are custom attrs
             # Phase A.4: bragg_full is Stage C final output (cached separately, not in RefinementTelemetry)
             # REFINE-FLOW-001: stage_b_baseline_rel_diff, stage_b_baseline_abs_diff, stage_b_baseline_diff_path are parity diagnostics
+            # ARCH-STAGE-CONTEXT-001: context_schema_version is a metadata marker, not part of RefinementTelemetry core
             excluded_fields = {'stage_a_ctx', 'shell_edges', 'shell_indices', 'n_shells',
                              'stage_b_mode', 'n_asu_unique', 'optimizer_type', 'asu_modifier_stats',
                              'bragg_full',
-                             'stage_b_baseline_rel_diff', 'stage_b_baseline_abs_diff', 'stage_b_baseline_diff_path'}
+                             'stage_b_baseline_rel_diff', 'stage_b_baseline_abs_diff', 'stage_b_baseline_diff_path',
+                             'context_schema_version'}
             telemetry_core_dict = {k: v for k, v in telemetry_dict.items()
                                   if k not in excluded_fields}
 

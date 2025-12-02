@@ -30,6 +30,9 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 import numpy as np
 import torch
 
+# ARCH-STAGE-CONTEXT-001: Import new dataclasses for typed context
+from dbex.refinement.context import RefinementSharedContext, StageATelemetryState
+
 
 # ============================================================================
 # Quaternion Helpers (Stage A orientation parameterization)
@@ -1224,18 +1227,20 @@ def _build_stage_a_lbfgs_closure(
     param_values: Dict[str, Any],
     telemetry_state: Dict[str, Any],
     stage_a_context: Dict[str, Any],
-    # Additional closure context (11 params)
-    crystal,
-    detector,
-    beam,
-    inputs,
-    hkl_grid: torch.Tensor,
-    hkl_metadata: Dict,
-    config: 'RefinementConfig',
-    sigma_floor_sq_cache: Optional[Dict],
-    device,
-    dtype,
-    baseline_crystal
+    # Additional closure context (11 params) - ARCH-STAGE-CONTEXT-001: support both dict and dataclass
+    crystal=None,
+    detector=None,
+    beam=None,
+    inputs=None,
+    hkl_grid: Optional[torch.Tensor] = None,
+    hkl_metadata: Optional[Dict] = None,
+    config: Optional['RefinementConfig'] = None,
+    sigma_floor_sq_cache: Optional[Dict] = None,
+    device=None,
+    dtype=None,
+    baseline_crystal=None,
+    # ARCH-STAGE-CONTEXT-001 Phase A.1: new dataclass parameter (optional)
+    shared_context: Optional['RefinementSharedContext'] = None,
 ) -> Tuple['Callable', 'Callable']:
     """
     Build LBFGS closure for Stage A refinement with nested compute_loss and closure functions.
@@ -1243,27 +1248,54 @@ def _build_stage_a_lbfgs_closure(
     Captures lexical scope for ~30 nonlocal variables from param_values, telemetry_state, stage_a_context.
     Supports 3 parameterization modes: cell+misset, U-matrix, incremental UB.
 
+    ARCH-STAGE-CONTEXT-001 Phase A.1: Supports both legacy dict-based calling (11 individual params)
+    and new dataclass-based calling (shared_context parameter). If shared_context is provided,
+    individual params are ignored.
+
     Args:
         param_values: Dict with trainable tensors (log_scale, log_cell_*_delta, angle_*_raw,
                      orientation_vec, q_params, delta_log_*, delta_alpha/beta/gamma, q_delta)
         telemetry_state: Dict with mutable telemetry accumulators (loss traces, perf counters,
                         variance floor stats, lifecycle logs)
         stage_a_context: Dict with ROI/panel sampling state, warm cache context
-        crystal: dxtbx Crystal object
-        detector: dxtbx Detector object
-        beam: dxtbx Beam object
-        inputs: RefinementInputs (target, loss_mask, panel_slices, trusted_mask)
-        hkl_grid: Structure factor grid tensor
-        hkl_metadata: HKL metadata dict
-        config: RefinementConfig (use_u_matrix_parameterization, use_incremental_ub, telemetry_output_dir)
-        sigma_floor_sq_cache: Optional precomputed variance floor tensor
-        device: torch device
-        dtype: torch dtype
-        baseline_crystal: Optional baseline dxtbx Crystal for incremental UB mode
+        crystal: dxtbx Crystal object (legacy path)
+        detector: dxtbx Detector object (legacy path)
+        beam: dxtbx Beam object (legacy path)
+        inputs: RefinementInputs (target, loss_mask, panel_slices, trusted_mask) (legacy path)
+        hkl_grid: Structure factor grid tensor (legacy path)
+        hkl_metadata: HKL metadata dict (legacy path)
+        config: RefinementConfig (use_u_matrix_parameterization, use_incremental_ub, telemetry_output_dir) (legacy path)
+        sigma_floor_sq_cache: Optional precomputed variance floor tensor (legacy path)
+        device: torch device (legacy path)
+        dtype: torch dtype (legacy path)
+        baseline_crystal: Optional baseline dxtbx Crystal for incremental UB mode (legacy path)
+        shared_context: Optional RefinementSharedContext dataclass (new path, ARCH-STAGE-CONTEXT-001)
 
     Returns:
         Tuple of (compute_loss, closure) callables with captured lexical scope
     """
+    # ARCH-STAGE-CONTEXT-001: Compatibility shim - accept either dataclass or individual params
+    if shared_context is not None:
+        # New dataclass path
+        crystal = shared_context.crystal
+        detector = shared_context.detector
+        beam = shared_context.beam
+        inputs = shared_context.inputs
+        hkl_grid = shared_context.hkl_grid
+        hkl_metadata = shared_context.hkl_metadata
+        config = shared_context.config
+        sigma_floor_sq_cache = shared_context.sigma_floor_sq_cache
+        device = shared_context.device
+        dtype = shared_context.dtype
+        baseline_crystal = shared_context.baseline_crystal
+    else:
+        # Legacy dict path - validate that required params are provided
+        if any(x is None for x in [crystal, detector, beam, inputs, hkl_grid, hkl_metadata, config, device, dtype]):
+            raise ValueError(
+                "When shared_context is not provided, all individual parameters "
+                "(crystal, detector, beam, inputs, hkl_grid, hkl_metadata, config, device, dtype) "
+                "must be explicitly passed. Per ARCH-STAGE-CONTEXT-001, prefer using shared_context."
+            )
     # Unpack param_values
     log_scale = param_values['log_scale']
     log_cell_a_delta = param_values.get('log_cell_a_delta')

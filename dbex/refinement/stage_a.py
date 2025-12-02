@@ -220,11 +220,9 @@ class StageA:
         # Stash flag on context for closure builder
         stage_a_context['force_panel_validation'] = force_panel_validation
 
-        # STEP 2: Build Stage A LBFGS closure
-        compute_loss, closure = _build_stage_a_lbfgs_closure(
-            param_values=param_values,
-            telemetry_state=telemetry_state,
-            stage_a_context=stage_a_context,
+        # ARCH-STAGE-CONTEXT-001: Build RefinementSharedContext to replace 11-parameter data clump
+        from dbex.refinement.context import RefinementSharedContext
+        shared_context = RefinementSharedContext.from_inputs(
             crystal=crystal,
             detector=detector,
             beam=beam,
@@ -232,10 +230,19 @@ class StageA:
             hkl_grid=hkl_grid,
             hkl_metadata=hkl_metadata,
             config=self._config,
-            sigma_floor_sq_cache=sigma_floor_sq_cache,
             device=device,
             dtype=dtype,
-            baseline_crystal=baseline_crystal
+            baseline_crystal=baseline_crystal,
+            sigma_floor_sq_cache=sigma_floor_sq_cache,
+        )
+
+        # STEP 2: Build Stage A LBFGS closure
+        # ARCH-STAGE-CONTEXT-001: Use new shared_context parameter
+        compute_loss, closure = _build_stage_a_lbfgs_closure(
+            param_values=param_values,
+            telemetry_state=telemetry_state,
+            stage_a_context=stage_a_context,
+            shared_context=shared_context,
         )
 
         # STEP 3: Run Stage A LBFGS optimization
@@ -440,6 +447,9 @@ class StageA:
             telemetry_output["mode"] = "u_matrix"
         else:
             telemetry_output["mode"] = None  # Default cell+misset path
+
+        # ARCH-STAGE-CONTEXT-001: Mark telemetry with context schema version
+        telemetry_output["context_schema_version"] = "v1"
 
         # Add stage_a_ctx for Stage B warm cache support (Phase C2)
         # This is a non-RefinementTelemetry field but required for engine propagation

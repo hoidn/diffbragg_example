@@ -16,7 +16,7 @@ This file is a lightweight, user-editable backlog for any issues that Galph (the
 
 - [ ] _(Add new problems here. Galph will remove or rewrite entries as they are scheduled or resolved.)_
 Based on a review of the provided code, here are the identified bad design patterns and code smells, categorized by their nature.
-
+ATTN: new problems:
 ### 1. Excessive Parameter Lists (Data Clumps)
 **Severity: High**
 

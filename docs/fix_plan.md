@@ -97,8 +97,8 @@
 - Working Plan: `plans/active/ARCH-STAGE-CONTEXT-001/implementation.md`
 - Ledger tie-in: Addresses the unchecked “bad design patterns/code smells” entry in `problems.md` (2025-12-01), specifically items 1, 2, 4, 7, and 8 (data clumps, anemic Stage classes, mutable telemetry dicts, engine branching).
 - Next Actions:
-  * Phase A.3: Extend Stage C helpers/wrappers to the typed context (retarget helpers + closure). Specifically, update `RefinementSharedContext` to carry an optional `baseline_detector`, teach `stage_c.py` to build/persist that dataclass, add compatibility shims to `_build_stage_c_params` / `_build_stage_c_lbfgs_closure`, and rerun `tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip` for both detector sizes (collect-only + telemetry) under `plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T022454Z/`.
-  * Broaden the smoketest/key selector expectations (`test_stage_a_engine_delegation_telemetry`, Stage B/C smokes) so CI asserts the typed context path prior to moving on to the RefinementEngine artifact and writer-decoupling work.
+  * Phase A ✅ (Stage C shared-context shims landed 2025-12-02T022454Z). Shift to Phase B.1: introduce `StageResult` + Stage-specific artifact dataclasses so StageA/StageB/StageC stop attaching custom keys to telemetry dicts.
+  * Implement `StageResult` scaffolding + StageA/StageB/StageC artifacts, update `RefinementEngine` to persist them (replacing `_stage_a_ctx_cache`, `_stage_b_shell_edges`, `_stage_c_bragg_full`), and teach `run_nanobrag_refinement` to pull final Bragg + warm-cache data from the artifact map. Reserve artifacts under `plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T030800Z/` for the implementation/test logs.
 
 ## Attempts History
 

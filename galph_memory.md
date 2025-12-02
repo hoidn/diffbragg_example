@@ -338,3 +338,8 @@ Open separate harness or spec_change initiative to diagnose per-reflection gradi
 - Updated the plan/fix-plan entries with the new artifact path (2025-12-02T022454Z) and detailed Do Now: extend the dataclass with `baseline_detector`, build/persist it in `stage_c.py`, add shims to `_build_stage_c_params` / `_build_stage_c_lbfgs_closure`, and rerun Stage C small/full smoketests plus the engine-telemetry selector.
 - Rewrote input.md directing Ralph to land the Stage C typed-context refactor, capture collect-only + test logs for both detector sizes, and verify Stage A telemetry is unaffected.
 Action State: ready_for_implementation
+2025-12-02T030800Z focus=ARCH-STAGE-CONTEXT-001 state=ready_for_implementation dwell=0 action=planning artifacts=plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T030800Z/ next_action=Implement StageResult+StageArtifacts scaffolding
+- Phase A is fully checked off (Stage C shared-context shims landed); planned Phase B.1 in detail: add StageResult + StageA/B/C artifact dataclasses, teach the engine/run_nanobrag_refinement to use them, and reserved artifacts under 2025-12-02T030800Z.
+- Updated plans/active/ARCH-STAGE-CONTEXT-001/implementation.md (B1.1–B1.3 checklist) and docs/fix_plan.md with the new next actions + artifacts path; problems.md ledger entry remains open but explicitly tied to this plan.
+- Rewrote input.md with the new Do Now (StageResult + StageArtifacts scaffolding) and mapped Stage A telemetry + Stage B/C small smokes.
+Action State: ready_for_implementation

@@ -1,0 +1,30 @@
+  Stage A iterations: 7
+  Stage A status: ok
+  Stage B final loss: 3.67e+08
+  Stage B improvement (vs Stage A): -0.0%
+  Stage B iterations: 7
+  Stage B status: early_stop
+  Total improvement (A+B): -0.0%
+  Shell modifiers: {'shell_0_modifier (d=80000.12-100000.00Å)': {'initial': 1.0, 'final': 1.0, 'delta': 0.0}, 'shell_1_modifier (d=60000.25-80000.12Å)': {'initial': 1.0, 'final': 1.0, 'delta': 0.0}, 'shell_2_modifier (d=40000.38-60000.25Å)': {'initial': 1.0, 'final': 1.0, 'delta': 0.0}, 'shell_3_modifier (d=20000.50-40000.38Å)': {'initial': 1.0, 'final': 1.0, 'delta': 0.0}, 'shell_4_modifier (d=0.63-20000.50Å)': {'initial': 1.0, 'final': 1.0, 'delta': 0.0}}
+PASSED
+
+=============================== warnings summary ===============================
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dxtbx/format/FormatCBFFull.py:198: DeprecationWarning: The binary mode of fromstring is deprecated, as it behaves surprisingly on unicode inputs. Use frombuffer instead
+    self._raw_data = flex.int(np.fromstring(array_string, np.int32))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 1 passed, 5 warnings in 23.33s ========================

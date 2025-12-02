@@ -1,0 +1,656 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 1 item
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion 
+[test_stage_a_expansion] detector=small
+auto-selected 1-fold oversampling
+[HKL stats] h=[-12,7] k=[-14,9] l=[-14,8] hit_rate=1045475/1048576 (99.70%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046404/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046404/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-11,13] k=[-11,12] l=[0,4] hit_rate=1046404/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-18,19] l=[0,4] hit_rate=1046793/1048576 (99.83%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046346/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-9,10] k=[-14,15] l=[0,5] hit_rate=1046367/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046348/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046350/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046325/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+FAILED
+
+=================================== FAILURES ===================================
+____________________________ test_stage_a_expansion ____________________________
+
+refgeom_dataload = <dbex.data_load.DataLoad object at 0x7edbc15b5d60>
+refinement_inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0.,...0.]]], dtype=float32), target_representation='adu', global_scale_hint=86.34794146217338, sigma_readout_provenance=None)
+hkl_data = (tensor([[[0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0.,...uda:0'), {'grid_max': 518.3336791992188, 'grid_mean': 16.896526336669922, 'grid_min': 0.0, 'grid_nonzero': 69614, ...})
+smoke_detector_size = 'small', smoke_sigma_source = 'cli_override'
+
+    @pytest.mark.allow_metadata_sigma
+    def test_stage_a_expansion(
+        refgeom_dataload,
+        refinement_inputs,
+        hkl_data,
+        smoke_detector_size,
+        smoke_sigma_source,
+    ):
+        """
+        Verify Stage A LBFGS refinement with full crystal DoFs achieves ≥0.2% loss decrease.
+    
+        Acceptance criteria (TORCH-REFINE-002D):
+        1. Refinement runs without errors (status != "error")
+        2. Telemetry contains all required keys (scale, cell a/b/c, angles, orientation, misset_xyz_deg)
+        3. Orientation telemetry reports deterministic misset angles from perturbed geometry
+        4. Improvement gate (≥0.2%) calibrated to achievable ceiling per empirical probe
+        5. Full-loss trace is non-increasing over last 3 validations
+    
+        Per TORCH-REFINE-002D: Stage A now runs with tricubic HKL interpolation (interpolate=True)
+        against a haloed grid (±1 padding) to prevent default_F fallback near grid boundaries.
+        Deterministic geometry perturbation (+2/+1/+1% cell stretch, +1.5° Z-misset) plumbed
+        through baseline_crystal parameter exercises orientation recovery while fractional HKL
+        coordinates from the perturbed basis stay within haloed grid bounds.
+    
+        Environment:
+        - Requires: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1
+        - Selector: pytest -v tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+        """
+        from dbex.nanobrag_refinement import run_nanobrag_refinement, RefinementConfig
+    
+        print(f"\n[test_stage_a_expansion] detector={smoke_detector_size}")
+    
+        hkl_grid, hkl_metadata = hkl_data
+        n_rois = len(refgeom_dataload.bbox)
+        strict_gates = smoke_detector_size == "full"
+    
+        # Configure refinement (Stage A expansion per TORCH-REFINE-002D)
+        config = RefinementConfig(
+            device='cuda:0',
+            dtype=torch.float32,
+            history_size=10,
+            max_iter=30,  # ≤30 steps for Stage A expansion
+            roi_sample_fraction=0.15,
+            full_validation_interval=5,
+            min_loss_improvement=0.002 if strict_gates else 0.0,
+            enable_hkl_interpolation=True,  # TORCH-REFINE-002D: Enable tricubic with haloed grid
+            sigma_readout_provenance=(
+                "external_lookup" if smoke_sigma_source == "metadata" else "cli_override"
+            ),
+        )
+    
+        # Create perturbed geometry (TORCH-REFINE-002D)
+        # Applies deterministic cell stretch and orientation misset to exercise Stage A recovery
+        # with tricubic HKL interpolation enabled (haloed grid prevents default_F fallback)
+        baseline_crystal = refgeom_dataload.Expt.crystal
+        baseline_detector = refgeom_dataload.Expt.detector
+        baseline_beam = refgeom_dataload.Expt.beam
+    
+        perturbed_crystal, perturbed_detector, perturbed_beam = create_perturbed_geometry(
+            baseline_crystal, baseline_detector, baseline_beam
+        )
+    
+        # Run refinement with perturbed geometry and baseline crystal for misset extraction
+        # ARCH-STAGE-CONTEXT-001 Phase B.4/D: run_nanobrag_refinement now returns artifacts
+>       bragg_refined, telemetry_dict, engine_artifacts = run_nanobrag_refinement(
+            inputs=refinement_inputs,
+            detector=perturbed_detector,
+            beam=perturbed_beam,
+            crystal=perturbed_crystal,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            config=config,
+            baseline_crystal=baseline_crystal,  # Enables U_delta extraction for orientation telemetry
+        )
+
+tests/dbex/test_torch_refine_smoke.py:436: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+dbex/nanobrag_refinement.py:323: in run_nanobrag_refinement
+    telemetry_dict = engine.run(engine_inputs)
+dbex/refinement/engine.py:147: in run
+    stage_output = stage.run(enriched_inputs, telemetry_sink)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <dbex.refinement.stage_a.StageA object at 0x7edbcde2d730>
+inputs = {'baseline_crystal': <dxtbx_model_ext.MosaicCrystalSauter2014 object at 0x7edbcde37c70>, 'baseline_detector': None, 'b...bject at 0x7edbcde37c70>, baseline_detector=None, asu_map=None, hkl_indices_grid=None, halo_mask=None, extras={}), ...}
+telemetry_sink = None
+
+    def run(
+        self,
+        inputs: Any,
+        telemetry_sink: Optional[Path] = None
+    ) -> Dict[str, Any]:
+        """
+        Execute Stage A LBFGS refinement calling extracted helpers directly.
+    
+        Args:
+            inputs: Dict with keys:
+                - 'refinement_inputs': RefinementInputs (target, loss_mask, panel_slices, etc.)
+                - 'detector': dxtbx Detector object
+                - 'beam': dxtbx Beam object
+                - 'crystal': dxtbx Crystal object
+                - 'hkl_grid': torch.Tensor structure factor grid
+                - 'hkl_metadata': dict with grid dimensions
+                - 'baseline_crystal': Optional baseline dxtbx Crystal for misset extraction
+                - 'baseline_detector': Optional baseline dxtbx Detector for Stage C telemetry
+            telemetry_sink: Optional path for telemetry output (unused by this implementation,
+                           telemetry returned via dict instead)
+    
+        Returns:
+            Telemetry dict with all required RefinementTelemetry fields plus:
+            - stage_type: "stage_a"
+            - mode: None (or "incremental_ub"/"u_matrix" if those modes are enabled)
+    
+        Raises:
+            RuntimeError: If simulator fails or gradients are NaN/Inf
+            ValueError: If config not set via configure()
+        """
+        if self._config is None:
+            raise ValueError("StageA not configured. Call configure(config) before run().")
+    
+        # ARCH-REFINE-001 Phase B.1: Extract context from inputs
+        # If inputs has 'context' key, use it; otherwise fall back to dict unpacking
+        ctx = inputs['context'] if isinstance(inputs, dict) and 'context' in inputs else inputs
+    
+        # Extract inputs (prefer context fields, fall back to dict keys for backward compatibility)
+        if hasattr(ctx, 'refinement_inputs'):
+            # Using RefinementContext
+            refinement_inputs = ctx.refinement_inputs
+            detector = ctx.detector
+            beam = ctx.beam
+            crystal = ctx.crystal
+            hkl_grid = ctx.hkl_grid
+            hkl_metadata = ctx.hkl_metadata
+            baseline_crystal = ctx.baseline_crystal
+            baseline_detector = ctx.baseline_detector
+        else:
+            # Legacy dict unpacking (fallback for backward compatibility)
+            refinement_inputs = inputs['refinement_inputs']
+            detector = inputs['detector']
+            beam = inputs['beam']
+            crystal = inputs['crystal']
+            hkl_grid = inputs['hkl_grid']
+            hkl_metadata = inputs['hkl_metadata']
+            baseline_crystal = inputs.get('baseline_crystal', None)
+            baseline_detector = inputs.get('baseline_detector', None)
+    
+        # Extract device/dtype from config
+        device = self._config.device
+        dtype = self._config.dtype
+    
+        # Build sigma_floor_sq_cache (Stage A warmup)
+        # CRITICAL: This dict MUST match the construction in run_nanobrag_refinement
+        # (dbex/nanobrag_refinement.py line 2195: empty dict, populated by _get_sigma_floor_sq_tensor)
+        sigma_floor_sq_cache = {}
+    
+        # Compute baseline_misset_deg_tensor if baseline_crystal provided
+        # (Matches run_nanobrag_refinement logic lines ~1958-1968)
+        baseline_misset_deg_tensor = None
+        if baseline_crystal is not None:
+            from dbex.nanobrag_bridge import compute_baseline_misset_deg
+            baseline_misset_deg_tensor = compute_baseline_misset_deg(
+                crystal, baseline_crystal, device=device, dtype=dtype
+            )
+    
+        # STEP 1: Build Stage A parameters
+        helper1_result = _build_stage_a_params(
+            crystal=crystal,
+            detector=detector,
+            inputs=refinement_inputs,
+            config=self._config,
+            device=device,
+            dtype=dtype,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            sigma_floor_sq_cache=sigma_floor_sq_cache,
+            baseline_crystal=baseline_crystal,
+            baseline_detector=baseline_detector,
+            beam=beam
+        )
+    
+        # Unpack helper1 result
+        params = helper1_result['params']
+        param_values = helper1_result['param_values']
+        telemetry_state = helper1_result['telemetry_state']
+        stage_a_context = helper1_result['stage_a_context']
+        optimizer = helper1_result['optimizer']
+    
+        # Extract needed variables for helper 2/3 calls and telemetry assembly
+        initial_log_scale = param_values['initial_log_scale']
+        log_scale = param_values['log_scale']
+        log_cell_a_delta = param_values['log_cell_a_delta']
+        log_cell_b_delta = param_values['log_cell_b_delta']
+        log_cell_c_delta = param_values['log_cell_c_delta']
+        log_scale_baseline = param_values.get('log_scale_baseline')
+        log_scale_baseline_source = param_values.get('log_scale_baseline_source')  # TOOLING-VIS-001 Phase E
+        spot_scale_override_adjustment_factor = param_values.get('spot_scale_override_adjustment_factor')  # TOOLING-VIS-001 Phase E
+        target_mean_masked = param_values.get('target_mean_masked')  # TOOLING-VIS-001 Phase D.E
+        model_mean_masked = param_values.get('model_mean_masked')  # TOOLING-VIS-001 Phase D.E
+        angle_alpha_raw = param_values['angle_alpha_raw']
+        angle_beta_raw = param_values['angle_beta_raw']
+        angle_gamma_raw = param_values['angle_gamma_raw']
+        orientation_vec = param_values['orientation_vec']
+        canonical_baseline = stage_a_context['canonical_baseline']
+        full_stage_a_indices = stage_a_context['full_stage_a_indices']
+        stage_a_roi_label = stage_a_context['stage_a_roi_label']
+        stage_a_total_work_items = stage_a_context['stage_a_total_work_items']
+        sampled_stage_a_indices = stage_a_context['sampled_stage_a_indices']
+        masked_pixel_reference = int(refinement_inputs.loss_mask.sum())
+    
+        # ARCH-STAGE-CONTEXT-001 Phase E: Extract telemetry fields (dataclass-only)
+        perf_closure_evals = telemetry_state.perf_closure_evals
+        perf_validation_runs = telemetry_state.perf_validation_runs
+        perf_forward_times_ms = telemetry_state.perf_forward_times_ms
+        variance_floor_clamped_pixels = telemetry_state.variance_floor_clamped_pixels
+        variance_floor_masked_pixels = telemetry_state.variance_floor_masked_pixels
+        loss_trace_sample = telemetry_state.loss_trace_sample
+        loss_trace_full = telemetry_state.loss_trace_full
+        best_loss_full = telemetry_state.best_loss_full
+        chi_squared_trace_sample = telemetry_state.chi_squared_trace_sample
+        chi_squared_trace_full = telemetry_state.chi_squared_trace_full
+        chi_squared_best = telemetry_state.chi_squared_best
+        masked_mse_trace_sample = telemetry_state.masked_mse_trace_sample
+        masked_mse_trace_full = telemetry_state.masked_mse_trace_full
+        masked_mse_best = telemetry_state.masked_mse_best
+    
+        # ARCH-REFINE-001 Phase E.2: Compute force_panel_validation flag (REFINE-FLOW-001, REFINE-007)
+        # Switch Stage A baseline/final validations to panel mode whenever Stage B or Stage C runs,
+        # or when ROI count is small (≤32), so Stage A telemetry reports panel-level chi² that
+        # matches Stage B/C initial states. This ensures REFINE-FLOW-001 parity (Stage B initial chi²
+        # must match Stage A final within 0.1%) holds for ROI-heavy configs where ROI sampling would
+        # prevent Stage A from seeing the full-panel convergence that Stage B will use.
+        canonical_roi_count = len(refinement_inputs.panel_slices)
+        force_panel_validation = (
+            self._config.stage_a_force_panel_validation or
+            self._config.enable_stage_b or
+            self._config.enable_stage_c or
+            canonical_roi_count <= self._config.stage_a_panel_validation_roi_threshold
+        )
+        # Stash flag on context for closure builder
+        stage_a_context['force_panel_validation'] = force_panel_validation
+    
+        # ARCH-STAGE-CONTEXT-001: Build RefinementSharedContext to replace 11-parameter data clump
+        from dbex.refinement.context import RefinementSharedContext
+        shared_context = RefinementSharedContext.from_inputs(
+            crystal=crystal,
+            detector=detector,
+            beam=beam,
+            inputs=refinement_inputs,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            config=self._config,
+            device=device,
+            dtype=dtype,
+            baseline_crystal=baseline_crystal,
+            baseline_detector=baseline_detector,
+            sigma_floor_sq_cache=sigma_floor_sq_cache,
+        )
+    
+        # STEP 2: Build Stage A LBFGS closure
+        # ARCH-TELEMETRY-001 Phase B.1: Instantiate StageATelemetryCollector
+        from .telemetry_collectors import StageATelemetryCollector
+        collector = StageATelemetryCollector(state=telemetry_state)
+    
+        # ARCH-STAGE-CONTEXT-001 Phase B.2: Call inlined StageA._build_lbfgs_closure
+        compute_loss, closure = self._build_lbfgs_closure(
+            param_values=param_values,
+            telemetry_state=telemetry_state,
+            stage_a_context=stage_a_context,
+            shared_context=shared_context,
+            collector=collector,
+        )
+    
+        # STEP 3: Run Stage A LBFGS optimization
+        # ARCH-TELEMETRY-001 Phase B.1: Pass collector for baseline/final/exception validations
+        status, message, final_chi_squared_value, final_masked_mse_value, best_params_snapshot = _run_stage_a_lbfgs(
+            compute_loss=compute_loss,
+            closure=closure,
+            optimizer=optimizer,
+            params=params,
+            telemetry_state=telemetry_state,
+            config=self._config,
+            canonical_baseline=canonical_baseline,
+            full_stage_a_indices=full_stage_a_indices,
+            log_scale=log_scale,
+            log_cell_a_delta=log_cell_a_delta,
+            log_cell_b_delta=log_cell_b_delta,
+            log_cell_c_delta=log_cell_c_delta,
+            angle_alpha_raw=angle_alpha_raw,
+            angle_beta_raw=angle_beta_raw,
+            angle_gamma_raw=angle_gamma_raw,
+            orientation_vec=orientation_vec,
+            device=device,
+            dtype=dtype,
+            masked_pixel_reference=int(refinement_inputs.loss_mask.sum()),
+            force_panel_validation=force_panel_validation,
+            collector=collector,
+        )
+    
+        # ARCH-TELEMETRY-001 Phase C.2: Finalize collector to get typed StageResult
+        # This happens after _run_stage_a_lbfgs completes (including all validations)
+        collector_stage_result = collector.finalize()
+    
+        log_cell_max_delta = getattr(self._config, 'log_cell_max_delta', 1.0)
+        log_cell_a_delta_clamped = torch.clamp(
+            log_cell_a_delta, min=-log_cell_max_delta, max=log_cell_max_delta
+        )
+        log_cell_b_delta_clamped = torch.clamp(
+            log_cell_b_delta, min=-log_cell_max_delta, max=log_cell_max_delta
+        )
+        log_cell_c_delta_clamped = torch.clamp(
+            log_cell_c_delta, min=-log_cell_max_delta, max=log_cell_max_delta
+        )
+    
+        # Build param_deltas dict for telemetry (matches run_nanobrag_refinement lines 2156-2198)
+        param_deltas = {
+            'log_scale': {
+                'initial': initial_log_scale,
+                'final': float(log_scale.item()),
+                'delta': float(log_scale.item()) - initial_log_scale
+            },
+            'log_scale_baseline': {
+                'initial': log_scale_baseline if log_scale_baseline is not None else 0.0,
+                'final': log_scale_baseline if log_scale_baseline is not None else 0.0,
+            },
+            'log_cell_a_delta': {
+                'initial': 0.0,
+                'final': float(log_cell_a_delta_clamped.item()),
+                'delta': float(log_cell_a_delta_clamped.item())
+            },
+            'log_cell_b_delta': {
+                'initial': 0.0,
+                'final': float(log_cell_b_delta_clamped.item()),
+                'delta': float(log_cell_b_delta_clamped.item())
+            },
+            'log_cell_c_delta': {
+                'initial': 0.0,
+                'final': float(log_cell_c_delta_clamped.item()),
+                'delta': float(log_cell_c_delta_clamped.item())
+            },
+            'angle_alpha_raw': {
+                'initial': 0.0,
+                'final': float(angle_alpha_raw.item()),
+                'delta': float(angle_alpha_raw.item())
+            },
+            'angle_beta_raw': {
+                'initial': 0.0,
+                'final': float(angle_beta_raw.item()),
+                'delta': float(angle_beta_raw.item())
+            },
+            'angle_gamma_raw': {
+                'initial': 0.0,
+                'final': float(angle_gamma_raw.item()),
+                'delta': float(angle_gamma_raw.item())
+            },
+            'orientation_vec': {
+                'initial': [0.0, 0.0, 0.0],
+                'final': orientation_vec.detach().cpu().tolist(),
+                'delta': orientation_vec.detach().cpu().tolist(),
+                'norm': float(orientation_vec.norm().item())
+            }
+        }
+    
+        # Compute final misset XYZ degrees for telemetry (TORCH-REFINE-002)
+        with torch.no_grad():
+            max_orientation_deg = 3.0
+            bounded_orientation_vec_final = torch.tanh(orientation_vec) * max_orientation_deg * (np.pi / 180.0)
+            quat_final = vec_to_unit_quaternion(bounded_orientation_vec_final)
+            misset_xyz_deg_final = quaternion_to_xyz_euler(quat_final)
+    
+            # Add baseline misset from perturbed geometry if provided (TORCH-REFINE-002D)
+            if baseline_misset_deg_tensor is not None:
+                misset_xyz_deg_final_total = misset_xyz_deg_final + baseline_misset_deg_tensor
+                initial_misset = baseline_misset_deg_tensor.cpu().tolist()
+            else:
+                misset_xyz_deg_final_total = misset_xyz_deg_final
+                initial_misset = [0.0, 0.0, 0.0]
+    
+            # Add misset telemetry
+            param_deltas['misset_xyz_deg'] = {
+                'initial': initial_misset,
+                'final': misset_xyz_deg_final_total.cpu().tolist(),
+                'delta': misset_xyz_deg_final.cpu().tolist(),
+                'quaternion_norm': float(quat_final.norm().item())
+            }
+    
+        # Build perf counters payload (PERF-WARM-SIM-001)
+        cache_mode = "warm" if self._config.enable_stage_a_warm_cache else "cold"
+        perf_counters = {
+            'cache_mode': cache_mode,
+            'roi_mode': stage_a_roi_label,
+            'roi_count_total': stage_a_total_work_items,
+            'roi_count_sampled': len(sampled_stage_a_indices),
+            'closure_evals': perf_closure_evals[0],
+            'validation_runs': perf_validation_runs[0],
+            'forward_time_ms': {
+                'mean': float(np.mean(perf_forward_times_ms)) if perf_forward_times_ms else 0.0,
+                'min': float(np.min(perf_forward_times_ms)) if perf_forward_times_ms else 0.0,
+                'max': float(np.max(perf_forward_times_ms)) if perf_forward_times_ms else 0.0,
+                'total': float(np.sum(perf_forward_times_ms)) if perf_forward_times_ms else 0.0
+            },
+            # REFINE-011: Tag validation scope so Stage C knows whether to use panel mode for full validations
+            'validation_scope': "panel" if force_panel_validation else "roi"
+        }
+    
+        # ARCH-REFINE-001, REFINE-010: Add ROI mode reason to explain auto-panel switching
+        if stage_a_roi_label == "panel":
+            if not self._config.enable_stage_a_roi_mode:
+                perf_counters['roi_mode_reason'] = "config_disabled"
+            elif canonical_roi_count <= self._config.stage_a_min_roi_for_roi_mode:
+                perf_counters['roi_mode_reason'] = f"auto_panel_threshold (roi_count={canonical_roi_count} <= {self._config.stage_a_min_roi_for_roi_mode})"
+            elif not (self._config.enable_stage_a_warm_cache or self._config.allow_cold_stage_a_roi_mode):
+                perf_counters['roi_mode_reason'] = "warm_cache_disabled"
+            else:
+                perf_counters['roi_mode_reason'] = "panel_mode_default"
+        else:
+            perf_counters['roi_mode_reason'] = f"roi_mode_active (roi_count={canonical_roi_count} > {self._config.stage_a_min_roi_for_roi_mode})"
+    
+        # Assemble RefinementTelemetry object (matches run_nanobrag_refinement lines 2241-2280)
+        telemetry_a = RefinementTelemetry(
+            optimizer="LBFGS",
+            stage="A",
+            history_size=self._config.history_size,
+            max_iter=self._config.max_iter,
+            tolerance_grad=self._config.tolerance_grad,
+            tolerance_change=self._config.tolerance_change,
+            roi_sample_fraction=self._config.roi_sample_fraction,
+            roi_count_sampled=len(sampled_stage_a_indices),
+            roi_count_total=stage_a_total_work_items,
+            loss_trace_sample=loss_trace_sample,
+            loss_trace_full=loss_trace_full,
+            best_loss_full=best_loss_full,
+            param_deltas=param_deltas,
+            status=status,
+            message=message,
+            perf_counters=perf_counters,
+            # PHYSICS-LOSS-001: Dual loss metrics
+            chi_squared_trace_sample=chi_squared_trace_sample,
+            chi_squared_trace_full=chi_squared_trace_full,
+            chi_squared_best=chi_squared_best,
+            masked_mse_trace_sample=masked_mse_trace_sample,
+            masked_mse_trace_full=masked_mse_trace_full,
+            masked_mse_best=masked_mse_best,
+            sigma_readout_provenance=self._config.sigma_readout_provenance,
+            sigma_readout_reference_value=self._config.sigma_readout_reference_value,
+            # PHYSICS-LOSS-002: Variance floor telemetry
+            variance_floor_value=self._config.sigma_floor_value**2,
+            variance_floor_clamp_fraction=(
+                float(variance_floor_clamped_pixels[0]) / float(masked_pixel_reference)
+                if masked_pixel_reference > 0 else 0.0
+            ),
+            variance_floor_masked_pixels=int(masked_pixel_reference),
+            variance_floor_clamped_pixels=int(variance_floor_clamped_pixels[0]),
+            # SCALE-008 / TOOLING-VIS-001 Phase E: Mapping-aware log-scale baseline telemetry
+            log_scale_baseline_source=log_scale_baseline_source,
+            spot_scale_override_adjustment_factor=spot_scale_override_adjustment_factor,
+            # TOOLING-VIS-001 Phase D.E: Masked-mean telemetry for Stage A baseline derivation
+            target_mean_masked=target_mean_masked,
+            model_mean_masked=model_mean_masked,
+            # PHYSICS-LOSS-003: Canonical Stage A metadata
+            canonical_stage_label=canonical_baseline["stage_label"],
+            canonical_chi_squared=canonical_baseline["chi_squared"],
+            canonical_chi_squared_iteration=canonical_baseline["iteration"],
+            canonical_roi_count=canonical_baseline["roi_count"],
+            canonical_detector_distances_mm=canonical_baseline["detector_distances_mm"],
+            roi_mode=stage_a_roi_label,
+            # Phase A4 stage identification fields
+            stage_type="stage_a",
+            # Determine mode based on config flags
+            mode=(
+                "incremental_ub" if self._config.use_incremental_ub
+                else "u_matrix" if self._config.use_u_matrix_parameterization
+                else None  # Default cell+misset path
+            ),
+            # ARCH-TELEMETRY-001 Phase C.2: Attach typed StageResult from collector
+            stage_result=collector_stage_result,
+        )
+    
+        # ARCH-STAGE-CONTEXT-001 Phase B.1: Extract stage_a_ctx into artifacts
+        stage_a_ctx = stage_a_context.get('stage_a_ctx', None)
+    
+        # ARCH-STAGE-CONTEXT-001 Phase D: Compute final Bragg when Stage A is terminal
+        # Stage A is terminal when both Stage B and Stage C are disabled
+        bragg_full_artifact = None
+        is_terminal_stage = (not self._config.enable_stage_b) and (not self._config.enable_stage_c)
+        if is_terminal_stage:
+            # Import reconstruction helper
+            from dbex.refinement.reconstruction import build_final_bragg_from_stage_a_telemetry
+            # Build final Bragg from Stage A telemetry using the shared helper
+            bragg_full_artifact = build_final_bragg_from_stage_a_telemetry(
+>               telemetry_a=telemetry_output,
+                detector=detector,
+                beam=beam,
+                crystal=crystal,
+                inputs=refinement_inputs,
+                hkl_grid=hkl_grid,
+                hkl_metadata=hkl_metadata,
+                config=self._config,
+                device=device,
+                dtype=dtype,
+                stage_a_ctx=stage_a_ctx,
+                baseline_crystal=baseline_crystal,
+            )
+E           NameError: name 'telemetry_output' is not defined
+
+dbex/refinement/stage_a.py:1248: NameError
+=============================== warnings summary ===============================
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dxtbx/format/FormatCBFFull.py:198: DeprecationWarning: The binary mode of fromstring is deprecated, as it behaves surprisingly on unicode inputs. Use frombuffer instead
+    self._raw_data = flex.int(np.fromstring(array_string, np.int32))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion - NameEr...
+!!!!!!!!!!!!!!!!!!!!!!!!!! stopping after 1 failures !!!!!!!!!!!!!!!!!!!!!!!!!!!
+======================== 1 failed, 5 warnings in 7.59s =========================
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046325/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+auto-selected 1-fold oversampling
+[HKL stats] h=[-8,10] k=[-14,15] l=[0,4] hit_rate=1046349/1048576 (99.79%)
+[Stage A artifact validation] bragg_full shape=(1, 1024, 1024), dtype=float32, matches bragg_refined: YES
+
+[test_stage_a_expansion] SUCCESS
+  Initial loss: 3.31e+08
+  Final loss: 1.38e+08
+  Improvement: 58.2%
+  Iterations: 20
+  Status: ok
+  log_scale delta: 2.091e-07
+  Cell deltas (a/b/c): [0.25745609402656555, 0.23030368983745575, 0.028892086818814278]
+  Angle deltas (α/β/γ): [0.02777422033250332, 0.0003586281673051417, 0.0325772725045681]
+  Orientation norm: 9.014e-02
+  Misset XYZ (deg): [0.09687688201665878, 0.2301851212978363, 0.9527419805526733]
+  Quaternion norm: 1.000000
+PASSED
+
+=============================== warnings summary ===============================
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dxtbx/format/FormatCBFFull.py:198: DeprecationWarning: The binary mode of fromstring is deprecated, as it behaves surprisingly on unicode inputs. Use frombuffer instead
+    self._raw_data = flex.int(np.fromstring(array_string, np.int32))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 1 passed, 5 warnings in 7.42s =========================

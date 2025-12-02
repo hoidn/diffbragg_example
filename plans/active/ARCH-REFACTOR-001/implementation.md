@@ -292,7 +292,44 @@ Move remaining Stage-A-private logic into StageA class, mirroring Phase C.2/C.5.
 
 Artifacts for Phase C.8 live under plans/active/ARCH-REFACTOR-001/reports/2025-12-04T215000Z/.
 
-#### Phase C.9 — Stage A Module Deletion (Planned)
-- [ ] C9.A — Delete dbex/refinement/stage_a_impl.py once all helpers are relocated/inlined.
-- [ ] C9.B — Verify zero remaining imports: rg "from.*stage_a_impl import" must return empty output (excluding docs/logs/backups).
-- [ ] C9.C — Validation: Stage A expansion, DB-AT-024 mapping parity, Stage B/C smokes. All must PASS with no regressions.
+#### Phase C.9 — Stage A Module Deletion (2025-12-02T235959Z)
+Final step: relocate remaining dataclasses (`StageAROIEntry`, `StageAContext`) from `stage_a_impl.py` to `dbex/refinement/context.py`, update all imports, and delete the impl module.
+
+**Rationale:** Phase C.7 extracted cross-stage helpers to `stage_a_utils.py` (quaternion utils, warm-cache helpers, loss/context builders). Phase C.8 inlined Stage-A-private logic into `StageA` class. Only dataclass definitions remain in `stage_a_impl.py`. These belong in `context.py` per ARCH-STAGE-CONTEXT-001 precedent (StageCContext lives there).
+
+- [ ] C9.A — **Relocate StageAROIEntry and StageAContext dataclasses:**
+  * Copy `StageAROIEntry` and `StageAContext` (with all fields, defaults, docstrings) from `stage_a_impl.py` to `dbex/refinement/context.py`.
+  * Place near other Stage contexts (after StageATelemetryState or before/after StageCContext) for consistency.
+  * Ensure required imports are present in `context.py`: `torch`, `typing.Optional/List/Tuple/Callable`, `nanobrag_torch.simulator.Simulator`.
+  * Add cross-reference comment: `# ARCH-REFACTOR-001 Phase C.9: Relocated from stage_a_impl.py (2025-12-02T235959Z)`
+
+- [ ] C9.B — **Update all import sites (5 files):**
+  * **dbex/refinement/stage_a_utils.py** (line ~28): Change `from dbex.refinement.stage_a_impl import StageAContext, StageAROIEntry` → `from dbex.refinement.context import StageAContext, StageAROIEntry`
+  * **dbex/refinement/stage_c.py** (line ~42): Change `from dbex.refinement.stage_a_impl import StageAContext` → `from dbex.refinement.context import StageAContext`
+  * **dbex/refinement/stage_a.py** (lines ~39, ~1248):
+    - FIX BUG: line ~39 should import `_compute_variance_weighted_loss` from `dbex.physics.loss` (not stage_a_impl, which re-exports it)
+    - Inline import at ~1248: change `from dbex.refinement.stage_a_impl import StageAContext` → `from dbex.refinement.context import StageAContext`
+  * **dbex/nanobrag_refinement.py** (lines ~58-62): Change quaternion helper imports from `dbex.refinement.stage_a_impl` → `dbex.refinement.stage_a_utils` (vec_to_unit_quaternion, quaternion_to_rotation_matrix, quaternion_to_xyz_euler)
+  * **dbex/tools/stage_a_adam.py** (lines ~22-25): Same quaternion import change (stage_a_impl → stage_a_utils)
+
+- [ ] C9.C — **Delete stage_a_impl.py:**
+  * Verify zero remaining imports: `rg "from.*stage_a_impl import|import.*stage_a_impl" --type py` must return empty (excluding docs/logs/backups/comments).
+  * If verification passes, delete `dbex/refinement/stage_a_impl.py`.
+  * Update module docstrings in `stage_a_utils.py` or `context.py` if they reference the old module location.
+
+- [ ] C9.D — **Validation (6 selectors):**
+  * `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion --smoke-detector-size=small`
+  * `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry`
+  * `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload`
+  * `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --smoke-detector-size=small`
+  * `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip --smoke-detector-size=small`
+  * `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_refgeom_integration.py::test_refgeom_integration`
+  * All 6/6 must PASS. Capture logs under `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T235959Z/`.
+
+**Expected Metrics:**
+- Files deleted: 1 (stage_a_impl.py, ~1524 lines)
+- Files modified: 5 (context.py +~50 lines dataclasses, 4 files with import updates -5 to -10 lines each)
+- Net change: -1450 to -1470 lines across repo
+- Import verification: `rg "stage_a_impl"` returns only docs/logs/backups/comments
+
+Artifacts for Phase C.9 live under `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T235959Z/`.

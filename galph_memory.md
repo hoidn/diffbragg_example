@@ -581,3 +581,12 @@ Action State: ready_for_implementation
 - Authored input.md with explicit line-by-line instructions for Ralph: copy verbatim from stage_a_impl.py, add as StageA private methods with self parameter, update 3 call sites, remove stage_a_impl imports (DO NOT delete file yet). Mapped 4 validation tests: test_stage_a_expansion, test_stage_a_engine_delegation_telemetry, test_stage_b_baseline_guard_diff_payload, test_stage_b_shell_modifiers.
 - Problems ledger "PRIORITIZE ARCH-REFACTOR-001" was serviced in previous loop (C.7); current focus continues Phase C Stage A consolidation per roadmap Tier 0.
 Action State: ready_for_implementation
+
+2025-12-02T235959Z focus=ARCH-REFACTOR-001 state=planning dwell=0 action=planning artifacts=plans/active/ARCH-REFACTOR-001/reports/2025-12-02T235959Z/ next_action=ready_for_implementation
+- Phase C.8 completion confirmed (commit 937f47d4): Stage A private helpers fully inlined into StageA class, all 4/4 validation tests passed.
+- Phase C.9 planned: Delete stage_a_impl.py by relocating remaining dataclasses (StageAROIEntry, StageAContext ~50 lines) to context.py and updating 5 import sites (stage_a_utils, stage_c, stage_a [plus bugfix for physics.loss import], nanobrag_refinement, tools/stage_a_adam).
+- Analysis shows clean separation: Phase C.7 (2025-12-02T200000Z) already moved cross-stage helpers to stage_a_utils; Phase C.8 (2025-12-04T215000Z) inlined Stage-A-private logic into StageA; only dataclass definitions remain.
+- Strategy: (1) copy dataclasses to context.py per ARCH-STAGE-CONTEXT-001 precedent, (2) update 5 import files, (3) verify zero remaining imports with rg, (4) delete stage_a_impl.py (~1524 lines), (5) validate with 6 selectors (Stage A expansion/telemetry, Stage B guard/shell, Stage C smoke, reconstruction integration).
+- Expected metrics: net -1450 to -1470 lines (file deletion ~1524, context.py +~50, 4 files -5 to -10 each).
+- Authored input.md with complete Do Now, pitfalls, validation commands; updated implementation.md Phase C.9 section with detailed checklist; created planning_notes.md under artifacts directory; updated fix_plan.md Attempts History.
+Action State: ready_for_implementation

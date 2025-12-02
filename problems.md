@@ -23,8 +23,11 @@ This file is a lightweight, user-editable backlog for any issues that Galph (the
 
 ATTN NEW PROBLEMS:
 ---
-IMPORTANT NEW:
-diagnosis and specific remediation plan to unblock ARCH-REFACTOR-001 Phase D.3.
+- [x] **ARCH-REFACTOR-001 Phase D.3 Reconstruction Baseline Logic** (2025-12-02T000000Z diagnosis, commit 6db57f45 fix) — **RESOLVED BUT UNCOVERED DEEPER ISSUE**: Original diagnosis correct: build_final_bragg_from_stage_a_telemetry (reconstruction.py:189-191) ignored log_scale_baseline from calibration metadata. Fix implemented correctly matching stage_a.py:1194-1202 (reconstruction.py:195-217). However, tests DB-AT-028/029 still FAIL with identical signature. Debug evidence shows fix executes correctly (log_scale_baseline=20.14, scale_factor=5.57e8), but simulator raw output is ~10^4.4× too small (1.8e-14 vs expected ~4.3e-10). Per repeat-failure escalation rule, marked Phase D.3 blocked and opened [ARCH-SIM-CONSTRUCTION-001] to investigate simulator construction convention mismatch. See plans/active/ARCH-REFACTOR-001/reports/2025-12-02T233717Z_galph_phase_d3_lifecycle_event/lifecycle_analysis.md.
+
+- [ ] **Simulator Construction Convention Mismatch (Training vs Reconstruction)** — **NEW ARCHITECTURAL ISSUE**: Reconstruction helpers (build_final_bragg_from_stage_*_telemetry) produce simulator outputs ~10^4.4× too small compared to training stages (Stage A/B/C) given identical parameters. Hypothesis: reconstruction builds simulators via create_unified_simulator(..., spot_scale_override=None) while Stage A applies calibration metadata at factory construction time. Missing factor ~23,900 does not match sqrt(spot_scale_override)=5.57e8, suggesting double-counting or missing intermediate scale in factory contract. Tracked via [ARCH-SIM-CONSTRUCTION-001] (architecture initiative, Tier 0, blocks ARCH-REFACTOR-001 Phase D.3). Exit criteria: align simulator construction paths, DB-AT-028/029 PASS. Plan: plans/active/ARCH-SIM-CONSTRUCTION-001/implementation.md. Evidence: ralph_findings.md (commit 6db57f45), lifecycle_analysis.md (2025-12-02T233717Z).
+
+OLD DIAGNOSIS (for reference):
 Confirmed Root Cause: Reconstruction Logic Gap
 The function build_final_bragg_from_stage_a_telemetry in dbex/refinement/reconstruction.py (lines 189-191) treats the log_scale parameter from telemetry as an absolute exponent, ignoring the log_scale_baseline that Stage A now uses when calibration is present.
 Current Broken Logic (reconstruction.py):

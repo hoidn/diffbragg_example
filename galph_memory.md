@@ -812,3 +812,44 @@ D) **Test harness issue**: bragg_after may not actually come from our reconstruc
   • Findings applied: TOOLING-VIS-001 Phase D.C, DB-AT-027, REFINE-015
 - **NEXT LOOP**: Ralph executes bugfix per input.md; if tests PASS, mark Phase D.3 complete and update problems.md ledger entry with resolution summary; if FAIL with same signature, escalate per <spec_change_flow/> or mark initiative stuck.
 Action State: ready_for_implementation
+
+---
+
+## 2025-12-02T233717Z (i=446)
+
+**Focus:** ARCH-SIM-CONSTRUCTION-001 — Simulator Construction Convention Alignment
+**Dwell:** 0 (new focus)
+**Action Type:** planning (Phase A evidence collection)
+**Mode:** none
+**Initiative Type:** architecture
+**State:** gathering_evidence
+
+**Lifecycle Event:** ARCH-REFACTOR-001 Phase D.3 reached implementation budget limit (2 loops, same failure signature). Original diagnosis (reconstruction baseline logic) was correct and fix landed (commit 6db57f45), but tests still FAIL, revealing deeper architectural issue: simulator construction paths differ between training (Stage A) and reconstruction by ~10^4.4× in raw output magnitude. Per `<initiative_lifecycle/>` hard rule, marked Phase D.3 **blocked_pending_architecture** and opened new initiative [ARCH-SIM-CONSTRUCTION-001].
+
+**Key Observations:**
+- Ralph's Phase D.3 bugfix (commit 6db57f45) implemented correctly per spec (baseline logic matching stage_a.py:1194-1202)
+- Fix executes as expected (log_scale_baseline=20.14, scale_factor=5.57e8)
+- But simulator raw output too small (bragg_panel=1.8e-14 vs expected ~4.3e-10)
+- Tests DB-AT-028/029 still FAIL (chi²/pixel=1.08e5 vs bound 1e2, ROI corr=-0.05 vs floor 0.2)
+- Root cause re-classified: systematic convention mismatch in factory contract or calibration threading
+
+**Artifact Path:** `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T233717Z_galph_phase_d3_lifecycle_event/`
+                 `plans/active/ARCH-SIM-CONSTRUCTION-001/` (new initiative)
+
+**Implementation Loop Count (ARCH-SIM-CONSTRUCTION-001):**
+- DB-AT-028: 0 (new initiative, inherits context from ARCH-REFACTOR-001)
+- DB-AT-029: 0
+
+**Blocked Count:** 0
+
+**Last Acceptance Criterion:** N/A (planning loop)
+
+**Next Action:** Phase A.1 evidence collection — trace and compare simulator construction paths (Stage A vs reconstruction), identify where spot_scale_override or calibration metadata diverges
+
+**Action State:** `<gathering_evidence>`
+
+**Planning Notes:**
+- Evidence collection scope: simulator construction comparison, calibration metadata flow tracing, debug metrics analysis
+- Hypothesis: reconstruction uses create_unified_simulator(..., spot_scale_override=None) while Stage A bakes calibration into factory
+- Expected outputs: simulator construction comparison table, calibration flow diagrams, factory call analysis
+- Validation: once construction paths aligned, DB-AT-028/029 should PASS

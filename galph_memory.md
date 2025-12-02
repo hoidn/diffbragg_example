@@ -261,3 +261,7 @@ Action State: ready_for_implementation
 - Rewrote input.md with the eager-import Do Now (Stage A/B/C modules + Stage smokes) targeting `plans/active/ARCH-REFINE-001/reports/2025-12-01T232800Z/`, and updated docs/fix_plan.md + problems.md to reference the ledger tie-in.
 Action State: ready_for_implementation
 2025-12-01T232800Z focus=ARCH-REFINE-001 state=planning dwell=1 action=planning artifacts=plans/active/ARCH-REFINE-001/reports/2025-12-01T232800Z/ next_action=Implement Stage wrapper import cleanup + rerun Stage A/B/C small-detector smokes
+- Updated docs/fix_plan.md with the new Stage C warm-cache simulator rebuild plan (2025-12-01T235900Z) and summarized the “rebuild Detector+Simulator + ROI caches” Do Now plus diagnostics commands in input.md pointing at the same artifact path.
+- Marked `problems.md` “Architectural Code Smells” entry complete now that ARCH-REFINE-001 Phase F removed `_lazy_import_refinement`, and created the 2025-12-01T235900Z report scaffold for PERF-WARM-SIM-001.
+Action State: ready_for_implementation
+2025-12-01T235900Z focus=PERF-WARM-SIM-001 state=ready_for_implementation dwell=2 action=planning artifacts=plans/active/PERF-WARM-SIM-001/reports/2025-12-01T235900Z/ next_action=Rebuild Stage A warm-cache simulators + rerun Stage C small/full smokes with diagnostics

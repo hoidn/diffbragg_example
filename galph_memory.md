@@ -1751,3 +1751,25 @@ Per CLAUDE.md exception clause requirements:
 - Reran the guarded inventory (plans/active/PORTFOLIO-STATUS/reports/2025-12-06T094500Z/) producing updated counts (56 total, tracked 22, active_missing 32, missing_plan 2) and captured pytest + command logs; docs/fix_plan.md appendix + Tier 0/Attempts sections now reference the new artifact path and Phase C guardrail work.
 - Verified archive hygiene for ARCH-REFRACTOR-001 (stub + archive entry) and noted FINDINGS-LEDGER-002 as the remaining missing-plan directory to tackle next loop.
 Action State: ready_for_implementation
+
+---
+
+## Loop 2025-12-03T112709Z
+
+**Focus**: FINDINGS-LEDGER-002 — Findings ledger upkeep and knowledge base maintenance (plan promotion)
+**State**: planning
+**Dwell**: 0
+**Action Type**: planning
+**Initiative Type**: housekeeping
+
+**Key Observations**:
+1. The FINDINGS-LEDGER-002 plan was only a stub created to clear the `missing_plan` bucket during PORTFOLIO-STATUS Phase C; without real goals we could not launch Phase A.
+2. `docs/findings.md` is referenced from `docs/index.md` and multiple fix-plan roll-ups, so we need explicit exit criteria (audit, cross-linking, cadence) plus machine-readable artifacts similar to plan_inventory.
+3. Authored a full implementation plan (Phases A–C) and recorded planning notes so the engineer can immediately start Phase A (audit) next loop.
+
+**Artifacts Path**: `plans/active/FINDINGS-LEDGER-002/reports/2025-12-03T112709Z/` (planning_notes.md)
+
+**Next Actions**:
+- Ready_for_implementation — Execute Phase A: audit `docs/findings.md`, produce JSON inventory + audit summary, and fix missing `path:line` citations/statuses per the new plan.
+
+**Action State**: ready_for_implementation

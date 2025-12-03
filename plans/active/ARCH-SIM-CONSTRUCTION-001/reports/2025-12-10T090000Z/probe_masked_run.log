@@ -1,0 +1,22 @@
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+[ARCH-SIM-CONSTRUCTION-001] Intensity + Calibration Metrics Probe
+Detector size: small
+Device: cpu
+Use reconstruction helper: True
+Disable trusted mask: False
+
+[1/6] Loading test fixture data...
+  HKL grid shape: torch.Size([51, 59, 65])
+  n_panels: 1
+  Calibration loaded: 5 keys
+
+[2/3] Running reconstruction helper (build_final_bragg_from_stage_a_telemetry)...
+Traceback (most recent call last):
+  File "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_simulator_outputs.py", line 839, in <module>
+    sys.exit(main())
+  File "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_simulator_outputs.py", line 588, in main
+    bragg_recon_helper, recon_helper_metrics = run_reconstruction_helper_path(
+  File "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_simulator_outputs.py", line 395, in run_reconstruction_helper_path
+    inputs = prepare_refinement_inputs(
+TypeError: prepare_refinement_inputs() got an unexpected keyword argument 'default_sigma_readout'

@@ -1178,3 +1178,51 @@ Action State: ready_for_implementation
 **Next Action:** Issue Do Now for Ralph to implement deep copy fix in Detector.__init__(), rebuild nanobrag_torch, rerun DB-AT-028/029, validate oversample=3 preserved across all runs
 
 **Action State:** `<ready_for_implementation>`
+
+## 2025-12-03T044428Z — DIAG-NANOBRAGG-OVERSAMPLE-001 Phase B Root Cause Correction
+
+**Status**: Deep copy fix implemented but INSUFFICIENT - test still FAILS with chi²/pixel=1.091e+05
+
+**What was done**:
+- Implemented deep copy fix in `Detector.__init__()` as planned (detector.py:55)
+- Added `from copy import deepcopy` import
+- Changed `self.config = config` to `self.config = deepcopy(config)`
+- Rebuilt nanobrag_torch package successfully
+- Ran DB-AT-028 with debug instrumentation enabled
+
+**Critical finding - Phase A root cause was WRONG**:
+The debug logs show a different pattern than Phase A assumed:
+- **Phase A assumption**: Single DetectorConfig being mutated from oversample=3 to -1
+- **Actual pattern**: Multiple DetectorConfig instances with DIFFERENT oversample values
+  - First simulator run: oversample=3 ✅
+  - Runs 2-291: oversample=-1 ❌ (290 instances!)
+  - Last simulator run: oversample=3 ✅
+
+**Real root cause**:
+Not "shared mutable state due to reference assignment in Detector.__init__()" but rather:
+"Multiple DetectorConfig instances being created during refinement with inconsistent oversample values"
+
+**Why deep copy doesn't fix it**:
+- Deep copy prevents mutation WITHIN a Detector instance (working as designed)
+- BUT doesn't prevent upstream code from creating NEW DetectorConfig instances with default oversample=-1
+- The problem is in config **creation** not config **mutation**
+
+**Test result**: FAILED
+- chi²/pixel initial: 1.091e+05 (vs bound ≤1e2)
+- Essentially unchanged from pre-fix baseline (1.084e+05)
+
+**Recommended next actions**:
+1. Find WHERE the 290 DetectorConfig(oversample=-1) instances are being created
+2. Trace the config creation chain from Stage A refinement back to see why only 2/292 have oversample=3
+3. Consider if the fix should be:
+   - Option A: Ensure all DetectorConfig instances inherit oversample=3 from the initial config
+   - Option B: Make DetectorConfig immutable (frozen dataclass) to catch mutation attempts
+   - Option C: Store oversample at a higher level (e.g., RefinementContext) and pass it explicitly to each Simulator
+
+**Artifacts**: 
+- plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T044428Z/
+  - pytest_db_at_028_debug.log (1495 lines, 292 simulator runs)
+  - debug_output_analysis.md (detailed pattern analysis)
+  - detector_deep_copy_fix (implemented but insufficient)
+
+**Initiative status recommendation**: Mark Phase B "implemented but blocked — root cause mismatch" and open Phase C for proper config lifecycle investigation.

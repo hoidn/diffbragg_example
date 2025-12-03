@@ -101,7 +101,7 @@ class StageCArtifacts:
 
     Per ARCH-STAGE-CONTEXT-001 Phase B.1:
     - Carries final [panel, slow, fast] Bragg tensor after detector refinement
-    - Replaces engine._stage_c_bragg_full private attribute
+    - Always populated by Stage C; replaces engine._stage_c_bragg_full private attribute
 
     Attributes:
         bragg_full: Final Bragg volume (numpy array, [panel, slow, fast])
@@ -109,5 +109,7 @@ class StageCArtifacts:
     Normative Requirements:
     - Must be numpy array (CPU-resident for HDF5 writer)
     - Shape must match detector geometry [n_panels, slow_pixels, fast_pixels]
+    - Stage C MUST populate bragg_full unconditionally (not just when terminal)
+    - Cite: docs/spec-db-workflow.md §41 (stage contract + outputs)
     """
     bragg_full: Any  # numpy array [panel, slow, fast]

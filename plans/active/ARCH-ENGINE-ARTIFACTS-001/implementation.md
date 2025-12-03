@@ -54,7 +54,7 @@
 - [ ] A0: **Baseline snapshot** — Run `pytest -q tests/dbex/test_torch_refine_smoke.py -k "test_stage_b_shell_modifiers or test_stage_c_detector_microslip" --collect-only` and archive logs (ensures selectors are healthy before refactor).
 - [ ] A1: Design artifact API (IDL sketch) covering structure (`engine.artifacts`, stage responsibilities), update docs/architecture/module_map.md + new IDL stub if needed.
 - [ ] A2: Implement artifact registry in `RefinementEngine`/`RefinementStage` base (store per-stage dicts, expose read-only property, ensure serialization to reports when telemetry_sink set).
-- [ ] A3: Update Stage C wrapper to emit `{"bragg_full": np.ndarray}` via new API, adjust unit tests to assert artifact availability, and document the contract.
+- [x] A3: Update Stage C wrapper to emit `{"bragg_full": np.ndarray}` via new API, adjust unit tests to assert artifact availability, and document the contract.
 
 ### Dependency Analysis
 - **Touched Modules:** `dbex/refinement/engine.py`, `dbex/refinement/stage.py`, `dbex/refinement/stage_c.py`, `dbex/refinement/context.py` (docstrings), tests referencing Stage C artifacts.

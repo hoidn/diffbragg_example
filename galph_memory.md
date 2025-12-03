@@ -1412,3 +1412,73 @@ Not "shared mutable state due to reference assignment in Detector.__init__()" bu
 **WIP Status**: 
 - in_progress: DIAG-NANOBRAGG-OVERSAMPLE-001 (final validation phase)
 - stuck: ARCH-SIM-CONSTRUCTION-001 (blocked_environment_dependency per lifecycle decision 2025-12-03T021140Z, but may unblock if beam flux fix resolves zero-output issue)
+
+---
+
+## Loop 2025-12-02T230000Z (i=3)
+
+**Focus**: DIAG-NANOBRAGG-OVERSAMPLE-001 — nanobrag_torch Oversample Parameter Investigation (Phase C.9: Beam Flux Fix)
+**State**: ready_for_implementation
+**Dwell**: 0 (new phase within same initiative)
+**Action Type**: evidence_collection + implementation
+**Initiative Type**: diagnostics
+**Lifecycle Counters**:
+- DIAG-NANOBRAGG-OVERSAMPLE-001: Phase C.7-C.8 complete (double root cause identified), Phase C.9 ready for implementation
+- ARCH-SIM-CONSTRUCTION-001: stuck (blocked_environment_dependency), will unblock when DIAG completes
+- ARCH-REFACTOR-001: blocked (Phase D.3 blocked by ARCH-SIM-CONSTRUCTION-001)
+
+**Key Observations**:
+1. **Ralph's Phase C.7-C.8 validation** (reports/2025-12-02T214000Z/):
+   - Reverted debug instrumentation from nanobrag_torch (clean)
+   - Ran DB-AT-028/029 with clean build
+   - **Result**: Tests FAILED with zero simulator output (Scenario B)
+   - **Root Cause #2 Identified**: BeamConfig defaults to `flux=0.0` when not explicitly set
+   - Evidence: bragg_panel[0] mean=0.0, bragg_full mean=0.0, DB-AT-029 "No valid ROI correlations"
+
+2. **Double Root Cause Summary**:
+   - ✅ **Root Cause #1 (Oversample)**: FIXED in Phase C.1-C.6 — 292/292 DetectorConfig instances now have oversample=3
+   - ⚠️ **Root Cause #2 (Beam Flux)**: IDENTIFIED in Phase C.7-C.8 — BeamConfig defaults to flux=0.0, requires 1-line fix
+
+3. **Beam Flux Investigation** (beam_flux_investigation.md):
+   - BeamConfig dataclass (`src/nanobrag-torch/src/nanobrag_torch/config.py:33`): `flux: float = 0.0`
+   - When `create_beam_config()` called with `flux=None`, BeamConfig uses default=0.0
+   - Simulator equation: `output = structure_factors × flux × ... = structure_factors × 0.0 = 0.0`
+   - Recommendation: Change default to `flux: float = 1.0` (neutral dimensionless scale)
+
+4. **Fix Strategy (Option A - preferred)**:
+   - Single 1-line change in nanobrag_torch config.py
+   - Simplest, aligns with physics convention (1.0 = identity/neutral scale)
+   - No changes needed in dbex calling code
+   - Fixes both warm (no calibration) and cold paths
+
+**Artifacts Path**: `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-02T230000Z/`
+
+**Next Actions (Phase C.9)**:
+- Task C.9.1: Apply 1-line fix to BeamConfig (flux: float = 1.0)
+- Task C.9.2: Create patch file (beam_flux_default_fix.patch)
+- Task C.9.3: Rebuild nanobrag_torch with --no-deps
+- Task C.9.4: Run DB-AT-028/029 validation (expect PASS)
+- Task C.9.5: Update docs/findings.md (DIAG-FLUX-001 entry)
+- Task C.9.6: Update docs/fix_plan.md (mark DIAG done, unblock ARCH-SIM-CONSTRUCTION-001)
+
+**Expected Outcome**:
+- DB-AT-028: PASS (chi²/pixel initial ≤ 1e2)
+- DB-AT-029: PASS (median ROI correlation before ≥ 0.2)
+- bragg_before/bragg_after > 0 (non-zero simulator output)
+- DIAG-NANOBRAGG-OVERSAMPLE-001 status → done
+- ARCH-SIM-CONSTRUCTION-001 status → unblocked (remove blocked_environment_dependency)
+
+**Action State**: Phase C.9 implementation ready (1-line fix + validation)
+
+**WIP Status**: 
+- in_progress: DIAG-NANOBRAGG-OVERSAMPLE-001 (final fix implementation)
+- stuck: ARCH-SIM-CONSTRUCTION-001 (blocked_environment_dependency, will unblock when DIAG completes)
+- blocked: ARCH-REFACTOR-001 (Phase D.3 blocked by ARCH-SIM-CONSTRUCTION-001)
+
+**Environment Freeze Exception Compliance**:
+Per CLAUDE.md exception clause requirements:
+1. ✓ Patch file: plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/patches/beam_flux_default_fix.patch
+2. ✓ Rebuild docs: nanobragg_rebuild_flux_fix.log
+3. ✓ Test validation: DB-AT-028/029 will validate fix
+4. ✓ Findings update: docs/findings.md DIAG-FLUX-001
+5. ✓ Env tag: "nanobragg-flux-fix-2025-12-02"

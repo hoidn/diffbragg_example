@@ -1,225 +1,176 @@
-# Input for Ralph (Loop 2025-12-02T214000Z)
+# Input for Ralph — Loop 2025-12-02T230000Z
 
 ## Summary
-Investigate beam flux defaults and validate DIAG-NANOBRAGG-OVERSAMPLE-001 fix with clean test run.
+Apply BeamConfig flux=1.0 default fix to resolve zero simulator output, completing DIAG-NANOBRAGG-OVERSAMPLE-001.
 
 ## Mode
-none (evidence collection + validation)
+none (environment patch only, no production code changes)
 
 ## InitiativeType
 diagnostics
 
 ## Focus
-DIAG-NANOBRAGG-OVERSAMPLE-001 — nanobrag_torch Oversample Parameter Investigation (Phase C.7-C.8: Clean Validation)
+DIAG-NANOBRAGG-OVERSAMPLE-001 — nanobrag_torch Oversample Parameter Investigation (Phase C.9: Beam Flux Fix)
 
 ## Branch
 integration
 
 ## Mapped tests
-- `tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity` (validates non-zero simulator output, chi²/pixel initial ≤ 1e2)
-- `tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity` (validates ROI correlation before ≥ 0.2)
+- tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity
+- tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity
 
 ## Artifacts
-`plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-02T214000Z/`
-- `pytest_db_at_028_029_clean.log` (test results without debug instrumentation)
-- `beam_flux_investigation.md` (beam config source code analysis)
-- `summary.md` (loop summary and findings)
+`plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-02T230000Z/`
 
 ## Do Now
 
-**Context**: Ralph's Phase D diagnostic probe (ARCH-SIM-CONSTRUCTION-001) found beam flux=0.0 as likely cause of zero simulator output. DIAG-NANOBRAGG-OVERSAMPLE-001 Phase C successfully threaded oversample=3 through all 292 DetectorConfig instances, but the tests were SKIPPED due to missing fixture data. Need to:
-1. Complete DIAG Phase C validation (C.7: remove debug instrumentation, C.8: clean test run)
-2. Investigate beam flux defaults if tests still fail
+**Context**: Phase C.7-C.8 validation revealed second root cause: BeamConfig defaults to `flux=0.0`, causing all simulator output to be zero (bragg_panel mean=0.0, bragg_full mean=0.0). Ralph's investigation identified Option A (change BeamConfig default to 1.0) as simplest fix aligning with physics convention.
 
-### Task C.7: Remove nanobrag_torch debug instrumentation
+**Implement: Phase C.9 — Apply BeamConfig flux=1.0 default fix**
 
-**Command**:
-```bash
-cd /home/ollie/Documents/diffbragg_example/src/nanobrag-torch
+### Task C.9.1: Apply 1-line fix to BeamConfig dataclass
+- File: `src/nanobrag-torch/src/nanobrag_torch/config.py`
+- Line: ~33 (in BeamConfig dataclass)
+- Change:
+  ```python
+  # OLD:
+  flux: float = 0.0  # Photons per second
 
-# Revert the debug patch
-git checkout src/nanobrag_torch/simulator.py
+  # NEW:
+  flux: float = 1.0  # Photons per second (1.0 = neutral dimensionless scale when unknown)
+  ```
+- Rationale: When flux is not explicitly set (no calibration metadata or cold paths), default to neutral scale factor 1.0 instead of 0.0 which zeros all output
 
-# Rebuild
-pip install -e . --no-deps > ../../plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-02T214000Z/nanobragg_rebuild_clean.log 2>&1
-```
+### Task C.9.2: Create patch file
+- Save the change as a git diff:
+  ```bash
+  cd src/nanobrag-torch
+  git diff src/nanobrag_torch/config.py > ../../plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/patches/beam_flux_default_fix.patch
+  ```
+- Document the patch in artifacts
 
-**Expected**: Clean nanobrag_torch without debug prints
+### Task C.9.3: Rebuild nanobrag_torch
+- Execute clean rebuild:
+  ```bash
+  cd src/nanobrag-torch
+  pip install -e . --no-deps
+  ```
+- Capture output to `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-02T230000Z/nanobragg_rebuild_flux_fix.log`
+- Verify exit code 0
 
-### Task C.8: Run clean validation tests
+### Task C.9.4: Run validation tests
+- Execute DB-AT-028/029 with clean build:
+  ```bash
+  AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+  DBEX_SMOKE_SIGMA_SOURCE=metadata \
+  DBEX_SMOKE_DETECTOR_SIZE=full \
+  KMP_DUPLICATE_LIB_OK=TRUE \
+  NANOBRAGG_DISABLE_COMPILE=1 \
+  pytest -vv tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity 2>&1 | tee plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-02T230000Z/pytest_db_at_028_029_flux_fix.log
+  ```
+- **Expected outcome**: Both tests PASS
+  - bragg_before mean > 0 (non-zero simulator output)
+  - bragg_after mean > 0 (non-zero refined output)
+  - DB-AT-028: chi²/pixel initial ≤ 1e2
+  - DB-AT-029: median ROI correlation before ≥ 0.2
 
-**Command**:
-```bash
-cd /home/ollie/Documents/diffbragg_example
+### Task C.9.5: Update docs/findings.md
+- Add entry for DIAG-FLUX-001:
+  ```markdown
+  - **DIAG-FLUX-001** (BeamConfig Flux Default): BeamConfig dataclass in nanobrag_torch defaulted to `flux=0.0`, causing zero simulator output when flux not explicitly set. Changed default to `flux=1.0` (neutral dimensionless scale) per physics convention. Affects warm path (no calibration metadata) and cold paths (stage_a_utils.py:525,619). Fix: 1-line change in `src/nanobrag-torch/src/nanobrag_torch/config.py:33`. Validation: DB-AT-028/029 PASS. Related: DIAG-NANOBRAGG-OVERSAMPLE-001 Phase C.9.
+  ```
 
-mkdir -p plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-02T214000Z
-
-AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-DBEX_SMOKE_SIGMA_SOURCE=metadata \
-DBEX_SMOKE_DETECTOR_SIZE=full \
-KMP_DUPLICATE_LIB_OK=TRUE \
-NANOBRAGG_DISABLE_COMPILE=1 \
-pytest -vv \
-  tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity \
-  tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity \
-  > plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-02T214000Z/pytest_db_at_028_029_clean.log 2>&1
-
-echo "Exit code: $?" >> plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-02T214000Z/pytest_db_at_028_029_clean.log
-```
-
-**Expected outcomes**:
-
-**Scenario A (DIAG fix successful)**: Tests PASS
-- chi²/pixel initial ≤ 1e2
-- ROI correlation before ≥ 0.2
-- bragg_after magnitude ~0.24 (matches bragg_before)
-→ Mark DIAG-NANOBRAGG-OVERSAMPLE-001 **done**, unblock ARCH-SIM-CONSTRUCTION-001
-
-**Scenario B (Tests still fail with zero output)**: Tests FAIL
-- bragg_after still 1.025e-05 or 0.0
-- Ralph's hypothesis confirmed: beam flux=0.0 causes zero output
-→ Proceed to Task C.9 (beam flux investigation)
-
-**Scenario C (Tests SKIPPED)**: Missing fixture data
-- Document the skip reason
-- Attempt to locate or generate missing data, or adjust test strategy
-
-### Task C.9: Beam flux investigation (Conditional - only if Scenario B)
-
-**Only execute if tests FAIL in Task C.8 due to zero/low simulator output.**
-
-**Read source code**:
-```bash
-grep -n "flux" /home/ollie/Documents/diffbragg_example/dbex/refinement/config_factories.py | head -20
-```
-
-**Analysis questions**:
-1. Where is beam flux sourced from in `create_beam_config()`?
-2. What is the default value when `beam_flux=None`?
-3. Should flux default to 1.0 (dimensionless scale) or to a physical value from beam metadata?
-
-**Create analysis document**:
-
-File: `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-02T214000Z/beam_flux_investigation.md`
-
-Template:
-```markdown
-# Beam Flux Investigation
-
-## Scenario B Trigger
-Tests failed in Task C.8 with zero/low simulator output despite oversample=3 fix.
-
-## Source Code Analysis
-
-### create_beam_config() Implementation
-[Paste relevant code from config_factories.py]
-
-### Default Flux Handling
-**When beam_flux=None**:
-- Current behavior: [describe]
-- Source location: config_factories.py line [X]
-
-### Upstream Callers
-**Where is create_beam_config() called**:
-1. `dbex/refinement/stage_a_utils.py` line [X]: passes `beam_flux=...`
-2. `dbex/refinement/reconstruction.py` line [X]: passes `beam_flux=...`
-3. [other call sites]
-
-**What values are passed**:
-- Stage A: [value/expression]
-- Reconstruction: [value/expression]
-
-## Root Cause Hypothesis
-
-**If flux defaults to 0.0**:
-- Simulator output = structure_factors × 0.0 × ... = 0.0
-- Fix: Change default to 1.0 or extract from beam.get_flux() if available
-
-**If flux is sourced incorrectly**:
-- Check if calibration_metadata.beam_flux exists and is threaded correctly
-
-## Recommended Fix
-
-[Specific code change needed in config_factories.py]
-
-## Next Steps
-
-[Implementation plan or escalation path]
-```
-
-### Task C.10: Write summary
-
-**File**: `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-02T214000Z/summary.md`
-
-**Content**:
-- Clean test outcome (PASS/FAIL/SKIP)
-- If PASS: Celebrate! DIAG-NANOBRAGG-OVERSAMPLE-001 complete, oversample fix validated
-- If FAIL: Beam flux investigation findings and recommended next action
-- If SKIP: Document blocker and path forward
+### Task C.9.6: Update docs/fix_plan.md
+- Add attempt to DIAG-NANOBRAGG-OVERSAMPLE-001 Attempts History:
+  ```markdown
+  * 2025-12-02T230000Z (Phase C.9 complete) — Applied BeamConfig flux=1.0 default fix per beam_flux_investigation.md Option A recommendation. Changed `src/nanobrag-torch/src/nanobrag_torch/config.py:33` from `flux: float = 0.0` to `flux: float = 1.0` (neutral dimensionless scale when flux not explicitly set). Created patch file at `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/patches/beam_flux_default_fix.patch`. Rebuilt nanobrag_torch with clean build. Tests: DB-AT-028 PASSED (chi²/pixel initial ≤ 1e2), DB-AT-029 PASSED (median ROI correlation before ≥ 0.2). Simulator now produces non-zero output in all code paths. Double root cause resolution complete: (1) Oversample=3 threading (Phase C.1-C.6), (2) Beam flux=1.0 default (Phase C.9). All DIAG-NANOBRAGG-OVERSAMPLE-001 exit criteria satisfied. Artifacts: `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-02T230000Z/` (patch file, rebuild log, pytest log, summary.md). Status: done. ARCH-SIM-CONSTRUCTION-001 unblocked.
+  ```
+- Update initiative status line to: `Status: done (2025-12-02T230000Z: Phase C.9 beam flux fix complete, both tests PASS)`
 
 ## How-To Map
 
-### Rebuild Commands
-```bash
-# Navigate to nanobrag-torch source
-cd /home/ollie/Documents/diffbragg_example/src/nanobrag-torch
+### Environment Freeze Exception Compliance
+This fix complies with CLAUDE.md Environment Freeze exception clause:
+- **Scope**: Patch to locally available source (`src/nanobrag-torch/`)
+- **Requirement 1**: Patch file saved to `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/patches/beam_flux_default_fix.patch`
+- **Requirement 2**: Rebuild commands documented in artifacts/nanobragg_rebuild_flux_fix.log
+- **Requirement 3**: Tests validate fix resolves blocking issue (DB-AT-028/029 PASS)
+- **Requirement 4**: Update docs/findings.md with DIAG-FLUX-001
+- **Requirement 5**: Environment state tagged "nanobragg-flux-fix-2025-12-02"
 
-# Revert debug patch
-git checkout src/nanobrag_torch/simulator.py
+### File Operations
+1. Edit `src/nanobrag-torch/src/nanobrag_torch/config.py` line ~33
+2. Create patch: `cd src/nanobrag-torch && git diff src/nanobrag_torch/config.py > ../../plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/patches/beam_flux_default_fix.patch`
+3. Rebuild: `cd src/nanobrag-torch && pip install -e . --no-deps | tee ../../plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-02T230000Z/nanobragg_rebuild_flux_fix.log`
+4. Test: Run pytest with environment flags as specified above
 
-# Rebuild (--no-deps to avoid environment changes)
-pip install -e . --no-deps
-```
-
-### Test Execution
-Per `docs/TESTING_GUIDE.md` §2.2, use the exact selectors and environment flags shown in Task C.8.
-
-### Beam Flux Source Code Locations
-- Config factory: `dbex/refinement/config_factories.py::create_beam_config` (lines ~89-125)
-- Stage A caller: `dbex/refinement/stage_a_utils.py::_build_stage_a_context` (line ~267)
-- Reconstruction caller: `dbex/refinement/reconstruction.py::build_final_bragg_from_stage_a_telemetry` (line ~187)
+### Expected Metrics
+- **Before**: bragg_before mean=0.0, bragg_after mean=0.0, chi²=1.084e+05
+- **After**: bragg_before mean>0, bragg_after mean>0, chi²/pixel ≤ 1e2
 
 ## Pitfalls To Avoid
 
-1. **Do NOT skip the clean rebuild (Task C.7)** - debug instrumentation must be removed for clean test
-2. **Do NOT modify test fixtures** - if tests SKIP, document the blocker rather than patching data
-3. **Do NOT proceed to Task C.9 if tests PASS** - beam flux investigation only needed for Scenario B
-4. **Do NOT install new packages** - use `pip install -e . --no-deps` to preserve environment
-5. **Do NOT change acceptance criteria** - if tests fail, investigate root cause (flux issue), don't weaken gates
+1. **Do not modify production dbex code** — This is an environment patch only (nanobrag_torch source)
+2. **Do not skip patch file creation** — Required per Environment Freeze exception clause
+3. **Do not skip rebuild** — The change must be rebuilt into the installed package
+4. **Use `--no-deps`** — Avoid triggering environment changes during rebuild
+5. **Capture all logs** — Rebuild and test logs must be saved to artifacts directory
+6. **Verify test PASS** — Both DB-AT-028 and DB-AT-029 must pass, not just run
+7. **Non-zero output validation** — Confirm bragg_before/bragg_after are non-zero in test output
+8. **Update both ledgers** — docs/findings.md AND docs/fix_plan.md must be updated
 
 ## If Blocked
 
-**If rebuild fails**:
-- Capture full error in rebuild log
-- Document blocker in summary.md
-- Do not proceed to test run
+**Scenario A: Rebuild fails**
+- Check pip install output for dependency conflicts
+- Verify src/nanobrag-torch directory has no uncommitted breaking changes
+- Escalate to supervisor with rebuild log
 
-**If tests SKIP**:
-- Document the exact skip reason from pytest output
-- Check if fixture data can be located (look in `sp.proc/`, `refGeom_small/`)
-- If data truly missing, may need to generate it or adjust test strategy
+**Scenario B: Tests still fail**
+- Capture metrics from test output (bragg_before/after means, chi²)
+- Check if fix was actually applied (verify config.py has flux=1.0)
+- Escalate to supervisor with test log and metrics analysis
 
-**If tests FAIL with non-zero output**:
-- May indicate a different issue than beam flux
-- Capture metrics and document in summary.md
-- Do not proceed to Task C.9 unless output is zero/near-zero
+**Scenario C: Tests pass but outputs still zero**
+- Verify flux value in test diagnostics (should be 1.0, not 0.0)
+- Check if old installed package is still being used
+- Escalate to supervisor with diagnostic evidence
 
 ## Findings Applied
 
-- **DIAG-OVERSAMPLE-001**: Phase C complete (292/292 configs have oversample=3)
-- **RALPH-DIAG-FLUX-001** (new, from Phase D probe): Beam flux=0.0 likely causes zero simulator output
+**Mandatory**:
+- **DIAG-FLUX-001** (this loop creates it): BeamConfig flux default causes zero output
+- **SCALE-004**: Post-run scaling patterns (reference for understanding flux behavior)
+- **ARCH-BRIDGE-RESP-001 Phase C.6**: Config factory locations (understand create_beam_config behavior)
 
 ## Pointers
 
-- DIAG-NANOBRAGG-OVERSAMPLE-001 implementation plan: `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/implementation.md`
-- Phase C planning notes: `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T050000Z/phase_c_planning.md`
-- Ralph's flux finding: `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-02T224500Z/zero_output_analysis.md`
-- Beam config spec: `docs/spec-db-core.md` §25-30 (beam configuration contracts)
+**Specs**:
+- docs/spec-db-core.md §§20-40: Detector/beam configuration contracts
+- docs/spec-db-conformance.md:276-318: DB-AT-028 acceptance test
+- docs/spec-db-conformance.md:319-366: DB-AT-029 acceptance test
+
+**Implementation**:
+- src/nanobrag-torch/src/nanobrag_torch/config.py:33: BeamConfig dataclass (TARGET FILE)
+- dbex/refinement/config_factories.py:234-284: create_beam_config() function (context)
+- dbex/refinement/stage_a_utils.py:276,525,619: Call sites (context)
+
+**Plans**:
+- plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/implementation.md: Initiative plan
+- plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-02T214000Z/beam_flux_investigation.md: Root cause analysis
+- plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-02T214000Z/summary.md: Phase C.7-C.8 findings
+
+**Tests**:
+- docs/TESTING_GUIDE.md §2.4: Stage A Smoke Parity selectors
+- tests/dbex/test_stage_a_smoke_parity.py: Fixture and tests
 
 ## Next Up
 
-**If tests PASS**: Mark DIAG-NANOBRAGG-OVERSAMPLE-001 done, update problems.md, prepare to unblock ARCH-SIM-CONSTRUCTION-001
+After this loop completes successfully:
+1. Mark DIAG-NANOBRAGG-OVERSAMPLE-001 as **done**
+2. Unblock ARCH-SIM-CONSTRUCTION-001 (remove blocked_environment_dependency status)
+3. Resume ARCH-REFACTOR-001 Phase D.3 (reconstruction baseline logic migration)
 
-**If tests FAIL (zero output)**: Implement beam flux fix (likely a simple default value change in config_factories.py)
+## Doc Sync Plan
 
-**If tests SKIP**: Resolve fixture blocker or adjust test strategy (may need to generate sp.proc data)
+Not applicable (no test additions/renames this loop).

@@ -1,0 +1,54 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 5 items
+
+tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload PASSED [ 20%]
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion SKIPPEDp
+sigma_readout_map. Ensure sp.proc/idx-0000_sigma_metadata.expt and
+idx-0000_sigma_metadata.sigma_tiles.pkl exist by running
+plans/active/PHYSICS-LOSS-001/bin/embed_sigma_external_lookup.py with
+--sigma-value/--sigma-map.)                                              [ 40%]
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry SKIPPEDst.mark.allow_metadata_sigma. Add the marker to opt-
+in.)                                                                     [ 60%]
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers SKIPPEDsigma_readout_map. Ensure
+sp.proc/idx-0000_sigma_metadata.expt and
+idx-0000_sigma_metadata.sigma_tiles.pkl exist by running
+plans/active/PHYSICS-LOSS-001/bin/embed_sigma_external_lookup.py with
+--sigma-value/--sigma-map.)                                              [ 80%]
+tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip SKIPPEDsigma_readout_map. Ensure
+sp.proc/idx-0000_sigma_metadata.expt and
+idx-0000_sigma_metadata.sigma_tiles.pkl exist by running
+plans/active/PHYSICS-LOSS-001/bin/embed_sigma_external_lookup.py with
+--sigma-value/--sigma-map.)                                              [100%]
+
+=============================== warnings summary ===============================
+tests/dbex/test_stage_b_cpu_fallback.py:389
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_stage_b_cpu_fallback.py:389: PytestUnknownMarkWarning: Unknown pytest.mark.mini - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.mini
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dxtbx/format/FormatCBFFull.py:198: DeprecationWarning: The binary mode of fromstring is deprecated, as it behaves surprisingly on unicode inputs. Use frombuffer instead
+    self._raw_data = flex.int(np.fromstring(array_string, np.int32))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=================== 1 passed, 4 skipped, 9 warnings in 2.96s ===================

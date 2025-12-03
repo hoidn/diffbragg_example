@@ -1,0 +1,450 @@
+[
+  {
+    "id": "ARCH-BRIDGE-RESP-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-12-03T093500Z",
+    "status_hint": null,
+    "bucket": "tracked"
+  },
+  {
+    "id": "ARCH-ENGINE-ARTIFACTS-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-12-05T050000Z",
+    "status_hint": null,
+    "bucket": "tracked"
+  },
+  {
+    "id": "ARCH-LAZY-IMPORTS-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-12-05T024500Z",
+    "status_hint": null,
+    "bucket": "tracked"
+  },
+  {
+    "id": "ARCH-REFACTOR-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-12-04T220000Z",
+    "status_hint": null,
+    "bucket": "tracked"
+  },
+  {
+    "id": "ARCH-REFINE-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-12-01T232800Z",
+    "status_hint": null,
+    "bucket": "tracked"
+  },
+  {
+    "id": "ARCH-REFINE-FLOW-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-11-23T172000Z",
+    "status_hint": null,
+    "bucket": "tracked"
+  },
+  {
+    "id": "ARCH-REFRACTOR-001",
+    "in_fix_plan": false,
+    "has_implementation": false,
+    "last_report": null,
+    "status_hint": null,
+    "bucket": "missing_plan"
+  },
+  {
+    "id": "ARCH-SIM-CONSTRUCTION-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-12-04T235959Z",
+    "status_hint": null,
+    "bucket": "tracked"
+  },
+  {
+    "id": "ARCH-SPLIT-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": null,
+    "status_hint": null,
+    "bucket": "tracked"
+  },
+  {
+    "id": "ARCH-STAGE-CONTEXT-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-12-02T160500Z",
+    "status_hint": null,
+    "bucket": "tracked"
+  },
+  {
+    "id": "ARCH-TELEMETRY-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-12-04T235959Z",
+    "status_hint": null,
+    "bucket": "tracked"
+  },
+  {
+    "id": "DB-AT-002",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-04T050000Z",
+    "status_hint": null,
+    "bucket": "active_missing"
+  },
+  {
+    "id": "DB-AT-010",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-05T000200Z",
+    "status_hint": null,
+    "bucket": "active_missing"
+  },
+  {
+    "id": "DB-AT-020",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-04T052000Z",
+    "status_hint": null,
+    "bucket": "active_missing"
+  },
+  {
+    "id": "DB-AT-021",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-04T060900Z",
+    "status_hint": null,
+    "bucket": "active_missing"
+  },
+  {
+    "id": "DB-AT-022",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-04T055500Z",
+    "status_hint": null,
+    "bucket": "active_missing"
+  },
+  {
+    "id": "DB-AT-023",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-04T065500Z",
+    "status_hint": null,
+    "bucket": "active_missing"
+  },
+  {
+    "id": "DB-AT-024",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-04T070000Z",
+    "status_hint": null,
+    "bucket": "active_missing"
+  },
+  {
+    "id": "DIAG-NANOBRAGG-OVERSAMPLE-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-12-03T064931Z",
+    "status_hint": null,
+    "bucket": "tracked"
+  },
+  {
+    "id": "DOC-RUNTIME-004",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-11-23T024449Z",
+    "status_hint": "in_progress",
+    "bucket": "tracked"
+  },
+  {
+    "id": "DOCS-ROADMAP-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-11-24T150000Z",
+    "status_hint": null,
+    "bucket": "tracked"
+  },
+  {
+    "id": "FINDINGS-LEDGER-002",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": null,
+    "status_hint": null,
+    "bucket": "tracked"
+  },
+  {
+    "id": "FORWARD-EQUIV-001",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-10-29T013411Z",
+    "status_hint": null,
+    "bucket": "active_missing"
+  },
+  {
+    "id": "FORWARD-EQUIV-002",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-04T043500Z",
+    "status_hint": null,
+    "bucket": "active_missing"
+  },
+  {
+    "id": "HARDEN-SUBMODULE-ROBUSTNESS",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-04T165400Z",
+    "status_hint": null,
+    "bucket": "active_missing"
+  },
+  {
+    "id": "MAP-SCALE-001",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-04T233500Z",
+    "status_hint": null,
+    "bucket": "active_missing"
+  },
+  {
+    "id": "MAP-SCALE-002",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-05T030000Z",
+    "status_hint": null,
+    "bucket": "active_missing"
+  },
+  {
+    "id": "MAP-SCALE-003",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-05T150000Z",
+    "status_hint": null,
+    "bucket": "active_missing"
+  },
+  {
+    "id": "MAP-SCALE-004",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-06T010000Z",
+    "status_hint": null,
+    "bucket": "active_missing"
+  },
+  {
+    "id": "MAP-SCALE-005",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-06T050000Z",
+    "status_hint": null,
+    "bucket": "active_missing"
+  },
+  {
+    "id": "NANOBRAG-GOLDEN-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-11-04T030000Z",
+    "status_hint": null,
+    "bucket": "tracked"
+  },
+  {
+    "id": "ORCH-CLAUDE-PATH-FIX-001",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-06T073832Z",
+    "status_hint": null,
+    "bucket": "active_missing"
+  },
+  {
+    "id": "ORCH-CLI-FALLBACK-001",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-06T072734Z",
+    "status_hint": null,
+    "bucket": "active_missing"
+  },
+  {
+    "id": "ORCH-ROBUST-001",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-05T050500Z",
+    "status_hint": null,
+    "bucket": "active_missing"
+  },
+  {
+    "id": "PARITY-HARNESS-002",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-10-29T022212Z",
+    "status_hint": null,
+    "bucket": "active_missing"
+  },
+  {
+    "id": "PERF-WARM-SIM-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-12-02T183500Z",
+    "status_hint": null,
+    "bucket": "tracked"
+  },
+  {
+    "id": "PHYSICS-LOSS-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-11-21T083500Z",
+    "status_hint": null,
+    "bucket": "tracked"
+  },
+  {
+    "id": "PORTFOLIO-STATUS",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-12-06T120000Z",
+    "status_hint": "in_progress",
+    "bucket": "tracked"
+  },
+  {
+    "id": "REPORT-NANOBRAG-STATUS-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-11-05T184233Z",
+    "status_hint": null,
+    "bucket": "tracked"
+  },
+  {
+    "id": "RUNTIME-VEC-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-11-04T080000Z",
+    "status_hint": null,
+    "bucket": "tracked"
+  },
+  {
+    "id": "SUPERVISOR",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-24T153000Z",
+    "status_hint": null,
+    "bucket": "active_missing"
+  },
+  {
+    "id": "TOOLING-VIS-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-11-26T050500Z",
+    "status_hint": null,
+    "bucket": "tracked"
+  },
+  {
+    "id": "TORCH-BRIDGE-001",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-10-28T233500Z",
+    "status_hint": "in_progress",
+    "bucket": "active_missing"
+  },
+  {
+    "id": "TORCH-CLI-003",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-10-29T003751Z",
+    "status_hint": "in_progress",
+    "bucket": "active_missing"
+  },
+  {
+    "id": "TORCH-CLI-004",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-04T222435Z",
+    "status_hint": null,
+    "bucket": "active_missing"
+  },
+  {
+    "id": "TORCH-GEOMETRY-CONVERGENCE-001",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-22T252000Z",
+    "status_hint": null,
+    "bucket": "active_missing"
+  },
+  {
+    "id": "TORCH-GEOMETRY-PARITY-002",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-22T120500Z",
+    "status_hint": null,
+    "bucket": "active_missing"
+  },
+  {
+    "id": "TORCH-GEOMETRY-PARITY-003",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-22T170806Z",
+    "status_hint": null,
+    "bucket": "active_missing"
+  },
+  {
+    "id": "TORCH-GEOMETRY-UB-REALIGN-001",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-23T023142Z",
+    "status_hint": null,
+    "bucket": "active_missing"
+  },
+  {
+    "id": "TORCH-REFINE-001",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-05T024454Z",
+    "status_hint": null,
+    "bucket": "active_missing"
+  },
+  {
+    "id": "TORCH-REFINE-002",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-05T044720Z",
+    "status_hint": null,
+    "bucket": "active_missing"
+  },
+  {
+    "id": "TORCH-REFINE-002D",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-05T093000Z",
+    "status_hint": null,
+    "bucket": "active_missing"
+  },
+  {
+    "id": "TORCH-REFINE-002E",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-22T120000Z",
+    "status_hint": null,
+    "bucket": "active_missing"
+  },
+  {
+    "id": "TORCH-REFINE-003",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-06T130000Z",
+    "status_hint": null,
+    "bucket": "active_missing"
+  },
+  {
+    "id": "TORCH-REFINE-004",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-11-24T140000Z",
+    "status_hint": null,
+    "bucket": "tracked"
+  },
+  {
+    "id": "TORCH-RUNTIME-002",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-10-28T232744Z",
+    "status_hint": "pending",
+    "bucket": "tracked"
+  }
+]

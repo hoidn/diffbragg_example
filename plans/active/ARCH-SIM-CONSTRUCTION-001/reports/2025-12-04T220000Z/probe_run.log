@@ -1,0 +1,52 @@
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+================================================================================
+ARCH-SIM-CONSTRUCTION-001 Phase C.3 Diagnostic Probe
+Compare simulate_forward_once() vs reconstruction helper paths
+================================================================================
+Loading test configuration (refgeom_dataload fixture equivalent)...
+auto-selected 3-fold oversampling
+[HKL stats] h=[-12,7] k=[-14,9] l=[-14,8] hit_rate=9408494/9437184 (99.70%)
+  detector: 1 panels
+  beam wavelength: 0.976800 Å
+  HKL reflections: 69614
+  spot_scale_override: 3.105059e+17
+  sqrt(spot_scale): 5.572305e+08
+
+=== Path A: simulate_forward_once() ===
+auto-selected 3-fold oversampling
+[HKL stats] h=[-12,7] k=[-14,9] l=[-14,8] hit_rate=9408494/9437184 (99.70%)
+  Raw output (before sqrt): mean=1.713925e-09, max=1.104069e-04
+  Scaled output (after sqrt): mean=9.550518e-01, max=6.152212e+04
+  Scaling factor applied: 5.572305e+08
+
+=== Path B: Reconstruction Helper (Cold Path) ===
+  Factory returned sqrt_scale_value: 5.572305e+08
+auto-selected 1-fold oversampling
+[HKL stats] h=[-12,7] k=[-14,9] l=[-14,8] hit_rate=1045385/1048576 (99.70%)
+  Raw simulator output: mean=9.573705e-03, max=8.605372e-02
+  After sqrt multiplication: mean=5.334761e+06, max=4.795176e+07
+  log_scale_baseline = log(sqrt(spot_scale)): 20.138490
+  scale_factor = exp(log_scale_baseline): 5.572305e+08
+  After scale_factor multiplication: mean=5.334761e+06, max=4.795176e+07
+
+=== Comparison ===
+  Raw output ratio (A/B): 0.00
+  Scaled output ratio (A after sqrt / B after sqrt): 0.00
+  scale_factor vs sqrt ratio (B): 1.00
+
+  Path A (simulate_forward_once) vs bragg_before (0.239): 4.00×
+  Path B (reconstruction) vs bragg_after (1.025e-05): 520464487804.88×
+
+⚠️  RAW SIMULATOR OUTPUTS DIFFER by 0.00×
+   → Simulators are constructed differently (config/calibration mismatch)
+⚠️  SCALED OUTPUTS DIFFER by 0.00×
+   → Post-run scaling logic differs between paths
+✓  scale_factor = sqrt(spot_scale) (ratio=1.000000)
+
+✓ Results written to /home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T220000Z/simulation_comparison.json
+✓ Summary written to /home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T220000Z/summary.md
+
+================================================================================
+Probe complete. Review artifacts for analysis.
+================================================================================

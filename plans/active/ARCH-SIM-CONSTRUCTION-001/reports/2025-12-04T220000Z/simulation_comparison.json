@@ -1,0 +1,19 @@
+{
+  "spot_scale_override": 3.105058665484234e+17,
+  "sqrt_spot_scale": 557230532.6778347,
+  "log_scale_baseline": 20.138489594990745,
+  "path_a_raw_mean": 1.7139253349895966e-09,
+  "path_a_raw_max": 0.00011040693789254874,
+  "path_a_scaled_mean": 0.9550517797470093,
+  "path_a_scaled_max": 61522.1171875,
+  "path_b_raw_mean": 0.009573705494403839,
+  "path_b_raw_max": 0.08605372160673141,
+  "path_b_scaled_mean": 5334761.0,
+  "path_b_scaled_max": 47951760.0,
+  "path_b_scalefactor_mean": 5334761.0,
+  "path_b_scalefactor_max": 47951760.0,
+  "raw_ratio": 1.7902423841964275e-07,
+  "scaled_ratio": 1.7902428613896841e-07,
+  "scalefactor_vs_sqrt_ratio": 1.0,
+  "verdict": "\u26a0\ufe0f  RAW SIMULATOR OUTPUTS DIFFER by 0.00\u00d7\n   \u2192 Simulators are constructed differently (config/calibration mismatch)\n\u26a0\ufe0f  SCALED OUTPUTS DIFFER by 0.00\u00d7\n   \u2192 Post-run scaling logic differs between paths\n\u2713  scale_factor = sqrt(spot_scale) (ratio=1.000000)"
+}

@@ -1,0 +1,263 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 179 items / 9 errors / 178 deselected / 1 selected
+
+==================================== ERRORS ====================================
+_ ERROR collecting nanoBragg2/golden_suite_generator/test_correlation_1024.py __
+ImportError while importing test module '/home/ollie/Documents/diffbragg_example_2/diffbragg_example/nanoBragg2/golden_suite_generator/test_correlation_1024.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/_pytest/python.py:498: in importtestmodule
+    mod = import_path(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/_pytest/pathlib.py:587: in import_path
+    importlib.import_module(module_name)
+../../../miniconda3/envs/simtbx/lib/python3.9/importlib/__init__.py:127: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+<frozen importlib._bootstrap>:1030: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1007: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:986: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:680: in _load_unlocked
+    ???
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/_pytest/assertion/rewrite.py:186: in exec_module
+    exec(co, module.__dict__)
+nanoBragg2/golden_suite_generator/test_correlation_1024.py:12: in <module>
+    from src.nanobrag_torch.models.crystal import Crystal
+E   ModuleNotFoundError: No module named 'src.nanobrag_torch'
+______________________ ERROR collecting nanoBragg2/tests _______________________
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/_pytest/config/__init__.py:712: in _importconftest
+    mod = import_path(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/_pytest/pathlib.py:610: in import_path
+    raise ImportPathMismatchError(module_name, module_file, path)
+E   _pytest.pathlib.ImportPathMismatchError: ('tests.conftest', '/home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/conftest.py', PosixPath('/home/ollie/Documents/diffbragg_example_2/diffbragg_example/nanoBragg2/tests/conftest.py'))
+_ ERROR collecting plans/active/PERF-WARM-SIM-001/reports/2025-11-23T180000Z/test_phase_d.py _
+ImportError while importing test module '/home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/PERF-WARM-SIM-001/reports/2025-11-23T180000Z/test_phase_d.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/_pytest/python.py:498: in importtestmodule
+    mod = import_path(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/_pytest/pathlib.py:587: in import_path
+    importlib.import_module(module_name)
+../../../miniconda3/envs/simtbx/lib/python3.9/importlib/__init__.py:127: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+<frozen importlib._bootstrap>:1030: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1007: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:986: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:680: in _load_unlocked
+    ???
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/_pytest/assertion/rewrite.py:186: in exec_module
+    exec(co, module.__dict__)
+plans/active/PERF-WARM-SIM-001/reports/2025-11-23T180000Z/test_phase_d.py:8: in <module>
+    from tests.dbex.test_torch_refine_smoke import (
+E   ImportError: cannot import name 'smoke_detector_size' from 'tests.dbex.test_torch_refine_smoke' (/home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_torch_refine_smoke.py)
+_ ERROR collecting src/nanobrag-torch/golden_suite_generator/quick_correlation_test.py _
+import file mismatch:
+imported module 'quick_correlation_test' has this __file__ attribute:
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/nanoBragg2/golden_suite_generator/quick_correlation_test.py
+which is not the same as the test file we want to collect:
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/src/nanobrag-torch/golden_suite_generator/quick_correlation_test.py
+HINT: remove __pycache__ / .pyc files and/or use a unique basename for your test file modules
+_ ERROR collecting src/nanobrag-torch/golden_suite_generator/test_correlation_1024.py _
+src/nanobrag-torch/golden_suite_generator/test_correlation_1024.py:18: in <module>
+    golden_data = np.fromfile('golden_suite_generator/floatimage.bin', dtype=np.float32).reshape(1024, 1024)
+E   FileNotFoundError: [Errno 2] No such file or directory: 'golden_suite_generator/floatimage.bin'
+__________________ ERROR collecting src/nanobrag-torch/tests ___________________
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/_pytest/config/__init__.py:712: in _importconftest
+    mod = import_path(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/_pytest/pathlib.py:610: in import_path
+    raise ImportPathMismatchError(module_name, module_file, path)
+E   _pytest.pathlib.ImportPathMismatchError: ('tests.conftest', '/home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/conftest.py', PosixPath('/home/ollie/Documents/diffbragg_example_2/diffbragg_example/src/nanobrag-torch/tests/conftest.py'))
+______________ ERROR collecting tests/dbex/test_nanobrag_smoke.py ______________
+ImportError while importing test module '/home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_nanobrag_smoke.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/_pytest/python.py:498: in importtestmodule
+    mod = import_path(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/_pytest/pathlib.py:587: in import_path
+    importlib.import_module(module_name)
+../../../miniconda3/envs/simtbx/lib/python3.9/importlib/__init__.py:127: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+<frozen importlib._bootstrap>:1030: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1007: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:986: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:680: in _load_unlocked
+    ???
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/_pytest/assertion/rewrite.py:186: in exec_module
+    exec(co, module.__dict__)
+tests/dbex/test_nanobrag_smoke.py:30: in <module>
+    from dbex.nanobrag_bridge import (
+E   ImportError: cannot import name 'prepare_refinement_inputs' from 'dbex.nanobrag_bridge' (/home/ollie/Documents/diffbragg_example_2/diffbragg_example/dbex/nanobrag_bridge.py)
+____________ ERROR collecting tests/dbex/test_vis_triptych_smoke.py ____________
+ImportError while importing test module '/home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_vis_triptych_smoke.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/_pytest/python.py:498: in importtestmodule
+    mod = import_path(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/_pytest/pathlib.py:587: in import_path
+    importlib.import_module(module_name)
+../../../miniconda3/envs/simtbx/lib/python3.9/importlib/__init__.py:127: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+<frozen importlib._bootstrap>:1030: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1007: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:986: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:680: in _load_unlocked
+    ???
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/_pytest/assertion/rewrite.py:186: in exec_module
+    exec(co, module.__dict__)
+tests/dbex/test_vis_triptych_smoke.py:7: in <module>
+    from dbex.vis import plot_triptych, plot_z_scores
+E   ImportError: cannot import name 'plot_z_scores' from 'dbex.vis' (/home/ollie/Documents/diffbragg_example_2/diffbragg_example/dbex/vis/__init__.py)
+______________ ERROR collecting tmp/test_stage_a_smoke_excerpt.py ______________
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/_pytest/python.py:498: in importtestmodule
+    mod = import_path(
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/_pytest/pathlib.py:587: in import_path
+    importlib.import_module(module_name)
+../../../miniconda3/envs/simtbx/lib/python3.9/importlib/__init__.py:127: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+<frozen importlib._bootstrap>:1030: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1007: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:986: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:680: in _load_unlocked
+    ???
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/_pytest/assertion/rewrite.py:177: in exec_module
+    source_stat, co = _rewrite_test(fn, self.config)
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/_pytest/assertion/rewrite.py:357: in _rewrite_test
+    tree = ast.parse(source, filename=strfn)
+../../../miniconda3/envs/simtbx/lib/python3.9/ast.py:50: in parse
+    return compile(source, filename, mode, flags,
+E     File "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/tmp/test_stage_a_smoke_excerpt.py", line 1
+E       }
+E   IndentationError: unexpected indent
+=============================== warnings summary ===============================
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+tests/dbex/test_mapping_consistency.py:185
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_mapping_consistency.py:185: PytestUnknownMarkWarning: Unknown pytest.mark.db_at_024 - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.db_at_024
+
+tests/dbex/test_mapping_consistency.py:186
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_mapping_consistency.py:186: PytestUnknownMarkWarning: Unknown pytest.mark.mapping - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.mapping
+
+tests/dbex/test_stage_a_adam_tooling.py:304
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_stage_a_adam_tooling.py:304: PytestUnknownMarkWarning: Unknown pytest.mark.slow - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.slow
+
+tests/dbex/test_stage_b_cpu_fallback.py:389
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_stage_b_cpu_fallback.py:389: PytestUnknownMarkWarning: Unknown pytest.mark.mini - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.mini
+
+tests/dbex/test_ub_parameterization_roundtrip.py:51
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_ub_parameterization_roundtrip.py:51: PytestUnknownMarkWarning: Unknown pytest.mark.acceptance - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.acceptance
+
+tests/dbex/test_ub_parameterization_roundtrip.py:104
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_ub_parameterization_roundtrip.py:104: PytestUnknownMarkWarning: Unknown pytest.mark.acceptance - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.acceptance
+
+tests/dbex/test_ub_parameterization_roundtrip.py:150
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_ub_parameterization_roundtrip.py:150: PytestUnknownMarkWarning: Unknown pytest.mark.acceptance - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.acceptance
+
+tests/dbex/test_ub_parameterization_roundtrip.py:213
+  /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_ub_parameterization_roundtrip.py:213: PytestUnknownMarkWarning: Unknown pytest.mark.acceptance - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    @pytest.mark.acceptance
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+ERROR nanoBragg2/golden_suite_generator/test_correlation_1024.py
+ERROR nanoBragg2/tests - _pytest.pathlib.ImportPathMismatchError: ('tests.conftest', '/home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/conftest.py', PosixPath('/home/ollie/Documents/diffbragg_example_2/diffbragg_example/nanoBragg2/tests/conftest.py'))
+ERROR plans/active/PERF-WARM-SIM-001/reports/2025-11-23T180000Z/test_phase_d.py
+ERROR src/nanobrag-torch/golden_suite_generator/quick_correlation_test.py
+ERROR src/nanobrag-torch/golden_suite_generator/test_correlation_1024.py - FileNotFoundError: [Errno 2] No such file or directory: 'golden_suite_generator/floatimage.bin'
+ERROR src/nanobrag-torch/tests - _pytest.pathlib.ImportPathMismatchError: ('tests.conftest', '/home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/conftest.py', PosixPath('/home/ollie/Documents/diffbragg_example_2/diffbragg_example/src/nanobrag-torch/tests/conftest.py'))
+ERROR tests/dbex/test_nanobrag_smoke.py
+ERROR tests/dbex/test_vis_triptych_smoke.py
+ERROR tmp/test_stage_a_smoke_excerpt.py
+!!!!!!!!!!!!!!!!!!! Interrupted: 9 errors during collection !!!!!!!!!!!!!!!!!!!!
+================ 178 deselected, 12 warnings, 9 errors in 4.72s ================
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 1 item
+
+tests/dbex/test_experiment_parity.py::test_parity_small_fixture FAILED   [100%]
+
+=================================== FAILURES ===================================
+__________________________ test_parity_small_fixture ___________________________
+
+warm_cache_off = {'enable_stage_a_warm_cache': False}
+
+    def test_parity_small_fixture(warm_cache_off):
+        """
+        Validates ExperimentModel parity against unified simulator factory.
+    
+        Tests:
+        - ExperimentModel(param_init="frozen") outputs match factory within 1e-6
+        - Shape/dtype/device consistency
+        - Per-pixel max abs diff ≤ 1e-6
+        """
+        import torch
+        import numpy as np
+        from pathlib import Path
+        from argparse import Namespace
+        from dbex.data_load import DataLoad
+>       from dbex.nanobrag_bridge import (
+            create_detector_config,
+            create_beam_config,
+            create_crystal_config,
+            build_structure_factor_grid
+        )
+E       ImportError: cannot import name 'create_detector_config' from 'dbex.nanobrag_bridge' (/home/ollie/Documents/diffbragg_example_2/diffbragg_example/dbex/nanobrag_bridge.py)
+
+tests/dbex/test_experiment_parity.py:50: ImportError
+=============================== warnings summary ===============================
+tests/dbex/test_experiment_parity.py::test_parity_small_fixture
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_experiment_parity.py::test_parity_small_fixture
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_experiment_parity.py::test_parity_small_fixture
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_experiment_parity.py::test_parity_small_fixture
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_experiment_parity.py::test_parity_small_fixture - ImportError: cannot import name 'create_detector_config' from 'dbex.nanobrag_bridge' (/home/ollie/Documents/diffbragg_example_2/diffbragg_example/dbex/nanobrag_bridge.py)
+======================== 1 failed, 4 warnings in 1.76s =========================

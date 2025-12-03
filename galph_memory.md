@@ -1306,3 +1306,64 @@ Not "shared mutable state due to reference assignment in Detector.__init__()" bu
 
 **Next Action**: Switch to ARCH-SIM-CONSTRUCTION-001, issue Phase D Do Now (HKL/crystal/beam config debug instrumentation)
 
+
+---
+
+## Loop 2025-12-02T224500Z — ARCH-SIM-CONSTRUCTION-001 Phase D.1 Zero-Output Diagnostic Probe
+
+**Focus**: ARCH-SIM-CONSTRUCTION-001 (Simulator Construction Convention Alignment) Phase D: Zero-Output Investigation
+**Action Type**: Evidence collection (diagnostic probe execution)
+**State**: blocked_outdated_template
+**Dwell**: Phase D.1 (post-oversample-fix zero-output investigation)
+**Artifacts**: plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-02T224500Z/
+
+**Context**:
+- DIAG-NANOBRAGG-OVERSAMPLE-001 Phase C successfully threaded oversample=3 to all 292 DetectorConfig instances
+- DB-AT-028 reveals simulator producing all-zero Bragg output despite correct scale factors (exp(log_scale_baseline)=557,230,080)
+- This is a NEW BLOCKER distinct from the oversample issue
+
+**Ralph's Execution This Loop**:
+- Attempted to execute diagnostic probe script template provided in input.md
+- Discovered template is heavily outdated (post-ARCH-BRIDGE-RESP-001 refactor):
+  * Config factory functions moved from `dbex.nanobrag_bridge` to `dbex.refinement.config_factories`
+  * `build_structure_factor_grid()` signature changed (now takes `indices`/`amplitudes` instead of `crystal`/`mtz_file_path`)
+  * `Simulator` constructor changed (takes `Crystal`/`Detector` objects, not individual config objects)
+  * Config attribute names changed (`a` → `cell_a`, `wavelength` → `wavelength_A`, etc.)
+- Fixed probe script imports and signatures through 9 iterations
+- Probe successfully executed through detector config creation before hitting final blocker
+
+**Partial Probe Results** (before final API blocker):
+1. **HKL Grid** ✓: 69,614/175,959 nonzero (39.6%), sum=3.305e+06, max=518.3 → **NOT the problem**
+2. **Crystal** ✓: cell_a=27.376Å, n_cells=None → config created successfully
+3. **Beam** ⚠: wavelength=0.976800Å, **flux=0.0** (default/not set) → **SUSPECT**
+4. **Detector** ✓: distance=231.3mm, **oversample=3** (correctly threaded) → confirmed
+5. **Simulator** ✗: `TypeError: __init__() got an unexpected keyword argument 'beam'` → template uses outdated API
+
+**Root Cause Hypothesis (Preliminary)**:
+- **Primary suspect**: Beam flux = 0.0
+- If simulator multiplies by flux: `I_diffracted = |F|² × flux × ... = nonzero × 0.0 = 0.0`
+- HKL grid, crystal, and detector configs all look valid
+- Evidence: diagnostic shows `flux=0.0` for beam config
+
+**Blocker**:
+- Probe template incompatible with current `Simulator` API (requires `Crystal`/`Detector` objects)
+- Environment Freeze prevents extensive exploratory refactoring to complete probe
+- Cannot verify flux hypothesis without completing simulator construction
+
+**Recommended Actions for Galph**:
+1. **Option A (Preferred)**: Provide corrected probe template matching current architecture (demonstrates `Crystal`/`Detector` object construction from configs)
+2. **Option B**: Direct investigation of `create_beam_config()` flux defaults in source
+3. **Option C**: Run failing test with added print statements to capture actual beam config
+
+**Artifacts**:
+- `diagnose_zero_output.py`: Partially corrected probe (imports fixed, but Simulator API incompatible)
+- `probe_run.log`: Execution log showing HKL/crystal/beam/detector diagnostics
+- `zero_output_analysis.md`: Comprehensive analysis + blocker documentation
+
+**Next Actions**:
+- Escalate template incompatibility to Galph
+- Note preliminary finding: beam flux=0.0 is likely culprit
+- Request corrected probe template OR authorization to investigate flux defaults directly
+
+**Status**: blocked_outdated_template → escalated to supervisor
+

@@ -1,0 +1,65 @@
+
+=== Debug Output ===
+  Image shape: 1024 x 1024 pixels
+  Max intensity: 0.000000e+00
+  Min intensity: 0.000000e+00
+  Mean intensity: 0.000000e+00
+  Brightest pixel: (0, 0) [fast, slow] = 0.000000e+00
+TRACE_PY: pix0_vector_meters -0.0887264683842659 0.0900789946317673 -0.230768144130707
+TRACE_PY: fdet_vec 0.999998271465302 0.00169322255533189 -0.000781064329203218
+TRACE_PY: sdet_vec 0.0016894016880542 -0.999986708164215 -0.00486673042178154
+TRACE_PY: pixel_pos_meters -0.0886403173208237 0.0899931415915489 -0.230768635869026
+TRACE_PY: R_distance_meters 0.26307800412178
+TRACE_PY: omega_pixel_sr 3.75776323835453e-07
+TRACE_PY: close_distance_meters 0.231273651123047
+TRACE_PY: obliquity_factor 0.879106760025024
+TRACE_PY: diffracted_vec -0.336935520172119 0.342077791690826 -0.877187192440033
+TRACE_PY: incident_vec 0 0 1
+TRACE_PY: lambda_meters 9.7680002450943e-11
+TRACE_PY: lambda_angstroms 0.97680002450943
+TRACE_PY: scattering_vec_A_inv -3449380608 3502024704 -19217723392
+TRACE_PY: rot_a_angstroms -1.45163692177874e-09 -1.23848442612484e-09 -1.96297511578791e-09
+TRACE_PY: rot_b_angstroms -1.26722898841081e-09 2.10977701975423e-09 -2.05551109466739e-09
+TRACE_PY: rot_c_angstroms 2.16786455453644e-09 -1.00521047041724e-09 -2.48378961842377e-09
+TRACE_PY: spindle_axis_raw 0 0 1
+TRACE_PY: spindle_axis_normalized 0 0 1
+TRACE_PY: spindle_magnitude 1
+TRACE_PY: rot_a_star_A_inv -0.0275706760585308 -0.0286919083446264 -0.0124519737437367
+TRACE_PY: rot_b_star_A_inv -0.00416187196969986 0.0296632908284664 -0.0156374871730804
+TRACE_PY: rot_c_star_A_inv 0.0252337493002415 -0.00187283265404403 -0.0174789614975452
+TRACE_PY: hkl_frac 3.83939591230842e-09 5.12618925085917e-09 3.67347197105516e-09
+TRACE_PY: hkl_rounded 0 0 0
+TRACE_PY: F_latt_a 41
+TRACE_PY: F_latt_b 29
+TRACE_PY: F_latt_c 32
+TRACE_PY: F_latt 38048
+TRACE_PY: F_cell_interpolated 5.26005578649347e-07
+TRACE_PY: F_cell_nearest 0
+TRACE_PY: I_before_scaling_pre_polar 0
+TRACE_PY: I_before_scaling_post_polar 0
+TRACE_PY: r_e_meters 2.81794118441937e-15
+TRACE_PY: r_e_sqr 7.9407927259064e-30
+TRACE_PY: fluence_photons_per_m2 9.99999984306749e+17
+TRACE_PY: steps 9
+TRACE_PY: oversample_thick 0
+TRACE_PY: oversample_polar 0
+TRACE_PY: oversample_omega 0
+TRACE_PY: capture_fraction 1
+TRACE_PY: polar 1
+TRACE_PY: omega_pixel 3.75776323835453e-07
+TRACE_PY: cos_2theta -0.877187192440033
+TRACE_PY: I_pixel_final 0
+TRACE_PY: floatimage_accumulated 0
+
+Final intensity = 0.000000e+00
+Normalized intensity = 0.000000e+00
+Position (meters): (-8.864032e-02, 8.999314e-02, -2.307686e-01)
+Airpath (meters): 2.630780e-01
+TRACE: r_e^2 = 7.940792725906e-30
+TRACE: Fluence = 9.999999843067e+17
+TRACE: Oversample = 3
+
+TRACE: Intensity calculation chain:
+  normalized * r_e^2 * fluence
+  = 0.000000000000e+00 * 7.940792725906e-30 * 9.999999843067e+17
+  = 0.000000000000e+00

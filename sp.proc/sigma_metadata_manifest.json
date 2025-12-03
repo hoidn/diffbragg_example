@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "generated_at": "2025-11-21T08:49:56.350431+00:00",
-  "command": "/home/ollie/miniconda3/envs/simtbx/bin/python plans/active/PHYSICS-LOSS-001/bin/embed_sigma_external_lookup.py --expt refGeom.expt --expt-idx 0 --sigma-value 3.0 --output sp.proc/idx-0000_sigma_metadata.expt --report plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/sigma_metadata.json --manifest sp.proc/sigma_metadata_manifest.json",
-  "cwd": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example",
-  "authoritative_cmds_doc": "./docs/TESTING_GUIDE.md",
+  "generated_at": "2025-12-03T03:40:22.828294+00:00",
+  "command": "/home/ollie/miniconda3/envs/simtbx/bin/python plans/active/PHYSICS-LOSS-001/bin/embed_sigma_external_lookup.py --expt refGeom.expt --expt-idx 0 --sigma-value 3.0 --output sp.proc/idx-0000_sigma_metadata.expt --report plans/active/ARCH-ENGINE-ARTIFACTS-001/reports/2025-12-02T000000Z/sigma_metadata_full.json --manifest sp.proc/sigma_metadata_manifest.json",
+  "cwd": "/home/ollie/Documents/diffbragg_example",
+  "authoritative_cmds_doc": null,
   "sigma_source": {
     "kind": "sigma_value",
     "value": 3.0
@@ -15,8 +15,8 @@
     "fast": 2463
   },
   "report": {
-    "input_experiment": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/refGeom.expt",
-    "output_experiment": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/idx-0000_sigma_metadata.expt",
+    "input_experiment": "/home/ollie/Documents/diffbragg_example/refGeom.expt",
+    "output_experiment": "/home/ollie/Documents/diffbragg_example/sp.proc/idx-0000_sigma_metadata.expt",
     "expt_idx": 0,
     "lookup_key": "pedestal",
     "panel_count": 1,
@@ -28,7 +28,7 @@
       "kind": "sigma_value",
       "value": 3.0
     },
-    "sigma_tiles_path": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/idx-0000_sigma_metadata.sigma_tiles.pkl",
+    "sigma_tiles_path": "/home/ollie/Documents/diffbragg_example/sp.proc/idx-0000_sigma_metadata.sigma_tiles.pkl",
     "stats": {
       "min": 3.0,
       "max": 3.0,
@@ -39,24 +39,24 @@
   "files": [
     {
       "role": "experiment",
-      "path": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/idx-0000_sigma_metadata.expt",
-      "size_bytes": 5334,
-      "modified_at": "2025-11-21T08:49:56.340756+00:00",
-      "sha256": "d54f1f21094899995b6031ed7ffb4eddb5032877534873ab5a986c95de69b1da"
+      "path": "/home/ollie/Documents/diffbragg_example/sp.proc/idx-0000_sigma_metadata.expt",
+      "size_bytes": 5294,
+      "modified_at": "2025-12-03T03:40:22.818692+00:00",
+      "sha256": "40ad578ad92b15168011e1872c6d77a8c1f43db2ddb579915019b0db8975f378"
     },
     {
       "role": "sigma_tiles_pickle",
-      "path": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/idx-0000_sigma_metadata.sigma_tiles.pkl",
+      "path": "/home/ollie/Documents/diffbragg_example/sp.proc/idx-0000_sigma_metadata.sigma_tiles.pkl",
       "size_bytes": 24896124,
-      "modified_at": "2025-11-21T08:49:56.320672+00:00",
+      "modified_at": "2025-12-03T03:40:22.817294+00:00",
       "sha256": "5a25042b568ca4f91a5d2fa52b8c2e00ee4443fd95bae98dd57b7f761fa8b2b2"
     },
     {
       "role": "report",
-      "path": "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T093500Z/sigma_metadata.json",
-      "size_bytes": 663,
-      "modified_at": "2025-11-21T08:49:56.350345+00:00",
-      "sha256": "a66c79cebe1c1c1cc9c479b771f13cf74214ff3446585723fb6c7e8d497f792a"
+      "path": "/home/ollie/Documents/diffbragg_example/plans/active/ARCH-ENGINE-ARTIFACTS-001/reports/2025-12-02T000000Z/sigma_metadata_full.json",
+      "size_bytes": 603,
+      "modified_at": "2025-12-03T03:40:22.828203+00:00",
+      "sha256": "44a2e5680149e8259d3fde2431b745dc290a1318b558ab1640bc287c93651911"
     }
   ]
 }

@@ -1,7 +1,7 @@
-# Input for Ralph — ARCH-ENGINE-ARTIFACTS-001 Phase B.2 (Parity Test Bugfix)
+# Input for Ralph — ARCH-ENGINE-ARTIFACTS-001 Phase B.2 Parity Validation Retry
 
 ## Summary
-Fix Stage B parity test baseline_crystal parameter mismatch causing 1e+12 rel error.
+Retry Stage A/B artifact parity tests after sigma embedding infrastructure is now in place.
 
 ## Mode
 TDD
@@ -15,156 +15,112 @@ ARCH-ENGINE-ARTIFACTS-001 — RefinementEngine artifact channel & final-Bragg un
 ## Branch
 integration
 
-## Mapped tests
-```bash
-pytest -vv tests/dbex/test_artifact_parity.py::test_stage_b_artifact_matches_helper_shell_mode
-```
+## Mapped Tests
+- `tests/dbex/test_artifact_parity.py::test_stage_a_artifact_matches_helper` (Active — should PASS, already passed in attempt 2)
+- `tests/dbex/test_artifact_parity.py::test_stage_b_artifact_matches_helper_shell_mode` (Active — should PASS after sigma embedding + baseline_crystal fix)
 
 ## Artifacts
-`plans/active/ARCH-ENGINE-ARTIFACTS-001/reports/2025-12-05T050000Z/`
+`plans/active/ARCH-ENGINE-ARTIFACTS-001/reports/2025-12-02T194000Z/`
 
 ## Do Now
+**Goal:** Validate that Stage A and Stage B artifact paths produce Bragg tensors matching reconstruction helpers within ≤1e-6 relative MSE.
 
-**Context:** Phase B.2 parity tests were created, but Stage B test FAILED with max_rel=1.474e+12 (line 37 of pytest_parity_stage_b.log). Root cause: test passes `baseline_crystal=None` to reconstruction helper (line 148) but passes `baseline_crystal=crystal` to context (line 104), causing parameter mismatch between artifact path and helper path.
+**Context:**
+- Phase B.2 parity tests were previously SKIPPED due to missing sigma embedding in experiment files.
+- Galph resolved the blocker by running `embed_sigma_external_lookup.py` to generate:
+  - `sp.proc/idx-0000_sigma_metadata.expt` (full detector, sigma=3.0 ADU)
+  - `sp.proc/refGeom_small/idx-0000_sigma_metadata_small.expt` (small detector, sigma=3.0 ADU)
+- Both files now have sigma tiles embedded in `imageset.external_lookup.pedestal`, satisfying the test's `sigma_readout_map_source == "external_lookup"` requirement.
+- Baseline_crystal fix was already applied in attempt 2 (test_artifact_parity.py:326 passes `baseline_crystal=crystal`).
 
-**Your task:** Fix the baseline_crystal mismatch in the Stage B parity test.
+**Steps:**
+1. **Run parity tests:**
+   ```bash
+   AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+   DBEX_SMOKE_SIGMA_SOURCE=metadata \
+   DBEX_SMOKE_DETECTOR_SIZE=full \
+   KMP_DUPLICATE_LIB_OK=TRUE \
+   NANOBRAGG_DISABLE_COMPILE=1 \
+   pytest -vv tests/dbex/test_artifact_parity.py \
+     --tb=short \
+     -o log_cli=true \
+     -o log_cli_level=INFO \
+     | tee plans/active/ARCH-ENGINE-ARTIFACTS-001/reports/2025-12-02T194000Z/pytest_parity_retry.log
+   ```
 
-### Step 1: Fix test_stage_b_artifact_matches_helper_shell_mode
+2. **Expected outcome:**
+   - `test_stage_a_artifact_matches_helper` → PASSED (already passed in attempt 2 with max_rel=0.000e+00)
+   - `test_stage_b_artifact_matches_helper_shell_mode` → PASSED (max_rel ≤ 1e-6)
+   - Both tests should execute (no SKIP) because sigma_readout_map_source will now be "external_lookup"
 
-Open `tests/dbex/test_artifact_parity.py` and locate line ~326 (or search for `baseline_crystal=None` in the `build_final_bragg_from_stage_b_telemetry` call inside `test_stage_b_artifact_matches_helper_shell_mode`).
+3. **If both tests PASS:**
+   - Phase B.2 complete ✓
+   - Update implementation.md Phase B checklist (mark B2 done)
+   - Update fix_plan.md Attempts History with successful parity validation
+   - Advance to Phase B.3 planning (Stage C artifact emission if not already handled)
 
-**Current (incorrect):**
-```python
-helper_bragg = build_final_bragg_from_stage_b_telemetry(
-    telemetry_a=telemetry_a,
-    telemetry_b=reconstruction_payload,
-    detector=detector,
-    beam=beam,
-    crystal=crystal,
-    baseline_crystal=None,  # ← WRONG: should match context
-    inputs=refinement_inputs,
-    ...
-)
-```
+4. **If Stage B test FAILS with parity divergence:**
+   - Capture divergence details (max_rel, mean_rel, sample divergent pixels) in artifact report
+   - Analyze whether divergence is in artifact emission path or reconstruction helper path
+   - Open debug loop to identify root cause (likely in stage_b.py artifact emission logic or reconstruction helper cell parameter handling)
 
-**Fixed:**
-```python
-helper_bragg = build_final_bragg_from_stage_b_telemetry(
-    telemetry_a=telemetry_a,
-    telemetry_b=reconstruction_payload,
-    detector=detector,
-    beam=beam,
-    crystal=crystal,
-    baseline_crystal=crystal,  # Match context: Stage B requires baseline for cell delta reconstruction
-    inputs=refinement_inputs,
-    ...
-)
-```
-
-Use the Edit tool with the exact old_string/new_string from the reconstruction helper call (lines ~320-336 in the test file).
-
-### Step 2: Re-run Stage B parity test
-
-```bash
-AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-KMP_DUPLICATE_LIB_OK=TRUE \
-DBEX_SMOKE_SIGMA_SOURCE=metadata \
-DBEX_SMOKE_DETECTOR_SIZE=small \
-pytest -vv tests/dbex/test_artifact_parity.py::test_stage_b_artifact_matches_helper_shell_mode -s \
-  > plans/active/ARCH-ENGINE-ARTIFACTS-001/reports/2025-12-05T050000Z/pytest_stage_b_fixed.log 2>&1
-```
-
-Expected outcome: TEST PASSED with max_rel ≤ 1e-6 (should be ~0.000e+00 like Stage A test).
-
-### Step 3: Update summary.md
-
-Create `plans/active/ARCH-ENGINE-ARTIFACTS-001/reports/2025-12-05T050000Z/summary.md`:
-
-If PASSED:
-```markdown
-### Turn Summary
-Fixed Stage B parity test baseline_crystal mismatch (was None, should be crystal).
-Test now PASSES: Stage B shell mode parity (max_rel=X.XXe-Y ≤ 1e-6).
-Phase B.2 complete, artifact emission validated, ready for Phase C orchestrator cleanup.
-Artifacts: plans/active/ARCH-ENGINE-ARTIFACTS-001/reports/2025-12-05T050000Z/ (pytest_stage_b_fixed.log)
-```
-
-If still FAILED:
-```markdown
-### Turn Summary
-Fixed baseline_crystal mismatch but test still FAILS: max_rel=X.XXe-Y.
-Captured debug diagnostics; may indicate deeper artifact/helper divergence beyond baseline parameter.
-Requires supervisor root-cause analysis.
-Artifacts: plans/active/ARCH-ENGINE-ARTIFACTS-001/reports/2025-12-05T050000Z/ (pytest_stage_b_fixed.log, debug output)
-```
+5. **If tests SKIP again:**
+   - Verify sigma_readout_map_source via debug print (should be "external_lookup")
+   - Check that fixture is loading the correct experiment files (idx-0000_sigma_metadata.expt, not idx-0000_refined.expt)
+   - Document findings and escalate to Galph if fixture wiring is incorrect
 
 ## How-To Map
-
-### Finding the bug
-The Stage B parity test calls the reconstruction helper with `baseline_crystal=None` (line ~326) but builds the context with `baseline_crystal=crystal` (line ~282). The artifact path (via StageB.run → artifact emission) uses `ctx.baseline_crystal` (which is `crystal`), while the test's direct helper call uses `None`, causing cell parameter reconstruction divergence.
-
-### Why this matters
-Stage B requires `baseline_crystal` to reconstruct cell parameters because Stage A telemetry stores cell deltas relative to the baseline (not absolute values). When `baseline_crystal=None`, the reconstruction helper cannot compute correct cell parameters, producing garbage outputs (~2× error in this case: artifact mean ~123, helper mean ~47).
-
-### The fix
-Pass the same `baseline_crystal` value to both:
-1. Context builder (line ~282): `baseline_crystal=crystal` ✓ (already correct)
-2. Helper call (line ~326): `baseline_crystal=crystal` (needs fix)
+- **Pytest selector for parity validation:** See Step 1 command above
+- **Test environment requirements:**
+  - `DBEX_SMOKE_SIGMA_SOURCE=metadata` → tells fixture to load sigma from metadata (not uniform value)
+  - `DBEX_SMOKE_DETECTOR_SIZE=full` → uses full detector experiment file
+  - Files must exist:
+    - `sp.proc/idx-0000_sigma_metadata.expt` ✓ (generated by Galph this loop)
+    - `sp.proc/idx-0000_sigma_metadata.sigma_tiles.pkl` ✓ (generated by Galph this loop)
+- **Log artifact destination:** `plans/active/ARCH-ENGINE-ARTIFACTS-001/reports/2025-12-02T194000Z/pytest_parity_retry.log`
+- **ROI for validation:** No additional ROI comparison needed; tests assert `np.allclose(artifact_bragg, helper_bragg, rtol=1e-6)` directly
 
 ## Pitfalls To Avoid
-
-1. **Don't change context builder**: Line ~282 is already correct (`baseline_crystal=crystal`)
-2. **Only fix helper call**: Line ~326 is the bug (`baseline_crystal=None` → `baseline_crystal=crystal`)
-3. **Match the artifact path**: Stage B's artifact emission (stage_b.py:1719) passes `baseline_crystal=baseline_crystal` from context, so test must do the same
-4. **Check line numbers**: The test file may have shifted since the original input.md; search for `baseline_crystal=None` in the `build_final_bragg_from_stage_b_telemetry` call
-5. **Verify one test**: Only run `test_stage_b_artifact_matches_helper_shell_mode`, not the full parity suite
+1. **Do not modify test acceptance criteria** (e.g., relaxing `sigma_readout_map_source == "external_lookup"` check). That criterion is normative for this initiative type (architecture).
+2. **Do not change fixture sigma loading logic** unless tests confirm fixture is loading wrong files.
+3. **Environment Freeze:** Do not install/upgrade packages. Treat missing dependencies as blockers.
+4. **Initiative type boundary:** This is architecture work (validating artifact path matches existing reconstruction path). Do not change physics, loss definitions, or acceptance gates.
+5. **Artifact path vs reconstruction helper divergence:** If Stage B fails with large max_rel, the bug is either:
+   - Artifact emission in `stage_b.py` (missing parameter, wrong device/dtype)
+   - Reconstruction helper in `reconstruction.py` (incorrect baseline application, missing clamps)
+   - Test harness parameter mismatch (baseline_crystal, config object)
+   Check all three before assuming one is authoritative.
 
 ## If Blocked
+- If tests SKIP despite sigma embedding → capture fixture debug output showing which experiment file was loaded and what sigma_readout_map_source was set
+- If tests FAIL with environment errors (missing imports, CUDA OOM) → mark blocked_environment_dependency and record error signature
+- If tests FAIL with parity divergence beyond noise (max_rel > 1e-4) → mark implementation_attempt and escalate to Galph for debug loop
+- Record block in Attempts History with timestamp, symptom, and suspected root cause
 
-**If test still fails after fix:**
-- Capture max_abs, max_rel, rms_rel from pytest output
-- Print sample values at argmax divergence point
-- Check if shapes/dtypes match (should be identical)
-- Check if artifact_bragg and helper_bragg are both non-None
-- Create `plans/active/ARCH-ENGINE-ARTIFACTS-001/reports/2025-12-05T050000Z/debug_parity_failure.md` with:
-  - Max absolute and relative errors
-  - Argmax location (np.unravel_index(abs_diff.argmax(), abs_diff.shape))
-  - Sample pixel values from both arrays at divergence point
-  - Device/dtype of both outputs
-
-**If you can't find the line:**
-- Search for `def test_stage_b_artifact_matches_helper_shell_mode` in tests/dbex/test_artifact_parity.py
-- Find the `build_final_bragg_from_stage_b_telemetry` call inside that function
-- The `baseline_crystal` parameter is in that call (should be ~10-15 lines after the call starts)
-
-## Findings Applied (Mandatory)
-
-- ARCH-ENGINE-ARTIFACTS-001 Phase B.2: Parity tests validate artifact emission matches reconstruction helpers
-- ARCH-STAGE-CONTEXT-001 Phase D: Stage B conditionally populates bragg_full when terminal
-- REFINE-FLOW-001: Stage B baseline parity gates require baseline_crystal for cell delta reconstruction
-- Previous parity test logs showing Stage A PASSED (max_rel=0.000e+00) proves methodology correct
+## Findings Applied
+- **ARCH-ENGINE-003:** Telemetry enrichment must stay in active engine path (not relevant to this loop, parity tests don't touch telemetry enrichment)
+- **REFINE-FLOW-001:** Stage B baseline parity requires correct baseline_crystal parameter (already applied in test_artifact_parity.py:326)
+- **GRADIENT-003:** Stage B CPU fallback constraints (not relevant to this loop, parity tests use CUDA path)
+- **DATA-DEPENDENCY-001:** Sigma source provenance must be traceable (satisfied by external_lookup embedding with manifests)
 
 ## Pointers
+- **Test file:** `tests/dbex/test_artifact_parity.py` (lines 30-350)
+- **Stage B artifact emission:** `dbex/refinement/stage_b.py` (lines ~1700-1750, emits artifacts["bragg_full"])
+- **Reconstruction helper:** `dbex/refinement/reconstruction.py::build_final_bragg_from_stage_b_telemetry` (lines ~220-280)
+- **Sigma embedding script (reference only):** `plans/active/PHYSICS-LOSS-001/bin/embed_sigma_external_lookup.py`
+- **Sigma metadata reports:** `plans/active/ARCH-ENGINE-ARTIFACTS-001/reports/2025-12-02T000000Z/sigma_metadata_{full,small}.json`
+- **Implementation plan:** `plans/active/ARCH-ENGINE-ARTIFACTS-001/implementation.md` (Phase B.2 checklist item B2)
 
-**Test file:**
-- `tests/dbex/test_artifact_parity.py:320-336` (approximate, search for the helper call in test_stage_b_artifact_matches_helper_shell_mode)
-
-**Artifact emission reference (correct pattern):**
-- `dbex/refinement/stage_b.py:1713-1728` (Stage B artifact emission passes baseline_crystal from context)
-
-**Reconstruction helper:**
-- `dbex/refinement/reconstruction.py:269-284` (signature shows baseline_crystal is required parameter)
-
-**Parity failure log:**
-- `plans/active/ARCH-ENGINE-ARTIFACTS-001/reports/2025-12-05T040000Z/pytest_parity_stage_b.log:37` (max_rel=1.474e+12)
-- Line 148 of that log shows `baseline_crystal=None` (the bug)
-
-## Next Up (optional)
-
-If you finish early and the test passes:
-- Update the test docstring to clarify that baseline_crystal must match between context and helper call
-- Add a comment at line ~326 explaining why baseline_crystal=crystal is required (cell delta reconstruction)
+## Next Up
+If both tests PASS:
+- Advance to Phase B.3 planning (validate Stage C artifact emission or confirm already handled)
+- If Stage C already emits artifacts correctly (per Phase A.3 completion in implementation.md), proceed to Phase C planning (orchestrator cleanup)
 
 ## Doc Sync Plan
+Not applicable this loop (no new tests created, only retrying existing tests after environment fix).
 
-Not needed for Phase B.2 (test bugfix only, no production code changes).
+## Normative References
+- **Spec:** `docs/spec-db-workflow.md` §§33-45 (engine artifact contract), §§70-75 (telemetry/HDF5)
+- **Spec:** `docs/spec-db-core.md` §§57-68 (variance definitions), §§85-90 (HKL/Bragg tensor contracts)
+- **Arch:** `docs/architecture/dbex/refinement/context.idl.md` (RefinementContext contracts)
+- **Testing:** `docs/TESTING_GUIDE.md` §2 (smoke test selectors and environment flags)

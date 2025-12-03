@@ -1128,3 +1128,14 @@ Action State: ready_for_implementation
 **Next Action:** Supervisor resolves sigma embedding blocker (run script or create harness initiative) or defers Phase B.2 validation
 
 **Action State:** `<blocked_environment_dependency>`
+
+2025-12-02T194000Z focus=ARCH-ENGINE-ARTIFACTS-001 state=ready_for_implementation dwell=0 action=environment_remediation artifacts=plans/active/ARCH-ENGINE-ARTIFACTS-001/reports/2025-12-02T000000Z/ next_action=retry_parity_tests_after_sigma_embedding
+- **Environment remediation (supervisor action)**: Resolved `blocked_environment_dependency` by running `embed_sigma_external_lookup.py` to generate sigma metadata experiment files that were missing in current repo (existed only in old workspace). Generated two files:
+  • `sp.proc/idx-0000_sigma_metadata.expt` + `.sigma_tiles.pkl` (full detector: 2527×2463, sigma=3.0 ADU)
+  • `sp.proc/refGeom_small/idx-0000_sigma_metadata_small.expt` + `.sigma_tiles.pkl` (small detector: 1024×1024, sigma=3.0 ADU)
+- **Rationale**: Phase B.2 parity tests require sigma_readout_map_source="external_lookup" per test skip condition (test_artifact_parity.py:65-72). Previous blocker: fixture passed sigma via CLI args → DataLoad set source="cli_map". Now experiment files embed sigma tiles in imageset.external_lookup per normative data dependency pattern, unblocking test execution.
+- **Lifecycle counters**: implementation_attempt_count=3 for Phase B.2 (attempt 1: created tests, attempt 2: diagnosed baseline_crystal bug, attempt 3: retry after sigma embedding). No implementation code changed this loop (supervisor-only environment fix per Environment Freeze exception for test infrastructure setup).
+- **Portfolio steering**: ARCH-ENGINE-ARTIFACTS-001 remains highest priority (Tier 1, unblocks other work). All Tier 0 items remain blocked/archived.
+- **Next action**: Issue Do Now for Ralph to retry Phase B.2 parity tests with sigma embedding in place. Expect both Stage A and Stage B parity tests to PASS (Stage A already passed with max_rel=0.0, Stage B should now pass with baseline_crystal fix + sigma embedding).
+
+**Action State:** `<ready_for_implementation>`

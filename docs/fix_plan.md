@@ -199,6 +199,221 @@
 - Ledger tie-in: addresses problems.md entry "Refactor: Decouple Telemetry from Refinement Logic using Observer Pattern" (architectural issues 1.3/2.3). Plan captures Observer pattern, Stage-specific telemetry collectors, and writer simplification.
 - Attempts History:
   * 2025-12-03T022931Z (Phase C.4) — Removed legacy telemetry key mapping from RefinementEngine.run() (dbex/refinement/engine.py:201-215) that translated internal stage names ("stage_a", "stage_b", "stage_c") to legacy labels ("A", "B", "C"). Updated all test assertions to use internal stage names: test_torch_refine_smoke.py (6 replace_all edits: telemetry_dict["A/B/C"] → telemetry_dict["stage_a/b/c"], "A/B/C" in telemetry_dict → "stage_a/b/c" in telemetry_dict), test_stage_a_smoke_parity.py (1 edit). Validation: 1/5 mapped tests PASSED (test_stage_b_baseline_guard_diff_payload), 4/5 SKIPPED (missing sigma_readout_map in metadata mode, expected environmental limitation). Files touched: 3 (engine.py -13 lines, test_torch_refine_smoke.py ~40 key references updated, test_stage_a_smoke_parity.py 1 key reference updated). RefinementEngine now returns internal telemetry dict directly with no backward compatibility mapping; all test assertions updated to match internal stage names per ARCH-TELEMETRY-001 Phase C.4 design. Artifacts: `plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T022931Z/pytest_phase_c4.log`. Next action: Mark Phase C.4 complete and initiative ready for supervisor sign-off.
+
+### [DB-AT-SUITE-CARE-001] Acceptance Suite Upkeep (DB-AT-002/010/020—024)
+- Depends on: None (foundational test infrastructure)
+- Status: pending
+- Type: harness
+- Priority: High (Core acceptance gates)
+- Tier: 1
+- Owner/Date: Galph ↔ Ralph / 2025-12-05
+- Exit Criteria:
+  1. All DB-AT-002/010/020/021/022/023/024 selectors mapped in `docs/TESTING_GUIDE.md` with current artifact pointers
+  2. Median ROI correlation ≥ 0.2 per `docs/spec-db-conformance.md` §DB-AT acceptance criteria
+  3. Chi²/pixel ≤ 1e2 per spec DB-AT-002/010 parity gates
+  4. Determinism gates (DB-AT-023/024) pass with seed-locked runs
+  5. Latest test reports captured under member plan directories with status documented in Attempts History below
+- Working Plan: `plans/active/DB-AT-002/`, `plans/active/DB-AT-010/`, `plans/active/DB-AT-020/`, `plans/active/DB-AT-021/`, `plans/active/DB-AT-022/`, `plans/active/DB-AT-023/`, `plans/active/DB-AT-024/`
+- Spec References: `docs/spec-db-conformance.md` §§DB-AT-002–029
+- Attempts History:
+  * 2025-12-05T150000Z — Roll-up created per PORTFOLIO-STATUS Phase B classification. Member plans exist with November 2025 reports; ledger coverage ensures DB-AT selectors remain visible and blocked states surface immediately. Next: inventory latest member-plan reports and update Attempts History with per-selector status.
+
+### [MAP-SCALE-SYNC-001] Calibration Ladder Synchronization (MAP-SCALE-001—005)
+- Depends on: None
+- Status: pending
+- Type: spec_change (calibration conventions)
+- Priority: High (unblocks PHYSICS-LOSS-001)
+- Tier: 1
+- Owner/Date: Galph ↔ Ralph / 2025-12-05
+- Exit Criteria:
+  1. Calibration precedence documented per `docs/spec-db-workflow.md` "Calibration & Unit Conventions"
+  2. Sigma provenance work tracked with artifact pointers
+  3. Spot-scale alignment complete per `docs/config_crosswalk.md`
+  4. Telemetry provenance gates documented in member plans with test selectors
+  5. Latest MAP-SCALE-00X reports captured with status in Attempts History
+- Working Plan: `plans/active/MAP-SCALE-001/`, `plans/active/MAP-SCALE-002/`, `plans/active/MAP-SCALE-003/`, `plans/active/MAP-SCALE-004/`, `plans/active/MAP-SCALE-005/`
+- Spec References: `docs/spec-db-workflow.md` "Calibration & Unit Conventions", `docs/config_crosswalk.md`
+- Attempts History:
+  * 2025-12-05T150000Z — Roll-up created per PORTFOLIO-STATUS Phase B classification. Member plans live under `plans/active/MAP-SCALE-00X/` with November 2025 reports documenting sigma provenance and spot-scale alignment goals. Next: consolidate latest status from member reports.
+
+### [PHYSICS-LOSS-001] Variance-Weighted Loss Parity and Telemetry
+- Depends on: MAP-SCALE-SYNC-001 (calibration precedence)
+- Status: pending
+- Type: bugfix
+- Priority: High (loss correctness)
+- Tier: 1
+- Owner/Date: Galph ↔ Ralph / 2025-12-05
+- Exit Criteria:
+  1. Variance-weighted loss implementation matches `docs/spec-db-core.md` §Objective Function
+  2. Sigma-floor telemetry corrections validated per `docs/TESTING_GUIDE.md` §1.4
+  3. Completed phases documented in `plans/active/PHYSICS-LOSS-001/implementation.md`
+  4. Remaining risks captured in Attempts History with mitigation plans
+- Working Plan: `plans/active/PHYSICS-LOSS-001/implementation.md`
+- Spec References: `docs/spec-db-core.md` §Objective Function, `docs/TESTING_GUIDE.md` §1.4
+- Attempts History:
+  * 2025-12-05T150000Z — Roll-up created per PORTFOLIO-STATUS Phase B classification. Existing implementation.md contains goals, completed phases, and outstanding variance/telemetry work. Next: promote implementation.md content into this ledger entry.
+
+### [TORCH-GEOMETRY-SYNC-001] Geometry Convergence & Parity Alignment
+- Depends on: ARCH-REFINE-001 (Stage helpers stabilized)
+- Status: pending
+- Type: architecture
+- Priority: High (zero-point correctness)
+- Tier: 1
+- Owner/Date: Galph ↔ Ralph / 2025-12-05
+- Exit Criteria:
+  1. Zero-point invariants documented per `docs/spec-db-core.md` §Baseline Crystal State
+  2. UB realignment complete per `docs/spec-db-workflow.md` §Stage A
+  3. Convergence/parity probes pass with artifacts under member plan directories
+  4. Dependencies on ARCH-REFINE-001 resolved and documented
+- Working Plan: `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/`, `plans/active/TORCH-GEOMETRY-PARITY-002/`, `plans/active/TORCH-GEOMETRY-PARITY-003/`, `plans/active/TORCH-GEOMETRY-UB-REALIGN-001/`
+- Spec References: `docs/spec-db-core.md` §Baseline Crystal State, `docs/spec-db-workflow.md` §Stage A
+- Attempts History:
+  * 2025-12-05T150000Z — Roll-up created per PORTFOLIO-STATUS Phase B classification. Member plans document zero-point invariants and planned UB realignment probes. Next: consolidate status from member reports.
+
+### [TORCH-REFINE-CLEANUP-001] Stage A/B/C Refinement Cleanup (TORCH-REFINE-001/002/002D/002E/003)
+- Depends on: ARCH-REFACTOR-001 (Stage modularization), PHYSICS-LOSS-001 (telemetry spec)
+- Status: pending
+- Type: architecture + perf
+- Priority: Medium
+- Tier: 1
+- Owner/Date: Galph ↔ Ralph / 2025-12-05
+- Exit Criteria:
+  1. Stage A/B/C telemetry cleanups complete per `docs/spec-db-workflow.md` §Stage B/C
+  2. Stage B ASU gradient issues documented with mitigation plans
+  3. Vectorization gates pass per `docs/spec-db-runtime.md` §Vectorization
+  4. Gating selectors mapped in `docs/TESTING_GUIDE.md`
+- Working Plan: `plans/active/TORCH-REFINE-001/`, `plans/active/TORCH-REFINE-002/`, `plans/active/TORCH-REFINE-002D/`, `plans/active/TORCH-REFINE-002E/`, `plans/active/TORCH-REFINE-003/`
+- Spec References: `docs/spec-db-workflow.md` §Stage B/C, `docs/spec-db-runtime.md` §Vectorization
+- Attempts History:
+  * 2025-12-05T150000Z — Roll-up created per PORTFOLIO-STATUS Phase B classification. Member plans track Stage A/B/C telemetry cleanups and ASU gradient work. Next: consolidate portfolio steering decisions for which Phase C/D tasks to revive.
+
+### [TORCH-CLI-BRIDGE-ROLLUP-001] CLI & Bridge Infrastructure (TORCH-BRIDGE-001, TORCH-CLI-003/004)
+- Depends on: REPORT-NANOBRAG-STATUS-001 (output schema)
+- Status: pending
+- Type: architecture + harness
+- Priority: Medium
+- Tier: 1
+- Owner/Date: Galph ↔ Ralph / 2025-12-05
+- Exit Criteria:
+  1. CLI backend flag wiring complete per `docs/spec-db-interfaces.md`
+  2. Telemetry schema work documented in `docs/config_crosswalk.md`
+  3. Bridge responsibility split tracked per `docs/architecture.md`
+  4. Dependencies on REPORT-NANOBRAG-STATUS-001 output schema resolved
+- Working Plan: `plans/active/TORCH-BRIDGE-001/`, `plans/active/TORCH-CLI-003/`, `plans/active/TORCH-CLI-004/`
+- Spec References: `docs/spec-db-interfaces.md`, `docs/config_crosswalk.md`, `docs/architecture.md`
+- Attempts History:
+  * 2025-12-05T150000Z — Roll-up created per PORTFOLIO-STATUS Phase B classification. Member plans exist with CLI/backend features and bridge refactor work. Next: ensure artifact pointers remain on roadmap.
+
+### [FORWARD-EQUIV-COVERAGE-001] Forward Equivalence & Parity Harness
+- Depends on: NANOBRAG-GOLDEN-001 (dataset refresh)
+- Status: pending
+- Type: diagnostics
+- Priority: Medium
+- Tier: 1
+- Owner/Date: Galph ↔ Ralph / 2025-12-05
+- Exit Criteria:
+  1. Parity thresholds documented: median ROI correlation ≥ 0.2, localization ≥ 90% per `docs/spec-db-conformance.md` DB-AT-001
+  2. Forward equivalence harness traces artifact requirements per `docs/forward_equivalence.md`
+  3. Ties to NANOBRAG-GOLDEN-001 dataset refreshes documented
+- Working Plan: `plans/active/FORWARD-EQUIV-001/`, `plans/active/FORWARD-EQUIV-002/`, `plans/active/PARITY-HARNESS-002/`
+- Spec References: `docs/forward_equivalence.md`, `docs/spec-db-conformance.md` DB-AT-001
+- Attempts History:
+  * 2025-12-05T150000Z — Roll-up created per PORTFOLIO-STATUS Phase B classification. Member plans capture parity harness scaffolding and forward equivalence goals. Next: consolidate artifact requirements.
+
+### [TOOLING-VIS-001] Mapping-Aligned Visualization Tooling
+- Depends on: None
+- Status: pending
+- Type: diagnostics
+- Priority: Medium
+- Tier: 1
+- Owner/Date: Galph ↔ Ralph / 2025-12-05
+- Exit Criteria:
+  1. Canonical triptychs/residual plots documented per `docs/spec-db-vis.md`
+  2. Z-score histograms within ±3σ validated
+  3. Radial profile overlays tested with artifacts under plan directory
+- Working Plan: `plans/active/TOOLING-VIS-001/`
+- Spec References: `docs/spec-db-vis.md`
+- Attempts History:
+  * 2025-12-05T150000Z — Roll-up created per PORTFOLIO-STATUS Phase B classification. Plan exists with recent reports documenting canonical visuals progress. Next: document latest artifact pointers.
+
+### [DOCS-ROADMAP-001] Roadmap Documentation Refresh
+- Depends on: PORTFOLIO-STATUS (archive hygiene)
+- Status: pending
+- Type: docs
+- Priority: Low
+- Tier: 1
+- Owner/Date: Galph ↔ Ralph / 2025-12-05
+- Exit Criteria:
+  1. Publication cadence documented
+  2. Dependencies on portfolio archive moves resolved
+  3. Exit criteria for roadmap freshness defined in plan
+- Working Plan: `plans/active/DOCS-ROADMAP-001/`
+- Spec References: `docs/index.md`, `docs/development/testing_strategy.md`
+- Attempts History:
+  * 2025-12-05T150000Z — Roll-up created per PORTFOLIO-STATUS Phase B classification. Needs ledger visibility so doc graph changes track alongside implementation. Next: ensure plan documents publication cadence.
+
+### [RUNTIME-VEC-001] Runtime Vectorization Checklist Enforcement
+- Depends on: None
+- Status: pending
+- Type: perf
+- Priority: Medium
+- Tier: 1
+- Owner/Date: Galph ↔ Ralph / 2025-12-05
+- Exit Criteria:
+  1. Required smoke selectors (vectorization tests) mapped in `docs/TESTING_GUIDE.md`
+  2. Dyno guardrails enforced per `docs/spec-db-runtime.md`
+  3. Environment flags validated per `docs/pytorch_runtime_checklist.md`
+- Working Plan: `plans/active/RUNTIME-VEC-001/`
+- Spec References: `docs/pytorch_runtime_checklist.md`, `docs/spec-db-runtime.md`
+- Attempts History:
+  * 2025-12-05T150000Z — Roll-up created per PORTFOLIO-STATUS Phase B classification. Adds ledger coverage for performance guardrails. Next: document smoke selector mappings.
+
+### [REPORT-NANOBRAG-STATUS-001] Status Reporting Scripts
+- Depends on: None
+- Status: pending
+- Type: tooling
+- Priority: Low
+- Tier: 1
+- Owner/Date: Galph ↔ Ralph / 2025-12-05
+- Exit Criteria:
+  1. Scope for reporting scripts (status dashboards, parity metrics) documented
+  2. CLI artifacts and scriptization policy referenced per `docs/TESTING_GUIDE.md`
+  3. Exit criteria tied to `docs/development/testing_strategy.md`
+- Working Plan: `plans/active/REPORT-NANOBRAG-STATUS-001/`
+- Spec References: `docs/TESTING_GUIDE.md`, `docs/development/testing_strategy.md`
+- Attempts History:
+  * 2025-12-05T150000Z — Roll-up created per PORTFOLIO-STATUS Phase B classification. Keeps reporting automation plan on roadmap. Next: document scriptization policy.
+
+### [NANOBRAG-GOLDEN-001] Golden Dataset Capture + Maintenance
+- Depends on: None
+- Status: pending
+- Type: harness
+- Priority: Medium
+- Tier: 1
+- Owner/Date: Galph ↔ Ralph / 2025-12-05
+- Exit Criteria:
+  1. Golden dataset refresh cadence documented per `docs/development/testing_strategy.md` §2.5
+  2. Trace outputs (images + trace logs) captured with artifact pointers
+  3. Gating selectors consuming the dataset mapped in `docs/TESTING_GUIDE.md`
+- Working Plan: `plans/active/NANOBRAG-GOLDEN-001/`
+- Spec References: `docs/development/testing_strategy.md` §2.5, `docs/prompt_sources_map.json` (spec sources)
+- Attempts History:
+  * 2025-12-05T150000Z — Roll-up created per PORTFOLIO-STATUS Phase B classification. Ledger entry documents refresh cadence and gating selectors. Next: capture latest artifact pointers.
+
+### [ARCH-SPLIT-001] Architecture Interface Split
+- Depends on: None
+- Status: pending (review for archival)
+- Type: architecture
+- Priority: Low
+- Tier: 1
+- Owner/Date: Galph ↔ Ralph / 2025-12-05
+- Exit Criteria:
+  1. Clarify whether initiative remains active or should be archived
+  2. Exit criteria revolve around interface split ADR per `docs/architecture.md`
+- Working Plan: `plans/active/ARCH-SPLIT-001/implementation.md`
+- Spec References: `docs/architecture.md`, `plans/active/ARCH-SPLIT-001/implementation.md`
+- Attempts History:
+  * 2025-12-05T150000Z — Roll-up created per PORTFOLIO-STATUS Phase B classification. Plan exists; needs supervisor review to decide active vs archival status. Next: assess current relevance and decide fate.
   * 2025-12-03T021140Z (Phase C.3.2) — Removed `to_legacy_dict()` calls from Stage B/C production code; both stages now access telemetry and perf counter fields directly via `stage_result.telemetry.*` and `stage_result.perf_counters.*`. Stage B wraps perf counters in lists to match downstream `[0]` indexing (line 1562); Stage C accesses scalars directly (line 1277 expects scalar values). test_stage_b_baseline_guard_diff_payload PASSED (validates Stage B direct field access); test_stage_b_shell_modifiers and test_stage_c_detector_microslip SKIPPED due to missing sigma_readout_map in metadata mode (expected environmental limitation, not code regression). Files touched: 2 (stage_b.py -2 lines, stage_c.py -2 lines). Artifacts: `plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T021140Z/pytest_phase_c32.log`. Next action: Phase C.4 (remove RefinementEngine key mapping in engine.py:203-215).
   * 2025-12-02T190000Z — Plan scaffolded, compliance matrix recorded, and observer prototype tasks defined. Next loop will implement Phase A.1 collector + Stage A wiring.
   * 2025-12-03T210000Z — Phase C.1 Stage C finalizeafter-validation fix implemented. Moved `collector.finalize()` to after final validation recording (dbex/refinement/stage_c_impl.py:695-726), added fallback to emit baseline sample when LBFGS exits without closure runs (line 619-630), and corrected legacy_telemetry_dict extraction to unwrap list-wrapped perf counters (line 722-726). Stage B guard and smoke tests passed; Stage C smoke test progressed from TypeError to assertion failure on empty loss_trace_sample. Root cause under investigation: fallback on_step() call should populate sample trace but telemetry shows 0 closure_evals despite 5 validation_runs. Artifacts: plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T210000Z/. Next: debug fallback execution path and ensure on_step() correctly populates loss_trace_sample when LBFGS exits without calling closure.

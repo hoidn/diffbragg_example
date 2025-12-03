@@ -197,7 +197,7 @@
 
 ### [ARCH-SIM-HKL-BOUNDS-001] Stage-A / Mapping HKL Alignment
 - Depends on: DIAG-NANOBRAGG-OVERSAMPLE-001
-- Status: planned (Phase A kickoff)
+- Status: in_progress (Phase A.1 complete, Phase B next)
 - Priority: Highest (Tier 0)
 - Tier: 0
 - Owner/Date: Galph ↔ Ralph / 2025-12-03
@@ -209,6 +209,7 @@
 - Working Plan: `plans/active/ARCH-SIM-HKL-BOUNDS-001/implementation.md`
 - Attempts History:
   * 2025-12-03T150219Z — **Phase A planning (this loop)**: Created initiative after DIAG-NANOBRAGG-OVERSAMPLE-001 Phase F confirmed Stage A and mapping simulators both query HKL ranges outside the loaded grid (0/9.4M hits). Authored implementation plan with Phase A (baseline probe), Phase B (root-cause design), and Phase C (fix + validation). Added Tier 0 ledger entry, defined exit criteria (restore ≥99% in-bounds coverage and DB-AT-028/029 PASS), and captured artifacts path `plans/active/ARCH-SIM-HKL-BOUNDS-001/reports/2025-12-03T150219Z/`. Next action: Phase A.1 — implement probe script comparing nanobrag_torch reciprocal lattice vs dxtbx A* and emit metrics JSON + summary.
+  * 2025-12-03T161200Z — **Phase A.1 implementation (this loop)**: Implemented `probe_crystal_hkl_alignment.py` CLI tool (plans/active/ARCH-SIM-HKL-BOUNDS-001/bin/) that loads refGeom small-detector smoke fixture via DataLoad, builds mapping context, instantiates nanobrag_torch.models.Crystal from CrystalConfig (respecting calibration metadata), and compares reciprocal lattice columns (a*, b*, c*) against dxtbx crystal.get_A(). Probe **PASSED** spec tolerance: max|ΔA*| = 4.44e-09 Å⁻¹ << 1e-6 Å⁻¹ (docs/spec-db-core.md:72). This **eliminates** the hypothesis that HKL offset stems from A* misalignment bug in create_crystal_config or MOSFLM injection. Root cause must lie downstream: HKL grid indexing, structure-factor grid bounds, or coordinate transforms. Artifacts: hkl_alignment_metrics.json, hkl_alignment_summary.txt, probe_run.log, summary.md under `plans/active/ARCH-SIM-HKL-BOUNDS-001/reports/2025-12-03T161200Z/`. Validation: pytest -vv tests/dbex/test_data_load_sigma_map.py PASSED (8/8). Next action: Phase B — isolate grid indexing / HKL lookup offset (instrument HKL queries, inspect grid construction, compare bounds vs query distribution).
 
 
 ### [ARCH-REFINE-001] — **archived** (2025-12-01T161600Z, see docs/fix_plan_archive_2025-12-02.md)

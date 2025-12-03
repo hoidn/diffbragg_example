@@ -144,6 +144,13 @@ def build_final_bragg_from_stage_a_telemetry(
     )
     sampled_panel_ids = list(range(n_panels))
 
+    # Extract spot_scale_override for post-run scaling (matches stage_a.py:442-443, SCALE-009)
+    spot_scale_override = None
+    if config.calibration_metadata is not None:
+        spot_scale_override = config.calibration_metadata.get('spot_scale_override')
+
+    sqrt_spot_scale = float(np.sqrt(spot_scale_override)) if spot_scale_override and spot_scale_override > 0 else 1.0
+
     # Build full Bragg array (panel mode)
     # Reuse warm cache simulators if available
     if stage_a_ctx is not None and hasattr(stage_a_ctx, 'simulators'):
@@ -167,7 +174,17 @@ def build_final_bragg_from_stage_a_telemetry(
         # Cold path: build simulators via unified factory (ARCH-FACTORY-001 Phase B.4)
         from dbex.refinement.config_factories import create_beam_config
         from dbex.refinement.helpers import create_unified_simulator
-        beam_config = create_beam_config(beam)
+
+        # Extract beam calibration for architectural consistency with Stage A (stage_a_utils.py:267)
+        beam_flux = None
+        beam_exposure = None
+        beamsize_mm = None
+        if config.calibration_metadata is not None:
+            beam_flux = config.calibration_metadata.get('beam_flux')
+            beam_exposure = config.calibration_metadata.get('beam_exposure')
+            beamsize_mm = config.calibration_metadata.get('beamsize_mm')
+
+        beam_config = create_beam_config(beam, flux=beam_flux, exposure=beam_exposure, beamsize_mm=beamsize_mm)
         simulators = []
         for pid in sampled_panel_ids:
             detector_config = create_detector_config(detector[pid], beam=beam)

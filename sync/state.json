@@ -1,6 +1,9 @@
 {
-  "loop": 469,
-  "actor": "ralph",
-  "status": "running",
-  "timestamp": "2025-12-02T21:40:00Z"
+  "iteration": 1,
+  "expected_actor": "ralph",
+  "status": "waiting-ralph",
+  "last_update": "2025-12-03T05:45:30Z",
+  "lease_expires_at": "2025-12-03T05:55:30Z",
+  "galph_commit": "7607a17f",
+  "ralph_commit": null
 }

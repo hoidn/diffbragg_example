@@ -873,3 +873,52 @@ Action State: ready_for_implementation
 - Expected outcome: bragg_after_mean drops to ~0.24, DB-AT-028/029 PASS
 - Artifacts: debug_analysis.md, corrective input.md, summary.md at plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T010500Z/
 Action State: ready_for_implementation
+
+---
+
+## 2025-12-02T010500Z_ralph_blocked
+
+**Focus:** ARCH-SIM-CONSTRUCTION-001 — Simulator Construction Convention Alignment
+**Dwell:** 0 (escalation loop)
+**Action Type:** analysis + blocked
+**Mode:** Parity
+**Initiative Type:** architecture
+**State:** blocked_repeat_failure
+
+**Repeat-Failure Guard Triggered:** input.md requests applying `* sqrt_spot_scale` multiplication at reconstruction.py:239, but this change was ALREADY applied in prior loop (commit acea29ef, 2025-12-02 16:31:53). Tests were NOT run after that commit, so empirical validation was missing.
+
+**Empirical Validation Performed:**
+- Ran DB-AT-028 with current code (multiplication present)
+- Result: **bragg_after_mean = 5711.08** (vs expected ~0.24), **chi² = 1.084e+05** (vs ≤100 spec)
+- Confirms Ralph's theoretical prediction from acea29ef commit message: double multiplication
+
+**Root Cause Confirmed:**
+- `log_scale_baseline = log(sqrt(spot_scale_override)) = 20.138`
+- `scale_factor = exp(log_scale_baseline + delta) ≈ 5.572e8 = sqrt(spot_scale)`
+- Current code: `bragg_scaled = bragg_panel * scale_factor * sqrt_spot_scale`
+  → Applies sqrt TWICE, resulting in `bragg * spot_scale` instead of `bragg * sqrt(spot_scale)`
+- **Ratio confirmation:** `5711 / 0.239 = 23,895 ≈ sqrt(5.572e8)` ≈ `(spot_scale)^(1/4)` ✓
+
+**Architecture Tension:**
+SCALE-009 finding and input.md misinterpret the sqrt application pattern:
+- Stage A **loss**: `bragg * exp(log_scale_baseline)` where baseline embeds sqrt → ONE sqrt application
+- Stage A **diagnostics** (telemetry masked-mean only): `bragg * sqrt(spot_scale)` → separate calculation NOT used in loss
+- Reconstruction helper: should match loss pattern (NO post-run sqrt), not diagnostics pattern
+
+**Correct Fix (NOT implemented per repeat-failure guard):**
+```python
+# reconstruction.py:238 should be:
+bragg_scaled = bragg_panel * scale_factor  # REMOVE * sqrt_spot_scale
+```
+
+**Blocked Reason:** Cannot implement without supervisor confirmation that:
+1. log_scale_baseline design intent is to embed sqrt(spot_scale) in the exp term
+2. Post-run sqrt multiplication in Stage A (stage_a.py:442-443) is ONLY for diagnostics, not loss
+3. Removing the sqrt from reconstruction.py aligns with spec intention
+
+**Artifacts:** `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-02T010500Z_ralph_verification/` (pytest_full.log, db_at_028_metrics.json, summary.md, analysis.md)
+
+**Next Action:** Galph must:
+1. Confirm sqrt removal is correct fix (vs input.md which requests sqrt addition)
+2. Update SCALE-009 finding to clarify sqrt semantics (embedded in baseline vs post-run)
+3. Issue corrective Do Now to REMOVE sqrt, or escalate if spec/design needs rethinking

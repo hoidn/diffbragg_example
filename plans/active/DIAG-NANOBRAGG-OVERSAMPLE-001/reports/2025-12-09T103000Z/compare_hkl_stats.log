@@ -1,0 +1,25 @@
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+================================================================================
+HKL Coverage Collection: simulate_forward_once
+================================================================================
+
+[1/2] Loading smoke fixture...
+  Detector size: small
+  N panels: 1
+  HKL indices shape: (69614, 3)
+  HKL amplitudes shape: (69614,)
+
+[2/2] Running simulate_forward_once with HKL stats enabled...
+  Total queries: 9,437,184
+  In-bounds: 0 (0.00%)
+  Out-of-bounds: 9,437,184
+  h range: [28.0, 47.0]
+  k range: [28.0, 51.0]
+  l range: [37.0, 59.0]
+
+[3/3] Writing artifacts...
+  JSON written to: plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-09T103000Z/hkl_stats_comparison.json
+  Summary written to: plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-09T103000Z/summary.md
+
+Done.

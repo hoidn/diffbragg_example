@@ -1,5 +1,5 @@
 ### Turn Summary
-Scoped the closure work for PORTFOLIO-STATUS so the Tier 0 ledger, plan, and problems ledger match the finished Phase F/E artifacts.
-Documented the required edits to docs/fix_plan.md, the implementation plan, problems.md, plus a fresh plan_inventory guard run and pytest capture.
-Next: apply the doc updates, rerun the guard via plans/active/PORTFOLIO-STATUS/bin/plan_inventory.py into 2025-12-08T190000Z/, and stash the pytest log alongside the regenerated inventory artifacts.
+Prepped the PORTFOLIO-STATUS closure plan so Tier 0, the implementation plan, and problems.md can be marked done against the 2025-12-07T220000Z inventory snapshot.
+Captured a new input.md that directs Ralph to update docs/fix_plan.md, refresh the plan header, clean up the problems ledger note, and rerun plan_inventory.py plus its pytest guard into 2025-12-08T190000Z/.
+Next: apply those doc edits and rerun the guard/tests so the final artifacts land in plans/active/PORTFOLIO-STATUS/reports/2025-12-08T190000Z/.
 Artifacts: plans/active/PORTFOLIO-STATUS/reports/2025-12-08T190000Z/ (summary.md)

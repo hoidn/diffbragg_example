@@ -1821,3 +1821,26 @@ Action State: ready_for_implementation
 - After this archival pass lands, queue ARCH-REFINE-001 (and any other done initiatives) for the next Phase F loop.
 
 **Action State**: ready_for_implementation
+
+---
+
+## Loop 2025-12-08T190000Z
+
+**Focus**: PORTFOLIO-STATUS — Plan/Fix-Plan synchronization & archive hygiene (Phase F wrap / closure)  
+**State**: ready_for_implementation  
+**Dwell**: 0  
+**Action Type**: planning (Docs mode)  
+**Initiative Type**: housekeeping
+
+**Key Observations**:
+1. `docs/fix_plan.md` still labels PORTFOLIO-STATUS as “in_progress (Phase F — Active plan tree hygiene)” even though the plan file and artifacts show Phases A–F complete with final counts captured under `plans/active/PORTFOLIO-STATUS/reports/2025-12-07T220000Z/`.  
+2. The “Plan Directory Inventory” appendix header and bucket counts continue to cite the 2025-12-03 run; the guard must be re-run and the summary updated to the latest 55/28/34/0/0 snapshot.  
+3. `problems.md` still contains the “ATTN NEW PROBLEMS” directive about stale plans, so the ledger hasn’t recorded that this initiative now has a closure path.
+
+**Artifacts Path**: `plans/active/PORTFOLIO-STATUS/reports/2025-12-08T190000Z/`
+
+**Next Actions**:
+- Apply the doc updates in `docs/fix_plan.md` (Tier 0 entry + Plan Directory Inventory), `plans/active/PORTFOLIO-STATUS/implementation.md`, and `problems.md` per the new input.md.  
+- Re-run `plan_inventory.py --rollup-config` + the pytest guard, saving logs + JSON/Markdown outputs into `plans/active/PORTFOLIO-STATUS/reports/2025-12-08T190000Z/`.
+
+**Action State**: ready_for_implementation

@@ -1,7 +1,7 @@
-# Input for Ralph — Loop 2025-12-03T122513Z
+# Input for Ralph — Loop 2025-12-08T190000Z
 
 ## Summary
-Archive the completed ARCH-BRIDGE-RESP-001 plan directory (plus the stray ARCH-TELEMETRY-001 stub), update every living doc reference to the new archive path, and rerun the plan-inventory guard/tests so PORTFOLIO-STATUS Phase F can progress.
+Close PORTFOLIO-STATUS by marking the Tier 0 ledger/plan/problems ledger as done and capturing a fresh plan-inventory guard run so the final artifacts reflect the 100% coverage snapshot from 2025-12-07T220000Z.
 
 ## Mode
 Docs
@@ -19,49 +19,36 @@ integration
 pytest -vv plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py
 
 ## Artifacts
-plans/active/PORTFOLIO-STATUS/reports/2025-12-03T140000Z/
+plans/active/PORTFOLIO-STATUS/reports/2025-12-08T190000Z/
 
 ## Do Now
-1. **Implement: archive/plans/ARCH-BRIDGE-RESP-001::migration**  
-   - `git mv plans/active/ARCH-BRIDGE-RESP-001 archive/plans/ARCH-BRIDGE-RESP-001` so every tracked file moves under the archive tree.  
-   - Remove the now-stale stub directory for ARCH-TELEMETRY-001 (`rm -rf plans/active/ARCH-TELEMETRY-001`) so the inventory script no longer reports a missing implementation.  
-   - `rg -n "plans/active/ARCH-(BRIDGE-RESP|TELEMETRY)-001" docs` (and `plans`) to confirm only historical logs mention the old paths.
-2. **Implement: docs/fix_plan.md::Tier0 & Plan Directory Inventory**  
-   - Update the Tier 0 entry + Attempts History bullets so ARCH-BRIDGE-RESP-001 points at `archive/plans/ARCH-BRIDGE-RESP-001/...`.  
-   - Add a new Attempts History line for this Phase F loop citing the 2025-12-03T140000Z artifacts.  
-   - Refresh the “Plan Directory Inventory” appendix with the new guard timestamp, artifact path, and bucket counts from the latest `inventory.json` (ensure Total/Tracked/Roll-up/Active missing/Missing plan match the script output).  
-   - Drop any lingering references to the deleted ARCH-TELEMETRY-001 stub.
-3. **Implement: docs/fix_plan_archive_2025-12-02.md + allied docs**  
-   - Replace every `plans/active/ARCH-BRIDGE-RESP-001/...` reference in `docs/fix_plan_archive_2025-12-02.md`, `docs/data_dependency_manifest.md:173`, `docs/architecture/dbex/io/writer.idl.md:144`, `docs/TESTING_GUIDE.md:139/163`, and `docs/development/TEST_SUITE_INDEX.md:13/23` with the `archive/plans/ARCH-BRIDGE-RESP-001/...` equivalents so future readers land in the archive tree.  
-   - Double-check markdown tables still align after the edits.
-4. **Implement: problems.md & plans/active/PORTFOLIO-STATUS/implementation.md**  
-   - Amend the problems-ledger entry about stale plan directories to note that ARCH-BRIDGE-RESP-001 was moved on this loop (keep the box unchecked and list the next targets, e.g., ARCH-REFINE-001).  
-   - Update the Phase F section in `plans/active/PORTFOLIO-STATUS/implementation.md` to log this archival move, referencing the new artifact path.
-5. **Run: plan_inventory guard + pytest**  
-   - `export REPORT_TS=2025-12-03T140000Z; mkdir -p plans/active/PORTFOLIO-STATUS/reports/$REPORT_TS`  
-   - `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md python plans/active/PORTFOLIO-STATUS/bin/plan_inventory.py --plans-root plans/active --fix-plan docs/fix_plan.md --rollup-config plans/active/PORTFOLIO-STATUS/rollups.json --out-dir plans/active/PORTFOLIO-STATUS/reports/$REPORT_TS/ | tee plans/active/PORTFOLIO-STATUS/reports/$REPORT_TS/plan_inventory.log`  
-   - `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest -vv plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py | tee plans/active/PORTFOLIO-STATUS/reports/$REPORT_TS/pytest_plan_inventory.log`  
-   - Drop the resulting `inventory.json`, `inventory_missing.md`, and `rollup_report.md` alongside the logs in the artifacts directory.
+1. **Implement: docs/fix_plan.md::Tier 0 entry + Plan Directory Inventory**  
+   - Change the PORTFOLIO-STATUS Tier 0 bullet from “in_progress (Phase F …)” to **done**, summarizing that Phases A–F completed and citing the final inventory at `plans/active/PORTFOLIO-STATUS/reports/2025-12-07T220000Z/`.  
+   - Refresh the Attempts History with a new 2025-12-08T190000Z line describing this closure loop and pointing at the new artifact path below.  
+   - Update the “Plan Directory Inventory” appendix header so “Latest Report” references 2025-12-07T220000Z (or the new run you capture in step 3), and rewrite the Summary/Bucket sections with the canonical counts (Total=55, Tracked=28, Covered via rollups=34, Active missing=0, Missing plan=0). Keep the guard command block unchanged aside from the timestamp.  
+   - Ensure Working Agreements still emphasize the `--rollup-config` flag.
+2. **Implement: plans/active/PORTFOLIO-STATUS/implementation.md::Status + Closure**  
+   - Set `Status:` to `done` in the header.  
+   - Fold the Closure narrative (the paragraph that starts “All Exit Criteria satisfied…”) into the “Phase F” section and cite the same final artifact path so the plan matches the ledger text.  
+   - Remove any lingering “Phase F in progress” language so the plan header, phase breakdown, and closure section align.
+3. **Implement: problems.md::Active Items**  
+   - Edit the free-form directive under “ATTN NEW PROBLEMS” so it records that the stale-plan inventory/archival drive is resolved via PORTFOLIO-STATUS (refer to docs/fix_plan.md Tier 0 entry).  
+   - If you prefer, convert that note into a checked `[x]` bullet linking to the fix-plan line so the ledger now has a historical pointer and the “Active Items” list goes back to empty.
+4. **Run + capture guard artifacts**  
+   - `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md python plans/active/PORTFOLIO-STATUS/bin/plan_inventory.py --plans-root plans/active --fix-plan docs/fix_plan.md --rollup-config plans/active/PORTFOLIO-STATUS/rollups.json --out-dir plans/active/PORTFOLIO-STATUS/reports/2025-12-08T190000Z/ | tee plans/active/PORTFOLIO-STATUS/reports/2025-12-08T190000Z/plan_inventory.log`  
+   - Copy the generated `inventory.json`, `inventory_missing.md`, and `rollup_report.md` into that directory.  
+   - `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest -vv plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py | tee plans/active/PORTFOLIO-STATUS/reports/2025-12-08T190000Z/pytest_plan_inventory.log`  
+   - Drop a short `summary.md` noting that the guard/tests were re-run post-closure.
 
 ## How-To Map
 ```bash
 export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
-export REPORT_TS=2025-12-03T140000Z
+export REPORT_TS=2025-12-08T190000Z
 mkdir -p plans/active/PORTFOLIO-STATUS/reports/${REPORT_TS}
 
-git mv plans/active/ARCH-BRIDGE-RESP-001 archive/plans/ARCH-BRIDGE-RESP-001
-rm -rf plans/active/ARCH-TELEMETRY-001
-rg -n "plans/active/ARCH-BRIDGE-RESP-001" docs || true
-rg -n "plans/active/ARCH-TELEMETRY-001" docs || true
-
 $EDITOR docs/fix_plan.md
-$EDITOR docs/fix_plan_archive_2025-12-02.md
-$EDITOR docs/data_dependency_manifest.md
-$EDITOR docs/architecture/dbex/io/writer.idl.md
-$EDITOR docs/TESTING_GUIDE.md
-$EDITOR docs/development/TEST_SUITE_INDEX.md
-$EDITOR problems.md
 $EDITOR plans/active/PORTFOLIO-STATUS/implementation.md
+$EDITOR problems.md
 
 python plans/active/PORTFOLIO-STATUS/bin/plan_inventory.py \
   --plans-root plans/active \
@@ -75,30 +62,27 @@ pytest -vv plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py \
 ```
 
 ## Pitfalls To Avoid
-- Do not edit archived report contents; only relocate the directory via `git mv`.
-- Keep git history intact—no `cp` or manual copy/paste.
-- Limit `rg`/replacement scopes to docs and plans so build logs remain untouched.
-- When updating markdown tables, preserve the pipe alignment (watch for tabs vs spaces).
-- Re-run the inventory guard *after* all moves so counts reflect the new tree.
-- Ensure no lingering `plans/active/ARCH-BRIDGE-RESP-001` strings survive outside historical logs before wrapping up.
-- Capture every log (`plan_inventory.log`, `pytest_plan_inventory.log`, inventory outputs) under the designated artifacts directory.
-- Do not delete other directories under `plans/active/`—only the specific stub called out above.
-- Leave `problems.md` entry unchecked; just append the new status note.
-- Remember to regenerate `docs/fix_plan.md` Plan Directory Inventory numbers from the new `inventory.json` (do not reuse the prior counts).
+- Keep scope limited to docs/plan/problems; do **not** touch production src modules.  
+- When editing markdown tables or bullet lists, preserve spacing so rendered layout stays intact.  
+- Do not hardcode new plan counts manually—pull them from the freshly generated `inventory.json`.  
+- Ensure the guard command includes `--rollup-config`; the automation now fails fast if it’s omitted.  
+- Capture every log/artifact (inventory + pytest) under `plans/active/PORTFOLIO-STATUS/reports/${REPORT_TS}/` so the ledger can cite them.  
+- Leave historical Attempts History entries untouched—only append the new closure note.  
+- If adjusting `problems.md`, make sure no duplicate unchecked entries remain for the same topic.
 
 ## If Blocked
-- If `plan_inventory.py` or the pytest guard fails, stop immediately, save the failing command output to `plans/active/PORTFOLIO-STATUS/reports/${REPORT_TS}/failure.log`, and note the error in `docs/fix_plan.md` Attempts History + `plans/active/PORTFOLIO-STATUS/implementation.md`.  
-- If the `git mv` collides with existing archive content, capture the exact error, leave the tree untouched, and record the blocker in `problems.md` + `docs/fix_plan.md` (Phase F entry) instead of attempting partial moves.
+- If the guard script or pytest fails, stop, save the console output to `plans/active/PORTFOLIO-STATUS/reports/${REPORT_TS}/failure.log`, and record the blocker in both `docs/fix_plan.md` Attempts History and `plans/active/PORTFOLIO-STATUS/implementation.md`.  
+- If doc edits uncover merge conflicts (e.g., someone else already edited Tier 0), keep the files unmerged and log the conflict in `galph_memory.md`; do not guess at the intended content.
 
 ## Findings Applied
-No relevant findings in the knowledge base.
+No relevant findings in the knowledge base (grep for “PORTFOLIO-STATUS” returned no matches in docs/findings.md).
 
 ## Pointers
-- `docs/fix_plan.md:24` — Tier 0 entry describing Phase F scope.
-- `plans/active/PORTFOLIO-STATUS/implementation.md:95` — Phase F checklist/notes.
-- `problems.md:1` — Stale-plan directive that this work services.
-- `docs/fix_plan_archive_2025-12-02.md:53` — ARCH-BRIDGE-RESP-001 archive log that needs updated paths.
-- `plans/active/PORTFOLIO-STATUS/bin/plan_inventory.py:1` — Guard script referenced in this loop.
+- `docs/fix_plan.md:21` — Tier 0 entry + Attempts History that must be updated.  
+- `docs/fix_plan.md:640` — Plan Directory Inventory appendix requiring the new counts.  
+- `plans/active/PORTFOLIO-STATUS/implementation.md:1` — Plan header/Phase F text to align.  
+- `plans/active/PORTFOLIO-STATUS/reports/2025-12-07T220000Z/summary.md` — Final inventory evidence you’re referencing.  
+- `problems.md:34` — Directive describing the stale-plan inventory work you’re closing.
 
 ## Next Up (optional)
-- Continue Phase F by archiving `plans/active/ARCH-REFINE-001` once this loop lands cleanly.
+If you finish early, prep the archive move for `plans/active/ARCH-REFINE-001` so the stale plan directories list keeps shrinking.

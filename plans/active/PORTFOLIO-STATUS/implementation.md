@@ -1,6 +1,6 @@
 # Implementation Plan — PORTFOLIO-STATUS: Plan/Fix-Plan Synchronization
 
-**Status:** in_progress  
+**Status:** done  
 **Owner:** Galph ↔ Ralph  
 **Initiative Type:** housekeeping (docs/process)  
 **Artifacts Root:** `plans/active/PORTFOLIO-STATUS/reports/`
@@ -75,6 +75,22 @@
 - **E2 — ARCH-REFRACTOR-001 cleanup:** ✅ COMPLETE (2025-12-07T220000Z) — Removed duplicate stub directory `plans/active/ARCH-REFRACTOR-001/` (archive duplicate; canonical plan is ARCH-REFACTOR-001). Verified removal with `ls | grep ARCH-REFRACTOR` (empty output).
 - **E3 — Inventory rerun + ledger sync:** ✅ COMPLETE (2025-12-07T220000Z) — Reran guarded inventory with REPORT_TS=2025-12-07T220000Z; console output shows: Total=55 (down from 56), In fix_plan=28 (up from 23), Covered via rollups=34, Active missing=0, Missing implementation.md=0. Updated Plan Directory Inventory appendix: Summary section with new counts/percentages (≈51% tracked direct, ≈62% via rollups, 0 active_missing, 0 missing_plan), Roll-up Report path, Bucket Classification section. Updated `docs/fix_plan.md` PORTFOLIO-STATUS Attempts History with Phase E summary. Artifacts: `plans/active/PORTFOLIO-STATUS/reports/2025-12-07T220000Z/` (inventory.json, inventory_missing.md, rollup_report.md, plan_inventory.log).
 - **Status:** Initiative ready for closure. All active plan directories now have ledger or roll-up coverage (62 total tracked: 28 direct + 34 via rollups).
+
+### Closure (2025-12-08T150000Z)
+
+All Exit Criteria satisfied as documented in Phase E completion:
+
+1. **Exit Criterion 1 (Inventory automation):** ✅ Satisfied — `plans/active/PORTFOLIO-STATUS/bin/plan_inventory.py` emits machine-readable `inventory.json` + human-oriented markdown reports with initiative ID, fix_plan.md presence, implementation.md existence, latest report timestamp, and suggested action. Roll-up awareness added in Phase D enables tracking via membership. Final inventory (`plans/active/PORTFOLIO-STATUS/reports/2025-12-07T220000Z/`) shows 55 total plans, 28 tracked directly, 34 via rollups, 0 active_missing, 0 missing_plan.
+
+2. **Exit Criterion 2 (Ledger/archive coverage):** ✅ Satisfied — All 55 plan directories are either (a) tracked in `docs/fix_plan.md` Tier 0-4 with up-to-date metadata (status, initiative type, artifacts path), (b) represented via 13 roll-up sections (DB-AT-SUITE-CARE-001, MAP-SCALE-SYNC-001, PHYSICS-LOSS-001, TORCH-GEOMETRY-SYNC-001, TORCH-REFINE-CLEANUP-001, TORCH-CLI-BRIDGE-ROLLUP-001, FORWARD-EQUIV-COVERAGE-001, plus 6 others), or (c) archived under `archive/plans/` with cross-references (e.g., ARCH-REFRACTOR-001 stub removed in Phase E).
+
+3. **Exit Criterion 3 (Plan Directory Inventory appendix):** ✅ Satisfied — `docs/fix_plan.md` Plan Directory Inventory appendix (lines 651-708 at time of closure) references the latest inventory artifact (`plans/active/PORTFOLIO-STATUS/reports/2025-12-07T220000Z/`) with Summary, Roll-up Report path, and Bucket Classification section showing 100% coverage. No outstanding remediation items.
+
+4. **Exit Criterion 4 (Ledger/memory breadcrumbs):** ✅ Satisfied — `docs/fix_plan.md` Tier 0 entry and Attempts History (lines 27, 576-588) document initiative lifecycle and point to `plans/active/PORTFOLIO-STATUS/reports/2025-12-07T220000Z/` as final inventory evidence. This closure documented in 2025-12-08T150000Z Attempts History entry.
+
+**Future Maintenance:** Inventory reruns follow `docs/fix_plan.md` Working Agreements guardrail (lines 9-11): `python plans/active/PORTFOLIO-STATUS/bin/plan_inventory.py --plans-root plans/active --fix-plan docs/fix_plan.md --rollup-config plans/active/PORTFOLIO-STATUS/rollups.json --out-dir plans/active/PORTFOLIO-STATUS/reports/<NEW_TIMESTAMP>/`. Do not skip `--rollup-config`; missing rollup_report.md or roll-up validation failures invalidate the guard.
+
+Artifacts: `plans/active/PORTFOLIO-STATUS/reports/2025-12-08T150000Z/summary.md`.
 
 ## Abort / Escalation Criteria
 - If more than 5 plan directories lack implementation plans or contain partial data, pause after Phase A and escalate via `docs/fix_plan.md` (open a spec-change or tooling initiative to repair the planning pipeline).  

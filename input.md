@@ -1,55 +1,50 @@
-Summary: Align Stage A's masked-intensity baseline with the observed data so DB-AT-028/029 stop railroading the global scale delta into the clamp.
+Summary: Nudge Stage A's log_scale baseline to match masked target intensity so DB-AT-028/029 stop clamping at +3 and reconstruction inherits the correct scale.
 Mode: Parity
 InitiativeType: architecture
 Focus: ARCH-SIM-CONSTRUCTION-001 — Simulator Construction Convention Alignment
 Branch: main
-Mapped tests: pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029"
-Artifacts: plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-12T210000Z/
+Mapped tests: tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028, tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029
+Artifacts: plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-13T010000Z/
 
 Do Now:
-- Implement: dbex/refinement/stage_a.py::_build_stage_a_params — when a warm StageAContext exists, always compute `target_mean_masked` / `model_mean_masked`, adjust `log_scale_baseline` by `np.log(target/model)` (or set it when calibration metadata is absent), refresh `config.log_scale_baseline`, and propagate the new baseline into StageAContext/telemetry so zero-iteration Stage A predictions already match the masked target.
-- Validate: tests/dbex/test_stage_a_smoke_parity.py::{test_db_at_028_loss_scale_sanity,test_db_at_029_intensity_roi_corr} — rerun the Stage A parity selectors with the calibrated detector-size=small fixture and capture logs/JSON under the new report directory.
+- Implement: dbex/refinement/stage_a.py::StageA.run — whenever the warm cache exists, tensorize `inputs.target`/`inputs.loss_mask`, run the zero-iteration simulators, compute masked target/model means on the correct device, and add `log(target/model)` to `log_scale_baseline` (or set it outright when calibration metadata is absent). Update `StageAContext.log_scale_baseline`, `config.log_scale_baseline`, `param_values['log_scale_baseline_source']`, and telemetry so reconstruction and later stages read the corrected baseline.
+- Update: dbex/refinement/stage_a.py::StageA.run — ensure the adjusted baseline propagates through `_build_stage_a_context`, `stage_a_ctx`, and the returned telemetry so cold-path reconstruction rebuilds `bragg_before/bragg_after` with the aligned scale (no Stage B/C changes this loop).
+- Validate: capture a fresh scale-alignment probe plus DB-AT-028/029 runs with artifacts under `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-13T010000Z/`; the probe should show `log_scale_delta_clamped≈0` and the tests must hit `chi²/pixel ≤ 1e2` and median ROI corr ≥ 0.2.
 
 How-To Map:
-1. export REPORT_DIR=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-12T210000Z && mkdir -p "$REPORT_DIR"/scale_probe "$REPORT_DIR"/db_at_028 "$REPORT_DIR"/db_at_029
-2. AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-   DBEX_SMOKE_DETECTOR_SIZE=small \
-   KMP_DUPLICATE_LIB_OK=TRUE \
-   NANOBRAGG_DISABLE_COMPILE=1 \
+1. `mkdir -p plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-13T010000Z/{scale_probe,db_at_028,db_at_029}`
+2. `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_CALIB_PATH=sp.proc/calibration/config_torch_smoke_small.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
    python plans/active/ARCH-SIM-CONSTRUCTION-001/bin/probe_stage_a_scale_alignment.py \
      --detector-size small \
+     --calibration-config sp.proc/calibration/config_torch_smoke_small.json \
      --device cpu \
-     --output "$REPORT_DIR"/scale_probe/stage_a_scale_alignment.json \
-     | tee "$REPORT_DIR"/scale_probe/probe_run.log
-3. AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-   DBEX_SMOKE_SIGMA_SOURCE=cli_override \
-   DBEX_SMOKE_DETECTOR_SIZE=small \
-   DBAT028_ARTIFACT_DIR="$REPORT_DIR"/db_at_028 \
-   DBAT029_ARTIFACT_DIR="$REPORT_DIR"/db_at_029 \
-   KMP_DUPLICATE_LIB_OK=TRUE \
-   NANOBRAGG_DISABLE_COMPILE=1 \
+     --out-dir plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-13T010000Z/scale_probe`
+3. `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBAT028_ARTIFACT_DIR=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-13T010000Z/db_at_028 DBAT029_ARTIFACT_DIR=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-13T010000Z/db_at_029 DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
    pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" \
-   | tee "$REPORT_DIR"/pytest_db_at_028_029.log
+   | tee plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-13T010000Z/pytest_db_at_028_029.log`
 
 Pitfalls To Avoid:
-- Do not reintroduce the removed `* sqrt_spot_scale` term inside reconstruction; only Stage A's baseline logic should change.
-- Keep `config.log_scale_baseline` and `StageAContext.log_scale_baseline` in sync so Stage B/C and reconstruction consume the corrected baseline.
-- Preserve the existing guarded fallback for uncalibrated runs (baseline stays `None` until a ratio > 0 is observed).
-- Use the same masked tensors (`inputs.target`, `inputs.loss_mask`) that drive the loss so the ratio reflects the real optimization pixels.
-- Avoid hard-coding detector size or ROI counts—respect the config flags already in RefinementConfig.
-- Capture fresh artifacts even if pytest keeps failing; we need the updated telemetry JSON/logs in the reserved report dir.
+- Do not touch Stage B/C or reconstruction scaling this loop; the fix lives entirely inside Stage A baseline math.
+- Keep all tensor math device/dtype neutral (use Stage A’s `device`/`dtype` and fall back to NumPy if tensorization fails).
+- Only add the masked-intensity adjustment when both means are positive; guard against zero, NaN, or inf inputs.
+- Preserve existing telemetry keys and `StageAContext` fields so downstream consumers and scripts keep working.
+- Do not relax `log_scale_max_delta` or other clamps; fixing the baseline is the goal, not widening bounds.
+- Leave environment/toolchain untouched per Environment Freeze; if a dependency is missing, stop and log the block.
+- Ensure artifact dirs exist before running scripts/tests so logs land in the expected report tree.
+- Keep ROI/panel sampling logic unchanged; the adjustment should work for both ROI and panel modes.
 
 If Blocked:
-- If `target_mean_masked` or `model_mean_masked` still come back `None`, log the exception stack plus the computed statistics to `$REPORT_DIR/blocker.txt`, leave `log_scale_baseline` untouched, set `next_action=diagnostics` in galph_memory, and pause implementation for supervisor review.
-- If DB-AT-028/029 still fail with the same chi² signature after the baseline change, keep the new pytest log + telemetry JSON, note the recorded `log_scale_effective` values in `$REPORT_DIR/db_at_028/db_at_028_metrics.json`, and flag the next loop as needing spec-change triage before touching reconstruction again.
+- If masked means cannot be computed (e.g., warm cache disabled or tensor conversion fails), log the exact exception, capture the partial telemetry in the probe JSON, and update `docs/fix_plan.md` + Attempts History with the evidence before re-queuing the work.
+- If DB-AT-028/029 still clamp `log_scale_delta` after the baseline change, keep the failing telemetry JSON + pytest log under the new report dir and ping Galph so we can decide whether to escalate (spec-change vs wider baseline instrumentation).
 
 Findings Applied:
-- SCALE-009 — Reconstruction must follow Stage A's calibrated scale telemetry; this loop adjusts the Stage A baseline so the telemetry itself encodes the correct masked intensity before reconstruction consumes it.
+- docs/findings.md:41 (SCALE-008) — Stage A must honor a mapping-provided or measured baseline so we avoid double-applying `spot_scale_override`.
+- docs/findings.md:42 (SCALE-009) — Reconstruction already trusts Stage A telemetry; keep that path untouched and focus on delivering a correct baseline upstream.
 
 Pointers:
-- docs/spec-db-core.md §Objective Function & Variance Model — canonical definition of masked loss and calibration ladder.
-- docs/config_crosswalk.md §Calibration & Unit Conventions — source-of-truth for `spot_scale_override`, sigma precedence, and scaling order.
-- plans/active/ARCH-SIM-CONSTRUCTION-001/implementation.md §Phase C.8 — detailed checklist for the baseline alignment fix.
+- docs/fix_plan.md:133 — Initiative overview and Attempts History for ARCH-SIM-CONSTRUCTION-001.
+- plans/active/ARCH-SIM-CONSTRUCTION-001/implementation.md:313 — Phase C.7 summary and the Phase C.8 checklist you are executing now.
+- docs/spec-db-workflow.md:100 — Stage A pipeline contract (nearest-neighbor simulator + variance-weighted loss expectations).
 
-Next Up:
-- If the small-detector selectors pass quickly, rerun the full-detector variant (`DBEX_SMOKE_DETECTOR_SIZE=full`) to confirm the baseline change behaves on the canonical dataset before resuming ARCH-REFACTOR-001 Phase D.3.
+Next Up (optional):
+1. If DB-AT-028/029 pass with the new baseline, revisit `log_scale_max_delta` vs telemetry to decide whether we can tighten or document the clamp behavior before re-enabling Stage B/C validations.

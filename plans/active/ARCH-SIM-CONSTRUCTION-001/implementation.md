@@ -277,22 +277,38 @@ Result: Stage A and `simulate_forward_once` raw means match while reconstruction
 (`stage_a_vs_reconstruction=0.846821`, `reconstruction_vs_mapping=1.180887`), proving the cold-path
 simulator ignores the trusted mask (spec-db-core.md §Data Contracts) during construction. Tests
 were skipped until we add `DBAT028_ARTIFACT_DIR`/`DBAT029_ARTIFACT_DIR`, so the next loop must
-re-run them with the artifact env vars enabled after fixing reconstruction.
+re-run them with the artifact env vars enabled after fixing reconstruction. 2025-12-10T090000Z loop
+implemented the mask coverage guard + diagnostics (coverage ≥90% recorded in
+`mask_coverage.json`), but DB-AT-028/029 still fail with identical chi²/pixel signatures and
+`bragg_panel` raw means ~3.4e-14. Instrumentation shows the reconstruction helper never re-applies
+the `apply_calibration_n_cells` gate, so cold-path simulators drop the DiffBragg `N_cells`
+amplitude boost even when Stage A/mapping leave the gate enabled. Next attempt must propagate
+`config.apply_calibration_n_cells` + `N_cells` into the reconstruction-crystal override path so
+raw outputs match Stage A/mapping before re-running the probe + selectors.
 
-#### C.6 — Trusted-mask parity (Planned)
-- [ ] **Wire panel trusted masks into reconstruction cold path:**
+#### C.6 — Trusted-mask & N_cells parity (In Progress)
+- [x] **Wire panel trusted masks into reconstruction cold path:**
   - Update `dbex/refinement/reconstruction.py::build_final_bragg_from_stage_a_telemetry`
     so each `create_detector_config(...)` call receives `inputs.trusted_mask[pid]`, matching the
     Stage A warm-cache construction (`stage_a_utils._build_stage_a_context`). Ensure the helper
-    gracefully handles cases where `inputs.trusted_mask` is `None`.
-- [ ] **Re-run the intensity probe:**
-  - `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_simulator_outputs.py --detector-size small --device cpu --output plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-03T161601Z/simulator_intensity_metrics.json`
-  - Expect `stage_a_vs_reconstruction ≈ 1.0` after mask parity is restored; capture JSON + summary.
-- [ ] **Validate DB-AT-028/029 with artifact dirs:**
-  - `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBAT028_ARTIFACT_DIR=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-03T161601Z/db_at_028 DBAT029_ARTIFACT_DIR=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-03T161601Z/db_at_029 DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k \"DB_AT_028 or DB_AT_029\" | tee plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-03T161601Z/pytest_db_at_028_029.log`
+    gracefully handles cases where `inputs.trusted_mask` is `None`. (Complete — artifacts in
+    `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-10T090000Z/`.)
+- [ ] **Propagate the `apply_calibration_n_cells` gate into reconstruction crystal overrides:**
+  - Extract `N_cells` + `apply_calibration_n_cells` from `config.calibration_metadata` /
+    `RefinementConfig`, pass them into the top-level `create_crystal_config(...)` call so both warm
+    and cold paths apply (or suppress) DiffBragg domain counts exactly like Stage A context +
+    `simulate_forward_once`. Record `n_cells_applied` and suppression reason in the debug output so
+    telemetry parity can be verified in future loops.
+- [ ] **Re-run the intensity probe after N_cells parity fix:**
+  - `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_simulator_outputs.py --detector-size small --device cpu --output plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-10T150000Z/simulator_intensity_metrics.json`
+  - Expect `stage_a_vs_reconstruction ≈ 1.0` once trusted masks **and** N_cells gating match Stage A;
+    capture JSON + summary proving raw/scale-aligned outputs.
+- [ ] **Validate DB-AT-028/029 with artifact dirs after the fix:**
+  - `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBAT028_ARTIFACT_DIR=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-10T150000Z/db_at_028 DBAT029_ARTIFACT_DIR=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-10T150000Z/db_at_029 DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k \"DB_AT_028 or DB_AT_029\" | tee plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-10T150000Z/pytest_db_at_028_029.log`
   - Tests must collect (no skips) and produce chi²/pixel ≤ 1e2 with ROI CC ≥ 0.2 once parity is restored.
 
-**Artifacts:** `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-03T161601Z/{simulator_intensity_metrics.json,summary.md,pytest_db_at_028_029.log}`
+**Artifacts:** `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-10T090000Z/{mask_coverage.json,pytest_db_at_028_029.log,summary.md}`,
+`plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-10T150000Z/{simulator_intensity_metrics.json,summary.md,pytest_db_at_028_029.log}`
 
 ---
 

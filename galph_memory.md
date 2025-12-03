@@ -2086,3 +2086,24 @@ Threaded `inputs.trusted_mask[pid]` into reconstruction.py:190-202 cold-path `cr
 - ready_for_implementation — Add the mask coverage diagnostics/fallback, update the simulator comparison probe to use the reconstruction helper, and rerun DB-AT-028/029 with the new evidence so we can choose between keeping or reverting mask injection.
 
 Action State: ready_for_implementation
+
+## Loop 2025-12-10T150000Z
+
+**Focus**: ARCH-SIM-CONSTRUCTION-001 — Simulator Construction Convention Alignment (Phase C.6 gating fix)
+**State**: ready_for_implementation
+**Dwell**: 0 (new implementation hand-off after two diagnostic loops)
+**Action Type**: planning
+**Initiative Type**: architecture
+
+**Key Observations**:
+1. Mask coverage diagnostics from 2025-12-10T090000Z prove trusted masks are injected (90.4% coverage) yet DB-AT-028/029 still fail with raw simulator means ~3.4e-14 vs the expected ~2.7e-09 from `simulate_forward_once`.
+2. Reconstruction’s `create_crystal_config(...)` call never propagates `config.apply_calibration_n_cells` or `N_cells`, so cold-path simulators drop DiffBragg domain counts even when Stage A/mapping leave the gate enabled; this explains the four-order-of-magnitude raw intensity gap.
+3. Next loop must thread the gate + N_cells payload into `build_final_bragg_from_stage_a_telemetry`, then rerun the simulator comparison probe and DB-AT-028/029 with artifacts under `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-10T150000Z/` to confirm chi²/ROI parity.
+
+**Artifacts Path**: `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-10T150000Z/`
+
+**Next Actions**:
+- Ralph: implement the `apply_calibration_n_cells`/`N_cells` gating in `dbex/refinement/reconstruction.py`, regenerate simulator comparison metrics, and rerun DB-AT-028/029 with artifact dirs per the new input.md.
+- If the gating fix still leaves raw magnitudes mismatched, capture the updated probe JSON + reconstruction DEBUG block before escalating.
+
+**Action State**: ready_for_implementation — Do Now issued with concrete code edits, probe, and pytest steps so the next engineer loop can execute immediately.

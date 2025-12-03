@@ -1,420 +1,356 @@
-# Input for Ralph (Loop 2025-12-03T050000Z)
+# Input for Ralph (Loop 2025-12-02T224500Z)
 
 ## Summary
-Thread `oversample` parameter through RefinementConfig and warm simulator context creation to fix 290/292 DetectorConfig instances having wrong default value.
+Investigate why simulator produces all-zero Bragg output despite correct scale factors and oversample parameters.
 
 ## Mode
-none (diagnostics: config lifecycle fix per Phase C plan)
+none (evidence collection: zero-output root cause investigation)
 
 ## InitiativeType
-diagnostics
+architecture
 
 ## Focus
-DIAG-NANOBRAGG-OVERSAMPLE-001 — nanobrag_torch oversample parameter investigation (Phase C: config lifecycle fix)
+ARCH-SIM-CONSTRUCTION-001 — Simulator Construction Convention Alignment (Phase D: Zero-Output Investigation)
 
 ## Branch
 integration
 
 ## Mapped tests
-- `tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity` (will validate oversample=3 preserved across 292 instances, chi²/pixel ≤1e2)
-- `tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity` (will validate ROI correlation ≥0.2)
-- `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` (regression check for warm context changes)
+- `tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity` (validates non-zero simulator output)
+- `tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity` (validates ROI correlation)
+- `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` (validates LBFGS parameter movement)
 
 ## Artifacts
-`plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T050000Z/`
-- `phase_c_planning.md` (supervisor-side analysis, already created)
-- `refinement_config_oversample.patch` (config field addition)
-- `stage_a_utils_oversample.patch` (config threading)
-- `pytest_db_at_028_debug.log` (debug validation: 292/292 oversample=3)
-- `pytest_db_at_028_029_clean.log` (clean validation: both PASS)
+`plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-02T224500Z/`
+- `zero_output_diagnostics.json` (HKL/crystal/beam/detector diagnostics)
+- `probe_run.log` (probe execution log)
+- `zero_output_analysis.md` (root cause analysis)
 - `summary.md` (loop summary)
 
 ## Do Now
 
-**Context**: Phase B deep copy fix was insufficient—it prevents mutation WITHIN Detector instances but doesn't address the real problem: 290/292 DetectorConfig instances created with default `oversample=-1` instead of explicit `oversample=3`. Supervisor-side analysis identified 6 call sites in `stage_a_utils.py` where `create_detector_config()` is called without passing the `oversample` parameter.
-
-**Fix Strategy**: Thread `oversample` through `RefinementConfig` (job-level config) → warm simulator context builders → `create_detector_config` calls.
-
-### Task C.1: Add oversample field to RefinementConfig
-
-**File**: `dbex/refinement/config.py`
-
-**Change**: Add new field after line 74 (after `enable_stage_a_warm_cache` field):
-
-```python
-# nanobrag_torch oversampling (DIAG-NANOBRAGG-OVERSAMPLE-001 Phase C)
-# Oversampling factor for detector simulation (1, 2, 3, ...).
-# Default 3 matches calibration metadata standard and prevents auto-selection.
-# -1 triggers auto-selection based on detector size (not recommended for reproducibility).
-oversample: int = 3
+**Context**: DIAG-NANOBRAGG-OVERSAMPLE-001 Phase C successfully threaded oversample=3 to all 292 DetectorConfig instances, but DB-AT-028 reveals simulator producing all-zero Bragg output. Debug evidence shows:
+```
+log_scale_baseline_value: 20.138489594990745
+scale_factor (after exp): 557230080.0          ← CORRECT
+bragg_panel[0] mean (raw sim output): 0.000000e+00  ← PROBLEM
+bragg_panel[0] max: 0.000000e+00                    ← PROBLEM
 ```
 
-**Validation**: Field added, no syntax errors
+Scale factors are correct, oversample is correct (3, not -1), but simulator produces no diffraction signal. This is a **NEW BLOCKER** distinct from the oversample issue.
 
-### Task C.2: Update _build_stage_a_context signature
+**Investigation Strategy**: Create minimal standalone diagnostic probe to identify which component (HKL grid / crystal / beam / detector) is zero or invalid.
 
-**File**: `dbex/refinement/stage_a_utils.py`
+### Task D.1: Create diagnostic probe script
 
-**Find the function signature** (around line 220-240):
-```python
-def _build_stage_a_context(
-    detector,
-    beam,
-    hkl_grid,
-    hkl_metadata,
-    crystal_model,
-    beam_config,
-    trusted_mask,
-    roi_sample_fraction: float = 0.15,
-    panel_slices=None,
-    device: str = "cpu",
-    dtype=torch.float32,
-) -> StageAContext:
-```
+**File**: `plans/active/ARCH-SIM-CONSTRUCTION-001/bin/diagnose_zero_output.py`
 
-**Add config parameter**:
-```python
-def _build_stage_a_context(
-    detector,
-    beam,
-    hkl_grid,
-    hkl_metadata,
-    crystal_model,
-    beam_config,
-    trusted_mask,
-    roi_sample_fraction: float = 0.15,
-    panel_slices=None,
-    device: str = "cpu",
-    dtype=torch.float32,
-    config: Optional['RefinementConfig'] = None,  # DIAG-NANOBRAGG-OVERSAMPLE-001
-) -> StageAContext:
-```
+**Content**: Copy the complete Python script from the How-To Map section below (labeled "COMPLETE PROBE SCRIPT TEMPLATE")
 
-**Add import** at top of file (around line 10-20, after other imports):
-```python
-from typing import Optional, TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from dbex.refinement.config import RefinementConfig
-```
-
-**Add default value extraction** at start of function body (after docstring, before any logic):
-```python
-# Extract oversample from config or use default (DIAG-NANOBRAGG-OVERSAMPLE-001)
-oversample_value = 3  # Default fallback
-if config is not None:
-    oversample_value = config.oversample
-```
-
-### Task C.3: Pass oversample to create_detector_config (4 call sites in _build_stage_a_context)
-
-**Call site 1** (around line 286-290, panel-mode simulators):
-```python
-# OLD:
-detector_config = create_detector_config(
-    panel=panel,
-    beam=beam,
-    trusted_mask=trusted_mask[pid]
-)
-
-# NEW:
-detector_config = create_detector_config(
-    panel=panel,
-    beam=beam,
-    trusted_mask=trusted_mask[pid],
-    oversample=oversample_value,  # DIAG-NANOBRAGG-OVERSAMPLE-001
-)
-```
-
-**Call site 2** (around line 326-331, ROI-mode simulators):
-```python
-# OLD:
-detector_config = create_detector_config(
-    panel=panel,
-    beam=beam,
-    trusted_mask=trusted_mask[int(pid)],
-    roi_bbox=bbox,
-)
-
-# NEW:
-detector_config = create_detector_config(
-    panel=panel,
-    beam=beam,
-    trusted_mask=trusted_mask[int(pid)],
-    roi_bbox=bbox,
-    oversample=oversample_value,  # DIAG-NANOBRAGG-OVERSAMPLE-001
-)
-```
-
-### Task C.4: Update _compute_panel_loss signature and cold-path calls
-
-**Find the function signature** (around line 400-420):
-```python
-def _compute_panel_loss(
-    # ... existing parameters ...
-) -> Tuple[torch.Tensor, torch.Tensor, int, int]:
-```
-
-**Add config parameter** (keep existing parameters, just add at end):
-```python
-def _compute_panel_loss(
-    # ... existing parameters ...
-    config: Optional['RefinementConfig'] = None,  # DIAG-NANOBRAGG-OVERSAMPLE-001
-) -> Tuple[torch.Tensor, torch.Tensor, int, int]:
-```
-
-**Add default value extraction** at start of function body:
-```python
-# Extract oversample from config or use default (DIAG-NANOBRAGG-OVERSAMPLE-001)
-oversample_value = 3
-if config is not None:
-    oversample_value = config.oversample
-```
-
-**Call site 3** (around line 480-484, cold-path diagnostic branch):
-```python
-# OLD:
-detector_config = create_detector_config(
-    panel=detector[pid],
-    beam=beam,
-    trusted_mask=panel_trusted_mask
-)
-
-# NEW:
-detector_config = create_detector_config(
-    panel=detector[pid],
-    beam=beam,
-    trusted_mask=panel_trusted_mask,
-    oversample=oversample_value,  # DIAG-NANOBRAGG-OVERSAMPLE-001
-)
-```
-
-**Call site 4** (around line 572-576, cold-path fast-path branch):
-```python
-# OLD:
-detector_config = create_detector_config(
-    panel=detector[pid],
-    beam=beam,
-    trusted_mask=panel_trusted_mask
-)
-
-# NEW:
-detector_config = create_detector_config(
-    panel=detector[pid],
-    beam=beam,
-    trusted_mask=panel_trusted_mask,
-    oversample=oversample_value,  # DIAG-NANOBRAGG-OVERSAMPLE-001
-)
-```
-
-### Task C.5: Update all callers of _build_stage_a_context and _compute_panel_loss
-
-**Find all callers using grep**:
-```bash
-cd /home/ollie/Documents/diffbragg_example
-grep -n "_build_stage_a_context(" dbex/refinement/*.py
-grep -n "_compute_panel_loss(" dbex/refinement/*.py
-```
-
-**For each caller**: Add `config=config` parameter to the function call.
-
-**Expected callers**:
-- `dbex/refinement/stage_a.py` (StageA.run) - should have access to `self.config` or similar
-- Possibly `dbex/refinement/stage_a_utils.py` (if _compute_panel_loss calls _build_stage_a_context)
-
-**Pattern**:
-```python
-# OLD:
-stage_a_ctx = _build_stage_a_context(
-    detector=detector,
-    beam=beam,
-    # ... other args ...
-)
-
-# NEW:
-stage_a_ctx = _build_stage_a_context(
-    detector=detector,
-    beam=beam,
-    # ... other args ...
-    config=config,  # DIAG-NANOBRAGG-OVERSAMPLE-001
-)
-```
-
-### Task C.6: Debug validation (keep nanobrag instrumentation)
-
-**Purpose**: Verify that ALL 292 DetectorConfig instances now have `oversample=3`
+### Task D.2: Run diagnostic probe
 
 **Command**:
 ```bash
 cd /home/ollie/Documents/diffbragg_example
-AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-DBEX_SMOKE_SIGMA_SOURCE=metadata \
-DBEX_SMOKE_DETECTOR_SIZE=full \
-KMP_DUPLICATE_LIB_OK=TRUE \
-NANOBRAGG_DISABLE_COMPILE=1 \
-pytest -vv -s tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity > plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T050000Z/pytest_db_at_028_debug.log 2>&1
+mkdir -p plans/active/ARCH-SIM-CONSTRUCTION-001/bin
+mkdir -p plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-02T224500Z
+
+# Copy script from template below
+# Then run:
+python plans/active/ARCH-SIM-CONSTRUCTION-001/bin/diagnose_zero_output.py \
+    --output plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-02T224500Z/ \
+    > plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-02T224500Z/probe_run.log 2>&1
 ```
 
-**Expected debug output pattern** (should see this for ALL 292 runs):
-```
-[DIAG-OVERSAMPLE] self.detector.config.oversample=3
-```
+**Expected**: JSON file with diagnostics showing which component is zero
 
-**Should NOT see**:
-- `[DIAG-OVERSAMPLE] self.detector.config.oversample=-1`
-- `[DIAG-OVERSAMPLE] Entering auto-selection branch`
+### Task D.3: Analyze results
 
-**Analysis**:
-```bash
-grep "oversample=3" plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T050000Z/pytest_db_at_028_debug.log | wc -l
-# Expected: 292 (not 2!)
+Create `zero_output_analysis.md` identifying root cause:
+- Which component is broken (HKL grid / crystal / beam / detector)?
+- Evidence from diagnostics JSON
+- Hypothesis for why it's broken
+- Recommended fix
 
-grep "oversample=-1" plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T050000Z/pytest_db_at_028_debug.log | wc -l
-# Expected: 0
+**Template**:
+```markdown
+# Zero-Output Root Cause Analysis
 
-grep "Entering auto-selection" plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T050000Z/pytest_db_at_028_debug.log | wc -l
-# Expected: 0
-```
+## Probe Results
 
-**Document findings** in `debug_validation.md`:
-- Count of oversample=3 instances (should be 292/292)
-- Count of oversample=-1 instances (should be 0)
-- Test outcome (PASS or FAIL with chi²/pixel value)
+[Paste key statistics from zero_output_diagnostics.json]
 
-### Task C.7: Remove nanobrag debug instrumentation (if debug validation successful)
+**HKL Grid**:
+- Nonzero count: X / Y elements
+- Sum: Z
+- Max: W
 
-**ONLY proceed if Task C.6 showed 292/292 oversample=3**
+**Crystal**: a=X Å, n_cells=Y
+**Beam**: λ=X Å, flux=Y
+**Detector**: distance=X mm, oversample=Y
 
-**File**: `/home/ollie/Documents/diffbragg_example_2/diffbragg_example/src/nanobrag-torch/src/nanobrag_torch/simulator.py`
+**Simulator Output**:
+- Mean: X
+- Max: Y
+- Nonzero pixels: Z / W
 
-Remove all `[DIAG-OVERSAMPLE]` debug print statements added in Phase A (around lines 770-790).
+## Root Cause
 
-**Rebuild nanobrag_torch**:
-```bash
-cd /home/ollie/Documents/diffbragg_example_2/diffbragg_example/src/nanobrag-torch
-pip install -e . > /home/ollie/Documents/diffbragg_example/plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T050000Z/nanobragg_rebuild_clean.log 2>&1
-```
+**Broken Component**: [name]
+**Evidence**: [specific diagnostic value]
+**Hypothesis**: [why this is zero]
 
-### Task C.8: Clean validation (WITHOUT debug instrumentation)
+## Recommended Fix
 
-**Command**:
-```bash
-cd /home/ollie/Documents/diffbragg_example
-AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-DBEX_SMOKE_SIGMA_SOURCE=metadata \
-DBEX_SMOKE_DETECTOR_SIZE=full \
-KMP_DUPLICATE_LIB_OK=TRUE \
-NANOBRAGG_DISABLE_COMPILE=1 \
-pytest -vv tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity > plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T050000Z/pytest_db_at_028_029_clean.log 2>&1
+[Specific changes needed]
+
+## Next Steps
+
+[Implementation plan or escalation path]
 ```
 
-**Expected**: Both tests PASS
-- DB-AT-028: `chi²/pixel initial ≤ 1e2` (baseline was 1.091e+05, ~1091× over bound)
-- DB-AT-029: `median ROI correlation before ≥ 0.2` (baseline was -0.037)
+### Task D.4: Write summary
 
-**If tests FAIL**: Document failure signature and escalate to Galph. Oversample fix may not be the only issue.
-
-### Task C.9: Regression check
-
-**Command**:
-```bash
-cd /home/ollie/Documents/diffbragg_example
-AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-KMP_DUPLICATE_LIB_OK=TRUE \
-NANOBRAGG_DISABLE_COMPILE=1 \
-pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion > plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T050000Z/pytest_stage_a_expansion.log 2>&1
-```
-
-**Expected**: PASS (no regression from threading `config` parameter)
-
-### Task C.10: Create patch files
-
-**For RefinementConfig change**:
-```bash
-cd /home/ollie/Documents/diffbragg_example
-git add dbex/refinement/config.py
-git diff --cached dbex/refinement/config.py > plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/patches/refinement_config_oversample.patch
-git reset HEAD dbex/refinement/config.py
-```
-
-**For stage_a_utils changes**:
-```bash
-git add dbex/refinement/stage_a_utils.py
-git diff --cached dbex/refinement/stage_a_utils.py > plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/patches/stage_a_utils_oversample.patch
-git reset HEAD dbex/refinement/stage_a_utils.py
-```
-
-**For any other changed files** (callers):
-```bash
-git add dbex/refinement/stage_a.py  # If modified
-git diff --cached dbex/refinement/stage_a.py > plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/patches/stage_a_caller_oversample.patch
-git reset HEAD dbex/refinement/stage_a.py
-```
-
-### Task C.11: Update docs/findings.md
-
-Find the `[DIAG-OVERSAMPLE-001]` entry and update it with Phase C resolution details (see Pointers section for template).
-
-### Task C.12: Write loop summary
-
-Create `summary.md` documenting Phase C implementation complete, validation results, and unblocked initiatives.
+Create `summary.md` documenting findings and next steps
 
 ## How-To Map
 
-### Step-by-step execution order:
+### COMPLETE PROBE SCRIPT TEMPLATE
 
-1. **Add oversample field** to RefinementConfig (Task C.1)
-2. **Update _build_stage_a_context signature** and add oversample extraction (Task C.2)
-3. **Pass oversample to 4 create_detector_config calls** in _build_stage_a_context (Task C.3)
-4. **Update _compute_panel_loss signature** and pass oversample to 2 cold-path calls (Task C.4)
-5. **Find and update all callers** of _build_stage_a_context and _compute_panel_loss (Task C.5)
-6. **Debug validation** with nanobrag instrumentation (Task C.6), analyze counts
-7. **Remove nanobrag debug prints** if validation successful (Task C.7)
-8. **Clean validation** both DB-AT-028/029 (Task C.8)
-9. **Regression check** Stage A expansion (Task C.9)
-10. **Create patch files** for all changed files (Task C.10)
-11. **Update findings.md** with Phase C resolution (Task C.11)
-12. **Write summary.md** (Task C.12)
+Save this to `plans/active/ARCH-SIM-CONSTRUCTION-001/bin/diagnose_zero_output.py`:
+
+```python
+#!/usr/bin/env python3
+"""
+Zero-output diagnostic probe for ARCH-SIM-CONSTRUCTION-001 Phase D.
+
+Identifies which component (HKL/crystal/beam/detector) causes zero simulator output.
+"""
+
+import argparse
+import json
+import sys
+from pathlib import Path
+
+import numpy as np
+import torch
+
+# Add repo root
+repo_root = Path(__file__).parent.parent.parent.parent
+sys.path.insert(0, str(repo_root))
+
+from dbex.data_load import DataLoad
+from dbex.nanobrag_bridge import (
+    build_structure_factor_grid,
+    create_beam_config,
+    create_crystal_config,
+    create_detector_config,
+)
+from nanobrag_torch import Simulator
+
+
+def diagnose_hkl_grid(hkl_grid, hkl_metadata):
+    grid_np = hkl_grid.detach().cpu().numpy()
+    return {
+        "shape": list(hkl_grid.shape),
+        "sum": float(grid_np.sum()),
+        "max": float(grid_np.max()),
+        "min": float(grid_np.min()),
+        "mean": float(grid_np.mean()),
+        "nonzero_count": int(np.count_nonzero(grid_np)),
+        "total_elements": int(grid_np.size),
+        "nonzero_fraction": float(np.count_nonzero(grid_np) / grid_np.size),
+        "metadata": hkl_metadata,
+    }
+
+
+def diagnose_crystal(crystal_config, crystal_model):
+    return {
+        "cell_a": float(crystal_config.a),
+        "cell_b": float(crystal_config.b),
+        "cell_c": float(crystal_config.c),
+        "n_cells": int(crystal_config.n_cells),
+        "has_missets": crystal_config.misset_deg is not None,
+        "original_unit_cell": [float(x) for x in crystal_model.get_unit_cell().parameters()],
+    }
+
+
+def diagnose_beam(beam_config, beam_model):
+    return {
+        "wavelength_angstrom": float(beam_config.wavelength),
+        "flux_photons": float(beam_config.flux) if beam_config.flux is not None else None,
+        "exposure_sec": float(beam_config.exposure) if beam_config.exposure is not None else None,
+        "polarization_fraction": float(beam_model.get_polarization_fraction()),
+    }
+
+
+def diagnose_detector(detector_config, panel):
+    return {
+        "pixel_size_mm": [float(x) for x in detector_config.pixel_size],
+        "distance_mm": float(detector_config.distance),
+        "oversample": int(detector_config.oversample),
+        "panel_size_pixels": [int(x) for x in panel.get_image_size()],
+    }
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--output", required=True)
+    args = ap.parse_args()
+
+    output_dir = Path(args.output)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Load fixture
+    from argparse import Namespace
+    data_args = Namespace(
+        exptName=str(repo_root / "refGeom.expt"),
+        reflName=str(repo_root / "refGeom.refl"),
+        exptIdx=0,
+        maskFile=str(repo_root / "747_mask.pkl"),
+        mtzFile=str(repo_root / "scaled.mtz"),
+        mtzCol="F,SIGF",
+    )
+
+    dataload = DataLoad(data_args)
+    detector = dataload.detector
+    beam = dataload.beam
+    crystal = dataload.crystal
+
+    # HKL grid
+    hkl_grid, hkl_metadata = build_structure_factor_grid(
+        crystal=crystal,
+        mtz_column_label="F,SIGF",
+        mtz_file_path=data_args.mtzFile,
+        enable_hkl_interpolation=False,
+        device="cpu",
+    )
+
+    hkl_diag = diagnose_hkl_grid(hkl_grid, hkl_metadata)
+    print(f"HKL: {hkl_diag['nonzero_count']}/{hkl_diag['total_elements']} nonzero, sum={hkl_diag['sum']:.3e}, max={hkl_diag['max']:.3e}")
+
+    # Crystal
+    crystal_config = create_crystal_config(
+        crystal=crystal,
+        misset_deg_override=None,
+        crystal_overrides={},
+    )
+    crystal_diag = diagnose_crystal(crystal_config, crystal)
+    print(f"Crystal: a={crystal_diag['cell_a']:.3f}Å, n_cells={crystal_diag['n_cells']}")
+
+    # Beam
+    beam_config = create_beam_config(beam=beam, beam_flux=None, beam_exposure=None, beamsize_mm=None)
+    beam_diag = diagnose_beam(beam_config, beam)
+    print(f"Beam: λ={beam_diag['wavelength_angstrom']:.6f}Å, flux={beam_diag['flux_photons']}")
+
+    # Detector
+    panel = detector[0]
+    detector_config = create_detector_config(
+        panel=panel,
+        beam=beam,
+        trusted_mask=np.ones(panel.get_image_size()[::-1], dtype=bool),
+        oversample=3,
+    )
+    detector_diag = diagnose_detector(detector_config, panel)
+    print(f"Detector: dist={detector_diag['distance_mm']:.1f}mm, oversample={detector_diag['oversample']}")
+
+    # Simulator
+    simulator = Simulator(
+        detector=detector_config,
+        beam=beam_config,
+        crystal=crystal_config,
+        hkl_grid=hkl_grid,
+        device="cpu",
+    )
+
+    bragg = simulator.run(oversample=None)
+    bragg_np = bragg.detach().cpu().numpy()
+
+    sim_diag = {
+        "mean": float(bragg_np.mean()),
+        "max": float(bragg_np.max()),
+        "min": float(bragg_np.min()),
+        "sum": float(bragg_np.sum()),
+        "nonzero_count": int(np.count_nonzero(bragg_np)),
+        "total_pixels": int(bragg_np.size),
+    }
+
+    print(f"Simulator: mean={sim_diag['mean']:.3e}, max={sim_diag['max']:.3e}, nonzero={sim_diag['nonzero_count']}/{sim_diag['total_pixels']}")
+
+    # Save
+    diagnostics = {
+        "hkl_grid": hkl_diag,
+        "crystal": crystal_diag,
+        "beam": beam_diag,
+        "detector": detector_diag,
+        "simulator_output": sim_diag,
+    }
+
+    output_path = output_dir / "zero_output_diagnostics.json"
+    output_path.write_text(json.dumps(diagnostics, indent=2))
+    print(f"\nDiagnostics → {output_path}")
+
+    # Verdict
+    if sim_diag["max"] == 0.0:
+        print("\n❌ ZERO OUTPUT CONFIRMED")
+        if hkl_diag["nonzero_count"] == 0:
+            print("  → HKL grid is all zeros")
+        elif crystal_diag["n_cells"] == 0:
+            print("  → Crystal has zero cells")
+        elif beam_diag["flux_photons"] is None or beam_diag["flux_photons"] == 0:
+            print("  → Beam flux is zero/None")
+        else:
+            print("  → Unknown cause (all configs look valid)")
+    else:
+        print(f"\n✓ Simulator OK: max={sim_diag['max']:.3e}")
+
+
+if __name__ == "__main__":
+    main()
+```
+
+### Execution Steps
+
+1. Save script to `plans/active/ARCH-SIM-CONSTRUCTION-001/bin/diagnose_zero_output.py`
+2. Run: `python plans/active/ARCH-SIM-CONSTRUCTION-001/bin/diagnose_zero_output.py --output plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-02T224500Z/ > plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-02T224500Z/probe_run.log 2>&1`
+3. Read `zero_output_diagnostics.json`
+4. Write `zero_output_analysis.md` with root cause
+5. Write `summary.md`
 
 ## Pitfalls To Avoid
 
-1. **Do NOT skip Task C.5 (caller updates)** — threading `config` parameter through call chain is critical
-2. **Do NOT proceed to Task C.7 if Task C.6 shows <292 oversample=3** — escalate to Galph if counts don't match
-3. **Do NOT assume tests will PASS** — oversample may not be the only issue; document failure signature if C.8 fails
-4. **Do NOT forget TYPE_CHECKING import** — `RefinementConfig` forward reference needed for type hints
-5. **Do NOT mix up Optional parameter placement** — add `config` parameter at END of existing parameter lists
-6. **Do NOT skip patch file creation (Task C.10)** — Environment Freeze compliance requirement
-7. **Do NOT skip regression check (Task C.9)** — must verify no breakage from signature changes
+1. **Do NOT skip HKL grid check** - most likely culprit for zero output
+2. **Do NOT assume oversample is still the issue** - we already fixed that (292/292 configs have oversample=3)
+3. **Do NOT try to fix in this loop** - evidence collection only
+4. **Do NOT modify test fixtures** - use existing refGeom.expt/refl/mtz
 
 ## If Blocked
 
-See detailed blockers handling in the original input.md section. Key points:
-- If callers hard to find: use grep, document any that can't be updated
-- If debug validation <292: document pattern, escalate, DO NOT proceed to clean validation
-- If clean validation fails: compare to baseline, document progress, escalate
-- If regression fails: check error type, verify imports, escalate
+**If script errors on imports**:
+- Check nanobrag_torch installed
+- Check paths to refGeom.expt exist
+
+**If output is non-zero**:
+- Document difference between probe and test
+- Check if test uses different fixture
+
+**If all configs look valid but output still zero**:
+- Document in analysis.md
+- Recommend nanobrag_torch version check or maintainer escalation
 
 ## Findings Applied
 
-- **phase_c_planning.md**: Supervisor callchain analysis, 6 call sites identified
-- **Phase B summary.md**: Deep copy insufficient, 2/292 vs 290/292 pattern
-- **Phase A root_cause_analysis.md**: Original hypothesis was wrong
+- **DIAG-OVERSAMPLE-001**: Resolved (292/292 oversample=3)
+- **DIAG-OVERSAMPLE-002**: Anticipated (simulator zero-output post-oversample fix)
 
 ## Pointers
 
-**Implementation Files**:
-- `dbex/refinement/config.py:74` (add oversample field after enable_stage_a_warm_cache)
-- `dbex/refinement/stage_a_utils.py:220-240` (_build_stage_a_context signature)
-- `dbex/refinement/stage_a_utils.py:286-290, 326-331` (4 call sites in _build_stage_a_context)
-- `dbex/refinement/stage_a_utils.py:400-420` (_compute_panel_loss signature)
-- `dbex/refinement/stage_a_utils.py:480-484, 572-576` (2 cold-path call sites)
-
-**Test / Acceptance**:
-- `tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity`
-- `tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity`
-- `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion`
+- `dbex/nanobrag_bridge.py::build_structure_factor_grid`
+- `nanobrag_torch.Simulator.run()`
+- `tests/dbex/test_torch_refine_smoke.py::refgeom_dataload`
 
 ## Next Up
 
-**If successful**: Mark DIAG-NANOBRAGG-OVERSAMPLE-001 done, unblock ARCH-SIM-CONSTRUCTION-001 and ARCH-REFACTOR-001 Phase D.3
-**If requires iteration**: Document progress, consider spec_change if tests fundamentally incompatible
+**If HKL grid zero**: Fix MTZ loading
+**If crystal invalid**: Fix crystal config
+**If cause unclear**: Escalate to Galph for deeper investigation

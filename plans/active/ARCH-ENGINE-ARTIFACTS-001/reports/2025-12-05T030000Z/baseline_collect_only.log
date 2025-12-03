@@ -1,0 +1,4 @@
+tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+
+2/6 tests collected (4 deselected) in 1.05s

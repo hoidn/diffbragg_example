@@ -1,6 +1,6 @@
 [
   {
-    "timestamp": "2025-12-03T16:44:51.139501Z",
+    "timestamp": "2025-12-03T23:14:03.375754Z",
     "panels": [
       {
         "panel_id": 0,
@@ -11,7 +11,7 @@
     ]
   },
   {
-    "timestamp": "2025-12-03T16:45:00.558239Z",
+    "timestamp": "2025-12-03T23:14:03.433618Z",
     "panels": [
       {
         "panel_id": 0,
@@ -22,7 +22,7 @@
     ]
   },
   {
-    "timestamp": "2025-12-03T23:13:33.055407Z",
+    "timestamp": "2025-12-03T23:14:03.490608Z",
     "panels": [
       {
         "panel_id": 0,
@@ -33,7 +33,29 @@
     ]
   },
   {
-    "timestamp": "2025-12-03T23:13:33.114583Z",
+    "timestamp": "2025-12-03T23:14:09.843706Z",
+    "panels": [
+      {
+        "panel_id": 0,
+        "coverage": 0.9043846130371094,
+        "mask_injected": true,
+        "fallback_reason": null
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-12-03T23:14:09.900906Z",
+    "panels": [
+      {
+        "panel_id": 0,
+        "coverage": 0.9043846130371094,
+        "mask_injected": true,
+        "fallback_reason": null
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-12-03T23:14:09.958489Z",
     "panels": [
       {
         "panel_id": 0,

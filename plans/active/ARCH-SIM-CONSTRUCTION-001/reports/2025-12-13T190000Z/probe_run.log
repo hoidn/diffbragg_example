@@ -1,0 +1,57 @@
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+[Stage A Baseline Probe] Starting probe (device=cuda:0)
+[Stage A Baseline Probe] Output will be saved to: plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-13T190000Z/stage_a_baseline_probe.json
+[Stage A Baseline Probe] Running RefinementEngine with Stage A...
+[ARCH-SIM-CONSTRUCTION-001 Phase C.7] Using recorded scale_factor from Stage A telemetry:
+  scale_factor (recorded): 2.448769e+10
+  log_scale_effective (recorded): 23.921436
+  log_scale_baseline: 23.923207
+  log_scale_delta_clamped (recorded): -0.001772154588252306
+  sqrt_spot_scale: 557230532.6778347
+  spot_scale_override: 3.105058665484234e+17
+  bragg_panel[0] mean (raw sim output): 3.854143e-09
+  bragg_panel[0] max: 1.459461e-04
+  bragg_scaled[0] mean (after scale_factor): 9.437905e+01
+  bragg_full mean (final output): 9.437904e+01
+  bragg_full max: 3.573883e+06
+[END DEBUG]
+[ARCH-SIM-CONSTRUCTION-001 MASK COVERAGE] Wrote coverage stats to plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-10T090000Z/mask_coverage.json
+[ARCH-SIM-CONSTRUCTION-001 N_CELLS] N_cells=(36, 28, 26), status=applied (apply_calibration_n_cells=True)
+[Stage A Baseline Probe] Stage A complete, extracting telemetry...
+[Stage A Baseline Probe] Reconstructing bragg_before from initial telemetry...
+[ARCH-SIM-CONSTRUCTION-001 Phase C.8] Using initial (baseline) scale_factor from Stage A telemetry:
+  log_scale_baseline (initial): 23.923207
+  scale_factor (initial): 2.453112e+10
+  sqrt_spot_scale: 557230532.6778347
+  spot_scale_override: 3.105058665484234e+17
+  bragg_panel[0] mean (raw sim output): 2.552507e-09
+  bragg_panel[0] max: 9.970989e-05
+  bragg_scaled[0] mean (after scale_factor): 6.261584e+01
+  bragg_full mean (final output): 6.261583e+01
+  bragg_full max: 2.445995e+06
+[END DEBUG]
+[ARCH-SIM-CONSTRUCTION-001 MASK COVERAGE] Wrote coverage stats to plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-10T090000Z/mask_coverage.json
+[ARCH-SIM-CONSTRUCTION-001 N_CELLS] N_cells=(36, 28, 26), status=applied (apply_calibration_n_cells=True)
+[Stage A Baseline Probe] Results written to plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-13T190000Z/stage_a_baseline_probe.json
+
+================================================================================
+Stage A Baseline Telemetry vs Reconstruction Comparison
+================================================================================
+Metric                                             Telemetry       Reconstructed  
+--------------------------------------------------------------------------------
+target_mean_masked                                 nan             8.711842e+01   
+model_mean_masked                                  nan             4.304414e+00   
+log_scale_baseline_value                           nan             N/A            
+log_scale_delta_clamped                            -0.001772       N/A            
+log_scale_effective_initial                        23.923207       N/A            
+scale_factor                                       2.448769e+10    N/A            
+chi²/pixel (initial)                               N/A             1.850621e+06   
+--------------------------------------------------------------------------------
+DB-AT-028 threshold (chi²/pixel ≤ 1e2)             Threshold: 1e2                
+DB-AT-028 status                                   FAIL                          
+================================================================================
+
+Divergence Analysis:
+--------------------------------------------------------------------------------
+================================================================================

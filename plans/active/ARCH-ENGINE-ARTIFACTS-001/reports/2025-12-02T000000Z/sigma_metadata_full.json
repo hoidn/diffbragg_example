@@ -1,0 +1,22 @@
+{
+  "input_experiment": "/home/ollie/Documents/diffbragg_example/refGeom.expt",
+  "output_experiment": "/home/ollie/Documents/diffbragg_example/sp.proc/idx-0000_sigma_metadata.expt",
+  "expt_idx": 0,
+  "lookup_key": "pedestal",
+  "panel_count": 1,
+  "panel_shape": {
+    "slow": 2527,
+    "fast": 2463
+  },
+  "sigma_source": {
+    "kind": "sigma_value",
+    "value": 3.0
+  },
+  "sigma_tiles_path": "/home/ollie/Documents/diffbragg_example/sp.proc/idx-0000_sigma_metadata.sigma_tiles.pkl",
+  "stats": {
+    "min": 3.0,
+    "max": 3.0,
+    "mean": 3.000000238418579,
+    "std": 2.384185791015625e-07
+  }
+}

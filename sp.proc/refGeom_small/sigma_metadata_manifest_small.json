@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "generated_at": "2025-12-03T03:40:29.950827+00:00",
+  "command": "/home/ollie/miniconda3/envs/simtbx/bin/python plans/active/PHYSICS-LOSS-001/bin/embed_sigma_external_lookup.py --expt sp.proc/refGeom_small/refGeom_small.expt --expt-idx 0 --sigma-value 3.0 --output sp.proc/refGeom_small/idx-0000_sigma_metadata_small.expt --report plans/active/ARCH-ENGINE-ARTIFACTS-001/reports/2025-12-02T000000Z/sigma_metadata_small.json --manifest sp.proc/refGeom_small/sigma_metadata_manifest_small.json",
+  "cwd": "/home/ollie/Documents/diffbragg_example",
+  "authoritative_cmds_doc": null,
+  "sigma_source": {
+    "kind": "sigma_value",
+    "value": 3.0
+  },
+  "sigma_readout_provenance": "external_lookup",
+  "panel_count": 1,
+  "panel_shape": {
+    "slow": 1024,
+    "fast": 1024
+  },
+  "report": {
+    "input_experiment": "/home/ollie/Documents/diffbragg_example/sp.proc/refGeom_small/refGeom_small.expt",
+    "output_experiment": "/home/ollie/Documents/diffbragg_example/sp.proc/refGeom_small/idx-0000_sigma_metadata_small.expt",
+    "expt_idx": 0,
+    "lookup_key": "pedestal",
+    "panel_count": 1,
+    "panel_shape": {
+      "slow": 1024,
+      "fast": 1024
+    },
+    "sigma_source": {
+      "kind": "sigma_value",
+      "value": 3.0
+    },
+    "sigma_tiles_path": "/home/ollie/Documents/diffbragg_example/sp.proc/refGeom_small/idx-0000_sigma_metadata_small.sigma_tiles.pkl",
+    "stats": {
+      "min": 3.0,
+      "max": 3.0,
+      "mean": 3.0,
+      "std": 0.0
+    }
+  },
+  "files": [
+    {
+      "role": "experiment",
+      "path": "/home/ollie/Documents/diffbragg_example/sp.proc/refGeom_small/idx-0000_sigma_metadata_small.expt",
+      "size_bytes": 5343,
+      "modified_at": "2025-12-03T03:40:29.948904+00:00",
+      "sha256": "1f5abe12f7d34f7a653d261b616b8f6e62245e9977d8fb5f7680e79c5ed0f73a"
+    },
+    {
+      "role": "sigma_tiles_pickle",
+      "path": "/home/ollie/Documents/diffbragg_example/sp.proc/refGeom_small/idx-0000_sigma_metadata_small.sigma_tiles.pkl",
+      "size_bytes": 4194424,
+      "modified_at": "2025-12-03T03:40:29.947347+00:00",
+      "sha256": "865de6a11397c9f8b1d2308fd3d3c4dd7a14cae7a60c2967de05929a552545e0"
+    },
+    {
+      "role": "report",
+      "path": "/home/ollie/Documents/diffbragg_example/plans/active/ARCH-ENGINE-ARTIFACTS-001/reports/2025-12-02T000000Z/sigma_metadata_small.json",
+      "size_bytes": 639,
+      "modified_at": "2025-12-03T03:40:29.950750+00:00",
+      "sha256": "cda51bd2e4d108bc09567894d935afbfc79e2fd13c5419e8871ef3a3a764189c"
+    }
+  ]
+}

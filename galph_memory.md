@@ -1946,3 +1946,23 @@ Action State: ready_for_implementation
 - ready_for_implementation — Execute Phase A.1: build the reciprocal-lattice probe script, record metrics + summary, and update findings with the quantified HKL offset before designing the fix.
 
 Action State: ready_for_implementation
+
+## Loop 2025-12-03T152326Z
+
+**Focus**: ARCH-SIM-HKL-BOUNDS-001 — Stage-A / mapping HKL alignment (Phase B kickoff)  
+**State**: ready_for_implementation  
+**Dwell**: 0  
+**Action Type**: planning  
+**Initiative Type**: architecture
+
+**Key Observations**:
+1. Reviewed Phase A artifacts (`.../2025-12-03T161200Z/`) confirming `max|ΔA*|=4.44e-09 Å⁻¹`; MOSFLM A* mapping is sound, so HKL misses must come from the scattering-vector→HKL projection.
+2. Root-cause candidates narrowed to detector/beam coordinate transforms inside `nanobrag_torch.simulator._compute_physics_for_position`; need per-pixel evidence (direct beam, ±slow/fast offsets) to quantify the constant +30/+40 index shift.
+3. Planned Phase B.1 deliverable: implement `bin/inspect_hkl_projection.py` (Tier-2 probe) that rebuilds Detector/Beam/Crystal configs from the mapping fixture, reproduces the scattering-vector math for selected pixels, and emits JSON/summary comparing fractional HKL values against `hkl_metadata` bounds. Updated implementation plan + fix-plan attempts, reserved `plans/active/ARCH-SIM-HKL-BOUNDS-001/reports/2025-12-03T152326Z/` for the upcoming evidence.
+
+**Artifacts Path**: `plans/active/ARCH-SIM-HKL-BOUNDS-001/reports/2025-12-03T152326Z/`
+
+**Next Actions**:
+- ready_for_implementation — Build `inspect_hkl_projection.py`, capture HKL projections for beam-center and ±64 px offsets on the small-detector smoke fixture, store JSON + summary under the reserved report dir, and validate the repo with `pytest -vv tests/dbex/test_data_load_sigma_map.py`.
+
+Action State: ready_for_implementation

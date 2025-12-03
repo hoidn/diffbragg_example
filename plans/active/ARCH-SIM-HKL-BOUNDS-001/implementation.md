@@ -4,7 +4,7 @@
 - **ID**: ARCH-SIM-HKL-BOUNDS-001
 - **Title**: Align Stage-A HKL queries with structure-factor grid bounds
 - **Owner**: Galph ↔ Ralph
-- **Status**: planned
+- **Status**: in_progress
 - **Type**: architecture
 - **Tier**: 0 (unblocks ARCH-SIM-CONSTRUCTION-001 and DB-AT-028/029)
 - **Created**: 2025-12-03T150219Z
@@ -66,11 +66,12 @@ no reconstruction, Stage-A refinement, or parity selector can converge.
 **Objective**: Reproduce the HKL offset numerically and capture the aberrant `A*` alignment.
 
 Tasks:
-- [ ] A1: Author Tier-2 probe `plans/active/ARCH-SIM-HKL-BOUNDS-001/bin/probe_crystal_hkl_alignment.py`
+- [x] A1: Author Tier-2 probe `plans/active/ARCH-SIM-HKL-BOUNDS-001/bin/probe_crystal_hkl_alignment.py`
       that (a) loads the canonical refGeom smoke dataset via `DataLoad`, (b) builds a mapping context
       (`build_mapping_stage_a_context`), (c) instantiates `nanobrag_torch.models.Crystal` from the same
       `CrystalConfig`, and (d) compares the resulting reciprocal lattice columns against `crystal.get_A()`
       from dxtbx. Emit JSON metrics (max/mean absolute differences, per-axis offsets) plus a prose summary.
+      **Result (2025-12-03T161200Z)**: `max|ΔA*|=4.44e-09 Å⁻¹` proving A* alignment is correct; HKL miss lies downstream.
 - [ ] A2: Extend the probe to optionally reuse the HKL stats instrumentation from DIAG-NANOBRAGG-OVERSAMPLE-001
       so script output links the measured `A*` delta to the observed out-of-bounds ranges.
 - [ ] A3: Record artifacts under `plans/active/ARCH-SIM-HKL-BOUNDS-001/reports/<timestamp>/` and update
@@ -83,9 +84,12 @@ confirms the HKL offset (expected failure state: >30 index offset with 0% covera
 **Objective**: Identify the precise transformation error and define the minimal code changes.
 
 Tasks:
-- [ ] B1: Inspect `dbex/refinement/config_factories.py::create_crystal_config` and
-      `src/nanobrag-torch/src/nanobrag_torch/models/crystal.py` to determine whether MOSFLM A* injection,
-      real/reciprocal tensor recomputation, or experiment-specific overrides introduce the observed index shift.
+- [ ] B1: Instrument nanobrag_torch’s scattering-vector→HKL projection for specific pixels (beam center and ±offsets)
+      by implementing `plans/active/ARCH-SIM-HKL-BOUNDS-001/bin/inspect_hkl_projection.py`. The script shall rebuild
+      Detector/Beam/Crystal configs from the mapping fixture, compute diffracted/incident unit vectors, reproduce the
+      `_compute_physics_for_position` math for chosen pixels, and emit JSON/summary files showing fractional HKL values,
+      rounded indices, and whether each lies within `hkl_metadata` bounds. Priority: confirm the direct-beam pixel
+      should yield `(h,k,l)≈(0,0,0)` but currently produces the +30/+40 offset captured by HKL stats.
 - [ ] B2: Draft a fix design (preferably localized inside nanobrag_torch) that brings the reciprocal lattice
       back into alignment without regressing existing finding guards (GEOMETRY-003, GEOMETRY-004).
 - [ ] B3: Capture the proposed change, environment-freeze compliance steps, and affected modules/tests in
@@ -115,4 +119,3 @@ Tasks:
 - Fix would require spec changes (e.g., altering DB-AT tolerances) → open spec_change initiative per workflow.
 - Probe cannot load canonical fixtures due to missing data → document in `docs/fix_plan.md` and pause until
   assets restored.
-

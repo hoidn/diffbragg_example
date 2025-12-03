@@ -844,12 +844,23 @@ Action State: ready_for_implementation
 
 **Last Acceptance Criterion:** N/A (planning loop)
 
-**Next Action:** Phase A.1 evidence collection — trace and compare simulator construction paths (Stage A vs reconstruction), identify where spot_scale_override or calibration metadata diverges
+**Next Action:** Phase C.1 implementation — apply sqrt(spot_scale_override) post-run scaling + beam calibration threading to reconstruction.py
 
-**Action State:** `<gathering_evidence>`
+**Action State:** `<ready_for_implementation>`
 
 **Planning Notes:**
-- Evidence collection scope: simulator construction comparison, calibration metadata flow tracing, debug metrics analysis
-- Hypothesis: reconstruction uses create_unified_simulator(..., spot_scale_override=None) while Stage A bakes calibration into factory
-- Expected outputs: simulator construction comparison table, calibration flow diagrams, factory call analysis
-- Validation: once construction paths aligned, DB-AT-028/029 should PASS
+- Phase A.1 complete: Root cause confirmed (reconstruction missing sqrt(spot_scale_override) post-run multiplication, missing factor ~23,900 ≈ (spot_scale)^(1/4))
+- Phase B skipped: Evidence conclusive (quantified to 1.3% accuracy, pattern match with Stage A clear)
+- Phase C.1 strategy: Option B (Stage A post-run scaling pattern) + Option C (beam calibration threading)
+- Expected outcomes: bragg_after_mean ≈ 0.24 (not 1e-05), chi²/pixel initial ≤ 100 (not 1e5), ROI corr ≥ 0.2 (not -0.05)
+- Finding SCALE-009 added to docs/findings.md:42
+- Validation: DB-AT-028/029 must PASS after fix
+
+2025-12-02T235959Z focus=ARCH-SIM-CONSTRUCTION-001 state=ready_for_implementation dwell=0 action=planning artifacts=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-02T235959Z/ next_action=Implement Phase C.1 fix
+- Reviewed Ralph's Phase A.1 evidence collection (commit 9d3ca6b4): root cause confirmed (reconstruction missing sqrt(spot_scale_override) post-run scaling, missing factor ~23,900 ≈ (spot_scale)^(1/4)), comprehensive analysis artifacts delivered
+- Skipped Phase B (evidence conclusive, confidence high), updated implementation plan to mark A.1 complete and B skipped
+- Added Finding SCALE-009 to docs/findings.md:42 documenting reconstruction post-run scaling requirement
+- Scoped Phase C.1 implementation: Option B (Stage A post-run scaling pattern) + Option C (beam calibration threading) per Ralph's recommendation in summary.md
+- Updated input.md with complete implementation Do Now (beam_config threading, sqrt_spot_scale extraction/application, DB-AT-028/029 validation plan, pitfalls, findings applied)
+- Artifacts reserved at plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-02T235959Z/ for Phase C.1 implementation + validation
+Action State: ready_for_implementation

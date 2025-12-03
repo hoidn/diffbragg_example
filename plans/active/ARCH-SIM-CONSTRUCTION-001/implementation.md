@@ -57,66 +57,74 @@
 
 ---
 
-## Phase A — Evidence Collection (Planned)
+## Phase A — Evidence Collection (Complete — 2025-12-02T233717Z)
 
 **Goal:** Understand how Stage A and reconstruction build simulators; identify where spot_scale_override (or other calibration metadata) is applied differently.
 
+**Status:** Complete — Root cause confirmed (reconstruction missing `sqrt(spot_scale_override)` post-run scaling)
+
 ### Checklist
 
-#### A.1 — Simulator Construction Comparison
-- [ ] **Trace Stage A simulator construction:**
+#### A.1 — Simulator Construction Comparison (Complete)
+- [x] **Trace Stage A simulator construction:**
   - Read `dbex/refinement/stage_a.py` lines ~400-600 (simulator setup logic)
   - Identify whether Stage A uses warm cache (reused from `create_unified_simulator`) or builds fresh
   - Check if `spot_scale_override` is passed to factory or applied post-run
   - Document how `log_scale_baseline = log(sqrt(spot_scale_override))` is established
-- [ ] **Trace reconstruction simulator construction:**
+- [x] **Trace reconstruction simulator construction:**
   - Read `dbex/refinement/reconstruction.py::build_final_bragg_from_stage_a_telemetry` lines 140-190
   - Identify factory call site and arguments
   - Check if `calibration_metadata` or `spot_scale_override` is passed to factory
   - Document how `log_scale_baseline` is extracted from telemetry
-- [ ] **Compare factory call sites:**
+- [x] **Compare factory call sites:**
   - Create side-by-side comparison table showing arguments passed to `create_unified_simulator` in Stage A vs reconstruction
   - Note differences in `spot_scale_override`, `calibration_metadata`, `gain`, `sigma` threading
   - Identify any post-hoc scaling applied after simulator.run() in either path
 
 **Artifacts:**
-- `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/<timestamp>/stage_a_simulator_construction.md`
-- `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/<timestamp>/reconstruction_simulator_construction.md`
-- `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/<timestamp>/factory_call_comparison.md`
+- ✓ `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-02T233717Z/stage_a_simulator_construction.md`
+- ✓ `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-02T233717Z/reconstruction_simulator_construction.md`
+- ✓ `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-02T233717Z/factory_call_comparison.md`
 
-#### A.2 — Calibration Metadata Flow Tracing
-- [ ] **Trace calibration_metadata from CLI to Stage A:**
+#### A.2 — Calibration Metadata Flow Tracing (Complete — subsumed by A.1)
+- [x] **Trace calibration_metadata from CLI to Stage A:**
   - Start at `dbex/refine_one.py` — how is `calibration_metadata` passed to RefinementEngine?
   - Follow through `RefinementContext` → Stage A context → simulator factory
   - Document exact dict structure and field threading
-- [ ] **Trace calibration_metadata from telemetry to reconstruction:**
+- [x] **Trace calibration_metadata from telemetry to reconstruction:**
   - Start at `build_final_bragg_from_stage_a_telemetry` — what telemetry fields are available?
   - Check if `param_deltas_a` includes spot_scale_override or only log_scale_baseline
   - Identify missing links between telemetry and factory arguments
 
 **Artifacts:**
-- `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/<timestamp>/calibration_flow_stage_a.md`
-- `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/<timestamp>/calibration_flow_reconstruction.md`
+- ✓ Covered in `stage_a_simulator_construction.md` and `factory_call_comparison.md`
 
-#### A.3 — Debugging Evidence Review
-- [ ] **Extract metrics from Ralph's debug run:**
+#### A.3 — Debugging Evidence Review (Complete)
+- [x] **Extract metrics from Ralph's debug run:**
   - Read `plans/active/ARCH-REFACTOR-001/reports/2025-12-02T000000Z_galph_phase_d3_fix_diagnosis/at028/db_at_028_metrics.json`
   - Note: `spot_scale_override = 3.1e17`, `log_scale_baseline = 20.14`, `scale_factor = 5.57e8`
   - Note: `bragg_panel (raw) mean = 1.8e-14` (TOO SMALL), expected ~4.3e-10
   - Calculate missing factor: ~23,900 ≈ 10^4.38
-- [ ] **Hypothesize plausible mechanisms:**
+- [x] **Hypothesize plausible mechanisms:**
   - Does `create_unified_simulator` apply `spot_scale_override` internally?
   - Is there an intermediate gain/sigma factor (~sqrt(23900) ≈ 154) missing?
   - Could this be a photon↔ADU conversion issue?
 
 **Artifacts:**
-- `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/<timestamp>/debug_metrics_analysis.md`
+- ✓ `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-02T233717Z/debug_metrics_analysis.md`
+
+**Root Cause (Confirmed):**
+Reconstruction helper `build_final_bragg_from_stage_a_telemetry()` violates factory post-run scaling pattern by omitting the explicit `sqrt(spot_scale_override)` multiplication that Stage A applies to every simulator output (stage_a.py:442-443). Missing factor ~23,900 ≈ (spot_scale_override)^(1/4) confirms one sqrt application is missing. Additionally, reconstruction does not thread `beam_flux`, `beam_exposure`, `beamsize_mm` from calibration_metadata to beam_config (unlike Stage A in stage_a_utils.py:267).
 
 ---
 
-## Phase B — Root Cause Isolation (Planned)
+## Phase B — Root Cause Isolation (Skipped — Evidence Conclusive)
 
 **Goal:** Determine exact locus of convention mismatch and confirm hypothesis via targeted probe.
+
+**Status:** Skipped — Phase A evidence is conclusive (missing factor quantified, pattern match with Stage A clear, confidence high)
+
+**Rationale:** Ralph's Phase A.1 analysis quantified the missing factor (~23,900 ≈ (spot_scale_override)^(1/4)) with 1.3% accuracy and identified the exact code pattern mismatch (Stage A applies `sqrt(spot_scale_override)` post-run at stage_a.py:442-443; reconstruction omits this). Additional probe would not increase confidence. Proceeding directly to Phase C fix implementation per supervisor decision.
 
 ### Checklist
 
@@ -157,23 +165,42 @@
 
 ---
 
-## Phase C — Fix Implementation (Planned)
+## Phase C — Fix Implementation (In Progress — 2025-12-02)
 
 **Goal:** Apply minimal fix to align reconstruction simulator construction with Stage A conventions.
 
+**Strategy:** Implement **Option B** (Stage A post-run scaling pattern) + **Option C** (beam calibration threading) per Ralph's recommendation in Phase A.1 summary.md
+
 ### Checklist
 
-#### C.1 — Fix Reconstruction Factory Call
-- [ ] **Update `build_final_bragg_from_stage_a_telemetry`:**
-  - Extract `spot_scale_override` from telemetry or calibration_metadata
-  - Pass it to `create_unified_simulator(..., spot_scale_override=value, ...)`
-  - OR: adjust post-hoc scaling if factory already applies it internally
+#### C.1 — Fix Reconstruction Post-Run Scaling and Beam Calibration (Planned)
+- [ ] **Apply Option B — Stage A post-run scaling pattern:**
+  - Extract `spot_scale_override` from `config.calibration_metadata` (before simulator loop, line ~167)
+  - Compute `sqrt_spot_scale = sqrt(spot_scale_override)` matching stage_a.py:442-443 pattern
+  - Apply it post-run in the simulator loop (lines ~220-223):
+    ```python
+    for pid, sim in zip(sampled_panel_ids, simulators):
+        bragg_panel = sim.run()
+        bragg_panel_scaled = bragg_panel * sqrt_spot_scale  # ← NEW: consistent with Stage A
+        bragg_scaled = bragg_panel_scaled * scale_factor
+        bragg_full[pid] = bragg_scaled.cpu().numpy().astype(np.float32)
+    ```
+  - Handle uncalibrated case: `sqrt_spot_scale = 1.0` when `spot_scale_override` is None or missing
+- [ ] **Apply Option C — Beam calibration threading:**
+  - Update `beam_config` creation (line 170) to thread `beam_flux`, `beam_exposure`, `beamsize_mm` from `calibration_metadata`:
+    ```python
+    beam_flux = config.calibration_metadata.get('beam_flux') if config.calibration_metadata else None
+    beam_exposure = config.calibration_metadata.get('beam_exposure') if config.calibration_metadata else None
+    beamsize_mm = config.calibration_metadata.get('beamsize_mm') if config.calibration_metadata else None
+    beam_config = create_beam_config(beam, flux=beam_flux, exposure=beam_exposure, beamsize_mm=beamsize_mm)
+    ```
+  - Matches stage_a_utils.py:267 pattern for architectural consistency
 - [ ] **Preserve backward compatibility:**
-  - Handle case where `spot_scale_override` is None (uncalibrated runs)
-  - Ensure legacy tests without calibration metadata still pass
+  - Handle case where `config.calibration_metadata` is None (uncalibrated runs default to `sqrt_spot_scale = 1.0`, beam params = None)
+  - Ensure legacy tests without calibration metadata still pass (no behavior change when calibration absent)
 
 **Artifacts:**
-- Code changes in `dbex/refinement/reconstruction.py`
+- Code changes in `dbex/refinement/reconstruction.py` (lines ~167-170 beam config, ~220-223 post-run scaling)
 
 #### C.2 — Validation
 - [ ] **Run DB-AT-028/029 with full detector + metadata sigma source:**

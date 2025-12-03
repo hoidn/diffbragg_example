@@ -2066,3 +2066,23 @@ Threaded `inputs.trusted_mask[pid]` into reconstruction.py:190-202 cold-path `cr
 **Artifacts:** `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-03T161601Z/{simulator_intensity_metrics.json,pytest_db_at_028_029.log}`
 
 **Initiative status:** Marked `blocked_pending_investigation` in fix_plan. Trusted-mask hypothesis needs deeper inspection before further implementation attempts.
+
+## Loop 2025-12-10T090000Z
+
+**Focus**: ARCH-SIM-CONSTRUCTION-001 — Simulator Construction Convention Alignment (Phase C.6 instrumentation)
+**State**: ready_for_implementation
+**Dwell**: 2 (second consecutive planning/evidence loop)
+**Action Type**: planning
+**Initiative Type**: architecture
+
+**Key Observations**:
+1. Mask threading still regresses DB-AT-028/029 because we lack visibility into the per-panel trusted mask coverage; the current probe bypasses `build_final_bragg_from_stage_a_telemetry`, so we never hit the failing code path.
+2. Planned a guard that records mask coverage per panel, persists it to `mask_coverage.json`, and skips injection when coverage < 50% so we can gather evidence without zeroing the entire detector.
+3. Scoped compare_simulator_outputs to call the reconstruction helper with and without masks so future metrics align with the actual DB-AT selectors and we can decide whether the parity fix is viable.
+
+**Artifacts Path**: `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-10T090000Z/`
+
+**Next Actions**:
+- ready_for_implementation — Add the mask coverage diagnostics/fallback, update the simulator comparison probe to use the reconstruction helper, and rerun DB-AT-028/029 with the new evidence so we can choose between keeping or reverting mask injection.
+
+Action State: ready_for_implementation

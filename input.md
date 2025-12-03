@@ -1,39 +1,46 @@
-Summary: Align the reconstruction cold path with Stage A by threading panel trusted masks into `create_detector_config`, rerun the simulator comparison probe to prove the raw magnitudes now match, and execute DB-AT-028/029 with artifact dirs so the selectors collect after the fix.
+Summary: Add mask coverage diagnostics/fallback in the reconstruction helper and exercise them via the simulator comparison probe so DB-AT-028/029 evidence stops regressing when trusted masks are enabled.
 Mode: Parity
 InitiativeType: architecture
 Focus: ARCH-SIM-CONSTRUCTION-001 — Simulator Construction Convention Alignment
 Branch: integration
-Mapped tests: tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity, tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity
-Artifacts: plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-03T161601Z/
-
+Mapped tests:
+  - AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029"
+Artifacts: plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-10T090000Z/{summary.md,mask_coverage.json,simulator_intensity_metrics_masked.json,simulator_intensity_metrics_unmasked.json,pytest_db_at_028_029.log}
 Do Now:
-- Implement: `dbex/refinement/reconstruction.py::build_final_bragg_from_stage_a_telemetry` — when building detector configs in the cold path, pass the per-panel trusted mask (`inputs.trusted_mask[pid]`) into `create_detector_config` so reconstruction zeroes untrusted pixels the same way Stage A warm cache does; guard against `inputs.trusted_mask` being `None`.
-- Capture: `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_simulator_outputs.py --detector-size small --device cpu --output plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-03T161601Z/simulator_intensity_metrics.json` — expect the cross-path raw ratios to collapse to ≈1.0; keep the generated summary.md in the same directory.
-- Validate: `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBAT028_ARTIFACT_DIR=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-03T161601Z/db_at_028 DBAT029_ARTIFACT_DIR=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-03T161601Z/db_at_029 DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" | tee plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-03T161601Z/pytest_db_at_028_029.log` — artifact dirs stop the selectors from skipping and retain metrics for review.
-
+  1. Implement: `dbex/refinement/reconstruction.py::build_final_bragg_from_stage_a_telemetry`
+     - Compute `panel_trusted_mask.mean()` (float) for every panel when a mask is provided and append the per-panel coverage plus panel id to `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-10T090000Z/mask_coverage.json` (create the file if needed).
+     - If any panel coverage falls below 0.50, log the panel id and coverage, skip injecting the mask for that panel (fall back to `None`), and keep the old behaviour for other panels so we do not zero the entire detector. Guard with a tiny epsilon to avoid float noise and keep the DEBUG print block intact.
+  2. Implement: `plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_simulator_outputs.py`
+     - Add a `--use-reconstruction-helper` flag that rebuilds `RefinementInputs` + `RefinementConfig` and calls `build_final_bragg_from_stage_a_telemetry` so the probe exercises the same mask logic as DB-AT-028/029.
+     - Add a `--disable-trusted-mask` flag that temporarily sets `inputs.trusted_mask = None` before calling the helper so we can capture “masked vs unmasked” outputs in one script.
+     - When the reconstruction helper is used, emit two JSON files in the artifacts directory (`simulator_intensity_metrics_masked.json`, `..._unmasked.json`) that include raw/scale means, mask coverage statistics emitted by the helper, and the CLI arguments.
+  3. Evidence collection:
+     - `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
+python plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_simulator_outputs.py --use-reconstruction-helper --output plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-10T090000Z/simulator_intensity_metrics_masked.json`
+     - Repeat with `--use-reconstruction-helper --disable-trusted-mask --output .../simulator_intensity_metrics_unmasked.json` so we can quantify the guard effect.
+  4. Validation:
+     - `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBAT028_ARTIFACT_DIR=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-10T090000Z/db_at_028 DBAT029_ARTIFACT_DIR=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-10T090000Z/db_at_029 DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
+pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" | tee plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-10T090000Z/pytest_db_at_028_029.log`
 How-To Map:
-1. `ARTIFACTS=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-03T161601Z && mkdir -p "$ARTIFACTS" "$ARTIFACTS/db_at_028" "$ARTIFACTS/db_at_029"`
-2. Edit `dbex/refinement/reconstruction.py` so the cold-path `create_detector_config` call includes `trusted_mask=inputs.trusted_mask[pid]` when that array exists, and keep the warm-cache branch untouched.
-3. `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_simulator_outputs.py --detector-size small --device cpu --output "$ARTIFACTS/simulator_intensity_metrics.json"`
-4. `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBAT028_ARTIFACT_DIR="$ARTIFACTS/db_at_028" DBAT029_ARTIFACT_DIR="$ARTIFACTS/db_at_029" DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" | tee "$ARTIFACTS/pytest_db_at_028_029.log"`
-
+  - Always `export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md` before running helper scripts/tests so env guards match the repo standard.
+  - Use `python plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_simulator_outputs.py --help` after editing to confirm the new flags are wired, then run the masked + unmasked commands above. Keep `NANOBRAGG_DISABLE_COMPILE=1` to stay deterministic.
+  - Ensure `mask_coverage.json` is valid JSON (list of dicts or dict keyed by panel id). When appending stats, include timestamp, panel id, coverage fraction, and whether the guard skipped mask injection.
+  - After pytest finishes, grep the DEBUG block in the log to confirm the guard logged coverage data for both masked and fallback panels.
 Pitfalls To Avoid:
-- Stay within the repo; do not patch or reinstall `nanobrag_torch` (Environment Freeze).
-- Only modify the reconstruction cold path—Stage A warm cache already handles masks correctly.
-- Ensure mask arrays remain boolean/float tensors (0/1) so Simulator masking matches spec.
-- Keep the oversample override (`oversample=3`) untouched and continue using the small-detector smoke fixture for deterministic results.
-- Run pytest with the new `DBAT028_ARTIFACT_DIR`/`DBAT029_ARTIFACT_DIR` env vars; without them the selectors will skip again.
-
+  - Do not mutate warm-cache paths – only wrap the cold-path detector construction, otherwise Stage A regressions will occur.
+  - Percent coverage thresholds must remain ≥0.50 per spec; do not “clip” coverage by forcing 1.0.
+  - Keep the existing DEBUG prints and scaling math unchanged so prior evidence remains comparable.
+  - Guard code must be device/dtype agnostic (no implicit CPU tensors) and avoid writing to stdout outside the existing DEBUG block.
+  - When running pytest, honor the DBAT artifact directory env vars so the selector collects instead of skipping.
 If Blocked:
-- If `inputs.trusted_mask` is unexpectedly `None`, capture that state in `$ARTIFACTS/blocked.md` (include repr of `inputs`), update `docs/fix_plan.md` + `galph_memory.md`, and pause implementation.
-- If the smoke assets are missing or pytest fails before collecting the Stage A tests, save the full traceback to `$ARTIFACTS/blocked.md` and stop; do not weaken selectors or patch dependencies.
-
-Findings Applied:
-- SCALE-009 — Reconstruction helpers must mirror Stage A’s scaling/masking conventions; passing the trusted mask keeps the cold path compliant.
-- DIAG-OVERSAMPLE-001 — Keep oversample explicitly at 3 so we isolate the masking fix and avoid re-triggering auto-selection bugs already documented.
-
+  - If `inputs.trusted_mask` is `None`, record the situation (repr of `inputs`) in `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-10T090000Z/blocked.md`, update `docs/fix_plan.md` + `galph_memory.md`, and stop before modifying code further.
+  - If both masked and unmasked probe runs yield identical metrics (coverage guard never triggers), capture the JSON + log evidence and be ready to shift the hypothesis (likely calibration instead of masking).
+Findings Applied (Mandatory):
+  - REFINE-016 — Stage C and reconstruction helpers must apply the same trusted-mask gate as Stage A so chi² comparisons remain meaningful.
 Pointers:
-- docs/spec-db-core.md:34 — Trusted mask contract (True = include) and shape requirements we must honor when passing masks to the simulator.
-- docs/spec-db-core.md:109 — Loss/masking semantics clarifying why untrusted pixels must be zeroed before computing chi².
-- dbex/refinement/reconstruction.py:187 — Cold-path detector construction that needs the trusted-mask plumbing.
-- plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-09T210000Z/summary.md — Evidence showing the 18% raw magnitude gap that this fix addresses.
+  - docs/spec-db-core.md §Data Contracts — trusted mask polarity and `(background >= 0) ∧ trusted_mask` loss mask definition.
+  - docs/fix_plan.md §ARCH-SIM-CONSTRUCTION-001 Attempts History (lines ~133-168) — context for the mask regression and new evidence plan.
+  - plans/active/ARCH-SIM-CONSTRUCTION-001/implementation.md — Phase C.6 checklist describing the trusted-mask parity objective and validation requirements.
+Next Up:
+  1. If mask coverage diagnostics show healthy coverage, attempt the real parity fix (thread mask tensors through reconstruction and rerun DB-AT-028/029).
+  2. If the guard fires on every panel, inspect `prepare_refinement_inputs` and DataLoad to see why the trusted mask is sparse before re-attempting the fix.

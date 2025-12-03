@@ -1,0 +1,43 @@
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+Repo root: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+Loading calibration config: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/config_torch_smoke_small.json
+Experiment: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/refGeom_small/refGeom_small.expt
+Reflections: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/refGeom_small/refGeom_small.refl
+Mask: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/refGeom_small/refGeom_small_mask.pkl
+HKL source: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/calibration/smoke_refined_structure_factors.mtz
+
+=== Loading dataset via DataLoad ===
+Loaded 1 panels
+
+=== Building mapping Stage-A context ===
+Mapping context built:
+  - Inputs.global_scale_hint: 1.435697062341783
+  - Bragg stack shape: (1, 1024, 1024)
+  - sigma_floor_value: 1.0
+
+Mapping Bragg statistics:
+  - Masked mean: 1.8453e+00 ADU
+  - Masked max: 1.3720e+05 ADU
+  - Unmasked mean: 1.6689e+00 ADU
+  - Unmasked max: 1.3720e+05 ADU
+  - Mask coverage: 90.4%
+
+Calibration metadata:
+  - spot_scale_override: None
+  - log_scale_baseline: None
+  - N_cells: None
+  - beam_flux: None
+  - beam_exposure: None
+  - beamsize_mm: None
+
+=== Reconstruction path comparison ===
+Skipped in this probe - see compare_simulator_outputs.py for full reconstruction path analysis.
+
+=== Wrote JSON summary: plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-12T010000Z/scale_probe/stage_a_scale_alignment.json ===
+Traceback (most recent call last):
+  File "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/ARCH-SIM-CONSTRUCTION-001/bin/probe_stage_a_scale_alignment.py", line 365, in <module>
+    sys.exit(main())
+  File "/home/ollie/Documents/diffbragg_example_2/diffbragg_example/plans/active/ARCH-SIM-CONSTRUCTION-001/bin/probe_stage_a_scale_alignment.py", line 336, in main
+    f.write(f"- **Masked mean**: {bragg_recon_masked_mean:.4e} ADU\n")
+TypeError: unsupported format string passed to NoneType.__format__

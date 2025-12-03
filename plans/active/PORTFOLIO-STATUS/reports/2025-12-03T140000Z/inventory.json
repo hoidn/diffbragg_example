@@ -1,0 +1,538 @@
+[
+  {
+    "id": "ARCH-ENGINE-ARTIFACTS-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-12-05T050000Z",
+    "status_hint": null,
+    "bucket": "tracked",
+    "rollup_coverage": []
+  },
+  {
+    "id": "ARCH-REFACTOR-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-12-04T220000Z",
+    "status_hint": null,
+    "bucket": "tracked",
+    "rollup_coverage": []
+  },
+  {
+    "id": "ARCH-REFINE-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-12-01T232800Z",
+    "status_hint": null,
+    "bucket": "tracked",
+    "rollup_coverage": []
+  },
+  {
+    "id": "ARCH-REFINE-FLOW-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-11-23T172000Z",
+    "status_hint": null,
+    "bucket": "tracked",
+    "rollup_coverage": []
+  },
+  {
+    "id": "ARCH-SIM-CONSTRUCTION-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-12-04T235959Z",
+    "status_hint": null,
+    "bucket": "tracked",
+    "rollup_coverage": []
+  },
+  {
+    "id": "ARCH-SPLIT-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": null,
+    "status_hint": null,
+    "bucket": "tracked_via_rollup",
+    "rollup_coverage": [
+      "ARCH-SPLIT-001"
+    ]
+  },
+  {
+    "id": "ARCH-STAGE-CONTEXT-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-12-02T160500Z",
+    "status_hint": null,
+    "bucket": "tracked",
+    "rollup_coverage": []
+  },
+  {
+    "id": "DB-AT-002",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-04T050000Z",
+    "status_hint": null,
+    "bucket": "tracked_via_rollup",
+    "rollup_coverage": [
+      "DB-AT-SUITE-CARE-001"
+    ]
+  },
+  {
+    "id": "DB-AT-010",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-05T000200Z",
+    "status_hint": null,
+    "bucket": "tracked_via_rollup",
+    "rollup_coverage": [
+      "DB-AT-SUITE-CARE-001"
+    ]
+  },
+  {
+    "id": "DB-AT-020",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-04T052000Z",
+    "status_hint": null,
+    "bucket": "tracked_via_rollup",
+    "rollup_coverage": [
+      "DB-AT-SUITE-CARE-001"
+    ]
+  },
+  {
+    "id": "DB-AT-021",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-04T060900Z",
+    "status_hint": null,
+    "bucket": "tracked_via_rollup",
+    "rollup_coverage": [
+      "DB-AT-SUITE-CARE-001"
+    ]
+  },
+  {
+    "id": "DB-AT-022",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-04T055500Z",
+    "status_hint": null,
+    "bucket": "tracked_via_rollup",
+    "rollup_coverage": [
+      "DB-AT-SUITE-CARE-001"
+    ]
+  },
+  {
+    "id": "DB-AT-023",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-04T065500Z",
+    "status_hint": null,
+    "bucket": "tracked_via_rollup",
+    "rollup_coverage": [
+      "DB-AT-SUITE-CARE-001"
+    ]
+  },
+  {
+    "id": "DB-AT-024",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-04T070000Z",
+    "status_hint": null,
+    "bucket": "tracked_via_rollup",
+    "rollup_coverage": [
+      "DB-AT-SUITE-CARE-001"
+    ]
+  },
+  {
+    "id": "DIAG-NANOBRAGG-OVERSAMPLE-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-12-03T064931Z",
+    "status_hint": null,
+    "bucket": "tracked",
+    "rollup_coverage": []
+  },
+  {
+    "id": "DOC-RUNTIME-004",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-11-23T024449Z",
+    "status_hint": "in_progress",
+    "bucket": "tracked",
+    "rollup_coverage": []
+  },
+  {
+    "id": "DOCS-ROADMAP-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-11-24T150000Z",
+    "status_hint": null,
+    "bucket": "tracked_via_rollup",
+    "rollup_coverage": [
+      "DOCS-ROADMAP-001"
+    ]
+  },
+  {
+    "id": "FINDINGS-LEDGER-002",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-12-03T120250Z",
+    "status_hint": null,
+    "bucket": "tracked",
+    "rollup_coverage": []
+  },
+  {
+    "id": "FORWARD-EQUIV-001",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-10-29T013411Z",
+    "status_hint": null,
+    "bucket": "tracked_via_rollup",
+    "rollup_coverage": [
+      "FORWARD-EQUIV-COVERAGE-001"
+    ]
+  },
+  {
+    "id": "FORWARD-EQUIV-002",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-04T043500Z",
+    "status_hint": null,
+    "bucket": "tracked_via_rollup",
+    "rollup_coverage": [
+      "FORWARD-EQUIV-COVERAGE-001"
+    ]
+  },
+  {
+    "id": "HARDEN-SUBMODULE-ROBUSTNESS",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-11-04T165400Z",
+    "status_hint": null,
+    "bucket": "tracked",
+    "rollup_coverage": []
+  },
+  {
+    "id": "MAP-SCALE-001",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-04T233500Z",
+    "status_hint": null,
+    "bucket": "tracked_via_rollup",
+    "rollup_coverage": [
+      "MAP-SCALE-SYNC-001"
+    ]
+  },
+  {
+    "id": "MAP-SCALE-002",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-05T030000Z",
+    "status_hint": null,
+    "bucket": "tracked_via_rollup",
+    "rollup_coverage": [
+      "MAP-SCALE-SYNC-001"
+    ]
+  },
+  {
+    "id": "MAP-SCALE-003",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-05T150000Z",
+    "status_hint": null,
+    "bucket": "tracked_via_rollup",
+    "rollup_coverage": [
+      "MAP-SCALE-SYNC-001"
+    ]
+  },
+  {
+    "id": "MAP-SCALE-004",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-06T010000Z",
+    "status_hint": null,
+    "bucket": "tracked_via_rollup",
+    "rollup_coverage": [
+      "MAP-SCALE-SYNC-001"
+    ]
+  },
+  {
+    "id": "MAP-SCALE-005",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-06T050000Z",
+    "status_hint": null,
+    "bucket": "tracked_via_rollup",
+    "rollup_coverage": [
+      "MAP-SCALE-SYNC-001"
+    ]
+  },
+  {
+    "id": "NANOBRAG-GOLDEN-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-11-04T030000Z",
+    "status_hint": null,
+    "bucket": "tracked_via_rollup",
+    "rollup_coverage": [
+      "NANOBRAG-GOLDEN-001"
+    ]
+  },
+  {
+    "id": "ORCH-CLAUDE-PATH-FIX-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-11-06T073832Z",
+    "status_hint": null,
+    "bucket": "tracked",
+    "rollup_coverage": []
+  },
+  {
+    "id": "ORCH-CLI-FALLBACK-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-11-06T072734Z",
+    "status_hint": null,
+    "bucket": "tracked",
+    "rollup_coverage": []
+  },
+  {
+    "id": "ORCH-ROBUST-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-11-05T050500Z",
+    "status_hint": null,
+    "bucket": "tracked",
+    "rollup_coverage": []
+  },
+  {
+    "id": "PARITY-HARNESS-002",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-10-29T022212Z",
+    "status_hint": null,
+    "bucket": "tracked_via_rollup",
+    "rollup_coverage": [
+      "FORWARD-EQUIV-COVERAGE-001"
+    ]
+  },
+  {
+    "id": "PERF-WARM-SIM-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-12-02T183500Z",
+    "status_hint": null,
+    "bucket": "tracked",
+    "rollup_coverage": []
+  },
+  {
+    "id": "PHYSICS-LOSS-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-11-21T083500Z",
+    "status_hint": null,
+    "bucket": "tracked_via_rollup",
+    "rollup_coverage": [
+      "PHYSICS-LOSS-001"
+    ]
+  },
+  {
+    "id": "PORTFOLIO-STATUS",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-12-08T190000Z",
+    "status_hint": "in_progress (Phase F \u2014 Active tree hygiene)",
+    "bucket": "tracked",
+    "rollup_coverage": []
+  },
+  {
+    "id": "REPORT-NANOBRAG-STATUS-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-11-05T184233Z",
+    "status_hint": null,
+    "bucket": "tracked_via_rollup",
+    "rollup_coverage": [
+      "REPORT-NANOBRAG-STATUS-001"
+    ]
+  },
+  {
+    "id": "RUNTIME-VEC-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-11-04T080000Z",
+    "status_hint": null,
+    "bucket": "tracked_via_rollup",
+    "rollup_coverage": [
+      "RUNTIME-VEC-001"
+    ]
+  },
+  {
+    "id": "SUPERVISOR",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-11-24T153000Z",
+    "status_hint": null,
+    "bucket": "tracked",
+    "rollup_coverage": []
+  },
+  {
+    "id": "TOOLING-VIS-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-11-26T050500Z",
+    "status_hint": null,
+    "bucket": "tracked_via_rollup",
+    "rollup_coverage": [
+      "TOOLING-VIS-001"
+    ]
+  },
+  {
+    "id": "TORCH-BRIDGE-001",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-10-28T233500Z",
+    "status_hint": "in_progress",
+    "bucket": "tracked_via_rollup",
+    "rollup_coverage": [
+      "TORCH-CLI-BRIDGE-ROLLUP-001"
+    ]
+  },
+  {
+    "id": "TORCH-CLI-003",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-10-29T003751Z",
+    "status_hint": "in_progress",
+    "bucket": "tracked_via_rollup",
+    "rollup_coverage": [
+      "TORCH-CLI-BRIDGE-ROLLUP-001"
+    ]
+  },
+  {
+    "id": "TORCH-CLI-004",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-04T222435Z",
+    "status_hint": null,
+    "bucket": "tracked_via_rollup",
+    "rollup_coverage": [
+      "TORCH-CLI-BRIDGE-ROLLUP-001"
+    ]
+  },
+  {
+    "id": "TORCH-GEOMETRY-CONVERGENCE-001",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-22T252000Z",
+    "status_hint": null,
+    "bucket": "tracked_via_rollup",
+    "rollup_coverage": [
+      "TORCH-GEOMETRY-SYNC-001"
+    ]
+  },
+  {
+    "id": "TORCH-GEOMETRY-PARITY-002",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-22T120500Z",
+    "status_hint": null,
+    "bucket": "tracked_via_rollup",
+    "rollup_coverage": [
+      "TORCH-GEOMETRY-SYNC-001"
+    ]
+  },
+  {
+    "id": "TORCH-GEOMETRY-PARITY-003",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-22T170806Z",
+    "status_hint": null,
+    "bucket": "tracked_via_rollup",
+    "rollup_coverage": [
+      "TORCH-GEOMETRY-SYNC-001"
+    ]
+  },
+  {
+    "id": "TORCH-GEOMETRY-UB-REALIGN-001",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-23T023142Z",
+    "status_hint": null,
+    "bucket": "tracked_via_rollup",
+    "rollup_coverage": [
+      "TORCH-GEOMETRY-SYNC-001"
+    ]
+  },
+  {
+    "id": "TORCH-REFINE-001",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-05T024454Z",
+    "status_hint": null,
+    "bucket": "tracked_via_rollup",
+    "rollup_coverage": [
+      "TORCH-REFINE-CLEANUP-001"
+    ]
+  },
+  {
+    "id": "TORCH-REFINE-002",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-05T044720Z",
+    "status_hint": null,
+    "bucket": "tracked_via_rollup",
+    "rollup_coverage": [
+      "TORCH-REFINE-CLEANUP-001"
+    ]
+  },
+  {
+    "id": "TORCH-REFINE-002D",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-05T093000Z",
+    "status_hint": null,
+    "bucket": "tracked_via_rollup",
+    "rollup_coverage": [
+      "TORCH-REFINE-CLEANUP-001"
+    ]
+  },
+  {
+    "id": "TORCH-REFINE-002E",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-22T120000Z",
+    "status_hint": null,
+    "bucket": "tracked_via_rollup",
+    "rollup_coverage": [
+      "TORCH-REFINE-CLEANUP-001"
+    ]
+  },
+  {
+    "id": "TORCH-REFINE-003",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-06T130000Z",
+    "status_hint": null,
+    "bucket": "tracked_via_rollup",
+    "rollup_coverage": [
+      "TORCH-REFINE-CLEANUP-001"
+    ]
+  },
+  {
+    "id": "TORCH-REFINE-004",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-11-24T140000Z",
+    "status_hint": null,
+    "bucket": "tracked",
+    "rollup_coverage": []
+  },
+  {
+    "id": "TORCH-RUNTIME-002",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-10-28T232744Z",
+    "status_hint": "pending",
+    "bucket": "tracked",
+    "rollup_coverage": []
+  }
+]

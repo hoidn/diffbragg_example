@@ -5,7 +5,8 @@
 ## Working Agreements
 - Continue logging every loop in this ledger with status + artifact pointer; detailed Attempts History older than the sections below lives in `docs/fix_plan_archive.md`.
 - Status values: `pending`, `in_progress`, `blocked`, `done`, `archived`.
-- Citation rule remains: whenever you touch a selector or plan row, note the artifact path in both this file and the plan’s reports directory.
+- Citation rule remains: whenever you touch a selector or plan row, note the artifact path in both this file and the plan's reports directory.
+- **Plan Directory Inventory:** Rerun `plans/active/PORTFOLIO-STATUS/bin/plan_inventory.py` whenever a plan directory is added, removed, or marked for archival. The script ensures `plans/active/` and this ledger remain synchronized (see Plan Directory Inventory appendix below).
 
 ---
 
@@ -250,6 +251,7 @@ Detailed engineering logs now live in `docs/fix_plan_archive.md` (append-only sn
 
 ### [PORTFOLIO-STATUS] Attempts History
   * 2025-12-05T083500Z — Initiative spun up per problems ledger directive to reconcile `plans/active/` with `docs/fix_plan.md`. Authored implementation plan (`plans/active/PORTFOLIO-STATUS/implementation.md`) with Phases A–C (inventory script, remediation, ledger/reporting) and promoted Tier-2 automation guard. Updated Tier 0 roadmap and reserved artifacts under `plans/active/PORTFOLIO-STATUS/reports/`. Next: implement Phase A inventory script + initial report, then add Plan Inventory appendix to `docs/fix_plan.md`.
+  * 2025-12-05T120000Z (Phase A1/A2/A3 complete) — Created `plans/active/PORTFOLIO-STATUS/bin/plan_inventory.py` (231 lines) implementing Tier-2 inventory automation with CLI flags (`--plans-root`, `--fix-plan`, `--out-dir`), status hint extraction from implementation.md headers, and last-report timestamp detection. Script outputs `inventory.json` (55 plan directories, 15 tracked, 40 untracked) and `inventory_missing.md` (remediation-ready table). Ran script; results show 73% of plan directories lack fix_plan.md coverage. Created `inventory_report.md` narrative documenting breakdown by category (tracked/untracked/archive candidates) with comparison to 2025-12-05T083500Z ad-hoc snapshot. Updated `docs/fix_plan.md` Working Agreements with mandate to rerun script on plan additions/removals. Added Plan Directory Inventory appendix (below) referencing latest report and listing top remediation buckets (40 untracked initiatives including MAP-SCALE-*, TORCH-GEOMETRY-*, ORCH-*, DB-AT-* series, plus 4 lacking implementation.md). Metrics: +231 lines (script), 3 output files (JSON/MD/report), Working Agreements +1 bullet, appendix +20 lines. Artifacts: `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T120000Z/` (inventory.json, inventory_missing.md, inventory_report.md). Next: Phase B1/B3 — classify 40 untracked initiatives into archived-ready vs needs-fix-plan-entry, execute archival moves, author new fix-plan entries for active initiatives.
 
 ### [PERF-WARM-SIM-001] Attempts History
   * 2025-12-02T173000Z — Phase F.1 debug hook implemented in `_retarget_stage_a_detectors`; small-detector (panel-mode) smoketest PASSED with 18 retarget calls capturing panel updates only, full-detector (ROI-mode) smoketest FAILED (expected) but produced 17 retarget calls with ~92 ROI entries per call showing simulator ID changes. Debug artifacts captured under `DBEX_STAGE_C_CACHE_DEBUG_PATH` for offline analysis. Next: Supervisor analyzes cache-debug JSONs to identify ROI simulator staleness root cause. Artifacts: `plans/active/PERF-WARM-SIM-001/reports/2025-12-02T173000Z/`.
@@ -310,3 +312,44 @@ Detailed engineering logs now live in `docs/fix_plan_archive.md` (append-only sn
   4. **Spec review**: Re-examine whether Crystal actually NEEDS beam_config, or if the real bug is in Simulator caching/initialization
   
 **DO NOT RETRY** this implementation without new evidence. Two consecutive loops with same failure signature + same bragg_after telemetry = repeat-failure guard territory.
+
+---
+
+## Plan Directory Inventory
+
+**Latest Report:** 2025-12-05T120000Z
+**Artifacts:** `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T120000Z/`
+**Script:** `plans/active/PORTFOLIO-STATUS/bin/plan_inventory.py`
+
+### Summary
+- **Total plan directories:** 55
+- **Tracked in this ledger:** 15 (27%)
+- **Untracked (missing fix_plan.md coverage):** 40 (73%)
+- **Lacking implementation.md:** 4
+
+### Top Remediation Buckets
+
+**Active Initiatives (Recent Reports, Needs Fix Plan Entry):**
+- MAP-SCALE-001 through MAP-SCALE-005 (November 2025 reports)
+- TORCH-GEOMETRY-CONVERGENCE-001, TORCH-GEOMETRY-PARITY-002/003, TORCH-GEOMETRY-UB-REALIGN-001
+- TOOLING-VIS-001, PHYSICS-LOSS-001, REPORT-NANOBRAG-STATUS-001
+- TORCH-CLI-004, DOCS-ROADMAP-001
+
+**Archive Candidates (No Implementation or Stale/Duplicate):**
+- ARCH-REFRACTOR-001 (typo duplicate, explicitly marked archived in stub)
+- HARDEN-SUBMODULE-ROBUSTNESS, ORCH-CLAUDE-PATH-FIX-001, ORCH-CLI-FALLBACK-001, ORCH-ROBUST-001 (no implementation.md)
+- SUPERVISOR (meta-coordination directory, no implementation.md)
+- Older DB-AT-* initiatives (early November, potentially superseded)
+
+**In-Progress but Untracked:**
+- TORCH-BRIDGE-001 (status: in_progress, last report October 2025)
+- TORCH-CLI-003 (status: in_progress, last report October 2025)
+
+### Next Actions (Phase B)
+1. Classify the 40 untracked initiatives into archived-ready vs needs-fix-plan-entry
+2. Move archived-ready directories to `archive/plans/` with cross-references
+3. Author new ledger entries for active initiatives (MAP-SCALE-*, TORCH-GEOMETRY-* series, etc.)
+4. Update `docs/fix_plan_archive.md` with archival notes
+
+### Automation Guard
+Per Working Agreements above, rerun `plan_inventory.py` whenever plan directories are added, removed, or archived to detect drift immediately.

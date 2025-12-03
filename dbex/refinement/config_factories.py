@@ -51,6 +51,7 @@ def create_detector_config(
     trusted_mask: Optional[np.ndarray] = None,
     distance_mm_override: Optional['torch.Tensor'] = None,
     roi_bbox: Optional[Tuple[int, int, int, int]] = None,
+    oversample: int = -1,
 ) -> DetectorConfig:
     """
     Create DetectorConfig from dxtbx panel and beam.
@@ -75,6 +76,8 @@ def create_detector_config(
         roi_bbox: Optional tuple (x0, x1, y0, y1) with exclusive upper bounds specifying a cropped
                   ROI. When provided, the detector's fpixels/spixels and beam center are adjusted
                   so pixel (0,0) maps to the ROI's top-left corner, and the trusted mask is sliced.
+        oversample: Oversampling factor (1, 2, 3, ...). Default -1 = auto-select based on detector size.
+                   Use explicit value (e.g., 3) to force consistent oversampling across detector configs.
 
     Returns:
         DetectorConfig with geometry, beam center, and mask
@@ -223,7 +226,8 @@ def create_detector_config(
         detector_rotx_deg=detector_rotx_deg,
         detector_roty_deg=detector_roty_deg,
         detector_rotz_deg=detector_rotz_deg,
-        mask_array=mask_array
+        mask_array=mask_array,
+        oversample=oversample
     )
 
 

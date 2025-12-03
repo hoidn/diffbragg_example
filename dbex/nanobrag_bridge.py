@@ -1406,7 +1406,8 @@ def simulate_forward_once(
         detector_config = create_detector_config(
             panel=panel,
             beam=beam,
-            trusted_mask=inputs.trusted_mask[panel_id]
+            trusted_mask=inputs.trusted_mask[panel_id],
+            oversample=3  # Force 3-fold oversampling for parity with reconstruction
         )
 
         # Use unified factory (Phase B2a: eliminates manual mask/HKL/simulator setup)

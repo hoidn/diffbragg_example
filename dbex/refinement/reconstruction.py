@@ -187,7 +187,11 @@ def build_final_bragg_from_stage_a_telemetry(
         beam_config = create_beam_config(beam, flux=beam_flux, exposure=beam_exposure, beamsize_mm=beamsize_mm)
         simulators = []
         for pid in sampled_panel_ids:
-            detector_config = create_detector_config(detector[pid], beam=beam)
+            detector_config = create_detector_config(
+                detector[pid],
+                beam=beam,
+                oversample=3  # Force 3-fold oversampling matching simulate_forward_once
+            )
             # Use unified factory for forward-only reconstruction (ARCH-FACTORY-001)
             # Pass spot_scale_override so factory can compute sqrt_scale for post-run application
             simulator, normalized_mask, sqrt_scale_from_factory, metadata = create_unified_simulator(

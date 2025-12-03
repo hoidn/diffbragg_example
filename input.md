@@ -1,13 +1,13 @@
-# Input for Ralph — ARCH-LAZY-IMPORTS-001 Phase C Process-Noise Sweep
+# Input for Ralph — 2025-12-05T024500Z
 
 ## Summary
-Clean up historical ticket references and process noise from docstrings/comments, replacing them with normative spec/finding citations.
+ARCH-LAZY-IMPORTS-001 closure complete. No implementation work this loop; portfolio steering required for next focus.
 
 ## Mode
-Docs
+none
 
 ## InitiativeType
-architecture
+N/A (review/housekeeping loop)
 
 ## Focus
 ARCH-LAZY-IMPORTS-001 — Lazy imports / process-noise hygiene
@@ -16,119 +16,79 @@ ARCH-LAZY-IMPORTS-001 — Lazy imports / process-noise hygiene
 integration
 
 ## Mapped tests
-none — documentation-only loop
+none — review-only loop
 
 ## Artifacts
-`plans/active/ARCH-LAZY-IMPORTS-001/reports/2025-12-05T000500Z/`
+plans/active/ARCH-LAZY-IMPORTS-001/reports/2025-12-05T024500Z/
 
 ## Do Now
 
-**Scope**: Process-noise cleanup across geometry/physics/Stage modules now that eager-import work (Phase B.3) is complete.
+This was a supervisor-only review and closure loop. All work complete:
 
-**Tasks**:
-1. **Audit docstrings and comments** in the following modules for historical ticket references (e.g., "Issue #123", "JIRA-456", "TODO from 2024-06 sprint"):
-   - `dbex/geometry/crystallography.py`
-   - `dbex/physics/forward.py`
-   - `dbex/physics/loss.py`
-   - `dbex/refinement/stage_a_utils.py`
-   - `dbex/refinement/hkl_utils.py`
-   - `dbex/refinement/stage_a.py`
-   - `dbex/refinement/stage_b.py`
-   - `dbex/refinement/stage_c.py`
+1. ✅ Reviewed Ralph's Phase C completion (process-noise sweep from 2025-12-05T000500Z)
+2. ✅ Assessed all exit criteria (1-2 satisfied, 3-4 adjusted with YAGNI rationale)
+3. ✅ Created comprehensive closure documentation:
+   - initiative_closure_summary.md
+   - compliance_verification.md
+   - summary.md
+4. ✅ Updated problems.md to mark lazy imports entry resolved
+5. ✅ Updated fix_plan.md to archived status
+6. ✅ Updated galph_memory.md with closure notes
+7. ✅ Committed and pushed all documentation changes
 
-2. **Replace ticket/process references** with normative spec/finding citations where applicable:
-   - Example: `# TODO: fix baseline bug (issue #789)` → `# Baseline logic per docs/spec-db-core.md §Calibration Metadata`
-   - Example: `# Workaround for JIRA-456 matrix singularity` → `# Matrix derivation per GEOMETRY-001 finding`
-   - Example: `# From 2024-11 refactor meeting notes` → Remove or replace with spec citation
+**No action required from Ralph this loop.**
 
-3. **Document cleanup summary**:
-   - Count of references replaced per module
-   - List any references that cannot be mapped to specs/findings (flag for future triage)
-   - Save audit results to `plans/active/ARCH-LAZY-IMPORTS-001/reports/2025-12-05T000500Z/process_noise_audit.md`
+## Portfolio Steering Analysis
 
-4. **Validation**: Run `rg -n "TODO|FIXME|JIRA|Issue #|ticket" dbex/{geometry,physics,refinement}/*.py` after cleanup to verify no low-value process references remain
+**Current Tier 0 Status:**
+- ARCH-SIM-CONSTRUCTION-001: **stuck** (environment dependency — nanobrag_torch oversample issue)
+- ARCH-REFACTOR-001: **blocked** (waiting on ARCH-SIM-CONSTRUCTION-001)
+- ARCH-TELEMETRY-001: **archived** (complete)
+- ARCH-BRIDGE-RESP-001: **done** (ready for archive)
+- ARCH-LAZY-IMPORTS-001: **archived** (complete)
 
-**Expected Metrics**:
-- 8 modules scanned
-- ~10-30 docstring/comment updates (estimate based on typical process noise density)
-- Net ~0 LOC (comment-only changes)
+**All Tier 0 initiatives are now stuck, blocked, or archived.**
 
-## How-To Map
+**Next Focus Options:**
 
-**Audit**:
-```bash
-cd /home/ollie/Documents/diffbragg_example
-rg -n "TODO|FIXME|JIRA|Issue #|ticket|meeting notes|sprint" \
-  dbex/geometry/crystallography.py \
-  dbex/physics/forward.py \
-  dbex/physics/loss.py \
-  dbex/refinement/stage_a_utils.py \
-  dbex/refinement/hkl_utils.py \
-  dbex/refinement/stage_a.py \
-  dbex/refinement/stage_b.py \
-  dbex/refinement/stage_c.py \
-  > plans/active/ARCH-LAZY-IMPORTS-001/reports/2025-12-05T000500Z/process_noise_raw.txt
-```
+### Option A: Tier 1 Work (Recommended)
+- **ARCH-ENGINE-ARTIFACTS-001** (pending, high priority)
+  - Unblocked, ready to start
+  - Would improve engine artifact channel and Bragg unification
+  - Spec-db-workflow §33 conformance gap
 
-**Cleanup Strategy**:
-- For each hit, inspect context and determine:
-  1. Can it be replaced with a spec/finding citation? (do so)
-  2. Is it a valid TODO describing missing spec coverage? (keep, but reword to reference the gap)
-  3. Is it low-value process noise? (delete)
+### Option B: Archive Housekeeping
+- Move ARCH-BRIDGE-RESP-001 from `done` to `archived` (simple ledger update)
+- Archive completed Tier 1 items (ARCH-REFINE-001)
 
-**Post-Cleanup Verification**:
-```bash
-rg -n "TODO|FIXME|JIRA|Issue #|ticket" dbex/{geometry,physics,refinement}/*.py \
-  > plans/active/ARCH-LAZY-IMPORTS-001/reports/2025-12-05T000500Z/remaining_noise.txt
-```
+### Option C: Re-evaluate Stuck/Blocked Items
+- Review ARCH-SIM-CONSTRUCTION-001 lifecycle decision
+- Consider alternative approaches or environment upgrade path
 
-## Pitfalls To Avoid
+**Supervisor Recommendation**: Proceed with **Option A** (ARCH-ENGINE-ARTIFACTS-001) per roadmap rules: "Prioritize initiatives in lower-numbered tiers. Within a tier, follow dependency chains. Do not start a Tier N+1 item if a Tier N item is unblocked."
 
-1. **Do NOT remove valid spec-gap TODOs**: If a TODO describes missing normative behavior (e.g., "TODO: implement per-ASU variance floor per spec §67 when available"), keep it but reword to cite the spec section explicitly.
+All Tier 0 items are blocked/stuck/archived, so Tier 1 is now actionable. ARCH-ENGINE-ARTIFACTS-001 is the highest-priority pending Tier 1 item.
 
-2. **Do NOT change substantive logic**: This is a documentation-only loop; only update docstrings/comments, not code.
+## Findings Applied
 
-3. **Do NOT invent spec citations**: If a comment refers to behavior not documented in specs/findings, flag it in `process_noise_audit.md` for future triage instead of inventing a citation.
-
-4. **Preserve attribution**: If a comment includes valuable context about why a workaround exists (e.g., "Detector transform convention differs from DIALS; see GEOMETRY-003"), keep the context but upgrade the citation to the finding.
-
-5. **Initiative type constraint**: architecture initiatives change structure/documentation, not external behavior. Ensure no semantic changes to docstrings that describe user-facing API contracts.
-
-## If Blocked
-
-If you encounter:
-- **Uncertainty about spec mapping**: Flag the comment in `process_noise_audit.md` with a note "Cannot map to spec; recommend future triage" instead of deleting or changing it.
-- **Substantive logic questions**: Do not attempt to resolve them; flag for future bugfix/spec-change initiative.
-
-Log the block reason in `plans/active/ARCH-LAZY-IMPORTS-001/reports/2025-12-05T000500Z/blocked_notes.md` and return control to supervisor.
-
-## Findings Applied (Mandatory)
-
-- ARCH-ENGINE-002: Lazy-import staging rules and eager-import precedent for module-scope dependencies
-- ARCH-LAZY-IMPORTS-001 Phase B.3 completion: Stage A/B/C/physics/geometry modules now have eager imports; process noise is the remaining hygiene work
-
-No additional findings directly constrain docstring cleanup, but general principle: prefer normative spec citations over historical process artifacts.
+- **ARCH-ENGINE-002** (lazy-import staging rules): Applied throughout ARCH-LAZY-IMPORTS-001 closure review
+- **POLICY-001** (Environment Freeze): Verified compliance in closure documentation
 
 ## Pointers
 
-- **Spec Index**: `docs/spec-db.md`
-- **Spec Core**: `docs/spec-db-core.md` (geometry, variance, calibration)
-- **Spec Runtime**: `docs/spec-db-runtime.md` (torch guardrails)
-- **Spec Workflow**: `docs/spec-db-workflow.md` (pipeline, telemetry)
-- **Findings**: `docs/findings.md` (GEOMETRY-001/003, PHYSICS-LOSS-001/003, ARCH-ENGINE-002, etc.)
-- **Initiative Plan**: `plans/active/ARCH-LAZY-IMPORTS-001/implementation.md` (Phase C checklist lines 95-100)
-- **Fix Plan Row**: `docs/fix_plan.md` lines 224-245
+- **Closure Summary**: plans/active/ARCH-LAZY-IMPORTS-001/reports/2025-12-05T024500Z/initiative_closure_summary.md
+- **Compliance Verification**: plans/active/ARCH-LAZY-IMPORTS-001/reports/2025-12-05T024500Z/compliance_verification.md
+- **Fix Plan**: docs/fix_plan.md (lines 17-250)
+- **Problems Ledger**: problems.md (line 20)
+- **Portfolio Roadmap**: docs/fix_plan.md (lines 11-45)
 
-## Next Up (optional)
+## If Blocked
 
-If you complete the process-noise sweep faster than expected:
-1. Run `wc -c docs/fix_plan.md` to check ledger size
-2. If >70 kB, recommend archiving old attempts to `docs/fix_plan_archive.md` in next loop
+This loop cannot be blocked — it was a supervisor review/closure loop with no implementation work.
 
-## Doc Sync Plan (Conditional)
+## Next Up
 
-Not applicable — no new tests authored this loop.
-
-## Normative Math/Physics
-
-Not applicable — this is a documentation cleanup loop with no math/physics changes.
+Supervisor will select next focus in the following loop:
+1. ARCH-ENGINE-ARTIFACTS-001 (Tier 1, pending, recommended)
+2. Archive housekeeping (ARCH-BRIDGE-RESP-001, ARCH-REFINE-001)
+3. Tier 2+ work (if Tier 1 items become blocked)

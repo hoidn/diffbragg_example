@@ -1,96 +1,111 @@
-# Input for Ralph — Loop 2025-12-02T070000Z (Supervisor Inspection Complete)
+# Input for Ralph — Loop 2025-12-02T234500Z
 
 ## Summary
-No action required. Galph completed supervisor code inspection per repeat-failure escalation rules. DIAG marked stuck; focus will switch to ARCH-REFINE-001 in next Galph loop.
+Housekeeping: Archive completed initiatives and compact fix_plan.md
 
 ## Mode
-none (supervisor-only loop)
+Docs
 
 ## InitiativeType
-diagnostics (lifecycle decision for DIAG-NANOBRAGG-OVERSAMPLE-001)
+housekeeping (review_or_housekeeping)
 
 ## Focus
-DIAG-NANOBRAGG-OVERSAMPLE-001 — Supervisor Inspection & Lifecycle Decision
+HOUSEKEEPING-001 — Fix Plan Archive & Compact
 
 ## Branch
 integration
 
 ## Mapped tests
-none — evidence-only (supervisor code inspection completed)
+none — documentation-only
 
 ## Artifacts
-`plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-02T060000Z/`
+plans/active/PORTFOLIO-STATUS/reports/2025-12-02T234500Z/
 
 ## Do Now
 
-**NO IMPLEMENTATION WORK FOR RALPH THIS LOOP**
+**Context:** Per <documentation_sweep/> step 6 and <end_of_loop_hygiene/>, fix_plan.md has grown to 160KB (>3× the 50KB threshold). Four initiatives are marked "done" and ready for archive. All Tier 0 initiatives are either complete or blocked by environment dependencies (DIAG/ARCH-SIM stuck).
 
-Galph performed mandatory supervisor code inspection per CLAUDE.md **Instrumentation saturation rule** after Ralph's Phase C.9 flux fix failed with repeat-failure signature.
+**Primary Task:** Archive completed initiatives and compact fix_plan.md
 
-### Key Findings from Supervisor Inspection
+### Steps
 
-1. **Flux fix was correctly applied but ineffective**:
-   - BeamConfig.__post_init__ requires `exposure > 0` to recompute fluence
-   - Exposure defaults to 0.0, so fluence stays at default 1.26e+29
-   - Changing flux from 0→1 has NO EFFECT
+1. **Create archive file** at `docs/fix_plan_archive_2025-12-02.md`
+   - Header: "# Fix Plan Archive — 2025-12-02"
+   - Note: "This archive contains completed initiatives moved from docs/fix_plan.md on 2025-12-02 to reduce main ledger size."
 
-2. **Paradox identified**:
-   - Fluence=1.26e+29 is HUGE non-zero value
-   - Simulator DOES use fluence (simulator.py:1175)
-   - Yet output is ZERO
-   - Conclusion: Root cause is NOT in BeamConfig
+2. **Move these initiatives** (with full Attempts History) to archive:
+   - ARCH-BRIDGE-RESP-001 (Writer / bridge responsibility split) — done 2025-12-03T093500Z
+   - ARCH-REFINE-001 (Refine Engine Modularization + Torch IO context) — done 2025-12-01T161600Z
+   - ARCH-STAGE-CONTEXT-001 (Stage context + engine artifact boundary) — done 2025-12-02T160500Z
+   - ARCH-ENGINE-ARTIFACTS-001 (Engine artifact channel & Bragg unification) — done 2025-12-02T185000Z
 
-3. **Lifecycle Decision**: Marked DIAG as **stuck — blocked_environment_dependency**
-   - Cannot debug further without patching nanobrag_torch simulator (Environment Freeze violation)
-   - Unblock options: maintainer investigation, spec-change, or alternative approach
+3. **Replace in fix_plan.md** with compact references:
+   ```markdown
+   - [ARCH-BRIDGE-RESP-001] — **archived** (2025-12-03, see docs/fix_plan_archive_2025-12-02.md)
+   - [ARCH-REFINE-001] — **archived** (2025-12-01, see docs/fix_plan_archive_2025-12-02.md)
+   - [ARCH-STAGE-CONTEXT-001] — **archived** (2025-12-02, see docs/fix_plan_archive_2025-12-02.md)
+   - [ARCH-ENGINE-ARTIFACTS-001] — **archived** (2025-12-02, see docs/fix_plan_archive_2025-12-02.md)
+   ```
 
-### Artifacts Created
+4. **Update cross-references** in remaining initiatives that mention archived items
 
-- `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-02T060000Z/supervisor_code_inspection.md` (detailed analysis)
-- `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-02T060000Z/summary.md` (this loop summary)
-- `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/bin/diagnose_zero_output.py` (T2 diagnostic script for future use)
-
-### Next Steps
-
-**Ralph**: No action required. Await next Galph loop which will:
-1. Update docs/fix_plan.md to mark DIAG as stuck
-2. Switch focus to ARCH-REFINE-001 (in_progress, unblocked)
-3. Issue new implementation Do Now
+5. **Verify file size** reduction: `wc -c docs/fix_plan.md` should be <120KB
 
 ## How-To Map
 
-No tasks for Ralph this loop. Read supervisor inspection artifacts if interested:
-- `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-02T060000Z/supervisor_code_inspection.md`
+```bash
+# Create archive header
+cat > docs/fix_plan_archive_2025-12-02.md <<'EOF'
+# Fix Plan Archive — 2025-12-02
+
+This archive contains completed initiatives moved from `docs/fix_plan.md` on 2025-12-02T234500Z to reduce main ledger size per <documentation_sweep/> step 6 (triggered at >50KB).
+
+**Archival Policy:** Initiatives marked "done" with all exit criteria met and no active dependencies are moved here. Cross-references in active plans point to this archive.
+
+---
+
+EOF
+
+# Extract and move initiatives (manual for accuracy)
+# Use editor to:
+# 1. Find each initiative section in docs/fix_plan.md
+# 2. Cut full section (including Attempts History)
+# 3. Paste into archive
+# 4. Replace with compact reference in fix_plan.md
+
+# Verify
+wc -c docs/fix_plan.md
+grep -c "archived.*2025-12-02" docs/fix_plan.md  # should be 4
+```
 
 ## Pitfalls To Avoid
 
-1. **Do not attempt more DIAG work** — Initiative is stuck per lifecycle decision
-2. **Do not run the diagnostic script** — It's scaffolding for future maintainer support
-3. **Do not patch nanobrag_torch** — Would violate Environment Freeze
+- **Do NOT** modify active/blocked initiatives (DIAG, ARCH-SIM, ARCH-REFACTOR-001)
+- **Do NOT** lose cross-references (update pointers in active plans)
+- **Do NOT** archive initiatives with active dependencies
+- Preserve full Attempts History in archive (needed for retrospectives)
+- Keep tier structure intact in fix_plan.md
 
 ## If Blocked
 
-Not applicable — no action required this loop.
+If any archived initiative has unexpected active references:
+1. Document the blocker in artifacts/summary.md
+2. Leave that initiative in fix_plan.md
+3. Continue with other archives
 
 ## Findings Applied
 
-- Repeat-failure escalation (CLAUDE.md)
-- Instrumentation saturation rule (Galph prompt)
-- Portfolio steering (Galph prompt)
+- POLICY-001 (Environment Freeze): No code changes, docs only
+- Housekeeping cadence per <documentation_sweep/> step 6
 
 ## Pointers
 
-**Supervisor Artifacts**:
-- plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-02T060000Z/supervisor_code_inspection.md
-- plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-02T060000Z/summary.md
-
-**Lifecycle State**:
-- galph_memory.md (updated with decision + next focus)
+- Spec: docs/index.md (housekeeping not spec-governed)
+- Template: plans/templates/fix_plan_ledger.md
+- Archive precedent: None (first archive operation)
 
 ## Next Up
 
-Galph will switch to ARCH-REFINE-001 in next loop and issue implementation Do Now.
-
-## Doc Sync Plan
-
-Not applicable.
+After housekeeping:
+- Update galph_memory with portfolio status
+- Consider alternative strategies for DIAG/ARCH-SIM environment blockers

@@ -1482,3 +1482,47 @@ Per CLAUDE.md exception clause requirements:
 3. ✓ Test validation: DB-AT-028/029 will validate fix
 4. ✓ Findings update: docs/findings.md DIAG-FLUX-001
 5. ✓ Env tag: "nanobragg-flux-fix-2025-12-02"
+
+---
+
+## Loop 2025-12-02T234500Z (i=5)
+
+**Focus**: HOUSEKEEPING-001 — Fix Plan Archive & Compact
+**State**: ready_for_implementation (housekeeping)
+**Dwell**: 0 (new focus, switching from blocked DIAG)
+**Action Type**: review_or_housekeeping
+**Initiative Type**: housekeeping
+**Lifecycle Counters**:
+- DIAG-NANOBRAGG-OVERSAMPLE-001: stuck (blocked_environment_dependency since 2025-12-02T060000Z)
+- ARCH-SIM-CONSTRUCTION-001: stuck (blocked_environment_dependency since 2025-12-03T021140Z)
+- ARCH-REFACTOR-001: in_progress (Phase D.3 blocked; D.1/D.2/D.4 complete)
+
+**Key Observations**:
+1. **Portfolio blockage**: All Tier 0 initiatives either done/archived or blocked by environment dependencies
+   - DIAG/ARCH-SIM both stuck on nanobrag_torch issues (cannot debug without violating Environment Freeze)
+   - ARCH-REFACTOR-001 Phase D.3 blocked pending ARCH-SIM resolution
+   - No unblocked Tier 0 work available
+
+2. **Housekeeping trigger**: fix_plan.md grew to 160KB (>3× threshold)
+   - Four Tier 1 initiatives marked "done" and ready for archive
+   - Total estimated reduction: ~64KB → target <120KB
+
+3. **Portfolio steering decision**: Per <portfolio_steering/> and <loop_discipline/>, switched focus from blocked initiatives to productive housekeeping
+   - Archive ARCH-BRIDGE-RESP-001, ARCH-REFINE-001, ARCH-STAGE-CONTEXT-001, ARCH-ENGINE-ARTIFACTS-001
+   - Compact fix_plan.md for improved navigation
+   - Prepare portfolio status assessment
+
+**Artifacts Path**: `plans/active/PORTFOLIO-STATUS/reports/2025-12-02T234500Z/`
+
+**Next Actions**:
+- Ralph: Execute housekeeping per input.md (archive 4 initiatives, compact fix_plan)
+- After housekeeping: Evaluate alternative strategies for environment-blocked initiatives
+- Possible approaches: spec-change for DB-AT gates, alternative reconstruction path, maintainer escalation
+
+**Action State**: housekeeping issued, awaiting Ralph execution
+
+**WIP Status**: 
+- in_progress: None (all Tier 0 blocked or archived)
+- stuck: DIAG-NANOBRAGG-OVERSAMPLE-001, ARCH-SIM-CONSTRUCTION-001
+- blocked: ARCH-REFACTOR-001 Phase D.3
+

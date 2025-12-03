@@ -77,19 +77,28 @@ def smoke_dataset_paths(smoke_detector_size, smoke_sigma_source) -> SmokeDataset
 
     This fixture now decouples geometry sourcing from sigma sourcing per TOOLING-VIS-001.
     Environment overrides:
-        - DBEX_SMOKE_GEOM_PATH: canonical geometry experiment file (defaults to refGeom.expt or refGeom_small.expt)
-        - DBEX_SMOKE_SIGMA_MAP_PATH: external sigma tiles pickle (used when smoke_sigma_source=="metadata")
+        - DBEX_SMOKE_GEOM_PATH: canonical geometry experiment file (overrides all defaults)
+        - DBEX_SMOKE_SIGMA_MAP_PATH: external sigma tiles pickle (overrides external_lookup when set)
 
-    When smoke_sigma_source=="metadata", the fixture resolves the sigma-map path from env or
-    defaults to sp.proc/idx-0000_sigma_metadata.sigma_tiles.pkl, validates it exists, and stashes
-    it on the dataclass. The geometry path remains the canonical refGeom experiment.
+    When smoke_sigma_source=="metadata", the fixture loads sigma metadata experiment files
+    (sp.proc/idx-0000_sigma_metadata.expt or sp.proc/refGeom_small/idx-0000_sigma_metadata_small.expt)
+    which have sigma embedded in imageset.external_lookup. The sigma_map_path is kept as None
+    (unless DBEX_SMOKE_SIGMA_MAP_PATH is explicitly set) so DataLoad will use the external_lookup path.
     """
     repo_root = Path(__file__).resolve().parent.parent
 
     # Resolve canonical geometry path from env or defaults
+    # When smoke_sigma_source=="metadata", use sigma metadata experiment files
+    # (which have sigma embedded in external_lookup) instead of refGeom files
     geom_path_override = os.environ.get("DBEX_SMOKE_GEOM_PATH")
     if geom_path_override:
         geom_path = repo_root / geom_path_override
+    elif smoke_sigma_source == "metadata":
+        # Use sigma metadata experiment files for external_lookup sigma sourcing
+        if smoke_detector_size == "small":
+            geom_path = repo_root / "sp.proc" / "refGeom_small" / "idx-0000_sigma_metadata_small.expt"
+        else:
+            geom_path = repo_root / "sp.proc" / "idx-0000_sigma_metadata.expt"
     elif smoke_detector_size == "small":
         geom_path = repo_root / "sp.proc" / "refGeom_small" / "refGeom_small.expt"
     else:
@@ -107,27 +116,24 @@ def smoke_dataset_paths(smoke_detector_size, smoke_sigma_source) -> SmokeDataset
         label = "full"
 
     # Resolve sigma-map path when metadata source is requested
+    # Note: When smoke_sigma_source=="metadata", sigma is loaded from the experiment file's
+    # external_lookup (not from a separate pickle file), so sigma_map_path is kept as None
+    # to avoid overriding the external_lookup path in DataLoad
     sigma_map_path = None
+    # Legacy path: if DBEX_SMOKE_SIGMA_MAP_PATH is explicitly set, honor it
     if smoke_sigma_source == "metadata":
         sigma_map_override = os.environ.get("DBEX_SMOKE_SIGMA_MAP_PATH")
         if sigma_map_override:
             sigma_map_path = repo_root / sigma_map_override
-        else:
-            # Default to cropped sigma-map for small detector, full sigma-map otherwise
-            if smoke_detector_size == "small":
-                sigma_map_path = repo_root / "sp.proc" / "refGeom_small" / "idx-0000_sigma_metadata_small.sigma_tiles.pkl"
-            else:
-                sigma_map_path = repo_root / "sp.proc" / "idx-0000_sigma_metadata.sigma_tiles.pkl"
-
-        # Validate sigma-map exists
-        if not sigma_map_path.exists():
-            pytest.skip(
-                f"Metadata sigma source requested but sigma-map pickle is missing: {sigma_map_path}. "
-                "Run plans/active/TOOLING-VIS-001/bin/crop_sigma_map_to_window.py "
-                "to generate the cropped sigma-map for small detector fixtures, "
-                "or run plans/active/PHYSICS-LOSS-001/bin/embed_sigma_external_lookup.py "
-                "with --sigma-value/--sigma-map to regenerate the full-detector sigma-map."
-            )
+            # Validate override path exists
+            if not sigma_map_path.exists():
+                pytest.skip(
+                    f"Metadata sigma source requested with explicit override but pickle is missing: {sigma_map_path}. "
+                    "Run plans/active/TOOLING-VIS-001/bin/crop_sigma_map_to_window.py "
+                    "to generate the cropped sigma-map for small detector fixtures, "
+                    "or run plans/active/PHYSICS-LOSS-001/bin/embed_sigma_external_lookup.py "
+                    "with --sigma-value/--sigma-map to regenerate the full-detector sigma-map."
+                )
 
     dataset = SmokeDatasetPaths(
         label=label,

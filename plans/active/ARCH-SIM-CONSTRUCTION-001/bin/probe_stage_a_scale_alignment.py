@@ -275,6 +275,18 @@ def main():
     mapping_recon_ratio_masked = None
     mapping_recon_ratio_unmasked = None
 
+    # ARCH-SIM-CONSTRUCTION-001 Phase C.7: Extract log_scale_effective telemetry if available
+    # This probe doesn't run refinement, but we can show what the expected structure looks like
+    log_scale_effective_example = {
+        "note": "This probe doesn't run Stage A refinement; example structure shown here",
+        "initial": log_scale_baseline if log_scale_baseline else 0.0,
+        "final": "computed during Stage A final forward pass",
+        "delta": "log_scale parameter delta",
+        "delta_bound": "config.log_scale_max_delta (typically 3.0)",
+        "log_scale_delta_clamped": "clamped delta value",
+        "scale_factor": "exp(log_scale_baseline + clamped_delta)",
+    }
+
     # Build JSON summary
     summary = {
         "detector_size": args.detector_size,
@@ -291,6 +303,7 @@ def main():
             "sqrt_spot_scale": sqrt_spot_scale,
             "scale_factor": scale_factor,
         },
+        "log_scale_effective_telemetry_structure": log_scale_effective_example,
         "mapping_path": {
             "global_scale_hint": float(mapping_ctx.inputs.global_scale_hint),
             "bragg_masked_mean": bragg_mapping_masked_mean,

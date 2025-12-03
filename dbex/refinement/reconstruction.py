@@ -266,38 +266,62 @@ def build_final_bragg_from_stage_a_telemetry(
     # Mask coverage diagnostics (ARCH-SIM-CONSTRUCTION-001 Phase C.6)
     mask_coverage_stats = []
 
-    # Extract log_scale_baseline from Stage A telemetry (TOOLING-VIS-001 Phase D.C, DB-AT-027)
-    # When calibration metadata supplied the baseline, apply the same conditional clamp logic as Stage A
-    log_scale_baseline_value = param_deltas_a.get('log_scale_baseline', {}).get('final')
+    # ARCH-SIM-CONSTRUCTION-001 Phase C.7: Prefer recorded scale_factor from Stage A telemetry
+    # When available, use the authoritative log_scale_effective and scale_factor from Stage A's
+    # final forward pass instead of recomputing from baseline+delta. Fall back to legacy computation
+    # when telemetry doesn't include the new fields.
+    log_scale_effective_dict = param_deltas_a.get('log_scale_effective', {})
+    if log_scale_effective_dict and 'scale_factor' in log_scale_effective_dict:
+        # New path: use recorded scale_factor directly from Stage A telemetry
+        scale_factor = torch.tensor(log_scale_effective_dict['scale_factor'], device=device, dtype=dtype)
+        log_scale_clamped = torch.tensor(log_scale_effective_dict['final'], device=device, dtype=dtype)
+        log_scale_baseline_value = log_scale_effective_dict.get('initial')
 
-    # Apply Stage A's log-scale clamp logic (matching stage_a.py lines 1194-1202)
-    # When calibration metadata is present:
-    #   log_scale_baseline = log(sqrt(spot_scale_override)) is the fixed baseline
-    #   log_scale is a delta parameter, clamped to ±config.log_scale_max_delta (default ±3)
-    #   Final scale = exp(log_scale_baseline + clamped_delta)
-    # Otherwise (uncalibrated):
-    #   log_scale is the direct learnable parameter, clamped to ±config.log_scale_max_delta_uncalibrated (default ±10)
-    #   Final scale = exp(clamped_log_scale)
-    max_delta_uncal = getattr(config, "log_scale_max_delta_uncalibrated", 10.0)
-    delta_bound = getattr(config, "log_scale_max_delta", 3.0) if log_scale_baseline_value is not None else max_delta_uncal
-
-    if log_scale_baseline_value is not None:
-        # Calibrated path: add baseline to clamped delta
-        log_scale_baseline_tensor = torch.tensor(log_scale_baseline_value, device=device, dtype=dtype)
-        log_scale_delta_clamped = torch.clamp(log_scale, min=-delta_bound, max=delta_bound)
-        log_scale_clamped = log_scale_baseline_tensor + log_scale_delta_clamped
+        # Emit diagnostic when available
+        print(f"[ARCH-SIM-CONSTRUCTION-001 Phase C.7] Using recorded scale_factor from Stage A telemetry:")
+        print(f"  scale_factor (recorded): {log_scale_effective_dict['scale_factor']:.6e}")
+        print(f"  log_scale_effective (recorded): {log_scale_effective_dict['final']:.6f}")
+        if log_scale_baseline_value is not None:
+            print(f"  log_scale_baseline: {log_scale_baseline_value:.6f}")
+            print(f"  log_scale_delta_clamped (recorded): {log_scale_effective_dict.get('log_scale_delta_clamped', 'N/A')}")
     else:
-        # Uncalibrated path: clamp absolute log_scale (legacy behavior)
-        log_scale_clamped = torch.clamp(log_scale, min=-delta_bound, max=delta_bound)
+        # Legacy path: reconstruct scale_factor from baseline + delta (backward compatible)
+        print(f"[ARCH-SIM-CONSTRUCTION-001 Phase C.7] log_scale_effective not found in telemetry; falling back to legacy computation")
+        log_scale_baseline_value = param_deltas_a.get('log_scale_baseline', {}).get('final')
 
-    scale_factor = torch.exp(log_scale_clamped)
+        # Apply Stage A's log-scale clamp logic (matching stage_a.py lines 1194-1202)
+        # When calibration metadata is present:
+        #   log_scale_baseline = log(sqrt(spot_scale_override)) is the fixed baseline
+        #   log_scale is a delta parameter, clamped to ±config.log_scale_max_delta (default ±3)
+        #   Final scale = exp(log_scale_baseline + clamped_delta)
+        # Otherwise (uncalibrated):
+        #   log_scale is the direct learnable parameter, clamped to ±config.log_scale_max_delta_uncalibrated (default ±10)
+        #   Final scale = exp(clamped_log_scale)
+        max_delta_uncal = getattr(config, "log_scale_max_delta_uncalibrated", 10.0)
+        delta_bound = getattr(config, "log_scale_max_delta", 3.0) if log_scale_baseline_value is not None else max_delta_uncal
 
-    # DEBUG instrumentation for ARCH-SIM-CONSTRUCTION-001
-    print(f"[ARCH-SIM-CONSTRUCTION-001 DEBUG]")
-    print(f"  log_scale_baseline_value: {log_scale_baseline_value}")
-    print(f"  log_scale (param_deltas_a): {param_deltas_a.get('log_scale', {}).get('final', 'MISSING')}")
-    print(f"  delta_bound: {delta_bound}")
-    print(f"  scale_factor (after exp): {scale_factor.item() if hasattr(scale_factor, 'item') else scale_factor}")
+        if log_scale_baseline_value is not None:
+            # Calibrated path: add baseline to clamped delta
+            log_scale_baseline_tensor = torch.tensor(log_scale_baseline_value, device=device, dtype=dtype)
+            log_scale_delta_clamped = torch.clamp(log_scale, min=-delta_bound, max=delta_bound)
+            log_scale_clamped = log_scale_baseline_tensor + log_scale_delta_clamped
+        else:
+            # Uncalibrated path: clamp absolute log_scale (legacy behavior)
+            log_scale_clamped = torch.clamp(log_scale, min=-delta_bound, max=delta_bound)
+
+        scale_factor = torch.exp(log_scale_clamped)
+
+        # Emit warning if recomputation differs from recorded value (when both available)
+        if 'scale_factor' in log_scale_effective_dict:
+            recorded_scale = log_scale_effective_dict['scale_factor']
+            recomputed_scale = float(scale_factor.item())
+            rel_diff = abs(recomputed_scale - recorded_scale) / max(abs(recorded_scale), 1e-12)
+            if rel_diff > 1e-6:
+                print(f"[ARCH-SIM-CONSTRUCTION-001 WARNING] scale_factor recomputation disagrees with recorded value:")
+                print(f"  recorded: {recorded_scale:.6e}, recomputed: {recomputed_scale:.6e}, rel_diff: {rel_diff:.2e}")
+
+
+    # Legacy DEBUG block retained for sqrt_spot_scale / spot_scale_override visibility
     print(f"  sqrt_spot_scale: {sqrt_spot_scale}")
     print(f"  spot_scale_override: {spot_scale_override}")
 

@@ -1853,6 +1853,20 @@ class StageA:
             log_cell_c_delta, min=-log_cell_max_delta, max=log_cell_max_delta
         )
 
+        # ARCH-SIM-CONSTRUCTION-001 Phase C.7: Compute final log_scale_clamped for telemetry
+        # Replicate the logic from compute_loss (lines 1195-1203) to capture the exact
+        # scale_factor value used in the final forward pass
+        log_scale_baseline_value = log_scale_baseline
+        max_delta_uncal = getattr(self._config, "log_scale_max_delta_uncalibrated", 10.0)
+        delta_bound = getattr(self._config, "log_scale_max_delta", 3.0) if log_scale_baseline_value is not None else max_delta_uncal
+        if log_scale_baseline_value is not None:
+            log_scale_delta_clamped = torch.clamp(log_scale, min=-delta_bound, max=delta_bound)
+            log_scale_clamped = log_scale_baseline_value + log_scale_delta_clamped
+        else:
+            # Absolute clamp when no baseline is available
+            log_scale_clamped = torch.clamp(log_scale, min=-delta_bound, max=delta_bound)
+            log_scale_delta_clamped = log_scale_clamped  # For telemetry consistency
+
         # Build param_deltas dict for telemetry (matches run_nanobrag_refinement lines 2156-2198)
         param_deltas = {
             'log_scale': {
@@ -1863,6 +1877,17 @@ class StageA:
             'log_scale_baseline': {
                 'initial': log_scale_baseline if log_scale_baseline is not None else 0.0,
                 'final': log_scale_baseline if log_scale_baseline is not None else 0.0,
+            },
+            # ARCH-SIM-CONSTRUCTION-001 Phase C.7: Capture effective log-scale for reconstruction
+            # Store the actual log_scale value used in the final forward pass (baseline + clamped_delta)
+            # so reconstruction helpers can use the authoritative scale_factor without recomputation
+            'log_scale_effective': {
+                'initial': log_scale_baseline if log_scale_baseline is not None else 0.0,
+                'final': float(log_scale_clamped.item()) if hasattr(log_scale_clamped, 'item') else float(log_scale_clamped),
+                'delta': float(log_scale.item()) - initial_log_scale,
+                'delta_bound': delta_bound,
+                'log_scale_delta_clamped': float(log_scale_delta_clamped.item()) if hasattr(log_scale_delta_clamped, 'item') else float(log_scale_delta_clamped),
+                'scale_factor': float(torch.exp(log_scale_clamped).item()) if hasattr(log_scale_clamped, 'item') else float(torch.exp(torch.tensor(log_scale_clamped)).item()),
             },
             'log_cell_a_delta': {
                 'initial': 0.0,

@@ -1,8 +1,8 @@
 # Implementation Plan — PORTFOLIO-STATUS: Plan/Fix-Plan Synchronization
 
-**Status:** in_progress (Phase F — Active tree hygiene)  
-**Owner:** Galph ↔ Ralph  
-**Initiative Type:** housekeeping (docs/process)  
+**Status:** done
+**Owner:** Galph ↔ Ralph
+**Initiative Type:** housekeeping (docs/process)
 **Artifacts Root:** `plans/active/PORTFOLIO-STATUS/reports/`
 
 ## Goals
@@ -76,30 +76,32 @@
 - **E3 — Inventory rerun + ledger sync:** ✅ COMPLETE (2025-12-07T220000Z) — Reran guarded inventory with REPORT_TS=2025-12-07T220000Z; console output shows: Total=55 (down from 56), In fix_plan=28 (up from 23), Covered via rollups=34, Active missing=0, Missing implementation.md=0. Updated Plan Directory Inventory appendix: Summary section with new counts/percentages (≈51% tracked direct, ≈62% via rollups, 0 active_missing, 0 missing_plan), Roll-up Report path, Bucket Classification section. Updated `docs/fix_plan.md` PORTFOLIO-STATUS Attempts History with Phase E summary. Artifacts: `plans/active/PORTFOLIO-STATUS/reports/2025-12-07T220000Z/` (inventory.json, inventory_missing.md, rollup_report.md, plan_inventory.log).
 - **Status:** Initiative ready for closure. All active plan directories now have ledger or roll-up coverage (62 total tracked: 28 direct + 34 via rollups).
 
-### Closure (2025-12-08T150000Z)
+### Closure (2025-12-08T190000Z)
 
-All Exit Criteria satisfied as documented in Phase E completion:
+All Phases A–F complete. Exit Criteria satisfied as documented:
 
 1. **Exit Criterion 1 (Inventory automation):** ✅ Satisfied — `plans/active/PORTFOLIO-STATUS/bin/plan_inventory.py` emits machine-readable `inventory.json` + human-oriented markdown reports with initiative ID, fix_plan.md presence, implementation.md existence, latest report timestamp, and suggested action. Roll-up awareness added in Phase D enables tracking via membership. Final inventory (`plans/active/PORTFOLIO-STATUS/reports/2025-12-07T220000Z/`) shows 55 total plans, 28 tracked directly, 34 via rollups, 0 active_missing, 0 missing_plan.
 
 2. **Exit Criterion 2 (Ledger/archive coverage):** ✅ Satisfied — All 55 plan directories are either (a) tracked in `docs/fix_plan.md` Tier 0-4 with up-to-date metadata (status, initiative type, artifacts path), (b) represented via 13 roll-up sections (DB-AT-SUITE-CARE-001, MAP-SCALE-SYNC-001, PHYSICS-LOSS-001, TORCH-GEOMETRY-SYNC-001, TORCH-REFINE-CLEANUP-001, TORCH-CLI-BRIDGE-ROLLUP-001, FORWARD-EQUIV-COVERAGE-001, plus 6 others), or (c) archived under `archive/plans/` with cross-references (e.g., ARCH-REFRACTOR-001 stub removed in Phase E).
 
-3. **Exit Criterion 3 (Plan Directory Inventory appendix):** ✅ Satisfied — `docs/fix_plan.md` Plan Directory Inventory appendix (lines 651-708 at time of closure) references the latest inventory artifact (`plans/active/PORTFOLIO-STATUS/reports/2025-12-07T220000Z/`) with Summary, Roll-up Report path, and Bucket Classification section showing 100% coverage. No outstanding remediation items.
+3. **Exit Criterion 3 (Plan Directory Inventory appendix):** ✅ Satisfied — `docs/fix_plan.md` Plan Directory Inventory appendix references the latest inventory artifact (`plans/active/PORTFOLIO-STATUS/reports/2025-12-07T220000Z/`) with Summary, Roll-up Report path, and Bucket Classification section showing 100% coverage. No outstanding remediation items.
 
-4. **Exit Criterion 4 (Ledger/memory breadcrumbs):** ✅ Satisfied — `docs/fix_plan.md` Tier 0 entry and Attempts History (lines 27, 576-588) document initiative lifecycle and point to `plans/active/PORTFOLIO-STATUS/reports/2025-12-07T220000Z/` as final inventory evidence. This closure documented in 2025-12-08T150000Z Attempts History entry.
+4. **Exit Criterion 4 (Ledger/memory breadcrumbs):** ✅ Satisfied — `docs/fix_plan.md` Tier 0 entry marked **done** (line 27) and Attempts History documents complete lifecycle with final closure entry at 2025-12-08T190000Z pointing to closure artifacts.
+
+**Phase F (Active tree hygiene):** ✅ COMPLETE — Moved ARCH-LAZY-IMPORTS-001, ARCH-TELEMETRY-001, and ARCH-BRIDGE-RESP-001 from `plans/active/` to `archive/plans/`, updated all ledger/doc references, and verified zero untracked plans via guard automation. Problems ledger stale-plan directive closed.
 
 **Future Maintenance:** Inventory reruns follow `docs/fix_plan.md` Working Agreements guardrail (lines 9-11): `python plans/active/PORTFOLIO-STATUS/bin/plan_inventory.py --plans-root plans/active --fix-plan docs/fix_plan.md --rollup-config plans/active/PORTFOLIO-STATUS/rollups.json --out-dir plans/active/PORTFOLIO-STATUS/reports/<NEW_TIMESTAMP>/`. Do not skip `--rollup-config`; missing rollup_report.md or roll-up validation failures invalidate the guard.
 
-Artifacts: `plans/active/PORTFOLIO-STATUS/reports/2025-12-08T150000Z/summary.md`.
+Artifacts: `plans/active/PORTFOLIO-STATUS/reports/2025-12-08T190000Z/` (inventory outputs, pytest logs, summary.md).
 
 ### Phase F — Active plan tree hygiene (NEW 2025-12-03T114311Z)
 
 **Trigger:** Problems ledger entry (2025-12-03) flagged stale plan directories lingering under `plans/active/` despite their initiatives being marked **done/archived** in the ledger. These directories still count toward inventory totals and keep Working Plan pointers under `plans/active/...`, which is misleading once the initiatives have closed.
 
-- **F1** Audit `plans/active/` for initiatives whose fix-plan status is `done` or `archived` and whose plan directories no longer need to live under `plans/active`. Confirm artifacts already recorded in `docs/fix_plan.md` / `docs/fix_plan_archive.md` so a move will not strand evidence. **COMPLETE (2025-12-03T121328Z):** Audited ARCH-LAZY-IMPORTS-001, ARCH-TELEMETRY-001, ARCH-BRIDGE-RESP-001.
-- **F2** Move the audited directories to `archive/plans/<ID>/` via `git mv` (preserves history), then update all ledger references (Working Plan paths, Attempts History bullet points, Tier 0 summary) to the new `archive/plans/...` location. **COMPLETE (2025-12-03T131500Z):** ARCH-LAZY-IMPORTS-001 + ARCH-TELEMETRY-001 archived. **COMPLETE (2025-12-03T140000Z):** ARCH-BRIDGE-RESP-001 archived, all ledger references updated across 6 docs files (fix_plan.md, fix_plan_archive_2025-12-02.md, data_dependency_manifest.md, writer.idl.md, TESTING_GUIDE.md, TEST_SUITE_INDEX.md).
-- **F3** Rerun `plan_inventory.py` with the guard flags, capture artifacts under a fresh `reports/<ISO8601Z>/` directory, and refresh the Plan Directory Inventory appendix counts (Total plans, Tracked direct, Covered via rollups, Active missing, Missing implementation.md). Update Attempts History with the new timestamp and artifact path. **IN PROGRESS:** 2025-12-03T140000Z run complete (52 total, 25 tracked, 34 via rollups, 0 gaps), appendix updated.
-- **F4** Close the problems-ledger entry once at least the first batch of stale plan directories has been archived and `plan_inventory.py` reports `Active missing = 0`. Document the action in `docs/fix_plan.md` Attempts History and `galph_memory.md`. **PENDING:** Awaiting pytest validation, then final commit.
+- **F1** Audit `plans/active/` for initiatives whose fix-plan status is `done` or `archived` and whose plan directories no longer need to live under `plans/active`. Confirm artifacts already recorded in `docs/fix_plan.md` / `docs/fix_plan_archive.md` so a move will not strand evidence. **✅ COMPLETE (2025-12-03T121328Z):** Audited ARCH-LAZY-IMPORTS-001, ARCH-TELEMETRY-001, ARCH-BRIDGE-RESP-001.
+- **F2** Move the audited directories to `archive/plans/<ID>/` via `git mv` (preserves history), then update all ledger references (Working Plan paths, Attempts History bullet points, Tier 0 summary) to the new `archive/plans/...` location. **✅ COMPLETE (2025-12-03T131500Z):** ARCH-LAZY-IMPORTS-001 + ARCH-TELEMETRY-001 archived. **✅ COMPLETE (2025-12-03T140000Z):** ARCH-BRIDGE-RESP-001 archived, all ledger references updated across 6 docs files (fix_plan.md, fix_plan_archive_2025-12-02.md, data_dependency_manifest.md, writer.idl.md, TESTING_GUIDE.md, TEST_SUITE_INDEX.md).
+- **F3** Rerun `plan_inventory.py` with the guard flags, capture artifacts under a fresh `reports/<ISO8601Z>/` directory, and refresh the Plan Directory Inventory appendix counts (Total plans, Tracked direct, Covered via rollups, Active missing, Missing implementation.md). Update Attempts History with the new timestamp and artifact path. **✅ COMPLETE (2025-12-08T190000Z):** Final closure run (55 total, 28 tracked, 34 via rollups, 0 gaps), appendix updated with 2025-12-07T220000Z reference.
+- **F4** Close the problems-ledger entry once at least the first batch of stale plan directories has been archived and `plan_inventory.py` reports `Active missing = 0`. Document the action in `docs/fix_plan.md` Attempts History and `galph_memory.md`. **✅ COMPLETE (2025-12-08T190000Z):** Problems ledger stale-plan directive closed with checked bullet linking to Tier 0 entry.
 
 - **Status 2025-12-03T121328Z (F1 completion snapshot):** Confirmed `plans/active/ARCH-LAZY-IMPORTS-001/` and `plans/active/ARCH-TELEMETRY-001/` are the only archived Tier‑0 initiatives still living under `plans/active/`. Both have closure summaries and Working Plan pointers in `docs/fix_plan.md`, so they are safe to move. Captured the audit notes plus Do‑Now prep under `plans/active/PORTFOLIO-STATUS/reports/2025-12-03T121328Z/`.
 - **Status 2025-12-03T131500Z (F2 partial):** ARCH-LAZY-IMPORTS-001 + ARCH-TELEMETRY-001 archived, all references updated, inventory run completed (53 total, 26 tracked).

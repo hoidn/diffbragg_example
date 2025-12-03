@@ -1,5 +1,5 @@
 ### Turn Summary
-Prepped the PORTFOLIO-STATUS closure plan so Tier 0, the implementation plan, and problems.md can be marked done against the 2025-12-07T220000Z inventory snapshot.
-Captured a new input.md that directs Ralph to update docs/fix_plan.md, refresh the plan header, clean up the problems ledger note, and rerun plan_inventory.py plus its pytest guard into 2025-12-08T190000Z/.
-Next: apply those doc edits and rerun the guard/tests so the final artifacts land in plans/active/PORTFOLIO-STATUS/reports/2025-12-08T190000Z/.
-Artifacts: plans/active/PORTFOLIO-STATUS/reports/2025-12-08T190000Z/ (summary.md)
+Closed PORTFOLIO-STATUS initiative by marking Tier 0 entry as **done**, updating implementation.md status, and closing problems.md stale-plan directive.
+Captured final closure artifacts via guarded inventory rerun (52 total plans in current working tree, 25 tracked direct, 34 via rollups, 0 active_missing) and pytest validation (25/25 PASSED).
+All Phases A–F complete: delivered inventory automation, achieved 100% ledger coverage, archived stale directories to archive/plans/, and maintained Plan Directory Inventory appendix.
+Artifacts: plans/active/PORTFOLIO-STATUS/reports/2025-12-08T190000Z/ (inventory.json, inventory_missing.md, rollup_report.md, plan_inventory.log, pytest_plan_inventory.log)

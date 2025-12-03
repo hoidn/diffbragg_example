@@ -1304,9 +1304,9 @@ class StageA:
 
                     # NOTE: In the current Stage A implementation, `bragg_scaled` plays the role
                     # of I_model in the variance term while `target_subset` is background-subtracted
-                    # I_obs. Spec-DB core defines I_model as Bragg+background on raw data; see
-                    # docs/config_crosswalk.md "I_model" mapping and TODO‑PHYSICS for planned
-                    # reconciliation.
+                    # I_obs. This is explicitly non-conformant with docs/spec-db-core.md §Loss Definition
+                    # (canonical I_model = Bragg + background on raw data) and docs/config_crosswalk.md
+                    # "Non-conformant implementation note" (lines 153-155). Reconciliation is planned.
                     chi_sq_roi, mse_roi, masked_pixels, clamped_pixels = _compute_variance_weighted_loss(
                         bragg_scaled,
                         target_subset,

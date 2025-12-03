@@ -1,88 +1,42 @@
-# Input for Ralph — Loop 2025-12-08T190000Z
+Summary: Promote the one-off simulator trace into a reusable script that captures the crystal/unit mismatch and records machine-readable metrics for DIAG-UNIT-001.
+Mode: none
+InitiativeType: diagnostics
+Focus: DIAG-NANOBRAGG-OVERSAMPLE-001 — nanobrag_torch Oversample Parameter Investigation
+Branch: main
+Mapped tests: tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_beam_center_swap
+Artifacts: plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T130945Z/
 
-## Summary
-Close PORTFOLIO-STATUS by marking the Tier 0 ledger/plan/problems ledger as done and capturing a fresh plan-inventory guard run so the final artifacts reflect the 100% coverage snapshot from 2025-12-07T220000Z.
+Do Now:
+- Implement: plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/bin/trace_simulator_mismatch.py::main — new Tier-2 probe that loads the smoke fixtures via DataLoad/build_mapping_stage_a_context, builds a Stage A warm cache with RefinementConfig(oversample=3), toggles `trace_pixel` + `printout` on the cached simulator, captures stdout with `contextlib.redirect_stdout`, parses the TRACE_PY vectors, and writes both the raw log and `simulator_trace_metrics.json` (showing raw vs corrected h/k/l) into the artifacts directory (see phase_d_trace_plan.md).
+- Implement: docs/findings.md::DIAG-UNIT-001 — append the new artifact path plus a one-line note that `trace_simulator_mismatch.py` now emits the quantified 1e10 mismatch so future loops can cite it directly.
+- Validate: python plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/bin/trace_simulator_mismatch.py --detector-size small --trace-fast 0 --trace-slow 0 --device cpu --out-dir plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T130945Z/ (produces simulator_trace.log, simulator_trace_metrics.json, crystal_unit_analysis.md in the artifacts path).
+- Validate: pytest -vv tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_beam_center_swap | tee plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T130945Z/pytest_detector_config.log (quick guard to ensure the diagnostics script does not drift config factory behavior).
 
-## Mode
-Docs
+How-To Map:
+1. AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_SIGMA_SOURCE=metadata KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/bin/trace_simulator_mismatch.py --detector-size small --trace-fast 0 --trace-slow 0 --device cpu --out-dir plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T130945Z/ > plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T130945Z/command.log
+2. AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_beam_center_swap | tee plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T130945Z/pytest_detector_config.log
 
-## InitiativeType
-housekeeping
+Pitfalls To Avoid:
+- Do not instantiate new simulators per ROI; reuse the Stage A cache and only mutate `trace_pixel`/`printout` so the evidence matches the warm path we validated previously.
+- Keep env flags (`AUTHORITATIVE_CMDS_DOC`, `KMP_DUPLICATE_LIB_OK=TRUE`, `NANOBRAGG_DISABLE_COMPILE=1`, `DBEX_SMOKE_*`) identical to the manual run so the trace is comparable.
+- Capture stdout inside the script instead of depending on shell redirection—the script must emit both the log and parsed metrics in one invocation.
+- Use the canonical smoke fixtures (`sp.proc/refGeom_small/...`) declared in docs/data_dependency_manifest.md; do not point at ad-hoc files.
+- Parsed metrics must compute both the raw h/k/l (≈3e-9) and the corrected values (`raw * 1e10`) so DIAG-UNIT-001 has quantitative proof of the mismatch.
 
-## Focus
-PORTFOLIO-STATUS — Plan/Fix-Plan synchronization & archive hygiene
+If Blocked:
+- If the script fails to import nanobrag_torch or DIALS assets, capture the traceback in `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T130945Z/blocker.log`, add the failure signature + repro steps to docs/fix_plan.md Attempts History, and ping Galph before attempting environment changes.
+- If the TRACE_PY output schema changes (no matching regex), dump the raw log under the artifacts path and leave TODO comments for the parser; note the schema drift in docs/fix_plan.md + DIAG-UNIT-001 so we can re-plan.
 
-## Branch
-integration
+Findings Applied (Mandatory):
+- DIAG-OVERSAMPLE-001 (docs/findings.md:105) — keep detector/beams configs identical to Stage A warm cache and avoid altering Simulator semantics beyond diagnostics.
+- DIAG-UNIT-001 (docs/findings.md:50) — this script is the codified reproduction of the unit mismatch; ensure the JSON explicitly reports the raw vs corrected dot products to satisfy the finding’s evidence requirements.
 
-## Mapped tests
-pytest -vv plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py
+Pointers:
+- docs/spec-db-core.md:12 — Units policy (Å inputs, convert to meters only for dot products) referenced when explaining the mismatch.
+- docs/data_dependency_manifest.md:36 — Smoke fixture inventory for refGeom_small dataset, MTZ, mask, and sigma tiles.
+- docs/findings.md:50 — DIAG-UNIT-001 finding that this script must update.
+- plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/implementation.md:120 — Phase D tasks and exit criteria for the trace instrumentation.
+- plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T130945Z/phase_d_trace_plan.md:1 — Detailed script requirements and validation command from this planning loop.
 
-## Artifacts
-plans/active/PORTFOLIO-STATUS/reports/2025-12-08T190000Z/
-
-## Do Now
-1. **Implement: docs/fix_plan.md::Tier 0 entry + Plan Directory Inventory**  
-   - Change the PORTFOLIO-STATUS Tier 0 bullet from “in_progress (Phase F …)” to **done**, summarizing that Phases A–F completed and citing the final inventory at `plans/active/PORTFOLIO-STATUS/reports/2025-12-07T220000Z/`.  
-   - Refresh the Attempts History with a new 2025-12-08T190000Z line describing this closure loop and pointing at the new artifact path below.  
-   - Update the “Plan Directory Inventory” appendix header so “Latest Report” references 2025-12-07T220000Z (or the new run you capture in step 3), and rewrite the Summary/Bucket sections with the canonical counts (Total=55, Tracked=28, Covered via rollups=34, Active missing=0, Missing plan=0). Keep the guard command block unchanged aside from the timestamp.  
-   - Ensure Working Agreements still emphasize the `--rollup-config` flag.
-2. **Implement: plans/active/PORTFOLIO-STATUS/implementation.md::Status + Closure**  
-   - Set `Status:` to `done` in the header.  
-   - Fold the Closure narrative (the paragraph that starts “All Exit Criteria satisfied…”) into the “Phase F” section and cite the same final artifact path so the plan matches the ledger text.  
-   - Remove any lingering “Phase F in progress” language so the plan header, phase breakdown, and closure section align.
-3. **Implement: problems.md::Active Items**  
-   - Edit the free-form directive under “ATTN NEW PROBLEMS” so it records that the stale-plan inventory/archival drive is resolved via PORTFOLIO-STATUS (refer to docs/fix_plan.md Tier 0 entry).  
-   - If you prefer, convert that note into a checked `[x]` bullet linking to the fix-plan line so the ledger now has a historical pointer and the “Active Items” list goes back to empty.
-4. **Run + capture guard artifacts**  
-   - `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md python plans/active/PORTFOLIO-STATUS/bin/plan_inventory.py --plans-root plans/active --fix-plan docs/fix_plan.md --rollup-config plans/active/PORTFOLIO-STATUS/rollups.json --out-dir plans/active/PORTFOLIO-STATUS/reports/2025-12-08T190000Z/ | tee plans/active/PORTFOLIO-STATUS/reports/2025-12-08T190000Z/plan_inventory.log`  
-   - Copy the generated `inventory.json`, `inventory_missing.md`, and `rollup_report.md` into that directory.  
-   - `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md pytest -vv plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py | tee plans/active/PORTFOLIO-STATUS/reports/2025-12-08T190000Z/pytest_plan_inventory.log`  
-   - Drop a short `summary.md` noting that the guard/tests were re-run post-closure.
-
-## How-To Map
-```bash
-export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
-export REPORT_TS=2025-12-08T190000Z
-mkdir -p plans/active/PORTFOLIO-STATUS/reports/${REPORT_TS}
-
-$EDITOR docs/fix_plan.md
-$EDITOR plans/active/PORTFOLIO-STATUS/implementation.md
-$EDITOR problems.md
-
-python plans/active/PORTFOLIO-STATUS/bin/plan_inventory.py \
-  --plans-root plans/active \
-  --fix-plan docs/fix_plan.md \
-  --rollup-config plans/active/PORTFOLIO-STATUS/rollups.json \
-  --out-dir plans/active/PORTFOLIO-STATUS/reports/${REPORT_TS}/ \
-  | tee plans/active/PORTFOLIO-STATUS/reports/${REPORT_TS}/plan_inventory.log
-
-pytest -vv plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py \
-  | tee plans/active/PORTFOLIO-STATUS/reports/${REPORT_TS}/pytest_plan_inventory.log
-```
-
-## Pitfalls To Avoid
-- Keep scope limited to docs/plan/problems; do **not** touch production src modules.  
-- When editing markdown tables or bullet lists, preserve spacing so rendered layout stays intact.  
-- Do not hardcode new plan counts manually—pull them from the freshly generated `inventory.json`.  
-- Ensure the guard command includes `--rollup-config`; the automation now fails fast if it’s omitted.  
-- Capture every log/artifact (inventory + pytest) under `plans/active/PORTFOLIO-STATUS/reports/${REPORT_TS}/` so the ledger can cite them.  
-- Leave historical Attempts History entries untouched—only append the new closure note.  
-- If adjusting `problems.md`, make sure no duplicate unchecked entries remain for the same topic.
-
-## If Blocked
-- If the guard script or pytest fails, stop, save the console output to `plans/active/PORTFOLIO-STATUS/reports/${REPORT_TS}/failure.log`, and record the blocker in both `docs/fix_plan.md` Attempts History and `plans/active/PORTFOLIO-STATUS/implementation.md`.  
-- If doc edits uncover merge conflicts (e.g., someone else already edited Tier 0), keep the files unmerged and log the conflict in `galph_memory.md`; do not guess at the intended content.
-
-## Findings Applied
-No relevant findings in the knowledge base (grep for “PORTFOLIO-STATUS” returned no matches in docs/findings.md).
-
-## Pointers
-- `docs/fix_plan.md:21` — Tier 0 entry + Attempts History that must be updated.  
-- `docs/fix_plan.md:640` — Plan Directory Inventory appendix requiring the new counts.  
-- `plans/active/PORTFOLIO-STATUS/implementation.md:1` — Plan header/Phase F text to align.  
-- `plans/active/PORTFOLIO-STATUS/reports/2025-12-07T220000Z/summary.md` — Final inventory evidence you’re referencing.  
-- `problems.md:34` — Directive describing the stale-plan inventory work you’re closing.
-
-## Next Up (optional)
-If you finish early, prep the archive move for `plans/active/ARCH-REFINE-001` so the stale plan directories list keeps shrinking.
+Next Up (optional):
+- Once the metrics exist, start Phase E to patch nanobrag_torch.Crystal so real-space vectors stay in Å before dotting with scattering vectors (spec-change may be required if upstream refuses meters conversion).

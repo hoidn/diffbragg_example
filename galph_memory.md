@@ -1844,3 +1844,23 @@ Action State: ready_for_implementation
 - Re-run `plan_inventory.py --rollup-config` + the pytest guard, saving logs + JSON/Markdown outputs into `plans/active/PORTFOLIO-STATUS/reports/2025-12-08T190000Z/`.
 
 **Action State**: ready_for_implementation
+
+## Loop 2025-12-03T130945Z
+
+**Focus**: DIAG-NANOBRAGG-OVERSAMPLE-001 — nanobrag_torch Oversample Parameter Investigation (Phase D trace script planning)
+**State**: planning
+**Dwell**: 1 (first planning loop after the 2025-12-03 evidence run)
+**Action Type**: planning
+**Initiative Type**: diagnostics
+
+**Key Observations**:
+1. Manual TRACE_PY capture (2025-12-03T064931Z) needs to be a reusable Tier-2 probe so DIAG-UNIT-001 evidence no longer depends on shell redirection; scripted run must emit both the raw log and parsed metrics showing the 1e10 unit mismatch.
+2. Authored `phase_d_trace_plan.md` under `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T130945Z/` describing the script contract, CLI flags, required outputs, and the canonical command line for Ralph.
+3. Updated docs/fix_plan.md Attempts History with the Phase D planning notes and rewrote input.md so the next loop implements the script + findings update + a light pytest guard.
+
+**Artifacts Path**: `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T130945Z/`
+
+**Next Actions**:
+- ready_for_implementation — Implement `trace_simulator_mismatch.py`, rerun it on the smoke fixtures, update DIAG-UNIT-001 with the new artifact path, and capture the config factory pytest guard per the new Do Now.
+
+**Action State**: ready_for_implementation

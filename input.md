@@ -1,194 +1,134 @@
-# Input for Ralph — ARCH-TELEMETRY-001 Phase C.4
+# Input for Ralph — ARCH-LAZY-IMPORTS-001 Phase C Process-Noise Sweep
 
-**Summary**: Remove legacy telemetry key mapping from RefinementEngine and update test assertions to use internal stage names.
+## Summary
+Clean up historical ticket references and process noise from docstrings/comments, replacing them with normative spec/finding citations.
 
-**Mode**: Parity
+## Mode
+Docs
 
-**InitiativeType**: architecture
+## InitiativeType
+architecture
 
-**Focus**: ARCH-TELEMETRY-001 — Telemetry Observer Refactor
+## Focus
+ARCH-LAZY-IMPORTS-001 — Lazy imports / process-noise hygiene
 
-**Branch**: integration
+## Branch
+integration
 
-**Mapped tests**:
-- `tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload`
-- `tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers`
-- `tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip`
-- `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion`
-- `tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry`
+## Mapped tests
+none — documentation-only loop
 
-**Artifacts**: `plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T022931Z/`
-
----
+## Artifacts
+`plans/active/ARCH-LAZY-IMPORTS-001/reports/2025-12-05T000500Z/`
 
 ## Do Now
 
-### Background
-Phase C.3.1 complete (writer consumes StageResult dataclasses). Phase C.3.2 complete (Stage B/C no longer call `to_legacy_dict()`). This loop completes Phase C.4: remove the legacy key mapping from `RefinementEngine.run()` that translates internal stage names ("stage_a", "stage_b", "stage_c") to legacy labels ("A", "B", "C") for backward compatibility with old test assertions.
+**Scope**: Process-noise cleanup across geometry/physics/Stage modules now that eager-import work (Phase B.3) is complete.
 
-### Implement
+**Tasks**:
+1. **Audit docstrings and comments** in the following modules for historical ticket references (e.g., "Issue #123", "JIRA-456", "TODO from 2024-06 sprint"):
+   - `dbex/geometry/crystallography.py`
+   - `dbex/physics/forward.py`
+   - `dbex/physics/loss.py`
+   - `dbex/refinement/stage_a_utils.py`
+   - `dbex/refinement/hkl_utils.py`
+   - `dbex/refinement/stage_a.py`
+   - `dbex/refinement/stage_b.py`
+   - `dbex/refinement/stage_c.py`
 
-**Task 1: Remove legacy key mapping in RefinementEngine.run()**
+2. **Replace ticket/process references** with normative spec/finding citations where applicable:
+   - Example: `# TODO: fix baseline bug (issue #789)` → `# Baseline logic per docs/spec-db-core.md §Calibration Metadata`
+   - Example: `# Workaround for JIRA-456 matrix singularity` → `# Matrix derivation per GEOMETRY-001 finding`
+   - Example: `# From 2024-11 refactor meeting notes` → Remove or replace with spec citation
 
-1. **File**: `dbex/refinement/engine.py`
+3. **Document cleanup summary**:
+   - Count of references replaced per module
+   - List any references that cannot be mapped to specs/findings (flag for future triage)
+   - Save audit results to `plans/active/ARCH-LAZY-IMPORTS-001/reports/2025-12-05T000500Z/process_noise_audit.md`
 
-2. **Edit** (lines 201-215):
-   - **DELETE** entire comment block + legacy_telemetry_dict construction loop (lines 201-213)
-   - **REPLACE** line 215 (`return legacy_telemetry_dict`) with `return self._telemetry`
+4. **Validation**: Run `rg -n "TODO|FIXME|JIRA|Issue #|ticket" dbex/{geometry,physics,refinement}/*.py` after cleanup to verify no low-value process references remain
 
-   **Before** (lines 201-215):
-   ```python
-   # ARCH-REFACTOR-001 Phase D.3: Map stage names to legacy labels for backward compatibility
-   # Tests and downstream code expect "A"/"B"/"C" keys (not "stage_a"/"stage_b"/"stage_c")
-   legacy_telemetry_dict = {}
-   for stage_name, telem in self._telemetry.items():
-       if stage_name == "stage_a":
-           legacy_telemetry_dict["A"] = telem
-       elif stage_name == "stage_b":
-           legacy_telemetry_dict["B"] = telem
-       elif stage_name == "stage_c":
-           legacy_telemetry_dict["C"] = telem
-       else:
-           # Unknown stage name - pass through unchanged
-           legacy_telemetry_dict[stage_name] = telem
-
-   return legacy_telemetry_dict
-   ```
-
-   **After**:
-   ```python
-   # ARCH-TELEMETRY-001 Phase C.4: Return internal telemetry dict directly
-   # Tests updated to use internal stage names ("stage_a", "stage_b", "stage_c")
-   return self._telemetry
-   ```
-
----
-
-**Task 2: Update test assertions to use internal stage names**
-
-3. **File**: `tests/dbex/test_torch_refine_smoke.py`
-
-   **Use Edit tool with `replace_all=True` for systematic batch replacements**:
-
-   a) Replace legacy key references with internal stage names:
-      - `old_string`: `telemetry_dict["A"]`
-      - `new_string`: `telemetry_dict["stage_a"]`
-      - `replace_all`: True
-
-   b) Replace legacy key existence checks:
-      - `old_string`: `"A" in telemetry_dict`
-      - `new_string`: `"stage_a" in telemetry_dict`
-      - `replace_all`: True
-
-   c) Repeat for Stage B:
-      - `old_string`: `telemetry_dict["B"]`
-      - `new_string`: `telemetry_dict["stage_b"]`
-      - `replace_all`: True
-
-   d) Repeat for Stage B existence checks:
-      - `old_string`: `"B" in telemetry_dict`
-      - `new_string`: `"stage_b" in telemetry_dict`
-      - `replace_all`: True
-
-   e) Repeat for Stage C:
-      - `old_string`: `telemetry_dict["C"]`
-      - `new_string`: `telemetry_dict["stage_c"]`
-      - `replace_all`: True
-
-   f) Repeat for Stage C existence checks:
-      - `old_string`: `"C" in telemetry_dict`
-      - `new_string`: `"stage_c" in telemetry_dict`
-      - `replace_all`: True
-
-4. **File**: `tests/dbex/test_stage_a_smoke_parity.py`
-
-   **Check fixture for legacy key usage** (likely around lines 150-200):
-   - If `mapping_context_fixture` or helper functions use `telemetry_dict["A"]`, apply same replacements
-   - Use Edit tool with `replace_all=True` for each pattern
-
----
-
-**Task 3: Validation**
-
-5. **Run all 5 mapped test selectors** with canonical environment flags:
-
-   ```bash
-   AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-   DBEX_SMOKE_SIGMA_SOURCE=metadata \
-   DBEX_SMOKE_DETECTOR_SIZE=small \
-   KMP_DUPLICATE_LIB_OK=TRUE \
-   NANOBRAGG_DISABLE_COMPILE=1 \
-   pytest -vv tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload \
-     tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion \
-     tests/dbex/test_torch_refine_smoke.py::test_stage_a_engine_delegation_telemetry \
-     tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers \
-     tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip \
-     > plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T022931Z/pytest_phase_c4.log 2>&1
-   ```
-
-6. **Capture results**:
-   - Save pytest log to artifacts directory (already done via redirect above)
-   - Verify all 5 tests PASSED
-   - Report any failures with error signatures
-
----
+**Expected Metrics**:
+- 8 modules scanned
+- ~10-30 docstring/comment updates (estimate based on typical process noise density)
+- Net ~0 LOC (comment-only changes)
 
 ## How-To Map
 
-| Step | Command / Action |
-|------|------------------|
-| 1. Remove engine mapping | Edit `dbex/refinement/engine.py` lines 201-215 per Task 1 |
-| 2a. Update test_torch_refine_smoke.py | Edit with `replace_all=True` for 6 patterns per Task 2.3 |
-| 2b. Update test_stage_a_smoke_parity.py | Edit with `replace_all=True` if legacy keys found per Task 2.4 |
-| 3. Run validation suite | Execute bash command from Task 3 (pytest with 5 selectors, redirect to log) |
-| 4. Verify results | Check pytest log for all PASSED; report failures if any |
+**Audit**:
+```bash
+cd /home/ollie/Documents/diffbragg_example
+rg -n "TODO|FIXME|JIRA|Issue #|ticket|meeting notes|sprint" \
+  dbex/geometry/crystallography.py \
+  dbex/physics/forward.py \
+  dbex/physics/loss.py \
+  dbex/refinement/stage_a_utils.py \
+  dbex/refinement/hkl_utils.py \
+  dbex/refinement/stage_a.py \
+  dbex/refinement/stage_b.py \
+  dbex/refinement/stage_c.py \
+  > plans/active/ARCH-LAZY-IMPORTS-001/reports/2025-12-05T000500Z/process_noise_raw.txt
+```
 
----
+**Cleanup Strategy**:
+- For each hit, inspect context and determine:
+  1. Can it be replaced with a spec/finding citation? (do so)
+  2. Is it a valid TODO describing missing spec coverage? (keep, but reword to reference the gap)
+  3. Is it low-value process noise? (delete)
+
+**Post-Cleanup Verification**:
+```bash
+rg -n "TODO|FIXME|JIRA|Issue #|ticket" dbex/{geometry,physics,refinement}/*.py \
+  > plans/active/ARCH-LAZY-IMPORTS-001/reports/2025-12-05T000500Z/remaining_noise.txt
+```
 
 ## Pitfalls To Avoid
 
-1. **DO NOT** modify `dbex/refinement/interfaces.py` or `telemetry_collectors.py` — this loop only touches engine.py and test files
-2. **DO NOT** change telemetry field names or schema — only update dict key strings from legacy labels to internal stage names
-3. **DO NOT** skip `replace_all=True` — use batch replacement to ensure all assertions are updated consistently
-4. **DO** verify test file changes with Read tool after edits to confirm all legacy keys replaced
-5. **DO** preserve canonical environment flags when running pytest (DBEX_SMOKE_SIGMA_SOURCE=metadata, DBEX_SMOKE_DETECTOR_SIZE=small, etc.)
-6. **DO** use small detector size for smoke tests to stay within runtime budget (already in command above)
+1. **Do NOT remove valid spec-gap TODOs**: If a TODO describes missing normative behavior (e.g., "TODO: implement per-ASU variance floor per spec §67 when available"), keep it but reword to cite the spec section explicitly.
 
----
+2. **Do NOT change substantive logic**: This is a documentation-only loop; only update docstrings/comments, not code.
+
+3. **Do NOT invent spec citations**: If a comment refers to behavior not documented in specs/findings, flag it in `process_noise_audit.md` for future triage instead of inventing a citation.
+
+4. **Preserve attribution**: If a comment includes valuable context about why a workaround exists (e.g., "Detector transform convention differs from DIALS; see GEOMETRY-003"), keep the context but upgrade the citation to the finding.
+
+5. **Initiative type constraint**: architecture initiatives change structure/documentation, not external behavior. Ensure no semantic changes to docstrings that describe user-facing API contracts.
 
 ## If Blocked
 
-If tests fail after key name updates:
-1. Capture full pytest log output with `-s` flag to see assertion error messages
-2. Check if any test files outside `test_torch_refine_smoke.py` and `test_stage_a_smoke_parity.py` use legacy keys
-3. Search for remaining legacy key references: `rg 'telemetry_dict\["[ABC]"\]' tests/dbex`
-4. Update Attempts History in `docs/fix_plan.md` with failure signature and blocked status
-5. Report findings to Galph in summary
+If you encounter:
+- **Uncertainty about spec mapping**: Flag the comment in `process_noise_audit.md` with a note "Cannot map to spec; recommend future triage" instead of deleting or changing it.
+- **Substantive logic questions**: Do not attempt to resolve them; flag for future bugfix/spec-change initiative.
 
----
+Log the block reason in `plans/active/ARCH-LAZY-IMPORTS-001/reports/2025-12-05T000500Z/blocked_notes.md` and return control to supervisor.
 
 ## Findings Applied (Mandatory)
 
-- **ARCH-STAGE-CTX-001**: Typed contexts own telemetry; RefinementEngine returns internal telemetry dict directly
-- **ARCH-STAGE-CTX-002**: Ban telemetry dict mutation; stages emit observer callbacks into typed collectors
-- **ARCH-TELEMETRY-001 Phase C.3.1**: Writer consumes StageResult dataclasses (telemetry/perf counters accessed via typed fields)
-- **ARCH-TELEMETRY-001 Phase C.3.2**: Stage B/C no longer call `to_legacy_dict()`; direct field access proven green
+- ARCH-ENGINE-002: Lazy-import staging rules and eager-import precedent for module-scope dependencies
+- ARCH-LAZY-IMPORTS-001 Phase B.3 completion: Stage A/B/C/physics/geometry modules now have eager imports; process noise is the remaining hygiene work
 
----
+No additional findings directly constrain docstring cleanup, but general principle: prefer normative spec citations over historical process artifacts.
 
 ## Pointers
 
-- **Spec**: docs/spec-db-workflow.md §§Calibration & Pipeline telemetry (no schema changes required)
-- **Architecture**: plans/active/ARCH-TELEMETRY-001/implementation.md (Phase C.4 checklist, line ~90)
-- **Fix Plan**: docs/fix_plan.md row [ARCH-TELEMETRY-001] (Attempts History, line ~169)
-- **Planning**: plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T022931Z/planning_notes.md (this loop)
-- **Testing Guide**: docs/TESTING_GUIDE.md §2 (canonical env flags for smoke tests)
-- **Prior Artifacts**: plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T021140Z/ (Phase C.3.2 completion, writer migration)
-
----
+- **Spec Index**: `docs/spec-db.md`
+- **Spec Core**: `docs/spec-db-core.md` (geometry, variance, calibration)
+- **Spec Runtime**: `docs/spec-db-runtime.md` (torch guardrails)
+- **Spec Workflow**: `docs/spec-db-workflow.md` (pipeline, telemetry)
+- **Findings**: `docs/findings.md` (GEOMETRY-001/003, PHYSICS-LOSS-001/003, ARCH-ENGINE-002, etc.)
+- **Initiative Plan**: `plans/active/ARCH-LAZY-IMPORTS-001/implementation.md` (Phase C checklist lines 95-100)
+- **Fix Plan Row**: `docs/fix_plan.md` lines 224-245
 
 ## Next Up (optional)
 
-If all tests PASS and you finish early:
-- Mark ARCH-TELEMETRY-001 Phase C.4 complete in implementation plan
-- No additional work planned; initiative ready for supervisor sign-off after this loop
+If you complete the process-noise sweep faster than expected:
+1. Run `wc -c docs/fix_plan.md` to check ledger size
+2. If >70 kB, recommend archiving old attempts to `docs/fix_plan_archive.md` in next loop
+
+## Doc Sync Plan (Conditional)
+
+Not applicable — no new tests authored this loop.
+
+## Normative Math/Physics
+
+Not applicable — this is a documentation cleanup loop with no math/physics changes.

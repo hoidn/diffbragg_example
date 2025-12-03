@@ -1,0 +1,326 @@
+[
+  {
+    "id": "ARCH-BRIDGE-RESP-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-12-03T093500Z"
+  },
+  {
+    "id": "ARCH-ENGINE-ARTIFACTS-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-12-05T050000Z"
+  },
+  {
+    "id": "ARCH-LAZY-IMPORTS-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-12-05T024500Z"
+  },
+  {
+    "id": "ARCH-REFACTOR-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-12-04T220000Z"
+  },
+  {
+    "id": "ARCH-REFINE-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-12-01T232800Z"
+  },
+  {
+    "id": "ARCH-REFINE-FLOW-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "plans"
+  },
+  {
+    "id": "ARCH-REFRACTOR-001",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": null
+  },
+  {
+    "id": "ARCH-SIM-CONSTRUCTION-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-12-04T235959Z"
+  },
+  {
+    "id": "ARCH-SPLIT-001",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": null
+  },
+  {
+    "id": "ARCH-STAGE-CONTEXT-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-12-02T160500Z"
+  },
+  {
+    "id": "ARCH-TELEMETRY-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-12-04T235959Z"
+  },
+  {
+    "id": "DB-AT-002",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "pytest_db_at_002.log"
+  },
+  {
+    "id": "DB-AT-010",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "default"
+  },
+  {
+    "id": "DB-AT-020",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "pytest_db_at_020.log"
+  },
+  {
+    "id": "DB-AT-021",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-04T060900Z"
+  },
+  {
+    "id": "DB-AT-022",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "sentinel_metrics.json"
+  },
+  {
+    "id": "DB-AT-023",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-04T065500Z"
+  },
+  {
+    "id": "DB-AT-024",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-04T070000Z"
+  },
+  {
+    "id": "DIAG-NANOBRAGG-OVERSAMPLE-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-12-03T064931Z"
+  },
+  {
+    "id": "DOC-RUNTIME-004",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-11-23T024449Z"
+  },
+  {
+    "id": "DOCS-ROADMAP-001",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-24T150000Z"
+  },
+  {
+    "id": "FINDINGS-LEDGER-002",
+    "in_fix_plan": false,
+    "has_implementation": false,
+    "last_report": null
+  },
+  {
+    "id": "FORWARD-EQUIV-001",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-10-29T013411Z"
+  },
+  {
+    "id": "FORWARD-EQUIV-002",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-04T043500Z"
+  },
+  {
+    "id": "HARDEN-SUBMODULE-ROBUSTNESS",
+    "in_fix_plan": false,
+    "has_implementation": false,
+    "last_report": "2025-11-04T165400Z"
+  },
+  {
+    "id": "MAP-SCALE-001",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-04T233500Z"
+  },
+  {
+    "id": "MAP-SCALE-002",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-05T030000Z"
+  },
+  {
+    "id": "MAP-SCALE-003",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-05T150000Z"
+  },
+  {
+    "id": "MAP-SCALE-004",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-06T010000Z"
+  },
+  {
+    "id": "MAP-SCALE-005",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-06T050000Z"
+  },
+  {
+    "id": "NANOBRAG-GOLDEN-001",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-04T030000Z"
+  },
+  {
+    "id": "ORCH-ROBUST-001",
+    "in_fix_plan": false,
+    "has_implementation": false,
+    "last_report": "2025-11-05T050500Z"
+  },
+  {
+    "id": "PARITY-HARNESS-002",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-10-29T022212Z"
+  },
+  {
+    "id": "PERF-WARM-SIM-001",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-12-02T183500Z"
+  },
+  {
+    "id": "PHYSICS-LOSS-001",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "init"
+  },
+  {
+    "id": "PORTFOLIO-STATUS",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-12-05T083500Z"
+  },
+  {
+    "id": "REPORT-NANOBRAG-STATUS-001",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-05T184233Z"
+  },
+  {
+    "id": "RUNTIME-VEC-001",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-04T080000Z"
+  },
+  {
+    "id": "SUPERVISOR",
+    "in_fix_plan": false,
+    "has_implementation": false,
+    "last_report": "2025-11-24T153000Z"
+  },
+  {
+    "id": "TOOLING-VIS-001",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "stage_a_zero_iter_refined"
+  },
+  {
+    "id": "TORCH-BRIDGE-001",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-10-28T233500Z"
+  },
+  {
+    "id": "TORCH-CLI-003",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-10-29T003751Z"
+  },
+  {
+    "id": "TORCH-CLI-004",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-04T222435Z"
+  },
+  {
+    "id": "TORCH-GEOMETRY-CONVERGENCE-001",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "galph_memory.md"
+  },
+  {
+    "id": "TORCH-GEOMETRY-PARITY-002",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-22T120500Z"
+  },
+  {
+    "id": "TORCH-GEOMETRY-PARITY-003",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-22T170806Z"
+  },
+  {
+    "id": "TORCH-GEOMETRY-UB-REALIGN-001",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-23T023142Z"
+  },
+  {
+    "id": "TORCH-REFINE-001",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-05T031241Z"
+  },
+  {
+    "id": "TORCH-REFINE-002",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-05T044720Z"
+  },
+  {
+    "id": "TORCH-REFINE-002D",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-05T093000Z"
+  },
+  {
+    "id": "TORCH-REFINE-002E",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "test_run"
+  },
+  {
+    "id": "TORCH-REFINE-003",
+    "in_fix_plan": false,
+    "has_implementation": true,
+    "last_report": "2025-11-06T130000Z"
+  },
+  {
+    "id": "TORCH-REFINE-004",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-11-24T140000Z"
+  },
+  {
+    "id": "TORCH-RUNTIME-002",
+    "in_fix_plan": true,
+    "has_implementation": true,
+    "last_report": "2025-10-28T232744Z"
+  }
+]

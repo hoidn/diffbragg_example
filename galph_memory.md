@@ -1552,3 +1552,31 @@ Per CLAUDE.md exception clause requirements:
 - in_progress: None (all Tier 0 blocked or archived)
 - stuck: DIAG-NANOBRAGG-OVERSAMPLE-001, ARCH-SIM-CONSTRUCTION-001
 - blocked: ARCH-REFACTOR-001 Phase D.3
+
+---
+
+## Loop 2025-12-05T083500Z
+
+**Focus**: PORTFOLIO-STATUS — Plan/Fix-Plan synchronization & archive hygiene (Phase A: inventory + automation guard)  
+**State**: planning  
+**Dwell**: 0 (new focus)  
+**Action Type**: planning (Docs mode)  
+**Initiative Type**: housekeeping
+
+**Key Observations**:
+1. Problems ledger guard triggered (unchecked entry, no recent mention) — spun up PORTFOLIO-STATUS initiative, authored implementation plan with Phase A–C checklist, and added Tier 0 entry + Attempts History row in `docs/fix_plan.md`.
+2. Generated provisional inventory via ad-hoc Python (artifact `inventory_missing.md` in 2025-12-05T083500Z) showing 38 plan directories absent from fix_plan.md; several directories lack implementation.md (e.g., FINDINGS-LEDGER-002, ORCH-ROBUST-001, SUPERVISOR).
+3. Created new artifact directory `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T083500Z/` capturing JSON + Markdown inventory snapshot; next loop must replace this with the scripted Tier-2 version and add a Plan Inventory appendix to `docs/fix_plan.md`.
+
+**Artifacts Path**: `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T083500Z/` (inventory.json, inventory_missing.md)  
+**Next Actions**:
+- Implement `bin/plan_inventory.py`, rerun inventory into `2025-12-05T120000Z`, and update `docs/fix_plan.md` Working Agreements + Plan Inventory appendix.
+- After scripted inventory lands, proceed to Phase B classification/archival in subsequent loops.
+
+**Action State**: ready_for_implementation (Phase A script + docs appendix)
+
+**WIP Status**:
+- in_progress: PORTFOLIO-STATUS (Phase A)  
+- stuck: ARCH-SIM-CONSTRUCTION-001 (env dependency)  
+- blocked_pending_architecture: ARCH-REFACTOR-001 (awaits ARCH-SIM)  
+- in_progress (paused): DIAG-NANOBRAGG-OVERSAMPLE-001 (awaits plan sync work)

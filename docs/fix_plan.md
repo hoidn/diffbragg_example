@@ -21,6 +21,7 @@
 - [ARCH-TELEMETRY-001] (Telemetry Observer Refactor) — **archived** (2025-12-04T235959Z: all phases complete, exit criteria satisfied)
 - [ARCH-BRIDGE-RESP-001] (Writer / bridge responsibility split) — **done** (2025-12-03T093500Z: Phase D completion logged, ready for archive.)
 - [ARCH-LAZY-IMPORTS-001] (Lazy imports / process-noise hygiene) — **archived** (2025-12-05T024500Z: all phases complete, exit criteria satisfied; see `plans/active/ARCH-LAZY-IMPORTS-001/reports/2025-12-05T024500Z/initiative_closure_summary.md`)
+- [PORTFOLIO-STATUS] (Plan/Fix-Plan synchronization & archive hygiene) — **planned (Tier 0 ledger guard)**. Scope: inventory every `plans/active/` subtree, classify initiatives vs `docs/fix_plan.md`, archive stale plans, and add a regression appendix + automation guard so drift is surfaced immediately. Exit criteria captured in `plans/active/PORTFOLIO-STATUS/implementation.md` (Phases A–C: inventory script, remediation, fix-plan appendix). Artifacts: `plans/active/PORTFOLIO-STATUS/reports/<TS>/`.
 
 ### Tier 1: Core Physics & Stability
 **Goal:** Ensure the math is correct, the loss function is normative, Stage A/mapping parity holds (DB‑AT‑027/028/029), and the smoke tests are green.
@@ -246,6 +247,9 @@
 ## Attempts History
 
 Detailed engineering logs now live in `docs/fix_plan_archive.md` (append-only snapshots; latest recorded 2025-12-02) and in each initiative’s `plans/active/<ID>/reports/` directory. This active ledger keeps high-level milestones only so it remains <70 kB while still pointing to the authoritative artifacts for every attempt.
+
+### [PORTFOLIO-STATUS] Attempts History
+  * 2025-12-05T083500Z — Initiative spun up per problems ledger directive to reconcile `plans/active/` with `docs/fix_plan.md`. Authored implementation plan (`plans/active/PORTFOLIO-STATUS/implementation.md`) with Phases A–C (inventory script, remediation, ledger/reporting) and promoted Tier-2 automation guard. Updated Tier 0 roadmap and reserved artifacts under `plans/active/PORTFOLIO-STATUS/reports/`. Next: implement Phase A inventory script + initial report, then add Plan Inventory appendix to `docs/fix_plan.md`.
 
 ### [PERF-WARM-SIM-001] Attempts History
   * 2025-12-02T173000Z — Phase F.1 debug hook implemented in `_retarget_stage_a_detectors`; small-detector (panel-mode) smoketest PASSED with 18 retarget calls capturing panel updates only, full-detector (ROI-mode) smoketest FAILED (expected) but produced 17 retarget calls with ~92 ROI entries per call showing simulator ID changes. Debug artifacts captured under `DBEX_STAGE_C_CACHE_DEBUG_PATH` for offline analysis. Next: Supervisor analyzes cache-debug JSONs to identify ROI simulator staleness root cause. Artifacts: `plans/active/PERF-WARM-SIM-001/reports/2025-12-02T173000Z/`.

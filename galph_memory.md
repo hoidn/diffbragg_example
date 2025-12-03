@@ -2203,3 +2203,8 @@ Action State: ready_for_implementation
 
 **Action State**: blocked_test_design — implementation correct per Do Now but tests fail due to test harness not using adjusted baseline for bragg_before
 
+2025-12-13T120000Z focus=ARCH-SIM-CONSTRUCTION-001 state=ready_for_implementation dwell=0 action=planning artifacts=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-13T120000Z/ next_action=Replay Stage A telemetry for bragg_before and rerun DB-AT-028/029
+- Reviewed DB-AT-028/029 diagnostics: Stage A baseline adjustment now works (log_scale_delta≈0) but the tests still consume `simulate_forward_once` output that never saw the telemetry baseline, so chi²/pixel and ROI corr fail despite the fix.
+- Updated `plans/active/ARCH-SIM-CONSTRUCTION-001/implementation.md` Phase C.8 with a new checklist item to move `bragg_before` sourcing onto Stage A telemetry, and refreshed docs/fix_plan.md Attempts History to document this harness alignment plan.
+- Authored input.md directing Ralph to extend `build_final_bragg_from_stage_a_telemetry` with an `initial` param-state mode and to update `test_stage_a_smoke_parity` so DB-AT-028/029 gate against Stage A’s actual baseline outputs (plus rerun the selectors with artifacts under 2025-12-13T120000Z).
+Action State: ready_for_implementation

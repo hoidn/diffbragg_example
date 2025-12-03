@@ -1,50 +1,45 @@
-Summary: Nudge Stage A's log_scale baseline to match masked target intensity so DB-AT-028/029 stop clamping at +3 and reconstruction inherits the correct scale.
+Summary: Rebuild DB-AT-028/029 so their "before" metrics use the Stage A telemetry baseline instead of raw simulate_forward_once output, eliminating the false failures after C.8.
 Mode: Parity
 InitiativeType: architecture
 Focus: ARCH-SIM-CONSTRUCTION-001 — Simulator Construction Convention Alignment
-Branch: main
+Branch: integration
 Mapped tests: tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028, tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029
-Artifacts: plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-13T010000Z/
+Artifacts: plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-13T120000Z/
 
 Do Now:
-- Implement: dbex/refinement/stage_a.py::StageA.run — whenever the warm cache exists, tensorize `inputs.target`/`inputs.loss_mask`, run the zero-iteration simulators, compute masked target/model means on the correct device, and add `log(target/model)` to `log_scale_baseline` (or set it outright when calibration metadata is absent). Update `StageAContext.log_scale_baseline`, `config.log_scale_baseline`, `param_values['log_scale_baseline_source']`, and telemetry so reconstruction and later stages read the corrected baseline.
-- Update: dbex/refinement/stage_a.py::StageA.run — ensure the adjusted baseline propagates through `_build_stage_a_context`, `stage_a_ctx`, and the returned telemetry so cold-path reconstruction rebuilds `bragg_before/bragg_after` with the aligned scale (no Stage B/C changes this loop).
-- Validate: capture a fresh scale-alignment probe plus DB-AT-028/029 runs with artifacts under `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-13T010000Z/`; the probe should show `log_scale_delta_clamped≈0` and the tests must hit `chi²/pixel ≤ 1e2` and median ROI corr ≥ 0.2.
+- Implement: dbex/refinement/reconstruction.py::build_final_bragg_from_stage_a_telemetry — add a `param_state` (initial|final) switch that replays Stage A telemetry with either the initial or final param deltas, including log_scale baseline+delta math and misset/cell overrides, so we can rebuild the zero-iteration Bragg stack directly from telemetry.
+- Implement: tests/dbex/test_stage_a_smoke_parity.py::stage_a_smoke_result — replace the `simulate_forward_once` call with two invocations of `build_final_bragg_from_stage_a_telemetry` (one with `param_state="initial"` for `bragg_before`, one with `param_state="final"` for `bragg_after`), keeping the existing diagnostics/metrics wiring intact.
+- Update: tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity / test_db_at_029_structure_parity — ensure the fixtures still emit metrics under `DBAT028_ARTIFACT_DIR`/`DBAT029_ARTIFACT_DIR` and document in the metrics JSON that `bragg_before` now comes from telemetry so reviewers understand the new source.
+- Validate: `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBAT028_ARTIFACT_DIR=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-13T120000Z/db_at_028 DBAT029_ARTIFACT_DIR=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-13T120000Z/db_at_029 DBEX_SMOKE_SIGMA_SOURCE=metadata DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" | tee plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-13T120000Z/pytest_db_at_028_029.log`
 
 How-To Map:
-1. `mkdir -p plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-13T010000Z/{scale_probe,db_at_028,db_at_029}`
-2. `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_CALIB_PATH=sp.proc/calibration/config_torch_smoke_small.json KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
-   python plans/active/ARCH-SIM-CONSTRUCTION-001/bin/probe_stage_a_scale_alignment.py \
-     --detector-size small \
-     --calibration-config sp.proc/calibration/config_torch_smoke_small.json \
-     --device cpu \
-     --out-dir plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-13T010000Z/scale_probe`
-3. `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBAT028_ARTIFACT_DIR=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-13T010000Z/db_at_028 DBAT029_ARTIFACT_DIR=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-13T010000Z/db_at_029 DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 \
-   pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" \
-   | tee plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-13T010000Z/pytest_db_at_028_029.log`
+1. `mkdir -p plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-13T120000Z/{db_at_028,db_at_029}` before editing so pytest artifacts have a home.
+2. In `dbex/refinement/reconstruction.py`, add a helper to fetch telemetry values by state (initial/final) and thread that through log_scale, cell deltas, angle deltas, and misset vectors. When `param_state="initial"`, use the `initial` entries from `param_deltas`; when telemetry lacks an `initial` value fall back to `final` but log a warning so we can follow up later. Keep the warm-cache shortcut working by retargeting simulators after you’ve applied the requested state.
+3. In `tests/dbex/test_stage_a_smoke_parity.py::stage_a_smoke_result`, drop the `simulate_forward_once` call entirely. After `telemetry = engine.run(...)`, call `build_final_bragg_from_stage_a_telemetry(..., param_state="initial")` for `bragg_before` and the same helper with `param_state="final"` for `bragg_after`. Pass the perturbed detector/beam/crystal, the refinement inputs, HKL grid/metadata, and the same `config`/`device` objects so reconstruction matches Stage A. Keep the existing ROI correlation + metrics logic untouched.
+4. Update the metrics dict written under `DBAT028_ARTIFACT_DIR`/`DBAT029_ARTIFACT_DIR` to include a note (e.g., `"bragg_before_source": "stage_a_telemetry_initial"`) so history shows why the numbers changed.
+5. Run the pytest command above with the env vars shown; on success you should see `chi2_per_pixel_initial` and ROI median corr hit their spec bands. Keep the pytest log plus the refreshed metrics JSON in the report directory.
 
 Pitfalls To Avoid:
-- Do not touch Stage B/C or reconstruction scaling this loop; the fix lives entirely inside Stage A baseline math.
-- Keep all tensor math device/dtype neutral (use Stage A’s `device`/`dtype` and fall back to NumPy if tensorization fails).
-- Only add the masked-intensity adjustment when both means are positive; guard against zero, NaN, or inf inputs.
-- Preserve existing telemetry keys and `StageAContext` fields so downstream consumers and scripts keep working.
-- Do not relax `log_scale_max_delta` or other clamps; fixing the baseline is the goal, not widening bounds.
-- Leave environment/toolchain untouched per Environment Freeze; if a dependency is missing, stop and log the block.
-- Ensure artifact dirs exist before running scripts/tests so logs land in the expected report tree.
-- Keep ROI/panel sampling logic unchanged; the adjustment should work for both ROI and panel modes.
+- Do not remove or refactor `simulate_forward_once` outside this fixture; other tools still rely on it.
+- Keep the telemetry replay device/dtype neutral (reuse the `config.device`/`config.dtype` and fall back gracefully if a tensor conversion fails).
+- Make sure the helper handles telemetry emitted before `param_deltas['misset_xyz_deg']['initial']` existed (we still have older artifacts).
+- Preserve Stage A warm-cache retargeting semantics; only fall back to the cold path when no cache exists.
+- Do not relax DB-AT thresholds or try to short-circuit the tests; the goal is to fix the baseline logic, not downgrade the acceptance criteria.
+- No environment tweaks per Environment Freeze—if nanobrag_torch throws, stop and log the error.
+- Remember to `mkdir -p` the artifact dirs so pytest doesn’t skip when it tries to write metrics.
 
 If Blocked:
-- If masked means cannot be computed (e.g., warm cache disabled or tensor conversion fails), log the exact exception, capture the partial telemetry in the probe JSON, and update `docs/fix_plan.md` + Attempts History with the evidence before re-queuing the work.
-- If DB-AT-028/029 still clamp `log_scale_delta` after the baseline change, keep the failing telemetry JSON + pytest log under the new report dir and ping Galph so we can decide whether to escalate (spec-change vs wider baseline instrumentation).
+- If the telemetry lacks the `initial` values needed to rebuild `bragg_before`, capture the offending telemetry JSON (dump to the report dir), leave the helper falling back to the legacy simulate_forward_once path temporarily, and mark the loop blocked in docs/fix_plan.md + galph_memory.md explaining which telemetry fields were missing.
+- If DB-AT-028/029 still report chi²>1e2 after the change, archive the pytest log + metrics JSON under the new report path, note the exact numbers, and ping Galph so we can decide whether the test gates need their own update.
 
 Findings Applied:
-- docs/findings.md:41 (SCALE-008) — Stage A must honor a mapping-provided or measured baseline so we avoid double-applying `spot_scale_override`.
-- docs/findings.md:42 (SCALE-009) — Reconstruction already trusts Stage A telemetry; keep that path untouched and focus on delivering a correct baseline upstream.
+- SCALE-009 (docs/findings.md) — reconstruction/test harnesses must consume the same Stage A baseline telemetry so we don’t double-apply spot_scale.
+- DIAG-OVERSAMPLE-001 (docs/findings.md) — keep the detector/simulator construction path untouched; we’re only changing how we replay telemetry.
 
 Pointers:
-- docs/fix_plan.md:133 — Initiative overview and Attempts History for ARCH-SIM-CONSTRUCTION-001.
-- plans/active/ARCH-SIM-CONSTRUCTION-001/implementation.md:313 — Phase C.7 summary and the Phase C.8 checklist you are executing now.
-- docs/spec-db-workflow.md:100 — Stage A pipeline contract (nearest-neighbor simulator + variance-weighted loss expectations).
+- docs/fix_plan.md:133 — initiative summary + latest Attempts History.
+- plans/active/ARCH-SIM-CONSTRUCTION-001/implementation.md:310 — Phase C.8 checklist (now includes the harness alignment bullet).
+- docs/spec-db-conformance.md:280 — DB-AT-028/029 acceptance criteria we’re satisfying.
 
 Next Up (optional):
-1. If DB-AT-028/029 pass with the new baseline, revisit `log_scale_max_delta` vs telemetry to decide whether we can tighten or document the clamp behavior before re-enabling Stage B/C validations.
+1. If this passes quickly, re-run the scale-alignment probe with the updated helper to confirm `log_scale_delta_clamped` stays ≈0 and attach it to the report for regression tracking.

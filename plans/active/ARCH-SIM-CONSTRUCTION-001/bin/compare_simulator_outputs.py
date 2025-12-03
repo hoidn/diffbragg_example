@@ -347,6 +347,143 @@ def run_simulate_forward_once_path(
     return bragg_raw, metrics
 
 
+def run_reconstruction_helper_path(
+    refgeom_dataload: DataLoad,
+    mapping_context,
+    hkl_grid,
+    hkl_metadata,
+    device_obj,
+    dtype,
+    disable_trusted_mask: bool = False,
+) -> Tuple[np.ndarray, Dict[str, Any]]:
+    """
+    Run reconstruction helper (build_final_bragg_from_stage_a_telemetry) to exercise
+    the same mask logic as DB-AT-028/029.
+
+    Args:
+        disable_trusted_mask: If True, temporarily set inputs.trusted_mask = None
+
+    Returns:
+        bragg_full: Full detector Bragg output [n_panels, slow, fast]
+        metrics: Dict with raw/scale means, mask coverage, CLI arguments
+    """
+    from dbex.refinement.config import RefinementConfig
+    from dbex.refinement.inputs import prepare_refinement_inputs
+
+    calibration = mapping_context.calibration
+    spot_scale_override = 1.0
+    if calibration:
+        spot_scale_override = float(calibration.get("spot_scale_override", 1.0))
+    sqrt_spot_scale = float(np.sqrt(spot_scale_override))
+    log_scale_baseline = float(np.log(sqrt_spot_scale)) if sqrt_spot_scale > 0 else 0.0
+
+    baseline_detector = refgeom_dataload.Expt.detector
+    baseline_beam = refgeom_dataload.Expt.beam
+    baseline_crystal = refgeom_dataload.Expt.crystal
+
+    # Prepare refinement inputs
+    # Note: prepare_refinement_inputs expects background_image, bbox, pids
+    # For this probe, use -1 sentinel for background (outside ROIs) per simtbx_api.md:14
+    n_panels = len(baseline_detector)
+    panel_shape = (
+        baseline_detector[0].get_image_size()[1],  # slow
+        baseline_detector[0].get_image_size()[0]   # fast
+    )
+    # Initialize background to -1 sentinel (outside ROIs)
+    background_image = np.full((n_panels, *panel_shape), -1.0, dtype=np.float32)
+    # Set ROI regions to zeros for this probe (no actual background model)
+    for i, (pid, bbox) in enumerate(zip(refgeom_dataload.pids, refgeom_dataload.bbox)):
+        x0, x1, y0, y1 = bbox[:4]
+        background_image[pid, y0:y1, x0:x1] = 0.0
+
+    pids = refgeom_dataload.pids
+
+    # Create sigma_readout array (scalar 3.0 broadcast to detector shape)
+    sigma_readout = np.full((n_panels, *panel_shape), 3.0, dtype=np.float32)
+
+    inputs = prepare_refinement_inputs(
+        data=refgeom_dataload.data,
+        background_image=background_image,
+        trusted_mask=refgeom_dataload.trusted_mask,
+        bbox=refgeom_dataload.bbox,
+        pids=pids,
+        detector=baseline_detector,
+        adu_per_photon=None,  # Use ADU mode
+        sigma_readout=sigma_readout,
+        sigma_readout_provenance="cli_override",
+    )
+
+    # Optionally disable trusted mask
+    mask_disabled = False
+    if disable_trusted_mask and inputs.trusted_mask is not None:
+        inputs.trusted_mask = None
+        mask_disabled = True
+
+    # Build minimal RefinementConfig
+    config = RefinementConfig(
+        enable_hkl_interpolation=False,
+        calibration_metadata=calibration,
+    )
+
+    # Fake Stage A telemetry (param_deltas_a with log_scale_baseline + log_scale delta=0)
+    telemetry_a = {
+        "param_deltas_a": {
+            "log_scale_baseline": {"final": log_scale_baseline},
+            "log_scale": {"final": 0.0},  # No delta for this probe
+        },
+    }
+
+    # Call reconstruction helper
+    bragg_full = build_final_bragg_from_stage_a_telemetry(
+        telemetry_a=telemetry_a,
+        detector=baseline_detector,
+        beam=baseline_beam,
+        crystal=baseline_crystal,
+        baseline_crystal=baseline_crystal,
+        inputs=inputs,
+        hkl_grid=hkl_grid,
+        hkl_metadata=hkl_metadata,
+        config=config,
+        device=device_obj,
+        dtype=dtype,
+        stage_a_ctx=None,  # Force cold path
+    )
+
+    # Compute summary metrics
+    raw_mean = float(bragg_full.mean())
+    raw_max = float(bragg_full.max())
+
+    # Read mask coverage stats from the JSON file just written by the helper
+    import os
+    artifact_dir = os.environ.get('DBAT028_ARTIFACT_DIR') or os.environ.get('DBAT029_ARTIFACT_DIR')
+    if artifact_dir:
+        artifact_dir = os.path.dirname(artifact_dir)
+    else:
+        artifact_dir = "plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-10T090000Z"
+
+    mask_coverage_path = os.path.join(artifact_dir, "mask_coverage.json")
+    mask_coverage_data = None
+    if os.path.exists(mask_coverage_path):
+        import json
+        with open(mask_coverage_path, 'r') as f:
+            mask_coverage_data = json.load(f)
+            # Get the last entry (most recent run)
+            if isinstance(mask_coverage_data, list) and len(mask_coverage_data) > 0:
+                mask_coverage_data = mask_coverage_data[-1]
+
+    metrics = {
+        "raw_mean": raw_mean,
+        "raw_max": raw_max,
+        "sqrt_spot_scale": sqrt_spot_scale,
+        "log_scale_baseline": log_scale_baseline,
+        "mask_disabled": mask_disabled,
+        "mask_coverage": mask_coverage_data,
+        "calibration_inputs": extract_calibration_inputs(calibration),
+    }
+
+    return bragg_full, metrics
+
+
 def compute_cross_path_ratios(
     stage_a_metrics: Dict[str, Any],
     reconstruction_metrics: Dict[str, Any],
@@ -404,6 +541,8 @@ def main():
     parser.add_argument("--output", type=str, required=True, help="Output JSON path")
     parser.add_argument("--detector-size", type=str, default="small", help="Detector size variant (small, medium, large)")
     parser.add_argument("--device", type=str, default="cpu", help="Device (cpu or cuda:0)")
+    parser.add_argument("--use-reconstruction-helper", action="store_true", help="Use build_final_bragg_from_stage_a_telemetry instead of direct simulator construction")
+    parser.add_argument("--disable-trusted-mask", action="store_true", help="Temporarily set inputs.trusted_mask = None before calling reconstruction helper")
     args = parser.parse_args()
 
     device_obj = torch.device(args.device)
@@ -413,6 +552,9 @@ def main():
     print("[ARCH-SIM-CONSTRUCTION-001] Intensity + Calibration Metrics Probe")
     print(f"Detector size: {args.detector_size}")
     print(f"Device: {device_str}")
+    print(f"Use reconstruction helper: {args.use_reconstruction_helper}")
+    if args.use_reconstruction_helper:
+        print(f"Disable trusted mask: {args.disable_trusted_mask}")
     print()
 
     # ============================================================
@@ -446,84 +588,127 @@ def main():
     print()
 
     # ============================================================
-    # 2. Run Stage A warm-cache path
+    # Branch: Reconstruction Helper Mode vs Three-Path Comparison Mode
     # ============================================================
-    print("[2/6] Running Stage A warm-cache simulator...")
-    bragg_stage_a_raw, stage_a_metrics = run_stage_a_path(
-        refgeom_dataload,
-        mapping_context,
-        hkl_grid,
-        hkl_metadata,
-        device_obj,
-        dtype,
-    )
-    print(f"  Raw output mean: {stage_a_metrics['raw_mean']:.6e}")
-    print(f"  Scaled output mean: {stage_a_metrics['scaled_mean']:.6e}")
-    print(f"  sqrt(spot_scale): {stage_a_metrics['sqrt_spot_scale']:.6e}")
-    print(f"  log_scale_baseline: {stage_a_metrics['log_scale_baseline']:.6f}")
-    print()
+    if args.use_reconstruction_helper:
+        # ============================================================
+        # Reconstruction helper mode: Exercise build_final_bragg_from_stage_a_telemetry
+        # ============================================================
+        print("[2/3] Running reconstruction helper (build_final_bragg_from_stage_a_telemetry)...")
+        bragg_recon_helper, recon_helper_metrics = run_reconstruction_helper_path(
+            refgeom_dataload,
+            mapping_context,
+            hkl_grid,
+            hkl_metadata,
+            device_obj,
+            dtype,
+            disable_trusted_mask=args.disable_trusted_mask,
+        )
+        print(f"  Raw output mean: {recon_helper_metrics['raw_mean']:.6e}")
+        print(f"  Raw output max: {recon_helper_metrics['raw_max']:.6e}")
+        print(f"  sqrt(spot_scale): {recon_helper_metrics['sqrt_spot_scale']:.6e}")
+        print(f"  Mask disabled: {recon_helper_metrics['mask_disabled']}")
+        if recon_helper_metrics.get('mask_coverage'):
+            print(f"  Mask coverage data available: {len(recon_helper_metrics['mask_coverage'].get('panels', []))} panels")
+        print()
 
-    # ============================================================
-    # 3. Run reconstruction cold-path
-    # ============================================================
-    print("[3/6] Running reconstruction cold-path simulator...")
-    bragg_recon_raw, reconstruction_metrics = run_reconstruction_path(
-        refgeom_dataload,
-        mapping_context,
-        hkl_grid,
-        hkl_metadata,
-        device_obj,
-        dtype,
-    )
-    print(f"  Raw output mean: {reconstruction_metrics['raw_mean']:.6e}")
-    print(f"  Scaled output mean: {reconstruction_metrics['scaled_mean']:.6e}")
-    print(f"  scale_factor (exp(log_scale_baseline)): {reconstruction_metrics['scale_factor']:.6e}")
-    print(f"  sqrt(spot_scale): {reconstruction_metrics['sqrt_spot_scale']:.6e}")
-    print()
+        # ============================================================
+        # 3. Save results
+        # ============================================================
+        print("[3/3] Saving results...")
 
-    # ============================================================
-    # 4. Run simulate_forward_once canonical mapping path
-    # ============================================================
-    print("[4/6] Running simulate_forward_once canonical mapping path...")
-    bragg_mapping_raw, mapping_metrics = run_simulate_forward_once_path(
-        refgeom_dataload,
-        mapping_context,
-        device_obj,
-    )
-    print(f"  Raw output mean: {mapping_metrics['raw_mean']:.6e}")
-    print(f"  Scaled output mean: {mapping_metrics['scaled_mean']:.6e}")
-    print(f"  sqrt(spot_scale): {mapping_metrics['sqrt_spot_scale']:.6e}")
-    print()
+        results = {
+            "reconstruction_helper": recon_helper_metrics,
+            "device": device_str,
+            "dtype": str(dtype),
+            "detector_size": args.detector_size,
+            "cli_arguments": {
+                "use_reconstruction_helper": args.use_reconstruction_helper,
+                "disable_trusted_mask": args.disable_trusted_mask,
+            },
+        }
+    else:
+        # ============================================================
+        # Three-path comparison mode (original behavior)
+        # ============================================================
+        # 2. Run Stage A warm-cache path
+        # ============================================================
+        print("[2/6] Running Stage A warm-cache simulator...")
+        bragg_stage_a_raw, stage_a_metrics = run_stage_a_path(
+            refgeom_dataload,
+            mapping_context,
+            hkl_grid,
+            hkl_metadata,
+            device_obj,
+            dtype,
+        )
+        print(f"  Raw output mean: {stage_a_metrics['raw_mean']:.6e}")
+        print(f"  Scaled output mean: {stage_a_metrics['scaled_mean']:.6e}")
+        print(f"  sqrt(spot_scale): {stage_a_metrics['sqrt_spot_scale']:.6e}")
+        print(f"  log_scale_baseline: {stage_a_metrics['log_scale_baseline']:.6f}")
+        print()
 
-    # ============================================================
-    # 5. Compute cross-path ratios
-    # ============================================================
-    print("[5/6] Computing cross-path ratios...")
-    ratios = compute_cross_path_ratios(
-        stage_a_metrics,
-        reconstruction_metrics,
-        mapping_metrics,
-    )
-    print(f"  Raw stage_a/recon: {ratios['raw_output_ratios']['stage_a_vs_reconstruction']:.6e}")
-    print(f"  Raw stage_a/mapping: {ratios['raw_output_ratios']['stage_a_vs_mapping']:.6e}")
-    print(f"  Raw recon/mapping: {ratios['raw_output_ratios']['reconstruction_vs_mapping']:.6e}")
-    print(f"  All raw outputs match within 10%? {ratios['interpretation']['all_raw_match_within_10pct']}")
-    print()
+        # ============================================================
+        # 3. Run reconstruction cold-path
+        # ============================================================
+        print("[3/6] Running reconstruction cold-path simulator...")
+        bragg_recon_raw, reconstruction_metrics = run_reconstruction_path(
+            refgeom_dataload,
+            mapping_context,
+            hkl_grid,
+            hkl_metadata,
+            device_obj,
+            dtype,
+        )
+        print(f"  Raw output mean: {reconstruction_metrics['raw_mean']:.6e}")
+        print(f"  Scaled output mean: {reconstruction_metrics['scaled_mean']:.6e}")
+        print(f"  scale_factor (exp(log_scale_baseline)): {reconstruction_metrics['scale_factor']:.6e}")
+        print(f"  sqrt(spot_scale): {reconstruction_metrics['sqrt_spot_scale']:.6e}")
+        print()
 
-    # ============================================================
-    # 6. Save results
-    # ============================================================
-    print("[6/6] Saving results...")
+        # ============================================================
+        # 4. Run simulate_forward_once canonical mapping path
+        # ============================================================
+        print("[4/6] Running simulate_forward_once canonical mapping path...")
+        bragg_mapping_raw, mapping_metrics = run_simulate_forward_once_path(
+            refgeom_dataload,
+            mapping_context,
+            device_obj,
+        )
+        print(f"  Raw output mean: {mapping_metrics['raw_mean']:.6e}")
+        print(f"  Scaled output mean: {mapping_metrics['scaled_mean']:.6e}")
+        print(f"  sqrt(spot_scale): {mapping_metrics['sqrt_spot_scale']:.6e}")
+        print()
 
-    results = {
-        "stage_a": stage_a_metrics,
-        "reconstruction": reconstruction_metrics,
-        "simulate_forward_once": mapping_metrics,
-        "cross_path_ratios": ratios,
-        "device": device_str,
-        "dtype": str(dtype),
-        "detector_size": args.detector_size,
-    }
+        # ============================================================
+        # 5. Compute cross-path ratios
+        # ============================================================
+        print("[5/6] Computing cross-path ratios...")
+        ratios = compute_cross_path_ratios(
+            stage_a_metrics,
+            reconstruction_metrics,
+            mapping_metrics,
+        )
+        print(f"  Raw stage_a/recon: {ratios['raw_output_ratios']['stage_a_vs_reconstruction']:.6e}")
+        print(f"  Raw stage_a/mapping: {ratios['raw_output_ratios']['stage_a_vs_mapping']:.6e}")
+        print(f"  Raw recon/mapping: {ratios['raw_output_ratios']['reconstruction_vs_mapping']:.6e}")
+        print(f"  All raw outputs match within 10%? {ratios['interpretation']['all_raw_match_within_10pct']}")
+        print()
+
+        # ============================================================
+        # 6. Save results
+        # ============================================================
+        print("[6/6] Saving results...")
+
+        results = {
+            "stage_a": stage_a_metrics,
+            "reconstruction": reconstruction_metrics,
+            "simulate_forward_once": mapping_metrics,
+            "cross_path_ratios": ratios,
+            "device": device_str,
+            "dtype": str(dtype),
+            "detector_size": args.detector_size,
+        }
 
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -537,75 +722,121 @@ def main():
     summary_path = output_path.parent / "summary.md"
     with open(summary_path, 'w') as f:
         f.write("# ARCH-SIM-CONSTRUCTION-001 Intensity + Calibration Metrics Summary\n\n")
-        f.write("## Per-Path Results\n\n")
-        f.write("### Stage A Warm-Cache Path\n\n")
-        f.write(f"- **Raw output mean:** `{stage_a_metrics['raw_mean']:.6e}`\n")
-        f.write(f"- **Scaled output mean:** `{stage_a_metrics['scaled_mean']:.6e}`\n")
-        f.write(f"- **sqrt(spot_scale):** `{stage_a_metrics['sqrt_spot_scale']:.6e}`\n")
-        f.write(f"- **log_scale_baseline:** `{stage_a_metrics['log_scale_baseline']:.6f}`\n")
-        f.write(f"- **beam_flux:** `{stage_a_metrics['calibration_inputs']['beam_flux']}`\n")
-        f.write(f"- **beam_exposure:** `{stage_a_metrics['calibration_inputs']['beam_exposure']}`\n")
-        f.write(f"- **beamsize_mm:** `{stage_a_metrics['calibration_inputs']['beamsize_mm']}`\n\n")
 
-        f.write("### Reconstruction Cold-Path\n\n")
-        f.write(f"- **Raw output mean:** `{reconstruction_metrics['raw_mean']:.6e}`\n")
-        f.write(f"- **Scaled output mean:** `{reconstruction_metrics['scaled_mean']:.6e}`\n")
-        f.write(f"- **scale_factor (exp(log_scale_baseline)):** `{reconstruction_metrics['scale_factor']:.6e}`\n")
-        f.write(f"- **sqrt(spot_scale):** `{reconstruction_metrics['sqrt_spot_scale']:.6e}`\n")
-        f.write(f"- **log_scale_baseline:** `{reconstruction_metrics['log_scale_baseline']:.6f}`\n")
-        f.write(f"- **beam_flux:** `{reconstruction_metrics['calibration_inputs']['beam_flux']}`\n")
-        f.write(f"- **beam_exposure:** `{reconstruction_metrics['calibration_inputs']['beam_exposure']}`\n")
-        f.write(f"- **beamsize_mm:** `{reconstruction_metrics['calibration_inputs']['beamsize_mm']}`\n\n")
+        if args.use_reconstruction_helper:
+            # Reconstruction helper mode summary
+            f.write("## Reconstruction Helper Mode\n\n")
+            f.write(f"**CLI Arguments:**\n")
+            f.write(f"- `--use-reconstruction-helper`: {args.use_reconstruction_helper}\n")
+            f.write(f"- `--disable-trusted-mask`: {args.disable_trusted_mask}\n\n")
 
-        f.write("### simulate_forward_once Mapping Path\n\n")
-        f.write(f"- **Raw output mean:** `{mapping_metrics['raw_mean']:.6e}`\n")
-        f.write(f"- **Scaled output mean:** `{mapping_metrics['scaled_mean']:.6e}`\n")
-        f.write(f"- **sqrt(spot_scale):** `{mapping_metrics['sqrt_spot_scale']:.6e}`\n")
-        f.write(f"- **beam_flux:** `{mapping_metrics['calibration_inputs']['beam_flux']}`\n")
-        f.write(f"- **beam_exposure:** `{mapping_metrics['calibration_inputs']['beam_exposure']}`\n")
-        f.write(f"- **beamsize_mm:** `{mapping_metrics['calibration_inputs']['beamsize_mm']}`\n\n")
+            f.write("## Results\n\n")
+            f.write(f"- **Raw output mean:** `{recon_helper_metrics['raw_mean']:.6e}`\n")
+            f.write(f"- **Raw output max:** `{recon_helper_metrics['raw_max']:.6e}`\n")
+            f.write(f"- **sqrt(spot_scale):** `{recon_helper_metrics['sqrt_spot_scale']:.6e}`\n")
+            f.write(f"- **log_scale_baseline:** `{recon_helper_metrics['log_scale_baseline']:.6f}`\n")
+            f.write(f"- **Mask disabled:** `{recon_helper_metrics['mask_disabled']}`\n")
+            f.write(f"- **beam_flux:** `{recon_helper_metrics['calibration_inputs']['beam_flux']}`\n")
+            f.write(f"- **beam_exposure:** `{recon_helper_metrics['calibration_inputs']['beam_exposure']}`\n")
+            f.write(f"- **beamsize_mm:** `{recon_helper_metrics['calibration_inputs']['beamsize_mm']}`\n\n")
 
-        f.write("## Cross-Path Ratios\n\n")
-        f.write("### Raw Output Ratios (before post-run scaling)\n\n")
-        f.write(f"- **Stage A / Reconstruction:** `{ratios['raw_output_ratios']['stage_a_vs_reconstruction']:.6e}`\n")
-        f.write(f"- **Stage A / Mapping:** `{ratios['raw_output_ratios']['stage_a_vs_mapping']:.6e}`\n")
-        f.write(f"- **Reconstruction / Mapping:** `{ratios['raw_output_ratios']['reconstruction_vs_mapping']:.6e}`\n\n")
+            if recon_helper_metrics.get('mask_coverage'):
+                f.write("## Mask Coverage Statistics\n\n")
+                mask_cov_data = recon_helper_metrics['mask_coverage']
+                f.write(f"**Timestamp:** `{mask_cov_data.get('timestamp', 'N/A')}`\n\n")
+                panels = mask_cov_data.get('panels', [])
+                f.write(f"**Panel count:** {len(panels)}\n\n")
+                if panels:
+                    f.write("| Panel ID | Coverage | Mask Injected | Fallback Reason |\n")
+                    f.write("|----------|----------|---------------|------------------|\n")
+                    for panel in panels:
+                        pid = panel.get('panel_id', 'N/A')
+                        cov = panel.get('coverage', 0.0)
+                        injected = panel.get('mask_injected', True)
+                        reason = panel.get('fallback_reason') or 'N/A'
+                        f.write(f"| {pid} | {cov:.4f} | {injected} | {reason} |\n")
+                    f.write("\n")
 
-        f.write("### Scaled Output Ratios (after post-run scaling)\n\n")
-        f.write(f"- **Stage A / Reconstruction:** `{ratios['scaled_output_ratios']['stage_a_vs_reconstruction']:.6e}`\n")
-        f.write(f"- **Stage A / Mapping:** `{ratios['scaled_output_ratios']['stage_a_vs_mapping']:.6e}`\n")
-        f.write(f"- **Reconstruction / Mapping:** `{ratios['scaled_output_ratios']['reconstruction_vs_mapping']:.6e}`\n\n")
-
-        f.write("## Interpretation\n\n")
-
-        if ratios['interpretation']['all_raw_match_within_10pct']:
-            f.write("**Verdict: All paths produce MATCHING raw outputs (within 10%)**\n\n")
-            f.write("The simulator construction is consistent across all three paths. ")
-            f.write("Any discrepancy in DB-AT-028/029 tests is due to post-run scaling logic ")
-            f.write("(sqrt_spot_scale vs scale_factor application) or scale_factor derivation.\n\n")
-            f.write("**Recommended next steps:**\n")
-            f.write("1. Verify reconstruction applies correct post-run scaling (scale_factor = exp(log_scale_baseline) should equal sqrt(spot_scale) at zero delta)\n")
-            f.write("2. Trace log_scale_baseline derivation in Stage A telemetry to confirm it equals log(sqrt(spot_scale))\n")
-            f.write("3. If reconstruction scale_factor != sqrt(spot_scale), investigate telemetry extraction in reconstruction.py:215-247\n")
-        elif ratios['interpretation']['reconstruction_diverges_from_others']:
-            f.write("**Verdict: Reconstruction path DIVERGES from Stage A + Mapping**\n\n")
-            f.write("Stage A and simulate_forward_once produce matching raw outputs, but reconstruction ")
-            f.write("cold-path produces different magnitude. This indicates a simulator construction difference ")
-            f.write("in create_unified_simulator factory when called from reconstruction helpers.\n\n")
-            f.write("**Recommended next steps:**\n")
-            f.write("1. Audit reconstruction.py:187-217 config construction (beam_config, crystal_config, detector_config)\n")
-            f.write("2. Compare calibration metadata threading (beam_flux, beam_exposure, beamsize_mm, N_cells)\n")
-            f.write("3. Verify spot_scale_override is passed correctly to create_unified_simulator\n")
-            f.write("4. Check for oversample mismatch (should be 3 for all paths)\n")
+            f.write("## Interpretation\n\n")
+            f.write("This probe exercises `build_final_bragg_from_stage_a_telemetry` to validate ")
+            f.write("mask coverage guard and fallback logic. Use `--disable-trusted-mask` to ")
+            f.write("compare masked vs unmasked outputs.\n\n")
+            f.write("**Next steps:**\n")
+            f.write("1. Run with `--use-reconstruction-helper` (masked) and save to `simulator_intensity_metrics_masked.json`\n")
+            f.write("2. Run with `--use-reconstruction-helper --disable-trusted-mask` (unmasked) and save to `simulator_intensity_metrics_unmasked.json`\n")
+            f.write("3. Compare raw means to quantify mask effect\n")
+            f.write("4. Validate DB-AT-028/029 with the reconstruction helper to ensure guard doesn't regress acceptance criteria\n")
         else:
-            f.write("**Verdict: COMPLEX discrepancy pattern**\n\n")
-            f.write("Raw output ratios do not fit simple match/diverge patterns. ")
-            f.write("This suggests multiple overlapping issues (scaling + construction) or ")
-            f.write("unexpected interactions between calibration parameters.\n\n")
-            f.write("**Recommended next steps:**\n")
-            f.write("1. Review calibration_inputs section above to identify missing/mismatched beam parameters\n")
-            f.write("2. Add debug instrumentation to capture intermediate scaling values in all three paths\n")
-            f.write("3. Escalate to architecture review with full metrics JSON for detailed analysis\n")
+            # Three-path comparison mode summary (original behavior)
+            f.write("## Per-Path Results\n\n")
+            f.write("### Stage A Warm-Cache Path\n\n")
+            f.write(f"- **Raw output mean:** `{stage_a_metrics['raw_mean']:.6e}`\n")
+            f.write(f"- **Scaled output mean:** `{stage_a_metrics['scaled_mean']:.6e}`\n")
+            f.write(f"- **sqrt(spot_scale):** `{stage_a_metrics['sqrt_spot_scale']:.6e}`\n")
+            f.write(f"- **log_scale_baseline:** `{stage_a_metrics['log_scale_baseline']:.6f}`\n")
+            f.write(f"- **beam_flux:** `{stage_a_metrics['calibration_inputs']['beam_flux']}`\n")
+            f.write(f"- **beam_exposure:** `{stage_a_metrics['calibration_inputs']['beam_exposure']}`\n")
+            f.write(f"- **beamsize_mm:** `{stage_a_metrics['calibration_inputs']['beamsize_mm']}`\n\n")
+
+            f.write("### Reconstruction Cold-Path\n\n")
+            f.write(f"- **Raw output mean:** `{reconstruction_metrics['raw_mean']:.6e}`\n")
+            f.write(f"- **Scaled output mean:** `{reconstruction_metrics['scaled_mean']:.6e}`\n")
+            f.write(f"- **scale_factor (exp(log_scale_baseline)):** `{reconstruction_metrics['scale_factor']:.6e}`\n")
+            f.write(f"- **sqrt(spot_scale):** `{reconstruction_metrics['sqrt_spot_scale']:.6e}`\n")
+            f.write(f"- **log_scale_baseline:** `{reconstruction_metrics['log_scale_baseline']:.6f}`\n")
+            f.write(f"- **beam_flux:** `{reconstruction_metrics['calibration_inputs']['beam_flux']}`\n")
+            f.write(f"- **beam_exposure:** `{reconstruction_metrics['calibration_inputs']['beam_exposure']}`\n")
+            f.write(f"- **beamsize_mm:** `{reconstruction_metrics['calibration_inputs']['beamsize_mm']}`\n\n")
+
+            f.write("### simulate_forward_once Mapping Path\n\n")
+            f.write(f"- **Raw output mean:** `{mapping_metrics['raw_mean']:.6e}`\n")
+            f.write(f"- **Scaled output mean:** `{mapping_metrics['scaled_mean']:.6e}`\n")
+            f.write(f"- **sqrt(spot_scale):** `{mapping_metrics['sqrt_spot_scale']:.6e}`\n")
+            f.write(f"- **beam_flux:** `{mapping_metrics['calibration_inputs']['beam_flux']}`\n")
+            f.write(f"- **beam_exposure:** `{mapping_metrics['calibration_inputs']['beam_exposure']}`\n")
+            f.write(f"- **beamsize_mm:** `{mapping_metrics['calibration_inputs']['beamsize_mm']}`\n\n")
+
+            f.write("## Cross-Path Ratios\n\n")
+            f.write("### Raw Output Ratios (before post-run scaling)\n\n")
+            f.write(f"- **Stage A / Reconstruction:** `{ratios['raw_output_ratios']['stage_a_vs_reconstruction']:.6e}`\n")
+            f.write(f"- **Stage A / Mapping:** `{ratios['raw_output_ratios']['stage_a_vs_mapping']:.6e}`\n")
+            f.write(f"- **Reconstruction / Mapping:** `{ratios['raw_output_ratios']['reconstruction_vs_mapping']:.6e}`\n\n")
+
+            f.write("### Scaled Output Ratios (after post-run scaling)\n\n")
+            f.write(f"- **Stage A / Reconstruction:** `{ratios['scaled_output_ratios']['stage_a_vs_reconstruction']:.6e}`\n")
+            f.write(f"- **Stage A / Mapping:** `{ratios['scaled_output_ratios']['stage_a_vs_mapping']:.6e}`\n")
+            f.write(f"- **Reconstruction / Mapping:** `{ratios['scaled_output_ratios']['reconstruction_vs_mapping']:.6e}`\n\n")
+
+            f.write("## Interpretation\n\n")
+
+            if ratios['interpretation']['all_raw_match_within_10pct']:
+                f.write("**Verdict: All paths produce MATCHING raw outputs (within 10%)**\n\n")
+                f.write("The simulator construction is consistent across all three paths. ")
+                f.write("Any discrepancy in DB-AT-028/029 tests is due to post-run scaling logic ")
+                f.write("(sqrt_spot_scale vs scale_factor application) or scale_factor derivation.\n\n")
+                f.write("**Recommended next steps:**\n")
+                f.write("1. Verify reconstruction applies correct post-run scaling (scale_factor = exp(log_scale_baseline) should equal sqrt(spot_scale) at zero delta)\n")
+                f.write("2. Trace log_scale_baseline derivation in Stage A telemetry to confirm it equals log(sqrt(spot_scale))\n")
+                f.write("3. If reconstruction scale_factor != sqrt(spot_scale), investigate telemetry extraction in reconstruction.py:215-247\n")
+            elif ratios['interpretation']['reconstruction_diverges_from_others']:
+                f.write("**Verdict: Reconstruction path DIVERGES from Stage A + Mapping**\n\n")
+                f.write("Stage A and simulate_forward_once produce matching raw outputs, but reconstruction ")
+                f.write("cold-path produces different magnitude. This indicates a simulator construction difference ")
+                f.write("in create_unified_simulator factory when called from reconstruction helpers.\n\n")
+                f.write("**Recommended next steps:**\n")
+                f.write("1. Audit reconstruction.py:187-217 config construction (beam_config, crystal_config, detector_config)\n")
+                f.write("2. Compare calibration metadata threading (beam_flux, beam_exposure, beamsize_mm, N_cells)\n")
+                f.write("3. Verify spot_scale_override is passed correctly to create_unified_simulator\n")
+                f.write("4. Check for oversample mismatch (should be 3 for all paths)\n")
+            else:
+                f.write("**Verdict: COMPLEX discrepancy pattern**\n\n")
+                f.write("Raw output ratios do not fit simple match/diverge patterns. ")
+                f.write("This suggests multiple overlapping issues (scaling + construction) or ")
+                f.write("unexpected interactions between calibration parameters.\n\n")
+                f.write("**Recommended next steps:**\n")
+                f.write("1. Review calibration_inputs section above to identify missing/mismatched beam parameters\n")
+                f.write("2. Add debug instrumentation to capture intermediate scaling values in all three paths\n")
+                f.write("3. Escalate to architecture review with full metrics JSON for detailed analysis\n")
 
     print(f"  Summary written to: {summary_path}")
     print()

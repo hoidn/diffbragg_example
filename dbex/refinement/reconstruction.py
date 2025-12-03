@@ -187,12 +187,30 @@ def build_final_bragg_from_stage_a_telemetry(
         beam_config = create_beam_config(beam, flux=beam_flux, exposure=beam_exposure, beamsize_mm=beamsize_mm)
         simulators = []
         for pid in sampled_panel_ids:
-            # Thread trusted mask into cold-path detector config (ARCH-SIM-CONSTRUCTION-001)
+            # Thread trusted mask into cold-path detector config (ARCH-SIM-CONSTRUCTION-001 Phase C.6)
             # When inputs.trusted_mask exists, pass per-panel mask so reconstruction zeros
             # untrusted pixels the same way Stage A warm cache does (spec-db-core.md:34,109)
+            # Guard: skip mask injection for panels with <50% coverage (fallback to None)
             panel_trusted_mask = None
             if inputs.trusted_mask is not None:
-                panel_trusted_mask = inputs.trusted_mask[pid]
+                panel_mask_candidate = inputs.trusted_mask[pid]
+                # Convert to tensor if needed to compute coverage
+                if isinstance(panel_mask_candidate, np.ndarray):
+                    panel_mask_tensor = torch.from_numpy(panel_mask_candidate).to(device=device, dtype=torch.bool)
+                else:
+                    panel_mask_tensor = panel_mask_candidate.to(device=device, dtype=torch.bool)
+
+                coverage = float(panel_mask_tensor.float().mean().item())
+                coverage_threshold = 0.50
+                epsilon = 1e-6
+
+                if coverage >= (coverage_threshold - epsilon):
+                    # Coverage is sufficient, use the mask
+                    panel_trusted_mask = panel_mask_candidate
+                else:
+                    # Coverage too low, skip mask injection and log
+                    print(f"[ARCH-SIM-CONSTRUCTION-001 MASK COVERAGE] Panel {pid}: coverage={coverage:.4f} < {coverage_threshold}, skipping mask injection (fallback to None)")
+                    panel_trusted_mask = None
 
             detector_config = create_detector_config(
                 detector[pid],
@@ -219,6 +237,9 @@ def build_final_bragg_from_stage_a_telemetry(
 
     # Run forward model with refined parameters
     bragg_full = np.zeros((n_panels, *panel_shape), dtype=np.float32)
+
+    # Mask coverage diagnostics (ARCH-SIM-CONSTRUCTION-001 Phase C.6)
+    mask_coverage_stats = []
 
     # Extract log_scale_baseline from Stage A telemetry (TOOLING-VIS-001 Phase D.C, DB-AT-027)
     # When calibration metadata supplied the baseline, apply the same conditional clamp logic as Stage A
@@ -256,6 +277,29 @@ def build_final_bragg_from_stage_a_telemetry(
     print(f"  spot_scale_override: {spot_scale_override}")
 
     for pid, sim in zip(sampled_panel_ids, simulators):
+        # Mask coverage diagnostics (ARCH-SIM-CONSTRUCTION-001 Phase C.6)
+        # Record coverage for this panel when mask is provided
+        if inputs.trusted_mask is not None:
+            panel_trusted_mask_tensor = inputs.trusted_mask[pid]
+            if isinstance(panel_trusted_mask_tensor, np.ndarray):
+                panel_trusted_mask_tensor = torch.from_numpy(panel_trusted_mask_tensor).to(device=device, dtype=torch.bool)
+            coverage = float(panel_trusted_mask_tensor.float().mean().item())
+
+            # Determine if mask was actually injected (based on guard logic above in cold path)
+            # In cold path, we already applied the guard when building detector_config
+            # In warm cache path, simulators are pre-built so mask state is fixed
+            coverage_threshold = 0.50
+            epsilon = 1e-6
+            mask_injected = coverage >= (coverage_threshold - epsilon)
+            fallback_reason = None if mask_injected else "coverage_below_threshold"
+
+            mask_coverage_stats.append({
+                "panel_id": pid,
+                "coverage": coverage,
+                "mask_injected": mask_injected,
+                "fallback_reason": fallback_reason,
+            })
+
         bragg_panel = sim.run()
         # DEBUG: print first panel's raw output
         if pid == 0:
@@ -270,6 +314,45 @@ def build_final_bragg_from_stage_a_telemetry(
     print(f"  bragg_full mean (final output): {bragg_full.mean():.6e}")
     print(f"  bragg_full max: {bragg_full.max():.6e}")
     print(f"[END DEBUG]")
+
+    # Write mask coverage stats to artifacts directory if available
+    # (ARCH-SIM-CONSTRUCTION-001 Phase C.6)
+    if mask_coverage_stats:
+        import json
+        import os
+        from datetime import datetime
+
+        # Try to determine artifacts path from environment or use default
+        artifact_dir = os.environ.get('DBAT028_ARTIFACT_DIR') or os.environ.get('DBAT029_ARTIFACT_DIR')
+        if artifact_dir:
+            # Use parent directory since DBAT artifacts are test-specific subdirs
+            artifact_dir = os.path.dirname(artifact_dir)
+        else:
+            # Default fallback to initiative reports directory
+            artifact_dir = "plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-10T090000Z"
+
+        mask_coverage_path = os.path.join(artifact_dir, "mask_coverage.json")
+        os.makedirs(artifact_dir, exist_ok=True)
+
+        # Append to existing file or create new
+        existing_data = []
+        if os.path.exists(mask_coverage_path):
+            with open(mask_coverage_path, 'r') as f:
+                existing_data = json.load(f)
+                if not isinstance(existing_data, list):
+                    existing_data = []
+
+        # Add timestamp to this run's stats
+        run_record = {
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "panels": mask_coverage_stats,
+        }
+        existing_data.append(run_record)
+
+        with open(mask_coverage_path, 'w') as f:
+            json.dump(existing_data, f, indent=2)
+
+        print(f"[ARCH-SIM-CONSTRUCTION-001 MASK COVERAGE] Wrote coverage stats to {mask_coverage_path}")
 
     return bragg_full
 

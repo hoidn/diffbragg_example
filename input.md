@@ -1,284 +1,305 @@
-# Do Now — ARCH-ENGINE-ARTIFACTS-001 Phase C.1
+# Input for Ralph (Loop 2025-12-03T043000Z)
 
 ## Summary
-Remove reconstruction helper fallback logic from `run_nanobrag_refinement` so it exclusively uses artifact channel for final Bragg arrays.
+Add minimal debug instrumentation to nanobrag_torch to investigate why explicit `oversample=3` parameter doesn't prevent auto-selection, enabling root cause diagnosis for ARCH-SIM-CONSTRUCTION-001 reconstruction magnitude discrepancy.
 
 ## Mode
-Implementation
+none (diagnostics: environment debugging per Environment Freeze exception clause)
 
 ## InitiativeType
-architecture
+diagnostics
 
 ## Focus
-ARCH-ENGINE-ARTIFACTS-001 — RefinementEngine artifact channel & final-Bragg unification
+DIAG-NANOBRAGG-OVERSAMPLE-001 — nanobrag_torch oversample parameter investigation (Phase A: debug instrumentation)
 
 ## Branch
 integration
 
-## Mapped Tests
-- `tests/dbex/test_artifact_parity.py::test_stage_a_artifact_matches_helper`
-- `tests/dbex/test_artifact_parity.py::test_stage_b_artifact_matches_helper_shell_mode`
-- `tests/dbex/test_torch_refine_smoke.py::test_stage_a_baseline_smoke`
-- `tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers`
+## Mapped tests
+- `tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity` (will use to capture debug output)
 
 ## Artifacts
-`plans/active/ARCH-ENGINE-ARTIFACTS-001/reports/2025-12-02T000500Z/`
+`plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T043000Z/`
+- `nanobrag_debug_instrumentation.patch` (patch file per Environment Freeze exception requirement)
+- `nanobragg_build.log` (rebuild output documenting build process)
+- `pytest_db_at_028_debug.log` (test run with `-s` flag capturing debug prints)
+- `root_cause_analysis.md` (analysis of debug logs identifying Case A/B/C)
+- `summary.md` (loop summary)
 
 ## Do Now
 
-### Context
-Exit Criteria #1 and #2 are SATISFIED:
-- Artifact channel API is complete (engine.artifacts dict, StageResult protocol)
-- Parity tests PASS proving Stage A/B artifacts match reconstruction helpers (max_rel=0.000e+00)
+**Environment Freeze Exception Compliance**: This work is authorized per CLAUDE.md Environment Freeze exception clause for "targeted bugfixes to locally available source code... when blocking critical paths". All 5 requirements will be satisfied: (1) patch file saved, (2) rebuild documented, (3) testing confirms unblock, (4) findings.md updated, (5) environment tagged.
 
-Exit Criterion #3 requires removing fallback code that calls reconstruction helpers.
+### Task 1: Add Debug Instrumentation to nanobrag_torch
 
-Current state (dbex/nanobrag_refinement.py):
-- Lines 228-241: Stage A terminal checks artifact first, falls back to `build_final_bragg_from_stage_a_telemetry`
-- Lines 369-409: Stage B terminal checks artifact first, falls back to `build_final_bragg_from_stage_b_telemetry`
-- Lines 507-516: Stage C terminal ONLY uses artifacts (RuntimeError if missing) ✓
+**File**: `src/nanobrag-torch/src/nanobrag_torch/simulator.py`
 
-The fallbacks were defensive coding for "older binaries" but are no longer needed because:
-1. All code paths use RefinementEngine which unconditionally populates artifacts
-2. Parity tests prove artifacts are populated correctly
-3. Stage C already requires artifacts (no fallback)
+**Location**: Lines ~769-803 (inside `Simulator.run()` method, at the oversample parameter handling section)
 
-### Implement
+**Changes to add** (insert BEFORE existing logic, do not modify existing code):
 
-**File**: `dbex/nanobrag_refinement.py`
-
-**Change 1: Stage A terminal path (lines 226-241)**
-
-Replace the artifact-or-fallback pattern with artifact-only:
-
-OLD (lines 226-241):
 ```python
-# ARCH-STAGE-CONTEXT-001 Phase D: Build final Bragg from artifacts or telemetry fallback
-# Try to read bragg_full from Stage A artifacts first (populated when Stage A is terminal)
-if stage_a_artifacts is not None and hasattr(stage_a_artifacts, 'bragg_full') and stage_a_artifacts.bragg_full is not None:
-    bragg_full = stage_a_artifacts.bragg_full
-else:
-    # Fallback: Build final Bragg using optimized parameters from telemetry
-    # (for older binaries that don't populate artifact bragg_full)
-    from dbex.refinement.reconstruction import build_final_bragg_from_stage_a_telemetry
-    device = torch.device(config.device)
-    dtype = config.dtype
-    bragg_full = build_final_bragg_from_stage_a_telemetry(
-        telemetry_a_enriched, detector, beam, crystal, inputs, hkl_grid,
-        hkl_metadata, config, device, dtype,
-        stage_a_ctx=stage_a_ctx,
-        baseline_crystal=baseline_crystal,
-    )
+def run(self, oversample=None, ...):
+    # ===== BEGIN DEBUG INSTRUMENTATION (DIAG-NANOBRAGG-OVERSAMPLE-001) =====
+    print(f"[DIAG-OVERSAMPLE] simulator.run() called with oversample={oversample}")
+    print(f"[DIAG-OVERSAMPLE] self.detector.config.oversample={self.detector.config.oversample}")
+    # ===== END DEBUG INSTRUMENTATION =====
+
+    if oversample is None:
+        oversample = self.detector.config.oversample
+        # ===== BEGIN DEBUG INSTRUMENTATION (DIAG-NANOBRAGG-OVERSAMPLE-001) =====
+        print(f"[DIAG-OVERSAMPLE] oversample after config read: {oversample}")
+        # ===== END DEBUG INSTRUMENTATION =====
+
+    if oversample == -1:
+        # ===== BEGIN DEBUG INSTRUMENTATION (DIAG-NANOBRAGG-OVERSAMPLE-001) =====
+        print(f"[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)")
+        # ===== END DEBUG INSTRUMENTATION =====
+        # ... existing auto-selection logic ...
 ```
 
-NEW:
-```python
-# ARCH-ENGINE-ARTIFACTS-001 Phase C.1: Build final Bragg from artifact channel
-# Stage A unconditionally populates bragg_full in StageAArtifacts (verified by parity tests)
-if stage_a_artifacts is None or not hasattr(stage_a_artifacts, 'bragg_full') or stage_a_artifacts.bragg_full is None:
-    raise RuntimeError(
-        "Stage A did not produce final Bragg array in artifacts. "
-        "This is a bug in the Stage A wrapper."
-    )
-bragg_full = stage_a_artifacts.bragg_full
+**Expected debug output pattern** (will appear in pytest log when run with `-s` flag):
+```
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=3
+[DIAG-OVERSAMPLE] oversample after config read: 3
 ```
 
-**Change 2: Stage B terminal path (lines 367-409)**
+**Root cause diagnosis from debug output**:
+- **Case A** (DetectorConfig.oversample not preserved): `self.detector.config.oversample=-1` → fix dataclass
+- **Case B** (caller passes override): `simulator.run() called with oversample=-1` → find caller
+- **Case C** (auto-selection logic bug): Both show `=3` but "Entering auto-selection branch" still prints → simulator bug
 
-Replace the artifact-or-fallback pattern with artifact-only:
+### Task 2: Save Patch File
 
-OLD (lines 367-409):
-```python
-# ARCH-STAGE-CONTEXT-001 Phase D: Build final Bragg from artifacts or telemetry fallback
-# Try to read bragg_full from Stage B artifacts first (populated when Stage B is terminal)
-if stage_b_artifacts is not None and hasattr(stage_b_artifacts, 'bragg_full') and stage_b_artifacts.bragg_full is not None:
-    bragg_full = stage_b_artifacts.bragg_full
-else:
-    # Fallback: Build final Bragg using optimized parameters from telemetry
-    # (for older binaries that don't populate artifact bragg_full)
-    from dbex.refinement.reconstruction import build_final_bragg_from_stage_b_telemetry
-    # Create a dict version of telemetry_b with shell metadata for the helper
-    from dataclasses import asdict
-    telemetry_b_dict = asdict(telemetry_b_raw)
-    if shell_edges is not None:
-        telemetry_b_dict['shell_edges'] = shell_edges
-    if shell_indices is not None:
-        telemetry_b_dict['shell_indices'] = shell_indices
-    if n_shells is not None:
-        telemetry_b_dict['n_shells'] = n_shells
-    # Add custom attributes back to dict (Phase 8 fix #2)
-    if stage_b_mode is not None:
-        telemetry_b_dict['stage_b_mode'] = stage_b_mode
-    if n_asu_unique is not None:
-        telemetry_b_dict['n_asu_unique'] = n_asu_unique
-    if optimizer_type is not None:
-        telemetry_b_dict['optimizer_type'] = optimizer_type
-    if asu_modifier_stats is not None:
-        telemetry_b_dict['asu_modifier_stats'] = asu_modifier_stats
-
-    bragg_full = build_final_bragg_from_stage_b_telemetry(
-        telemetry_a=telemetry_a_raw,
-        telemetry_b=telemetry_b_dict,
-        detector=detector,
-        beam=beam,
-        crystal=crystal,
-        baseline_crystal=baseline_crystal,
-        inputs=inputs,
-        hkl_grid=hkl_grid,
-        hkl_metadata=hkl_metadata,
-        config=config,
-        device=final_device,  # Use CPU device if CPU fallback is active
-        dtype=dtype,
-        use_stage_b_cpu_fallback=use_stage_b_cpu_fallback,
-        stage_a_ctx=stage_b_eval_stage_a_ctx,  # Use CPU-cloned context when fallback active
-    )
-```
-
-NEW:
-```python
-# ARCH-ENGINE-ARTIFACTS-001 Phase C.1: Build final Bragg from artifact channel
-# Stage B unconditionally populates bragg_full in StageBartifacts (verified by parity tests)
-if stage_b_artifacts is None or not hasattr(stage_b_artifacts, 'bragg_full') or stage_b_artifacts.bragg_full is None:
-    raise RuntimeError(
-        "Stage B did not produce final Bragg array in artifacts. "
-        "This is a bug in the Stage B wrapper."
-    )
-bragg_full = stage_b_artifacts.bragg_full
-```
-
-### Validate
-
-Run all mapped tests to ensure no regressions:
-
+**Command**:
 ```bash
-# Parity tests (prove artifact channel correctness)
-AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-DBEX_SMOKE_SIGMA_SOURCE=metadata \
-DBEX_SMOKE_DETECTOR_SIZE=full \
-KMP_DUPLICATE_LIB_OK=TRUE \
-NANOBRAGG_DISABLE_COMPILE=1 \
-pytest -vv tests/dbex/test_artifact_parity.py --tb=short
-
-# Stage A smoke (prove Stage A terminal still works)
-AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-DBEX_SMOKE_SIGMA_SOURCE=metadata \
-DBEX_SMOKE_DETECTOR_SIZE=full \
-KMP_DUPLICATE_LIB_OK=TRUE \
-NANOBRAGG_DISABLE_COMPILE=1 \
-pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_baseline_smoke --tb=short
-
-# Stage B smoke (prove Stage B terminal still works)
-AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-DBEX_SMOKE_SIGMA_SOURCE=metadata \
-DBEX_SMOKE_DETECTOR_SIZE=full \
-KMP_DUPLICATE_LIB_OK=TRUE \
-NANOBRAGG_DISABLE_COMPILE=1 \
-pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers --tb=short
+cd src/nanobrag-torch
+git diff > ../../plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/patches/nanobrag_debug_instrumentation.patch
 ```
 
-Save test logs to artifacts directory.
+**Validation**: Patch file exists and contains the debug print additions.
 
-### Expected Outcome
-- All 4 mapped tests PASS
-- Code size reduced by ~50 lines (fallback logic removed)
-- No behavioral changes (artifacts already populated, fallbacks were never exercised)
-- Simpler, more maintainable code (single artifact-only path)
+### Task 3: Rebuild nanobrag_torch
+
+**Commands** (document exact steps in `nanobragg_build.log`):
+```bash
+cd src/nanobrag-torch
+pip install -e . > ../../plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T043000Z/nanobragg_build.log 2>&1
+```
+
+**Validation**: Build succeeds, logs captured.
+
+### Task 4: Rerun DB-AT-028 with Debug Output
+
+**Command**:
+```bash
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+DBEX_SMOKE_SIGMA_SOURCE=metadata \
+DBEX_SMOKE_DETECTOR_SIZE=full \
+KMP_DUPLICATE_LIB_OK=TRUE \
+NANOBRAGG_DISABLE_COMPILE=1 \
+pytest -vv -s tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity > plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T043000Z/pytest_db_at_028_debug.log 2>&1
+```
+
+**Note**: The `-s` flag is CRITICAL — it disables pytest output capture so debug prints are visible.
+
+**Expected**: Test FAILS (same signature as before), but debug logs reveal oversample parameter flow.
+
+### Task 5: Analyze Debug Logs and Identify Root Cause
+
+**Steps**:
+1. Search pytest_db_at_028_debug.log for all `[DIAG-OVERSAMPLE]` lines
+2. Extract the first few occurrences (should be ~209 total based on prior logs)
+3. Determine which Case (A/B/C) the evidence supports
+4. Write `root_cause_analysis.md` with:
+   - Debug output excerpt (first 10-20 lines)
+   - Case identification (A/B/C) with justification
+   - Recommended next step (Phase B fix or escalation)
+
+**Example analysis template**:
+```markdown
+# Root Cause Analysis — DIAG-NANOBRAGG-OVERSAMPLE-001 Phase A
+
+## Debug Output Excerpt
+(paste first 20 [DIAG-OVERSAMPLE] lines from pytest log)
+
+## Case Identification
+**Case X**: (A/B/C)
+
+**Evidence**:
+- `self.detector.config.oversample = <value>`
+- `simulator.run() called with oversample = <value>`
+- Auto-selection branch: (entered / not entered)
+
+**Conclusion**: (brief explanation matching one of the three cases)
+
+## Recommended Next Step
+- **If Case A**: Phase B fix DetectorConfig dataclass to preserve oversample field
+- **If Case B**: Return to ARCH-SIM-CONSTRUCTION-001 to fix caller passing override
+- **If Case C**: Phase B fix simulator auto-selection logic bug
+- **If unclear**: Escalate to user/maintainers (cannot debug further)
+```
+
+### Task 6: Update docs/findings.md
+
+**Action**: Add new finding entry under appropriate section (e.g., "## Diagnostics Findings" or "## Simulator Runtime"):
+
+```markdown
+### [DIAG-OVERSAMPLE-001] nanobrag_torch Oversample Parameter Handling Investigation
+
+**Status**: In Progress (Phase A complete: root cause identified as Case X)
+
+**Context**: ARCH-SIM-CONSTRUCTION-001 stuck due to suspected nanobrag_torch `oversample` parameter issue. Explicit `DetectorConfig(oversample=3)` setting doesn't prevent auto-selection code path, causing ~23,317× magnitude discrepancy in reconstruction helpers.
+
+**Investigation**: Added debug instrumentation to nanobrag_torch/simulator.py per Environment Freeze exception clause. Patch file: `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/patches/nanobrag_debug_instrumentation.patch`.
+
+**Root Cause**: (to be filled after log analysis: Case A/B/C with brief explanation)
+
+**Resolution Path**: (to be filled: Phase B fix plan or escalation recommendation)
+
+**References**:
+- Initiative: DIAG-NANOBRAGG-OVERSAMPLE-001
+- Artifacts: `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T043000Z/`
+- Blocks: ARCH-SIM-CONSTRUCTION-001
+```
+
+### Task 7: Tag Environment State
+
+**Command**:
+```bash
+echo "nanobragg-debug-oversample-2025-12-03" > plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T043000Z/environment_tag.txt
+```
+
+**Rationale**: Documents environment state per Environment Freeze exception requirement #5.
 
 ## How-To Map
 
-**Read the file first**:
-```bash
-# Understand current structure
-cat dbex/nanobrag_refinement.py | grep -n -A 20 "Stage A terminal"
-cat dbex/nanobrag_refinement.py | grep -n -A 50 "Stage B terminal"
-```
+### Step-by-step execution order:
 
-**Make edits**:
-Use Edit tool to replace both fallback blocks as specified above.
+1. **Edit nanobrag_torch simulator.py**: Add 6 debug print statements (3 insertion points) per Task 1
+2. **Save patch**: `cd src/nanobrag-torch && git diff > ../../plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/patches/nanobrag_debug_instrumentation.patch`
+3. **Rebuild nanobrag_torch**: `cd src/nanobrag-torch && pip install -e . > ../../plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T043000Z/nanobragg_build.log 2>&1`
+4. **Rerun DB-AT-028 with debug**: Use command from Task 4 (with `-s` flag)
+5. **Analyze logs**: Extract [DIAG-OVERSAMPLE] lines, identify Case A/B/C, write `root_cause_analysis.md`
+6. **Update findings**: Add DIAG-OVERSAMPLE-001 entry to `docs/findings.md`
+7. **Tag environment**: Create `environment_tag.txt` per Task 7
+8. **Write summary.md**: Document loop outcome and next action
 
-**Run tests**:
-Execute the four pytest commands from Validate section, redirecting output to:
-- `plans/active/ARCH-ENGINE-ARTIFACTS-001/reports/2025-12-02T000500Z/pytest_parity.log`
-- `plans/active/ARCH-ENGINE-ARTIFACTS-001/reports/2025-12-02T000500Z/pytest_stage_a_smoke.log`
-- `plans/active/ARCH-ENGINE-ARTIFACTS-001/reports/2025-12-02T000500Z/pytest_stage_b_smoke.log`
+### Expected timeline:
+- Edit + patch + rebuild: ~5 minutes
+- Test run: ~40 seconds (DB-AT-028 typical duration)
+- Log analysis + findings: ~10 minutes
+- **Total: ~15-20 minutes**
 
-**Verify no imports left behind**:
-After edits, check that reconstruction helper imports are removed (they should be in the deleted fallback blocks):
-```bash
-grep -n "build_final_bragg_from_stage" dbex/nanobrag_refinement.py
-# Expected: No matches (or only in comments)
-```
+### Key environment variables:
+- `DBEX_SMOKE_SIGMA_SOURCE=metadata` — Use external_lookup sigma source (required for DB-AT-028)
+- `DBEX_SMOKE_DETECTOR_SIZE=full` — Full 2527×2463 detector
+- `NANOBRAGG_DISABLE_COMPILE=1` — Disable torch.compile for reproducible debug output
+- `KMP_DUPLICATE_LIB_OK=TRUE` — Suppress OpenMP duplicate library warnings
 
 ## Pitfalls To Avoid
 
-1. **Do NOT remove reconstruction helpers from `dbex/refinement/reconstruction.py`** — They are still used by parity tests and potentially other tools. Only remove the fallback CALLS in nanobrag_refinement.py.
-
-2. **Do NOT change Stage C logic** — It already follows the artifact-only pattern (lines 507-516). Only modify Stage A and Stage B terminal paths.
-
-3. **Do NOT modify artifact population logic** — The Stage wrappers already populate artifacts correctly (proven by parity tests). This is purely removing unused fallback code.
-
-4. **Device/dtype neutrality**: No device/dtype code is being changed (fallbacks are deleted wholesale), so no risk here.
-
-5. **Environment Freeze**: No package installs needed, purely code refactoring.
-
-6. **Initiative type boundary**: This is architecture work (removing dead code, simplifying orchestration). Do NOT change acceptance criteria or specs.
+1. **Do NOT modify existing logic in simulator.py** — only ADD debug print statements. Existing code flow must remain unchanged.
+2. **Do NOT forget `-s` flag in pytest** — without it, debug prints won't appear in logs.
+3. **Do NOT skip patch file creation** — required by Environment Freeze exception clause for rollback/documentation.
+4. **Do NOT skip rebuild step** — changes to nanobrag_torch require reinstall before they take effect.
+5. **Do NOT analyze without extracting ALL [DIAG-OVERSAMPLE] lines** — pattern may vary across 209 simulator runs.
+6. **Do NOT modify DBEX production code** — this initiative is diagnostics only, all changes are in nanobrag_torch.
+7. **Do NOT proceed to Phase B fix** — this loop is Phase A (diagnosis only); Phase B (fix) will be separate loop if needed.
+8. **Environment Freeze compliance**: Document all steps (patch, rebuild, testing) per exception requirements.
 
 ## If Blocked
 
-If any test FAILS:
-1. Capture full pytest output with `--tb=long` to artifacts directory
-2. Check if the failure is due to missing artifacts or a different root cause
-3. If artifacts are missing, record in Attempts History and escalate to Galph (this would indicate a bug in Stage wrappers)
-4. Do NOT revert to fallback logic — fix the underlying artifact population bug instead
+**If nanobrag_torch rebuild fails**:
+1. Capture full error output in `nanobragg_build.log`
+2. Check for missing dependencies (e.g., cuda, torch version mismatches)
+3. Document build failure in `summary.md`
+4. Escalate to Galph with recommendation: either resolve build dependencies or switch to Option B (maintainer investigation)
+
+**If debug output doesn't appear in logs**:
+1. Verify pytest was run with `-s` flag
+2. Check simulator.py edit was applied (cat the file, look for [DIAG-OVERSAMPLE] strings)
+3. Verify rebuild completed successfully (check pip install output)
+4. Re-run pytest with explicit `--capture=no` instead of `-s`
+
+**If root cause unclear from logs**:
+1. Document the ambiguity in `root_cause_analysis.md`
+2. Include full debug output excerpt (all [DIAG-OVERSAMPLE] lines from first ~20 runs)
+3. Recommend escalation to user/maintainers in summary.md
+4. Do NOT attempt Phase B fix if diagnosis is inconclusive
 
 ## Findings Applied
 
-**Relevant findings** from `docs/findings.md`:
-- ARCH-ENGINE-003: Telemetry enrichment must stay in active engine path (artifact channel is the active path)
-- POLICY-001: Environment Freeze (no package changes, code-only refactor)
-- REFINE-FLOW-001: Stage B baseline parity (validated by parity tests)
+**From problems_ledger_service.md (2025-12-02T194500Z)**:
+- **ARCH-SIM-CONSTRUCTION-001 stuck status**: Confirmed 4 implementation loops exhausted, Environment Freeze blocks further debugging without exception clause
+- **Unblock path assessment**: Option A (local patch) chosen over Option B (maintainer) for faster resolution
+- **Environment Freeze exception requirements**: All 5 requirements documented in implementation.md and enforced in this Do Now
 
-**Adherence**:
-- ARCH-ENGINE-003: ✓ Using artifact channel (not telemetry fallback)
-- POLICY-001: ✓ No environment changes
-- REFINE-FLOW-001: ✓ Parity tests validate correctness
+**From ARCH-SIM-CONSTRUCTION-001 lifecycle_decision.md (2025-12-03T021140Z)**:
+- **Repeat-failure guard**: 4 consecutive loops with same signature triggered stuck status
+- **Environment constraint**: Cannot modify nanobrag_torch without exception clause approval
+- **Suspected root cause**: nanobrag_torch `oversample` parameter implementation issue (version/upstream bug)
+
+**From ARCH-SIM-CONSTRUCTION-001 Phase C.4 summary.md (2025-12-04T235959Z)**:
+- **Implementation correctness**: explicit `oversample=3` parameter added correctly per spec
+- **Empirical contradiction**: Test logs show "auto-selected 3-fold oversampling" 209 times despite explicit setting
+- **Static inspection**: simulator.py:770 SHOULD honor `self.detector.config.oversample` when `oversample` parameter is None
 
 ## Pointers
 
-**Spec references**:
-- `docs/spec-db-workflow.md:33` — Engine must own orchestration and expose artifacts
-- `docs/spec-db-workflow.md:41` — Stage contract + outputs
-- `docs/spec-db-core.md:85-90` — HKL/Bragg tensor contracts
+**Spec / Architecture**:
+- docs/spec-db-core.md §§20-40 (detector configuration, oversampling semantics)
+- docs/architecture/calibration_scaling.md (calibration threading requirements)
+- CLAUDE.md Environment Freeze exception clause (targeted bugfixes to locally available source)
 
-**Architecture docs**:
-- `docs/architecture/live_backend.md` — Current backend implementation (will need update in Phase C.3)
-- `docs/architecture/dbex/refinement/context.idl.md` — RefinementContext contracts
+**Implementation Files**:
+- `src/nanobrag-torch/src/nanobrag_torch/simulator.py:769-803` (oversample parameter handling, target for debug instrumentation)
+- `dbex/refinement/config_factories.py:48-80, 230` (DBEX DetectorConfig construction, passes `oversample=3`)
+- `dbex/nanobrag_bridge.py:1410` (simulate_forward_once caller, passes `oversample=3`)
+- `dbex/refinement/reconstruction.py:190-194` (reconstruction cold path, passes `oversample=3`)
 
-**Implementation artifacts**:
-- `plans/active/ARCH-ENGINE-ARTIFACTS-001/implementation.md` — Phase C checklist
-- `plans/active/ARCH-ENGINE-ARTIFACTS-001/reports/2025-12-02T000500Z/planning_notes.md` — This loop's analysis
+**Test / Acceptance**:
+- `tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity` (mapped test for debug output capture)
+- DB-AT-028 acceptance criteria: `chi²/pixel initial ≤ 1e2` (currently fails: 1.084e+05)
 
-**Test registry**:
-- `docs/TESTING_GUIDE.md:§2` — Authoritative test commands
-- `docs/development/TEST_SUITE_INDEX.md` — Test selector status
+**Prior Evidence**:
+- `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T235959Z/summary.md` (Phase C.4 implementation and failure analysis)
+- `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-03T021140Z/lifecycle_decision.md` (stuck status rationale)
+- `plans/active/PORTFOLIO-STATUS/reports/2025-12-02T194500Z/problems_ledger_service.md` (unblock path assessment)
+
+**Initiative Plan**:
+- `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/implementation.md` (Phase A/B plan, exit criteria, risks)
 
 ## Next Up
 
-After Phase C.1 completes successfully:
-- Phase C.2: (Optional) Remove unused reconstruction helper imports from nanobrag_refinement.py module-level imports (if any remain)
-- Phase C.3: Update documentation to reflect artifact-only orchestration flow
+**If Phase A successful (root cause identified)**:
+- Create input.md for Phase B (targeted fix based on Case A/B/C)
+- Fix implementation will be separate loop with own Do Now
+
+**If Phase A inconclusive**:
+- Escalate to user/maintainers per problems.md
+- Consider Option B (maintainer investigation) or environment upgrade
+
+**After DIAG-NANOBRAGG-OVERSAMPLE-001 complete**:
+- Unblock ARCH-SIM-CONSTRUCTION-001 (reconstruction magnitude discrepancy)
+- Unblock ARCH-REFACTOR-001 Phase D.3 (reconstruction baseline logic)
+- Complete Tier 0 architectural spine
 
 ## Doc Sync Plan
 
-No new tests added/renamed this loop, so no test registry updates needed.
-Existing parity tests already documented in TEST_SUITE_INDEX.md.
+**Not applicable** — no tests added/renamed this loop.
+
+Existing test `test_db_at_028_loss_scale_sanity` reused for debug output capture only.
 
 ## Mapped Tests Guardrail
 
-All 4 mapped selectors collect successfully (verified during planning loop):
-- ✓ `test_artifact_parity.py::test_stage_a_artifact_matches_helper` (collects 1)
-- ✓ `test_artifact_parity.py::test_stage_b_artifact_matches_helper_shell_mode` (collects 1)
-- ✓ `test_torch_refine_smoke.py::test_stage_a_baseline_smoke` (exists, will verify collection)
-- ✓ `test_torch_refine_smoke.py::test_stage_b_shell_modifiers` (exists, will verify collection)
+**Collect-only verification**:
+```bash
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+pytest --collect-only tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity
+```
 
-If any selector collects 0 after code changes, DO NOT mark phase complete — debug and fix.
+**Expected**: 1 test collected
+
+**Status**: Existing test, no changes to collection expected.

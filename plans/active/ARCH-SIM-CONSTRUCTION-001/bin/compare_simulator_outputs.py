@@ -227,6 +227,7 @@ def run_reconstruction_path(
 
     baseline_detector = refgeom_dataload.Expt.detector
     baseline_beam = refgeom_dataload.Expt.beam
+    trusted_mask = refgeom_dataload.trusted_mask
 
     # Extract first panel
     panel_0 = baseline_detector[0]
@@ -247,7 +248,19 @@ def run_reconstruction_path(
     baseline_crystal = refgeom_dataload.Expt.crystal
     crystal_config, _ = create_crystal_config(baseline_crystal, None, N_cells=N_cells, apply_n_cells=True)
 
-    detector_config = create_detector_config(panel_0, beam=baseline_beam, oversample=3)
+    # Pass trusted_mask to detector_config (ARCH-SIM-CONSTRUCTION-001)
+    detector_config = create_detector_config(panel_0, beam=baseline_beam, trusted_mask=trusted_mask[0], oversample=3)
+
+    # Normalize mask_array to device/dtype after detector config creation (ARCH-SIM-CONSTRUCTION-001)
+    # Mirror Stage A's mask normalization (stage_a_utils.py:315-321)
+    mask_array_for_factory = detector_config.mask_array
+    if mask_array_for_factory is not None:
+        if not isinstance(mask_array_for_factory, torch.Tensor):
+            mask_array_for_factory = torch.tensor(mask_array_for_factory, dtype=torch.float32, device=device_obj)
+        elif mask_array_for_factory.device != device_obj or mask_array_for_factory.dtype != torch.float32:
+            mask_array_for_factory = mask_array_for_factory.to(device=device_obj, dtype=torch.float32)
+        # Update detector_config so it carries the normalized tensor
+        detector_config.mask_array = mask_array_for_factory
 
     # Build simulator via unified factory
     simulator_recon, normalized_mask, sqrt_scale_from_factory, metadata = create_unified_simulator(
@@ -256,7 +269,7 @@ def run_reconstruction_path(
         beam_config=beam_config,
         hkl_grid=hkl_grid,
         hkl_metadata=hkl_metadata,
-        mask_array=None,
+        mask_array=mask_array_for_factory,  # Pass normalized mask (ARCH-SIM-CONSTRUCTION-001)
         spot_scale_override=spot_scale_override,
         device=device_obj,
         dtype=dtype,

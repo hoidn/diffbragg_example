@@ -229,7 +229,21 @@ def build_final_bragg_from_stage_a_telemetry(
                 trusted_mask=panel_trusted_mask,
                 oversample=3  # Force 3-fold oversampling matching simulate_forward_once
             )
+
+            # Normalize mask_array to device/dtype after detector config creation (ARCH-SIM-CONSTRUCTION-001)
+            # Mirror Stage A's mask normalization (stage_a_utils.py:315-321) so reconstruction
+            # preserves trusted-mask gating on CUDA runs
+            mask_array_for_factory = detector_config.mask_array
+            if mask_array_for_factory is not None:
+                if not isinstance(mask_array_for_factory, torch.Tensor):
+                    mask_array_for_factory = torch.tensor(mask_array_for_factory, dtype=torch.float32, device=device)
+                elif mask_array_for_factory.device != device or mask_array_for_factory.dtype != torch.float32:
+                    mask_array_for_factory = mask_array_for_factory.to(device=device, dtype=torch.float32)
+                # Update detector_config so it carries the normalized tensor
+                detector_config.mask_array = mask_array_for_factory
+
             # Use unified factory for forward-only reconstruction (ARCH-FACTORY-001)
+            # Pass mask_array explicitly so helpers.py normalization branch executes (ARCH-SIM-CONSTRUCTION-001)
             # Pass spot_scale_override so factory can compute sqrt_scale for post-run application
             simulator, normalized_mask, sqrt_scale_from_factory, metadata = create_unified_simulator(
                 detector_config=detector_config,
@@ -237,7 +251,7 @@ def build_final_bragg_from_stage_a_telemetry(
                 beam_config=beam_config,
                 hkl_grid=hkl_grid,
                 hkl_metadata=hkl_metadata,
-                mask_array=None,  # mask already in detector_config if needed
+                mask_array=mask_array_for_factory,  # Pass normalized mask so factory can validate/attach
                 spot_scale_override=spot_scale_override,  # Factory needs this to compute sqrt_scale
                 device=device,
                 dtype=dtype,

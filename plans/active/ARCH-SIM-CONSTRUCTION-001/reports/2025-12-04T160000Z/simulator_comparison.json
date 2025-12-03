@@ -1,0 +1,13 @@
+{
+  "bragg_stage_a_mean": 1.713931885305442e-09,
+  "bragg_stage_a_max": 0.00011039979290217161,
+  "bragg_recon_mean": 2.023961664932017e-09,
+  "bragg_recon_max": 0.00011039979290217161,
+  "ratio": 0.846820330148403,
+  "spot_scale_override": 3.105058665484234e+17,
+  "sqrt_spot_scale": 557230532.6778347,
+  "match_within_1pct": false,
+  "match_sqrt_scale": false,
+  "device": "cpu",
+  "dtype": "torch.float32"
+}

@@ -1,0 +1,33 @@
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+[ARCH-SIM-CONSTRUCTION-001] Simulator Output Comparison Probe
+Device: cpu
+
+[1/5] Loading test fixture data...
+auto-selected 3-fold oversampling
+  spot_scale_override: 3.105059e+17
+  sqrt(spot_scale_override): 5.572305e+08
+  HKL grid shape: torch.Size([51, 59, 65])
+  n_panels: 1
+
+[2/5] Building Stage A warm-cache simulators...
+auto-selected 3-fold oversampling
+  Stage A simulator[0] raw output mean: 1.713932e-09
+  Stage A simulator[0] raw output max: 1.103998e-04
+
+[3/5] Building reconstruction cold-path simulator...
+auto-selected 3-fold oversampling
+  Reconstruction simulator raw output mean: 2.023962e-09
+  Reconstruction simulator raw output max: 1.103998e-04
+
+[4/5] Comparing simulator outputs...
+  Ratio (Stage A / Reconstruction): 8.468203e-01
+  Match within 1% of 1.0? False
+  Match within 1% of sqrt(spot_scale)? False
+
+[5/5] Saving results...
+  Results saved to: plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T160000Z/simulator_comparison.json
+
+  Summary written to: plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T160000Z/summary.md
+
+[DONE] Simulator comparison complete.

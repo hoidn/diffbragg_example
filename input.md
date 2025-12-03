@@ -1,146 +1,117 @@
-# Do Now — ARCH-SIM-CONSTRUCTION-001 Phase C.1 Debug Instrumentation
+# Input for Ralph — ARCH-SIM-CONSTRUCTION-001 Phase C.2 (Debug Probe: Simulator Output Comparison)
 
 ## Summary
-Add debug instrumentation to reconstruction helper to diagnose the 23,400× scale mismatch between expected and actual bragg_after output.
+Create debug probe comparing Stage A vs reconstruction simulator raw outputs to isolate sqrt(spot_scale) discrepancy.
 
 ## Mode
-none (debugging / evidence collection)
+none (evidence collection)
 
 ## InitiativeType
 architecture
 
 ## Focus
-[ARCH-SIM-CONSTRUCTION-001] — Simulator Construction Convention Alignment (Training vs Reconstruction)
+ARCH-SIM-CONSTRUCTION-001 — Simulator Construction Convention Alignment (Training vs Reconstruction)
 
 ## Branch
 integration
 
-## Mapped tests
-```bash
-AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-DBEX_SMOKE_SIGMA_SOURCE=metadata \
-DBEX_SMOKE_DETECTOR_SIZE=full \
-KMP_DUPLICATE_LIB_OK=TRUE \
-NANOBRAGG_DISABLE_COMPILE=1 \
-pytest -vv tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity -s
-```
-
-(Single test for faster iteration; `-s` flag captures print output)
+## Mapped Tests
+- `none — evidence-only` (probe will generate comparison artifacts but won't run pytest)
 
 ## Artifacts
-`plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T121500Z/`
-
----
+`plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T160000Z/`
 
 ## Do Now
 
-### Context
+### Background
+Three implementation attempts show systematic sqrt-factor confusion:
+- **Without sqrt multiplication:** `bragg_after = 1.025e-05` (23,400× too small vs expected 0.24)
+- **With sqrt multiplication:** `bragg_after = 5711` (23,800× too LARGE vs expected 0.24)
 
-Ralph correctly removed `* sqrt_spot_scale` per my prior diagnosis (2025-12-03T005008Z), but this made `bragg_after` output 23,400× too small (1.02e-05) instead of matching the expected ~0.24.
+Debug instrumentation (loop i=451) revealed:
+- Raw simulator output: `1.839e-14`
+- Expected (working backwards from test assertions): `bragg_raw ≈ 4.3e-10`
+- **Ratio: 23,400× discrepancy in raw output itself, not just scaling application!**
 
-My analysis was incomplete. Before making another code change, we need empirical data showing:
-1. What is the **raw simulator output** (`bragg_panel.mean()` before any scaling)?
-2. What is `scale_factor` actually computed as?
-3. What is `log_scale_baseline` from telemetry?
-4. What is `log_scale` (the delta parameter)?
-5. What is `sqrt_spot_scale`?
+This suggests simulators built by Stage A vs reconstruction produce intrinsically different raw magnitudes.
+
+### Hypothesis
+Stage A's warm-cache path (via `_build_stage_a_context`) may apply calibration differently than reconstruction's cold path (via `create_unified_simulator`), resulting in simulators that internally embed different scalings despite identical input configs.
 
 ### Task
+Create `plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_simulator_outputs.py` (T2 script) that:
 
-**Instrument `dbex/refinement/reconstruction.py::build_final_bragg_from_stage_a_telemetry` to print intermediate values:**
+1. **Load test fixture data** (use `test_stage_a_smoke_parity.py` fixture setup as reference):
+   - Load `refgeom_dataload` (from `tests/dbex/test_torch_refine_smoke.py::refgeom_dataload`)
+   - Build `mapping_context` via `build_mapping_stage_a_context`
+   - Extract `hkl_indices`, `hkl_amplitudes`, `calibration_metadata` (`spot_scale_override`, `beam_flux`, etc.)
+   - Build `hkl_grid` via `build_structure_factor_grid`
 
-1. **Add debug prints at line ~235** (just before the loop):
-   ```python
-   # DEBUG instrumentation for ARCH-SIM-CONSTRUCTION-001
-   print(f"[ARCH-SIM-CONSTRUCTION-001 DEBUG]")
-   print(f"  log_scale_baseline_value: {log_scale_baseline_value}")
-   print(f"  log_scale (param_deltas_a): {param_deltas_a.get('log_scale', {}).get('final', 'MISSING')}")
-   print(f"  delta_bound: {delta_bound}")
-   print(f"  scale_factor (after exp): {scale_factor.item() if hasattr(scale_factor, 'item') else scale_factor}")
-   print(f"  sqrt_spot_scale: {sqrt_spot_scale}")
-   print(f"  spot_scale_override: {spot_scale_override}")
-   ```
+2. **Build Stage A warm-cache simulators** (replicating stage_a.py warm cache construction):
+   - Call `_build_stage_a_context(detector, beam, crystal, trusted_mask, hkl_grid, hkl_metadata, ...)`
+   - Extract `stage_a_ctx.simulators[0]` (first panel)
+   - Run simulator: `bragg_stage_a_raw = stage_a_ctx.simulators[0].run()`
+   - Compute mean: `bragg_stage_a_raw.mean().item()`
 
-2. **Add debug print inside the simulator loop** (after line 237, inside the `for pid, sim in zip...` loop):
-   ```python
-   bragg_panel = sim.run()
-   # DEBUG: print first panel's raw output
-   if pid == 0:
-       print(f"  bragg_panel[0] mean (raw sim output): {bragg_panel.mean().item():.6e}")
-       print(f"  bragg_panel[0] max: {bragg_panel.max().item():.6e}")
-   bragg_scaled = bragg_panel * scale_factor
-   if pid == 0:
-       print(f"  bragg_scaled[0] mean (after scale_factor): {bragg_scaled.mean().item():.6e}")
-   ```
+3. **Build reconstruction cold-path simulator** (replicating reconstruction.py cold path):
+   - Extract `detector[0]` (first panel), `beam`, `crystal`
+   - Call `create_unified_simulator(detector_config, crystal_config, beam_config, hkl_grid, hkl_metadata, spot_scale_override=spot_scale_override, ...)` matching reconstruction.py:193-206
+   - Run simulator: `bragg_recon_raw = simulator.run()`
+   - Compute mean: `bragg_recon_raw.mean().item()`
 
-3. **Add final bragg_full summary** (after the loop, before return):
-   ```python
-   # DEBUG: final output summary
-   print(f"  bragg_full mean (final output): {bragg_full.mean():.6e}")
-   print(f"  bragg_full max: {bragg_full.max():.6e}")
-   print(f"[END DEBUG]")
-   ```
+4. **Compare outputs**:
+   - Print both means with full precision
+   - Compute ratio: `bragg_stage_a_raw.mean() / bragg_recon_raw.mean()`
+   - Print `spot_scale_override`, `sqrt(spot_scale_override)`
+   - Check if ratio ≈ 1.0 (match) or ≈ sqrt(spot_scale) (discrepancy)
 
-### Expected Outcome
+5. **Save results to JSON**:
+   - `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T160000Z/simulator_comparison.json`
+   - Include: `bragg_stage_a_mean`, `bragg_recon_mean`, `ratio`, `spot_scale_override`, `sqrt_spot_scale`, `match_within_1pct` (bool)
 
-Test will FAIL (same as before), but pytest log with `-s` flag will show:
-```
-[ARCH-SIM-CONSTRUCTION-001 DEBUG]
-  log_scale_baseline_value: 20.138...
-  log_scale (param_deltas_a): 0.0 (or small number)
-  scale_factor (after exp): 5.57e+08
-  sqrt_spot_scale: 5.57e+08
-  bragg_panel[0] mean (raw sim output): <CRITICAL VALUE>
-  bragg_scaled[0] mean (after scale_factor): <CRITICAL VALUE>
-  bragg_full mean (final output): 1.02e-05 (matches prior loop)
-[END DEBUG]
-```
+6. **Write summary**:
+   - `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T160000Z/summary.md`
+   - Interpret results: if ratio ≈ 1.0, scaling bug; if ratio ≈ sqrt(spot_scale), simulator construction bug
 
-The **raw sim output** value will tell us if the simulator is producing the same magnitude as Stage A or not.
+### Expected Outcomes
+- **Ratio ≈ 1.0:** Simulators match; bug is in scaling application (reconstruction should apply sqrt)
+- **Ratio ≈ sqrt(spot_scale) ≈ 5.57e8:** Simulators differ; warm-cache path embeds calibration that cold path doesn't
 
-### Validation
+### How-To Map
 
-Run the mapped test, capture the full pytest output (including debug prints), and save to:
-```
-plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T121500Z/pytest_db_at_028_debug.log
+```bash
+# Run comparison probe
+python plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_simulator_outputs.py \
+  --output plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T160000Z/simulator_comparison.json
+
+# Check results
+cat plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T160000Z/simulator_comparison.json
+cat plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T160000Z/summary.md
 ```
 
-Extract the debug block and save to:
-```
-plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T121500Z/debug_output.txt
-```
+## Pitfalls To Avoid
+1. **Device/dtype neutrality:** Use same device/dtype for both simulators (CPU, float32)
+2. **Exact config matching:** Ensure both paths use identical `crystal_config`, `beam_config`, `detector_config`
+3. **Warm cache isolation:** Don't call `_retarget_stage_a_simulators` before capturing raw output; we want construction-time state
+4. **HKL grid identity:** Use the SAME `hkl_grid` tensor (via `.to(device)`) for both paths
+5. **Calibration threading:** Ensure reconstruction cold path receives `calibration_metadata` dict with all fields (not just `spot_scale_override`)
 
-### Pitfalls To Avoid
+## If Blocked
+- Missing test data: Use `sp.proc/refGeom_00000/` as fallback (full detector, known calibration)
+- Import errors: Add necessary imports from `dbex.refinement.stage_a_utils`, `dbex.refinement.helpers`, `dbex.vis.mapping`
+- Simulator construction failure: Log full exception + config values; mark blocked in `summary.md`
 
-1. **Do NOT change any logic** — only add print statements
-2. **Do NOT remove the debug prints after capturing** — leave them for the next loop
-3. **Use `.item()` when printing tensors** to avoid large tensor dumps
-4. **Capture FULL pytest output** including `-s` flag so prints are visible
+## Findings Applied
+- SCALE-002: sqrt(spot_scale) post-run application
+- ARCH-FACTORY-001: Unified factory contract
+- GRADIENT-004: Device/dtype neutrality
 
-### Findings Applied
-
-- SCALE-009: Spot-scale baseline embedding — confirms log_scale_baseline = log(sqrt(spot_scale))
-- ARCH-ENGINE-002: Lazy import hygiene — use existing module-scope imports
-
-### Pointers
-
-- Reconstruction helper: `dbex/refinement/reconstruction.py:148-241`
-- Stage A baseline derivation reference: `dbex/refinement/stage_a.py:435-468`
-- simulate_forward_once scaling: `dbex/nanobrag_bridge.py:1428-1438`
-- Test: `tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity`
-
-### If Blocked
-
-If the test times out or crashes before printing debug output:
-1. Add the prints earlier (before the simulator loop)
-2. Reduce to minimal instrumentation (just log_scale_baseline + scale_factor)
-3. Capture whatever output is available and note the crash point
-
----
+## Pointers
+- Factory contract: `dbex/refinement/helpers.py:83-151` (create_unified_simulator)
+- Stage A warm cache builder: `dbex/refinement/stage_a_utils.py:177-400` (_build_stage_a_context)
+- Reconstruction cold path: `dbex/refinement/reconstruction.py:173-206`
+- Test fixture setup: `tests/dbex/test_stage_a_smoke_parity.py:70-142`
+- Debug evidence from loop i=451: `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T121500Z/debug_output.txt`
 
 ## Next Up
-
-After capturing debug output, Galph will analyze the empirical values to determine:
-- Whether the simulator raw output matches Stage A's magnitude
-- Whether scale_factor is correct
-- What correction (if any) is needed to line 238
+(none — this is a pure evidence loop; next loop will analyze probe results and issue corrective Do Now)

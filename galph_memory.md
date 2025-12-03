@@ -962,3 +962,16 @@ Action State: ready_for_implementation
 
 **State:** gathering_evidence
 **Artifacts Path:** plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T121500Z/
+
+2025-12-04T160000Z focus=ARCH-SIM-CONSTRUCTION-001 state=gathering_evidence dwell=0 action=evidence_collection artifacts=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T160000Z/ next_action=Ralph creates simulator comparison probe
+- Performed deep root-cause analysis after Ralph's debug instrumentation (loop i=451) showed raw simulator output 1.839e-14 (23,400× too small vs expected ~4.3e-10).
+- Key insight: simulator construction paths may differ. Stage A builds warm-cache simulators via _build_stage_a_context (which computes sqrt_spot_scale but doesn't pass it to Simulator constructor), while reconstruction cold path calls create_unified_simulator (which also doesn't embed spot_scale per factory contract). Yet empirical evidence suggests one path produces outputs already scaled by sqrt(spot_scale).
+- Created comprehensive analysis artifact (galph_root_cause_revised_analysis.md) documenting:
+  1. Stage A's baseline derivation (two paths: initial log(sqrt(spot_scale)) vs refined log(target_mean / model_mean_masked))
+  2. Stage A's loss application (bragg * exp(log_scale_baseline + delta))
+  3. Paradox: reconstruction needs sqrt multiplication to reach 0.24 (per simulate_forward_once pattern), but applying it gives 5711 (too large by sqrt factor)
+  4. Hypothesis: raw simulator output already embeds sqrt(spot_scale) despite factory contract saying post-run application required
+- Issued Do Now for comparative debug probe: build simulators via both paths (Stage A warm cache vs reconstruction cold path) using identical configs, run both, compare raw outputs. Expected outcome: ratio reveals whether simulators match (scaling bug) or differ by sqrt(spot_scale) (construction bug).
+- Lifecycle: implementation_attempt_count=3 for DB-AT-028/029 (at budget limit per initiative_lifecycle hard rule); if probe doesn't resolve root cause, must mark stuck and escalate to spec_change or architecture redesign.
+Artifacts: galph_root_cause_revised_analysis.md, input.md (probe task)
+Next Action: Ralph builds compare_simulator_outputs.py, runs it, captures comparison.json + summary.md

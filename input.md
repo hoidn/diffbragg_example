@@ -1,148 +1,148 @@
-# Input for Ralph (Loop i=455)
+# ARCH-TELEMETRY-001 Phase C.3.2 — Remove Legacy Telemetry Dict Plumbing
 
 ## Summary
-Force explicit 3-fold oversampling in simulate_forward_once and reconstruction paths to resolve 5,586× raw output magnitude discrepancy (ARCH-SIM-CONSTRUCTION-001 Phase C.4).
+Remove `to_legacy_dict()` calls and dict subscripting in Stage B/C; access telemetry and perf counter fields directly from `StageResult` typed dataclasses.
 
 ## Mode
-Parity
+**Parity**
 
 ## InitiativeType
-architecture
+**architecture**
 
 ## Focus
-ARCH-SIM-CONSTRUCTION-001 — Simulator Construction Convention Alignment
+[ARCH-TELEMETRY-001] — Telemetry Observer Refactor (Phase C.3.2: legacy_telemetry_dict retirement)
 
 ## Branch
-integration
+`integration`
 
-## Mapped tests
-```
-tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity
-tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_roi_correlation_sanity
+## Mapped Tests
+```bash
+# Stage B baseline parity guard (validates baseline_* field extraction)
+tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload
+
+# Stage B shell smoke (validates loss/chi²/variance floor telemetry)
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers
+
+# Stage C detector microslip (validates Stage C telemetry with [0] indexing)
+tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip
 ```
 
 ## Artifacts
-```
-plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T235959Z/
-├── galph_root_cause_final_oversampling.md (Galph analysis)
-├── pytest_db_at_028_029.log (validation)
-├── summary.md (implementation outcome)
-└── metrics_comparison.json (before/after raw output comparison)
-```
-
----
+`plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T021140Z/`
 
 ## Do Now
 
-### Context
+### Background
+Phase C.3.1 (complete) taught `dbex/io/writer.py` to consume typed `StageResult` dataclasses when available, with fallback to legacy dict path for mocks. Now remove the **production code** usage of `to_legacy_dict()` in Stage B/C so they access telemetry and perf counter fields directly via `stage_result.telemetry.*` and `stage_result.perf_counters.*`.
 
-Ralph's Phase C.3 diagnostic probe (commit 8159de9a, loop i=454) definitively identified the root cause of DB-AT-028/029 failures:
+**DO NOT** modify `RefinementEngine` (engine.py) this loop—key mapping removal is deferred to Phase C.4.
 
-**Oversampling configuration mismatch:**
-- Path A (`simulate_forward_once`): 3072×3072 panel → auto-selects **3-fold oversampling** → raw mean 1.714e-09
-- Path B (reconstruction cold path): 1024×1024 detector → auto-selects **1-fold oversampling** → raw mean 9.574e-03
-- Raw ratio A/B = 1.79e-07 (**5,586× discrepancy**)
+### Task 1: Stage B Direct Field Access (dbex/refinement/stage_b.py:1490-1508)
 
-`DetectorConfig` has parameter `oversample: int = -1` (default = auto-select based on pixel count). Different detector sizes trigger different auto-selection, causing magnitude divergence unrelated to scale_factor logic.
+**Target:** Replace `to_legacy_dict()` with direct field access.
 
-**Fix:** Add explicit `oversample=3` parameter to both paths so they use identical oversampling configuration.
+**Current code (lines 1490-1508):**
+```python
+stage_result = collector.finalize()
+legacy_telemetry_dict = stage_result.to_legacy_dict()
 
-### Implementation Steps
+# Extract fields from legacy dict (collector owns traces and perf counters)
+loss_trace_sample_b = legacy_telemetry_dict['loss_trace_sample']
+loss_trace_full_b = legacy_telemetry_dict['loss_trace_full']
+chi_squared_trace_sample_b = legacy_telemetry_dict['chi_squared_trace_sample']
+chi_squared_trace_full_b = legacy_telemetry_dict['chi_squared_trace_full']
+masked_mse_trace_sample_b = legacy_telemetry_dict['masked_mse_trace_sample']
+masked_mse_trace_full_b = legacy_telemetry_dict['masked_mse_trace_full']
+perf_closure_evals_b = legacy_telemetry_dict['perf_closure_evals']
+perf_validation_runs_b = legacy_telemetry_dict['perf_validation_runs']
+perf_forward_times_ms_b = legacy_telemetry_dict['perf_forward_times_ms']
+variance_floor_clamped_pixels_b = legacy_telemetry_dict['variance_floor_clamped_pixels']
+variance_floor_masked_pixels_b = legacy_telemetry_dict['variance_floor_masked_pixels']
 
-#### 1. Update `create_detector_config` Signature
-
-**File:** `dbex/refinement/config_factories.py`
-**Function:** `create_detector_config` (starts line 48)
+# REFINE-FLOW-001: Extract baseline parity diagnostics from typed telemetry
+stage_b_baseline_rel_diff = legacy_telemetry_dict.get('stage_b_baseline_rel_diff', None)
+stage_b_baseline_abs_diff = legacy_telemetry_dict.get('stage_b_baseline_abs_diff', None)
+stage_b_baseline_diff_path = legacy_telemetry_dict.get('stage_b_baseline_diff_path', None)
+```
 
 **Changes:**
-- Add parameter `oversample: int = -1` to function signature (after `roi_bbox`)
-- Forward it to `DetectorConfig` constructor (line ~214-227)
+1. **DELETE line 1490:** `legacy_telemetry_dict = stage_result.to_legacy_dict()`
+2. **REPLACE lines 1493-1503** (dict subscripting) with direct field access:
+   ```python
+   loss_trace_sample_b = stage_result.telemetry.loss_trace_sample
+   loss_trace_full_b = stage_result.telemetry.loss_trace_full
+   chi_squared_trace_sample_b = stage_result.telemetry.chi_squared_trace_sample
+   chi_squared_trace_full_b = stage_result.telemetry.chi_squared_trace_full
+   masked_mse_trace_sample_b = stage_result.telemetry.masked_mse_trace_sample
+   masked_mse_trace_full_b = stage_result.telemetry.masked_mse_trace_full
+   perf_closure_evals_b = stage_result.perf_counters.perf_closure_evals
+   perf_validation_runs_b = stage_result.perf_counters.perf_validation_runs
+   perf_forward_times_ms_b = stage_result.perf_counters.perf_forward_times_ms
+   variance_floor_clamped_pixels_b = stage_result.perf_counters.variance_floor_clamped_pixels
+   variance_floor_masked_pixels_b = stage_result.perf_counters.variance_floor_masked_pixels
+   ```
 
-**Code pattern:**
+3. **REPLACE lines 1506-1508** (`.get()` calls) with direct field access:
+   ```python
+   stage_b_baseline_rel_diff = stage_result.telemetry.stage_b_baseline_rel_diff
+   stage_b_baseline_abs_diff = stage_result.telemetry.stage_b_baseline_abs_diff
+   stage_b_baseline_diff_path = stage_result.telemetry.stage_b_baseline_diff_path
+   ```
+
+**Rationale:** `StageBTelemetry` dataclass always includes baseline parity fields (not Optional), so `.get(key, None)` is unnecessary; use direct field access for type safety.
+
+### Task 2: Stage C Direct Field Access (dbex/refinement/stage_c.py:1125-1139)
+
+**Target:** Replace `to_legacy_dict()` with direct field access.
+
+**Current code (lines 1125-1139):**
 ```python
-def create_detector_config(
-    panel,
-    beam,
-    trusted_mask: Optional[np.ndarray] = None,
-    distance_mm_override: Optional['torch.Tensor'] = None,
-    roi_bbox: Optional[Tuple[int, int, int, int]] = None,
-    oversample: int = -1,  # ← NEW: explicit oversampling control
-) -> DetectorConfig:
-    # ... existing logic ...
+stage_result = collector.finalize()
+legacy_telemetry_dict = stage_result.to_legacy_dict()
 
-    return DetectorConfig(
-        distance_mm=distance_mm,
-        pixel_size_mm=px_fast_mm,
-        spixels=slow_px,
-        fpixels=fast_px,
-        beam_center_s=beam_center_s,
-        beam_center_f=beam_center_f,
-        beam_center_source="explicit",
-        detector_convention=DetectorConvention.DIALS,
-        detector_rotx_deg=detector_rotx_deg,
-        detector_roty_deg=detector_roty_deg,
-        detector_rotz_deg=detector_rotz_deg,
-        mask_array=mask_array,
-        oversample=oversample  # ← NEW: forward parameter
-    )
+# Refresh telemetry fields from finalized collector
+loss_trace_sample_c = legacy_telemetry_dict['loss_trace_sample']
+loss_trace_full_c = legacy_telemetry_dict['loss_trace_full']
+chi_squared_trace_sample_c = legacy_telemetry_dict['chi_squared_trace_sample']
+chi_squared_trace_full_c = legacy_telemetry_dict['chi_squared_trace_full']
+masked_mse_trace_sample_c = legacy_telemetry_dict['masked_mse_trace_sample']
+masked_mse_trace_full_c = legacy_telemetry_dict['masked_mse_trace_full']
+iteration_count_c = legacy_telemetry_dict['iteration_count']
+perf_closure_evals_c = legacy_telemetry_dict['perf_closure_evals'][0]
+perf_validation_runs_c = legacy_telemetry_dict['perf_validation_runs'][0]
+perf_forward_times_ms_c = legacy_telemetry_dict['perf_forward_times_ms']
+variance_floor_clamped_pixels_c = legacy_telemetry_dict['variance_floor_clamped_pixels'][0]
+variance_floor_masked_pixels_c = legacy_telemetry_dict['variance_floor_masked_pixels'][0]
 ```
 
-**Docstring update:** Add parameter documentation:
-```
-oversample: Oversampling factor (1, 2, 3, ...). Default -1 = auto-select based on detector size.
-           Use explicit value (e.g., 3) to force consistent oversampling across detector configs.
-```
+**Changes:**
+1. **DELETE line 1125:** `legacy_telemetry_dict = stage_result.to_legacy_dict()`
+2. **REPLACE lines 1128-1139** with direct field access:
+   ```python
+   loss_trace_sample_c = stage_result.telemetry.loss_trace_sample
+   loss_trace_full_c = stage_result.telemetry.loss_trace_full
+   chi_squared_trace_sample_c = stage_result.telemetry.chi_squared_trace_sample
+   chi_squared_trace_full_c = stage_result.telemetry.chi_squared_trace_full
+   masked_mse_trace_sample_c = stage_result.telemetry.masked_mse_trace_sample
+   masked_mse_trace_full_c = stage_result.telemetry.masked_mse_trace_full
+   iteration_count_c = stage_result.telemetry.iteration_count
+   perf_closure_evals_c = stage_result.perf_counters.perf_closure_evals[0]
+   perf_validation_runs_c = stage_result.perf_counters.perf_validation_runs[0]
+   perf_forward_times_ms_c = stage_result.perf_counters.perf_forward_times_ms
+   variance_floor_clamped_pixels_c = stage_result.perf_counters.variance_floor_clamped_pixels[0]
+   variance_floor_masked_pixels_c = stage_result.perf_counters.variance_floor_masked_pixels[0]
+   ```
 
-#### 2. Update `simulate_forward_once` Call Site
+**Important:** Stage C perf counters are single-element lists in `StageCPerfCounters`, so keep `[0]` indexing for:
+- `perf_closure_evals_c`
+- `perf_validation_runs_c`
+- `variance_floor_clamped_pixels_c`
+- `variance_floor_masked_pixels_c`
 
-**File:** `dbex/nanobrag_bridge.py`
-**Function:** `simulate_forward_once` (starts line ~1362)
-**Target line:** ~1406 (inside panel loop, `create_detector_config` call)
+### Task 3: Validation
 
-**Change:**
-```python
-# Before:
-detector_config = create_detector_config(
-    panel=panel,
-    beam=beam,
-    trusted_mask=inputs.trusted_mask[panel_id]
-)
+Run all three mapped tests with environment variables as specified in `docs/TESTING_GUIDE.md`:
 
-# After:
-detector_config = create_detector_config(
-    panel=panel,
-    beam=beam,
-    trusted_mask=inputs.trusted_mask[panel_id],
-    oversample=3  # ← NEW: force 3-fold oversampling for parity with reconstruction
-)
-```
-
-**Rationale:** Ensure auto-select doesn't vary based on panel pixel count.
-
-#### 3. Update Reconstruction Cold Path Call Site
-
-**File:** `dbex/refinement/reconstruction.py`
-**Function:** `build_final_bragg_from_stage_a_telemetry` (starts line 28)
-**Target line:** ~190 (inside `else` block for cold path)
-
-**Change:**
-```python
-# Before:
-detector_config = create_detector_config(detector[pid], beam=beam)
-
-# After:
-detector_config = create_detector_config(
-    detector[pid],
-    beam=beam,
-    oversample=3  # ← NEW: force 3-fold oversampling matching simulate_forward_once
-)
-```
-
-**Rationale:** Match `simulate_forward_once` oversampling exactly.
-
-#### 4. Run Validation Tests
-
-**Command:**
 ```bash
 AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
 DBEX_SMOKE_SIGMA_SOURCE=metadata \
@@ -150,145 +150,68 @@ DBEX_SMOKE_DETECTOR_SIZE=full \
 KMP_DUPLICATE_LIB_OK=TRUE \
 NANOBRAGG_DISABLE_COMPILE=1 \
 pytest -vv \
-  tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity \
-  tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_roi_correlation_sanity \
-  --tb=short \
-  2>&1 | tee plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T235959Z/pytest_db_at_028_029.log
+  tests/dbex/test_stage_b_cpu_fallback.py::test_stage_b_baseline_guard_diff_payload \
+  tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers \
+  tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip \
+  > plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T021140Z/pytest_phase_c32.log 2>&1
 ```
 
-**Expected outcomes:**
-- `bragg_after_mean ≈ 0.24` (matching `bragg_before_mean`, not 1.025e-05)
-- `chi²/pixel initial ≤ 1e2` (not 1e5)
-- `median ROI correlation before ≥ 0.2` (not -0.05)
-- Both tests PASS
-
-#### 5. Capture Metrics Comparison
-
-Create `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T235959Z/metrics_comparison.json` with:
-```json
-{
-  "before_fix": {
-    "bragg_after_mean": 1.025e-05,
-    "chi2_per_pixel_initial": 108400,
-    "roi_cc_median_before": -0.05,
-    "oversample_path_a": "auto (3-fold for 3072²)",
-    "oversample_path_b": "auto (1-fold for 1024²)",
-    "raw_ratio": 1.79e-07
-  },
-  "after_fix": {
-    "bragg_after_mean": "(capture from test output)",
-    "chi2_per_pixel_initial": "(capture from test output)",
-    "roi_cc_median_before": "(capture from test output)",
-    "oversample_path_a": "explicit 3-fold",
-    "oversample_path_b": "explicit 3-fold",
-    "raw_ratio": "(should be ~1.0 ± 0.1)"
-  }
-}
-```
-
-Extract values from test artifact JSON files emitted by DB-AT-028/029.
-
----
+**Expected:** All 3/3 tests PASS with no behavioral changes.
 
 ## How-To Map
 
-### 1. Edit config_factories.py
-```bash
-# Add oversample parameter to create_detector_config signature (line 48-54)
-# Forward it to DetectorConfig constructor (line ~214-227)
-# Update docstring with parameter documentation
-```
+### 1. Edit Stage B (dbex/refinement/stage_b.py)
+- Delete line 1490 (`to_legacy_dict()` call)
+- Replace lines 1493-1508 with direct field access per Task 1
 
-### 2. Edit nanobrag_bridge.py
-```bash
-# Update create_detector_config call at line ~1406
-# Add oversample=3 parameter
-```
+### 2. Edit Stage C (dbex/refinement/stage_c.py)
+- Delete line 1125 (`to_legacy_dict()` call)
+- Replace lines 1128-1139 with direct field access per Task 2 (preserve `[0]` indexing)
 
-### 3. Edit reconstruction.py
-```bash
-# Update create_detector_config call at line ~190
-# Add oversample=3 parameter
-```
+### 3. Validation
+- Run pytest command from Task 3
+- Capture logs to `plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T021140Z/pytest_phase_c32.log`
 
-### 4. Run tests
-```bash
-# Execute pytest command above, capture log to artifacts directory
-```
-
-### 5. Extract metrics
-```bash
-# Read DB-AT-028/029 artifact JSON files (location in test output)
-# Create metrics_comparison.json with before/after values
-```
-
-### 6. Write summary
-```bash
-# Create summary.md documenting:
-# - Code changes (3 files, 6 lines net)
-# - Test outcomes (PASS/FAIL + metrics)
-# - Before/after raw output comparison
-# - Next action (mark Phase C.4 complete OR escalate if still failing)
-```
-
----
+### 4. Metrics
+- File changes: 2 (stage_b.py, stage_c.py)
+- Net lines: -2 (delete 2× `to_legacy_dict()` calls)
+- Tests: 3 mapped selectors
 
 ## Pitfalls To Avoid
 
-1. **DO NOT** change oversample logic in nanobrag_torch itself (external dependency; environment freeze)
-2. **DO NOT** hard-code oversample in `DetectorConfig` constructor call sites other than the two specified (simulate_forward_once, reconstruction)
-3. **DO** keep `oversample=-1` default in `create_detector_config` signature (backward compatibility for other call sites)
-4. **DO** use identical `oversample=3` value in both paths (asymmetry will reintroduce discrepancy)
-5. **DO** verify tests run with `DBEX_SMOKE_DETECTOR_SIZE=full` (full panel required to trigger original auto-select logic)
-6. **DO** check that `bragg_before` and `bragg_after` magnitudes now match (ratio ≈ 1.0 ± 0.2, not 23,000×)
-
----
+1. **DO NOT** modify `dbex/refinement/engine.py` this loop—RefinementEngine key mapping removal is deferred to Phase C.4.
+2. **DO NOT** remove `to_legacy_dict()` method definitions from `StageResult` dataclasses—they may still be used by tests/mocks.
+3. **KEEP `[0]` indexing** for Stage C perf counter fields (lines 1135-1136, 1138-1139) as shown in Task 2.
+4. **Verify field names** match dataclass definitions exactly:
+   - Telemetry fields live in `stage_result.telemetry.*` (StageBTelemetry/StageCTelemetry)
+   - Perf counter fields live in `stage_result.perf_counters.*` (StageBPerfCounters/StageCPerfCounters)
+5. **Preserve comment context**: Lines 1493 and 1127 have inline comments ("Extract fields from legacy dict..." / "Refresh telemetry fields..."); update or remove them as needed to reflect direct field access.
+6. **No behavior changes**: Field values must be identical pre/post change; tests validate this via assertions on telemetry/perf values.
 
 ## If Blocked
 
-If tests still FAIL after this fix with similar magnitude discrepancy:
+If tests FAIL with:
+- **AttributeError on `stage_result.telemetry.<field>`**: Field name mismatch between dict key and dataclass attribute. Cross-reference `dbex/refinement/interfaces.py` dataclass definitions.
+- **IndexError on `[0]`**: Perf counter is not a list in dataclass. Check `StageCPerfCounters` definition for list vs scalar types.
+- **Behavioral drift** (telemetry values changed): Implementation bug; revert changes and capture `pytest -s` logs showing field values pre/post change for supervisor analysis.
 
-1. **Capture debug evidence:**
-   - Add temporary print statements in both paths showing `detector_config.oversample` value
-   - Verify both simulators report "auto-selected 3-fold oversampling" (or explicit 3-fold)
-   - Capture raw simulator outputs (should now match within 10%)
+Capture failure details under `plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T021140Z/ralph_findings.md` and mark loop blocked.
 
-2. **Record block in Attempts History:**
-   - Note: "Phase C.4 oversample fix applied, but tests still fail with [symptoms]"
-   - Capture full pytest log and metrics_comparison.json showing post-fix state
-   - Per `<initiative_lifecycle/>` hard rule, this is attempt #4 for DB-AT-028/029
-   - **Escalation required:** Mark ARCH-SIM-CONSTRUCTION-001 `stuck`, open new diagnostic initiative
-
-3. **Alternative hypothesis:**
-   - If oversampling now matches but magnitudes still differ, investigate detector pixel count mismatch (why did probe show 1024² vs 3072²?)
-   - Check if test harness provides cropped/binned detector to reconstruction helper
-   - Trace detector[pid].get_image_size() in both paths
-
----
-
-## Findings Applied
-
-**SCALE-009** (docs/findings.md:42): Stage A applies `sqrt(spot_scale_override)` post-run (stage_a.py:442-443); reconstruction must match this pattern. This fix addresses the **underlying detector config mismatch** that caused different oversampling auto-selection, which in turn caused raw magnitude divergence that overshadowed the scaling logic alignment.
-
----
+## Findings Applied (Mandatory)
+- **ARCH-STAGE-CTX-001:** Ban telemetry dict mutation; ensure typed contexts own telemetry (completed in Phase C.1, now removing legacy compat layers)
+- **ARCH-STAGE-CTX-002:** Typed contexts must own telemetry state (StageResult dataclasses now authoritative)
+- **PHYSICS-LOSS-001:** Telemetry χ² must be spec-compliant (unchanged; field access preserves values)
 
 ## Pointers
+- Spec: `docs/spec-db-workflow.md` (§Pipeline telemetry), `docs/spec-db-core.md` (§Objective Function)
+- Architecture: `docs/architecture/data_telemetry_flow.md` (observer pattern)
+- Plan: `plans/active/ARCH-TELEMETRY-001/implementation.md` (Phase C.3.2 checklist)
+- Dataclass definitions: `dbex/refinement/interfaces.py` (StageBTelemetry, StageCTelemetry, StageBPerfCounters, StageCPerfCounters)
+- Fix plan: `docs/fix_plan.md` — Row [ARCH-TELEMETRY-001] (Phase C.3.2 planning this loop)
 
-- **Spec:** docs/spec-db-core.md §§20-40 (calibration contracts)
-- **Architecture:** docs/architecture/calibration_scaling.md (spot_scale threading)
-- **IDL:** docs/architecture/dbex/nanobrag_bridge.idl.md (future: document oversample contract)
-- **Test selectors:** docs/TESTING_GUIDE.md §2.1 (DB-AT-028/029 acceptance criteria)
-- **Probe evidence:** plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T220000Z/probe_run.log (Ralph's diagnostic probe)
-- **Galph analysis:** plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T235959Z/galph_root_cause_final_oversampling.md
+## Next Up (optional)
+- Phase C.4: Remove RefinementEngine key mapping (engine.py:203-215) and update tests to use StageResult directly
+- Phase D: Doc Sync Plan (update `docs/TESTING_GUIDE.md` §2 and `docs/development/TEST_SUITE_INDEX.md` if selectors changed)
 
----
-
-## Next Up
-
-If Phase C.4 completes successfully (tests PASS):
-- **Phase D.1:** Document factory oversample contract in IDL
-- **Phase D.2:** Close ARCH-SIM-CONSTRUCTION-001, unblock ARCH-REFACTOR-001 Phase D.3
-
-If Phase C.4 fails (tests still fail after fix):
-- **Escalation:** Per `<initiative_lifecycle/>`, mark ARCH-SIM-CONSTRUCTION-001 `stuck` (4th attempt)
-- **New initiative:** Open diagnostic task to investigate detector pixel count mismatch hypothesis
+## Doc Sync Plan (Conditional)
+Not applicable this loop (no tests added/renamed; existing selectors unchanged).

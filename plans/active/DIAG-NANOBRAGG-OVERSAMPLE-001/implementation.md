@@ -181,6 +181,35 @@ Environment freeze blocks investigation without using exception clause for targe
 - `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/<timestamp>/simulator_trace.log`
 - `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/<timestamp>/crystal_unit_analysis.md`
 
+### Phase E: HKL coverage instrumentation & findings correction
+
+**Objective**: Verify how often Stage A queries HKL values outside the structure-factor grid, correct the DIAG-UNIT misdiagnosis, and gather quantitative evidence (min/max h,k,l, in-bounds hit rate) to explain the zero-output Bragg stacks.
+
+**Background**:
+- Phase D trace outputs mixed SI and crystallographic units inside the CLI trace hook, leading to the (now retracted) DIAG-UNIT-001 finding.
+- The production `_compute_physics_for_position` path already works in SI units end-to-end; we still do not know why `Crystal.get_structure_factor` is returning zeros everywhere.
+- Need reproducible instrumentation that records the actual h,k,l arrays seen by the simulator and counts how many requests fall outside the HKL grid so we can decide whether the issue is missing structure factors vs. some other scaling bug.
+
+**Tasks:**
+- [ ] E.1 Add optional HKL stats collection to `nanobrag_torch` (e.g., extend `debug_config` or add a context manager) that records:
+  - min/max of the fractional h,k,l values computed inside `_compute_physics_for_position`
+  - counts of in-bounds vs out-of-bounds lookups (before default_F fallback)
+  - total number of structure-factor queries and how many returned exactly zero
+- [ ] E.2 Surface those stats through the existing trace path (`trace_simulator_mismatch.py`) so the script can emit a JSON summary (`hkl_stats.json`) alongside the raw trace log.
+- [ ] E.3 Update `docs/findings.md` (DIAG-UNIT-001) to mark the unit-mismatch claim as **Retracted**, cite the new instrumentation, and describe the remaining unknown (HKL coverage vs. structure-factor magnitude).
+- [ ] E.4 Run the smoke fixture (small detector) with HKL stats enabled; save outputs under a new timestamped report directory and highlight whether min/max h,k,l fall outside `hkl_metadata` ranges.
+- [ ] E.5 Repeat for the full-detector smoke run if time permits so we know whether the issue is confined to cropped fixtures.
+
+**Validation:**
+- HKL stats JSON shows non-zero in-bounds counts (or conclusively shows every query is out-of-bounds).
+- Trace script emits new artifact (`hkl_stats.json`) referenced from findings and fix_plan Attempts History.
+- DIAG-UNIT-001 entry in `docs/findings.md` updated with retraction note and link to HKL stats evidence.
+
+**Artifacts:**
+- `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/bin/trace_simulator_mismatch.py` (updated to consume HKL stats)
+- `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/<timestamp>/hkl_stats.json`
+- Updated `docs/findings.md` (DIAG-UNIT-001 retraction + HKL stats summary)
+
 ## Abort/Escalation Triggers
 
 **Abort conditions:**

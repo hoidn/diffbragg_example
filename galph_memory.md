@@ -1864,3 +1864,25 @@ Action State: ready_for_implementation
 - ready_for_implementation — Implement `trace_simulator_mismatch.py`, rerun it on the smoke fixtures, update DIAG-UNIT-001 with the new artifact path, and capture the config factory pytest guard per the new Do Now.
 
 **Action State**: ready_for_implementation
+
+---
+
+## Loop 2025-12-08T210000Z
+
+**Focus**: DIAG-NANOBRAGG-OVERSAMPLE-001 — nanobrag_torch Oversample Parameter Investigation (Phase E HKL stats)
+**State**: ready_for_implementation
+**Dwell**: 0
+**Action Type**: planning
+**Initiative Type**: diagnostics
+
+**Key Observations**:
+1. The Phase D trace evidence misinterpreted the CLI trace hook; `_compute_physics_for_position` already uses consistent SI units, so DIAG-UNIT-001 has been reclassified as **Retracted** in `docs/findings.md`.
+2. Zero-output Stage A runs still need explanation, so Phase E adds HKL coverage instrumentation in `nanobrag_torch` plus script updates to emit `hkl_stats.json`, letting us quantify in-bounds vs out-of-bounds structure-factor queries.
+3. Input.md now hands Ralph concrete tasks: add optional HKL stats aggregation to `compute_physics_for_position`, thread `debug_config` through `create_unified_simulator`, refresh `trace_simulator_mismatch.py`, rerun the smoke fixture, and guard with `pytest -k test_experiment_parity`.
+
+**Artifacts Path**: `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-08T210000Z/`
+
+**Next Actions**:
+- ready_for_implementation — Implement Phase E instrumentation (nanobrag_torch + helper + script), re-run the diagnostic probe to produce the new HKL stats artifacts, and update the parity guard.
+
+**Action State**: ready_for_implementation

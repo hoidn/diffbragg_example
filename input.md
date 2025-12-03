@@ -1,42 +1,42 @@
-Summary: Promote the one-off simulator trace into a reusable script that captures the crystal/unit mismatch and records machine-readable metrics for DIAG-UNIT-001.
+Summary: Instrument nanobrag_torch for HKL coverage stats so we can replace the retracted DIAG-UNIT finding with quantitative evidence.
 Mode: none
 InitiativeType: diagnostics
 Focus: DIAG-NANOBRAGG-OVERSAMPLE-001 — nanobrag_torch Oversample Parameter Investigation
 Branch: main
-Mapped tests: tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_beam_center_swap
-Artifacts: plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T130945Z/
+Mapped tests: pytest -k test_experiment_parity
+Artifacts: plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-08T210000Z/
 
 Do Now:
-- Implement: plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/bin/trace_simulator_mismatch.py::main — new Tier-2 probe that loads the smoke fixtures via DataLoad/build_mapping_stage_a_context, builds a Stage A warm cache with RefinementConfig(oversample=3), toggles `trace_pixel` + `printout` on the cached simulator, captures stdout with `contextlib.redirect_stdout`, parses the TRACE_PY vectors, and writes both the raw log and `simulator_trace_metrics.json` (showing raw vs corrected h/k/l) into the artifacts directory (see phase_d_trace_plan.md).
-- Implement: docs/findings.md::DIAG-UNIT-001 — append the new artifact path plus a one-line note that `trace_simulator_mismatch.py` now emits the quantified 1e10 mismatch so future loops can cite it directly.
-- Validate: python plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/bin/trace_simulator_mismatch.py --detector-size small --trace-fast 0 --trace-slow 0 --device cpu --out-dir plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T130945Z/ (produces simulator_trace.log, simulator_trace_metrics.json, crystal_unit_analysis.md in the artifacts path).
-- Validate: pytest -vv tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_beam_center_swap | tee plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T130945Z/pytest_detector_config.log (quick guard to ensure the diagnostics script does not drift config factory behavior).
+- Implement: Extend `src/nanobrag-torch/src/nanobrag_torch/simulator.py` so `compute_physics_for_position` accepts optional `hkl_metadata` + `debug_stats`. When `debug_config['collect_hkl_stats']` is set on the Simulator, aggregate min/max h,k,l and in-bounds/out-of-bounds counts (using metadata bounds) into `self._hkl_stats`, and expose the results via a read-only `hkl_stats` property. Reset the stats dict at the start of each `run()` call.
+- Implement: Update `dbex/refinement/helpers.py::create_unified_simulator` to accept a `debug_config` parameter and pass it to the Simulator constructor so diagnostics scripts can enable HKL stats without manual post-init mutation.
+- Implement: Refresh `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/bin/trace_simulator_mismatch.py` to set `NANOBRAGG_DISABLE_COMPILE=1`, request `collect_hkl_stats` via the factory, and emit the new `hkl_stats.json` (dumping the simulator’s stats dict) alongside the existing trace artifacts.
+- Collect Evidence: Re-run the smoke fixture with the updated script so the new artifacts (trace log, metrics JSON, HKL stats JSON) land in `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-08T210000Z/` and cite them in the DIAG-UNIT retraction thread.
+- Verify: Run `pytest -k test_experiment_parity` to ensure the helper + Simulator instrumentation did not regress the parity shim.
 
 How-To Map:
-1. AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_DETECTOR_SIZE=small DBEX_SMOKE_SIGMA_SOURCE=metadata KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/bin/trace_simulator_mismatch.py --detector-size small --trace-fast 0 --trace-slow 0 --device cpu --out-dir plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T130945Z/ > plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T130945Z/command.log
-2. AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_nanobrag_bridge_configs.py::TestDetectorConfigMapping::test_beam_center_swap | tee plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T130945Z/pytest_detector_config.log
+1. `export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md`
+2. `NANOBRAGG_DISABLE_COMPILE=1 python plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/bin/trace_simulator_mismatch.py --detector-size small --trace-fast 0 --trace-slow 0 --out-dir plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-08T210000Z/`
+3. `pytest -k test_experiment_parity`
 
 Pitfalls To Avoid:
-- Do not instantiate new simulators per ROI; reuse the Stage A cache and only mutate `trace_pixel`/`printout` so the evidence matches the warm path we validated previously.
-- Keep env flags (`AUTHORITATIVE_CMDS_DOC`, `KMP_DUPLICATE_LIB_OK=TRUE`, `NANOBRAGG_DISABLE_COMPILE=1`, `DBEX_SMOKE_*`) identical to the manual run so the trace is comparable.
-- Capture stdout inside the script instead of depending on shell redirection—the script must emit both the log and parsed metrics in one invocation.
-- Use the canonical smoke fixtures (`sp.proc/refGeom_small/...`) declared in docs/data_dependency_manifest.md; do not point at ad-hoc files.
-- Parsed metrics must compute both the raw h/k/l (≈3e-9) and the corrected values (`raw * 1e10`) so DIAG-UNIT-001 has quantitative proof of the mismatch.
+- Do not leave HKL stats enabled by default; guard everything behind the `collect_hkl_stats` flag and keep the `debug_stats` path out of the compiled hot loop unless the flag is set.
+- Reset the stats dict at the beginning of each `run()` call so repeated runs don’t accumulate stale counts.
+- Keep the new script outputs in the requested artifacts directory; do not overwrite the older 2025-12-03T130945Z evidence.
+- Remember to set `NANOBRAGG_DISABLE_COMPILE=1` when running the script so Python-side aggregation isn’t optimized away.
+- Updating `create_unified_simulator` touches multiple call sites—default the new parameter to `None` so existing callers keep working without edits.
 
 If Blocked:
-- If the script fails to import nanobrag_torch or DIALS assets, capture the traceback in `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T130945Z/blocker.log`, add the failure signature + repro steps to docs/fix_plan.md Attempts History, and ping Galph before attempting environment changes.
-- If the TRACE_PY output schema changes (no matching regex), dump the raw log under the artifacts path and leave TODO comments for the parser; note the schema drift in docs/fix_plan.md + DIAG-UNIT-001 so we can re-plan.
+- If HKL stats show zero total queries or another unexpected invariant, capture the raw `hkl_stats.json`, note the failure signature in `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-08T210000Z/summary.md`, and ping Galph so we can reassess whether the simulator is skipping the physics kernel altogether.
 
-Findings Applied (Mandatory):
-- DIAG-OVERSAMPLE-001 (docs/findings.md:105) — keep detector/beams configs identical to Stage A warm cache and avoid altering Simulator semantics beyond diagnostics.
-- DIAG-UNIT-001 (docs/findings.md:50) — this script is the codified reproduction of the unit mismatch; ensure the JSON explicitly reports the raw vs corrected dot products to satisfy the finding’s evidence requirements.
+Findings Applied:
+- DIAG-OVERSAMPLE-001 — keep the oversample threading fixes intact while adding instrumentation.
+- DIAG-UNIT-001 — marked as Retracted; this work replaces the incorrect unit-mismatch assumption with HKL coverage stats.
 
 Pointers:
-- docs/spec-db-core.md:12 — Units policy (Å inputs, convert to meters only for dot products) referenced when explaining the mismatch.
-- docs/data_dependency_manifest.md:36 — Smoke fixture inventory for refGeom_small dataset, MTZ, mask, and sigma tiles.
-- docs/findings.md:50 — DIAG-UNIT-001 finding that this script must update.
-- plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/implementation.md:120 — Phase D tasks and exit criteria for the trace instrumentation.
-- plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T130945Z/phase_d_trace_plan.md:1 — Detailed script requirements and validation command from this planning loop.
+- plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/implementation.md (Phase E checklist)
+- docs/findings.md (DIAG-UNIT-001 retraction note)
+- src/nanobrag-torch/src/nanobrag_torch/simulator.py (physics kernel & new HKL stats path)
+- plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/bin/trace_simulator_mismatch.py (diagnostic script to update)
 
-Next Up (optional):
-- Once the metrics exist, start Phase E to patch nanobrag_torch.Crystal so real-space vectors stay in Å before dotting with scattering vectors (spec-change may be required if upstream refuses meters conversion).
+Next Up:
+1. After small-detector stats, repeat the run with `--detector-size full` to see whether HKL coverage changes across detector crops.

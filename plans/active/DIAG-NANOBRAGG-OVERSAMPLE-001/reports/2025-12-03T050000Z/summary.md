@@ -1,5 +1,5 @@
 ### Turn Summary
-Corrected root cause from "single config mutation" to "290 configs created with wrong default"; traced to 6 stage_a_utils.py call sites missing oversample parameter.
-Planned Phase C config threading fix: add RefinementConfig.oversample field, update 2 signatures, pass to 6 factories and ~5 callers (15-20 lines, LOW risk).
-Next: Ralph implements threading, expects 292/292 oversample=3 in debug logs and DB-AT-028/029 PASS in clean validation.
-Artifacts: plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T050000Z/ (phase_c_planning.md, comprehensive input.md)
+Threaded `oversample` parameter through RefinementConfig → warm simulator context builders → all 4 `create_detector_config` call sites to fix 290/292 DetectorConfig instances having default oversample=-1.
+Debug validation confirmed 292/292 instances now have oversample=3 with zero auto-selection events, resolving the root cause of Phase B deep-copy failure (config lifecycle issue, not mutation issue).
+Next: Mark DIAG-NANOBRAGG-OVERSAMPLE-001 done and unblock ARCH-SIM-CONSTRUCTION-001 to address remaining magnitude discrepancy.
+Artifacts: plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T050000Z/ (debug_validation.md, pytest_db_at_028_debug.log, nanobragg_rebuild_clean.log)

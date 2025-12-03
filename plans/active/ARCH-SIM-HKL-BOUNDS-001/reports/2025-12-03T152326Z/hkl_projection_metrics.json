@@ -1,0 +1,138 @@
+{
+  "detector_size": "small",
+  "beam_center_pixel": {
+    "fast": 515,
+    "slow": 525
+  },
+  "hkl_grid_bounds": {
+    "h": [
+      -24,
+      24
+    ],
+    "k": [
+      -28,
+      28
+    ],
+    "l": [
+      -31,
+      30
+    ]
+  },
+  "test_pixels": [
+    {
+      "label": "direct_beam",
+      "pixel": {
+        "slow": 525,
+        "fast": 515
+      },
+      "hkl_fractional": {
+        "h": 0.025503970682621002,
+        "k": 0.03199564293026924,
+        "l": 0.0357997752726078
+      },
+      "hkl_rounded": {
+        "h": 0,
+        "k": 0,
+        "l": 0
+      },
+      "in_bounds": {
+        "h": true,
+        "k": true,
+        "l": true,
+        "all": true
+      }
+    },
+    {
+      "label": "plus_slow",
+      "pixel": {
+        "slow": 589,
+        "fast": 515
+      },
+      "hkl_fractional": {
+        "h": 0.02688298374414444,
+        "k": 0.030533360317349434,
+        "l": 0.03587217256426811
+      },
+      "hkl_rounded": {
+        "h": 0,
+        "k": 0,
+        "l": 0
+      },
+      "in_bounds": {
+        "h": true,
+        "k": true,
+        "l": true,
+        "all": true
+      }
+    },
+    {
+      "label": "minus_slow",
+      "pixel": {
+        "slow": 461,
+        "fast": 515
+      },
+      "hkl_fractional": {
+        "h": 0.024095380678772926,
+        "k": 0.03342253714799881,
+        "l": 0.03568684682250023
+      },
+      "hkl_rounded": {
+        "h": 0,
+        "k": 0,
+        "l": 0
+      },
+      "in_bounds": {
+        "h": true,
+        "k": true,
+        "l": true,
+        "all": true
+      }
+    },
+    {
+      "label": "plus_fast",
+      "pixel": {
+        "slow": 525,
+        "fast": 579
+      },
+      "hkl_fractional": {
+        "h": 0.024145102128386497,
+        "k": 0.03177715465426445,
+        "l": 0.03700714185833931
+      },
+      "hkl_rounded": {
+        "h": 0,
+        "k": 0,
+        "l": 0
+      },
+      "in_bounds": {
+        "h": true,
+        "k": true,
+        "l": true,
+        "all": true
+      }
+    },
+    {
+      "label": "minus_fast",
+      "pixel": {
+        "slow": 525,
+        "fast": 451
+      },
+      "hkl_fractional": {
+        "h": 0.026834143325686455,
+        "k": 0.03217799961566925,
+        "l": 0.03455178439617157
+      },
+      "hkl_rounded": {
+        "h": 0,
+        "k": 0,
+        "l": 0
+      },
+      "in_bounds": {
+        "h": true,
+        "k": true,
+        "l": true,
+        "all": true
+      }
+    }
+  ]
+}

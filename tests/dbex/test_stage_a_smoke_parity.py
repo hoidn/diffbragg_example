@@ -170,23 +170,45 @@ def stage_a_smoke_result(
         masked_pixels = int(np.count_nonzero(refinement_inputs.loss_mask))
 
     device_obj = torch.device(config.device)
-    # ARCH-REFACTOR-001 Phase D.3 Batch 2 CORRECTIVE FIX: Compute bragg_before from PERTURBED geometry
-    # (refinement starting point), not from baseline geometry (mapping_context.bragg_zero_iter).
-    # The test validates refinement quality by comparing perturbed→refined improvement.
-    bragg_before, _ = simulate_forward_once(
-        inputs=refinement_inputs,
-        detector=perturbed_detector,  # Use perturbed geometry (refinement starting point)
+
+    # ARCH-SIM-CONSTRUCTION-001 Phase C.8: Rebuild bragg_before/after from Stage A telemetry
+    # using initial/final parameter states instead of simulate_forward_once.
+    # This ensures DB-AT-028/029 measure the same Stage A baseline that refinement used,
+    # eliminating the double-application of spot_scale and aligning with the telemetry baseline.
+
+    # Build bragg_before from initial telemetry parameters (zero-iteration baseline)
+    bragg_before = build_final_bragg_from_stage_a_telemetry(
+        telemetry_a=telemetry,
+        detector=perturbed_detector,
         beam=perturbed_beam,
         crystal=perturbed_crystal,
-        experiment=refgeom_dataload.Expt,
-        hkl_indices=mapping_context.hkl_indices,
-        hkl_amplitudes=mapping_context.hkl_amplitudes,
-        calibration=mapping_context.calibration,
-        hkl_source=hkl_source,
-        hkl_path=hkl_path,
+        inputs=refinement_inputs,
+        hkl_grid=hkl_grid,
+        hkl_metadata=hkl_metadata,
+        config=config,
         device=device_obj,
+        dtype=config.dtype,
+        stage_a_ctx=engine._stage_contexts.get("stage_a") if hasattr(engine, "_stage_contexts") else None,
+        baseline_crystal=baseline_crystal,
+        param_state="initial",  # Use initial telemetry params for zero-iteration baseline
     )
-    bragg_after = bragg_final  # Engine-refined final Bragg
+
+    # Build bragg_after from final telemetry parameters (post-refinement)
+    bragg_after = build_final_bragg_from_stage_a_telemetry(
+        telemetry_a=telemetry,
+        detector=perturbed_detector,
+        beam=perturbed_beam,
+        crystal=perturbed_crystal,
+        inputs=refinement_inputs,
+        hkl_grid=hkl_grid,
+        hkl_metadata=hkl_metadata,
+        config=config,
+        device=device_obj,
+        dtype=config.dtype,
+        stage_a_ctx=engine._stage_contexts.get("stage_a") if hasattr(engine, "_stage_contexts") else None,
+        baseline_crystal=baseline_crystal,
+        param_state="final",  # Use final telemetry params for refined output
+    )
 
     # Compute log_scale_effective from telemetry.param_deltas per STAGEA-001
     log_scale_entry = telemetry.param_deltas.get("log_scale", {})
@@ -358,6 +380,8 @@ def test_db_at_028_loss_scale_sanity(stage_a_smoke_result):
         # TOOLING-VIS-001 Phase D.E: Masked-mean telemetry for Stage A baseline derivation
         "target_mean_masked": telemetry.target_mean_masked,
         "model_mean_masked": telemetry.model_mean_masked,
+        # ARCH-SIM-CONSTRUCTION-001 Phase C.8: Document bragg_before source
+        "bragg_before_source": "stage_a_telemetry_initial",
     }
     (artifact_dir / "db_at_028_metrics.json").write_text(json.dumps(metrics, indent=2))
 
@@ -445,6 +469,8 @@ def test_db_at_029_structure_parity(stage_a_smoke_result):
         # TOOLING-VIS-001 Phase D.E: Masked-mean telemetry for Stage A baseline derivation
         "target_mean_masked": telemetry.target_mean_masked,
         "model_mean_masked": telemetry.model_mean_masked,
+        # ARCH-SIM-CONSTRUCTION-001 Phase C.8: Document bragg_before source
+        "bragg_before_source": "stage_a_telemetry_initial",
     }
     (artifact_dir / "db_at_029_metrics.json").write_text(json.dumps(metrics, indent=2))
 

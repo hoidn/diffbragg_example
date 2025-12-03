@@ -38,11 +38,12 @@ def build_final_bragg_from_stage_a_telemetry(
     dtype,
     stage_a_ctx=None,
     baseline_crystal=None,
+    param_state="final",
 ):
     """
     Build final Bragg array from Stage A telemetry (optimized crystal/scale params).
 
-    Extracts Stage A final parameters from telemetry and regenerates full Bragg image.
+    Extracts Stage A parameters from telemetry and regenerates full Bragg image.
 
     Args:
         telemetry_a: RefinementTelemetry instance with Stage A optimized param_deltas
@@ -57,6 +58,8 @@ def build_final_bragg_from_stage_a_telemetry(
         dtype: torch.dtype for tensor operations
         stage_a_ctx: Optional Stage A context (detectors/simulators for warm cache)
         baseline_crystal: Optional baseline dxtbx Crystal for misset extraction
+        param_state: str, "initial" or "final" - which telemetry parameter state to replay
+                     (ARCH-SIM-CONSTRUCTION-001 Phase C.8)
 
     Returns:
         bragg_full: np.ndarray, shape [n_panels, slow, fast], final Bragg image
@@ -76,15 +79,45 @@ def build_final_bragg_from_stage_a_telemetry(
     # Extract param_deltas from telemetry
     param_deltas_a = telemetry_a.param_deltas if hasattr(telemetry_a, 'param_deltas') else telemetry_a['param_deltas']
 
-    # Extract Stage A final parameters
-    log_scale = torch.tensor(param_deltas_a['log_scale']['final'], device=device, dtype=dtype, requires_grad=False)
-    log_cell_a_delta = torch.tensor(param_deltas_a['log_cell_a_delta']['final'], device=device, dtype=dtype, requires_grad=False)
-    log_cell_b_delta = torch.tensor(param_deltas_a['log_cell_b_delta']['final'], device=device, dtype=dtype, requires_grad=False)
-    log_cell_c_delta = torch.tensor(param_deltas_a['log_cell_c_delta']['final'], device=device, dtype=dtype, requires_grad=False)
-    angle_alpha_raw = torch.tensor(param_deltas_a['angle_alpha_raw']['final'], device=device, dtype=dtype, requires_grad=False)
-    angle_beta_raw = torch.tensor(param_deltas_a['angle_beta_raw']['final'], device=device, dtype=dtype, requires_grad=False)
-    angle_gamma_raw = torch.tensor(param_deltas_a['angle_gamma_raw']['final'], device=device, dtype=dtype, requires_grad=False)
-    misset_xyz_deg_delta = param_deltas_a['misset_xyz_deg']['delta']
+    # Helper to extract parameter value from telemetry with fallback logic
+    def _get_param_value(param_dict, param_name):
+        """Extract param value for requested state with fallback to 'final' if 'initial' missing."""
+        if param_state == "initial":
+            if "initial" in param_dict:
+                return param_dict["initial"]
+            else:
+                # Fallback to 'final' when 'initial' not available (legacy telemetry)
+                print(f"[ARCH-SIM-CONSTRUCTION-001 C.8 WARNING] param_deltas['{param_name}']['initial'] missing; falling back to 'final'")
+                return param_dict.get("final", 0.0)
+        else:
+            # param_state == "final"
+            return param_dict.get("final", 0.0)
+
+    # Extract Stage A parameters according to param_state
+    log_scale = torch.tensor(_get_param_value(param_deltas_a['log_scale'], 'log_scale'), device=device, dtype=dtype, requires_grad=False)
+    log_cell_a_delta = torch.tensor(_get_param_value(param_deltas_a['log_cell_a_delta'], 'log_cell_a_delta'), device=device, dtype=dtype, requires_grad=False)
+    log_cell_b_delta = torch.tensor(_get_param_value(param_deltas_a['log_cell_b_delta'], 'log_cell_b_delta'), device=device, dtype=dtype, requires_grad=False)
+    log_cell_c_delta = torch.tensor(_get_param_value(param_deltas_a['log_cell_c_delta'], 'log_cell_c_delta'), device=device, dtype=dtype, requires_grad=False)
+    angle_alpha_raw = torch.tensor(_get_param_value(param_deltas_a['angle_alpha_raw'], 'angle_alpha_raw'), device=device, dtype=dtype, requires_grad=False)
+    angle_beta_raw = torch.tensor(_get_param_value(param_deltas_a['angle_beta_raw'], 'angle_beta_raw'), device=device, dtype=dtype, requires_grad=False)
+    angle_gamma_raw = torch.tensor(_get_param_value(param_deltas_a['angle_gamma_raw'], 'angle_gamma_raw'), device=device, dtype=dtype, requires_grad=False)
+
+    # For misset, use delta field with param_state selection
+    misset_xyz_deg_delta_dict = param_deltas_a.get('misset_xyz_deg', {})
+    if param_state == "initial":
+        # Try to get initial misset delta; fall back to delta or final
+        if "initial" in misset_xyz_deg_delta_dict:
+            misset_xyz_deg_delta = misset_xyz_deg_delta_dict["initial"]
+        elif "delta" in misset_xyz_deg_delta_dict:
+            print(f"[ARCH-SIM-CONSTRUCTION-001 C.8 WARNING] param_deltas['misset_xyz_deg']['initial'] missing; using 'delta'")
+            misset_xyz_deg_delta = misset_xyz_deg_delta_dict["delta"]
+        else:
+            print(f"[ARCH-SIM-CONSTRUCTION-001 C.8 WARNING] param_deltas['misset_xyz_deg'] has no 'initial' or 'delta'; falling back to zero")
+            misset_xyz_deg_delta = [0.0, 0.0, 0.0]
+    else:
+        # For final state, prefer delta field (historical convention)
+        misset_xyz_deg_delta = misset_xyz_deg_delta_dict.get('delta', [0.0, 0.0, 0.0])
+
     misset_xyz_deg = torch.tensor(misset_xyz_deg_delta, device=device, dtype=dtype, requires_grad=False)
 
     # Apply Stage A cell perturbations (mirroring Stage B reconstruction pattern)
@@ -266,24 +299,44 @@ def build_final_bragg_from_stage_a_telemetry(
     # Mask coverage diagnostics (ARCH-SIM-CONSTRUCTION-001 Phase C.6)
     mask_coverage_stats = []
 
-    # ARCH-SIM-CONSTRUCTION-001 Phase C.7: Prefer recorded scale_factor from Stage A telemetry
+    # ARCH-SIM-CONSTRUCTION-001 Phase C.7 / C.8: Prefer recorded scale_factor from Stage A telemetry
     # When available, use the authoritative log_scale_effective and scale_factor from Stage A's
-    # final forward pass instead of recomputing from baseline+delta. Fall back to legacy computation
+    # forward pass instead of recomputing from baseline+delta. Fall back to legacy computation
     # when telemetry doesn't include the new fields.
+    # ARCH-SIM-CONSTRUCTION-001 Phase C.8: Apply param_state selection to scale_factor extraction
     log_scale_effective_dict = param_deltas_a.get('log_scale_effective', {})
     if log_scale_effective_dict and 'scale_factor' in log_scale_effective_dict:
         # New path: use recorded scale_factor directly from Stage A telemetry
-        scale_factor = torch.tensor(log_scale_effective_dict['scale_factor'], device=device, dtype=dtype)
-        log_scale_clamped = torch.tensor(log_scale_effective_dict['final'], device=device, dtype=dtype)
-        log_scale_baseline_value = log_scale_effective_dict.get('initial')
+        # For param_state="initial", we want the baseline (initial) value; for "final", the refined value
+        if param_state == "initial":
+            # For initial state, use the baseline value (log_scale_effective['initial'] = baseline)
+            log_scale_baseline_value = log_scale_effective_dict.get('initial')
+            if log_scale_baseline_value is not None:
+                # Compute initial scale_factor from baseline (delta should be zero at initial)
+                log_scale_clamped = torch.tensor(log_scale_baseline_value, device=device, dtype=dtype)
+                scale_factor = torch.exp(log_scale_clamped)
+                print(f"[ARCH-SIM-CONSTRUCTION-001 Phase C.8] Using initial (baseline) scale_factor from Stage A telemetry:")
+                print(f"  log_scale_baseline (initial): {log_scale_baseline_value:.6f}")
+                print(f"  scale_factor (initial): {scale_factor.item():.6e}")
+            else:
+                # Fallback: no initial value recorded, recompute from log_scale param (which should be zero-ish for initial)
+                print(f"[ARCH-SIM-CONSTRUCTION-001 Phase C.8 WARNING] log_scale_effective['initial'] missing; recomputing from log_scale baseline")
+                log_scale_baseline_value = param_deltas_a.get('log_scale_baseline', {}).get('final', 0.0)
+                log_scale_clamped = torch.tensor(log_scale_baseline_value, device=device, dtype=dtype)
+                scale_factor = torch.exp(log_scale_clamped)
+        else:
+            # For final state, use the recorded final scale_factor
+            scale_factor = torch.tensor(log_scale_effective_dict['scale_factor'], device=device, dtype=dtype)
+            log_scale_clamped = torch.tensor(log_scale_effective_dict['final'], device=device, dtype=dtype)
+            log_scale_baseline_value = log_scale_effective_dict.get('initial')
 
-        # Emit diagnostic when available
-        print(f"[ARCH-SIM-CONSTRUCTION-001 Phase C.7] Using recorded scale_factor from Stage A telemetry:")
-        print(f"  scale_factor (recorded): {log_scale_effective_dict['scale_factor']:.6e}")
-        print(f"  log_scale_effective (recorded): {log_scale_effective_dict['final']:.6f}")
-        if log_scale_baseline_value is not None:
-            print(f"  log_scale_baseline: {log_scale_baseline_value:.6f}")
-            print(f"  log_scale_delta_clamped (recorded): {log_scale_effective_dict.get('log_scale_delta_clamped', 'N/A')}")
+            # Emit diagnostic when available
+            print(f"[ARCH-SIM-CONSTRUCTION-001 Phase C.7] Using recorded scale_factor from Stage A telemetry:")
+            print(f"  scale_factor (recorded): {log_scale_effective_dict['scale_factor']:.6e}")
+            print(f"  log_scale_effective (recorded): {log_scale_effective_dict['final']:.6f}")
+            if log_scale_baseline_value is not None:
+                print(f"  log_scale_baseline: {log_scale_baseline_value:.6f}")
+                print(f"  log_scale_delta_clamped (recorded): {log_scale_effective_dict.get('log_scale_delta_clamped', 'N/A')}")
     else:
         # Legacy path: reconstruct scale_factor from baseline + delta (backward compatible)
         print(f"[ARCH-SIM-CONSTRUCTION-001 Phase C.7] log_scale_effective not found in telemetry; falling back to legacy computation")

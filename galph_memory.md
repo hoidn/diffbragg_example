@@ -1926,3 +1926,23 @@ Action State: ready_for_implementation
 - ready_for_implementation — Implement the debug_config hook in `_build_stage_a_context`, extend `compare_hkl_stats.py` to collect Stage A stats, run the probe + Stage A smoke test, and update docs/fix_plan/findings with the new evidence.
 
 **Action State**: ready_for_implementation
+
+## Loop 2025-12-03T150219Z
+
+**Focus**: ARCH-SIM-HKL-BOUNDS-001 — Stage-A / mapping HKL alignment (Phase A kickoff)
+**State**: planning
+**Dwell**: 0 (new initiative)
+**Action Type**: planning
+**Initiative Type**: architecture
+
+**Key Observations**:
+1. DIAG-NANOBRAGG-OVERSAMPLE-001 Phase F established 0% HKL hit rate for both simulate_forward_once and Stage A warm caches, so a dedicated plan is required to realign nanobrag_torch reciprocal lattice tensors with dxtbx baselines.
+2. Authored implementation plan covering Phase A (reciprocal-lattice probe), Phase B (root-cause analysis), and Phase C (fix + DB-AT validation); added Tier 0 ledger entry and exit criteria tied to ≥99% HKL coverage + DB-AT-028/029 PASS.
+3. Rewrote input.md handing Ralph a concrete Do Now: implement the `probe_crystal_hkl_alignment.py` script, capture JSON + summary artifacts under `plans/active/ARCH-SIM-HKL-BOUNDS-001/reports/2025-12-03T161200Z/`, and run the sigma-map pytest guard.
+
+**Artifacts Path**: `plans/active/ARCH-SIM-HKL-BOUNDS-001/reports/2025-12-03T150219Z/`
+
+**Next Actions**:
+- ready_for_implementation — Execute Phase A.1: build the reciprocal-lattice probe script, record metrics + summary, and update findings with the quantified HKL offset before designing the fix.
+
+Action State: ready_for_implementation

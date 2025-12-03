@@ -462,6 +462,113 @@ def build_final_bragg_from_stage_a_telemetry(
     n_cells_value = N_cells if N_cells is not None else "None"
     print(f"[ARCH-SIM-CONSTRUCTION-001 N_CELLS] N_cells={n_cells_value}, status={n_cells_status} (apply_calibration_n_cells={config.apply_calibration_n_cells})")
 
+    # ARCH-SIM-CONSTRUCTION-001 Phase C.9: Baseline stats instrumentation
+    # Compute masked/unmasked means and compare against telemetry values
+    # This helps quantify the reconstruction vs telemetry gap that drives DB-AT-028/029 failures
+    if inputs.loss_mask is not None and inputs.target is not None:
+        import json
+        import os
+        from datetime import datetime
+
+        # Compute masked/unmasked means for both bragg_full and target
+        loss_mask_bool = inputs.loss_mask.astype(bool)
+        target_np = inputs.target
+
+        bragg_masked = bragg_full[loss_mask_bool]
+        target_masked = target_np[loss_mask_bool]
+
+        bragg_mean_masked = float(np.mean(bragg_masked)) if bragg_masked.size > 0 else float("nan")
+        target_mean_masked = float(np.mean(target_masked)) if target_masked.size > 0 else float("nan")
+        bragg_mean_unmasked = float(np.mean(bragg_full))
+        target_mean_unmasked = float(np.mean(target_np))
+
+        # Extract telemetry values (when available) for comparison
+        # ARCH-SIM-CONSTRUCTION-001 Phase C.9: Read from top-level telemetry fields
+        target_mean_masked_telem = float("nan")
+        model_mean_masked_telem = float("nan")
+        if hasattr(telemetry_a, 'target_mean_masked'):
+            target_mean_masked_telem = float(telemetry_a.target_mean_masked) if telemetry_a.target_mean_masked is not None else float("nan")
+        if hasattr(telemetry_a, 'model_mean_masked'):
+            model_mean_masked_telem = float(telemetry_a.model_mean_masked) if telemetry_a.model_mean_masked is not None else float("nan")
+
+        # Fallback: try to extract from log_scale_effective dict (legacy path)
+        if not np.isfinite(target_mean_masked_telem) or not np.isfinite(model_mean_masked_telem):
+            log_scale_effective_dict = param_deltas_a.get('log_scale_effective', {})
+            if log_scale_effective_dict:
+                target_mean_masked_telem = float(log_scale_effective_dict.get('target_mean_masked', float("nan")))
+                model_mean_masked_telem = float(log_scale_effective_dict.get('model_mean_masked', float("nan")))
+
+        # Compute chi²-per-pixel for this reconstruction (matching DB-AT-028 logic)
+        residual_masked = target_masked - bragg_masked
+        variance_floor_value = 1.0
+        if hasattr(telemetry_a, 'variance_floor_value'):
+            variance_floor_value = float(telemetry_a.variance_floor_value)
+        variance_masked = np.maximum(bragg_masked, variance_floor_value)
+        chi_squared_masked = float(np.sum(residual_masked ** 2 / variance_masked)) if bragg_masked.size > 0 else float("nan")
+        n_masked_pixels = int(np.count_nonzero(loss_mask_bool))
+        chi_squared_per_pixel = chi_squared_masked / n_masked_pixels if n_masked_pixels > 0 else float("nan")
+
+        # Compute ratios
+        bragg_vs_telem_ratio = bragg_mean_masked / model_mean_masked_telem if np.isfinite(model_mean_masked_telem) and model_mean_masked_telem != 0 else float("nan")
+        bragg_vs_target_ratio = bragg_mean_masked / target_mean_masked if target_mean_masked != 0 else float("nan")
+
+        baseline_stats = {
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "param_state": param_state,
+            "reconstructed_bragg": {
+                "mean_masked": bragg_mean_masked,
+                "mean_unmasked": bragg_mean_unmasked,
+            },
+            "target": {
+                "mean_masked": target_mean_masked,
+                "mean_unmasked": target_mean_unmasked,
+            },
+            "telemetry_values": {
+                "target_mean_masked": target_mean_masked_telem,
+                "model_mean_masked": model_mean_masked_telem,
+            },
+            "ratios": {
+                "bragg_vs_telem_model": bragg_vs_telem_ratio,
+                "bragg_vs_target": bragg_vs_target_ratio,
+            },
+            "chi_squared": {
+                "per_pixel": chi_squared_per_pixel,
+                "n_masked_pixels": n_masked_pixels,
+            },
+            "scale_factor_used": float(scale_factor.item()) if isinstance(scale_factor, torch.Tensor) else float(scale_factor),
+        }
+
+        # Write baseline stats to artifacts directory
+        artifact_dir = os.environ.get('DBAT028_ARTIFACT_DIR') or os.environ.get('DBAT029_ARTIFACT_DIR')
+        if not artifact_dir:
+            artifact_dir = "plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-13T235500Z"
+
+        if artifact_dir and artifact_dir != '':
+            baseline_stats_path = os.path.join(artifact_dir, "baseline_stats.json")
+            os.makedirs(artifact_dir, exist_ok=True)
+
+            # Append to existing file or create new
+            existing_stats = []
+            if os.path.exists(baseline_stats_path):
+                with open(baseline_stats_path, 'r') as f:
+                    try:
+                        existing_stats = json.load(f)
+                        if not isinstance(existing_stats, list):
+                            existing_stats = []
+                    except json.JSONDecodeError:
+                        existing_stats = []
+
+            existing_stats.append(baseline_stats)
+
+            with open(baseline_stats_path, 'w') as f:
+                json.dump(existing_stats, f, indent=2)
+
+            print(f"[ARCH-SIM-CONSTRUCTION-001 BASELINE STATS] Wrote baseline stats to {baseline_stats_path}")
+            print(f"  Reconstructed bragg mean (masked): {bragg_mean_masked:.6e}")
+            print(f"  Telemetry model mean (masked): {model_mean_masked_telem:.6e}")
+            print(f"  Ratio (bragg/telem): {bragg_vs_telem_ratio:.6f}")
+            print(f"  Chi²/pixel: {chi_squared_per_pixel:.6e}")
+
     return bragg_full
 
 

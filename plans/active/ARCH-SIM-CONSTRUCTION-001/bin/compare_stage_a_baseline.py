@@ -246,9 +246,22 @@ def main():
     log_scale_baseline_entry = param_deltas.get("log_scale_baseline", {})
     log_scale_effective_entry = param_deltas.get("log_scale_effective", {})
 
-    # Extract masked means from telemetry (ARCH-SIM-CONSTRUCTION-001 Phase C.7)
-    target_mean_masked_telem = log_scale_effective_entry.get("target_mean_masked", float("nan"))
-    model_mean_masked_telem = log_scale_effective_entry.get("model_mean_masked", float("nan"))
+    # ARCH-SIM-CONSTRUCTION-001 Phase C.9: Extract masked means from top-level telemetry fields
+    # These fields should be populated by Stage A telemetry instrumentation (Phase C.7)
+    target_mean_masked_telem = float("nan")
+    model_mean_masked_telem = float("nan")
+    if hasattr(telemetry, 'target_mean_masked'):
+        target_mean_masked_telem = float(telemetry.target_mean_masked) if telemetry.target_mean_masked is not None else float("nan")
+    if hasattr(telemetry, 'model_mean_masked'):
+        model_mean_masked_telem = float(telemetry.model_mean_masked) if telemetry.model_mean_masked is not None else float("nan")
+
+    # Fallback: try to extract from log_scale_effective dict (legacy path for older telemetry)
+    if not np.isfinite(target_mean_masked_telem):
+        target_mean_masked_telem = log_scale_effective_entry.get("target_mean_masked", float("nan"))
+    if not np.isfinite(model_mean_masked_telem):
+        model_mean_masked_telem = log_scale_effective_entry.get("model_mean_masked", float("nan"))
+
+    # Extract scale_factor and related fields from log_scale_effective dict
     log_scale_baseline_value_telem = log_scale_effective_entry.get("log_scale_baseline_value", float("nan"))
     log_scale_delta_clamped_telem = log_scale_effective_entry.get("log_scale_delta_clamped", float("nan"))
     log_scale_clamped_value_telem = log_scale_effective_entry.get("log_scale_clamped_value", float("nan"))

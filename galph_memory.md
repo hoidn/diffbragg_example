@@ -2116,3 +2116,23 @@ Action State: ready_for_implementation
 - If the gating fix still leaves raw magnitudes mismatched, capture the updated probe JSON + reconstruction DEBUG block before escalating.
 
 **Action State**: ready_for_implementation — Do Now issued with concrete code edits, probe, and pytest steps so the next engineer loop can execute immediately.
+
+## Loop 2025-12-11T200000Z
+
+**Focus**: ARCH-SIM-CONSTRUCTION-001 — Simulator Construction Alignment (Phase C.7 diagnostics)
+**State**: gathering_evidence
+**Dwell**: 1
+**Action Type**: planning (callchain inspection)
+**Initiative Type**: architecture
+
+**Key Observations**:
+1. Callchain snapshot (`plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-11T200000Z/callchain/static.md`) shows Stage A warm caches always move `detector_config.mask_array` onto the target device, while the reconstruction cold path never normalizes the mask nor passes it into `create_unified_simulator`; CUDA runs therefore drop trusted-mask gating entirely.
+2. `create_unified_simulator` already has a normalization branch (helpers.py:108-135); reconstruction simply needs to forward `detector_config.mask_array` (or `.to(device)` before instantiating the simulator) to match Stage A/mapping behavior and collapse the 0.8468 StageA/Reconstruction raw ratio captured in the probe.
+3. Trace plan (`trace/tap_points.md`) now documents the instrumentation required to prove the mask-device mismatch and to confirm the fix before re-running DB-AT-028/029.
+
+**Artifacts Path**: `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-11T200000Z/`
+
+**Next Actions**:
+- ready_for_implementation — Normalize the reconstruction mask path (match Stage A’s `.to(device)` or pass `mask_array` into `create_unified_simulator`), re-run the intensity probe, and revalidate DB-AT-028/029 with artifact capture.
+
+**Action State**: gathering_evidence

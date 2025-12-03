@@ -28,7 +28,10 @@ import json
 import re
 from dataclasses import dataclass, asdict
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Tuple
+
+
+DEFAULT_ROLLUP_CONFIG = Path('plans/active/PORTFOLIO-STATUS/rollups.json')
 
 
 @dataclass
@@ -151,6 +154,31 @@ def load_rollup_config(config_path: Path) -> dict:
         return json.loads(config_path.read_text())
     except Exception:
         return {}
+
+
+def resolve_rollup_config(user_supplied: Optional[Path]) -> Tuple[Path, bool]:
+    """Resolve the rollup config path, enforcing the automation guard.
+
+    Returns a tuple of (path, auto_loaded_flag). Raises FileNotFoundError if
+    neither a user-supplied path nor the default guard path exists.
+    """
+    if user_supplied:
+        expanded = user_supplied.expanduser()
+        if not expanded.exists():
+            raise FileNotFoundError(
+                f"Rollup config not found at {expanded}. "
+                "Pass a valid path via --rollup-config."
+            )
+        return expanded, False
+
+    default_path = DEFAULT_ROLLUP_CONFIG
+    if default_path.exists():
+        return default_path, True
+
+    raise FileNotFoundError(
+        f"No rollup config provided and default {default_path} not found. "
+        "Rerun plan_inventory.py with --rollup-config <path> to satisfy the automation guard."
+    )
 
 
 def inventory_plans(plans_root: Path, fix_plan_ids: set) -> List[PlanEntry]:
@@ -304,7 +332,8 @@ def main():
     parser.add_argument(
         '--rollup-config',
         type=Path,
-        help='Path to rollup config JSON file (optional)'
+        default=None,
+        help='Path to rollup config JSON file. Defaults to plans/active/PORTFOLIO-STATUS/rollups.json when omitted.'
     )
     parser.add_argument(
         '--out-dir',
@@ -321,10 +350,18 @@ def main():
     # Parse fix plan IDs
     fix_plan_ids = parse_fix_plan_ids(args.fix_plan)
 
-    # Load rollup config if provided
-    rollup_config = {}
-    if args.rollup_config:
-        rollup_config = load_rollup_config(args.rollup_config)
+    # Resolve rollup config path (guardrails)
+    try:
+        rollup_config_path, auto_loaded = resolve_rollup_config(args.rollup_config)
+    except FileNotFoundError as exc:
+        raise SystemExit(str(exc)) from exc
+
+    rollup_config = load_rollup_config(rollup_config_path)
+    if not rollup_config:
+        raise SystemExit(
+            f"Rollup config at {rollup_config_path} is empty or invalid. "
+            "Repair the JSON file before rerunning plan_inventory.py."
+        )
 
     # Build inventory
     entries = inventory_plans(args.plans_root, fix_plan_ids)
@@ -336,17 +373,19 @@ def main():
     write_json_output(entries, json_path)
     write_missing_md(entries, missing_path)
 
-    # Write rollup report if config was provided
-    if rollup_config:
-        rollup_path = args.out_dir / "rollup_report.md"
-        write_rollup_report(rollup_config, entries, fix_plan_ids, rollup_path)
+    # Write rollup report
+    rollup_path = args.out_dir / "rollup_report.md"
+    write_rollup_report(rollup_config, entries, fix_plan_ids, rollup_path)
 
     print(f"Inventory complete:")
     print(f"  Total plans: {len(entries)}")
     print(f"  In fix_plan.md: {sum(1 for e in entries if e.in_fix_plan)}")
     print(f"  Missing from fix_plan.md: {sum(1 for e in entries if not e.in_fix_plan)}")
-    if rollup_config:
-        print(f"  Roll-ups configured: {len(rollup_config)}")
+    print(f"  Roll-ups configured: {len(rollup_config)}")
+    if auto_loaded:
+        print(f"  [guard] Auto-loaded rollup config from {rollup_config_path}")
+    else:
+        print(f"  [guard] Using rollup config from {rollup_config_path}")
     print(f"  Output written to: {args.out_dir}")
 
 

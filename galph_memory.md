@@ -1668,3 +1668,9 @@ Per CLAUDE.md exception clause requirements:
 
 **Next Actions**:
 - ready_for_implementation — Execute the docs plan: rerun plan_inventory.py with the fixed timestamp, update docs/fix_plan.md + plan implementation notes with the new counts/status, and capture pytest + summary logs so Phase C guardrails can start next loop.
+2025-12-06T09:45:00Z focus=PORTFOLIO-STATUS state=ready_for_implementation dwell=0 action=planning artifacts=plans/active/PORTFOLIO-STATUS/reports/2025-12-06T094500Z/ next_action=Create FINDINGS-LEDGER-002 stub + rerun inventory
+- Embedded the plan-inventory automation guard directly in docs/fix_plan.md (Working Agreements + appendix) and noted the new default behavior so future loops cannot skip the `--rollup-config` flag.
+- Updated plan_inventory.py to auto-load the canonical rollups.json, fail fast when the config is missing/invalid, and log whether the guard path was auto-loaded; refreshed the pytest suite (18/18 passing) to cover the new resolver behavior.
+- Reran the guarded inventory (plans/active/PORTFOLIO-STATUS/reports/2025-12-06T094500Z/) producing updated counts (56 total, tracked 22, active_missing 32, missing_plan 2) and captured pytest + command logs; docs/fix_plan.md appendix + Tier 0/Attempts sections now reference the new artifact path and Phase C guardrail work.
+- Verified archive hygiene for ARCH-REFRACTOR-001 (stub + archive entry) and noted FINDINGS-LEDGER-002 as the remaining missing-plan directory to tackle next loop.
+Action State: ready_for_implementation

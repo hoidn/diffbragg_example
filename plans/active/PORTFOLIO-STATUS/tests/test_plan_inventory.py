@@ -14,6 +14,7 @@ import sys
 # Add parent dir to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "bin"))
 
+import plan_inventory
 from plan_inventory import (
     PlanEntry,
     compute_bucket,
@@ -21,6 +22,7 @@ from plan_inventory import (
     parse_fix_plan_ids,
     inventory_plans,
     write_rollup_report,
+    resolve_rollup_config,
 )
 
 
@@ -103,6 +105,36 @@ class TestRollupConfig:
         config_path = tmp_path / "nonexistent.json"
         loaded = load_rollup_config(config_path)
         assert loaded == {}
+
+
+class TestResolveRollupConfig:
+    """Test automation guard rollup config resolution."""
+
+    def test_user_supplied_path(self, tmp_path):
+        cfg = tmp_path / "rollups.json"
+        cfg.write_text("{}")
+        path, auto = resolve_rollup_config(cfg)
+        assert path == cfg
+        assert not auto
+
+    def test_auto_default_path(self, tmp_path, monkeypatch):
+        cfg = tmp_path / "auto_rollups.json"
+        cfg.write_text("{}")
+        monkeypatch.setattr(plan_inventory, "DEFAULT_ROLLUP_CONFIG", cfg)
+        path, auto = resolve_rollup_config(None)
+        assert path == cfg
+        assert auto
+
+    def test_missing_default_path_errors(self, tmp_path, monkeypatch):
+        missing = tmp_path / "missing_rollups.json"
+        monkeypatch.setattr(plan_inventory, "DEFAULT_ROLLUP_CONFIG", missing)
+        with pytest.raises(FileNotFoundError):
+            resolve_rollup_config(None)
+
+    def test_missing_user_path_errors(self, tmp_path):
+        bad = tmp_path / "does_not_exist.json"
+        with pytest.raises(FileNotFoundError):
+            resolve_rollup_config(bad)
 
     def test_load_rollup_config_invalid_json(self, tmp_path):
         """Invalid JSON returns empty dict."""

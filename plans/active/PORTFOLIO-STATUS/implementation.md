@@ -61,6 +61,8 @@
 - **C.2 Archive Hygiene:** Review plan-archive structure and ensure archived initiatives (ARCH-REFRACTOR-001, etc.) have complete cross-references in both `docs/fix_plan_archive.md` and their stub locations.
 - **C.3 Exit Prep:** Once C.1 and C.2 complete, mark PORTFOLIO-STATUS ready for closure or handoff to a Phase D guardian task (if roll-up member-plan status rows need periodic refresh).
 
+- **2025-12-06T094500Z (Phase C.1/C.2 progress):** Embedded the automation guard command (with `--rollup-config`) directly in `docs/fix_plan.md` Working Agreements + appendix, updated `plan_inventory.py` to auto-load the canonical rollups.json and fail fast when the guard file is missing/invalid, refreshed unit tests, and re-verified archive hygiene (`ARCH-REFRACTOR-001` stub + `docs/fix_plan_archive.md` cross-reference). Artifacts: `plans/active/PORTFOLIO-STATUS/reports/2025-12-06T094500Z/`.
+
 ## Abort / Escalation Criteria
 - If more than 5 plan directories lack implementation plans or contain partial data, pause after Phase A and escalate via `docs/fix_plan.md` (open a spec-change or tooling initiative to repair the planning pipeline).  
 - If moving/archiving directories risks breaking historical artifact references (e.g., a finding points directly to a path), document the risk in `docs/findings.md` and flag the initiative as blocked pending stakeholder confirmation.

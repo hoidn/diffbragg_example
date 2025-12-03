@@ -32,8 +32,8 @@ import numpy as np
 import pytest
 
 from dbex.data_load import DataLoad, _load_external_lookup_sigma_map
+from dbex.refinement.inputs import prepare_refinement_inputs
 from dbex.nanobrag_bridge import (
-    prepare_refinement_inputs,
     simulate_forward_once,
     load_calibration_metadata,
     load_refined_mtz,

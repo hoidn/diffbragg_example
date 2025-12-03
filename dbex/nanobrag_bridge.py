@@ -1242,6 +1242,7 @@ def simulate_forward_once(
     device=None,
     sigma_floor_value: float = 1.0,
     apply_calibration_n_cells: bool = True,
+    debug_config: Optional[dict] = None,
 ) -> Tuple[np.ndarray, dict]:
     """
     Run zero-iteration forward simulation without HDF5 emission.
@@ -1276,6 +1277,11 @@ def simulate_forward_once(
         apply_calibration_n_cells: Whether to apply N_cells from calibration dict when
                                    present (default True). Set to False to suppress N_cells
                                    for small-detector metadata fixtures (TOOLING-VIS-001).
+        debug_config: Optional dict passed to create_unified_simulator for debug flags.
+                     When 'collect_hkl_stats' is True, each panel's Simulator will record
+                     min/max h,k,l values and in-bounds/out-of-bounds query counts.
+                     The per-panel hkl_stats dicts are aggregated into diagnostics['hkl_stats'].
+                     (DIAG-NANOBRAGG-OVERSAMPLE-001 Phase F)
 
     Returns:
         bragg: Per-panel Bragg tensors [panel, slow, fast] as float32 numpy array
@@ -1399,6 +1405,9 @@ def simulate_forward_once(
     panel_shape = inputs.target.shape[1:]  # (slow, fast)
     bragg = np.zeros((n_panels, *panel_shape), dtype=np.float32)
 
+    # DIAG-NANOBRAGG-OVERSAMPLE-001 Phase F: Collect HKL stats per panel when enabled
+    per_panel_hkl_stats = [] if debug_config and debug_config.get('collect_hkl_stats', False) else None
+
     for panel_id in range(n_panels):
         panel = detector[panel_id]
 
@@ -1423,10 +1432,17 @@ def simulate_forward_once(
             spot_scale_override=spot_scale_override,
             device=device,
             dtype=torch.float32,  # simulate_forward_once uses float32
-            calibration_metadata=None  # Not needed by factory for forward-only
+            calibration_metadata=None,  # Not needed by factory for forward-only
+            debug_config=debug_config  # DIAG-NANOBRAGG-OVERSAMPLE-001 Phase F
         )
 
         panel_output = simulator.run()  # Returns torch.Tensor on device
+
+        # DIAG-NANOBRAGG-OVERSAMPLE-001 Phase F: Capture HKL stats after run if enabled
+        if per_panel_hkl_stats is not None:
+            panel_stats = simulator.hkl_stats
+            if panel_stats is not None:
+                per_panel_hkl_stats.append({'panel_id': panel_id, 'hkl_stats': panel_stats})
 
         # Move to CPU and convert to numpy
         panel_output_np = panel_output.cpu().detach().numpy().astype(np.float32)
@@ -1526,6 +1542,10 @@ def simulate_forward_once(
         "sigma_readout_provenance": inputs.sigma_readout_provenance,
         "sigma_readout_reference_value": sigma_reference_value,
     }
+
+    # DIAG-NANOBRAGG-OVERSAMPLE-001 Phase F: Add per-panel HKL query stats when collected
+    if per_panel_hkl_stats is not None:
+        diagnostics["per_panel_hkl_stats"] = per_panel_hkl_stats
 
     return bragg, diagnostics
 

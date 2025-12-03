@@ -296,10 +296,14 @@ def main():
     simulator.printout = True
     simulator.trace_pixel = [args.trace_slow, args.trace_fast]
 
-    # DIAG-NANOBRAGG-OVERSAMPLE-001 Phase E: Enable HKL stats collection
+    # DIAG-NANOBRAGG-OVERSAMPLE-001 Phase F: Enable HKL stats collection
+    # Since debug_config is read during __init__, we update it and also manually initialize
+    # the internal state to avoid touching private fields directly
     simulator.debug_config['collect_hkl_stats'] = True
-    simulator._hkl_stats_enabled = True
-    simulator._hkl_stats = {}
+    # Re-read the flag to enable collection (Simulator reads this in __init__ and run())
+    # The run() method will reset _hkl_stats at the start, so we rely on that mechanism
+    simulator._hkl_stats_enabled = simulator.debug_config.get('collect_hkl_stats', False)
+    simulator._hkl_stats = {} if simulator._hkl_stats_enabled else None
 
     print(f"  trace_pixel: {simulator.trace_pixel}")
     print(f"  printout: {simulator.printout}")

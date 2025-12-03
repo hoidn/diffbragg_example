@@ -235,7 +235,7 @@ def build_final_bragg_from_stage_a_telemetry(
     scale_factor = torch.exp(log_scale_clamped)
     for pid, sim in zip(sampled_panel_ids, simulators):
         bragg_panel = sim.run()
-        bragg_scaled = bragg_panel * scale_factor * sqrt_spot_scale
+        bragg_scaled = bragg_panel * scale_factor
         bragg_full[pid] = bragg_scaled.cpu().numpy().astype(np.float32)
 
     return bragg_full

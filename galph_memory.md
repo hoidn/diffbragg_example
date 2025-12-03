@@ -1606,3 +1606,24 @@ Per CLAUDE.md exception clause requirements:
 - in_progress: PORTFOLIO-STATUS (Phase B1 done, Phase B2/B3 next)
 - stuck: ARCH-SIM-CONSTRUCTION-001 (env dependency), DIAG-NANOBRAGG-OVERSAMPLE-001 (waiting for plan bandwidth)
 - blocked_pending_architecture: ARCH-REFACTOR-001 (awaits ARCH-SIM)
+
+---
+
+## Loop 2025-12-05T183000Z
+
+**Focus**: PORTFOLIO-STATUS — Plan/Fix-Plan synchronization & archive hygiene (Phase B3 roll-up coverage)
+**State**: ready_for_implementation
+**Dwell**: 2 (two consecutive planning/doc loops; next turn must execute roll-up implementation)
+**Action Type**: planning
+**Initiative Type**: housekeeping
+
+**Key Observations**:
+1. Phase B1/B2 artifacts (classification.md, archival_notes.md, stub_status.md under `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T150000Z/`) are complete; remaining work is wiring the 34 active-but-untracked plans into the ledger plus rerunnable tooling.
+2. Authored `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T183000Z/ledger_rollup_plan.md`, which lists every required roll-up (DB-AT, MAP-SCALE, TORCH-* series, etc.), the spec references they must cite, and the script/test enhancements needed so plan_inventory.py can emit consistent bucket + roll-up reports.
+3. Implementation now requires a paired code + docs effort: extend `bin/plan_inventory.py` to honor a roll-up config and add pytest coverage under `plans/active/PORTFOLIO-STATUS/tests/`, then add dedicated `### [ROLLUP-ID]` sections + appendix updates in `docs/fix_plan.md`.
+
+**Artifacts Path**: `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T183000Z/`
+
+**Next Actions**:
+- Implement Phase B3 by updating `bin/plan_inventory.py` + new pytest coverage, then add the documented roll-up sections/appended notes to `docs/fix_plan.md` and rerun the plan inventory script to regenerate classification artifacts.
+- Running state for next loop: `ready_for_implementation` (handoff required to avoid a third planning-only loop for this focus).

@@ -39,9 +39,12 @@
 - **A3** Attach the script output to `plans/active/PORTFOLIO-STATUS/reports/<timestamp>/inventory_report.md` and reference it from `docs/fix_plan.md` Attempts History.
 
 ### Phase B — Classification & Remediation
-- **B1** Classify each plan into {active, archived-ready, duplicate/alias}. Utilize plan header hints (Status, Owner) plus latest report timestamps to justify classification.
-- **B2** For plans marked archived-ready, move them under `archive/plans/` (maintaining original structure) and leave a stub note pointing to the archive.
-- **B3** For active plans missing fix plan coverage, author/update corresponding entries in `docs/fix_plan.md` (Tier, dependencies, initiative type, status, artifacts path).
+- **B1** Classify each plan into {active, archived-ready, duplicate/alias}. Utilize plan header hints (Status, Owner) plus latest report timestamps to justify classification. *(Completed in `reports/2025-12-05T150000Z/classification.md` with bucket tables.)*
+- **B2** For plans marked archived-ready, move them under `archive/plans/` (maintaining original structure) and leave a stub note pointing to the archive. *(ARCH-REFRACTOR-001 moved in the same report set; stub_status.md records new implementation.md placeholders.)*
+- **B3** For active plans missing fix plan coverage, author/update corresponding entries in `docs/fix_plan.md` (Tier, dependencies, initiative type, status, artifacts path). **New blueprint:** `reports/2025-12-05T183000Z/ledger_rollup_plan.md` enumerates the roll-up IDs, member directories, spec references, and the script/test work required to keep the classification automated. Execution of B3 now includes:
+  1. Extending `bin/plan_inventory.py` to emit roll-up aware JSON/Markdown (configurable via `--rollup-config`) plus pytest coverage under `plans/active/PORTFOLIO-STATUS/tests/`.
+  2. Adding dedicated `### [ROLLUP-ID]` sections to `docs/fix_plan.md` with dependencies, exit criteria, and Attempts History links for each grouped initiative.
+  3. Updating the Plan Directory Inventory appendix so it references both the bucket classification log and the roll-up config required by the automation guard.
 
 ### Phase C — Ledger / Doc Updates & Regression Guard
 - **C1** Add a “Plan Directory Inventory” appendix to `docs/fix_plan.md` summarizing the latest report and linking to artifacts; include open remediation items.

@@ -1,10 +1,10 @@
-# Input for Ralph — Loop 2025-12-05T150000Z
+# Input for Ralph — Loop 2025-12-05T183000Z
 
 ## Summary
-Execute Phase B remediation for PORTFOLIO-STATUS: archive the ARCH-REFRACTOR-001 duplicate and create implementation.md stubs for the five directories that presently have no plan so future ledger entries have concrete anchors.
+Land PORTFOLIO-STATUS Phase B3 by extending the plan inventory tooling with roll-up awareness and updating `docs/fix_plan.md` so the DB-AT/MAP-SCALE/TORCH-* suites have first-class ledger sections backed by automated reports.
 
 ## Mode
-Docs
+none
 
 ## InitiativeType
 housekeeping
@@ -16,80 +16,63 @@ PORTFOLIO-STATUS — Plan/Fix-Plan synchronization & archive hygiene
 integration
 
 ## Mapped tests
-none — docs-only
+`pytest -q plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py`
 
 ## Artifacts
-plans/active/PORTFOLIO-STATUS/reports/2025-12-05T150000Z/
+plans/active/PORTFOLIO-STATUS/reports/2025-12-05T210000Z/
 
 ## Do Now
 
-1. **Archive ARCH-REFRACTOR-001 duplicate**  
-   - Move the contents of `plans/active/ARCH-REFRACTOR-001/` into `archive/plans/ARCH-REFRACTOR-001/` (preserve subdirectories/reports), then replace the active directory with a short `README.md` that points to `ARCH-REFACTOR-001` and notes the archive timestamp.  
-   - Update `docs/fix_plan_archive.md` with a brief note linking to the archived path and referencing the PORTFOLIO-STATUS artifact directory.  
-   - Record the move in `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T150000Z/archival_notes.md` (bullet list describing what moved and why).
+1. **Enhance `plan_inventory.py` with roll-up + bucket outputs**  
+   - Add `--rollup-config plans/active/PORTFOLIO-STATUS/rollups.json` so the script can look up member plan directories for each roll-up ID (definitions live in that JSON file; update it if additional IDs appear).  
+   - For every plan entry, emit a `bucket` field in `inventory.json` (`active_missing`, `archive_ready`, `missing_plan`) using the same rules recorded in `reports/2025-12-05T150000Z/classification.md`.  
+   - When `--rollup-config` is present, produce a companion `rollup_report.md` inside the `--out-dir` summarizing each roll-up (ID, member plans, last-report span, whether `docs/fix_plan.md` already has a `### [ID]` section).  
+   - Create a pytest module under `plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py` that builds a temporary mini tree (a few fake plan directories + JSON config) and asserts that the new bucket logic and roll-up report text match expectations. Tests should be hermetic (tmp_path fixtures, no reliance on repo data).
 
-2. **Author minimal implementation.md stubs for stub directories**  
-   - For each of the following directories, add (or replace) `implementation.md` with the template header + two-sentence status summary so the ledger can reference a real plan: `plans/active/HARDEN-SUBMODULE-ROBUSTNESS/`, `plans/active/ORCH-CLAUDE-PATH-FIX-001/`, `plans/active/ORCH-CLI-FALLBACK-001/`, `plans/active/ORCH-ROBUST-001/`, `plans/active/SUPERVISOR/`.  
-   - Each stub should include Goal/Non-Goal bullets and clearly state whether the initiative is pending or should be archived later; cite `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T150000Z/classification.md` so we know how it was categorized.  
-   - Capture a short `stub_status.md` table under the artifact directory summarizing which plans received stubs and any follow-up needed.
+2. **Author the roll-up sections in `docs/fix_plan.md`**  
+   - For each ID listed in `reports/2025-12-05T183000Z/ledger_rollup_plan.md` (DB-AT-SUITE-CARE-001, MAP-SCALE-SYNC-001, PHYSICS-LOSS-001, TORCH-GEOMETRY-SYNC-001, TORCH-REFINE-CLEANUP-001, TORCH-CLI-BRIDGE-ROLLUP-001, FORWARD-EQUIV-COVERAGE-001, TOOLING-VIS-001, DOCS-ROADMAP-001, RUNTIME-VEC-001, REPORT-NANOBRAG-STATUS-001, NANOBRAG-GOLDEN-001, ARCH-SPLIT-001):  
+     • Add a dedicated `### [ROLLUP-ID]` subsection under “Active / Pending Initiatives” stating dependencies, initiative type/tier, working plan pointers (list the member directories), exit criteria tied to the cited spec doc(s), and an Attempts History bullet linking back to `reports/2025-12-05T150000Z/classification.md`.  
+     • Update the meta bullets near the top (Tier 1 list) only if titles/wording need alignment; avoid duplicating text.  
+     • Refresh the Plan Directory Inventory appendix so it references both `reports/2025-12-05T150000Z/` and the new roll-up report, and note that `plan_inventory.py` now requires the roll-up config when rerun.
 
-3. **Update ledgers**  
-   - In `docs/fix_plan_archive.md`, append a reference to the new archive move.  
-   - In `docs/fix_plan.md` Attempts History for PORTFOLIO-STATUS, add a short note pointing to the archival/stub artifacts (this keeps the ledger synchronized with the on-disk changes).
+3. **Regenerate the automation artifacts**  
+   - After the code + doc edits, run `python plans/active/PORTFOLIO-STATUS/bin/plan_inventory.py --plans-root plans/active --fix-plan docs/fix_plan.md --rollup-config plans/active/PORTFOLIO-STATUS/rollups.json --out-dir plans/active/PORTFOLIO-STATUS/reports/2025-12-05T210000Z/` so the new inventory, missing summary, and roll-up report reflect the ledger changes.  
+   - Capture `rollup_report.md`, the refreshed `inventory.json`, and a short `notes.md` describing any follow-up gaps (e.g., if specific plan directories still need archival review).
 
 ## How-To Map
 ```bash
 export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
-# 1. Archive duplicate plan
-mkdir -p archive/plans/ARCH-REFRACTOR-001
-rsync -a plans/active/ARCH-REFRACTOR-001/ archive/plans/ARCH-REFRACTOR-001/
-rm -rf plans/active/ARCH-REFRACTOR-001
-mkdir -p plans/active/ARCH-REFRACTOR-001
-cat <<'MD' > plans/active/ARCH-REFRACTOR-001/README.md
-# ARCH-REFRACTOR-001 (duplicate)
-Archived on 2025-12-05T150000Z — see archive/plans/ARCH-REFRACTOR-001 for history.
-Refer to ARCH-REFACTOR-001 for the active plan.
-MD
+# 1. Run the new pytest coverage for plan_inventory.py (after adding tests)
+pytest -q plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py
 
-# 2. Implementation stubs (repeat for each ID)
-for id in HARDEN-SUBMODULE-ROBUSTNESS ORCH-CLAUDE-PATH-FIX-001 ORCH-CLI-FALLBACK-001 ORCH-ROBUST-001 SUPERVISOR; do
-  cat plans/templates/implementation_plan.md > plans/active/$id/implementation.md
-  printf '\n_Status:_ pending — stub created 2025-12-05T150000Z per PORTFOLIO-STATUS classification.\n' >> plans/active/$id/implementation.md
-done
-
-# 3. Capture notes
-cat <<'MD' > plans/active/PORTFOLIO-STATUS/reports/2025-12-05T150000Z/archival_notes.md
-- ARCH-REFRACTOR-001 moved under archive/plans/ARCH-REFRACTOR-001/ (duplicate of ARCH-REFACTOR-001)
-MD
-cat <<'MD' > plans/active/PORTFOLIO-STATUS/reports/2025-12-05T150000Z/stub_status.md
-| Plan ID | Action |
-| --- | --- |
-| HARDEN-SUBMODULE-ROBUSTNESS | implementation.md stub added |
-| ORCH-CLAUDE-PATH-FIX-001 | implementation.md stub added |
-| ORCH-CLI-FALLBACK-001 | implementation.md stub added |
-| ORCH-ROBUST-001 | implementation.md stub added |
-| SUPERVISOR | implementation.md stub added |
-MD
+# 2. Regenerate inventory + roll-up artifacts after the doc/script edits
+python plans/active/PORTFOLIO-STATUS/bin/plan_inventory.py \
+  --plans-root plans/active \
+  --fix-plan docs/fix_plan.md \
+  --rollup-config plans/active/PORTFOLIO-STATUS/rollups.json \
+  --out-dir plans/active/PORTFOLIO-STATUS/reports/2025-12-05T210000Z/
 ```
 
 ## Pitfalls To Avoid
-- Keep archived content intact—use rsync/cp so historical reports remain untouched before removing the active directory.
-- The README in `plans/active/ARCH-REFRACTOR-001/` should clearly state that the real plan is ARCH-REFACTOR-001; do not leave the directory empty.
-- When creating implementation stubs, include enough context (goal + current status) to make future ledger work actionable—empty templates without notes do not satisfy the requirement.
-- Do not touch production code or simulator trees; this loop is docs/plan maintenance only.
-- Make sure both `docs/fix_plan.md` and `docs/fix_plan_archive.md` point at the new artifacts so future loops can trace the changes.
+- Keep `plans/active/PORTFOLIO-STATUS/rollups.json` in sync with the ledger; if you rename an ID, update both the JSON and every fix-plan heading atomically.
+- The script must remain idempotent and safe to rerun—do not embed timestamps in its outputs beyond the directory name the caller provides.
+- Each new fix-plan subsection should cite the relevant spec doc (see the roll-up plan table) and clearly list the plan directories covered; avoid vague text like “covers DB-AT items.”
+- Respect FINDING TESTING-003: whenever you mention a selector or test module, ensure the referenced pytest node actually collects (rerun `pytest --collect-only` locally if unsure) and link to the latest artifact under the member plan.
+- Tests for the script should not mutate the real `plans/active/` tree—use temporary directories and clean up after the run.
 
 ## If Blocked
-- If any directory move fails (permissions, unexpected files), log the exact error in `archival_notes.md` and keep the directory unchanged; notify Galph before retrying.
-- If a template copy overwrites valuable content, stop immediately, restore from `git`/backup, and record the incident in `stub_status.md`.
+- If `plan_inventory.py` cannot parse `docs/fix_plan.md` after your edits, capture the stack trace in `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T210000Z/plan_inventory_fail.log`, leave the doc intact, and note the issue in `notes.md` so we can triage before the next loop.
+- If adding roll-up sections would cause merge conflicts with concurrent ledger edits, stop, stash your changes in the artifact directory (e.g., `draft_rollup_sections.md`), and ping Galph—do not overwrite other initiatives’ Attempts History.
 
 ## Findings Applied
-No relevant findings in the knowledge base.
+- **TESTING-003** — Selector entries in docs/tests must stay synchronized with real pytest collection; when adding DB-AT roll-up content ensure each selector reference points to an exercised test with a fresh artifact.
+- **MANIFEST-001** — Automation artifacts (inventory/roll-up reports) must reference on-disk files; the new script output and roll-up config should error when member plan directories are missing so manifests never point to stale paths.
 
 ## Pointers
-- `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T150000Z/classification.md` — bucketed plan listing referenced above.
-- `docs/fix_plan.md:320` — Plan Directory Inventory appendix that must reflect archive/stub work after edits.
+- `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T183000Z/ledger_rollup_plan.md` — table detailing each roll-up’s members, spec references, and script/test requirements.
+- `plans/active/PORTFOLIO-STATUS/implementation.md:34-55` — updated Phase B description calling for the roll-up automation.
+- `docs/fix_plan.md:20-120` — Tier 1 roadmap entries that now need full subsections plus appendix updates once the roll-up sections exist.
 
-## Next Up
-1. After this remediation, continue Phase B by archiving or reviving any remaining stale directories (e.g., ORCH-* if they remain inactive).  
-2. Begin wiring the new Tier 1 roll-up entries into concrete fix-plan rows with status metadata once the plan stubs exist.
+## Next Up (optional)
+1. After the roll-up sections land, start Phase C by embedding the new automation guard (plan inventory rerun instructions) directly into `docs/fix_plan.md` Working Agreements.  
+2. Once the ledger is synchronized, revisit ARCH-SIM-CONSTRUCTION-001 to unblock ARCH-REFACTOR-001 Phase D.3 using the refreshed acceptance-suite metadata.

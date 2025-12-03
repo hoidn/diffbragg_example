@@ -1,43 +1,45 @@
-Summary: Collect comparable HKL coverage statistics from Stage A and simulate_forward_once so we know whether the missing structure factors are a Stage A issue or a data/simulator mismatch.
+Summary: Extend Stage A warm-cache helpers and the HKL comparison probe so we capture per-panel HKL stats from both Stage A and simulate_forward_once, then document the evidence so the HKL mismatch can hand off cleanly to the next initiative.
 Mode: none
 InitiativeType: diagnostics
 Focus: DIAG-NANOBRAGG-OVERSAMPLE-001 — nanobrag_torch Oversample Parameter Investigation
 Branch: integration
-Mapped tests: pytest -k test_experiment_parity
-Artifacts: plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-09T103000Z/
+Mapped tests: KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 DBEX_SMOKE_DETECTOR_SIZE=small pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion --smoke-detector-size=small
+Artifacts: plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-09T153000Z/
 
 Do Now:
-- Implement: dbex/nanobrag_bridge.py::simulate_forward_once — add an optional `debug_config` dict parameter, forward it to `create_unified_simulator`, and when `collect_hkl_stats` is set capture each simulator’s `hkl_stats` (min/max h,k,l, in/out counts) so the diagnostics dict reports HKL query coverage without altering the existing default behavior.
-- Implement: plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/bin/compare_hkl_stats.py — new Tier-2 script that loads the smoke fixture, runs all Stage A warm-cache simulators and a single `simulate_forward_once` pass with `collect_hkl_stats` enabled, and writes `hkl_stats_comparison.json` plus a short `summary.md` showing grid metadata vs. observed HKL ranges/hit rates for both paths. Update `trace_simulator_mismatch.py` to rely on the `Simulator.hkl_stats` property instead of poking `_hkl_stats_enabled` so the new instrumentation is the single source of truth.
-- Collect Evidence: `NANOBRAGG_DISABLE_COMPILE=1` run the comparison script (`--detector-size small`) and drop the resulting JSON + summary into the artifacts directory so we have concrete Stage A vs. mapping stats to cite in findings.
-- Update Findings/Plan: If both paths miss the HKL grid, add a DIAG-OVERSAMPLE-001 follow-up in docs/findings.md and note it in the plan Attempts History; if only Stage A is out of bounds, capture that delta instead so the next initiative can target Stage A context building.
-- Verify: `pytest -k test_experiment_parity` to ensure the optional debug plumbing did not break the forward helper.
+- Implement: dbex/refinement/stage_a_utils.py::_build_stage_a_context — add an optional `debug_config: Optional[Dict[str, Any]] = None` parameter (default None), pass it through to every `Simulator` instantiation (panel + ROI caches), and make sure the docstring/comment block notes HKL stats collection so production runs stay untouched unless the flag is set.
+- Implement: plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/bin/compare_hkl_stats.py — import `RefinementConfig`, `_build_stage_a_context`, and `build_structure_factor_grid`, reuse the mapping context inputs to build a Stage A warm-cache context with `debug_config={'collect_hkl_stats': True}`, run each cached simulator once to harvest `simulator.hkl_stats`, aggregate those stats (per-panel + totals) next to the existing `simulate_forward_once` section, and update both `hkl_stats_comparison.json` and `summary.md` so they report Stage A vs mapping side-by-side.
+- Document: plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/implementation.md (Phase F checklist + Attempts History), docs/fix_plan.md (DIAG-NANOBRAGG-OVERSAMPLE-001 entry), and docs/findings.md (DIAG-OVERSAMPLE-001 row) with the new Stage A vs mapping evidence and artifact path so the ledger + knowledge base match reality.
+- Collect Evidence: `NANOBRAGG_DISABLE_COMPILE=1 python plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/bin/compare_hkl_stats.py --detector-size small --out-dir plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-09T153000Z/` (capture stdout to compare_hkl_stats.log, keep JSON + summary in the artifacts directory).
+- Verify: `KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 DBEX_SMOKE_DETECTOR_SIZE=small pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion --smoke-detector-size=small` to prove the Stage A warm-cache changes remain inert outside diagnostics.
 
 How-To Map:
 1. `export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md`
-2. `NANOBRAGG_DISABLE_COMPILE=1 python plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/bin/compare_hkl_stats.py --detector-size small --out-dir plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-09T103000Z/`
-3. `KMP_DUPLICATE_LIB_OK=TRUE pytest -k test_experiment_parity -vv`
+2. `export ARTIFACTS=plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-09T153000Z`
+3. `NANOBRAGG_DISABLE_COMPILE=1 python plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/bin/compare_hkl_stats.py --detector-size small --out-dir $ARTIFACTS > $ARTIFACTS/compare_hkl_stats.log 2>&1`
+4. `KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 DBEX_SMOKE_DETECTOR_SIZE=small pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion --smoke-detector-size=small`
 
 Pitfalls To Avoid:
-- Keep HKL stats collection behind the `collect_hkl_stats` flag; the default simulator path must remain untouched for production runs.
-- Do not call or mutate private `_hkl_stats*` fields; use the new property so we don’t destabilize torch.compile caching.
-- Reuse the existing smoke fixture paths from `trace_simulator_mismatch.py` so both Stage A and mapping runs operate on identical inputs and calibration metadata.
-- The comparison script should respect `NANOBRAGG_DISABLE_COMPILE=1` to keep diagnostics deterministic; record any slowdowns in the summary rather than dropping the flag.
-- When editing docs/findings.md or the plan, cite the artifact path so future loops can trace the evidence quickly.
+- Keep `debug_config` defaulting to None so Stage A production runs never pay for HKL stats; only the diagnostics script should enable it.
+- When building the Stage A context inside the probe, reuse `RefinementConfig`/ROI-mode logic so cached simulators match what Stage A would actually construct (don’t hand-wave mask/ROI choices).
+- Do not mutate `MappingStageAContext.inputs` in-place while harvesting stats; clone tensors or work on copies if you need to move them.
+- Ensure the comparison script writes JSON + summary to the provided artifacts directory (no temp dirs) and that both sections clearly cite which path (Stage A vs simulate_forward_once) produced the stats.
+- Stage A smoke selectors run long; pin `DBEX_SMOKE_DETECTOR_SIZE=small` and `NANOBRAGG_DISABLE_COMPILE=1` so the run matches the TESTING_GUIDE recipe and doesn’t silently flip to CUDA.
 
 If Blocked:
-- If either path crashes before emitting HKL stats, capture the partial log + stack trace in `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-09T103000Z/` and update `docs/fix_plan.md` Attempts History with the failure signature so we know whether to escalate to an environment issue or open ARCH-SIM-HKL-BOUNDS-001.
+- If `_build_stage_a_context` fails to instantiate with the new `debug_config`, capture the stack trace plus the inputs you passed, drop them under `$ARTIFACTS/` (e.g., `stage_a_context_failure.log`), and add a note to docs/fix_plan.md Attempts History so we know whether it’s a config or simulator regression.
+- If the comparison script still only emits simulate_forward_once stats, stop after the first failure, save the partial JSON/logs, and mark DIAG-NANOBRAGG-OVERSAMPLE-001 blocked_pending_script_fix in docs/fix_plan.md so we don’t keep planning work without evidence.
 
 Findings Applied (Mandatory):
-- DIAG-OVERSAMPLE-001 — HKL coverage instrumentation already proves 0/9.4M hits; this loop extends that evidence instead of reworking oversample plumbing again.
-- DIAG-UNIT-001 — remains retracted, so avoid attributing the mismatch to unit conversions and focus on HKL coverage deltas.
+- docs/findings.md:51 (DIAG-OVERSAMPLE-001 HKL coverage mismatch) — this loop extends the evidence with Stage A warm-cache stats.
+- docs/findings.md:106 (DIAG-OVERSAMPLE-001 oversample debug history) — keep the Environment Freeze context in mind when touching Simulator instrumentation.
 
 Pointers:
-- plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/implementation.md (Phase F checklist)
-- dbex/nanobrag_bridge.py:1230 (simulate_forward_once helper to extend)
-- plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/bin/trace_simulator_mismatch.py (reuse fixture-loading helpers)
-- docs/findings.md:49-50 (DIAG-OVERSAMPLE-001 and DIAG-UNIT-001 entries to update once results land)
+- dbex/refinement/stage_a_utils.py:180 (warm-cache helper that now needs the optional debug_config hook)
+- plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/bin/compare_hkl_stats.py (Phase F probe to extend)
+- plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/implementation.md (Phase F checklist + context)
+- docs/fix_plan.md:166-195 (DIAG-NANOBRAGG-OVERSAMPLE-001 Attempts History)
+- docs/findings.md:51 (current HKL coverage finding that needs the new artifact reference)
 
-Next Up:
-1. If both Stage A and simulate_forward_once miss the grid, open ARCH-SIM-HKL-BOUNDS-001 to realign HKL sources.
-2. If only Stage A drifts, inspect `_build_stage_a_context` vs. mapping configs to isolate the orientation or panel slicing difference.
+Next Up (optional):
+1. Once Stage A vs mapping stats are captured, open ARCH-SIM-HKL-BOUNDS-001 to investigate the reciprocal-space transform / HKL grid alignment problem.

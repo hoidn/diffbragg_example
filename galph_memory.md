@@ -1906,3 +1906,23 @@ Action State: ready_for_implementation
 - ready_for_implementation — Implement Phase E instrumentation (nanobrag_torch + helper + script), re-run the diagnostic probe to produce the new HKL stats artifacts, and update the parity guard.
 
 **Action State**: ready_for_implementation
+
+## Loop 2025-12-09T130000Z
+
+**Focus**: DIAG-NANOBRAGG-OVERSAMPLE-001 — nanobrag_torch Oversample Parameter Investigation (Phase F Stage-A vs mapping evidence)
+**State**: ready_for_implementation
+**Dwell**: 1 (two consecutive evidence/planning loops; next loop must execute the HKL comparison Do Now)
+**Action Type**: planning
+**Initiative Type**: diagnostics
+
+**Key Observations**:
+1. Phase F probe only captured `simulate_forward_once` HKL stats; despite docs claiming Stage A also misses the grid, we have no artifacts proving it. Need to wire optional `debug_config` through `_build_stage_a_context` so Stage A warm caches can emit HKL stats.
+2. `compare_hkl_stats.py` already emits mapping stats; extend it to build a Stage A context via `RefinementConfig` + `_build_stage_a_context`, run each cached simulator with `collect_hkl_stats`, and aggregate results alongside the existing mapping section.
+3. Ledger/knowledge base need the new artifact path before we can open ARCH-SIM-HKL-BOUNDS-001, so this loop hands Ralph a Do Now for the Stage A instrumentation + documentation updates and keeps the artifacts under `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-09T153000Z/`.
+
+**Artifacts Path**: `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-09T153000Z/`
+
+**Next Actions**:
+- ready_for_implementation — Implement the debug_config hook in `_build_stage_a_context`, extend `compare_hkl_stats.py` to collect Stage A stats, run the probe + Stage A smoke test, and update docs/fix_plan/findings with the new evidence.
+
+**Action State**: ready_for_implementation

@@ -49,11 +49,17 @@
      - **Regeneration 2025-12-03T120000Z:** Roll-up sections verified in place; inventory regeneration completed with rollup_report.md validation. Artifacts archived at `plans/active/PORTFOLIO-STATUS/reports/2025-12-03T120000Z/`.
   3. Updating the Plan Directory Inventory appendix so it references both the bucket classification log and the roll-up config required by the automation guard.
      - **Status 2025-12-05T210000Z:** ✅ COMPLETE — Appendix updated (doc lines 530-598 in archived snapshot; current lines reflect 2025-12-03T120000Z timestamp update); automation guard command includes --rollup-config flag.
+     - **Verification 2025-12-05T235500Z:** ✅ COMPLETE — Regenerated inventory artifacts confirming all 13 roll-ups show "✓ Section exists" in rollup_report.md (100% coverage); updated appendix with current bucket counts (55 total, 22 tracked, 32 active_missing, 1 missing_plan) and artifact pointers to 2025-12-05T235500Z reports directory.
 
 ### Phase C — Ledger / Doc Updates & Regression Guard
-- **C1** Add a “Plan Directory Inventory” appendix to `docs/fix_plan.md` summarizing the latest report and linking to artifacts; include open remediation items.
+- **C1** Add a "Plan Directory Inventory" appendix to `docs/fix_plan.md` summarizing the latest report and linking to artifacts; include open remediation items.
 - **C2** Update `docs/fix_plan_archive.md` if any initiatives were formally archived during this effort.
 - **C3** Wire the new inventory script into `plans/active/PORTFOLIO-STATUS/bin/README.md` (or equivalent) with rerun instructions; note this guardrail in `docs/fix_plan.md` Working Agreements.
+
+**Phase C Focus (2025-12-05T235500Z):** With Phase B3 complete (roll-up automation + ledger sections + verification artifacts delivered), Phase C work remains:
+- **C.1 Automation Guard:** Update `docs/fix_plan.md` Working Agreements section to explicitly reference `--rollup-config` flag in the rerun command, ensuring future loops don't omit roll-up validation.
+- **C.2 Archive Hygiene:** Review plan-archive structure and ensure archived initiatives (ARCH-REFRACTOR-001, etc.) have complete cross-references in both `docs/fix_plan_archive.md` and their stub locations.
+- **C.3 Exit Prep:** Once C.1 and C.2 complete, mark PORTFOLIO-STATUS ready for closure or handoff to a Phase D guardian task (if roll-up member-plan status rows need periodic refresh).
 
 ## Abort / Escalation Criteria
 - If more than 5 plan directories lack implementation plans or contain partial data, pause after Phase A and escalate via `docs/fix_plan.md` (open a spec-change or tooling initiative to repair the planning pipeline).  

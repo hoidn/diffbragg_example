@@ -1,0 +1,70 @@
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+[Stage A Baseline Probe] Starting probe (device=cpu)
+[Stage A Baseline Probe] Output will be saved to: plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-13T235500Z/stage_a_baseline_probe.json
+[Stage A Baseline Probe] Running RefinementEngine with Stage A...
+[ARCH-SIM-CONSTRUCTION-001 Phase C.7] Using recorded scale_factor from Stage A telemetry:
+  scale_factor (recorded): 2.450086e+10
+  log_scale_effective (recorded): 23.921974
+  log_scale_baseline: 23.923623
+  log_scale_delta_clamped (recorded): -0.0016493626171723008
+  sqrt_spot_scale: 557230532.6778347
+  spot_scale_override: 3.105058665484234e+17
+  bragg_panel[0] mean (raw sim output): 1.393365e-09
+  bragg_panel[0] max: 7.604101e-05
+  bragg_scaled[0] mean (after scale_factor): 3.413865e+01
+  bragg_full mean (final output): 3.413864e+01
+  bragg_full max: 1.863070e+06
+[END DEBUG]
+[ARCH-SIM-CONSTRUCTION-001 MASK COVERAGE] Wrote coverage stats to plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-10T090000Z/mask_coverage.json
+[ARCH-SIM-CONSTRUCTION-001 N_CELLS] N_cells=(36, 28, 26), status=applied (apply_calibration_n_cells=True)
+[ARCH-SIM-CONSTRUCTION-001 BASELINE STATS] Wrote baseline stats to plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-13T235500Z/baseline_stats.json
+  Reconstructed bragg mean (masked): 1.609229e+01
+  Telemetry model mean (masked): 1.978096e+00
+  Ratio (bragg/telem): 8.135241
+  Chi²/pixel: 1.706481e+06
+[Stage A Baseline Probe] Stage A complete, extracting telemetry...
+[Stage A Baseline Probe] Reconstructing bragg_before from initial telemetry...
+[ARCH-SIM-CONSTRUCTION-001 Phase C.8] Using initial (baseline) scale_factor from Stage A telemetry:
+  log_scale_baseline (initial): 23.923623
+  scale_factor (initial): 2.454132e+10
+  sqrt_spot_scale: 557230532.6778347
+  spot_scale_override: 3.105058665484234e+17
+  bragg_panel[0] mean (raw sim output): 2.552404e-09
+  bragg_panel[0] max: 9.970232e-05
+  bragg_scaled[0] mean (after scale_factor): 6.263935e+01
+  bragg_full mean (final output): 6.263934e+01
+  bragg_full max: 2.446826e+06
+[END DEBUG]
+[ARCH-SIM-CONSTRUCTION-001 MASK COVERAGE] Wrote coverage stats to plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-10T090000Z/mask_coverage.json
+[ARCH-SIM-CONSTRUCTION-001 N_CELLS] N_cells=(36, 28, 26), status=applied (apply_calibration_n_cells=True)
+[ARCH-SIM-CONSTRUCTION-001 BASELINE STATS] Wrote baseline stats to plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-13T235500Z/baseline_stats.json
+  Reconstructed bragg mean (masked): 4.306224e+00
+  Telemetry model mean (masked): 1.978096e+00
+  Ratio (bragg/telem): 2.176955
+  Chi²/pixel: 1.850611e+06
+[Stage A Baseline Probe] Results written to plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-13T235500Z/stage_a_baseline_probe.json
+
+================================================================================
+Stage A Baseline Telemetry vs Reconstruction Comparison
+================================================================================
+Metric                                             Telemetry       Reconstructed  
+--------------------------------------------------------------------------------
+target_mean_masked                                 8.711842e+01    8.711842e+01   
+model_mean_masked                                  1.978096e+00    4.306224e+00   
+log_scale_baseline_value                           nan             N/A            
+log_scale_delta_clamped                            -0.001649       N/A            
+log_scale_effective_initial                        23.923623       N/A            
+scale_factor                                       2.450086e+10    N/A            
+chi²/pixel (initial)                               N/A             1.850611e+06   
+--------------------------------------------------------------------------------
+DB-AT-028 threshold (chi²/pixel ≤ 1e2)             Threshold: 1e2                
+DB-AT-028 status                                   FAIL                          
+================================================================================
+
+Divergence Analysis:
+--------------------------------------------------------------------------------
+  target_mean_masked delta: 0.000000e+00
+  model_mean_masked delta: -2.328129e+00
+  model_mean_masked ratio: 0.459357
+================================================================================

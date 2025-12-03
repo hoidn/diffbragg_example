@@ -1,5 +1,5 @@
 ### Turn Summary
-Planned masked-mean instrumentation for `build_final_bragg_from_stage_a_telemetry` plus the Stage A baseline probe so we can quantify the telemetry vs reconstruction gap before touching any physics.
-Recorded the new plan in docs/fix_plan.md and the implementation plan, rewrote input.md, and reserved plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-13T235500Z/ for the next loop’s artifacts.
-Next: implement the diagnostics, rerun the baseline probe, and collect DB-AT-028/029 evidence (including the new baseline_stats.json) under the reserved report directory.
-Artifacts: plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-13T235500Z/ (summary.md)
+Shipped masked-intensity telemetry instrumentation so reconstruction helper and probe emit baseline_stats.json with reconstructed-vs-telemetry ratios at every invocation; probe now correctly reads top-level telemetry fields instead of scraping dicts.
+DB-AT-028/029 still fail (chi²≈2.1e5, ROI≈-0.05) but instrumentation reveals reconstruction produces outputs 9-30× smaller than telemetry model_mean_masked despite using recorded scale_factor.
+Next: supervisor should analyze why reconstruction helper diverges from telemetry scale or escalate as suspected spec/architecture issue.
+Artifacts: plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-13T235500Z/ (baseline_stats.json, stage_a_baseline_probe.json, pytest logs)

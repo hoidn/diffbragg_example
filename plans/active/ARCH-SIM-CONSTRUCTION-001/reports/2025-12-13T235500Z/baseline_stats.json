@@ -1,0 +1,52 @@
+[
+  {
+    "timestamp": "2025-12-03T23:28:11.969430Z",
+    "param_state": "final",
+    "reconstructed_bragg": {
+      "mean_masked": 16.09228515625,
+      "mean_unmasked": 34.13863754272461
+    },
+    "target": {
+      "mean_masked": 87.11841583251953,
+      "mean_unmasked": 0.3439619839191437
+    },
+    "telemetry_values": {
+      "target_mean_masked": 87.11841583251953,
+      "model_mean_masked": 1.9780956506729126
+    },
+    "ratios": {
+      "bragg_vs_telem_model": 8.135241160242021,
+      "bragg_vs_target": 0.1847173757978629
+    },
+    "chi_squared": {
+      "per_pixel": 1706481.406763285,
+      "n_masked_pixels": 4140
+    },
+    "scale_factor_used": 24500862976.0
+  },
+  {
+    "timestamp": "2025-12-03T23:28:13.457617Z",
+    "param_state": "initial",
+    "reconstructed_bragg": {
+      "mean_masked": 4.306224346160889,
+      "mean_unmasked": 62.639339447021484
+    },
+    "target": {
+      "mean_masked": 87.11841583251953,
+      "mean_unmasked": 0.3439619839191437
+    },
+    "telemetry_values": {
+      "target_mean_masked": 87.11841583251953,
+      "model_mean_masked": 1.9780956506729126
+    },
+    "ratios": {
+      "bragg_vs_telem_model": 2.176954559652355,
+      "bragg_vs_target": 0.04942955292528934
+    },
+    "chi_squared": {
+      "per_pixel": 1850610.6434782608,
+      "n_masked_pixels": 4140
+    },
+    "scale_factor_used": 24541319168.0
+  }
+]

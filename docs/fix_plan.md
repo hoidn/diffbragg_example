@@ -42,6 +42,7 @@
 - [RUNTIME-VEC-001] (Runtime vectorization checklist enforcement) — **pending**. Adds ledger coverage for performance guardrails already planned under `plans/active/RUNTIME-VEC-001/`.
 - [REPORT-NANOBRAG-STATUS-001] (Status reporting scripts) — **pending**. Keeps the reporting automation plan on the roadmap.
 - [NANOBRAG-GOLDEN-001] (Golden dataset capture + maintenance) — **pending**. Ledger entry will document refresh cadence and outstanding action items.
+- [FINDINGS-LEDGER-002] (Findings ledger upkeep and knowledge base maintenance) — **pending**. Scope: maintain `docs/findings.md` as the authoritative knowledge base with complete `path:line` pointers, cross-reference findings with fix-plan items and specs, and establish periodic review/consolidation cadence. Implementation stub created 2025-12-06 during PORTFOLIO-STATUS Phase C to close missing-plan gap; full Goals/Exit Criteria pending supervisor scoping. See `plans/active/FINDINGS-LEDGER-002/implementation.md`.
 
 ### Tier 2: Architectural Maturity
 **Goal:** Break the monolithic `run_nanobrag_refinement` into a maintainable Protocol Engine.
@@ -486,6 +487,7 @@ Detailed engineering logs now live in `docs/fix_plan_archive.md` (append-only sn
   * 2025-12-03T120000Z (Phase B3 complete) — Added 13 comprehensive roll-up sections to `docs/fix_plan.md` (lines 203-416) following `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T183000Z/ledger_rollup_plan.md` blueprint. Each section includes: dependencies, initiative type, exit criteria tied to spec clauses (docs/spec-db-conformance.md, docs/spec-db-workflow.md, docs/spec-db-core.md, docs/spec-db-interfaces.md, docs/spec-db-vis.md, docs/spec-db-runtime.md), member plan directories, spec references, and Attempts History linking to classification artifact (2025-12-05T150000Z/classification.md). Roll-ups added: DB-AT-SUITE-CARE-001 (7 member plans), MAP-SCALE-SYNC-001 (5 member plans), PHYSICS-LOSS-001 (1 member plan), TORCH-GEOMETRY-SYNC-001 (4 member plans), TORCH-REFINE-CLEANUP-001 (5 member plans), TORCH-CLI-BRIDGE-ROLLUP-001 (3 member plans), FORWARD-EQUIV-COVERAGE-001 (3 member plans), TOOLING-VIS-001, DOCS-ROADMAP-001, RUNTIME-VEC-001, REPORT-NANOBRAG-STATUS-001, NANOBRAG-GOLDEN-001, ARCH-SPLIT-001. Updated `plans/active/PORTFOLIO-STATUS/implementation.md` Phase B3 status to mark all subtasks COMPLETE (2025-12-03T120000Z). Ran `plan_inventory.py --rollup-config plans/active/PORTFOLIO-STATUS/rollups.json --out-dir plans/active/PORTFOLIO-STATUS/reports/2025-12-03T120000Z/` successfully; validation: `rollup_report.md` shows "✓ Section exists" for all 13 roll-ups (100% coverage). Metrics: +214 lines (docs/fix_plan.md roll-up sections), 2 files touched (fix_plan.md, implementation.md), 3 output files generated (inventory.json, inventory_missing.md, rollup_report.md). Artifacts: `plans/active/PORTFOLIO-STATUS/reports/2025-12-03T120000Z/` (inventory outputs, notes.md). Commit: 9de5ce58. Next: Phase C — update Plan Directory Inventory appendix timestamp reference and automation guard callout, then mark initiative complete pending final supervisor sign-off.
   * 2025-12-05T235500Z (Phase B3 verification + appendix refresh) — Regenerated inventory artifacts with `plan_inventory.py --rollup-config` to verify roll-up automation post-2025-12-05T210000Z script/test delivery. Script run confirmed current counts: 55 total plans (22 tracked ≈40%, 32 active_missing ≈58%, 1 missing_plan ≈2%, untracked total 33). All 13 roll-ups validated with "✓ Section exists" in rollup_report.md (100% coverage). Updated `docs/fix_plan.md`: (1) Tier 0 PORTFOLIO-STATUS entry now reflects Phase B3 completion (2025-12-05T210000Z) with artifact pointer to 2025-12-05T235500Z verification run, Phase C focus (automation guard + archive hygiene) spelled out. (2) Plan Directory Inventory appendix refreshed: Latest Report timestamp → 2025-12-05T235500Z, Artifacts path → new reports directory, Summary bullets updated with current bucket breakdown (active_missing: 32, missing_plan: 1), Bucket Classification section updated to match inventory.json counts, Roll-up Report reference → new rollup_report.md path. (3) `plans/active/PORTFOLIO-STATUS/implementation.md` Phase B3 notes updated to reference 2025-12-05T210000Z delivery + 2025-12-05T235500Z verification, Phase C paragraph added describing remaining guardrail work (Working Agreements update + archive hygiene). Mode: Docs (no code changes). Metrics: 3 files touched (docs/fix_plan.md, implementation.md, this Attempts History entry), appendix sections updated (Summary, Bucket Classification, Roll-up Report reference, Artifacts path, Latest Report timestamp). Artifacts: `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T235500Z/` (inventory.json, inventory_missing.md, rollup_report.md, pytest_plan_inventory.log, summary.md). Next: Phase C.1 — embed automation guard command in Working Agreements with explicit --rollup-config flag reminder; C.2 — plan-archive hygiene check.
   * 2025-12-06T094500Z (Phase C.1/C.2 progress) — Embedded the automation guard command (with `--rollup-config`) directly in the Working Agreements + appendix, enhanced `plan_inventory.py` to auto-load the canonical rollups.json and fail fast when the file is missing/invalid, refreshed unit tests (`plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py`), and verified archive hygiene by checking the `ARCH-REFRACTOR-001` stub plus `docs/fix_plan_archive.md` entry. Mode: Docs + tooling (non-production). Metrics: 4 files touched (docs/fix_plan.md, docs/fix_plan_archive.md, plans/active/PORTFOLIO-STATUS/bin/plan_inventory.py, plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py), 1 pytest suite run (guard tests). Artifacts: `plans/active/PORTFOLIO-STATUS/reports/2025-12-06T094500Z/` (pytest_plan_inventory.log, summary.md). Next: Phase C.3 — exit prep once guard + archive hygiene remain green after Ralph reruns the inventory script.
+  * 2025-12-06T120000Z (Phase C.3 stub creation + inventory rerun) — Created `plans/active/FINDINGS-LEDGER-002/implementation.md` stub (knowledge-base ledger upkeep initiative) per input.md directive to close missing-plan gap. Stub includes minimal template structure with Goals/Exit Criteria marked pending supervisor scoping, cross-references PORTFOLIO-STATUS Phase C, and documents rationale (FINDINGS-LEDGER-002 directory existed but lacked implementation.md). Updated `docs/fix_plan.md` Tier 1 with new FINDINGS-LEDGER-002 bullet (after NANOBRAG-GOLDEN-001) describing scope and referencing stub creation. Updated Plan Directory Inventory appendix: Latest Report timestamp → 2025-12-06T120000Z, Total plan directories → 55 (was 56 after stub creation), active_missing → 32 (FINDINGS-LEDGER-002 moved from missing_plan bucket), missing_plan → 1 (ARCH-REFRACTOR-001 only). Bucket Classification section updated to reflect FINDINGS-LEDGER-002 bucket migration. Reran `plan_inventory.py --rollup-config` with REPORT_TS=2025-12-06T120000Z; inventory.json shows expected counts (55 total, 22 tracked, 32 active_missing, 1 missing_plan), rollup_report.md confirms all 13 roll-ups still show "✓ Section exists" (100% coverage). Ran pytest test_plan_inventory.py (guard passed). Mode: Docs (no production code changes). Metrics: 1 file created (FINDINGS-LEDGER-002/implementation.md, 120 lines), 1 file updated (docs/fix_plan.md: Tier 1 entry, appendix counts/timestamps, Attempts History), 3 inventory artifacts generated (inventory.json, inventory_missing.md, rollup_report.md). Artifacts: `plans/active/PORTFOLIO-STATUS/reports/2025-12-06T120000Z/` (inventory.json, inventory_missing.md, rollup_report.md, pytest_plan_inventory.log, summary.md). Next: Phase C exit criteria check — confirm missing_plan bucket = 1 and all roll-ups validated, then mark initiative complete pending supervisor sign-off.
 
 ### [PERF-WARM-SIM-001] Attempts History
   * 2025-12-02T173000Z — Phase F.1 debug hook implemented in `_retarget_stage_a_detectors`; small-detector (panel-mode) smoketest PASSED with 18 retarget calls capturing panel updates only, full-detector (ROI-mode) smoketest FAILED (expected) but produced 17 retarget calls with ~92 ROI entries per call showing simulator ID changes. Debug artifacts captured under `DBEX_STAGE_C_CACHE_DEBUG_PATH` for offline analysis. Next: Supervisor analyzes cache-debug JSONs to identify ROI simulator staleness root cause. Artifacts: `plans/active/PERF-WARM-SIM-001/reports/2025-12-02T173000Z/`.
@@ -551,17 +553,17 @@ Detailed engineering logs now live in `docs/fix_plan_archive.md` (append-only sn
 
 ## Plan Directory Inventory
 
-**Latest Report:** 2025-12-06T094500Z (Phase C guardrail verification)
-**Artifacts:** `plans/active/PORTFOLIO-STATUS/reports/2025-12-06T094500Z/`
+**Latest Report:** 2025-12-06T120000Z (Phase C stub creation + revalidation)
+**Artifacts:** `plans/active/PORTFOLIO-STATUS/reports/2025-12-06T120000Z/`
 **Script:** `plans/active/PORTFOLIO-STATUS/bin/plan_inventory.py`
 **Roll-up Config:** `plans/active/PORTFOLIO-STATUS/rollups.json`
 
-### Summary (Latest Report: 2025-12-06T094500Z)
+### Summary (Latest Report: 2025-12-06T120000Z)
 - **Total plan directories:** 56
-- **Tracked in this ledger:** 22 (≈39%)
-- **Untracked (missing fix_plan.md coverage):** 34 (≈61%)
+- **Tracked in this ledger:** 23 (≈41%) — FINDINGS-LEDGER-002 now tracked after stub creation
+- **Untracked (missing fix_plan.md coverage):** 33 (≈59%)
   - **active_missing:** 32 (≈57%) — active initiatives with implementation plans
-  - **missing_plan:** 2 (≈4%) — ARCH-REFRACTOR-001 stub (archive duplicate) and FINDINGS-LEDGER-002 (needs implementation.md)
+  - **missing_plan:** 1 (≈2%) — ARCH-REFRACTOR-001 stub only (archive duplicate)
 - **Roll-ups configured:** 13 (DB-AT-SUITE-CARE-001, MAP-SCALE-SYNC-001, PHYSICS-LOSS-001, TORCH-GEOMETRY-SYNC-001, TORCH-REFINE-CLEANUP-001, TORCH-CLI-BRIDGE-ROLLUP-001, FORWARD-EQUIV-COVERAGE-001, TOOLING-VIS-001, DOCS-ROADMAP-001, RUNTIME-VEC-001, REPORT-NANOBRAG-STATUS-001, NANOBRAG-GOLDEN-001, ARCH-SPLIT-001)
 - **Roll-up Validation:** All 13 roll-up sections show "✓ Section exists" in rollup_report.md (100% coverage)
 
@@ -569,7 +571,7 @@ Detailed engineering logs now live in `docs/fix_plan_archive.md` (append-only sn
 
 **Phase B3 Deliverable:** Added roll-up automation and ledger sections for 13 grouped initiatives per `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T183000Z/ledger_rollup_plan.md`. Each roll-up groups related plan directories and provides first-class ledger tracking.
 
-**Roll-up Report:** See `plans/active/PORTFOLIO-STATUS/reports/2025-12-06T094500Z/rollup_report.md` for member plan lists, last-report spans, and fix-plan coverage status for all 13 roll-ups.
+**Roll-up Report:** See `plans/active/PORTFOLIO-STATUS/reports/2025-12-06T120000Z/rollup_report.md` for member plan lists, last-report spans, and fix-plan coverage status for all 13 roll-ups.
 
 **Tier 1 Roll-up Sections:**
 - **[DB-AT-SUITE-CARE-001]** — Acceptance test suite maintenance (7 member plans: DB-AT-002/010/020/021/022/023/024)
@@ -590,11 +592,11 @@ Detailed engineering logs now live in `docs/fix_plan_archive.md` (append-only sn
 
 ### Bucket Classification
 
-Per `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T150000Z/classification.md`:
+Per `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T150000Z/classification.md`, updated 2025-12-06T120000Z after FINDINGS-LEDGER-002 stub creation:
 
-**active_missing (32 plans):** Active initiatives with implementation plans but lacking fix-plan ledger entries. Now covered by the 13 roll-up sections in Tier 1.
+**active_missing (32 plans):** Active initiatives with implementation plans but lacking fix-plan ledger entries. Now covered by the 13 roll-up sections in Tier 1. FINDINGS-LEDGER-002 moved from missing_plan to this bucket after stub creation (2025-12-06).
 
-**missing_plan (1 plan):** ARCH-REFRACTOR-001 (typo duplicate of ARCH-REFACTOR-001, classified as archive duplicate in Phase B2)
+**missing_plan (1 plan):** ARCH-REFRACTOR-001 only (typo duplicate of ARCH-REFACTOR-001, classified as archive duplicate in Phase B2)
 
 ### Automation Guard (Updated Phase B3)
 

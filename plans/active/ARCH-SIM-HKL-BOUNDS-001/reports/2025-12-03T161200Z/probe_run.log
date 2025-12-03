@@ -1,0 +1,61 @@
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+[PROBE] ARCH-SIM-HKL-BOUNDS-001 Phase A.1 — Reciprocal Lattice Alignment
+[PROBE] Detector size: small
+[PROBE] Device: cpu
+[PROBE] Output directory: plans/active/ARCH-SIM-HKL-BOUNDS-001/reports/2025-12-03T161200Z
+
+[PROBE] Loading DataLoad from /home/ollie/Documents/diffbragg_example_2/diffbragg_example/sp.proc/refGeom_small/refGeom_small.expt
+[PROBE] Building mapping context...
+WARNING: out of range for three point interpolation
+WARNING: further warnings will not be printed!
+[PROBE] Comparing dxtbx A* vs nanobrag_torch reciprocal lattice...
+[PROBE] Writing metrics to plans/active/ARCH-SIM-HKL-BOUNDS-001/reports/2025-12-03T161200Z/hkl_alignment_metrics.json
+[PROBE] Writing summary to plans/active/ARCH-SIM-HKL-BOUNDS-001/reports/2025-12-03T161200Z/hkl_alignment_summary.txt
+
+# HKL Reciprocal Lattice Alignment Probe (ARCH-SIM-HKL-BOUNDS-001 Phase A.1)
+
+Dataset: refGeom small-detector smoke fixture
+N_cells applied: False
+
+## Reciprocal Lattice Matrix Comparison (A* columns = a*, b*, c*)
+
+dxtbx A* (authoritative):
+  [ -0.02757067,  -0.00416187,   0.02523375]
+  [ -0.02869191,   0.02966329,  -0.00187283]
+  [ -0.01245197,  -0.01563749,  -0.01747896]
+
+nanobrag_torch A* (zero-point):
+  [ -0.02757068,  -0.00416187,   0.02523375]
+  [ -0.02869191,   0.02966329,  -0.00187283]
+  [ -0.01245197,  -0.01563749,  -0.01747896]
+
+ΔA* = A*_torch - A*_dxtbx:
+  [-4.43771827e-09, 6.51487569e-10, 4.16399912e-09]
+  [-3.24558631e-09, 1.56353559e-09, 3.68234782e-10]
+  [-2.00790373e-09, -1.20962628e-09, -1.97448519e-09]
+
+## Summary Statistics (Å⁻¹)
+max|ΔA*|:  4.437718e-09
+mean|ΔA*|: 2.180286e-09
+
+Per-column max|Δ| (a*, b*, c*):
+  a*: 4.437718e-09
+  b*: 1.563536e-09
+  c*: 4.163999e-09
+
+Per-column mean|Δ| (a*, b*, c*):
+  a*: 3.230403e-09
+  b*: 1.141550e-09
+  c*: 2.168906e-09
+
+## Acceptance Criterion (docs/spec-db-core.md:72)
+Zero-point tolerance: max|ΔA*| ≤ 1e-6 Å⁻¹
+Status: PASS
+
+## Interpretation
+Reciprocal lattice alignment is within spec tolerance. If HKL coverage issues persist,
+the root cause lies downstream (HKL grid indexing, structure-factor grid bounds, or
+mapping coordinate transforms).
+
+[PROBE] PASS: max|ΔA*| = 4.437718e-09 ≤ 1e-6 Å⁻¹

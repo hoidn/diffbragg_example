@@ -11,6 +11,12 @@ Action State: escalated_to_supervisor
 - Stage A helper stack (StageAContext, quaternion utils, `_build_stage_a_*`) still lives inside `dbex.nanobrag_refinement`, forcing StageA/StageB wrappers to import the monolith and blocking full engine delegation. Tonight's plan splits those helpers into a refinement-owned module, reuses it from the inline path, and keeps telemetry/perf counters intact per PHYSICS-LOSS-001 + PERF-WARM-001.
 - Do Now handed to Ralph: relocate the helpers/dataclasses + quaternion math into `dbex/refinement/` (no new circular imports), update all consumers (StageA, inline LBFGS, tools), then rerun the Stage A expansion + engine telemetry selectors plus the Stage B shell smoke to ensure parameter reconstruction and warm caches survive.
 Action State: ready_for_implementation
+
+2025-12-13T190000Z focus=ARCH-SIM-CONSTRUCTION-001 state=planning dwell=1 action=planning artifacts=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-13T190000Z/ next_action=baseline_probe_ready_for_implementation
+- Problems ledger guard serviced again (DB-AT-028/029 entry) by scheduling Phase C.9: a baseline probe script + fresh selector captures so we can compare Stage A telemetry against reconstructed `bragg_before` before touching prod code. Added C.9 checklist to the implementation plan, noted the new report dir, and updated docs/fix_plan.md Attempts History with today’s planning notes.
+- Authored input.md directing Ralph to implement `bin/compare_stage_a_baseline.py`, rerun DB-AT-028/029 with artifacts rooted at 2025-12-13T190000Z, and persist probe + pytest logs so we can see exactly where telemetry and reconstruction diverge.
+- No production edits issued this loop; staying within Environment Freeze by restricting work to plan/bin artifacts plus pytest evidence. Next step once probe lands: decide whether Stage A baseline math or the DB-AT harness needs correction (or escalate to spec_change).
+Action State: planning
 ## Loop 2025-12-08T100000Z
 
 **Focus**: PORTFOLIO-STATUS — Plan/Fix-Plan synchronization & archive hygiene (closure planning)  

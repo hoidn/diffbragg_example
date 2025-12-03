@@ -1,5 +1,5 @@
 ### Turn Summary
-Completed Phase B1 classification for PORTFOLIO-STATUS (34 active plans needing ledger entries, 1 archive duplicate, 5 stub directories) and recorded the results under the new artifact directory.
-Updated docs/fix_plan.md Working Agreements, Tier 1 roadmap, and Plan Directory Inventory appendix to reference the classification report and added roll-up entries for DB-AT, MAP-SCALE, TORCH-* and other untracked initiatives.
-Next: execute Phase B2/B3 remediation — archive ARCH-REFRACTOR-001, create implementation stubs for the five empty plan directories, and keep the ledger plus fix_plan_archive in sync.
-Artifacts: plans/active/PORTFOLIO-STATUS/reports/2025-12-05T150000Z/ (classification.md, summary.md)
+Completed PORTFOLIO-STATUS Phase B2 remediation: archived ARCH-REFRACTOR-001 duplicate to `archive/plans/` with README redirect, created implementation.md stubs for 5 directories (HARDEN-SUBMODULE-ROBUSTNESS, ORCH-*, SUPERVISOR) with template structure and pending status, and updated both ledgers (fix_plan.md + fix_plan_archive.md).
+All archival/stub work done per classification.md recommendations; no production code touched (docs-only loop).
+Next: Phase B3 — author fix-plan entries for the 34 grouped active initiatives (DB-AT suite, MAP-SCALE, TORCH-* series) to complete ledger synchronization.
+Artifacts: plans/active/PORTFOLIO-STATUS/reports/2025-12-05T150000Z/ (archival_notes.md, stub_status.md, summary.md)

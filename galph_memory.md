@@ -1648,3 +1648,23 @@ Per CLAUDE.md exception clause requirements:
 **Next Actions**:
 - Author the 13 roll-up subsections inside `docs/fix_plan.md` per `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T183000Z/ledger_rollup_plan.md` (include initiative type, dependencies, exit criteria, member plan pointers, Attempts History).
 - Regenerate `inventory.json`, `inventory_missing.md`, and `rollup_report.md` via `plan_inventory.py --rollup-config plans/active/PORTFOLIO-STATUS/rollups.json` under a fresh timestamped reports directory once the doc edits land.
+
+---
+
+## Loop 2025-12-03T101723Z
+
+**Focus**: PORTFOLIO-STATUS — Plan/Fix-Plan synchronization & archive hygiene (Phase B3 doc sync → Phase C prep)  
+**State**: planning  
+**Dwell**: 1  
+**Action Type**: planning  
+**Initiative Type**: housekeeping
+
+**Key Observations**:
+1. Tier 0 entry in `docs/fix_plan.md` still labels Phase B3 “in progress” even though the roll-up automation + tests landed under `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T210000Z/`; Plan Directory Inventory also references the older 2025-12-03 run (22 tracked) instead of the new counts (55 total, 21 tracked, 33 active_missing, 1 missing_plan).
+2. Implementation plan Phase B3 notes pre-date the script/test rerun and lack a pointer to the newest artifacts, making it unclear when Phase C (automation guard + exit) should start.
+3. Authored fresh input.md directing Ralph to rerun `plan_inventory.py` into `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T235500Z/`, refresh the Tier 0 + appendix text, align the implementation plan, run the hermetic tests, and capture a summary/log for that timestamp so PORTFOLIO-STATUS can advance to Phase C.
+
+**Artifacts Path**: `plans/active/PORTFOLIO-STATUS/reports/2025-12-03T101723Z/`
+
+**Next Actions**:
+- ready_for_implementation — Execute the docs plan: rerun plan_inventory.py with the fixed timestamp, update docs/fix_plan.md + plan implementation notes with the new counts/status, and capture pytest + summary logs so Phase C guardrails can start next loop.

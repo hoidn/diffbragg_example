@@ -1,7 +1,7 @@
-# Input for Ralph — Loop 2025-12-03T095530Z
+# Input for Ralph — Loop 2025-12-05T235500Z
 
 ## Summary
-Finish PORTFOLIO-STATUS Phase B3 by wiring the 13 roll-up initiatives into `docs/fix_plan.md`, updating the plan notes, and regenerating the inventory artifacts with the roll-up config.
+Finalize PORTFOLIO-STATUS Phase B3 by syncing `docs/fix_plan.md` and the implementation plan with the 2025-12-05 inventory run, then capture a fresh artifact/summary so Phase C (automation guard + exit) can start cleanly.
 
 ## Mode
 Docs
@@ -16,60 +16,69 @@ PORTFOLIO-STATUS — Plan/Fix-Plan synchronization & archive hygiene
 integration
 
 ## Mapped tests
-none — docs-only
+pytest -q plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py
 
 ## Artifacts
-plans/active/PORTFOLIO-STATUS/reports/2025-12-03T120000Z/
+plans/active/PORTFOLIO-STATUS/reports/2025-12-05T235500Z/
 
 ## Do Now
 
-1. **Add the 13 roll-up subsections to `docs/fix_plan.md`**  
-   - For each ID in `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T183000Z/ledger_rollup_plan.md` (`DB-AT-SUITE-CARE-001`, `MAP-SCALE-SYNC-001`, `PHYSICS-LOSS-001`, `TORCH-GEOMETRY-SYNC-001`, `TORCH-REFINE-CLEANUP-001`, `TORCH-CLI-BRIDGE-ROLLUP-001`, `FORWARD-EQUIV-COVERAGE-001`, `TOOLING-VIS-001`, `DOCS-ROADMAP-001`, `RUNTIME-VEC-001`, `REPORT-NANOBRAG-STATUS-001`, `NANOBRAG-GOLDEN-001`, `ARCH-SPLIT-001`):
-     - Insert a `### [ROLLUP-ID]` section under the Active/Pending portion describing initiative type, tier, dependencies (cite the spec shards listed in the roll-up plan), and the exact member plan directories (use `plans/active/PORTFOLIO-STATUS/rollups.json`).
-     - Spell out exit criteria tied to those specs/tests (e.g., DB-AT chi²/pixel ≤ 1e2 per `docs/spec-db-conformance.md`, MAP-SCALE calibration precedence per `docs/spec-db-workflow.md`, TORCH-REFINE Stage B ASU guardrails per `docs/spec-db-workflow.md` §Stage B, TOOLING-VIS residual Z-score bounds per `docs/spec-db-vis.md`).
-     - Add an Attempts History bullet pointing at `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T150000Z/classification.md` and the freshest member-plan report for that roll-up when available.
-     - Keep the Tier 1 bullet list aligned with the new sections and refresh the Plan Directory Inventory appendix so it references both the roll-up plan and the enforced `--rollup-config` automation guard.
+1. **Regenerate the inventory + roll-up artifacts for tracking**  
+   - Set `REPORT_TS=2025-12-05T235500Z` (keep this literal so the ledger references stay deterministic).  
+   - Run `python plans/active/PORTFOLIO-STATUS/bin/plan_inventory.py --plans-root plans/active --fix-plan docs/fix_plan.md --rollup-config plans/active/PORTFOLIO-STATUS/rollups.json --out-dir plans/active/PORTFOLIO-STATUS/reports/$REPORT_TS/`.  
+   - Verify the new `rollup_report.md` shows every roll-up with “Fix-Plan Coverage: ✓ Section exists” and that `inventory.json` still reports 55 total plans with buckets `{tracked:21, active_missing:33, missing_plan:1}`. Leave the generated `inventory_missing.md`/`notes.md` alongside it.
 
-2. **Sync the plan narrative with the ledger work**  
-   - Update `plans/active/PORTFOLIO-STATUS/implementation.md` Phase B3 notes to mark the roll-up sections as complete (leave the script/test status callouts intact for history) and mention the new artifact timestamp `2025-12-03T120000Z`.
+2. **Update `docs/fix_plan.md` with Phase B3 completion + updated appendix**  
+   - In the Tier 0 entry (see `docs/fix_plan.md:25`), replace the “Phase B3 in progress” text with a summary of the completed roll-up automation (artifact `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T210000Z/`) and spell out the Phase C focus (embedding automation guard + prepping exit criteria).  
+   - In the Plan Directory Inventory appendix (starts near `docs/fix_plan.md:560`):
+     * Change “Latest Report” to `2025-12-05T235500Z` and point “Artifacts”/“Roll-up Report” at the new directory.  
+     * Update the Summary bullets to the current counts (55 total, 21 tracked ≈38%, 33 active_missing ≈60%, 1 missing_plan ≈2%) and call out that active_missing+missing_plan = 34 untracked initiatives.  
+     * Refresh the bucket table text and ensure the automation guard command still shows the `--rollup-config` flag.  
+   - Append a Attempts History entry under `### [PORTFOLIO-STATUS] Attempts History` describing the 2025-12-05T210000Z run (script/test outputs + doc edits) and reference the new artifact path plus the pytest log you’ll capture this loop.
 
-3. **Regenerate the inventory + roll-up artifacts**  
-   - Run `python plans/active/PORTFOLIO-STATUS/bin/plan_inventory.py --plans-root plans/active --fix-plan docs/fix_plan.md --rollup-config plans/active/PORTFOLIO-STATUS/rollups.json --out-dir plans/active/PORTFOLIO-STATUS/reports/2025-12-03T120000Z/`.
-   - Ensure the new `rollup_report.md` shows “Fix-Plan Coverage: ✓ Section exists” for all 13 roll-ups and capture residual TODOs (if any) in `notes.md` inside the same directory.
+3. **Align the implementation plan with the ledger**  
+   - Edit `plans/active/PORTFOLIO-STATUS/implementation.md` so Phase B3 explicitly notes the 2025-12-05 roll-up automation + test run (retain prior timestamps for history), and add a short Phase C paragraph that lists the remaining guard-rail work (Working Agreements update + plan-archive hygiene).  
+   - Mention the new artifact directory in the Phase B3 notes so future loops can trace the evidence without cross-checking older runs.
+
+4. **Capture the loop summary + verification**  
+   - Add `summary.md` under `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T235500Z/` describing the doc updates, refreshed counts, pytest selector result, and next Phase C steps (this will mirror the Turn Summary).  
+   - Run `pytest -q plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py` after editing to prove the script/test harness stayed green; stash the log in the same report directory.
 
 ## How-To Map
 ```bash
 export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
+REPORT_TS=2025-12-05T235500Z
 
 python plans/active/PORTFOLIO-STATUS/bin/plan_inventory.py \
   --plans-root plans/active \
   --fix-plan docs/fix_plan.md \
   --rollup-config plans/active/PORTFOLIO-STATUS/rollups.json \
-  --out-dir plans/active/PORTFOLIO-STATUS/reports/2025-12-03T120000Z/
+  --out-dir plans/active/PORTFOLIO-STATUS/reports/${REPORT_TS}/
+
+pytest -q plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py \
+  | tee plans/active/PORTFOLIO-STATUS/reports/${REPORT_TS}/pytest_plan_inventory.log
 ```
 
 ## Pitfalls To Avoid
-- Keep roll-up headings synchronized with `rollups.json`; update both files if an ID changes.
-- Cite the exact spec clauses from the roll-up plan rather than inventing new prose; DB-AT entries must point to `docs/spec-db-conformance.md`, MAP-SCALE to `docs/spec-db-workflow.md`, etc.
-- Do not duplicate member-plan Attempts History; link to the classification artifact and the latest member report instead.
-- Ensure each roll-up section lists member plan directories and current status so automation outputs stay meaningful.
-- Always pass `--rollup-config` when running `plan_inventory.py`; the regenerated `rollup_report.md` is the validation that the ledger edits took effect.
-- Keep doc edits focused—avoid reflowing unrelated sections or altering prior history entries.
+- Pull counts straight from the freshly generated `inventory.json`; do not hand-edit numbers or forget the single `missing_plan` bucket.
+- Keep Tier 0 prose scoped to PORTFOLIO-STATUS; do not reword statuses for other initiatives.
+- When editing the appendix, avoid reflowing archived Attempts History—append instead of rewriting prior bullets.
+- Do not delete or rename existing report directories; just add the new timestamped set.
+- Ensure the pytest log and summary live under the new report directory so automation can reference them later.
+- Keep changes limited to docs/plan directories; no simulator or CLI code should be touched during this loop.
 
 ## If Blocked
-- If concurrent ledger edits conflict with your changes, stash the drafted sections as `plans/active/PORTFOLIO-STATUS/reports/2025-12-03T120000Z/draft_rollup_sections.md` and stop before touching `docs/fix_plan.md`.
-- If `plan_inventory.py` fails post-edit, capture the traceback in `plans/active/PORTFOLIO-STATUS/reports/2025-12-03T120000Z/plan_inventory_fail.log`, leave the docs unchanged, and note the issue in `notes.md` for next loop triage.
+- If `plan_inventory.py` fails, leave docs untouched, capture `plans/active/PORTFOLIO-STATUS/reports/${REPORT_TS}/plan_inventory_fail.log` with the full traceback, and note the failure plus observed error string in `summary.md`.
+- If concurrent edits to `docs/fix_plan.md` conflict, park your updated appendix text in `plans/active/PORTFOLIO-STATUS/reports/${REPORT_TS}/pending_appendix.md`, resolve the conflict separately, and flag the block in the summary so the supervisor can requeue the doc merge.
 
 ## Findings Applied
-- **TESTING-003** — DB-AT roll-up text must reference real pytest selectors with existing artifacts.
-- **MANIFEST-001** — Automation outputs must point to on-disk files; rerun plan_inventory.py so the new roll-up report validates coverage.
+No relevant findings in the knowledge base for this scope.
 
 ## Pointers
-- `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T183000Z/ledger_rollup_plan.md` — authoritative roll-up table.
-- `plans/active/PORTFOLIO-STATUS/rollups.json` — definitive member list for each roll-up ID.
-- `docs/fix_plan.md` (Tier 1 + appendix) — edit location for the new sections.
-- `plans/active/PORTFOLIO-STATUS/implementation.md:41-53` — Phase B3 description with new status notes.
+- `docs/fix_plan.md:25` — Tier 0 entry for PORTFOLIO-STATUS (needs status/attempts refresh).
+- `docs/fix_plan.md:560` — Plan Directory Inventory appendix to update with the new inventory run.
+- `plans/active/PORTFOLIO-STATUS/implementation.md:1` — Phase breakdown requiring Phase B3/Phase C alignment.
 
 ## Next Up (optional)
-1. After the roll-up sections exist, move into Phase C by surfacing the automation guard inside `docs/fix_plan.md` Working Agreements.
-2. Revisit ARCH-SIM-CONSTRUCTION-001 to unblock ARCH-REFACTOR-001 once the revamped ledger stabilizes.
+1. After Phase C guardrails land, consider marking PORTFOLIO-STATUS ready for closure or hand the refreshed ledger to ARCH-REFACTOR-001 to unblock Phase D.3.
+2. Revisit DB-AT roll-up sections to start filling in member-plan status rows once the appendix is stable.

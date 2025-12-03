@@ -349,12 +349,13 @@ def build_final_bragg_from_stage_a_telemetry(
 
         # Try to determine artifacts path from environment or use default
         artifact_dir = os.environ.get('DBAT028_ARTIFACT_DIR') or os.environ.get('DBAT029_ARTIFACT_DIR')
-        if artifact_dir:
-            # Use parent directory since DBAT artifacts are test-specific subdirs
-            artifact_dir = os.path.dirname(artifact_dir)
-        else:
+        if not artifact_dir:
             # Default fallback to initiative reports directory
             artifact_dir = "plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-10T090000Z"
+
+        # Ensure artifact_dir is absolute or at least non-empty
+        if not artifact_dir or artifact_dir == '':
+            artifact_dir = "."
 
         mask_coverage_path = os.path.join(artifact_dir, "mask_coverage.json")
         os.makedirs(artifact_dir, exist_ok=True)

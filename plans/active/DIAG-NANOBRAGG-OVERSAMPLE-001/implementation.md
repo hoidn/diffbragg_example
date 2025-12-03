@@ -215,18 +215,24 @@ Environment freeze blocks investigation without using exception clause for targe
 **Objective**: Determine whether the 100% out-of-bounds HKL queries originate from Stage A’s simulator construction or from the upstream structure-factor grid by collecting comparable HKL statistics from both Stage A warm-cache simulators and the canonical `simulate_forward_once()` helper.
 
 **Tasks:**
-- [ ] F.1: Extend `dbex/nanobrag_bridge.py::simulate_forward_once` to accept an optional `debug_config` dict, forward it to `create_unified_simulator`, and capture per-panel HKL query stats (min/max h,k,l, in-bounds vs out-of-bounds counts) when `collect_hkl_stats` is enabled.
-- [ ] F.2: Author `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/bin/compare_hkl_stats.py` that:
+- [x] F.1: Extend `dbex/refinement/stage_a_utils.py::_build_stage_a_context` to accept an optional `debug_config` dict (default None) and thread it through to all Simulator instantiations (panel-mode and ROI-mode caches). Docstring notes this parameter is for diagnostics only; production Stage A runs leave it as None. (2025-12-09T153000Z)
+- [x] F.2: Author `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/bin/compare_hkl_stats.py` that:
   - Loads the smoke fixture via `DataLoad`/`build_mapping_stage_a_context`
-  - Builds Stage A warm-cache simulators (`_build_stage_a_context`) and enables HKL stats for each panel
+  - Builds HKL grid from mapping context indices/amplitudes via `build_structure_factor_grid`
+  - Builds Stage A warm-cache simulators (`_build_stage_a_context`) with `debug_config={'collect_hkl_stats': True}` and runs each simulator once to harvest `simulator.hkl_stats`
   - Runs `simulate_forward_once(debug_config={'collect_hkl_stats': True})`
-  - Emits `hkl_stats_comparison.json` summarizing grid metadata vs. observed HKL ranges for both paths plus a prose `summary.md`.
-- [ ] F.3: Run the comparison script (small detector first, optionally full) and update `docs/findings.md` + plan Attempts History with the observed deltas (e.g., Stage A only vs both paths out-of-bounds) to steer the next initiative (likely ARCH-SIM-HKL-BOUNDS-001).
+  - Emits `hkl_stats_comparison.json` summarizing grid metadata vs. observed HKL ranges for both paths plus a prose `summary.md` with side-by-side comparison and interpretation. (2025-12-09T153000Z)
+- [x] F.3: Run the comparison script with small detector (`NANOBRAGG_DISABLE_COMPILE=1 python bin/compare_hkl_stats.py --detector-size small --out-dir reports/2025-12-09T153000Z/`) and update `docs/findings.md` DIAG-OVERSAMPLE-001 entry with Phase F evidence showing both paths miss the HKL grid identically (0/9.4M in-bounds, observed h∈[28,47] vs grid h∈[-24,24]). Confirmed this is NOT a Stage-A-specific config issue; recommend ARCH-SIM-HKL-BOUNDS-001 to investigate HKL grid construction or reciprocal-space transform alignment. (2025-12-09T153000Z)
+
+**Validation:**
+- Stage A smoke test (`test_stage_a_expansion`) runs without errors introduced by `debug_config` parameter (test was already failing due to HKL grid issue; new parameter remains inert when None).
 
 **Artifacts:**
-- `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/<timestamp>/hkl_stats_comparison.json`
-- `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/<timestamp>/summary.md` documenting whether Stage A and `simulate_forward_once` disagree
-- Updated `docs/findings.md` entry (DIAG-OVERSAMPLE-001 follow-up or new finding if mapping path also misses HKL coverage)
+- `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-09T153000Z/hkl_stats_comparison.json`
+- `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-09T153000Z/summary.md` documenting that both Stage A and `simulate_forward_once` have identical 0% in-bounds coverage
+- `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-09T153000Z/compare_hkl_stats.log`
+- Updated `docs/findings.md` entry (DIAG-OVERSAMPLE-001 with Phase F timestamp and artifact references)
+- Updated `dbex/refinement/stage_a_utils.py:196,335,369` (debug_config parameter and threading)
 
 ## Abort/Escalation Triggers
 

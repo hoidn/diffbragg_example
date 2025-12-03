@@ -193,6 +193,7 @@ def _build_stage_a_context(
     log_scale_baseline: Optional[float] = None,
     apply_calibration_n_cells: bool = True,
     config: Optional['RefinementConfig'] = None,  # DIAG-NANOBRAGG-OVERSAMPLE-001
+    debug_config: Optional[Dict[str, Any]] = None,  # DIAG-NANOBRAGG-OVERSAMPLE-001 Phase F
 ) -> 'StageAContext':
     """
     Prebuild Stage A detector models and tensorize masks/HKL once (PERF-WARM-SIM-001).
@@ -201,6 +202,11 @@ def _build_stage_a_context(
     and transfers the HKL grid to the target device. The LBFGS closure then reuses
     these cached models and only updates Crystal parameter tensors per iteration,
     eliminating repeated construction overhead.
+
+    Note (DIAG-NANOBRAGG-OVERSAMPLE-001 Phase F):
+        The `debug_config` parameter enables optional HKL statistics collection for
+        diagnostics. Production Stage A runs should leave this as None; only diagnostic
+        scripts should enable it (e.g., {'collect_hkl_stats': True}).
 
     Args:
         detector: dxtbx Detector object (multi-panel)
@@ -220,6 +226,10 @@ def _build_stage_a_context(
         apply_calibration_n_cells: Whether to apply N_cells from calibration_metadata when
             present (default True). Set to False for small-detector metadata fixtures per
             TOOLING-VIS-001 Phase D.C and SCALE-008.
+        debug_config: Optional dict for diagnostic instrumentation (default None). When
+            provided, forwarded to Simulator instantiations to enable optional telemetry
+            (e.g., {'collect_hkl_stats': True} for HKL coverage probes). Production Stage A
+            runs should leave this as None.
 
     Returns:
         StageAContext with prebuilt models and tensorized data
@@ -322,6 +332,7 @@ def _build_stage_a_context(
             beam_config=beam_config,
             device=device,
             dtype=dtype,
+            debug_config=debug_config,  # DIAG-NANOBRAGG-OVERSAMPLE-001 Phase F
         )
         simulators.append(simulator)
 
@@ -355,6 +366,7 @@ def _build_stage_a_context(
                 beam_config=beam_config,
                 device=device,
                 dtype=dtype,
+                debug_config=debug_config,  # DIAG-NANOBRAGG-OVERSAMPLE-001 Phase F
             )
             roi_entries.append(
                 StageAROIEntry(

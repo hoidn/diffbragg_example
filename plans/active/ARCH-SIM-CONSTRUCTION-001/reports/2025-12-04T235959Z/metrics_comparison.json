@@ -1,0 +1,30 @@
+{
+  "before_fix": {
+    "bragg_after_mean": "1.025e-05 (documented in prior loop)",
+    "chi2_per_pixel_initial": "108400 (documented in prior loop)",
+    "roi_cc_median_before": "-0.05 (documented in prior loop)",
+    "oversample_path_a": "auto (3-fold for 3072²)",
+    "oversample_path_b": "auto (1-fold for 1024²)",
+    "raw_ratio": "1.79e-07 (5,586× discrepancy)",
+    "note": "Values from Phase C.3 diagnostic probe"
+  },
+  "after_fix": {
+    "bragg_before_mean": 0.23937484622001648,
+    "bragg_after_mean": 1.0249042134091724e-05,
+    "chi2_per_pixel_initial": 108375.87037603179,
+    "roi_cc_median_before": -0.04987446793751028,
+    "oversample_path_a": "explicit 3-fold (passed to DetectorConfig)",
+    "oversample_path_b": "explicit 3-fold (passed to DetectorConfig)",
+    "raw_ratio": 0.000042824,
+    "magnitude_discrepancy": "23,317×",
+    "scale_ratio_mapping_masked": 0.009943160754306636,
+    "scale_ratio_mapping_unmasked": 1.8067258419955288,
+    "note": "Explicit oversample=3 parameter set in both paths, but tests still FAIL with identical signature"
+  },
+  "analysis": {
+    "observation": "Both paths now show 'auto-selected 3-fold oversampling' in logs, suggesting oversample config is being ignored and auto-selection still happens",
+    "hypothesis": "DetectorConfig.oversample=3 is set correctly, but simulator.run() may not be honoring it, or auto-selection logic triggers before config check",
+    "blocker": "Cannot debug further due to environment freeze policy (nanobrag_torch is external dependency)",
+    "recommendation": "Per repeat-failure guard, mark ARCH-SIM-CONSTRUCTION-001 blocked and escalate to supervisor for spec_change or harness initiative"
+  }
+}

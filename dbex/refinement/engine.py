@@ -198,21 +198,9 @@ class RefinementEngine:
             telem.engine_protocol = engine_protocol_str
             telem.stage_modes = stage_modes_dict
 
-        # ARCH-REFACTOR-001 Phase D.3: Map stage names to legacy labels for backward compatibility
-        # Tests and downstream code expect "A"/"B"/"C" keys (not "stage_a"/"stage_b"/"stage_c")
-        legacy_telemetry_dict = {}
-        for stage_name, telem in self._telemetry.items():
-            if stage_name == "stage_a":
-                legacy_telemetry_dict["A"] = telem
-            elif stage_name == "stage_b":
-                legacy_telemetry_dict["B"] = telem
-            elif stage_name == "stage_c":
-                legacy_telemetry_dict["C"] = telem
-            else:
-                # Unknown stage name - pass through unchanged
-                legacy_telemetry_dict[stage_name] = telem
-
-        return legacy_telemetry_dict
+        # ARCH-TELEMETRY-001 Phase C.4: Return internal telemetry dict directly
+        # Tests updated to use internal stage names ("stage_a", "stage_b", "stage_c")
+        return self._telemetry
 
     def _compute_engine_protocol(self) -> str:
         """

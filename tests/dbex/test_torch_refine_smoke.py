@@ -486,8 +486,8 @@ def test_stage_a_expansion(
           f"dtype={bragg_full_artifact.dtype}, matches bragg_refined: YES")
 
     # Extract Stage A telemetry (Stage C not enabled in this test)
-    assert "A" in telemetry_dict, "Stage A telemetry missing"
-    telemetry = telemetry_dict["A"]
+    assert "stage_a" in telemetry_dict, "Stage A telemetry missing"
+    telemetry = telemetry_dict["stage_a"]
 
     # Acceptance 1: Refinement completed without errors
     assert telemetry.status != "error", f"Refinement failed: {telemetry.message}"
@@ -805,8 +805,8 @@ def test_stage_a_expansion_incremental_ub(
     )
 
     # Extract Stage A telemetry
-    assert "A" in telemetry_dict, "Stage A telemetry missing"
-    telemetry = telemetry_dict["A"]
+    assert "stage_a" in telemetry_dict, "Stage A telemetry missing"
+    telemetry = telemetry_dict["stage_a"]
 
     # Acceptance 1: Refinement completed without errors
     assert telemetry.status != "error", f"Refinement failed: {telemetry.message}"
@@ -1006,8 +1006,8 @@ def test_stage_a_engine_delegation_telemetry(
     bragg_refined = engine._artifacts["stage_a"].bragg_full
 
     # Validate telemetry structure
-    assert "A" in telemetry_dict, "Engine delegation must return 'A' telemetry key"
-    telem_a = telemetry_dict["A"]
+    assert "stage_a" in telemetry_dict, "Engine delegation must return 'A' telemetry key"
+    telem_a = telemetry_dict["stage_a"]
 
     # Phase E telemetry extensions (commit 42975bf)
     assert hasattr(telem_a, "engine_protocol"), "Phase E: engine_protocol field missing"
@@ -1134,10 +1134,10 @@ def test_stage_c_detector_microslip(
         bragg_refined = engine._artifacts["stage_a"].bragg_full
 
     # Extract Stage A and Stage C telemetry
-    assert "A" in telemetry_dict, "Stage A telemetry missing"
-    assert "C" in telemetry_dict, "Stage C telemetry missing (config.enable_stage_c=True)"
-    telemetry_a = telemetry_dict["A"]
-    telemetry_c = telemetry_dict["C"]
+    assert "stage_a" in telemetry_dict, "Stage A telemetry missing"
+    assert "stage_c" in telemetry_dict, "Stage C telemetry missing (config.enable_stage_c=True)"
+    telemetry_a = telemetry_dict["stage_a"]
+    telemetry_c = telemetry_dict["stage_c"]
     assert telemetry_a.sigma_readout_provenance == sigma_provenance
     assert telemetry_c.sigma_readout_provenance == sigma_provenance
 
@@ -1223,7 +1223,7 @@ def test_stage_c_detector_microslip(
     # (PERF-WARM-SIM-001 Phase D.4: capture +0.067% panel-mode regression evidence)
     _record_stage_telemetry(
         "stage_c_detector_microslip",
-        telemetry_dict["C"],
+        telemetry_dict["stage_c"],
         smoke_detector_size,
         {
             "stage_a_final_chi2": float(stage_a_final_chi2),
@@ -1232,15 +1232,15 @@ def test_stage_c_detector_microslip(
             "chi_squared_improvement": float(improvement_c_chi2),
             "n_rois": len(refgeom_dataload.bbox),
             "detector_shape": list(refinement_inputs.target.shape),
-            "closure_evals": telemetry_dict["C"].perf_counters.get("closure_evals"),
-            "validation_runs": telemetry_dict["C"].perf_counters.get("validation_runs"),
-            "forward_time_ms": telemetry_dict["C"].perf_counters.get("forward_time_ms"),
+            "closure_evals": telemetry_dict["stage_c"].perf_counters.get("closure_evals"),
+            "validation_runs": telemetry_dict["stage_c"].perf_counters.get("validation_runs"),
+            "forward_time_ms": telemetry_dict["stage_c"].perf_counters.get("forward_time_ms"),
             "detector_offset_reduction_min": min(stats["reduction"] for stats in panel_offset_stats),
             "detector_offset_final_abs_max": max(stats["final_abs_mm"] for stats in panel_offset_stats),
-            "cache_mode": telemetry_dict["C"].perf_counters.get("cache_mode"),
-            "roi_mode": telemetry_dict["C"].perf_counters.get("roi_mode"),
-            "roi_count_total": telemetry_dict["C"].perf_counters.get("roi_count_total"),
-            "roi_count_sampled": telemetry_dict["C"].perf_counters.get("roi_count_sampled"),
+            "cache_mode": telemetry_dict["stage_c"].perf_counters.get("cache_mode"),
+            "roi_mode": telemetry_dict["stage_c"].perf_counters.get("roi_mode"),
+            "roi_count_total": telemetry_dict["stage_c"].perf_counters.get("roi_count_total"),
+            "roi_count_sampled": telemetry_dict["stage_c"].perf_counters.get("roi_count_sampled"),
         },
     )
 
@@ -1483,11 +1483,11 @@ def test_stage_b_shell_modifiers(
         bragg_refined = engine_artifacts["stage_a"].bragg_full
 
     # Extract telemetry
-    assert "A" in telemetry_dict, "Stage A telemetry missing"
-    assert "B" in telemetry_dict, "Stage B telemetry missing (enable_stage_b=True)"
+    assert "stage_a" in telemetry_dict, "Stage A telemetry missing"
+    assert "stage_b" in telemetry_dict, "Stage B telemetry missing (enable_stage_b=True)"
 
-    telemetry_a = telemetry_dict["A"]
-    telemetry_b = telemetry_dict["B"]
+    telemetry_a = telemetry_dict["stage_a"]
+    telemetry_b = telemetry_dict["stage_b"]
     assert telemetry_a.sigma_readout_provenance == sigma_provenance
     assert telemetry_b.sigma_readout_provenance == sigma_provenance
 
@@ -1768,19 +1768,19 @@ def test_stage_b_shell_modifiers(
 
         _record_stage_telemetry(
             "stage_b_shell_modifiers",
-            telemetry_dict["B"],
+            telemetry_dict["stage_b"],
             smoke_detector_size,
             {
                 "loss_improvement": float(improvement_b),
                 "n_rois": len(refgeom_dataload.bbox),
                 "detector_shape": list(refinement_inputs.target.shape),
-                "closure_evals": telemetry_dict["B"].perf_counters.get("closure_evals"),
-                "validation_runs": telemetry_dict["B"].perf_counters.get("validation_runs"),
-                "forward_time_ms": telemetry_dict["B"].perf_counters.get("forward_time_ms"),
-                "cache_mode": telemetry_dict["B"].perf_counters.get("cache_mode"),
-                "roi_mode": telemetry_dict["B"].perf_counters.get("roi_mode"),
-                "roi_count_total": telemetry_dict["B"].perf_counters.get("roi_count_total"),
-                "roi_count_sampled": telemetry_dict["B"].perf_counters.get("roi_count_sampled"),
+                "closure_evals": telemetry_dict["stage_b"].perf_counters.get("closure_evals"),
+                "validation_runs": telemetry_dict["stage_b"].perf_counters.get("validation_runs"),
+                "forward_time_ms": telemetry_dict["stage_b"].perf_counters.get("forward_time_ms"),
+                "cache_mode": telemetry_dict["stage_b"].perf_counters.get("cache_mode"),
+                "roi_mode": telemetry_dict["stage_b"].perf_counters.get("roi_mode"),
+                "roi_count_total": telemetry_dict["stage_b"].perf_counters.get("roi_count_total"),
+                "roi_count_sampled": telemetry_dict["stage_b"].perf_counters.get("roi_count_sampled"),
             },
         )
 
@@ -1911,11 +1911,11 @@ def test_stage_b_per_reflection_smoke(
         bragg_refined = engine_artifacts["stage_a"].bragg_full
 
     # Extract telemetry
-    assert "A" in telemetry_dict, "Stage A telemetry missing"
-    assert "B" in telemetry_dict, "Stage B telemetry missing (enable_stage_b=True)"
+    assert "stage_a" in telemetry_dict, "Stage A telemetry missing"
+    assert "stage_b" in telemetry_dict, "Stage B telemetry missing (enable_stage_b=True)"
 
-    telemetry_a = telemetry_dict["A"]
-    telemetry_b = telemetry_dict["B"]
+    telemetry_a = telemetry_dict["stage_a"]
+    telemetry_b = telemetry_dict["stage_b"]
 
     # ARCH-STAGE-CONTEXT-001 Phase D.3.1: Validate Stage A/B artifact contract
     # Same invariants as shell_modifiers test: Stage A bragg_full=None, Stage B bragg_full populated

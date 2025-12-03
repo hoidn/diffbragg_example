@@ -163,7 +163,7 @@ def stage_a_smoke_result(
     # Extract Bragg from Stage A artifacts
     bragg_final = engine._artifacts["stage_a"].bragg_full
 
-    telemetry = telemetry_dict["A"]
+    telemetry = telemetry_dict["stage_a"]
     chi_trace = telemetry.chi_squared_trace_full or []
     masked_pixels = telemetry.variance_floor_masked_pixels
     if masked_pixels is None:

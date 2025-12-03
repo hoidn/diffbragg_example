@@ -122,13 +122,7 @@ Finish the Refactor: Delete dbex/nanobrag_refinement.py and fully move logic int
 Encapsulate the Physics Model: Create a DifferentiableExperiment class (extending nanobrag_torch.ExperimentModel) that owns the parameters (q, log_scale, cell_deltas) and provides a simple .forward() method. The LBFGS closure should look like loss = criterion(model(), target), not 100 lines of tensor math.
 Abstract the Cache: Move the "Warm Cache" logic into a SimulatorPool or ContextManager class that handles retargeting internally, rather than passing raw lists of Simulator objects between stages.
 Observer Pattern for Telemetry: Instead of accumulating stats in a dict inside the loop, use a callback/observer pattern where the loop emits events (on_step, on_validation), and a separate TelemetryCollector handles aggregation.
----
-Refactor: Decouple Telemetry from Refinement Logic using Observer Pattern
-ID: ARCH-TELEMETRY-001
-Type: Technical Debt / Refactor
-Priority: High
-Effort: Large (5-8 days)
-(Scheduled as fix-plan row [ARCH-TELEMETRY-001] on 2025-12-02; see plans/active/ARCH-TELEMETRY-001/implementation.md.)
+- [x] **Refactor: Decouple Telemetry from Refinement Logic using Observer Pattern** — **Resolved** via [ARCH-TELEMETRY-001] (archived 2025-12-04T235959Z). Stage A/B/C now emit observer callbacks into typed telemetry collectors instead of mutating mutable dicts. RefinementEngine + writer consume StageResult dataclasses. All exit criteria satisfied (9 implementation loops, 6 phases complete, closure summary at `plans/active/ARCH-TELEMETRY-001/reports/2025-12-04T235959Z/initiative_closure_summary.md`). Architectural issues 1.3 (mutable state god dictionaries) and 2.3 (telemetry/IO bleeding into physics) resolved.
 1. Context & Problem Statement
 The current telemetry system acts as a "bucket brigade," passing mutable state dictionaries (telemetry_state, param_values) four layers deep into the physics kernels (e.g., _build_stage_a_lbfgs_closure). This has created several critical architectural issues:
 Tight Coupling: The LBFGS optimization loops are physically interwoven with UI/Logging logic (appending to lists inside gradient calculations).

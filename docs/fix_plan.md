@@ -17,9 +17,9 @@
 **Goal:** Finish the Protocol Engine refactor by removing legacy helpers/facades now that contexts and artifacts are in place.
 - [ARCH-SIM-CONSTRUCTION-001] (Simulator Construction Convention Alignment) — **stuck — blocked_environment_dependency** (4 loops, same failure; nanobrag_torch oversample parameter not honored; see lifecycle event 2025-12-03T021140Z)
 - [ARCH-REFACTOR-001] (Refinement Engine Modularization & Physics Separation) — *blocked_pending_architecture* (Phase D.3 blocked by ARCH-SIM-CONSTRUCTION-001; Phases A-C complete)
-- [ARCH-TELEMETRY-001] (Telemetry Observer Refactor) — *in_progress* (Phase C.3.2: legacy_telemetry_dict removal, loop 2025-12-03T021140Z)
+- [ARCH-TELEMETRY-001] (Telemetry Observer Refactor) — **archived** (2025-12-04T235959Z: all phases complete, exit criteria satisfied)
 - [ARCH-BRIDGE-RESP-001] (Writer / bridge responsibility split) — **done** (2025-12-03T093500Z: Phase D completion logged, ready for archive.)
-- [ARCH-LAZY-IMPORTS-001] (Lazy imports / process-noise hygiene) — *blocked* (awaiting ARCH-TELEMETRY-001 collector fixes before resuming Phase C process-noise sweep; plan at `plans/active/ARCH-LAZY-IMPORTS-001/implementation.md`.)
+- [ARCH-LAZY-IMPORTS-001] (Lazy imports / process-noise hygiene) — *pending* (ARCH-TELEMETRY-001 blocker resolved; Phase C process-noise sweep ready to resume; plan at `plans/active/ARCH-LAZY-IMPORTS-001/implementation.md`.)
 
 ### Tier 1: Core Physics & Stability
 **Goal:** Ensure the math is correct, the loss function is normative, Stage A/mapping parity holds (DB‑AT‑027/028/029), and the smoke tests are green.
@@ -153,7 +153,7 @@
 
 ### [ARCH-TELEMETRY-001] Telemetry Observer Refactor
 - Depends on: ARCH-STAGE-CONTEXT-001 (typed contexts), PHYSICS-LOSS-001 (telemetry χ² spec), problems.md observer directive
-- Status: done (Phase C.4 complete, ready for supervisor sign-off)
+- Status: archived (2025-12-04T235959Z — all exit criteria satisfied, see closure summary)
 - Priority: High
 - Tier: 0
 - Owner/Date: Galph ↔ Ralph / 2025-12-02
@@ -164,6 +164,7 @@
   3. Stage A/B/C smoketests and canonical Stage diagnostics keep REFINE-007/008/012 and PHYSICS-LOSS-001 gates green using the observer channel.
   4. `/torch_diagnostics` schema stays spec-compliant and test registry entries referencing telemetry selectors are updated.
 - Working Plan: `plans/active/ARCH-TELEMETRY-001/implementation.md`
+- Closure Summary: `plans/active/ARCH-TELEMETRY-001/reports/2025-12-04T235959Z/initiative_closure_summary.md`
 - Ledger tie-in: addresses problems.md entry "Refactor: Decouple Telemetry from Refinement Logic using Observer Pattern" (architectural issues 1.3/2.3). Plan captures Observer pattern, Stage-specific telemetry collectors, and writer simplification.
 - Attempts History:
   * 2025-12-03T022931Z (Phase C.4) — Removed legacy telemetry key mapping from RefinementEngine.run() (dbex/refinement/engine.py:201-215) that translated internal stage names ("stage_a", "stage_b", "stage_c") to legacy labels ("A", "B", "C"). Updated all test assertions to use internal stage names: test_torch_refine_smoke.py (6 replace_all edits: telemetry_dict["A/B/C"] → telemetry_dict["stage_a/b/c"], "A/B/C" in telemetry_dict → "stage_a/b/c" in telemetry_dict), test_stage_a_smoke_parity.py (1 edit). Validation: 1/5 mapped tests PASSED (test_stage_b_baseline_guard_diff_payload), 4/5 SKIPPED (missing sigma_readout_map in metadata mode, expected environmental limitation). Files touched: 3 (engine.py -13 lines, test_torch_refine_smoke.py ~40 key references updated, test_stage_a_smoke_parity.py 1 key reference updated). RefinementEngine now returns internal telemetry dict directly with no backward compatibility mapping; all test assertions updated to match internal stage names per ARCH-TELEMETRY-001 Phase C.4 design. Artifacts: `plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T022931Z/pytest_phase_c4.log`. Next action: Mark Phase C.4 complete and initiative ready for supervisor sign-off.

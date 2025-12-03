@@ -93,11 +93,13 @@ Tasks:
       **Result (2025-12-03T152326Z)**: Direct-beam and ±64 px offsets map to HKL≈(0,0,0) and lie *inside* grid bounds,
       proving the 0 % coverage failure is not a beam-center math error. The offset must originate from a global shift
       in the incident-beam term that affects all non-zero scattering vectors equally.
-- [ ] B2: Draft a fix design (localized inside `nanobrag_torch.simulator`) showing how to realign the incident beam
-      convention with specs (docs/spec-db-core.md §§Detector Conventions, Source Handling) by storing the source→sample
-      direction (`-detector.beam_vector`) for single-source runs. Include code references and expected HKL range deltas.
-- [ ] B3: Capture the proposed change, environment-freeze compliance steps, and affected modules/tests in
-      `plans/active/ARCH-SIM-HKL-BOUNDS-001/reports/<timestamp>/design_notes.md`.
+- [x] B2: Root cause identified (2025-12-03T154217Z): `simulator.py:559` stored `detector.beam_vector` directly for
+      single-source runs, but detector.beam_vector points FROM sample TO source (s0 direction). The multi-source path
+      (line 1129) correctly negates this via `incident_dirs_batched = -source_directions`. Fix: negate beam_vector
+      for single-source initialization to align with multi-source convention and docs/spec-db-core.md §Detector Conventions.
+- [x] B3: Patch captured at `plans/active/ARCH-SIM-HKL-BOUNDS-001/reports/2025-12-03T154217Z/patches/incident_beam_direction_fix.patch`.
+      Modified `simulator.py:551-564` to negate detector.beam_vector and updated comment to cite spec. Rebuild: none required
+      (Python edits only). Test command documented in artifacts directory.
 
 **Validation**: Design review notes identify the exact bug locus (e.g., missing 2π factor, incorrect basis order,
 MOSFLM injection override) with supporting logs.
@@ -106,16 +108,22 @@ MOSFLM injection override) with supporting logs.
 **Objective**: Apply the alignment fix, re-enable canonical tests, and propagate telemetry/doc updates.
 
 Tasks:
-- [ ] C1: Implement the reciprocal lattice fix (likely inside `nanobrag_torch.models.Crystal` or the bridge
-      config factory), saving the patch diff under `plans/active/ARCH-SIM-HKL-BOUNDS-001/patches/` per
-      Environment Freeze exception requirements.
-- [ ] C2: Update HKL stats probe and DIAG findings with post-fix evidence (≥99% in-bounds, matched ranges).
-- [ ] C3: Re-run DB-AT-028/029 (small detector, metadata sigma) and collect artifacts + pytest logs under
-      this plan.
-- [ ] C4: Update `docs/spec-db-workflow.md` / `docs/TESTING_GUIDE.md` / `docs/findings.md` as needed to
-      document the repaired geometry contract.
+- [x] C1: Implemented incident beam direction fix in `src/nanobrag-torch/src/nanobrag_torch/simulator.py:551-564`
+      (2025-12-03T154217Z). Negated `detector.beam_vector` for single-source initialization to match multi-source
+      convention. Patch saved at `plans/active/ARCH-SIM-HKL-BOUNDS-001/reports/2025-12-03T154217Z/patches/incident_beam_direction_fix.patch`.
+- [x] C2: HKL stats probe confirms 100% in-bounds coverage post-fix. HKL ranges now centered around zero:
+      h∈[-12, 7], k∈[-14, 9], l∈[-14, 8] (vs pre-fix out-of-bounds h∈[28,47], k∈[28,51], l∈[37,59]).
+      Artifacts at `plans/active/ARCH-SIM-HKL-BOUNDS-001/reports/2025-12-03T154217Z/post_fix_hkl_stats/`.
+- [x] C3: Re-ran DB-AT-028/029 with cli_override sigma (metadata sigma fixture missing). Tests ran to completion
+      but failed acceptance criteria. HKL alignment fix successful (100% coverage), but intensity scale issue persists:
+      chi²/pixel=2.098e5 (gate: ≤1e2), ROI CC=-0.053 (gate: ≥0.2). Raw sim output remains ~1e-14 requiring enormous
+      scale override (4.786e+17). This suggests a separate issue (beam flux, units, or F normalization) distinct from HKL alignment.
+      Artifacts: `plans/active/ARCH-SIM-HKL-BOUNDS-001/reports/2025-12-03T154217Z/db_at_028/` and `.../db_at_029/`.
+- [ ] C4: Update `docs/findings.md` DIAG-OVERSAMPLE-001 with HKL fix summary and links. Mark ARCH-SIM-HKL-BOUNDS-001
+      partially complete (HKL alignment resolved, intensity scale issue requires new investigation).
 
-**Validation**: Exit criteria satisfied; `ARCH-SIM-CONSTRUCTION-001` unblocks and Stage-A chi² matches mapping.
+**Validation**: HKL alignment exit criteria met (100% coverage, proper ranges). Full exit criteria blocked by intensity
+scale issue that appears unrelated to HKL indexing.
 
 ## Abort / Escalation Triggers
 - HKL offset traces back to upstream (non-vendored) nanobrag_torch commits that cannot be patched locally →

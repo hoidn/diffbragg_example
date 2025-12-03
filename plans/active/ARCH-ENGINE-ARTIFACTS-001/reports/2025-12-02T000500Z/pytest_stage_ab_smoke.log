@@ -6,22 +6,22 @@ configfile: pyproject.toml
 plugins: cov-7.0.0
 collecting ... collected 2 items
 
-tests/dbex/test_artifact_parity.py::test_stage_a_artifact_matches_helper PASSED [ 50%]
-tests/dbex/test_artifact_parity.py::test_stage_b_artifact_matches_helper_shell_mode PASSED [100%]
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion PASSED     [ 50%]
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers SKIPPED [100%]
 
 =============================== warnings summary ===============================
-tests/dbex/test_artifact_parity.py::test_stage_a_artifact_matches_helper
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
   <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
 
-tests/dbex/test_artifact_parity.py::test_stage_a_artifact_matches_helper
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
   <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
 
-tests/dbex/test_artifact_parity.py::test_stage_a_artifact_matches_helper
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
   <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
 
-tests/dbex/test_artifact_parity.py::test_stage_a_artifact_matches_helper
+tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
   /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
     import pkg_resources
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-======================== 2 passed, 4 warnings in 46.32s ========================
+================== 1 passed, 1 skipped, 4 warnings in 21.77s ===================

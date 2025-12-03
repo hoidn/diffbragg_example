@@ -4,23 +4,9 @@ cachedir: .pytest_cache
 rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
 configfile: pyproject.toml
 plugins: cov-7.0.0
-collecting ... collected 1 item
+collecting ... ERROR: not found: /home/ollie/Documents/diffbragg_example_2/diffbragg_example/tests/dbex/test_torch_refine_smoke.py::test_stage_a_baseline_smoke
+(no match in any of [<Module test_torch_refine_smoke.py>])
 
-tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion PASSED     [100%]
+collected 0 items
 
-=============================== warnings summary ===============================
-tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
-  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
-
-tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
-  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
-
-tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
-  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
-
-tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion
-  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
-    import pkg_resources
-
--- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-======================== 1 passed, 4 warnings in 18.83s ========================
+============================ no tests ran in 0.77s =============================

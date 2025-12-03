@@ -922,3 +922,10 @@ bragg_scaled = bragg_panel * scale_factor  # REMOVE * sqrt_spot_scale
 1. Confirm sqrt removal is correct fix (vs input.md which requests sqrt addition)
 2. Update SCALE-009 finding to clarify sqrt semantics (embedded in baseline vs post-run)
 3. Issue corrective Do Now to REMOVE sqrt, or escalate if spec/design needs rethinking
+2025-12-03T005008Z focus=ARCH-SIM-CONSTRUCTION-001 state=ready_for_implementation dwell=0 action=debug artifacts=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-03T005008Z/ next_action=Remove sqrt_spot_scale multiplication + rerun DB-AT-028/029
+- Ralph's verification loop (2025-12-02T010500Z) correctly identified double sqrt multiplication bug: reconstruction.py:238 applies sqrt(spot_scale_override) twice (once implicitly via exp(log_scale_baseline) = sqrt(spot_scale), once explicitly via `* sqrt_spot_scale`), producing bragg_after=5711 instead of ~0.24. Repeat-failure guard fired; Ralph correctly escalated to Galph.
+- Performed supervisor-side mathematical verification: scale_factor = exp(20.138) = 5.572e8 = sqrt(3.105e17) already contains sqrt; ratio 5711/0.24 = 23,895 ≈ (spot_scale)^0.25 confirms fourth-root error (double sqrt application).
+- Resolution: REMOVE `* sqrt_spot_scale` from line 238 (opposite of prior input.md instruction). This is a simple double-multiplication bug, not a spec/architecture issue.
+- Created comprehensive root cause diagnosis (plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-03T005008Z/galph_root_cause_final_diagnosis.md) and rewrote input.md with corrective single-line fix.
+- Implementation_attempt_count=2 for DB-AT-028/029 (within budget of 3). Expected outcome: bragg_after drops from 5711 to ~0.24, tests PASS.
+Action State: ready_for_implementation

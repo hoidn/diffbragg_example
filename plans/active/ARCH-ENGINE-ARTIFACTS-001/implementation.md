@@ -5,7 +5,7 @@
 - Title: RefinementEngine artifact channel & final-Bragg unification
 - Owner: Codex
 - Spec Owner: docs/spec-db-workflow.md
-- Status: pending
+- Status: done (2025-12-02T185000Z)
 
 ## Goals
 - Add a first-class artifact channel to `RefinementEngine` so stages can emit structured outputs (e.g., final Bragg tensors) without private cache hacks.
@@ -89,3 +89,15 @@
 ## Artifacts Index
 - Reports root: `plans/active/ARCH-ENGINE-ARTIFACTS-001/reports/`
 - Latest run: `plans/active/ARCH-ENGINE-ARTIFACTS-001/reports/<YYYY-MM-DDTHHMMSSZ>/`
+
+## Initiative Closure Notes (2025-12-02T185000Z)
+
+All phases complete. All exit criteria satisfied:
+- ✅ Exit Criterion #1: RefinementEngine artifact map exposed and functional
+- ✅ Exit Criterion #2: Stage A/B artifacts match helpers within ≤1e-6 (perfect parity: max_rel=0.000e+00)
+- ✅ Exit Criterion #3: run_nanobrag_refinement uses artifact-only path (-50 lines fallback logic removed)
+- ✅ Exit Criterion #4: Test registry synchronized (2/2 parity tests collect and PASS)
+
+Infrastructure from ARCH-STAGE-CONTEXT-001 made Phases A-B trivial. Phase C cleanup was surgical with zero behavioral changes.
+
+See `plans/active/ARCH-ENGINE-ARTIFACTS-001/reports/2025-12-02T185000Z/initiative_closure_summary.md` for full details.

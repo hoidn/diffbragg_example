@@ -1,0 +1,35 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 25 items
+
+plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py::TestBucketLogic::test_active_missing_bucket PASSED [  4%]
+plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py::TestBucketLogic::test_archive_ready_bucket_with_archive_hint PASSED [  8%]
+plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py::TestBucketLogic::test_archive_ready_bucket_with_duplicate_hint PASSED [ 12%]
+plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py::TestBucketLogic::test_missing_plan_bucket PASSED [ 16%]
+plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py::TestBucketLogic::test_tracked_bucket PASSED [ 20%]
+plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py::TestBucketLogic::test_tracked_via_rollup_bucket PASSED [ 24%]
+plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py::TestRollupConfig::test_load_rollup_config_valid PASSED [ 28%]
+plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py::TestRollupConfig::test_load_rollup_config_missing_file PASSED [ 32%]
+plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py::TestResolveRollupConfig::test_user_supplied_path PASSED [ 36%]
+plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py::TestResolveRollupConfig::test_auto_default_path PASSED [ 40%]
+plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py::TestResolveRollupConfig::test_missing_default_path_errors PASSED [ 44%]
+plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py::TestResolveRollupConfig::test_missing_user_path_errors PASSED [ 48%]
+plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py::TestResolveRollupConfig::test_load_rollup_config_invalid_json PASSED [ 52%]
+plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py::TestInventoryPlans::test_inventory_with_buckets PASSED [ 56%]
+plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py::TestRollupReport::test_rollup_report_basic PASSED [ 60%]
+plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py::TestRollupReport::test_rollup_report_missing_member_dirs PASSED [ 64%]
+plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py::TestRollupReport::test_rollup_report_no_reports PASSED [ 68%]
+plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py::TestFixPlanParsing::test_parse_fix_plan_ids PASSED [ 72%]
+plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py::TestFixPlanParsing::test_parse_fix_plan_missing_file PASSED [ 76%]
+plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py::TestRollupCoverage::test_apply_rollup_coverage_single_rollup PASSED [ 80%]
+plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py::TestRollupCoverage::test_apply_rollup_coverage_multi_rollup PASSED [ 84%]
+plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py::TestRollupCoverage::test_apply_rollup_coverage_missing_rollup_section PASSED [ 88%]
+plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py::TestRollupCoverage::test_rollup_covered_bucket_classification PASSED [ 92%]
+plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py::TestRollupCoverage::test_active_missing_no_rollup_coverage PASSED [ 96%]
+plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py::TestRollupCoverage::test_write_missing_md_excludes_rollup_covered PASSED [100%]
+
+============================== 25 passed in 0.04s ==============================

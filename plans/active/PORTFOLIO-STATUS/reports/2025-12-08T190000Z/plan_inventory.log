@@ -1,0 +1,8 @@
+Inventory complete:
+  Total plans: 52
+  In fix_plan.md: 25
+  Covered via rollups: 34
+  Active missing: 0
+  Roll-ups configured: 13
+  [guard] Using rollup config from plans/active/PORTFOLIO-STATUS/rollups.json
+  Output written to: plans/active/PORTFOLIO-STATUS/reports/2025-12-08T190000Z

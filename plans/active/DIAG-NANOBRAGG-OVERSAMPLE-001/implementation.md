@@ -109,6 +109,50 @@ Environment freeze blocks investigation without using exception clause for targe
 - DB-AT-028/029 PASS with fixed nanobrag_torch
 - ARCH-SIM-CONSTRUCTION-001 unblocked
 
+**Phase B Status**: Implemented but INSUFFICIENT (deep copy prevents intra-instance mutation but doesn't address upstream config creation)
+
+### Phase C: Config Lifecycle Fix (Root Cause Correction)
+
+**Objective**: Fix upstream DetectorConfig creation in DBEX to thread `oversample` through warm simulator context
+
+**Root Cause (Corrected from Phase A):**
+- Phase A incorrectly identified the problem as "single DetectorConfig being mutated"
+- Phase B debug evidence shows: 2/292 configs have oversample=3, 290/292 have oversample=-1
+- Actual problem: Multiple different DetectorConfig instances created with different oversample values
+- Issue location: `dbex/refinement/stage_a_utils.py` calls `create_detector_config()` without passing `oversample` parameter
+
+**Affected code locations:**
+1. `stage_a_utils.py::_build_stage_a_context` line ~286-290 (panel-mode simulators)
+2. `stage_a_utils.py::_build_stage_a_context` line ~326-331 (ROI-mode simulators)
+3. `stage_a_utils.py::_compute_panel_loss` line ~480-484 (cold-path panel simulators, diagnostic branch)
+4. `stage_a_utils.py::_compute_panel_loss` line ~572-576 (cold-path panel simulators, fast-path branch)
+
+**Fix Strategy:**
+1. Add `oversample: int = 3` field to `RefinementConfig` (dbex/refinement/config.py)
+2. Thread `config.oversample` through `_build_stage_a_context` → `create_detector_config` calls (4 locations)
+3. Thread `config.oversample` through `_compute_panel_loss` cold-path → `create_detector_config` calls (2 locations)
+
+**Tasks:**
+- [ ] C.1: Add `oversample` field to RefinementConfig dataclass with default value 3
+- [ ] C.2: Update `_build_stage_a_context` signature to accept `config: RefinementConfig` parameter
+- [ ] C.3: Pass `oversample=config.oversample` to `create_detector_config` at 4 call sites in `_build_stage_a_context`
+- [ ] C.4: Thread `config.oversample` through `_compute_panel_loss` cold-path (2 call sites)
+- [ ] C.5: Update all callers of `_build_stage_a_context` to pass `config` parameter
+- [ ] C.6: Rerun DB-AT-028/029 with debug instrumentation to confirm 292/292 configs have oversample=3
+- [ ] C.7: Remove debug instrumentation from nanobrag_torch, rerun clean validation
+- [ ] C.8: Update docs/findings.md with corrected root cause analysis
+
+**Validation:**
+- Debug logs show 292/292 DetectorConfig instances have oversample=3 (not 2/292)
+- Zero "Entering auto-selection branch" messages in debug logs
+- DB-AT-028 PASS: chi²/pixel initial ≤ 1e2 (currently fails: 1.091e+05)
+- DB-AT-029 PASS: median ROI correlation before ≥ 0.2 (currently fails: -0.037)
+
+**Artifacts:**
+- `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-0XT0XXXXXZ/phase_c_planning.md`
+- `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-0XT0XXXXXZ/pytest_db_at_028_debug.log` (290→292 oversample=3 instances)
+- `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-0XT0XXXXXZ/pytest_db_at_028_029_clean.log` (both PASS)
+
 ## Abort/Escalation Triggers
 
 **Abort conditions:**

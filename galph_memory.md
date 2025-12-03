@@ -1226,3 +1226,45 @@ Not "shared mutable state due to reference assignment in Detector.__init__()" bu
   - detector_deep_copy_fix (implemented but insufficient)
 
 **Initiative status recommendation**: Mark Phase B "implemented but blocked — root cause mismatch" and open Phase C for proper config lifecycle investigation.
+
+---
+
+## Loop 2025-12-03T050000Z — DIAG-NANOBRAGG-OVERSAMPLE-001 Phase C Planning
+
+**Focus**: DIAG-NANOBRAGG-OVERSAMPLE-001 (nanobrag_torch oversample parameter investigation)
+**Action Type**: Planning (supervisor-side analysis per repeat-failure escalation rule)
+**State**: ready_for_implementation
+**Dwell**: 3 (Phase A evidence, Phase B implementation failed, Phase C planning)
+**Artifacts**: plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T050000Z/
+
+**Ralph's Phase B Discovery**:
+- Deep copy fix implemented but insufficient (chi²/pixel still 1.091e+05, unchanged from baseline)
+- Debug pattern: 2/292 configs have oversample=3, 290/292 have oversample=-1
+- Phase A root cause analysis was WRONG (not mutation, but creation of 290 configs with wrong default)
+
+**Supervisor Analysis This Loop**:
+- Per repeat-failure escalation rule, performed code inspection before issuing another implementation Do Now
+- Traced DetectorConfig lifecycle from test fixture → Stage A → warm simulator context
+- Identified 6 call sites in `dbex/refinement/stage_a_utils.py` where `create_detector_config()` called without `oversample` parameter:
+  1-2. `_build_stage_a_context` lines 286-290, 326-331 (panel/ROI mode)
+  3-4. `_compute_panel_loss` lines 480-484, 572-576 (cold-path diagnostic/fast-path)
+- Root cause: `create_detector_config` signature has `oversample: int = -1` default, but warm simulator setup doesn't pass it
+
+**Phase C Plan**:
+- Add `oversample: int = 3` field to RefinementConfig
+- Thread `config.oversample` through `_build_stage_a_context` and `_compute_panel_loss` (6 call sites)
+- Update all callers (~5 files) to pass `config` parameter
+- Expected impact: ~15-20 lines changed, 3-5 modules, LOW risk (pure parameter threading)
+
+**Validation Strategy**:
+- Debug validation (with nanobrag instrumentation): expect 292/292 oversample=3 (not 2/292)
+- Clean validation: DB-AT-028/029 should PASS if oversample was the only issue
+- Regression check: Stage A expansion smoke test
+
+**Lifecycle**:
+- Initiative type: diagnostics
+- Attempt count: 3 (Phase A, Phase B, Phase C)
+- Status: in_progress → ready_for_implementation
+- Blocks: ARCH-SIM-CONSTRUCTION-001, ARCH-REFACTOR-001 Phase D.3
+
+**Next Action**: Ralph implements Phase C (config threading + 6 call-site updates) per input.md

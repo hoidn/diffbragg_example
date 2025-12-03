@@ -1,90 +1,248 @@
-# Input for Ralph (Loop 2025-12-03T044428Z)
+# Input for Ralph (Loop 2025-12-03T050000Z)
 
 ## Summary
-Implement deep copy fix in nanobrag_torch Detector class to prevent DetectorConfig.oversample field mutation, resolving the root cause identified in Phase A (Case A: shared mutable state).
+Thread `oversample` parameter through RefinementConfig and warm simulator context creation to fix 290/292 DetectorConfig instances having wrong default value.
 
 ## Mode
-none (diagnostics: targeted bugfix per Environment Freeze exception clause)
+none (diagnostics: config lifecycle fix per Phase C plan)
 
 ## InitiativeType
 diagnostics
 
 ## Focus
-DIAG-NANOBRAGG-OVERSAMPLE-001 — nanobrag_torch oversample parameter investigation (Phase B: fix DetectorConfig mutation)
+DIAG-NANOBRAGG-OVERSAMPLE-001 — nanobrag_torch oversample parameter investigation (Phase C: config lifecycle fix)
 
 ## Branch
 integration
 
 ## Mapped tests
-- `tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity` (will validate oversample=3 preserved, chi²/pixel ≤1e2)
+- `tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity` (will validate oversample=3 preserved across 292 instances, chi²/pixel ≤1e2)
 - `tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity` (will validate ROI correlation ≥0.2)
+- `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` (regression check for warm context changes)
 
 ## Artifacts
-`plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T044428Z/`
-- `detector_deep_copy_fix.patch` (final clean patch showing only the 2-line fix)
-- `pytest_db_at_028_debug.log` (test run WITH debug instrumentation to confirm oversample=3 preserved)
-- `pytest_db_at_028_clean.log` (test run AFTER removing debug prints, final validation)
-- `pytest_db_at_029_clean.log` (structure parity test, final validation)
-- `debug_output_analysis.md` (analysis confirming oversample=3 across all 209 runs)
-- `nanobragg_rebuild.log` (rebuild output)
-- `environment_tag.txt` (environment state tag)
+`plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T050000Z/`
+- `phase_c_planning.md` (supervisor-side analysis, already created)
+- `refinement_config_oversample.patch` (config field addition)
+- `stage_a_utils_oversample.patch` (config threading)
+- `pytest_db_at_028_debug.log` (debug validation: 292/292 oversample=3)
+- `pytest_db_at_028_029_clean.log` (clean validation: both PASS)
 - `summary.md` (loop summary)
 
 ## Do Now
 
-**Root Cause Recap**: Phase A identified that `Detector.__init__()` stores a reference to the `DetectorConfig` object (`self.config = config`), allowing shared mutable state when the same config instance is reused. This causes `oversample=3` to mutate to `-1` between simulator runs.
+**Context**: Phase B deep copy fix was insufficient—it prevents mutation WITHIN Detector instances but doesn't address the real problem: 290/292 DetectorConfig instances created with default `oversample=-1` instead of explicit `oversample=3`. Supervisor-side analysis identified 6 call sites in `stage_a_utils.py` where `create_detector_config()` is called without passing the `oversample` parameter.
 
-**Fix Strategy**: Add deep copy in `Detector.__init__()` so each Detector instance gets its own independent config copy.
+**Fix Strategy**: Thread `oversample` through `RefinementConfig` (job-level config) → warm simulator context builders → `create_detector_config` calls.
 
-### Task 1: Implement Deep Copy Fix
+### Task C.1: Add oversample field to RefinementConfig
 
-**File**: `/home/ollie/Documents/diffbragg_example_2/diffbragg_example/src/nanobrag-torch/src/nanobrag_torch/models/detector.py`
+**File**: `dbex/refinement/config.py`
 
-**Change 1** — Add import at module top (after existing imports, around line 10):
+**Change**: Add new field after line 74 (after `enable_stage_a_warm_cache` field):
 
-Find the import block at the top of the file and add:
 ```python
-from copy import deepcopy
+# nanobrag_torch oversampling (DIAG-NANOBRAGG-OVERSAMPLE-001 Phase C)
+# Oversampling factor for detector simulation (1, 2, 3, ...).
+# Default 3 matches calibration metadata standard and prevents auto-selection.
+# -1 triggers auto-selection based on detector size (not recommended for reproducibility).
+oversample: int = 3
 ```
 
-**Change 2** — Deep copy config in `__init__` method (around line 30):
+**Validation**: Field added, no syntax errors
 
-Find this line inside `Detector.__init__()`:
+### Task C.2: Update _build_stage_a_context signature
+
+**File**: `dbex/refinement/stage_a_utils.py`
+
+**Find the function signature** (around line 220-240):
 ```python
-self.config = config
+def _build_stage_a_context(
+    detector,
+    beam,
+    hkl_grid,
+    hkl_metadata,
+    crystal_model,
+    beam_config,
+    trusted_mask,
+    roi_sample_fraction: float = 0.15,
+    panel_slices=None,
+    device: str = "cpu",
+    dtype=torch.float32,
+) -> StageAContext:
 ```
 
-Replace it with:
+**Add config parameter**:
 ```python
-self.config = deepcopy(config)  # Deep copy to prevent shared mutable state
+def _build_stage_a_context(
+    detector,
+    beam,
+    hkl_grid,
+    hkl_metadata,
+    crystal_model,
+    beam_config,
+    trusted_mask,
+    roi_sample_fraction: float = 0.15,
+    panel_slices=None,
+    device: str = "cpu",
+    dtype=torch.float32,
+    config: Optional['RefinementConfig'] = None,  # DIAG-NANOBRAGG-OVERSAMPLE-001
+) -> StageAContext:
 ```
 
-**Expected diff**:
-```diff
-+from copy import deepcopy
+**Add import** at top of file (around line 10-20, after other imports):
+```python
+from typing import Optional, TYPE_CHECKING
 
- class Detector:
-     def __init__(self, config: Optional[DetectorConfig] = None, device=None, dtype=torch.float32):
-         ...
-         if config is None:
-             config = DetectorConfig()
--        self.config = config
-+        self.config = deepcopy(config)  # Deep copy to prevent shared mutable state
+if TYPE_CHECKING:
+    from dbex.refinement.config import RefinementConfig
 ```
 
-### Task 2: Rebuild nanobrag_torch
+**Add default value extraction** at start of function body (after docstring, before any logic):
+```python
+# Extract oversample from config or use default (DIAG-NANOBRAGG-OVERSAMPLE-001)
+oversample_value = 3  # Default fallback
+if config is not None:
+    oversample_value = config.oversample
+```
 
-**Commands**:
+### Task C.3: Pass oversample to create_detector_config (4 call sites in _build_stage_a_context)
+
+**Call site 1** (around line 286-290, panel-mode simulators):
+```python
+# OLD:
+detector_config = create_detector_config(
+    panel=panel,
+    beam=beam,
+    trusted_mask=trusted_mask[pid]
+)
+
+# NEW:
+detector_config = create_detector_config(
+    panel=panel,
+    beam=beam,
+    trusted_mask=trusted_mask[pid],
+    oversample=oversample_value,  # DIAG-NANOBRAGG-OVERSAMPLE-001
+)
+```
+
+**Call site 2** (around line 326-331, ROI-mode simulators):
+```python
+# OLD:
+detector_config = create_detector_config(
+    panel=panel,
+    beam=beam,
+    trusted_mask=trusted_mask[int(pid)],
+    roi_bbox=bbox,
+)
+
+# NEW:
+detector_config = create_detector_config(
+    panel=panel,
+    beam=beam,
+    trusted_mask=trusted_mask[int(pid)],
+    roi_bbox=bbox,
+    oversample=oversample_value,  # DIAG-NANOBRAGG-OVERSAMPLE-001
+)
+```
+
+### Task C.4: Update _compute_panel_loss signature and cold-path calls
+
+**Find the function signature** (around line 400-420):
+```python
+def _compute_panel_loss(
+    # ... existing parameters ...
+) -> Tuple[torch.Tensor, torch.Tensor, int, int]:
+```
+
+**Add config parameter** (keep existing parameters, just add at end):
+```python
+def _compute_panel_loss(
+    # ... existing parameters ...
+    config: Optional['RefinementConfig'] = None,  # DIAG-NANOBRAGG-OVERSAMPLE-001
+) -> Tuple[torch.Tensor, torch.Tensor, int, int]:
+```
+
+**Add default value extraction** at start of function body:
+```python
+# Extract oversample from config or use default (DIAG-NANOBRAGG-OVERSAMPLE-001)
+oversample_value = 3
+if config is not None:
+    oversample_value = config.oversample
+```
+
+**Call site 3** (around line 480-484, cold-path diagnostic branch):
+```python
+# OLD:
+detector_config = create_detector_config(
+    panel=detector[pid],
+    beam=beam,
+    trusted_mask=panel_trusted_mask
+)
+
+# NEW:
+detector_config = create_detector_config(
+    panel=detector[pid],
+    beam=beam,
+    trusted_mask=panel_trusted_mask,
+    oversample=oversample_value,  # DIAG-NANOBRAGG-OVERSAMPLE-001
+)
+```
+
+**Call site 4** (around line 572-576, cold-path fast-path branch):
+```python
+# OLD:
+detector_config = create_detector_config(
+    panel=detector[pid],
+    beam=beam,
+    trusted_mask=panel_trusted_mask
+)
+
+# NEW:
+detector_config = create_detector_config(
+    panel=detector[pid],
+    beam=beam,
+    trusted_mask=panel_trusted_mask,
+    oversample=oversample_value,  # DIAG-NANOBRAGG-OVERSAMPLE-001
+)
+```
+
+### Task C.5: Update all callers of _build_stage_a_context and _compute_panel_loss
+
+**Find all callers using grep**:
 ```bash
-cd /home/ollie/Documents/diffbragg_example_2/diffbragg_example/src/nanobrag-torch
-pip install -e . > /home/ollie/Documents/diffbragg_example/plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T044428Z/nanobragg_rebuild.log 2>&1
+cd /home/ollie/Documents/diffbragg_example
+grep -n "_build_stage_a_context(" dbex/refinement/*.py
+grep -n "_compute_panel_loss(" dbex/refinement/*.py
 ```
 
-**Validation**: Build succeeds, logs captured.
+**For each caller**: Add `config=config` parameter to the function call.
 
-### Task 3: Rerun DB-AT-028 WITH Debug Instrumentation
+**Expected callers**:
+- `dbex/refinement/stage_a.py` (StageA.run) - should have access to `self.config` or similar
+- Possibly `dbex/refinement/stage_a_utils.py` (if _compute_panel_loss calls _build_stage_a_context)
 
-**Purpose**: Confirm that `oversample=3` is now preserved across all 209 simulator runs (not mutating to -1).
+**Pattern**:
+```python
+# OLD:
+stage_a_ctx = _build_stage_a_context(
+    detector=detector,
+    beam=beam,
+    # ... other args ...
+)
+
+# NEW:
+stage_a_ctx = _build_stage_a_context(
+    detector=detector,
+    beam=beam,
+    # ... other args ...
+    config=config,  # DIAG-NANOBRAGG-OVERSAMPLE-001
+)
+```
+
+### Task C.6: Debug validation (keep nanobrag instrumentation)
+
+**Purpose**: Verify that ALL 292 DetectorConfig instances now have `oversample=3`
 
 **Command**:
 ```bash
@@ -94,81 +252,52 @@ DBEX_SMOKE_SIGMA_SOURCE=metadata \
 DBEX_SMOKE_DETECTOR_SIZE=full \
 KMP_DUPLICATE_LIB_OK=TRUE \
 NANOBRAGG_DISABLE_COMPILE=1 \
-pytest -vv -s tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity > plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T044428Z/pytest_db_at_028_debug.log 2>&1
+pytest -vv -s tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity > plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T050000Z/pytest_db_at_028_debug.log 2>&1
 ```
 
-**Expected debug output pattern** (should see this CONSISTENTLY for all 209 runs):
+**Expected debug output pattern** (should see this for ALL 292 runs):
 ```
-[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
-[DIAG-OVERSAMPLE] self.detector.config.oversample=3  ← STAYS 3 (not -1!)
-[DIAG-OVERSAMPLE] oversample after config read: 3
+[DIAG-OVERSAMPLE] self.detector.config.oversample=3
 ```
 
 **Should NOT see**:
-- `[DIAG-OVERSAMPLE] Entering auto-selection branch` (should never enter if oversample=3)
-- `auto-selected N-fold oversampling` messages
+- `[DIAG-OVERSAMPLE] self.detector.config.oversample=-1`
+- `[DIAG-OVERSAMPLE] Entering auto-selection branch`
 
-**Expected test result**: PASS (chi²/pixel initial ≤ 1e2)
+**Analysis**:
+```bash
+grep "oversample=3" plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T050000Z/pytest_db_at_028_debug.log | wc -l
+# Expected: 292 (not 2!)
 
-### Task 4: Analyze Debug Output
+grep "oversample=-1" plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T050000Z/pytest_db_at_028_debug.log | wc -l
+# Expected: 0
 
-Create `debug_output_analysis.md` with:
-
-1. Extract all `[DIAG-OVERSAMPLE] self.detector.config.oversample=` lines from the debug log
-2. Count occurrences of `oversample=3` vs `oversample=-1`
-3. Confirm ZERO `oversample=-1` occurrences (all should be 3)
-4. Confirm ZERO "Entering auto-selection branch" occurrences
-5. Document first divergence point (should be NONE)
-
-**Example analysis template**:
-```markdown
-# Debug Output Analysis — DIAG-NANOBRAGG-OVERSAMPLE-001 Phase B
-
-## Summary
-Deep copy fix successfully prevents DetectorConfig.oversample mutation.
-
-## Oversample Values Across 209 Runs
-- `oversample=3`: 209 occurrences ✅
-- `oversample=-1`: 0 occurrences ✅
-
-## Auto-Selection Branch
-- "Entering auto-selection branch": 0 occurrences ✅
-- "auto-selected N-fold oversampling": 0 occurrences ✅
-
-## Conclusion
-Fix SUCCESSFUL. DetectorConfig.oversample=3 preserved across all simulator runs.
+grep "Entering auto-selection" plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T050000Z/pytest_db_at_028_debug.log | wc -l
+# Expected: 0
 ```
 
-### Task 5: Remove Debug Instrumentation
+**Document findings** in `debug_validation.md`:
+- Count of oversample=3 instances (should be 292/292)
+- Count of oversample=-1 instances (should be 0)
+- Test outcome (PASS or FAIL with chi²/pixel value)
+
+### Task C.7: Remove nanobrag debug instrumentation (if debug validation successful)
+
+**ONLY proceed if Task C.6 showed 292/292 oversample=3**
 
 **File**: `/home/ollie/Documents/diffbragg_example_2/diffbragg_example/src/nanobrag-torch/src/nanobrag_torch/simulator.py`
 
-Remove the debug print statements added in Phase A (lines with `[DIAG-OVERSAMPLE]`):
-- Lines ~770-772 (first debug block)
-- Lines ~775-777 (second debug block)
-- Lines ~787-789 (third debug block)
+Remove all `[DIAG-OVERSAMPLE]` debug print statements added in Phase A (around lines 770-790).
 
-**Validation**: Clean `git diff` should show ONLY the deep copy changes (import + line 30), not the debug prints.
-
-### Task 6: Create Final Patch File
-
-**Commands**:
+**Rebuild nanobrag_torch**:
 ```bash
 cd /home/ollie/Documents/diffbragg_example_2/diffbragg_example/src/nanobrag-torch
-git add src/nanobrag_torch/models/detector.py
-git diff --cached > /home/ollie/Documents/diffbragg_example/plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/patches/detector_deep_copy_fix.patch
+pip install -e . > /home/ollie/Documents/diffbragg_example/plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T050000Z/nanobragg_rebuild_clean.log 2>&1
 ```
 
-**Expected patch content**: Should show ONLY:
-1. `from copy import deepcopy` import
-2. `self.config = deepcopy(config)` replacement
+### Task C.8: Clean validation (WITHOUT debug instrumentation)
 
-(NOT the debug prints, those were removed in Task 5)
-
-### Task 7: Final Validation (Clean Run)
-
-Rerun both acceptance tests WITHOUT debug instrumentation:
-
+**Command**:
 ```bash
 cd /home/ollie/Documents/diffbragg_example
 AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
@@ -176,211 +305,116 @@ DBEX_SMOKE_SIGMA_SOURCE=metadata \
 DBEX_SMOKE_DETECTOR_SIZE=full \
 KMP_DUPLICATE_LIB_OK=TRUE \
 NANOBRAGG_DISABLE_COMPILE=1 \
-pytest -vv tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity > plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T044428Z/pytest_db_at_028_029_clean.log 2>&1
+pytest -vv tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity > plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T050000Z/pytest_db_at_028_029_clean.log 2>&1
 ```
 
 **Expected**: Both tests PASS
-- DB-AT-028: `chi²/pixel initial ≤ 1e2` ✅ (currently fails: 1.084e+05)
-- DB-AT-029: `median ROI correlation before ≥ 0.2` ✅ (currently fails: -0.037)
+- DB-AT-028: `chi²/pixel initial ≤ 1e2` (baseline was 1.091e+05, ~1091× over bound)
+- DB-AT-029: `median ROI correlation before ≥ 0.2` (baseline was -0.037)
 
-### Task 8: Update docs/findings.md
+**If tests FAIL**: Document failure signature and escalate to Galph. Oversample fix may not be the only issue.
 
-Find the existing `[DIAG-OVERSAMPLE-001]` entry (added in Phase A) and update it:
-
-**Old entry**:
-```markdown
-### [DIAG-OVERSAMPLE-001] nanobrag_torch Oversample Parameter Handling Investigation
-
-**Status**: In Progress (Phase A complete: root cause identified as Case A)
-
-**Root Cause**: (to be filled after log analysis: Case A/B/C with brief explanation)
-
-**Resolution Path**: (to be filled: Phase B fix plan or escalation recommendation)
-```
-
-**Updated entry**:
-```markdown
-### [DIAG-OVERSAMPLE-001] nanobrag_torch Oversample Parameter Handling Investigation
-
-**Status**: RESOLVED (Phase B complete: deep copy fix implemented and validated)
-
-**Context**: ARCH-SIM-CONSTRUCTION-001 stuck due to suspected nanobrag_torch `oversample` parameter issue. Explicit `DetectorConfig(oversample=3)` setting didn't prevent auto-selection code path, causing ~23,317× magnitude discrepancy in reconstruction helpers.
-
-**Investigation**: Phase A added debug instrumentation, captured 1,166 debug lines showing `oversample=3` on first invocation then `oversample=-1` on all 208 subsequent runs. Root cause: `Detector.__init__()` stored reference to DetectorConfig instead of deep copy, enabling shared mutable state across Simulator instances.
-
-**Root Cause**: Case A — DetectorConfig.oversample field mutation due to shared mutable state. File: `models/detector.py` line 30: `self.config = config` (reference assignment instead of deep copy).
-
-**Resolution**: Phase B implemented deep copy fix in `Detector.__init__()`: imported `deepcopy` from `copy` module, replaced `self.config = config` with `self.config = deepcopy(config)`. Validated via DB-AT-028/029 acceptance tests (both PASS after fix, previously FAIL). Debug logs confirm `oversample=3` preserved across all 209 simulator runs (zero `-1` occurrences, zero auto-selection branch entries).
-
-**Impact**: Unblocked ARCH-SIM-CONSTRUCTION-001 (reconstruction magnitude discrepancy resolved), unblocked ARCH-REFACTOR-001 Phase D.3 (DB-AT-028/029 acceptance gates now passing).
-
-**References**:
-- Initiative: DIAG-NANOBRAGG-OVERSAMPLE-001
-- Patch: `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/patches/detector_deep_copy_fix.patch`
-- Artifacts: Phase A `2025-12-03T043000Z/`, Phase B `2025-12-03T044428Z/`
-- Unblocks: ARCH-SIM-CONSTRUCTION-001, ARCH-REFACTOR-001
-```
-
-### Task 9: Tag Environment State
+### Task C.9: Regression check
 
 **Command**:
 ```bash
-echo "nanobragg-deepcopy-fix-2025-12-03" > plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T044428Z/environment_tag.txt
+cd /home/ollie/Documents/diffbragg_example
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+KMP_DUPLICATE_LIB_OK=TRUE \
+NANOBRAGG_DISABLE_COMPILE=1 \
+pytest -vv tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion > plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T050000Z/pytest_stage_a_expansion.log 2>&1
 ```
 
-**Rationale**: Documents environment state per Environment Freeze exception requirement #5.
+**Expected**: PASS (no regression from threading `config` parameter)
 
-### Task 10: Write Loop Summary
+### Task C.10: Create patch files
 
-Create `summary.md` documenting:
-- Fix implemented (deep copy in Detector.__init__())
-- Debug validation results (oversample=3 preserved across all runs)
-- Final clean validation results (DB-AT-028/029 PASS)
-- Environment Freeze compliance confirmed (all 5 requirements met)
-- Initiatives unblocked (ARCH-SIM-CONSTRUCTION-001, ARCH-REFACTOR-001 Phase D.3)
+**For RefinementConfig change**:
+```bash
+cd /home/ollie/Documents/diffbragg_example
+git add dbex/refinement/config.py
+git diff --cached dbex/refinement/config.py > plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/patches/refinement_config_oversample.patch
+git reset HEAD dbex/refinement/config.py
+```
+
+**For stage_a_utils changes**:
+```bash
+git add dbex/refinement/stage_a_utils.py
+git diff --cached dbex/refinement/stage_a_utils.py > plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/patches/stage_a_utils_oversample.patch
+git reset HEAD dbex/refinement/stage_a_utils.py
+```
+
+**For any other changed files** (callers):
+```bash
+git add dbex/refinement/stage_a.py  # If modified
+git diff --cached dbex/refinement/stage_a.py > plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/patches/stage_a_caller_oversample.patch
+git reset HEAD dbex/refinement/stage_a.py
+```
+
+### Task C.11: Update docs/findings.md
+
+Find the `[DIAG-OVERSAMPLE-001]` entry and update it with Phase C resolution details (see Pointers section for template).
+
+### Task C.12: Write loop summary
+
+Create `summary.md` documenting Phase C implementation complete, validation results, and unblocked initiatives.
 
 ## How-To Map
 
 ### Step-by-step execution order:
 
-1. **Edit detector.py**: Add `from copy import deepcopy` import, replace `self.config = config` with `self.config = deepcopy(config)`
-2. **Rebuild nanobrag_torch**: `cd src/nanobrag-torch && pip install -e . > .../nanobragg_rebuild.log 2>&1`
-3. **Run DB-AT-028 with debug**: Capture debug logs to confirm oversample=3 preserved
-4. **Analyze debug output**: Extract [DIAG-OVERSAMPLE] lines, confirm zero `-1` occurrences
-5. **Remove debug prints**: Clean up simulator.py (remove Phase A instrumentation)
-6. **Create final patch**: `git diff --cached > .../detector_deep_copy_fix.patch`
-7. **Final validation**: Rerun DB-AT-028/029 without debug, expect both PASS
-8. **Update findings.md**: Mark DIAG-OVERSAMPLE-001 as RESOLVED with fix details
-9. **Tag environment**: Create environment_tag.txt
-10. **Write summary.md**: Document loop outcome and unblocked initiatives
-
-### Expected timeline:
-- Edit + rebuild: ~5 minutes
-- Test run with debug: ~40 seconds
-- Debug analysis: ~10 minutes
-- Clean up + final patch: ~5 minutes
-- Final validation: ~80 seconds (2 tests)
-- Docs update + summary: ~10 minutes
-- **Total: ~30-35 minutes**
-
-### Key environment variables:
-- `DBEX_SMOKE_SIGMA_SOURCE=metadata` — Use external_lookup sigma source (required for DB-AT-028/029)
-- `DBEX_SMOKE_DETECTOR_SIZE=full` — Full 2527×2463 detector
-- `NANOBRAGG_DISABLE_COMPILE=1` — Disable torch.compile for reproducible output
-- `KMP_DUPLICATE_LIB_OK=TRUE` — Suppress OpenMP duplicate library warnings
+1. **Add oversample field** to RefinementConfig (Task C.1)
+2. **Update _build_stage_a_context signature** and add oversample extraction (Task C.2)
+3. **Pass oversample to 4 create_detector_config calls** in _build_stage_a_context (Task C.3)
+4. **Update _compute_panel_loss signature** and pass oversample to 2 cold-path calls (Task C.4)
+5. **Find and update all callers** of _build_stage_a_context and _compute_panel_loss (Task C.5)
+6. **Debug validation** with nanobrag instrumentation (Task C.6), analyze counts
+7. **Remove nanobrag debug prints** if validation successful (Task C.7)
+8. **Clean validation** both DB-AT-028/029 (Task C.8)
+9. **Regression check** Stage A expansion (Task C.9)
+10. **Create patch files** for all changed files (Task C.10)
+11. **Update findings.md** with Phase C resolution (Task C.11)
+12. **Write summary.md** (Task C.12)
 
 ## Pitfalls To Avoid
 
-1. **Do NOT forget to import deepcopy** — the fix requires both the import AND the usage.
-2. **Do NOT use shallow copy (copy.copy)** — DetectorConfig contains nested objects that need deep copying.
-3. **Do NOT skip the debug validation step (Task 3)** — we need to confirm oversample=3 is preserved before removing debug prints.
-4. **Do NOT commit the debug instrumentation** — Task 5 must remove Phase A debug prints before creating final patch.
-5. **Do NOT skip rebuild step** — changes to nanobrag_torch require reinstall before they take effect.
-6. **Do NOT proceed if debug logs still show oversample=-1** — the fix didn't work, escalate to Galph.
-7. **Do NOT skip Task 7 (final clean validation)** — we need both tests to PASS to confirm initiative complete.
-8. **Environment Freeze compliance**: Document all steps (patch, rebuild, testing) per exception requirements.
+1. **Do NOT skip Task C.5 (caller updates)** — threading `config` parameter through call chain is critical
+2. **Do NOT proceed to Task C.7 if Task C.6 shows <292 oversample=3** — escalate to Galph if counts don't match
+3. **Do NOT assume tests will PASS** — oversample may not be the only issue; document failure signature if C.8 fails
+4. **Do NOT forget TYPE_CHECKING import** — `RefinementConfig` forward reference needed for type hints
+5. **Do NOT mix up Optional parameter placement** — add `config` parameter at END of existing parameter lists
+6. **Do NOT skip patch file creation (Task C.10)** — Environment Freeze compliance requirement
+7. **Do NOT skip regression check (Task C.9)** — must verify no breakage from signature changes
 
 ## If Blocked
 
-**If nanobrag_torch rebuild fails**:
-1. Capture full error output in `nanobragg_rebuild.log`
-2. Check for missing dependencies (e.g., torch version mismatches)
-3. Document build failure in `summary.md`
-4. Escalate to Galph with recommendation: resolve build dependencies or revert change
-
-**If debug logs still show oversample=-1 after fix**:
-1. Double-check that deep copy was applied correctly (inspect models/detector.py)
-2. Verify rebuild completed successfully (check pip install output)
-3. Confirm nanobrag_torch import is from the editable install (not system package)
-4. Document in `debug_output_analysis.md` with full excerpt
-5. Escalate to Galph: deep copy fix insufficient, may need frozen dataclass or different approach
-
-**If tests still FAIL after fix**:
-1. Check debug logs to confirm oversample=3 preserved (if not, see above)
-2. If oversample=3 IS preserved but tests still fail:
-   - Extract failure signature (chi²/pixel value, ROI correlation value)
-   - Compare to Phase A baseline (chi²=1.084e+05, corr=-0.037)
-   - If similar: oversample fix didn't resolve root cause, escalate
-   - If different: new failure mode, escalate with new signature
-3. Document in `summary.md` and escalate to Galph
-
-**If final patch includes debug prints**:
-1. Verify Task 5 was executed (debug prints removed from simulator.py)
-2. Re-run `git diff` to confirm only detector.py changes present
-3. Manually edit patch file to remove debug print hunks if needed
-4. Document cleanup in `summary.md`
+See detailed blockers handling in the original input.md section. Key points:
+- If callers hard to find: use grep, document any that can't be updated
+- If debug validation <292: document pattern, escalate, DO NOT proceed to clean validation
+- If clean validation fails: compare to baseline, document progress, escalate
+- If regression fails: check error type, verify imports, escalate
 
 ## Findings Applied
 
-**From planning_notes.md (2025-12-03T044428Z)**:
-- **Root cause mechanism**: `Detector.__init__()` line 30 stores reference, not copy
-- **Fix strategy**: Deep copy chosen over frozen dataclass (preserves __post_init__ logic)
-- **Validation approach**: Debug instrumentation first, clean validation second
-
-**From root_cause_analysis.md (Phase A, 2025-12-03T043000Z)**:
-- **Case A identification**: DetectorConfig.oversample mutates from 3 to -1
-- **Pattern**: First run correct, all subsequent runs incorrect
-- **Debug evidence**: 1,166 lines, 617 auto-selection messages
-
-**From ARCH-SIM-CONSTRUCTION-001 lifecycle_decision.md (2025-12-03T021140Z)**:
-- **Repeat-failure guard**: 4 consecutive loops with same signature triggered stuck status
-- **Environment constraint**: Cannot modify nanobrag_torch without exception clause approval
-- **Unblock requirement**: Fix must resolve ~23,317× magnitude discrepancy
+- **phase_c_planning.md**: Supervisor callchain analysis, 6 call sites identified
+- **Phase B summary.md**: Deep copy insufficient, 2/292 vs 290/292 pattern
+- **Phase A root_cause_analysis.md**: Original hypothesis was wrong
 
 ## Pointers
 
-**Spec / Architecture**:
-- docs/spec-db-core.md §§20-40 (detector configuration, oversampling semantics)
-- CLAUDE.md Environment Freeze exception clause (targeted bugfixes to locally available source)
-
 **Implementation Files**:
-- `/home/ollie/Documents/diffbragg_example_2/diffbragg_example/src/nanobrag-torch/src/nanobrag_torch/models/detector.py:28-30` (mutation site, target for fix)
-- `/home/ollie/Documents/diffbragg_example_2/diffbragg_example/src/nanobrag-torch/src/nanobrag_torch/config.py:48` (DetectorConfig dataclass, oversample field default=-1)
+- `dbex/refinement/config.py:74` (add oversample field after enable_stage_a_warm_cache)
+- `dbex/refinement/stage_a_utils.py:220-240` (_build_stage_a_context signature)
+- `dbex/refinement/stage_a_utils.py:286-290, 326-331` (4 call sites in _build_stage_a_context)
+- `dbex/refinement/stage_a_utils.py:400-420` (_compute_panel_loss signature)
+- `dbex/refinement/stage_a_utils.py:480-484, 572-576` (2 cold-path call sites)
 
 **Test / Acceptance**:
-- `tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity` (DB-AT-028: chi²/pixel ≤1e2)
-- `tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity` (DB-AT-029: ROI corr ≥0.2)
-
-**Prior Evidence**:
-- `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T043000Z/root_cause_analysis.md` (Phase A diagnosis)
-- `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T043000Z/pytest_db_at_028_debug.log` (Phase A debug capture)
-- `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T235959Z/summary.md` (blocked status, ~23,317× magnitude error)
-
-**Initiative Plan**:
-- `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/implementation.md` (Phase A/B plan, exit criteria)
-- `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T044428Z/planning_notes.md` (Phase B strategy)
+- `tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity`
+- `tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity`
+- `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion`
 
 ## Next Up
 
-**If Phase B successful (tests PASS)**:
-- Mark DIAG-NANOBRAGG-OVERSAMPLE-001 as done (all exit criteria satisfied)
-- Unblock ARCH-SIM-CONSTRUCTION-001 (resume Phase C.5)
-- Unblock ARCH-REFACTOR-001 Phase D.3 (DB-AT-028/029 gates now passing)
-- Update docs/fix_plan.md with completion entry
-
-**If Phase B requires iteration**:
-- Create Phase B.2 planning loop with alternative fix strategy
-- Consider frozen dataclass or mutation site removal approaches
-- Escalate to user if complexity exceeds diagnostics initiative scope
-
-## Doc Sync Plan
-
-**Not applicable** — no tests added/renamed this loop.
-
-Existing tests `test_db_at_028_loss_scale_sanity` and `test_db_at_029_structure_parity` reused for validation only.
-
-## Mapped Tests Guardrail
-
-**Collect-only verification**:
-```bash
-AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-pytest --collect-only tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity
-```
-
-**Expected**: 2 tests collected
-
-**Status**: Existing tests, no changes to collection expected.
-
-## Normative Math/Physics
-
-Not applicable — this is a bugfix to prevent config mutation, not a change to physics/math equations. Oversample parameter semantics are normative per docs/spec-db-core.md §§20-40, and this fix ensures those semantics are honored (explicit oversample=3 stays 3, doesn't mutate to -1).
+**If successful**: Mark DIAG-NANOBRAGG-OVERSAMPLE-001 done, unblock ARCH-SIM-CONSTRUCTION-001 and ARCH-REFACTOR-001 Phase D.3
+**If requires iteration**: Document progress, consider spec_change if tests fundamentally incompatible

@@ -2033,3 +2033,36 @@ Action State: gathering_evidence
 - Updated `plans/active/ARCH-SIM-CONSTRUCTION-001/implementation.md` (status → in_progress, C.5 marked complete, new C.6 checklist), extended `docs/fix_plan.md` Attempts History with the trusted-mask parity plan, and reserved `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-03T161601Z/` for the fix loop.
 - Replaced `input.md` with a Parity-mode Do Now covering the mask plumbing change, the simulator comparison rerun, and DB-AT-028/029 executions with `DBAT028/029_ARTIFACT_DIR` set so the selectors collect after the fix.
 Action State: ready_for_implementation
+
+## 2025-12-03T161601Z focus=ARCH-SIM-CONSTRUCTION-001 state=blocked action=escalation
+
+**Repeat-Failure Guard + Magnitude Regression:**
+
+Threaded `inputs.trusted_mask[pid]` into reconstruction.py:190-202 cold-path `create_detector_config` call per Phase C.6 plan. However:
+
+1. **Probe unchanged:** `compare_simulator_outputs.py` still shows identical 18% discrepancy (raw ratio 0.847/1.181) after the fix. Root cause: probe script builds its own detector_config WITHOUT calling the reconstruction helper (line 250), so it doesn't exercise the fix.
+
+2. **Test catastrophic regression:** DB-AT-028/029 now FAIL with raw simulator output 3.4e-14 (was ~2e-9 in prior investigation), producing chi²~2e5 and ROI CC~-0.05. This is a **10^5 magnitude drop**, not the expected 18% parity fix.
+
+3. **Debug evidence:**
+   ```
+   bragg_panel[0] mean (raw sim output): 3.408123e-14
+   scale_factor (after exp): 13895512064.0
+   bragg_scaled[0] mean (after scale_factor): 4.735761e-04
+   ```
+   The scaling math is correct (3.4e-14 × 1.4e10 ≈ 4.7e-4), but the raw output is catastrophically small.
+
+**Suspected root causes:**
+- My trusted_mask threading may interact badly with the simulator factory (mask format issue?)
+- The test may be using warm cache path (not cold path), and mask is being passed incorrectly there
+- The trusted mask hypothesis was wrong; real issue is elsewhere (HKL grid? beam config? oversample?)
+
+**Next actions (for Galph):**
+1. Inspect whether DB-AT-028/029 exercise warm vs cold reconstruction path
+2. Review mask format passed to `create_detector_config` (should be [slow,fast] bool array per spec-db-core.md:34)
+3. Consider reverting the trusted_mask threading and pursuing alternative hypotheses (HKL bounds? beam threading?)
+4. If mask threading is correct, add targeted probe that actually calls `build_final_bragg_from_stage_a_telemetry`
+
+**Artifacts:** `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-03T161601Z/{simulator_intensity_metrics.json,pytest_db_at_028_029.log}`
+
+**Initiative status:** Marked `blocked_pending_investigation` in fix_plan. Trusted-mask hypothesis needs deeper inspection before further implementation attempts.

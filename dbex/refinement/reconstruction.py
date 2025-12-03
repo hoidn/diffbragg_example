@@ -187,9 +187,17 @@ def build_final_bragg_from_stage_a_telemetry(
         beam_config = create_beam_config(beam, flux=beam_flux, exposure=beam_exposure, beamsize_mm=beamsize_mm)
         simulators = []
         for pid in sampled_panel_ids:
+            # Thread trusted mask into cold-path detector config (ARCH-SIM-CONSTRUCTION-001)
+            # When inputs.trusted_mask exists, pass per-panel mask so reconstruction zeros
+            # untrusted pixels the same way Stage A warm cache does (spec-db-core.md:34,109)
+            panel_trusted_mask = None
+            if inputs.trusted_mask is not None:
+                panel_trusted_mask = inputs.trusted_mask[pid]
+
             detector_config = create_detector_config(
                 detector[pid],
                 beam=beam,
+                trusted_mask=panel_trusted_mask,
                 oversample=3  # Force 3-fold oversampling matching simulate_forward_once
             )
             # Use unified factory for forward-only reconstruction (ARCH-FACTORY-001)

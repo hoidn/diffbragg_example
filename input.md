@@ -1,10 +1,10 @@
-# Input for Ralph — Loop 2025-12-06T094500Z
+# Input for Ralph — Loop 2025-12-07T120500Z
 
 ## Summary
-Create the missing implementation stub for FINDINGS-LEDGER-002, wire it into the ledger, and rerun the guarded plan inventory so PORTFOLIO-STATUS Phase C can close with zero missing-plan directories.
+Teach `plan_inventory.py` to treat roll-up membership as real ledger coverage so the guard reports match reality, then rerun the inventory and refresh the fix plan appendix/attempts history with the new counts.
 
 ## Mode
-Docs
+none
 
 ## InitiativeType
 housekeeping
@@ -19,64 +19,64 @@ integration
 pytest -q plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py
 
 ## Artifacts
-plans/active/PORTFOLIO-STATUS/reports/2025-12-06T120000Z/
+plans/active/PORTFOLIO-STATUS/reports/2025-12-07T153000Z/
 
 ## Do Now
-1. **Implement: plans/active/FINDINGS-LEDGER-002/implementation.md**  
-   - Use `plans/templates/implementation_plan.md` as the skeleton. Summarize the purpose (knowledge-base ledger upkeep), note that the plan currently lacks Goals/Exit Criteria, and include placeholders for Phase breakdown + artifacts path. Cite `docs/fix_plan.md` Plan Inventory appendix so future loops know why this stub exists.  
-   - Capture initial status (`pending`) and make it clear that this stub is for documentation/ledger hygiene; no production code scope.
-2. **Update docs/fix_plan.md for FINDINGS-LEDGER-002**  
-   - Under Tier 1 (Core Physics & Stability) add or refresh the bullet for `FINDINGS-LEDGER-002`, referencing the new implementation plan and its scope (knowledge base maintenance).  
-   - In the Plan Directory Inventory appendix keep the new summary counts (56 total, active_missing 32, missing_plan 2) but note that FINDINGS-LEDGER-002 now has an implementation stub so the `missing_plan` bucket should drop back to 1 after rerunning the inventory.  
-   - Append a PORTFOLIO-STATUS Attempts History entry describing the stub creation + guard rerun you are doing this loop.
-3. **Rerun the guarded inventory + collect artifacts**  
-   - Set `REPORT_TS=2025-12-06T120000Z` and run `plan_inventory.py` with the required `--rollup-config` flag, writing outputs into `plans/active/PORTFOLIO-STATUS/reports/$REPORT_TS/`.  
-   - Verify `inventory.json` now reports 55 total plans with buckets `{tracked:22, active_missing:32, missing_plan:1}` (ARCH-REFRACTOR-001 is the lone missing-plan stub). Update the appendix summary with the new counts if they differ.  
-   - Inspect `rollup_report.md` to confirm each roll-up still shows “Fix-Plan Coverage: ✓ Section exists.”
-4. **Capture verification artifacts**  
-   - Run `pytest -q plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py` after edits; save the log as `pytest_plan_inventory.log` under the new report directory.  
-   - Write `summary.md` in the same directory noting the stub creation, ledger updates, inventory counts, and that the guard/test passed. This Turn Summary must mirror the supervisor’s block.
+1. **Implement: plans/active/PORTFOLIO-STATUS/bin/plan_inventory.py::apply_rollup_coverage**  
+   - Extend `PlanEntry` with a `rollup_coverage` field (list) and add a helper that maps plan IDs → roll-up IDs when the roll-up itself is present in `docs/fix_plan.md`.  
+   - Call the helper after building the inventory, then recompute `entry.bucket` so roll-up-covered plans land in a new `tracked_via_rollup` bucket, are omitted from `inventory_missing.md`, and appear in the console summary (print a "Covered via rollups" line).  
+   - Ensure `inventory.json` serializes the new field and that `compute_bucket`/`write_missing_md` treat roll-up-covered plans as tracked even if their IDs never appear directly in the ledger.
+2. **Implement: plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py::TestRollupCoverage**  
+   - Update existing tests to match the new bucket behavior and add hermetic coverage for the helper (single/multi-roll-up membership, plans that should remain active_missing, etc.).  
+   - Keep the suite tmp-path based; no repo data reads. Confirm the new bucket values (`tracked_via_rollup`) plus `inventory_missing.md` filtering are asserted.
+3. **Rerun the guarded inventory + capture artifacts**  
+   - Set `REPORT_TS=2025-12-07T153000Z`, run `plan_inventory.py --rollup-config … --out-dir plans/active/PORTFOLIO-STATUS/reports/${REPORT_TS}/`, and confirm stdout shows `Covered via rollups: 32`, `active_missing` drops to only genuinely uncovered plans (likely 0), and `inventory_missing.md` lists just ARCH-REFRACTOR-001.  
+   - Save the pytest log (`pytest_plan_inventory.log`) and a refreshed summary.md describing the roll-up coverage change, along with the regenerated `inventory.json` / `rollup_report.md` / `inventory_missing.md`.
+4. **Docs + plan sync**  
+   - Update `docs/fix_plan.md` (Tier 0 entry + Plan Directory Inventory appendix + Attempts History) with the new timestamp, bucket counts (explicitly call out the tracked_via_rollup split), and artifact pointer.  
+   - Note the work in `plans/active/PORTFOLIO-STATUS/implementation.md` Phase D, marking D1–D3 complete once the rerun shows the expected counts.
 
 ## How-To Map
 ```bash
 export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
-REPORT_TS=2025-12-06T120000Z
+REPORT_TS=2025-12-07T153000Z
 
-# Create/Update files
-$EDITOR plans/active/FINDINGS-LEDGER-002/implementation.md
-$EDITOR docs/fix_plan.md
+$EDITOR plans/active/PORTFOLIO-STATUS/bin/plan_inventory.py
+$EDITOR plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py
 
-# Guarded inventory + tests
+pytest -q plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py \
+  | tee plans/active/PORTFOLIO-STATUS/reports/${REPORT_TS}/pytest_plan_inventory.log
+
 python plans/active/PORTFOLIO-STATUS/bin/plan_inventory.py \
   --plans-root plans/active \
   --fix-plan docs/fix_plan.md \
   --rollup-config plans/active/PORTFOLIO-STATUS/rollups.json \
   --out-dir plans/active/PORTFOLIO-STATUS/reports/${REPORT_TS}/
 
-pytest -q plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py \
-  | tee plans/active/PORTFOLIO-STATUS/reports/${REPORT_TS}/pytest_plan_inventory.log
+$EDITOR docs/fix_plan.md
+$EDITOR plans/active/PORTFOLIO-STATUS/implementation.md
 ```
 
 ## Pitfalls To Avoid
-- Do not skip `--rollup-config`; the script now errors when the guard file is missing or invalid.
-- Keep the new stub minimal but structurally complete; don’t invent scope beyond knowledge-base ledger maintenance.
-- When editing `docs/fix_plan.md`, append new entries instead of rewriting historical Attempts History rows.
-- Ensure the Plan Directory Inventory appendix references the latest artifact path (`2025-12-06T120000Z`) after you rerun the inventory.
-- Do not touch any simulator/runtime code—this loop is ledger/doc only.
-- Make sure the pytest log and summary land in the new report directory so the automation guard has reproducible evidence.
+- Do not treat a roll-up as coverage unless its ID already exists in `docs/fix_plan.md`; otherwise you could hide genuinely missing initiatives.
+- Keep `inventory_missing.md` hermetic—no hand editing of results—and make sure the helper doesn’t mutate `entries` in place before JSON serialization.
+- Preserve CLI defaults and guard behavior; any missing/invalid rollup config should still raise the same errors.
+- Tests must stay tmp-path based; never read the real repo files from the unit tests.
+- When updating docs, keep the Working Agreements command untouched and only adjust the appendix counts + Attempts History with the new timestamp/artifacts.
+- Maintain ASCII and existing comment style inside the script.
 
 ## If Blocked
-- If `plan_inventory.py` fails, capture the full traceback in `plans/active/PORTFOLIO-STATUS/reports/${REPORT_TS}/plan_inventory_fail.log`, leave docs untouched, and note the failure + error string in `summary.md` so the supervisor can triage.
-- If concurrent edits to `docs/fix_plan.md` cause conflicts, stash your appendix changes in `plans/active/PORTFOLIO-STATUS/reports/${REPORT_TS}/pending_appendix.md`, resolve conflicts separately, and flag the block in the summary with the conflicted sections.
+- If the helper cannot determine roll-up membership because the config or ledger is malformed, capture the failing plan IDs plus stack trace in `plans/active/PORTFOLIO-STATUS/reports/${REPORT_TS}/rollup_coverage_fail.log`, leave docs unchanged, and summarize the failure in summary.md.  
+- If pytest fails, preserve the log in the artifacts directory, revert any partial doc edits, and flag the failure (with selector + stack) in summary.md for supervisor triage.
 
 ## Findings Applied
 No relevant findings in the knowledge base.
 
 ## Pointers
-- `docs/fix_plan.md:25` — Tier 0 entry + Tier 1 section where FINDINGS-LEDGER-002 must be referenced.
-- `docs/fix_plan.md:554` — Plan Directory Inventory appendix (update counts + artifact path after rerun).
-- `plans/templates/implementation_plan.md` — template for the new FINDINGS-LEDGER-002 stub.
+- `docs/fix_plan.md:27` — Tier 0 entry describing the Phase D goal and guard expectations.
+- `plans/active/PORTFOLIO-STATUS/implementation.md:34` — Implementation plan (Phase D checklist) to update once changes land.
+- `plans/active/PORTFOLIO-STATUS/bin/plan_inventory.py:1` — Script to extend with roll-up coverage awareness.
+- `plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py:1` — Hermetic pytest suite for the inventory script.
 
 ## Next Up (optional)
-1. Once the stub + ledger coverage land, consider marking PORTFOLIO-STATUS Phase C complete and planning the closure checklist.
-2. With FINDINGS-LEDGER-002 tracked, reassess the largest active_missing bucket (e.g., DB-AT roll-up) for the next rotation.
+1. Once the roll-up aware counts are accurate, close PORTFOLIO-STATUS (mark initiative done) and archive its plan.

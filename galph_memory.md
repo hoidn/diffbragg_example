@@ -815,6 +815,31 @@ Action State: ready_for_implementation
 
 ---
 
+## Loop 2025-12-07T120500Z
+
+**Focus**: PORTFOLIO-STATUS — Plan/Fix-Plan synchronization & archive hygiene (Phase D roll-up coverage)
+**State**: planning
+**Dwell**: 1
+**Action Type**: planning
+**Initiative Type**: housekeeping
+
+**Key Observations**:
+1. Guarded inventory rerun (`plans/active/PORTFOLIO-STATUS/reports/2025-12-07T000000Z/`) still reports 56 total plans, 23 tracked, 32 active_missing, 1 missing_plan despite every active_missing plan being represented inside the 13 roll-up sections.
+2. Root cause: `plan_inventory.py` only treats literal plan IDs present in `docs/fix_plan.md` as “tracked”, so roll-up membership never counts toward coverage and `inventory_missing.md` keeps listing the roll-up members.
+3. Added Phase D to `plans/active/PORTFOLIO-STATUS/implementation.md` and refreshed `docs/fix_plan.md` (Tier 0 entry + Plan Directory Inventory appendix + Attempts History) to capture the new requirement: teach the script/tests about roll-up coverage, rerun the guard with a new timestamp, and then close the initiative.
+
+**Artifacts Path**: `plans/active/PORTFOLIO-STATUS/reports/2025-12-07T000000Z/` (inventory.json, inventory_missing.md, rollup_report.md)
+
+**Next Actions**:
+- Ralph: implement roll-up aware inventory (`rollup_coverage`, `tracked_via_rollup` bucket, updated tests), rerun guard with REPORT_TS=2025-12-07T153000Z, and update docs per the new counts before declaring PORTFOLIO-STATUS ready for closure.
+
+**Action State**: Phase D planning complete — ready_for_implementation once roll-up aware script landing is queued.
+
+**WIP Status**:
+- in_progress: PORTFOLIO-STATUS (Phase D code+docs loop)
+- stuck: ARCH-SIM-CONSTRUCTION-001, DIAG-NANOBRAGG-OVERSAMPLE-001
+- blocked_pending_architecture: ARCH-REFACTOR-001
+
 ## 2025-12-02T233717Z (i=446)
 
 **Focus:** ARCH-SIM-CONSTRUCTION-001 — Simulator Construction Convention Alignment

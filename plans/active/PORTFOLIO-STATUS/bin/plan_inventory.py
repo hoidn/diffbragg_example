@@ -39,6 +39,7 @@ class PlanEntry:
     has_implementation: bool
     last_report: Optional[str]
     status_hint: Optional[str]
+    bucket: Optional[str] = None
 
 
 def parse_fix_plan_ids(fix_plan_path: Path) -> set:
@@ -114,6 +115,44 @@ def find_last_report(plan_dir: Path) -> Optional[str]:
     return sorted(timestamps)[-1]
 
 
+def compute_bucket(entry: PlanEntry) -> str:
+    """Classify plan entry into bucket per classification.md rules.
+
+    Buckets:
+    - active_missing: has_implementation=True, in_fix_plan=False
+    - archive_ready: status_hint mentions "archive" or "duplicate"
+    - missing_plan: has_implementation=False
+    """
+    if not entry.has_implementation:
+        return "missing_plan"
+
+    # Check for archive hints in status
+    if entry.status_hint and ("archive" in entry.status_hint.lower() or
+                              "duplicate" in entry.status_hint.lower() or
+                              "superseded" in entry.status_hint.lower()):
+        return "archive_ready"
+
+    if entry.has_implementation and not entry.in_fix_plan:
+        return "active_missing"
+
+    # Default for plans already in fix_plan or other edge cases
+    return "tracked"
+
+
+def load_rollup_config(config_path: Path) -> dict:
+    """Load roll-up configuration from JSON file.
+
+    Expected format: {"ROLLUP-ID": ["MEMBER-1", "MEMBER-2", ...], ...}
+    """
+    if not config_path.exists():
+        return {}
+
+    try:
+        return json.loads(config_path.read_text())
+    except Exception:
+        return {}
+
+
 def inventory_plans(plans_root: Path, fix_plan_ids: set) -> List[PlanEntry]:
     """Scan plans_root and build inventory of all plan directories."""
     entries = []
@@ -139,6 +178,8 @@ def inventory_plans(plans_root: Path, fix_plan_ids: set) -> List[PlanEntry]:
             last_report=find_last_report(plan_dir),
             status_hint=extract_status_hint(implementation_path) if implementation_path.exists() else None
         )
+        # Compute bucket classification
+        entry.bucket = compute_bucket(entry)
         entries.append(entry)
 
     return entries
@@ -181,6 +222,69 @@ def write_missing_md(entries: List[PlanEntry], out_path: Path):
     out_path.write_text('\n'.join(lines))
 
 
+def write_rollup_report(rollup_config: dict, entries: List[PlanEntry], fix_plan_ids: set, out_path: Path):
+    """Write rollup_report.md summarizing roll-up coverage.
+
+    For each roll-up ID:
+    - List member plan directories
+    - Report last-report timestamp span (earliest to latest)
+    - Note whether fix_plan.md already has a section for this roll-up
+    """
+    lines = [
+        "# Roll-Up Coverage Report",
+        "",
+        "Summary of plan directory roll-ups and their fix_plan.md coverage status.",
+        ""
+    ]
+
+    # Create lookup from plan_id to entry
+    entry_map = {e.id: e for e in entries}
+
+    for rollup_id, members in sorted(rollup_config.items()):
+        lines.append(f"## {rollup_id}")
+        lines.append("")
+        lines.append(f"**Member Plans:** {', '.join(members)}")
+        lines.append("")
+
+        # Collect report timestamps from member plans
+        timestamps = []
+        missing_members = []
+        for member_id in members:
+            if member_id in entry_map:
+                entry = entry_map[member_id]
+                if entry.last_report:
+                    timestamps.append(entry.last_report)
+            else:
+                missing_members.append(member_id)
+
+        if timestamps:
+            timestamps_sorted = sorted(timestamps)
+            earliest = timestamps_sorted[0]
+            latest = timestamps_sorted[-1]
+            if earliest == latest:
+                lines.append(f"**Last Report Span:** {latest}")
+            else:
+                lines.append(f"**Last Report Span:** {earliest} to {latest}")
+        else:
+            lines.append("**Last Report Span:** No reports found")
+
+        lines.append("")
+
+        # Check if fix_plan.md has a section for this roll-up
+        has_section = rollup_id in fix_plan_ids
+        lines.append(f"**Fix-Plan Coverage:** {'✓ Section exists' if has_section else '✗ Missing section'}")
+        lines.append("")
+
+        if missing_members:
+            lines.append(f"**Missing Member Directories:** {', '.join(missing_members)}")
+            lines.append("")
+
+        lines.append("---")
+        lines.append("")
+
+    out_path.write_text('\n'.join(lines))
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Inventory plan directories and cross-check with fix_plan.md"
@@ -198,6 +302,11 @@ def main():
         help='Path to fix plan ledger (default: docs/fix_plan.md)'
     )
     parser.add_argument(
+        '--rollup-config',
+        type=Path,
+        help='Path to rollup config JSON file (optional)'
+    )
+    parser.add_argument(
         '--out-dir',
         type=Path,
         required=True,
@@ -212,6 +321,11 @@ def main():
     # Parse fix plan IDs
     fix_plan_ids = parse_fix_plan_ids(args.fix_plan)
 
+    # Load rollup config if provided
+    rollup_config = {}
+    if args.rollup_config:
+        rollup_config = load_rollup_config(args.rollup_config)
+
     # Build inventory
     entries = inventory_plans(args.plans_root, fix_plan_ids)
 
@@ -222,10 +336,17 @@ def main():
     write_json_output(entries, json_path)
     write_missing_md(entries, missing_path)
 
+    # Write rollup report if config was provided
+    if rollup_config:
+        rollup_path = args.out_dir / "rollup_report.md"
+        write_rollup_report(rollup_config, entries, fix_plan_ids, rollup_path)
+
     print(f"Inventory complete:")
     print(f"  Total plans: {len(entries)}")
     print(f"  In fix_plan.md: {sum(1 for e in entries if e.in_fix_plan)}")
     print(f"  Missing from fix_plan.md: {sum(1 for e in entries if not e.in_fix_plan)}")
+    if rollup_config:
+        print(f"  Roll-ups configured: {len(rollup_config)}")
     print(f"  Output written to: {args.out_dir}")
 
 

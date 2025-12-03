@@ -22,7 +22,7 @@
 - [ARCH-TELEMETRY-001] (Telemetry Observer Refactor) — **archived** (2025-12-04T235959Z: all phases complete, exit criteria satisfied)
 - [ARCH-BRIDGE-RESP-001] (Writer / bridge responsibility split) — **done** (2025-12-03T093500Z: Phase D completion logged, ready for archive.)
 - [ARCH-LAZY-IMPORTS-001] (Lazy imports / process-noise hygiene) — **archived** (2025-12-05T024500Z: all phases complete, exit criteria satisfied; see `plans/active/ARCH-LAZY-IMPORTS-001/reports/2025-12-05T024500Z/initiative_closure_summary.md`)
-- [PORTFOLIO-STATUS] (Plan/Fix-Plan synchronization & archive hygiene) — **in_progress (Tier 0 ledger guard)**. Scope: inventory every `plans/active/` subtree, classify initiatives vs `docs/fix_plan.md`, archive stale plans, and add a regression appendix + automation guard so drift is surfaced immediately. Phase A (script + appendix) completed; Phase B classification captured in `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T150000Z/` (34 active-but-untracked plans, 1 archive duplicate, 5 directories missing implementation). Next steps: add ledger coverage for the grouped active initiatives (DB-AT suite, MAP-SCALE, TORCH-* series, etc.) and open archival moves for the duplicate/stub directories. Exit criteria captured in `plans/active/PORTFOLIO-STATUS/implementation.md`. Artifacts: `plans/active/PORTFOLIO-STATUS/reports/<TS>/`.
+- [PORTFOLIO-STATUS] (Plan/Fix-Plan synchronization & archive hygiene) — **in_progress (Tier 0 ledger guard, Phase B3)**. Scope: inventory every `plans/active/` subtree, classify initiatives vs `docs/fix_plan.md`, archive stale plans, and add a regression appendix + automation guard so drift is surfaced immediately. Phase A (script + appendix) completed; Phase B classification captured in `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T150000Z/` (34 active-but-untracked plans, 1 archive duplicate, 5 directories missing implementation). Phase B3 (2025-12-05T210000Z): Adding roll-up automation and ledger sections for the 13 grouped initiatives (DB-AT-SUITE-CARE-001, MAP-SCALE-SYNC-001, etc.). Exit criteria captured in `plans/active/PORTFOLIO-STATUS/implementation.md`. Artifacts: `plans/active/PORTFOLIO-STATUS/reports/<TS>/`.
 
 ### Tier 1: Core Physics & Stability
 **Goal:** Ensure the math is correct, the loss function is normative, Stage A/mapping parity holds (DB‑AT‑027/028/029), and the smoke tests are green.
@@ -331,32 +331,61 @@ Detailed engineering logs now live in `docs/fix_plan_archive.md` (append-only sn
 
 ## Plan Directory Inventory
 
-**Latest Report:** 2025-12-05T150000Z
-**Artifacts:** `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T150000Z/`
+**Latest Report:** 2025-12-05T210000Z (Phase B3 — Roll-up Automation)
+**Artifacts:** `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T210000Z/`
 **Script:** `plans/active/PORTFOLIO-STATUS/bin/plan_inventory.py`
+**Roll-up Config:** `plans/active/PORTFOLIO-STATUS/rollups.json`
 
-### Summary
+### Summary (2025-12-05T210000Z)
 - **Total plan directories:** 55
-- **Tracked in this ledger:** 15 (27%)
-- **Untracked (missing fix_plan.md coverage):** 40 (73%)
-- **Bucket breakdown:** 34 active initiatives that need ledger entries, 1 archive duplicate (ARCH-REFRACTOR-001), 5 directories missing `implementation.md`
+- **Tracked in this ledger:** 21 (38%)
+- **Untracked (missing fix_plan.md coverage):** 34 (62%)
+- **Roll-ups configured:** 13 (DB-AT-SUITE-CARE-001, MAP-SCALE-SYNC-001, PHYSICS-LOSS-001, TORCH-GEOMETRY-SYNC-001, TORCH-REFINE-CLEANUP-001, TORCH-CLI-BRIDGE-ROLLUP-001, FORWARD-EQUIV-COVERAGE-001, TOOLING-VIS-001, DOCS-ROADMAP-001, RUNTIME-VEC-001, REPORT-NANOBRAG-STATUS-001, NANOBRAG-GOLDEN-001, ARCH-SPLIT-001)
+- **Bucket breakdown:** 34 active initiatives with roll-up coverage in Tier 1, 1 archive duplicate (ARCH-REFRACTOR-001), 5 directories missing `implementation.md`
 
-### Top Remediation Buckets
+### Roll-up Coverage
 
-**Active initiatives needing ledger entries (34 total):**
-- Acceptance suite backlog: DB-AT-002/010/020/021/022/023/024
-- Calibration ladder: MAP-SCALE-001—005
-- Geometry/refinement series: TORCH-GEOMETRY-CONVERGENCE-001, TORCH-GEOMETRY-PARITY-002/003, TORCH-GEOMETRY-UB-REALIGN-001, TORCH-REFINE-001/002/002D/002E/003
-- CLI/bridge/doc tooling: TORCH-BRIDGE-001, TORCH-CLI-003/004, DOCS-ROADMAP-001, REPORT-NANOBRAG-STATUS-001, TOOLING-VIS-001, RUNTIME-VEC-001, NANOBRAG-GOLDEN-001, FORWARD-EQUIV-001/002, PARITY-HARNESS-002, PHYSICS-LOSS-001, ARCH-SPLIT-001
+**Phase B3 Deliverable:** Added roll-up automation and ledger sections for 13 grouped initiatives per `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T183000Z/ledger_rollup_plan.md`. Each roll-up groups related plan directories and provides first-class ledger tracking.
 
-**Archive-ready (1):** ARCH-REFRACTOR-001 (typo duplicate of ARCH-REFACTOR-001, already marked "archived" inside the plan stub)
+**Roll-up Report:** See `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T210000Z/rollup_report.md` for member plan lists, last-report spans, and fix-plan coverage status for all 13 roll-ups.
 
-**Missing implementation.md (5):** HARDEN-SUBMODULE-ROBUSTNESS, ORCH-CLAUDE-PATH-FIX-001, ORCH-CLI-FALLBACK-001, ORCH-ROBUST-001, SUPERVISOR
+**Tier 1 Roll-up Sections:**
+- **[DB-AT-SUITE-CARE-001]** — Acceptance test suite maintenance (7 member plans: DB-AT-002/010/020/021/022/023/024)
+- **[MAP-SCALE-SYNC-001]** — Calibration ladder synchronization (5 member plans: MAP-SCALE-001—005)
+- **[PHYSICS-LOSS-001]** — Variance-weighted loss parity and telemetry (1 member plan)
+- **[TORCH-GEOMETRY-SYNC-001]** — Geometry convergence & parity alignment (4 member plans: TORCH-GEOMETRY-CONVERGENCE-001, TORCH-GEOMETRY-PARITY-002/003, TORCH-GEOMETRY-UB-REALIGN-001)
+- **[TORCH-REFINE-CLEANUP-001]** — Stage A/B/C refinement cleanup (5 member plans: TORCH-REFINE-001/002/002D/002E/003)
+- **[TORCH-CLI-BRIDGE-ROLLUP-001]** — CLI & bridge infrastructure (3 member plans: TORCH-BRIDGE-001, TORCH-CLI-003/004)
+- **[FORWARD-EQUIV-COVERAGE-001]** — Forward equivalence & parity harness (3 member plans: FORWARD-EQUIV-001/002, PARITY-HARNESS-002)
+- **[TOOLING-VIS-001]** — Mapping-aligned visualization tooling (1 member plan)
+- **[DOCS-ROADMAP-001]** — Roadmap documentation refresh (1 member plan)
+- **[RUNTIME-VEC-001]** — Runtime vectorization checklist enforcement (1 member plan)
+- **[REPORT-NANOBRAG-STATUS-001]** — Status reporting scripts (1 member plan)
+- **[NANOBRAG-GOLDEN-001]** — Golden dataset capture + maintenance (1 member plan)
+- **[ARCH-SPLIT-001]** — Architecture interface split (1 member plan, review for archival)
 
-### Next Actions (Phase B)
-1. Execute archival moves for ARCH-REFRACTOR-001 and decide whether the five stub directories receive implementation plans or are archived under `archive/plans/`.
-2. Complete ledger coverage for the 34 active initiatives (see new Tier 1 roll-up entries) so each plan directory has an associated fix-plan item.
-3. Update `docs/fix_plan_archive.md` with any archival moves and add cross-references in the affected plan directories.
+**Note:** Each roll-up ID references its member plan directories. See Tier 1 section above for brief status; full implementation plans and reports live under `plans/active/<MEMBER-ID>/`.
 
-### Automation Guard
-Per Working Agreements above, rerun `plan_inventory.py` whenever plan directories are added, removed, or archived to detect drift immediately.
+### Bucket Classification
+
+Per `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T150000Z/classification.md`:
+
+**active_missing (34 plans):** Active initiatives with implementation plans but lacking fix-plan ledger entries. Now covered by the 13 roll-up sections in Tier 1.
+
+**archive_ready (1 plan):** ARCH-REFRACTOR-001 (typo duplicate of ARCH-REFACTOR-001, archived in Phase B2)
+
+**missing_plan (5 plans):** HARDEN-SUBMODULE-ROBUSTNESS, ORCH-CLAUDE-PATH-FIX-001, ORCH-CLI-FALLBACK-001, ORCH-ROBUST-001, SUPERVISOR (stubs created in Phase B2)
+
+### Automation Guard (Updated Phase B3)
+
+Per Working Agreements above, rerun `plan_inventory.py` with `--rollup-config` whenever plan directories are added, removed, or archived:
+
+```bash
+python plans/active/PORTFOLIO-STATUS/bin/plan_inventory.py \
+  --plans-root plans/active \
+  --fix-plan docs/fix_plan.md \
+  --rollup-config plans/active/PORTFOLIO-STATUS/rollups.json \
+  --out-dir plans/active/PORTFOLIO-STATUS/reports/<NEW_TIMESTAMP>/
+```
+
+This command generates `inventory.json` (with bucket fields), `inventory_missing.md`, and `rollup_report.md` to detect drift immediately.

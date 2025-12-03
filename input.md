@@ -1,7 +1,7 @@
-# Input for Ralph — Loop 2025-12-07T220000Z
+# Input for Ralph — Loop 2025-12-08T150000Z
 
 ## Summary
-Add Tier‑4 ledger coverage for the remaining orchestration plans, drop the stray ARCH-REFRACTOR-001 stub, rerun the plan inventory so no active directories show up as “missing,” and capture the updated counts/artifacts in both the ledger and the implementation plan.
+Mark PORTFOLIO-STATUS as complete by updating the Tier 0 ledger entry and implementation plan header to `done`, citing the 2025-12-07T220000Z artifacts so the initiative can close cleanly.
 
 ## Mode
 Docs
@@ -16,78 +16,52 @@ PORTFOLIO-STATUS — Plan/Fix-Plan synchronization & archive hygiene
 integration
 
 ## Mapped tests
-pytest -q plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py
+none — docs-only
 
 ## Artifacts
-plans/active/PORTFOLIO-STATUS/reports/2025-12-07T220000Z/
+plans/active/PORTFOLIO-STATUS/reports/2025-12-08T150000Z/
 
 ## Do Now
-1. **Implement: docs/fix_plan.md::Tier 4 — Orchestration & Agent Ops**  
-   - After the existing Tier 3 blocks, add a `### Tier 4: Orchestration & Agent Ops` heading with entries for `HARDEN-SUBMODULE-ROBUSTNESS`, `ORCH-ROBUST-001`, `ORCH-CLAUDE-PATH-FIX-001`, `ORCH-CLI-FALLBACK-001`, and `SUPERVISOR`.  
-   - For each entry include Dependencies (use CLAUDE.md / AGENTS.md + scripts/orchestration tooling), Status (`pending` or `in_progress` for ORCH-ROBUST work), Initiative Type (`architecture` for the orchestrator/tooling items, `docs` for SUPERVISOR), Exit Criteria (tie to `scripts/orchestration/README.md`, CLAUDE instructions, and required resiliency tests), Working Plan path, Spec References, and Attempts History referencing the existing reports/stubs (`plans/active/HARDEN-SUBMODULE-ROBUSTNESS/reports/2025-11-04T165400Z/…`, `plans/active/ORCH-ROBUST-001/reports/2025-11-05T050500Z/notes.md`, `plans/active/SUPERVISOR/reports/2025-11-24T153000Z/roadmap_assessment.md`, etc.).  
-   - Make sure the new section mirrors the formatting of the Tier 1 roll-ups (bullets + Attempts History list) so plan_inventory can detect the IDs.
-2. **Implement: docs/fix_plan.md::Plan Directory Inventory + Attempts History**  
-   - After running the inventory (see step 5), update the appendix summary to the new counts (`Total plan directories: 55`, `Tracked in this ledger (direct): 28`, `Covered via roll-ups: 34`, `Active missing: 0`, `Missing implementation.md: 0`) and point the Artifacts/Latest Report bullets at `plans/active/PORTFOLIO-STATUS/reports/2025-12-07T220000Z/`.  
-   - Refresh the Bucket Classification table so only the “tracked” and “tracked_via_rollup” buckets have members (no active_missing row).  
-   - Append a new bullet under `[PORTFOLIO-STATUS] Attempts History` describing this ledger coverage pass and referencing the new artifact path. Keep Working Agreements untouched.
-3. **Implement: plans/active/PORTFOLIO-STATUS/implementation.md::Phase wrap-up**  
-   - Record that Phase D is complete and add a short Phase E note (“Ledger coverage + duplicate cleanup”) calling out (a) Tier 4 sections landed, (b) ARCH-REFRACTOR-001 duplicate removed, and (c) the 2025-12-07T220000Z inventory proving zero untracked plans.  
-   - Update the Artifacts Index/Status line to reference the new reports directory and note that the initiative is ready for closure once Ralph confirms the counts.
-4. **Implement: plans/active/ARCH-REFRACTOR-001/**  
-   - Remove the duplicate stub directory (`rm -rf plans/active/ARCH-REFRACTOR-001`) now that the real plan lives at `plans/active/ARCH-REFACTOR-001/` and the archive already contains the history.  
-   - Do not touch the archived copy under `archive/plans/ARCH-REFRACTOR-001/`. This step should leave no traces so the inventory no longer reports a missing implementation.md.
-5. **Run: Regenerate the guarded inventory + artifacts**  
-   - `python plans/active/PORTFOLIO-STATUS/bin/plan_inventory.py --plans-root plans/active --fix-plan docs/fix_plan.md --rollup-config plans/active/PORTFOLIO-STATUS/rollups.json --out-dir plans/active/PORTFOLIO-STATUS/reports/2025-12-07T220000Z/`  
-   - Verify stdout shows `Covered via rollups: 34`, `Active missing: 0`, `Missing implementation plans: 0`. Copy the resulting `inventory.json`, `inventory_missing.md` (should now be empty except for the table header), `rollup_report.md`, and the command log into the same reports directory.
-6. **Validate**  
-   - `pytest -q plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py` (capture the log under the new reports directory).  
-   - Create/append `plans/active/PORTFOLIO-STATUS/reports/2025-12-07T220000Z/summary.md` with the final Turn Summary block after confirming the counts.
+1. **Implement: docs/fix_plan.md::Tier 0 entry + Attempts History**  
+   - Change the Tier 0 bullet for PORTFOLIO-STATUS from “in_progress (Phase D)” to `done`, summarize that Phases A–E satisfied the guardrails, and point at `plans/active/PORTFOLIO-STATUS/reports/2025-12-07T220000Z/` for the final inventory.  
+   - Append a final Attempts History row (dated with your loop) that notes closure, references the same artifact path, and states that future reruns follow the Working Agreements guardrail command.
+2. **Implement: plans/active/PORTFOLIO-STATUS/implementation.md::Header + closure summary**  
+   - Flip the `Status:` field from `in_progress` to `done`.  
+   - Add a short closure paragraph under the Phase E section (or a new “Closure” subheading) describing that Tier 4 ledger coverage and the 2025-12-07T220000Z inventory satisfied Exit Criteria 1–4, with an explicit link to the reports directory.
+3. **Implement: docs/fix_plan.md::Plan Directory Inventory appendix**  
+   - Leave the guard command as-is but note that the “Latest Report” and “Artifacts” entries already point at 2025-12-07T220000Z; simply confirm they remain accurate after your edits and adjust wording if needed to reflect the initiative being complete.
+4. **Record Turn Summary**  
+   - Once the docs edits are staged, add a new `summary.md` under `plans/active/PORTFOLIO-STATUS/reports/2025-12-08T150000Z/` (or update it) with the canonical Turn Summary for this loop.
 
 ## How-To Map
 ```bash
 export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
-REPORT_TS=2025-12-07T220000Z
-
-rm -rf plans/active/ARCH-REFRACTOR-001
+REPORT_TS=2025-12-08T150000Z
 
 $EDITOR docs/fix_plan.md
 $EDITOR plans/active/PORTFOLIO-STATUS/implementation.md
 
-python plans/active/PORTFOLIO-STATUS/bin/plan_inventory.py \
-  --plans-root plans/active \
-  --fix-plan docs/fix_plan.md \
-  --rollup-config plans/active/PORTFOLIO-STATUS/rollups.json \
-  --out-dir plans/active/PORTFOLIO-STATUS/reports/${REPORT_TS}/ \
-  | tee plans/active/PORTFOLIO-STATUS/reports/${REPORT_TS}/plan_inventory.log
-
-pytest -q plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py \
-  | tee plans/active/PORTFOLIO-STATUS/reports/${REPORT_TS}/pytest_plan_inventory.log
-
-cp plans/active/PORTFOLIO-STATUS/reports/${REPORT_TS}/summary.md{,.bak} 2>/dev/null || true
+mkdir -p plans/active/PORTFOLIO-STATUS/reports/${REPORT_TS}
 $EDITOR plans/active/PORTFOLIO-STATUS/reports/${REPORT_TS}/summary.md
 ```
 
 ## Pitfalls To Avoid
-- Do not delete `plans/active/ARCH-REFACTOR-001/`; only remove the duplicate “ARCH-REFRACTOR-001” stub. Double-check the path before running `rm -rf`.
-- Keep the new Tier 4 entries consistent with existing ledger formatting (Dependencies/Status/Type/Exit Criteria/Working Plan/Spec References/Attempts History) so plan_inventory can parse them.
-- When updating counts, use the numbers emitted by the fresh inventory run—hard-code only after verifying stdout/logs to prevent drift.
-- Ensure `inventory_missing.md` reflects the new reality (no stray entries); do not hand-edit the file.
-- Maintain ASCII text and wrap long markdown bullets as in the rest of the ledger; avoid introducing tabs or trailing whitespace.
-- Remember to paste the same Turn Summary block into the new summary.md file once everything passes.
+- Do not touch `plans/active/PORTFOLIO-STATUS/bin/plan_inventory.py`; we are only updating documentation/ledger state.
+- Keep the Tier 0 entry wording concise but explicit about the final artifact path and which phases closed the initiative.
+- Ensure the new Attempts History entry references the same artifact directory so audits follow a single breadcrumb.
+- Maintain ASCII text and wrap bullets to match existing markdown style.
+- Leave the Working Agreements guardrail command intact so future reruns still cite the canonical CLI.
 
 ## If Blocked
-- If the inventory script fails (e.g., unexpected bucket output), capture the full log in `plans/active/PORTFOLIO-STATUS/reports/${REPORT_TS}/plan_inventory_fail.log`, leave docs untouched, and mark the run as blocked in summary.md so we can triage next loop.  
-- If pytest hits a regression, save the failing log in the same reports directory, revert the doc edits that depended on the expected counts, and note the selector/failure text in summary.md for follow-up.
+- If you discover the inventory counts have changed since 2025-12-07, stop editing the ledger, rerun the guard command into a new timestamped directory, and capture the discrepancy in `plans/active/PORTFOLIO-STATUS/reports/${REPORT_TS}/summary.md` so we can triage before marking the initiative done.
 
 ## Findings Applied
 No relevant findings in the knowledge base.
 
 ## Pointers
-- `docs/fix_plan.md` — add Tier 4 entries plus update the Plan Directory Inventory appendix and Attempts History.
-- `plans/active/PORTFOLIO-STATUS/implementation.md` — Phase tracking for this housekeeping initiative.
-- `plans/active/HARDEN-SUBMODULE-ROBUSTNESS/reports/2025-11-04T165400Z/orchestrator_tracked_outputs_prepull.patch` — Reference for the hardened submodule/tracked-output work.
-- `plans/active/ORCH-ROBUST-001/reports/2025-11-05T050500Z/notes.md` — Evidence for the orchestration robustness initiative.
-- `plans/active/SUPERVISOR/reports/2025-11-24T153000Z/roadmap_assessment.md` — Latest supervisor meta-analysis to cite.
+- `docs/fix_plan.md:27` — Tier 0 entry and Attempts History block to update.
+- `plans/active/PORTFOLIO-STATUS/implementation.md:1` — Status header and Phase sections.
+- `plans/active/PORTFOLIO-STATUS/reports/2025-12-07T220000Z/summary.md` — Final Phase E evidence to cite.
 
 ## Next Up (optional)
-1. Once the Tier 4 entries exist and the inventory is green, schedule whichever orchestration initiative (likely HARDEN-SUBMODULE-ROBUSTNESS) needs engineering attention first.
+1. If extra time remains, draft the scoping notes for FINDINGS-LEDGER-002 so the knowledge-base upkeep plan has real Goals/Exit Criteria.

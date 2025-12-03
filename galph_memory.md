@@ -2,6 +2,31 @@
 - Stage A helper stack (StageAContext, quaternion utils, `_build_stage_a_*`) still lives inside `dbex.nanobrag_refinement`, forcing StageA/StageB wrappers to import the monolith and blocking full engine delegation. Tonight's plan splits those helpers into a refinement-owned module, reuses it from the inline path, and keeps telemetry/perf counters intact per PHYSICS-LOSS-001 + PERF-WARM-001.
 - Do Now handed to Ralph: relocate the helpers/dataclasses + quaternion math into `dbex/refinement/` (no new circular imports), update all consumers (StageA, inline LBFGS, tools), then rerun the Stage A expansion + engine telemetry selectors plus the Stage B shell smoke to ensure parameter reconstruction and warm caches survive.
 Action State: ready_for_implementation
+## Loop 2025-12-08T100000Z
+
+**Focus**: PORTFOLIO-STATUS — Plan/Fix-Plan synchronization & archive hygiene (closure planning)  
+**State**: planning  
+**Dwell**: 0 (new closure loop after Ralph completed Phase E implementation)  
+**Action Type**: review_or_housekeeping  
+**Initiative Type**: housekeeping
+
+**Key Observations**:
+1. Phase E artifacts (`plans/active/PORTFOLIO-STATUS/reports/2025-12-07T220000Z/`) confirm zero untracked plans (55 total, 28 direct + 34 via rollups) and document Tier 4 ledger coverage, so exit criteria are met pending doc updates.
+2. `docs/fix_plan.md` still lists PORTFOLIO-STATUS as “in_progress (Phase D)” and the implementation plan header remains `Status: in_progress`, so closure needs a final edit pass to flip both to `done`, cite the 2025-12-07 artifacts, and summarize completion in Attempts History.
+3. Future guardrails live in Working Agreements/appendix; no new tooling required—only ledger/plan wording changes plus a short closure summary referencing the latest report.
+
+**Artifacts Path**: `plans/active/PORTFOLIO-STATUS/reports/2025-12-08T100000Z/`
+
+**Next Actions**:
+- Ralph: Update `docs/fix_plan.md` Tier 0 entry + Attempts History to mark PORTFOLIO-STATUS done (cite 2025-12-07T220000Z artifacts) and adjust wording so the roll-up/guard instructions describe the ongoing maintenance expectations.
+- Ralph: Update `plans/active/PORTFOLIO-STATUS/implementation.md` status/header with a closure summary (reference 2025-12-07T220000Z outputs) so the plan reflects completion before archiving.
+
+**Action State**: ready_for_implementation — Final documentation edits queued so the initiative can be marked done next loop.
+
+**WIP Status**:
+- in_progress: PORTFOLIO-STATUS (closure)
+- stuck: ARCH-SIM-CONSTRUCTION-001, DIAG-NANOBRAGG-OVERSAMPLE-001
+- blocked_pending_architecture: ARCH-REFACTOR-001
 2025-12-01T084505Z focus=ARCH-REFINE-001 state=ready_for_implementation dwell=2 action=planning artifacts=plans/active/ARCH-REFINE-001/reports/2025-12-01T084505Z/ next_action=ready_for_implementation
 - Planned Phase A.2 Stage B helper extraction (new stage_b_impl module, ASU/shell utilities move, StageB+inline imports) and refreshed Do Now/tests accordingly.
 - Updated docs/fix_plan.md Attempts History plus input.md (Do Now + How-To Map) so Ralph can execute helper migration with Stage B shell/per-reflection smokes.

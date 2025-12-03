@@ -3138,3 +3138,20 @@ The trusted-mask hypothesis was **DISPROVEN** by inspection of the test fixture 
 **Next Actions**:
 1. Update `dbex/refinement/stage_b.py::StageB.run` so the reconstruction helper receives shell metadata and stage mode (reuse the artifact payload when building the dict) and add a regression in `run_nanobrag_refinement` to assert artifacts carry `bragg_full` when Stage B is terminal.
 2. Triage the Stage A gate by either relaxing the log-scale threshold or checking the max absolute delta across all key Stage A parameters so the detector-smoke still enforces “some parameter moved” without flagging well-initialized scale values as failures.
+
+---
+
+## Archive Operations
+
+### 2025-12-05T150000Z - PORTFOLIO-STATUS Phase B Archive Remediation
+
+**Action**: Archived the ARCH-REFRACTOR-001 duplicate plan directory (typo duplicate of ARCH-REFACTOR-001) as part of PORTFOLIO-STATUS Phase B cleanup.
+
+**Details**:
+- Moved `plans/active/ARCH-REFRACTOR-001/` → `archive/plans/ARCH-REFRACTOR-001/` preserving all historical content
+- Replaced active directory with README.md redirect pointing to ARCH-REFACTOR-001 and noting archive timestamp
+- Original directory contained only an implementation.md stub noting "Status: archived (superseded by plans/active/ARCH-REFACTOR-001/implementation.md)"
+
+**Artifacts**: `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T150000Z/archival_notes.md`
+
+**Classification Reference**: `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T150000Z/classification.md` identified this as the single archive-ready duplicate in the plan portfolio inventory.

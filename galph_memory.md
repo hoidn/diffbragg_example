@@ -1800,3 +1800,24 @@ Action State: ready_for_implementation
 - Updated plans/active/PORTFOLIO-STATUS/implementation.md Phase F section with the audit status + explicit handoff instructions (git mv both directories, update ledger/problems references, rerun plan_inventory guard, refresh appendix/Attempts History).
 - Authored new input.md handing Ralph the archival + guard Do Now plus pytest coverage; artifacts for his run should land in plans/active/PORTFOLIO-STATUS/reports/2025-12-03T131500Z/ before closing the problems-ledger item.
 Action State: ready_for_implementation
+
+## Loop 2025-12-03T122513Z
+
+**Focus**: PORTFOLIO-STATUS — Plan/Fix-Plan synchronization & archive hygiene (Phase F archival pass)
+**State**: planning
+**Dwell**: 2
+**Action Type**: planning
+**Initiative Type**: housekeeping
+
+**Key Observations**:
+1. Fresh guard run (reports/2025-12-03T122513Z) shows 54 total plan directories, 27 tracked directly, 34 covered via rollups, Active missing = 0 but `ARCH-TELEMETRY-001` still registers as `missing_plan` because a stub directory remains under `plans/active/` without an implementation file.
+2. Completed initiatives ARCH-BRIDGE-RESP-001 and ARCH-REFINE-001 still live under `plans/active/`, so Phase F must continue migrating those directories into `archive/plans/` and updating the ledger/doc pointers.
+3. Current problems-ledger entry (“identify stale plan directories…”) remains open; next tangible unblock is moving ARCH-BRIDGE-RESP-001, cleaning the stray ARCH-TELEMETRY-001 stub, and refreshing the plan-inventory guard so counts are accurate after the move.
+
+**Artifacts Path**: `plans/active/PORTFOLIO-STATUS/reports/2025-12-03T122513Z/`
+
+**Next Actions**:
+- Ralph: follow the new input.md to git-mv ARCH-BRIDGE-RESP-001 into `archive/plans/`, delete the ARCH-TELEMETRY-001 stub, refresh docs/fix_plan*.md + allied docs, rerun plan_inventory + pytest guard, and capture artifacts under `reports/2025-12-03T140000Z/`.
+- After this archival pass lands, queue ARCH-REFINE-001 (and any other done initiatives) for the next Phase F loop.
+
+**Action State**: ready_for_implementation

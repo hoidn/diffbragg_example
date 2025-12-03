@@ -1,0 +1,73 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 2 items
+
+tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity SKIPPEDrics) [ 50%]
+tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity FAILED [100%]
+
+=================================== FAILURES ===================================
+_______________________ test_db_at_029_structure_parity ________________________
+
+stage_a_smoke_result = {'bragg_after': array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ......, 0., ..., 0., 0., 0.]]], dtype=float32), 'bragg_after_max': 0.0, 'bragg_after_mean': 0.0, 'bragg_after_std': 0.0, ...}
+
+    @pytest.mark.allow_metadata_sigma
+    def test_db_at_029_structure_parity(stage_a_smoke_result):
+        """
+        DB-AT-029 (docs/spec-db-conformance.md:319-366): ROI structure parity vs data.
+        """
+        telemetry = stage_a_smoke_result["telemetry"]
+        inputs = stage_a_smoke_result["inputs"]
+        target = inputs.target
+        loss_mask = inputs.loss_mask
+        bragg_before = stage_a_smoke_result["bragg_before"]
+        bragg_after = stage_a_smoke_result["bragg_after"]
+    
+        corrs_before = _roi_correlations(target, bragg_before, loss_mask, inputs.panel_slices)
+        corrs_after = _roi_correlations(target, bragg_after, loss_mask, inputs.panel_slices)
+        valid_before = [c for c in corrs_before if np.isfinite(c)]
+        valid_after = [c for c in corrs_after if np.isfinite(c)]
+    
+>       assert valid_before, "No valid ROI correlations computed for bragg_before"
+E       AssertionError: No valid ROI correlations computed for bragg_before
+E       assert []
+
+tests/dbex/test_stage_a_smoke_parity.py:387: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[ARCH-SIM-CONSTRUCTION-001 DEBUG]
+  log_scale_baseline_value: 20.138489594990745
+  log_scale (param_deltas_a): 0.0
+  delta_bound: 3.0
+  scale_factor (after exp): 557230080.0
+  sqrt_spot_scale: 557230532.6778347
+  spot_scale_override: 3.105058665484234e+17
+  bragg_panel[0] mean (raw sim output): 0.000000e+00
+  bragg_panel[0] max: 0.000000e+00
+  bragg_scaled[0] mean (after scale_factor): 0.000000e+00
+  bragg_full mean (final output): 0.000000e+00
+  bragg_full max: 0.000000e+00
+[END DEBUG]
+=============================== warnings summary ===============================
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity - AssertionError: No valid ROI correlations computed for bragg_before
+assert []
+================== 1 failed, 1 skipped, 4 warnings in 27.80s ===================

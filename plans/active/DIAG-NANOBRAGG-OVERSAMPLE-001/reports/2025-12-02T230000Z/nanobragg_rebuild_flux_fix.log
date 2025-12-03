@@ -1,0 +1,21 @@
+Obtaining file:///home/ollie/Documents/diffbragg_example_2/diffbragg_example/src/nanobrag-torch
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Checking if build backend supports build_editable: started
+  Checking if build backend supports build_editable: finished with status 'done'
+  Getting requirements to build editable: started
+  Getting requirements to build editable: finished with status 'done'
+  Preparing editable metadata (pyproject.toml): started
+  Preparing editable metadata (pyproject.toml): finished with status 'done'
+Building wheels for collected packages: nanobrag-torch
+  Building editable for nanobrag-torch (pyproject.toml): started
+  Building editable for nanobrag-torch (pyproject.toml): finished with status 'done'
+  Created wheel for nanobrag-torch: filename=nanobrag_torch-0.1.0-0.editable-py3-none-any.whl size=2615 sha256=6e68a03ebfbe59f48b4b35067cc2f946031959bf9408e1ce75820d8a8c272337
+  Stored in directory: /tmp/pip-ephem-wheel-cache-hf2fp6pb/wheels/76/84/da/63c6939a4c9584af1457241cc5c17a9e65c9b196a2546a321c
+Successfully built nanobrag-torch
+Installing collected packages: nanobrag-torch
+  Attempting uninstall: nanobrag-torch
+    Found existing installation: nanobrag-torch 0.1.0
+    Uninstalling nanobrag-torch-0.1.0:
+      Successfully uninstalled nanobrag-torch-0.1.0
+Successfully installed nanobrag-torch-0.1.0

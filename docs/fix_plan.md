@@ -249,7 +249,7 @@
 ### [ARCH-ENGINE-ARTIFACTS-001] RefinementEngine Artifact Channel & Final-Bragg Unification
   * 2025-12-05T024500Z (Initiative closure — ARCH-LAZY-IMPORTS-001 archived) — Completed supervisor review and closure after Ralph's Phase C completion. All exit criteria assessed: (1) ✅ Module-scope imports with guardrails satisfied (Phase B.1-B.3 complete, 47 inline imports eliminated from 8 modules), (2) ✅ Spec/finding citations satisfied (Phase C complete, 1 TODO-PHYSICS replaced with precise spec refs), (3) N/A Import hygiene test selector (YAGNI adjustment: only 1 instance found in 8 modules, manual audit sufficient), (4) ✅ Problems ledger & fix_plan documentation (updated this loop). Total loops: 6 (4 implementation + 2 planning/review). Code impact: 9 files modified, +45 net lines (module-scope import blocks), 47 lazy imports eliminated, 1 process noise instance removed. Tests: 6/6 mapped selectors PASSED (zero regressions). Spec conformance: docs/spec-db-workflow.md §§30-90 and docs/spec-db-runtime.md §§10-25 verified. Finding adherence: ARCH-ENGINE-002, GEOMETRY-001/003, RUNTIME-001, POLICY-001 all satisfied. No blocked initiatives unblocked; no stuck/escalation events. Updated problems.md to mark entry resolved and fix_plan.md roadmap to archived status. Comprehensive closure summary, compliance verification, and turn summary artifacts at `plans/active/ARCH-LAZY-IMPORTS-001/reports/2025-12-05T024500Z/`. Initiative complete; ready for portfolio steering to next Tier 0 focus.
 - Depends on: ARCH-REFINE-001 (engine modularization baseline), ARCH-REFINE-FLOW-001 (stage wrappers, telemetry contract)
-- Status: pending
+- Status: in_progress
 - Priority: High
 - Tier: 1
 - Owner/Date: Codex / 2025-12-02
@@ -260,6 +260,7 @@
 - Working Plan: `plans/active/ARCH-ENGINE-ARTIFACTS-001/implementation.md`
 - Attempts History:
   * 2025-12-02T000000Z — Initiative logged, specs cross-referenced, and plan scaffolded; no code yet lands until ARCH-REFINE-001 helpers stabilize. Working notes live in `plans/active/ARCH-ENGINE-ARTIFACTS-001/implementation.md`.
+  * 2025-12-05T030000Z — Planning (Phase A.0-A.3 kickoff): Portfolio steering selected ARCH-ENGINE-ARTIFACTS-001 after Tier 0 blocked/archived. Infrastructure already exists from ARCH-STAGE-CONTEXT-001 Phase B.1 (engine._artifacts dict, StageResult protocol, artifact dataclasses with bragg_full fields). Phase A.0 baseline collection confirmed both mapped selectors healthy (2/2 collected). Phase A.1 design review determined no new API needed—artifact channel fully functional. Phase A.2 skipped (registry exists). Phase A.3 scoped: wire Stage C to populate bragg_full field by converting torch tensor to CPU numpy after _run_lbfgs and passing to StageCArtifacts. Comprehensive planning notes + input.md prepared under plans/active/ARCH-ENGINE-ARTIFACTS-001/reports/2025-12-05T030000Z/. Next: Ralph implements Stage C wiring, validates with test_stage_c_detector_microslip, ready for Phase B (Stage B artifact emission) in next loop.
   * ... (see `docs/fix_plan_archive.md` and `plans/active/ARCH-ENGINE-ARTIFACTS-001/reports/` for upcoming engineering attempts.)
 
 -### [ARCH-STAGE-CONTEXT-001] Stage Context + Engine Artifact Boundary

@@ -1097,3 +1097,13 @@ Action State: blocked — escalated to supervisor for root-cause re-analysis and
 **Next Action:** Commit closure documentation, then assess Tier 1+ options or housekeeping needs
 
 **Action State:** `<review_complete>`
+2025-12-05T030000Z focus=ARCH-ENGINE-ARTIFACTS-001 state=ready_for_implementation dwell=0 action=planning artifacts=plans/active/ARCH-ENGINE-ARTIFACTS-001/reports/2025-12-05T030000Z/ next_action=Implement Phase A.3 Stage C artifact wiring
+- Portfolio steering selected ARCH-ENGINE-ARTIFACTS-001 (Tier 1 pending) after all Tier 0 initiatives blocked/stuck/archived (ARCH-SIM-CONSTRUCTION-001 stuck environment, ARCH-REFACTOR-001 blocked, others done/archived).
+- Infrastructure already in place from ARCH-STAGE-CONTEXT-001: engine._artifacts dict, StageResult protocol, artifact dataclasses with bragg_full fields defined but not populated by Stage B/C.
+- Phase A.0 (baseline): collected 2/2 mapped selectors (test_stage_b_shell_modifiers, test_stage_c_detector_microslip) both healthy.
+- Phase A.1/A.2 analysis: no new API needed, artifact channel fully functional, registry already exists—this is pure wiring initiative.
+- Phase A.3 scope: wire Stage C to populate bragg_full field by converting _run_lbfgs output (torch tensor) to CPU numpy array and passing to StageCArtifacts instantiation.
+- Comprehensive planning notes created at plans/active/ARCH-ENGINE-ARTIFACTS-001/reports/2025-12-05T030000Z/phase_a_planning_notes.md detailing infrastructure, gaps, implementation steps.
+- Do Now handed to Ralph: 2 production file edits (stage_c.py ~2 lines tensor conversion, artifacts.py docstring update), validate with test_stage_c_detector_microslip.
+- Expected outcome: test PASSES, engine.artifacts["stage_c"].bragg_full populated with numpy array [panels, slow, fast], ready for Phase B (Stage B artifact emission).
+Action State: ready_for_implementation

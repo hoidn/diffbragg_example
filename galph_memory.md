@@ -840,6 +840,33 @@ Action State: ready_for_implementation
 - stuck: ARCH-SIM-CONSTRUCTION-001, DIAG-NANOBRAGG-OVERSAMPLE-001
 - blocked_pending_architecture: ARCH-REFACTOR-001
 
+---
+
+## Loop 2025-12-07T220000Z
+
+**Focus**: PORTFOLIO-STATUS — Plan/Fix-Plan synchronization & archive hygiene (Phase D wrap + Tier 4 coverage)  
+**State**: ready_for_implementation  
+**Dwell**: 2 (two consecutive planning/docs loops; handed off implementation queue)  
+**Action Type**: planning  
+**Initiative Type**: housekeeping
+
+**Key Observations**:
+1. Guarded inventory now isolates six remaining gaps: five real plan directories (HARDEN-SUBMODULE-ROBUSTNESS, ORCH-ROBUST-001, ORCH-CLAUDE-PATH-FIX-001, ORCH-CLI-FALLBACK-001, SUPERVISOR) plus the ARCH-REFRACTOR-001 duplicate stub. None appear in `docs/fix_plan.md`, so roll-up coverage still shows 5 `active_missing`.
+2. All five plans already contain stubs/reports; we need Tier-4 ledger entries referencing their artifacts (e.g., `plans/active/HARDEN-SUBMODULE-ROBUSTNESS/reports/2025-11-04T165400Z/`, `plans/active/ORCH-ROBUST-001/reports/2025-11-05T050500Z/notes.md`, `plans/active/SUPERVISOR/reports/2025-11-24T153000Z/roadmap_assessment.md`) plus explicit exit criteria tied to CLAUDE/AGENTS orchestration rules.
+3. ARCH-REFRACTOR-001 is only a README redirect to the archived plan; removing this duplicate and rerunning the inventory should bring `total plans → 55`, `tracked (direct) → 28`, `tracked_via_rollup → 34`, `active_missing → 0`, `missing_plan → 0`. Plan Directory Inventory appendix + Attempts History must reference the new `2025-12-07T220000Z` artifact set once the rerun lands.
+
+**Artifacts Path**: `plans/active/PORTFOLIO-STATUS/reports/2025-12-07T220000Z/` (expected outputs: inventory.json, inventory_missing.md, rollup_report.md, plan_inventory.log, pytest log, summary.md)
+
+**Next Actions**:
+- Ralph: implement the Tier 4 ledger section + Plan Directory Inventory/Attempts History updates in `docs/fix_plan.md`, update `plans/active/PORTFOLIO-STATUS/implementation.md` to record Phase D/E completion, delete `plans/active/ARCH-REFRACTOR-001/`, rerun `plan_inventory.py` with REPORT_TS=2025-12-07T220000Z, run the plan_inventory pytest, and capture the new artifacts + Turn Summary.
+
+**Action State**: Ready for implementation — awaiting Tier 4 ledger coverage + inventory rerun before closing PORTFOLIO-STATUS.
+
+**WIP Status**:
+- in_progress: PORTFOLIO-STATUS (docs/ledger loop handed to Ralph)
+- stuck: ARCH-SIM-CONSTRUCTION-001, DIAG-NANOBRAGG-OVERSAMPLE-001
+- blocked_pending_architecture: ARCH-REFACTOR-001
+
 ## 2025-12-02T233717Z (i=446)
 
 **Focus:** ARCH-SIM-CONSTRUCTION-001 — Simulator Construction Convention Alignment

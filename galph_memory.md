@@ -2136,3 +2136,23 @@ Action State: ready_for_implementation
 - ready_for_implementation — Normalize the reconstruction mask path (match Stage A’s `.to(device)` or pass `mask_array` into `create_unified_simulator`), re-run the intensity probe, and revalidate DB-AT-028/029 with artifact capture.
 
 **Action State**: gathering_evidence
+
+## Loop 2025-12-11T235500Z
+
+**Focus**: ARCH-SIM-CONSTRUCTION-001 — Simulator Construction Convention Alignment (DB-AT-028/029 diagnostics)
+**State**: planning
+**Dwell**: 2
+**Action Type**: planning
+**Initiative Type**: architecture
+
+**Key Observations**:
+1. Latest DB-AT-028/029 metrics (plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-11T230000Z/db_at_028/db_at_028_metrics.json) still show `chi2_per_pixel_initial ≈ 2.10e5`, `bragg_before_mean ≈ 1.86` (unmasked) / 11.57 (masked in mapping_context), and `log_scale_effective_final ≈ 27.24`, so scale remains off by ~3–7× even after the mask parity fix.
+2. The 2025-12-11 intensity probe proved Stage A, reconstruction, and `simulate_forward_once` return identical raw/scaled outputs for the *old* calibration (spot_scale_override ≈ 3.1e17), but the DB-AT fixture now consumes `config_torch_smoke_small.json` (spot_scale_override 4.786e17, N_cells [41,29,32]), so we need a fresh probe run plus a per-fixture scale diagnostic before touching code again.
+3. Mapping context fixtures show `global_scale_hint=1.353` even though `target_mean/bragg_mean ≈ 7.5`, implying we still lack a trustworthy measurement of how the canonical `simulate_forward_once` scales relative to the DB-AT inputs; a dedicated probe that logs masked/unmasked means, target stats, and telemetry log-scale deltas will isolate the first divergence.
+
+**Artifacts Path**: `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-12T010000Z/` (reserved for the scale-alignment probe + refreshed DB-AT metrics)
+
+**Next Actions**:
+- ready_for_implementation — author the `probe_stage_a_scale_alignment.py` script under the plan directory, re-run `compare_simulator_outputs.py` with the current calibration, and capture DB-AT-028/029 artifacts under the 2025-12-12T010000Z report per the new input.md.
+
+Action State: ready_for_implementation

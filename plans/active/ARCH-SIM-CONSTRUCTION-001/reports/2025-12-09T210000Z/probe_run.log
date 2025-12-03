@@ -1,0 +1,40 @@
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+[ARCH-SIM-CONSTRUCTION-001] Intensity + Calibration Metrics Probe
+Detector size: small
+Device: cpu
+
+[1/6] Loading test fixture data...
+  HKL grid shape: torch.Size([51, 59, 65])
+  n_panels: 1
+  Calibration loaded: 5 keys
+
+[2/6] Running Stage A warm-cache simulator...
+  Raw output mean: 1.713925e-09
+  Scaled output mean: 9.550518e-01
+  sqrt(spot_scale): 5.572305e+08
+  log_scale_baseline: 20.138490
+
+[3/6] Running reconstruction cold-path simulator...
+  Raw output mean: 2.023952e-09
+  Scaled output mean: 1.127808e+00
+  scale_factor (exp(log_scale_baseline)): 5.572305e+08
+  sqrt(spot_scale): 5.572305e+08
+
+[4/6] Running simulate_forward_once canonical mapping path...
+  Raw output mean: 1.713925e-09
+  Scaled output mean: 9.550518e-01
+  sqrt(spot_scale): 5.572305e+08
+
+[5/6] Computing cross-path ratios...
+  Raw stage_a/recon: 8.468210e-01
+  Raw stage_a/mapping: 1.000000e+00
+  Raw recon/mapping: 1.180887e+00
+  All raw outputs match within 10%? False
+
+[6/6] Saving results...
+  Results saved to: plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-09T210000Z/simulator_intensity_metrics.json
+
+  Summary written to: plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-09T210000Z/summary.md
+
+[DONE] Intensity + calibration metrics comparison complete.

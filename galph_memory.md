@@ -17,6 +17,11 @@ Action State: ready_for_implementation
 - Authored input.md directing Ralph to implement `bin/compare_stage_a_baseline.py`, rerun DB-AT-028/029 with artifacts rooted at 2025-12-13T190000Z, and persist probe + pytest logs so we can see exactly where telemetry and reconstruction diverge.
 - No production edits issued this loop; staying within Environment Freeze by restricting work to plan/bin artifacts plus pytest evidence. Next step once probe lands: decide whether Stage A baseline math or the DB-AT harness needs correction (or escalate to spec_change).
 Action State: planning
+2025-12-13T235500Z focus=ARCH-SIM-CONSTRUCTION-001 state=ready_for_implementation dwell=0 action=planning artifacts=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-13T235500Z/ next_action=Instrument masked-mean diagnostics + rerun DB-AT
+- Problems ledger entry (DB-AT-028/029 scale mismatch) re-serviced: reviewed the baseline probe output + latest DB-AT metrics and discovered the telemetry NaNs were self-inflicted (script scraped `param_deltas['log_scale_effective']`). Planned the follow-up loop to fix the probe so it reads `telemetry.target_mean_masked` / `telemetry.model_mean_masked` and to extend `build_final_bragg_from_stage_a_telemetry` with masked-mean diagnostics that emit a `baseline_stats.json` alongside the mask-coverage data. This keeps us within Environment Freeze while producing the quantitative evidence we need before touching physics.
+- Updated `docs/fix_plan.md` + implementation plan Phase C.9 with the new instrumentation tasks and reserved `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-13T235500Z/` for the upcoming artifacts. Problems ledger guard noted in this entry so future loops stay compliant.
+- Rewrote `input.md` for a Parity-mode loop covering the reconstruction instrumentation, probe rerun, and DB-AT-028/029 executions so the next engineer loop can implement immediately.
+Action State: ready_for_implementation
 ## Loop 2025-12-08T100000Z
 
 **Focus**: PORTFOLIO-STATUS — Plan/Fix-Plan synchronization & archive hygiene (closure planning)  

@@ -1627,3 +1627,24 @@ Per CLAUDE.md exception clause requirements:
 **Next Actions**:
 - Implement Phase B3 by updating `bin/plan_inventory.py` + new pytest coverage, then add the documented roll-up sections/appended notes to `docs/fix_plan.md` and rerun the plan inventory script to regenerate classification artifacts.
 - Running state for next loop: `ready_for_implementation` (handoff required to avoid a third planning-only loop for this focus).
+
+---
+
+## Loop 2025-12-03T095530Z
+
+**Focus**: PORTFOLIO-STATUS — Plan/Fix-Plan synchronization & archive hygiene (Phase B3 roll-up ledger work)  
+**State**: ready_for_implementation  
+**Dwell**: 0 (new loop after Ralph delivered the B3 tooling updates)  
+**Action Type**: planning  
+**Initiative Type**: housekeeping
+
+**Key Observations**:
+1. `docs/fix_plan.md` still lacks the required `### [ROLLUP-ID]` subsections; roll-up IDs only appear in the Tier 1 bullet list and Plan Directory Inventory appendix, so the 34 roll-up member plans remain undocumented in the main ledger body.
+2. Captured the outstanding scope in `plans/active/PORTFOLIO-STATUS/reports/2025-12-03T095530Z/rollup_section_gaps.md` and updated `plans/active/PORTFOLIO-STATUS/implementation.md` Phase B3 notes (script/tests ✅, ledger sections ❌) to keep the plan synchronized with reality.
+3. Problems ledger directive (“identify stale plans / track missing initiatives”) remains satisfied by continuing PORTFOLIO-STATUS; next work item is the doc pass wiring each roll-up to its plan directories and spec references, then rerunning `plan_inventory.py --rollup-config` to confirm `rollup_report.md` reports coverage.
+
+**Artifacts Path**: `plans/active/PORTFOLIO-STATUS/reports/2025-12-03T095530Z/`
+
+**Next Actions**:
+- Author the 13 roll-up subsections inside `docs/fix_plan.md` per `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T183000Z/ledger_rollup_plan.md` (include initiative type, dependencies, exit criteria, member plan pointers, Attempts History).
+- Regenerate `inventory.json`, `inventory_missing.md`, and `rollup_report.md` via `plan_inventory.py --rollup-config plans/active/PORTFOLIO-STATUS/rollups.json` under a fresh timestamped reports directory once the doc edits land.

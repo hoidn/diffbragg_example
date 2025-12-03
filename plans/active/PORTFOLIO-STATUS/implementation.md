@@ -43,8 +43,11 @@
 - **B2** For plans marked archived-ready, move them under `archive/plans/` (maintaining original structure) and leave a stub note pointing to the archive. *(ARCH-REFRACTOR-001 moved in the same report set; stub_status.md records new implementation.md placeholders.)*
 - **B3** For active plans missing fix plan coverage, author/update corresponding entries in `docs/fix_plan.md` (Tier, dependencies, initiative type, status, artifacts path). **New blueprint:** `reports/2025-12-05T183000Z/ledger_rollup_plan.md` enumerates the roll-up IDs, member directories, spec references, and the script/test work required to keep the classification automated. Execution of B3 now includes:
   1. Extending `bin/plan_inventory.py` to emit roll-up aware JSON/Markdown (configurable via `--rollup-config`) plus pytest coverage under `plans/active/PORTFOLIO-STATUS/tests/`.
+     - **Status 2025-12-03:** ✅ Script + tests delivered in `reports/2025-12-05T210000Z/`; see `test_plan_inventory.py`.
   2. Adding dedicated `### [ROLLUP-ID]` sections to `docs/fix_plan.md` with dependencies, exit criteria, and Attempts History links for each grouped initiative.
+     - **Status 2025-12-03:** ❌ OPEN — ledger currently lists roll-up IDs only in Tier 1 bullets and the appendix (see `reports/2025-12-03T095530Z/rollup_section_gaps.md`); no subsections exist yet.
   3. Updating the Plan Directory Inventory appendix so it references both the bucket classification log and the roll-up config required by the automation guard.
+     - **Status 2025-12-03:** ✅ Appendix updated alongside the script changes (doc lines 333-372 capture the guardrails).
 
 ### Phase C — Ledger / Doc Updates & Regression Guard
 - **C1** Add a “Plan Directory Inventory” appendix to `docs/fix_plan.md` summarizing the latest report and linking to artifacts; include open remediation items.

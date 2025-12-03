@@ -396,6 +396,7 @@ class StageA:
                 calibration_metadata=config.calibration_metadata,
                 log_scale_baseline=log_scale_baseline,
                 apply_calibration_n_cells=config.apply_calibration_n_cells,
+                config=config,  # DIAG-NANOBRAGG-OVERSAMPLE-001
             )
 
         # Priority 1 (revised): When calibration was adjusted for N_cells, derive Stage A baseline

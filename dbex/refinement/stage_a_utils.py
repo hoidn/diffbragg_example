@@ -18,10 +18,13 @@ References:
 
 import copy
 import math
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, TYPE_CHECKING
 
 import numpy as np
 import torch
+
+if TYPE_CHECKING:
+    from dbex.refinement.config import RefinementConfig
 
 # ARCH-LAZY-IMPORTS-001 / ARCH-ENGINE-002: Module-scope dependencies
 from nanobrag_torch.models.detector import Detector
@@ -189,6 +192,7 @@ def _build_stage_a_context(
     calibration_metadata: Optional[Dict[str, Any]] = None,
     log_scale_baseline: Optional[float] = None,
     apply_calibration_n_cells: bool = True,
+    config: Optional['RefinementConfig'] = None,  # DIAG-NANOBRAGG-OVERSAMPLE-001
 ) -> 'StageAContext':
     """
     Prebuild Stage A detector models and tensorize masks/HKL once (PERF-WARM-SIM-001).
@@ -222,6 +226,11 @@ def _build_stage_a_context(
     """
     # Import here to avoid circular dependency
     from dbex.refinement.context import StageAContext, StageAROIEntry
+
+    # Extract oversample from config or use default (DIAG-NANOBRAGG-OVERSAMPLE-001)
+    oversample_value = 3  # Default fallback
+    if config is not None:
+        oversample_value = config.oversample
 
     n_panels = len(detector)
 
@@ -286,7 +295,8 @@ def _build_stage_a_context(
         detector_config = create_detector_config(
             panel=panel,
             beam=beam,
-            trusted_mask=trusted_mask[pid]
+            trusted_mask=trusted_mask[pid],
+            oversample=oversample_value,  # DIAG-NANOBRAGG-OVERSAMPLE-001
         )
 
         # Convert mask_array to torch.Tensor if it's a numpy array
@@ -328,6 +338,7 @@ def _build_stage_a_context(
                 beam=beam,
                 trusted_mask=trusted_mask[int(pid)],
                 roi_bbox=bbox,
+                oversample=oversample_value,  # DIAG-NANOBRAGG-OVERSAMPLE-001
             )
             mask_array = detector_config.mask_array
             if mask_array is not None and not isinstance(mask_array, torch.Tensor):
@@ -460,6 +471,11 @@ def _compute_panel_loss(
     Returns:
         Tuple of (chi_squared_loss, masked_mse_loss, masked_pixels, clamped_pixels)
     """
+    # Extract oversample from config or use default (DIAG-NANOBRAGG-OVERSAMPLE-001)
+    oversample_value = 3
+    if config is not None:
+        oversample_value = config.oversample
+
     # PERF-WARM-SIM-001: When diagnostics are requested, compute per-panel metrics serially
     # so we can capture chi², mask, sigma, and target checksums before aggregating.
     # Otherwise, use the fast-path stacked evaluation.
@@ -480,7 +496,8 @@ def _compute_panel_loss(
                 detector_config = create_detector_config(
                     panel=detector[pid],
                     beam=beam,
-                    trusted_mask=panel_trusted_mask
+                    trusted_mask=panel_trusted_mask,
+                    oversample=oversample_value,  # DIAG-NANOBRAGG-OVERSAMPLE-001
                 )
                 if detector_config.mask_array is not None and not isinstance(detector_config.mask_array, torch.Tensor):
                     detector_config.mask_array = torch.tensor(
@@ -572,7 +589,8 @@ def _compute_panel_loss(
                 detector_config = create_detector_config(
                     panel=detector[pid],
                     beam=beam,
-                    trusted_mask=panel_trusted_mask
+                    trusted_mask=panel_trusted_mask,
+                    oversample=oversample_value,  # DIAG-NANOBRAGG-OVERSAMPLE-001
                 )
                 if detector_config.mask_array is not None and not isinstance(detector_config.mask_array, torch.Tensor):
                     detector_config.mask_array = torch.tensor(

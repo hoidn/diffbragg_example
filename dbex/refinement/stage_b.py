@@ -327,6 +327,7 @@ class StageB:
                 calibration_metadata=self._config.calibration_metadata,
                 log_scale_baseline=self._config.log_scale_baseline,
                 apply_calibration_n_cells=self._config.apply_calibration_n_cells,
+                config=self._config,  # DIAG-NANOBRAGG-OVERSAMPLE-001
             )
         elif not use_stage_b_cpu_fallback:
             # No CPU fallback: reuse the original CUDA Stage A context

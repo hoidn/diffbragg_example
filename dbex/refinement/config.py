@@ -83,6 +83,12 @@ class RefinementConfig:
     # while panel mode achieves 57.4%. Default 32 so refGeom_small (29 ROIs) uses panel mode.
     stage_a_min_roi_for_roi_mode: int = 32
 
+    # nanobrag_torch oversampling (DIAG-NANOBRAGG-OVERSAMPLE-001 Phase C)
+    # Oversampling factor for detector simulation (1, 2, 3, ...).
+    # Default 3 matches calibration metadata standard and prevents auto-selection.
+    # -1 triggers auto-selection based on detector size (not recommended for reproducibility).
+    oversample: int = 3
+
     # Stage B structure factor modifiers (TORCH-REFINE-004)
     enable_stage_b: bool = False  # Enable Fhkl shell modifiers
     stage_b_mode: str = "per_reflection"  # "per_reflection" (default per spec:59) or "shell" (fallback per spec:60)

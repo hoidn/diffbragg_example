@@ -91,6 +91,7 @@ def create_unified_simulator(
     device=None,               # torch.device or str
     dtype=None,                # torch.dtype
     calibration_metadata=None, # Optional[dict] with 'beam_config', 'N_cells', etc.
+    debug_config=None,         # Optional[dict] for debug flags (DIAG-NANOBRAGG-OVERSAMPLE-001 Phase E)
 ):
     """
     Unified simulator factory for nanobrag_torch.
@@ -123,6 +124,9 @@ def create_unified_simulator(
         Target dtype (defaults to hkl_grid.dtype).
     calibration_metadata : Optional[dict]
         Preserved for telemetry/logging. Keys: 'beam_config', 'N_cells'.
+    debug_config : Optional[dict]
+        Debug configuration flags passed to Simulator. Keys: 'collect_hkl_stats', etc.
+        (DIAG-NANOBRAGG-OVERSAMPLE-001 Phase E)
 
     Returns
     -------
@@ -195,12 +199,14 @@ def create_unified_simulator(
     crystal.hkl_metadata = hkl_metadata
 
     # Construct Simulator
+    # DIAG-NANOBRAGG-OVERSAMPLE-001 Phase E: Pass debug_config for HKL stats collection
     simulator = Simulator(
         detector=detector,
         crystal=crystal,
         beam_config=beam_config,
         device=device,
-        dtype=dtype
+        dtype=dtype,
+        debug_config=debug_config
     )
 
     # Assemble metadata

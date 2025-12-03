@@ -296,8 +296,14 @@ def main():
     simulator.printout = True
     simulator.trace_pixel = [args.trace_slow, args.trace_fast]
 
+    # DIAG-NANOBRAGG-OVERSAMPLE-001 Phase E: Enable HKL stats collection
+    simulator.debug_config['collect_hkl_stats'] = True
+    simulator._hkl_stats_enabled = True
+    simulator._hkl_stats = {}
+
     print(f"  trace_pixel: {simulator.trace_pixel}")
     print(f"  printout: {simulator.printout}")
+    print(f"  collect_hkl_stats: True")
     print()
 
     # ============================================================
@@ -351,6 +357,22 @@ def main():
         json.dump(metrics, f, indent=2)
 
     print(f"  Metrics written to: {metrics_path}")
+
+    # DIAG-NANOBRAGG-OVERSAMPLE-001 Phase E: Write HKL stats JSON
+    hkl_stats = simulator.hkl_stats
+    if hkl_stats:
+        hkl_stats_path = out_dir / "hkl_stats.json"
+        with open(hkl_stats_path, 'w') as f:
+            json.dump(hkl_stats, f, indent=2)
+        print(f"  HKL stats written to: {hkl_stats_path}")
+        print(f"    Total queries: {hkl_stats.get('total_queries', 0)}")
+        print(f"    In-bounds: {hkl_stats.get('in_bounds_count', 0)}")
+        print(f"    Out-of-bounds: {hkl_stats.get('out_of_bounds_count', 0)}")
+        print(f"    h range: [{hkl_stats.get('h_min', 'N/A')}, {hkl_stats.get('h_max', 'N/A')}]")
+        print(f"    k range: [{hkl_stats.get('k_min', 'N/A')}, {hkl_stats.get('k_max', 'N/A')}]")
+        print(f"    l range: [{hkl_stats.get('l_min', 'N/A')}, {hkl_stats.get('l_max', 'N/A')}]")
+    else:
+        print("  HKL stats: not collected (flag was not enabled)")
     print()
 
     # ============================================================

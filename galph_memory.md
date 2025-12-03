@@ -1795,3 +1795,8 @@ Action State: ready_for_implementation
 - ready_for_implementation — Execute the Phase F Do Now: move ARCH-LAZY-IMPORTS-001 & ARCH-TELEMETRY-001 under archive/plans, update fix_plan/problems.md references, rerun plan_inventory into `.../2025-12-03T131500Z/`, and refresh the appendix/Attempts History to close the problems.md hygiene item.
 
 **Action State**: ready_for_implementation
+2025-12-03T12:13:28Z focus=PORTFOLIO-STATUS state=planning dwell=1 action=planning artifacts=plans/active/PORTFOLIO-STATUS/reports/2025-12-03T121328Z/ next_action=ready_for_implementation
+- Phase F audit complete: confirmed ARCH-LAZY-IMPORTS-001 and ARCH-TELEMETRY-001 are the only archived Tier 0 initiatives still under `plans/active/`; captured notes plus Do Now prep under the new report directory.
+- Updated plans/active/PORTFOLIO-STATUS/implementation.md Phase F section with the audit status + explicit handoff instructions (git mv both directories, update ledger/problems references, rerun plan_inventory guard, refresh appendix/Attempts History).
+- Authored new input.md handing Ralph the archival + guard Do Now plus pytest coverage; artifacts for his run should land in plans/active/PORTFOLIO-STATUS/reports/2025-12-03T131500Z/ before closing the problems-ledger item.
+Action State: ready_for_implementation

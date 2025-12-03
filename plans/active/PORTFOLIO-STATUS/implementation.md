@@ -101,7 +101,10 @@ Artifacts: `plans/active/PORTFOLIO-STATUS/reports/2025-12-08T150000Z/summary.md`
 - **F3** Rerun `plan_inventory.py` with the guard flags, capture artifacts under a fresh `reports/<ISO8601Z>/` directory, and refresh the Plan Directory Inventory appendix counts (Total plans, Tracked direct, Covered via rollups, Active missing, Missing implementation.md). Update Attempts History with the new timestamp and artifact path.
 - **F4** Close the problems-ledger entry once at least the first batch of stale plan directories has been archived and `plan_inventory.py` reports `Active missing = 0`. Document the action in `docs/fix_plan.md` Attempts History and `galph_memory.md`.
 
-Artifacts: `plans/active/PORTFOLIO-STATUS/reports/2025-12-03T114311Z/` (this loop’s guard rerun and plan-hygiene notes pending next implementation handoff).
+- **Status 2025-12-03T121328Z (F1 completion snapshot):** Confirmed `plans/active/ARCH-LAZY-IMPORTS-001/` and `plans/active/ARCH-TELEMETRY-001/` are the only archived Tier‑0 initiatives still living under `plans/active/`. Both have closure summaries and Working Plan pointers in `docs/fix_plan.md`, so they are safe to move. Captured the audit notes plus Do‑Now prep under `plans/active/PORTFOLIO-STATUS/reports/2025-12-03T121328Z/`.
+- **Next Implementation Loop:** Execute F2/F3 in one pass — `git mv` the two directories into `archive/plans/`, update `docs/fix_plan.md` (Tier 0 entry + Working Plan paths + Attempts History), refresh any other references discovered via `rg "plans/active/ARCH-(LAZY-IMPORTS|TELEMETRY)-001"`, rerun the guard command (`python plans/active/PORTFOLIO-STATUS/bin/plan_inventory.py --plans-root plans/active --fix-plan docs/fix_plan.md --rollup-config plans/active/PORTFOLIO-STATUS/rollups.json --out-dir plans/active/PORTFOLIO-STATUS/reports/<NEW_TS>/`), then update the Plan Directory Inventory appendix + problems.md once the archival move is confirmed.
+
+Artifacts: `plans/active/PORTFOLIO-STATUS/reports/2025-12-03T121328Z/` (Phase F audit + Do‑Now prep).
 
 ## Abort / Escalation Criteria
 - If more than 5 plan directories lack implementation plans or contain partial data, pause after Phase A and escalate via `docs/fix_plan.md` (open a spec-change or tooling initiative to repair the planning pipeline).  

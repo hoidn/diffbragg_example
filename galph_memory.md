@@ -929,3 +929,36 @@ bragg_scaled = bragg_panel * scale_factor  # REMOVE * sqrt_spot_scale
 - Created comprehensive root cause diagnosis (plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-03T005008Z/galph_root_cause_final_diagnosis.md) and rewrote input.md with corrective single-line fix.
 - Implementation_attempt_count=2 for DB-AT-028/029 (within budget of 3). Expected outcome: bragg_after drops from 5711 to ~0.24, tests PASS.
 Action State: ready_for_implementation
+
+---
+
+## 2025-12-04T121500Z (Loop i=451)
+**Focus:** ARCH-SIM-CONSTRUCTION-001 (Simulator Construction Convention Alignment)
+**Action Type:** debug (evidence collection via instrumentation)
+**Initiative Type:** architecture
+**Dwell:** 0 (evidence loop)
+**Lifecycle:** implementation_attempt_count=2 (within budget of 3)
+
+**Context:** Ralph's prior loop (2025-12-03T005008Z) correctly removed `* sqrt_spot_scale` per my diagnosis, but tests show bragg_after now 23,400× too SMALL (1.02e-05 instead of ~0.24), opposite of expected. My mathematical analysis was incomplete — before issuing another fix, need empirical data on simulator raw output vs scale_factor.
+
+**Action:** Issued debug instrumentation Do Now adding print statements to `dbex/refinement/reconstruction.py::build_final_bragg_from_stage_a_telemetry` to capture:
+1. log_scale_baseline, log_scale_delta, scale_factor, sqrt_spot_scale
+2. Raw simulator output (bragg_panel.mean()) before scaling
+3. Intermediate (after scale_factor) and final (bragg_full) outputs
+
+**Rationale:** My prior diagnosis assumed scale_factor = exp(log(sqrt(spot_scale))) directly, but Stage A actually derives log_scale_baseline from `target_mean / (model_mean * sqrt_spot_scale)`, creating a ratio-based baseline, not a simple sqrt embedding. Need to verify whether the simulator raw output magnitude matches Stage A's or if the scale_factor calculation is wrong.
+
+**Artifacts:** `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T121500Z/`
+- galph_root_cause_revised_analysis.md (detailed re-analysis showing my confusion)
+- pytest_db_at_028_debug.log (expected from Ralph's instrumentation run)
+- debug_output.txt (extracted debug block)
+
+**Next Action:** Ralph instruments reconstruction.py, runs DB-AT-028 with `-s` flag, captures debug output. Galph analyzes empirical values in next loop to determine correct fix (likely need to understand the baseline derivation path vs reconstruction application).
+
+**Lifecycle Notes:**
+- Repeat-failure escalation NOT triggered yet (only 2 attempts, different outcomes each time: too large → too small)
+- Still within implementation budget for DB-AT-028/029 criteria
+- Blocked on empirical data, not architecture/spec change
+
+**State:** gathering_evidence
+**Artifacts Path:** plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T121500Z/

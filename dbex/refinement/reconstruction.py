@@ -189,16 +189,15 @@ def build_final_bragg_from_stage_a_telemetry(
         for pid in sampled_panel_ids:
             detector_config = create_detector_config(detector[pid], beam=beam)
             # Use unified factory for forward-only reconstruction (ARCH-FACTORY-001)
-            # Note: spot_scale_override is NOT passed here - it's handled via log_scale baseline
-            # in the scale_factor calculation below (see lines 195-217)
-            simulator, normalized_mask, sqrt_scale, metadata = create_unified_simulator(
+            # Pass spot_scale_override so factory can compute sqrt_scale for post-run application
+            simulator, normalized_mask, sqrt_scale_from_factory, metadata = create_unified_simulator(
                 detector_config=detector_config,
                 crystal_config=crystal_config,
                 beam_config=beam_config,
                 hkl_grid=hkl_grid,
                 hkl_metadata=hkl_metadata,
                 mask_array=None,  # mask already in detector_config if needed
-                spot_scale_override=None,  # Scale handled via log_scale parameter
+                spot_scale_override=spot_scale_override,  # Factory needs this to compute sqrt_scale
                 device=device,
                 dtype=dtype,
                 calibration_metadata=getattr(config, 'calibration_metadata', None),
@@ -236,7 +235,7 @@ def build_final_bragg_from_stage_a_telemetry(
     scale_factor = torch.exp(log_scale_clamped)
     for pid, sim in zip(sampled_panel_ids, simulators):
         bragg_panel = sim.run()
-        bragg_scaled = bragg_panel * scale_factor
+        bragg_scaled = bragg_panel * scale_factor * sqrt_spot_scale
         bragg_full[pid] = bragg_scaled.cpu().numpy().astype(np.float32)
 
     return bragg_full

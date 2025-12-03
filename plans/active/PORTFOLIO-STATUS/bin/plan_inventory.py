@@ -43,6 +43,12 @@ class PlanEntry:
     last_report: Optional[str]
     status_hint: Optional[str]
     bucket: Optional[str] = None
+    rollup_coverage: List[str] = None
+
+    def __post_init__(self):
+        """Initialize mutable defaults."""
+        if self.rollup_coverage is None:
+            self.rollup_coverage = []
 
 
 def parse_fix_plan_ids(fix_plan_path: Path) -> set:
@@ -118,11 +124,43 @@ def find_last_report(plan_dir: Path) -> Optional[str]:
     return sorted(timestamps)[-1]
 
 
+def apply_rollup_coverage(entries: List[PlanEntry], rollup_config: dict, fix_plan_ids: set) -> None:
+    """Apply roll-up coverage to plan entries.
+
+    For each plan directory that appears in a roll-up's member list, record that
+    roll-up ID in the entry's rollup_coverage field IF the roll-up ID itself
+    exists in fix_plan_ids (meaning the roll-up section is present in the ledger).
+
+    Modifies entries in place.
+
+    Args:
+        entries: List of PlanEntry objects to update
+        rollup_config: Dict mapping roll-up IDs to lists of member plan IDs
+        fix_plan_ids: Set of IDs found in docs/fix_plan.md
+    """
+    # Build reverse mapping from member plan ID to roll-up IDs that cover it
+    member_to_rollups = {}
+    for rollup_id, members in rollup_config.items():
+        # Only count roll-ups that already have sections in fix_plan.md
+        if rollup_id not in fix_plan_ids:
+            continue
+        for member_id in members:
+            if member_id not in member_to_rollups:
+                member_to_rollups[member_id] = []
+            member_to_rollups[member_id].append(rollup_id)
+
+    # Apply coverage to matching entries
+    for entry in entries:
+        if entry.id in member_to_rollups:
+            entry.rollup_coverage = member_to_rollups[entry.id]
+
+
 def compute_bucket(entry: PlanEntry) -> str:
     """Classify plan entry into bucket per classification.md rules.
 
     Buckets:
-    - active_missing: has_implementation=True, in_fix_plan=False
+    - tracked_via_rollup: has rollup_coverage from ledger roll-up sections
+    - active_missing: has_implementation=True, in_fix_plan=False, no rollup coverage
     - archive_ready: status_hint mentions "archive" or "duplicate"
     - missing_plan: has_implementation=False
     """
@@ -134,6 +172,10 @@ def compute_bucket(entry: PlanEntry) -> str:
                               "duplicate" in entry.status_hint.lower() or
                               "superseded" in entry.status_hint.lower()):
         return "archive_ready"
+
+    # Roll-up coverage counts as tracked
+    if entry.rollup_coverage:
+        return "tracked_via_rollup"
 
     if entry.has_implementation and not entry.in_fix_plan:
         return "active_missing"
@@ -182,7 +224,11 @@ def resolve_rollup_config(user_supplied: Optional[Path]) -> Tuple[Path, bool]:
 
 
 def inventory_plans(plans_root: Path, fix_plan_ids: set) -> List[PlanEntry]:
-    """Scan plans_root and build inventory of all plan directories."""
+    """Scan plans_root and build inventory of all plan directories.
+
+    Note: Bucket classification is deferred until after apply_rollup_coverage runs,
+    since rollup membership affects bucket assignment.
+    """
     entries = []
 
     if not plans_root.exists():
@@ -206,8 +252,7 @@ def inventory_plans(plans_root: Path, fix_plan_ids: set) -> List[PlanEntry]:
             last_report=find_last_report(plan_dir),
             status_hint=extract_status_hint(implementation_path) if implementation_path.exists() else None
         )
-        # Compute bucket classification
-        entry.bucket = compute_bucket(entry)
+        # Bucket will be computed after apply_rollup_coverage in main()
         entries.append(entry)
 
     return entries
@@ -220,13 +265,18 @@ def write_json_output(entries: List[PlanEntry], out_path: Path):
 
 
 def write_missing_md(entries: List[PlanEntry], out_path: Path):
-    """Write human-readable inventory_missing.md summarizing untracked initiatives."""
-    missing = [e for e in entries if not e.in_fix_plan]
+    """Write human-readable inventory_missing.md summarizing untracked initiatives.
+
+    Excludes plans that are covered via roll-up sections, as they are effectively
+    tracked even if their individual IDs don't appear in the ledger.
+    """
+    # Filter out plans with rollup coverage
+    missing = [e for e in entries if not e.in_fix_plan and not e.rollup_coverage]
 
     lines = [
         "# Untracked Plan Directories",
         "",
-        f"**Count:** {len(missing)} initiatives not referenced in `docs/fix_plan.md`",
+        f"**Count:** {len(missing)} initiatives not referenced in `docs/fix_plan.md` or roll-up sections",
         "",
         "| Plan ID | Has Implementation | Last Report | Status Hint |",
         "|---------|-------------------|-------------|-------------|"
@@ -245,6 +295,8 @@ def write_missing_md(entries: List[PlanEntry], out_path: Path):
     lines.append("- **No Implementation:** Consider archiving or removing")
     lines.append("- **Old Last Report (> 30 days):** Review for archival")
     lines.append("- **placeholder_stub Status:** Archive candidate")
+    lines.append("")
+    lines.append("**Note:** Plans covered via roll-up sections are excluded from this report.")
     lines.append("")
 
     out_path.write_text('\n'.join(lines))
@@ -366,6 +418,11 @@ def main():
     # Build inventory
     entries = inventory_plans(args.plans_root, fix_plan_ids)
 
+    # Apply rollup coverage and recompute buckets
+    apply_rollup_coverage(entries, rollup_config, fix_plan_ids)
+    for entry in entries:
+        entry.bucket = compute_bucket(entry)
+
     # Write outputs
     json_path = args.out_dir / "inventory.json"
     missing_path = args.out_dir / "inventory_missing.md"
@@ -377,10 +434,15 @@ def main():
     rollup_path = args.out_dir / "rollup_report.md"
     write_rollup_report(rollup_config, entries, fix_plan_ids, rollup_path)
 
+    # Compute bucket statistics for console output
+    rollup_covered = sum(1 for e in entries if e.rollup_coverage)
+    active_missing = sum(1 for e in entries if e.bucket == "active_missing")
+
     print(f"Inventory complete:")
     print(f"  Total plans: {len(entries)}")
     print(f"  In fix_plan.md: {sum(1 for e in entries if e.in_fix_plan)}")
-    print(f"  Missing from fix_plan.md: {sum(1 for e in entries if not e.in_fix_plan)}")
+    print(f"  Covered via rollups: {rollup_covered}")
+    print(f"  Active missing: {active_missing}")
     print(f"  Roll-ups configured: {len(rollup_config)}")
     if auto_loaded:
         print(f"  [guard] Auto-loaded rollup config from {rollup_config_path}")

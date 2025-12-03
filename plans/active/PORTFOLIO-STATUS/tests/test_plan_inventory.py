@@ -22,7 +22,9 @@ from plan_inventory import (
     parse_fix_plan_ids,
     inventory_plans,
     write_rollup_report,
+    write_missing_md,
     resolve_rollup_config,
+    apply_rollup_coverage,
 )
 
 
@@ -83,6 +85,18 @@ class TestBucketLogic:
             status_hint="in_progress"
         )
         assert compute_bucket(entry) == "tracked"
+
+    def test_tracked_via_rollup_bucket(self):
+        """Plans with rollup_coverage → tracked_via_rollup."""
+        entry = PlanEntry(
+            id="TEST-006",
+            in_fix_plan=False,
+            has_implementation=True,
+            last_report="2025-12-05T120000Z",
+            status_hint="Active",
+            rollup_coverage=["ROLLUP-A"]
+        )
+        assert compute_bucket(entry) == "tracked_via_rollup"
 
 
 class TestRollupConfig:
@@ -148,7 +162,7 @@ class TestInventoryPlans:
     """Test plan directory scanning and bucket assignment."""
 
     def test_inventory_with_buckets(self, tmp_path):
-        """Inventory assigns buckets correctly."""
+        """Inventory assigns buckets correctly after explicit compute_bucket."""
         plans_root = tmp_path / "plans"
         plans_root.mkdir()
 
@@ -174,6 +188,10 @@ class TestInventoryPlans:
         fix_plan_ids = set()
 
         entries = inventory_plans(plans_root, fix_plan_ids)
+
+        # Compute buckets explicitly (mimicking main flow)
+        for entry in entries:
+            entry.bucket = compute_bucket(entry)
 
         # Verify buckets
         entry_map = {e.id: e for e in entries}
@@ -288,3 +306,106 @@ Some text mentioning [INLINE-REF-001] in a sentence.
         fix_plan = tmp_path / "nonexistent.md"
         ids = parse_fix_plan_ids(fix_plan)
         assert ids == set()
+
+
+class TestRollupCoverage:
+    """Test roll-up coverage detection and bucket behavior."""
+
+    def test_apply_rollup_coverage_single_rollup(self):
+        """Single roll-up membership is detected correctly."""
+        entries = [
+            PlanEntry("PLAN-1", False, True, None, None),
+            PlanEntry("PLAN-2", False, True, None, None),
+        ]
+
+        rollup_config = {
+            "ROLLUP-A": ["PLAN-1"]
+        }
+
+        fix_plan_ids = {"ROLLUP-A"}  # Roll-up section exists
+
+        apply_rollup_coverage(entries, rollup_config, fix_plan_ids)
+
+        assert entries[0].rollup_coverage == ["ROLLUP-A"]
+        assert entries[1].rollup_coverage == []
+
+    def test_apply_rollup_coverage_multi_rollup(self):
+        """Plan covered by multiple roll-ups records all."""
+        entries = [
+            PlanEntry("PLAN-1", False, True, None, None),
+        ]
+
+        rollup_config = {
+            "ROLLUP-A": ["PLAN-1"],
+            "ROLLUP-B": ["PLAN-1"]
+        }
+
+        fix_plan_ids = {"ROLLUP-A", "ROLLUP-B"}
+
+        apply_rollup_coverage(entries, rollup_config, fix_plan_ids)
+
+        # Should have both rollups (order not guaranteed)
+        assert set(entries[0].rollup_coverage) == {"ROLLUP-A", "ROLLUP-B"}
+
+    def test_apply_rollup_coverage_missing_rollup_section(self):
+        """Roll-up without fix_plan section doesn't count as coverage."""
+        entries = [
+            PlanEntry("PLAN-1", False, True, None, None),
+        ]
+
+        rollup_config = {
+            "ROLLUP-MISSING": ["PLAN-1"]
+        }
+
+        fix_plan_ids = set()  # No roll-up section in fix_plan
+
+        apply_rollup_coverage(entries, rollup_config, fix_plan_ids)
+
+        assert entries[0].rollup_coverage == []
+
+    def test_rollup_covered_bucket_classification(self):
+        """Plans with rollup_coverage → tracked_via_rollup bucket."""
+        entry = PlanEntry(
+            id="PLAN-1",
+            in_fix_plan=False,
+            has_implementation=True,
+            last_report=None,
+            status_hint=None,
+            rollup_coverage=["ROLLUP-A"]
+        )
+
+        assert compute_bucket(entry) == "tracked_via_rollup"
+
+    def test_active_missing_no_rollup_coverage(self):
+        """Plans without rollup coverage still → active_missing."""
+        entry = PlanEntry(
+            id="PLAN-1",
+            in_fix_plan=False,
+            has_implementation=True,
+            last_report=None,
+            status_hint=None,
+            rollup_coverage=[]
+        )
+
+        assert compute_bucket(entry) == "active_missing"
+
+    def test_write_missing_md_excludes_rollup_covered(self, tmp_path):
+        """inventory_missing.md excludes rollup-covered plans."""
+        entries = [
+            PlanEntry("PLAN-1", False, True, None, None, rollup_coverage=["ROLLUP-A"]),
+            PlanEntry("PLAN-2", False, True, None, None, rollup_coverage=[]),
+            PlanEntry("PLAN-3", True, True, None, None, rollup_coverage=[]),
+        ]
+
+        out_path = tmp_path / "inventory_missing.md"
+        write_missing_md(entries, out_path)
+
+        content = out_path.read_text()
+
+        # Only PLAN-2 should appear (not in fix_plan, no rollup coverage)
+        assert "PLAN-1" not in content  # Covered via rollup
+        assert "PLAN-2" in content       # Not covered
+        assert "PLAN-3" not in content  # In fix_plan directly
+
+        # Should have count of 1
+        assert "**Count:** 1" in content

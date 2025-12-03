@@ -489,6 +489,7 @@ Detailed engineering logs now live in `docs/fix_plan_archive.md` (append-only sn
   * 2025-12-06T094500Z (Phase C.1/C.2 progress) — Embedded the automation guard command (with `--rollup-config`) directly in the Working Agreements + appendix, enhanced `plan_inventory.py` to auto-load the canonical rollups.json and fail fast when the file is missing/invalid, refreshed unit tests (`plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py`), and verified archive hygiene by checking the `ARCH-REFRACTOR-001` stub plus `docs/fix_plan_archive.md` entry. Mode: Docs + tooling (non-production). Metrics: 4 files touched (docs/fix_plan.md, docs/fix_plan_archive.md, plans/active/PORTFOLIO-STATUS/bin/plan_inventory.py, plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py), 1 pytest suite run (guard tests). Artifacts: `plans/active/PORTFOLIO-STATUS/reports/2025-12-06T094500Z/` (pytest_plan_inventory.log, summary.md). Next: Phase C.3 — exit prep once guard + archive hygiene remain green after Ralph reruns the inventory script.
   * 2025-12-06T120000Z (Phase C.3 stub creation + inventory rerun) — Created `plans/active/FINDINGS-LEDGER-002/implementation.md` stub (knowledge-base ledger upkeep initiative) per input.md directive to close missing-plan gap. Stub includes minimal template structure with Goals/Exit Criteria marked pending supervisor scoping, cross-references PORTFOLIO-STATUS Phase C, and documents rationale (FINDINGS-LEDGER-002 directory existed but lacked implementation.md). Updated `docs/fix_plan.md` Tier 1 with new FINDINGS-LEDGER-002 bullet (after NANOBRAG-GOLDEN-001) describing scope and referencing stub creation. Updated Plan Directory Inventory appendix: Latest Report timestamp → 2025-12-06T120000Z, Total plan directories → 55 (was 56 after stub creation), active_missing → 32 (FINDINGS-LEDGER-002 moved from missing_plan bucket), missing_plan → 1 (ARCH-REFRACTOR-001 only). Bucket Classification section updated to reflect FINDINGS-LEDGER-002 bucket migration. Reran `plan_inventory.py --rollup-config` with REPORT_TS=2025-12-06T120000Z; inventory.json shows expected counts (55 total, 22 tracked, 32 active_missing, 1 missing_plan), rollup_report.md confirms all 13 roll-ups still show "✓ Section exists" (100% coverage). Ran pytest test_plan_inventory.py (guard passed). Mode: Docs (no production code changes). Metrics: 1 file created (FINDINGS-LEDGER-002/implementation.md, 120 lines), 1 file updated (docs/fix_plan.md: Tier 1 entry, appendix counts/timestamps, Attempts History), 3 inventory artifacts generated (inventory.json, inventory_missing.md, rollup_report.md). Artifacts: `plans/active/PORTFOLIO-STATUS/reports/2025-12-06T120000Z/` (inventory.json, inventory_missing.md, rollup_report.md, pytest_plan_inventory.log, summary.md). Next: Phase C exit criteria check — confirm missing_plan bucket = 1 and all roll-ups validated, then mark initiative complete pending supervisor sign-off.
   * 2025-12-07T000000Z (Phase D trigger) — Guarded inventory rerun highlights remaining gap: total plans 56, tracked 23, active_missing 32, missing_plan 1, despite every active_missing plan belonging to one of the 13 roll-up sections. Investigation confirmed `plan_inventory.py` only checks for literal plan IDs in `docs/fix_plan.md`, so roll-up membership doesn't count as coverage. Captured artifacts under `plans/active/PORTFOLIO-STATUS/reports/2025-12-07T000000Z/` and updated `plans/active/PORTFOLIO-STATUS/implementation.md` with new Phase D checklist (script changes, tests, ledger rerun). Next: update the script/test suite to emit `rollup_coverage`, classify those plans as `tracked_via_rollup`, drop them from `inventory_missing.md`, rerun the guard with the new timestamp, and refresh the Plan Directory Inventory appendix once counts reflect roll-up coverage.
+  * 2025-12-07T153000Z (Phase D complete) — Extended `plan_inventory.py` with roll-up coverage awareness. Changes: (1) Added `rollup_coverage` field to `PlanEntry` dataclass with `__post_init__` for mutable default; (2) Implemented `apply_rollup_coverage()` helper that reverse-maps rollup_config to mark plans with roll-up membership when roll-up sections exist in fix_plan.md; (3) Updated `compute_bucket()` to recognize new `tracked_via_rollup` bucket for plans with rollup_coverage; (4) Modified `write_missing_md()` to exclude rollup-covered plans and updated description; (5) Wired main() to apply rollup coverage before bucket classification and added "Covered via rollups: 34" console line. Tests: Created `TestRollupCoverage` class with 7 hermetic tests (single/multi-rollup membership, missing roll-up sections, bucket classification, inventory_missing.md filtering) plus updated existing tests to handle deferred bucket computation. All 25 tests pass. Reran guarded inventory with REPORT_TS=2025-12-07T153000Z; console output shows: Total=56, In fix_plan=23, Covered via rollups=34, Active missing=5. inventory_missing.md now lists 6 plans (5 genuinely untracked: HARDEN-SUBMODULE-ROBUSTNESS, ORCH-CLAUDE-PATH-FIX-001, ORCH-CLI-FALLBACK-001, ORCH-ROBUST-001, SUPERVISOR; 1 stub: ARCH-REFRACTOR-001). Updated Plan Directory Inventory appendix (Summary, Roll-up Report path, Bucket Classification) with 2025-12-07T153000Z counts and artifact paths. Updated `plans/active/PORTFOLIO-STATUS/implementation.md` Phase D to mark D1/D2/D3 complete with artifact references. Mode: housekeeping. Metrics: 2 files modified (plan_inventory.py +74 lines, test_plan_inventory.py +124 lines), 3 files updated (docs/fix_plan.md appendix + Attempts History, implementation.md Phase D status, summary.md), 5 artifacts generated (inventory.json, inventory_missing.md, rollup_report.md, pytest_plan_inventory.log, run.log). Artifacts: `plans/active/PORTFOLIO-STATUS/reports/2025-12-07T153000Z/`. Next: PORTFOLIO-STATUS initiative ready for closure; 5 genuinely untracked plans (HARDEN-SUBMODULE-ROBUSTNESS, ORCH-*) may warrant ledger entries if active.
 
 ### [PERF-WARM-SIM-001] Attempts History
   * 2025-12-02T173000Z — Phase F.1 debug hook implemented in `_retarget_stage_a_detectors`; small-detector (panel-mode) smoketest PASSED with 18 retarget calls capturing panel updates only, full-detector (ROI-mode) smoketest FAILED (expected) but produced 17 retarget calls with ~92 ROI entries per call showing simulator ID changes. Debug artifacts captured under `DBEX_STAGE_C_CACHE_DEBUG_PATH` for offline analysis. Next: Supervisor analyzes cache-debug JSONs to identify ROI simulator staleness root cause. Artifacts: `plans/active/PERF-WARM-SIM-001/reports/2025-12-02T173000Z/`.
@@ -554,17 +555,18 @@ Detailed engineering logs now live in `docs/fix_plan_archive.md` (append-only sn
 
 ## Plan Directory Inventory
 
-**Latest Report:** 2025-12-07T000000Z (Phase D trigger — roll-up coverage gap)
-**Artifacts:** `plans/active/PORTFOLIO-STATUS/reports/2025-12-07T000000Z/`
+**Latest Report:** 2025-12-07T153000Z (Phase D complete — roll-up coverage awareness)
+**Artifacts:** `plans/active/PORTFOLIO-STATUS/reports/2025-12-07T153000Z/`
 **Script:** `plans/active/PORTFOLIO-STATUS/bin/plan_inventory.py`
 **Roll-up Config:** `plans/active/PORTFOLIO-STATUS/rollups.json`
 
-### Summary (Latest Report: 2025-12-07T000000Z)
+### Summary (Latest Report: 2025-12-07T153000Z)
 - **Total plan directories:** 56
-- **Tracked in this ledger:** 23 (≈41%) — FINDINGS-LEDGER-002 now tracked after stub creation
-- **Untracked (missing fix_plan.md coverage):** 33 (≈59%) — 32 of these now live inside the 13 roll-up sections but still show up as "active_missing" until Phase D lands
-  - **active_missing:** 32 (≈57%) — active initiatives with implementation plans (roll-up coverage pending script update)
-  - **missing_plan:** 1 (≈2%) — ARCH-REFRACTOR-001 stub only (archive duplicate)
+- **Tracked in this ledger (direct):** 23 (≈41%)
+- **Covered via roll-ups:** 34 (≈61%) — Plans listed in roll-up member directories now counted as tracked
+- **Genuinely untracked:** 5 (≈9%) — Active plans with implementations but no ledger or roll-up coverage
+  - HARDEN-SUBMODULE-ROBUSTNESS, ORCH-CLAUDE-PATH-FIX-001, ORCH-CLI-FALLBACK-001, ORCH-ROBUST-001, SUPERVISOR
+- **Missing implementation.md:** 1 (≈2%) — ARCH-REFRACTOR-001 stub only (archive duplicate)
 - **Roll-ups configured:** 13 (DB-AT-SUITE-CARE-001, MAP-SCALE-SYNC-001, PHYSICS-LOSS-001, TORCH-GEOMETRY-SYNC-001, TORCH-REFINE-CLEANUP-001, TORCH-CLI-BRIDGE-ROLLUP-001, FORWARD-EQUIV-COVERAGE-001, TOOLING-VIS-001, DOCS-ROADMAP-001, RUNTIME-VEC-001, REPORT-NANOBRAG-STATUS-001, NANOBRAG-GOLDEN-001, ARCH-SPLIT-001)
 - **Roll-up Validation:** All 13 roll-up sections show "✓ Section exists" in rollup_report.md (100% coverage)
 
@@ -572,7 +574,7 @@ Detailed engineering logs now live in `docs/fix_plan_archive.md` (append-only sn
 
 **Phase B3 Deliverable:** Added roll-up automation and ledger sections for 13 grouped initiatives per `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T183000Z/ledger_rollup_plan.md`. Each roll-up groups related plan directories and provides first-class ledger tracking.
 
-**Roll-up Report:** See `plans/active/PORTFOLIO-STATUS/reports/2025-12-07T000000Z/rollup_report.md` for member plan lists, last-report spans, and fix-plan coverage status for all 13 roll-ups.
+**Roll-up Report:** See `plans/active/PORTFOLIO-STATUS/reports/2025-12-07T153000Z/rollup_report.md` for member plan lists, last-report spans, and fix-plan coverage status for all 13 roll-ups.
 
 **Tier 1 Roll-up Sections:**
 - **[DB-AT-SUITE-CARE-001]** — Acceptance test suite maintenance (7 member plans: DB-AT-002/010/020/021/022/023/024)
@@ -593,11 +595,20 @@ Detailed engineering logs now live in `docs/fix_plan_archive.md` (append-only sn
 
 ### Bucket Classification
 
-Per `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T150000Z/classification.md`, updated 2025-12-06T120000Z after FINDINGS-LEDGER-002 stub creation:
+Per `plans/active/PORTFOLIO-STATUS/reports/2025-12-07T153000Z/inventory.json`, updated after Phase D roll-up coverage implementation:
 
-**active_missing (32 plans):** Active initiatives with implementation plans but lacking fix-plan ledger entries. Now covered by the 13 roll-up sections in Tier 1. FINDINGS-LEDGER-002 moved from missing_plan to this bucket after stub creation (2025-12-06).
+**tracked (23 plans):** Plans with direct ledger entries in docs/fix_plan.md
 
-**missing_plan (1 plan):** ARCH-REFRACTOR-001 only (typo duplicate of ARCH-REFACTOR-001, classified as archive duplicate in Phase B2)
+**tracked_via_rollup (34 plans):** Plans covered by roll-up sections in docs/fix_plan.md (member directories of the 13 roll-ups). These now count as tracked and are excluded from inventory_missing.md.
+
+**active_missing (5 plans):** Active initiatives with implementation plans but no direct ledger entry or roll-up coverage:
+- HARDEN-SUBMODULE-ROBUSTNESS
+- ORCH-CLAUDE-PATH-FIX-001
+- ORCH-CLI-FALLBACK-001
+- ORCH-ROBUST-001
+- SUPERVISOR
+
+**missing_plan (1 plan):** ARCH-REFRACTOR-001 only (typo duplicate of ARCH-REFACTOR-001, stub placeholder with no implementation.md)
 
 ### Automation Guard (Updated Phase B3)
 

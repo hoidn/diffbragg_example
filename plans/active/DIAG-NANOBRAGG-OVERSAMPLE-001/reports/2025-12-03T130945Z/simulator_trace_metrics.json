@@ -1,0 +1,68 @@
+{
+  "trace_pixel": {
+    "fast": 0,
+    "slow": 0
+  },
+  "detector_size": "small",
+  "device": "cpu",
+  "trace_vectors": {
+    "scattering_vec_A_inv": [
+      -3449380608.0,
+      3502024704.0,
+      -19217723392.0
+    ],
+    "rot_a_angstroms": [
+      -1.45163692177874e-09,
+      -1.23848442612484e-09,
+      -1.96297511578791e-09
+    ],
+    "rot_b_angstroms": [
+      -1.26722898841081e-09,
+      2.10977701975423e-09,
+      -2.05551109466739e-09
+    ],
+    "rot_c_angstroms": [
+      2.16786455453644e-09,
+      -1.00521047041724e-09,
+      -2.48378961842377e-09
+    ],
+    "hkl_frac": [
+      3.83939591230842e-09,
+      5.12618925085917e-09,
+      3.67347197105516e-09
+    ],
+    "hkl_rounded": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "lambda_angstroms": 0.97680002450943,
+    "F_cell_interpolated": 5.26005578649347e-07,
+    "F_cell_nearest": 0.0,
+    "oversample_thick": 0.0,
+    "oversample_polar": 0.0,
+    "oversample_omega": 0.0
+  },
+  "derived_metrics": {
+    "scattering_vec_norm": 19836413384.92664,
+    "rot_a_norm": 2.737583739655755e-09,
+    "rot_b_norm": 3.2065798356586195e-09,
+    "rot_c_norm": 3.4466354151899533e-09,
+    "hkl_frac_raw": [
+      3.83939591230842e-09,
+      5.12618925085917e-09,
+      3.67347197105516e-09
+    ],
+    "hkl_frac_raw_mean": 4.213019044740917e-09,
+    "hkl_frac_corrected": [
+      38.3939591230842,
+      51.2618925085917,
+      36.7347197105516
+    ],
+    "hkl_frac_corrected_mean": 42.13019044740917,
+    "dot_q_a_raw": 38.39395799262317,
+    "dot_q_a_corrected": 383939579926.2317,
+    "unit_mismatch_factor": 10000000000.0,
+    "explanation": "HKL fractional coords are ~1e-9 because scattering vectors are in m^-1 while crystal vectors are in m (both labeled as Angstrom units)"
+  }
+}

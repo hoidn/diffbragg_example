@@ -153,6 +153,34 @@ Environment freeze blocks investigation without using exception clause for targe
 - `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-0XT0XXXXXZ/pytest_db_at_028_debug.log` (290→292 oversample=3 instances)
 - `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-0XT0XXXXXZ/pytest_db_at_028_029_clean.log` (both PASS)
 
+### Phase D: Crystal scale + HKL mismatch investigation (New)
+
+**Objective**: Confirm whether the nanobrag_torch crystal/cell tensors use inconsistent units that suppress structure factors (diagnose simulator raw output remaining ~10^4× too small after Phase C.8).
+
+**Context**:
+- Phase C.8 clean validation still produced zero-intensity Bragg stacks even after oversample threading and beam flux fix attempt.
+- Manual reproduction with `refGeom.expt`/`scaled.mtz` shows simulator warnings (“out of range for three point interpolation”) and `hkl_frac ≈ 3e-09` despite scattering vectors `~5.8e9` and real-space vectors `~1e-9`. This suggests real vectors are stored in meters while scattering vectors are `1/Å`, causing dot products ≈0.
+
+**Tasks:**
+- [ ] D.1: Author Tier-2 diagnostic script (`plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/bin/trace_simulator_mismatch.py`) that:
+  - Loads `refGeom.expt`, `scaled.mtz`, `747_mask.pkl`.
+  - Builds Detector/Crystal configs exactly like Stage A (`oversample=3`, `enable_hkl_interpolation=False`).
+  - Runs a single-panel `Simulator` with `debug_config={'trace_pixel': [0,0], 'printout': True}` to capture scattering vector, rotated real/reciprocal vectors, and HKL fractions.
+  - Writes JSON summary + raw trace log under `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/<timestamp>/`.
+- [ ] D.2: Analyze trace outputs to quantify the unit mismatch (e.g., compare `rot_a` magnitude vs unit cell, check if `hkl_frac` stays within metadata bounds, confirm whether `scattering_vec` is 1/m or 1/Å).
+- [ ] D.3: Document findings in `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/<timestamp>/crystal_unit_analysis.md`, including hypotheses for where conversion should occur (`Crystal.compute_cell_tensors` vs `compute_physics_for_position`).
+- [ ] D.4: Update `docs/findings.md` with new DIAG entry (“Crystal unit mismatch collapses HKL lookup to default_F”), referencing trace artifacts.
+- [ ] D.5: Revise Phase C exit criteria / implementation plan based on confirmed locus (e.g., add Phase E fix tasks targeting `nanobrag_torch.models.Crystal` or `compute_physics_for_position`).
+
+**Validation:**
+- Trace log shows non-zero `hkl_frac` aligning with grid bounds once units are corrected (or clearly demonstrates mismatch prior to fix).
+- Diagnostic script reproduces zero output deterministically using repository fixtures (no missing external data).
+
+**Artifacts:**
+- `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/bin/trace_simulator_mismatch.py`
+- `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/<timestamp>/simulator_trace.log`
+- `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/<timestamp>/crystal_unit_analysis.md`
+
 ## Abort/Escalation Triggers
 
 **Abort conditions:**

@@ -1475,6 +1475,33 @@ Not "shared mutable state due to reference assignment in Detector.__init__()" bu
 - stuck: ARCH-SIM-CONSTRUCTION-001 (blocked_environment_dependency, will unblock when DIAG completes)
 - blocked: ARCH-REFACTOR-001 (Phase D.3 blocked by ARCH-SIM-CONSTRUCTION-001)
 
+---
+
+## Loop 2025-12-03T064931Z
+
+**Focus**: DIAG-NANOBRAGG-OVERSAMPLE-001 — nanobrag_torch Oversample Parameter Investigation (Phase D: Crystal unit mismatch instrumentation)
+**State**: gathering_evidence
+**Dwell**: 1
+**Action Type**: evidence_collection (diagnostic trace)
+**Initiative Type**: diagnostics
+
+**Key Observations**:
+1. Implemented a manual simulator repro using `refGeom.expt/refGeom.refl`, `scaled.mtz`, and `747_mask.pkl` (no `sp.proc` dependency) to eliminate fixture gaps.
+2. `Simulator(debug_config={'trace_pixel':[0,0]})` emitted `scattering_vec ≈ (-5.84e9, 5.72e9, -1.64e10)` while `rot_a ≈ (-1.45e-09, …)` and `hkl_frac ≈ 3.3e-09`, proving HKL lookup always falls back to `default_F=0`.
+3. Trace confirms oversample and beam fixes are ineffective because the crystal/cell tensors are in meters while scattering vectors remain in Å⁻¹ — the true root cause (documented as DIAG-UNIT-001).
+
+**Artifacts Path**: `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T064931Z/` (simulator_trace.log, will be replaced by scripted version next loop)
+
+**Next Actions**:
+- Promote the manual repro into a Tier-2 script per Phase D.1, capture structured JSON, and write `crystal_unit_analysis.md` so we can scope the fix.
+- After evidence lands, draft Phase E work item to normalize units in `nanobrag_torch.models.Crystal` / `compute_physics_for_position`.
+
+**Action State**: Phase D instrumentation ready (script + analysis needed)
+
+**WIP Status**:
+- in_progress: DIAG-NANOBRAGG-OVERSAMPLE-001 (Phase D evidence)
+- stuck: ARCH-SIM-CONSTRUCTION-001 (awaits DIAG resolution)
+- blocked_pending_architecture: ARCH-REFACTOR-001 (Phase D.3 holds for ARCH-SIM)
 **Environment Freeze Exception Compliance**:
 Per CLAUDE.md exception clause requirements:
 1. ✓ Patch file: plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/patches/beam_flux_default_fix.patch
@@ -1525,4 +1552,3 @@ Per CLAUDE.md exception clause requirements:
 - in_progress: None (all Tier 0 blocked or archived)
 - stuck: DIAG-NANOBRAGG-OVERSAMPLE-001, ARCH-SIM-CONSTRUCTION-001
 - blocked: ARCH-REFACTOR-001 Phase D.3
-

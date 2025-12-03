@@ -1,0 +1,269 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 2 items
+
+tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity FAILED [ 50%]
+tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity FAILED [100%]
+
+=================================== FAILURES ===================================
+_______________________ test_db_at_028_loss_scale_sanity _______________________
+
+stage_a_smoke_result = {'bragg_after': array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ......_max': 0.007086131721735001, 'bragg_after_mean': 0.00047357610310427845, 'bragg_after_std': 0.0008973919320851564, ...}
+
+    @pytest.mark.allow_metadata_sigma
+    def test_db_at_028_loss_scale_sanity(stage_a_smoke_result):
+        """
+        DB-AT-028 (docs/spec-db-conformance.md:280-318): chi²-per-pixel and clamp sanity.
+        """
+        telemetry = stage_a_smoke_result["telemetry"]
+        chi_trace = stage_a_smoke_result["chi_trace"]
+        masked_pixels = stage_a_smoke_result["masked_pixels"]
+        clamp_fraction = stage_a_smoke_result["clamp_fraction"]
+    
+        assert chi_trace, "Stage A chi-squared trace missing"
+        chi2_initial = chi_trace[0][1]
+        chi2_final = chi_trace[-1][1]
+        chi2_per_pixel_initial = chi2_initial / masked_pixels
+        chi2_per_pixel_final = chi2_final / masked_pixels
+        log_scale_entry = telemetry.param_deltas.get("log_scale", {})
+        log_scale_baseline_entry = telemetry.param_deltas.get("log_scale_baseline", {})
+    
+        artifact_dir = _artifact_dir("DBAT028_ARTIFACT_DIR")
+    
+        # Emit mapping context diagnostics BEFORE assertions (TOOLING-VIS-001)
+        emit_mapping_context_diagnostics(
+            mapping_context=stage_a_smoke_result["mapping_context"],
+            dataload=stage_a_smoke_result["refgeom_dataload"],
+            output_path=artifact_dir / "mapping_context_fixture.json",
+            bragg_model=stage_a_smoke_result["bragg_before"],  # Use computed bragg_before from fixture
+            stage_name="fixture_db_at_028",
+        )
+    
+        # Extract calibration_path from mapping context diagnostics (TOOLING-VIS-001)
+        calibration_path = stage_a_smoke_result["mapping_context"].diagnostics.get("calibration_path", None)
+    
+        # Persist metrics before assertions so artifacts exist even on failure
+        metrics = {
+            "chi2_per_pixel_initial": chi2_per_pixel_initial,
+            "chi2_per_pixel_final": chi2_per_pixel_final,
+            "variance_floor_clamp_fraction": clamp_fraction,
+            "variance_floor_masked_pixels": masked_pixels,
+            "variance_floor_masked_pixels_loss_mask": int(stage_a_smoke_result["inputs"].loss_mask.sum()),
+            "chi_squared_trace_full": [[int(step), float(val)] for step, val in chi_trace],
+            "device": stage_a_smoke_result["config"].device,
+            "enable_hkl_interpolation": stage_a_smoke_result["config"].enable_hkl_interpolation,
+            "log_scale_initial": log_scale_entry.get("initial") if isinstance(log_scale_entry, dict) else None,
+            "log_scale_final": log_scale_entry.get("final") if isinstance(log_scale_entry, dict) else None,
+            "log_scale_baseline": log_scale_baseline_entry.get("final") if isinstance(log_scale_baseline_entry, dict) else None,
+            "log_scale_effective_init": stage_a_smoke_result.get("log_scale_effective_init"),
+            "log_scale_effective_final": stage_a_smoke_result.get("log_scale_effective_final"),
+            "bragg_before_mean": stage_a_smoke_result.get("bragg_before_mean"),
+            "bragg_before_std": stage_a_smoke_result.get("bragg_before_std"),
+            "bragg_before_max": stage_a_smoke_result.get("bragg_before_max"),
+            "bragg_after_mean": stage_a_smoke_result.get("bragg_after_mean"),
+            "bragg_after_std": stage_a_smoke_result.get("bragg_after_std"),
+            "bragg_after_max": stage_a_smoke_result.get("bragg_after_max"),
+            "roi_cc_median_before": stage_a_smoke_result.get("roi_cc_median_before"),
+            "roi_cc_median_after": stage_a_smoke_result.get("roi_cc_median_after"),
+            "hkl_source": stage_a_smoke_result.get("hkl_source"),
+            "hkl_path": stage_a_smoke_result.get("hkl_path"),
+            "hkl_count": stage_a_smoke_result.get("hkl_count"),
+            "spot_scale_override": stage_a_smoke_result.get("spot_scale_override"),
+            "calibration_path": calibration_path,
+            "sigma_source": stage_a_smoke_result.get("sigma_source"),
+            "roi_cc_median_mapping": stage_a_smoke_result.get("roi_cc_median_mapping"),
+            "scale_ratio_mapping_masked": stage_a_smoke_result.get("scale_ratio_mapping_masked"),
+            "scale_ratio_mapping_unmasked": stage_a_smoke_result.get("scale_ratio_mapping_unmasked"),
+            "mapping_forward_success": stage_a_smoke_result.get("mapping_forward_success"),
+            # SCALE-008 / TOOLING-VIS-001: Mapping-aware log-scale baseline telemetry
+            "log_scale_baseline_source": telemetry.log_scale_baseline_source,
+            "spot_scale_override_adjustment_factor": telemetry.spot_scale_override_adjustment_factor,
+            # TOOLING-VIS-001 Phase D.E: Masked-mean telemetry for Stage A baseline derivation
+            "target_mean_masked": telemetry.target_mean_masked,
+            "model_mean_masked": telemetry.model_mean_masked,
+        }
+        (artifact_dir / "db_at_028_metrics.json").write_text(json.dumps(metrics, indent=2))
+    
+>       assert chi2_per_pixel_initial <= 1e2, f"chi²/pixel initial {chi2_per_pixel_initial:.3e} exceeds 1e2 bound"
+E       AssertionError: chi²/pixel initial 2.098e+05 exceeds 1e2 bound
+E       assert 209817.05893719808 <= 100.0
+
+tests/dbex/test_stage_a_smoke_parity.py:364: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[ARCH-SIM-CONSTRUCTION-001 DEBUG]
+  log_scale_baseline_value: 20.354832358908794
+  log_scale (param_deltas_a): 6.890026092529297
+  delta_bound: 3.0
+  scale_factor (after exp): 13895512064.0
+  sqrt_spot_scale: 691817229.1071362
+  spot_scale_override: 4.786110784894759e+17
+  bragg_panel[0] mean (raw sim output): 3.408123e-14
+  bragg_panel[0] max: 5.099583e-13
+  bragg_scaled[0] mean (after scale_factor): 4.735761e-04
+  bragg_full mean (final output): 4.735761e-04
+  bragg_full max: 7.086132e-03
+[END DEBUG]
+_______________________ test_db_at_029_structure_parity ________________________
+
+stage_a_smoke_result = {'bragg_after': array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ......_max': 0.007086131721735001, 'bragg_after_mean': 0.00047357610310427845, 'bragg_after_std': 0.0008973919320851564, ...}
+
+    @pytest.mark.allow_metadata_sigma
+    def test_db_at_029_structure_parity(stage_a_smoke_result):
+        """
+        DB-AT-029 (docs/spec-db-conformance.md:319-366): ROI structure parity vs data.
+        """
+        telemetry = stage_a_smoke_result["telemetry"]
+        inputs = stage_a_smoke_result["inputs"]
+        target = inputs.target
+        loss_mask = inputs.loss_mask
+        bragg_before = stage_a_smoke_result["bragg_before"]
+        bragg_after = stage_a_smoke_result["bragg_after"]
+    
+        corrs_before = _roi_correlations(target, bragg_before, loss_mask, inputs.panel_slices)
+        corrs_after = _roi_correlations(target, bragg_after, loss_mask, inputs.panel_slices)
+        valid_before = [c for c in corrs_before if np.isfinite(c)]
+        valid_after = [c for c in corrs_after if np.isfinite(c)]
+    
+        assert valid_before, "No valid ROI correlations computed for bragg_before"
+        assert valid_after, "No valid ROI correlations computed for bragg_after"
+    
+        median_before = float(np.median(valid_before))
+        median_after = float(np.median(valid_after)) if valid_after else float("nan")
+        mean_target = float(np.mean(target[loss_mask]))
+        mean_model_before = float(np.mean(bragg_before[loss_mask]))
+        scale_ratio_before = mean_model_before / mean_target if mean_target > 0 else float("inf")
+        log_scale_entry = telemetry.param_deltas.get("log_scale", {})
+        log_scale_baseline_entry = telemetry.param_deltas.get("log_scale_baseline", {})
+    
+        artifact_dir = _artifact_dir("DBAT029_ARTIFACT_DIR")
+    
+        # Emit mapping context diagnostics BEFORE assertions (TOOLING-VIS-001)
+        emit_mapping_context_diagnostics(
+            mapping_context=stage_a_smoke_result["mapping_context"],
+            dataload=stage_a_smoke_result["refgeom_dataload"],
+            output_path=artifact_dir / "mapping_context_fixture.json",
+            bragg_model=stage_a_smoke_result["bragg_before"],  # Use computed bragg_before from fixture
+            stage_name="fixture_db_at_029",
+        )
+    
+        # Extract calibration_path from mapping context diagnostics (TOOLING-VIS-001)
+        calibration_path = stage_a_smoke_result["mapping_context"].diagnostics.get("calibration_path", None)
+    
+        metrics = {
+            "median_corr_before": median_before,
+            "median_corr_after": median_after,
+            "scale_ratio_before": scale_ratio_before,
+            "n_rois": len(valid_before),
+            "device": stage_a_smoke_result["config"].device,
+            "enable_hkl_interpolation": stage_a_smoke_result["config"].enable_hkl_interpolation,
+            "variance_floor_masked_pixels": int(stage_a_smoke_result["telemetry"].variance_floor_masked_pixels or 0),
+            "variance_floor_masked_pixels_loss_mask": int(loss_mask.sum()),
+            "log_scale_initial": log_scale_entry.get("initial") if isinstance(log_scale_entry, dict) else None,
+            "log_scale_final": log_scale_entry.get("final") if isinstance(log_scale_entry, dict) else None,
+            "log_scale_baseline": log_scale_baseline_entry.get("final") if isinstance(log_scale_baseline_entry, dict) else None,
+            "log_scale_effective_init": stage_a_smoke_result.get("log_scale_effective_init"),
+            "log_scale_effective_final": stage_a_smoke_result.get("log_scale_effective_final"),
+            "bragg_before_mean": stage_a_smoke_result.get("bragg_before_mean"),
+            "bragg_before_std": stage_a_smoke_result.get("bragg_before_std"),
+            "bragg_before_max": stage_a_smoke_result.get("bragg_before_max"),
+            "bragg_after_mean": stage_a_smoke_result.get("bragg_after_mean"),
+            "bragg_after_std": stage_a_smoke_result.get("bragg_after_std"),
+            "bragg_after_max": stage_a_smoke_result.get("bragg_after_max"),
+            "hkl_source": stage_a_smoke_result.get("hkl_source"),
+            "hkl_path": stage_a_smoke_result.get("hkl_path"),
+            "hkl_count": stage_a_smoke_result.get("hkl_count"),
+            "spot_scale_override": stage_a_smoke_result.get("spot_scale_override"),
+            "calibration_path": calibration_path,
+            "sigma_source": stage_a_smoke_result.get("sigma_source"),
+            "roi_cc_median_mapping": stage_a_smoke_result.get("roi_cc_median_mapping"),
+            "scale_ratio_mapping_masked": stage_a_smoke_result.get("scale_ratio_mapping_masked"),
+            "scale_ratio_mapping_unmasked": stage_a_smoke_result.get("scale_ratio_mapping_unmasked"),
+            "mapping_forward_success": stage_a_smoke_result.get("mapping_forward_success"),
+            # SCALE-008 / TOOLING-VIS-001: Mapping-aware log-scale baseline telemetry
+            "log_scale_baseline_source": telemetry.log_scale_baseline_source,
+            "spot_scale_override_adjustment_factor": telemetry.spot_scale_override_adjustment_factor,
+            # TOOLING-VIS-001 Phase D.E: Masked-mean telemetry for Stage A baseline derivation
+            "target_mean_masked": telemetry.target_mean_masked,
+            "model_mean_masked": telemetry.model_mean_masked,
+        }
+        (artifact_dir / "db_at_029_metrics.json").write_text(json.dumps(metrics, indent=2))
+    
+        # TOOLING-VIS-001 Phase E: Assert telemetry matches mapping diagnostics when calibration was adjusted
+        mapping_diag = stage_a_smoke_result["mapping_context"].diagnostics
+        calibration_adjusted = mapping_diag.get("calibration_adjusted_for_n_cells", False)
+        if calibration_adjusted:
+            # When mapping auto-adjusted calibration, Stage A must use the mapping global_scale_hint baseline
+            assert telemetry.log_scale_baseline_source == "mapping_global_scale_hint", (
+                f"Expected log_scale_baseline_source='mapping_global_scale_hint' when calibration adjusted, "
+                f"got {telemetry.log_scale_baseline_source!r}"
+            )
+            # Adjustment factor must match between mapping and Stage A telemetry
+            mapping_adj_factor = mapping_diag.get("spot_scale_override_adjustment_factor")
+            assert telemetry.spot_scale_override_adjustment_factor is not None, (
+                "Expected spot_scale_override_adjustment_factor in telemetry when calibration adjusted"
+            )
+            assert abs(telemetry.spot_scale_override_adjustment_factor - mapping_adj_factor) < 1e-6, (
+                f"Adjustment factor mismatch: telemetry={telemetry.spot_scale_override_adjustment_factor}, "
+                f"mapping={mapping_adj_factor}"
+            )
+            # Scale ratio before refinement should match mapping's masked ratio (both use global_scale_hint baseline)
+            scale_ratio_mapping = stage_a_smoke_result.get("scale_ratio_mapping_masked", float("nan"))
+            if np.isfinite(scale_ratio_mapping):
+                # Allow 1% tolerance for numerical differences
+                assert abs(scale_ratio_before - scale_ratio_mapping) / scale_ratio_mapping < 0.01, (
+                    f"scale_ratio_before={scale_ratio_before:.6f} diverges from "
+                    f"scale_ratio_mapping_masked={scale_ratio_mapping:.6f} by more than 1%"
+                )
+    
+>       assert median_before >= 0.2, f"median ROI correlation before refinement {median_before:.3f} below 0.2 floor"
+E       AssertionError: median ROI correlation before refinement -0.053 below 0.2 floor
+E       assert -0.053351752506724796 >= 0.2
+
+tests/dbex/test_stage_a_smoke_parity.py:478: AssertionError
+---------------------------- Captured stdout setup -----------------------------
+[ARCH-SIM-CONSTRUCTION-001 DEBUG]
+  log_scale_baseline_value: 20.354832358908794
+  log_scale (param_deltas_a): 6.890026092529297
+  delta_bound: 3.0
+  scale_factor (after exp): 13895512064.0
+  sqrt_spot_scale: 691817229.1071362
+  spot_scale_override: 4.786110784894759e+17
+  bragg_panel[0] mean (raw sim output): 3.408123e-14
+  bragg_panel[0] max: 5.099583e-13
+  bragg_scaled[0] mean (after scale_factor): 4.735761e-04
+  bragg_full mean (final output): 4.735761e-04
+  bragg_full max: 7.086132e-03
+[END DEBUG]
+=============================== warnings summary ===============================
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dxtbx/format/FormatCBFFull.py:198: DeprecationWarning: The binary mode of fromstring is deprecated, as it behaves surprisingly on unicode inputs. Use frombuffer instead
+    self._raw_data = flex.int(np.fromstring(array_string, np.int32))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity - AssertionError: chi²/pixel initial 2.098e+05 exceeds 1e2 bound
+assert 209817.05893719808 <= 100.0
+FAILED tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity - AssertionError: median ROI correlation before refinement -0.053 below 0.2 floor
+assert -0.053351752506724796 >= 0.2
+======================== 2 failed, 5 warnings in 22.66s ========================

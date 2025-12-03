@@ -1,0 +1,86 @@
+{
+  "detector_size": "small",
+  "device": "cpu",
+  "hkl_grid_metadata": {
+    "h_min": -24,
+    "h_max": 24,
+    "k_min": -28,
+    "k_max": 28,
+    "l_min": -31,
+    "l_max": 31,
+    "h_range": 49,
+    "k_range": 57,
+    "l_range": 63,
+    "n_reflections": 69614,
+    "n_in_range": 69614,
+    "in_range_fraction": 1.0,
+    "grid_nonzero": 69614,
+    "grid_min": 0.0,
+    "grid_max": 2315.25439453125,
+    "grid_mean": 18.78402328491211,
+    "has_halo": false,
+    "n_unique_asu": 34807
+  },
+  "stage_a_warm_cache": {
+    "n_panels": 1,
+    "per_panel_stats": [
+      {
+        "panel_id": 0,
+        "hkl_stats": {
+          "h_min": -12.0,
+          "h_max": 7.0,
+          "k_min": -14.0,
+          "k_max": 9.0,
+          "l_min": -14.0,
+          "l_max": 8.0,
+          "in_bounds_count": 9437184,
+          "out_of_bounds_count": 0,
+          "total_queries": 9437184
+        }
+      }
+    ],
+    "aggregated": {
+      "h_min": -12.0,
+      "h_max": 7.0,
+      "k_min": -14.0,
+      "k_max": 9.0,
+      "l_min": -14.0,
+      "l_max": 8.0,
+      "total_queries": 9437184,
+      "in_bounds_count": 9437184,
+      "out_of_bounds_count": 0,
+      "in_bounds_fraction": 1.0
+    }
+  },
+  "simulate_forward_once": {
+    "n_panels": 1,
+    "per_panel_stats": [
+      {
+        "panel_id": 0,
+        "hkl_stats": {
+          "h_min": -12.0,
+          "h_max": 7.0,
+          "k_min": -14.0,
+          "k_max": 9.0,
+          "l_min": -14.0,
+          "l_max": 8.0,
+          "in_bounds_count": 9437184,
+          "out_of_bounds_count": 0,
+          "total_queries": 9437184
+        }
+      }
+    ],
+    "aggregated": {
+      "h_min": -12.0,
+      "h_max": 7.0,
+      "k_min": -14.0,
+      "k_max": 9.0,
+      "l_min": -14.0,
+      "l_max": 8.0,
+      "total_queries": 9437184,
+      "in_bounds_count": 9437184,
+      "out_of_bounds_count": 0,
+      "in_bounds_fraction": 1.0
+    }
+  }
+}

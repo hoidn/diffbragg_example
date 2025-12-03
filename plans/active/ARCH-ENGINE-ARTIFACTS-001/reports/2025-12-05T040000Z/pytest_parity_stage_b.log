@@ -1,0 +1,211 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 1 item
+
+tests/dbex/test_artifact_parity.py::test_stage_b_artifact_matches_helper_shell_mode 
+[test_stage_b_artifact_matches_helper_shell_mode] detector=small
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+skipping cudagraphs due to skipping cudagraphs due to cpu device (device_put). Found from : 
+   File "/home/ollie/Documents/nanoBragg/src/nanobrag_torch/models/crystal.py", line 354, in _tricubic_interpolation
+    h_flr = torch.floor(h).long()
+
+skipping cudagraphs due to skipping cudagraphs due to cpu device (arg0_1). Found from : 
+   File "/home/ollie/Documents/nanoBragg/src/nanobrag_torch/simulator.py", line 218, in torch_dynamo_resume_in_compute_physics_for_position_at_213
+    F_cell = F_cell.to(device=h.device)
+
+auto-selected 1-fold oversampling
+Stage B shell mode parity: max_abs=3.296e+03, max_rel=1.474e+12, rms_rel=6.394e+10
+FAILED
+
+=================================== FAILURES ===================================
+_______________ test_stage_b_artifact_matches_helper_shell_mode ________________
+
+refgeom_dataload = <dbex.data_load.DataLoad object at 0x704260a1ff10>
+refinement_inputs = RefinementInputs(target=array([[[0., 0., 0., ..., 0., 0., 0.],
+        [0., 0., 0., ..., 0., 0., 0.],
+        [0., 0.,...0.]]], dtype=float32), target_representation='adu', global_scale_hint=86.34794146217338, sigma_readout_provenance=None)
+hkl_data = (tensor([[[0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0., 0.],
+         [0., 0., 0.,  ..., 0., 0.,...cuda:0'), {'grid_max': 2315.25439453125, 'grid_mean': 16.899139404296875, 'grid_min': 0.0, 'grid_nonzero': 69614, ...})
+smoke_detector_size = 'small'
+
+    @pytest.mark.allow_metadata_sigma
+    def test_stage_b_artifact_matches_helper_shell_mode(
+        refgeom_dataload,
+        refinement_inputs,
+        hkl_data,
+        smoke_detector_size,
+    ):
+        """
+        Validate that Stage B artifact bragg_full matches the reconstruction helper output
+        within ≤1e-6 relative MSE when Stage B is terminal (Stage C disabled) in shell mode.
+    
+        Acceptance criteria (ARCH-ENGINE-ARTIFACTS-001 Exit Criterion #2):
+        1. engine.artifacts["stage_b"].bragg_full is not None (terminal stage must emit artifact)
+        2. artifact shape and dtype match helper output (float32 numpy)
+        3. np.allclose(artifact, helper_output, rtol=1e-6, atol=0) passes
+        4. Relative MSE ≤ 1e-6
+    
+        Environment:
+        - Requires: KMP_DUPLICATE_LIB_OK=TRUE DBEX_SMOKE_DETECTOR_SIZE=small
+        - Selector: pytest -vv tests/dbex/test_artifact_parity.py::test_stage_b_artifact_matches_helper_shell_mode
+        """
+        print(f"\n[test_stage_b_artifact_matches_helper_shell_mode] detector={smoke_detector_size}")
+    
+        hkl_grid, hkl_metadata = hkl_data
+    
+        # Configure refinement: Stage A + B (C disabled → Stage B is terminal, shell mode)
+        config = RefinementConfig(
+            device='cuda:0',
+            dtype=torch.float32,
+            history_size=10,
+            max_iter=30,
+            roi_sample_fraction=0.15,
+            full_validation_interval=5,
+            enable_hkl_interpolation=True,
+            enable_stage_b=True,  # Enable Stage B
+            enable_stage_c=False,  # Disable Stage C → Stage B is terminal
+            stage_b_n_shells=5,  # Shell mode with 5 shells
+            stage_b_mode="shell",
+            sigma_readout_provenance="external_lookup",
+        )
+    
+        # Use baseline geometry (no perturbation needed for parity test)
+        detector = refgeom_dataload.Expt.detector
+        beam = refgeom_dataload.Expt.beam
+        crystal = refgeom_dataload.Expt.crystal
+    
+        # Build refinement context (pass crystal as baseline_crystal for Stage B)
+        refinement_context = build_refinement_context(
+            refinement_inputs=refinement_inputs,
+            detector=detector,
+            beam=beam,
+            crystal=crystal,
+            baseline_crystal=crystal,  # Stage B requires baseline_crystal for cell parameter reconstruction
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+        )
+    
+        # Instantiate RefinementEngine with Stage A and B
+        engine = RefinementEngine([StageA(), StageB()], config=config)
+    
+        # Run engine
+        telemetry_dict = engine.run({"context": refinement_context})
+    
+        # Extract Stage B artifact from engine
+        assert "stage_b" in engine._artifacts, "Stage B artifacts missing from engine"
+        stage_b_artifacts = engine._artifacts["stage_b"]
+        artifact_bragg = stage_b_artifacts.bragg_full
+    
+        # Acceptance 1: Stage B artifact bragg_full should be populated when terminal
+        assert artifact_bragg is not None, (
+            "Stage B artifact bragg_full should be populated when terminal "
+            "(enable_stage_c=False)"
+        )
+    
+        # Call helper directly to compute expected output
+        # Extract telemetry from engine (use internal _telemetry dict)
+        telemetry_a = engine._telemetry["stage_a"]
+        telemetry_b = engine._telemetry["stage_b"]
+    
+        # Build reconstruction payload: merge telemetry dict with shell metadata from artifacts
+        # This pattern matches stage_b.py:1698-1708
+        reconstruction_payload = telemetry_b.to_dict()
+        reconstruction_payload['shell_edges'] = stage_b_artifacts.shell_edges
+        reconstruction_payload['shell_indices'] = stage_b_artifacts.shell_indices
+        reconstruction_payload['n_shells'] = stage_b_artifacts.n_shells
+        reconstruction_payload['stage_b_mode'] = stage_b_artifacts.stage_b_mode
+    
+        # Extract Stage A artifacts for helper call
+        stage_a_artifacts = engine._artifacts["stage_a"]
+    
+        helper_bragg = build_final_bragg_from_stage_b_telemetry(
+            telemetry_a=telemetry_a,
+            telemetry_b=reconstruction_payload,
+            detector=detector,
+            beam=beam,
+            crystal=crystal,
+            baseline_crystal=None,
+            inputs=refinement_inputs,
+            hkl_grid=hkl_grid,
+            hkl_metadata=hkl_metadata,
+            config=config,
+            device=config.device,
+            dtype=config.dtype,
+            use_stage_b_cpu_fallback=config.stage_b_full_eval_on_cpu,
+            stage_a_ctx=stage_a_artifacts.stage_a_ctx,
+        )
+    
+        # Acceptance 2: Shape and dtype match
+        assert artifact_bragg.shape == helper_bragg.shape, (
+            f"Shape mismatch: artifact={artifact_bragg.shape}, helper={helper_bragg.shape}"
+        )
+        assert artifact_bragg.dtype == helper_bragg.dtype, (
+            f"Dtype mismatch: artifact={artifact_bragg.dtype}, helper={helper_bragg.dtype}"
+        )
+    
+        # Compute parity metrics
+        abs_diff = np.abs(artifact_bragg - helper_bragg)
+        rel_diff = abs_diff / (np.abs(helper_bragg) + 1e-10)
+        max_abs = abs_diff.max()
+        max_rel = rel_diff.max()
+        rms_rel = np.sqrt(np.mean(rel_diff**2))
+    
+        print(f"Stage B shell mode parity: max_abs={max_abs:.3e}, max_rel={max_rel:.3e}, rms_rel={rms_rel:.3e}")
+    
+        # Acceptance 3 & 4: Relative MSE ≤ 1e-6
+>       assert np.allclose(artifact_bragg, helper_bragg, rtol=1e-6, atol=0), (
+            f"Stage B shell mode artifact parity failed: max_rel={max_rel:.3e} exceeds 1e-6 threshold. "
+            f"max_abs={max_abs:.3e}, rms_rel={rms_rel:.3e}"
+        )
+E       AssertionError: Stage B shell mode artifact parity failed: max_rel=1.474e+12 exceeds 1e-6 threshold. max_abs=3.296e+03, rms_rel=6.394e+10
+E       assert False
+E        +  where False = <function allclose at 0x70442c46a3f0>(array([[[123.93022  , 124.0355   , 124.140724 , ...,   4.447866 ,\n           4.444119 ,   4.440373 ],\n        [124.03675  , 124.14202  , 124.247444 , ...,   4.4516973,\n           4.447947 ,   4.4441953],\n        [124.143074 , 124.24863  , 124.35411  , ...,   4.455528 ,\n           4.4517717,   4.4480143],\n        ...,\n        [ 92.62869  ,  92.70796  ,  92.787254 , ...,  21.225666 ,\n          21.207647 ,  21.189629 ],\n        [ 92.551186 ,  92.63037  ,  92.709526 , ...,  21.207859 ,\n          21.18987  ,  21.171879 ],\n        [ 92.47366  ,  92.55279  ,  92.63179  , ...,  21.190033 ,\n          21.17207  ,  21.154095 ]]], dtype=float32), array([[[ 47.496223,  47.536568,  47.576916, ...,  57.79141 ,\n          57.74273 ,  57.694054],\n        [ 47.53704 ,  47.57741 ,  47.617794, ...,  57.841198,\n          57.792473,  57.743713],\n        [ 47.577797,  47.61826 ,  47.658695, ...,  57.890945,\n          57.84217 ,  57.79333 ],\n        ...,\n        [106.84679 , 106.93824 , 107.02967 , ...,  19.19042 ,\n          19.174126,  19.157837],\n        [106.7574  , 106.84872 , 106.940056, ...,  19.174314,\n          19.158052,  19.141779],\n        [106.667946, 106.759186, 106.85033 , ...,  19.158205,\n          19.141954,  19.125706]]], dtype=float32), rtol=1e-06, atol=0)
+E        +    where <function allclose at 0x70442c46a3f0> = np.allclose
+
+tests/dbex/test_artifact_parity.py:355: AssertionError
+=============================== warnings summary ===============================
+tests/dbex/test_artifact_parity.py::test_stage_b_artifact_matches_helper_shell_mode
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_artifact_parity.py::test_stage_b_artifact_matches_helper_shell_mode
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_artifact_parity.py::test_stage_b_artifact_matches_helper_shell_mode
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_artifact_parity.py::test_stage_b_artifact_matches_helper_shell_mode
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+tests/dbex/test_artifact_parity.py::test_stage_b_artifact_matches_helper_shell_mode
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dxtbx/format/FormatCBFFull.py:198: DeprecationWarning: The binary mode of fromstring is deprecated, as it behaves surprisingly on unicode inputs. Use frombuffer instead
+    self._raw_data = flex.int(np.fromstring(array_string, np.int32))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_artifact_parity.py::test_stage_b_artifact_matches_helper_shell_mode - AssertionError: Stage B shell mode artifact parity failed: max_rel=1.474e+12 exceeds 1e-6 threshold. max_abs=3.296e+03, rms_rel=6.394e+10
+assert False
+ +  where False = <function allclose at 0x70442c46a3f0>(array([[[123.93022  , 124.0355   , 124.140724 , ...,   4.447866 ,\n           4.444119 ,   4.440373 ],\n        [124.03675  , 124.14202  , 124.247444 , ...,   4.4516973,\n           4.447947 ,   4.4441953],\n        [124.143074 , 124.24863  , 124.35411  , ...,   4.455528 ,\n           4.4517717,   4.4480143],\n        ...,\n        [ 92.62869  ,  92.70796  ,  92.787254 , ...,  21.225666 ,\n          21.207647 ,  21.189629 ],\n        [ 92.551186 ,  92.63037  ,  92.709526 , ...,  21.207859 ,\n          21.18987  ,  21.171879 ],\n        [ 92.47366  ,  92.55279  ,  92.63179  , ...,  21.190033 ,\n          21.17207  ,  21.154095 ]]], dtype=float32), array([[[ 47.496223,  47.536568,  47.576916, ...,  57.79141 ,\n          57.74273 ,  57.694054],\n        [ 47.53704 ,  47.57741 ,  47.617794, ...,  57.841198,\n          57.792473,  57.743713],\n        [ 47.577797,  47.61826 ,  47.658695, ...,  57.890945,\n          57.84217 ,  57.79333 ],\n        ...,\n        [106.84679 , 106.93824 , 107.02967 , ...,  19.19042 ,\n          19.174126,  19.157837],\n        [106.7574  , 106.84872 , 106.940056, ...,  19.174314,\n          19.158052,  19.141779],\n        [106.667946, 106.759186, 106.85033 , ...,  19.158205,\n          19.141954,  19.125706]]], dtype=float32), rtol=1e-06, atol=0)
+ +    where <function allclose at 0x70442c46a3f0> = np.allclose
+=================== 1 failed, 5 warnings in 78.06s (0:01:18) ===================

@@ -1,0 +1,99 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 2 items
+
+tests/dbex/test_artifact_parity.py::test_stage_a_artifact_matches_helper 
+[test_stage_a_artifact_matches_helper] detector=small
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+[ARCH-SIM-CONSTRUCTION-001 DEBUG]
+  log_scale_baseline_value: 0.0
+  log_scale (param_deltas_a): 8.4456148147583
+  delta_bound: 3.0
+  scale_factor (after exp): 20.08553695678711
+  sqrt_spot_scale: 1.0
+  spot_scale_override: None
+auto-selected 1-fold oversampling
+  bragg_panel[0] mean (raw sim output): 1.854000e-02
+  bragg_panel[0] max: 2.593058e+00
+  bragg_scaled[0] mean (after scale_factor): 3.723858e-01
+  bragg_full mean (final output): 3.723858e-01
+  bragg_full max: 5.208297e+01
+[END DEBUG]
+[ARCH-SIM-CONSTRUCTION-001 DEBUG]
+  log_scale_baseline_value: 0.0
+  log_scale (param_deltas_a): 8.4456148147583
+  delta_bound: 3.0
+  scale_factor (after exp): 20.08553695678711
+  sqrt_spot_scale: 1.0
+  spot_scale_override: None
+auto-selected 1-fold oversampling
+  bragg_panel[0] mean (raw sim output): 1.854000e-02
+  bragg_panel[0] max: 2.593058e+00
+  bragg_scaled[0] mean (after scale_factor): 3.723858e-01
+  bragg_full mean (final output): 3.723858e-01
+  bragg_full max: 5.208297e+01
+[END DEBUG]
+Stage A parity: max_abs=0.000e+00, max_rel=0.000e+00, rms_rel=0.000e+00
+[test_stage_a_artifact_matches_helper] SUCCESS - parity within tolerance
+PASSED
+tests/dbex/test_artifact_parity.py::test_stage_b_artifact_matches_helper_shell_mode 
+[test_stage_b_artifact_matches_helper_shell_mode] detector=small
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+auto-selected 1-fold oversampling
+FAILED
+
+=================================== FAILURES ===================================
+/home/ollie/Documents/diffbragg_example_2/diffbragg_example/dbex/refinement/stage_b.py:1317: ValueError: Stage B requires baseline_crystal to reconstruct cell parameters. The cell deltas in Stage A telemetry are relative to the baseline crystal.
+=============================== warnings summary ===============================
+tests/dbex/test_artifact_parity.py::test_stage_a_artifact_matches_helper
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+tests/dbex/test_artifact_parity.py::test_stage_a_artifact_matches_helper
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+tests/dbex/test_artifact_parity.py::test_stage_a_artifact_matches_helper
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+tests/dbex/test_artifact_parity.py::test_stage_a_artifact_matches_helper
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+tests/dbex/test_artifact_parity.py::test_stage_a_artifact_matches_helper
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dxtbx/format/FormatCBFFull.py:198: DeprecationWarning: The binary mode of fromstring is deprecated, as it behaves surprisingly on unicode inputs. Use frombuffer instead
+    self._raw_data = flex.int(np.fromstring(array_string, np.int32))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/dbex/test_artifact_parity.py::test_stage_b_artifact_matches_helper_shell_mode - ValueError: Stage B requires baseline_crystal to reconstruct cell parameters. The cell deltas in Stage A telemetry are relative to the baseline crystal.
+=================== 1 failed, 1 passed, 5 warnings in 54.32s ===================

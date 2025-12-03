@@ -1,7 +1,7 @@
-# Input for Ralph — Loop 2025-12-05T083500Z
+# Input for Ralph — Loop 2025-12-05T150000Z
 
 ## Summary
-Author the reusable plan-directory inventory script, run it to capture an authoritative report, and update `docs/fix_plan.md` with a Plan Inventory appendix so every `plans/active/` subtree is tracked explicitly.
+Execute Phase B remediation for PORTFOLIO-STATUS: archive the ARCH-REFRACTOR-001 duplicate and create implementation.md stubs for the five directories that presently have no plan so future ledger entries have concrete anchors.
 
 ## Mode
 Docs
@@ -19,72 +19,77 @@ integration
 none — docs-only
 
 ## Artifacts
-plans/active/PORTFOLIO-STATUS/reports/2025-12-05T120000Z/
+plans/active/PORTFOLIO-STATUS/reports/2025-12-05T150000Z/
 
 ## Do Now
 
-1. **Phase A1/A2 — plans/active/PORTFOLIO-STATUS/bin/plan_inventory.py**  
-   Create the Tier-2 script described in the implementation plan. Requirements:  
-   - Inputs: `--plans-root` (default `plans/active`), `--fix-plan` (default `docs/fix_plan.md`), `--out-dir` (required).  
-   - Outputs: `inventory.json` (list of `{id,in_fix_plan,has_implementation,last_report,status_hint}`) plus `inventory_missing.md` summarizing the initiatives absent from fix_plan.  
-   - Derive `status_hint` by peeking at the first non-empty line of each `implementation.md` when present (e.g., detect “Status:” or “Purpose”).  
-   - Script should be idempotent and safe to rerun; document CLI usage in the module docstring per CLAUDE.md scriptization rules.
+1. **Archive ARCH-REFRACTOR-001 duplicate**  
+   - Move the contents of `plans/active/ARCH-REFRACTOR-001/` into `archive/plans/ARCH-REFRACTOR-001/` (preserve subdirectories/reports), then replace the active directory with a short `README.md` that points to `ARCH-REFACTOR-001` and notes the archive timestamp.  
+   - Update `docs/fix_plan_archive.md` with a brief note linking to the archived path and referencing the PORTFOLIO-STATUS artifact directory.  
+   - Record the move in `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T150000Z/archival_notes.md` (bullet list describing what moved and why).
 
-2. **Phase A3 — Run the script / capture artifacts**  
-   - `mkdir -p plans/active/PORTFOLIO-STATUS/reports/2025-12-05T120000Z/`  
-   - Execute the new script with default inputs, writing outputs into the artifact directory (see How-To Map).  
-   - Add a short narrative `inventory_report.md` describing the high-level counts (e.g., “38 plan directories missing fix_plan coverage; 4 directories lack implementation.md”). Reference the raw JSON/Markdown outputs and cite the pre-existing ad-hoc snapshot (2025-12-05T083500Z) for continuity.
+2. **Author minimal implementation.md stubs for stub directories**  
+   - For each of the following directories, add (or replace) `implementation.md` with the template header + two-sentence status summary so the ledger can reference a real plan: `plans/active/HARDEN-SUBMODULE-ROBUSTNESS/`, `plans/active/ORCH-CLAUDE-PATH-FIX-001/`, `plans/active/ORCH-CLI-FALLBACK-001/`, `plans/active/ORCH-ROBUST-001/`, `plans/active/SUPERVISOR/`.  
+   - Each stub should include Goal/Non-Goal bullets and clearly state whether the initiative is pending or should be archived later; cite `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T150000Z/classification.md` so we know how it was categorized.  
+   - Capture a short `stub_status.md` table under the artifact directory summarizing which plans received stubs and any follow-up needed.
 
-3. **Phase C1 (partial) — Update docs/fix_plan.md**  
-   - Add a “Plan Directory Inventory” appendix near the bottom summarizing the latest report (timestamp + artifact path) and listing the top remediation buckets (active-but-untracked, archived-ready, missing implementation).  
-   - Extend the Working Agreements near the top so future contributors know to rerun `plan_inventory.py` whenever a plan directory is added/removed.  
-   - Mention the new automation guard in Attempts History under PORTFOLIO-STATUS and point to the new artifact path.
+3. **Update ledgers**  
+   - In `docs/fix_plan_archive.md`, append a reference to the new archive move.  
+   - In `docs/fix_plan.md` Attempts History for PORTFOLIO-STATUS, add a short note pointing to the archival/stub artifacts (this keeps the ledger synchronized with the on-disk changes).
 
 ## How-To Map
-
 ```bash
-timestamp=2025-12-05T120000Z
-report_dir=plans/active/PORTFOLIO-STATUS/reports/$timestamp
-mkdir -p "$report_dir"
-python plans/active/PORTFOLIO-STATUS/bin/plan_inventory.py \
-  --plans-root plans/active \
-  --fix-plan docs/fix_plan.md \
-  --out-dir "$report_dir"
-python - <<'PY'
-from pathlib import Path
-report_dir = Path("plans/active/PORTFOLIO-STATUS/reports/2025-12-05T120000Z")
-missing = (report_dir / "inventory_missing.md").read_text()
-Path(report_dir / "inventory_report.md").write_text(
-    "# Inventory Summary\n\n" +
-    "- Latest script output recorded above\n" +
-    "- Snapshot counts: " + str(missing.count('\\n')) + " entries missing fix_plan coverage\n"
-)
-PY
+export AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
+# 1. Archive duplicate plan
+mkdir -p archive/plans/ARCH-REFRACTOR-001
+rsync -a plans/active/ARCH-REFRACTOR-001/ archive/plans/ARCH-REFRACTOR-001/
+rm -rf plans/active/ARCH-REFRACTOR-001
+mkdir -p plans/active/ARCH-REFRACTOR-001
+cat <<'MD' > plans/active/ARCH-REFRACTOR-001/README.md
+# ARCH-REFRACTOR-001 (duplicate)
+Archived on 2025-12-05T150000Z — see archive/plans/ARCH-REFRACTOR-001 for history.
+Refer to ARCH-REFACTOR-001 for the active plan.
+MD
+
+# 2. Implementation stubs (repeat for each ID)
+for id in HARDEN-SUBMODULE-ROBUSTNESS ORCH-CLAUDE-PATH-FIX-001 ORCH-CLI-FALLBACK-001 ORCH-ROBUST-001 SUPERVISOR; do
+  cat plans/templates/implementation_plan.md > plans/active/$id/implementation.md
+  printf '\n_Status:_ pending — stub created 2025-12-05T150000Z per PORTFOLIO-STATUS classification.\n' >> plans/active/$id/implementation.md
+done
+
+# 3. Capture notes
+cat <<'MD' > plans/active/PORTFOLIO-STATUS/reports/2025-12-05T150000Z/archival_notes.md
+- ARCH-REFRACTOR-001 moved under archive/plans/ARCH-REFRACTOR-001/ (duplicate of ARCH-REFACTOR-001)
+MD
+cat <<'MD' > plans/active/PORTFOLIO-STATUS/reports/2025-12-05T150000Z/stub_status.md
+| Plan ID | Action |
+| --- | --- |
+| HARDEN-SUBMODULE-ROBUSTNESS | implementation.md stub added |
+| ORCH-CLAUDE-PATH-FIX-001 | implementation.md stub added |
+| ORCH-CLI-FALLBACK-001 | implementation.md stub added |
+| ORCH-ROBUST-001 | implementation.md stub added |
+| SUPERVISOR | implementation.md stub added |
+MD
 ```
 
 ## Pitfalls To Avoid
-
-- Script must be read-only for `plans/active/` and `docs/fix_plan.md`; do **not** rename or delete plan directories yet.
-- Keep CLI defaults so future loops can rerun the tool without hunting for flags; avoid hard-coding timestamps inside the script.
-- When parsing `implementation.md`, guard against files that only contain placeholders (e.g., “archived stub”) so the script doesn’t crash on empty content.
-- Do not add or remove fix-plan initiatives beyond the appendix update in this loop—classification/archival happens in Phase B after inventory lands.
-- Preserve the artifacts created earlier today (2025-12-05T083500Z); the new script should supersede them, not delete them.
+- Keep archived content intact—use rsync/cp so historical reports remain untouched before removing the active directory.
+- The README in `plans/active/ARCH-REFRACTOR-001/` should clearly state that the real plan is ARCH-REFACTOR-001; do not leave the directory empty.
+- When creating implementation stubs, include enough context (goal + current status) to make future ledger work actionable—empty templates without notes do not satisfy the requirement.
+- Do not touch production code or simulator trees; this loop is docs/plan maintenance only.
+- Make sure both `docs/fix_plan.md` and `docs/fix_plan_archive.md` point at the new artifacts so future loops can trace the changes.
 
 ## If Blocked
-
-- If any plan directory is unreadable or lacks permissions, log the failure inside `inventory_report.md`, keep the script output for the remaining directories, and annotate `docs/fix_plan.md` appendix with a “blocked directories” bullet referencing the error.
-- If Python dependencies are missing, halt immediately (Environment Freeze) and record the stack trace in the artifact folder; let Galph decide on a remediation path before retrying.
+- If any directory move fails (permissions, unexpected files), log the exact error in `archival_notes.md` and keep the directory unchanged; notify Galph before retrying.
+- If a template copy overwrites valuable content, stop immediately, restore from `git`/backup, and record the incident in `stub_status.md`.
 
 ## Findings Applied
-
-No relevant findings in the knowledge base (docs/findings.md search for “plan” / “portfolio” surfaced only geometry/physics items).
+No relevant findings in the knowledge base.
 
 ## Pointers
-
-- `plans/active/PORTFOLIO-STATUS/implementation.md:1` — Goals, exit criteria, and Phase A checklist for this initiative.
-- `docs/fix_plan.md:24` — Tier 0 entry describing PORTFOLIO-STATUS scope and expected artifacts.
+- `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T150000Z/classification.md` — bucketed plan listing referenced above.
+- `docs/fix_plan.md:320` — Plan Directory Inventory appendix that must reflect archive/stub work after edits.
 
 ## Next Up
-
-1. Once the appendix exists, classify the 38 missing initiatives into “archived-ready” vs “needs new fix-plan entry” (Phase B1/B3).  
-2. For directories lacking `implementation.md`, decide whether to archive them under `archive/plans/` or draft fresh plans before reintroducing them to the fix plan.
+1. After this remediation, continue Phase B by archiving or reviving any remaining stale directories (e.g., ORCH-* if they remain inactive).  
+2. Begin wiring the new Tier 1 roll-up entries into concrete fix-plan rows with status metadata once the plan stubs exist.

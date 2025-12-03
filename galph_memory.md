@@ -1580,3 +1580,29 @@ Per CLAUDE.md exception clause requirements:
 - stuck: ARCH-SIM-CONSTRUCTION-001 (env dependency)  
 - blocked_pending_architecture: ARCH-REFACTOR-001 (awaits ARCH-SIM)  
 - in_progress (paused): DIAG-NANOBRAGG-OVERSAMPLE-001 (awaits plan sync work)
+
+## Loop 2025-12-05T150000Z
+
+**Focus**: PORTFOLIO-STATUS — Plan/Fix-Plan synchronization & archive hygiene (Phase B1 classification)
+**State**: planning
+**Dwell**: 1 (second consecutive planning/docs loop for this focus; next loop must execute remediation work)
+**Action Type**: planning
+**Initiative Type**: housekeeping
+
+**Key Observations**:
+1. Phase B1 classification complete — `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T150000Z/classification.md` shows 34 active-but-untracked plans, 1 duplicate archive candidate, and 5 stub directories lacking implementation.md.
+2. Execution Roadmap updated with roll-up ledger entries for DB-AT suite, MAP-SCALE series, TORCH-* initiatives, etc., and Working Agreements/Plan Inventory appendix now call out bucket counts + new artifact references.
+3. Next tangible work is Phase B2/B3 remediation: archive ARCH-REFRACTOR-001 duplicate, create plan stubs for ORCH/HARDEN/SUPERVISOR directories, and start wiring the roll-up entries into concrete ledger coverage.
+
+**Artifacts Path**: `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T150000Z/`
+
+**Next Actions**:
+- Execute archival/stub creation work (per new input.md) so the duplicate/stub directories stop triggering inventory drift.
+- Continue adding ledger metadata for the grouped initiatives once the plan stubs exist.
+
+**Action State**: ready_for_implementation (Phase B2/B3 remediation queued; next loop must perform the archival/stub edits)
+
+**WIP Status**:
+- in_progress: PORTFOLIO-STATUS (Phase B1 done, Phase B2/B3 next)
+- stuck: ARCH-SIM-CONSTRUCTION-001 (env dependency), DIAG-NANOBRAGG-OVERSAMPLE-001 (waiting for plan bandwidth)
+- blocked_pending_architecture: ARCH-REFACTOR-001 (awaits ARCH-SIM)

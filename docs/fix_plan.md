@@ -1,12 +1,12 @@
 # DBEX Fix Plan Ledger
 
-**Last Updated:** 2025-12-02 (Trimmed ledger; full snapshots including this date now live in `docs/fix_plan_archive.md`)
+**Last Updated:** 2025-12-05 (Trimmed ledger; full snapshots including this date now live in `docs/fix_plan_archive.md`)
 
 ## Working Agreements
 - Continue logging every loop in this ledger with status + artifact pointer; detailed Attempts History older than the sections below lives in `docs/fix_plan_archive.md`.
 - Status values: `pending`, `in_progress`, `blocked`, `done`, `archived`.
 - Citation rule remains: whenever you touch a selector or plan row, note the artifact path in both this file and the plan's reports directory.
-- **Plan Directory Inventory:** Rerun `plans/active/PORTFOLIO-STATUS/bin/plan_inventory.py` whenever a plan directory is added, removed, or marked for archival. The script ensures `plans/active/` and this ledger remain synchronized (see Plan Directory Inventory appendix below).
+- **Plan Directory Inventory:** Rerun `plans/active/PORTFOLIO-STATUS/bin/plan_inventory.py` whenever a plan directory is added, removed, or marked for archival. The script ensures `plans/active/` and this ledger remain synchronized (see Plan Directory Inventory appendix below), and the appendix MUST record the latest bucket counts (active vs archive-ready vs missing plans) for traceability.
 
 ---
 
@@ -22,12 +22,24 @@
 - [ARCH-TELEMETRY-001] (Telemetry Observer Refactor) — **archived** (2025-12-04T235959Z: all phases complete, exit criteria satisfied)
 - [ARCH-BRIDGE-RESP-001] (Writer / bridge responsibility split) — **done** (2025-12-03T093500Z: Phase D completion logged, ready for archive.)
 - [ARCH-LAZY-IMPORTS-001] (Lazy imports / process-noise hygiene) — **archived** (2025-12-05T024500Z: all phases complete, exit criteria satisfied; see `plans/active/ARCH-LAZY-IMPORTS-001/reports/2025-12-05T024500Z/initiative_closure_summary.md`)
-- [PORTFOLIO-STATUS] (Plan/Fix-Plan synchronization & archive hygiene) — **planned (Tier 0 ledger guard)**. Scope: inventory every `plans/active/` subtree, classify initiatives vs `docs/fix_plan.md`, archive stale plans, and add a regression appendix + automation guard so drift is surfaced immediately. Exit criteria captured in `plans/active/PORTFOLIO-STATUS/implementation.md` (Phases A–C: inventory script, remediation, fix-plan appendix). Artifacts: `plans/active/PORTFOLIO-STATUS/reports/<TS>/`.
+- [PORTFOLIO-STATUS] (Plan/Fix-Plan synchronization & archive hygiene) — **in_progress (Tier 0 ledger guard)**. Scope: inventory every `plans/active/` subtree, classify initiatives vs `docs/fix_plan.md`, archive stale plans, and add a regression appendix + automation guard so drift is surfaced immediately. Phase A (script + appendix) completed; Phase B classification captured in `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T150000Z/` (34 active-but-untracked plans, 1 archive duplicate, 5 directories missing implementation). Next steps: add ledger coverage for the grouped active initiatives (DB-AT suite, MAP-SCALE, TORCH-* series, etc.) and open archival moves for the duplicate/stub directories. Exit criteria captured in `plans/active/PORTFOLIO-STATUS/implementation.md`. Artifacts: `plans/active/PORTFOLIO-STATUS/reports/<TS>/`.
 
 ### Tier 1: Core Physics & Stability
 **Goal:** Ensure the math is correct, the loss function is normative, Stage A/mapping parity holds (DB‑AT‑027/028/029), and the smoke tests are green.
 - [ARCH-REFINE-001] (Refine Engine Modularization + Torch IO context) — **Done** (2025-12-01T161600Z: Phase A-E code landed; 2025-12-01T170500Z docs/finding wrap complete. Ready to archive once downstream initiatives pick up.)
 - [ARCH-ENGINE-ARTIFACTS-001] (Engine artifact channel & Bragg unification) — *pending*
+- [DB-AT-SUITE-CARE-001] (Acceptance suite upkeep for DB-AT-002/010/020/021/022/023/024) — **pending**. The plan directories under `plans/active/DB-AT-002/`, `.../DB-AT-010/`, and `.../DB-AT-020` through `.../DB-AT-024/` already contain implementation plans, but none were represented in this ledger. Scope: keep the DB-AT selectors mapped to fix-plan items, document status per selector, and surface artifacts/blocked states in the Attempts History. Classification reference: `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T150000Z/classification.md`.
+- [MAP-SCALE-SYNC-001] (Calibration ladder initiatives MAP-SCALE-001—005) — **pending**. Plans live under `plans/active/MAP-SCALE-00X/` with November 2025 reports; ledger coverage will capture their goals (sigma provenance, spot-scale alignment) and unblock downstream physics/loss work.
+- [PHYSICS-LOSS-001] (Variance-weighted loss parity and telemetry fixes) — **pending**. Plan exists under `plans/active/PHYSICS-LOSS-001/implementation.md`; add ledger tracking so variance, sigma-floor, and telemetry corrections remain visible.
+- [TORCH-GEOMETRY-SYNC-001] (Geometry convergence/parity/UB realign initiatives) — **pending**. Covers `plans/active/TORCH-GEOMETRY-CONVERGENCE-001/`, `.../TORCH-GEOMETRY-PARITY-002/`, `.../TORCH-GEOMETRY-PARITY-003/`, and `.../TORCH-GEOMETRY-UB-REALIGN-001/`.
+- [TORCH-REFINE-CLEANUP-001] (Stage A/B/C refinement probes TORCH-REFINE-001/002/002D/002E/003) — **pending**. Ledger entry will consolidate their status and dependencies so portfolio steering can decide which Phase C/D tasks to revive.
+- [TORCH-CLI-BRIDGE-ROLLUP-001] (CLI + bridge backlog TORCH-CLI-003/004 and TORCH-BRIDGE-001) — **pending**. Ensures CLI/backend features and bridge refactors remain on the roadmap with artifact pointers.
+- [FORWARD-EQUIV-COVERAGE-001] (Forward-equivalence harness + parity scaffolding) — **pending**. Covers `plans/active/FORWARD-EQUIV-001/`, `.../FORWARD-EQUIV-002/`, and `plans/active/PARITY-HARNESS-002/`.
+- [TOOLING-VIS-001] (Mapping-aligned visualization tooling) — **pending**. Plan exists with recent reports; ledger coverage will document progress on canonical visuals.
+- [DOCS-ROADMAP-001] (Roadmap documentation refresh) — **pending**. Needs ledger visibility so doc graph changes are tracked alongside implementation.
+- [RUNTIME-VEC-001] (Runtime vectorization checklist enforcement) — **pending**. Adds ledger coverage for performance guardrails already planned under `plans/active/RUNTIME-VEC-001/`.
+- [REPORT-NANOBRAG-STATUS-001] (Status reporting scripts) — **pending**. Keeps the reporting automation plan on the roadmap.
+- [NANOBRAG-GOLDEN-001] (Golden dataset capture + maintenance) — **pending**. Ledger entry will document refresh cadence and outstanding action items.
 
 ### Tier 2: Architectural Maturity
 **Goal:** Break the monolithic `run_nanobrag_refinement` into a maintainable Protocol Engine.
@@ -252,6 +264,7 @@ Detailed engineering logs now live in `docs/fix_plan_archive.md` (append-only sn
 ### [PORTFOLIO-STATUS] Attempts History
   * 2025-12-05T083500Z — Initiative spun up per problems ledger directive to reconcile `plans/active/` with `docs/fix_plan.md`. Authored implementation plan (`plans/active/PORTFOLIO-STATUS/implementation.md`) with Phases A–C (inventory script, remediation, ledger/reporting) and promoted Tier-2 automation guard. Updated Tier 0 roadmap and reserved artifacts under `plans/active/PORTFOLIO-STATUS/reports/`. Next: implement Phase A inventory script + initial report, then add Plan Inventory appendix to `docs/fix_plan.md`.
   * 2025-12-05T120000Z (Phase A1/A2/A3 complete) — Created `plans/active/PORTFOLIO-STATUS/bin/plan_inventory.py` (231 lines) implementing Tier-2 inventory automation with CLI flags (`--plans-root`, `--fix-plan`, `--out-dir`), status hint extraction from implementation.md headers, and last-report timestamp detection. Script outputs `inventory.json` (55 plan directories, 15 tracked, 40 untracked) and `inventory_missing.md` (remediation-ready table). Ran script; results show 73% of plan directories lack fix_plan.md coverage. Created `inventory_report.md` narrative documenting breakdown by category (tracked/untracked/archive candidates) with comparison to 2025-12-05T083500Z ad-hoc snapshot. Updated `docs/fix_plan.md` Working Agreements with mandate to rerun script on plan additions/removals. Added Plan Directory Inventory appendix (below) referencing latest report and listing top remediation buckets (40 untracked initiatives including MAP-SCALE-*, TORCH-GEOMETRY-*, ORCH-*, DB-AT-* series, plus 4 lacking implementation.md). Metrics: +231 lines (script), 3 output files (JSON/MD/report), Working Agreements +1 bullet, appendix +20 lines. Artifacts: `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T120000Z/` (inventory.json, inventory_missing.md, inventory_report.md). Next: Phase B1/B3 — classify 40 untracked initiatives into archived-ready vs needs-fix-plan-entry, execute archival moves, author new fix-plan entries for active initiatives.
+  * 2025-12-05T150000Z (Phase B1 classification) — Bucketed the 40 untracked plan directories into 34 active initiatives needing ledger entries, 1 archive duplicate, and 5 directories missing implementation plans. Artifact: `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T150000Z/classification.md` (details for each plan ID and recommended action). Updated the Execution Roadmap with roll-up items for DB-AT, MAP-SCALE, TORCH-* series, etc., and refreshed the Plan Directory Inventory appendix with the new bucket counts. Next: Phase B2/B3 — execute archival moves for the duplicate/stub directories and finish authoring ledger coverage for the remaining active initiatives.
 
 ### [PERF-WARM-SIM-001] Attempts History
   * 2025-12-02T173000Z — Phase F.1 debug hook implemented in `_retarget_stage_a_detectors`; small-detector (panel-mode) smoketest PASSED with 18 retarget calls capturing panel updates only, full-detector (ROI-mode) smoketest FAILED (expected) but produced 17 retarget calls with ~92 ROI entries per call showing simulator ID changes. Debug artifacts captured under `DBEX_STAGE_C_CACHE_DEBUG_PATH` for offline analysis. Next: Supervisor analyzes cache-debug JSONs to identify ROI simulator staleness root cause. Artifacts: `plans/active/PERF-WARM-SIM-001/reports/2025-12-02T173000Z/`.
@@ -317,39 +330,32 @@ Detailed engineering logs now live in `docs/fix_plan_archive.md` (append-only sn
 
 ## Plan Directory Inventory
 
-**Latest Report:** 2025-12-05T120000Z
-**Artifacts:** `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T120000Z/`
+**Latest Report:** 2025-12-05T150000Z
+**Artifacts:** `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T150000Z/`
 **Script:** `plans/active/PORTFOLIO-STATUS/bin/plan_inventory.py`
 
 ### Summary
 - **Total plan directories:** 55
 - **Tracked in this ledger:** 15 (27%)
 - **Untracked (missing fix_plan.md coverage):** 40 (73%)
-- **Lacking implementation.md:** 4
+- **Bucket breakdown:** 34 active initiatives that need ledger entries, 1 archive duplicate (ARCH-REFRACTOR-001), 5 directories missing `implementation.md`
 
 ### Top Remediation Buckets
 
-**Active Initiatives (Recent Reports, Needs Fix Plan Entry):**
-- MAP-SCALE-001 through MAP-SCALE-005 (November 2025 reports)
-- TORCH-GEOMETRY-CONVERGENCE-001, TORCH-GEOMETRY-PARITY-002/003, TORCH-GEOMETRY-UB-REALIGN-001
-- TOOLING-VIS-001, PHYSICS-LOSS-001, REPORT-NANOBRAG-STATUS-001
-- TORCH-CLI-004, DOCS-ROADMAP-001
+**Active initiatives needing ledger entries (34 total):**
+- Acceptance suite backlog: DB-AT-002/010/020/021/022/023/024
+- Calibration ladder: MAP-SCALE-001—005
+- Geometry/refinement series: TORCH-GEOMETRY-CONVERGENCE-001, TORCH-GEOMETRY-PARITY-002/003, TORCH-GEOMETRY-UB-REALIGN-001, TORCH-REFINE-001/002/002D/002E/003
+- CLI/bridge/doc tooling: TORCH-BRIDGE-001, TORCH-CLI-003/004, DOCS-ROADMAP-001, REPORT-NANOBRAG-STATUS-001, TOOLING-VIS-001, RUNTIME-VEC-001, NANOBRAG-GOLDEN-001, FORWARD-EQUIV-001/002, PARITY-HARNESS-002, PHYSICS-LOSS-001, ARCH-SPLIT-001
 
-**Archive Candidates (No Implementation or Stale/Duplicate):**
-- ARCH-REFRACTOR-001 (typo duplicate, explicitly marked archived in stub)
-- HARDEN-SUBMODULE-ROBUSTNESS, ORCH-CLAUDE-PATH-FIX-001, ORCH-CLI-FALLBACK-001, ORCH-ROBUST-001 (no implementation.md)
-- SUPERVISOR (meta-coordination directory, no implementation.md)
-- Older DB-AT-* initiatives (early November, potentially superseded)
+**Archive-ready (1):** ARCH-REFRACTOR-001 (typo duplicate of ARCH-REFACTOR-001, already marked "archived" inside the plan stub)
 
-**In-Progress but Untracked:**
-- TORCH-BRIDGE-001 (status: in_progress, last report October 2025)
-- TORCH-CLI-003 (status: in_progress, last report October 2025)
+**Missing implementation.md (5):** HARDEN-SUBMODULE-ROBUSTNESS, ORCH-CLAUDE-PATH-FIX-001, ORCH-CLI-FALLBACK-001, ORCH-ROBUST-001, SUPERVISOR
 
 ### Next Actions (Phase B)
-1. Classify the 40 untracked initiatives into archived-ready vs needs-fix-plan-entry
-2. Move archived-ready directories to `archive/plans/` with cross-references
-3. Author new ledger entries for active initiatives (MAP-SCALE-*, TORCH-GEOMETRY-* series, etc.)
-4. Update `docs/fix_plan_archive.md` with archival notes
+1. Execute archival moves for ARCH-REFRACTOR-001 and decide whether the five stub directories receive implementation plans or are archived under `archive/plans/`.
+2. Complete ledger coverage for the 34 active initiatives (see new Tier 1 roll-up entries) so each plan directory has an associated fix-plan item.
+3. Update `docs/fix_plan_archive.md` with any archival moves and add cross-references in the affected plan directories.
 
 ### Automation Guard
 Per Working Agreements above, rerun `plan_inventory.py` whenever plan directories are added, removed, or archived to detect drift immediately.

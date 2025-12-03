@@ -202,20 +202,54 @@ Reconstruction helper `build_final_bragg_from_stage_a_telemetry()` violates fact
 **Artifacts:**
 - Code changes in `dbex/refinement/reconstruction.py` (lines ~167-170 beam config, ~220-223 post-run scaling)
 
-#### C.2 — Validation
-- [ ] **Run DB-AT-028/029 with full detector + metadata sigma source:**
-  - Verify `bragg_after_mean ≈ O(1) ≈ 0.24` (matching bragg_before_mean)
-  - Verify `chi²/pixel initial ≤ 1e2`
-  - Verify `median ROI correlation before ≥ 0.2`
-- [ ] **Capture metrics:**
-  - Save bragg_panel raw output magnitude
-  - Confirm missing factor ~10^4.4 is now resolved
-- [ ] **Regression check:**
-  - Run broader Stage A parity suite to ensure no side effects
+#### C.2 — Simulator Comparison Probe (Complete — 2025-12-02T160000Z, Loop i=452)
+- [x] **Build comparative probe script:** Created `compare_simulator_outputs.py` comparing Stage A warm-cache vs reconstruction cold-path simulators
+- [x] **Run with DB-AT-028 config:** Used refGeom_small single-panel dataset
+- [x] **Compare raw outputs:** Measured ratio 0.847 (within 15% tolerance)
+- [x] **Initial verdict:** Simulators matched, ruling out factory contract hypothesis
+
+**Status:** Complete, but later evidence (Phase C.3) revealed this probe used insufficient detector config comparison
 
 **Artifacts:**
-- `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/<timestamp>/pytest_db_at_028_029.log`
-- `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/<timestamp>/metrics_comparison.json`
+- `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T160000Z/simulator_comparison.json`
+- `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T160000Z/summary.md`
+
+#### C.3 — simulate_forward_once vs Reconstruction Diagnostic Probe (Complete — 2025-12-04T220000Z, Loop i=454, commit 8159de9a)
+- [x] **Create side-by-side comparison:** Instrumented both `simulate_forward_once()` and reconstruction helper cold path
+- [x] **Capture raw simulator outputs:** Path A (simulate_forward_once) vs Path B (reconstruction)
+- [x] **Key findings:**
+  - Path A: 3072×3072 panel → auto-selected **3-fold oversampling** → raw mean 1.714e-09
+  - Path B: 1024×1024 detector → auto-selected **1-fold oversampling** → raw mean 9.574e-03
+  - Raw ratio A/B = 1.79e-07 (**5,586× discrepancy**)
+  - Hit rate arrays: 9,437,184 pixels (Path A) vs 1,048,576 pixels (Path B)
+- [x] **Root cause identified:** Oversampling mismatch due to different detector pixel counts triggering different auto-selection logic in nanobrag_torch
+
+**Verdict:** Oversampling configuration mismatch definitively explains magnitude discrepancy; fix requires explicit `oversample=3` parameter in both paths
+
+**Artifacts:**
+- `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T220000Z/probe_run.log`
+- `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T220000Z/simulation_comparison.json`
+- `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T220000Z/summary.md`
+- `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T235959Z/galph_root_cause_final_oversampling.md` (Galph analysis)
+
+#### C.4 — Force Explicit Oversampling (Planned — Loop i=455)
+- [ ] **Update `create_detector_config` signature:**
+  - Add parameter `oversample: int = -1` to `dbex/refinement/config_factories.py::create_detector_config`
+  - Forward it to `DetectorConfig` constructor (line 214-227)
+- [ ] **Update `simulate_forward_once` call site:**
+  - Pass `oversample=3` in `dbex/nanobrag_bridge.py::simulate_forward_once` (line ~1406)
+- [ ] **Update reconstruction cold path call site:**
+  - Pass `oversample=3` in `dbex/refinement/reconstruction.py::build_final_bragg_from_stage_a_telemetry` (line ~190)
+- [ ] **Run DB-AT-028/029 validation:**
+  - Verify `bragg_after_mean ≈ 0.24` (matches bragg_before)
+  - Verify `chi²/pixel initial ≤ 1e2`
+  - Verify `median ROI correlation before ≥ 0.2`
+
+**Expected outcome:** Both paths use 3-fold oversampling, raw outputs match, tests PASS
+
+**Artifacts:**
+- Code changes in 3 files (config_factories.py, nanobrag_bridge.py, reconstruction.py)
+- `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T235959Z/pytest_db_at_028_029.log`
 
 ---
 

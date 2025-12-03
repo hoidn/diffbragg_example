@@ -1020,3 +1020,45 @@ Next Action: Ralph builds compare_simulator_outputs.py, runs it, captures compar
 
 **State:** gathering_evidence
 **Artifacts Path:** plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T220000Z/
+
+---
+
+## 2025-12-04T235959Z (Loop i=455)
+**Focus:** ARCH-SIM-CONSTRUCTION-001 — Simulator Construction Convention Alignment
+**Action Type:** planning (Phase C.4 oversampling fix)
+**Initiative Type:** architecture
+**Dwell:** 0 (planning loop after Ralph's Phase C.3 probe)
+**Lifecycle:** implementation_attempt_count=3 (at budget limit); next loop is final implementation attempt
+
+**Context:** Ralph's Phase C.3 diagnostic probe (commit 8159de9a, loop i=454) definitively identified root cause: **oversampling configuration mismatch** between simulate_forward_once and reconstruction paths. Path A auto-selects 3-fold (3072² panel), Path B auto-selects 1-fold (1024² detector), causing 5,586× raw output discrepancy.
+
+**Action:** Planned Phase C.4 fix — add explicit `oversample=3` parameter to both paths:
+1. Update `create_detector_config` signature (config_factories.py) to accept `oversample: int = -1`
+2. Pass `oversample=3` in simulate_forward_once (nanobrag_bridge.py:1406)
+3. Pass `oversample=3` in reconstruction cold path (reconstruction.py:190)
+4. Validation: DB-AT-028/029 should PASS with bragg_after≈0.24, chi²≤100, ROI corr≥0.2
+
+**Artifacts:**
+- `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T235959Z/galph_root_cause_final_oversampling.md` (analysis)
+- Updated `implementation.md` (added Phase C.3 complete, C.4 planned)
+- `input.md` (complete Do Now with 3-file change plan)
+
+**Lifecycle Notes:**
+- This is the **4th evidence/planning loop** for ARCH-SIM-CONSTRUCTION-001
+- Next loop is implementation attempt #4 for DB-AT-028/029 criteria
+- Per `<initiative_lifecycle/>` hard rule, if Phase C.4 fails, initiative must be marked `stuck` and escalated
+- However, Ralph's probe provides conclusive evidence with clear fix path (explicit oversample), justifying one final implementation attempt
+
+**Key Insight:** Oversampling auto-selection depends on DetectorConfig pixel counts. `DetectorConfig` has `oversample: int = -1` parameter (default = auto). Different panel sizes → different auto-selection → magnitude divergence unrelated to scale_factor logic.
+
+**Expected Outcome (next loop):**
+- Both paths use explicit 3-fold oversampling
+- Raw simulator outputs match (within 10% tolerance)
+- bragg_after_mean ≈ 0.24 (not 1.025e-05)
+- Tests PASS → Phase C.4 complete → proceed to Phase D (documentation & closure)
+
+**Next Action:** Ralph implements Phase C.4 fix (3 files: config_factories.py signature, nanobrag_bridge.py call site, reconstruction.py call site)
+
+**Action State:** `<ready_for_implementation>`
+
+2025-12-04T235959Z focus=ARCH-SIM-CONSTRUCTION-001 state=ready_for_implementation dwell=0 action=planning artifacts=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T235959Z/ next_action=Implement Phase C.4 oversampling fix (3 files)

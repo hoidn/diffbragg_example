@@ -1,0 +1,38 @@
+/home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
+================================================================================
+HKL Coverage Collection: simulate_forward_once
+================================================================================
+
+[1/2] Loading smoke fixture...
+  Detector size: small
+  N panels: 1
+  HKL indices shape: (69614, 3)
+  HKL amplitudes shape: (69614,)
+
+[2/4] Building Stage A warm-cache context with HKL stats enabled...
+  HKL grid shape: torch.Size([49, 57, 63])
+  HKL metadata: {'h_min': -24, 'h_max': 24, 'k_min': -28, 'k_max': 28, 'l_min': -31, 'l_max': 31, 'h_range': 49, 'k_range': 57, 'l_range': 63, 'n_reflections': 69614, 'n_in_range': 69614, 'in_range_fraction': 1.0, 'grid_nonzero': 69614, 'grid_min': 0.0, 'grid_max': 2315.25439453125, 'grid_mean': 18.78402328491211, 'has_halo': False, 'n_unique_asu': 34807}
+  Stage A simulators: 1
+
+[3/4] Running Stage A simulators to harvest HKL stats...
+  Total queries: 9,437,184
+  In-bounds: 0 (0.00%)
+  Out-of-bounds: 9,437,184
+  h range: [28.0, 47.0]
+  k range: [28.0, 51.0]
+  l range: [37.0, 59.0]
+
+[4/4] Running simulate_forward_once with HKL stats enabled...
+  Total queries: 9,437,184
+  In-bounds: 0 (0.00%)
+  Out-of-bounds: 9,437,184
+  h range: [28.0, 47.0]
+  k range: [28.0, 51.0]
+  l range: [37.0, 59.0]
+
+[5/5] Writing artifacts...
+  JSON written to: plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-09T153000Z/hkl_stats_comparison.json
+  Summary written to: plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-09T153000Z/summary.md
+
+Done.

@@ -1,37 +1,39 @@
-Summary: Extend the simulator comparison probe so we have per-path intensity + calibration metrics for Stage A, reconstruction, and simulate_forward_once, then rerun DB-AT-028/029 with the new logging so we can isolate which scale term is still missing.
-Mode: none
+Summary: Align the reconstruction cold path with Stage A by threading panel trusted masks into `create_detector_config`, rerun the simulator comparison probe to prove the raw magnitudes now match, and execute DB-AT-028/029 with artifact dirs so the selectors collect after the fix.
+Mode: Parity
 InitiativeType: architecture
 Focus: ARCH-SIM-CONSTRUCTION-001 — Simulator Construction Convention Alignment
-Branch: main
-Mapped tests: pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029"
-Artifacts: plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-09T210000Z/
+Branch: integration
+Mapped tests: tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity, tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity
+Artifacts: plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-03T161601Z/
 
 Do Now:
-- Implement: plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_simulator_outputs.py::main — add CLI flags for `--detector-size` and `--device`, run Stage A warm cache, reconstruction cold path, and `simulate_forward_once` against the canonical smoke dataset, and record for each path the calibration inputs (`spot_scale_override`, `log_scale_baseline`, `beam_flux`, `beam_exposure`, `beamsize_mm`, `adu_per_photon`), raw mean/max, sqrt-spot-scale-adjusted mean, final `scale_factor`, and cross-path ratios. Emit both `simulator_intensity_metrics.json` and a Markdown summary under the 2025-12-09T210000Z report dir.
-- Capture: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_simulator_outputs.py --detector-size small --device cpu --output plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-09T210000Z/simulator_intensity_metrics.json
-- Validate: AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" | tee plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-09T210000Z/pytest_db_at_028_029.log
+- Implement: `dbex/refinement/reconstruction.py::build_final_bragg_from_stage_a_telemetry` — when building detector configs in the cold path, pass the per-panel trusted mask (`inputs.trusted_mask[pid]`) into `create_detector_config` so reconstruction zeroes untrusted pixels the same way Stage A warm cache does; guard against `inputs.trusted_mask` being `None`.
+- Capture: `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_simulator_outputs.py --detector-size small --device cpu --output plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-03T161601Z/simulator_intensity_metrics.json` — expect the cross-path raw ratios to collapse to ≈1.0; keep the generated summary.md in the same directory.
+- Validate: `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBAT028_ARTIFACT_DIR=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-03T161601Z/db_at_028 DBAT029_ARTIFACT_DIR=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-03T161601Z/db_at_029 DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" | tee plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-03T161601Z/pytest_db_at_028_029.log` — artifact dirs stop the selectors from skipping and retain metrics for review.
 
 How-To Map:
-1. AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_simulator_outputs.py --detector-size small --device cpu --output plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-09T210000Z/simulator_intensity_metrics.json
-2. AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" | tee plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-09T210000Z/pytest_db_at_028_029.log
+1. `ARTIFACTS=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-03T161601Z && mkdir -p "$ARTIFACTS" "$ARTIFACTS/db_at_028" "$ARTIFACTS/db_at_029"`
+2. Edit `dbex/refinement/reconstruction.py` so the cold-path `create_detector_config` call includes `trusted_mask=inputs.trusted_mask[pid]` when that array exists, and keep the warm-cache branch untouched.
+3. `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_simulator_outputs.py --detector-size small --device cpu --output "$ARTIFACTS/simulator_intensity_metrics.json"`
+4. `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBAT028_ARTIFACT_DIR="$ARTIFACTS/db_at_028" DBAT029_ARTIFACT_DIR="$ARTIFACTS/db_at_029" DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" | tee "$ARTIFACTS/pytest_db_at_028_029.log"`
 
 Pitfalls To Avoid:
-- Do not edit or reinstall nanobrag_torch itself; we are only authoring evidence scripts in the repo per Environment Freeze rules.
-- Keep the probe script in plans/active (T2 tool) and commit the JSON + Markdown artifacts under the timestamped report directory.
-- Use the smoke dataset (`DBEX_SMOKE_DETECTOR_SIZE=small`) so runs stay deterministic and within CPU limits.
-- Preserve existing script functionality (Stage A vs reconstruction comparison) while adding simulate_forward_once and the new telemetry fields.
-- When rerunning DB-AT-028/029 keep the CLI overrides exactly as listed so we can compare logs apples-to-apples with prior loops.
+- Stay within the repo; do not patch or reinstall `nanobrag_torch` (Environment Freeze).
+- Only modify the reconstruction cold path—Stage A warm cache already handles masks correctly.
+- Ensure mask arrays remain boolean/float tensors (0/1) so Simulator masking matches spec.
+- Keep the oversample override (`oversample=3`) untouched and continue using the small-detector smoke fixture for deterministic results.
+- Run pytest with the new `DBAT028_ARTIFACT_DIR`/`DBAT029_ARTIFACT_DIR` env vars; without them the selectors will skip again.
 
 If Blocked:
-- If the smoke dataset or calibration assets are missing, log the missing file paths in plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-09T210000Z/blocked.md along with the command output, then update docs/fix_plan.md + galph_memory.md with the block reason so we can escalate.
-- If pytest fails before reaching the Stage A selector for non-physics reasons (import error, fixture missing), capture the full traceback in the report dir and stop; do not attempt to downgrade tests or patch dependencies.
+- If `inputs.trusted_mask` is unexpectedly `None`, capture that state in `$ARTIFACTS/blocked.md` (include repr of `inputs`), update `docs/fix_plan.md` + `galph_memory.md`, and pause implementation.
+- If the smoke assets are missing or pytest fails before collecting the Stage A tests, save the full traceback to `$ARTIFACTS/blocked.md` and stop; do not weaken selectors or patch dependencies.
 
 Findings Applied:
-- SCALE-002 — Stage A must reapply √spot_scale post-run; we need the probe to show whether reconstruction is missing this factor.
-- SCALE-009 — Reconstruction helpers must mirror Stage A scaling and calibration threading; the new metrics should confirm which term is still misaligned.
+- SCALE-009 — Reconstruction helpers must mirror Stage A’s scaling/masking conventions; passing the trusted mask keeps the cold path compliant.
+- DIAG-OVERSAMPLE-001 — Keep oversample explicitly at 3 so we isolate the masking fix and avoid re-triggering auto-selection bugs already documented.
 
 Pointers:
-- docs/spec-db-core.md:106 — Objective Function & Variance Model definition for Bragg + background scaling.
-- docs/spec-db-workflow.md:19 — Calibration Policy (ADU vs photons, spot_scale precedence) that governs expected scale factors.
-- docs/config_crosswalk.md:1 — Detector/beam/crystal mapping contract and calibration threading references for beam flux/exposure.
-- docs/fix_plan.md:133 — ARCH-SIM-CONSTRUCTION-001 ledger entry with latest lifecycle state and exit criteria.
+- docs/spec-db-core.md:34 — Trusted mask contract (True = include) and shape requirements we must honor when passing masks to the simulator.
+- docs/spec-db-core.md:109 — Loss/masking semantics clarifying why untrusted pixels must be zeroed before computing chi².
+- dbex/refinement/reconstruction.py:187 — Cold-path detector construction that needs the trusted-mask plumbing.
+- plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-09T210000Z/summary.md — Evidence showing the 18% raw magnitude gap that this fix addresses.

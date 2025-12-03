@@ -5,7 +5,7 @@
 - Title: Simulator Construction Convention Alignment (Training vs Reconstruction)
 - Owner: Galph ↔ Ralph
 - Spec Owner: docs/spec-db-core.md §§20-40, docs/architecture/calibration_scaling.md
-- Status: planned
+- Status: in_progress
 - Type: architecture
 - Priority: Highest (blocks ARCH-REFACTOR-001 Phase D.3)
 - Tier: 0
@@ -251,18 +251,19 @@ Reconstruction helper `build_final_bragg_from_stage_a_telemetry()` violates fact
 - Code changes in 3 files (config_factories.py, nanobrag_bridge.py, reconstruction.py)
 - `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T235959Z/pytest_db_at_028_029.log`
 
-#### C.5 — Intensity Scale Evidence (Planned — 2025-12-09 Loop)
 - [ ] **Instrument simulator comparison probe:**
+#### C.5 — Intensity Scale Evidence (Complete — 2025-12-09T210000Z)
+- [x] **Instrument simulator comparison probe:**
   - Extend `plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_simulator_outputs.py` so it captures:
     - Stage A, reconstruction, and `simulate_forward_once` raw means/max values
     - Calibration inputs (`spot_scale_override`, `log_scale_baseline`, `beam_flux`, `beam_exposure`, `beamsize_mm`, `adu_per_photon`)
     - Post-run scaling contributions (`sqrt_spot_scale`, `scale_factor`, unit-mode)
     - Ratios between paths (Stage A vs reconstruction, Stage A vs simulate_forward_once)
   - Add CLI flags `--detector-size {small,full}` and `--device` for reproducibility.
-- [ ] **Run probe on canonical smoke data:**
+- [x] **Run probe on canonical smoke data:**
   - `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 DBEX_SMOKE_DETECTOR_SIZE=small python plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_simulator_outputs.py --detector-size small --output plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-09T210000Z/simulator_intensity_metrics.json`
   - Capture console output + JSON + Markdown summary under the same report directory.
-- [ ] **Re-run DB-AT-028/029 with logging:**
+- [x] **Re-run DB-AT-028/029 with logging:**
   - `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029" | tee plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-09T210000Z/pytest_db_at_028_029.log`
   - Ensures evidence ties directly to the failing acceptance criteria.
 
@@ -270,6 +271,28 @@ Reconstruction helper `build_final_bragg_from_stage_a_telemetry()` violates fact
 - `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-09T210000Z/simulator_intensity_metrics.json`
 - `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-09T210000Z/summary.md`
 - `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-09T210000Z/pytest_db_at_028_029.log`
+- `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-09T210000Z/probe_run.log`
+
+Result: Stage A and `simulate_forward_once` raw means match while reconstruction sits 18.1% higher
+(`stage_a_vs_reconstruction=0.846821`, `reconstruction_vs_mapping=1.180887`), proving the cold-path
+simulator ignores the trusted mask (spec-db-core.md §Data Contracts) during construction. Tests
+were skipped until we add `DBAT028_ARTIFACT_DIR`/`DBAT029_ARTIFACT_DIR`, so the next loop must
+re-run them with the artifact env vars enabled after fixing reconstruction.
+
+#### C.6 — Trusted-mask parity (Planned)
+- [ ] **Wire panel trusted masks into reconstruction cold path:**
+  - Update `dbex/refinement/reconstruction.py::build_final_bragg_from_stage_a_telemetry`
+    so each `create_detector_config(...)` call receives `inputs.trusted_mask[pid]`, matching the
+    Stage A warm-cache construction (`stage_a_utils._build_stage_a_context`). Ensure the helper
+    gracefully handles cases where `inputs.trusted_mask` is `None`.
+- [ ] **Re-run the intensity probe:**
+  - `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 python plans/active/ARCH-SIM-CONSTRUCTION-001/bin/compare_simulator_outputs.py --detector-size small --device cpu --output plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-03T161601Z/simulator_intensity_metrics.json`
+  - Expect `stage_a_vs_reconstruction ≈ 1.0` after mask parity is restored; capture JSON + summary.
+- [ ] **Validate DB-AT-028/029 with artifact dirs:**
+  - `AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md DBAT028_ARTIFACT_DIR=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-03T161601Z/db_at_028 DBAT029_ARTIFACT_DIR=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-03T161601Z/db_at_029 DBEX_SMOKE_SIGMA_SOURCE=cli_override DBEX_SMOKE_DETECTOR_SIZE=small KMP_DUPLICATE_LIB_OK=TRUE NANOBRAGG_DISABLE_COMPILE=1 pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k \"DB_AT_028 or DB_AT_029\" | tee plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-03T161601Z/pytest_db_at_028_029.log`
+  - Tests must collect (no skips) and produce chi²/pixel ≤ 1e2 with ROI CC ≥ 0.2 once parity is restored.
+
+**Artifacts:** `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-03T161601Z/{simulator_intensity_metrics.json,summary.md,pytest_db_at_028_029.log}`
 
 ---
 

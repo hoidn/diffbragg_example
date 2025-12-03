@@ -2027,3 +2027,9 @@ Action State: ready_for_implementation
 - Added Phase C.5 tasks to the implementation plan directing Ralph to extend `compare_simulator_outputs.py` so it logs calibration inputs and raw/scaled means for Stage A, reconstruction, and `simulate_forward_once`, then rerun DB-AT-028/029 with the new telemetry captured under `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-09T210000Z/`.
 - Rewrote input.md with the new Do Now (script instrumentation + probe run + pytest rerun) so Ralph can gather evidence next loop; this keeps us within Environment Freeze (scripts only) while producing the metrics we need to isolate the missing scale factor.
 Action State: gathering_evidence
+
+2025-12-03T161601Z focus=ARCH-SIM-CONSTRUCTION-001 state=planning dwell=1 action=planning artifacts=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-03T161601Z/ next_action=ready_for_implementation
+- Phase C.5 probe evidence (`simulator_intensity_metrics.json`) shows reconstruction raw means are 18.1% higher than Stage A/mapping even with matching calibration inputs; ratio matches trusted-mask coverage, so the cold path is failing to zero masked pixels.
+- Updated `plans/active/ARCH-SIM-CONSTRUCTION-001/implementation.md` (status → in_progress, C.5 marked complete, new C.6 checklist), extended `docs/fix_plan.md` Attempts History with the trusted-mask parity plan, and reserved `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-03T161601Z/` for the fix loop.
+- Replaced `input.md` with a Parity-mode Do Now covering the mask plumbing change, the simulator comparison rerun, and DB-AT-028/029 executions with `DBAT028/029_ARTIFACT_DIR` set so the selectors collect after the fix.
+Action State: ready_for_implementation

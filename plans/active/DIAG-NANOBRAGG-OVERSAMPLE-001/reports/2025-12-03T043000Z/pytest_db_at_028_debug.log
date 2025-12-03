@@ -1,0 +1,1495 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 1 item
+
+tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity [DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=3
+[DIAG-OVERSAMPLE] oversample after config read: 3
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 3-fold oversampling
+[ARCH-SIM-CONSTRUCTION-001 DEBUG]
+  log_scale_baseline_value: 20.138489594990745
+  log_scale (param_deltas_a): 0.0
+  delta_bound: 3.0
+  scale_factor (after exp): 557230080.0
+  sqrt_spot_scale: 557230532.6778347
+  spot_scale_override: 3.105058665484234e+17
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+auto-selected 1-fold oversampling
+  bragg_panel[0] mean (raw sim output): 0.000000e+00
+  bragg_panel[0] max: 0.000000e+00
+  bragg_scaled[0] mean (after scale_factor): 0.000000e+00
+  bragg_full mean (final output): 0.000000e+00
+  bragg_full max: 0.000000e+00
+[END DEBUG]
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=3
+[DIAG-OVERSAMPLE] oversample after config read: 3
+SKIPPEDrics)
+
+=============================== warnings summary ===============================
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyPacked has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type SwigPyObject has no __module__ attribute
+
+<frozen importlib._bootstrap>:228
+  <frozen importlib._bootstrap>:228: DeprecationWarning: builtin type swigvarlink has no __module__ attribute
+
+../../../miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3
+  /home/ollie/miniconda3/envs/simtbx/lib/python3.9/site-packages/dials/extensions/__init__.py:3: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+    import pkg_resources
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 1 skipped, 4 warnings in 16.25s ========================

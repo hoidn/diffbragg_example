@@ -1,0 +1,60 @@
+tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity [DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=3
+[DIAG-OVERSAMPLE] oversample after config read: 3
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None
+[DIAG-OVERSAMPLE] self.detector.config.oversample=-1
+[DIAG-OVERSAMPLE] oversample after config read: -1
+[DIAG-OVERSAMPLE] Entering auto-selection branch (oversample == -1)
+[DIAG-OVERSAMPLE] simulator.run() called with oversample=None

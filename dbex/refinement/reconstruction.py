@@ -128,10 +128,21 @@ def build_final_bragg_from_stage_a_telemetry(
     else:
         final_misset = misset_xyz_deg
 
+    # Extract N_cells from calibration metadata for domain count gating (SCALE-008)
+    # Thread the apply_calibration_n_cells gate to honor the same gating as Stage A/mapping
+    N_cells = None
+    if config.calibration_metadata is not None:
+        N_cells = config.calibration_metadata.get('N_cells')
+
+    # Apply N_cells only when gate is True (matching stage_a_utils.py:289-291)
+    apply_n_cells = (N_cells is not None) and config.apply_calibration_n_cells
+
     # Build crystal config with refined parameters using override API
-    crystal_config, _ = create_crystal_config(
+    crystal_config, n_cells_applied = create_crystal_config(
         crystal=crystal,
         experiment=None,
+        N_cells=N_cells,
+        apply_n_cells=apply_n_cells,
         crystal_overrides=crystal_overrides,
         misset_deg_override=final_misset,
     )
@@ -353,6 +364,11 @@ def build_final_bragg_from_stage_a_telemetry(
             json.dump(existing_data, f, indent=2)
 
         print(f"[ARCH-SIM-CONSTRUCTION-001 MASK COVERAGE] Wrote coverage stats to {mask_coverage_path}")
+
+    # Log whether N_cells was applied for this reconstruction run (SCALE-008)
+    n_cells_status = "applied" if n_cells_applied else "suppressed"
+    n_cells_value = N_cells if N_cells is not None else "None"
+    print(f"[ARCH-SIM-CONSTRUCTION-001 N_CELLS] N_cells={n_cells_value}, status={n_cells_status} (apply_calibration_n_cells={config.apply_calibration_n_cells})")
 
     return bragg_full
 

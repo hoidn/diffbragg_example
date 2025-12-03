@@ -233,10 +233,31 @@ def build_final_bragg_from_stage_a_telemetry(
         log_scale_clamped = torch.clamp(log_scale, min=-delta_bound, max=delta_bound)
 
     scale_factor = torch.exp(log_scale_clamped)
+
+    # DEBUG instrumentation for ARCH-SIM-CONSTRUCTION-001
+    print(f"[ARCH-SIM-CONSTRUCTION-001 DEBUG]")
+    print(f"  log_scale_baseline_value: {log_scale_baseline_value}")
+    print(f"  log_scale (param_deltas_a): {param_deltas_a.get('log_scale', {}).get('final', 'MISSING')}")
+    print(f"  delta_bound: {delta_bound}")
+    print(f"  scale_factor (after exp): {scale_factor.item() if hasattr(scale_factor, 'item') else scale_factor}")
+    print(f"  sqrt_spot_scale: {sqrt_spot_scale}")
+    print(f"  spot_scale_override: {spot_scale_override}")
+
     for pid, sim in zip(sampled_panel_ids, simulators):
         bragg_panel = sim.run()
+        # DEBUG: print first panel's raw output
+        if pid == 0:
+            print(f"  bragg_panel[0] mean (raw sim output): {bragg_panel.mean().item():.6e}")
+            print(f"  bragg_panel[0] max: {bragg_panel.max().item():.6e}")
         bragg_scaled = bragg_panel * scale_factor
+        if pid == 0:
+            print(f"  bragg_scaled[0] mean (after scale_factor): {bragg_scaled.mean().item():.6e}")
         bragg_full[pid] = bragg_scaled.cpu().numpy().astype(np.float32)
+
+    # DEBUG: final output summary
+    print(f"  bragg_full mean (final output): {bragg_full.mean():.6e}")
+    print(f"  bragg_full max: {bragg_full.max():.6e}")
+    print(f"[END DEBUG]")
 
     return bragg_full
 

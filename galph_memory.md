@@ -975,3 +975,48 @@ Action State: ready_for_implementation
 - Lifecycle: implementation_attempt_count=3 for DB-AT-028/029 (at budget limit per initiative_lifecycle hard rule); if probe doesn't resolve root cause, must mark stuck and escalate to spec_change or architecture redesign.
 Artifacts: galph_root_cause_revised_analysis.md, input.md (probe task)
 Next Action: Ralph builds compare_simulator_outputs.py, runs it, captures comparison.json + summary.md
+
+---
+
+## 2025-12-04T220000Z (Loop i=453)
+**Focus:** ARCH-SIM-CONSTRUCTION-001 (Simulator Construction Convention Alignment)
+**Action Type:** evidence_collection (diagnostic probe planning)
+**Initiative Type:** architecture
+**Dwell:** 1 (second evidence loop)
+**Lifecycle:** implementation_attempt_count=3 (at budget limit per initiative_lifecycle hard rule)
+
+**Context:** Ralph's loop i=452 simulator comparison probe ruled out the hypothesis that Stage A warm-cache vs reconstruction cold-path simulators produce different raw outputs (ratio=0.85, within expected numerical variation for single-panel test). However, DB-AT-028 metrics show bragg_before_mean=0.239 ADU (from `simulate_forward_once()`) vs bragg_after_mean=1.025e-05 ADU (from reconstruction helper), a 23,400× discrepancy matching sqrt(spot_scale_override).
+
+**Root cause analysis** (galph_root_cause_analysis_final.md, 2025-12-04T220000Z):
+- Reconstruction scaling code IS CORRECT and matches Stage A loss computation exactly (both apply `bragg_scaled = raw × exp(log_scale_baseline + delta)`)
+- Debug instrumentation (loop i=451) shows reconstruction's raw simulator output is 1.839e-14 ADU
+- After multiplying by scale_factor = exp(20.138) = 5.57e8, reconstruction produces 1.025e-05 ADU ✓
+- If `simulate_forward_once()` applied the same raw output (1.839e-14) × sqrt(spot_scale) (5.57e8), it should also produce 1.025e-05 ADU, NOT 0.239 ADU
+- This implies `simulate_forward_once()` simulators produce raw outputs ~23,400× LARGER than reconstruction simulators
+
+**Hypothesis:** The discrepancy is NOT in the reconstruction scaling logic (which is correct per code review), but rather in the SIMULATOR CONFIGURATIONS used by `simulate_forward_once()` vs reconstruction helper. Possible mismatches: HKL grid (reflection count), detector config (panel count, oversampling), beam calibration (flux/exposure/beamsize), or internal simulator scaling.
+
+**Action:** Issued diagnostic probe Do Now directing Ralph to create a side-by-side comparison script that:
+1. Runs `simulate_forward_once()` with exact DB-AT-028 test config
+2. Captures RAW simulator output BEFORE sqrt(spot_scale) application (requires temporary instrumentation of nanobrag_bridge.py:1435)
+3. Builds reconstruction-path simulator with SAME config via `create_unified_simulator()`
+4. Compares raw outputs to isolate where the 23,400× factor enters
+
+**Expected outcomes:**
+- If raw outputs differ → simulator construction/config mismatch (fix config threading in reconstruction helper)
+- If raw outputs match → scaling logic mismatch (unlikely given code review confirms exact match)
+- If both match → test harness issue (wrong reference data or assertion logic)
+
+**Lifecycle notes:**
+- At implementation budget limit (3 attempts for DB-AT-028/029 criteria)
+- Per <initiative_lifecycle/> hard rule, if this evidence probe doesn't resolve root cause, must mark initiative `stuck` and escalate to spec_change or architecture redesign
+- However, code review confirms reconstruction logic is CORRECT, so the issue is likely environmental (config mismatch, not implementation bug)
+
+**Artifacts:** `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T220000Z/`
+- galph_root_cause_analysis_final.md (comprehensive code review + hypothesis)
+- input.md (diagnostic probe Do Now with instrumentation instructions)
+
+**Next Action:** Ralph creates and runs compare_simulate_forward_once_vs_reconstruction.py, capturing raw simulator outputs before any scaling. Galph analyzes empirical comparison in next loop to determine whether the issue is config mismatch or deeper architectural tension.
+
+**State:** gathering_evidence
+**Artifacts Path:** plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T220000Z/

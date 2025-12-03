@@ -1,356 +1,225 @@
-# Input for Ralph (Loop 2025-12-02T224500Z)
+# Input for Ralph (Loop 2025-12-02T214000Z)
 
 ## Summary
-Investigate why simulator produces all-zero Bragg output despite correct scale factors and oversample parameters.
+Investigate beam flux defaults and validate DIAG-NANOBRAGG-OVERSAMPLE-001 fix with clean test run.
 
 ## Mode
-none (evidence collection: zero-output root cause investigation)
+none (evidence collection + validation)
 
 ## InitiativeType
-architecture
+diagnostics
 
 ## Focus
-ARCH-SIM-CONSTRUCTION-001 — Simulator Construction Convention Alignment (Phase D: Zero-Output Investigation)
+DIAG-NANOBRAGG-OVERSAMPLE-001 — nanobrag_torch Oversample Parameter Investigation (Phase C.7-C.8: Clean Validation)
 
 ## Branch
 integration
 
 ## Mapped tests
-- `tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity` (validates non-zero simulator output)
-- `tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity` (validates ROI correlation)
-- `tests/dbex/test_torch_refine_smoke.py::test_stage_a_expansion` (validates LBFGS parameter movement)
+- `tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity` (validates non-zero simulator output, chi²/pixel initial ≤ 1e2)
+- `tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity` (validates ROI correlation before ≥ 0.2)
 
 ## Artifacts
-`plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-02T224500Z/`
-- `zero_output_diagnostics.json` (HKL/crystal/beam/detector diagnostics)
-- `probe_run.log` (probe execution log)
-- `zero_output_analysis.md` (root cause analysis)
-- `summary.md` (loop summary)
+`plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-02T214000Z/`
+- `pytest_db_at_028_029_clean.log` (test results without debug instrumentation)
+- `beam_flux_investigation.md` (beam config source code analysis)
+- `summary.md` (loop summary and findings)
 
 ## Do Now
 
-**Context**: DIAG-NANOBRAGG-OVERSAMPLE-001 Phase C successfully threaded oversample=3 to all 292 DetectorConfig instances, but DB-AT-028 reveals simulator producing all-zero Bragg output. Debug evidence shows:
+**Context**: Ralph's Phase D diagnostic probe (ARCH-SIM-CONSTRUCTION-001) found beam flux=0.0 as likely cause of zero simulator output. DIAG-NANOBRAGG-OVERSAMPLE-001 Phase C successfully threaded oversample=3 through all 292 DetectorConfig instances, but the tests were SKIPPED due to missing fixture data. Need to:
+1. Complete DIAG Phase C validation (C.7: remove debug instrumentation, C.8: clean test run)
+2. Investigate beam flux defaults if tests still fail
+
+### Task C.7: Remove nanobrag_torch debug instrumentation
+
+**Command**:
+```bash
+cd /home/ollie/Documents/diffbragg_example/src/nanobrag-torch
+
+# Revert the debug patch
+git checkout src/nanobrag_torch/simulator.py
+
+# Rebuild
+pip install -e . --no-deps > ../../plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-02T214000Z/nanobragg_rebuild_clean.log 2>&1
 ```
-log_scale_baseline_value: 20.138489594990745
-scale_factor (after exp): 557230080.0          ← CORRECT
-bragg_panel[0] mean (raw sim output): 0.000000e+00  ← PROBLEM
-bragg_panel[0] max: 0.000000e+00                    ← PROBLEM
-```
 
-Scale factors are correct, oversample is correct (3, not -1), but simulator produces no diffraction signal. This is a **NEW BLOCKER** distinct from the oversample issue.
+**Expected**: Clean nanobrag_torch without debug prints
 
-**Investigation Strategy**: Create minimal standalone diagnostic probe to identify which component (HKL grid / crystal / beam / detector) is zero or invalid.
-
-### Task D.1: Create diagnostic probe script
-
-**File**: `plans/active/ARCH-SIM-CONSTRUCTION-001/bin/diagnose_zero_output.py`
-
-**Content**: Copy the complete Python script from the How-To Map section below (labeled "COMPLETE PROBE SCRIPT TEMPLATE")
-
-### Task D.2: Run diagnostic probe
+### Task C.8: Run clean validation tests
 
 **Command**:
 ```bash
 cd /home/ollie/Documents/diffbragg_example
-mkdir -p plans/active/ARCH-SIM-CONSTRUCTION-001/bin
-mkdir -p plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-02T224500Z
 
-# Copy script from template below
-# Then run:
-python plans/active/ARCH-SIM-CONSTRUCTION-001/bin/diagnose_zero_output.py \
-    --output plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-02T224500Z/ \
-    > plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-02T224500Z/probe_run.log 2>&1
+mkdir -p plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-02T214000Z
+
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
+DBEX_SMOKE_SIGMA_SOURCE=metadata \
+DBEX_SMOKE_DETECTOR_SIZE=full \
+KMP_DUPLICATE_LIB_OK=TRUE \
+NANOBRAGG_DISABLE_COMPILE=1 \
+pytest -vv \
+  tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity \
+  tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity \
+  > plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-02T214000Z/pytest_db_at_028_029_clean.log 2>&1
+
+echo "Exit code: $?" >> plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-02T214000Z/pytest_db_at_028_029_clean.log
 ```
 
-**Expected**: JSON file with diagnostics showing which component is zero
+**Expected outcomes**:
 
-### Task D.3: Analyze results
+**Scenario A (DIAG fix successful)**: Tests PASS
+- chi²/pixel initial ≤ 1e2
+- ROI correlation before ≥ 0.2
+- bragg_after magnitude ~0.24 (matches bragg_before)
+→ Mark DIAG-NANOBRAGG-OVERSAMPLE-001 **done**, unblock ARCH-SIM-CONSTRUCTION-001
 
-Create `zero_output_analysis.md` identifying root cause:
-- Which component is broken (HKL grid / crystal / beam / detector)?
-- Evidence from diagnostics JSON
-- Hypothesis for why it's broken
-- Recommended fix
+**Scenario B (Tests still fail with zero output)**: Tests FAIL
+- bragg_after still 1.025e-05 or 0.0
+- Ralph's hypothesis confirmed: beam flux=0.0 causes zero output
+→ Proceed to Task C.9 (beam flux investigation)
 
-**Template**:
+**Scenario C (Tests SKIPPED)**: Missing fixture data
+- Document the skip reason
+- Attempt to locate or generate missing data, or adjust test strategy
+
+### Task C.9: Beam flux investigation (Conditional - only if Scenario B)
+
+**Only execute if tests FAIL in Task C.8 due to zero/low simulator output.**
+
+**Read source code**:
+```bash
+grep -n "flux" /home/ollie/Documents/diffbragg_example/dbex/refinement/config_factories.py | head -20
+```
+
+**Analysis questions**:
+1. Where is beam flux sourced from in `create_beam_config()`?
+2. What is the default value when `beam_flux=None`?
+3. Should flux default to 1.0 (dimensionless scale) or to a physical value from beam metadata?
+
+**Create analysis document**:
+
+File: `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-02T214000Z/beam_flux_investigation.md`
+
+Template:
 ```markdown
-# Zero-Output Root Cause Analysis
+# Beam Flux Investigation
 
-## Probe Results
+## Scenario B Trigger
+Tests failed in Task C.8 with zero/low simulator output despite oversample=3 fix.
 
-[Paste key statistics from zero_output_diagnostics.json]
+## Source Code Analysis
 
-**HKL Grid**:
-- Nonzero count: X / Y elements
-- Sum: Z
-- Max: W
+### create_beam_config() Implementation
+[Paste relevant code from config_factories.py]
 
-**Crystal**: a=X Å, n_cells=Y
-**Beam**: λ=X Å, flux=Y
-**Detector**: distance=X mm, oversample=Y
+### Default Flux Handling
+**When beam_flux=None**:
+- Current behavior: [describe]
+- Source location: config_factories.py line [X]
 
-**Simulator Output**:
-- Mean: X
-- Max: Y
-- Nonzero pixels: Z / W
+### Upstream Callers
+**Where is create_beam_config() called**:
+1. `dbex/refinement/stage_a_utils.py` line [X]: passes `beam_flux=...`
+2. `dbex/refinement/reconstruction.py` line [X]: passes `beam_flux=...`
+3. [other call sites]
 
-## Root Cause
+**What values are passed**:
+- Stage A: [value/expression]
+- Reconstruction: [value/expression]
 
-**Broken Component**: [name]
-**Evidence**: [specific diagnostic value]
-**Hypothesis**: [why this is zero]
+## Root Cause Hypothesis
+
+**If flux defaults to 0.0**:
+- Simulator output = structure_factors × 0.0 × ... = 0.0
+- Fix: Change default to 1.0 or extract from beam.get_flux() if available
+
+**If flux is sourced incorrectly**:
+- Check if calibration_metadata.beam_flux exists and is threaded correctly
 
 ## Recommended Fix
 
-[Specific changes needed]
+[Specific code change needed in config_factories.py]
 
 ## Next Steps
 
 [Implementation plan or escalation path]
 ```
 
-### Task D.4: Write summary
+### Task C.10: Write summary
 
-Create `summary.md` documenting findings and next steps
+**File**: `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-02T214000Z/summary.md`
+
+**Content**:
+- Clean test outcome (PASS/FAIL/SKIP)
+- If PASS: Celebrate! DIAG-NANOBRAGG-OVERSAMPLE-001 complete, oversample fix validated
+- If FAIL: Beam flux investigation findings and recommended next action
+- If SKIP: Document blocker and path forward
 
 ## How-To Map
 
-### COMPLETE PROBE SCRIPT TEMPLATE
+### Rebuild Commands
+```bash
+# Navigate to nanobrag-torch source
+cd /home/ollie/Documents/diffbragg_example/src/nanobrag-torch
 
-Save this to `plans/active/ARCH-SIM-CONSTRUCTION-001/bin/diagnose_zero_output.py`:
+# Revert debug patch
+git checkout src/nanobrag_torch/simulator.py
 
-```python
-#!/usr/bin/env python3
-"""
-Zero-output diagnostic probe for ARCH-SIM-CONSTRUCTION-001 Phase D.
-
-Identifies which component (HKL/crystal/beam/detector) causes zero simulator output.
-"""
-
-import argparse
-import json
-import sys
-from pathlib import Path
-
-import numpy as np
-import torch
-
-# Add repo root
-repo_root = Path(__file__).parent.parent.parent.parent
-sys.path.insert(0, str(repo_root))
-
-from dbex.data_load import DataLoad
-from dbex.nanobrag_bridge import (
-    build_structure_factor_grid,
-    create_beam_config,
-    create_crystal_config,
-    create_detector_config,
-)
-from nanobrag_torch import Simulator
-
-
-def diagnose_hkl_grid(hkl_grid, hkl_metadata):
-    grid_np = hkl_grid.detach().cpu().numpy()
-    return {
-        "shape": list(hkl_grid.shape),
-        "sum": float(grid_np.sum()),
-        "max": float(grid_np.max()),
-        "min": float(grid_np.min()),
-        "mean": float(grid_np.mean()),
-        "nonzero_count": int(np.count_nonzero(grid_np)),
-        "total_elements": int(grid_np.size),
-        "nonzero_fraction": float(np.count_nonzero(grid_np) / grid_np.size),
-        "metadata": hkl_metadata,
-    }
-
-
-def diagnose_crystal(crystal_config, crystal_model):
-    return {
-        "cell_a": float(crystal_config.a),
-        "cell_b": float(crystal_config.b),
-        "cell_c": float(crystal_config.c),
-        "n_cells": int(crystal_config.n_cells),
-        "has_missets": crystal_config.misset_deg is not None,
-        "original_unit_cell": [float(x) for x in crystal_model.get_unit_cell().parameters()],
-    }
-
-
-def diagnose_beam(beam_config, beam_model):
-    return {
-        "wavelength_angstrom": float(beam_config.wavelength),
-        "flux_photons": float(beam_config.flux) if beam_config.flux is not None else None,
-        "exposure_sec": float(beam_config.exposure) if beam_config.exposure is not None else None,
-        "polarization_fraction": float(beam_model.get_polarization_fraction()),
-    }
-
-
-def diagnose_detector(detector_config, panel):
-    return {
-        "pixel_size_mm": [float(x) for x in detector_config.pixel_size],
-        "distance_mm": float(detector_config.distance),
-        "oversample": int(detector_config.oversample),
-        "panel_size_pixels": [int(x) for x in panel.get_image_size()],
-    }
-
-
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--output", required=True)
-    args = ap.parse_args()
-
-    output_dir = Path(args.output)
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    # Load fixture
-    from argparse import Namespace
-    data_args = Namespace(
-        exptName=str(repo_root / "refGeom.expt"),
-        reflName=str(repo_root / "refGeom.refl"),
-        exptIdx=0,
-        maskFile=str(repo_root / "747_mask.pkl"),
-        mtzFile=str(repo_root / "scaled.mtz"),
-        mtzCol="F,SIGF",
-    )
-
-    dataload = DataLoad(data_args)
-    detector = dataload.detector
-    beam = dataload.beam
-    crystal = dataload.crystal
-
-    # HKL grid
-    hkl_grid, hkl_metadata = build_structure_factor_grid(
-        crystal=crystal,
-        mtz_column_label="F,SIGF",
-        mtz_file_path=data_args.mtzFile,
-        enable_hkl_interpolation=False,
-        device="cpu",
-    )
-
-    hkl_diag = diagnose_hkl_grid(hkl_grid, hkl_metadata)
-    print(f"HKL: {hkl_diag['nonzero_count']}/{hkl_diag['total_elements']} nonzero, sum={hkl_diag['sum']:.3e}, max={hkl_diag['max']:.3e}")
-
-    # Crystal
-    crystal_config = create_crystal_config(
-        crystal=crystal,
-        misset_deg_override=None,
-        crystal_overrides={},
-    )
-    crystal_diag = diagnose_crystal(crystal_config, crystal)
-    print(f"Crystal: a={crystal_diag['cell_a']:.3f}Å, n_cells={crystal_diag['n_cells']}")
-
-    # Beam
-    beam_config = create_beam_config(beam=beam, beam_flux=None, beam_exposure=None, beamsize_mm=None)
-    beam_diag = diagnose_beam(beam_config, beam)
-    print(f"Beam: λ={beam_diag['wavelength_angstrom']:.6f}Å, flux={beam_diag['flux_photons']}")
-
-    # Detector
-    panel = detector[0]
-    detector_config = create_detector_config(
-        panel=panel,
-        beam=beam,
-        trusted_mask=np.ones(panel.get_image_size()[::-1], dtype=bool),
-        oversample=3,
-    )
-    detector_diag = diagnose_detector(detector_config, panel)
-    print(f"Detector: dist={detector_diag['distance_mm']:.1f}mm, oversample={detector_diag['oversample']}")
-
-    # Simulator
-    simulator = Simulator(
-        detector=detector_config,
-        beam=beam_config,
-        crystal=crystal_config,
-        hkl_grid=hkl_grid,
-        device="cpu",
-    )
-
-    bragg = simulator.run(oversample=None)
-    bragg_np = bragg.detach().cpu().numpy()
-
-    sim_diag = {
-        "mean": float(bragg_np.mean()),
-        "max": float(bragg_np.max()),
-        "min": float(bragg_np.min()),
-        "sum": float(bragg_np.sum()),
-        "nonzero_count": int(np.count_nonzero(bragg_np)),
-        "total_pixels": int(bragg_np.size),
-    }
-
-    print(f"Simulator: mean={sim_diag['mean']:.3e}, max={sim_diag['max']:.3e}, nonzero={sim_diag['nonzero_count']}/{sim_diag['total_pixels']}")
-
-    # Save
-    diagnostics = {
-        "hkl_grid": hkl_diag,
-        "crystal": crystal_diag,
-        "beam": beam_diag,
-        "detector": detector_diag,
-        "simulator_output": sim_diag,
-    }
-
-    output_path = output_dir / "zero_output_diagnostics.json"
-    output_path.write_text(json.dumps(diagnostics, indent=2))
-    print(f"\nDiagnostics → {output_path}")
-
-    # Verdict
-    if sim_diag["max"] == 0.0:
-        print("\n❌ ZERO OUTPUT CONFIRMED")
-        if hkl_diag["nonzero_count"] == 0:
-            print("  → HKL grid is all zeros")
-        elif crystal_diag["n_cells"] == 0:
-            print("  → Crystal has zero cells")
-        elif beam_diag["flux_photons"] is None or beam_diag["flux_photons"] == 0:
-            print("  → Beam flux is zero/None")
-        else:
-            print("  → Unknown cause (all configs look valid)")
-    else:
-        print(f"\n✓ Simulator OK: max={sim_diag['max']:.3e}")
-
-
-if __name__ == "__main__":
-    main()
+# Rebuild (--no-deps to avoid environment changes)
+pip install -e . --no-deps
 ```
 
-### Execution Steps
+### Test Execution
+Per `docs/TESTING_GUIDE.md` §2.2, use the exact selectors and environment flags shown in Task C.8.
 
-1. Save script to `plans/active/ARCH-SIM-CONSTRUCTION-001/bin/diagnose_zero_output.py`
-2. Run: `python plans/active/ARCH-SIM-CONSTRUCTION-001/bin/diagnose_zero_output.py --output plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-02T224500Z/ > plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-02T224500Z/probe_run.log 2>&1`
-3. Read `zero_output_diagnostics.json`
-4. Write `zero_output_analysis.md` with root cause
-5. Write `summary.md`
+### Beam Flux Source Code Locations
+- Config factory: `dbex/refinement/config_factories.py::create_beam_config` (lines ~89-125)
+- Stage A caller: `dbex/refinement/stage_a_utils.py::_build_stage_a_context` (line ~267)
+- Reconstruction caller: `dbex/refinement/reconstruction.py::build_final_bragg_from_stage_a_telemetry` (line ~187)
 
 ## Pitfalls To Avoid
 
-1. **Do NOT skip HKL grid check** - most likely culprit for zero output
-2. **Do NOT assume oversample is still the issue** - we already fixed that (292/292 configs have oversample=3)
-3. **Do NOT try to fix in this loop** - evidence collection only
-4. **Do NOT modify test fixtures** - use existing refGeom.expt/refl/mtz
+1. **Do NOT skip the clean rebuild (Task C.7)** - debug instrumentation must be removed for clean test
+2. **Do NOT modify test fixtures** - if tests SKIP, document the blocker rather than patching data
+3. **Do NOT proceed to Task C.9 if tests PASS** - beam flux investigation only needed for Scenario B
+4. **Do NOT install new packages** - use `pip install -e . --no-deps` to preserve environment
+5. **Do NOT change acceptance criteria** - if tests fail, investigate root cause (flux issue), don't weaken gates
 
 ## If Blocked
 
-**If script errors on imports**:
-- Check nanobrag_torch installed
-- Check paths to refGeom.expt exist
+**If rebuild fails**:
+- Capture full error in rebuild log
+- Document blocker in summary.md
+- Do not proceed to test run
 
-**If output is non-zero**:
-- Document difference between probe and test
-- Check if test uses different fixture
+**If tests SKIP**:
+- Document the exact skip reason from pytest output
+- Check if fixture data can be located (look in `sp.proc/`, `refGeom_small/`)
+- If data truly missing, may need to generate it or adjust test strategy
 
-**If all configs look valid but output still zero**:
-- Document in analysis.md
-- Recommend nanobrag_torch version check or maintainer escalation
+**If tests FAIL with non-zero output**:
+- May indicate a different issue than beam flux
+- Capture metrics and document in summary.md
+- Do not proceed to Task C.9 unless output is zero/near-zero
 
 ## Findings Applied
 
-- **DIAG-OVERSAMPLE-001**: Resolved (292/292 oversample=3)
-- **DIAG-OVERSAMPLE-002**: Anticipated (simulator zero-output post-oversample fix)
+- **DIAG-OVERSAMPLE-001**: Phase C complete (292/292 configs have oversample=3)
+- **RALPH-DIAG-FLUX-001** (new, from Phase D probe): Beam flux=0.0 likely causes zero simulator output
 
 ## Pointers
 
-- `dbex/nanobrag_bridge.py::build_structure_factor_grid`
-- `nanobrag_torch.Simulator.run()`
-- `tests/dbex/test_torch_refine_smoke.py::refgeom_dataload`
+- DIAG-NANOBRAGG-OVERSAMPLE-001 implementation plan: `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/implementation.md`
+- Phase C planning notes: `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T050000Z/phase_c_planning.md`
+- Ralph's flux finding: `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-02T224500Z/zero_output_analysis.md`
+- Beam config spec: `docs/spec-db-core.md` §25-30 (beam configuration contracts)
 
 ## Next Up
 
-**If HKL grid zero**: Fix MTZ loading
-**If crystal invalid**: Fix crystal config
-**If cause unclear**: Escalate to Galph for deeper investigation
+**If tests PASS**: Mark DIAG-NANOBRAGG-OVERSAMPLE-001 done, update problems.md, prepare to unblock ARCH-SIM-CONSTRUCTION-001
+
+**If tests FAIL (zero output)**: Implement beam flux fix (likely a simple default value change in config_factories.py)
+
+**If tests SKIP**: Resolve fixture blocker or adjust test strategy (may need to generate sp.proc data)

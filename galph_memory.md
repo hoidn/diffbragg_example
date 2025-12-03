@@ -1367,3 +1367,48 @@ Not "shared mutable state due to reference assignment in Detector.__init__()" bu
 
 **Status**: blocked_outdated_template → escalated to supervisor
 
+
+---
+
+## Loop 2025-12-02T214000Z (i=469)
+
+**Focus**: DIAG-NANOBRAGG-OVERSAMPLE-001 — nanobrag_torch Oversample Parameter Investigation (Phase C.7-C.8: Clean Validation)
+**State**: ready_for_implementation
+**Dwell**: 0 (switching from ARCH-SIM-CONSTRUCTION-001 Phase D evidence to DIAG final validation)
+**Action Type**: evidence_collection + validation
+**Initiative Type**: diagnostics
+**Lifecycle Counters**:
+- DIAG-NANOBRAGG-OVERSAMPLE-001: Phase C implementation complete (oversample threading), Phase C.7-C.8 validation pending
+- ARCH-SIM-CONSTRUCTION-001: blocked pending DIAG completion and beam flux investigation
+
+**Key Observations**:
+1. **Ralph's Phase D diagnostic probe findings** (ARCH-SIM-CONSTRUCTION-001/reports/2025-12-02T224500Z/):
+   - Probe template outdated post-ARCH-BRIDGE-RESP-001 refactor (config factory locations, API signatures changed)
+   - Partial execution successful: HKL grid (69,614 nonzero), crystal (a=27.376Å), detector (oversample=3✓) all valid
+   - **Critical finding**: beam flux=0.0 when `beam_flux=None` passed to `create_beam_config()`
+   - Hypothesis: Zero flux → zero simulator output (I_diffracted = |F|² × 0.0 × ... = 0.0)
+
+2. **DIAG-NANOBRAGG-OVERSAMPLE-001 Phase C success** (reports/2025-12-03T050000Z/):
+   - Successfully threaded `oversample` through RefinementConfig → all 292 DetectorConfig instances
+   - Debug validation: 292/292 configs have oversample=3 (was 2/292 in Phase A)
+   - Zero auto-selection events
+   - **But**: DB-AT-028 test SKIPPED due to missing fixture data, so magnitude discrepancy not yet validated
+
+3. **Portfolio decision**: Complete DIAG validation (remove debug instrumentation, run clean tests) before investigating beam flux
+   - If tests PASS → DIAG done, ARCH-SIM-CONSTRUCTION-001 unblocked
+   - If tests FAIL (zero output) → beam flux investigation confirms Ralph's hypothesis, implement fix
+   - If tests SKIP → document blocker, adjust strategy
+
+**Artifacts Path**: `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-02T214000Z/`
+
+**Next Actions**:
+- Task C.7: Remove nanobrag_torch debug instrumentation, rebuild clean
+- Task C.8: Run DB-AT-028/029 with clean build
+- Task C.9 (conditional): Beam flux investigation if tests fail with zero output
+- Update DIAG status based on test outcome
+
+**Action State**: Phase C.7-C.8 validation ready, beam flux investigation planned if needed
+
+**WIP Status**: 
+- in_progress: DIAG-NANOBRAGG-OVERSAMPLE-001 (final validation phase)
+- stuck: ARCH-SIM-CONSTRUCTION-001 (blocked_environment_dependency per lifecycle decision 2025-12-03T021140Z, but may unblock if beam flux fix resolves zero-output issue)

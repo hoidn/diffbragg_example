@@ -1966,3 +1966,25 @@ Action State: ready_for_implementation
 - ready_for_implementation — Build `inspect_hkl_projection.py`, capture HKL projections for beam-center and ±64 px offsets on the small-detector smoke fixture, store JSON + summary under the reserved report dir, and validate the repo with `pytest -vv tests/dbex/test_data_load_sigma_map.py`.
 
 Action State: ready_for_implementation
+
+## Loop 2025-12-03T154217Z
+
+**Focus**: ARCH-SIM-HKL-BOUNDS-001 — Stage-A / mapping HKL alignment
+**State**: planning
+**Dwell**: 1
+**Action Type**: planning
+**Initiative Type**: architecture
+
+**Key Observations**:
+1. Phase B.1 probe confirmed beam-center pixels already land at HKL≈(0,0,0); the 0 % coverage failure must come from a global shift applied to every non-zero scattering vector.
+2. `Simulator.__init__` stores `self.incident_beam_direction = detector.beam_vector`, but the detector returns a sample→source unit vector; the single-source path never negates it, so `_compute_physics_for_position` computes `q = k_out + k_in` instead of `k_out - k_in`, explaining the +30/+40 HKL offset. Multi-source code already negates source directions, proving the bug is isolated to the single-source cache.
+3. Authored input.md directing Ralph to negate the cached beam vector, capture the Environment-Freeze patch, rerun the HKL stats probe plus DB-AT-028/029, and refresh docs/findings and fix-plan metadata with the post-fix evidence.
+
+**Artifacts Path**: `plans/active/ARCH-SIM-HKL-BOUNDS-001/reports/2025-12-03T154217Z/`
+
+**Next Actions**:
+- ready_for_implementation — Apply the incident-beam sign fix in nanobrag_torch, rerun HKL stats + DB-AT-028/029, and update docs/findings/fix-plan with the new evidence + patch reference.
+
+**Action State**: ready_for_implementation
+
+2025-12-03T15:42:17Z focus=ARCH-SIM-HKL-BOUNDS-001 state=planning dwell=1 action=planning artifacts=plans/active/ARCH-SIM-HKL-BOUNDS-001/reports/2025-12-03T154217Z/ next_action=ready_for_implementation

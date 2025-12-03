@@ -84,14 +84,18 @@ confirms the HKL offset (expected failure state: >30 index offset with 0% covera
 **Objective**: Identify the precise transformation error and define the minimal code changes.
 
 Tasks:
-- [ ] B1: Instrument nanobrag_torch’s scattering-vector→HKL projection for specific pixels (beam center and ±offsets)
+- [x] B1: Instrument nanobrag_torch’s scattering-vector→HKL projection for specific pixels (beam center and ±offsets)
       by implementing `plans/active/ARCH-SIM-HKL-BOUNDS-001/bin/inspect_hkl_projection.py`. The script shall rebuild
       Detector/Beam/Crystal configs from the mapping fixture, compute diffracted/incident unit vectors, reproduce the
       `_compute_physics_for_position` math for chosen pixels, and emit JSON/summary files showing fractional HKL values,
       rounded indices, and whether each lies within `hkl_metadata` bounds. Priority: confirm the direct-beam pixel
       should yield `(h,k,l)≈(0,0,0)` but currently produces the +30/+40 offset captured by HKL stats.
-- [ ] B2: Draft a fix design (preferably localized inside nanobrag_torch) that brings the reciprocal lattice
-      back into alignment without regressing existing finding guards (GEOMETRY-003, GEOMETRY-004).
+      **Result (2025-12-03T152326Z)**: Direct-beam and ±64 px offsets map to HKL≈(0,0,0) and lie *inside* grid bounds,
+      proving the 0 % coverage failure is not a beam-center math error. The offset must originate from a global shift
+      in the incident-beam term that affects all non-zero scattering vectors equally.
+- [ ] B2: Draft a fix design (localized inside `nanobrag_torch.simulator`) showing how to realign the incident beam
+      convention with specs (docs/spec-db-core.md §§Detector Conventions, Source Handling) by storing the source→sample
+      direction (`-detector.beam_vector`) for single-source runs. Include code references and expected HKL range deltas.
 - [ ] B3: Capture the proposed change, environment-freeze compliance steps, and affected modules/tests in
       `plans/active/ARCH-SIM-HKL-BOUNDS-001/reports/<timestamp>/design_notes.md`.
 

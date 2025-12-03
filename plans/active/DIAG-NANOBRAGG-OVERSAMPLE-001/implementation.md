@@ -210,6 +210,24 @@ Environment freeze blocks investigation without using exception clause for targe
 - `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/<timestamp>/hkl_stats.json`
 - Updated `docs/findings.md` (DIAG-UNIT-001 retraction + HKL stats summary)
 
+### Phase F: HKL coverage comparison (Stage A vs. mapping forward helper)
+
+**Objective**: Determine whether the 100% out-of-bounds HKL queries originate from Stage A’s simulator construction or from the upstream structure-factor grid by collecting comparable HKL statistics from both Stage A warm-cache simulators and the canonical `simulate_forward_once()` helper.
+
+**Tasks:**
+- [ ] F.1: Extend `dbex/nanobrag_bridge.py::simulate_forward_once` to accept an optional `debug_config` dict, forward it to `create_unified_simulator`, and capture per-panel HKL query stats (min/max h,k,l, in-bounds vs out-of-bounds counts) when `collect_hkl_stats` is enabled.
+- [ ] F.2: Author `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/bin/compare_hkl_stats.py` that:
+  - Loads the smoke fixture via `DataLoad`/`build_mapping_stage_a_context`
+  - Builds Stage A warm-cache simulators (`_build_stage_a_context`) and enables HKL stats for each panel
+  - Runs `simulate_forward_once(debug_config={'collect_hkl_stats': True})`
+  - Emits `hkl_stats_comparison.json` summarizing grid metadata vs. observed HKL ranges for both paths plus a prose `summary.md`.
+- [ ] F.3: Run the comparison script (small detector first, optionally full) and update `docs/findings.md` + plan Attempts History with the observed deltas (e.g., Stage A only vs both paths out-of-bounds) to steer the next initiative (likely ARCH-SIM-HKL-BOUNDS-001).
+
+**Artifacts:**
+- `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/<timestamp>/hkl_stats_comparison.json`
+- `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/<timestamp>/summary.md` documenting whether Stage A and `simulate_forward_once` disagree
+- Updated `docs/findings.md` entry (DIAG-OVERSAMPLE-001 follow-up or new finding if mapping path also misses HKL coverage)
+
 ## Abort/Escalation Triggers
 
 **Abort conditions:**

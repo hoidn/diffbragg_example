@@ -1686,6 +1686,26 @@ Per CLAUDE.md exception clause requirements:
 
 ---
 
+## Loop 2025-12-09T103000Z
+
+**Focus**: DIAG-NANOBRAGG-OVERSAMPLE-001 — nanobrag_torch Oversample Parameter Investigation (Phase F planning)  
+**State**: ready_for_implementation  
+**Dwell**: 1 (second consecutive planning loop; next turn must deliver implementation)  
+**Action Type**: planning  
+**Initiative Type**: diagnostics
+
+**Key Observations**:
+1. Phase E HKL instrumentation proved that Stage A hits 0/9,437,184 HKL queries, so we scoped Phase F to compare Stage A warm-cache vs `simulate_forward_once` HKL stats.
+2. Updated the implementation plan with Phase F tasks (simulate_forward_once debug plumbing, new `compare_hkl_stats.py`, findings update) and recorded the planning entry in docs/fix_plan.md.
+3. Authored a new Do Now directing Ralph to add the debug_config hook, implement/run the comparison script, and capture the resulting evidence in docs/findings.md.
+
+**Artifacts Path**: `plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-09T103000Z/`
+
+**Next Actions**:
+- ready_for_implementation — Implement the simulate_forward_once debug plumbing, create/run `compare_hkl_stats.py`, and update findings based on whether Stage A alone or both paths miss the HKL grid.
+
+---
+
 ## Loop 2025-12-05T183000Z
 
 **Focus**: PORTFOLIO-STATUS — Plan/Fix-Plan synchronization & archive hygiene (Phase B3 roll-up coverage)

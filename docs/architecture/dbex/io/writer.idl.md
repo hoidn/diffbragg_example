@@ -141,7 +141,7 @@ def score_roi_payloads(
 
 **Telemetry**:
 - Per-ROI logging via print() or custom log_fn: `"roi=%d : score= %.1f" % (i, score_pct)`
-- No file artifacts emitted; caller may log to `plans/active/ARCH-BRIDGE-RESP-001/reports/.../` if needed
+- No file artifacts emitted; caller may log to `archive/plans/ARCH-BRIDGE-RESP-001/reports/.../` if needed
 
 **Data Dependencies** (see docs/data_dependency_manifest.md):
 - External: Target/background/bragg arrays from DataLoad + RefinementEngine final forward model

@@ -22,9 +22,9 @@
 - [ARCH-SIM-CONSTRUCTION-001] (Simulator Construction Convention Alignment) — **stuck — blocked_environment_dependency** (4 loops, same failure; nanobrag_torch oversample parameter not honored; blocked pending DIAG-NANOBRAGG-OVERSAMPLE-001)
 - [ARCH-REFACTOR-001] (Refinement Engine Modularization & Physics Separation) — *blocked_pending_architecture* (Phase D.3 blocked by ARCH-SIM-CONSTRUCTION-001; Phases A-C complete)
 - [ARCH-TELEMETRY-001] (Telemetry Observer Refactor) — **archived** (2025-12-04T235959Z: all phases complete, exit criteria satisfied)
-- [ARCH-BRIDGE-RESP-001] (Writer / bridge responsibility split) — **done** (2025-12-03T093500Z: Phase D completion logged, ready for archive.)
+- [ARCH-BRIDGE-RESP-001] (Writer / bridge responsibility split) — **archived** (2025-12-03T140000Z: all phases complete, moved to archive/plans/)
 - [ARCH-LAZY-IMPORTS-001] (Lazy imports / process-noise hygiene) — **archived** (2025-12-05T024500Z: all phases complete, exit criteria satisfied; see `archive/plans/ARCH-LAZY-IMPORTS-001/reports/2025-12-05T024500Z/initiative_closure_summary.md`)
-- [PORTFOLIO-STATUS] (Plan/Fix-Plan synchronization & archive hygiene) — **in_progress (Phase F — Active plan tree hygiene)**. Phases A–E satisfied all guardrails: inventory automation with roll-up-aware tracking, classification/archival of stale plans, comprehensive ledger coverage (Tier 0-4 initiatives + 13 roll-up sections), and Plan Directory Inventory appendix maintenance. Final Phase E inventory (`plans/active/PORTFOLIO-STATUS/reports/2025-12-07T220000Z/`) showed 100% ledger coverage: 55 total plans, 28 tracked directly, 34 via rollups, 0 active_missing, 0 missing_plan. **Phase F trigger (2025-12-03 problems.md entry):** stale plan directories (`plans/active/ARCH-LAZY-IMPORTS-001`, `plans/active/ARCH-TELEMETRY-001`, etc.) still reside under `plans/active/` even though their initiatives are archived; Phase F moves these to `archive/plans/<ID>/`, updates ledger references, reruns `plan_inventory.py`, and refreshes the Plan Directory Inventory appendix. Latest artifacts (Phase F kickoff + guard rerun): `plans/active/PORTFOLIO-STATUS/reports/2025-12-03T114311Z/`.
+- [PORTFOLIO-STATUS] (Plan/Fix-Plan synchronization & archive hygiene) — **in_progress (Phase F — Active plan tree hygiene)**. Phases A–E satisfied all guardrails: inventory automation with roll-up-aware tracking, classification/archival of stale plans, comprehensive ledger coverage (Tier 0-4 initiatives + 13 roll-up sections), and Plan Directory Inventory appendix maintenance. Final Phase E inventory (`plans/active/PORTFOLIO-STATUS/reports/2025-12-07T220000Z/`) showed 100% ledger coverage: 55 total plans, 28 tracked directly, 34 via rollups, 0 active_missing, 0 missing_plan. **Phase F trigger (2025-12-03 problems.md entry):** stale plan directories still reside under `plans/active/` even though their initiatives are archived; Phase F moves these to `archive/plans/<ID>/`, updates ledger references, reruns `plan_inventory.py`, and refreshes the Plan Directory Inventory appendix. Phase F progress: ARCH-LAZY-IMPORTS-001 + ARCH-TELEMETRY-001 archived (2025-12-03T131500Z), ARCH-BRIDGE-RESP-001 archived this loop. Latest artifacts: `plans/active/PORTFOLIO-STATUS/reports/2025-12-03T140000Z/` (52 total plans, 25 tracked, 34 via rollups, 0 gaps).
 
 ### Tier 1: Core Physics & Stability
 **Goal:** Ensure the math is correct, the loss function is normative, Stage A/mapping parity holds (DB‑AT‑027/028/029), and the smoke tests are green.
@@ -533,7 +533,7 @@
 
 ### [ARCH-BRIDGE-RESP-001] — **archived** (2025-12-03T093500Z, see docs/fix_plan_archive_2025-12-02.md)
 - Writer / bridge responsibility split complete
-- Full history: docs/fix_plan_archive_2025-12-02.md, plans/active/ARCH-BRIDGE-RESP-001/reports/
+- Full history: docs/fix_plan_archive_2025-12-02.md, archive/plans/ARCH-BRIDGE-RESP-001/reports/
 
 
 ### [ARCH-LAZY-IMPORTS-001] Lazy imports / process-noise hygiene
@@ -589,6 +589,7 @@ Detailed engineering logs now live in `docs/fix_plan_archive.md` (append-only sn
   * 2025-12-08T150000Z (Initiative closure — ledger status update) — Marked PORTFOLIO-STATUS as `done` in Tier 0 entry (line 27) with final summary citing Phases A–E completion and 2025-12-07T220000Z final inventory (55 total, 28 tracked, 34 via rollups, 0 gaps). Updated `plans/active/PORTFOLIO-STATUS/implementation.md` Status field to `done` and added Phase E closure paragraph documenting Exit Criteria satisfaction. Plan Directory Inventory appendix confirmed current with 2025-12-07T220000Z artifact pointers and accurate bucket counts. Mode: Docs (housekeeping). Metrics: 2 files modified (docs/fix_plan.md Tier 0 entry + Attempts History, implementation.md Status/closure notes), 1 file created (summary.md). Artifacts: `plans/active/PORTFOLIO-STATUS/reports/2025-12-08T150000Z/`. Next: Initiative complete; future inventory reruns follow Working Agreements guard command.
   * 2025-12-03T114311Z (Phase F kickoff — Plan tree hygiene) — Problems ledger entry flagged stale plan directories under `plans/active/` for initiatives already marked **archived/done** (e.g., ARCH-LAZY-IMPORTS-001, ARCH-TELEMETRY-001). Reopened PORTFOLIO-STATUS to launch Phase F: audited `plans/active/`, confirmed candidate directories + artifact coverage, ran the plan-inventory guard (`plan_inventory.py --rollup-config ... --out-dir plans/active/PORTFOLIO-STATUS/reports/2025-12-03T114311Z/`), and updated the implementation plan with new F1–F4 tasks (archival moves, ledger reference updates, appendix refresh, problems-ledger closure). Artifacts: `plans/active/PORTFOLIO-STATUS/reports/2025-12-03T114311Z/{inventory.json,inventory_missing.md,rollup_report.md,summary.md}`. Next: Execute archival moves (starting with ARCH-LAZY-IMPORTS-001 + ARCH-TELEMETRY-001) and refresh Working Plan paths + Plan Directory Inventory appendix.
   * 2025-12-03T131500Z (Phase F implementation — ARCH-LAZY-IMPORTS-001 & ARCH-TELEMETRY-001 archive migration) — Executed planned archival moves for the first two completed initiatives. Changes: (1) Created `archive/plans/` directory and moved `plans/active/ARCH-LAZY-IMPORTS-001` and `plans/active/ARCH-TELEMETRY-001` using `git mv` to preserve history; (2) Updated all references in `docs/fix_plan.md` (Tier 0 bullets, Working Plan paths, and 26+ artifact citations in Attempts History sections) from `plans/active/` to `archive/plans/` for both initiatives using bulk sed replacement; (3) Updated `problems.md` archive references; (4) Reran `plan_inventory.py --rollup-config` guard showing new counts: Total plans=53 (down from 55), Tracked=26, Covered via rollups=34, Active missing=0, Missing plan=0; (5) Ran `pytest -vv plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py` (25/25 PASSED); (6) Updated Plan Directory Inventory appendix with new timestamp (2025-12-03T131500Z), artifact path, and bucket counts reflecting the two archived initiatives. Mode: Docs (housekeeping). Metrics: 2 directories moved, 3 files updated (docs/fix_plan.md, problems.md, Plan Directory Inventory appendix), 53 path references corrected, 4 inventory artifacts generated. Artifacts: `plans/active/PORTFOLIO-STATUS/reports/2025-12-03T131500Z/` (inventory.json, inventory_missing.md, rollup_report.md, plan_inventory.log, pytest_plan_inventory.log). Next: Phase F continuation — identify and migrate remaining archived initiative directories (e.g., ARCH-BRIDGE-RESP-001, ARCH-REFINE-001) once ready for relocation.
+  * 2025-12-03T140000Z (Phase F implementation — ARCH-BRIDGE-RESP-001 archive migration + ledger path updates) — Moved `plans/active/ARCH-BRIDGE-RESP-001` to `archive/plans/ARCH-BRIDGE-RESP-001` via `git mv`. Confirmed ARCH-TELEMETRY-001 stub does not exist in plans/active/ (already archived). Updated all references: (1) Tier 0 entry (line 25) status changed from "done" to "archived" with new timestamp; (2) ARCH-BRIDGE-RESP-001 section (line 536) Working Plan path updated to archive location; (3) Plan Directory Inventory appendix updated with 2025-12-03T140000Z timestamp and new counts (52 total plans down from 53, 25 tracked down from 26, 34 via rollups, 0 gaps); (4) Bucket Classification section updated with new inventory.json reference; (5) 19 path references updated in `docs/fix_plan_archive_2025-12-02.md` via bulk sed; (6) Updated `docs/data_dependency_manifest.md:173`, `docs/architecture/dbex/io/writer.idl.md:144`, `docs/TESTING_GUIDE.md:139/163`, `docs/development/TEST_SUITE_INDEX.md:13/23`; (7) Updated `problems.md` Writer/bridge entry with archived timestamp and archive path, added Phase F progress note; (8) Updated `plans/active/PORTFOLIO-STATUS/implementation.md` Phase F section with F1-F3 completion status. Reran `plan_inventory.py --rollup-config` guard confirming new counts: Total=52, In fix_plan=25, Covered via rollups=34, Active missing=0. Ran `pytest -vv plans/active/PORTFOLIO-STATUS/tests/test_plan_inventory.py` (25/25 PASSED, 0.04s). Mode: Docs (housekeeping). Metrics: 1 directory moved (git mv), 9 files updated (fix_plan.md, fix_plan_archive, 4 docs files, problems.md, PORTFOLIO-STATUS implementation.md, TESTING_GUIDE.md, TEST_SUITE_INDEX.md), 19+ path references corrected. Artifacts: `plans/active/PORTFOLIO-STATUS/reports/2025-12-03T140000Z/` (plan_inventory.log, inventory.json, inventory_missing.md, rollup_report.md, pytest_plan_inventory.log). Next: Phase F continuation — identify next archived initiative for relocation (e.g., ARCH-REFINE-001 once ready).
 
 ### [PERF-WARM-SIM-001] Attempts History
   * 2025-12-02T173000Z — Phase F.1 debug hook implemented in `_retarget_stage_a_detectors`; small-detector (panel-mode) smoketest PASSED with 18 retarget calls capturing panel updates only, full-detector (ROI-mode) smoketest FAILED (expected) but produced 17 retarget calls with ~92 ROI entries per call showing simulator ID changes. Debug artifacts captured under `DBEX_STAGE_C_CACHE_DEBUG_PATH` for offline analysis. Next: Supervisor analyzes cache-debug JSONs to identify ROI simulator staleness root cause. Artifacts: `plans/active/PERF-WARM-SIM-001/reports/2025-12-02T173000Z/`.
@@ -654,15 +655,15 @@ Detailed engineering logs now live in `docs/fix_plan_archive.md` (append-only sn
 
 ## Plan Directory Inventory
 
-**Latest Report:** 2025-12-03T131500Z (Phase F — ARCH-LAZY-IMPORTS-001 and ARCH-TELEMETRY-001 archive migration)
-**Artifacts:** `plans/active/PORTFOLIO-STATUS/reports/2025-12-03T131500Z/`
+**Latest Report:** 2025-12-03T140000Z (Phase F — ARCH-BRIDGE-RESP-001 archive migration + ledger path updates)
+**Artifacts:** `plans/active/PORTFOLIO-STATUS/reports/2025-12-03T140000Z/`
 **Script:** `plans/active/PORTFOLIO-STATUS/bin/plan_inventory.py`
 **Roll-up Config:** `plans/active/PORTFOLIO-STATUS/rollups.json`
 
-### Summary (Latest Report: 2025-12-03T131500Z)
-- **Total plan directories:** 53 (down from 55 after ARCH-LAZY-IMPORTS-001 and ARCH-TELEMETRY-001 archive migration)
-- **Tracked in this ledger (direct):** 26 (≈49%) — Two archived initiatives moved to archive/plans/
-- **Covered via roll-ups:** 34 (≈64%) — Plans listed in roll-up member directories counted as tracked
+### Summary (Latest Report: 2025-12-03T140000Z)
+- **Total plan directories:** 52 (down from 53 after ARCH-BRIDGE-RESP-001 archive migration)
+- **Tracked in this ledger (direct):** 25 (≈48%) — One more archived initiative moved to archive/plans/
+- **Covered via roll-ups:** 34 (≈65%) — Plans listed in roll-up member directories counted as tracked
 - **Active missing:** 0 — All active plans have ledger or roll-up coverage
 - **Missing implementation.md:** 0 — No missing plans
 - **Roll-ups configured:** 13 (DB-AT-SUITE-CARE-001, MAP-SCALE-SYNC-001, PHYSICS-LOSS-001, TORCH-GEOMETRY-SYNC-001, TORCH-REFINE-CLEANUP-001, TORCH-CLI-BRIDGE-ROLLUP-001, FORWARD-EQUIV-COVERAGE-001, TOOLING-VIS-001, DOCS-ROADMAP-001, RUNTIME-VEC-001, REPORT-NANOBRAG-STATUS-001, NANOBRAG-GOLDEN-001, ARCH-SPLIT-001)
@@ -693,15 +694,15 @@ Detailed engineering logs now live in `docs/fix_plan_archive.md` (append-only sn
 
 ### Bucket Classification
 
-Per `plans/active/PORTFOLIO-STATUS/reports/2025-12-07T220000Z/inventory.json`, updated after Phase E Tier 4 coverage + cleanup:
+Per `plans/active/PORTFOLIO-STATUS/reports/2025-12-03T140000Z/inventory.json`, updated after Phase F ARCH-BRIDGE-RESP-001 archive migration:
 
-**tracked (28 plans):** Plans with direct ledger entries in docs/fix_plan.md (including 5 new Tier 4 initiatives)
+**tracked (25 plans):** Plans with direct ledger entries in docs/fix_plan.md (down 1 after ARCH-BRIDGE-RESP-001 archived)
 
 **tracked_via_rollup (34 plans):** Plans covered by roll-up sections in docs/fix_plan.md (member directories of the 13 roll-ups). These count as tracked and are excluded from inventory_missing.md.
 
 **active_missing (0 plans):** All active plans now have ledger or roll-up coverage.
 
-**missing_plan (0 plans):** ARCH-REFRACTOR-001 stub removed.
+**missing_plan (0 plans):** No missing plans.
 
 ### Automation Guard (Updated Phase B3)
 

@@ -1,14 +1,5 @@
 [
   {
-    "id": "ARCH-BRIDGE-RESP-001",
-    "in_fix_plan": true,
-    "has_implementation": true,
-    "last_report": "2025-12-03T093500Z",
-    "status_hint": null,
-    "bucket": "tracked",
-    "rollup_coverage": []
-  },
-  {
     "id": "ARCH-ENGINE-ARTIFACTS-001",
     "in_fix_plan": true,
     "has_implementation": true,

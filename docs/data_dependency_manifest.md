@@ -170,7 +170,7 @@ This manifest records the external data inputs (datasets, calibration payloads, 
     - `variance`: np.ndarray = max(model + sigma_readout^2, sigma_floor^2) per spec-db-core.md §§86-90 (shape: ny, nx).
 - **Artifacts/Telemetry:**
   - Per-ROI logging via print() or custom log_fn: `"roi=%d : score= %.1f" % (i, score_pct)`.
-  - No file artifacts emitted directly; caller (e.g., CLI, tests) may log outputs to `plans/active/ARCH-BRIDGE-RESP-001/reports/.../` as needed.
+  - No file artifacts emitted directly; caller (e.g., CLI, tests) may log outputs to `archive/plans/ARCH-BRIDGE-RESP-001/reports/.../` as needed.
   - Telemetry fields for downstream writer/diagnostics (populated by caller, not this helper):
     - `roi_scoring_method`: "nelder_mead" (Phase B when this helper is used).
     - `roi_checker`: "score_trainer.roi_check.roiCheck" (legacy parity).

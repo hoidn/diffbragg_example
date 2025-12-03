@@ -1773,3 +1773,25 @@ Action State: ready_for_implementation
 - Ready_for_implementation — Execute Phase A: audit `docs/findings.md`, produce JSON inventory + audit summary, and fix missing `path:line` citations/statuses per the new plan.
 
 **Action State**: ready_for_implementation
+
+---
+
+## Loop 2025-12-03T115008Z
+
+**Focus**: PORTFOLIO-STATUS — Plan/Fix-Plan synchronization & archive hygiene (Phase F kickoff)  
+**State**: planning  
+**Dwell**: 0  
+**Action Type**: planning  
+**Initiative Type**: housekeeping
+
+**Key Observations**:
+1. Problems ledger entry about stale `plans/active/` directories forced us to reopen PORTFOLIO-STATUS; added Phase F to the implementation plan (`plans/active/PORTFOLIO-STATUS/implementation.md:95-112`) and updated the Tier 0 ledger entry (docs/fix_plan.md:27) to capture the new scope plus artifact path `plans/active/PORTFOLIO-STATUS/reports/2025-12-03T114311Z/`.
+2. Reserved `plans/active/PORTFOLIO-STATUS/reports/2025-12-03T114311Z/` for supervisor artifacts and ran the guard command to document current counts before any moves; this directory now holds the timestamped plan_inventory outputs for Ralph to diff against after his run.
+3. Authored input.md directing Ralph to `git mv` ARCH-LAZY-IMPORTS-001 + ARCH-TELEMETRY-001 into `archive/plans/`, update all living ledger references (docs/fix_plan.md, docs/fix_plan_archive.md, problems.md, plan implementation Phase F notes), rerun plan_inventory into `reports/2025-12-03T131500Z/`, and refresh the Plan Directory Inventory appendix + Attempts History with the new counts.
+
+**Artifacts Path**: `plans/active/PORTFOLIO-STATUS/reports/2025-12-03T114311Z/`
+
+**Next Actions**:
+- ready_for_implementation — Execute the Phase F Do Now: move ARCH-LAZY-IMPORTS-001 & ARCH-TELEMETRY-001 under archive/plans, update fix_plan/problems.md references, rerun plan_inventory into `.../2025-12-03T131500Z/`, and refresh the appendix/Attempts History to close the problems.md hygiene item.
+
+**Action State**: ready_for_implementation

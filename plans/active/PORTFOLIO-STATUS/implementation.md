@@ -1,6 +1,6 @@
 # Implementation Plan — PORTFOLIO-STATUS: Plan/Fix-Plan Synchronization
 
-**Status:** done  
+**Status:** in_progress (Phase F — Active tree hygiene)  
 **Owner:** Galph ↔ Ralph  
 **Initiative Type:** housekeeping (docs/process)  
 **Artifacts Root:** `plans/active/PORTFOLIO-STATUS/reports/`
@@ -91,6 +91,17 @@ All Exit Criteria satisfied as documented in Phase E completion:
 **Future Maintenance:** Inventory reruns follow `docs/fix_plan.md` Working Agreements guardrail (lines 9-11): `python plans/active/PORTFOLIO-STATUS/bin/plan_inventory.py --plans-root plans/active --fix-plan docs/fix_plan.md --rollup-config plans/active/PORTFOLIO-STATUS/rollups.json --out-dir plans/active/PORTFOLIO-STATUS/reports/<NEW_TIMESTAMP>/`. Do not skip `--rollup-config`; missing rollup_report.md or roll-up validation failures invalidate the guard.
 
 Artifacts: `plans/active/PORTFOLIO-STATUS/reports/2025-12-08T150000Z/summary.md`.
+
+### Phase F — Active plan tree hygiene (NEW 2025-12-03T114311Z)
+
+**Trigger:** Problems ledger entry (2025-12-03) flagged stale plan directories lingering under `plans/active/` despite their initiatives being marked **done/archived** in the ledger. These directories still count toward inventory totals and keep Working Plan pointers under `plans/active/...`, which is misleading once the initiatives have closed.
+
+- **F1** Audit `plans/active/` for initiatives whose fix-plan status is `done` or `archived` and whose plan directories no longer need to live under `plans/active`. Confirm artifacts already recorded in `docs/fix_plan.md` / `docs/fix_plan_archive.md` so a move will not strand evidence.
+- **F2** Move the audited directories to `archive/plans/<ID>/` via `git mv` (preserves history), then update all ledger references (Working Plan paths, Attempts History bullet points, Tier 0 summary) to the new `archive/plans/...` location. Initial scope: `ARCH-LAZY-IMPORTS-001` and `ARCH-TELEMETRY-001`, both marked archived in Tier 0 as of 2025-12-05.
+- **F3** Rerun `plan_inventory.py` with the guard flags, capture artifacts under a fresh `reports/<ISO8601Z>/` directory, and refresh the Plan Directory Inventory appendix counts (Total plans, Tracked direct, Covered via rollups, Active missing, Missing implementation.md). Update Attempts History with the new timestamp and artifact path.
+- **F4** Close the problems-ledger entry once at least the first batch of stale plan directories has been archived and `plan_inventory.py` reports `Active missing = 0`. Document the action in `docs/fix_plan.md` Attempts History and `galph_memory.md`.
+
+Artifacts: `plans/active/PORTFOLIO-STATUS/reports/2025-12-03T114311Z/` (this loop’s guard rerun and plan-hygiene notes pending next implementation handoff).
 
 ## Abort / Escalation Criteria
 - If more than 5 plan directories lack implementation plans or contain partial data, pause after Phase A and escalate via `docs/fix_plan.md` (open a spec-change or tooling initiative to repair the planning pipeline).  

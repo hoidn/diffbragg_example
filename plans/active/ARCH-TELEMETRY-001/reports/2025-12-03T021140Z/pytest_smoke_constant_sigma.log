@@ -1,0 +1,64 @@
+============================= test session starts ==============================
+platform linux -- Python 3.9.23, pytest-8.4.2, pluggy-1.6.0 -- /home/ollie/miniconda3/envs/simtbx/bin/python3.9
+cachedir: .pytest_cache
+rootdir: /home/ollie/Documents/diffbragg_example_2/diffbragg_example
+configfile: pyproject.toml
+plugins: cov-7.0.0
+collecting ... collected 2 items
+
+tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers ERROR [ 50%]
+tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip ERROR [100%]
+
+==================================== ERRORS ====================================
+________________ ERROR at setup of test_stage_b_shell_modifiers ________________
+
+pytestconfig = <_pytest.config.Config object at 0x7319af960c10>
+
+    @pytest.fixture(scope="session")
+    def smoke_sigma_source(pytestconfig) -> str:
+>       return _resolve_smoke_sigma_source(pytestconfig)
+
+tests/conftest.py:71: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+pytestconfig = <_pytest.config.Config object at 0x7319af960c10>
+
+    def _resolve_smoke_sigma_source(pytestconfig) -> str:
+        cli_value = pytestconfig.getoption("--smoke-sigma-source")
+        env_value = os.environ.get("DBEX_SMOKE_SIGMA_SOURCE")
+        source = (cli_value or env_value or "cli_override").lower()
+        if source not in {"cli_override", "metadata"}:
+>           raise pytest.UsageError(
+                f"Invalid smoke-sigma-source '{source}'. Expected 'cli_override' or 'metadata'."
+            )
+E           _pytest.config.exceptions.UsageError: Invalid smoke-sigma-source 'constant'. Expected 'cli_override' or 'metadata'.
+
+tests/conftest.py:58: UsageError
+______________ ERROR at setup of test_stage_c_detector_microslip _______________
+
+pytestconfig = <_pytest.config.Config object at 0x7319af960c10>
+
+    @pytest.fixture(scope="session")
+    def smoke_sigma_source(pytestconfig) -> str:
+>       return _resolve_smoke_sigma_source(pytestconfig)
+
+tests/conftest.py:71: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+pytestconfig = <_pytest.config.Config object at 0x7319af960c10>
+
+    def _resolve_smoke_sigma_source(pytestconfig) -> str:
+        cli_value = pytestconfig.getoption("--smoke-sigma-source")
+        env_value = os.environ.get("DBEX_SMOKE_SIGMA_SOURCE")
+        source = (cli_value or env_value or "cli_override").lower()
+        if source not in {"cli_override", "metadata"}:
+>           raise pytest.UsageError(
+                f"Invalid smoke-sigma-source '{source}'. Expected 'cli_override' or 'metadata'."
+            )
+E           _pytest.config.exceptions.UsageError: Invalid smoke-sigma-source 'constant'. Expected 'cli_override' or 'metadata'.
+
+tests/conftest.py:58: UsageError
+=========================== short test summary info ============================
+ERROR tests/dbex/test_torch_refine_smoke.py::test_stage_b_shell_modifiers - _pytest.config.exceptions.UsageError: Invalid smoke-sigma-source 'constant'. Expected 'cli_override' or 'metadata'.
+ERROR tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip - _pytest.config.exceptions.UsageError: Invalid smoke-sigma-source 'constant'. Expected 'cli_override' or 'metadata'.
+============================== 2 errors in 0.79s ===============================

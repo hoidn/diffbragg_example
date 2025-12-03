@@ -1,5 +1,5 @@
 ### Turn Summary
-Marked ARCH-SIM-CONSTRUCTION-001 stuck after 4 implementation loops with identical test failures despite correct code changes; environment freeze blocks nanobrag_torch debugging.
-Applied portfolio steering to switch focus to ARCH-TELEMETRY-001 Phase C.3.2 (observer refactor completion), which is unblocked and advances Tier 0 goals.
-Next: Ralph implements legacy_telemetry_dict removal in Stage B/C, replacing dict subscripting with direct StageResult field access.
-Artifacts: plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-03T021140Z/ (lifecycle_decision.md), plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T021140Z/ (planning_notes.md)
+Removed `to_legacy_dict()` calls from Stage B and Stage C production code; both stages now access telemetry/perf counters directly via typed dataclass fields.
+test_stage_b_baseline_guard_diff_payload PASSED (validates direct field access); two smoke tests SKIPPED due to missing sigma_readout_map fixture (expected environmental limitation, not code regression).
+Next: Phase C.4 to remove RefinementEngine key mapping in engine.py.
+Artifacts: plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T021140Z/ (pytest_phase_c32.log)

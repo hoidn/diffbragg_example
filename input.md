@@ -1,7 +1,7 @@
-# Input — ARCH-SIM-CONSTRUCTION-001 Phase C.1 Implementation
+# Input — ARCH-SIM-CONSTRUCTION-001 Phase C.1 Corrective Fix
 
 ## Summary
-Apply `sqrt(spot_scale_override)` post-run scaling and beam calibration threading to reconstruction helpers, matching Stage A conventions.
+Apply missing `sqrt_spot_scale` multiplication to simulator output in reconstruction helper.
 
 ## Mode
 Parity
@@ -20,7 +20,7 @@ integration
 - tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity
 
 ## Artifacts
-plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-02T235959Z/
+plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T010500Z/
 
 ---
 
@@ -28,191 +28,113 @@ plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-02T235959Z/
 
 ### Context
 
-Ralph's Phase A.1 evidence collection (commit 9d3ca6b4, artifacts at plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-02T233717Z/) confirmed root cause: reconstruction helper `build_final_bragg_from_stage_a_telemetry()` (dbex/refinement/reconstruction.py:140-223) omits the explicit `sqrt(spot_scale_override)` post-run multiplication that Stage A applies to every simulator output (stage_a.py:442-443). This produces simulator raw outputs ~23,900× too small (≈(spot_scale)^(1/4)), causing DB-AT-028/029 failures (chi²/pixel initial ~1e5 vs ≤100 spec, ROI correlation before -0.05 vs ≥0.2 floor) even when `log_scale_baseline` extraction logic is correct (commit 6db57f45).
+Your Phase C.1 implementation (commit a00d42c7) correctly extracted `sqrt_spot_scale` from `spot_scale_override` at reconstruction.py:152 and threaded beam calibration metadata (beam_flux, exposure, beamsize_mm) to the factory, but you **forgot to apply the sqrt_spot_scale multiplication** to the simulator output.
 
-**Strategy:** Implement Option B (Stage A post-run scaling pattern) + Option C (beam calibration threading) per Ralph's recommendation.
+**Evidence:**
+- Test metrics show `bragg_after_mean = 5711.08` (expected ~0.24)
+- Missing factor ~23,800 ≈ sqrt(spot_scale_override) = sqrt(3.105e17) ≈ 5.57e8
+- DB-AT-028: chi²/pixel initial still 1.084e+05 (vs ≤1e2 spec)
+- DB-AT-029: ROI correlation before still -0.050 (vs ≥0.2 floor)
+
+**Stage A Reference Pattern (stage_a.py:442-443):**
+```python
+sqrt_spot_scale = float(np.sqrt(spot_scale_override)) if spot_scale_override > 0 else 1.0
+bragg_stack_scaled = bragg_stack * sqrt_spot_scale  # Explicit post-run multiplication
+```
 
 ### Implement
 
 **File:** `dbex/refinement/reconstruction.py`
 
-**1. Beam Calibration Threading (Option C — lines ~167-170):**
+**1. Apply sqrt_spot_scale multiplication (line 239):**
 
-Before the current `beam_config` creation (line 170), extract beam calibration from `config.calibration_metadata`:
-
+Change:
 ```python
-# Extract beam calibration for architectural consistency with Stage A (stage_a_utils.py:267)
-beam_flux = None
-beam_exposure = None
-beamsize_mm = None
-if config.calibration_metadata is not None:
-    beam_flux = config.calibration_metadata.get('beam_flux')
-    beam_exposure = config.calibration_metadata.get('beam_exposure')
-    beamsize_mm = config.calibration_metadata.get('beamsize_mm')
-
-beam_config = create_beam_config(beam, flux=beam_flux, exposure=beam_exposure, beamsize_mm=beamsize_mm)
+bragg_scaled = bragg_panel * scale_factor
 ```
 
-**2. Post-Run Scaling (Option B — lines ~167 and ~220-223):**
-
-Before the simulator loop (around line 167), extract `spot_scale_override` and compute `sqrt_spot_scale`:
-
+To:
 ```python
-# Extract spot_scale_override for post-run scaling (matches stage_a.py:442-443, SCALE-009)
-spot_scale_override = None
-if config.calibration_metadata is not None:
-    spot_scale_override = config.calibration_metadata.get('spot_scale_override')
-
-sqrt_spot_scale = float(np.sqrt(spot_scale_override)) if spot_scale_override and spot_scale_override > 0 else 1.0
+bragg_scaled = bragg_panel * scale_factor * sqrt_spot_scale
 ```
 
-Inside the simulator loop (lines ~220-223), apply `sqrt_spot_scale` to raw output before `scale_factor` multiplication:
-
-```python
-for pid, sim in zip(sampled_panel_ids, simulators):
-    bragg_panel = sim.run()
-    bragg_panel_scaled = bragg_panel * sqrt_spot_scale  # ← NEW: consistent with Stage A pattern (SCALE-009)
-    bragg_scaled = bragg_panel_scaled * scale_factor
-    bragg_full[pid] = bragg_scaled.cpu().numpy().astype(np.float32)
-```
-
-**3. Import Required:**
-
-Add `import numpy as np` at the top of the file if not already present.
-
-**4. Validate:**
-
-Run DB-AT-028/029 with full detector + metadata sigma source:
-
-```bash
-AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md \
-DBEX_SMOKE_SIGMA_SOURCE=metadata \
-DBEX_SMOKE_DETECTOR_SIZE=full \
-KMP_DUPLICATE_LIB_OK=TRUE \
-NANOBRAGG_DISABLE_COMPILE=1 \
-pytest -vv \
-  tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity \
-  tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity \
-  --tb=short \
-  -o log_cli=true \
-  -o log_cli_level=INFO
-```
-
-Expected outcomes:
-- `bragg_after_mean ≈ O(1) ≈ 0.24` (matching bragg_before_mean, not ~1e-05)
-- `chi²/pixel initial ≤ 100` (currently ~1.08e5)
-- `median ROI correlation before ≥ 0.2` (currently -0.05)
-
-Capture pytest log to `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-02T235959Z/pytest_db_at_028_029.log`.
+**Rationale:** Stage A applies sqrt(spot_scale_override) as an **explicit post-run multiplication** separate from the exp(log_scale_baseline) scaling. The baseline is embedded in the learnable log_scale parameter's zero-point, while the sqrt multiplication is applied to the raw simulator output to match mapping conventions (SCALE-009, TOOLING-VIS-001 Phase D.E).
 
 ---
 
 ## How-To Map
 
-1. **Read reconstruction.py to confirm exact line numbers:**
-   ```bash
-   head -n 230 dbex/refinement/reconstruction.py | tail -n 100
-   ```
+### 1. Edit reconstruction.py
 
-2. **Edit beam_config creation (lines ~167-170):**
-   - Add beam calibration extraction before the existing `beam_config = create_beam_config(beam)` line
-   - Update the call to thread `flux`, `exposure`, `beamsize_mm`
+```bash
+# Line 239: Add sqrt_spot_scale multiplication
+# Old: bragg_scaled = bragg_panel * scale_factor
+# New: bragg_scaled = bragg_panel * scale_factor * sqrt_spot_scale
+```
 
-3. **Add spot_scale_override extraction before simulator loop (~line 167):**
-   - Extract `spot_scale_override` from `config.calibration_metadata`
-   - Compute `sqrt_spot_scale = sqrt(spot_scale_override)` with default `1.0` for uncalibrated case
+Use the Edit tool to update line 239.
 
-4. **Update simulator loop post-run scaling (lines ~220-223):**
-   - Replace `bragg_scaled = bragg_panel * scale_factor` pattern
-   - Add intermediate step: `bragg_panel_scaled = bragg_panel * sqrt_spot_scale`
-   - Then apply: `bragg_scaled = bragg_panel_scaled * scale_factor`
+### 2. Validate with DB-AT-028/029
 
-5. **Run tests with validation environment:**
-   - Use exact env vars and selectors listed above
-   - Capture pytest output to artifacts directory
+```bash
+AUTHORITATIVE_CMDS_DOC=./docs/TESTING_GUIDE.md
+DBEX_SMOKE_SIGMA_SOURCE=metadata
+DBEX_SMOKE_DETECTOR_SIZE=full
+KMP_DUPLICATE_LIB_OK=TRUE
+NANOBRAGG_DISABLE_COMPILE=1
 
-6. **Extract and save metrics:**
-   - Parse pytest output for `bragg_after_mean`, `chi2_per_pixel_initial`, `roi_cc_median_before`
-   - Save to `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-02T235959Z/metrics_comparison.json`
+pytest -xvs tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity \
+              tests/dbex/test_stage_a_smoke_parity.py::test_db_at_029_structure_parity \
+  > plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T010500Z/pytest_db_at_028_029_fixed.log 2>&1
+```
+
+### 3. Capture metrics
+
+After tests run (PASS or FAIL), extract metrics from the test fixture for comparison:
+
+```bash
+# Extract metrics from test outputs (if tests emit JSON or you can add a fixture.write_text() call)
+# Look for bragg_after_mean, chi2_per_pixel_initial, roi_cc_median_before
+# Expected after fix:
+#   bragg_after_mean ≈ 0.24 (not 5711)
+#   chi2_per_pixel_initial ≤ 100 (not 1e5)
+#   roi_cc_median_before ≥ 0.2 (not -0.05)
+```
+
+If tests emit metrics JSON (check test_stage_a_smoke_parity.py for fixture logic), copy them to the artifacts directory. Otherwise, note the test outcomes in summary.md.
 
 ---
 
-## Pitfalls to Avoid
+## Pitfalls To Avoid
 
-1. **Do not modify factory (`create_unified_simulator`) or Stage A/B/C training logic** — fix is isolated to reconstruction.py cold path only (Exit Criterion #4)
-
-2. **Preserve backward compatibility:**
-   - Handle `config.calibration_metadata is None` gracefully (uncalibrated runs default to `sqrt_spot_scale = 1.0`, beam params = None)
-   - Do not break legacy tests without calibration metadata
-
-3. **Match Stage A pattern exactly:**
-   - Use `sqrt_spot_scale = float(np.sqrt(spot_scale_override))` matching stage_a.py:442
-   - Apply it to **every** `sim.run()` output before `scale_factor` multiplication
-   - Extract beam params from same keys as stage_a_utils.py:267 (`beam_flux`, `beam_exposure`, `beamsize_mm`)
-
-4. **Do not confuse with warm path:**
-   - This fix targets reconstruction cold path only (lines ~177-223)
-   - Warm path (lines ~149-165) reuses Stage A simulators and should already have correct scaling via Stage A context
-   - Do not modify warm path logic
-
-5. **Device/dtype neutrality:**
-   - `sqrt_spot_scale` is a Python float (not tensor), safe for multiplication with GPU/CPU tensors
-   - No device movement required
-
-6. **Reference Finding SCALE-009:**
-   - Cross-reference docs/findings.md:42 in code comments if adding explanatory notes
+1. **Do not remove sqrt_spot_scale calculation (line 152)** — you correctly extracted it; just need to apply it.
+2. **Do not modify scale_factor logic (lines 227-236)** — the exp(log_scale_baseline + delta) calculation is correct; this is an **additional** multiplication.
+3. **Environment freeze** — do not install packages; treat missing imports as blockers.
+4. **Device/dtype neutrality** — sqrt_spot_scale is a Python float (scalar multiplication), no tensor device issues.
+5. **Warm vs cold path** — both paths converge at the same sim.run() loop (lines 237-240), so one fix covers both.
 
 ---
 
 ## If Blocked
 
-If tests still fail after implementation:
-
-1. **Capture debug metrics:**
-   - Add temporary logging to print `bragg_panel.mean()`, `sqrt_spot_scale`, `bragg_panel_scaled.mean()`, `bragg_scaled.mean()`
-   - Save to `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-02T235959Z/debug_metrics.txt`
-
-2. **Check calibration metadata presence:**
-   - Verify `config.calibration_metadata` is not None and contains `spot_scale_override` key
-   - If missing, the test fixture may need updating (out of scope for this Do Now; record in Attempts History)
-
-3. **Warm vs cold path confusion:**
-   - Verify test is hitting the cold path (no `stage_a_ctx` available)
-   - If warm path is active, the fix may not be exercised (record this in Attempts History)
-
-4. **Log the block in Attempts History:**
-   - Note exact failure signature (chi², correlation, bragg magnitudes)
-   - Include pytest log path and debug metrics
-   - Tag as blocked with reason
+If tests still FAIL after applying the multiplication:
+1. Capture the new metrics (bragg_after_mean, chi2, ROI corr) in `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T010500Z/debug_metrics_postfix.json`
+2. Note in Attempts History whether the magnitude improved (bragg_after should drop from 5711 to ~0.24)
+3. If magnitude is still wrong, check whether sqrt_spot_scale = 1.0 (calibration metadata missing or spot_scale_override = None)
 
 ---
 
 ## Findings Applied
 
-**SCALE-009 (Active):** Reconstruction helpers must apply `sqrt(spot_scale_override)` post-run to match Stage A pattern; omitting causes ~23,900× magnitude discrepancy and DB-AT-028/029 failures. This Do Now implements the fix described in SCALE-009.
-
-**SCALE-002, SCALE-004 (Active):** Post-simulation `sqrt(spot_scale_override)` application pattern; reconstruction must follow same convention as Stage A for architectural consistency.
-
-**GEOMETRY-001 (Active):** Bridge must derive beam center and detector vectors exactly per dxtbx mapping; this fix does not touch detector config construction so GEOMETRY-001 remains orthogonal.
-
-**No relevant findings in PHYSICS-LOSS or GRADIENT categories** for this reconstruction cold path fix.
+- **SCALE-009** (docs/findings.md:42): Reconstruction helpers must apply `sqrt(spot_scale_override)` as explicit post-run scaling, matching Stage A convention (stage_a.py:442-443). The baseline value `log(sqrt(spot_scale_override))` is used for the learnable delta parameter's zero-point, not as a substitute for the physical multiplication.
 
 ---
 
 ## Pointers
 
-- **Spec:** docs/spec-db-core.md §§20-40 (calibration threading contracts)
+- **Spec:** docs/spec-db-core.md §§20-40 (calibration threading)
 - **Spec:** docs/architecture/calibration_scaling.md (spot_scale application timing)
-- **Ralph's evidence:** plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-02T233717Z/summary.md
-- **Stage A reference pattern:** dbex/refinement/stage_a.py:442-443 (post-run sqrt scaling)
-- **Stage A beam config pattern:** dbex/refinement/stage_a_utils.py:267 (beam calibration threading)
-- **Reconstruction target:** dbex/refinement/reconstruction.py:140-223 (`build_final_bragg_from_stage_a_telemetry` cold path)
-- **Tests:** tests/dbex/test_stage_a_smoke_parity.py::test_db_at_028_loss_scale_sanity (line ~60), test_db_at_029_structure_parity (line ~120)
-- **Plan:** plans/active/ARCH-SIM-CONSTRUCTION-001/implementation.md (Phase C.1 checklist)
-- **Finding:** docs/findings.md:42 (SCALE-009)
-
----
-
-## Next Up
-
-(None — focus remains ARCH-SIM-CONSTRUCTION-001 Phase C.1 until DB-AT-028/029 pass)
+- **Stage A Reference:** dbex/refinement/stage_a.py:442-443 (sqrt_spot_scale multiplication)
+- **Factory Contract:** dbex/refinement/helpers.py::create_unified_simulator (spot_scale_override parameter usage)
+- **Fix Plan:** docs/fix_plan.md — Row [ARCH-SIM-CONSTRUCTION-001]
+- **Debug Analysis:** plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T010500Z/debug_analysis.md

@@ -864,3 +864,12 @@ Action State: ready_for_implementation
 - Updated input.md with complete implementation Do Now (beam_config threading, sqrt_spot_scale extraction/application, DB-AT-028/029 validation plan, pitfalls, findings applied)
 - Artifacts reserved at plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-02T235959Z/ for Phase C.1 implementation + validation
 Action State: ready_for_implementation
+
+2025-12-04T010500Z focus=ARCH-SIM-CONSTRUCTION-001 state=ready_for_implementation dwell=0 action=debug artifacts=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T010500Z/ next_action=Apply sqrt_spot_scale multiplication fix
+- Debugged Ralph's Phase C.1 implementation (commit a00d42c7): he correctly extracted sqrt_spot_scale at reconstruction.py:152 and threaded beam calibration metadata but forgot to apply the multiplication to simulator output
+- Confirmed via metrics: bragg_after_mean=5711.08 vs expected ~0.24, missing factor ~23,800 ≈ sqrt(spot_scale_override)
+- Root cause: line 239 applies only scale_factor (exp of log_scale), missing the additional `* sqrt_spot_scale` that Stage A performs (stage_a.py:443)
+- Issued corrective Do Now: single-line fix (add `* sqrt_spot_scale` to reconstruction.py:239 scaling expression)
+- Expected outcome: bragg_after_mean drops to ~0.24, DB-AT-028/029 PASS
+- Artifacts: debug_analysis.md, corrective input.md, summary.md at plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-04T010500Z/
+Action State: ready_for_implementation

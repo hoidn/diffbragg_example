@@ -547,23 +547,24 @@ Detailed engineering logs now live in `docs/fix_plan_archive.md` (append-only sn
 
 ## Plan Directory Inventory
 
-**Latest Report:** 2025-12-05T210000Z (Phase B3 — Roll-up Automation)
-**Artifacts:** `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T210000Z/`
+**Latest Report:** 2025-12-03T120000Z (Phase B3 — Roll-up Validation)
+**Artifacts:** `plans/active/PORTFOLIO-STATUS/reports/2025-12-03T120000Z/`
 **Script:** `plans/active/PORTFOLIO-STATUS/bin/plan_inventory.py`
 **Roll-up Config:** `plans/active/PORTFOLIO-STATUS/rollups.json`
 
-### Summary (2025-12-05T210000Z)
+### Summary (2025-12-03T120000Z)
 - **Total plan directories:** 55
-- **Tracked in this ledger:** 21 (38%)
-- **Untracked (missing fix_plan.md coverage):** 34 (62%)
+- **Tracked in this ledger:** 22 (40%)
+- **Untracked (missing fix_plan.md coverage):** 33 (60%)
 - **Roll-ups configured:** 13 (DB-AT-SUITE-CARE-001, MAP-SCALE-SYNC-001, PHYSICS-LOSS-001, TORCH-GEOMETRY-SYNC-001, TORCH-REFINE-CLEANUP-001, TORCH-CLI-BRIDGE-ROLLUP-001, FORWARD-EQUIV-COVERAGE-001, TOOLING-VIS-001, DOCS-ROADMAP-001, RUNTIME-VEC-001, REPORT-NANOBRAG-STATUS-001, NANOBRAG-GOLDEN-001, ARCH-SPLIT-001)
 - **Bucket breakdown:** 34 active initiatives with roll-up coverage in Tier 1, 1 archive duplicate (ARCH-REFRACTOR-001), 5 directories missing `implementation.md`
+- **Roll-up Validation:** All 13 roll-up sections show "✓ Section exists" in rollup_report.md (100% coverage)
 
 ### Roll-up Coverage
 
 **Phase B3 Deliverable:** Added roll-up automation and ledger sections for 13 grouped initiatives per `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T183000Z/ledger_rollup_plan.md`. Each roll-up groups related plan directories and provides first-class ledger tracking.
 
-**Roll-up Report:** See `plans/active/PORTFOLIO-STATUS/reports/2025-12-05T210000Z/rollup_report.md` for member plan lists, last-report spans, and fix-plan coverage status for all 13 roll-ups.
+**Roll-up Report:** See `plans/active/PORTFOLIO-STATUS/reports/2025-12-03T120000Z/rollup_report.md` for member plan lists, last-report spans, and fix-plan coverage status for all 13 roll-ups.
 
 **Tier 1 Roll-up Sections:**
 - **[DB-AT-SUITE-CARE-001]** — Acceptance test suite maintenance (7 member plans: DB-AT-002/010/020/021/022/023/024)

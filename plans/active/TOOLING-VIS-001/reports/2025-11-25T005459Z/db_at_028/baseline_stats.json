@@ -1,0 +1,227 @@
+[
+  {
+    "timestamp": "2025-12-03T23:47:25.943854Z",
+    "param_state": "final",
+    "reconstructed_bragg": {
+      "mean_masked": 0.39029788970947266,
+      "mean_unmasked": 14.42717170715332
+    },
+    "target": {
+      "mean_masked": 87.11841583251953,
+      "mean_unmasked": 0.3439619839191437
+    },
+    "telemetry_values": {
+      "target_mean_masked": 87.11842346191406,
+      "model_mean_masked": 11.572992324829102
+    },
+    "ratios": {
+      "bragg_vs_telem_model": 0.03372488970480987,
+      "bragg_vs_target": 0.0044800847901068286
+    },
+    "chi_squared": {
+      "per_pixel": 1888489.4917874397,
+      "n_masked_pixels": 4140
+    },
+    "scale_factor_used": 5203844096.0
+  },
+  {
+    "timestamp": "2025-12-03T23:47:26.002572Z",
+    "param_state": "initial",
+    "reconstructed_bragg": {
+      "mean_masked": 1.2435964345932007,
+      "mean_unmasked": 18.749927520751953
+    },
+    "target": {
+      "mean_masked": 87.11841583251953,
+      "mean_unmasked": 0.3439619839191437
+    },
+    "telemetry_values": {
+      "target_mean_masked": 87.11842346191406,
+      "model_mean_masked": 11.572992324829102
+    },
+    "ratios": {
+      "bragg_vs_telem_model": 0.10745677519591415,
+      "bragg_vs_target": 0.014274782463720966
+    },
+    "chi_squared": {
+      "per_pixel": 1883886.9333333333,
+      "n_masked_pixels": 4140
+    },
+    "scale_factor_used": 5207816192.0
+  },
+  {
+    "timestamp": "2025-12-03T23:47:26.060714Z",
+    "param_state": "final",
+    "reconstructed_bragg": {
+      "mean_masked": 0.39029788970947266,
+      "mean_unmasked": 14.42717170715332
+    },
+    "target": {
+      "mean_masked": 87.11841583251953,
+      "mean_unmasked": 0.3439619839191437
+    },
+    "telemetry_values": {
+      "target_mean_masked": 87.11842346191406,
+      "model_mean_masked": 11.572992324829102
+    },
+    "ratios": {
+      "bragg_vs_telem_model": 0.03372488970480987,
+      "bragg_vs_target": 0.0044800847901068286
+    },
+    "chi_squared": {
+      "per_pixel": 1888489.4917874397,
+      "n_masked_pixels": 4140
+    },
+    "scale_factor_used": 5203844096.0
+  },
+  {
+    "timestamp": "2025-12-03T23:47:32.450857Z",
+    "param_state": "final",
+    "reconstructed_bragg": {
+      "mean_masked": 0.39029788970947266,
+      "mean_unmasked": 14.42717170715332
+    },
+    "target": {
+      "mean_masked": 87.11841583251953,
+      "mean_unmasked": 0.3439619839191437
+    },
+    "telemetry_values": {
+      "target_mean_masked": 87.11842346191406,
+      "model_mean_masked": 11.572992324829102
+    },
+    "ratios": {
+      "bragg_vs_telem_model": 0.03372488970480987,
+      "bragg_vs_target": 0.0044800847901068286
+    },
+    "chi_squared": {
+      "per_pixel": 1888489.4917874397,
+      "n_masked_pixels": 4140
+    },
+    "scale_factor_used": 5203844096.0
+  },
+  {
+    "timestamp": "2025-12-03T23:47:32.509054Z",
+    "param_state": "initial",
+    "reconstructed_bragg": {
+      "mean_masked": 1.2435964345932007,
+      "mean_unmasked": 18.749927520751953
+    },
+    "target": {
+      "mean_masked": 87.11841583251953,
+      "mean_unmasked": 0.3439619839191437
+    },
+    "telemetry_values": {
+      "target_mean_masked": 87.11842346191406,
+      "model_mean_masked": 11.572992324829102
+    },
+    "ratios": {
+      "bragg_vs_telem_model": 0.10745677519591415,
+      "bragg_vs_target": 0.014274782463720966
+    },
+    "chi_squared": {
+      "per_pixel": 1883886.9333333333,
+      "n_masked_pixels": 4140
+    },
+    "scale_factor_used": 5207816192.0
+  },
+  {
+    "timestamp": "2025-12-03T23:47:32.567697Z",
+    "param_state": "final",
+    "reconstructed_bragg": {
+      "mean_masked": 0.39029788970947266,
+      "mean_unmasked": 14.42717170715332
+    },
+    "target": {
+      "mean_masked": 87.11841583251953,
+      "mean_unmasked": 0.3439619839191437
+    },
+    "telemetry_values": {
+      "target_mean_masked": 87.11842346191406,
+      "model_mean_masked": 11.572992324829102
+    },
+    "ratios": {
+      "bragg_vs_telem_model": 0.03372488970480987,
+      "bragg_vs_target": 0.0044800847901068286
+    },
+    "chi_squared": {
+      "per_pixel": 1888489.4917874397,
+      "n_masked_pixels": 4140
+    },
+    "scale_factor_used": 5203844096.0
+  },
+  {
+    "timestamp": "2025-12-03T23:50:47.497005Z",
+    "param_state": "final",
+    "reconstructed_bragg": {
+      "mean_masked": 270014816.0,
+      "mean_unmasked": 9980964864.0
+    },
+    "target": {
+      "mean_masked": 87.11841583251953,
+      "mean_unmasked": 0.3439619839191437
+    },
+    "telemetry_values": {
+      "target_mean_masked": 87.11842346191406,
+      "model_mean_masked": 11.572992324829102
+    },
+    "ratios": {
+      "bragg_vs_telem_model": 23331460.733858846,
+      "bragg_vs_target": 3099399.9766833335
+    },
+    "chi_squared": {
+      "per_pixel": 270014683.6405797,
+      "n_masked_pixels": 4140
+    },
+    "scale_factor_used": 5203844096.0
+  },
+  {
+    "timestamp": "2025-12-03T23:50:47.556233Z",
+    "param_state": "initial",
+    "reconstructed_bragg": {
+      "mean_masked": 860341440.0,
+      "mean_unmasked": 12971521024.0
+    },
+    "target": {
+      "mean_masked": 87.11841583251953,
+      "mean_unmasked": 0.3439619839191437
+    },
+    "telemetry_values": {
+      "target_mean_masked": 87.11842346191406,
+      "model_mean_masked": 11.572992324829102
+    },
+    "ratios": {
+      "bragg_vs_telem_model": 74340448.50735737,
+      "bragg_vs_target": 9875540.455808565
+    },
+    "chi_squared": {
+      "per_pixel": 860341221.2869565,
+      "n_masked_pixels": 4140
+    },
+    "scale_factor_used": 5207816192.0
+  },
+  {
+    "timestamp": "2025-12-03T23:50:47.614510Z",
+    "param_state": "final",
+    "reconstructed_bragg": {
+      "mean_masked": 270014816.0,
+      "mean_unmasked": 9980964864.0
+    },
+    "target": {
+      "mean_masked": 87.11841583251953,
+      "mean_unmasked": 0.3439619839191437
+    },
+    "telemetry_values": {
+      "target_mean_masked": 87.11842346191406,
+      "model_mean_masked": 11.572992324829102
+    },
+    "ratios": {
+      "bragg_vs_telem_model": 23331460.733858846,
+      "bragg_vs_target": 3099399.9766833335
+    },
+    "chi_squared": {
+      "per_pixel": 270014683.6405797,
+      "n_masked_pixels": 4140
+    },
+    "scale_factor_used": 5203844096.0
+  }
+]

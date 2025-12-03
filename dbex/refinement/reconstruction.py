@@ -197,6 +197,7 @@ def build_final_bragg_from_stage_a_telemetry(
 
     # Build full Bragg array (panel mode)
     # Reuse warm cache simulators if available
+    use_warm_path = False
     if stage_a_ctx is not None and hasattr(stage_a_ctx, 'simulators'):
         # Warm cache path: retarget existing simulators with refined crystal (GRADIENT-004, ARCH-FACTORY-001)
         # Build Crystal model with beam_config from context (BUGFIX: pass at construction time)
@@ -214,6 +215,7 @@ def build_final_bragg_from_stage_a_telemetry(
         from dbex.refinement.stage_a_utils import _retarget_stage_a_simulators
         _retarget_stage_a_simulators(stage_a_ctx, crystal_model)
         simulators = stage_a_ctx.simulators
+        use_warm_path = True
     else:
         # Cold path: build simulators via unified factory (ARCH-FACTORY-001 Phase B.4)
         from dbex.refinement.config_factories import create_beam_config
@@ -407,7 +409,15 @@ def build_final_bragg_from_stage_a_telemetry(
         if pid == 0:
             print(f"  bragg_panel[0] mean (raw sim output): {bragg_panel.mean().item():.6e}")
             print(f"  bragg_panel[0] max: {bragg_panel.max().item():.6e}")
+
+        # TOOLING-VIS-001 Phase D.D / ARCH-SIM-CONSTRUCTION-001 Phase C.9:
+        # Apply scale_factor from telemetry (exp(log_scale_effective)).
+        # scale_factor already incorporates sqrt_spot_scale either via:
+        #  - Standard path: log_scale_baseline = log(sqrt_spot_scale), so scale_factor = sqrt_spot_scale * exp(delta)
+        #  - Global hint path: log_scale_baseline = log(global_scale_hint), where global_scale_hint already accounts for sqrt_spot_scale via mapping forward
+        # Do NOT multiply by sqrt_spot_scale again here (that would double-apply it).
         bragg_scaled = bragg_panel * scale_factor
+
         if pid == 0:
             print(f"  bragg_scaled[0] mean (after scale_factor): {bragg_scaled.mean().item():.6e}")
         bragg_full[pid] = bragg_scaled.cpu().numpy().astype(np.float32)

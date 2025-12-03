@@ -1122,21 +1122,20 @@ class StageC:
 
         # Finalize collector AFTER final validation is recorded
         stage_result = collector.finalize()
-        legacy_telemetry_dict = stage_result.to_legacy_dict()
 
-        # Refresh telemetry fields from finalized collector
-        loss_trace_sample_c = legacy_telemetry_dict['loss_trace_sample']
-        loss_trace_full_c = legacy_telemetry_dict['loss_trace_full']
-        chi_squared_trace_sample_c = legacy_telemetry_dict['chi_squared_trace_sample']
-        chi_squared_trace_full_c = legacy_telemetry_dict['chi_squared_trace_full']
-        masked_mse_trace_sample_c = legacy_telemetry_dict['masked_mse_trace_sample']
-        masked_mse_trace_full_c = legacy_telemetry_dict['masked_mse_trace_full']
-        iteration_count_c = legacy_telemetry_dict['iteration_count']
-        perf_closure_evals_c = legacy_telemetry_dict['perf_closure_evals'][0]
-        perf_validation_runs_c = legacy_telemetry_dict['perf_validation_runs'][0]
-        perf_forward_times_ms_c = legacy_telemetry_dict['perf_forward_times_ms']
-        variance_floor_clamped_pixels_c = legacy_telemetry_dict['variance_floor_clamped_pixels'][0]
-        variance_floor_masked_pixels_c = legacy_telemetry_dict['variance_floor_masked_pixels'][0]
+        # Extract telemetry fields via direct field access (Phase C.3.2: legacy dict retirement)
+        loss_trace_sample_c = stage_result.telemetry.loss_trace_sample
+        loss_trace_full_c = stage_result.telemetry.loss_trace_full
+        chi_squared_trace_sample_c = stage_result.telemetry.chi_squared_trace_sample
+        chi_squared_trace_full_c = stage_result.telemetry.chi_squared_trace_full
+        masked_mse_trace_sample_c = stage_result.telemetry.masked_mse_trace_sample
+        masked_mse_trace_full_c = stage_result.telemetry.masked_mse_trace_full
+        iteration_count_c = stage_result.telemetry.iteration_count
+        perf_closure_evals_c = stage_result.perf_counters.closure_evals
+        perf_validation_runs_c = stage_result.perf_counters.validation_runs
+        perf_forward_times_ms_c = stage_result.perf_counters.forward_times_ms
+        variance_floor_clamped_pixels_c = stage_result.perf_counters.variance_floor_clamped_pixels
+        variance_floor_masked_pixels_c = stage_result.perf_counters.variance_floor_masked_pixels
 
         # Check convergence: did we achieve ≥5% improvement on top of Stage A?
         if best_loss_full[0] is not None and best_loss_full[0] > 0:

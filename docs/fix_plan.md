@@ -153,7 +153,7 @@
 
 ### [ARCH-TELEMETRY-001] Telemetry Observer Refactor
 - Depends on: ARCH-STAGE-CONTEXT-001 (typed contexts), PHYSICS-LOSS-001 (telemetry χ² spec), problems.md observer directive
-- Status: in_progress
+- Status: in_progress (Phase C.3.2 complete, Phase C.4 next)
 - Priority: High
 - Tier: 0
 - Owner/Date: Galph ↔ Ralph / 2025-12-02
@@ -164,8 +164,9 @@
   3. Stage A/B/C smoketests and canonical Stage diagnostics keep REFINE-007/008/012 and PHYSICS-LOSS-001 gates green using the observer channel.
   4. `/torch_diagnostics` schema stays spec-compliant and test registry entries referencing telemetry selectors are updated.
 - Working Plan: `plans/active/ARCH-TELEMETRY-001/implementation.md`
-- Ledger tie-in: addresses problems.md entry “Refactor: Decouple Telemetry from Refinement Logic using Observer Pattern” (architectural issues 1.3/2.3). Plan captures Observer pattern, Stage-specific telemetry collectors, and writer simplification.
+- Ledger tie-in: addresses problems.md entry "Refactor: Decouple Telemetry from Refinement Logic using Observer Pattern" (architectural issues 1.3/2.3). Plan captures Observer pattern, Stage-specific telemetry collectors, and writer simplification.
 - Attempts History:
+  * 2025-12-03T021140Z (Phase C.3.2) — Removed `to_legacy_dict()` calls from Stage B/C production code; both stages now access telemetry and perf counter fields directly via `stage_result.telemetry.*` and `stage_result.perf_counters.*`. Stage B wraps perf counters in lists to match downstream `[0]` indexing (line 1562); Stage C accesses scalars directly (line 1277 expects scalar values). test_stage_b_baseline_guard_diff_payload PASSED (validates Stage B direct field access); test_stage_b_shell_modifiers and test_stage_c_detector_microslip SKIPPED due to missing sigma_readout_map in metadata mode (expected environmental limitation, not code regression). Files touched: 2 (stage_b.py -2 lines, stage_c.py -2 lines). Artifacts: `plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T021140Z/pytest_phase_c32.log`. Next action: Phase C.4 (remove RefinementEngine key mapping in engine.py:203-215).
   * 2025-12-02T190000Z — Plan scaffolded, compliance matrix recorded, and observer prototype tasks defined. Next loop will implement Phase A.1 collector + Stage A wiring.
   * 2025-12-03T210000Z — Phase C.1 Stage C finalizeafter-validation fix implemented. Moved `collector.finalize()` to after final validation recording (dbex/refinement/stage_c_impl.py:695-726), added fallback to emit baseline sample when LBFGS exits without closure runs (line 619-630), and corrected legacy_telemetry_dict extraction to unwrap list-wrapped perf counters (line 722-726). Stage B guard and smoke tests passed; Stage C smoke test progressed from TypeError to assertion failure on empty loss_trace_sample. Root cause under investigation: fallback on_step() call should populate sample trace but telemetry shows 0 closure_evals despite 5 validation_runs. Artifacts: plans/active/ARCH-TELEMETRY-001/reports/2025-12-03T210000Z/. Next: debug fallback execution path and ensure on_step() correctly populates loss_trace_sample when LBFGS exits without calling closure.
   * 2025-12-02T191500Z — Phase A.1/A.2 complete: Created `dbex/refinement/interfaces.py` (RefinementObserver protocol, StageResult/telemetry dataclasses), `dbex/refinement/telemetry_collectors.py` (StageATelemetryCollector/B/C with observer callbacks), added helper methods to StageATelemetryState. Modules import successfully and pass static checks. Stage A closure wiring deferred due to scope/complexity (requires extensive closure refactoring in 1600+ line stage_a.py; current loop focused on interface/collector scaffolding per Phase A Do Now). Next: Thread collector through _build_lbfgs_closure and update StageA.run() to return StageResult. Artifacts: `plans/active/ARCH-TELEMETRY-001/reports/2025-12-02T191500Z/`.

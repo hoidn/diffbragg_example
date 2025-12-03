@@ -2156,3 +2156,8 @@ Action State: ready_for_implementation
 - ready_for_implementation — author the `probe_stage_a_scale_alignment.py` script under the plan directory, re-run `compare_simulator_outputs.py` with the current calibration, and capture DB-AT-028/029 artifacts under the 2025-12-12T010000Z report per the new input.md.
 
 Action State: ready_for_implementation
+2025-12-12T18:00:00Z focus=ARCH-SIM-CONSTRUCTION-001 state=ready_for_implementation dwell=0 action=planning artifacts=plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-12T180000Z/ next_action=Implement scale telemetry + rerun DB-AT
+- Exit criterion #1 (raw simulator parity) is locked in, but DB-AT-028/029 still fail because reconstruction applies `exp(log_scale_baseline + clamp(delta)) ≈ 1.39e10` while mapping expects `exp(log_scale_baseline)` ~6.9e8; telemetry shows `log_scale` deltas saturating at +6.89 (>3) with no provenance recorded.
+- Updated plan + fix_plan: Phase C.7 adds Stage A telemetry instrumentation (`param_deltas['log_scale_effective']`, scale_provenance dict) plus reconstruction/probe consumers so we can capture the exact `log_scale_clamped`/scale_factor that Stage A used before deciding whether the bug lives in baseline math or the tests.
+- Do Now queued (input.md): edit `dbex/refinement/stage_a.py`, `dbex/refinement/reconstruction.py`, and `plans/active/ARCH-SIM-CONSTRUCTION-001/bin/probe_stage_a_scale_alignment.py`, then rerun `probe_stage_a_scale_alignment.py` + `pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029"` with artifacts under `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-12T180000Z/`.
+Action State: ready_for_implementation

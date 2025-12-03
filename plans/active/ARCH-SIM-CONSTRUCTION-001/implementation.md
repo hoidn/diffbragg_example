@@ -310,6 +310,12 @@ raw outputs match Stage A/mapping before re-running the probe + selectors.
 **Artifacts:** `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-10T090000Z/{mask_coverage.json,pytest_db_at_028_029.log,summary.md}`,
 `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-10T150000Z/{simulator_intensity_metrics.json,summary.md,pytest_db_at_028_029.log}`
 
+#### C.7 — Log-scale scale-factor telemetry + reconstruction sanity (Planned)
+- [ ] **Expose Stage A scale provenance in telemetry:** Update `dbex/refinement/stage_a.py` to record the exact quantities used during the forward pass (`target_mean_masked`, `model_mean_masked`, `log_scale_baseline_value`, `log_scale_delta_clamped`, `log_scale_clamped_value`, `scale_factor_value`). Persist them under `param_deltas['log_scale_effective']` and a new `scale_provenance` block so reconstruction/tests can consume the authoritative numbers instead of recomputing them.
+- [ ] **Teach reconstruction to consume the new telemetry fields:** In `build_final_bragg_from_stage_a_telemetry`, prefer the recorded `log_scale_effective` (or `scale_factor_value`) when present, emit diagnostics when the recomputed baseline+delta disagrees, and fall back to the existing code path when older telemetry is encountered. This keeps reconstruction aligned with Stage A even while we chase the root cause.
+- [ ] **Enhance `probe_stage_a_scale_alignment.py` / DB-AT instrumentation:** Extend the probe + Stage A smoke tests so they print the new telemetry block alongside mapping stats. Capture artifacts showing the recorded vs recomputed scale values to ground the next analysis loop.
+- [ ] **Validation:** Re-run `pytest -vv tests/dbex/test_stage_a_smoke_parity.py -k "DB_AT_028 or DB_AT_029"` with `DBAT028_ARTIFACT_DIR` / `DBAT029_ARTIFACT_DIR` pointing at `plans/active/ARCH-SIM-CONSTRUCTION-001/reports/<NEW_TS>/` so the telemetry JSON, new probe output, and pytest logs land beside this phase. Archive the updated probe output under the same report directory.
+
 ---
 
 ## Phase D — Documentation & Closure (Planned)

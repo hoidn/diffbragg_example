@@ -1,0 +1,1252 @@
+[
+  {
+    "id": "GEOMETRY-001",
+    "date": "2025-10-28",
+    "tags": [
+      "geometry",
+      "detector",
+      "dxtbx"
+    ],
+    "status": "Active",
+    "summary": "Bridge MUST derive beam center and detector vectors exactly per dxtbx mapping; reject non-square pixel pitch.",
+    "source": "docs/spec-db-core.md:35",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "GEOMETRY-002",
+    "date": "2025-11-04",
+    "tags": [
+      "geometry",
+      "detector",
+      "euler"
+    ],
+    "status": "Active",
+    "summary": "Torch bridge MUST recover DIALS XYZ rotation angles via analytic inversion of the detector matrix (`phi_y=-asin(R[2,0])`, `phi_x=atan2(R[2,1],R[2,2])`, `phi_z=atan2(R[1,0],R[0,0])`) with reconstructio",
+    "source": "dbex/nanobrag_bridge.py:284-350, plans/active/NANOBRAG-GOLDEN-001/reports/2025-11-04T011029Z/summary.md",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "GEOMETRY-003",
+    "date": "2025-11-22",
+    "tags": [
+      "geometry",
+      "crystal",
+      "mapping"
+    ],
+    "status": "Active",
+    "summary": "Stage\u2011A baseline misset is now derived from the dxtbx A* matrix relative to nanobrag_torch's default B\\_ideal reciprocal basis (`U = A*\u00b7B_ideal^{-1}` projected to a proper rotation and inverted to XYZ",
+    "source": "dbex/nanobrag_bridge.py:723, dbex/nanobrag_bridge.py:752, plans/active/TORCH-REFINE-002E/reports/",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "GEOMETRY-004",
+    "date": "2025-11-23",
+    "tags": [
+      "geometry",
+      "crystal",
+      "parameterization",
+      "ub-realign"
+    ],
+    "status": "Active",
+    "summary": "Stage A incremental UB parameterization treats dxtbx crystal state (U\u2080, B\u2080) as authoritative and expresses orientation/cell as increments: `U(params) = \u0394R(q_delta) @ U\u2080` (quaternion-based rotation), `",
+    "source": "dbex/nanobrag_bridge.py:1228-1407, dbex/nanobrag_refinement.py:817-876,1036-1073, tests/dbex/test_ub_parameterization_roundtrip.py, plans/active/TORCH-GEOMETRY-UB-REALIGN-001/reports/",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "STAGEA-001",
+    "date": "2025-11-24",
+    "tags": [
+      "stage_a",
+      "mapping",
+      "calibration"
+    ],
+    "status": "Resolved",
+    "summary": "RESOLVED: Stage A engine now threads mapping calibration (spot_scale_override flux/exposure/beamsize_mm/N_cells) through warm cache and reconstruction, applies log_scale_baseline=log(sqrt(spot_scale_o",
+    "source": "dbex/refinement/stage_a.py:210-290, dbex/nanobrag_bridge.py:606-678, plans/active/TOOLING-VIS-001/reports/2025-11-24T213251Z/stage_a_mapping_diagnosis.md",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "RUNTIME-001",
+    "date": "2025-10-28",
+    "tags": [
+      "runtime",
+      "torch.compile",
+      "gradcheck"
+    ],
+    "status": "Active",
+    "summary": "Gradient tests require `NANOBRAGG_DISABLE_COMPILE=1` to avoid Dynamo interference with `torch.autograd.gradcheck`.",
+    "source": "docs/pytorch_runtime_checklist.md:26",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "CONFORMANCE-001",
+    "date": "2025-10-28",
+    "tags": [
+      "testing",
+      "acceptance",
+      "parity"
+    ],
+    "status": "Active",
+    "summary": "DB-AT parity and workflow profiles define canonical pytest selectors (`-k DB_AT_0XX`) and environment flag `KMP_DUPLICATE_LIB_OK=TRUE`.",
+    "source": "docs/spec-db-conformance.md:10",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "DXTBX-001",
+    "date": "2025-10-28",
+    "tags": [
+      "dxtbx",
+      "crystal",
+      "API"
+    ],
+    "status": "Active",
+    "summary": "dxtbx `crystal.get_A()` returns 9-element tuple (row-major) not numpy array; reshape as `np.array(A_tuple).reshape(3,3)` to extract column vectors for MOSFLM A* injection. Panel masks built manually f",
+    "source": "dbex/nanobrag_bridge.py:370, tests/dbex/test_nanobrag_smoke.py:119",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "DIAGNOSTICS-001",
+    "date": "2025-10-29",
+    "tags": [
+      "HDF5",
+      "diagnostics",
+      "torch",
+      "metrics"
+    ],
+    "status": "Active",
+    "summary": "Torch backend emits `/torch_diagnostics` HDF5 group with standardized metadata (masked_mse, loss_mask_coverage, n_rois, target_shape, backend) enabling reproducible parity debugging per spec-db-tracin",
+    "source": "dbex/refine_one.py:80-95, docs/spec-db-tracing.md:15-60",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "MASKING-001",
+    "date": "2025-10-29",
+    "tags": [
+      "masking",
+      "ROI",
+      "coverage",
+      "diagnostics"
+    ],
+    "status": "Active",
+    "summary": "Loss mask coverage in Bragg peak refinement is typically <1% (e.g., 0.21% for 92 ROIs on 2527\u00d72463 detector) reflecting sparse Bragg peak distribution; low coverage is expected and not a failure signa",
+    "source": "docs/spec-db-workflow.md:24-29",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "TESTING-002",
+    "date": "2025-10-29",
+    "tags": [
+      "testing",
+      "CLI",
+      "mocking",
+      "integration"
+    ],
+    "status": "Active",
+    "summary": "CLI integration tests use mocking to validate dispatch logic and bridge integration without external dependencies; tests verify parser contracts, backend routing, and diagnostics structure independent",
+    "source": "tests/dbex/test_refine_one_cli.py:1-200",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "CONFIG-001",
+    "date": "2025-10-29",
+    "tags": [
+      "config",
+      "dxtbx",
+      "nanobrag",
+      "mapping",
+      "pitfalls"
+    ],
+    "status": "Active",
+    "summary": "Config hydration from dxtbx to nanobrag_torch requires: (1) beam center swap (fast,slow)\u2192(s,f) per config_crosswalk.md:29, (2) crystal A* tuple\u2192array reshape, (3) mask polarity preservation (True\u21921.0,",
+    "source": "dbex/nanobrag_bridge.py:120-399, docs/config_crosswalk.md:15-72",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "PHYSICS-LOSS-004",
+    "date": "2025-11-21",
+    "tags": [
+      "variance",
+      "sigma-map",
+      "CLI"
+    ],
+    "status": "Active",
+    "summary": "Calibrated sigma maps entered via `--sigma-map` must be `.npy/.npz` stacks or pickled tuples of per-panel numpy/flex arrays, shaped `[panel, slow, fast]`, strictly positive, and aligned to DataLoad.da",
+    "source": "dbex/data_load.py:11-131, tests/dbex/test_data_load_sigma_map.py:1-74",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "PHYSICS-LOSS-005",
+    "date": "2025-11-21",
+    "tags": [
+      "variance",
+      "sigma-map",
+      "metadata"
+    ],
+    "status": "Active",
+    "summary": "When DIALS experiments embed calibrated readout-noise tiles via `Experiment.imageset.external_lookup` (e.g., Jungfrau pedestal RMS), DataLoad SHALL harvest those `ExternalLookupItemDouble` payloads in",
+    "source": "docs/spec-db-core.md:32-68, plans/active/PHYSICS-LOSS-001/reports/2025-11-21T063052Z/summary.md",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "PERF-WARM-003",
+    "date": "2025-11-21",
+    "tags": [
+      "performance",
+      "warm-cache"
+    ],
+    "status": "Active",
+    "summary": "Even after hoisting Stage\u202fA `create_crystal_config`/`Crystal` construction and reusing StageAContext detectors/HKL/masks, warm vs cold benchmarks remain \u22481.01\u00d7 on CPU (warm=250.77s, cold=252.94s), ind",
+    "source": "dbex/nanobrag_refinement.py:760-940, plans/active/PERF-WARM-SIM-001/reports/2025-11-21T090949Z/benchmark_summary.json",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "PERF-WARM-004",
+    "date": "2025-11-21",
+    "tags": [
+      "performance",
+      "warm-cache"
+    ],
+    "status": "Active",
+    "summary": "Caching per-panel `nanobrag_torch.Simulator` instances inside `StageAContext` eliminates warm-path instantiation overhead yet only trims LBFGS forward time \u22482% (warm=162.78\u202fs, cold=163.80\u202fs, speedup\u22481",
+    "source": "dbex/nanobrag_refinement.py:293-1010, plans/active/PERF-WARM-SIM-001/reports/2025-11-21T093905Z/benchmark_summary.json",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "PERF-WARM-005",
+    "date": "2025-11-21",
+    "tags": [
+      "performance",
+      "roi-cache"
+    ],
+    "status": "Active",
+    "summary": "ROI sampling is now tied to the warm cache (unless `allow_cold_stage_a_roi_mode` is opt-in) so perf counters/telemetry record `roi_mode=\\\"roi\\\"` for warm runs and `\\\"panel\\\"` for cold control paths. W",
+    "source": "dbex/nanobrag_refinement.py:843-1495, plans/active/PERF-WARM-SIM-001/reports/2025-11-21T103232Z/{benchmark_summary.json,warm_perf_counters.json,cold_perf_counters.json}",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "PERF-WARM-006",
+    "date": "2025-11-21",
+    "tags": [
+      "performance",
+      "warm-cache",
+      "stage-bc"
+    ],
+    "status": "Active",
+    "summary": "Stage B/C warm smokes must reuse Stage A detector configs/masks (and ROI metadata) whenever `enable_stage_a_warm_cache=True` so Stage C initial chi-squared matches the Stage A baseline and perf counte",
+    "source": "dbex/nanobrag_refinement.py:1595-2460, plans/active/PERF-WARM-SIM-001/reports/2025-11-21T105321Z/telemetry_stage_bc_small.json",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "PERF-WARM-007",
+    "date": "2025-11-21",
+    "tags": [
+      "performance",
+      "telemetry",
+      "stage-bc"
+    ],
+    "status": "Active",
+    "summary": "Canonical Stage\u202fB/C smokes now assert perf-counter invariants so warm-cache regressions fail fast: Stage\u202fB enforces `cache_mode=\"warm\"`, `roi_mode=\"panel\"`, and ROI totals that match the 92 canonical ",
+    "source": "tests/dbex/test_torch_refine_smoke.py:970, tests/dbex/test_torch_refine_smoke.py:780, plans/active/PERF-WARM-SIM-001/reports/2025-11-21T133500Z/{telemetry_stage_bc_full.json,benchmark_summary.json}",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "PERF-WARM-008",
+    "date": "2025-11-21",
+    "tags": [
+      "performance",
+      "stage-b",
+      "roi-mode"
+    ],
+    "status": "Active",
+    "summary": "Stage\u202fB now reuses `StageAContext.roi_entries` whenever Stage\u202fA ROI mode is active, so both small and canonical smokes SHALL expect `perf_counters['roi_mode'] == \"roi\"` with non-zero ROI totals; the h",
+    "source": "dbex/nanobrag_refinement.py:1595-1805, tests/dbex/test_torch_refine_smoke.py:970-1105, plans/active/PERF-WARM-SIM-001/reports/2025-11-21T121804Z/pytest_stage_b_full.log",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "PERF-WARM-009",
+    "date": "2025-11-21",
+    "tags": [
+      "performance",
+      "stage-b",
+      "telemetry"
+    ],
+    "status": "Active",
+    "summary": "Stage\u202fB ROI-mode closures currently evaluate only the Stage\u202fA ROI subset\u2014even the so-called \u201cfull\u201d validations reuse the same 92 ROI indices\u2014so the canonical smoke optimizes on ~0.3\u202f% of detector pixe",
+    "source": "dbex/nanobrag_refinement.py:1595-1887, plans/active/PERF-WARM-SIM-001/reports/2025-11-21T125551Z/{pytest_stage_b_full.log,stage_b_roi_summary.json}",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "PERF-WARM-010",
+    "date": "2025-11-21",
+    "tags": [
+      "performance",
+      "stage-b",
+      "roi-mode",
+      "telemetry"
+    ],
+    "status": "Active",
+    "summary": "Even after forcing panel validations, canonical Stage\u202fB smokes still drive `shell_0_modifier` to 2.0 because Stage\u202fA now samples only ~13 of the 92 canonical ROIs per iteration. The probe script (`pla",
+    "source": "dbex/nanobrag_refinement.py:1595-1805, tests/dbex/test_torch_refine_smoke.py:970-1105, plans/active/PERF-WARM-SIM-001/reports/2025-11-21T133127Z/{stage_b_full_probe.json,stage_b_full_probe.txt}",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "PERF-WARM-011",
+    "date": "2025-11-21",
+    "tags": [
+      "performance",
+      "stage-b",
+      "gpu",
+      "telemetry"
+    ],
+    "status": "Active",
+    "summary": "Canonical Stage\u202fB smokes now fail before the \u00b11\u202f% gate because the panel-mode LBFGS closure exhausts GPU memory (CUDA OOM while allocating 6\u202fGiB with ~21.6\u202fGiB already in use). Even with warm caches a",
+    "source": "tests/dbex/test_torch_refine_smoke.py:876-1145, plans/active/PERF-WARM-SIM-001/reports/2025-11-21T150000Z/telemetry_stage_b_full.json",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "PERF-WARM-012",
+    "date": "2025-11-21",
+    "tags": [
+      "performance",
+      "stage-b",
+      "warm-cache"
+    ],
+    "status": "Resolved",
+    "summary": "CPU fallback lets canonical Stage\u202fB finish without OOM, but `stage_b_use_warm_cache` stays false so perf counters report `cache_mode=\"cold\"` and each run rebuilds detectors/masks for ~80\u202fs (`forward_t",
+    "source": "dbex/nanobrag_refinement.py:1598-1625,1715-1736,1745,1753,1785; tests/dbex/test_torch_refine_smoke.py:1008-1043; plans/active/PERF-WARM-SIM-001/reports/2025-11-21T160700Z/stage_b_roi_summary.json",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "PERF-WARM-013",
+    "date": "2025-11-21",
+    "tags": [
+      "performance",
+      "stage-c",
+      "warm-cache"
+    ],
+    "status": "Active",
+    "summary": "Even with `stage_a_ctx` available, Stage\u202fC still instantiates fresh `Detector`/`Simulator` objects for every panel (and ROI slice) inside `compute_loss_stage_c` plus the final reconstruction block, so",
+    "source": "dbex/nanobrag_refinement.py:2238-2545, plans/active/PERF-WARM-SIM-001/reports/2025-11-21T174147Z/summary.md",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "REFINE-001",
+    "date": "2025-11-05",
+    "tags": [
+      "refinement",
+      "lbfgs",
+      "scale"
+    ],
+    "status": "Active",
+    "summary": "Stage A LBFGS must warm-start the global scale from the calibration hint and bound `log_scale` before exponentiation; starting at 1.0 lets `torch.exp(log_scale)` explode (~1.5e39) and trips the NaN/In",
+    "source": "docs/spec-db-workflow.md:20-40, plans/active/TORCH-REFINE-001/reports/2025-11-05T013525Z/pytest_refine_smoke_fail.log",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "REFINE-002",
+    "date": "2025-11-05",
+    "tags": [
+      "refinement",
+      "acceptance"
+    ],
+    "status": "Active",
+    "summary": "Stage A nucleus on the canonical refGeom dataset produces only ~0.15% masked-MSE improvement after LBFGS stabilizations; lower the nucleus gate to \u22650.1% until additional crystal/orientation DoFs land.",
+    "source": "tests/dbex/test_torch_refine_smoke.py:374-470, docs/spec-db-workflow.md:20-40, plans/active/TORCH-REFINE-001/reports/2025-11-05T024454Z/summary.md",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "MANIFEST-001",
+    "date": "2025-10-29",
+    "tags": [
+      "manifest",
+      "fixtures",
+      "parity"
+    ],
+    "status": "Active",
+    "summary": "Canonical manifest emission MUST verify `.npy` payloads exist in the same workspace before writing checksums; otherwise manifests capture foreign paths (e.g., other checkouts) and DB_AT_001 falls back",
+    "source": "scripts/generate_simple_cubic_golden.py:620-717, plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T191906Z/planning_notes.md",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "SCALE-001",
+    "date": "2025-10-29",
+    "tags": [
+      "scaling",
+      "structure-factors",
+      "parity"
+    ],
+    "status": "Active",
+    "summary": "Canonical capture MUST NOT multiply structure factors by `sqrt(scale_override)`; DiffBragg already applies the spot scale, so this duplication inflates torch intensities by ~6\u00d710^8 and breaks DB_AT_00",
+    "source": "scripts/generate_simple_cubic_golden.py:96-120, plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T181603Z/golden_dataset/logs/canonical_capture.log",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "REFINE-005",
+    "date": "2025-11-05",
+    "tags": [
+      "refinement",
+      "hkl",
+      "interpolation"
+    ],
+    "status": "Resolved",
+    "summary": "**RESOLVED (2025-11-05)**: Tricubic interpolation without a \u00b11 halo causes out-of-bounds lookups to fall back to `default_F`. While Stage A can run with nearest-neighbor lookup, convergence improves m",
+    "source": "dbex/nanobrag_bridge.py:559-692, docs/spec-db-workflow.md:116-128, docs/nanobrag_api.md:45-60, docs/architecture/pytorch_design.md:20-40",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "PHYSICS-LOSS-001",
+    "date": "2025-11-20",
+    "tags": [
+      "loss",
+      "telemetry",
+      "staging"
+    ],
+    "status": "Active",
+    "summary": "Stage B/C refinements must consume the same variance-weighted denominator as Stage A and persist both `chi_squared` and `masked_mse` so improvement gates remain meaningful. Mixing Stage A chi-squared ",
+    "source": "dbex/nanobrag_refinement.py:1132-1545, dbex/refine_one.py:520-640, docs/spec-db-core.md:57-68",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "PHYSICS-LOSS-002",
+    "date": "2025-11-21",
+    "tags": [
+      "loss",
+      "variance",
+      "telemetry"
+    ],
+    "status": "Active",
+    "summary": "Variance-weighted chi-squared must enforce the sigma-floor guard `V = max(I_model + sigma_readout^2, sigma_floor^2)` so Stages A/B/C can\u2019t drive weights to infinity; telemetry SHALL record the configu",
+    "source": "docs/spec-db-core.md:57-68, plans/active/PHYSICS-LOSS-001/reports/2025-11-20T235741Z/pytest_stage_b.log",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "PHYSICS-LOSS-003",
+    "date": "2025-11-21",
+    "tags": [
+      "loss",
+      "chi-squared",
+      "telemetry"
+    ],
+    "status": "Active",
+    "summary": "Stage A still reports chi-squared as `(\u03a3 (I_model-I_obs)^2) / (\u03a3 V)` while Stage B/C sum per-pixel ratios, so `/torch_diagnostics` mixes incompatible scales (Stage A final \u22488.1e3 vs Stage C final \u22483.0",
+    "source": "dbex/nanobrag_refinement.py:766-795, plans/active/PHYSICS-LOSS-001/reports/2025-11-21T003959Z/pytest_stage_c.log:120-134",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "SCALE-002",
+    "date": "2025-10-29",
+    "tags": [
+      "scaling",
+      "parity",
+      "global-scale"
+    ],
+    "status": "Active",
+    "summary": "DiffBragg's `spot_scale_override` must be re-applied as a global post-simulation factor (\u2248\u221ascale) to nanobrag_torch outputs so canonical tensors match DB_AT_001 expectations; structure factors stay un",
+    "source": "scripts/generate_simple_cubic_golden.py:96-120, plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T212500Z/scale_investigation.md",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "SCALE-003",
+    "date": "2025-11-04",
+    "tags": [
+      "scaling",
+      "calibration",
+      "diffbragg"
+    ],
+    "status": "Active",
+    "summary": "Zero-iteration torch helper must ingest DiffBragg-refined \u221aspot_scale (~5.6e8) *and* the refined | F | amplitudes; applying a naive global factor leaves ~6e3\u00d7 under-scaling because raw MTZ amplitudes ",
+    "source": "dbex/nanobrag_bridge.py:843-1106, plans/active/MAP-SCALE-001/reports/2025-11-04T084948Z/summary.md",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "SCALE-005",
+    "date": "2025-11-04",
+    "tags": [
+      "scaling",
+      "calibration",
+      "crystal"
+    ],
+    "status": "Active",
+    "summary": "Injecting DiffBragg `N_cells` overrides into the torch bridge multiplies zero-iteration intensities by \u22483.2e5 (masked mean \u22485.9e11 ADU) and drives corr\u2248-1.6e-03 when beam sample clipping is absent; fo",
+    "source": "plans/active/MAP-SCALE-001/reports/2025-11-04T190000Z/summary.md, plans/active/MAP-SCALE-001/reports/2025-11-04T203000Z/summary.md, plans/active/MAP-SCALE-001/reports/2025-11-04T185107Z/summary.md, plans/active/MAP-SCALE-001/reports/2025-11-04T190041Z/summary.md, dbex/nanobrag_bridge.py:963-972,1009-1016",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "SCALE-008",
+    "date": "2025-11-25",
+    "tags": [
+      "scaling",
+      "stage_a",
+      "calibration"
+    ],
+    "status": "Active",
+    "summary": "When `build_mapping_stage_a_context` multiplies `spot_scale_override` to cancel the N_cells-induced amplitude collapse, Stage A still derives `log_scale_baseline=log(\u221aspot_scale_override)` from the ad",
+    "source": "dbex/refinement/stage_a.py:442-443, plans/active/TOOLING-VIS-001/reports/2025-11-25T235500Z/db_at_029/db_at_029_metrics.json",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "SCALE-009",
+    "date": "2025-12-02",
+    "tags": [
+      "scaling",
+      "reconstruction",
+      "calibration",
+      "architecture"
+    ],
+    "status": "Active",
+    "summary": "Reconstruction helpers (`build_final_bragg_from_stage_*_telemetry`) must apply `sqrt(spot_scale_override)` post-run to every simulator output, matching the Stage A pattern (stage_a.py:442-443, stage_a",
+    "source": "dbex/refinement/reconstruction.py:167-223, plans/active/ARCH-SIM-CONSTRUCTION-001/reports/2025-12-02T233717Z/summary.md",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "SCALE-006",
+    "date": "2025-11-04",
+    "tags": [
+      "scaling",
+      "calibration",
+      "cli"
+    ],
+    "status": "Active",
+    "summary": "Nanobrag CLI runs must ingest DiffBragg `config_torch.json` metadata (spot_scale_override, beam flux/exposure, beamsize, `N_cells`) and forward them to `create_beam_config`/`create_crystal_config` bef",
+    "source": "dbex/refine_one.py:162-248, plans/active/MAP-SCALE-001/reports/2025-11-04T233500Z/summary.md",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "SCALE-007",
+    "date": "2025-11-05",
+    "tags": [
+      "telemetry",
+      "diagnostics",
+      "mapping"
+    ],
+    "status": "Active",
+    "summary": "Zero-iteration bridge (`simulate_forward_once`) must emit structure-factor telemetry (`hkl_source`, reflection count, mean amplitude, MTZ path) and DB_AT_024 must fail when refined assets are present ",
+    "source": "dbex/nanobrag_bridge.py:843-1106, tests/dbex/test_mapping_consistency.py:272-358, plans/active/MAP-SCALE-004/reports/2025-11-05T220000Z/summary.md",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "TESTING-003",
+    "date": "2025-10-29",
+    "tags": [
+      "testing",
+      "selectors",
+      "compliance",
+      "documentation"
+    ],
+    "status": "Active",
+    "summary": "Selector status transitions to Active only after `pytest --collect-only` confirms >0 tests collected; TESTING_GUIDE.md and TEST_SUITE_INDEX.md must be synchronized with collection log artifacts to pre",
+    "source": "docs/TESTING_GUIDE.md:56-68, docs/development/testing_strategy.md:169-174",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "PARITY-001",
+    "date": "2025-10-29",
+    "tags": [
+      "parity",
+      "diagnostics",
+      "first-divergence",
+      "tracing"
+    ],
+    "status": "Active",
+    "summary": "First-divergence debugging workflow requires scanning tensors in deterministic (row-major) order and capturing pixel-level metadata (index, predicted/target values, abs/rel diff) for the earliest mism",
+    "source": "tests/fixtures/parity_loader.py:550-677, docs/spec-db-tracing.md:15-19",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "POLICY-001",
+    "date": "2025-10-29",
+    "tags": [
+      "environment-freeze",
+      "bugfixes",
+      "policy"
+    ],
+    "status": "Active",
+    "summary": "Environment Freeze exception added: Targeted bugfixes to locally available source code (e.g., `simtbx_project/`) are permitted when blocking critical paths. Requirements: (1) save `.patch`/`.diff` fil",
+    "source": "CLAUDE.md:7-15, docs/index.md:8",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "DIFFBRAGG-001",
+    "date": "2025-10-29",
+    "tags": [
+      "diffBragg",
+      "CUDA",
+      "GPU",
+      "CPU",
+      "simtbx",
+      "bugfix"
+    ],
+    "status": "Resolved",
+    "summary": "`diffBragg_forward` crash resolved by guarding `cudaFree` cleanup (`diffBraggCUDA.cu:705-713`) and adding `<cassert>` to `diffuse_util.h` so NVCC builds. Rebuilt `simtbx_diffBragg_ext.so` (md5 1506a48",
+    "source": "dbex/run_diffbragg.py:126-138, simtbx_project/simtbx/diffBragg/src/{diffBraggCUDA.cu:705,diffuse_util.h:1-10}, plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T063817Z/rebuild_status.md",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "DIAG-FLUX-001",
+    "date": "2025-12-02",
+    "tags": [
+      "beam",
+      "flux",
+      "config",
+      "simulator",
+      "zero-output"
+    ],
+    "status": "Retracted",
+    "summary": "**RETRACTED**: Initial hypothesis blamed BeamConfig defaulting `flux=0.0` for zero simulator output. Subsequent instrumentation (2025-12-03T064931Z) confirmed nanobrag_torch already ships with `flux=1",
+    "source": "src/nanobrag-torch/src/nanobrag_torch/config.py:33 (current default), plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T064931Z/simulator_trace.log",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "DIAG-UNIT-001",
+    "date": "2025-12-03",
+    "tags": [
+      "simulator",
+      "crystal",
+      "units",
+      "HKL",
+      "zero-output"
+    ],
+    "status": "Active",
+    "summary": "**ROOT CAUSE (in progress)**: nanobrag_torch `Crystal` real-space vectors are stored in meters while scattering vectors stay in \u00c5\u207b\u00b9, and `compute_physics_for_position` feeds their dot-product directly",
+    "source": "src/nanobrag-torch/src/nanobrag_torch/simulator.py:200-250, src/nanobrag-torch/src/nanobrag_torch/models.py:100-150, plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-03T064931Z/simulator_trace.log",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "HKL-ORIENT-001",
+    "date": "2025-10-29",
+    "tags": [
+      "hkl",
+      "beam",
+      "geometry",
+      "simulator"
+    ],
+    "status": "Active",
+    "summary": "When running single-source nanoBragg2 captures, `Simulator` must cache the **source\u2192sample** incident direction (`incident_beam_direction = -detector.beam_vector`). Using the sample\u2192source vector push",
+    "source": "../nanoBragg/src/nanobrag_torch/simulator.py:541, plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T094859Z/canonical_capture.log, plans/active/NANOBRAG-GOLDEN-001/reports/2025-10-29T100617Z/planning_notes.md",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "CONFIG-002",
+    "date": "2025-11-04",
+    "tags": [
+      "config",
+      "nanobrag",
+      "enum",
+      "detector-convention"
+    ],
+    "status": "Active",
+    "summary": "nanobrag_torch DetectorConfig.detector_convention must use enum value (e.g., `DetectorConvention.DIALS`) not string literal; string values cause ValueError in Detector model instantiation. Bridge help",
+    "source": "dbex/nanobrag_bridge.py:295, tests/dbex/test_nanobrag_bridge_configs.py:115-122, plans/active/NANOBRAG-BACKEND-002/reports/2025-11-04T022540Z/summary.md",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "CONFIG-003",
+    "date": "2025-11-04",
+    "tags": [
+      "config",
+      "nanobrag",
+      "beam",
+      "polarization",
+      "tuple"
+    ],
+    "status": "Active",
+    "summary": "BeamConfig.polarization_axis must be a tuple (not numpy array); nanobrag_torch API does not have `polarization_fraction` field. Polarization is controlled via `polarization_factor` and `polarization_a",
+    "source": "dbex/nanobrag_bridge.py:323-329, tests/dbex/test_nanobrag_bridge_configs.py:465-473, plans/active/NANOBRAG-BACKEND-002/reports/2025-11-04T022540Z/summary.md",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "MODEL-001",
+    "date": "2025-11-04",
+    "tags": [
+      "testing",
+      "roundtrip",
+      "detector",
+      "crystal",
+      "instantiation"
+    ],
+    "status": "Active",
+    "summary": "Roundtrip tests that instantiate Detector and Crystal models using bridge-produced configs validate schema compatibility and guard against API drift. Tests confirm config objects can be passed to mode",
+    "source": "tests/dbex/test_nanobrag_bridge_configs.py:314-345,641-672, plans/active/NANOBRAG-BACKEND-002/reports/2025-11-04T022540Z/summary.md",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "ORCH-ROBUST-001",
+    "date": "2025-11-04",
+    "tags": [
+      "orchestration",
+      "git",
+      "submodules"
+    ],
+    "status": "Active",
+    "summary": "Harden supervisor against submodule pointer drift by (1) detecting gitlinks via index (`git ls-files -s` mode 160000), (2) scrubbing submodules before/after pulls and before doc/meta hygiene (`git sub",
+    "source": "scripts/orchestration/supervisor.py:150-220,354-400,480-504; scripts/orchestration/README.md:140-160",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "ORCH-001",
+    "date": "2025-11-05",
+    "tags": [
+      "orchestration",
+      "hygiene",
+      "whitelist"
+    ],
+    "status": "Resolved",
+    "summary": "Supervisor doc/meta auto\u2011commit must whitelist Git meta files (`.gitignore`, `.gitmodules`, `.gitattributes`) to avoid self\u2011failing loops when repo hygiene changes are made by the supervisor. Implemen",
+    "source": "scripts/orchestration/supervisor.py:120; scripts/orchestration/README.md",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "SCALE-004",
+    "date": "2025-11-04",
+    "tags": [
+      "scaling",
+      "calibration",
+      "fixture",
+      "diffbragg"
+    ],
+    "status": "Active",
+    "summary": "DiffBragg calibration metadata (spot_scale_override, beam flux/exposure) must be sourced from canonical config_torch.json fixtures via `load_calibration_metadata()` and passed to `simulate_forward_onc",
+    "source": "dbex/nanobrag_bridge.py:606-678, tests/dbex/test_mapping_consistency.py:92-99,137-172, plans/active/MAP-SCALE-001/reports/2025-11-04T110000Z/summary.md, plans/active/MAP-SCALE-001/reports/2025-11-04T084948Z/summary.md, plans/active/MAP-SCALE-001/reports/2025-11-04T120500Z/blockers.md",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "GRADIENT-001",
+    "date": "2025-11-04",
+    "tags": [
+      "gradients",
+      "autograd",
+      "testing",
+      "refinement"
+    ],
+    "status": "Active",
+    "summary": "Production refinement and test harnesses must avoid `.item()`/`.numpy()` on differentiable tensors; use bridge helpers that accept tensor overrides (`crystal_overrides` dict) to preserve autograd grap",
+    "source": "dbex/nanobrag_bridge.py:445-506,1112,1199-1226; dbex/nanobrag_refinement.py:268-302,441-473; tests/dbex/test_gradients.py:192-208",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "REFINE-003",
+    "date": "2025-11-05",
+    "tags": [
+      "refinement",
+      "orientation",
+      "crystal",
+      "a-star"
+    ],
+    "status": "Active",
+    "summary": "Stage A orientation refinement via `orientation_vec` \u2192 quaternion \u2192 rotation matrix requires proper A* reconstruction (A* = U_perturbed \u00b7 B_perturbed) where B is derived from overridden cell params an",
+    "source": "dbex/nanobrag_refinement.py:295-302",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "REFINE-004",
+    "date": "2025-11-05",
+    "tags": [
+      "refinement",
+      "gating",
+      "dataset"
+    ],
+    "status": "Resolved",
+    "summary": "**RESOLVED (2025-11-05)**: Stage A improvement gate recalibrated to \u22650.2% per empirical probe showing ~0.206% achievable ceiling with canonical refGeom dataset. Deterministic perturbation (+2/+1/+1% c",
+    "source": "tests/dbex/test_torch_refine_smoke.py:374-470, docs/spec-db-workflow.md:20-40, plans/active/TORCH-REFINE-002/reports/2025-11-05T033936Z/summary.md, plans/active/TORCH-REFINE-002D/reports/2025-11-05T093000Z/summary.md",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "REFINE-005",
+    "date": "2025-11-05",
+    "tags": [
+      "refinement",
+      "hkl",
+      "dataset"
+    ],
+    "status": "Resolved",
+    "summary": "**RESOLVED (2025-11-05)**: Haloed grid (\u00b11 padding) implementation enables tricubic interpolation for fractional HKL coordinates produced by deterministic perturbation; hit rate remains healthy (\u226595%)",
+    "source": "dbex/nanobrag_bridge.py:559-692, dbex/nanobrag_refinement.py:147-154, plans/active/TORCH-REFINE-002/reports/2025-11-05T035905Z/blocked.md, plans/active/TORCH-REFINE-002D/reports/2025-11-05T083500Z/summary.md",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "REFINE-006",
+    "date": "2025-11-05",
+    "tags": [
+      "refinement",
+      "gate",
+      "telemetry"
+    ],
+    "status": "Active",
+    "summary": "Even with haloed HKL grids and tricubic interpolation, canonical refGeom Stage A runs plateau at ~0.206% masked-MSE improvement (13 LBFGS steps, status=early_stop) because nanobrag orientation updates",
+    "source": "dbex/nanobrag_refinement.py:588-710, tests/dbex/test_torch_refine_smoke.py:374-470, plans/active/TORCH-REFINE-002D/reports/2025-11-05T093000Z/summary.md",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "REFINE-007",
+    "date": "2025-11-05",
+    "tags": [
+      "refinement",
+      "detector",
+      "acceptance"
+    ],
+    "status": "Active",
+    "summary": "Canonical Stage C microslip tests inject \u00b10.25\u202fmm panel offsets and recover them fully even though variance-weighted \u03c7\u00b2 barely moves (~0.003%). Strict gates therefore key off telemetry: require \u226580% o",
+    "source": "plans/active/TORCH-REFINE-003/reports/2025-11-05T090201Z/stage_c_improvement_probe.json, tests/dbex/test_torch_refine_smoke.py:500-640, plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T032803Z/telemetry_full.json",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "CLI-001",
+    "date": "2025-11-05",
+    "tags": [
+      "cli",
+      "bridge",
+      "mask",
+      "tensor"
+    ],
+    "status": "Active",
+    "summary": "`create_detector_config` MUST convert trusted_mask to `torch.Tensor` before passing to DetectorConfig; numpy arrays trigger AttributeError when Simulator.__init__ calls `.to(device, dtype)` on mask_ar",
+    "source": "dbex/nanobrag_bridge.py:378-383, plans/active/REPORT-NANOBRAG-STATUS-001/reports/2025-11-05T184233Z/summary.md",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "CLI-002",
+    "date": "2025-11-05",
+    "tags": [
+      "cli",
+      "flex",
+      "telemetry",
+      "hkl"
+    ],
+    "status": "Active",
+    "summary": "HKL amplitude mean calculation in CLI telemetry emission fails when `DL.F.data()` returns flex.double (cctbx flex array), which lacks `.mean()` method. Gracefully convert flex to numpy via `as_numpy_a",
+    "source": "dbex/refine_one.py:404-418, plans/active/REPORT-NANOBRAG-STATUS-001/reports/2025-11-05T184233Z/summary.md",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "REFINE-008",
+    "date": "2025-11-05",
+    "tags": [
+      "refinement",
+      "stage-b",
+      "acceptance"
+    ],
+    "status": "Active",
+    "summary": "Stage B shell modifiers on canonical refGeom still improve loss by only ~6.4e-8% (effectively zero), so strict gates now ensure \u22641e-6 relative \u03c7\u00b2 regression while verifying every shell modifier stays ",
+    "source": "dbex/nanobrag_refinement.py:1040-1227, tests/dbex/test_torch_refine_smoke.py:660-900, plans/active/PERF-SMOKE-DETSIZE/reports/2025-11-21T032803Z/telemetry_full.json",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "REFINE-009",
+    "date": "2025-11-21",
+    "tags": [
+      "refinement",
+      "detector",
+      "telemetry"
+    ],
+    "status": "Active",
+    "summary": "When a canonical baseline detector is available, Stage\u202fC must seed detector distance offsets from the known geometry so telemetry reports true initial/final values and the bragg tensors reflect the co",
+    "source": "dbex/nanobrag_refinement.py:655-2053, tests/dbex/test_torch_refine_smoke.py:500-910, plans/active/REFINE-SMOKE-CANONICAL/reports/2025-11-21T042222Z/",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "REFINE-010",
+    "date": "2025-12-01",
+    "tags": [
+      "refinement",
+      "stage-a",
+      "roi-mode"
+    ],
+    "status": "Active",
+    "summary": "Stage A ROI-mode LBFGS on refGeom_small (29 ROIs) stalls at 0% improvement even with `roi_sample_fraction=1.0`, so Stage C microslip gates read `initial=final` despite detector offsets being corrected",
+    "source": "plans/active/ARCH-REFINE-001/reports/2025-12-01T105500Z/stage_c_stage_a_probe_cli.json, docs/spec-db-workflow.md:116-128",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "ORCH-CLAUDE-001",
+    "date": "2025-11-05",
+    "tags": [
+      "orchestration",
+      "cli",
+      "node"
+    ],
+    "status": "Active",
+    "summary": "Claude Code wrapper may fail with ENOENT when launched from Python if Node is not on PATH (conda env). Updated loop.py to invoke claude via login shell (bash -lc) so nvm PATH is respected; no Codex fa",
+    "source": "scripts/orchestration/loop.py:1",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "PERF-WARM-001",
+    "date": "2025-11-06",
+    "tags": [
+      "performance",
+      "refinement",
+      "lbfgs",
+      "cache",
+      "benchmarking",
+      "telemetry"
+    ],
+    "status": "Active",
+    "summary": "Stage A warm simulator cache via `StageAContext` eliminates per-iteration Detector model instantiation and mask tensorization within LBFGS closure. Prebuilds all per-panel Detector models, tensorizes ",
+    "source": "dbex/nanobrag_refinement.py:257-260,588-602,667-710,1000-1002, tests/dbex/test_torch_refine_smoke.py:374-378, plans/active/PERF-WARM-SIM-001/bin/benchmark_stage_a_cache.py:36-38,218-223, plans/active/PERF-WARM-SIM-001/reports/2025-11-06T111515Z/",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "PERF-WARM-002",
+    "date": "2025-11-21",
+    "tags": [
+      "performance",
+      "stage-a",
+      "caching"
+    ],
+    "status": "Active",
+    "summary": "Warm-mode still rebuilds `create_crystal_config` + `Crystal` (and per-panel `Simulator`) inside every `compute_loss` call, so the cached detector/mask tensors never amortize the expensive crystal inst",
+    "source": "dbex/nanobrag_refinement.py:722-910, plans/active/PERF-WARM-SIM-001/reports/2025-11-06T111515Z/benchmark_summary.json",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "CONVERGENCE-001",
+    "date": "2025-11-22",
+    "tags": [
+      "refinement",
+      "convergence",
+      "code-path-divergence",
+      "u-matrix"
+    ],
+    "status": "Active",
+    "summary": "Stage A U-matrix refinement diagnostic scripts must detect when ALL parameter deltas are zero (atol=1e-9, 6 cell + 4 orientation DOFs) and force `use_direct_mosflm_injection=True` to bypass the U @ B_",
+    "source": "plans/active/TOOLING-VIS-001/bin/stage_a_mapping_adam_debug.py:429-479, plans/active/TORCH-GEOMETRY-CONVERGENCE-001/reports/2025-11-22T244500Z/phase_c6b_convergence_decision.md",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "REFINE-009",
+    "date": "2025-11-23",
+    "tags": [
+      "refinement",
+      "stage-b",
+      "scope",
+      "bugfix"
+    ],
+    "status": "Resolved",
+    "summary": "Stage B initialization code referenced `canonical_roi_count` which was defined in helper function `_build_stage_a_params` (line 873) but NOT in scope within `run_nanobrag_refinement` (lines 2657, 3078",
+    "source": "dbex/nanobrag_refinement.py:2657,3078,3079; plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T061726Z/baseline/{blocker.md,canonical_roi_count_scope_fix.patch,summary.md}",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "REFINE-FLOW-001",
+    "date": "2025-11-23",
+    "tags": [
+      "refinement",
+      "engine-delegation",
+      "chi-squared",
+      "offset"
+    ],
+    "status": "Resolved",
+    "summary": "**RESOLVED (2025-12-01T170500Z):** Stage\u202fA now forces panel-mode baseline/final validations whenever Stage\u202fB or Stage\u202fC is enabled (dbex/refinement/stage_a.py:210-224) and `_check_stage_b_baseline_par",
+    "source": "dbex/refinement/stage_b_impl.py:34-176; tests/dbex/test_stage_b_cpu_fallback.py:381-470; tests/dbex/test_torch_refine_smoke.py:1258-1571; plans/active/ARCH-REFINE-001/reports/2025-12-01T161600Z/telemetry_stage_bc_small.json",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "REFINE-011",
+    "date": "2025-12-01",
+    "tags": [
+      "refinement",
+      "stage-c",
+      "telemetry"
+    ],
+    "status": "Active",
+    "summary": "Stage\u202fC ROI-mode closures still evaluate only the sampled ROI subset\u2014even for \u201cfull\u201d validations\u2014so once Stage\u202fA began forcing panel-mode canonical baselines per REFINE-FLOW-001, the Stage\u202fC smoke sta",
+    "source": "plans/active/PERF-WARM-SIM-001/reports/2025-12-01T171800Z/pytest_stage_c_full.log, docs/spec-db-workflow.md:62-75",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "REFINE-012",
+    "date": "2025-12-01",
+    "tags": [
+      "refinement",
+      "stage-c",
+      "roi-mode"
+    ],
+    "status": "Active",
+    "summary": "After REFINE-FLOW-001 forced Stage\u202fA panel-mode validations whenever Stage\u202fB/C run, Stage\u202fC still constructs its LBFGS closure from the Stage\u202fA ROI subset (\u224813/92 canonical ROIs) because `_build_stage",
+    "source": "dbex/refinement/stage_c_impl.py:178-213, dbex/refinement/stage_a.py:210-224, plans/active/PERF-WARM-SIM-001/reports/2025-12-01T171800Z/pytest_stage_c_full.log",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "REFINE-013",
+    "date": "2025-12-01",
+    "tags": [
+      "refinement",
+      "stage-c",
+      "telemetry"
+    ],
+    "status": "Active",
+    "summary": "Stage\u202fC\u2019s LBFGS closure updates `best_loss_full_c`, `chi_squared_best_c`, `masked_mse_best_c`, and `best_params_snapshot_c` but never writes the new tuples back into `telemetry_state`, so `_run_stage_",
+    "source": "dbex/refinement/stage_c_impl.py:600-770, plans/active/PERF-WARM-SIM-001/reports/2025-12-01T175316Z/stage_c_best_snapshot_bug.md",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "REFINE-014",
+    "date": "2025-12-01",
+    "tags": [
+      "refinement",
+      "stage-c",
+      "orientation"
+    ],
+    "status": "Active",
+    "summary": "Stage\u202fC wrapper reused Stage\u202fA telemetry\u2019s `misset_xyz_deg` (already expressed in degrees after Stage\u202fA\u2019s tanh clamp) to populate the LBFGS `orientation_vec`, so `_build_stage_c_lbfgs_closure` applied",
+    "source": "dbex/refinement/stage_c.py:174-355, plans/active/PERF-WARM-SIM-001/reports/2025-12-01T200900Z/telemetry_stage_c_full.json",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "REFINE-015",
+    "date": "2025-12-01",
+    "tags": [
+      "refinement",
+      "stage-c",
+      "scaling"
+    ],
+    "status": "Active",
+    "summary": "Stage\u202fC reuses Stage\u202fA\u2019s `log_scale` delta but ignores the calibrated baseline (`log_scale_baseline = log(\u221aspot_scale_override)`), so canonical smokes with mapping metadata immediately start 0.067\u202f% a",
+    "source": "dbex/refinement/stage_a_impl.py:1280-1296; dbex/refinement/stage_c.py:170-246; dbex/refinement/stage_c_impl.py:504-914; plans/active/PERF-WARM-SIM-001/reports/2025-12-01T204500Z/telemetry_stage_c_full.json",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "REFINE-016",
+    "date": "2025-12-01",
+    "tags": [
+      "refinement",
+      "stage-c",
+      "masking"
+    ],
+    "status": "Active",
+    "summary": "Stage\u202fA panel-mode validations intersect the ROI/loss mask with the per-panel DIALS trusted mask before calling `_compute_variance_weighted_loss` (`dbex/refinement/stage_a_impl.py:1336-1365`), but Sta",
+    "source": "dbex/refinement/stage_a_impl.py:1336-1365; dbex/refinement/stage_c_impl.py:512-593; plans/active/PERF-WARM-SIM-001/reports/2025-12-01T214200Z/trusted_mask_analysis.md",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "GRADIENT-003",
+    "date": "2025-11-23",
+    "tags": [
+      "gradients",
+      "cpu-fallback",
+      "stage-b",
+      "hkl-grid",
+      "transfer-corruption"
+    ],
+    "status": "Deferred",
+    "summary": "**ROOT CAUSE IDENTIFIED (95% confidence):** CPU fallback path produces zero Bragg intensities due to HKL grid CUDA\u2192CPU `.to(device='cpu')` transfer corruption. HKL stats show nonsensical Miller indice",
+    "source": "dbex/nanobrag_refinement.py:547 (HKL grid `.to(device='cpu')` corruption site), plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T{122329Z,140000Z}/{decision.md, root_cause_analysis_v4.md, pytest_stage_b_full_fixed.log}",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "GRADIENT-004",
+    "date": "2025-12-01",
+    "tags": [
+      "gradients",
+      "stage-c",
+      "warm-cache",
+      "detector-offsets"
+    ],
+    "status": "Resolved",
+    "summary": "Stage\u202fC warm-cache retargeting MUST keep `distance_offset_raw` tensors attached to the autograd graph when rebuilding detector models. Converting the bounded offsets to Python floats via `.item()` (db",
+    "source": "dbex/refinement/stage_c_impl.py:39-86; plans/active/ARCH-REFINE-001/reports/2025-12-01T112335Z/pytest_stage_bc_small_v2.log",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "ARCH-ENGINE-002",
+    "date": "2025-11-23",
+    "tags": [
+      "architecture",
+      "engine",
+      "staging",
+      "wrapper-pattern",
+      "telemetry"
+    ],
+    "status": "Active",
+    "summary": "StageC wrapper class (`dbex/refinement/stage_c.py`) successfully implements RefinementStage protocol following StageB pattern (Phase D2): (1) lazy imports inside `run()` method prevent circular depend",
+    "source": "dbex/refinement/stage_c.py:150-408, plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T{141817Z,151440Z}/phase_d{2,3_d5}/{decision.md,phase_d3_telemetry_validation.md}",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "ARCH-ENGINE-003",
+    "date": "2025-11-23",
+    "tags": [
+      "architecture",
+      "engine",
+      "phase-e",
+      "telemetry-enrichment"
+    ],
+    "status": "Active",
+    "summary": "Phase E telemetry enrichment (`engine_protocol`, `stage_modes` fields) must be injected into active engine delegation paths, not unreachable branches. Stage-A-only mode (lines 3800-3819, Phase B2 code",
+    "source": "dbex/nanobrag_refinement.py:3809-3814, tests/dbex/test_torch_refine_smoke.py:789-888, plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T170000Z/decision.md",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "REFINE-007-EXT",
+    "date": "2025-11-23",
+    "tags": [
+      "refinement",
+      "detector",
+      "telemetry",
+      "wrapper",
+      "validation"
+    ],
+    "status": "Active",
+    "summary": "Stage C detector offset refinement wrapper (Phase D complete) extends REFINE-007 with protocol-based implementation and validation methodology: (1) StageC class validates RefinementStage protocol comp",
+    "source": "dbex/refinement/stage_c.py:398-408, tests/dbex/test_torch_refine_smoke.py::test_stage_c_detector_microslip, plans/active/ARCH-REFINE-FLOW-001/reports/2025-11-23T151440Z/phase_d3_d5/",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "ARCH-STAGE-CTX-001",
+    "date": "2025-12-02",
+    "tags": [
+      "architecture",
+      "context",
+      "telemetry"
+    ],
+    "status": "Active",
+    "summary": "Stage implementations still pass 10\u201315 positional arguments (`crystal`, `detector`, `beam`, `inputs`, `hkl_grid`, `hkl_metadata`, `config`, `sigma_floor_sq_cache`, `device`, `dtype`, `baseline_crystal",
+    "source": "dbex/refinement/stage_a_impl.py:1222-1500, dbex/refinement/stage_b_impl.py:40-210, dbex/refinement/stage_c_impl.py:60-310, dbex/refinement/engine.py:120-210, problems.md (2025-12-01 design review)",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "ARCH-STAGE-CTX-002",
+    "date": "2025-12-02",
+    "tags": [
+      "architecture",
+      "telemetry",
+      "stage-b"
+    ],
+    "status": "Active",
+    "summary": "Stage\u202fB baseline parity guard (`_check_stage_b_baseline_parity`) still mutates telemetry shims via `telemetry['stage_b_baseline_rel_diff'] = \u2026` and writes diff paths directly into dicts. After StageBT",
+    "source": "dbex/refinement/stage_b_impl.py:34-180; dbex/refinement/context.py:624-680; tests/dbex/test_torch_refine_smoke.py:1258-1571; plans/active/ARCH-STAGE-CONTEXT-001/reports/2025-12-02T110000Z/pytest_stage_b_shell.log",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "ARCH-FACTORY-001",
+    "date": "2025-11-24",
+    "tags": [
+      "architecture",
+      "simulator",
+      "factory",
+      "autograd",
+      "scope"
+    ],
+    "status": "Active",
+    "summary": "Unified simulator factory (`create_unified_simulator` in dbex/refinement/helpers.py) is designed for **forward-only simulation** paths (zero-iteration mapping, forward helpers without gradients). Fact",
+    "source": "dbex/refinement/helpers.py:82-216, plans/active/TORCH-API-ALIGN-001/reports/2025-11-24T000000Z/phase_b2_scope_clarification.md",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "ARCH-FACTORY-003",
+    "date": "2025-11-23",
+    "tags": [
+      "architecture",
+      "experiment-model",
+      "upstream-bug",
+      "parity",
+      "blocker"
+    ],
+    "status": "Active",
+    "summary": "ExperimentModel adapter Phase B3 BLOCKED by upstream nanobrag_torch single-pixel outlier bug. Phase B3 tolerance sweep experiment (2025-11-23T215000Z) reveals max_abs_diff=5.03e-03 (50x beyond numeric",
+    "source": "tests/dbex/test_experiment_parity.py::test_parity_small_fixture, plans/active/TORCH-API-ALIGN-001/reports/2025-11-23T215000Z/, dbex/refinement/helpers.py:218-328 (adapter function)",
+    "has_path_line": true,
+    "notes": ""
+  },
+  {
+    "id": "REFINE-008",
+    "date": "2025-11-24",
+    "tags": [
+      "refinement",
+      "stage-b",
+      "per-reflection",
+      "asu-mapping",
+      "adam-optimizer",
+      "gradient-flow"
+    ],
+    "status": "Active",
+    "summary": "Per-reflection Fhkl modifiers mapped to unique ASU indices via cctbx.miller symmetry operations (Friedel folding + space group equivalence). Dynamic optimizer selection: LBFGS for n_asu < 10K (memory-",
+    "source": "dbex/nanobrag_refinement.py:239-447,2435-2823,5123-5179; tests/dbex/test_torch_refine_smoke.py:1535-1672,tests/dbex/test_stage_b_asu_mapping.py; plans/active/TORCH-REFINE-004/reports/2025-11-24T{125000Z,092549Z,110000Z}/",
+    "has_path_line": true,
+    "notes": ""
+  }
+]

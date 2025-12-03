@@ -1268,3 +1268,41 @@ Not "shared mutable state due to reference assignment in Detector.__init__()" bu
 - Blocks: ARCH-SIM-CONSTRUCTION-001, ARCH-REFACTOR-001 Phase D.3
 
 **Next Action**: Ralph implements Phase C (config threading + 6 call-site updates) per input.md
+2025-12-02T220000Z focus=DIAG-NANOBRAGG-OVERSAMPLE-001 state=planning dwell=1 action=evidence_collection artifacts=plans/active/DIAG-NANOBRAGG-OVERSAMPLE-001/reports/2025-12-02T220000Z/ next_action=switch_focus_to_ARCH-SIM-CONSTRUCTION-001_phase_d
+
+**Phase C Review (Ralph commit aa74003e)**:
+- Config lifecycle fix ✅ COMPLETE: 292/292 DetectorConfig instances have oversample=3 (was 2/292)
+- Zero auto-selection events ✅
+- test_stage_a_expansion failure is pre-existing (also fails on parent commit aa74003e~1), not regression
+- Deep copy fix (Phase B) remains in place, defensive programming benefit
+
+**Exit Criteria Validation** — **BLOCKED by new blocker**:
+- DB-AT-028/029 tests RUN but produce zero Bragg output
+- Scale factor calculation CORRECT: exp(20.138) = 5.57e8
+- Simulator raw output ALL ZEROS: bragg_panel mean=0.000e+00, max=0.000e+00
+- Cannot validate unblocking of ARCH-SIM-CONSTRUCTION-001 without working simulator
+
+**Root Cause Discovery**:
+- Oversample parameter fix was NECESSARY but INSUFFICIENT
+- Deeper issue: simulator producing zero diffraction signal despite:
+  ✓ Correct scale_factor (5.57e8)
+  ✓ Correct oversample (3, not -1)
+  ✓ Valid calibration metadata (spot_scale=3.1e17, log_scale_baseline=20.138)
+- Suspects: HKL grid empty, crystal config invalid, detector geometry issue, or nanobrag_torch internal bug
+
+**Portfolio Steering Decision**:
+- Mark DIAG-NANOBRAGG-OVERSAMPLE-001 **done** (diagnostics scope achieved: config lifecycle fixed)
+- Switch focus to ARCH-SIM-CONSTRUCTION-001 Phase D (zero-output root cause investigation)
+- Rationale: Avoids initiative proliferation; ARCH-SIM-CONSTRUCTION-001 already owns reconstruction magnitude issue
+- Oversample fix provides foundation for next investigation phase
+
+**Lifecycle**:
+- Initiative type: diagnostics
+- Attempt count: 3 (Phase A, Phase B, Phase C)
+- Technical deliverables: ✅ COMPLETE (292/292 configs, patches saved, findings documented)
+- Exit criteria: ❌ BLOCKED by simulator zero-output (out of oversample diagnostics scope)
+- Status: in_progress → **done (incomplete validation due to separate blocker)**
+- Unblocking: ARCH-SIM-CONSTRUCTION-001 remains blocked, now by zero-output issue (not oversample)
+
+**Next Action**: Switch to ARCH-SIM-CONSTRUCTION-001, issue Phase D Do Now (HKL/crystal/beam config debug instrumentation)
+

@@ -1,0 +1,24 @@
+[
+  {
+    "timestamp": "2025-12-03T21:35:57.248482Z",
+    "panels": [
+      {
+        "panel_id": 0,
+        "coverage": 0.9043846130371094,
+        "mask_injected": true,
+        "fallback_reason": null
+      }
+    ]
+  },
+  {
+    "timestamp": "2025-12-03T21:36:06.598010Z",
+    "panels": [
+      {
+        "panel_id": 0,
+        "coverage": 0.9043846130371094,
+        "mask_injected": true,
+        "fallback_reason": null
+      }
+    ]
+  }
+]

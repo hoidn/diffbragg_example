@@ -399,73 +399,83 @@ class StageA:
                 config=config,  # DIAG-NANOBRAGG-OVERSAMPLE-001
             )
 
-        # Priority 1 (revised): When calibration was adjusted for N_cells, derive Stage A baseline
-        # from warmed simulator output instead of using global_scale_hint directly (TOOLING-VIS-001 Phase E).
-        # This ensures the baseline matches what the Stage A model actually produces at the mapping zero point.
+        # Priority 1 (revised): When a warm cache exists, derive Stage A baseline from masked intensities.
+        # Always compute target_mean_masked / model_mean_masked and adjust log_scale_baseline by the ratio
+        # so zero-iteration Stage A predictions align with the masked target (ARCH-SIM-CONSTRUCTION-001 Phase C.8).
+        # This ensures the baseline encodes the correct masked intensity before refinement deltas are applied.
         target_mean_masked = None
         model_mean_masked = None
-        if stage_a_ctx is not None and config.calibration_metadata is not None:
-            calibration_adjusted = config.calibration_metadata.get("calibration_adjusted_for_n_cells", False)
-            if calibration_adjusted:
-                # Tensorize inputs.target and inputs.loss_mask onto stage_a_ctx.device for device-neutral computation
-                # (TOOLING-VIS-001 Phase D.E — keep dtype/device agnostic so CUDA runs remain supported)
-                target_t = None
-                loss_mask_t = None
-                if inputs.target is not None and inputs.loss_mask is not None:
-                    try:
-                        target_t = torch.as_tensor(inputs.target, device=device, dtype=dtype)
-                        loss_mask_t = torch.as_tensor(inputs.loss_mask, device=device, dtype=torch.bool)
-                    except Exception:
-                        # Device mismatch or conversion error; fall back to numpy path
-                        target_t = None
-                        loss_mask_t = None
-
-                # Compute target mean from MASKED pixels (use actual target intensity, not global_scale_hint)
-                # global_scale_hint is a relative scale factor, not an absolute intensity
-                if target_t is not None and loss_mask_t is not None:
-                    try:
-                        target_mean_masked = float(target_t[loss_mask_t].mean().item())
-                    except Exception:
-                        # Fallback to numpy if tensor indexing fails
-                        target_mean_masked = float(inputs.target[inputs.loss_mask].mean())
-
-                # Compute model mean from Stage A warmed simulators at delta=0
-                # Build zero-iteration Bragg stack from warmed simulators
+        if stage_a_ctx is not None:
+            # Tensorize inputs.target and inputs.loss_mask onto stage_a_ctx.device for device-neutral computation
+            # (TOOLING-VIS-001 Phase D.E — keep dtype/device agnostic so CUDA runs remain supported)
+            target_t = None
+            loss_mask_t = None
+            if inputs.target is not None and inputs.loss_mask is not None:
                 try:
-                    with torch.no_grad():
-                        bragg_samples = [simulator.run() for simulator in stage_a_ctx.simulators]
-                        bragg_stack = torch.stack(bragg_samples, dim=0)
-                        # Apply spot_scale_override per SCALE-002 (sqrt factor)
-                        # When calibration was adjusted for N_cells, spot_scale_override contains
-                        # the adjustment-factor-corrected value, so applying it here gives the
-                        # mapping-aligned model intensity (TOOLING-VIS-001 Phase D.E, SCALE-008)
-                        spot_scale_override = config.calibration_metadata.get("spot_scale_override", 1.0)
-                        sqrt_spot_scale = float(np.sqrt(spot_scale_override)) if spot_scale_override > 0 else 1.0
-                        bragg_stack_scaled = bragg_stack * sqrt_spot_scale
-                        # Compute masked mean to match target_mean computation (use tensorized mask)
-                        if loss_mask_t is not None:
-                            model_mean_masked = float(bragg_stack_scaled[loss_mask_t].mean().item())
-                        else:
-                            # Fallback to numpy mask if tensorization failed
-                            model_mean_masked = float(bragg_stack_scaled[inputs.loss_mask].mean().item())
+                    target_t = torch.as_tensor(inputs.target, device=device, dtype=dtype)
+                    loss_mask_t = torch.as_tensor(inputs.loss_mask, device=device, dtype=torch.bool)
                 except Exception:
-                    # Fall back to previous behavior if simulator forward fails
-                    model_mean_masked = None
+                    # Device mismatch or conversion error; fall back to numpy path
+                    target_t = None
+                    loss_mask_t = None
 
-                # Compute log_scale_baseline from ratio (guard against invalid values)
-                if target_mean_masked is not None and target_mean_masked > 0 and model_mean_masked is not None and model_mean_masked > 0:
-                    try:
-                        log_scale_baseline = float(np.log(target_mean_masked / model_mean_masked))
-                        log_scale_baseline_source = "mapping_global_scale_hint"
-                        # Update stage_a_ctx so engine + inline callers share the same baseline telemetry
-                        stage_a_ctx.log_scale_baseline = log_scale_baseline
-                        # Record the adjustment factor so telemetry shows the mapping correction was honored
+            # Compute target mean from MASKED pixels (use actual target intensity, not global_scale_hint)
+            # global_scale_hint is a relative scale factor, not an absolute intensity
+            if target_t is not None and loss_mask_t is not None:
+                try:
+                    target_mean_masked = float(target_t[loss_mask_t].mean().item())
+                except Exception:
+                    # Fallback to numpy if tensor indexing fails
+                    target_mean_masked = float(inputs.target[inputs.loss_mask].mean())
+
+            # Compute model mean from Stage A warmed simulators at delta=0
+            # Build zero-iteration Bragg stack from warmed simulators
+            try:
+                with torch.no_grad():
+                    bragg_samples = [simulator.run() for simulator in stage_a_ctx.simulators]
+                    bragg_stack = torch.stack(bragg_samples, dim=0)
+                    # Apply spot_scale_override per SCALE-002 (sqrt factor)
+                    # Extract spot_scale_override from calibration_metadata when present
+                    spot_scale_override = 1.0
+                    if config.calibration_metadata is not None:
+                        spot_scale_override = config.calibration_metadata.get("spot_scale_override", 1.0)
+                    sqrt_spot_scale = float(np.sqrt(spot_scale_override)) if spot_scale_override > 0 else 1.0
+                    bragg_stack_scaled = bragg_stack * sqrt_spot_scale
+                    # Compute masked mean to match target_mean computation (use tensorized mask)
+                    if loss_mask_t is not None:
+                        model_mean_masked = float(bragg_stack_scaled[loss_mask_t].mean().item())
+                    else:
+                        # Fallback to numpy mask if tensorization failed
+                        model_mean_masked = float(bragg_stack_scaled[inputs.loss_mask].mean().item())
+            except Exception:
+                # Fall back to previous behavior if simulator forward fails
+                model_mean_masked = None
+
+            # Adjust log_scale_baseline by the target/model ratio when both means are positive
+            # This ensures the baseline reflects the actual masked intensity match before any LBFGS deltas
+            if target_mean_masked is not None and target_mean_masked > 0 and model_mean_masked is not None and model_mean_masked > 0:
+                try:
+                    baseline_adjustment = float(np.log(target_mean_masked / model_mean_masked))
+                    # When calibration metadata is absent or log_scale_baseline is still None, set it directly
+                    if log_scale_baseline is None:
+                        log_scale_baseline = baseline_adjustment
+                        log_scale_baseline_source = "masked_intensity_ratio"
+                    else:
+                        # When calibration metadata provided a baseline, ADD the adjustment to align with masked target
+                        log_scale_baseline = float(log_scale_baseline + baseline_adjustment)
+                        log_scale_baseline_source = "spot_scale_override_sqrt_plus_masked_adjustment"
+                    # Update config.log_scale_baseline so downstream stages consume the corrected baseline
+                    config.log_scale_baseline = log_scale_baseline
+                    # Update stage_a_ctx so engine + inline callers share the same baseline telemetry
+                    stage_a_ctx.log_scale_baseline = log_scale_baseline
+                    # Record the adjustment factor if present (for telemetry)
+                    if config.calibration_metadata is not None:
                         adjustment_factor_raw = config.calibration_metadata.get("spot_scale_override_adjustment_factor")
                         if adjustment_factor_raw is not None:
                             spot_scale_override_adjustment_factor = float(adjustment_factor_raw)
-                    except (TypeError, ValueError, OverflowError):
-                        # Fallback: keep the baseline from Priority 2 or None
-                        pass
+                except (TypeError, ValueError, OverflowError):
+                    # Fallback: keep the baseline from Priority 2 or None
+                    pass
 
         # Heuristic scale warm-start (ADU mode): estimate model mean at delta=0 and
         # initialize log_scale to match the observed target mean. Skip when no cache.

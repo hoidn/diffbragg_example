@@ -1,0 +1,16 @@
+[ARCH-SIM-CONSTRUCTION-001 DEBUG]
+  log_scale_baseline_value: 20.138489594990745
+  log_scale (param_deltas_a): 5.549979675834038e-08
+  delta_bound: 3.0
+  scale_factor (after exp): 557230080.0
+  sqrt_spot_scale: 557230532.6778347
+  spot_scale_override: 3.105058665484234e+17
+auto-selected 1-fold oversampling
+[HKL stats] h=[-17,23] k=[-23,23] l=[0,14] hit_rate=6013684/6224001 (96.62%)
+  bragg_panel[0] mean (raw sim output): 1.839284e-14
+  bragg_panel[0] max: 7.565992e-13
+  bragg_scaled[0] mean (after scale_factor): 1.024905e-05
+  bragg_full mean (final output): 1.024904e-05
+  bragg_full max: 4.215998e-04
+[END DEBUG]
+auto-selected 3-fold oversampling

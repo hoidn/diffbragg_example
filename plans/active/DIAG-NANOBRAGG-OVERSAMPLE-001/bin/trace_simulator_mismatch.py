@@ -256,13 +256,16 @@ def main():
     # ============================================================
     # 2. Build Stage A warm cache
     # ============================================================
-    print("[2/5] Building Stage A warm cache (oversample=3)...")
+    print("[2/5] Building Stage A warm cache (oversample=3, HKL stats enabled)...")
 
     # Use RefinementConfig with oversample=3
     refinement_config = RefinementConfig(oversample=3)
 
     # Panel mode (empty panel_slices)
     panel_slices = []
+
+    # Enable HKL stats collection via debug_config
+    debug_config = {'collect_hkl_stats': True}
 
     stage_a_ctx = _build_stage_a_context(
         detector=baseline_detector,
@@ -280,6 +283,7 @@ def main():
         log_scale_baseline=None,
         apply_calibration_n_cells=True,
         config=refinement_config,
+        debug_config=debug_config,
     )
 
     # Get first panel simulator
@@ -297,13 +301,9 @@ def main():
     simulator.trace_pixel = [args.trace_slow, args.trace_fast]
 
     # DIAG-NANOBRAGG-OVERSAMPLE-001 Phase F: Enable HKL stats collection
-    # Since debug_config is read during __init__, we update it and also manually initialize
-    # the internal state to avoid touching private fields directly
-    simulator.debug_config['collect_hkl_stats'] = True
-    # Re-read the flag to enable collection (Simulator reads this in __init__ and run())
-    # The run() method will reset _hkl_stats at the start, so we rely on that mechanism
-    simulator._hkl_stats_enabled = simulator.debug_config.get('collect_hkl_stats', False)
-    simulator._hkl_stats = {} if simulator._hkl_stats_enabled else None
+    # Note: HKL stats must be enabled during simulator construction via debug_config.
+    # For cached simulators, we cannot enable it post-construction, so we'll rely on
+    # the new Stage A context building path that passes debug_config through.
 
     print(f"  trace_pixel: {simulator.trace_pixel}")
     print(f"  printout: {simulator.printout}")

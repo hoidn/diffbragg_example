@@ -84,9 +84,9 @@ from dbex.refinement.config import RefinementConfig  # noqa: F401
 # Duplicate class definition removed; see dbex/refinement/stage.py for the authoritative schema
 
 
-# ARCH-STAGE-CONTEXT-001 Phase D: Final Bragg reconstruction helpers moved to dbex.refinement.reconstruction
-# _build_final_bragg_from_stage_a_telemetry and _build_final_bragg_from_stage_b_telemetry now imported from reconstruction module
-# See dbex/refinement/reconstruction.py for the canonical definitions
+# ARCH-ENGINE-ARTIFACTS-001 Phase C.1: Final Bragg arrays now exclusively sourced from artifact channel
+# Reconstruction helpers (build_final_bragg_from_stage_a/b_telemetry) no longer called from this module
+# See dbex/refinement/reconstruction.py for reconstruction helpers used by parity tests
 
 
 def run_nanobrag_refinement(
@@ -223,22 +223,14 @@ def run_nanobrag_refinement(
         telemetry_a_dict["stage_modes"] = {}  # No Stage B/C enabled
         telemetry_a_enriched = RefinementTelemetry(**telemetry_a_dict)
 
-        # ARCH-STAGE-CONTEXT-001 Phase D: Build final Bragg from artifacts or telemetry fallback
-        # Try to read bragg_full from Stage A artifacts first (populated when Stage A is terminal)
-        if stage_a_artifacts is not None and hasattr(stage_a_artifacts, 'bragg_full') and stage_a_artifacts.bragg_full is not None:
-            bragg_full = stage_a_artifacts.bragg_full
-        else:
-            # Fallback: Build final Bragg using optimized parameters from telemetry
-            # (for older binaries that don't populate artifact bragg_full)
-            from dbex.refinement.reconstruction import build_final_bragg_from_stage_a_telemetry
-            device = torch.device(config.device)
-            dtype = config.dtype
-            bragg_full = build_final_bragg_from_stage_a_telemetry(
-                telemetry_a_enriched, detector, beam, crystal, inputs, hkl_grid,
-                hkl_metadata, config, device, dtype,
-                stage_a_ctx=stage_a_ctx,
-                baseline_crystal=baseline_crystal,
+        # ARCH-ENGINE-ARTIFACTS-001 Phase C.1: Build final Bragg from artifact channel
+        # Stage A unconditionally populates bragg_full in StageAArtifacts (verified by parity tests)
+        if stage_a_artifacts is None or not hasattr(stage_a_artifacts, 'bragg_full') or stage_a_artifacts.bragg_full is None:
+            raise RuntimeError(
+                "Stage A did not produce final Bragg array in artifacts. "
+                "This is a bug in the Stage A wrapper."
             )
+        bragg_full = stage_a_artifacts.bragg_full
 
         # Return with telemetry dict using "A" key for backward compatibility
         # (Legacy code expects {"A": RefinementTelemetry, ...})
@@ -364,49 +356,14 @@ def run_nanobrag_refinement(
             optimizer_type = None
             asu_modifier_stats = None
 
-        # ARCH-STAGE-CONTEXT-001 Phase D: Build final Bragg from artifacts or telemetry fallback
-        # Try to read bragg_full from Stage B artifacts first (populated when Stage B is terminal)
-        if stage_b_artifacts is not None and hasattr(stage_b_artifacts, 'bragg_full') and stage_b_artifacts.bragg_full is not None:
-            bragg_full = stage_b_artifacts.bragg_full
-        else:
-            # Fallback: Build final Bragg using optimized parameters from telemetry
-            # (for older binaries that don't populate artifact bragg_full)
-            from dbex.refinement.reconstruction import build_final_bragg_from_stage_b_telemetry
-            # Create a dict version of telemetry_b with shell metadata for the helper
-            from dataclasses import asdict
-            telemetry_b_dict = asdict(telemetry_b_raw)
-            if shell_edges is not None:
-                telemetry_b_dict['shell_edges'] = shell_edges
-            if shell_indices is not None:
-                telemetry_b_dict['shell_indices'] = shell_indices
-            if n_shells is not None:
-                telemetry_b_dict['n_shells'] = n_shells
-            # Add custom attributes back to dict (Phase 8 fix #2)
-            if stage_b_mode is not None:
-                telemetry_b_dict['stage_b_mode'] = stage_b_mode
-            if n_asu_unique is not None:
-                telemetry_b_dict['n_asu_unique'] = n_asu_unique
-            if optimizer_type is not None:
-                telemetry_b_dict['optimizer_type'] = optimizer_type
-            if asu_modifier_stats is not None:
-                telemetry_b_dict['asu_modifier_stats'] = asu_modifier_stats
-
-            bragg_full = build_final_bragg_from_stage_b_telemetry(
-                telemetry_a=telemetry_a_raw,
-                telemetry_b=telemetry_b_dict,
-                detector=detector,
-                beam=beam,
-                crystal=crystal,
-                baseline_crystal=baseline_crystal,
-                inputs=inputs,
-                hkl_grid=hkl_grid,
-                hkl_metadata=hkl_metadata,
-                config=config,
-                device=final_device,  # Use CPU device if CPU fallback is active
-                dtype=dtype,
-                use_stage_b_cpu_fallback=use_stage_b_cpu_fallback,
-                stage_a_ctx=stage_b_eval_stage_a_ctx,  # Use CPU-cloned context when fallback active
+        # ARCH-ENGINE-ARTIFACTS-001 Phase C.1: Build final Bragg from artifact channel
+        # Stage B unconditionally populates bragg_full in StageBartifacts (verified by parity tests)
+        if stage_b_artifacts is None or not hasattr(stage_b_artifacts, 'bragg_full') or stage_b_artifacts.bragg_full is None:
+            raise RuntimeError(
+                "Stage B did not produce final Bragg array in artifacts. "
+                "This is a bug in the Stage B wrapper."
             )
+        bragg_full = stage_b_artifacts.bragg_full
 
         # Repackage telemetry with backward-compatible keys ("A", "B")
         # Use engine's telemetry objects directly to preserve custom attributes (Phase 8 Alternative pattern)
